@@ -23,7 +23,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
-- [[Clave temporal = DNI]] ⚠️ *(riesgo de seguridad abierto)*
+- [[Clave temporal = DNI]]
 - [[Notificaciones de pagos]]
 - [[Importador de clientes]]
 - [[Interés compuesto]]

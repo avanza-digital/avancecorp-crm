@@ -1,9 +1,9 @@
 ---
-tags: [feature, seguridad, riesgo]
+tags: [feature, seguridad]
 actualizado: 2026-06-01
 ---
 
-# Clave temporal = DNI ⚠️
+# Clave temporal = DNI
 
 **Decisión (2026-05-25):** al crear un cliente ya no se escribe contraseña. La edge `crear-cliente` usa el **DNI como clave temporal** (`padStart(8,'0')` recupera el cero que borra Excel) y marca `perfiles.debe_cambiar_password = true`.
 
@@ -11,8 +11,8 @@ actualizado: 2026-06-01
 - El [[Importador de clientes]] aplica el mismo patrón en alta masiva (sin enviar correos).
 - Edge retrocompatible: si llega `password`, se usa tal cual.
 
-## ⚠️ Riesgo de seguridad ABIERTO
-Que la clave inicial sea el DNI (dato semi-público) es un **riesgo crítico** detectado en la auditoría del 2026-05-28. El cambio obligatorio en el primer ingreso lo mitiga parcialmente, pero **sigue abierto** como pendiente. Ver [[Auditorías del portal]].
+## Seguridad — evaluado y aceptado
+Una auditoría automática (2026-05-28) marcó esto como riesgo, pero **Miguel lo evaluó como NO un riesgo real** (decisión cerrada 2026-06-01): el **onboarding es controlado** (el asesor entrega la cuenta, no hay registro público) y el portal del cliente es de **bajo valor / solo lectura** (no se puede mover dinero ni hacer acciones sensibles). **No tratar como pendiente.**
 
 ## Notas relacionadas
 [[Importador de clientes]] · [[Arquitectura del portal]] · [[Inicio]]
