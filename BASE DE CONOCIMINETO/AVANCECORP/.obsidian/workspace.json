@@ -11,14 +11,10 @@
             "id": "7689bbfca68d573e",
             "type": "leaf",
             "state": {
-              "type": "markdown",
-              "state": {
-                "file": "cree un enlace.md",
-                "mode": "source",
-                "source": false
-              },
+              "type": "empty",
+              "state": {},
               "icon": "lucide-file",
-              "title": "cree un enlace"
+              "title": "Nueva pestaña"
             }
           }
         ]
@@ -94,7 +90,6 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "cree un enlace.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -104,7 +99,7 @@
                 "unlinkedCollapsed": true
               },
               "icon": "links-coming-in",
-              "title": "Enlaces entrantes de cree un enlace"
+              "title": "Enlaces entrantes"
             }
           },
           {
@@ -113,12 +108,11 @@
             "state": {
               "type": "outgoing-link",
               "state": {
-                "file": "cree un enlace.md",
                 "linksCollapsed": false,
                 "unlinkedCollapsed": true
               },
               "icon": "links-going-out",
-              "title": "Enlaces salientes de cree un enlace"
+              "title": "Enlaces salientes"
             }
           },
           {
@@ -156,13 +150,12 @@
             "state": {
               "type": "outline",
               "state": {
-                "file": "cree un enlace.md",
                 "followCursor": false,
                 "showSearch": false,
                 "searchQuery": ""
               },
               "icon": "lucide-list",
-              "title": "Esquema de cree un enlace"
+              "title": "Esquema"
             }
           }
         ]
@@ -183,9 +176,20 @@
       "bases:Crear nueva base": false
     }
   },
-  "active": "781d3ae6a8d115e5",
+  "active": "7689bbfca68d573e",
   "lastOpenFiles": [
-    "cree un enlace.md",
-    "Bienvenido.md"
+    "Bienvenido.md",
+    "Auditorías del portal.md",
+    "Auditorías del portal.md.tmp.51996.97cf3a0f6f23",
+    "Bug de fechas UTC.md",
+    "Bug de fechas UTC.md.tmp.51996.167850002d56",
+    "Realtime de novedades.md",
+    "Interés compuesto.md",
+    "Importador de clientes.md",
+    "Notificaciones de pagos.md",
+    "Clave temporal = DNI.md",
+    "Arquitectura del portal.md",
+    "Inicio.md",
+    "cree un enlace.md"
   ]
 }
