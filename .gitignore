@@ -1,0 +1,33 @@
+# .gitignore — qué NUNCA debe versionar git en este repo.
+# Protege secretos y mantiene fuera los directorios pesados/sensibles.
+
+# --- SO / temporales ---
+.DS_Store
+~$*
+
+# --- Secretos / entorno (NUNCA versionar) ---
+.env
+*.env
+.env.*
+*.pem
+*.key
+*.p12
+credentials*.json
+service_role*
+
+# --- Archivos y respaldos pesados ---
+*.zip
+*.pptx
+_ARCHIVO_VIEJO/
+_backups/
+_dev_backup/
+_dev_artifacts/
+_DEV_NO_SUBIR/
+_no-subir-a-hostinger/
+
+# --- Dependencias ---
+node_modules/
+**/node_modules/
+
+# --- Salida de graphify (la reconstruye el hook; fuera de control de versiones por defecto) ---
+graphify-out/

@@ -1,0 +1,31 @@
+# .graphifyignore — controla qué archivos ingiere el grafo de conocimiento.
+# Tiene prioridad sobre .gitignore (graphify usa este si existe).
+# Objetivo: grafo enfocado en conocimiento VIVO del proyecto + el vault de Obsidian.
+
+# --- Archivos y respaldos pesados (no son conocimiento vivo) ---
+_ARCHIVO_VIEJO/
+_backups/
+_dev_backup/
+_dev_artifacts/
+_DEV_NO_SUBIR/
+_no-subir-a-hostinger/
+
+# --- Dependencias / artefactos de build ---
+node_modules/
+**/node_modules/
+
+# --- Binarios grandes (no aportan al grafo de texto) ---
+*.pptx
+*.zip
+*.docx
+
+# --- Basura de SO / temporales ---
+.DS_Store
+~$*
+
+# --- Salidas de herramientas / VCS ---
+graphify-out/
+.git/
+
+# --- Config interna de Obsidian (conservamos las notas .md, no el config de plugins) ---
+**/.obsidian/
