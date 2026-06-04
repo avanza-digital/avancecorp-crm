@@ -48,7 +48,11 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { email, password, nombre_completo, dni, telefono } = body || {};
+    const { email, password, nombre_completo, dni, telefono, rol } = body || {};
+
+    // El superadmin (ya validado) puede crear miembros del equipo: 'admin' (default)
+    // o 'analista'. Cualquier otro valor cae a 'admin' por seguridad.
+    const rolFinal = rol === "analista" ? "analista" : "admin";
 
     if (!email || !password || !nombre_completo || !dni) {
       return json(cors, { error: "email, password, nombre_completo y dni son obligatorios" }, 400);
@@ -84,7 +88,7 @@ Deno.serve(async (req: Request) => {
         dni: dni ? String(dni).trim() : null,
         telefono: telefono ? String(telefono).trim() : null,
         correo: emailNorm,
-        rol: "admin",
+        rol: rolFinal,
         activo: true,
         creado_por: userRes.user.id,
       });

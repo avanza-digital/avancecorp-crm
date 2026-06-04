@@ -47,7 +47,10 @@ Deno.serve(async (req: Request) => {
       .eq("id", userRes.user.id)
       .single();
 
-    if (!perfil || !perfil.activo || !["admin", "superadmin"].includes(perfil.rol)) {
+    // Pueden crear clientes: admin, superadmin y ANALISTA (alta de cliente nuevo).
+    // creado_por queda = quien llama (más abajo), así el analista "es dueño" del
+    // cliente que registró: solo él lo ve/corrige (RLS) dentro de su ventana de 5 h.
+    if (!perfil || !perfil.activo || !["admin", "superadmin", "analista"].includes(perfil.rol)) {
       return json(cors, { error: "No autorizado" }, 403);
     }
 

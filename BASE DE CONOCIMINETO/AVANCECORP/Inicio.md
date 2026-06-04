@@ -23,6 +23,7 @@ Hay **tres capas**, complementarias:
 - [[Arquitectura del portal]] — stack, base de datos, edge functions, seguridad (resumen).
 
 **Features y decisiones:**
+- [[Rol Analista]]
 - [[Clave temporal = DNI]]
 - [[Notificaciones de pagos]]
 - [[Importador de clientes]]
