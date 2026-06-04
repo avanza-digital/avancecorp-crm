@@ -17,7 +17,7 @@ actualizado: 2026-06-01
 ## Base de datos — 9 tablas (schema `public`)
 `perfiles` · `asesores` · `contratos` · `cronograma_pagos` · `documentos` · `novedades` · `novedades_leidas` · `suscripciones_push` · `audit_log`.
 
-- **`perfiles`**: usuarios con rol `cliente|admin|superadmin`. FK `perfiles.id → auth.users.id ON DELETE CASCADE`.
+- **`perfiles`**: usuarios con rol `cliente|analista|admin|superadmin`. FK `perfiles.id → auth.users.id ON DELETE CASCADE`. El rol **`analista`** (alta acotada de clientes+contratos, ventana de 5 h) → ver [[Rol Analista]].
 - Relación central: `contratos → cronograma_pagos` (cuotas) → ver [[Interés compuesto]] y [[Notificaciones de pagos]].
 
 ## Seguridad — RLS
@@ -29,4 +29,4 @@ actualizado: 2026-06-01
 `crear-cliente` · `crear-admin` · `resetear-password` · `eliminar-cliente` · `importar-clientes` ([[Importador de clientes]]) · `enviar-comunicado` · `enviar-push` · `notificar-pagos` ([[Notificaciones de pagos]]).
 
 ## Notas relacionadas
-[[Clave temporal = DNI]] · [[Bug de fechas UTC]] · [[Auditorías del portal]] · [[Inicio]]
+[[Rol Analista]] · [[Clave temporal = DNI]] · [[Bug de fechas UTC]] · [[Auditorías del portal]] · [[Inicio]]
