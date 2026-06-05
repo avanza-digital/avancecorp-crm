@@ -43,16 +43,23 @@ Deno.serve(async (req: Request) => {
       .eq("id", userRes.user.id)
       .single();
 
-    if (!perfilCaller || !perfilCaller.activo || perfilCaller.rol !== "superadmin") {
-      return json(cors, { error: "Solo un superadmin puede crear administradores" }, 403);
+    if (!perfilCaller || !perfilCaller.activo || !["admin", "superadmin"].includes(perfilCaller.rol)) {
+      return json(cors, { error: "No autorizado" }, 403);
     }
 
     const body = await req.json();
     const { email, password, nombre_completo, dni, telefono, rol } = body || {};
 
-    // El superadmin (ya validado) puede crear miembros del equipo: 'admin' (default)
-    // o 'analista'. Cualquier otro valor cae a 'admin' por seguridad.
-    const rolFinal = rol === "analista" ? "analista" : "admin";
+    // Quién puede crear qué (se decide en el SERVIDOR, no se confía en el front):
+    //  - superadmin: 'admin' (default) o 'analista'.
+    //  - admin normal: SOLO 'analista' (NO puede crear otros admins → sin escalada).
+    const esSuperadmin = perfilCaller.rol === "superadmin";
+    if (!esSuperadmin && rol === "admin") {
+      return json(cors, { error: "Un administrador solo puede crear analistas" }, 403);
+    }
+    const rolFinal = esSuperadmin
+      ? (rol === "analista" ? "analista" : "admin")
+      : "analista";
 
     if (!email || !password || !nombre_completo || !dni) {
       return json(cors, { error: "email, password, nombre_completo y dni son obligatorios" }, 400);

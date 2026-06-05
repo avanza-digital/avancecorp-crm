@@ -19,6 +19,7 @@ type Destinatario = {
   id: string
   nombre_completo: string
   correo: string
+  asesor_perfil_id?: string | null
   asesor?: {
     nombre_completo: string | null
     whatsapp: string | null
@@ -68,7 +69,7 @@ Deno.serve(async (req) => {
       // Envío individual: traemos perfil + asesor + último contrato activo
       const { data: p } = await supabaseClient
         .from('perfiles')
-        .select('id, nombre_completo, correo, asesor:asesores(nombre_completo, whatsapp, cargo)')
+        .select('id, nombre_completo, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
         .eq('id', destinatario_id)
         .single()
 
@@ -88,13 +89,28 @@ Deno.serve(async (req) => {
       // Envío masivo: perfiles activos + asesor (sin contrato)
       const { data } = await supabaseClient
         .from('perfiles')
-        .select('id, nombre_completo, correo, asesor:asesores(nombre_completo, whatsapp, cargo)')
+        .select('id, nombre_completo, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
         .eq('rol', 'cliente')
         .eq('activo', true)
       destinatarios = (data || []) as Destinatario[]
     }
 
     destinatarios = destinatarios.filter(d => d.correo && d.correo.trim().length > 0)
+
+    // Asesor del EQUIPO (auto-asignado): si el cliente tiene asesor_perfil_id, ese
+    // miembro del equipo es su asesor y manda sobre el legacy (igual que el portal).
+    const equipoIds = [...new Set(destinatarios.map(d => d.asesor_perfil_id).filter(Boolean))]
+    if (equipoIds.length > 0) {
+      const { data: equipo } = await supabaseClient
+        .from('perfiles')
+        .select('id, nombre_completo, whatsapp, cargo')
+        .in('id', equipoIds as string[])
+      const mapaEquipo = new Map((equipo || []).map((m: any) => [m.id, m]))
+      for (const d of destinatarios) {
+        const m = d.asesor_perfil_id ? mapaEquipo.get(d.asesor_perfil_id) : null
+        if (m) d.asesor = { nombre_completo: m.nombre_completo, whatsapp: m.whatsapp, cargo: m.cargo }
+      }
+    }
 
     let enviados = 0
     let fallidos = 0
