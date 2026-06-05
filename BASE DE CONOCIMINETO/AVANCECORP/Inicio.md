@@ -27,6 +27,7 @@ Hay **tres capas**, complementarias:
 - [[Clave temporal = DNI]]
 - [[Notificaciones de pagos]]
 - [[Importador de clientes]]
+- [[Nombres en mayúscula]]
 - [[Interés compuesto]]
 - [[Realtime de novedades]]
 - [[Bug de fechas UTC]]

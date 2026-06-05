@@ -110,6 +110,9 @@ Deno.serve(async (req: Request) => {
         activo: true,
         creado_por: userRes.user.id,
         debe_cambiar_password: claveTemporal,
+        // Auto-asignación: si quien crea es ANALISTA, queda como asesor del cliente
+        // (figura en el portal del cliente). Para admin/superadmin se deja sin asignar.
+        asesor_perfil_id: perfil.rol === "analista" ? userRes.user.id : null,
       });
 
     if (perfilErr) {
@@ -192,13 +195,23 @@ function escapeHtml(s: string): string {
     .replace(/'/g, "&#39;");
 }
 
+// Saludo del email: usa solo el PRIMER nombre con Mayúscula-inicial (ej. "JOSÉ
+// PÉREZ GARCÍA" → "José"), un saludo más cálido que el nombre completo en
+// mayúsculas. El resto del sistema guarda el nombre completo en MAYÚSCULA (norma
+// de datos); esto es solo presentación del saludo.
+function nombreSaludo(nombre: string): string {
+  const primero = (nombre || "").trim().split(/\s+/)[0] || "";
+  if (!primero) return "estimado(a) cliente";
+  return primero.charAt(0).toUpperCase() + primero.slice(1).toLowerCase();
+}
+
 function plantillaBienvenida(opts: {
   nombre: string;
   correo: string;
   passwordInicial: string;
   claveTemporal?: boolean;
 }): string {
-  const nombre = escapeHtml(opts.nombre || "estimado(a) cliente");
+  const nombre = escapeHtml(nombreSaludo(opts.nombre));
   const correo = escapeHtml(opts.correo);
   const pwd = escapeHtml(opts.passwordInicial);
   const esTemporal = !!opts.claveTemporal;
