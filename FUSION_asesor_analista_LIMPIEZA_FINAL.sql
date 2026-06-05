@@ -81,6 +81,32 @@ ALTER TABLE public.perfiles DROP COLUMN IF EXISTS asesor_id;
 DROP TABLE IF EXISTS public.asesores;   -- arrastra sus triggers y policies
 
 
+-- ── PASO 5.5 (OPCIONAL · defensa en profundidad) ────────────────────────────
+-- Garantiza que asesor_perfil_id solo pueda apuntar a un MIEMBRO DEL EQUIPO
+-- (analista/admin/superadmin), nunca a un cliente u otro perfil cualquiera. El
+-- FK solo exige que sea un perfil válido; esto cierra que un admin (vía request
+-- crafteado fuera de la UI) ponga de "asesor" de un cliente a otro perfil y le
+-- filtre su contacto. Riesgo bajo (un admin ya ve todo), pero es buen blindaje.
+-- Descoméntalo si lo quieres activar:
+--
+-- CREATE OR REPLACE FUNCTION public.validar_asesor_perfil_es_equipo()
+-- RETURNS trigger LANGUAGE plpgsql SET search_path TO 'public','pg_temp' AS $f$
+-- BEGIN
+--   IF NEW.asesor_perfil_id IS NOT NULL AND NOT EXISTS (
+--     SELECT 1 FROM public.perfiles p
+--     WHERE p.id = NEW.asesor_perfil_id
+--       AND p.rol IN ('analista','admin','superadmin')
+--   ) THEN
+--     RAISE EXCEPTION 'asesor_perfil_id debe ser un miembro del equipo (analista/admin)';
+--   END IF;
+--   RETURN NEW;
+-- END;
+-- $f$;
+-- CREATE TRIGGER trg_validar_asesor_perfil
+--   BEFORE INSERT OR UPDATE OF asesor_perfil_id ON public.perfiles
+--   FOR EACH ROW EXECUTE FUNCTION public.validar_asesor_perfil_es_equipo();
+
+
 -- ── PASO 6 · Verificación final ─────────────────────────────────────────────
 -- (a) la tabla ya no existe:
 SELECT to_regclass('public.asesores') AS asesores_existe;      -- esperado: NULL
