@@ -11,7 +11,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // segundo UPDATE que hace el alta unitaria.
 //
 // Body: { clientes: [{ fila?, nombre_completo, dni, telefono?, correo,
-//                       banco, numero_cuenta, tipo_cuenta, cci, asesor_id? }],
+//                       banco, numero_cuenta, tipo_cuenta, cci, asesor_perfil_id? }],
 //         dry_run?: boolean }
 //
 //   - dry_run:true  → solo valida (formato + duplicados intra-lote + contra BD),
@@ -163,7 +163,7 @@ Deno.serve(async (req: Request) => {
         numero_cuenta: f.numero_cuenta,
         tipo_cuenta: f.tipo_cuenta,
         cci: f.cci,
-        asesor_id: f.asesor_id,
+        asesor_perfil_id: f.asesor_perfil_id,
         creado_por: userRes.user.id,
         debe_cambiar_password: true,
       });
@@ -202,7 +202,7 @@ interface Fila {
   numero_cuenta: string;
   tipo_cuenta: string;
   cci: string;
-  asesor_id: string | null;
+  asesor_perfil_id: string | null;
 }
 
 const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -230,13 +230,13 @@ function normalizarFila(raw: unknown, idx: number): Fila {
     numero_cuenta: str(c.numero_cuenta),
     tipo_cuenta: str(c.tipo_cuenta).toLowerCase(),
     cci: str(c.cci),
-    asesor_id: null,
+    asesor_perfil_id: null,
   };
 
-  // asesor_id: opcional; solo se acepta si es un uuid bien formado (el frontend
-  // resuelve el nombre→id; aquí solo defendemos contra basura).
-  const aid = str(c.asesor_id);
-  if (aid && RE_UUID.test(aid)) f.asesor_id = aid;
+  // asesor_perfil_id: opcional; solo se acepta si es un uuid bien formado (el
+  // frontend resuelve el nombre del analista→id; aquí solo defendemos contra basura).
+  const aid = str(c.asesor_perfil_id);
+  if (aid && RE_UUID.test(aid)) f.asesor_perfil_id = aid;
 
   const falla = (msg: string): Fila => ({ ...f, ok: false, error: msg });
 
@@ -283,7 +283,7 @@ function traducirError(msg: string): string {
   if (/duplicate key/i.test(m) && /dni/i.test(m)) return "El DNI ya está registrado";
   if (/duplicate key/i.test(m) && /correo/i.test(m)) return "El correo ya está registrado";
   if (/already.+(registered|exists)|email.+(exist|registr)/i.test(m)) return "El correo ya está registrado";
-  if (/foreign key|asesor/i.test(m)) return "El asesor indicado no existe";
+  if (/foreign key|asesor/i.test(m)) return "El analista indicado no existe";
   return m;
 }
 

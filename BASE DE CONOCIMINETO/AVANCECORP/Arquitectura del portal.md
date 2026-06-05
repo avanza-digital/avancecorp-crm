@@ -15,9 +15,9 @@ actualizado: 2026-06-01
 - **Gráficos:** SVG vanilla custom. **Mercados:** TradingView. **Excel:** SheetJS (lazy).
 
 ## Base de datos — 9 tablas (schema `public`)
-`perfiles` · `asesores` · `contratos` · `cronograma_pagos` · `documentos` · `novedades` · `novedades_leidas` · `suscripciones_push` · `audit_log`.
+`perfiles` · `contratos` · `cronograma_pagos` · `documentos` · `novedades` · `novedades_leidas` · `suscripciones_push` · `audit_log` · ~~`asesores`~~ (en eliminación → ver [[Fusión asesor-analista]]).
 
-- **`perfiles`**: usuarios con rol `cliente|analista|admin|superadmin`. FK `perfiles.id → auth.users.id ON DELETE CASCADE`. El rol **`analista`** (alta acotada de clientes+contratos, ventana de 5 h) → ver [[Rol Analista]].
+- **`perfiles`**: usuarios con rol `cliente|analista|admin|superadmin`. FK `perfiles.id → auth.users.id ON DELETE CASCADE`. El rol **`analista`** (alta acotada de clientes+contratos, ventana de 5 h) → ver [[Rol Analista]]. El **asesor de un cliente es un analista** (`asesor_perfil_id`) → ver [[Fusión asesor-analista]].
 - Relación central: `contratos → cronograma_pagos` (cuotas) → ver [[Interés compuesto]] y [[Notificaciones de pagos]].
 
 ## Seguridad — RLS
@@ -29,4 +29,4 @@ actualizado: 2026-06-01
 `crear-cliente` · `crear-admin` · `resetear-password` · `eliminar-cliente` · `importar-clientes` ([[Importador de clientes]]) · `enviar-comunicado` · `enviar-push` · `notificar-pagos` ([[Notificaciones de pagos]]).
 
 ## Notas relacionadas
-[[Rol Analista]] · [[Clave temporal = DNI]] · [[Bug de fechas UTC]] · [[Auditorías del portal]] · [[Inicio]]
+[[Rol Analista]] · [[Fusión asesor-analista]] · [[Clave temporal = DNI]] · [[Bug de fechas UTC]] · [[Auditorías del portal]] · [[Inicio]]
