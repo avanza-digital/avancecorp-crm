@@ -27,5 +27,11 @@ Había **dos representaciones de la misma persona**: una ficha en el catálogo `
 4. Desplegar la edge `importar-clientes`.
 5. Correr el SQL de limpieza final.
 
+## Bug 2026-06-05: `crear-cliente` no auto-asignaba el asesor (arreglado)
+**Síntoma:** al crear un cliente, el analista no quedaba como su asesor (`asesor_perfil_id` nulo) → el "Ranking por analista" del [[Rol Directorio]] salía incompleto.
+**Causa raíz:** la edge **`crear-cliente` desplegada era la v11 (vieja)**, sin la línea `asesor_perfil_id: perfil.rol === "analista" ? userRes.user.id : null`. El arreglo existía en el repo (parte de esta fusión) pero **nunca se había desplegado** (ver "Estado: hechos, sin desplegar").
+**Solución:** se desplegó la versión correcta (**v12**, verificada en prod) + se rellenaron los 2 clientes huérfanos de analista (`asesor_perfil_id = creado_por`). Quedan a propósito sin asesor 7 clientes creados por superadmin + 1 sin creador (decisión de Miguel: se asignan después).
+**Lección:** editar el `index.ts` local de una edge **no la despliega**; hay que correr el deploy. Revisar siempre la versión viva con `get_edge_function` antes de dar por hecho un arreglo.
+
 ## Notas relacionadas
-[[Rol Analista]] · [[Arquitectura del portal]] · [[Importador de clientes]] · [[Clave temporal = DNI]] · [[Inicio]]
+[[Rol Analista]] · [[Rol Directorio]] · [[Arquitectura del portal]] · [[Importador de clientes]] · [[Clave temporal = DNI]] · [[Inicio]]
