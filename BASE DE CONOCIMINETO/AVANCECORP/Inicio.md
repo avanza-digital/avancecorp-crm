@@ -24,6 +24,7 @@ Hay **tres capas**, complementarias:
 
 **Features y decisiones:**
 - [[Rol Analista]]
+- [[Rol Directorio]]
 - [[Fusión asesor-analista]]
 - [[Clave temporal = DNI]]
 - [[Notificaciones de pagos]]
