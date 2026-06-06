@@ -51,28 +51,39 @@ Deno.serve(async (req: Request) => {
     const { email, password, nombre_completo, dni, telefono, rol } = body || {};
 
     // Quién puede crear qué (se decide en el SERVIDOR, no se confía en el front):
-    //  - superadmin: 'admin' (default) o 'analista'.
-    //  - admin normal: SOLO 'analista' (NO puede crear otros admins → sin escalada).
+    //  - superadmin: 'admin' (default), 'analista' o 'directorio' (panel ejecutivo solo lectura).
+    //  - admin normal: SOLO 'analista' (NO puede crear otros admins ni directorio → sin escalada).
     const esSuperadmin = perfilCaller.rol === "superadmin";
-    if (!esSuperadmin && rol === "admin") {
-      return json(cors, { error: "Un administrador solo puede crear analistas" }, 403);
+    if (!esSuperadmin && (rol === "admin" || rol === "directorio")) {
+      return json(cors, { error: "Solo el superadmin puede crear administradores o directorio" }, 403);
     }
     const rolFinal = esSuperadmin
-      ? (rol === "analista" ? "analista" : "admin")
+      ? (rol === "analista" ? "analista"
+         : rol === "directorio" ? "directorio"
+         : "admin")
       : "analista";
 
-    if (!email || !password || !nombre_completo || !dni) {
-      return json(cors, { error: "email, password, nombre_completo y dni son obligatorios" }, 400);
+    if (!email || !nombre_completo || !dni) {
+      return json(cors, { error: "email, nombre_completo y dni son obligatorios" }, 400);
     }
-    if (String(password).length < 8) {
-      return json(cors, { error: "La contraseña debe tener al menos 8 caracteres" }, 400);
+    // La contraseña es OPCIONAL: si no se envía, se usa el DNI como clave temporal
+    // (8 dígitos, ceros a la izquierda), igual que en crear-cliente.
+    const dniLimpio = String(dni).replace(/\D/g, "");
+    let passwordFinal: string;
+    if (password) {
+      if (String(password).length < 8) {
+        return json(cors, { error: "La contraseña debe tener al menos 8 caracteres" }, 400);
+      }
+      passwordFinal = String(password);
+    } else {
+      passwordFinal = dniLimpio.padStart(8, "0");
     }
 
     const emailNorm = String(email).trim().toLowerCase();
 
     const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
       email: emailNorm,
-      password,
+      password: passwordFinal,
       email_confirm: true,
       user_metadata: { nombre: nombre_completo },
     });
