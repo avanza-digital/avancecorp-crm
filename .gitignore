@@ -31,3 +31,6 @@ node_modules/
 
 # --- Salida de graphify (la reconstruye el hook; fuera de control de versiones por defecto) ---
 graphify-out/
+
+# Superpowers brainstorming (mockups locales)
+.superpowers/
