@@ -55,14 +55,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { email, password, nombre_completo, dni, telefono } = body || {};
+    const { email, password, nombre_completo, apellidos, nombres, dni, telefono } = body || {};
 
     if (!email || !nombre_completo) {
       return json(cors, { error: "email y nombre_completo son obligatorios" }, 400);
     }
 
     const emailNormalizado = email.trim().toLowerCase();
-    const nombreNormalizado = nombre_completo.trim();
+    // apellidos/nombres separados (2026-06-09). Opcionales para retrocompatibilidad:
+    // si vienen, se persisten y nombre_completo debe venir derivado APELLIDOS primero
+    // (lo arma el frontend); si no vienen (caller viejo), solo se guarda nombre_completo.
+    const apellidosNorm = (apellidos ?? "").toString().trim() || null;
+    const nombresNorm = (nombres ?? "").toString().trim() || null;
+    if ((apellidosNorm && !nombresNorm) || (!apellidosNorm && nombresNorm)) {
+      return json(cors, { error: "apellidos y nombres deben venir juntos (ambos o ninguno)" }, 400);
+    }
+    const nombreNormalizado = apellidosNorm && nombresNorm
+      ? `${apellidosNorm} ${nombresNorm}`.replace(/\s+/g, " ").trim()
+      : nombre_completo.trim();
     const dniLimpio = (dni ?? "").toString().trim();
 
     // La contraseña es OPCIONAL. Si el admin la envía, se usa tal cual (mín. 8).
@@ -103,6 +113,8 @@ Deno.serve(async (req: Request) => {
       .insert({
         id: newUserId,
         nombre_completo: nombreNormalizado,
+        apellidos: apellidosNorm,
+        nombres: nombresNorm,
         dni: dniLimpio || null,
         telefono: telefono?.trim() || null,
         correo: emailNormalizado,
@@ -146,7 +158,10 @@ Deno.serve(async (req: Request) => {
             to: [emailNormalizado],
             subject: "Bienvenido(a) a tu portal de inversiones Avance Corp",
             html: plantillaBienvenida({
-              nombre: nombreNormalizado,
+              // Saludo por el primer NOMBRE de pila, no por el apellido: con la
+              // separación apellidos/nombres el nombre_completo empieza por los
+              // apellidos, así que el saludo sale del campo nombres si existe.
+              nombre: nombresNorm || nombreNormalizado,
               correo: emailNormalizado,
               passwordInicial: passwordFinal,
               claveTemporal,

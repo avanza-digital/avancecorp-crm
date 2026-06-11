@@ -18,6 +18,7 @@ service_role*
 # --- Archivos y respaldos pesados ---
 *.zip
 *.pptx
+DEPLOY-*/
 _ARCHIVO_VIEJO/
 _backups/
 _dev_backup/
