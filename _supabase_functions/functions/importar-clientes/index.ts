@@ -10,9 +10,14 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // campos del perfil en un solo insert (incluye bancarios + asesor), evitando el
 // segundo UPDATE que hace el alta unitaria.
 //
-// Body: { clientes: [{ fila?, nombre_completo, dni, telefono?, correo,
-//                       banco, numero_cuenta, tipo_cuenta, cci, asesor_perfil_id? }],
+// Body: { clientes: [{ fila?, apellidos?, nombres?, nombre_completo?, dni, telefono?, correo,
+//                       banco, numero_cuenta, tipo_cuenta, cci,
+//                       beneficiario_nombre?, beneficiario_dni?, asesor_perfil_id? }],
 //         dry_run?: boolean }
+//   - Plantilla nueva (2026-06-09): vienen apellidos+nombres y el nombre_completo se
+//     deriva APELLIDOS primero. Archivo viejo: solo nombre_completo (sigue válido).
+//   - Si viene beneficiario_nombre/beneficiario_dni, la cuenta se marca como de un
+//     tercero (titular_distinto=true) y ambos pasan a ser obligatorios.
 //
 //   - dry_run:true  → solo valida (formato + duplicados intra-lote + contra BD),
 //                     NO crea nada. Alimenta el preview del frontend.
@@ -154,6 +159,8 @@ Deno.serve(async (req: Request) => {
       const { error: perfilErr } = await adminClient.from("perfiles").insert({
         id: newUserId,
         nombre_completo: f.nombre_completo,
+        apellidos: f.apellidos,
+        nombres: f.nombres,
         dni: f.dni,
         telefono: f.telefono,
         correo: f.correo,
@@ -163,6 +170,9 @@ Deno.serve(async (req: Request) => {
         numero_cuenta: f.numero_cuenta,
         tipo_cuenta: f.tipo_cuenta,
         cci: f.cci,
+        titular_distinto: f.titular_distinto,
+        beneficiario_nombre: f.beneficiario_nombre,
+        beneficiario_dni: f.beneficiario_dni,
         asesor_perfil_id: f.asesor_perfil_id,
         creado_por: userRes.user.id,
         debe_cambiar_password: true,
@@ -195,6 +205,8 @@ interface Fila {
   ok: boolean;
   error?: string;
   nombre_completo: string;
+  apellidos: string | null;
+  nombres: string | null;
   dni: string;
   correo: string;
   telefono: string | null;
@@ -202,6 +214,9 @@ interface Fila {
   numero_cuenta: string;
   tipo_cuenta: string;
   cci: string;
+  titular_distinto: boolean;
+  beneficiario_nombre: string | null;
+  beneficiario_dni: string | null;
   asesor_perfil_id: string | null;
 }
 
@@ -219,10 +234,26 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   const c = (raw && typeof raw === "object" ? raw : {}) as Record<string, unknown>;
   const filaNum = Number.isFinite(c.fila) ? Number(c.fila) : idx + 1;
 
+  // Beneficiario (cuenta a nombre de un tercero). Opcional: si viene el nombre, la
+  // cuenta se marca como de un beneficiario. Nombre en MAYÚSCULA (igual criterio que
+  // el alta manual; el trigger de BD solo normaliza `nombre_completo`, no este campo).
+  const benNombre = str(c.beneficiario_nombre).replace(/\s+/g, " ").toUpperCase();
+  const benDni = str(c.beneficiario_dni);
+  const tieneBeneficiario = benNombre.length > 0 || benDni.length > 0;
+
+  // Apellidos/Nombres separados (2026-06-09). Plantilla nueva: vienen ambos y el
+  // nombre_completo se deriva APELLIDOS primero. Archivo viejo: solo nombre_completo.
+  const apellidos = str(c.apellidos).replace(/\s+/g, " ").toUpperCase();
+  const nombres = str(c.nombres).replace(/\s+/g, " ").toUpperCase();
+
   const f: Fila = {
     fila: filaNum,
     ok: true,
-    nombre_completo: str(c.nombre_completo),
+    nombre_completo: (apellidos || nombres)
+      ? `${apellidos} ${nombres}`.replace(/\s+/g, " ").trim()
+      : str(c.nombre_completo),
+    apellidos: apellidos || null,
+    nombres: nombres || null,
     dni: str(c.dni),
     correo: str(c.correo).toLowerCase(),
     telefono: str(c.telefono) || null,
@@ -230,6 +261,9 @@ function normalizarFila(raw: unknown, idx: number): Fila {
     numero_cuenta: str(c.numero_cuenta),
     tipo_cuenta: str(c.tipo_cuenta).toLowerCase(),
     cci: str(c.cci),
+    titular_distinto: tieneBeneficiario,
+    beneficiario_nombre: tieneBeneficiario ? benNombre : null,
+    beneficiario_dni: tieneBeneficiario ? benDni : null,
     asesor_perfil_id: null,
   };
 
@@ -240,7 +274,9 @@ function normalizarFila(raw: unknown, idx: number): Fila {
 
   const falla = (msg: string): Fila => ({ ...f, ok: false, error: msg });
 
-  if (!f.nombre_completo) return falla("Falta el nombre completo");
+  if (f.apellidos && !f.nombres) return falla("Falta la columna Nombres (escribiste los apellidos)");
+  if (f.nombres && !f.apellidos) return falla("Falta la columna Apellidos (escribiste los nombres)");
+  if (!f.nombre_completo) return falla("Faltan los Apellidos y Nombres del cliente");
   if (!f.dni) return falla("Falta el DNI");
   if (!RE_DNI.test(f.dni)) return falla("El DNI debe tener entre 8 y 12 dígitos (solo números)");
   if (!f.correo) return falla("Falta el correo");
@@ -253,6 +289,13 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   if (!f.numero_cuenta) return falla("Falta el número de cuenta");
   if (!f.cci) return falla("Falta el CCI");
   if (!RE_CCI.test(f.cci)) return falla("El CCI debe tener exactamente 20 dígitos");
+
+  // Beneficiario: si se llenó uno de los dos campos, ambos son obligatorios.
+  if (f.titular_distinto) {
+    if (!f.beneficiario_nombre) return falla("Falta el nombre del beneficiario (escribiste su DNI)");
+    if (!f.beneficiario_dni) return falla("Falta el DNI del beneficiario (escribiste su nombre)");
+    if (!RE_DNI.test(f.beneficiario_dni)) return falla("El DNI del beneficiario debe tener entre 8 y 12 dígitos");
+  }
 
   return f;
 }

@@ -18,6 +18,7 @@ function corsHeaders(req: Request) {
 type Destinatario = {
   id: string
   nombre_completo: string
+  nombres?: string | null
   correo: string
   asesor_perfil_id?: string | null
   asesor?: {
@@ -69,7 +70,7 @@ Deno.serve(async (req) => {
       // Envío individual: traemos perfil + asesor + último contrato activo
       const { data: p } = await supabaseClient
         .from('perfiles')
-        .select('id, nombre_completo, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
+        .select('id, nombre_completo, nombres, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
         .eq('id', destinatario_id)
         .single()
 
@@ -89,7 +90,7 @@ Deno.serve(async (req) => {
       // Envío masivo: perfiles activos + asesor (sin contrato)
       const { data } = await supabaseClient
         .from('perfiles')
-        .select('id, nombre_completo, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
+        .select('id, nombre_completo, nombres, correo, asesor_perfil_id, asesor:asesores(nombre_completo, whatsapp, cargo)')
         .eq('rol', 'cliente')
         .eq('activo', true)
       destinatarios = (data || []) as Destinatario[]
@@ -201,7 +202,9 @@ function formatMoney(amount: number, currency: string): string {
 }
 
 function plantillaEmail(d: Destinatario, titulo: string, mensaje: string, imagenUrl: string | null): string {
-  const nombre = escapeHtml(d.nombre_completo || 'estimado cliente')
+  // Saludo por los NOMBRES de pila: con apellidos/nombres separados (2026-06-09) el
+  // nombre_completo empieza por los apellidos; cliente viejo sin migrar → como antes.
+  const nombre = escapeHtml(d.nombres || d.nombre_completo || 'estimado cliente')
   const tituloEsc = escapeHtml(titulo)
   const mensajeEsc = escapeHtml(mensaje).replace(/\n/g, '<br>')
   const preheader = escapeHtml(mensaje.slice(0, 110).replace(/\s+/g, ' ').trim())

@@ -68,7 +68,7 @@ type Cuota = {
     numero_contrato: string
     moneda: string
     cliente_id: string
-    perfiles: { id: string; nombre_completo: string | null; correo: string | null; activo: boolean } | null
+    perfiles: { id: string; nombre_completo: string | null; nombres: string | null; correo: string | null; activo: boolean } | null
   } | null
 }
 
@@ -104,7 +104,10 @@ function escapeHtml(s: string): string {
 }
 
 function conceptoCuota(c: Cuota): string {
-  return c.tipo === 'retorno' ? 'el retorno de tu capital' : `tu cuota #${c.numero_cuota}`
+  // 'devolucion' = pago de intereses del compuesto al vencimiento (2026-06-10).
+  if (c.tipo === 'retorno') return 'el retorno de tu capital'
+  if (c.tipo === 'devolucion') return 'el pago de tus intereses'
+  return `tu cuota #${c.numero_cuota}`
 }
 
 Deno.serve(async (req) => {
@@ -152,7 +155,7 @@ Deno.serve(async (req) => {
       id, numero_cuota, fecha_programada, monto_programado, tipo, estado,
       contratos!inner(
         numero_contrato, moneda, cliente_id,
-        perfiles!contratos_cliente_id_fkey(id, nombre_completo, correo, activo)
+        perfiles!contratos_cliente_id_fkey(id, nombre_completo, nombres, correo, activo)
       )
     `
     const selloCol = evento === 'pagado' ? 'notif_pago_enviada_en' : 'recordatorio_3d_enviado_en'
@@ -200,7 +203,9 @@ Deno.serve(async (req) => {
     let novedades = 0, push = 0, correos = 0
 
     for (const { perfil, cuotas: cc } of porCliente.values()) {
-      const nombrePila = (perfil.nombre_completo || 'estimado cliente').split(' ')[0]
+      // Primer NOMBRE de pila (campo `nombres` si existe; con apellidos/nombres separados
+      // el nombre_completo empieza por los apellidos). Cliente viejo → como antes.
+      const nombrePila = (perfil.nombres || perfil.nombre_completo || 'estimado cliente').split(' ')[0]
 
       // Texto del aviso (1 o varias cuotas del mismo cliente en esta corrida).
       let titulo: string, mensaje: string
