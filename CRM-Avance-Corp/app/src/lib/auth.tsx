@@ -1,14 +1,26 @@
-// AuthGate del CRM (máquina de fases, patrón VITANOVA adaptado):
+// AuthGate del CRM — wrapper React delgado sobre lib/auth-maquina.ts (XState).
 //   init → anon → resolviendo → listo | no_enrolado | error
 // El rol se resuelve así: fila propia en crm.equipo (rol_crm) →
 // si no hay, perfiles.rol ∈ {directorio, admin, superadmin} → 'directorio' (lector global) →
 // si no, "no_enrolado" (privilegio mínimo: no ve nada del CRM).
 // Modo DEMO: sesión falsa con rol elegible, sin tocar Supabase (para explorar la UI).
+//
+// La lógica de fases/carreras vive en la MÁQUINA (testeable sin React ni red);
+// aquí solo se cablean Supabase, los listeners del navegador y el modo demo.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { createActor } from 'xstate'
+import type { SupabaseClient } from '@supabase/supabase-js'
 import { sb } from './supabase'
 import { DEMO_HABILITADO } from './config'
 import { registrarAviso, registrarError } from './observabilidad'
 import { AuthContext, type Fase } from './auth-context'
+import {
+  authMaquina,
+  faseDe,
+  ERROR_ACCESO,
+  ERROR_SESION,
+  type ResultadoVerificacion,
+} from './auth-maquina'
 import {
   esSesionAusente,
   guardarSesionDemo,
@@ -18,32 +30,14 @@ import {
   normalizarCorreo,
   notificarAuthLimpia,
 } from './seguridad'
-import type { Rol } from './roles'
+import { esRol, type Rol } from './roles'
 import type { Yo } from './tipos'
 
-const ERROR_ACCESO = 'No pudimos verificar tu acceso. Inténtalo de nuevo en unos segundos.'
-const ERROR_SESION = 'No pudimos validar tu sesión. Revisa tu conexión e inténtalo de nuevo.'
-const ERROR_TIMEOUT = 'No pudimos cargar tu sesión. Revisa tu conexión e inténtalo de nuevo.'
-const ROLES: readonly Rol[] = ['vendedor', 'supervisor', 'gerencia', 'directorio']
+import { DEMO_YO } from './auth-demo'
 
-function esRol(valor: unknown): valor is Rol {
-  return typeof valor === 'string' && ROLES.includes(valor as Rol)
-}
-
-// Identidades demo — espejo de miembros REALES de EQUIPO_DEMO (lib/demo.ts)
-// para que el ámbito jerárquico del store funcione (contrato F1c).
-// Directorio NO está en crm.equipo (es lector global del portal), igual que
-// en producción: conserva un id sintético fuera del organigrama.
-const DEMO_YO: Record<Rol, { id: string; nombre_completo: string }> = {
-  vendedor: { id: 'd-v1', nombre_completo: 'VENDEDOR UNO' },
-  supervisor: { id: 'd-sup1', nombre_completo: 'SUPERVISOR UNO' },
-  gerencia: { id: 'd-ger', nombre_completo: 'GERENCIA DEMO' },
-  directorio: { id: 'demo-directorio', nombre_completo: 'DIRECTORIO (DEMO)' },
-}
-
-async function resolverRol(userId: string): Promise<{ rol: Rol | null; nombre: string }> {
+async function resolverRol(cliente: SupabaseClient, userId: string): Promise<{ rol: Rol | null; nombre: string }> {
   // 1) ¿Enrolado en crm.equipo? (requiere F0 aplicada + esquema crm expuesto)
-  const { data: miembro, error: errorEquipo } = await sb!.schema('crm').from('equipo')
+  const { data: miembro, error: errorEquipo } = await cliente.schema('crm').from('equipo')
     .select('rol_crm, activo').eq('perfil_id', userId).maybeSingle()
   if (errorEquipo) {
     registrarError('auth.resolver_rol.equipo', errorEquipo, { userId })
@@ -61,7 +55,7 @@ async function resolverRol(userId: string): Promise<{ rol: Rol | null; nombre: s
 
     // La cuenta del portal también debe seguir activa; equipo.activo por sí solo
     // no basta para mantener acceso a una cuenta deshabilitada.
-    const { data: perfilMiembro, error: errorPerfilMiembro } = await sb!.from('perfiles')
+    const { data: perfilMiembro, error: errorPerfilMiembro } = await cliente.from('perfiles')
       .select('nombre_completo, activo').eq('id', userId).maybeSingle()
     if (errorPerfilMiembro) {
       registrarError('auth.resolver_rol.perfil_miembro', errorPerfilMiembro, { userId })
@@ -73,8 +67,8 @@ async function resolverRol(userId: string): Promise<{ rol: Rol | null; nombre: s
 
   // 2) ¿Lector global del portal?
   // Un error aquí NO se traga: sin esta respuesta no sabemos quién es el
-  // usuario, así que propagamos (boot lo convierte en fase 'error').
-  const { data: perfil, error: errPerfil } = await sb!.from('perfiles')
+  // usuario, así que propagamos (la máquina lo convierte en fase 'error').
+  const { data: perfil, error: errPerfil } = await cliente.from('perfiles')
     .select('rol, activo, nombre_completo').eq('id', userId).maybeSingle()
   if (errPerfil) {
     registrarError('auth.resolver_rol.perfil_portal', errPerfil, { userId })
@@ -83,8 +77,35 @@ async function resolverRol(userId: string): Promise<{ rol: Rol | null; nombre: s
   if (perfil?.activo && ['directorio', 'admin', 'superadmin'].includes(perfil.rol)) {
     return { rol: 'directorio', nombre: perfil.nombre_completo ?? '' }
   }
-  return { rol: null, nombre: perfil?.nombre_completo ?? '' }
+  return { rol: null, nombre: '' }
 }
+
+/**
+ * Verificación completa contra el SERVIDOR: getUser (getSession por sí solo
+ * aceptaría un JWT local cuya sesión ya fue cerrada en otro dispositivo) y
+ * después resolución de rol. Es la dependencia que se inyecta a la máquina.
+ */
+function crearVerificador(cliente: SupabaseClient): () => Promise<ResultadoVerificacion> {
+  return async () => {
+    const { data, error: errorUsuario } = await cliente.auth.getUser()
+    if (errorUsuario) {
+      if (esSesionAusente(errorUsuario)) return { tipo: 'sin_sesion' }
+      registrarError('auth.validacion_servidor_fallida', errorUsuario)
+      throw new Error(ERROR_SESION)
+    }
+    if (!data.user) return { tipo: 'sin_sesion' }
+
+    const userId = data.user.id
+    const { rol, nombre } = await resolverRol(cliente, userId)
+    if (!rol) {
+      registrarAviso('auth.acceso_revocado_o_no_enrolado', { userId })
+      return { tipo: 'no_enrolado', userId }
+    }
+    return { tipo: 'acceso', userId, rol, nombre }
+  }
+}
+
+type ActorAuth = ReturnType<typeof createActor<typeof authMaquina>>
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [fase, setFase] = useState<Fase>('init')
@@ -93,6 +114,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [revision, setRevision] = useState(0)
   const yoRef = useRef<Yo | null>(null)
   yoRef.current = yo
+  const actorRef = useRef<ActorAuth | null>(null)
 
   useEffect(() => {
     // Una sesión demo vieja jamás sobrevive si el build ya no permite demo.
@@ -120,13 +142,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const cliente = sb
 
     let cancelado = false
-    let inicioVerificado = false
-    let ultimoUser: string | null = null
     let ultimaRevalidacion = 0
-    let secuencia = 0
-    let limpiezaNotificada = false
-    let accesoEnCurso: { userId: string; promesa: Promise<void> } | null = null
-    let confirmacionEnCurso: Promise<void> | null = null
     const temporizadores = new Set<ReturnType<typeof setTimeout>>()
 
     const diferir = (tarea: () => void) => {
@@ -137,170 +153,57 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       temporizadores.add(id)
     }
 
-    const limpiarDatosSensibles = () => {
-      yoRef.current = null
-      setYo(null)
-      if (!limpiezaNotificada) {
-        notificarAuthLimpia()
-        limpiezaNotificada = true
-      }
-    }
+    const actor = createActor(authMaquina, {
+      input: {
+        verificar: crearVerificador(cliente),
+        // Contrato con la capa de datos: borra la caché del acceso anterior.
+        alLimpiar: notificarAuthLimpia,
+      },
+    })
+    actorRef.current = actor
 
-    const sinSesion = () => {
-      ultimoUser = null
-      secuencia += 1 // invalida cualquier resolución tardía
-      limpiarDatosSensibles()
-      setError(null)
-      setFase('anon')
-    }
-
-    const falloSeguro = (mensaje: string) => {
-      limpiarDatosSensibles()
-      setError(mensaje)
-      setFase('error')
-    }
-
-    const conLimite = async <T,>(promesa: Promise<T>, mensaje: string): Promise<T> => {
-      let id: ReturnType<typeof setTimeout> | undefined
-      const limite = new Promise<never>((_, rechazar) => {
-        id = setTimeout(() => rechazar(new Error(mensaje)), 12_000)
-        temporizadores.add(id)
-      })
-      try {
-        return await Promise.race([promesa, limite])
-      } finally {
-        if (id) {
-          clearTimeout(id)
-          temporizadores.delete(id)
-        }
-      }
-    }
-
-    const resolverAcceso = (userId: string, silenciosa: boolean): Promise<void> => {
-      if (accesoEnCurso?.userId === userId) return accesoEnCurso.promesa
-      const solicitud = ++secuencia
-
-      const promesa = (async () => {
-        if (!silenciosa || !yoRef.current) setFase('resolviendo')
-        setError(null)
-        try {
-          const { rol, nombre } = await conLimite(resolverRol(userId), ERROR_TIMEOUT)
-          if (cancelado || solicitud !== secuencia) return
-
-          if (!rol) {
-            registrarAviso('auth.acceso_revocado_o_no_enrolado', { userId })
-            limpiarDatosSensibles()
-            setFase('no_enrolado')
-            return
-          }
-
-          const anterior = yoRef.current
-          if (anterior && (anterior.id !== userId || anterior.rol !== rol || anterior.demo)) {
-            limpiarDatosSensibles()
-          }
-          const identidadSinCambios = anterior
-            && anterior.id === userId
-            && anterior.nombre_completo === nombre
-            && anterior.rol === rol
-            && !anterior.demo
-          if (!identidadSinCambios) {
-            const identidad: Yo = { id: userId, nombre_completo: nombre, rol, demo: false }
-            yoRef.current = identidad
-            setYo(identidad)
-          }
-          limpiezaNotificada = false
-          setFase('listo')
-        } catch (causa) {
-          if (cancelado || solicitud !== secuencia) return
-          registrarError('auth.resolucion_acceso_fallida', causa, { userId })
-          const mensaje = causa instanceof Error && causa.message === ERROR_TIMEOUT
-            ? ERROR_TIMEOUT
-            : ERROR_ACCESO
-          falloSeguro(mensaje)
-        }
-      })()
-
-      accesoEnCurso = { userId, promesa }
-      void promesa.finally(() => {
-        if (accesoEnCurso?.promesa === promesa) accesoEnCurso = null
-      })
-      return promesa
-    }
-
-    const confirmarSesion = (userIdEsperado?: string, silenciosa = false): Promise<void> => {
-      if (confirmacionEnCurso) return confirmacionEnCurso
-      const promesa = (async () => {
-        try {
-          const { data, error: errorUsuario } = await conLimite(cliente.auth.getUser(), ERROR_TIMEOUT)
-          if (cancelado) return
-          if (errorUsuario) {
-            if (esSesionAusente(errorUsuario)) { sinSesion(); return }
-            registrarError('auth.validacion_servidor_fallida', errorUsuario)
-            falloSeguro(ERROR_SESION)
-            return
-          }
-          if (!data.user) { sinSesion(); return }
-
-          const cambioDeCuenta = Boolean(userIdEsperado && data.user.id !== userIdEsperado)
-            || Boolean(ultimoUser && data.user.id !== ultimoUser)
-          if (cambioDeCuenta) limpiarDatosSensibles()
-          ultimoUser = data.user.id
-          await resolverAcceso(data.user.id, silenciosa && !cambioDeCuenta)
-        } catch (causa) {
-          if (cancelado) return
-          registrarError('auth.validacion_sesion_fallida', causa)
-          falloSeguro(causa instanceof Error && causa.message === ERROR_TIMEOUT ? ERROR_TIMEOUT : ERROR_SESION)
-        }
-      })()
-      confirmacionEnCurso = promesa
-      void promesa.finally(() => {
-        if (confirmacionEnCurso === promesa) confirmacionEnCurso = null
-      })
-      return promesa
-    }
-
-    // El callback se mantiene estrictamente síncrono. Las llamadas a Supabase
-    // se difieren porque ejecutarlas dentro de onAuthStateChange puede bloquear
-    // el cliente (deadlock documentado por Supabase).
-    const { data: sub } = cliente.auth.onAuthStateChange((_evento, session) => {
+    const suscripcion = actor.subscribe((snapshot) => {
       if (cancelado) return
-      if (!inicioVerificado) return
-      if (!session) { sinSesion(); return }
-      if (session.user.id === ultimoUser) return
-
-      ultimoUser = session.user.id
-      limpiarDatosSensibles()
-      setError(null)
-      setFase('resolviendo')
-      diferir(() => { void confirmarSesion(session.user.id) })
+      const estado = snapshot.value as Parameters<typeof faseDe>[0]
+      setFase(faseDe(estado, snapshot.context))
+      setYo(snapshot.context.yo)
+      setError(snapshot.context.error)
     })
 
-    // getUser consulta al servidor; getSession por sí solo aceptaría un JWT local
-    // cuya sesión ya fue cerrada en otro dispositivo.
-    void confirmarSesion().finally(() => {
-      inicioVerificado = true
+    actor.start()
+
+    // El callback se mantiene estrictamente síncrono. Los envíos se difieren
+    // porque ejecutar llamadas a Supabase dentro de onAuthStateChange puede
+    // bloquear el cliente (deadlock documentado por Supabase).
+    const { data: sub } = cliente.auth.onAuthStateChange((_evento, session) => {
+      if (cancelado) return
+      const userId = session?.user.id ?? null
+      diferir(() => actor.send({ type: 'SESION_CAMBIO', userId }))
     })
 
     const revalidarAlVolver = () => {
-      if (cancelado || document.visibilityState !== 'visible' || !ultimoUser) return
+      if (cancelado || document.visibilityState !== 'visible') return
       const ahora = Date.now()
       // focus + visibilitychange suelen llegar juntos. Este enfriamiento evita
       // duplicar peticiones y bucles si el navegador emite varios focus seguidos.
       if (ahora - ultimaRevalidacion < 20_000) return
       ultimaRevalidacion = ahora
-      void confirmarSesion(ultimoUser, true)
+      actor.send({ type: 'REVALIDAR' })
     }
     window.addEventListener('focus', revalidarAlVolver)
     document.addEventListener('visibilitychange', revalidarAlVolver)
 
     return () => {
       cancelado = true
-      secuencia += 1
       sub.subscription.unsubscribe()
       window.removeEventListener('focus', revalidarAlVolver)
       document.removeEventListener('visibilitychange', revalidarAlVolver)
       for (const id of temporizadores) clearTimeout(id)
       temporizadores.clear()
+      suscripcion.unsubscribe()
+      // Detener el actor CANCELA cualquier verificación en vuelo.
+      actor.stop()
+      actorRef.current = null
     }
   }, [revision])
 
@@ -314,7 +217,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     try {
-      const { error: errorLogin } = await sb.auth.signInWithPassword({
+      const { data, error: errorLogin } = await sb.auth.signInWithPassword({
         email: normalizarCorreo(correo),
         password: clave,
       })
@@ -322,8 +225,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         registrarError('auth.login_rechazado', errorLogin)
         return { ok: false, error: mensajeSeguroDeLogin(errorLogin) }
       }
-      setError(null)
-      setFase('resolviendo')
+      // Arranque inmediato de la verificación (el listener llegará como eco
+      // del mismo usuario y la máquina lo ignora).
+      if (data.user) actorRef.current?.send({ type: 'SESION_CAMBIO', userId: data.user.id })
       return { ok: true }
     } catch (causa) {
       registrarError('auth.login_fallido', causa)
@@ -344,11 +248,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setYo(identidad)
     setError(null)
     setFase('listo')
-    // Desmonta los listeners de la sesión real mientras se explora el demo.
+    // Desmonta el actor de la sesión real (cancela verificaciones en vuelo)
+    // mientras se explora el demo.
     setRevision((actual) => actual + 1)
   }
 
   const reintentar = () => {
+    if (actorRef.current) {
+      setError(null)
+      actorRef.current.send({ type: 'REINTENTAR' })
+      return
+    }
     yoRef.current = null
     setYo(null)
     setError(null)
@@ -359,6 +269,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const salir = async () => {
     const eraDemo = yoRef.current?.demo === true
     limpiarSesionDemo()
+    // SALIR cancela cualquier verificación en vuelo ANTES del signOut: una
+    // respuesta tardía ya no puede recolocar la identidad anterior.
+    actorRef.current?.send({ type: 'SALIR' })
     yoRef.current = null
     setYo(null)
     setError(null)
