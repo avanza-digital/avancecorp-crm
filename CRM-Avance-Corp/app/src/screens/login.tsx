@@ -1,7 +1,8 @@
 import { useState, type FormEvent } from 'react'
-import { Eye, ShieldCheck, TrendingUp, Users } from 'lucide-react'
-import { useAuth } from '@/lib/auth'
-import { HAY_SUPABASE } from '@/lib/config'
+import { AlertCircle, Eye, RefreshCw, ShieldCheck, TrendingUp, Users } from 'lucide-react'
+import { useAuth } from '@/lib/auth-context'
+import { DEMO_HABILITADO, HAY_SUPABASE } from '@/lib/config'
+import { idCorrelacionCorto } from '@/lib/observabilidad'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -17,7 +18,7 @@ const DEMO_SUB: Record<Rol, string> = {
 }
 
 export function Login() {
-  const { entrar, entrarDemo } = useAuth()
+  const { error: errorAuth, entrar, entrarDemo, reintentar } = useAuth()
   const [correo, setCorreo] = useState('')
   const [clave, setClave] = useState('')
   const [error, setError] = useState<string | null>(null)
@@ -28,9 +29,12 @@ export function Login() {
     e.preventDefault()
     setError(null)
     setCargando(true)
-    const r = await entrar(correo, clave)
-    setCargando(false)
-    if (!r.ok) setError(r.error ?? 'No se pudo iniciar sesión')
+    try {
+      const resultado = await entrar(correo, clave)
+      if (!resultado.ok) setError(resultado.error ?? 'No se pudo iniciar sesión')
+    } finally {
+      setCargando(false)
+    }
   }
 
   return (
@@ -62,7 +66,7 @@ export function Login() {
             {[
               { icon: TrendingUp, k: 'Pipeline', v: 'por etapa' },
               { icon: Users, k: 'Equipo', v: '4 niveles' },
-              { icon: ShieldCheck, k: 'RLS', v: 'por rol' },
+              { icon: ShieldCheck, k: 'Privacidad', v: 'por rol' },
             ].map((f) => (
               <div key={f.k} className="rounded-xl bg-white/[0.06] p-3 ring-1 ring-white/10 backdrop-blur-sm">
                 <f.icon className="mb-2 size-4 text-accent" />
@@ -87,6 +91,24 @@ export function Login() {
             <p className="text-sm text-muted-foreground">Acceso para el equipo comercial y directorio.</p>
           </div>
 
+          {errorAuth && (
+            <div className="space-y-3 rounded-xl border border-destructive/20 bg-destructive/10 p-3" role="alert">
+              <div className="flex items-start gap-2.5">
+                <AlertCircle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+                <div className="min-w-0 space-y-1">
+                  <p className="text-sm font-semibold text-destructive">No pudimos verificar tu acceso</p>
+                  <p className="text-xs text-foreground/80">{errorAuth}</p>
+                  <p className="text-[10px] text-muted-foreground">
+                    Código de diagnóstico: {idCorrelacionCorto()}
+                  </p>
+                </div>
+              </div>
+              <Button type="button" variant="outline" size="sm" className="w-full" onClick={reintentar}>
+                <RefreshCw className="size-3.5" aria-hidden /> Reintentar verificación
+              </Button>
+            </div>
+          )}
+
           <form onSubmit={onSubmit} className="space-y-4">
             <div className="space-y-1.5">
               <Label htmlFor="correo">Correo</Label>
@@ -105,21 +127,27 @@ export function Login() {
               />
             </div>
             {error && (
-              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive">{error}</p>
+              <p className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive" role="alert">
+                {error}
+              </p>
             )}
             <Button type="submit" className="w-full" disabled={cargando || !HAY_SUPABASE}>
               {cargando ? 'Entrando…' : 'Entrar'}
             </Button>
             {!HAY_SUPABASE && (
               <p className="text-center text-[11px] text-muted-foreground">
-                Sin conexión configurada (.env) — explora con el modo demo.
+                {DEMO_HABILITADO
+                  ? 'El acceso con cuenta aún no está disponible aquí — explora con el modo demo.'
+                  : 'El acceso con cuenta aún no está disponible aquí.'}
               </p>
             )}
           </form>
 
+          {DEMO_HABILITADO && (
           <div className="border-t border-border pt-4">
             {!demoAbierto ? (
               <button
+                type="button"
                 onClick={() => setDemoAbierto(true)}
                 className="mx-auto flex items-center gap-1.5 text-xs font-semibold text-accent hover:underline cursor-pointer"
               >
@@ -134,6 +162,7 @@ export function Login() {
                   {(Object.keys(ROL_LABEL) as Rol[]).map((r) => (
                     <Button
                       key={r}
+                      type="button"
                       variant="outline"
                       size="sm"
                       onClick={() => entrarDemo(r)}
@@ -149,6 +178,7 @@ export function Login() {
               </div>
             )}
           </div>
+          )}
         </div>
       </div>
     </div>

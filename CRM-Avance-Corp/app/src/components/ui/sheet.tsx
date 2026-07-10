@@ -5,6 +5,7 @@
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
+import { esModalSuperior } from '@/lib/modal-stack'
 
 const KEYFRAMES = `
 @keyframes ac-sheet-overlay { from { opacity: 0 } to { opacity: 1 } }
@@ -13,13 +14,6 @@ const KEYFRAMES = `
   [data-slot='sheet'], [data-slot='sheet-overlay'] { animation: none !important }
 }
 `
-
-/** ¿Este panel es el modal de más arriba? (para que Esc no cierre toda la pila) */
-export function esModalSuperior(el: HTMLElement | null): boolean {
-  if (!el) return false
-  const modales = document.querySelectorAll('[aria-modal="true"]')
-  return modales.length > 0 && modales[modales.length - 1] === el
-}
 
 interface SheetProps {
   open: boolean

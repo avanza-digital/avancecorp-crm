@@ -191,6 +191,28 @@ Deno.serve(async (req) => {
       return json(cors, { success: true, evento, dryRun, clientes: 0, cuotas: 0, detalle: 'Nada que notificar.' })
     }
 
+    /* ---------- CLAIM ATÓMICO (idempotencia a prueba de concurrencia) ----------
+       Antes de enviar nada, "reclamamos" las cuotas estampando el sello en UN
+       UPDATE condicionado a `sello IS NULL`. Solo las filas que ESTA corrida logró
+       pasar de NULL→now() vuelven (RETURNING vía .select) y son las que se notifican.
+       Una corrida concurrente (doble clic / cron solapado) no matchea esas filas →
+       reclama 0 → no duplica el aviso. En dry_run NO se reclama nada. */
+    if (!dryRun) {
+      const idsCandidatas = cuotas.map(c => c.id)
+      const { data: reclamadas, error: errClaim } = await supabase
+        .from('cronograma_pagos')
+        .update({ [selloCol]: new Date().toISOString() })
+        .in('id', idsCandidatas)
+        .is(selloCol, null)
+        .select('id')
+      if (errClaim) throw errClaim
+      const idsReclamadas = new Set((reclamadas || []).map((r: { id: string }) => r.id))
+      cuotas = cuotas.filter(c => idsReclamadas.has(c.id))
+      if (cuotas.length === 0) {
+        return json(cors, { success: true, evento, clientes: 0, cuotas: 0, detalle: 'Ya notificadas por otra corrida.' })
+      }
+    }
+
     /* ---------- AGRUPAR POR CLIENTE ---------- */
     const porCliente = new Map<string, { perfil: NonNullable<NonNullable<Cuota['contratos']>['perfiles']>; cuotas: Cuota[] }>()
     for (const c of cuotas) {
@@ -302,12 +324,8 @@ Deno.serve(async (req) => {
       return json(cors, { success: true, evento, dryRun: true, clientes: porCliente.size, cuotas: cuotas.length, detalle: dryDetalle })
     }
 
-    // 4) Estampar el sello para no re-notificar.
-    const idsNotificadas = cuotas.map(c => c.id)
-    await supabase.from('cronograma_pagos')
-      .update({ [selloCol]: new Date().toISOString() })
-      .in('id', idsNotificadas)
-
+    // El sello ya se estampó ARRIBA con el claim atómico (idempotencia a prueba de
+    // concurrencia) → aquí solo devolvemos el resultado del envío.
     return json(cors, {
       success: true, evento,
       clientes: porCliente.size, cuotas: cuotas.length,

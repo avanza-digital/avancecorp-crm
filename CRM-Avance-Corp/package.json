@@ -1,0 +1,19 @@
+{
+  "name": "avancecorp-crm-tools",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "engines": {
+    "node": ">=22.12.0"
+  },
+  "scripts": {
+    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/test-rls.mjs",
+    "seed:demo": "node supabase/scripts/seed-demo.mjs",
+    "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
+    "test:rls": "node supabase/scripts/test-rls.mjs",
+    "test:rls:preflight": "node supabase/scripts/test-rls.mjs --preflight"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "2.110.2"
+  }
+}

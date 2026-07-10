@@ -1,5 +1,5 @@
 // Ficha del lead (drawer derecho) — F1b. Se monta UNA vez en App.tsx y se abre
-// desde cualquier pantalla vía useStore().abrirLead(id). Write-gating doble:
+// desde cualquier pantalla vía usePanelesActions().abrirLead(id). Write-gating doble:
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
@@ -9,11 +9,9 @@ import {
   ArrowRightLeft,
   BadgeCheck,
   CalendarCheck,
-  Mail,
   MessageCircle,
   MessageSquare,
   Pencil,
-  Phone,
   PhoneCall,
   PhoneMissed,
   RotateCcw,
@@ -42,9 +40,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useAuth } from '@/lib/auth'
+import { AccionesContacto } from '@/components/app/contacto'
+import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
-import { useStore } from '@/lib/store'
+import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { fmtFecha, money } from '@/lib/format'
 import {
   ETAPAS,
@@ -101,14 +100,12 @@ function haceRelativo(iso: string): string {
 
 const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
 
-/** Link de acción rápida del header (tel:/wa.me/mailto: reales). */
-const CLASE_ACCION =
-  'inline-flex h-7 items-center gap-1.5 rounded-lg border border-input bg-card px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted hover:border-border-strong [&_svg]:size-3.5'
-
 // ── Drawer (export) ───────────────────────────────────────────────────────────
 
 export function LeadDrawer() {
-  const { leadAbiertoId, lead, cerrarPaneles } = useStore()
+  const { leadAbiertoId } = usePanelesState()
+  const { lead } = useCRMData()
+  const { cerrarPaneles } = usePanelesActions()
   const l = leadAbiertoId ? lead(leadAbiertoId) : undefined
   return (
     <Sheet open={!!l} onClose={cerrarPaneles} ariaLabel={l ? `Ficha del lead ${l.nombre_completo}` : 'Ficha del lead'}>
@@ -120,7 +117,7 @@ export function LeadDrawer() {
 // ── Ficha (contenido del sheet) ───────────────────────────────────────────────
 
 function Ficha({ l }: { l: Lead }) {
-  const { cerrarPaneles } = useStore()
+  const { cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
@@ -128,7 +125,6 @@ function Ficha({ l }: { l: Lead }) {
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
   const info = ETAPA_INFO[l.etapa]
-  const waNumero = l.telefono.replace('+', '')
 
   return (
     <>
@@ -154,19 +150,7 @@ function Ficha({ l }: { l: Lead }) {
             <X className="size-4" />
           </button>
         </div>
-        <div className="flex flex-wrap items-center gap-1.5">
-          <a href={`tel:${l.telefono}`} className={CLASE_ACCION}>
-            <Phone /> Llamar
-          </a>
-          <a href={`https://wa.me/${waNumero}`} target="_blank" rel="noreferrer" className={CLASE_ACCION}>
-            <MessageCircle /> WhatsApp
-          </a>
-          {l.correo && (
-            <a href={`mailto:${l.correo}`} className={CLASE_ACCION}>
-              <Mail /> Correo
-            </a>
-          )}
-        </div>
+        <AccionesContacto lead={l} />
       </SheetHeader>
 
       <SheetBody className="space-y-5">
@@ -200,7 +184,7 @@ function Ficha({ l }: { l: Lead }) {
 // ── Stepper de etapas activas ─────────────────────────────────────────────────
 
 function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
-  const { cambiarEtapa } = useStore()
+  const { cambiarEtapa } = useCRMData()
   const idx = ETAPAS.findIndex((e) => e.k === l.etapa)
 
   const mover = (k: EtapaActiva) => {
@@ -247,7 +231,7 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
 // ── Banner de estado terminal ─────────────────────────────────────────────────
 
 function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
-  const { reabrir } = useStore()
+  const { reabrir } = useCRMData()
   const convertido = l.etapa === 'convertido'
   const info = ETAPA_INFO[l.etapa]
   const motivo = MOTIVOS_DESCARTE.find((m) => m.k === l.motivo_descarte)?.label
@@ -280,7 +264,7 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
         </p>
         <p className="text-[11px] text-muted-foreground">
           {convertido
-            ? 'En producción el alta la hace una RPC privilegiada que enlaza al cliente del portal.'
+            ? 'En el sistema definitivo, la conversión crea al cliente y su contrato en el portal.'
             : `Motivo: ${motivo ?? '—'}`}
         </p>
       </div>
@@ -305,7 +289,7 @@ function Fila({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; puedeReasignar: boolean }) {
-  const { editarLead, reasignar, ambito } = useStore()
+  const { editarLead, reasignar, ambito } = useCRMData()
   const [editando, setEditando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({ nombre: '', telefono: '', correo: '', monto: '', nota: '' })
@@ -469,7 +453,7 @@ const CLASE_HITO =
   'relative z-[1] grid size-7 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground [&_svg]:size-3.5'
 
 function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
-  const { actividadesDe, registrarActividad } = useStore()
+  const { actividadesDe, registrarActividad } = useCRMData()
   const acts = actividadesDe(l.id)
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
   const [detalle, setDetalle] = useState('')
@@ -556,7 +540,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
 // ── Diálogos de cierre ────────────────────────────────────────────────────────
 
 function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { convertir } = useStore()
+  const { convertir } = useCRMData()
 
   const confirmar = () => {
     const res = convertir(l.id)
@@ -578,12 +562,11 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
       </DialogHeader>
       <DialogBody className="space-y-2 text-xs leading-relaxed text-muted-foreground">
         <p>
-          En la base de datos real la conversión NO es un simple cambio de etapa: la ejecuta una{' '}
-          <b className="text-foreground">RPC privilegiada</b> que crea o enlaza el{' '}
-          <b className="text-foreground">cliente del portal</b> (perfil + contrato) y deja el lead cerrado como
-          ganado.
+          En el sistema definitivo, la conversión crea al{' '}
+          <b className="text-foreground">cliente y su contrato en el portal</b> y cierra el
+          lead como ganado.
         </p>
-        <p>En este modo demo solo se simula el cambio de estado — no se escribe nada en Supabase.</p>
+        <p>En este modo demo solo se simula el cambio de estado — nada queda guardado de verdad.</p>
       </DialogBody>
       <DialogFooter>
         <Button variant="outline" size="sm" onClick={onClose}>
@@ -598,7 +581,7 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
 }
 
 function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { descartar } = useStore()
+  const { descartar } = useCRMData()
   const [motivo, setMotivo] = useState<MotivoDescarte>('sin_interes')
   const [nota, setNota] = useState('')
 

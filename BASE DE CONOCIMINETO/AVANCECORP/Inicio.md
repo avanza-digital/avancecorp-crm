@@ -38,6 +38,7 @@ Hay **tres capas**, complementarias:
 ## 👤 Reglas de trabajo con Miguel
 
 - Miguel **no es desarrollador** (analista comercial). Explicar en **lenguaje natural**, sin jerga.
+- **Versiones de desarrollo:** usar siempre la **última versión estable** disponible del lenguaje, framework y dependencias aplicables. Antes de implementar, verificar las versiones y la documentación vigente con Context7. Si una actualización rompe compatibilidad con el proyecto, explicar el impacto y acordar la migración antes de aplicarla.
 - **Cambios de base de datos:** mostrar el **SQL primero** y esperar confirmación.
 - Lo **visual** decláralo explícito para que Miguel lo pruebe; las **capturas** son el input principal de debugging.
 - **Deploy manual** a Hostinger (copiar a la carpeta espejo) + subir `?v=N` del módulo editado.

@@ -6,7 +6,7 @@
 //    con las cards de sus vendedores dentro; también puede repartir.
 //  - Directorio: la misma radiografía que gerencia, SOLO LECTURA (cero
 //    botones de acción).
-// Los números salen del ámbito jerárquico (useStore().ambito) + lib/inteligencia.
+// Los números salen del ámbito jerárquico (useCRMData().ambito) + lib/inteligencia.
 // Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
 // crítico · convertido = navy #111e3d.
 import { useState, type JSX } from 'react'
@@ -20,8 +20,8 @@ import { Progress } from '@/components/ui/progress'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
-import { useAuth } from '@/lib/auth'
-import { useStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { moneyK } from '@/lib/format'
 import { ORIGENES, type Lead, type Miembro } from '@/lib/tipos'
 import {
@@ -150,7 +150,7 @@ function Bandeja({
   grupos?: GrupoVendedores[] // opciones agrupadas por equipo (gerencia)
   mostrarBandeja?: boolean // gerencia: mostrar en qué bandeja está el lead
 }): JSX.Element {
-  const { equipo, reasignar } = useStore()
+  const { equipo, reasignar } = useCRMData()
   const [sel, setSel] = useState<Record<string, string>>({})
 
   const bandejaDe = (l: Lead) =>
@@ -230,7 +230,7 @@ function Bandeja({
 // ── Mini-cola del equipo (top N de colaDe con nombre del vendedor) ────────────
 
 function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.Element {
-  const { abrirLead } = useStore()
+  const { abrirLead } = usePanelesActions()
 
   if (items.length === 0) {
     return (
@@ -280,7 +280,7 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
 // ── Vista SUPERVISOR — su equipo, su bandeja, su cola ─────────────────────────
 
 function EquipoSupervisor(): JSX.Element {
-  const { ambito, actividades } = useStore()
+  const { ambito, actividades } = useCRMData()
 
   const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades)
   const parkeados = ambito.leads.filter((l) => abierto(l) && l.vendedor_id == null)
@@ -367,7 +367,7 @@ function EquipoSupervisor(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Los números salen del ámbito jerárquico de tu equipo — espejo de la RLS de la BD (F0).
+        Los números corresponden solo a tu equipo — cada rol ve únicamente lo que le corresponde.
       </p>
     </div>
   )
@@ -376,7 +376,7 @@ function EquipoSupervisor(): JSX.Element {
 // ── Vista GERENCIA / DIRECTORIO — bloques por supervisor ──────────────────────
 
 function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
-  const { ambito, actividades, equipo } = useStore()
+  const { ambito, actividades, equipo } = useCRMData()
 
   const filas = comparativaEquipos(equipo, ambito.leads, actividades)
   const parkeados = ambito.leads.filter((l) => abierto(l) && l.vendedor_id == null)
@@ -508,7 +508,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       )}
 
       <p className="text-[11px] text-muted-foreground">
-        Los números salen del ámbito jerárquico global — espejo de la RLS de la BD (F0).
+        Los números abarcan toda la operación comercial de la empresa.
       </p>
     </div>
   )

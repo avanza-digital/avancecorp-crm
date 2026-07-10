@@ -196,6 +196,20 @@ function escapeHtml(s: string): string {
   return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;')
 }
 
+// Solo deja pasar URLs https absolutas (la imagen del comunicado vive en el
+// bucket público `comunicados`). Cualquier otra cosa (javascript:, data:, vacío,
+// URL inválida) → cadena vacía y no se pinta la imagen. Defensa aunque el input
+// venga de un admin: el valor termina en un atributo src del HTML del correo.
+function urlImagenSegura(u: string | null | undefined): string {
+  if (!u) return ""
+  try {
+    const url = new URL(String(u))
+    return url.protocol === "https:" ? url.href : ""
+  } catch {
+    return ""
+  }
+}
+
 function formatMoney(amount: number, currency: string): string {
   const symbol = currency === 'USD' ? 'US$' : 'S/'
   return `${symbol} ${amount.toLocaleString('es-PE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
@@ -208,6 +222,7 @@ function plantillaEmail(d: Destinatario, titulo: string, mensaje: string, imagen
   const tituloEsc = escapeHtml(titulo)
   const mensajeEsc = escapeHtml(mensaje).replace(/\n/g, '<br>')
   const preheader = escapeHtml(mensaje.slice(0, 110).replace(/\s+/g, ' ').trim())
+  const imgSafe = urlImagenSegura(imagenUrl)
 
   // Card del contrato (solo si individual y tiene contrato activo)
   const contratoCard = d.contrato ? `
@@ -308,10 +323,10 @@ function plantillaEmail(d: Destinatario, titulo: string, mensaje: string, imagen
           </td>
         </tr>
 
-        ${imagenUrl ? `
+        ${imgSafe ? `
         <tr>
           <td style="padding:28px 48px 0;">
-            <img src="${imagenUrl}" alt="" style="width:100%;max-width:504px;display:block;border:1px solid #e8e3d4;">
+            <img src="${escapeHtml(imgSafe)}" alt="" style="width:100%;max-width:504px;display:block;border:1px solid #e8e3d4;">
           </td>
         </tr>` : ''}
 

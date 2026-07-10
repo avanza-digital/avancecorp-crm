@@ -1,6 +1,6 @@
 // lib/inteligencia.ts — Inteligencia comercial por rol (contrato F1c).
 // Funciones PURAS sobre (leads, actividades, equipo): sin React, sin store,
-// sin efectos. Cada pantalla las alimenta con su ÁMBITO (useStore().ambito),
+// sin efectos. Cada pantalla las alimenta con su ÁMBITO (useCRMData().ambito),
 // así la misma función sirve para vendedor/supervisor/gerencia/directorio.
 //
 // Semáforos (sin verde en el chrome): azul #2563eb ok · ámbar #d97706 atención
@@ -55,15 +55,45 @@ export function ultimaActividadDe(leadId: string, acts: Actividad[]): Actividad 
   return ultima
 }
 
+export type IndiceUltimaActividad = ReadonlyMap<string, Actividad>
+
+/**
+ * Índice O(actividades) reutilizable por todos los cálculos de una pantalla.
+ * Evita volver a recorrer el timeline completo por cada lead.
+ */
+export function indexarUltimaActividad(acts: Actividad[]): IndiceUltimaActividad {
+  const indice = new Map<string, Actividad>()
+  for (const actividad of acts) {
+    const anterior = indice.get(actividad.lead_id)
+    if (!anterior || actividad.creado_en > anterior.creado_en) {
+      indice.set(actividad.lead_id, actividad)
+    }
+  }
+  return indice
+}
+
+function diasDesdeReferencia(creadoEn: string, ahora: number): number {
+  const t = new Date(creadoEn).getTime()
+  if (Number.isNaN(t)) return 0
+  return Math.max(0, (ahora - t) / DIA_MS)
+}
+
+function diasSinActividadIndexado(
+  lead: Lead,
+  indice: IndiceUltimaActividad,
+  ahora: number,
+): number {
+  return diasDesdeReferencia(indice.get(lead.id)?.creado_en ?? lead.creado_en, ahora)
+}
+
 /**
  * Días (con fracción) sin actividad: desde la última actividad, o desde
  * creado_en si el lead nunca fue tocado. Nunca negativo.
+ * `ahora` (epoch ms, default Date.now()) permite un reloj vivo (useAhora)
+ * o fechas fijas en tests; la firma sigue siendo retro-compatible.
  */
-export function diasSinActividad(lead: Lead, acts: Actividad[]): number {
-  const ref = ultimaActividadDe(lead.id, acts)?.creado_en ?? lead.creado_en
-  const t = new Date(ref).getTime()
-  if (Number.isNaN(t)) return 0
-  return Math.max(0, (Date.now() - t) / DIA_MS)
+export function diasSinActividad(lead: Lead, acts: Actividad[], ahora: number = Date.now()): number {
+  return diasSinActividadIndexado(lead, indexarUltimaActividad(acts), ahora)
 }
 
 /**
@@ -76,14 +106,16 @@ export function diasSinActividad(lead: Lead, acts: Actividad[]): number {
  *  - propuesta_enviada sin actividad ≥5 días → propuesta_sin_respuesta (media).
  *  - contactado/reunion_agendada sin actividad ≥3 días → seguimiento (baja).
  */
-export function colaDe(leads: Lead[], acts: Actividad[]): ItemCola[] {
+export function colaDe(leads: Lead[], acts: Actividad[], ahora: number = Date.now()): ItemCola[] {
   const items: ItemCola[] = []
+  const indice = indexarUltimaActividad(acts)
   for (const lead of leads) {
     if (!esAbierto(lead)) continue
-    const dias = diasSinActividad(lead, acts)
+    const ultima = indice.get(lead.id)
+    const dias = diasSinActividadIndexado(lead, indice, ahora)
     if (lead.vendedor_id == null) {
       items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo` })
-    } else if (lead.etapa === 'nuevo' && !ultimaActividadDe(lead.id, acts)) {
+    } else if (lead.etapa === 'nuevo' && !ultima) {
       items.push({ lead, bucket: 'sin_responder', sev: dias >= 1 ? 'critica' : 'media', dias, motivo: `Entró ${haceTexto(dias)} y nadie lo ha contactado` })
     } else if (lead.etapa === 'propuesta_enviada' && dias >= 5) {
       items.push({ lead, bucket: 'propuesta_sin_respuesta', sev: 'media', dias, motivo: `Propuesta enviada sin movimiento ${haceTexto(dias)}` })
@@ -111,10 +143,19 @@ export interface MetricasVendedor {
  * Métricas de captación por vendedor sobre el ámbito recibido.
  * Orden: capitalPEN desc (el ranking por capital captado en proceso).
  */
-export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Actividad[]): MetricasVendedor[] {
+export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Actividad[], ahora: number = Date.now()): MetricasVendedor[] {
+  const indice = indexarUltimaActividad(acts)
+  const porVendedor = new Map<string, Lead[]>()
+  for (const lead of leads) {
+    if (!lead.activo || !lead.vendedor_id) continue
+    const actuales = porVendedor.get(lead.vendedor_id)
+    if (actuales) actuales.push(lead)
+    else porVendedor.set(lead.vendedor_id, [lead])
+  }
+
   return vs
     .map((m) => {
-      const suyos = leads.filter((l) => l.activo && l.vendedor_id === m.perfil_id)
+      const suyos = porVendedor.get(m.perfil_id) ?? []
       const abiertos = suyos.filter(esAbierto)
       const convertidos = suyos.filter((l) => l.etapa === 'convertido').length
       let capitalPEN = 0
@@ -124,8 +165,8 @@ export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Activida
       for (const l of abiertos) {
         if (l.moneda === 'USD') capitalUSD += l.monto_estimado ?? 0
         else capitalPEN += l.monto_estimado ?? 0
-        if (!ultimaActividadDe(l.id, acts)) sinTocar++
-        const d = diasSinActividad(l, acts)
+        if (!indice.has(l.id)) sinTocar++
+        const d = diasSinActividadIndexado(l, indice, ahora)
         if (d > diasMax) diasMax = d
       }
       return {
@@ -182,10 +223,11 @@ export function conversionPorOrigen(leads: Lead[]): Array<{ origen: string; labe
  * Orden: días desc (el más abandonado primero). `dias` va con fracción;
  * la UI decide cómo redondear.
  */
-export function estancados(leads: Lead[], acts: Actividad[], dias = 7): Array<{ lead: Lead; dias: number }> {
+export function estancados(leads: Lead[], acts: Actividad[], dias = 7, ahora: number = Date.now()): Array<{ lead: Lead; dias: number }> {
+  const indice = indexarUltimaActividad(acts)
   return leads
     .filter(esAbierto)
-    .map((lead) => ({ lead, dias: diasSinActividad(lead, acts) }))
+    .map((lead) => ({ lead, dias: diasSinActividadIndexado(lead, indice, ahora) }))
     .filter((x) => x.dias >= dias)
     .sort((a, b) => b.dias - a.dias)
 }
