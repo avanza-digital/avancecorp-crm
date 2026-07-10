@@ -103,7 +103,8 @@ function LeadCard({ l, ahora, escribe, arrastrando, onAbrir, onMover, onDragStar
             // stopPropagation (click y keydown): el menú vive dentro de una card
             // clicable e interactiva por teclado — sin esto, Enter/Space sobre el
             // trigger o un ítem abriría la ficha en vez de operar el menú.
-            <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+            // role=presentation: solo intercepta burbujeo, no es un control.
+            <div role="presentation" onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
               <DropdownMenu
                 onOpenChange={setMenuAbierto}
                 trigger={

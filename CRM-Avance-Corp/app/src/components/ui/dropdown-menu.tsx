@@ -95,19 +95,25 @@ export function DropdownMenu({
     }
   }, [open])
 
-  // El aria del disparador va en el elemento interactivo real (el botón del
-  // consumidor), no en el span envolvente — los lectores de pantalla asocian
-  // así el estado expandido al control enfocable.
+  // El aria Y el click del disparador van en el elemento interactivo real (el
+  // botón del consumidor), no en un span envolvente — los lectores de pantalla
+  // asocian así el estado expandido al control enfocable, y teclado/AT operan
+  // el menú nativamente.
   const disparador = isValidElement(trigger)
     ? cloneElement(trigger as ReactElement<Record<string, unknown>>, {
         'aria-haspopup': 'menu',
         'aria-expanded': open,
+        onClick: (e: unknown) => {
+          const original = (trigger.props as Record<string, unknown>).onClick
+          if (typeof original === 'function') original(e)
+          alternar()
+        },
       })
     : trigger
 
   return (
     <div ref={raiz} className={cn('relative inline-flex', className)}>
-      <span className="inline-flex" onClick={alternar}>
+      <span className="inline-flex">
         {disparador}
       </span>
       {open && (
@@ -163,7 +169,8 @@ export function DropdownItem({ children, onSelect, disabled, destructive, classN
 }
 
 export function DropdownSeparator() {
-  return <div role="separator" className="my-1 h-px bg-border" />
+  // Decorativo: <hr> semántico, fuera del árbol de accesibilidad.
+  return <hr aria-hidden="true" className="my-1 h-px border-0 bg-border" />
 }
 
 export function DropdownLabel({ children }: { children: ReactNode }) {

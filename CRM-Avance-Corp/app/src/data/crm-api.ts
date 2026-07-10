@@ -1,8 +1,15 @@
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { sb } from '@/lib/supabase'
+import * as v from 'valibot'
+import { sb, type ClienteCrm } from '@/lib/supabase'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
-import { esOrigen, type Etapa, type Lead, type MotivoDescarte } from '@/lib/tipos'
-import type { Moneda } from '@/lib/format'
+import {
+  CATEGORIAS_INTERES,
+  ETAPAS,
+  MOTIVOS_DESCARTE,
+  ORIGENES,
+  TERMINALES,
+  type Etapa,
+  type Lead,
+} from '@/lib/tipos'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -28,25 +35,32 @@ const COLUMNAS_LEAD = [
   'activo',
 ].join(',')
 
-interface LeadRow {
-  id: string
-  nombre_completo: string
-  telefono: string
-  correo: string | null
-  dni: string | null
-  distrito: string | null
-  origen: string
-  etapa: Etapa
-  motivo_descarte: MotivoDescarte | null
-  monto_estimado: number | string | null
-  moneda: Moneda
-  categoria_interes: 'nuevo' | 'renovacion' | 'upgrade' | null
-  vendedor_id: string | null
-  asignado_supervisor_id: string | null
-  creado_en: string
-  actualizado_en: string
-  activo: boolean
-}
+// Validación en runtime del borde con Supabase (los unions de TS se borran al
+// compilar: un dato viejo o una migración a medias entrarían "compilando
+// limpio"). Los picklist salen de los MISMOS catálogos de tipos.ts — una sola
+// fuente de verdad para el CHECK, el union y el parser.
+const LeadRowSchema = v.object({
+  id: v.string(),
+  nombre_completo: v.string(),
+  telefono: v.string(),
+  correo: v.nullable(v.string()),
+  dni: v.nullable(v.string()),
+  distrito: v.nullable(v.string()),
+  origen: v.picklist(ORIGENES.map((o) => o.k)),
+  etapa: v.picklist([...ETAPAS.map((e) => e.k), ...TERMINALES.map((t) => t.k)]),
+  motivo_descarte: v.nullable(v.picklist(MOTIVOS_DESCARTE.map((m) => m.k))),
+  // numeric(12,2): PostgREST puede serializarlo como string
+  monto_estimado: v.nullable(v.union([v.number(), v.string()])),
+  moneda: v.picklist(['PEN', 'USD']),
+  categoria_interes: v.nullable(v.picklist(CATEGORIAS_INTERES.map((c) => c.k))),
+  vendedor_id: v.nullable(v.string()),
+  asignado_supervisor_id: v.nullable(v.string()),
+  creado_en: v.string(),
+  actualizado_en: v.string(),
+  activo: v.boolean(),
+})
+
+type LeadRow = v.InferOutput<typeof LeadRowSchema>
 
 export interface FiltrosLeads {
   pagina: number
@@ -77,7 +91,7 @@ export class CrmApiError extends Error {
   }
 }
 
-function cliente(): SupabaseClient {
+function cliente(): ClienteCrm {
   if (!sb) {
     const error = new CrmApiError('Supabase no está configurado.', 'SUPABASE_NOT_CONFIGURED')
     registrarError('crm.cliente_no_disponible', error)
@@ -124,9 +138,7 @@ function aLead(fila: LeadRow): Lead {
     correo: fila.correo,
     dni: fila.dni,
     distrito: fila.distrito,
-    // Frontera: un origen fuera del catálogo (dato viejo/migración) degrada a
-    // 'otro' en vez de romper los unions del dominio río abajo.
-    origen: esOrigen(fila.origen) ? fila.origen : 'otro',
+    origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
     monto_estimado: aNumero(fila.monto_estimado),
@@ -196,9 +208,29 @@ export async function listarLeads(
     throw fallo
   }
 
+  // Frontera validada en runtime: una fila que no cumple el contrato (dato
+  // viejo, migración a medias) se REGISTRA y se descarta — nunca un cast ciego
+  // que reviente la UI río abajo con un union imposible.
+  const items: Lead[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const resultado = v.safeParse(LeadRowSchema, cruda)
+    if (resultado.success) {
+      items.push(aLead(resultado.output))
+    } else {
+      descartadas += 1
+    }
+  }
+  if (descartadas > 0) {
+    registrarError('crm.leads.filas_invalidas', new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'), {
+      descartadas,
+      pagina,
+    })
+  }
+
   const total = count ?? 0
   return {
-    items: ((data ?? []) as unknown as LeadRow[]).map(aLead),
+    items,
     pagina,
     tamano,
     total,

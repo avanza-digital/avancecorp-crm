@@ -9,8 +9,7 @@
 // aquí solo se cablean Supabase, los listeners del navegador y el modo demo.
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import { createActor } from 'xstate'
-import type { SupabaseClient } from '@supabase/supabase-js'
-import { sb } from './supabase'
+import { sb, type ClienteCrm } from './supabase'
 import { DEMO_HABILITADO } from './config'
 import { registrarAviso, registrarError } from './observabilidad'
 import { AuthContext, type Fase } from './auth-context'
@@ -35,7 +34,7 @@ import type { Yo } from './tipos'
 
 import { DEMO_YO } from './auth-demo'
 
-async function resolverRol(cliente: SupabaseClient, userId: string): Promise<{ rol: Rol | null; nombre: string }> {
+async function resolverRol(cliente: ClienteCrm, userId: string): Promise<{ rol: Rol | null; nombre: string }> {
   // 1) ¿Enrolado en crm.equipo? (requiere F0 aplicada + esquema crm expuesto)
   const { data: miembro, error: errorEquipo } = await cliente.schema('crm').from('equipo')
     .select('rol_crm, activo').eq('perfil_id', userId).maybeSingle()
@@ -85,7 +84,7 @@ async function resolverRol(cliente: SupabaseClient, userId: string): Promise<{ r
  * aceptaría un JWT local cuya sesión ya fue cerrada en otro dispositivo) y
  * después resolución de rol. Es la dependencia que se inyecta a la máquina.
  */
-function crearVerificador(cliente: SupabaseClient): () => Promise<ResultadoVerificacion> {
+function crearVerificador(cliente: ClienteCrm): () => Promise<ResultadoVerificacion> {
   return async () => {
     const { data, error: errorUsuario } = await cliente.auth.getUser()
     if (errorUsuario) {

@@ -1,8 +1,26 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
+  "plugins": ["react", "typescript", "oxc", "jsx-a11y"],
   "rules": {
     "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
+    "react/only-export-components": ["warn", { "allowConstantExport": true }],
+    "react/exhaustive-deps": "warn",
+
+    // jsx-a11y: las reglas funcionales del plugin quedan activas. Las cuatro
+    // siguientes se apagan por FALSOS POSITIVOS de patrón (no por comodidad):
+    // - prefer-tag-over-role: cards ricas con role=button + tabIndex +
+    //   onKeyDown (ya operables por teclado), svg con role=img y el combobox
+    //   WAI-ARIA del buscador no pueden ser <button>/<img>/<select> reales.
+    "jsx-a11y/prefer-tag-over-role": "allow",
+    // - wrappers genéricos (DialogTitle, Label) reciben children vía
+    //   {...props}; el contenido existe en cada punto de uso.
+    "jsx-a11y/heading-has-content": "allow",
+    "jsx-a11y/label-has-associated-control": "allow",
+    // - autoFocus SOLO se usa dentro de diálogos modales (patrón aceptado:
+    //   el foco debe entrar al modal al abrirse).
+    "jsx-a11y/no-autofocus": "allow",
+    // - el buscador del topbar implementa el patrón combobox WAI-ARIA
+    //   (ul[role=listbox] / li[role=option]) — es el rol correcto.
+    "jsx-a11y/no-noninteractive-element-to-interactive-role": "allow"
   }
 }
