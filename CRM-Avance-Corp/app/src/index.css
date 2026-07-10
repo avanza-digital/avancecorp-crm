@@ -1,0 +1,307 @@
+@import 'tailwindcss';
+
+/* ============================================================================
+   CRM AVANCE CORP — sistema de diseño (F1)
+   Restricciones de marca: navy #111e3d primario · azul #2563eb acento ·
+   tema claro único · SIN verde en el chrome · Plus Jakarta Sans.
+   El pulido (aurora, sombras de 2 capas, lift, glow, pop) está heredado del
+   sistema de VITANOVA (Clínica Álvarez) y adaptado a la paleta navy/azul.
+   ========================================================================== */
+
+:root {
+  --radius: 0.75rem;
+
+  /* Lienzo casi-blanco frío → las cards blancas "flotan" (separación = calidad).
+     El fondo es blanco a la vista; las tarjetas son blanco puro. */
+  --background: #f6f8fc;
+  --foreground: #16233f;
+
+  --card: #ffffff;
+  --card-foreground: #16233f;
+
+  --primary: #111e3d;            /* navy institucional */
+  --primary-press: #0b1530;
+  --primary-foreground: #ffffff;
+
+  --accent: #2563eb;             /* azul de acción */
+  --accent-press: #1d4ed8;
+  --accent-foreground: #ffffff;
+
+  --secondary: #eef2f9;
+  --secondary-foreground: #111e3d;
+
+  --muted: #eef2f8;
+  --muted-foreground: #64748b;
+
+  --destructive: #dc2626;
+  --destructive-foreground: #ffffff;
+  --warning: #d97706;            /* ámbar (no hay verde: "positivo" = azul) */
+  --exito: #2563eb;              /* institucional SIN verde */
+
+  --border: #e4e9f2;
+  --border-strong: #d5ddec;
+  --input: #dbe2ef;
+  --ring: #2563eb;
+
+  /* Sidebar navy (identidad del CRM) */
+  --sidebar: #111e3d;
+  --sidebar-2: #0d1730;          /* degradado profundo del panel */
+  --sidebar-foreground: #c3cde0;
+  --sidebar-primary: #2563eb;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-border: rgba(255, 255, 255, 0.08);
+
+  /* Series de datos — SIN verde (azules/violeta/ámbar/cian/navy) */
+  --chart-1: #2563eb;
+  --chart-2: #7c3aed;
+  --chart-3: #d97706;
+  --chart-4: #0891b2;
+  --chart-5: #111e3d;
+
+  /* Curva de marca (misma que VITANOVA / MaterialM) */
+  --ease-out-expo: cubic-bezier(0.22, 1, 0.36, 1);
+
+  /* Sombra de card en 2 capas: halo cercano + difusa lejana ("cara", suave) */
+  --shadow-card:
+    0 1px 2px -1px rgb(17 30 61 / 0.08),
+    0 8px 24px -12px rgb(17 30 61 / 0.14);
+  --shadow-pop:
+    0 12px 30px -12px rgb(17 30 61 / 0.22),
+    0 2px 8px -4px rgb(17 30 61 / 0.12);
+
+  /* Blooms de la aurora (fondo amigable, muy sutil sobre lienzo claro).
+     halo-1 = navy arriba-izquierda · halo-2 = azul acento abajo-derecha ·
+     halo-3 = azul frío centro. Cero verde. */
+  --aurora-1: color-mix(in srgb, var(--primary) 8%, transparent);
+  --aurora-2: rgba(37, 99, 235, 0.07);
+  --aurora-3: rgba(96, 130, 220, 0.05);
+}
+
+@theme inline {
+  --font-sans: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-press: var(--primary-press);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-press: var(--accent-press);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-warning: var(--warning);
+  --color-exito: var(--exito);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  @apply bg-background text-foreground font-sans antialiased;
+}
+
+/* Números alineados y con proporción financiera por defecto en datos. */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* ============================================================================
+   AURORA — blooms navy/azul, fijos, detrás de todo. Baja opacidad + blur alto.
+   Las cards (blanco sólido) van encima → no reduce el contraste del texto.
+   ========================================================================== */
+.ac-aurora {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.ac-aurora::before,
+.ac-aurora::after {
+  content: '';
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+}
+.ac-aurora::before {          /* bloom navy, arriba-izquierda */
+  width: 55vw;
+  height: 55vw;
+  left: -16vw;
+  top: -22vw;
+  background: radial-gradient(circle at 30% 30%, var(--aurora-1), transparent 62%);
+}
+.ac-aurora::after {           /* bloom azul acento, abajo-derecha */
+  width: 48vw;
+  height: 48vw;
+  right: -16vw;
+  bottom: -20vw;
+  background: radial-gradient(circle at 60% 60%, var(--aurora-2), transparent 62%);
+}
+.ac-aurora > i {              /* bloom azul frío, centro-derecha */
+  position: absolute;
+  width: 32vw;
+  height: 32vw;
+  right: 24vw;
+  top: 28vh;
+  border-radius: 50%;
+  background: radial-gradient(circle, var(--aurora-3), transparent 62%);
+  filter: blur(100px);
+}
+
+/* ============================================================================
+   CHIP tintado por familia de color (light-variant, patrón VITANOVA).
+   Se pasa el color con la var --c: style={{ '--c': 'var(--chart-2)' }}.
+   ========================================================================== */
+.ac-chip {
+  background: color-mix(in srgb, var(--c, var(--accent)) 12%, transparent);
+  color: var(--c, var(--accent));
+}
+
+/* ============================================================================
+   MICRO-INTERACCIONES — hover/active suaves y consistentes.
+   ========================================================================== */
+
+/* Entrada de pantalla: fade + subida sutil en cada navegación (key={vista}). */
+.ac-rise { animation: ac-rise 0.4s var(--ease-out-expo) both; }
+@keyframes ac-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Pop de aparición: KPIs/badges/tiles (con overshoot desde 0.92). */
+.ac-pop { animation: ac-pop 0.35s var(--ease-out-expo) both; }
+@keyframes ac-pop {
+  from { opacity: 0; transform: translateY(4px) scale(0.94); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* Latido sutil e infinito: indicador "vivo" (badges de alerta). */
+.ac-flick { animation: ac-flick 2s var(--ease-out-expo) infinite; transform-origin: center; }
+@keyframes ac-flick {
+  0%, 100% { transform: scale(1); }
+  50%      { transform: scale(1.12); }
+}
+
+/* Tarjetas/filas clicables: leve lift + sombra suave al pasar el mouse. */
+.ac-lift {
+  transition:
+    transform 0.16s var(--ease-out-expo),
+    box-shadow 0.2s var(--ease-out-expo),
+    border-color 0.2s ease;
+  will-change: transform;
+}
+.ac-lift:hover {
+  transform: translateY(-3px);
+  box-shadow: var(--shadow-pop);
+  border-color: var(--border-strong);
+}
+.ac-lift:active { transform: translateY(-1px); }
+
+/* Botones (shadcn Button vía data-slot): lift + glow al hover, vuelve al presionar. */
+[data-slot='button'] {
+  transition:
+    transform 0.15s var(--ease-out-expo),
+    box-shadow 0.2s var(--ease-out-expo),
+    background-color 0.15s ease,
+    border-color 0.15s ease,
+    color 0.15s ease,
+    opacity 0.15s ease;
+}
+[data-slot='button']:not([data-variant='link']):not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 16px -8px color-mix(in srgb, var(--foreground) 30%, transparent);
+}
+[data-slot='button'][data-variant='default']:not(:disabled):hover {
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--primary) 55%, transparent);
+}
+[data-slot='button'][data-variant='accent']:not(:disabled):hover {
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+[data-slot='button'][data-variant='destructive']:not(:disabled):hover {
+  box-shadow: 0 8px 20px -8px color-mix(in srgb, var(--destructive) 55%, transparent);
+}
+[data-slot='button']:not([data-variant='link']):not(:disabled):active {
+  transform: translateY(0);
+  box-shadow: none;
+}
+
+/* Items del sidebar: leve desplazamiento + transición suave de fondo. */
+.ac-nav-item {
+  transition:
+    background-color 0.2s ease,
+    color 0.18s ease,
+    transform 0.15s var(--ease-out-expo);
+}
+.ac-nav-item:not(.is-active):hover { transform: translateX(2px); }
+
+/* Riel de scroll discreto (listas/kanban). */
+.ac-scroll::-webkit-scrollbar { height: 10px; width: 10px; }
+.ac-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 16%, transparent);
+  border-radius: 999px;
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+.ac-scroll::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--primary) 28%, transparent);
+  background-clip: padding-box;
+}
+
+/* ============================================================================
+   ACCESIBILIDAD — respetar prefers-reduced-motion.
+   ========================================================================== */
+@media (prefers-reduced-motion: reduce) {
+  .ac-lift,
+  [data-slot='button'],
+  .ac-nav-item {
+    transition: background-color 0.15s ease, color 0.15s ease, border-color 0.15s ease;
+  }
+  .ac-lift:hover,
+  .ac-lift:active,
+  [data-slot='button']:hover,
+  [data-slot='button']:active,
+  .ac-nav-item:hover { transform: none; }
+  .ac-rise, .ac-pop, .ac-flick { animation: none; }
+}
+
+/* ============================================================================
+   IMPRESIÓN / PDF — reportes (window.print). Oculta navegación y expande scroll.
+   ========================================================================== */
+@media print {
+  aside, header, .ac-aurora, .ac-no-print { display: none !important; }
+  html, body { background: #fff !important; }
+  main { overflow: visible !important; }
+  main > div { overflow: visible !important; padding: 0 !important; }
+  .ac-lift { box-shadow: none !important; transform: none !important; }
+  [data-slot='card'] { break-inside: avoid; page-break-inside: avoid; }
+  @page { margin: 12mm; }
+}
