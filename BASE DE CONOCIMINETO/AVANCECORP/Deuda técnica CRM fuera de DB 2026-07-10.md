@@ -63,7 +63,7 @@ Auth → **XState v5** · Tests → **Vitest + RTL + MSW + Playwright** (+ `cove
 
 ## Implementación — 2026-07-10 (mismo día, sesión de la tarde)
 
-**El plan completo se implementó y verificó.** 6 commits (`be66b58` → `29b543e`), todo local en `main` (falta `git push` — decisión de Miguel):
+**El plan completo se implementó y verificó.** 6 commits (`be66b58` → `29b543e`), todo local en `main`. Al cierre del día `main` va **9 commits adelante** del remoto (se sumaron las notas del vault y la consolidación de `public_html` v89→v93); el `git push` quedó **bloqueado por permisos** (ver Pendientes):
 
 - **Paso 0 ✅** — commit de seguridad: CI, capa de datos, librería interna y los 51 tests quedaron versionados (84 archivos que vivían solo en disco).
 - **Bloqueante 1 ✅ (carrera de sesión)** — `lib/auth-maquina.ts` (XState v5): las verificaciones en vuelo se **cancelan por construcción** al salir del estado (logout/cambio de cuenta); timeout 12s como transición; `auth.tsx` quedó como wrapper con la misma API. 16 tests, 4 de ellos de carrera con promesas demoradas.
@@ -82,7 +82,7 @@ Auth → **XState v5** · Tests → **Vitest + RTL + MSW + Playwright** (+ `cove
 
 **Decisiones anotadas para Miguel:**
 - `conversionGlobal` central vs. cálculo local de supervisor/gerencia: difieren en si un convertido SIN vendedor cuenta en el numerador (caso borde alcanzable al convertir un parkeado). Las pantallas conservan su cálculo actual; decidir la regla de negocio y unificar.
-- `git push` pendiente (el remoto sigue sin el CI).
+- `git push` **BLOQUEADO por scope de OAuth (2026-07-10 noche):** los commits incluyen `.github/workflows/crm-app-quality.yml` y GitHub exige el scope `workflow` para subir workflows — ni el token de git (keychain) ni el de `gh` (`gist, read:org, repo`) lo tienen. Remedio (interactivo, solo Miguel): `gh auth refresh -h github.com -s workflow` y luego `git push`. El pre-push de Lefthook ya pasa (crm-tests ✔️). El remoto sigue sin el CI hasta entonces.
 - Pendiente menor: si se corrompen datos en BD, la paginación de `listarLeads` puede mostrar totales mayores que las filas válidas (las corruptas se descartan con registro).
 
 ## Notas relacionadas
