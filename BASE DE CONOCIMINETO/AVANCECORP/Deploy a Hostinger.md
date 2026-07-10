@@ -11,6 +11,18 @@ Desde el **2026-06-10** el deploy del portal ya **no es manual**: Claude puede d
    - Spot-check de los archivos cambiados (HTTP 200).
    - Confirmar que el ZIP **no** quedó accesible públicamente (debe dar 404).
 
+## CRM (crm.miavance.com)
+
+Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
+
+1. `npm run build` en `CRM-Avance-Corp/app/` (lee `.env` local; el demo queda fuera del bundle de producción).
+2. ZIP del **contenido** de `dist/` (index.html en la raíz del zip, `.htaccess` incluido).
+3. `HOSTINGER_API_TOKEN="$(cat ~/.hostinger_token)" node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs deploy crm.miavance.com <zip>` — la tool resuelve el usuario del subdominio sola.
+4. Verificar: HTML en vivo referencia los hashes del build nuevo · asset nuevo responde 200 · el ZIP da 404 en `crm.miavance.com/` y en `miavance.com/` · smoke visual (login carga, sin errores de consola).
+
+- El **token** vive en `~/.hostinger_token` (chmod 600, fuera del repo). Si se rota en hPanel, actualizar ese archivo.
+- El CRM **no usa service worker**: no hay `CACHE_VERSION` que bumpear; el cache-busting lo hacen los hashes de Vite.
+
 ## Notas
 
 - El primer deploy por esta vía fue el **2026-06-10** (SW v89: mejoras de contratos/analista/pagos/dashboard/inversión + crono-timeline). Funcionó completo: 107 archivos, verificado en vivo.
