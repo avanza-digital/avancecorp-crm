@@ -1,5 +1,5 @@
 // Modal de alta de lead (F1b) — se monta UNA vez en App.tsx y se abre con
-// useStore().abrirNuevoLead(etapa?). Todo demo: crearLead() vive en el store
+// usePanelesActions().abrirNuevoLead(etapa?). Todo demo: crearLead() vive en el store
 // (memoria + sessionStorage), jamás Supabase. Doble defensa de escritura: este
 // componente ni se renderiza para roles de solo lectura (directorio) y el
 // store re-valida cada mutación por su cuenta. El formulario vive DENTRO del
@@ -21,9 +21,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
-import { normalizarTelefono, useStore } from '@/lib/store'
+import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
+import { normalizarTelefono } from '@/lib/validacion'
 import { ETAPA_INFO, ORIGENES } from '@/lib/tipos'
 import type { Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
@@ -51,9 +52,9 @@ function Campo({
   children,
 }: {
   label: string
-  htmlFor?: string
-  requerido?: boolean
-  error?: string
+  htmlFor?: string | undefined
+  requerido?: boolean | undefined
+  error?: string | undefined
   children: ReactNode
 }) {
   return (
@@ -78,7 +79,8 @@ function Campo({
 }
 
 export function LeadNuevo() {
-  const { nuevoLeadAbierto, cerrarPaneles } = useStore()
+  const { nuevoLeadAbierto } = usePanelesState()
+  const { cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
 
   // Guard interno (además del gate externo): directorio jamás ve este modal.
@@ -93,7 +95,9 @@ export function LeadNuevo() {
 
 /** Estado y campos del alta. Montado solo mientras el Dialog está abierto. */
 function FormularioNuevoLead() {
-  const { etapaInicial, ambito, crearLead, abrirLead, cerrarPaneles } = useStore()
+  const { etapaInicial } = usePanelesState()
+  const { ambito, crearLead } = useCRMData()
+  const { abrirLead, cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
 
   const puedeElegirVendedor = can(yo?.rol, 'reasignar')

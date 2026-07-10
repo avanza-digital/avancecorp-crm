@@ -4,7 +4,7 @@
 import { useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { cn } from '@/lib/utils'
-import { esModalSuperior } from '@/components/ui/sheet'
+import { esModalSuperior } from '@/lib/modal-stack'
 
 const KEYFRAMES = `
 @keyframes ac-dialog-overlay { from { opacity: 0 } to { opacity: 1 } }

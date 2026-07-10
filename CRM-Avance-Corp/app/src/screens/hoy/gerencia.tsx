@@ -1,6 +1,6 @@
 // Hoy · GERENCIA — tablero ejecutivo de TODA la empresa (F1c).
-// Fuentes: useStore().ambito (esGlobal) + lib/inteligencia (comparativaEquipos,
-// embudo, conversionPorOrigen, estancados, metricasPorVendedor) + METAS_DEMO.
+// Fuentes: useCRMData().ambito (esGlobal) + lib/inteligencia (comparativaEquipos,
+// embudo, conversionPorOrigen, estancados, metricasPorVendedor) + objetivos.
 // Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
 // crítico · convertido/ganado = navy #111e3d. PEN y USD JAMÁS se suman.
 import { useMemo, type CSSProperties, type JSX } from 'react'
@@ -24,10 +24,9 @@ import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
 import { SegmentBar, type Segment } from '@/components/common/stat-strip'
-import { useStore } from '@/lib/store'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
-import { METAS_DEMO, SPARKS_DEMO } from '@/lib/demo'
 import {
   colorMeta,
   comparativaEquipos,
@@ -52,9 +51,8 @@ const esAbierto = (l: Lead) => l.activo && l.etapa !== 'convertido' && l.etapa !
 /** Chip de tendencia a partir de la serie demo (último vs anterior). */
 function tendenciaDe(serie: number[]): string | undefined {
   if (serie.length < 2) return undefined
-  const prev = serie[serie.length - 2]
-  const ult = serie[serie.length - 1]
-  if (!prev) return undefined
+  const [prev, ult] = serie.slice(-2)
+  if (prev == null || ult == null || prev === 0) return undefined
   const pct = Math.round(((ult - prev) / prev) * 100)
   if (pct === 0) return '— 0%'
   return pct > 0 ? `▲ +${pct}%` : `▼ −${Math.abs(pct)}%`
@@ -98,9 +96,10 @@ function MetaItem({
 }
 
 export function HoyGerencia(): JSX.Element {
-  const { ambito, equipo, actividades, abrirLead } = useStore()
+  const { ambito, equipo, actividades, objetivos, series } = useCRMData()
+  const { abrirLead } = usePanelesActions()
   const leads = ambito.leads
-  const meta = METAS_DEMO.gerencia
+  const meta = objetivos.gerencia
 
   // ── Números de empresa (PEN y USD SIEMPRE por separado) ──
   const d = useMemo(() => {
@@ -153,8 +152,8 @@ export function HoyGerencia(): JSX.Element {
           icon={TrendingUp}
           color="var(--accent)"
           sub={d.capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(d.capUSD, 'USD')}` : 'Pipeline activo (PEN)'}
-          spark={SPARKS_DEMO.capital}
-          tendencia={tendenciaDe(SPARKS_DEMO.capital)}
+          spark={series.capital}
+          tendencia={tendenciaDe(series.capital)}
           delay={0}
         />
         <KpiCard
@@ -163,8 +162,8 @@ export function HoyGerencia(): JSX.Element {
           icon={Users}
           color="var(--chart-2)"
           sub={d.porRepartir > 0 ? `Con vendedor · +${d.porRepartir} por repartir en bandejas` : 'Todos con vendedor asignado'}
-          spark={SPARKS_DEMO.leads}
-          tendencia={tendenciaDe(SPARKS_DEMO.leads)}
+          spark={series.leads}
+          tendencia={tendenciaDe(series.leads)}
           delay={60}
         />
         <KpiCard
@@ -173,7 +172,7 @@ export function HoyGerencia(): JSX.Element {
           icon={Percent}
           color={colorVsObjetivo(d.conversion, meta.conversionObjetivo)}
           sub={`${d.nConvertidos} de ${d.vivosAsignados} leads con vendedor · objetivo ${meta.conversionObjetivo}%`}
-          spark={SPARKS_DEMO.conversion}
+          spark={series.conversion}
           delay={120}
         />
         <KpiCard
@@ -232,7 +231,7 @@ export function HoyGerencia(): JSX.Element {
             segments={equipos.map<Segment>((e, i) => ({
               label: e.supervisor.nombre_completo,
               value: e.capitalPEN,
-              color: COLOR_EQUIPO[i % COLOR_EQUIPO.length],
+              color: COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? NAVY,
               valTxt: moneyK(e.capitalPEN),
             }))}
           />
@@ -250,7 +249,7 @@ export function HoyGerencia(): JSX.Element {
               </thead>
               <tbody>
                 {equipos.map((e, i) => {
-                  const c = COLOR_EQUIPO[i % COLOR_EQUIPO.length]
+                  const c = COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? NAVY
                   return (
                     <tr key={e.supervisor.perfil_id} className="border-b border-border/60 last:border-0">
                       <td className="py-2.5 pr-4">
@@ -504,7 +503,7 @@ export function HoyGerencia(): JSX.Element {
               <p className="py-6 text-center text-xs text-muted-foreground">Aún no hay vendedores con cartera.</p>
             ) : (
               top.map((r, i) => {
-                const c = PODIO[i] ?? PODIO[PODIO.length - 1]
+                const c = PODIO[i] ?? PODIO[PODIO.length - 1] ?? NAVY
                 return (
                   <div
                     key={r.m.perfil_id}
@@ -542,8 +541,7 @@ export function HoyGerencia(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — tablero ejecutivo sobre toda la empresa; los datos reales llegan del esquema crm
-        (RLS jerárquica) al cerrar F1.
+        Tablero de demostración — pronto verás aquí la información real de tu operación.
       </p>
     </div>
   )

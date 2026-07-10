@@ -8,13 +8,14 @@ import { Avatar } from '@/components/ui/avatar'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, SegmentBar, type StatChipData, type Segment } from '@/components/common/stat-strip'
 import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, ORIGENES, type Etapa } from '@/lib/tipos'
-import { useStore } from '@/lib/store'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { money, moneyK, fmtFecha } from '@/lib/format'
 import { can } from '@/lib/roles'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth-context'
 
 const CAT_LABEL: Record<string, string> = { nuevo: 'Nuevo', renovacion: 'Renovación', upgrade: 'Upgrade' }
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
+const PAGE_SIZE = 50
 
 /** Label es-PE del origen (la clave cruda capitalizada muestra "Campania"). */
 const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
@@ -25,12 +26,14 @@ type FiltroVendedor = string
 
 export function Cartera() {
   const { yo } = useAuth()
-  const { ambito, abrirLead } = useStore()
+  const { ambito } = useCRMData()
+  const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
   const leads = ambito.leads
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fVend, setFVend] = useState<FiltroVendedor>('todos')
+  const [pagina, setPagina] = useState(0)
   // Columna "Vendedor" = ver al equipo; filtro por vendedor = capacidad aparte.
   const verVendedor = can(yo?.rol, 'verEquipo')
   const filtrarVendedor = can(yo?.rol, 'filtrarPorVendedor')
@@ -83,6 +86,9 @@ export function Cartera() {
   }, [leads, q, fEtapa, fVend])
 
   const hayFiltro = q.trim() !== '' || fEtapa !== 'todas' || fVend !== 'todos'
+  const paginas = Math.max(1, Math.ceil(items.length / PAGE_SIZE))
+  const paginaActual = Math.min(pagina, paginas - 1)
+  const itemsPagina = items.slice(paginaActual * PAGE_SIZE, (paginaActual + 1) * PAGE_SIZE)
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
@@ -109,11 +115,11 @@ export function Cartera() {
             placeholder="Buscar por nombre, teléfono o DNI…"
             className="pl-9"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => { setQ(e.target.value); setPagina(0) }}
           />
         </div>
         <div className="w-[190px]">
-          <Select aria-label="Filtrar por etapa" value={fEtapa} onChange={(e) => setFEtapa(e.target.value as FiltroEtapa)}>
+          <Select aria-label="Filtrar por etapa" value={fEtapa} onChange={(e) => { setFEtapa(e.target.value as FiltroEtapa); setPagina(0) }}>
             <option value="todas">Todas las etapas</option>
             {[...ETAPAS, ...TERMINALES].map((e) => (
               <option key={e.k} value={e.k}>{e.label}</option>
@@ -122,7 +128,7 @@ export function Cartera() {
         </div>
         {filtrarVendedor && (
           <div className="w-[210px]">
-            <Select aria-label="Filtrar por vendedor" value={fVend} onChange={(e) => setFVend(e.target.value)}>
+            <Select aria-label="Filtrar por vendedor" value={fVend} onChange={(e) => { setFVend(e.target.value); setPagina(0) }}>
               <option value="todos">Todos los vendedores</option>
               {ambito.vendedores.map((m) => (
                 <option key={m.perfil_id} value={m.perfil_id}>{m.nombre_completo}</option>
@@ -169,7 +175,7 @@ export function Cartera() {
                 </tr>
               </thead>
               <tbody>
-                {items.map((l) => {
+                {itemsPagina.map((l) => {
                   const e = ETAPA_INFO[l.etapa]
                   return (
                     <tr
@@ -240,8 +246,34 @@ export function Cartera() {
         )}
       </Card>
 
+      {items.length > PAGE_SIZE && (
+        <nav className="flex items-center justify-between gap-3" aria-label="Paginación de cartera">
+          <p className="text-xs tabular-nums text-muted-foreground">
+            Página {paginaActual + 1} de {paginas} · {items.length} registros
+          </p>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={paginaActual === 0}
+              onClick={() => setPagina((p) => Math.max(0, p - 1))}
+            >
+              Anterior
+            </button>
+            <button
+              type="button"
+              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
+              disabled={paginaActual >= paginas - 1}
+              onClick={() => setPagina((p) => Math.min(paginas - 1, p + 1))}
+            >
+              Siguiente
+            </button>
+          </div>
+        </nav>
+      )}
+
       <p className="text-[11px] text-muted-foreground">
-        Demo — la cartera real llega paginada del servidor (lista para ~5,000 clientes) al cerrar F1.
+        Cartera de demostración — pronto verás aquí a tus clientes reales, lista para crecer con la operación.
       </p>
     </div>
   )

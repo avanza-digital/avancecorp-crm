@@ -7,8 +7,8 @@ export function Avatar({
   className,
 }: {
   nombre: string | null | undefined
-  color?: string
-  className?: string
+  color?: string | undefined
+  className?: string | undefined
 }) {
   return (
     <span

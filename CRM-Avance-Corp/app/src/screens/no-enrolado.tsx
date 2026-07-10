@@ -1,6 +1,6 @@
 import { ShieldAlert } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth-context'
 
 export function NoEnrolado() {
   const { salir } = useAuth()

@@ -31,7 +31,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
 import { Donut } from '@/components/common/donut'
-import { useStore } from '@/lib/store'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { comparativaEquipos, embudo } from '@/lib/inteligencia'
 import { money, moneyK, fmtFecha } from '@/lib/format'
 import {
@@ -80,7 +80,8 @@ function haceCorto(iso: string): string {
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyDirectorio(): JSX.Element {
-  const { ambito, equipo, actividades, abrirLead } = useStore()
+  const { ambito, equipo, actividades } = useCRMData()
+  const { abrirLead } = usePanelesActions()
 
   const r = useMemo(() => {
     const vivos = ambito.leads.filter((l) => l.activo)
@@ -439,8 +440,8 @@ export function HoyDirectorio(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Auditoría del directorio — datos del ámbito global en modo solo lectura; toda
-        mutación está vetada por rol (UX y RLS).
+        Auditoría del directorio — ves toda la operación en modo solo lectura; este rol
+        no realiza cambios.
       </p>
     </div>
   )

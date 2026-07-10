@@ -1,7 +1,7 @@
-// Pipeline (kanban) VIVO — F1b: lee y muta el store demo (useStore).
+// Pipeline (kanban) VIVO — F1b: lee y muta el store demo (useCRMData).
 // Card clicable → drawer; menú "…" y drag & drop HTML5 para mover de etapa;
 // alta por columna. Todo write-gated (rol directorio = solo lectura total).
-// F1c: consciente del rol — trabaja SIEMPRE sobre useStore().ambito y, para
+// F1c: consciente del rol — trabaja SIEMPRE sobre useCRMData().ambito y, para
 // supervisor/gerencia/directorio, ofrece pills de filtro por vendedor
 // (+ bandeja "Por repartir" de parkeados). El vendedor solo ve lo suyo.
 import { useRef, useState, type CSSProperties, type DragEvent } from 'react'
@@ -20,8 +20,8 @@ import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { ETAPAS, ORIGENES, TERMINALES, type EtapaActiva, type Lead } from '@/lib/tipos'
 import { money, moneyK } from '@/lib/format'
 import { can, puedeEscribir } from '@/lib/roles'
-import { useAuth } from '@/lib/auth'
-import { useStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 
 // "hace X" compacto a partir de un ISO.
 function hace(iso: string): string {
@@ -135,12 +135,19 @@ function LeadCard({ l, escribe, arrastrando, onAbrir, onMover, onDragStart, onDr
 export function Pipeline() {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
-  const { ambito, abrirLead, abrirNuevoLead, cambiarEtapa } = useStore()
+  const { ambito, cambiarEtapa } = useCRMData()
+  const { abrirLead, abrirNuevoLead } = usePanelesActions()
   // F1c: el tablero SIEMPRE trabaja sobre el ámbito del rol, nunca el global.
   const leads = ambito.leads
 
   // ── Filtro por vendedor (pills) — solo roles con la capacidad y >1 vendedor ──
   const [fVend, setFVend] = useState<string>('todos') // 'todos' | 'por_repartir' | perfil_id
+  const [limites, setLimites] = useState<Record<EtapaActiva, number>>({
+    nuevo: 60,
+    contactado: 60,
+    reunion_agendada: 60,
+    propuesta_enviada: 60,
+  })
   const mostrarFiltro = can(yo?.rol, 'filtrarPorVendedor') && ambito.vendedores.length > 1
   // Bandeja "por repartir": sin vendedor asignado y aún en etapa de trabajo.
   const porRepartir = leads.filter(
@@ -275,6 +282,7 @@ export function Pipeline() {
       <div className="ac-scroll -mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
         {ETAPAS.map((col) => {
           const enCol = enTablero.filter((l) => l.etapa === col.k)
+          const visibles = enCol.slice(0, limites[col.k])
           const totalPEN = capitalDe(enCol, 'PEN')
           const totalUSD = capitalDe(enCol, 'USD')
           const totalTxt = [
@@ -326,7 +334,7 @@ export function Pipeline() {
                 }
                 onDrop={escribe ? alDrop(col.k) : undefined}
               >
-                {enCol.map((l) => (
+                {visibles.map((l) => (
                   <LeadCard
                     key={l.id}
                     l={l}
@@ -342,6 +350,18 @@ export function Pipeline() {
                   <div className="rounded-xl border border-dashed border-border px-3 py-6 text-center text-[11px] text-muted-foreground">
                     {destino ? 'Suelta aquí para mover el lead' : 'Sin leads en esta etapa'}
                   </div>
+                )}
+                {visibles.length < enCol.length && (
+                  <button
+                    type="button"
+                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
+                    onClick={() => setLimites((actual) => ({
+                      ...actual,
+                      [col.k]: actual[col.k] + 60,
+                    }))}
+                  >
+                    Mostrar 60 más · faltan {enCol.length - visibles.length}
+                  </button>
                 )}
                 {escribe && (
                   <button

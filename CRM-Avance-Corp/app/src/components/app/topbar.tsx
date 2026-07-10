@@ -1,7 +1,9 @@
-// Topbar — título de vista, búsqueda global real (leads del ÁMBITO por
-// nombre/teléfono/DNI — espejo RLS F1c: un vendedor no encuentra leads ajenos),
-// campana (F2) y alta de lead. La búsqueda abre el drawer vía useStore().abrirLead.
+// Topbar — título de vista (+ chip DEMO si la sesión es demo), búsqueda global
+// real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un vendedor
+// no encuentra leads ajenos), campana honesta (sin punto rojo fijo) y alta de
+// lead. La búsqueda abre el drawer vía usePanelesActions().abrirLead.
 import {
+  useDeferredValue,
   useEffect,
   useMemo,
   useRef,
@@ -13,11 +15,11 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { puedeEscribir } from '@/lib/roles'
-import { useAuth } from '@/lib/auth'
-import { useStore } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
-import type { Vista } from '@/App'
+import type { Vista } from '@/lib/router'
 
 const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
@@ -41,6 +43,7 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
   const nq = norm(q.trim())
   if (!nq) return []
   const dq = nq.replace(/\D/g, '') // versión solo-dígitos para tel/DNI
+  if (nq.length < 2 && dq.length < 3) return []
   return leads
     .filter(
       (l) =>
@@ -54,15 +57,24 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
 
 export function Topbar({ vista }: { vista: Vista }) {
   const { yo } = useAuth()
-  const { ambito, abrirLead, abrirNuevoLead } = useStore()
+  const { ambito } = useCRMData()
+  const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const info = TITULOS[vista]
+
+  // Aún no hay origen real de notificaciones: cuando exista, este número
+  // vendrá de ahí y el punto de la campana volverá solo.
+  const notificacionesPendientes: number = 0
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
+  const qDiferida = useDeferredValue(q)
   const [abierto, setAbierto] = useState(false)
   const [activo, setActivo] = useState(0)
 
-  const resultados = useMemo(() => buscarLeads(ambito.leads, q), [ambito.leads, q])
+  const resultados = useMemo(
+    () => buscarLeads(ambito.leads, qDiferida),
+    [ambito.leads, qDiferida],
+  )
   // Índice resaltado, siempre dentro de rango aunque cambien los resultados.
   const iActivo = resultados.length > 0 ? Math.min(activo, resultados.length - 1) : 0
 
@@ -124,7 +136,15 @@ export function Topbar({ vista }: { vista: Vista }) {
   return (
     <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-4 border-b border-border bg-card/80 px-6 backdrop-blur-md">
       <div className="min-w-0 leading-tight">
-        <h1 className="truncate text-lg font-extrabold tracking-tight text-primary">{info.t}</h1>
+        <div className="flex min-w-0 items-center gap-2">
+          <h1 className="truncate text-lg font-extrabold tracking-tight text-primary">{info.t}</h1>
+          {/* Chip discreto: deja claro que los datos son de demostración */}
+          {yo?.demo && (
+            <span className="shrink-0 rounded-full border border-border bg-muted px-2 py-px text-[9px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+              Demo
+            </span>
+          )}
+        </div>
         <p className="truncate text-xs text-muted-foreground">{info.s}</p>
       </div>
 
@@ -209,12 +229,18 @@ export function Topbar({ vista }: { vista: Vista }) {
         <Button
           variant="ghost"
           size="icon"
-          title="Notificaciones (F2)"
-          onClick={() => toast.info('Notificaciones llegan en la Fase 2')}
+          title="Las notificaciones llegan pronto"
+          aria-label="Notificaciones"
+          onClick={() => toast.info('Las notificaciones llegan pronto')}
           className="relative"
         >
           <Bell className="size-4" />
-          <span className="ac-flick absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
+          {/* Campana honesta: el punto solo aparece con conteo REAL de
+              notificaciones pendientes — hoy no existe ese origen, así que
+              nunca se pinta (nada de badges decorativos). */}
+          {notificacionesPendientes > 0 && (
+            <span className="ac-flick absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
+          )}
         </Button>
 
         {puedeEscribir(yo?.rol) && (

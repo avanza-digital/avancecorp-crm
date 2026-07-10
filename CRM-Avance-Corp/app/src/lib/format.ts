@@ -26,8 +26,8 @@ export function iniciales(nombre: string | null | undefined): string {
 export function primerNombre(nombre: string | null | undefined): string {
   const limpio = (nombre ?? '').trim()
   if (!limpio) return ''
-  const pila = limpio.split(/\s+/)[0]
-  return pila.charAt(0) + pila.slice(1).toLowerCase()
+  const pila = limpio.split(/\s+/)[0] ?? ''
+  return pila.charAt(0).toUpperCase() + pila.slice(1).toLowerCase()
 }
 
 export function fmtFecha(iso: string | null | undefined): string {

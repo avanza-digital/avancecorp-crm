@@ -1,0 +1,61 @@
+name: CRM RLS preflight
+
+on:
+  pull_request:
+    paths:
+      - 'CRM-Avance-Corp/package.json'
+      - 'CRM-Avance-Corp/package-lock.json'
+      - 'CRM-Avance-Corp/supabase/scripts/**'
+      - '.github/workflows/crm-rls-preflight.yml'
+  push:
+    branches: [main]
+    paths:
+      - 'CRM-Avance-Corp/package.json'
+      - 'CRM-Avance-Corp/package-lock.json'
+      - 'CRM-Avance-Corp/supabase/scripts/**'
+      - '.github/workflows/crm-rls-preflight.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crm-rls-preflight-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  preflight:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    defaults:
+      run:
+        working-directory: CRM-Avance-Corp
+    env:
+      # Valores deliberadamente ficticios. Los comandos --preflight no abren red.
+      SUPABASE_URL: https://crm-rls-preflight.invalid
+      SUPABASE_ANON_KEY: preflight-anon-key-not-a-secret
+      SUPABASE_SERVICE_ROLE_KEY: preflight-service-key-not-a-secret
+      CRM_DEMO_PASSWORD: preflight-password-not-a-secret
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Use Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: CRM-Avance-Corp/package-lock.json
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Check script syntax
+        run: npm run check:scripts
+
+      - name: Validate seed preflight without network
+        run: npm run seed:preflight
+
+      - name: Validate RLS matrix preflight without network
+        run: npm run test:rls:preflight

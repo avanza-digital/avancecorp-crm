@@ -2,11 +2,11 @@ import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
 } from 'lucide-react'
 import { can, ROL_LABEL, type Accion } from '@/lib/roles'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth-context'
 import { Avatar } from '@/components/ui/avatar'
 import { BrandLockup } from '@/components/app/brand'
 import { cn } from '@/lib/utils'
-import type { Vista } from '@/App'
+import { escribirHash, type Vista } from '@/lib/router'
 
 interface NavItem {
   id: Vista
@@ -45,7 +45,9 @@ function NavButton({
   )
 }
 
-export function Sidebar({ vista, setVista }: { vista: Vista; setVista: (v: Vista) => void }) {
+// Navega escribiendo el hash (#/vista): App.tsx lo sincroniza con el estado,
+// así back/forward y recargar funcionan igual que un click en el menú.
+export function Sidebar({ vista }: { vista: Vista }) {
   const { yo, salir } = useAuth()
   const rol = yo?.rol
 
@@ -65,7 +67,7 @@ export function Sidebar({ vista, setVista }: { vista: Vista; setVista: (v: Vista
           Principal
         </p>
         {NAV.filter((n) => !n.cap || can(rol, n.cap)).map((n) => (
-          <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => setVista(n.id)} />
+          <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => escribirHash(n.id)} />
         ))}
 
         {can(rol, 'verConfiguracion') && (
@@ -76,7 +78,7 @@ export function Sidebar({ vista, setVista }: { vista: Vista; setVista: (v: Vista
             <NavButton
               item={{ label: 'Configuración', icon: Settings }}
               active={vista === 'config'}
-              onClick={() => setVista('config')}
+              onClick={() => escribirHash('config')}
             />
           </>
         )}

@@ -2,15 +2,13 @@
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
 // suyos), así que aquí no hay ni ranking ni datos de otros vendedores — ni en
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
-import type { JSX } from 'react'
+import { useMemo, type JSX } from 'react'
 import {
   CalendarDays,
   ChevronRight,
   CircleCheckBig,
   Clock,
   FileText,
-  MessageCircle,
-  Phone,
   Target,
   Trophy,
   Users,
@@ -22,10 +20,11 @@ import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { SectionHead } from '@/components/common/section-head'
 import { KpiCard } from '@/components/common/kpi-card'
-import { AGENDA_DEMO, METAS_DEMO, SPARKS_DEMO } from '@/lib/demo'
+import { AccionesContacto } from '@/components/app/contacto'
 import { colaDe, colorMeta, type ItemCola } from '@/lib/inteligencia'
-import { useStore } from '@/lib/store'
-import { useAuth } from '@/lib/auth'
+import { useAhora } from '@/lib/ahora'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, primerNombre } from '@/lib/format'
 
 // ── Constantes de presentación ────────────────────────────────────────────────
@@ -53,18 +52,13 @@ const TIPO_EVENTO: Record<string, string> = {
   vencimiento: 'Vencimiento',
 }
 
-/** Link de acción rápida (tel:/wa.me reales — mismo patrón del lead-drawer). */
-const CLASE_ACCION =
-  'inline-flex h-7 items-center gap-1.5 rounded-lg border border-input bg-card px-2.5 text-[11px] font-semibold text-foreground transition-colors hover:bg-muted hover:border-border-strong [&_svg]:size-3.5'
-
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
 /** Chip de tendencia "▲ +13%" desde la serie del sparkline (últimos 2 puntos). */
 function tendenciaDe(serie: number[]): string | undefined {
   if (serie.length < 2) return undefined
-  const prev = serie[serie.length - 2]
-  const ult = serie[serie.length - 1]
-  if (prev === 0) return undefined
+  const [prev, ult] = serie.slice(-2)
+  if (prev == null || ult == null || prev === 0) return undefined
   const pct = Math.round(((ult - prev) / prev) * 100)
   if (pct === 0) return undefined
   return pct > 0 ? `▲ +${pct}%` : `▼ −${Math.abs(pct)}%`
@@ -77,17 +71,21 @@ const pctMeta = (actual: number, objetivo: number): number =>
 /** "hoy" / "N d" para la columna de días de la cola (dias viene con fracción). */
 const diasTxt = (d: number): string => (d < 1 ? 'hoy' : `${Math.floor(d)} d`)
 
-/** Fecha larga es-PE con la primera letra en mayúscula. */
-function fechaLarga(): string {
-  const s = new Date().toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
+/** Fecha larga es-PE con la primera letra en mayúscula (sobre el reloj vivo). */
+function fechaLarga(ahora: number): string {
+  const s = new Date(ahora).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
-  const { ambito, actividades, abrirLead } = useStore()
+  const { ambito, actividades, agenda: agendaGlobal, objetivos, series } = useCRMData()
+  const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
+  // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
+  // dependencia de la cola para que los "hace X" y semáforos se refresquen solos.
+  const ahora = useAhora()
 
   // Universo del asesor — ambito.leads ya es SOLO su cartera.
   const mios = ambito.leads.filter((l) => l.activo)
@@ -105,15 +103,18 @@ export function HoyVendedor(): JSX.Element {
 
   // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
   // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.
-  const meta = METAS_DEMO.vendedor
+  const meta = objetivos.vendedor
   const conversion = mios.length > 0 ? Math.round((convertidos.length / mios.length) * 100) : 0
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
-  const cola = colaDe(ambito.leads, actividades)
+  const cola = useMemo(
+    () => colaDe(ambito.leads, actividades, ahora),
+    [ambito.leads, actividades, ahora],
+  )
 
   // Agenda demo recortada a SUS leads.
   const idsMios = new Set(mios.map((l) => l.id))
-  const agenda = AGENDA_DEMO.filter((ev) => idsMios.has(ev.lead_id))
+  const agenda = agendaGlobal.filter((ev) => idsMios.has(ev.lead_id))
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -123,7 +124,7 @@ export function HoyVendedor(): JSX.Element {
           Hola, {primerNombre(yo?.nombre_completo) || 'asesor'}
         </h2>
         <p className="text-xs text-muted-foreground">
-          {fechaLarga()} · Tu cartera y tus pendientes — solo ves lo tuyo
+          {fechaLarga(ahora)} · Tu cartera y tus pendientes — solo ves lo tuyo
         </p>
       </div>
 
@@ -135,8 +136,8 @@ export function HoyVendedor(): JSX.Element {
           icon={Wallet}
           color="#2563eb"
           sub={capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(capUSD, 'USD')} aparte` : 'Pipeline activo (PEN)'}
-          spark={SPARKS_DEMO.capital}
-          tendencia={tendenciaDe(SPARKS_DEMO.capital)}
+          spark={series.capital}
+          tendencia={tendenciaDe(series.capital)}
           delay={0}
         />
         <KpiCard
@@ -145,8 +146,8 @@ export function HoyVendedor(): JSX.Element {
           icon={Users}
           color="#7c3aed"
           sub="Abiertos en tu cartera"
-          spark={SPARKS_DEMO.leads}
-          tendencia={tendenciaDe(SPARKS_DEMO.leads)}
+          spark={series.leads}
+          tendencia={tendenciaDe(series.leads)}
           delay={60}
         />
         <KpiCard
@@ -155,8 +156,8 @@ export function HoyVendedor(): JSX.Element {
           icon={FileText}
           color="#d97706"
           sub="Esperando respuesta del cliente"
-          spark={SPARKS_DEMO.propuestas}
-          tendencia={tendenciaDe(SPARKS_DEMO.propuestas)}
+          spark={series.propuestas}
+          tendencia={tendenciaDe(series.propuestas)}
           delay={120}
         />
         {/* Sin spark: la serie de % de conversión no representa este CONTEO. */}
@@ -299,7 +300,7 @@ export function HoyVendedor(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — solo ves tu propia cartera; la visibilidad real la garantiza la RLS jerárquica de la BD.
+        Demo — ves únicamente tu propia cartera; cada asesor trabaja solo con sus leads.
       </p>
     </div>
   )
@@ -307,8 +308,9 @@ export function HoyVendedor(): JSX.Element {
 
 // ── Fila de la cola de acción ─────────────────────────────────────────────────
 // Dot de severidad + badge del bucket + motivo (con días) + acciones reales
-// (tel:/wa.me) + abrir ficha. Los links cortan la propagación para no abrir
-// la ficha al llamar/escribir.
+// (AccionesContacto: tel:/wa.me con registro del resultado) + abrir ficha.
+// El propio componente corta la propagación para no abrir la ficha al
+// llamar/escribir.
 
 function FilaCola({
   item,
@@ -318,7 +320,6 @@ function FilaCola({
   abrirLead: (id: string) => void
 }): JSX.Element {
   const c = SEV_COLOR[item.sev]
-  const wa = item.lead.telefono.replace('+', '')
   const abrir = () => abrirLead(item.lead.id)
   return (
     <div
@@ -347,28 +348,7 @@ function FilaCola({
       <span className="hidden shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
         {diasTxt(item.dias)}
       </span>
-      <div
-        className="flex shrink-0 items-center gap-1.5"
-        onClick={(e) => e.stopPropagation()}
-        onKeyDown={(e) => e.stopPropagation()}
-      >
-        <a
-          href={`tel:${item.lead.telefono}`}
-          className={CLASE_ACCION}
-          aria-label={`Llamar a ${item.lead.nombre_completo}`}
-        >
-          <Phone /> <span className="hidden md:inline">Llamar</span>
-        </a>
-        <a
-          href={`https://wa.me/${wa}`}
-          target="_blank"
-          rel="noreferrer"
-          className={CLASE_ACCION}
-          aria-label={`WhatsApp a ${item.lead.nombre_completo}`}
-        >
-          <MessageCircle /> <span className="hidden md:inline">WhatsApp</span>
-        </a>
-      </div>
+      <AccionesContacto lead={item.lead} compacto />
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )

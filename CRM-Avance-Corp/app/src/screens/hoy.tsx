@@ -1,8 +1,8 @@
 // Pantalla Hoy (F1c) — wrapper que enruta por rol: cada rango ve SU propio
 // universo e inteligencia (screens/hoy/*). El ámbito de datos lo recorta el
-// store (useStore().ambito); aquí solo se decide QUÉ panel renderizar.
+// store (useCRMData().ambito); aquí solo se decide QUÉ panel renderizar.
 import type { JSX } from 'react'
-import { useAuth } from '@/lib/auth'
+import { useAuth } from '@/lib/auth-context'
 import { HoyVendedor } from './hoy/vendedor'
 import { HoySupervisor } from './hoy/supervisor'
 import { HoyGerencia } from './hoy/gerencia'

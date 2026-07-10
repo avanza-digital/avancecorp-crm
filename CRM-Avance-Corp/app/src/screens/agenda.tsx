@@ -5,13 +5,13 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
-import { AGENDA_DEMO } from '@/lib/demo'
-import { useStore } from '@/lib/store'
-import { useAuth } from '@/lib/auth'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import type { EventoAgenda } from '@/lib/store'
+import { useAuth } from '@/lib/auth-context'
 import { puedeEscribir } from '@/lib/roles'
 import { cn } from '@/lib/utils'
 
-type Evento = (typeof AGENDA_DEMO)[number]
+type Evento = EventoAgenda
 
 // Labels es-PE de los tipos de evento (con tilde — capitalizar la clave daría "Reunion").
 const TIPO_EVENTO: Record<string, string> = { reunion: 'Reunión', llamada: 'Llamada', vencimiento: 'Vencimiento' }
@@ -31,7 +31,7 @@ function statsDe(eventos: Evento[]): StatChipData[] {
 function agruparPorDia(eventos: Evento[]): { dia: string; eventos: Evento[] }[] {
   const out: { dia: string; eventos: Evento[] }[] = []
   for (const ev of eventos) {
-    const dia = ev.cuando.split(' · ')[0]
+    const dia = ev.cuando.split(' · ')[0] ?? 'Sin fecha'
     const g = out.find((x) => x.dia === dia)
     if (g) g.eventos.push(ev)
     else out.push({ dia, eventos: [ev] })
@@ -54,7 +54,8 @@ const SEMANA = (() => {
 })()
 
 export function Agenda() {
-  const { abrirLead, ambito } = useStore()
+  const { ambito, agenda } = useCRMData()
+  const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
 
@@ -62,8 +63,8 @@ export function Agenda() {
   // rol puede ver — un vendedor NO ve reuniones de leads ajenos.
   const eventos = useMemo(() => {
     const ids = new Set(ambito.leads.map((l) => l.id))
-    return AGENDA_DEMO.filter((ev) => ids.has(ev.lead_id))
-  }, [ambito.leads])
+    return agenda.filter((ev) => ids.has(ev.lead_id))
+  }, [ambito.leads, agenda])
   const stats = useMemo(() => statsDe(eventos), [eventos])
   const grupos = useMemo(() => agruparPorDia(eventos), [eventos])
 
@@ -168,8 +169,8 @@ export function Agenda() {
       ))}
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — el calendario completo (Mes/Semana/Día con overlays de SLA y vencimientos de
-        propuesta/contrato) se construye en F2 sobre el patrón de VITANOVA.
+        Demo — muy pronto tendrás el calendario completo por mes, semana y día, con
+        recordatorios y vencimientos de propuestas y contratos.
       </p>
     </div>
   )

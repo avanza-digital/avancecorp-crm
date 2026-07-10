@@ -1,6 +1,6 @@
 // Hoy · SUPERVISOR — puesto de mando de SU equipo (F1c). El ámbito del store
 // ya trae: sus leads + los de sus vendedores + parkeados de SU bandeja.
-// Fuentes: useStore().ambito + lib/inteligencia + METAS_DEMO.supervisor.
+// Fuentes: useCRMData().ambito + lib/inteligencia + objetivos del contexto.
 // Semáforos sin verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626.
 import { useMemo, useState, type JSX } from 'react'
 import { toast } from 'sonner'
@@ -24,6 +24,7 @@ import { Select } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
+import { AccionesContacto } from '@/components/app/contacto'
 import {
   colaDe,
   colorMeta,
@@ -32,8 +33,8 @@ import {
   metricasPorVendedor,
   type ItemCola,
 } from '@/lib/inteligencia'
-import { METAS_DEMO, SPARKS_DEMO } from '@/lib/demo'
-import { useStore } from '@/lib/store'
+import { useAhora } from '@/lib/ahora'
+import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO, ORIGENES, type Lead } from '@/lib/tipos'
 
@@ -69,7 +70,11 @@ function semaforoDias(d: number): string {
 const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
 
 export function HoySupervisor(): JSX.Element {
-  const { ambito, actividades, abrirLead, reasignar } = useStore()
+  const { ambito, actividades, reasignar, objetivos, series } = useCRMData()
+  const { abrirLead } = usePanelesActions()
+  // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
+  // para que cola/ranking/alertas SLA se refresquen solos al pasar el tiempo.
+  const ahora = useAhora()
   // Vendedor elegido en el select de cada lead parkeado (leadId → perfil_id).
   const [sel, setSel] = useState<Record<string, string>>({})
 
@@ -87,10 +92,10 @@ export function HoySupervisor(): JSX.Element {
       if (l.moneda === 'USD') capitalUSD += l.monto_estimado ?? 0
       else capitalPEN += l.monto_estimado ?? 0
     }
-    const cola = colaDe(ambito.leads, actividades)
+    const cola = colaDe(ambito.leads, actividades, ahora)
     const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
-    const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades)
-    const alertas = estancados(ambito.leads, actividades, 5)
+    const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora)
+    const alertas = estancados(ambito.leads, actividades, 5, ahora)
     const vivos = ambito.leads.filter((l) => l.activo)
     const convertidos = vivos.filter((l) => l.etapa === 'convertido').length
     // Conversión con la MISMA base que comparativaEquipos (lib/inteligencia):
@@ -99,9 +104,9 @@ export function HoySupervisor(): JSX.Element {
     const conversion =
       vivosAsignados.length > 0 ? Math.round((convertidos / vivosAsignados.length) * 100) : 0
     return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, cola, sinTocar, rank, alertas, convertidos, conversion }
-  }, [ambito, actividades])
+  }, [ambito, actividades, ahora])
 
-  const meta = METAS_DEMO.supervisor
+  const meta = objetivos.supervisor
 
   /** Asigna un parkeado al vendedor elegido en su select. */
   const asignar = (l: Lead) => {
@@ -127,7 +132,7 @@ export function HoySupervisor(): JSX.Element {
           icon={Wallet}
           color={AZUL}
           sub={d.capitalUSD > 0 ? `PEN · +${moneyK(d.capitalUSD, 'USD')} aparte` : 'PEN · abiertos con vendedor'}
-          spark={SPARKS_DEMO.capital}
+          spark={series.capital}
           delay={0}
         />
         <KpiCard
@@ -136,7 +141,7 @@ export function HoySupervisor(): JSX.Element {
           icon={Users}
           color={VIOLETA}
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'vendedor' : 'vendedores'} a cargo`}
-          spark={SPARKS_DEMO.leads}
+          spark={series.leads}
           delay={60}
         />
         <KpiCard
@@ -171,7 +176,7 @@ export function HoySupervisor(): JSX.Element {
           />
           <div className="divide-y divide-border/60 border-t border-border/60">
             {d.parkeados.map((l) => {
-              const dias = diasSinActividad(l, actividades)
+              const dias = diasSinActividad(l, actividades, ahora)
               return (
                 <div key={l.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <button
@@ -229,7 +234,7 @@ export function HoySupervisor(): JSX.Element {
               title="Cola del equipo"
               right={
                 d.cola.length > 0 ? (
-                  <Badge color={SEV_COLOR[d.cola[0].sev]} dot>
+                  <Badge color={SEV_COLOR[d.cola[0]!.sev]} dot>
                     {d.cola.length} {d.cola.length === 1 ? 'pendiente' : 'pendientes'}
                   </Badge>
                 ) : (
@@ -245,44 +250,57 @@ export function HoySupervisor(): JSX.Element {
               </CardContent>
             ) : (
               <div className="divide-y divide-border/60 border-t border-border/60">
-                {d.cola.map((i) => (
-                  <button
-                    key={i.lead.id}
-                    type="button"
-                    onClick={() => abrirLead(i.lead.id)}
-                    aria-label={`Abrir ficha de ${i.lead.nombre_completo}`}
-                    className="flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
-                  >
-                    <span
-                      className="size-2 shrink-0 rounded-full"
-                      style={{ background: SEV_COLOR[i.sev] }}
-                      aria-hidden
-                    />
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                        <p className="truncate text-sm font-semibold">{i.lead.nombre_completo}</p>
-                        <Badge color={SEV_COLOR[i.sev]}>{BUCKET_LABEL[i.bucket]}</Badge>
+                {/* Fila = div role="button" (no <button>: contiene los links de
+                    AccionesContacto y un botón no puede anidar interactivos). */}
+                {d.cola.map((i) => {
+                  const abrir = () => abrirLead(i.lead.id)
+                  return (
+                    <div
+                      key={i.lead.id}
+                      role="button"
+                      tabIndex={0}
+                      onClick={abrir}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault()
+                          abrir()
+                        }
+                      }}
+                      aria-label={`Abrir ficha de ${i.lead.nombre_completo}`}
+                      className="flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                    >
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: SEV_COLOR[i.sev] }}
+                        aria-hidden
+                      />
+                      <div className="min-w-0 flex-1 leading-tight">
+                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                          <p className="truncate text-sm font-semibold">{i.lead.nombre_completo}</p>
+                          <Badge color={SEV_COLOR[i.sev]}>{BUCKET_LABEL[i.bucket]}</Badge>
+                        </div>
+                        <p className="truncate text-xs text-muted-foreground">{i.motivo}</p>
                       </div>
-                      <p className="truncate text-xs text-muted-foreground">{i.motivo}</p>
-                    </div>
-                    {i.lead.monto_estimado != null && (
-                      <span className="hidden shrink-0 text-xs font-extrabold tabular-nums text-primary sm:inline">
-                        {moneyK(i.lead.monto_estimado, i.lead.moneda)}
-                      </span>
-                    )}
-                    {i.lead.vendedor_nombre ? (
-                      <span className="flex shrink-0 items-center gap-1.5">
-                        <Avatar nombre={i.lead.vendedor_nombre} className="size-6 text-[9px]" />
-                        <span className="hidden max-w-[110px] truncate text-xs text-muted-foreground md:inline">
-                          {i.lead.vendedor_nombre}
+                      {i.lead.monto_estimado != null && (
+                        <span className="hidden shrink-0 text-xs font-extrabold tabular-nums text-primary sm:inline">
+                          {moneyK(i.lead.monto_estimado, i.lead.moneda)}
                         </span>
-                      </span>
-                    ) : (
-                      <Badge color={AMBAR}>sin asignar</Badge>
-                    )}
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
-                ))}
+                      )}
+                      {i.lead.vendedor_nombre ? (
+                        <span className="flex shrink-0 items-center gap-1.5">
+                          <Avatar nombre={i.lead.vendedor_nombre} className="size-6 text-[9px]" />
+                          <span className="hidden max-w-[110px] truncate text-xs text-muted-foreground md:inline">
+                            {i.lead.vendedor_nombre}
+                          </span>
+                        </span>
+                      ) : (
+                        <Badge color={AMBAR}>sin asignar</Badge>
+                      )}
+                      <AccionesContacto lead={i.lead} compacto />
+                      <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                    </div>
+                  )
+                })}
               </div>
             )}
           </Card>
@@ -348,17 +366,17 @@ export function HoySupervisor(): JSX.Element {
                 {
                   label: 'Capital en proceso',
                   txt: `${moneyK(d.capitalPEN)} de ${moneyK(meta.capitalObjetivo)}`,
-                  pct: (d.capitalPEN / meta.capitalObjetivo) * 100,
+                  pct: meta.capitalObjetivo > 0 ? (d.capitalPEN / meta.capitalObjetivo) * 100 : 0,
                 },
                 {
                   label: 'Ventas cerradas',
                   txt: `${d.convertidos} de ${meta.ventasObjetivo}`,
-                  pct: (d.convertidos / meta.ventasObjetivo) * 100,
+                  pct: meta.ventasObjetivo > 0 ? (d.convertidos / meta.ventasObjetivo) * 100 : 0,
                 },
                 {
                   label: 'Conversión',
                   txt: `${d.conversion}% de ${meta.conversionObjetivo}%`,
-                  pct: (d.conversion / meta.conversionObjetivo) * 100,
+                  pct: meta.conversionObjetivo > 0 ? (d.conversion / meta.conversionObjetivo) * 100 : 0,
                 },
               ].map((f) => (
                 <div key={f.label}>
@@ -430,7 +448,7 @@ export function HoySupervisor(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — ves solo a tu equipo y tu bandeja de reparto (espejo de la RLS jerárquica de la BD).
+        Demo — ves solo a tu equipo y tu bandeja de reparto; cada rol ve únicamente lo que le corresponde.
       </p>
     </div>
   )

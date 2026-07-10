@@ -4,8 +4,7 @@
 // re-valida CADA mutación (toast.error + no-op si el rol no puede escribir).
 // Debe montarse DENTRO de AuthProvider (usa useAuth para el gating y el autor).
 import {
-  createContext,
-  useContext,
+  useCallback,
   useEffect,
   useMemo,
   useState,
@@ -13,7 +12,7 @@ import {
   type ReactNode,
 } from 'react'
 import { toast } from 'sonner'
-import { useAuth } from './auth'
+import { useAuth } from './auth-context'
 import { can, puedeEscribir } from './roles'
 import {
   ETAPA_INFO,
@@ -28,7 +27,14 @@ import {
   type TipoActividadManual,
 } from './tipos'
 import type { Moneda } from './format'
-import { ACTIVIDADES_DEMO, EQUIPO_DEMO, LEADS_DEMO } from './demo'
+import { DEMO_HABILITADO } from './config'
+import { normalizarTelefono } from './validacion'
+import { registrarError } from './observabilidad'
+import {
+  PanelActionsContext,
+  PanelStateContext,
+  StoreDataContext,
+} from './store-context'
 
 // v2: F1c re-siembra (20 leads + asignado_supervisor_id) — la clave vieja se ignora.
 const CLAVE = 'ac-crm-demo-datos-v2'
@@ -88,10 +94,37 @@ export interface Ambito {
   esGlobal: boolean // true para gerencia/directorio
 }
 
-export interface StoreApi {
+export interface EventoAgenda {
+  id: string
+  lead_id: string
+  titulo: string
+  tipo: string
+  cuando: string
+  color: string
+}
+
+export interface ObjetivoComercial {
+  capitalObjetivo: number
+  ventasObjetivo: number
+  conversionObjetivo: number
+}
+
+export type ObjetivosPorRol = Record<'vendedor' | 'supervisor' | 'gerencia', ObjetivoComercial>
+
+export interface SeriesComerciales {
+  capital: number[]
+  leads: number[]
+  propuestas: number[]
+  conversion: number[]
+}
+
+export interface StoreDataApi {
   leads: Lead[] // todos, activos y terminales (legacy — preferir `ambito`)
   equipo: Miembro[]
   ambito: Ambito
+  agenda: EventoAgenda[]
+  objetivos: ObjetivosPorRol
+  series: SeriesComerciales
   // Crudas, para lib/inteligencia (colaDe, estancados…). OJO: es el timeline
   // GLOBAL sin recorte (la RLS actividades_select SÍ recorta a leads visibles):
   // toda lista visible al usuario debe cruzarse con ambito.leads, nunca
@@ -99,13 +132,6 @@ export interface StoreApi {
   actividades: Actividad[]
   lead(id: string): Lead | undefined
   actividadesDe(leadId: string): Actividad[] // orden desc por creado_en
-  // Paneles globales (drawer + modal se montan UNA vez en App.tsx)
-  leadAbiertoId: string | null
-  nuevoLeadAbierto: boolean
-  etapaInicial: EtapaActiva
-  abrirLead(id: string): void
-  abrirNuevoLead(etapa?: EtapaActiva): void
-  cerrarPaneles(): void
   // Mutaciones — TODAS write-gated dentro del store
   crearLead(input: NuevoLeadInput): ResultadoMut & { id?: string }
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
@@ -117,9 +143,52 @@ export interface StoreApi {
   reasignar(id: string, vendedorId: string | null): ResultadoMut
 }
 
+export interface PanelesState {
+  leadAbiertoId: string | null
+  nuevoLeadAbierto: boolean
+  etapaInicial: EtapaActiva
+}
+
+export interface PanelesActions {
+  abrirLead(id: string): void
+  abrirNuevoLead(etapa?: EtapaActiva): void
+  cerrarPaneles(): void
+}
+
 interface Datos {
   leads: Lead[]
   actividades: Actividad[]
+}
+
+const EQUIPO_VACIO: Miembro[] = []
+const OBJETIVOS_VACIOS: ObjetivosPorRol = {
+  vendedor: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+  supervisor: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+  gerencia: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+}
+const SERIES_VACIAS: SeriesComerciales = {
+  capital: [],
+  leads: [],
+  propuestas: [],
+  conversion: [],
+}
+
+interface Auxiliares {
+  equipo: Miembro[]
+  agenda: EventoAgenda[]
+  objetivos: ObjetivosPorRol
+  series: SeriesComerciales
+}
+
+const AUXILIARES_VACIOS: Auxiliares = {
+  equipo: EQUIPO_VACIO,
+  agenda: [],
+  objetivos: OBJETIVOS_VACIOS,
+  series: SERIES_VACIAS,
+}
+
+function datosVacios(): Datos {
+  return { leads: [], actividades: [] }
 }
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
@@ -130,15 +199,6 @@ function uid(): string {
   } catch {
     return `id-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
   }
-}
-
-/** Normaliza un celular peruano a +519######## (o null si no es válido). */
-export function normalizarTelefono(v: string): string | null {
-  const limpio = v.replace(/[\s\-().]/g, '')
-  const sinMas = limpio.startsWith('+') ? limpio.slice(1) : limpio
-  if (/^9\d{8}$/.test(sinMas)) return `+51${sinMas}`
-  if (/^519\d{8}$/.test(sinMas)) return `+${sinMas}`
-  return null
 }
 
 const esAbierto = (l: Lead) => l.activo && !TERMINALES_K.has(l.etapa)
@@ -160,7 +220,7 @@ function conflictoDedup(
   return null
 }
 
-function cargarDatos(): Datos {
+function cargarDatos(semilla: Datos): Datos {
   try {
     const crudo = sessionStorage.getItem(CLAVE)
     if (crudo) {
@@ -170,33 +230,101 @@ function cargarDatos(): Datos {
   } catch {
     /* sesión privada o JSON corrupto → siembra fresca */
   }
-  return {
-    leads: structuredClone(LEADS_DEMO),
-    actividades: structuredClone(ACTIVIDADES_DEMO),
-  }
+  return structuredClone(semilla)
 }
 
 // ── Provider ──────────────────────────────────────────────────────────────────
 
-const Ctx = createContext<StoreApi | null>(null)
-
 export function StoreProvider({ children }: { children: ReactNode }): JSX.Element {
   const { yo } = useAuth()
-  const [datos, setDatos] = useState<Datos>(cargarDatos)
+  const demoSolicitado = DEMO_HABILITADO && yo?.demo === true
+  // El store local solo contiene datos ficticios durante una sesión demo
+  // explícita. Una sesión real nunca recibe ni persiste PII de demostración.
+  const [datos, setDatos] = useState<Datos>(datosVacios)
+  const [auxiliares, setAuxiliares] = useState<Auxiliares>(AUXILIARES_VACIOS)
+  const [demoListo, setDemoListo] = useState(false)
+  const demoActivo = demoSolicitado && demoListo
+  const equipo = auxiliares.equipo
 
   // Paneles globales
   const [leadAbiertoId, setLeadAbiertoId] = useState<string | null>(null)
   const [nuevoLeadAbierto, setNuevoLeadAbierto] = useState(false)
   const [etapaInicial, setEtapaInicial] = useState<EtapaActiva>('nuevo')
 
+  const abrirLead = useCallback((id: string) => {
+    setNuevoLeadAbierto(false)
+    setLeadAbiertoId(id)
+  }, [])
+  const abrirNuevoLead = useCallback((etapa?: EtapaActiva) => {
+    setLeadAbiertoId(null)
+    setEtapaInicial(etapa ?? 'nuevo')
+    setNuevoLeadAbierto(true)
+  }, [])
+  const cerrarPaneles = useCallback(() => {
+    setLeadAbiertoId(null)
+    setNuevoLeadAbierto(false)
+  }, [])
+
+  const panelState = useMemo<PanelesState>(() => ({
+    leadAbiertoId,
+    nuevoLeadAbierto,
+    etapaInicial,
+  }), [leadAbiertoId, nuevoLeadAbierto, etapaInicial])
+
+  const panelActions = useMemo<PanelesActions>(() => ({
+    abrirLead,
+    abrirNuevoLead,
+    cerrarPaneles,
+  }), [abrirLead, abrirNuevoLead, cerrarPaneles])
+
+  useEffect(() => {
+    let cancelado = false
+    setDemoListo(false)
+
+    if (!demoSolicitado) {
+      setDatos(datosVacios())
+      setAuxiliares(AUXILIARES_VACIOS)
+      return () => { cancelado = true }
+    }
+
+    // La condición usa flags de Vite directamente para que Rolldown elimine
+    // incluso el chunk con fixtures en cualquier build de producción.
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
+      void import('./demo')
+        .then((demo) => {
+          if (cancelado) return
+          setDatos(cargarDatos({
+            leads: demo.LEADS_DEMO,
+            actividades: demo.ACTIVIDADES_DEMO,
+          }))
+          setAuxiliares({
+            equipo: demo.EQUIPO_DEMO,
+            agenda: demo.AGENDA_DEMO,
+            objetivos: demo.METAS_DEMO,
+            series: demo.SPARKS_DEMO,
+          })
+          setDemoListo(true)
+        })
+        .catch((error: unknown) => {
+          if (cancelado) return
+          registrarError('demo.carga_fallida', error)
+          setDatos(datosVacios())
+          setAuxiliares(AUXILIARES_VACIOS)
+        })
+    }
+
+    return () => { cancelado = true }
+  }, [demoSolicitado])
+
   // Persistencia demo (solo sessionStorage — jamás Supabase)
   useEffect(() => {
+    if (!demoActivo) return
     try {
       sessionStorage.setItem(CLAVE, JSON.stringify(datos))
     } catch {
       /* storage lleno o no disponible: seguimos solo en memoria */
     }
-  }, [datos])
+  }, [datos, demoActivo])
 
   // Ámbito por rol (reglas EXACTAS del contrato F1c — espejo de la RLS F0).
   // useMemo PROPIO con deps [datos, yo]: abrir/cerrar paneles NO debe regenerar
@@ -211,7 +339,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // global (directorio) ve los soft-borrados; gerencia NO los ve.
       return {
         leads: can(rol, 'soloLecturaTotal') ? datos.leads : datos.leads.filter((l) => l.activo),
-        vendedores: EQUIPO_DEMO.filter((m) => m.rol_crm === 'vendedor'),
+        vendedores: equipo.filter((m) => m.rol_crm === 'vendedor'),
         esGlobal: true,
       }
     }
@@ -221,7 +349,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // incluye parkeados de cualquier miembro del subárbol. Con supervisores
       // anidados este espejo mostraría MENOS que la RLS (infra-inclusivo, sin
       // fuga) — replicar la recursión al portar a datos reales.
-      const mios = EQUIPO_DEMO.filter((m) => m.supervisor_id === miId)
+      const mios = equipo.filter((m) => m.supervisor_id === miId)
       const ids = new Set<string>([miId, ...mios.map((m) => m.perfil_id)])
       return {
         leads: datos.leads.filter(
@@ -237,18 +365,26 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // vendedor — o rol/sesión desconocidos: privilegio mínimo (solo lo propio)
     return {
       leads: miId ? datos.leads.filter((l) => l.activo && l.vendedor_id === miId) : [],
-      vendedores: EQUIPO_DEMO.filter((m) => m.perfil_id === miId),
+      vendedores: equipo.filter((m) => m.perfil_id === miId),
       esGlobal: false,
     }
-  }, [datos, yo])
+  }, [datos, yo, equipo])
 
-  const api = useMemo<StoreApi>(() => {
+  const api = useMemo<StoreDataApi>(() => {
     const rol = yo?.rol
     const autor = yo?.nombre_completo ?? 'DEMO'
 
     const sinPermiso = (): ResultadoMut => {
       toast.error('Tu rol es de solo lectura — no puedes modificar datos')
       return { ok: false, error: 'Sin permiso de escritura' }
+    }
+
+    const bloqueoEscritura = (): ResultadoMut | null => {
+      if (!demoActivo) {
+        toast.error('La fuente de datos del CRM aún no está habilitada')
+        return { ok: false, error: 'Fuente de datos no habilitada' }
+      }
+      return puedeEscribir(rol) ? null : sinPermiso()
     }
 
     const actividadAuto = (
@@ -287,8 +423,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     return {
       leads: datos.leads,
-      equipo: EQUIPO_DEMO,
+      equipo,
       ambito,
+      agenda: auxiliares.agenda,
+      objetivos: auxiliares.objetivos,
+      series: auxiliares.series,
       actividades: datos.actividades,
       lead: (id) => buscar(id),
       actividadesDe: (leadId) =>
@@ -296,25 +435,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           .filter((a) => a.lead_id === leadId)
           .sort((a, b) => b.creado_en.localeCompare(a.creado_en)),
 
-      leadAbiertoId,
-      nuevoLeadAbierto,
-      etapaInicial,
-      abrirLead: (id) => {
-        setNuevoLeadAbierto(false)
-        setLeadAbiertoId(id)
-      },
-      abrirNuevoLead: (etapa) => {
-        setLeadAbiertoId(null)
-        setEtapaInicial(etapa ?? 'nuevo')
-        setNuevoLeadAbierto(true)
-      },
-      cerrarPaneles: () => {
-        setLeadAbiertoId(null)
-        setNuevoLeadAbierto(false)
-      },
-
       crearLead: (input) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const nombre = input.nombre_completo.trim()
         if (!nombre) return { ok: false, error: 'El nombre es obligatorio' }
         const telefono = normalizarTelefono(input.telefono)
@@ -350,7 +473,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         let vendedor_id: string | null = null
         let vendedor_nombre: string | null = null
         if (input.vendedor_id) {
-          const m = EQUIPO_DEMO.find((x) => x.perfil_id === input.vendedor_id)
+          const m = equipo.find((x) => x.perfil_id === input.vendedor_id)
           if (m) {
             vendedor_id = m.perfil_id
             vendedor_nombre = m.nombre_completo
@@ -394,7 +517,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       editarLead: (id, cambios) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
         const parche: CambiosLead = { ...cambios }
@@ -437,7 +561,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       cambiarEtapa: (id, etapa) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
         if (TERMINALES_K.has(actual.etapa)) {
@@ -456,7 +581,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       descartar: (id, motivo, nota) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
         if (TERMINALES_K.has(actual.etapa)) return { ok: false, error: 'El lead ya está cerrado' }
@@ -474,7 +600,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       convertir: (id) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
         if (TERMINALES_K.has(actual.etapa)) return { ok: false, error: 'El lead ya está cerrado' }
@@ -487,7 +614,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       reabrir: (id) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
         if (actual.etapa !== 'descartado') {
@@ -504,7 +632,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       registrarActividad: (id, tipo, detalle) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
         // Doble defensa (el tipo TS se borra en runtime): los tipos automáticos
@@ -521,14 +650,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       },
 
       reasignar: (id, vendedorId) => {
-        if (!puedeEscribir(rol)) return sinPermiso()
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
         if (!can(rol, 'reasignar')) {
           toast.error('No tienes permiso para reasignar leads')
           return { ok: false, error: 'Sin permiso para reasignar' }
         }
         const actual = buscar(id)
         if (!actual) return { ok: false, error: 'Lead no encontrado' }
-        const nuevo = vendedorId ? EQUIPO_DEMO.find((m) => m.perfil_id === vendedorId) : undefined
+        const nuevo = vendedorId ? equipo.find((m) => m.perfil_id === vendedorId) : undefined
         if (vendedorId && !nuevo) return { ok: false, error: 'Vendedor no encontrado' }
         // Espejo del WITH CHECK de leads_update: supervisor solo dentro de su equipo.
         if (vendedorFueraDeAmbito(vendedorId)) {
@@ -553,13 +683,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         return { ok: true }
       },
     }
-  }, [datos, yo, ambito, leadAbiertoId, nuevoLeadAbierto, etapaInicial])
+  }, [datos, yo, ambito, demoActivo, equipo, auxiliares])
 
-  return <Ctx.Provider value={api}>{children}</Ctx.Provider>
-}
-
-export function useStore(): StoreApi {
-  const ctx = useContext(Ctx)
-  if (!ctx) throw new Error('useStore fuera de StoreProvider')
-  return ctx
+  return (
+    <StoreDataContext.Provider value={api}>
+      <PanelActionsContext.Provider value={panelActions}>
+        <PanelStateContext.Provider value={panelState}>
+          {children}
+        </PanelStateContext.Provider>
+      </PanelActionsContext.Provider>
+    </StoreDataContext.Provider>
+  )
 }
