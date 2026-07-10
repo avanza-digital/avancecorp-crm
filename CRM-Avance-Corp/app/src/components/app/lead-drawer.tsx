@@ -44,12 +44,14 @@ import { AccionesContacto } from '@/components/app/contacto'
 import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
-import { fmtFecha, money } from '@/lib/format'
+import { useAhora } from '@/lib/ahora'
+import { fmtFecha, money, SIMBOLO } from '@/lib/format'
 import {
+  CAT_LABEL,
   ETAPAS,
   ETAPA_INFO,
   MOTIVOS_DESCARTE,
-  ORIGENES,
+  origenLabel,
   TIPOS_ACTIVIDAD,
   type EtapaActiva,
   type Lead,
@@ -59,8 +61,6 @@ import {
 } from '@/lib/tipos'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
-
-const CAT_LABEL: Record<string, string> = { nuevo: 'Nuevo', renovacion: 'Renovación', upgrade: 'Upgrade' }
 
 const TIPOS_MANUALES: TipoActividadManual[] = [
   'llamada_realizada',
@@ -83,9 +83,11 @@ const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
   conversion: BadgeCheck,
 }
 
-/** "hace X" legible; para fechas viejas cae a fmtFecha. */
-function haceRelativo(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
+/** "hace X" legible; para fechas viejas cae a fmtFecha. Formato propio del timeline
+ * (min/h/'ayer'), más fino que haceTexto() de lib/inteligencia — NO sustituir.
+ * `ahora` viene del reloj vivo useAhora() para que refresque sin remontar. */
+function haceRelativo(iso: string, ahora: number): string {
+  const ms = ahora - new Date(iso).getTime()
   if (!Number.isFinite(ms) || ms < 0) return fmtFecha(iso)
   const min = Math.floor(ms / 60_000)
   if (min < 1) return 'ahora'
@@ -97,8 +99,6 @@ function haceRelativo(iso: string): string {
   if (d < 7) return `hace ${d} d`
   return fmtFecha(iso)
 }
-
-const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
 
 // ── Drawer (export) ───────────────────────────────────────────────────────────
 
@@ -372,7 +372,7 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
               <Input id="ld-telefono" value={form.telefono} onChange={campo('telefono')} placeholder="9########" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ld-monto">Monto estimado ({l.moneda === 'USD' ? 'US$' : 'S/'})</Label>
+              <Label htmlFor="ld-monto">Monto estimado ({SIMBOLO[l.moneda]})</Label>
               <Input id="ld-monto" inputMode="decimal" value={form.monto} onChange={campo('monto')} placeholder="—" />
             </div>
           </div>
@@ -454,6 +454,7 @@ const CLASE_HITO =
 
 function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
   const { actividadesDe, registrarActividad } = useCRMData()
+  const ahora = useAhora()
   const acts = actividadesDe(l.id)
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
   const [detalle, setDetalle] = useState('')
@@ -514,7 +515,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
                 <p className="text-xs font-bold text-foreground">{TIPOS_ACTIVIDAD[a.tipo]}</p>
                 {a.detalle && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.detalle}</p>}
                 <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                  {a.autor_nombre} · {haceRelativo(a.creado_en)}
+                  {a.autor_nombre} · {haceRelativo(a.creado_en, ahora)}
                 </p>
               </div>
             </li>
@@ -528,7 +529,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
           <div className="min-w-0 flex-1 pt-0.5">
             <p className="text-xs font-bold text-foreground">Lead creado</p>
             <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-              {fmtFecha(l.creado_en)} · {haceRelativo(l.creado_en)}
+              {fmtFecha(l.creado_en)} · {haceRelativo(l.creado_en, ahora)}
             </p>
           </div>
         </li>

@@ -183,7 +183,8 @@ describe('agregaciones comerciales', () => {
       lead({ id: 'r2', origen: 'referido', etapa: 'nuevo' }),
       lead({ id: 'w1', origen: 'web', etapa: 'convertido' }),
       lead({ id: 'off', origen: 'oficina', etapa: 'convertido', activo: false }),
-      lead({ id: 'x1', origen: 'fuera-catalogo', etapa: 'convertido' }),
+      // Simula un dato corrupto que burló la frontera (el union se borra en runtime)
+      lead({ id: 'x1', origen: 'fuera-catalogo' as Lead['origen'], etapa: 'convertido' }),
     ])
 
     expect(filas).toEqual([

@@ -4,7 +4,7 @@
 // F1c: consciente del rol — trabaja SIEMPRE sobre useCRMData().ambito y, para
 // supervisor/gerencia/directorio, ofrece pills de filtro por vendedor
 // (+ bandeja "Por repartir" de parkeados). El vendedor solo ve lo suyo.
-import { useRef, useState, type CSSProperties, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
 import { Users, TrendingUp, FileText, Target, Plus, MoreHorizontal, ExternalLink, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
@@ -17,29 +17,22 @@ import {
   DropdownSeparator,
 } from '@/components/ui/dropdown-menu'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
-import { ETAPAS, ORIGENES, TERMINALES, type EtapaActiva, type Lead } from '@/lib/tipos'
+import { CAT_LABEL, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
+import { capitalPorMoneda, diasDesdeReferencia } from '@/lib/inteligencia'
 import { money, moneyK } from '@/lib/format'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
+import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 
-// "hace X" compacto a partir de un ISO.
-function hace(iso: string): string {
-  const d = Math.floor((Date.now() - new Date(iso).getTime()) / 86_400_000)
+// "hace X" compacto a partir de un ISO, contra el reloj vivo (useAhora).
+function hace(iso: string, ahora: number): string {
+  const d = Math.floor(diasDesdeReferencia(iso, ahora))
   if (d <= 0) return 'hoy'
   if (d === 1) return 'ayer'
   if (d < 7) return `hace ${d} d`
   return `hace ${Math.floor(d / 7)} sem`
 }
-
-const CAT_LABEL: Record<string, string> = { nuevo: 'Nuevo', renovacion: 'Renovación', upgrade: 'Upgrade' }
-
-/** Label es-PE del origen (la clave cruda capitalizada muestra "Campania"). */
-const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
-
-/** Suma montos SOLO de una moneda (no se mezclan PEN y USD en un total). */
-const capitalDe = (ls: Lead[], moneda: 'PEN' | 'USD') =>
-  ls.filter((l) => l.moneda === moneda).reduce((s, l) => s + (l.monto_estimado ?? 0), 0)
 
 // Pills del filtro por vendedor (sin verde: activo = azul primario; bandeja = ámbar)
 const PILL_BASE =
@@ -53,6 +46,7 @@ const pillCls = (activo: boolean) =>
 
 interface LeadCardProps {
   l: Lead
+  ahora: number
   escribe: boolean
   arrastrando: boolean
   onAbrir: () => void
@@ -61,14 +55,22 @@ interface LeadCardProps {
   onDragEnd: () => void
 }
 
-function LeadCard({ l, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
+function LeadCard({ l, ahora, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
   // ac-lift (will-change) crea un stacking context por card: mientras el menú
   // está abierto hay que elevar ESTA card o el panel queda bajo la siguiente.
   const [menuAbierto, setMenuAbierto] = useState(false)
   return (
     <Card
       className={`ac-lift cursor-pointer p-3 ${arrastrando ? 'opacity-40' : ''} ${menuAbierto ? 'relative z-30' : ''}`}
+      role="button"
+      tabIndex={0}
       onClick={onAbrir}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onAbrir()
+        }
+      }}
       draggable={escribe || undefined}
       onDragStart={escribe ? onDragStart : undefined}
       onDragEnd={escribe ? onDragEnd : undefined}
@@ -96,10 +98,12 @@ function LeadCard({ l, escribe, arrastrando, onAbrir, onMover, onDragStart, onDr
           <Badge color="var(--warning)" className="text-[10px]">sin asignar</Badge>
         )}
         <span className="flex items-center gap-1">
-          <span className="text-[11px] tabular-nums text-muted-foreground">{hace(l.creado_en)}</span>
+          <span className="text-[11px] tabular-nums text-muted-foreground">{hace(l.creado_en, ahora)}</span>
           {escribe && (
-            // stopPropagation: el menú vive dentro de una card clicable
-            <div onClick={(e) => e.stopPropagation()}>
+            // stopPropagation (click y keydown): el menú vive dentro de una card
+            // clicable e interactiva por teclado — sin esto, Enter/Space sobre el
+            // trigger o un ítem abriría la ficha en vez de operar el menú.
+            <div onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
               <DropdownMenu
                 onOpenChange={setMenuAbierto}
                 trigger={
@@ -137,6 +141,7 @@ export function Pipeline() {
   const escribe = puedeEscribir(yo?.rol)
   const { ambito, cambiarEtapa } = useCRMData()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
+  const ahora = useAhora() // reloj vivo: "hace X" de las cards se refresca solo
   // F1c: el tablero SIEMPRE trabaja sobre el ámbito del rol, nunca el global.
   const leads = ambito.leads
 
@@ -176,6 +181,12 @@ export function Pipeline() {
   const [dragId, setDragId] = useState<string | null>(null)
   const [colDestino, setColDestino] = useState<EtapaActiva | null>(null)
   const huboDrag = useRef(false) // evita que el click fantasma tras soltar abra la ficha
+  const timerClickFantasma = useRef<number | null>(null)
+
+  // Limpia el timeout del click fantasma si el tablero se desmonta con un drag en vuelo.
+  useEffect(() => () => {
+    if (timerClickFantasma.current != null) clearTimeout(timerClickFantasma.current)
+  }, [])
 
   const abrir = (id: string) => {
     if (huboDrag.current) return
@@ -198,7 +209,7 @@ export function Pipeline() {
     setDragId(null)
     setColDestino(null)
     // El click posterior al drop se dispara antes que este timeout → se ignora.
-    setTimeout(() => { huboDrag.current = false }, 0)
+    timerClickFantasma.current = window.setTimeout(() => { huboDrag.current = false }, 0)
   }
 
   const alDrop = (etapa: EtapaActiva) => (e: DragEvent<HTMLDivElement>) => {
@@ -213,8 +224,7 @@ export function Pipeline() {
   const activos = leads.filter(
     (l) => l.activo && l.vendedor_id != null && !['convertido', 'descartado'].includes(l.etapa),
   )
-  const capitalPEN = capitalDe(activos, 'PEN')
-  const capitalUSD = capitalDe(activos, 'USD')
+  const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(activos)
   const stats: StatChipData[] = [
     { icon: Users, label: 'Leads activos', value: String(activos.length), tone: 'primary' },
     {
@@ -283,8 +293,7 @@ export function Pipeline() {
         {ETAPAS.map((col) => {
           const enCol = enTablero.filter((l) => l.etapa === col.k)
           const visibles = enCol.slice(0, limites[col.k])
-          const totalPEN = capitalDe(enCol, 'PEN')
-          const totalUSD = capitalDe(enCol, 'USD')
+          const { pen: totalPEN, usd: totalUSD } = capitalPorMoneda(enCol)
           const totalTxt = [
             totalPEN > 0 ? moneyK(totalPEN) : '',
             totalUSD > 0 ? `+${moneyK(totalUSD, 'USD')}` : '',
@@ -338,6 +347,7 @@ export function Pipeline() {
                   <LeadCard
                     key={l.id}
                     l={l}
+                    ahora={ahora}
                     escribe={escribe}
                     arrastrando={dragId === l.id}
                     onAbrir={() => abrir(l.id)}

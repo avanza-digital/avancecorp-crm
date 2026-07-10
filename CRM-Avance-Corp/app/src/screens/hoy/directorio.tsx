@@ -32,26 +32,24 @@ import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
 import { Donut } from '@/components/common/donut'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { comparativaEquipos, embudo } from '@/lib/inteligencia'
+import {
+  capitalPorMoneda,
+  comparativaEquipos,
+  diasDesdeReferencia,
+  embudo,
+  esAbierto,
+} from '@/lib/inteligencia'
+import { SEMAFORO } from '@/lib/semaforo'
+import { useAhora } from '@/lib/ahora'
 import { money, moneyK, fmtFecha } from '@/lib/format'
 import {
   ETAPA_INFO,
   MOTIVOS_DESCARTE,
   TIPOS_ACTIVIDAD,
-  type Lead,
   type TipoActividad,
 } from '@/lib/tipos'
 
 // ── Constantes de la vista ────────────────────────────────────────────────────
-
-const AZUL = '#2563eb' // ok
-const AMBAR = '#d97706' // atención
-const ROJO = '#dc2626' // crítico
-const NAVY = '#111e3d' // ganado/convertido
-const VIOLETA = '#7c3aed'
-
-const TERMINALES_K = new Set<string>(['convertido', 'descartado'])
-const esAbierto = (l: Lead) => l.activo && !TERMINALES_K.has(l.etapa)
 
 // Mismo mapa de iconos del timeline del drawer (consistencia visual).
 const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
@@ -66,15 +64,15 @@ const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
   conversion: BadgeCheck,
 }
 
-/** "hace Xh / hace Xd" compacto para la bitácora; fechas raras caen a fmtFecha. */
-function haceCorto(iso: string): string {
-  const ms = Date.now() - new Date(iso).getTime()
+/** "hace Xh / hace Xd" compacto para la bitácora; fechas raras caen a fmtFecha.
+ *  Recibe `ahora` (reloj vivo de useAhora) — NUNCA Date.now() en render. */
+function haceCorto(iso: string, ahora: number): string {
+  const ms = ahora - new Date(iso).getTime()
   if (!Number.isFinite(ms) || ms < 0) return fmtFecha(iso)
-  const h = Math.floor(ms / 3_600_000)
+  const h = Math.floor(diasDesdeReferencia(iso, ahora) * 24)
   if (h < 1) return 'hace minutos'
   if (h < 24) return `hace ${h} h`
-  const d = Math.floor(h / 24)
-  return `hace ${d} d`
+  return `hace ${Math.floor(h / 24)} d`
 }
 
 // ── Pantalla ──────────────────────────────────────────────────────────────────
@@ -82,6 +80,7 @@ function haceCorto(iso: string): string {
 export function HoyDirectorio(): JSX.Element {
   const { ambito, equipo, actividades } = useCRMData()
   const { abrirLead } = usePanelesActions()
+  const ahora = useAhora()
 
   const r = useMemo(() => {
     const vivos = ambito.leads.filter((l) => l.activo)
@@ -95,12 +94,8 @@ export function HoyDirectorio(): JSX.Element {
     const descartados = vivos.filter((l) => l.etapa === 'descartado')
 
     // Capital SIEMPRE separado por moneda — jamás un total mixto.
-    const suma = (ls: Lead[], usd: boolean) =>
-      ls.reduce((a, l) => a + ((l.moneda === 'USD') === usd ? (l.monto_estimado ?? 0) : 0), 0)
-    const procesoPEN = suma(asignados, false)
-    const procesoUSD = suma(asignados, true)
-    const ganadoPEN = suma(convertidos, false)
-    const ganadoUSD = suma(convertidos, true)
+    const { pen: procesoPEN, usd: procesoUSD } = capitalPorMoneda(asignados)
+    const { pen: ganadoPEN, usd: ganadoUSD } = capitalPorMoneda(convertidos)
 
     const cerrados = convertidos.length + descartados.length
     const tasaDescarte = cerrados > 0 ? Math.round((descartados.length / cerrados) * 100) : 0
@@ -137,7 +132,7 @@ export function HoyDirectorio(): JSX.Element {
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       {/* Banner de auditoría — sobrio, sin acciones */}
       <div className="flex items-center gap-3 rounded-xl border border-border bg-primary/[0.04] px-4 py-3">
-        <span className="ac-chip grid size-9 shrink-0 place-items-center rounded-lg" style={{ '--c': NAVY } as CSSProperties}>
+        <span className="ac-chip grid size-9 shrink-0 place-items-center rounded-lg" style={{ '--c': SEMAFORO.navy } as CSSProperties}>
           <Eye className="size-4" />
         </span>
         <div className="min-w-0">
@@ -146,7 +141,7 @@ export function HoyDirectorio(): JSX.Element {
             Visión integral de la operación comercial, solo lectura
           </p>
         </div>
-        <Badge color={NAVY} variant="outline" className="ml-auto hidden sm:inline-flex">
+        <Badge color={SEMAFORO.navy} variant="outline" className="ml-auto hidden sm:inline-flex">
           Directorio
         </Badge>
       </div>
@@ -157,7 +152,7 @@ export function HoyDirectorio(): JSX.Element {
           label="Capital en proceso"
           value={money(r.procesoPEN)}
           icon={Wallet}
-          color={AZUL}
+          color={SEMAFORO.ok}
           sub={
             r.procesoUSD > 0
               ? `Pipeline activo (PEN) · +${moneyK(r.procesoUSD, 'USD')} en dólares`
@@ -169,7 +164,7 @@ export function HoyDirectorio(): JSX.Element {
           label="Capital ganado"
           value={money(r.ganadoPEN)}
           icon={BadgeCheck}
-          color={NAVY}
+          color={SEMAFORO.navy}
           sub={
             r.ganadoUSD > 0
               ? `${r.convertidos.length} convertidos (PEN) · +${moneyK(r.ganadoUSD, 'USD')} en dólares`
@@ -181,7 +176,7 @@ export function HoyDirectorio(): JSX.Element {
           label="Leads activos"
           value={String(r.asignados.length)}
           icon={Users}
-          color={VIOLETA}
+          color={SEMAFORO.violeta}
           sub={
             r.porRepartir > 0
               ? `Con vendedor · +${r.porRepartir} por repartir · ${r.vivos.length} históricos`
@@ -194,7 +189,7 @@ export function HoyDirectorio(): JSX.Element {
           label="Tasa de descarte"
           value={`${r.tasaDescarte}%`}
           icon={XCircle}
-          color={r.tasaDescarte >= 60 ? ROJO : r.tasaDescarte >= 30 ? AMBAR : AZUL}
+          color={r.tasaDescarte >= 60 ? SEMAFORO.critico : r.tasaDescarte >= 30 ? SEMAFORO.atencion : SEMAFORO.ok}
           sub={`${r.descartados.length} descartados de ${r.cerrados} cierres`}
           delay={180}
         />
@@ -247,8 +242,8 @@ export function HoyDirectorio(): JSX.Element {
             <Donut
               size={170}
               slices={[
-                { label: 'Soles (PEN)', value: r.abiertosPEN, color: AZUL },
-                { label: 'Dólares (USD)', value: r.abiertosUSD, color: VIOLETA },
+                { label: 'Soles (PEN)', value: r.abiertosPEN, color: SEMAFORO.ok },
+                { label: 'Dólares (USD)', value: r.abiertosUSD, color: SEMAFORO.violeta },
               ]}
               centerValue={String(r.asignados.length)}
               centerLabel="leads activos"
@@ -297,7 +292,7 @@ export function HoyDirectorio(): JSX.Element {
                 <tr key={f.supervisor.perfil_id} className="border-b border-border/60 last:border-0">
                   <td className="py-2.5 pr-3">
                     <div className="flex items-center gap-2.5">
-                      <Avatar nombre={f.supervisor.nombre_completo} color={VIOLETA} className="size-7 text-[10px]" />
+                      <Avatar nombre={f.supervisor.nombre_completo} color={SEMAFORO.violeta} className="size-7 text-[10px]" />
                       <span className="truncate font-semibold">{f.supervisor.nombre_completo}</span>
                     </div>
                   </td>
@@ -312,12 +307,12 @@ export function HoyDirectorio(): JSX.Element {
                     )}
                   </td>
                   <td className="py-2.5 pr-3 text-right">
-                    <span className="font-semibold tabular-nums" style={{ color: NAVY }}>{f.convertidos}</span>
+                    <span className="font-semibold tabular-nums" style={{ color: SEMAFORO.navy }}>{f.convertidos}</span>
                   </td>
                   <td className="py-2.5 pr-3 text-right tabular-nums">{f.conversion}%</td>
                   <td className="py-2.5 text-right">
                     {f.parkeados > 0 ? (
-                      <Badge color={AMBAR}>{f.parkeados}</Badge>
+                      <Badge color={SEMAFORO.atencion}>{f.parkeados}</Badge>
                     ) : (
                       <span className="tabular-nums text-muted-foreground">0</span>
                     )}
@@ -348,9 +343,9 @@ export function HoyDirectorio(): JSX.Element {
             title="Integridad de descartes"
             right={
               r.sinMotivo > 0 ? (
-                <Badge color={ROJO} dot>{r.sinMotivo} sin motivo</Badge>
+                <Badge color={SEMAFORO.critico} dot>{r.sinMotivo} sin motivo</Badge>
               ) : (
-                <Badge color={AZUL} dot>100% con motivo</Badge>
+                <Badge color={SEMAFORO.ok} dot>100% con motivo</Badge>
               )
             }
           />
@@ -374,14 +369,14 @@ export function HoyDirectorio(): JSX.Element {
                       <div className="h-2 overflow-hidden rounded-full bg-muted">
                         <div
                           className="h-full rounded-full transition-[width] duration-500 ease-out"
-                          style={{ width: `${pct}%`, background: AMBAR }}
+                          style={{ width: `${pct}%`, background: SEMAFORO.atencion }}
                         />
                       </div>
                     </div>
                   )
                 })}
                 {r.sinMotivo > 0 && (
-                  <p className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: `color-mix(in srgb, ${ROJO} 40%, transparent)`, color: ROJO }}>
+                  <p className="rounded-lg border px-3 py-2 text-xs font-semibold" style={{ borderColor: `color-mix(in srgb, ${SEMAFORO.critico} 40%, transparent)`, color: SEMAFORO.critico }}>
                     {r.sinMotivo} {r.sinMotivo === 1 ? 'descarte' : 'descartes'} sin motivo
                     registrado — hallazgo de auditoría
                   </p>
@@ -418,7 +413,7 @@ export function HoyDirectorio(): JSX.Element {
                   title="Abrir ficha (solo lectura)"
                   className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left transition-colors hover:bg-muted"
                 >
-                  <span className="ac-chip grid size-8 shrink-0 place-items-center rounded-lg" style={{ '--c': a.tipo === 'conversion' ? NAVY : AZUL } as CSSProperties}>
+                  <span className="ac-chip grid size-8 shrink-0 place-items-center rounded-lg" style={{ '--c': a.tipo === 'conversion' ? SEMAFORO.navy : SEMAFORO.ok } as CSSProperties}>
                     <Icono className="size-4" />
                   </span>
                   <span className="min-w-0 flex-1">
@@ -430,7 +425,7 @@ export function HoyDirectorio(): JSX.Element {
                     </span>
                   </span>
                   <span className="shrink-0 text-[11px] tabular-nums text-muted-foreground">
-                    {haceCorto(a.creado_en)}
+                    {haceCorto(a.creado_en, ahora)}
                   </span>
                 </button>
               )

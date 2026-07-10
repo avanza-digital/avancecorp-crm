@@ -2,7 +2,15 @@
 // NO es seguridad (eso vive en la RLS del esquema crm) — es la UX.
 // Regla de oro: lo que can() oculta, la RLS también lo niega.
 
-export type Rol = 'vendedor' | 'supervisor' | 'gerencia' | 'directorio'
+/** Catálogo runtime de roles CRM — fuente única: el tipo `Rol` se deriva de aquí. */
+export const ROLES = ['vendedor', 'supervisor', 'gerencia', 'directorio'] as const
+
+export type Rol = (typeof ROLES)[number]
+
+/** Type guard para datos externos (Supabase/JSON): ¿es un rol CRM válido? */
+export function esRol(valor: unknown): valor is Rol {
+  return typeof valor === 'string' && (ROLES as readonly string[]).includes(valor)
+}
 
 export type Accion =
   | 'verTodo'            // ámbito completo de la empresa

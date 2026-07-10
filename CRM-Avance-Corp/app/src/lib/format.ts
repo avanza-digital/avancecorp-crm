@@ -1,7 +1,8 @@
 // Helpers de formato (multimoneda desde el día 1 — lección de VITANOVA).
 export type Moneda = 'PEN' | 'USD'
 
-const SIMBOLO: Record<Moneda, string> = { PEN: 'S/', USD: 'US$' }
+/** Símbolo por moneda — fuente única (no re-derivar `moneda === 'USD' ? … : …` en pantallas). */
+export const SIMBOLO: Record<Moneda, string> = { PEN: 'S/', USD: 'US$' }
 
 export function money(n: number | null | undefined, moneda: Moneda = 'PEN'): string {
   if (n == null || !Number.isFinite(n)) return `${SIMBOLO[moneda]} 0`

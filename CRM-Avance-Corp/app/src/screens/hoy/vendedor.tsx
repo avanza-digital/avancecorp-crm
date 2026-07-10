@@ -21,55 +21,24 @@ import { Progress } from '@/components/ui/progress'
 import { SectionHead } from '@/components/common/section-head'
 import { KpiCard } from '@/components/common/kpi-card'
 import { AccionesContacto } from '@/components/app/contacto'
-import { colaDe, colorMeta, type ItemCola } from '@/lib/inteligencia'
+import {
+  BUCKET_LABEL,
+  capitalPorMoneda,
+  colaDe,
+  colorMeta,
+  diasTxt,
+  pctMeta,
+  tendenciaDe,
+  type ItemCola,
+} from '@/lib/inteligencia'
+import { SEV_COLOR } from '@/lib/semaforo'
+import { TIPO_EVENTO } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, primerNombre } from '@/lib/format'
 
-// ── Constantes de presentación ────────────────────────────────────────────────
-
-/** Semáforo de severidad de la cola (SIN verde): rojo crítico · ámbar · azul. */
-const SEV_COLOR: Record<ItemCola['sev'], string> = {
-  critica: '#dc2626',
-  media: '#d97706',
-  baja: '#2563eb',
-}
-
-/** Labels es-PE de los buckets de la cola (por_repartir no aparece para el
- *  vendedor: su ámbito nunca incluye parkeados — se mapea por exhaustividad). */
-const BUCKET_LABEL: Record<ItemCola['bucket'], string> = {
-  sin_responder: 'Sin responder',
-  propuesta_sin_respuesta: 'Propuesta sin respuesta',
-  seguimiento: 'Seguimiento',
-  por_repartir: 'Por repartir',
-}
-
-/** Labels es-PE de los tipos de evento de agenda (con tilde). */
-const TIPO_EVENTO: Record<string, string> = {
-  reunion: 'Reunión',
-  llamada: 'Llamada',
-  vencimiento: 'Vencimiento',
-}
-
 // ── Helpers puros ─────────────────────────────────────────────────────────────
-
-/** Chip de tendencia "▲ +13%" desde la serie del sparkline (últimos 2 puntos). */
-function tendenciaDe(serie: number[]): string | undefined {
-  if (serie.length < 2) return undefined
-  const [prev, ult] = serie.slice(-2)
-  if (prev == null || ult == null || prev === 0) return undefined
-  const pct = Math.round(((ult - prev) / prev) * 100)
-  if (pct === 0) return undefined
-  return pct > 0 ? `▲ +${pct}%` : `▼ −${Math.abs(pct)}%`
-}
-
-/** % de avance hacia el objetivo (Progress ya recorta a 0–100 al pintar). */
-const pctMeta = (actual: number, objetivo: number): number =>
-  objetivo > 0 ? (actual / objetivo) * 100 : 0
-
-/** "hoy" / "N d" para la columna de días de la cola (dias viene con fracción). */
-const diasTxt = (d: number): string => (d < 1 ? 'hoy' : `${Math.floor(d)} d`)
 
 /** Fecha larga es-PE con la primera letra en mayúscula (sobre el reloj vivo). */
 function fechaLarga(ahora: number): string {
@@ -94,12 +63,7 @@ export function HoyVendedor(): JSX.Element {
   const propuestas = abiertos.filter((l) => l.etapa === 'propuesta_enviada')
 
   // Capital en proceso — PEN y USD SIEMPRE por separado (jamás un total mixto).
-  let capPEN = 0
-  let capUSD = 0
-  for (const l of abiertos) {
-    if (l.moneda === 'USD') capUSD += l.monto_estimado ?? 0
-    else capPEN += l.monto_estimado ?? 0
-  }
+  const { pen: capPEN, usd: capUSD } = capitalPorMoneda(abiertos)
 
   // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
   // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.

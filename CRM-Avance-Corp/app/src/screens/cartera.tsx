@@ -7,18 +7,15 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, SegmentBar, type StatChipData, type Segment } from '@/components/common/stat-strip'
-import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, ORIGENES, type Etapa } from '@/lib/tipos'
+import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, origenLabel, type Etapa } from '@/lib/tipos'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { capitalPorMoneda } from '@/lib/inteligencia'
 import { money, moneyK, fmtFecha } from '@/lib/format'
 import { can } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 
-const CAT_LABEL: Record<string, string> = { nuevo: 'Nuevo', renovacion: 'Renovación', upgrade: 'Upgrade' }
 const MOTIVO_LABEL: Record<string, string> = Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
 const PAGE_SIZE = 50
-
-/** Label es-PE del origen (la clave cruda capitalizada muestra "Campania"). */
-const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
 
 type FiltroEtapa = 'todas' | Etapa
 /** 'todos' | 'sin_asignar' | perfil_id de un vendedor del ámbito. */
@@ -44,8 +41,7 @@ export function Cartera() {
     const activos = leads.filter((l) => l.activo && !['convertido', 'descartado'].includes(l.etapa))
     const convertidos = leads.filter((l) => l.etapa === 'convertido')
     // Los totales NO mezclan monedas: PEN es el principal y USD va aparte.
-    const capitalPEN = leads.filter((l) => l.moneda === 'PEN').reduce((s, l) => s + (l.monto_estimado ?? 0), 0)
-    const capitalUSD = leads.filter((l) => l.moneda === 'USD').reduce((s, l) => s + (l.monto_estimado ?? 0), 0)
+    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(leads)
     const stats: StatChipData[] = [
       { icon: Users, label: 'Total leads', value: String(leads.length), tone: 'primary' },
       {

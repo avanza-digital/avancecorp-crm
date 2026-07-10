@@ -25,17 +25,16 @@ import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { normalizarTelefono } from '@/lib/validacion'
-import { ETAPA_INFO, ORIGENES } from '@/lib/tipos'
-import type { Moneda } from '@/lib/format'
+import {
+  CATEGORIAS_INTERES,
+  ETAPA_INFO,
+  ORIGENES,
+  esOrigen,
+  type CategoriaInteres,
+  type Origen,
+} from '@/lib/tipos'
+import { SIMBOLO, type Moneda } from '@/lib/format'
 import { cn } from '@/lib/utils'
-
-type Categoria = 'nuevo' | 'renovacion' | 'upgrade'
-
-const CATEGORIAS: ReadonlyArray<{ k: Categoria; label: string }> = [
-  { k: 'nuevo', label: 'Nuevo' },
-  { k: 'renovacion', label: 'Renovación' },
-  { k: 'upgrade', label: 'Upgrade' },
-]
 
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
@@ -111,10 +110,11 @@ function FormularioNuevoLead() {
   const [correo, setCorreo] = useState('')
   const [dni, setDni] = useState('')
   const [distrito, setDistrito] = useState('')
-  const [origen, setOrigen] = useState('')
+  // '' = placeholder "Selecciona…" aún sin elegir; la validación exige un Origen real.
+  const [origen, setOrigen] = useState<Origen | ''>('')
   const [monto, setMonto] = useState('')
   const [moneda, setMoneda] = useState<Moneda>('PEN')
-  const [categoria, setCategoria] = useState<Categoria | null>(null)
+  const [categoria, setCategoria] = useState<CategoriaInteres | null>(null)
   const [vendedorId, setVendedorId] = useState('')
   const [nota, setNota] = useState('')
   const [errores, setErrores] = useState<Record<string, string>>({})
@@ -128,6 +128,16 @@ function FormularioNuevoLead() {
       const { [campo]: _omitido, ...resto } = e
       return resto
     })
+  }
+
+  /** CampoLead del store → clave del estado local de errores del formulario. */
+  const CAMPO_UI: Record<string, string> = {
+    nombre_completo: 'nombre',
+    telefono: 'telefono',
+    dni: 'dni',
+    correo: 'correo',
+    origen: 'origen',
+    monto_estimado: 'monto',
   }
 
   const enviar = (e: FormEvent<HTMLFormElement>) => {
@@ -148,7 +158,8 @@ function FormularioNuevoLead() {
     }
     setErrores(err)
     setErrorGeneral(null)
-    if (Object.keys(err).length > 0) return
+    // esOrigen narra '' → fuera: si origen está vacío, err.origen ya forzó el return.
+    if (Object.keys(err).length > 0 || !esOrigen(origen)) return
 
     const res = crearLead({
       nombre_completo: nombre.trim(),
@@ -169,10 +180,11 @@ function FormularioNuevoLead() {
       abrirLead(res.id) // abrirLead ya cierra este modal
       return
     }
-    // Errores del store (dedup de teléfono/DNI, etc.) → al campo si se puede.
+    // Errores del store → anclados a su campo por res.campo (código
+    // estructurado; jamás adivinando por regex sobre el texto del mensaje).
     const msg = res.error ?? 'No se pudo crear el lead'
-    if (/tel[ée]fono/i.test(msg)) setErrores({ telefono: msg })
-    else if (/dni/i.test(msg)) setErrores({ dni: msg })
+    const campoUi = res.campo ? (CAMPO_UI[res.campo] ?? null) : null
+    if (campoUi) setErrores({ [campoUi]: msg })
     else setErrorGeneral(msg)
   }
 
@@ -280,7 +292,8 @@ function FormularioNuevoLead() {
                 aria-invalid={!!errores.origen}
                 className={cn(errores.origen && claseError)}
                 onChange={(e) => {
-                  setOrigen(e.target.value)
+                  // Las <option> salen del catálogo ORIGENES; esOrigen hace el narrow a Origen.
+                  if (esOrigen(e.target.value)) setOrigen(e.target.value)
                   limpiarError('origen')
                 }}
               >
@@ -319,8 +332,8 @@ function FormularioNuevoLead() {
                     value={moneda}
                     onChange={(e) => setMoneda(e.target.value as Moneda)}
                   >
-                    <option value="PEN">S/ PEN</option>
-                    <option value="USD">US$ USD</option>
+                    <option value="PEN">{SIMBOLO.PEN} PEN</option>
+                    <option value="USD">{SIMBOLO.USD} USD</option>
                   </Select>
                 </div>
               </div>
@@ -359,7 +372,7 @@ function FormularioNuevoLead() {
               aria-labelledby="nl-categoria-label"
               className="flex flex-wrap gap-2"
             >
-              {CATEGORIAS.map((c) => {
+              {CATEGORIAS_INTERES.map((c) => {
                 const activa = categoria === c.k
                 return (
                   <button

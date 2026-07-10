@@ -17,18 +17,22 @@ import { can, puedeEscribir } from './roles'
 import {
   ETAPA_INFO,
   MOTIVOS_DESCARTE,
-  ORIGENES,
+  TERMINALES_K,
+  TIPOS_AUTO_K,
   type Actividad,
+  type CategoriaInteres,
   type EtapaActiva,
   type Lead,
   type Miembro,
   type MotivoDescarte,
+  type Origen,
   type TipoActividad,
   type TipoActividadManual,
 } from './tipos'
+import { esAbierto } from './inteligencia'
 import type { Moneda } from './format'
 import { DEMO_HABILITADO } from './config'
-import { normalizarTelefono } from './validacion'
+import { validarCamposLead, type CampoLead, type CodigoValidacion } from './validacion'
 import { registrarError } from './observabilidad'
 import {
   PanelActionsContext,
@@ -38,13 +42,36 @@ import {
 
 // v2: F1c re-siembra (20 leads + asignado_supervisor_id) — la clave vieja se ignora.
 const CLAVE = 'ac-crm-demo-datos-v2'
-const TERMINALES_K = new Set<string>(['convertido', 'descartado'])
-// Tipos que SOLO emite el store al mutar (espejo del veto de actividades_insert).
-const TIPOS_AUTO = new Set<string>(['cambio_etapa', 'reasignacion', 'conversion'])
 
+/** Códigos de fallo de una mutación (además de los de validación de campos). */
+export type CodigoMut =
+  | CodigoValidacion
+  | 'sin_permiso'
+  | 'fuente_no_habilitada'
+  | 'no_encontrado'
+  | 'duplicado_telefono'
+  | 'duplicado_dni'
+  | 'etapa_terminal_al_nacer'
+  | 'lead_cerrado'
+  | 'cerrar_con_flujo'
+  | 'solo_reabrir_descartado'
+  | 'vendedor_no_encontrado'
+  | 'vendedor_fuera_ambito'
+  | 'solo_autoasignar'
+  | 'tipo_actividad_reservado'
+  | 'sin_permiso_reasignar'
+
+/**
+ * Resultado de una mutación. `error` es el mensaje es-PE listo para mostrar;
+ * `codigo` identifica el fallo de forma estable y `campo` (si aplica) ancla el
+ * error a un campo del formulario — la UI NUNCA debe adivinar por regex sobre
+ * el texto del mensaje.
+ */
 export interface ResultadoMut {
   ok: boolean
   error?: string
+  codigo?: CodigoMut
+  campo?: CampoLead
 }
 
 export interface NuevoLeadInput {
@@ -53,11 +80,11 @@ export interface NuevoLeadInput {
   correo?: string | null
   dni?: string | null
   distrito?: string | null
-  origen: string
+  origen: Origen
   etapa?: EtapaActiva // default 'nuevo' — un lead NUNCA nace terminal
   monto_estimado?: number | null
   moneda: Moneda
-  categoria_interes?: 'nuevo' | 'renovacion' | 'upgrade' | null
+  categoria_interes?: CategoriaInteres | null
   vendedor_id?: string | null
   nota?: string | null
 }
@@ -130,6 +157,10 @@ export interface StoreDataApi {
   // toda lista visible al usuario debe cruzarse con ambito.leads, nunca
   // iterarse directo — salvo el lector global (directorio).
   actividades: Actividad[]
+  // Timeline YA recortado a los leads del ámbito (espejo de actividades_select).
+  // Para cualquier lista visible al usuario, PREFERIR esto sobre `actividades`:
+  // el recorte lo garantiza el store, no la disciplina de cada pantalla.
+  actividadesDelAmbito: Actividad[]
   lead(id: string): Lead | undefined
   actividadesDe(leadId: string): Actividad[] // orden desc por creado_en
   // Mutaciones — TODAS write-gated dentro del store
@@ -201,21 +232,33 @@ function uid(): string {
   }
 }
 
-const esAbierto = (l: Lead) => l.activo && !TERMINALES_K.has(l.etapa)
-
 /** Dedup vivo: teléfono/DNI no pueden repetirse entre leads abiertos. */
 function conflictoDedup(
   leads: Lead[],
   telefono: string,
   dni: string | null | undefined,
   exceptoId?: string,
-): string | null {
+): ResultadoMut | null {
   const abiertos = leads.filter((l) => esAbierto(l) && l.id !== exceptoId)
   const porTel = abiertos.find((l) => l.telefono === telefono)
-  if (porTel) return `Ese teléfono ya pertenece a un lead abierto: ${porTel.nombre_completo}`
+  if (porTel) {
+    return {
+      ok: false,
+      codigo: 'duplicado_telefono',
+      campo: 'telefono',
+      error: `Ese teléfono ya pertenece a un lead abierto: ${porTel.nombre_completo}`,
+    }
+  }
   if (dni) {
     const porDni = abiertos.find((l) => l.dni === dni)
-    if (porDni) return `Ese DNI ya pertenece a un lead abierto: ${porDni.nombre_completo}`
+    if (porDni) {
+      return {
+        ok: false,
+        codigo: 'duplicado_dni',
+        campo: 'dni',
+        error: `Ese DNI ya pertenece a un lead abierto: ${porDni.nombre_completo}`,
+      }
+    }
   }
   return null
 }
@@ -376,16 +419,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     const sinPermiso = (): ResultadoMut => {
       toast.error('Tu rol es de solo lectura — no puedes modificar datos')
-      return { ok: false, error: 'Sin permiso de escritura' }
+      return { ok: false, codigo: 'sin_permiso', error: 'Sin permiso de escritura' }
     }
 
     const bloqueoEscritura = (): ResultadoMut | null => {
       if (!demoActivo) {
         toast.error('La fuente de datos del CRM aún no está habilitada')
-        return { ok: false, error: 'Fuente de datos no habilitada' }
+        return { ok: false, codigo: 'fuente_no_habilitada', error: 'Fuente de datos no habilitada' }
       }
       return puedeEscribir(rol) ? null : sinPermiso()
     }
+
+    const noEncontrado = (): ResultadoMut => ({ ok: false, codigo: 'no_encontrado', error: 'Lead no encontrado' })
 
     const actividadAuto = (
       lead_id: string,
@@ -411,6 +456,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     const miId = yo?.id ?? null
 
+    // Recorte del timeline al ámbito (espejo de actividades_select).
+    const idsDelAmbito = new Set(ambito.leads.map((l) => l.id))
+
     // Espejo del WITH CHECK de leads_insert/leads_update (F0): para supervisor
     // el vendedor destino debe estar dentro de SU subárbol (él mismo o sus
     // vendedores). Gerencia pasa siempre (vendedor_ids_visibles = todos) y el
@@ -429,6 +477,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       objetivos: auxiliares.objetivos,
       series: auxiliares.series,
       actividades: datos.actividades,
+      actividadesDelAmbito: datos.actividades.filter((a) => idsDelAmbito.has(a.lead_id)),
       lead: (id) => buscar(id),
       actividadesDe: (leadId) =>
         datos.actividades
@@ -438,36 +487,30 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       crearLead: (input) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
-        const nombre = input.nombre_completo.trim()
-        if (!nombre) return { ok: false, error: 'El nombre es obligatorio' }
-        const telefono = normalizarTelefono(input.telefono)
-        if (!telefono) {
-          return { ok: false, error: 'Teléfono inválido — usa un celular peruano 9######## (se guarda como +51…)' }
-        }
-        const dni = input.dni?.trim() || null
-        if (dni && !/^\d{8}$/.test(dni)) {
-          return { ok: false, error: 'El DNI debe tener exactamente 8 dígitos' }
-        }
+        // Validación compartida (espejo de los CHECK de crm.leads) — la misma
+        // fuente que editarLead y, a futuro, las mutaciones reales de Supabase.
+        const v = validarCamposLead({
+          nombre_completo: input.nombre_completo,
+          telefono: input.telefono,
+          dni: input.dni ?? null,
+          correo: input.correo ?? null,
+          origen: input.origen,
+          monto_estimado: input.monto_estimado ?? null,
+        })
+        if (!v.ok) return v
+        const nombre = v.valores.nombre_completo ?? ''
+        const telefono = v.valores.telefono ?? ''
+        const dni = v.valores.dni ?? null
         const etapa: EtapaActiva = input.etapa ?? 'nuevo'
         if (TERMINALES_K.has(etapa)) {
-          return { ok: false, error: 'Un lead no puede nacer en etapa terminal' }
-        }
-        // Espejos de los CHECK de crm.leads (origen y monto_estimado >= 0).
-        if (!ORIGENES.some((o) => o.k === input.origen)) {
-          return { ok: false, error: 'Origen inválido' }
-        }
-        if (
-          input.monto_estimado != null &&
-          (!Number.isFinite(input.monto_estimado) || input.monto_estimado < 0)
-        ) {
-          return { ok: false, error: 'El monto estimado debe ser un número mayor o igual a 0' }
+          return { ok: false, codigo: 'etapa_terminal_al_nacer', error: 'Un lead no puede nacer en etapa terminal' }
         }
         const choque = conflictoDedup(datos.leads, telefono, dni)
-        if (choque) return { ok: false, error: choque }
+        if (choque) return choque
         // Espejo de la policy leads_insert: sin can('reasignar') el lead solo
         // puede nacer asignado a uno mismo (parkear es de supervisor/gerencia).
         if (!can(rol, 'reasignar') && (input.vendedor_id ?? null) !== (yo?.id ?? null)) {
-          return { ok: false, error: 'Solo puedes crear leads asignados a ti mismo' }
+          return { ok: false, codigo: 'solo_autoasignar', error: 'Solo puedes crear leads asignados a ti mismo' }
         }
         // Resuelve el vendedor SIN tragar ids inválidos (mismo criterio que reasignar()).
         let vendedor_id: string | null = null
@@ -482,21 +525,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             vendedor_id = yo.id
             vendedor_nombre = yo.nombre_completo
           } else {
-            return { ok: false, error: 'Vendedor no encontrado' }
+            return { ok: false, codigo: 'vendedor_no_encontrado', error: 'Vendedor no encontrado' }
           }
         }
         // Espejo del WITH CHECK de leads_insert: supervisor solo dentro de su equipo.
         if (vendedorFueraDeAmbito(vendedor_id)) {
-          return { ok: false, error: 'Ese vendedor no pertenece a tu equipo' }
+          return { ok: false, codigo: 'vendedor_fuera_ambito', error: 'Ese vendedor no pertenece a tu equipo' }
         }
         const id = uid()
         const lead: Lead = {
           id,
           nombre_completo: nombre,
           telefono,
-          correo: input.correo?.trim() || null,
+          correo: v.valores.correo ?? null,
           etapa,
-          origen: input.origen,
+          origen: v.valores.origen ?? input.origen,
           monto_estimado: input.monto_estimado ?? null,
           moneda: input.moneda,
           categoria_interes: input.categoria_interes ?? null,
@@ -520,41 +563,24 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
-        const parche: CambiosLead = { ...cambios }
-        if (parche.nombre_completo !== undefined) {
-          const n = (parche.nombre_completo ?? '').trim()
-          if (!n) return { ok: false, error: 'El nombre es obligatorio' }
-          parche.nombre_completo = n
-        }
-        if (parche.telefono !== undefined) {
-          const tel = normalizarTelefono(parche.telefono ?? '')
-          if (!tel) {
-            return { ok: false, error: 'Teléfono inválido — usa un celular peruano 9######## (se guarda como +51…)' }
-          }
-          parche.telefono = tel
-        }
-        if (parche.dni !== undefined) {
-          const dni = (parche.dni ?? '').trim()
-          if (dni && !/^\d{8}$/.test(dni)) {
-            return { ok: false, error: 'El DNI debe tener exactamente 8 dígitos' }
-          }
-          parche.dni = dni || null
-        }
-        if (parche.origen !== undefined && !ORIGENES.some((o) => o.k === parche.origen)) {
-          return { ok: false, error: 'Origen inválido' }
-        }
-        if (
-          parche.monto_estimado != null &&
-          (!Number.isFinite(parche.monto_estimado) || parche.monto_estimado < 0)
-        ) {
-          return { ok: false, error: 'El monto estimado debe ser un número mayor o igual a 0' }
-        }
+        if (!actual) return noEncontrado()
+        // MISMA validación que crearLead (antes: dos copias divergentes; la
+        // edición saltaba teléfono/correo/DNI si el texto cambiaba de forma).
+        const v = validarCamposLead({
+          ...(cambios.nombre_completo !== undefined ? { nombre_completo: cambios.nombre_completo } : {}),
+          ...(cambios.telefono !== undefined ? { telefono: cambios.telefono } : {}),
+          ...(cambios.dni !== undefined ? { dni: cambios.dni } : {}),
+          ...(cambios.correo !== undefined ? { correo: cambios.correo } : {}),
+          ...(cambios.origen !== undefined ? { origen: cambios.origen } : {}),
+          ...(cambios.monto_estimado !== undefined ? { monto_estimado: cambios.monto_estimado } : {}),
+        })
+        if (!v.ok) return v
+        const parche: CambiosLead = { ...cambios, ...v.valores }
         if (esAbierto(actual)) {
           const tel = parche.telefono ?? actual.telefono
           const dni = parche.dni !== undefined ? parche.dni : (actual.dni ?? null)
           const choque = conflictoDedup(datos.leads, tel, dni, id)
-          if (choque) return { ok: false, error: choque }
+          if (choque) return choque
         }
         aplicar(id, parche)
         return { ok: true }
@@ -564,12 +590,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
+        if (!actual) return noEncontrado()
         if (TERMINALES_K.has(actual.etapa)) {
-          return { ok: false, error: 'El lead está cerrado — reábrelo para moverlo de etapa' }
+          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para moverlo de etapa' }
         }
         if (TERMINALES_K.has(etapa)) {
-          return { ok: false, error: 'Usa convertir o descartar para cerrar un lead' }
+          return { ok: false, codigo: 'cerrar_con_flujo', error: 'Usa convertir o descartar para cerrar un lead' }
         }
         if (actual.etapa === etapa) return { ok: true }
         aplicar(
@@ -584,8 +610,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
-        if (TERMINALES_K.has(actual.etapa)) return { ok: false, error: 'El lead ya está cerrado' }
+        if (!actual) return noEncontrado()
+        if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
         const labelMotivo = MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
         const notaLimpia = nota?.trim() || null
         const detalle = `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO.descartado.label} · Motivo: ${labelMotivo}${notaLimpia ? ` — ${notaLimpia}` : ''}`
@@ -603,8 +629,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
-        if (TERMINALES_K.has(actual.etapa)) return { ok: false, error: 'El lead ya está cerrado' }
+        if (!actual) return noEncontrado()
+        if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
         aplicar(
           id,
           { etapa: 'convertido', motivo_descarte: null },
@@ -617,12 +643,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
+        if (!actual) return noEncontrado()
         if (actual.etapa !== 'descartado') {
-          return { ok: false, error: 'Solo se puede reabrir un lead descartado' }
+          return { ok: false, codigo: 'solo_reabrir_descartado', error: 'Solo se puede reabrir un lead descartado' }
         }
         const choque = conflictoDedup(datos.leads, actual.telefono, actual.dni ?? null, id)
-        if (choque) return { ok: false, error: choque }
+        if (choque) return choque
         aplicar(
           id,
           { etapa: 'nuevo', motivo_descarte: null },
@@ -635,14 +661,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
+        if (!actual) return noEncontrado()
         // Doble defensa (el tipo TS se borra en runtime): los tipos automáticos
         // los emite SOLO el store, y un lead cerrado no recibe actividad manual.
-        if (TIPOS_AUTO.has(tipo)) {
-          return { ok: false, error: 'Ese tipo de actividad lo genera el sistema — no se registra a mano' }
+        if (TIPOS_AUTO_K.has(tipo)) {
+          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Ese tipo de actividad lo genera el sistema — no se registra a mano' }
         }
         if (TERMINALES_K.has(actual.etapa)) {
-          return { ok: false, error: 'El lead está cerrado — reábrelo para registrar actividad' }
+          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para registrar actividad' }
         }
         const act = actividadAuto(id, tipo, detalle?.trim() || null)
         setDatos((d) => ({ ...d, actividades: [act, ...d.actividades] }))
@@ -654,15 +680,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         if (!can(rol, 'reasignar')) {
           toast.error('No tienes permiso para reasignar leads')
-          return { ok: false, error: 'Sin permiso para reasignar' }
+          return { ok: false, codigo: 'sin_permiso_reasignar', error: 'Sin permiso para reasignar' }
         }
         const actual = buscar(id)
-        if (!actual) return { ok: false, error: 'Lead no encontrado' }
+        if (!actual) return noEncontrado()
         const nuevo = vendedorId ? equipo.find((m) => m.perfil_id === vendedorId) : undefined
-        if (vendedorId && !nuevo) return { ok: false, error: 'Vendedor no encontrado' }
+        if (vendedorId && !nuevo) return { ok: false, codigo: 'vendedor_no_encontrado', error: 'Vendedor no encontrado' }
         // Espejo del WITH CHECK de leads_update: supervisor solo dentro de su equipo.
         if (vendedorFueraDeAmbito(vendedorId)) {
-          return { ok: false, error: 'Ese vendedor no pertenece a tu equipo' }
+          return { ok: false, codigo: 'vendedor_fuera_ambito', error: 'Ese vendedor no pertenece a tu equipo' }
         }
         if ((actual.vendedor_id ?? null) === (nuevo?.perfil_id ?? null)) return { ok: true }
         aplicar(
