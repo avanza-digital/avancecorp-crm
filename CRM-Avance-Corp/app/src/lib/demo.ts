@@ -8,6 +8,9 @@
 // produzcan señal en TODOS los roles. La cola y el ranking ya NO viven aquí:
 // se computan con colaDe() y metricasPorVendedor().
 import type { Actividad, Lead, Miembro } from './tipos'
+// Solo tipos (se borran al compilar): no crea ciclo con el import dinámico
+// que hace el store de este módulo.
+import type { EventoAgenda, ObjetivosPorRol, SeriesComerciales } from './store'
 
 export const EQUIPO_DEMO: Miembro[] = [
   { perfil_id: 'd-ger', nombre_completo: 'GERENCIA DEMO', rol_crm: 'gerencia', supervisor_id: null, activo: true },
@@ -130,7 +133,7 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
 // Agenda del día (estática hasta F2) — lead_ids vigentes y con señal para TODOS
 // los roles: l2/l17 son de d-v1 (la sesión demo de vendedor), l3 de d-v2 y l4
 // de d-v3 (así supervisor, gerencia y directorio también ven eventos).
-export const AGENDA_DEMO = [
+export const AGENDA_DEMO: EventoAgenda[] = [
   { id: 'a1', lead_id: 'l3', titulo: 'Reunión — CARLOS RUIZ MENDOZA', tipo: 'reunion', cuando: 'Hoy · 10:00', color: '#7c3aed' },
   { id: 'a2', lead_id: 'l4', titulo: 'Llamada de seguimiento — ANA TORRES', tipo: 'llamada', cuando: 'Hoy · 15:30', color: '#2563eb' },
   { id: 'a3', lead_id: 'l4', titulo: 'Vence propuesta — ANA TORRES QUISPE', tipo: 'vencimiento', cuando: 'Mañana', color: '#d97706' },
@@ -139,7 +142,7 @@ export const AGENDA_DEMO = [
 ]
 
 // Series de tendencia (últimas 7 semanas) para los sparklines de los KPIs.
-export const SPARKS_DEMO = {
+export const SPARKS_DEMO: SeriesComerciales = {
   capital: [62, 71, 68, 84, 96, 112, 127],
   leads: [3, 4, 4, 5, 6, 6, 7],
   propuestas: [0, 1, 1, 2, 1, 2, 3],
@@ -150,10 +153,7 @@ export const SPARKS_DEMO = {
 // "actuales" se calculan del store en cada pantalla (capital en proceso,
 // convertidos y % de conversión del ámbito correspondiente).
 // capitalObjetivo en PEN — NUNCA se mezcla con USD en un mismo total.
-export const METAS_DEMO: Record<
-  'vendedor' | 'supervisor' | 'gerencia',
-  { capitalObjetivo: number; ventasObjetivo: number; conversionObjetivo: number }
-> = {
+export const METAS_DEMO: ObjetivosPorRol = {
   vendedor: { capitalObjetivo: 250_000, ventasObjetivo: 3, conversionObjetivo: 25 },
   supervisor: { capitalObjetivo: 500_000, ventasObjetivo: 6, conversionObjetivo: 25 },
   gerencia: { capitalObjetivo: 1_000_000, ventasObjetivo: 12, conversionObjetivo: 28 },

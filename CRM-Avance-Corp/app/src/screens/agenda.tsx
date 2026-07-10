@@ -9,12 +9,10 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import type { EventoAgenda } from '@/lib/store'
 import { useAuth } from '@/lib/auth-context'
 import { puedeEscribir } from '@/lib/roles'
+import { TIPO_EVENTO } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
 
 type Evento = EventoAgenda
-
-// Labels es-PE de los tipos de evento (con tilde — capitalizar la clave daría "Reunion").
-const TIPO_EVENTO: Record<string, string> = { reunion: 'Reunión', llamada: 'Llamada', vencimiento: 'Vencimiento' }
 
 // ── Mini-KPIs del día (derivados de los eventos del ámbito) ───────────────────
 function statsDe(eventos: Evento[]): StatChipData[] {

@@ -22,11 +22,16 @@ import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { useAhora } from '@/lib/ahora'
 import { moneyK } from '@/lib/format'
-import { ORIGENES, type Lead, type Miembro } from '@/lib/tipos'
+import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
+import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
 import {
+  capitalPorMoneda,
   colaDe,
   comparativaEquipos,
+  diasDesdeReferencia,
+  esAbierto,
   metricasPorVendedor,
   type ItemCola,
   type MetricasVendedor,
@@ -34,37 +39,25 @@ import {
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
-const AZUL = '#2563eb' // ok
-const AMBAR = '#d97706' // atención
-const ROJO = '#dc2626' // crítico
-const NAVY = '#111e3d' // convertido / conversión
-const VIOLETA = '#7c3aed' // color de marca del supervisor (igual que antes)
-const GRIS = '#8b95a7' // neutro (sin señal)
+const GRIS = '#8b95a7' // neutro (sin señal) — no forma parte del semáforo central
 
 const SEV_UI: Record<ItemCola['sev'], { label: string; color: string }> = {
-  critica: { label: 'Crítica', color: ROJO },
-  media: { label: 'Media', color: AMBAR },
-  baja: { label: 'Baja', color: AZUL },
+  critica: { label: 'Crítica', color: SEV_COLOR.critica },
+  media: { label: 'Media', color: SEV_COLOR.media },
+  baja: { label: 'Baja', color: SEV_COLOR.baja },
 }
 
 /** Semáforo de última actividad: azul <2 d · ámbar 2–5 d · rojo >5 d. */
 function semaforoActividad(dias: number): { color: string; label: string } {
   const label = dias < 1 ? 'Al día' : `${Math.floor(dias)} d sin act.`
-  if (dias < 2) return { color: AZUL, label }
-  if (dias <= 5) return { color: AMBAR, label }
-  return { color: ROJO, label }
+  if (dias < 2) return { color: SEMAFORO.ok, label }
+  if (dias <= 5) return { color: SEMAFORO.atencion, label }
+  return { color: SEMAFORO.critico, label }
 }
 
-const DIA_MS = 86_400_000
-
-/** Días (con fracción) desde un ISO — antigüedad de los parkeados. */
-const diasDesde = (iso: string) => Math.max(0, (Date.now() - new Date(iso).getTime()) / DIA_MS)
-
+// OJO: wording propio de esta pantalla ('hace N d' compacto) — NO es el
+// haceTexto central ('hace N días'), no sustituir sin cambiar el texto visible.
 const haceDiasTxt = (d: number) => (d < 1 ? 'hace horas' : `hace ${Math.floor(d)} d`)
-
-const abierto = (l: Lead) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado'
-
-const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
 
 // ── Card de vendedor (métricas del ámbito) ────────────────────────────────────
 
@@ -74,7 +67,7 @@ function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number })
     <Card className="ac-lift ac-pop p-4" style={{ animationDelay: `${delay}ms` }}>
       {/* Identidad + semáforo de última actividad (peor lead abierto) */}
       <div className="flex items-center gap-3">
-        <Avatar nombre={r.m.nombre_completo} color={AZUL} className="size-9" />
+        <Avatar nombre={r.m.nombre_completo} color={SEMAFORO.ok} className="size-9" />
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
@@ -112,7 +105,7 @@ function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number })
           <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Sin tocar</p>
           <p
             className="text-base font-extrabold tabular-nums"
-            style={r.sinTocar > 0 ? { color: AMBAR } : undefined}
+            style={r.sinTocar > 0 ? { color: SEMAFORO.atencion } : undefined}
             title="Leads abiertos sin ninguna actividad registrada"
           >
             {r.sinTocar}
@@ -126,7 +119,7 @@ function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number })
           <span className="font-semibold text-muted-foreground">Conversión</span>
           <span className="font-bold tabular-nums">{r.conversion}%</span>
         </div>
-        <Progress value={r.conversion} color={NAVY} />
+        <Progress value={r.conversion} color={SEMAFORO.navy} />
       </div>
     </Card>
   )
@@ -144,11 +137,13 @@ function Bandeja({
   vendedores,
   grupos,
   mostrarBandeja = false,
+  ahora,
 }: {
   parkeados: Lead[]
   vendedores: Miembro[] // opciones planas (supervisor: SUS vendedores)
   grupos?: GrupoVendedores[] // opciones agrupadas por equipo (gerencia)
   mostrarBandeja?: boolean // gerencia: mostrar en qué bandeja está el lead
+  ahora: number // reloj vivo del padre (useAhora) — antigüedad de los parkeados
 }): JSX.Element {
   const { equipo, reasignar } = useCRMData()
   const [sel, setSel] = useState<Record<string, string>>({})
@@ -180,7 +175,7 @@ function Bandeja({
   return (
     <div className="space-y-2 px-5 pb-4">
       {parkeados.map((l) => {
-        const d = diasDesde(l.creado_en)
+        const d = diasDesdeReferencia(l.creado_en, ahora)
         return (
           <div
             key={l.id}
@@ -193,7 +188,7 @@ function Bandeja({
                 {' · '}
                 {l.monto_estimado != null ? moneyK(l.monto_estimado, l.moneda) : 'Sin monto'}
                 {' · entró '}
-                <span style={d >= 1 ? { color: ROJO, fontWeight: 700 } : undefined}>{haceDiasTxt(d)}</span>
+                <span style={d >= 1 ? { color: SEMAFORO.critico, fontWeight: 700 } : undefined}>{haceDiasTxt(d)}</span>
                 {mostrarBandeja && <> · Bandeja: {bandejaDe(l)}</>}
               </p>
             </div>
@@ -281,20 +276,16 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
 
 function EquipoSupervisor(): JSX.Element {
   const { ambito, actividades } = useCRMData()
+  const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
-  const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades)
-  const parkeados = ambito.leads.filter((l) => abierto(l) && l.vendedor_id == null)
-  const cola = colaDe(ambito.leads, actividades)
+  const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora)
+  const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
+  const cola = colaDe(ambito.leads, actividades, ahora)
 
   // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
   // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.
-  const abiertosAsignados = ambito.leads.filter((l) => abierto(l) && l.vendedor_id != null)
-  let capPEN = 0
-  let capUSD = 0
-  for (const l of abiertosAsignados) {
-    if (l.moneda === 'USD') capUSD += l.monto_estimado ?? 0
-    else capPEN += l.monto_estimado ?? 0
-  }
+  const abiertosAsignados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id != null)
+  const { pen: capPEN, usd: capUSD } = capitalPorMoneda(abiertosAsignados)
   const activos = abiertosAsignados.length
 
   const stats: StatChipData[] = [
@@ -348,13 +339,13 @@ function EquipoSupervisor(): JSX.Element {
             title="Por repartir"
             right={
               parkeados.length > 0 ? (
-                <Badge color={AMBAR} variant="outline" dot>
+                <Badge color={SEMAFORO.atencion} variant="outline" dot>
                   {parkeados.length} en bandeja
                 </Badge>
               ) : undefined
             }
           />
-          <Bandeja parkeados={parkeados} vendedores={ambito.vendedores} />
+          <Bandeja parkeados={parkeados} vendedores={ambito.vendedores} ahora={ahora} />
         </Card>
         <Card>
           <SectionHead
@@ -377,9 +368,10 @@ function EquipoSupervisor(): JSX.Element {
 
 function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   const { ambito, actividades, equipo } = useCRMData()
+  const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
   const filas = comparativaEquipos(equipo, ambito.leads, actividades)
-  const parkeados = ambito.leads.filter((l) => abierto(l) && l.vendedor_id == null)
+  const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
 
   const vendedoresDe = (sup: Miembro) =>
     equipo.filter((m) => m.rol_crm === 'vendedor' && m.activo && m.supervisor_id === sup.perfil_id)
@@ -426,14 +418,14 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
 
       {/* Un bloque por supervisor: cabecera comparativa + cards de sus vendedores */}
       {filas.map((f) => {
-        const cards = metricasPorVendedor(vendedoresDe(f.supervisor), ambito.leads, actividades)
+        const cards = metricasPorVendedor(vendedoresDe(f.supervisor), ambito.leads, actividades, ahora)
         return (
           <Card key={f.supervisor.perfil_id}>
             <SectionHead
               icon={ShieldCheck}
               title={`Equipo de ${f.supervisor.nombre_completo}`}
               right={
-                <Badge color={VIOLETA}>
+                <Badge color={SEMAFORO.violeta}>
                   {f.vendedores} {f.vendedores === 1 ? 'vendedor' : 'vendedores'}
                 </Badge>
               }
@@ -455,13 +447,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Conversión</p>
                   <p className="text-base font-extrabold tabular-nums">{f.conversion}%</p>
-                  <Progress value={f.conversion} color={NAVY} className="mt-1.5 h-1.5" />
+                  <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
                 </div>
                 <div>
                   <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Por repartir</p>
                   <p
                     className="text-base font-extrabold tabular-nums"
-                    style={f.parkeados > 0 ? { color: AMBAR } : undefined}
+                    style={f.parkeados > 0 ? { color: SEMAFORO.atencion } : undefined}
                   >
                     {f.parkeados}
                   </p>
@@ -490,7 +482,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             title="Por repartir (toda la empresa)"
             right={
               parkeados.length > 0 ? (
-                <Badge color={AMBAR} variant="outline" dot>
+                <Badge color={SEMAFORO.atencion} variant="outline" dot>
                   {parkeados.length} en bandejas
                 </Badge>
               ) : undefined
@@ -503,6 +495,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               .map((f) => ({ sup: f.supervisor, vs: vendedoresDe(f.supervisor) }))
               .filter((g) => g.vs.length > 0)}
             mostrarBandeja
+            ahora={ahora}
           />
         </Card>
       )}

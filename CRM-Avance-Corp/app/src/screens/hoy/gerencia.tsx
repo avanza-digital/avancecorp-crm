@@ -4,6 +4,7 @@
 // Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
 // crítico · convertido/ganado = navy #111e3d. PEN y USD JAMÁS se suman.
 import { useMemo, type CSSProperties, type JSX } from 'react'
+import { useAhora } from '@/lib/ahora'
 import {
   AlertTriangle,
   ChevronRight,
@@ -26,44 +27,25 @@ import { SectionHead } from '@/components/common/section-head'
 import { SegmentBar, type Segment } from '@/components/common/stat-strip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { money, moneyK } from '@/lib/format'
-import { ETAPA_INFO, type Lead } from '@/lib/tipos'
+import { ETAPA_INFO } from '@/lib/tipos'
+import { SEMAFORO } from '@/lib/semaforo'
 import {
+  capitalPorMoneda,
   colorMeta,
+  colorVsObjetivo,
   comparativaEquipos,
   conversionPorOrigen,
   embudo,
+  esAbierto,
   estancados,
   metricasPorVendedor,
+  tendenciaDe,
 } from '@/lib/inteligencia'
 
-// Semáforos (sin verde) + navy de ganado.
-const OK = '#2563eb'
-const ATENCION = '#d97706'
-const CRITICO = '#dc2626'
-const NAVY = '#111e3d'
 // Paleta por posición para distinguir equipos en la barra proporcional.
-const COLOR_EQUIPO = ['#2563eb', '#7c3aed', '#0891b2', '#d97706']
+const COLOR_EQUIPO = [SEMAFORO.ok, SEMAFORO.violeta, '#0891b2', SEMAFORO.atencion]
 // Podio del top de vendedores (1º navy · 2º violeta · 3º azul).
-const PODIO = [NAVY, '#7c3aed', '#2563eb']
-
-const esAbierto = (l: Lead) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado'
-
-/** Chip de tendencia a partir de la serie demo (último vs anterior). */
-function tendenciaDe(serie: number[]): string | undefined {
-  if (serie.length < 2) return undefined
-  const [prev, ult] = serie.slice(-2)
-  if (prev == null || ult == null || prev === 0) return undefined
-  const pct = Math.round(((ult - prev) / prev) * 100)
-  if (pct === 0) return '— 0%'
-  return pct > 0 ? `▲ +${pct}%` : `▼ −${Math.abs(pct)}%`
-}
-
-/** Semáforo de un valor contra su objetivo: llega azul · a medias ámbar · lejos rojo. */
-function colorVsObjetivo(valor: number, objetivo: number): string {
-  if (objetivo <= 0 || valor >= objetivo) return OK
-  if (valor >= objetivo / 2) return ATENCION
-  return CRITICO
-}
+const PODIO = [SEMAFORO.navy, SEMAFORO.violeta, SEMAFORO.ok]
 
 /** Ítem de la meta del mes: valor actual grande + objetivo + barra semaforizada. */
 function MetaItem({
@@ -98,6 +80,7 @@ function MetaItem({
 export function HoyGerencia(): JSX.Element {
   const { ambito, equipo, actividades, objetivos, series } = useCRMData()
   const { abrirLead } = usePanelesActions()
+  const ahora = useAhora()
   const leads = ambito.leads
   const meta = objetivos.gerencia
 
@@ -111,19 +94,19 @@ export function HoyGerencia(): JSX.Element {
     const asignados = abiertos.filter((l) => l.vendedor_id != null)
     const vivosAsignados = vivos.filter((l) => l.vendedor_id != null)
     const convertidos = vivos.filter((l) => l.etapa === 'convertido')
-    const suma = (ls: Lead[], mon: 'PEN' | 'USD') =>
-      ls.filter((l) => l.moneda === mon).reduce((a, l) => a + (l.monto_estimado ?? 0), 0)
+    const cap = capitalPorMoneda(asignados)
+    const gan = capitalPorMoneda(convertidos)
     return {
       totalVivos: vivos.length,
       abiertos: abiertos.length, // TODOS los abiertos (base del embudo)
       activos: asignados.length, // abiertos CON vendedor (KPI)
       vivosAsignados: vivosAsignados.length,
       porRepartir: abiertos.filter((l) => l.vendedor_id == null).length,
-      capPEN: suma(asignados, 'PEN'),
-      capUSD: suma(asignados, 'USD'),
+      capPEN: cap.pen,
+      capUSD: cap.usd,
       nConvertidos: convertidos.length,
-      ganPEN: suma(convertidos, 'PEN'),
-      ganUSD: suma(convertidos, 'USD'),
+      ganPEN: gan.pen,
+      ganUSD: gan.usd,
       // Conversión global con la MISMA base que comparativaEquipos:
       // convertidos / leads CON vendedor (los parkeados no cuentan).
       conversion:
@@ -136,10 +119,12 @@ export function HoyGerencia(): JSX.Element {
   const equipos = useMemo(() => comparativaEquipos(equipo, leads, actividades), [equipo, leads, actividades])
   const etapas = useMemo(() => embudo(leads), [leads])
   const origenes = useMemo(() => conversionPorOrigen(leads), [leads])
-  const enRiesgo = useMemo(() => estancados(leads, actividades, 7), [leads, actividades])
+  // Reloj vivo: sin `ahora` los días de estancamiento quedarían congelados
+  // hasta el siguiente cambio de datos (mismo arreglo que equipo/pipeline).
+  const enRiesgo = useMemo(() => estancados(leads, actividades, 7, ahora), [leads, actividades, ahora])
   const top = useMemo(
-    () => metricasPorVendedor(ambito.vendedores, leads, actividades).slice(0, 3),
-    [ambito.vendedores, leads, actividades],
+    () => metricasPorVendedor(ambito.vendedores, leads, actividades, ahora).slice(0, 3),
+    [ambito.vendedores, leads, actividades, ahora],
   )
 
   return (
@@ -153,7 +138,7 @@ export function HoyGerencia(): JSX.Element {
           color="var(--accent)"
           sub={d.capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(d.capUSD, 'USD')}` : 'Pipeline activo (PEN)'}
           spark={series.capital}
-          tendencia={tendenciaDe(series.capital)}
+          tendencia={tendenciaDe(series.capital, { mostrarCero: true })}
           delay={0}
         />
         <KpiCard
@@ -163,7 +148,7 @@ export function HoyGerencia(): JSX.Element {
           color="var(--chart-2)"
           sub={d.porRepartir > 0 ? `Con vendedor · +${d.porRepartir} por repartir en bandejas` : 'Todos con vendedor asignado'}
           spark={series.leads}
-          tendencia={tendenciaDe(series.leads)}
+          tendencia={tendenciaDe(series.leads, { mostrarCero: true })}
           delay={60}
         />
         <KpiCard
@@ -179,7 +164,7 @@ export function HoyGerencia(): JSX.Element {
           label="Capital ganado"
           value={money(d.ganPEN)}
           icon={Trophy}
-          color={NAVY}
+          color={SEMAFORO.navy}
           sub={d.ganUSD > 0 ? `Histórico convertidos (PEN) · +${moneyK(d.ganUSD, 'USD')}` : 'Histórico convertidos (PEN)'}
           delay={180}
         />
@@ -231,7 +216,7 @@ export function HoyGerencia(): JSX.Element {
             segments={equipos.map<Segment>((e, i) => ({
               label: e.supervisor.nombre_completo,
               value: e.capitalPEN,
-              color: COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? NAVY,
+              color: COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? SEMAFORO.navy,
               valTxt: moneyK(e.capitalPEN),
             }))}
           />
@@ -249,7 +234,7 @@ export function HoyGerencia(): JSX.Element {
               </thead>
               <tbody>
                 {equipos.map((e, i) => {
-                  const c = COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? NAVY
+                  const c = COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? SEMAFORO.navy
                   return (
                     <tr key={e.supervisor.perfil_id} className="border-b border-border/60 last:border-0">
                       <td className="py-2.5 pr-4">
@@ -326,7 +311,7 @@ export function HoyGerencia(): JSX.Element {
                         {caida > 0 && (
                           <span
                             className="font-bold tabular-nums"
-                            style={{ color: caida >= 50 ? CRITICO : ATENCION }}
+                            style={{ color: caida >= 50 ? SEMAFORO.critico : SEMAFORO.atencion }}
                             title={`Caída del ${caida}% frente a ${prev ? ETAPA_INFO[prev.etapa].label : ''}`}
                           >
                             ▼ −{caida}%
@@ -385,7 +370,7 @@ export function HoyGerencia(): JSX.Element {
                           <span className="flex items-center gap-2 font-semibold">
                             {o.label}
                             {mejor && (
-                              <Badge color={NAVY} variant="solid">
+                              <Badge color={SEMAFORO.navy} variant="solid">
                                 Mejor canal
                               </Badge>
                             )}
@@ -397,7 +382,7 @@ export function HoyGerencia(): JSX.Element {
                           <div className="flex items-center gap-2">
                             <Progress
                               value={o.pct}
-                              color={mejor ? NAVY : 'var(--accent)'}
+                              color={mejor ? SEMAFORO.navy : 'var(--accent)'}
                               className="h-1.5 w-full max-w-24 flex-1"
                             />
                             <span className="w-9 shrink-0 text-right text-xs font-bold tabular-nums">{o.pct}%</span>
@@ -420,7 +405,7 @@ export function HoyGerencia(): JSX.Element {
             icon={AlertTriangle}
             title="Capital en riesgo"
             right={
-              <Badge color={CRITICO} variant="outline">
+              <Badge color={SEMAFORO.critico} variant="outline">
                 ≥ 7 días sin actividad
               </Badge>
             }
@@ -433,19 +418,14 @@ export function HoyGerencia(): JSX.Element {
             ) : (
               <>
                 {(() => {
-                  const riesgoPEN = enRiesgo
-                    .filter((x) => x.lead.moneda === 'PEN')
-                    .reduce((a, x) => a + (x.lead.monto_estimado ?? 0), 0)
-                  const riesgoUSD = enRiesgo
-                    .filter((x) => x.lead.moneda === 'USD')
-                    .reduce((a, x) => a + (x.lead.monto_estimado ?? 0), 0)
+                  const riesgo = capitalPorMoneda(enRiesgo.map((x) => x.lead))
                   return (
                     <div className="mb-3 flex items-baseline gap-2">
-                      <span className="text-2xl font-extrabold tracking-tight tabular-nums" style={{ color: CRITICO }}>
-                        {money(riesgoPEN)}
+                      <span className="text-2xl font-extrabold tracking-tight tabular-nums" style={{ color: SEMAFORO.critico }}>
+                        {money(riesgo.pen)}
                       </span>
                       <span className="text-xs text-muted-foreground">
-                        estancado (PEN){riesgoUSD > 0 ? ` · +${moneyK(riesgoUSD, 'USD')}` : ''} ·{' '}
+                        estancado (PEN){riesgo.usd > 0 ? ` · +${moneyK(riesgo.usd, 'USD')}` : ''} ·{' '}
                         {enRiesgo.length} {enRiesgo.length === 1 ? 'lead' : 'leads'}
                       </span>
                     </div>
@@ -462,7 +442,7 @@ export function HoyGerencia(): JSX.Element {
                         aria-label={`Abrir ficha de ${lead.nombre_completo}`}
                         className="group flex w-full items-center gap-2.5 rounded-xl border border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                       >
-                        <Avatar nombre={lead.nombre_completo} color={diasTxt >= 10 ? CRITICO : ATENCION} className="size-8" />
+                        <Avatar nombre={lead.nombre_completo} color={diasTxt >= 10 ? SEMAFORO.critico : SEMAFORO.atencion} className="size-8" />
                         <span className="min-w-0 flex-1 leading-tight">
                           <span className="block truncate text-sm font-semibold">{lead.nombre_completo}</span>
                           <span className="block truncate text-[11px] text-muted-foreground">
@@ -474,7 +454,7 @@ export function HoyGerencia(): JSX.Element {
                             {moneyK(lead.monto_estimado, lead.moneda)}
                           </span>
                         )}
-                        <Badge color={diasTxt >= 10 ? CRITICO : ATENCION} dot>
+                        <Badge color={diasTxt >= 10 ? SEMAFORO.critico : SEMAFORO.atencion} dot>
                           {diasTxt} d
                         </Badge>
                         <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
@@ -503,12 +483,12 @@ export function HoyGerencia(): JSX.Element {
               <p className="py-6 text-center text-xs text-muted-foreground">Aún no hay vendedores con cartera.</p>
             ) : (
               top.map((r, i) => {
-                const c = PODIO[i] ?? PODIO[PODIO.length - 1] ?? NAVY
+                const c = PODIO[i] ?? PODIO[PODIO.length - 1] ?? SEMAFORO.navy
                 return (
                   <div
                     key={r.m.perfil_id}
                     className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5"
-                    style={i === 0 ? { background: `color-mix(in srgb, ${NAVY} 4%, transparent)` } : undefined}
+                    style={i === 0 ? { background: `color-mix(in srgb, ${SEMAFORO.navy} 4%, transparent)` } : undefined}
                   >
                     <span
                       className="ac-chip grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold"

@@ -26,48 +26,28 @@ import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
 import { AccionesContacto } from '@/components/app/contacto'
 import {
+  BUCKET_LABEL,
+  capitalPorMoneda,
   colaDe,
   colorMeta,
   diasSinActividad,
   estancados,
+  haceTexto,
+  indexarUltimaActividad,
   metricasPorVendedor,
-  type ItemCola,
 } from '@/lib/inteligencia'
+import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { money, moneyK } from '@/lib/format'
-import { ETAPA_INFO, ORIGENES, type Lead } from '@/lib/tipos'
-
-// Semáforo institucional (SIN verde): azul ok · ámbar atención · rojo crítico.
-const AZUL = '#2563eb'
-const AMBAR = '#d97706'
-const ROJO = '#dc2626'
-const VIOLETA = '#7c3aed' // conteos de actividad viva (navy queda para ganado)
-
-const SEV_COLOR: Record<ItemCola['sev'], string> = { critica: ROJO, media: AMBAR, baja: AZUL }
-
-const BUCKET_LABEL: Record<ItemCola['bucket'], string> = {
-  sin_responder: 'Sin responder',
-  propuesta_sin_respuesta: 'Propuesta sin respuesta',
-  seguimiento: 'Seguimiento',
-  por_repartir: 'Por repartir',
-}
-
-/** "hace horas" / "hace N días" (es-PE) sobre días con fracción. */
-function haceTexto(d: number): string {
-  if (d < 1) return 'hace horas'
-  const n = Math.floor(d)
-  return `hace ${n} ${n === 1 ? 'día' : 'días'}`
-}
+import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
 
 /** Semáforo por días sin actividad: azul <2 · ámbar 2–5 · rojo >5. */
 function semaforoDias(d: number): string {
-  if (d > 5) return ROJO
-  if (d >= 2) return AMBAR
-  return AZUL
+  if (d > 5) return SEMAFORO.critico
+  if (d >= 2) return SEMAFORO.atencion
+  return SEMAFORO.ok
 }
-
-const origenLabel = (k: string) => ORIGENES.find((o) => o.k === k)?.label ?? k
 
 export function HoySupervisor(): JSX.Element {
   const { ambito, actividades, reasignar, objetivos, series } = useCRMData()
@@ -86,16 +66,14 @@ export function HoySupervisor(): JSX.Element {
     const asignados = abiertos.filter((l) => l.vendedor_id != null)
     // Capital en proceso del EQUIPO: solo abiertos CON vendedor. Los parkeados
     // no suman (nadie los trabaja aún) y PEN/USD jamás se mezclan en un total.
-    let capitalPEN = 0
-    let capitalUSD = 0
-    for (const l of asignados) {
-      if (l.moneda === 'USD') capitalUSD += l.monto_estimado ?? 0
-      else capitalPEN += l.monto_estimado ?? 0
-    }
-    const cola = colaDe(ambito.leads, actividades, ahora)
+    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(asignados)
+    // Índice de última actividad compartido: se calcula UNA vez y se reutiliza
+    // en cola/ranking/alertas (y en la bandeja) en lugar de reindexar por llamada.
+    const indice = indexarUltimaActividad(actividades)
+    const cola = colaDe(ambito.leads, actividades, ahora, indice)
     const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
-    const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora)
-    const alertas = estancados(ambito.leads, actividades, 5, ahora)
+    const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora, indice)
+    const alertas = estancados(ambito.leads, actividades, 5, ahora, indice)
     const vivos = ambito.leads.filter((l) => l.activo)
     const convertidos = vivos.filter((l) => l.etapa === 'convertido').length
     // Conversión con la MISMA base que comparativaEquipos (lib/inteligencia):
@@ -103,7 +81,7 @@ export function HoySupervisor(): JSX.Element {
     const vivosAsignados = vivos.filter((l) => l.vendedor_id != null)
     const conversion =
       vivosAsignados.length > 0 ? Math.round((convertidos / vivosAsignados.length) * 100) : 0
-    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, cola, sinTocar, rank, alertas, convertidos, conversion }
+    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas, convertidos, conversion }
   }, [ambito, actividades, ahora])
 
   const meta = objetivos.supervisor
@@ -130,7 +108,7 @@ export function HoySupervisor(): JSX.Element {
           label="Capital en proceso del equipo"
           value={money(d.capitalPEN)}
           icon={Wallet}
-          color={AZUL}
+          color={SEMAFORO.ok}
           sub={d.capitalUSD > 0 ? `PEN · +${moneyK(d.capitalUSD, 'USD')} aparte` : 'PEN · abiertos con vendedor'}
           spark={series.capital}
           delay={0}
@@ -139,7 +117,7 @@ export function HoySupervisor(): JSX.Element {
           label="Leads activos del equipo"
           value={String(d.asignados.length)}
           icon={Users}
-          color={VIOLETA}
+          color={SEMAFORO.violeta}
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'vendedor' : 'vendedores'} a cargo`}
           spark={series.leads}
           delay={60}
@@ -148,7 +126,7 @@ export function HoySupervisor(): JSX.Element {
           label="Nuevos sin responder"
           value={String(d.sinTocar)}
           icon={AlertTriangle}
-          color={d.sinTocar > 0 ? ROJO : AZUL}
+          color={d.sinTocar > 0 ? SEMAFORO.critico : SEMAFORO.ok}
           sub={d.sinTocar > 0 ? 'Nuevos sin primer contacto — urge' : 'Todos los nuevos fueron contactados'}
           delay={120}
         />
@@ -156,7 +134,7 @@ export function HoySupervisor(): JSX.Element {
           label="Por repartir"
           value={String(d.parkeados.length)}
           icon={Inbox}
-          color={d.parkeados.length > 0 ? AMBAR : AZUL}
+          color={d.parkeados.length > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
           sub={d.parkeados.length > 0 ? 'En tu bandeja sin vendedor' : 'Bandeja de reparto vacía'}
           delay={180}
         />
@@ -164,19 +142,19 @@ export function HoySupervisor(): JSX.Element {
 
       {/* ── Bandeja prioritaria: parkeados por repartir ── */}
       {d.parkeados.length > 0 && (
-        <Card className="overflow-hidden" style={{ borderColor: `color-mix(in srgb, ${AMBAR} 45%, transparent)` }}>
+        <Card className="overflow-hidden" style={{ borderColor: `color-mix(in srgb, ${SEMAFORO.atencion} 45%, transparent)` }}>
           <SectionHead
             icon={Inbox}
             title="Por repartir — tu bandeja"
             right={
-              <Badge color={AMBAR} dot>
+              <Badge color={SEMAFORO.atencion} dot>
                 {d.parkeados.length} {d.parkeados.length === 1 ? 'pendiente' : 'pendientes'}
               </Badge>
             }
           />
           <div className="divide-y divide-border/60 border-t border-border/60">
             {d.parkeados.map((l) => {
-              const dias = diasSinActividad(l, actividades, ahora)
+              const dias = diasSinActividad(l, actividades, ahora, d.indice)
               return (
                 <div key={l.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
                   <button
@@ -185,7 +163,7 @@ export function HoySupervisor(): JSX.Element {
                     aria-label={`Abrir ficha de ${l.nombre_completo}`}
                     className="flex min-w-0 flex-1 basis-56 cursor-pointer items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
                   >
-                    <Avatar nombre={l.nombre_completo} color={AMBAR} />
+                    <Avatar nombre={l.nombre_completo} color={SEMAFORO.atencion} />
                     <div className="min-w-0 leading-tight">
                       <p className="truncate text-sm font-semibold">{l.nombre_completo}</p>
                       <p className="truncate text-xs text-muted-foreground">
@@ -294,7 +272,7 @@ export function HoySupervisor(): JSX.Element {
                           </span>
                         </span>
                       ) : (
-                        <Badge color={AMBAR}>sin asignar</Badge>
+                        <Badge color={SEMAFORO.atencion}>sin asignar</Badge>
                       )}
                       <AccionesContacto lead={i.lead} compacto />
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -320,7 +298,7 @@ export function HoySupervisor(): JSX.Element {
                   return (
                     <div key={r.m.perfil_id} className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
-                        <Avatar nombre={r.m.nombre_completo} color={AZUL} className="size-9" />
+                        <Avatar nombre={r.m.nombre_completo} color={SEMAFORO.ok} className="size-9" />
                         <div className="min-w-0 flex-1 leading-tight">
                           <p className="truncate text-sm font-semibold">{r.m.nombre_completo}</p>
                           <p className="text-[11px] tabular-nums text-muted-foreground">
@@ -400,7 +378,7 @@ export function HoySupervisor(): JSX.Element {
               title="Alertas SLA"
               right={
                 d.alertas.length > 0 ? (
-                  <Badge color={ROJO} dot>
+                  <Badge color={SEMAFORO.critico} dot>
                     {d.alertas.length}
                   </Badge>
                 ) : (
@@ -433,7 +411,7 @@ export function HoySupervisor(): JSX.Element {
                       </p>
                       <p
                         className="text-[11px] font-semibold"
-                        style={{ color: a.dias >= 7 ? ROJO : AMBAR }}
+                        style={{ color: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
                       >
                         Sin actividad {haceTexto(a.dias)}
                       </p>

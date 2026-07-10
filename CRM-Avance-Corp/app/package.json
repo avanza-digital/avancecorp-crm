@@ -15,9 +15,12 @@
     "check": "npm run lint && npm run typecheck && npm run test:coverage"
   },
   "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.19",
+    "@sentry/react": "^10.65.0",
     "@supabase/supabase-js": "^2.110.2",
     "@tailwindcss/vite": "^4.3.2",
     "@tanstack/react-query": "^5.101.2",
+    "@xstate/react": "^6.1.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "date-fns": "^4.4.0",
@@ -26,9 +29,12 @@
     "react-dom": "^19.2.7",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.6.0",
-    "tailwindcss": "^4.3.2"
+    "tailwindcss": "^4.3.2",
+    "valibot": "^1.4.2",
+    "xstate": "^5.32.4"
   },
   "devDependencies": {
+    "@playwright/test": "^1.61.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@testing-library/user-event": "^14.6.1",
@@ -37,7 +43,10 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.3",
     "@vitest/coverage-v8": "^4.1.10",
+    "jscpd": "^5.0.12",
     "jsdom": "^29.1.1",
+    "lefthook": "^2.1.10",
+    "msw": "^2.15.0",
     "oxlint": "^1.71.0",
     "typescript": "~6.0.2",
     "vite": "^8.1.1",

@@ -1,7 +1,7 @@
 import type { SupabaseClient } from '@supabase/supabase-js'
 import { sb } from '@/lib/supabase'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
-import type { Etapa, Lead, MotivoDescarte } from '@/lib/tipos'
+import { esOrigen, type Etapa, type Lead, type MotivoDescarte } from '@/lib/tipos'
 import type { Moneda } from '@/lib/format'
 
 export const TAMANO_PAGINA_LEADS = 50
@@ -124,7 +124,9 @@ function aLead(fila: LeadRow): Lead {
     correo: fila.correo,
     dni: fila.dni,
     distrito: fila.distrito,
-    origen: fila.origen,
+    // Frontera: un origen fuera del catálogo (dato viejo/migración) degrada a
+    // 'otro' en vez de romper los unions del dominio río abajo.
+    origen: esOrigen(fila.origen) ? fila.origen : 'otro',
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
     monto_estimado: aNumero(fila.monto_estimado),
