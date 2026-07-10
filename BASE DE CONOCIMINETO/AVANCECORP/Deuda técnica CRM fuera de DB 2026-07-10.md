@@ -61,6 +61,30 @@ Confirmado en git: **44 archivos, +4.224 / −719, nada en el área de commit.**
 
 Auth → **XState v5** · Tests → **Vitest + RTL + MSW + Playwright** (+ `coverage.include`) · Frontera → **gen types + Valibot** · Accesibilidad → **Radix + oxlint jsx-a11y** · Observabilidad → **Sentry** · Gate de commits → **Lefthook** · Estado → **Zustand + Immer** · Vigilar duplicación → **jscpd**. Verificado con Context7 que XState 5.x y Vitest 4.x son las versiones vigentes y que `coverage.all` fue retirado en Vitest 4.
 
+## Implementación — 2026-07-10 (mismo día, sesión de la tarde)
+
+**El plan completo se implementó y verificó.** 6 commits (`be66b58` → `29b543e`), todo local en `main` (falta `git push` — decisión de Miguel):
+
+- **Paso 0 ✅** — commit de seguridad: CI, capa de datos, librería interna y los 51 tests quedaron versionados (84 archivos que vivían solo en disco).
+- **Bloqueante 1 ✅ (carrera de sesión)** — `lib/auth-maquina.ts` (XState v5): las verificaciones en vuelo se **cancelan por construcción** al salir del estado (logout/cambio de cuenta); timeout 12s como transición; `auth.tsx` quedó como wrapper con la misma API. 16 tests, 4 de ellos de carrera con promesas demoradas.
+- **Bloqueante 2 ✅ (tests)** — de 51 a **120 tests unitarios + 6 E2E** (Playwright por rol sobre la demo: login, navegación, kanban por teclado, focus-trap, write-gating del directorio). Cobertura medida sobre **todo `src`**: 31.8% líneas reales (el "100%" anterior medía 4 archivos) con umbrales anti-regresión en el gate.
+- **Bloqueante 3 ✅ (frontera)** — cliente Supabase tipado con `Database` (derivado de la migración canónica; `npm run gen:types` para regenerar) + filas validadas en runtime con Valibot desde los mismos catálogos del dominio; fila corrupta se registra y descarta.
+- **Duplicación ✅** — helpers centralizados (`capitalPorMoneda`, `esAbierto`, `semaforo.ts`, `origenLabel`, etc.); jscpd reporta **1 clon** en todo `src` (había ~20 copias de reglas).
+- **Reloj vivo ✅** — equipo/pipeline/directorio/gerencia/lead-drawer ya usan `useAhora`: los contadores de antigüedad refrescan solos.
+- **Errores estructurados ✅** — mutaciones devuelven `codigo`/`campo`; `lead-nuevo` ancla errores por campo (fuera el regex sobre mensajes). Validación crear/editar unificada (`validarCamposLead`).
+- **A11y ✅** — Dialog/Sheet sobre Radix (focus-trap real, fondo inerte, Esc por capas) con la misma apariencia; kanban operable por teclado; `jsx-a11y` activo en oxlint (FPs de patrón documentados en la config); ErrorBoundary remonta por key.
+- **Observabilidad ✅** — Sentry **opcional** vía `VITE_SENTRY_DSN` (sin DSN: cero peso); scrub de PII propio en `beforeSend`/`beforeBreadcrumb`; falta solo que Miguel cree la cuenta Sentry y pegue el DSN.
+- **Tooling ✅** — Lefthook (pre-commit lint+typecheck, pre-push tests; scoped al CRM), job E2E en el CI, `npm run dup`, docs actualizadas (README proyecto/app, qa/LEEME).
+
+**Bonus — 2 hallazgos de seguridad NUEVOS que los tests destaparon, corregidos y testeados:**
+1. Las mutaciones del store buscaban el lead en el universo global: un supervisor podía editar/cerrar/reasignar leads del OTRO equipo (la RLS real lo niega; el espejo no). Ahora el objetivo se busca solo en el ámbito (`no_encontrado`, como RLS).
+2. El dedup de teléfono/DNI revelaba el **nombre** de leads fuera del ámbito (sondeo de PII). Ahora solo nombra al lead en conflicto si el actor puede verlo.
+
+**Decisiones anotadas para Miguel:**
+- `conversionGlobal` central vs. cálculo local de supervisor/gerencia: difieren en si un convertido SIN vendedor cuenta en el numerador (caso borde alcanzable al convertir un parkeado). Las pantallas conservan su cálculo actual; decidir la regla de negocio y unificar.
+- `git push` pendiente (el remoto sigue sin el CI).
+- Pendiente menor: si se corrompen datos en BD, la paginación de `listarLeads` puede mostrar totales mayores que las filas válidas (las corruptas se descartan con registro).
+
 ## Notas relacionadas
 
 [[Auditoría CRM 2026-07-10]] · [[Auditorías del portal]] · [[Arquitectura del portal]] · [[Rol Directorio]] · [[Inicio]]
