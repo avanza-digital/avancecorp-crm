@@ -86,6 +86,9 @@ export function AccionesContacto({ lead, compacto }: { lead: Lead; compacto?: bo
       // Escudo de propagación: ni el click en los links ni las teclas dentro del
       // dialog (portal — burbujea por el árbol de React) deben abrir la fila.
       // Escape SÍ pasa: el Dialog lo escucha a nivel de document para cerrarse.
+      // role=presentation: NO es un control — solo intercepta burbujeo (los
+      // interactivos reales son los <a>/<button> internos).
+      role="presentation"
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => {
         if (e.key !== 'Escape') e.stopPropagation()

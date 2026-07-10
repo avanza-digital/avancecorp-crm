@@ -1,4 +1,4 @@
-import { Component, type ErrorInfo, type ReactNode } from 'react'
+import { Component, Fragment, type ErrorInfo, type ReactNode } from 'react'
 import { AlertTriangle, RotateCcw } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { idCorrelacionCorto, registrarError } from '@/lib/observabilidad'
@@ -11,17 +11,20 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   hayError: boolean
+  /** Cambia en cada reintento: remonta el subárbol desde cero (key). */
+  intento: number
 }
 
 /**
  * Barrera de errores: si una sección revienta, el resto de la app sigue viva.
- * Fallback amable en es-PE con botón «Reintentar» que resetea el estado y
- * vuelve a montar los hijos.
+ * Fallback amable en es-PE con botón «Reintentar» que REMONTA los hijos desde
+ * cero (key por intento) — ante un error determinista, solo resetear el flag
+ * volvía a renderizar el mismo árbol roto y el botón parpadeaba sin efecto.
  */
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
-  state: ErrorBoundaryState = { hayError: false }
+  state: ErrorBoundaryState = { hayError: false, intento: 0 }
 
-  static getDerivedStateFromError(): ErrorBoundaryState {
+  static getDerivedStateFromError(): Partial<ErrorBoundaryState> {
     return { hayError: true }
   }
 
@@ -34,7 +37,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   }
 
   private reintentar = () => {
-    this.setState({ hayError: false })
+    this.setState((s) => ({ hayError: false, intento: s.intento + 1 }))
   }
 
   render() {
@@ -59,6 +62,6 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
         </div>
       )
     }
-    return this.props.children
+    return <Fragment key={this.state.intento}>{this.props.children}</Fragment>
   }
 }

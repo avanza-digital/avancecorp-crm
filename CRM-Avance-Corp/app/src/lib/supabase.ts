@@ -1,5 +1,8 @@
 // Cliente Supabase ÚNICO y compartido (una sola sesión / un solo realtime).
+// Tipado con Database (lib/database.types.ts): un rename de columna en el
+// esquema deja de compilar aquí en vez de fallar en silencio en producción.
 import { createClient, type SupabaseClient } from '@supabase/supabase-js'
+import type { Database } from './database.types'
 import { CONFIG, HAY_SUPABASE, PROBLEMAS_CONFIG } from './config'
 import {
   instalarObservabilidadGlobal,
@@ -13,10 +16,12 @@ if (PROBLEMAS_CONFIG.length > 0) {
   registrarAviso('config.supabase_rechazada', { problemas: PROBLEMAS_CONFIG })
 }
 
-function crearCliente(): SupabaseClient | null {
+export type ClienteCrm = SupabaseClient<Database>
+
+function crearCliente(): ClienteCrm | null {
   if (!HAY_SUPABASE || !CONFIG.SUPABASE_URL || !CONFIG.SUPABASE_ANON_KEY) return null
   try {
-    return createClient(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
+    return createClient<Database>(CONFIG.SUPABASE_URL, CONFIG.SUPABASE_ANON_KEY, {
       auth: {
         persistSession: true,
         autoRefreshToken: true,
@@ -31,4 +36,4 @@ function crearCliente(): SupabaseClient | null {
   }
 }
 
-export const sb: SupabaseClient | null = crearCliente()
+export const sb: ClienteCrm | null = crearCliente()

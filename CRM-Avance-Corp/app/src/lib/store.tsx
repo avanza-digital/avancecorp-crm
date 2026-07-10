@@ -232,31 +232,45 @@ function uid(): string {
   }
 }
 
-/** Dedup vivo: teléfono/DNI no pueden repetirse entre leads abiertos. */
+/**
+ * Dedup vivo: teléfono/DNI no pueden repetirse entre leads abiertos. El índice
+ * es GLOBAL (espejo del unique index parcial), pero el NOMBRE del lead en
+ * conflicto solo se revela si el actor puede verlo (`visibles`) — sin esto, un
+ * vendedor podía sondear teléfonos/DNIs ajenos y cosechar nombres de leads
+ * fuera de su ámbito (fuga de PII detectada por los tests de auditoría).
+ */
 function conflictoDedup(
   leads: Lead[],
   telefono: string,
   dni: string | null | undefined,
   exceptoId?: string,
+  visibles?: ReadonlySet<string>,
 ): ResultadoMut | null {
   const abiertos = leads.filter((l) => esAbierto(l) && l.id !== exceptoId)
+  const nombreSeguro = (l: Lead): string | null => (visibles?.has(l.id) ? l.nombre_completo : null)
   const porTel = abiertos.find((l) => l.telefono === telefono)
   if (porTel) {
+    const nombre = nombreSeguro(porTel)
     return {
       ok: false,
       codigo: 'duplicado_telefono',
       campo: 'telefono',
-      error: `Ese teléfono ya pertenece a un lead abierto: ${porTel.nombre_completo}`,
+      error: nombre
+        ? `Ese teléfono ya pertenece a un lead abierto: ${nombre}`
+        : 'Ese teléfono ya pertenece a otro lead abierto de la empresa',
     }
   }
   if (dni) {
     const porDni = abiertos.find((l) => l.dni === dni)
     if (porDni) {
+      const nombre = nombreSeguro(porDni)
       return {
         ok: false,
         codigo: 'duplicado_dni',
         campo: 'dni',
-        error: `Ese DNI ya pertenece a un lead abierto: ${porDni.nombre_completo}`,
+        error: nombre
+          ? `Ese DNI ya pertenece a un lead abierto: ${nombre}`
+          : 'Ese DNI ya pertenece a otro lead abierto de la empresa',
       }
     }
   }
@@ -452,7 +466,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       }))
     }
 
-    const buscar = (id: string) => datos.leads.find((l) => l.id === id)
+    // Espejo del USING de leads_update/select: el objetivo de una lectura o
+    // mutación debe estar DENTRO del ámbito del actor. Buscar en el universo
+    // global permitía a un supervisor mutar leads del otro equipo (hallazgo de
+    // los tests de auditoría). Fuera del ámbito → "no encontrado", igual que
+    // RLS (0 filas), sin revelar existencia.
+    const buscar = (id: string) => ambito.leads.find((l) => l.id === id)
 
     const miId = yo?.id ?? null
 
@@ -480,9 +499,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       actividadesDelAmbito: datos.actividades.filter((a) => idsDelAmbito.has(a.lead_id)),
       lead: (id) => buscar(id),
       actividadesDe: (leadId) =>
-        datos.actividades
-          .filter((a) => a.lead_id === leadId)
-          .sort((a, b) => b.creado_en.localeCompare(a.creado_en)),
+        // Espejo de actividades_select: solo el timeline de leads del ámbito.
+        idsDelAmbito.has(leadId)
+          ? datos.actividades
+              .filter((a) => a.lead_id === leadId)
+              .sort((a, b) => b.creado_en.localeCompare(a.creado_en))
+          : [],
 
       crearLead: (input) => {
         const bloqueo = bloqueoEscritura()
@@ -505,13 +527,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (TERMINALES_K.has(etapa)) {
           return { ok: false, codigo: 'etapa_terminal_al_nacer', error: 'Un lead no puede nacer en etapa terminal' }
         }
-        const choque = conflictoDedup(datos.leads, telefono, dni)
-        if (choque) return choque
         // Espejo de la policy leads_insert: sin can('reasignar') el lead solo
         // puede nacer asignado a uno mismo (parkear es de supervisor/gerencia).
+        // El gate de permisos corre ANTES del dedup: sin permiso no hay sondeo.
         if (!can(rol, 'reasignar') && (input.vendedor_id ?? null) !== (yo?.id ?? null)) {
           return { ok: false, codigo: 'solo_autoasignar', error: 'Solo puedes crear leads asignados a ti mismo' }
         }
+        const choque = conflictoDedup(datos.leads, telefono, dni, undefined, idsDelAmbito)
+        if (choque) return choque
         // Resuelve el vendedor SIN tragar ids inválidos (mismo criterio que reasignar()).
         let vendedor_id: string | null = null
         let vendedor_nombre: string | null = null
@@ -579,7 +602,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (esAbierto(actual)) {
           const tel = parche.telefono ?? actual.telefono
           const dni = parche.dni !== undefined ? parche.dni : (actual.dni ?? null)
-          const choque = conflictoDedup(datos.leads, tel, dni, id)
+          const choque = conflictoDedup(datos.leads, tel, dni, id, idsDelAmbito)
           if (choque) return choque
         }
         aplicar(id, parche)
@@ -647,7 +670,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (actual.etapa !== 'descartado') {
           return { ok: false, codigo: 'solo_reabrir_descartado', error: 'Solo se puede reabrir un lead descartado' }
         }
-        const choque = conflictoDedup(datos.leads, actual.telefono, actual.dni ?? null, id)
+        const choque = conflictoDedup(datos.leads, actual.telefono, actual.dni ?? null, id, idsDelAmbito)
         if (choque) return choque
         aplicar(
           id,

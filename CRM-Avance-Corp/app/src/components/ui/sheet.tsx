@@ -1,11 +1,10 @@
-// Drawer lateral derecho (F1b) — a mano, sin deps. Overlay con blur suave,
-// cierra con Esc y click fuera, entrada animada, cuerpo con scroll interno.
-// Con varios modales apilados (p. ej. Dialog encima del Sheet), Esc cierra
-// SOLO el de más arriba (se detecta por orden de [aria-modal] en el DOM).
-import { useEffect, useRef, type HTMLAttributes, type ReactNode } from 'react'
-import { createPortal } from 'react-dom'
+// Drawer lateral derecho sobre Radix Dialog (accesibilidad completa:
+// focus-trap real, fondo inerte, scroll lock, Esc por capas — un Dialog
+// montado encima cierra primero — y retorno de foco al cerrar). El aspecto es
+// el mismo de siempre: mismas clases, mismos keyframes. API sin cambios.
+import type { HTMLAttributes, ReactNode } from 'react'
+import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
-import { esModalSuperior } from '@/lib/modal-stack'
 
 const KEYFRAMES = `
 @keyframes ac-sheet-overlay { from { opacity: 0 } to { opacity: 1 } }
@@ -19,58 +18,36 @@ interface SheetProps {
   open: boolean
   onClose: () => void
   children: ReactNode
-  /** aria-label del dialog (o usa aria-labelledby vía SheetTitle id propio). */
+  /** aria-label del dialog (SheetTitle también queda enlazado como labelledby). */
   ariaLabel?: string
   /** Clases extra para el panel (p. ej. ancho distinto). */
   className?: string
 }
 
 export function Sheet({ open, onClose, children, ariaLabel, className }: SheetProps) {
-  const panel = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    // Al cerrar, el foco vuelve a donde estaba (usuario de teclado no cae a <body>).
-    const previo = document.activeElement as HTMLElement | null
-    const tecla = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && esModalSuperior(panel.current)) onClose()
-    }
-    document.addEventListener('keydown', tecla)
-    panel.current?.focus()
-    return () => {
-      document.removeEventListener('keydown', tecla)
-      previo?.focus?.()
-    }
-  }, [open, onClose])
-
-  if (!open) return null
-  return createPortal(
-    <div className="fixed inset-0 z-50">
-      <style>{KEYFRAMES}</style>
-      <div
-        data-slot="sheet-overlay"
-        aria-hidden
-        onClick={onClose}
-        className="absolute inset-0 bg-primary/25 backdrop-blur-[2px]"
-        style={{ animation: 'ac-sheet-overlay 0.25s ease both' }}
-      />
-      <div
-        ref={panel}
-        role="dialog"
-        aria-modal="true"
-        aria-label={ariaLabel}
-        tabIndex={-1}
-        data-slot="sheet"
-        className={cn(
-          'absolute inset-y-0 right-0 flex w-[460px] max-w-[92vw] flex-col border-l border-border bg-card text-card-foreground shadow-[var(--shadow-pop)] outline-none',
-          className,
-        )}
-        style={{ animation: 'ac-sheet-panel 0.35s var(--ease-out-expo) both' }}
-      >
-        {children}
-      </div>
-    </div>,
-    document.body,
+  return (
+    <RadixDialog.Root open={open} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
+      <RadixDialog.Portal>
+        <RadixDialog.Overlay
+          data-slot="sheet-overlay"
+          className="fixed inset-0 z-50 bg-primary/25 backdrop-blur-[2px]"
+          style={{ animation: 'ac-sheet-overlay 0.25s ease both' }}
+        />
+        <RadixDialog.Content
+          aria-label={ariaLabel}
+          aria-describedby={undefined}
+          data-slot="sheet"
+          className={cn(
+            'fixed inset-y-0 right-0 z-50 flex w-[460px] max-w-[92vw] flex-col border-l border-border bg-card text-card-foreground shadow-[var(--shadow-pop)] outline-none',
+            className,
+          )}
+          style={{ animation: 'ac-sheet-panel 0.35s var(--ease-out-expo) both' }}
+        >
+          <style>{KEYFRAMES}</style>
+          {children}
+        </RadixDialog.Content>
+      </RadixDialog.Portal>
+    </RadixDialog.Root>
   )
 }
 
@@ -78,8 +55,13 @@ export function SheetHeader({ className, ...props }: HTMLAttributes<HTMLDivEleme
   return <div className={cn('flex flex-col gap-1 border-b border-border px-5 py-4', className)} {...props} />
 }
 
+/** Título accesible: Radix lo enlaza como aria-labelledby del dialog. */
 export function SheetTitle({ className, ...props }: HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn('text-[15px] font-bold tracking-tight', className)} {...props} />
+  return (
+    <RadixDialog.Title asChild>
+      <h2 className={cn('text-[15px] font-bold tracking-tight', className)} {...props} />
+    </RadixDialog.Title>
+  )
 }
 
 export function SheetDescription({ className, ...props }: HTMLAttributes<HTMLParagraphElement>) {

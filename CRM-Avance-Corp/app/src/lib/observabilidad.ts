@@ -35,7 +35,7 @@ export function idCorrelacionCorto(): string {
   return ID_CORRELACION.slice(0, 8)
 }
 
-function limpiarTexto(valor: string): string {
+export function limpiarTexto(valor: string): string {
   return valor
     .replace(BEARER, 'Bearer [REDACTADO]')
     .replace(JWT, '[JWT REDACTADO]')
@@ -44,7 +44,7 @@ function limpiarTexto(valor: string): string {
     .slice(0, 1_000)
 }
 
-function limpiarDato(
+export function limpiarDato(
   valor: unknown,
   profundidad = 0,
   vistos: WeakSet<object> = new WeakSet(),
@@ -82,8 +82,24 @@ function limpiarDato(
   return limpio
 }
 
+export interface EntradaObservabilidad {
+  timestamp: string
+  nivel: Nivel
+  evento: string
+  correlationId: string
+  datos: unknown
+}
+
+// Sumidero opcional (p. ej. Sentry): recibe entradas YA limpias de PII y
+// credenciales — jamás datos crudos. Lo conecta lib/sentry.ts si hay DSN.
+let sumidero: ((entrada: EntradaObservabilidad) => void) | null = null
+
+export function conectarSumidero(fn: (entrada: EntradaObservabilidad) => void): void {
+  sumidero = fn
+}
+
 function escribir(nivel: Nivel, evento: string, datos?: unknown): void {
-  const entrada = {
+  const entrada: EntradaObservabilidad = {
     timestamp: new Date().toISOString(),
     nivel,
     evento: limpiarTexto(evento).slice(0, 120),
@@ -94,6 +110,14 @@ function escribir(nivel: Nivel, evento: string, datos?: unknown): void {
   if (nivel === 'error') console.error('[ac-crm]', entrada)
   else if (nivel === 'warn') console.warn('[ac-crm]', entrada)
   else console.info('[ac-crm]', entrada)
+
+  if (nivel !== 'info') {
+    try {
+      sumidero?.(entrada)
+    } catch {
+      // Un sumidero roto jamás debe tumbar la app ni el log local.
+    }
+  }
 }
 
 export function registrarInfo(evento: string, datos?: unknown): void {
