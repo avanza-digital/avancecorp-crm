@@ -1,0 +1,23 @@
+# Gate local de calidad (Lefthook) — hallazgo de auditoría 2026-07-10: los
+# commits no tenían ninguna verificación previa. Los jobs SOLO actúan sobre el
+# CRM (glob): un commit del portal u otras carpetas los salta sin costo.
+# Instalación: `npm install` dentro de CRM-Avance-Corp/app (script prepare).
+pre-commit:
+  parallel: true
+  jobs:
+    - name: crm-lint
+      root: "CRM-Avance-Corp/app/"
+      glob: "**/*.{ts,tsx}"
+      run: npx oxlint {staged_files}
+    - name: crm-typecheck
+      root: "CRM-Avance-Corp/app/"
+      glob: "**/*.{ts,tsx}"
+      # Incremental (tsbuildinfo): rápido tras la primera corrida.
+      run: npm run typecheck
+
+pre-push:
+  jobs:
+    - name: crm-tests
+      root: "CRM-Avance-Corp/app/"
+      glob: "**/*.{ts,tsx,json}"
+      run: npm run test:run

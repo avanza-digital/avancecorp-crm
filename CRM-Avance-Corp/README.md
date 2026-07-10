@@ -6,9 +6,10 @@ inversiones (contratos de Asociación en Participación, PEN/USD).
 
 ## Qué es esta carpeta
 
-El **esqueleto del proyecto** creado en el encargo **P-054** (2026-07-09). Todavía **no contiene
-lógica de negocio**: solo el plan aprobable, los informes del reconocimiento y la estructura de
-carpetas donde se construirá.
+El proyecto del CRM, creado en el encargo **P-054** (2026-07-09). Contiene la **app web
+funcional en modo demo** (F1: paneles por rol, kanban, ficha de lead, alta, búsqueda,
+inteligencia comercial), la migración del esquema `crm`, y los gates de calidad
+(lint estricto + typecheck + 120 tests unitarios + 6 E2E por rol + cobertura sobre todo `src`).
 
 - **`PLAN-CRM-AVANCE-CORP.md`** ← EMPEZAR POR AQUÍ. Inventario, matriz de clasificación,
   decisión arquitectónica, reconciliación y fases.
@@ -40,7 +41,12 @@ datos frontend (ver deuda técnica en `docs/recon/07`). Política de la casa: el
 ## Estado
 
 🔨 **P-055 en curso** (plan aprobado 2026-07-09). Hecho: F1 de UI en modo demo con login real
-(rol vía `crm.equipo`), rediseño a calidad VITANOVA con el logo real, y el sprint "CRM vivo"
-(ficha de lead, alta, kanban interactivo, búsqueda). Pendiente: aplicar el SQL de F0 en un
-branch de Supabase (`supabase/migrations/`), conectar datos reales y desplegar a
-`crm.miavance.com`.
+(rol vía `crm.equipo`), rediseño a calidad VITANOVA con el logo real, el sprint "CRM vivo"
+(ficha de lead, alta, kanban interactivo, búsqueda) y el **pago de deuda técnica de la
+auditoría 2026-07-10** (ver nota del vault `Deuda técnica CRM fuera de DB 2026-07-10`):
+auth con máquina de estados XState (carrera de logout cerrada), frontera Supabase tipada y
+validada en runtime (Valibot), dominio centralizado sin duplicaciones, accesibilidad real en
+modales (Radix) y teclado en el kanban, gate de cobertura sobre todo `src`, E2E por rol con
+Playwright, hooks de pre-commit/pre-push (Lefthook) y Sentry opcional con scrub de PII.
+Pendiente: aplicar el SQL de F0 en un branch de Supabase (`supabase/migrations/`), conectar
+datos reales y desplegar a `crm.miavance.com`.

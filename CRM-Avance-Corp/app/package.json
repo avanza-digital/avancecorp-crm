@@ -11,6 +11,9 @@
     "test": "vitest",
     "test:run": "vitest run",
     "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "dup": "jscpd src --min-tokens 70 --ignore \"**/*.test.*\" --reporters consoleFull",
+    "prepare": "lefthook install",
     "typecheck": "tsc -b --pretty false",
     "gen:types": "supabase gen types typescript --project-id dctqcbznekcyxhjujuci --schema public,crm > src/lib/database.types.ts",
     "check": "npm run lint && npm run typecheck && npm run test:coverage"
