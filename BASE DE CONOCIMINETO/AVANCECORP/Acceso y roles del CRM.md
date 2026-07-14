@@ -15,11 +15,25 @@ El CRM tiene **4 roles** — fuente única en `CRM-Avance-Corp/app/src/lib/roles
 
 **Para crear un usuario real por rol hacen falta 3 piezas:** cuenta en Auth (email+clave confirmados) + fila en `public.perfiles` (activo) + fila en `crm.equipo` (`rol_crm`, activo). Solo se puede con acceso admin al proyecto `dctqcbznekcyxhjujuci`.
 
+## Rol de portal `comercial` (desde F0, 2026-07-11)
+
+La fuerza de ventas del CRM se enrola con el rol de portal **`comercial`** (añadido a
+`perfiles.rol` en la migración `20260711000001`). Es NEUTRO deny-by-default: NO hereda las
+policies del portal, así que un comercial no ve perfiles/contratos/banca de clientes — solo su
+propia fila. Los analistas reales del portal PUEDEN enrolarse en `crm.equipo` conservando su
+rol analista (mantienen sus poderes de portal). Ver [[F0 Cimientos BD del CRM]].
+
 ## Usuarios de prueba por rol — PENDIENTE (Miguel: "el servidor lo dejamos de último")
 
-- Al 2026-07-10 **no existen** usuarios de prueba del CRM en prod.
-- Bloqueo operativo: el **conector Supabase de claude.ai está autenticado en otra cuenta** (solo ve el proyecto "BELYSH" `ivacfijeupgcxmzdsqnk`); el proyecto real `dctqcbznekcyxhjujuci` da "permission denied". Reconectar el conector a la cuenta correcta antes de retomar.
+- El conector Supabase de claude.ai YA apunta a la cuenta correcta (org `fzxtxnkvslpcsscxqfbr`,
+  proyecto `dctqcbznekcyxhjujuci`); el bloqueo de "cuenta equivocada" quedó resuelto el 2026-07-11.
+- Al 2026-07-11 **aún no existen** usuarios reales del CRM en prod. F0 está aplicada, así que
+  crear uno = Auth confirmado + `public.perfiles` activo (rol `comercial` para vendedores) +
+  fila en `crm.equipo` (`rol_crm` activo). La RPC gerencia-gated de alta llega en F1; por ahora
+  es SQL de superadmin.
 - Emails sugeridos (plus-addressing, llegan al buzón real): `avancecorp26+crm-vendedor@gmail.com`, `+crm-supervisor`, `+crm-gerencia`, `+crm-directorio`.
+- **Antes de que el frontend funcione contra prod**: exponer el esquema `crm` en Settings → API →
+  Exposed schemas (`public, graphql_public, crm`). Sin eso, todo `schema('crm')` falla.
 - Tras crearlos: probar login real de los 4 en crm.miavance.com.
 
 ## Ver las vistas SIN servidor: modo demo local

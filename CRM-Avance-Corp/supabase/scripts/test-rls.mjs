@@ -569,6 +569,13 @@ async function readVisibilityMatrix(sessions, seed) {
     if (membership) {
       check(membership.data.length === 0, 'usuario inactivo no resuelve membresia activa');
     }
+    // Una fila CRM inactiva es revocación: ni siquiera su propia fila de equipo
+    // (rol_crm/supervisor_id/creado_por) debe ser legible por el desactivado.
+    await expectHidden(
+      'usuario inactivo no lee ni su propia fila de crm.equipo',
+      inactive.client.schema('crm').from('equipo').select('perfil_id, rol_crm, supervisor_id')
+        .eq('perfil_id', inactive.user.id),
+    );
     const ownedLead = seed.leadByName.get('LEAD DE VENDEDOR INACTIVO DEMO');
     await expectHidden(
       'usuario inactivo no lee ni su lead previamente asignado',
@@ -866,7 +873,6 @@ async function testBankingBoundary(sessions, seed) {
   console.log('\n— Frontera portal/CRM y datos bancarios —');
   const vend1 = sessions.vend1.client;
   const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key];
-  const vend1ProfileId = seed.profileIdByKey.vend1;
 
   const viewResponse = await positive(
     'vend1 consulta cliente fixture por crm.clientes_basicos',
@@ -889,6 +895,13 @@ async function testBankingBoundary(sessions, seed) {
     vend1.schema('crm').from('clientes_basicos').select('id, banco').eq('id', bankProfileId),
   );
 
+  // Scope de cartera: el cliente bancario tiene asesor_perfil_id = vend1, así que
+  // vend1 lo ve (aserción de arriba) pero vend3 (otra cartera) NO debe verlo.
+  await expectHidden(
+    'clientes_basicos scopea por cartera: vend3 no ve el cliente de vend1',
+    sessions.vend3.client.schema('crm').from('clientes_basicos').select('id').eq('id', bankProfileId),
+  );
+
   const bankProjection = [
     'id', 'banco', 'numero_cuenta', 'tipo_cuenta', 'cci',
     'beneficiario_nombre', 'beneficiario_dni',
@@ -896,9 +909,12 @@ async function testBankingBoundary(sessions, seed) {
     'beneficiario_nombre_usd', 'beneficiario_dni_usd',
   ].join(', ');
 
+  // La fila PROPIA sí es visible por diseño del portal (perfiles_select:
+  // auth.uid() = id): un comercial ve sus propios datos, jamás los de cartera.
+  // La frontera que importa es lateral y de clientes: ningún otro perfil crudo.
   await expectHidden(
-    'rol CRM no lee columnas bancarias de su propio public.perfiles',
-    vend1.from('perfiles').select(bankProjection).eq('id', vend1ProfileId),
+    'rol CRM (comercial) no lee el perfil crudo de otro miembro del equipo',
+    vend1.from('perfiles').select(bankProjection).eq('id', seed.profileIdByKey.sup1),
   );
   await expectHidden(
     'rol CRM no lee columnas bancarias del cliente crudo',
