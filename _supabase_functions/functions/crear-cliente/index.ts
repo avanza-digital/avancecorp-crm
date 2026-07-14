@@ -1,5 +1,14 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+// Reglas de documento (DNI/CE/Pasaporte): única fuente compartida con
+// `importar-clientes` y espejo del frontend (js/admin/documento-core.js).
+import {
+  claveTemporalDesdeDocumento,
+  esTipoDocumento,
+  normalizarDocumento,
+  normalizarTipoDocumento,
+  validarDocumento,
+} from "../_shared/documento.ts";
 
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
@@ -55,7 +64,7 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { email, password, nombre_completo, apellidos, nombres, dni, telefono } = body || {};
+    const { email, password, nombre_completo, apellidos, nombres, dni, telefono, tipo_documento } = body || {};
 
     if (!email || !nombre_completo) {
       return json(cors, { error: "email y nombre_completo son obligatorios" }, 400);
@@ -73,13 +82,27 @@ Deno.serve(async (req: Request) => {
     const nombreNormalizado = apellidosNorm && nombresNorm
       ? `${apellidosNorm} ${nombresNorm}`.replace(/\s+/g, " ").trim()
       : nombre_completo.trim();
-    const dniLimpio = (dni ?? "").toString().trim();
+
+    // Documento por TIPO (DNI/CE/Pasaporte, 2026-07-14). Callers viejos no mandan
+    // tipo → default DNI. VALIDAMOS EN LA FRONTERA (el navegador es solo espejo):
+    // el documento además se vuelve la clave temporal, no puede entrar basura.
+    // Tipo PRESENTE pero desconocido → error explícito, nunca DNI en silencio.
+    if (tipo_documento && !esTipoDocumento(tipo_documento)) {
+      return json(cors, { error: "Tipo de documento no reconocido: usa DNI, CE o PASAPORTE" }, 400);
+    }
+    const tipoDoc = normalizarTipoDocumento(tipo_documento);
+    const dniLimpio = normalizarDocumento(tipoDoc, dni);
+    if (dniLimpio) {
+      const errDoc = validarDocumento(tipoDoc, dniLimpio);
+      if (errDoc) return json(cors, { error: errDoc }, 400);
+    }
 
     // La contraseña es OPCIONAL. Si el admin la envía, se usa tal cual (mín. 8).
-    // Si NO la envía (alta sin escribir clave), se usa el DNI como CLAVE TEMPORAL,
-    // completado a 8 caracteres con ceros a la izquierda (el DNI peruano son 8
-    // dígitos; algunas hojas de cálculo borran el cero inicial → así se recupera).
-    // En ese caso el cliente queda obligado a cambiar la clave en su primer ingreso.
+    // Si NO la envía (alta sin escribir clave), se usa el DOCUMENTO como CLAVE
+    // TEMPORAL, completado a un mínimo de 8 caracteres con ceros a la izquierda
+    // (Supabase Auth exige ≥ 8; además recupera el cero inicial que las hojas de
+    // cálculo borran de los DNI). El cliente queda obligado a cambiar la clave
+    // en su primer ingreso.
     let passwordFinal: string;
     let claveTemporal = false;
     if (password) {
@@ -89,9 +112,9 @@ Deno.serve(async (req: Request) => {
       passwordFinal = String(password);
     } else {
       if (!dniLimpio) {
-        return json(cors, { error: "Sin contraseña explícita se necesita el DNI para generar la clave temporal" }, 400);
+        return json(cors, { error: "Sin contraseña explícita se necesita el número de documento para generar la clave temporal" }, 400);
       }
-      passwordFinal = dniLimpio.padStart(8, "0");
+      passwordFinal = claveTemporalDesdeDocumento(dniLimpio);
       claveTemporal = true;
     }
 
@@ -115,6 +138,7 @@ Deno.serve(async (req: Request) => {
         nombre_completo: nombreNormalizado,
         apellidos: apellidosNorm,
         nombres: nombresNorm,
+        tipo_documento: tipoDoc,
         dni: dniLimpio || null,
         telefono: telefono?.trim() || null,
         correo: emailNormalizado,
@@ -129,8 +153,15 @@ Deno.serve(async (req: Request) => {
 
     if (perfilErr) {
       await adminClient.auth.admin.deleteUser(newUserId);
+      // El disparador sigue anclado al NOMBRE del constraint (perfiles_dni_key),
+      // no al texto visible: la columna no se renombró.
       if (/duplicate key/i.test(perfilErr.message) && /dni/i.test(perfilErr.message)) {
-        return json(cors, { error: "Este DNI ya está registrado" }, 409);
+        return json(cors, { error: "Este documento ya está registrado" }, 409);
+      }
+      // Violación de CHECK (23514): mensaje limpio, sin filtrar el valor del
+      // documento (PII) ni la definición del constraint en la respuesta.
+      if (perfilErr.code === "23514") {
+        return json(cors, { error: "El tipo o número de documento no es válido" }, 400);
       }
       return json(cors, { error: `Error al crear perfil: ${perfilErr.message}` }, 400);
     }
@@ -232,7 +263,7 @@ function plantillaBienvenida(opts: {
   const esTemporal = !!opts.claveTemporal;
   const labelPwd = esTemporal ? "Contraseña temporal" : "Contraseña";
   const avisoPwd = esTemporal
-    ? "Tu contraseña temporal es tu número de documento (DNI). Por seguridad, la primera vez que ingreses el portal te pedirá crear tu propia contraseña."
+    ? "Tu contraseña temporal es tu número de documento. Por seguridad, la primera vez que ingreses el portal te pedirá crear tu propia contraseña."
     : "Por seguridad, te recomendamos cambiar tu contraseña la primera vez que ingreses al portal.";
   const preheader = `Tu portal de inversiones Avance Corp ya está listo. Estas son tus credenciales de acceso.`;
 
