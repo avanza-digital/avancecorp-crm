@@ -114,7 +114,11 @@ Deno.serve(async (req: Request) => {
     const existingCorreos = new Set<string>();
 
     if (dnis.length) {
-      const { data } = await adminClient.from("perfiles").select("dni").in("dni", dnis);
+      // DNI: se compara SOLO contra CLIENTES. El DNI es único entre clientes, pero un
+      // colaborador (staff) puede tener además su cuenta de cliente con el mismo DNI
+      // (índice parcial perfiles_dni_cliente_key). Sin este `.eq('rol','cliente')` el
+      // Excel de clientes rechazaría a un colaborador que quiere invertir.
+      const { data } = await adminClient.from("perfiles").select("dni").eq("rol", "cliente").in("dni", dnis);
       for (const r of data || []) if (r.dni) existingDnis.add(String(r.dni));
     }
     if (correos.length) {
@@ -358,7 +362,7 @@ function marcarDuplicadosIntraLote(filas: Fila[]): void {
 
 // Traduce errores técnicos (constraint, auth) a mensajes legibles para el admin.
 // El disparador del duplicado sigue anclado al NOMBRE del constraint (dni /
-// perfiles_dni_key): la columna no se renombró, solo cambió el texto visible.
+// perfiles_dni_cliente_key): la columna no se renombró, solo cambió el candado.
 function traducirError(msg: string): string {
   const m = msg || "";
   if (/duplicate key/i.test(m) && /dni/i.test(m)) return "El documento ya está registrado";
