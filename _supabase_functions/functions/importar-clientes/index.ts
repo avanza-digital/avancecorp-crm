@@ -1,21 +1,34 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+// Reglas de documento (DNI/CE/Pasaporte): única fuente compartida con
+// `crear-cliente` y espejo del frontend (js/admin/documento-core.js).
+import {
+  claveTemporalDesdeDocumento,
+  esTipoDocumento,
+  normalizarDocumento,
+  normalizarTipoDocumento,
+  RE_DOC_GENERICO,
+  type TipoDocumento,
+  validarDocumento,
+} from "../_shared/documento.ts";
 
 // ============================================================================
 // importar-clientes — alta MASIVA de clientes desde un Excel.
 //
-// Modelada sobre `crear-cliente` (misma auth, misma clave temporal = DNI, mismo
-// rollback), pero recibe un LOTE y lo procesa fila por fila. NO envía correos
+// Modelada sobre `crear-cliente` (misma auth, misma clave temporal = documento,
+// mismo rollback), pero recibe un LOTE y lo procesa fila por fila. NO envía correos
 // (decisión de negocio: las credenciales se comunican aparte). Inserta TODOS los
 // campos del perfil en un solo insert (incluye bancarios + asesor), evitando el
 // segundo UPDATE que hace el alta unitaria.
 //
-// Body: { clientes: [{ fila?, apellidos?, nombres?, nombre_completo?, dni, telefono?, correo,
-//                       banco, numero_cuenta, tipo_cuenta, cci,
+// Body: { clientes: [{ fila?, apellidos?, nombres?, nombre_completo?, tipo_documento?, dni,
+//                       telefono?, correo, banco, numero_cuenta, tipo_cuenta, cci,
 //                       beneficiario_nombre?, beneficiario_dni?, asesor_perfil_id? }],
 //         dry_run?: boolean }
 //   - Plantilla nueva (2026-06-09): vienen apellidos+nombres y el nombre_completo se
 //     deriva APELLIDOS primero. Archivo viejo: solo nombre_completo (sigue válido).
+//   - tipo_documento (2026-07-14): 'DNI' | 'CE' | 'PASAPORTE'. Opcional: sin la
+//     columna, la fila se valida como DNI (8 dígitos exactos, default histórico).
 //   - Si viene beneficiario_nombre/beneficiario_dni, la cuenta se marca como de un
 //     tercero (titular_distinto=true) y ambos pasan a ser obligatorios.
 //
@@ -117,7 +130,7 @@ Deno.serve(async (req: Request) => {
 
     for (const f of filas) {
       if (!f.ok || f.error) continue;
-      if (existingDnis.has(f.dni)) { f.ok = false; f.error = "El DNI ya está registrado"; continue; }
+      if (existingDnis.has(f.dni)) { f.ok = false; f.error = "El documento ya está registrado"; continue; }
       if (existingCorreos.has(f.correo)) { f.ok = false; f.error = "El correo ya está registrado"; }
     }
 
@@ -142,7 +155,9 @@ Deno.serve(async (req: Request) => {
 
       const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
         email: f.correo,
-        password: f.dni.padStart(8, "0"),
+        // Clave temporal = documento, garantizando el mínimo de 8 de Supabase
+        // (misma regla que crear-cliente: única fuente en _shared/documento.ts).
+        password: claveTemporalDesdeDocumento(f.dni),
         email_confirm: true,
         user_metadata: { nombre: f.nombre_completo },
       });
@@ -161,6 +176,7 @@ Deno.serve(async (req: Request) => {
         nombre_completo: f.nombre_completo,
         apellidos: f.apellidos,
         nombres: f.nombres,
+        tipo_documento: f.tipo_documento,
         dni: f.dni,
         telefono: f.telefono,
         correo: f.correo,
@@ -207,6 +223,7 @@ interface Fila {
   nombre_completo: string;
   apellidos: string | null;
   nombres: string | null;
+  tipo_documento: TipoDocumento;
   dni: string;
   correo: string;
   telefono: string | null;
@@ -221,7 +238,6 @@ interface Fila {
 }
 
 const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-const RE_DNI = /^[0-9]{8,12}$/;
 const RE_CCI = /^[0-9]{20}$/;
 const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -246,6 +262,11 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   const apellidos = str(c.apellidos).replace(/\s+/g, " ").toUpperCase();
   const nombres = str(c.nombres).replace(/\s+/g, " ").toUpperCase();
 
+  // Documento por TIPO (2026-07-14). Fila sin columna de tipo → DNI (default
+  // histórico). El número se normaliza (trim + MAYÚSCULA si es pasaporte) para
+  // que validación, persistencia y clave temporal usen el mismo valor.
+  const tipoDoc = normalizarTipoDocumento(c.tipo_documento);
+
   const f: Fila = {
     fila: filaNum,
     ok: true,
@@ -254,7 +275,8 @@ function normalizarFila(raw: unknown, idx: number): Fila {
       : str(c.nombre_completo),
     apellidos: apellidos || null,
     nombres: nombres || null,
-    dni: str(c.dni),
+    tipo_documento: tipoDoc,
+    dni: normalizarDocumento(tipoDoc, c.dni),
     correo: str(c.correo).toLowerCase(),
     telefono: str(c.telefono) || null,
     banco: str(c.banco),
@@ -277,8 +299,20 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   if (f.apellidos && !f.nombres) return falla("Falta la columna Nombres (escribiste los apellidos)");
   if (f.nombres && !f.apellidos) return falla("Falta la columna Apellidos (escribiste los nombres)");
   if (!f.nombre_completo) return falla("Faltan los Apellidos y Nombres del cliente");
-  if (!f.dni) return falla("Falta el DNI");
-  if (!RE_DNI.test(f.dni)) return falla("El DNI debe tener entre 8 y 12 dígitos (solo números)");
+  // Tipo PRESENTE pero desconocido → error explícito, NUNCA caer en silencio a
+  // DNI (p.ej. "CARNÉ DE EXTRANJERÍA" escrito con la etiqueta larga del portal).
+  {
+    const tipoRaw = str(c.tipo_documento);
+    if (tipoRaw && !esTipoDocumento(tipoRaw)) {
+      return falla(`Tipo de documento "${tipoRaw}" no reconocido: usa DNI, CE o PASAPORTE`);
+    }
+  }
+  if (!f.dni) return falla("Falta el documento");
+  {
+    // El TITULAR valida por su tipo (DNI exacto 8 / CE 9-12 / Pasaporte 6-12).
+    const errDoc = validarDocumento(f.tipo_documento, f.dni);
+    if (errDoc) return falla(errDoc);
+  }
   if (!f.correo) return falla("Falta el correo");
   if (!RE_CORREO.test(f.correo)) return falla("El correo no tiene un formato válido");
   if (!f.banco) return falla("Falta el banco");
@@ -291,10 +325,12 @@ function normalizarFila(raw: unknown, idx: number): Fila {
   if (!RE_CCI.test(f.cci)) return falla("El CCI debe tener exactamente 20 dígitos");
 
   // Beneficiario: si se llenó uno de los dos campos, ambos son obligatorios.
+  // OJO: el beneficiario es OTRA persona y aún no tiene tipo propio — conserva la
+  // regla genérica histórica 8–12 dígitos (NO la del tipo del titular).
   if (f.titular_distinto) {
     if (!f.beneficiario_nombre) return falla("Falta el nombre del beneficiario (escribiste su DNI)");
     if (!f.beneficiario_dni) return falla("Falta el DNI del beneficiario (escribiste su nombre)");
-    if (!RE_DNI.test(f.beneficiario_dni)) return falla("El DNI del beneficiario debe tener entre 8 y 12 dígitos");
+    if (!RE_DOC_GENERICO.test(f.beneficiario_dni)) return falla("El DNI del beneficiario debe tener entre 8 y 12 dígitos");
   }
 
   return f;
@@ -307,7 +343,7 @@ function marcarDuplicadosIntraLote(filas: Fila[]): void {
     if (!f.ok) continue;
     if (dniSeen.has(f.dni)) {
       f.ok = false;
-      f.error = `DNI repetido en el archivo (ya aparece en la fila ${dniSeen.get(f.dni)})`;
+      f.error = `Documento repetido en el archivo (ya aparece en la fila ${dniSeen.get(f.dni)})`;
       continue;
     }
     if (correoSeen.has(f.correo)) {
@@ -321,12 +357,16 @@ function marcarDuplicadosIntraLote(filas: Fila[]): void {
 }
 
 // Traduce errores técnicos (constraint, auth) a mensajes legibles para el admin.
+// El disparador del duplicado sigue anclado al NOMBRE del constraint (dni /
+// perfiles_dni_key): la columna no se renombró, solo cambió el texto visible.
 function traducirError(msg: string): string {
   const m = msg || "";
-  if (/duplicate key/i.test(m) && /dni/i.test(m)) return "El DNI ya está registrado";
+  if (/duplicate key/i.test(m) && /dni/i.test(m)) return "El documento ya está registrado";
   if (/duplicate key/i.test(m) && /correo/i.test(m)) return "El correo ya está registrado";
   if (/already.+(registered|exists)|email.+(exist|registr)/i.test(m)) return "El correo ya está registrado";
   if (/foreign key|asesor/i.test(m)) return "El analista indicado no existe";
+  // Violación de CHECK (formato/tipo): mensaje limpio, sin filtrar el valor (PII).
+  if (/violates check constraint/i.test(m)) return "El tipo o número de documento no es válido";
   return m;
 }
 
