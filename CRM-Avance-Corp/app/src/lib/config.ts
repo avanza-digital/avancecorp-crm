@@ -106,11 +106,15 @@ const LEADS_PREVIEW_LOCAL = import.meta.env.DEV && import.meta.env.VITE_LEADS_PR
 
 /**
  * ¿Se muestran las vistas de leads (Hoy/Pipeline/Cartera/Agenda)?
- * En modo DEMO siempre — el demo es el escaparate del CRM completo —;
- * en sesiones reales, solo cuando Miguel las haya aprobado (o en la vista
- * previa local explícita).
+ * En modo DEMO siempre — el demo es el escaparate del CRM completo.
+ * En sesiones reales: GERENCIA y DIRECTORIO sí (aprobación parcial de Miguel,
+ * 2026-07-16: "desplegar solo las funciones de gerencia" — su Hoy con las
+ * gráficas y la supervisión de solo lectura; con 0 leads pintan estados vacíos
+ * honestos). La FUERZA DE VENTAS (vendedor/supervisor) espera la aprobación
+ * del pipeline (FUNCIONES_LEADS_APROBADAS) — su mundo es Clientes/Contratos.
  */
-export function funcionesLeadsVisibles(esDemo: boolean): boolean {
+export function funcionesLeadsVisibles(esDemo: boolean, rol?: string | null): boolean {
   if (esDemo) return true
+  if (rol === 'gerencia' || rol === 'directorio') return true
   return FUNCIONES_LEADS_APROBADAS || LEADS_PREVIEW_LOCAL
 }

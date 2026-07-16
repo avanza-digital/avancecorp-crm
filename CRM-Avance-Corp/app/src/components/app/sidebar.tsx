@@ -55,7 +55,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
   const rol = yo?.rol
   // Gate de leads (decisión de Miguel 2026-07-16): las vistas de leads solo se
   // ofrecen en demo o cuando estén aprobadas. Espejo del guard de App.tsx.
-  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true)
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)
 
   return (
     <aside

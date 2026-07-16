@@ -32,7 +32,7 @@ async function irAContratos(page: Page): Promise<void> {
 }
 
 test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + totales', async ({ page }) => {
-  await montarBackendReal(page, {
+  await montarBackendReal(page, { rolCrm: 'vendedor', 
     contratos: [contratoReal({ notas_internas: 'Cliente pidió doble constancia' })],
     cuotas: { [CONTRATO_ID]: CUOTAS },
     titulares: { [CONTRATO_ID]: TITULARES },
@@ -79,7 +79,7 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
 })
 
 test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contrato', async ({ page }) => {
-  const estado = await montarBackendReal(page, {
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor',
     contratos: [
       // creado_en FRESCO: la ventana de 5 h está viva y el botón Corregir activo.
       contratoReal({ notas_internas: 'Ajustar tasa el lunes', creado_en: new Date().toISOString() }),
@@ -116,7 +116,7 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
 })
 
 test('ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual', async ({ page }) => {
-  const estado = await montarBackendReal(page, {
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor',
     ventanaVencida: true,
     // Viva en el CLIENTE (creado_en fresco): así se prueba que la autoridad es
     // el servidor — el reloj local no basta para proteger la corrección.

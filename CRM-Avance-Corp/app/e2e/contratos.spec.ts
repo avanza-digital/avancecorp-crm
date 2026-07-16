@@ -31,7 +31,7 @@ async function abrirFormNuevo(page: Page) {
 }
 
 test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida; Corregir solo en lo propio y vivo', async ({ page }) => {
-  await montarBackendReal(page, {
+  await montarBackendReal(page, { rolCrm: 'vendedor',
     contratos: [
       // Viva y MÍA → Corregir habilitado.
       contratoReal({ id: 'ct-viva', numero_contrato: '2026-01-000111', creado_por: UID, creado_en: new Date().toISOString() }),
@@ -66,7 +66,7 @@ test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida;
 })
 
 test('cartera sin contratos: el vacío del portal ("Aún no registraste contratos.")', async ({ page }) => {
-  await montarBackendReal(page, { contratos: [] })
+  await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page)
   await irAContratos(page)
 
@@ -74,7 +74,7 @@ test('cartera sin contratos: el vacío del portal ("Aún no registraste contrato
 })
 
 test('+ Contrato crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
-  const estado = await montarBackendReal(page, { contratos: [] })
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page)
   await irAContratos(page)
 
@@ -98,7 +98,7 @@ test('+ Contrato crea con la numeración nueva: el POST lleva numero_contrato 20
 })
 
 test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page }) => {
-  const estado = await montarBackendReal(page, { contratos: [] })
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page)
   await irAContratos(page)
 
@@ -114,7 +114,7 @@ test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page })
 })
 
 test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados', async ({ page }) => {
-  const estado = await montarBackendReal(page, { contratos: [] })
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page)
   await irAContratos(page)
 
@@ -142,7 +142,7 @@ test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados',
 })
 
 test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor', async ({ page }) => {
-  const estado = await montarBackendReal(page, { contratos: [] })
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page)
   await irAContratos(page)
 

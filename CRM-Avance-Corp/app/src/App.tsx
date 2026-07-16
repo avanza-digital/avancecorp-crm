@@ -134,7 +134,7 @@ function Workspace() {
   const rol = yo?.rol
   // Gate de leads: el demo enseña el CRM completo; una cuenta real solo ve el
   // mundo leads cuando Miguel lo apruebe (FUNCIONES_LEADS_APROBADAS).
-  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true)
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)
 
   // Arranca en lo que diga el hash (recargar conserva pantalla); saneado por
   // capacidad para no pintar ni un frame de config/equipo a quien no puede.
