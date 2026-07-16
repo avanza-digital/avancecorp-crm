@@ -21,7 +21,7 @@ function carteraConVentanas() {
 }
 
 test('lista: pinta la cartera con columnas del portal y el contador', async ({ page }) => {
-  await montarBackendReal(page, { clientes: carteraConVentanas() })
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: carteraConVentanas() })
   await loginReal(page)
 
   // Con el gate cerrado la cuenta real cae directo en Clientes.
@@ -38,7 +38,7 @@ test('lista: pinta la cartera con columnas del portal y el contador', async ({ p
 })
 
 test('reloj de ventana: "Quedan…" para el recién creado y "Bloqueado" para el vencido', async ({ page }) => {
-  await montarBackendReal(page, { clientes: carteraConVentanas() })
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: carteraConVentanas() })
   await loginReal(page)
   await expect(page.getByText('Mis clientes: 2')).toBeVisible()
 
@@ -51,7 +51,7 @@ test('reloj de ventana: "Quedan…" para el recién creado y "Bloqueado" para el
 })
 
 test('corregir: deshabilitado con la ventana vencida, habilitado con la ventana viva', async ({ page }) => {
-  await montarBackendReal(page, { clientes: carteraConVentanas() })
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: carteraConVentanas() })
   await loginReal(page)
   await expect(page.getByText('Mis clientes: 2')).toBeVisible()
 
@@ -71,7 +71,7 @@ test('corregir: deshabilitado con la ventana vencida, habilitado con la ventana 
 })
 
 test('"+ Contrato" abre el formulario de contrato del cliente (sin ventana: siempre activo)', async ({ page }) => {
-  await montarBackendReal(page, { clientes: carteraConVentanas() })
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: carteraConVentanas() })
   await loginReal(page)
   await expect(page.getByText('Mis clientes: 2')).toBeVisible()
 
@@ -91,6 +91,8 @@ test('"+ Contrato" abre el formulario de contrato del cliente (sin ventana: siem
 test('gerencia (rol de portal directorio): ve la lista SIN acciones de alta', async ({ page }) => {
   await montarBackendReal(page, { rolPortal: 'directorio', clientes: carteraConVentanas() })
   await loginReal(page)
+  // Gerencia aterriza en su panel Hoy (gate parcial 2026-07-16): navega a Clientes.
+  await page.getByRole('button', { name: 'Clientes' }).click()
   await expect(page.getByText('Mis clientes: 2')).toBeVisible()
 
   await expect(page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })).toBeVisible()
@@ -100,7 +102,7 @@ test('gerencia (rol de portal directorio): ve la lista SIN acciones de alta', as
 })
 
 test('cartera vacía: estado vacío con el copy del portal', async ({ page }) => {
-  await montarBackendReal(page, { clientes: [] })
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: [] })
   await loginReal(page)
 
   await expect(page.getByText('Mis clientes: 0')).toBeVisible()

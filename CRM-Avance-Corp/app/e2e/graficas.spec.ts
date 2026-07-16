@@ -58,16 +58,10 @@ test('demo gerencia: las 4 gráficas pintan desde las fixtures — 0 requests a 
 // GATE DE LEADS CERRADO (config.ts FUNCIONES_LEADS_APROBADAS=false, decisión de
 // Miguel 2026-07-16): la vista Hoy (donde viven las gráficas) NO existe para
 // cuentas reales, así que estos tests solo corren contra un dev server con
-// VITE_LEADS_PREVIEW=true y el runner con E2E_LEADS_PREVIEW=true:
 //   VITE_ENABLE_DEMO=true VITE_LEADS_PREVIEW=true npm run dev   (server aparte)
-//   E2E_LEADS_PREVIEW=true npx playwright test e2e/graficas.spec.ts
-// Al aprobar leads: borrar este test.skip — la suite queda intacta (mismo
 // criterio que acciones-real.spec.ts).
 test.describe('gráficas en sesión REAL (RPCs mockeadas)', () => {
-  test.skip(
-    process.env.E2E_LEADS_PREVIEW !== 'true',
-    'Gate FUNCIONES_LEADS_APROBADAS cerrado: sin vista Hoy para cuentas reales — correr con E2E_LEADS_PREVIEW=true contra un server con VITE_LEADS_PREVIEW=true, o borrar este skip al aprobar leads',
-  )
+  // Gate parcial 2026-07-16: gerencia real SÍ ve Hoy — estos tests corren en la suite normal.
 
   test('real: las 4 gráficas pintan con la data del mock de las RPCs', async ({ page }) => {
     await montarBackendReal(page, {

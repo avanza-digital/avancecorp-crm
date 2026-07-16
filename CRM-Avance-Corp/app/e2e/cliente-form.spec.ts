@@ -43,7 +43,7 @@ async function llenarAltaMinima(modal: Locator): Promise<void> {
 }
 
 test('alta feliz: 2 pasos (edge + PATCH de bancarios) con el aviso de la clave temporal', async ({ page }) => {
-  const estado = await montarBackendReal(page)
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor' })
   const modal = await abrirNuevoCliente(page)
 
   // El aviso de la clave temporal se muestra como en el portal.
@@ -66,7 +66,7 @@ test('alta feliz: 2 pasos (edge + PATCH de bancarios) con el aviso de la clave t
 test('alta con bancarios fallando: aviso honesto y SIN encadenar al contrato', async ({ page }) => {
   // ventanaVencida hace que el PATCH a perfiles responda 200 con [] (0 filas,
   // SIN error) — exactamente cómo falla el paso 2 en el mundo real.
-  const estado = await montarBackendReal(page, { ventanaVencida: true })
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', ventanaVencida: true })
   const modal = await abrirNuevoCliente(page)
 
   await llenarAltaMinima(modal)
@@ -83,7 +83,7 @@ test('alta con bancarios fallando: aviso honesto y SIN encadenar al contrato', a
 })
 
 test('alta duplicada: el 409 de la edge se muestra tal cual y no hay 2º paso', async ({ page }) => {
-  const estado = await montarBackendReal(page, { fallarProximaAlta: true })
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', fallarProximaAlta: true })
   const modal = await abrirNuevoCliente(page)
 
   await llenarAltaMinima(modal)
@@ -95,7 +95,7 @@ test('alta duplicada: el 409 de la edge se muestra tal cual y no hay 2º paso', 
 })
 
 test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servidor', async ({ page }) => {
-  const estado = await montarBackendReal(page, {
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor',
     // Ventana viva: el botón "Corregir" de la fila no puede estar bloqueado.
     clientes: [clienteReal({ creado_en: new Date().toISOString() })],
   })
@@ -120,7 +120,7 @@ test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servid
 test('corregir con la ventana vencida: 0 filas sin error → mensaje de NO guardado', async ({ page }) => {
   // LA TRAMPA: el reloj local dice "vigente" (creado_en reciente) pero el
   // servidor ya no matchea la fila → 200 con [] y ningún error.
-  await montarBackendReal(page, {
+  await montarBackendReal(page, { rolCrm: 'vendedor',
     clientes: [clienteReal({ creado_en: new Date().toISOString() })],
     ventanaVencida: true,
   })
