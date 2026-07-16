@@ -23,7 +23,7 @@ const TIPO_AUTO_FORZADO = 'cambio_etapa' as unknown as TipoActividadManual
 function sesionDemo(rol: Rol): AuthContextValue {
   return {
     fase: 'listo',
-    yo: { ...DEMO_YO[rol], rol, demo: true },
+    yo: { ...DEMO_YO[rol], rol, demo: true, puede_contratar: true },
     error: null,
     entrar: async () => ({ ok: true }),
     entrarDemo: () => undefined,

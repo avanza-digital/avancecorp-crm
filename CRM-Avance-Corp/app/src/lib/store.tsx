@@ -7,6 +7,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type JSX,
   type ReactNode,
@@ -38,7 +39,29 @@ import {
   PanelActionsContext,
   PanelStateContext,
   StoreDataContext,
+  StoreEstadoContext,
 } from './store-context'
+import {
+  actualizarLead,
+  CrmApiError,
+  insertarActividad,
+  insertarLead,
+  listarActividadesDelAmbito,
+  listarEquipo,
+  listarLeadsDelAmbito,
+} from '@/data/crm-api'
+
+/**
+ * Estado de la CARGA remota (solo sesión real). La app lo usa para decidir
+ * entre splash, pantalla de error con reintento y el workspace: sin esto, un
+ * fallo de red pintaba el CRM VACÍO como si "no hubiera leads" (hallazgo de la
+ * revisión adversarial). En demo siempre es inerte (cargando/error = false).
+ */
+export interface StoreEstado {
+  cargando: boolean
+  error: boolean
+  reintentar: () => void
+}
 
 // v2: F1c re-siembra (20 leads + asignado_supervisor_id) — la clave vieja se ignora.
 const CLAVE = 'ac-crm-demo-datos-v2'
@@ -172,6 +195,9 @@ export interface StoreDataApi {
   reabrir(id: string): ResultadoMut
   registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string): ResultadoMut
   reasignar(id: string, vendedorId: string | null): ResultadoMut
+  // Refresco explícito desde el servidor (tras un flujo async que NO pasa por el
+  // camino optimista: p. ej. la conversión lead→cliente vía edge). En demo es no-op.
+  recargar(): Promise<boolean>
 }
 
 export interface PanelesState {
@@ -231,6 +257,9 @@ function uid(): string {
     return `id-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
   }
 }
+
+/** ¿El id local es un UUID válido para persistirlo tal cual en el servidor? */
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 /**
  * Dedup vivo: teléfono/DNI no pueden repetirse entre leads abiertos. El índice
@@ -295,13 +324,29 @@ function cargarDatos(semilla: Datos): Datos {
 export function StoreProvider({ children }: { children: ReactNode }): JSX.Element {
   const { yo } = useAuth()
   const demoSolicitado = DEMO_HABILITADO && yo?.demo === true
+  // Sesión autenticada real (no demo): la capa de datos lee del servidor y la
+  // RLS del esquema crm decide el ámbito; el navegador nunca recorta seguridad.
+  const sesionReal = !!yo && yo.demo !== true
   // El store local solo contiene datos ficticios durante una sesión demo
   // explícita. Una sesión real nunca recibe ni persiste PII de demostración.
   const [datos, setDatos] = useState<Datos>(datosVacios)
   const [auxiliares, setAuxiliares] = useState<Auxiliares>(AUXILIARES_VACIOS)
   const [demoListo, setDemoListo] = useState(false)
+  const [realListo, setRealListo] = useState(false)
+  const [errorReal, setErrorReal] = useState(false)
+  // Reintento manual desde la pantalla de error: cambiar este contador vuelve a
+  // disparar el efecto de carga (misma sesión, otra época).
+  const [intentoReal, setIntentoReal] = useState(0)
   const demoActivo = demoSolicitado && demoListo
+  const realActivo = sesionReal && realListo
   const equipo = auxiliares.equipo
+
+  // Época de la sesión/carga: se incrementa en CADA corrida del efecto de datos
+  // (login, cambio de usuario, logout, reintento). Toda resincronización captura
+  // su época y descarta el resultado si la época ya cambió — así una resync
+  // rezagada de A no repuebla el store de B tras un cambio de sesión (fuga de PII
+  // que detectó la revisión adversarial), ni pisa datos de una recarga posterior.
+  const epocaRef = useRef(0)
 
   // Paneles globales
   const [leadAbiertoId, setLeadAbiertoId] = useState<string | null>(null)
@@ -334,44 +379,107 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     cerrarPaneles,
   }), [abrirLead, abrirNuevoLead, cerrarPaneles])
 
+  // Carga de la sesión REAL. La RLS del esquema crm decide el ámbito; el
+  // vendedor_nombre se resuelve con el roster (crm.leads solo guarda el id).
+  const cargarReal = useCallback(async (signal?: AbortSignal) => {
+    const [leads, miembros, actividades] = await Promise.all([
+      listarLeadsDelAmbito(signal),
+      listarEquipo(signal),
+      listarActividadesDelAmbito(signal),
+    ])
+    const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
+    return {
+      miembros,
+      actividades,
+      leads: leads.map((l) => ({
+        ...l,
+        vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
+      })),
+    }
+  }, [])
+
+  // Tras cada mutación real (éxito o rechazo) el SERVIDOR es la verdad: se
+  // recargan leads/actividades/equipo para reflejar triggers y RLS (y, en un
+  // rechazo, deshacer el espejo optimista). Devuelve `true` solo si el resultado
+  // se APLICÓ (misma época): el llamador usa eso para no mentir en el toast de
+  // rollback cuando el servidor está inalcanzable.
+  const resincronizarReal = useCallback(async (): Promise<boolean> => {
+    const miEpoca = epocaRef.current
+    try {
+      const { leads, actividades, miembros } = await cargarReal()
+      // La sesión cambió (logout/otro usuario/recarga) mientras viajaba: se
+      // descarta en vez de repoblar el store de otra sesión.
+      if (epocaRef.current !== miEpoca) return false
+      setDatos({ leads, actividades })
+      setAuxiliares((prev) => ({ ...prev, equipo: miembros }))
+      return true
+    } catch (error: unknown) {
+      registrarError('crm.resincronizacion_fallida', error)
+      return false
+    }
+  }, [cargarReal])
+
   useEffect(() => {
     let cancelado = false
+    const control = new AbortController()
+    // Nueva corrida del efecto = nueva época: invalida cualquier resync en vuelo.
+    epocaRef.current += 1
     setDemoListo(false)
+    setRealListo(false)
+    setErrorReal(false)
 
-    if (!demoSolicitado) {
-      setDatos(datosVacios())
-      setAuxiliares(AUXILIARES_VACIOS)
-      return () => { cancelado = true }
+    // Sesión DEMO (solo DEV con flag). La condición usa flags de Vite directos
+    // para que Rolldown elimine el chunk de fixtures en cualquier build de prod.
+    if (demoSolicitado) {
+      if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
+        void import('./demo')
+          .then((demo) => {
+            if (cancelado) return
+            setDatos(cargarDatos({ leads: demo.LEADS_DEMO, actividades: demo.ACTIVIDADES_DEMO }))
+            setAuxiliares({
+              equipo: demo.EQUIPO_DEMO,
+              agenda: demo.AGENDA_DEMO,
+              objetivos: demo.METAS_DEMO,
+              series: demo.SPARKS_DEMO,
+            })
+            setDemoListo(true)
+          })
+          .catch((error: unknown) => {
+            if (cancelado) return
+            registrarError('demo.carga_fallida', error)
+            setDatos(datosVacios())
+            setAuxiliares(AUXILIARES_VACIOS)
+          })
+      }
+      return () => { cancelado = true; control.abort() }
     }
 
-    // La condición usa flags de Vite directamente para que Rolldown elimine
-    // incluso el chunk con fixtures en cualquier build de producción.
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
-      void import('./demo')
-        .then((demo) => {
+    // Sesión REAL: lee del servidor.
+    if (sesionReal) {
+      void cargarReal(control.signal)
+        .then(({ leads, actividades, miembros }) => {
           if (cancelado) return
-          setDatos(cargarDatos({
-            leads: demo.LEADS_DEMO,
-            actividades: demo.ACTIVIDADES_DEMO,
-          }))
-          setAuxiliares({
-            equipo: demo.EQUIPO_DEMO,
-            agenda: demo.AGENDA_DEMO,
-            objetivos: demo.METAS_DEMO,
-            series: demo.SPARKS_DEMO,
-          })
-          setDemoListo(true)
+          setDatos({ leads, actividades })
+          setAuxiliares({ equipo: miembros, agenda: [], objetivos: OBJETIVOS_VACIOS, series: SERIES_VACIAS })
+          setRealListo(true)
         })
         .catch((error: unknown) => {
-          if (cancelado) return
-          registrarError('demo.carga_fallida', error)
+          if (cancelado || control.signal.aborted) return
+          registrarError('crm.carga_real_fallida', error)
+          // Fallo de la carga inicial: NO se pinta el CRM vacío (parecería "no hay
+          // leads"). Se marca error para que la app muestre reintento explícito.
           setDatos(datosVacios())
           setAuxiliares(AUXILIARES_VACIOS)
+          setErrorReal(true)
         })
+      return () => { cancelado = true; control.abort() }
     }
 
-    return () => { cancelado = true }
-  }, [demoSolicitado])
+    // Ni demo ni sesión real: vacío.
+    setDatos(datosVacios())
+    setAuxiliares(AUXILIARES_VACIOS)
+    return () => { cancelado = true; control.abort() }
+  }, [demoSolicitado, sesionReal, yo?.id, intentoReal, cargarReal])
 
   // Persistencia demo (solo sessionStorage — jamás Supabase)
   useEffect(() => {
@@ -437,11 +545,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     }
 
     const bloqueoEscritura = (): ResultadoMut | null => {
-      if (!demoActivo) {
-        toast.error('La fuente de datos del CRM aún no está habilitada')
-        return { ok: false, codigo: 'fuente_no_habilitada', error: 'Fuente de datos no habilitada' }
-      }
-      return puedeEscribir(rol) ? null : sinPermiso()
+      // Demo y sesión real comparten el mismo gate de rol: la RLS + los triggers
+      // del esquema crm son la autoridad server-side; el store solo replica el
+      // permiso para dar feedback inmediato (doble defensa). `convertir` mantiene
+      // su propio veto en real (necesita la RPC privilegiada del bloque 6).
+      if (demoActivo || realActivo) return puedeEscribir(rol) ? null : sinPermiso()
+      toast.error('La fuente de datos del CRM aún no está habilitada')
+      return { ok: false, codigo: 'fuente_no_habilitada', error: 'Fuente de datos no habilitada' }
     }
 
     const noEncontrado = (): ResultadoMut => ({ ok: false, codigo: 'no_encontrado', error: 'Lead no encontrado' })
@@ -487,6 +597,34 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       vendedorId != null &&
       vendedorId !== miId &&
       !ambito.vendedores.some((m) => m.perfil_id === vendedorId)
+
+    // Persistencia REAL: la mutación ya se aplicó OPTIMISTA en el estado local
+    // (contrato síncrono del store); aquí viaja al servidor y, pase lo que
+    // pase, se resincroniza — los triggers (cambio_etapa/reasignacion) y la
+    // verdad del servidor reemplazan el espejo optimista. Si el servidor la
+    // rechaza (dedup global, RLS, regla de trigger): toast + rollback.
+    const persistir = (op: () => Promise<void>): void => {
+      if (!realActivo) return
+      void op().then(
+        () => { void resincronizarReal() },
+        (causa: unknown) => {
+          const mensaje = causa instanceof CrmApiError && causa.code !== 'POSTGREST_ERROR'
+            ? causa.message
+            : 'No se pudo guardar el cambio'
+          registrarError('crm.mutacion_revertida', causa)
+          // El toast NO puede prometer "se restauró" a ciegas: si el resync de
+          // rollback también falla (sin conexión), el espejo optimista sigue
+          // pintado. Solo se afirma la restauración cuando de verdad se aplicó.
+          void resincronizarReal().then((restaurado) => {
+            toast.error(
+              restaurado
+                ? `${mensaje} — se restauró el estado anterior`
+                : `${mensaje}. Sin conexión con el servidor: recarga la página para ver el estado real.`,
+            )
+          })
+        },
+      )
+    }
 
     return {
       leads: datos.leads,
@@ -579,6 +717,25 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           motivo_descarte: null,
         }
         setDatos((d) => ({ ...d, leads: [lead, ...d.leads] }))
+        // El id viaja al servidor (si es UUID) para que el optimista y la fila
+        // real sean LA MISMA identidad — un drawer abierto sobrevive al resync.
+        persistir(() => insertarLead({
+          ...(UUID_RE.test(id) ? { id } : {}),
+          nombre_completo: nombre,
+          telefono,
+          correo: lead.correo ?? null,
+          dni,
+          distrito: lead.distrito ?? null,
+          origen: lead.origen,
+          etapa,
+          monto_estimado: lead.monto_estimado ?? null,
+          moneda: lead.moneda,
+          categoria_interes: lead.categoria_interes ?? null,
+          vendedor_id,
+          asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+          nota: lead.nota ?? null,
+          creado_por: miId,
+        }))
         return { ok: true, id }
       },
 
@@ -606,6 +763,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           if (choque) return choque
         }
         aplicar(id, parche)
+        persistir(() => actualizarLead(id, parche))
         return { ok: true }
       },
 
@@ -626,6 +784,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           { etapa },
           actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO[etapa].label}`),
         )
+        // El trigger del servidor genera la actividad real; el resync la trae.
+        persistir(() => actualizarLead(id, { etapa }))
         return { ok: true }
       },
 
@@ -645,6 +805,30 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           { etapa: 'descartado', motivo_descarte: motivo },
           actividadAuto(id, 'cambio_etapa', detalle),
         )
+        // En real el trigger escribe el cambio_etapa genérico (sin motivo ni
+        // nota); la nota libre del descarte se preserva como actividad 'nota'
+        // aparte (el motivo ya viaja en la columna motivo_descarte). Son dos
+        // escrituras NO atómicas: el update es la acción primaria; si la nota
+        // (secundaria) falla DESPUÉS de que el descarte ya persistió, NO se
+        // revierte ni se miente con "se restauró" — se avisa puntualmente que la
+        // nota no se guardó (el descarte es correcto). La atomicidad real (un
+        // RPC crm.descartar_lead) llega con el bloque 6, que ya toca la BD.
+        persistir(async () => {
+          await actualizarLead(id, { etapa: 'descartado', motivo_descarte: motivo })
+          if (notaLimpia) {
+            try {
+              await insertarActividad({
+                lead_id: id,
+                tipo: 'nota',
+                detalle: `Descarte · ${labelMotivo} — ${notaLimpia}`,
+                creado_por: miId,
+              })
+            } catch (causa) {
+              registrarError('crm.descarte_nota_fallida', causa)
+              toast.warning('Lead descartado, pero no se pudo guardar la nota del descarte')
+            }
+          }
+        })
         return { ok: true }
       },
 
@@ -654,10 +838,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        if (realActivo) {
+          // Red de seguridad: en real, convertir NO es marcar la etapa — hay que
+          // crear la cuenta del cliente en el portal, y de eso se encarga la edge
+          // `crm-convertir-lead` desde la ficha (DialogConvertir). Marcar la etapa
+          // por aquí dejaría un "convertido" sin cliente detrás.
+          toast.error('Usa "Convertir a cliente" en la ficha del lead')
+          return { ok: false, codigo: 'fuente_no_habilitada', error: 'Conversión no disponible por esta vía' }
+        }
         aplicar(
           id,
           { etapa: 'convertido', motivo_descarte: null },
-          actividadAuto(id, 'conversion', `Convertido a cliente desde ${ETAPA_INFO[actual.etapa].label} (demo)`),
+          actividadAuto(id, 'conversion', `Convertido a cliente desde ${ETAPA_INFO[actual.etapa].label}${yo?.demo ? ' (demo)' : ''}`),
         )
         return { ok: true }
       },
@@ -677,6 +869,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           { etapa: 'nuevo', motivo_descarte: null },
           actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO.descartado.label} → ${ETAPA_INFO.nuevo.label}`),
         )
+        persistir(() => actualizarLead(id, { etapa: 'nuevo', motivo_descarte: null }))
         return { ok: true }
       },
 
@@ -695,6 +888,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         }
         const act = actividadAuto(id, tipo, detalle?.trim() || null)
         setDatos((d) => ({ ...d, actividades: [act, ...d.actividades] }))
+        persistir(() => insertarActividad({
+          lead_id: id,
+          tipo,
+          detalle: act.detalle,
+          creado_por: miId,
+        }))
         return { ok: true }
       },
 
@@ -729,18 +928,36 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             `${actual.vendedor_nombre ?? 'Sin asignar'} → ${nuevo?.nombre_completo ?? 'Sin asignar'}`,
           ),
         )
+        // La actividad real la emite el trigger trg_leads_reasignacion.
+        persistir(() => actualizarLead(id, {
+          vendedor_id: nuevo?.perfil_id ?? null,
+          asignado_supervisor_id: nuevo ? null : rol === 'supervisor' ? miId : null,
+        }))
         return { ok: true }
       },
+
+      // El flujo de conversión (edge) escribe server-side; aquí se trae la verdad.
+      recargar: () => (realActivo ? resincronizarReal() : Promise.resolve(true)),
     }
-  }, [datos, yo, ambito, demoActivo, equipo, auxiliares])
+  }, [datos, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal])
+
+  // Estado de la carga remota para la app (splash / error+reintento / workspace).
+  const estado = useMemo<StoreEstado>(() => ({
+    // Sesión real que aún no terminó de cargar y no falló: mostrar splash.
+    cargando: sesionReal && !realActivo && !errorReal,
+    error: sesionReal && errorReal,
+    reintentar: () => setIntentoReal((n) => n + 1),
+  }), [sesionReal, realActivo, errorReal])
 
   return (
     <StoreDataContext.Provider value={api}>
-      <PanelActionsContext.Provider value={panelActions}>
-        <PanelStateContext.Provider value={panelState}>
-          {children}
-        </PanelStateContext.Provider>
-      </PanelActionsContext.Provider>
+      <StoreEstadoContext.Provider value={estado}>
+        <PanelActionsContext.Provider value={panelActions}>
+          <PanelStateContext.Provider value={panelState}>
+            {children}
+          </PanelStateContext.Provider>
+        </PanelActionsContext.Provider>
+      </StoreEstadoContext.Provider>
     </StoreDataContext.Provider>
   )
 }

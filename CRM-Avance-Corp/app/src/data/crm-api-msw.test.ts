@@ -38,6 +38,7 @@ function fila(sobre: Record<string, unknown> = {}): Record<string, unknown> {
     creado_en: '2026-07-01T12:00:00.000Z',
     actualizado_en: '2026-07-02T12:00:00.000Z',
     activo: true,
+    nota: null,
     ...sobre,
   }
 }

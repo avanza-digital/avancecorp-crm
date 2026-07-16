@@ -44,8 +44,10 @@ import { AccionesContacto } from '@/components/app/contacto'
 import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
+import { convertirLead, CrmApiError, type TipoDocumentoCliente } from '@/data/crm-api'
+import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
-import { fmtFecha, money, SIMBOLO } from '@/lib/format'
+import { fmtFecha, money, primerNombre, SIMBOLO } from '@/lib/format'
 import {
   CAT_LABEL,
   ETAPAS,
@@ -122,6 +124,18 @@ function Ficha({ l }: { l: Lead }) {
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
   const puedeReasignar = escribe && can(rol, 'reasignar')
+  // Convertir es de UNA pieza para el usuario, pero por dentro son dos permisos
+  // distintos, y hay que pasar los DOS o no empezar: la edge crea el cliente (y
+  // le manda el correo de bienvenida a una persona real), y recién después
+  // `crear_contrato` decide. Esa RPC exige (a) rol de portal que dé de alta y
+  // (b) que el cliente sea de TU cartera. Como la edge pone
+  // `asesor = vendedor del lead ?? quien convierte`, el (b) solo se cumple si el
+  // cliente va a quedar a tu nombre. Un supervisor sobre el lead de su vendedor
+  // pasa (a) y falla (b) → cliente creado, correo enviado, lead cerrado y
+  // contrato imposible. Por eso se exigen los dos aquí: para no empezar algo que
+  // no se puede terminar (si quiere cerrarla él, primero se reasigna el lead).
+  const seraMiCliente = l.vendedor_id == null || l.vendedor_id === yo?.id
+  const puedeConvertir = escribe && (yo?.puede_contratar ?? false) && seraMiCliente
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
   const info = ETAPA_INFO[l.etapa]
@@ -169,9 +183,17 @@ function Ficha({ l }: { l: Lead }) {
           >
             <XCircle /> Descartar
           </Button>
-          <Button size="sm" onClick={() => setDialogo('convertir')}>
-            <BadgeCheck /> Convertir a cliente (demo)
-          </Button>
+          {puedeConvertir ? (
+            <Button size="sm" onClick={() => setDialogo('convertir')}>
+              <BadgeCheck /> Convertir a cliente{yo?.demo ? ' (demo)' : ''}
+            </Button>
+          ) : (
+            <p className="max-w-[62%] text-right text-[11px] leading-tight text-muted-foreground">
+              {yo?.puede_contratar
+                ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el vendedor del lead'}. Para hacerla tú, reasígnate el lead.`
+                : 'El alta del cliente la registra el vendedor.'}
+            </p>
+          )}
         </SheetFooter>
       )}
 
@@ -232,6 +254,7 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
 
 function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
   const { reabrir } = useCRMData()
+  const { yo } = useAuth()
   const convertido = l.etapa === 'convertido'
   const info = ETAPA_INFO[l.etapa]
   const motivo = MOTIVOS_DESCARTE.find((m) => m.k === l.motivo_descarte)?.label
@@ -242,7 +265,7 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
       if (res.error) toast.error(res.error)
       return
     }
-    toast.success('Lead reabierto (demo) — vuelve a Nuevo')
+    toast.success(`Lead reabierto${yo?.demo ? ' (demo)' : ''} — vuelve a Nuevo`)
   }
 
   return (
@@ -260,17 +283,19 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
       )}
       <div className="min-w-0 flex-1">
         <p className="text-xs font-bold" style={{ color: info.color }}>
-          {convertido ? 'Convertido a cliente (demo)' : 'Lead descartado'}
+          {convertido ? `Convertido a cliente${yo?.demo ? ' (demo)' : ''}` : 'Lead descartado'}
         </p>
         <p className="text-[11px] text-muted-foreground">
           {convertido
-            ? 'En el sistema definitivo, la conversión crea al cliente y su contrato en el portal.'
+            ? yo?.demo
+              ? 'En producción, la conversión crea al cliente en el portal y cierra el lead como ganado.'
+              : 'Cliente creado en el portal y lead cerrado como ganado.'
             : `Motivo: ${motivo ?? '—'}`}
         </p>
       </div>
       {!convertido && escribe && (
         <Button size="xs" variant="outline" onClick={onReabrir}>
-          <RotateCcw /> Reabrir (demo)
+          <RotateCcw /> Reabrir{yo?.demo ? ' (demo)' : ''}
         </Button>
       )}
     </div>
@@ -290,6 +315,8 @@ function Fila({ label, children }: { label: string; children: ReactNode }) {
 
 function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; puedeReasignar: boolean }) {
   const { editarLead, reasignar, ambito } = useCRMData()
+  const { yo } = useAuth()
+  const sufijoDemo = yo?.demo ? ' (demo)' : ''
   const [editando, setEditando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [form, setForm] = useState({ nombre: '', telefono: '', correo: '', monto: '', nota: '' })
@@ -333,7 +360,7 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
     }
     setEditando(false)
     setError(null)
-    toast.success('Cambios guardados (demo)')
+    toast.success(`Cambios guardados${sufijoDemo}`)
   }
 
   const onReasignar = (v: string) => {
@@ -343,7 +370,7 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
       if (res.error && !res.error.startsWith('Sin permiso')) toast.error(res.error)
       return
     }
-    toast.success(v ? 'Lead reasignado (demo)' : 'Lead parkeado sin vendedor (demo)')
+    toast.success(v ? `Lead reasignado${sufijoDemo}` : `Lead parkeado sin vendedor${sufijoDemo}`)
   }
 
   const campo = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
@@ -454,6 +481,7 @@ const CLASE_HITO =
 
 function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
   const { actividadesDe, registrarActividad } = useCRMData()
+  const { yo } = useAuth()
   const ahora = useAhora()
   const acts = actividadesDe(l.id)
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
@@ -466,7 +494,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
       return
     }
     setDetalle('')
-    toast.success('Actividad registrada (demo)')
+    toast.success(`Actividad registrada${yo?.demo ? ' (demo)' : ''}`)
   }
 
   return (
@@ -540,10 +568,21 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
 
 // ── Diálogos de cierre ────────────────────────────────────────────────────────
 
-function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { convertir } = useCRMData()
+const RE_CORREO = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+// Espejo del formato de documento del portal (documento-core). Solo para feedback
+// inmediato; la frontera real (edge + CHECK de BD) revalida.
+const RE_DOCUMENTO: Record<TipoDocumentoCliente, { re: RegExp; err: string }> = {
+  DNI: { re: /^\d{8}$/, err: 'El DNI debe tener 8 dígitos' },
+  CE: { re: /^\d{9,12}$/, err: 'El Carné de Extranjería debe tener entre 9 y 12 dígitos' },
+  PASAPORTE: { re: /^[A-Z0-9]{6,12}$/, err: 'El pasaporte debe tener entre 6 y 12 caracteres' },
+}
 
-  const confirmar = () => {
+function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
+  const { convertir, recargar } = useCRMData()
+  const { yo } = useAuth()
+  const esDemo = yo?.demo === true
+
+  const confirmarDemo = () => {
     const res = convertir(l.id)
     if (!res.ok) {
       if (res.error) toast.error(res.error)
@@ -553,36 +592,163 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
     toast.success(`${l.nombre_completo} ahora es cliente (demo)`)
   }
 
+  // ── Conversión REAL: crea la cuenta del cliente en el portal (edge) ──
+  const [correo, setCorreo] = useState(l.correo ?? '')
+  const [tipoDoc, setTipoDoc] = useState<TipoDocumentoCliente>('DNI')
+  const [documento, setDocumento] = useState(l.dni ?? '')
+  const [enviando, setEnviando] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  // Dos pasos: (1) crear el cliente, (2) crear su contrato — "todo en un sitio".
+  const [paso, setPaso] = useState<'convertir' | 'contrato'>('convertir')
+  const [perfilId, setPerfilId] = useState<string | null>(null)
+
+  const confirmarReal = async () => {
+    if (enviando) return // guard anti doble-submit
+    setError(null)
+    const correoLimpio = correo.trim().toLowerCase()
+    if (!RE_CORREO.test(correoLimpio)) {
+      setError('Ingresa un correo válido — es la cuenta de acceso del cliente')
+      return
+    }
+    const docLimpio = documento.trim().toUpperCase()
+    if (!docLimpio) {
+      setError('El documento del cliente es obligatorio')
+      return
+    }
+    if (!RE_DOCUMENTO[tipoDoc].re.test(docLimpio)) {
+      setError(RE_DOCUMENTO[tipoDoc].err)
+      return
+    }
+    setEnviando(true)
+    try {
+      const r = await convertirLead({
+        lead_id: l.id,
+        correo: correoLimpio,
+        tipo_documento: tipoDoc,
+        documento: docLimpio,
+        nombre_completo: l.nombre_completo,
+        telefono: l.telefono,
+      })
+      await recargar()
+      toast.success(
+        r.ya_existia
+          ? `${l.nombre_completo} enlazado a su cuenta de cliente`
+          : `${l.nombre_completo} ahora es cliente${r.email_enviado ? ' — correo de bienvenida enviado' : ''}`,
+      )
+      // Seguido: el paso de crear el contrato (sin salir del CRM).
+      setPerfilId(r.perfil_id)
+      setPaso('contrato')
+    } catch (e) {
+      setError(e instanceof CrmApiError ? e.message : 'No se pudo convertir el lead')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  // Paso 2: contrato del cliente recién creado (reusa la RPC del portal).
+  if (paso === 'contrato' && perfilId) {
+    return (
+      <Dialog open onClose={onClose} ariaLabel="Crear contrato del cliente">
+        <ContratoNuevo
+          clienteId={perfilId}
+          clienteNombre={l.nombre_completo}
+          montoSugerido={l.monto_estimado ?? null}
+          monedaSugerida={l.moneda}
+          onCreado={onClose}
+          onOmitir={onClose}
+        />
+      </Dialog>
+    )
+  }
+
   return (
     <Dialog open onClose={onClose} ariaLabel="Convertir a cliente">
       <DialogHeader>
-        <DialogTitle>Convertir a cliente (demo)</DialogTitle>
+        <DialogTitle>Convertir a cliente{esDemo ? ' (demo)' : ''}</DialogTitle>
         <DialogDescription>
           {l.nombre_completo} pasará a {ETAPA_INFO.convertido.label}.
         </DialogDescription>
       </DialogHeader>
-      <DialogBody className="space-y-2 text-xs leading-relaxed text-muted-foreground">
-        <p>
-          En el sistema definitivo, la conversión crea al{' '}
-          <b className="text-foreground">cliente y su contrato en el portal</b> y cierra el
-          lead como ganado.
-        </p>
-        <p>En este modo demo solo se simula el cambio de estado — nada queda guardado de verdad.</p>
-      </DialogBody>
-      <DialogFooter>
-        <Button variant="outline" size="sm" onClick={onClose}>
-          Cancelar
-        </Button>
-        <Button size="sm" onClick={confirmar}>
-          <BadgeCheck /> Convertir (demo)
-        </Button>
-      </DialogFooter>
+
+      {esDemo ? (
+        <>
+          <DialogBody className="space-y-2 text-xs leading-relaxed text-muted-foreground">
+            <p>
+              En producción, la conversión crea al{' '}
+              <b className="text-foreground">cliente en el portal</b> y cierra el lead como ganado.
+            </p>
+            <p>En este modo demo solo se simula el cambio de estado — nada queda guardado de verdad.</p>
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button size="sm" onClick={confirmarDemo}>
+              <BadgeCheck /> Convertir (demo)
+            </Button>
+          </DialogFooter>
+        </>
+      ) : (
+        <>
+          <DialogBody className="space-y-3">
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              Se creará la <b className="text-foreground">cuenta del cliente en el portal</b> y se le
+              enviará su correo de bienvenida con el acceso. Confirma sus datos:
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="cv-correo">Correo del cliente</Label>
+              <Input
+                id="cv-correo"
+                type="email"
+                value={correo}
+                onChange={(e) => setCorreo(e.target.value)}
+                placeholder="cliente@correo.com"
+                disabled={enviando}
+              />
+            </div>
+            <div className="grid grid-cols-[132px_1fr] gap-2.5">
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-tipodoc">Tipo doc.</Label>
+                <Select
+                  id="cv-tipodoc"
+                  value={tipoDoc}
+                  onChange={(e) => setTipoDoc(e.target.value as TipoDocumentoCliente)}
+                  disabled={enviando}
+                >
+                  <option value="DNI">DNI</option>
+                  <option value="CE">C. Extranjería</option>
+                  <option value="PASAPORTE">Pasaporte</option>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-doc">N° de documento</Label>
+                <Input
+                  id="cv-doc"
+                  value={documento}
+                  onChange={(e) => setDocumento(e.target.value)}
+                  placeholder="Documento del cliente"
+                  disabled={enviando}
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Su contraseña temporal será su documento; el cliente la cambia en su primer ingreso.
+            </p>
+            {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
+          </DialogBody>
+          <DialogFooter>
+            <Button variant="outline" size="sm" onClick={onClose} disabled={enviando}>Cancelar</Button>
+            <Button size="sm" onClick={confirmarReal} disabled={enviando}>
+              <BadgeCheck /> {enviando ? 'Convirtiendo…' : 'Convertir a cliente'}
+            </Button>
+          </DialogFooter>
+        </>
+      )}
     </Dialog>
   )
 }
 
 function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
   const { descartar } = useCRMData()
+  const { yo } = useAuth()
   const [motivo, setMotivo] = useState<MotivoDescarte>('sin_interes')
   const [nota, setNota] = useState('')
 
@@ -593,7 +759,7 @@ function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
       return
     }
     onClose()
-    toast.info('Lead descartado (demo)')
+    toast.info(`Lead descartado${yo?.demo ? ' (demo)' : ''}`)
   }
 
   return (

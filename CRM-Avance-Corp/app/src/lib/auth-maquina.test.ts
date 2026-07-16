@@ -24,8 +24,8 @@ function diferida<T>() {
   return { promesa, resolver, rechazar }
 }
 
-const ACCESO_ANA: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-ana', rol: 'vendedor', nombre: 'ANA' }
-const ACCESO_BETO: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-beto', rol: 'supervisor', nombre: 'BETO' }
+const ACCESO_ANA: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-ana', rol: 'vendedor', nombre: 'ANA', puedeContratar: true }
+const ACCESO_BETO: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-beto', rol: 'supervisor', nombre: 'BETO', puedeContratar: true }
 
 function montar(verificar: Verificar, alLimpiar = vi.fn()) {
   const actor = createActor(authMaquina, { input: { verificar, alLimpiar } })
@@ -137,6 +137,7 @@ describe('auth-maquina — flujo de fases', () => {
       nombre_completo: 'ANA',
       rol: 'vendedor',
       demo: false,
+      puede_contratar: true,
     })
   })
 
@@ -213,6 +214,24 @@ describe('auth-maquina — flujo de fases', () => {
     await drenar()
     expect(actor.getSnapshot().context.yo?.id).toBe('u-beto')
     expect(alLimpiar).toHaveBeenCalled()
+  })
+
+  // Si a alguien le quitan el rol de portal que da de alta clientes (analista →
+  // directorio), su rol_crm y su nombre NO cambian: la revalidación traía todo
+  // "igual" y la identidad vieja se conservaba entera, dejando el permiso
+  // obsoleto en la sesión abierta. Debe reflejar el permiso NUEVO.
+  it('revalidación con el permiso de contratar REVOCADO refresca la identidad', async () => {
+    const verificar = vi.fn<Verificar>()
+      .mockResolvedValueOnce(ACCESO_ANA) // puedeContratar: true
+      .mockResolvedValueOnce({ ...ACCESO_ANA, puedeContratar: false })
+    const { actor } = montar(verificar)
+
+    await drenar()
+    expect(actor.getSnapshot().context.yo?.puede_contratar).toBe(true)
+
+    actor.send({ type: 'REVALIDAR' })
+    await drenar()
+    expect(actor.getSnapshot().context.yo?.puede_contratar).toBe(false)
   })
 
   it('faseDe mapea estados internos al contrato público', () => {

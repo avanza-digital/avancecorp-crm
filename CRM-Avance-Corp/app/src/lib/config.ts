@@ -90,3 +90,27 @@ export const HAY_SUPABASE = Boolean(
 
 // El demo requiere opt-in literal y jamás entra en un build de producción.
 export const DEMO_HABILITADO = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true'
+
+// ── Gate de funciones NO aprobadas (decisión de Miguel, 2026-07-16) ────────────
+// El pipeline de leads y los paneles Hoy/Agenda/Cartera quedan OCULTOS para las
+// cuentas reales hasta que Miguel los apruebe: el CRM sale a producción solo con
+// Clientes y Contratos (el panel del analista traspasado del portal).
+// Revertir = poner true (no hay más interruptores que este).
+export const FUNCIONES_LEADS_APROBADAS: boolean = false
+
+// VISTA PREVIA local de las funciones no aprobadas (pedido de Miguel 2026-07-16:
+// verlas junto a Clientes/Contratos SIN abrirlas en producción). Solo actúa si
+// el dev server se arranca con VITE_LEADS_PREVIEW=true; el build de prod y los
+// tests (que no definen la variable) no la ven jamás.
+const LEADS_PREVIEW_LOCAL = import.meta.env.DEV && import.meta.env.VITE_LEADS_PREVIEW === 'true'
+
+/**
+ * ¿Se muestran las vistas de leads (Hoy/Pipeline/Cartera/Agenda)?
+ * En modo DEMO siempre — el demo es el escaparate del CRM completo —;
+ * en sesiones reales, solo cuando Miguel las haya aprobado (o en la vista
+ * previa local explícita).
+ */
+export function funcionesLeadsVisibles(esDemo: boolean): boolean {
+  if (esDemo) return true
+  return FUNCIONES_LEADS_APROBADAS || LEADS_PREVIEW_LOCAL
+}

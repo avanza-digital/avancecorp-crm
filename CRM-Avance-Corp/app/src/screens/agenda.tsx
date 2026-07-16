@@ -167,7 +167,7 @@ export function Agenda() {
       ))}
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — muy pronto tendrás el calendario completo por mes, semana y día, con
+        {yo?.demo ? 'Demo — muy pronto' : 'Muy pronto'} tendrás el calendario completo por mes, semana y día, con
         recordatorios y vencimientos de propuestas y contratos.
       </p>
     </div>

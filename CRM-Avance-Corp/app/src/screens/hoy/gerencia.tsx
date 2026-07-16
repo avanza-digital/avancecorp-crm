@@ -26,6 +26,8 @@ import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
 import { SegmentBar, type Segment } from '@/components/common/stat-strip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { useAuth } from '@/lib/auth-context'
+import { GraficasGerencia } from './graficas-gerencia'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO } from '@/lib/tipos'
 import { SEMAFORO } from '@/lib/semaforo'
@@ -80,9 +82,12 @@ function MetaItem({
 export function HoyGerencia(): JSX.Element {
   const { ambito, equipo, actividades, objetivos, series } = useCRMData()
   const { abrirLead } = usePanelesActions()
+  const { yo } = useAuth()
   const ahora = useAhora()
   const leads = ambito.leads
   const meta = objetivos.gerencia
+  // Sin meta configurada: no inventamos objetivos de empresa.
+  const sinMetaG = meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0
 
   // ── Números de empresa (PEN y USD SIEMPRE por separado) ──
   const d = useMemo(() => {
@@ -181,23 +186,28 @@ export function HoyGerencia(): JSX.Element {
           <MetaItem
             label="Capital en proceso"
             actual={money(d.capPEN)}
-            objetivo={`de ${moneyK(meta.capitalObjetivo)} (PEN)`}
+            objetivo={sinMetaG ? 'meta por definir' : `de ${moneyK(meta.capitalObjetivo)} (PEN)`}
             pct={meta.capitalObjetivo > 0 ? (d.capPEN / meta.capitalObjetivo) * 100 : 0}
           />
           <MetaItem
             label="Ventas cerradas"
             actual={String(d.nConvertidos)}
-            objetivo={`de ${meta.ventasObjetivo} conversiones`}
+            objetivo={sinMetaG ? 'meta por definir' : `de ${meta.ventasObjetivo} conversiones`}
             pct={meta.ventasObjetivo > 0 ? (d.nConvertidos / meta.ventasObjetivo) * 100 : 0}
           />
           <MetaItem
             label="Conversión"
             actual={`${d.conversion}%`}
-            objetivo={`objetivo ${meta.conversionObjetivo}%`}
+            objetivo={sinMetaG ? 'meta por definir' : `objetivo ${meta.conversionObjetivo}%`}
             pct={meta.conversionObjetivo > 0 ? (d.conversion / meta.conversionObjetivo) * 100 : 0}
           />
         </CardContent>
       </Card>
+
+      {/* ── Gráficas del negocio de contratos (capital/pagos/altas/vencimientos).
+          ADITIVO: los KPI/SegmentBar/embudo de leads de arriba y abajo se quedan.
+          Fuente: RPCs crm.metricas_*_fn en real · fixtures derivadas en demo. ── */}
+      <GraficasGerencia />
 
       {/* ── Comparativa de equipos ── */}
       <Card>
@@ -521,7 +531,9 @@ export function HoyGerencia(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Tablero de demostración — pronto verás aquí la información real de tu operación.
+        {yo?.demo
+          ? 'Tablero de demostración — pronto verás aquí la información real de tu operación.'
+          : 'Los números abarcan toda la operación comercial de la empresa.'}
       </p>
     </div>
   )

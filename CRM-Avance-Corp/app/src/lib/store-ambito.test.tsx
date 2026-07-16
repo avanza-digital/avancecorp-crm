@@ -53,7 +53,7 @@ function sesionCon(yo: Yo | null): AuthContextValue {
   }
 }
 
-const yoDemo = (rol: Rol): Yo => ({ ...DEMO_YO[rol], rol, demo: true })
+const yoDemo = (rol: Rol): Yo => ({ ...DEMO_YO[rol], rol, demo: true, puede_contratar: true })
 
 let apiCapturada: StoreDataApi | null = null
 
@@ -208,6 +208,7 @@ describe('ámbito por rol (espejo cliente de la RLS jerárquica)', () => {
         nombre_completo: 'ROL RARO',
         rol: 'auditor' as Rol, // rol fuera del catálogo — simula dato corrupto
         demo: true,
+        puede_contratar: true,
       }
       // Los fixtures SÍ cargan (20 en el universo global)…
       const api = await montarStore(yoRaro, 20)

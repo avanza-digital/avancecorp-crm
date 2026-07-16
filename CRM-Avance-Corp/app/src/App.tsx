@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { DatabaseZap, LogOut } from 'lucide-react'
+import { DatabaseZap, LogOut, RotateCcw, WifiOff } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
-import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
+import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { can } from '@/lib/roles'
-import { escribirHash, leerHash, type Vista } from '@/lib/router'
+import { funcionesLeadsVisibles } from '@/lib/config'
+import { escribirHash, esVistaLeads, leerHash, type Vista } from '@/lib/router'
 import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { Topbar } from '@/components/app/topbar'
@@ -24,6 +25,8 @@ const Hoy = lazy(() => import('@/screens/hoy').then((m) => ({ default: m.Hoy }))
 const Pipeline = lazy(() => import('@/screens/pipeline').then((m) => ({ default: m.Pipeline })))
 const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m.Cartera })))
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
+const Clientes = lazy(() => import('@/screens/clientes').then((m) => ({ default: m.Clientes })))
+const Contratos = lazy(() => import('@/screens/contratos').then((m) => ({ default: m.Contratos })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 
@@ -80,10 +83,46 @@ function DatosRealesPendientes() {
   )
 }
 
-/** Vista corregida por capacidad — espejo del guard (doble defensa F1c). */
-function sanearVista(vista: Vista, puedeConfig: boolean, puedeEquipo: boolean): Vista {
-  if (vista === 'config' && !puedeConfig) return 'hoy'
-  if (vista === 'equipo' && !puedeEquipo) return 'hoy'
+/** La carga real falló: NUNCA se pinta el CRM vacío (parecería "no hay leads").
+ * Reintento explícito + salida, con la sesión intacta. */
+function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
+  const { salir } = useAuth()
+  return (
+    <div className="flex min-h-svh items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-7 text-center shadow-[var(--shadow-card)]">
+        <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive">
+          <WifiOff className="size-6" aria-hidden />
+        </div>
+        <div className="space-y-1.5">
+          <h1 className="text-lg font-extrabold text-primary">No pudimos cargar tu información</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">
+            Hubo un problema al conectar con el servidor del CRM. Tu sesión sigue activa —
+            revisa tu conexión y vuelve a intentarlo.
+          </p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+          <Button type="button" onClick={onReintentar}>
+            <RotateCcw className="size-4" aria-hidden /> Reintentar
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void salir()}>
+            <LogOut className="size-4" aria-hidden /> Cerrar sesión
+          </Button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * Vista corregida por capacidad y por el GATE de leads — espejo del guard
+ * (doble defensa F1c). Con el gate cerrado (cuenta real, leads sin aprobar) las
+ * vistas de leads redirigen a 'clientes', que además es la vista base.
+ */
+function sanearVista(vista: Vista, puedeConfig: boolean, puedeEquipo: boolean, leadsVisibles: boolean): Vista {
+  const base: Vista = leadsVisibles ? 'hoy' : 'clientes'
+  if (!leadsVisibles && esVistaLeads(vista)) return 'clientes'
+  if (vista === 'config' && !puedeConfig) return base
+  if (vista === 'equipo' && !puedeEquipo) return base
   return vista
 }
 
@@ -93,16 +132,24 @@ function Workspace() {
   const { leadAbiertoId } = usePanelesState()
   const { abrirLead, cerrarPaneles } = usePanelesActions()
   const rol = yo?.rol
+  // Gate de leads: el demo enseña el CRM completo; una cuenta real solo ve el
+  // mundo leads cuando Miguel lo apruebe (FUNCIONES_LEADS_APROBADAS).
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true)
 
   // Arranca en lo que diga el hash (recargar conserva pantalla); saneado por
   // capacidad para no pintar ni un frame de config/equipo a quien no puede.
   const [vista, setVista] = useState<Vista>(() =>
-    sanearVista(leerHash().vista ?? 'hoy', can(rol, 'verConfiguracion'), can(rol, 'verEquipo')),
+    sanearVista(
+      leerHash().vista ?? (leadsVisibles ? 'hoy' : 'clientes'),
+      can(rol, 'verConfiguracion'),
+      can(rol, 'verEquipo'),
+      leadsVisibles,
+    ),
   )
 
   // Contexto vivo para el listener de hashchange (registrado una sola vez).
-  const ctxRef = useRef({ rol, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles })
-  ctxRef.current = { rol, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles }
+  const ctxRef = useRef({ rol, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles })
+  ctxRef.current = { rol, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles }
 
   // Cuando el hash ORIGINA un cambio de estado, aquí queda el estado esperado:
   // el efecto estado→hash no escribe hasta converger (evita bucles y pisadas).
@@ -113,11 +160,12 @@ function Workspace() {
     const alCambiarHash = () => {
       const ctx = ctxRef.current
       const leido = leerHash()
-      // Ruta desconocida → hoy; vista sin permiso → hoy (espejo del guard).
+      // Ruta desconocida → vista base; vista sin permiso o gateada → base (espejo del guard).
       let destino = sanearVista(
-        leido.vista ?? 'hoy',
+        leido.vista ?? (ctx.leadsVisibles ? 'hoy' : 'clientes'),
         can(ctx.rol, 'verConfiguracion'),
         can(ctx.rol, 'verEquipo'),
+        ctx.leadsVisibles,
       )
       let leadDestino = destino === leido.vista ? leido.leadId : null
       // Lead fuera del ÁMBITO por rol (o inexistente) → se ignora: el hash no
@@ -158,12 +206,15 @@ function Workspace() {
     escribirHash(vista, leadAbiertoId) // compara antes de escribir → sin bucles
   }, [vista, leadAbiertoId])
 
-  // Guard por capacidad: el nav ya oculta, esto expulsa (doble defensa, patrón
-  // VITANOVA). Cubre cambios de rol en caliente; el hash se corrige detrás.
+  // Guard por capacidad + gate de leads: el nav ya oculta, esto expulsa (doble
+  // defensa, patrón VITANOVA). Cubre cambios de rol en caliente; el hash se
+  // corrige detrás.
   useEffect(() => {
-    if (vista === 'config' && !can(rol, 'verConfiguracion')) setVista('hoy')
-    if (vista === 'equipo' && !can(rol, 'verEquipo')) setVista('hoy')
-  }, [vista, rol])
+    const base: Vista = leadsVisibles ? 'hoy' : 'clientes'
+    if (!leadsVisibles && esVistaLeads(vista)) setVista('clientes')
+    if (vista === 'config' && !can(rol, 'verConfiguracion')) setVista(base)
+    if (vista === 'equipo' && !can(rol, 'verEquipo')) setVista(base)
+  }, [vista, rol, leadsVisibles])
 
   return (
     <div className="relative z-10 flex h-svh overflow-hidden">
@@ -178,6 +229,8 @@ function Workspace() {
               {vista === 'pipeline' && <Pipeline />}
               {vista === 'cartera' && <Cartera />}
               {vista === 'agenda' && <Agenda />}
+              {vista === 'clientes' && <Clientes />}
+              {vista === 'contratos' && <Contratos />}
               {vista === 'equipo' && <Equipo />}
               {vista === 'config' && <Config />}
             </Suspense>
@@ -195,6 +248,7 @@ function Workspace() {
 
 export default function App() {
   const { fase, yo } = useAuth()
+  const estadoDatos = useStoreEstado()
 
   const content =
     fase === 'init' || fase === 'resolviendo' ? (
@@ -203,8 +257,16 @@ export default function App() {
       <Login />
     ) : fase === 'no_enrolado' ? (
       <NoEnrolado />
-    ) : yo?.demo ? (
-      <Workspace />
+    ) : yo ? (
+      // Sesión válida: la carga remota decide qué pintar. El error muestra
+      // reintento (nunca el CRM vacío); mientras carga, splash; luego workspace.
+      estadoDatos.error ? (
+        <ErrorCargaReal onReintentar={estadoDatos.reintentar} />
+      ) : estadoDatos.cargando ? (
+        <Splash />
+      ) : (
+        <Workspace />
+      )
     ) : (
       <DatosRealesPendientes />
     )

@@ -400,9 +400,13 @@ export function Pipeline() {
           )
         })}
         <p className="self-center text-[11px] text-muted-foreground">
-          {escribe
-            ? 'Demo — arrastra una card a otra columna o usa su menú "⋯" para moverla de etapa. Los cambios viven solo en esta sesión.'
-            : 'Demo — tu rol es de solo lectura; los datos viven solo en esta sesión.'}
+          {yo?.demo
+            ? escribe
+              ? 'Demo — arrastra una card a otra columna o usa su menú "⋯" para moverla de etapa. Los cambios viven solo en esta sesión.'
+              : 'Demo — tu rol es de solo lectura; los datos viven solo en esta sesión.'
+            : escribe
+              ? 'Arrastra una card a otra columna o usa su menú "⋯" para moverla de etapa.'
+              : 'Tu rol es de solo lectura.'}
         </p>
       </div>
     </div>

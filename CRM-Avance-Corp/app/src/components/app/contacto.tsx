@@ -145,6 +145,7 @@ function DialogResultado({
   onClose: () => void
 }): JSX.Element {
   const { registrarActividad } = useCRMData()
+  const { yo } = useAuth()
   const [nota, setNota] = useState('')
 
   const registrar = (tipo: TipoActividadManual) => {
@@ -156,7 +157,7 @@ function DialogResultado({
       return
     }
     onClose()
-    toast.success('Contacto registrado (demo)')
+    toast.success(`Contacto registrado${yo?.demo ? ' (demo)' : ''}`)
   }
 
   return (

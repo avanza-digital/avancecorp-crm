@@ -38,6 +38,7 @@ import {
 } from '@/lib/inteligencia'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { useAhora } from '@/lib/ahora'
+import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
@@ -52,6 +53,7 @@ function semaforoDias(d: number): string {
 export function HoySupervisor(): JSX.Element {
   const { ambito, actividades, reasignar, objetivos, series } = useCRMData()
   const { abrirLead } = usePanelesActions()
+  const { yo } = useAuth()
   // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
   // para que cola/ranking/alertas SLA se refresquen solos al pasar el tiempo.
   const ahora = useAhora()
@@ -97,7 +99,7 @@ export function HoySupervisor(): JSX.Element {
       return
     }
     const v = ambito.vendedores.find((m) => m.perfil_id === vId)
-    toast.success(`${l.nombre_completo} asignado a ${v?.nombre_completo ?? 'vendedor'} (demo)`)
+    toast.success(`${l.nombre_completo} asignado a ${v?.nombre_completo ?? 'vendedor'}${yo?.demo ? ' (demo)' : ''}`)
   }
 
   return (
@@ -340,34 +342,52 @@ export function HoySupervisor(): JSX.Element {
               right={<span className="text-xs text-muted-foreground">este mes</span>}
             />
             <CardContent className="space-y-4 pb-5 pt-0">
-              {[
-                {
-                  label: 'Capital en proceso',
-                  txt: `${moneyK(d.capitalPEN)} de ${moneyK(meta.capitalObjetivo)}`,
-                  pct: meta.capitalObjetivo > 0 ? (d.capitalPEN / meta.capitalObjetivo) * 100 : 0,
-                },
-                {
-                  label: 'Ventas cerradas',
-                  txt: `${d.convertidos} de ${meta.ventasObjetivo}`,
-                  pct: meta.ventasObjetivo > 0 ? (d.convertidos / meta.ventasObjetivo) * 100 : 0,
-                },
-                {
-                  label: 'Conversión',
-                  txt: `${d.conversion}% de ${meta.conversionObjetivo}%`,
-                  pct: meta.conversionObjetivo > 0 ? (d.conversion / meta.conversionObjetivo) * 100 : 0,
-                },
-              ].map((f) => (
-                <div key={f.label}>
-                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
-                    <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
+              {meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0 ? (
+                <>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold text-foreground/80">Capital en proceso (PEN)</span>
+                    <span className="text-xs font-bold tabular-nums text-primary">{moneyK(d.capitalPEN)}</span>
                   </div>
-                  <Progress value={f.pct} color={colorMeta(f.pct)} />
-                </div>
-              ))}
-              <p className="text-[10.5px] text-muted-foreground">
-                Meta en PEN — lo captado en USD no entra a este total.
-              </p>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold text-foreground/80">Ventas cerradas</span>
+                    <span className="text-xs font-bold tabular-nums text-primary">{d.convertidos}</span>
+                  </div>
+                  <p className="text-[10.5px] text-muted-foreground">
+                    Meta mensual del equipo por definir — cuando la establezcan, verás aquí el avance.
+                  </p>
+                </>
+              ) : (
+                <>
+                  {[
+                    {
+                      label: 'Capital en proceso',
+                      txt: `${moneyK(d.capitalPEN)} de ${moneyK(meta.capitalObjetivo)}`,
+                      pct: meta.capitalObjetivo > 0 ? (d.capitalPEN / meta.capitalObjetivo) * 100 : 0,
+                    },
+                    {
+                      label: 'Ventas cerradas',
+                      txt: `${d.convertidos} de ${meta.ventasObjetivo}`,
+                      pct: meta.ventasObjetivo > 0 ? (d.convertidos / meta.ventasObjetivo) * 100 : 0,
+                    },
+                    {
+                      label: 'Conversión',
+                      txt: `${d.conversion}% de ${meta.conversionObjetivo}%`,
+                      pct: meta.conversionObjetivo > 0 ? (d.conversion / meta.conversionObjetivo) * 100 : 0,
+                    },
+                  ].map((f) => (
+                    <div key={f.label}>
+                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
+                        <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
+                      </div>
+                      <Progress value={f.pct} color={colorMeta(f.pct)} />
+                    </div>
+                  ))}
+                  <p className="text-[10.5px] text-muted-foreground">
+                    Meta en PEN — lo captado en USD no entra a este total.
+                  </p>
+                </>
+              )}
             </CardContent>
           </Card>
 
@@ -426,7 +446,7 @@ export function HoySupervisor(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — ves solo a tu equipo y tu bandeja de reparto; cada rol ve únicamente lo que le corresponde.
+        {yo?.demo ? 'Demo — ves' : 'Ves'} solo a tu equipo y tu bandeja de reparto; cada rol ve únicamente lo que le corresponde.
       </p>
     </div>
   )

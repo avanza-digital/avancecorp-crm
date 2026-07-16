@@ -2,6 +2,14 @@ import path from 'node:path'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
+// El negocio opera en Perú (UTC-5, sin horario de verano) y hay lógica de fechas
+// que SOLO falla en offsets negativos: leer '2026-07-15' como UTC muestra el día
+// anterior en Lima. Sin fijar la zona, esos tests pasan en verde en una máquina
+// en UTC aunque el bug vuelva (comprobado reintroduciéndolo). Se fija aquí, en el
+// proceso padre, porque los workers heredan el entorno; `test.env` NO sirve (no
+// llega a process.env a tiempo).
+process.env.TZ = 'America/Lima'
+
 export default defineConfig({
   plugins: [react()],
   resolve: {
@@ -11,6 +19,8 @@ export default defineConfig({
     environment: 'jsdom',
     include: ['src/**/*.test.{ts,tsx}'],
     setupFiles: ['./src/test/setup.ts'],
+    // La zona horaria se fija en setupFiles (no aquí con `env`: no llega a
+    // process.env a tiempo — comprobado con el bug reintroducido a propósito).
     clearMocks: true,
     restoreMocks: true,
     coverage: {
