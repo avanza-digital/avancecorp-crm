@@ -43,4 +43,12 @@ describe('formato de nombres y fechas', () => {
     expect(fmtFecha('fecha-invalida')).toBe('—')
     expect(fmtFecha('2026-07-10T12:00:00.000Z')).toMatch(/10.*jul.*2026/i)
   })
+
+  // Las fechas del cronograma vienen sin hora; leerlas como UTC las corría un
+  // día atrás en Perú (UTC-5) — se veía "14 jul" para el 15/07.
+  it('muestra las fechas sin hora en el día correcto (no las lee como UTC)', () => {
+    expect(fmtFecha('2026-07-15')).toMatch(/15.*jul.*2026/i)
+    expect(fmtFecha('2026-01-01')).toMatch(/01.*ene.*2026/i)
+    expect(fmtFecha('2026-13-45')).toBe('—')
+  })
 })

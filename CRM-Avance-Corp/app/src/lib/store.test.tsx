@@ -13,6 +13,7 @@ const sesionDemo: AuthContextValue = {
     nombre_completo: 'VENDEDOR UNO',
     rol: 'vendedor',
     demo: true,
+    puede_contratar: true,
   },
   error: null,
   entrar: async () => ({ ok: true }),

@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { sb, type ClienteCrm } from '@/lib/supabase'
+import type { Database } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
 import {
   CATEGORIAS_INTERES,
@@ -7,9 +8,36 @@ import {
   MOTIVOS_DESCARTE,
   ORIGENES,
   TERMINALES,
+  TIPOS_ACTIVIDAD,
+  type Actividad,
   type Etapa,
   type Lead,
+  type Miembro,
+  type TipoActividad,
 } from '@/lib/tipos'
+import type {
+  CategoriaContrato,
+  CuotaCronograma,
+  ModalidadContrato,
+  TipoInteres,
+} from '@/lib/cronograma'
+import {
+  ESTADOS_CONTRATO,
+  ESTADOS_CUOTA,
+  type ClienteBasico,
+  type ClienteDetalle,
+  type ContratoRow,
+  type Cuota,
+  type Titular,
+  type TitularInput,
+} from '@/lib/clientes-tipos'
+import { TIPOS_DOCUMENTO_K } from '@/lib/documento'
+import type {
+  FilaAltasAnalista,
+  FilaCapitalMes,
+  FilaPagosMes,
+  FilaVencimientos,
+} from '@/lib/metricas'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -33,6 +61,7 @@ const COLUMNAS_LEAD = [
   'creado_en',
   'actualizado_en',
   'activo',
+  'nota',
 ].join(',')
 
 // Validación en runtime del borde con Supabase (los unions de TS se borran al
@@ -58,6 +87,7 @@ const LeadRowSchema = v.object({
   creado_en: v.string(),
   actualizado_en: v.string(),
   activo: v.boolean(),
+  nota: v.nullable(v.string()),
 })
 
 type LeadRow = v.InferOutput<typeof LeadRowSchema>
@@ -148,6 +178,7 @@ function aLead(fila: LeadRow): Lead {
     asignado_supervisor_id: fila.asignado_supervisor_id,
     creado_en: fila.creado_en,
     activo: fila.activo,
+    nota: fila.nota,
   }
 }
 
@@ -236,4 +267,940 @@ export async function listarLeads(
     total,
     paginas: Math.ceil(total / tamano),
   }
+}
+
+// ── Ámbito completo para el store (lectura NO paginada) ───────────────────────
+// El store necesita TODA la cartera del ámbito para los cálculos agregados
+// (métricas, embudo, colas). La RLS ya recorta a lo visible; el tope alto es una
+// salvaguarda de payload, no seguridad. Con volumen bajo (piloto) sobra.
+const MAX_LEADS_AMBITO = 2000
+
+export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]> {
+  let consulta = cliente()
+    .schema('crm')
+    .from('leads')
+    .select(COLUMNAS_LEAD)
+    .order('actualizado_en', { ascending: false })
+    .order('id', { ascending: true })
+    .limit(MAX_LEADS_AMBITO)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.leads.ambito_fallido', fallo)
+    throw fallo
+  }
+  const items: Lead[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(LeadRowSchema, cruda)
+    if (r.success) items.push(aLead(r.output))
+  }
+  return items
+}
+
+// ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────
+const ROLES_EQUIPO = ['vendedor', 'supervisor', 'gerencia'] as const
+const MiembroRowSchema = v.object({
+  perfil_id: v.string(),
+  nombre_completo: v.string(),
+  rol_crm: v.picklist(ROLES_EQUIPO),
+  supervisor_id: v.nullable(v.string()),
+  activo: v.boolean(),
+})
+
+export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
+  let consulta = cliente().schema('crm').rpc('equipo_visible_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar el equipo.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.equipo.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: Miembro[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(MiembroRowSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+// ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
+const TIPOS_ACT = Object.keys(TIPOS_ACTIVIDAD) as [TipoActividad, ...TipoActividad[]]
+const ActividadRowSchema = v.object({
+  id: v.string(),
+  lead_id: v.string(),
+  tipo: v.picklist(TIPOS_ACT),
+  detalle: v.nullable(v.string()),
+  autor_nombre: v.string(),
+  creado_en: v.string(),
+})
+
+export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<Actividad[]> {
+  let consulta = cliente().schema('crm').rpc('actividades_del_ambito_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar el historial.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.actividades.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: Actividad[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(ActividadRowSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+// ── Mutaciones reales (insert/update; RLS + triggers del servidor mandan) ─────
+type LeadInsert = Database['crm']['Tables']['leads']['Insert']
+type LeadUpdate = Database['crm']['Tables']['leads']['Update']
+type ActividadInsert = Database['crm']['Tables']['actividades']['Insert']
+
+/**
+ * Traduce un error de PostgREST a un CrmApiError con código estable y mensaje
+ * es-PE seguro (nunca el texto crudo de Postgres, salvo los RAISE propios).
+ */
+function aErrorApi(
+  error: { code?: string | null; message?: string | null; details?: string | null },
+  contexto: string,
+): CrmApiError {
+  const codigoPg = error.code ?? ''
+  const texto = `${error.message ?? ''} ${error.details ?? ''}`
+  let code = 'POSTGREST_ERROR'
+  let mensaje = 'No se pudo guardar el cambio.'
+  if (codigoPg === '23505') {
+    // Índices únicos parciales del dedup GLOBAL (uq_leads_*_vivo): el espejo
+    // local solo ve el ámbito; el servidor cubre choques con leads ajenos.
+    if (texto.includes('uq_leads_telefono_vivo')) {
+      code = 'DUP_TELEFONO'
+      mensaje = 'Ese teléfono ya pertenece a otro lead abierto de la empresa'
+    } else if (texto.includes('uq_leads_dni_vivo')) {
+      code = 'DUP_DNI'
+      mensaje = 'Ese DNI ya pertenece a otro lead abierto de la empresa'
+    } else if (texto.includes('perfiles_dni')) {
+      // Índices parciales del portal (perfiles_dni_cliente_key / _staff_key):
+      // corregir el documento de un cliente puede chocar con otro cliente.
+      code = 'DUP_DNI_CLIENTE'
+      mensaje = 'Ese documento ya pertenece a otro cliente del portal'
+    } else if (texto.includes('perfiles_correo')) {
+      code = 'DUP_CORREO'
+      mensaje = 'Ese correo ya está registrado en el portal'
+    }
+  } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
+    code = 'SIN_PERMISO'
+    mensaje = 'No tienes permiso para esa acción'
+  } else if (codigoPg === 'P0001') {
+    // RAISE EXCEPTION de nuestros propios triggers (es-PE, sin PII).
+    code = 'REGLA_SERVIDOR'
+    if (error.message) mensaje = error.message
+  }
+  const fallo = new CrmApiError(mensaje, code)
+  registrarError(contexto, fallo, { pg: codigoPg })
+  return fallo
+}
+
+export async function insertarLead(fila: LeadInsert): Promise<void> {
+  const { error } = await cliente().schema('crm').from('leads').insert(fila)
+  if (error) throw aErrorApi(error, 'crm.leads.insert_fallido')
+}
+
+export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<void> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .from('leads')
+    .update(cambios)
+    .eq('id', id)
+    .select('id')
+  if (error) throw aErrorApi(error, 'crm.leads.update_fallido')
+  if (!data || data.length === 0) {
+    // La RLS ocultó el lead (fuera del ámbito) o no existe: mismo mensaje,
+    // sin revelar existencia (igual que el espejo del store).
+    throw new CrmApiError('Lead no encontrado', 'NO_ENCONTRADO')
+  }
+}
+
+export async function insertarActividad(fila: ActividadInsert): Promise<void> {
+  const { error } = await cliente().schema('crm').from('actividades').insert(fila)
+  if (error) throw aErrorApi(error, 'crm.actividades.insert_fallido')
+}
+
+// ── Conversión lead → cliente (edge crm-convertir-lead: crea el cliente en el
+//    portal con service_role + correo de bienvenida + enlaza el lead vía la RPC
+//    privilegiada crm.convertir_lead). El navegador nunca crea usuarios ni envía
+//    correos: eso vive en el edge. Aquí solo se invoca y se traduce el error. ────
+export type TipoDocumentoCliente = 'DNI' | 'CE' | 'PASAPORTE'
+
+export interface ConvertirLeadInput {
+  lead_id: string
+  correo: string
+  tipo_documento: TipoDocumentoCliente
+  documento: string
+  nombre_completo: string
+  telefono?: string | null
+  apellidos?: string | null
+  nombres?: string | null
+}
+
+export interface ConvertirLeadResultado {
+  perfil_id: string
+  ya_existia: boolean
+  email_enviado: boolean
+}
+
+export async function convertirLead(input: ConvertirLeadInput): Promise<ConvertirLeadResultado> {
+  const { data, error } = await cliente().functions.invoke('crm-convertir-lead', { body: input })
+  if (error) {
+    let mensaje = 'No se pudo convertir el lead.'
+    // FunctionsHttpError expone la respuesta del edge en `context`: extraemos
+    // nuestro { error } es-PE (mensaje seguro que arma el propio edge).
+    try {
+      const ctx = (error as { context?: Response }).context
+      if (ctx && typeof ctx.json === 'function') {
+        const cuerpo = await ctx.json()
+        if (cuerpo?.error) mensaje = traducirErrorAlta(String(cuerpo.error))
+      }
+    } catch { /* nos quedamos con el mensaje genérico */ }
+    const fallo = new CrmApiError(mensaje, 'CONVERTIR_FALLIDO')
+    registrarError('crm.convertir.fallido', fallo)
+    throw fallo
+  }
+  const cuerpo = (data ?? {}) as Partial<ConvertirLeadResultado>
+  return {
+    perfil_id: String(cuerpo.perfil_id ?? ''),
+    ya_existia: Boolean(cuerpo.ya_existia),
+    email_enviado: Boolean(cuerpo.email_enviado),
+  }
+}
+
+// ── Contrato del cliente convertido (RPC public.crear_contrato del PORTAL, reusada
+//    tal cual: crea contrato + cronograma de forma atómica y valida rol/cartera
+//    server-side). El cronograma se calcula con lib/cronograma (espejo del portal). ─
+export interface CrearContratoInput {
+  cliente_id: string
+  capital: number
+  moneda: 'PEN' | 'USD'
+  tasa_anual: number
+  modalidad: ModalidadContrato
+  tipo_interes: TipoInteres
+  categoria: CategoriaContrato
+  fecha_inicio: string
+  fecha_vencimiento: string
+  numero_contrato?: string | null
+  notas_internas?: string | null
+  /**
+   * Co-titulares (cuentas mancomunadas, máx 5): viajan DENTRO de p_contrato —
+   * crear_contrato ya los persiste vía _sync_contrato_titulares. Ausente o []
+   * en el ALTA es lo mismo: contrato sin co-titulares.
+   */
+  titulares?: TitularInput[]
+}
+
+export interface CrearContratoResultado {
+  id: string
+  numero_contrato: string
+}
+
+export async function crearContrato(
+  input: CrearContratoInput,
+  cronograma: CuotaCronograma[],
+): Promise<CrearContratoResultado> {
+  const p_contrato: Record<string, unknown> = {
+    cliente_id: input.cliente_id,
+    capital: input.capital,
+    moneda: input.moneda,
+    tasa_anual: input.tasa_anual,
+    modalidad: input.modalidad,
+    tipo_interes: input.tipo_interes,
+    categoria: input.categoria,
+    fecha_inicio: input.fecha_inicio,
+    fecha_vencimiento: input.fecha_vencimiento,
+    numero_contrato: input.numero_contrato?.trim() || null,
+    notas_internas: input.notas_internas?.trim() || null,
+  }
+  // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
+  if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
+  const p_cronograma = cronograma as unknown as Record<string, unknown>[]
+  const { data, error } = await cliente().rpc('crear_contrato', { p_contrato, p_cronograma })
+  if (error) throw aErrorApi(error, 'crm.contrato.crear_fallido')
+  const r = (data ?? {}) as Partial<CrearContratoResultado>
+  return { id: String(r.id ?? ''), numero_contrato: String(r.numero_contrato ?? '') }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// PANEL DEL ANALISTA EN EL CRM — clientes del portal + contratos (traspaso íntegro
+// de public_html/admin/analista). El motor (edge crear-cliente v20, RPCs
+// public.crear_contrato/actualizar_contrato, RLS con ventana de 5 h) YA está en
+// prod y NO se toca: aquí solo se consume, con Valibot en cada frontera.
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// Catálogos del portal como picklists runtime (espejo de los CHECK de `public`).
+const MODALIDADES_CONTRATO = ['mensual', 'trimestral', 'semestral', 'anual'] as const
+const TIPOS_INTERES = ['simple', 'compuesto'] as const
+const CATEGORIAS_CONTRATO = ['nuevo', 'renovacion', 'upgrade'] as const
+const TIPOS_CUOTA = ['cuota', 'retorno', 'devolucion'] as const
+
+// Salvaguarda de payload (no seguridad — la vista/RLS ya recortan el ámbito).
+const MAX_CLIENTES_CARTERA = 2000
+const MAX_CONTRATOS_CARTERA = 2000
+
+// ── Clientes: lista (vista crm.clientes_basicos, ya scopeada por rol) ──────────
+const COLUMNAS_CLIENTE_BASICO = [
+  'id',
+  'nombres',
+  'apellidos',
+  'nombre_completo',
+  'dni',
+  'correo',
+  'telefono',
+  'asesor_perfil_id',
+  'activo',
+  'creado_en',
+].join(',')
+
+const ClienteBasicoRowSchema = v.object({
+  id: v.string(),
+  nombres: v.nullable(v.string()),
+  apellidos: v.nullable(v.string()),
+  nombre_completo: v.nullable(v.string()),
+  dni: v.nullable(v.string()),
+  correo: v.nullable(v.string()),
+  telefono: v.nullable(v.string()),
+  asesor_perfil_id: v.nullable(v.string()),
+  activo: v.boolean(),
+  creado_en: v.string(),
+})
+
+export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasico[]> {
+  let consulta = cliente()
+    .schema('crm')
+    .from('clientes_basicos')
+    .select(COLUMNAS_CLIENTE_BASICO)
+    .order('creado_en', { ascending: false })
+    .order('id', { ascending: true })
+    .limit(MAX_CLIENTES_CARTERA)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar tu cartera de clientes.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.clientes.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: ClienteBasico[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(ClienteBasicoRowSchema, cruda)
+    if (r.success) {
+      items.push({ ...r.output, nombre_completo: r.output.nombre_completo ?? '' })
+    } else {
+      descartadas += 1
+    }
+  }
+  if (descartadas > 0) {
+    registrarError(
+      'crm.clientes.filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+      { descartadas },
+    )
+  }
+  return items
+}
+
+// ── Cliente: detalle con las 14 bancarias (public.perfiles vía RLS de cartera) ─
+const COLUMNAS_CLIENTE_DETALLE = [
+  'id',
+  'nombre_completo',
+  'nombres',
+  'apellidos',
+  'tipo_documento',
+  'dni',
+  'correo',
+  'telefono',
+  'asesor_perfil_id',
+  'creado_por',
+  'creado_en',
+  'banco',
+  'tipo_cuenta',
+  'numero_cuenta',
+  'cci',
+  'titular_distinto',
+  'beneficiario_nombre',
+  'beneficiario_dni',
+  'banco_usd',
+  'tipo_cuenta_usd',
+  'numero_cuenta_usd',
+  'cci_usd',
+  'titular_distinto_usd',
+  'beneficiario_nombre_usd',
+  'beneficiario_dni_usd',
+].join(',')
+
+const ClienteDetalleRowSchema = v.object({
+  id: v.string(),
+  nombre_completo: v.nullable(v.string()),
+  nombres: v.nullable(v.string()),
+  apellidos: v.nullable(v.string()),
+  tipo_documento: v.picklist(TIPOS_DOCUMENTO_K),
+  dni: v.nullable(v.string()),
+  correo: v.nullable(v.string()),
+  telefono: v.nullable(v.string()),
+  asesor_perfil_id: v.nullable(v.string()),
+  creado_por: v.nullable(v.string()),
+  creado_en: v.string(),
+  banco: v.nullable(v.string()),
+  tipo_cuenta: v.nullable(v.string()),
+  numero_cuenta: v.nullable(v.string()),
+  cci: v.nullable(v.string()),
+  titular_distinto: v.boolean(),
+  beneficiario_nombre: v.nullable(v.string()),
+  beneficiario_dni: v.nullable(v.string()),
+  banco_usd: v.nullable(v.string()),
+  tipo_cuenta_usd: v.nullable(v.string()),
+  numero_cuenta_usd: v.nullable(v.string()),
+  cci_usd: v.nullable(v.string()),
+  titular_distinto_usd: v.boolean(),
+  beneficiario_nombre_usd: v.nullable(v.string()),
+  beneficiario_dni_usd: v.nullable(v.string()),
+})
+
+/**
+ * Detalle completo para el modo "corregir". Se usa `.limit(1)` (no `.single()`)
+ * a propósito: la frontera HTTP queda SIEMPRE con forma de array — mismos mocks
+ * en msw/Playwright y sin el 406 especial de PostgREST.
+ */
+export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): Promise<ClienteDetalle> {
+  let consulta = cliente()
+    .from('perfiles')
+    .select(COLUMNAS_CLIENTE_DETALLE)
+    .eq('id', id)
+    .limit(1)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar el cliente.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.clientes.detalle_fallido', fallo)
+    throw fallo
+  }
+  const cruda = (data ?? [])[0]
+  if (!cruda) {
+    // La RLS ocultó el perfil (fuera de tu cartera) o no existe: mismo mensaje,
+    // sin revelar existencia (igual que actualizarLead).
+    throw new CrmApiError('Cliente no encontrado', 'NO_ENCONTRADO')
+  }
+  const r = v.safeParse(ClienteDetalleRowSchema, cruda)
+  if (!r.success) {
+    const fallo = new CrmApiError('Los datos del cliente no tienen el formato esperado.', 'ROW_CONTRACT')
+    registrarError('crm.clientes.detalle_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return { ...r.output, nombre_completo: r.output.nombre_completo ?? '' }
+}
+
+// ── Alta de cliente (edge crear-cliente del portal: Auth + perfil + correo REAL
+//    de bienvenida; clave temporal = documento con padStart(8,'0') server-side).
+//    La edge NO acepta bancarios: esos van en un SEGUNDO paso con
+//    actualizarClientePortal (mismo flujo que el portal). ────────────────────────
+export interface CrearClientePortalInput {
+  email: string
+  /** Opcional: sin password la edge usa la clave temporal (= documento). */
+  password?: string | null
+  nombre_completo: string
+  apellidos: string
+  nombres: string
+  dni: string
+  telefono?: string | null
+  tipo_documento: TipoDocumentoCliente
+}
+
+export interface AltaClienteResultado {
+  userId: string
+  emailEnviado: boolean
+}
+
+// Los fallos de Supabase Auth llegan en inglés crudo desde las edges que crean
+// usuarios (solo reenvían createErr.message). Espejo del mapeo del portal
+// (analista.js:624-630): el analista lee es-PE, no 'A user with this email…'.
+function traducirErrorAlta(mensaje: string): string {
+  if (/already.+(registered|exists)/i.test(mensaje)) return 'Este correo ya está registrado.'
+  if (/invalid.+email|email.+invalid/i.test(mensaje)) return 'El correo electrónico no es válido.'
+  return mensaje
+}
+
+export async function crearClientePortal(payload: CrearClientePortalInput): Promise<AltaClienteResultado> {
+  const body: Record<string, unknown> = {
+    email: payload.email,
+    nombre_completo: payload.nombre_completo,
+    apellidos: payload.apellidos,
+    nombres: payload.nombres,
+    dni: payload.dni,
+    telefono: payload.telefono ?? null,
+    tipo_documento: payload.tipo_documento,
+  }
+  if (payload.password) body.password = payload.password
+
+  const { data, error } = await cliente().functions.invoke('crear-cliente', { body })
+  if (error) {
+    let mensaje = 'No se pudo crear el cliente.'
+    // FunctionsHttpError expone la respuesta del edge en `context`: extraemos
+    // nuestro { error } es-PE (mensaje seguro que arma la propia edge).
+    try {
+      const ctx = (error as { context?: Response }).context
+      if (ctx && typeof ctx.json === 'function') {
+        const cuerpo = await ctx.json()
+        if (cuerpo?.error) mensaje = traducirErrorAlta(String(cuerpo.error))
+      }
+    } catch { /* nos quedamos con el mensaje genérico */ }
+    const fallo = new CrmApiError(mensaje, 'ALTA_CLIENTE_FALLIDA')
+    registrarError('crm.clientes.alta_fallida', fallo)
+    throw fallo
+  }
+  const cuerpo = (data ?? {}) as { ok?: boolean; user_id?: string; email_enviado?: boolean; error?: string }
+  if (cuerpo.error) {
+    const fallo = new CrmApiError(String(cuerpo.error), 'ALTA_CLIENTE_FALLIDA')
+    registrarError('crm.clientes.alta_fallida', fallo)
+    throw fallo
+  }
+  const userId = String(cuerpo.user_id ?? '')
+  if (!userId) {
+    // Sin id no hay 2º paso de bancarios ni contrato: se reporta como fallo,
+    // nunca como éxito silencioso (lección del portal).
+    const fallo = new CrmApiError('El alta no devolvió el id del cliente.', 'ALTA_SIN_ID')
+    registrarError('crm.clientes.alta_sin_id', fallo)
+    throw fallo
+  }
+  return { userId, emailEnviado: Boolean(cuerpo.email_enviado) }
+}
+
+// ── Corrección del cliente (UPDATE directo a perfiles; RLS = dueño + 5 h) ──────
+export type ClientePortalPatch = Database['public']['Tables']['perfiles']['Update']
+
+/**
+ * Devuelve `true` si el servidor guardó y `false` si el UPDATE tocó 0 filas —
+ * LA trampa de la ventana de 5 h: al vencer, la RLS deja de matchear la fila y
+ * PostgREST responde 200 con lista vacía, SIN error. Jamás asumir éxito sin filas.
+ */
+export async function actualizarClientePortal(id: string, patch: ClientePortalPatch): Promise<boolean> {
+  const { data, error } = await cliente()
+    .from('perfiles')
+    .update(patch)
+    .eq('id', id)
+    .select('id')
+  if (error) throw aErrorApi(error, 'crm.clientes.update_fallido')
+  return (data?.length ?? 0) > 0
+}
+
+// ── Contratos de mi cartera (public.contratos + nombre del cliente embebido) ───
+// El embed va DESAMBIGUADO por FK: contratos tiene más de una relación a
+// perfiles (cliente_id, cerrado_por) y un hint ausente sería un 300 de PostgREST.
+const COLUMNAS_CONTRATO = [
+  'id',
+  'numero_contrato',
+  'cliente_id',
+  'capital',
+  'moneda',
+  'tasa_anual',
+  'modalidad',
+  'tipo_interes',
+  'categoria',
+  'estado',
+  'fecha_inicio',
+  'fecha_vencimiento',
+  'notas_internas',
+  'creado_por',
+  'creado_en',
+  'cliente:perfiles!contratos_cliente_id_fkey(nombre_completo)',
+].join(',')
+
+const ContratoRowSchema = v.object({
+  id: v.string(),
+  numero_contrato: v.string(),
+  cliente_id: v.string(),
+  // numeric(12,2): PostgREST puede serializarlo como string
+  capital: v.union([v.number(), v.string()]),
+  moneda: v.picklist(['PEN', 'USD']),
+  tasa_anual: v.union([v.number(), v.string()]),
+  modalidad: v.picklist(MODALIDADES_CONTRATO),
+  tipo_interes: v.picklist(TIPOS_INTERES),
+  categoria: v.nullable(v.picklist(CATEGORIAS_CONTRATO)),
+  estado: v.picklist(ESTADOS_CONTRATO),
+  fecha_inicio: v.string(),
+  fecha_vencimiento: v.string(),
+  notas_internas: v.nullable(v.string()),
+  creado_por: v.nullable(v.string()),
+  creado_en: v.string(),
+  cliente: v.nullable(v.object({ nombre_completo: v.nullable(v.string()) })),
+})
+
+export async function listarMisContratos(signal?: AbortSignal): Promise<ContratoRow[]> {
+  let consulta = cliente()
+    .from('contratos')
+    .select(COLUMNAS_CONTRATO)
+    .order('creado_en', { ascending: false })
+    .order('id', { ascending: true })
+    .limit(MAX_CONTRATOS_CARTERA)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudieron cargar tus contratos.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.contratos.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: ContratoRow[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(ContratoRowSchema, cruda)
+    if (!r.success) {
+      descartadas += 1
+      continue
+    }
+    const fila = r.output
+    items.push({
+      id: fila.id,
+      numero_contrato: fila.numero_contrato,
+      cliente_id: fila.cliente_id,
+      cliente_nombre: fila.cliente?.nombre_completo ?? null,
+      capital: aNumero(fila.capital) ?? 0,
+      moneda: fila.moneda,
+      tasa_anual: aNumero(fila.tasa_anual) ?? 0,
+      modalidad: fila.modalidad,
+      tipo_interes: fila.tipo_interes,
+      categoria: fila.categoria,
+      estado: fila.estado,
+      fecha_inicio: fila.fecha_inicio,
+      fecha_vencimiento: fila.fecha_vencimiento,
+      notas_internas: fila.notas_internas,
+      creado_por: fila.creado_por,
+      creado_en: fila.creado_en,
+    })
+  }
+  if (descartadas > 0) {
+    registrarError(
+      'crm.contratos.filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+      { descartadas },
+    )
+  }
+  return items
+}
+
+// ── Cronograma del contrato (solo lectura; RLS fail-closed: ajeno = 0 filas) ───
+const COLUMNAS_CUOTA = [
+  'id',
+  'numero_cuota',
+  'fecha_programada',
+  'monto_programado',
+  'estado',
+  'tipo',
+  'fecha_pago_real',
+  'monto_pagado',
+].join(',')
+
+const CuotaRowSchema = v.object({
+  id: v.string(),
+  numero_cuota: v.number(),
+  fecha_programada: v.string(),
+  monto_programado: v.union([v.number(), v.string()]),
+  estado: v.picklist(ESTADOS_CUOTA),
+  tipo: v.picklist(TIPOS_CUOTA),
+  fecha_pago_real: v.nullable(v.string()),
+  monto_pagado: v.nullable(v.union([v.number(), v.string()])),
+})
+
+export async function obtenerCronograma(contratoId: string, signal?: AbortSignal): Promise<Cuota[]> {
+  let consulta = cliente()
+    .from('cronograma_pagos')
+    .select(COLUMNAS_CUOTA)
+    .eq('contrato_id', contratoId)
+    .order('numero_cuota', { ascending: true })
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar el cronograma.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.cronograma.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: Cuota[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(CuotaRowSchema, cruda)
+    if (r.success) {
+      items.push({
+        ...r.output,
+        monto_programado: aNumero(r.output.monto_programado) ?? 0,
+        monto_pagado: aNumero(r.output.monto_pagado),
+      })
+    }
+  }
+  return items
+}
+
+// ── Co-titulares del contrato (cuentas mancomunadas, solo lectura) ─────────────
+const TitularRowSchema = v.object({
+  nombre_completo: v.string(),
+  tipo_documento: v.picklist(TIPOS_DOCUMENTO_K),
+  documento: v.string(),
+  orden: v.number(),
+})
+
+export async function obtenerTitulares(contratoId: string, signal?: AbortSignal): Promise<Titular[]> {
+  let consulta = cliente()
+    .from('contrato_titulares')
+    .select('nombre_completo, tipo_documento, documento, orden')
+    .eq('contrato_id', contratoId)
+    .order('orden', { ascending: true })
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudieron cargar los co-titulares.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.titulares.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: Titular[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(TitularRowSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+// ── Corrección del contrato (RPC actualizar_contrato: creado_por → 5 h → cartera;
+//    regenera el cronograma conservando cuotas pagadas). ────────────────────────
+export interface ActualizarContratoInput {
+  capital: number
+  moneda: 'PEN' | 'USD'
+  tasa_anual: number
+  modalidad: ModalidadContrato
+  tipo_interes: TipoInteres
+  categoria: CategoriaContrato
+  fecha_inicio: string
+  fecha_vencimiento: string
+  numero_contrato: string
+  /**
+   * SIEMPRE cargar el valor vigente antes de abrir el form: si p_contrato no
+   * trae esta clave, el servidor BORRA las notas. Por eso aquí NO es opcional.
+   */
+  notas_internas: string | null
+  /**
+   * Semántica del servidor: clave AUSENTE = no tocar; PRESENTE (incluso []) =
+   * REEMPLAZAR el set completo. Cargar los actuales (obtenerTitulares) antes de
+   * mandar, o los co-titulares se borran en silencio.
+   */
+  titulares?: TitularInput[]
+}
+
+export async function actualizarContrato(
+  id: string,
+  contrato: ActualizarContratoInput,
+  cronograma: CuotaCronograma[],
+): Promise<void> {
+  const p_contrato: Record<string, unknown> = {
+    capital: contrato.capital,
+    moneda: contrato.moneda,
+    tasa_anual: contrato.tasa_anual,
+    modalidad: contrato.modalidad,
+    tipo_interes: contrato.tipo_interes,
+    categoria: contrato.categoria,
+    fecha_inicio: contrato.fecha_inicio,
+    fecha_vencimiento: contrato.fecha_vencimiento,
+    numero_contrato: contrato.numero_contrato,
+    notas_internas: contrato.notas_internas, // presente SIEMPRE, aunque sea null
+  }
+  // `titulares` solo viaja si el caller lo decidió (ver ActualizarContratoInput).
+  if (contrato.titulares) p_contrato.titulares = contrato.titulares
+  const { error } = await cliente().rpc('actualizar_contrato', {
+    p_id: id,
+    p_contrato,
+    p_cronograma: cronograma as unknown as Record<string, unknown>[],
+  })
+  // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
+  // a diferencia del UPDATE a perfiles que se queda callado.
+  if (error) throw aErrorApi(error, 'crm.contrato.actualizar_fallido')
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// MÉTRICAS DE GERENCIA — 4 RPCs crm.metricas_*_fn (SECURITY DEFINER, ya en prod).
+// El ÁMBITO lo resuelve el servidor (gerencia=todo, supervisor=subárbol,
+// vendedor=él): el navegador jamás recorta ni agrega seguridad. Aquí solo se
+// valida cada fila con Valibot y se coerciona numeric/bigint (PostgREST puede
+// serializar numeric como string — mismo trato que monto_estimado/capital).
+// El pivoteo para las gráficas vive en lib/metricas (helpers puros).
+// ═══════════════════════════════════════════════════════════════════════════════
+
+// numeric/bigint del servidor: número o string según el serializador.
+const NumericoRpc = v.union([v.number(), v.string()])
+
+const MetricaCapitalRowSchema = v.object({
+  mes: v.string(),
+  moneda: v.picklist(['PEN', 'USD']),
+  // Sin picklist a propósito: una categoría nueva del portal NO debe tirar la
+  // fila — lib/metricas ya agrupa lo desconocido como '—' (sin categoría).
+  categoria: v.nullable(v.string()),
+  contratos: NumericoRpc,
+  capital_colocado: NumericoRpc,
+})
+
+const MetricaPagosRowSchema = v.object({
+  mes: v.string(),
+  moneda: v.picklist(['PEN', 'USD']),
+  tipo: v.picklist(TIPOS_CUOTA),
+  estado: v.picklist(ESTADOS_CUOTA),
+  cuotas: NumericoRpc,
+  monto_programado: NumericoRpc,
+  monto_pagado: NumericoRpc,
+})
+
+const MetricaAltasRowSchema = v.object({
+  mes: v.string(),
+  analista_id: v.string(),
+  analista_nombre: v.string(),
+  altas: NumericoRpc,
+})
+
+const MetricaVencimientosRowSchema = v.object({
+  mes: v.string(),
+  moneda: v.picklist(['PEN', 'USD']),
+  contratos_por_vencer: NumericoRpc,
+  capital_por_vencer: NumericoRpc,
+})
+
+/** Error de RPC de métricas → CrmApiError es-PE + registro (patrón del módulo). */
+function falloMetricas(
+  error: { code?: string | null },
+  contexto: string,
+): CrmApiError {
+  const fallo = new CrmApiError('No se pudieron cargar las métricas.', error.code || 'POSTGREST_ERROR')
+  registrarError(contexto, fallo)
+  return fallo
+}
+
+/** Registra (sin PII) cuántas filas de una RPC de métricas quedaron fuera de contrato. */
+function registrarFilasMetricasInvalidas(rpc: string, descartadas: number): void {
+  if (descartadas === 0) return
+  registrarError(
+    'crm.metricas.filas_invalidas',
+    new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+    { rpc, descartadas },
+  )
+}
+
+/** Capital colocado por mes/moneda/categoría (default: últimos 12 meses). */
+export async function listarMetricasCapitalMes(
+  pMeses = 12,
+  signal?: AbortSignal,
+): Promise<FilaCapitalMes[]> {
+  let consulta = cliente().schema('crm').rpc('metricas_capital_mes_fn', { p_meses: pMeses })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw falloMetricas(error, 'crm.metricas.capital_fallido')
+  const items: FilaCapitalMes[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(MetricaCapitalRowSchema, cruda)
+    if (!r.success) {
+      descartadas += 1
+      continue
+    }
+    items.push({
+      mes: r.output.mes,
+      moneda: r.output.moneda,
+      categoria: r.output.categoria,
+      contratos: aNumero(r.output.contratos) ?? 0,
+      capital_colocado: aNumero(r.output.capital_colocado) ?? 0,
+    })
+  }
+  registrarFilasMetricasInvalidas('capital_mes', descartadas)
+  return items
+}
+
+/** Pagos por mes/moneda/tipo/estado (default: últimos 12 meses). */
+export async function listarMetricasPagosMes(
+  pMeses = 12,
+  signal?: AbortSignal,
+): Promise<FilaPagosMes[]> {
+  let consulta = cliente().schema('crm').rpc('metricas_pagos_mes_fn', { p_meses: pMeses })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw falloMetricas(error, 'crm.metricas.pagos_fallido')
+  const items: FilaPagosMes[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(MetricaPagosRowSchema, cruda)
+    if (!r.success) {
+      descartadas += 1
+      continue
+    }
+    items.push({
+      mes: r.output.mes,
+      moneda: r.output.moneda,
+      tipo: r.output.tipo,
+      estado: r.output.estado,
+      cuotas: aNumero(r.output.cuotas) ?? 0,
+      monto_programado: aNumero(r.output.monto_programado) ?? 0,
+      monto_pagado: aNumero(r.output.monto_pagado) ?? 0,
+    })
+  }
+  registrarFilasMetricasInvalidas('pagos_mes', descartadas)
+  return items
+}
+
+/** Altas de clientes por analista y mes (default: últimos 12 meses). */
+export async function listarMetricasAltasAnalista(
+  pMeses = 12,
+  signal?: AbortSignal,
+): Promise<FilaAltasAnalista[]> {
+  let consulta = cliente().schema('crm').rpc('metricas_altas_analista_fn', { p_meses: pMeses })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw falloMetricas(error, 'crm.metricas.altas_fallido')
+  const items: FilaAltasAnalista[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(MetricaAltasRowSchema, cruda)
+    if (!r.success) {
+      descartadas += 1
+      continue
+    }
+    items.push({
+      mes: r.output.mes,
+      analista_id: r.output.analista_id,
+      analista_nombre: r.output.analista_nombre,
+      altas: aNumero(r.output.altas) ?? 0,
+    })
+  }
+  registrarFilasMetricasInvalidas('altas_analista', descartadas)
+  return items
+}
+
+/** Contratos/capital por vencer por mes/moneda dentro de p_dias (default 90). */
+export async function listarMetricasVencimientos(
+  pDias = 90,
+  signal?: AbortSignal,
+): Promise<FilaVencimientos[]> {
+  let consulta = cliente().schema('crm').rpc('metricas_vencimientos_fn', { p_dias: pDias })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw falloMetricas(error, 'crm.metricas.vencimientos_fallido')
+  const items: FilaVencimientos[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(MetricaVencimientosRowSchema, cruda)
+    if (!r.success) {
+      descartadas += 1
+      continue
+    }
+    items.push({
+      mes: r.output.mes,
+      moneda: r.output.moneda,
+      contratos_por_vencer: aNumero(r.output.contratos_por_vencer) ?? 0,
+      capital_por_vencer: aNumero(r.output.capital_por_vencer) ?? 0,
+    })
+  }
+  registrarFilasMetricasInvalidas('vencimientos', descartadas)
+  return items
 }

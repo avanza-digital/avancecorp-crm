@@ -13,6 +13,12 @@ import {
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
   "https://www.miavance.com",
+  // El alta de clientes también vive en el CRM (traspaso del panel analista,
+  // 2026-07-16). El CORS solo decide desde qué páginas puede llamar un
+  // navegador; la autorización real sigue siendo el JWT + rol de abajo.
+  "https://crm.miavance.com",
+  // Desarrollo local del CRM — RETIRAR en el go-live (checklist del traspaso).
+  "http://localhost:5173",
 ]);
 
 const PORTAL_URL = "https://miavance.com";
@@ -265,177 +271,311 @@ function plantillaBienvenida(opts: {
   const avisoPwd = esTemporal
     ? "Tu contraseña temporal es tu número de documento. Por seguridad, la primera vez que ingreses el portal te pedirá crear tu propia contraseña."
     : "Por seguridad, te recomendamos cambiar tu contraseña la primera vez que ingreses al portal.";
-  const preheader = `Tu portal de inversiones Avance Corp ya está listo. Estas son tus credenciales de acceso.`;
+  const preheader = `Tu Portal de Inversiones Avance Corp ya está listo. Estas son tus credenciales de acceso.`;
 
   return `<!DOCTYPE html>
-<html lang="es">
+<html lang="es" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="X-UA-Compatible" content="IE=edge">
 <meta name="x-apple-disable-message-reformatting">
-<title>Bienvenido a Avance Corp</title>
+<meta name="color-scheme" content="light dark">
+<meta name="supported-color-schemes" content="light dark">
+<title>Bienvenido(a) a tu Portal de Inversiones — Avance Corp</title>
 <!--[if mso]>
-<style>body,table,td{font-family:'Segoe UI',Arial,sans-serif !important;}</style>
+<noscript><xml><o:OfficeDocumentSettings><o:PixelsPerInch>96</o:PixelsPerInch></o:OfficeDocumentSettings></xml></noscript>
 <![endif]-->
+<style>
+  html, body { margin: 0 !important; padding: 0 !important; height: 100% !important; width: 100% !important; }
+  * { -ms-text-size-adjust: 100%; -webkit-text-size-adjust: 100%; }
+  table, td { mso-table-lspace: 0pt !important; mso-table-rspace: 0pt !important; border-collapse: collapse !important; }
+  img { -ms-interpolation-mode: bicubic; border: 0; height: auto; line-height: 100%; outline: none; text-decoration: none; }
+  a { text-decoration: none; }
+  .ExternalClass { width: 100%; }
+  .ExternalClass, .ExternalClass p, .ExternalClass span, .ExternalClass font, .ExternalClass td, .ExternalClass div { line-height: 100%; }
+  @media only screen and (max-width: 620px) {
+    .ac-container { width: 100% !important; }
+    .ac-px { padding-left: 24px !important; padding-right: 24px !important; }
+    .ac-h1 { font-size: 22px !important; }
+    .ac-btn a { display: block !important; }
+  }
+  @media (prefers-color-scheme: dark) {
+    body, .ac-bg { background-color: #0a1224 !important; }
+  }
+</style>
 </head>
-<body style="margin:0;padding:0;background:#f4f2ec;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Arial,sans-serif;">
+<body style="margin:0; padding:0; width:100%; background-color:#eef1f7;">
 
-  <div style="display:none;font-size:1px;color:#f4f2ec;line-height:1px;max-height:0;max-width:0;opacity:0;overflow:hidden;">
+  <div style="display:none; max-height:0; overflow:hidden; mso-hide:all; font-size:1px; line-height:1px; color:#eef1f7; opacity:0;">
     ${escapeHtml(preheader)}
+    &#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;&#847;&zwnj;&nbsp;
   </div>
 
-  <table width="100%" cellpadding="0" cellspacing="0" style="background:#f4f2ec;padding:32px 16px;">
-    <tr><td align="center">
-      <table width="600" cellpadding="0" cellspacing="0" style="background:#ffffff;max-width:600px;width:100%;border:1px solid #e8e3d4;">
+  <table role="presentation" class="ac-bg" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#eef1f7;">
+    <tr>
+      <td align="center" style="padding:32px 16px;">
 
-        <tr>
-          <td style="background:#0a1f4a;padding:36px 48px;text-align:center;border-bottom:3px solid #c8922a;">
-            <img src="https://miavance.com/img/avance-logo-full.png" alt="Avance Corp" width="180" style="display:block;margin:0 auto;max-width:180px;height:auto;">
-            <div style="font-size:10px;color:#c8922a;margin-top:14px;letter-spacing:0.22em;font-weight:600;">PORTAL DE INVERSIONES</div>
-          </td>
-        </tr>
+        <table role="presentation" class="ac-container" width="600" cellpadding="0" cellspacing="0" border="0" style="width:600px; max-width:600px;">
 
-        <tr>
-          <td style="padding:40px 48px 0;">
-            <p style="margin:0;font-size:13px;color:#8a8780;letter-spacing:0.04em;">Bienvenido(a)</p>
-            <p style="margin:4px 0 0;font-size:20px;color:#0a1f4a;font-weight:700;">Hola ${nombre}</p>
-          </td>
-        </tr>
+          <tr>
+            <td style="height:6px; line-height:6px; font-size:6px; background-color:#2fa855; border-radius:16px 16px 0 0;">&nbsp;</td>
+          </tr>
 
-        <tr>
-          <td style="padding:18px 48px 0;">
-            <div style="width:32px;height:2px;background:#c8922a;margin-bottom:18px;"></div>
-            <p style="margin:0;font-size:15px;color:#3a3f4e;line-height:1.7;">
-              Tu portal de inversiones <strong style="color:#0a1f4a;">AvanceCorp</strong> ya está listo.
-              Desde aquí podrás consultar tus contratos, pagos, novedades y documentos en cualquier momento.
-            </p>
-          </td>
-        </tr>
+          <tr>
+            <td style="background-color:#ffffff; border-radius:0 0 16px 16px; border:1px solid #e4e9f2; border-top:0;">
 
-        <tr>
-          <td style="padding:28px 48px 0;">
-            <table width="100%" cellpadding="0" cellspacing="0" style="background:#f7f5ef;border:1px solid #e8e0c8;border-radius:6px;">
-              <tr>
-                <td style="padding:20px 22px 6px;">
-                  <div style="font-size:10px;color:#8a7340;letter-spacing:0.18em;font-weight:700;text-transform:uppercase;margin-bottom:14px;">Tus datos de acceso</div>
-                  <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#1a1f2e;">
-                    <tr>
-                      <td style="padding:6px 0;width:120px;color:#8a8780;font-size:12px;">Correo</td>
-                      <td style="padding:6px 0;font-weight:600;font-family:'SF Mono','Menlo','Consolas',monospace;word-break:break-all;">${correo}</td>
-                    </tr>
-                    <tr>
-                      <td style="padding:6px 0;width:120px;color:#8a8780;font-size:12px;border-top:1px solid #e8e0c8;">${escapeHtml(labelPwd)}</td>
-                      <td style="padding:6px 0;font-weight:700;font-family:'SF Mono','Menlo','Consolas',monospace;color:#0a1f4a;border-top:1px solid #e8e0c8;">${pwd}</td>
-                    </tr>
-                  </table>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:0 22px 18px;">
-                  <div style="font-size:11px;color:#8a7340;line-height:1.5;">
-                    ${escapeHtml(avisoPwd)}
-                  </div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="padding:34px 24px 4px 24px;">
+                    <img src="https://miavance.com/img/avance-logo-full.png" width="164" alt="Avance Corp — Tu mejor opción de inversión" style="display:block; width:164px; max-width:164px; height:auto;">
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding:2px 24px 4px 24px;">
+                    <span style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:10px; font-weight:700; letter-spacing:0.22em; color:#1f8a4a; text-transform:uppercase;">Portal de Inversiones</span>
+                  </td>
+                </tr>
+              </table>
 
-        <tr>
-          <td style="padding:32px 48px 8px;text-align:center;">
-            <table cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
-              <tr>
-                <td style="background:#0a1f4a;">
-                  <a href="${PORTAL_URL}" style="display:inline-block;padding:16px 38px;color:#c8922a;text-decoration:none;font-size:14px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;border:1px solid #c8922a;">
-                    Acceder al portal
-                  </a>
-                </td>
-              </tr>
-            </table>
-            <div style="font-size:12px;color:#8a8780;margin-top:12px;">${escapeHtml(PORTAL_URL)}</div>
-          </td>
-        </tr>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" align="center" style="padding:22px 40px 0 40px;">
+                    <p style="margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:1.4; color:#8b95ac; letter-spacing:0.04em;">Te damos la bienvenida</p>
+                    <h1 class="ac-h1" style="margin:6px 0 0 0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:27px; line-height:1.22; font-weight:800; letter-spacing:-0.02em; color:#0f1e3d;">
+                      Hola ${nombre} 👋
+                    </h1>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ac-px" align="center" style="padding:12px 44px 0 44px;">
+                    <p style="margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:15px; line-height:1.65; color:#5a6480;">
+                      Tu <strong style="color:#3a4a6b;">Portal de Inversiones</strong> ya está listo. Todo tu dinero trabajando, en un solo lugar y a un toque de distancia.
+                    </p>
+                  </td>
+                </tr>
+              </table>
 
-        <tr>
-          <td style="padding:36px 48px 0;">
-            <div style="width:32px;height:2px;background:#c8922a;margin-bottom:16px;"></div>
-            <h2 style="margin:0 0 12px;font-size:17px;color:#0a1f4a;font-weight:700;letter-spacing:-0.01em;">
-              ¿Cómo instalo la app en mi celular?
-            </h2>
-            <p style="margin:0 0 16px;font-size:14px;color:#3a3f4e;line-height:1.7;">
-              Puedes usar el portal como una aplicación nativa en tu teléfono. Sigue estos 3 pasos:
-            </p>
-            <table width="100%" cellpadding="0" cellspacing="0" style="font-size:14px;color:#3a3f4e;line-height:1.65;">
-              <tr>
-                <td style="padding:8px 0;vertical-align:top;width:32px;">
-                  <div style="width:24px;height:24px;background:#0a1f4a;color:#c8922a;border-radius:50%;text-align:center;font-weight:700;font-size:12px;line-height:24px;">1</div>
-                </td>
-                <td style="padding:8px 0 8px 12px;">
-                  Entra a <a href="${PORTAL_URL}" style="color:#0a1f4a;font-weight:600;text-decoration:underline;">miavance.com</a> desde el navegador de tu celular (Safari en iPhone, Chrome en Android).
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:8px 0;vertical-align:top;width:32px;">
-                  <div style="width:24px;height:24px;background:#0a1f4a;color:#c8922a;border-radius:50%;text-align:center;font-weight:700;font-size:12px;line-height:24px;">2</div>
-                </td>
-                <td style="padding:8px 0 8px 12px;">
-                  Toca el ícono <strong>Compartir</strong> (iPhone) o el menú <strong>de 3 puntos</strong> (Android).
-                </td>
-              </tr>
-              <tr>
-                <td style="padding:8px 0;vertical-align:top;width:32px;">
-                  <div style="width:24px;height:24px;background:#0a1f4a;color:#c8922a;border-radius:50%;text-align:center;font-weight:700;font-size:12px;line-height:24px;">3</div>
-                </td>
-                <td style="padding:8px 0 8px 12px;">
-                  Elige <strong>"Añadir a inicio"</strong> y listo: el portal aparecerá como una app en tu pantalla.
-                </td>
-              </tr>
-            </table>
-            <p style="margin:18px 0 0;font-size:13px;color:#3a3f4e;line-height:1.6;">
-              Guía detallada paso a paso:
-              <a href="${GUIA_INSTALACION_URL}" style="color:#0a1f4a;font-weight:600;text-decoration:underline;">${escapeHtml(GUIA_INSTALACION_URL)}</a>
-            </p>
-          </td>
-        </tr>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" style="padding:24px 40px 0 40px;">
+                    <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:10px; font-weight:700; letter-spacing:0.16em; color:#1f8a4a; text-transform:uppercase; padding-bottom:12px;">Con tu portal puedes</div>
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; color:#3a4a6b; line-height:1.5;">
+                      <tr>
+                        <td width="30" valign="top" style="padding:6px 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="22" height="22" align="center" valign="middle" style="width:22px; height:22px; background-color:#2fa855; border-radius:50%; color:#ffffff; font-size:12px; font-weight:700; line-height:22px;">&#10003;</td></tr></table>
+                        </td>
+                        <td valign="middle" style="padding:6px 0 6px 10px;">Consultar tus <strong style="color:#0f1e3d;">contratos y rendimientos</strong> al día</td>
+                      </tr>
+                      <tr>
+                        <td width="30" valign="top" style="padding:6px 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="22" height="22" align="center" valign="middle" style="width:22px; height:22px; background-color:#2fa855; border-radius:50%; color:#ffffff; font-size:12px; font-weight:700; line-height:22px;">&#10003;</td></tr></table>
+                        </td>
+                        <td valign="middle" style="padding:6px 0 6px 10px;">Seguir tu <strong style="color:#0f1e3d;">cronograma de pagos</strong> y tus abonos</td>
+                      </tr>
+                      <tr>
+                        <td width="30" valign="top" style="padding:6px 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="22" height="22" align="center" valign="middle" style="width:22px; height:22px; background-color:#2fa855; border-radius:50%; color:#ffffff; font-size:12px; font-weight:700; line-height:22px;">&#10003;</td></tr></table>
+                        </td>
+                        <td valign="middle" style="padding:6px 0 6px 10px;">Acceder a tus <strong style="color:#0f1e3d;">documentos y novedades</strong> cuando quieras</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
 
-        <tr>
-          <td style="padding:32px 48px 8px;">
-            <div style="border-top:1px solid #e8e3d4;padding-top:20px;font-size:13px;color:#3a3f4e;line-height:1.7;">
-              Si tienes alguna duda, tu asesor asignado te contactará en los próximos días.
-              También puedes escribirnos a <a href="mailto:info@miavance.com" style="color:#0a1f4a;font-weight:600;text-decoration:none;">info@miavance.com</a>.
-            </div>
-          </td>
-        </tr>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" style="padding:26px 40px 0 40px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f7f9fc; border:1px solid #e4e9f2; border-radius:14px;">
+                      <tr>
+                        <td style="padding:20px 22px 4px 22px;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td width="26" valign="middle" style="padding-right:8px;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="26" height="26" align="center" valign="middle" style="width:26px; height:26px; background-color:#0f1e3d; border-radius:7px; color:#ffffff; font-size:13px; line-height:26px;">&#128273;</td></tr></table>
+                              </td>
+                              <td valign="middle" style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:11px; font-weight:700; letter-spacing:0.14em; color:#0f1e3d; text-transform:uppercase;">Tus datos de acceso</td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:12px 22px 0 22px;">
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                            <tr>
+                              <td style="padding:0 0 4px 0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:10px; font-weight:700; letter-spacing:0.1em; color:#8b95ac; text-transform:uppercase;">Correo</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 0 14px 0; font-family:'Consolas','Menlo',monospace; font-size:15px; font-weight:600; color:#0f1e3d; word-break:break-all;">${correo}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0; border-top:1px solid #e4e9f2;">&nbsp;</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 0 6px 0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:10px; font-weight:700; letter-spacing:0.1em; color:#8b95ac; text-transform:uppercase;">${escapeHtml(labelPwd)}</td>
+                            </tr>
+                            <tr>
+                              <td style="padding:0 0 2px 0;">
+                                <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td style="background-color:#eaf6ef; border-radius:8px; padding:8px 14px; font-family:'Consolas','Menlo',monospace; font-size:17px; font-weight:700; color:#1f8a4a; letter-spacing:0.06em;">${pwd}</td></tr></table>
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                      <tr>
+                        <td style="padding:14px 22px 18px 22px;">
+                          <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#ffffff; border:1px solid #e8ecf4; border-radius:8px;">
+                            <tr>
+                              <td style="padding:11px 14px; border-left:4px solid #2fa855; border-radius:8px; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:1.55; color:#5a6480;">
+                                ${escapeHtml(avisoPwd)}
+                              </td>
+                            </tr>
+                          </table>
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
 
-        <tr>
-          <td style="background:#0a1f4a;padding:32px 48px;">
-            <table width="100%" cellpadding="0" cellspacing="0">
-              <tr>
-                <td>
-                  <div style="font-size:13px;color:#c8922a;font-weight:700;letter-spacing:0.06em;margin-bottom:6px;">AVANCE CORP S.A.C.</div>
-                  <div style="font-size:11px;color:#8a8a8a;line-height:1.7;">
-                    RUC 20611392088<br>
-                    San Isidro &middot; Lima &middot; Per&uacute;<br>
-                    <a href="mailto:info@miavance.com" style="color:#c8922a;text-decoration:none;">info@miavance.com</a> &nbsp;&middot;&nbsp;
-                    <a href="${PORTAL_URL}" style="color:#c8922a;text-decoration:none;">miavance.com</a>
-                  </div>
-                </td>
-              </tr>
-              <tr>
-                <td style="padding-top:20px;">
-                  <div style="font-size:10px;color:#5a5a5a;line-height:1.6;padding-top:16px;border-top:1px solid #1a2f5a;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-btn" align="center" style="padding:26px 40px 6px 40px;">
+                    <!--[if mso]>
+                    <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="${PORTAL_URL}" style="height:52px;v-text-anchor:middle;width:300px;" arcsize="20%" strokecolor="#0f1e3d" fillcolor="#0f1e3d">
+                      <w:anchorlock/>
+                      <center style="color:#ffffff;font-family:Arial,sans-serif;font-size:16px;font-weight:bold;">Acceder al portal &#8594;</center>
+                    </v:roundrect>
+                    <![endif]-->
+                    <!--[if !mso]><!-- -->
+                    <a href="${PORTAL_URL}" target="_blank" style="display:inline-block; background-color:#0f1e3d; background-image:linear-gradient(135deg,#16294d 0%,#0f1e3d 100%); color:#ffffff; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:16px; font-weight:700; line-height:52px; text-align:center; text-decoration:none; padding:0 42px; border-radius:12px; letter-spacing:0.01em; box-shadow:0 8px 20px rgba(15,30,61,0.22);">
+                      Acceder al portal &#8594;
+                    </a>
+                    <!--<![endif]-->
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ac-px" align="center" style="padding:0 40px;">
+                    <p style="margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:1.5; color:#8b95ac;">miavance.com</p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" style="padding:28px 40px 0 40px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"><tr><td style="height:1px; line-height:1px; font-size:1px; background-color:#e8ecf4;">&nbsp;</td></tr></table>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" style="padding:26px 40px 0 40px;">
+                    <div style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:10px; font-weight:700; letter-spacing:0.16em; color:#1f8a4a; text-transform:uppercase; padding-bottom:8px;">En tu celular</div>
+                    <h2 style="margin:0 0 6px 0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:17px; font-weight:800; letter-spacing:-0.01em; color:#0f1e3d;">
+                      Instala el portal como una app
+                    </h2>
+                    <p style="margin:0 0 16px 0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.65; color:#5a6480;">
+                      Tenlo siempre a mano, como una aplicación. Solo 3 pasos:
+                    </p>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ac-px" style="padding:0 40px 0 40px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; color:#3a4a6b; line-height:1.6;">
+                      <tr>
+                        <td width="34" valign="top" style="padding:7px 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="24" height="24" align="center" valign="middle" style="width:24px; height:24px; background-color:#0f1e3d; color:#ffffff; border-radius:50%; font-size:12px; font-weight:700; line-height:24px;">1</td></tr></table>
+                        </td>
+                        <td valign="top" style="padding:7px 0 7px 10px;">
+                          Entra a <a href="${PORTAL_URL}" target="_blank" style="color:#1f8a4a; font-weight:600; text-decoration:underline;">miavance.com</a> desde el navegador de tu celular (Safari en iPhone, Chrome en Android).
+                        </td>
+                      </tr>
+                      <tr>
+                        <td width="34" valign="top" style="padding:7px 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="24" height="24" align="center" valign="middle" style="width:24px; height:24px; background-color:#0f1e3d; color:#ffffff; border-radius:50%; font-size:12px; font-weight:700; line-height:24px;">2</td></tr></table>
+                        </td>
+                        <td valign="top" style="padding:7px 0 7px 10px;">
+                          Toca el ícono <strong style="color:#0f1e3d;">Compartir</strong> (iPhone) o el menú de <strong style="color:#0f1e3d;">3 puntos</strong> (Android).
+                        </td>
+                      </tr>
+                      <tr>
+                        <td width="34" valign="top" style="padding:7px 0;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0"><tr><td width="24" height="24" align="center" valign="middle" style="width:24px; height:24px; background-color:#0f1e3d; color:#ffffff; border-radius:50%; font-size:12px; font-weight:700; line-height:24px;">3</td></tr></table>
+                        </td>
+                        <td valign="top" style="padding:7px 0 7px 10px;">
+                          Elige <strong style="color:#0f1e3d;">"Añadir a inicio"</strong> y listo: el portal aparecerá como una app en tu pantalla.
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+                <tr>
+                  <td class="ac-px" style="padding:14px 40px 0 40px;">
+                    <p style="margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:1.6; color:#5a6480;">
+                      Guía detallada paso a paso: <a href="${GUIA_INSTALACION_URL}" target="_blank" style="color:#1f8a4a; font-weight:600; text-decoration:underline;">miavance.com/instalar</a>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" style="padding:26px 40px 0 40px;">
+                    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f4f7fb; border-radius:12px;">
+                      <tr>
+                        <td style="padding:16px 18px; border-left:4px solid #2fa855; border-radius:12px; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:13px; line-height:1.6; color:#5a6480;">
+                          <strong style="color:#3a4a6b;">¿Tienes dudas?</strong> Tu asesor asignado te contactará en los próximos días. También puedes escribirnos a <a href="mailto:info@miavance.com" style="color:#1f8a4a; font-weight:600; text-decoration:none;">info@miavance.com</a>.
+                        </td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td class="ac-px" style="padding:22px 40px 34px 40px;">
+                    <p style="margin:0; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:14px; line-height:1.6; color:#5a6480;">
+                      Un saludo,<br>
+                      <strong style="color:#0f1e3d;">Equipo de Avance Corp</strong>
+                    </p>
+                  </td>
+                </tr>
+              </table>
+
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:24px 24px 8px 24px;">
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" style="font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:12px; line-height:1.7; color:#8b95ac;">
+                    <strong style="color:#5a6480;">Avance Corp S.A.C.</strong> &nbsp;&middot;&nbsp; RUC 20611392088<br>
+                    San Isidro, Lima &mdash; Per&uacute; &nbsp;&middot;&nbsp; Grupo MasCapital<br>
+                    <a href="mailto:info@miavance.com" target="_blank" style="color:#1f8a4a; text-decoration:none; font-weight:600;">info@miavance.com</a> &nbsp;&middot;&nbsp;
+                    <a href="${PORTAL_URL}" target="_blank" style="color:#1f8a4a; text-decoration:none; font-weight:600;">miavance.com</a>
+                  </td>
+                </tr>
+                <tr>
+                  <td align="center" style="padding-top:14px; font-family:'Segoe UI',Roboto,Helvetica,Arial,sans-serif; font-size:11px; line-height:1.6; color:#aab3c6;">
                     Recibiste este correo porque acabas de ser registrado(a) como cliente de Avance Corp S.A.C.<br>
-                    Comunicaci&oacute;n institucional. Para cualquier consulta usa los canales oficiales arriba.
-                  </div>
-                </td>
-              </tr>
-            </table>
-          </td>
-        </tr>
+                    &copy; 2026 Avance Corp S.A.C. Todos los derechos reservados.
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
 
-      </table>
-    </td></tr>
+        </table>
+
+      </td>
+    </tr>
   </table>
+
 </body>
 </html>`;
 }

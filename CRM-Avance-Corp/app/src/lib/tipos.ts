@@ -164,4 +164,18 @@ export interface Yo {
   nombre_completo: string
   rol: Rol
   demo: boolean
+  /**
+   * Si su rol del PORTAL pasa el chequeo de ROL de `public.crear_contrato`
+   * (espejo de `es_analista() OR es_admin()`). La fuerza de ventas es `analista`
+   * y pasa; gerencia es `directorio` y no.
+   *
+   * OJO, dos límites que NO hay que olvidar:
+   * 1. `crear_contrato` pide ADEMÁS que el cliente sea de tu cartera. Este flag
+   *    NO lo cubre (depende del lead) — ver `seraMiCliente` en lead-drawer.
+   * 2. NO es una garantía del servidor sobre el alta de CLIENTES: la edge
+   *    `crm-convertir-lead` autoriza por `rol_crm` y jamás mira `perfiles.rol`,
+   *    así que "gerencia no da de alta" hoy vive SOLO aquí, en el navegador.
+   *    Sirve para no ofrecer lo que fallaría después, no como control de acceso.
+   */
+  puede_contratar: boolean
 }

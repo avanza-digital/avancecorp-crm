@@ -1,0 +1,513 @@
+// Gráficas ejecutivas de GERENCIA (fila nueva del panel Hoy) — recharts vía el
+// wrapper ui/chart. Cuatro vistas del negocio de contratos del portal:
+//   (a) capital colocado por mes (apilado por categoría) · (b) pagos:
+//   pagado vs vencido · (c) altas por analista (top-N) · (d) vencimientos.
+//
+// FUENTES (nunca mezcladas):
+//  - Sesión REAL: 4 RPCs crm.metricas_*_fn vía TanStack Query (enabled solo en
+//    real). El ámbito lo resuelve el SERVIDOR. Skeleton al cargar, error con
+//    reintento por tarjeta y estado vacío HONESTO (regla A3: sin datos no se
+//    pinta nada inventado).
+//  - Sesión DEMO: agregados derivados en cliente de las fixtures existentes
+//    (lib/demo-metricas), cargados por import() dinámico gated (patrón
+//    store.tsx ↔ demo.ts) → cero red y cero fuga al bundle de prod.
+//
+// Reglas de marca: SIN verde; navy reservado (aquí no se usa); PEN y USD JAMÁS
+// se suman en una serie — cada gráfica monetaria pinta UNA moneda con tabs.
+// Paleta apilada validada (dataviz, pares adyacentes, deutan/protan/tritan):
+// azul #2563eb → ámbar #d97706 → violeta #7c3aed → cian #0891b2.
+import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  LabelList,
+  XAxis,
+  YAxis,
+} from 'recharts'
+import {
+  CalendarClock,
+  ChartColumnStacked,
+  HandCoins,
+  RotateCcw,
+  UserRoundPlus,
+  type LucideIcon,
+} from 'lucide-react'
+import { Card, CardContent } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
+import { Skeleton } from '@/components/ui/skeleton'
+import {
+  ChartContainer,
+  ChartLegend,
+  ChartLegendContent,
+  ChartTooltip,
+  ChartTooltipContent,
+  type ChartConfig,
+} from '@/components/ui/chart'
+import { SectionHead } from '@/components/common/section-head'
+import { useAuth } from '@/lib/auth-context'
+import { cn } from '@/lib/utils'
+import { money, type Moneda } from '@/lib/format'
+import { SEMAFORO } from '@/lib/semaforo'
+import { registrarError } from '@/lib/observabilidad'
+import {
+  monedasConDatos,
+  pivotCapitalPorMes,
+  pivotPagosPorMes,
+  pivotVencimientosPorMes,
+  topAltasPorAnalista,
+  type FilaAltasAnalista,
+  type FilaCapitalMes,
+  type FilaPagosMes,
+  type FilaVencimientos,
+} from '@/lib/metricas'
+import {
+  useMetricasAltasAnalista,
+  useMetricasCapitalMes,
+  useMetricasPagosMes,
+  useMetricasVencimientos,
+} from '@/data/crm-queries'
+
+// Horizonte de vencimientos: 12 meses (la RPC acepta p_dias; el default de 90
+// dejaría la gráfica casi siempre vacía con contratos anuales — para planear
+// renovaciones gerencia necesita ver el año completo).
+const DIAS_VENCIMIENTOS = 365
+
+// ── Configs de series (labels + colores de la paleta de AVANCE) ────────────────
+// Apilado por categoría — orden de stack = orden validado de adyacencia.
+const CFG_CAPITAL = {
+  nuevo: { label: 'Nuevo', color: 'var(--chart-1)' }, // azul
+  renovacion: { label: 'Renovación', color: 'var(--chart-3)' }, // ámbar
+  upgrade: { label: 'Upgrade', color: 'var(--chart-2)' }, // violeta
+  sin_categoria: { label: 'Sin categoría', color: 'var(--chart-4)' }, // cian (categoria null → '—')
+} satisfies ChartConfig
+
+const CATEGORIAS_STACK = ['nuevo', 'renovacion', 'upgrade', 'sin_categoria'] as const
+
+// Semáforo del repo: pagado en azul (ok) y vencido en rojo (crítico). El navy
+// queda reservado a convertido/ganado y aquí no se toca.
+const CFG_PAGOS = {
+  pagado: { label: 'Pagado', color: SEMAFORO.ok },
+  vencido: { label: 'Vencido', color: SEMAFORO.critico },
+} satisfies ChartConfig
+
+const CFG_ALTAS = {
+  altas: { label: 'Altas', color: 'var(--chart-1)' },
+} satisfies ChartConfig
+
+const CFG_VENCIMIENTOS = {
+  capital: { label: 'Capital por vencer', color: 'var(--chart-3)' }, // ámbar: atención
+} satisfies ChartConfig
+
+// ── Piezas compartidas ─────────────────────────────────────────────────────────
+
+type EstadoGrafica = 'cargando' | 'error' | 'vacio' | 'ok'
+
+function estadoDe(cargando: boolean, error: boolean, vacio: boolean): EstadoGrafica {
+  if (cargando) return 'cargando'
+  if (error) return 'error'
+  if (vacio) return 'vacio'
+  return 'ok'
+}
+
+/** Tabs PEN/USD (solo si hay datos en ambas — jamás se suman en una serie). */
+function TabsMoneda({
+  monedas,
+  valor,
+  onCambio,
+}: {
+  monedas: Moneda[]
+  valor: Moneda
+  onCambio: (m: Moneda) => void
+}): JSX.Element | null {
+  if (monedas.length === 0) return null
+  if (monedas.length === 1) {
+    return <span className="text-xs font-bold text-muted-foreground">{monedas[0]}</span>
+  }
+  return (
+    <div role="group" aria-label="Moneda" className="flex gap-1">
+      {monedas.map((m) => (
+        <button
+          key={m}
+          type="button"
+          onClick={() => onCambio(m)}
+          aria-pressed={valor === m}
+          className={cn(
+            'rounded-full border px-2.5 py-0.5 text-[11px] font-bold transition-colors',
+            valor === m
+              ? 'border-transparent bg-primary text-primary-foreground'
+              : 'border-border text-muted-foreground hover:bg-muted/60',
+          )}
+        >
+          {m}
+        </button>
+      ))}
+    </div>
+  )
+}
+
+/** Card de gráfica con los 4 estados: skeleton / error+reintento / vacío / chart. */
+function CardGrafica({
+  icon,
+  title,
+  right,
+  nota,
+  estado,
+  onReintentar,
+  className,
+  testid,
+  children,
+}: {
+  icon: LucideIcon
+  title: string
+  right?: ReactNode | undefined
+  /** Pie de lectura: qué significa cada serie/período (contexto honesto). */
+  nota?: string | undefined
+  estado: EstadoGrafica
+  onReintentar?: (() => void) | undefined
+  className?: string | undefined
+  testid: string
+  children?: ReactNode | undefined
+}): JSX.Element {
+  return (
+    <Card className={className} data-testid={testid}>
+      <SectionHead icon={icon} title={title} right={right} />
+      <CardContent className="pt-1">
+        {estado === 'cargando' && <Skeleton className="h-[240px] w-full" aria-busy />}
+        {estado === 'error' && (
+          <div className="flex h-[240px] flex-col items-center justify-center gap-3 text-center">
+            <p className="text-xs text-muted-foreground">
+              No se pudieron cargar las métricas. Revisa tu conexión y vuelve a intentarlo.
+            </p>
+            {onReintentar && (
+              <Button type="button" size="sm" variant="outline" onClick={onReintentar}>
+                <RotateCcw className="size-4" aria-hidden /> Reintentar
+              </Button>
+            )}
+          </div>
+        )}
+        {estado === 'vacio' && (
+          <p className="flex h-[240px] items-center justify-center px-6 text-center text-xs text-muted-foreground">
+            Aún sin datos suficientes para graficar.
+          </p>
+        )}
+        {estado === 'ok' && children}
+        {estado === 'ok' && nota && (
+          <p className="mt-2 text-[11px] text-muted-foreground">{nota}</p>
+        )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Fila de tooltip con monto en formato money es-PE (reemplaza el default). */
+function FilaTooltipMoney({
+  color,
+  etiqueta,
+  texto,
+}: {
+  color: string | undefined
+  etiqueta: string
+  texto: string
+}): JSX.Element {
+  return (
+    <>
+      <span
+        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
+        style={{ background: color ?? 'var(--muted-foreground)' }}
+      />
+      <div className="flex flex-1 items-center justify-between gap-3 leading-none">
+        <span className="text-muted-foreground">{etiqueta}</span>
+        <span className="font-mono font-medium tabular-nums text-foreground">{texto}</span>
+      </div>
+    </>
+  )
+}
+
+/** Nombres largos (jerárquicos, en mayúsculas) recortados para el eje Y. */
+function recortarNombre(valor: unknown): string {
+  const s = String(valor)
+  return s.length > 16 ? `${s.slice(0, 15)}…` : s
+}
+
+// Filas demo ya derivadas (shape idéntico al de las RPCs).
+interface FilasDemo {
+  capital: FilaCapitalMes[]
+  pagos: FilaPagosMes[]
+  altas: FilaAltasAnalista[]
+  vencimientos: FilaVencimientos[]
+}
+
+// ── Componente principal ───────────────────────────────────────────────────────
+
+export function GraficasGerencia(): JSX.Element {
+  const { yo } = useAuth()
+  const esDemo = yo?.demo === true
+  // Solo una sesión autenticada real consulta las RPCs (enabled): en demo las
+  // queries quedan inertes y NINGÚN request sale hacia Supabase.
+  const sesionReal = !!yo && !esDemo
+
+  const [filasDemo, setFilasDemo] = useState<FilasDemo | null>(null)
+  useEffect(() => {
+    if (!esDemo) return undefined
+    let vivo = true
+    // Guard literal (mismo que store.tsx/contratos.tsx): en prod DEV es false →
+    // Rolldown elimina el chunk de fixtures/derivación del bundle.
+    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
+      void import('@/lib/demo-metricas')
+        .then((m) => {
+          if (!vivo) return
+          setFilasDemo({
+            capital: m.demoMetricasCapitalMes(),
+            pagos: m.demoMetricasPagosMes(),
+            altas: m.demoMetricasAltasAnalista(),
+            vencimientos: m.demoMetricasVencimientos(DIAS_VENCIMIENTOS),
+          })
+        })
+        .catch((error: unknown) => {
+          if (!vivo) return
+          registrarError('demo.metricas_carga_fallida', error)
+          // Fixtures inaccesibles: estados vacíos honestos, jamás cifras inventadas.
+          setFilasDemo({ capital: [], pagos: [], altas: [], vencimientos: [] })
+        })
+    }
+    return () => {
+      vivo = false
+    }
+  }, [esDemo])
+
+  const qCapital = useMetricasCapitalMes(sesionReal)
+  const qPagos = useMetricasPagosMes(sesionReal)
+  const qAltas = useMetricasAltasAnalista(sesionReal)
+  const qVencimientos = useMetricasVencimientos(sesionReal, DIAS_VENCIMIENTOS)
+
+  // Fuente unificada por gráfica: filas demo derivadas o data de la RPC.
+  // useMemo con el `?? []` DENTRO: el fallback debe ser una referencia estable
+  // o los useMemo de los pivots recalcularían en cada render (aviso del lint).
+  const filasCapital = useMemo(
+    () => (esDemo ? (filasDemo?.capital ?? []) : (qCapital.data ?? [])),
+    [esDemo, filasDemo, qCapital.data],
+  )
+  const filasAltas = useMemo(
+    () => (esDemo ? (filasDemo?.altas ?? []) : (qAltas.data ?? [])),
+    [esDemo, filasDemo, qAltas.data],
+  )
+  const filasVencimientos = useMemo(
+    () => (esDemo ? (filasDemo?.vencimientos ?? []) : (qVencimientos.data ?? [])),
+    [esDemo, filasDemo, qVencimientos.data],
+  )
+  // La gráfica de pagos solo habla de pagado/vencido: las filas 'pendiente'/
+  // 'trasladado' no deben abrir tabs de moneda vacíos ni fingir que "hay data".
+  const filasPagos = useMemo(() => {
+    const crudas = esDemo ? (filasDemo?.pagos ?? []) : (qPagos.data ?? [])
+    return crudas.filter((f) => f.estado === 'pagado' || f.estado === 'vencido')
+  }, [esDemo, filasDemo, qPagos.data])
+
+  const demoCargando = esDemo && filasDemo == null
+
+  const estadoCapital = esDemo
+    ? estadoDe(demoCargando, false, filasCapital.length === 0)
+    : estadoDe(qCapital.isPending, qCapital.isError, filasCapital.length === 0)
+  const estadoPagos = esDemo
+    ? estadoDe(demoCargando, false, filasPagos.length === 0)
+    : estadoDe(qPagos.isPending, qPagos.isError, filasPagos.length === 0)
+  const estadoAltas = esDemo
+    ? estadoDe(demoCargando, false, filasAltas.length === 0)
+    : estadoDe(qAltas.isPending, qAltas.isError, filasAltas.length === 0)
+  const estadoVencimientos = esDemo
+    ? estadoDe(demoCargando, false, filasVencimientos.length === 0)
+    : estadoDe(qVencimientos.isPending, qVencimientos.isError, filasVencimientos.length === 0)
+
+  // Moneda activa por gráfica (por defecto la primera con datos, PEN primero).
+  const [monedaCapital, setMonedaCapital] = useState<Moneda>('PEN')
+  const [monedaPagos, setMonedaPagos] = useState<Moneda>('PEN')
+  const [monedaVencimientos, setMonedaVencimientos] = useState<Moneda>('PEN')
+
+  const monedasCapital = useMemo(() => monedasConDatos(filasCapital), [filasCapital])
+  const monedasPagos = useMemo(() => monedasConDatos(filasPagos), [filasPagos])
+  const monedasVencimientos = useMemo(() => monedasConDatos(filasVencimientos), [filasVencimientos])
+
+  const monCapital = monedasCapital.includes(monedaCapital) ? monedaCapital : (monedasCapital[0] ?? 'PEN')
+  const monPagos = monedasPagos.includes(monedaPagos) ? monedaPagos : (monedasPagos[0] ?? 'PEN')
+  const monVencimientos = monedasVencimientos.includes(monedaVencimientos)
+    ? monedaVencimientos
+    : (monedasVencimientos[0] ?? 'PEN')
+
+  const puntosCapital = useMemo(
+    () => pivotCapitalPorMes(filasCapital, monCapital),
+    [filasCapital, monCapital],
+  )
+  const puntosPagos = useMemo(
+    () => pivotPagosPorMes(filasPagos, monPagos),
+    [filasPagos, monPagos],
+  )
+  const rankingAltas = useMemo(() => topAltasPorAnalista(filasAltas, 8), [filasAltas])
+  const puntosVencimientos = useMemo(
+    () => pivotVencimientosPorMes(filasVencimientos, monVencimientos),
+    [filasVencimientos, monVencimientos],
+  )
+
+  // Solo se declaran (y salen en la leyenda) las categorías con capital real.
+  const categoriasPresentes = useMemo(
+    () => CATEGORIAS_STACK.filter((c) => puntosCapital.some((p) => p[c] > 0)),
+    [puntosCapital],
+  )
+
+  return (
+    <div className="grid gap-5 lg:grid-cols-3">
+      {/* (a) Capital colocado por mes — barras apiladas por categoría */}
+      <CardGrafica
+        icon={ChartColumnStacked}
+        title="Capital colocado por mes"
+        right={<TabsMoneda monedas={monedasCapital} valor={monCapital} onCambio={setMonedaCapital} />}
+        nota="Últimos 12 meses · capital de contratos registrados, apilado por categoría."
+        estado={estadoCapital}
+        onReintentar={esDemo ? undefined : () => void qCapital.refetch()}
+        className="lg:col-span-2"
+        testid="grafica-capital"
+      >
+        <ChartContainer config={CFG_CAPITAL} className="h-[240px] w-full">
+          <BarChart accessibilityLayer data={puntosCapital} margin={{ top: 8, right: 8, left: 4 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis dataKey="etiqueta" tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name, item) => (
+                    <FilaTooltipMoney
+                      color={item.color}
+                      etiqueta={String(CFG_CAPITAL[name as keyof typeof CFG_CAPITAL]?.label ?? name)}
+                      texto={money(Number(value), monCapital)}
+                    />
+                  )}
+                />
+              }
+            />
+            <ChartLegend content={<ChartLegendContent />} />
+            {categoriasPresentes.map((c, i) => (
+              <Bar
+                key={c}
+                dataKey={c}
+                stackId="capital"
+                fill={`var(--color-${c})`}
+                maxBarSize={28}
+                radius={i === categoriasPresentes.length - 1 ? [4, 4, 0, 0] : [0, 0, 0, 0]}
+              />
+            ))}
+          </BarChart>
+        </ChartContainer>
+      </CardGrafica>
+
+      {/* (c) Altas por analista — barras horizontales top-N */}
+      <CardGrafica
+        icon={UserRoundPlus}
+        title="Altas por analista"
+        right={<span className="text-xs text-muted-foreground">últimos 12 meses</span>}
+        nota="Clientes dados de alta en el portal, top 8 del período."
+        estado={estadoAltas}
+        onReintentar={esDemo ? undefined : () => void qAltas.refetch()}
+        testid="grafica-altas"
+      >
+        <ChartContainer config={CFG_ALTAS} className="h-[240px] w-full">
+          <BarChart
+            accessibilityLayer
+            data={rankingAltas}
+            layout="vertical"
+            margin={{ top: 4, right: 28, left: 4 }}
+          >
+            <XAxis type="number" hide />
+            <YAxis
+              type="category"
+              dataKey="nombre"
+              tickLine={false}
+              axisLine={false}
+              width={124}
+              tickFormatter={recortarNombre}
+            />
+            <ChartTooltip content={<ChartTooltipContent />} />
+            <Bar dataKey="altas" fill="var(--color-altas)" radius={[0, 4, 4, 0]} maxBarSize={22}>
+              <LabelList dataKey="altas" position="right" className="fill-muted-foreground" fontSize={11} />
+            </Bar>
+          </BarChart>
+        </ChartContainer>
+      </CardGrafica>
+
+      {/* (b) Pagos a inversionistas por mes */}
+      <CardGrafica
+        icon={HandCoins}
+        title="Pagos a inversionistas"
+        right={<TabsMoneda monedas={monedasPagos} valor={monPagos} onCambio={setMonedaPagos} />}
+        nota="Pagado = intereses del cronograma pagados en el mes · Vencido = intereses vencidos sin pago · No incluye retornos de capital."
+        estado={estadoPagos}
+        onReintentar={esDemo ? undefined : () => void qPagos.refetch()}
+        className="lg:col-span-2"
+        testid="grafica-pagos"
+      >
+        <ChartContainer config={CFG_PAGOS} className="h-[240px] w-full">
+          <BarChart accessibilityLayer data={puntosPagos} margin={{ top: 8, right: 8, left: 4 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis dataKey="etiqueta" tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, name, item) => (
+                    <FilaTooltipMoney
+                      color={item.color}
+                      etiqueta={String(CFG_PAGOS[name as keyof typeof CFG_PAGOS]?.label ?? name)}
+                      texto={money(Number(value), monPagos)}
+                    />
+                  )}
+                />
+              }
+            />
+            <ChartLegend content={<ChartLegendContent />} />
+            <Bar dataKey="pagado" fill="var(--color-pagado)" radius={[4, 4, 0, 0]} maxBarSize={18} />
+            <Bar dataKey="vencido" fill="var(--color-vencido)" radius={[4, 4, 0, 0]} maxBarSize={18} />
+          </BarChart>
+        </ChartContainer>
+      </CardGrafica>
+
+      {/* (d) Vencimientos próximos — capital por mes */}
+      <CardGrafica
+        icon={CalendarClock}
+        title="Vencimientos — 12 meses"
+        right={
+          <TabsMoneda
+            monedas={monedasVencimientos}
+            valor={monVencimientos}
+            onCambio={setMonedaVencimientos}
+          />
+        }
+        nota="Capital de contratos que vencen, mes a mes, para planear renovaciones."
+        estado={estadoVencimientos}
+        onReintentar={esDemo ? undefined : () => void qVencimientos.refetch()}
+        testid="grafica-vencimientos"
+      >
+        <ChartContainer config={CFG_VENCIMIENTOS} className="h-[240px] w-full">
+          <BarChart accessibilityLayer data={puntosVencimientos} margin={{ top: 8, right: 8, left: 4 }}>
+            <CartesianGrid vertical={false} strokeDasharray="3 3" />
+            <XAxis dataKey="etiqueta" tickLine={false} axisLine={false} tickMargin={8} />
+            <ChartTooltip
+              content={
+                <ChartTooltipContent
+                  formatter={(value, _name, item) => {
+                    const punto = item.payload as { contratos?: number } | undefined
+                    const n = punto?.contratos ?? 0
+                    return (
+                      <FilaTooltipMoney
+                        color={item.color}
+                        etiqueta={`${n} ${n === 1 ? 'contrato' : 'contratos'}`}
+                        texto={money(Number(value), monVencimientos)}
+                      />
+                    )
+                  }}
+                />
+              }
+            />
+            <Bar dataKey="capital" fill="var(--color-capital)" radius={[4, 4, 0, 0]} maxBarSize={28} />
+          </BarChart>
+        </ChartContainer>
+      </CardGrafica>
+    </div>
+  )
+}

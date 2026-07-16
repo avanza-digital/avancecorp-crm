@@ -14,6 +14,7 @@ import { Plus, Bell, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
+import { funcionesLeadsVisibles } from '@/lib/config'
 import { puedeEscribir } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
@@ -26,6 +27,8 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   pipeline: { t: 'Pipeline', s: 'Leads de inversión por etapa' },
   cartera: { t: 'Cartera', s: 'Todos tus leads y clientes captados' },
   agenda: { t: 'Agenda', s: 'Reuniones, llamadas y vencimientos' },
+  clientes: { t: 'Clientes', s: 'Tu cartera de clientes del portal' },
+  contratos: { t: 'Contratos', s: 'Inversiones y cronogramas de tu cartera' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
 }
@@ -60,6 +63,9 @@ export function Topbar({ vista }: { vista: Vista }) {
   const { ambito } = useCRMData()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const info = TITULOS[vista]
+  // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
+  // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true)
 
   // Aún no hay origen real de notificaciones: cuando exista, este número
   // vendrá de ahí y el punto de la campana volverá solo.
@@ -149,6 +155,7 @@ export function Topbar({ vista }: { vista: Vista }) {
       </div>
 
       <div className="flex items-center gap-2">
+        {leadsVisibles && (
         <div className="relative hidden md:block">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" />
           <input
@@ -225,6 +232,7 @@ export function Topbar({ vista }: { vista: Vista }) {
             </div>
           )}
         </div>
+        )}
 
         <Button
           variant="ghost"
@@ -243,7 +251,7 @@ export function Topbar({ vista }: { vista: Vista }) {
           )}
         </Button>
 
-        {puedeEscribir(yo?.rol) && (
+        {leadsVisibles && puedeEscribir(yo?.rol) && (
           <Button variant="accent" onClick={() => abrirNuevoLead()}>
             <Plus /> Nuevo lead
           </Button>

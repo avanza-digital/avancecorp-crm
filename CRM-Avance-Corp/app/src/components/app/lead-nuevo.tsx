@@ -176,7 +176,7 @@ function FormularioNuevoLead() {
       nota: nota.trim() || null,
     })
     if (res.ok && res.id) {
-      toast.success(`Lead creado (demo) — ${nombre.trim()}`)
+      toast.success(`Lead creado${yo?.demo ? ' (demo)' : ''} — ${nombre.trim()}`)
       abrirLead(res.id) // abrirLead ya cierra este modal
       return
     }

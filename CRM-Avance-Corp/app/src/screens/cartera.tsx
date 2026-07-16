@@ -268,9 +268,11 @@ export function Cartera() {
         </nav>
       )}
 
-      <p className="text-[11px] text-muted-foreground">
-        Cartera de demostración — pronto verás aquí a tus clientes reales, lista para crecer con la operación.
-      </p>
+      {yo?.demo && (
+        <p className="text-[11px] text-muted-foreground">
+          Cartera de demostración — pronto verás aquí a tus clientes reales, lista para crecer con la operación.
+        </p>
+      )}
     </div>
   )
 }

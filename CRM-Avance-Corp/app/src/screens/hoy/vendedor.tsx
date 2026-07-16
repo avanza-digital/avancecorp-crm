@@ -68,6 +68,8 @@ export function HoyVendedor(): JSX.Element {
   // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
   // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.
   const meta = objetivos.vendedor
+  // Sin meta configurada (objetivo 0): no inventamos cuotas — mostramos "por definir".
+  const sinMeta = meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0
   const conversion = mios.length > 0 ? Math.round((convertidos.length / mios.length) * 100) : 0
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
@@ -170,10 +172,25 @@ export function HoyVendedor(): JSX.Element {
             <SectionHead
               icon={Target}
               title="Tu meta del mes"
-              right={<span className="text-[11px] text-muted-foreground">objetivos demo</span>}
+              right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'objetivos demo' : 'objetivo mensual'}</span>}
             />
             <CardContent className="space-y-4 pt-0">
-              {[
+              {sinMeta && (
+                <div className="space-y-2">
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-xs font-semibold text-foreground/80">Capital en proceso (PEN)</p>
+                    <p className="text-xs font-bold tabular-nums">{moneyK(capPEN)}</p>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-2">
+                    <p className="text-xs font-semibold text-foreground/80">Ventas cerradas</p>
+                    <p className="text-xs font-bold tabular-nums">{convertidos.length}</p>
+                  </div>
+                  <p className="text-[11px] text-muted-foreground">
+                    Meta mensual por definir — cuando la establezcan, verás aquí tu avance.
+                  </p>
+                </div>
+              )}
+              {!sinMeta && [
                 {
                   label: 'Capital en proceso (PEN)',
                   pct: pctMeta(capPEN, meta.capitalObjetivo),
@@ -264,7 +281,7 @@ export function HoyVendedor(): JSX.Element {
       </div>
 
       <p className="text-[11px] text-muted-foreground">
-        Demo — ves únicamente tu propia cartera; cada asesor trabaja solo con sus leads.
+        {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada asesor trabaja solo con sus leads.
       </p>
     </div>
   )

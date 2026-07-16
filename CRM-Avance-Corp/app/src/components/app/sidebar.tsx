@@ -1,12 +1,13 @@
 import {
-  LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
+  LayoutDashboard, KanbanSquare, Users, Users2, FileText, CalendarDays, UsersRound, Settings, LogOut, Eye,
 } from 'lucide-react'
 import { can, ROL_LABEL, type Accion } from '@/lib/roles'
+import { funcionesLeadsVisibles } from '@/lib/config'
 import { useAuth } from '@/lib/auth-context'
 import { Avatar } from '@/components/ui/avatar'
 import { BrandLockup } from '@/components/app/brand'
 import { cn } from '@/lib/utils'
-import { escribirHash, type Vista } from '@/lib/router'
+import { escribirHash, esVistaLeads, type Vista } from '@/lib/router'
 
 interface NavItem {
   id: Vista
@@ -20,6 +21,8 @@ const NAV: NavItem[] = [
   { id: 'pipeline', label: 'Pipeline', icon: KanbanSquare },
   { id: 'cartera', label: 'Cartera', icon: Users },
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+  { id: 'clientes', label: 'Clientes', icon: Users2 },
+  { id: 'contratos', label: 'Contratos', icon: FileText },
   { id: 'equipo', label: 'Equipo', icon: UsersRound, cap: 'verEquipo' },
 ]
 
@@ -50,6 +53,9 @@ function NavButton({
 export function Sidebar({ vista }: { vista: Vista }) {
   const { yo, salir } = useAuth()
   const rol = yo?.rol
+  // Gate de leads (decisión de Miguel 2026-07-16): las vistas de leads solo se
+  // ofrecen en demo o cuando estén aprobadas. Espejo del guard de App.tsx.
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true)
 
   return (
     <aside
@@ -66,7 +72,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
         <p className="px-2 pb-1.5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45">
           Principal
         </p>
-        {NAV.filter((n) => !n.cap || can(rol, n.cap)).map((n) => (
+        {NAV.filter((n) => (leadsVisibles || !esVistaLeads(n.id)) && (!n.cap || can(rol, n.cap))).map((n) => (
           <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => escribirHash(n.id)} />
         ))}
 

@@ -1,4 +1,6 @@
 // Helpers de formato (multimoneda desde el día 1 — lección de VITANOVA).
+import { formatDateLocal, parseDateLocal } from './cronograma'
+
 export type Moneda = 'PEN' | 'USD'
 
 /** Símbolo por moneda — fuente única (no re-derivar `moneda === 'USD' ? … : …` en pantallas). */
@@ -31,9 +33,19 @@ export function primerNombre(nombre: string | null | undefined): string {
   return pila.charAt(0).toUpperCase() + pila.slice(1).toLowerCase()
 }
 
+/** Fecha date-only (sin hora): 'YYYY-MM-DD'. `new Date()` la leería como UTC. */
+const SOLO_FECHA = /^\d{4}-\d{2}-\d{2}$/
+
+/** Lee 'YYYY-MM-DD' en zona local; null si desborda (mes 13 → enero del año que viene). */
+function fechaLocalValida(s: string): Date | null {
+  const d = parseDateLocal(s)
+  if (Number.isNaN(d.getTime()) || formatDateLocal(d) !== s) return null
+  return d
+}
+
 export function fmtFecha(iso: string | null | undefined): string {
   if (!iso) return '—'
-  const d = new Date(iso)
-  if (Number.isNaN(d.getTime())) return '—'
+  const d = SOLO_FECHA.test(iso) ? fechaLocalValida(iso) : new Date(iso)
+  if (d == null || Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
 }

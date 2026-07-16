@@ -34,7 +34,25 @@ import type { Yo } from './tipos'
 
 import { DEMO_YO } from './auth-demo'
 
-async function resolverRol(cliente: ClienteCrm, userId: string): Promise<{ rol: Rol | null; nombre: string }> {
+/**
+ * Roles del PORTAL que pasan el chequeo de rol de `public.crear_contrato`
+ * — espejo de `es_analista() OR es_admin()`. Si cambia allá, cambia aquí
+ * (el servidor sigue siendo el que manda).
+ */
+const ROLES_PORTAL_QUE_CONTRATAN = ['analista', 'admin', 'superadmin']
+
+/**
+ * El demo no tiene rol de portal, así que se refleja la realidad del equipo:
+ * la fuerza de ventas (vendedor/supervisor) es 'analista' y da de alta;
+ * gerencia es 'directorio' y no. Antes el demo lo forzaba a `true` para todos
+ * y enseñaba a un gerente convirtiendo — lo contrario de la regla del negocio.
+ */
+const contrataEnDemo = (rol: Rol): boolean => rol === 'vendedor' || rol === 'supervisor'
+
+async function resolverRol(
+  cliente: ClienteCrm,
+  userId: string,
+): Promise<{ rol: Rol | null; nombre: string; puedeContratar: boolean }> {
   // 1) ¿Enrolado en crm.equipo? (requiere F0 aplicada + esquema crm expuesto)
   const { data: miembro, error: errorEquipo } = await cliente.schema('crm').from('equipo')
     .select('rol_crm, activo').eq('perfil_id', userId).maybeSingle()
@@ -49,19 +67,23 @@ async function resolverRol(cliente: ClienteCrm, userId: string): Promise<{ rol: 
       if (miembro.activo && !esRol(miembro.rol_crm)) {
         registrarAviso('auth.rol_crm_desconocido', { userId })
       }
-      return { rol: null, nombre: '' }
+      return { rol: null, nombre: '', puedeContratar: false }
     }
 
     // La cuenta del portal también debe seguir activa; equipo.activo por sí solo
     // no basta para mantener acceso a una cuenta deshabilitada.
     const { data: perfilMiembro, error: errorPerfilMiembro } = await cliente.from('perfiles')
-      .select('nombre_completo, activo').eq('id', userId).maybeSingle()
+      .select('nombre_completo, activo, rol').eq('id', userId).maybeSingle()
     if (errorPerfilMiembro) {
       registrarError('auth.resolver_rol.perfil_miembro', errorPerfilMiembro, { userId })
       throw new Error(ERROR_ACCESO)
     }
-    if (!perfilMiembro?.activo) return { rol: null, nombre: '' }
-    return { rol: miembro.rol_crm, nombre: perfilMiembro.nombre_completo ?? '' }
+    if (!perfilMiembro?.activo) return { rol: null, nombre: '', puedeContratar: false }
+    return {
+      rol: miembro.rol_crm,
+      nombre: perfilMiembro.nombre_completo ?? '',
+      puedeContratar: ROLES_PORTAL_QUE_CONTRATAN.includes(perfilMiembro.rol),
+    }
   }
 
   // 2) ¿Lector global del portal?
@@ -74,9 +96,13 @@ async function resolverRol(cliente: ClienteCrm, userId: string): Promise<{ rol: 
     throw new Error(ERROR_ACCESO)
   }
   if (perfil?.activo && ['directorio', 'admin', 'superadmin'].includes(perfil.rol)) {
-    return { rol: 'directorio', nombre: perfil.nombre_completo ?? '' }
+    return {
+      rol: 'directorio',
+      nombre: perfil.nombre_completo ?? '',
+      puedeContratar: ROLES_PORTAL_QUE_CONTRATAN.includes(perfil.rol),
+    }
   }
-  return { rol: null, nombre: '' }
+  return { rol: null, nombre: '', puedeContratar: false }
 }
 
 /**
@@ -95,12 +121,12 @@ function crearVerificador(cliente: ClienteCrm): () => Promise<ResultadoVerificac
     if (!data.user) return { tipo: 'sin_sesion' }
 
     const userId = data.user.id
-    const { rol, nombre } = await resolverRol(cliente, userId)
+    const { rol, nombre, puedeContratar } = await resolverRol(cliente, userId)
     if (!rol) {
       registrarAviso('auth.acceso_revocado_o_no_enrolado', { userId })
       return { tipo: 'no_enrolado', userId }
     }
-    return { tipo: 'acceso', userId, rol, nombre }
+    return { tipo: 'acceso', userId, rol, nombre, puedeContratar }
   }
 }
 
@@ -126,7 +152,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (esRol(dato.rol)) {
           const base = DEMO_YO[dato.rol]
           notificarAuthLimpia()
-          setYo({ ...base, rol: dato.rol, demo: true })
+          setYo({ ...base, rol: dato.rol, demo: true, puede_contratar: contrataEnDemo(dato.rol) })
           setError(null)
           setFase('listo')
           return
@@ -242,7 +268,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     guardarSesionDemo(JSON.stringify({ rol }))
     notificarAuthLimpia()
-    const identidad: Yo = { ...DEMO_YO[rol], rol, demo: true }
+    const identidad: Yo = { ...DEMO_YO[rol], rol, demo: true, puede_contratar: contrataEnDemo(rol) }
     yoRef.current = identidad
     setYo(identidad)
     setError(null)
