@@ -1,15 +1,18 @@
 // screens/equipo.tsx — Inteligencia de EQUIPO por rango (F1c).
 // Solo la ven supervisor/gerencia/directorio (App.tsx guarda la ruta):
-//  - Supervisor: cards de SUS vendedores (métricas + semáforo de actividad),
-//    bandeja "Por repartir" con acción de asignar y mini-cola del equipo.
+//  - Supervisor: cards densas de SUS vendedores (métricas + semáforo de
+//    actividad), bandeja "Por repartir" con acción de asignar y mini-cola.
 //  - Gerencia: un bloque por supervisor (comparativaEquipos como cabecera)
-//    con las cards de sus vendedores dentro; también puede repartir.
+//    con una TABLA comparativa de sus vendedores dentro (comparable columna
+//    a columna, que es lo que gerencia necesita); también puede repartir.
 //  - Directorio: la misma radiografía que gerencia, SOLO LECTURA (cero
 //    botones de acción).
-// Los números salen del ámbito jerárquico (useCRMData().ambito) + lib/inteligencia.
+// Los números salen del ámbito jerárquico (useCRMData().ambito) + lib/inteligencia,
+// SIEMPRE sobre actividadesDelAmbito (timeline ya recortado por el store — el
+// recorte lo garantiza el contrato del store, no la disciplina de esta pantalla).
 // Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
 // crítico · convertido = navy #111e3d.
-import { useState, type JSX } from 'react'
+import { useMemo, useState, type JSX, type ReactNode } from 'react'
 import { Activity, Inbox, ListTodo, ShieldCheck, Users, Wallet } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card, CardContent } from '@/components/ui/card'
@@ -20,6 +23,7 @@ import { Progress } from '@/components/ui/progress'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
@@ -32,6 +36,7 @@ import {
   comparativaEquipos,
   diasDesdeReferencia,
   esAbierto,
+  indexarUltimaActividad,
   metricasPorVendedor,
   type ItemCola,
   type MetricasVendedor,
@@ -59,17 +64,83 @@ function semaforoActividad(dias: number): { color: string; label: string } {
 // haceTexto central ('hace N días'), no sustituir sin cambiar el texto visible.
 const haceDiasTxt = (d: number) => (d < 1 ? 'hace horas' : `hace ${Math.floor(d)} d`)
 
-// ── Card de vendedor (métricas del ámbito) ────────────────────────────────────
+const TOOLTIP_SIN_TOCAR = 'Leads abiertos sin ninguna actividad registrada'
+const TOOLTIP_ULT_ACT = 'Última actividad del lead abierto más abandonado'
+
+// ── Piezas locales compartidas por las dos vistas (sin exportar) ──────────────
+
+/** Chip de capital en proceso: PEN protagonista, USD aparte — JAMÁS sumados. */
+function chipCapitalEnProceso(pen: number, usd: number): StatChipData {
+  return {
+    icon: Wallet,
+    label: 'Capital en proceso (PEN)',
+    value: moneyK(pen),
+    tone: 'primary',
+    sub: usd > 0 ? `+${moneyK(usd, 'USD')} aparte` : 'Solo soles',
+  }
+}
+
+/** Chip de la bandeja por repartir (ámbar mientras haya pendientes). */
+function chipPorRepartir(n: number, sub: string): StatChipData {
+  return {
+    icon: Inbox,
+    label: 'Por repartir',
+    value: String(n),
+    tone: n > 0 ? 'warn' : 'default',
+    sub,
+  }
+}
+
+/**
+ * Label uppercase + número extrabold — el patrón repetido en las cards de
+ * vendedor y en la cabecera comparativa de cada bloque. `denso` es la variante
+ * de la card compacta (número text-sm); el `sub` (p. ej. el USD) va inline
+ * para que el dato ocupe UN renglón; `children` admite la barra de conversión.
+ */
+function MiniDato({
+  label,
+  valor,
+  sub,
+  color,
+  denso = false,
+  title,
+  children,
+}: {
+  label: string
+  valor: string
+  sub?: string | undefined
+  color?: string | undefined
+  denso?: boolean
+  title?: string
+  children?: ReactNode
+}): JSX.Element {
+  return (
+    <div>
+      <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
+      <p
+        className={`${denso ? 'text-sm' : 'text-base'} font-extrabold tabular-nums`}
+        style={color ? { color } : undefined}
+        title={title}
+      >
+        {valor}
+        {sub && <span className="ml-1 text-[10px] font-normal tabular-nums text-muted-foreground">{sub}</span>}
+      </p>
+      {children}
+    </div>
+  )
+}
+
+// ── Card de vendedor (vista del supervisor: ≤6 vendedores, card densa) ────────
 
 function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number }): JSX.Element {
   const sem = semaforoActividad(r.diasSinActividadMax)
   return (
-    <Card className="ac-lift ac-pop p-4" style={{ animationDelay: `${delay}ms` }}>
+    <Card className="ac-lift ac-pop h-full p-3" style={{ animationDelay: `${delay}ms` }}>
       {/* Identidad + semáforo de última actividad (peor lead abierto) */}
-      <div className="flex items-center gap-3">
-        <Avatar nombre={r.m.nombre_completo} color={SEMAFORO.ok} className="size-9" />
+      <div className="flex items-center gap-2.5">
+        <Avatar nombre={r.m.nombre_completo} color={SEMAFORO.ok} className="size-7 text-[10px]" />
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">{r.m.nombre_completo}</p>
+          <p className="truncate text-[13px] font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
             {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'}
           </p>
@@ -77,49 +148,35 @@ function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number })
         {r.activos === 0 ? (
           <Badge color={GRIS} variant="outline">Sin abiertos</Badge>
         ) : (
-          <Badge
-            color={sem.color}
-            variant="outline"
-            dot
-            title="Última actividad del lead abierto más abandonado"
-          >
+          <Badge color={sem.color} variant="outline" dot title={TOOLTIP_ULT_ACT}>
             {sem.label}
           </Badge>
         )}
       </div>
 
       {/* Números clave — capital PEN y USD SIEMPRE por separado */}
-      <div className="mt-3 grid grid-cols-3 gap-2">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Activos</p>
-          <p className="text-base font-extrabold tabular-nums">{r.activos}</p>
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Capital (PEN)</p>
-          <p className="text-base font-extrabold tabular-nums">{moneyK(r.capitalPEN)}</p>
-          {r.capitalUSD > 0 && (
-            <p className="text-[10px] tabular-nums text-muted-foreground">+{moneyK(r.capitalUSD, 'USD')}</p>
-          )}
-        </div>
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Sin tocar</p>
-          <p
-            className="text-base font-extrabold tabular-nums"
-            style={r.sinTocar > 0 ? { color: SEMAFORO.atencion } : undefined}
-            title="Leads abiertos sin ninguna actividad registrada"
-          >
-            {r.sinTocar}
-          </p>
-        </div>
+      <div className="mt-2 grid grid-cols-3 gap-1.5">
+        <MiniDato denso label="Activos" valor={String(r.activos)} />
+        <MiniDato
+          denso
+          label="Capital (PEN)"
+          valor={moneyK(r.capitalPEN)}
+          sub={r.capitalUSD > 0 ? `+${moneyK(r.capitalUSD, 'USD')}` : undefined}
+        />
+        <MiniDato
+          denso
+          label="Sin tocar"
+          valor={String(r.sinTocar)}
+          color={r.sinTocar > 0 ? SEMAFORO.atencion : undefined}
+          title={TOOLTIP_SIN_TOCAR}
+        />
       </div>
 
-      {/* Conversión (convertidos / total de sus leads) — navy, sin verde */}
-      <div className="mt-3">
-        <div className="mb-1 flex items-center justify-between text-[11px]">
-          <span className="font-semibold text-muted-foreground">Conversión</span>
-          <span className="font-bold tabular-nums">{r.conversion}%</span>
-        </div>
-        <Progress value={r.conversion} color={SEMAFORO.navy} />
+      {/* Conversión en UN renglón (convertidos / total de sus leads) — navy, sin verde */}
+      <div className="mt-2 flex items-center gap-2 text-[11px]">
+        <span className="font-semibold text-muted-foreground">Conversión</span>
+        <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 flex-1" />
+        <span className="font-bold tabular-nums">{r.conversion}%</span>
       </div>
     </Card>
   )
@@ -146,6 +203,7 @@ function Bandeja({
   ahora: number // reloj vivo del padre (useAhora) — antigüedad de los parkeados
 }): JSX.Element {
   const { equipo, reasignar } = useCRMData()
+  const { yo } = useAuth()
   const [sel, setSel] = useState<Record<string, string>>({})
 
   const bandejaDe = (l: Lead) =>
@@ -157,7 +215,10 @@ function Bandeja({
     const v = (grupos ? grupos.flatMap((g) => g.vs) : vendedores).find((m) => m.perfil_id === vid)
     const r = reasignar(lead.id, vid)
     if (r.ok) {
-      toast.success(`${lead.nombre_completo} asignado a ${v?.nombre_completo ?? 'vendedor'}`)
+      // Sufijo "(demo)" unificado con el resto de mutaciones demo (guard yo?.demo).
+      toast.success(
+        `${lead.nombre_completo} asignado a ${v?.nombre_completo ?? 'vendedor'}${yo?.demo ? ' (demo)' : ''}`,
+      )
     } else if (r.error && !r.error.startsWith('Sin permiso')) {
       // Los errores de permiso ya los toastea el store (doble defensa).
       toast.error(r.error)
@@ -275,36 +336,31 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
 // ── Vista SUPERVISOR — su equipo, su bandeja, su cola ─────────────────────────
 
 function EquipoSupervisor(): JSX.Element {
-  const { ambito, actividades } = useCRMData()
+  const { ambito, actividadesDelAmbito } = useCRMData()
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
-  const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora)
-  const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
-  const cola = colaDe(ambito.leads, actividades, ahora)
+  // Todo el cómputo en UN memo (patrón de Hoy·Supervisor): el índice de última
+  // actividad se construye UNA vez y lo comparten cards y cola — con useAhora
+  // tickeando por minuto, antes se re-indexaba el timeline en cada render.
+  // `ahora` DEBE seguir en las deps para que los "d sin act." refresquen.
+  const d = useMemo(() => {
+    const indice = indexarUltimaActividad(actividadesDelAmbito)
+    const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividadesDelAmbito, ahora, indice)
+    const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
+    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, indice)
 
-  // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
-  // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.
-  const abiertosAsignados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id != null)
-  const { pen: capPEN, usd: capUSD } = capitalPorMoneda(abiertosAsignados)
-  const activos = abiertosAsignados.length
+    // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
+    // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.
+    const abiertosAsignados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id != null)
+    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(abiertosAsignados)
+    return { filas, parkeados, cola, capitalPEN, capitalUSD, activos: abiertosAsignados.length }
+  }, [ambito, actividadesDelAmbito, ahora])
 
   const stats: StatChipData[] = [
     { icon: Users, label: 'Mis vendedores', value: String(ambito.vendedores.length), tone: 'accent' },
-    {
-      icon: Wallet,
-      label: 'Capital en proceso (PEN)',
-      value: moneyK(capPEN),
-      tone: 'primary',
-      sub: capUSD > 0 ? `+${moneyK(capUSD, 'USD')} aparte` : 'Solo soles',
-    },
-    { icon: Activity, label: 'Leads activos', value: String(activos), sub: `${cola.length} en cola de acción` },
-    {
-      icon: Inbox,
-      label: 'Por repartir',
-      value: String(parkeados.length),
-      tone: parkeados.length > 0 ? 'warn' : 'default',
-      sub: 'Bandeja del equipo',
-    },
+    chipCapitalEnProceso(d.capitalPEN, d.capitalUSD),
+    { icon: Activity, label: 'Leads activos', value: String(d.activos), sub: `${d.cola.length} en cola de acción` },
+    chipPorRepartir(d.parkeados.length, 'Bandeja del equipo'),
   ]
 
   return (
@@ -319,14 +375,19 @@ function EquipoSupervisor(): JSX.Element {
           right={<span className="text-xs text-muted-foreground">Orden: capital en proceso (PEN)</span>}
         />
         <CardContent className="pt-0">
-          {filas.length === 0 ? (
+          {d.filas.length === 0 ? (
             <p className="text-sm text-muted-foreground">No tienes vendedores a cargo todavía.</p>
           ) : (
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-              {filas.map((r, i) => (
-                <VendedorCard key={r.m.perfil_id} r={r} delay={i * 60} />
+            <ul
+              aria-label="Vendedores de mi equipo"
+              className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
+            >
+              {d.filas.map((r, i) => (
+                <li key={r.m.perfil_id}>
+                  <VendedorCard r={r} delay={i * 60} />
+                </li>
               ))}
-            </div>
+            </ul>
           )}
         </CardContent>
       </Card>
@@ -338,14 +399,14 @@ function EquipoSupervisor(): JSX.Element {
             icon={Inbox}
             title="Por repartir"
             right={
-              parkeados.length > 0 ? (
+              d.parkeados.length > 0 ? (
                 <Badge color={SEMAFORO.atencion} variant="outline" dot>
-                  {parkeados.length} en bandeja
+                  {d.parkeados.length} en bandeja
                 </Badge>
               ) : undefined
             }
           />
-          <Bandeja parkeados={parkeados} vendedores={ambito.vendedores} ahora={ahora} />
+          <Bandeja parkeados={d.parkeados} vendedores={ambito.vendedores} ahora={ahora} />
         </Card>
         <Card>
           <SectionHead
@@ -353,7 +414,7 @@ function EquipoSupervisor(): JSX.Element {
             title="Cola del equipo"
             right={<span className="text-xs text-muted-foreground">Top 5 por urgencia</span>}
           />
-          <MiniCola items={cola} />
+          <MiniCola items={d.cola} />
         </Card>
       </div>
 
@@ -367,43 +428,66 @@ function EquipoSupervisor(): JSX.Element {
 // ── Vista GERENCIA / DIRECTORIO — bloques por supervisor ──────────────────────
 
 function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
-  const { ambito, actividades, equipo } = useCRMData()
+  const { ambito, actividadesDelAmbito, equipo } = useCRMData()
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
-  const filas = comparativaEquipos(equipo, ambito.leads, actividades)
-  const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
+  // Un memo para TODO el tablero: el índice de última actividad se construye
+  // UNA vez y las métricas de cada bloque se precomputan aquí — antes
+  // metricasPorVendedor corría dentro del map del JSX, re-indexando el
+  // timeline completo POR SUPERVISOR en cada render (y useAhora tickea por
+  // minuto). `ahora` DEBE seguir en deps para que los "d sin act." refresquen.
+  const d = useMemo(() => {
+    const indice = indexarUltimaActividad(actividadesDelAmbito)
+    const filas = comparativaEquipos(equipo, ambito.leads, actividadesDelAmbito)
+    const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
 
-  const vendedoresDe = (sup: Miembro) =>
-    equipo.filter((m) => m.rol_crm === 'vendedor' && m.activo && m.supervisor_id === sup.perfil_id)
+    // Vendedores activos por supervisor en UNA pasada sobre el roster —
+    // lo comparten los bloques y los optgroups de la bandeja global.
+    const vendedoresPorSupervisor = new Map<string, Miembro[]>()
+    for (const m of equipo) {
+      if (m.rol_crm !== 'vendedor' || !m.activo || m.supervisor_id == null) continue
+      const lista = vendedoresPorSupervisor.get(m.supervisor_id)
+      if (lista) lista.push(m)
+      else vendedoresPorSupervisor.set(m.supervisor_id, [m])
+    }
 
-  const capPEN = filas.reduce((a, f) => a + f.capitalPEN, 0)
-  const capUSD = filas.reduce((a, f) => a + f.capitalUSD, 0)
-  const activos = filas.reduce((a, f) => a + f.activos, 0)
-  const convertidos = filas.reduce((a, f) => a + f.convertidos, 0)
+    const bloques = filas.map((f) => ({
+      f,
+      vendedores: metricasPorVendedor(
+        vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? [],
+        ambito.leads,
+        actividadesDelAmbito,
+        ahora,
+        indice,
+      ),
+    }))
+    const grupos: GrupoVendedores[] = filas
+      .map((f) => ({ sup: f.supervisor, vs: vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? [] }))
+      .filter((g) => g.vs.length > 0)
+
+    return {
+      filas,
+      parkeados,
+      bloques,
+      grupos,
+      capPEN: filas.reduce((a, f) => a + f.capitalPEN, 0),
+      capUSD: filas.reduce((a, f) => a + f.capitalUSD, 0),
+      activos: filas.reduce((a, f) => a + f.activos, 0),
+      convertidos: filas.reduce((a, f) => a + f.convertidos, 0),
+    }
+  }, [ambito, actividadesDelAmbito, equipo, ahora])
 
   const stats: StatChipData[] = [
     {
       icon: ShieldCheck,
       label: 'Equipos',
-      value: String(filas.length),
+      value: String(d.filas.length),
       tone: 'accent',
       sub: `${ambito.vendedores.length} vendedores en total`,
     },
-    {
-      icon: Wallet,
-      label: 'Capital en proceso (PEN)',
-      value: moneyK(capPEN),
-      tone: 'primary',
-      sub: capUSD > 0 ? `+${moneyK(capUSD, 'USD')} aparte` : 'Solo soles',
-    },
-    { icon: Activity, label: 'Leads activos', value: String(activos), sub: `${convertidos} convertidos` },
-    {
-      icon: Inbox,
-      label: 'Por repartir',
-      value: String(parkeados.length),
-      tone: parkeados.length > 0 ? 'warn' : 'default',
-      sub: 'En bandejas de supervisores',
-    },
+    chipCapitalEnProceso(d.capPEN, d.capUSD),
+    { icon: Activity, label: 'Leads activos', value: String(d.activos), sub: `${d.convertidos} convertidos` },
+    chipPorRepartir(d.parkeados.length, 'En bandejas de supervisores'),
   ]
 
   return (
@@ -416,63 +500,107 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         </p>
       )}
 
-      {/* Un bloque por supervisor: cabecera comparativa + cards de sus vendedores */}
-      {filas.map((f) => {
-        const cards = metricasPorVendedor(vendedoresDe(f.supervisor), ambito.leads, actividades, ahora)
-        return (
-          <Card key={f.supervisor.perfil_id}>
-            <SectionHead
-              icon={ShieldCheck}
-              title={`Equipo de ${f.supervisor.nombre_completo}`}
-              right={
-                <Badge color={SEMAFORO.violeta}>
-                  {f.vendedores} {f.vendedores === 1 ? 'vendedor' : 'vendedores'}
-                </Badge>
-              }
-            />
-            <CardContent className="space-y-4 pt-0">
-              {/* Cabecera del bloque — comparativaEquipos (PEN y USD separados) */}
-              <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-primary/[0.03] p-3 sm:grid-cols-4">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Capital (PEN)</p>
-                  <p className="text-base font-extrabold tabular-nums">{moneyK(f.capitalPEN)}</p>
-                  {f.capitalUSD > 0 && (
-                    <p className="text-[10px] tabular-nums text-muted-foreground">+{moneyK(f.capitalUSD, 'USD')}</p>
-                  )}
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Activos</p>
-                  <p className="text-base font-extrabold tabular-nums">{f.activos}</p>
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Conversión</p>
-                  <p className="text-base font-extrabold tabular-nums">{f.conversion}%</p>
-                  <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
-                </div>
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Por repartir</p>
-                  <p
-                    className="text-base font-extrabold tabular-nums"
-                    style={f.parkeados > 0 ? { color: SEMAFORO.atencion } : undefined}
-                  >
-                    {f.parkeados}
-                  </p>
-                </div>
-              </div>
+      {/* Un bloque por supervisor: cabecera comparativa + TABLA de sus vendedores */}
+      {d.bloques.map(({ f, vendedores }) => (
+        <Card key={f.supervisor.perfil_id}>
+          <SectionHead
+            icon={ShieldCheck}
+            title={`Equipo de ${f.supervisor.nombre_completo}`}
+            right={
+              <Badge color={SEMAFORO.violeta}>
+                {f.vendedores} {f.vendedores === 1 ? 'vendedor' : 'vendedores'}
+              </Badge>
+            }
+          />
+          <CardContent className="space-y-4 pt-0">
+            {/* Cabecera del bloque — comparativaEquipos (PEN y USD separados) */}
+            <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-primary/[0.03] p-3 sm:grid-cols-4">
+              <MiniDato
+                label="Capital (PEN)"
+                valor={moneyK(f.capitalPEN)}
+                sub={f.capitalUSD > 0 ? `+${moneyK(f.capitalUSD, 'USD')}` : undefined}
+              />
+              <MiniDato label="Activos" valor={String(f.activos)} />
+              <MiniDato label="Conversión" valor={`${f.conversion}%`}>
+                <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
+              </MiniDato>
+              <MiniDato
+                label="Por repartir"
+                valor={String(f.parkeados)}
+                color={f.parkeados > 0 ? SEMAFORO.atencion : undefined}
+              />
+            </div>
 
-              {cards.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Sin vendedores asignados a este equipo.</p>
-              ) : (
-                <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                  {cards.map((r, i) => (
-                    <VendedorCard key={r.m.perfil_id} r={r} delay={i * 60} />
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        )
-      })}
+            {vendedores.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Sin vendedores asignados a este equipo.</p>
+            ) : (
+              /* Tabla comparativa (fila ~33 px): lo que gerencia/directorio
+                 necesitan es comparar vendedores columna a columna, no cards. */
+              <TablaEnvoltura ariaLabel={`Vendedores del equipo de ${f.supervisor.nombre_completo}`}>
+                <TheadCrm>
+                  <Th>Vendedor</Th>
+                  <Th>Últ. actividad</Th>
+                  <Th className="text-right">Activos</Th>
+                  <Th className="text-right">Capital PEN</Th>
+                  <Th className="text-right">Sin tocar</Th>
+                  <Th>Conversión</Th>
+                </TheadCrm>
+                <tbody>
+                  {vendedores.map((r) => {
+                    const sem = semaforoActividad(r.diasSinActividadMax)
+                    return (
+                      <tr
+                        key={r.m.perfil_id}
+                        className="border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40"
+                      >
+                        <Td>
+                          <p
+                            className="max-w-[220px] truncate text-[13px] font-semibold text-foreground"
+                            title={r.m.nombre_completo}
+                          >
+                            {r.m.nombre_completo}
+                          </p>
+                        </Td>
+                        <Td>
+                          {r.activos === 0 ? (
+                            <Badge color={GRIS} variant="outline">Sin abiertos</Badge>
+                          ) : (
+                            <Badge color={sem.color} variant="outline" dot title={TOOLTIP_ULT_ACT}>
+                              {sem.label}
+                            </Badge>
+                          )}
+                        </Td>
+                        <Td className="text-right tabular-nums">{r.activos}</Td>
+                        <Td className="whitespace-nowrap text-right">
+                          <span className="font-extrabold tabular-nums text-primary">{moneyK(r.capitalPEN)}</span>
+                          {r.capitalUSD > 0 && (
+                            <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
+                              +{moneyK(r.capitalUSD, 'USD')}
+                            </span>
+                          )}
+                        </Td>
+                        <Td
+                          className="text-right font-extrabold tabular-nums"
+                          style={r.sinTocar > 0 ? { color: SEMAFORO.atencion } : undefined}
+                          title={TOOLTIP_SIN_TOCAR}
+                        >
+                          {r.sinTocar}
+                        </Td>
+                        <Td>
+                          <div className="flex items-center gap-2">
+                            <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
+                            <span className="text-xs font-bold tabular-nums">{r.conversion}%</span>
+                          </div>
+                        </Td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </TablaEnvoltura>
+            )}
+          </CardContent>
+        </Card>
+      ))}
 
       {/* Bandeja global — SOLO gerencia (directorio no acciona nada) */}
       {conAcciones && (
@@ -481,19 +609,17 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             icon={Inbox}
             title="Por repartir (toda la empresa)"
             right={
-              parkeados.length > 0 ? (
+              d.parkeados.length > 0 ? (
                 <Badge color={SEMAFORO.atencion} variant="outline" dot>
-                  {parkeados.length} en bandejas
+                  {d.parkeados.length} en bandejas
                 </Badge>
               ) : undefined
             }
           />
           <Bandeja
-            parkeados={parkeados}
+            parkeados={d.parkeados}
             vendedores={ambito.vendedores}
-            grupos={filas
-              .map((f) => ({ sup: f.supervisor, vs: vendedoresDe(f.supervisor) }))
-              .filter((g) => g.vs.length > 0)}
+            grupos={d.grupos}
             mostrarBandeja
             ahora={ahora}
           />

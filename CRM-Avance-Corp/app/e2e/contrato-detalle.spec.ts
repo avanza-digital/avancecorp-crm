@@ -6,8 +6,8 @@
 //  2) Corregir PRECARGA notas y co-titulares, y el RPC del mock recibe AMBOS en
 //     p_contrato (las 2 trampas del servidor: clave ausente = borrado/no tocar).
 //  3) El error del servidor (P0001, ventana vencida) se muestra TAL CUAL.
-// Depende de la pantalla Contratos (constructor paralelo): fila por contrato con
-// botones "Ver detalle" y "Corregir", paneles montados dentro de <Dialog>.
+// Depende de la pantalla Contratos: fila CLICABLE por contrato (abre el
+// detalle) + botón "Corregir" solo en lo propio y vivo, paneles en <Dialog>.
 import { expect, test, type Page } from '@playwright/test'
 import { contratoReal, loginReal, montarBackendReal } from './_helpers'
 
@@ -40,7 +40,9 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
   await loginReal(page)
   await irAContratos(page)
 
-  await page.getByRole('button', { name: /ver detalle/i }).first().click()
+  // El detalle vive en la FILA clicable (ya no hay botón "Ver detalle"); se
+  // clickea la celda del N° para no rozar el botón Corregir de la fila.
+  await page.getByRole('row', { name: /Abrir detalle del contrato 2026-01-000123/ }).getByText('2026-01-000123').click()
   const dialogo = page.getByRole('dialog', { name: /Contrato 2026-01-000123/ })
   await expect(dialogo).toBeVisible()
 

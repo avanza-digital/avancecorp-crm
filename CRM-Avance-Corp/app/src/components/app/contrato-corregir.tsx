@@ -25,9 +25,9 @@ import { fmtFecha, money, type Moneda } from '@/lib/format'
 import {
   actualizarContrato,
   CrmApiError,
-  obtenerTitulares,
   type ActualizarContratoInput,
 } from '@/data/crm-api'
+import { useTitulares } from '@/data/crm-queries'
 import {
   generarCronograma,
   parseDateLocal,
@@ -40,31 +40,13 @@ import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/do
 import { normalizarTitulares } from '@/lib/titulares'
 import { useVentana } from '@/lib/ventana'
 import { MAX_TITULARES, type ContratoRow } from '@/lib/clientes-tipos'
-
-const CATEGORIAS: { k: CategoriaContrato; label: string }[] = [
-  { k: 'nuevo', label: 'Nuevo' },
-  { k: 'renovacion', label: 'Renovación' },
-  { k: 'upgrade', label: 'Upgrade' },
-]
-const MODALIDADES: { k: ModalidadContrato; label: string }[] = [
-  { k: 'mensual', label: 'Mensual' },
-  { k: 'trimestral', label: 'Trimestral' },
-  { k: 'semestral', label: 'Semestral' },
-  { k: 'anual', label: 'Anual' },
-]
-// Prefijo fijo del N° de contrato (espejo de PREFIJO_CONTRATO de analista.js):
-// el asesor solo escribe los 6 dígitos, el prefijo es imposible de borrar.
-const PREFIJO_CONTRATO = '2026-01-'
-const RE_SEIS_DIGITOS = /^\d{6}$/
-// Presets del select de plazo del portal; los años exactos sirven para compuesto.
-const PLAZOS: { meses: number; label: string; anioExacto: boolean }[] = [
-  { meses: 6, label: '6 meses', anioExacto: false },
-  { meses: 12, label: '1 año', anioExacto: true },
-  { meses: 24, label: '2 años', anioExacto: true },
-  { meses: 36, label: '3 años', anioExacto: true },
-  { meses: 48, label: '4 años', anioExacto: true },
-  { meses: 60, label: '5 años', anioExacto: true },
-]
+import {
+  CATEGORIAS_CONTRATO_UI,
+  MODALIDADES_UI,
+  PLAZOS_BASE,
+  PREFIJO_CONTRATO,
+  RE_SEIS_DIGITOS,
+} from '@/lib/contratos-catalogo'
 
 // Meses calendario entre dos fechas YYYY-MM-DD (espejo de mesesEntre de
 // analista.js) — deriva el preset del select sin tocar el vencimiento real.
@@ -105,7 +87,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const [fechaInicio, setFechaInicio] = useState(contrato.fecha_inicio)
   const mesesIniciales = mesesEntre(contrato.fecha_inicio, contrato.fecha_vencimiento)
   const [plazo, setPlazo] = useState(
-    PLAZOS.some((p) => p.meses === mesesIniciales) ? String(mesesIniciales) : '12',
+    PLAZOS_BASE.some((p) => p.meses === mesesIniciales) ? String(mesesIniciales) : '12',
   )
   // Se PRESERVA el vencimiento REAL al abrir (espejo del portal): recalcularlo
   // de un plazo no-preset lo pisaría sin querer. Solo cambia si el usuario toca
@@ -115,29 +97,33 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // Co-titulares ACTUALES cargados antes de habilitar el guardado (la trampa del
-  // reemplazo). 'error' NO bloquea el resto de la corrección: se omite la clave.
+  // Co-titulares ACTUALES cargados antes de habilitar el guardado (la trampa
+  // del reemplazo: la clave presente REEMPLAZA el set completo en el servidor).
+  // Van por caché (clave titulares(id)) con staleTime 0: la precarga blinda un
+  // UPDATE destructivo y revalida SIEMPRE al abrir — jamás se siembra el editor
+  // con la copia que dejó cacheada el detalle. 'error' NO bloquea el resto de
+  // la corrección: se omite la clave.
+  const qTitulares = useTitulares(contrato.id, true, { staleTime: 0 })
   const [titulares, setTitulares] = useState<FilaTitular[]>([])
-  const [estadoTitulares, setEstadoTitulares] = useState<'cargando' | 'ok' | 'error'>('cargando')
-  const [reintentoTitulares, setReintentoTitulares] = useState(0)
+  const [sembrado, setSembrado] = useState(false)
 
+  // Siembra ÚNICA y solo con datos RECIÉN traídos: isFetchedAfterMount exige un
+  // fetch COMPLETADO tras el mount — sin red el refetch queda 'paused' (isFetching
+  // false + isSuccess true con la copia cacheada) y sembrar esa copia vieja haría
+  // que el guardado REEMPLACE en el servidor co-titulares corregidos por otra
+  // sesión. Un refetch posterior (foco de ventana) no debe pisar la edición.
   useEffect(() => {
-    const ctrl = new AbortController()
-    setEstadoTitulares('cargando')
-    void (async () => {
-      try {
-        const filas = await obtenerTitulares(contrato.id, ctrl.signal)
-        if (ctrl.signal.aborted) return
-        setTitulares(filas.map((t) => ({ nombre: t.nombre_completo, tipo: t.tipo_documento, documento: t.documento })))
-        setEstadoTitulares('ok')
-      } catch {
-        // Sin los actuales NO se puede mandar la clave (mandar [] los borraría):
-        // el guardado seguirá disponible pero omitiendo 'titulares' (no tocar).
-        if (!ctrl.signal.aborted) setEstadoTitulares('error')
-      }
-    })()
-    return () => ctrl.abort()
-  }, [contrato.id, reintentoTitulares])
+    if (sembrado || !qTitulares.isSuccess || qTitulares.isFetching || !qTitulares.isFetchedAfterMount) return
+    setTitulares(
+      qTitulares.data.map((t) => ({ nombre: t.nombre_completo, tipo: t.tipo_documento, documento: t.documento })),
+    )
+    setSembrado(true)
+  }, [sembrado, qTitulares.isSuccess, qTitulares.isFetching, qTitulares.isFetchedAfterMount, qTitulares.data])
+
+  // Una vez sembrado, el editor manda: un fallo de refetch posterior no lo
+  // apaga (apagarlo omitiría la clave y descartaría en silencio la edición).
+  const estadoTitulares: 'cargando' | 'ok' | 'error' =
+    sembrado ? 'ok' : qTitulares.isError ? 'error' : 'cargando'
 
   const esCompuesto = tipoInteres === 'compuesto'
   // parseMonto rechaza separadores de miles ('125,000' NO es 125) — ver lib/numero.
@@ -298,7 +284,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               disabled={enviando}
             >
               <option value="">— Seleccionar —</option>
-              {CATEGORIAS.map((c) => (
+              {CATEGORIAS_CONTRATO_UI.map((c) => (
                 <option key={c.k} value={c.k}>{c.label}</option>
               ))}
             </Select>
@@ -333,7 +319,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                 onChange={(e) => setModalidad(e.target.value as ModalidadContrato)}
                 disabled={enviando}
               >
-                {MODALIDADES.map((m) => (
+                {MODALIDADES_UI.map((m) => (
                   <option key={m.k} value={m.k}>{m.label}</option>
                 ))}
               </Select>
@@ -398,7 +384,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               onChange={(e) => cambiarPlazo(e.target.value)}
               disabled={enviando}
             >
-              {PLAZOS.map((p) => (
+              {PLAZOS_BASE.map((p) => (
                 <option key={p.meses} value={String(p.meses)} disabled={esCompuesto && !p.anioExacto}>
                   {p.label}
                 </option>
@@ -452,7 +438,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                 No se pudieron cargar los co-titulares actuales. Se conservarán tal cual están en el
                 servidor; para editarlos, reintenta la carga.
               </p>
-              <Button variant="outline" size="xs" onClick={() => setReintentoTitulares((n) => n + 1)}>
+              <Button variant="outline" size="xs" onClick={() => void qTitulares.refetch()}>
                 <RotateCcw aria-hidden /> Reintentar
               </Button>
             </div>

@@ -1,10 +1,14 @@
 // Tests del componente ClienteForm (alta en 2 pasos + corregir con ventana de
 // 5 h). La capa @/data/crm-api se mockea (sin red); CrmApiError se conserva
 // real para el instanceof del catch. Se monta dentro de <Dialog> porque el
-// DialogTitle (Radix) exige el contexto del dialog — igual que en la pantalla.
+// DialogTitle (Radix) exige el contexto del dialog — igual que en la pantalla —
+// y dentro de un QueryClientProvider limpio por test porque la precarga de
+// corregir va por useClienteDetalle (retry:false, espejo de lib/query-client:
+// con el retry por defecto de TanStack el test de error reintentaría solo).
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Dialog } from '@/components/ui/dialog'
 import type { ClienteDetalle } from '@/lib/clientes-tipos'
@@ -70,20 +74,25 @@ interface PropsParciales {
 function montar(props: PropsParciales = {}) {
   const onListo = vi.fn()
   const onCerrar = vi.fn()
+  // QueryClient NUEVO por montaje: caché aislada entre tests (la precarga de
+  // corregir usa la clave clienteDetalle(id) y no debe sobrevivir de un test a otro).
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   // exactOptionalPropertyTypes: clienteId solo se pasa cuando existe.
   render(
-    <Dialog open onClose={() => undefined}>
-      {props.clienteId !== undefined
-        ? (
-            <ClienteForm
-              modo={props.modo ?? 'corregir'}
-              clienteId={props.clienteId}
-              onListo={onListo}
-              onCerrar={onCerrar}
-            />
-          )
-        : <ClienteForm modo={props.modo ?? 'crear'} onListo={onListo} onCerrar={onCerrar} />}
-    </Dialog>,
+    <QueryClientProvider client={queryClient}>
+      <Dialog open onClose={() => undefined}>
+        {props.clienteId !== undefined
+          ? (
+              <ClienteForm
+                modo={props.modo ?? 'corregir'}
+                clienteId={props.clienteId}
+                onListo={onListo}
+                onCerrar={onCerrar}
+              />
+            )
+          : <ClienteForm modo={props.modo ?? 'crear'} onListo={onListo} onCerrar={onCerrar} />}
+      </Dialog>
+    </QueryClientProvider>,
   )
   return { onListo, onCerrar }
 }

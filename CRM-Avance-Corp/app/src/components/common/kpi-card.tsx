@@ -3,11 +3,11 @@
 // label y sub. Las 4 variantes de "Hoy" (vendedor/supervisor/gerencia/
 // directorio) la comparten para no duplicar el mismo markup.
 //
-// Sprint A (A3, honestidad): el sparkline y el chip de tendencia (±%) YA NO se
-// renderizan — sus series eran datos de demostración junto a cifras reales.
-// Las props `spark` y `tendencia` se conservan en la firma por compatibilidad
-// con los callers existentes, pero se ignoran. Cuando existan series reales,
-// reactivar el render aquí (los callers no necesitarán cambios).
+// Sprint A (A3, honestidad): el sparkline y el chip de tendencia (±%) NO se
+// renderizan — sus series eran datos de demostración junto a cifras reales, y
+// las props `spark`/`tendencia` ya se retiraron de la firma (estaban muertas).
+// Cuando existan series reales, reintroducirlas junto con su render (la base
+// del chip sigue viva en lib/inteligencia.tendenciaDe, marcada @deprecated).
 import type { CSSProperties, JSX } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -22,16 +22,10 @@ export interface KpiCardProps {
   color: string
   /** Línea secundaria bajo el label (ej. 'Pipeline activo (PEN) · +US$ 25k'). */
   sub?: string | undefined
-  /** IGNORADA (A3): serie del sparkline. Se acepta por compatibilidad; no se dibuja. */
-  spark?: number[] | undefined
-  /** IGNORADA (A3): chip de tendencia. Se acepta por compatibilidad; no se dibuja. */
-  tendencia?: string | undefined
   /** animationDelay del pop de entrada, en ms (escalonar: i * 60). */
   delay?: number | undefined
 }
 
-// `spark` y `tendencia` NO se destructuran a propósito: se aceptan (compat)
-// pero no se usan (evita locals sin uso con las flags estrictas de TS).
 export function KpiCard({ label, value, icon: Icon, color, sub, delay = 0 }: KpiCardProps): JSX.Element {
   return (
     <Card className="ac-lift ac-pop overflow-hidden" style={{ animationDelay: `${delay}ms` }}>

@@ -28,7 +28,6 @@ import {
   colorMeta,
   diasTxt,
   pctMeta,
-  tendenciaDe,
   type ItemCola,
 } from '@/lib/inteligencia'
 import { SEV_COLOR } from '@/lib/semaforo'
@@ -49,7 +48,7 @@ function fechaLarga(ahora: number): string {
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
-  const { ambito, actividades, agenda: agendaGlobal, objetivos, series } = useCRMData()
+  const { ambito, actividades, agenda: agendaGlobal, objetivos } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
@@ -102,8 +101,6 @@ export function HoyVendedor(): JSX.Element {
           icon={Wallet}
           color="#2563eb"
           sub={capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(capUSD, 'USD')} aparte` : 'Pipeline activo (PEN)'}
-          spark={series.capital}
-          tendencia={tendenciaDe(series.capital)}
           delay={0}
         />
         <KpiCard
@@ -112,8 +109,6 @@ export function HoyVendedor(): JSX.Element {
           icon={Users}
           color="#7c3aed"
           sub="Abiertos en tu cartera"
-          spark={series.leads}
-          tendencia={tendenciaDe(series.leads)}
           delay={60}
         />
         <KpiCard
@@ -122,11 +117,8 @@ export function HoyVendedor(): JSX.Element {
           icon={FileText}
           color="#d97706"
           sub="Esperando respuesta del cliente"
-          spark={series.propuestas}
-          tendencia={tendenciaDe(series.propuestas)}
           delay={120}
         />
-        {/* Sin spark: la serie de % de conversión no representa este CONTEO. */}
         <KpiCard
           label="Convertidos"
           value={String(convertidos.length)}

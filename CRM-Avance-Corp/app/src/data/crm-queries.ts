@@ -1,21 +1,33 @@
-import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import {
-  listarLeads,
+  listarClientes,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
   listarMetricasPagosMes,
   listarMetricasVencimientos,
-  type FiltrosLeads,
+  listarMisContratos,
+  obtenerClienteDetalle,
+  obtenerCronograma,
+  obtenerTitulares,
 } from './crm-api'
 
+// Sin claves de leads a propósito: la app los carga vía listarLeadsDelAmbito en
+// el store (no por TanStack). La lectura paginada queda como reserva en
+// crm-api.ts (listarLeads) para cuando el volumen la exija.
 export const crmQueryKeys = {
   raiz: ['crm'] as const,
-  leads: () => [...crmQueryKeys.raiz, 'leads'] as const,
-  paginaLeads: (filtros: FiltrosLeads) => [...crmQueryKeys.leads(), 'pagina', filtros] as const,
   // Cartera del portal (panel del analista): bajo la misma raíz para que el
   // logout (queryClient.clear) y las invalidaciones jerárquicas la cubran.
   clientes: () => [...crmQueryKeys.raiz, 'clientes'] as const,
   contratos: () => [...crmQueryKeys.raiz, 'contratos'] as const,
+  // Detalle POR REGISTRO colgado del PREFIJO de su lista: invalidar contratos()
+  // tras corregir cubre lista + cronograma + titulares de UNA sola pasada
+  // (matching jerárquico de TanStack) — actualizar_contrato REGENERA el
+  // cronograma y puede reemplazar el set de co-titulares, así que las tres
+  // cachés caducan juntas o el detalle reviviría datos viejos.
+  cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
+  titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
+  clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
   // Métricas de gerencia (RPCs crm.metricas_*_fn): misma raíz por lo mismo.
   metricas: () => [...crmQueryKeys.raiz, 'metricas'] as const,
   metricasCapital: (meses: number) => [...crmQueryKeys.metricas(), 'capital', meses] as const,
@@ -24,12 +36,92 @@ export const crmQueryKeys = {
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
 }
 
-export function usePaginaLeads(filtros: FiltrosLeads, habilitada = true) {
+// ── Cartera del portal (clientes + contratos) ─────────────────────────────────
+// Sin retry propio: query-client.ts lo desactiva adrede (supabase-js >= 2.102 ya
+// reintenta las lecturas transitorias; dos capas multiplicarían tráfico justo
+// cuando el backend está degradado). `habilitada=false` = modo demo: una sesión
+// demo no tiene Supabase y ni un request debe salir (fail-closed) — es DOBLE
+// defensa, porque cada pantalla ya bifurca a su variante demo antes del hook.
+
+/** Contratos visibles (vista crm.contratos_cartera, ya scopeada por la RLS).
+ * Su clave crmQueryKeys.contratos() es CONTRATO público: la pantalla Clientes
+ * la invalida tras crear un contrato para que esta tabla refresque sin reload. */
+export function useContratos(habilitada = true) {
   return useQuery({
-    queryKey: crmQueryKeys.paginaLeads(filtros),
-    queryFn: ({ signal }) => listarLeads(filtros, signal),
-    placeholderData: keepPreviousData,
+    queryKey: crmQueryKeys.contratos(),
+    queryFn: ({ signal }) => listarMisContratos(signal),
     enabled: habilitada,
+  })
+}
+
+/** Cartera de clientes (vista crm.clientes_basicos, ya scopeada por la RLS).
+ * La comparten la pantalla Clientes y el selector de "+ Contrato" en Contratos:
+ * misma clave = el selector abre instantáneo si la cartera está fresca. */
+export function useClientes(habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.clientes(),
+    queryFn: ({ signal }) => listarClientes(signal),
+    enabled: habilitada,
+  })
+}
+
+/**
+ * UNA fila de la cartera de contratos SIN query nueva: `select` sobre la MISMA
+ * clave contratos() — abrir el detalle desde la tabla NO re-descarga la lista
+ * (fresca < 30 s viene de caché) y cualquier invalidación de contratos() lo
+ * refresca también. `data === null` con éxito significa "fuera de tu cartera o
+ * inexistente" (la RLS ya recortó): el caller decide el mensaje.
+ */
+export function useContrato(contratoId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.contratos(),
+    queryFn: ({ signal }) => listarMisContratos(signal),
+    select: (filas) => filas.find((f) => f.id === contratoId) ?? null,
+    enabled: habilitada,
+  })
+}
+
+/** Cronograma del contrato (RPC cronograma_contrato_fn; RLS fail-closed: ajeno = 0 filas). */
+export function useCronograma(contratoId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.cronograma(contratoId),
+    queryFn: ({ signal }) => obtenerCronograma(contratoId, signal),
+    enabled: habilitada,
+  })
+}
+
+/**
+ * Co-titulares del contrato. `opciones.staleTime: 0` existe para la PRECARGA
+ * que blinda un UPDATE destructivo (contrato-corregir: la clave 'titulares'
+ * presente REEMPLAZA el set completo en el servidor) — ese form debe revalidar
+ * SIEMPRE al abrir, jamás fiarse de una copia cacheada por el detalle. El
+ * detalle (solo lectura) usa el staleTime por defecto.
+ */
+export function useTitulares(
+  contratoId: string,
+  habilitada = true,
+  opciones: { staleTime?: number } = {},
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.titulares(contratoId),
+    queryFn: ({ signal }) => obtenerTitulares(contratoId, signal),
+    enabled: habilitada,
+    ...opciones,
+  })
+}
+
+/**
+ * Detalle completo del cliente — la precarga del form "corregir" (cliente-form).
+ * `staleTime: 0` OBLIGATORIO y fijo: el UPDATE viaja con el set completo de
+ * campos (bancarios incluidos); precargar de una caché vieja pisaría en el
+ * servidor lo que otro dispositivo/sesión ya corrigió.
+ */
+export function useClienteDetalle(clienteId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.clienteDetalle(clienteId),
+    queryFn: ({ signal }) => obtenerClienteDetalle(clienteId, signal),
+    enabled: habilitada,
+    staleTime: 0,
   })
 }
 

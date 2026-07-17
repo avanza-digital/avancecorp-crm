@@ -27,34 +27,21 @@ import {
 } from '@/lib/cronograma'
 import { normalizarTitulares, type TitularBorrador } from '@/lib/titulares'
 import { TitularesEditor } from '@/components/app/titulares'
+import {
+  CATEGORIAS_CONTRATO_UI,
+  MODALIDADES_UI,
+  PLAZOS_BASE,
+  PREFIJO_CONTRATO,
+  RE_SEIS_DIGITOS,
+} from '@/lib/contratos-catalogo'
 
-// Prefijo FIJO del N° de contrato: el asesor solo escribe los 6 dígitos (espejo
-// de analista.js:688). Si el número no viaja, el servidor inventa la numeración
-// VIEJA 'AC-2026-XXXX' — por eso el campo dejó de ser opcional (bug corregido).
-const PREFIJO_CONTRATO = '2026-01-'
-const RE_SEIS_DIGITOS = /^\d{6}$/
-
-const CATEGORIAS: { k: CategoriaContrato; label: string }[] = [
-  { k: 'nuevo', label: 'Nuevo' },
-  { k: 'renovacion', label: 'Renovación' },
-  { k: 'upgrade', label: 'Upgrade' },
-]
-const MODALIDADES: { k: ModalidadContrato; label: string }[] = [
-  { k: 'mensual', label: 'Mensual' },
-  { k: 'trimestral', label: 'Trimestral' },
-  { k: 'semestral', label: 'Semestral' },
-  { k: 'anual', label: 'Anual' },
-]
-// Plazos: los años exactos sirven para compuesto; 6 meses solo para simple.
-const PLAZOS = [
-  { v: '6', label: '6 meses', anioExacto: false },
-  { v: '12', label: '1 año', anioExacto: true },
-  { v: '24', label: '2 años', anioExacto: true },
-  { v: '36', label: '3 años', anioExacto: true },
-  { v: '48', label: '4 años', anioExacto: true },
-  { v: '60', label: '5 años', anioExacto: true },
+// Forma LOCAL del select de plazo: value string + la opción 'custom' (fecha de
+// vencimiento manual) que SOLO existe en este formulario; los presets viven en
+// contratos-catalogo (misma base que ContratoCorregir).
+const PLAZOS: { v: string; label: string; anioExacto: boolean }[] = [
+  ...PLAZOS_BASE.map((p) => ({ v: String(p.meses), label: p.label, anioExacto: p.anioExacto })),
   { v: 'custom', label: 'Personalizado', anioExacto: false },
-] as const
+]
 
 function hoyLocal(): string {
   return formatDateLocal(new Date())
@@ -212,7 +199,7 @@ export function ContratoNuevo({
             <Label htmlFor="ct-categoria">Categoría</Label>
             <Select id="ct-categoria" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaContrato | '')} disabled={enviando}>
               <option value="" disabled>— Seleccionar —</option>
-              {CATEGORIAS.map((c) => <option key={c.k} value={c.k}>{c.label}</option>)}
+              {CATEGORIAS_CONTRATO_UI.map((c) => <option key={c.k} value={c.k}>{c.label}</option>)}
             </Select>
           </div>
           <div className="space-y-1.5">
@@ -247,7 +234,7 @@ export function ContratoNuevo({
             <div className="space-y-1.5">
               <Label htmlFor="ct-modalidad">Modalidad de pago</Label>
               <Select id="ct-modalidad" value={modalidad} onChange={(e) => setModalidad(e.target.value as ModalidadContrato)} disabled={enviando}>
-                {MODALIDADES.map((m) => <option key={m.k} value={m.k}>{m.label}</option>)}
+                {MODALIDADES_UI.map((m) => <option key={m.k} value={m.k}>{m.label}</option>)}
               </Select>
             </div>
           )}

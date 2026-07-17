@@ -1,10 +1,11 @@
 // Helpers PUROS de la pantalla Clientes (screens/clientes.tsx): regla de
-// cartera por fila, búsqueda normalizada, filtro por asesor, recorte de ámbito
-// del demo y paginación client-side. Viven aparte de la pantalla para poder
-// probarlos sin montar React (clientes-vista.test.ts).
+// cartera por fila, búsqueda normalizada, filtro por asesor y recorte de
+// ámbito del demo. Viven aparte de la pantalla para poder probarlos sin
+// montar React (clientes-vista.test.ts).
 
-/** Tamaño de página de la cartera de clientes (mismo criterio que cartera.tsx). */
-export const CLIENTES_POR_PAGINA = 50
+// Re-export de compatibilidad: la paginación se generalizó a lib/paginacion
+// (la comparten Clientes y Cartera) — los imports y tests existentes siguen.
+export { paginar, POR_PAGINA as CLIENTES_POR_PAGINA, type Paginado } from './paginacion'
 
 /** Minúsculas y sin acentos (es-PE) para comparar texto — patrón norm() del topbar. */
 export function normalizar(s: string): string {
@@ -111,22 +112,4 @@ export function carteraDelAmbito<T extends FilaCartera>(
     const dueno = duenoDeCartera(c)
     return dueno != null && idsVisibles.has(dueno)
   })
-}
-
-export interface Paginado<T> {
-  visibles: T[]
-  paginas: number // mínimo 1 (una "página vacía" para el estado sin items)
-  paginaActual: number // ya clampeada a [0, paginas-1]
-}
-
-/**
- * Paginación client-side (mismo patrón que cartera.tsx). `pagina` fuera de
- * rango se clampea — al filtrar puede quedar apuntando a una página que ya no
- * existe y la pantalla no debe quedarse en blanco.
- */
-export function paginar<T>(items: T[], pagina: number, porPagina = CLIENTES_POR_PAGINA): Paginado<T> {
-  const paginas = Math.max(1, Math.ceil(items.length / porPagina))
-  const paginaActual = Math.min(Math.max(pagina, 0), paginas - 1)
-  const visibles = items.slice(paginaActual * porPagina, (paginaActual + 1) * porPagina)
-  return { visibles, paginas, paginaActual }
 }

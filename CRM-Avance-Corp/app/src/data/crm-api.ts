@@ -121,6 +121,18 @@ export class CrmApiError extends Error {
   }
 }
 
+/**
+ * Mensaje MOSTRABLE de un fallo de esta capa: los CrmApiError ya traen su texto
+ * es-PE (este módulo los traduce con código estable); cualquier otra cosa
+ * (TypeError de red, bug) cae al texto por defecto de la pantalla — jamás un
+ * `message` crudo en inglés frente al usuario. La variante del store
+ * (`persistir`) sigue LOCAL a propósito: además excluye POSTGREST_ERROR porque
+ * su mensaje genérico es de lectura y no sirve como feedback de una mutación.
+ */
+export function mensajeDeError(e: unknown, porDefecto: string): string {
+  return e instanceof CrmApiError ? e.message : porDefecto
+}
+
 function cliente(): ClienteCrm {
   if (!sb) {
     const error = new CrmApiError('Supabase no está configurado.', 'SUPABASE_NOT_CONFIGURED')
@@ -183,9 +195,11 @@ function aLead(fila: LeadRow): Lead {
 }
 
 /**
- * Lectura paginada lista para activarse cuando el esquema CRM esté aplicado.
- * RLS decide el ámbito; el navegador jamás descarga la cartera global para
- * recortarla después.
+ * RESERVA paginada server-side — hoy sin consumidores en la app (los leads se
+ * cargan de una vez vía listarLeadsDelAmbito). Reactivar cuando el volumen
+ * supere MAX_LEADS_AMBITO=2000: RLS decide el ámbito y el navegador jamás
+ * descarga la cartera global para recortarla después. Sus tests MSW
+ * (crm-api-msw.test.ts) la mantienen honesta mientras espera.
  */
 export async function listarLeads(
   filtros: FiltrosLeads,

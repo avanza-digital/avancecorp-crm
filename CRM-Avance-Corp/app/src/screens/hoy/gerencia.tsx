@@ -3,7 +3,7 @@
 // embudo, conversionPorOrigen, estancados, metricasPorVendedor) + objetivos.
 // Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
 // crítico · convertido/ganado = navy #111e3d. PEN y USD JAMÁS se suman.
-import { useMemo, type CSSProperties, type JSX } from 'react'
+import { lazy, Suspense, useMemo, type CSSProperties, type JSX } from 'react'
 import { useAhora } from '@/lib/ahora'
 import {
   AlertTriangle,
@@ -27,7 +27,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { SegmentBar, type Segment } from '@/components/common/stat-strip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import { GraficasGerencia } from './graficas-gerencia'
+import { Skeleton } from '@/components/ui/skeleton'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO } from '@/lib/tipos'
 import { SEMAFORO } from '@/lib/semaforo'
@@ -36,13 +36,21 @@ import {
   colorMeta,
   colorVsObjetivo,
   comparativaEquipos,
+  conversionGlobal,
   conversionPorOrigen,
   embudo,
   esAbierto,
   estancados,
   metricasPorVendedor,
-  tendenciaDe,
 } from '@/lib/inteligencia'
+
+// Lazy a propósito: recharts (chunk charts-vendor, ~104 kB gzip) solo lo
+// renderiza GERENCIA, pero un import estático lo colgaba del chunk de Hoy y lo
+// descargaban TODOS los roles en la pantalla por defecto. Así baja recién al
+// primer render de esta vista (el gate por rol vive en hoy.tsx, no aquí).
+const GraficasGerencia = lazy(() =>
+  import('./graficas-gerencia').then((m) => ({ default: m.GraficasGerencia })),
+)
 
 // Paleta por posición para distinguir equipos en la barra proporcional.
 const COLOR_EQUIPO = [SEMAFORO.ok, SEMAFORO.violeta, '#0891b2', SEMAFORO.atencion]
@@ -80,7 +88,7 @@ function MetaItem({
 }
 
 export function HoyGerencia(): JSX.Element {
-  const { ambito, equipo, actividades, objetivos, series } = useCRMData()
+  const { ambito, equipo, actividades, objetivos } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   const ahora = useAhora()
@@ -97,27 +105,29 @@ export function HoyGerencia(): JSX.Element {
     // comparativaEquipos): los parkeados NO suman capital ni cuentan como
     // activos hasta tener vendedor — se reportan aparte como "por repartir".
     const asignados = abiertos.filter((l) => l.vendedor_id != null)
-    const vivosAsignados = vivos.filter((l) => l.vendedor_id != null)
     const convertidos = vivos.filter((l) => l.etapa === 'convertido')
     const cap = capitalPorMoneda(asignados)
     const gan = capitalPorMoneda(convertidos)
+    // Conversión global de fuente única (lib/inteligencia): misma base que
+    // comparativaEquipos — activos CON vendedor (los parkeados no cuentan).
+    const cg = conversionGlobal(leads)
     return {
       totalVivos: vivos.length,
       abiertos: abiertos.length, // TODOS los abiertos (base del embudo)
       activos: asignados.length, // abiertos CON vendedor (KPI)
-      vivosAsignados: vivosAsignados.length,
+      vivosAsignados: cg.base,
+      // Numerador del KPI de conversión: convertidos DE LA MISMA base que el %
+      // (asignados). nConvertidos (todos los vivos convertidos, incluso sin
+      // vendedor) queda para "Meta del mes": ahí una venta cerrada cuenta
+      // aunque el lead haya quedado parkeado después.
+      convertidosAsignados: cg.convertidos,
       porRepartir: abiertos.filter((l) => l.vendedor_id == null).length,
       capPEN: cap.pen,
       capUSD: cap.usd,
       nConvertidos: convertidos.length,
       ganPEN: gan.pen,
       ganUSD: gan.usd,
-      // Conversión global con la MISMA base que comparativaEquipos:
-      // convertidos / leads CON vendedor (los parkeados no cuentan).
-      conversion:
-        vivosAsignados.length > 0
-          ? Math.round((convertidos.length / vivosAsignados.length) * 100)
-          : 0,
+      conversion: cg.pct,
     }
   }, [leads])
 
@@ -142,8 +152,6 @@ export function HoyGerencia(): JSX.Element {
           icon={TrendingUp}
           color="var(--accent)"
           sub={d.capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(d.capUSD, 'USD')}` : 'Pipeline activo (PEN)'}
-          spark={series.capital}
-          tendencia={tendenciaDe(series.capital, { mostrarCero: true })}
           delay={0}
         />
         <KpiCard
@@ -152,8 +160,6 @@ export function HoyGerencia(): JSX.Element {
           icon={Users}
           color="var(--chart-2)"
           sub={d.porRepartir > 0 ? `Con vendedor · +${d.porRepartir} por repartir en bandejas` : 'Todos con vendedor asignado'}
-          spark={series.leads}
-          tendencia={tendenciaDe(series.leads, { mostrarCero: true })}
           delay={60}
         />
         <KpiCard
@@ -161,8 +167,7 @@ export function HoyGerencia(): JSX.Element {
           value={`${d.conversion}%`}
           icon={Percent}
           color={colorVsObjetivo(d.conversion, meta.conversionObjetivo)}
-          sub={`${d.nConvertidos} de ${d.vivosAsignados} leads con vendedor · objetivo ${meta.conversionObjetivo}%`}
-          spark={series.conversion}
+          sub={`${d.convertidosAsignados} de ${d.vivosAsignados} leads con vendedor · objetivo ${meta.conversionObjetivo}%`}
           delay={120}
         />
         <KpiCard
@@ -207,7 +212,9 @@ export function HoyGerencia(): JSX.Element {
       {/* ── Gráficas del negocio de contratos (capital/pagos/altas/vencimientos).
           ADITIVO: los KPI/SegmentBar/embudo de leads de arriba y abajo se quedan.
           Fuente: RPCs crm.metricas_*_fn en real · fixtures derivadas en demo. ── */}
-      <GraficasGerencia />
+      <Suspense fallback={<Skeleton className="h-[240px] w-full" aria-busy />}>
+        <GraficasGerencia />
+      </Suspense>
 
       {/* ── Comparativa de equipos ── */}
       <Card>

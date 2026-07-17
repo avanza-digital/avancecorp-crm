@@ -255,6 +255,8 @@ export interface BackendReal {
   clientes: PerfilReal[]
   /** Contratos del portal (con el embed cliente ya resuelto). */
   contratos: ContratoReal[]
+  /** El próximo GET de contratos_cartera responde 500 una vez (panel de error + Reintentar). */
+  fallarProximaCargaContratos: boolean
   /** Cronograma por contrato_id (el GET filtra por eq.<id>). */
   cuotas: Record<string, unknown[]>
   /** Co-titulares por contrato_id (cuentas mancomunadas). */
@@ -330,6 +332,7 @@ export async function montarBackendReal(
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
+    fallarProximaCargaContratos: init.fallarProximaCargaContratos ?? false,
     cuotas: init.cuotas ?? {},
     titulares: init.titulares ?? {},
     metricas: init.metricas ?? { capital: [], pagos: [], altas: [], vencimientos: [] },
@@ -407,7 +410,13 @@ export async function montarBackendReal(
 
     // ── contratos: vista con ámbito + RPCs de detalle (esquema crm) ──
     // El ámbito real lo decide el servidor; el mock devuelve lo configurado.
-    if (p === '/rest/v1/contratos_cartera' && method === 'GET') return json(route, estado.contratos)
+    if (p === '/rest/v1/contratos_cartera' && method === 'GET') {
+      if (estado.fallarProximaCargaContratos) {
+        estado.fallarProximaCargaContratos = false
+        return json(route, { message: 'server down' }, 500)
+      }
+      return json(route, estado.contratos)
+    }
 
     if (p === '/rest/v1/rpc/cronograma_contrato_fn' && method === 'POST') {
       const cid = String(((req.postDataJSON() ?? {}) as { p_contrato_id?: string }).p_contrato_id ?? '')

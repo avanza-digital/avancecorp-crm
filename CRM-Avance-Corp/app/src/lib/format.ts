@@ -49,3 +49,19 @@ export function fmtFecha(iso: string | null | undefined): string {
   if (d == null || Number.isNaN(d.getTime())) return '—'
   return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: 'numeric' })
 }
+
+/**
+ * Fecha + hora local de un registro (espejo de fechaHora de analista.js): para
+ * un timestamp completo toLocaleString SÍ respeta hora/minuto en todos los
+ * motores (toLocaleDateString las ignora en iOS/WebKit). Aquí `new Date(ts)` es
+ * correcto porque creado_en es un timestamp ISO completo, no un 'YYYY-MM-DD'
+ * (esos van por fmtFecha, que parsea en local para evitar el bug UTC).
+ */
+export function fechaHora(ts: string | null | undefined): string {
+  if (!ts) return '—'
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return '—'
+  // Con la cartera completa de la empresa, el AÑO es obligatorio (la historia
+  // supera los 12 meses; el formato sin año venía del portal, otra escala).
+  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
+}
