@@ -3,13 +3,13 @@ import {
   colaDe,
   colorMeta,
   comparativaEquipos,
+  conversionGlobal,
   conversionPorOrigen,
   diasSinActividad,
   embudo,
   estancados,
   indexarUltimaActividad,
   metricasPorVendedor,
-  ultimaActividadDe,
 } from './inteligencia'
 import type { Actividad, Lead, Miembro } from './tipos'
 
@@ -55,19 +55,18 @@ const miembro = (perfilId: string, cambios: Partial<Miembro> = {}): Miembro => (
 })
 
 describe('tiempo e índices de actividad', () => {
-  it('selecciona la última actividad por lead aunque llegue desordenada', () => {
+  it('indexa la última actividad por lead aunque llegue desordenada', () => {
     const anterior = actividad('l1', 4)
     const reciente = actividad('l1', 1)
     const ajena = actividad('l2', 0.5)
 
-    expect(ultimaActividadDe('l1', [reciente, ajena, anterior])).toBe(reciente)
-    expect(ultimaActividadDe('sin-actividad', [ajena])).toBeUndefined()
     expect(indexarUltimaActividad([reciente, anterior, ajena])).toEqual(
       new Map([
         ['l1', reciente],
         ['l2', ajena],
       ]),
     )
+    expect(indexarUltimaActividad([ajena]).get('sin-actividad')).toBeUndefined()
   })
 
   it('calcula desde la actividad o creación y nunca devuelve días negativos', () => {
@@ -191,6 +190,22 @@ describe('agregaciones comerciales', () => {
       { origen: 'web', label: 'Web', total: 1, convertidos: 1, pct: 100 },
       { origen: 'referido', label: 'Referido', total: 2, convertidos: 1, pct: 50 },
     ])
+  })
+
+  it('calcula la conversión global sobre activos CON vendedor (parkeados fuera de la base)', () => {
+    // Misma base que comparativaEquipos y que los tableros Hoy de
+    // supervisor/gerencia: los parkeados no cuentan (nadie los trabaja) y los
+    // descartados SÍ (histórico del vendedor); los inactivos nunca entran.
+    const filas = conversionGlobal([
+      lead({ id: 'ganado', etapa: 'convertido' }),
+      lead({ id: 'abierto' }),
+      lead({ id: 'perdido', etapa: 'descartado' }),
+      lead({ id: 'parkeado', vendedor_id: null, etapa: 'convertido' }),
+      lead({ id: 'inactivo', activo: false, etapa: 'convertido' }),
+    ])
+
+    expect(filas).toEqual({ convertidos: 1, base: 3, pct: 33 })
+    expect(conversionGlobal([])).toEqual({ convertidos: 0, base: 0, pct: 0 })
   })
 
   it('detecta estancados abiertos usando la referencia más reciente', () => {

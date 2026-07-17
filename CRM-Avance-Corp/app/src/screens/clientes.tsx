@@ -20,55 +20,36 @@
 // crear-cliente + RLS con ventana de 5 h) vía @/data/crm-api. En DEMO no hay
 // backend del portal: fixtures gated + recorte de ámbito local (carteraDelAmbito).
 import { useEffect, useMemo, useState } from 'react'
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { Inbox, RotateCcw, Search, UserPlus2, Users2, WifiOff } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { Inbox, Search, UserPlus2, Users2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
-import { Avatar } from '@/components/ui/avatar'
-import { Skeleton } from '@/components/ui/skeleton'
 import { Dialog } from '@/components/ui/dialog'
 import { SectionHead } from '@/components/common/section-head'
+import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
+import { Paginacion } from '@/components/common/paginacion'
+import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { can } from '@/lib/roles'
 import { useVentana } from '@/lib/ventana'
+import { fechaHora, primerNombre } from '@/lib/format'
 import {
   carteraDelAmbito,
-  CLIENTES_POR_PAGINA,
   duenoDeCartera,
   esMiCliente,
   filtrarClientes,
-  paginar,
   type FiltroAsesor,
 } from '@/lib/clientes-vista'
-import { listarClientes } from '@/data/crm-api'
-import { crmQueryKeys } from '@/data/crm-queries'
+import { paginar } from '@/lib/paginacion'
+import { mensajeDeError } from '@/data/crm-api'
+import { crmQueryKeys, useClientes } from '@/data/crm-queries'
 import type { ClienteBasico } from '@/lib/clientes-tipos'
 import { ClienteForm } from '@/components/app/cliente-form'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { toast } from 'sonner'
-
-// Claves centralizadas en crm-queries (misma raíz que el resto del CRM: el
-// logout con queryClient.clear y las invalidaciones jerárquicas las cubren).
-const CLAVE_CLIENTES = crmQueryKeys.clientes()
-const CLAVE_CONTRATOS = crmQueryKeys.contratos()
-
-/**
- * Fecha + hora local del registro (espejo de fechaHora de analista.js): para un
- * timestamp completo toLocaleString SÍ respeta hora/minuto en todos los motores
- * (toLocaleDateString las ignora en iOS/WebKit). Aquí `new Date(ts)` es correcto
- * porque creado_en es un timestamp ISO completo, no un 'YYYY-MM-DD' (esos van
- * por fmtFecha, que parsea en local para evitar el bug UTC).
- */
-function fechaHora(ts: string): string {
-  const d = new Date(ts)
-  if (Number.isNaN(d.getTime())) return '—'
-  // Con la cartera completa de la empresa, el AÑO es obligatorio (la historia
-  // supera los 12 meses; el formato sin año venía del portal, otra escala).
-  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-}
 
 /** Copy bajo el título — cada rol lee SOLO lo que aplica a él (nada de mentir). */
 function copyDeRol(puedeContratar: boolean, verEquipo: boolean): string {
@@ -87,6 +68,17 @@ type Modal =
   | { tipo: 'corregir'; clienteId: string }
   | { tipo: 'contrato'; clienteId: string; clienteNombre: string }
   | null
+
+/**
+ * Registrado en fila densa: SOLO la fecha visible — la hora exacta viaja en el
+ * title (fechaHora). Aquí `new Date(ts)` es válido por la misma razón que en
+ * fechaHora: creado_en es un timestamp ISO completo, no un 'YYYY-MM-DD'.
+ */
+function soloFecha(ts: string): string {
+  const d = new Date(ts)
+  if (Number.isNaN(d.getTime())) return '—'
+  return d.toLocaleDateString('es-PE', { day: '2-digit', month: 'short', year: '2-digit' })
+}
 
 /**
  * Fila de la cartera. Es un componente aparte porque useVentana es un hook por
@@ -120,14 +112,18 @@ function FilaCliente({
     ? `Cliente de ${asesorNombre}: solo su asesor puede corregirlo o crearle contratos`
     : 'Solo el asesor del cliente puede corregirlo o crearle contratos'
   return (
-    <tr className="border-b border-border/60 last:border-0">
-      <td className="px-4 py-3">
-        <div className="flex items-center gap-2.5">
-          <Avatar nombre={cliente.nombre_completo} />
-          <p className="font-semibold text-foreground">{cliente.nombre_completo || '—'}</p>
-        </div>
-      </td>
-      <td className="px-4 py-3 tabular-nums">
+    <tr className="border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40">
+      <Td>
+        {/* Sin avatar decorativo: en fila densa el nombre ES el ancla visual;
+            truncate + title mantienen la altura constante con nombres largos. */}
+        <p
+          className="max-w-[240px] truncate text-[13px] font-semibold text-foreground"
+          title={cliente.nombre_completo || undefined}
+        >
+          {cliente.nombre_completo || '—'}
+        </p>
+      </Td>
+      <Td className="hidden tabular-nums md:table-cell">
         {cliente.dni ? (
           <>
             {/* Sigla solo cuando NO es DNI — patrón del portal ('CE 001234567'). */}
@@ -139,26 +135,39 @@ function FilaCliente({
         ) : (
           '—'
         )}
-      </td>
-      <td className="max-w-[220px] px-4 py-3 text-xs text-muted-foreground [overflow-wrap:anywhere]">
-        {cliente.correo || '—'}
-      </td>
-      <td className="px-4 py-3 text-xs tabular-nums text-muted-foreground">{cliente.telefono || '—'}</td>
+      </Td>
+      {/* truncate + title en vez de [overflow-wrap:anywhere]: los correos largos
+          hacían filas de altura VARIABLE (70-90 px) — en denso la altura es fija. */}
+      <Td className="hidden lg:table-cell">
+        <p className="max-w-[200px] truncate text-xs text-muted-foreground" title={cliente.correo || undefined}>
+          {cliente.correo || '—'}
+        </p>
+      </Td>
+      <Td className="text-xs tabular-nums text-muted-foreground">{cliente.telefono || '—'}</Td>
       {verEquipo && (
-        <td className="px-4 py-3">
+        <Td>
           {asesorNombre ? (
-            <span className="flex items-center gap-1.5">
-              <Avatar nombre={asesorNombre} className="size-6 text-[9px]" />
-              <span className="text-xs text-muted-foreground">{asesorNombre}</span>
+            <span className="text-xs text-muted-foreground" title={asesorNombre}>
+              {/* Visible solo el nombre de pila (columna angosta, patrón de la
+                  columna Vendedor de cartera); el nombre COMPLETO queda para
+                  lectores de pantalla — es el texto accesible que identifica
+                  de quién es la fila, y el que navegan los E2E. */}
+              <span aria-hidden>{primerNombre(asesorNombre)}</span>
+              <span className="sr-only">{asesorNombre}</span>
             </span>
           ) : (
             <span className="text-xs text-muted-foreground">—</span>
           )}
-        </td>
+        </Td>
       )}
-      <td className="px-4 py-3 text-xs text-muted-foreground">{fechaHora(cliente.creado_en)}</td>
+      <Td
+        className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground xl:table-cell"
+        title={fechaHora(cliente.creado_en)}
+      >
+        {soloFecha(cliente.creado_en)}
+      </Td>
       {conAcciones && (
-        <td className="px-4 py-3">
+        <Td>
           {accionable ? (
             // Sin verde en el sistema ("positivo" = azul): vigente en accent, vencida en destructive.
             <span
@@ -171,25 +180,28 @@ function FilaCliente({
               —
             </span>
           )}
-        </td>
+        </Td>
       )}
       {conAcciones && (
-        <td className="px-4 py-3">
+        <Td>
           {accionable ? (
             <div className="flex flex-wrap justify-end gap-1.5">
               <Button
                 variant="outline"
-                size="sm"
+                size="xs"
                 disabled={!ventana.vigente}
                 // El disabled es cortesía visual: la RLS del servidor es la que manda
                 // (fuera de ventana el UPDATE devuelve 0 filas, y crm-api lo detecta).
                 title={ventana.vigente ? undefined : 'La ventana de corrección de 5 horas ya venció'}
+                // Texto visible corto (fila densa); el nombre ACCESIBLE conserva el
+                // verbo completo — lectores de pantalla y E2E no pierden contexto.
+                aria-label="Corregir datos"
                 onClick={onCorregir}
               >
-                Corregir datos
+                Corregir
               </Button>
               {/* Crear contrato NO tiene ventana (regla del portal): siempre activo. */}
-              <Button size="sm" onClick={onContrato}>
+              <Button size="xs" onClick={onContrato}>
                 + Contrato
               </Button>
             </div>
@@ -200,7 +212,7 @@ function FilaCliente({
               —
             </span>
           )}
-        </td>
+        </Td>
       )}
     </tr>
   )
@@ -286,37 +298,17 @@ function VistaCartera({
         </p>
 
         {clientes == null && !error ? (
-          <div className="space-y-2 px-5 pb-5" aria-busy>
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-            <Skeleton className="h-9 w-full" />
-          </div>
+          <PanelCargando />
         ) : error ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-            <span className="grid size-11 place-items-center rounded-2xl bg-destructive/10 text-destructive">
-              <WifiOff className="size-5" aria-hidden />
-            </span>
-            <div className="space-y-1">
-              <p className="text-sm font-semibold text-foreground">{error.mensaje}</p>
-              <p className="text-xs text-muted-foreground">
-                Revisa tu conexión y vuelve a intentarlo — tu sesión sigue activa.
-              </p>
-            </div>
-            <Button variant="outline" size="sm" disabled={error.reintentando} onClick={error.reintentar}>
-              <RotateCcw aria-hidden /> Reintentar
-            </Button>
-          </div>
+          <PanelError mensaje={error.mensaje} onReintentar={error.reintentar} reintentando={error.reintentando} />
         ) : ordenados.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
-            <span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
-              <Inbox className="size-5" aria-hidden />
-            </span>
-            {/* Copy del estado vacío del portal para el analista; honesto para supervisión. */}
-            <p className="text-sm font-semibold text-foreground">
-              {verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no registraste clientes.'}
-            </p>
+          // Copy del estado vacío del portal para el analista; honesto para supervisión.
+          <PanelVacio
+            icono={Inbox}
+            titulo={verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no registraste clientes.'}
+          >
             {puedeContratar && <p className="text-xs text-muted-foreground">Usa “+ Nuevo cliente”.</p>}
-          </div>
+          </PanelVacio>
         ) : (
           <>
             {/* Buscador + filtro por asesor (solo roles con equipo) — patrón de cartera.tsx. */}
@@ -364,78 +356,61 @@ function VistaCartera({
             </div>
 
             {items.length === 0 ? (
-              <div className="flex flex-col items-center justify-center gap-2 px-6 py-14 text-center">
-                <span className="grid size-11 place-items-center rounded-2xl bg-muted text-muted-foreground">
-                  <Inbox className="size-5" aria-hidden />
-                </span>
-                <p className="text-sm font-semibold text-foreground">Sin resultados</p>
-                <p className="max-w-xs text-xs text-muted-foreground">
-                  {q.trim()
+              <PanelVacio
+                icono={Inbox}
+                titulo="Sin resultados"
+                detalle={
+                  q.trim()
                     ? `Ningún cliente coincide con “${q.trim()}”. Prueba con otro nombre, documento, correo o teléfono.`
-                    : 'Ningún cliente coincide con el filtro de asesor.'}
-                </p>
-              </div>
+                    : 'Ningún cliente coincide con el filtro de asesor.'
+                }
+              />
             ) : (
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                      <th className="px-4 py-3">Nombre</th>
-                      <th className="px-4 py-3">Documento</th>
-                      <th className="px-4 py-3">Correo</th>
-                      <th className="px-4 py-3">Teléfono</th>
-                      {verEquipo && <th className="px-4 py-3">Asesor</th>}
-                      <th className="px-4 py-3">Registrado</th>
-                      {puedeContratar && <th className="px-4 py-3">Ventana de corrección</th>}
-                      {puedeContratar && <th className="px-4 py-3 text-right">Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visibles.map((c) => (
-                      <FilaCliente
-                        key={c.id}
-                        cliente={c}
-                        accionable={puedeContratar && esMiCliente(c, yo?.id)}
-                        conAcciones={puedeContratar}
-                        verEquipo={verEquipo}
-                        asesorNombre={nombres.get(duenoDeCartera(c) ?? '') ?? null}
-                        onCorregir={() => onCorregir(c)}
-                        onContrato={() => onContrato(c)}
-                      />
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+              <TablaEnvoltura ariaLabel={titulo}>
+                {/* Responsive por PRIORIDAD (th y td llevan las mismas clases en
+                    pareja): en pantallas angostas cae primero Registrado (xl),
+                    luego Correo (lg), luego Documento (md). Ventana/Acciones y
+                    Asesor NUNCA se ocultan: son la operación del asesor y la
+                    propiedad de cada fila. */}
+                <TheadCrm>
+                  <Th>Nombre</Th>
+                  <Th className="hidden md:table-cell">Documento</Th>
+                  <Th className="hidden lg:table-cell">Correo</Th>
+                  <Th>Teléfono</Th>
+                  {verEquipo && <Th>Asesor</Th>}
+                  <Th className="hidden xl:table-cell">Registrado</Th>
+                  {/* Texto visible corto; aria-label conserva el nombre accesible
+                      completo de la columna (mismo criterio que 'Corregir'). */}
+                  {puedeContratar && <Th aria-label="Ventana de corrección">Ventana</Th>}
+                  {puedeContratar && <Th className="text-right">Acciones</Th>}
+                </TheadCrm>
+                <tbody>
+                  {visibles.map((c) => (
+                    <FilaCliente
+                      key={c.id}
+                      cliente={c}
+                      accionable={puedeContratar && esMiCliente(c, yo?.id)}
+                      conAcciones={puedeContratar}
+                      verEquipo={verEquipo}
+                      asesorNombre={nombres.get(duenoDeCartera(c) ?? '') ?? null}
+                      onCorregir={() => onCorregir(c)}
+                      onContrato={() => onContrato(c)}
+                    />
+                  ))}
+                </tbody>
+              </TablaEnvoltura>
             )}
           </>
         )}
       </Card>
 
-      {items.length > CLIENTES_POR_PAGINA && (
-        <nav className="flex items-center justify-between gap-3" aria-label="Paginación de clientes">
-          <p className="text-xs tabular-nums text-muted-foreground">
-            Página {paginaActual + 1} de {paginas} · {items.length} registros
-          </p>
-          <div className="flex gap-2">
-            <button
-              type="button"
-              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={paginaActual === 0}
-              onClick={() => setPagina((p) => Math.max(0, p - 1))}
-            >
-              Anterior
-            </button>
-            <button
-              type="button"
-              className="rounded-lg border border-border bg-card px-3 py-2 text-xs font-semibold disabled:cursor-not-allowed disabled:opacity-40"
-              disabled={paginaActual >= paginas - 1}
-              onClick={() => setPagina((p) => Math.min(paginas - 1, p + 1))}
-            >
-              Siguiente
-            </button>
-          </div>
-        </nav>
-      )}
+      <Paginacion
+        paginaActual={paginaActual}
+        paginas={paginas}
+        total={items.length}
+        onCambio={setPagina}
+        ariaLabel="Paginación de clientes"
+      />
     </div>
   )
 }
@@ -446,12 +421,10 @@ export function Clientes() {
   const queryClient = useQueryClient()
   const [modal, setModal] = useState<Modal>(null)
 
-  const { data, isPending, isError, error, refetch, isFetching } = useQuery({
-    queryKey: CLAVE_CLIENTES,
-    queryFn: ({ signal }) => listarClientes(signal),
-    // El demo no tiene backend del portal: ni un solo request (fail-closed).
-    enabled: !esDemo,
-  })
+  // Cartera compartida vía useClientes (clave crmQueryKeys.clientes()): la misma
+  // caché que abre instantáneo el selector de "+ Contrato" en Contratos. En demo
+  // ni un solo request (fail-closed): enabled=false, y ClientesDemo bifurca abajo.
+  const { data, isPending, isError, error, refetch, isFetching } = useClientes(!esDemo)
 
   const cerrarModal = () => setModal(null)
   // Cierre BLINDADO para los modales de ClienteForm: Radix cierra con Esc/overlay
@@ -484,16 +457,24 @@ export function Clientes() {
   }
 
   // El toast ('Datos del cliente corregidos.') también lo emite ClienteForm.
-  const alClienteCorregido = () => {
+  // Además de la lista se invalida clienteDetalle(id): el form precarga de esa
+  // clave (staleTime 0) y ningún consumidor debe revivir la versión previa a
+  // la corrección desde la caché. Y contratos(): cliente_nombre viaja
+  // denormalizado en la vista de contratos — sin invalidarla, la tabla y el
+  // detalle mostrarían el nombre viejo mientras la lista siga fresca (< 30 s).
+  const alClienteCorregido = (id: string) => {
     setModal(null)
     void refetch()
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.clienteDetalle(id) })
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
-  // La pantalla Contratos carga fresco al montarse (no lee esta caché todavía);
-  // la invalidación queda por si migra a TanStack Query con crmQueryKeys.contratos().
+  // Contratos YA comparte esta caché (useContratos, misma clave): la invalidación
+  // marca la lista stale aunque su pantalla esté desmontada, y al navegar hacia
+  // allá la tabla relee y pinta el contrato nuevo SIN reload.
   const alContratoCreado = () => {
     setModal(null)
-    void queryClient.invalidateQueries({ queryKey: CLAVE_CONTRATOS })
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
   // ── DEMO: MISMA vista (buscador/asesor/regla de cartera), fixtures y SIN backend ──
@@ -503,12 +484,16 @@ export function Clientes() {
   return (
     <>
       <VistaCartera
-        clientes={isPending || isError ? null : data ?? []}
+        // El error solo gana SIN data (mismo criterio que Contratos): un refetch
+        // de fondo fallido no tumba la cartera ya pintada desde caché.
+        clientes={isPending || (isError && data == null) ? null : data ?? []}
         demo={false}
         error={
-          isError
+          isError && data == null
             ? {
-                mensaje: error instanceof Error ? error.message : 'No se pudo cargar tu cartera de clientes.',
+                // mensajeDeError: los CrmApiError ya vienen es-PE; lo demás cae
+                // al texto por defecto (nunca un message crudo en inglés).
+                mensaje: mensajeDeError(error, 'No se pudo cargar tu cartera de clientes.'),
                 reintentando: isFetching,
                 reintentar: () => void refetch(),
               }

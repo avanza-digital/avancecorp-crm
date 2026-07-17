@@ -30,6 +30,7 @@ import {
   capitalPorMoneda,
   colaDe,
   colorMeta,
+  conversionGlobal,
   diasSinActividad,
   estancados,
   haceTexto,
@@ -51,7 +52,7 @@ function semaforoDias(d: number): string {
 }
 
 export function HoySupervisor(): JSX.Element {
-  const { ambito, actividades, reasignar, objetivos, series } = useCRMData()
+  const { ambito, actividades, reasignar, objetivos } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
@@ -78,11 +79,9 @@ export function HoySupervisor(): JSX.Element {
     const alertas = estancados(ambito.leads, actividades, 5, ahora, indice)
     const vivos = ambito.leads.filter((l) => l.activo)
     const convertidos = vivos.filter((l) => l.etapa === 'convertido').length
-    // Conversión con la MISMA base que comparativaEquipos (lib/inteligencia):
-    // convertidos / leads CON vendedor — los parkeados no cuentan en el denominador.
-    const vivosAsignados = vivos.filter((l) => l.vendedor_id != null)
-    const conversion =
-      vivosAsignados.length > 0 ? Math.round((convertidos / vivosAsignados.length) * 100) : 0
+    // Conversión de fuente única (lib/inteligencia): misma base que
+    // comparativaEquipos — los parkeados no cuentan en el denominador.
+    const conversion = conversionGlobal(ambito.leads).pct
     return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas, convertidos, conversion }
   }, [ambito, actividades, ahora])
 
@@ -112,7 +111,6 @@ export function HoySupervisor(): JSX.Element {
           icon={Wallet}
           color={SEMAFORO.ok}
           sub={d.capitalUSD > 0 ? `PEN · +${moneyK(d.capitalUSD, 'USD')} aparte` : 'PEN · abiertos con vendedor'}
-          spark={series.capital}
           delay={0}
         />
         <KpiCard
@@ -121,7 +119,6 @@ export function HoySupervisor(): JSX.Element {
           icon={Users}
           color={SEMAFORO.violeta}
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'vendedor' : 'vendedores'} a cargo`}
-          spark={series.leads}
           delay={60}
         />
         <KpiCard

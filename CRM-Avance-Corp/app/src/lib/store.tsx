@@ -608,6 +608,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       void op().then(
         () => { void resincronizarReal() },
         (causa: unknown) => {
+          // Variante LOCAL de mensajeDeError (crm-api): además excluye
+          // POSTGREST_ERROR — ese mensaje genérico es de LECTURA ("No se pudo
+          // cargar…") y confundiría como feedback de una mutación rechazada.
           const mensaje = causa instanceof CrmApiError && causa.code !== 'POSTGREST_ERROR'
             ? causa.message
             : 'No se pudo guardar el cambio'

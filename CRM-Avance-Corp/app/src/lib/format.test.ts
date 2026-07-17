@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { fmtFecha, iniciales, money, moneyK, primerNombre } from './format'
+import { fechaHora, fmtFecha, iniciales, money, moneyK, primerNombre } from './format'
 
 describe('formato monetario', () => {
   it('formatea PEN y USD sin mezclar símbolos', () => {
@@ -50,5 +50,22 @@ describe('formato de nombres y fechas', () => {
     expect(fmtFecha('2026-07-15')).toMatch(/15.*jul.*2026/i)
     expect(fmtFecha('2026-01-01')).toMatch(/01.*ene.*2026/i)
     expect(fmtFecha('2026-13-45')).toBe('—')
+  })
+})
+
+// fechaHora es para TIMESTAMPS completos (creado_en) — fecha CON año + hora
+// local; su contraste es fmtFecha, que formatea fechas SIN hora ('YYYY-MM-DD',
+// cronograma) y por eso parsea en local para esquivar el bug UTC.
+describe('fechaHora', () => {
+  // toMatch, no igualdad exacta: toLocaleString varía coma/espacios entre
+  // motores (Node/WebKit/Blink) — se pinea el contenido, no la puntuación.
+  it('localiza un timestamp ISO con día, mes, AÑO de 2 dígitos y hora', () => {
+    expect(fechaHora('2026-07-15T12:00:00.000Z')).toMatch(/15.*jul.*26.*\d{2}:\d{2}/i)
+  })
+
+  it('devuelve — para null, undefined o timestamps inválidos', () => {
+    expect(fechaHora(null)).toBe('—')
+    expect(fechaHora(undefined)).toBe('—')
+    expect(fechaHora('no-es-fecha')).toBe('—')
   })
 })

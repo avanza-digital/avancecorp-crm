@@ -54,6 +54,10 @@ export const pctMeta = (actual: number, objetivo: number): number =>
  * Chip de tendencia "▲ +13%" desde una serie (últimos 2 puntos). Con
  * `mostrarCero` el 0% devuelve "— 0%" (dashboards ejecutivos); sin él,
  * undefined (sin chip). Semántica unificada — antes divergía por copia.
+ *
+ * @deprecated Sin consumidores desde el Sprint A (A3, honestidad): el chip de
+ * tendencia dejó de dibujarse porque sus series eran de demostración. NO
+ * borrar — gerencia planea reactivar tendencias cuando existan series reales.
  */
 export function tendenciaDe(serie: number[], opts?: { mostrarCero?: boolean }): string | undefined {
   if (serie.length < 2) return undefined
@@ -96,16 +100,6 @@ export function haceTexto(dias: number): string {
 
 /** "hoy" / "N d" compacto para columnas de días (dias viene con fracción). */
 export const diasTxt = (d: number): string => (d < 1 ? 'hoy' : `${Math.floor(d)} d`)
-
-/** Última actividad (cualquier tipo) registrada para un lead, o undefined. */
-export function ultimaActividadDe(leadId: string, acts: Actividad[]): Actividad | undefined {
-  let ultima: Actividad | undefined
-  for (const a of acts) {
-    if (a.lead_id !== leadId) continue
-    if (!ultima || a.creado_en > ultima.creado_en) ultima = a
-  }
-  return ultima
-}
 
 export type IndiceUltimaActividad = ReadonlyMap<string, Actividad>
 

@@ -1,17 +1,21 @@
 // Pantalla "Mis contratos" — espejo de la sección homónima del panel del
 // analista del portal (public_html/admin/analista.html + js/admin/analista.js):
-// tabla de la cartera con su reloj de 5 h POR FILA (useVentana sobre creado_en),
-// "Ver detalle" siempre activo (solo lectura, la RLS ya scopea) y "Corregir"
-// SOLO para contratos propios (creado_por === yo.id) con la ventana viva — la
-// ventana real la decide el servidor; aquí es cuenta regresiva visual.
+// la cartera de contratos con su reloj de 5 h POR FILA (useVentana sobre
+// creado_en, SOLO en filas propias: la ventana es una herramienta del asesor
+// dueño, no un dato del lector), el detalle de solo lectura al click en la
+// fila (siempre disponible, la RLS ya scopea) y "Corregir" SOLO en contratos
+// propios (creado_por === yo.id) con la ventana viva — la ventana real la
+// decide el servidor; aquí es cuenta regresiva visual.
 // El alta ("+ Contrato") reusa <ContratoNuevo/> (el mismo del convertir del
 // lead) precedido de un selector de cliente de la cartera.
-import { useCallback, useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { FileText, RotateCcw, WifiOff } from 'lucide-react'
+import { ChevronRight, FileText, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -23,42 +27,24 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { SectionHead } from '@/components/common/section-head'
+import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
+import { Paginacion } from '@/components/common/paginacion'
+import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
-import { CrmApiError, listarClientes, listarMisContratos } from '@/data/crm-api'
-import type { ClienteBasico, ContratoRow, Cuota, EstadoContrato, Titular } from '@/lib/clientes-tipos'
-import type { CategoriaContrato } from '@/lib/cronograma'
+import { mensajeDeError } from '@/data/crm-api'
+import { crmQueryKeys, useClientes, useContratos } from '@/data/crm-queries'
+import { ESTADOS_CONTRATO, type ContratoRow, type Cuota, type Titular } from '@/lib/clientes-tipos'
+import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
 import { useAuth } from '@/lib/auth-context'
 import { esMiCliente } from '@/lib/clientes-vista'
-import { money } from '@/lib/format'
+import { filtrarContratos, type FiltroEstado } from '@/lib/contratos-vista'
+import { paginar } from '@/lib/paginacion'
+import { fechaHora, money } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { cn } from '@/lib/utils'
-
-// Categoría: valor en BD → etiqueta visible (con tilde) — espejo de analista.js.
-const CATEGORIA_LABEL: Record<CategoriaContrato, string> = {
-  nuevo: 'Nuevo',
-  renovacion: 'Renovación',
-  upgrade: 'Upgrade',
-}
-
-// Colores de estado sobre los tokens del CRM (no hay verde: "positivo" = azul).
-const ESTADO_COLOR: Record<EstadoContrato, string> = {
-  activo: 'var(--accent)',
-  vencido: 'var(--warning)',
-  renovado: 'var(--chart-4)',
-  retirado: 'var(--muted-foreground)',
-}
-
-// Fecha + hora local del registro (espejo de fechaHora de analista.js:287-292 —
-// toLocaleString SÍ respeta hora/minuto en iOS/WebKit; creado_en es timestamp
-// completo, no un 'YYYY-MM-DD', así que new Date(ts) es correcto aquí).
-function fechaHora(ts: string | null | undefined): string {
-  if (!ts) return '—'
-  const d = new Date(ts)
-  if (Number.isNaN(d.getTime())) return '—'
-  return d.toLocaleString('es-PE', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' })
-}
 
 export function Contratos() {
   const { yo } = useAuth()
@@ -68,13 +54,324 @@ export function Contratos() {
   return <ContratosReales />
 }
 
+/** Copy bajo el título — cada rol lee SOLO lo que aplica a él (nada de mentir). */
+function copyDeRol(puedeContratar: boolean): string {
+  return puedeContratar
+    ? 'Contratos que registraste. Corregir regenera el cronograma de cuotas; también con ventana de 5 h.'
+    : 'Todos los contratos de la empresa, en solo lectura (el alta y la corrección son del asesor).'
+}
+
 /**
- * Contratos en modo DEMO: MISMA tabla y reloj de 5 h que la ruta real, pero
- * poblada con fixtures ficticios (lib/demo-clientes) y SIN tocar la API — una
- * sesión demo no tiene Supabase, así que:
+ * Fila de la cartera de contratos. Componente aparte porque useVentana es un
+ * hook por registro — y SOLO corre en filas propias (creadoEn null = sin
+ * timer): en la vista de gerencia no hay 173 intervalos de 15 s marchando para
+ * relojes que ese rol ni ve (mismo criterio que FilaCliente en clientes.tsx).
+ * La fila entera abre el detalle (tabIndex + Enter/Espacio, patrón de la
+ * cartera de leads); SIN role=button — role=row es la semántica que navegan
+ * los E2E y los lectores de pantalla.
+ */
+function FilaContrato({
+  contrato: k,
+  esMia,
+  conAcciones,
+  onDetalle,
+  onCorregir,
+}: {
+  contrato: ContratoRow
+  /** creado_por === yo.id (regla POR FILA): habilita reloj y Corregir. */
+  esMia: boolean
+  /** La tabla pinta las columnas Ventana/Acciones (el usuario contrata en general). */
+  conAcciones: boolean
+  onDetalle: () => void
+  onCorregir: () => void
+}) {
+  // Reloj propio POR FILA (tick de 15 s, se detiene solo al vencer) — solo en lo mío.
+  const ventana = useVentana(esMia ? k.creado_en : null)
+  const tituloAjena = 'Solo el asesor que registró el contrato puede corregirlo'
+
+  return (
+    <tr
+      tabIndex={0}
+      // aria-label sobre role="row" (role="button" rompería la semántica de tabla)
+      aria-label={`Abrir detalle del contrato ${k.numero_contrato}`}
+      onClick={onDetalle}
+      onKeyDown={(ev) => {
+        // Solo con el foco en la FILA misma: el Enter sobre "Corregir" dispara
+        // el click del botón y burbujea hasta aquí — no debe abrir el detalle.
+        if (ev.target !== ev.currentTarget) return
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault()
+          onDetalle()
+        }
+      }}
+      className="group cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+    >
+      <Td className="whitespace-nowrap text-[13px] font-semibold tabular-nums">{k.numero_contrato}</Td>
+      <Td>
+        <p className="max-w-[220px] truncate" title={k.cliente_nombre ?? undefined}>
+          {k.cliente_nombre ?? '—'}
+        </p>
+      </Td>
+      <Td className="text-right font-extrabold tabular-nums text-primary">
+        {money(k.capital, k.moneda)}
+      </Td>
+      {/* Estado + Categoría FUSIONADAS: dos badges en una celda (fila densa). */}
+      <Td>
+        <div className="flex flex-wrap items-center gap-1">
+          <Badge color={ESTADO_COLOR[k.estado]} dot>{k.estado}</Badge>
+          {k.categoria && <Badge color="var(--chart-4)">{CATEGORIA_LABEL[k.categoria]}</Badge>}
+        </div>
+      </Td>
+      <Td className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground xl:table-cell">
+        {fechaHora(k.creado_en)}
+      </Td>
+      {conAcciones && (
+        <Td>
+          {esMia ? (
+            // Sin verde en el sistema ("positivo" = azul): vigente accent, vencida destructive.
+            <span
+              className={cn(
+                'whitespace-nowrap text-xs font-semibold tabular-nums',
+                ventana.vigente ? 'text-accent' : 'text-destructive',
+              )}
+            >
+              {ventana.texto}
+            </span>
+          ) : (
+            <span className="text-xs text-muted-foreground" title={tituloAjena}>
+              —
+            </span>
+          )}
+        </Td>
+      )}
+      {conAcciones && (
+        <Td className="text-right">
+          {/* Solo lo MÍO y con la ventana VIVA se corrige (el servidor lo
+              revalida igual — P0001 —; acá no se ofrece lo que fallaría). */}
+          {esMia && ventana.vigente ? (
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              onClick={(e) => {
+                // La fila entera abre el detalle: el botón no debe arrastrarlo.
+                e.stopPropagation()
+                onCorregir()
+              }}
+            >
+              Corregir
+            </Button>
+          ) : (
+            <span
+              className="block text-right text-xs text-muted-foreground"
+              title={esMia ? 'La ventana de corrección de 5 horas ya venció' : tituloAjena}
+            >
+              —
+            </span>
+          )}
+        </Td>
+      )}
+      <Td className="text-right">
+        <ChevronRight
+          className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100"
+          aria-hidden
+        />
+      </Td>
+    </tr>
+  )
+}
+
+/**
+ * La vista compartida por la ruta REAL y la DEMO (espejo de VistaCartera en
+ * clientes.tsx): header con título/copy por rol, buscador normalizado, filtro
+ * por estado, columnas Ventana/Acciones solo para quien contrata, regla esMia
+ * POR FILA y paginación client-side. Los datos y las acciones vienen del
+ * caller — esta capa solo decide QUÉ se ve y ofrece, y JAMÁS llama a la API
+ * (el demo pasa fixtures y error=null; su detalle sigue precargado).
+ */
+function VistaContratos({
+  contratos,
+  demo,
+  error,
+  yoId,
+  puedeContratar,
+  titulo,
+  copy,
+  onNuevo,
+  onDetalle,
+  onCorregir,
+}: {
+  /** null = cargando (skeleton). */
+  contratos: ContratoRow[] | null
+  demo: boolean
+  /** Solo la ruta real puede fallar; el demo pasa null. */
+  error: { mensaje: string; reintentando: boolean; reintentar: () => void } | null
+  /** Identidad para la regla POR FILA (esMia = creado_por === yoId). */
+  yoId: string | null
+  puedeContratar: boolean
+  titulo: string
+  copy: string
+  onNuevo: () => void
+  onDetalle: (c: ContratoRow) => void
+  onCorregir: (c: ContratoRow) => void
+}) {
+  const [q, setQ] = useState('')
+  const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
+  const [pagina, setPagina] = useState(0)
+
+  // `todas` solo para las condiciones de render (narrowing de null); el filtro
+  // memoiza sobre el prop directo para no recalcular por identidad nueva.
+  const todas = contratos ?? []
+  const items = useMemo(() => filtrarContratos(contratos ?? [], q, fEstado), [contratos, q, fEstado])
+  const hayFiltro = q.trim() !== '' || fEstado !== 'todos'
+  const { visibles, paginas, paginaActual } = paginar(items, pagina)
+
+  return (
+    <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
+      <Card className="overflow-hidden">
+        <SectionHead
+          icon={FileText}
+          title={titulo}
+          right={
+            <div className="flex items-center gap-3">
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {titulo}: {contratos ? contratos.length : '—'}
+              </span>
+              {/* Solo a quien pasará el chequeo de rol de crear_contrato (analista/admin). */}
+              {puedeContratar && (
+                <Button size="sm" onClick={onNuevo}>
+                  <FileText aria-hidden /> + Contrato
+                </Button>
+              )}
+            </div>
+          }
+        />
+        <p className="px-5 pb-3 text-xs text-muted-foreground">
+          {demo ? 'Datos de demostración. ' : ''}
+          {copy}
+        </p>
+
+        {contratos == null && !error ? (
+          <PanelCargando />
+        ) : error ? (
+          <PanelError mensaje={error.mensaje} onReintentar={error.reintentar} reintentando={error.reintentando} />
+        ) : todas.length === 0 ? (
+          // Texto EXACTO del vacío del portal; honesto para los roles lectores.
+          <PanelVacio
+            icono={FileText}
+            titulo={puedeContratar ? 'Aún no registraste contratos.' : 'Sin contratos en la cartera todavía.'}
+          >
+            {puedeContratar && (
+              <p className="max-w-xs text-xs text-muted-foreground">
+                Crea el primero con “+ Contrato” o convirtiendo un lead en cliente.
+              </p>
+            )}
+          </PanelVacio>
+        ) : (
+          <>
+            {/* Buscador + filtro por estado — patrón de la cartera de clientes. */}
+            <div className="flex flex-wrap items-center gap-2 px-5 pb-3">
+              <div className="relative w-full max-w-sm">
+                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                <Input
+                  aria-label="Buscar contratos"
+                  placeholder="Buscar por N° de contrato o cliente…"
+                  className="pl-9"
+                  value={q}
+                  onChange={(e) => {
+                    setQ(e.target.value)
+                    setPagina(0)
+                  }}
+                />
+              </div>
+              <div className="w-[190px]">
+                <Select
+                  aria-label="Filtrar por estado"
+                  value={fEstado}
+                  onChange={(e) => {
+                    setFEstado(e.target.value as FiltroEstado)
+                    setPagina(0)
+                  }}
+                >
+                  <option value="todos">Todos los estados</option>
+                  {/* Los 4 estados del CHECK del portal, tal cual los pinta el badge. */}
+                  {ESTADOS_CONTRATO.map((es) => (
+                    <option key={es} value={es}>{es}</option>
+                  ))}
+                </Select>
+              </div>
+              {hayFiltro && (
+                <span className="text-xs tabular-nums text-muted-foreground">
+                  {items.length} de {todas.length}
+                </span>
+              )}
+            </div>
+
+            {items.length === 0 ? (
+              <PanelVacio
+                icono={FileText}
+                titulo="Sin resultados"
+                detalle={
+                  q.trim()
+                    ? `Ningún contrato coincide con “${q.trim()}”. Prueba con otro número o cliente.`
+                    : 'Ningún contrato coincide con el filtro de estado.'
+                }
+              />
+            ) : (
+              <TablaEnvoltura ariaLabel={titulo}>
+                {/* Responsive por PRIORIDAD (th y td llevan clases IDÉNTICAS en
+                    pareja): en pantallas angostas cae Registrado (xl). Ventana y
+                    Acciones NUNCA se ocultan: son la operación del asesor. */}
+                <TheadCrm>
+                  <Th>N° contrato</Th>
+                  <Th>Cliente</Th>
+                  <Th className="text-right">Capital</Th>
+                  {/* Estado + Categoría fusionadas en una sola columna (fila densa). */}
+                  <Th>Estado</Th>
+                  <Th className="hidden xl:table-cell">Registrado</Th>
+                  {/* Texto visible corto; aria-label conserva el nombre accesible
+                      completo de la columna (mismo criterio que en Clientes). */}
+                  {puedeContratar && <Th aria-label="Ventana de corrección">Ventana</Th>}
+                  {puedeContratar && <Th className="text-right">Acciones</Th>}
+                  <Th className="w-8" aria-hidden />
+                </TheadCrm>
+                <tbody>
+                  {visibles.map((k) => (
+                    <FilaContrato
+                      key={k.id}
+                      contrato={k}
+                      esMia={k.creado_por != null && k.creado_por === yoId}
+                      conAcciones={puedeContratar}
+                      onDetalle={() => onDetalle(k)}
+                      onCorregir={() => onCorregir(k)}
+                    />
+                  ))}
+                </tbody>
+              </TablaEnvoltura>
+            )}
+          </>
+        )}
+      </Card>
+
+      <Paginacion
+        paginaActual={paginaActual}
+        paginas={paginas}
+        total={items.length}
+        onCambio={setPagina}
+        ariaLabel="Paginación de contratos"
+      />
+    </div>
+  )
+}
+
+/**
+ * Contratos en modo DEMO: MISMA vista (VistaContratos completa — buscador,
+ * filtro por estado, paginación, reloj de 5 h por fila propia) poblada con
+ * fixtures ficticios (lib/demo-clientes) y SIN tocar la API — una sesión demo
+ * no tiene Supabase, así que:
  *   - los fixtures llegan por import() dinámico gated (Rolldown los saca de prod),
- *   - "Ver detalle" abre el detalle con el cronograma/co-titulares PRECARGADOS
- *     (ContratoDetalle.datos → cero fetch),
+ *   - el click en la fila abre el detalle con el cronograma/co-titulares
+ *     PRECARGADOS (ContratoDetalle.datos → cero fetch),
  *   - "+ Contrato" y "Corregir" existen pero solo emiten un toast "(demo)":
  *     jamás llaman al portal (mismo criterio que las acciones demo de leads).
  */
@@ -102,63 +399,23 @@ function ContratosDemo() {
     }
   }, [])
 
-  return (
-    <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="text-base font-extrabold text-primary">Mis contratos</h2>
-          <p className="text-xs text-muted-foreground">
-            Datos de demostración. El alta y la corrección solo operan con tu cuenta real.
-          </p>
-        </div>
-        {yo?.puede_contratar && (
-          <Button
-            size="sm"
-            onClick={() => toast.info('Nuevo contrato: disponible solo con tu cuenta real (demo)')}
-          >
-            <FileText /> + Contrato
-          </Button>
-        )}
-      </div>
+  const puedeContratar = yo?.puede_contratar === true
 
-      <Card className="overflow-hidden">
-        {contratos == null ? (
-          <div className="space-y-2 p-4" aria-busy>
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-3/4" />
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-4 py-3">N° contrato</th>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3 text-right">Capital</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Categoría</th>
-                  <th className="px-4 py-3">Registrado</th>
-                  <th className="px-4 py-3">Ventana de corrección</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contratos.map((k) => (
-                  <FilaContrato
-                    key={k.id}
-                    contrato={k}
-                    esMia={k.creado_por != null && k.creado_por === yo?.id}
-                    onDetalle={() => setDetalle(k)}
-                    onCorregir={() =>
-                      toast.info('Corrección de contrato: disponible solo con tu cuenta real (demo)')}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+  return (
+    <>
+      <VistaContratos
+        contratos={contratos}
+        demo
+        error={null}
+        yoId={yo?.id ?? null}
+        puedeContratar={puedeContratar}
+        titulo={puedeContratar ? 'Mis contratos' : 'Contratos de la cartera'}
+        copy="El alta y la corrección solo operan con tu cuenta real."
+        onNuevo={() => toast.info('Nuevo contrato: disponible solo con tu cuenta real (demo)')}
+        onDetalle={setDetalle}
+        onCorregir={() =>
+          toast.info('Corrección de contrato: disponible solo con tu cuenta real (demo)')}
+      />
 
       {/* Detalle SOLO LECTURA con datos PRECARGADOS: no fetchea (cero red en demo). */}
       {detalle && (
@@ -179,7 +436,7 @@ function ContratosDemo() {
           />
         </Dialog>
       )}
-    </div>
+    </>
   )
 }
 
@@ -189,110 +446,63 @@ type Panel =
 
 function ContratosReales() {
   const { yo } = useAuth()
-  const [contratos, setContratos] = useState<ContratoRow[] | null>(null)
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
   const [panel, setPanel] = useState<Panel | null>(null)
   const [nuevoAbierto, setNuevoAbierto] = useState(false)
 
-  const cargar = useCallback(async (signal?: AbortSignal) => {
-    setError(null)
-    try {
-      const filas = await listarMisContratos(signal)
-      if (signal?.aborted) return
-      setContratos(filas)
-    } catch (e) {
-      if (signal?.aborted) return
-      setError(e instanceof CrmApiError ? e.message : 'No se pudieron cargar tus contratos.')
-    }
-  }, [])
+  // Caché COMPARTIDA bajo crmQueryKeys.contratos(): la invalidación que dispara
+  // la pantalla Clientes tras crear un contrato refresca ESTA tabla sin reload.
+  // El `enabled` es doble defensa del demo (Contratos ya bifurcó arriba, pero
+  // una sesión demo no tiene Supabase y ni un request debe salir).
+  const {
+    data: contratos,
+    isPending,
+    isError,
+    error,
+    refetch,
+    isFetching,
+  } = useContratos(yo?.demo !== true)
 
-  useEffect(() => {
-    const ac = new AbortController()
-    void cargar(ac.signal)
-    return () => ac.abort()
-  }, [cargar])
-
+  const puedeContratar = yo?.puede_contratar === true
   const cerrarPanel = () => setPanel(null)
+  // Tras crear/corregir NO se refetchea a mano: se invalida la clave y TanStack
+  // relee (con dedupe/abort). contratos() es PREFIJO de cronograma(id) y
+  // titulares(id), así que esta invalidación jerárquica cubre TAMBIÉN el
+  // detalle del contrato corregido — obligatorio: actualizar_contrato REGENERA
+  // el cronograma y puede reemplazar el set de co-titulares.
+  const recargarContratos = () =>
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
 
   return (
-    <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
-      <div className="flex flex-wrap items-end justify-between gap-2">
-        <div>
-          <h2 className="text-base font-extrabold text-primary">
-            {yo?.puede_contratar ? 'Mis contratos' : 'Contratos de la cartera'}
-          </h2>
-          <p className="text-xs text-muted-foreground">
-            {yo?.puede_contratar
-              ? 'Contratos que registraste. Corregir regenera el cronograma de cuotas; también con ventana de 5 h.'
-              : 'Todos los contratos de la empresa, en solo lectura (el alta y la corrección son del asesor).'}
-          </p>
-        </div>
-        {/* Solo a quien pasará el chequeo de rol de crear_contrato (analista/admin). */}
-        {yo?.puede_contratar && (
-          <Button size="sm" onClick={() => setNuevoAbierto(true)}>
-            <FileText /> + Contrato
-          </Button>
-        )}
-      </div>
-
-      <Card className="overflow-hidden">
-        {error ? (
-          <div className="flex flex-col items-center justify-center gap-3 px-6 py-14 text-center">
-            <WifiOff className="size-6 text-destructive" aria-hidden />
-            <p className="text-sm font-semibold text-foreground">{error}</p>
-            <Button type="button" variant="outline" size="sm" onClick={() => void cargar()}>
-              <RotateCcw /> Reintentar
-            </Button>
-          </div>
-        ) : contratos == null ? (
-          <div className="space-y-2 p-4" aria-busy>
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-full" />
-            <Skeleton className="h-8 w-3/4" />
-          </div>
-        ) : contratos.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
-            <FileText className="size-6 text-muted-foreground" aria-hidden />
-            {/* Texto EXACTO del vacío del portal. */}
-            <p className="text-sm font-semibold text-foreground">
-              {yo?.puede_contratar ? 'Aún no registraste contratos.' : 'Sin contratos en la cartera todavía.'}
-            </p>
-            {yo?.puede_contratar && (
-              <p className="max-w-xs text-xs text-muted-foreground">
-                Crea el primero con “+ Contrato” o convirtiendo un lead en cliente.
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border bg-muted/50 text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="px-4 py-3">N° contrato</th>
-                  <th className="px-4 py-3">Cliente</th>
-                  <th className="px-4 py-3 text-right">Capital</th>
-                  <th className="px-4 py-3">Estado</th>
-                  <th className="px-4 py-3">Categoría</th>
-                  <th className="px-4 py-3">Registrado</th>
-                  <th className="px-4 py-3">Ventana de corrección</th>
-                  <th className="px-4 py-3 text-right">Acciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {contratos.map((k) => (
-                  <FilaContrato
-                    key={k.id}
-                    contrato={k}
-                    esMia={k.creado_por != null && k.creado_por === yo?.id}
-                    onDetalle={() => setPanel({ tipo: 'detalle', contrato: k })}
-                    onCorregir={() => setPanel({ tipo: 'corregir', contrato: k })}
-                  />
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+    <>
+      <VistaContratos
+        // El error solo gana cuando NO hay nada que mostrar: un refetch de fondo
+        // fallido (foco de ventana + retry:false) deja isError=true con la lista
+        // aún en caché — tumbar la tabla pintada por un blip de red sería mentirle
+        // al usuario que "no se pudieron cargar" contratos que está viendo.
+        contratos={isPending || (isError && contratos == null) ? null : contratos ?? []}
+        demo={false}
+        error={
+          isError && contratos == null
+            ? {
+                // mensajeDeError: los CrmApiError ya vienen es-PE; lo demás cae
+                // al texto por defecto (nunca un message crudo en inglés).
+                mensaje: mensajeDeError(error, 'No se pudieron cargar tus contratos.'),
+                reintentando: isFetching,
+                // refetch de TanStack: con señal y dedupe — se acabó la carrera
+                // del doble click que tenía el cargar() manual sin AbortController.
+                reintentar: () => void refetch(),
+              }
+            : null
+        }
+        yoId={yo?.id ?? null}
+        puedeContratar={puedeContratar}
+        titulo={puedeContratar ? 'Mis contratos' : 'Contratos de la cartera'}
+        copy={copyDeRol(puedeContratar)}
+        onNuevo={() => setNuevoAbierto(true)}
+        onDetalle={(k) => setPanel({ tipo: 'detalle', contrato: k })}
+        onCorregir={(k) => setPanel({ tipo: 'corregir', contrato: k })}
+      />
 
       {/* Detalle SOLO LECTURA: siempre disponible, no depende de la ventana. */}
       {panel?.tipo === 'detalle' && (
@@ -318,7 +528,7 @@ function ContratosReales() {
             contrato={panel.contrato}
             onGuardado={() => {
               setPanel(null)
-              void cargar()
+              recargarContratos()
             }}
             onCerrar={cerrarPanel}
           />
@@ -330,76 +540,11 @@ function ContratosReales() {
           onCerrar={() => setNuevoAbierto(false)}
           onCreado={() => {
             setNuevoAbierto(false)
-            void cargar()
+            recargarContratos()
           }}
         />
       )}
-    </div>
-  )
-}
-
-function FilaContrato({
-  contrato: k,
-  esMia,
-  onDetalle,
-  onCorregir,
-}: {
-  contrato: ContratoRow
-  esMia: boolean
-  onDetalle: () => void
-  onCorregir: () => void
-}) {
-  // Reloj propio POR FILA (tick de 15 s, se detiene solo al vencer).
-  const ventana = useVentana(k.creado_en)
-
-  return (
-    <tr className="border-b border-border/60 last:border-0 hover:bg-muted/40">
-      <td className="px-4 py-3 font-bold tabular-nums">{k.numero_contrato}</td>
-      <td className="px-4 py-3">{k.cliente_nombre ?? '—'}</td>
-      <td className="px-4 py-3 text-right font-extrabold tabular-nums text-primary">
-        {money(k.capital, k.moneda)}
-      </td>
-      <td className="px-4 py-3">
-        <Badge color={ESTADO_COLOR[k.estado]} dot>{k.estado}</Badge>
-      </td>
-      <td className="px-4 py-3">
-        {k.categoria ? (
-          <Badge color="var(--chart-4)">{CATEGORIA_LABEL[k.categoria]}</Badge>
-        ) : (
-          <span className="text-xs text-muted-foreground">—</span>
-        )}
-      </td>
-      <td className="px-4 py-3 text-xs text-muted-foreground">{fechaHora(k.creado_en)}</td>
-      <td
-        className={cn(
-          'px-4 py-3 text-xs font-semibold tabular-nums',
-          ventana.vigente ? 'text-accent' : 'text-destructive',
-        )}
-      >
-        {ventana.texto}
-      </td>
-      <td className="px-4 py-3">
-        <div className="flex flex-wrap justify-end gap-1.5">
-          <Button type="button" size="sm" variant="outline" onClick={onDetalle}>
-            Ver detalle
-          </Button>
-          {/* Solo lo MÍO se corrige (el portal lo manda igual y la RLS lo calla;
-              acá lo sabemos de antemano y no ofrecemos lo que fallaría). */}
-          {esMia && (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={onCorregir}
-              disabled={!ventana.vigente}
-              title={ventana.vigente ? undefined : 'La ventana de corrección de 5 horas ya venció'}
-            >
-              Corregir
-            </Button>
-          )}
-        </div>
-      </td>
-    </tr>
+    </>
   )
 }
 
@@ -411,23 +556,12 @@ function FilaContrato({
  */
 function NuevoContratoDialog({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: () => void }) {
   const { yo } = useAuth()
-  const [clientes, setClientes] = useState<ClienteBasico[] | null>(null)
-  const [errorClientes, setErrorClientes] = useState<string | null>(null)
+  // La MISMA caché que la pantalla Clientes (crmQueryKeys.clientes()): viniendo
+  // de allá el selector abre instantáneo (fresca < 30 s) en vez de refetchear.
+  // Este diálogo solo se monta en la ruta REAL (ContratosDemo ni lo ofrece).
+  const { data: clientes, isError: errorClientes, error: causaClientes } = useClientes()
   const [clienteId, setClienteId] = useState('')
   const [paso, setPaso] = useState<'cliente' | 'form'>('cliente')
-
-  useEffect(() => {
-    const ac = new AbortController()
-    listarClientes(ac.signal)
-      .then((filas) => {
-        if (!ac.signal.aborted) setClientes(filas)
-      })
-      .catch((e: unknown) => {
-        if (ac.signal.aborted) return
-        setErrorClientes(e instanceof CrmApiError ? e.message : 'No se pudo cargar tu cartera de clientes.')
-      })
-    return () => ac.abort()
-  }, [])
 
   // crear_contrato exige cartera PROPIA: la vista trae el ámbito completo (un
   // supervisor ve a su equipo), pero solo se ofrece lo que el servidor acepta
@@ -456,7 +590,9 @@ function NuevoContratoDialog({ onCerrar, onCreado }: { onCerrar: () => void; onC
       </DialogHeader>
       <DialogBody className="space-y-3">
         {errorClientes ? (
-          <p className="text-xs font-semibold text-destructive">{errorClientes}</p>
+          <p className="text-xs font-semibold text-destructive">
+            {mensajeDeError(causaClientes, 'No se pudo cargar tu cartera de clientes.')}
+          </p>
         ) : clientes == null ? (
           <div className="space-y-2" aria-busy>
             <Skeleton className="h-9 w-full" />

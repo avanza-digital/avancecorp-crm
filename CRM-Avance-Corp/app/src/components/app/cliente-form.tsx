@@ -13,7 +13,7 @@
 //
 // La lógica pura (validaciones, catálogo de bancos, patch de 14 bancarias) vive
 // en lib/cliente-form-logica; aquí solo el estado y el pintado.
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BadgeCheck, Pencil, RotateCcw, UserRoundPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -24,9 +24,10 @@ import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/component
 import {
   actualizarClientePortal,
   crearClientePortal,
-  obtenerClienteDetalle,
+  mensajeDeError,
   CrmApiError,
 } from '@/data/crm-api'
+import { useClienteDetalle } from '@/data/crm-queries'
 import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import type { ClienteDetalle } from '@/lib/clientes-tipos'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
@@ -77,9 +78,6 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const [usd, setUsd] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
   // Corregir: detalle cargado (habilita legacy/grandfathering y la cuenta regresiva)
   const [detalle, setDetalle] = useState<ClienteDetalle | null>(null)
-  const [cargando, setCargando] = useState(esCorregir)
-  const [errorCarga, setErrorCarga] = useState<string | null>(null)
-  const [intentoCarga, setIntentoCarga] = useState(0)
   // Envío
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
@@ -88,40 +86,44 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
 
   const ventana = useVentana(esCorregir ? detalle?.creado_en : null)
 
+  // PRECARGA vía caché (clave clienteDetalle(id), staleTime 0): el UPDATE de
+  // corregir viaja con el set COMPLETO de campos, así que la precarga es
+  // prerequisito del guardado y revalida SIEMPRE al abrir — jamás se siembra
+  // el formulario con una copia cacheada que podría estar vieja.
+  const qDetalle = useClienteDetalle(clienteId ?? '', esCorregir && !!clienteId)
+  // Siembra ÚNICA y solo con datos RECIÉN traídos: isFetchedAfterMount exige un
+  // fetch COMPLETADO tras el mount — sin red el refetch queda 'paused' (isFetching
+  // false + isSuccess true con la copia cacheada) y sembrar esa copia vieja haría
+  // que el UPDATE de set completo pise bancarios corregidos por otra sesión. Un
+  // refetch posterior (foco de ventana) no debe pisar lo que el asesor edita.
+  const sembrado = useRef(false)
   useEffect(() => {
-    if (!esCorregir) return
-    if (!clienteId) {
-      setCargando(false)
-      setErrorCarga('Falta el id del cliente a corregir.')
-      return
-    }
-    let vivo = true
-    setCargando(true)
-    setErrorCarga(null)
-    obtenerClienteDetalle(clienteId)
-      .then((d) => {
-        if (!vivo) return
-        // Precarga TODO (espejo de abrirModalClienteCorregir del portal).
-        setApellidos(d.apellidos ?? '')
-        setNombres(d.nombres ?? '')
-        setTipoDoc(d.tipo_documento)
-        setDocumento(d.dni ?? '')
-        setTelefono(d.telefono ?? '')
-        setCorreo(d.correo ?? '')
-        setPen(seccionPenDesdeDetalle(d))
-        setUsd(seccionUsdDesdeDetalle(d))
-        setDetalle(d)
-        setCargando(false)
-      })
-      .catch((e: unknown) => {
-        if (!vivo) return
-        setErrorCarga(e instanceof CrmApiError ? e.message : 'No se pudo cargar el cliente.')
-        setCargando(false)
-      })
-    return () => {
-      vivo = false
-    }
-  }, [esCorregir, clienteId, intentoCarga])
+    if (!esCorregir || sembrado.current) return
+    if (!qDetalle.isSuccess || qDetalle.isFetching || !qDetalle.isFetchedAfterMount) return
+    const d = qDetalle.data
+    sembrado.current = true
+    // Precarga TODO (espejo de abrirModalClienteCorregir del portal).
+    setApellidos(d.apellidos ?? '')
+    setNombres(d.nombres ?? '')
+    setTipoDoc(d.tipo_documento)
+    setDocumento(d.dni ?? '')
+    setTelefono(d.telefono ?? '')
+    setCorreo(d.correo ?? '')
+    setPen(seccionPenDesdeDetalle(d))
+    setUsd(seccionUsdDesdeDetalle(d))
+    setDetalle(d)
+  }, [esCorregir, qDetalle.isSuccess, qDetalle.isFetching, qDetalle.isFetchedAfterMount, qDetalle.data])
+
+  // Una vez sembrado, el formulario manda: un fallo de un refetch posterior no
+  // lo tumba (el guardado revalida en el servidor de todos modos).
+  const errorCarga = !esCorregir
+    ? null
+    : !clienteId
+      ? 'Falta el id del cliente a corregir.'
+      : detalle == null && qDetalle.isError
+        ? mensajeDeError(qDetalle.error, 'No se pudo cargar el cliente.')
+        : null
+  const cargando = esCorregir && detalle == null && errorCarga == null
 
   const guardar = async () => {
     if (enviando) return // guard anti doble-submit (además del disabled del botón)
@@ -271,7 +273,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         </DialogBody>
         <DialogFooter className="justify-between">
           <Button variant="ghost" size="sm" onClick={onCerrar}>Cerrar</Button>
-          <Button variant="outline" size="sm" onClick={() => setIntentoCarga((n) => n + 1)}>
+          <Button variant="outline" size="sm" onClick={() => void qDetalle.refetch()}>
             <RotateCcw /> Reintentar
           </Button>
         </DialogFooter>

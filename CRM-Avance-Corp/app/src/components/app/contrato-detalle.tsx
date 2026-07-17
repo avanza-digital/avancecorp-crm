@@ -5,33 +5,23 @@
 // Siempre disponible: NO depende de la ventana de 5 h — la RLS ya limita a la
 // cartera (contrato ajeno = 0 filas, fail-closed). Se monta DENTRO de <Dialog>
 // (mismo patrón que ContratoNuevo: el caller pone el Dialog, aquí va el panel).
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { FileText, RotateCcw, WifiOff } from 'lucide-react'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { fmtFecha, money } from '@/lib/format'
-import { CrmApiError, listarMisContratos, obtenerCronograma, obtenerTitulares } from '@/data/crm-api'
-import type { CategoriaContrato, ModalidadContrato } from '@/lib/cronograma'
+import { mensajeDeError } from '@/data/crm-api'
+import { useContrato, useCronograma, useTitulares } from '@/data/crm-queries'
+import { CATEGORIA_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import { etiquetaDocumento } from '@/lib/titulares'
 import type { ContratoRow, Cuota, EstadoContrato, EstadoCuota, Titular } from '@/lib/clientes-tipos'
 
-// Etiquetas es-PE de los catálogos (espejo de CATEGORIA_LABEL de analista.js).
-const CATEGORIA_LABEL: Record<CategoriaContrato, string> = {
-  nuevo: 'Nuevo',
-  renovacion: 'Renovación',
-  upgrade: 'Upgrade',
-}
-const MODALIDAD_LABEL: Record<ModalidadContrato, string> = {
-  mensual: 'Mensual',
-  trimestral: 'Trimestral',
-  semestral: 'Semestral',
-  anual: 'Anual',
-}
-
 // Sin verde en el sistema ("positivo" = azul): activo/pagado en accent,
 // vencido en destructive, renovado/trasladado en ámbar, retirado neutro.
+// Paleta PROPIA del detalle (aquí 'vencido' es deuda): no es una copia del
+// ESTADO_COLOR de la tabla (contratos-catalogo) y por eso se queda local.
 const ESTADO_CONTRATO_COLOR: Record<EstadoContrato, string> = {
   activo: 'var(--accent)',
   vencido: 'var(--destructive)',
@@ -61,7 +51,7 @@ function Termino({ label, children }: { label: string; children: ReactNode }) {
  * Datos PRECARGADOS del detalle (modo DEMO): contrato + cronograma + co-titulares
  * ya en memoria. Si vienen, el detalle NO fetchea NADA — una sesión demo no tiene
  * Supabase y cualquier GET pegaría a producción (regla de oro). La ruta real (sin
- * este prop) queda intacta: sigue leyendo de listarMisContratos/obtenerCronograma.
+ * este prop) lee de la caché de TanStack (useContrato/useCronograma/useTitulares).
  */
 export interface ContratoDetalleDatos {
   contrato: ContratoRow
@@ -76,64 +66,46 @@ export interface ContratoDetalleProps {
 }
 
 export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalleProps) {
-  // Los términos salen de listarMisContratos (la RLS ya recorta a la cartera):
-  // no existe un GET puntual por id en el contrato de la API, y el volumen del
-  // piloto hace barato reusar la misma lectura que la pantalla.
-  const [contrato, setContrato] = useState<ContratoRow | null>(datos?.contrato ?? null)
-  const [errorContrato, setErrorContrato] = useState<string | null>(null)
+  // DEMO: con datos precargados los hooks quedan DESHABILITADOS — cero red
+  // (una sesión demo no tiene Supabase, ver ContratoDetalleDatos).
+  const precargado = datos != null
+
+  // Los términos salen de la MISMA clave contratos() que la tabla (useContrato
+  // hace select por id sobre la caché): abrir el detalle desde la pantalla ya
+  // no re-descarga la cartera completa (tope 2000) para encontrar UNA fila que
+  // el caller tenía pintada — con la lista fresca (< 30 s) no hay fetch.
   // Cronograma y co-titulares cargan aparte: espejo del portal — un fallo de
   // co-titulares NO rompe el detalle; uno del cronograma solo rompe su sección.
-  const [cuotas, setCuotas] = useState<Cuota[] | null>(datos?.cuotas ?? null)
-  const [errorCrono, setErrorCrono] = useState<string | null>(null)
-  const [titulares, setTitulares] = useState<Titular[]>(datos?.titulares ?? [])
-  const [intento, setIntento] = useState(0)
+  const qContrato = useContrato(contratoId, !precargado)
+  const qCronograma = useCronograma(contratoId, !precargado)
+  const qTitulares = useTitulares(contratoId, !precargado)
 
-  useEffect(() => {
-    // DEMO: si el detalle llegó con datos precargados, NO se toca la red — la
-    // sesión demo no tiene Supabase (ver ContratoDetalleDatos). Ruta real intacta.
-    if (datos) return
-    const ctrl = new AbortController()
-    setContrato(null)
-    setErrorContrato(null)
-    setCuotas(null)
-    setErrorCrono(null)
-    setTitulares([])
-    void (async () => {
-      try {
-        const filas = await listarMisContratos(ctrl.signal)
-        if (ctrl.signal.aborted) return
-        const k = filas.find((f) => f.id === contratoId)
-        if (!k) {
-          // Fuera de la cartera o inexistente: mismo mensaje, sin revelar existencia.
-          setErrorContrato('No se encontró el contrato en tu cartera.')
-          return
-        }
-        setContrato(k)
-      } catch (e) {
-        if (ctrl.signal.aborted) return
-        setErrorContrato(e instanceof CrmApiError ? e.message : 'No se pudo cargar el contrato.')
-      }
-    })()
-    void (async () => {
-      try {
-        const filas = await obtenerCronograma(contratoId, ctrl.signal)
-        if (!ctrl.signal.aborted) setCuotas(filas)
-      } catch (e) {
-        if (ctrl.signal.aborted) return
-        setErrorCrono(e instanceof CrmApiError ? e.message : 'No se pudo cargar el cronograma.')
-      }
-    })()
-    void (async () => {
-      try {
-        const filas = await obtenerTitulares(contratoId, ctrl.signal)
-        if (!ctrl.signal.aborted) setTitulares(filas)
-      } catch {
-        // Espejo del portal (cargarTitulares): un fallo aquí no rompe la pantalla —
-        // el bloque simplemente no se pinta (crm-api ya registró el error).
-      }
-    })()
-    return () => ctrl.abort()
-  }, [contratoId, intento, datos])
+  const contrato = datos?.contrato ?? qContrato.data ?? null
+  // El error solo gana SIN data: un refetch de fondo fallido de la lista (foco
+  // de ventana + retry:false) no debe voltear un detalle ya pintado desde caché.
+  const errorContrato = precargado
+    ? null
+    : qContrato.isError && qContrato.data == null
+      ? mensajeDeError(qContrato.error, 'No se pudo cargar el contrato.')
+      : qContrato.isSuccess && qContrato.data == null
+        // Fuera de la cartera o inexistente: mismo mensaje, sin revelar existencia.
+        ? 'No se encontró el contrato en tu cartera.'
+        : null
+  const cuotas = datos?.cuotas ?? qCronograma.data ?? null
+  const errorCrono = !precargado && qCronograma.isError && qCronograma.data == null
+    ? mensajeDeError(qCronograma.error, 'No se pudo cargar el cronograma.')
+    : null
+  // Espejo del portal (cargarTitulares): un fallo aquí no rompe la pantalla —
+  // el bloque simplemente no se pinta (crm-api ya registró el error).
+  const titulares = datos?.titulares ?? qTitulares.data ?? []
+
+  // Reintento AMPLIO (mismo alcance que el intento++ anterior): el fallo suele
+  // ser de red y afecta a las tres lecturas a la vez.
+  const reintentar = () => {
+    void qContrato.refetch()
+    void qCronograma.refetch()
+    void qTitulares.refetch()
+  }
 
   // Totales con las mismas reglas del portal: las cuotas de interés excluyen el
   // retorno del capital; "Pagado" suma lo COBRADO real (monto_pagado) y
@@ -175,7 +147,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
               <WifiOff className="size-5" aria-hidden />
             </span>
             <p className="text-sm font-semibold text-foreground">{errorContrato}</p>
-            <Button variant="outline" size="sm" onClick={() => setIntento((n) => n + 1)}>
+            <Button variant="outline" size="sm" onClick={reintentar}>
               <RotateCcw aria-hidden /> Reintentar
             </Button>
           </div>
@@ -253,7 +225,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
               {errorCrono ? (
                 <div className="mt-2 space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
                   <p className="text-xs font-semibold text-destructive">{errorCrono}</p>
-                  <Button variant="outline" size="xs" onClick={() => setIntento((n) => n + 1)}>
+                  <Button variant="outline" size="xs" onClick={reintentar}>
                     <RotateCcw aria-hidden /> Reintentar
                   </Button>
                 </div>
