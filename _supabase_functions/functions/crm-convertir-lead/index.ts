@@ -81,8 +81,18 @@ Deno.serve(async (req: Request) => {
     const { data: miembro } = await adminClient
       .schema("crm").from("equipo")
       .select("rol_crm, activo").eq("perfil_id", callerId).maybeSingle();
-    if (!miembro || !miembro.activo || !["vendedor", "supervisor", "gerencia"].includes(miembro.rol_crm)) {
+    // REGLA DE NEGOCIO EN EL SERVIDOR (Miguel, 2026-07-16): el alta de clientes
+    // la hace la FUERZA DE VENTAS (vendedor/supervisor) con rol de portal que
+    // da de alta (analista/admin) — gerencia/directorio NO crean clientes.
+    // Antes la regla vivía solo en el navegador (botón oculto): un POST directo
+    // con la cuenta de gerencia creaba clientes reales con correo real.
+    if (!miembro || !miembro.activo || !["vendedor", "supervisor"].includes(miembro.rol_crm)) {
       return json(cors, { error: "No autorizado para convertir leads" }, 403);
+    }
+    const { data: perfilCaller } = await adminClient
+      .from("perfiles").select("rol, activo").eq("id", callerId).maybeSingle();
+    if (!perfilCaller || !perfilCaller.activo || !["analista", "admin", "superadmin"].includes(perfilCaller.rol)) {
+      return json(cors, { error: "El alta de clientes la registra el analista" }, 403);
     }
 
     const body = await req.json().catch(() => ({}));
