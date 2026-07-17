@@ -391,10 +391,13 @@ export async function montarBackendReal(
         nombres: c.nombres,
         apellidos: c.apellidos,
         nombre_completo: c.nombre_completo,
+        tipo_documento: c.tipo_documento,
         dni: c.dni,
         correo: c.correo,
         telefono: c.telefono,
         asesor_perfil_id: c.asesor_perfil_id,
+        // Con asesor NULL define el dueño de cartera (regla de Corregir/+Contrato).
+        creado_por: c.creado_por,
         activo: c.activo,
         creado_en: c.creado_en,
       })))

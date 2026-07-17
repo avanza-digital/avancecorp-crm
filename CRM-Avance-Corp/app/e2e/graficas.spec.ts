@@ -40,7 +40,8 @@ test('demo gerencia: las 4 gráficas pintan desde las fixtures — 0 requests a 
   await capital.getByRole('button', { name: 'USD' }).click()
   await expect(capital.getByText('Renovación', { exact: true }).first()).toBeVisible()
 
-  // Altas por analista: la cartera demo es del asesor VENDEDOR UNO (5 altas).
+  // Altas por analista: la cartera demo se reparte entre el equipo, con
+  // VENDEDOR UNO como asesor principal (siempre presente en la gráfica).
   // El tick del eje Y envuelve el nombre en tspans SIN espacio entre líneas
   // (textContent 'VENDEDORUNO') → regex tolerante al corte de línea del SVG.
   await expect(page.getByTestId('grafica-altas').getByText(/VENDEDOR\s*UNO/)).toBeVisible()

@@ -9,7 +9,7 @@
 //  - sin los 6 dígitos NO se llama al servidor,
 //  - los co-titulares (mancomunadas) viajan DENTRO de p_contrato.
 import { expect, test, type Page } from '@playwright/test'
-import { bloquearSupabase, contratoReal, entrarDemo, loginReal, montarBackendReal, UID, type ContratoReal } from './_helpers'
+import { clienteReal, bloquearSupabase, contratoReal, entrarDemo, loginReal, montarBackendReal, UID, type ContratoReal } from './_helpers'
 
 /** Entra a la pantalla Contratos (con el gate de leads cerrado, la cuenta real
  * arranca en Clientes; el nav lateral sí ofrece Contratos). */
@@ -29,6 +29,27 @@ async function abrirFormNuevo(page: Page) {
   await expect(form).toBeVisible()
   return form
 }
+
+// La regla de cartera del servidor también rige el PICKER: un supervisor ve en
+// la vista a los clientes de su equipo, pero crear_contrato solo le acepta los
+// SUYOS — el selector no debe ofrecer lo que el servidor rechazaría
+// (hallazgo de revisión 2026-07-16: el bug sobrevivía por esta puerta).
+test('picker de "+ Contrato": el supervisor solo ve su cartera PROPIA, no la del equipo', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'supervisor',
+    clientes: [
+      clienteReal({ id: 'cli-mio', nombre_completo: 'CLIENTE PROPIO SUP', dni: '40000001', asesor_perfil_id: UID, creado_por: UID }),
+      clienteReal({ id: 'cli-equipo', nombre_completo: 'CLIENTE DEL EQUIPO', dni: '40000002', asesor_perfil_id: 'vend-1', creado_por: 'vend-1' }),
+    ],
+  })
+  await loginReal(page)
+  await page.getByRole('button', { name: 'Contratos' }).click()
+  await page.getByRole('button', { name: '+ Contrato' }).click()
+
+  const selector = page.getByRole('dialog', { name: 'Nuevo contrato' })
+  await expect(selector.getByRole('option', { name: 'CLIENTE PROPIO SUP' })).toBeAttached()
+  await expect(selector.getByRole('option', { name: 'CLIENTE DEL EQUIPO' })).toHaveCount(0)
+})
 
 test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida; Corregir solo en lo propio y vivo', async ({ page }) => {
   await montarBackendReal(page, { rolCrm: 'vendedor',

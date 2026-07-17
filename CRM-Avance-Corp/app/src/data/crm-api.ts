@@ -552,10 +552,12 @@ const COLUMNAS_CLIENTE_BASICO = [
   'nombres',
   'apellidos',
   'nombre_completo',
+  'tipo_documento',
   'dni',
   'correo',
   'telefono',
   'asesor_perfil_id',
+  'creado_por',
   'activo',
   'creado_en',
 ].join(',')
@@ -565,10 +567,18 @@ const ClienteBasicoRowSchema = v.object({
   nombres: v.nullable(v.string()),
   apellidos: v.nullable(v.string()),
   nombre_completo: v.nullable(v.string()),
+  // Tolerante A PROPÓSITO: un tipo de documento NUEVO en el portal no tira la
+  // fila de la lista — degrada al default histórico 'DNI' (mismo criterio que
+  // normalizarTipoDocumento). El detalle (ClienteDetalleRowSchema) sí es
+  // estricto: ahí el tipo alimenta la validación del formulario.
+  tipo_documento: v.fallback(v.picklist(TIPOS_DOCUMENTO_K), 'DNI'),
   dni: v.nullable(v.string()),
   correo: v.nullable(v.string()),
   telefono: v.nullable(v.string()),
   asesor_perfil_id: v.nullable(v.string()),
+  // Junto con asesor_perfil_id decide la regla de cartera POR FILA en la UI
+  // (Corregir/+Contrato solo sobre clientes propios — espejo del servidor).
+  creado_por: v.nullable(v.string()),
   activo: v.boolean(),
   creado_en: v.string(),
 })
