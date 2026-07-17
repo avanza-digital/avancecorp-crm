@@ -218,9 +218,13 @@ function ContratosReales() {
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="text-base font-extrabold text-primary">Mis contratos</h2>
+          <h2 className="text-base font-extrabold text-primary">
+            {yo?.puede_contratar ? 'Mis contratos' : 'Contratos de la cartera'}
+          </h2>
           <p className="text-xs text-muted-foreground">
-            Contratos que registraste. Corregir regenera el cronograma de cuotas; también con ventana de 5 h.
+            {yo?.puede_contratar
+              ? 'Contratos que registraste. Corregir regenera el cronograma de cuotas; también con ventana de 5 h.'
+              : 'Todos los contratos de la empresa, en solo lectura (el alta y la corrección son del asesor).'}
           </p>
         </div>
         {/* Solo a quien pasará el chequeo de rol de crear_contrato (analista/admin). */}
@@ -250,7 +254,9 @@ function ContratosReales() {
           <div className="flex flex-col items-center justify-center gap-2 px-6 py-16 text-center">
             <FileText className="size-6 text-muted-foreground" aria-hidden />
             {/* Texto EXACTO del vacío del portal. */}
-            <p className="text-sm font-semibold text-foreground">Aún no registraste contratos.</p>
+            <p className="text-sm font-semibold text-foreground">
+              {yo?.puede_contratar ? 'Aún no registraste contratos.' : 'Sin contratos en la cartera todavía.'}
+            </p>
             {yo?.puede_contratar && (
               <p className="max-w-xs text-xs text-muted-foreground">
                 Crea el primero con “+ Contrato” o convirtiendo un lead en cliente.

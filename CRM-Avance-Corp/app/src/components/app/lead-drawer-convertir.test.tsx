@@ -1,0 +1,256 @@
+// Tests del DialogConvertir REAL (conversión lead → cliente del portal en 2
+// pasos: edge crm-convertir-lead + bancarios por RLS, encadenando el contrato).
+// La capa @/data/crm-api se mockea (sin red); CrmApiError se conserva real para
+// el instanceof del catch. Los contextos se proveen a mano: el diálogo solo
+// consume { convertir, recargar } del store y `yo` del auth.
+// NOTA de cobertura: la E2E real de convertir (acciones-real.spec.ts) está
+// SKIPPED por el gate FUNCIONES_LEADS_APROBADAS — esta suite es hoy la única
+// que ejercita el flujo real con bancarios de punta a punta (backend mockeado).
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
+import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
+import { StoreDataContext } from '@/lib/store-context'
+import type { StoreDataApi } from '@/lib/store'
+import type { Lead } from '@/lib/tipos'
+import * as crmApi from '@/data/crm-api'
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
+}))
+
+vi.mock('@/data/crm-api', async (importActual) => {
+  const actual = await importActual<typeof import('@/data/crm-api')>()
+  return {
+    ...actual, // conserva CrmApiError real
+    convertirLead: vi.fn(),
+    actualizarClientePortal: vi.fn(),
+  }
+})
+
+const { DialogConvertir } = await import('./lead-drawer')
+const { CrmApiError } = crmApi
+
+const convertirEdge = vi.mocked(crmApi.convertirLead)
+const actualizarCliente = vi.mocked(crmApi.actualizarClientePortal)
+
+function leadBase(over: Partial<Lead> = {}): Lead {
+  return {
+    id: 'lead-1',
+    nombre_completo: 'JUAN PEREZ ROJAS',
+    telefono: '+51999888777',
+    correo: null,
+    etapa: 'nuevo',
+    origen: 'web',
+    monto_estimado: 50_000,
+    moneda: 'PEN',
+    categoria_interes: null,
+    vendedor_id: 'u-v1',
+    vendedor_nombre: 'Vendedor Real',
+    asignado_supervisor_id: null,
+    creado_en: '2026-07-01T00:00:00.000Z',
+    activo: true,
+    dni: null,
+    distrito: null,
+    nota: null,
+    motivo_descarte: null,
+    ...over,
+  }
+}
+
+function sesion(demo: boolean): AuthContextValue {
+  return {
+    fase: 'listo',
+    yo: { id: 'u-v1', nombre_completo: 'Vendedor Real', rol: 'vendedor', demo, puede_contratar: true },
+    error: null,
+    entrar: async () => ({ ok: true }),
+    entrarDemo: () => undefined,
+    reintentar: () => undefined,
+    salir: async () => undefined,
+  }
+}
+
+function montar({ demo = false }: { demo?: boolean } = {}) {
+  const onClose = vi.fn()
+  const recargar = vi.fn().mockResolvedValue(true)
+  // Stub mínimo del store: DialogConvertir solo usa convertir (demo) y recargar.
+  const api = { convertir: vi.fn(() => ({ ok: true })), recargar } as unknown as StoreDataApi
+  render(
+    <AuthContext.Provider value={sesion(demo)}>
+      <StoreDataContext.Provider value={api}>
+        <DialogConvertir l={leadBase()} onClose={onClose} />
+      </StoreDataContext.Provider>
+    </AuthContext.Provider>,
+  )
+  return { onClose, recargar }
+}
+
+/** Identidad mínima válida del paso convertir (correo + DNI de 8). */
+async function llenarIdentidad(user: ReturnType<typeof userEvent.setup>) {
+  await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
+  await user.type(screen.getByLabelText('N° de documento'), '45781234')
+}
+
+/** Cuenta PEN completa (el mínimo que exige la regla "al menos una"). */
+async function llenarPenCompleta(user: ReturnType<typeof userEvent.setup>) {
+  const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
+  await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
+  await user.selectOptions(within(pen).getByLabelText('Tipo de cuenta'), 'ahorros')
+  await user.type(within(pen).getByLabelText('N° de cuenta'), '19112345678901')
+  await user.type(within(pen).getByLabelText(/CCI/), '00219112345678901234')
+}
+
+describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', () => {
+    montar()
+    expect(screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })).toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Cuenta bancaria en Dólares (USD)' })).toBeInTheDocument()
+    expect(document.getElementById('cv-pen-banco')).not.toBeNull()
+    expect(document.getElementById('cf-pen-banco')).toBeNull()
+  })
+
+  it('regla "al menos una cuenta" AL CONVERTIR: sin bancarios NO toca el servidor', async () => {
+    const user = userEvent.setup()
+    montar()
+    await llenarIdentidad(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+    )
+    expect(convertirEdge).not.toHaveBeenCalled()
+    expect(actualizarCliente).not.toHaveBeenCalled()
+  })
+
+  it('sección a medias: el error sube con su moneda y tampoco toca el servidor', async () => {
+    const user = userEvent.setup()
+    montar()
+    await llenarIdentidad(user)
+    const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
+    await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El N° de cuenta (Soles) es obligatorio.')
+    expect(convertirEdge).not.toHaveBeenCalled()
+  })
+
+  it('feliz: edge primero, bancarios al perfil devuelto después, y encadena el contrato', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
+    actualizarCliente.mockResolvedValue(true)
+    const { recargar } = montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    // Encadena el paso contrato sin salir del CRM (paso 2 del flujo del portal).
+    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+    // Paso 1: la edge recibe la identidad confirmada del lead.
+    expect(convertirEdge).toHaveBeenCalledWith({
+      lead_id: 'lead-1',
+      correo: 'juan@correo.pe',
+      tipo_documento: 'DNI',
+      documento: '45781234',
+      nombre_completo: 'JUAN PEREZ ROJAS',
+      telefono: '+51999888777',
+    })
+    // Paso 2: el UPDATE lleva las 14 bancarias al id que devolvió la edge…
+    expect(actualizarCliente).toHaveBeenCalledTimes(1)
+    const [id, patch] = actualizarCliente.mock.calls[0]!
+    expect(id).toBe('perfil-9')
+    expect(patch).toMatchObject({
+      banco: 'BCP',
+      tipo_cuenta: 'ahorros',
+      numero_cuenta: '19112345678901',
+      cci: '00219112345678901234',
+      titular_distinto: false,
+      banco_usd: null,
+      titular_distinto_usd: false,
+    })
+    // …y ocurre DESPUÉS de la edge (el orden de los 2 pasos importa).
+    expect(convertirEdge.mock.invocationCallOrder[0]!)
+      .toBeLessThan(actualizarCliente.mock.invocationCallOrder[0]!)
+    expect(recargar).toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
+  })
+
+  it('dedup ya_existia: NO pisa los bancarios del cliente existente y sigue al contrato', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-7', ya_existia: true, email_enviado: false })
+    montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user) // el vendedor no puede saber que ya existía
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+    // Un PATCH ciego sobreescribiría las cuentas con las que YA cobra: no viaja.
+    expect(actualizarCliente).not.toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS enlazado a su cuenta de cliente')
+  })
+
+  it('bancarios en 0 filas: aviso terminal honesto, SIN contrato y SIN re-submit', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
+    actualizarCliente.mockResolvedValue(false) // la trampa: 0 filas sin error
+    const { recargar } = montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent(
+      'Cliente creado y correo enviado, pero los datos bancarios NO se guardaron — corrígelo en Clientes dentro de las 5 horas.',
+    )
+    // Ni contrato ni re-submit: la cuenta ya existe y el correo ya salió.
+    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Convertir a cliente' })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Entendido' })).toBeInTheDocument()
+    expect(toast.success).not.toHaveBeenCalled()
+    // El lead SÍ quedó convertido en el servidor: el pipeline debe reflejarlo.
+    expect(recargar).toHaveBeenCalled()
+  })
+
+  it('bancarios lanzan y el correo no salió: variante honesta del mismo aviso terminal', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: false })
+    actualizarCliente.mockRejectedValue(new CrmApiError('No se pudo guardar el cambio.'))
+    montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent(/el correo de bienvenida no se pudo enviar/)
+    expect(aviso).toHaveTextContent(/los datos bancarios NO se guardaron/)
+    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
+  })
+
+  it('la edge rechaza: muestra su mensaje es-PE, sin PATCH y sin estado terminal', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockRejectedValue(new CrmApiError('Este correo ya está registrado.', 'CONVERTIR_FALLIDO'))
+    montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Este correo ya está registrado.')
+    expect(actualizarCliente).not.toHaveBeenCalled()
+    // El form sigue vivo para corregir y reintentar (no es el estado terminal).
+    expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Entendido' })).not.toBeInTheDocument()
+  })
+
+  it('demo: el diálogo simulado NO pide bancarios (nada real que guardar)', () => {
+    montar({ demo: true })
+    expect(screen.queryByRole('group', { name: /Cuenta bancaria/ })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Convertir (demo)' })).toBeInTheDocument()
+  })
+})

@@ -41,10 +41,21 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AccionesContacto } from '@/components/app/contacto'
+import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import { useAuth } from '@/lib/auth-context'
+import {
+  SECCION_BANCARIA_VACIA,
+  validarBancariosForm,
+  type SeccionBancariaForm,
+} from '@/lib/cliente-form-logica'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
-import { convertirLead, CrmApiError, type TipoDocumentoCliente } from '@/data/crm-api'
+import {
+  actualizarClientePortal,
+  convertirLead,
+  CrmApiError,
+  type TipoDocumentoCliente,
+} from '@/data/crm-api'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
 import { fmtFecha, money, primerNombre, SIMBOLO } from '@/lib/format'
@@ -577,7 +588,13 @@ const RE_DOCUMENTO: Record<TipoDocumentoCliente, { re: RegExp; err: string }> = 
   PASAPORTE: { re: /^[A-Z0-9]{6,12}$/, err: 'El pasaporte debe tener entre 6 y 12 caracteres' },
 }
 
-function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
+// Cola del aviso de conversión parcial (paso 2 fallido). Mensaje de negocio del
+// mismo corte que el del alta directa (cliente-form): honesto y accionable.
+const MSG_BANCARIOS_NO_GUARDADOS_CV =
+  'los datos bancarios NO se guardaron — corrígelo en Clientes dentro de las 5 horas.'
+
+/** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
+export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   const { convertir, recargar } = useCRMData()
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
@@ -596,11 +613,26 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   const [correo, setCorreo] = useState(l.correo ?? '')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumentoCliente>('DNI')
   const [documento, setDocumento] = useState(l.dni ?? '')
+  // Bancarios (PEN = columnas base, USD = sufijo _usd) — el cliente convertido
+  // los necesita IGUAL que el del alta directa: sin cuenta no hay dónde
+  // depositarle los intereses (hallazgo de Miguel 2026-07-16).
+  const [pen, setPen] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
+  const [usd, setUsd] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // Dos pasos: (1) crear el cliente, (2) crear su contrato — "todo en un sitio".
   const [paso, setPaso] = useState<'convertir' | 'contrato'>('convertir')
   const [perfilId, setPerfilId] = useState<string | null>(null)
+  /** Conversión con bancarios fallidos: cliente creado SIN cuentas → aviso terminal. */
+  const [avisoParcial, setAvisoParcial] = useState<string | null>(null)
+
+  // Cierre BLINDADO: Radix cierra con Esc/overlay incondicionalmente, y un
+  // cierre con el envío en vuelo perdería el aviso de "creado sin bancarios"
+  // (la cuenta ya existe y el correo ya salió) — mismo patrón que clientes.tsx.
+  const cerrarSeguro = () => {
+    if (enviando) return
+    onClose()
+  }
 
   const confirmarReal = async () => {
     if (enviando) return // guard anti doble-submit
@@ -619,8 +651,17 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
       setError(RE_DOCUMENTO[tipoDoc].err)
       return
     }
+    // Bancarios ANTES de tocar el servidor (regla "al menos una cuenta", igual
+    // que el alta del portal): si no validan, NO se crea la cuenta ni sale el
+    // correo de bienvenida — no se empieza algo que quedaría a medias.
+    const valBanc = validarBancariosForm(pen, usd)
+    if (!valBanc.ok) {
+      setError(valBanc.error)
+      return
+    }
     setEnviando(true)
     try {
+      // Paso 1: la edge crea la cuenta + correo de bienvenida + cierra el lead.
       const r = await convertirLead({
         lead_id: l.id,
         correo: correoLimpio,
@@ -629,7 +670,35 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
         nombre_completo: l.nombre_completo,
         telefono: l.telefono,
       })
+      // Paso 2: bancarios por UPDATE vía RLS (la edge no los acepta) — mismo
+      // flujo de 2 pasos que el alta directa (cliente-form). Si el documento YA
+      // era cliente del portal (dedup de la edge), NO se pisan sus cuentas: un
+      // PATCH ciego sobreescribiría los bancarios con los que ya cobra — se
+      // salta el paso y se sigue al contrato.
+      let bancariosOk = true
+      if (!r.ya_existia) {
+        try {
+          bancariosOk = await actualizarClientePortal(r.perfil_id, {
+            ...valBanc.bancarios,
+            actualizado_en: new Date().toISOString(),
+          })
+        } catch {
+          bancariosOk = false
+        }
+      }
+      // El lead YA quedó convertido en el servidor pase lo que pase con los
+      // bancarios: el pipeline debe reflejarlo también en el camino parcial.
       await recargar()
+      if (!bancariosOk) {
+        // Aviso honesto y TERMINAL (sin re-submit: la cuenta existe y el correo
+        // salió) y SIN encadenar al contrato — patrón exacto de cliente-form.
+        setAvisoParcial(
+          r.email_enviado
+            ? `Cliente creado y correo enviado, pero ${MSG_BANCARIOS_NO_GUARDADOS_CV}`
+            : `Cliente creado (el correo de bienvenida no se pudo enviar), pero ${MSG_BANCARIOS_NO_GUARDADOS_CV}`,
+        )
+        return
+      }
       toast.success(
         r.ya_existia
           ? `${l.nombre_completo} enlazado a su cuenta de cliente`
@@ -643,6 +712,33 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
     } finally {
       setEnviando(false)
     }
+  }
+
+  // ── Conversión parcial (bancarios fallidos): estado terminal, sin re-submit ──
+  if (avisoParcial) {
+    return (
+      <Dialog open onClose={onClose} ariaLabel="Convertir a cliente">
+        <DialogHeader>
+          <DialogTitle>Convertir a cliente</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          <div
+            role="alert"
+            className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-semibold text-destructive"
+          >
+            {avisoParcial}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            El lead quedó convertido y la cuenta del cliente ya existe en el portal, pero NO se
+            creó su contrato. Complétale los datos bancarios desde “Clientes → Corregir datos”
+            antes de crear el contrato.
+          </p>
+        </DialogBody>
+        <DialogFooter>
+          <Button size="sm" onClick={onClose}>Entendido</Button>
+        </DialogFooter>
+      </Dialog>
+    )
   }
 
   // Paso 2: contrato del cliente recién creado (reusa la RPC del portal).
@@ -662,7 +758,7 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   }
 
   return (
-    <Dialog open onClose={onClose} ariaLabel="Convertir a cliente">
+    <Dialog open onClose={cerrarSeguro} ariaLabel="Convertir a cliente">
       <DialogHeader>
         <DialogTitle>Convertir a cliente{esDemo ? ' (demo)' : ''}</DialogTitle>
         <DialogDescription>
@@ -732,7 +828,19 @@ function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
             <p className="text-[11px] text-muted-foreground">
               Su contraseña temporal será su documento; el cliente la cambia en su primer ingreso.
             </p>
-            {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
+            {/* Bloque compartido con el alta directa (cliente-form): el cliente
+                convertido necesita dónde cobrar sus intereses desde el día uno.
+                Si el documento ya era cliente del portal, sus cuentas actuales
+                se respetan (el paso 2 se salta — dedup de la edge). */}
+            <SeccionesBancarias
+              idBase="cv"
+              pen={pen}
+              usd={usd}
+              onPen={setPen}
+              onUsd={setUsd}
+              deshabilitado={enviando}
+            />
+            {error && <p role="alert" className="text-xs font-semibold text-destructive">{error}</p>}
           </DialogBody>
           <DialogFooter>
             <Button variant="outline" size="sm" onClick={onClose} disabled={enviando}>Cancelar</Button>

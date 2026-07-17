@@ -822,7 +822,7 @@ const COLUMNAS_CONTRATO = [
   'notas_internas',
   'creado_por',
   'creado_en',
-  'cliente:perfiles!contratos_cliente_id_fkey(nombre_completo)',
+  'cliente_nombre',
 ].join(',')
 
 const ContratoRowSchema = v.object({
@@ -842,12 +842,16 @@ const ContratoRowSchema = v.object({
   notas_internas: v.nullable(v.string()),
   creado_por: v.nullable(v.string()),
   creado_en: v.string(),
-  cliente: v.nullable(v.object({ nombre_completo: v.nullable(v.string()) })),
+  cliente_nombre: v.nullable(v.string()),
 })
 
 export async function listarMisContratos(signal?: AbortSignal): Promise<ContratoRow[]> {
+  // Vista con ámbito del esquema crm (molde clientes_basicos): gerencia ve
+  // todo, supervisor su subárbol, vendedor su cartera. La RLS directa de
+  // public.contratos dejaba a gerencia en 0 filas y al supervisor sin su equipo.
   let consulta = cliente()
-    .from('contratos')
+    .schema('crm')
+    .from('contratos_cartera')
     .select(COLUMNAS_CONTRATO)
     .order('creado_en', { ascending: false })
     .order('id', { ascending: true })
@@ -873,7 +877,7 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
       id: fila.id,
       numero_contrato: fila.numero_contrato,
       cliente_id: fila.cliente_id,
-      cliente_nombre: fila.cliente?.nombre_completo ?? null,
+      cliente_nombre: fila.cliente_nombre,
       capital: aNumero(fila.capital) ?? 0,
       moneda: fila.moneda,
       tasa_anual: aNumero(fila.tasa_anual) ?? 0,
@@ -922,11 +926,12 @@ const CuotaRowSchema = v.object({
 })
 
 export async function obtenerCronograma(contratoId: string, signal?: AbortSignal): Promise<Cuota[]> {
+  // RPC con ámbito (crm.cronograma_contrato_fn): fuera de ámbito = 0 filas.
+  // La lectura directa por RLS dejaba el detalle VACÍO a gerencia/supervisor.
   let consulta = cliente()
-    .from('cronograma_pagos')
+    .schema('crm')
+    .rpc('cronograma_contrato_fn', { p_contrato_id: contratoId })
     .select(COLUMNAS_CUOTA)
-    .eq('contrato_id', contratoId)
-    .order('numero_cuota', { ascending: true })
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
@@ -959,10 +964,9 @@ const TitularRowSchema = v.object({
 
 export async function obtenerTitulares(contratoId: string, signal?: AbortSignal): Promise<Titular[]> {
   let consulta = cliente()
-    .from('contrato_titulares')
+    .schema('crm')
+    .rpc('titulares_contrato_fn', { p_contrato_id: contratoId })
     .select('nombre_completo, tipo_documento, documento, orden')
-    .eq('contrato_id', contratoId)
-    .order('orden', { ascending: true })
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
