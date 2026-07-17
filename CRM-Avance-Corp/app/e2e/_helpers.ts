@@ -194,8 +194,9 @@ export interface ContratoReal {
   notas_internas: string | null
   creado_por: string | null
   creado_en: string
-  /** Embed de PostgREST: cliente:perfiles!contratos_cliente_id_fkey(nombre_completo). */
-  cliente: { nombre_completo: string | null } | null
+  /** Plano, como lo devuelve la vista crm.contratos_cartera. */
+  cliente_nombre: string | null
+  asesor_perfil_id: string | null
 }
 
 export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
@@ -215,7 +216,8 @@ export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
     notas_internas: null,
     creado_por: UID,
     creado_en: '2026-07-01T00:00:00.000Z',
-    cliente: { nombre_completo: 'CLIENTE PORTAL UNO' },
+    cliente_nombre: 'CLIENTE PORTAL UNO',
+    asesor_perfil_id: UID,
     ...over,
   }
 }
@@ -403,16 +405,17 @@ export async function montarBackendReal(
       })))
     }
 
-    // ── contratos del portal (solo lectura; escritura vía RPC) ──
-    if (p === '/rest/v1/contratos' && method === 'GET') return json(route, estado.contratos)
+    // ── contratos: vista con ámbito + RPCs de detalle (esquema crm) ──
+    // El ámbito real lo decide el servidor; el mock devuelve lo configurado.
+    if (p === '/rest/v1/contratos_cartera' && method === 'GET') return json(route, estado.contratos)
 
-    if (p === '/rest/v1/cronograma_pagos' && method === 'GET') {
-      const cid = (url.searchParams.get('contrato_id') ?? '').replace(/^eq\./, '')
+    if (p === '/rest/v1/rpc/cronograma_contrato_fn' && method === 'POST') {
+      const cid = String(((req.postDataJSON() ?? {}) as { p_contrato_id?: string }).p_contrato_id ?? '')
       return json(route, estado.cuotas[cid] ?? [])
     }
 
-    if (p === '/rest/v1/contrato_titulares' && method === 'GET') {
-      const cid = (url.searchParams.get('contrato_id') ?? '').replace(/^eq\./, '')
+    if (p === '/rest/v1/rpc/titulares_contrato_fn' && method === 'POST') {
+      const cid = String(((req.postDataJSON() ?? {}) as { p_contrato_id?: string }).p_contrato_id ?? '')
       return json(route, estado.titulares[cid] ?? [])
     }
 

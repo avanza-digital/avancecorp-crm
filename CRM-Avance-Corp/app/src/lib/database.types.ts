@@ -306,8 +306,57 @@ export interface Database {
         }
         Relationships: []
       }
+      /** Contratos con nombre del cliente, YA scopeados por rol del CRM
+       *  (gerencia=todo, supervisor=subárbol, vendedor=su cartera). Molde de
+       *  clientes_basicos: la RLS directa de public.contratos no cubre a la
+       *  supervisión. */
+      contratos_cartera: {
+        Row: {
+          id: string
+          numero_contrato: string
+          cliente_id: string
+          cliente_nombre: string | null
+          asesor_perfil_id: string | null
+          capital: number | string
+          moneda: string
+          tasa_anual: number | string
+          modalidad: string
+          tipo_interes: string
+          categoria: string | null
+          estado: string
+          fecha_inicio: string
+          fecha_vencimiento: string
+          notas_internas: string | null
+          creado_por: string | null
+          creado_en: string
+        }
+        Relationships: []
+      }
     }
     Functions: {
+      cronograma_contrato_fn: {
+        Args: { p_contrato_id: string }
+        Returns: {
+          id: string
+          numero_cuota: number
+          fecha_programada: string
+          monto_programado: number | string
+          estado: string
+          tipo: string
+          fecha_pago_real: string | null
+          monto_pagado: number | string | null
+        }[]
+      }
+      titulares_contrato_fn: {
+        Args: { p_contrato_id: string }
+        Returns: {
+          id: string
+          orden: number
+          nombre_completo: string
+          tipo_documento: string
+          documento: string
+        }[]
+      }
       equipo_visible_fn: {
         Args: Record<string, never>
         Returns: {

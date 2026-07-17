@@ -233,6 +233,34 @@ export function armarPatchBancarios(
   }
 }
 
+export type ResultadoBancarios =
+  | { ok: true; bancarios: PatchBancarios }
+  | { ok: false; error: string }
+
+/**
+ * Validación bancaria COMPLETA del formulario: las dos monedas + la regla
+ * "AL MENOS UNA cuenta" (es donde se le depositan los intereses) — espejo de
+ * analista.js:560. Compartida por el alta directa (validarClienteForm) y por la
+ * conversión de lead, que captura la identidad por su lado (viene del lead)
+ * pero exige los MISMOS bancarios que el alta del portal.
+ */
+export function validarBancariosForm(
+  pen: SeccionBancariaForm,
+  usd: SeccionBancariaForm,
+): ResultadoBancarios {
+  const valPen = validarSeccionBancaria(pen, 'Soles')
+  if (!valPen.ok) return valPen
+  const valUsd = validarSeccionBancaria(usd, 'Dólares')
+  if (!valUsd.ok) return valUsd
+  if (valPen.vacia && valUsd.vacia) {
+    return {
+      ok: false,
+      error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+    }
+  }
+  return { ok: true, bancarios: armarPatchBancarios(valPen.datos, valUsd.datos) }
+}
+
 // ── Validación del formulario completo (espejo de guardarCliente del portal) ──
 
 /** Estado crudo del formulario completo tal como sale de los inputs. */
@@ -323,18 +351,10 @@ export function validarClienteForm(
 
   // El cliente puede invertir en soles y/o dólares, con una cuenta de depósito
   // por moneda. Cada una es opcional por separado, pero debe haber AL MENOS UNA
-  // (es donde se le depositan los intereses) — espejo de analista.js:560, que
-  // aplica la regla tanto al alta como a la corrección.
-  const valPen = validarSeccionBancaria(valores.pen, 'Soles')
-  if (!valPen.ok) return valPen
-  const valUsd = validarSeccionBancaria(valores.usd, 'Dólares')
-  if (!valUsd.ok) return valUsd
-  if (valPen.vacia && valUsd.vacia) {
-    return {
-      ok: false,
-      error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
-    }
-  }
+  // — regla que el portal aplica tanto al alta como a la corrección (y aquí
+  // también a la conversión de lead, vía la misma validarBancariosForm).
+  const valBanc = validarBancariosForm(valores.pen, valores.usd)
+  if (!valBanc.ok) return valBanc
 
   return {
     ok: true,
@@ -346,7 +366,7 @@ export function validarClienteForm(
       dni,
       telefono: telefono || null,
       correo,
-      bancarios: armarPatchBancarios(valPen.datos, valUsd.datos),
+      bancarios: valBanc.bancarios,
     },
   }
 }

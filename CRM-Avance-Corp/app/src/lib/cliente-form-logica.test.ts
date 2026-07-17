@@ -10,6 +10,7 @@ import {
   normNombrePersona,
   seccionPenDesdeDetalle,
   seccionUsdDesdeDetalle,
+  validarBancariosForm,
   validarClienteForm,
   validarSeccionBancaria,
   type SeccionBancariaForm,
@@ -308,5 +309,54 @@ describe('validarClienteForm — regla bancaria "al menos una cuenta"', () => {
     if (!r.ok) return
     expect(r.cliente.bancarios.banco).toBeNull()
     expect(r.cliente.bancarios.banco_usd).toBe('Interbank')
+  })
+})
+
+// La comparte el alta directa (vía validarClienteForm) y la CONVERSIÓN de lead,
+// que valida la identidad por su lado pero exige los MISMOS bancarios.
+describe('validarBancariosForm (compartida: alta directa y conversión de lead)', () => {
+  it('ambas secciones vacías → mensaje verbatim del portal ("al menos una cuenta")', () => {
+    expect(validarBancariosForm(seccion(), seccion())).toEqual({
+      ok: false,
+      error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+    })
+  })
+
+  it('el error de una sección sube con su moneda en el mensaje', () => {
+    expect(validarBancariosForm(seccion(), seccion({ banco: 'Interbank' })))
+      .toEqual({ ok: false, error: 'El N° de cuenta (Dólares) es obligatorio.' })
+    expect(validarBancariosForm(seccionPenCompleta({ cci: '123' }), seccion()))
+      .toEqual({ ok: false, error: 'El CCI (Soles) debe tener exactamente 20 dígitos.' })
+  })
+
+  it('feliz solo PEN: arma el patch de 14 columnas con USD en null', () => {
+    const r = validarBancariosForm(seccionPenCompleta(), seccion())
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.bancarios).toEqual({
+      banco: 'BCP',
+      tipo_cuenta: 'ahorros',
+      numero_cuenta: '19112345678901',
+      cci: '00219112345678901234',
+      titular_distinto: false,
+      beneficiario_nombre: null,
+      beneficiario_dni: null,
+      banco_usd: null,
+      tipo_cuenta_usd: null,
+      numero_cuenta_usd: null,
+      cci_usd: null,
+      titular_distinto_usd: false,
+      beneficiario_nombre_usd: null,
+      beneficiario_dni_usd: null,
+    })
+  })
+
+  it('feliz solo USD: PEN puede quedar vacía (regla por moneda, no por par)', () => {
+    const r = validarBancariosForm(seccion(), seccionPenCompleta({ banco: 'Interbank' }))
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.bancarios.banco).toBeNull()
+    expect(r.bancarios.banco_usd).toBe('Interbank')
+    expect(r.bancarios.cci_usd).toBe('00219112345678901234')
   })
 })

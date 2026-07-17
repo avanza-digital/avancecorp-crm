@@ -77,7 +77,7 @@ function filaDetalle(sobre: Record<string, unknown> = {}): Record<string, unknow
   }
 }
 
-/** Fila completa de public.contratos con el embed del cliente. */
+/** Fila de la vista crm.contratos_cartera (cliente_nombre plano, ámbito server-side). */
 function filaContrato(sobre: Record<string, unknown> = {}): Record<string, unknown> {
   return {
     id: 'ct-1',
@@ -95,7 +95,8 @@ function filaContrato(sobre: Record<string, unknown> = {}): Record<string, unkno
     notas_internas: null,
     creado_por: 'analista-1',
     creado_en: '2026-07-15T12:00:00.000Z',
-    cliente: { nombre_completo: 'QA PRUEBA MARIA JOSE' },
+    cliente_nombre: 'QA PRUEBA MARIA JOSE',
+    asesor_perfil_id: 'analista-1',
     ...sobre,
   }
 }
@@ -308,13 +309,13 @@ describe('crearClientePortal (edge crear-cliente)', () => {
   })
 })
 
-describe('listarMisContratos (public.contratos + embed)', () => {
-  it('mapea el embed a cliente_nombre y normaliza numeric-string a number', async () => {
+describe('listarMisContratos (vista crm.contratos_cartera)', () => {
+  it('lee la vista con ámbito y normaliza numeric-string a number', async () => {
     server.use(
-      http.get(`${BASE}/rest/v1/contratos`, ({ request }) => {
+      http.get(`${BASE}/rest/v1/contratos_cartera`, ({ request }) => {
         const select = new URL(request.url).searchParams.get('select') ?? ''
-        // El embed viaja desambiguado por FK (contratos tiene 2 relaciones a perfiles).
-        expect(select).toContain('cliente:perfiles!contratos_cliente_id_fkey(nombre_completo)')
+        // cliente_nombre viene PLANO de la vista (el ámbito lo resolvió el servidor).
+        expect(select).toContain('cliente_nombre')
         return HttpResponse.json([
           filaContrato({ capital: '10000.50', tasa_anual: '15.5' }),
           filaContrato({ id: 'ct-2', estado: 'zombie' }), // fuera de contrato → se descarta
@@ -337,10 +338,10 @@ describe('listarMisContratos (public.contratos + embed)', () => {
 
 describe('obtenerCronograma / obtenerTitulares', () => {
   it('el cronograma llega ordenado por numero_cuota y con montos numéricos', async () => {
-    const capturadas: URL[] = []
+    const capturadas: Record<string, unknown>[] = []
     server.use(
-      http.get(`${BASE}/rest/v1/cronograma_pagos`, ({ request }) => {
-        capturadas.push(new URL(request.url))
+      http.post(`${BASE}/rest/v1/rpc/cronograma_contrato_fn`, async ({ request }) => {
+        capturadas.push((await request.json()) as Record<string, unknown>)
         return HttpResponse.json([
           {
             id: 'cu-1', numero_cuota: 1, fecha_programada: '2026-08-01',
@@ -353,15 +354,14 @@ describe('obtenerCronograma / obtenerTitulares', () => {
 
     const cuotas = await obtenerCronograma('ct-1')
 
-    expect(capturadas[0]?.searchParams.get('contrato_id')).toBe('eq.ct-1')
-    expect(capturadas[0]?.searchParams.get('order')).toBe('numero_cuota.asc')
+    expect(capturadas[0]?.p_contrato_id).toBe('ct-1') // el orden lo garantiza la fn
     expect(cuotas[0]).toMatchObject({ numero_cuota: 1, monto_programado: 125, monto_pagado: null })
   })
 
   it('los co-titulares llegan ordenados por orden', async () => {
     server.use(
-      http.get(`${BASE}/rest/v1/contrato_titulares`, ({ request }) => {
-        expect(new URL(request.url).searchParams.get('order')).toBe('orden.asc')
+      http.post(`${BASE}/rest/v1/rpc/titulares_contrato_fn`, async ({ request }) => {
+        expect(((await request.json()) as Record<string, unknown>).p_contrato_id).toBe('ct-1')
         return HttpResponse.json([
           { nombre_completo: 'JUANA PEREZ', tipo_documento: 'PASAPORTE', documento: 'AB1234', orden: 1 },
         ])
