@@ -88,7 +88,11 @@ export function demoMetricasAltasAnalista(): FilaAltasAnalista[] {
   const nombrePorId = new Map(EQUIPO_DEMO.map((m) => [m.perfil_id, m.nombre_completo]))
   const buckets = new Map<string, FilaAltasAnalista>()
   for (const cliente of CLIENTES_DEMO) {
-    const analistaId = cliente.asesor_perfil_id
+    // Espejo de crm.metricas_altas_analista_fn: coalesce(asesor, creado_por) —
+    // un alta sin asesor se acredita a quien la registró, igual que la RPC real
+    // (sin esto, el demo se contradecía: Clientes acreditaba el alta y la
+    // gráfica la perdía — hallazgo de revisión).
+    const analistaId = cliente.asesor_perfil_id ?? cliente.creado_por
     if (!analistaId) continue
     const mes = mesDeTimestamp(cliente.creado_en)
     const clave = `${mes}|${analistaId}`

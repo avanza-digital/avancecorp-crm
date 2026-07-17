@@ -13,10 +13,14 @@ export interface ClienteBasico {
   nombres: string | null
   apellidos: string | null
   nombre_completo: string
+  /** Un tipo NUEVO en el portal degrada tolerante a 'DNI' en la frontera (no tira la fila). */
+  tipo_documento: TipoDocumento
   dni: string | null
   correo: string | null
   telefono: string | null
   asesor_perfil_id: string | null
+  /** Quién registró al cliente — con asesor_perfil_id NULL define el dueño de cartera (regla del servidor). */
+  creado_por: string | null
   activo: boolean
   creado_en: string // ISO
 }

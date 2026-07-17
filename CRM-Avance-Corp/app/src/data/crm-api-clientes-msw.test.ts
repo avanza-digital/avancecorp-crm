@@ -33,10 +33,12 @@ function filaBasica(sobre: Record<string, unknown> = {}): Record<string, unknown
     nombres: 'MARIA JOSE',
     apellidos: 'QA PRUEBA',
     nombre_completo: 'QA PRUEBA MARIA JOSE',
+    tipo_documento: 'DNI',
     dni: '45781234',
     correo: 'qa@correo.pe',
     telefono: '+51999888777',
     asesor_perfil_id: 'analista-1',
+    creado_por: 'analista-1',
     activo: true,
     creado_en: '2026-07-15T12:00:00.000Z',
     ...sobre,
@@ -113,9 +115,11 @@ beforeEach(() => {
 describe('listarClientes (vista crm.clientes_basicos)', () => {
   it('viaja al esquema crm (Accept-Profile) y descarta la fila fuera de contrato', async () => {
     let perfil: string | null = null
+    let select: string | null = null
     server.use(
       http.get(`${BASE}/rest/v1/clientes_basicos`, ({ request }) => {
         perfil = request.headers.get('accept-profile')
+        select = new URL(request.url).searchParams.get('select')
         return HttpResponse.json([
           filaBasica({ id: 'cli-1' }),
           filaBasica({ id: 'cli-zombie', activo: 'yes' }), // boolean corrupto
@@ -127,9 +131,37 @@ describe('listarClientes (vista crm.clientes_basicos)', () => {
     const clientes = await listarClientes()
 
     expect(perfil).toBe('crm')
+    // Las columnas de la regla de cartera y la sigla del documento SÍ se piden.
+    expect(select).toContain('tipo_documento')
+    expect(select).toContain('creado_por')
     expect(clientes.map((c) => c.id)).toEqual(['cli-1', 'cli-2'])
     // nombre_completo nulo degrada a '' (la UI nunca pinta "null").
     expect(clientes[1]?.nombre_completo).toBe('')
+  })
+
+  it('un tipo_documento NUEVO no tira la fila: degrada tolerante a DNI', async () => {
+    server.use(
+      http.get(`${BASE}/rest/v1/clientes_basicos`, () =>
+        HttpResponse.json([
+          filaBasica({ id: 'cli-ce', tipo_documento: 'CE' }),
+          // Si el portal estrena un tipo (o llega null), la LISTA no pierde al
+          // cliente — cae al default histórico DNI (el detalle sí es estricto).
+          filaBasica({ id: 'cli-nuevo-tipo', tipo_documento: 'RUC' }),
+          filaBasica({ id: 'cli-sin-tipo', tipo_documento: null, creado_por: null }),
+        ]),
+      ),
+    )
+
+    const clientes = await listarClientes()
+
+    expect(clientes.map((c) => [c.id, c.tipo_documento])).toEqual([
+      ['cli-ce', 'CE'],
+      ['cli-nuevo-tipo', 'DNI'],
+      ['cli-sin-tipo', 'DNI'],
+    ])
+    // creado_por sí viaja (regla de cartera por fila en la UI).
+    expect(clientes[0]?.creado_por).toBe('analista-1')
+    expect(clientes[2]?.creado_por).toBeNull()
   })
 })
 

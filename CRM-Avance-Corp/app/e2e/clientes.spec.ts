@@ -1,9 +1,12 @@
-// E2E de "Mis clientes" (#/clientes) — la vista por DEFECTO de una cuenta real
-// con el gate de leads cerrado (FUNCIONES_LEADS_APROBADAS=false): tras el login
-// real se aterriza directo aquí. Todo el HTTP de Supabase va interceptado por
+// E2E de la cartera de clientes (#/clientes) — la vista por DEFECTO de una
+// cuenta real con el gate de leads cerrado (FUNCIONES_LEADS_APROBADAS=false).
+// La pantalla se adapta por rol: vendedor ("Mis clientes", acciones en sus
+// filas), supervisor (su cartera + equipo, acciones SOLO en filas propias —
+// regla de cartera POR FILA del servidor) y gerencia/directorio (todo, solo
+// lectura, columna Asesor). Todo el HTTP de Supabase va interceptado por
 // montarBackendReal (fail-closed): nada llega a producción.
 import { expect, test } from '@playwright/test'
-import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal } from './_helpers'
+import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal, UID } from './_helpers'
 
 // Cartera de dos clientes: uno RECIÉN creado (ventana de 5 h viva) y uno viejo
 // (ventana vencida) — el par exacto que necesita el reloj y el gate de corregir.
@@ -17,6 +20,36 @@ function carteraConVentanas() {
       creado_en: new Date().toISOString(),
     }),
     clienteReal(), // CLIENTE PORTAL UNO, creado_en 2026-07-01 → vencida hace rato
+  ]
+}
+
+/** Cartera del supervisor: una fila PROPIA, una del equipo y una huérfana propia. */
+function carteraDeSupervision() {
+  return [
+    clienteReal({
+      id: 'cli-mio',
+      nombre_completo: 'CLIENTE PROPIO SUPERVISOR',
+      dni: '40000001',
+      correo: 'propio@correo.pe',
+      // asesor = yo (UID): fila de MI cartera personal → acciones.
+    }),
+    clienteReal({
+      id: 'cli-del-equipo',
+      nombre_completo: 'CLIENTE DEL VENDEDOR UNO',
+      dni: '40000002',
+      correo: 'equipo@correo.pe',
+      asesor_perfil_id: 'vend-1',
+      creado_por: 'vend-1',
+    }),
+    clienteReal({
+      id: 'cli-huerfano-mio',
+      nombre_completo: 'CLIENTE SIN ASESOR CREADO POR MI',
+      dni: '40000003',
+      correo: 'huerfano@correo.pe',
+      // La rama OR de la regla del servidor: sin asesor, manda creado_por.
+      asesor_perfil_id: null,
+      creado_por: UID,
+    }),
   ]
 }
 
@@ -35,6 +68,10 @@ test('lista: pinta la cartera con columnas del portal y el contador', async ({ p
 
   // La regla de las 5 h se explica en pantalla (copy del portal).
   await expect(page.getByText(/El reloj de corrección corre 5 h/)).toBeVisible()
+
+  // El vendedor solo ve SU cartera: ni columna Asesor ni filtro por asesor.
+  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toHaveCount(0)
+  await expect(page.getByLabel('Filtrar por asesor')).toHaveCount(0)
 })
 
 test('reloj de ventana: "Quedan…" para el recién creado y "Bloqueado" para el vencido', async ({ page }) => {
@@ -86,19 +123,127 @@ test('"+ Contrato" abre el formulario de contrato del cliente (sin ventana: siem
   await expect(page.getByRole('dialog', { name: /Crear contrato de CLIENTE PORTAL UNO/ })).toBeVisible()
 })
 
-// Regla del negocio: gerencia (rol de portal 'directorio') VE su cartera pero
-// no da de alta ni corrige — la pantalla no le ofrece ninguna acción.
-test('gerencia (rol de portal directorio): ve la lista SIN acciones de alta', async ({ page }) => {
+test('búsqueda: filtra por texto normalizado y muestra el contador "X de N"', async ({ page }) => {
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: carteraConVentanas() })
+  await loginReal(page)
+  await expect(page.getByText('Mis clientes: 2')).toBeVisible()
+
+  await page.getByLabel('Buscar clientes').fill('fresco')
+  await expect(page.getByRole('row', { name: /CLIENTE FRESCO DOS/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })).toHaveCount(0)
+  await expect(page.getByText('1 de 2')).toBeVisible()
+
+  // Sin coincidencias: estado honesto (no una tabla vacía muda).
+  await page.getByLabel('Buscar clientes').fill('nadie-con-este-nombre')
+  await expect(page.getByText('Sin resultados')).toBeVisible()
+
+  // Limpiar la búsqueda repone la cartera completa.
+  await page.getByLabel('Buscar clientes').fill('')
+  await expect(page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })).toBeVisible()
+})
+
+test('supervisor: acciones SOLO en filas de su cartera personal (regla de cartera por fila)', async ({ page }) => {
+  await montarBackendReal(page, { rolCrm: 'supervisor', clientes: carteraDeSupervision() })
+  await loginReal(page)
+
+  // Título honesto para quien ve más que lo suyo.
+  await expect(page.getByText('Cartera de clientes: 3')).toBeVisible()
+  // Sigue siendo analista del portal: el alta sí se le ofrece.
+  await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible()
+
+  // Fila PROPIA (asesor = yo): Corregir y + Contrato presentes.
+  const filaMia = page.getByRole('row', { name: /CLIENTE PROPIO SUPERVISOR/ })
+  await expect(filaMia.getByRole('button', { name: 'Corregir datos' })).toBeVisible()
+  await expect(filaMia.getByRole('button', { name: '+ Contrato' })).toBeVisible()
+
+  // Fila huérfana creada por mí (asesor NULL + creado_por = yo): también MÍA —
+  // es la rama OR exacta de crear_contrato/perfiles_analista_update.
+  const filaHuerfana = page.getByRole('row', { name: /CLIENTE SIN ASESOR CREADO POR MI/ })
+  await expect(filaHuerfana.getByRole('button', { name: '+ Contrato' })).toBeVisible()
+
+  // Fila del EQUIPO: CERO botones (el servidor los rechazaría: "Solo puedes
+  // crear contratos para clientes de tu cartera") y el asesor a la vista.
+  const filaAjena = page.getByRole('row', { name: /CLIENTE DEL VENDEDOR UNO/ })
+  await expect(filaAjena.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
+  await expect(filaAjena.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
+  await expect(filaAjena.getByText('Vendedor Real Uno')).toBeVisible()
+})
+
+test('supervisor: filtro por asesor con el roster (incluye la herencia por creado_por)', async ({ page }) => {
+  await montarBackendReal(page, { rolCrm: 'supervisor', clientes: carteraDeSupervision() })
+  await loginReal(page)
+  await expect(page.getByText('Cartera de clientes: 3')).toBeVisible()
+
+  // Solo la cartera del vendedor del equipo.
+  await page.getByLabel('Filtrar por asesor').selectOption({ label: 'Vendedor Real Uno' })
+  await expect(page.getByRole('row', { name: /CLIENTE DEL VENDEDOR UNO/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE PROPIO SUPERVISOR/ })).toHaveCount(0)
+  await expect(page.getByText('1 de 3')).toBeVisible()
+
+  // Mi cartera personal incluye la fila huérfana (dueño por creado_por).
+  await page.getByLabel('Filtrar por asesor').selectOption({ label: 'Gerente Real' })
+  await expect(page.getByRole('row', { name: /CLIENTE PROPIO SUPERVISOR/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE SIN ASESOR CREADO POR MI/ })).toBeVisible()
+  await expect(page.getByText('2 de 3')).toBeVisible()
+})
+
+test('paginación: 60 clientes → 2 páginas de 50 con Anterior/Siguiente', async ({ page }) => {
+  // Fábrica en bucle: 60 filas con creado_en decreciente (001 la más nueva)
+  // para que el orden desc de la pantalla sea determinista.
+  const base = Date.parse('2026-07-01T12:00:00.000Z')
+  const cartera = Array.from({ length: 60 }, (_, i) => {
+    const n = String(i + 1).padStart(3, '0')
+    return clienteReal({
+      id: `cli-pag-${n}`,
+      nombre_completo: `CLIENTE PAGINA ${n}`,
+      dni: String(40100000 + i),
+      correo: `pagina${n}@correo.pe`,
+      creado_en: new Date(base - i * 60_000).toISOString(),
+    })
+  })
+  await montarBackendReal(page, { rolCrm: 'vendedor', clientes: cartera })
+  await loginReal(page)
+
+  await expect(page.getByText('Mis clientes: 60')).toBeVisible()
+  await expect(page.getByText('Página 1 de 2 · 60 registros')).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE PAGINA 001/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE PAGINA 060/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Anterior' })).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Siguiente' }).click()
+  await expect(page.getByText('Página 2 de 2 · 60 registros')).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE PAGINA 060/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /CLIENTE PAGINA 001/ })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
+
+  await page.getByRole('button', { name: 'Anterior' }).click()
+  await expect(page.getByRole('row', { name: /CLIENTE PAGINA 001/ })).toBeVisible()
+})
+
+// Regla del negocio: gerencia (rol de portal 'directorio') VE toda la cartera
+// pero no da de alta ni corrige — la pantalla no le ofrece ninguna acción y en
+// vez del reloj de 5 h (que no puede usar) le muestra quién es el asesor.
+test('gerencia: cartera completa con columna Asesor y CERO acciones', async ({ page }) => {
   await montarBackendReal(page, { rolPortal: 'directorio', clientes: carteraConVentanas() })
   await loginReal(page)
   // Gerencia aterriza en su panel Hoy (gate parcial 2026-07-16): navega a Clientes.
   await page.getByRole('button', { name: 'Clientes' }).click()
-  await expect(page.getByText('Mis clientes: 2')).toBeVisible()
 
-  await expect(page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })).toBeVisible()
+  // Título honesto: NO es "su" cartera, es la de la empresa.
+  await expect(page.getByText('Cartera de clientes: 2')).toBeVisible()
+
+  const filaVieja = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
+  await expect(filaVieja).toBeVisible()
+  // Columna Asesor con el nombre resuelto del roster (UID → Gerente Real).
+  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toBeVisible()
+  await expect(filaVieja.getByText('Gerente Real')).toBeVisible()
+
+  // Sin acciones ni reloj: la columna de ventana es del asesor, no del lector.
   await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Ventana de corrección' })).toHaveCount(0)
+  await expect(page.getByRole('columnheader', { name: 'Registrado' })).toBeVisible()
 })
 
 test('cartera vacía: estado vacío con el copy del portal', async ({ page }) => {
@@ -110,7 +255,9 @@ test('cartera vacía: estado vacío con el copy del portal', async ({ page }) =>
   await expect(page.getByText(/Usa “\+ Nuevo cliente”/)).toBeVisible()
 })
 
-test('demo: la cartera se puebla con fixtures y el reloj corre — SIN pegarle a Supabase', async ({ page }) => {
+// ── DEMO (fixtures gated + recorte de ámbito local; cero red) ──────────────────
+
+test('demo vendedor: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase', async ({ page }) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase. Si el
   // módulo intentara listar/crear, el route lo abortaría y el contador (== 0 al
   // final) lo delataría.
@@ -119,20 +266,91 @@ test('demo: la cartera se puebla con fixtures y el reloj corre — SIN pegarle a
   await entrarDemo(page, 'Vendedor')
   await page.getByRole('button', { name: 'Clientes' }).click()
 
-  // Contador y filas ficticias (incluye documentos CE y PASAPORTE).
-  await expect(page.getByText('Mis clientes: 5')).toBeVisible()
-  const filaViva = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
-  await expect(filaViva).toBeVisible()
-  await expect(page.getByRole('row', { name: /BRUNO ALEXIS FONSECA IPARRAGUIRRE/ }).getByText('PE1548792')).toBeVisible()
+  // El ámbito demo espeja el scoping del servidor: d-v1 ve SOLO sus 3 clientes
+  // (ROSA/JAVIER/GLADYS); BRUNO (d-v3) y NADIA (d-v2) quedan fuera.
+  await expect(page.getByText('Mis clientes: 3')).toBeVisible()
+  await expect(page.getByRole('row', { name: /BRUNO ALEXIS FONSECA IPARRAGUIRRE/ })).toHaveCount(0)
+  // Sin equipo no hay columna Asesor.
+  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toHaveCount(0)
 
-  // El reloj de 5 h: viva para el recién creado (−1 h), Bloqueado para el viejo (−40 d).
+  // El reloj de 5 h: viva para la recién creada (−1 h), Bloqueado para la vieja (−40 d).
+  const filaViva = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
   await expect(filaViva.getByText(/Quedan \d+ h \d{2} m/)).toBeVisible()
   await expect(page.getByRole('row', { name: /GLADYS PILAR YUPANQUI ROJAS/ }).getByText('Bloqueado')).toBeVisible()
+
+  // JAVIER no tiene asesor asignado pero lo creó d-v1: la rama OR de la regla
+  // de cartera le da acciones igual (espejo del servidor).
+  await expect(
+    page.getByRole('row', { name: /JAVIER ERNESTO MEZA COLLANTES/ }).getByRole('button', { name: 'Corregir datos' }),
+  ).toBeEnabled()
 
   // Acción demo: "+ Nuevo cliente" NO llama a la API — solo el toast "(demo)".
   await page.getByRole('button', { name: 'Nuevo cliente' }).click()
   await expect(page.getByText(/disponible solo con tu cuenta real \(demo\)/i)).toBeVisible()
 
   // Ninguna request salió al host de Supabase.
+  expect(requestsSupabase()).toBe(0)
+})
+
+test('demo supervisor: su cartera + equipo, acciones SOLO en la fila propia', async ({ page }) => {
+  const requestsSupabase = await bloquearSupabase(page)
+
+  await entrarDemo(page, 'Supervisor')
+  await page.getByRole('button', { name: 'Clientes' }).click()
+
+  // d-sup1: TERESA (propia) + las carteras de d-v1 y d-v2 = 5 (BRUNO, de d-v3, no).
+  await expect(page.getByText('Cartera de clientes: 5')).toBeVisible()
+  await expect(page.getByRole('row', { name: /BRUNO ALEXIS FONSECA IPARRAGUIRRE/ })).toHaveCount(0)
+
+  // Su fila propia (ventana viva −2 h): acciones completas.
+  const filaPropia = page.getByRole('row', { name: /TERESA VICTORIA PAREDES OCHOA/ })
+  await expect(filaPropia.getByRole('button', { name: 'Corregir datos' })).toBeEnabled()
+  await expect(filaPropia.getByRole('button', { name: '+ Contrato' })).toBeVisible()
+
+  // Fila del equipo: sin botones y con el asesor a la vista; la sigla CE
+  // acompaña al documento (patrón del portal).
+  const filaEquipo = page.getByRole('row', { name: /NADIA SOLEDAD CHOQUE MAMANI/ })
+  await expect(filaEquipo.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
+  await expect(filaEquipo.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
+  await expect(filaEquipo.getByText('VENDEDOR DOS')).toBeVisible()
+  await expect(filaEquipo.getByText('CE', { exact: true })).toBeVisible()
+
+  expect(requestsSupabase()).toBe(0)
+})
+
+test('demo gerencia: los 6 clientes, columna Asesor, búsqueda y filtro — solo lectura', async ({ page }) => {
+  const requestsSupabase = await bloquearSupabase(page)
+
+  await entrarDemo(page, 'Gerencia')
+  await page.getByRole('button', { name: 'Clientes' }).click()
+
+  await expect(page.getByText('Cartera de clientes: 6')).toBeVisible()
+  await expect(page.getByRole('columnheader', { name: 'Asesor' })).toBeVisible()
+
+  // El pasaporte luce su sigla y su asesor (BRUNO es de VENDEDOR TRES).
+  const filaBruno = page.getByRole('row', { name: /BRUNO ALEXIS FONSECA IPARRAGUIRRE/ })
+  await expect(filaBruno.getByText('PASAPORTE')).toBeVisible()
+  await expect(filaBruno.getByText('PE1548792')).toBeVisible()
+  await expect(filaBruno.getByText('VENDEDOR TRES')).toBeVisible()
+
+  // Gerencia NO opera la cartera: cero botones de acción.
+  await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
+
+  // Búsqueda normalizada sobre los fixtures.
+  await page.getByLabel('Buscar clientes').fill('nadia')
+  await expect(page.getByRole('row', { name: /NADIA SOLEDAD CHOQUE MAMANI/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })).toHaveCount(0)
+  await expect(page.getByText('1 de 6')).toBeVisible()
+  await page.getByLabel('Buscar clientes').fill('')
+
+  // Filtro por asesor: la cartera de VENDEDOR UNO incluye a JAVIER (sin asesor
+  // asignado, dueño por creado_por) — 3 de 6.
+  await page.getByLabel('Filtrar por asesor').selectOption({ label: 'VENDEDOR UNO' })
+  await expect(page.getByText('3 de 6')).toBeVisible()
+  await expect(page.getByRole('row', { name: /JAVIER ERNESTO MEZA COLLANTES/ })).toBeVisible()
+  await expect(page.getByRole('row', { name: /NADIA SOLEDAD CHOQUE MAMANI/ })).toHaveCount(0)
+
   expect(requestsSupabase()).toBe(0)
 })

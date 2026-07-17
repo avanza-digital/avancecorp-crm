@@ -293,10 +293,14 @@ export interface Database {
           nombres: string | null
           apellidos: string | null
           nombre_completo: string | null
+          /** text — el CHECK vive en public.perfiles ('DNI'|'CE'|'PASAPORTE'). */
+          tipo_documento: string
           dni: string | null
           correo: string | null
           telefono: string | null
           asesor_perfil_id: string | null
+          /** Con asesor_perfil_id NULL, el creador es el dueño de cartera (regla del servidor). */
+          creado_por: string | null
           activo: boolean
           creado_en: string
         }

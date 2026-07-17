@@ -30,6 +30,7 @@ import { CrmApiError, listarClientes, listarMisContratos } from '@/data/crm-api'
 import type { ClienteBasico, ContratoRow, Cuota, EstadoContrato, Titular } from '@/lib/clientes-tipos'
 import type { CategoriaContrato } from '@/lib/cronograma'
 import { useAuth } from '@/lib/auth-context'
+import { esMiCliente } from '@/lib/clientes-vista'
 import { money } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { cn } from '@/lib/utils'
@@ -403,6 +404,7 @@ function FilaContrato({
  * 6 dígitos, co-titulares, preview del cronograma).
  */
 function NuevoContratoDialog({ onCerrar, onCreado }: { onCerrar: () => void; onCreado: () => void }) {
+  const { yo } = useAuth()
   const [clientes, setClientes] = useState<ClienteBasico[] | null>(null)
   const [errorClientes, setErrorClientes] = useState<string | null>(null)
   const [clienteId, setClienteId] = useState('')
@@ -421,7 +423,11 @@ function NuevoContratoDialog({ onCerrar, onCreado }: { onCerrar: () => void; onC
     return () => ac.abort()
   }, [])
 
-  const cliente = clientes?.find((c) => c.id === clienteId) ?? null
+  // crear_contrato exige cartera PROPIA: la vista trae el ámbito completo (un
+  // supervisor ve a su equipo), pero solo se ofrece lo que el servidor acepta
+  // (espejo por fila, mismo criterio que la pantalla Clientes).
+  const misClientes = (clientes ?? []).filter((c) => esMiCliente(c, yo?.id))
+  const cliente = misClientes.find((c) => c.id === clienteId) ?? null
 
   if (paso === 'form' && cliente) {
     return (
@@ -449,16 +455,16 @@ function NuevoContratoDialog({ onCerrar, onCreado }: { onCerrar: () => void; onC
           <div className="space-y-2" aria-busy>
             <Skeleton className="h-9 w-full" />
           </div>
-        ) : clientes.length === 0 ? (
+        ) : misClientes.length === 0 ? (
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Tu cartera aún no tiene clientes. Primero crea al cliente (o convierte un lead) y luego su contrato.
+            Tu cartera personal aún no tiene clientes. Primero crea al cliente (o convierte un lead) y luego su contrato — los contratos de tu equipo los crea cada asesor sobre su propia cartera.
           </p>
         ) : (
           <div className="space-y-1.5">
             <Label htmlFor="nc-cliente">Cliente</Label>
             <Select id="nc-cliente" value={clienteId} onChange={(e) => setClienteId(e.target.value)}>
               <option value="">— Seleccionar cliente —</option>
-              {clientes.map((c) => (
+              {misClientes.map((c) => (
                 <option key={c.id} value={c.id}>{c.nombre_completo || c.correo || c.id}</option>
               ))}
             </Select>

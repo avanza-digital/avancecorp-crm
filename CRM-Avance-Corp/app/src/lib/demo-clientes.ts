@@ -49,22 +49,33 @@ function fechaLocalMesDia(meses: number, dia: number): string {
   return formatDateLocal(new Date(hoy.getFullYear(), hoy.getMonth() + meses, dia))
 }
 
-// El asesor dueño de la cartera demo = VENDEDOR UNO (d-v1, la sesión demo de
+// El asesor de los CONTRATOS demo = VENDEDOR UNO (d-v1, la sesión demo de
 // vendedor): así, con yo.id='d-v1', los contratos salen como "míos" y el botón
 // Corregir se ve (vivo o bloqueado según la ventana), igual que en la ruta real.
 const ASESOR_DEMO = 'd-v1'
 
-// ── 5 clientes: 2 con ventana de corrección VIVA, 3 vencida (uno CE, uno PASAPORTE)
+// ── 6 clientes REPARTIDOS entre el equipo demo (asesor_perfil_id/creado_por
+//    coherentes con EQUIPO_DEMO de lib/demo.ts) para que cada rol viva la
+//    pantalla como en producción:
+//    · d-v1 (sesión vendedor): ROSA y JAVIER con ventana VIVA + GLADYS vencida
+//      — los 3 dueños de los contratos demo A/B/C, la narrativa no se rompe.
+//    · d-sup1 (sesión supervisor): TERESA propia con ventana VIVA (acciones en
+//      SU fila) y el equipo d-v1/d-v2 visible SIN acciones (regla de cartera).
+//    · gerencia/directorio: los 6, solo lectura, columna Asesor variada.
+//    Los documentos CE (NADIA) y PASAPORTE (BRUNO) viven en carteras ajenas a
+//    d-v1: la sigla se luce en las vistas de supervisión.
 export const CLIENTES_DEMO: ClienteBasico[] = [
   {
     id: 'dc-cli-1',
     nombres: 'ROSA MERCEDES',
     apellidos: 'AGUILAR VENTURA',
     nombre_completo: 'ROSA MERCEDES AGUILAR VENTURA',
+    tipo_documento: 'DNI',
     dni: '46801357', // DNI (8 dígitos)
     correo: 'rosa.aguilar@correo.pe',
     telefono: '+51987120345',
     asesor_perfil_id: ASESOR_DEMO,
+    creado_por: ASESOR_DEMO,
     activo: true,
     creado_en: haceHoras(1), // ventana VIVA (quedan ~4 h)
   },
@@ -73,10 +84,14 @@ export const CLIENTES_DEMO: ClienteBasico[] = [
     nombres: 'JAVIER ERNESTO',
     apellidos: 'MEZA COLLANTES',
     nombre_completo: 'JAVIER ERNESTO MEZA COLLANTES',
+    tipo_documento: 'DNI',
     dni: '43217985', // DNI
     correo: 'javier.meza@correo.pe',
     telefono: '+51987654109',
-    asesor_perfil_id: ASESOR_DEMO,
+    // Sin asesor asignado A PROPÓSITO: el dueño de cartera se hereda de
+    // creado_por (la rama OR de la regla del servidor también se luce en demo).
+    asesor_perfil_id: null,
+    creado_por: ASESOR_DEMO,
     activo: true,
     creado_en: haceHoras(3), // ventana VIVA (quedan ~2 h)
   },
@@ -85,10 +100,12 @@ export const CLIENTES_DEMO: ClienteBasico[] = [
     nombres: 'NADIA SOLEDAD',
     apellidos: 'CHOQUE MAMANI',
     nombre_completo: 'NADIA SOLEDAD CHOQUE MAMANI',
+    tipo_documento: 'CE',
     dni: '001987654', // Carné de Extranjería (9 dígitos) en la columna `dni`
     correo: 'nadia.choque@correo.pe',
     telefono: '+51965321478',
-    asesor_perfil_id: ASESOR_DEMO,
+    asesor_perfil_id: 'd-v2', // equipo de d-sup1: el supervisor la ve sin acciones
+    creado_por: 'd-v2',
     activo: true,
     creado_en: haceDias(2), // ventana VENCIDA
   },
@@ -97,10 +114,12 @@ export const CLIENTES_DEMO: ClienteBasico[] = [
     nombres: 'BRUNO ALEXIS',
     apellidos: 'FONSECA IPARRAGUIRRE',
     nombre_completo: 'BRUNO ALEXIS FONSECA IPARRAGUIRRE',
+    tipo_documento: 'PASAPORTE',
     dni: 'PE1548792', // Pasaporte (alfanumérico) en la columna `dni`
     correo: 'bruno.fonseca@correo.pe',
     telefono: '+51944870231',
-    asesor_perfil_id: ASESOR_DEMO,
+    asesor_perfil_id: 'd-v3', // equipo de d-sup2: solo gerencia/directorio lo ven
+    creado_por: 'd-v3',
     activo: true,
     creado_en: haceDias(15), // ventana VENCIDA
   },
@@ -109,12 +128,28 @@ export const CLIENTES_DEMO: ClienteBasico[] = [
     nombres: 'GLADYS PILAR',
     apellidos: 'YUPANQUI ROJAS',
     nombre_completo: 'GLADYS PILAR YUPANQUI ROJAS',
+    tipo_documento: 'DNI',
     dni: '40928175', // DNI
     correo: 'gladys.yupanqui@correo.pe',
     telefono: '+51932014876',
-    asesor_perfil_id: ASESOR_DEMO,
+    asesor_perfil_id: ASESOR_DEMO, // dueña del contrato C — sigue con d-v1
+    creado_por: ASESOR_DEMO,
     activo: true,
     creado_en: haceDias(40), // ventana VENCIDA
+  },
+  {
+    id: 'dc-cli-6',
+    nombres: 'TERESA VICTORIA',
+    apellidos: 'PAREDES OCHOA',
+    nombre_completo: 'TERESA VICTORIA PAREDES OCHOA',
+    tipo_documento: 'DNI',
+    dni: '43781265', // DNI
+    correo: 'teresa.paredes@correo.pe',
+    telefono: '+51976403182',
+    asesor_perfil_id: 'd-sup1', // cartera PROPIA del supervisor demo (también es analista)
+    creado_por: 'd-sup1',
+    activo: true,
+    creado_en: haceHoras(2), // ventana VIVA → el supervisor ve acciones en SU fila
   },
 ]
 
