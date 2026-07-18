@@ -162,7 +162,7 @@ export function HoySupervisor(): JSX.Element {
                     aria-label={`Abrir ficha de ${l.nombre_completo}`}
                     className="flex min-w-0 flex-1 basis-56 cursor-pointer items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
                   >
-                    <Avatar nombre={l.nombre_completo} color={SEMAFORO.atencion} />
+                    <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} />
                     <div className="min-w-0 leading-tight">
                       <p className="truncate text-sm font-semibold">{l.nombre_completo}</p>
                       <p className="truncate text-xs text-muted-foreground">

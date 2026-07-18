@@ -137,6 +137,19 @@ export const ETAPA_INFO: Record<Etapa, { label: string; color: string }> = Objec
   [...ETAPAS, ...TERMINALES].map((e) => [e.k, { label: e.label, color: e.color }]),
 ) as Record<Etapa, { label: string; color: string }>
 
+// ── Género (para el avatar humano y los datos del contacto) ───────────────────
+// Binario a propósito: mapea al sexo del documento (RENIEC) y decide la silueta.
+// Es OPCIONAL en el lead; sin género el avatar cae a la silueta neutra.
+export type Genero = 'F' | 'M'
+
+export const GENEROS: ReadonlyArray<{ k: Genero; label: string }> = [
+  { k: 'F', label: 'Femenino' },
+  { k: 'M', label: 'Masculino' },
+]
+
+/** Narrow de string → Genero (para leer selects/formularios sin castear). */
+export const esGenero = (v: string): v is Genero => v === 'F' || v === 'M'
+
 export interface Lead {
   id: string
   nombre_completo: string
@@ -155,6 +168,8 @@ export interface Lead {
   activo: boolean
   // Espejo del esquema F0 (opcionales)
   dni?: string | null // exactamente 8 dígitos si existe
+  genero?: Genero | null // decide la silueta del avatar; null → neutra
+  fecha_nacimiento?: string | null // ISO 'YYYY-MM-DD' (sin hora)
   distrito?: string | null
   nota?: string | null
   motivo_descarte?: MotivoDescarte | null // solo si etapa === 'descartado'
