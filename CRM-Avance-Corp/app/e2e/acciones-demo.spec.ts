@@ -10,9 +10,16 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
 
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await expect(modal).toBeVisible()
+  for (const origen of ['referido', 'landing', 'formulario', 'oficina', 'otro']) {
+    await expect(modal.locator(`#nl-origen option[value="${origen}"]`)).toHaveCount(1)
+  }
+  for (const origenRetirado of ['web', 'campania', 'whatsapp']) {
+    await expect(modal.locator(`#nl-origen option[value="${origenRetirado}"]`)).toHaveCount(0)
+  }
   await modal.locator('#nl-nombre').fill('LEAD PRUEBA E2E')
   await modal.locator('#nl-telefono').fill('987111222')
-  await modal.locator('#nl-origen').selectOption('web')
+  await modal.locator('#nl-monto').fill('5000')
+  await modal.locator('#nl-origen').selectOption('landing')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   await expect(page.getByText(/Lead creado \(demo\)/i)).toBeVisible()

@@ -3,6 +3,10 @@ import { formatDateLocal, parseDateLocal } from './cronograma'
 
 export type Moneda = 'PEN' | 'USD'
 
+export function esMoneda(valor: string): valor is Moneda {
+  return valor === 'PEN' || valor === 'USD'
+}
+
 /** Símbolo por moneda — fuente única (no re-derivar `moneda === 'USD' ? … : …` en pantallas). */
 export const SIMBOLO: Record<Moneda, string> = { PEN: 'S/', USD: 'US$' }
 

@@ -2,6 +2,7 @@
 // La usan crearLead y editarLead del store (antes: dos copias divergentes) y
 // los formularios; cuando lleguen las mutaciones reales de Supabase, será la
 // TERCERA consumidora del mismo contrato — sin strings que sincronizar a mano.
+import { esMoneda, type Moneda } from './format'
 import { esOrigen, type Origen } from './tipos'
 
 /** Normaliza un celular peruano a +519######## (o null si no es válido). */
@@ -15,12 +16,20 @@ export function normalizarTelefono(valor: string): string | null {
 
 /** Correo razonable (no RFC completo — espejo del CHECK laxo del esquema). */
 export const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
+export const MONTO_ESTIMADO_MAX = 9_999_999_999.99
 
 // ── Errores estructurados ─────────────────────────────────────────────────────
 // La UI ancla el error a su campo por `campo` (nunca adivinando por regex
 // sobre el texto del mensaje) y decide el wording final con `error`.
 
-export type CampoLead = 'nombre_completo' | 'telefono' | 'dni' | 'correo' | 'origen' | 'monto_estimado'
+export type CampoLead =
+  | 'nombre_completo'
+  | 'telefono'
+  | 'dni'
+  | 'correo'
+  | 'origen'
+  | 'monto_estimado'
+  | 'moneda'
 
 export type CodigoValidacion =
   | 'nombre_obligatorio'
@@ -29,6 +38,7 @@ export type CodigoValidacion =
   | 'correo_invalido'
   | 'origen_invalido'
   | 'monto_invalido'
+  | 'moneda_invalida'
 
 export interface ErrorValidacion {
   ok: false
@@ -45,6 +55,7 @@ export interface CamposLead {
   correo?: string | null
   origen?: string
   monto_estimado?: number | null
+  moneda?: string
 }
 
 /** Valores ya normalizados (teléfono +51…, strings vacíos → null). */
@@ -54,7 +65,8 @@ export interface ValoresLead {
   dni?: string | null
   correo?: string | null
   origen?: Origen
-  monto_estimado?: number | null
+  monto_estimado?: number
+  moneda?: Moneda
 }
 
 /**
@@ -110,15 +122,46 @@ export function validarCamposLead(campos: CamposLead): { ok: true; valores: Valo
   }
 
   if (campos.monto_estimado !== undefined) {
-    if (campos.monto_estimado != null && (!Number.isFinite(campos.monto_estimado) || campos.monto_estimado < 0)) {
+    if (campos.monto_estimado == null || !Number.isFinite(campos.monto_estimado) || campos.monto_estimado <= 0) {
       return {
         ok: false,
         codigo: 'monto_invalido',
         campo: 'monto_estimado',
-        error: 'El monto estimado debe ser un número mayor o igual a 0',
+        error: 'El capital estimado es obligatorio y debe ser mayor que 0',
       }
     }
-    valores.monto_estimado = campos.monto_estimado ?? null
+    if (campos.monto_estimado > MONTO_ESTIMADO_MAX) {
+      return {
+        ok: false,
+        codigo: 'monto_invalido',
+        campo: 'monto_estimado',
+        error: 'El capital estimado excede el máximo permitido',
+      }
+    }
+    // crm.leads conserva el rango de numeric(12,2) mediante CHECK explícito.
+    // Rechazar, no redondear: cambiar 5000.999 a 5001.00 en el servidor puede
+    // mover silenciosamente el lead de rango.
+    if (Math.round(campos.monto_estimado * 100) / 100 !== campos.monto_estimado) {
+      return {
+        ok: false,
+        codigo: 'monto_invalido',
+        campo: 'monto_estimado',
+        error: 'El capital estimado admite como máximo 2 decimales',
+      }
+    }
+    valores.monto_estimado = campos.monto_estimado
+  }
+
+  if (campos.moneda !== undefined) {
+    if (!esMoneda(campos.moneda)) {
+      return {
+        ok: false,
+        codigo: 'moneda_invalida',
+        campo: 'moneda',
+        error: 'Selecciona una moneda válida (PEN o USD)',
+      }
+    }
+    valores.moneda = campos.moneda
   }
 
   return { ok: true, valores }

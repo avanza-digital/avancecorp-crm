@@ -6,7 +6,7 @@ import {
   CATEGORIAS_INTERES,
   ETAPAS,
   MOTIVOS_DESCARTE,
-  ORIGENES,
+  ORIGENES_TODOS,
   TERMINALES,
   TIPOS_ACTIVIDAD,
   type Actividad,
@@ -38,6 +38,10 @@ import type {
   FilaPagosMes,
   FilaVencimientos,
 } from '@/lib/metricas'
+import {
+  MetricasDistribucionLeadsSchema,
+  type MetricasDistribucionLeads,
+} from '@/lib/metricas-distribucion'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -68,6 +72,11 @@ const COLUMNAS_LEAD = [
 // compilar: un dato viejo o una migración a medias entrarían "compilando
 // limpio"). Los picklist salen de los MISMOS catálogos de tipos.ts — una sola
 // fuente de verdad para el CHECK, el union y el parser.
+const MontoEstimadoSchema = v.pipe(
+  v.union([v.number(), v.string()]),
+  v.check((valor) => Number.isFinite(Number(valor)) && Number(valor) > 0),
+)
+
 const LeadRowSchema = v.object({
   id: v.string(),
   nombre_completo: v.string(),
@@ -75,11 +84,11 @@ const LeadRowSchema = v.object({
   correo: v.nullable(v.string()),
   dni: v.nullable(v.string()),
   distrito: v.nullable(v.string()),
-  origen: v.picklist(ORIGENES.map((o) => o.k)),
+  origen: v.picklist(ORIGENES_TODOS.map((o) => o.k)),
   etapa: v.picklist([...ETAPAS.map((e) => e.k), ...TERMINALES.map((t) => t.k)]),
   motivo_descarte: v.nullable(v.picklist(MOTIVOS_DESCARTE.map((m) => m.k))),
-  // numeric(12,2): PostgREST puede serializarlo como string
-  monto_estimado: v.nullable(v.union([v.number(), v.string()])),
+  // numeric con CHECK de rango/2 decimales: PostgREST puede serializarlo como string
+  monto_estimado: MontoEstimadoSchema,
   moneda: v.picklist(['PEN', 'USD']),
   categoria_interes: v.nullable(v.picklist(CATEGORIAS_INTERES.map((c) => c.k))),
   vendedor_id: v.nullable(v.string()),
@@ -183,7 +192,7 @@ function aLead(fila: LeadRow): Lead {
     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
     etapa: fila.etapa,
     motivo_descarte: fila.motivo_descarte,
-    monto_estimado: aNumero(fila.monto_estimado),
+    monto_estimado: Number(fila.monto_estimado),
     moneda: fila.moneda,
     categoria_interes: fila.categoria_interes,
     vendedor_id: fila.vendedor_id,
@@ -306,9 +315,18 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
     throw fallo
   }
   const items: Lead[] = []
+  let descartadas = 0
   for (const cruda of data ?? []) {
     const r = v.safeParse(LeadRowSchema, cruda)
     if (r.success) items.push(aLead(r.output))
+    else descartadas += 1
+  }
+  if (descartadas > 0) {
+    registrarError(
+      'crm.leads.ambito_filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+      { descartadas, limite: MAX_LEADS_AMBITO },
+    )
   }
   return items
 }
@@ -403,6 +421,12 @@ function aErrorApi(
       code = 'DUP_CORREO'
       mensaje = 'Ese correo ya está registrado en el portal'
     }
+  } else if (
+    (codigoPg === '23502' && texto.includes('monto_estimado'))
+    || (codigoPg === '23514' && texto.includes('leads_monto_estimado_valido'))
+  ) {
+    code = 'MONTO_INVALIDO'
+    mensaje = 'El capital estimado es obligatorio y debe ser mayor que 0'
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
     code = 'SIN_PERMISO'
     mensaje = 'No tienes permiso para esa acción'
@@ -1231,4 +1255,152 @@ export async function listarMetricasVencimientos(
   }
   registrarFilasMetricasInvalidas('vencimientos', descartadas)
   return items
+}
+
+// ── Distribución de leads por capital (JSON V1 atómico) ──────────────────────
+
+const FechaMetricaSchema = v.pipe(v.string(), v.isoDate())
+
+const CapacidadActualizadaSchema = v.strictObject({
+  perfil_id: v.pipe(v.string(), v.uuid()),
+  capacidad_leads_objetivo: v.nullable(
+    v.pipe(
+      v.union([v.number(), v.string()]),
+      v.transform((valor) => Number(valor)),
+      v.number(),
+      v.finite(),
+      v.integer(),
+      v.minValue(1),
+      v.maxValue(1000),
+    ),
+  ),
+})
+
+export interface CapacidadLeadsObjetivoActualizada {
+  analistaId: string
+  capacidad: number | null
+}
+
+function periodoMetricasValido(desde: string, hasta: string): boolean {
+  return v.safeParse(FechaMetricaSchema, desde).success
+    && v.safeParse(FechaMetricaSchema, hasta).success
+    && desde <= hasta
+}
+
+function lanzarAbortSiCorresponde(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  throw signal.reason instanceof Error
+    ? signal.reason
+    : new DOMException('La solicitud fue cancelada.', 'AbortError')
+}
+
+/**
+ * Fotografía atómica de distribución, capacidad, resultados y SLA.
+ * A diferencia de las RPC tabulares antiguas, aquí no se descartan ramas
+ * inválidas: una sola falla invalida el payload completo para no mezclar
+ * denominadores o periodos incompatibles en Gerencia.
+ */
+export async function listarMetricasDistribucionLeads(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<MetricasDistribucionLeads> {
+  if (!periodoMetricasValido(desde, hasta)) {
+    const fallo = new CrmApiError(
+      'El período de métricas no es válido.',
+      'PERIODO_METRICAS_INVALIDO',
+    )
+    registrarError('crm.metricas.distribucion_periodo_invalido', fallo)
+    throw fallo
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_distribucion_leads_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.distribucion_fallido')
+
+  const resultado = v.safeParse(MetricasDistribucionLeadsSchema, data)
+  if (
+    !resultado.success
+    || resultado.output.cohorte.desde_inclusivo !== desde
+    || resultado.output.cohorte.hasta_inclusivo !== hasta
+  ) {
+    const fallo = new CrmApiError(
+      'Las métricas de distribución no tienen el formato esperado.',
+      'METRICAS_DISTRIBUCION_CONTRACT',
+    )
+    registrarError('crm.metricas.distribucion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
+  return resultado.output
+}
+
+/** Gerencia fija o limpia la capacidad objetivo de un analista activo. */
+export async function actualizarCapacidadLeadsObjetivo(
+  analistaId: string,
+  capacidad: number | null,
+): Promise<CapacidadLeadsObjetivoActualizada> {
+  const idValido = v.safeParse(v.pipe(v.string(), v.uuid()), analistaId).success
+  const capacidadValida = capacidad == null
+    || (Number.isInteger(capacidad) && capacidad >= 1 && capacidad <= 1000)
+  if (!idValido || !capacidadValida) {
+    throw new CrmApiError(
+      'La capacidad debe estar entre 1 y 1000 leads, o quedar sin configurar.',
+      'CAPACIDAD_INVALIDA',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc(
+    'actualizar_capacidad_leads_objetivo',
+    {
+      p_analista_id: analistaId,
+      p_capacidad_leads_objetivo: capacidad,
+    },
+  )
+
+  if (error) {
+    let fallo: CrmApiError
+    if (error.code === '22023') {
+      fallo = new CrmApiError(
+        'La capacidad debe estar entre 1 y 1000 leads, o quedar sin configurar.',
+        'CAPACIDAD_INVALIDA',
+      )
+    } else if (error.code === 'P0002') {
+      fallo = new CrmApiError('Analista activo no encontrado.', 'ANALISTA_NO_ENCONTRADO')
+    } else if (error.code === '42501' || error.code === 'PGRST301') {
+      fallo = new CrmApiError('No tienes permiso para configurar capacidades.', 'SIN_PERMISO')
+    } else {
+      fallo = new CrmApiError(
+        'No se pudo actualizar la capacidad del analista.',
+        error.code || 'POSTGREST_ERROR',
+      )
+    }
+    registrarError('crm.equipo.capacidad_actualizar_fallido', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+
+  const respuesta = v.safeParse(v.strictTuple([CapacidadActualizadaSchema]), data)
+  if (
+    !respuesta.success
+    || respuesta.output[0].perfil_id !== analistaId
+    || respuesta.output[0].capacidad_leads_objetivo !== capacidad
+  ) {
+    const fallo = new CrmApiError(
+      'La capacidad actualizada no tiene el formato esperado.',
+      'CAPACIDAD_CONTRACT',
+    )
+    registrarError('crm.equipo.capacidad_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
+  return {
+    analistaId: respuesta.output[0].perfil_id,
+    capacidad: respuesta.output[0].capacidad_leads_objetivo,
+  }
 }

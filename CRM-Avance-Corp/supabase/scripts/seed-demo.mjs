@@ -11,7 +11,6 @@ import {
   BANK_CONTRACT,
   LEADS,
   PRODUCTION_PROJECT_REF,
-  TRANSIENT_IDS,
   USERS,
   normalizePeruPhone,
   validateFixtureModel,
@@ -211,12 +210,15 @@ async function ensureProfile(user) {
   );
 }
 
-async function ensureTeam() {
+async function ensureTeam({ activateForSeed = false } = {}) {
   for (const user of USERS.filter((candidate) => candidate.crmRole)) {
     await requireResponse(
       `upsert crm.equipo (${user.key})`,
       admin.schema('crm').from('equipo').upsert({
-        activo: user.crmActive,
+        // 0C impide asignar responsabilidad NUEVA a un miembro inactivo. Para
+        // construir el fixture historico "inactiveOwned" en un branch limpio,
+        // se provisiona activo y se desactiva inmediatamente al terminar.
+        activo: activateForSeed ? true : user.crmActive,
         perfil_id: ids[user.key],
         rol_crm: user.crmRole,
         supervisor_id: user.supervisorKey ? ids[user.supervisorKey] : null,
@@ -313,43 +315,29 @@ async function ensureBankContract() {
   await requireResponse('guardar contrato bancario fixture', query);
 }
 
-async function cleanTransientRows() {
-  await requireResponse(
-    'limpiar actividades transitorias de una corrida anterior',
-    admin.schema('crm').from('actividades').delete().in('id', [
-      TRANSIENT_IDS.directoryActivity,
-      TRANSIENT_IDS.crossTeamActivity,
-    ]),
-  );
-  await requireResponse(
-    'limpiar leads transitorios de una corrida anterior',
-    admin.schema('crm').from('leads').delete().in('id', [
-      TRANSIENT_IDS.directoryLead,
-      TRANSIENT_IDS.crossTeamLead,
-      TRANSIENT_IDS.portalClientLead,
-    ]),
-  );
-}
-
 async function main() {
-  await cleanTransientRows();
-
   for (const user of USERS) await ensureAuthUser(user);
   console.log(`✓ ${USERS.length} usuarios Auth listos`);
 
   for (const user of USERS) await ensureProfile(user);
   console.log(`✓ ${USERS.length} perfiles del portal sincronizados`);
 
-  await ensureTeam();
+  await ensureTeam({ activateForSeed: true });
+  try {
+    for (const fixture of LEADS) {
+      const leadId = await ensureLead(fixture);
+      await ensureActivity(fixture, leadId);
+    }
+  } finally {
+    // Tambien corre si falla un fixture: nunca deja habilitado por accidente al
+    // usuario que el gate necesita comprobar como inactivo.
+    await ensureTeam();
+  }
+  console.log(`✓ ${LEADS.length} leads y ${LEADS.length} actividades deterministas`);
+
   const teamCount = USERS.filter((user) => user.crmRole).length;
   const inactiveCount = USERS.filter((user) => user.crmRole && !user.crmActive).length;
   console.log(`✓ crm.equipo: ${teamCount} miembros (${inactiveCount} inactivo)`);
-
-  for (const fixture of LEADS) {
-    const leadId = await ensureLead(fixture);
-    await ensureActivity(fixture, leadId);
-  }
-  console.log(`✓ ${LEADS.length} leads y ${LEADS.length} actividades deterministas`);
 
   await ensureBankContract();
   console.log('✓ cliente bancario + contrato sensible de prueba');

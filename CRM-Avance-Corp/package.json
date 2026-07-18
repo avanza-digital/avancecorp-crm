@@ -10,6 +10,7 @@
     "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/test-rls.mjs",
     "seed:demo": "node supabase/scripts/seed-demo.mjs",
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
+    "test:edge-preflight": "node --test ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs",
     "test:rls": "node supabase/scripts/test-rls.mjs",
     "test:rls:preflight": "node supabase/scripts/test-rls.mjs --preflight"
   },

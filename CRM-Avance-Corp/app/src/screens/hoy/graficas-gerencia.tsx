@@ -1,10 +1,10 @@
 // Gráficas ejecutivas de GERENCIA (fila nueva del panel Hoy) — recharts vía el
-// wrapper ui/chart. Cuatro vistas del negocio de contratos del portal:
+// wrapper ui/chart. Tres vistas del negocio de contratos del portal:
 //   (a) capital colocado por mes (apilado por categoría) · (b) pagos:
-//   pagado vs vencido · (c) altas por analista (top-N) · (d) vencimientos.
+//   pagado vs vencido · (c) vencimientos.
 //
 // FUENTES (nunca mezcladas):
-//  - Sesión REAL: 4 RPCs crm.metricas_*_fn vía TanStack Query (enabled solo en
+//  - Sesión REAL: 3 RPCs crm.metricas_*_fn vía TanStack Query (enabled solo en
 //    real). El ámbito lo resuelve el SERVIDOR. Skeleton al cargar, error con
 //    reintento por tarjeta y estado vacío HONESTO (regla A3: sin datos no se
 //    pinta nada inventado).
@@ -21,16 +21,13 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  LabelList,
   XAxis,
-  YAxis,
 } from 'recharts'
 import {
   CalendarClock,
   ChartColumnStacked,
   HandCoins,
   RotateCcw,
-  UserRoundPlus,
   type LucideIcon,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -55,14 +52,11 @@ import {
   pivotCapitalPorMes,
   pivotPagosPorMes,
   pivotVencimientosPorMes,
-  topAltasPorAnalista,
-  type FilaAltasAnalista,
   type FilaCapitalMes,
   type FilaPagosMes,
   type FilaVencimientos,
 } from '@/lib/metricas'
 import {
-  useMetricasAltasAnalista,
   useMetricasCapitalMes,
   useMetricasPagosMes,
   useMetricasVencimientos,
@@ -89,10 +83,6 @@ const CATEGORIAS_STACK = ['nuevo', 'renovacion', 'upgrade', 'sin_categoria'] as 
 const CFG_PAGOS = {
   pagado: { label: 'Pagado', color: SEMAFORO.ok },
   vencido: { label: 'Vencido', color: SEMAFORO.critico },
-} satisfies ChartConfig
-
-const CFG_ALTAS = {
-  altas: { label: 'Altas', color: 'var(--chart-1)' },
 } satisfies ChartConfig
 
 const CFG_VENCIMIENTOS = {
@@ -170,9 +160,9 @@ function CardGrafica({
   children?: ReactNode | undefined
 }): JSX.Element {
   return (
-    <Card className={className} data-testid={testid}>
+    <Card className={cn('min-w-0', className)} data-testid={testid}>
       <SectionHead icon={icon} title={title} right={right} />
-      <CardContent className="pt-1">
+      <CardContent className="min-w-0 pt-1">
         {estado === 'cargando' && <Skeleton className="h-[240px] w-full" aria-busy />}
         {estado === 'error' && (
           <div className="flex h-[240px] flex-col items-center justify-center gap-3 text-center">
@@ -224,17 +214,10 @@ function FilaTooltipMoney({
   )
 }
 
-/** Nombres largos (jerárquicos, en mayúsculas) recortados para el eje Y. */
-function recortarNombre(valor: unknown): string {
-  const s = String(valor)
-  return s.length > 16 ? `${s.slice(0, 15)}…` : s
-}
-
 // Filas demo ya derivadas (shape idéntico al de las RPCs).
 interface FilasDemo {
   capital: FilaCapitalMes[]
   pagos: FilaPagosMes[]
-  altas: FilaAltasAnalista[]
   vencimientos: FilaVencimientos[]
 }
 
@@ -260,7 +243,6 @@ export function GraficasGerencia(): JSX.Element {
           setFilasDemo({
             capital: m.demoMetricasCapitalMes(),
             pagos: m.demoMetricasPagosMes(),
-            altas: m.demoMetricasAltasAnalista(),
             vencimientos: m.demoMetricasVencimientos(DIAS_VENCIMIENTOS),
           })
         })
@@ -268,7 +250,7 @@ export function GraficasGerencia(): JSX.Element {
           if (!vivo) return
           registrarError('demo.metricas_carga_fallida', error)
           // Fixtures inaccesibles: estados vacíos honestos, jamás cifras inventadas.
-          setFilasDemo({ capital: [], pagos: [], altas: [], vencimientos: [] })
+          setFilasDemo({ capital: [], pagos: [], vencimientos: [] })
         })
     }
     return () => {
@@ -278,7 +260,6 @@ export function GraficasGerencia(): JSX.Element {
 
   const qCapital = useMetricasCapitalMes(sesionReal)
   const qPagos = useMetricasPagosMes(sesionReal)
-  const qAltas = useMetricasAltasAnalista(sesionReal)
   const qVencimientos = useMetricasVencimientos(sesionReal, DIAS_VENCIMIENTOS)
 
   // Fuente unificada por gráfica: filas demo derivadas o data de la RPC.
@@ -287,10 +268,6 @@ export function GraficasGerencia(): JSX.Element {
   const filasCapital = useMemo(
     () => (esDemo ? (filasDemo?.capital ?? []) : (qCapital.data ?? [])),
     [esDemo, filasDemo, qCapital.data],
-  )
-  const filasAltas = useMemo(
-    () => (esDemo ? (filasDemo?.altas ?? []) : (qAltas.data ?? [])),
-    [esDemo, filasDemo, qAltas.data],
   )
   const filasVencimientos = useMemo(
     () => (esDemo ? (filasDemo?.vencimientos ?? []) : (qVencimientos.data ?? [])),
@@ -311,9 +288,6 @@ export function GraficasGerencia(): JSX.Element {
   const estadoPagos = esDemo
     ? estadoDe(demoCargando, false, filasPagos.length === 0)
     : estadoDe(qPagos.isPending, qPagos.isError, filasPagos.length === 0)
-  const estadoAltas = esDemo
-    ? estadoDe(demoCargando, false, filasAltas.length === 0)
-    : estadoDe(qAltas.isPending, qAltas.isError, filasAltas.length === 0)
   const estadoVencimientos = esDemo
     ? estadoDe(demoCargando, false, filasVencimientos.length === 0)
     : estadoDe(qVencimientos.isPending, qVencimientos.isError, filasVencimientos.length === 0)
@@ -341,7 +315,6 @@ export function GraficasGerencia(): JSX.Element {
     () => pivotPagosPorMes(filasPagos, monPagos),
     [filasPagos, monPagos],
   )
-  const rankingAltas = useMemo(() => topAltasPorAnalista(filasAltas, 8), [filasAltas])
   const puntosVencimientos = useMemo(
     () => pivotVencimientosPorMes(filasVencimientos, monVencimientos),
     [filasVencimientos, monVencimientos],
@@ -354,7 +327,7 @@ export function GraficasGerencia(): JSX.Element {
   )
 
   return (
-    <div className="grid gap-5 lg:grid-cols-3">
+    <div className="grid gap-5 lg:grid-cols-2">
       {/* (a) Capital colocado por mes — barras apiladas por categoría */}
       <CardGrafica
         icon={ChartColumnStacked}
@@ -398,40 +371,6 @@ export function GraficasGerencia(): JSX.Element {
         </ChartContainer>
       </CardGrafica>
 
-      {/* (c) Altas por analista — barras horizontales top-N */}
-      <CardGrafica
-        icon={UserRoundPlus}
-        title="Altas por analista"
-        right={<span className="text-xs text-muted-foreground">últimos 12 meses</span>}
-        nota="Clientes dados de alta en el portal, top 8 del período."
-        estado={estadoAltas}
-        onReintentar={esDemo ? undefined : () => void qAltas.refetch()}
-        testid="grafica-altas"
-      >
-        <ChartContainer config={CFG_ALTAS} className="h-[240px] w-full">
-          <BarChart
-            accessibilityLayer
-            data={rankingAltas}
-            layout="vertical"
-            margin={{ top: 4, right: 28, left: 4 }}
-          >
-            <XAxis type="number" hide />
-            <YAxis
-              type="category"
-              dataKey="nombre"
-              tickLine={false}
-              axisLine={false}
-              width={124}
-              tickFormatter={recortarNombre}
-            />
-            <ChartTooltip content={<ChartTooltipContent />} />
-            <Bar dataKey="altas" fill="var(--color-altas)" radius={[0, 4, 4, 0]} maxBarSize={22}>
-              <LabelList dataKey="altas" position="right" className="fill-muted-foreground" fontSize={11} />
-            </Bar>
-          </BarChart>
-        </ChartContainer>
-      </CardGrafica>
-
       {/* (b) Pagos a inversionistas por mes */}
       <CardGrafica
         icon={HandCoins}
@@ -440,7 +379,6 @@ export function GraficasGerencia(): JSX.Element {
         nota="Pagado = intereses del cronograma pagados en el mes · Vencido = intereses vencidos sin pago · No incluye retornos de capital."
         estado={estadoPagos}
         onReintentar={esDemo ? undefined : () => void qPagos.refetch()}
-        className="lg:col-span-2"
         testid="grafica-pagos"
       >
         <ChartContainer config={CFG_PAGOS} className="h-[240px] w-full">

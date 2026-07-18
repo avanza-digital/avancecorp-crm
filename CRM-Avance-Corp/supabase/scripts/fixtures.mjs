@@ -1,6 +1,8 @@
 // Fuente unica de verdad del seed y de la matriz RLS.
 // Todos los datos son ficticios y solo pueden existir en branch/staging.
 
+import { randomUUID } from 'node:crypto';
+
 export const PRODUCTION_PROJECT_REF = 'dctqcbznekcyxhjujuci';
 
 export const USERS = Object.freeze([
@@ -188,7 +190,7 @@ export const LEADS = Object.freeze([
     sellerKey: null,
     supervisorKey: 'sup1',
     stage: 'nuevo',
-    estimatedAmount: null,
+    estimatedAmount: 1000,
     currency: 'PEN',
   },
   {
@@ -200,7 +202,7 @@ export const LEADS = Object.freeze([
     sellerKey: null,
     supervisorKey: 'sup2',
     stage: 'nuevo',
-    estimatedAmount: null,
+    estimatedAmount: 5000,
     currency: 'PEN',
   },
   {
@@ -270,11 +272,17 @@ export const BANK_CONTRACT = Object.freeze({
 });
 
 export const TRANSIENT_IDS = Object.freeze({
-  directoryLead: '99000000-0000-4000-8000-000000000001',
-  crossTeamLead: '99000000-0000-4000-8000-000000000002',
-  directoryActivity: '99000000-0000-4000-8000-000000000003',
-  crossTeamActivity: '99000000-0000-4000-8000-000000000004',
-  portalClientLead: '99000000-0000-4000-8000-000000000005',
+  // Un ledger real no se perfora para limpiar tests. Cada corrida usa ids
+  // nuevos y al finalizar hace soft-delete; el branch se elimina tras el gate.
+  directoryLead: randomUUID(),
+  crossTeamLead: randomUUID(),
+  directoryActivity: randomUUID(),
+  crossTeamActivity: randomUUID(),
+  portalClientLead: randomUUID(),
+  triggerAssignedInsertLead: randomUUID(),
+  triggerSellerChangeLead: randomUUID(),
+  triggerSupervisorOnlyLead: randomUUID(),
+  triggerNoTenureLead: randomUUID(),
 });
 
 export function normalizePeruPhone(phone) {
@@ -297,6 +305,7 @@ export function validateFixtureModel() {
   unique(LEADS.map((lead) => lead.activityId), 'lead.activityId');
   unique(LEADS.map((lead) => lead.name), 'lead.name');
   unique(LEADS.map((lead) => normalizePeruPhone(lead.phone)), 'lead.phone');
+  unique(Object.values(TRANSIENT_IDS), 'TRANSIENT_IDS');
 
   for (const user of USERS) {
     if (user.supervisorKey && !USER_BY_KEY[user.supervisorKey]?.crmRole) {
@@ -314,6 +323,17 @@ export function validateFixtureModel() {
   }
 
   for (const lead of LEADS) {
+    if (
+      !Number.isFinite(lead.estimatedAmount)
+      || lead.estimatedAmount <= 0
+      || lead.estimatedAmount > 9_999_999_999.99
+      || Math.round(lead.estimatedAmount * 100) / 100 !== lead.estimatedAmount
+    ) {
+      throw new Error(`Fixtures invalidos: capital estimado invalido para ${lead.key}.`);
+    }
+    if (lead.currency !== 'PEN' && lead.currency !== 'USD') {
+      throw new Error(`Fixtures invalidos: moneda invalida para ${lead.key}.`);
+    }
     if (lead.sellerKey && USER_BY_KEY[lead.sellerKey]?.crmRole !== 'vendedor') {
       throw new Error(`Fixtures invalidos: vendedor inexistente para ${lead.key}.`);
     }

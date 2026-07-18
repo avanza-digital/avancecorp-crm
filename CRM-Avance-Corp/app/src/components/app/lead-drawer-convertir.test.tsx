@@ -42,7 +42,7 @@ function leadBase(over: Partial<Lead> = {}): Lead {
     telefono: '+51999888777',
     correo: null,
     etapa: 'nuevo',
-    origen: 'web',
+    origen: 'landing',
     monto_estimado: 50_000,
     moneda: 'PEN',
     categoria_interes: null,
@@ -71,7 +71,7 @@ function sesion(demo: boolean): AuthContextValue {
   }
 }
 
-function montar({ demo = false }: { demo?: boolean } = {}) {
+function montar({ demo = false, lead = {} }: { demo?: boolean; lead?: Partial<Lead> } = {}) {
   const onClose = vi.fn()
   const recargar = vi.fn().mockResolvedValue(true)
   // Stub mínimo del store: DialogConvertir solo usa convertir (demo) y recargar.
@@ -79,7 +79,7 @@ function montar({ demo = false }: { demo?: boolean } = {}) {
   render(
     <AuthContext.Provider value={sesion(demo)}>
       <StoreDataContext.Provider value={api}>
-        <DialogConvertir l={leadBase()} onClose={onClose} />
+        <DialogConvertir l={leadBase(lead)} onClose={onClose} />
       </StoreDataContext.Provider>
     </AuthContext.Provider>,
   )
@@ -103,6 +103,19 @@ async function llenarPenCompleta(user: ReturnType<typeof userEvent.setup>) {
 
 describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato)', () => {
   beforeEach(() => vi.clearAllMocks())
+
+  it('un lead sin analista se bloquea antes de tocar Edge, Auth o portal', async () => {
+    const user = userEvent.setup()
+    montar({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
+
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Asigna el lead a un analista antes de convertirlo',
+    )
+    expect(convertirEdge).not.toHaveBeenCalled()
+    expect(actualizarCliente).not.toHaveBeenCalled()
+  })
 
   it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', () => {
     montar()

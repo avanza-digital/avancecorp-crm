@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { normalizarTelefono, validarCamposLead } from './validacion'
+import { MONTO_ESTIMADO_MAX, normalizarTelefono, validarCamposLead } from './validacion'
 
 describe('normalizarTelefono', () => {
   it.each([
@@ -70,15 +70,65 @@ describe('validarCamposLead', () => {
     })
   })
 
-  it('monto negativo → monto_invalido; monto null es válido', () => {
-    expect(validarCamposLead({ monto_estimado: -1 })).toMatchObject({
+  it.each(['landing', 'formulario'] as const)('acepta el origen activo %s', (origen) => {
+    expect(validarCamposLead({ origen })).toEqual({ ok: true, valores: { origen } })
+  })
+
+  it.each(['web', 'campania', 'whatsapp'] as const)(
+    'mantiene lectura compatible del origen histórico %s',
+    (origen) => {
+      expect(validarCamposLead({ origen })).toEqual({ ok: true, valores: { origen } })
+    },
+  )
+
+  it.each([null, 0, -1] as const)('monto %s → monto_invalido', (monto) => {
+    expect(validarCamposLead({ monto_estimado: monto })).toMatchObject({
       ok: false,
       codigo: 'monto_invalido',
       campo: 'monto_estimado',
     })
-    expect(validarCamposLead({ monto_estimado: null })).toEqual({
+  })
+
+  it('acepta y conserva un monto positivo', () => {
+    expect(validarCamposLead({ monto_estimado: 5000.5 })).toEqual({
       ok: true,
-      valores: { monto_estimado: null },
+      valores: { monto_estimado: 5000.5 },
+    })
+  })
+
+  it.each([0.001, 5000.999])('rechaza monto con más de dos decimales: %s', (monto) => {
+    expect(validarCamposLead({ monto_estimado: monto })).toMatchObject({
+      ok: false,
+      codigo: 'monto_invalido',
+      campo: 'monto_estimado',
+    })
+  })
+
+  it('respeta los bordes exactos de numeric(12,2)', () => {
+    expect(validarCamposLead({ monto_estimado: 0.01 })).toEqual({
+      ok: true,
+      valores: { monto_estimado: 0.01 },
+    })
+    expect(validarCamposLead({ monto_estimado: MONTO_ESTIMADO_MAX })).toEqual({
+      ok: true,
+      valores: { monto_estimado: MONTO_ESTIMADO_MAX },
+    })
+    expect(validarCamposLead({ monto_estimado: MONTO_ESTIMADO_MAX + 0.01 })).toMatchObject({
+      ok: false,
+      codigo: 'monto_invalido',
+      campo: 'monto_estimado',
+    })
+  })
+
+  it('valida la moneda como parte del mismo contrato comercial', () => {
+    expect(validarCamposLead({ moneda: 'USD' })).toEqual({
+      ok: true,
+      valores: { moneda: 'USD' },
+    })
+    expect(validarCamposLead({ moneda: 'EUR' })).toMatchObject({
+      ok: false,
+      codigo: 'moneda_invalida',
+      campo: 'moneda',
     })
   })
 

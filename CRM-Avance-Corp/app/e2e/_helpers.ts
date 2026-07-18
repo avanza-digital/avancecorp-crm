@@ -78,7 +78,7 @@ export interface LeadReal {
   origen: string
   etapa: string
   motivo_descarte: string | null
-  monto_estimado: number | null
+  monto_estimado: number
   moneda: string
   categoria_interes: string | null
   vendedor_id: string | null
@@ -97,7 +97,7 @@ export function leadReal(over: Partial<LeadReal> = {}): LeadReal {
     correo: null,
     dni: null,
     distrito: null,
-    origen: 'web',
+    origen: 'landing',
     etapa: 'nuevo',
     motivo_descarte: null,
     monto_estimado: 10000,
@@ -228,6 +228,313 @@ const ROSTER = [
   { perfil_id: 'vend-2', nombre_completo: 'Vendedor Real Dos', rol_crm: 'vendedor', supervisor_id: UID, activo: true },
 ]
 
+export const ANALISTA_ANA_ID = '11111111-1111-4111-8111-111111111111'
+const ANALISTA_BRUNO_ID = '22222222-2222-4222-8222-222222222222'
+const SUPERVISOR_DIEGO_ID = '33333333-3333-4333-8333-333333333333'
+
+const RANGOS_DISTRIBUCION = [
+  { id: 'pen_0_1000', orden: 1, etiqueta: 'Hasta S/ 1 mil', desde_exclusivo: 0, hasta_inclusivo: 1000 },
+  { id: 'pen_1000_5000', orden: 2, etiqueta: 'S/ 1 mil a 5 mil', desde_exclusivo: 1000, hasta_inclusivo: 5000 },
+  { id: 'pen_5000_10000', orden: 3, etiqueta: 'S/ 5 mil a 10 mil', desde_exclusivo: 5000, hasta_inclusivo: 10000 },
+  { id: 'pen_10000_20000', orden: 4, etiqueta: 'S/ 10 mil a 20 mil', desde_exclusivo: 10000, hasta_inclusivo: 20000 },
+  { id: 'pen_20000_50000', orden: 5, etiqueta: 'S/ 20 mil a 50 mil', desde_exclusivo: 20000, hasta_inclusivo: 50000 },
+  { id: 'pen_50000_100000', orden: 6, etiqueta: 'S/ 50 mil a 100 mil', desde_exclusivo: 50000, hasta_inclusivo: 100000 },
+  { id: 'pen_mas_100000', orden: 7, etiqueta: 'Mas de S/ 100 mil', desde_exclusivo: 100000, hasta_inclusivo: null },
+  { id: 'sin_monto', orden: 8, etiqueta: 'Sin monto valido', desde_exclusivo: null, hasta_inclusivo: null },
+] as const
+
+type RangoDistribucionId = (typeof RANGOS_DISTRIBUCION)[number]['id']
+type ValoresRangoAnalista = readonly [
+  carteraEpisodios: number,
+  carteraCapital: number,
+  episodiosRecibidos: number,
+  leadsUnicosRecibidos: number,
+  convertidos: number,
+  descartados: number,
+  leadsUnicosResueltos: number,
+]
+
+function rangosAnalista(
+  valores: Partial<Record<RangoDistribucionId, ValoresRangoAnalista>> = {},
+) {
+  return RANGOS_DISTRIBUCION.map(({ id }) => {
+    const [
+      carteraEpisodios,
+      carteraCapital,
+      episodiosRecibidos,
+      leadsUnicosRecibidos,
+      convertidos,
+      descartados,
+      leadsUnicosResueltos,
+    ] = valores[id] ?? [0, 0, 0, 0, 0, 0, 0]
+    return {
+      rango_id: id,
+      cartera_actual: { episodios: carteraEpisodios, capital: carteraCapital },
+      cohorte: {
+        episodios_recibidos: episodiosRecibidos,
+        leads_unicos_recibidos: leadsUnicosRecibidos,
+        convertidos,
+        descartados,
+        leads_unicos_resueltos: leadsUnicosResueltos,
+      },
+    }
+  })
+}
+
+function rangosCola(
+  valores: Partial<Record<RangoDistribucionId, readonly [cantidad: number, capital: number]>> = {},
+) {
+  return RANGOS_DISTRIBUCION.map(({ id }) => {
+    const [cantidad, capital] = valores[id] ?? [0, 0]
+    return { rango_id: id, cantidad, capital }
+  })
+}
+
+function fechaSiguiente(fecha: string): string {
+  const dia = new Date(`${fecha}T00:00:00.000Z`)
+  dia.setUTCDate(dia.getUTCDate() + 1)
+  return dia.toISOString().slice(0, 10)
+}
+
+/**
+ * Fotografía rica y contractual de `crm.metricas_distribucion_leads_fn`.
+ * Los IDs son UUID válidos porque el parser de producción falla cerrado.
+ */
+export function metricasDistribucionReal(
+  desde = '2026-04-19',
+  hasta = '2026-07-17',
+): unknown {
+  const ana = {
+    analista_id: ANALISTA_ANA_ID,
+    nombre: 'Ana Capital',
+    rol: 'vendedor',
+    supervisor_id: SUPERVISOR_DIEGO_ID,
+    supervisor_nombre: 'Diego Supervisor',
+    activo: true,
+    disponible_para_recibir: true,
+    capacidad: { objetivo: 20, carga_activa: 8, carga_pen: 7, carga_usd: 1 },
+    pen: {
+      cartera_actual: { episodios: 7, capital: 134300 },
+      cohorte: {
+        episodios_recibidos: 6,
+        leads_unicos_recibidos: 6,
+        convertidos: 3,
+        descartados: 3,
+        ciclos_resueltos: 6,
+        leads_unicos_resueltos: 6,
+      },
+      rangos: rangosAnalista({
+        pen_0_1000: [1, 800, 1, 1, 0, 1, 1],
+        pen_1000_5000: [2, 7000, 3, 3, 2, 1, 3],
+        pen_5000_10000: [1, 7500, 2, 2, 1, 1, 2],
+        pen_10000_20000: [1, 15000, 0, 0, 0, 0, 0],
+        pen_20000_50000: [1, 30000, 0, 0, 0, 0, 0],
+        pen_50000_100000: [1, 74000, 0, 0, 0, 0, 0],
+      }),
+    },
+    usd_no_segmentado: {
+      cartera_actual_episodios: 1,
+      cartera_actual_capital: 2000,
+      cohorte_episodios_recibidos: 1,
+      cohorte_leads_unicos: 1,
+      convertidos: 1,
+      descartados: 0,
+    },
+    operacion: {
+      cohorte_episodios: 7,
+      contactos: 6,
+      sla_evaluables: 6,
+      sla_en_24h: 5,
+      primer_contacto_mediana_minutos: 45,
+      transferidos: 1,
+      parqueados: 0,
+      desactivados: 0,
+      sin_tocar_actual: 1,
+      estancados_actual: 2,
+    },
+  }
+
+  const bruno = {
+    analista_id: ANALISTA_BRUNO_ID,
+    nombre: 'Bruno Crecimiento',
+    rol: 'vendedor',
+    supervisor_id: SUPERVISOR_DIEGO_ID,
+    supervisor_nombre: 'Diego Supervisor',
+    activo: true,
+    disponible_para_recibir: true,
+    capacidad: { objetivo: 12, carga_activa: 4, carga_pen: 4, carga_usd: 0 },
+    pen: {
+      cartera_actual: { episodios: 4, capital: 151000 },
+      cohorte: {
+        episodios_recibidos: 4,
+        leads_unicos_recibidos: 4,
+        convertidos: 1,
+        descartados: 3,
+        ciclos_resueltos: 4,
+        leads_unicos_resueltos: 4,
+      },
+      rangos: rangosAnalista({
+        pen_0_1000: [1, 1000, 1, 1, 0, 1, 1],
+        pen_5000_10000: [1, 10000, 1, 1, 1, 0, 1],
+        pen_10000_20000: [1, 20000, 1, 1, 0, 1, 1],
+        pen_mas_100000: [1, 120000, 1, 1, 0, 1, 1],
+      }),
+    },
+    usd_no_segmentado: {
+      cartera_actual_episodios: 0,
+      cartera_actual_capital: 0,
+      cohorte_episodios_recibidos: 0,
+      cohorte_leads_unicos: 0,
+      convertidos: 0,
+      descartados: 0,
+    },
+    operacion: {
+      cohorte_episodios: 4,
+      contactos: 3,
+      sla_evaluables: 4,
+      sla_en_24h: 2,
+      primer_contacto_mediana_minutos: 180,
+      transferidos: 1,
+      parqueados: 1,
+      desactivados: 0,
+      sin_tocar_actual: 1,
+      estancados_actual: 1,
+    },
+  }
+
+  const totalRangos = rangosCola({
+    pen_1000_5000: [1, 5000],
+    pen_10000_20000: [1, 20000],
+  })
+  const globalRangos = rangosCola({ pen_1000_5000: [1, 5000] })
+  const bandejaRangos = rangosCola({ pen_10000_20000: [1, 20000] })
+
+  return {
+    version: 1,
+    generado_en: '2026-07-17T17:00:00.000Z',
+    cohorte: {
+      desde_inclusivo: desde,
+      hasta_inclusivo: hasta,
+      hasta_exclusivo: fechaSiguiente(hasta),
+      criterio: 'episodio_asignado_en',
+      zona_horaria: 'America/Lima',
+    },
+    alcances: {
+      matriz: 'PEN',
+      capacidad: 'TODAS_LAS_MONEDAS',
+      operacion_sla: 'TODAS_LAS_MONEDAS',
+    },
+    rangos: RANGOS_DISTRIBUCION.map((rango) => ({ ...rango })),
+    resumen: {
+      leads_operativos_actuales: 15,
+      asignados_actuales: 12,
+      por_repartir_actuales: 3,
+      capital_pen_asignado_actual: 285300,
+      capital_usd_asignado_actual: 2000,
+      cohorte_episodios: 11,
+      cohorte_leads_unicos: 10,
+      convertidos_pen: 4,
+      descartados_pen: 6,
+      sla_evaluables: 10,
+      sla_en_24h: 7,
+    },
+    analistas: [ana, bruno],
+    por_repartir: {
+      total: {
+        carga_total: 3,
+        pen: { cantidad: 2, capital: 25000, rangos: totalRangos },
+        usd: { cantidad: 1, capital: 1000 },
+      },
+      global: {
+        responsabilidad: 'gerencia',
+        carga_total: 2,
+        pen: { cantidad: 1, capital: 5000, rangos: globalRangos },
+        usd: { cantidad: 1, capital: 1000 },
+      },
+      bandejas: [{
+        supervisor_id: SUPERVISOR_DIEGO_ID,
+        supervisor_nombre: 'Diego Supervisor',
+        supervisor_activo: true,
+        carga_total: 1,
+        pen: { cantidad: 1, capital: 20000, rangos: bandejaRangos },
+        usd: { cantidad: 0, capital: 0 },
+      }],
+    },
+    calidad: {
+      episodios_aproximados_actuales: 0,
+      episodios_aproximados_cohorte: 0,
+      episodios_sin_monto_actuales: 0,
+      episodios_sin_monto_cohorte: 0,
+    },
+  }
+}
+
+function metricasDistribucionVaciaReal(): unknown {
+  const base = metricasDistribucionReal()
+  if (!esRegistro(base)) return base
+  return {
+    ...base,
+    resumen: {
+      leads_operativos_actuales: 0,
+      asignados_actuales: 0,
+      por_repartir_actuales: 0,
+      capital_pen_asignado_actual: 0,
+      capital_usd_asignado_actual: 0,
+      cohorte_episodios: 0,
+      cohorte_leads_unicos: 0,
+      convertidos_pen: 0,
+      descartados_pen: 0,
+      sla_evaluables: 0,
+      sla_en_24h: 0,
+    },
+    analistas: [],
+    por_repartir: {
+      total: {
+        carga_total: 0,
+        pen: { cantidad: 0, capital: 0, rangos: rangosCola() },
+        usd: { cantidad: 0, capital: 0 },
+      },
+      global: {
+        responsabilidad: 'gerencia',
+        carga_total: 0,
+        pen: { cantidad: 0, capital: 0, rangos: rangosCola() },
+        usd: { cantidad: 0, capital: 0 },
+      },
+      bandejas: [],
+    },
+  }
+}
+
+function esRegistro(valor: unknown): valor is Record<string, unknown> {
+  return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
+}
+
+function metricasParaPeriodo(payload: unknown, desde: string, hasta: string): unknown {
+  if (!esRegistro(payload) || !esRegistro(payload.cohorte)) return payload
+  return {
+    ...payload,
+    cohorte: {
+      ...payload.cohorte,
+      desde_inclusivo: desde,
+      hasta_inclusivo: hasta,
+      hasta_exclusivo: fechaSiguiente(hasta),
+    },
+  }
+}
+
+function actualizarCapacidadMock(
+  payload: unknown,
+  analistaId: string,
+  capacidad: number | null,
+): void {
+  if (!esRegistro(payload) || !Array.isArray(payload.analistas)) return
+  const analista = payload.analistas.find(
+    (item) => esRegistro(item) && item.analista_id === analistaId,
+  )
+  if (!esRegistro(analista) || !esRegistro(analista.capacidad)) return
+  analista.capacidad.objetivo = capacidad
+}
+
 /** Estado mutable del backend simulado — cada test ajusta los "modos de fallo". */
 export interface BackendReal {
   leads: LeadReal[]
@@ -261,16 +568,13 @@ export interface BackendReal {
   cuotas: Record<string, unknown[]>
   /** Co-titulares por contrato_id (cuentas mancomunadas). */
   titulares: Record<string, unknown[]>
-  /**
-   * Filas de las 4 RPCs de métricas de gerencia (crm.metricas_*_fn) que
-   * alimentan las gráficas del panel Hoy. Vacías por defecto: cada test que
-   * las necesite las puebla (shape EXACTO de la RPC; numeric puede ir string).
-   */
+  /** Respuestas de las RPC de métricas del panel Hoy. */
   metricas: {
     capital: unknown[]
     pagos: unknown[]
     altas: unknown[]
     vencimientos: unknown[]
+    distribucion: unknown
   }
   /**
    * Simula la TRAMPA de la ventana de 5 h vencida: el PATCH a perfiles responde
@@ -289,7 +593,17 @@ export interface BackendReal {
     patchPerfil: number
     rpcCrearContrato: number
     rpcActualizarContrato: number
+    rpcMetricasDistribucion: number
+    rpcActualizarCapacidad: number
   }
+  ultimaActualizacionCapacidad: {
+    analistaId: string
+    capacidad: number | null
+  } | null
+}
+
+type BackendRealInit = Omit<Partial<BackendReal>, 'metricas'> & {
+  metricas?: Partial<BackendReal['metricas']>
 }
 
 /**
@@ -318,7 +632,7 @@ export async function bloquearSupabase(page: Page): Promise<() => number> {
  */
 export async function montarBackendReal(
   page: Page,
-  init: Partial<BackendReal> = {},
+  init: BackendRealInit = {},
 ): Promise<BackendReal> {
   const estado: BackendReal = {
     leads: init.leads ?? [leadReal()],
@@ -335,13 +649,21 @@ export async function montarBackendReal(
     fallarProximaCargaContratos: init.fallarProximaCargaContratos ?? false,
     cuotas: init.cuotas ?? {},
     titulares: init.titulares ?? {},
-    metricas: init.metricas ?? { capital: [], pagos: [], altas: [], vencimientos: [] },
+    metricas: {
+      capital: init.metricas?.capital ?? [],
+      pagos: init.metricas?.pagos ?? [],
+      altas: init.metricas?.altas ?? [],
+      vencimientos: init.metricas?.vencimientos ?? [],
+      distribucion: init.metricas?.distribucion ?? metricasDistribucionVaciaReal(),
+    },
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
       insertLead: 0, patchLead: 0, insertActividad: 0, getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcCrearContrato: 0, rpcActualizarContrato: 0,
+      rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
     },
+    ultimaActualizacionCapacidad: init.ultimaActualizacionCapacidad ?? null,
   }
 
   const cors: Record<string, string> = {
@@ -509,6 +831,29 @@ export async function montarBackendReal(
     if (p === '/rest/v1/rpc/metricas_pagos_mes_fn') return json(route, estado.metricas.pagos)
     if (p === '/rest/v1/rpc/metricas_altas_analista_fn') return json(route, estado.metricas.altas)
     if (p === '/rest/v1/rpc/metricas_vencimientos_fn') return json(route, estado.metricas.vencimientos)
+    if (p === '/rest/v1/rpc/metricas_distribucion_leads_fn' && method === 'POST') {
+      estado.llamadas.rpcMetricasDistribucion += 1
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      const desde = String(body.p_desde ?? '')
+      const hasta = String(body.p_hasta ?? '')
+      return json(route, metricasParaPeriodo(estado.metricas.distribucion, desde, hasta))
+    }
+    if (p === '/rest/v1/rpc/actualizar_capacidad_leads_objetivo' && method === 'POST') {
+      estado.llamadas.rpcActualizarCapacidad += 1
+      const body = (req.postDataJSON() ?? {}) as {
+        p_analista_id?: string
+        p_capacidad_leads_objetivo?: number | null
+      }
+      const analistaId = String(body.p_analista_id ?? '')
+      const capacidadCruda = body.p_capacidad_leads_objetivo
+      const capacidad = capacidadCruda == null ? null : Number(capacidadCruda)
+      estado.ultimaActualizacionCapacidad = { analistaId, capacidad }
+      actualizarCapacidadMock(estado.metricas.distribucion, analistaId, capacidad)
+      return json(route, [{
+        perfil_id: analistaId,
+        capacidad_leads_objetivo: capacidad,
+      }])
+    }
 
     // ── leads ──
     if (p === '/rest/v1/leads') {

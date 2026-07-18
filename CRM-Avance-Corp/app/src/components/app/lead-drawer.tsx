@@ -58,7 +58,8 @@ import {
 } from '@/data/crm-api'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
-import { fmtFecha, money, primerNombre, SIMBOLO } from '@/lib/format'
+import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
+import { MONTO_ESTIMADO_MAX } from '@/lib/validacion'
 import {
   CAT_LABEL,
   ETAPAS,
@@ -145,7 +146,8 @@ function Ficha({ l }: { l: Lead }) {
   // pasa (a) y falla (b) → cliente creado, correo enviado, lead cerrado y
   // contrato imposible. Por eso se exigen los dos aquí: para no empezar algo que
   // no se puede terminar (si quiere cerrarla él, primero se reasigna el lead).
-  const seraMiCliente = l.vendedor_id == null || l.vendedor_id === yo?.id
+  const tieneAnalista = l.vendedor_id != null
+  const seraMiCliente = l.vendedor_id === yo?.id
   const puedeConvertir = escribe && (yo?.puede_contratar ?? false) && seraMiCliente
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
@@ -200,7 +202,9 @@ function Ficha({ l }: { l: Lead }) {
             </Button>
           ) : (
             <p className="max-w-[62%] text-right text-[11px] leading-tight text-muted-foreground">
-              {yo?.puede_contratar
+              {!tieneAnalista
+                ? 'Asigna primero el lead a un analista; una conversión necesita responsable comercial.'
+                : yo?.puede_contratar
                 ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el vendedor del lead'}. Para hacerla tú, reasígnate el lead.`
                 : 'El alta del cliente la registra el vendedor.'}
             </p>
@@ -330,7 +334,14 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
   const sufijoDemo = yo?.demo ? ' (demo)' : ''
   const [editando, setEditando] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [form, setForm] = useState({ nombre: '', telefono: '', correo: '', monto: '', nota: '' })
+  const [form, setForm] = useState({
+    nombre: '',
+    telefono: '',
+    correo: '',
+    monto: '',
+    moneda: 'PEN' as Moneda,
+    nota: '',
+  })
 
   // SOLO vendedores del ámbito del rol (espejo del WITH CHECK de leads_update):
   // supervisor ve/asigna únicamente a los suyos; gerencia sigue viendo a todos.
@@ -342,6 +353,7 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
       telefono: l.telefono,
       correo: l.correo ?? '',
       monto: l.monto_estimado != null ? String(l.monto_estimado) : '',
+      moneda: l.moneda,
       nota: l.nota ?? '',
     })
     setError(null)
@@ -350,19 +362,17 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
 
   const guardar = () => {
     const montoTxt = form.monto.trim()
-    let monto: number | null = null
-    if (montoTxt) {
-      monto = Number(montoTxt.replace(',', '.'))
-      if (!Number.isFinite(monto) || monto < 0) {
-        setError('Monto inválido — usa solo números (sin símbolo de moneda)')
-        return
-      }
+    const monto = Number(montoTxt.replace(',', '.'))
+    if (!montoTxt || !Number.isFinite(monto) || monto <= 0) {
+      setError('El capital estimado es obligatorio y debe ser mayor que 0')
+      return
     }
     const res = editarLead(l.id, {
       nombre_completo: form.nombre,
       telefono: form.telefono,
       correo: form.correo.trim() || null,
       monto_estimado: monto,
+      moneda: form.moneda,
       nota: form.nota.trim() || null,
     })
     if (!res.ok) {
@@ -410,8 +420,24 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
               <Input id="ld-telefono" value={form.telefono} onChange={campo('telefono')} placeholder="9########" />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="ld-monto">Monto estimado ({SIMBOLO[l.moneda]})</Label>
-              <Input id="ld-monto" inputMode="decimal" value={form.monto} onChange={campo('monto')} placeholder="—" />
+              <Label htmlFor="ld-monto">Capital estimado *</Label>
+              <div className="flex gap-2">
+                <Input id="ld-monto" className="min-w-0 flex-1 tabular-nums" type="number" min={0.01} max={MONTO_ESTIMADO_MAX} step="0.01" inputMode="decimal" required aria-required="true" aria-invalid={!!error} aria-describedby={error ? 'ld-datos-error' : undefined} value={form.monto} onChange={campo('monto')} placeholder="Ej. 5000" />
+                <Select
+                  aria-label="Moneda del capital estimado"
+                  className="w-24 shrink-0"
+                  value={form.moneda}
+                  onChange={(e) => {
+                    const moneda = e.target.value
+                    if (esMoneda(moneda)) {
+                      setForm((actual) => ({ ...actual, moneda }))
+                    }
+                  }}
+                >
+                  <option value="PEN">{SIMBOLO.PEN} PEN</option>
+                  <option value="USD">{SIMBOLO.USD} USD</option>
+                </Select>
+              </div>
             </div>
           </div>
           <div className="space-y-1.5">
@@ -422,7 +448,7 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
             <Label htmlFor="ld-nota">Nota</Label>
             <Textarea id="ld-nota" value={form.nota} onChange={campo('nota')} placeholder="opcional" className="min-h-[56px]" />
           </div>
-          {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
+          {error && <p id="ld-datos-error" role="alert" className="text-xs font-semibold text-destructive">{error}</p>}
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={() => setEditando(false)}>
               Cancelar
@@ -442,7 +468,7 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
             <span className="tabular-nums">{l.dni || '—'}</span>
           </Fila>
           <Fila label="Distrito">{l.distrito || '—'}</Fila>
-          <Fila label="Monto">
+          <Fila label="Capital estimado">
             {l.monto_estimado != null ? (
               <span className="font-extrabold tabular-nums text-primary">{money(l.monto_estimado, l.moneda)}</span>
             ) : (
@@ -637,6 +663,10 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const confirmarReal = async () => {
     if (enviando) return // guard anti doble-submit
     setError(null)
+    if (!l.vendedor_id) {
+      setError('Asigna el lead a un analista antes de convertirlo')
+      return
+    }
     const correoLimpio = correo.trim().toLowerCase()
     if (!RE_CORREO.test(correoLimpio)) {
       setError('Ingresa un correo válido — es la cuenta de acceso del cliente')

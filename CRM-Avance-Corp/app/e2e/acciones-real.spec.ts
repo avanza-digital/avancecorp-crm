@@ -40,7 +40,8 @@ test('gate abierto: crear lead persiste (POST real) y el toast NO dice "(demo)"'
   await expect(modal).toBeVisible()
   await modal.locator('#nl-nombre').fill('LEAD REAL NUEVO')
   await modal.locator('#nl-telefono').fill('987222333')
-  await modal.locator('#nl-origen').selectOption('web')
+  await modal.locator('#nl-monto').fill('5000')
+  await modal.locator('#nl-origen').selectOption('landing')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   await expect(page.getByText(/Lead creado —/i)).toBeVisible()
@@ -58,7 +59,8 @@ test('creación rechazada: rollback honesto y el POST sí se intentó', async ({
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await modal.locator('#nl-nombre').fill('LEAD RECHAZADO')
   await modal.locator('#nl-telefono').fill('987333444')
-  await modal.locator('#nl-origen').selectOption('web')
+  await modal.locator('#nl-monto').fill('5000')
+  await modal.locator('#nl-origen').selectOption('formulario')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   // El insert falló en el servidor → mensaje honesto de restauración.
@@ -176,10 +178,9 @@ test('supervisor sobre el lead de SU vendedor: no se le ofrece convertir (evita 
   await expect(drawer.getByText(/reasígnate el lead/i)).toBeVisible()
 })
 
-// El otro lado de la misma regla: el lead de su bandeja (sin vendedor) SÍ va a
-// quedar a su nombre (la edge usa `asesor = quien convierte`), así que la RPC lo
-// dejará contratar y el botón debe estar.
-test('supervisor sobre un lead de su bandeja (sin vendedor): SÍ puede convertir', async ({ page }) => {
+// 0C elimina el fallback "asesor = quien convierte": la atribución debe existir
+// ANTES del resultado. La UI y la Edge bloquean antes de crear Auth/perfil/correo.
+test('supervisor sobre un lead de su bandeja: debe asignarlo antes de convertir', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'supervisor',
     rolPortal: 'analista',
@@ -190,7 +191,8 @@ test('supervisor sobre un lead de su bandeja (sin vendedor): SÍ puede convertir
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await expect(drawer.getByRole('button', { name: /Convertir a cliente/i })).toBeVisible()
+  await expect(drawer.getByRole('button', { name: /Convertir a cliente/i })).toHaveCount(0)
+  await expect(drawer.getByText(/Asigna primero el lead a un analista/i)).toBeVisible()
 })
 
 test('carga inicial caída: pantalla de error con Reintentar (no pinta el CRM vacío)', async ({ page }) => {

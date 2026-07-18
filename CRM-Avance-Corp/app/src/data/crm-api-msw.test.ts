@@ -14,7 +14,7 @@ vi.mock('@/lib/supabase', async () => {
   return { sb: createClient('http://supabase.test', 'anon-fake') }
 })
 
-import { CrmApiError, listarLeads } from './crm-api'
+import { CrmApiError, listarLeads, listarLeadsDelAmbito } from './crm-api'
 
 const RUTA_LEADS = 'http://supabase.test/rest/v1/leads'
 
@@ -27,10 +27,10 @@ function fila(sobre: Record<string, unknown> = {}): Record<string, unknown> {
     correo: null,
     dni: null,
     distrito: null,
-    origen: 'web',
+    origen: 'landing',
     etapa: 'nuevo',
     motivo_descarte: null,
-    monto_estimado: null,
+    monto_estimado: 1000,
     moneda: 'PEN',
     categoria_interes: null,
     vendedor_id: null,
@@ -75,6 +75,7 @@ describe('listarLeads (msw)', () => {
     expect(pagina.items[0]).toMatchObject({
       id: 'l-api-1',
       nombre_completo: 'Juan Prueba',
+      origen: 'landing',
       etapa: 'nuevo',
       monto_estimado: 1500.5, // numeric(12,2) serializado como string por PostgREST
       activo: true,
@@ -82,6 +83,35 @@ describe('listarLeads (msw)', () => {
     expect(pagina.items[1]).toMatchObject({ id: 'l-api-2', monto_estimado: 200 })
     expect(pagina).toMatchObject({ pagina: 0, tamano: 50, total: 2, paginas: 1 })
   })
+
+  it.each([null, 0, '0'])('descarta una fila sin capital positivo: %s', async (monto) => {
+    server.use(
+      http.get(RUTA_LEADS, () =>
+        HttpResponse.json([fila({ monto_estimado: monto })], {
+          headers: { 'content-range': '0-0/1' },
+        }),
+      ),
+    )
+
+    const pagina = await listarLeads({ pagina: 0 })
+
+    expect(pagina.items).toEqual([])
+  })
+
+  it.each(['landing', 'formulario', 'web', 'campania', 'whatsapp'] as const)(
+    'acepta el origen activo o histórico %s al leer Supabase',
+    async (origen) => {
+      server.use(
+        http.get(RUTA_LEADS, () =>
+          HttpResponse.json([fila({ origen })], { headers: { 'content-range': '0-0/1' } }),
+        ),
+      )
+
+      const pagina = await listarLeads({ pagina: 0 })
+
+      expect(pagina.items[0]?.origen).toBe(origen)
+    },
+  )
 
   it('descarta la fila fuera de contrato (etapa zombie) sin reventar y conserva las válidas', async () => {
     server.use(
@@ -159,5 +189,26 @@ describe('listarLeads (msw)', () => {
     expect(or).toContain('nombre_completo.ilike.%juan or activo%')
     expect(or).not.toContain('juan,')
     expect(or).not.toContain('or(activo')
+  })
+})
+
+describe('listarLeadsDelAmbito (msw)', () => {
+  it('descarta y registra filas inválidas también en la ruta real del store', async () => {
+    server.use(
+      http.get(RUTA_LEADS, () =>
+        HttpResponse.json([
+          fila({ id: 'l-ambito-ok' }),
+          fila({ id: 'l-ambito-sin-capital', monto_estimado: null }),
+        ]),
+      ),
+    )
+
+    const leads = await listarLeadsDelAmbito()
+
+    expect(leads.map((lead) => lead.id)).toEqual(['l-ambito-ok'])
+    expect(console.error).toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({ evento: 'crm.leads.ambito_filas_invalidas' }),
+    )
   })
 })

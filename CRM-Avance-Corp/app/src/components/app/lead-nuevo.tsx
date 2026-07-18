@@ -24,7 +24,7 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
-import { normalizarTelefono } from '@/lib/validacion'
+import { MONTO_ESTIMADO_MAX, normalizarTelefono } from '@/lib/validacion'
 import {
   CATEGORIAS_INTERES,
   ETAPA_INFO,
@@ -69,7 +69,11 @@ function Campo({
       </Label>
       {children}
       {error && (
-        <p role="alert" className="text-[11px] font-medium text-destructive">
+        <p
+          id={htmlFor ? `${htmlFor}-error` : undefined}
+          role="alert"
+          className="text-[11px] font-medium text-destructive"
+        >
           {error}
         </p>
       )}
@@ -152,9 +156,9 @@ function FormularioNuevoLead() {
       err.dni = 'El DNI debe tener exactamente 8 dígitos'
     }
     if (!origen) err.origen = 'Selecciona el origen'
-    const montoNum = monto.trim() === '' ? null : Number(monto)
-    if (montoNum !== null && (!Number.isFinite(montoNum) || montoNum < 0)) {
-      err.monto = 'Usa un número mayor o igual a 0'
+    const montoNum = Number(monto)
+    if (monto.trim() === '' || !Number.isFinite(montoNum) || montoNum <= 0) {
+      err.monto = 'Ingresa un capital estimado mayor que 0'
     }
     setErrores(err)
     setErrorGeneral(null)
@@ -307,18 +311,22 @@ function FormularioNuevoLead() {
                 ))}
               </Select>
             </Campo>
-            <Campo label="Monto estimado" htmlFor="nl-monto" error={errores.monto}>
+            <Campo label="Capital estimado" htmlFor="nl-monto" requerido error={errores.monto}>
               <div className="flex gap-2">
                 <div className="min-w-0 flex-1">
                   <Input
                     id="nl-monto"
                     type="number"
-                    min={0}
-                    step="any"
+                    min={0.01}
+                    max={MONTO_ESTIMADO_MAX}
+                    step="0.01"
+                    required
+                    aria-required="true"
                     inputMode="decimal"
-                    placeholder="0"
+                    placeholder="Ej. 5000"
                     value={monto}
                     aria-invalid={!!errores.monto}
+                    aria-describedby={errores.monto ? 'nl-monto-error' : undefined}
                     className={cn('tabular-nums', errores.monto && claseError)}
                     onChange={(e) => {
                       setMonto(e.target.value)

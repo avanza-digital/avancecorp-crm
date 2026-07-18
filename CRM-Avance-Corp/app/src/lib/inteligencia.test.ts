@@ -180,15 +180,24 @@ describe('agregaciones comerciales', () => {
     const filas = conversionPorOrigen([
       lead({ id: 'r1', origen: 'referido', etapa: 'convertido' }),
       lead({ id: 'r2', origen: 'referido', etapa: 'nuevo' }),
-      lead({ id: 'w1', origen: 'web', etapa: 'convertido' }),
+      lead({ id: 'land1', origen: 'landing', etapa: 'convertido' }),
+      lead({ id: 'land2', origen: 'landing', etapa: 'nuevo' }),
+      lead({ id: 'form1', origen: 'formulario', etapa: 'convertido' }),
+      lead({ id: 'web1', origen: 'web', etapa: 'convertido' }),
+      lead({ id: 'camp1', origen: 'campania', etapa: 'nuevo' }),
+      lead({ id: 'wa1', origen: 'whatsapp', etapa: 'convertido' }),
       lead({ id: 'off', origen: 'oficina', etapa: 'convertido', activo: false }),
       // Simula un dato corrupto que burló la frontera (el union se borra en runtime)
       lead({ id: 'x1', origen: 'fuera-catalogo' as Lead['origen'], etapa: 'convertido' }),
     ])
 
     expect(filas).toEqual([
+      { origen: 'formulario', label: 'FORMULARIO', total: 1, convertidos: 1, pct: 100 },
       { origen: 'web', label: 'Web', total: 1, convertidos: 1, pct: 100 },
+      { origen: 'whatsapp', label: 'WhatsApp', total: 1, convertidos: 1, pct: 100 },
       { origen: 'referido', label: 'Referido', total: 2, convertidos: 1, pct: 50 },
+      { origen: 'landing', label: 'LANDING', total: 2, convertidos: 1, pct: 50 },
+      { origen: 'campania', label: 'Campaña', total: 1, convertidos: 0, pct: 0 },
     ])
   })
 

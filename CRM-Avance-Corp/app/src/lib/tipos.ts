@@ -52,25 +52,34 @@ export const TIPOS_AUTO_K: ReadonlySet<string> = new Set(TIPOS_AUTO)
 /** Actividades que el usuario registra a mano (las automáticas SOLO las emite el store). */
 export type TipoActividadManual = Exclude<TipoActividad, (typeof TIPOS_AUTO)[number]>
 
-/** Orígenes del CHECK de crm.leads.origen (F0), con label es-PE. */
+/** Orígenes retirados del selector, conservados para leer leads históricos. */
+const ORIGENES_HEREDADOS = [
+  { k: 'web', label: 'Web' },
+  { k: 'campania', label: 'Campaña' },
+  { k: 'whatsapp', label: 'WhatsApp' },
+] as const
+
+/** Orígenes disponibles al crear o editar leads, con label es-PE. */
 export const ORIGENES = [
   { k: 'referido', label: 'Referido' },
-  { k: 'web', label: 'Web' },
-  { k: 'whatsapp', label: 'WhatsApp' },
-  { k: 'campania', label: 'Campaña' },
-  { k: 'oficina', label: 'Oficina' },
+  { k: 'landing', label: 'LANDING' },
+  { k: 'formulario', label: 'FORMULARIO' },
+  { k: 'oficina', label: 'Wallking' },
   { k: 'otro', label: 'Otro' },
 ] as const
 
-export type Origen = (typeof ORIGENES)[number]['k']
+/** Catálogo completo para lectura, validación de Supabase y métricas históricas. */
+export const ORIGENES_TODOS = [...ORIGENES, ...ORIGENES_HEREDADOS] as const
+
+export type Origen = (typeof ORIGENES_TODOS)[number]['k']
 
 /** Type guard para datos externos (Supabase/formularios): ¿origen del catálogo? */
 export function esOrigen(valor: unknown): valor is Origen {
-  return typeof valor === 'string' && ORIGENES.some((o) => o.k === valor)
+  return typeof valor === 'string' && ORIGENES_TODOS.some((o) => o.k === valor)
 }
 
 /** Label es-PE de un origen — fuente única (antes copiado en 5 pantallas). */
-export const origenLabel = (k: string): string => ORIGENES.find((o) => o.k === k)?.label ?? k
+export const origenLabel = (k: string): string => ORIGENES_TODOS.find((o) => o.k === k)?.label ?? k
 
 /** Categorías de interés del CHECK de crm.leads.categoria_interes (F0). */
 export const CATEGORIAS_INTERES = [
@@ -135,7 +144,7 @@ export interface Lead {
   correo?: string | null
   etapa: Etapa
   origen: Origen
-  monto_estimado?: number | null
+  monto_estimado: number
   moneda: Moneda
   categoria_interes?: CategoriaInteres | null
   vendedor_id?: string | null
