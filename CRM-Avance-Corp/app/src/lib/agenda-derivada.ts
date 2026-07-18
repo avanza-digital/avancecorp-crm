@@ -27,7 +27,7 @@ export interface EventoAgenda {
   vencida: boolean
 }
 
-const LIMA_OFFSET_MS = 5 * 3600 * 1000 // UTC-5 fijo
+export const LIMA_OFFSET_MS = 5 * 3600 * 1000 // UTC-5 fijo
 
 export const COLOR_EVENTO: Record<TipoTarea | 'vencimiento', string> = {
   llamada: '#2563eb',
@@ -37,8 +37,8 @@ export const COLOR_EVENTO: Record<TipoTarea | 'vencimiento', string> = {
   vencimiento: '#d97706',
 }
 
-const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
-const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
+export const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic']
+export const DIAS = ['Dom', 'Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb']
 
 /** 'YYYY-MM-DD' del instante en Lima (para comparar días calendario). */
 export function fechaLima(ms: number): string {

@@ -658,8 +658,11 @@ function MatrizPen({
       aria-label="Resultados por analista en soles"
     >
       <table className="min-w-[1680px] border-separate border-spacing-0 text-xs">
+        {/* El nombre accesible de la tabla arranca igual que el título visible
+            (h4 "Resultados por analista en soles") — regla de a11y y lo que el
+            test de la matriz asevera. */}
         <caption className="sr-only">
-          Resultados por analista y grupo de monto en soles. Muestra leads recibidos,
+          Resultados por analista en soles, por grupo de monto. Muestra leads recibidos,
           leads activos, ganados y descartados durante el período.
         </caption>
         <thead>
