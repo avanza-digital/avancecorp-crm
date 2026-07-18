@@ -92,6 +92,46 @@ Leads abiertos del ámbito sin tarea `pendiente` futura. Con `MAX_LEADS_AMBITO=2
 
 ---
 
+## Investigación web (2026-07-18) — qué respalda la evidencia y qué era folklore
+
+Pasada de 8 buscadores + síntesis sobre los claims de los dos documentos de Miguel (`agenda-comercial-plan.md` e `interfaz-adaptiva-vendedor.md`). Lo esencial:
+
+### Confirmado (usar con confianza)
+- **Activity-based selling y "ningún lead sin acción futura"** = doctrina real de Pipedrive/Close. PERO **nadie lo implementa como candado**: el mecanismo de la industria es el **bucket "sin próxima acción" visible e inocultable** + sugerencia descartable + red del supervisor. Nuestra "sugerencia con saltar" es exactamente el patrón ganador (Pipedrive tuvo que documentar cómo APAGAR su pop-up por quejas).
+- **Agendar con fecha/hora concreta casi duplica la ejecución** (implementation intentions, meta-análisis Gollwitzer & Sheeran 2006, d=0.65, 94 estudios). Las tareas genéricas "hacer seguimiento" no sirven: el default debe proponer **cuándo + canal + qué**.
+- **WhatsApp como canal de recordatorio en Perú**: OSIPTEL 2025 = 98,6% de usuarios de mensajería; los bancos peruanos ya cobran por WhatsApp. Email = evidencia insuficiente (Cochrane vacía); queda solo como constancia formal.
+- **Recordatorios reducen no-shows ~34% relativo** (meta-análisis RCTs); **reagendar al día hábil siguiente casi duplica la recuperación** (RCT: 37% vs 22,5%) — avala nuestra tarea encadenada post no-show.
+- **Coach marks contextuales > tours** (NN/g: quienes leyeron el tutorial calificaron la facilidad PEOR; la instrucción se desvanece en ~20s). Un hint a la vez, en el momento real.
+- **Martes–jueves** para citas es robusto; **viernes p.m. es el peor momento** (consistente en todos los datasets).
+- **Tareas + log separados con puente automático** = el modelo de Close, validado tal cual: completar la tarea escribe solo en el timeline, cero doble captura.
+- **Vencida derivada**: nadie esconde vencidas — van primero (Close/Outreach) o con contador rojo (HubSpot/Attio); la fecha es aviso, no deadline; posponer nunca borra.
+
+### Matizado / refutado (corregir el discurso)
+- **"5–8 toques para cerrar"** → es para **conseguir contacto/reunión**, no para cerrar; y con retornos decrecientes: mínimo 5–6, tope ~6–8, luego reciclar a nutrición.
+- **"80% de las ventas tras el 5º follow-up" y "44% abandona tras 1 intento"** → **FOLKLORE, purgado** (atribuidas a una asociación cuya existencia no se puede confirmar). Tampoco existe el "90% de empresas mejoró productividad con adopción CRM".
+- **"Responder en <1 hora"** → insuficiente: el estándar ganador son **MINUTOS** (contactabilidad cae ~100x entre llamar a los 5 min y a los 30 — MIT/InsideSales). El <1h es el límite de escalamiento, no la meta.
+- **"60% del tiempo no vendiendo"** → desactualizado: la cifra vigente es **72/28** (Salesforce State of Sales 2022, n=7.700).
+- **"Mañana protegida para prospectar"** → hay DOS picos (10–11:30 y 16–18h); Gong: +30% de asistencia a citas de 4pm vs 8am. Proteger UN bloque profundo, no "la mañana".
+- **Auto-graduación a modo experto** → va CONTRA la evidencia (Findlater & McGrenere CHI 2004: adaptable > adaptivo; el usuario decide). Si hay graduación: propuesta opt-in reversible, nunca silenciosa.
+- **"Máx 5–6 ajustes"** → sin evidencia; el argumento real es que **<5% de usuarios cambia ajustes** (Spool/UIE) → invertir en **defaults por rol**, no en pantallas de settings.
+- **Resultado obligatorio al completar** → solo en **LLAMADAS** (patrón Outreach/HubSpot); en tareas genéricas es fricción sin valor.
+- **Cola con IA/scoring** → innecesario: Pipedrive/Close/Attio usan reglas deterministas; para 20 personas, "vencida > hoy > capital en juego" replica ~90% del valor y es explicable en el ítem.
+
+### Lo que a los documentos les faltaba (incorporado a las fases)
+1. **SPEED-TO-LEAD como prioridad absoluta**: lead entrante → tarea "contactar AHORA" con cronómetro (verde ≤5 min / ámbar ≤15 / rojo ≤60 + escalamiento) que salta cualquier cola; día 0 con **doble toque** (llamada + WhatsApp). La mediana del mercado es 42–47 HORAS: cumplir minutos es la ventaja más barata disponible.
+2. **Botón WhatsApp gemelo del Llamar** con plantilla por etapa vía `wa.me?text=`, redactadas en tono "utility" (dato del trámite + pregunta contestable en una línea) — listas para aprobarse como utility si algún día migran a la API de Meta. No comprar API/BSP todavía.
+3. **Semáforo de 4 estados en la cola**: rojo vencida > verde hoy > **amarillo sin próxima acción** > gris futura. El amarillo es ciudadano de primera clase, visible para vendedor Y supervisor; red de seguridad: N días en amarillo → tarea automática/escalamiento.
+4. **Cadencia completa con tope y reciclaje**: D0 doble toque → D1 → D3 → D5 → D7 → D10 → D14, **alternando canal** (llamada fallida → sugerir WhatsApp; 2 WhatsApp sin respuesta → sugerir llamada); tras ~6 llamadas/8 toques → "nutrición" a +30d, nunca huérfano. Marcar perdido con <6 intentos pide motivo (el patrón real es sub-seguir).
+5. **Sistema anti no-show**: recordatorio que PIDE respuesta ("¿Confirmamos mañana 4pm?") + estado de confirmación en la cita; silencio 3–4h → tarea "llamar a confirmar"; texto con capital en juego (RCT: −32% vs genérico); no-show → tarea encadenada que vence HOY con 2 horarios; 2º no-show → degradar prioridad; citas de cierre en franja 15–17h.
+6. **Cumplimiento legal peruano** (INDECOPI hasta 450 UIT, "No Insista"): toques solo **L–S 07:00–20:00** (Ley 29571) — el picker propone el siguiente slot válido; **flag `no_contactar`** duro en el lead + registro de consentimiento (fecha+fuente); del 2º recordatorio en adelante, exigir "motivo de valor nuevo" (chips: TC del día / respuesta a objeción / vigencia de tasa).
+7. **Presupuesto de captura**: registrar actividad ≤3 taps y ≤10 s; resultado 1-tap solo llamadas; el resultado elegido YA siembra la siguiente con default específico; máx 2 niveles de disclosure; métrica de adopción = **% de leads activos con próxima acción vigente**, no logins.
+8. **Instrumentar la curva propia**: timestamp+canal+resultado de cada toque → en 60–90 días tienen SU curva peruana de inversiones por WhatsApp (los benchmarks son B2B telefónico EEUU) · **modo "viernes 13:00"**: la cola cambia a higiene de pipeline (amarillos, vencidas, no-shows reprogramados a mar–jue).
+
+### Condición anti-adaptiva (de la investigación UX)
+El reordenamiento por prioridad vive SOLO dentro del área rotulada de cola; navegación, botones y formularios en posición FIJA (memoria espacial — el fracaso de los IntelliMenus de Office 2000). Si el timeline parece un chat, el vendedor esperará que escribir ENVÍE el WhatsApp — imitar interacción sin prometer semántica que no existe.
+
+---
+
 ## Modelo de datos v2 — `crm.tareas`
 
 ```sql
@@ -112,6 +152,7 @@ create table crm.tareas (
                     check (estado in ('pendiente','completada','cancelada','no_show')),
   resultado_actividad_id uuid references crm.actividades(id), -- liga el cierre al log
   reagendada_de     uuid references crm.tareas(id),           -- cadena de reagendas post no-show
+  confirmada_en     timestamptz,                              -- anti no-show: el cliente respondió al recordatorio
   reprogramaciones  smallint not null default 0,
   activo            boolean not null default true,
   creado_por        uuid,
@@ -129,6 +170,7 @@ create table crm.tareas (
 1. **Trigger "las tareas siguen al lead"**: reasignar el lead propaga `vendedor_id` a sus tareas `pendiente` (si no, quedan huérfanas en el vendedor viejo e invisibles para el nuevo). Repartir un lead parkeado asigna también sus tareas de bandeja (`vendedor_id null` → nuevo dueño).
 2. **Trigger "lead cerrado cancela sus tareas"**: descartar/convertir el lead pone sus `pendiente` en `cancelada` — si no, gritan "vencida" para siempre en la cola. Defensa doble: la cola además filtra `esAbierto` (estilo de la casa).
 3. **RPC `crm.cerrar_tarea` (SECURITY DEFINER, transaccional)**: el cierre son DOS escrituras (INSERT del resultado en `actividades` + UPDATE de la tarea) — sin RPC atómica, un fallo a medias deja tarea completada sin log o log sin cerrar. La RPC recibe además la tarea siguiente opcional (el "completar y agendar siguiente" del original, atómico de punta a punta).
+4. **Columnas legales en `crm.leads` (misma pasada de gate, aditivas)**: `no_contactar boolean not null default false` (flag duro: bloquea toda sugerencia de outreach — canal "No Insista"/INDECOPI) + `consentimiento_en timestamptz` / `consentimiento_fuente text` (registro del consentimiento de contacto). Con sus GRANT por columna (la trampa documentada). La UI del checkbox llega en fase posterior; las columnas nacen ya para no pagar otro ciclo de gate.
 
 Notas:
 - `tipo` arranca con 4 (regla del original que se conserva: menos tipos = adopción). `vencimiento` NO es un tipo de tarea: los vencimientos de contrato son eventos **derivados** de cronograma y se mezclan en la vista, no en la tabla. Cobranza llega con `perfil_id` (fase posterior), no como tipo nuevo prematuro.
@@ -146,19 +188,20 @@ Migración completa (tabla + triggers de coherencia + RPC `cerrar_tarea` + RLS +
 **Listo cuando:** un vendedor real crea "Llamar a X mañana 10:00" desde el drawer y la ve en HOY; gate RLS en verde con la matriz de tareas (incl. reasignación propaga + lead cerrado cancela); el supervisor NO ve tareas de otro subárbol.
 
 ### Fase B — Motor de próxima acción (el diferenciador, adelantado)
-Incluye su superficie mínima operable — **no espera a la pantalla Agenda**: la fila de tarea en HOY (patrón `FilaCola` + botón completar) y el cierre desde `DialogResultado` extendido. Flujo: completar → RPC atómica (resultado a `actividades`) → **propone la siguiente** con cadencia sugerida 1→3→5→7 → si el resultado cambia el destino del lead (agendó reunión / cerró / descartó — la taxonomía §4.7 del original), el mismo diálogo dispara la transición de etapa reusando `cambiarEtapa`/`descartar` del store. Cola nueva = tareas vencidas + leads sin próxima acción (cómputo cliente); umbrales 3/5 días pasan a fallback; **aquí mismo se arregla "estancados"** (colaDe es código compartido — un lead con reunión futura deja de alarmar al supervisor en esta fase, no después).
-**Sobre la obligatoriedad:** sugerencia con "saltar" de UN toque, no un candado — un forcing duro induce tareas basura para esquivarlo. Medir la tasa de salto primero; endurecer solo si los datos lo piden (el original decía "invita/obliga"; empezamos por invitar con fricción mínima).
-**Listo cuando:** completar una tarea desde HOY deja el resultado en el timeline y la siguiente propuesta a un toque, y la cola muestra los huérfanos.
+Incluye su superficie mínima operable — **no espera a la pantalla Agenda**: la fila de tarea en HOY (patrón `FilaCola` + botón completar) y el cierre desde `DialogResultado` extendido. Flujo: completar → RPC atómica (resultado a `actividades`; **resultado 1-tap obligatorio SOLO en llamadas** — patrón Outreach) → **propone la siguiente con default específico cuándo+canal+qué** (implementation intentions d=0.65: "no contestó" → WhatsApp mañana 10:00, editable) siguiendo la **cadencia D0 doble toque → D1 → D3 → D5 → D7 → D10 → D14 con alternancia de canal**, tope ~6 llamadas/8 toques → nutrición +30d; si el resultado cambia el destino del lead (agendó reunión / cerró / descartó), el mismo diálogo dispara la transición de etapa reusando `cambiarEtapa`/`descartar` del store. **El picker de fecha respeta la ventana legal L–S 07:00–20:00** (propone el siguiente slot válido) y el flag `no_contactar` apaga toda sugerencia.
+Cola nueva con **semáforo de 4 estados**: rojo vencida > verde hoy > **amarillo sin próxima acción** > gris futura (reglas deterministas explicadas en el ítem — "vence hoy · S/ 50.000 en juego" — nada de scoring opaco); **speed-to-lead**: lead entrante sin primer contacto = tarea "contactar AHORA" con cronómetro (≤5 min verde / ≤15 ámbar / ≤60 rojo) que salta cualquier orden. Umbrales 3/5 días pasan a fallback; **aquí mismo se arregla "estancados"**.
+**Sobre la obligatoriedad:** sugerencia con "saltar" de UN toque, no candado — es el patrón unánime de la industria (nadie bloquea por defecto; Speier & Venkatesh 2002: un CRM percibido como control sube rotación). El salto deja al lead en el bucket amarillo inocultable — el candado social sustituye al de UI. Endurecer solo con el dato de saltos, selectivamente (etapas avanzadas/capital alto).
+**Listo cuando:** completar una tarea desde HOY deja el resultado en el timeline y la siguiente propuesta a un toque, y la cola muestra vencidas primero + amarillos trabajables.
 
 ### Fase C — Pantalla Agenda: Lista + Día
 Reescritura de `screens/agenda.tsx` sobre tareas reales. Lista cronológica (default, móvil-first) + vista Día con huecos. Tarjeta = patrón `FilaCola` + `LeadHoverCard` + `AccionesContacto` + capital en juego. Reprogramar rápido (+1d/+3d/+1sem → `reprogramaciones++`; reagendar un no-show crea tarea nueva encadenada). "+ Nueva tarea" también desde Cartera/pipeline.
 **Listo cuando:** ver el día, crear, completar y reprogramar desde el celular.
 
 ### Fase D — Semana/Mes + navegación + filtros
-Semana (7 columnas), Mes (densidad), mini-calendario, buscador, filtros tipo/estado/etapa. Atajos de teclado desktop. **Hint de ritmo semanal** (del original §1, se conserva): mar–jue por la mañana concentran reuniones; viernes para limpiar pipeline y planificar — la vista Semana lo sugiere en los huecos, no lo impone.
+Semana (7 columnas), Mes (densidad), mini-calendario, buscador, filtros tipo/estado/etapa. Atajos de teclado desktop. **Hint de ritmo semanal corregido por la evidencia**: mar–jue con DOS picos (10–11:30 y 16–18h; Gong: +30% asistencia a citas de 4pm) — la vista Semana lo sugiere en los huecos, no lo impone. **Modo "viernes 13:00"**: la cola cambia a higiene de pipeline (amarillos, vencidas, no-shows reprogramados a mar–jue).
 
-### Fase E — Recordatorios v1 (sin push)
-Vencidas destacadas en HOY al abrir + toast in-app en sesión + **botón "recordar al cliente" por `wa.me` prellenado** en citas de mañana/hoy. ⚠️ En el radar: este recordatorio es 100% manual (depende de que el vendedor se acuerde) — mitigación: badge insistente en la cita de mañana; la automatización real es Fase H.
+### Fase E — Recordatorios y anti no-show v1 (sin push)
+Vencidas destacadas en HOY al abrir + toast in-app en sesión + **botón "recordar al cliente" por `wa.me` prellenado** en citas de mañana/hoy — la plantilla **PIDE respuesta** ("¿Confirmamos mañana 4pm?") y **menciona el capital en juego** (RCT: −32% vs recordatorio seco); la respuesta del cliente marca `confirmada_en`. Cita sin confirmar 3–4h después del recordatorio → tarea "llamar a confirmar". No-show → tarea encadenada que vence HOY proponiendo 2 horarios; 2º no-show → degradar prioridad. Del 2º recordatorio en adelante, chips de "motivo de valor nuevo" (TC del día / respuesta a objeción / vigencia de tasa). ⚠️ Radar: recordatorio 100% manual en v1 (badge insistente como mitigación); la automatización real es Fase H.
 
 ### Fase F — Supervisor/gerencia + métricas
 Vista de equipo con carga por vendedor; métricas por RPC `SECURITY DEFINER` patrón `metricas_*_fn` (+ `es_lector_global`): toques/día, % completadas, vencidas, reprogramaciones, no-shows (filas `no_show`), reuniones/semana. (El fix de "estancados" ya llegó en B; aquí solo se mide.)

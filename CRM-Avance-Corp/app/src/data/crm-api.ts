@@ -10,10 +10,12 @@ import {
   ORIGENES_TODOS,
   TERMINALES,
   TIPOS_ACTIVIDAD,
+  TIPOS_TAREA,
   type Actividad,
   type Etapa,
   type Lead,
   type Miembro,
+  type Tarea,
   type TipoActividad,
 } from '@/lib/tipos'
 import type {
@@ -474,6 +476,199 @@ export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<v
 export async function insertarActividad(fila: ActividadInsert): Promise<void> {
   const { error } = await cliente().schema('crm').from('actividades').insert(fila)
   if (error) throw aErrorApi(error, 'crm.actividades.insert_fallido')
+}
+
+// ── Agenda: crm.tareas (Fase A) ───────────────────────────────────────────────
+// La tabla es NUEVA (no hay filas legacy): el schema es estricto. La tenencia
+// (vendedor_id/asignado_supervisor_id) viene derivada del lead por trigger.
+
+const COLUMNAS_TAREA = [
+  'id',
+  'lead_id',
+  'perfil_id',
+  'vendedor_id',
+  'asignado_supervisor_id',
+  'tipo',
+  'titulo',
+  'nota',
+  'vence_en',
+  'duracion_min',
+  'estado',
+  'confirmada_en',
+  'reagendada_de',
+  'reprogramaciones',
+  'activo',
+  'creado_en',
+].join(',')
+
+const TareaRowSchema = v.object({
+  id: v.string(),
+  lead_id: v.nullable(v.string()),
+  perfil_id: v.nullable(v.string()),
+  vendedor_id: v.nullable(v.string()),
+  asignado_supervisor_id: v.nullable(v.string()),
+  tipo: v.picklist(TIPOS_TAREA.map((t) => t.k)),
+  titulo: v.string(),
+  nota: v.nullable(v.string()),
+  vence_en: v.string(),
+  duracion_min: v.nullable(v.number()),
+  estado: v.picklist(['pendiente', 'completada', 'cancelada', 'no_show']),
+  confirmada_en: v.nullable(v.string()),
+  reagendada_de: v.nullable(v.string()),
+  reprogramaciones: v.number(),
+  activo: v.boolean(),
+  creado_en: v.string(),
+})
+
+type TareaRow = v.InferOutput<typeof TareaRowSchema>
+
+function aTarea(fila: TareaRow): Tarea {
+  return { ...fila }
+}
+
+// Salvaguarda de payload (no seguridad): la RLS ya recorta al ámbito.
+const MAX_TAREAS_AMBITO = 2000
+
+/**
+ * Tareas PENDIENTES del ámbito (HOY + Agenda beben de aquí). Las cerradas no
+ * viajan: su historia vive en crm.actividades (timeline del lead).
+ */
+export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea[]> {
+  let consulta = cliente()
+    .schema('crm')
+    .from('tareas')
+    .select(COLUMNAS_TAREA)
+    .eq('estado', 'pendiente')
+    .eq('activo', true)
+    .order('vence_en', { ascending: true })
+    .order('id', { ascending: true })
+    .limit(MAX_TAREAS_AMBITO)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar la agenda.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.tareas.ambito_fallido', fallo)
+    throw fallo
+  }
+  const items: Tarea[] = []
+  let descartadas = 0
+  for (const cruda of data ?? []) {
+    const resultado = v.safeParse(TareaRowSchema, cruda)
+    if (resultado.success) items.push(aTarea(resultado.output))
+    else descartadas += 1
+  }
+  if (descartadas > 0) {
+    registrarError(
+      'crm.tareas.filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+      { descartadas },
+    )
+  }
+  return items
+}
+
+type TareaInsert = Database['crm']['Tables']['tareas']['Insert']
+type TareaUpdate = Database['crm']['Tables']['tareas']['Update']
+
+export async function insertarTarea(fila: TareaInsert): Promise<void> {
+  const { error } = await cliente().schema('crm').from('tareas').insert(fila)
+  if (error) throw aErrorApi(error, 'crm.tareas.insert_fallido')
+}
+
+export async function actualizarTarea(id: string, cambios: TareaUpdate): Promise<void> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .from('tareas')
+    .update(cambios)
+    .eq('id', id)
+    .select('id')
+  if (error) throw aErrorApi(error, 'crm.tareas.update_fallido')
+  if (!data || data.length === 0) {
+    // RLS la ocultó o no existe: mismo mensaje, sin revelar existencia.
+    throw new CrmApiError('Tarea no encontrada', 'NO_ENCONTRADO')
+  }
+}
+
+// ── Suscripción ICS de la agenda (crm.agenda_ics) ─────────────────────────────
+// RLS: cada quien SU fila. El token es el secreto del feed (edge crm-agenda-ics);
+// rotarlo invalida el enlace anterior de inmediato.
+
+const AgendaIcsRowSchema = v.object({ token: v.string() })
+
+/** Token ICS propio, o null si el miembro aún no conectó su calendario. */
+export async function obtenerTokenIcs(perfilId: string): Promise<string | null> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .from('agenda_ics')
+    .select('token')
+    .eq('perfil_id', perfilId)
+    .maybeSingle()
+  if (error) throw aErrorApi(error, 'crm.agenda_ics.select_fallido')
+  if (!data) return null
+  const resultado = v.safeParse(AgendaIcsRowSchema, data)
+  if (!resultado.success) throw new CrmApiError('Fila fuera de contrato', 'ROW_CONTRACT')
+  return resultado.output.token
+}
+
+/** Genera el token ICS propio (primera conexión del calendario). */
+export async function crearTokenIcs(perfilId: string): Promise<string> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .from('agenda_ics')
+    .insert({ perfil_id: perfilId })
+    .select('token')
+    .single()
+  if (error) throw aErrorApi(error, 'crm.agenda_ics.insert_fallido')
+  const resultado = v.safeParse(AgendaIcsRowSchema, data)
+  if (!resultado.success) throw new CrmApiError('Fila fuera de contrato', 'ROW_CONTRACT')
+  return resultado.output.token
+}
+
+/** Rota el token propio: el enlace anterior muere al instante. */
+export async function rotarTokenIcs(perfilId: string): Promise<string> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .from('agenda_ics')
+    .update({ token: crypto.randomUUID(), rotado_en: new Date().toISOString() })
+    .eq('perfil_id', perfilId)
+    .select('token')
+    .single()
+  if (error) throw aErrorApi(error, 'crm.agenda_ics.update_fallido')
+  const resultado = v.safeParse(AgendaIcsRowSchema, data)
+  if (!resultado.success) throw new CrmApiError('Fila fuera de contrato', 'ROW_CONTRACT')
+  return resultado.output.token
+}
+
+export interface CerrarTareaInput {
+  tarea_id: string
+  estado: 'completada' | 'no_show' | 'cancelada'
+  resultado_tipo?: TipoActividad | null
+  resultado_detalle?: string | null
+  siguiente?: {
+    tipo: string
+    titulo: string
+    nota?: string | null
+    vence_en: string
+    duracion_min?: number | null
+  } | null
+}
+
+/**
+ * Cierre atómico por la RPC crm.cerrar_tarea: resultado al log + tarea
+ * siguiente en UNA transacción. El UPDATE directo no puede completar (trigger).
+ */
+export async function cerrarTarea(input: CerrarTareaInput): Promise<{ siguiente_id: string | null }> {
+  const { data, error } = await cliente().schema('crm').rpc('cerrar_tarea', {
+    p_tarea_id: input.tarea_id,
+    p_estado: input.estado,
+    p_resultado_tipo: input.resultado_tipo ?? null,
+    p_resultado_detalle: input.resultado_detalle ?? null,
+    p_siguiente: input.siguiente ?? null,
+  })
+  if (error) throw aErrorApi(error, 'crm.tareas.cierre_fallido')
+  const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
+  return { siguiente_id: siguiente }
 }
 
 // ── Conversión lead → cliente (edge crm-convertir-lead: crea el cliente en el
@@ -1306,7 +1501,8 @@ function lanzarAbortSiCorresponde(signal?: AbortSignal): void {
 }
 
 /**
- * Fotografía atómica de distribución, capacidad, resultados y SLA.
+ * Fotografía atómica V2 de distribución, capacidad, resultados, SLA global
+ * por ciclo y SLA operativo por episodio de asignación.
  * A diferencia de las RPC tabulares antiguas, aquí no se descartan ramas
  * inválidas: una sola falla invalida el payload completo para no mezclar
  * denominadores o periodos incompatibles en Gerencia.
@@ -1326,7 +1522,7 @@ export async function listarMetricasDistribucionLeads(
   }
 
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('metricas_distribucion_leads_fn', {
+  let consulta = cliente().schema('crm').rpc('metricas_distribucion_leads_v2_fn', {
     p_desde: desde,
     p_hasta: hasta,
   })

@@ -22,7 +22,10 @@ vi.mock('@/data/crm-api', async (importActual) => {
     listarLeadsDelAmbito: vi.fn(),
     listarEquipo: vi.fn(),
     listarActividadesDelAmbito: vi.fn(),
+    listarTareasDelAmbito: vi.fn(),
     insertarLead: vi.fn(),
+    insertarTarea: vi.fn(),
+    cerrarTarea: vi.fn(),
     actualizarLead: vi.fn(),
     insertarActividad: vi.fn(),
   }
@@ -37,6 +40,9 @@ const listarActs = vi.mocked(crmApi.listarActividadesDelAmbito)
 const insertarLead = vi.mocked(crmApi.insertarLead)
 const actualizarLead = vi.mocked(crmApi.actualizarLead)
 const insertarActividad = vi.mocked(crmApi.insertarActividad)
+const listarTareas = vi.mocked(crmApi.listarTareasDelAmbito)
+const insertarTarea = vi.mocked(crmApi.insertarTarea)
+const cerrarTareaMock = vi.mocked(crmApi.cerrarTarea)
 
 const ROSTER = [
   { perfil_id: 'u-ger', nombre_completo: 'Gerente Real', rol_crm: 'gerencia' as const, supervisor_id: null, activo: true },
@@ -123,6 +129,9 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     listarEquipo.mockResolvedValue(ROSTER)
     listarActs.mockResolvedValue([])
     insertarLead.mockResolvedValue(undefined)
+    listarTareas.mockResolvedValue([])
+    insertarTarea.mockResolvedValue(undefined)
+    cerrarTareaMock.mockResolvedValue({ siguiente_id: null })
     actualizarLead.mockResolvedValue(undefined)
     insertarActividad.mockResolvedValue(undefined)
   })
@@ -203,6 +212,122 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(res).toMatchObject({ ok: false, codigo: 'menor_de_edad', campo: 'fecha_nacimiento' })
     expect(insertarLead).not.toHaveBeenCalled()
+  })
+
+  it('crearTarea agenda de verdad: optimista + INSERT + agenda derivada', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const leadId = api().leads[0]!.id
+
+    const res = mutar((a) =>
+      a.crearTarea({
+        lead_id: leadId,
+        tipo: 'llamada',
+        titulo: 'Llamar a CLIENTE EXISTENTE',
+        vence_en: '2027-01-05T15:00:00.000Z',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    expect(insertarTarea).toHaveBeenCalledTimes(1)
+    expect(insertarTarea).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lead_id: leadId,
+        tipo: 'llamada',
+        titulo: 'Llamar a CLIENTE EXISTENTE',
+        vence_en: '2027-01-05T15:00:00.000Z',
+        creado_por: 'u-ger',
+      }),
+    )
+    // Optimista: la tarea ya vive en el store y la agenda derivada la pinta
+    // con la tenencia del lead (espejo del trigger del servidor).
+    expect(api().tareas[0]).toMatchObject({
+      lead_id: leadId,
+      estado: 'pendiente',
+      vendedor_id: 'u-v1',
+    })
+    expect(api().agenda.some((ev) => ev.titulo === 'Llamar a CLIENTE EXISTENTE')).toBe(true)
+    expect(api().tareasDe(leadId)).toHaveLength(1)
+    await waitFor(() => expect(listarTareas).toHaveBeenCalled()) // resync
+  })
+
+  it('crearTarea rechaza tipo inválido y lead fuera del ámbito, sin tocar la red', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarTarea.mockClear()
+
+    const tipoMalo = mutar((a) =>
+      a.crearTarea({
+        lead_id: api().leads[0]!.id,
+        tipo: 'email',
+        titulo: 'X',
+        vence_en: '2027-01-05T15:00:00.000Z',
+      }),
+    )
+    expect(tipoMalo.ok).toBe(false)
+
+    const fantasma = mutar((a) =>
+      a.crearTarea({
+        lead_id: 'no-existe',
+        tipo: 'llamada',
+        titulo: 'X',
+        vence_en: '2027-01-05T15:00:00.000Z',
+      }),
+    )
+    expect(fantasma).toMatchObject({ ok: false, codigo: 'no_encontrado' })
+    expect(insertarTarea).not.toHaveBeenCalled()
+  })
+
+  it('completarTarea: llamada exige resultado 1-tap; con él cierra por la RPC atómica y agenda la siguiente', async () => {
+    const tareaBase = {
+      id: '22222222-2222-4222-8222-222222222222',
+      lead_id: '11111111-1111-4111-8111-111111111111',
+      perfil_id: null,
+      vendedor_id: 'u-v1',
+      asignado_supervisor_id: null,
+      tipo: 'llamada' as const,
+      titulo: 'Llamar a CLIENTE',
+      nota: null,
+      vence_en: '2026-07-18T15:00:00.000Z',
+      duracion_min: null,
+      estado: 'pendiente' as const,
+      confirmada_en: null,
+      reagendada_de: null,
+      reprogramaciones: 0,
+      activo: true,
+      creado_en: '2026-07-17T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([tareaBase])
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+
+    // Sin resultado → bloqueada (patrón Outreach) y la RPC no se toca.
+    const sinResultado = mutar((a) => a.completarTarea({ tarea_id: tareaBase.id, estado: 'completada' }))
+    expect(sinResultado).toMatchObject({ ok: false, codigo: 'resultado_obligatorio' })
+    expect(cerrarTareaMock).not.toHaveBeenCalled()
+
+    // Con resultado + siguiente: optimista + RPC con el payload completo.
+    const res = mutar((a) =>
+      a.completarTarea({
+        tarea_id: tareaBase.id,
+        estado: 'completada',
+        resultado_tipo: 'llamada_no_contestada',
+        siguiente: { tipo: 'whatsapp', titulo: 'WhatsApp a CLIENTE', vence_en: '2026-07-19T15:00:00.000Z' },
+      }),
+    )
+    expect(res.ok).toBe(true)
+    expect(res.siguiente_id).toBeDefined()
+    expect(cerrarTareaMock).toHaveBeenCalledWith({
+      tarea_id: tareaBase.id,
+      estado: 'completada',
+      resultado_tipo: 'llamada_no_contestada',
+      resultado_detalle: null,
+      siguiente: { tipo: 'whatsapp', titulo: 'WhatsApp a CLIENTE', vence_en: '2026-07-19T15:00:00.000Z' },
+    })
+    // Optimista: la original cerrada, la siguiente pendiente, y el resultado ya en el timeline.
+    expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('completada')
+    expect(api().tareas.some((t) => t.titulo === 'WhatsApp a CLIENTE' && t.estado === 'pendiente')).toBe(true)
+    expect(api().actividades.some((a2) => a2.tipo === 'llamada_no_contestada')).toBe(true)
   })
 
   it('editar capital real persiste monto y moneda juntos', async () => {

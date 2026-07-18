@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { CalendarDays, Users, Phone, AlertTriangle, Clock, NotebookPen } from 'lucide-react'
+import { CalendarDays, CalendarPlus, Users, Phone, AlertTriangle, Clock, NotebookPen } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -8,6 +8,7 @@ import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import type { EventoAgenda } from '@/lib/store'
 import { useAuth } from '@/lib/auth-context'
+import { enlaceGoogleCalendar } from '@/lib/agenda-derivada'
 import { puedeEscribir } from '@/lib/roles'
 import { TIPO_EVENTO } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
@@ -18,10 +19,10 @@ type Evento = EventoAgenda
 function statsDe(eventos: Evento[]): StatChipData[] {
   const nBy = (t: string) => eventos.filter((a) => a.tipo === t).length
   return [
-    { icon: CalendarDays, label: 'Eventos', value: String(eventos.length), tone: 'primary', sub: 'esta semana' },
+    { icon: CalendarDays, label: 'Pendientes', value: String(eventos.length), tone: 'primary', sub: 'en tu agenda' },
     { icon: Users, label: 'Reuniones', value: String(nBy('reunion')), tone: 'accent' },
     { icon: Phone, label: 'Llamadas', value: String(nBy('llamada')), tone: 'accent' },
-    { icon: AlertTriangle, label: 'Vencimientos', value: String(nBy('vencimiento')), tone: 'warn' },
+    { icon: AlertTriangle, label: 'Vencidas', value: String(eventos.filter((a) => a.vencida).length), tone: 'warn' },
   ]
 }
 
@@ -52,7 +53,7 @@ const SEMANA = (() => {
 })()
 
 export function Agenda() {
-  const { ambito, agenda } = useCRMData()
+  const { ambito, agenda, tareas } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
@@ -65,6 +66,8 @@ export function Agenda() {
   }, [ambito.leads, agenda])
   const stats = useMemo(() => statsDe(eventos), [eventos])
   const grupos = useMemo(() => agruparPorDia(eventos), [eventos])
+  // La tarea completa (nota, duración) del evento — el enlace a Google la usa.
+  const tareaDe = useMemo(() => new Map(tareas.map((t) => [t.id, t])), [tareas])
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -98,9 +101,9 @@ export function Agenda() {
         <Card>
           <CardContent className="flex flex-col items-center gap-1.5 py-10 text-center">
             <CalendarDays className="size-8 text-muted-foreground/50" />
-            <p className="text-sm font-semibold text-foreground">Sin eventos en tu agenda</p>
+            <p className="text-sm font-semibold text-foreground">Sin tareas pendientes en tu agenda</p>
             <p className="max-w-md text-xs text-muted-foreground">
-              Aquí solo aparecen reuniones, llamadas y vencimientos de los leads de tu ámbito.
+              Agenda la próxima acción desde la ficha de un lead — aquí solo aparecen tareas de leads de tu ámbito.
             </p>
           </CardContent>
         </Card>
@@ -117,6 +120,7 @@ export function Agenda() {
           <CardContent className="space-y-1 pt-0">
             {g.eventos.map((ev) => {
               const hora = ev.cuando.split(' · ')[1] ?? ''
+              const gcal = enlaceGoogleCalendar(tareaDe.get(ev.id) ?? ev)
               return (
                 <div
                   key={ev.id}
@@ -154,6 +158,21 @@ export function Agenda() {
                       <span className="hidden sm:inline">Registrar actividad</span>
                     </Button>
                   )}
+                  {gcal && (
+                    <Button
+                      variant="ghost"
+                      size="xs"
+                      className="shrink-0 text-muted-foreground hover:text-foreground"
+                      aria-label={`Añadir a Google Calendar — ${ev.titulo}`}
+                      title="Añadir a Google Calendar"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        window.open(gcal, '_blank', 'noopener')
+                      }}
+                    >
+                      <CalendarPlus className="size-3.5" />
+                    </Button>
+                  )}
                   {hora && (
                     <span className="flex shrink-0 items-center gap-1.5 text-xs font-semibold tabular-nums text-muted-foreground">
                       <Clock className="size-3.5" />{hora}
@@ -167,8 +186,8 @@ export function Agenda() {
       ))}
 
       <p className="text-[11px] text-muted-foreground">
-        {yo?.demo ? 'Demo — muy pronto' : 'Muy pronto'} tendrás el calendario completo por mes, semana y día, con
-        recordatorios y vencimientos de propuestas y contratos.
+        Muy pronto: vistas por semana y mes, filtros y recordatorios. Hoy la agenda ya es real — cada tarea
+        que agendas desde la ficha de un lead vive aquí y en tu pantalla de Hoy.
       </p>
     </div>
   )

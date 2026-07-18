@@ -10,6 +10,7 @@ import {
   estancados,
   indexarUltimaActividad,
   metricasPorVendedor,
+  sinProximaAccion,
 } from './inteligencia'
 import type { Actividad, Lead, Miembro } from './tipos'
 
@@ -270,5 +271,47 @@ describe('agregaciones comerciales', () => {
       conversion: 0,
       parkeados: 1,
     })
+  })
+})
+
+describe('Fase B — la cola y estancados respetan el PLAN (tareas pendientes)', () => {
+  const base = () => [
+    lead({ id: 'con-plan', etapa: 'contactado' }),
+    lead({ id: 'sin-plan', etapa: 'contactado' }),
+    lead({ id: 'nuevo-frio', etapa: 'nuevo' }),
+    lead({ id: 'parkeado', vendedor_id: null }),
+  ]
+
+  it('lead con tarea pendiente sale del fallback por inactividad; asignación y speed-to-lead se mantienen', () => {
+    const ahora = Date.now()
+    const conTarea = new Set(['con-plan', 'nuevo-frio', 'parkeado'])
+    const cola = colaDe(base(), [], ahora, undefined, conTarea)
+    const buckets = new Map(cola.map((i) => [i.lead.id, i.bucket]))
+    expect(buckets.has('con-plan')).toBe(false) // tiene plan → su cola es la agenda
+    expect(buckets.get('sin-plan')).toBe('seguimiento') // fallback para quien no tiene
+    expect(buckets.get('nuevo-frio')).toBe('sin_responder') // speed-to-lead NUNCA se apaga
+    expect(buckets.get('parkeado')).toBe('por_repartir') // la tenencia tampoco
+  })
+
+  it('estancados excluye leads con tarea futura (el riesgo deja de pelearse con el plan)', () => {
+    const ahora = Date.now()
+    const alertas = estancados(base(), [], 5, ahora, undefined, new Set(['con-plan']))
+    const ids = alertas.map((a) => a.lead.id)
+    expect(ids).not.toContain('con-plan')
+    expect(ids).toContain('sin-plan')
+  })
+
+  it('sinProximaAccion: abiertos CON vendedor y sin plan, capital PEN primero desc', () => {
+    const leads = [
+      lead({ id: 'usd-grande', moneda: 'USD', monto_estimado: 90_000 }),
+      lead({ id: 'pen-chico', moneda: 'PEN', monto_estimado: 10_000 }),
+      lead({ id: 'pen-grande', moneda: 'PEN', monto_estimado: 50_000 }),
+      lead({ id: 'con-plan', moneda: 'PEN', monto_estimado: 99_000 }),
+      lead({ id: 'parkeado', vendedor_id: null }),
+      lead({ id: 'cerrado', etapa: 'convertido' }),
+    ]
+    const ids = sinProximaAccion(leads, new Set(['con-plan'])).map((l) => l.id)
+    // PEN desc primero (nunca mezclado con USD), USD después; sin parkeados ni cerrados.
+    expect(ids).toEqual(['pen-grande', 'pen-chico', 'usd-grande'])
   })
 })

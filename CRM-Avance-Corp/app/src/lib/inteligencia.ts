@@ -157,17 +157,31 @@ export function diasSinActividad(lead: Lead, acts: Actividad[], ahora: number = 
  *  - propuesta_enviada sin actividad ≥5 días → propuesta_sin_respuesta (media).
  *  - contactado/reunion_agendada sin actividad ≥3 días → seguimiento (baja).
  */
-export function colaDe(leads: Lead[], acts: Actividad[], ahora: number = Date.now(), indicePrevio?: IndiceUltimaActividad): ItemCola[] {
+export function colaDe(
+  leads: Lead[],
+  acts: Actividad[],
+  ahora: number = Date.now(),
+  indicePrevio?: IndiceUltimaActividad,
+  // Leads con tarea PENDIENTE en la agenda (Fase B): los buckets por
+  // INACTIVIDAD (seguimiento/propuesta) pasan a ser el FALLBACK de quien no
+  // tiene plan — un lead con tarea futura ya tiene dueño de su siguiente paso.
+  // Asignación (por_repartir) y speed-to-lead (sin_responder) se mantienen
+  // SIEMPRE: son estados de tenencia/primer contacto, no de planificación.
+  conTareaPendiente?: ReadonlySet<string>,
+): ItemCola[] {
   const items: ItemCola[] = []
   const indice = indicePrevio ?? indexarUltimaActividad(acts)
   for (const lead of leads) {
     if (!esAbierto(lead)) continue
     const ultima = indice.get(lead.id)
     const dias = diasSinActividadIndexado(lead, indice, ahora)
+    const tienePlan = conTareaPendiente?.has(lead.id) === true
     if (lead.vendedor_id == null) {
       items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo` })
     } else if (lead.etapa === 'nuevo' && !ultima) {
       items.push({ lead, bucket: 'sin_responder', sev: dias >= 1 ? 'critica' : 'media', dias, motivo: `Entró ${haceTexto(dias)} y nadie lo ha contactado` })
+    } else if (tienePlan) {
+      continue // tiene próxima acción agendada: su cola es la agenda, no esta
     } else if (lead.etapa === 'propuesta_enviada' && dias >= 5) {
       items.push({ lead, bucket: 'propuesta_sin_respuesta', sev: 'media', dias, motivo: `Propuesta enviada sin movimiento ${haceTexto(dias)}` })
     } else if ((lead.etapa === 'contactado' || lead.etapa === 'reunion_agendada') && dias >= 3) {
@@ -175,6 +189,21 @@ export function colaDe(leads: Lead[], acts: Actividad[], ahora: number = Date.no
     }
   }
   return items.sort((a, b) => PESO_SEV[a.sev] - PESO_SEV[b.sev] || b.dias - a.dias)
+}
+
+/**
+ * Leads abiertos CON vendedor y SIN tarea pendiente — el bucket AMARILLO del
+ * semáforo (plan v2): el mecanismo real de la industria no es el candado, es
+ * esta lista inocultable. Orden: capital PEN desc (lo que más plata arriesga
+ * primero); USD después, también desc — JAMÁS mezclados en un mismo número.
+ */
+export function sinProximaAccion(leads: Lead[], conTareaPendiente: ReadonlySet<string>): Lead[] {
+  return leads
+    .filter((l) => esAbierto(l) && l.vendedor_id != null && !conTareaPendiente.has(l.id))
+    .sort((a, b) => {
+      if (a.moneda !== b.moneda) return a.moneda === 'PEN' ? -1 : 1
+      return b.monto_estimado - a.monto_estimado
+    })
 }
 
 // ── Métricas por vendedor (ranking) ──────────────────────────────────────────
@@ -249,7 +278,7 @@ export function embudo(leads: Lead[]): Array<{ etapa: EtapaActiva; n: number; pc
 
 /**
  * Conversión por origen (histórico completo del ámbito, terminales incluidos).
- * Solo orígenes con al menos un lead; label es-PE del catálogo ORIGENES.
+ * Solo orígenes con al menos un lead; incluye el catálogo activo y el histórico.
  * Orden: % de conversión desc, luego volumen desc.
  */
 export function conversionPorOrigen(leads: Lead[]): Array<{ origen: string; label: string; total: number; convertidos: number; pct: number }> {
@@ -271,10 +300,20 @@ export function conversionPorOrigen(leads: Lead[]): Array<{ origen: string; labe
  * Orden: días desc (el más abandonado primero). `dias` va con fracción;
  * la UI decide cómo redondear.
  */
-export function estancados(leads: Lead[], acts: Actividad[], dias = 7, ahora: number = Date.now(), indicePrevio?: IndiceUltimaActividad): Array<{ lead: Lead; dias: number }> {
+export function estancados(
+  leads: Lead[],
+  acts: Actividad[],
+  dias = 7,
+  ahora: number = Date.now(),
+  indicePrevio?: IndiceUltimaActividad,
+  // Fase B: un lead con tarea pendiente NO está estancado aunque lleve días
+  // sin actividad — tiene un plan con fecha (antes el supervisor veía riesgo
+  // donde el vendedor tenía una reunión agendada la próxima semana).
+  conTareaPendiente?: ReadonlySet<string>,
+): Array<{ lead: Lead; dias: number }> {
   const indice = indicePrevio ?? indexarUltimaActividad(acts)
   return leads
-    .filter(esAbierto)
+    .filter((l) => esAbierto(l) && conTareaPendiente?.has(l.id) !== true)
     .map((lead) => ({ lead, dias: diasSinActividadIndexado(lead, indice, ahora) }))
     .filter((x) => x.dias >= dias)
     .sort((a, b) => b.dias - a.dias)

@@ -52,7 +52,7 @@ function semaforoDias(d: number): string {
 }
 
 export function HoySupervisor(): JSX.Element {
-  const { ambito, actividades, reasignar, objetivos } = useCRMData()
+  const { ambito, actividades, tareas, reasignar, objetivos } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
@@ -73,17 +73,23 @@ export function HoySupervisor(): JSX.Element {
     // Índice de última actividad compartido: se calcula UNA vez y se reutiliza
     // en cola/ranking/alertas (y en la bandeja) en lugar de reindexar por llamada.
     const indice = indexarUltimaActividad(actividades)
-    const cola = colaDe(ambito.leads, actividades, ahora, indice)
+    // Fase B: un lead con tarea pendiente tiene PLAN — sale de la cola por
+    // inactividad y de "estancados" (la señal de riesgo deja de pelearse con
+    // la reunión agendada del vendedor).
+    const conTarea = new Set(
+      tareas.filter((t) => t.estado === 'pendiente' && t.activo && t.lead_id).map((t) => t.lead_id as string),
+    )
+    const cola = colaDe(ambito.leads, actividades, ahora, indice, conTarea)
     const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
     const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora, indice)
-    const alertas = estancados(ambito.leads, actividades, 5, ahora, indice)
+    const alertas = estancados(ambito.leads, actividades, 5, ahora, indice, conTarea)
     const vivos = ambito.leads.filter((l) => l.activo)
     const convertidos = vivos.filter((l) => l.etapa === 'convertido').length
     // Conversión de fuente única (lib/inteligencia): misma base que
     // comparativaEquipos — los parkeados no cuentan en el denominador.
     const conversion = conversionGlobal(ambito.leads).pct
     return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas, convertidos, conversion }
-  }, [ambito, actividades, ahora])
+  }, [ambito, actividades, tareas, ahora])
 
   const meta = objetivos.supervisor
 
@@ -392,7 +398,7 @@ export function HoySupervisor(): JSX.Element {
           <Card className="overflow-hidden">
             <SectionHead
               icon={AlarmClock}
-              title="Alertas SLA"
+              title="Leads sin movimiento"
               right={
                 d.alertas.length > 0 ? (
                   <Badge color={SEMAFORO.critico} dot>

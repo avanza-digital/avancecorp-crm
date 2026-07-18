@@ -336,7 +336,7 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
 // ── Vista SUPERVISOR — su equipo, su bandeja, su cola ─────────────────────────
 
 function EquipoSupervisor(): JSX.Element {
-  const { ambito, actividadesDelAmbito } = useCRMData()
+  const { ambito, actividadesDelAmbito, tareas } = useCRMData()
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
   // Todo el cómputo en UN memo (patrón de Hoy·Supervisor): el índice de última
@@ -347,14 +347,18 @@ function EquipoSupervisor(): JSX.Element {
     const indice = indexarUltimaActividad(actividadesDelAmbito)
     const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividadesDelAmbito, ahora, indice)
     const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
-    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, indice)
+    // Fase B: leads con tarea pendiente tienen plan → fuera de la cola por inactividad.
+    const conTarea = new Set(
+      tareas.filter((x) => x.estado === 'pendiente' && x.activo && x.lead_id).map((x) => x.lead_id as string),
+    )
+    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, indice, conTarea)
 
     // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
     // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.
     const abiertosAsignados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id != null)
     const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(abiertosAsignados)
     return { filas, parkeados, cola, capitalPEN, capitalUSD, activos: abiertosAsignados.length }
-  }, [ambito, actividadesDelAmbito, ahora])
+  }, [ambito, actividadesDelAmbito, tareas, ahora])
 
   const stats: StatChipData[] = [
     { icon: Users, label: 'Mis vendedores', value: String(ambito.vendedores.length), tone: 'accent' },

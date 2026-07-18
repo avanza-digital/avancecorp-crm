@@ -9,6 +9,7 @@ import {
   ArrowRightLeft,
   BadgeCheck,
   CalendarCheck,
+  CalendarPlus,
   MessageCircle,
   MessageSquare,
   MoreHorizontal,
@@ -42,6 +43,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AccionesContacto } from '@/components/app/contacto'
+import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -66,16 +68,21 @@ import {
   CAT_LABEL,
   ETAPAS,
   ETAPA_INFO,
+  esTipoTarea,
   MOTIVOS_DESCARTE,
   origenLabel,
   TIPOS_ACTIVIDAD,
+  TIPOS_TAREA,
   type Actividad,
   type EtapaActiva,
   type Lead,
   type MotivoDescarte,
   type TipoActividad,
   type TipoActividadManual,
+  type TipoTarea,
+  type Tarea,
 } from '@/lib/tipos'
+import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -185,6 +192,7 @@ function Ficha({ l }: { l: Lead }) {
 
       <SheetBody className="space-y-5">
         {esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}
+        <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
         <Datos l={l} escribe={escribe} puedeReasignar={puedeReasignar} />
         <Timeline l={l} escribe={escribe} activa={!esTerminal} />
       </SheetBody>
@@ -317,6 +325,185 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
         </Button>
       )}
     </div>
+  )
+}
+
+// ── Próxima acción (agenda del lead — el corazón del motor) ───────────────────
+// Regla de oro del plan v2: ningún lead activo sin una acción futura agendada.
+// Esta sección la hace visible en la ficha: lista las tareas PENDIENTES del
+// lead y permite agendar la siguiente en un gesto (quick-add con defaults:
+// tipo llamada, título prellenado, próximo día hábil 10:00 — ventana legal
+// L–S 07:00–20:00 como sugerencia, no candado).
+
+const TITULO_POR_TIPO: Record<TipoTarea, string> = {
+  llamada: 'Llamar a',
+  whatsapp: 'WhatsApp a',
+  reunion: 'Reunión con',
+  tarea: 'Tarea —',
+}
+
+function tituloSugerido(tipo: TipoTarea, nombre: string): string {
+  const primero = nombre.trim().split(/\s+/)[0] ?? ''
+  return `${TITULO_POR_TIPO[tipo]} ${primero}`.trim()
+}
+
+/** ¿El instante cae fuera de la ventana legal peruana (L–S 07:00–20:00)? */
+function fueraDeVentanaLegal(fecha: string, hora: string): boolean {
+  const d = new Date(`${fecha}T${hora}:00-05:00`)
+  if (Number.isNaN(d.getTime())) return false
+  const dow = new Date(d.getTime() - 5 * 3600 * 1000).getUTCDay() // reloj Lima
+  const [h] = hora.split(':').map(Number)
+  return dow === 0 || (h ?? 12) < 7 || (h ?? 12) >= 20
+}
+
+function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
+  const { tareasDe, crearTarea } = useCRMData()
+  const { yo } = useAuth()
+  const ahora = useAhora()
+  const pendientes = tareasDe(l.id)
+  const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
+
+  const slot = proximoSlotSugerido(ahora)
+  const [tipo, setTipo] = useState<TipoTarea>('llamada')
+  const [titulo, setTitulo] = useState(() => tituloSugerido('llamada', l.nombre_completo))
+  const [tituloEditado, setTituloEditado] = useState(false)
+  const [fecha, setFecha] = useState(() => fechaLima(Date.parse(slot)))
+  const [hora, setHora] = useState('10:00')
+
+  if (!escribe && pendientes.length === 0) return null
+  // Lead cerrado: sus pendientes ya fueron canceladas por el trigger; nada que agendar.
+  if (!activa && pendientes.length === 0) return null
+
+  const cambiarTipo = (v: string) => {
+    if (!esTipoTarea(v)) return
+    setTipo(v)
+    // El título sugerido sigue al tipo mientras el vendedor no lo haya tocado.
+    if (!tituloEditado) setTitulo(tituloSugerido(v, l.nombre_completo))
+  }
+
+  const agendar = () => {
+    const res = crearTarea({
+      lead_id: l.id,
+      tipo,
+      titulo,
+      vence_en: new Date(`${fecha}T${hora}:00-05:00`).toISOString(),
+    })
+    if (!res.ok) {
+      toast.error(res.error ?? 'No se pudo agendar la tarea')
+      return
+    }
+    toast.success(`Tarea agendada${yo?.demo ? ' (demo)' : ''} — la verás en Hoy y en Agenda`)
+    setTituloEditado(false)
+    setTitulo(tituloSugerido(tipo, l.nombre_completo))
+  }
+
+  const avisoVentana = fueraDeVentanaLegal(fecha, hora)
+
+  return (
+    <section aria-label="Próxima acción">
+      <div className="mb-1.5 flex items-center justify-between">
+        <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+          <CalendarPlus className="size-3.5" aria-hidden /> Próxima acción
+        </h3>
+        {pendientes.length > 0 && (
+          <Badge color="var(--accent)" className="text-[10px]">
+            {pendientes.length} pendiente{pendientes.length === 1 ? '' : 's'}
+          </Badge>
+        )}
+      </div>
+
+      {/* Pendientes del lead: la promesa visible de que nadie lo suelta. */}
+      {pendientes.length > 0 && (
+        <ul className="mb-2 space-y-1">
+          {pendientes.map((t) => {
+            const ev = tareaAEvento(t, ahora)
+            return (
+              <li
+                key={t.id}
+                className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs"
+              >
+                <span className="size-2 shrink-0 rounded-full" style={{ background: ev.color }} aria-hidden />
+                <span className="min-w-0 flex-1 truncate font-medium">{t.titulo}</span>
+                <span
+                  className={cn(
+                    'shrink-0 font-semibold tabular-nums',
+                    ev.vencida ? 'text-[#d97706]' : 'text-muted-foreground',
+                  )}
+                >
+                  {ev.cuando}
+                </span>
+                {escribe && activa && (
+                  <button
+                    type="button"
+                    aria-label={`Cerrar tarea — ${t.titulo}`}
+                    title="Cerrar tarea (resultado + siguiente)"
+                    className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground"
+                    onClick={() => setTareaACerrar(t)}
+                  >
+                    <CalendarCheck className="size-3.5" aria-hidden />
+                  </button>
+                )}
+              </li>
+            )
+          })}
+        </ul>
+      )}
+
+      {escribe && activa && (
+        <div className="rounded-xl border border-border/70 p-2.5">
+          {pendientes.length === 0 && (
+            <p className="mb-2 text-[11px] font-medium text-[#d97706]">
+              Este lead no tiene próxima acción — agéndale una para que no se enfríe.
+            </p>
+          )}
+          <div className="grid grid-cols-[110px_1fr] gap-2">
+            <Select
+              aria-label="Tipo de tarea"
+              value={tipo}
+              onChange={(e) => cambiarTipo(e.target.value)}
+            >
+              {TIPOS_TAREA.map((t) => (
+                <option key={t.k} value={t.k}>{t.label}</option>
+              ))}
+            </Select>
+            <Input
+              aria-label="Título de la tarea"
+              value={titulo}
+              maxLength={200}
+              onChange={(e) => {
+                setTitulo(e.target.value)
+                setTituloEditado(true)
+              }}
+            />
+            <Input
+              aria-label="Fecha"
+              type="date"
+              value={fecha}
+              onChange={(e) => setFecha(e.target.value)}
+            />
+            <div className="flex gap-2">
+              <Input
+                aria-label="Hora"
+                type="time"
+                value={hora}
+                className="flex-1"
+                onChange={(e) => setHora(e.target.value)}
+              />
+              <Button size="sm" onClick={agendar} disabled={!titulo.trim() || !fecha || !hora}>
+                <CalendarPlus /> Agendar
+              </Button>
+            </div>
+          </div>
+          {avisoVentana && (
+            <p className="mt-1.5 text-[10px] font-medium text-muted-foreground">
+              Fuera de la ventana L–S 07:00–20:00 (Ley 29571) — úsalo solo si el cliente lo pidió.
+            </p>
+          )}
+        </div>
+      )}
+
+      <CerrarTareaDialog tarea={tareaACerrar} onCerrar={() => setTareaACerrar(null)} />
+    </section>
   )
 }
 
