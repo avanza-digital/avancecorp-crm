@@ -2,25 +2,30 @@
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
 // suyos), así que aquí no hay ni ranking ni datos de otros vendedores — ni en
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
-import { useMemo, type JSX } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties, type JSX, type ReactNode } from 'react'
 import {
+  AlertTriangle,
   CalendarDays,
   ChevronRight,
   CircleCheckBig,
-  Clock,
   FileText,
+  Phone,
   Target,
+  TrendingUp,
   Trophy,
   Users,
   Wallet,
   Zap,
+  type LucideIcon,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Progress } from '@/components/ui/progress'
 import { SectionHead } from '@/components/common/section-head'
 import { KpiCard } from '@/components/common/kpi-card'
+import { AnimatedValue } from '@/components/common/animated-value'
 import { AccionesContacto } from '@/components/app/contacto'
+import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import {
   BUCKET_LABEL,
   capitalPorMoneda,
@@ -30,8 +35,10 @@ import {
   pctMeta,
   type ItemCola,
 } from '@/lib/inteligencia'
+import { useTipoCambio, usdAPen, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEV_COLOR } from '@/lib/semaforo'
-import { TIPO_EVENTO } from '@/lib/tipos'
+import { TIPO_EVENTO, type Lead } from '@/lib/tipos'
+import type { EventoAgenda } from '@/lib/store'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
@@ -43,6 +50,282 @@ import { money, moneyK, primerNombre } from '@/lib/format'
 function fechaLarga(ahora: number): string {
   const s = new Date(ahora).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
   return s.charAt(0).toUpperCase() + s.slice(1)
+}
+
+// ── Meta del mes (animaciones sutiles + USD convertido) ───────────────────────
+
+// Respeta prefers-reduced-motion: sin animación de barras para quien la desactiva.
+const PREFERS_REDUCED =
+  typeof window !== 'undefined' &&
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+
+/** Barra que arranca en 0 y sube a `pct` al montar (aprovecha la transición de
+ * ancho de <Progress>). Micro-animación sutil; instantánea con reduced-motion. */
+function useProgresoAnimado(pct: number): number {
+  const [v, setV] = useState(PREFERS_REDUCED ? pct : 0)
+  useEffect(() => {
+    if (PREFERS_REDUCED) {
+      setV(pct)
+      return
+    }
+    const id = requestAnimationFrame(() => setV(pct))
+    return () => cancelAnimationFrame(id)
+  }, [pct])
+  return v
+}
+
+/** Una fila de la meta: chip de icono + label + valor actual (contador) arriba;
+ * barra que sube sola; abajo "% del objetivo" + la meta a la derecha. El color
+ * (chip/barra/pct) es el semáforo del avance. */
+function MetaFila({
+  icon: Icon,
+  label,
+  valorTxt,
+  metaTxt,
+  pct,
+  delay,
+  nota,
+}: {
+  icon: LucideIcon
+  label: string
+  valorTxt: string
+  metaTxt: string
+  pct: number
+  delay: number
+  nota?: ReactNode
+}): JSX.Element {
+  const color = colorMeta(pct)
+  const pctAnimado = useProgresoAnimado(pct)
+  return (
+    <div className="ac-rise" style={{ animationDelay: `${delay}ms` }}>
+      <div className="flex items-center gap-2">
+        <span
+          className="ac-chip grid size-6 shrink-0 place-items-center rounded-lg [&_svg]:size-3.5"
+          style={{ '--c': color } as CSSProperties}
+        >
+          <Icon aria-hidden />
+        </span>
+        <p className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground/80">{label}</p>
+        <p className="shrink-0 text-sm font-extrabold tabular-nums" style={{ color }}>
+          <AnimatedValue value={valorTxt} />
+        </p>
+      </div>
+      <Progress value={pctAnimado} color={color} className="mt-1.5" />
+      <div className="mt-1 flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
+        <span>
+          <AnimatedValue value={`${Math.round(pct)}%`} /> del objetivo
+        </span>
+        <span>meta {metaTxt}</span>
+      </div>
+      {nota && <div className="mt-1.5">{nota}</div>}
+    </div>
+  )
+}
+
+/** Nota bajo el capital: cómo entró el USD a la meta (convertido a soles), o que
+ * queda pendiente de tipo de cambio (modo real sin fuente conectada aún). */
+function NotaUSD({
+  capUSD,
+  enPEN,
+  tc,
+}: {
+  capUSD: number
+  enPEN: number
+  tc: TipoCambio | null
+}): JSX.Element | null {
+  if (capUSD <= 0) return null
+  if (!tc) {
+    return (
+      <p className="text-[11px] text-muted-foreground">
+        Tienes {moneyK(capUSD, 'USD')} en dólares — pendiente de tipo de cambio para sumarlos a la meta.
+      </p>
+    )
+  }
+  return (
+    <p className="text-[11px] text-muted-foreground">
+      Incluye {moneyK(capUSD, 'USD')} → {moneyK(enPEN)} al TC {tc.fuente} S/ {tc.promedio.toFixed(3)}.
+    </p>
+  )
+}
+
+// ── Agenda de hoy (HÉROE del vendedor) ────────────────────────────────────────
+// Lógica comercial: el día del asesor lo manda su agenda — dónde estar y qué
+// vence hoy es lo que gana (o pierde) ingreso HOY; por eso es el protagonista.
+// Cada evento muestra el CAPITAL en juego de su lead y los vencimientos se
+// marcan (una propuesta que vence = dinero a punto de enfriarse).
+
+const ICONO_EVENTO: Record<string, LucideIcon> = {
+  reunion: Users,
+  llamada: Phone,
+  vencimiento: AlertTriangle,
+}
+
+const RANK_DIA: Record<string, number> = { Hoy: 0, Mañana: 1 }
+
+/** Clave cronológica: Hoy antes que Mañana; dentro del día, por hora. Sin hora → al final. */
+function claveOrden(cuando: string): number {
+  const [dia, hora] = cuando.split(' · ')
+  const rank = RANK_DIA[dia ?? ''] ?? 2
+  if (!hora) return rank * 100_000 + 99_999
+  const [h, m] = hora.split(':')
+  const min = Number(h) * 60 + Number(m ?? 0)
+  return rank * 100_000 + (Number.isFinite(min) ? min : 99_999)
+}
+
+/** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego. */
+function FilaAgenda({
+  ev,
+  lead,
+  abrirLead,
+}: {
+  ev: EventoAgenda
+  lead: Lead | undefined
+  abrirLead: (id: string) => void
+}): JSX.Element {
+  const [dia, hora] = ev.cuando.split(' · ')
+  const Icono = ICONO_EVENTO[ev.tipo] ?? CalendarDays
+  const abrir = () => abrirLead(ev.lead_id)
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ficha — ${ev.titulo}`}
+      onClick={abrir}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          abrir()
+        }
+      }}
+      className="group flex cursor-pointer items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+    >
+      {/* Hora — el ancla del día */}
+      <div className="w-12 shrink-0 text-center leading-none">
+        <p className="text-base font-extrabold tabular-nums" style={{ color: ev.color }}>
+          {hora ?? dia}
+        </p>
+        {hora && <p className="mt-1 text-[10px] font-medium text-muted-foreground">{dia}</p>}
+      </div>
+      <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 46 }} aria-hidden />
+      <span
+        className="ac-chip grid size-9 shrink-0 place-items-center rounded-lg [&_svg]:size-[18px]"
+        style={{ '--c': ev.color } as CSSProperties}
+      >
+        <Icono aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 leading-tight">
+        <p className="truncate text-[13px] font-semibold">{ev.titulo}</p>
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
+          <Badge color={ev.color} className="text-[10px]">
+            {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
+          </Badge>
+          {lead?.monto_estimado != null && (
+            <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
+              {money(lead.monto_estimado, lead.moneda)} en juego
+            </span>
+          )}
+        </div>
+      </div>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </div>
+  )
+}
+
+/** Vacío honesto + útil: sin calendario real todavía, encamina a las señales
+ * comerciales que SÍ tenemos (reuniones agendadas, propuestas por responder). */
+function AgendaVacia({
+  demo,
+  nReuniones,
+  nPropuestas,
+}: {
+  demo: boolean
+  nReuniones: number
+  nPropuestas: number
+}): JSX.Element {
+  return (
+    <div className="flex flex-1 flex-col items-center justify-center gap-2 py-10 text-center">
+      <CalendarDays className="size-8 text-muted-foreground/60" />
+      <p className="text-sm font-bold">Sin citas para hoy</p>
+      <p className="max-w-[44ch] text-xs text-muted-foreground">
+        {demo
+          ? 'El calendario con reuniones, llamadas y vencimientos llega muy pronto.'
+          : 'Aún no conectamos tu calendario. Mientras tanto, arma tu día desde “Tu siguiente acción”.'}
+      </p>
+      {(nReuniones > 0 || nPropuestas > 0) && (
+        <p className="text-[11px] font-semibold text-foreground/70">
+          {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'reunión agendada' : 'reuniones agendadas'}`}
+          {nReuniones > 0 && nPropuestas > 0 && ' · '}
+          {nPropuestas > 0 &&
+            `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
+        </p>
+      )}
+    </div>
+  )
+}
+
+function AgendaHoy({
+  eventos,
+  leadPorId,
+  abrirLead,
+  demo,
+  nReuniones,
+  nPropuestas,
+  className,
+}: {
+  eventos: EventoAgenda[]
+  leadPorId: (id: string) => Lead | undefined
+  abrirLead: (id: string) => void
+  demo: boolean
+  nReuniones: number
+  nPropuestas: number
+  className?: string
+}): JSX.Element {
+  const ordenados = [...eventos].sort((a, b) => claveOrden(a.cuando) - claveOrden(b.cuando))
+  const nHoy = eventos.filter((e) => e.cuando.startsWith('Hoy')).length
+  const nVence = eventos.filter((e) => e.tipo === 'vencimiento').length
+  // Capital en juego HOY (dedupe por lead; PEN y USD SIEMPRE por separado).
+  const leadsHoy = Array.from(new Set(eventos.filter((e) => e.cuando.startsWith('Hoy')).map((e) => e.lead_id)))
+    .map(leadPorId)
+    .filter((l): l is Lead => l != null)
+  const { pen, usd } = capitalPorMoneda(leadsHoy)
+
+  return (
+    <Card className={className}>
+      <SectionHead
+        icon={CalendarDays}
+        title="Tu agenda de hoy"
+        right={
+          nHoy > 0 ? (
+            <Badge color={nVence > 0 ? '#d97706' : 'var(--accent)'}>
+              {nHoy} hoy{nVence > 0 ? ` · ${nVence} vence` : ''}
+            </Badge>
+          ) : undefined
+        }
+      />
+      <CardContent className="flex flex-1 flex-col pt-0">
+        {eventos.length === 0 ? (
+          <AgendaVacia demo={demo} nReuniones={nReuniones} nPropuestas={nPropuestas} />
+        ) : (
+          <>
+            {(pen > 0 || usd > 0) && (
+              <div className="mb-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg bg-muted/50 px-3 py-2.5 text-xs">
+                <Wallet className="size-4 text-muted-foreground" />
+                <span className="font-semibold text-foreground/80">En juego hoy:</span>
+                {pen > 0 && <span className="font-bold tabular-nums text-primary">{money(pen)}</span>}
+                {usd > 0 && <span className="font-bold tabular-nums text-primary">· {money(usd, 'USD')}</span>}
+              </div>
+            )}
+            {/* Citas centradas en el alto disponible → llenan la tarjeta sin hueco. */}
+            <div className="flex flex-1 flex-col justify-center gap-1.5">
+              {ordenados.map((ev) => (
+                <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} />
+              ))}
+            </div>
+          </>
+        )}
+      </CardContent>
+    </Card>
+  )
 }
 
 // ── Pantalla ──────────────────────────────────────────────────────────────────
@@ -63,6 +346,11 @@ export function HoyVendedor(): JSX.Element {
 
   // Capital en proceso — PEN y USD SIEMPRE por separado (jamás un total mixto).
   const { pen: capPEN, usd: capUSD } = capitalPorMoneda(abiertos)
+  // …salvo para la META: el USD cuenta CONVERTIDO a soles al TC promedio de la
+  // semana. La regla sigue viva (no se suman crudos): capMeta es soles + soles.
+  const tc = useTipoCambio()
+  const capUSDenPEN = usdAPen(capUSD, tc?.promedio ?? 0)
+  const capMeta = capPEN + capUSDenPEN
 
   // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
   // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.
@@ -80,6 +368,10 @@ export function HoyVendedor(): JSX.Element {
   // Agenda demo recortada a SUS leads.
   const idsMios = new Set(mios.map((l) => l.id))
   const agenda = agendaGlobal.filter((ev) => idsMios.has(ev.lead_id))
+  // Lookup de lead por id (capital en juego de cada cita) + señales reales para
+  // el vacío honesto de la agenda (mientras no exista calendario real).
+  const leadPorId = (id: string): Lead | undefined => mios.find((l) => l.id === id)
+  const reunionesAgendadas = abiertos.filter((l) => l.etapa === 'reunion_agendada').length
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -129,9 +421,20 @@ export function HoyVendedor(): JSX.Element {
         />
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-3">
+      {/* Héroe + cola — lógica comercial: la AGENDA (dónde estar / qué vence hoy)
+          manda el día del vendedor; la cola es a quién perseguir en los huecos. */}
+      <div className="grid gap-5 lg:grid-cols-5">
+        <AgendaHoy
+          eventos={agenda}
+          leadPorId={leadPorId}
+          abrirLead={abrirLead}
+          demo={yo?.demo ?? false}
+          nReuniones={reunionesAgendadas}
+          nPropuestas={propuestas.length}
+          className="flex flex-col lg:col-span-3"
+        />
         {/* Cola de acción personal */}
-        <Card className="lg:col-span-2 self-start">
+        <Card className="lg:col-span-2">
           <SectionHead
             icon={Zap}
             title="Tu siguiente acción hoy"
@@ -158,119 +461,64 @@ export function HoyVendedor(): JSX.Element {
           </CardContent>
         </Card>
 
-        <div className="space-y-5">
-          {/* Meta del mes */}
-          <Card>
-            <SectionHead
-              icon={Target}
-              title="Tu meta del mes"
-              right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'objetivos demo' : 'objetivo mensual'}</span>}
-            />
-            <CardContent className="space-y-4 pt-0">
-              {sinMeta && (
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-xs font-semibold text-foreground/80">Capital en proceso (PEN)</p>
-                    <p className="text-xs font-bold tabular-nums">{moneyK(capPEN)}</p>
-                  </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-xs font-semibold text-foreground/80">Ventas cerradas</p>
-                    <p className="text-xs font-bold tabular-nums">{convertidos.length}</p>
-                  </div>
-                  <p className="text-[11px] text-muted-foreground">
-                    Meta mensual por definir — cuando la establezcan, verás aquí tu avance.
-                  </p>
-                </div>
-              )}
-              {!sinMeta && [
-                {
-                  label: 'Capital en proceso (PEN)',
-                  pct: pctMeta(capPEN, meta.capitalObjetivo),
-                  txt: `${moneyK(capPEN)} de ${moneyK(meta.capitalObjetivo)}`,
-                },
-                {
-                  label: 'Ventas cerradas',
-                  pct: pctMeta(convertidos.length, meta.ventasObjetivo),
-                  txt: `${convertidos.length} de ${meta.ventasObjetivo}`,
-                },
-                {
-                  label: 'Conversión',
-                  pct: pctMeta(conversion, meta.conversionObjetivo),
-                  txt: `${conversion}% de ${meta.conversionObjetivo}%`,
-                },
-              ].map((m) => (
-                <div key={m.label}>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <p className="text-xs font-semibold text-foreground/80">{m.label}</p>
-                    <p className="text-xs font-bold tabular-nums">{m.txt}</p>
-                  </div>
-                  <Progress value={m.pct} color={colorMeta(m.pct)} className="mt-1.5" />
-                  <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">
-                    {Math.round(m.pct)}% del objetivo
-                  </p>
-                </div>
-              ))}
-              {capUSD > 0 && (
-                <p className="text-[11px] text-muted-foreground">
-                  Además tienes {moneyK(capUSD, 'USD')} en proceso en dólares — se cuenta
-                  aparte, nunca se suma al total en soles.
-                </p>
-              )}
-            </CardContent>
-          </Card>
-
-          {/* Agenda de hoy (demo, recortada a SUS leads) */}
-          <Card>
-            <SectionHead
-              icon={CalendarDays}
-              title="Tu agenda de hoy"
-              right={agenda.length > 0 ? <Badge color="var(--accent)">{agenda.length}</Badge> : undefined}
-            />
-            <CardContent className="space-y-1 pt-0">
-              {agenda.length === 0 ? (
-                <p className="py-6 text-center text-xs text-muted-foreground">
-                  Sin eventos programados para hoy.
-                </p>
-              ) : (
-                agenda.map((ev) => {
-                  const hora = ev.cuando.split(' · ')[1] ?? ev.cuando
-                  const abrir = () => abrirLead(ev.lead_id)
-                  return (
-                    <div
-                      key={ev.id}
-                      role="button"
-                      tabIndex={0}
-                      aria-label={`Abrir ficha — ${ev.titulo}`}
-                      onClick={abrir}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' || e.key === ' ') {
-                          e.preventDefault()
-                          abrir()
-                        }
-                      }}
-                      className="flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-                    >
-                      <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 40 }} />
-                      <div className="min-w-0 flex-1 leading-tight">
-                        <p className="truncate text-[13px] font-semibold">{ev.titulo}</p>
-                        <div className="mt-1">
-                          <Badge color={ev.color} className="text-[10px]">
-                            {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
-                          </Badge>
-                        </div>
-                      </div>
-                      <span className="flex shrink-0 items-center gap-1 text-[11px] font-semibold tabular-nums text-muted-foreground">
-                        <Clock className="size-3.5" />
-                        {hora}
-                      </span>
-                    </div>
-                  )
-                })
-              )}
-            </CardContent>
-          </Card>
-        </div>
       </div>
+
+      {/* Meta del mes — franja compacta full-width: es el marcador, no una acción. */}
+      <Card>
+        <SectionHead
+          icon={Target}
+          title="Tu meta del mes"
+          right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'objetivos demo' : 'objetivo mensual'}</span>}
+        />
+        <CardContent className="pt-0">
+          {sinMeta ? (
+            <div className="space-y-2">
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-semibold text-foreground/80">Capital en proceso</p>
+                <p className="text-xs font-bold tabular-nums">
+                  <AnimatedValue value={moneyK(capMeta)} />
+                </p>
+              </div>
+              <div className="flex items-baseline justify-between gap-2">
+                <p className="text-xs font-semibold text-foreground/80">Ventas cerradas</p>
+                <p className="text-xs font-bold tabular-nums">{convertidos.length}</p>
+              </div>
+              <NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />
+              <p className="text-[11px] text-muted-foreground">
+                Meta mensual por definir — cuando la establezcan, verás aquí tu avance.
+              </p>
+            </div>
+          ) : (
+            <div className="grid gap-x-8 gap-y-4 md:grid-cols-3">
+              <MetaFila
+                icon={Wallet}
+                label="Capital"
+                valorTxt={moneyK(capMeta)}
+                metaTxt={moneyK(meta.capitalObjetivo)}
+                pct={pctMeta(capMeta, meta.capitalObjetivo)}
+                delay={0}
+                nota={<NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />}
+              />
+              <MetaFila
+                icon={Trophy}
+                label="Ventas cerradas"
+                valorTxt={String(convertidos.length)}
+                metaTxt={String(meta.ventasObjetivo)}
+                pct={pctMeta(convertidos.length, meta.ventasObjetivo)}
+                delay={90}
+              />
+              <MetaFila
+                icon={TrendingUp}
+                label="Conversión"
+                valorTxt={`${conversion}%`}
+                metaTxt={`${meta.conversionObjetivo}%`}
+                pct={pctMeta(conversion, meta.conversionObjetivo)}
+                delay={180}
+              />
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       <p className="text-[11px] text-muted-foreground">
         {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada asesor trabaja solo con sus leads.
@@ -311,7 +559,9 @@ function FilaCola({
       <span className="size-2.5 shrink-0 rounded-full" style={{ background: c }} aria-hidden />
       <div className="min-w-0 flex-1 leading-tight">
         <div className="flex flex-wrap items-center gap-1.5">
-          <p className="truncate text-sm font-semibold">{item.lead.nombre_completo}</p>
+          <LeadHoverCard lead={item.lead}>
+            <p className="truncate text-sm font-semibold">{item.lead.nombre_completo}</p>
+          </LeadHoverCard>
           <Badge color={c} className="text-[10px]">
             {BUCKET_LABEL[item.bucket]}
           </Badge>
@@ -321,7 +571,7 @@ function FilaCola({
       <span className="hidden shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
         {diasTxt(item.dias)}
       </span>
-      <AccionesContacto lead={item.lead} compacto />
+      <AccionesContacto lead={item.lead} compacto soloIcono />
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )
