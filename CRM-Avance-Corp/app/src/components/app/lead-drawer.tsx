@@ -3,7 +3,7 @@
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
-import { Fragment, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useMemo, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   ArrowRightLeft,
@@ -11,6 +11,7 @@ import {
   CalendarCheck,
   MessageCircle,
   MessageSquare,
+  MoreHorizontal,
   Pencil,
   PhoneCall,
   PhoneMissed,
@@ -58,8 +59,9 @@ import {
 } from '@/data/crm-api'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
-import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
+import { agruparTimeline } from '@/lib/timeline-lead'
 import { MONTO_ESTIMADO_MAX } from '@/lib/validacion'
+import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
 import {
   CAT_LABEL,
   ETAPAS,
@@ -67,6 +69,7 @@ import {
   MOTIVOS_DESCARTE,
   origenLabel,
   TIPOS_ACTIVIDAD,
+  type Actividad,
   type EtapaActiva,
   type Lead,
   type MotivoDescarte,
@@ -157,7 +160,7 @@ function Ficha({ l }: { l: Lead }) {
     <>
       <SheetHeader className="gap-2.5">
         <div className="flex items-start gap-3">
-          <Avatar nombre={l.nombre_completo} color={info.color} className="size-10 text-[13px]" />
+          <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} className="size-10" />
           <div className="min-w-0 flex-1">
             <SheetTitle className="truncate">{l.nombre_completo}</SheetTitle>
             <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
@@ -516,11 +519,89 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
 const CLASE_HITO =
   'relative z-[1] grid size-7 shrink-0 place-items-center rounded-full border border-border bg-card text-muted-foreground [&_svg]:size-3.5'
 
+// Tope de entradas visibles por defecto: el resto queda tras "Ver anteriores".
+// El historial de un lead trabajado meses crece sin cota; sin tope el scroll
+// interno se vuelve interminable (problema reportado 2026-07-17).
+const TOPE_TIMELINE = 8
+
+/** Una actividad suelta del timeline (hito + título + detalle + autor/tiempo). */
+function FilaActividad({ a, ahora }: { a: Actividad; ahora: number }) {
+  const Icono = ICONO_ACTIVIDAD[a.tipo]
+  const esConversion = a.tipo === 'conversion'
+  return (
+    <li className="flex gap-2.5">
+      <span className={cn(CLASE_HITO, esConversion && 'border-primary/30 text-primary')}>
+        <Icono aria-hidden />
+      </span>
+      <div className="min-w-0 flex-1 pt-0.5">
+        <p className="text-xs font-bold text-foreground">{TIPOS_ACTIVIDAD[a.tipo]}</p>
+        {a.detalle && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.detalle}</p>}
+        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+          {a.autor_nombre} · {haceRelativo(a.creado_en, ahora)}
+        </p>
+      </div>
+    </li>
+  )
+}
+
+/** Racha colapsada de cambios de etapa: resumen contraído + expandir a la lista. */
+function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
+  const [abierto, setAbierto] = useState(false)
+  const reciente = items[0]
+  if (!reciente) return null
+  if (abierto) {
+    return (
+      <>
+        {items.map((a) => (
+          <FilaActividad key={a.id} a={a} ahora={ahora} />
+        ))}
+        <li className="flex gap-2.5">
+          <span className="w-7 shrink-0" aria-hidden />
+          <button
+            type="button"
+            onClick={() => setAbierto(false)}
+            className="cursor-pointer text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            Agrupar {items.length} cambios de etapa
+          </button>
+        </li>
+      </>
+    )
+  }
+  return (
+    <li className="flex gap-2.5">
+      <span className={CLASE_HITO}>
+        <ArrowRightLeft aria-hidden />
+      </span>
+      <button
+        type="button"
+        onClick={() => setAbierto(true)}
+        className="min-w-0 flex-1 cursor-pointer pt-0.5 text-left"
+        aria-label={`Ver los ${items.length} cambios de etapa`}
+      >
+        <p className="text-xs font-bold text-foreground">{items.length} cambios de etapa</p>
+        {reciente.detalle && (
+          <p className="mt-0.5 truncate text-xs leading-relaxed text-muted-foreground">
+            Último: {reciente.detalle}
+          </p>
+        )}
+        <p className="mt-0.5 text-[11px] text-muted-foreground/80">
+          {reciente.autor_nombre} · {haceRelativo(reciente.creado_en, ahora)} · toca para ver todos
+        </p>
+      </button>
+    </li>
+  )
+}
+
 function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
   const { actividadesDe, registrarActividad } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
   const acts = actividadesDe(l.id)
+  const items = useMemo(() => agruparTimeline(acts), [acts])
+  const [verTodo, setVerTodo] = useState(false)
+  const visibles = verTodo ? items : items.slice(0, TOPE_TIMELINE)
+  const ocultos = items.length - visibles.length
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
   const [detalle, setDetalle] = useState('')
 
@@ -568,24 +649,40 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
       )}
 
       <ol className="relative mt-3 space-y-4 before:absolute before:inset-y-2 before:left-[13px] before:w-px before:bg-border">
-        {acts.map((a) => {
-          const Icono = ICONO_ACTIVIDAD[a.tipo]
-          const esConversion = a.tipo === 'conversion'
-          return (
-            <li key={a.id} className="flex gap-2.5">
-              <span className={cn(CLASE_HITO, esConversion && 'border-primary/30 text-primary')}>
-                <Icono aria-hidden />
-              </span>
-              <div className="min-w-0 flex-1 pt-0.5">
-                <p className="text-xs font-bold text-foreground">{TIPOS_ACTIVIDAD[a.tipo]}</p>
-                {a.detalle && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.detalle}</p>}
-                <p className="mt-0.5 text-[11px] text-muted-foreground/80">
-                  {a.autor_nombre} · {haceRelativo(a.creado_en, ahora)}
-                </p>
-              </div>
-            </li>
-          )
-        })}
+        {visibles.map((it) =>
+          it.clase === 'act' ? (
+            <FilaActividad key={it.act.id} a={it.act} ahora={ahora} />
+          ) : (
+            <GrupoEtapa key={it.id} items={it.items} ahora={ahora} />
+          ),
+        )}
+        {/* Tope: el resto del historial queda a un clic, para no crecer sin cota */}
+        {ocultos > 0 && (
+          <li className="flex gap-2.5">
+            <span className="grid size-7 shrink-0 place-items-center text-muted-foreground [&_svg]:size-3.5">
+              <MoreHorizontal aria-hidden />
+            </span>
+            <button
+              type="button"
+              onClick={() => setVerTodo(true)}
+              className="cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Ver {ocultos} {ocultos === 1 ? 'entrada anterior' : 'entradas anteriores'}
+            </button>
+          </li>
+        )}
+        {verTodo && items.length > TOPE_TIMELINE && (
+          <li className="flex gap-2.5">
+            <span className="w-7 shrink-0" aria-hidden />
+            <button
+              type="button"
+              onClick={() => setVerTodo(false)}
+              className="cursor-pointer pt-1 text-left text-[11px] font-semibold text-muted-foreground transition-colors hover:text-foreground"
+            >
+              Ver menos
+            </button>
+          </li>
+        )}
         {/* La creación NO es una actividad: ítem estático al final con creado_en */}
         <li className="flex gap-2.5">
           <span className={CLASE_HITO}>
