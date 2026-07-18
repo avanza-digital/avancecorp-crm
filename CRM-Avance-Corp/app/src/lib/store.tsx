@@ -51,6 +51,7 @@ import {
   insertarActividad,
   insertarLead,
   insertarTarea,
+  actualizarTarea,
   cerrarTarea,
   listarActividadesDelAmbito,
   listarEquipo,
@@ -222,6 +223,10 @@ export interface StoreDataApi {
   /** Cierra por la RPC atómica (resultado→log + siguiente encadenada). En
    *  llamadas COMPLETADAS el resultado es obligatorio (patrón Outreach). */
   completarTarea(input: CompletarTareaInput): ResultadoMut & { siguiente_id?: string }
+  /** Reprogramar = mover vence_en de una PENDIENTE (el contador lo lleva el trigger). */
+  reprogramarTarea(id: string, venceEn: string): ResultadoMut
+  /** Anti no-show: el cliente respondió al recordatorio confirmando la cita. */
+  confirmarTarea(id: string): ResultadoMut
   crearLead(input: NuevoLeadInput): ResultadoMut & { id?: string }
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
   cambiarEtapa(id: string, etapa: EtapaActiva): ResultadoMut
@@ -823,6 +828,38 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             : null,
         }).then(() => undefined))
         return { ok: true, ...(sigLocal ? { siguiente_id: sigLocal.id } : {}) }
+      },
+
+      reprogramarTarea: (id, venceEn) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const t = tareas.find((x) => x.id === id)
+        if (!t || t.estado !== 'pendiente' || !t.activo) return noEncontrado()
+        const ms = Date.parse(venceEn)
+        if (!Number.isFinite(ms)) {
+          return { ok: false, codigo: 'fecha_nacimiento_invalida', error: 'La nueva fecha no es válida' }
+        }
+        const iso = new Date(ms).toISOString()
+        // Optimista espejo del trigger: mover fecha incrementa el contador y
+        // una cita reprogramada pierde su confirmación (hay que reconfirmar).
+        setTareas((prev) => prev.map((x) =>
+          x.id === id
+            ? { ...x, vence_en: iso, reprogramaciones: x.reprogramaciones + 1, confirmada_en: null }
+            : x,
+        ))
+        persistir(() => actualizarTarea(id, { vence_en: iso, confirmada_en: null }))
+        return { ok: true }
+      },
+
+      confirmarTarea: (id) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const t = tareas.find((x) => x.id === id)
+        if (!t || t.estado !== 'pendiente' || !t.activo) return noEncontrado()
+        const iso = new Date().toISOString()
+        setTareas((prev) => prev.map((x) => (x.id === id ? { ...x, confirmada_en: iso } : x)))
+        persistir(() => actualizarTarea(id, { confirmada_en: iso }))
+        return { ok: true }
       },
 
       crearLead: (input) => {

@@ -27,6 +27,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     insertarTarea: vi.fn(),
     cerrarTarea: vi.fn(),
     actualizarLead: vi.fn(),
+    actualizarTarea: vi.fn(),
     insertarActividad: vi.fn(),
   }
 })
@@ -39,6 +40,7 @@ const listarEquipo = vi.mocked(crmApi.listarEquipo)
 const listarActs = vi.mocked(crmApi.listarActividadesDelAmbito)
 const insertarLead = vi.mocked(crmApi.insertarLead)
 const actualizarLead = vi.mocked(crmApi.actualizarLead)
+const actualizarTarea = vi.mocked(crmApi.actualizarTarea)
 const insertarActividad = vi.mocked(crmApi.insertarActividad)
 const listarTareas = vi.mocked(crmApi.listarTareasDelAmbito)
 const insertarTarea = vi.mocked(crmApi.insertarTarea)
@@ -133,6 +135,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     insertarTarea.mockResolvedValue(undefined)
     cerrarTareaMock.mockResolvedValue({ siguiente_id: null })
     actualizarLead.mockResolvedValue(undefined)
+    actualizarTarea.mockResolvedValue(undefined)
     insertarActividad.mockResolvedValue(undefined)
   })
   afterEach(() => vi.clearAllMocks())
@@ -328,6 +331,42 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('completada')
     expect(api().tareas.some((t) => t.titulo === 'WhatsApp a CLIENTE' && t.estado === 'pendiente')).toBe(true)
     expect(api().actividades.some((a2) => a2.tipo === 'llamada_no_contestada')).toBe(true)
+  })
+
+  it('reprogramar mueve la fecha (contador espejo, confirmación cae) y confirmar marca la cita', async () => {
+    const cita = {
+      id: '33333333-3333-4333-8333-333333333333',
+      lead_id: '11111111-1111-4111-8111-111111111111',
+      perfil_id: null,
+      vendedor_id: 'u-v1',
+      asignado_supervisor_id: null,
+      tipo: 'reunion' as const,
+      titulo: 'Reunión con CLIENTE',
+      nota: null,
+      vence_en: '2026-07-18T20:00:00.000Z',
+      duracion_min: 60,
+      estado: 'pendiente' as const,
+      confirmada_en: '2026-07-18T10:00:00.000Z',
+      reagendada_de: null,
+      reprogramaciones: 0,
+      activo: true,
+      creado_en: '2026-07-17T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([cita])
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+
+    const rep = mutar((a) => a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
+    expect(rep.ok).toBe(true)
+    expect(actualizarTarea).toHaveBeenCalledWith(cita.id, {
+      vence_en: '2026-07-19T20:00:00.000Z',
+      confirmada_en: null, // cita movida = hay que reconfirmar
+    })
+    expect(api().tareas[0]).toMatchObject({ reprogramaciones: 1, confirmada_en: null })
+
+    const conf = mutar((a) => a.confirmarTarea(cita.id))
+    expect(conf.ok).toBe(true)
+    expect(api().tareas[0]?.confirmada_en).toBeTruthy()
   })
 
   it('editar capital real persiste monto y moneda juntos', async () => {
