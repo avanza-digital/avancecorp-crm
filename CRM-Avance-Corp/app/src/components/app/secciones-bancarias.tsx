@@ -111,7 +111,6 @@ function CamposSeccionBancaria({
             value={valores.numero_cuenta}
             onChange={(e) => set({ numero_cuenta: e.target.value })}
             maxLength={30}
-            inputMode="numeric"
             autoComplete="off"
           />
         </div>

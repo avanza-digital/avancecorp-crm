@@ -30,9 +30,6 @@ _no-subir-a-hostinger/
 node_modules/
 **/node_modules/
 
-# --- Salida de graphify (la reconstruye el hook; fuera de control de versiones por defecto) ---
-graphify-out/
-
 # --- Índices y artefactos locales de herramientas (reconstruibles; no versionar) ---
 .codegraph/
 .codex/

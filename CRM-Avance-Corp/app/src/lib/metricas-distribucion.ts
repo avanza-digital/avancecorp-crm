@@ -1,7 +1,7 @@
 import * as v from 'valibot'
 
 /**
- * Contrato runtime de `crm.metricas_distribucion_leads_fn` (JSON V1).
+ * Contrato runtime de `crm.metricas_distribucion_leads_v2_fn` (JSON V2).
  *
  * La respuesta es una sola fotografía atómica. Por eso se valida completa y
  * con objetos estrictos: si una migración parcial, un dato corrupto o una V2
@@ -132,10 +132,10 @@ const UsdAnalistaSchema = v.strictObject({
 
 const OperacionAnalistaSchema = v.strictObject({
   cohorte_episodios: EnteroNoNegativoSchema,
-  contactos: EnteroNoNegativoSchema,
-  sla_evaluables: EnteroNoNegativoSchema,
-  sla_en_24h: EnteroNoNegativoSchema,
-  primer_contacto_mediana_minutos: v.nullable(v.pipe(NumericoRpcSchema, v.minValue(0))),
+  contactos_asignacion: EnteroNoNegativoSchema,
+  sla_asignacion_evaluables: EnteroNoNegativoSchema,
+  sla_asignacion_en_24h: EnteroNoNegativoSchema,
+  primer_contacto_asignacion_mediana_minutos: v.nullable(v.pipe(NumericoRpcSchema, v.minValue(0))),
   transferidos: EnteroNoNegativoSchema,
   parqueados: EnteroNoNegativoSchema,
   desactivados: EnteroNoNegativoSchema,
@@ -217,8 +217,14 @@ const ResumenDistribucionSchema = v.strictObject({
   cohorte_leads_unicos: EnteroNoNegativoSchema,
   convertidos_pen: EnteroNoNegativoSchema,
   descartados_pen: EnteroNoNegativoSchema,
-  sla_evaluables: EnteroNoNegativoSchema,
-  sla_en_24h: EnteroNoNegativoSchema,
+  sla_global_ciclos_cohorte: EnteroNoNegativoSchema,
+  sla_global_leads_unicos_cohorte: EnteroNoNegativoSchema,
+  sla_global_contactos: EnteroNoNegativoSchema,
+  sla_global_evaluables: EnteroNoNegativoSchema,
+  sla_global_en_24h: EnteroNoNegativoSchema,
+  primer_contacto_global_mediana_minutos: v.nullable(v.pipe(NumericoRpcSchema, v.minValue(0))),
+  sla_global_sin_contacto_vencidos_actuales: EnteroNoNegativoSchema,
+  reasignaciones_cohorte: EnteroNoNegativoSchema,
 })
 
 const CalidadDistribucionSchema = v.strictObject({
@@ -226,22 +232,27 @@ const CalidadDistribucionSchema = v.strictObject({
   episodios_aproximados_cohorte: EnteroNoNegativoSchema,
   episodios_sin_monto_actuales: EnteroNoNegativoSchema,
   episodios_sin_monto_cohorte: EnteroNoNegativoSchema,
+  ciclos_sla_global_aproximados_cohorte: EnteroNoNegativoSchema,
 })
 
 export const MetricasDistribucionLeadsSchema = v.strictObject({
-  version: v.literal(1),
+  version: v.literal(2),
   generado_en: FechaHoraSchema,
   cohorte: v.strictObject({
     desde_inclusivo: FechaSchema,
     hasta_inclusivo: FechaSchema,
     hasta_exclusivo: FechaSchema,
     criterio: v.literal('episodio_asignado_en'),
+    criterio_sla_global: v.literal('ciclo_sla_global_iniciado_en'),
+    politica_pausas: v.literal('SIN_DESCUENTO'),
     zona_horaria: v.literal('America/Lima'),
   }),
   alcances: v.strictObject({
     matriz: v.literal('PEN'),
     capacidad: v.literal('TODAS_LAS_MONEDAS'),
-    operacion_sla: v.literal('TODAS_LAS_MONEDAS'),
+    montos: v.literal('SEPARADOS_SIN_CONVERSION'),
+    sla_principal: v.literal('GLOBAL_POR_CICLO'),
+    sla_operativo: v.literal('POR_EPISODIO_DE_ASIGNACION'),
   }),
   rangos: RangosCapitalSchema,
   resumen: ResumenDistribucionSchema,

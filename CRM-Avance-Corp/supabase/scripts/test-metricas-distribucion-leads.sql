@@ -1,4 +1,4 @@
--- Oraculo transaccional autocontenido de la V1 de distribucion por capital.
+-- Oraculo transaccional autocontenido de la V2 de distribucion por capital.
 -- Usa private.metricas_distribucion_leads_core con un reloj fijo y revierte
 -- todos los fixtures. La RPC publica se prueba aparte bajo roles reales.
 
@@ -42,43 +42,45 @@ set local session_replication_role = replica;
 insert into crm.leads (
   id, nombre_completo, telefono, origen, etapa, monto_estimado, moneda,
   categoria_interes, vendedor_id, asignado_supervisor_id, activo,
-  ciclo_actual, motivo_descarte, creado_por, creado_en
+  ciclo_actual, motivo_descarte, creado_por, creado_en,
+  sla_global_iniciado_en, sla_global_aproximado
 )
 values
   -- A -> B. El monto actual fue recalificado, pero B conserva 5 000.01.
-  ('25000000-0000-4000-8000-000000000001', 'Lead transferencia', '998500001', 'landing', 'nuevo', 100000, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000002', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-02 09:00+00'),
+  ('25000000-0000-4000-8000-000000000001', 'Lead transferencia', '998500001', 'landing', 'nuevo', 100000, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000002', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-02 09:00+00', '2026-05-02 09:00+00', false),
   -- Dos ciclos resueltos sobre el mismo lead: D y luego C.
-  ('25000000-0000-4000-8000-000000000002', 'Lead reabierto', '998500002', 'landing', 'convertido', 20000.01, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000001', null, true, 2, null, '15000000-0000-4000-8000-000000000004', '2026-05-03 07:00+00'),
+  ('25000000-0000-4000-8000-000000000002', 'Lead reabierto', '998500002', 'landing', 'convertido', 20000.01, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000001', null, true, 2, null, '15000000-0000-4000-8000-000000000004', '2026-05-03 07:00+00', '2026-05-05 07:00+00', false),
   -- Cartera actual previa al periodo; el snapshot no sigue la recalificacion.
-  ('25000000-0000-4000-8000-000000000003', 'Lead cartera anterior', '998500003', 'landing', 'contactado', 100000, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000001', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-04-01 12:00+00'),
-  ('25000000-0000-4000-8000-000000000004', 'Lead sin tocar', '998500004', 'landing', 'nuevo', 1000.01, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000001', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-16 17:00+00'),
-  ('25000000-0000-4000-8000-000000000005', 'Lead USD', '998500005', 'landing', 'propuesta_enviada', 5000, 'USD', 'nuevo', '15000000-0000-4000-8000-000000000002', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-10 12:00+00'),
+  ('25000000-0000-4000-8000-000000000003', 'Lead cartera anterior', '998500003', 'landing', 'contactado', 100000, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000001', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-04-01 12:00+00', '2026-04-01 12:00+00', false),
+  ('25000000-0000-4000-8000-000000000004', 'Lead sin tocar', '998500004', 'landing', 'nuevo', 1000.01, 'PEN', 'nuevo', '15000000-0000-4000-8000-000000000001', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-16 17:00+00', '2026-05-16 17:00+00', false),
+  ('25000000-0000-4000-8000-000000000005', 'Lead USD', '998500005', 'landing', 'propuesta_enviada', 5000, 'USD', 'nuevo', '15000000-0000-4000-8000-000000000002', null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-10 12:00+00', '2026-05-10 12:00+00', false),
   -- Por repartir: una cola global y dos en bandeja del supervisor.
-  ('25000000-0000-4000-8000-000000000006', 'Cola global PEN', '998500006', 'landing', 'nuevo', 5000, 'PEN', 'nuevo', null, null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-17 10:00+00'),
-  ('25000000-0000-4000-8000-000000000007', 'Bandeja USD', '998500007', 'landing', 'nuevo', 10000, 'USD', 'nuevo', null, '15000000-0000-4000-8000-000000000003', true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-17 11:00+00'),
-  ('25000000-0000-4000-8000-000000000008', 'Bandeja PEN', '998500008', 'landing', 'nuevo', 100000.01, 'PEN', 'nuevo', null, '15000000-0000-4000-8000-000000000003', true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-17 12:00+00'),
+  ('25000000-0000-4000-8000-000000000006', 'Cola global PEN', '998500006', 'landing', 'nuevo', 5000, 'PEN', 'nuevo', null, null, true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-16 10:00+00', '2026-05-16 10:00+00', false),
+  ('25000000-0000-4000-8000-000000000007', 'Bandeja USD', '998500007', 'landing', 'nuevo', 10000, 'USD', 'nuevo', null, '15000000-0000-4000-8000-000000000003', true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-17 11:00+00', '2026-05-17 11:00+00', false),
+  ('25000000-0000-4000-8000-000000000008', 'Bandeja PEN', '998500008', 'landing', 'nuevo', 100000.01, 'PEN', 'nuevo', null, '15000000-0000-4000-8000-000000000003', true, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-17 12:00+00', '2026-05-17 12:00+00', false),
   -- Historia visible de un analista que ya no puede recibir leads.
-  ('25000000-0000-4000-8000-000000000009', 'Lead analista inactivo', '998500009', 'landing', 'nuevo', 5000, 'PEN', 'nuevo', null, null, false, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-07 10:00+00');
+  ('25000000-0000-4000-8000-000000000009', 'Lead analista inactivo', '998500009', 'landing', 'nuevo', 5000, 'PEN', 'nuevo', null, null, false, 1, null, '15000000-0000-4000-8000-000000000004', '2026-05-07 10:00+00', '2026-05-07 10:00+00', false);
 
 insert into crm.lead_asignaciones (
   lead_id, ciclo_n, episodio_n, analista_id, motivo_apertura,
   asignado_en, asignado_por, supervisor_origen_id,
   monto_estimado, moneda, origen, categoria_interes,
+  sla_global_iniciado_en, sla_global_aproximado,
   finalizado_en, finalizado_por, motivo_cierre,
   analista_destino_id, supervisor_destino_id,
   resultado, resultado_en, motivo_descarte_cierre
 )
 values
-  ('25000000-0000-4000-8000-000000000001', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-05-02 10:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 1000, 'PEN', 'landing', 'nuevo', '2026-05-02 12:00+00', '15000000-0000-4000-8000-000000000004', 'transferido', '15000000-0000-4000-8000-000000000002', null, null, null, null),
-  ('25000000-0000-4000-8000-000000000001', 1, 2, '15000000-0000-4000-8000-000000000002', 'reasignado', '2026-05-02 12:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 5000.01, 'PEN', 'landing', 'nuevo', null, null, null, null, null, null, null, null),
+  ('25000000-0000-4000-8000-000000000001', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-05-02 10:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 1000, 'PEN', 'landing', 'nuevo', '2026-05-02 09:00+00', false, '2026-05-02 12:00+00', '15000000-0000-4000-8000-000000000004', 'transferido', '15000000-0000-4000-8000-000000000002', null, null, null, null),
+  ('25000000-0000-4000-8000-000000000001', 1, 2, '15000000-0000-4000-8000-000000000002', 'reasignado', '2026-05-02 12:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 5000.01, 'PEN', 'landing', 'nuevo', '2026-05-02 09:00+00', false, null, null, null, null, null, null, null, null),
 
-  ('25000000-0000-4000-8000-000000000002', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-05-03 08:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 10000, 'PEN', 'landing', 'nuevo', '2026-05-04 09:00+00', '15000000-0000-4000-8000-000000000001', 'descartado', null, null, 'descartado', '2026-05-04 09:00+00', 'sin_interes'),
-  ('25000000-0000-4000-8000-000000000002', 2, 1, '15000000-0000-4000-8000-000000000001', 'reabierto', '2026-05-05 08:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 20000.01, 'PEN', 'landing', 'nuevo', '2026-05-06 10:00+00', '15000000-0000-4000-8000-000000000001', 'convertido', null, null, 'convertido', '2026-05-06 10:00+00', null),
+  ('25000000-0000-4000-8000-000000000002', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-05-03 08:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 10000, 'PEN', 'landing', 'nuevo', '2026-05-03 07:00+00', false, '2026-05-04 09:00+00', '15000000-0000-4000-8000-000000000001', 'descartado', null, null, 'descartado', '2026-05-04 09:00+00', 'sin_interes'),
+  ('25000000-0000-4000-8000-000000000002', 2, 1, '15000000-0000-4000-8000-000000000001', 'reabierto', '2026-05-05 08:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 20000.01, 'PEN', 'landing', 'nuevo', '2026-05-05 07:00+00', false, '2026-05-06 10:00+00', '15000000-0000-4000-8000-000000000001', 'convertido', null, null, 'convertido', '2026-05-06 10:00+00', null),
 
-  ('25000000-0000-4000-8000-000000000003', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-04-01 12:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 50000, 'PEN', 'landing', 'nuevo', null, null, null, null, null, null, null, null),
-  ('25000000-0000-4000-8000-000000000004', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-05-16 17:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 1000.01, 'PEN', 'landing', 'nuevo', null, null, null, null, null, null, null, null),
-  ('25000000-0000-4000-8000-000000000005', 1, 1, '15000000-0000-4000-8000-000000000002', 'ingreso', '2026-05-10 12:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 5000, 'USD', 'landing', 'nuevo', null, null, null, null, null, null, null, null),
-  ('25000000-0000-4000-8000-000000000009', 1, 1, '15000000-0000-4000-8000-000000000006', 'ingreso', '2026-05-07 10:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 5000, 'PEN', 'landing', 'nuevo', '2026-05-07 11:00+00', '15000000-0000-4000-8000-000000000004', 'desactivado', null, null, null, null, null);
+  ('25000000-0000-4000-8000-000000000003', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-04-01 12:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 50000, 'PEN', 'landing', 'nuevo', '2026-04-01 12:00+00', false, null, null, null, null, null, null, null, null),
+  ('25000000-0000-4000-8000-000000000004', 1, 1, '15000000-0000-4000-8000-000000000001', 'ingreso', '2026-05-16 17:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 1000.01, 'PEN', 'landing', 'nuevo', '2026-05-16 17:00+00', false, null, null, null, null, null, null, null, null),
+  ('25000000-0000-4000-8000-000000000005', 1, 1, '15000000-0000-4000-8000-000000000002', 'ingreso', '2026-05-10 12:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 5000, 'USD', 'landing', 'nuevo', '2026-05-10 12:00+00', false, null, null, null, null, null, null, null, null),
+  ('25000000-0000-4000-8000-000000000009', 1, 1, '15000000-0000-4000-8000-000000000006', 'ingreso', '2026-05-07 10:00+00', '15000000-0000-4000-8000-000000000004', '15000000-0000-4000-8000-000000000003', 5000, 'PEN', 'landing', 'nuevo', '2026-05-07 10:00+00', false, '2026-05-07 11:00+00', '15000000-0000-4000-8000-000000000004', 'desactivado', null, null, null, null, null);
 
 insert into crm.actividades (lead_id, tipo, detalle, creado_por, creado_en)
 values
@@ -133,15 +135,17 @@ declare
   i jsonb;
   r jsonb;
 begin
-  v := private.metricas_distribucion_leads_core(
+  v := private.metricas_distribucion_leads_v2_core(
     date '2026-05-01', date '2026-05-17', timestamptz '2026-05-17 18:00:00-05'
   );
 
-  if v->>'version' <> '1'
+  if v->>'version' <> '2'
      or jsonb_array_length(v->'rangos') <> 8
      or v#>>'{cohorte,desde_inclusivo}' <> '2026-05-01'
      or v#>>'{cohorte,hasta_exclusivo}' <> '2026-05-18'
-     or v#>>'{cohorte,zona_horaria}' <> 'America/Lima' then
+     or v#>>'{cohorte,zona_horaria}' <> 'America/Lima'
+     or v#>>'{cohorte,criterio_sla_global}' <> 'ciclo_sla_global_iniciado_en'
+     or v#>>'{cohorte,politica_pausas}' <> 'SIN_DESCUENTO' then
     raise exception 'M02 contrato/periodo invalido: %', v->'cohorte';
   end if;
 
@@ -175,9 +179,9 @@ begin
   end if;
 
   if (a#>>'{operacion,cohorte_episodios}')::int <> 4
-     or (a#>>'{operacion,contactos}')::int <> 1
-     or (a#>>'{operacion,sla_evaluables}')::int <> 3
-     or (a#>>'{operacion,sla_en_24h}')::int <> 0
+     or (a#>>'{operacion,contactos_asignacion}')::int <> 1
+     or (a#>>'{operacion,sla_asignacion_evaluables}')::int <> 3
+     or (a#>>'{operacion,sla_asignacion_en_24h}')::int <> 0
      or (a#>>'{operacion,transferidos}')::int <> 1
      or (a#>>'{operacion,sin_tocar_actual}')::int <> 1
      or (a#>>'{operacion,estancados_actual}')::int <> 1 then
@@ -189,9 +193,9 @@ begin
      or (b#>>'{capacidad,carga_usd}')::int <> 1
      or (b#>>'{pen,cartera_actual,capital}')::numeric <> 5000.01
      or (b#>>'{usd_no_segmentado,cartera_actual_capital}')::numeric <> 5000
-     or (b#>>'{operacion,sla_evaluables}')::int <> 2
-     or (b#>>'{operacion,sla_en_24h}')::int <> 2
-     or (b#>>'{operacion,primer_contacto_mediana_minutos}')::numeric <> 780 then
+     or (b#>>'{operacion,sla_asignacion_evaluables}')::int <> 2
+     or (b#>>'{operacion,sla_asignacion_en_24h}')::int <> 2
+     or (b#>>'{operacion,primer_contacto_asignacion_mediana_minutos}')::numeric <> 780 then
     raise exception 'M07 cartera/SLA B incorrectos: %', b;
   end if;
 
@@ -225,13 +229,20 @@ begin
      or (v#>>'{resumen,cohorte_leads_unicos}')::int <> 5
      or (v#>>'{resumen,convertidos_pen}')::int <> 1
      or (v#>>'{resumen,descartados_pen}')::int <> 1
-     or (v#>>'{resumen,sla_evaluables}')::int <> 5
-     or (v#>>'{resumen,sla_en_24h}')::int <> 2 then
+     or (v#>>'{resumen,sla_global_ciclos_cohorte}')::int <> 9
+     or (v#>>'{resumen,sla_global_leads_unicos_cohorte}')::int <> 8
+     or (v#>>'{resumen,sla_global_contactos}')::int <> 3
+     or (v#>>'{resumen,sla_global_evaluables}')::int <> 6
+     or (v#>>'{resumen,sla_global_en_24h}')::int <> 2
+     or (v#>>'{resumen,primer_contacto_global_mediana_minutos}')::numeric <> 180
+     or (v#>>'{resumen,sla_global_sin_contacto_vencidos_actuales}')::int <> 2
+     or (v#>>'{resumen,reasignaciones_cohorte}')::int <> 1 then
     raise exception 'M11 conciliacion global incorrecta: %', v->'resumen';
   end if;
 
   if (v#>>'{calidad,episodios_aproximados_actuales}')::int <> 0
      or (v#>>'{calidad,episodios_sin_monto_actuales}')::int <> 0
+     or (v#>>'{calidad,ciclos_sla_global_aproximados_cohorte}')::int <> 0
      or (
        select sum((x#>>'{cartera_actual,episodios}')::int)
        from jsonb_array_elements(a#>'{pen,rangos}') x
@@ -246,11 +257,14 @@ select set_config('request.jwt.claim.sub', '15000000-0000-4000-8000-000000000004
 set local role authenticated;
 do $test$
 begin
+  if crm.metricas_distribucion_leads_v2_fn(date '2026-05-01', date '2026-05-17')->>'version' <> '2' then
+    raise exception 'M13 Gerencia no pudo ejecutar V2';
+  end if;
   if crm.metricas_distribucion_leads_fn(date '2026-05-01', date '2026-05-17')->>'version' <> '1' then
-    raise exception 'M13 Gerencia no pudo ejecutar';
+    raise exception 'M13b Gerencia perdio el endpoint V1 de rollback';
   end if;
   begin
-    perform crm.metricas_distribucion_leads_fn(date '2025-01-01', date '2026-05-17');
+    perform crm.metricas_distribucion_leads_v2_fn(date '2025-01-01', date '2026-05-17');
     raise exception 'M14 acepto periodo mayor a 366 dias';
   exception when invalid_parameter_value then null;
   end;
@@ -262,7 +276,7 @@ select set_config('request.jwt.claim.sub', '15000000-0000-4000-8000-000000000005
 set local role authenticated;
 do $test$
 begin
-  if crm.metricas_distribucion_leads_fn(date '2026-05-01', date '2026-05-17')->>'version' <> '1' then
+  if crm.metricas_distribucion_leads_v2_fn(date '2026-05-01', date '2026-05-17')->>'version' <> '2' then
     raise exception 'M15 lector global no pudo ejecutar';
   end if;
 end;
@@ -275,7 +289,7 @@ set local role authenticated;
 do $test$
 begin
   begin
-    perform crm.metricas_distribucion_leads_fn(date '2026-05-01', date '2026-05-17');
+    perform crm.metricas_distribucion_leads_v2_fn(date '2026-05-01', date '2026-05-17');
     raise exception 'M16 analista consulto metricas gerenciales';
   exception when insufficient_privilege then null;
   end;
@@ -288,11 +302,45 @@ begin
   if has_function_privilege('anon', 'crm.metricas_distribucion_leads_fn(date,date)', 'EXECUTE') then
     raise exception 'M17 anon tiene EXECUTE';
   end if;
+  if has_function_privilege('anon', 'crm.metricas_distribucion_leads_v2_fn(date,date)', 'EXECUTE') then
+    raise exception 'M17b anon tiene EXECUTE V2';
+  end if;
   if has_function_privilege('authenticated', 'private.metricas_distribucion_leads_core(date,date,timestamp with time zone)', 'EXECUTE') then
     raise exception 'M18 authenticated puede saltar el wrapper';
   end if;
   if has_table_privilege('authenticated', 'crm.lead_asignaciones', 'SELECT') then
     raise exception 'M19 authenticated puede leer el ledger';
+  end if;
+  if has_table_privilege('crm_metricas_bridge', 'crm.lead_asignaciones', 'SELECT') then
+    raise exception 'M20 el puente tiene acceso directo al ledger';
+  end if;
+  if has_function_privilege(
+    'authenticated',
+    'private.metricas_distribucion_leads_autorizada(date,date,smallint)',
+    'EXECUTE'
+  ) then
+    raise exception 'M21 authenticated puede saltar el puente';
+  end if;
+  if not exists (
+    select 1
+    from pg_proc p
+    join pg_namespace n on n.oid = p.pronamespace
+    join pg_roles r on r.oid = p.proowner
+    where n.nspname = 'crm'
+      and p.proname in ('metricas_distribucion_leads_fn', 'metricas_distribucion_leads_v2_fn')
+      and r.rolname = 'crm_metricas_bridge'
+    group by r.rolname
+    having count(*) = 2
+  ) then
+    raise exception 'M22 las RPC expuestas no pertenecen al puente restringido';
+  end if;
+  if exists (
+    select 1
+    from pg_roles
+    where rolname = 'crm_metricas_bridge'
+      and (rolcanlogin or rolsuper or rolbypassrls or rolcreaterole or rolcreatedb)
+  ) then
+    raise exception 'M23 el puente conserva atributos privilegiados';
   end if;
 end;
 $test$;

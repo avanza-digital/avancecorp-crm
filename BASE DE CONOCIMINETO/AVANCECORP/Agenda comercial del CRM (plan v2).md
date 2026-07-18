@@ -193,6 +193,8 @@ Cola nueva con **semáforo de 4 estados**: rojo vencida > verde hoy > **amarillo
 **Sobre la obligatoriedad:** sugerencia con "saltar" de UN toque, no candado — es el patrón unánime de la industria (nadie bloquea por defecto; Speier & Venkatesh 2002: un CRM percibido como control sube rotación). El salto deja al lead en el bucket amarillo inocultable — el candado social sustituye al de UI. Endurecer solo con el dato de saltos, selectivamente (etapas avanzadas/capital alto).
 **Listo cuando:** completar una tarea desde HOY deja el resultado en el timeline y la siguiente propuesta a un toque, y la cola muestra vencidas primero + amarillos trabajables.
 
+> **Estado 2026-07-18 (fin del día):** Fases **A, B, C y E** EN PRODUCCIÓN (commits `a1bdb47`, `7a0af08`, `124f683`; build `index-D_rdrrwK.js`). La C se recortó con criterio: pestañas [Hoy]/[Todo] en vez de 4 vistas (Semana/Mes → Fase D). Pendientes: D, F y H.
+
 ### Fase C — Pantalla Agenda: Lista + Día
 Reescritura de `screens/agenda.tsx` sobre tareas reales. Lista cronológica (default, móvil-first) + vista Día con huecos. Tarjeta = patrón `FilaCola` + `LeadHoverCard` + `AccionesContacto` + capital en juego. Reprogramar rápido (+1d/+3d/+1sem → `reprogramaciones++`; reagendar un no-show crea tarea nueva encadenada). "+ Nueva tarea" también desde Cartera/pipeline.
 **Listo cuando:** ver el día, crear, completar y reprogramar desde el celular.

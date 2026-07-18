@@ -1,7 +1,7 @@
 ---
 tags: [crm, gerencia, leads, asignacion, capital, trazabilidad]
-actualizado: 2026-07-17
-estado: desplegado-v1
+actualizado: 2026-07-18
+estado: v2-implementado-pendiente-validacion
 ---
 
 # Distribución de leads por capital y trazabilidad CRM
@@ -94,7 +94,8 @@ reasignar en el mismo instante para mover el crédito comercial.
 - **Parqueo → analista:** abre un episodio nuevo; comienzan SLA y maduración
   propios del nuevo responsable.
 - **Analista A → analista B:** cierra A por `transferido` y abre B en el mismo
-  instante lógico. B no hereda el reloj de A.
+  instante lógico. B inicia su reloj operativo de tramo, pero el SLA global del
+  ciclo conserva el ingreso original y no se reinicia.
 - **Analista → parqueo:** cierra el episodio por `parqueado`, conserva el
   supervisor destino y deja cero episodios de analista abiertos.
 - **Convertido o descartado:** son resultados terminales y cierran el episodio
@@ -126,7 +127,8 @@ silencio.
 - El cierre bloquea el episodio con `FOR UPDATE` antes de abrir el siguiente.
 - Un episodio cerrado es inmutable, incluso para el escritor privilegiado del
   trigger. En un episodio abierto tampoco cambian sus fotografías.
-- SLA y tiempo a primer contacto son derivados; no se almacenan en el ledger.
+- El inicio del SLA global se fotografía en el ledger; el primer contacto y los
+  tiempos siguen siendo derivados desde actividades, sin almacenar resultados.
 - `crm.actividades` conserva el timeline humano. El ledger conserva intervalos
   analíticos; ninguno reemplaza al otro y no se duplican emisores.
 
@@ -138,7 +140,12 @@ abiertos durante el parqueo sin perder el timeline del par completo.
 
 ## SLA de gestión
 
-El reloj empieza en `episodio.asignado_en`. El primer contacto del episodio es la
+Desde V2 existen dos relojes deliberadamente distintos. El principal es el SLA
+global del ciclo, iniciado al ingresar o reabrir y sin descuento por parqueo o
+transferencia. El segundo es el SLA operativo del tramo, útil para medir cuánto
+tarda cada responsable desde que recibe el lead.
+
+El reloj operativo empieza en `episodio.asignado_en`. El primer contacto del episodio es la
 primera actividad dentro de su ventana con:
 
 `crm.actividades.creado_por = episodio.analista_id`
@@ -153,7 +160,8 @@ Tipos significativos:
 
 Notas, reasignaciones y cambios de etapa no acreditan contacto. El SLA inicial es
 24 horas. Un lead tibio reasignado exige que el nuevo analista vuelva a
-contactarlo; el contacto del responsable anterior no satisface su SLA.
+contactarlo para cumplir su tramo. Ese reinicio no afecta el SLA global que
+representa la espera real del cliente.
 
 La ventana del episodio es semiabierta: `[asignado_en, finalizado_en)`. Una
 actividad en el instante exacto de la transferencia pertenece solo al episodio
@@ -408,3 +416,25 @@ El branch temporal se eliminó tras el merge para detener el costo. Solo quedó
 de vendedor cargó el CRM y sus datos reales después del deploy. El portal de
 clientes y `public_html` no se desplegaron ni modificaron como parte de esta
 iniciativa.
+
+## V2 de hardening — 2026-07-18
+
+La migración local `20260718152741_crm_inteligencia_gerencial_hardening` corrige
+el incentivo pendiente sin romper el rollback de V1:
+
+- `crm.leads` conserva el inicio global del ciclo desde ingreso o reapertura;
+- cada episodio fotografía ese mismo inicio y una transferencia no lo modifica;
+- la cabecera gerencial usa SLA global, mientras cada analista conserva su SLA
+  operativo de tramo con una etiqueta explícita;
+- ciclos sin analista también entran al vencimiento global;
+- parqueos y transferencias no descuentan tiempo y sus cantidades siguen visibles;
+- el contrato V2 declara `SEPARADOS_SIN_CONVERSION` para PEN/USD;
+- V1 y V2 quedan detrás de `crm_metricas_bridge`, rol sin login, privilegios de
+  sistema ni acceso a tablas; la función `private` revalida identidad y rol;
+- V1 permanece disponible para volver al frontend anterior sin borrar historia;
+- el nuevo generador de release conserva ZIP, manifiesto, hashes por archivo y
+  SHA-256 del paquete fuera del web root.
+
+Estado: implementado en el repositorio, todavía no aplicado a producción. Debe
+pasar branch, oráculo SQL V2, pruebas de frontend, advisors y build antes del
+deploy. Ver [[Deploy a Hostinger]].
