@@ -1,13 +1,12 @@
-## graphify
+## CODEgraph (MCP)
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Este proyecto usa el MCP **CODEgraph** (`mcp__codegraph__*`) para buscar y ubicarse en el código.
 
-Rules:
-- **SIEMPRE usar el grafo PRIMERO para buscar/ubicarse en el código** (instrucción explícita de Miguel, 2026-06-03): el grafo hace las búsquedas más ágiles. `grep`/lectura cruda de archivos es solo complemento puntual cuando el grafo no alcanza, NUNCA el primer recurso.
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+Reglas:
+- **SIEMPRE usar CODEgraph PRIMERO para buscar/ubicarse en el código** (instrucción explícita de Miguel): el grafo hace las búsquedas más ágiles. `grep`/lectura cruda de archivos es solo complemento puntual cuando CODEgraph no alcanza, NUNCA el primer recurso.
+- Para preguntas sobre el código, empieza por `codegraph_symbol_search` / `codegraph_search_by_pattern` para localizar símbolos, y `codegraph_get_ai_context` / `codegraph_get_curated_context` para contexto enfocado.
+- Para relaciones usa `codegraph_get_callers` / `codegraph_get_callees` / `codegraph_analyze_impact`; para navegación amplia, `codegraph_get_module_summary` / `codegraph_get_dependency_graph`.
+- Si el índice está desactualizado tras cambios, refréscalo con `codegraph_index_files` (archivos puntuales) o `codegraph_reindex_workspace`.
 
 ## Vault de Obsidian (memoria del proyecto)
 
@@ -20,5 +19,5 @@ Este proyecto tiene un **vault de Obsidian** que es la base de conocimiento cura
 
 Reglas:
 - Al iniciar sesión, lee las notas `.md` del vault para cargar el conocimiento del proyecto (no solo el grafo de código).
-- El grafo de `graphify-out/` cubre **estructura de código**; el vault de Obsidian cubre **conocimiento de negocio/decisiones**. Son complementarios: usa ambos.
+- El MCP **CODEgraph** cubre **estructura de código**; el vault de Obsidian cubre **conocimiento de negocio/decisiones**. Son complementarios: usa ambos.
 - Cuando captures conocimiento nuevo y duradero del proyecto, escríbelo como una nota `.md` en el vault, enlazando con `[[wikilinks]]` a notas relacionadas.

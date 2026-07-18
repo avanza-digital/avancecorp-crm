@@ -1,6 +1,6 @@
 // @vitest-environment node
 // Contrato HTTP real de las RPC de distribución/capacidad contra Supabase
-// simulado: parámetros, abort, payload JSON V1 fail-closed y errores seguros.
+// simulado: parámetros, abort, payload JSON V2 fail-closed y errores seguros.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -79,19 +79,23 @@ function payloadValido() {
   const penCola = { cantidad: 1, capital: '1000.00', rangos: rangosCola() }
   const usdCola = { cantidad: 0, capital: 0 }
   return {
-    version: 1,
+    version: 2,
     generado_en: '2026-07-17T22:30:00-05:00',
     cohorte: {
       desde_inclusivo: '2026-04-01',
       hasta_inclusivo: '2026-06-30',
       hasta_exclusivo: '2026-07-01',
       criterio: 'episodio_asignado_en',
+      criterio_sla_global: 'ciclo_sla_global_iniciado_en',
+      politica_pausas: 'SIN_DESCUENTO',
       zona_horaria: 'America/Lima',
     },
     alcances: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
-      operacion_sla: 'TODAS_LAS_MONEDAS',
+      montos: 'SEPARADOS_SIN_CONVERSION',
+      sla_principal: 'GLOBAL_POR_CICLO',
+      sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
     },
     rangos: rangosCatalogo(),
     resumen: {
@@ -104,8 +108,14 @@ function payloadValido() {
       cohorte_leads_unicos: 3,
       convertidos_pen: 1,
       descartados_pen: 1,
-      sla_evaluables: 2,
-      sla_en_24h: 1,
+      sla_global_ciclos_cohorte: 3,
+      sla_global_leads_unicos_cohorte: 3,
+      sla_global_contactos: 2,
+      sla_global_evaluables: 2,
+      sla_global_en_24h: 1,
+      primer_contacto_global_mediana_minutos: '35.5',
+      sla_global_sin_contacto_vencidos_actuales: 1,
+      reasignaciones_cohorte: 1,
     },
     analistas: [{
       analista_id: ANALISTA_ID,
@@ -138,10 +148,10 @@ function payloadValido() {
       },
       operacion: {
         cohorte_episodios: 3,
-        contactos: 2,
-        sla_evaluables: 2,
-        sla_en_24h: 1,
-        primer_contacto_mediana_minutos: '35.5',
+        contactos_asignacion: 2,
+        sla_asignacion_evaluables: 2,
+        sla_asignacion_en_24h: 1,
+        primer_contacto_asignacion_mediana_minutos: '35.5',
         transferidos: 1,
         parqueados: 0,
         desactivados: 0,
@@ -171,15 +181,16 @@ function payloadValido() {
       episodios_aproximados_cohorte: 0,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
+      ciclos_sla_global_aproximados_cohorte: 0,
     },
   }
 }
 
 describe('listarMetricasDistribucionLeads (msw)', () => {
-  it('manda ambas fechas, valida todo el JSON V1 y coerciona sus numeric', async () => {
+  it('manda ambas fechas, valida todo el JSON V2 y coerciona sus numeric', async () => {
     let cuerpo: unknown = null
     server.use(
-      http.post(RPC('metricas_distribucion_leads_fn'), async ({ request }) => {
+      http.post(RPC('metricas_distribucion_leads_v2_fn'), async ({ request }) => {
         cuerpo = await request.json()
         return HttpResponse.json(payloadValido())
       }),
@@ -188,19 +199,20 @@ describe('listarMetricasDistribucionLeads (msw)', () => {
     const metricas = await listarMetricasDistribucionLeads('2026-04-01', '2026-06-30')
 
     expect(cuerpo).toEqual({ p_desde: '2026-04-01', p_hasta: '2026-06-30' })
-    expect(metricas.version).toBe(1)
+    expect(metricas.version).toBe(2)
     expect(metricas.rangos).toHaveLength(8)
     expect(metricas.analistas[0]!.pen.cartera_actual.capital).toBe(7000.5)
-    expect(metricas.analistas[0]!.operacion.primer_contacto_mediana_minutos).toBe(35.5)
+    expect(metricas.analistas[0]!.operacion.primer_contacto_asignacion_mediana_minutos).toBe(35.5)
+    expect(metricas.resumen.primer_contacto_global_mediana_minutos).toBe(35.5)
     expect(metricas.por_repartir.total.pen.capital).toBe(1000)
   })
 
   it('rechaza el payload completo si falta una métrica anidada', async () => {
     const payload = payloadValido()
     const operacion = payload.analistas[0]!.operacion as Record<string, unknown>
-    delete operacion.sla_en_24h
+    delete operacion.sla_asignacion_en_24h
     server.use(
-      http.post(RPC('metricas_distribucion_leads_fn'), () => HttpResponse.json(payload)),
+      http.post(RPC('metricas_distribucion_leads_v2_fn'), () => HttpResponse.json(payload)),
     )
 
     await expect(
@@ -219,7 +231,7 @@ describe('listarMetricasDistribucionLeads (msw)', () => {
 
   it('propaga la cancelación como AbortError', async () => {
     server.use(
-      http.post(RPC('metricas_distribucion_leads_fn'), async () => {
+      http.post(RPC('metricas_distribucion_leads_v2_fn'), async () => {
         await delay(200)
         return HttpResponse.json(payloadValido())
       }),

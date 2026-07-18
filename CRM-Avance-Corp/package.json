@@ -12,7 +12,9 @@
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
     "test:edge-preflight": "node --test ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs",
     "test:rls": "node supabase/scripts/test-rls.mjs",
-    "test:rls:preflight": "node supabase/scripts/test-rls.mjs --preflight"
+    "test:rls:preflight": "node supabase/scripts/test-rls.mjs --preflight",
+    "release:crm": "npm --prefix app run build && node scripts/crear-artefacto-release.mjs create",
+    "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify"
   },
   "dependencies": {
     "@supabase/supabase-js": "2.110.2"

@@ -154,8 +154,10 @@ export function validarSeccionBancaria(
 
   if (!banco) return { ok: false, error: `Selecciona el banco de la cuenta${suf}.` }
   if (!numero_cuenta) return { ok: false, error: `El N° de cuenta${suf} es obligatorio.` }
-  if (!/^[0-9]+$/.test(numero_cuenta)) {
-    return { ok: false, error: `El N° de cuenta${suf} debe contener solo dígitos.` }
+  // Cajas municipales (ej. Caja Cusco) emiten cuentas con letras — se acepta
+  // alfanumérico y guiones (regla espejo del portal, analista.js 2026-07-18).
+  if (!/^[A-Za-z0-9-]+$/.test(numero_cuenta)) {
+    return { ok: false, error: `El N° de cuenta${suf} solo puede contener letras, números y guiones (sin espacios).` }
   }
   if (!tipo_cuenta) return { ok: false, error: `Selecciona el tipo de cuenta${suf}.` }
   if (!TIPOS_CUENTA.some((t) => t.k === tipo_cuenta)) {

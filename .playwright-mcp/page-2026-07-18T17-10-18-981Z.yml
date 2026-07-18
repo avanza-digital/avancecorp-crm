@@ -1,0 +1,53 @@
+- generic [ref=e2]:
+  - generic [ref=e3]:
+    - generic [ref=e4]:
+      - generic [ref=e6]:
+        - img "Avance Corp" [ref=e8]
+        - generic [ref=e9]:
+          - paragraph [ref=e10]: Avance Corp
+          - paragraph [ref=e11]: CRM Comercial
+      - generic [ref=e12]:
+        - generic [ref=e13]:
+          - heading "La cartera de inversiones, bajo control." [level=2] [ref=e14]: La cartera de inversiones,bajo control.
+          - paragraph [ref=e15]: Captación, seguimiento y renovaciones de contratos de Asociación en Participación — con la trazabilidad que exige una futura financiera regulada.
+        - generic [ref=e16]:
+          - generic [ref=e17]:
+            - paragraph [ref=e21]: Pipeline
+            - paragraph [ref=e22]: por etapa
+          - generic [ref=e23]:
+            - paragraph [ref=e29]: Equipo
+            - paragraph [ref=e30]: 4 niveles
+          - generic [ref=e31]:
+            - paragraph [ref=e35]: Privacidad
+            - paragraph [ref=e36]: por rol
+      - paragraph [ref=e37]: Avance Corp S.A.C. · Grupo MasCapital
+    - generic [ref=e39]:
+      - generic [ref=e40]:
+        - heading "Inicia sesión" [level=1] [ref=e41]
+        - paragraph [ref=e42]: Acceso para el equipo comercial y directorio.
+      - generic [ref=e43]:
+        - generic [ref=e44]:
+          - text: Correo
+          - textbox "Correo" [ref=e45]:
+            - /placeholder: tucorreo@avancecorp.pe
+        - generic [ref=e46]:
+          - text: Contraseña
+          - textbox "Contraseña" [ref=e47]:
+            - /placeholder: ••••••••
+        - button "Entrar" [ref=e48] [cursor=pointer]
+      - generic [ref=e54]:
+        - paragraph [ref=e55]: Ver el CRM como…
+        - generic [ref=e56]:
+          - button "Vendedor como VENDEDOR UNO" [ref=e57] [cursor=pointer]:
+            - generic [ref=e58]: Vendedor
+            - generic [ref=e59]: como VENDEDOR UNO
+          - button "Supervisor como SUPERVISOR UNO — equipo de 2" [ref=e60] [cursor=pointer]:
+            - generic [ref=e61]: Supervisor
+            - generic [ref=e62]: como SUPERVISOR UNO — equipo de 2
+          - button "Gerencia visión total" [ref=e63] [cursor=pointer]:
+            - generic [ref=e64]: Gerencia
+            - generic [ref=e65]: visión total
+          - button "Directorio auditoría · solo lectura" [ref=e66] [cursor=pointer]:
+            - generic [ref=e67]: Directorio
+            - generic [ref=e68]: auditoría · solo lectura
+  - region "Notifications alt+T"

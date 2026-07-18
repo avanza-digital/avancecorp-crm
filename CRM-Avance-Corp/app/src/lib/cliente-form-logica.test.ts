@@ -120,8 +120,12 @@ describe('validarSeccionBancaria (espejo de leerYValidarBancarios)', () => {
       .toEqual({ ok: false, error: 'Selecciona el banco de la cuenta (Soles).' })
     expect(validarSeccionBancaria(seccion({ banco: 'BCP' }), 'Dólares'))
       .toEqual({ ok: false, error: 'El N° de cuenta (Dólares) es obligatorio.' })
-    expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: '12a3' }), 'Soles'))
-      .toEqual({ ok: false, error: 'El N° de cuenta (Soles) debe contener solo dígitos.' })
+    // Cuentas de cajas municipales llevan letras/guiones (Caja Cusco, 2026-07-18):
+    // letras y guiones pasan; espacios y otros símbolos no.
+    expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: '12 34' }), 'Soles'))
+      .toEqual({ ok: false, error: 'El N° de cuenta (Soles) solo puede contener letras, números y guiones (sin espacios).' })
+    expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: 'A105-201332' }), 'Soles'))
+      .toEqual({ ok: false, error: 'Selecciona el tipo de cuenta (Soles).' })
     expect(validarSeccionBancaria(seccion({ banco: 'BCP', numero_cuenta: '123' }), 'Soles'))
       .toEqual({ ok: false, error: 'Selecciona el tipo de cuenta (Soles).' })
     expect(

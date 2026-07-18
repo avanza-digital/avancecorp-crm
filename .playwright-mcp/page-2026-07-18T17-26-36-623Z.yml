@@ -1,0 +1,18 @@
+- generic [ref=e2]:
+  - generic [ref=e5]:
+    - img "Avance Corp" [ref=e8]
+    - generic [ref=e9]:
+      - heading "Inicia sesión" [level=1] [ref=e10]
+      - paragraph [ref=e11]: Acceso para el equipo comercial y directorio.
+    - generic [ref=e12]:
+      - generic [ref=e13]:
+        - text: Correo
+        - textbox "Correo" [ref=e14]:
+          - /placeholder: tucorreo@avancecorp.pe
+      - generic [ref=e15]:
+        - text: Contraseña
+        - textbox "Contraseña" [ref=e16]:
+          - /placeholder: ••••••••
+      - button "Entrar" [ref=e17] [cursor=pointer]
+    - button "Explorar en modo demo" [ref=e19] [cursor=pointer]
+  - region "Notifications alt+T"

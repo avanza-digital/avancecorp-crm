@@ -6,7 +6,8 @@ import { Card, CardContent, CardTitle, CardDescription } from '@/components/ui/c
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { SectionHead } from '@/components/common/section-head'
-import { can, ROL_LABEL } from '@/lib/roles'
+import { CalendarioGoogle } from '@/components/app/calendario-google'
+import { can, ROL_LABEL, puedeEscribir } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 
 // Áreas de configuración del CRM. Hoy son marcadores de posición: cada una se
@@ -22,7 +23,7 @@ interface Seccion {
 const SECCIONES: Seccion[] = [
   { icon: Package, t: 'Productos de inversión', d: 'Catálogo Nuevo / Renovación / Upgrade con montos y tasas de referencia', fase: 'Más adelante', color: 'var(--chart-1)' },
   { icon: Users, t: 'Usuarios y jerarquía', d: 'Alta de vendedores con permisos por rol y clave temporal', fase: 'Muy pronto', color: 'var(--chart-2)' },
-  { icon: Clock, t: 'Tiempos y SLA', d: 'Umbral de primera respuesta y reglas por etapa', fase: 'Pronto', color: 'var(--chart-3)' },
+  { icon: Clock, t: 'Tiempos de atención', d: 'Primera respuesta y tiempos máximos por etapa', fase: 'Pronto', color: 'var(--chart-3)' },
   { icon: Target, t: 'Metas', d: 'Metas de captación por vendedor y mes', fase: 'Más adelante', color: 'var(--chart-4)' },
 ]
 
@@ -56,6 +57,10 @@ export function Config() {
           </p>
         </div>
       )}
+
+      {/* Mi calendario de Google: personal, cada miembro conecta el suyo.
+          El directorio (solo lectura) no agenda tareas — no tiene qué conectar. */}
+      {yo && puedeEscribir(yo.rol) && <CalendarioGoogle perfilId={yo.id} demo={yo.demo} />}
 
       {/* Áreas de configuración */}
       <div className="grid gap-4 sm:grid-cols-2">

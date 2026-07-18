@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-06-01
+actualizado: 2026-07-15
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -12,7 +12,7 @@ Bóveda de conocimiento del **Portal Digital de Inversiones de Avance Corp S.A.C
 Hay **tres capas**, complementarias:
 
 1. **Este vault de Obsidian** — conocimiento curado, decisiones y features (notas enlazadas).
-2. **Grafo de código (Graphify)** — estructura del código en `graphify-out/`. Consúltalo con `graphify query "<pregunta>"` en vez de grepear.
+2. **Grafo de código (CODEgraph)** — estructura del código, vía el MCP `codegraph` (`mcp__codegraph__*`). Consúltalo (p. ej. `codegraph_symbol_search`, `codegraph_get_ai_context`) en vez de grepear.
 3. **Documentos canónicos** (la *fuente de verdad* técnica):
    - **`public_html/CLAUDE.md`** → memoria técnica detallada del portal. **GANA sobre todo lo demás** si hay diferencia.
    - **`PORTAL_AVANCE_CORP_IMPLEMENTACION.md`** → guía de implementación.

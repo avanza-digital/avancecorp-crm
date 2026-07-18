@@ -1,13 +1,13 @@
-## graphify
+## CodeGraph del proyecto
 
-This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+Este proyecto usa CodeGraph como herramienta principal para navegar, comprender y localizar código.
 
-Rules:
-- **SIEMPRE usar el grafo PRIMERO para buscar/ubicarse en el código** (instrucción explícita de Miguel, 2026-06-03): el grafo hace las búsquedas más ágiles. `grep`/lectura cruda de archivos es solo complemento puntual cuando el grafo no alcanza, NUNCA el primer recurso.
-- For codebase questions, first run `graphify query "<question>"` when graphify-out/graph.json exists. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
-- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
-- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
-- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+Reglas:
+- **SIEMPRE usar CodeGraph PRIMERO para buscar o ubicarse en el código.** `rg` y la lectura directa de archivos son únicamente complementos puntuales cuando CodeGraph no proporciona suficiente contexto.
+- Usar el MCP `codegraph_explore` cuando esté disponible. La consulta debe incluir la pregunta concreta y, cuando se conozcan, los símbolos o archivos relacionados.
+- Si el MCP no está disponible, usar `codegraph explore "<pregunta, símbolos o archivos>"` desde la raíz del repositorio.
+- Aprovechar el código fuente y las rutas de llamadas devueltas por CodeGraph antes de abrir archivos completos.
+- No usar `graphify`, `graphify-out/`, `GRAPH_REPORT.md` ni comandos de actualización de Graphify en este proyecto.
 
 ## Vault de Obsidian (memoria del proyecto)
 

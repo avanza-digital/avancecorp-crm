@@ -39,7 +39,7 @@ Los documentos vacíos, múltiples, en notación científica, con longitud invá
 
 ## Entregable
 
-La pantalla muestra una decisión resumida, métricas, bandejas, búsqueda, filtro por analista y detalle paginado. La vista inicial **Estado de base** conserva todas las filas del Excel y muestra explícitamente `Cliente en sistema` y `Contrato cargado`; las otras bandejas sirven para ejecutar acciones. Ofrece dos descargas:
+La pantalla muestra una decisión resumida, métricas, bandejas, búsqueda, filtro por analista y detalle paginado. La vista inicial **Estado de base** conserva todas las filas del Excel y muestra explícitamente `Cliente en sistema` y `Contrato cargado`; las otras bandejas sirven para ejecutar acciones. En las hojas de detalle del **Reporte completo**, **Fecha contrato (Excel)** conserva el valor de la columna `FECHA CONTRATO` de la base adjuntada (por ejemplo, `15/06/2026`). No toma esta fecha de `contratos.fecha_inicio` en el CRM. Ofrece dos descargas:
 
 - **Clientes sin usuario:** una fila por DNI, solo clientes seguros para gestionar; incluye cliente, DNI, contratos, analista y filas de origen.
 - **Reporte completo:** auditoría con las hojas siguientes.
@@ -85,3 +85,5 @@ Estas cifras son una línea base de prueba; pueden cambiar cuando se creen usuar
 - Pruebas: `public_html/tests/conciliacion-core.test.mjs`
 
 Estado al 2026-07-14: segunda iteración implementada, verificada contra el Excel real y la base de producción, y desplegada en `https://miavance.com/admin/conciliacion.html` con el service worker `avance-v98`. La vista inicial ahora es **Estado de base**: para cada fila del Excel muestra si el DNI está en el CRM y si el número de contrato está cargado. Página, CSS, JS, núcleo y `_helpers.js` quedaron idénticos byte a byte entre local y producción.
+
+El 2026-07-15 se corrigió el origen de la fecha después de revisar una captura de la base maestra: el **Reporte completo** ahora muestra **Fecha contrato (Excel)** a partir de la columna `FECHA CONTRATO` del archivo adjuntado. Esta versión reemplaza la implementación anterior que usaba `fecha_inicio` del CRM. Se desplegó como `conciliacion.js?v=5`, `conciliacion-core.js?v=4` y service worker `avance-v100`; página, módulos y SW quedaron idénticos byte a byte entre local y producción, y el ZIP respondió 404.

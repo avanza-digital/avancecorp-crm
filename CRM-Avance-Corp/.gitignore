@@ -1,0 +1,3 @@
+# Artefactos reproducibles de despliegue. Se conservan fuera del web root y no
+# se versionan; cada ZIP queda acompañado por su manifiesto SHA-256.
+releases/
