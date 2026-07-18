@@ -46,14 +46,7 @@ const SILUETAS: Record<Genero, string[][]> = {
   ],
 }
 
-// Silueta neutra (fallback sin género) — un solo peinado, tono pizarra.
-const SILUETA_NEUTRA = [
-  'M12 4a3.7 3.7 0 1 1 0 7.4 3.7 3.7 0 0 1 0-7.4z',
-  'M12 14.2c-3.9 0-7 2.5-7 6 0 .4.3.7.7.7h12.6c.4 0 .7-.3.7-.7 0-3.5-3.1-6-7-6z',
-]
-
 const COLOR_GENERO: Record<Genero, string> = { F: '#7c3aed', M: '#2563eb' }
-const COLOR_NEUTRO = '#64748b'
 
 /** Hash estable del nombre → índice de peinado dentro del set del género. */
 function indicePeinado(nombre: string | null | undefined, n: number): number {
@@ -66,9 +59,11 @@ const BASE = 'inline-flex size-8 shrink-0 items-center justify-center overflow-h
 
 /**
  * Avatar de persona o de equipo.
- * - Con `genero` (aunque sea null) → silueta HUMANA: F/M según el género (con su
- *   peinado por hash del nombre) o neutra si es null. Se tiñe por género.
- * - Sin `genero` (prop ausente) → iniciales sobre el `color` dado (equipo/vendedor).
+ * - Con género conocido (F/M) → silueta HUMANA tinteada por género, con su peinado
+ *   por hash del nombre.
+ * - Sin género (null o prop ausente) → INICIALES: distinguen a cada persona cuando
+ *   no hay dato (mejor que una silueta neutra idéntica para todos). Cuando el campo
+ *   género exista en la BD, cada lead pasa por sí solo a su silueta.
  */
 export function Avatar({
   nombre,
@@ -81,11 +76,11 @@ export function Avatar({
   color?: string | undefined
   className?: string | undefined
 }): JSX.Element {
-  // Modo silueta: el caller pasó `genero` explícitamente (F, M o null).
-  if (genero !== undefined) {
-    const c = genero ? COLOR_GENERO[genero] : COLOR_NEUTRO
-    const set = genero ? SILUETAS[genero] : [SILUETA_NEUTRA]
-    const paths = set[indicePeinado(nombre, set.length)] ?? SILUETA_NEUTRA
+  // Silueta SOLO con género conocido; sin dato (null/ausente) → iniciales.
+  if (genero === 'F' || genero === 'M') {
+    const c = COLOR_GENERO[genero]
+    const set = SILUETAS[genero]
+    const paths = set[indicePeinado(nombre, set.length)] ?? []
     return (
       <span
         className={cn(BASE, className)}

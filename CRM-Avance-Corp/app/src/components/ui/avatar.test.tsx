@@ -19,9 +19,10 @@ describe('Avatar', () => {
     expect(container.textContent).toBe('')
   })
 
-  it('género null → silueta neutra (fallback), sí hay svg', () => {
+  it('género null → iniciales (distinguible cuando no hay dato), sin silueta', () => {
     const { container } = render(<Avatar nombre="Quien sea" genero={null} />)
-    expect(container.querySelector('svg')).not.toBeNull()
+    expect(container.querySelector('svg')).toBeNull()
+    expect((container.textContent ?? '').length).toBeGreaterThan(0)
   })
 
   it('mismo nombre + mismo género → el MISMO peinado (determinista)', () => {
