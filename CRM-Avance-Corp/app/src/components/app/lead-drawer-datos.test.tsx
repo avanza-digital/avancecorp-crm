@@ -58,6 +58,8 @@ function montar() {
     lead: (id: string) => (id === LEAD.id ? LEAD : undefined),
     ambito: { leads: [LEAD], vendedores: [], esGlobal: false },
     actividadesDe: () => [],
+    tareasDe: () => [],
+    crearTarea: vi.fn(() => ({ ok: true, id: 't-test' })),
     editarLead,
     reasignar: vi.fn(() => ({ ok: true })),
     cambiarEtapa: vi.fn(() => ({ ok: true })),

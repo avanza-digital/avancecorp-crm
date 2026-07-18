@@ -99,7 +99,53 @@ export const CAT_LABEL: Record<CategoriaInteres, string> = Object.fromEntries(
 export const TIPO_EVENTO: Record<string, string> = {
   reunion: 'Reunión',
   llamada: 'Llamada',
+  whatsapp: 'WhatsApp',
+  tarea: 'Tarea',
   vencimiento: 'Vencimiento',
+}
+
+// ── Tareas de la agenda (crm.tareas — Fase A del plan v2) ─────────────────────
+// Mismo catálogo que el CHECK tareas_tipo_valido. `vencimiento` NO es un tipo
+// de tarea: los vencimientos de contrato son eventos DERIVADOS del cronograma.
+export type TipoTarea = 'llamada' | 'whatsapp' | 'reunion' | 'tarea'
+
+export const TIPOS_TAREA: ReadonlyArray<{ k: TipoTarea; label: string }> = [
+  { k: 'llamada', label: 'Llamada' },
+  { k: 'whatsapp', label: 'WhatsApp' },
+  { k: 'reunion', label: 'Reunión' },
+  { k: 'tarea', label: 'Tarea' },
+]
+
+export const esTipoTarea = (v: string): v is TipoTarea =>
+  v === 'llamada' || v === 'whatsapp' || v === 'reunion' || v === 'tarea'
+
+/**
+ * Máquina mínima (CHECK tareas_estado_valido): `pendiente` es el único estado
+ * vivo. "Vencida" NO existe como estado: SE DERIVA (pendiente + vence_en <
+ * ahora) — sin cron, sin drift. Reagendar un no_show crea una tarea NUEVA.
+ */
+export type EstadoTarea = 'pendiente' | 'completada' | 'cancelada' | 'no_show'
+
+export interface Tarea {
+  id: string
+  /** Exactamente UNO de los dos (CHECK tareas_un_solo_sujeto); v1 usa solo lead. */
+  lead_id: string | null
+  perfil_id?: string | null
+  /** Tenencia espejo del lead, derivada por trigger (null = bandeja del supervisor). */
+  vendedor_id?: string | null
+  asignado_supervisor_id?: string | null
+  tipo: TipoTarea
+  titulo: string
+  nota?: string | null
+  /** Cuándo TOCA — aviso, no deadline (ISO timestamptz). */
+  vence_en: string
+  duracion_min?: number | null
+  estado: EstadoTarea
+  confirmada_en?: string | null // anti no-show: el cliente confirmó la cita
+  reagendada_de?: string | null
+  reprogramaciones: number
+  activo: boolean
+  creado_en: string
 }
 
 export const MOTIVOS_DESCARTE: ReadonlyArray<{ k: MotivoDescarte; label: string }> = [

@@ -22,9 +22,11 @@ import {
   TIPOS_AUTO_K,
   type Actividad,
   type CategoriaInteres,
+  esTipoTarea,
   type EtapaActiva,
   type Genero,
   type Lead,
+  type Tarea,
   type Miembro,
   type MotivoDescarte,
   type Origen,
@@ -32,6 +34,7 @@ import {
   type TipoActividadManual,
 } from './tipos'
 import { esAbierto } from './inteligencia'
+import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
 import type { Moneda } from './format'
 import { DEMO_HABILITADO } from './config'
 import { validarCamposLead, type CampoLead, type CodigoValidacion } from './validacion'
@@ -47,9 +50,12 @@ import {
   CrmApiError,
   insertarActividad,
   insertarLead,
+  insertarTarea,
+  cerrarTarea,
   listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
+  listarTareasDelAmbito,
 } from '@/data/crm-api'
 
 /**
@@ -84,6 +90,7 @@ export type CodigoMut =
   | 'vendedor_fuera_ambito'
   | 'solo_autoasignar'
   | 'tipo_actividad_reservado'
+  | 'resultado_obligatorio'
   | 'sin_permiso_reasignar'
 
 /**
@@ -114,6 +121,25 @@ export interface NuevoLeadInput {
   categoria_interes?: CategoriaInteres | null
   vendedor_id?: string | null
   nota?: string | null
+}
+
+/** Alta de tarea de agenda (quick-add del drawer / futuro + Nueva). */
+export interface NuevaTareaInput {
+  lead_id: string
+  tipo: string // esTipoTarea hace el narrow
+  titulo: string
+  vence_en: string // ISO
+  nota?: string | null
+  duracion_min?: number | null
+}
+
+/** Cierre de una tarea de agenda (motor Fase B): resultado 1-tap + siguiente. */
+export interface CompletarTareaInput {
+  tarea_id: string
+  estado: 'completada' | 'no_show'
+  resultado_tipo?: TipoActividadManual | null
+  resultado_detalle?: string | null
+  siguiente?: { tipo: string; titulo: string; vence_en: string } | null
 }
 
 /** Cambios editables de la ficha (espejo del contrato F1b). */
@@ -150,14 +176,9 @@ export interface Ambito {
   esGlobal: boolean // true para gerencia/directorio
 }
 
-export interface EventoAgenda {
-  id: string
-  lead_id: string
-  titulo: string
-  tipo: string
-  cuando: string
-  color: string
-}
+// El contrato de display vive en lib/agenda-derivada (timestamp→label, Lima);
+// se re-exporta para no romper a los consumidores históricos del store.
+export type { EventoAgenda }
 
 export interface ObjetivoComercial {
   capitalObjetivo: number
@@ -193,6 +214,14 @@ export interface StoreDataApi {
   lead(id: string): Lead | undefined
   actividadesDe(leadId: string): Actividad[] // orden desc por creado_en
   // Mutaciones — TODAS write-gated dentro del store
+  // Agenda (crm.tareas): la fuente de verdad son las TAREAS; `agenda` es su
+  // vista de display derivada (labels Lima). tareasDe alimenta el drawer.
+  tareas: Tarea[]
+  tareasDe(leadId: string): Tarea[] // pendientes del lead, orden por vence_en
+  crearTarea(input: NuevaTareaInput): ResultadoMut & { id?: string }
+  /** Cierra por la RPC atómica (resultado→log + siguiente encadenada). En
+   *  llamadas COMPLETADAS el resultado es obligatorio (patrón Outreach). */
+  completarTarea(input: CompletarTareaInput): ResultadoMut & { siguiente_id?: string }
   crearLead(input: NuevoLeadInput): ResultadoMut & { id?: string }
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
   cambiarEtapa(id: string, etapa: EtapaActiva): ResultadoMut
@@ -238,14 +267,12 @@ const SERIES_VACIAS: SeriesComerciales = {
 
 interface Auxiliares {
   equipo: Miembro[]
-  agenda: EventoAgenda[]
   objetivos: ObjetivosPorRol
   series: SeriesComerciales
 }
 
 const AUXILIARES_VACIOS: Auxiliares = {
   equipo: EQUIPO_VACIO,
-  agenda: [],
   objetivos: OBJETIVOS_VACIOS,
   series: SERIES_VACIAS,
 }
@@ -337,6 +364,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // explícita. Una sesión real nunca recibe ni persiste PII de demostración.
   const [datos, setDatos] = useState<Datos>(datosVacios)
   const [auxiliares, setAuxiliares] = useState<Auxiliares>(AUXILIARES_VACIOS)
+  // Tareas de agenda (crm.tareas): pendientes del ámbito. Igual que leads:
+  // optimista local + resync tras cada mutación real.
+  const [tareas, setTareas] = useState<Tarea[]>([])
   const [demoListo, setDemoListo] = useState(false)
   const [realListo, setRealListo] = useState(false)
   const [errorReal, setErrorReal] = useState(false)
@@ -388,15 +418,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Carga de la sesión REAL. La RLS del esquema crm decide el ámbito; el
   // vendedor_nombre se resuelve con el roster (crm.leads solo guarda el id).
   const cargarReal = useCallback(async (signal?: AbortSignal) => {
-    const [leads, miembros, actividades] = await Promise.all([
+    const [leads, miembros, actividades, tareasAmbito] = await Promise.all([
       listarLeadsDelAmbito(signal),
       listarEquipo(signal),
       listarActividadesDelAmbito(signal),
+      listarTareasDelAmbito(signal),
     ])
     const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
     return {
       miembros,
       actividades,
+      tareas: tareasAmbito,
       leads: leads.map((l) => ({
         ...l,
         vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
@@ -412,11 +444,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const resincronizarReal = useCallback(async (): Promise<boolean> => {
     const miEpoca = epocaRef.current
     try {
-      const { leads, actividades, miembros } = await cargarReal()
+      const { leads, actividades, miembros, tareas: tareasServidor } = await cargarReal()
       // La sesión cambió (logout/otro usuario/recarga) mientras viajaba: se
       // descarta en vez de repoblar el store de otra sesión.
       if (epocaRef.current !== miEpoca) return false
       setDatos({ leads, actividades })
+      setTareas(tareasServidor)
       setAuxiliares((prev) => ({ ...prev, equipo: miembros }))
       return true
     } catch (error: unknown) {
@@ -442,9 +475,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           .then((demo) => {
             if (cancelado) return
             setDatos(cargarDatos({ leads: demo.LEADS_DEMO, actividades: demo.ACTIVIDADES_DEMO }))
+            setTareas(demo.TAREAS_DEMO)
             setAuxiliares({
               equipo: demo.EQUIPO_DEMO,
-              agenda: demo.AGENDA_DEMO,
               objetivos: demo.METAS_DEMO,
               series: demo.SPARKS_DEMO,
             })
@@ -454,6 +487,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             if (cancelado) return
             registrarError('demo.carga_fallida', error)
             setDatos(datosVacios())
+            setTareas([])
             setAuxiliares(AUXILIARES_VACIOS)
           })
       }
@@ -463,10 +497,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Sesión REAL: lee del servidor.
     if (sesionReal) {
       void cargarReal(control.signal)
-        .then(({ leads, actividades, miembros }) => {
+        .then(({ leads, actividades, miembros, tareas: tareasServidor }) => {
           if (cancelado) return
           setDatos({ leads, actividades })
-          setAuxiliares({ equipo: miembros, agenda: [], objetivos: OBJETIVOS_VACIOS, series: SERIES_VACIAS })
+          setTareas(tareasServidor)
+          setAuxiliares({ equipo: miembros, objetivos: OBJETIVOS_VACIOS, series: SERIES_VACIAS })
           setRealListo(true)
         })
         .catch((error: unknown) => {
@@ -475,6 +510,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // Fallo de la carga inicial: NO se pinta el CRM vacío (parecería "no hay
           // leads"). Se marca error para que la app muestre reintento explícito.
           setDatos(datosVacios())
+          setTareas([])
           setAuxiliares(AUXILIARES_VACIOS)
           setErrorReal(true)
         })
@@ -483,6 +519,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     // Ni demo ni sesión real: vacío.
     setDatos(datosVacios())
+    setTareas([])
     setAuxiliares(AUXILIARES_VACIOS)
     return () => { cancelado = true; control.abort() }
   }, [demoSolicitado, sesionReal, yo?.id, intentoReal, cargarReal])
@@ -639,7 +676,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       leads: datos.leads,
       equipo,
       ambito,
-      agenda: auxiliares.agenda,
+      // Vista de display derivada de las tareas pendientes. El "ahora" se toma
+      // al recomputar el memo (cada carga/mutación/resync); las pantallas que
+      // necesitan reloj vivo (HOY) reordenan con useAhora sobre vence_en.
+      agenda: agendaDeTareas(tareas, Date.now()),
+      tareas,
+      tareasDe: (leadId) =>
+        idsDelAmbito.has(leadId)
+          ? tareas
+              .filter((t) => t.lead_id === leadId && t.estado === 'pendiente' && t.activo)
+              .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
+          : [],
       objetivos: auxiliares.objetivos,
       series: auxiliares.series,
       actividades: datos.actividades,
@@ -652,6 +699,131 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               .filter((a) => a.lead_id === leadId)
               .sort((a, b) => b.creado_en.localeCompare(a.creado_en))
           : [],
+
+      crearTarea: (input) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const lead = buscar(input.lead_id)
+        if (!lead || !idsDelAmbito.has(lead.id)) return noEncontrado()
+        if (!esAbierto(lead)) {
+          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para agendar' }
+        }
+        if (!esTipoTarea(input.tipo)) {
+          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Tipo de tarea inválido' }
+        }
+        const titulo = input.titulo.trim()
+        if (!titulo || titulo.length > 200) {
+          return { ok: false, codigo: 'nombre_obligatorio', error: 'Ponle un título corto a la tarea' }
+        }
+        const ms = Date.parse(input.vence_en)
+        if (!Number.isFinite(ms)) {
+          return { ok: false, codigo: 'fecha_nacimiento_invalida', error: 'La fecha de la tarea no es válida' }
+        }
+        const id = uid()
+        // Tenencia espejo del lead (en real la deriva el trigger; aquí el
+        // optimista la copia para que la agenda pinte igual que el servidor).
+        const tarea: Tarea = {
+          id,
+          lead_id: lead.id,
+          vendedor_id: lead.vendedor_id ?? null,
+          asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+          tipo: input.tipo,
+          titulo,
+          nota: input.nota?.trim() || null,
+          vence_en: new Date(ms).toISOString(),
+          duracion_min: input.duracion_min ?? null,
+          estado: 'pendiente',
+          reprogramaciones: 0,
+          activo: true,
+          creado_en: new Date().toISOString(),
+        }
+        setTareas((prev) => [tarea, ...prev])
+        persistir(() => insertarTarea({
+          ...(UUID_RE.test(id) ? { id } : {}),
+          lead_id: lead.id,
+          tipo: tarea.tipo,
+          titulo,
+          nota: tarea.nota ?? null,
+          vence_en: tarea.vence_en,
+          duracion_min: tarea.duracion_min ?? null,
+          creado_por: miId,
+        }))
+        return { ok: true, id }
+      },
+
+      completarTarea: (input) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const t = tareas.find((x) => x.id === input.tarea_id)
+        if (!t || t.estado !== 'pendiente' || !t.activo) return noEncontrado()
+        const lead = t.lead_id ? buscar(t.lead_id) : undefined
+        const resultado = input.resultado_tipo ?? null
+        // Doble defensa runtime (los unions TS se borran al compilar).
+        if (resultado && TIPOS_AUTO_K.has(resultado)) {
+          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Ese tipo lo genera el sistema' }
+        }
+        // Regla comercial (evidencia Outreach): una LLAMADA completada sin
+        // resultado no cuenta — contestó o no contestó, un tap.
+        if (t.tipo === 'llamada' && input.estado === 'completada' && !resultado) {
+          return { ok: false, codigo: 'resultado_obligatorio', error: 'Registra el resultado de la llamada (contestó / no contestó)' }
+        }
+        if (resultado && !t.lead_id) {
+          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Una tarea de cliente no registra actividad de lead' }
+        }
+        // Tarea SIGUIENTE opcional (la sugerencia del motor, ya editada o no).
+        let sigLocal: Tarea | null = null
+        if (input.siguiente) {
+          if (!lead) return noEncontrado()
+          if (!esAbierto(lead)) {
+            return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — la siguiente tarea no aplica' }
+          }
+          if (!esTipoTarea(input.siguiente.tipo)) {
+            return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Tipo de la siguiente tarea inválido' }
+          }
+          const tituloSig = input.siguiente.titulo.trim()
+          const msSig = Date.parse(input.siguiente.vence_en)
+          if (!tituloSig || tituloSig.length > 200 || !Number.isFinite(msSig)) {
+            return { ok: false, codigo: 'nombre_obligatorio', error: 'La siguiente tarea necesita título y fecha válidos' }
+          }
+          sigLocal = {
+            id: uid(),
+            lead_id: lead.id,
+            vendedor_id: lead.vendedor_id ?? null,
+            asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+            tipo: input.siguiente.tipo,
+            titulo: tituloSig,
+            vence_en: new Date(msSig).toISOString(),
+            estado: 'pendiente',
+            reagendada_de: input.estado === 'no_show' ? t.id : null,
+            reprogramaciones: 0,
+            activo: true,
+            creado_en: new Date().toISOString(),
+          }
+        }
+        const detalle = input.resultado_detalle?.trim() || null
+        // OPTIMISTA: cierre + siguiente + resultado al timeline, todo local ya.
+        setTareas((prev) => {
+          const marcadas = prev.map((x) => (x.id === t.id ? { ...x, estado: input.estado } : x))
+          return sigLocal ? [sigLocal, ...marcadas] : marcadas
+        })
+        if (resultado && t.lead_id) {
+          const act = actividadAuto(t.lead_id, resultado, detalle)
+          setDatos((d) => ({ ...d, actividades: [act, ...d.actividades] }))
+        }
+        // REAL: la RPC crm.cerrar_tarea hace las tres escrituras EN UNA
+        // transacción (por eso no se usa actualizarTarea+insertarActividad).
+        const sig = sigLocal
+        persistir(() => cerrarTarea({
+          tarea_id: t.id,
+          estado: input.estado,
+          resultado_tipo: resultado,
+          resultado_detalle: detalle,
+          siguiente: sig
+            ? { tipo: sig.tipo, titulo: sig.titulo, vence_en: sig.vence_en }
+            : null,
+        }).then(() => undefined))
+        return { ok: true, ...(sigLocal ? { siguiente_id: sigLocal.id } : {}) }
+      },
 
       crearLead: (input) => {
         const bloqueo = bloqueoEscritura()
@@ -1008,7 +1180,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // El flujo de conversión (edge) escribe server-side; aquí se trae la verdad.
       recargar: () => (realActivo ? resincronizarReal() : Promise.resolve(true)),
     }
-  }, [datos, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal])
+  }, [datos, tareas, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal])
 
   // Estado de la carga remota para la app (splash / error+reintento / workspace).
   const estado = useMemo<StoreEstado>(() => ({

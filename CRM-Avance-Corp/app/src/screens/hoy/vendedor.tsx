@@ -3,12 +3,15 @@
 // suyos), así que aquí no hay ni ranking ni datos de otros vendedores — ni en
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
 import { useEffect, useMemo, useState, type CSSProperties, type JSX, type ReactNode } from 'react'
+import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import {
   AlertTriangle,
   CalendarDays,
   ChevronRight,
   CircleCheckBig,
+  ClipboardList,
   FileText,
+  MessageCircle,
   Phone,
   Target,
   TrendingUp,
@@ -37,7 +40,7 @@ import {
 } from '@/lib/inteligencia'
 import { useTipoCambio, usdAPen, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEV_COLOR } from '@/lib/semaforo'
-import { TIPO_EVENTO, type Lead } from '@/lib/tipos'
+import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import type { EventoAgenda } from '@/lib/store'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
@@ -157,30 +160,25 @@ function NotaUSD({
 const ICONO_EVENTO: Record<string, LucideIcon> = {
   reunion: Users,
   llamada: Phone,
+  whatsapp: MessageCircle,
+  tarea: ClipboardList,
   vencimiento: AlertTriangle,
 }
 
-const RANK_DIA: Record<string, number> = { Hoy: 0, Mañana: 1 }
-
-/** Clave cronológica: Hoy antes que Mañana; dentro del día, por hora. Sin hora → al final. */
-function claveOrden(cuando: string): number {
-  const [dia, hora] = cuando.split(' · ')
-  const rank = RANK_DIA[dia ?? ''] ?? 2
-  if (!hora) return rank * 100_000 + 99_999
-  const [h, m] = hora.split(':')
-  const min = Number(h) * 60 + Number(m ?? 0)
-  return rank * 100_000 + (Number.isFinite(min) ? min : 99_999)
-}
+// El orden ES el timestamp: vence_en asc pone las VENCIDAS primero (regla de
+// la investigación: nadie esconde vencidas) y el resto cronológico.
 
 /** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego. */
 function FilaAgenda({
   ev,
   lead,
   abrirLead,
+  onCompletar,
 }: {
   ev: EventoAgenda
   lead: Lead | undefined
   abrirLead: (id: string) => void
+  onCompletar?: ((id: string) => void) | undefined
 }): JSX.Element {
   const [dia, hora] = ev.cuando.split(' · ')
   const Icono = ICONO_EVENTO[ev.tipo] ?? CalendarDays
@@ -226,6 +224,20 @@ function FilaAgenda({
           )}
         </div>
       </div>
+      {onCompletar && (
+        <button
+          type="button"
+          aria-label={`Cerrar tarea — ${ev.titulo}`}
+          title="Cerrar tarea (registra el resultado y agenda la siguiente)"
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation()
+            onCompletar(ev.id)
+          }}
+        >
+          <CircleCheckBig className="size-4" aria-hidden />
+        </button>
+      )}
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )
@@ -248,8 +260,8 @@ function AgendaVacia({
       <p className="text-sm font-bold">Sin citas para hoy</p>
       <p className="max-w-[44ch] text-xs text-muted-foreground">
         {demo
-          ? 'El calendario con reuniones, llamadas y vencimientos llega muy pronto.'
-          : 'Aún no conectamos tu calendario. Mientras tanto, arma tu día desde “Tu siguiente acción”.'}
+          ? 'Agenda tareas desde la ficha de un lead y aparecerán aquí.'
+          : 'Agenda la próxima acción desde la ficha de un lead — ningún lead activo debería quedarse sin una.'}
       </p>
       {(nReuniones > 0 || nPropuestas > 0) && (
         <p className="text-[11px] font-semibold text-foreground/70">
@@ -267,6 +279,7 @@ function AgendaHoy({
   eventos,
   leadPorId,
   abrirLead,
+  onCompletar,
   demo,
   nReuniones,
   nPropuestas,
@@ -275,16 +288,20 @@ function AgendaHoy({
   eventos: EventoAgenda[]
   leadPorId: (id: string) => Lead | undefined
   abrirLead: (id: string) => void
+  onCompletar?: ((id: string) => void) | undefined
   demo: boolean
   nReuniones: number
   nPropuestas: number
   className?: string
 }): JSX.Element {
-  const ordenados = [...eventos].sort((a, b) => claveOrden(a.cuando) - claveOrden(b.cuando))
+  const ordenados = [...eventos].sort((a, b) => a.vence_en.localeCompare(b.vence_en))
   const nHoy = eventos.filter((e) => e.cuando.startsWith('Hoy')).length
-  const nVence = eventos.filter((e) => e.tipo === 'vencimiento').length
-  // Capital en juego HOY (dedupe por lead; PEN y USD SIEMPRE por separado).
-  const leadsHoy = Array.from(new Set(eventos.filter((e) => e.cuando.startsWith('Hoy')).map((e) => e.lead_id)))
+  const nVence = eventos.filter((e) => e.vencida).length
+  // Capital en juego HOY = citas de hoy + vencidas que siguen esperando
+  // (dedupe por lead; PEN y USD SIEMPRE por separado).
+  const leadsHoy = Array.from(new Set(
+    eventos.filter((e) => e.cuando.startsWith('Hoy') || e.vencida).map((e) => e.lead_id),
+  ))
     .map(leadPorId)
     .filter((l): l is Lead => l != null)
   const { pen, usd } = capitalPorMoneda(leadsHoy)
@@ -295,9 +312,9 @@ function AgendaHoy({
         icon={CalendarDays}
         title="Tu agenda de hoy"
         right={
-          nHoy > 0 ? (
+          nHoy > 0 || nVence > 0 ? (
             <Badge color={nVence > 0 ? '#d97706' : 'var(--accent)'}>
-              {nHoy} hoy{nVence > 0 ? ` · ${nVence} vence` : ''}
+              {nHoy} hoy{nVence > 0 ? ` · ${nVence} vencida${nVence === 1 ? '' : 's'}` : ''}
             </Badge>
           ) : undefined
         }
@@ -318,7 +335,7 @@ function AgendaHoy({
             {/* Citas centradas en el alto disponible → llenan la tarjeta sin hueco. */}
             <div className="flex flex-1 flex-col justify-center gap-1.5">
               {ordenados.map((ev) => (
-                <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} />
+                <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} onCompletar={onCompletar} />
               ))}
             </div>
           </>
@@ -331,9 +348,11 @@ function AgendaHoy({
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
-  const { ambito, actividades, agenda: agendaGlobal, objetivos } = useCRMData()
+  const { ambito, actividades, agenda: agendaGlobal, tareas, objetivos } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
+  // Motor (Fase B): tarea seleccionada para cerrar desde la agenda héroe.
+  const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
   // dependencia de la cola para que los "hace X" y semáforos se refresquen solos.
   const ahora = useAhora()
@@ -360,9 +379,15 @@ export function HoyVendedor(): JSX.Element {
   const conversion = mios.length > 0 ? Math.round((convertidos.length / mios.length) * 100) : 0
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
+  // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
+  // agenda; aquí solo quedan speed-to-lead y los que se quedaron sin plan.
+  const conTarea = useMemo(
+    () => new Set(tareas.filter((t) => t.estado === 'pendiente' && t.activo && t.lead_id).map((t) => t.lead_id as string)),
+    [tareas],
+  )
   const cola = useMemo(
-    () => colaDe(ambito.leads, actividades, ahora),
-    [ambito.leads, actividades, ahora],
+    () => colaDe(ambito.leads, actividades, ahora, undefined, conTarea),
+    [ambito.leads, actividades, ahora, conTarea],
   )
 
   // Agenda demo recortada a SUS leads.
@@ -428,6 +453,10 @@ export function HoyVendedor(): JSX.Element {
           eventos={agenda}
           leadPorId={leadPorId}
           abrirLead={abrirLead}
+          onCompletar={(id) => {
+            const t = tareas.find((x) => x.id === id)
+            if (t) setTareaACerrar(t)
+          }}
           demo={yo?.demo ?? false}
           nReuniones={reunionesAgendadas}
           nPropuestas={propuestas.length}
@@ -456,7 +485,7 @@ export function HoyVendedor(): JSX.Element {
                 </p>
               </div>
             ) : (
-              cola.map((item) => <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} />)
+              cola.map((item) => <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />)
             )}
           </CardContent>
         </Card>
@@ -523,6 +552,9 @@ export function HoyVendedor(): JSX.Element {
       <p className="text-[11px] text-muted-foreground">
         {yo?.demo ? 'Demo — ves' : 'Ves'} únicamente tu propia cartera; cada asesor trabaja solo con sus leads.
       </p>
+
+      {/* Motor Fase B: cierre 1-tap + siguiente sugerida desde la agenda héroe. */}
+      <CerrarTareaDialog tarea={tareaACerrar} onCerrar={() => setTareaACerrar(null)} />
     </div>
   )
 }
@@ -536,12 +568,26 @@ export function HoyVendedor(): JSX.Element {
 function FilaCola({
   item,
   abrirLead,
+  ahora,
 }: {
   item: ItemCola
   abrirLead: (id: string) => void
+  ahora?: number | undefined
 }): JSX.Element {
   const c = SEV_COLOR[item.sev]
   const abrir = () => abrirLead(item.lead.id)
+  // Speed-to-lead (evidencia: contactar cae ~100x entre el minuto 5 y el 30):
+  // para un lead SIN primer contacto el reloj se muestra en MINUTOS con
+  // semáforo, no en días — cumplir minutos es la ventaja más barata que hay.
+  const minutos = item.bucket === 'sin_responder' && ahora != null
+    ? Math.max(0, Math.floor((ahora - Date.parse(item.lead.creado_en)) / 60_000))
+    : null
+  const cronometro = minutos != null && minutos < 24 * 60
+    ? {
+        texto: minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)} h ${minutos % 60} m`,
+        color: minutos <= 5 ? '#16a34a' : minutos <= 15 ? '#d97706' : '#dc2626',
+      }
+    : null
   return (
     <div
       role="button"
@@ -568,9 +614,19 @@ function FilaCola({
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{item.motivo}</p>
       </div>
-      <span className="hidden shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
-        {diasTxt(item.dias)}
-      </span>
+      {cronometro ? (
+        <span
+          className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums sm:block"
+          style={{ color: cronometro.color, background: `color-mix(in srgb, ${cronometro.color} 12%, transparent)` }}
+          title="Tiempo desde que entró el lead — contactar en minutos multiplica el contacto"
+        >
+          {cronometro.texto}
+        </span>
+      ) : (
+        <span className="hidden shrink-0 text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
+          {diasTxt(item.dias)}
+        </span>
+      )}
       <AccionesContacto lead={item.lead} compacto soloIcono />
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>

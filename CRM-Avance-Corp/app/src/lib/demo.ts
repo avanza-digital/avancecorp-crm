@@ -7,10 +7,10 @@
 // (0.2–10 días) para que colaDe/estancados/semáforos (lib/inteligencia.ts)
 // produzcan señal en TODOS los roles. La cola y el ranking ya NO viven aquí:
 // se computan con colaDe() y metricasPorVendedor().
-import type { Actividad, Lead, Miembro } from './tipos'
+import type { Actividad, Lead, Miembro, Tarea } from './tipos'
 // Solo tipos (se borran al compilar): no crea ciclo con el import dinámico
 // que hace el store de este módulo.
-import type { EventoAgenda, ObjetivosPorRol, SeriesComerciales } from './store'
+import type { ObjetivosPorRol, SeriesComerciales } from './store'
 
 export const EQUIPO_DEMO: Miembro[] = [
   { perfil_id: 'd-ger', nombre_completo: 'GERENCIA DEMO', rol_crm: 'gerencia', supervisor_id: null, activo: true },
@@ -130,15 +130,18 @@ export const ACTIVIDADES_DEMO: Actividad[] = [
   { id: 'act43', lead_id: 'l20', tipo: 'llamada_realizada', detalle: 'Evalúa subir su contrato actual; quedó en avisar', autor_nombre: 'VENDEDOR TRES', creado_en: hace(8) },
 ]
 
-// Agenda del día (estática hasta F2) — lead_ids vigentes y con señal para TODOS
-// los roles: l2/l17 son de d-v1 (la sesión demo de vendedor), l3 de d-v2 y l4
-// de d-v3 (así supervisor, gerencia y directorio también ven eventos).
-export const AGENDA_DEMO: EventoAgenda[] = [
-  { id: 'a1', lead_id: 'l3', titulo: 'Reunión — CARLOS RUIZ MENDOZA', tipo: 'reunion', cuando: 'Hoy · 10:00', color: '#7c3aed' },
-  { id: 'a2', lead_id: 'l4', titulo: 'Llamada de seguimiento — ANA TORRES', tipo: 'llamada', cuando: 'Hoy · 15:30', color: '#2563eb' },
-  { id: 'a3', lead_id: 'l4', titulo: 'Vence propuesta — ANA TORRES QUISPE', tipo: 'vencimiento', cuando: 'Mañana', color: '#d97706' },
-  { id: 'a4', lead_id: 'l2', titulo: 'Llamada — MARÍA LÓPEZ CASTRO', tipo: 'llamada', cuando: 'Hoy · 09:30', color: '#2563eb' },
-  { id: 'a5', lead_id: 'l17', titulo: 'Vence propuesta — GLORIA NAVARRO', tipo: 'vencimiento', cuando: 'Hoy · 17:00', color: '#d97706' },
+// Tareas de agenda demo (espejo de crm.tareas) — lead_ids vigentes y con señal
+// para TODOS los roles: l2/l17 son de d-v1 (la sesión demo de vendedor), l3 de
+// d-v2 y l4 de d-v3. Las horas son RELATIVAS al reloj para que el semáforo demo
+// siempre muestre una vencida, cosas de hoy y una de mañana.
+const enHoras = (h: number) => new Date(Date.now() + h * 3_600_000).toISOString()
+
+export const TAREAS_DEMO: Tarea[] = [
+  { id: 't-d1', lead_id: 'l2', vendedor_id: 'd-v1', tipo: 'whatsapp', titulo: 'WhatsApp — MARÍA LÓPEZ CASTRO', vence_en: enHoras(-3), estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: hace(2) },
+  { id: 't-d2', lead_id: 'l3', vendedor_id: 'd-v2', tipo: 'reunion', titulo: 'Reunión — CARLOS RUIZ MENDOZA', vence_en: enHoras(2), duracion_min: 60, estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: hace(3) },
+  { id: 't-d3', lead_id: 'l4', vendedor_id: 'd-v3', tipo: 'llamada', titulo: 'Llamada de seguimiento — ANA TORRES', vence_en: enHoras(5), estado: 'pendiente', reprogramaciones: 1, activo: true, creado_en: hace(1) },
+  { id: 't-d4', lead_id: 'l17', vendedor_id: 'd-v1', tipo: 'llamada', titulo: 'Responder propuesta — GLORIA NAVARRO', vence_en: enHoras(7), estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: hace(1) },
+  { id: 't-d5', lead_id: 'l4', vendedor_id: 'd-v3', tipo: 'tarea', titulo: 'Preparar propuesta — ANA TORRES QUISPE', vence_en: enHoras(26), estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: hace(1) },
 ]
 
 // Series de tendencia (últimas 7 semanas) para los sparklines de los KPIs.

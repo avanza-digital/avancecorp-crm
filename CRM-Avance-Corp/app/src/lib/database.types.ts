@@ -36,6 +36,9 @@ type MonedaDb = 'PEN' | 'USD'
 // CHECK leads_genero_valido: binario (sexo del documento), nullable.
 type GeneroDb = 'F' | 'M'
 type CategoriaInteresDb = 'nuevo' | 'renovacion' | 'upgrade'
+// CHECKs de crm.tareas (20260718180001).
+type TipoTareaDb = 'llamada' | 'whatsapp' | 'reunion' | 'tarea'
+type EstadoTareaDb = 'pendiente' | 'completada' | 'cancelada' | 'no_show'
 type TipoActividadDb =
   | 'llamada_realizada'
   | 'llamada_no_contestada'
@@ -218,6 +221,10 @@ export interface Database {
           dni: string | null
           genero: GeneroDb | null
           fecha_nacimiento: string | null // date ISO 'YYYY-MM-DD' (sin hora)
+          // Capa legal (20260718180001): "No Insista" + registro de consentimiento.
+          no_contactar: boolean
+          consentimiento_en: string | null
+          consentimiento_fuente: string | null
           distrito: string | null
           origen: OrigenDb
           etapa: EtapaDb
@@ -244,6 +251,9 @@ export interface Database {
           dni?: string | null
           genero?: GeneroDb | null
           fecha_nacimiento?: string | null
+          no_contactar?: boolean
+          consentimiento_en?: string | null
+          consentimiento_fuente?: string | null
           distrito?: string | null
           origen?: OrigenDb
           etapa?: EtapaDb
@@ -264,6 +274,9 @@ export interface Database {
           dni?: string | null
           genero?: GeneroDb | null
           fecha_nacimiento?: string | null
+          no_contactar?: boolean
+          consentimiento_en?: string | null
+          consentimiento_fuente?: string | null
           distrito?: string | null
           origen?: OrigenDb
           etapa?: EtapaDb
@@ -297,6 +310,75 @@ export interface Database {
           creado_por?: string | null
         }
         Update: never // timeline inmutable (sin UPDATE/DELETE para clientes API)
+        Relationships: []
+      }
+      /** Agenda comercial (20260718180001): FUTURO mutable. "Vencida" se DERIVA
+       *  (pendiente + vence_en < now). La tenencia la fija el trigger desde el
+       *  lead (el payload no manda). Completar/no_show van SOLO por la RPC
+       *  cerrar_tarea; el UPDATE directo solo cancela o reprograma. */
+      tareas: {
+        Row: {
+          id: string
+          lead_id: string | null
+          perfil_id: string | null
+          vendedor_id: string | null
+          asignado_supervisor_id: string | null
+          tipo: TipoTareaDb
+          titulo: string
+          nota: string | null
+          vence_en: string
+          duracion_min: number | null
+          estado: EstadoTareaDb
+          resultado_actividad_id: string | null
+          reagendada_de: string | null
+          confirmada_en: string | null
+          reprogramaciones: number
+          activo: boolean
+          creado_por: string | null
+          creado_en: string
+          actualizado_en: string
+        }
+        Insert: {
+          id?: string
+          lead_id?: string | null
+          perfil_id?: string | null
+          tipo: TipoTareaDb
+          titulo: string
+          nota?: string | null
+          vence_en: string
+          duracion_min?: number | null
+          creado_por?: string | null
+        }
+        Update: {
+          titulo?: string
+          nota?: string | null
+          vence_en?: string // reprogramar: el trigger incrementa reprogramaciones
+          duracion_min?: number | null
+          estado?: EstadoTareaDb // solo 'cancelada' pasa el trigger sin la RPC
+          confirmada_en?: string | null
+          activo?: boolean
+        }
+        Relationships: []
+      }
+      /** Suscripción ICS (20260718120243): token secreto por miembro para el
+       *  feed de su agenda (edge crm-agenda-ics). RLS: SOLO la fila propia —
+       *  un token ajeno permitiría espiar la agenda de otro fuera del CRM.
+       *  Rotar el token invalida el enlace anterior; sin DELETE. */
+      agenda_ics: {
+        Row: {
+          perfil_id: string
+          token: string
+          creado_en: string
+          rotado_en: string | null
+        }
+        Insert: {
+          perfil_id: string
+          token?: string
+        }
+        Update: {
+          token?: string
+          rotado_en?: string | null
+        }
         Relationships: []
       }
     }
@@ -351,6 +433,23 @@ export interface Database {
       }
     }
     Functions: {
+      /** Cierre atómico de una tarea: resultado al log inmutable + siguiente
+       *  opcional, en una transacción (SECURITY DEFINER, ámbito adentro). */
+      cerrar_tarea: {
+        Args: {
+          p_tarea_id: string
+          p_estado: 'completada' | 'no_show' | 'cancelada'
+          p_resultado_tipo?: string | null
+          p_resultado_detalle?: string | null
+          p_siguiente?: Record<string, unknown> | null
+        }
+        Returns: {
+          ok: boolean
+          tarea_id: string
+          actividad_id: string | null
+          siguiente_id: string | null
+        }
+      }
       cronograma_contrato_fn: {
         Args: { p_contrato_id: string }
         Returns: {
@@ -444,6 +543,10 @@ export interface Database {
         }[]
       }
       metricas_distribucion_leads_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      metricas_distribucion_leads_v2_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
