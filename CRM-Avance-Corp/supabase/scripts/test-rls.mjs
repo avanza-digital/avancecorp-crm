@@ -8,8 +8,12 @@ import {
   BANK_CLIENT,
   BANK_CONTRACT,
   EXPECTED_LEAD_NAMES,
+  EXPECTED_TAREA_TITULOS,
   LEADS,
+  LEAD_BY_KEY,
   PRODUCTION_PROJECT_REF,
+  TAREAS,
+  TAREA_BY_KEY,
   TRANSIENT_IDS,
   USERS,
   USER_BY_KEY,
@@ -35,7 +39,8 @@ Variables requeridas:
 
 El gate comprueba lecturas exactas, aislamiento entre subarboles, escrituras
 cruzadas, inmutabilidad, usuario inactivo, directorio de solo lectura, acceso
-anonimo y ausencia de acceso bancario/contratos crudos desde los roles CRM.
+anonimo, la agenda de tareas (tenencia derivada del lead, cierre solo por RPC)
+y ausencia de acceso bancario/contratos crudos desde los roles CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
@@ -106,9 +111,9 @@ function printPreflight() {
   console.log(`✓ destino permitido: ${new URL(SUPABASE_URL).host}`);
   console.log(`✓ matriz: ${Object.keys(EXPECTED_LEAD_NAMES).length} sesiones`);
   for (const [key, names] of Object.entries(EXPECTED_LEAD_NAMES)) {
-    console.log(`  - ${key}: ${names.length} leads`);
+    console.log(`  - ${key}: ${names.length} leads, ${EXPECTED_TAREA_TITULOS[key].length} tareas`);
   }
-  console.log(`✓ fixtures: ${LEADS.length} leads, ${LEADS.length} actividades, 1 usuario inactivo`);
+  console.log(`✓ fixtures: ${LEADS.length} leads, ${LEADS.length} actividades, ${TAREAS.length} tareas, 1 usuario inactivo`);
   console.log('✓ fixtures: 1 cliente bancario + 1 contrato sensible');
   console.log('Preflight terminado; no se abrio ninguna conexion.');
 }
@@ -288,6 +293,23 @@ async function cleanupTransientRows() {
   // perfora esa garantia con hard-delete. Los ids son aleatorios por corrida y
   // el cierre usa el mismo soft-delete que produccion; el branch se destruye al
   // terminar el gate.
+  //
+  // Tareas transitorias: el cierre de produccion es por estado ('cancelada');
+  // el filtro estado='pendiente' evita tocar cerradas (inmutables por trigger).
+  // La tarea cerrada por la RPC y su actividad de resultado QUEDAN a proposito:
+  // el log es INSERT-only y ademas borrar esa actividad es imposible (el SET
+  // NULL de la FK resultado_actividad_id dispara el trigger de inmutabilidad
+  // sobre la tarea ya cerrada). Ids aleatorios + branch descartable lo cubren.
+  await requireAdmin(
+    'cancelar tareas transitorias pendientes',
+    admin.schema('crm').from('tareas').update({ estado: 'cancelada' }).in('id', [
+      TRANSIENT_IDS.foreignCreatorTarea,
+      TRANSIENT_IDS.directoryTarea,
+      TRANSIENT_IDS.portalClientTarea,
+      TRANSIENT_IDS.rpcCloseTarea,
+      TRANSIENT_IDS.taskFollowTarea,
+    ]).eq('estado', 'pendiente'),
+  );
   await requireAdmin(
     'desactivar leads transitorios',
     admin.schema('crm').from('leads').update({ activo: false }).in('id', [
@@ -298,6 +320,7 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.triggerSellerChangeLead,
       TRANSIENT_IDS.triggerSupervisorOnlyLead,
       TRANSIENT_IDS.triggerNoTenureLead,
+      TRANSIENT_IDS.taskFollowLead,
     ]),
   );
 }
@@ -377,6 +400,32 @@ async function verifySeed() {
     assertSeed(activity?.lead_id === lead.id, `actividad de ${fixture.key} apunta a otro lead`);
   }
 
+  const tareasResponse = await requireAdmin(
+    'precondicion crm.tareas',
+    admin.schema('crm').from('tareas')
+      .select('*', { count: 'exact' })
+      .in('id', TAREAS.map((tarea) => tarea.id)),
+  );
+  assertSeed(tareasResponse.count === TAREAS.length,
+    `se esperaban ${TAREAS.length} tareas y el count exacto dio ${tareasResponse.count}`);
+  assertSeed(tareasResponse.data.length === TAREAS.length,
+    `se esperaban ${TAREAS.length} tareas y hay ${tareasResponse.data.length}`);
+  const tareaById = new Map(tareasResponse.data.map((row) => [row.id, row]));
+  for (const fixture of TAREAS) {
+    const row = tareaById.get(fixture.id);
+    const lead = leadByName.get(LEAD_BY_KEY[fixture.leadKey].name);
+    assertSeed(row, `falta tarea ${fixture.key}`);
+    assertSeed(row.activo === true, `tarea ${fixture.key} no esta activa`);
+    assertSeed(row.estado === 'pendiente', `tarea ${fixture.key} no esta pendiente`);
+    assertSeed(row.titulo === fixture.titulo, `tarea ${fixture.key}.titulo no coincide`);
+    assertSeed(row.lead_id === lead.id, `tarea ${fixture.key} apunta a otro lead`);
+    // La tenencia la derivo el before-insert trigger: debe ser espejo del lead.
+    assertSeed(row.vendedor_id === lead.vendedor_id,
+      `tarea ${fixture.key}.vendedor_id no es espejo del lead`);
+    assertSeed(row.asignado_supervisor_id === lead.asignado_supervisor_id,
+      `tarea ${fixture.key}.asignado_supervisor_id no es espejo del lead`);
+  }
+
   const bankProfile = profileByEmail.get(USER_BY_KEY[BANK_CLIENT.key].email);
   assertSeed(bankProfile.dni === BANK_CLIENT.dni, 'DNI del cliente bancario no coincide');
   assertSeed(bankProfile.asesor_perfil_id === profileIdByKey[BANK_CLIENT.adviserKey],
@@ -406,6 +455,8 @@ async function verifySeed() {
     leads: leadsResponse.data,
     profileIdByKey,
     profiles: profilesResponse.data,
+    tareaById,
+    tareas: tareasResponse.data,
   };
 }
 
@@ -541,6 +592,30 @@ async function readVisibilityMatrix(sessions, seed) {
       `vio ${actualIds.length}`);
   }
 
+  console.log('\n— Tareas de agenda siguen la misma cartera —');
+  const allTareaIds = TAREAS.map((tarea) => tarea.id);
+  for (const [key, expectedTitulos] of Object.entries(EXPECTED_TAREA_TITULOS)) {
+    const session = sessions[key];
+    if (!session) continue;
+    const response = await positive(
+      `${key} consulta tareas fixture`,
+      session.client.schema('crm').from('tareas')
+        .select('id, titulo, lead_id', { count: 'exact' })
+        .in('id', allTareaIds),
+    );
+    if (!response) continue;
+    const actualTitulos = response.data.map((row) => row.titulo);
+    check(response.count === response.data.length,
+      `${key}: count exact de tareas coincide`,
+      `count=${response.count}, filas=${response.data.length}`);
+    check(response.data.length === expectedTitulos.length,
+      `${key} ve ${expectedTitulos.length} tarea(s)`,
+      `vio ${response.data.length}`);
+    check(sameStrings(actualTitulos, expectedTitulos),
+      `${key} ve exactamente sus tareas`,
+      `esperado=[${expectedTitulos.join(', ')}], real=[${sorted(actualTitulos).join(', ')}]`);
+  }
+
   console.log('\n— Membresia y desactivacion —');
   for (const user of USERS.filter((candidate) => candidate.crmRole && candidate.crmActive)) {
     const session = sessions[user.key];
@@ -596,6 +671,17 @@ async function readOneLead(session, id, label) {
     label,
     session.client.schema('crm').from('leads')
       .select('id, vendedor_id, asignado_supervisor_id, nota, activo')
+      .eq('id', id)
+      .single(),
+  );
+  return response?.data ?? null;
+}
+
+async function readOneTarea(session, id, label) {
+  const response = await positive(
+    label,
+    session.client.schema('crm').from('tareas')
+      .select('id, vendedor_id, asignado_supervisor_id, estado, nota, resultado_actividad_id')
       .eq('id', id)
       .single(),
   );
@@ -1030,6 +1116,306 @@ async function testReassignmentTrigger(sessions, seed) {
   }
 }
 
+async function testTareaIsolation(sessions, seed) {
+  console.log('\n— Agenda: aislamiento y privilegios de crm.tareas —');
+  const llamadaJuan = TAREA_BY_KEY.llamadaJuan;
+  const reunionCarlos = TAREA_BY_KEY.reunionCarlos;
+  const whatsappAna = TAREA_BY_KEY.whatsappAna;
+  const bandejaLuis = TAREA_BY_KEY.bandejaLuis;
+  const juan = seed.leadByName.get('JUAN PEREZ DEMO');
+  const vend3Id = seed.profileIdByKey.vend3;
+
+  await expectHidden(
+    'vend1 no lee la tarea de otro subarbol',
+    sessions.vend1.client.schema('crm').from('tareas').select('id').eq('id', whatsappAna.id),
+  );
+  await expectHidden(
+    'vend3 no lee la tarea de la rama anidada de sup1',
+    sessions.vend3.client.schema('crm').from('tareas').select('id').eq('id', reunionCarlos.id),
+  );
+  await expectHidden(
+    'sup1 no lee la tarea del equipo de sup2',
+    sessions.sup1.client.schema('crm').from('tareas').select('id').eq('id', whatsappAna.id),
+  );
+  await expectHidden(
+    'sup2 no lee la bandeja de tareas de sup1',
+    sessions.sup2.client.schema('crm').from('tareas').select('id').eq('id', bandejaLuis.id),
+  );
+  await expectHidden(
+    'vend1 no lee la tarea de bandeja de su propio supervisor',
+    sessions.vend1.client.schema('crm').from('tareas').select('id').eq('id', bandejaLuis.id),
+  );
+
+  await expectBlockedMutation(
+    'vend1 no actualiza una tarea ajena',
+    sessions.vend1.client.schema('crm').from('tareas')
+      .update({ nota: 'NO DEBE CAMBIAR' }, { count: 'exact' })
+      .eq('id', whatsappAna.id)
+      .select('id'),
+  );
+  await expectBlockedMutation(
+    'sup1 no actualiza tareas del subarbol de sup2',
+    sessions.sup1.client.schema('crm').from('tareas')
+      .update({ nota: 'NO DEBE CAMBIAR' }, { count: 'exact' })
+      .eq('id', whatsappAna.id)
+      .select('id'),
+  );
+  const anaTarea = await readOneTarea(
+    sessions.vend3,
+    whatsappAna.id,
+    'verificar tarea ajena tras escrituras cruzadas',
+  );
+  if (anaTarea) {
+    check(anaTarea.nota === null && anaTarea.estado === 'pendiente'
+        && anaTarea.vendedor_id === vend3Id,
+    'la tarea ajena no fue alterada');
+  }
+
+  // Sin DELETE para nadie del API: ni el dueno ni gerencia.
+  await expectBlockedMutation(
+    'vend1 no puede hacer hard-delete ni de su propia tarea',
+    sessions.vend1.client.schema('crm').from('tareas')
+      .delete({ count: 'exact' })
+      .eq('id', llamadaJuan.id)
+      .select('id'),
+  );
+  await expectBlockedMutation(
+    'gerencia tampoco puede hacer hard-delete de tareas',
+    sessions.gerencia.client.schema('crm').from('tareas')
+      .delete({ count: 'exact' })
+      .eq('id', llamadaJuan.id)
+      .select('id'),
+  );
+
+  await expectBlockedMutation(
+    'vend1 no inserta una tarea acreditando a otro creador',
+    sessions.vend1.client.schema('crm').from('tareas').insert({
+      creado_por: vend3Id,
+      id: TRANSIENT_IDS.foreignCreatorTarea,
+      lead_id: juan.id,
+      tipo: 'tarea',
+      titulo: 'RLS CREADOR AJENO TRANSIENT',
+      vence_en: '2026-08-01T15:00:00Z',
+    }).select('id'),
+  );
+
+  // Completar va SOLO por la RPC: el trigger corta el UPDATE directo (P0001).
+  await expectBlockedMutation(
+    'vend1 no completa su tarea por UPDATE directo',
+    sessions.vend1.client.schema('crm').from('tareas')
+      .update({ estado: 'completada' }, { count: 'exact' })
+      .eq('id', llamadaJuan.id)
+      .select('id'),
+    ['P0001'],
+  );
+  const juanTarea = await readOneTarea(
+    sessions.vend1,
+    llamadaJuan.id,
+    'verificar tarea propia tras intento de cierre directo',
+  );
+  if (juanTarea) check(juanTarea.estado === 'pendiente', 'la tarea fixture sigue pendiente');
+
+  await expectBlockedMutation(
+    'directorio no actualiza tareas aunque pueda leerlas',
+    sessions.directorio.client.schema('crm').from('tareas')
+      .update({ nota: 'NO DEBE CAMBIAR' }, { count: 'exact' })
+      .eq('id', llamadaJuan.id)
+      .select('id'),
+  );
+  await expectBlockedMutation(
+    'directorio no inserta tareas',
+    sessions.directorio.client.schema('crm').from('tareas').insert({
+      creado_por: sessions.directorio.user.id,
+      id: TRANSIENT_IDS.directoryTarea,
+      lead_id: juan.id,
+      tipo: 'tarea',
+      titulo: 'RLS DIRECTORIO TAREA TRANSIENT',
+      vence_en: '2026-08-02T15:00:00Z',
+    }).select('id'),
+  );
+  await expectBlockedMutation(
+    'directorio no cierra tareas por la RPC',
+    sessions.directorio.client.schema('crm').rpc('cerrar_tarea', {
+      p_estado: 'completada',
+      p_resultado_tipo: 'llamada_realizada',
+      p_tarea_id: llamadaJuan.id,
+    }),
+    ['P0001'],
+  );
+
+  await expectHidden(
+    'cliente del portal no lee tareas CRM',
+    sessions.clientBank.client.schema('crm').from('tareas').select('id').eq('id', llamadaJuan.id),
+  );
+  await expectBlockedMutation(
+    'cliente del portal no inserta tareas CRM',
+    sessions.clientBank.client.schema('crm').from('tareas').insert({
+      creado_por: sessions.clientBank.user.id,
+      id: TRANSIENT_IDS.portalClientTarea,
+      lead_id: juan.id,
+      tipo: 'tarea',
+      titulo: 'RLS CLIENTE TAREA TRANSIENT',
+      vence_en: '2026-08-02T16:00:00Z',
+    }).select('id'),
+  );
+}
+
+async function testTareaCloseRpc(sessions, seed) {
+  console.log('\n— Agenda: cierre atomico por crm.cerrar_tarea —');
+  const juan = seed.leadByName.get('JUAN PEREZ DEMO');
+  const vend1 = sessions.vend1;
+  const vend1Id = seed.profileIdByKey.vend1;
+
+  const inserted = await positive(
+    'vend1 agenda una llamada sobre su propio lead',
+    vend1.client.schema('crm').from('tareas').insert({
+      creado_por: vend1.user.id,
+      id: TRANSIENT_IDS.rpcCloseTarea,
+      lead_id: juan.id,
+      tipo: 'llamada',
+      titulo: 'RLS RPC CIERRE TRANSIENT',
+      vence_en: '2026-08-03T15:00:00Z',
+    }).select('id, vendedor_id, asignado_supervisor_id, estado').single(),
+  );
+  if (!inserted) return;
+  check(inserted.data.vendedor_id === vend1Id && inserted.data.asignado_supervisor_id === null,
+    'el trigger derivo la tenencia de la tarea desde el lead');
+  check(inserted.data.estado === 'pendiente', 'la tarea transitoria nace pendiente');
+
+  const closed = await positive(
+    'vend1 cierra SU tarea con la RPC (completada + resultado)',
+    vend1.client.schema('crm').rpc('cerrar_tarea', {
+      p_estado: 'completada',
+      p_resultado_detalle: 'RLS RPC CIERRE TRANSIENT',
+      p_resultado_tipo: 'llamada_realizada',
+      p_tarea_id: TRANSIENT_IDS.rpcCloseTarea,
+    }),
+  );
+  if (!closed) return;
+  const actividadId = closed.data?.actividad_id ?? null;
+  check(closed.data?.ok === true && Boolean(actividadId),
+    'la RPC devolvio ok y el id de la actividad de resultado');
+
+  const tareaAfter = await readOneTarea(
+    vend1,
+    TRANSIENT_IDS.rpcCloseTarea,
+    'releer la tarea cerrada por la RPC',
+  );
+  if (tareaAfter) {
+    check(tareaAfter.estado === 'completada', 'la tarea quedo completada');
+    check(tareaAfter.resultado_actividad_id === actividadId,
+      'la tarea apunta a la actividad del log');
+  }
+
+  if (actividadId) {
+    const actividad = await positive(
+      'vend1 lee la actividad que registro el cierre',
+      vend1.client.schema('crm').from('actividades')
+        .select('id, lead_id, tipo, creado_por')
+        .eq('id', actividadId)
+        .single(),
+    );
+    if (actividad) {
+      check(actividad.data.lead_id === juan.id
+          && actividad.data.tipo === 'llamada_realizada'
+          && actividad.data.creado_por === vend1.user.id,
+      'la actividad de cierre quedo en el log del lead correcto');
+    }
+  }
+
+  // Cerrada => inmutable: nadie la reabre por UPDATE directo (trigger P0001).
+  await expectBlockedMutation(
+    'vend1 no reabre una tarea cerrada',
+    vend1.client.schema('crm').from('tareas')
+      .update({ estado: 'pendiente' }, { count: 'exact' })
+      .eq('id', TRANSIENT_IDS.rpcCloseTarea)
+      .select('id'),
+    ['P0001'],
+  );
+  // Restauracion: ver cleanupTransientRows — la tarea cerrada y su actividad de
+  // resultado QUEDAN (log INSERT-only; borrar la actividad es imposible porque
+  // el SET NULL de la FK dispara el trigger de inmutabilidad de la cerrada).
+}
+
+async function testTareaFollowsLead(sessions, seed) {
+  console.log('\n— Agenda: la tarea pendiente sigue al lead reasignado —');
+  const sup1 = sessions.sup1;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1Id = seed.profileIdByKey.vend1;
+  const vend2Id = seed.profileIdByKey.vend2;
+
+  await requireAdmin(
+    'crear lead transitorio para el seguimiento de tareas',
+    admin.schema('crm').from('leads').insert({
+      asignado_supervisor_id: null,
+      creado_por: sup1Id,
+      etapa: 'nuevo',
+      id: TRANSIENT_IDS.taskFollowLead,
+      moneda: 'PEN',
+      monto_estimado: 1000,
+      nombre_completo: 'TAREA SIGUE AL LEAD TRANSIENT',
+      origen: 'otro',
+      telefono: '999000010',
+      vendedor_id: vend1Id,
+    }),
+  );
+
+  const inserted = await positive(
+    'vend1 agenda una tarea sobre el lead transitorio',
+    sessions.vend1.client.schema('crm').from('tareas').insert({
+      creado_por: sessions.vend1.user.id,
+      id: TRANSIENT_IDS.taskFollowTarea,
+      lead_id: TRANSIENT_IDS.taskFollowLead,
+      tipo: 'whatsapp',
+      titulo: 'RLS TAREA SIGUE AL LEAD TRANSIENT',
+      vence_en: '2026-08-04T15:00:00Z',
+    }).select('id, vendedor_id').single(),
+  );
+  if (!inserted) return;
+  check(inserted.data.vendedor_id === vend1Id, 'la tarea nace con la tenencia del lead (vend1)');
+
+  const reassigned = await positive(
+    'sup1 reasigna el lead transitorio de vend1 a vend2',
+    sup1.client.schema('crm').from('leads')
+      .update({ vendedor_id: vend2Id })
+      .eq('id', TRANSIENT_IDS.taskFollowLead)
+      .select('id, vendedor_id')
+      .single(),
+  );
+  if (!reassigned) return;
+
+  const tareaRow = await requireAdmin(
+    'leer la tarea tras la reasignacion (service_role)',
+    admin.schema('crm').from('tareas')
+      .select('vendedor_id, asignado_supervisor_id, estado')
+      .eq('id', TRANSIENT_IDS.taskFollowTarea)
+      .single(),
+  );
+  check(tareaRow.data.vendedor_id === vend2Id && tareaRow.data.asignado_supervisor_id === null,
+    'la tarea pendiente siguio al nuevo vendedor',
+    `vendedor_id=${tareaRow.data.vendedor_id}`);
+  check(tareaRow.data.estado === 'pendiente', 'el seguimiento no altero el estado de la tarea');
+
+  const vend2Read = await positive(
+    'vend2 ya ve la tarea que siguio a su lead',
+    sessions.vend2.client.schema('crm').from('tareas')
+      .select('id')
+      .eq('id', TRANSIENT_IDS.taskFollowTarea)
+      .single(),
+  );
+  if (vend2Read) {
+    check(vend2Read.data.id === TRANSIENT_IDS.taskFollowTarea, 'vend2 lee la tarea reasignada');
+  }
+  await expectHidden(
+    'vend1 dejo de ver la tarea que siguio al lead',
+    sessions.vend1.client.schema('crm').from('tareas')
+      .select('id')
+      .eq('id', TRANSIENT_IDS.taskFollowTarea),
+  );
+  // Restauracion: cleanupTransientRows desactiva el lead transitorio y el
+  // trigger de coherencia cancela su tarea pendiente (mismo cierre que prod).
+}
+
 async function testBankingBoundary(sessions, seed) {
   console.log('\n— Frontera portal/CRM y datos bancarios —');
   const vend1 = sessions.vend1.client;
@@ -1134,6 +1520,10 @@ async function testAnon(seed) {
     anon.schema('crm').from('actividades').select('id').eq('id', LEADS[0].activityId),
   );
   await expectHidden(
+    'anon no lee crm.tareas',
+    anon.schema('crm').from('tareas').select('id').eq('id', TAREA_BY_KEY.llamadaJuan.id),
+  );
+  await expectHidden(
     'anon no lee datos bancarios public.perfiles',
     anon.from('perfiles').select('id, banco, numero_cuenta, cci').eq('id', bankProfileId),
   );
@@ -1165,6 +1555,9 @@ async function main() {
       await testCrossReads(sessions, verifiedSeed);
       await testWrites(sessions, verifiedSeed);
       await testReassignmentTrigger(sessions, verifiedSeed);
+      await testTareaIsolation(sessions, verifiedSeed);
+      await testTareaCloseRpc(sessions, verifiedSeed);
+      await testTareaFollowsLead(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }

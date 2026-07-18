@@ -242,6 +242,81 @@ export const EXPECTED_LEAD_NAMES = Object.freeze({
   clientBank: [],
 });
 
+// Agenda comercial: los fixtures NO declaran tenencia (vendedor_id /
+// asignado_supervisor_id): la DERIVA el before-insert trigger del lead
+// referenciado y los triggers de coherencia la mantienen. Por eso cada tarea
+// solo apunta a un leadKey; la matriz esperada se computa desde ese lead.
+export const TAREAS = Object.freeze([
+  {
+    key: 'llamadaJuan',
+    id: '44000000-0000-4000-8000-000000000001',
+    leadKey: 'juan',
+    tipo: 'llamada',
+    titulo: 'LLAMAR A JUAN PEREZ DEMO',
+    venceEn: '2026-07-20T15:00:00Z',
+    estado: 'pendiente',
+  },
+  {
+    key: 'reunionCarlos',
+    id: '44000000-0000-4000-8000-000000000002',
+    leadKey: 'carlos',
+    tipo: 'reunion',
+    titulo: 'REUNION CON CARLOS RUIZ DEMO',
+    venceEn: '2026-07-21T16:30:00Z',
+    estado: 'pendiente',
+  },
+  {
+    key: 'whatsappAna',
+    id: '44000000-0000-4000-8000-000000000003',
+    leadKey: 'ana',
+    tipo: 'whatsapp',
+    titulo: 'WHATSAPP A ANA TORRES DEMO',
+    venceEn: '2026-07-22T14:00:00Z',
+    estado: 'pendiente',
+  },
+  {
+    key: 'bandejaLuis',
+    id: '44000000-0000-4000-8000-000000000004',
+    leadKey: 'luis',
+    tipo: 'tarea',
+    titulo: 'REVISAR LEAD PARKEADO LUIS DEMO',
+    venceEn: '2026-07-23T13:00:00Z',
+    estado: 'pendiente',
+  },
+  {
+    key: 'bandejaRosa',
+    id: '44000000-0000-4000-8000-000000000005',
+    leadKey: 'rosa',
+    tipo: 'tarea',
+    titulo: 'REVISAR LEAD PARKEADO ROSA DEMO',
+    venceEn: '2026-07-24T13:00:00Z',
+    estado: 'pendiente',
+  },
+]);
+
+export const TAREA_BY_KEY = Object.freeze(
+  Object.fromEntries(TAREAS.map((tarea) => [tarea.key, tarea])),
+);
+
+const tareaTitulos = (...keys) => keys.map((key) => TAREA_BY_KEY[key].titulo).sort();
+
+// Consumida por test-rls.mjs igual que EXPECTED_LEAD_NAMES: la visibilidad de
+// una tarea es EXACTAMENTE la del lead del que cuelga (RLS calcada de leads_*).
+export const EXPECTED_TAREA_TITULOS = Object.freeze({
+  gerencia: tareaTitulos('llamadaJuan', 'reunionCarlos', 'whatsappAna', 'bandejaLuis', 'bandejaRosa'),
+  sup1: tareaTitulos('llamadaJuan', 'reunionCarlos', 'bandejaLuis'),
+  sup2: tareaTitulos('whatsappAna', 'bandejaRosa'),
+  sup1Nested: tareaTitulos('reunionCarlos'),
+  vend1: tareaTitulos('llamadaJuan'),
+  vend2: [],
+  vend3: tareaTitulos('whatsappAna'),
+  vend4: [],
+  vendNested: tareaTitulos('reunionCarlos'),
+  vendInactive: [],
+  directorio: tareaTitulos('llamadaJuan', 'reunionCarlos', 'whatsappAna', 'bandejaLuis', 'bandejaRosa'),
+  clientBank: [],
+});
+
 export const BANK_CLIENT = Object.freeze({
   key: 'clientBank',
   dni: '90000001',
@@ -283,6 +358,12 @@ export const TRANSIENT_IDS = Object.freeze({
   triggerSellerChangeLead: randomUUID(),
   triggerSupervisorOnlyLead: randomUUID(),
   triggerNoTenureLead: randomUUID(),
+  foreignCreatorTarea: randomUUID(),
+  directoryTarea: randomUUID(),
+  portalClientTarea: randomUUID(),
+  rpcCloseTarea: randomUUID(),
+  taskFollowLead: randomUUID(),
+  taskFollowTarea: randomUUID(),
 });
 
 export function normalizePeruPhone(phone) {
@@ -305,6 +386,9 @@ export function validateFixtureModel() {
   unique(LEADS.map((lead) => lead.activityId), 'lead.activityId');
   unique(LEADS.map((lead) => lead.name), 'lead.name');
   unique(LEADS.map((lead) => normalizePeruPhone(lead.phone)), 'lead.phone');
+  unique(TAREAS.map((tarea) => tarea.key), 'tarea.key');
+  unique(TAREAS.map((tarea) => tarea.id), 'tarea.id');
+  unique(TAREAS.map((tarea) => tarea.titulo), 'tarea.titulo');
   unique(Object.values(TRANSIENT_IDS), 'TRANSIENT_IDS');
 
   for (const user of USERS) {
@@ -345,10 +429,40 @@ export function validateFixtureModel() {
     }
   }
 
+  const TAREA_TIPOS_VALIDOS = new Set(['llamada', 'whatsapp', 'reunion', 'tarea']);
+  for (const tarea of TAREAS) {
+    if (!LEAD_BY_KEY[tarea.leadKey]) {
+      throw new Error(`Fixtures invalidos: lead inexistente para la tarea ${tarea.key}.`);
+    }
+    if (!TAREA_TIPOS_VALIDOS.has(tarea.tipo)) {
+      throw new Error(`Fixtures invalidos: tipo de tarea invalido para ${tarea.key}.`);
+    }
+    const titulo = String(tarea.titulo ?? '').trim();
+    if (titulo.length < 1 || titulo.length > 200) {
+      throw new Error(`Fixtures invalidos: titulo fuera del CHECK para ${tarea.key}.`);
+    }
+    // Espejo del CHECK tareas_vence_en_cuerda: fecha fija dentro de [2026, 2100).
+    const venceEn = Date.parse(tarea.venceEn);
+    if (
+      !Number.isFinite(venceEn)
+      || venceEn < Date.parse('2026-01-01T00:00:00Z')
+      || venceEn >= Date.parse('2100-01-01T00:00:00Z')
+    ) {
+      throw new Error(`Fixtures invalidos: vence_en fuera del CHECK para ${tarea.key}.`);
+    }
+    if (tarea.estado !== 'pendiente') {
+      throw new Error(`Fixtures invalidos: la tarea ${tarea.key} debe nacer pendiente.`);
+    }
+  }
+
   const matrixKeys = Object.keys(EXPECTED_LEAD_NAMES).sort();
   const sessionKeys = USERS.map((user) => user.key).sort();
   if (JSON.stringify(matrixKeys) !== JSON.stringify(sessionKeys)) {
     throw new Error('Fixtures invalidos: la matriz no cubre exactamente todos los usuarios demo.');
+  }
+  const tareaMatrixKeys = Object.keys(EXPECTED_TAREA_TITULOS).sort();
+  if (JSON.stringify(tareaMatrixKeys) !== JSON.stringify(sessionKeys)) {
+    throw new Error('Fixtures invalidos: la matriz de tareas no cubre exactamente todos los usuarios demo.');
   }
 
   const descendantsOf = (rootKey) => {
@@ -366,23 +480,38 @@ export function validateFixtureModel() {
     return visible;
   };
 
+  // Un lead es visible para el usuario segun la jerarquia recomputada; la tarea
+  // hereda EXACTAMENTE esa visibilidad porque su tenencia se deriva del lead.
+  const leadVisibleFor = (user, lead, visibleOwners) => {
+    if (user.crmRole === 'gerencia') return true;
+    if (lead.sellerKey) return visibleOwners.has(lead.sellerKey);
+    return lead.supervisorKey ? visibleOwners.has(lead.supervisorKey) : false;
+  };
+
   for (const user of USERS) {
     let expected = [];
+    let expectedTareas = [];
     if (user.portalRole === 'directorio') {
       expected = LEADS.map((lead) => lead.name);
+      expectedTareas = TAREAS.map((tarea) => tarea.titulo);
     } else if (user.crmRole && user.crmActive) {
       const visibleOwners = user.crmRole === 'gerencia'
         ? new Set(USERS.filter((candidate) => candidate.crmRole).map((candidate) => candidate.key))
         : descendantsOf(user.key);
-      expected = LEADS.filter((lead) => {
-        if (user.crmRole === 'gerencia') return true;
-        if (lead.sellerKey) return visibleOwners.has(lead.sellerKey);
-        return lead.supervisorKey ? visibleOwners.has(lead.supervisorKey) : false;
-      }).map((lead) => lead.name);
+      expected = LEADS
+        .filter((lead) => leadVisibleFor(user, lead, visibleOwners))
+        .map((lead) => lead.name);
+      expectedTareas = TAREAS
+        .filter((tarea) => leadVisibleFor(user, LEAD_BY_KEY[tarea.leadKey], visibleOwners))
+        .map((tarea) => tarea.titulo);
     }
     const declared = [...EXPECTED_LEAD_NAMES[user.key]].sort();
     if (JSON.stringify(expected.sort()) !== JSON.stringify(declared)) {
       throw new Error(`Fixtures invalidos: matriz incoherente para ${user.key}.`);
+    }
+    const declaredTareas = [...EXPECTED_TAREA_TITULOS[user.key]].sort();
+    if (JSON.stringify(expectedTareas.sort()) !== JSON.stringify(declaredTareas)) {
+      throw new Error(`Fixtures invalidos: matriz de tareas incoherente para ${user.key}.`);
     }
   }
 }

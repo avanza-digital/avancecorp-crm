@@ -11,6 +11,7 @@ import {
   BANK_CONTRACT,
   LEADS,
   PRODUCTION_PROJECT_REF,
+  TAREAS,
   USERS,
   normalizePeruPhone,
   validateFixtureModel,
@@ -97,6 +98,7 @@ function printPlan() {
   console.log(`✓ plan: ${USERS.length} usuarios Auth/perfil`);
   console.log(`✓ plan: ${crmUsers.length} miembros CRM (${activeCrmUsers.length} activos, ${crmUsers.length - activeCrmUsers.length} inactivo)`);
   console.log(`✓ plan: ${LEADS.length} leads y ${LEADS.length} actividades deterministas`);
+  console.log(`✓ plan: ${TAREAS.length} tareas de agenda deterministas (tenencia derivada del lead)`);
   console.log('✓ plan: 1 cliente bancario y 1 contrato sensible de prueba');
   console.log('Preflight terminado; no se abrio ninguna conexion.');
 }
@@ -283,6 +285,32 @@ async function ensureActivity(fixture, leadId) {
   );
 }
 
+async function ensureTarea(fixture, leadId) {
+  // Idempotente: se busca por id antes de insertar. Si ya existe NO se
+  // reescribe: una tarea cerrada es inmutable por trigger y una pendiente no
+  // debe acumular reprogramaciones por re-sembrar.
+  const existing = await requireResponse(
+    `buscar tarea ${fixture.key} por UUID`,
+    admin.schema('crm').from('tareas').select('id').eq('id', fixture.id).maybeSingle(),
+  );
+  if (existing.data) return;
+
+  // La tenencia NO se envia: la deriva el before-insert trigger del lead (los
+  // leads fixture estan abiertos, asi que el insert pasa el gate del trigger).
+  await requireResponse(
+    `crear tarea ${fixture.key}`,
+    admin.schema('crm').from('tareas').insert({
+      creado_por: ids.gerencia,
+      estado: fixture.estado,
+      id: fixture.id,
+      lead_id: leadId,
+      tipo: fixture.tipo,
+      titulo: fixture.titulo,
+      vence_en: fixture.venceEn,
+    }),
+  );
+}
+
 async function ensureBankContract() {
   const existing = await requireResponse(
     'buscar contrato bancario fixture',
@@ -324,9 +352,14 @@ async function main() {
 
   await ensureTeam({ activateForSeed: true });
   try {
+    const leadIdByKey = Object.create(null);
     for (const fixture of LEADS) {
       const leadId = await ensureLead(fixture);
       await ensureActivity(fixture, leadId);
+      leadIdByKey[fixture.key] = leadId;
+    }
+    for (const fixture of TAREAS) {
+      await ensureTarea(fixture, leadIdByKey[fixture.leadKey]);
     }
   } finally {
     // Tambien corre si falla un fixture: nunca deja habilitado por accidente al
@@ -334,6 +367,7 @@ async function main() {
     await ensureTeam();
   }
   console.log(`✓ ${LEADS.length} leads y ${LEADS.length} actividades deterministas`);
+  console.log(`✓ ${TAREAS.length} tareas de agenda deterministas`);
 
   const teamCount = USERS.filter((user) => user.crmRole).length;
   const inactiveCount = USERS.filter((user) => user.crmRole && !user.crmActive).length;
