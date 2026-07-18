@@ -4,7 +4,7 @@
 // así la misma función sirve para vendedor/supervisor/gerencia/directorio.
 //
 // Los colores salen de lib/semaforo.ts (paleta única, sin verde en el chrome).
-import { ETAPAS, ORIGENES, TERMINALES_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
+import { ETAPAS, ORIGENES_TODOS, TERMINALES_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
 import { SEMAFORO } from './semaforo'
 
 export const DIA_MS = 86_400_000
@@ -255,7 +255,7 @@ export function embudo(leads: Lead[]): Array<{ etapa: EtapaActiva; n: number; pc
 export function conversionPorOrigen(leads: Lead[]): Array<{ origen: string; label: string; total: number; convertidos: number; pct: number }> {
   const vivos = leads.filter((l) => l.activo)
   const filas: Array<{ origen: string; label: string; total: number; convertidos: number; pct: number }> = []
-  for (const o of ORIGENES) {
+  for (const o of ORIGENES_TODOS) {
     const del = vivos.filter((l) => l.origen === o.k)
     if (del.length === 0) continue
     const convertidos = del.filter((l) => l.etapa === 'convertido').length

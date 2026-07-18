@@ -78,6 +78,7 @@ export type CodigoMut =
   | 'lead_cerrado'
   | 'cerrar_con_flujo'
   | 'solo_reabrir_descartado'
+  | 'sin_analista'
   | 'vendedor_no_encontrado'
   | 'vendedor_fuera_ambito'
   | 'solo_autoasignar'
@@ -105,7 +106,7 @@ export interface NuevoLeadInput {
   distrito?: string | null
   origen: Origen
   etapa?: EtapaActiva // default 'nuevo' — un lead NUNCA nace terminal
-  monto_estimado?: number | null
+  monto_estimado: number
   moneda: Moneda
   categoria_interes?: CategoriaInteres | null
   vendedor_id?: string | null
@@ -650,6 +651,25 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       crearLead: (input) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
+        // En creación ambos campos son obligatorios incluso en runtime. El
+        // validador compartido acepta `undefined` a propósito porque también
+        // valida PATCHes parciales; por eso este guard vive antes de llamarlo.
+        if (input.monto_estimado === undefined) {
+          return {
+            ok: false,
+            codigo: 'monto_invalido',
+            campo: 'monto_estimado',
+            error: 'El capital estimado es obligatorio y debe ser mayor que 0',
+          }
+        }
+        if (input.moneda === undefined) {
+          return {
+            ok: false,
+            codigo: 'moneda_invalida',
+            campo: 'moneda',
+            error: 'Selecciona una moneda válida (PEN o USD)',
+          }
+        }
         // Validación compartida (espejo de los CHECK de crm.leads) — la misma
         // fuente que editarLead y, a futuro, las mutaciones reales de Supabase.
         const v = validarCamposLead({
@@ -658,7 +678,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           dni: input.dni ?? null,
           correo: input.correo ?? null,
           origen: input.origen,
-          monto_estimado: input.monto_estimado ?? null,
+          monto_estimado: input.monto_estimado,
+          moneda: input.moneda,
         })
         if (!v.ok) return v
         const nombre = v.valores.nombre_completo ?? ''
@@ -704,8 +725,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           correo: v.valores.correo ?? null,
           etapa,
           origen: v.valores.origen ?? input.origen,
-          monto_estimado: input.monto_estimado ?? null,
-          moneda: input.moneda,
+          monto_estimado: v.valores.monto_estimado ?? input.monto_estimado,
+          moneda: v.valores.moneda ?? input.moneda,
           categoria_interes: input.categoria_interes ?? null,
           vendedor_id,
           vendedor_nombre,
@@ -731,7 +752,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           distrito: lead.distrito ?? null,
           origen: lead.origen,
           etapa,
-          monto_estimado: lead.monto_estimado ?? null,
+          monto_estimado: lead.monto_estimado,
           moneda: lead.moneda,
           categoria_interes: lead.categoria_interes ?? null,
           vendedor_id,
@@ -756,6 +777,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ...(cambios.correo !== undefined ? { correo: cambios.correo } : {}),
           ...(cambios.origen !== undefined ? { origen: cambios.origen } : {}),
           ...(cambios.monto_estimado !== undefined ? { monto_estimado: cambios.monto_estimado } : {}),
+          ...(cambios.moneda !== undefined ? { moneda: cambios.moneda } : {}),
         })
         if (!v.ok) return v
         const parche: CambiosLead = { ...cambios, ...v.valores }
@@ -841,6 +863,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        if (!actual.vendedor_id) {
+          return {
+            ok: false,
+            codigo: 'sin_analista',
+            error: 'Asigna el lead a un analista antes de convertirlo',
+          }
+        }
         if (realActivo) {
           // Red de seguridad: en real, convertir NO es marcar la etapa — hay que
           // crear la cuenta del cliente en el portal, y de eso se encarga la edge
@@ -915,26 +944,48 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (vendedorFueraDeAmbito(vendedorId)) {
           return { ok: false, codigo: 'vendedor_fuera_ambito', error: 'Ese vendedor no pertenece a tu equipo' }
         }
-        if ((actual.vendedor_id ?? null) === (nuevo?.perfil_id ?? null)) return { ok: true }
+        const vendedorDestino = nuevo?.perfil_id ?? null
+        const supervisorDestino = nuevo ? null : rol === 'supervisor' ? miId : null
+        if ((actual.vendedor_id ?? null) === vendedorDestino
+            && (actual.asignado_supervisor_id ?? null) === supervisorDestino) {
+          return { ok: true }
+        }
+        const supervisorAnterior = actual.asignado_supervisor_id
+          ? equipo.find((m) => m.perfil_id === actual.asignado_supervisor_id)?.nombre_completo
+          : null
+        const supervisorNuevo = supervisorDestino
+          ? equipo.find((m) => m.perfil_id === supervisorDestino)?.nombre_completo
+            ?? (supervisorDestino === yo?.id ? yo.nombre_completo : null)
+          : null
+        const tenenciaAnterior = actual.vendedor_id
+          ? actual.vendedor_nombre ?? 'Analista sin nombre'
+          : actual.asignado_supervisor_id
+            ? `Bandeja de ${supervisorAnterior ?? 'supervisor'}`
+            : 'Sin asignar'
+        const tenenciaNueva = vendedorDestino
+          ? nuevo?.nombre_completo ?? 'Analista sin nombre'
+          : supervisorDestino
+            ? `Bandeja de ${supervisorNuevo ?? 'supervisor'}`
+            : 'Sin asignar'
         aplicar(
           id,
           {
-            vendedor_id: nuevo?.perfil_id ?? null,
+            vendedor_id: vendedorDestino,
             vendedor_nombre: nuevo?.nombre_completo ?? null,
             // Al asignar vendedor sale de la bandeja; al parkear (null) un
             // supervisor lo retiene en la SUYA (gerencia parkea sin bandeja).
-            asignado_supervisor_id: nuevo ? null : rol === 'supervisor' ? miId : null,
+            asignado_supervisor_id: supervisorDestino,
           },
           actividadAuto(
             id,
             'reasignacion',
-            `${actual.vendedor_nombre ?? 'Sin asignar'} → ${nuevo?.nombre_completo ?? 'Sin asignar'}`,
+            `${tenenciaAnterior} → ${tenenciaNueva}`,
           ),
         )
         // La actividad real la emite el trigger trg_leads_reasignacion.
         persistir(() => actualizarLead(id, {
-          vendedor_id: nuevo?.perfil_id ?? null,
-          asignado_supervisor_id: nuevo ? null : rol === 'supervisor' ? miId : null,
+          vendedor_id: vendedorDestino,
+          asignado_supervisor_id: supervisorDestino,
         }))
         return { ok: true }
       },

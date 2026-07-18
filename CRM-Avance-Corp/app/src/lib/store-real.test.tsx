@@ -51,10 +51,10 @@ function leadBase() {
     correo: null,
     dni: null,
     distrito: null,
-    origen: 'web' as const,
+    origen: 'landing' as const,
     etapa: 'nuevo' as const,
     motivo_descarte: null,
-    monto_estimado: null,
+    monto_estimado: 1000,
     moneda: 'PEN' as const,
     categoria_interes: null,
     vendedor_id: 'u-v1',
@@ -143,7 +143,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       a.crearLead({
         nombre_completo: 'LEAD NUEVO REAL',
         telefono: '987654321',
-        origen: 'web',
+        origen: 'formulario',
+        monto_estimado: 5000,
         moneda: 'PEN',
         vendedor_id: 'u-v1',
       }),
@@ -152,7 +153,23 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(res.ok).toBe(true)
     expect(res.codigo).toBeUndefined() // NO 'fuente_no_habilitada'
     expect(insertarLead).toHaveBeenCalledTimes(1)
+    expect(insertarLead).toHaveBeenCalledWith(
+      expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }),
+    )
     await waitFor(() => expect(listarLeads).toHaveBeenCalled()) // resync
+  })
+
+  it('editar capital real persiste monto y moneda juntos', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const id = api().leads[0]!.id
+
+    const res = mutar((a) => a.editarLead(id, { monto_estimado: 25_000, moneda: 'USD' }))
+
+    expect(res).toMatchObject({ ok: true })
+    await waitFor(() =>
+      expect(actualizarLead).toHaveBeenCalledWith(id, { monto_estimado: 25_000, moneda: 'USD' }),
+    )
   })
 
   // En real, convertir por el store queda cerrado a propósito: la conversión de

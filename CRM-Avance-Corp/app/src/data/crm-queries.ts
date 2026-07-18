@@ -1,8 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
+  actualizarCapacidadLeadsObjetivo,
   listarClientes,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
+  listarMetricasDistribucionLeads,
   listarMetricasPagosMes,
   listarMetricasVencimientos,
   listarMisContratos,
@@ -34,6 +36,8 @@ export const crmQueryKeys = {
   metricasPagos: (meses: number) => [...crmQueryKeys.metricas(), 'pagos', meses] as const,
   metricasAltas: (meses: number) => [...crmQueryKeys.metricas(), 'altas', meses] as const,
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
+  metricasDistribucionLeads: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'distribucion-leads', desde, hasta] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -160,3 +164,36 @@ export function useMetricasVencimientos(habilitada: boolean, dias = 90) {
   })
 }
 
+/**
+ * Fotografía V1 de distribución/capacidad/SLA para un periodo inclusivo en
+ * America/Lima. Las fechas forman parte de la clave: cambiar el periodo nunca
+ * reutiliza silenciosamente la fotografía anterior.
+ */
+export function useMetricasDistribucionLeads(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.metricasDistribucionLeads(desde, hasta),
+    queryFn: ({ signal }) => listarMetricasDistribucionLeads(desde, hasta, signal),
+    enabled: habilitada && Boolean(desde) && Boolean(hasta),
+  })
+}
+
+export interface ActualizarCapacidadLeadsObjetivoVariables {
+  analistaId: string
+  capacidad: number | null
+}
+
+/** Mutación de Gerencia; el prefijo invalida todas las fotografías métricas. */
+export function useActualizarCapacidadLeadsObjetivo() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({ analistaId, capacidad }: ActualizarCapacidadLeadsObjetivoVariables) =>
+      actualizarCapacidadLeadsObjetivo(analistaId, capacidad),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+    },
+  })
+}

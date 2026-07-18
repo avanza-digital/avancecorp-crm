@@ -22,7 +22,15 @@ type CategoriaContratoDb = 'nuevo' | 'renovacion' | 'upgrade'
 type EstadoCuotaDb = 'pendiente' | 'pagado' | 'vencido' | 'trasladado'
 type TipoCuotaDb = 'cuota' | 'retorno' | 'devolucion'
 type EtapaDb = 'nuevo' | 'contactado' | 'reunion_agendada' | 'propuesta_enviada' | 'convertido' | 'descartado'
-type OrigenDb = 'referido' | 'web' | 'whatsapp' | 'campania' | 'oficina' | 'otro'
+type OrigenDb =
+  | 'referido'
+  | 'landing'
+  | 'formulario'
+  | 'oficina'
+  | 'otro'
+  | 'web'
+  | 'campania'
+  | 'whatsapp'
 type MotivoDescarteDb = 'sin_interes' | 'sin_fondos' | 'competencia' | 'no_responde' | 'datos_invalidos' | 'otro'
 type MonedaDb = 'PEN' | 'USD'
 type CategoriaInteresDb = 'nuevo' | 'renovacion' | 'upgrade'
@@ -190,6 +198,7 @@ export interface Database {
           rol_crm: RolCrmDb
           supervisor_id: string | null
           activo: boolean
+          capacidad_leads_objetivo: number | null
           creado_por: string | null
           creado_en: string
           actualizado_en: string
@@ -209,7 +218,7 @@ export interface Database {
           origen: OrigenDb
           etapa: EtapaDb
           motivo_descarte: MotivoDescarteDb | null
-          monto_estimado: number | null // numeric(12,2) — PostgREST puede serializar string
+          monto_estimado: number // numeric + CHECK de rango/2 decimales; PostgREST puede serializar string
           moneda: MonedaDb
           categoria_interes: CategoriaInteresDb | null
           vendedor_id: string | null
@@ -233,7 +242,7 @@ export interface Database {
           origen?: OrigenDb
           etapa?: EtapaDb
           motivo_descarte?: MotivoDescarteDb | null
-          monto_estimado?: number | null
+          monto_estimado: number
           moneda?: MonedaDb
           categoria_interes?: CategoriaInteresDb | null
           vendedor_id?: string | null
@@ -251,7 +260,7 @@ export interface Database {
           origen?: OrigenDb
           etapa?: EtapaDb
           motivo_descarte?: MotivoDescarteDb | null
-          monto_estimado?: number | null
+          monto_estimado?: number
           moneda?: MonedaDb
           categoria_interes?: CategoriaInteresDb | null
           vendedor_id?: string | null
@@ -367,6 +376,10 @@ export interface Database {
           activo: boolean
         }[]
       }
+      actualizar_capacidad_leads_objetivo: {
+        Args: { p_analista_id: string; p_capacidad_leads_objetivo: number | null }
+        Returns: { perfil_id: string; capacidad_leads_objetivo: number | null }[]
+      }
       actividades_del_ambito_fn: {
         Args: Record<string, never>
         Returns: {
@@ -421,6 +434,10 @@ export interface Database {
           contratos_por_vencer: number // bigint
           capital_por_vencer: number // numeric — PostgREST puede serializar string
         }[]
+      }
+      metricas_distribucion_leads_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
       }
     }
     Enums: Record<string, never>

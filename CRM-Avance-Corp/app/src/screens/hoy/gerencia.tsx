@@ -1,63 +1,56 @@
-// Hoy · GERENCIA — tablero ejecutivo de TODA la empresa (F1c).
-// Fuentes: useCRMData().ambito (esGlobal) + lib/inteligencia (comparativaEquipos,
-// embudo, conversionPorOrigen, estancados, metricasPorVendedor) + objetivos.
-// Semáforos SIN verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626
-// crítico · convertido/ganado = navy #111e3d. PEN y USD JAMÁS se suman.
-import { lazy, Suspense, useMemo, type CSSProperties, type JSX } from 'react'
-import { useAhora } from '@/lib/ahora'
-import {
-  AlertTriangle,
-  ChevronRight,
-  Filter,
-  Medal,
-  Megaphone,
-  Percent,
-  ShieldCheck,
-  Target,
-  TrendingUp,
-  Trophy,
-  Users,
-} from 'lucide-react'
+// Hoy · GERENCIA — tablero ejecutivo de toda la operación comercial.
+// PEN y USD jamás se suman. La conversión de leads se muestra únicamente
+// sobre cierres resueltos de la cohorte: convertidos / (convertidos + descartados).
+import { lazy, Suspense, useMemo, useState, type JSX } from 'react'
+import { Filter, Inbox, Target, TrendingUp, Trophy, Users } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
-import { Badge } from '@/components/ui/badge'
-import { Avatar } from '@/components/ui/avatar'
 import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
-import { SegmentBar, type Segment } from '@/components/common/stat-strip'
-import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { useAuth } from '@/lib/auth-context'
 import { Skeleton } from '@/components/ui/skeleton'
+import { useCRMData } from '@/lib/store-context'
+import { useAuth } from '@/lib/auth-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO } from '@/lib/tipos'
 import { SEMAFORO } from '@/lib/semaforo'
+import { capitalPorMoneda, colorMeta, embudo, esAbierto } from '@/lib/inteligencia'
 import {
-  capitalPorMoneda,
-  colorMeta,
-  colorVsObjetivo,
-  comparativaEquipos,
-  conversionGlobal,
-  conversionPorOrigen,
-  embudo,
-  esAbierto,
-  estancados,
-  metricasPorVendedor,
-} from '@/lib/inteligencia'
+  useActualizarCapacidadLeadsObjetivo,
+  useMetricasDistribucionLeads,
+} from '@/data/crm-queries'
+import { mensajeDeError } from '@/data/crm-api'
+import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
 
-// Lazy a propósito: recharts (chunk charts-vendor, ~104 kB gzip) solo lo
-// renderiza GERENCIA, pero un import estático lo colgaba del chunk de Hoy y lo
-// descargaban TODOS los roles en la pantalla por defecto. Así baja recién al
-// primer render de esta vista (el gate por rol vive en hoy.tsx, no aquí).
+// Recharts baja solo al entrar en Gerencia; el gate de rol vive en hoy.tsx.
 const GraficasGerencia = lazy(() =>
-  import('./graficas-gerencia').then((m) => ({ default: m.GraficasGerencia })),
+  import('./graficas-gerencia').then((modulo) => ({ default: modulo.GraficasGerencia })),
 )
 
-// Paleta por posición para distinguir equipos en la barra proporcional.
-const COLOR_EQUIPO = [SEMAFORO.ok, SEMAFORO.violeta, '#0891b2', SEMAFORO.atencion]
-// Podio del top de vendedores (1º navy · 2º violeta · 3º azul).
-const PODIO = [SEMAFORO.navy, SEMAFORO.violeta, SEMAFORO.ok]
+interface PeriodoDistribucion {
+  desde: string
+  hasta: string
+}
 
-/** Ítem de la meta del mes: valor actual grande + objetivo + barra semaforizada. */
+function fechaIso(fecha: Date): string {
+  return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, '0')}-${String(fecha.getUTCDate()).padStart(2, '0')}`
+}
+
+/** Últimos 90 días calendario inclusivos según America/Lima. */
+function periodoInicialDistribucion(): PeriodoDistribucion {
+  const hoyLima = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(new Date())
+  const [anio, mes, dia] = hoyLima.split('-').map(Number)
+  const hasta = new Date(Date.UTC(anio ?? 1970, (mes ?? 1) - 1, dia ?? 1))
+  const desde = new Date(hasta)
+  desde.setUTCDate(desde.getUTCDate() - 89)
+  return { desde: fechaIso(desde), hasta: fechaIso(hasta) }
+}
+
+/** Ítem de meta: valor actual, objetivo explícito y barra semaforizada. */
 function MetaItem({
   label,
   actual,
@@ -69,7 +62,7 @@ function MetaItem({
   objetivo: string
   pct: number
 }): JSX.Element {
-  const p = Math.max(0, Math.min(100, Math.round(pct)))
+  const progreso = Math.max(0, Math.min(100, Math.round(pct)))
   return (
     <div>
       <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
@@ -78,9 +71,12 @@ function MetaItem({
         <span className="text-xs text-muted-foreground">{objetivo}</span>
       </div>
       <div className="mt-2 flex items-center gap-2">
-        <Progress value={p} color={colorMeta(p)} className="flex-1" />
-        <span className="w-9 text-right text-[11px] font-bold tabular-nums" style={{ color: colorMeta(p) }}>
-          {p}%
+        <Progress value={progreso} color={colorMeta(progreso)} className="flex-1" />
+        <span
+          className="w-9 text-right text-[11px] font-bold tabular-nums"
+          style={{ color: colorMeta(progreso) }}
+        >
+          {progreso}%
         </span>
       </div>
     </div>
@@ -88,458 +84,209 @@ function MetaItem({
 }
 
 export function HoyGerencia(): JSX.Element {
-  const { ambito, equipo, actividades, objetivos } = useCRMData()
-  const { abrirLead } = usePanelesActions()
+  const { ambito, objetivos } = useCRMData()
   const { yo } = useAuth()
-  const ahora = useAhora()
+  const [periodo, setPeriodo] = useState<PeriodoDistribucion>(periodoInicialDistribucion)
+  const sesionReal = Boolean(yo && !yo.demo)
+  const modoDemo = yo?.demo === true
+  const consultaDistribucion = useMetricasDistribucionLeads(
+    sesionReal,
+    periodo.desde,
+    periodo.hasta,
+  )
+  const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
   const leads = ambito.leads
   const meta = objetivos.gerencia
-  // Sin meta configurada: no inventamos objetivos de empresa.
-  const sinMetaG = meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0
 
-  // ── Números de empresa (PEN y USD SIEMPRE por separado) ──
-  const d = useMemo(() => {
-    const vivos = leads.filter((l) => l.activo)
+  const datosLocales = useMemo(() => {
+    const vivos = leads.filter((lead) => lead.activo)
     const abiertos = vivos.filter(esAbierto)
-    // Convención de capital/activos (misma que hoy-supervisor y
-    // comparativaEquipos): los parkeados NO suman capital ni cuentan como
-    // activos hasta tener vendedor — se reportan aparte como "por repartir".
-    const asignados = abiertos.filter((l) => l.vendedor_id != null)
-    const convertidos = vivos.filter((l) => l.etapa === 'convertido')
-    const cap = capitalPorMoneda(asignados)
-    const gan = capitalPorMoneda(convertidos)
-    // Conversión global de fuente única (lib/inteligencia): misma base que
-    // comparativaEquipos — activos CON vendedor (los parkeados no cuentan).
-    const cg = conversionGlobal(leads)
+    const asignados = abiertos.filter((lead) => lead.vendedor_id != null)
+    const convertidos = vivos.filter((lead) => lead.etapa === 'convertido')
+    const capital = capitalPorMoneda(asignados)
+    const ganado = capitalPorMoneda(convertidos)
     return {
-      totalVivos: vivos.length,
-      abiertos: abiertos.length, // TODOS los abiertos (base del embudo)
-      activos: asignados.length, // abiertos CON vendedor (KPI)
-      vivosAsignados: cg.base,
-      // Numerador del KPI de conversión: convertidos DE LA MISMA base que el %
-      // (asignados). nConvertidos (todos los vivos convertidos, incluso sin
-      // vendedor) queda para "Meta del mes": ahí una venta cerrada cuenta
-      // aunque el lead haya quedado parkeado después.
-      convertidosAsignados: cg.convertidos,
-      porRepartir: abiertos.filter((l) => l.vendedor_id == null).length,
-      capPEN: cap.pen,
-      capUSD: cap.usd,
-      nConvertidos: convertidos.length,
-      ganPEN: gan.pen,
-      ganUSD: gan.usd,
-      conversion: cg.pct,
+      abiertos: abiertos.length,
+      activos: asignados.length,
+      porRepartir: abiertos.filter((lead) => lead.vendedor_id == null).length,
+      capitalPen: capital.pen,
+      capitalUsd: capital.usd,
+      convertidos: convertidos.length,
+      ganadoPen: ganado.pen,
+      ganadoUsd: ganado.usd,
     }
   }, [leads])
 
-  const equipos = useMemo(() => comparativaEquipos(equipo, leads, actividades), [equipo, leads, actividades])
   const etapas = useMemo(() => embudo(leads), [leads])
-  const origenes = useMemo(() => conversionPorOrigen(leads), [leads])
-  // Reloj vivo: sin `ahora` los días de estancamiento quedarían congelados
-  // hasta el siguiente cambio de datos (mismo arreglo que equipo/pipeline).
-  const enRiesgo = useMemo(() => estancados(leads, actividades, 7, ahora), [leads, actividades, ahora])
-  const top = useMemo(
-    () => metricasPorVendedor(ambito.vendedores, leads, actividades, ahora).slice(0, 3),
-    [ambito.vendedores, leads, actividades, ahora],
-  )
+  const porRepartir =
+    consultaDistribucion.data?.resumen.por_repartir_actuales ?? datosLocales.porRepartir
+  const errorDistribucion =
+    sesionReal && consultaDistribucion.error
+      ? mensajeDeError(
+          consultaDistribucion.error,
+          'No pudimos consultar la distribución. Revisa tu conexión e inténtalo otra vez.',
+        )
+      : null
+
+  const guardarCapacidad = async (analistaId: string, capacidad: number | null) => {
+    await actualizarCapacidad.mutateAsync({ analistaId, capacidad })
+  }
 
   return (
-    <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
-      {/* ── KPIs de empresa ── */}
+    <div className="mx-auto max-w-[1600px] space-y-5 ac-rise">
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Capital en proceso"
-          value={money(d.capPEN)}
+          value={money(datosLocales.capitalPen)}
           icon={TrendingUp}
           color="var(--accent)"
-          sub={d.capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(d.capUSD, 'USD')}` : 'Pipeline activo (PEN)'}
+          sub={
+            datosLocales.capitalUsd > 0
+              ? `Pipeline activo (PEN) · +${moneyK(datosLocales.capitalUsd, 'USD')}`
+              : 'Pipeline activo (PEN)'
+          }
           delay={0}
         />
         <KpiCard
           label="Leads activos"
-          value={String(d.activos)}
+          value={String(datosLocales.activos)}
           icon={Users}
           color="var(--chart-2)"
-          sub={d.porRepartir > 0 ? `Con vendedor · +${d.porRepartir} por repartir en bandejas` : 'Todos con vendedor asignado'}
+          sub="Cartera abierta con analista asignado"
           delay={60}
         />
         <KpiCard
-          label="Conversión global"
-          value={`${d.conversion}%`}
-          icon={Percent}
-          color={colorVsObjetivo(d.conversion, meta.conversionObjetivo)}
-          sub={`${d.convertidosAsignados} de ${d.vivosAsignados} leads con vendedor · objetivo ${meta.conversionObjetivo}%`}
+          label="Por repartir"
+          value={String(porRepartir)}
+          icon={Inbox}
+          color={porRepartir > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
+          sub={porRepartir > 0 ? 'Cola global + bandejas de supervisión' : 'Las colas están al día'}
           delay={120}
         />
         <KpiCard
           label="Capital ganado"
-          value={money(d.ganPEN)}
+          value={money(datosLocales.ganadoPen)}
           icon={Trophy}
           color={SEMAFORO.navy}
-          sub={d.ganUSD > 0 ? `Histórico convertidos (PEN) · +${moneyK(d.ganUSD, 'USD')}` : 'Histórico convertidos (PEN)'}
+          sub={
+            datosLocales.ganadoUsd > 0
+              ? `Histórico convertido (PEN) · +${moneyK(datosLocales.ganadoUsd, 'USD')}`
+              : 'Histórico convertido (PEN)'
+          }
           delay={180}
         />
       </div>
 
-      {/* ── Meta del mes — empresa ── */}
+      <DistribucionLeadsGerencia
+        datos={sesionReal ? consultaDistribucion.data : null}
+        cargando={sesionReal && (consultaDistribucion.isPending || consultaDistribucion.isFetching)}
+        error={errorDistribucion}
+        modoDemo={modoDemo}
+        desde={periodo.desde}
+        hasta={periodo.hasta}
+        onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })}
+        onReintentar={() => {
+          if (sesionReal) void consultaDistribucion.refetch()
+        }}
+        onEditarCapacidad={guardarCapacidad}
+      />
+
       <Card>
         <SectionHead
           icon={Target}
           title="Meta del mes — Empresa"
           right={<span className="text-xs text-muted-foreground">Objetivos de gerencia</span>}
         />
-        <CardContent className="grid gap-5 pt-1 sm:grid-cols-3">
+        <CardContent className="grid gap-5 pt-1 sm:grid-cols-2">
           <MetaItem
             label="Capital en proceso"
-            actual={money(d.capPEN)}
-            objetivo={sinMetaG ? 'meta por definir' : `de ${moneyK(meta.capitalObjetivo)} (PEN)`}
-            pct={meta.capitalObjetivo > 0 ? (d.capPEN / meta.capitalObjetivo) * 100 : 0}
+            actual={money(datosLocales.capitalPen)}
+            objetivo={
+              meta.capitalObjetivo > 0
+                ? `de ${moneyK(meta.capitalObjetivo)} (PEN)`
+                : 'meta por definir'
+            }
+            pct={
+              meta.capitalObjetivo > 0
+                ? (datosLocales.capitalPen / meta.capitalObjetivo) * 100
+                : 0
+            }
           />
           <MetaItem
             label="Ventas cerradas"
-            actual={String(d.nConvertidos)}
-            objetivo={sinMetaG ? 'meta por definir' : `de ${meta.ventasObjetivo} conversiones`}
-            pct={meta.ventasObjetivo > 0 ? (d.nConvertidos / meta.ventasObjetivo) * 100 : 0}
-          />
-          <MetaItem
-            label="Conversión"
-            actual={`${d.conversion}%`}
-            objetivo={sinMetaG ? 'meta por definir' : `objetivo ${meta.conversionObjetivo}%`}
-            pct={meta.conversionObjetivo > 0 ? (d.conversion / meta.conversionObjetivo) * 100 : 0}
+            actual={String(datosLocales.convertidos)}
+            objetivo={
+              meta.ventasObjetivo > 0
+                ? `de ${meta.ventasObjetivo} conversiones`
+                : 'meta por definir'
+            }
+            pct={
+              meta.ventasObjetivo > 0
+                ? (datosLocales.convertidos / meta.ventasObjetivo) * 100
+                : 0
+            }
           />
         </CardContent>
       </Card>
 
-      {/* ── Gráficas del negocio de contratos (capital/pagos/altas/vencimientos).
-          ADITIVO: los KPI/SegmentBar/embudo de leads de arriba y abajo se quedan.
-          Fuente: RPCs crm.metricas_*_fn en real · fixtures derivadas en demo. ── */}
+      {/* Gráficas del negocio de contratos. No mezclan PEN y USD. */}
       <Suspense fallback={<Skeleton className="h-[240px] w-full" aria-busy />}>
         <GraficasGerencia />
       </Suspense>
 
-      {/* ── Comparativa de equipos ── */}
       <Card>
         <SectionHead
-          icon={ShieldCheck}
-          title="Comparativa de equipos"
+          icon={Filter}
+          title="Composición del pipeline"
           right={
-            <span className="text-xs text-muted-foreground">
-              {equipos.length} {equipos.length === 1 ? 'supervisor' : 'supervisores'}
+            <span className="text-xs tabular-nums text-muted-foreground">
+              {datosLocales.abiertos} abiertos
             </span>
           }
         />
-        <CardContent className="space-y-4 pt-1">
-          {/* Reparto del capital activo (solo PEN — el USD va aparte por fila) */}
-          <SegmentBar
-            segments={equipos.map<Segment>((e, i) => ({
-              label: e.supervisor.nombre_completo,
-              value: e.capitalPEN,
-              color: COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? SEMAFORO.navy,
-              valTxt: moneyK(e.capitalPEN),
-            }))}
-          />
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                  <th className="py-2 pr-4">Equipo</th>
-                  <th className="px-4 py-2 text-right">Vendedores</th>
-                  <th className="px-4 py-2 text-right">Activos</th>
-                  <th className="px-4 py-2 text-right">Capital en proceso</th>
-                  <th className="px-4 py-2 text-right">Conversión</th>
-                  <th className="py-2 pl-4 text-right">Por repartir</th>
-                </tr>
-              </thead>
-              <tbody>
-                {equipos.map((e, i) => {
-                  const c = COLOR_EQUIPO[i % COLOR_EQUIPO.length] ?? SEMAFORO.navy
-                  return (
-                    <tr key={e.supervisor.perfil_id} className="border-b border-border/60 last:border-0">
-                      <td className="py-2.5 pr-4">
-                        <div className="flex items-center gap-2.5">
-                          <Avatar nombre={e.supervisor.nombre_completo} color={c} className="size-7 text-[10px]" />
-                          <span className="truncate font-semibold">{e.supervisor.nombre_completo}</span>
-                        </div>
-                      </td>
-                      <td className="px-4 py-2.5 text-right tabular-nums text-muted-foreground">{e.vendedores}</td>
-                      <td className="px-4 py-2.5 text-right font-semibold tabular-nums">{e.activos}</td>
-                      <td className="px-4 py-2.5 text-right">
-                        <p className="font-extrabold tabular-nums text-primary">{money(e.capitalPEN)}</p>
-                        {e.capitalUSD > 0 && (
-                          <p className="text-[11px] tabular-nums text-muted-foreground">
-                            +{moneyK(e.capitalUSD, 'USD')}
-                          </p>
-                        )}
-                      </td>
-                      <td className="px-4 py-2.5 text-right">
-                        <Badge color={colorVsObjetivo(e.conversion, meta.conversionObjetivo)} variant="outline">
-                          {e.conversion}%
-                        </Badge>
-                      </td>
-                      <td className="py-2.5 pl-4 text-right">
-                        {e.parkeados > 0 ? (
-                          <Badge color="var(--warning)" dot>
-                            {e.parkeados} {e.parkeados === 1 ? 'lead' : 'leads'}
-                          </Badge>
-                        ) : (
-                          <span className="text-xs text-muted-foreground">0</span>
-                        )}
-                      </td>
-                    </tr>
-                  )
-                })}
-                {/* Vacío DENTRO del tbody (colSpan) — la cabecera no queda huérfana */}
-                {equipos.length === 0 && (
-                  <tr>
-                    <td colSpan={6} className="py-4 text-center text-xs text-muted-foreground">
-                      Aún no hay supervisores activos con equipo a cargo.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
+        <CardContent className="space-y-3.5 pt-1">
+          {(() => {
+            const maximo = Math.max(...etapas.map((etapa) => etapa.n), 1)
+            return etapas.map((etapa) => {
+              const info = ETAPA_INFO[etapa.etapa]
+              return (
+                <div key={etapa.etapa}>
+                  <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
+                    <span className="flex items-center gap-2 font-semibold">
+                      <span
+                        className="size-2 shrink-0 rounded-full"
+                        style={{ background: info.color }}
+                      />
+                      {info.label}
+                    </span>
+                    <span className="tabular-nums text-muted-foreground">
+                      <span className="font-extrabold text-foreground">{etapa.n}</span>{' '}
+                      {etapa.n === 1 ? 'lead' : 'leads'} · {etapa.pctDelTotal}%
+                    </span>
+                  </div>
+                  <div className="h-3 overflow-hidden rounded-full bg-muted">
+                    <div
+                      className="h-full rounded-full transition-[width] duration-700 ease-out"
+                      style={{
+                        width: `${etapa.n > 0 ? Math.max((etapa.n / maximo) * 100, 6) : 0}%`,
+                        background: info.color,
+                      }}
+                    />
+                  </div>
+                </div>
+              )
+            })
+          })()}
+          <p className="text-[11px] text-muted-foreground">
+            Distribución actual sobre {datosLocales.abiertos} leads abiertos; no representa una tasa de
+            conversión entre etapas.
+          </p>
         </CardContent>
       </Card>
 
-      {/* ── Embudo + conversión por origen ── */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <SectionHead
-            icon={Filter}
-            title="Embudo del pipeline"
-            right={
-              <span className="text-xs tabular-nums text-muted-foreground">{d.abiertos} abiertos</span>
-            }
-          />
-          <CardContent className="space-y-3.5 pt-1">
-            {(() => {
-              const maxN = Math.max(...etapas.map((e) => e.n), 1)
-              return etapas.map((e, i) => {
-                const info = ETAPA_INFO[e.etapa]
-                const prev = i > 0 ? etapas[i - 1] : undefined
-                // Drop-off contra la etapa anterior (solo si de verdad cae).
-                const caida = prev && prev.n > 0 && e.n < prev.n ? Math.round(((prev.n - e.n) / prev.n) * 100) : 0
-                return (
-                  <div key={e.etapa}>
-                    <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
-                      <span className="flex items-center gap-2 font-semibold">
-                        <span className="size-2 shrink-0 rounded-full" style={{ background: info.color }} />
-                        {info.label}
-                        {caida > 0 && (
-                          <span
-                            className="font-bold tabular-nums"
-                            style={{ color: caida >= 50 ? SEMAFORO.critico : SEMAFORO.atencion }}
-                            title={`Caída del ${caida}% frente a ${prev ? ETAPA_INFO[prev.etapa].label : ''}`}
-                          >
-                            ▼ −{caida}%
-                          </span>
-                        )}
-                      </span>
-                      <span className="tabular-nums text-muted-foreground">
-                        <span className="font-extrabold text-foreground">{e.n}</span>{' '}
-                        {e.n === 1 ? 'lead' : 'leads'} · {e.pctDelTotal}%
-                      </span>
-                    </div>
-                    <div className="h-3 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-[width] duration-700 ease-out"
-                        style={{
-                          width: `${e.n > 0 ? Math.max((e.n / maxN) * 100, 6) : 0}%`,
-                          background: info.color,
-                        }}
-                      />
-                    </div>
-                  </div>
-                )
-              })
-            })()}
-            <p className="text-[11px] text-muted-foreground">
-              % sobre los {d.abiertos} leads abiertos · ▼ marca el drop-off frente a la etapa anterior.
-            </p>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <SectionHead
-            icon={Megaphone}
-            title="Conversión por origen"
-            right={<span className="text-xs text-muted-foreground">Histórico de la empresa</span>}
-          />
-          <CardContent className="pt-1">
-            {origenes.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">Aún no hay leads registrados.</p>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-border text-left text-[11px] font-bold uppercase tracking-wider text-muted-foreground">
-                    <th className="py-2 pr-3">Origen</th>
-                    <th className="px-3 py-2 text-right">Leads</th>
-                    <th className="px-3 py-2 text-right">Conv.</th>
-                    <th className="py-2 pl-3">% conversión</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {origenes.map((o, i) => {
-                    const mejor = i === 0 && o.convertidos > 0
-                    return (
-                      <tr key={o.origen} className="border-b border-border/60 last:border-0">
-                        <td className="py-2.5 pr-3">
-                          <span className="flex items-center gap-2 font-semibold">
-                            {o.label}
-                            {mejor && (
-                              <Badge color={SEMAFORO.navy} variant="solid">
-                                Mejor canal
-                              </Badge>
-                            )}
-                          </span>
-                        </td>
-                        <td className="px-3 py-2.5 text-right tabular-nums text-muted-foreground">{o.total}</td>
-                        <td className="px-3 py-2.5 text-right font-semibold tabular-nums">{o.convertidos}</td>
-                        <td className="py-2.5 pl-3">
-                          <div className="flex items-center gap-2">
-                            <Progress
-                              value={o.pct}
-                              color={mejor ? SEMAFORO.navy : 'var(--accent)'}
-                              className="h-1.5 w-full max-w-24 flex-1"
-                            />
-                            <span className="w-9 shrink-0 text-right text-xs font-bold tabular-nums">{o.pct}%</span>
-                          </div>
-                        </td>
-                      </tr>
-                    )
-                  })}
-                </tbody>
-              </table>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* ── Capital en riesgo + top vendedores ── */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <SectionHead
-            icon={AlertTriangle}
-            title="Capital en riesgo"
-            right={
-              <Badge color={SEMAFORO.critico} variant="outline">
-                ≥ 7 días sin actividad
-              </Badge>
-            }
-          />
-          <CardContent className="pt-1">
-            {enRiesgo.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">
-                Sin capital en riesgo — ningún lead abierto lleva 7 días o más sin actividad.
-              </p>
-            ) : (
-              <>
-                {(() => {
-                  const riesgo = capitalPorMoneda(enRiesgo.map((x) => x.lead))
-                  return (
-                    <div className="mb-3 flex items-baseline gap-2">
-                      <span className="text-2xl font-extrabold tracking-tight tabular-nums" style={{ color: SEMAFORO.critico }}>
-                        {money(riesgo.pen)}
-                      </span>
-                      <span className="text-xs text-muted-foreground">
-                        estancado (PEN){riesgo.usd > 0 ? ` · +${moneyK(riesgo.usd, 'USD')}` : ''} ·{' '}
-                        {enRiesgo.length} {enRiesgo.length === 1 ? 'lead' : 'leads'}
-                      </span>
-                    </div>
-                  )
-                })()}
-                <div className="space-y-1.5">
-                  {enRiesgo.slice(0, 5).map(({ lead, dias }) => {
-                    const diasTxt = Math.floor(dias)
-                    return (
-                      <button
-                        key={lead.id}
-                        type="button"
-                        onClick={() => abrirLead(lead.id)}
-                        aria-label={`Abrir ficha de ${lead.nombre_completo}`}
-                        className="group flex w-full items-center gap-2.5 rounded-xl border border-border/60 px-3 py-2 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
-                      >
-                        <Avatar nombre={lead.nombre_completo} color={diasTxt >= 10 ? SEMAFORO.critico : SEMAFORO.atencion} className="size-8" />
-                        <span className="min-w-0 flex-1 leading-tight">
-                          <span className="block truncate text-sm font-semibold">{lead.nombre_completo}</span>
-                          <span className="block truncate text-[11px] text-muted-foreground">
-                            {lead.vendedor_nombre ?? 'Sin vendedor asignado'} · {ETAPA_INFO[lead.etapa].label}
-                          </span>
-                        </span>
-                        {lead.monto_estimado != null && (
-                          <span className="shrink-0 text-sm font-extrabold tabular-nums text-primary">
-                            {moneyK(lead.monto_estimado, lead.moneda)}
-                          </span>
-                        )}
-                        <Badge color={diasTxt >= 10 ? SEMAFORO.critico : SEMAFORO.atencion} dot>
-                          {diasTxt} d
-                        </Badge>
-                        <ChevronRight className="size-4 shrink-0 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
-                      </button>
-                    )
-                  })}
-                </div>
-                {enRiesgo.length > 5 && (
-                  <p className="mt-2 text-[11px] text-muted-foreground">
-                    Y {enRiesgo.length - 5} más — revísalos desde la cartera.
-                  </p>
-                )}
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <SectionHead
-            icon={Medal}
-            title="Top vendedores"
-            right={<span className="text-xs text-muted-foreground">Por capital en proceso (PEN)</span>}
-          />
-          <CardContent className="space-y-2.5 pt-1">
-            {top.length === 0 ? (
-              <p className="py-6 text-center text-xs text-muted-foreground">Aún no hay vendedores con cartera.</p>
-            ) : (
-              top.map((r, i) => {
-                const c = PODIO[i] ?? PODIO[PODIO.length - 1] ?? SEMAFORO.navy
-                return (
-                  <div
-                    key={r.m.perfil_id}
-                    className="flex items-center gap-3 rounded-xl border border-border/60 px-3 py-2.5"
-                    style={i === 0 ? { background: `color-mix(in srgb, ${SEMAFORO.navy} 4%, transparent)` } : undefined}
-                  >
-                    <span
-                      className="ac-chip grid size-8 shrink-0 place-items-center rounded-full text-xs font-extrabold"
-                      style={{ '--c': c } as CSSProperties}
-                    >
-                      {i + 1}º
-                    </span>
-                    <Avatar nombre={r.m.nombre_completo} color={c} className="size-9" />
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <p className="truncate text-sm font-semibold">{r.m.nombre_completo}</p>
-                      <p className="truncate text-[11px] text-muted-foreground">
-                        {r.activos} activos · {r.convertidos} {r.convertidos === 1 ? 'venta' : 'ventas'} ·{' '}
-                        {r.conversion}% conv.
-                      </p>
-                    </div>
-                    <div className="shrink-0 text-right">
-                      <p className="text-sm font-extrabold tabular-nums text-primary">{money(r.capitalPEN)}</p>
-                      {r.capitalUSD > 0 && (
-                        <p className="text-[11px] tabular-nums text-muted-foreground">
-                          +{moneyK(r.capitalUSD, 'USD')}
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                )
-              })
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
       <p className="text-[11px] text-muted-foreground">
-        {yo?.demo
-          ? 'Tablero de demostración — pronto verás aquí la información real de tu operación.'
+        {modoDemo
+          ? 'Tablero de demostración: el historial de asignaciones, conversión y SLA no se simula.'
           : 'Los números abarcan toda la operación comercial de la empresa.'}
       </p>
     </div>

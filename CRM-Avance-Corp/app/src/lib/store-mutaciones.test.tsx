@@ -74,7 +74,8 @@ function inputBase(extra?: Partial<NuevoLeadInput>): NuevoLeadInput {
   return {
     nombre_completo: 'LEAD DE PRUEBA',
     telefono: '900000001',
-    origen: 'web',
+    origen: 'formulario',
+    monto_estimado: 1000,
     moneda: 'PEN',
     vendedor_id: 'd-v1',
     ...extra,
@@ -86,6 +87,56 @@ describe('mutaciones del store demo', () => {
   afterAll(() => vi.unstubAllEnvs())
 
   describe('crearLead', () => {
+    it.each(['monto_estimado', 'moneda'] as const)(
+      'rechaza creación si la propiedad obligatoria %s fue omitida en runtime',
+      async (campo) => {
+        const { api, mutar } = await montarStore('vendedor')
+        const incompleto = { ...inputBase() } as Partial<NuevoLeadInput>
+        delete incompleto[campo]
+
+        const res = mutar((a) => a.crearLead(incompleto as NuevoLeadInput))
+
+        expect(res).toMatchObject({
+          ok: false,
+          codigo: campo === 'monto_estimado' ? 'monto_invalido' : 'moneda_invalida',
+          campo,
+        })
+        expect(api().leads).toHaveLength(20)
+      },
+    )
+
+    it.each([null, 0, -1] as const)('rechaza capital estimado no positivo: %s', async (monto) => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) => a.crearLead(inputBase({ monto_estimado: monto as unknown as number })))
+
+      expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido', campo: 'monto_estimado' })
+      expect(api().leads).toHaveLength(20)
+    })
+
+    it.each([0.001, 5000.999, 10_000_000_000])(
+      'rechaza capital fuera de la precisión/rango numeric(12,2): %s',
+      async (monto) => {
+        const { api, mutar } = await montarStore('vendedor')
+
+        const res = mutar((a) => a.crearLead(inputBase({ monto_estimado: monto })))
+
+        expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido', campo: 'monto_estimado' })
+        expect(api().leads).toHaveLength(20)
+      },
+    )
+
+    it('rechaza una moneda fuera del catálogo aunque un consumidor burle TypeScript', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) =>
+        a.crearLead(inputBase({ moneda: 'EUR' as unknown as NuevoLeadInput['moneda'] })),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'moneda_invalida', campo: 'moneda' })
+      expect(api().leads).toHaveLength(20)
+    })
+
     it('crea un lead válido auto-asignado al vendedor y lo expone en su ámbito', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
@@ -254,6 +305,26 @@ describe('mutaciones del store demo', () => {
       })
     })
 
+    it('Gerencia mueve una bandeja a la cola global aunque vendedor_id ya sea null', async () => {
+      const { api, mutar } = await montarStore('gerencia')
+      expect(api().lead('l5')).toMatchObject({
+        vendedor_id: null,
+        asignado_supervisor_id: 'd-sup1',
+      })
+
+      const res = mutar((a) => a.reasignar('l5', null))
+
+      expect(res).toMatchObject({ ok: true })
+      expect(api().lead('l5')).toMatchObject({
+        vendedor_id: null,
+        asignado_supervisor_id: null,
+      })
+      expect(api().actividadesDe('l5')[0]).toMatchObject({
+        tipo: 'reasignacion',
+        detalle: 'Bandeja de SUPERVISOR UNO → Sin asignar',
+      })
+    })
+
     it('vendedor no tiene el permiso de reasignar (ni siquiera hacia sí mismo)', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
@@ -349,6 +420,15 @@ describe('mutaciones del store demo', () => {
       expect(api().actividadesDe('l2')[0]?.tipo).toBe('conversion')
     })
 
+    it('no convierte un lead parqueado: primero necesita analista responsable', async () => {
+      const { mutar } = await montarStore('supervisor')
+
+      const res = mutar((a) => a.convertir('l5'))
+
+      expect(res).toMatchObject({ ok: false, codigo: 'sin_analista' })
+      expect(res.error).toContain('Asigna el lead a un analista')
+    })
+
     it('reabrir un descartado lo devuelve a nuevo y limpia el motivo', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
@@ -416,6 +496,38 @@ describe('mutaciones del store demo', () => {
   })
 
   describe('editarLead (paridad de validación con crearLead)', () => {
+    it.each([null, 0, -1] as const)('rechaza capital estimado no positivo al editar: %s', async (monto) => {
+      const { api, mutar } = await montarStore('vendedor')
+      const anterior = api().lead('l1')?.monto_estimado
+
+      const res = mutar((a) =>
+        a.editarLead('l1', { monto_estimado: monto as unknown as number }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'monto_invalido', campo: 'monto_estimado' })
+      expect(api().lead('l1')?.monto_estimado).toBe(anterior)
+    })
+
+    it('edita capital y moneda como una sola clasificación comercial', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) => a.editarLead('l1', { monto_estimado: 25_000, moneda: 'USD' }))
+
+      expect(res).toMatchObject({ ok: true })
+      expect(api().lead('l1')).toMatchObject({ monto_estimado: 25_000, moneda: 'USD' })
+    })
+
+    it('rechaza una moneda inválida al editar', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) =>
+        a.editarLead('l1', { moneda: 'EUR' as unknown as NuevoLeadInput['moneda'] }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'moneda_invalida', campo: 'moneda' })
+      expect(api().lead('l1')?.moneda).toBe('PEN')
+    })
+
     it('rechaza un correo inválido al editar', async () => {
       const { api, mutar } = await montarStore('vendedor')
 

@@ -284,19 +284,20 @@ function assertSeed(condition, message) {
 }
 
 async function cleanupTransientRows() {
+  // 0C convierte la historia de asignacion en un ledger absoluto: ni el gate
+  // perfora esa garantia con hard-delete. Los ids son aleatorios por corrida y
+  // el cierre usa el mismo soft-delete que produccion; el branch se destruye al
+  // terminar el gate.
   await requireAdmin(
-    'limpiar actividades transitorias',
-    admin.schema('crm').from('actividades').delete().in('id', [
-      TRANSIENT_IDS.directoryActivity,
-      TRANSIENT_IDS.crossTeamActivity,
-    ]),
-  );
-  await requireAdmin(
-    'limpiar leads transitorios',
-    admin.schema('crm').from('leads').delete().in('id', [
+    'desactivar leads transitorios',
+    admin.schema('crm').from('leads').update({ activo: false }).in('id', [
       TRANSIENT_IDS.directoryLead,
       TRANSIENT_IDS.crossTeamLead,
       TRANSIENT_IDS.portalClientLead,
+      TRANSIENT_IDS.triggerAssignedInsertLead,
+      TRANSIENT_IDS.triggerSellerChangeLead,
+      TRANSIENT_IDS.triggerSupervisorOnlyLead,
+      TRANSIENT_IDS.triggerNoTenureLead,
     ]),
   );
 }
@@ -601,6 +602,18 @@ async function readOneLead(session, id, label) {
   return response?.data ?? null;
 }
 
+async function readReassignmentActivities(leadId, label) {
+  const response = await requireAdmin(
+    label,
+    admin.schema('crm').from('actividades')
+      .select('id, detalle, metadata, creado_por', { count: 'exact' })
+      .eq('lead_id', leadId)
+      .eq('tipo', 'reasignacion')
+      .order('creado_en'),
+  );
+  return { count: response.count ?? response.data.length, rows: response.data };
+}
+
 async function testRecursiveHierarchy(sessions, seed) {
   console.log('\n— Jerarquia recursiva (dos niveles) —');
   const nestedSupervisorId = seed.profileIdByKey.sup1Nested;
@@ -704,7 +717,6 @@ async function testWrites(sessions, seed) {
   const ana = seed.leadByName.get('ANA TORRES DEMO');
   const vend1Id = seed.profileIdByKey.vend1;
   const vend3Id = seed.profileIdByKey.vend3;
-  const sup2Id = seed.profileIdByKey.sup2;
 
   await expectBlockedMutation(
     'vend1 no reasigna su lead a otro vendedor',
@@ -775,11 +787,14 @@ async function testWrites(sessions, seed) {
   await expectBlockedMutation(
     'sup1 no inserta un lead en el equipo de sup2',
     sessions.sup1.client.schema('crm').from('leads').insert({
-      asignado_supervisor_id: sup2Id,
+      // Tenencia valida: debe fallar por vendedor ajeno, no por enviar ambos
+      // propietarios a la vez (invariante 0C).
+      asignado_supervisor_id: null,
       creado_por: sessions.sup1.user.id,
       etapa: 'nuevo',
       id: TRANSIENT_IDS.crossTeamLead,
       moneda: 'PEN',
+      monto_estimado: 1000,
       nombre_completo: 'RLS CROSS TEAM TRANSIENT',
       origen: 'otro',
       telefono: '999000002',
@@ -794,10 +809,12 @@ async function testWrites(sessions, seed) {
       etapa: 'nuevo',
       id: TRANSIENT_IDS.directoryLead,
       moneda: 'PEN',
+      monto_estimado: 1000,
       nombre_completo: 'RLS DIRECTORIO TRANSIENT',
       origen: 'otro',
       telefono: '999000001',
-      vendedor_id: null,
+      // Tenencia integra para que la sonda falle por RLS/rol del actor.
+      vendedor_id: vend1Id,
     }).select('id'),
   );
 
@@ -861,12 +878,156 @@ async function testWrites(sessions, seed) {
       etapa: 'nuevo',
       id: TRANSIENT_IDS.portalClientLead,
       moneda: 'PEN',
+      monto_estimado: 1000,
       nombre_completo: 'RLS CLIENTE TRANSIENT',
       origen: 'otro',
       telefono: '999000003',
-      vendedor_id: null,
+      // Tenencia integra para que la sonda falle por RLS/rol del actor.
+      vendedor_id: vend1Id,
     }).select('id'),
   );
+}
+
+async function testReassignmentTrigger(sessions, seed) {
+  console.log('\n— Timeline estructurado de movimientos de tenencia —');
+  const gerencia = sessions.gerencia;
+  const sup1 = sessions.sup1;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1Id = seed.profileIdByKey.vend1;
+  const vend2Id = seed.profileIdByKey.vend2;
+
+  const common = {
+    asignado_supervisor_id: null,
+    creado_por: sup1Id,
+    etapa: 'nuevo',
+    moneda: 'PEN',
+    monto_estimado: 1000,
+    origen: 'otro',
+  };
+
+  const assignedInsert = await positive(
+    'sup1 crea un lead que nace asignado',
+    sup1.client.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.triggerAssignedInsertLead,
+      nombre_completo: 'TRIGGER INSERT ASIGNADO TRANSIENT',
+      telefono: '999000006',
+      vendedor_id: vend1Id,
+    }).select('id').single(),
+  );
+  if (assignedInsert) {
+    const activities = await readReassignmentActivities(
+      TRANSIENT_IDS.triggerAssignedInsertLead,
+      'leer actividades del lead nacido asignado',
+    );
+    check(activities.count === 0,
+      'INSERT de lead ya asignado no emite actividad de reasignacion',
+      `emitio ${activities.count}`);
+  }
+
+  await requireAdmin(
+    'crear fixture transitorio para cambio de vendedor',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.triggerSellerChangeLead,
+      nombre_completo: 'TRIGGER CAMBIO VENDEDOR TRANSIENT',
+      telefono: '999000007',
+      vendedor_id: vend1Id,
+    }),
+  );
+  const sellerChange = await positive(
+    'sup1 reasigna un lead de vend1 a vend2',
+    sup1.client.schema('crm').from('leads')
+      .update({ vendedor_id: vend2Id })
+      .eq('id', TRANSIENT_IDS.triggerSellerChangeLead)
+      .select('id, vendedor_id')
+      .single(),
+  );
+  if (sellerChange) {
+    const activities = await readReassignmentActivities(
+      TRANSIENT_IDS.triggerSellerChangeLead,
+      'leer actividad del cambio de vendedor',
+    );
+    const [activity] = activities.rows;
+    check(activities.count === 1,
+      'cambio de vendedor emite exactamente una reasignacion',
+      `emitio ${activities.count}`);
+    check(activity?.detalle === `${USER_BY_KEY.vend1.name} → ${USER_BY_KEY.vend2.name}`,
+      'reasignacion conserva el detalle humano exacto',
+      `detalle=${activity?.detalle ?? 'ausente'}`);
+    check(activity?.metadata?.vendedor_anterior === vend1Id
+        && activity?.metadata?.vendedor_nuevo === vend2Id,
+    'reasignacion conserva vendedor anterior y nuevo en metadata');
+    check(activity?.creado_por === sup1Id,
+      'reasignacion acredita como actor al supervisor autenticado');
+  }
+
+  await requireAdmin(
+    'crear fixture transitorio para cambio solo de supervisor',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      asignado_supervisor_id: sup1Id,
+      id: TRANSIENT_IDS.triggerSupervisorOnlyLead,
+      nombre_completo: 'TRIGGER CAMBIO SUPERVISOR TRANSIENT',
+      telefono: '999000008',
+      vendedor_id: null,
+    }),
+  );
+  const supervisorChange = await positive(
+    'gerencia cambia solo asignado_supervisor_id',
+    gerencia.client.schema('crm').from('leads')
+      .update({ asignado_supervisor_id: null })
+      .eq('id', TRANSIENT_IDS.triggerSupervisorOnlyLead)
+      .select('id, asignado_supervisor_id')
+      .single(),
+  );
+  if (supervisorChange) {
+    const activities = await readReassignmentActivities(
+      TRANSIENT_IDS.triggerSupervisorOnlyLead,
+      'leer actividades del cambio solo de supervisor',
+    );
+    const [activity] = activities.rows;
+    check(activities.count === 1,
+      'cambio solo de asignado_supervisor_id emite exactamente un movimiento',
+      `emitio ${activities.count}`);
+    check(activity?.detalle === `Bandeja de ${USER_BY_KEY.sup1.name} → Sin asignar`,
+      'movimiento de bandeja conserva el detalle humano exacto',
+      `detalle=${activity?.detalle ?? 'ausente'}`);
+    check(activity?.metadata?.movimiento === 'sale_bandeja'
+        && activity?.metadata?.supervisor_anterior === sup1Id
+        && activity?.metadata?.supervisor_nuevo === null,
+    'movimiento de bandeja conserva supervisor anterior/nuevo y clasificador');
+    check(activity?.creado_por === seed.profileIdByKey.gerencia,
+      'movimiento de bandeja acredita a Gerencia como actor');
+  }
+
+  await requireAdmin(
+    'crear fixture transitorio para update sin cambio de tenencia',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.triggerNoTenureLead,
+      nombre_completo: 'TRIGGER SIN CAMBIO TENENCIA TRANSIENT',
+      telefono: '999000009',
+      vendedor_id: vend1Id,
+    }),
+  );
+  const noTenureChange = await positive(
+    'sup1 actualiza una nota sin cambiar tenencia',
+    sup1.client.schema('crm').from('leads')
+      .update({ nota: 'Caracterizacion: no debe emitir reasignacion' })
+      .eq('id', TRANSIENT_IDS.triggerNoTenureLead)
+      .select('id, nota')
+      .single(),
+  );
+  if (noTenureChange) {
+    const activities = await readReassignmentActivities(
+      TRANSIENT_IDS.triggerNoTenureLead,
+      'leer actividades del update sin cambio de tenencia',
+    );
+    check(activities.count === 0,
+      'UPDATE sin cambio de tenencia no emite reasignacion',
+      `emitio ${activities.count}`);
+  }
 }
 
 async function testBankingBoundary(sessions, seed) {
@@ -1003,6 +1164,7 @@ async function main() {
       await testRecursiveHierarchy(sessions, verifiedSeed);
       await testCrossReads(sessions, verifiedSeed);
       await testWrites(sessions, verifiedSeed);
+      await testReassignmentTrigger(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }

@@ -1,5 +1,6 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
+import { errorResponsabilidadConversion } from "./preflight.mjs";
 
 // Reglas de documento (DNI/CE/Pasaporte) — ESPEJO de ../_shared/documento.ts y del
 // frontend documento-core.js. Inlineado a propósito (edge autocontenido): si se
@@ -118,6 +119,11 @@ Deno.serve(async (req: Request) => {
     if (!lead.activo || lead.etapa === "convertido" || lead.etapa === "descartado") {
       return json(cors, { error: "El lead ya está cerrado" }, 409);
     }
+    // 0C: el resultado ganado exige responsabilidad comercial PREVIA. Esta
+    // frontera corre antes de deduplicar, crear Auth/perfiles o enviar correo:
+    // un lead parqueado nunca puede dejar un cliente huérfano si el cierre falla.
+    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId);
+    if (errorResponsabilidad) return json(cors, { error: errorResponsabilidad }, 409);
 
     // Documento (DNI/CE/Pasaporte). Se valida en la FRONTERA (el navegador es espejo).
     if (tipo_documento && !esTipoDocumento(tipo_documento)) {
@@ -131,9 +137,9 @@ Deno.serve(async (req: Request) => {
     const errDoc = validarDocumento(tipoDoc, dniLimpio);
     if (errDoc) return json(cors, { error: errDoc }, 400);
 
-    // Asesor del nuevo cliente = el VENDEDOR dueño del lead (si lo tiene), si no
-    // el que convierte. Así el cliente entra en su cartera y puede hacerle el contrato.
-    const asesorId = lead.vendedor_id ?? callerId;
+    // Asesor del nuevo cliente = el ANALISTA que ya era dueño del lead. El guard
+    // anterior elimina el fallback al caller y conserva la atribución comercial.
+    const asesorId = lead.vendedor_id;
 
     // DEDUP: ¿ese documento ya es un cliente del portal? Entonces se ENLAZA (no se
     // duplica ni se reenvía correo) — cubre el caso "colaborador que ya es cliente".
