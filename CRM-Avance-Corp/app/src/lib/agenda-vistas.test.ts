@@ -65,6 +65,11 @@ describe('diasDeSemana', () => {
     expect(tituloSemana(diasDeSemana(AHORA, 2))).toBe('27 Jul – 2 Ago') // cruza a agosto
   })
 
+  it('el cruce de AÑO lleva los años explícitos (sin ellos la etiqueta sería ambigua)', () => {
+    // Lun 2026-12-28 … Dom 2027-01-03.
+    expect(tituloSemana(diasDeSemana(AHORA, 24))).toBe('28 Dic 2026 – 3 Ene 2027')
+  })
+
   it('la madrugada UTC sigue siendo el día anterior en Lima (sin corrimiento de semana)', () => {
     // Lunes 2026-07-20 a las 03:00Z = domingo 19 22:00 en Lima → semana del 13.
     expect(diasDeSemana(Date.parse('2026-07-20T03:00:00Z'))[0]?.fecha).toBe('2026-07-13')
@@ -90,6 +95,24 @@ describe('rejillaMes', () => {
   it('offset navega meses y normaliza el cambio de año', () => {
     expect(rejillaMes(AHORA, 1).titulo).toBe('Agosto 2026')
     expect(rejillaMes(AHORA, -7).titulo).toBe('Diciembre 2025')
+    expect(rejillaMes(AHORA, 12).titulo).toBe('Julio 2027')
+  })
+
+  it('mes que empieza lunes y mide 28 días: 4 filas exactas, sin relleno', () => {
+    const { titulo, semanas } = rejillaMes(AHORA, 7) // febrero 2027
+    expect(titulo).toBe('Febrero 2027')
+    expect(semanas).toHaveLength(4)
+    expect(semanas[0]?.[0]?.fecha).toBe('2027-02-01')
+    expect(semanas[3]?.[6]?.fecha).toBe('2027-02-28')
+    expect(semanas.flat().every((c) => c.delMes)).toBe(true)
+  })
+
+  it('mes que necesita 6 filas (agosto 2026 empieza sábado y acaba lunes 31)', () => {
+    const { semanas } = rejillaMes(AHORA, 1)
+    expect(semanas).toHaveLength(6)
+    expect(semanas[0]?.[0]?.fecha).toBe('2026-07-27')
+    expect(semanas[5]?.[0]?.fecha).toBe('2026-08-31')
+    expect(semanas[5]?.[6]?.fecha).toBe('2026-09-06')
   })
 })
 
@@ -127,6 +150,12 @@ describe('aplicarFiltros', () => {
     expect(aplicarFiltros(tareas, { ...FILTROS_APAGADOS, q: 'oscar' }, AHORA, leadDe).map((t) => t.id)).toEqual(['a'])
     expect(aplicarFiltros(tareas, { ...FILTROS_APAGADOS, q: 'nuñez' }, AHORA, leadDe).map((t) => t.id)).toEqual(['a'])
     expect(aplicarFiltros(tareas, { ...FILTROS_APAGADOS, q: 'ana' }, AHORA, leadDe).map((t) => t.id)).toEqual(['b', 'c'])
+  })
+
+  it('tarea sin lead: con filtro de etapa queda fuera; el buscador aún matchea su título', () => {
+    const sinLead = tarea({ id: 's', lead_id: null, titulo: 'Preparar contrato' })
+    expect(aplicarFiltros([sinLead], { ...FILTROS_APAGADOS, etapa: 'contactado' }, AHORA, leadDe)).toEqual([])
+    expect(aplicarFiltros([sinLead], { ...FILTROS_APAGADOS, q: 'contrato' }, AHORA, leadDe).map((t) => t.id)).toEqual(['s'])
   })
 
   it('filtra por tipo, por etapa del lead y por estado derivado', () => {
@@ -193,5 +222,21 @@ describe('colaHigiene', () => {
     const items = colaHigiene([t], [], new Set(), AHORA)
     expect(items).toHaveLength(1)
     expect(items[0]?.k).toBe('vencida')
+  })
+
+  it('una reagenda que el cliente YA confirmó no se propone mover (moverla anularía la confirmación)', () => {
+    const sabado = tarea({ id: 'conf', vence_en: '2026-07-18T20:00:00Z', reagendada_de: 'x', confirmada_en: '2026-07-17T12:00:00Z' })
+    expect(colaHigiene([sabado], [], new Set(), AHORA)).toEqual([])
+  })
+
+  it('excluirLeads saca de los amarillos a los leads que la cola ya pinta (speed-to-lead sin duplicar)', () => {
+    // Lead 'nuevo' sin actividad y sin tarea: el caso speed-to-lead típico —
+    // cumple sinProximaAccion, pero la pantalla ya lo muestra arriba.
+    const nuevo = lead({ id: 'n1', etapa: 'nuevo' })
+    const otro = lead({ id: 'n2', nombre_completo: 'Otro Lead' })
+    const sinExcluir = colaHigiene([], [nuevo, otro], new Set(), AHORA)
+    expect(sinExcluir.map((i) => (i.k === 'sin_accion' ? i.lead.id : ''))).toEqual(['n1', 'n2'])
+    const conExcluir = colaHigiene([], [nuevo, otro], new Set(), AHORA, new Set(['n1']))
+    expect(conExcluir.map((i) => (i.k === 'sin_accion' ? i.lead.id : ''))).toEqual(['n2'])
   })
 })

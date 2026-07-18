@@ -56,9 +56,16 @@ import { money, moneyK, primerNombre } from '@/lib/format'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
-/** Fecha larga es-PE con la primera letra en mayúscula (sobre el reloj vivo). */
+/** Fecha larga es-PE con la primera letra en mayúscula (sobre el reloj vivo).
+ * En Lima SIEMPRE: con la TZ del navegador, un viernes 22:00 de Lima visto
+ * desde otra zona diría "Sábado…" mientras la cola anuncia viernes de higiene. */
 function fechaLarga(ahora: number): string {
-  const s = new Date(ahora).toLocaleDateString('es-PE', { weekday: 'long', day: 'numeric', month: 'long' })
+  const s = new Date(ahora).toLocaleDateString('es-PE', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    timeZone: 'America/Lima',
+  })
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
@@ -406,10 +413,20 @@ export function HoyVendedor(): JSX.Element {
   // reagendas de no-show fuera de mar–jue, leads sin próxima acción). El
   // speed-to-lead NUNCA se entierra: los "sin responder" siguen arriba.
   const higiene = esViernesDeHigiene(ahora)
-  const itemsHigiene = higiene
-    ? colaHigiene(tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)), ambito.leads, conTarea, ahora)
-    : []
   const colaVisible = higiene ? cola.filter((i) => i.bucket === 'sin_responder') : cola
+  // Los leads que la cola ya pinta (speed-to-lead) se excluyen de los
+  // amarillos — sin esto el mismo lead saldría dos veces y el badge contaría
+  // doble. El filtro por idsMios es el espejo RLS; v1 solo opera tareas de
+  // lead (las de cliente/perfil_id llegan con la fase de postventa).
+  const itemsHigiene = higiene
+    ? colaHigiene(
+        tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)),
+        ambito.leads,
+        conTarea,
+        ahora,
+        new Set(colaVisible.map((i) => i.lead.id)),
+      )
+    : []
   const tareasHigiene = itemsHigiene.filter(
     (i): i is Extract<ItemHigiene, { k: 'vencida' | 'no_show_fuera_ritmo' }> => i.k !== 'sin_accion',
   )
@@ -730,6 +747,9 @@ function FilaHigiene({
       aria-label={`Abrir ficha — ${t.titulo}`}
       onClick={abrir}
       onKeyDown={(e) => {
+        // Solo teclas sobre la FILA: un Enter en los botones anidados burbujea
+        // hasta aquí y el preventDefault les robaría su click nativo.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           abrir()
@@ -768,6 +788,7 @@ function FilaHigiene({
         <button
           type="button"
           title="Mover al siguiente mar–jue a las 10:00 (la franja que sí asiste)"
+          aria-label={`Mover a martes–jueves — ${t.titulo}`}
           className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()
@@ -792,6 +813,8 @@ function FilaAmarillo({ lead, abrirLead }: { lead: Lead; abrirLead: (id: string)
       aria-label={`Abrir ficha — ${lead.nombre_completo}`}
       onClick={abrir}
       onKeyDown={(e) => {
+        // Mismo guard que FilaHigiene: no robarle Enter/Espacio a AccionesContacto.
+        if (e.target !== e.currentTarget) return
         if (e.key === 'Enter' || e.key === ' ') {
           e.preventDefault()
           abrir()

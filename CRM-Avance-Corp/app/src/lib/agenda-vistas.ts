@@ -84,13 +84,22 @@ export function diasDeSemana(ahora: number, offsetSemanas = 0): DiaAgenda[] {
   return Array.from({ length: 7 }, (_, i) => diaDe(lunes + i * DIA_MS, ahora))
 }
 
-/** "13 – 19 Jul" (o "29 Jun – 5 Jul" si la semana cruza de mes). */
+/**
+ * "13 – 19 Jul" (o "29 Jun – 5 Jul" si cruza de mes, y con años explícitos
+ * — "28 Dic 2026 – 3 Ene 2027" — si cruza de año: sin ellos la etiqueta
+ * sería idéntica navegando desde cualquiera de los dos años).
+ */
 export function tituloSemana(dias: DiaAgenda[]): string {
   const a = dias[0]
   const b = dias[dias.length - 1]
   if (!a || !b) return ''
-  const mesA = MESES[new Date(a.ms - LIMA_OFFSET_MS).getUTCMonth()]
-  const mesB = MESES[new Date(b.ms - LIMA_OFFSET_MS).getUTCMonth()]
+  const dA = new Date(a.ms - LIMA_OFFSET_MS)
+  const dB = new Date(b.ms - LIMA_OFFSET_MS)
+  const mesA = MESES[dA.getUTCMonth()]
+  const mesB = MESES[dB.getUTCMonth()]
+  if (dA.getUTCFullYear() !== dB.getUTCFullYear()) {
+    return `${a.num} ${mesA} ${dA.getUTCFullYear()} – ${b.num} ${mesB} ${dB.getUTCFullYear()}`
+  }
   return mesA === mesB ? `${a.num} – ${b.num} ${mesB}` : `${a.num} ${mesA} – ${b.num} ${mesB}`
 }
 
@@ -221,13 +230,16 @@ export type ItemHigiene =
  * caídas fuera de mar–jue (la evidencia de recuperación pide reubicarlas) →
  * leads sin próxima acción (orden de sinProximaAccion: capital PEN desc,
  * luego USD — jamás mezclados). El speed-to-lead NO viene aquí: esos ítems
- * saltan cualquier cola y la pantalla los mantiene arriba.
+ * saltan cualquier cola y la pantalla los mantiene arriba — por eso recibe
+ * `excluirLeads` (los ids que la cola ya pinta) y los omite de los amarillos,
+ * o el mismo lead saldría dos veces en la tarjeta.
  */
 export function colaHigiene(
   tareas: Tarea[],
   leads: Lead[],
   conTareaPendiente: ReadonlySet<string>,
   ahora: number,
+  excluirLeads?: ReadonlySet<string>,
 ): ItemHigiene[] {
   const pendientes = [...tareas]
     .filter((t) => t.estado === 'pendiente' && t.activo)
@@ -238,11 +250,18 @@ export function colaHigiene(
   }
   for (const t of pendientes) {
     if (t.reagendada_de == null) continue
+    // Una cita que el cliente YA confirmó no se propone mover: está en ritmo
+    // por definición, y reprogramarla ANULARÍA su confirmación (regla del
+    // trigger espejada en reprogramarTarea).
+    if (t.confirmada_en != null) continue
     const ms = Date.parse(t.vence_en)
     if (!Number.isFinite(ms) || ms < ahora) continue // las vencidas ya están arriba
     const dow = dowLima(ms)
     if (dow < 2 || dow > 4) items.push({ k: 'no_show_fuera_ritmo', tarea: t })
   }
-  for (const lead of sinProximaAccion(leads, conTareaPendiente)) items.push({ k: 'sin_accion', lead })
+  for (const lead of sinProximaAccion(leads, conTareaPendiente)) {
+    if (excluirLeads?.has(lead.id)) continue
+    items.push({ k: 'sin_accion', lead })
+  }
   return items
 }

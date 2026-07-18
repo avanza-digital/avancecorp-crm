@@ -12,7 +12,7 @@
 // con resultado (motor Fase B), reprogramar rápido +1d/+3d/+1sem, y el
 // anti no-show de Fase E: recordatorio wa.me que PIDE confirmación + chip
 // Confirmada/Sin confirmar en reuniones.
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
@@ -40,7 +40,7 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { puedeEscribir } from '@/lib/roles'
-import { COLOR_EVENTO, enlaceGoogleCalendar, esDeHoy, fechaLima, tareaAEvento } from '@/lib/agenda-derivada'
+import { COLOR_EVENTO, enlaceGoogleCalendar, esDeHoy, fechaLima, LIMA_OFFSET_MS, MESES, tareaAEvento } from '@/lib/agenda-derivada'
 import {
   aplicarFiltros,
   diasDeSemana,
@@ -250,39 +250,45 @@ function TarjetaTarea({
 
 // ── Navegación temporal compartida (Semana/Mes) ───────────────────────────────
 function NavTemporal({
+  unidad,
   titulo,
   enBase,
   onPrev,
   onNext,
   onHoy,
 }: {
+  /** Contexto de las flechas para lectores de pantalla ("Semana anterior"…). */
+  unidad: 'semana' | 'mes'
   titulo: string
-  /** true = ya estamos en la semana/mes actual (oculta el botón "Hoy"). */
+  /** true = ya estamos en la semana/mes actual (deshabilita "Hoy"). */
   enBase: boolean
   onPrev: () => void
   onNext: () => void
   onHoy: () => void
 }) {
+  const U = unidad === 'semana' ? 'Semana' : 'Mes'
   const flecha =
     'grid size-7 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground'
   return (
     <div className="flex items-center gap-1.5">
-      <button type="button" aria-label="Anterior" className={flecha} onClick={onPrev}>
+      <button type="button" aria-label={`${U} anterior`} className={flecha} onClick={onPrev}>
         <ChevronLeft className="size-4" aria-hidden />
       </button>
-      <button type="button" aria-label="Siguiente" className={flecha} onClick={onNext}>
+      <button type="button" aria-label={`${U} siguiente`} className={flecha} onClick={onNext}>
         <ChevronRight className="size-4" aria-hidden />
       </button>
-      <p className="text-sm font-bold tracking-tight">{titulo}</p>
-      {!enBase && (
-        <button
-          type="button"
-          className="cursor-pointer rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground"
-          onClick={onHoy}
-        >
-          Hoy
-        </button>
-      )}
+      {/* aria-live: al navegar, el lector anuncia el período nuevo solo. */}
+      <p className="text-sm font-bold tracking-tight" aria-live="polite">{titulo}</p>
+      {/* Siempre montado (disabled en base): si se desmontara al llegar a hoy,
+          el foco del teclado se perdería en el body. */}
+      <button
+        type="button"
+        disabled={enBase}
+        className="cursor-pointer rounded-full bg-muted px-2.5 py-1 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-40"
+        onClick={onHoy}
+      >
+        Hoy
+      </button>
     </div>
   )
 }
@@ -297,7 +303,7 @@ function MiniTarea({ t, ahora, abrir }: { t: Tarea; ahora: number; abrir: () => 
     <button
       type="button"
       title={`${t.titulo} — ${ev.cuando}`}
-      aria-label={`Abrir ficha — ${t.titulo}`}
+      aria-label={`Abrir ficha — ${t.titulo} · ${ev.cuando}`}
       onClick={abrir}
       className="flex w-full cursor-pointer items-stretch gap-1.5 rounded-md p-1.5 text-left transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
@@ -323,6 +329,9 @@ function VistaSemana({
   ahora: number
   abrirLead: (id: string) => void
 }) {
+  // Hora actual en Lima: el hint de ritmo se apaga en el propio día cuando
+  // ambos picos (10–11:30 y 16–18) ya quedaron atrás.
+  const horaLima = new Date(ahora - LIMA_OFFSET_MS).getUTCHours()
   return (
     <Card className="overflow-x-auto p-2.5">
       <div className="grid min-w-[880px] grid-cols-7 gap-1.5">
@@ -342,6 +351,9 @@ function VistaSemana({
               <div className="flex items-center justify-between gap-1 px-0.5">
                 <span className={cn('text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
                   {d.label}
+                  {domingo && (
+                    <span className="sr-only"> — fuera de la ventana legal de contacto (L–S 07:00–20:00)</span>
+                  )}
                 </span>
                 {tareas.length > 0 && (
                   <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
@@ -353,8 +365,9 @@ function VistaSemana({
                 <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
               ))}
               {/* Hueco en mar–jue futuro: el mejor momento para citas (Gong:
-                  +30% de asistencia). Sugerencia, jamás candado. */}
-              {tareas.length === 0 && d.esMarJue && !d.esPasado && (
+                  +30% de asistencia). Sugerencia, jamás candado — y hoy se
+                  apaga pasadas las 18:00 (los dos picos ya fueron). */}
+              {tareas.length === 0 && d.esMarJue && !d.esPasado && !(d.esHoy && horaLima >= 18) && (
                 <div className="mt-auto rounded-md border border-dashed border-accent/30 p-1.5 text-center">
                   <Sparkles className="mx-auto size-3.5 text-accent/60" aria-hidden />
                   <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Buen día para citas</p>
@@ -376,24 +389,30 @@ const CABECERA_MES = ['L', 'M', 'M', 'J', 'V', 'S', 'D']
 function VistaMes({
   semanas,
   porDia,
+  ahora,
   diaSel,
   onDia,
 }: {
   semanas: CeldaMes[][]
   porDia: ReadonlyMap<string, Tarea[]>
+  ahora: number
   diaSel: string | null
   onDia: (fecha: string) => void
 }) {
   const celda = (c: CeldaMes) => {
     const tareas = porDia.get(c.fecha) ?? []
-    const vencidas = c.esPasado && tareas.length > 0 // pendientes en día pasado = vencidas
+    // La MISMA derivada canónica de todo el CRM (vence_en < ahora): cubre
+    // también las vencidas de HOY, que "día pasado" dejaba en gris.
+    const nVencidas = tareas.filter((t) => Date.parse(t.vence_en) < ahora).length
     const tipos = Array.from(new Set(tareas.map((t) => t.tipo))).slice(0, 3)
     const activa = diaSel === c.fecha
     return (
       <button
         key={c.fecha}
         type="button"
-        aria-label={`${c.label} — ${tareas.length} ${tareas.length === 1 ? 'tarea' : 'tareas'}`}
+        aria-label={`${c.label} — ${tareas.length} ${tareas.length === 1 ? 'tarea' : 'tareas'}${
+          nVencidas > 0 ? `, ${nVencidas} vencida${nVencidas === 1 ? '' : 's'}` : ''
+        }`}
         aria-pressed={activa}
         onClick={() => onDia(c.fecha)}
         className={cn(
@@ -408,9 +427,11 @@ function VistaMes({
         </span>
         {tareas.length > 0 ? (
           <span className="flex items-center gap-1">
+            {/* El triángulo es el canal NO cromático de "hay vencidas". */}
+            {nVencidas > 0 && <AlertTriangle className="size-2.5" style={{ color: '#d97706' }} aria-hidden />}
             <span
               className="text-[10px] font-bold tabular-nums"
-              style={{ color: vencidas ? '#d97706' : 'var(--muted-foreground)' }}
+              style={{ color: nVencidas > 0 ? '#d97706' : 'var(--muted-foreground)' }}
             >
               {tareas.length}
             </span>
@@ -430,8 +451,9 @@ function VistaMes({
   return (
     <Card className="p-2.5">
       <div className="grid grid-cols-7 gap-1">
+        {/* Decorativa (dos "M" idénticas): cada celda ya anuncia su día completo. */}
         {CABECERA_MES.map((d, i) => (
-          <span key={i} className="pb-1 text-center text-[10px] font-bold uppercase text-muted-foreground">
+          <span key={i} aria-hidden className="pb-1 text-center text-[10px] font-bold uppercase text-muted-foreground">
             {d}
           </span>
         ))}
@@ -461,10 +483,12 @@ export function Agenda() {
 
   // Ámbito (espejo RLS): solo tareas de leads que el rol puede ver.
   const idsAmbito = useMemo(() => new Set(ambito.leads.map((l) => l.id)), [ambito.leads])
-  const leadPorId = useCallback(
-    (id: string | null): Lead | undefined => (id ? ambito.leads.find((l) => l.id === id) : undefined),
-    [ambito.leads],
-  )
+  // Lookup O(1): aplicarFiltros lo llama por CADA tarea en cada pulsación del
+  // buscador — con la cartera de gerencia un find lineal se vuelve cuadrático.
+  const leadPorId = useMemo(() => {
+    const porId = new Map(ambito.leads.map((l) => [l.id, l] as const))
+    return (id: string | null): Lead | undefined => (id ? porId.get(id) : undefined)
+  }, [ambito.leads])
 
   const pendientes = useMemo(
     () =>
@@ -536,6 +560,10 @@ export function Agenda() {
         return
       }
       if ((e.key === 'ArrowLeft' || e.key === 'ArrowRight') && (vista === 'semana' || vista === 'mes')) {
+        // Solo con el foco "libre" (body): si el usuario tabuló a un botón o
+        // está dentro del grid desplazable, las flechas conservan su función
+        // nativa (scroll/foco) — preventDefault aquí rompería el teclado.
+        if (e.target !== document.body) return
         const paso = e.key === 'ArrowLeft' ? -1 : 1
         if (vista === 'semana') setOffsetSemana((o) => o + paso)
         else {
@@ -565,6 +593,7 @@ export function Agenda() {
                 key={c.fecha}
                 type="button"
                 aria-label={`Ver la semana — ${c.label}`}
+                aria-current={c.esHoy ? 'date' : undefined}
                 onClick={() => {
                   setOffsetSemana(0)
                   setVista('semana')
@@ -677,6 +706,7 @@ export function Agenda() {
       {vista === 'semana' && (
         <>
           <NavTemporal
+            unidad="semana"
             titulo={tituloSemana(semana)}
             enBase={offsetSemana === 0}
             onPrev={() => setOffsetSemana((o) => o - 1)}
@@ -691,6 +721,7 @@ export function Agenda() {
       {vista === 'mes' && (
         <>
           <NavTemporal
+            unidad="mes"
             titulo={mes.titulo}
             enBase={offsetMes === 0}
             onPrev={() => {
@@ -706,12 +737,18 @@ export function Agenda() {
               setDiaSel(null)
             }}
           />
-          <VistaMes semanas={mes.semanas} porDia={porDia} diaSel={diaMes} onDia={setDiaSel} />
+          <VistaMes semanas={mes.semanas} porDia={porDia} ahora={ahora} diaSel={diaMes} onDia={setDiaSel} />
           {diaMes ? (
             <Card>
+              {/* Mes/año salen de la FECHA elegida, no de la rejilla: una
+                  celda de relleno (1 de agosto en julio) titula su mes real. */}
               <SectionHead
                 icon={CalendarDays}
-                title={celdaDiaMes ? `${celdaDiaMes.label} — ${mes.titulo}` : diaMes}
+                title={
+                  celdaDiaMes
+                    ? `${celdaDiaMes.label} — ${MESES[Number(diaMes.slice(5, 7)) - 1]} ${diaMes.slice(0, 4)}`
+                    : diaMes
+                }
                 right={
                   tareasDiaMes.length > 0 ? (
                     <Badge color="var(--accent)">
