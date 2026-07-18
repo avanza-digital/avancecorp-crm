@@ -47,6 +47,8 @@ function guardarColapsado(v: boolean): void {
 
 const ABRIR_MS = 120 // retardo antes de asomar (un paso rápido no lo dispara)
 const CERRAR_MS = 200 // retardo antes de replegar (permite ir al panel sin cortar)
+const esPantallaMovil = () =>
+  typeof window !== 'undefined' && window.matchMedia('(max-width: 767px)').matches
 
 // Animación del "peek": el panel crece anclando los íconos y los labels entran
 // en cascada con un rebote sutil. Se desactiva con prefers-reduced-motion.
@@ -108,7 +110,7 @@ function NavButton({
 export function Sidebar({ vista }: { vista: Vista }) {
   const { yo, salir } = useAuth()
   const rol = yo?.rol
-  const [colapsado, setColapsado] = useState(leerColapsado)
+  const [colapsado, setColapsado] = useState(() => esPantallaMovil() || leerColapsado())
   const [asomando, setAsomando] = useState(false)
   const abrirRef = useRef<number | undefined>(undefined)
   const cerrarRef = useRef<number | undefined>(undefined)
@@ -121,10 +123,18 @@ export function Sidebar({ vista }: { vista: Vista }) {
   const alternar = () =>
     setColapsado((v) => {
       const siguiente = !v
-      guardarColapsado(siguiente)
+      if (!esPantallaMovil()) guardarColapsado(siguiente)
       if (!siguiente) setAsomando(false) // al fijar abierto, no queda "asomando"
       return siguiente
     })
+
+  const navegar = (destino: Vista) => {
+    escribirHash(destino)
+    if (esPantallaMovil()) {
+      setColapsado(true)
+      setAsomando(false)
+    }
+  }
 
   const entrar = () => {
     if (!colapsado) return
@@ -148,7 +158,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
 
   return (
     <aside
-      className={cn('relative z-30 h-full shrink-0', colapsado ? 'w-16' : 'w-60')}
+      className={cn('relative z-30 h-full w-16 shrink-0', !colapsado && 'md:w-60')}
       data-peek-anim=""
       style={{ transition: `width ${ABRIR_MS}ms var(--ease-out-expo)` }}
     >
@@ -200,7 +210,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
             </p>
           )}
           {items.map((n, i) => (
-            <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => escribirHash(n.id)} expandido={expandido} animar={animar} indice={i + 2} />
+            <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => navegar(n.id)} expandido={expandido} animar={animar} indice={i + 2} />
           ))}
 
           {can(rol, 'verConfiguracion') && (
@@ -217,7 +227,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
               <NavButton
                 item={{ label: 'Configuración', icon: Settings }}
                 active={vista === 'config'}
-                onClick={() => escribirHash('config')}
+                onClick={() => navegar('config')}
                 expandido={expandido}
                 animar={animar}
                 indice={items.length + 3}

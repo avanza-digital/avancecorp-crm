@@ -28,23 +28,30 @@ export interface KpiCardProps {
 
 export function KpiCard({ label, value, icon: Icon, color, sub, delay = 0 }: KpiCardProps): JSX.Element {
   return (
-    <Card className="ac-lift ac-pop overflow-hidden" style={{ animationDelay: `${delay}ms` }}>
-      <CardContent className="pb-3 pt-4">
-        {/* Sin chip de tendencia, el tile del icono manda solo en la fila:
-            misma altura (size-10), el espaciado no cambia. */}
-        <div className="mb-3 flex items-center justify-between">
+    <Card
+      className="ac-lift ac-pop h-full overflow-hidden border-border/80 bg-card/95 shadow-[0_12px_28px_-24px_rgba(15,31,61,0.8)]"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <CardContent className="p-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0 text-[11px] font-bold uppercase tracking-[0.08em] text-foreground/65">
+            {label}
+          </div>
           <span
-            className="ac-chip grid size-10 place-items-center rounded-xl"
+            className="ac-chip grid size-10 shrink-0 place-items-center rounded-xl"
             style={{ '--c': color } as CSSProperties}
           >
             <Icon className="size-5" />
           </span>
         </div>
-        <div className="text-2xl font-extrabold tracking-tight tabular-nums text-primary">
+        <div className="mt-3 whitespace-nowrap text-[clamp(1.35rem,2.2vw,1.75rem)] font-extrabold leading-none tracking-tight tabular-nums text-primary">
           <AnimatedValue value={value} />
         </div>
-        <div className="text-[13px] font-semibold text-foreground/80">{label}</div>
-        {sub && <div className="text-xs text-muted-foreground">{sub}</div>}
+        {sub && (
+          <div className="mt-3 border-t border-border/70 pt-2.5 text-xs font-medium leading-relaxed text-muted-foreground">
+            {sub}
+          </div>
+        )}
       </CardContent>
     </Card>
   )

@@ -95,10 +95,10 @@ const ANA: AnalistaDistribucionLeads = {
   },
   operacion: {
     cohorte_episodios: 7,
-    contactos: 5,
-    sla_evaluables: 4,
-    sla_en_24h: 3,
-    primer_contacto_mediana_minutos: 90,
+    contactos_asignacion: 5,
+    sla_asignacion_evaluables: 4,
+    sla_asignacion_en_24h: 3,
+    primer_contacto_asignacion_mediana_minutos: 90,
     transferidos: 1,
     parqueados: 0,
     desactivados: 0,
@@ -135,10 +135,10 @@ const BRUNO: AnalistaDistribucionLeads = {
   },
   operacion: {
     cohorte_episodios: 0,
-    contactos: 0,
-    sla_evaluables: 0,
-    sla_en_24h: 0,
-    primer_contacto_mediana_minutos: null,
+    contactos_asignacion: 0,
+    sla_asignacion_evaluables: 0,
+    sla_asignacion_en_24h: 0,
+    primer_contacto_asignacion_mediana_minutos: null,
     transferidos: 0,
     parqueados: 0,
     desactivados: 0,
@@ -148,16 +148,24 @@ const BRUNO: AnalistaDistribucionLeads = {
 }
 
 const DATOS: MetricasDistribucionLeads = {
-  version: 1,
+  version: 2,
   generado_en: '2026-07-17T20:00:00Z',
   cohorte: {
     desde_inclusivo: '2026-04-19',
     hasta_inclusivo: '2026-07-17',
     hasta_exclusivo: '2026-07-18',
     criterio: 'episodio_asignado_en',
+    criterio_sla_global: 'ciclo_sla_global_iniciado_en',
+    politica_pausas: 'SIN_DESCUENTO',
     zona_horaria: 'America/Lima',
   },
-  alcances: { matriz: 'PEN', capacidad: 'TODAS_LAS_MONEDAS', operacion_sla: 'TODAS_LAS_MONEDAS' },
+  alcances: {
+    matriz: 'PEN',
+    capacidad: 'TODAS_LAS_MONEDAS',
+    montos: 'SEPARADOS_SIN_CONVERSION',
+    sla_principal: 'GLOBAL_POR_CICLO',
+    sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
+  },
   rangos: RANGOS.map(([id, etiqueta, desdeExclusivo, hastaInclusivo], indice) => ({
     id,
     orden: indice + 1,
@@ -175,8 +183,14 @@ const DATOS: MetricasDistribucionLeads = {
     cohorte_leads_unicos: 7,
     convertidos_pen: 3,
     descartados_pen: 1,
-    sla_evaluables: 4,
-    sla_en_24h: 3,
+    sla_global_ciclos_cohorte: 8,
+    sla_global_leads_unicos_cohorte: 7,
+    sla_global_contactos: 3,
+    sla_global_evaluables: 6,
+    sla_global_en_24h: 2,
+    primer_contacto_global_mediana_minutos: 180,
+    sla_global_sin_contacto_vencidos_actuales: 2,
+    reasignaciones_cohorte: 1,
   },
   analistas: [ANA, BRUNO],
   por_repartir: {
@@ -222,6 +236,7 @@ const DATOS: MetricasDistribucionLeads = {
     episodios_aproximados_cohorte: 0,
     episodios_sin_monto_actuales: 0,
     episodios_sin_monto_cohorte: 0,
+    ciclos_sla_global_aproximados_cohorte: 0,
   },
 }
 
@@ -242,16 +257,16 @@ function montar(cambios: Partial<DistribucionLeadsGerenciaProps> = {}) {
 }
 
 describe('DistribucionLeadsGerencia', () => {
-  it('muestra las 7 bandas PEN con recibidos, cartera, evidencia C/D y muestra explícita', () => {
+  it('muestra siete grupos en soles con asignaciones, leads activos y resultados', () => {
     montar()
 
-    const matriz = screen.getByRole('table', { name: /distribución PEN por analista/i })
-    expect(within(matriz).getAllByText(/BANDA 0[1-7]/)).toHaveLength(7)
+    const matriz = screen.getByRole('table', { name: /resultados por analista en soles/i })
+    expect(within(matriz).getAllByText(/GRUPO 0[1-7]/)).toHaveLength(7)
 
     const filaAna = within(matriz).getByRole('row', { name: /Ana Torres/ })
     expect(
       within(filaAna).getByLabelText(
-        'Ana Torres, Hasta S/ 1 mil: 3 episodios recibidos, 3 leads únicos; 2 en cartera actual; 1 convertidos; 1 descartados; conversión 50%',
+        'Ana Torres, Hasta S/ 1 mil: 3 recibidos, 2 aún activos, 1 ganados y 1 descartados; resultado 50%',
       ),
     ).toBeInTheDocument()
     expect(
@@ -260,17 +275,20 @@ describe('DistribucionLeadsGerencia', () => {
       ),
     ).toBeInTheDocument()
     expect(within(filaAna).getAllByText('75%')).toHaveLength(2)
-    expect(within(filaAna).getByText('1 sin tocar')).toBeInTheDocument()
-    expect(within(filaAna).getByText('2 estancados')).toBeInTheDocument()
-    expect(within(filaAna).getByText('7 episodios · 7 leads recibidos')).toBeInTheDocument()
-    expect(within(filaAna).getByText('4 ciclos · 4 leads resueltos')).toBeInTheDocument()
-    expect(within(filaAna).getByText(/Salidas 14[,.]3% · 1\/7/)).toBeInTheDocument()
-    expect(within(matriz).getAllByText('Total PEN + USD')).toHaveLength(2)
+    expect(within(filaAna).getByText('1 sin atender')).toBeInTheDocument()
+    expect(within(filaAna).getByText('2 sin avance')).toBeInTheDocument()
+    expect(within(filaAna).getByText('7 asignaciones · 7 leads recibidos')).toBeInTheDocument()
+    expect(within(filaAna).getByText('4 asignaciones · 4 leads cerrados')).toBeInTheDocument()
+    expect(within(filaAna).getByText(/Asignaciones que ya no tiene este analista: 14[,.]3% · 1 de 7 asignaciones/)).toBeInTheDocument()
+    expect(within(matriz).getByText('Soles y dólares')).toBeInTheDocument()
+    expect(within(matriz).getByText('Todos los leads')).toBeInTheDocument()
+    expect(screen.getByText(/2 de 6 leads/)).toBeInTheDocument()
+    expect(screen.getByText(/2 llevan más de 24 h sin atención/)).toBeInTheDocument()
 
     const filaBruno = within(matriz).getByRole('row', { name: /Bruno Díaz/ })
     // Siete bandas + conversión total + SLA: ningún vacío se presenta como 0%.
-    expect(within(filaBruno).getAllByText('Sin muestra')).toHaveLength(9)
-    expect(within(filaBruno).getByText('C 0 · D 0')).toBeInTheDocument()
+    expect(within(filaBruno).getAllByText('Sin resultados')).toHaveLength(8)
+    expect(within(filaBruno).getByText('0 ganados · 0 descartados')).toBeInTheDocument()
   })
 
   it('valida el período antes de pedir una nueva cohorte', async () => {
@@ -298,17 +316,17 @@ describe('DistribucionLeadsGerencia', () => {
     montar({ onEditarCapacidad })
 
     expect(
-      screen.queryByRole('button', { name: 'Editar capacidad de Bruno Díaz' }),
+      screen.queryByRole('button', { name: 'Editar máximo de leads de Bruno Díaz' }),
     ).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Editar capacidad de Ana Torres' }))
+    await user.click(screen.getByRole('button', { name: 'Editar máximo de leads de Ana Torres' }))
 
-    const input = screen.getByLabelText('Capacidad objetivo para Ana Torres')
+    const input = screen.getByLabelText('Máximo de leads para Ana Torres')
     await user.clear(input)
     await user.type(input, '24')
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     await waitFor(() => expect(onEditarCapacidad).toHaveBeenCalledWith('ana-id', 24))
-    expect(screen.queryByLabelText('Capacidad objetivo para Ana Torres')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Máximo de leads para Ana Torres')).not.toBeInTheDocument()
   })
 
   it('rechaza una capacidad fuera del contrato y permite quitar el objetivo con vacío', async () => {
@@ -316,8 +334,8 @@ describe('DistribucionLeadsGerencia', () => {
     const onEditarCapacidad = vi.fn().mockResolvedValue(undefined)
     montar({ onEditarCapacidad })
 
-    await user.click(screen.getByRole('button', { name: 'Editar capacidad de Ana Torres' }))
-    const input = screen.getByLabelText('Capacidad objetivo para Ana Torres')
+    await user.click(screen.getByRole('button', { name: 'Editar máximo de leads de Ana Torres' }))
+    const input = screen.getByLabelText('Máximo de leads para Ana Torres')
     await user.clear(input)
     await user.type(input, '1001')
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
@@ -334,14 +352,14 @@ describe('DistribucionLeadsGerencia', () => {
     const onEditarCapacidad = vi.fn().mockRejectedValue(new Error('Failed to fetch: detalle técnico'))
     montar({ onEditarCapacidad })
 
-    await user.click(screen.getByRole('button', { name: 'Editar capacidad de Ana Torres' }))
-    const input = screen.getByLabelText('Capacidad objetivo para Ana Torres')
+    await user.click(screen.getByRole('button', { name: 'Editar máximo de leads de Ana Torres' }))
+    const input = screen.getByLabelText('Máximo de leads para Ana Torres')
     await user.clear(input)
     await user.type(input, '24')
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(await screen.findByRole('alert')).toHaveTextContent(
-      'No se pudo guardar la capacidad. Inténtalo otra vez.',
+      'No se pudo guardar el máximo de leads. Inténtalo otra vez.',
     )
     expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument()
   })
@@ -353,11 +371,11 @@ describe('DistribucionLeadsGerencia', () => {
     }
     montar({ datos: datosConCalidad })
 
-    expect(screen.getByRole('heading', { name: 'USD · lectura separada' })).toBeInTheDocument()
-    expect(screen.getByRole('article', { name: 'Cola global' })).toBeInTheDocument()
-    expect(screen.getByRole('article', { name: 'Bandeja de César Ruiz' })).toBeInTheDocument()
-    expect(screen.getByText('Calidad del historial')).toBeInTheDocument()
-    expect(screen.getByText(/1 de la cohorte están sin monto válido/)).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Resultados en dólares' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Pendientes de Gerencia' })).toBeInTheDocument()
+    expect(screen.getByRole('article', { name: 'Pendientes de César Ruiz' })).toBeInTheDocument()
+    expect(screen.getByText('Aviso sobre los datos')).toBeInTheDocument()
+    expect(screen.getByText(/1 registros no tienen monto/)).toBeInTheDocument()
   })
 
   it('cubre carga, fallo y ausencia honesta de respuesta sin asumir un arreglo', async () => {
@@ -376,7 +394,7 @@ describe('DistribucionLeadsGerencia', () => {
         onReintentar={onReintentar}
       />,
     )
-    expect(screen.getByText('Aún no hay una fotografía de distribución')).toBeInTheDocument()
+    expect(screen.getByText('No hay datos para mostrar')).toBeInTheDocument()
 
     rerender(
       <DistribucionLeadsGerencia

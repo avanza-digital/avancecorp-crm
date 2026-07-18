@@ -221,7 +221,7 @@ function Workspace() {
       <Sidebar vista={vista} />
       <main className="ac-scroll flex min-w-0 flex-1 flex-col">
         <Topbar vista={vista} />
-        <div className="ac-scroll flex-1 overflow-auto p-6" key={vista}>
+        <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
           {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
           <ErrorBoundary>
             <Suspense fallback={<PantallaCargando />}>

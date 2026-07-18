@@ -112,7 +112,11 @@ function TabsMoneda({
 }): JSX.Element | null {
   if (monedas.length === 0) return null
   if (monedas.length === 1) {
-    return <span className="text-xs font-bold text-muted-foreground">{monedas[0]}</span>
+    return (
+      <span className="text-xs font-bold text-muted-foreground">
+        {monedas[0] === 'PEN' ? 'Soles' : 'Dólares'}
+      </span>
+    )
   }
   return (
     <div role="group" aria-label="Moneda" className="flex gap-1">
@@ -129,7 +133,7 @@ function TabsMoneda({
               : 'border-border text-muted-foreground hover:bg-muted/60',
           )}
         >
-          {m}
+          {m === 'PEN' ? 'Soles' : 'Dólares'}
         </button>
       ))}
     </div>
@@ -298,7 +302,9 @@ export function GraficasGerencia(): JSX.Element {
   const [monedaVencimientos, setMonedaVencimientos] = useState<Moneda>('PEN')
 
   const monedasCapital = useMemo(() => monedasConDatos(filasCapital), [filasCapital])
-  const monedasPagos = useMemo(() => monedasConDatos(filasPagos), [filasPagos])
+  // Los pagos pueden registrarse en cualquiera de las dos monedas. El selector
+  // permanece visible aunque una de ellas todavía no tenga movimientos.
+  const monedasPagos: Moneda[] = ['PEN', 'USD']
   const monedasVencimientos = useMemo(() => monedasConDatos(filasVencimientos), [filasVencimientos])
 
   const monCapital = monedasCapital.includes(monedaCapital) ? monedaCapital : (monedasCapital[0] ?? 'PEN')

@@ -276,6 +276,52 @@ body {
   background-clip: padding-box;
 }
 
+/* ==========================================================================
+   GERENCIA LEGIBLE — lectura por capas para una pantalla cargada de datos.
+   Solo afecta el tablero de Gerencia; no cambia la densidad del resto del CRM.
+   ========================================================================== */
+.gerencia-legible .text-\[9px\] {
+  font-size: 0.6875rem;
+  line-height: 0.95rem;
+}
+.gerencia-legible .text-\[10px\] {
+  font-size: 0.75rem;
+  line-height: 1rem;
+}
+.gerencia-legible .text-\[11px\],
+.gerencia-legible .text-xs {
+  font-size: 0.8125rem;
+  line-height: 1.25rem;
+}
+.gerencia-legible [data-slot='card'] {
+  border-color: color-mix(in srgb, var(--border) 82%, var(--primary) 18%);
+}
+.gerencia-legible [aria-label='Resultados por analista en soles'] thead th {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  box-shadow: 0 1px 0 var(--border);
+}
+.gerencia-legible [aria-label='Resultados por analista en soles'] thead th:first-child {
+  left: 0;
+  z-index: 40;
+}
+.gerencia-legible [aria-label='Resultados por analista en soles'] tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--muted) 28%, transparent);
+}
+.gerencia-legible [aria-label='Resultados por analista en soles'] tbody tr:nth-child(even) th {
+  background: color-mix(in srgb, var(--card) 88%, var(--muted) 12%);
+}
+.gerencia-legible .ac-scroll::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+.gerencia-legible .ac-scroll::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--primary) 30%, transparent);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+
 /* ============================================================================
    ACCESIBILIDAD — respetar prefers-reduced-motion.
    ========================================================================== */
