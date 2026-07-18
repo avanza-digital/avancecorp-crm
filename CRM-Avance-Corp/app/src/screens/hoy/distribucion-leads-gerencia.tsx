@@ -210,50 +210,49 @@ function CargandoDistribucion(): JSX.Element {
 function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element {
   const resueltos = datos.resumen.convertidos_pen + datos.resumen.descartados_pen
   const conversion = porcentaje(datos.resumen.convertidos_pen, resueltos)
-  const sla = porcentaje(datos.resumen.sla_en_24h, datos.resumen.sla_evaluables)
+  const sla = porcentaje(
+    datos.resumen.sla_global_en_24h,
+    datos.resumen.sla_global_evaluables,
+  )
+  const medianaGlobal = medianaContacto(datos.resumen.primer_contacto_global_mediana_minutos)
 
   const items = [
     {
-      etiqueta: 'Cartera total con analista',
+      etiqueta: 'Leads con analista',
       valor: ENTERO.format(datos.resumen.asignados_actuales),
       detalle: `${dinero(datos.resumen.capital_pen_asignado_actual, 'PEN')} · ${dinero(datos.resumen.capital_usd_asignado_actual, 'USD')}`,
     },
     {
-      etiqueta: 'Por repartir',
+      etiqueta: 'Pendientes de asignar',
       valor: ENTERO.format(datos.resumen.por_repartir_actuales),
-      detalle: 'Global + bandejas de supervisión',
+      detalle: 'Gerencia y supervisores',
     },
     {
-      etiqueta: 'Conversión PEN',
-      valor: conversion ?? 'Sin muestra',
-      detalle: `C ${datos.resumen.convertidos_pen} · D ${datos.resumen.descartados_pen}`,
+      etiqueta: 'Leads ganados en soles',
+      valor: conversion ?? 'Aún sin resultados',
+      detalle: `${datos.resumen.convertidos_pen} ganados · ${datos.resumen.descartados_pen} descartados`,
     },
     {
-      etiqueta: 'SLA total de contacto ≤ 24 h',
-      valor: sla ?? 'Sin muestra',
-      detalle: `${datos.resumen.sla_en_24h} de ${datos.resumen.sla_evaluables} evaluables`,
+      etiqueta: 'Leads atendidos en 24 horas',
+      valor: sla ?? 'Aún sin datos',
+      detalle: `${datos.resumen.sla_global_en_24h} de ${datos.resumen.sla_global_evaluables} leads${medianaGlobal ? ` · tiempo habitual ${medianaGlobal}` : ''} · ${datos.resumen.sla_global_sin_contacto_vencidos_actuales} llevan más de 24 h sin atención`,
     },
   ]
 
   return (
-    <dl className="grid overflow-hidden rounded-lg border border-border bg-muted/20 sm:grid-cols-2 xl:grid-cols-4">
-      {items.map((item, indice) => (
+    <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      {items.map((item) => (
         <div
           key={item.etiqueta}
-          className={cn(
-            'min-w-0 px-4 py-3',
-            indice > 0 && 'border-t border-border sm:border-l',
-            indice === 2 && 'sm:border-l-0 xl:border-l',
-            indice > 1 && 'xl:border-t-0',
-          )}
+          className="min-w-0 rounded-xl border border-border/80 bg-card px-4 py-4 shadow-[0_10px_24px_-24px_rgba(15,31,61,0.8)]"
         >
-          <dt className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+          <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
             {item.etiqueta}
           </dt>
-          <dd className="mt-0.5 text-xl font-extrabold tracking-tight tabular-nums text-primary">
+          <dd className="mt-1.5 text-2xl font-extrabold tracking-tight tabular-nums text-primary">
             {item.valor}
           </dd>
-          <dd className="mt-0.5 text-[11px] text-muted-foreground">{item.detalle}</dd>
+          <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.detalle}</dd>
         </div>
       ))}
     </dl>
@@ -289,7 +288,7 @@ function CapacidadAnalista({
     return (
       <form className="min-w-32 space-y-1.5" onSubmit={onGuardar} noValidate>
         <label className="sr-only" htmlFor={`capacidad-${analista.analista_id}`}>
-          Capacidad objetivo para {analista.nombre}
+          Máximo de leads para {analista.nombre}
         </label>
         <input
           id={`capacidad-${analista.analista_id}`}
@@ -313,7 +312,7 @@ function CapacidadAnalista({
             variant="ghost"
             onClick={onCancelar}
             disabled={guardando}
-            aria-label={`Cancelar edición de capacidad de ${analista.nombre}`}
+            aria-label={`Cancelar edición del máximo de leads de ${analista.nombre}`}
           >
             <X />
           </Button>
@@ -341,8 +340,8 @@ function CapacidadAnalista({
             size="xs"
             className="size-7 px-0"
             onClick={onEmpezar}
-            aria-label={`Editar capacidad de ${analista.nombre}`}
-            title="Editar capacidad objetivo"
+            aria-label={`Editar máximo de leads de ${analista.nombre}`}
+            title="Editar máximo de leads"
           >
             <Pencil />
           </Button>
@@ -356,7 +355,7 @@ function CapacidadAnalista({
             className="mt-1 h-1.5"
           />
           <p className="mt-1 text-[10px] tabular-nums text-muted-foreground">
-            {uso}% de capacidad
+            {uso}% ocupado
           </p>
         </>
       ) : (
@@ -379,7 +378,7 @@ function CeldaRango({
   const conversion = porcentaje(convertidos, resueltos)
   const recibidos = dato.cohorte.episodios_recibidos
   const leadsUnicos = dato.cohorte.leads_unicos_recibidos
-  const etiqueta = `${analista.nombre}, ${rango.etiqueta}: ${recibidos} episodios recibidos, ${leadsUnicos} leads únicos; ${dato.cartera_actual.episodios} en cartera actual; ${convertidos} convertidos; ${descartados} descartados; conversión ${conversion ?? 'sin muestra'}`
+  const etiqueta = `${analista.nombre}, ${rango.etiqueta}: ${recibidos} recibidos, ${dato.cartera_actual.episodios} aún activos, ${convertidos} ganados y ${descartados} descartados; cierre ${conversion ?? 'aún sin casos'}`
 
   return (
     <div
@@ -390,7 +389,7 @@ function CeldaRango({
           : 'border-border/70 bg-muted/15',
       )}
       aria-label={etiqueta}
-      title={`${dinero(dato.cartera_actual.capital, 'PEN')} en cartera actual · ${leadsUnicos} leads únicos recibidos`}
+      title={`${dinero(dato.cartera_actual.capital, 'PEN')} en leads activos · ${leadsUnicos} leads distintos recibidos`}
     >
       <p className="flex items-baseline gap-1 text-foreground">
         <span className="text-base font-extrabold tabular-nums">{recibidos}</span>
@@ -399,16 +398,16 @@ function CeldaRango({
         </span>
       </p>
       <p className="mt-0.5 whitespace-nowrap text-[9px] font-medium tabular-nums text-muted-foreground">
-        {dato.cartera_actual.episodios} cartera hoy
+        {dato.cartera_actual.episodios} aún activos
         {leadsUnicos !== recibidos ? ` · ${leadsUnicos} leads` : ''}
       </p>
       <p className="mt-1 whitespace-nowrap text-[10px] font-semibold tabular-nums text-muted-foreground">
-        <span className="text-primary">C {convertidos}</span>
+        <span className="text-primary">Ganados {convertidos}</span>
         <span aria-hidden> · </span>
-        <span>D {descartados}</span>
+        <span>Descartados {descartados}</span>
       </p>
       <p className="mt-0.5 text-[9px] font-bold tabular-nums text-muted-foreground">
-        {conversion ?? 'Sin muestra'}
+        {conversion ?? 'Sin resultados'}
       </p>
     </div>
   )
@@ -416,18 +415,21 @@ function CeldaRango({
 
 function SeguimientoAnalista({ analista }: { analista: AnalistaDistribucionLeads }): JSX.Element {
   const { operacion } = analista
-  const sla = porcentaje(operacion.sla_en_24h, operacion.sla_evaluables)
-  const mediana = medianaContacto(operacion.primer_contacto_mediana_minutos)
+  const sla = porcentaje(
+    operacion.sla_asignacion_en_24h,
+    operacion.sla_asignacion_evaluables,
+  )
+  const mediana = medianaContacto(operacion.primer_contacto_asignacion_mediana_minutos)
   const salidasNoTerminales = operacion.transferidos + operacion.parqueados
   const tasaSalidas = porcentaje(salidasNoTerminales, operacion.cohorte_episodios)
 
   return (
     <div className="min-w-32 space-y-1.5">
       <div>
-        <p className="font-extrabold tabular-nums text-foreground">{sla ?? 'Sin muestra'}</p>
+        <p className="font-extrabold tabular-nums text-foreground">{sla ?? 'Aún sin asignaciones'}</p>
         <p className="text-[10px] tabular-nums text-muted-foreground">
-          SLA {operacion.sla_en_24h}/{operacion.sla_evaluables}
-          {mediana ? ` · mediana ${mediana}` : ''}
+          {operacion.sla_asignacion_en_24h} de {operacion.sla_asignacion_evaluables} asignaciones atendidas en 24 h
+          {mediana ? ` · tiempo habitual ${mediana}` : ''}
         </p>
       </div>
       <div className="flex flex-wrap gap-1">
@@ -436,24 +438,152 @@ function SeguimientoAnalista({ analista }: { analista: AnalistaDistribucionLeads
           variant="outline"
           className="whitespace-nowrap"
         >
-          {operacion.sin_tocar_actual} sin tocar
+          {operacion.sin_tocar_actual} sin atender
         </Badge>
         <Badge
           color={operacion.estancados_actual > 0 ? 'var(--destructive)' : 'var(--muted-foreground)'}
           variant="outline"
           className="whitespace-nowrap"
         >
-          {operacion.estancados_actual} estancados
+          {operacion.estancados_actual} sin avance
         </Badge>
       </div>
       <p className="text-[10px] tabular-nums text-muted-foreground">
-        Salidas {tasaSalidas ?? '—'} · {salidasNoTerminales}/{operacion.cohorte_episodios}
+        Asignaciones que ya no tiene este analista: {tasaSalidas ?? '—'} · {salidasNoTerminales} de {operacion.cohorte_episodios} asignaciones
       </p>
       <p className="text-[10px] tabular-nums text-muted-foreground">
-        {operacion.transferidos} transferidos · {operacion.parqueados} parqueados ·{' '}
-        {operacion.desactivados} desactivados
+        {operacion.transferidos} pasaron a otro analista · {operacion.parqueados} pendientes de asignar ·{' '}
+        {operacion.desactivados} bajas
       </p>
     </div>
+  )
+}
+
+function VistaRapidaAnalistas({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element | null {
+  if (datos.analistas.length === 0) return null
+
+  return (
+    <section aria-labelledby="vista-rapida-analistas" className="space-y-3">
+      <div>
+        <h4 id="vista-rapida-analistas" className="text-base font-extrabold text-primary">
+          Vista rápida del equipo
+        </h4>
+        <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+          Primero lo importante de cada analista. Los resultados en soles y dólares se mantienen separados.
+        </p>
+      </div>
+      <div className="grid gap-3 lg:grid-cols-2">
+        {datos.analistas.map((analista) => {
+          const operacion = analista.operacion
+          const atencion = porcentaje(
+            operacion.sla_asignacion_en_24h,
+            operacion.sla_asignacion_evaluables,
+          )
+          const tiempoHabitual = medianaContacto(
+            operacion.primer_contacto_asignacion_mediana_minutos,
+          )
+          const maximo = analista.capacidad.objetivo
+          const usd = analista.usd_no_segmentado
+
+          return (
+            <article
+              key={analista.analista_id}
+              className="rounded-2xl border border-border/80 border-l-4 border-l-accent bg-card p-4 shadow-[0_14px_30px_-28px_rgba(15,31,61,0.85)]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <Avatar nombre={analista.nombre} className="size-10" />
+                  <div className="min-w-0">
+                    <h5 className="truncate text-sm font-extrabold text-foreground">
+                      {analista.nombre}
+                    </h5>
+                    <p className="truncate text-xs text-muted-foreground">
+                      {analista.rol === 'supervisor'
+                        ? 'Supervisor'
+                        : analista.supervisor_nombre || 'Sin supervisor'}
+                    </p>
+                  </div>
+                </div>
+                <Badge
+                  color={analista.disponible_para_recibir ? 'var(--accent)' : 'var(--warning)'}
+                  variant="outline"
+                  className="shrink-0"
+                >
+                  {analista.disponible_para_recibir ? 'Recibe leads' : 'Recepción pausada'}
+                </Badge>
+              </div>
+
+              <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
+                <div className="rounded-xl bg-muted/45 p-3">
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Leads activos
+                  </dt>
+                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">
+                    {analista.capacidad.carga_activa}
+                  </dd>
+                  <p className="text-[10px] text-muted-foreground">
+                    {maximo == null ? 'Sin máximo definido' : `Máximo ${maximo}`}
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/45 p-3">
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Recibidos
+                  </dt>
+                  <dd className="mt-1 text-sm font-extrabold tabular-nums text-primary">
+                    {analista.pen.cohorte.leads_unicos_recibidos} en soles
+                  </dd>
+                  <p className="text-[10px] tabular-nums text-muted-foreground">
+                    {usd.cohorte_leads_unicos} en dólares
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/45 p-3">
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    Ganados
+                  </dt>
+                  <dd className="mt-1 text-sm font-extrabold tabular-nums text-primary">
+                    {analista.pen.cohorte.convertidos} en soles
+                  </dd>
+                  <p className="text-[10px] tabular-nums text-muted-foreground">
+                    {usd.convertidos} en dólares
+                  </p>
+                </div>
+                <div className="rounded-xl bg-muted/45 p-3">
+                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                    En 24 horas
+                  </dt>
+                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">
+                    {atencion ?? 'Sin datos'}
+                  </dd>
+                  <p className="text-[10px] tabular-nums text-muted-foreground">
+                    {operacion.sla_asignacion_en_24h} de {operacion.sla_asignacion_evaluables} asignaciones
+                  </p>
+                </div>
+              </dl>
+
+              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
+                <Badge
+                  color={operacion.sin_tocar_actual > 0 ? 'var(--warning)' : 'var(--muted-foreground)'}
+                  variant="outline"
+                >
+                  {operacion.sin_tocar_actual} sin atender
+                </Badge>
+                <Badge
+                  color={operacion.estancados_actual > 0 ? 'var(--destructive)' : 'var(--muted-foreground)'}
+                  variant="outline"
+                >
+                  {operacion.estancados_actual} sin avance
+                </Badge>
+                {tiempoHabitual && (
+                  <span className="text-xs font-medium text-muted-foreground">
+                    Tiempo habitual: {tiempoHabitual}
+                  </span>
+                )}
+              </div>
+            </article>
+          )
+        })}
+      </div>
+    </section>
   )
 }
 
@@ -503,7 +633,7 @@ function MatrizPen({
       await onEditarCapacidad(analista.analista_id, capacidad)
       setEdicion(null)
     } catch {
-      setErrorCapacidad('No se pudo guardar la capacidad. Inténtalo otra vez.')
+      setErrorCapacidad('No se pudo guardar el máximo de leads. Inténtalo otra vez.')
     } finally {
       setGuardando(false)
     }
@@ -515,7 +645,7 @@ function MatrizPen({
         <Users className="mx-auto size-7 text-muted-foreground" aria-hidden />
         <p className="mt-2 text-sm font-semibold">Aún no hay analistas para comparar</p>
         <p className="mt-1 text-xs text-muted-foreground">
-          La matriz aparecerá cuando exista un vendedor activo o un episodio de asignación.
+          La comparación aparecerá cuando exista un analista activo o un lead asignado.
         </p>
       </div>
     )
@@ -523,14 +653,14 @@ function MatrizPen({
 
   return (
     <div
-      className="overflow-x-auto rounded-lg border border-border"
+      className="ac-scroll max-h-[460px] overflow-auto rounded-xl border border-border bg-card shadow-inner"
       role="region"
-      aria-label="Matriz PEN desplazable"
+      aria-label="Resultados por analista en soles"
     >
       <table className="min-w-[1680px] border-separate border-spacing-0 text-xs">
         <caption className="sr-only">
-          Distribución PEN por analista y rango de capital. Cada banda muestra episodios recibidos,
-          cartera actual, convertidos y descartados de la cohorte.
+          Resultados por analista y grupo de monto en soles. Muestra leads recibidos,
+          leads activos, ganados y descartados durante el período.
         </caption>
         <thead>
           <tr className="bg-muted/55 text-left">
@@ -544,9 +674,9 @@ function MatrizPen({
               scope="col"
               className="w-36 border-b border-r border-border px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
             >
-              <span className="block">Carga / capacidad</span>
+              <span className="block">Leads / máximo</span>
               <span className="mt-0.5 block text-[9px] font-medium normal-case tracking-normal">
-                Total PEN + USD
+                Soles y dólares
               </span>
             </th>
             {rangos.map((rango, indice) => (
@@ -556,7 +686,7 @@ function MatrizPen({
                 className="w-32 border-b border-r border-border/70 px-2 py-2.5 align-bottom last:border-r"
               >
                 <span className="block text-[9px] font-extrabold tabular-nums text-accent">
-                  BANDA {String(indice + 1).padStart(2, '0')}
+                  GRUPO {String(indice + 1).padStart(2, '0')}
                 </span>
                 <span className="mt-0.5 block text-[10px] font-bold leading-tight text-foreground">
                   {rango.etiqueta}
@@ -567,15 +697,15 @@ function MatrizPen({
               scope="col"
               className="w-32 border-b border-r border-border px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
             >
-              Conversión PEN
+              Leads ganados
             </th>
             <th
               scope="col"
               className="w-44 border-b border-border px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
             >
-              <span className="block">SLA y seguimiento</span>
+              <span className="block">Atención y alertas</span>
               <span className="mt-0.5 block text-[9px] font-medium normal-case tracking-normal">
-                Total PEN + USD
+                Todos los leads
               </span>
             </th>
           </tr>
@@ -634,18 +764,16 @@ function MatrizPen({
                 ))}
                 <td className="border-b border-r border-border px-3 py-3 align-top">
                   <p className="text-base font-extrabold tabular-nums text-primary">
-                    {conversion ?? 'Sin muestra'}
+                    {conversion ?? 'Sin resultados'}
                   </p>
                   <p className="mt-1 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
-                    C {analista.pen.cohorte.convertidos} · D {analista.pen.cohorte.descartados}
+                    {analista.pen.cohorte.convertidos} ganados · {analista.pen.cohorte.descartados} descartados
                   </p>
                   <p className="mt-1 text-[10px] text-muted-foreground">
-                    {analista.pen.cohorte.episodios_recibidos} episodios ·{' '}
                     {analista.pen.cohorte.leads_unicos_recibidos} leads recibidos
                   </p>
                   <p className="mt-1 text-[10px] text-muted-foreground">
-                    {analista.pen.cohorte.ciclos_resueltos} ciclos ·{' '}
-                    {analista.pen.cohorte.leads_unicos_resueltos} leads resueltos
+                    {analista.pen.cohorte.leads_unicos_resueltos} leads cerrados
                   </p>
                 </td>
                 <td className="border-b border-border px-3 py-3 align-top">
@@ -671,31 +799,31 @@ function LecturaUsd({ datos }: { datos: MetricasDistribucionLeads }): JSX.Elemen
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div>
           <h4 id="distribucion-usd-titulo" className="text-xs font-bold text-foreground">
-            USD · lectura separada
+            Resultados en dólares
           </h4>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Se muestra sin bandas de capital y nunca se suma con PEN.
+            Se muestran aparte para no mezclar dólares con soles.
           </p>
         </div>
         <Badge color="var(--accent)" variant="outline">
-          {dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en cartera
+          {dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en leads activos
         </Badge>
       </div>
       {analistasConUsd.length === 0 ? (
         <p className="px-4 py-5 text-center text-xs text-muted-foreground">
-          Sin cartera ni episodios USD en el período.
+          No hay leads en dólares durante este período.
         </p>
       ) : (
         <div className="overflow-x-auto">
           <table className="w-full min-w-[620px] text-xs">
-            <caption className="sr-only">Cartera y resultados USD por analista, sin segmentación.</caption>
+            <caption className="sr-only">Leads y resultados en dólares por analista.</caption>
             <thead>
               <tr className="border-b border-border text-left text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                 <th scope="col" className="px-4 py-2">Analista</th>
-                <th scope="col" className="px-3 py-2 text-right">Cartera</th>
-                <th scope="col" className="px-3 py-2 text-right">Capital</th>
+                <th scope="col" className="px-3 py-2 text-right">Leads actuales</th>
+                <th scope="col" className="px-3 py-2 text-right">Monto</th>
                 <th scope="col" className="px-3 py-2 text-right">Recibidos</th>
-                <th scope="col" className="px-4 py-2 text-right">Conversión</th>
+                <th scope="col" className="px-4 py-2 text-right">Leads ganados</th>
               </tr>
             </thead>
             <tbody>
@@ -712,10 +840,10 @@ function LecturaUsd({ datos }: { datos: MetricasDistribucionLeads }): JSX.Elemen
                     <td className="px-3 py-2.5 text-right tabular-nums">{usd.cohorte_episodios_recibidos}</td>
                     <td className="px-4 py-2.5 text-right">
                       <span className="font-bold tabular-nums text-primary">
-                        {porcentaje(usd.convertidos, resueltos) ?? 'Sin muestra'}
+                        {porcentaje(usd.convertidos, resueltos) ?? 'Sin resultados'}
                       </span>
                       <span className="ml-2 text-[10px] tabular-nums text-muted-foreground">
-                        C {usd.convertidos} · D {usd.descartados}
+                        {usd.convertidos} ganados · {usd.descartados} descartados
                       </span>
                     </td>
                   </tr>
@@ -797,38 +925,38 @@ function PorRepartir({ datos }: { datos: MetricasDistribucionLeads }): JSX.Eleme
       <div className="flex flex-wrap items-end justify-between gap-2">
         <div>
           <h4 id="por-repartir-titulo" className="flex items-center gap-2 text-sm font-bold text-foreground">
-            <Inbox className="size-4 text-accent" aria-hidden /> Leads por repartir
+            <Inbox className="size-4 text-accent" aria-hidden /> Pendientes de asignar
           </h4>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            {porRepartir.total.carga_total} en total · {porRepartir.total.pen.cantidad} PEN · {porRepartir.total.usd.cantidad} USD
+            {porRepartir.total.carga_total} en total · {porRepartir.total.pen.cantidad} en soles · {porRepartir.total.usd.cantidad} en dólares
           </p>
         </div>
         <Badge color={porRepartir.total.carga_total > 0 ? 'var(--warning)' : 'var(--accent)'} dot>
-          {porRepartir.total.carga_total > 0 ? 'Requieren asignación' : 'Colas al día'}
+          {porRepartir.total.carga_total > 0 ? 'Asignar ahora' : 'Todo asignado'}
         </Badge>
       </div>
 
       {porRepartir.total.carga_total === 0 ? (
         <div className="rounded-lg border border-dashed border-border px-5 py-8 text-center">
           <Check className="mx-auto size-6 text-accent" aria-hidden />
-          <p className="mt-2 text-sm font-semibold">No hay leads pendientes de reparto</p>
+          <p className="mt-2 text-sm font-semibold">No hay leads pendientes de asignar</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            La cola global y las bandejas de supervisión están vacías.
+            Gerencia y supervisores no tienen pendientes.
           </p>
         </div>
       ) : (
         <div className="grid gap-3 xl:grid-cols-2">
           <ColaCard
-            titulo="Cola global"
-            subtitulo="Responsabilidad de Gerencia"
+            titulo="Pendientes de Gerencia"
+            subtitulo="Asignar a un responsable"
             cola={porRepartir.global}
             rangos={rangos}
           />
           {porRepartir.bandejas.map((bandeja) => (
             <ColaCard
               key={bandeja.supervisor_id}
-              titulo={`Bandeja de ${bandeja.supervisor_nombre}`}
-              subtitulo="Pendientes de asignar dentro del equipo"
+              titulo={`Pendientes de ${bandeja.supervisor_nombre}`}
+              subtitulo="Asignar dentro de su equipo"
               cola={bandeja}
               rangos={rangos}
               inactiva={!bandeja.supervisor_activo}
@@ -851,13 +979,13 @@ function AlertaCalidad({ datos }: { datos: MetricasDistribucionLeads }): JSX.Ele
     <div className="flex items-start gap-3 rounded-lg border border-warning/35 bg-warning/5 px-4 py-3" role="status">
       <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
       <div>
-        <p className="text-xs font-bold text-foreground">Calidad del historial</p>
+        <p className="text-xs font-bold text-foreground">Aviso sobre los datos</p>
         <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
           {sinMontoActual + sinMontoCohorte > 0 && (
-            <span>{sinMontoActual} episodios actuales y {sinMontoCohorte} de la cohorte están sin monto válido. </span>
+            <span>{sinMontoActual + sinMontoCohorte} registros no tienen monto. </span>
           )}
           {aproximadosActual + aproximadosCohorte > 0 && (
-            <span>{aproximadosActual} actuales y {aproximadosCohorte} de la cohorte son reconstruidos o aproximados.</span>
+            <span>{aproximadosActual + aproximadosCohorte} registros usan fechas estimadas.</span>
           )}
         </p>
       </div>
@@ -885,9 +1013,9 @@ export function DistribucionLeadsGerencia({
           <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-accent">
             Asignación comercial
           </p>
-          <CardTitle id={tituloId} className="text-lg">Distribución de leads por capital</CardTitle>
+          <CardTitle id={tituloId} className="text-lg">Distribución de leads y montos</CardTitle>
           <CardDescription className="mt-1 max-w-xl leading-relaxed">
-            Compara la cartera actual de cada analista con su capacidad. Los resultados C/D y la velocidad de contacto pertenecen a episodios asignados dentro del período.
+            Muestra cuántos leads tiene cada analista, cuánto dinero representan y si fueron atendidos a tiempo. Si un lead cambia de analista, su tiempo de espera no vuelve a cero.
           </CardDescription>
         </div>
         <PeriodoControl
@@ -922,12 +1050,12 @@ export function DistribucionLeadsGerencia({
         <CardContent className="py-12 text-center">
           <Inbox className="mx-auto size-8 text-muted-foreground" aria-hidden />
           <p className="mt-3 text-sm font-semibold">
-            {modoDemo ? 'La demostración no inventa historial de asignaciones' : 'Aún no hay una fotografía de distribución'}
+            {modoDemo ? 'No hay datos de demostración disponibles' : 'No hay datos para mostrar'}
           </p>
           <p className="mx-auto mt-1 max-w-md text-xs leading-relaxed text-muted-foreground">
             {modoDemo
-              ? 'Esta matriz se habilita con los episodios reales del CRM para no mostrar conversiones ni SLA ficticios.'
-              : 'Vuelve a cargar para consultar la cartera, la cohorte y las colas de asignación del período seleccionado.'}
+              ? 'Vuelve a ingresar al modo demostración.'
+              : 'Vuelve a cargar para consultar la distribución del período seleccionado.'}
           </p>
           {!error && !modoDemo && (
             <Button type="button" variant="outline" size="sm" className="mt-4" onClick={onReintentar}>
@@ -937,6 +1065,19 @@ export function DistribucionLeadsGerencia({
         </CardContent>
       ) : (
         <CardContent className="space-y-5 py-5">
+          {modoDemo && (
+            <div
+              className="rounded-lg border border-accent/30 bg-accent/5 px-4 py-3"
+              role="status"
+            >
+              <p className="text-xs font-extrabold uppercase tracking-[0.12em] text-accent">
+                Datos ficticios de demostración
+              </p>
+              <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground">
+                Sirven únicamente para conocer el tablero. No representan información real de la empresa.
+              </p>
+            </div>
+          )}
           {cargando && (
             <p className="flex items-center gap-2 text-[11px] font-medium text-muted-foreground" role="status">
               <RefreshCw className="size-3.5 animate-spin" aria-hidden /> Actualizando datos…
@@ -947,14 +1088,21 @@ export function DistribucionLeadsGerencia({
           <div className="space-y-2">
             <div className="flex flex-wrap items-end justify-between gap-2">
               <div>
-                <h4 className="text-sm font-bold text-foreground">Matriz PEN por analista</h4>
+                <h4 className="text-sm font-bold text-foreground">Resultados por analista en soles</h4>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  Número grande = episodios recibidos en el período · debajo = cartera actual. C = convertido · D = descartado · conversión = C/(C+D).
+                  La cifra grande indica leads recibidos. Debajo verás cuántos siguen activos, cuántos se ganaron y cuántos se descartaron.
                 </p>
               </div>
-              <Badge color="var(--accent)" variant="outline">7 bandas comerciales</Badge>
+              <Badge color="var(--accent)" variant="outline">7 grupos por monto</Badge>
             </div>
-            <MatrizPen datos={datos} onEditarCapacidad={onEditarCapacidad} />
+          <VistaRapidaAnalistas datos={datos} />
+          <div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
+            <h4 className="text-sm font-extrabold text-primary">Detalle por grupos de monto</h4>
+            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              Desplázate hacia los lados para revisar todos los grupos. Los nombres y títulos permanecen visibles mientras avanzas.
+            </p>
+          </div>
+          <MatrizPen datos={datos} onEditarCapacidad={onEditarCapacidad} />
           </div>
 
           <LecturaUsd datos={datos} />
@@ -962,7 +1110,7 @@ export function DistribucionLeadsGerencia({
           <AlertaCalidad datos={datos} />
 
           <p className="text-[10px] leading-relaxed text-muted-foreground">
-            Período {datos.cohorte.desde_inclusivo} a {datos.cohorte.hasta_inclusivo}, zona horaria {datos.cohorte.zona_horaria}. En conversión, “Sin muestra” significa C+D=0; en SLA, que aún no hay episodios evaluables. Ninguno equivale a 0%.
+            Período: {datos.cohorte.desde_inclusivo} al {datos.cohorte.hasta_inclusivo}. El tiempo de atención empieza cuando el lead ingresa o se reabre y no se reinicia si cambia de analista.
           </p>
         </CardContent>
       )}
