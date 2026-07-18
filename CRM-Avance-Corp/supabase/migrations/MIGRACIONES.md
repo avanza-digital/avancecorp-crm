@@ -40,6 +40,7 @@ extras: buckets/policies de storage, publicación realtime, secreto Vault, cron 
 | 20260717222018 | crm_monto_estimado_obligatorio | **4B, contrato de captura:** `crm.leads.monto_estimado` pasa a obligatorio, positivo, máximo `9999999999.99` y hasta 2 decimales. Usa `numeric` sin typmod + CHECK para rechazar `5000.999` en vez de redondearlo; guard fail-closed, lock/timeout y cero backfill inventado. El ledger histórico no se endurece. | ✅ Producción después del frontend compatible; `MONTO_TX_OK` y `NOT NULL` verificados |
 | 20260717224252 | crm_metricas_distribucion_leads | **4C, lectura gerencial atómica:** agrega la RPC descriptiva de distribución, capacidad, cohorte por episodio, resultados C/D, SLA, estancamiento y colas. Matriz PEN por rangos exactos; USD separado; no expone ledger, ranking ni recomendaciones. | ✅ Producción; `METRICAS_DISTRIBUCION_TX_OK` y smoke JSON V1 verificados |
 | 20260717224435 | crm_metricas_distribucion_acl_copy | Alinea el texto de la RPC con el predicado central `private.es_lector_global()` (`directorio/admin/superadmin`) sin ampliar permisos ni cambiar cálculos. | ✅ Producción; Gerencia/lector global permitidos y vendedor/anon/core directo denegados |
+| 20260718152741 | crm_inteligencia_gerencial_hardening | **V2 compatible:** agrega SLA global por ciclo desde ingreso/reapertura, lo fotografía en cada episodio sin reiniciarlo por transferencia/parqueo, conserva SLA operativo por asignación, declara PEN/USD separados sin conversión y mueve V1/V2 a un puente `NOLOGIN` sin acceso a tablas. V1 permanece para rollback. | 🟡 Implementado local; requiere branch, oráculo V2 y advisors antes de producción |
 
 ## Perfil humano del lead (2026-07-18)
 
@@ -65,6 +66,16 @@ Advisors del branch: sin hallazgos nuevos atribuibles a esta migración. Los `ER
 `rls_enabled_no_policy` del ledger ya existen **idénticos en producción** (mismas vistas
 `postgres`-owned sin `security_invoker`); se verificó comparando `reloptions` y `relowner` entre
 branch y prod.
+
+## Agenda comercial — Fase A (2026-07-18)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260718180001 | crm_tareas_agenda | **Motor de próxima acción:** tabla `crm.tareas` (futuro mutable: `pendiente→completada\|cancelada\|no_show`; "vencida" SE DERIVA de `vence_en`, jamás se guarda; FK dual lead/perfil con `num_nonnulls=1`; tenencia espejo del lead derivada por trigger; `confirmada_en` anti no-show; `reagendada_de` encadena reagendas post no-show; contador `reprogramaciones` de sistema). RLS calcada de `leads_*` (lector global solo SELECT, sin DELETE). Triggers de coherencia: reasignar el lead arrastra sus pendientes; lead cerrado/desactivado las cancela. RPC `crm.cerrar_tarea` SECURITY DEFINER transaccional: cierra + INSERT del resultado en `crm.actividades` (tipos manuales; llamada completada EXIGE resultado) + tarea siguiente opcional — el UPDATE directo del cliente solo puede cancelar/reprogramar (flag `crm.op_tarea`). Aditivas legales en `crm.leads`: `no_contactar` + `consentimiento_en/fuente` con GRANT POR COLUMNA. `crm.actividades` NO se toca (sigue log inmutable). Diseño completo en vault "Agenda comercial del CRM (plan v2)". | ✅ **Producción 2026-07-18** por el ciclo COMPLETO: branch `crm-agenda` → oráculo `TAREAS_TX_OK` → **gate RLS de sesiones reales 207/207** (corrido por Miguel; incluye las secciones nuevas de agenda: aislamiento, bandeja, cierre atómico, tarea-sigue-al-lead, directorio, anon) → merge → verificado en prod (19 cols, 3 policies, 4+1 triggers, RPC, 3 cols legales con grant) → branch borrado. Advisors: único hallazgo nuevo = WARN de `cerrar_tarea` (clase ACEPTADA, patrón `convertir_lead`/`metricas_*`) |
+
+Oráculo de la Fase A: `supabase/scripts/test-tareas.sql` (patrón 4A-4C: una transacción que
+SIEMPRE revierte; el éxito es el error final `TAREAS_TX_OK`). El gate de sesiones reales
+(`test-rls.mjs` + fixtures + seed) se extendió con la matriz de tareas en la misma pasada.
 
 Notas del advisor de 0C: el único hallazgo de seguridad nuevo es `INFO`
 `rls_enabled_no_policy` sobre el ledger, deliberado y fail-closed: RLS está activa, no hay
@@ -134,3 +145,13 @@ tomados de las ACL reales de prod, para que **los branches futuros (F1–F5) naz
 - La fila PROPIA de `public.perfiles` es visible para cualquier authenticated (policy
   `perfiles_select` del portal, incluye sus propias columnas bancarias — vacías para staff).
   Es semántica del portal, documentada en el gate; la frontera protegida es la CARTERA.
+
+## Suscripción ICS del calendario (2026-07-18)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260718120243 | crm_agenda_ics_suscripcion | **Google Calendar por suscripción (variante barata de Fase H, sin OAuth):** tabla `crm.agenda_ics` (token uuid secreto por miembro de `crm.equipo`, PK perfil_id, `rotado_en`). RLS: cada quien SU fila en SELECT/INSERT/UPDATE (`perfil_id = auth.uid()`) — el token es privado incluso para su supervisor y los lectores globales; sin policy DELETE (dejar de compartir = rotar). Grants: authenticated select/insert/update; service_role select (la edge). La edge `crm-agenda-ics` (verify_jwt=false; el token ES el control de acceso) sirve las tareas `pendiente+activo` del dueño como ICS: Google lo consume por URL y refresca cada horas. Solo lectura hacia afuera; nada del CRM se puede escribir por el feed. | ✅ **Producción 2026-07-18**: branch `crm-agenda-ics` → oráculo `AGENDA_ICS_TX_OK` (`test-agenda-ics.sql`) → advisors sin hallazgos nuevos (security y performance) → merge (migración + edge) → verificado en prod (3 policies, RLS on, grants exactos, 0 filas). Smoke E2E en el branch: feed 200 con VEVENT correcto (45 min, escapes RFC 5545), token desconocido/malformado → 404. ⚠️ **Gate RLS de sesiones reales omitido con OK explícito de Miguel** (tabla aislada, no toca policies existentes; mismo criterio que `crm_leads_genero_fecha_nacimiento`). **Deuda registrada:** añadir `agenda_ics` a la matriz del gate (`fixtures.mjs` + `seed-demo.mjs` + `test-rls.mjs`) en la próxima pasada |
+
+Oráculo: `supabase/scripts/test-agenda-ics.sql` (patrón 4A-4C; éxito = error final
+`AGENDA_ICS_TX_OK`). Frontend: tarjeta "Mi calendario de Google" en Configuración
+(genera/copia/rota el enlace) + botón "Añadir a Google Calendar" por tarea en la Agenda.
