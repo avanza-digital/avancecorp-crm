@@ -1,12 +1,15 @@
-// Acciones de contacto reales (tel:/wa.me/mailto:) con registro del resultado
-// — Sprint A (F1d). Un solo componente para las 3 superficies: header del
-// lead-drawer (completo) y colas de hoy/vendedor y hoy/supervisor (compacto).
-// Si el rol escribe, el click marca un contacto pendiente (useRef local con
-// timestamp) y al volver a la pestaña ≥4 s después pregunta el resultado con
-// un dialog compacto que registra la actividad vía registrarActividad del
-// store. Directorio (solo lectura) ve links planos sin seguimiento.
-// El contenedor corta la propagación: estos links viven dentro de filas
-// clicables (colas) y no deben abrir la ficha al llamar/escribir.
+// Acciones de contacto — Sprint A (F1d), ajustado 2026-07-17. Un solo
+// componente para las 3 superficies: header del lead-drawer (completo) y colas
+// de hoy/vendedor y hoy/supervisor (compacto).
+//   · Llamar: los asesores marcan desde su CELULAR corporativo (un tel: no
+//     marca desde la laptop), así que el botón COPIA el número al portapapeles
+//     y abre directo el diálogo de resultado — en las colas no existe el
+//     composer del timeline, este es el único registro de la llamada.
+//   · WhatsApp (wa.me) abre WhatsApp Web en otra pestaña; al volver ≥4 s después
+//     un dialog pregunta el resultado y lo registra vía registrarActividad.
+// Directorio (solo lectura) copia/abre pero NO registra (sin seguimiento).
+// El contenedor corta la propagación: viven dentro de filas clicables (colas)
+// y no deben abrir la ficha al contactar.
 import { useEffect, useRef, useState, type JSX } from 'react'
 import { toast } from 'sonner'
 import {
@@ -48,7 +51,16 @@ const ESPERA_MS = 4_000
 
 // ── Componente (export) ───────────────────────────────────────────────────────
 
-export function AccionesContacto({ lead, compacto }: { lead: Lead; compacto?: boolean }): JSX.Element {
+export function AccionesContacto({
+  lead,
+  compacto,
+  soloIcono,
+}: {
+  lead: Lead
+  compacto?: boolean
+  /** Oculta las etiquetas SIEMPRE (columnas angostas, p. ej. la cola en 2/5). */
+  soloIcono?: boolean
+}): JSX.Element {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
   // Contacto pendiente de ESTA instancia (canal + cuándo se hizo click).
@@ -77,8 +89,23 @@ export function AccionesContacto({ lead, compacto }: { lead: Lead; compacto?: bo
     if (escribe) pendiente.current = { canal, ts: Date.now() }
   }
 
+  // Llamar desde la laptop no marca: el asesor usa su celular corporativo.
+  // Copiamos el número (para que lo marque) y abrimos directo el registro del
+  // resultado. Directorio no registra (solo copia).
+  const llamar = async () => {
+    const num = lead.telefono
+    try {
+      await navigator.clipboard.writeText(num)
+      toast.success(`Número copiado: ${num} — márcalo desde tu celular`)
+    } catch {
+      // Portapapeles no disponible (contexto inseguro o permiso denegado).
+      toast.info(`Marca ${num} desde tu celular`)
+    }
+    if (escribe) setDialogo('tel')
+  }
+
   const wa = lead.telefono.replace('+', '')
-  const labelCls = compacto ? 'hidden md:inline' : undefined
+  const labelCls = soloIcono ? 'hidden' : compacto ? 'hidden md:inline' : undefined
 
   return (
     <div
@@ -94,14 +121,14 @@ export function AccionesContacto({ lead, compacto }: { lead: Lead; compacto?: bo
         if (e.key !== 'Escape') e.stopPropagation()
       }}
     >
-      <a
-        href={`tel:${lead.telefono}`}
+      <button
+        type="button"
         className={CLASE_ACCION}
-        aria-label={`Llamar a ${lead.nombre_completo}`}
-        onClick={marcar('tel')}
+        aria-label={`Copiar el número de ${lead.nombre_completo} y registrar la llamada`}
+        onClick={llamar}
       >
         <Phone /> <span className={labelCls}>Llamar</span>
-      </a>
+      </button>
       <a
         href={`https://wa.me/${wa}`}
         target="_blank"

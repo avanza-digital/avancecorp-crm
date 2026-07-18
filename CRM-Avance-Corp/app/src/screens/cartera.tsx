@@ -5,6 +5,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
+import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, SegmentBar, type StatChipData, type Segment } from '@/components/common/stat-strip'
 import { PanelVacio } from '@/components/common/estado-panel'
@@ -188,13 +189,15 @@ export function Cartera() {
                       className="group cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                     >
                       <Td>
-                        <div className="flex items-center gap-2.5">
-                          <Avatar nombre={l.nombre_completo} />
-                          <div className="leading-tight">
-                            <p className="font-semibold">{l.nombre_completo}</p>
-                            <p className="text-xs tabular-nums text-muted-foreground">{l.telefono}</p>
+                        <LeadHoverCard lead={l}>
+                          <div className="flex items-center gap-2.5">
+                            <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} />
+                            <div className="leading-tight">
+                              <p className="font-semibold">{l.nombre_completo}</p>
+                              <p className="text-xs tabular-nums text-muted-foreground">{l.telefono}</p>
+                            </div>
                           </div>
-                        </div>
+                        </LeadHoverCard>
                       </Td>
                       <Td>
                         <div className="flex flex-col items-start gap-1">
