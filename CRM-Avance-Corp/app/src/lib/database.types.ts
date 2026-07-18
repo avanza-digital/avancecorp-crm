@@ -33,6 +33,8 @@ type OrigenDb =
   | 'whatsapp'
 type MotivoDescarteDb = 'sin_interes' | 'sin_fondos' | 'competencia' | 'no_responde' | 'datos_invalidos' | 'otro'
 type MonedaDb = 'PEN' | 'USD'
+// CHECK leads_genero_valido: binario (sexo del documento), nullable.
+type GeneroDb = 'F' | 'M'
 type CategoriaInteresDb = 'nuevo' | 'renovacion' | 'upgrade'
 type TipoActividadDb =
   | 'llamada_realizada'
@@ -214,6 +216,8 @@ export interface Database {
           telefono: string
           correo: string | null
           dni: string | null
+          genero: GeneroDb | null
+          fecha_nacimiento: string | null // date ISO 'YYYY-MM-DD' (sin hora)
           distrito: string | null
           origen: OrigenDb
           etapa: EtapaDb
@@ -238,6 +242,8 @@ export interface Database {
           telefono: string
           correo?: string | null
           dni?: string | null
+          genero?: GeneroDb | null
+          fecha_nacimiento?: string | null
           distrito?: string | null
           origen?: OrigenDb
           etapa?: EtapaDb
@@ -256,6 +262,8 @@ export interface Database {
           telefono?: string
           correo?: string | null
           dni?: string | null
+          genero?: GeneroDb | null
+          fecha_nacimiento?: string | null
           distrito?: string | null
           origen?: OrigenDb
           etapa?: EtapaDb

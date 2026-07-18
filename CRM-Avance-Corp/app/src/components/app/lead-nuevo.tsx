@@ -24,13 +24,16 @@ import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/lib/auth-context'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
-import { MONTO_ESTIMADO_MAX, normalizarTelefono } from '@/lib/validacion'
+import { EDAD_MINIMA, MONTO_ESTIMADO_MAX, edadCumplida, normalizarTelefono } from '@/lib/validacion'
 import {
   CATEGORIAS_INTERES,
   ETAPA_INFO,
+  GENEROS,
   ORIGENES,
+  esGenero,
   esOrigen,
   type CategoriaInteres,
+  type Genero,
   type Origen,
 } from '@/lib/tipos'
 import { SIMBOLO, type Moneda } from '@/lib/format'
@@ -113,6 +116,10 @@ function FormularioNuevoLead() {
   const [telefono, setTelefono] = useState('')
   const [correo, setCorreo] = useState('')
   const [dni, setDni] = useState('')
+  // '' = sin dato. Sin género el avatar cae a iniciales (nunca una silueta
+  // inventada), así que dejarlo vacío es una opción legítima, no un error.
+  const [genero, setGenero] = useState<Genero | ''>('')
+  const [fechaNacimiento, setFechaNacimiento] = useState('')
   const [distrito, setDistrito] = useState('')
   // '' = placeholder "Selecciona…" aún sin elegir; la validación exige un Origen real.
   const [origen, setOrigen] = useState<Origen | ''>('')
@@ -142,6 +149,8 @@ function FormularioNuevoLead() {
     correo: 'correo',
     origen: 'origen',
     monto_estimado: 'monto',
+    genero: 'genero',
+    fecha_nacimiento: 'fechaNacimiento',
   }
 
   const enviar = (e: FormEvent<HTMLFormElement>) => {
@@ -154,6 +163,10 @@ function FormularioNuevoLead() {
     if (correo.trim() && !CORREO_RE.test(correo.trim())) err.correo = 'Correo inválido'
     if (dni.trim() && !/^\d{8}$/.test(dni.trim())) {
       err.dni = 'El DNI debe tener exactamente 8 dígitos'
+    }
+    if (fechaNacimiento && edadCumplida(fechaNacimiento) < EDAD_MINIMA) {
+      // El store re-valida lo mismo; esto solo evita el viaje de ida y vuelta.
+      err.fechaNacimiento = `El lead debe tener al menos ${EDAD_MINIMA} años`
     }
     if (!origen) err.origen = 'Selecciona el origen'
     const montoNum = Number(monto)
@@ -170,6 +183,8 @@ function FormularioNuevoLead() {
       telefono, // el store normaliza a +519########
       correo: correo.trim() || null,
       dni: dni.trim() || null,
+      genero: genero || null,
+      fecha_nacimiento: fechaNacimiento || null,
       distrito: distrito.trim() || null,
       origen,
       etapa: etapaInicial,
@@ -220,7 +235,10 @@ function FormularioNuevoLead() {
               autoComplete="off"
               placeholder="Nombres y apellidos"
               value={nombre}
+              required
+              aria-required="true"
               aria-invalid={!!errores.nombre}
+              aria-describedby={errores.nombre ? 'nl-nombre-error' : undefined}
               className={cn(errores.nombre && claseError)}
               onChange={(e) => {
                 setNombre(e.target.value)
@@ -237,7 +255,10 @@ function FormularioNuevoLead() {
                 autoComplete="off"
                 placeholder="987 654 321"
                 value={telefono}
+                required
+                aria-required="true"
                 aria-invalid={!!errores.telefono}
+                aria-describedby={errores.telefono ? 'nl-telefono-error' : undefined}
                 className={cn(errores.telefono && claseError)}
                 onChange={(e) => {
                   setTelefono(e.target.value)
@@ -258,6 +279,47 @@ function FormularioNuevoLead() {
                 onChange={(e) => {
                   setDni(e.target.value.replace(/\D/g, ''))
                   limpiarError('dni')
+                }}
+              />
+            </Campo>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
+            <Campo label="Género" htmlFor="nl-genero" error={errores.genero}>
+              <Select
+                id="nl-genero"
+                value={genero}
+                aria-invalid={!!errores.genero}
+                className={cn(errores.genero && claseError)}
+                onChange={(e) => {
+                  // '' vuelve a "sin dato" a propósito: se puede deshacer la elección.
+                  setGenero(esGenero(e.target.value) ? e.target.value : '')
+                  limpiarError('genero')
+                }}
+              >
+                <option value="">Sin dato</option>
+                {GENEROS.map((g) => (
+                  <option key={g.k} value={g.k}>
+                    {g.label}
+                  </option>
+                ))}
+              </Select>
+            </Campo>
+            <Campo
+              label="Fecha de nacimiento"
+              htmlFor="nl-fecha-nacimiento"
+              error={errores.fechaNacimiento}
+            >
+              <Input
+                id="nl-fecha-nacimiento"
+                type="date"
+                autoComplete="off"
+                value={fechaNacimiento}
+                aria-invalid={!!errores.fechaNacimiento}
+                aria-describedby={errores.fechaNacimiento ? 'nl-fecha-nacimiento-error' : undefined}
+                className={cn(errores.fechaNacimiento && claseError)}
+                onChange={(e) => {
+                  setFechaNacimiento(e.target.value)
+                  limpiarError('fechaNacimiento')
                 }}
               />
             </Campo>
@@ -293,7 +355,10 @@ function FormularioNuevoLead() {
               <Select
                 id="nl-origen"
                 value={origen}
+                required
+                aria-required="true"
                 aria-invalid={!!errores.origen}
+                aria-describedby={errores.origen ? 'nl-origen-error' : undefined}
                 className={cn(errores.origen && claseError)}
                 onChange={(e) => {
                   // Las <option> salen del catálogo ORIGENES; esOrigen hace el narrow a Origen.

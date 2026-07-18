@@ -3,7 +3,7 @@
 // los formularios; cuando lleguen las mutaciones reales de Supabase, será la
 // TERCERA consumidora del mismo contrato — sin strings que sincronizar a mano.
 import { esMoneda, type Moneda } from './format'
-import { esOrigen, type Origen } from './tipos'
+import { esGenero, esOrigen, type Genero, type Origen } from './tipos'
 
 /** Normaliza un celular peruano a +519######## (o null si no es válido). */
 export function normalizarTelefono(valor: string): string | null {
@@ -18,6 +18,16 @@ export function normalizarTelefono(valor: string): string | null {
 export const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/
 export const MONTO_ESTIMADO_MAX = 9_999_999_999.99
 
+/**
+ * Edad mínima para ser lead: se invierte capital, no hay producto para menores.
+ * Vive AQUÍ y no en un CHECK porque la base tendría que comparar contra la
+ * fecha de hoy y PostgreSQL solo admite expresiones IMMUTABLE en un CHECK. La
+ * base guarda el rango de cordura (1900 ≤ fecha < 2100); el resto es esta capa.
+ */
+export const EDAD_MINIMA = 18
+const FECHA_NACIMIENTO_MIN = '1900-01-01'
+const ISO_FECHA_RE = /^\d{4}-\d{2}-\d{2}$/
+
 // ── Errores estructurados ─────────────────────────────────────────────────────
 // La UI ancla el error a su campo por `campo` (nunca adivinando por regex
 // sobre el texto del mensaje) y decide el wording final con `error`.
@@ -30,6 +40,8 @@ export type CampoLead =
   | 'origen'
   | 'monto_estimado'
   | 'moneda'
+  | 'genero'
+  | 'fecha_nacimiento'
 
 export type CodigoValidacion =
   | 'nombre_obligatorio'
@@ -39,6 +51,9 @@ export type CodigoValidacion =
   | 'origen_invalido'
   | 'monto_invalido'
   | 'moneda_invalida'
+  | 'genero_invalido'
+  | 'fecha_nacimiento_invalida'
+  | 'menor_de_edad'
 
 export interface ErrorValidacion {
   ok: false
@@ -56,6 +71,8 @@ export interface CamposLead {
   origen?: string
   monto_estimado?: number | null
   moneda?: string
+  genero?: string | null
+  fecha_nacimiento?: string | null
 }
 
 /** Valores ya normalizados (teléfono +51…, strings vacíos → null). */
@@ -67,14 +84,22 @@ export interface ValoresLead {
   origen?: Origen
   monto_estimado?: number
   moneda?: Moneda
+  genero?: Genero | null
+  fecha_nacimiento?: string | null
 }
 
 /**
  * Valida y normaliza los campos PRESENTES de un lead. Espejo de los CHECK de
- * crm.leads (teléfono, DNI, origen, monto). Primer error gana (misma UX que
- * los formularios: un error por vez, anclado a su campo).
+ * crm.leads (teléfono, DNI, origen, monto, género) MÁS la regla de edad mínima,
+ * que la base no puede expresar. Primer error gana (misma UX que los
+ * formularios: un error por vez, anclado a su campo).
+ *
+ * `hoy` es inyectable solo para que los tests de edad no dependan del reloj.
  */
-export function validarCamposLead(campos: CamposLead): { ok: true; valores: ValoresLead } | ErrorValidacion {
+export function validarCamposLead(
+  campos: CamposLead,
+  hoy: Date = new Date(),
+): { ok: true; valores: ValoresLead } | ErrorValidacion {
   const valores: ValoresLead = {}
 
   if (campos.nombre_completo !== undefined) {
@@ -164,5 +189,79 @@ export function validarCamposLead(campos: CamposLead): { ok: true; valores: Valo
     valores.moneda = campos.moneda
   }
 
+  if (campos.genero !== undefined) {
+    const genero = (campos.genero ?? '').trim()
+    if (!genero) {
+      valores.genero = null // vacío = "sin dato", opción legítima (avatar → iniciales)
+    } else if (!esGenero(genero)) {
+      return { ok: false, codigo: 'genero_invalido', campo: 'genero', error: 'Género inválido' }
+    } else {
+      valores.genero = genero
+    }
+  }
+
+  if (campos.fecha_nacimiento !== undefined) {
+    const fecha = (campos.fecha_nacimiento ?? '').trim()
+    if (fecha) {
+      // El <input type="date"> ya entrega ISO, pero por aquí también pasan
+      // datos de importación y del store: se valida la forma Y el calendario
+      // (2026-02-30 pasa la regex y no existe).
+      if (!ISO_FECHA_RE.test(fecha) || !esFechaReal(fecha) || fecha < FECHA_NACIMIENTO_MIN) {
+        return {
+          ok: false,
+          codigo: 'fecha_nacimiento_invalida',
+          campo: 'fecha_nacimiento',
+          error: 'Fecha de nacimiento inválida',
+        }
+      }
+      if (edadCumplida(fecha, hoy) < EDAD_MINIMA) {
+        return {
+          ok: false,
+          codigo: 'menor_de_edad',
+          campo: 'fecha_nacimiento',
+          error: `El lead debe tener al menos ${EDAD_MINIMA} años`,
+        }
+      }
+    }
+    valores.fecha_nacimiento = fecha || null
+  }
+
   return { ok: true, valores }
+}
+
+/**
+ * Partes de una fecha ISO 'YYYY-MM-DD'. Una sola lectura con captura explícita:
+ * `split('-').map(Number)` desestructurado daría `number | undefined` bajo
+ * noUncheckedIndexedAccess.
+ */
+function partesFecha(iso: string): { anio: number; mes: number; dia: number } | null {
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso)
+  if (!m) return null
+  return { anio: Number(m[1]), mes: Number(m[2]), dia: Number(m[3]) }
+}
+
+/** 'YYYY-MM-DD' que además EXISTE en el calendario (descarta 2026-02-30). */
+function esFechaReal(iso: string): boolean {
+  const p = partesFecha(iso)
+  if (!p) return false
+  const d = new Date(Date.UTC(p.anio, p.mes - 1, p.dia))
+  return d.getUTCFullYear() === p.anio && d.getUTCMonth() === p.mes - 1 && d.getUTCDate() === p.dia
+}
+
+/**
+ * Años cumplidos a la fecha `hoy`. Se compara sobre las PARTES de la fecha (no
+ * sobre milisegundos) para que el resultado no dependa de la zona horaria ni de
+ * los años bisiestos. Exportada para que el formulario muestre el error ANTES
+ * de llamar al store, sin una segunda copia de la aritmética. Con una fecha que
+ * no tiene forma ISO devuelve -1 (nunca alcanza la edad mínima): quien llama ya
+ * rechazó la forma antes, y así este helper no puede colar un mayor de edad.
+ */
+export function edadCumplida(iso: string, hoy: Date = new Date()): number {
+  const p = partesFecha(iso)
+  if (!p) return -1
+  let edad = hoy.getFullYear() - p.anio
+  const mesHoy = hoy.getMonth() + 1
+  const cumplioEsteAnio = mesHoy > p.mes || (mesHoy === p.mes && hoy.getDate() >= p.dia)
+  if (!cumplioEsteAnio) edad -= 1
+  return edad
 }

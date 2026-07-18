@@ -23,6 +23,7 @@ import {
   type Actividad,
   type CategoriaInteres,
   type EtapaActiva,
+  type Genero,
   type Lead,
   type Miembro,
   type MotivoDescarte,
@@ -103,6 +104,8 @@ export interface NuevoLeadInput {
   telefono: string
   correo?: string | null
   dni?: string | null
+  genero?: Genero | null
+  fecha_nacimiento?: string | null
   distrito?: string | null
   origen: Origen
   etapa?: EtapaActiva // default 'nuevo' — un lead NUNCA nace terminal
@@ -127,6 +130,8 @@ export type CambiosLead = Partial<
     | 'nota'
     | 'dni'
     | 'distrito'
+    | 'genero'
+    | 'fecha_nacimiento'
   >
 >
 
@@ -680,11 +685,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           origen: input.origen,
           monto_estimado: input.monto_estimado,
           moneda: input.moneda,
+          genero: input.genero ?? null,
+          fecha_nacimiento: input.fecha_nacimiento ?? null,
         })
         if (!v.ok) return v
         const nombre = v.valores.nombre_completo ?? ''
         const telefono = v.valores.telefono ?? ''
         const dni = v.valores.dni ?? null
+        const genero = v.valores.genero ?? null
+        const fechaNacimiento = v.valores.fecha_nacimiento ?? null
         const etapa: EtapaActiva = input.etapa ?? 'nuevo'
         if (TERMINALES_K.has(etapa)) {
           return { ok: false, codigo: 'etapa_terminal_al_nacer', error: 'Un lead no puede nacer en etapa terminal' }
@@ -736,6 +745,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           creado_en: new Date().toISOString(),
           activo: true,
           dni,
+          genero,
+          fecha_nacimiento: fechaNacimiento,
           distrito: input.distrito?.trim() || null,
           nota: input.nota?.trim() || null,
           motivo_descarte: null,
@@ -749,6 +760,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           telefono,
           correo: lead.correo ?? null,
           dni,
+          genero,
+          fecha_nacimiento: fechaNacimiento,
           distrito: lead.distrito ?? null,
           origen: lead.origen,
           etapa,
@@ -778,6 +791,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           ...(cambios.origen !== undefined ? { origen: cambios.origen } : {}),
           ...(cambios.monto_estimado !== undefined ? { monto_estimado: cambios.monto_estimado } : {}),
           ...(cambios.moneda !== undefined ? { moneda: cambios.moneda } : {}),
+          ...(cambios.genero !== undefined ? { genero: cambios.genero } : {}),
+          ...(cambios.fecha_nacimiento !== undefined ? { fecha_nacimiento: cambios.fecha_nacimiento } : {}),
         })
         if (!v.ok) return v
         const parche: CambiosLead = { ...cambios, ...v.valores }
