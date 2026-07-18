@@ -3,9 +3,11 @@
 // suyos), así que aquí no hay ni ranking ni datos de otros vendedores — ni en
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
 import { useEffect, useMemo, useState, type CSSProperties, type JSX, type ReactNode } from 'react'
+import { toast } from 'sonner'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import {
   AlertTriangle,
+  CalendarClock,
   CalendarDays,
   ChevronRight,
   CircleCheckBig,
@@ -13,6 +15,7 @@ import {
   FileText,
   MessageCircle,
   Phone,
+  Sparkles,
   Target,
   TrendingUp,
   Trophy,
@@ -34,12 +37,16 @@ import {
   capitalPorMoneda,
   colaDe,
   colorMeta,
+  diasDesdeReferencia,
   diasTxt,
+  haceTexto,
   pctMeta,
   type ItemCola,
 } from '@/lib/inteligencia'
+import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } from '@/lib/agenda-vistas'
+import { tareaAEvento } from '@/lib/agenda-derivada'
 import { useTipoCambio, usdAPen, type TipoCambio } from '@/lib/tipo-cambio'
-import { SEV_COLOR } from '@/lib/semaforo'
+import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import type { EventoAgenda } from '@/lib/store'
 import { useAhora } from '@/lib/ahora'
@@ -348,7 +355,7 @@ function AgendaHoy({
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
-  const { ambito, actividades, agenda: agendaGlobal, tareas, objetivos } = useCRMData()
+  const { ambito, actividades, agenda: agendaGlobal, tareas, objetivos, reprogramarTarea } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // Motor (Fase B): tarea seleccionada para cerrar desde la agenda héroe.
@@ -393,6 +400,22 @@ export function HoyVendedor(): JSX.Element {
   // Agenda demo recortada a SUS leads.
   const idsMios = new Set(mios.map((l) => l.id))
   const agenda = agendaGlobal.filter((ev) => idsMios.has(ev.lead_id))
+
+  // Modo "viernes 13:00" (Fase D): viernes p.m. es el peor momento para citas
+  // nuevas → la cola deja de perseguir y ORDENA la próxima semana (vencidas,
+  // reagendas de no-show fuera de mar–jue, leads sin próxima acción). El
+  // speed-to-lead NUNCA se entierra: los "sin responder" siguen arriba.
+  const higiene = esViernesDeHigiene(ahora)
+  const itemsHigiene = higiene
+    ? colaHigiene(tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)), ambito.leads, conTarea, ahora)
+    : []
+  const colaVisible = higiene ? cola.filter((i) => i.bucket === 'sin_responder') : cola
+  const tareasHigiene = itemsHigiene.filter(
+    (i): i is Extract<ItemHigiene, { k: 'vencida' | 'no_show_fuera_ritmo' }> => i.k !== 'sin_accion',
+  )
+  const amarillos = itemsHigiene.filter((i): i is Extract<ItemHigiene, { k: 'sin_accion' }> => i.k === 'sin_accion')
+  const AMARILLOS_VISIBLES = 8
+  const nCola = colaVisible.length + (higiene ? itemsHigiene.length : 0)
   // Lookup de lead por id (capital en juego de cada cita) + señales reales para
   // el vacío honesto de la agenda (mientras no exista calendario real).
   const leadPorId = (id: string): Lead | undefined => mios.find((l) => l.id === id)
@@ -462,30 +485,69 @@ export function HoyVendedor(): JSX.Element {
           nPropuestas={propuestas.length}
           className="flex flex-col lg:col-span-3"
         />
-        {/* Cola de acción personal */}
+        {/* Cola de acción personal — el viernes desde las 13:00 (Lima) cambia
+            a higiene de pipeline: ordenar la próxima semana, no perseguir. */}
         <Card className="lg:col-span-2">
           <SectionHead
-            icon={Zap}
-            title="Tu siguiente acción hoy"
+            icon={higiene ? Sparkles : Zap}
+            title={higiene ? 'Viernes de higiene' : 'Tu siguiente acción hoy'}
             right={
-              cola.length > 0 ? (
-                <Badge color="var(--accent)">
-                  {cola.length} {cola.length === 1 ? 'pendiente' : 'pendientes'}
+              nCola > 0 ? (
+                <Badge color={higiene ? '#d97706' : 'var(--accent)'}>
+                  {nCola} {nCola === 1 ? 'pendiente' : 'pendientes'}
                 </Badge>
               ) : undefined
             }
           />
           <CardContent className="space-y-1.5 pt-0">
-            {cola.length === 0 ? (
+            {higiene && nCola > 0 && (
+              <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
+                Viernes p.m. rinde poco para citas nuevas — deja la próxima semana ordenada: cierra lo
+                vencido, mueve los no-shows a mar–jue y que ningún lead quede sin próxima acción.
+              </p>
+            )}
+            {nCola === 0 ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
                 <CircleCheckBig className="size-8 text-accent" />
-                <p className="text-sm font-bold">Al día ✦ sin pendientes</p>
+                <p className="text-sm font-bold">{higiene ? 'Pipeline limpio ✦' : 'Al día ✦ sin pendientes'}</p>
                 <p className="text-xs text-muted-foreground">
-                  No tienes leads esperando respuesta ni seguimientos vencidos.
+                  {higiene
+                    ? 'Nada vencido, no-shows en su sitio y toda tu cartera con próxima acción. Buen fin de semana.'
+                    : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
                 </p>
               </div>
             ) : (
-              cola.map((item) => <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />)
+              <>
+                {colaVisible.map((item) => (
+                  <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />
+                ))}
+                {tareasHigiene.map((item) => (
+                  <FilaHigiene
+                    key={item.tarea.id}
+                    item={item}
+                    lead={item.tarea.lead_id ? leadPorId(item.tarea.lead_id) : undefined}
+                    ahora={ahora}
+                    abrirLead={abrirLead}
+                    onCerrar={() => setTareaACerrar(item.tarea)}
+                    onMarJue={() => {
+                      const destino = siguienteMarJue(ahora)
+                      const res = reprogramarTarea(item.tarea.id, destino)
+                      if (res.ok) {
+                        const cuando = tareaAEvento({ ...item.tarea, vence_en: destino }, ahora).cuando
+                        toast.success(`Movida al ${cuando}${yo?.demo ? ' (demo)' : ''}`)
+                      } else toast.error(res.error ?? 'No se pudo mover')
+                    }}
+                  />
+                ))}
+                {amarillos.slice(0, AMARILLOS_VISIBLES).map((item) => (
+                  <FilaAmarillo key={item.lead.id} lead={item.lead} abrirLead={abrirLead} />
+                ))}
+                {amarillos.length > AMARILLOS_VISIBLES && (
+                  <p className="px-2 text-[11px] text-muted-foreground">
+                    +{amarillos.length - AMARILLOS_VISIBLES} más sin próxima acción — trabájalos desde Cartera.
+                  </p>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -628,6 +690,128 @@ function FilaCola({
         </span>
       )}
       <AccionesContacto lead={item.lead} compacto soloIcono />
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </div>
+  )
+}
+
+// ── Filas del modo "viernes de higiene" (Fase D) ──────────────────────────────
+// Cada ítem lleva su acción obvia a un toque: vencida → cerrarla (resultado +
+// siguiente); reagenda de no-show fuera de mar–jue → moverla al siguiente
+// mar–jue 10:00 (la franja que sí asiste); amarillo → abrir la ficha y
+// agendarle la próxima acción.
+
+function FilaHigiene({
+  item,
+  lead,
+  ahora,
+  abrirLead,
+  onCerrar,
+  onMarJue,
+}: {
+  item: Extract<ItemHigiene, { k: 'vencida' | 'no_show_fuera_ritmo' }>
+  lead: Lead | undefined
+  ahora: number
+  abrirLead: (id: string) => void
+  onCerrar: () => void
+  onMarJue: () => void
+}): JSX.Element {
+  const t = item.tarea
+  const vencida = item.k === 'vencida'
+  const c = vencida ? SEMAFORO.critico : SEMAFORO.violeta
+  const abrir = () => t.lead_id && abrirLead(t.lead_id)
+  const motivo = vencida
+    ? `Venció ${haceTexto(diasDesdeReferencia(t.vence_en, ahora))} — ciérrala o reprográmala`
+    : `Reagendada tras no-show — cae ${tareaAEvento(t, ahora).cuando}, mejor mar–jue`
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ficha — ${t.titulo}`}
+      onClick={abrir}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          abrir()
+        }
+      }}
+      className="group flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+    >
+      <span className="size-2.5 shrink-0 rounded-full" style={{ background: c }} aria-hidden />
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="flex flex-wrap items-center gap-1.5">
+          {lead ? (
+            <LeadHoverCard lead={lead}>
+              <p className="truncate text-sm font-semibold">{t.titulo}</p>
+            </LeadHoverCard>
+          ) : (
+            <p className="truncate text-sm font-semibold">{t.titulo}</p>
+          )}
+          <Badge color={c} className="text-[10px]">{vencida ? 'Vencida' : 'No-show'}</Badge>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">{motivo}</p>
+      </div>
+      {vencida ? (
+        <button
+          type="button"
+          title="Cerrar tarea (registra el resultado y agenda la siguiente)"
+          aria-label={`Cerrar tarea — ${t.titulo}`}
+          className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation()
+            onCerrar()
+          }}
+        >
+          <CircleCheckBig className="size-4" aria-hidden />
+        </button>
+      ) : (
+        <button
+          type="button"
+          title="Mover al siguiente mar–jue a las 10:00 (la franja que sí asiste)"
+          className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+          onClick={(e) => {
+            e.stopPropagation()
+            onMarJue()
+          }}
+        >
+          <CalendarClock className="mr-0.5 inline size-3" aria-hidden />→ mar–jue
+        </button>
+      )}
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </div>
+  )
+}
+
+/** Amarillo del semáforo: lead abierto SIN próxima acción — la lista inocultable. */
+function FilaAmarillo({ lead, abrirLead }: { lead: Lead; abrirLead: (id: string) => void }): JSX.Element {
+  const abrir = () => abrirLead(lead.id)
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Abrir ficha — ${lead.nombre_completo}`}
+      onClick={abrir}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          abrir()
+        }
+      }}
+      className="group flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+    >
+      <span className="size-2.5 shrink-0 rounded-full" style={{ background: SEMAFORO.atencion }} aria-hidden />
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="flex flex-wrap items-center gap-1.5">
+          <LeadHoverCard lead={lead}>
+            <p className="truncate text-sm font-semibold">{lead.nombre_completo}</p>
+          </LeadHoverCard>
+          <Badge color={SEMAFORO.atencion} className="text-[10px]">Sin próxima acción</Badge>
+        </div>
+        <p className="mt-0.5 truncate text-xs text-muted-foreground">
+          {money(lead.monto_estimado, lead.moneda)} en juego — agéndale el siguiente paso
+        </p>
+      </div>
+      <AccionesContacto lead={lead} compacto soloIcono />
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )

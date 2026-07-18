@@ -266,19 +266,19 @@ describe('DistribucionLeadsGerencia', () => {
     const filaAna = within(matriz).getByRole('row', { name: /Ana Torres/ })
     expect(
       within(filaAna).getByLabelText(
-        'Ana Torres, Hasta S/ 1 mil: 3 recibidos, 2 aún activos, 1 ganados y 1 descartados; resultado 50%',
+        'Ana Torres, Hasta S/ 1 mil: 3 recibidos, 2 aún activos, 1 ganados y 1 descartados; cierre 50%',
       ),
     ).toBeInTheDocument()
     expect(
       within(filaAna).getByLabelText(
-        'Ana Torres, S/ 5 mil a 10 mil: 2 episodios recibidos, 2 leads únicos; 0 en cartera actual; 0 convertidos; 0 descartados; conversión sin muestra',
+        'Ana Torres, S/ 5 mil a 10 mil: 2 recibidos, 0 aún activos, 0 ganados y 0 descartados; cierre aún sin casos',
       ),
     ).toBeInTheDocument()
     expect(within(filaAna).getAllByText('75%')).toHaveLength(2)
     expect(within(filaAna).getByText('1 sin atender')).toBeInTheDocument()
     expect(within(filaAna).getByText('2 sin avance')).toBeInTheDocument()
-    expect(within(filaAna).getByText('7 asignaciones · 7 leads recibidos')).toBeInTheDocument()
-    expect(within(filaAna).getByText('4 asignaciones · 4 leads cerrados')).toBeInTheDocument()
+    expect(within(filaAna).getByText('7 leads recibidos')).toBeInTheDocument()
+    expect(within(filaAna).getByText('4 leads cerrados')).toBeInTheDocument()
     expect(within(filaAna).getByText(/Asignaciones que ya no tiene este analista: 14[,.]3% · 1 de 7 asignaciones/)).toBeInTheDocument()
     expect(within(matriz).getByText('Soles y dólares')).toBeInTheDocument()
     expect(within(matriz).getByText('Todos los leads')).toBeInTheDocument()
