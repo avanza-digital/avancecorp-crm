@@ -159,6 +159,52 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(listarLeads).toHaveBeenCalled()) // resync
   })
 
+  it('género y fecha de nacimiento llegan al INSERT (si no, el avatar nunca tiene silueta)', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'LEAD CON GÉNERO',
+        telefono: '987654322',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+        genero: 'F',
+        fecha_nacimiento: '1990-05-20',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    expect(insertarLead).toHaveBeenCalledWith(
+      expect.objectContaining({ genero: 'F', fecha_nacimiento: '1990-05-20' }),
+    )
+    // Y el optimista los muestra sin esperar al resync.
+    expect(api().leads[0]).toMatchObject({ genero: 'F', fecha_nacimiento: '1990-05-20' })
+  })
+
+  it('un lead menor de edad NO se crea ni se persiste', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockClear()
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'MENOR',
+        telefono: '987654323',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+        fecha_nacimiento: '2020-01-01',
+      }),
+    )
+
+    expect(res).toMatchObject({ ok: false, codigo: 'menor_de_edad', campo: 'fecha_nacimiento' })
+    expect(insertarLead).not.toHaveBeenCalled()
+  })
+
   it('editar capital real persiste monto y moneda juntos', async () => {
     const { api, mutar } = montar('gerencia')
     await waitFor(() => expect(api().leads).toHaveLength(1))

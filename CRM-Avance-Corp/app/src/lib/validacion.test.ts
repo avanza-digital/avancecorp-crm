@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { MONTO_ESTIMADO_MAX, normalizarTelefono, validarCamposLead } from './validacion'
+import {
+  EDAD_MINIMA,
+  MONTO_ESTIMADO_MAX,
+  edadCumplida,
+  normalizarTelefono,
+  validarCamposLead,
+} from './validacion'
 
 describe('normalizarTelefono', () => {
   it.each([
@@ -147,5 +153,67 @@ describe('validarCamposLead', () => {
       codigo: 'nombre_obligatorio',
       campo: 'nombre_completo',
     })
+  })
+
+  it('género: solo F/M; vacío es un dato legítimo (→ null), no un error', () => {
+    expect(validarCamposLead({ genero: 'F' })).toEqual({ ok: true, valores: { genero: 'F' } })
+    expect(validarCamposLead({ genero: '' })).toEqual({ ok: true, valores: { genero: null } })
+    expect(validarCamposLead({ genero: null })).toEqual({ ok: true, valores: { genero: null } })
+    expect(validarCamposLead({ genero: 'X' })).toMatchObject({
+      ok: false,
+      codigo: 'genero_invalido',
+      campo: 'genero',
+    })
+  })
+
+  it('fecha de nacimiento: rechaza forma inválida y días que no existen', () => {
+    const hoy = new Date('2026-07-18T12:00:00Z')
+    expect(validarCamposLead({ fecha_nacimiento: '1990-05-20' }, hoy)).toEqual({
+      ok: true,
+      valores: { fecha_nacimiento: '1990-05-20' },
+    })
+    expect(validarCamposLead({ fecha_nacimiento: '' }, hoy)).toEqual({
+      ok: true,
+      valores: { fecha_nacimiento: null },
+    })
+    // 2026 no es bisiesto: el 29 de febrero no existe y la regex sola lo deja pasar.
+    expect(validarCamposLead({ fecha_nacimiento: '2026-02-29' }, hoy)).toMatchObject({
+      ok: false,
+      codigo: 'fecha_nacimiento_invalida',
+    })
+    expect(validarCamposLead({ fecha_nacimiento: '20/05/1990' }, hoy)).toMatchObject({
+      ok: false,
+      codigo: 'fecha_nacimiento_invalida',
+    })
+    // Espejo del CHECK leads_fecha_nacimiento_valida (límite inferior).
+    expect(validarCamposLead({ fecha_nacimiento: '1899-12-31' }, hoy)).toMatchObject({
+      ok: false,
+      codigo: 'fecha_nacimiento_invalida',
+    })
+  })
+
+  it(`exige ${EDAD_MINIMA} años cumplidos — el límite se evalúa el día del cumpleaños`, () => {
+    const hoy = new Date('2026-07-18T12:00:00Z')
+    // Cumple 18 HOY → entra.
+    expect(validarCamposLead({ fecha_nacimiento: '2008-07-18' }, hoy)).toMatchObject({ ok: true })
+    // Los cumple mañana → todavía no.
+    expect(validarCamposLead({ fecha_nacimiento: '2008-07-19' }, hoy)).toMatchObject({
+      ok: false,
+      codigo: 'menor_de_edad',
+      campo: 'fecha_nacimiento',
+    })
+  })
+})
+
+describe('edadCumplida', () => {
+  const hoy = new Date('2026-07-18T12:00:00Z')
+
+  it.each([
+    ['2008-07-18', 18], // cumpleaños hoy
+    ['2008-07-19', 17], // mañana
+    ['2008-07-17', 18], // ayer
+    ['1990-12-31', 35], // cumpleaños aún por venir este año
+  ])('%s → %i años', (iso, esperado) => {
+    expect(edadCumplida(iso, hoy)).toBe(esperado)
   })
 })

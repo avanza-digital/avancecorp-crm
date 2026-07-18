@@ -5,6 +5,7 @@ import { idCorrelacion, registrarError } from '@/lib/observabilidad'
 import {
   CATEGORIAS_INTERES,
   ETAPAS,
+  GENEROS,
   MOTIVOS_DESCARTE,
   ORIGENES_TODOS,
   TERMINALES,
@@ -53,6 +54,8 @@ const COLUMNAS_LEAD = [
   'telefono',
   'correo',
   'dni',
+  'genero',
+  'fecha_nacimiento',
   'distrito',
   'origen',
   'etapa',
@@ -83,6 +86,12 @@ const LeadRowSchema = v.object({
   telefono: v.string(),
   correo: v.nullable(v.string()),
   dni: v.nullable(v.string()),
+  // Mismo catálogo que el CHECK leads_genero_valido y el union Genero.
+  // OPCIONALES a propósito (no solo nullable): si el frontend llegara a correr
+  // contra una base sin la migración, el lead debe seguir mostrándose sin
+  // silueta — jamás desaparecer de la cartera por un campo cosmético.
+  genero: v.optional(v.nullable(v.picklist(GENEROS.map((g) => g.k)))),
+  fecha_nacimiento: v.optional(v.nullable(v.string())),
   distrito: v.nullable(v.string()),
   origen: v.picklist(ORIGENES_TODOS.map((o) => o.k)),
   etapa: v.picklist([...ETAPAS.map((e) => e.k), ...TERMINALES.map((t) => t.k)]),
@@ -188,6 +197,8 @@ function aLead(fila: LeadRow): Lead {
     telefono: fila.telefono,
     correo: fila.correo,
     dni: fila.dni,
+    genero: fila.genero ?? null,
+    fecha_nacimiento: fila.fecha_nacimiento ?? null,
     distrito: fila.distrito,
     origen: fila.origen, // ya validado contra el catálogo por LeadRowSchema
     etapa: fila.etapa,

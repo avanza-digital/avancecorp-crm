@@ -117,3 +117,46 @@ describe('LeadNuevo — capital obligatorio', () => {
     expect(actions.abrirLead).toHaveBeenCalledWith('lead-nuevo-1')
   })
 })
+
+describe('LeadNuevo — género y fecha de nacimiento', () => {
+  it('los envía al store; sin elegirlos el alta sigue funcionando (van null)', async () => {
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    await completarBase(user)
+    await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+
+    // Primero SIN tocarlos: son opcionales, el lead nace igual y sin silueta.
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+    expect(crearLead).toHaveBeenCalledWith(
+      expect.objectContaining({ genero: null, fecha_nacimiento: null }),
+    )
+  })
+
+  it('elegir género y fecha los propaga tal cual', async () => {
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    await completarBase(user)
+    await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+    await user.selectOptions(screen.getByLabelText('Género'), 'F')
+    await user.type(screen.getByLabelText('Fecha de nacimiento'), '1990-05-20')
+
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(crearLead).toHaveBeenCalledWith(
+      expect.objectContaining({ genero: 'F', fecha_nacimiento: '1990-05-20' }),
+    )
+  })
+
+  it('un menor de edad se frena en el formulario, sin viajar al store', async () => {
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    await completarBase(user)
+    await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+    await user.type(screen.getByLabelText('Fecha de nacimiento'), '2020-01-01')
+
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/al menos 18 años/i)
+    expect(crearLead).not.toHaveBeenCalled()
+  })
+})

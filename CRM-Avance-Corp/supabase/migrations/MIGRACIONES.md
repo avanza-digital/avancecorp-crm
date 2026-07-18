@@ -41,6 +41,31 @@ extras: buckets/policies de storage, publicación realtime, secreto Vault, cron 
 | 20260717224252 | crm_metricas_distribucion_leads | **4C, lectura gerencial atómica:** agrega la RPC descriptiva de distribución, capacidad, cohorte por episodio, resultados C/D, SLA, estancamiento y colas. Matriz PEN por rangos exactos; USD separado; no expone ledger, ranking ni recomendaciones. | ✅ Producción; `METRICAS_DISTRIBUCION_TX_OK` y smoke JSON V1 verificados |
 | 20260717224435 | crm_metricas_distribucion_acl_copy | Alinea el texto de la RPC con el predicado central `private.es_lector_global()` (`directorio/admin/superadmin`) sin ampliar permisos ni cambiar cálculos. | ✅ Producción; Gerencia/lector global permitidos y vendedor/anon/core directo denegados |
 
+## Perfil humano del lead (2026-07-18)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260718000001 | crm_leads_genero_fecha_nacimiento | Agrega `crm.leads.genero` (`text` nullable + CHECK `F/M`) y `crm.leads.fecha_nacimiento` (`date` nullable + CHECK de cordura `1900 ≤ fecha < 2100`), con sus `COMMENT` y los **GRANT por columna** para `authenticated`/`service_role`. Alimenta el avatar de silueta por género, que hasta hoy caía siempre a iniciales. Aditiva pura: no toca RLS, triggers, funciones ni `public`. | ✅ **Producción 2026-07-18** (branch `crm-genero` → merge; columnas+CHECK+GRANT verificados en prod; advisors sin hallazgos nuevos; branch borrado). ⚠️ **Gate RLS omitido con OK explícito de Miguel**: la migración no toca policies ni funciones y las credenciales del gate no estaban a mano; NO sienta precedente para migraciones que sí toquen RLS |
+
+**Trampa que documenta esta migración:** `crm.leads` tiene los privilegios concedidos
+**por columna**, no por tabla. Una columna nueva nace SIN `SELECT/INSERT/UPDATE` para
+`authenticated`, así que PostgREST la ignora y el campo parece "no existir" aunque esté en el
+catálogo. Toda ampliación futura de `crm.leads` debe incluir sus `GRANT` explícitos.
+
+**Por qué la mayoría de edad NO está en un CHECK:** exigiría comparar contra la fecha de hoy y
+PostgreSQL solo admite expresiones `IMMUTABLE` en un CHECK. La regla vive en
+`app/src/lib/validacion.ts` (`EDAD_MINIMA`, `edadCumplida`), que es la fuente única que ya
+comparten `crearLead` y `editarLead`. La base solo descarta lo imposible.
+
+**Diferido con OK de Miguel (2026-07-18):** `public.perfiles` NO se toca en esta pasada, así que
+el lead convertido a cliente pierde la silueta. Sería la 3ª excepción del portal.
+
+Advisors del branch: sin hallazgos nuevos atribuibles a esta migración. Los `ERROR`
+`security_definer_view` (`clientes_basicos`, `contratos_cartera`) y el `INFO`
+`rls_enabled_no_policy` del ledger ya existen **idénticos en producción** (mismas vistas
+`postgres`-owned sin `security_invoker`); se verificó comparando `reloptions` y `relowner` entre
+branch y prod.
+
 Notas del advisor de 0C: el único hallazgo de seguridad nuevo es `INFO`
 `rls_enabled_no_policy` sobre el ledger, deliberado y fail-closed: RLS está activa, no hay
 policies, y `anon`/`authenticated`/`service_role` no tienen privilegios directos. Los avisos
