@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.19",
+    "@radix-ui/react-hover-card": "^1.1.19",
     "@sentry/react": "^10.65.0",
     "@supabase/supabase-js": "^2.110.2",
     "@tailwindcss/vite": "^4.3.2",
