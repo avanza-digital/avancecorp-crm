@@ -21,7 +21,7 @@ El remoto `origin` (`avanza-platform`/`main`) es **otro proyecto** ("Academia Ph
 
 ## Falta para que funcione en REAL (mañana)
 1. ~~Migración BD~~ → **CERRADA DE PUNTA A PUNTA 2026-07-18**: `genero` + `fecha_nacimiento` en `crm.leads` EN PROD (`20260718000001`, branch→merge, gate omitido con OK de Miguel — ver `MIGRACIONES.md`) **+ frontend DESPLEGADO** (build vivo `index-hYSw4tAX.js`: formulario de alta con género/fecha + validación 18 años + frontera). Falta solo la prueba visual de Miguel. ⚠️ Solo leads: `perfiles` diferido (el cliente convertido y el Equipo siguen en iniciales).
-2. **Tipo de cambio real**: elegir fuente (SUNAT / SBS / mercado) + edge + cron → reemplaza el TC demo (hoy en real la meta dice "pendiente de tipo de cambio").
+2. ~~Tipo de cambio real~~ → **HECHO 2026-07-18**: edge `crm-tipo-cambio` (API pública oficial del **BCRP**, series SBS compra `PD04639PD` + venta `PD04640PD`, punto medio, **promedio 7 días hábiles**, cache 1 h en la edge, sin BD ni cron — la edge es proxy de solo lectura). `useTipoCambio` real la consume con Valibot en la frontera; si BCRP/edge fallan → null y la meta degrada a solo-PEN (nunca inventa TC). Verificado en prod: S/ 3.3965 (08–16 Jul), 401 sin sesión. Build vivo `index-BcuvIYj2.js`.
 3. **Agenda real** (calendario) — sigue sin fuente de datos.
 
 ## Notas
