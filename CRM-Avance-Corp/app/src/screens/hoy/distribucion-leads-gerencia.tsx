@@ -123,6 +123,111 @@ function medianaContacto(minutos: number | null): string | null {
   return `${PORCENTAJE.format(horas / 24)} d`
 }
 
+interface EquipoSupervisado {
+  id: string
+  nombre: string
+  activo: boolean
+  analistas: AnalistaDistribucionLeads[]
+  pendientes: number
+  cargaActiva: number
+  limiteDefinido: number
+  cuposLibres: number
+  conLimite: number
+  slaEn24h: number
+  slaEvaluables: number
+  sinAtender: number
+  sinAvance: number
+  capitalPen: number
+  capitalUsd: number
+  convertidosPen: number
+  descartadosPen: number
+}
+
+function equiposSupervisados(datos: MetricasDistribucionLeads): EquipoSupervisado[] {
+  const equipos = new Map<string, EquipoSupervisado>()
+  const bandejas = new Map(
+    datos.por_repartir.bandejas.map((bandeja) => [bandeja.supervisor_id, bandeja]),
+  )
+
+  const obtener = (analista: AnalistaDistribucionLeads): EquipoSupervisado => {
+    const id = analista.supervisor_id
+      ?? (analista.rol === 'supervisor' ? analista.analista_id : 'sin-supervisor')
+    const nombre = analista.supervisor_nombre
+      ?? (analista.rol === 'supervisor' ? analista.nombre : 'Sin supervisor')
+    const existente = equipos.get(id)
+    if (existente) return existente
+    const bandeja = bandejas.get(id)
+    const creado: EquipoSupervisado = {
+      id,
+      nombre,
+      activo: bandeja?.supervisor_activo ?? true,
+      analistas: [],
+      pendientes: bandeja?.carga_total ?? 0,
+      cargaActiva: 0,
+      limiteDefinido: 0,
+      cuposLibres: 0,
+      conLimite: 0,
+      slaEn24h: 0,
+      slaEvaluables: 0,
+      sinAtender: 0,
+      sinAvance: 0,
+      capitalPen: 0,
+      capitalUsd: 0,
+      convertidosPen: 0,
+      descartadosPen: 0,
+    }
+    equipos.set(id, creado)
+    return creado
+  }
+
+  for (const analista of datos.analistas) {
+    const equipo = obtener(analista)
+    equipo.analistas.push(analista)
+    equipo.cargaActiva += analista.capacidad.carga_activa
+    if (analista.capacidad.objetivo != null) {
+      equipo.conLimite += 1
+      equipo.limiteDefinido += analista.capacidad.objetivo
+      equipo.cuposLibres += Math.max(
+        0,
+        analista.capacidad.objetivo - analista.capacidad.carga_activa,
+      )
+    }
+    equipo.slaEn24h += analista.operacion.sla_asignacion_en_24h
+    equipo.slaEvaluables += analista.operacion.sla_asignacion_evaluables
+    equipo.sinAtender += analista.operacion.sin_tocar_actual
+    equipo.sinAvance += analista.operacion.estancados_actual
+    equipo.capitalPen += analista.pen.cartera_actual.capital
+    equipo.capitalUsd += analista.usd_no_segmentado.cartera_actual_capital
+    equipo.convertidosPen += analista.pen.cohorte.convertidos
+    equipo.descartadosPen += analista.pen.cohorte.descartados
+  }
+
+  for (const bandeja of datos.por_repartir.bandejas) {
+    if (equipos.has(bandeja.supervisor_id)) continue
+    equipos.set(bandeja.supervisor_id, {
+      id: bandeja.supervisor_id,
+      nombre: bandeja.supervisor_nombre,
+      activo: bandeja.supervisor_activo,
+      analistas: [],
+      pendientes: bandeja.carga_total,
+      cargaActiva: 0,
+      limiteDefinido: 0,
+      cuposLibres: 0,
+      conLimite: 0,
+      slaEn24h: 0,
+      slaEvaluables: 0,
+      sinAtender: 0,
+      sinAvance: 0,
+      capitalPen: 0,
+      capitalUsd: 0,
+      convertidosPen: 0,
+      descartadosPen: 0,
+    })
+  }
+
+  return [...equipos.values()].sort((a, b) => a.nombre.localeCompare(b.nombre, 'es'))
+}
+
 function PeriodoControl({
   desde,
   hasta,
@@ -288,7 +393,7 @@ function CapacidadAnalista({
     return (
       <form className="min-w-32 space-y-1.5" onSubmit={onGuardar} noValidate>
         <label className="sr-only" htmlFor={`capacidad-${analista.analista_id}`}>
-          Máximo de leads para {analista.nombre}
+          Límite de cartera para {analista.nombre}
         </label>
         <input
           id={`capacidad-${analista.analista_id}`}
@@ -298,7 +403,7 @@ function CapacidadAnalista({
           step={1}
           value={valor}
           onChange={(evento) => onCambiar(evento.target.value)}
-          placeholder="Sin objetivo"
+          placeholder="Sin límite"
           className="h-8 w-full rounded-md border border-input bg-card px-2 text-right text-xs tabular-nums focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           disabled={guardando}
         />
@@ -312,7 +417,7 @@ function CapacidadAnalista({
             variant="ghost"
             onClick={onCancelar}
             disabled={guardando}
-            aria-label={`Cancelar edición del máximo de leads de ${analista.nombre}`}
+            aria-label={`Cancelar edición del límite de cartera de ${analista.nombre}`}
           >
             <X />
           </Button>
@@ -331,7 +436,7 @@ function CapacidadAnalista({
       <div className="flex items-center justify-between gap-1.5">
         <span className="font-extrabold tabular-nums text-foreground">
           {carga}
-          <span className="font-medium text-muted-foreground">/{objetivo ?? '—'}</span>
+          <span className="font-medium text-muted-foreground"> de {objetivo ?? '—'}</span>
         </span>
         {analista.disponible_para_recibir && (
           <Button
@@ -340,8 +445,8 @@ function CapacidadAnalista({
             size="xs"
             className="size-7 px-0"
             onClick={onEmpezar}
-            aria-label={`Editar máximo de leads de ${analista.nombre}`}
-            title="Editar máximo de leads"
+            aria-label={`Editar límite de cartera de ${analista.nombre}`}
+            title="Editar límite de cartera"
           >
             <Pencil />
           </Button>
@@ -355,229 +460,112 @@ function CapacidadAnalista({
             className="mt-1 h-1.5"
           />
           <p className="mt-1 text-[10px] tabular-nums text-muted-foreground">
-            {uso}% ocupado
+            {uso}% del límite · {Math.max(0, objetivo - carga)} cupos libres
           </p>
         </>
       ) : (
-        <p className="mt-1 text-[10px] text-muted-foreground">Objetivo por definir</p>
+        <p className="mt-1 text-[10px] text-muted-foreground">Límite por definir</p>
       )}
     </div>
   )
 }
 
-function CeldaRango({
-  analista,
-  rango,
+function EquiposBajoSupervision({
+  equipos,
+  seleccionadoId,
+  onSeleccionar,
 }: {
-  analista: AnalistaDistribucionLeads
-  rango: RangoCapitalDistribucion
-}): JSX.Element {
-  const dato = rangoDeAnalista(analista, rango.id)
-  const { convertidos, descartados } = dato.cohorte
-  const resueltos = convertidos + descartados
-  const conversion = porcentaje(convertidos, resueltos)
-  const recibidos = dato.cohorte.episodios_recibidos
-  const leadsUnicos = dato.cohorte.leads_unicos_recibidos
-  const etiqueta = `${analista.nombre}, ${rango.etiqueta}: ${recibidos} recibidos, ${dato.cartera_actual.episodios} aún activos, ${convertidos} ganados y ${descartados} descartados; cierre ${conversion ?? 'aún sin casos'}`
+  equipos: EquipoSupervisado[]
+  seleccionadoId: string | null
+  onSeleccionar: (equipoId: string) => void
+}): JSX.Element | null {
+  if (equipos.length === 0) return null
 
   return (
-    <div
-      className={cn(
-        'min-w-[104px] rounded-lg border px-2.5 py-2',
-        recibidos > 0 || dato.cartera_actual.episodios > 0
-          ? 'border-accent/30 bg-accent/5'
-          : 'border-border/70 bg-muted/15',
-      )}
-      aria-label={etiqueta}
-      title={`${dinero(dato.cartera_actual.capital, 'PEN')} en leads activos · ${leadsUnicos} leads distintos recibidos`}
-    >
-      <p className="flex items-baseline gap-1 text-foreground">
-        <span className="text-base font-extrabold tabular-nums">{recibidos}</span>
-        <span className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">
-          recibidos
-        </span>
-      </p>
-      <p className="mt-0.5 whitespace-nowrap text-[9px] font-medium tabular-nums text-muted-foreground">
-        {dato.cartera_actual.episodios} aún activos
-        {leadsUnicos !== recibidos ? ` · ${leadsUnicos} leads` : ''}
-      </p>
-      <p className="mt-1 whitespace-nowrap text-[10px] font-semibold tabular-nums text-muted-foreground">
-        <span className="text-primary">Ganados {convertidos}</span>
-        <span aria-hidden> · </span>
-        <span>Descartados {descartados}</span>
-      </p>
-      <p className="mt-0.5 text-[9px] font-bold tabular-nums text-muted-foreground">
-        {conversion ?? 'Sin resultados'}
-      </p>
-    </div>
-  )
-}
-
-function SeguimientoAnalista({ analista }: { analista: AnalistaDistribucionLeads }): JSX.Element {
-  const { operacion } = analista
-  const sla = porcentaje(
-    operacion.sla_asignacion_en_24h,
-    operacion.sla_asignacion_evaluables,
-  )
-  const mediana = medianaContacto(operacion.primer_contacto_asignacion_mediana_minutos)
-  const salidasNoTerminales = operacion.transferidos + operacion.parqueados
-  const tasaSalidas = porcentaje(salidasNoTerminales, operacion.cohorte_episodios)
-
-  return (
-    <div className="min-w-32 space-y-1.5">
+    <section aria-labelledby="equipos-supervisados" className="space-y-3">
       <div>
-        <p className="font-extrabold tabular-nums text-foreground">{sla ?? 'Aún sin asignaciones'}</p>
-        <p className="text-[10px] tabular-nums text-muted-foreground">
-          {operacion.sla_asignacion_en_24h} de {operacion.sla_asignacion_evaluables} asignaciones atendidas en 24 h
-          {mediana ? ` · tiempo habitual ${mediana}` : ''}
-        </p>
-      </div>
-      <div className="flex flex-wrap gap-1">
-        <Badge
-          color={operacion.sin_tocar_actual > 0 ? 'var(--warning)' : 'var(--muted-foreground)'}
-          variant="outline"
-          className="whitespace-nowrap"
-        >
-          {operacion.sin_tocar_actual} sin atender
-        </Badge>
-        <Badge
-          color={operacion.estancados_actual > 0 ? 'var(--destructive)' : 'var(--muted-foreground)'}
-          variant="outline"
-          className="whitespace-nowrap"
-        >
-          {operacion.estancados_actual} sin avance
-        </Badge>
-      </div>
-      <p className="text-[10px] tabular-nums text-muted-foreground">
-        Asignaciones que ya no tiene este analista: {tasaSalidas ?? '—'} · {salidasNoTerminales} de {operacion.cohorte_episodios} asignaciones
-      </p>
-      <p className="text-[10px] tabular-nums text-muted-foreground">
-        {operacion.transferidos} pasaron a otro analista · {operacion.parqueados} pendientes de asignar ·{' '}
-        {operacion.desactivados} bajas
-      </p>
-    </div>
-  )
-}
-
-function VistaRapidaAnalistas({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element | null {
-  if (datos.analistas.length === 0) return null
-
-  return (
-    <section aria-labelledby="vista-rapida-analistas" className="space-y-3">
-      <div>
-        <h4 id="vista-rapida-analistas" className="text-base font-extrabold text-primary">
-          Vista rápida del equipo
+        <h4 id="equipos-supervisados" className="text-base font-extrabold text-primary">
+          Equipos bajo supervisión
         </h4>
         <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          Primero lo importante de cada analista. Los resultados en soles y dólares se mantienen separados.
+          Gerencia observa primero al supervisor responsable. El detalle por analista se abre solo cuando hace falta.
         </p>
       </div>
-      <div className="grid gap-3 lg:grid-cols-2">
-        {datos.analistas.map((analista) => {
-          const operacion = analista.operacion
-          const atencion = porcentaje(
-            operacion.sla_asignacion_en_24h,
-            operacion.sla_asignacion_evaluables,
-          )
-          const tiempoHabitual = medianaContacto(
-            operacion.primer_contacto_asignacion_mediana_minutos,
-          )
-          const maximo = analista.capacidad.objetivo
-          const usd = analista.usd_no_segmentado
+      <div className="grid gap-3 xl:grid-cols-2">
+        {equipos.map((equipo) => {
+          const sla = porcentaje(equipo.slaEn24h, equipo.slaEvaluables)
+          const resueltos = equipo.convertidosPen + equipo.descartadosPen
+          const conversion = porcentaje(equipo.convertidosPen, resueltos)
+          const seleccionado = equipo.id === seleccionadoId
 
           return (
             <article
-              key={analista.analista_id}
-              className="rounded-2xl border border-border/80 border-l-4 border-l-accent bg-card p-4 shadow-[0_14px_30px_-28px_rgba(15,31,61,0.85)]"
+              key={equipo.id}
+              className={cn(
+                'rounded-2xl border bg-card p-4 shadow-[0_14px_30px_-28px_rgba(15,31,61,0.85)] transition-colors',
+                seleccionado ? 'border-accent ring-2 ring-accent/15' : 'border-border/80',
+              )}
             >
-              <div className="flex items-start justify-between gap-3">
+              <div className="flex flex-wrap items-start justify-between gap-3">
                 <div className="flex min-w-0 items-center gap-3">
-                  <Avatar nombre={analista.nombre} className="size-10" />
+                  <Avatar nombre={equipo.nombre} className="size-10" />
                   <div className="min-w-0">
-                    <h5 className="truncate text-sm font-extrabold text-foreground">
-                      {analista.nombre}
-                    </h5>
-                    <p className="truncate text-xs text-muted-foreground">
-                      {analista.rol === 'supervisor'
-                        ? 'Supervisor'
-                        : analista.supervisor_nombre || 'Sin supervisor'}
+                    <h5 className="truncate text-sm font-extrabold text-foreground">{equipo.nombre}</h5>
+                    <p className="text-xs text-muted-foreground">
+                      Supervisor · {equipo.analistas.length} analistas
                     </p>
                   </div>
                 </div>
                 <Badge
-                  color={analista.disponible_para_recibir ? 'var(--accent)' : 'var(--warning)'}
+                  color={equipo.sinAtender > 0 || equipo.sinAvance > 0 ? 'var(--warning)' : 'var(--accent)'}
                   variant="outline"
-                  className="shrink-0"
+                  dot
                 >
-                  {analista.disponible_para_recibir ? 'Recibe leads' : 'Recepción pausada'}
+                  {!equipo.activo
+                    ? 'Supervisor inactivo'
+                    : equipo.sinAtender > 0 || equipo.sinAvance > 0
+                      ? 'Con pendientes'
+                      : 'Sin alertas operativas'}
                 </Badge>
               </div>
 
               <dl className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
                 <div className="rounded-xl bg-muted/45 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Leads activos
-                  </dt>
-                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">
-                    {analista.capacidad.carga_activa}
-                  </dd>
-                  <p className="text-[10px] text-muted-foreground">
-                    {maximo == null ? 'Sin máximo definido' : `Máximo ${maximo}`}
+                  <dt className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Leads activos</dt>
+                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">{equipo.cargaActiva}</dd>
+                  <p className="text-[9px] text-muted-foreground">
+                    {equipo.conLimite > 0
+                      ? `${equipo.cuposLibres} cupos libres · ${equipo.conLimite}/${equipo.analistas.length} con límite`
+                      : 'Límites por definir'}
                   </p>
                 </div>
                 <div className="rounded-xl bg-muted/45 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Recibidos
-                  </dt>
-                  <dd className="mt-1 text-sm font-extrabold tabular-nums text-primary">
-                    {analista.pen.cohorte.leads_unicos_recibidos} en soles
-                  </dd>
-                  <p className="text-[10px] tabular-nums text-muted-foreground">
-                    {usd.cohorte_leads_unicos} en dólares
-                  </p>
+                  <dt className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Por asignar</dt>
+                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">{equipo.pendientes}</dd>
+                  <p className="text-[9px] text-muted-foreground">Bandeja del supervisor</p>
                 </div>
                 <div className="rounded-xl bg-muted/45 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    Ganados
-                  </dt>
-                  <dd className="mt-1 text-sm font-extrabold tabular-nums text-primary">
-                    {analista.pen.cohorte.convertidos} en soles
-                  </dd>
-                  <p className="text-[10px] tabular-nums text-muted-foreground">
-                    {usd.convertidos} en dólares
-                  </p>
+                  <dt className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Atención en 24 h</dt>
+                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">{sla ?? '—'}</dd>
+                  <p className="text-[9px] tabular-nums text-muted-foreground">{equipo.slaEn24h} de {equipo.slaEvaluables}</p>
                 </div>
                 <div className="rounded-xl bg-muted/45 p-3">
-                  <dt className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-                    En 24 horas
-                  </dt>
-                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">
-                    {atencion ?? 'Sin datos'}
-                  </dd>
-                  <p className="text-[10px] tabular-nums text-muted-foreground">
-                    {operacion.sla_asignacion_en_24h} de {operacion.sla_asignacion_evaluables} asignaciones
-                  </p>
+                  <dt className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Conversión PEN</dt>
+                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">{conversion ?? '—'}</dd>
+                  <p className="text-[9px] tabular-nums text-muted-foreground">{equipo.convertidosPen} de {resueltos} cierres</p>
                 </div>
               </dl>
 
-              <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-border/70 pt-3">
-                <Badge
-                  color={operacion.sin_tocar_actual > 0 ? 'var(--warning)' : 'var(--muted-foreground)'}
-                  variant="outline"
-                >
-                  {operacion.sin_tocar_actual} sin atender
-                </Badge>
-                <Badge
-                  color={operacion.estancados_actual > 0 ? 'var(--destructive)' : 'var(--muted-foreground)'}
-                  variant="outline"
-                >
-                  {operacion.estancados_actual} sin avance
-                </Badge>
-                {tiempoHabitual && (
-                  <span className="text-xs font-medium text-muted-foreground">
-                    Tiempo habitual: {tiempoHabitual}
-                  </span>
-                )}
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-3 border-t border-border/70 pt-3">
+                <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
+                  <span><strong className="text-foreground">{equipo.sinAtender}</strong> sin atender</span>
+                  <span><strong className="text-foreground">{equipo.sinAvance}</strong> sin avance</span>
+                  <span><strong className="text-foreground">{dinero(equipo.capitalPen, 'PEN')}</strong> activos</span>
+                  <span><strong className="text-foreground">{dinero(equipo.capitalUsd, 'USD')}</strong> aparte</span>
+                </div>
+                <Button type="button" size="sm" variant={seleccionado ? 'default' : 'outline'} onClick={() => onSeleccionar(equipo.id)}>
+                  Ver analistas
+                </Button>
               </div>
             </article>
           )
@@ -589,11 +577,14 @@ function VistaRapidaAnalistas({ datos }: { datos: MetricasDistribucionLeads }): 
 
 function MatrizPen({
   datos,
+  analistas,
   onEditarCapacidad,
 }: {
   datos: MetricasDistribucionLeads
+  analistas: AnalistaDistribucionLeads[]
   onEditarCapacidad: DistribucionLeadsGerenciaProps['onEditarCapacidad']
 }): JSX.Element {
+  const [modo, setModo] = useState<'carga' | 'conversion'>('carga')
   const [edicion, setEdicion] = useState<{ analistaId: string; valor: string } | null>(null)
   const [guardando, setGuardando] = useState(false)
   const [errorCapacidad, setErrorCapacidad] = useState<string | null>(null)
@@ -633,13 +624,13 @@ function MatrizPen({
       await onEditarCapacidad(analista.analista_id, capacidad)
       setEdicion(null)
     } catch {
-      setErrorCapacidad('No se pudo guardar el máximo de leads. Inténtalo otra vez.')
+      setErrorCapacidad('No se pudo guardar el límite de cartera. Inténtalo otra vez.')
     } finally {
       setGuardando(false)
     }
   }
 
-  if (datos.analistas.length === 0) {
+  if (analistas.length === 0) {
     return (
       <div className="rounded-lg border border-dashed border-border px-5 py-10 text-center">
         <Users className="mx-auto size-7 text-muted-foreground" aria-hidden />
@@ -652,150 +643,169 @@ function MatrizPen({
   }
 
   return (
-    <div
-      className="ac-scroll max-h-[460px] overflow-auto rounded-xl border border-border bg-card shadow-inner"
-      role="region"
-      aria-label="Resultados por analista en soles"
-    >
-      <table className="min-w-[1680px] border-separate border-spacing-0 text-xs">
-        {/* El nombre accesible de la tabla arranca igual que el título visible
-            (h4 "Resultados por analista en soles") — regla de a11y y lo que el
-            test de la matriz asevera. */}
-        <caption className="sr-only">
-          Resultados por analista en soles, por grupo de monto. Muestra leads recibidos,
-          leads activos, ganados y descartados durante el período.
-        </caption>
-        <thead>
-          <tr className="bg-muted/55 text-left">
-            <th
-              scope="col"
-              className="sticky left-0 z-20 w-52 border-b border-r border-border bg-muted px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-            >
-              Analista
-            </th>
-            <th
-              scope="col"
-              className="w-36 border-b border-r border-border px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-            >
-              <span className="block">Leads / máximo</span>
-              <span className="mt-0.5 block text-[9px] font-medium normal-case tracking-normal">
-                Soles y dólares
-              </span>
-            </th>
-            {rangos.map((rango, indice) => (
-              <th
-                key={rango.id}
-                scope="col"
-                className="w-32 border-b border-r border-border/70 px-2 py-2.5 align-bottom last:border-r"
-              >
-                <span className="block text-[9px] font-extrabold tabular-nums text-accent">
-                  GRUPO {String(indice + 1).padStart(2, '0')}
-                </span>
-                <span className="mt-0.5 block text-[10px] font-bold leading-tight text-foreground">
-                  {rango.etiqueta}
-                </span>
-              </th>
-            ))}
-            <th
-              scope="col"
-              className="w-32 border-b border-r border-border px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-            >
-              Leads ganados
-            </th>
-            <th
-              scope="col"
-              className="w-44 border-b border-border px-3 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground"
-            >
-              <span className="block">Atención y alertas</span>
-              <span className="mt-0.5 block text-[9px] font-medium normal-case tracking-normal">
-                Todos los leads
-              </span>
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          {datos.analistas.map((analista) => {
-            const resueltos = analista.pen.cohorte.convertidos + analista.pen.cohorte.descartados
-            const conversion = porcentaje(analista.pen.cohorte.convertidos, resueltos)
-            const editando = edicion?.analistaId === analista.analista_id
+    <section className="overflow-hidden rounded-xl border border-border bg-card">
+      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-border bg-muted/20 px-4 py-3">
+        <div>
+          <h5 className="text-sm font-extrabold text-primary">Analistas por rango de monto</h5>
+          <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
+            {modo === 'carga'
+              ? 'Carga actual muestra cuántos leads activos tiene cada persona. El límite de cartera lo configura Gerencia; no mide desempeño.'
+              : 'Conversión histórica: ganados ÷ (ganados + descartados). Los leads todavía activos no entran en el porcentaje.'}
+          </p>
+        </div>
+        <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Lectura de la matriz">
+          <Button type="button" size="sm" variant={modo === 'carga' ? 'default' : 'ghost'} onClick={() => setModo('carga')}>
+            Carga actual
+          </Button>
+          <Button type="button" size="sm" variant={modo === 'conversion' ? 'default' : 'ghost'} onClick={() => setModo('conversion')}>
+            Conversión por monto
+          </Button>
+        </div>
+      </div>
 
-            return (
-              <tr key={analista.analista_id} className="group hover:bg-muted/20">
-                <th
-                  scope="row"
-                  className="sticky left-0 z-10 border-b border-r border-border bg-card px-4 py-3 text-left group-hover:bg-muted"
-                >
-                  <div className="flex min-w-0 items-center gap-2.5">
-                    <Avatar nombre={analista.nombre} className="size-8" />
-                    <div className="min-w-0">
-                      <p className="truncate text-xs font-bold text-foreground">{analista.nombre}</p>
-                      <p className="truncate text-[10px] font-medium text-muted-foreground">
-                        {analista.rol === 'supervisor' ? 'Supervisor' : analista.supervisor_nombre || 'Sin supervisor'}
-                      </p>
-                    </div>
-                  </div>
-                  {!analista.activo && (
-                    <Badge color="var(--muted-foreground)" variant="outline" className="mt-1.5">
-                      Inactivo · histórico
-                    </Badge>
-                  )}
+      <div className="ac-scroll max-h-[520px] overflow-auto" role="region" aria-label="Analistas por rango de monto en soles">
+        <table className="min-w-[1180px] border-separate border-spacing-0 text-xs">
+          <caption className="sr-only">
+            {modo === 'carga'
+              ? 'Carga actual por analista y rango de monto en soles.'
+              : 'Conversión por analista y rango de monto en soles.'}
+          </caption>
+          <thead>
+            <tr className="bg-muted/55 text-left">
+              <th scope="col" className="sticky left-0 z-20 w-48 border-b border-r border-border bg-muted px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Analista</th>
+              {rangos.map((rango) => (
+                <th key={rango.id} scope="col" className="w-24 border-b border-r border-border/70 px-2 py-2.5 text-center align-bottom">
+                  <span className="block text-[9px] font-bold leading-tight text-foreground">{rango.etiqueta}</span>
+                  <span className="mt-1 block text-[8px] font-medium text-muted-foreground">
+                    {modo === 'carga' ? 'activos' : 'ganados / cerrados'}
+                  </span>
                 </th>
-                <td className="border-b border-r border-border px-3 py-3 align-top">
-                  <CapacidadAnalista
-                    analista={analista}
-                    editando={editando}
-                    valor={editando ? edicion.valor : ''}
-                    guardando={guardando && editando}
-                    error={editando ? errorCapacidad : null}
-                    onEmpezar={() => empezarEdicion(analista)}
-                    onCambiar={(valor) =>
-                      setEdicion((actual) =>
-                        actual?.analistaId === analista.analista_id ? { ...actual, valor } : actual,
-                      )
-                    }
-                    onCancelar={() => {
-                      setEdicion(null)
-                      setErrorCapacidad(null)
-                    }}
-                    onGuardar={(evento) => void guardarCapacidad(evento, analista)}
-                  />
-                </td>
-                {rangos.map((rango) => (
-                  <td key={rango.id} className="border-b border-r border-border/70 px-2 py-2 align-top">
-                    <CeldaRango analista={analista} rango={rango} />
-                  </td>
-                ))}
-                <td className="border-b border-r border-border px-3 py-3 align-top">
-                  <p className="text-base font-extrabold tabular-nums text-primary">
-                    {conversion ?? 'Sin resultados'}
-                  </p>
-                  <p className="mt-1 whitespace-nowrap text-[10px] tabular-nums text-muted-foreground">
-                    {analista.pen.cohorte.convertidos} ganados · {analista.pen.cohorte.descartados} descartados
-                  </p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {analista.pen.cohorte.leads_unicos_recibidos} leads recibidos
-                  </p>
-                  <p className="mt-1 text-[10px] text-muted-foreground">
-                    {analista.pen.cohorte.leads_unicos_resueltos} leads cerrados
-                  </p>
-                </td>
-                <td className="border-b border-border px-3 py-3 align-top">
-                  <SeguimientoAnalista analista={analista} />
-                </td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
+              ))}
+              {modo === 'carga' ? (
+                <>
+                  <th scope="col" className="w-20 border-b border-r border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Total activos</th>
+                  <th scope="col" className="w-36 border-b border-r border-border px-3 py-3 text-[9px] font-bold uppercase text-muted-foreground">Carga / límite</th>
+                  <th scope="col" className="w-28 border-b border-border px-3 py-3 text-[9px] font-bold uppercase text-muted-foreground">Atención</th>
+                </>
+              ) : (
+                <>
+                  <th scope="col" className="w-24 border-b border-r border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Conversión total</th>
+                  <th scope="col" className="w-20 border-b border-r border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Casos cerrados</th>
+                  <th scope="col" className="w-24 border-b border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Recibidos PEN</th>
+                </>
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {analistas.map((analista) => {
+              const resueltos = analista.pen.cohorte.convertidos + analista.pen.cohorte.descartados
+              const conversionTotal = porcentaje(analista.pen.cohorte.convertidos, resueltos)
+              const sla = porcentaje(
+                analista.operacion.sla_asignacion_en_24h,
+                analista.operacion.sla_asignacion_evaluables,
+              )
+              const editando = edicion?.analistaId === analista.analista_id
+
+              return (
+                <tr key={analista.analista_id} className="group hover:bg-muted/20">
+                  <th scope="row" className="sticky left-0 z-10 border-b border-r border-border bg-card px-4 py-3 text-left group-hover:bg-muted">
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <Avatar nombre={analista.nombre} className="size-8" />
+                      <div className="min-w-0">
+                        <p className="truncate text-xs font-bold text-foreground">{analista.nombre}</p>
+                        <p className="truncate text-[9px] font-medium text-muted-foreground">
+                          {analista.disponible_para_recibir ? 'Disponible para recibir' : 'Recepción pausada'}
+                        </p>
+                      </div>
+                    </div>
+                  </th>
+                  {rangos.map((rango) => {
+                    const dato = rangoDeAnalista(analista, rango.id)
+                    const cerrados = dato.cohorte.convertidos + dato.cohorte.descartados
+                    const conversionRango = porcentaje(dato.cohorte.convertidos, cerrados)
+                    const carga = dato.cartera_actual.episodios
+                    return (
+                      <td key={rango.id} className="border-b border-r border-border/70 px-2 py-2 text-center">
+                        {modo === 'carga' ? (
+                          <div
+                            className={cn(
+                              'mx-auto grid size-9 place-items-center rounded-lg border text-sm font-extrabold tabular-nums',
+                              carga === 0 && 'border-border/60 bg-muted/20 text-muted-foreground',
+                              carga === 1 && 'border-accent/25 bg-accent/10 text-primary',
+                              carga >= 2 && carga < 4 && 'border-accent/40 bg-accent/20 text-primary',
+                              carga >= 4 && 'border-primary bg-primary text-primary-foreground',
+                            )}
+                            title={`${dato.cartera_actual.episodios} leads activos · ${dinero(dato.cartera_actual.capital, 'PEN')}`}
+                          >
+                            {carga}
+                          </div>
+                        ) : (
+                          <div className={cn('mx-auto min-w-16 rounded-lg px-1.5 py-1.5 tabular-nums', cerrados === 0 ? 'bg-muted/25 text-muted-foreground' : 'bg-accent/10 text-primary')}>
+                            <p className="text-xs font-extrabold">{conversionRango ?? '—'}</p>
+                            <p className="mt-0.5 text-[8px] font-medium text-muted-foreground">
+                              {cerrados > 0 ? `${dato.cohorte.convertidos} de ${cerrados}` : 'Sin casos'}
+                            </p>
+                          </div>
+                        )}
+                      </td>
+                    )
+                  })}
+                  {modo === 'carga' ? (
+                    <>
+                      <td className="border-b border-r border-border px-2 py-3 text-center text-base font-extrabold tabular-nums text-primary">{analista.capacidad.carga_activa}</td>
+                      <td className="border-b border-r border-border px-3 py-3 align-top">
+                        <CapacidadAnalista
+                          analista={analista}
+                          editando={editando}
+                          valor={editando ? edicion.valor : ''}
+                          guardando={guardando && editando}
+                          error={editando ? errorCapacidad : null}
+                          onEmpezar={() => empezarEdicion(analista)}
+                          onCambiar={(valor) => setEdicion((actual) => actual?.analistaId === analista.analista_id ? { ...actual, valor } : actual)}
+                          onCancelar={() => { setEdicion(null); setErrorCapacidad(null) }}
+                          onGuardar={(evento) => void guardarCapacidad(evento, analista)}
+                        />
+                      </td>
+                      <td className="border-b border-border px-3 py-3">
+                        <p className="font-extrabold tabular-nums text-primary">{sla ?? '—'}</p>
+                        <p className="mt-1 text-[9px] tabular-nums text-muted-foreground">{analista.operacion.sla_asignacion_en_24h} de {analista.operacion.sla_asignacion_evaluables} · {analista.operacion.sin_tocar_actual} sin atender</p>
+                      </td>
+                    </>
+                  ) : (
+                    <>
+                      <td className="border-b border-r border-border px-2 py-3 text-center">
+                        <p className="text-sm font-extrabold tabular-nums text-primary">{conversionTotal ?? '—'}</p>
+                        <p className="text-[8px] tabular-nums text-muted-foreground">{analista.pen.cohorte.convertidos} de {resueltos}</p>
+                      </td>
+                      <td className="border-b border-r border-border px-2 py-3 text-center font-bold tabular-nums">{resueltos}</td>
+                      <td className="border-b border-border px-2 py-3 text-center font-bold tabular-nums">{analista.pen.cohorte.leads_unicos_recibidos}</td>
+                    </>
+                  )}
+                </tr>
+              )
+            })}
+          </tbody>
+        </table>
+      </div>
+    </section>
   )
 }
 
-function LecturaUsd({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element {
-  const analistasConUsd = datos.analistas.filter((analista) => {
+function LecturaUsd({
+  datos,
+  analistas = datos.analistas,
+}: {
+  datos: MetricasDistribucionLeads
+  analistas?: AnalistaDistribucionLeads[]
+}): JSX.Element {
+  const analistasConUsd = analistas.filter((analista) => {
     const usd = analista.usd_no_segmentado
     return usd.cartera_actual_episodios > 0 || usd.cohorte_episodios_recibidos > 0
   })
+  const capitalUsd = analistasConUsd.reduce(
+    (total, analista) => total + analista.usd_no_segmentado.cartera_actual_capital,
+    0,
+  )
 
   return (
     <section aria-labelledby="distribucion-usd-titulo" className="rounded-lg border border-border bg-muted/15">
@@ -809,7 +819,7 @@ function LecturaUsd({ datos }: { datos: MetricasDistribucionLeads }): JSX.Elemen
           </p>
         </div>
         <Badge color="var(--accent)" variant="outline">
-          {dinero(datos.resumen.capital_usd_asignado_actual, 'USD')} en leads activos
+          {dinero(capitalUsd, 'USD')} en leads activos
         </Badge>
       </div>
       {analistasConUsd.length === 0 ? (
@@ -1008,17 +1018,32 @@ export function DistribucionLeadsGerencia({
   onEditarCapacidad,
 }: DistribucionLeadsGerenciaProps): JSX.Element {
   const tituloId = useId()
+  const equipos = useMemo(() => (datos ? equiposSupervisados(datos) : []), [datos])
+  const [equipoSeleccionadoId, setEquipoSeleccionadoId] = useState<string | null>(null)
+  const [analisisAbierto, setAnalisisAbierto] = useState(false)
+
+  useEffect(() => {
+    if (equipos.length === 0) {
+      setEquipoSeleccionadoId(null)
+      return
+    }
+    if (!equipos.some((equipo) => equipo.id === equipoSeleccionadoId)) {
+      setEquipoSeleccionadoId(equipos[0]?.id ?? null)
+    }
+  }, [equipos, equipoSeleccionadoId])
+
+  const equipoSeleccionado = equipos.find((equipo) => equipo.id === equipoSeleccionadoId) ?? null
 
   return (
     <Card className="overflow-hidden" aria-labelledby={tituloId}>
       <CardHeader className="gap-4 border-b border-border bg-muted/15 pb-4 lg:flex-row lg:items-end lg:justify-between">
         <div className="max-w-2xl">
           <p className="mb-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-accent">
-            Asignación comercial
+            Cadena de mando comercial
           </p>
-          <CardTitle id={tituloId} className="text-lg">Distribución de leads y montos</CardTitle>
+          <CardTitle id={tituloId} className="text-lg">Supervisión de distribución</CardTitle>
           <CardDescription className="mt-1 max-w-xl leading-relaxed">
-            Muestra cuántos leads tiene cada analista, cuánto dinero representan y si fueron atendidos a tiempo. Si un lead cambia de analista, su tiempo de espera no vuelve a cero.
+            Gerencia revisa la carga de cada equipo, abre el detalle por analista y decide dónde coordinar la siguiente asignación. Soles y dólares permanecen separados.
           </CardDescription>
         </div>
         <PeriodoControl
@@ -1088,27 +1113,50 @@ export function DistribucionLeadsGerencia({
           )}
           <ResumenDistribucion datos={datos} />
 
-          <div className="space-y-2">
-            <div className="flex flex-wrap items-end justify-between gap-2">
+          <EquiposBajoSupervision
+            equipos={equipos}
+            seleccionadoId={equipoSeleccionadoId}
+            onSeleccionar={(equipoId) => {
+              setEquipoSeleccionadoId(equipoId)
+              setAnalisisAbierto(true)
+            }}
+          />
+
+          <section className="overflow-hidden rounded-2xl border border-border/80 bg-card">
+            <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-4 sm:px-5">
               <div>
-                <h4 className="text-sm font-bold text-foreground">Resultados por analista en soles</h4>
-                <p className="mt-0.5 text-[11px] text-muted-foreground">
-                  La cifra grande indica leads recibidos. Debajo verás cuántos siguen activos, cuántos se ganaron y cuántos se descartaron.
+                <p className="text-[9px] font-extrabold uppercase tracking-[0.14em] text-accent">Segundo nivel</p>
+                <h4 className="mt-1 text-base font-extrabold text-primary">Análisis por analista y monto</h4>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Separa disponibilidad actual y conversión histórica para que Gerencia tome la decisión.
                 </p>
               </div>
-              <Badge color="var(--accent)" variant="outline">7 grupos por monto</Badge>
+              <Button type="button" variant="outline" onClick={() => setAnalisisAbierto((abierto) => !abierto)} disabled={!equipoSeleccionado}>
+                {analisisAbierto ? 'Cerrar análisis' : 'Abrir análisis completo'}
+              </Button>
             </div>
-          <VistaRapidaAnalistas datos={datos} />
-          <div className="rounded-xl border border-border/80 bg-muted/25 px-4 py-3">
-            <h4 className="text-sm font-extrabold text-primary">Detalle por grupos de monto</h4>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              Desplázate hacia los lados para revisar todos los grupos. Los nombres y títulos permanecen visibles mientras avanzas.
-            </p>
-          </div>
-          <MatrizPen datos={datos} onEditarCapacidad={onEditarCapacidad} />
-          </div>
 
-          <LecturaUsd datos={datos} />
+            {analisisAbierto && equipoSeleccionado && (
+              <div className="space-y-4 border-t border-border bg-muted/10 p-4 sm:p-5">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div>
+                    <p className="text-sm font-extrabold text-foreground">Equipo de {equipoSeleccionado.nombre}</p>
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      {equipoSeleccionado.analistas.length} analistas · período {datos.cohorte.desde_inclusivo} al {datos.cohorte.hasta_inclusivo}
+                    </p>
+                  </div>
+                  <Badge color="var(--accent)" variant="outline">PEN · 7 rangos</Badge>
+                </div>
+                <MatrizPen
+                  datos={datos}
+                  analistas={equipoSeleccionado.analistas}
+                  onEditarCapacidad={onEditarCapacidad}
+                />
+                <LecturaUsd datos={datos} analistas={equipoSeleccionado.analistas} />
+              </div>
+            )}
+          </section>
+
           <PorRepartir datos={datos} />
           <AlertaCalidad datos={datos} />
 
