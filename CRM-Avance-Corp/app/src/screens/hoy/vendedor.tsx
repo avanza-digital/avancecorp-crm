@@ -520,7 +520,7 @@ export function HoyVendedor(): JSX.Element {
             {higiene && nCola > 0 && (
               <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
                 Viernes p.m. rinde poco para citas nuevas — deja la próxima semana ordenada: cierra lo
-                vencido, mueve los no-shows a mar–jue y que ningún lead quede sin próxima acción.
+                vencido, mueve a mar–jue las citas de quien no asistió y que ningún lead quede sin próxima acción.
               </p>
             )}
             {nCola === 0 ? (
@@ -529,7 +529,7 @@ export function HoyVendedor(): JSX.Element {
                 <p className="text-sm font-bold">{higiene ? 'Pipeline limpio ✦' : 'Al día ✦ sin pendientes'}</p>
                 <p className="text-xs text-muted-foreground">
                   {higiene
-                    ? 'Nada vencido, no-shows en su sitio y toda tu cartera con próxima acción. Buen fin de semana.'
+                    ? 'Nada vencido, las citas reagendadas en su día y toda tu cartera con próxima acción. Buen fin de semana.'
                     : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
                 </p>
               </div>
@@ -739,7 +739,7 @@ function FilaHigiene({
   const abrir = () => t.lead_id && abrirLead(t.lead_id)
   const motivo = vencida
     ? `Venció ${haceTexto(diasDesdeReferencia(t.vence_en, ahora))} — ciérrala o reprográmala`
-    : `Reagendada tras no-show — cae ${tareaAEvento(t, ahora).cuando}, mejor mar–jue`
+    : `El cliente no asistió — la nueva cita cae ${tareaAEvento(t, ahora).cuando}; mejor mar–jue`
   return (
     <div
       role="button"
@@ -767,7 +767,7 @@ function FilaHigiene({
           ) : (
             <p className="truncate text-sm font-semibold">{t.titulo}</p>
           )}
-          <Badge color={c} className="text-[10px]">{vencida ? 'Vencida' : 'No-show'}</Badge>
+          <Badge color={c} className="text-[10px]">{vencida ? 'Vencida' : 'No asistió'}</Badge>
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{motivo}</p>
       </div>
