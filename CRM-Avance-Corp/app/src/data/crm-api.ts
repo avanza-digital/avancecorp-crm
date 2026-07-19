@@ -45,6 +45,10 @@ import {
   MetricasDistribucionLeadsSchema,
   type MetricasDistribucionLeads,
 } from '@/lib/metricas-distribucion'
+import {
+  MetricasAgendaSchema,
+  type MetricasAgenda,
+} from '@/lib/metricas-agenda'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -1542,6 +1546,54 @@ export async function listarMetricasDistribucionLeads(
       'METRICAS_DISTRIBUCION_CONTRACT',
     )
     registrarError('crm.metricas.distribucion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
+  return resultado.output
+}
+
+/**
+ * Fotografía atómica V1 de la agenda del equipo (crm.metricas_agenda_fn):
+ * toques, cierres de reuniones del periodo y foto actual de pendientes por
+ * miembro. El ámbito lo recorta el SERVIDOR (supervisor ve su subárbol
+ * incluyéndose a sí mismo). Igual que en distribución: una sola rama inválida
+ * invalida el payload completo — nunca se mezclan semánticas a medias.
+ */
+export async function listarMetricasAgenda(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<MetricasAgenda> {
+  if (!periodoMetricasValido(desde, hasta)) {
+    const fallo = new CrmApiError(
+      'El período de métricas no es válido.',
+      'PERIODO_METRICAS_INVALIDO',
+    )
+    registrarError('crm.metricas.agenda_periodo_invalido', fallo)
+    throw fallo
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_agenda_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.agenda_fallido')
+
+  const resultado = v.safeParse(MetricasAgendaSchema, data)
+  if (
+    !resultado.success
+    || resultado.output.periodo.desde !== desde
+    || resultado.output.periodo.hasta !== hasta
+  ) {
+    const fallo = new CrmApiError(
+      'Las métricas de agenda no tienen el formato esperado.',
+      'METRICAS_AGENDA_CONTRACT',
+    )
+    registrarError('crm.metricas.agenda_fuera_de_contrato', fallo)
     throw fallo
   }
 

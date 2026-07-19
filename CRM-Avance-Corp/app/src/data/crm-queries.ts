@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   actualizarCapacidadLeadsObjetivo,
   listarClientes,
+  listarMetricasAgenda,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
   listarMetricasDistribucionLeads,
@@ -38,6 +39,8 @@ export const crmQueryKeys = {
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
   metricasDistribucionLeads: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'distribucion-leads', desde, hasta] as const,
+  metricasAgenda: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'agenda-equipo', desde, hasta] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -177,6 +180,24 @@ export function useMetricasDistribucionLeads(
   return useQuery({
     queryKey: crmQueryKeys.metricasDistribucionLeads(desde, hasta),
     queryFn: ({ signal }) => listarMetricasDistribucionLeads(desde, hasta, signal),
+    enabled: habilitada && Boolean(desde) && Boolean(hasta),
+  })
+}
+
+/**
+ * Fotografía V1 de la agenda del equipo (toques, cierres de reuniones y carga
+ * viva por miembro) para un periodo inclusivo en America/Lima. Igual que en
+ * distribución, las fechas forman parte de la clave: cambiar el periodo nunca
+ * reutiliza silenciosamente la fotografía anterior.
+ */
+export function useMetricasAgenda(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.metricasAgenda(desde, hasta),
+    queryFn: ({ signal }) => listarMetricasAgenda(desde, hasta, signal),
     enabled: habilitada && Boolean(desde) && Boolean(hasta),
   })
 }
