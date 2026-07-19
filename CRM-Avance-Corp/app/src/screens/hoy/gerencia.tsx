@@ -13,14 +13,19 @@ import { useAuth } from '@/lib/auth-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO } from '@/lib/tipos'
 import { SEMAFORO } from '@/lib/semaforo'
-import { capitalPorMoneda, colorMeta, embudo, esAbierto } from '@/lib/inteligencia'
+import { capitalPorMoneda, colorMeta, DIA_MS, embudo, esAbierto } from '@/lib/inteligencia'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
+import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
+import { fechaLima } from '@/lib/agenda-derivada'
+import { useAhora } from '@/lib/ahora'
 import {
   useActualizarCapacidadLeadsObjetivo,
+  useMetricasAgenda,
   useMetricasDistribucionLeads,
 } from '@/data/crm-queries'
 import { mensajeDeError } from '@/data/crm-api'
 import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
+import { AgendaEquipoPanel } from './agenda-equipo'
 
 // Recharts baja solo al entrar en Gerencia; el gate de rol vive en hoy.tsx.
 const GraficasGerencia = lazy(() =>
@@ -97,6 +102,12 @@ export function HoyGerencia(): JSX.Element {
     periodo.desde,
     periodo.hasta,
   )
+  // Fase F: agenda del equipo — últimos 7 días calendario de Lima sobre el
+  // reloj vivo (mismo periodo fijo que el panel del supervisor).
+  const ahora = useAhora()
+  const hastaAgenda = fechaLima(ahora)
+  const desdeAgenda = fechaLima(ahora - 6 * DIA_MS)
+  const consultaAgenda = useMetricasAgenda(sesionReal, desdeAgenda, hastaAgenda)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
   const leads = ambito.leads
   const meta = objetivos.gerencia
@@ -264,6 +275,23 @@ export function HoyGerencia(): JSX.Element {
           if (sesionReal) void consultaDistribucion.refetch()
         }}
         onEditarCapacidad={guardarCapacidad}
+      />
+
+      {/* Fase F: ejecución de la agenda por miembro — el mismo panel que ve
+          el supervisor, aquí con el equipo completo (el ámbito lo recorta la
+          RPC en el servidor). */}
+      <AgendaEquipoPanel
+        datos={sesionReal ? consultaAgenda.data : metricasAgendaDemo(desdeAgenda, hastaAgenda)}
+        cargando={sesionReal && (consultaAgenda.isPending || consultaAgenda.isFetching)}
+        error={
+          sesionReal && consultaAgenda.error
+            ? mensajeDeError(consultaAgenda.error, 'No se pudo cargar la agenda del equipo.')
+            : null
+        }
+        modoDemo={!sesionReal}
+        onReintentar={() => {
+          if (sesionReal) void consultaAgenda.refetch()
+        }}
       />
 
       <Card>
