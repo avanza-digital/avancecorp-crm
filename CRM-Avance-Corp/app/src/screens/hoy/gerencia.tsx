@@ -14,7 +14,7 @@ import { useAuth } from '@/lib/auth-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO } from '@/lib/tipos'
 import { SEMAFORO } from '@/lib/semaforo'
-import { capitalPorMoneda, colorMeta, DIA_MS, embudo, esAbierto } from '@/lib/inteligencia'
+import { capitalPorMoneda, colorMeta, DIA_MS, embudo, esAbierto, tendenciaDe } from '@/lib/inteligencia'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -27,6 +27,7 @@ import {
 import { mensajeDeError } from '@/data/crm-api'
 import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
 import { AgendaEquipoPanel } from './agenda-equipo'
+import { MetasEditor } from './metas-editor'
 
 // Recharts baja solo al entrar en Gerencia; el gate de rol vive en hoy.tsx.
 const GraficasGerencia = lazy(() =>
@@ -91,7 +92,7 @@ function MetaItem({
 }
 
 export function HoyGerencia(): JSX.Element {
-  const { ambito, equipo, objetivos } = useCRMData()
+  const { ambito, equipo, objetivos, fijarObjetivos, series } = useCRMData()
   const { yo } = useAuth()
   const [periodo, setPeriodo] = useState<PeriodoDistribucion>(periodoInicialDistribucion)
   const [monedaMontos, setMonedaMontos] = useState<'PEN' | 'USD'>('PEN')
@@ -133,6 +134,10 @@ export function HoyGerencia(): JSX.Element {
   }, [leads])
 
   const etapas = useMemo(() => embudo(leads), [leads])
+  // Tendencias reales (Fase 3): mes vigente vs mes anterior, de las series del
+  // ámbito. Sin historia (mes anterior en 0) no hay chip — jamás se inventa.
+  const tendenciaCierres = tendenciaDe(series.capital)
+  const tendenciaLeads = tendenciaDe(series.leads)
   const porRepartir =
     consultaDistribucion.data?.resumen.por_repartir_actuales ?? datosLocales.porRepartir
   const errorDistribucion =
@@ -215,7 +220,11 @@ export function HoyGerencia(): JSX.Element {
           value={String(datosLocales.activos)}
           icon={Users}
           color="var(--chart-2)"
-          sub="Leads abiertos con analista"
+          sub={
+            tendenciaLeads
+              ? `Leads abiertos con analista · ${tendenciaLeads} nuevos vs mes pasado`
+              : 'Leads abiertos con analista'
+          }
           delay={60}
         />
         <KpiCard
@@ -234,7 +243,13 @@ export function HoyGerencia(): JSX.Element {
           )}
           icon={Trophy}
           color={SEMAFORO.navy}
-          sub={`Capital de ventas cerradas en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`}
+          sub={
+            // El chip de tendencia SOLO acompaña la vista en soles: las series
+            // de capital suman únicamente PEN (jamás se mezclan monedas).
+            tendenciaCierres && monedaMontos === 'PEN'
+              ? `Capital de ventas cerradas en soles · ${tendenciaCierres} vs mes pasado`
+              : `Capital de ventas cerradas en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`
+          }
           delay={180}
         />
         </div>
@@ -279,6 +294,11 @@ export function HoyGerencia(): JSX.Element {
                   : 0
               }
             />
+          </CardContent>
+          {/* Fase 1 (metas reales): gerencia fija las metas sin depender de
+              nadie — el editor escribe crm.objetivos vía la RPC gerencia-gated. */}
+          <CardContent className="pt-0">
+            <MetasEditor objetivos={objetivos} demo={modoDemo} onGuardar={fijarObjetivos} />
           </CardContent>
         </Card>
 

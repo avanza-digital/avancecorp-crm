@@ -148,7 +148,7 @@ export const TAREAS_DEMO: Tarea[] = [
 export const SPARKS_DEMO: SeriesComerciales = {
   capital: [62, 71, 68, 84, 96, 112, 127],
   leads: [3, 4, 4, 5, 6, 6, 7],
-  propuestas: [0, 1, 1, 2, 1, 2, 3],
+  cierres: [0, 1, 1, 2, 1, 2, 3],
   conversion: [12, 14, 13, 18, 19, 21, 23],
 }
 

@@ -55,9 +55,10 @@ export const pctMeta = (actual: number, objetivo: number): number =>
  * `mostrarCero` el 0% devuelve "— 0%" (dashboards ejecutivos); sin él,
  * undefined (sin chip). Semántica unificada — antes divergía por copia.
  *
- * @deprecated Sin consumidores desde el Sprint A (A3, honestidad): el chip de
- * tendencia dejó de dibujarse porque sus series eran de demostración. NO
- * borrar — gerencia planea reactivar tendencias cuando existan series reales.
+ * REACTIVADA (Fase 3, 2026-07-19): las series ahora son REALES — el store las
+ * calcula de los leads del ámbito (lib/series-comerciales) y el hero de
+ * gerencia vuelve a dibujar el chip. Con historia insuficiente (mes anterior
+ * en 0) devuelve undefined: sin chip, sin inventar tendencia.
  */
 export function tendenciaDe(serie: number[], opts?: { mostrarCero?: boolean }): string | undefined {
   if (serie.length < 2) return undefined

@@ -588,6 +588,8 @@ export interface BackendReal {
   titulares: Record<string, unknown[]>
   /** Tareas pendientes de crm.tareas (la agenda; el boot las carga SIEMPRE). */
   tareas: Record<string, unknown>[]
+  /** Filas de crm.objetivos (metas del mes; el boot las carga SIEMPRE). */
+  objetivos: Record<string, unknown>[]
   /** Respuestas de las RPC de métricas del panel Hoy. */
   metricas: {
     capital: unknown[]
@@ -672,6 +674,7 @@ export async function montarBackendReal(
     cuotas: init.cuotas ?? {},
     titulares: init.titulares ?? {},
     tareas: init.tareas ?? [],
+    objetivos: init.objetivos ?? [],
     metricas: {
       capital: init.metricas?.capital ?? [],
       pagos: init.metricas?.pagos ?? [],
@@ -874,6 +877,27 @@ export async function montarBackendReal(
       const body = (req.postDataJSON() ?? {}) as { p_tarea_id?: string }
       estado.tareas = estado.tareas.filter((t) => t.id !== body.p_tarea_id)
       return json(route, { siguiente_id: null })
+    }
+
+    // ── metas del mes (crm.objetivos: el boot las carga SIEMPRE) ──
+    if (p === '/rest/v1/objetivos' && method === 'GET') return json(route, estado.objetivos)
+    if (p === '/rest/v1/rpc/fijar_objetivos' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as {
+        p_periodo?: string
+        p_objetivos?: Record<string, Record<string, number>>
+      }
+      // Upsert del mock por (periodo, rol) — espejo de la RPC real.
+      for (const [rol, m] of Object.entries(body.p_objetivos ?? {})) {
+        const resto = estado.objetivos.filter((o) => o.rol !== rol)
+        estado.objetivos = [...resto, {
+          rol,
+          periodo: body.p_periodo ?? '',
+          capital_objetivo: m?.capital_objetivo ?? 0,
+          ventas_objetivo: m?.ventas_objetivo ?? 0,
+          conversion_objetivo: m?.conversion_objetivo ?? 0,
+        }]
+      }
+      return json(route, estado.objetivos)
     }
 
     // ── suscripción ICS (solo se toca si el test abre el diálogo del calendario) ──
