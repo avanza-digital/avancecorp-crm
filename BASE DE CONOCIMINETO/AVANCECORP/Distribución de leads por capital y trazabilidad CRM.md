@@ -438,3 +438,46 @@ el incentivo pendiente sin romper el rollback de V1:
 Estado: implementado en el repositorio, todavía no aplicado a producción. Debe
 pasar branch, oráculo SQL V2, pruebas de frontend, advisors y build antes del
 deploy. Ver [[Deploy a Hostinger]].
+
+**Actualización 2026-07-18 (noche):** la V2 de hardening ENTRÓ a producción en el
+ciclo `crm-agenda-f` (gate RLS 217/217, junto a `crm_metricas_agenda_fn`). Ambas
+fn viven detrás del puente `crm_metricas_bridge`; el frontend consume
+`metricas_distribucion_leads_v2_fn` desde entonces.
+
+## Rediseño de la interfaz — 2026-07-19 (pirámide de 3 niveles)
+
+Miguel encontraba la V1 visual "muy difícil de comprender". Con su OK explícito
+a la propuesta (tarjetas por analista + asistente de reparto), la pantalla
+**Hoy → Gerencia → Distribución de leads** se reorganizó como pirámide de
+lectura. La semántica comercial y el contrato V2 NO cambiaron; es solo
+presentación:
+
+1. **Nivel 1 — 5 segundos:** resumen en lenguaje natural (leads con analista,
+   por repartir, cierres por moneda, atención en 24 h) y el bloque **"Lo que
+   merece tu atención"**: frases de evidencia con severidad (rojo = vencidos de
+   24 h y montos ≥ S/ 50 mil sin asignar; ámbar = bandejas con pendientes,
+   carteras llenas, sin atender, estancados). Nunca emite órdenes.
+2. **Nivel 2 — 30 segundos:** **tarjetas por analista** (cartera vs límite con
+   el lápiz de capacidad ahí mismo, recibidos del período, conversión por
+   moneda, chips de alertas, capital PEN/USD, salidas del período). Orden
+   elegible con criterio SIEMPRE declarado; quien no recibe leads va al final.
+   Con 2+ equipos aparecen **tarjetas-filtro por equipo** con agregados
+   (carga/límite, cupos, bandeja, alertas) — la cadena de mando primero.
+3. **Nivel 3 — bajo demanda:** **asistente de reparto** ("¿Vas a repartir un
+   lead?"): eliges monto y moneda y lista candidatos ordenados por espacio
+   libre (desempate: menos leads de ese monto), con su historial del rango como
+   evidencia; USD sin rangos hasta aprobarse. La **tabla de 7 rangos** sobrevive
+   plegada ("Ver tabla completa por rangos"), con cartera actual y recibidos
+   JUNTOS en cada celda (regla congelada) y modos Carga/Conversión.
+
+Escala (equipo real: 2 supervisores × 9 asesores): tope del primer vistazo en
+6 tarjetas y 5 candidatos con "Mostrar los N restantes"; margen +2 para nunca
+esconder 1-2 filas. Presets de período (Este mes / 30 / 90 / Este año) +
+personalizado validado. Tipografía mínima 12 px.
+
+La lógica derivada vive como funciones puras en
+`app/src/lib/distribucion-lecturas.ts` (avisos, fichas, candidatos, presets,
+equipos) con tests propios; la pantalla es
+`app/src/screens/hoy/distribucion-leads-gerencia.tsx`. E2E cubre sesión real,
+demo y móvil 390 px sin desborde. Deploy del rediseño: ver [[Deploy a
+Hostinger]] (2026-07-19 ~12:50, release `crm-20260719T174914Z-2c8782698357`).
