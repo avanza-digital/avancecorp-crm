@@ -25,8 +25,10 @@ import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
 import { AccionesContacto } from '@/components/app/contacto'
+import { AgendaEquipoPanel } from './agenda-equipo'
 import {
   BUCKET_LABEL,
+  DIA_MS,
   capitalPorMoneda,
   colaDe,
   colorMeta,
@@ -38,9 +40,13 @@ import {
   metricasPorVendedor,
 } from '@/lib/inteligencia'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
+import { fechaLima } from '@/lib/agenda-derivada'
+import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { mensajeDeError } from '@/data/crm-api'
+import { useMetricasAgenda } from '@/data/crm-queries'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
 
@@ -92,6 +98,26 @@ export function HoySupervisor(): JSX.Element {
   }, [ambito, actividades, tareas, ahora])
 
   const meta = objetivos.supervisor
+
+  // ── Fase F — Agenda del equipo (RPC crm.metricas_agenda_fn) ──
+  // Periodo fijo: últimos 7 días con el reloj vivo (se corre solo al pasar la
+  // medianoche de Lima). En demo se alimenta del fixture sin tocar la red.
+  const sesionReal = Boolean(yo && !yo.demo)
+  const hastaMA = fechaLima(ahora)
+  const desdeMA = fechaLima(ahora - 6 * DIA_MS)
+  const consultaAgenda = useMetricasAgenda(sesionReal, desdeMA, hastaMA)
+  // En sesión real con data aún undefined y sin error, viaja undefined a
+  // propósito: el panel muestra su estado de carga.
+  const datosAgenda = sesionReal ? consultaAgenda.data : metricasAgendaDemo(desdeMA, hastaMA)
+  const errorAgenda =
+    sesionReal && consultaAgenda.error
+      ? mensajeDeError(
+          consultaAgenda.error,
+          'No pudimos consultar la agenda del equipo. Revisa tu conexión e inténtalo otra vez.',
+        )
+      : null
+  const cargandoAgenda =
+    sesionReal && (consultaAgenda.isPending || consultaAgenda.isFetching)
 
   /** Asigna un parkeado al vendedor elegido en su select. */
   const asignar = (l: Lead) => {
@@ -287,6 +313,17 @@ export function HoySupervisor(): JSX.Element {
               </div>
             )}
           </Card>
+
+          {/* ── Agenda del equipo (Fase F — quién registra, cierra y arrastra) ── */}
+          <AgendaEquipoPanel
+            datos={datosAgenda}
+            cargando={cargandoAgenda}
+            error={errorAgenda}
+            modoDemo={yo?.demo === true}
+            onReintentar={() => {
+              if (sesionReal) void consultaAgenda.refetch()
+            }}
+          />
         </div>
         <div className="space-y-4 lg:col-span-2">
           {/* ── Tu equipo hoy (semáforo por vendedor) ── */}

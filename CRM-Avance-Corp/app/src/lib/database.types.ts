@@ -550,6 +550,12 @@ export interface Database {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
+      // Fase F — agenda del equipo (JSON V1 atómico; contrato en
+      // lib/metricas-agenda.ts).
+      metricas_agenda_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>
