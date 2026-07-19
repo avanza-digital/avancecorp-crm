@@ -268,6 +268,13 @@ describe('DistribucionLeadsGerencia', () => {
     expect(screen.getByRole('heading', { name: 'Supervisión de distribución' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Equipos bajo supervisión' })).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'César Ruiz' })).toBeInTheDocument()
+    const cierresPorMoneda = screen.getByRole('group', { name: 'Cierres de venta por moneda' })
+    expect(within(cierresPorMoneda).getByText('PEN')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('75%')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('3 ventas cerradas de 4 decisiones')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('USD')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('50%')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('1 venta cerrada de 2 decisiones')).toBeInTheDocument()
 
     await abrirAnalisis(user)
     const matrizCarga = screen.getByRole('table', { name: /carga actual por analista/i })
@@ -377,7 +384,7 @@ describe('DistribucionLeadsGerencia', () => {
     montar({ datos: datosConCalidad })
     await abrirAnalisis(user)
 
-    expect(screen.getByRole('heading', { name: 'Resultados en dólares' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cierres y carga en dólares' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Pendientes de Gerencia' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Pendientes de César Ruiz' })).toBeInTheDocument()
     expect(screen.getByText('Aviso sobre los datos')).toBeInTheDocument()

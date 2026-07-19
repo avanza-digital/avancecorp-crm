@@ -141,6 +141,8 @@ interface EquipoSupervisado {
   capitalUsd: number
   convertidosPen: number
   descartadosPen: number
+  convertidosUsd: number
+  descartadosUsd: number
 }
 
 function equiposSupervisados(datos: MetricasDistribucionLeads): EquipoSupervisado[] {
@@ -175,6 +177,8 @@ function equiposSupervisados(datos: MetricasDistribucionLeads): EquipoSupervisad
       capitalUsd: 0,
       convertidosPen: 0,
       descartadosPen: 0,
+      convertidosUsd: 0,
+      descartadosUsd: 0,
     }
     equipos.set(id, creado)
     return creado
@@ -200,6 +204,8 @@ function equiposSupervisados(datos: MetricasDistribucionLeads): EquipoSupervisad
     equipo.capitalUsd += analista.usd_no_segmentado.cartera_actual_capital
     equipo.convertidosPen += analista.pen.cohorte.convertidos
     equipo.descartadosPen += analista.pen.cohorte.descartados
+    equipo.convertidosUsd += analista.usd_no_segmentado.convertidos
+    equipo.descartadosUsd += analista.usd_no_segmentado.descartados
   }
 
   for (const bandeja of datos.por_repartir.bandejas) {
@@ -222,6 +228,8 @@ function equiposSupervisados(datos: MetricasDistribucionLeads): EquipoSupervisad
       capitalUsd: 0,
       convertidosPen: 0,
       descartadosPen: 0,
+      convertidosUsd: 0,
+      descartadosUsd: 0,
     })
   }
 
@@ -313,15 +321,29 @@ function CargandoDistribucion(): JSX.Element {
 }
 
 function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element {
-  const resueltos = datos.resumen.convertidos_pen + datos.resumen.descartados_pen
-  const conversion = porcentaje(datos.resumen.convertidos_pen, resueltos)
+  const decisionesPen = datos.resumen.convertidos_pen + datos.resumen.descartados_pen
+  const cierresUsd = datos.analistas.reduce(
+    (total, analista) => ({
+      convertidos: total.convertidos + analista.usd_no_segmentado.convertidos,
+      descartados: total.descartados + analista.usd_no_segmentado.descartados,
+    }),
+    { convertidos: 0, descartados: 0 },
+  )
+  const decisionesUsd = cierresUsd.convertidos + cierresUsd.descartados
+  const conversionPen = porcentaje(datos.resumen.convertidos_pen, decisionesPen)
+  const conversionUsd = porcentaje(cierresUsd.convertidos, decisionesUsd)
   const sla = porcentaje(
     datos.resumen.sla_global_en_24h,
     datos.resumen.sla_global_evaluables,
   )
   const medianaGlobal = medianaContacto(datos.resumen.primer_contacto_global_mediana_minutos)
 
-  const items = [
+  const items: Array<{
+    etiqueta: string
+    valor?: string
+    detalle?: string
+    monedas?: Array<{ moneda: 'PEN' | 'USD'; valor: string; detalle: string }>
+  }> = [
     {
       etiqueta: 'Leads con analista',
       valor: ENTERO.format(datos.resumen.asignados_actuales),
@@ -333,9 +355,23 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
       detalle: 'Gerencia y supervisores',
     },
     {
-      etiqueta: 'Leads ganados en soles',
-      valor: conversion ?? 'Aún sin resultados',
-      detalle: `${datos.resumen.convertidos_pen} ganados · ${datos.resumen.descartados_pen} descartados`,
+      etiqueta: 'Cierres de venta',
+      monedas: [
+        {
+          moneda: 'PEN',
+          valor: conversionPen ?? '—',
+          detalle: decisionesPen > 0
+            ? `${datos.resumen.convertidos_pen} ${datos.resumen.convertidos_pen === 1 ? 'venta cerrada' : 'ventas cerradas'} de ${decisionesPen} decisiones`
+            : 'Sin decisiones resueltas',
+        },
+        {
+          moneda: 'USD',
+          valor: conversionUsd ?? '—',
+          detalle: decisionesUsd > 0
+            ? `${cierresUsd.convertidos} ${cierresUsd.convertidos === 1 ? 'venta cerrada' : 'ventas cerradas'} de ${decisionesUsd} decisiones`
+            : 'Sin decisiones resueltas',
+        },
+      ],
     },
     {
       etiqueta: 'Leads atendidos en 24 horas',
@@ -354,10 +390,34 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
           <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
             {item.etiqueta}
           </dt>
-          <dd className="mt-1.5 text-2xl font-extrabold tracking-tight tabular-nums text-primary">
-            {item.valor}
-          </dd>
-          <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.detalle}</dd>
+          {item.monedas ? (
+            <dd
+              role="group"
+              aria-label="Cierres de venta por moneda"
+              className="mt-2 grid grid-cols-2 divide-x divide-border"
+            >
+              {item.monedas.map((moneda) => (
+                <div key={moneda.moneda} className="min-w-0 px-2 first:pl-0 last:pr-0">
+                  <span className="block text-[10px] font-extrabold tracking-wide text-accent">
+                    {moneda.moneda}
+                  </span>
+                  <span className="mt-0.5 block text-xl font-extrabold tracking-tight tabular-nums text-primary">
+                    {moneda.valor}
+                  </span>
+                  <span className="mt-1 block text-[10px] leading-snug text-muted-foreground">
+                    {moneda.detalle}
+                  </span>
+                </div>
+              ))}
+            </dd>
+          ) : (
+            <>
+              <dd className="mt-1.5 text-2xl font-extrabold tracking-tight tabular-nums text-primary">
+                {item.valor}
+              </dd>
+              <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">{item.detalle}</dd>
+            </>
+          )}
         </div>
       ))}
     </dl>
@@ -494,8 +554,10 @@ function EquiposBajoSupervision({
       <div className="grid gap-3 xl:grid-cols-2">
         {equipos.map((equipo) => {
           const sla = porcentaje(equipo.slaEn24h, equipo.slaEvaluables)
-          const resueltos = equipo.convertidosPen + equipo.descartadosPen
-          const conversion = porcentaje(equipo.convertidosPen, resueltos)
+          const decisionesPen = equipo.convertidosPen + equipo.descartadosPen
+          const decisionesUsd = equipo.convertidosUsd + equipo.descartadosUsd
+          const conversionPen = porcentaje(equipo.convertidosPen, decisionesPen)
+          const conversionUsd = porcentaje(equipo.convertidosUsd, decisionesUsd)
           const seleccionado = equipo.id === seleccionadoId
 
           return (
@@ -550,9 +612,23 @@ function EquiposBajoSupervision({
                   <p className="text-[9px] tabular-nums text-muted-foreground">{equipo.slaEn24h} de {equipo.slaEvaluables}</p>
                 </div>
                 <div className="rounded-xl bg-muted/45 p-3">
-                  <dt className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Conversión PEN</dt>
-                  <dd className="mt-1 text-xl font-extrabold tabular-nums text-primary">{conversion ?? '—'}</dd>
-                  <p className="text-[9px] tabular-nums text-muted-foreground">{equipo.convertidosPen} de {resueltos} cierres</p>
+                  <dt className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">Cierres de venta</dt>
+                  <dd
+                    aria-label={`Cierres de venta de ${equipo.nombre}`}
+                    className="mt-1 grid grid-cols-2 gap-1 tabular-nums"
+                  >
+                    <span>
+                      <span className="block text-[8px] font-bold text-accent">PEN</span>
+                      <span className="block text-base font-extrabold text-primary">{conversionPen ?? '—'}</span>
+                    </span>
+                    <span>
+                      <span className="block text-[8px] font-bold text-accent">USD</span>
+                      <span className="block text-base font-extrabold text-primary">{conversionUsd ?? '—'}</span>
+                    </span>
+                  </dd>
+                  <p className="sr-only">
+                    PEN: {equipo.convertidosPen} ventas cerradas de {decisionesPen} decisiones. USD: {equipo.convertidosUsd} ventas cerradas de {decisionesUsd} decisiones.
+                  </p>
                 </div>
               </dl>
 
@@ -560,8 +636,8 @@ function EquiposBajoSupervision({
                 <div className="flex flex-wrap gap-2 text-[10px] text-muted-foreground">
                   <span><strong className="text-foreground">{equipo.sinAtender}</strong> sin atender</span>
                   <span><strong className="text-foreground">{equipo.sinAvance}</strong> sin avance</span>
-                  <span><strong className="text-foreground">{dinero(equipo.capitalPen, 'PEN')}</strong> activos</span>
-                  <span><strong className="text-foreground">{dinero(equipo.capitalUsd, 'USD')}</strong> aparte</span>
+                  <span><strong className="text-foreground">PEN · {dinero(equipo.capitalPen, 'PEN')}</strong> activos</span>
+                  <span><strong className="text-foreground">USD · {dinero(equipo.capitalUsd, 'USD')}</strong> activos</span>
                 </div>
                 <Button type="button" size="sm" variant={seleccionado ? 'default' : 'outline'} onClick={() => onSeleccionar(equipo.id)}>
                   Ver analistas
@@ -650,7 +726,7 @@ function MatrizPen({
           <p className="mt-1 max-w-2xl text-[11px] leading-relaxed text-muted-foreground">
             {modo === 'carga'
               ? 'Carga actual muestra cuántos leads activos tiene cada persona. El límite de cartera lo configura Gerencia; no mide desempeño.'
-              : 'Conversión histórica: ganados ÷ (ganados + descartados). Los leads todavía activos no entran en el porcentaje.'}
+              : 'Conversión histórica: ventas cerradas ÷ decisiones resueltas (ventas cerradas + descartadas). Los leads todavía activos no entran en el porcentaje.'}
           </p>
         </div>
         <div className="flex rounded-lg bg-muted p-1" role="group" aria-label="Lectura de la matriz">
@@ -677,7 +753,7 @@ function MatrizPen({
                 <th key={rango.id} scope="col" className="w-24 border-b border-r border-border/70 px-2 py-2.5 text-center align-bottom">
                   <span className="block text-[9px] font-bold leading-tight text-foreground">{rango.etiqueta}</span>
                   <span className="mt-1 block text-[8px] font-medium text-muted-foreground">
-                    {modo === 'carga' ? 'activos' : 'ganados / cerrados'}
+                    {modo === 'carga' ? 'activos' : 'ventas / decisiones'}
                   </span>
                 </th>
               ))}
@@ -690,7 +766,7 @@ function MatrizPen({
               ) : (
                 <>
                   <th scope="col" className="w-24 border-b border-r border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Conversión total</th>
-                  <th scope="col" className="w-20 border-b border-r border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Casos cerrados</th>
+                  <th scope="col" className="w-20 border-b border-r border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Decisiones</th>
                   <th scope="col" className="w-24 border-b border-border px-2 py-3 text-center text-[9px] font-bold uppercase text-muted-foreground">Recibidos PEN</th>
                 </>
               )}
@@ -721,8 +797,8 @@ function MatrizPen({
                   </th>
                   {rangos.map((rango) => {
                     const dato = rangoDeAnalista(analista, rango.id)
-                    const cerrados = dato.cohorte.convertidos + dato.cohorte.descartados
-                    const conversionRango = porcentaje(dato.cohorte.convertidos, cerrados)
+                    const decisiones = dato.cohorte.convertidos + dato.cohorte.descartados
+                    const conversionRango = porcentaje(dato.cohorte.convertidos, decisiones)
                     const carga = dato.cartera_actual.episodios
                     return (
                       <td key={rango.id} className="border-b border-r border-border/70 px-2 py-2 text-center">
@@ -740,10 +816,10 @@ function MatrizPen({
                             {carga}
                           </div>
                         ) : (
-                          <div className={cn('mx-auto min-w-16 rounded-lg px-1.5 py-1.5 tabular-nums', cerrados === 0 ? 'bg-muted/25 text-muted-foreground' : 'bg-accent/10 text-primary')}>
+                          <div className={cn('mx-auto min-w-16 rounded-lg px-1.5 py-1.5 tabular-nums', decisiones === 0 ? 'bg-muted/25 text-muted-foreground' : 'bg-accent/10 text-primary')}>
                             <p className="text-xs font-extrabold">{conversionRango ?? '—'}</p>
                             <p className="mt-0.5 text-[8px] font-medium text-muted-foreground">
-                              {cerrados > 0 ? `${dato.cohorte.convertidos} de ${cerrados}` : 'Sin casos'}
+                              {decisiones > 0 ? `${dato.cohorte.convertidos} de ${decisiones}` : 'Sin casos'}
                             </p>
                           </div>
                         )}
@@ -812,10 +888,10 @@ function LecturaUsd({
       <div className="flex flex-wrap items-start justify-between gap-2 border-b border-border px-4 py-3">
         <div>
           <h4 id="distribucion-usd-titulo" className="text-xs font-bold text-foreground">
-            Resultados en dólares
+            Cierres y carga en dólares
           </h4>
           <p className="mt-0.5 text-[11px] text-muted-foreground">
-            Se muestran aparte para no mezclar dólares con soles.
+            Los dólares tienen su propia carga y conversión, con la misma importancia que los soles y sin mezclar monedas.
           </p>
         </div>
         <Badge color="var(--accent)" variant="outline">
@@ -836,7 +912,7 @@ function LecturaUsd({
                 <th scope="col" className="px-3 py-2 text-right">Leads actuales</th>
                 <th scope="col" className="px-3 py-2 text-right">Monto</th>
                 <th scope="col" className="px-3 py-2 text-right">Recibidos</th>
-                <th scope="col" className="px-4 py-2 text-right">Leads ganados</th>
+                <th scope="col" className="px-4 py-2 text-right">Cierres de venta</th>
               </tr>
             </thead>
             <tbody>
@@ -856,7 +932,7 @@ function LecturaUsd({
                         {porcentaje(usd.convertidos, resueltos) ?? 'Sin resultados'}
                       </span>
                       <span className="ml-2 text-[10px] tabular-nums text-muted-foreground">
-                        {usd.convertidos} ganados · {usd.descartados} descartados
+                        {usd.convertidos} {usd.convertidos === 1 ? 'venta cerrada' : 'ventas cerradas'} · {usd.descartados} descartados
                       </span>
                     </td>
                   </tr>
