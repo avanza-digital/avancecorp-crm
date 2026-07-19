@@ -215,14 +215,14 @@ export function HoyGerencia(): JSX.Element {
           delay={120}
         />
         <KpiCard
-          label="Monto ganado"
+          label="Monto de ventas cerradas"
           value={money(
             monedaMontos === 'PEN' ? datosLocales.ganadoPen : datosLocales.ganadoUsd,
             monedaMontos,
           )}
           icon={Trophy}
           color={SEMAFORO.navy}
-          sub={`Leads ganados en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`}
+          sub={`Capital de ventas cerradas en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`}
           delay={180}
         />
         </div>
