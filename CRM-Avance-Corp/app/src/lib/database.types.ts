@@ -381,6 +381,25 @@ export interface Database {
         }
         Relationships: []
       }
+      /** Metas comerciales del mes (20260719120000): UNA fila por (mes, rol);
+       *  capital SIEMPRE en PEN. Lectura por RLS (árbol comercial + lector
+       *  global); escritura SOLO por la RPC fijar_objetivos (gerencia). */
+      objetivos: {
+        Row: {
+          id: string
+          periodo: string
+          rol: 'vendedor' | 'supervisor' | 'gerencia'
+          capital_objetivo: number | string
+          ventas_objetivo: number
+          conversion_objetivo: number | string
+          actualizado_por: string | null
+          creado_en: string
+          actualizado_en: string
+        }
+        Insert: never // escritura solo vía RPC fijar_objetivos
+        Update: never
+        Relationships: []
+      }
     }
     Views: {
       /** Cartera de clientes del portal YA scopeada por rol del CRM (la vista
@@ -486,6 +505,25 @@ export interface Database {
       actualizar_capacidad_leads_objetivo: {
         Args: { p_analista_id: string; p_capacidad_leads_objetivo: number | null }
         Returns: { perfil_id: string; capacidad_leads_objetivo: number | null }[]
+      }
+      /** Gerencia fija las metas del mes por rol (upsert atómico; roles
+       *  parciales permitidos). Devuelve las filas del periodo completo. */
+      fijar_objetivos: {
+        Args: {
+          p_periodo: string
+          p_objetivos: Record<string, Record<string, number>>
+        }
+        Returns: {
+          id: string
+          periodo: string
+          rol: 'vendedor' | 'supervisor' | 'gerencia'
+          capital_objetivo: number | string
+          ventas_objetivo: number
+          conversion_objetivo: number | string
+          actualizado_por: string | null
+          creado_en: string
+          actualizado_en: string
+        }[]
       }
       actividades_del_ambito_fn: {
         Args: Record<string, never>

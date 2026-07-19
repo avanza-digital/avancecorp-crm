@@ -23,6 +23,8 @@ vi.mock('@/data/crm-api', async (importActual) => {
     listarEquipo: vi.fn(),
     listarActividadesDelAmbito: vi.fn(),
     listarTareasDelAmbito: vi.fn(),
+    listarObjetivos: vi.fn(),
+    fijarObjetivosRpc: vi.fn(),
     insertarLead: vi.fn(),
     insertarTarea: vi.fn(),
     cerrarTarea: vi.fn(),
@@ -45,6 +47,8 @@ const insertarActividad = vi.mocked(crmApi.insertarActividad)
 const listarTareas = vi.mocked(crmApi.listarTareasDelAmbito)
 const insertarTarea = vi.mocked(crmApi.insertarTarea)
 const cerrarTareaMock = vi.mocked(crmApi.cerrarTarea)
+const listarObjetivosMock = vi.mocked(crmApi.listarObjetivos)
+const fijarObjetivosMock = vi.mocked(crmApi.fijarObjetivosRpc)
 
 const ROSTER = [
   { perfil_id: 'u-ger', nombre_completo: 'Gerente Real', rol_crm: 'gerencia' as const, supervisor_id: null, activo: true },
@@ -132,6 +136,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     listarActs.mockResolvedValue([])
     insertarLead.mockResolvedValue(undefined)
     listarTareas.mockResolvedValue([])
+    listarObjetivosMock.mockResolvedValue([])
+    fijarObjetivosMock.mockResolvedValue(undefined)
     insertarTarea.mockResolvedValue(undefined)
     cerrarTareaMock.mockResolvedValue({ siguiente_id: null })
     actualizarLead.mockResolvedValue(undefined)
@@ -144,6 +150,54 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const { api } = montar('gerencia')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     expect(api().leads[0]?.vendedor_nombre).toBe('Vendedor Real')
+  })
+
+  it('fijarObjetivos: optimista + RPC con el periodo Lima (solo gerencia)', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+
+    const metas = {
+      vendedor: { capitalObjetivo: 250_000, ventasObjetivo: 3, conversionObjetivo: 25 },
+      supervisor: { capitalObjetivo: 500_000, ventasObjetivo: 6, conversionObjetivo: 25 },
+      gerencia: { capitalObjetivo: 1_000_000, ventasObjetivo: 12, conversionObjetivo: 28 },
+    }
+    const res = mutar((a) => a.fijarObjetivos(metas))
+
+    expect(res.ok).toBe(true)
+    // Optimista: el marcador se actualiza al toque.
+    expect(api().objetivos.gerencia.capitalObjetivo).toBe(1_000_000)
+    await waitFor(() => expect(fijarObjetivosMock).toHaveBeenCalledTimes(1))
+    const [periodo, payload] = fijarObjetivosMock.mock.calls[0] ?? []
+    expect(periodo).toMatch(/^\d{4}-\d{2}-01$/) // primer día del mes (Lima)
+    expect(payload?.['vendedor']).toEqual({
+      capital_objetivo: 250_000, ventas_objetivo: 3, conversion_objetivo: 25,
+    })
+  })
+
+  it('fijarObjetivos: un vendedor NO puede (espejo del gate del servidor)', async () => {
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+
+    const res = mutar((a) => a.fijarObjetivos(api().objetivos))
+
+    expect(res.ok).toBe(false)
+    expect(res.codigo).toBe('sin_permiso')
+    expect(fijarObjetivosMock).not.toHaveBeenCalled()
+  })
+
+  it('fijarObjetivos: metas inválidas no viajan a la red', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+
+    const res = mutar((a) => a.fijarObjetivos({
+      vendedor: { capitalObjetivo: -1, ventasObjetivo: 0, conversionObjetivo: 0 },
+      supervisor: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      gerencia: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+    }))
+
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/positivos/)
+    expect(fijarObjetivosMock).not.toHaveBeenCalled()
   })
 
   it('el gate de acciones está ABIERTO: crearLead persiste y resincroniza', async () => {

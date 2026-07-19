@@ -102,6 +102,11 @@ solo porque la tabla estaba vacia.
 - `crm.agenda_ics`: cada quien SU fila (crear/rotar token); el token es
   privado incluso para supervisor, gerencia y lector global; sin DELETE ni
   para el dueño; fuera de `crm.equipo` no hay feed (FK);
+- `crm.objetivos` (metas del mes): todo el arbol comercial + lector global
+  las LEEN; solo gerencia las escribe y SOLO via la RPC `fijar_objetivos`
+  (upsert parcial sin pisar otros roles; validacion 22023; sin escritura
+  directa ni DELETE para nadie del API; usuario inactivo 0 filas). El gate
+  usa el periodo sentinela 2099-12 y lo limpia al inicio y al final;
 - anon sin lectura de `crm` ni de datos bancarios.
 
 Cada query comprueba su objeto `error`. En negativas, solo cuentan como bloqueo

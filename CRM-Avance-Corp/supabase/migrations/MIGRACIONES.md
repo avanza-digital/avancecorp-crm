@@ -165,3 +165,15 @@ Oráculo: `supabase/scripts/test-agenda-ics.sql` (patrón 4A-4C; éxito = error 
 Oráculo: `supabase/scripts/test-metricas-agenda.sql` (patrón 4A-4C; éxito = error final
 `METRICAS_AGENDA_TX_OK`). Frontend: panel "Agenda del equipo" en Hoy→Supervisor y
 Hoy→Gerencia (pendiente en el momento del merge; misma sesión).
+
+## Metas comerciales del mes — Fase 1 de funciones de gerencia (2026-07-19)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260719120000 | crm_objetivos_metas | **Metas reales por rol (hasta hoy solo existían en demo):** tabla `crm.objetivos` — UNA fila por (mes, rol vendedor/supervisor/gerencia), `capital_objetivo` SIEMPRE en PEN (numeric 14,2, 0–100M), `ventas_objetivo` (0–1000), `conversion_objetivo` (0–100%), periodo = primer día de mes (CHECK día 1, rango 2026–2100), id uuid propio para que `log_audit_crm` registre `fila_id`, UNIQUE (periodo, rol). Triggers touch + audit. RLS: SELECT para todo el árbol comercial (`rol_crm` no nulo) + lector global; **SIN policies de escritura** — la única puerta es la RPC `crm.fijar_objetivos(p_periodo date, p_objetivos jsonb) returns setof crm.objetivos` (SECURITY DEFINER `search_path=''`): gate de gerencia activa con perfil activo (42501, mismo patrón que capacidad), validación 22023 (periodo/roles/rangos/números basura), upsert parcial por rol sin pisar los demás, `actualizado_por` = actor, devuelve el periodo completo. Grants: tabla SELECT authenticated (+ CRUD service_role para fixtures del gate); RPC EXECUTE authenticated (clase WARN aceptada y documentada). | ✅ **Producción 2026-07-19**: branch `crm-objetivos` → oráculo `OBJETIVOS_TX_OK` (`test-objetivos.sql`: O01–O22 a la primera) → advisors sin clases nuevas (solo la RPC en la clase WARN aceptada + su índice FK nuevo como unused INFO) → **gate RLS 232/232 con `testObjetivos`** (periodo sentinela 2099-12, limpieza pre/post) → merge → verificado en prod → branch borrado |
+
+Oráculo: `supabase/scripts/test-objetivos.sql` (patrón 4A-4C; éxito = token
+`OBJETIVOS_TX_OK`). Frontend (misma sesión): `cargarReal` lee las metas del mes
+Lima (degrada a cero si el fetch auxiliar cae — jamás tumba el boot),
+`fijarObjetivos` en el store (optimista + resync como rollback, espejo
+`editarConfiguracion`) y editor "Fijar metas del mes" en Hoy→Gerencia.

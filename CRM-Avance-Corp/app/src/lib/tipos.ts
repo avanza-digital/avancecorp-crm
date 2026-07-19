@@ -211,6 +211,9 @@ export interface Lead {
   /** Parkeado = vendedor_id null asignado a la bandeja de un supervisor (espejo F0). */
   asignado_supervisor_id?: string | null
   creado_en: string
+  /** En terminales ≡ instante del cierre (un lead cerrado es inmutable para el
+   *  API) — lo usan las series de tendencia. Opcional: demo no lo trae. */
+  actualizado_en?: string
   activo: boolean
   // Espejo del esquema F0 (opcionales)
   dni?: string | null // exactamente 8 dígitos si existe

@@ -48,6 +48,7 @@ import {
 import {
   actualizarLead,
   CrmApiError,
+  fijarObjetivosRpc,
   insertarActividad,
   insertarLead,
   insertarTarea,
@@ -56,8 +57,23 @@ import {
   listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
+  listarObjetivos,
   listarTareasDelAmbito,
 } from '@/data/crm-api'
+import {
+  aObjetivosPorRol,
+  aPayloadObjetivos,
+  objetivosCero,
+  periodoLima,
+  validarObjetivos,
+  type ObjetivoComercial,
+  type ObjetivosPorRol,
+} from './objetivos'
+import {
+  SERIES_VACIAS,
+  seriesComerciales,
+  type SeriesComerciales,
+} from './series-comerciales'
 
 /**
  * Estado de la CARGA remota (solo sesión real). La app lo usa para decidir
@@ -181,20 +197,14 @@ export interface Ambito {
 // se re-exporta para no romper a los consumidores históricos del store.
 export type { EventoAgenda }
 
-export interface ObjetivoComercial {
-  capitalObjetivo: number
-  ventasObjetivo: number
-  conversionObjetivo: number
-}
+// El contrato de metas vive en lib/objetivos (fila del servidor ↔ mapa por
+// rol, validación espejo del CHECK); se re-exporta para los consumidores
+// históricos del store.
+export type { ObjetivoComercial, ObjetivosPorRol }
 
-export type ObjetivosPorRol = Record<'vendedor' | 'supervisor' | 'gerencia', ObjetivoComercial>
-
-export interface SeriesComerciales {
-  capital: number[]
-  leads: number[]
-  propuestas: number[]
-  conversion: number[]
-}
+// Las series de tendencia viven en lib/series-comerciales (cálculo puro desde
+// los leads del ámbito); se re-exporta el tipo para los consumidores del store.
+export type { SeriesComerciales }
 
 export interface StoreDataApi {
   leads: Lead[] // todos, activos y terminales (legacy — preferir `ambito`)
@@ -235,6 +245,8 @@ export interface StoreDataApi {
   reabrir(id: string): ResultadoMut
   registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string): ResultadoMut
   reasignar(id: string, vendedorId: string | null): ResultadoMut
+  /** Gerencia fija las metas del mes por rol (RPC crm.fijar_objetivos). */
+  fijarObjetivos(metas: ObjetivosPorRol): ResultadoMut
   // Refresco explícito desde el servidor (tras un flujo async que NO pasa por el
   // camino optimista: p. ej. la conversión lead→cliente vía edge). En demo es no-op.
   recargar(): Promise<boolean>
@@ -258,17 +270,7 @@ interface Datos {
 }
 
 const EQUIPO_VACIO: Miembro[] = []
-const OBJETIVOS_VACIOS: ObjetivosPorRol = {
-  vendedor: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
-  supervisor: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
-  gerencia: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
-}
-const SERIES_VACIAS: SeriesComerciales = {
-  capital: [],
-  leads: [],
-  propuestas: [],
-  conversion: [],
-}
+const OBJETIVOS_VACIOS: ObjetivosPorRol = objetivosCero()
 
 interface Auxiliares {
   equipo: Miembro[]
@@ -423,17 +425,26 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Carga de la sesión REAL. La RLS del esquema crm decide el ámbito; el
   // vendedor_nombre se resuelve con el roster (crm.leads solo guarda el id).
   const cargarReal = useCallback(async (signal?: AbortSignal) => {
-    const [leads, miembros, actividades, tareasAmbito] = await Promise.all([
+    const [leads, miembros, actividades, tareasAmbito, filasObjetivos] = await Promise.all([
       listarLeadsDelAmbito(signal),
       listarEquipo(signal),
       listarActividadesDelAmbito(signal),
       listarTareasDelAmbito(signal),
+      // Metas del mes calendario vigente en Lima (no-render: Date.now() ok).
+      // Metas caídas ≠ CRM caído: este fetch AUXILIAR degrada a cero ("meta
+      // por definir") en vez de tumbar el boot; si la caída es general, los
+      // fetches primarios (leads/equipo) disparan el error real igual.
+      listarObjetivos(periodoLima(Date.now()), signal).catch((error: unknown) => {
+        registrarError('crm.objetivos.boot_degradado', error)
+        return []
+      }),
     ])
     const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
     return {
       miembros,
       actividades,
       tareas: tareasAmbito,
+      objetivos: aObjetivosPorRol(filasObjetivos),
       leads: leads.map((l) => ({
         ...l,
         vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
@@ -449,13 +460,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const resincronizarReal = useCallback(async (): Promise<boolean> => {
     const miEpoca = epocaRef.current
     try {
-      const { leads, actividades, miembros, tareas: tareasServidor } = await cargarReal()
+      const { leads, actividades, miembros, tareas: tareasServidor, objetivos } = await cargarReal()
       // La sesión cambió (logout/otro usuario/recarga) mientras viajaba: se
       // descarta en vez de repoblar el store de otra sesión.
       if (epocaRef.current !== miEpoca) return false
       setDatos({ leads, actividades })
       setTareas(tareasServidor)
-      setAuxiliares((prev) => ({ ...prev, equipo: miembros }))
+      // objetivos también: el resync es el rollback de fijarObjetivos.
+      setAuxiliares((prev) => ({ ...prev, equipo: miembros, objetivos }))
       return true
     } catch (error: unknown) {
       registrarError('crm.resincronizacion_fallida', error)
@@ -502,11 +514,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Sesión REAL: lee del servidor.
     if (sesionReal) {
       void cargarReal(control.signal)
-        .then(({ leads, actividades, miembros, tareas: tareasServidor }) => {
+        .then(({ leads, actividades, miembros, tareas: tareasServidor, objetivos }) => {
           if (cancelado) return
           setDatos({ leads, actividades })
           setTareas(tareasServidor)
-          setAuxiliares({ equipo: miembros, objetivos: OBJETIVOS_VACIOS, series: SERIES_VACIAS })
+          setAuxiliares({ equipo: miembros, objetivos, series: SERIES_VACIAS })
           setRealListo(true)
         })
         .catch((error: unknown) => {
@@ -693,7 +705,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
           : [],
       objetivos: auxiliares.objetivos,
-      series: auxiliares.series,
+      // Tendencias: en sesión real se CALCULAN de los leads del ámbito (mismo
+      // criterio de "ahora al recomputar" que la agenda); demo usa sus sparks.
+      series: realActivo ? seriesComerciales(ambito.leads, Date.now()) : auxiliares.series,
       actividades: datos.actividades,
       actividadesDelAmbito: datos.actividades.filter((a) => idsDelAmbito.has(a.lead_id)),
       lead: (id) => buscar(id),
@@ -1150,6 +1164,26 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           detalle: act.detalle,
           creado_por: miId,
         }))
+        return { ok: true }
+      },
+
+      fijarObjetivos: (metas) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        // Espejo del gate de crm.fijar_objetivos: SOLO gerencia (la RLS no da
+        // policies de escritura; la RPC exige gerencia activa).
+        if (!can(rol, 'editarConfiguracion')) {
+          toast.error('Solo Gerencia puede fijar las metas del mes')
+          return { ok: false, codigo: 'sin_permiso', error: 'Sin permiso para fijar metas' }
+        }
+        const invalido = validarObjetivos(metas)
+        if (invalido) return { ok: false, error: invalido }
+        // Optimista: el marcador de meta se actualiza al toque; si el servidor
+        // rechaza, el resync de persistir() restaura las metas reales.
+        setAuxiliares((prev) => ({ ...prev, objetivos: metas }))
+        persistir(async () => {
+          await fijarObjetivosRpc(periodoLima(Date.now()), aPayloadObjetivos(metas))
+        })
         return { ok: true }
       },
 

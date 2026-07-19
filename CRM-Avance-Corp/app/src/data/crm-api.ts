@@ -49,6 +49,7 @@ import {
   MetricasAgendaSchema,
   type MetricasAgenda,
 } from '@/lib/metricas-agenda'
+import { FilaObjetivoSchema, type FilaObjetivo } from '@/lib/objetivos'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -375,6 +376,39 @@ export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
   return items
 }
 
+// ── Metas del mes (crm.objetivos: lectura por RLS, escritura SOLO por RPC) ────
+
+export async function listarObjetivos(periodo: string, signal?: AbortSignal): Promise<FilaObjetivo[]> {
+  let consulta = cliente().schema('crm').from('objetivos')
+    .select('rol,capital_objetivo,ventas_objetivo,conversion_objetivo')
+    .eq('periodo', periodo)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudieron cargar las metas del mes.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.objetivos.listado_fallido', fallo)
+    throw fallo
+  }
+  const items: FilaObjetivo[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(FilaObjetivoSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+/** Gerencia fija las metas del mes (upsert atómico servidor; gate en la RPC). */
+export async function fijarObjetivosRpc(
+  periodo: string,
+  payload: Record<string, Record<string, number>>,
+): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('fijar_objetivos', {
+    p_periodo: periodo,
+    p_objetivos: payload,
+  })
+  if (error) throw aErrorApi(error, 'crm.objetivos.fijar_fallido')
+}
+
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
 const TIPOS_ACT = Object.keys(TIPOS_ACTIVIDAD) as [TipoActividad, ...TipoActividad[]]
 const ActividadRowSchema = v.object({
@@ -447,8 +481,9 @@ function aErrorApi(
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
     code = 'SIN_PERMISO'
     mensaje = 'No tienes permiso para esa acción'
-  } else if (codigoPg === 'P0001') {
-    // RAISE EXCEPTION de nuestros propios triggers (es-PE, sin PII).
+  } else if (codigoPg === 'P0001' || codigoPg === '22023') {
+    // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
+    // 22023 = validaciones de parámetros de las RPC (fijar_objetivos, capacidad).
     code = 'REGLA_SERVIDOR'
     if (error.message) mensaje = error.message
   }

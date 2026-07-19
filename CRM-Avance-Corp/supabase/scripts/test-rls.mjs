@@ -40,7 +40,8 @@ Variables requeridas:
 
 El gate comprueba lecturas exactas, aislamiento entre subarboles, escrituras
 cruzadas, inmutabilidad, usuario inactivo, directorio de solo lectura, acceso
-anonimo, la agenda de tareas (tenencia derivada del lead, cierre solo por RPC)
+anonimo, la agenda de tareas (tenencia derivada del lead, cierre solo por RPC),
+las metas del mes (crm.objetivos: todos leen, solo gerencia escribe via RPC)
 y ausencia de acceso bancario/contratos crudos desde los roles CRM.
 `;
 
@@ -323,6 +324,12 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.triggerNoTenureLead,
       TRANSIENT_IDS.taskFollowLead,
     ]),
+  );
+  // Metas sentinela de testObjetivos: periodo 2099-12 jamas es real; el DELETE
+  // de service_role existe justo para esta limpieza de fixtures.
+  await requireAdmin(
+    'borrar metas transitorias del periodo sentinela',
+    admin.schema('crm').from('objetivos').delete().eq('periodo', PERIODO_OBJETIVOS_GATE),
   );
 }
 
@@ -1586,6 +1593,118 @@ async function testBankingBoundary(sessions, seed) {
   );
 }
 
+// Periodo sentinela de las metas del gate: valido para el CHECK (< 2100) pero
+// imposible como mes real de operacion — la limpieza borra exactamente esto.
+const PERIODO_OBJETIVOS_GATE = '2099-12-01';
+
+async function testObjetivos(sessions) {
+  console.log('\n— Metas del mes (crm.objetivos): todos leen, solo gerencia escribe —');
+  const gerencia = sessions.gerencia.client;
+  const vend1 = sessions.vend1.client;
+  const sup1 = sessions.sup1.client;
+  const directorio = sessions.directorio.client;
+
+  const fijadas = await positive(
+    'gerencia fija las metas del periodo sentinela (RPC fijar_objetivos)',
+    gerencia.schema('crm').rpc('fijar_objetivos', {
+      p_periodo: PERIODO_OBJETIVOS_GATE,
+      p_objetivos: {
+        vendedor: { capital_objetivo: 250000, ventas_objetivo: 3, conversion_objetivo: 25 },
+        supervisor: { capital_objetivo: 500000, ventas_objetivo: 6, conversion_objetivo: 25 },
+        gerencia: { capital_objetivo: 1000000, ventas_objetivo: 12, conversion_objetivo: 28 },
+      },
+    }),
+  );
+  if (fijadas) {
+    check(Array.isArray(fijadas.data) && fijadas.data.length === 3,
+      'la RPC devolvio las 3 filas del periodo',
+      `devolvio ${Array.isArray(fijadas.data) ? fijadas.data.length : 'no-array'}`);
+  }
+
+  // Lectura: TODO el arbol comercial y el lector global ven las mismas metas.
+  for (const [key, client] of [['vend1', vend1], ['sup1', sup1], ['directorio', directorio]]) {
+    const lectura = await positive(
+      `${key} lee las metas del periodo`,
+      client.schema('crm').from('objetivos')
+        .select('rol, capital_objetivo')
+        .eq('periodo', PERIODO_OBJETIVOS_GATE),
+    );
+    if (lectura) {
+      check(lectura.data.length === 3,
+        `${key} ve las 3 metas del periodo`,
+        `vio ${lectura.data.length}`);
+    }
+  }
+
+  // Un miembro desactivado no resuelve rol → 0 filas (fail-closed).
+  if (sessions.vendInactive) {
+    await expectHidden(
+      'usuario inactivo no lee las metas',
+      sessions.vendInactive.client.schema('crm').from('objetivos')
+        .select('id').eq('periodo', PERIODO_OBJETIVOS_GATE),
+    );
+  }
+
+  // Escritura via RPC: bloqueada para todos menos gerencia (42501 del gate).
+  for (const [key, client] of [['vend1', vend1], ['sup1', sup1], ['directorio', directorio]]) {
+    await expectBlockedMutation(
+      `${key} no puede fijar metas por la RPC`,
+      client.schema('crm').rpc('fijar_objetivos', {
+        p_periodo: PERIODO_OBJETIVOS_GATE,
+        p_objetivos: { vendedor: { capital_objetivo: 1 } },
+      }),
+      ['42501'],
+    );
+  }
+
+  // Escritura DIRECTA: sin policies ni grants — ni siquiera gerencia.
+  await expectBlockedMutation(
+    'gerencia no puede insertar directo en objetivos (solo RPC)',
+    gerencia.schema('crm').from('objetivos')
+      .insert({ periodo: PERIODO_OBJETIVOS_GATE, rol: 'vendedor' })
+      .select('id'),
+  );
+  await expectBlockedMutation(
+    'vend1 no puede actualizar metas directo',
+    vend1.schema('crm').from('objetivos')
+      .update({ ventas_objetivo: 99 })
+      .eq('periodo', PERIODO_OBJETIVOS_GATE)
+      .select('id'),
+  );
+  await expectBlockedMutation(
+    'gerencia no puede borrar metas (sin DELETE en el API)',
+    gerencia.schema('crm').from('objetivos')
+      .delete().eq('periodo', PERIODO_OBJETIVOS_GATE).select('id'),
+  );
+
+  // La validacion del servidor viaja como 22023 (parametro invalido).
+  await expectBlockedMutation(
+    'la RPC rechaza un periodo que no es primer dia de mes',
+    gerencia.schema('crm').rpc('fijar_objetivos', {
+      p_periodo: '2099-12-15',
+      p_objetivos: { vendedor: { capital_objetivo: 1 } },
+    }),
+    ['22023'],
+  );
+
+  // Upsert parcial: cambia SOLO el vendedor; la meta de la empresa no se pisa.
+  const refijadas = await positive(
+    'gerencia re-fija la meta del vendedor (upsert parcial)',
+    gerencia.schema('crm').rpc('fijar_objetivos', {
+      p_periodo: PERIODO_OBJETIVOS_GATE,
+      p_objetivos: { vendedor: { capital_objetivo: 300000, ventas_objetivo: 4, conversion_objetivo: 30 } },
+    }),
+  );
+  if (refijadas) {
+    const filaVendedor = (refijadas.data ?? []).find((row) => row.rol === 'vendedor');
+    const filaEmpresa = (refijadas.data ?? []).find((row) => row.rol === 'gerencia');
+    check(Number(filaVendedor?.capital_objetivo) === 300000,
+      'el upsert parcial actualizo la meta del vendedor');
+    check(Number(filaEmpresa?.capital_objetivo) === 1000000,
+      'el upsert parcial no piso la meta de la empresa');
+  }
+}
+
 async function testAnon(seed) {
   console.log('\n— Acceso anonimo —');
   const anon = createClient(
@@ -1615,6 +1734,10 @@ async function testAnon(seed) {
   await expectHidden(
     'anon no lee crm.agenda_ics',
     anon.schema('crm').from('agenda_ics').select('perfil_id').limit(1),
+  );
+  await expectHidden(
+    'anon no lee crm.objetivos',
+    anon.schema('crm').from('objetivos').select('id').limit(1),
   );
   await expectHidden(
     'anon no lee datos bancarios public.perfiles',
@@ -1652,6 +1775,7 @@ async function main() {
       await testTareaCloseRpc(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);
       await testAgendaIcs(sessions, verifiedSeed);
+      await testObjetivos(sessions);
       await testBankingBoundary(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }
