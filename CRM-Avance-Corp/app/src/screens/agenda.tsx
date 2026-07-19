@@ -12,13 +12,14 @@
 // con resultado (motor Fase B), reprogramar rápido +1d/+3d/+1sem, y el
 // anti no-show de Fase E: recordatorio wa.me que PIDE confirmación + chip
 // Confirmada/Sin confirmar en reuniones.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
   BellRing,
   CalendarClock,
   CalendarDays,
+  ChevronDown,
   ChevronLeft,
   ChevronRight,
   CircleCheckBig,
@@ -26,22 +27,26 @@ import {
   Phone,
   Search,
   ShieldCheck,
+  SlidersHorizontal,
   Sparkles,
   Users,
   X,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Avatar } from '@/components/ui/avatar'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
-import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+import { PanelVacio } from '@/components/common/estado-panel'
+import { SegmentBar, StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
-import { puedeEscribir } from '@/lib/roles'
+import { can, puedeEscribir } from '@/lib/roles'
 import { COLOR_EVENTO, enlaceGoogleCalendar, esDeHoy, fechaLima, LIMA_OFFSET_MS, MESES, tareaAEvento } from '@/lib/agenda-derivada'
 import {
+  agruparPorPersona,
   aplicarFiltros,
   diasDeSemana,
   FILTROS_APAGADOS,
@@ -65,11 +70,18 @@ import { cn } from '@/lib/utils'
 function statsDe(tareas: Tarea[], ahora: number): StatChipData[] {
   const eventos = tareas.map((t) => tareaAEvento(t, ahora))
   const nBy = (t: string) => eventos.filter((a) => a.tipo === t).length
+  const nVencidas = eventos.filter((a) => a.vencida).length
   return [
-    { icon: CalendarDays, label: 'Pendientes', value: String(eventos.length), tone: 'primary', sub: 'en tu agenda' },
+    // El alcance va declarado en el chip: estos números son de TODA la agenda,
+    // aunque abajo se navegue a otra semana/mes (el resumen del período visible
+    // vive pegado al título que cambia, en NavTemporal).
+    { icon: CalendarDays, label: 'Pendientes', value: String(eventos.length), tone: 'primary', sub: 'toda la agenda' },
     { icon: Users, label: 'Reuniones', value: String(nBy('reunion')), tone: 'accent' },
     { icon: Phone, label: 'Llamadas', value: String(nBy('llamada')), tone: 'accent' },
-    { icon: AlertTriangle, label: 'Vencidas', value: String(eventos.filter((a) => a.vencida).length), tone: 'warn' },
+    // Ámbar SOLO cuando hay algo vencido: un 0 sano no grita.
+    nVencidas > 0
+      ? { icon: AlertTriangle, label: 'Vencidas', value: String(nVencidas), tone: 'warn' }
+      : { icon: AlertTriangle, label: 'Vencidas', value: '0', tone: 'default', sub: 'nada vencido' },
   ]
 }
 
@@ -97,6 +109,8 @@ function TarjetaTarea({
 }) {
   const { reprogramarTarea, confirmarTarea } = useCRMData()
   const { yo } = useAuth()
+  // Supervisión: quien ve equipo necesita saber de QUIÉN es cada tarea.
+  const verEquipo = can(yo?.rol, 'verEquipo')
   const ev = tareaAEvento(t, ahora)
   const hora = ev.cuando.split(' · ')[1] ?? ''
   const gcal = enlaceGoogleCalendar(t)
@@ -122,6 +136,17 @@ function TarjetaTarea({
       }}
       className="group flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
     >
+      {/* Riel de HORA a la izquierda: la clave primaria de escaneo de una
+          agenda, alineada verticalmente entre filas (ámbar si venció). */}
+      <span
+        title={ev.cuando}
+        className={cn(
+          'w-12 shrink-0 text-right text-xs font-semibold tabular-nums',
+          ev.vencida ? 'text-[#d97706]' : 'text-muted-foreground',
+        )}
+      >
+        {hora || '—'}
+      </span>
       <span className="w-1 self-stretch rounded" style={{ background: ev.color, minHeight: 44 }} aria-hidden />
       <div className="min-w-0 flex-1 leading-tight">
         <div className="flex flex-wrap items-center gap-1.5">
@@ -154,6 +179,14 @@ function TarjetaTarea({
               {money(lead.monto_estimado, lead.moneda)} en juego
             </span>
           )}
+          {/* Dueño de la tarea — solo para quien supervisa (la lista del
+              vendedor no necesita decirle que las tareas son suyas). */}
+          {verEquipo && lead && (
+            <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
+              <Avatar nombre={lead.vendedor_nombre} className="size-4 text-[7px]" />
+              <span className="max-w-32 truncate">{lead.vendedor_nombre ?? 'Sin asignar'}</span>
+            </span>
+          )}
           {escribe && (
             <span className="hidden items-center gap-1 sm:flex">
               {SALTOS.map((s) => (
@@ -177,6 +210,10 @@ function TarjetaTarea({
 
       {/* Acciones de canal + anti no-show + cierre — cortan la propagación */}
       <span className="flex shrink-0 items-center gap-1">
+        {/* Secundarias (recordar/confirmar/gcal): aparecen al hover o con foco
+            de teclado; en táctil (sin hover) quedan siempre visibles. Las
+            comerciales — contacto y cerrar — nunca se esconden. */}
+        <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
         {recordatorio && escribe && (
           <a
             href={recordatorio}
@@ -219,6 +256,7 @@ function TarjetaTarea({
             <ExternalLink className="size-4" aria-hidden />
           </a>
         )}
+        </span>
         {lead && <AccionesContacto lead={lead} compacto soloIcono />}
         {escribe && (
           <button
@@ -235,15 +273,6 @@ function TarjetaTarea({
           </button>
         )}
       </span>
-
-      <span
-        className={cn(
-          'shrink-0 text-xs font-semibold tabular-nums',
-          ev.vencida ? 'text-[#d97706]' : 'text-muted-foreground',
-        )}
-      >
-        {ev.vencida ? ev.cuando : hora || ev.cuando}
-      </span>
     </div>
   )
 }
@@ -256,6 +285,7 @@ function NavTemporal({
   onPrev,
   onNext,
   onHoy,
+  right,
 }: {
   /** Contexto de las flechas para lectores de pantalla ("Semana anterior"…). */
   unidad: 'semana' | 'mes'
@@ -265,6 +295,9 @@ function NavTemporal({
   onPrev: () => void
   onNext: () => void
   onHoy: () => void
+  /** Slot derecho (patrón SectionHead): el resumen del período VISIBLE vive
+      pegado al título que cambia al navegar. */
+  right?: ReactNode
 }) {
   const U = unidad === 'semana' ? 'Semana' : 'Mes'
   const flecha =
@@ -289,6 +322,7 @@ function NavTemporal({
       >
         Hoy
       </button>
+      {right != null && <div className="ml-auto">{right}</div>}
     </div>
   )
 }
@@ -332,51 +366,103 @@ function VistaSemana({
   // Hora actual en Lima: el hint de ritmo se apaga en el propio día cuando
   // ambos picos (10–11:30 y 16–18) ya quedaron atrás.
   const horaLima = new Date(ahora - LIMA_OFFSET_MS).getUTCHours()
+  const celdas = dias.map((d) => ({
+    d,
+    tareas: porDia.get(d.fecha) ?? [],
+    domingo: d.dow === 0,
+    // Hueco en mar–jue futuro: el mejor momento para citas (Gong: +30% de
+    // asistencia). Sugerencia, jamás candado — hoy se apaga pasadas las 18:00.
+    hint:
+      (porDia.get(d.fecha) ?? []).length === 0 &&
+      d.esMarJue &&
+      !d.esPasado &&
+      !(d.esHoy && horaLima >= 18),
+  }))
+  const tooltipDomingo = 'Domingo: fuera de la ventana legal de contacto (L–S 07:00–20:00)'
+  const srDomingo = (
+    <span className="sr-only"> — fuera de la ventana legal de contacto (L–S 07:00–20:00)</span>
+  )
   return (
     <Card className="overflow-x-auto p-2.5">
-      <div className="grid min-w-[880px] grid-cols-7 gap-1.5">
-        {dias.map((d) => {
-          const tareas = porDia.get(d.fecha) ?? []
-          const domingo = d.dow === 0
-          return (
-            <div
-              key={d.fecha}
-              title={domingo ? 'Domingo: fuera de la ventana legal de contacto (L–S 07:00–20:00)' : undefined}
-              className={cn(
-                'flex min-h-44 flex-col gap-1 rounded-lg p-1.5',
-                d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
-                domingo && 'opacity-55',
-              )}
-            >
-              <div className="flex items-center justify-between gap-1 px-0.5">
-                <span className={cn('text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
-                  {d.label}
-                  {domingo && (
-                    <span className="sr-only"> — fuera de la ventana legal de contacto (L–S 07:00–20:00)</span>
-                  )}
+      {/* < lg: la semana APILADA en 7 filas — cero scroll horizontal en
+          laptops medianas / iPad, que era todo el punto de esta vista. */}
+      <div className="space-y-1.5 lg:hidden">
+        {celdas.map(({ d, tareas, domingo, hint }) => (
+          <div
+            key={d.fecha}
+            title={domingo ? tooltipDomingo : undefined}
+            className={cn(
+              'rounded-lg p-2',
+              d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
+              domingo && 'opacity-55',
+            )}
+          >
+            <div className="flex items-center gap-2">
+              <span className={cn('text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
+                {d.label}
+                {domingo && srDomingo}
+              </span>
+              {tareas.length > 0 && (
+                <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                  {tareas.length}
                 </span>
-                {tareas.length > 0 && (
-                  <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
-                    {tareas.length}
-                  </span>
-                )}
-              </div>
-              {tareas.map((t) => (
-                <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
-              ))}
-              {/* Hueco en mar–jue futuro: el mejor momento para citas (Gong:
-                  +30% de asistencia). Sugerencia, jamás candado — y hoy se
-                  apaga pasadas las 18:00 (los dos picos ya fueron). */}
-              {tareas.length === 0 && d.esMarJue && !d.esPasado && !(d.esHoy && horaLima >= 18) && (
-                <div className="mt-auto rounded-md border border-dashed border-accent/30 p-1.5 text-center">
-                  <Sparkles className="mx-auto size-3.5 text-accent/60" aria-hidden />
-                  <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Buen día para citas</p>
-                  <p className="text-[10px] tabular-nums text-muted-foreground/80">10–11:30 · 16–18</p>
-                </div>
+              )}
+              {hint && (
+                <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                  <Sparkles className="size-3 text-accent/60" aria-hidden />
+                  Buen día para citas · 10–11:30 · 16–18
+                </span>
               )}
             </div>
-          )
-        })}
+            {tareas.length > 0 && (
+              <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                {tareas.map((t) => (
+                  <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+
+      {/* lg+: rejilla de 7 columnas. El domingo — fuera de la ventana legal,
+          casi siempre vacío — va en columna angosta FIJA (sin condicional al
+          contenido: nada de layout-shift semana a semana), devolviendo su
+          ancho a los 6 días operables. */}
+      <div className="hidden min-w-[700px] gap-1.5 lg:grid lg:grid-cols-[repeat(6,minmax(0,1fr))_minmax(3rem,0.45fr)]">
+        {celdas.map(({ d, tareas, domingo, hint }) => (
+          <div
+            key={d.fecha}
+            title={domingo ? tooltipDomingo : undefined}
+            className={cn(
+              'flex min-h-44 flex-col gap-1 rounded-lg p-1.5',
+              d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
+              domingo && 'opacity-55',
+            )}
+          >
+            <div className="flex items-center justify-between gap-1 px-0.5">
+              <span className={cn('truncate text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
+                {domingo ? `D ${d.num}` : d.label}
+                {domingo && srDomingo}
+              </span>
+              {tareas.length > 0 && (
+                <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                  {tareas.length}
+                </span>
+              )}
+            </div>
+            {tareas.map((t) => (
+              <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
+            ))}
+            {hint && (
+              <div className="mt-auto rounded-md border border-dashed border-accent/30 p-1.5 text-center">
+                <Sparkles className="mx-auto size-3.5 text-accent/60" aria-hidden />
+                <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Buen día para citas</p>
+                <p className="text-[10px] tabular-nums text-muted-foreground/80">10–11:30 · 16–18</p>
+              </div>
+            )}
+          </div>
+        ))}
       </div>
     </Card>
   )
@@ -468,18 +554,41 @@ function VistaMes({
 const VISTAS = ['hoy', 'semana', 'mes', 'todo'] as const
 type Vista = (typeof VISTAS)[number]
 
+/** Agrupa tareas (ya cronológicas) por su etiqueta de día ("Vencida", "Hoy"…). */
+function agruparPorDiaLabel(tareas: Tarea[], ahora: number): { dia: string; items: Tarea[] }[] {
+  const out: { dia: string; items: Tarea[] }[] = []
+  for (const t of tareas) {
+    const dia = tareaAEvento(t, ahora).cuando.split(' · ')[0] ?? 'Sin fecha'
+    const g = out.find((x) => x.dia === dia)
+    if (g) g.items.push(t)
+    else out.push({ dia, items: [t] })
+  }
+  return out
+}
+
+/** En [Todo], cuántos días arrancan expandidos; el resto colapsa a resumen. */
+const DIAS_EXPANDIDOS_TODO = 4
+
 export function Agenda() {
-  const { ambito, tareas } = useCRMData()
+  const { ambito, tareas, equipo } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   const ahora = useAhora()
   const escribe = puedeEscribir(yo?.rol)
+  // Supervisor/gerencia/directorio: la agenda se agrupa por PERSONA, no por día
+  // — imposible supervisar una lista plana con las tareas de 20 anónimos.
+  const verEquipo = can(yo?.rol, 'verEquipo')
   const [vista, setVista] = useState<Vista>('hoy')
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   const [filtros, setFiltros] = useState<FiltrosAgenda>(FILTROS_APAGADOS)
+  const [mostrarFiltros, setMostrarFiltros] = useState(false)
   const [offsetSemana, setOffsetSemana] = useState(0)
   const [offsetMes, setOffsetMes] = useState(0)
   const [diaSel, setDiaSel] = useState<string | null>(null)
+  // Colapsables de Hoy/Todo: personas abiertas (supervisión) y días extra
+  // abiertos en [Todo] (más allá de los primeros DIAS_EXPANDIDOS_TODO).
+  const [personasAbiertas, setPersonasAbiertas] = useState<ReadonlySet<string>>(new Set())
+  const [diasAbiertos, setDiasAbiertos] = useState<ReadonlySet<string>>(new Set())
 
   // Ámbito (espejo RLS): solo tareas de leads que el rol puede ver.
   const idsAmbito = useMemo(() => new Set(ambito.leads.map((l) => l.id)), [ambito.leads])
@@ -505,6 +614,13 @@ export function Agenda() {
     [pendientes, filtros, ahora, leadPorId],
   )
   const conFiltros = hayFiltros(filtros)
+  // Conteo para el chip "Filtros · n": con la banda colapsada, lo activo se ve.
+  const nFiltrosActivos = [
+    filtros.q.trim() !== '',
+    filtros.tipo !== 'todos',
+    filtros.estado !== 'todas',
+    filtros.etapa !== 'todas',
+  ].filter(Boolean).length
 
   // [Hoy] = vencidas + las de hoy (el día operable); [Todo] = panorama por día.
   const delDia = useMemo(
@@ -515,21 +631,54 @@ export function Agenda() {
     [filtrados, ahora],
   )
   const visibles = vista === 'hoy' ? delDia : filtrados
-  const grupos = useMemo(() => {
-    const out: { dia: string; items: Tarea[] }[] = []
-    for (const t of visibles) {
-      const dia = tareaAEvento(t, ahora).cuando.split(' · ')[0] ?? 'Sin fecha'
-      const g = out.find((x) => x.dia === dia)
-      if (g) g.items.push(t)
-      else out.push({ dia, items: [t] })
-    }
-    return out
-  }, [visibles, ahora])
+  const grupos = useMemo(() => agruparPorDiaLabel(visibles, ahora), [visibles, ahora])
+  // Supervisión: las mismas tareas visibles, pero por dueño (vencidas y carga
+  // primero — donde se acumula el problema). El vendedor no pasa por aquí.
+  const gruposPersona = useMemo(
+    () => (verEquipo ? agruparPorPersona(visibles, leadPorId, equipo, ahora) : []),
+    [verEquipo, visibles, leadPorId, equipo, ahora],
+  )
+  // Distribución por tipo del rango visible en [Todo] — el resumen del muro.
+  const distTipos = useMemo(
+    () =>
+      TIPOS_TAREA.map(({ k, label }) => ({
+        label,
+        value: filtrados.filter((t) => t.tipo === k).length,
+        color: COLOR_EVENTO[k],
+      })),
+    [filtrados],
+  )
 
   // Geometría de las vistas nuevas (Fase D) — todo derivado del reloj vivo.
   const semana = useMemo(() => diasDeSemana(ahora, offsetSemana), [ahora, offsetSemana])
   const mes = useMemo(() => rejillaMes(ahora, offsetMes), [ahora, offsetMes])
   const porDia = useMemo(() => tareasPorDia(filtrados), [filtrados])
+  // Resumen del período VISIBLE (Semana/Mes): el StatStrip de arriba cuenta la
+  // agenda completa y NO cambia al navegar — este número sí, y por eso vive
+  // pegado al título que cambia (slot derecho de NavTemporal).
+  const resumenSemana = useMemo(() => {
+    let n = 0
+    let v = 0
+    for (const d of semana) {
+      for (const t of porDia.get(d.fecha) ?? []) {
+        n++
+        if (Date.parse(t.vence_en) < ahora) v++
+      }
+    }
+    return { n, v }
+  }, [semana, porDia, ahora])
+  const resumenMes = useMemo(() => {
+    let n = 0
+    let v = 0
+    for (const c of mes.semanas.flat()) {
+      if (!c.delMes) continue
+      for (const t of porDia.get(c.fecha) ?? []) {
+        n++
+        if (Date.parse(t.vence_en) < ahora) v++
+      }
+    }
+    return { n, v }
+  }, [mes, porDia, ahora])
   const tiraSemana = useMemo(() => diasDeSemana(ahora, 0), [ahora])
   // Día operable del Mes: el elegido, o hoy cuando se mira el mes en curso.
   const diaMes = diaSel ?? (offsetMes === 0 ? fechaLima(ahora) : null)
@@ -638,10 +787,38 @@ export function Agenda() {
             {v.label}
           </button>
         ))}
+        {/* Filtros COLAPSADOS tras un chip: la banda solo baja la cola del día
+            cuando de verdad se está filtrando. El conteo delata lo activo. */}
+        <button
+          type="button"
+          aria-expanded={mostrarFiltros}
+          aria-controls="agenda-filtros"
+          onClick={() => setMostrarFiltros((v) => !v)}
+          className={cn(
+            'ml-auto flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-bold transition-colors',
+            mostrarFiltros || conFiltros
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground hover:text-foreground',
+          )}
+        >
+          <SlidersHorizontal className="size-3.5" aria-hidden />
+          Filtros{nFiltrosActivos > 0 ? ` · ${nFiltrosActivos}` : ''}
+        </button>
+        {/* Limpiar vive FUERA de la banda: visible aun con filtros colapsados. */}
+        {conFiltros && (
+          <button
+            type="button"
+            onClick={() => setFiltros(FILTROS_APAGADOS)}
+            className="flex cursor-pointer items-center gap-1 rounded-full bg-muted px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground"
+          >
+            <X className="size-3" aria-hidden /> Limpiar · {filtrados.length} de {pendientes.length}
+          </button>
+        )}
       </div>
 
       {/* Buscador + filtros tipo/estado/etapa — recortan TODAS las vistas */}
-      <div className="flex flex-wrap items-center gap-2">
+      {mostrarFiltros && (
+      <div id="agenda-filtros" className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-44 flex-1 basis-52">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
           <Input
@@ -691,16 +868,8 @@ export function Agenda() {
             ))}
           </Select>
         </div>
-        {conFiltros && (
-          <button
-            type="button"
-            onClick={() => setFiltros(FILTROS_APAGADOS)}
-            className="flex cursor-pointer items-center gap-1 rounded-full bg-muted px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground"
-          >
-            <X className="size-3" aria-hidden /> Limpiar · {filtrados.length} de {pendientes.length}
-          </button>
-        )}
       </div>
+      )}
 
       {/* ── SEMANA ── */}
       {vista === 'semana' && (
@@ -712,6 +881,15 @@ export function Agenda() {
             onPrev={() => setOffsetSemana((o) => o - 1)}
             onNext={() => setOffsetSemana((o) => o + 1)}
             onHoy={() => setOffsetSemana(0)}
+            right={
+              <Badge color={resumenSemana.v > 0 ? '#d97706' : resumenSemana.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'}>
+                {resumenSemana.n === 0
+                  ? 'Sin tareas esta semana'
+                  : `${resumenSemana.n} ${resumenSemana.n === 1 ? 'tarea' : 'tareas'}${
+                      resumenSemana.v > 0 ? ` · ${resumenSemana.v} vencida${resumenSemana.v === 1 ? '' : 's'}` : ''
+                    }`}
+              </Badge>
+            }
           />
           <VistaSemana dias={semana} porDia={porDia} ahora={ahora} abrirLead={abrirLead} />
         </>
@@ -736,6 +914,15 @@ export function Agenda() {
               setOffsetMes(0)
               setDiaSel(null)
             }}
+            right={
+              <Badge color={resumenMes.v > 0 ? '#d97706' : resumenMes.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'}>
+                {resumenMes.n === 0
+                  ? 'Sin tareas este mes'
+                  : `${resumenMes.n} ${resumenMes.n === 1 ? 'tarea' : 'tareas'}${
+                      resumenMes.v > 0 ? ` · ${resumenMes.v} vencida${resumenMes.v === 1 ? '' : 's'}` : ''
+                    }`}
+              </Badge>
+            }
           />
           <VistaMes semanas={mes.semanas} porDia={porDia} ahora={ahora} diaSel={diaMes} onDia={setDiaSel} />
           {diaMes ? (
@@ -759,9 +946,11 @@ export function Agenda() {
               />
               <CardContent className="space-y-1 pt-0">
                 {tareasDiaMes.length === 0 ? (
-                  <p className="pb-3 text-xs text-muted-foreground">
-                    Sin tareas ese día — agenda la próxima acción desde la ficha de un lead.
-                  </p>
+                  <PanelVacio
+                    icono={CalendarDays}
+                    titulo="Sin tareas ese día"
+                    detalle="Agenda la próxima acción desde la ficha de un lead — ningún lead activo debería quedarse sin una."
+                  />
                 ) : (
                   tareasDiaMes.map((t) => (
                     <TarjetaTarea
@@ -778,7 +967,13 @@ export function Agenda() {
               </CardContent>
             </Card>
           ) : (
-            <p className="text-xs text-muted-foreground">Elige un día para ver y trabajar sus tareas.</p>
+            <Card>
+              <PanelVacio
+                icono={CalendarDays}
+                titulo="Elige un día del mes"
+                detalle="Toca cualquier día de la rejilla para ver y trabajar sus tareas."
+              />
+            </Card>
           )}
         </>
       )}
@@ -786,6 +981,14 @@ export function Agenda() {
       {/* ── HOY / TODO ── */}
       {(vista === 'hoy' || vista === 'todo') && (
         <>
+          {/* [Todo] Resumen del rango: de qué se compone el panorama, antes
+              de bajar al muro de días. */}
+          {vista === 'todo' && visibles.length > 0 && (
+            <Card className="ac-pop p-3.5">
+              <SegmentBar segments={distTipos} />
+            </Card>
+          )}
+
           {/* Vacío accionable */}
           {grupos.length === 0 && (
             <Card>
@@ -815,33 +1018,136 @@ export function Agenda() {
             </Card>
           )}
 
-          {/* Timeline agrupado por día — tarjetas OPERABLES */}
-          {grupos.map((g) => (
-            <Card key={g.dia}>
-              <SectionHead
-                icon={g.dia === 'Vencida' ? AlertTriangle : CalendarDays}
-                title={g.dia === 'Vencida' ? 'Vencidas' : g.dia}
-                right={
-                  <Badge color={g.dia === 'Vencida' ? '#d97706' : 'var(--accent)'}>
-                    {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
-                  </Badge>
-                }
-              />
-              <CardContent className="space-y-1 pt-0">
-                {g.items.map((t) => (
-                  <TarjetaTarea
-                    key={t.id}
-                    t={t}
-                    lead={leadPorId(t.lead_id)}
-                    ahora={ahora}
-                    escribe={escribe}
-                    abrirLead={abrirLead}
-                    onCerrar={setTareaACerrar}
+          {/* Supervisión: agrupado por PERSONA (vencidas y carga primero),
+              colapsado a resumen — el detalle se abre solo cuando hace falta,
+              igual que en Supervisión de distribución. */}
+          {verEquipo &&
+            gruposPersona.map((g) => {
+              const abierto = personasAbiertas.has(g.id)
+              return (
+                <Card key={g.id}>
+                  <button
+                    type="button"
+                    aria-expanded={abierto}
+                    onClick={() =>
+                      setPersonasAbiertas((prev) => {
+                        const s = new Set(prev)
+                        if (s.has(g.id)) s.delete(g.id)
+                        else s.add(g.id)
+                        return s
+                      })
+                    }
+                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-t-[inherit] px-5 pt-4 pb-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                  >
+                    <Avatar nombre={g.nombre} className="size-7 text-[10px]" />
+                    <span className="min-w-0">
+                      <span className="block truncate text-[15px] font-bold tracking-tight">{g.nombre}</span>
+                      {g.supervisor && (
+                        <span className="block truncate text-[11px] text-muted-foreground">
+                          Equipo de {g.supervisor}
+                        </span>
+                      )}
+                    </span>
+                    <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                      <Badge color="var(--accent)">
+                        {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
+                      </Badge>
+                      {g.nVencidas > 0 && (
+                        <Badge color="#d97706">
+                          {g.nVencidas} vencida{g.nVencidas === 1 ? '' : 's'}
+                        </Badge>
+                      )}
+                      <ChevronDown
+                        className={cn('size-4 text-muted-foreground transition-transform', abierto && 'rotate-180')}
+                        aria-hidden
+                      />
+                    </span>
+                  </button>
+                  {abierto && (
+                    <CardContent className="space-y-2 pt-0">
+                      {agruparPorDiaLabel(g.items, ahora).map((sub) => (
+                        <div key={sub.dia} className="space-y-1">
+                          <p
+                            className={cn(
+                              'px-2 text-[11px] font-bold',
+                              sub.dia === 'Vencida' ? 'text-[#d97706]' : 'text-muted-foreground',
+                            )}
+                          >
+                            {sub.dia === 'Vencida' ? 'Vencidas' : sub.dia}
+                          </p>
+                          {sub.items.map((t) => (
+                            <TarjetaTarea
+                              key={t.id}
+                              t={t}
+                              lead={leadPorId(t.lead_id)}
+                              ahora={ahora}
+                              escribe={escribe}
+                              abrirLead={abrirLead}
+                              onCerrar={setTareaACerrar}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </CardContent>
+                  )}
+                </Card>
+              )
+            })}
+
+          {/* Vendedor: timeline agrupado por día — tarjetas OPERABLES. En
+              [Todo], solo los primeros días van expandidos; el resto colapsa
+              a una fila de resumen (nada de muro de cards idénticas). */}
+          {!verEquipo &&
+            grupos.map((g, i) => {
+              const abierto = vista === 'hoy' || i < DIAS_EXPANDIDOS_TODO || diasAbiertos.has(g.dia)
+              if (!abierto) {
+                return (
+                  <Card key={g.dia}>
+                    <button
+                      type="button"
+                      aria-expanded={false}
+                      onClick={() => setDiasAbiertos((prev) => new Set(prev).add(g.dia))}
+                      className="flex w-full cursor-pointer items-center gap-2 rounded-[inherit] px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                    >
+                      <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
+                      <span className="text-[15px] font-bold tracking-tight">{g.dia}</span>
+                      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <Badge color="var(--muted-foreground)">
+                          {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
+                        </Badge>
+                        <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
+                      </span>
+                    </button>
+                  </Card>
+                )
+              }
+              return (
+                <Card key={g.dia}>
+                  <SectionHead
+                    icon={g.dia === 'Vencida' ? AlertTriangle : CalendarDays}
+                    title={g.dia === 'Vencida' ? 'Vencidas' : g.dia}
+                    right={
+                      <Badge color={g.dia === 'Vencida' ? '#d97706' : 'var(--accent)'}>
+                        {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
+                      </Badge>
+                    }
                   />
-                ))}
-              </CardContent>
-            </Card>
-          ))}
+                  <CardContent className="space-y-1 pt-0">
+                    {g.items.map((t) => (
+                      <TarjetaTarea
+                        key={t.id}
+                        t={t}
+                        lead={leadPorId(t.lead_id)}
+                        ahora={ahora}
+                        escribe={escribe}
+                        abrirLead={abrirLead}
+                        onCerrar={setTareaACerrar}
+                      />
+                    ))}
+                  </CardContent>
+                </Card>
+              )
+            })}
         </>
       )}
 

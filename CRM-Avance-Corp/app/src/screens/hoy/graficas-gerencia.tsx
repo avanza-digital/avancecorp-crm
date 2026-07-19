@@ -42,6 +42,7 @@ import {
   type ChartConfig,
 } from '@/components/ui/chart'
 import { SectionHead } from '@/components/common/section-head'
+import { PanelVacio } from '@/components/common/estado-panel'
 import { useAuth } from '@/lib/auth-context'
 import { cn } from '@/lib/utils'
 import { money, type Moneda } from '@/lib/format'
@@ -146,6 +147,8 @@ function CardGrafica({
   title,
   right,
   nota,
+  vacioTitulo,
+  vacioDetalle,
   estado,
   onReintentar,
   className,
@@ -157,6 +160,9 @@ function CardGrafica({
   right?: ReactNode | undefined
   /** Pie de lectura: qué significa cada serie/período (contexto honesto). */
   nota?: string | undefined
+  /** Vacío accionable (PanelVacio): título corto + fuente y camino para llenarla. */
+  vacioTitulo: string
+  vacioDetalle: string
   estado: EstadoGrafica
   onReintentar?: (() => void) | undefined
   className?: string | undefined
@@ -180,10 +186,11 @@ function CardGrafica({
             )}
           </div>
         )}
+        {/* Vacío honesto Y accionable (patrón de la casa): qué alimenta la
+            gráfica y qué la hará aparecer; sin alto fijo — tres vacíos a la vez
+            no deben consumir una pantalla entera. */}
         {estado === 'vacio' && (
-          <p className="flex h-[240px] items-center justify-center px-6 text-center text-xs text-muted-foreground">
-            Aún sin datos suficientes para graficar.
-          </p>
+          <PanelVacio icono={icon} titulo={vacioTitulo} detalle={vacioDetalle} />
         )}
         {estado === 'ok' && children}
         {estado === 'ok' && nota && (
@@ -340,6 +347,8 @@ export function GraficasGerencia(): JSX.Element {
         title="Capital colocado por mes"
         right={<TabsMoneda monedas={monedasCapital} valor={monCapital} onCambio={setMonedaCapital} />}
         nota="Últimos 12 meses · capital de contratos registrados, apilado por categoría."
+        vacioTitulo="Aún no hay capital para graficar"
+        vacioDetalle="Se llena con los contratos registrados en el portal — al registrar el primer contrato verás el capital colocado por mes."
         estado={estadoCapital}
         onReintentar={esDemo ? undefined : () => void qCapital.refetch()}
         className="lg:col-span-2"
@@ -383,6 +392,8 @@ export function GraficasGerencia(): JSX.Element {
         title="Pagos a inversionistas"
         right={<TabsMoneda monedas={monedasPagos} valor={monPagos} onCambio={setMonedaPagos} />}
         nota="Pagado = intereses del cronograma pagados en el mes · Vencido = intereses vencidos sin pago · No incluye retornos de capital."
+        vacioTitulo="Aún no hay pagos para graficar"
+        vacioDetalle="Se llena con los cronogramas de los contratos del portal — cuando existan intereses pagados o vencidos verás la comparación mes a mes."
         estado={estadoPagos}
         onReintentar={esDemo ? undefined : () => void qPagos.refetch()}
         testid="grafica-pagos"
@@ -423,6 +434,8 @@ export function GraficasGerencia(): JSX.Element {
           />
         }
         nota="Capital de contratos que vencen, mes a mes, para planear renovaciones."
+        vacioTitulo="Aún no hay vencimientos para graficar"
+        vacioDetalle="Se llena con las fechas de fin de los contratos vigentes — al registrar contratos verás el capital que vence en los próximos 12 meses."
         estado={estadoVencimientos}
         onReintentar={esDemo ? undefined : () => void qVencimientos.refetch()}
         testid="grafica-vencimientos"

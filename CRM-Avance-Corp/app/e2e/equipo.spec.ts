@@ -44,14 +44,24 @@ test('demo gerencia: un bloque por supervisor con la TABLA comparativa de vended
   await entrarDemo(page, 'Gerencia')
   await page.getByRole('button', { name: 'Equipo' }).click()
 
-  // Un bloque por supervisor (orden por capital PEN desc: UNO primero).
-  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR DOS' })).toBeVisible()
+  // Refactor de comodidad (2026-07-18): PRIMERO la tabla comparativa de
+  // supervisores; el detalle por equipo se abre BAJO DEMANDA (patrón
+  // "supervisores primero" de Supervisión de distribución).
+  await expect(page.getByRole('heading', { name: 'Comparativa de equipos' })).toBeVisible()
+  await expect(page.getByRole('row', { name: /SUPERVISOR UNO/ })).toBeVisible()
+  const filaSup2 = page.getByRole('row', { name: /SUPERVISOR DOS/ })
+  await expect(filaSup2).toBeVisible()
 
-  // La comparativa por bloque es una TABLA real (columna a columna, no cards):
-  // una cabecera por cada uno de los 2 equipos.
-  for (const col of ['Vendedor', 'Últ. actividad', 'Activos', 'Capital PEN', 'Sin tocar', 'Conversión']) {
-    await expect(page.getByRole('columnheader', { name: col })).toHaveCount(2)
+  // Con >1 equipo, ningún detalle se abre solo.
+  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toHaveCount(0)
+  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR DOS' })).toHaveCount(0)
+
+  // Abrir el equipo de SUPERVISOR DOS: aparece SU tabla de vendedores (solo una).
+  await filaSup2.getByRole('button', { name: 'Ver equipo' }).click()
+  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR DOS' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toHaveCount(0)
+  for (const col of ['Vendedor', 'Sin tocar']) {
+    await expect(page.getByRole('columnheader', { name: col })).toHaveCount(1)
   }
 
   // La fila de VENDEDOR TRES pinta sus números del ámbito global: S/ 113k en
@@ -90,10 +100,14 @@ test('demo directorio: la misma radiografía en tabla pero SIN botones de acció
   await entrarDemo(page, 'Directorio')
   await page.getByRole('button', { name: 'Equipo' }).click()
 
-  // Misma radiografía que gerencia: bloques por supervisor + tabla comparativa.
+  // Misma radiografía que gerencia: comparativa primero, detalle bajo demanda.
   await expect(page.getByText(/Vista de auditoría del Directorio/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Comparativa de equipos' })).toBeVisible()
+  await page
+    .getByRole('row', { name: /SUPERVISOR UNO/ })
+    .getByRole('button', { name: 'Ver equipo' })
+    .click()
   await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR UNO' })).toBeVisible()
-  await expect(page.getByRole('heading', { name: 'Equipo de SUPERVISOR DOS' })).toBeVisible()
   await expect(page.getByRole('row', { name: /VENDEDOR UNO/ })).toBeVisible()
 
   // Solo lectura total: ni bandeja global ni un solo botón "Asignar"

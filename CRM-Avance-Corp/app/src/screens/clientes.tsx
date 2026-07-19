@@ -21,7 +21,7 @@
 // backend del portal: fixtures gated + recorte de ámbito local (carteraDelAmbito).
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { Inbox, Search, UserPlus2, Users2 } from 'lucide-react'
+import { CalendarPlus, Inbox, Search, UserPlus2, UserX, Users, Users2 } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -30,6 +30,7 @@ import { Dialog } from '@/components/ui/dialog'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
+import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
@@ -61,6 +62,15 @@ function copyDeRol(puedeContratar: boolean, verEquipo: boolean): string {
     return 'Cartera de clientes de toda la empresa, en solo lectura. La columna Asesor dice de quién es cada cliente.'
   return 'Cartera de clientes en solo lectura para tu rol.'
 }
+
+/**
+ * Umbral de aviso de la ventana de corrección: con menos de 30 min vivos el
+ * countdown pasa a ámbar — el ÚNICO momento en que el reloj pide acción. La
+ * ventana ya vencida NO es alarma (es el estado normal de una cartera madura):
+ * se pinta en muted, y el rojo destructive queda para lo realmente crítico.
+ * (Mismo criterio en FilaContrato de contratos.tsx.)
+ */
+const AVISO_VENTANA_MS = 30 * 60_000
 
 /** Estado del panel de acciones: un solo modal abierto a la vez (como el portal). */
 type Modal =
@@ -169,9 +179,19 @@ function FilaCliente({
       {conAcciones && (
         <Td>
           {accionable ? (
-            // Sin verde en el sistema ("positivo" = azul): vigente en accent, vencida en destructive.
+            // Sin verde en el sistema ("positivo" = azul): viva en accent, ámbar
+            // cuando quedan <30 min (AVISO_VENTANA_MS) y vencida en MUTED — no en
+            // rojo: cerrada es el estado normal e inaccionable, y el rojo de
+            // alarma perpetua entrenaba al ojo a ignorarlo donde sí importa.
             <span
-              className={`text-xs font-semibold tabular-nums ${ventana.vigente ? 'text-accent' : 'text-destructive'}`}
+              className={`text-xs font-semibold tabular-nums ${
+                ventana.vigente
+                  ? ventana.ms <= AVISO_VENTANA_MS
+                    ? 'text-warning'
+                    : 'text-accent'
+                  : 'text-muted-foreground'
+              }`}
+              title={ventana.vigente ? undefined : 'La ventana de corrección de 5 horas ya venció'}
             >
               {ventana.texto}
             </span>
@@ -273,8 +293,55 @@ function VistaCartera({
   const hayFiltro = q.trim() !== '' || fAsesor !== 'todos'
   const { visibles, paginas, paginaActual } = paginar(items, pagina)
 
+  // Resumen para quien SUPERVISA (patrón StatStrip de cartera.tsx): el dato
+  // primario — cuántos clientes hay, cuántos entraron este mes y cuántos están
+  // SIN asesor — se lee arriba de la tabla, sin abrir el Select ni escanear
+  // 164+ filas. "Sin asesor" espeja EXACTO al filtro 'sin_asesor' de
+  // filtrarClientes (dueño null O fuera del roster) para que el chip nunca
+  // contradiga lo que la tabla muestra al filtrar. Para el vendedor no se
+  // pinta: su cartera es corta y los agregados de supervisión no le aplican.
+  const stats = useMemo<StatChipData[] | null>(() => {
+    if (!verEquipo || ordenados.length === 0) return null
+    const ahora = new Date()
+    let nuevosMes = 0
+    let sinAsesor = 0
+    const conCartera = new Set<string>()
+    for (const c of ordenados) {
+      const d = new Date(c.creado_en)
+      if (d.getFullYear() === ahora.getFullYear() && d.getMonth() === ahora.getMonth()) nuevosMes++
+      const dueno = duenoDeCartera(c)
+      if (dueno != null && rosterIds.has(dueno)) conCartera.add(dueno)
+      else sinAsesor++
+    }
+    return [
+      { icon: Users2, label: 'Total clientes', value: String(ordenados.length), tone: 'primary' },
+      {
+        icon: CalendarPlus,
+        label: 'Nuevos este mes',
+        value: String(nuevosMes),
+        sub: ahora.toLocaleDateString('es-PE', { month: 'long', year: 'numeric' }),
+      },
+      {
+        // Vacío accionable: si hay huérfanos, el sub encamina al filtro que los
+        // lista ('Sin asesor' del Select de asesor, mismo criterio que la celda).
+        icon: UserX,
+        label: 'Sin asesor',
+        value: String(sinAsesor),
+        tone: sinAsesor > 0 ? 'warn' : 'default',
+        sub: sinAsesor > 0 ? 'Repártelos: filtro “Sin asesor”' : 'Toda la cartera tiene dueño',
+      },
+      {
+        icon: Users,
+        label: 'Asesores con cartera',
+        value: String(conCartera.size),
+        sub: 'Con al menos un cliente',
+      },
+    ]
+  }, [verEquipo, ordenados, rosterIds])
+
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
+      {stats && <StatStrip stats={stats} />}
       <Card className="overflow-hidden">
         <SectionHead
           icon={Users2}

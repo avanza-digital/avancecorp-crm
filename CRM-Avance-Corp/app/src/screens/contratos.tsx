@@ -54,6 +54,14 @@ export function Contratos() {
   return <ContratosReales />
 }
 
+/**
+ * Umbral de aviso de la ventana de corrección: con menos de 30 min vivos el
+ * countdown pasa a ámbar — el único momento en que el reloj pide acción. La
+ * ventana vencida se pinta en muted, no en rojo (espejo de FilaCliente en
+ * clientes.tsx: cerrada es estado normal, no alarma).
+ */
+const AVISO_VENTANA_MS = 30 * 60_000
+
 /** Copy bajo el título — cada rol lee SOLO lo que aplica a él (nada de mentir). */
 function copyDeRol(puedeContratar: boolean): string {
   return puedeContratar
@@ -128,12 +136,20 @@ function FilaContrato({
       {conAcciones && (
         <Td>
           {esMia ? (
-            // Sin verde en el sistema ("positivo" = azul): vigente accent, vencida destructive.
+            // Sin verde en el sistema ("positivo" = azul): viva accent, ámbar con
+            // <30 min (AVISO_VENTANA_MS) y vencida en MUTED — cerrada es el estado
+            // normal de una cartera madura, no una alarma; el rojo destructive se
+            // reserva para lo realmente crítico del semáforo.
             <span
               className={cn(
                 'whitespace-nowrap text-xs font-semibold tabular-nums',
-                ventana.vigente ? 'text-accent' : 'text-destructive',
+                ventana.vigente
+                  ? ventana.ms <= AVISO_VENTANA_MS
+                    ? 'text-warning'
+                    : 'text-accent'
+                  : 'text-muted-foreground',
               )}
+              title={ventana.vigente ? undefined : 'La ventana de corrección de 5 horas ya venció'}
             >
               {ventana.texto}
             </span>

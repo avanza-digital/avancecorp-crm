@@ -2,6 +2,7 @@
 // modo "viernes 13:00" (higiene). Reloj SIEMPRE inyectado — nada de Date.now().
 import { describe, expect, it } from 'vitest'
 import {
+  agruparPorPersona,
   aplicarFiltros,
   colaHigiene,
   diasDeSemana,
@@ -13,7 +14,7 @@ import {
   tareasPorDia,
   tituloSemana,
 } from './agenda-vistas'
-import type { Lead, Tarea } from './tipos'
+import type { Lead, Miembro, Tarea } from './tipos'
 
 // Viernes 2026-07-17 12:00 en Lima = 17:00Z (UTC-5) — misma ancla que
 // agenda-derivada.test.ts.
@@ -238,5 +239,72 @@ describe('colaHigiene', () => {
     expect(sinExcluir.map((i) => (i.k === 'sin_accion' ? i.lead.id : ''))).toEqual(['n1', 'n2'])
     const conExcluir = colaHigiene([], [nuevo, otro], new Set(), AHORA, new Set(['n1']))
     expect(conExcluir.map((i) => (i.k === 'sin_accion' ? i.lead.id : ''))).toEqual(['n2'])
+  })
+})
+
+describe('agruparPorPersona', () => {
+  const miembro = (extra: Partial<Miembro>): Miembro => ({
+    perfil_id: 'v1',
+    nombre_completo: 'Vera Vendedora',
+    rol_crm: 'vendedor',
+    activo: true,
+    ...extra,
+  })
+  const equipo: Miembro[] = [
+    miembro({ perfil_id: 'sup1', nombre_completo: 'Sofía Supervisora', rol_crm: 'supervisor' }),
+    miembro({ perfil_id: 'v1', nombre_completo: 'Vera Vendedora', supervisor_id: 'sup1' }),
+    miembro({ perfil_id: 'v2', nombre_completo: 'Aldo Analista', supervisor_id: 'sup1' }),
+  ]
+  const leadDeMapa = (leads: Lead[]) => {
+    const porId = new Map(leads.map((l) => [l.id, l] as const))
+    return (id: string | null) => (id ? porId.get(id) : undefined)
+  }
+
+  it('agrupa por el vendedor del lead, con supervisor de contexto y vencidas derivadas', () => {
+    const leads = [
+      lead({ id: 'l1', vendedor_id: 'v1' }),
+      lead({ id: 'l2', vendedor_id: 'v2', nombre_completo: 'Beto Ruiz' }),
+    ]
+    const tareas = [
+      tarea({ id: 'a', lead_id: 'l1', vence_en: '2026-07-16T20:00:00Z' }), // vencida (ayer)
+      tarea({ id: 'b', lead_id: 'l1', vence_en: '2026-07-17T20:00:00Z' }), // hoy 15:00, futura
+      tarea({ id: 'c', lead_id: 'l2', vence_en: '2026-07-17T21:00:00Z' }),
+    ]
+    const grupos = agruparPorPersona(tareas, leadDeMapa(leads), equipo, AHORA)
+    expect(grupos.map((g) => g.id)).toEqual(['v1', 'v2']) // v1 primero: tiene la vencida
+    expect(grupos[0]).toMatchObject({
+      nombre: 'Vera Vendedora',
+      supervisor: 'Sofía Supervisora',
+      nVencidas: 1,
+    })
+    expect(grupos[0]?.items.map((t) => t.id)).toEqual(['a', 'b']) // orden de entrada intacto
+    expect(grupos[1]).toMatchObject({ nombre: 'Aldo Analista', nVencidas: 0 })
+  })
+
+  it('parkeadas → bandeja del supervisor; sin dueño → "Sin responsable"; desempata por carga y nombre', () => {
+    const leads = [
+      lead({ id: 'p1', vendedor_id: null, asignado_supervisor_id: 'sup1' }),
+      lead({ id: 'x1', vendedor_id: null }),
+      lead({ id: 'l1', vendedor_id: 'v1' }),
+    ]
+    const tareas = [
+      tarea({ id: 'a', lead_id: 'p1' }),
+      tarea({ id: 'b', lead_id: 'x1' }),
+      tarea({ id: 'c', lead_id: 'l1' }),
+      tarea({ id: 'd', lead_id: 'l1', vence_en: '2026-07-18T15:00:00Z' }),
+    ]
+    const grupos = agruparPorPersona(tareas, leadDeMapa(leads), equipo, AHORA)
+    // v1 (2 tareas) primero por carga; luego bandeja vs sin responsable por nombre (es-PE).
+    expect(grupos.map((g) => `${g.id}:${g.items.length}`)).toEqual(['v1:2', 'bandeja:sup1:1', 'sin:1'])
+    expect(grupos[1]?.nombre).toBe('Bandeja de Sofía Supervisora')
+    expect(grupos[1]?.supervisor).toBeNull()
+    expect(grupos[2]?.nombre).toBe('Sin responsable')
+  })
+
+  it('sin lead a la vista, la tenencia espejo de la TAREA resuelve el dueño', () => {
+    const t = tarea({ id: 'a', lead_id: 'fuera', vendedor_id: 'v2' })
+    const grupos = agruparPorPersona([t], () => undefined, equipo, AHORA)
+    expect(grupos.map((g) => g.id)).toEqual(['v2'])
+    expect(grupos[0]?.nombre).toBe('Aldo Analista')
   })
 })

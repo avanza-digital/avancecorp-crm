@@ -2,9 +2,10 @@
 // Solo la ven supervisor/gerencia/directorio (App.tsx guarda la ruta):
 //  - Supervisor: cards densas de SUS vendedores (métricas + semáforo de
 //    actividad), bandeja "Por repartir" con acción de asignar y mini-cola.
-//  - Gerencia: un bloque por supervisor (comparativaEquipos como cabecera)
-//    con una TABLA comparativa de sus vendedores dentro (comparable columna
-//    a columna, que es lo que gerencia necesita); también puede repartir.
+//  - Gerencia: PRIMERO una tabla comparativa de supervisores (comparativaEquipos)
+//    y el detalle por vendedor de UN equipo bajo demanda (fila/botón "Ver
+//    equipo" — patrón aprobado de EquiposBajoSupervision en Hoy·Distribución:
+//    "el detalle se abre solo cuando hace falta"); también puede repartir.
 //  - Directorio: la misma radiografía que gerencia, SOLO LECTURA (cero
 //    botones de acción).
 // Los números salen del ámbito jerárquico (useCRMData().ambito) + lib/inteligencia,
@@ -21,6 +22,7 @@ import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { Select } from '@/components/ui/select'
+import { PanelVacio } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
@@ -434,6 +436,9 @@ function EquipoSupervisor(): JSX.Element {
 function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   const { ambito, actividadesDelAmbito, equipo } = useCRMData()
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
+  // Supervisores PRIMERO, detalle por vendedor bajo demanda (patrón aprobado
+  // de EquiposBajoSupervision en Hoy·Distribución): qué equipo está abierto.
+  const [supervisorSel, setSupervisorSel] = useState<string | null>(null)
 
   // Un memo para TODO el tablero: el índice de última actividad se construye
   // UNA vez y las métricas de cada bloque se precomputan aquí — antes
@@ -455,16 +460,27 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       else vendedoresPorSupervisor.set(m.supervisor_id, [m])
     }
 
-    const bloques = filas.map((f) => ({
-      f,
-      vendedores: metricasPorVendedor(
+    const bloques = filas.map((f) => {
+      const metricas = metricasPorVendedor(
         vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? [],
         ambito.leads,
         actividadesDelAmbito,
         ahora,
         indice,
-      ),
-    }))
+      )
+      // Cartera primero (ya vienen por capital PEN desc): los vendedores en
+      // cero absoluto van al final — la mirada cae en el capital en juego.
+      // OJO: activos=0 con convertidos>0 NO es cero (convirtió toda su cartera).
+      const conCartera = metricas.filter((r) => r.activos > 0 || r.convertidos > 0)
+      const vendedores = [...conCartera, ...metricas.filter((r) => r.activos === 0 && r.convertidos === 0)]
+      // Peor última actividad entre vendedores CON abiertos — alimenta el
+      // semáforo de la fila comparativa; null = ningún vendedor con abiertos.
+      let peorDias: number | null = null
+      for (const r of metricas) {
+        if (r.activos > 0 && (peorDias == null || r.diasSinActividadMax > peorDias)) peorDias = r.diasSinActividadMax
+      }
+      return { f, vendedores, peorDias, todoEnCero: metricas.length > 0 && conCartera.length === 0 }
+    })
     const grupos: GrupoVendedores[] = filas
       .map((f) => ({ sup: f.supervisor, vs: vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? [] }))
       .filter((g) => g.vs.length > 0)
@@ -494,6 +510,12 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
     chipPorRepartir(d.parkeados.length, 'En bandejas de supervisores'),
   ]
 
+  // Con un solo equipo el detalle se abre solo (no hay nada que comparar);
+  // si el seleccionado dejó de existir (roster cambió), el find lo descarta.
+  const bloqueSel =
+    d.bloques.find((b) => b.f.supervisor.perfil_id === supervisorSel) ??
+    (d.bloques.length === 1 ? d.bloques[0] : undefined)
+
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
@@ -504,8 +526,133 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         </p>
       )}
 
-      {/* Un bloque por supervisor: cabecera comparativa + TABLA de sus vendedores */}
-      {d.bloques.map(({ f, vendedores }) => (
+      {/* Supervisores PRIMERO: una tabla comparativa (equipo vs equipo en una
+         sola pantalla); el detalle por vendedor se abre bajo demanda. */}
+      <Card>
+        <SectionHead
+          icon={ShieldCheck}
+          title="Comparativa de equipos"
+          right={<span className="text-xs text-muted-foreground">Orden: capital en proceso (PEN)</span>}
+        />
+        <CardContent className="pt-0">
+          <TablaEnvoltura ariaLabel="Comparativa de supervisores">
+            <TheadCrm>
+              <Th>Supervisor</Th>
+              <Th>Últ. actividad</Th>
+              <Th className="text-right">Activos</Th>
+              <Th className="text-right">Capital PEN</Th>
+              <Th>Conversión</Th>
+              <Th className="text-right">Por repartir</Th>
+              <Th>
+                <span className="sr-only">Detalle del equipo</span>
+              </Th>
+            </TheadCrm>
+            <tbody>
+              {d.bloques.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    Aún no hay supervisores activos — enrola al equipo para ver la comparativa.
+                  </td>
+                </tr>
+              ) : (
+                d.bloques.map(({ f, peorDias }) => {
+                  const abierto = bloqueSel?.f.supervisor.perfil_id === f.supervisor.perfil_id
+                  const sem = peorDias != null ? semaforoActividad(peorDias) : null
+                  return (
+                    <tr
+                      key={f.supervisor.perfil_id}
+                      onClick={() => setSupervisorSel(abierto ? null : f.supervisor.perfil_id)}
+                      className={`cursor-pointer border-b border-border/60 transition-colors last:border-0 hover:bg-muted/40 ${abierto ? 'bg-accent/5' : ''}`}
+                    >
+                      <Td>
+                        <div className="flex items-center gap-2.5">
+                          <Avatar nombre={f.supervisor.nombre_completo} className="size-7 text-[10px]" />
+                          <div className="min-w-0">
+                            <p
+                              className="max-w-[220px] truncate text-[13px] font-semibold text-foreground"
+                              title={f.supervisor.nombre_completo}
+                            >
+                              {f.supervisor.nombre_completo}
+                            </p>
+                            <p className="text-[11px] text-muted-foreground">
+                              {f.vendedores} {f.vendedores === 1 ? 'vendedor' : 'vendedores'}
+                            </p>
+                          </div>
+                        </div>
+                      </Td>
+                      <Td>
+                        {sem == null ? (
+                          <Badge color={GRIS} variant="outline">Sin abiertos</Badge>
+                        ) : (
+                          <Badge
+                            color={sem.color}
+                            variant="outline"
+                            dot
+                            title="Última actividad del lead abierto más abandonado del equipo"
+                          >
+                            {sem.label}
+                          </Badge>
+                        )}
+                      </Td>
+                      <Td className={`text-right tabular-nums ${f.activos === 0 ? 'text-muted-foreground' : ''}`}>
+                        {f.activos}
+                      </Td>
+                      <Td className="whitespace-nowrap text-right">
+                        {f.capitalPEN > 0 ? (
+                          <span className="font-extrabold tabular-nums text-primary">{moneyK(f.capitalPEN)}</span>
+                        ) : (
+                          <span className="tabular-nums text-muted-foreground">—</span>
+                        )}
+                        {f.capitalUSD > 0 && (
+                          <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
+                            +{moneyK(f.capitalUSD, 'USD')}
+                          </span>
+                        )}
+                      </Td>
+                      <Td>
+                        {f.conversion > 0 ? (
+                          <div className="flex items-center gap-2">
+                            <Progress value={f.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
+                            <span className="text-xs font-bold tabular-nums">{f.conversion}%</span>
+                          </div>
+                        ) : (
+                          <span className="text-xs tabular-nums text-muted-foreground">0%</span>
+                        )}
+                      </Td>
+                      <Td
+                        className={`text-right tabular-nums ${f.parkeados > 0 ? 'font-extrabold' : 'text-muted-foreground'}`}
+                        style={f.parkeados > 0 ? { color: SEMAFORO.atencion } : undefined}
+                      >
+                        {f.parkeados > 0 ? f.parkeados : '—'}
+                      </Td>
+                      <Td className="text-right">
+                        <Button
+                          size="sm"
+                          variant={abierto ? 'default' : 'outline'}
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setSupervisorSel(abierto ? null : f.supervisor.perfil_id)
+                          }}
+                        >
+                          {abierto ? 'Ocultar' : 'Ver equipo'}
+                        </Button>
+                      </Td>
+                    </tr>
+                  )
+                })
+              )}
+            </tbody>
+          </TablaEnvoltura>
+          {d.bloques.length > 1 && bloqueSel == null && (
+            <p className="mt-3 text-xs text-muted-foreground">
+              El detalle por vendedor se abre solo cuando hace falta — elige un equipo en la tabla.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Detalle del equipo SELECCIONADO: cabecera comparativa + TABLA de sus vendedores */}
+      {d.bloques.filter((b) => b === bloqueSel).map(({ f, vendedores, todoEnCero }) => (
         <Card key={f.supervisor.perfil_id}>
           <SectionHead
             icon={ShieldCheck}
@@ -537,6 +684,31 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
 
             {vendedores.length === 0 ? (
               <p className="text-sm text-muted-foreground">Sin vendedores asignados a este equipo.</p>
+            ) : todoEnCero ? (
+              /* Equipo entero en cero: la tabla sería un muro de ceros —
+                 vacío honesto y accionable (la acción varía por rol). */
+              <PanelVacio
+                icono={Users}
+                titulo="Este equipo aún no tiene leads asignados"
+                detalle={
+                  conAcciones
+                    ? f.parkeados > 0
+                      ? `Hay ${f.parkeados} ${f.parkeados === 1 ? 'lead' : 'leads'} en la bandeja de este supervisor — repártelos para poner capital en juego.`
+                      : d.parkeados.length > 0
+                        ? 'Reparte leads desde la bandeja de la empresa para poner capital en juego.'
+                        : 'Cuando entren leads a las bandejas podrás repartirlos entre sus vendedores.'
+                    : 'Sin capital en juego ni conversiones todavía — nada que auditar en este equipo.'
+                }
+              >
+                {conAcciones && d.parkeados.length > 0 && (
+                  <a
+                    href="#por-repartir-empresa"
+                    className="text-xs font-semibold text-accent underline-offset-2 hover:underline"
+                  >
+                    Ir a la bandeja «Por repartir» ↓
+                  </a>
+                )}
+              </PanelVacio>
             ) : (
               /* Tabla comparativa (fila ~33 px): lo que gerencia/directorio
                  necesitan es comparar vendedores columna a columna, no cards. */
@@ -574,9 +746,17 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                             </Badge>
                           )}
                         </Td>
-                        <Td className="text-right tabular-nums">{r.activos}</Td>
+                        {/* Ceros en mudo: extrabold/primary reservado a >0 —
+                           lo que tiene capital en juego es lo que debe gritar. */}
+                        <Td className={`text-right tabular-nums ${r.activos === 0 ? 'text-muted-foreground' : ''}`}>
+                          {r.activos}
+                        </Td>
                         <Td className="whitespace-nowrap text-right">
-                          <span className="font-extrabold tabular-nums text-primary">{moneyK(r.capitalPEN)}</span>
+                          {r.capitalPEN > 0 ? (
+                            <span className="font-extrabold tabular-nums text-primary">{moneyK(r.capitalPEN)}</span>
+                          ) : (
+                            <span className="tabular-nums text-muted-foreground">—</span>
+                          )}
                           {r.capitalUSD > 0 && (
                             <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
                               +{moneyK(r.capitalUSD, 'USD')}
@@ -584,17 +764,21 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                           )}
                         </Td>
                         <Td
-                          className="text-right font-extrabold tabular-nums"
+                          className={`text-right tabular-nums ${r.sinTocar > 0 ? 'font-extrabold' : 'text-muted-foreground'}`}
                           style={r.sinTocar > 0 ? { color: SEMAFORO.atencion } : undefined}
                           title={TOOLTIP_SIN_TOCAR}
                         >
-                          {r.sinTocar}
+                          {r.sinTocar > 0 ? r.sinTocar : '—'}
                         </Td>
                         <Td>
-                          <div className="flex items-center gap-2">
-                            <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
-                            <span className="text-xs font-bold tabular-nums">{r.conversion}%</span>
-                          </div>
+                          {r.conversion > 0 ? (
+                            <div className="flex items-center gap-2">
+                              <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
+                              <span className="text-xs font-bold tabular-nums">{r.conversion}%</span>
+                            </div>
+                          ) : (
+                            <span className="text-xs tabular-nums text-muted-foreground">0%</span>
+                          )}
                         </Td>
                       </tr>
                     )
@@ -606,9 +790,10 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         </Card>
       ))}
 
-      {/* Bandeja global — SOLO gerencia (directorio no acciona nada) */}
+      {/* Bandeja global — SOLO gerencia (directorio no acciona nada);
+         el id es el ancla del vacío accionable del bloque todo-en-cero. */}
       {conAcciones && (
-        <Card>
+        <Card id="por-repartir-empresa" className="scroll-mt-20">
           <SectionHead
             icon={Inbox}
             title="Por repartir (toda la empresa)"

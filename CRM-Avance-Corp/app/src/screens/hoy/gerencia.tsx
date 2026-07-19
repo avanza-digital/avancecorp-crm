@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
+import { SegmentBar } from '@/components/common/stat-strip'
 import { Skeleton } from '@/components/ui/skeleton'
 import { useCRMData } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
@@ -90,7 +91,7 @@ function MetaItem({
 }
 
 export function HoyGerencia(): JSX.Element {
-  const { ambito, objetivos } = useCRMData()
+  const { ambito, equipo, objetivos } = useCRMData()
   const { yo } = useAuth()
   const [periodo, setPeriodo] = useState<PeriodoDistribucion>(periodoInicialDistribucion)
   const [monedaMontos, setMonedaMontos] = useState<'PEN' | 'USD'>('PEN')
@@ -239,6 +240,88 @@ export function HoyGerencia(): JSX.Element {
         </div>
       </section>
 
+      {/* Zona alta comercial: el marcador del mes y el estado del embudo van
+          inmediatamente después del hero — lectura diaria primaria del gerente,
+          antes de los paneles operativos (regla: lo que genera ingreso, primero). */}
+      <div className="grid gap-5 lg:grid-cols-2">
+        <Card>
+          <SectionHead
+            icon={Target}
+            title="Meta del mes — Empresa"
+            right={<span className="text-xs text-muted-foreground">Objetivos de gerencia</span>}
+          />
+          <CardContent className="grid gap-5 pt-1 sm:grid-cols-2">
+            <MetaItem
+              label="Monto de leads activos"
+              actual={money(datosLocales.capitalPen)}
+              objetivo={
+                meta.capitalObjetivo > 0
+                  ? `de ${moneyK(meta.capitalObjetivo)} en soles`
+                  : 'meta por definir'
+              }
+              pct={
+                meta.capitalObjetivo > 0
+                  ? (datosLocales.capitalPen / meta.capitalObjetivo) * 100
+                  : 0
+              }
+            />
+            <MetaItem
+              label="Ventas cerradas"
+              actual={String(datosLocales.convertidos)}
+              objetivo={
+                meta.ventasObjetivo > 0
+                ? `de ${meta.ventasObjetivo} cierres`
+                  : 'meta por definir'
+              }
+              pct={
+                meta.ventasObjetivo > 0
+                  ? (datosLocales.convertidos / meta.ventasObjetivo) * 100
+                  : 0
+              }
+            />
+          </CardContent>
+        </Card>
+
+        {/* Distribución por etapa como barra única de la casa (SegmentBar):
+            misma pieza que Cartera y que el embudo del Directorio. */}
+        <Card>
+          <SectionHead
+            icon={Filter}
+            title="Estado de los leads"
+            right={
+              <span className="text-xs tabular-nums text-muted-foreground">
+                {datosLocales.abiertos} abiertos
+              </span>
+            }
+          />
+          <CardContent className="space-y-3 pt-1">
+            {etapas.some((etapa) => etapa.n > 0) ? (
+              <>
+                <SegmentBar
+                  segments={etapas.map((etapa) => {
+                    const info = ETAPA_INFO[etapa.etapa]
+                    return {
+                      label: info.label,
+                      value: etapa.n,
+                      color: info.color,
+                      valTxt: `${etapa.n} · ${etapa.pctDelTotal}%`,
+                    }
+                  })}
+                />
+                <p className="text-[11px] text-muted-foreground">
+                  Distribución de {datosLocales.abiertos} leads abiertos. Los cierres se muestran por separado.
+                </p>
+              </>
+            ) : (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                No hay leads abiertos por ahora — cuando ingresen nuevos leads verás aquí su
+                distribución por etapa.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
       {puedeMostrarEjemplo && (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/35 bg-accent/[0.07] px-4 py-3 shadow-sm">
           <div>
@@ -292,99 +375,13 @@ export function HoyGerencia(): JSX.Element {
         onReintentar={() => {
           if (sesionReal) void consultaAgenda.refetch()
         }}
+        equipo={equipo}
       />
-
-      <Card>
-        <SectionHead
-          icon={Target}
-          title="Meta del mes — Empresa"
-          right={<span className="text-xs text-muted-foreground">Objetivos de gerencia</span>}
-        />
-        <CardContent className="grid gap-5 pt-1 sm:grid-cols-2">
-          <MetaItem
-            label="Monto de leads activos"
-            actual={money(datosLocales.capitalPen)}
-            objetivo={
-              meta.capitalObjetivo > 0
-                ? `de ${moneyK(meta.capitalObjetivo)} en soles`
-                : 'meta por definir'
-            }
-            pct={
-              meta.capitalObjetivo > 0
-                ? (datosLocales.capitalPen / meta.capitalObjetivo) * 100
-                : 0
-            }
-          />
-          <MetaItem
-            label="Ventas cerradas"
-            actual={String(datosLocales.convertidos)}
-            objetivo={
-              meta.ventasObjetivo > 0
-              ? `de ${meta.ventasObjetivo} cierres`
-                : 'meta por definir'
-            }
-            pct={
-              meta.ventasObjetivo > 0
-                ? (datosLocales.convertidos / meta.ventasObjetivo) * 100
-                : 0
-            }
-          />
-        </CardContent>
-      </Card>
 
       {/* Gráficas del negocio de contratos. No mezclan PEN y USD. */}
       <Suspense fallback={<Skeleton className="h-[240px] w-full" aria-busy />}>
         <GraficasGerencia />
       </Suspense>
-
-      <Card>
-        <SectionHead
-          icon={Filter}
-          title="Estado de los leads"
-          right={
-            <span className="text-xs tabular-nums text-muted-foreground">
-              {datosLocales.abiertos} abiertos
-            </span>
-          }
-        />
-        <CardContent className="space-y-3.5 pt-1">
-          {(() => {
-            const maximo = Math.max(...etapas.map((etapa) => etapa.n), 1)
-            return etapas.map((etapa) => {
-              const info = ETAPA_INFO[etapa.etapa]
-              return (
-                <div key={etapa.etapa}>
-                  <div className="mb-1 flex items-baseline justify-between gap-2 text-xs">
-                    <span className="flex items-center gap-2 font-semibold">
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: info.color }}
-                      />
-                      {info.label}
-                    </span>
-                    <span className="tabular-nums text-muted-foreground">
-                      <span className="font-extrabold text-foreground">{etapa.n}</span>{' '}
-                      {etapa.n === 1 ? 'lead' : 'leads'} · {etapa.pctDelTotal}%
-                    </span>
-                  </div>
-                  <div className="h-3 overflow-hidden rounded-full bg-muted">
-                    <div
-                      className="h-full rounded-full transition-[width] duration-700 ease-out"
-                      style={{
-                        width: `${etapa.n > 0 ? Math.max((etapa.n / maximo) * 100, 6) : 0}%`,
-                        background: info.color,
-                      }}
-                    />
-                  </div>
-                </div>
-              )
-            })
-          })()}
-          <p className="text-[11px] text-muted-foreground">
-            Distribución de {datosLocales.abiertos} leads abiertos. Los cierres se muestran por separado.
-          </p>
-        </CardContent>
-      </Card>
 
       <p className="text-[11px] text-muted-foreground">
         {modoDemo

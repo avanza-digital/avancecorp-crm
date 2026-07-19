@@ -3,7 +3,7 @@
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
-import { Fragment, useMemo, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   ArrowRightLeft,
@@ -161,6 +161,9 @@ function Ficha({ l }: { l: Lead }) {
   const puedeConvertir = escribe && (yo?.puede_contratar ?? false) && seraMiCliente
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
+  // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
+  // de la sección Datos sin duplicar su estado (contador incremental).
+  const [pedirEditarDatos, setPedirEditarDatos] = useState(0)
   const info = ETAPA_INFO[l.etapa]
 
   return (
@@ -176,8 +179,32 @@ function Ficha({ l }: { l: Lead }) {
                 <Badge color="var(--chart-4)">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
               )}
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
+              {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
+              {l.monto_estimado == null &&
+                (escribe ? (
+                  <button
+                    type="button"
+                    className="cursor-pointer"
+                    onClick={() => setPedirEditarDatos((n) => n + 1)}
+                  >
+                    <Badge color="#d97706">Sin capital estimado → completar</Badge>
+                  </button>
+                ) : (
+                  <Badge color="#d97706">Sin capital estimado</Badge>
+                ))}
             </div>
           </div>
+          {/* Capital en juego arriba, siempre a la vista (mismo patrón del hover-card). */}
+          {l.monto_estimado != null && (
+            <div className="shrink-0 text-right leading-tight">
+              <p className="text-sm font-extrabold tabular-nums text-primary">
+                {money(l.monto_estimado, l.moneda)}
+              </p>
+              <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
+                {l.etapa === 'convertido' ? 'ganado' : 'en juego'}
+              </p>
+            </div>
+          )}
           <button
             type="button"
             onClick={cerrarPaneles}
@@ -193,7 +220,7 @@ function Ficha({ l }: { l: Lead }) {
       <SheetBody className="space-y-5">
         {esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
-        <Datos l={l} escribe={escribe} puedeReasignar={puedeReasignar} />
+        <Datos l={l} escribe={escribe} puedeReasignar={puedeReasignar} pedirEditar={pedirEditarDatos} />
         <Timeline l={l} escribe={escribe} activa={!esTerminal} />
       </SheetBody>
 
@@ -362,6 +389,9 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   const ahora = useAhora()
   const pendientes = tareasDe(l.id)
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
+  // Con pendientes vivas, agendar OTRA es un gesto raro: el quick-add se pliega
+  // tras este botón. Solo con 0 pendientes (aviso ámbar) queda abierto siempre.
+  const [agendarOtra, setAgendarOtra] = useState(false)
 
   const slot = proximoSlotSugerido(ahora)
   const [tipo, setTipo] = useState<TipoTarea>('llamada')
@@ -395,6 +425,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     toast.success(`Tarea agendada${yo?.demo ? ' (demo)' : ''} — la verás en Hoy y en Agenda`)
     setTituloEditado(false)
     setTitulo(tituloSugerido(tipo, l.nombre_completo))
+    setAgendarOtra(false) // vuelve a plegarse: ya hay próxima acción visible
   }
 
   const avisoVentana = fueraDeVentanaLegal(fecha, hora)
@@ -449,50 +480,64 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
         </ul>
       )}
 
-      {escribe && activa && (
+      {escribe && activa && pendientes.length > 0 && !agendarOtra && (
+        <Button size="xs" variant="ghost" onClick={() => setAgendarOtra(true)}>
+          <CalendarPlus /> Agendar otra
+        </Button>
+      )}
+
+      {escribe && activa && (pendientes.length === 0 || agendarOtra) && (
         <div className="rounded-xl border border-border/70 p-2.5">
           {pendientes.length === 0 && (
             <p className="mb-2 text-[11px] font-medium text-[#d97706]">
               Este lead no tiene próxima acción — agéndale una para que no se enfríe.
             </p>
           )}
-          <div className="grid grid-cols-[110px_1fr] gap-2">
-            <Select
-              aria-label="Tipo de tarea"
-              value={tipo}
-              onChange={(e) => cambiarTipo(e.target.value)}
-            >
-              {TIPOS_TAREA.map((t) => (
-                <option key={t.k} value={t.k}>{t.label}</option>
-              ))}
-            </Select>
-            <Input
-              aria-label="Título de la tarea"
-              value={titulo}
-              maxLength={200}
-              onChange={(e) => {
-                setTitulo(e.target.value)
-                setTituloEditado(true)
-              }}
-            />
-            <Input
-              aria-label="Fecha"
-              type="date"
-              value={fecha}
-              onChange={(e) => setFecha(e.target.value)}
-            />
-            <div className="flex gap-2">
+          {/* Fecha en la columna ancha ("dd/mm/aaaa" + picker) y hora en la fija:
+              cada campo con el ancho de lo que hay que LEER. */}
+          <div className="space-y-2">
+            <div className="grid grid-cols-[110px_1fr] gap-2">
+              <Select
+                aria-label="Tipo de tarea"
+                value={tipo}
+                onChange={(e) => cambiarTipo(e.target.value)}
+              >
+                {TIPOS_TAREA.map((t) => (
+                  <option key={t.k} value={t.k}>{t.label}</option>
+                ))}
+              </Select>
+              <Input
+                aria-label="Título de la tarea"
+                value={titulo}
+                maxLength={200}
+                onChange={(e) => {
+                  setTitulo(e.target.value)
+                  setTituloEditado(true)
+                }}
+              />
+            </div>
+            <div className="grid grid-cols-[1fr_96px] gap-2">
+              <Input
+                aria-label="Fecha"
+                type="date"
+                value={fecha}
+                onChange={(e) => setFecha(e.target.value)}
+              />
               <Input
                 aria-label="Hora"
                 type="time"
                 value={hora}
-                className="flex-1"
                 onChange={(e) => setHora(e.target.value)}
               />
-              <Button size="sm" onClick={agendar} disabled={!titulo.trim() || !fecha || !hora}>
-                <CalendarPlus /> Agendar
-              </Button>
             </div>
+            <Button
+              size="sm"
+              className="w-full"
+              onClick={agendar}
+              disabled={!titulo.trim() || !fecha || !hora}
+            >
+              <CalendarPlus /> Agendar
+            </Button>
           </div>
           {avisoVentana && (
             <p className="mt-1.5 text-[10px] font-medium text-muted-foreground">
@@ -518,7 +563,23 @@ function Fila({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
-function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; puedeReasignar: boolean }) {
+/** Lista es-PE: "a, b y c" (para la línea de datos faltantes). */
+function listarFaltantes(xs: string[]): string {
+  if (xs.length <= 1) return xs[0] ?? ''
+  return `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}`
+}
+
+function Datos({
+  l,
+  escribe,
+  puedeReasignar,
+  pedirEditar = 0,
+}: {
+  l: Lead
+  escribe: boolean
+  puedeReasignar: boolean
+  pedirEditar?: number
+}) {
   const { editarLead, reasignar, ambito } = useCRMData()
   const { yo } = useAuth()
   const sufijoDemo = yo?.demo ? ' (demo)' : ''
@@ -587,6 +648,22 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
   const campo = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [k]: e.target.value }))
 
+  // El badge "Sin capital estimado → completar" del header pide abrir la edición.
+  useEffect(() => {
+    if (pedirEditar > 0 && escribe) empezar()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedirEditar])
+
+  // Campos sin dato: en vez de un muro de filas con '—', una sola línea accionable.
+  const faltantes = [
+    l.monto_estimado == null && 'capital estimado',
+    !l.correo && 'correo',
+    !l.dni && 'DNI',
+    !l.distrito && 'distrito',
+    !l.categoria_interes && 'categoría',
+    !l.nota && 'nota',
+  ].filter((x): x is string => typeof x === 'string')
+
   return (
     <section aria-label="Datos del lead">
       <div className="flex items-center justify-between">
@@ -649,53 +726,70 @@ function Datos({ l, escribe, puedeReasignar }: { l: Lead; escribe: boolean; pued
           </div>
         </div>
       ) : (
-        <dl className="mt-1.5">
-          <Fila label="Teléfono">
-            <span className="tabular-nums">{l.telefono}</span>
-          </Fila>
-          <Fila label="Correo">{l.correo || '—'}</Fila>
-          <Fila label="DNI">
-            <span className="tabular-nums">{l.dni || '—'}</span>
-          </Fila>
-          <Fila label="Distrito">{l.distrito || '—'}</Fila>
-          <Fila label="Capital estimado">
-            {l.monto_estimado != null ? (
-              <span className="font-extrabold tabular-nums text-primary">{money(l.monto_estimado, l.moneda)}</span>
-            ) : (
-              '—'
+        <>
+          {/* Orden comercial: capital → categoría → vendedor → contacto → resto.
+              Las filas sin dato NO se listan con '—': se colapsan abajo en una
+              sola línea accionable ("Faltan …" + Completar). */}
+          <dl className="mt-1.5">
+            {l.monto_estimado != null && (
+              <Fila label="Capital estimado">
+                <span className="font-extrabold tabular-nums text-primary">{money(l.monto_estimado, l.moneda)}</span>
+              </Fila>
             )}
-          </Fila>
-          <Fila label="Categoría">
-            {l.categoria_interes ? `Inversión · ${CAT_LABEL[l.categoria_interes]}` : '—'}
-          </Fila>
-          <Fila label="Origen">{origenLabel(l.origen)}</Fila>
-          <Fila label="Vendedor">
-            {puedeReasignar ? (
-              <Select
-                aria-label="Reasignar vendedor"
-                value={l.vendedor_id ?? ''}
-                onChange={(e) => onReasignar(e.target.value)}
-                className="h-8 text-xs"
-              >
-                <option value="">Sin asignar (parkeado)</option>
-                {vendedores.map((m) => (
-                  <option key={m.perfil_id} value={m.perfil_id}>
-                    {m.nombre_completo}
-                  </option>
-                ))}
-              </Select>
-            ) : l.vendedor_nombre ? (
-              <span className="inline-flex items-center gap-1.5">
-                <Avatar nombre={l.vendedor_nombre} className="size-5 text-[8px]" />
-                {l.vendedor_nombre}
-              </span>
-            ) : (
-              <Badge color="var(--warning)">Sin asignar (parkeado)</Badge>
+            {l.categoria_interes && (
+              <Fila label="Categoría">Inversión · {CAT_LABEL[l.categoria_interes]}</Fila>
             )}
-          </Fila>
-          <Fila label="Creado">{fmtFecha(l.creado_en)}</Fila>
-          <Fila label="Nota">{l.nota || '—'}</Fila>
-        </dl>
+            <Fila label="Vendedor">
+              {puedeReasignar ? (
+                <Select
+                  aria-label="Reasignar vendedor"
+                  value={l.vendedor_id ?? ''}
+                  onChange={(e) => onReasignar(e.target.value)}
+                  className="h-8 text-xs"
+                >
+                  <option value="">Sin asignar (parkeado)</option>
+                  {vendedores.map((m) => (
+                    <option key={m.perfil_id} value={m.perfil_id}>
+                      {m.nombre_completo}
+                    </option>
+                  ))}
+                </Select>
+              ) : l.vendedor_nombre ? (
+                <span className="inline-flex items-center gap-1.5">
+                  <Avatar nombre={l.vendedor_nombre} className="size-5 text-[8px]" />
+                  {l.vendedor_nombre}
+                </span>
+              ) : (
+                <Badge color="var(--warning)">Sin asignar (parkeado)</Badge>
+              )}
+            </Fila>
+            <Fila label="Teléfono">
+              <span className="tabular-nums">{l.telefono}</span>
+            </Fila>
+            {l.correo && <Fila label="Correo">{l.correo}</Fila>}
+            {l.dni && (
+              <Fila label="DNI">
+                <span className="tabular-nums">{l.dni}</span>
+              </Fila>
+            )}
+            {l.distrito && <Fila label="Distrito">{l.distrito}</Fila>}
+            <Fila label="Origen">{origenLabel(l.origen)}</Fila>
+            <Fila label="Creado">{fmtFecha(l.creado_en)}</Fila>
+            {l.nota && <Fila label="Nota">{l.nota}</Fila>}
+          </dl>
+          {faltantes.length > 0 && (
+            <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+              <p className="min-w-0 text-[11px] text-muted-foreground">
+                {faltantes.length === 1 ? 'Falta' : 'Faltan'} {listarFaltantes(faltantes)}
+              </p>
+              {escribe && (
+                <Button size="xs" variant="ghost" onClick={empezar}>
+                  <Pencil /> Completar
+                </Button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </section>
   )
@@ -791,6 +885,9 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
   const ocultos = items.length - visibles.length
   const [tipo, setTipo] = useState<TipoActividadManual>('llamada_realizada')
   const [detalle, setDetalle] = useState('')
+  // La sección se abre mayormente para LEER el historial: el composer vive
+  // plegado tras una fila con aspecto de input y se despliega a un click.
+  const [componiendo, setComponiendo] = useState(false)
 
   const registrar = () => {
     const res = registrarActividad(l.id, tipo, detalle)
@@ -799,6 +896,7 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
       return
     }
     setDetalle('')
+    setComponiendo(false)
     toast.success(`Actividad registrada${yo?.demo ? ' (demo)' : ''}`)
   }
 
@@ -806,7 +904,17 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
     <section aria-label="Actividad del lead">
       <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Actividad</h3>
 
-      {escribe && activa && (
+      {escribe && activa && !componiendo && (
+        <button
+          type="button"
+          onClick={() => setComponiendo(true)}
+          className="mt-2 flex w-full cursor-pointer items-center gap-2 rounded-xl border border-border bg-muted/40 px-3 py-2 text-left text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+        >
+          <Send className="size-3.5 shrink-0" aria-hidden /> Registrar actividad…
+        </button>
+      )}
+
+      {escribe && activa && componiendo && (
         <div className="mt-2 space-y-2 rounded-xl border border-border bg-muted/40 p-3">
           <Select
             aria-label="Tipo de actividad"
@@ -826,8 +934,12 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
             onChange={(e) => setDetalle(e.target.value)}
             placeholder="Detalle (opcional)…"
             className="min-h-[56px] text-xs"
+            autoFocus
           />
-          <div className="flex justify-end">
+          <div className="flex justify-end gap-2">
+            <Button size="sm" variant="ghost" onClick={() => setComponiendo(false)}>
+              Cancelar
+            </Button>
             <Button size="sm" onClick={registrar}>
               <Send /> Registrar
             </Button>

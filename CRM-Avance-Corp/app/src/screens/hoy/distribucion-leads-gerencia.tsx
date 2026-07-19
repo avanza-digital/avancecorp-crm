@@ -976,24 +976,31 @@ function ColaCard({
           <p className="text-[9px] font-bold uppercase tracking-wide text-muted-foreground">leads</p>
         </div>
       </div>
-      <div className="overflow-x-auto p-3">
-        <div className="grid min-w-[760px] grid-cols-7 gap-2">
-          {rangos.map((rango) => {
-            const dato = rangoDeCola(cola, rango.id)
-            return (
+      {(() => {
+        // Solo los rangos con pendientes, como chips en flex-wrap: sin ancho
+        // mínimo forzado no hay scroll lateral dentro de la tarjeta ni muro de
+        // "0 · S/ 0". Si todos los rangos (solo PEN) están en cero no se pinta
+        // nada: el header ya da el total y el pie separa PEN/USD.
+        const conPendientes = rangos
+          .map((rango) => ({ rango, dato: rangoDeCola(cola, rango.id) }))
+          .filter(({ dato }) => dato.cantidad > 0)
+        if (conPendientes.length === 0) return null
+        return (
+          <div className="flex flex-wrap gap-2 p-3">
+            {conPendientes.map(({ rango, dato }) => (
               <div key={rango.id} className="rounded-md border border-border/70 bg-muted/20 px-2.5 py-2">
-                <p className="min-h-7 text-[9px] font-bold leading-tight text-muted-foreground">
+                <p className="text-[9px] font-bold leading-tight text-muted-foreground">
                   {rango.etiqueta}
                 </p>
                 <p className="mt-1 text-base font-extrabold tabular-nums text-foreground">{dato.cantidad}</p>
-                <p className="truncate text-[9px] tabular-nums text-muted-foreground" title={dinero(dato.capital, 'PEN')}>
+                <p className="text-[9px] tabular-nums text-muted-foreground">
                   {dinero(dato.capital, 'PEN')}
                 </p>
               </div>
-            )
-          })}
-        </div>
-      </div>
+            ))}
+          </div>
+        )
+      })()}
       <div className="flex flex-wrap gap-x-5 gap-y-1 border-t border-border bg-muted/15 px-4 py-2 text-[10px] text-muted-foreground">
         <span><strong className="text-foreground">PEN:</strong> {cola.pen.cantidad} · {dinero(cola.pen.capital, 'PEN')}</span>
         <span><strong className="text-foreground">USD:</strong> {cola.usd.cantidad} · {dinero(cola.usd.capital, 'USD')}</span>

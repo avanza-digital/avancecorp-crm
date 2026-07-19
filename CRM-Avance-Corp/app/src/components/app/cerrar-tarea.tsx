@@ -20,6 +20,8 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
+import { Avatar } from '@/components/ui/avatar'
+import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
@@ -28,8 +30,9 @@ import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { sugerirSiguiente } from '@/lib/motor-siguiente'
 import { fechaLima, tareaAEvento } from '@/lib/agenda-derivada'
-import { primerNombre } from '@/lib/format'
+import { money, primerNombre } from '@/lib/format'
 import {
+  ETAPA_INFO,
   TIPOS_TAREA,
   esTipoTarea,
   type Tarea,
@@ -185,6 +188,25 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
           <CheckCircle2 className="size-4 text-[var(--accent)]" aria-hidden /> Cerrar tarea
         </DialogTitle>
         <DialogDescription className="truncate">{tarea.titulo}</DialogDescription>
+        {/* Contexto del lead: quién es, en qué etapa va y CUÁNTO está en juego —
+            la decisión de proponer/saltar la siguiente no se toma a ciegas.
+            (Tareas genéricas sin lead: la franja se omite.) */}
+        {l && (
+          <div className="mt-1 flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
+            <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} className="size-6 text-[9px]" />
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
+              {l.nombre_completo}
+            </span>
+            <Badge color={ETAPA_INFO[l.etapa].color} dot className="shrink-0 text-[10px]">
+              {ETAPA_INFO[l.etapa].label}
+            </Badge>
+            {l.monto_estimado != null && (
+              <span className="shrink-0 text-sm font-extrabold tabular-nums text-primary">
+                {money(l.monto_estimado, l.moneda)}
+              </span>
+            )}
+          </div>
+        )}
       </DialogHeader>
       <DialogBody className="space-y-3.5">
         {/* Resultado 1-tap */}
@@ -235,46 +257,53 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 Saltar esta vez
               </button>
             </div>
-            <div className="grid grid-cols-[110px_1fr] gap-2">
-              <Select
-                aria-label="Tipo de la siguiente"
-                value={sigTipo}
-                onChange={(e) => {
-                  if (esTipoTarea(e.target.value)) setSigTipo(e.target.value)
-                  setSigEditada(true)
-                }}
-              >
-                {TIPOS_TAREA.map((t) => (
-                  <option key={t.k} value={t.k}>{t.label}</option>
-                ))}
-              </Select>
-              <Input
-                aria-label="Título de la siguiente"
-                value={sigTitulo}
-                maxLength={200}
-                onChange={(e) => {
-                  setSigTitulo(e.target.value)
-                  setSigEditada(true)
-                }}
-              />
-              <Input
-                aria-label="Fecha de la siguiente"
-                type="date"
-                value={sigFecha}
-                onChange={(e) => {
-                  setSigFecha(e.target.value)
-                  setSigEditada(true)
-                }}
-              />
-              <Input
-                aria-label="Hora de la siguiente"
-                type="time"
-                value={sigHora}
-                onChange={(e) => {
-                  setSigHora(e.target.value)
-                  setSigEditada(true)
-                }}
-              />
+            {/* Fila fecha/hora invertida: la fecha ("dd/mm/aaaa" + picker) toma
+                la columna flexible y la hora ("10:00") la fija de 96px — el
+                ancho sigue al valor de lectura de cada campo. */}
+            <div className="space-y-2">
+              <div className="grid grid-cols-[110px_1fr] gap-2">
+                <Select
+                  aria-label="Tipo de la siguiente"
+                  value={sigTipo}
+                  onChange={(e) => {
+                    if (esTipoTarea(e.target.value)) setSigTipo(e.target.value)
+                    setSigEditada(true)
+                  }}
+                >
+                  {TIPOS_TAREA.map((t) => (
+                    <option key={t.k} value={t.k}>{t.label}</option>
+                  ))}
+                </Select>
+                <Input
+                  aria-label="Título de la siguiente"
+                  value={sigTitulo}
+                  maxLength={200}
+                  onChange={(e) => {
+                    setSigTitulo(e.target.value)
+                    setSigEditada(true)
+                  }}
+                />
+              </div>
+              <div className="grid grid-cols-[1fr_96px] gap-2">
+                <Input
+                  aria-label="Fecha de la siguiente"
+                  type="date"
+                  value={sigFecha}
+                  onChange={(e) => {
+                    setSigFecha(e.target.value)
+                    setSigEditada(true)
+                  }}
+                />
+                <Input
+                  aria-label="Hora de la siguiente"
+                  type="time"
+                  value={sigHora}
+                  onChange={(e) => {
+                    setSigHora(e.target.value)
+                    setSigEditada(true)
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}
