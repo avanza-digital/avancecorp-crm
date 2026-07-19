@@ -99,6 +99,9 @@ solo porque la tabla estaba vacia.
 - acceso directo a columnas bancarias de `public.perfiles` y a
   `public.contratos` denegado para roles CRM;
 - RPC de consulta de DNI disponible para staff, no para clientes;
+- `crm.agenda_ics`: cada quien SU fila (crear/rotar token); el token es
+  privado incluso para supervisor, gerencia y lector global; sin DELETE ni
+  para el dueño; fuera de `crm.equipo` no hay feed (FK);
 - anon sin lectura de `crm` ni de datos bancarios.
 
 Cada query comprueba su objeto `error`. En negativas, solo cuentan como bloqueo

@@ -3,6 +3,7 @@
 // La service_role se usa EXCLUSIVAMENTE para validar/limpiar fixtures; todas las
 // aserciones de permisos se ejecutan con sesiones de usuario o como anon.
 
+import { randomUUID } from 'node:crypto';
 import { createClient } from '@supabase/supabase-js';
 import {
   BANK_CLIENT,
@@ -1416,6 +1417,94 @@ async function testTareaFollowsLead(sessions, seed) {
   // trigger de coherencia cancela su tarea pendiente (mismo cierre que prod).
 }
 
+async function testAgendaIcs(sessions, seed) {
+  console.log('\n— Agenda ICS: token privado por miembro —');
+  const vend1 = sessions.vend1.client;
+  const sup1 = sessions.sup1.client;
+  const gerencia = sessions.gerencia.client;
+  const directorio = sessions.directorio.client;
+  const vend1Id = seed.profileIdByKey.vend1;
+  const sup1Id = seed.profileIdByKey.sup1;
+
+  // La fila es idempotente por PK (perfil_id): la primera corrida la crea el
+  // PROPIO vend1 y las siguientes la reutilizan. No hay nada que limpiar:
+  // service_role solo tiene SELECT aqui (la edge), sin INSERT/DELETE.
+  let tokenAntes = null;
+  const propia = await positive(
+    'vend1 lee su propia fila de agenda_ics',
+    vend1.schema('crm').from('agenda_ics').select('token').eq('perfil_id', vend1Id).maybeSingle(),
+  );
+  if (propia && propia.data) {
+    tokenAntes = propia.data.token;
+  } else if (propia) {
+    const creada = await positive(
+      'vend1 crea su fila de agenda_ics',
+      vend1.schema('crm').from('agenda_ics').insert({ perfil_id: vend1Id }).select('token').single(),
+    );
+    if (creada) tokenAntes = creada.data.token;
+  }
+  check(Boolean(tokenAntes), 'la fila propia tiene token autogenerado');
+
+  // Rotar cambia el token. El uuid nuevo se genera en el cliente: PostgREST
+  // no evalua gen_random_uuid() en un UPDATE.
+  const rotada = await positive(
+    'vend1 rota su token',
+    vend1.schema('crm').from('agenda_ics')
+      .update({ token: randomUUID(), rotado_en: new Date().toISOString() })
+      .eq('perfil_id', vend1Id)
+      .select('token')
+      .single(),
+  );
+  if (rotada) {
+    check(rotada.data.token !== tokenAntes, 'la rotacion cambio el token');
+  }
+
+  // El token es privado incluso hacia ARRIBA: ni su supervisor, ni gerencia,
+  // ni el lector global lo ven (a diferencia de leads/tareas, aqui no hay
+  // visibilidad jerarquica — el feed ICS es un secreto personal).
+  await expectHidden(
+    'sup1 no ve el token de su vendedor',
+    sup1.schema('crm').from('agenda_ics').select('token').eq('perfil_id', vend1Id),
+  );
+  await expectHidden(
+    'gerencia no ve el token de vend1',
+    gerencia.schema('crm').from('agenda_ics').select('token').eq('perfil_id', vend1Id),
+  );
+  await expectHidden(
+    'directorio (lector global) no ve el token de vend1',
+    directorio.schema('crm').from('agenda_ics').select('token').eq('perfil_id', vend1Id),
+  );
+
+  // Tampoco se alcanza por escritura, y nadie crea filas a nombre de otro.
+  await expectBlockedMutation(
+    'sup1 no puede rotar el token de vend1',
+    sup1.schema('crm').from('agenda_ics')
+      .update({ rotado_en: new Date().toISOString() })
+      .eq('perfil_id', vend1Id)
+      .select('perfil_id'),
+  );
+  await expectBlockedMutation(
+    'vend1 no puede crear la fila de su supervisor',
+    vend1.schema('crm').from('agenda_ics').insert({ perfil_id: sup1Id }).select('perfil_id'),
+  );
+
+  // Sin DELETE ni para el dueno: dejar de compartir = rotar el token.
+  await expectBlockedMutation(
+    'vend1 no puede borrar ni su propia fila',
+    vend1.schema('crm').from('agenda_ics').delete().eq('perfil_id', vend1Id).select('perfil_id'),
+  );
+
+  // Fuera de crm.equipo no hay feed: el WITH CHECK deja pasar la fila propia
+  // pero la FK a crm.equipo corta (23503) — directorio no esta enrolado.
+  await expectBlockedMutation(
+    'directorio no puede crear su fila (no esta en crm.equipo)',
+    directorio.schema('crm').from('agenda_ics')
+      .insert({ perfil_id: seed.profileIdByKey.directorio })
+      .select('perfil_id'),
+    ['23503'],
+  );
+}
+
 async function testBankingBoundary(sessions, seed) {
   console.log('\n— Frontera portal/CRM y datos bancarios —');
   const vend1 = sessions.vend1.client;
@@ -1524,6 +1613,10 @@ async function testAnon(seed) {
     anon.schema('crm').from('tareas').select('id').eq('id', TAREA_BY_KEY.llamadaJuan.id),
   );
   await expectHidden(
+    'anon no lee crm.agenda_ics',
+    anon.schema('crm').from('agenda_ics').select('perfil_id').limit(1),
+  );
+  await expectHidden(
     'anon no lee datos bancarios public.perfiles',
     anon.from('perfiles').select('id, banco, numero_cuenta, cci').eq('id', bankProfileId),
   );
@@ -1558,6 +1651,7 @@ async function main() {
       await testTareaIsolation(sessions, verifiedSeed);
       await testTareaCloseRpc(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);
+      await testAgendaIcs(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }
