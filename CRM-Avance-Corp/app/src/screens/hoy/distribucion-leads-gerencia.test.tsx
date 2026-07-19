@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { hoyLimaIso, sumarDiasIso } from '@/lib/distribucion-lecturas'
 import {
   DistribucionLeadsGerencia,
   type AnalistaDistribucionLeads,
@@ -256,73 +257,98 @@ function montar(cambios: Partial<DistribucionLeadsGerenciaProps> = {}) {
   return { ...render(<DistribucionLeadsGerencia {...props} />), props }
 }
 
-describe('DistribucionLeadsGerencia', () => {
-  async function abrirAnalisis(user: ReturnType<typeof userEvent.setup>) {
-    await user.click(await screen.findByRole('button', { name: 'Abrir análisis completo' }))
-  }
+function fichaDe(nombre: string): HTMLElement {
+  return screen.getByRole('article', { name: `Ficha de ${nombre}` })
+}
 
-  it('presenta la cadena de supervisión y permite comparar carga y conversión por monto', async () => {
-    const user = userEvent.setup()
+describe('DistribucionLeadsGerencia', () => {
+  it('nivel 1: resumen en lenguaje natural con monedas separadas y avisos de atención', () => {
     montar()
 
-    expect(screen.getByRole('heading', { name: 'Supervisión de distribución' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'Equipos bajo supervisión' })).toBeInTheDocument()
-    expect(screen.getByRole('heading', { name: 'César Ruiz' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Distribución de leads' })).toBeInTheDocument()
+
     const cierresPorMoneda = screen.getByRole('group', { name: 'Cierres de venta por moneda' })
-    expect(within(cierresPorMoneda).getByText('PEN')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('Soles')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('75%')).toBeInTheDocument()
-    expect(within(cierresPorMoneda).getByText('3 ventas cerradas de 4 decisiones')).toBeInTheDocument()
-    expect(within(cierresPorMoneda).getByText('USD')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('3 ventas de 4 leads resueltos')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('Dólares')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('50%')).toBeInTheDocument()
-    expect(within(cierresPorMoneda).getByText('1 venta cerrada de 2 decisiones')).toBeInTheDocument()
+    expect(within(cierresPorMoneda).getByText('1 venta de 2 leads resueltos')).toBeInTheDocument()
 
-    await abrirAnalisis(user)
-    const matrizCarga = screen.getByRole('table', { name: /carga actual por analista/i })
-    for (const [, etiqueta] of RANGOS.slice(0, 7)) {
-      expect(within(matrizCarga).getByRole('columnheader', { name: new RegExp(etiqueta, 'i') })).toBeInTheDocument()
-    }
+    expect(screen.getByText(/2 de 6 leads atendidos a tiempo/)).toBeInTheDocument()
+    expect(screen.getByText(/lo habitual: 3 h/)).toBeInTheDocument()
 
-    expect(within(matrizCarga).getByTitle(/2 leads activos · S\/\s?1[,.]800/)).toBeInTheDocument()
-    const filaCargaAna = within(matrizCarga).getByRole('row', { name: /Ana Torres/ })
-    expect(filaCargaAna).toHaveTextContent('5 de 20')
-    expect(filaCargaAna).toHaveTextContent('15 cupos libres')
-    expect(screen.getByText(/2 de 6 leads/)).toBeInTheDocument()
-    expect(screen.getByText(/2 llevan más de 24 h sin atención/)).toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: 'Conversión por monto' }))
-    const matrizConversion = screen.getByRole('table', { name: /conversión por analista/i })
-    const filaAna = within(matrizConversion).getByRole('row', { name: /Ana Torres/ })
-    expect(within(filaAna).getByText('75%')).toBeInTheDocument()
-    expect(within(filaAna).getByText('1 de 2')).toBeInTheDocument()
-
-    const filaBruno = within(matrizConversion).getByRole('row', { name: /Bruno Díaz/ })
-    expect(within(filaBruno).getAllByText('Sin casos')).toHaveLength(7)
+    expect(screen.getByRole('heading', { name: 'Lo que merece tu atención' })).toBeInTheDocument()
+    expect(
+      screen.getByText('2 leads llevan más de 24 horas sin primera atención.'),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByText('1 lead sin responsable espera directamente a Gerencia.'),
+    ).toBeInTheDocument()
+    expect(screen.getByText('La bandeja de César Ruiz tiene 1 lead por asignar.')).toBeInTheDocument()
+    expect(screen.getByText('Ana Torres tiene 1 lead sin atender.')).toBeInTheDocument()
+    expect(
+      screen.getByText('2 leads están sin avance según los plazos de su etapa.'),
+    ).toBeInTheDocument()
   })
 
-  it('valida el período antes de pedir una nueva cohorte', async () => {
+  it('nivel 2: tarjetas por analista con cartera, resultados y quien no recibe al final', () => {
+    montar()
+
+    const ana = fichaDe('Ana Torres')
+    expect(ana).toHaveTextContent('5 de 20 leads')
+    expect(ana).toHaveTextContent('15 cupos libres')
+    expect(ana).toHaveTextContent('Recibió 9 leads en el período')
+    expect(ana).toHaveTextContent('Cierra el 75% de lo que resuelve en soles (3 de 4)')
+    expect(ana).toHaveTextContent('en dólares: 50% (1 de 2)')
+    expect(ana).toHaveTextContent('24 h: 75% (3 de 4)')
+    expect(ana).toHaveTextContent('1 sin atender')
+    expect(ana).toHaveTextContent('2 sin avance')
+    expect(ana).toHaveTextContent('S/ 12,000 en soles · US$ 8,000 en dólares')
+    expect(ana).toHaveTextContent('Salidas del período: 1 transferido · 0 parqueados')
+
+    const bruno = fichaDe('Bruno Díaz')
+    expect(bruno).toHaveTextContent('No recibe por ahora')
+    expect(bruno).toHaveTextContent('sin límite definido')
+    expect(bruno).toHaveTextContent('Aún sin ventas ni descartes en soles')
+    expect(bruno).toHaveTextContent('24 h: aún sin medición')
+
+    // Orden por cupos: quien no recibe va al final, con el criterio declarado.
+    const fichas = screen.getAllByRole('article', { name: /^Ficha de/ })
+    expect(fichas.map((ficha) => ficha.getAttribute('aria-label'))).toEqual([
+      'Ficha de Ana Torres',
+      'Ficha de Bruno Díaz',
+    ])
+    expect(screen.getByText(/quien no recibe leads va al final/i)).toBeInTheDocument()
+    expect(screen.getByLabelText('Ordenar por')).toBeInTheDocument()
+  })
+
+  it('período: los atajos piden la cohorte de un clic y el personalizado valida fechas', async () => {
     const user = userEvent.setup()
     const onCambiarPeriodo = vi.fn()
     montar({ onCambiarPeriodo })
 
+    const hoy = hoyLimaIso()
+    await user.click(screen.getByRole('button', { name: 'Últimos 90 días' }))
+    expect(onCambiarPeriodo).toHaveBeenCalledWith(sumarDiasIso(hoy, -89), hoy)
+
+    // Las fechas del fixture no calzan con ningún atajo: el formulario está a mano.
     await user.clear(screen.getByLabelText('Desde'))
     await user.type(screen.getByLabelText('Desde'), '2026-07-18')
     await user.click(screen.getByRole('button', { name: 'Aplicar' }))
-
     expect(screen.getByRole('alert')).toHaveTextContent('La fecha Desde no puede ser posterior')
-    expect(onCambiarPeriodo).not.toHaveBeenCalled()
+    expect(onCambiarPeriodo).toHaveBeenCalledTimes(1)
 
     await user.clear(screen.getByLabelText('Desde'))
     await user.type(screen.getByLabelText('Desde'), '2026-07-01')
     await user.click(screen.getByRole('button', { name: 'Aplicar' }))
-
     expect(onCambiarPeriodo).toHaveBeenCalledWith('2026-07-01', '2026-07-17')
   })
 
-  it('edita capacidad inline solo para quien puede recibir leads', async () => {
+  it('edita el límite de cartera desde la tarjeta, solo para quien puede recibir', async () => {
     const user = userEvent.setup()
     const onEditarCapacidad = vi.fn().mockResolvedValue(undefined)
     montar({ onEditarCapacidad })
-    await abrirAnalisis(user)
 
     expect(
       screen.queryByRole('button', { name: 'Editar límite de cartera de Bruno Díaz' }),
@@ -338,11 +364,10 @@ describe('DistribucionLeadsGerencia', () => {
     expect(screen.queryByLabelText('Límite de cartera para Ana Torres')).not.toBeInTheDocument()
   })
 
-  it('rechaza una capacidad fuera del contrato y permite quitar el objetivo con vacío', async () => {
+  it('rechaza una capacidad fuera del contrato y permite quitar el límite con vacío', async () => {
     const user = userEvent.setup()
     const onEditarCapacidad = vi.fn().mockResolvedValue(undefined)
     montar({ onEditarCapacidad })
-    await abrirAnalisis(user)
 
     await user.click(screen.getByRole('button', { name: 'Editar límite de cartera de Ana Torres' }))
     const input = screen.getByLabelText('Límite de cartera para Ana Torres')
@@ -361,7 +386,6 @@ describe('DistribucionLeadsGerencia', () => {
     const user = userEvent.setup()
     const onEditarCapacidad = vi.fn().mockRejectedValue(new Error('Failed to fetch: detalle técnico'))
     montar({ onEditarCapacidad })
-    await abrirAnalisis(user)
 
     await user.click(screen.getByRole('button', { name: 'Editar límite de cartera de Ana Torres' }))
     const input = screen.getByLabelText('Límite de cartera para Ana Torres')
@@ -375,20 +399,80 @@ describe('DistribucionLeadsGerencia', () => {
     expect(screen.queryByText(/Failed to fetch/)).not.toBeInTheDocument()
   })
 
-  it('separa USD, muestra las dos clases de cola y solo revela sin monto como calidad', async () => {
+  it('asistente de reparto: candidatos con espacio por monto elegido y dólares sin rangos', async () => {
     const user = userEvent.setup()
+    montar()
+
+    const asistente = screen
+      .getByRole('heading', { name: '¿Vas a repartir un lead?' })
+      .closest('section')
+    if (!asistente) throw new Error('No se encontró la sección del asistente')
+
+    // Rango inicial: "Hasta S/ 1 mil" — Ana cierra 1 de 2 y tiene 2 activos allí.
+    expect(within(asistente).getByText('Ana Torres')).toBeInTheDocument()
+    expect(within(asistente).getByText(/15 cupos libres/)).toBeInTheDocument()
+    expect(
+      within(asistente).getByText(/Cierra el 50% con este monto \(1 de 2\)/),
+    ).toBeInTheDocument()
+    expect(within(asistente).getByText(/hoy tiene 2 con este monto/)).toBeInTheDocument()
+    // Bruno no recibe: no compite, se informa aparte.
+    expect(within(asistente).queryByText('Bruno Díaz')).not.toBeInTheDocument()
+    expect(
+      within(asistente).getByText(/1 analista no recibe leads por ahora/),
+    ).toBeInTheDocument()
+
+    // Otro rango sin historia: honestidad sin porcentajes inventados.
+    await user.selectOptions(within(asistente).getByLabelText('Monto del lead'), 'pen_mas_100000')
+    expect(within(asistente).getByText(/Sin resultados con este monto aún/)).toBeInTheDocument()
+
+    // Dólares: sin selector de rango y con su propia lectura.
+    await user.selectOptions(within(asistente).getByLabelText('Moneda'), 'USD')
+    expect(within(asistente).queryByLabelText('Monto del lead')).not.toBeInTheDocument()
+    expect(within(asistente).getByText(/aún no tienen rangos aprobados/)).toBeInTheDocument()
+    expect(within(asistente).getByText(/Cierra el 50% en dólares \(1 de 2\)/)).toBeInTheDocument()
+  })
+
+  it('tabla por rangos bajo demanda: cartera y recibidos juntos, y conversión por monto', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    expect(
+      screen.queryByRole('region', { name: 'Analistas por rango de monto en soles' }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Ver tabla completa por rangos' }))
+
+    const region = screen.getByRole('region', { name: 'Analistas por rango de monto en soles' })
+    const tablaCarga = within(region).getByRole('table', { name: /carga actual por analista/i })
+    for (const [, etiqueta] of RANGOS.slice(0, 7)) {
+      expect(
+        within(tablaCarga).getByRole('columnheader', { name: new RegExp(etiqueta, 'i') }),
+      ).toBeInTheDocument()
+    }
+    expect(within(tablaCarga).getByTitle(/2 leads activos · S\/\s?1[,.]800/)).toBeInTheDocument()
+    const filaAna = within(tablaCarga).getByRole('row', { name: /Ana Torres/ })
+    expect(filaAna).toHaveTextContent('recibió 3')
+
+    await user.click(screen.getByRole('button', { name: 'Conversión por monto' }))
+    const tablaConversion = within(region).getByRole('table', {
+      name: /conversión por analista/i,
+    })
+    const filaConversion = within(tablaConversion).getByRole('row', { name: /Ana Torres/ })
+    expect(within(filaConversion).getByText('1 de 2')).toBeInTheDocument()
+    const filaBruno = within(tablaConversion).getByRole('row', { name: /Bruno Díaz/ })
+    expect(within(filaBruno).getAllByText('Sin casos')).toHaveLength(7)
+  })
+
+  it('separa colas de Gerencia y bandejas, y solo revela sin monto como calidad', () => {
     const datosConCalidad: MetricasDistribucionLeads = {
       ...DATOS,
       calidad: { ...DATOS.calidad, episodios_sin_monto_cohorte: 1 },
     }
     montar({ datos: datosConCalidad })
-    await abrirAnalisis(user)
 
-    expect(screen.getByRole('heading', { name: 'Cierres y carga en dólares' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Pendientes de Gerencia' })).toBeInTheDocument()
     expect(screen.getByRole('article', { name: 'Pendientes de César Ruiz' })).toBeInTheDocument()
     expect(screen.getByText('Aviso sobre los datos')).toBeInTheDocument()
-    expect(screen.getByText(/1 registros no tienen monto/)).toBeInTheDocument()
+    expect(screen.getByText(/1 registro no tiene monto/)).toBeInTheDocument()
   })
 
   it('cubre carga, fallo y ausencia honesta de respuesta sin asumir un arreglo', async () => {
@@ -420,5 +504,89 @@ describe('DistribucionLeadsGerencia', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(onReintentar).toHaveBeenCalledTimes(1)
+  })
+
+  it('en demo etiqueta los datos como ficticios', () => {
+    montar({ modoDemo: true })
+    expect(screen.getByText('Datos ficticios de demostración')).toBeInTheDocument()
+    expect(
+      screen.getByText(/No representan información real de la empresa/),
+    ).toBeInTheDocument()
+  })
+})
+
+describe('DistribucionLeadsGerencia con equipos grandes (2 supervisores × 9 analistas)', () => {
+  function analistaGrande(
+    indice: number,
+    supervisor: { id: string; nombre: string },
+  ): AnalistaDistribucionLeads {
+    return {
+      ...ANA,
+      analista_id: `analista-${String(indice).padStart(2, '0')}`,
+      nombre: `Vendedor ${String(indice).padStart(2, '0')}`,
+      supervisor_id: supervisor.id,
+      supervisor_nombre: supervisor.nombre,
+      capacidad: {
+        objetivo: 10,
+        carga_activa: indice % 10,
+        carga_pen: indice % 10,
+        carga_usd: 0,
+      },
+    }
+  }
+
+  const DATOS_GRANDES: MetricasDistribucionLeads = {
+    ...DATOS,
+    analistas: [
+      ...Array.from({ length: 9 }, (_, i) =>
+        analistaGrande(i + 1, { id: 'sup-1', nombre: 'Sofía Uno' })),
+      ...Array.from({ length: 9 }, (_, i) =>
+        analistaGrande(i + 10, { id: 'sup-2', nombre: 'Marco Dos' })),
+    ],
+  }
+
+  it('presenta tarjetas de equipo con agregados y recorta el primer vistazo a 6 analistas', async () => {
+    const user = userEvent.setup()
+    montar({ datos: DATOS_GRANDES })
+
+    const filtro = screen.getByRole('group', { name: 'Filtrar por equipo' })
+    const todos = within(filtro).getByRole('button', { name: /Todos los equipos/ })
+    expect(todos).toHaveAttribute('aria-pressed', 'true')
+    expect(todos).toHaveTextContent('18 analistas')
+    const sofia = within(filtro).getByRole('button', { name: /Equipo de Sofía Uno/ })
+    expect(sofia).toHaveTextContent('9 analistas')
+    expect(sofia).toHaveTextContent('45 de 90 leads · 45 cupos libres')
+
+    expect(screen.getAllByRole('article', { name: /^Ficha de/ })).toHaveLength(6)
+    await user.click(screen.getByRole('button', { name: 'Mostrar los 12 analistas restantes' }))
+    expect(screen.getAllByRole('article', { name: /^Ficha de/ })).toHaveLength(18)
+    expect(screen.getByRole('button', { name: 'Mostrar menos' })).toBeInTheDocument()
+  })
+
+  it('al filtrar por un equipo muestra sus 6 primeros y expande los 3 restantes', async () => {
+    const user = userEvent.setup()
+    montar({ datos: DATOS_GRANDES })
+
+    await user.click(screen.getByRole('button', { name: /Equipo de Sofía Uno/ }))
+    expect(screen.getAllByRole('article', { name: /^Ficha de/ })).toHaveLength(6)
+    await user.click(screen.getByRole('button', { name: 'Mostrar los 3 analistas restantes' }))
+    expect(screen.getAllByRole('article', { name: /^Ficha de/ })).toHaveLength(9)
+  })
+
+  it('el asistente lista 5 candidatos y expande el resto bajo demanda', async () => {
+    const user = userEvent.setup()
+    montar({ datos: DATOS_GRANDES })
+
+    const asistente = screen
+      .getByRole('heading', { name: '¿Vas a repartir un lead?' })
+      .closest('section')
+    if (!asistente) throw new Error('No se encontró la sección del asistente')
+
+    expect(within(asistente).getAllByRole('listitem')).toHaveLength(5)
+    await user.click(
+      within(asistente).getByRole('button', { name: 'Ver los 13 candidatos restantes' }),
+    )
+    expect(within(asistente).getAllByRole('listitem')).toHaveLength(18)
+    expect(within(asistente).getByRole('button', { name: 'Ver menos' })).toBeInTheDocument()
   })
 })
