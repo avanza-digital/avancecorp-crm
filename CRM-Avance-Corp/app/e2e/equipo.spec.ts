@@ -46,7 +46,7 @@ test('demo gerencia: un bloque por supervisor con la TABLA comparativa de vended
 
   // Refactor de comodidad (2026-07-18): PRIMERO la tabla comparativa de
   // supervisores; el detalle por equipo se abre BAJO DEMANDA (patrón
-  // "supervisores primero" de Supervisión de distribución).
+  // detalle-bajo-demanda, como la tabla por rangos de Distribución de leads).
   await expect(page.getByRole('heading', { name: 'Comparativa de equipos' })).toBeVisible()
   await expect(page.getByRole('row', { name: /SUPERVISOR UNO/ })).toBeVisible()
   const filaSup2 = page.getByRole('row', { name: /SUPERVISOR DOS/ })

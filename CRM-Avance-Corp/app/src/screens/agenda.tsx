@@ -1020,7 +1020,7 @@ export function Agenda() {
 
           {/* Supervisión: agrupado por PERSONA (vencidas y carga primero),
               colapsado a resumen — el detalle se abre solo cuando hace falta,
-              igual que en Supervisión de distribución. */}
+              igual que la tabla por rangos de Distribución de leads. */}
           {verEquipo &&
             gruposPersona.map((g) => {
               const abierto = personasAbiertas.has(g.id)
