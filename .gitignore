@@ -38,3 +38,6 @@ tmp/
 
 # Superpowers brainstorming (mockups locales)
 .superpowers/
+
+# --- Artefactos de sesiones de browser-automation (capturas/dumps efímeros) ---
+.playwright-mcp/
