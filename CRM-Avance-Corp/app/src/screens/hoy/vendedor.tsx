@@ -15,6 +15,7 @@ import {
   FileText,
   MessageCircle,
   Phone,
+  Plus,
   Sparkles,
   Target,
   TrendingUp,
@@ -26,8 +27,10 @@ import {
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { SectionHead } from '@/components/common/section-head'
+import { PanelVacio } from '@/components/common/estado-panel'
 import { KpiCard } from '@/components/common/kpi-card'
 import { AnimatedValue } from '@/components/common/animated-value'
 import { AccionesContacto } from '@/components/app/contacto'
@@ -182,6 +185,12 @@ const ICONO_EVENTO: Record<string, LucideIcon> = {
 // El orden ES el timestamp: vence_en asc pone las VENCIDAS primero (regla de
 // la investigación: nadie esconde vencidas) y el resto cronológico.
 
+// Fila base COMÚN de agenda/cola/higiene/amarillos: mismo ritmo vertical
+// (p-2.5 · rounded-lg · título text-sm) entre las dos tarjetas vecinas — cada
+// fila solo varía su ancla izquierda (hora vs dot) y su metadato derecho.
+const FILA_BASE =
+  'group flex cursor-pointer items-center gap-3 rounded-lg p-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40'
+
 /** Una cita de la agenda: hora (ancla) + tipo + título + CAPITAL en juego. */
 function FilaAgenda({
   ev,
@@ -209,7 +218,7 @@ function FilaAgenda({
           abrir()
         }
       }}
-      className="group flex cursor-pointer items-center gap-3 rounded-xl p-2.5 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      className={FILA_BASE}
     >
       {/* Hora — el ancla del día */}
       <div className="w-12 shrink-0 text-center leading-none">
@@ -226,7 +235,7 @@ function FilaAgenda({
         <Icono aria-hidden />
       </span>
       <div className="min-w-0 flex-1 leading-tight">
-        <p className="truncate text-[13px] font-semibold">{ev.titulo}</p>
+        <p className="truncate text-sm font-semibold">{ev.titulo}</p>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
@@ -311,6 +320,16 @@ function AgendaHoy({
   const ordenados = [...eventos].sort((a, b) => a.vence_en.localeCompare(b.vence_en))
   const nHoy = eventos.filter((e) => e.cuando.startsWith('Hoy')).length
   const nVence = eventos.filter((e) => e.vencida).length
+  // Vencidas como GRUPO (inocultables, pero sin robarle protagonismo a HOY):
+  // franja ámbar arriba con las más viejas + capital en juego; debajo la
+  // cronología limpia del día con su hora como ancla.
+  const vencidas = ordenados.filter((e) => e.vencida)
+  const alDia = ordenados.filter((e) => !e.vencida)
+  const VENCIDAS_VISIBLES = 3
+  const leadsVencidos = Array.from(new Set(vencidas.map((e) => e.lead_id)))
+    .map(leadPorId)
+    .filter((l): l is Lead => l != null)
+  const { pen: penVenc, usd: usdVenc } = capitalPorMoneda(leadsVencidos)
   // Capital en juego HOY = citas de hoy + vencidas que siguen esperando
   // (dedupe por lead; PEN y USD SIEMPRE por separado).
   const leadsHoy = Array.from(new Set(
@@ -346,11 +365,54 @@ function AgendaHoy({
                 {usd > 0 && <span className="font-bold tabular-nums text-primary">· {money(usd, 'USD')}</span>}
               </div>
             )}
-            {/* Citas centradas en el alto disponible → llenan la tarjeta sin hueco. */}
-            <div className="flex flex-1 flex-col justify-center gap-1.5">
-              {ordenados.map((ev) => (
+            {/* Vencidas agrupadas: presionan sin mezclarse con la cronología. */}
+            {vencidas.length > 0 && (
+              <div className="mb-3 space-y-1 rounded-lg bg-warning/10 p-1.5">
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-1.5 pt-1 text-xs">
+                  <AlertTriangle className="size-4 shrink-0 text-warning" aria-hidden />
+                  <Badge color={SEMAFORO.atencion}>
+                    {vencidas.length} {vencidas.length === 1 ? 'vencida' : 'vencidas'}
+                  </Badge>
+                  {(penVenc > 0 || usdVenc > 0) && (
+                    <span className="font-semibold tabular-nums text-muted-foreground">
+                      {penVenc > 0 && money(penVenc)}
+                      {penVenc > 0 && usdVenc > 0 && ' + '}
+                      {usdVenc > 0 && money(usdVenc, 'USD')} en juego
+                    </span>
+                  )}
+                </div>
+                {vencidas.slice(0, VENCIDAS_VISIBLES).map((ev) => (
+                  <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} onCompletar={onCompletar} />
+                ))}
+                {vencidas.length > VENCIDAS_VISIBLES && (
+                  <p className="px-2.5 pb-1 text-[11px] text-muted-foreground">
+                    +{vencidas.length - VENCIDAS_VISIBLES} más vencidas — ciérralas o reprográmalas desde Agenda.
+                  </p>
+                )}
+              </div>
+            )}
+            {/* Cronología de HOY anclada arriba: ancla de lectura estable; el
+                remanente se llena con un pie accionable de bajo peso, no con aire. */}
+            <div className="flex flex-1 flex-col justify-start gap-1.5">
+              {alDia.map((ev) => (
                 <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} onCompletar={onCompletar} />
               ))}
+              {alDia.length <= 2 && (
+                <div className="mt-auto flex flex-col items-center gap-1 pb-2 pt-6 text-center">
+                  <p className="text-xs text-muted-foreground">
+                    {alDia.length === 0 ? 'Sin citas para hoy' : 'Día con espacio'} — agenda la
+                    siguiente acción desde la ficha de un lead.
+                  </p>
+                  {(nReuniones > 0 || nPropuestas > 0) && (
+                    <p className="text-[11px] font-semibold text-foreground/70">
+                      {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'reunión agendada' : 'reuniones agendadas'}`}
+                      {nReuniones > 0 && nPropuestas > 0 && ' · '}
+                      {nPropuestas > 0 &&
+                        `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
           </>
         )}
@@ -363,7 +425,7 @@ function AgendaHoy({
 
 export function HoyVendedor(): JSX.Element {
   const { ambito, actividades, agenda: agendaGlobal, tareas, objetivos, reprogramarTarea } = useCRMData()
-  const { abrirLead } = usePanelesActions()
+  const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const { yo } = useAuth()
   // Motor (Fase B): tarea seleccionada para cerrar desde la agenda héroe.
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
@@ -432,6 +494,12 @@ export function HoyVendedor(): JSX.Element {
   )
   const amarillos = itemsHigiene.filter((i): i is Extract<ItemHigiene, { k: 'sin_accion' }> => i.k === 'sin_accion')
   const AMARILLOS_VISIBLES = 8
+  // La cola también se capa (mismo patrón que los amarillos): colaDe ya ordena
+  // por severidad, así que los primeros N son la plata y el resto va a Cartera.
+  const COLA_VISIBLES = 7
+  // Conteo por severidad para el mini-resumen de la cola (rojo/ámbar/azul).
+  const porSev = { critica: 0, media: 0, baja: 0 }
+  for (const i of colaVisible) porSev[i.sev] += 1
   const nCola = colaVisible.length + (higiene ? itemsHigiene.length : 0)
   // Lookup de lead por id (capital en juego de cada cita) + señales reales para
   // el vacío honesto de la agenda (mientras no exista calendario real).
@@ -450,41 +518,73 @@ export function HoyVendedor(): JSX.Element {
         </p>
       </div>
 
-      {/* KPIs personales — capital PEN con el USD aparte (nunca sumados) */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <KpiCard
-          label="Capital en proceso"
-          value={money(capPEN)}
-          icon={Wallet}
-          color="#2563eb"
-          sub={capUSD > 0 ? `Pipeline activo (PEN) · +${moneyK(capUSD, 'USD')} aparte` : 'Pipeline activo (PEN)'}
-          delay={0}
-        />
-        <KpiCard
-          label="Leads activos"
-          value={String(abiertos.length)}
-          icon={Users}
-          color="#7c3aed"
-          sub="Abiertos en tu cartera"
-          delay={60}
-        />
-        <KpiCard
-          label="Propuestas enviadas"
-          value={String(propuestas.length)}
-          icon={FileText}
-          color="#d97706"
-          sub="Esperando respuesta del cliente"
-          delay={120}
-        />
-        <KpiCard
-          label="Convertidos"
-          value={String(convertidos.length)}
-          icon={Trophy}
-          color="#111e3d"
-          sub="Histórico · clientes ganados"
-          delay={180}
-        />
-      </div>
+      {/* KPIs personales — capital PEN con el USD aparte (nunca sumados).
+          Sin cartera NO pintamos una fila de ceros extrabold: vacío honesto que
+          encamina a la acción real (pedir asignación o registrar el primer lead). */}
+      {mios.length === 0 ? (
+        <Card>
+          <PanelVacio
+            icono={Users}
+            titulo="Aún no tienes leads en tu cartera"
+            detalle="Pídele asignación a tu supervisor o registra tu primer lead — tus KPIs aparecerán aquí en cuanto tengas cartera."
+          >
+            <Button variant="accent" size="sm" onClick={() => abrirNuevoLead()}>
+              <Plus aria-hidden /> Registrar mi primer lead
+            </Button>
+          </PanelVacio>
+        </Card>
+      ) : (
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+          <KpiCard
+            label="Capital en proceso"
+            value={money(capPEN)}
+            icon={Wallet}
+            color="#2563eb"
+            sub={
+              capUSD > 0
+                ? `Pipeline activo (PEN) · +${moneyK(capUSD, 'USD')} aparte`
+                : capPEN === 0 && abiertos.length > 0
+                  ? 'Sin montos estimados — complétalos en cada ficha'
+                  : 'Pipeline activo (PEN)'
+            }
+            delay={0}
+          />
+          <KpiCard
+            label="Leads activos"
+            value={String(abiertos.length)}
+            icon={Users}
+            color="#7c3aed"
+            sub="Abiertos en tu cartera"
+            delay={60}
+          />
+          <KpiCard
+            label="Propuestas enviadas"
+            value={String(propuestas.length)}
+            icon={FileText}
+            color="#d97706"
+            sub={
+              propuestas.length > 0
+                ? 'Esperando respuesta del cliente'
+                : abiertos.length > 0
+                  ? 'Ninguna en la calle — revisa tus reuniones'
+                  : 'Sin leads abiertos por ahora'
+            }
+            delay={120}
+          />
+          <KpiCard
+            label="Convertidos"
+            value={String(convertidos.length)}
+            icon={Trophy}
+            color="#111e3d"
+            sub={
+              convertidos.length > 0
+                ? 'Histórico · clientes ganados'
+                : 'Aún sin cierres — tu primera venta sale de la cola'
+            }
+            delay={180}
+          />
+        </div>
+      )}
 
       {/* Héroe + cola — lógica comercial: la AGENDA (dónde estar / qué vence hoy)
           manda el día del vendedor; la cola es a quién perseguir en los huecos. */}
@@ -535,9 +635,34 @@ export function HoyVendedor(): JSX.Element {
               </div>
             ) : (
               <>
-                {colaVisible.map((item) => (
+                {/* Mini-resumen por severidad: la respuesta a "¿cómo viene mi
+                    cola?" antes de bajar a las filas (rojo/ámbar/azul, sin verde). */}
+                {colaVisible.length > 1 && (
+                  <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted/50 px-3 py-2 text-[11px]">
+                    {(['critica', 'media', 'baja'] as const).map(
+                      (sev) =>
+                        porSev[sev] > 0 && (
+                          <span key={sev} className="inline-flex items-center gap-1.5 font-semibold text-foreground/80">
+                            <span className="size-2 shrink-0 rounded-full" style={{ background: SEV_COLOR[sev] }} aria-hidden />
+                            <span className="tabular-nums">{porSev[sev]}</span>{' '}
+                            {sev === 'critica'
+                              ? porSev.critica === 1 ? 'crítica' : 'críticas'
+                              : sev === 'media'
+                                ? porSev.media === 1 ? 'media' : 'medias'
+                                : porSev.baja === 1 ? 'baja' : 'bajas'}
+                          </span>
+                        ),
+                    )}
+                  </div>
+                )}
+                {colaVisible.slice(0, COLA_VISIBLES).map((item) => (
                   <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />
                 ))}
+                {colaVisible.length > COLA_VISIBLES && (
+                  <p className="px-2 text-[11px] text-muted-foreground">
+                    +{colaVisible.length - COLA_VISIBLES} más en cola — trabájalos desde Cartera.
+                  </p>
+                )}
                 {tareasHigiene.map((item) => (
                   <FilaHigiene
                     key={item.tarea.id}
@@ -664,7 +789,9 @@ function FilaCola({
   const cronometro = minutos != null && minutos < 24 * 60
     ? {
         texto: minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)} h ${minutos % 60} m`,
-        color: minutos <= 5 ? '#16a34a' : minutos <= 15 ? '#d97706' : '#dc2626',
+        // Escala de la casa (semáforo sin verde): "aún a tiempo" = azul ok, no
+        // verde — el verde queda reservado a WhatsApp/éxito.
+        color: minutos <= 5 ? SEMAFORO.ok : minutos <= 15 ? SEMAFORO.atencion : SEMAFORO.critico,
       }
     : null
   return (
@@ -679,7 +806,9 @@ function FilaCola({
           abrir()
         }
       }}
-      className="group flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      // Fondo tenue rojo SOLO en la fila crítica: el ojo aterriza primero en el
+      // speed-to-lead (lo que genera ingreso), el resto de filas quedan planas.
+      className={`${FILA_BASE}${item.sev === 'critica' ? ' bg-destructive/5' : ''}`}
     >
       <span className="size-2.5 shrink-0 rounded-full" style={{ background: c }} aria-hidden />
       <div className="min-w-0 flex-1 leading-tight">
@@ -755,7 +884,7 @@ function FilaHigiene({
           abrir()
         }
       }}
-      className="group flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      className={FILA_BASE}
     >
       <span className="size-2.5 shrink-0 rounded-full" style={{ background: c }} aria-hidden />
       <div className="min-w-0 flex-1 leading-tight">
@@ -820,7 +949,7 @@ function FilaAmarillo({ lead, abrirLead }: { lead: Lead; abrirLead: (id: string)
           abrir()
         }
       }}
-      className="group flex cursor-pointer items-center gap-3 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      className={FILA_BASE}
     >
       <span className="size-2.5 shrink-0 rounded-full" style={{ background: SEMAFORO.atencion }} aria-hidden />
       <div className="min-w-0 flex-1 leading-tight">

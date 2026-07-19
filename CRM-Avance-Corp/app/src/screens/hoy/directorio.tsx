@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge'
 import { Avatar } from '@/components/ui/avatar'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
+import { SegmentBar } from '@/components/common/stat-strip'
 import { Donut } from '@/components/common/donut'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import {
@@ -207,32 +208,33 @@ export function HoyDirectorio(): JSX.Element {
               </span>
             }
           />
-          <CardContent className="space-y-3.5">
-            {(() => {
-              const maxN = Math.max(1, ...r.etapas.map((e) => e.n))
-              return r.etapas.map((e) => {
-                const info = ETAPA_INFO[e.etapa]
-                return (
-                  <div key={e.etapa}>
-                    <div className="mb-1 flex items-baseline justify-between gap-2 text-sm">
-                      <span className="font-semibold text-foreground/85">{info.label}</span>
-                      <span className="tabular-nums text-muted-foreground">
-                        <span className="font-bold text-foreground">{e.n}</span> · {e.pctDelTotal}%
-                      </span>
-                    </div>
-                    <div className="h-2.5 overflow-hidden rounded-full bg-muted">
-                      <div
-                        className="h-full rounded-full transition-[width] duration-500 ease-out"
-                        style={{ width: `${(e.n / maxN) * 100}%`, background: info.color }}
-                      />
-                    </div>
-                  </div>
-                )
-              })
-            })()}
-            <p className="pt-1 text-[11px] text-muted-foreground">
-              Solo etapas de trabajo — convertidos y descartados se auditan aparte.
-            </p>
+          {/* Misma pieza de la casa (SegmentBar) que "Estado de los leads" en
+              Gerencia y "Distribución por etapa" en Cartera — pantallas hermanas
+              idénticas, distribución legible de un vistazo. */}
+          <CardContent className="space-y-3">
+            {r.etapas.some((e) => e.n > 0) ? (
+              <>
+                <SegmentBar
+                  segments={r.etapas.map((e) => {
+                    const info = ETAPA_INFO[e.etapa]
+                    return {
+                      label: info.label,
+                      value: e.n,
+                      color: info.color,
+                      valTxt: `${e.n} · ${e.pctDelTotal}%`,
+                    }
+                  })}
+                />
+                <p className="pt-1 text-[11px] text-muted-foreground">
+                  Solo etapas de trabajo — convertidos y descartados se auditan aparte.
+                </p>
+              </>
+            ) : (
+              <p className="py-4 text-center text-xs text-muted-foreground">
+                No hay leads abiertos por ahora — cuando ingresen nuevos leads verás aquí su
+                distribución por etapa.
+              </p>
+            )}
           </CardContent>
         </Card>
 

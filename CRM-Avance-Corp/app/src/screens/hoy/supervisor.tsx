@@ -48,7 +48,13 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
 import { useMetricasAgenda } from '@/data/crm-queries'
 import { money, moneyK } from '@/lib/format'
+import { cn } from '@/lib/utils'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
+
+// Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
+// severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
+// equipo (montada debajo) no quede varios pantallazos abajo.
+const COLA_VISIBLES = 8
 
 /** Semáforo por días sin actividad: azul <2 · ámbar 2–5 · rojo >5. */
 function semaforoDias(d: number): string {
@@ -58,7 +64,7 @@ function semaforoDias(d: number): string {
 }
 
 export function HoySupervisor(): JSX.Element {
-  const { ambito, actividades, tareas, reasignar, objetivos } = useCRMData()
+  const { ambito, actividades, tareas, reasignar, objetivos, equipo } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
@@ -66,6 +72,8 @@ export function HoySupervisor(): JSX.Element {
   const ahora = useAhora()
   // Vendedor elegido en el select de cada lead parkeado (leadId → perfil_id).
   const [sel, setSel] = useState<Record<string, string>>({})
+  // Cola del equipo expandida más allá del tope de COLA_VISIBLES.
+  const [colaExpandida, setColaExpandida] = useState(false)
 
   const d = useMemo(() => {
     const abiertos = ambito.leads.filter(
@@ -118,6 +126,13 @@ export function HoySupervisor(): JSX.Element {
       : null
   const cargandoAgenda =
     sesionReal && (consultaAgenda.isPending || consultaAgenda.isFetching)
+  // Rezagos de agenda por miembro (vendedor_id → métrica) para que la señal de
+  // vencidas / sin acción / no-shows viva DENTRO de la fila de "Tu equipo hoy":
+  // la persona se juzga en un solo lugar, sin cruzar a la tabla de la izquierda.
+  const rezagosAgenda = useMemo(
+    () => new Map((datosAgenda?.vendedores ?? []).map((v) => [v.vendedor_id, v] as const)),
+    [datosAgenda],
+  )
 
   /** Asigna un parkeado al vendedor elegido en su select. */
   const asignar = (l: Lead) => {
@@ -261,7 +276,7 @@ export function HoySupervisor(): JSX.Element {
               <div className="divide-y divide-border/60 border-t border-border/60">
                 {/* Fila = div role="button" (no <button>: contiene los links de
                     AccionesContacto y un botón no puede anidar interactivos). */}
-                {d.cola.map((i) => {
+                {(colaExpandida ? d.cola : d.cola.slice(0, COLA_VISIBLES)).map((i) => {
                   const abrir = () => abrirLead(i.lead.id)
                   return (
                     <div
@@ -310,6 +325,22 @@ export function HoySupervisor(): JSX.Element {
                     </div>
                   )
                 })}
+                {d.cola.length > COLA_VISIBLES && (
+                  <button
+                    type="button"
+                    onClick={() => setColaExpandida((e) => !e)}
+                    aria-expanded={colaExpandida}
+                    className="flex w-full cursor-pointer items-center justify-center gap-1 px-5 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:outline-none"
+                  >
+                    <ChevronRight
+                      className={cn('size-3.5 shrink-0 transition-transform', colaExpandida && 'rotate-90')}
+                      aria-hidden
+                    />
+                    {colaExpandida
+                      ? `Mostrar solo los ${COLA_VISIBLES} más urgentes`
+                      : `Ver los ${d.cola.length} pendientes`}
+                  </button>
+                )}
               </div>
             )}
           </Card>
@@ -323,6 +354,7 @@ export function HoySupervisor(): JSX.Element {
             onReintentar={() => {
               if (sesionReal) void consultaAgenda.refetch()
             }}
+            equipo={equipo}
           />
         </div>
         <div className="space-y-4 lg:col-span-2">
@@ -337,6 +369,11 @@ export function HoySupervisor(): JSX.Element {
               <div className="divide-y divide-border/60 border-t border-border/60">
                 {d.rank.map((r) => {
                   const c = semaforoDias(r.diasSinActividadMax)
+                  // Rezago de agenda del miembro (mismos umbrales del panel
+                  // Agenda del equipo: ámbar por rezago, rojo solo no-shows ≥2).
+                  const rez = rezagosAgenda.get(r.m.perfil_id)
+                  const conRezago =
+                    rez != null && (rez.no_asistio >= 2 || rez.vencidas > 0 || rez.leads_sin_accion > 0)
                   return (
                     <div key={r.m.perfil_id} className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
@@ -359,13 +396,28 @@ export function HoySupervisor(): JSX.Element {
                           )}
                         </div>
                       </div>
-                      <div className="mt-1.5 flex items-center gap-1.5 pl-[46px]">
+                      <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[46px]">
                         <span className="size-2 shrink-0 rounded-full" style={{ background: c }} aria-hidden />
                         <span className="text-[11px] text-muted-foreground">
                           {r.activos === 0
                             ? 'Sin leads abiertos'
                             : `Última actividad ${haceTexto(r.diasSinActividadMax)}`}
                         </span>
+                        {conRezago && rez != null && (
+                          <span className="ml-auto flex flex-wrap items-center gap-1">
+                            {rez.no_asistio >= 2 && (
+                              <Badge color={SEMAFORO.critico}>{rez.no_asistio} no asistió</Badge>
+                            )}
+                            {rez.vencidas > 0 && (
+                              <Badge color={SEMAFORO.atencion}>
+                                {rez.vencidas} {rez.vencidas === 1 ? 'vencida' : 'vencidas'}
+                              </Badge>
+                            )}
+                            {rez.leads_sin_accion > 0 && (
+                              <Badge color={SEMAFORO.atencion}>{rez.leads_sin_accion} sin acción</Badge>
+                            )}
+                          </span>
+                        )}
                       </div>
                     </div>
                   )

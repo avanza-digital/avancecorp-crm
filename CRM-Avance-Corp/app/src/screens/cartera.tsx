@@ -161,13 +161,18 @@ export function Cartera() {
           />
         ) : (
           <TablaEnvoltura ariaLabel="Cartera de leads">
+            {/* Responsive por PRIORIDAD (mismo patrón de parejas th/td de
+                Clientes y Contratos): en angosto cae primero Creado (xl) y
+                luego Categoría (lg) — ambos siguen completos en el hover-card
+                del lead. Lead, Etapa, Monto y Vendedor NUNCA se ocultan: son
+                la operación y el capital en juego. */}
             <TheadCrm>
               <Th>Lead</Th>
               <Th>Etapa</Th>
               <Th className="text-right">Monto estimado</Th>
               {verVendedor && <Th>Vendedor</Th>}
-              <Th>Categoría</Th>
-              <Th>Creado</Th>
+              <Th className="hidden lg:table-cell">Categoría</Th>
+              <Th className="hidden xl:table-cell">Creado</Th>
               <Th className="w-8" aria-hidden />
             </TheadCrm>
             <tbody>
@@ -193,8 +198,16 @@ export function Cartera() {
                           <div className="flex items-center gap-2.5">
                             <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} />
                             <div className="leading-tight">
-                              <p className="font-semibold">{l.nombre_completo}</p>
-                              <p className="text-xs tabular-nums text-muted-foreground">{l.telefono}</p>
+                              {/* text-[13px]: misma densidad de nombre que FilaCliente/
+                                  FilaContrato — las tres carteras leen como una familia. */}
+                              <p className="text-[13px] font-semibold">{l.nombre_completo}</p>
+                              <p className="text-xs tabular-nums text-muted-foreground">
+                                {l.telefono}
+                                {/* El ORIGEN vive aquí como sub-dato del lead (antes se
+                                    colaba en la columna Categoría y rompía la comparación
+                                    vertical); también sigue en el hover-card. */}
+                                <span> · {origenLabel(l.origen)}</span>
+                              </p>
                             </div>
                           </div>
                         </LeadHoverCard>
@@ -224,14 +237,16 @@ export function Cartera() {
                           )}
                         </Td>
                       )}
-                      <Td>
+                      {/* Columna HOMOGÉNEA: solo la categoría de interés (Badge) o un
+                          vacío honesto — el origen ya no se disfraza de categoría. */}
+                      <Td className="hidden lg:table-cell">
                         {l.categoria_interes ? (
                           <Badge color="var(--chart-4)">{CAT_LABEL[l.categoria_interes]}</Badge>
                         ) : (
-                          <span className="text-xs text-muted-foreground">{origenLabel(l.origen)}</span>
+                          <span className="text-xs text-muted-foreground">—</span>
                         )}
                       </Td>
-                      <Td className="text-xs text-muted-foreground">{fmtFecha(l.creado_en)}</Td>
+                      <Td className="hidden text-xs text-muted-foreground xl:table-cell">{fmtFecha(l.creado_en)}</Td>
                       <Td className="text-right">
                         <ChevronRight className="size-4 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100" />
                       </Td>

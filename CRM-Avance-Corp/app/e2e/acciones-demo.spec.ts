@@ -37,8 +37,9 @@ test('editar lead: cambia el monto y confirma con toast "(demo)"', async ({ page
   await drawer.getByRole('button', { name: /^Guardar$/ }).click()
 
   await expect(page.getByText(/Cambios guardados \(demo\)/i)).toBeVisible()
-  // La fila Monto refleja el nuevo valor.
-  await expect(drawer.getByText(/99[.,]?999/)).toBeVisible()
+  // El capital refleja el nuevo valor (ahora vive DOS veces en el drawer:
+  // subió al SheetHeader y sigue en la sección Datos → .first()).
+  await expect(drawer.getByText(/99[.,]?999/).first()).toBeVisible()
 })
 
 test('mover etapa: el stepper avanza a Contactado (aria-current)', async ({ page }) => {
@@ -88,6 +89,8 @@ test('registrar actividad: entra al timeline con toast "(demo)"', async ({ page 
   await irAPipeline(page)
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
+  // El composer ahora es un disclosure con aspecto de input: se expande al clic.
+  await drawer.getByRole('button', { name: /Registrar actividad/ }).click()
   await drawer.getByLabel('Detalle de la actividad').fill('Llamada de prueba E2E')
   await drawer.getByRole('button', { name: /^Registrar$/ }).click()
 

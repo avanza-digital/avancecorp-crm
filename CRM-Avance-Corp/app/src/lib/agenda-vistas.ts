@@ -16,7 +16,7 @@
 import { DIAS, LIMA_OFFSET_MS, MESES, fechaLima } from './agenda-derivada'
 import { normalizar } from './clientes-vista'
 import { DIA_MS, sinProximaAccion } from './inteligencia'
-import type { EtapaActiva, Lead, Tarea, TipoTarea } from './tipos'
+import type { EtapaActiva, Lead, Miembro, Tarea, TipoTarea } from './tipos'
 
 const MESES_LARGOS = [
   'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
@@ -194,6 +194,74 @@ export function aplicarFiltros(
     if (q && !normalizar(`${t.titulo} ${t.nota ?? ''} ${lead?.nombre_completo ?? ''}`).includes(q)) return false
     return true
   })
+}
+
+// ── Agrupado por PERSONA (supervisión) ────────────────────────────────────────
+
+/** Un dueño de tareas en la vista de supervisión (Hoy/Todo de supervisor+). */
+export interface GrupoPersona {
+  /** perfil_id del vendedor, `bandeja:<supervisor_id>` para parkeadas o 'sin'. */
+  id: string
+  nombre: string
+  /** Nombre del supervisor del vendedor (contexto para gerencia; null si no aplica). */
+  supervisor: string | null
+  /** Cronológicas (heredan el orden de entrada, ya viene por vence_en asc). */
+  items: Tarea[]
+  /** Derivada canónica: pendiente + vence_en < ahora. */
+  nVencidas: number
+}
+
+/**
+ * Tareas agrupadas por DUEÑO — el vendedor del lead; las parkeadas caen en la
+ * bandeja de su supervisor. Para supervisor/gerencia la agenda deja de ser una
+ * lista plana anónima: primero se ve QUIÉN carga qué. Orden de supervisión:
+ * más vencidas primero, luego más carga, luego nombre (es-PE) — donde se
+ * acumula el problema, arriba.
+ */
+export function agruparPorPersona(
+  tareas: Tarea[],
+  leadDe: (id: string | null) => Lead | undefined,
+  equipo: ReadonlyArray<Miembro>,
+  ahora: number,
+): GrupoPersona[] {
+  const porId = new Map(equipo.map((m) => [m.perfil_id, m] as const))
+  const out = new Map<string, GrupoPersona>()
+  for (const t of tareas) {
+    const lead = leadDe(t.lead_id)
+    // El lead manda (tenencia viva); la tarea trae el espejo por si no llegó.
+    const vendedorId = lead?.vendedor_id ?? t.vendedor_id ?? null
+    const bandejaId = lead?.asignado_supervisor_id ?? t.asignado_supervisor_id ?? null
+    let id: string
+    let nombre: string
+    let supervisor: string | null = null
+    if (vendedorId) {
+      const m = porId.get(vendedorId)
+      id = vendedorId
+      nombre = m?.nombre_completo ?? lead?.vendedor_nombre ?? 'Sin nombre'
+      const supId = m?.supervisor_id
+      supervisor = supId ? porId.get(supId)?.nombre_completo ?? null : null
+    } else if (bandejaId) {
+      id = `bandeja:${bandejaId}`
+      nombre = `Bandeja de ${porId.get(bandejaId)?.nombre_completo ?? 'supervisor'}`
+    } else {
+      id = 'sin'
+      nombre = 'Sin responsable'
+    }
+    const vencida = Date.parse(t.vence_en) < ahora
+    const g = out.get(id)
+    if (g) {
+      g.items.push(t)
+      if (vencida) g.nVencidas++
+    } else {
+      out.set(id, { id, nombre, supervisor, items: [t], nVencidas: vencida ? 1 : 0 })
+    }
+  }
+  return [...out.values()].sort(
+    (a, b) =>
+      b.nVencidas - a.nVencidas ||
+      b.items.length - a.items.length ||
+      a.nombre.localeCompare(b.nombre, 'es'),
+  )
 }
 
 // ── Modo "viernes 13:00" — higiene de pipeline ────────────────────────────────

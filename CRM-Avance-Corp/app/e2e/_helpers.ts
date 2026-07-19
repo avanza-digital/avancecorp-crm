@@ -297,8 +297,9 @@ function fechaSiguiente(fecha: string): string {
 }
 
 /**
- * Fotografía rica y contractual de `crm.metricas_distribucion_leads_fn`.
- * Los IDs son UUID válidos porque el parser de producción falla cerrado.
+ * Fotografía rica y contractual de `crm.metricas_distribucion_leads_v2_fn`
+ * (contrato V2 de lib/metricas-distribucion.ts — objetos ESTRICTOS: una clave
+ * de más o de menos y el parser de producción falla cerrado).
  */
 export function metricasDistribucionReal(
   desde = '2026-04-19',
@@ -342,10 +343,10 @@ export function metricasDistribucionReal(
     },
     operacion: {
       cohorte_episodios: 7,
-      contactos: 6,
-      sla_evaluables: 6,
-      sla_en_24h: 5,
-      primer_contacto_mediana_minutos: 45,
+      contactos_asignacion: 6,
+      sla_asignacion_evaluables: 6,
+      sla_asignacion_en_24h: 5,
+      primer_contacto_asignacion_mediana_minutos: 45,
       transferidos: 1,
       parqueados: 0,
       desactivados: 0,
@@ -390,10 +391,10 @@ export function metricasDistribucionReal(
     },
     operacion: {
       cohorte_episodios: 4,
-      contactos: 3,
-      sla_evaluables: 4,
-      sla_en_24h: 2,
-      primer_contacto_mediana_minutos: 180,
+      contactos_asignacion: 3,
+      sla_asignacion_evaluables: 4,
+      sla_asignacion_en_24h: 2,
+      primer_contacto_asignacion_mediana_minutos: 180,
       transferidos: 1,
       parqueados: 1,
       desactivados: 0,
@@ -410,19 +411,23 @@ export function metricasDistribucionReal(
   const bandejaRangos = rangosCola({ pen_10000_20000: [1, 20000] })
 
   return {
-    version: 1,
+    version: 2,
     generado_en: '2026-07-17T17:00:00.000Z',
     cohorte: {
       desde_inclusivo: desde,
       hasta_inclusivo: hasta,
       hasta_exclusivo: fechaSiguiente(hasta),
       criterio: 'episodio_asignado_en',
+      criterio_sla_global: 'ciclo_sla_global_iniciado_en',
+      politica_pausas: 'SIN_DESCUENTO',
       zona_horaria: 'America/Lima',
     },
     alcances: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
-      operacion_sla: 'TODAS_LAS_MONEDAS',
+      montos: 'SEPARADOS_SIN_CONVERSION',
+      sla_principal: 'GLOBAL_POR_CICLO',
+      sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
     },
     rangos: RANGOS_DISTRIBUCION.map((rango) => ({ ...rango })),
     resumen: {
@@ -435,8 +440,14 @@ export function metricasDistribucionReal(
       cohorte_leads_unicos: 10,
       convertidos_pen: 4,
       descartados_pen: 6,
-      sla_evaluables: 10,
-      sla_en_24h: 7,
+      sla_global_ciclos_cohorte: 10,
+      sla_global_leads_unicos_cohorte: 10,
+      sla_global_contactos: 9,
+      sla_global_evaluables: 10,
+      sla_global_en_24h: 7,
+      primer_contacto_global_mediana_minutos: 60,
+      sla_global_sin_contacto_vencidos_actuales: 1,
+      reasignaciones_cohorte: 2,
     },
     analistas: [ana, bruno],
     por_repartir: {
@@ -465,6 +476,7 @@ export function metricasDistribucionReal(
       episodios_aproximados_cohorte: 0,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
+      ciclos_sla_global_aproximados_cohorte: 0,
     },
   }
 }
@@ -484,8 +496,14 @@ function metricasDistribucionVaciaReal(): unknown {
       cohorte_leads_unicos: 0,
       convertidos_pen: 0,
       descartados_pen: 0,
-      sla_evaluables: 0,
-      sla_en_24h: 0,
+      sla_global_ciclos_cohorte: 0,
+      sla_global_leads_unicos_cohorte: 0,
+      sla_global_contactos: 0,
+      sla_global_evaluables: 0,
+      sla_global_en_24h: 0,
+      primer_contacto_global_mediana_minutos: null,
+      sla_global_sin_contacto_vencidos_actuales: 0,
+      reasignaciones_cohorte: 0,
     },
     analistas: [],
     por_repartir: {
@@ -568,6 +586,8 @@ export interface BackendReal {
   cuotas: Record<string, unknown[]>
   /** Co-titulares por contrato_id (cuentas mancomunadas). */
   titulares: Record<string, unknown[]>
+  /** Tareas pendientes de crm.tareas (la agenda; el boot las carga SIEMPRE). */
+  tareas: Record<string, unknown>[]
   /** Respuestas de las RPC de métricas del panel Hoy. */
   metricas: {
     capital: unknown[]
@@ -575,6 +595,8 @@ export interface BackendReal {
     altas: unknown[]
     vencimientos: unknown[]
     distribucion: unknown
+    /** Vendedores de crm.metricas_agenda_fn (panel "Agenda del equipo"). */
+    agenda: unknown[]
   }
   /**
    * Simula la TRAMPA de la ventana de 5 h vencida: el PATCH a perfiles responde
@@ -649,12 +671,14 @@ export async function montarBackendReal(
     fallarProximaCargaContratos: init.fallarProximaCargaContratos ?? false,
     cuotas: init.cuotas ?? {},
     titulares: init.titulares ?? {},
+    tareas: init.tareas ?? [],
     metricas: {
       capital: init.metricas?.capital ?? [],
       pagos: init.metricas?.pagos ?? [],
       altas: init.metricas?.altas ?? [],
       vencimientos: init.metricas?.vencimientos ?? [],
       distribucion: init.metricas?.distribucion ?? metricasDistribucionVaciaReal(),
+      agenda: init.metricas?.agenda ?? [],
     },
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
@@ -826,12 +850,70 @@ export async function montarBackendReal(
     if (p === '/rest/v1/rpc/equipo_visible_fn') return json(route, ROSTER)
     if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, [])
 
+    // ── agenda: crm.tareas (el boot las carga SIEMPRE junto a los leads) ──
+    if (p === '/rest/v1/tareas') {
+      if (method === 'GET') return json(route, estado.tareas)
+      if (method === 'POST') {
+        const fila = (req.postDataJSON() ?? {}) as Record<string, unknown>
+        estado.tareas = [
+          ...estado.tareas,
+          { id: `t-${estado.tareas.length + 1}`, estado: 'pendiente', activo: true, ...fila },
+        ]
+        return json(route, [], 201)
+      }
+      if (method === 'PATCH') {
+        const idFiltro = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
+        const cambios = (req.postDataJSON() ?? {}) as Record<string, unknown>
+        estado.tareas = estado.tareas.map((t) => (t.id === idFiltro ? { ...t, ...cambios } : t))
+        return json(route, [{ id: idFiltro }])
+      }
+    }
+
+    // ── RPC cerrar_tarea (cierre atómico: resultado al log + tarea siguiente) ──
+    if (p === '/rest/v1/rpc/cerrar_tarea' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_tarea_id?: string }
+      estado.tareas = estado.tareas.filter((t) => t.id !== body.p_tarea_id)
+      return json(route, { siguiente_id: null })
+    }
+
+    // ── suscripción ICS (solo se toca si el test abre el diálogo del calendario) ──
+    if (p === '/rest/v1/agenda_ics') {
+      // maybeSingle sin fila: PostgREST responde 406/PGRST116 y supabase-js lo
+      // traduce a data null sin error — el "aún no conectaste tu calendario".
+      if (method === 'GET') return json(route, { code: 'PGRST116', message: '0 rows', details: null, hint: null }, 406)
+      if (method === 'POST') return json(route, { token: 'tok-e2e' })
+      if (method === 'PATCH') return json(route, { token: 'tok-e2e-rotado' })
+    }
+
+    // ── edges nuevas: tipo de cambio (meta del vendedor) y conversión de lead ──
+    if (p === '/functions/v1/crm-tipo-cambio') {
+      return json(route, { promedio: 3.53, fuente: 'SBS · prom. 7d' })
+    }
+    if (p === '/functions/v1/crm-convertir-lead' && method === 'POST') {
+      return json(route, { perfil_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ya_existia: false, email_enviado: true })
+    }
+
     // ── métricas de gerencia (gráficas del panel Hoy) ──
     if (p === '/rest/v1/rpc/metricas_capital_mes_fn') return json(route, estado.metricas.capital)
     if (p === '/rest/v1/rpc/metricas_pagos_mes_fn') return json(route, estado.metricas.pagos)
     if (p === '/rest/v1/rpc/metricas_altas_analista_fn') return json(route, estado.metricas.altas)
     if (p === '/rest/v1/rpc/metricas_vencimientos_fn') return json(route, estado.metricas.vencimientos)
-    if (p === '/rest/v1/rpc/metricas_distribucion_leads_fn' && method === 'POST') {
+    if (p === '/rest/v1/rpc/metricas_agenda_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      const desde = String(body.p_desde ?? '')
+      const hasta = String(body.p_hasta ?? '')
+      const dias = Math.max(
+        1,
+        Math.round((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000) + 1,
+      )
+      return json(route, {
+        version: 1,
+        generado_en: '2026-07-17T17:00:00.000Z',
+        periodo: { desde, hasta, dias, zona: 'America/Lima' },
+        vendedores: estado.metricas.agenda,
+      })
+    }
+    if (p === '/rest/v1/rpc/metricas_distribucion_leads_v2_fn' && method === 'POST') {
       estado.llamadas.rpcMetricasDistribucion += 1
       const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
       const desde = String(body.p_desde ?? '')

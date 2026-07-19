@@ -36,7 +36,8 @@ test('demo gerencia: las 3 gráficas pintan desde las fixtures — 0 requests a 
   const capital = page.getByTestId('grafica-capital')
   await expect(capital.getByText('Nuevo', { exact: true }).first()).toBeVisible()
   await expect(capital.getByText('Upgrade', { exact: true }).first()).toBeVisible()
-  await capital.getByRole('button', { name: 'USD' }).click()
+  // Los tabs de moneda ahora hablan es-PE: 'Soles'/'Dólares' (PEN/USD jamás sumados).
+  await capital.getByRole('button', { name: 'Dólares' }).click()
   await expect(capital.getByText('Renovación', { exact: true }).first()).toBeVisible()
 
   // Pagos: leyenda con las dos series del semáforo (pagado vs vencido).
@@ -102,8 +103,11 @@ test.describe('gráficas en sesión REAL (RPCs mockeadas)', () => {
     await loginReal(page)
     await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible()
 
-    // Regla A3: sesión real sin datos → texto honesto, jamás series demo.
-    await expect(page.getByText('Aún sin datos suficientes para graficar.')).toHaveCount(3)
+    // Regla A3: sesión real sin datos → PanelVacio honesto POR TARJETA (copys
+    // nuevos que dicen de dónde se llena cada una), jamás series demo.
+    await expect(page.getByTestId('grafica-capital').getByText('Aún no hay capital para graficar')).toBeVisible()
+    await expect(page.getByTestId('grafica-pagos').getByText('Aún no hay pagos para graficar')).toBeVisible()
+    await expect(page.getByTestId('grafica-vencimientos').getByText('Aún no hay vencimientos para graficar')).toBeVisible()
     // Y por supuesto, ni una barra pintada en las 3 tarjetas.
     for (const id of GRAFICAS) {
       await expect(page.getByTestId(id).locator('.recharts-bar-rectangle')).toHaveCount(0)
