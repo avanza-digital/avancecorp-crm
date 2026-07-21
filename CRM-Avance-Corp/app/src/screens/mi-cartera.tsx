@@ -37,6 +37,7 @@ import { useCRMData } from '@/lib/store-context'
 import { can } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
+import { useEsMovil } from '@/lib/media'
 import { agruparCartera, resumenCartera, type GrupoCartera } from '@/lib/cartera-vista'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
@@ -63,6 +64,80 @@ function fechaCorta(iso: string): string {
     year: '2-digit',
     timeZone: 'UTC',
   })
+}
+
+/** Identidad del cliente (nombre + documento/teléfono). Compartida por la fila
+ *  de la tabla (desktop) y la tarjeta (móvil) → una sola fuente de formato. */
+function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
+  // <span> con display block (no <div>/<p>): así es contenido PHRASING válido
+  // dentro de un <button> Y su texto forma parte del nombre accesible del botón.
+  return (
+    <span className="block min-w-0">
+      <span className="block max-w-[260px] truncate text-[13px] font-semibold text-foreground" title={cliente.nombre_completo}>
+        {cliente.nombre_completo || '—'}
+      </span>
+      <span className="block text-[11px] tabular-nums text-muted-foreground">
+        {cliente.dni ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}` : 'sin documento'}
+        {cliente.telefono ? ` · ${cliente.telefono}` : ''}
+      </span>
+    </span>
+  )
+}
+
+/**
+ * Capital invertido por cliente. PEN y USD JAMÁS se suman: van como DOS cifras,
+ * ambas con peso propio. Si SOLO hay dólares, el USD es la cifra principal (nunca
+ * un "S/ 0" grande con el capital real escondido). Regla congelada de Miguel,
+ * en un solo lugar para que la tabla y la tarjeta no puedan divergir.
+ */
+function CapitalInvertido({ grupo, sinContratos, alinear = 'end' }: {
+  grupo: GrupoCartera
+  sinContratos: boolean
+  alinear?: 'end' | 'start'
+}) {
+  if (!grupo.tieneCapital) {
+    return (
+      <span className="text-xs text-muted-foreground">{sinContratos ? 'aún no genera ingreso' : 'sin capital vigente'}</span>
+    )
+  }
+  return (
+    <div className={`flex flex-col leading-tight ${alinear === 'end' ? 'items-end' : 'items-start'}`}>
+      {grupo.capitalActivoPen > 0 && (
+        <span className="text-sm font-extrabold tabular-nums text-foreground">{money(grupo.capitalActivoPen, 'PEN')}</span>
+      )}
+      {grupo.capitalActivoUsd > 0 && (
+        <span
+          className={
+            grupo.capitalActivoPen > 0
+              ? 'text-[13px] font-bold tabular-nums text-foreground/90'
+              : 'text-sm font-extrabold tabular-nums text-foreground'
+          }
+        >
+          {money(grupo.capitalActivoUsd, 'USD')}
+        </span>
+      )}
+    </div>
+  )
+}
+
+/** Props del grupo-cliente, idénticas en la fila (tabla) y la tarjeta (móvil). */
+interface PropsFilaGrupo {
+  grupo: GrupoCartera
+  expandido: boolean
+  onToggle: () => void
+  colAsesor: boolean
+  /** La vista pinta acciones (el usuario contrata en general). */
+  conAcciones: boolean
+  /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
+  accionable: boolean
+  yoId: string | null
+  asesorNombre: string | null
+  /** Con filtro de estado, solo se pintan los contratos de ese estado. */
+  estadoVisible: FiltroEstado
+  onNuevoContrato: () => void
+  onCorregirCliente: () => void
+  onDetalleContrato: (k: ContratoRow) => void
+  onCorregirContrato: (k: ContratoRow) => void
 }
 
 /** Sub-fila de un contrato: la fila entera abre el detalle (Enter/Espacio con el
@@ -159,24 +234,7 @@ function FilaGrupoCliente({
   onCorregirCliente,
   onDetalleContrato,
   onCorregirContrato,
-}: {
-  grupo: GrupoCartera
-  expandido: boolean
-  onToggle: () => void
-  colAsesor: boolean
-  /** La tabla pinta la columna Acciones (el usuario contrata en general). */
-  conAcciones: boolean
-  /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
-  accionable: boolean
-  yoId: string | null
-  asesorNombre: string | null
-  /** Con filtro de estado, solo se pintan las sub-filas de ese estado. */
-  estadoVisible: FiltroEstado
-  onNuevoContrato: () => void
-  onCorregirCliente: () => void
-  onDetalleContrato: (k: ContratoRow) => void
-  onCorregirContrato: (k: ContratoRow) => void
-}) {
+}: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
   const subContratos = estadoVisible === 'todos'
@@ -184,17 +242,7 @@ function FilaGrupoCliente({
     : grupo.contratos.filter((c) => c.estado === estadoVisible)
   // Reloj de la ventana de corrección del CLIENTE (solo en filas propias).
   const ventanaCliente = useVentana(accionable ? cliente.creado_en : null)
-  const ident = (
-    <div className="min-w-0">
-      <p className="max-w-[260px] truncate text-[13px] font-semibold text-foreground" title={cliente.nombre_completo}>
-        {cliente.nombre_completo || '—'}
-      </p>
-      <p className="text-[11px] tabular-nums text-muted-foreground">
-        {cliente.dni ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}` : 'sin documento'}
-        {cliente.telefono ? ` · ${cliente.telefono}` : ''}
-      </p>
-    </div>
-  )
+  const ident = <IdentidadCliente cliente={cliente} />
   return (
     <>
       <tr
@@ -218,9 +266,11 @@ function FilaGrupoCliente({
                 onToggle()
               }}
               aria-expanded={expandido}
-              aria-label={`${expandido ? 'Colapsar' : 'Expandir'} los contratos de ${cliente.nombre_completo || 'este cliente'}`}
               className="flex w-full items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
             >
+              {/* La ACCIÓN va en sr-only; el nombre + documento/teléfono visibles
+                  forman el resto del nombre accesible (un aria-label los pisaría). */}
+              <span className="sr-only">{expandido ? 'Colapsar' : 'Expandir'} los contratos de </span>
               <ChevronRight
                 aria-hidden
                 className={`size-4 shrink-0 text-muted-foreground transition-transform ${expandido ? 'rotate-90 text-accent' : ''}`}
@@ -251,29 +301,7 @@ function FilaGrupoCliente({
           </Td>
         )}
         <Td className="text-right tabular-nums">
-          {grupo.tieneCapital ? (
-            // PEN y USD JAMÁS se suman: se muestran como DOS cifras, ambas con
-            // peso propio. Si solo hay dólares, los dólares son la cifra principal
-            // (nunca un "S/ 0" grande con el capital real escondido debajo).
-            <div className="flex flex-col items-end leading-tight">
-              {grupo.capitalActivoPen > 0 && (
-                <span className="text-sm font-extrabold text-foreground">{money(grupo.capitalActivoPen, 'PEN')}</span>
-              )}
-              {grupo.capitalActivoUsd > 0 && (
-                <span
-                  className={
-                    grupo.capitalActivoPen > 0
-                      ? 'text-[13px] font-bold text-foreground/90'
-                      : 'text-sm font-extrabold text-foreground'
-                  }
-                >
-                  {money(grupo.capitalActivoUsd, 'USD')}
-                </span>
-              )}
-            </div>
-          ) : (
-            <span className="text-xs text-muted-foreground">{sinContratos ? 'aún no genera ingreso' : 'sin capital vigente'}</span>
-          )}
+          <CapitalInvertido grupo={grupo} sinContratos={sinContratos} />
         </Td>
         {conAcciones && (
           <Td className="text-right">
@@ -328,10 +356,179 @@ function FilaGrupoCliente({
   )
 }
 
+// ————————————————————————————————————————————————————————————————————————
+// VISTA MÓVIL (< 768 px): la misma cartera como card-stack. La fuerza de ventas
+// vende en el celular, así que el teléfono NO scrollea una tabla de 5 columnas.
+// Mismo gating por fila que la tabla (props idénticas, PropsFilaGrupo); solo
+// cambia la presentación. Se monta EN LUGAR de la tabla (no a la vez) → los
+// intervalos de useVentana no se duplican.
+// ————————————————————————————————————————————————————————————————————————
+
+/** Sub-tarjeta de un contrato: toda la tarjeta abre el detalle (Enter/Espacio);
+ *  "Corregir" solo en lo MÍO con la ventana viva. Objetivo táctil generoso. */
+function TarjetaContratoSub({
+  contrato: k,
+  conAcciones,
+  esMia,
+  onDetalle,
+  onCorregir,
+}: {
+  contrato: ContratoRow
+  conAcciones: boolean
+  esMia: boolean
+  onDetalle: () => void
+  onCorregir: () => void
+}) {
+  const ventana = useVentana(esMia ? k.creado_en : null)
+  return (
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 pr-3 transition-colors focus-within:bg-muted/40">
+      {/* El área de info ES el control que abre el detalle: un <button> NATIVO
+          (Enter/Espacio gratis, sin role manual) → solo contiene phrasing (<span>).
+          Corregir es su HERMANO, nunca anidado: un control focusable por acción. */}
+      <button
+        type="button"
+        onClick={onDetalle}
+        className="flex min-w-0 flex-1 items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+      >
+        {/* Acción en sr-only; el N°, estado, vencimiento y capital visibles forman el nombre. */}
+        <span className="sr-only">Abrir detalle del contrato </span>
+        <span className="min-w-0">
+          <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+            <span className="font-mono text-xs font-semibold text-foreground">{k.numero_contrato}</span>
+            <Badge color={ESTADO_COLOR[k.estado]} dot>{k.estado}</Badge>
+          </span>
+          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+            {k.categoria ? `${CATEGORIA_LABEL[k.categoria]} · ` : ''}vence {fechaCorta(k.fecha_vencimiento)}
+          </span>
+        </span>
+        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">{money(k.capital, k.moneda)}</span>
+      </button>
+      {conAcciones && esMia && (
+        ventana.vigente ? (
+          <Button type="button" size="xs" variant="outline" className="shrink-0" onClick={onCorregir}>
+            Corregir
+          </Button>
+        ) : (
+          <span className="shrink-0 text-[11px] text-muted-foreground" title="La ventana de corrección de 5 horas ya venció">
+            {ventana.texto}
+          </span>
+        )
+      )}
+    </div>
+  )
+}
+
+/** Tarjeta del cliente (grupo) + sus sub-tarjetas de contrato al expandir. */
+function TarjetaGrupoCliente({
+  grupo,
+  expandido,
+  onToggle,
+  colAsesor,
+  conAcciones,
+  accionable,
+  yoId,
+  asesorNombre,
+  estadoVisible,
+  onNuevoContrato,
+  onCorregirCliente,
+  onDetalleContrato,
+  onCorregirContrato,
+}: PropsFilaGrupo) {
+  const { cliente } = grupo
+  const sinContratos = grupo.contratos.length === 0
+  const subContratos = estadoVisible === 'todos'
+    ? grupo.contratos
+    : grupo.contratos.filter((c) => c.estado === estadoVisible)
+  const ventanaCliente = useVentana(accionable ? cliente.creado_en : null)
+  return (
+    <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
+      {/* Cabecera: identidad (toggle si tiene contratos) + capital invertido. */}
+      <div className="flex items-start justify-between gap-3 p-3">
+        {sinContratos ? (
+          <IdentidadCliente cliente={cliente} />
+        ) : (
+          <button
+            type="button"
+            onClick={onToggle}
+            aria-expanded={expandido}
+            className="flex min-w-0 items-center gap-2 rounded-sm text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent"
+          >
+            {/* Acción en sr-only; identidad visible (nombre + doc/teléfono) forma el nombre. */}
+            <span className="sr-only">{expandido ? 'Colapsar' : 'Expandir'} los contratos de </span>
+            <ChevronRight
+              aria-hidden
+              className={`size-4 shrink-0 text-muted-foreground transition-transform ${expandido ? 'rotate-90 text-accent' : ''}`}
+            />
+            <IdentidadCliente cliente={cliente} />
+          </button>
+        )}
+        <div className="shrink-0">
+          <CapitalInvertido grupo={grupo} sinContratos={sinContratos} />
+        </div>
+      </div>
+
+      {/* Meta: contratos activos + asesor (si supervisa). */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1 px-3 pb-2 text-[11px] text-muted-foreground">
+        {sinContratos ? (
+          <span className="rounded-full bg-muted px-2 py-0.5 font-medium">Sin contratos</span>
+        ) : (
+          <span>
+            {grupo.contratosActivos > 0 ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}` : 'sin activos'}
+          </span>
+        )}
+        {colAsesor && asesorNombre && (
+          <span title={asesorNombre}>
+            · <span aria-hidden>{primerNombre(asesorNombre)}</span>
+            <span className="sr-only">{asesorNombre}</span>
+          </span>
+        )}
+      </div>
+
+      {/* Acciones (solo en lo propio). */}
+      {conAcciones && accionable && (
+        <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+          {ventanaCliente.vigente && (
+            <Button
+              type="button"
+              size="xs"
+              variant="outline"
+              className={ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
+              title={`Corregir datos del cliente · ${ventanaCliente.texto} de ventana`}
+              onClick={onCorregirCliente}
+            >
+              Corregir cliente
+            </Button>
+          )}
+          <Button type="button" size="xs" onClick={onNuevoContrato}>
+            {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+          </Button>
+        </div>
+      )}
+
+      {/* Sub-tarjetas de contrato al expandir. */}
+      {expandido && !sinContratos && (
+        <div className="space-y-2 border-t border-border/40 bg-muted/10 p-3">
+          {subContratos.map((c) => (
+            <TarjetaContratoSub
+              key={c.id}
+              contrato={c}
+              conAcciones={conAcciones}
+              esMia={c.creado_por != null && c.creado_por === yoId}
+              onDetalle={() => onDetalleContrato(c)}
+              onCorregir={() => onCorregirContrato(c)}
+            />
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 /** Vista compartida por la ruta REAL y la DEMO: rótulo por rol, StatStrip de
  *  capital en juego, buscador (cliente o N° de contrato), filtro por estado y la
- *  tabla jerárquica con expandir/colapsar + paginación por cliente. Los datos y
- *  las acciones vienen del caller — esta capa solo decide QUÉ se ve y ofrece. */
+ *  cartera jerárquica con expandir/colapsar + paginación por cliente. En móvil
+ *  (< 768 px) la tabla se vuelve un card-stack. Los datos y las acciones vienen
+ *  del caller — esta capa solo decide QUÉ se ve y ofrece. */
 function VistaMiCartera({
   grupos,
   demo,
@@ -360,6 +557,7 @@ function VistaMiCartera({
   const { equipo } = useCRMData()
   const verEquipo = can(yo?.rol, 'verEquipo')
   const titulo = verEquipo ? 'Cartera' : 'Mi cartera'
+  const esMovil = useEsMovil()
 
   const [q, setQ] = useState('')
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
@@ -418,6 +616,30 @@ function VistaMiCartera({
 
   const hayFiltro = q.trim() !== '' || fEstado !== 'todos'
   const { visibles, paginas, paginaActual } = paginar(filtrados, pagina)
+
+  // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
+  // el gating vive AQUÍ (una sola fuente), la presentación decide cómo pintarlo.
+  const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => ({
+    grupo: g,
+    expandido: expandidos.has(g.cliente.id),
+    onToggle: () =>
+      setExpandidos((prev) => {
+        const sig = new Set(prev)
+        if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
+        else sig.add(g.cliente.id)
+        return sig
+      }),
+    colAsesor: verEquipo,
+    conAcciones: puedeContratar,
+    accionable: puedeContratar && esMiCliente(g.cliente, yoId),
+    yoId,
+    asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
+    estadoVisible: fEstado,
+    onNuevoContrato: () => onNuevoContrato(g.cliente),
+    onCorregirCliente: () => onCorregirCliente(g.cliente),
+    onDetalleContrato,
+    onCorregirContrato,
+  })
 
   // PEN y USD JAMÁS se suman: van en DOS tarjetas separadas para verlos al mismo
   // tiempo. Solo se muestra la tarjeta de la(s) moneda(s) CON capital, y en su
@@ -536,6 +758,15 @@ function VistaMiCartera({
                 titulo="Sin resultados"
                 detalle={q.trim() ? `Ningún cliente ni contrato coincide con “${q.trim()}”.` : 'Ningún cliente tiene contratos en ese estado.'}
               />
+            ) : esMovil ? (
+              // Card-stack táctil (< 768 px): una tarjeta por cliente.
+              <div role="list" aria-label={titulo} className="space-y-3 px-3 pb-4">
+                {visibles.map((g) => (
+                  <div role="listitem" key={g.cliente.id}>
+                    <TarjetaGrupoCliente {...propsDeGrupo(g)} />
+                  </div>
+                ))}
+              </div>
             ) : (
               <TablaEnvoltura ariaLabel={titulo}>
                 <TheadCrm>
@@ -549,28 +780,7 @@ function VistaMiCartera({
                 </TheadCrm>
                 <tbody>
                   {visibles.map((g) => (
-                    <FilaGrupoCliente
-                      key={g.cliente.id}
-                      grupo={g}
-                      expandido={expandidos.has(g.cliente.id)}
-                      onToggle={() =>
-                        setExpandidos((prev) => {
-                          const sig = new Set(prev)
-                          if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
-                          else sig.add(g.cliente.id)
-                          return sig
-                        })}
-                      colAsesor={verEquipo}
-                      conAcciones={puedeContratar}
-                      accionable={puedeContratar && esMiCliente(g.cliente, yoId)}
-                      yoId={yoId}
-                      asesorNombre={nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null}
-                      estadoVisible={fEstado}
-                      onNuevoContrato={() => onNuevoContrato(g.cliente)}
-                      onCorregirCliente={() => onCorregirCliente(g.cliente)}
-                      onDetalleContrato={onDetalleContrato}
-                      onCorregirContrato={onCorregirContrato}
-                    />
+                    <FilaGrupoCliente key={g.cliente.id} {...propsDeGrupo(g)} />
                   ))}
                 </tbody>
               </TablaEnvoltura>
