@@ -45,6 +45,13 @@ describe('router por hash', () => {
     // Una ruta realmente desconocida sigue degradando a null (no todo es alias).
     window.location.hash = '#/inexistente'
     expect(leerHash()).toEqual({ vista: null, leadId: null })
+
+    // Claves del prototipo del Record NO deben resolver a un miembro heredado
+    // (Object/toString/prototype): degradan a null como cualquier ruta desconocida.
+    for (const clave of ['constructor', 'toString', '__proto__', 'hasOwnProperty']) {
+      window.location.hash = `#/${clave}`
+      expect(leerHash()).toEqual({ vista: null, leadId: null })
+    }
   })
 
   it('navega con historial normal y evita escrituras redundantes', () => {

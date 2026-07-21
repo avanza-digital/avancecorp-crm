@@ -697,6 +697,10 @@ function VistaMiCartera({
       const dueno = duenoDeCartera(g.cliente)
       return n + (dueno != null && rosterIds.has(dueno) ? 0 : 1)
     }, 0)
+    // "Sin asesor" reemplaza la última métrica NO monetaria (Clientes con
+    // capital) cuando ya hay 4 tarjetas — con capital en PEN y USD serían 5 y se
+    // rompería el grid de 4. Los chips de capital (que lideran stats) no se tocan.
+    if (stats.length >= 4) stats.pop()
     stats.push({
       icon: UserX,
       label: 'Sin asesor',
@@ -813,11 +817,15 @@ function VistaMiCartera({
                 detalle={
                   q.trim()
                     ? `Ningún cliente ni contrato coincide con “${q.trim()}”.`
-                    : fAsesor === 'sin_asesor'
-                      ? 'No hay clientes sin asesor: toda la cartera tiene dueño.'
-                      : fAsesor !== 'todos'
-                        ? 'Ese asesor no tiene clientes en la cartera.'
-                        : 'Ningún cliente tiene contratos en ese estado.'
+                    : // Asesor + estado combinados: el vacío puede deberse a cualquiera
+                      // de los dos, así que un mensaje neutral no afirma de más.
+                      fAsesor !== 'todos' && fEstado !== 'todos'
+                      ? 'Ningún cliente coincide con los filtros aplicados.'
+                      : fAsesor === 'sin_asesor'
+                        ? 'No hay clientes sin asesor: toda la cartera tiene dueño.'
+                        : fAsesor !== 'todos'
+                          ? 'Ese asesor no tiene clientes en la cartera.'
+                          : 'Ningún cliente tiene contratos en ese estado.'
                 }
               />
             ) : esMovil ? (
