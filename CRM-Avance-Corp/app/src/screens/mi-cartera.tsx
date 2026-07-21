@@ -16,7 +16,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AlarmClock, ChevronRight, Coins, FileStack, Inbox, Search, Users2, Wallet } from 'lucide-react'
+import { AlarmClock, ChevronRight, Coins, FileStack, Inbox, Search, UserX, Users2, Wallet } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -39,7 +39,7 @@ import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
 import { agruparCartera, resumenCartera, type GrupoCartera } from '@/lib/cartera-vista'
-import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar } from '@/lib/clientes-vista'
+import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
 import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
@@ -561,10 +561,15 @@ function VistaMiCartera({
 
   const [q, setQ] = useState('')
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
+  // Filtro por asesor: solo lo usa supervisión (verEquipo). 'todos' | 'sin_asesor' | perfil_id.
+  const [fAsesor, setFAsesor] = useState<FiltroAsesor>('todos')
   const [expandidos, setExpandidos] = useState<ReadonlySet<string>>(new Set())
   const [pagina, setPagina] = useState(0)
 
   const nombres = useMemo(() => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])), [equipo])
+  // Roster visible para el filtro 'Sin asesor': un dueño fuera de este Set (o null)
+  // cuenta como sin asesor — mismo criterio que la columna Asesor pinta '—'.
+  const rosterIds = useMemo(() => new Set(equipo.map((m) => m.perfil_id)), [equipo])
   const bases = useMemo(() => grupos ?? [], [grupos])
   const resumen = useMemo(() => resumenCartera(bases), [bases])
   const contratosActivosTotal = useMemo(() => bases.reduce((n, g) => n + g.contratosActivos, 0), [bases])
@@ -577,6 +582,17 @@ function VistaMiCartera({
     const nq = normalizar(q.trim())
     const dq = nq.replace(/\D/g, '')
     return bases.filter((g) => {
+      // Filtro por asesor (solo supervisión): compara contra el DUEÑO de cartera,
+      // espejo EXACTO de filtrarClientes. 'sin_asesor' = dueño null O fuera del roster.
+      if (verEquipo && fAsesor !== 'todos') {
+        const dueno = duenoDeCartera(g.cliente)
+        const duenoVisible = dueno != null && rosterIds.has(dueno)
+        if (fAsesor === 'sin_asesor') {
+          if (duenoVisible) return false
+        } else if (dueno !== fAsesor) {
+          return false
+        }
+      }
       if (fEstado !== 'todos' && !g.contratos.some((c) => c.estado === fEstado)) return false
       if (!nq) return true
       const c = g.cliente
@@ -589,7 +605,7 @@ function VistaMiCartera({
       }
       return g.contratos.some((k) => normalizar(k.numero_contrato).includes(nq))
     })
-  }, [bases, q, fEstado])
+  }, [bases, q, fEstado, verEquipo, fAsesor, rosterIds])
 
   // Al filtrar, auto-expandir los grupos que coinciden POR CONTRATO (para revelar
   // la sub-fila que hizo match), SIN un override global: el usuario puede
@@ -614,7 +630,7 @@ function VistaMiCartera({
     })
   }, [bases, q, fEstado])
 
-  const hayFiltro = q.trim() !== '' || fEstado !== 'todos'
+  const hayFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos'
   const { visibles, paginas, paginaActual } = paginar(filtrados, pagina)
 
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
@@ -674,7 +690,21 @@ function VistaMiCartera({
       sub: `de ${resumen.totalClientes}`,
     },
   ]
-  if (stats.length < 4) {
+  if (verEquipo) {
+    // Supervisión: el conteo de clientes SIN asesor (dueño null O fuera del
+    // roster) — espejo EXACTO del filtro 'sin_asesor' — con CTA a repartirlos.
+    const sinAsesor = bases.reduce((n, g) => {
+      const dueno = duenoDeCartera(g.cliente)
+      return n + (dueno != null && rosterIds.has(dueno) ? 0 : 1)
+    }, 0)
+    stats.push({
+      icon: UserX,
+      label: 'Sin asesor',
+      value: String(sinAsesor),
+      tone: sinAsesor > 0 ? 'warn' : 'default',
+      sub: sinAsesor > 0 ? 'Repártelos: filtro “Sin asesor”' : 'Toda la cartera tiene dueño',
+    })
+  } else if (stats.length < 4) {
     stats.push({ icon: FileStack, label: 'Contratos activos', value: String(contratosActivosTotal), sub: 'en toda tu cartera' })
   }
 
@@ -745,6 +775,30 @@ function VistaMiCartera({
                   <option value="retirado">Retirados</option>
                 </Select>
               </div>
+              {/* Filtro por asesor: solo supervisión (para el vendedor sería su propio
+                  nombre). "Sin asesor" aísla los clientes sin dueño para repartirlos. */}
+              {verEquipo && (
+                <div className="w-[230px]">
+                  <Select
+                    aria-label="Filtrar por asesor"
+                    value={fAsesor}
+                    onChange={(e) => {
+                      setFAsesor(e.target.value)
+                      setPagina(0)
+                    }}
+                  >
+                    <option value="todos">Todos los asesores</option>
+                    {equipo
+                      .filter((m) => m.activo)
+                      .map((m) => (
+                        <option key={m.perfil_id} value={m.perfil_id}>
+                          {m.nombre_completo}
+                        </option>
+                      ))}
+                    <option value="sin_asesor">Sin asesor</option>
+                  </Select>
+                </div>
+              )}
               {hayFiltro && (
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {filtrados.length} de {bases.length}
@@ -756,7 +810,15 @@ function VistaMiCartera({
               <PanelVacio
                 icono={Inbox}
                 titulo="Sin resultados"
-                detalle={q.trim() ? `Ningún cliente ni contrato coincide con “${q.trim()}”.` : 'Ningún cliente tiene contratos en ese estado.'}
+                detalle={
+                  q.trim()
+                    ? `Ningún cliente ni contrato coincide con “${q.trim()}”.`
+                    : fAsesor === 'sin_asesor'
+                      ? 'No hay clientes sin asesor: toda la cartera tiene dueño.'
+                      : fAsesor !== 'todos'
+                        ? 'Ese asesor no tiene clientes en la cartera.'
+                        : 'Ningún cliente tiene contratos en ese estado.'
+                }
               />
             ) : esMovil ? (
               // Card-stack táctil (< 768 px): una tarjeta por cliente.

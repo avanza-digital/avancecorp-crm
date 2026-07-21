@@ -8,12 +8,14 @@
 import { expect, test } from '@playwright/test'
 import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal, UID } from './_helpers'
 
-// Fase 6 (2026-07-21): la pantalla Clientes se RETIRÓ — la cartera unificada
-// "Cartera" (mi-cartera) la reemplaza para todos los roles. Esta suite E2E
-// apuntaba a #/clientes (ya inexistente); su cobertura vive en la integración
-// vitest `screens/mi-cartera.test.tsx`. Pendiente: migrar estos casos a un
-// `mi-cartera.spec.ts`. Reactivar sería reescribir la entrada a #/mi-cartera.
-test.skip(true, 'Fase 6: pantalla Clientes retirada — cobertura en mi-cartera.test.tsx; migrar E2E a #/mi-cartera')
+// Fase 6.1 (2026-07-21): la pantalla Clientes se RETIRÓ. Esta suite prueba su
+// layout de tabla ("Mis clientes: N", columnas del portal, "Corregir datos",
+// búsqueda "Buscar clientes", filas por rol) — TODO ello reemplazado por la
+// cartera unificada, cuya tabla + búsqueda + filtro-por-asesor + "Sin asesor" +
+// gating POR FILA ya están cubiertos en `screens/mi-cartera.test.tsx` (vitest,
+// incluida la parity de supervisión portada en Fase 6.1). El alta/corrección de
+// cliente en real-browser vive en `cliente-form.spec.ts` (migrado a #/mi-cartera).
+test.skip(true, 'Fase 6: Clientes retirada — cobertura de tabla/búsqueda/filtro-asesor/gating en mi-cartera.test.tsx; alta/corrección en cliente-form.spec.ts')
 
 // Cartera de dos clientes: uno RECIÉN creado (ventana de 5 h viva) y uno viejo
 // (ventana vencida) — el par exacto que necesita el reloj y el gate de corregir.

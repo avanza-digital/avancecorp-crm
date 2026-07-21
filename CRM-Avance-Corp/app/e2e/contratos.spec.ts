@@ -11,12 +11,17 @@
 import { expect, test, type Page } from '@playwright/test'
 import { clienteReal, bloquearSupabase, contratoReal, entrarDemo, loginReal, montarBackendReal, UID, type ContratoReal } from './_helpers'
 
-// Fase 6 (2026-07-21): la pantalla Contratos se RETIRÓ — la cartera unificada
-// "Cartera" (mi-cartera) muestra los contratos como sub-filas por cliente. Esta
-// suite E2E apuntaba a #/contratos (ya inexistente); su cobertura vive en la
-// integración vitest `screens/mi-cartera.test.tsx`. Pendiente: migrar a
-// `mi-cartera.spec.ts` (expandir cliente → sub-fila del contrato).
-test.skip(true, 'Fase 6: pantalla Contratos retirada — cobertura en mi-cartera.test.tsx; migrar E2E a #/mi-cartera')
+// Fase 6.1 (2026-07-21): la pantalla Contratos (tabla PLANA de contratos + picker
+// de "+ Contrato") se RETIRÓ. La mayor parte de esta suite prueba ese layout
+// obsoleto (columnas del portal, headings "Mis contratos"/"Contratos de la
+// cartera", paginación POR CONTRATO, y el selector de cliente de "+ Contrato" que
+// mi-cartera ya no usa — el alta de contrato ahora sale por-fila del cliente). Su
+// cobertura de tabla/búsqueda/reloj/gating vive en `screens/mi-cartera.test.tsx`
+// (vitest) y el detalle/corrección de contrato en `contrato-detalle.spec.ts`.
+// FOLLOW-UP puntual: un E2E de CREACIÓN (numeración 2026-01-XXXXXX + co-titulares
+// en p_contrato + "sin 6 dígitos no llama al server") vía el "+ Contrato"
+// por-cliente de #/mi-cartera (sin picker).
+test.skip(true, 'Fase 6: Contratos (tabla plana + picker) retirada — tabla en mi-cartera.test.tsx, detalle en contrato-detalle.spec.ts; follow-up: E2E de creación vía +Contrato por-cliente')
 
 /** Entra a la pantalla Contratos (con el gate de leads cerrado, la cuenta real
  * arranca en Clientes; el nav lateral sí ofrece Contratos). */
