@@ -36,6 +36,12 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page) // cuenta real → aterriza en #/mi-cartera
 
+  // Centinela de "sin reload": una marca en window que NO sobrevive a un
+  // location.reload(). Si el runtime recargara la página tras crear, se perdería
+  // y el assert final fallaría — así el test prueba LITERALMENTE que no hubo reload
+  // (el backend mock persiste fuera de la página, así que sin esto un reload pasaría).
+  await page.evaluate(() => { (window as unknown as { __sinReload?: boolean }).__sinReload = true })
+
   const form = await abrirFormContrato(page)
   await llenarBase(form)
   // El casillero filtra todo lo que no sea dígito (el maxLength=6 del DOM —
@@ -57,6 +63,10 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   const subFila = page.getByRole('row', { name: /Abrir detalle del contrato 2026-01-000777/ })
   await expect(subFila).toBeVisible()
   await expect(subFila.getByRole('button', { name: 'Corregir' })).toBeVisible()
+
+  // El centinela sigue vivo → la página NUNCA se recargó; la sub-fila apareció
+  // por la invalidación de caché de TanStack Query, no por un reload.
+  expect(await page.evaluate(() => (window as unknown as { __sinReload?: boolean }).__sinReload === true)).toBe(true)
 })
 
 test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page }) => {
