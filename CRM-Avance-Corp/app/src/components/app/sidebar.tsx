@@ -23,8 +23,8 @@ const NAV: NavItem[] = [
   { id: 'pipeline', label: 'Pipeline', icon: KanbanSquare },
   { id: 'cartera', label: 'Leads', icon: Users },
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
-  // "Cartera" (mi-cartera) reemplaza a Clientes y Contratos, que salieron del nav
-  // (siguen accesibles por URL como red de seguridad: #/clientes, #/contratos).
+  // "Cartera" (mi-cartera) reemplaza a Clientes y Contratos, retiradas del todo
+  // en Fase 6 (2026-07-21): ya no existen como vistas ni son alcanzables por URL.
   { id: 'mi-cartera', label: 'Mi cartera', icon: Wallet },
   { id: 'equipo', label: 'Equipo', icon: UsersRound, cap: 'verEquipo' },
 ]

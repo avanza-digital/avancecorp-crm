@@ -27,8 +27,6 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   pipeline: { t: 'Pipeline', s: 'Leads de inversión por etapa' },
   cartera: { t: 'Leads', s: 'Todos tus prospectos captados' },
   agenda: { t: 'Agenda', s: 'Reuniones, llamadas y vencimientos' },
-  clientes: { t: 'Clientes', s: 'Tu cartera de clientes del portal' },
-  contratos: { t: 'Contratos', s: 'Inversiones y cronogramas de tu cartera' },
   'mi-cartera': { t: 'Cartera', s: 'Tus clientes y el capital invertido' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
