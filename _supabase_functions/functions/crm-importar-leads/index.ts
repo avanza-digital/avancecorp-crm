@@ -286,9 +286,11 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    const dni = (f.dni ?? "").trim() || null;
+    // El DNI puede venir con separadores si Sheets lo trató como número
+    // (p.ej. "45,687,364"): se quitan espacios y comas antes de exigir 8 dígitos.
+    const dni = (f.dni ?? "").replace(/[\s,]/g, "") || null;
     if (dni && !/^\d{8}$/.test(dni)) {
-      rechazo("DNI inválido (8 dígitos)");
+      rechazo("DNI inválido (deben ser 8 dígitos)");
       continue;
     }
 
