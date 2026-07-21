@@ -25,10 +25,11 @@ import type { Vista } from '@/lib/router'
 const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
   pipeline: { t: 'Pipeline', s: 'Leads de inversión por etapa' },
-  cartera: { t: 'Cartera', s: 'Todos tus leads y clientes captados' },
+  cartera: { t: 'Leads', s: 'Todos tus prospectos captados' },
   agenda: { t: 'Agenda', s: 'Reuniones, llamadas y vencimientos' },
   clientes: { t: 'Clientes', s: 'Tu cartera de clientes del portal' },
   contratos: { t: 'Contratos', s: 'Inversiones y cronogramas de tu cartera' },
+  'mi-cartera': { t: 'Cartera', s: 'Tus clientes y el capital invertido' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
 }
@@ -62,7 +63,11 @@ export function Topbar({ vista }: { vista: Vista }) {
   const { yo } = useAuth()
   const { ambito } = useCRMData()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
-  const info = TITULOS[vista]
+  // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el vendedor, "Cartera" para quien supervisa.
+  const info =
+    vista === 'mi-cartera'
+      ? { t: yo?.rol === 'vendedor' ? 'Mi cartera' : 'Cartera', s: 'Tus clientes y el capital invertido' }
+      : TITULOS[vista]
   // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
   // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)

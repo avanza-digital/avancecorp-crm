@@ -5,7 +5,7 @@
 //   #/<vista>/lead/<id>   → misma vista con la ficha del lead abierta
 // App.tsx sincroniza hash⇄estado; sidebar/topbar navegan con escribirHash().
 
-export const VISTAS = ['hoy', 'pipeline', 'cartera', 'agenda', 'clientes', 'contratos', 'equipo', 'config'] as const
+export const VISTAS = ['hoy', 'pipeline', 'cartera', 'agenda', 'clientes', 'contratos', 'mi-cartera', 'equipo', 'config'] as const
 export type Vista = (typeof VISTAS)[number]
 
 /**
