@@ -14,10 +14,11 @@ import type { ClienteBasico, ContratoRow } from '@/lib/clientes-tipos'
 let YO: { id: string; rol: string; puede_contratar: boolean; demo: boolean } | null = null
 let CLIENTES: ClienteBasico[] = []
 let CONTRATOS: ContratoRow[] = []
+let EQUIPO: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }> = []
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ equipo: [], ambito: { vendedores: [], esGlobal: false, leads: [] } }),
+  useCRMData: () => ({ equipo: EQUIPO, ambito: { vendedores: [], esGlobal: false, leads: [] } }),
 }))
 vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
@@ -75,10 +76,18 @@ function contrato(over: Partial<ContratoRow> = {}): ContratoRow {
   }
 }
 
-function montar(over: { yo?: typeof YO; clientes?: ClienteBasico[]; contratos?: ContratoRow[] } = {}) {
+function montar(
+  over: {
+    yo?: typeof YO
+    clientes?: ClienteBasico[]
+    contratos?: ContratoRow[]
+    equipo?: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }>
+  } = {},
+) {
   YO = over.yo ?? { id: 'yo', rol: 'vendedor', puede_contratar: true, demo: false }
   CLIENTES = over.clientes ?? [cliente()]
   CONTRATOS = over.contratos ?? [contrato()]
+  EQUIPO = over.equipo ?? []
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
@@ -187,6 +196,54 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Dólares')).not.toBeInTheDocument()
+  })
+})
+
+// —— Supervisión (verEquipo): filtro por asesor + indicador "Sin asesor",
+// portados de la pantalla Clientes retirada en Fase 6 (parity de supervisión).
+describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
+  const YO_SUP = { id: 'sup', rol: 'supervisor', puede_contratar: true, demo: false }
+  const EQUIPO_SUP = [
+    { perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true },
+    { perfil_id: 'ase-2', nombre_completo: 'ASESOR DOS', activo: true },
+  ]
+  // Alfa→ase-1, Beta→ase-2, y uno SIN dueño (dueño null → cuenta como "Sin asesor").
+  const CLIENTES_SUP = [
+    cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' }),
+    cliente({ id: 'c-b', nombre_completo: 'CLIENTE BETA', asesor_perfil_id: 'ase-2', creado_por: 'ase-2' }),
+    cliente({ id: 'c-c', nombre_completo: 'CLIENTE SIN DUENO', asesor_perfil_id: null, creado_por: null }),
+  ]
+  const montarSup = () => montar({ yo: YO_SUP, equipo: EQUIPO_SUP, clientes: CLIENTES_SUP, contratos: [] })
+
+  it('aparece el filtro por asesor y el chip "Sin asesor" con su CTA (1 sin dueño)', () => {
+    montarSup()
+    expect(screen.getByRole('combobox', { name: /Filtrar por asesor/ })).toBeInTheDocument()
+    // El sub-texto "Repártelos…" es único del chip (evita chocar con la opción del Select).
+    expect(screen.getByText(/Repártelos/)).toBeInTheDocument()
+  })
+
+  it('filtrar por un asesor deja solo sus clientes', async () => {
+    const user = userEvent.setup()
+    montarSup()
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'ase-1')
+    expect(screen.getByText('CLIENTE ALFA')).toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE BETA')).not.toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE SIN DUENO')).not.toBeInTheDocument()
+  })
+
+  it('filtro "Sin asesor" aísla los clientes sin dueño', async () => {
+    const user = userEvent.setup()
+    montarSup()
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'sin_asesor')
+    expect(screen.getByText('CLIENTE SIN DUENO')).toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE ALFA')).not.toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE BETA')).not.toBeInTheDocument()
+  })
+
+  it('el vendedor NO ve el filtro por asesor ni el chip "Sin asesor"', () => {
+    montar() // rol vendedor por defecto
+    expect(screen.queryByRole('combobox', { name: /Filtrar por asesor/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/Repártelos/)).not.toBeInTheDocument()
   })
 })
 

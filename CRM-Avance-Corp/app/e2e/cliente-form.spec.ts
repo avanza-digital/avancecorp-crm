@@ -12,11 +12,9 @@
 import { expect, test, type Locator, type Page } from '@playwright/test'
 import { clienteReal, loginReal, montarBackendReal } from './_helpers'
 
-// Fase 6 (2026-07-21): estos casos entraban al alta/corrección de cliente desde
-// la pantalla Clientes (retirada). El MISMO ClienteForm se abre ahora desde la
-// cartera unificada (#/mi-cartera → "Nuevo cliente" / "Corregir cliente").
-// Pendiente: migrar la entrada a #/mi-cartera (el modal y sus asserts no cambian).
-test.skip(true, 'Fase 6: Clientes retirada — migrar la entrada del ClienteForm a #/mi-cartera')
+// Fase 6.1 (2026-07-21): la entrada al ClienteForm migró a la cartera unificada
+// (#/mi-cartera, la vista por defecto de una cuenta real). El MISMO modal se abre
+// con "Nuevo cliente" / "Corregir cliente"; los asserts del modal no cambian.
 
 /** Entra con sesión real y abre el modal de alta desde la pantalla Clientes. */
 async function abrirNuevoCliente(page: Page): Promise<Locator> {

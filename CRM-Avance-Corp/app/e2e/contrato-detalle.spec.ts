@@ -11,12 +11,10 @@
 import { expect, test, type Page } from '@playwright/test'
 import { contratoReal, loginReal, montarBackendReal } from './_helpers'
 
-// Fase 6 (2026-07-21): estos casos llegaban al detalle del contrato desde la
-// pantalla Contratos (retirada; `irAContratos` clicaba un nav que ya no existe).
-// El MISMO ContratoDetalle se abre ahora desde la cartera unificada
-// (#/mi-cartera → expandir cliente → clic en la sub-fila del contrato).
-// Pendiente: migrar la entrada a #/mi-cartera (los asserts del detalle no cambian).
-test.skip(true, 'Fase 6: Contratos retirada — migrar la entrada del detalle a #/mi-cartera')
+// Fase 6.1 (2026-07-21): la entrada migró a la cartera unificada (#/mi-cartera,
+// la vista por defecto). Los contratos cuelgan del cliente como sub-filas; se
+// expande CLIENTE PORTAL UNO para revelarlos. Los asserts del detalle/corrección
+// (fila clicable "Abrir detalle…", <Dialog>, RPC) NO cambian.
 
 const CONTRATO_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
 
@@ -32,9 +30,10 @@ const TITULARES = [
   { nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 },
 ]
 
-/** Con el gate de leads cerrado la cuenta real cae en #/clientes: navegamos por el nav. */
+/** La cuenta real cae en #/mi-cartera (cartera unificada). Los contratos cuelgan
+ *  del cliente: se expande CLIENTE PORTAL UNO para revelar la sub-fila del contrato. */
 async function irAContratos(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Contratos' }).click()
+  await page.getByRole('button', { name: /Expandir los contratos de CLIENTE PORTAL UNO/ }).click()
   await expect(page.getByText('2026-01-000123').first()).toBeVisible()
 }
 

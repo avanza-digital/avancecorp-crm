@@ -29,6 +29,25 @@ function esVista(v: string | undefined): v is Vista {
   return v != null && (VISTAS as readonly string[]).includes(v)
 }
 
+/**
+ * Alias de rutas HEREDADAS: vistas retiradas cuyo bookmark viejo debe seguir
+ * cayendo en su reemplazo. 'clientes' y 'contratos' se fusionaron en 'mi-cartera'
+ * (Fase 6): NO están en VISTAS (no se navega HACIA ellas), pero un enlace viejo
+ * se resuelve a la cartera unificada en vez de degradar a la vista base (que
+ * sería 'hoy' cuando leadsVisibles). Solo lectura; nunca se escribe un alias.
+ */
+const ALIAS_HEREDADO: Record<string, Vista> = {
+  clientes: 'mi-cartera',
+  contratos: 'mi-cartera',
+}
+
+/** Resuelve un segmento de ruta (vista real o alias heredado) a una Vista, o null. */
+function resolverVista(seg: string | undefined): Vista | null {
+  if (esVista(seg)) return seg
+  const alias = seg != null ? ALIAS_HEREDADO[seg] : undefined
+  return alias ?? null
+}
+
 /** Hash canónico de una vista (+ lead opcional). */
 export function hashDe(vista: Vista, leadId?: string | null): string {
   return leadId ? `#/${vista}/lead/${encodeURIComponent(leadId)}` : `#/${vista}`
@@ -39,7 +58,7 @@ export function leerHash(): RutaHash {
   // Acepta "#/hoy", "#hoy" y barras extra ("#/hoy/") — se normaliza al escribir.
   const crudo = window.location.hash.replace(/^#\/?/, '')
   const partes = crudo.split('/').filter(Boolean)
-  const vista = esVista(partes[0]) ? partes[0] : null
+  const vista = resolverVista(partes[0])
   let leadId: string | null = null
   if (vista && partes[1] === 'lead' && partes[2]) {
     try {

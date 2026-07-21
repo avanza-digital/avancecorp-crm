@@ -33,6 +33,20 @@ describe('router por hash', () => {
     expect(leerHash()).toEqual({ vista: 'hoy', leadId: null })
   })
 
+  it('resuelve las rutas HEREDADAS (clientes/contratos → mi-cartera) sin reintroducirlas', () => {
+    // Bookmarks viejos de las pantallas retiradas en Fase 6 caen en la cartera
+    // unificada, no en la vista base 'hoy'.
+    window.location.hash = '#/clientes'
+    expect(leerHash()).toEqual({ vista: 'mi-cartera', leadId: null })
+
+    window.location.hash = '#/contratos'
+    expect(leerHash()).toEqual({ vista: 'mi-cartera', leadId: null })
+
+    // Una ruta realmente desconocida sigue degradando a null (no todo es alias).
+    window.location.hash = '#/inexistente'
+    expect(leerHash()).toEqual({ vista: null, leadId: null })
+  })
+
   it('navega con historial normal y evita escrituras redundantes', () => {
     escribirHash('pipeline', 'l1')
     expect(window.location.hash).toBe('#/pipeline/lead/l1')
