@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
-  LayoutDashboard, KanbanSquare, Users, Users2, FileText, CalendarDays, UsersRound, Settings, LogOut, Eye,
-  PanelLeftClose, PanelLeftOpen,
+  LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
+  PanelLeftClose, PanelLeftOpen, Wallet,
 } from 'lucide-react'
 import { can, ROL_LABEL, type Accion } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -21,10 +21,11 @@ interface NavItem {
 const NAV: NavItem[] = [
   { id: 'hoy', label: 'Hoy', icon: LayoutDashboard },
   { id: 'pipeline', label: 'Pipeline', icon: KanbanSquare },
-  { id: 'cartera', label: 'Cartera', icon: Users },
+  { id: 'cartera', label: 'Leads', icon: Users },
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
-  { id: 'clientes', label: 'Clientes', icon: Users2 },
-  { id: 'contratos', label: 'Contratos', icon: FileText },
+  // "Cartera" (mi-cartera) reemplaza a Clientes y Contratos, que salieron del nav
+  // (siguen accesibles por URL como red de seguridad: #/clientes, #/contratos).
+  { id: 'mi-cartera', label: 'Mi cartera', icon: Wallet },
   { id: 'equipo', label: 'Equipo', icon: UsersRound, cap: 'verEquipo' },
 ]
 
@@ -155,6 +156,8 @@ export function Sidebar({ vista }: { vista: Vista }) {
 
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)
   const items = NAV.filter((n) => (leadsVisibles || !esVistaLeads(n.id)) && (!n.cap || can(rol, n.cap)))
+    // Rótulo por rol de la pantalla fusionada: el vendedor ve "Mi cartera"; quien supervisa, "Cartera".
+    .map((n) => (n.id === 'mi-cartera' && can(rol, 'verEquipo') ? { ...n, label: 'Cartera' } : n))
 
   return (
     <aside

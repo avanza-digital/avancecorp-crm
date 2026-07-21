@@ -27,6 +27,7 @@ const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
 const Clientes = lazy(() => import('@/screens/clientes').then((m) => ({ default: m.Clientes })))
 const Contratos = lazy(() => import('@/screens/contratos').then((m) => ({ default: m.Contratos })))
+const MiCartera = lazy(() => import('@/screens/mi-cartera').then((m) => ({ default: m.MiCartera })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 
@@ -116,11 +117,12 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
 /**
  * Vista corregida por capacidad y por el GATE de leads — espejo del guard
  * (doble defensa F1c). Con el gate cerrado (cuenta real, leads sin aprobar) las
- * vistas de leads redirigen a 'clientes', que además es la vista base.
+ * vistas de leads redirigen a 'mi-cartera', que además es la vista base (Clientes
+ * y Contratos salieron del nav; la Cartera fusionada es la landing del vendedor).
  */
 function sanearVista(vista: Vista, puedeConfig: boolean, puedeEquipo: boolean, leadsVisibles: boolean): Vista {
-  const base: Vista = leadsVisibles ? 'hoy' : 'clientes'
-  if (!leadsVisibles && esVistaLeads(vista)) return 'clientes'
+  const base: Vista = leadsVisibles ? 'hoy' : 'mi-cartera'
+  if (!leadsVisibles && esVistaLeads(vista)) return 'mi-cartera'
   if (vista === 'config' && !puedeConfig) return base
   if (vista === 'equipo' && !puedeEquipo) return base
   return vista
@@ -140,7 +142,7 @@ function Workspace() {
   // capacidad para no pintar ni un frame de config/equipo a quien no puede.
   const [vista, setVista] = useState<Vista>(() =>
     sanearVista(
-      leerHash().vista ?? (leadsVisibles ? 'hoy' : 'clientes'),
+      leerHash().vista ?? (leadsVisibles ? 'hoy' : 'mi-cartera'),
       can(rol, 'verConfiguracion'),
       can(rol, 'verEquipo'),
       leadsVisibles,
@@ -162,7 +164,7 @@ function Workspace() {
       const leido = leerHash()
       // Ruta desconocida → vista base; vista sin permiso o gateada → base (espejo del guard).
       let destino = sanearVista(
-        leido.vista ?? (ctx.leadsVisibles ? 'hoy' : 'clientes'),
+        leido.vista ?? (ctx.leadsVisibles ? 'hoy' : 'mi-cartera'),
         can(ctx.rol, 'verConfiguracion'),
         can(ctx.rol, 'verEquipo'),
         ctx.leadsVisibles,
@@ -210,8 +212,8 @@ function Workspace() {
   // defensa, patrón VITANOVA). Cubre cambios de rol en caliente; el hash se
   // corrige detrás.
   useEffect(() => {
-    const base: Vista = leadsVisibles ? 'hoy' : 'clientes'
-    if (!leadsVisibles && esVistaLeads(vista)) setVista('clientes')
+    const base: Vista = leadsVisibles ? 'hoy' : 'mi-cartera'
+    if (!leadsVisibles && esVistaLeads(vista)) setVista('mi-cartera')
     if (vista === 'config' && !can(rol, 'verConfiguracion')) setVista(base)
     if (vista === 'equipo' && !can(rol, 'verEquipo')) setVista(base)
   }, [vista, rol, leadsVisibles])
@@ -231,6 +233,7 @@ function Workspace() {
               {vista === 'agenda' && <Agenda />}
               {vista === 'clientes' && <Clientes />}
               {vista === 'contratos' && <Contratos />}
+              {vista === 'mi-cartera' && <MiCartera />}
               {vista === 'equipo' && <Equipo />}
               {vista === 'config' && <Config />}
             </Suspense>
