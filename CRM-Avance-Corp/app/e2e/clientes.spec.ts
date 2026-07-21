@@ -8,6 +8,13 @@
 import { expect, test } from '@playwright/test'
 import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal, UID } from './_helpers'
 
+// Fase 6 (2026-07-21): la pantalla Clientes se RETIRÓ — la cartera unificada
+// "Cartera" (mi-cartera) la reemplaza para todos los roles. Esta suite E2E
+// apuntaba a #/clientes (ya inexistente); su cobertura vive en la integración
+// vitest `screens/mi-cartera.test.tsx`. Pendiente: migrar estos casos a un
+// `mi-cartera.spec.ts`. Reactivar sería reescribir la entrada a #/mi-cartera.
+test.skip(true, 'Fase 6: pantalla Clientes retirada — cobertura en mi-cartera.test.tsx; migrar E2E a #/mi-cartera')
+
 // Cartera de dos clientes: uno RECIÉN creado (ventana de 5 h viva) y uno viejo
 // (ventana vencida) — el par exacto que necesita el reloj y el gate de corregir.
 function carteraConVentanas() {

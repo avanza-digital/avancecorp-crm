@@ -11,6 +11,13 @@
 import { expect, test, type Page } from '@playwright/test'
 import { clienteReal, bloquearSupabase, contratoReal, entrarDemo, loginReal, montarBackendReal, UID, type ContratoReal } from './_helpers'
 
+// Fase 6 (2026-07-21): la pantalla Contratos se RETIRÓ — la cartera unificada
+// "Cartera" (mi-cartera) muestra los contratos como sub-filas por cliente. Esta
+// suite E2E apuntaba a #/contratos (ya inexistente); su cobertura vive en la
+// integración vitest `screens/mi-cartera.test.tsx`. Pendiente: migrar a
+// `mi-cartera.spec.ts` (expandir cliente → sub-fila del contrato).
+test.skip(true, 'Fase 6: pantalla Contratos retirada — cobertura en mi-cartera.test.tsx; migrar E2E a #/mi-cartera')
+
 /** Entra a la pantalla Contratos (con el gate de leads cerrado, la cuenta real
  * arranca en Clientes; el nav lateral sí ofrece Contratos). */
 async function irAContratos(page: Page): Promise<void> {

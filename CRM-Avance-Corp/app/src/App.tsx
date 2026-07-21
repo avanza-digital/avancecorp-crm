@@ -25,8 +25,6 @@ const Hoy = lazy(() => import('@/screens/hoy').then((m) => ({ default: m.Hoy }))
 const Pipeline = lazy(() => import('@/screens/pipeline').then((m) => ({ default: m.Pipeline })))
 const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m.Cartera })))
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
-const Clientes = lazy(() => import('@/screens/clientes').then((m) => ({ default: m.Clientes })))
-const Contratos = lazy(() => import('@/screens/contratos').then((m) => ({ default: m.Contratos })))
 const MiCartera = lazy(() => import('@/screens/mi-cartera').then((m) => ({ default: m.MiCartera })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
@@ -231,8 +229,6 @@ function Workspace() {
               {vista === 'pipeline' && <Pipeline />}
               {vista === 'cartera' && <Cartera />}
               {vista === 'agenda' && <Agenda />}
-              {vista === 'clientes' && <Clientes />}
-              {vista === 'contratos' && <Contratos />}
               {vista === 'mi-cartera' && <MiCartera />}
               {vista === 'equipo' && <Equipo />}
               {vista === 'config' && <Config />}
