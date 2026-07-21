@@ -18,10 +18,10 @@ import { clienteReal, bloquearSupabase, contratoReal, entrarDemo, loginReal, mon
 // mi-cartera ya no usa — el alta de contrato ahora sale por-fila del cliente). Su
 // cobertura de tabla/búsqueda/reloj/gating vive en `screens/mi-cartera.test.tsx`
 // (vitest) y el detalle/corrección de contrato en `contrato-detalle.spec.ts`.
-// FOLLOW-UP puntual: un E2E de CREACIÓN (numeración 2026-01-XXXXXX + co-titulares
-// en p_contrato + "sin 6 dígitos no llama al server") vía el "+ Contrato"
-// por-cliente de #/mi-cartera (sin picker).
-test.skip(true, 'Fase 6: Contratos (tabla plana + picker) retirada — tabla en mi-cartera.test.tsx, detalle en contrato-detalle.spec.ts; follow-up: E2E de creación vía +Contrato por-cliente')
+// SALDADO 2026-07-21: la CREACIÓN (numeración 2026-01-XXXXXX + co-titulares en
+// p_contrato + "sin 6 dígitos no llama al server" + sub-fila sin reload) vive en
+// `contrato-crear.spec.ts`, entrando por el "+ Contrato" por-cliente (sin picker).
+test.skip(true, 'Fase 6: Contratos (tabla plana + picker) retirada — tabla en mi-cartera.test.tsx, detalle en contrato-detalle.spec.ts, creación en contrato-crear.spec.ts')
 
 /** Entra a la pantalla Contratos (con el gate de leads cerrado, la cuenta real
  * arranca en Clientes; el nav lateral sí ofrece Contratos). */
