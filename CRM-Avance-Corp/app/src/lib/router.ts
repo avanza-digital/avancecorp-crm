@@ -44,7 +44,9 @@ const ALIAS_HEREDADO: Record<string, Vista> = {
 /** Resuelve un segmento de ruta (vista real o alias heredado) a una Vista, o null. */
 function resolverVista(seg: string | undefined): Vista | null {
   if (esVista(seg)) return seg
-  const alias = seg != null ? ALIAS_HEREDADO[seg] : undefined
+  // Object.hasOwn evita que claves del prototipo ('constructor', 'toString',
+  // '__proto__'…) resuelvan a un miembro heredado en vez de a null.
+  const alias = seg != null && Object.hasOwn(ALIAS_HEREDADO, seg) ? ALIAS_HEREDADO[seg] : undefined
   return alias ?? null
 }
 

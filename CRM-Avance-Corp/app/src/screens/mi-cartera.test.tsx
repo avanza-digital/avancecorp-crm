@@ -207,19 +207,29 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     { perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true },
     { perfil_id: 'ase-2', nombre_completo: 'ASESOR DOS', activo: true },
   ]
-  // Alfa→ase-1, Beta→ase-2, y uno SIN dueño (dueño null → cuenta como "Sin asesor").
+  // Alfa→ase-1, Beta→ase-2, y DOS variantes de "Sin asesor": dueño null y dueño
+  // FUERA del roster visible ('ase-fantasma', p.ej. alta de un admin del portal).
+  // Ambas cuentan como sin asesor — la columna Asesor pinta '—' para las dos.
   const CLIENTES_SUP = [
     cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' }),
     cliente({ id: 'c-b', nombre_completo: 'CLIENTE BETA', asesor_perfil_id: 'ase-2', creado_por: 'ase-2' }),
     cliente({ id: 'c-c', nombre_completo: 'CLIENTE SIN DUENO', asesor_perfil_id: null, creado_por: null }),
+    cliente({ id: 'c-d', nombre_completo: 'CLIENTE FANTASMA', asesor_perfil_id: 'ase-fantasma', creado_por: 'ase-fantasma' }),
   ]
   const montarSup = () => montar({ yo: YO_SUP, equipo: EQUIPO_SUP, clientes: CLIENTES_SUP, contratos: [] })
 
-  it('aparece el filtro por asesor y el chip "Sin asesor" con su CTA (1 sin dueño)', () => {
+  it('el chip "Sin asesor" cuenta dueño null Y dueño fuera del roster (2)', () => {
     montarSup()
     expect(screen.getByRole('combobox', { name: /Filtrar por asesor/ })).toBeInTheDocument()
     // El sub-texto "Repártelos…" es único del chip (evita chocar con la opción del Select).
     expect(screen.getByText(/Repártelos/)).toBeInTheDocument()
+    // Conteo del chip = mismo criterio que el filtro: null + fuera-de-roster = 2.
+    // (AnimatedValue arranca en el useState(value) inicial; su rAF no avanza en jsdom.)
+    // Se ancla por el sub-texto "Repártelos" (único del chip; "Sin asesor" también
+    // es una <option> del Select de asesor).
+    const chip = screen.getByText(/Repártelos/).closest('.ac-lift') as HTMLElement
+    expect(chip).not.toBeNull()
+    expect(within(chip).getByText('2')).toBeInTheDocument()
   })
 
   it('filtrar por un asesor deja solo sus clientes', async () => {
@@ -229,13 +239,15 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     expect(screen.getByText('CLIENTE ALFA')).toBeInTheDocument()
     expect(screen.queryByText('CLIENTE BETA')).not.toBeInTheDocument()
     expect(screen.queryByText('CLIENTE SIN DUENO')).not.toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE FANTASMA')).not.toBeInTheDocument()
   })
 
-  it('filtro "Sin asesor" aísla los clientes sin dueño', async () => {
+  it('filtro "Sin asesor" aísla dueño null Y dueño fuera del roster', async () => {
     const user = userEvent.setup()
     montarSup()
     await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'sin_asesor')
     expect(screen.getByText('CLIENTE SIN DUENO')).toBeInTheDocument()
+    expect(screen.getByText('CLIENTE FANTASMA')).toBeInTheDocument()
     expect(screen.queryByText('CLIENTE ALFA')).not.toBeInTheDocument()
     expect(screen.queryByText('CLIENTE BETA')).not.toBeInTheDocument()
   })
@@ -244,6 +256,36 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     montar() // rol vendedor por defecto
     expect(screen.queryByRole('combobox', { name: /Filtrar por asesor/ })).not.toBeInTheDocument()
     expect(screen.queryByText(/Repártelos/)).not.toBeInTheDocument()
+  })
+
+  it('con capital en PEN Y USD, "Sin asesor" reemplaza una métrica → 4 tarjetas, no 5', () => {
+    // Dos chips de capital + Por vencer + Clientes con capital = 4; sin el fix,
+    // "Sin asesor" sería el 5º y rompería el grid de 4. El fix descarta la última
+    // métrica NO monetaria (Clientes con capital), nunca los chips de capital.
+    montar({
+      yo: YO_SUP,
+      equipo: EQUIPO_SUP,
+      clientes: [cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' })],
+      contratos: [
+        contrato({ cliente_id: 'c-a', moneda: 'PEN', capital: 10000, estado: 'activo' }),
+        contrato({ cliente_id: 'c-a', numero_contrato: '2026-01-000002', moneda: 'USD', capital: 5000, estado: 'activo' }),
+      ],
+    })
+    // Chips de capital intactos + Sin asesor presente; Clientes con capital cede el sitio.
+    expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
+    expect(screen.getByText('Capital invertido · Dólares')).toBeInTheDocument()
+    // 'span' distingue el label del chip de la <option> homónima del Select.
+    expect(screen.getByText('Sin asesor', { selector: 'span' })).toBeInTheDocument()
+    expect(screen.queryByText('Clientes con capital')).not.toBeInTheDocument()
+  })
+
+  it('vacío por asesor + estado combinados usa un mensaje neutral (no afirma "toda la cartera tiene dueño")', async () => {
+    const user = userEvent.setup()
+    montarSup() // hay clientes sin asesor, pero sin contratos → cualquier estado los vacía
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por asesor/ }), 'sin_asesor')
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por estado de contrato/ }), 'activo')
+    expect(screen.getByText('Ningún cliente coincide con los filtros aplicados.')).toBeInTheDocument()
+    expect(screen.queryByText(/toda la cartera tiene dueño/)).not.toBeInTheDocument()
   })
 })
 
