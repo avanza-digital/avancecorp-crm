@@ -25,7 +25,7 @@ Punto de retomo de la sesión que construyó y desplegó la pantalla unificada *
 
 ## Follow-ups (no bloquean)
 
-- **E2E de creación de contrato**: migrar la parte de *numeración* (`2026-01-XXXXXX`) + co-titulares en `p_contrato` + "sin 6 dígitos no llama al server" a un E2E que entre por el **"+ Contrato" por-cliente** de mi-cartera (sin picker). Hoy esos casos viven skipeados en `contratos.spec.ts`.
+- ~~**E2E de creación de contrato**~~ **SALDADO 2026-07-21**: `e2e/contrato-crear.spec.ts` (4 tests) entra por el "+ Contrato" por-cliente de mi-cartera (sin picker; el nombre accesible del dialog es el DialogTitle "Crear contrato de {cliente}" — aria-labelledby de Radix gana sobre el aria-label del contenedor). Cubre numeración `2026-01-XXXXXX` + filtro de dígitos, gate de 6 dígitos sin llamada al server, co-titulares normalizados en `p_contrato`, corte pre-servidor de co-titular inválido/duplicado, y la sub-fila nueva apareciendo SIN reload (esencia del viejo test cruzado de invalidación). E2E: 36 passed/37 skipped/0 failed.
 - **Bundle del entry**: creció a 259 KB (gzip 78) por re-fragmentado de Rolldown al quitar 2 rutas — Dialog/overlays se hundieron en el entry. Opcional: grupo `advancedChunks` para overlays (⚠️ la config advierte que es recursiva).
 
 ## Ojo (trampas)
