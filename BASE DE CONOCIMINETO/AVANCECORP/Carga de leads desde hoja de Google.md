@@ -54,6 +54,13 @@ rechazos: corregir la fila y borrar su estado = reintento en el próximo ciclo).
 - **Apps Script:** copia de respaldo en `CRM-Avance-Corp/scripts/hoja-leads-apps-script.gs`.
   `configurar()` (una vez) crea encabezado col. P + trigger 5 min; `importarLeads()` con
   LockService, `getDisplayValues` (texto tal cual), lotes de 200, "ERROR temporal" reintenta solo.
+  **UPGRADE UX 2026-07-21 (v2 del script, "a prueba de errores"):** `configurar()` ahora también
+  pone **menús desplegables** (Moneda/Canal/Género/Interés/¿Autorizó?) con lista cerrada,
+  fuerza a **TEXTO** las columnas numéricas (teléfono/capital/DNI/fecha) — elimina de raíz el
+  "DNI inválido" por separadores de miles que mete Sheets —, colorea la columna de estado
+  (verde/ámbar/rojo/azul) y congela la cabecera. Nuevo disparador simple **`onEdit`**: al editar
+  cualquier campo A–O de una fila, borra su estado → se re-importa sola (ya no hay que borrar la
+  col. P a mano). Requiere **re-pegar el .gs y correr `configurar()` una vez**.
 - **Resoluciones de las 3 decisiones:** dedup por teléfono normalizado (DUPLICADO, no inserta) ·
   sync automático cada 5 min · rechazos en la columna P.
 - **Vendedor asignado:** correo→`perfiles`→`crm.equipo` (activo, vendedor|supervisor);

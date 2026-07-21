@@ -2,58 +2,159 @@
  * Conector hoja "Leads AVANCE CORP — captura para CRM" → CRM (crm.leads).
  * ─────────────────────────────────────────────────────────────────────────────
  * Copia de respaldo del Apps Script que vive DENTRO de la hoja de Google
- * (Extensiones → Apps Script). Si la hoja pierde el script, se pega este
- * archivo tal cual y se ejecuta configurar() una vez.
+ * (Extensiones → Apps Script). Si la hoja pierde el script, se pega este archivo
+ * tal cual y se ejecuta configurar() UNA VEZ.
  *
- * Qué hace: cada 5 minutos toma las filas cuya columna P (Estado importación)
- * está vacía, las manda al edge `crm-importar-leads` (valida, deduplica por
- * teléfono e inserta), y escribe el resultado en la columna P de cada fila:
- *   IMPORTADO ✓ · DUPLICADO: ya existe · RECHAZADO: <motivo concreto>
- * El equipo corrige la fila rechazada, BORRA su estado, y el siguiente ciclo
- * la reintenta. Sin estado vacío no hay reenvío: no se duplica trabajo.
+ * DOS partes:
+ *  1) configurar()  → deja la hoja "a prueba de errores": encabezados, menús
+ *     desplegables (moneda/canal/interés/género/consentimiento), columnas de
+ *     números como TEXTO (evita que Sheets reformatee DNI/teléfono/capital),
+ *     colores en la columna de estado, y el disparador de importación cada 5 min.
+ *  2) importarLeads() → cada 5 min manda las filas nuevas al edge, valida,
+ *     deduplica por teléfono e inserta, y escribe el resultado en la columna P.
  *
- * Seguridad: el edge exige el secreto x-importar-secret además del anon key.
- * El secreto NO vive en este código (rotado 2026-07-21): se lee de las
- * Propiedades del script — Apps Script → ⚙️ Configuración del proyecto →
- * Propiedades del script → agregar IMPORTAR_SECRET con el valor vigente.
- * (El ANON_KEY sí puede ir inline: es la llave PÚBLICA del proyecto.)
- * Solo quien edita el proyecto de Apps Script ve la propiedad; lo único que
- * permite es INSERTAR leads (lo mismo que ya hace llenando filas). No lee datos.
+ * Además onEdit() borra el estado de una fila apenas la editas → se re-importa
+ * sola en el siguiente ciclo (no hay que borrar el estado a mano).
+ *
+ * Seguridad: el edge exige el secreto x-importar-secret además del anon key. El
+ * secreto NO vive en este código: se lee de las Propiedades del script (⚙️
+ * Configuración del proyecto → Propiedades del script → IMPORTAR_SECRET).
+ * (El ANON_KEY sí va inline: es la llave PÚBLICA del proyecto.)
  */
 
 const EDGE_URL =
   "https://dctqcbznekcyxhjujuci.supabase.co/functions/v1/crm-importar-leads";
 const ANON_KEY =
   "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRjdHFjYnpuZWtjeXhoanVqdWNpIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNzU4NzAsImV4cCI6MjA5MjY1MTg3MH0.2Rz9Nq05Duk1vQRZb0R_PtSX0ZiRbxP82JAPKusmsSo";
-// Secreto compartido con el edge — SOLO de Propiedades del script (jamás inline).
 const IMPORTAR_SECRET =
   PropertiesService.getScriptProperties().getProperty("IMPORTAR_SECRET");
 
 const COL_ESTADO = 16; // columna P
 const MAX_POR_LOTE = 200;
+const FILAS_CONFIG = 2000; // hasta dónde se aplican formatos/menús (holgado)
+
+// Encabezados y menús: única fuente de verdad de la estructura de la hoja.
+const ENCABEZADOS = [
+  "Nombre completo *",
+  "Teléfono *",
+  "Capital estimado *",
+  "Moneda *",
+  "Canal de origen *",
+  "Correo",
+  "DNI",
+  "Género",
+  "Fecha de nacimiento",
+  "Distrito",
+  "Interés",
+  "Nota",
+  "Vendedor asignado (correo)",
+  "¿Autorizó contacto?",
+  "Fuente del consentimiento",
+  "Estado importación (automático — no tocar)",
+];
+// Menús desplegables por columna (1-indexado). Evitan typos y celdas cruzadas.
+const MENUS = {
+  4: ["PEN", "USD"], // Moneda
+  5: ["Referido", "LANDING", "FORMULARIO", "Wallking", "Otro"], // Canal
+  8: ["F", "M"], // Género
+  11: ["Nuevo", "Renovación", "Upgrade"], // Interés
+  14: ["SI", "NO"], // ¿Autorizó contacto?
+};
+// Columnas que se fuerzan a TEXTO para que Sheets no las reinterprete como
+// número/fecha (la causa del "DNI inválido"): teléfono, capital, DNI, fecha nac.
+const COLS_TEXTO = [2, 3, 7, 9];
 
 /**
- * EJECUTAR UNA VEZ (botón ▶ con "configurar" seleccionado): crea el encabezado
- * de la columna de estado y el trigger de cada 5 minutos. Re-ejecutarla es
- * seguro (no duplica triggers).
+ * EJECUTAR UNA VEZ (selecciona "configurar" y pulsa ▶). Idempotente: re-correrla
+ * es seguro. Deja la hoja lista y arranca el disparador de 5 min.
  */
 function configurar() {
   const hoja = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
-  hoja.getRange(1, COL_ESTADO).setValue("Estado importación (automático — no tocar)");
-  hoja.setColumnWidth(COL_ESTADO, 260);
 
+  // 1) Encabezados + estilo + fila congelada.
+  const cab = hoja.getRange(1, 1, 1, ENCABEZADOS.length);
+  cab.setValues([ENCABEZADOS])
+    .setFontWeight("bold")
+    .setBackground("#1f2937")
+    .setFontColor("#ffffff")
+    .setWrap(true)
+    .setVerticalAlignment("middle");
+  hoja.setFrozenRows(1);
+  hoja.setRowHeight(1, 46);
+
+  // 2) Columnas numéricas/fecha como TEXTO (adiós separadores de miles y fechas
+  //    auto-convertidas). El resto del área de datos también a texto por higiene.
+  const areaDatos = hoja.getRange(2, 1, FILAS_CONFIG, ENCABEZADOS.length);
+  areaDatos.setNumberFormat("@"); // '@' = texto sin formato
+  COLS_TEXTO.forEach(function (c) {
+    hoja.getRange(2, c, FILAS_CONFIG, 1).setNumberFormat("@");
+  });
+
+  // 3) Menús desplegables (lista cerrada: no deja escribir un valor fuera).
+  Object.keys(MENUS).forEach(function (col) {
+    const regla = SpreadsheetApp.newDataValidation()
+      .requireValueInList(MENUS[col], true)
+      .setAllowInvalid(false)
+      .setHelpText("Elige un valor de la lista.")
+      .build();
+    hoja.getRange(2, Number(col), FILAS_CONFIG, 1).setDataValidation(regla);
+  });
+
+  // 4) Anchos de columna cómodos.
+  const anchos = [190, 130, 130, 90, 150, 210, 110, 80, 140, 130, 120, 240, 220, 140, 200, 260];
+  anchos.forEach(function (w, i) { hoja.setColumnWidth(i + 1, w); });
+
+  // 5) Colores automáticos en la columna de estado (verde/gris/rojo/azul).
+  const rangoEstado = hoja.getRange(2, COL_ESTADO, FILAS_CONFIG, 1);
+  const regla = function (texto, bg, fg) {
+    return SpreadsheetApp.newConditionalFormatRule()
+      .whenTextStartsWith(texto)
+      .setBackground(bg)
+      .setFontColor(fg)
+      .setRanges([rangoEstado])
+      .build();
+  };
+  hoja.setConditionalFormatRules([
+    regla("IMPORTADO", "#d9ead3", "#1e4620"), // verde
+    regla("DUPLICADO", "#fff2cc", "#7f6000"), // ámbar
+    regla("RECHAZADO", "#f4cccc", "#990000"), // rojo
+    regla("ERROR", "#cfe2f3", "#0b5394"),     // azul (temporal, se reintenta)
+  ]);
+
+  // 6) Disparador cada 5 min (sin duplicar) + primera pasada inmediata.
   ScriptApp.getProjectTriggers().forEach(function (t) {
     if (t.getHandlerFunction() === "importarLeads") ScriptApp.deleteTrigger(t);
   });
   ScriptApp.newTrigger("importarLeads").timeBased().everyMinutes(5).create();
 
-  importarLeads(); // primera pasada inmediata, para ver resultados al instante
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    "Hoja configurada. Escribe leads desde la fila 2; se importan solos cada 5 min.",
+    "Listo", 6);
+  importarLeads();
 }
 
-/** Corre cada 5 minutos por trigger. También se puede ejecutar a mano. */
+/**
+ * Disparador SIMPLE: al editar cualquier campo (A–O) de una fila de datos, borra
+ * su estado (columna P) para que el siguiente ciclo la reintente. Corregir una
+ * fila rechazada = simplemente arreglarla; no hay que tocar la columna de estado.
+ */
+function onEdit(e) {
+  if (!e || !e.range) return;
+  const hoja = e.range.getSheet();
+  if (hoja.getIndex() !== 1) return; // solo la primera hoja
+  const desde = e.range.getRow();
+  const hasta = e.range.getLastRow();
+  const col = e.range.getColumn();
+  const colFin = e.range.getLastColumn();
+  if (desde < 2) return;                 // no la cabecera
+  if (col >= COL_ESTADO) return;         // no cuando se edita la propia col. de estado
+  for (let r = Math.max(desde, 2); r <= hasta; r++) {
+    hoja.getRange(r, COL_ESTADO).clearContent();
+  }
+}
+
+/** Corre cada 5 minutos por disparador. También se puede ejecutar a mano. */
 function importarLeads() {
-  // Sin la propiedad IMPORTAR_SECRET el edge rechazaría todo con 401: mejor
-  // fallar aquí con un mensaje accionable (visible en Ejecuciones del script).
   if (!IMPORTAR_SECRET) {
     throw new Error(
       "Falta IMPORTAR_SECRET: agrégala en ⚙️ Configuración del proyecto → Propiedades del script."
@@ -67,8 +168,8 @@ function importarLeads() {
     const ultimaFila = hoja.getLastRow();
     if (ultimaFila < 2) return;
 
-    // getDisplayValues: todo como TEXTO tal cual se ve (evita que Sheets
-    // convierta teléfonos a número o fechas a Date y rompa el formato).
+    // getDisplayValues: texto tal cual se ve (con columnas en formato TEXTO,
+    // el DNI/teléfono/capital llegan limpios, sin separadores de miles).
     const datos = hoja.getRange(2, 1, ultimaFila - 1, COL_ESTADO).getDisplayValues();
 
     const pendientes = [];
@@ -116,7 +217,7 @@ function importarLeads() {
 
     if (respuesta.getResponseCode() !== 200) {
       // Error global (red/servidor): se anota en la primera fila del lote y se
-      // reintentará solo, porque el estado con "ERROR" se limpia al final.
+      // reintentará solo, porque el estado con "ERROR temporal" es reintentable.
       const aviso = "ERROR temporal (" + respuesta.getResponseCode() + ") — se reintenta solo";
       hoja.getRange(pendientes[0].fila, COL_ESTADO).setValue(aviso);
       return;
