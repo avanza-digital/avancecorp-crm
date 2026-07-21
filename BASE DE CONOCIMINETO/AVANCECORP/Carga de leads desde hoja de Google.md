@@ -1,5 +1,5 @@
 ---
-estado: ⏸️ EN PAUSA POR ROTACIÓN 2026-07-21 — edge v2 fail-closed; falta que Miguel pegue el secreto (2 pasos, ver §Rotación)
+estado: ✅ VIVO — secreto ROTADO a env y RE-VERIFICADO end-to-end 2026-07-21
 fecha: 2026-07-20
 ---
 
@@ -71,20 +71,48 @@ secreto→401). El secreto anterior (hardcodeado) quedó INVALIDADO. El ANON_KEY
 inline en el .gs: es la llave pública. Con esto los archivos del conector quedaron
 COMMITEABLES (deuda del go-live saldada).
 
-### Rotación 2026-07-21 — pasos de Miguel PENDIENTES (el conector queda caído hasta hacerlos)
+### Rotación 2026-07-21 — COMPLETADA Y VERIFICADA
 1. **Dashboard de Supabase** → proyecto `dctqcbznekcyxhjujuci` → Edge Functions →
-   Secrets → Add: clave `CRM_IMPORTAR_SECRET`, valor = el secreto nuevo (entregado
-   en la sesión del 2026-07-21; NO se escribe aquí).
-2. **La hoja** → Extensiones → Apps Script → ⚙️ Configuración del proyecto →
-   Propiedades del script → Add: `IMPORTAR_SECRET` = el MISMO valor. Luego pegar el
-   código actualizado de `CRM-Avance-Corp/scripts/hoja-leads-apps-script.gs`
-   (reemplaza todo) y Guardar. El trigger de 5 min existente sigue sirviendo
-   (no hace falta re-ejecutar `configurar()`).
-Riesgo de la ventana caída: CERO hoy (crm.leads=0, sin leads reales fluyendo); si el
-script corre antes de completar los pasos, pinta "ERROR temporal (401)" y reintenta solo.
+   Secrets → `CRM_IMPORTAR_SECRET` = secreto nuevo. ✅ HECHO por Miguel (agregarlo
+   reinició la función a versión 3, visto en logs).
+2. **La hoja** → Propiedades del script → `IMPORTAR_SECRET` = mismo valor + código
+   actualizado pegado. ✅ HECHO por Miguel (su ejecución completó sin el throw
+   "Falta IMPORTAR_SECRET" → la propiedad está puesta).
+**Verificación end-to-end (2026-07-21):** POST con el secreto nuevo → HTTP 200
+"IMPORTADO ✓"; la fila aterrizó en crm.leads con teléfono normalizado
+(`+51999000111`), origen `referido`, etapa `nuevo`, sin dueño, `creado_por` null;
+dato de prueba BORRADO (crm.leads de vuelta a 0). El secreto viejo da 401 (invalidado).
+**El conector queda VIVO de nuevo, con el secreto fuera del código.**
 
 **Rotaciones futuras** (sin redeploy): nuevo valor → actualizar el secret del dashboard
 Y la propiedad del script. Nada más.
+
+### Endurecimiento tras auditoría Codex (2026-07-21, edge v4 desplegada, verificada en vivo)
+Codex auditó el conector (8 hallazgos: 0C/0A/4M/4B). **7 corregidos** en la edge (v4,
+sha `04b1fcc4…`); el #4 quedó como decisión pendiente (ver abajo).
+- **Consentimiento estricto** (Medio): "¿Autorizó contacto?" solo acepta SI/SÍ/S,
+  NO/N, o vacío (contactable sin consentimiento). Un typo tipo `N0`/`FALSE` ahora
+  RECHAZA la fila en vez de fabricar `consentimiento_en`. `consentimiento_fuente`
+  solo se guarda con un SÍ explícito.
+- **Errores de resolución de vendedor** (Medio): un fallo consultando `perfiles`/
+  `crm.equipo` ahora corta con HTTP 500 ANTES de insertar (el Apps Script reintenta
+  como "ERROR temporal") — antes se leía como "sin vendedor" e importaba todo sin dueño.
+- **parseCapital estricto** (Medio): un solo formato (coma=millar, punto=decimal);
+  RECHAZA `5000.999` (3 dec), `12,50` y `50.000,00` (antes daban 5001/1250/50). Espejo
+  de `validacion.ts` del CRM: rechazar, nunca redondear.
+- **Edad en calendario de LIMA** (Bajo): `edadCumplida` resta 5 h a UTC (antes 19-24 h
+  Lima aceptaba a alguien un día antes de cumplir 18).
+- **Fortaleza del secreto** (Bajo): la edge exige `/^[0-9a-f]{64}$/i` en el secreto del
+  env; un valor débil ("x") ahora falla cerrado igual que ausente.
+- **Versión fija** (Bajo): `jsr:@supabase/supabase-js@2.110.8` (no `@2`).
+- Verificado en vivo (POST reales): typo→RECHAZADO, formatos UE/3-dec→RECHAZADO,
+  NO→sin consentimiento, SI→con consentimiento y fuente; datos borrados, crm.leads=0.
+- **#4 (Medio, PENDIENTE — decisión de Miguel):** el conector usa las **llaves legacy**
+  de Supabase (anon JWT + service_role). Supabase las mantiene hasta fin de 2026 pero
+  recomienda migrar a las nuevas API keys (publishable/secret). Migración: cliente admin
+  a `SUPABASE_SECRET_KEY`, y el Apps Script de "anon JWT + verify_jwt=true" a
+  "verify_jwt=false + solo el secreto compartido estricto". No urgente; requiere
+  aprovisionar la secret key nueva y re-verificar. NO ejecutado.
 
 ### Instalación VERIFICADA (2026-07-20, mismo día)
 Miguel pegó el script y ejecutó `configurar()`. Verificado end-to-end: columna P creada,

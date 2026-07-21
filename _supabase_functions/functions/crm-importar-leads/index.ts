@@ -1,5 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
-import { createClient } from "jsr:@supabase/supabase-js@2";
+// Versión EXACTA (no `@2`): esta función corre con service_role; un rango podría
+// resolver otra versión en un deploy futuro. Al subir, revisar contra la última 2.x.
+import { createClient } from "jsr:@supabase/supabase-js@2.110.8";
 
 // ============================================================================
 // crm-importar-leads — conector hoja de Google → crm.leads (2026-07-20).
@@ -36,8 +38,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // ============================================================================
 
 // Secreto compartido con el Apps Script de la hoja — SOLO del entorno.
-// Vacío o ausente → secretoValido() rechaza todo (fail-closed, nunca abierto).
+// Debe ser 64 hex (openssl rand -hex 32). Si falta o no cumple el formato,
+// secretoValido() rechaza TODO (fail-closed): un valor débil no debe habilitar
+// el conector por accidente.
 const IMPORTAR_SECRET = Deno.env.get("CRM_IMPORTAR_SECRET") ?? "";
+const SECRETO_BIEN_FORMADO = /^[0-9a-f]{64}$/i.test(IMPORTAR_SECRET);
 
 const MAX_POR_LOTE = 200;
 const MONTO_MAX = 9_999_999_999.99;
@@ -61,8 +66,8 @@ function json(body: unknown, status = 200): Response {
 
 /** Comparación de tiempo constante (evita timing attack sobre el secreto). */
 function secretoValido(recibido: string | null): boolean {
-  // Sin secreto configurado en el env, NADIE entra (fail-closed).
-  if (IMPORTAR_SECRET === "") return false;
+  // Sin secreto (o mal formado) en el env, NADIE entra (fail-closed).
+  if (!SECRETO_BIEN_FORMADO) return false;
   if (!recibido || recibido.length !== IMPORTAR_SECRET.length) return false;
   let diff = 0;
   for (let i = 0; i < IMPORTAR_SECRET.length; i++) {
@@ -128,7 +133,10 @@ function parseFecha(valor: string): string | null {
 }
 
 function edadCumplida(isoNacimiento: string): number {
-  const hoy = new Date();
+  // "Hoy" en calendario de LIMA (UTC-5, sin horario de verano). Sin el ajuste,
+  // entre las 19:00 y 23:59 de Lima el edge ya está en el día UTC siguiente y
+  // podría aceptar a alguien un día antes de cumplir 18 en su calendario local.
+  const hoy = new Date(Date.now() - 5 * 60 * 60 * 1000);
   const nac = new Date(`${isoNacimiento}T00:00:00Z`);
   let edad = hoy.getUTCFullYear() - nac.getUTCFullYear();
   const mesDia = (hoy.getUTCMonth() - nac.getUTCMonth()) * 100 +
@@ -137,12 +145,27 @@ function edadCumplida(isoNacimiento: string): number {
   return edad;
 }
 
-/** "S/ 50,000.00" | "$20 000" | "50000" → número con 2 decimales, o null. */
+/**
+ * Capital de la hoja → número, con el ÚNICO formato aceptado: coma = millares,
+ * punto = decimal (convención peruana y del CRM). Estricto a propósito: RECHAZA
+ * (nunca reinterpreta ni redondea) los formatos ambiguos o con más de 2 decimales
+ * — espejo de validacion.ts del CRM: mover de rango un capital es grave.
+ *   OK:  "50000" · "50,000" · "50000.50" · "S/ 50,000.00" · "US$ 1,250.5"
+ *   NO:  "5000.999" (3 dec) · "12,50" (millar mal puesto) · "50.000,00" (formato UE)
+ */
 function parseCapital(valor: string): number | null {
-  const limpio = valor.replace(/[Ss]\/\.?|[$]|[,\s]/g, "").trim();
-  if (!/^\d+(\.\d+)?$/.test(limpio)) return null;
-  const n = Math.round(Number(limpio) * 100) / 100;
-  return n > 0 && n <= MONTO_MAX ? n : null;
+  const limpio = valor.replace(/US\$|S\/\.?|\$/gi, "").replace(/\s/g, "").trim();
+  if (limpio === "") return null;
+  // Solo dígitos, comas de millar en grupos de 3, y a lo sumo un punto decimal
+  // con 1-2 dígitos. Cualquier otra cosa NO matchea → null (rechazo, no arreglo).
+  const m = /^(\d{1,3}(?:,\d{3})*|\d+)(?:\.(\d{1,2}))?$/.exec(limpio);
+  if (!m) return null;
+  const entero = m[1].replace(/,/g, "");
+  const n = Number(m[2] != null ? `${entero}.${m[2]}` : entero);
+  if (!Number.isFinite(n) || n <= 0 || n > MONTO_MAX) return null;
+  // Guard canónico redundante (el regex ya limita a 2 decimales), por si acaso.
+  if (Math.round(n * 100) / 100 !== n) return null;
+  return n;
 }
 
 type FilaHoja = {
@@ -236,7 +259,7 @@ Deno.serve(async (req: Request) => {
 
     const capital = parseCapital((f.capital ?? "").trim());
     if (capital === null) {
-      rechazo("capital inválido (número mayor a 0, sin letras)");
+      rechazo("capital inválido (número mayor a 0, formato coma=millar punto=decimal, máx 2 decimales)");
       continue;
     }
 
@@ -301,8 +324,25 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
+    // Consentimiento (Ley "No Insista"): SOLO valores explícitos. Un valor no
+    // reconocido (typo tipo "N0", "FALSE") JAMÁS se interpreta como autorización;
+    // se RECHAZA la fila para que un humano la corrija (nunca se fabrica un
+    // consentimiento_en inexistente). Vacío = contactable por defecto (régimen de
+    // opt-out) pero SIN registrar consentimiento.
     const autorizoRaw = (f.autorizo ?? "").trim().toUpperCase();
-    const noContactar = autorizoRaw === "NO";
+    let noContactar: boolean;
+    let registrarConsentimiento = false;
+    if (autorizoRaw === "") {
+      noContactar = false;
+    } else if (autorizoRaw === "SI" || autorizoRaw === "SÍ" || autorizoRaw === "S") {
+      noContactar = false;
+      registrarConsentimiento = true;
+    } else if (autorizoRaw === "NO" || autorizoRaw === "N") {
+      noContactar = true;
+    } else {
+      rechazo('¿Autorizó contacto? debe ser SI o NO (vacío = sin registrar consentimiento)');
+      continue;
+    }
     const fuente = (f.fuente_consentimiento ?? "").trim().slice(0, 80) || null;
 
     const avisos: string[] = [];
@@ -327,8 +367,8 @@ Deno.serve(async (req: Request) => {
         categoria_interes: interes,
         nota: (f.nota ?? "").trim().slice(0, 2000) || null,
         no_contactar: noContactar,
-        consentimiento_en: !noContactar && autorizoRaw ? new Date().toISOString() : null,
-        consentimiento_fuente: !noContactar ? fuente : null,
+        consentimiento_en: registrarConsentimiento ? new Date().toISOString() : null,
+        consentimiento_fuente: registrarConsentimiento ? fuente : null,
         vendedor_id: null,
         asignado_supervisor_id: null,
         activo: true,
@@ -353,18 +393,27 @@ Deno.serve(async (req: Request) => {
     ] as string[];
     const vendedorPorCorreo = new Map<string, string>();
     if (correosVendedor.length > 0) {
-      const { data: perfiles } = await adminPublic
+      const { data: perfiles, error: errPerfiles } = await adminPublic
         .from("perfiles")
         .select("id, correo")
         .in("correo", correosVendedor);
+      // Un fallo aquí (permisos/columna/servicio) NO debe leerse como "vendedor no
+      // encontrado" e importar todo sin dueño: se corta con 500 ANTES de cualquier
+      // insert y el Apps Script reintenta el lote como "ERROR temporal".
+      if (errPerfiles) {
+        return json({ error: `Error resolviendo vendedores: ${errPerfiles.message}` }, 500);
+      }
       const perfilIds = (perfiles ?? []).map((p) => p.id);
       if (perfilIds.length > 0) {
-        const { data: equipo } = await admin
+        const { data: equipo, error: errEquipo } = await admin
           .from("equipo")
           .select("perfil_id, rol_crm, activo")
           .in("perfil_id", perfilIds)
           .eq("activo", true)
           .in("rol_crm", ["vendedor", "supervisor"]);
+        if (errEquipo) {
+          return json({ error: `Error resolviendo equipo: ${errEquipo.message}` }, 500);
+        }
         const habilitados = new Set((equipo ?? []).map((e) => e.perfil_id));
         for (const p of perfiles ?? []) {
           if (habilitados.has(p.id)) {
