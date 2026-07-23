@@ -382,14 +382,44 @@ Deno.serve(async (req: Request) => {
 
   if (validas.length > 0) {
     // ── Pase 2: dedup contra la BD por teléfono ──────────────────────────────
+    // Espejo EXACTO del índice `uq_leads_telefono_vivo`, que es único SOLO entre
+    // leads vivos: WHERE activo = true AND etapa NOT IN ('convertido','descartado').
+    // Sin estos dos filtros el edge era MÁS estricto que la BD y bloqueaba para
+    // siempre dos reingresos legítimos: (1) el lead que se descartó alguna vez, y
+    // (2) el cliente YA CONVERTIDO que vuelve por un segundo depósito — el mejor
+    // lead posible, rechazado en silencio como "DUPLICADO".
+    // Se traen las columnas y se decide EN MEMORIA, a propósito: expresar
+    // "etapa NOT IN (...)" como filtro de PostgREST es fácil de escribir mal y
+    // fallaría en silencio (deduplicar de menos = teléfonos repetidos; de más =
+    // nadie vuelve a entrar). El lote está acotado a MAX_POR_LOTE teléfonos.
     const { data: existentes, error: errDedup } = await admin
       .from("leads")
-      .select("telefono")
+      .select("telefono, etapa, activo, no_contactar")
       .in("telefono", validas.map((v) => v.telefono));
     if (errDedup) {
       return json({ error: `Error consultando duplicados: ${errDedup.message}` }, 500);
     }
-    const yaEnCrm = new Set((existentes ?? []).map((r) => r.telefono));
+
+    const CERRADAS = new Set(["convertido", "descartado"]);
+    const yaEnCrm = new Set(
+      (existentes ?? [])
+        .filter((r) => r.activo === true && !CERRADAS.has(String(r.etapa)))
+        .map((r) => r.telefono),
+    );
+
+    // ── Pase 2-bis: la negativa a ser contactado SOBREVIVE al reingreso ──────
+    // CANDADO LEGAL, inseparable del cambio de arriba. Al reabrir la puerta a un
+    // teléfono que ya existía, el consentimiento se recalcularía desde la hoja y
+    // podría BORRAR un "no me llamen" anterior. Por eso este set se calcula sobre
+    // TODO el histórico (sin mirar activo ni etapa, a propósito): si esa persona
+    // alguna vez dijo que no, la fila nueva nace con no_contactar = true.
+    // Ley 29571 (INDECOPI). Ojo: solo cruza por TELÉFONO, que es la misma llave
+    // del reingreso que se reabre aquí; enlazar por DNI es deuda preexistente.
+    const nuncaContactar = new Set(
+      (existentes ?? [])
+        .filter((r) => r.no_contactar === true)
+        .map((r) => r.telefono),
+    );
 
     // ── Pase 3: resolver vendedor por correo (perfiles → crm.equipo) ─────────
     const correosVendedor = [
@@ -432,6 +462,13 @@ Deno.serve(async (req: Request) => {
       if (yaEnCrm.has(v.telefono)) {
         resultados.push({ fila: v.fila, estado: "DUPLICADO: ya existe en el CRM" });
         continue;
+      }
+      // El "no me llamen" histórico manda sobre lo que diga la hoja hoy.
+      if (nuncaContactar.has(v.telefono) && v.insert.no_contactar !== true) {
+        v.insert.no_contactar = true;
+        v.insert.consentimiento_en = null;
+        v.insert.consentimiento_fuente = null;
+        v.avisos.push("respeta un 'no contactar' anterior de este teléfono");
       }
       if (v.vendedorCorreo) {
         const id = vendedorPorCorreo.get(v.vendedorCorreo);
