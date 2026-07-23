@@ -130,5 +130,113 @@ Las 2 filas de ejemplo pueden quedarse en la hoja (estado no vacío = no se reim
 pero lo limpio es borrarlas. **El conector queda VIVO: toda fila nueva en la hoja entra
 sola al CRM en ≤5 min.**
 
+## Puente desde el documento de origen (CONSTRUIDO 2026-07-22, sin instalar)
+
+**El problema:** los leads caen primero en un documento de la empresa,
+`02PLAZOFIJOMAS LANDING` (`1VriA6vr-QjLDRnyH-sx-sgNwyYNvsNFR1d1JZbRBwEs`, dueño
+`consultas@creaemprendedor.com`, compartido con Miguel). **Rosa** filtraba a mano y
+transcribía a nuestra plantilla → con el conector automático eso era doble trabajo.
+
+**La solución:** `CRM-Avance-Corp/scripts/puente-drive-origen.gs`, un segundo Apps
+Script que va DENTRO de nuestra hoja, LEE el documento de origen y escribe solo en la
+nuestra. De ahí el conector de 5 min sigue igual. Menú "AVANCE CORP" → *Vista previa*
+(no escribe nada) / *Traer leads del origen*.
+
+> ⚠️ **El documento de origen es de la empresa y NO SE TOCA** (orden de Miguel
+> 2026-07-22). El script solo llama `getSheets/getName/getDataRange/getDisplayValues`
+> sobre `origen`; la única variable que recibe escrituras es `destino`.
+
+### Qué trae y qué tira
+| Nuestra hoja | Origen |
+|---|---|
+| Nombre completo * | `nombre` + `Apellidos` |
+| Teléfono * | `Celular` → `+51XXXXXXXXX` (respaldo: WhatsApp / celular 2) |
+| Capital estimado * | piso del rango: "50,000 a más" → 50000, "más de 100,000" → 100000 |
+| Moneda * | "Soles"→PEN, "Dólares"→USD, "Soles/Dólares"→PEN + aviso en la Nota |
+| Canal de origen * | pestaña `landing` → LANDING; el resto → FORMULARIO |
+| Distrito | `Distrito`, o `ciudad` en la pestaña sin distrito |
+| Interés | siempre `Nuevo`; "ya es socio" se guarda en la Nota (55 casos) |
+| Nota | fecha original + la pregunta que dejó + socio + trazabilidad pestaña/fila |
+| ¿Autorizó contacto? | la columna real donde existe; si la pestaña no la tiene, `CONSENTIMIENTO_SI_NO_HAY_COLUMNA` |
+
+**Descartado a propósito:** WhatsApp (= Celular en 175/190 filas), Departamento (la
+hoja trabaja a nivel de distrito), "¿deseas aperturar tus ahorros?" (186 de 187
+responden lo mismo), emojis y guiones bajos, filas de encabezado repetidas.
+Género, fecha de nacimiento, correo y DNI **no existen en el origen** → quedan vacíos.
+"Vendedor asignado" queda vacío **a propósito**: el reparto ocurre DENTRO del CRM
+([[Fase C1 — Reparto de la cola (plan build-ready)]]).
+
+### Decisiones de diseño
+- **Mapeo por palabra clave, no por posición**: si renombran o mueven una columna del
+  origen, el puente sigue. El orden de las reglas importa — "¿Deseas depositar en soles
+  o dólares?" tiene que caer en *moneda*, no en *monto*, y "¿deseas aperturar tus
+  AHORROS?" no es el monto.
+- **Fecha = la MÁS ANTIGUA de la fila**: las pestañas traen dos columnas de fecha y la
+  reciente es marca de exportación, no de captación. Los leads son de jul–dic 2025.
+- **Lo rechazado no se pierde**: pestaña `REVISAR (no importados)` con motivo y fila
+  cruda. Rosa solo mira excepciones (sin teléfono, duplicado, sin monto).
+- **Idempotente**: pestaña oculta `_puente_huellas` (pestaña|teléfono) + cotejo contra
+  los teléfonos ya escritos en la hoja → re-ejecutar no duplica.
+- La columna P (estado) se deja VACÍA: es la señal de "pendiente" del conector.
+- Escribe solo valores de los menús cerrados que puso `configurar()` (PEN/USD,
+  LANDING/FORMULARIO, Nuevo, SI/NO); si no, la hoja los marcaría inválidos.
+
+### Verificación
+`scratchpad/probar-puente.mjs` carga el `.gs` en Node con Sheets simulado y corre 33
+aserciones sobre filas reales de las dos pestañas (mapeo de columnas, teléfonos con
+espacios, correo metido en la columna de WhatsApp, fijo de 7 dígitos rechazado, montos
+con separador de miles, moneda mixta, emojis, fecha más antigua). **33/33 en verde.**
+NO instalado todavía: falta que Miguel lo pegue y corra *Vista previa*.
+
+> ⚠️ Ese arnés **se perdió** (vivía en `scratchpad/`, nunca se commiteó). El `.gs` sobrevive
+> porque está en `CRM-Avance-Corp/scripts/`. Si hace falta re-verificar, se reconstruye
+> cargando el `.gs` con `new Function()` en Node y alimentándolo con las filas del origen.
+
+### Corrida de vista previa contra el origen real (2026-07-22)
+
+Puente ejecutado en local sobre las 377 filas del origen (sin tocar ninguna hoja):
+
+| | |
+|---|---|
+| **Entran** a nuestra hoja | **324** (160 de `landing` + 164 del formulario FB) |
+| Van a `REVISAR` | 53 → 31 duplicados por teléfono, 22 sin teléfono válido |
+| Nombre real de la pestaña 1 | **`landing`** (confirmado) → `CANAL_POR_PESTANA` acierta |
+
+Ignoradas tal como se diseñó: `Departamento` (landing) y `¿deseas aperturar tus ahorros
+a plazofijo?` + marca de tiempo de exportación + `celular` duplicado (FB).
+
+### Horario automático (Miguel, 2026-07-22)
+
+El puente corre solo **lunes a sábado, 9 a. m. de Lima. Domingos NO.** Apps Script no tiene
+"todos los días menos domingo", así que son **6 disparadores semanales** (`onWeekDay` +
+`atHour(9)`), uno por día. Menú: *Activar horario automático* / *Ver horario* / *Apagar*.
+
+- La zona va fijada con `.inTimezone("America/Lima")` en el código, **no** se hereda de la
+  zona del proyecto de Apps Script — si el proyecto quedara en hora del Pacífico, el
+  horario igual dispara a las 9 de Lima.
+- `atHour(9)` es una **ventana 9–10 a. m.**, Google no garantiza el minuto.
+- `instalarHorario()` es **idempotente**: borra los suyos antes de crear (no duplica
+  corridas) y no toca el disparador del menú ni el del conector.
+- Cadena completa: 9 a. m. el puente escribe en la hoja → el conector la sube al CRM en su
+  ciclo de 5 min → los leads caen en la cola global.
+- Si una corrida falla, Google manda correo al dueño del script; el detalle queda en el
+  Registro de ejecución.
+
+Verificado con Apps Script simulado: **10/10** (6 disparadores, domingo excluido, hora y
+zona correctas, idempotencia al reinstalar, no pisa otros disparadores, apagar deja 0).
+
+### Columna "¿Autorizó contacto?" — CERRADO, no volver a preguntar
+
+Miguel lo zanjó el **2026-07-22**: la pestaña del formulario de Facebook no trae esa
+columna → sus 164 leads entran con **`SI`**. Punto. **No re-abrir el tema con él.**
+
+Donde la pestaña sí trae el dato (`landing`), manda el dato real: 175 "Si" / 15 "No",
+sin celdas vacías. Es una columna obligatoria de la hoja, como Teléfono o Moneda — el
+conector la necesita para poblar `no_contactar`, no es un añadido.
+
+Codificado en `CONSENTIMIENTO_SI_NO_HAY_COLUMNA` + `FUENTE_POR_PESTANA` /
+`FUENTE_POR_DEFECTO` (esta última aplica a toda pestaña sin entrada propia y su texto
+nombra a Facebook: si el origen gana una pestaña nueva, añadirla al mapa).
+
 ## Relacionadas
-[[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]]
+[[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]
