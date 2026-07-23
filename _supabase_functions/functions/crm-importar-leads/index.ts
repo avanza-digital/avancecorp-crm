@@ -78,7 +78,9 @@ function secretoValido(recibido: string | null): boolean {
 
 /** Espejo de lib/validacion.ts del CRM y de private.normalizar_telefono. */
 function normalizarTelefono(valor: string): string | null {
-  const limpio = valor.replace(/[\s().-]/g, "");
+  // La coma es deliberada: Sheets formatea un celular como "964,262,777" cuando
+  // la columna quedó como número. Sin ella, ese teléfono se rechazaba.
+  const limpio = valor.replace(/[\s().,-]/g, "");
   const sinMas = limpio.startsWith("+") ? limpio.slice(1) : limpio;
   if (/^9\d{8}$/.test(sinMas)) return `+51${sinMas}`;
   if (/^519\d{8}$/.test(sinMas)) return `+${sinMas}`;
