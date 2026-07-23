@@ -28,6 +28,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   cartera: { t: 'Leads', s: 'Todos tus prospectos captados' },
   agenda: { t: 'Agenda', s: 'Reuniones, llamadas y vencimientos' },
   'mi-cartera': { t: 'Cartera', s: 'Tus clientes y el capital invertido' },
+  repartir: { t: 'Repartir leads', s: 'Reparte la cola de leads nuevos a los supervisores' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
 }

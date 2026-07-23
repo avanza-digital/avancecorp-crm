@@ -227,9 +227,36 @@ export interface Lead {
 export interface Miembro {
   perfil_id: string
   nombre_completo: string
-  rol_crm: Exclude<Rol, 'directorio'>
+  // OFF-ROSTER: 'directorio' es lector global del portal y 'coordinador' (C1)
+  // reparte la cola sin cartera ni jerarquía. Ninguno es fila del organigrama.
+  rol_crm: Exclude<Rol, 'directorio' | 'coordinador'>
   supervisor_id?: string | null
   activo: boolean
+}
+
+/**
+ * Fila de la COLA de reparto (C1) — proyección de `crm.leads_por_repartir()`.
+ * NO es un Lead: la RPC omite a propósito toda la PII de contacto (teléfono,
+ * correo, DNI) porque el coordinador enruta, no contacta.
+ */
+export interface ColaLead {
+  id: string
+  nombre_completo: string
+  distrito?: string | null
+  origen: Origen
+  categoria_interes?: CategoriaInteres | null
+  monto_estimado: number
+  moneda: Moneda
+  creado_en: string
+}
+
+/** Destino de reparto — proyección de `crm.supervisores_para_reparto()`. */
+export interface SupervisorReparto {
+  perfil_id: string
+  nombre: string
+  activo: boolean
+  /** Leads que ya esperan en su bandeja (sin vendedor todavía). */
+  bandeja_pendiente: number
 }
 
 export interface Yo {

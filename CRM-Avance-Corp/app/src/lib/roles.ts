@@ -2,8 +2,11 @@
 // NO es seguridad (eso vive en la RLS del esquema crm) — es la UX.
 // Regla de oro: lo que can() oculta, la RLS también lo niega.
 
-/** Catálogo runtime de roles CRM — fuente única: el tipo `Rol` se deriva de aquí. */
-export const ROLES = ['vendedor', 'supervisor', 'gerencia', 'directorio'] as const
+/** Catálogo runtime de roles CRM — fuente única: el tipo `Rol` se deriva de aquí.
+ * `coordinador` (C1, 2026-07-22) es OFF-ROSTER como `directorio`: existe como
+ * identidad y como fila real de crm.equipo (para que las RPC lo gateen), pero
+ * NUNCA como fila de roster visible (ver Miembro.rol_crm en tipos.ts). */
+export const ROLES = ['vendedor', 'supervisor', 'gerencia', 'directorio', 'coordinador'] as const
 
 export type Rol = (typeof ROLES)[number]
 
@@ -17,7 +20,9 @@ export type Accion =
   | 'verEquipo'          // ver a otros miembros del equipo
   | 'filtrarPorVendedor'
   | 'reasignar'
-  | 'repartirLeads'
+  | 'repartirLeads'      // supervisor: baja leads de su bandeja a sus vendedores
+  | 'repartirCola'       // coordinador: reparte la COLA GLOBAL a las bandejas (C1)
+  | 'verCartera'         // pantalla unificada Clientes+Contratos ('mi-cartera')
   | 'verConfiguracion'
   | 'editarConfiguracion'
   | 'verReportes'
@@ -28,27 +33,37 @@ export type Caps = Record<Accion, boolean>
 export const CAPS: Record<Rol, Caps> = {
   vendedor: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
-    reasignar: false, repartirLeads: false,
+    reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: true, soloLecturaTotal: false,
   },
   supervisor: {
     verTodo: false, verEquipo: true, filtrarPorVendedor: true,
-    reasignar: true, repartirLeads: true,
+    reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: true, soloLecturaTotal: false,
   },
   gerencia: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
-    reasignar: true, repartirLeads: true,
+    reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
     verConfiguracion: true, editarConfiguracion: true,
     verReportes: true, soloLecturaTotal: false,
   },
   directorio: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
-    reasignar: false, repartirLeads: false,
+    reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, soloLecturaTotal: true,
+  },
+  // Coordinador (C1): SOLO reparte la cola global a las bandejas de supervisión.
+  // verTodo:false es CRÍTICO — su ámbito de leads es ∅ (espejo exacto de la RLS:
+  // private.vendedor_ids_visibles devuelve vacío para este rol). No tiene cartera
+  // ni equipo: su único destino es la pantalla "Repartir leads".
+  coordinador: {
+    verTodo: false, verEquipo: false, filtrarPorVendedor: false,
+    reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
+    verConfiguracion: false, editarConfiguracion: false,
+    verReportes: false, soloLecturaTotal: false,
   },
 }
 
@@ -57,6 +72,7 @@ export const ROL_LABEL: Record<Rol, string> = {
   supervisor: 'Supervisor',
   gerencia: 'Gerencia',
   directorio: 'Directorio',
+  coordinador: 'Coordinador',
 }
 
 /**

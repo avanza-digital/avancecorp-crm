@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
-  PanelLeftClose, PanelLeftOpen, Wallet,
+  PanelLeftClose, PanelLeftOpen, Wallet, Split,
 } from 'lucide-react'
 import { can, ROL_LABEL, type Accion } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -25,7 +25,9 @@ const NAV: NavItem[] = [
   { id: 'agenda', label: 'Agenda', icon: CalendarDays },
   // "Cartera" (mi-cartera) reemplaza a Clientes y Contratos, retiradas del todo
   // en Fase 6 (2026-07-21): ya no existen como vistas ni son alcanzables por URL.
-  { id: 'mi-cartera', label: 'Mi cartera', icon: Wallet },
+  { id: 'mi-cartera', label: 'Mi cartera', icon: Wallet, cap: 'verCartera' },
+  // Reparto de la cola global (C1): coordinador y gerencia.
+  { id: 'repartir', label: 'Repartir leads', icon: Split, cap: 'repartirCola' },
   { id: 'equipo', label: 'Equipo', icon: UsersRound, cap: 'verEquipo' },
 ]
 

@@ -310,6 +310,7 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.portalClientTarea,
       TRANSIENT_IDS.rpcCloseTarea,
       TRANSIENT_IDS.taskFollowTarea,
+      TRANSIENT_IDS.repartoTareaReencolada,
     ]).eq('estado', 'pendiente'),
   );
   await requireAdmin(
@@ -323,6 +324,10 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.triggerSupervisorOnlyLead,
       TRANSIENT_IDS.triggerNoTenureLead,
       TRANSIENT_IDS.taskFollowLead,
+      TRANSIENT_IDS.repartoLeadOk,
+      TRANSIENT_IDS.repartoLeadNoContactar,
+      TRANSIENT_IDS.repartoLeadCarrera,
+      TRANSIENT_IDS.repartoLeadReencolado,
     ]),
   );
   // Metas sentinela de testObjetivos: periodo 2099-12 jamas es real; el DELETE
@@ -1705,6 +1710,336 @@ async function testObjetivos(sessions) {
   }
 }
 
+// ── C1: reparto de la cola global por el rol `coordinador` ────────────────────
+// Tres capas: (A) aislamiento del rol nuevo — incluidas las superficies que se
+// abren al dejar de ser rol_crm NULL; (B) control de acceso de las 3 RPC;
+// (C) reglas de negocio de repartir_lead con oraculos de ESTADO leidos con
+// service_role (una mutacion que "no revienta" no prueba que no haya mutado).
+async function testReparto(sessions, seed) {
+  console.log('\n— Reparto de la cola global (C1: rol coordinador) —');
+  const coordinador = sessions.coordinador.client;
+  const gerencia = sessions.gerencia.client;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const sup2Id = seed.profileIdByKey.sup2;
+  const vend1Id = seed.profileIdByKey.vend1;
+  const coordId = sessions.coordinador.user.id;
+
+  // (A) Aislamiento: el coordinador NO gana acceso a las superficies gateadas
+  // por "es miembro del CRM". Sin esto el gate pasaria verde con PII abierta.
+  await expectHidden(
+    'coordinador no ve clientes_basicos (PII del portal)',
+    coordinador.schema('crm').from('clientes_basicos').select('id'),
+  );
+  await expectHidden(
+    'coordinador no ve los contratos de cartera (capital + nombre de cliente)',
+    coordinador.schema('crm').from('contratos_cartera').select('id'),
+  );
+  await expectHidden(
+    'coordinador no ve las metas del mes (crm.objetivos)',
+    coordinador.schema('crm').from('objetivos').select('id'),
+  );
+  await expectBlockedMutation(
+    'coordinador no puede sondear DNIs (existe_cliente_por_dni)',
+    coordinador.schema('crm').rpc('existe_cliente_por_dni', { p_dni: '99999999' }),
+    ['42501'],
+  );
+  await expectBlockedMutation(
+    'coordinador no lee las metricas de agenda del equipo',
+    coordinador.schema('crm').rpc('metricas_agenda_fn', {
+      p_desde: '2026-07-01',
+      p_hasta: '2026-07-15',
+    }),
+    ['42501'],
+  );
+  // Las RPC expuestas enrutan por private.metricas_distribucion_leads_autorizada
+  // (gate gerencia|lector global). No las toca C1: se aseveran para dejar
+  // constancia de que el rol nuevo tampoco entra por ahi.
+  for (const fn of ['metricas_distribucion_leads_fn', 'metricas_distribucion_leads_v2_fn']) {
+    await expectBlockedMutation(
+      `coordinador no lee las metricas de distribucion (${fn})`,
+      coordinador.schema('crm').rpc(fn, { p_desde: '2026-07-01', p_hasta: '2026-07-15' }),
+      ['42501'],
+    );
+  }
+  // Las 4 RPC de metricas comerciales recortan por vendedor_ids_visibles (∅ para
+  // el coordinador) o exigen gerencia/lector: ninguna le devuelve filas.
+  for (const [fn, args] of [
+    ['metricas_capital_mes_fn', { p_meses: 12 }],
+    ['metricas_pagos_mes_fn', { p_meses: 12 }],
+    ['metricas_altas_analista_fn', { p_meses: 12 }],
+    ['metricas_vencimientos_fn', { p_dias: 90 }],
+  ]) {
+    await expectHidden(
+      `coordinador no obtiene filas de ${fn}`,
+      coordinador.schema('crm').rpc(fn, args),
+    );
+  }
+
+  // convertir_lead tiene allowlist propia ('vendedor','supervisor'): el rol
+  // nuevo NO puede dar de alta clientes. Se asevera para blindar ese candado.
+  await expectBlockedMutation(
+    'coordinador no puede convertir un lead en cliente',
+    coordinador.schema('crm').rpc('convertir_lead', {
+      p_lead_id: seed.leadByName.get('JUAN PEREZ DEMO').id,
+      p_perfil_id: seed.profileIdByKey[BANK_CLIENT.key],
+    }),
+    ['P0001'],
+  );
+  await expectBlockedMutation(
+    'coordinador no puede cerrar tareas ajenas por la RPC',
+    coordinador.schema('crm').rpc('cerrar_tarea', {
+      p_tarea_id: TAREA_BY_KEY.llamadaJuan.id,
+      p_estado: 'completada',
+      p_resultado_tipo: 'llamada_realizada',
+    }),
+    ['P0001'],
+  );
+  await expectBlockedMutation(
+    'coordinador no puede crear tareas de agenda',
+    coordinador.schema('crm').from('tareas').insert({
+      creado_por: coordId,
+      lead_id: seed.leadByName.get('JUAN PEREZ DEMO').id,
+      tipo: 'tarea',
+      titulo: 'REPARTO TAREA PROHIBIDA TRANSIENT',
+      vence_en: '2026-08-10T15:00:00Z',
+    }).select('id'),
+    ['P0001'],
+  );
+
+  // leads_insert no niega al coordinador por policy: lo corta el guard de
+  // tenencia. Se asevera para detectar una regresion futura del trigger.
+  await expectBlockedMutation(
+    'coordinador no se auto-inserta un lead (vendedor = el mismo)',
+    coordinador.schema('crm').from('leads').insert({
+      etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'otro',
+      nombre_completo: 'REPARTO AUTOINSERT TRANSIENT', telefono: '999000101',
+      vendedor_id: coordId, asignado_supervisor_id: null,
+    }).select('id'),
+    ['P0001'],
+  );
+  await expectBlockedMutation(
+    'coordinador no inserta un lead directo en la cola global',
+    coordinador.schema('crm').from('leads').insert({
+      etapa: 'nuevo', moneda: 'PEN', monto_estimado: 1000, origen: 'otro',
+      nombre_completo: 'REPARTO AUTOINSERT COLA TRANSIENT', telefono: '999000102',
+      vendedor_id: null, asignado_supervisor_id: null,
+    }).select('id'),
+    ['P0001'],
+  );
+
+  // (B) Control de acceso de las 3 RPC nuevas: solo coordinador y gerencia.
+  await positive(
+    'coordinador lista la cola por repartir',
+    coordinador.schema('crm').rpc('leads_por_repartir'),
+  );
+  await positive(
+    'gerencia tambien lista la cola por repartir',
+    gerencia.schema('crm').rpc('leads_por_repartir'),
+  );
+  await positive(
+    'coordinador lista los supervisores destino',
+    coordinador.schema('crm').rpc('supervisores_para_reparto'),
+  );
+  for (const key of ['vend1', 'sup1', 'directorio']) {
+    await expectBlockedMutation(
+      `${key} no puede ver la cola por repartir`,
+      sessions[key].client.schema('crm').rpc('leads_por_repartir'),
+      ['42501'],
+    );
+    await expectBlockedMutation(
+      `${key} no puede listar los supervisores de reparto`,
+      sessions[key].client.schema('crm').rpc('supervisores_para_reparto'),
+      ['42501'],
+    );
+    await expectBlockedMutation(
+      `${key} no puede repartir un lead`,
+      sessions[key].client.schema('crm').rpc('repartir_lead', {
+        p_lead: TRANSIENT_IDS.repartoLeadOk,
+        p_supervisor: sup1Id,
+      }),
+      ['42501'],
+    );
+  }
+
+  // Semillas de la cola global (service_role: entrar ambos-null sin disparar la
+  // rama "solo gerencia deja el lead en cola" del guard de tenencia).
+  // no_contactar va EXPLICITO en todas las filas: en un insert por lotes,
+  // PostgREST normaliza las columnas del lote y las filas que lo omiten
+  // viajarian con null explicito (violando el NOT NULL, sin usar el default).
+  const colaComun = {
+    activo: true, asignado_supervisor_id: null, vendedor_id: null,
+    creado_por: sup1Id, etapa: 'nuevo', moneda: 'PEN', origen: 'otro',
+    no_contactar: false,
+  };
+  await requireAdmin(
+    'sembrar la cola global de reparto',
+    admin.schema('crm').from('leads').insert([
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadOk, monto_estimado: 12000,
+        nombre_completo: 'REPARTO CONTACTABLE TRANSIENT', telefono: '999000110',
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadNoContactar, monto_estimado: 8000,
+        nombre_completo: 'REPARTO NO INSISTA TRANSIENT', telefono: '999000111',
+        no_contactar: true,
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadCarrera, monto_estimado: 20000,
+        moneda: 'USD', nombre_completo: 'REPARTO CARRERA TRANSIENT', telefono: '999000112',
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadReencolado, monto_estimado: 5000,
+        nombre_completo: 'REPARTO REENCOLADO TRANSIENT', telefono: '999000113',
+      },
+    ]),
+  );
+  // Camino real no cubierto antes: un lead devuelto a la cola por gerencia
+  // conserva tareas pendientes; al repartirlo deben SEGUIR al lead a la bandeja.
+  await requireAdmin(
+    'sembrar la tarea pendiente del lead re-encolado',
+    admin.schema('crm').from('tareas').insert({
+      creado_por: sup1Id,
+      id: TRANSIENT_IDS.repartoTareaReencolada,
+      lead_id: TRANSIENT_IDS.repartoLeadReencolado,
+      tipo: 'tarea',
+      titulo: 'REPARTO TAREA REENCOLADA TRANSIENT',
+      vence_en: '2026-08-05T15:00:00Z',
+    }),
+  );
+
+  // La cola que ve el coordinador: proyeccion util y sin PII de contacto.
+  const cola = await positive(
+    'coordinador relee la cola con las semillas',
+    coordinador.schema('crm').rpc('leads_por_repartir'),
+  );
+  if (cola) {
+    const filas = cola.data ?? [];
+    const ids = new Set(filas.map((fila) => fila.id));
+    check(ids.has(TRANSIENT_IDS.repartoLeadOk),
+      'la cola incluye el lead contactable');
+    check(!ids.has(TRANSIENT_IDS.repartoLeadNoContactar),
+      'no_contactar: NUNCA aparece listado en leads_por_repartir (Ley 29571)');
+    const muestra = filas[0] ?? {};
+    check(!('telefono' in muestra) && !('correo' in muestra) && !('dni' in muestra),
+      'la cola no proyecta PII de contacto (telefono/correo/dni)');
+  }
+
+  // (C) Reglas de negocio.
+  await positive(
+    'coordinador reparte el lead contactable a la bandeja de sup1',
+    coordinador.schema('crm').rpc('repartir_lead', {
+      p_lead: TRANSIENT_IDS.repartoLeadOk,
+      p_supervisor: sup1Id,
+    }),
+  );
+  const repartido = await requireAdmin(
+    'releer el lead repartido con service_role',
+    admin.schema('crm').from('leads')
+      .select('asignado_supervisor_id, vendedor_id')
+      .eq('id', TRANSIENT_IDS.repartoLeadOk).single(),
+  );
+  check(repartido.data?.asignado_supervisor_id === sup1Id && repartido.data?.vendedor_id === null,
+    'el lead quedo en la bandeja del supervisor, con vendedor_id null (tenencia exclusiva)',
+    JSON.stringify(repartido.data));
+  // La actividad la escribe el TRIGGER, acreditando al coordinador como autor.
+  const traza = await requireAdmin(
+    'releer la actividad de entrada a bandeja',
+    admin.schema('crm').from('actividades')
+      .select('tipo, creado_por')
+      .eq('lead_id', TRANSIENT_IDS.repartoLeadOk),
+  );
+  check((traza.data ?? []).some((fila) => fila.creado_por === coordId),
+    'la traza del movimiento acredita al coordinador como autor');
+
+  // CANDADO LEGAL: codigo EXACTO P0429. No se usa expectBlockedMutation porque
+  // auto-aprueba cualquier 42501 — el test no podria fallar si alguien cambiara
+  // el veto legal por un error de autorizacion.
+  const legal = await coordinador.schema('crm').rpc('repartir_lead', {
+    p_lead: TRANSIENT_IDS.repartoLeadNoContactar,
+    p_supervisor: sup1Id,
+  });
+  check(!!legal.error && String(legal.error.code) === 'P0429',
+    'no_contactar: bloqueado con el codigo LEGAL P0429 (no un 42501 de permisos)',
+    errorText(legal.error));
+  const intacto = await requireAdmin(
+    'releer el lead No Insista con service_role',
+    admin.schema('crm').from('leads')
+      .select('asignado_supervisor_id, vendedor_id')
+      .eq('id', TRANSIENT_IDS.repartoLeadNoContactar).single(),
+  );
+  check(intacto.data?.asignado_supervisor_id === null && intacto.data?.vendedor_id === null,
+    'no_contactar: el lead permanecio en la cola global, sin bandeja');
+
+  // Destino invalido y lead fuera de la cola.
+  await expectBlockedMutation(
+    'no se puede repartir a un destino que no es supervisor',
+    coordinador.schema('crm').rpc('repartir_lead', {
+      p_lead: TRANSIENT_IDS.repartoLeadReencolado,
+      p_supervisor: vend1Id,
+    }),
+    ['22023'],
+  );
+  await expectBlockedMutation(
+    'no se puede repartir un lead que ya tiene dueno',
+    coordinador.schema('crm').rpc('repartir_lead', {
+      p_lead: TRANSIENT_IDS.repartoLeadOk,
+      p_supervisor: sup2Id,
+    }),
+    ['P0002'],
+  );
+
+  // CARRERA REAL: dos sesiones disparan sobre el MISMO lead en paralelo.
+  const [a, b] = await Promise.allSettled([
+    coordinador.schema('crm').rpc('repartir_lead', {
+      p_lead: TRANSIENT_IDS.repartoLeadCarrera, p_supervisor: sup1Id,
+    }),
+    gerencia.schema('crm').rpc('repartir_lead', {
+      p_lead: TRANSIENT_IDS.repartoLeadCarrera, p_supervisor: sup2Id,
+    }),
+  ]);
+  const resueltas = [a, b].filter((r) => r.status === 'fulfilled');
+  const ganadores = resueltas.filter((r) => !r.value.error);
+  const perdedores = resueltas.filter((r) => r.value.error);
+  check(ganadores.length === 1 && perdedores.length === 1,
+    'carrera de reparto: exactamente uno gana',
+    `ok=${ganadores.length} err=${perdedores.length}`);
+  if (perdedores.length === 1) {
+    const codigo = String(perdedores[0].value.error.code);
+    check(['P0002', '40001'].includes(codigo),
+      'carrera: el perdedor recibe P0002 (o 40001 si el aislamiento es mayor)',
+      codigo);
+  }
+  const trasCarrera = await requireAdmin(
+    'releer el lead en disputa con service_role',
+    admin.schema('crm').from('leads')
+      .select('asignado_supervisor_id, vendedor_id')
+      .eq('id', TRANSIENT_IDS.repartoLeadCarrera).single(),
+  );
+  check([sup1Id, sup2Id].includes(trasCarrera.data?.asignado_supervisor_id)
+    && trasCarrera.data?.vendedor_id === null,
+    'carrera: quedo UN solo supervisor asignado y ningun vendedor');
+
+  // sync_tareas: la pendiente del lead re-encolado sigue al lead a la bandeja.
+  await positive(
+    'coordinador reparte el lead re-encolado (con tarea pendiente)',
+    coordinador.schema('crm').rpc('repartir_lead', {
+      p_lead: TRANSIENT_IDS.repartoLeadReencolado,
+      p_supervisor: sup1Id,
+    }),
+  );
+  const tarea = await requireAdmin(
+    'releer la tarea del lead re-encolado',
+    admin.schema('crm').from('tareas')
+      .select('asignado_supervisor_id, vendedor_id, estado')
+      .eq('id', TRANSIENT_IDS.repartoTareaReencolada).single(),
+  );
+  check(tarea.data?.asignado_supervisor_id === sup1Id
+    && tarea.data?.vendedor_id === null
+    && tarea.data?.estado === 'pendiente',
+    'la tarea pendiente siguio al lead hasta la bandeja, sin bloquearse',
+    JSON.stringify(tarea.data));
+}
+
 async function testAnon(seed) {
   console.log('\n— Acceso anonimo —');
   const anon = createClient(
@@ -1738,6 +2073,25 @@ async function testAnon(seed) {
   await expectHidden(
     'anon no lee crm.objetivos',
     anon.schema('crm').from('objetivos').select('id').limit(1),
+  );
+  // C1: las RPC de reparto solo tienen grant para `authenticated`.
+  await expectBlockedMutation(
+    'anon no puede ver la cola por repartir',
+    anon.schema('crm').rpc('leads_por_repartir'),
+    ['42501', 'PGRST202'],
+  );
+  await expectBlockedMutation(
+    'anon no puede listar los supervisores de reparto',
+    anon.schema('crm').rpc('supervisores_para_reparto'),
+    ['42501', 'PGRST202'],
+  );
+  await expectBlockedMutation(
+    'anon no puede repartir un lead',
+    anon.schema('crm').rpc('repartir_lead', {
+      p_lead: knownLead.id,
+      p_supervisor: seed.profileIdByKey.sup1,
+    }),
+    ['42501', 'PGRST202'],
   );
   await expectHidden(
     'anon no lee datos bancarios public.perfiles',
@@ -1776,6 +2130,7 @@ async function main() {
       await testTareaFollowsLead(sessions, verifiedSeed);
       await testAgendaIcs(sessions, verifiedSeed);
       await testObjetivos(sessions);
+      await testReparto(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }

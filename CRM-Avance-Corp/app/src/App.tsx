@@ -5,6 +5,7 @@ import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '
 import { can } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { escribirHash, esVistaLeads, leerHash, type Vista } from '@/lib/router'
+import { sanearVista, vistaBase } from '@/lib/vistas'
 import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { Topbar } from '@/components/app/topbar'
@@ -26,6 +27,7 @@ const Pipeline = lazy(() => import('@/screens/pipeline').then((m) => ({ default:
 const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m.Cartera })))
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
 const MiCartera = lazy(() => import('@/screens/mi-cartera').then((m) => ({ default: m.MiCartera })))
+const Repartir = lazy(() => import('@/screens/repartir').then((m) => ({ default: m.Repartir })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 
@@ -112,20 +114,6 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
   )
 }
 
-/**
- * Vista corregida por capacidad y por el GATE de leads — espejo del guard
- * (doble defensa F1c). Con el gate cerrado (cuenta real, leads sin aprobar) las
- * vistas de leads redirigen a 'mi-cartera', que además es la vista base (Clientes
- * y Contratos salieron del nav; la Cartera fusionada es la landing del vendedor).
- */
-function sanearVista(vista: Vista, puedeConfig: boolean, puedeEquipo: boolean, leadsVisibles: boolean): Vista {
-  const base: Vista = leadsVisibles ? 'hoy' : 'mi-cartera'
-  if (!leadsVisibles && esVistaLeads(vista)) return 'mi-cartera'
-  if (vista === 'config' && !puedeConfig) return base
-  if (vista === 'equipo' && !puedeEquipo) return base
-  return vista
-}
-
 function Workspace() {
   const { yo } = useAuth()
   const { ambito } = useCRMData()
@@ -139,12 +127,7 @@ function Workspace() {
   // Arranca en lo que diga el hash (recargar conserva pantalla); saneado por
   // capacidad para no pintar ni un frame de config/equipo a quien no puede.
   const [vista, setVista] = useState<Vista>(() =>
-    sanearVista(
-      leerHash().vista ?? (leadsVisibles ? 'hoy' : 'mi-cartera'),
-      can(rol, 'verConfiguracion'),
-      can(rol, 'verEquipo'),
-      leadsVisibles,
-    ),
+    sanearVista(leerHash().vista ?? vistaBase(rol, leadsVisibles), rol, leadsVisibles),
   )
 
   // Contexto vivo para el listener de hashchange (registrado una sola vez).
@@ -162,9 +145,8 @@ function Workspace() {
       const leido = leerHash()
       // Ruta desconocida → vista base; vista sin permiso o gateada → base (espejo del guard).
       let destino = sanearVista(
-        leido.vista ?? (ctx.leadsVisibles ? 'hoy' : 'mi-cartera'),
-        can(ctx.rol, 'verConfiguracion'),
-        can(ctx.rol, 'verEquipo'),
+        leido.vista ?? vistaBase(ctx.rol, ctx.leadsVisibles),
+        ctx.rol,
         ctx.leadsVisibles,
       )
       let leadDestino = destino === leido.vista ? leido.leadId : null
@@ -210,10 +192,12 @@ function Workspace() {
   // defensa, patrón VITANOVA). Cubre cambios de rol en caliente; el hash se
   // corrige detrás.
   useEffect(() => {
-    const base: Vista = leadsVisibles ? 'hoy' : 'mi-cartera'
-    if (!leadsVisibles && esVistaLeads(vista)) setVista('mi-cartera')
+    const base = vistaBase(rol, leadsVisibles)
+    if (!leadsVisibles && esVistaLeads(vista)) setVista(base)
     if (vista === 'config' && !can(rol, 'verConfiguracion')) setVista(base)
     if (vista === 'equipo' && !can(rol, 'verEquipo')) setVista(base)
+    if (vista === 'repartir' && !can(rol, 'repartirCola')) setVista(base)
+    if (vista === 'mi-cartera' && !can(rol, 'verCartera')) setVista(base)
   }, [vista, rol, leadsVisibles])
 
   return (
@@ -230,6 +214,7 @@ function Workspace() {
               {vista === 'cartera' && <Cartera />}
               {vista === 'agenda' && <Agenda />}
               {vista === 'mi-cartera' && <MiCartera />}
+              {vista === 'repartir' && <Repartir />}
               {vista === 'equipo' && <Equipo />}
               {vista === 'config' && <Config />}
             </Suspense>

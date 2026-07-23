@@ -425,9 +425,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Carga de la sesión REAL. La RLS del esquema crm decide el ámbito; el
   // vendedor_nombre se resuelve con el roster (crm.leads solo guarda el id).
   const cargarReal = useCallback(async (signal?: AbortSignal) => {
+    // El coordinador (C1) es OFF-ROSTER: no tiene cartera ni panel de equipo, y
+    // su pantalla usa supervisores_para_reparto (no `ambito.equipo`). Se omite
+    // listarEquipo porque equipo_visible_fn puede RAISE para su rol y el
+    // Promise.all sin catch tumbaría su boot entero. Los demás fetches son
+    // seguros: leen por RLS con ámbito ∅ → [] (la RLS filtra, no lanza).
+    const esCoordinador = yo?.rol === 'coordinador'
     const [leads, miembros, actividades, tareasAmbito, filasObjetivos] = await Promise.all([
       listarLeadsDelAmbito(signal),
-      listarEquipo(signal),
+      esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
       listarActividadesDelAmbito(signal),
       listarTareasDelAmbito(signal),
       // Metas del mes calendario vigente en Lima (no-render: Date.now() ok).
@@ -450,7 +456,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
       })),
     }
-  }, [])
+  }, [yo?.rol])
 
   // Tras cada mutación real (éxito o rechazo) el SERVIDOR es la verdad: se
   // recargan leads/actividades/equipo para reflejar triggers y RLS (y, en un

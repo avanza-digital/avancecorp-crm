@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { escribirHash, hashDe, leerHash } from './router'
+import { escribirHash, esVistaLeads, hashDe, leerHash, VISTAS } from './router'
 
 describe('router por hash', () => {
   beforeEach(() => {
@@ -52,6 +52,17 @@ describe('router por hash', () => {
       window.location.hash = `#/${clave}`
       expect(leerHash()).toEqual({ vista: null, leadId: null })
     }
+  })
+
+  it('reconoce #/repartir y la deja FUERA del mundo leads (C1)', () => {
+    // 'repartir' debe ser navegable por URL para el coordinador; si entrara en
+    // VISTAS_LEADS, el gate de leads (cerrado para su rol) la ocultaría justo a
+    // quien es la única pantalla que puede usar.
+    window.location.hash = '#/repartir'
+    expect(leerHash()).toEqual({ vista: 'repartir', leadId: null })
+    expect(VISTAS).toContain('repartir')
+    expect(esVistaLeads('repartir')).toBe(false)
+    expect(hashDe('repartir')).toBe('#/repartir')
   })
 
   it('navega con historial normal y evita escrituras redundantes', () => {

@@ -600,6 +600,15 @@ export interface BackendReal {
     /** Vendedores de crm.metricas_agenda_fn (panel "Agenda del equipo"). */
     agenda: unknown[]
   }
+  /** C1 — cola global que devuelve crm.leads_por_repartir() al coordinador. */
+  colaReparto: Record<string, unknown>[]
+  /** C1 — destinos que devuelve crm.supervisores_para_reparto(). */
+  supervisoresReparto: Record<string, unknown>[]
+  /**
+   * C1 — si está seteado, el próximo crm.repartir_lead responde ese SQLSTATE en
+   * vez de repartir (P0429 = veto legal No Insista, P0002 = fuera de cola…).
+   */
+  fallarProximoReparto: { code: string; message: string } | null
   /**
    * Simula la TRAMPA de la ventana de 5 h vencida: el PATCH a perfiles responde
    * 200 con [] (0 filas, SIN error) y la RPC actualizar_contrato rechaza P0001.
@@ -619,7 +628,13 @@ export interface BackendReal {
     rpcActualizarContrato: number
     rpcMetricasDistribucion: number
     rpcActualizarCapacidad: number
+    /** C1 — cuántas veces se llamó a crm.repartir_lead. */
+    rpcRepartirLead: number
+    /** C1 — cuántas veces se releyó la cola (resincronización tras rechazo). */
+    rpcLeadsPorRepartir: number
   }
+  /** C1 — último par (lead, supervisor) enviado a crm.repartir_lead. */
+  ultimoReparto: { lead: string; supervisor: string } | null
   ultimaActualizacionCapacidad: {
     analistaId: string
     capacidad: number | null
@@ -683,14 +698,19 @@ export async function montarBackendReal(
       distribucion: init.metricas?.distribucion ?? metricasDistribucionVaciaReal(),
       agenda: init.metricas?.agenda ?? [],
     },
+    colaReparto: init.colaReparto ?? [],
+    supervisoresReparto: init.supervisoresReparto ?? [],
+    fallarProximoReparto: init.fallarProximoReparto ?? null,
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
       insertLead: 0, patchLead: 0, insertActividad: 0, getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcCrearContrato: 0, rpcActualizarContrato: 0,
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
+      rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
     },
     ultimaActualizacionCapacidad: init.ultimaActualizacionCapacidad ?? null,
+    ultimoReparto: init.ultimoReparto ?? null,
   }
 
   const cors: Record<string, string> = {
@@ -852,6 +872,39 @@ export async function montarBackendReal(
     // ── cargarReal ──
     if (p === '/rest/v1/rpc/equipo_visible_fn') return json(route, ROSTER)
     if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, [])
+
+    // ── C1: reparto de la cola global (pantalla del coordinador) ──
+    if (p === '/rest/v1/rpc/leads_por_repartir') {
+      estado.llamadas.rpcLeadsPorRepartir += 1
+      return json(route, estado.colaReparto)
+    }
+    if (p === '/rest/v1/rpc/supervisores_para_reparto') {
+      return json(route, estado.supervisoresReparto)
+    }
+    if (p === '/rest/v1/rpc/repartir_lead' && method === 'POST') {
+      estado.llamadas.rpcRepartirLead += 1
+      const args = (req.postDataJSON() ?? {}) as { p_lead?: string; p_supervisor?: string }
+      estado.ultimoReparto = { lead: args.p_lead ?? '', supervisor: args.p_supervisor ?? '' }
+      const fallo = estado.fallarProximoReparto
+      if (fallo) {
+        // El servidor RECHAZA y revierte: la cola NO cambia (el frontend debe
+        // resincronizar, no adivinar).
+        estado.fallarProximoReparto = null
+        return json(route, { code: fallo.code, message: fallo.message }, 400)
+      }
+      // Éxito: el lead sale de la cola global (pasa a la bandeja del supervisor).
+      estado.colaReparto = estado.colaReparto.filter((l) => l.id !== args.p_lead)
+      estado.supervisoresReparto = estado.supervisoresReparto.map((s) =>
+        s.perfil_id === args.p_supervisor
+          ? { ...s, bandeja_pendiente: Number(s.bandeja_pendiente ?? 0) + 1 }
+          : s,
+      )
+      return json(route, {
+        lead_id: args.p_lead,
+        asignado_supervisor_id: args.p_supervisor,
+        repartido_en: '2026-07-22T16:00:00.000Z',
+      })
+    }
 
     // ── agenda: crm.tareas (el boot las carga SIEMPRE junto a los leads) ──
     if (p === '/rest/v1/tareas') {
