@@ -263,11 +263,12 @@ function resumen(r) {
   r.rechazados.forEach(function (x) {
     porMotivo[x.motivo] = (porMotivo[x.motivo] || 0) + 1;
   });
-  let noAutoriza = 0, sinMonto = 0, sinMoneda = 0;
+  let noAutoriza = 0, sinMonto = 0, sinMoneda = 0, conPregunta = 0;
   r.aceptados.forEach(function (l) {
     if (l.autorizo === "NO") noAutoriza++;
     if (l.sinMonto) sinMonto++;
     if (l.sinMoneda) sinMoneda++;
+    if (l.pregunta) conPregunta++;
   });
 
   let t = FECHA_CORTE
@@ -277,6 +278,7 @@ function resumen(r) {
   t += "Filas leídas del origen: " + r.leidas +
     "\nLeads utilizables: " + r.aceptados.length +
     "\n   · de esos, " + noAutoriza + " marcaron NO autorizar → entran como no-contactar" +
+    (conPregunta ? "\n   · " + conPregunta + " traen COMENTARIO del cliente → va al inicio de la Nota" : "") +
     (sinMonto ? "\n   · " + sinMonto + " SIN MONTO → entran con " + MONTO_SI_NO_INDICA + " y aviso en la Nota" : "") +
     (sinMoneda ? "\n   · " + sinMoneda + " SIN MONEDA → entran como " + MONEDA_SI_NO_INDICA + " y aviso en la Nota" : "") +
     "\nYa traídos antes (se omiten): " + r.repetidosPasadas +
@@ -507,13 +509,19 @@ function normalizarFila(fila, col, pestana, numeroFila) {
 
   // Nota: todo lo que el vendedor agradece saber y no tiene columna propia.
   // (`fecha` ya se calculó arriba, al aplicar el corte.)
+  //
+  // ORDEN DELIBERADO (decisión de Miguel, 2026-07-23): PRIMERO lo que el cliente
+  // escribió de su puño y letra — es con lo que el vendedor abre la llamada y lo
+  // único que no se puede reconstruir de ningún otro campo. Después los avisos de
+  // dato faltante, y al final la trazabilidad.
+  lead.pregunta = val(col.pregunta).slice(0, 300);
   lead.nota = [
+    lead.pregunta ? "💬 PREGUNTÓ: " + lead.pregunta : "",
     lead.sinMonto ? "⚠️ NO INDICÓ MONTO — confirmar con el cliente" : "",
     lead.sinMoneda ? "⚠️ NO INDICÓ MONEDA — se asumió " + MONEDA_SI_NO_INDICA : "",
-    fecha ? "Registrado el " + fecha.texto : "",
-    val(col.pregunta) ? "Preguntó: " + val(col.pregunta).slice(0, 300) : "",
     esSocio ? "Ya es socio de la cooperativa" : "",
     m.mixta ? "Marcó soles y dólares — se asumió PEN" : "",
+    fecha ? "Registrado el " + fecha.texto : "",
     "Origen: " + pestana + " fila " + numeroFila,
   ].filter(String).join(" · ");
 
