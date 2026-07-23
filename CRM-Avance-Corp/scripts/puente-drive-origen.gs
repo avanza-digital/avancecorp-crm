@@ -52,6 +52,28 @@ const HOJA_REVISAR = "REVISAR (no importados)";
 const HOJA_HUELLAS = "_puente_huellas"; // oculta: evita traer dos veces lo mismo
 const TOPE_POR_PASADA = 500;
 
+/**
+ * FECHA DE CORTE — el backlog viejo NO entra al CRM (decisión de Miguel, 2026-07-23).
+ *
+ * Solo pasan los leads cuya fecha de registro sea ESA FECHA O POSTERIOR. Todo lo
+ * anterior se descarta con motivo "Anterior al corte" (queda listado en la pestaña
+ * de revisión, no se pierde: simplemente no viaja al CRM).
+ *
+ * Formato "AAAA-MM-DD". Dejar en "" desactiva el corte (entra todo — NO recomendado:
+ * son ~500 leads de 2025).
+ *
+ * 2026-07-22 = arrancamos con lo que entró ayer al origen, para probar el sistema
+ * con datos reales y volumen chico.
+ */
+const FECHA_CORTE = "2026-07-22";
+
+/**
+ * Qué hacer con una fila cuya fecha no se puede leer (columna vacía o formato raro)
+ * cuando hay corte activo. true = se descarta y queda en la pestaña de revisión
+ * (elegido: evita que se cuele backlog viejo sin fecha, y nada se pierde en silencio).
+ */
+const DESCARTAR_SIN_FECHA_SI_HAY_CORTE = true;
+
 // ── Menú ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -219,7 +241,11 @@ function resumen(r) {
   let noAutoriza = 0;
   r.aceptados.forEach(function (l) { if (l.autorizo === "NO") noAutoriza++; });
 
-  let t = "Filas leídas del origen: " + r.leidas +
+  let t = FECHA_CORTE
+    ? "CORTE ACTIVO: solo entran leads del " + FECHA_CORTE + " en adelante.\n\n"
+    : "⚠️ SIN CORTE: entraría TODO el origen, incluido el backlog viejo.\n\n";
+
+  t += "Filas leídas del origen: " + r.leidas +
     "\nLeads utilizables: " + r.aceptados.length +
     "\n   · de esos, " + noAutoriza + " marcaron NO autorizar → entran como no-contactar" +
     "\nYa traídos antes (se omiten): " + r.repetidosPasadas +
@@ -227,6 +253,19 @@ function resumen(r) {
   Object.keys(porMotivo).forEach(function (m) {
     t += "\n   · " + m + ": " + porMotivo[m];
   });
+
+  // Desglose por mes de los que SÍ entrarían: deja ver de un vistazo si el corte
+  // está haciendo lo que se espera (o si se coló algo viejo).
+  const porMes = {};
+  r.aceptados.forEach(function (l) {
+    const k = l.fecha ? l.fecha.mes : "sin fecha";
+    porMes[k] = (porMes[k] || 0) + 1;
+  });
+  const meses = Object.keys(porMes).sort();
+  if (meses.length) {
+    t += "\n\nLos que entrarían, por mes:";
+    meses.forEach(function (m) { t += "\n   · " + m + ": " + porMes[m]; });
+  }
   return t;
 }
 
@@ -255,6 +294,11 @@ function procesar(escribir) {
   let repetidosPasadas = 0;
 
   origen.getSheets().forEach(function (pestana) {
+    // El tope es de la PASADA entera, no de cada pestaña: sin esto, el `break` de
+    // abajo solo cortaba la pestaña en curso y la siguiente seguía sumando
+    // (por eso una corrida con tope 500 devolvió 501).
+    if (aceptados.length >= TOPE_POR_PASADA) return;
+
     const nombrePestana = pestana.getName();
     const datos = pestana.getDataRange().getDisplayValues();
     if (datos.length < 2) return;
@@ -379,6 +423,23 @@ function normalizarFila(fila, col, pestana, numeroFila) {
     crudo: fila.join(" | ").slice(0, 500),
   };
 
+  // FECHA DE CORTE — primero que todo: el backlog viejo ni se evalúa. Así el
+  // reporte separa "es viejo" de "tiene el dato mal", que son cosas distintas.
+  const fecha = fechaMasAntigua(fila, col.fechas);
+  lead.fecha = fecha;
+  const corte = corteEnMs();
+  if (corte !== null) {
+    if (!fecha) {
+      if (DESCARTAR_SIN_FECHA_SI_HAY_CORTE) {
+        lead.motivo = "Sin fecha legible (no se puede ubicar respecto al corte)";
+        return lead;
+      }
+    } else if (fecha.ms < corte) {
+      lead.motivo = "Anterior al corte (" + FECHA_CORTE + ")";
+      return lead;
+    }
+  }
+
   // Nombre = nombre + apellidos.
   lead.nombre = [val(col.nombre), val(col.apellido)]
     .filter(String).join(" ").replace(/\s+/g, " ").trim();
@@ -412,9 +473,9 @@ function normalizarFila(fila, col, pestana, numeroFila) {
   lead.fuenteConsentimiento = (FUENTE_POR_PESTANA[normalizar(pestana)] || FUENTE_POR_DEFECTO) + " — " + pestana;
 
   // Nota: todo lo que el vendedor agradece saber y no tiene columna propia.
-  const fecha = fechaMasAntigua(fila, col.fechas);
+  // (`fecha` ya se calculó arriba, al aplicar el corte.)
   lead.nota = [
-    fecha ? "Registrado el " + fecha : "",
+    fecha ? "Registrado el " + fecha.texto : "",
     val(col.pregunta) ? "Preguntó: " + val(col.pregunta).slice(0, 300) : "",
     esSocio ? "Ya es socio de la cooperativa" : "",
     m.mixta ? "Marcó soles y dólares — se asumió PEN" : "",
@@ -498,10 +559,20 @@ function fechaMasAntigua(fila, indices) {
     if (!d) return;
     const ms = Date.UTC(d.a, d.m - 1, d.dd);
     if (mejor === null || ms < mejor.ms) {
-      mejor = { ms: ms, texto: pad(d.dd) + "/" + pad(d.m) + "/" + d.a };
+      mejor = {
+        ms: ms,
+        texto: pad(d.dd) + "/" + pad(d.m) + "/" + d.a,
+        mes: d.a + "-" + pad(d.m), // para el desglose del reporte
+      };
     }
   });
-  return mejor ? mejor.texto : "";
+  return mejor; // { ms, texto, mes } | null
+}
+
+/** La fecha de corte como milisegundos, o null si no hay corte configurado. */
+function corteEnMs() {
+  const m = String(FECHA_CORTE || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  return m ? Date.UTC(+m[1], +m[2] - 1, +m[3]) : null;
 }
 
 function pad(n) { return (n < 10 ? "0" : "") + n; }
