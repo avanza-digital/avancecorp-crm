@@ -514,15 +514,13 @@ function normalizarFila(fila, col, pestana, numeroFila) {
   // escribió de su puño y letra — es con lo que el vendedor abre la llamada y lo
   // único que no se puede reconstruir de ningún otro campo. Después los avisos de
   // dato faltante, y al final la trazabilidad.
-  lead.pregunta = val(col.pregunta).slice(0, 300);
+  lead.pregunta = preguntaUtil(val(col.pregunta));
   lead.nota = [
     lead.pregunta ? "💬 PREGUNTÓ: " + lead.pregunta : "",
     lead.sinMonto ? "⚠️ NO INDICÓ MONTO — confirmar con el cliente" : "",
     lead.sinMoneda ? "⚠️ NO INDICÓ MONEDA — se asumió " + MONEDA_SI_NO_INDICA : "",
     esSocio ? "Ya es socio de la cooperativa" : "",
     m.mixta ? "Marcó soles y dólares — se asumió PEN" : "",
-    fecha ? "Registrado el " + fecha.texto : "",
-    "Origen: " + pestana + " fila " + numeroFila,
   ].filter(String).join(" · ");
 
   return lead;
@@ -575,6 +573,21 @@ function siNo(v) {
   if (/^no\b|^n$/.test(n)) return "NO";
   if (/^si\b|^s$|^yes|^acepto|^de acuerdo|\bsi\b/.test(n)) return "SI";
   return "";
+}
+
+/**
+ * El comentario del cliente, SOLO si aporta algo. En el lote real la mayoría
+ * escribe "no", "si" u "ok" (no tenían pregunta): meter eso en la nota como
+ * "PREGUNTÓ: no" es ruido que le resta valor al aviso cuando sí hay pregunta.
+ * Devuelve "" cuando el texto no dice nada.
+ */
+function preguntaUtil(v) {
+  const t = String(v || "").trim();
+  if (!t) return "";
+  const n = normalizar(t);
+  // Respuestas vacías de contenido, tal como aparecen en el origen.
+  if (/^(no|si|s|n|ok|oki|ninguna?|ninguno|nada|nada mas|todo bien|x|-|\.)$/.test(n)) return "";
+  return t.slice(0, 300);
 }
 
 /** Descarta lugares que en realidad son códigos o números sueltos ("15"). */
@@ -694,12 +707,32 @@ function leerHuellas(libro) {
   return mapa;
 }
 
+/**
+ * Además de la huella (columna A, la ÚNICA que lee leerHuellas), se guarda aquí la
+ * trazabilidad que se sacó de la Nota: de qué fila del origen salió cada lead y con
+ * qué fecha se registró. Esa información es interna — al vendedor no le sirve para
+ * vender — pero si algún dato sale raro permite volver a la fila exacta del origen.
+ * Hoja oculta: nunca viaja al CRM.
+ */
 function guardarHuellas(libro, leads) {
   if (!leads.length) return;
   let hoja = libro.getSheetByName(HOJA_HUELLAS);
-  if (!hoja) { hoja = libro.insertSheet(HOJA_HUELLAS); hoja.hideSheet(); }
-  hoja.getRange(hoja.getLastRow() + 1, 1, leads.length, 1)
-    .setValues(leads.map(function (l) { return [l.huella]; }));
+  if (!hoja) {
+    hoja = libro.insertSheet(HOJA_HUELLAS);
+    hoja.appendRow(["Huella (no tocar)", "Teléfono", "Origen", "Registrado el", "Traído el"]);
+    hoja.hideSheet();
+  }
+  const traidoEl = Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
+  hoja.getRange(hoja.getLastRow() + 1, 1, leads.length, 5)
+    .setValues(leads.map(function (l) {
+      return [
+        l.huella,
+        l.telefono,
+        l.pestana + " fila " + l.fila,
+        l.fecha ? l.fecha.texto : "",
+        traidoEl,
+      ];
+    }));
 }
 
 function telefonosYaEnLaHoja(hoja) {
