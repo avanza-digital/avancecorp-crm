@@ -74,6 +74,13 @@ const FECHA_CORTE = "2026-07-22";
  */
 const DESCARTAR_SIN_FECHA_SI_HAY_CORTE = true;
 
+/**
+ * Motivo de los descartes POR DISEÑO (el backlog anterior al corte). Se cuentan en
+ * el reporte pero NO se listan en la pestaña de revisión: son cientos y enterrarían
+ * los descartes que sí hay que mirar (teléfono malo, sin monto, sin moneda…).
+ */
+const MOTIVO_CORTE = "Anterior al corte";
+
 // ── Menú ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -435,7 +442,7 @@ function normalizarFila(fila, col, pestana, numeroFila) {
         return lead;
       }
     } else if (fecha.ms < corte) {
-      lead.motivo = "Anterior al corte (" + FECHA_CORTE + ")";
+      lead.motivo = MOTIVO_CORTE + " (" + FECHA_CORTE + ")";
       return lead;
     }
   }
@@ -613,7 +620,18 @@ function escribirLeads(hoja, leads) {
   hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, 16).setValues(filas);
 }
 
+/**
+ * La pestaña de revisión es la RED DE SEGURIDAD: todo lead descartado que un humano
+ * podría rescatar queda aquí, con el motivo y la fila COMPLETA del origen. Se
+ * reescribe entera en cada pasada (es una foto del estado actual del origen, no un
+ * histórico), así que arreglar el dato en el origen lo saca de esta lista solo.
+ *
+ * Los descartes por corte de fecha NO entran: son por diseño y taparían el resto.
+ */
 function escribirRechazos(libro, rechazados) {
+  rechazados = rechazados.filter(function (r) {
+    return String(r.motivo).indexOf(MOTIVO_CORTE) !== 0;
+  });
   let hoja = libro.getSheetByName(HOJA_REVISAR);
   if (!hoja) {
     hoja = libro.insertSheet(HOJA_REVISAR);
