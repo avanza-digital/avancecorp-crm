@@ -12,4 +12,7 @@ export const DEMO_YO: Record<Rol, { id: string; nombre_completo: string }> = {
   supervisor: { id: 'd-sup1', nombre_completo: 'SUPERVISOR UNO' },
   gerencia: { id: 'd-ger', nombre_completo: 'GERENCIA DEMO' },
   directorio: { id: 'demo-directorio', nombre_completo: 'DIRECTORIO (DEMO)' },
+  // Coordinador (C1): tampoco pertenece al organigrama — reparte la cola global
+  // a las bandejas de supervisión. Id sintético fuera de EQUIPO_DEMO.
+  coordinador: { id: 'demo-coordinador', nombre_completo: 'COORDINADOR (DEMO)' },
 }

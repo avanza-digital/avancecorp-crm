@@ -6,7 +6,9 @@
 // Fase 6 (2026-07-21): 'clientes' y 'contratos' se retiraron — la pantalla
 // unificada 'mi-cartera' las reemplaza para todos los roles.
 
-export const VISTAS = ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config'] as const
+// 'repartir' (C1, 2026-07-22) NO entra en VISTAS_LEADS a propósito: el gate de
+// leads está cerrado para el coordinador y ocultaría la única pantalla que debe ver.
+export const VISTAS = ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config'] as const
 export type Vista = (typeof VISTAS)[number]
 
 /**

@@ -107,6 +107,20 @@ export const USERS = Object.freeze([
     crmActive: false,
   },
   {
+    // C1 — reparto de la cola. PRECONDICION DURA: portalRole debe ser
+    // 'comercial' o 'analista', NUNCA 'directorio'/'admin'/'superadmin': un rol
+    // de portal lector-global colapsaria el modelo de ambito vacio (veria leads
+    // y PII de clientes por es_lector_global, saltandose las RPC).
+    key: 'coordinador',
+    email: 'coordinador.crm@demo.avancecorp.pe',
+    name: 'COORDINADOR DEMO',
+    portalRole: 'comercial',
+    crmRole: 'coordinador',
+    supervisorKey: null,
+    portalActive: true,
+    crmActive: true,
+  },
+  {
     key: 'directorio',
     email: 'directorio.crm@demo.avancecorp.pe',
     name: 'DIRECTORIO DEMO',
@@ -238,6 +252,9 @@ export const EXPECTED_LEAD_NAMES = Object.freeze({
   vend4: [],
   vendNested: leadNames('carlos'),
   vendInactive: [],
+  // Coordinador (C1): ambito VACIO por diseno — no ve leads por RLS, solo por
+  // las RPC SECURITY DEFINER de reparto (que proyectan sin PII de contacto).
+  coordinador: [],
   directorio: leadNames('juan', 'maria', 'carlos', 'ana', 'luis', 'rosa', 'inactiveOwned'),
   clientBank: [],
 });
@@ -313,6 +330,7 @@ export const EXPECTED_TAREA_TITULOS = Object.freeze({
   vend4: [],
   vendNested: tareaTitulos('reunionCarlos'),
   vendInactive: [],
+  coordinador: [],
   directorio: tareaTitulos('llamadaJuan', 'reunionCarlos', 'whatsappAna', 'bandejaLuis', 'bandejaRosa'),
   clientBank: [],
 });
@@ -358,6 +376,12 @@ export const TRANSIENT_IDS = Object.freeze({
   triggerSellerChangeLead: randomUUID(),
   triggerSupervisorOnlyLead: randomUUID(),
   triggerNoTenureLead: randomUUID(),
+  // C1 — reparto de la cola global (todos nacen sin dueno: ambos-null).
+  repartoLeadOk: randomUUID(),
+  repartoLeadNoContactar: randomUUID(),
+  repartoLeadCarrera: randomUUID(),
+  repartoLeadReencolado: randomUUID(),
+  repartoTareaReencolada: randomUUID(),
   foreignCreatorTarea: randomUUID(),
   directoryTarea: randomUUID(),
   portalClientTarea: randomUUID(),

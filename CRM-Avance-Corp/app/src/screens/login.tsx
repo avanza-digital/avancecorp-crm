@@ -15,6 +15,7 @@ const DEMO_SUB: Record<Rol, string> = {
   supervisor: 'como SUPERVISOR UNO — equipo de 2',
   gerencia: 'visión total',
   directorio: 'auditoría · solo lectura',
+  coordinador: 'reparte la cola de leads nuevos',
 }
 
 export function Login() {

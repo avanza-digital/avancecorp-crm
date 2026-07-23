@@ -177,3 +177,18 @@ Oráculo: `supabase/scripts/test-objetivos.sql` (patrón 4A-4C; éxito = token
 Lima (degrada a cero si el fetch auxiliar cae — jamás tumba el boot),
 `fijarObjetivos` en el store (optimista + resync como rollback, espejo
 `editarConfiguracion`) y editor "Fijar metas del mes" en Hoy→Gerencia.
+
+## Reparto de la cola de leads — C1 del rol `coordinador` (2026-07-22)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260721120000 | crm_reparto_coordinador_c1 | **Rosa reparte la cola de leads nuevos DESDE el CRM (la vía-hoja quedó descartada):** (a) `equipo_rol_crm_check` acepta `coordinador` (hasta hoy solo vendedor/supervisor/gerencia); (b) `private.vendedor_ids_visibles` gana rama explícita `coordinador → ∅` (antes caía al `else` de vendedor: ∅ implícito y frágil); (c) **las policies de `crm.leads` NO se tocan** — decisión, no omisión: el coordinador tiene ámbito ∅ y todo su trabajo pasa por RPC; (d) `crm.leads_por_repartir()` — cola global (`vendedor_id` y `asignado_supervisor_id` null, etapas abiertas, FIFO), proyección **SIN PII de contacto** (sin teléfono/correo/DNI: Rosa enruta, no contacta) y excluye `no_contactar=true` (Ley 29571); (d-bis) `crm.supervisores_para_reparto()` — destinos activos + conteo de bandeja (el coordinador no puede listar `crm.equipo` por RLS); (e) `crm.repartir_lead(p_lead, p_supervisor)` — `SELECT … FOR UPDATE` + **UPDATE con predicado CAS** anti-carrera; setea `asignado_supervisor_id` dejando `vendedor_id` null (respeta `leads_tenencia_exclusiva` y el guard de tenencia); re-valida `no_contactar` con **SQLSTATE PROPIO `P0429`** (nunca 42501: así el candado del gate no puede pasar en falso con un error de autorización); actividad y auditoría las escriben los triggers, la RPC no inserta nada. Las 3 RPC son SECURITY DEFINER `search_path=''` con gate `coordinador\|gerencia` activos (42501), `revoke public,anon` + `grant authenticated` (clase WARN aceptada). (f) **Endurecimiento de superficies adyacentes** que se abren al dejar `rol_crm` de ser NULL: `crm.existe_cliente_por_dni` (oráculo de enumeración de DNIs) y la policy `objetivos_select` pasan a la allowlist `IN (vendedor,supervisor,gerencia)`, y `crm.metricas_agenda_fn` añade ese filtro a su gate de miembro activo (cuerpo copiado verbatim de prod, único cambio el gate). **`crm.clientes_basicos_fn` NO se tocó**: el plan citaba el cuerpo de `20260711000003`, pero la definición viva es la de `20260711000004` — scopeada POR CARTERA y con 2 columnas añadidas después; reemplazarla habría fallado por cambio de tipo de retorno y, de pasar, habría REVERTIDO el scoping (fuga masiva de PII). Con la definición real el coordinador ya obtiene 0 filas → queda como aserción del gate, no como cambio de SQL. Regresión cero para vendedor/supervisor/gerencia/lector global. | ⏳ branch `crm-reparto-c1` → oráculo `REPARTO_TX_OK` (`test-reparto.sql`: R01–R27 a la primera) → advisors sin clases nuevas (solo las 3 RPC en la clase WARN aceptada) → **pendiente gate RLS vivo** (`testReparto`) → merge |
+
+Oráculo: `supabase/scripts/test-reparto.sql` (patrón 4A-4C; éxito = token
+`REPARTO_TX_OK`). La CARRERA de doble reparto no se prueba ahí (necesita dos
+sesiones simultáneas): la cubre `testReparto` en `test-rls.mjs` con
+`Promise.allSettled` de coordinador+gerencia sobre el mismo lead.
+Frontend (misma sesión): rol `coordinador` off-roster (como `directorio`),
+capacidades `repartirCola`/`verCartera`, pantalla `screens/repartir.tsx`,
+guards en `lib/vistas.ts` y omisión de `listarEquipo` en el boot del coordinador
+(`equipo_visible_fn` puede RAISE para su rol y tumbaría su sesión).

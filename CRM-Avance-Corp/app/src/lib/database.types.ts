@@ -594,6 +594,39 @@ export interface Database {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
+      // ── C1: reparto de la cola global por el coordinador. Las tres son
+      //    SECURITY DEFINER con gate propio (coordinador|gerencia): el
+      //    coordinador NO ve crm.leads por RLS. La cola se proyecta SIN PII
+      //    de contacto — no hay teléfono, correo ni DNI en el contrato. ─────
+      leads_por_repartir: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          nombre_completo: string
+          distrito: string | null
+          origen: OrigenDb
+          categoria_interes: CategoriaInteresDb | null
+          monto_estimado: number // numeric — PostgREST puede serializar string
+          moneda: MonedaDb
+          creado_en: string
+        }[]
+      }
+      supervisores_para_reparto: {
+        Args: Record<string, never>
+        Returns: {
+          perfil_id: string
+          nombre: string
+          activo: boolean
+          bandeja_pendiente: number
+        }[]
+      }
+      /** Mueve un lead de la cola global a la bandeja de un supervisor
+       *  (asignado_supervisor_id; vendedor_id sigue null). Re-valida
+       *  no_contactar con SQLSTATE propio P0429 (Ley 29571). */
+      repartir_lead: {
+        Args: { p_lead: string; p_supervisor: string }
+        Returns: Json
+      }
     }
     Enums: Record<string, never>
     CompositeTypes: Record<string, never>

@@ -12,9 +12,13 @@ import {
   TIPOS_ACTIVIDAD,
   TIPOS_TAREA,
   type Actividad,
+  type CategoriaInteres,
+  type ColaLead,
   type Etapa,
   type Lead,
   type Miembro,
+  type Origen,
+  type SupervisorReparto,
   type Tarea,
   type TipoActividad,
 } from '@/lib/tipos'
@@ -350,6 +354,9 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
 }
 
 // ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────
+// 'coordinador' (C1) es OFF-ROSTER, como 'directorio': equipo_visible_fn no debe
+// devolverlo; si alguna vez lo hiciera, el picklist lo descarta A PROPÓSITO en el
+// safeParse de abajo (fila fuera de contrato → se ignora, sin romper el roster).
 const ROLES_EQUIPO = ['vendedor', 'supervisor', 'gerencia'] as const
 const MiembroRowSchema = v.object({
   perfil_id: v.string(),
@@ -407,6 +414,77 @@ export async function fijarObjetivosRpc(
     p_objetivos: payload,
   })
   if (error) throw aErrorApi(error, 'crm.objetivos.fijar_fallido')
+}
+
+// ── Reparto de la cola global (C1) — 3 RPC SECURITY DEFINER con gate propio ───
+// El coordinador NO ve leads por RLS (ámbito ∅): todo su trabajo pasa por aquí.
+
+const ORIGENES_K = ORIGENES_TODOS.map((o) => o.k) as [Origen, ...Origen[]]
+const CATEGORIAS_K = CATEGORIAS_INTERES.map((c) => c.k) as [CategoriaInteres, ...CategoriaInteres[]]
+
+const ColaLeadSchema = v.object({
+  id: v.string(),
+  nombre_completo: v.string(),
+  distrito: v.nullable(v.string()),
+  origen: v.picklist(ORIGENES_K),
+  categoria_interes: v.nullable(v.picklist(CATEGORIAS_K)),
+  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  moneda: v.picklist(['PEN', 'USD'] as const),
+  creado_en: v.string(),
+})
+
+const SupervisorRepartoSchema = v.object({
+  perfil_id: v.string(),
+  nombre: v.string(),
+  activo: v.boolean(),
+  bandeja_pendiente: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+})
+
+export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]> {
+  let consulta = cliente().schema('crm').rpc('leads_por_repartir')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar la cola de leads.', error.code || 'POSTGREST_ERROR')
+    // Un fetch ABORTADO (desmontaje, recarga, doble efecto de StrictMode) no es
+    // un fallo del servidor: se propaga para que el llamador lo descarte, pero
+    // NO se reporta — si no, la observabilidad se llena de errores fantasma.
+    if (!signal?.aborted) registrarError('crm.reparto.cola_fallida', fallo)
+    throw fallo
+  }
+  const items: ColaLead[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(ColaLeadSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+export async function supervisoresParaReparto(signal?: AbortSignal): Promise<SupervisorReparto[]> {
+  let consulta = cliente().schema('crm').rpc('supervisores_para_reparto')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudieron cargar los supervisores.', error.code || 'POSTGREST_ERROR')
+    if (!signal?.aborted) registrarError('crm.reparto.supervisores_fallida', fallo)
+    throw fallo
+  }
+  const items: SupervisorReparto[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(SupervisorRepartoSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+/** Mueve un lead de la cola global a la bandeja de un supervisor (atómico en el
+ *  servidor: re-valida no_contactar y usa un UPDATE con predicado anti-carrera). */
+export async function repartirLead(leadId: string, supervisorId: string): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('repartir_lead', {
+    p_lead: leadId,
+    p_supervisor: supervisorId,
+  })
+  if (error) throw aErrorApi(error, 'crm.reparto.repartir_fallido')
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
@@ -481,6 +559,19 @@ function aErrorApi(
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
     code = 'SIN_PERMISO'
     mensaje = 'No tienes permiso para esa acción'
+  } else if (codigoPg === 'P0429') {
+    // Veto LEGAL (Ley 29571 "No Insista") de crm.repartir_lead — código propio,
+    // deliberadamente distinto de 42501: no es falta de permiso, es prohibición.
+    code = 'NO_INSISTA'
+    mensaje = error.message ?? 'Lead marcado No Insista (Ley 29571): no se puede repartir'
+  } else if (codigoPg === 'P0002') {
+    // El lead salió de la cola (ya tiene dueño, se cerró) o se perdió la carrera.
+    code = 'FUERA_DE_COLA'
+    mensaje = error.message ?? 'El lead ya no está en la cola por repartir'
+  } else if (codigoPg === '40001') {
+    // Carrera bajo aislamiento serializable (defensivo: el default es READ COMMITTED).
+    code = 'REINTENTAR'
+    mensaje = 'El lead se estaba repartiendo en simultáneo. Vuelve a intentarlo.'
   } else if (codigoPg === 'P0001' || codigoPg === '22023') {
     // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
     // 22023 = validaciones de parámetros de las RPC (fijar_objetivos, capacidad).
