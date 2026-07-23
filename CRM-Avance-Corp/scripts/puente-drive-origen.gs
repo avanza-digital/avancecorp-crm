@@ -81,6 +81,24 @@ const DESCARTAR_SIN_FECHA_SI_HAY_CORTE = true;
  */
 const MOTIVO_CORTE = "Anterior al corte";
 
+/**
+ * UN LEAD NO SE PIERDE POR UN DATO QUE FALTA (decisión de Miguel, 2026-07-23).
+ *
+ * La base exige `monto_estimado > 0` (CHECK `leads_monto_estimado_valido`), así que
+ * un lead sin monto NO se puede insertar vacío ni en 0: hay que poner un número.
+ * Se usa 1 como MARCADOR EVIDENTE — nadie lo confunde con un monto real — y la Nota
+ * lo dice con todas sus letras para que el vendedor lo pregunte.
+ *
+ * Ojo al leer reportes: estos leads caen en el rango de capital más bajo.
+ */
+const MONTO_SI_NO_INDICA = 1;
+
+/**
+ * Misma idea para la moneda (la columna es obligatoria en la hoja y la base defaultea
+ * a PEN). Se asume PEN y queda anotado; nunca se descarta el lead por esto.
+ */
+const MONEDA_SI_NO_INDICA = "PEN";
+
 // ── Menú ─────────────────────────────────────────────────────────────────────
 
 /**
@@ -245,8 +263,12 @@ function resumen(r) {
   r.rechazados.forEach(function (x) {
     porMotivo[x.motivo] = (porMotivo[x.motivo] || 0) + 1;
   });
-  let noAutoriza = 0;
-  r.aceptados.forEach(function (l) { if (l.autorizo === "NO") noAutoriza++; });
+  let noAutoriza = 0, sinMonto = 0, sinMoneda = 0;
+  r.aceptados.forEach(function (l) {
+    if (l.autorizo === "NO") noAutoriza++;
+    if (l.sinMonto) sinMonto++;
+    if (l.sinMoneda) sinMoneda++;
+  });
 
   let t = FECHA_CORTE
     ? "CORTE ACTIVO: solo entran leads del " + FECHA_CORTE + " en adelante.\n\n"
@@ -255,6 +277,8 @@ function resumen(r) {
   t += "Filas leídas del origen: " + r.leidas +
     "\nLeads utilizables: " + r.aceptados.length +
     "\n   · de esos, " + noAutoriza + " marcaron NO autorizar → entran como no-contactar" +
+    (sinMonto ? "\n   · " + sinMonto + " SIN MONTO → entran con " + MONTO_SI_NO_INDICA + " y aviso en la Nota" : "") +
+    (sinMoneda ? "\n   · " + sinMoneda + " SIN MONEDA → entran como " + MONEDA_SI_NO_INDICA + " y aviso en la Nota" : "") +
     "\nYa traídos antes (se omiten): " + r.repetidosPasadas +
     "\nDescartados: " + r.rechazados.length;
   Object.keys(porMotivo).forEach(function (m) {
@@ -456,12 +480,14 @@ function normalizarFila(fila, col, pestana, numeroFila) {
   lead.telefono = telefonoPeru(val(col.telefono)) || telefonoPeru(val(col.whatsapp));
   if (!lead.telefono) { lead.motivo = "Sin teléfono válido"; return lead; }
 
+  // Monto y moneda NO descartan al lead: si faltan, entra marcado (ver constantes).
   lead.capital = montoDe(val(col.monto));
-  if (!lead.capital) { lead.motivo = "Sin monto"; return lead; }
+  lead.sinMonto = !lead.capital;
+  if (lead.sinMonto) lead.capital = String(MONTO_SI_NO_INDICA);
 
   const m = monedaDe(val(col.moneda));
-  if (!m.moneda) { lead.motivo = "Sin moneda"; return lead; }
-  lead.moneda = m.moneda;
+  lead.sinMoneda = !m.moneda;
+  lead.moneda = m.moneda || MONEDA_SI_NO_INDICA;
 
   lead.canal = CANAL_POR_PESTANA[normalizar(pestana)] || CANAL_POR_DEFECTO;
   lead.distrito = limpiarLugar(val(col.distrito) || val(col.ciudad));
@@ -482,6 +508,8 @@ function normalizarFila(fila, col, pestana, numeroFila) {
   // Nota: todo lo que el vendedor agradece saber y no tiene columna propia.
   // (`fecha` ya se calculó arriba, al aplicar el corte.)
   lead.nota = [
+    lead.sinMonto ? "⚠️ NO INDICÓ MONTO — confirmar con el cliente" : "",
+    lead.sinMoneda ? "⚠️ NO INDICÓ MONEDA — se asumió " + MONEDA_SI_NO_INDICA : "",
     fecha ? "Registrado el " + fecha.texto : "",
     val(col.pregunta) ? "Preguntó: " + val(col.pregunta).slice(0, 300) : "",
     esSocio ? "Ya es socio de la cooperativa" : "",
