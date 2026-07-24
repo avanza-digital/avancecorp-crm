@@ -108,7 +108,7 @@ test('repartir un lead lo saca de la cola y sube la bandeja del supervisor', asy
 
   await expect(page.getByText('MARTHA VILCA')).toBeVisible()
   await page.getByLabel('Asignar MARTHA VILCA a un supervisor').selectOption('sup-1')
-  await page.getByRole('button', { name: 'Repartir', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Repartir a MARTHA VILCA', exact: true }).click()
 
   // El servidor recibió el par correcto…
   await expect.poll(() => backend.llamadas.rpcRepartirLead).toBe(1)
@@ -132,7 +132,7 @@ test('el veto legal (No Insista) avisa, NO mueve la fila y resincroniza la cola'
 
   const releidasAntes = backend.llamadas.rpcLeadsPorRepartir
   await page.getByLabel('Asignar MARTHA VILCA a un supervisor').selectOption('sup-2')
-  await page.getByRole('button', { name: 'Repartir', exact: true }).first().click()
+  await page.getByRole('button', { name: 'Repartir a MARTHA VILCA', exact: true }).click()
 
   // Mensaje LEGAL literal (no un "no tienes permiso" genérico).
   await expect(page.getByText('Lead marcado No Insista (Ley 29571): no se puede repartir'))
@@ -153,7 +153,7 @@ test('si el lead ya salió de la cola, avisa y resincroniza', async ({ page }) =
 
   const releidasAntes = backend.llamadas.rpcLeadsPorRepartir
   await page.getByLabel('Asignar JORGE CASTRO a un supervisor').selectOption('sup-1')
-  await page.getByRole('button', { name: 'Repartir', exact: true }).nth(1).click()
+  await page.getByRole('button', { name: 'Repartir a JORGE CASTRO', exact: true }).click()
 
   await expect(page.getByText(/ya no está en la cola por repartir/)).toBeVisible()
   await expect.poll(() => backend.llamadas.rpcLeadsPorRepartir).toBeGreaterThan(releidasAntes)
@@ -163,14 +163,14 @@ test('cola vacía: estado honesto que explica de dónde vendrán los leads', asy
   await entrarComoCoordinador(page, { colaReparto: [] })
 
   await expect(page.getByText('No hay leads por repartir')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Repartir', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Repartir a / })).toHaveCount(0)
 })
 
 test('sin supervisores activos no se puede repartir y la pantalla lo dice', async ({ page }) => {
   await entrarComoCoordinador(page, { supervisoresReparto: [] })
 
   await expect(page.getByText('No hay supervisores activos')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Repartir', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: /Repartir a / })).toHaveCount(0)
 })
 
 // ── C1-bis: el código marca, Rosa lee el comentario y cierra ────────────────
@@ -179,11 +179,12 @@ test('el lead marcado muestra la etiqueta "Posible crédito" y el comentario red
   await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
 
   // La marca del clasificador es visible y el comentario (ya redactado por el
-  // servidor) se lee en la fila: el dato con el que Rosa decide.
-  await expect(page.getByText('Posible crédito')).toBeVisible()
+  // servidor) se lee en la fila: el dato con el que Rosa decide. Se scopea a
+  // las FILAS porque el toolbar tiene su propio chip "Posible crédito (N)".
+  await expect(page.locator('[data-lead-id="lead-credito"]').getByText('Posible crédito')).toBeVisible()
   await expect(page.getByText(/Necesito un préstamo urgente/)).toBeVisible()
-  // Los leads sin marca NO llevan etiqueta (una sola en toda la cola).
-  await expect(page.getByText('Posible crédito')).toHaveCount(1)
+  // Los leads sin marca NO llevan etiqueta (una sola entre todas las filas).
+  await expect(page.locator('[data-lead-id]').getByText('Posible crédito')).toHaveCount(1)
   // El comentario del lead limpio también se muestra.
   await expect(page.getByText(/plazo fijo para invertir/)).toBeVisible()
 })
@@ -263,4 +264,91 @@ test('Cancelar sale del modo descarte sin llamar al servidor', async ({ page }) 
 
   await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toBeVisible()
   expect(backend.llamadas.rpcDescartarLead).toBe(0)
+})
+
+// ── Rediseño 2026-07-24 (feedback de Miguel): orden, filtros, paginación ─────
+
+test('el último lead en entrar se ve PRIMERO, y el orden se puede invertir', async ({ page }) => {
+  await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
+
+  // Default "más recientes primero": PEDRO (22 jul) arriba, MARTHA (20 jul) al final.
+  await expect(page.locator('[data-lead-id]').first()).toHaveAttribute('data-lead-id', 'lead-credito')
+  await expect(page.locator('[data-lead-id]').last()).toHaveAttribute('data-lead-id', 'lead-usd')
+
+  // Invertir a "más antiguos primero" (para repartir lo que más ha esperado).
+  await page.getByLabel('Ordenar la cola por fecha de ingreso').selectOption('antiguos')
+  await expect(page.locator('[data-lead-id]').first()).toHaveAttribute('data-lead-id', 'lead-usd')
+})
+
+test('cada fila muestra la fecha y hora de ingreso del lead', async ({ page }) => {
+  await entrarComoCoordinador(page)
+
+  // "entró <fecha con hora>": el dato pedido explícitamente (no solo "hace N días").
+  const fila = page.locator('[data-lead-id="lead-usd"]')
+  await expect(fila).toContainText('entró')
+  await expect(fila).toContainText(/\d{2}:\d{2}/)
+})
+
+test('la búsqueda filtra por nombre y el vacío de filtros ofrece limpiar', async ({ page }) => {
+  await entrarComoCoordinador(page)
+
+  await page.getByLabel('Buscar en la cola por nombre, distrito o comentario').fill('JORGE')
+  await expect(page.locator('[data-lead-id]')).toHaveCount(1)
+  await expect(page.locator('[data-lead-id]').first()).toHaveAttribute('data-lead-id', 'lead-pen')
+
+  // Sin coincidencias: estado honesto + salida de un clic.
+  await page.getByLabel('Buscar en la cola por nombre, distrito o comentario').fill('NOEXISTE')
+  await expect(page.getByText('Ningún lead coincide con la búsqueda o los filtros')).toBeVisible()
+  await page.getByRole('button', { name: 'Limpiar filtros' }).click()
+  await expect(page.locator('[data-lead-id]')).toHaveCount(2)
+})
+
+test('el toggle "Posible crédito" deja solo los marcados por el clasificador', async ({ page }) => {
+  await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
+
+  await page.getByRole('button', { name: /Posible crédito \(1\)/ }).click()
+  await expect(page.locator('[data-lead-id]')).toHaveCount(1)
+  await expect(page.locator('[data-lead-id]').first()).toHaveAttribute('data-lead-id', 'lead-credito')
+})
+
+test('la cola pagina de a 20 con "Mostrar 20 más" (adiós scroll infinito)', async ({ page }) => {
+  const colaLarga = Array.from({ length: 25 }, (_, i) => ({
+    id: `lead-lote-${i}`,
+    nombre_completo: `LEAD LOTE ${i}`,
+    distrito: null,
+    origen: 'otro',
+    categoria_interes: null,
+    monto_estimado: 1000 + i,
+    moneda: 'PEN',
+    creado_en: `2026-07-20T10:${String(i).padStart(2, '0')}:00.000Z`,
+    clasificacion_auto: null,
+    comentario: null,
+  }))
+  await entrarComoCoordinador(page, { colaReparto: colaLarga })
+
+  await expect(page.locator('[data-lead-id]')).toHaveCount(20)
+  await expect(page.getByText('Mostrando 20 de 25')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Mostrar 20 más' }).click()
+  await expect(page.locator('[data-lead-id]')).toHaveCount(25)
+  await expect(page.getByText('Fin de la cola · 25 leads')).toBeVisible()
+})
+
+test('un comentario largo se expande con "Ver todo" y se vuelve a plegar', async ({ page }) => {
+  const largo = {
+    ...LEAD_CREDITO,
+    id: 'lead-largo',
+    nombre_completo: 'COMENTARIO LARGO',
+    comentario: 'Quiero saber todo sobre el plazo fijo: tasas, plazos, garantías, qué pasa al vencimiento, '
+      + 'si puedo renovar automáticamente, cómo se pagan los intereses mes a mes y qué documentos necesito '
+      + 'para abrir el contrato la próxima semana.',
+  }
+  await entrarComoCoordinador(page, { colaReparto: [largo] })
+
+  const boton = page.getByRole('button', { name: 'Ver todo el comentario' })
+  await expect(boton).toBeVisible()
+  await boton.click()
+  await expect(page.getByRole('button', { name: 'Ver menos' })).toBeVisible()
+  await page.getByRole('button', { name: 'Ver menos' }).click()
+  await expect(page.getByRole('button', { name: 'Ver todo el comentario' })).toBeVisible()
 })

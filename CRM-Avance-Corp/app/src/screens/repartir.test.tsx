@@ -94,7 +94,7 @@ describe('pantalla Repartir leads', () => {
       screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
       'sup-1',
     )
-    await usuario.click(screen.getByRole('button', { name: 'Repartir' }))
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
 
     await waitFor(() => expect(repartirMock).toHaveBeenCalledWith('lead-1', 'sup-1'))
     expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('SUPERVISOR UNO'))
@@ -117,7 +117,7 @@ describe('pantalla Repartir leads', () => {
       screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
       'sup-1',
     )
-    await usuario.click(screen.getByRole('button', { name: 'Repartir' }))
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
 
     await waitFor(() =>
       expect(toastError).toHaveBeenCalledWith(
@@ -142,7 +142,7 @@ describe('pantalla Repartir leads', () => {
       screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
       'sup-2',
     )
-    await usuario.click(screen.getByRole('button', { name: 'Repartir' }))
+    await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
 
     await waitFor(() => expect(toastError).toHaveBeenCalled())
     await waitFor(() => expect(colaMock).toHaveBeenCalledTimes(2))
@@ -154,7 +154,7 @@ describe('pantalla Repartir leads', () => {
     render(<Repartir />)
 
     expect(await screen.findByText('No hay supervisores activos')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Repartir' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Repartir a / })).not.toBeInTheDocument()
   })
 
   it('el destino muestra la carga de cada bandeja (para repartir con criterio)', async () => {

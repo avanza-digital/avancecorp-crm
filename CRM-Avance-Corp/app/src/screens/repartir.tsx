@@ -1,16 +1,22 @@
-// Repartir leads (C1) — la única pantalla del coordinador: mueve los leads
-// recién nacidos de la cola global a la BANDEJA de un supervisor, que luego los
-// baja a sus vendedores.
+// Repartir leads (C1/C1-bis) — la única pantalla del coordinador: mueve los
+// leads recién nacidos de la cola global a la BANDEJA de un supervisor, o los
+// DESCARTA con motivo (segunda malla del filtro de crédito).
 //
 // Orden comercial (regla de Miguel: lo que genera ingreso, primero): capital en
-// juego arriba, la cola FIFO como protagonista, y en cada fila el monto del
-// lead — porque repartir un lead de US$ 30k no es lo mismo que uno de S/ 3k.
+// juego arriba, la cola como protagonista y en cada fila el monto del lead.
 // PEN y USD JAMÁS se suman: se muestran como dos cifras separadas.
 //
+// Rediseño 2026-07-24 (feedback de Miguel con la cola real de ~55): el COMENTARIO
+// del cliente es el dato de decisión y va destacado con fecha y hora de ingreso;
+// orden por defecto "más recientes primero" (el último lead entra ARRIBA), con
+// el inverso a un clic; búsqueda + filtro por origen + toggle "posible crédito";
+// y paginación local de a 20 (nada de scroll infinito). Todo es presentación:
+// la RPC sigue entregando FIFO y el contrato con el servidor no cambia.
+//
 // Estado local con React (sin XState: eso vive solo en auth). La verdad la tiene
-// el servidor — cada reparto pasa por la RPC atómica crm.repartir_lead.
+// el servidor — cada reparto/descarte pasa por su RPC atómica.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Split, Users, Wallet, Inbox, AlertTriangle } from 'lucide-react'
+import { Split, Users, Wallet, Inbox, AlertTriangle, Search } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   CrmApiError,
@@ -25,15 +31,27 @@ import {
   origenLabel,
   type ColaLead,
   type MotivoDescarte,
+  type Origen,
   type SupervisorReparto,
 } from '@/lib/tipos'
-import { moneyK } from '@/lib/format'
+import { fechaHora, moneyK } from '@/lib/format'
+import {
+  FILTROS_INICIALES,
+  contarMarcados,
+  filtrarYOrdenarCola,
+  origenesDeCola,
+  type FiltrosCola,
+} from '@/lib/cola-reparto'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip } from '@/components/common/stat-strip'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
+
+/** Cuántas filas se muestran por página local ("Mostrar 20 más"). */
+const PAGINA = 20
 
 /** Días transcurridos desde que el lead entró a la cola (para la urgencia). */
 function diasEnCola(desde: string, ahora: number): number {
@@ -172,6 +190,11 @@ export function Repartir() {
   // C1-bis: filas en "modo descarte" y el motivo elegido en cada una.
   const [descartando, setDescartando] = useState<Record<string, boolean>>({})
   const [motivo, setMotivo] = useState<Record<string, MotivoDescarte | ''>>({})
+  // Comentarios expandidos ("Ver todo") por lead.
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({})
+  // Filtros/orden de PRESENTACIÓN (la RPC no cambia) + paginación local.
+  const [filtros, setFiltros] = useState<FiltrosCola>(FILTROS_INICIALES)
+  const [visibles, setVisibles] = useState(PAGINA)
   // El conmutador de modo DESTRUYE el control enfocado: sin foco programático,
   // el teclado cae a <body> y hay que retabular toda la página (revisor a11y).
   // NO autoFocus: fuera de un modal es hallazgo (excepción 3 de .oxlintrc.json).
@@ -179,6 +202,12 @@ export function Repartir() {
   const refDescartarGhost = useRef(new Map<string, HTMLButtonElement>())
   const refCola = useRef<HTMLDivElement>(null)
   const ahora = Date.now()
+
+  /** Cambia un filtro y vuelve a la primera página (evita "Mostrando 40 de 3"). */
+  const setFiltro = useCallback((patch: Partial<FiltrosCola>) => {
+    setFiltros((f) => ({ ...f, ...patch }))
+    setVisibles(PAGINA)
+  }, [])
 
   // Capital en juego, SIEMPRE separado por moneda (nunca una suma mixta).
   const capital = useMemo(() => {
@@ -195,6 +224,13 @@ export function Repartir() {
     if (cola.length === 0) return 0
     return Math.max(...cola.map((l) => diasEnCola(l.creado_en, ahora)))
   }, [cola, ahora])
+
+  const marcados = useMemo(() => contarMarcados(cola), [cola])
+  const origenes = useMemo(() => origenesDeCola(cola), [cola])
+  const colaFiltrada = useMemo(() => filtrarYOrdenarCola(cola, filtros), [cola, filtros])
+  const colaVisible = colaFiltrada.slice(0, visibles)
+  const hayFiltrosActivos = filtros.busqueda.trim() !== ''
+    || filtros.soloMarcados || filtros.origen !== ''
 
   const stats = useMemo(() => [
     { icon: Inbox, label: 'Por repartir', value: String(cola.length), tone: cola.length > 0 ? 'accent' : 'default' as const },
@@ -218,7 +254,10 @@ export function Repartir() {
           title="Cola de leads nuevos"
           right={
             <span className="text-[11px] font-semibold text-muted-foreground">
-              {cola.length > 0 ? `${cola.length} en espera · más antiguos primero` : ''}
+              {cola.length > 0
+                ? `${hayFiltrosActivos ? `${colaFiltrada.length} de ${cola.length}` : `${cola.length} en espera`} · ${
+                  filtros.orden === 'recientes' ? 'más recientes primero' : 'más antiguos primero'}`
+                : ''}
             </span>
           }
         />
@@ -240,163 +279,266 @@ export function Repartir() {
             detalle="Sin una bandeja de destino no se puede repartir. Avisa a gerencia para activar al menos un supervisor."
           />
         ) : (
-          <div ref={refCola} tabIndex={-1} className="space-y-2 px-5 pb-5 outline-none">
-            {/* tabIndex={-1}: destino PROGRAMÁTICO del foco cuando la fila
-                enfocada desaparece (descarte exitoso); no es alcanzable con
-                Tab, por eso el outline-none aquí es legítimo. */}
-            {cola.map((lead) => {
-              const dias = diasEnCola(lead.creado_en, ahora)
-              const elegido = destino[lead.id] ?? ''
-              const enviando = enviandoId === lead.id
-              const marcado = lead.clasificacion_auto === 'posible_credito'
-              const enDescarte = descartando[lead.id] === true
-              // La marca del código PROPONE el motivo; el humano confirma.
-              const motivoElegido = motivo[lead.id] ?? (marcado ? 'pide_credito' : '')
-              return (
-                <div
-                  key={lead.id}
-                  className="flex flex-col gap-2.5 rounded-xl border border-border p-3 sm:flex-row sm:items-center"
+          <>
+            {/* Herramientas de la cola: buscar, ordenar, filtrar. Presentación
+                pura — el servidor sigue mandando la cola completa en FIFO. */}
+            <div className="flex flex-col gap-2 px-5 pb-3 sm:flex-row sm:items-center">
+              <div className="relative flex-1 sm:max-w-[280px]">
+                <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                <Input
+                  value={filtros.busqueda}
+                  onChange={(e) => setFiltro({ busqueda: e.target.value })}
+                  placeholder="Buscar nombre, distrito o comentario…"
+                  aria-label="Buscar en la cola por nombre, distrito o comentario"
+                  className="h-8 pl-8 text-xs"
+                />
+              </div>
+              <div className="sm:w-[185px]">
+                <Select
+                  value={filtros.orden}
+                  onChange={(e) => setFiltro({ orden: e.target.value === 'antiguos' ? 'antiguos' : 'recientes' })}
+                  aria-label="Ordenar la cola por fecha de ingreso"
                 >
-                  <div className="min-w-0 flex-1">
-                    <p className="flex items-center gap-1.5 text-sm font-semibold">
-                      <span className="truncate">{lead.nombre_completo}</span>
-                      {marcado ? (
-                        // text-warning-text (no --warning): texto de 10px exige
-                        // 4.5:1 y el ámbar base da ~2.9:1 sobre este fondo.
-                        <span
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning-text"
-                          title="El sistema detectó que el comentario menciona préstamo/financiamiento. Es una marca: la decisión de descartar es tuya."
-                        >
-                          <AlertTriangle className="size-3" aria-hidden />
-                          Posible crédito
-                          {/* El title no llega a teclado ni a lectores: paridad sr-only. */}
-                          <span className="sr-only">
-                            . Marca automática: el comentario menciona préstamo o financiamiento; la decisión de descartar es tuya.
+                  <option value="recientes">Más recientes primero</option>
+                  <option value="antiguos">Más antiguos primero</option>
+                </Select>
+              </div>
+              <div className="sm:w-[170px]">
+                <Select
+                  value={filtros.origen}
+                  onChange={(e) => setFiltro({ origen: e.target.value as Origen | '' })}
+                  aria-label="Filtrar por origen del lead"
+                >
+                  <option value="">Todos los orígenes</option>
+                  {origenes.map((o) => (
+                    <option key={o} value={o}>{origenLabel(o)}</option>
+                  ))}
+                </Select>
+              </div>
+              {marcados > 0 ? (
+                <button
+                  type="button"
+                  aria-pressed={filtros.soloMarcados}
+                  onClick={() => setFiltro({ soloMarcados: !filtros.soloMarcados })}
+                  className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold transition-colors ${
+                    filtros.soloMarcados
+                      ? 'border-warning bg-warning/15 text-warning-text'
+                      : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <AlertTriangle className="size-3" aria-hidden />
+                  Posible crédito ({marcados})
+                </button>
+              ) : null}
+            </div>
+
+            {colaFiltrada.length === 0 ? (
+              <PanelVacio
+                icono={Search}
+                titulo="Ningún lead coincide con la búsqueda o los filtros"
+                detalle="Prueba con otro texto o restablece los filtros para ver la cola completa."
+              >
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => { setFiltros(FILTROS_INICIALES); setVisibles(PAGINA) }}
+                >
+                  Limpiar filtros
+                </Button>
+              </PanelVacio>
+            ) : (
+              <div ref={refCola} tabIndex={-1} className="space-y-2 px-5 pb-5 outline-none">
+                {/* tabIndex={-1}: destino PROGRAMÁTICO del foco cuando la fila
+                    enfocada desaparece (descarte exitoso); no es alcanzable con
+                    Tab, por eso el outline-none aquí es legítimo. */}
+                {colaVisible.map((lead) => {
+                  const dias = diasEnCola(lead.creado_en, ahora)
+                  const elegido = destino[lead.id] ?? ''
+                  const enviando = enviandoId === lead.id
+                  const marcado = lead.clasificacion_auto === 'posible_credito'
+                  const enDescarte = descartando[lead.id] === true
+                  const expandido = expandidos[lead.id] === true
+                  const comentarioLargo = (lead.comentario ?? '').length > 160
+                  // La marca del código PROPONE el motivo; el humano confirma.
+                  const motivoElegido = motivo[lead.id] ?? (marcado ? 'pide_credito' : '')
+                  return (
+                    <div
+                      key={lead.id}
+                      data-lead-id={lead.id}
+                      className="flex flex-col gap-2.5 rounded-xl border border-border p-3 sm:flex-row sm:items-start"
+                    >
+                      <div className="min-w-0 flex-1">
+                        <p className="flex items-center gap-1.5 text-sm font-semibold">
+                          <span className="truncate">{lead.nombre_completo}</span>
+                          {marcado ? (
+                            // text-warning-text (no --warning): texto de 10px exige
+                            // 4.5:1 y el ámbar base da ~2.9:1 sobre este fondo.
+                            <span
+                              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning-text"
+                              title="El sistema detectó que el comentario menciona préstamo/financiamiento. Es una marca: la decisión de descartar es tuya."
+                            >
+                              <AlertTriangle className="size-3" aria-hidden />
+                              Posible crédito
+                              {/* El title no llega a teclado ni a lectores: paridad sr-only. */}
+                              <span className="sr-only">
+                                . Marca automática: el comentario menciona préstamo o financiamiento; la decisión de descartar es tuya.
+                              </span>
+                            </span>
+                          ) : null}
+                        </p>
+                        <p className="truncate text-[11px] text-muted-foreground">
+                          {origenLabel(lead.origen)}
+                          {' · '}
+                          <span className="font-semibold text-foreground">
+                            {moneyK(lead.monto_estimado, lead.moneda)}
                           </span>
-                        </span>
-                      ) : null}
-                    </p>
-                    <p className="truncate text-[11px] text-muted-foreground">
-                      {origenLabel(lead.origen)}
-                      {' · '}
-                      <span className="font-semibold text-foreground">
-                        {moneyK(lead.monto_estimado, lead.moneda)}
-                      </span>
-                      {lead.distrito ? ` · ${lead.distrito}` : ''}
-                      {' · entró '}
-                      <span className={dias >= 1 ? 'font-bold text-warning' : undefined}>
-                        {esperaTxt(dias)}
-                      </span>
-                    </p>
-                    {lead.comentario ? (
-                      // Lo que escribió el cliente (ya redactado por el servidor):
-                      // el dato con el que Rosa decide repartir o descartar.
-                      <p className="mt-1 line-clamp-2 text-[12px] italic text-foreground/80">
-                        “{lead.comentario}”
-                      </p>
-                    ) : null}
+                          {lead.distrito ? ` · ${lead.distrito}` : ''}
+                          {' · entró '}
+                          <span className="font-semibold text-foreground">{fechaHora(lead.creado_en)}</span>
+                          {dias >= 1 ? (
+                            <span className="font-bold text-warning-text">{` · ${esperaTxt(dias)}`}</span>
+                          ) : null}
+                        </p>
+                        {lead.comentario ? (
+                          // Lo que escribió el cliente (ya redactado por el servidor):
+                          // EL dato con el que Rosa decide repartir o descartar.
+                          <div className={`mt-1.5 rounded-md border-l-2 py-1.5 pl-2.5 pr-2 ${
+                            marcado ? 'border-warning bg-warning/5' : 'border-accent/40 bg-muted/50'}`}
+                          >
+                            <p className={`text-[13px] leading-snug text-foreground ${expandido ? '' : 'line-clamp-3'}`}>
+                              “{lead.comentario}”
+                            </p>
+                            {comentarioLargo ? (
+                              <button
+                                type="button"
+                                aria-expanded={expandido}
+                                className="mt-0.5 text-[11px] font-semibold text-accent hover:underline"
+                                onClick={() => setExpandidos((e2) => ({ ...e2, [lead.id]: !expandido }))}
+                              >
+                                {expandido ? 'Ver menos' : 'Ver todo el comentario'}
+                              </button>
+                            ) : null}
+                          </div>
+                        ) : null}
+                      </div>
+                      {enDescarte ? (
+                        <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
+                          <Select
+                            ref={(el) => {
+                              if (el) refMotivo.current.set(lead.id, el)
+                              else refMotivo.current.delete(lead.id)
+                            }}
+                            value={motivoElegido}
+                            disabled={enviando}
+                            onChange={(e) => setMotivo((m) => ({ ...m, [lead.id]: e.target.value as MotivoDescarte | '' }))}
+                            aria-label={`Motivo para descartar a ${lead.nombre_completo}`}
+                          >
+                            <option value="">Motivo…</option>
+                            {MOTIVOS_DESCARTE.map((m) => (
+                              <option key={m.k} value={m.k}>{m.label}</option>
+                            ))}
+                          </Select>
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            disabled={!motivoElegido || enviando}
+                            aria-label={`Descartar a ${lead.nombre_completo}`}
+                            onClick={() => {
+                              if (!motivoElegido) return
+                              // Al terminar el intento la fila vuelve a modo normal (si
+                              // reaparece por deshacer/resincronización no debe renacer
+                              // en modo descarte) y el foco ATERRIZA donde corresponde:
+                              // éxito → la fila ya no existe, va al contenedor de la
+                              // cola; fallo → al "Descartar" ghost de la misma fila.
+                              void descartar(lead, motivoElegido).then((ok) => {
+                                setDescartando((d) => ({ ...d, [lead.id]: false }))
+                                requestAnimationFrame(() => {
+                                  if (ok) refCola.current?.focus()
+                                  else refDescartarGhost.current.get(lead.id)?.focus()
+                                })
+                              })
+                            }}
+                          >
+                            {enviando ? 'Cerrando…' : 'Descartar'}
+                          </Button>
+                          <Button
+                            size="sm"
+                            variant="ghost"
+                            disabled={enviando}
+                            aria-label={`Cancelar el descarte de ${lead.nombre_completo}`}
+                            onClick={() => {
+                              setDescartando((d) => ({ ...d, [lead.id]: false }))
+                              // El botón que tiene el foco se desmonta: devolverlo al
+                              // "Descartar" ghost que reaparece en su lugar.
+                              requestAnimationFrame(() => refDescartarGhost.current.get(lead.id)?.focus())
+                            }}
+                          >
+                            Cancelar
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
+                          <Select
+                            value={elegido}
+                            disabled={enviando}
+                            onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
+                            aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
+                          >
+                            <option value="">Asignar a…</option>
+                            {supervisores.map((s) => (
+                              <option key={s.perfil_id} value={s.perfil_id}>
+                                {s.nombre} ({s.bandeja_pendiente} en bandeja)
+                              </option>
+                            ))}
+                          </Select>
+                          <Button
+                            size="sm"
+                            disabled={!elegido || enviando}
+                            aria-label={`Repartir a ${lead.nombre_completo}`}
+                            onClick={() => void repartir(lead, elegido)}
+                          >
+                            {enviando ? 'Enviando…' : 'Repartir'}
+                          </Button>
+                          <Button
+                            ref={(el) => {
+                              if (el) refDescartarGhost.current.set(lead.id, el)
+                              else refDescartarGhost.current.delete(lead.id)
+                            }}
+                            size="sm"
+                            variant="ghost"
+                            disabled={enviando}
+                            onClick={() => {
+                              setDescartando((d) => ({ ...d, [lead.id]: true }))
+                              // El foco sigue al modo: aterriza en el select de motivo
+                              // (su aria-label anuncia el cambio al lector de pantalla).
+                              requestAnimationFrame(() => refMotivo.current.get(lead.id)?.focus())
+                            }}
+                            aria-label={`Descartar a ${lead.nombre_completo} de la cola`}
+                          >
+                            Descartar
+                          </Button>
+                        </div>
+                      )}
+                    </div>
+                  )
+                })}
+                {colaFiltrada.length > colaVisible.length ? (
+                  <div className="flex items-center justify-center gap-3 border-t border-border pt-3">
+                    <span className="text-[11px] font-semibold text-muted-foreground">
+                      Mostrando {colaVisible.length} de {colaFiltrada.length}
+                    </span>
+                    <Button size="sm" variant="outline" onClick={() => setVisibles((v) => v + PAGINA)}>
+                      Mostrar {PAGINA} más
+                    </Button>
                   </div>
-                  {enDescarte ? (
-                    <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
-                      <Select
-                        ref={(el) => {
-                          if (el) refMotivo.current.set(lead.id, el)
-                          else refMotivo.current.delete(lead.id)
-                        }}
-                        value={motivoElegido}
-                        disabled={enviando}
-                        onChange={(e) => setMotivo((m) => ({ ...m, [lead.id]: e.target.value as MotivoDescarte | '' }))}
-                        aria-label={`Motivo para descartar a ${lead.nombre_completo}`}
-                      >
-                        <option value="">Motivo…</option>
-                        {MOTIVOS_DESCARTE.map((m) => (
-                          <option key={m.k} value={m.k}>{m.label}</option>
-                        ))}
-                      </Select>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        disabled={!motivoElegido || enviando}
-                        aria-label={`Descartar a ${lead.nombre_completo}`}
-                        onClick={() => {
-                          if (!motivoElegido) return
-                          // Al terminar el intento la fila vuelve a modo normal (si
-                          // reaparece por deshacer/resincronización no debe renacer
-                          // en modo descarte) y el foco ATERRIZA donde corresponde:
-                          // éxito → la fila ya no existe, va al contenedor de la
-                          // cola; fallo → al "Descartar" ghost de la misma fila.
-                          void descartar(lead, motivoElegido).then((ok) => {
-                            setDescartando((d) => ({ ...d, [lead.id]: false }))
-                            requestAnimationFrame(() => {
-                              if (ok) refCola.current?.focus()
-                              else refDescartarGhost.current.get(lead.id)?.focus()
-                            })
-                          })
-                        }}
-                      >
-                        {enviando ? 'Cerrando…' : 'Descartar'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="ghost"
-                        disabled={enviando}
-                        aria-label={`Cancelar el descarte de ${lead.nombre_completo}`}
-                        onClick={() => {
-                          setDescartando((d) => ({ ...d, [lead.id]: false }))
-                          // El botón que tiene el foco se desmonta: devolverlo al
-                          // "Descartar" ghost que reaparece en su lugar.
-                          requestAnimationFrame(() => refDescartarGhost.current.get(lead.id)?.focus())
-                        }}
-                      >
-                        Cancelar
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
-                      <Select
-                        value={elegido}
-                        disabled={enviando}
-                        onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
-                        aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
-                      >
-                        <option value="">Asignar a…</option>
-                        {supervisores.map((s) => (
-                          <option key={s.perfil_id} value={s.perfil_id}>
-                            {s.nombre} ({s.bandeja_pendiente} en bandeja)
-                          </option>
-                        ))}
-                      </Select>
-                      <Button
-                        size="sm"
-                        disabled={!elegido || enviando}
-                        onClick={() => void repartir(lead, elegido)}
-                      >
-                        {enviando ? 'Enviando…' : 'Repartir'}
-                      </Button>
-                      <Button
-                        ref={(el) => {
-                          if (el) refDescartarGhost.current.set(lead.id, el)
-                          else refDescartarGhost.current.delete(lead.id)
-                        }}
-                        size="sm"
-                        variant="ghost"
-                        disabled={enviando}
-                        onClick={() => {
-                          setDescartando((d) => ({ ...d, [lead.id]: true }))
-                          // El foco sigue al modo: aterriza en el select de motivo
-                          // (su aria-label anuncia el cambio al lector de pantalla).
-                          requestAnimationFrame(() => refMotivo.current.get(lead.id)?.focus())
-                        }}
-                        aria-label={`Descartar a ${lead.nombre_completo} de la cola`}
-                      >
-                        Descartar
-                      </Button>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
+                ) : colaFiltrada.length > PAGINA ? (
+                  <p className="border-t border-border pt-3 text-center text-[11px] text-muted-foreground">
+                    Fin de la cola · {colaFiltrada.length} leads
+                  </p>
+                ) : null}
+              </div>
+            )}
+          </>
         )}
       </Card>
     </div>
