@@ -261,6 +261,32 @@ export interface ColaLead {
   comentario?: string | null
 }
 
+/**
+ * Fila de la vista de DESCARTADOS (C1-ter) — proyección de
+ * `crm.leads_descartados()`. Como la cola, SIN PII de contacto. `comentario`
+ * (del cliente) y `nota_descarte` (lo que Rosa escribió al cerrar) llegan
+ * redactados y truncados por separado. `puede_deshacer` es un hint de UI: el
+ * servidor re-valida en `deshacer_descarte`.
+ */
+export interface LeadDescartado {
+  id: string
+  nombre_completo: string
+  distrito?: string | null
+  origen: Origen
+  categoria_interes?: CategoriaInteres | null
+  monto_estimado: number
+  moneda: Moneda
+  creado_en: string
+  clasificacion_auto?: 'posible_credito' | null
+  comentario?: string | null
+  nota_descarte?: string | null
+  motivo_descarte?: MotivoDescarte | null
+  descartado_en: string
+  descartado_por_nombre: string
+  es_mio: boolean
+  puede_deshacer: boolean
+}
+
 /** Destino de reparto — proyección de `crm.supervisores_para_reparto()`. */
 export interface SupervisorReparto {
   perfil_id: string

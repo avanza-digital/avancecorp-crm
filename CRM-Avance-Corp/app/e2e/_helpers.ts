@@ -602,6 +602,8 @@ export interface BackendReal {
   }
   /** C1 — cola global que devuelve crm.leads_por_repartir() al coordinador. */
   colaReparto: Record<string, unknown>[]
+  /** C1-ter — lo que devuelve crm.leads_descartados() (pestaña Descartados). */
+  descartados: Record<string, unknown>[]
   /** C1 — destinos que devuelve crm.supervisores_para_reparto(). */
   supervisoresReparto: Record<string, unknown>[]
   /**
@@ -611,6 +613,8 @@ export interface BackendReal {
   fallarProximoReparto: { code: string; message: string } | null
   /** C1-bis — igual que arriba pero para crm.descartar_lead. */
   fallarProximoDescarte: { code: string; message: string } | null
+  /** C1-ter — igual pero para crm.deshacer_descarte (ventana vencida, carrera). */
+  fallarProximoDeshacer: { code: string; message: string } | null
   /**
    * Simula la TRAMPA de la ventana de 5 h vencida: el PATCH a perfiles responde
    * 200 con [] (0 filas, SIN error) y la RPC actualizar_contrato rechaza P0001.
@@ -707,9 +711,11 @@ export async function montarBackendReal(
       agenda: init.metricas?.agenda ?? [],
     },
     colaReparto: init.colaReparto ?? [],
+    descartados: init.descartados ?? [],
     supervisoresReparto: init.supervisoresReparto ?? [],
     fallarProximoReparto: init.fallarProximoReparto ?? null,
     fallarProximoDescarte: init.fallarProximoDescarte ?? null,
+    fallarProximoDeshacer: init.fallarProximoDeshacer ?? null,
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
@@ -896,6 +902,9 @@ export async function montarBackendReal(
     if (p === '/rest/v1/rpc/supervisores_para_reparto') {
       return json(route, estado.supervisoresReparto)
     }
+    if (p === '/rest/v1/rpc/leads_descartados') {
+      return json(route, estado.descartados)
+    }
     if (p === '/rest/v1/rpc/repartir_lead' && method === 'POST') {
       estado.llamadas.rpcRepartirLead += 1
       const args = (req.postDataJSON() ?? {}) as { p_lead?: string; p_supervisor?: string }
@@ -948,6 +957,13 @@ export async function montarBackendReal(
     if (p === '/rest/v1/rpc/deshacer_descarte' && method === 'POST') {
       estado.llamadas.rpcDeshacerDescarte += 1
       const args = (req.postDataJSON() ?? {}) as { p_lead?: string }
+      const fallo = estado.fallarProximoDeshacer
+      if (fallo) {
+        estado.fallarProximoDeshacer = null
+        return json(route, { code: fallo.code, message: fallo.message }, 400)
+      }
+      // Éxito: sale de la lista de descartados y (si venía de la cola) vuelve.
+      estado.descartados = estado.descartados.filter((d) => d.id !== args.p_lead)
       if (filaDescartada && filaDescartada.id === args.p_lead) {
         estado.colaReparto = [...estado.colaReparto, filaDescartada]
         filaDescartada = null

@@ -648,6 +648,31 @@ export interface Database {
         Args: { p_lead: string; p_motivo: MotivoDescarteDb; p_nota?: string | null }
         Returns: Json
       }
+      // ── C1-ter: la pestaña "Descartados" del coordinador. Solo LECTURA;
+      //    descartes de coordinador/gerencia sobre la cola global, 30 días,
+      //    tope 200, más nuevos primero. comentario del cliente y nota_descarte
+      //    de Rosa REDACTADOS y truncados a 400 por separado. ─────────────────
+      leads_descartados: {
+        Args: Record<string, never>
+        Returns: {
+          id: string
+          nombre_completo: string
+          distrito: string | null
+          origen: OrigenDb
+          categoria_interes: CategoriaInteresDb | null
+          monto_estimado: number // numeric — PostgREST puede serializar string
+          moneda: MonedaDb
+          creado_en: string
+          clasificacion_auto: ClasificacionAutoDb | null
+          comentario: string | null
+          nota_descarte: string | null
+          motivo_descarte: MotivoDescarteDb | null
+          descartado_en: string
+          descartado_por_nombre: string
+          es_mio: boolean
+          puede_deshacer: boolean
+        }[]
+      }
       /** Deshace un descarte PROPIO de las últimas 24 h si el lead sigue sin
        *  dueño: reabre en 'nuevo' (el guard incrementa ciclo_actual). Choque
        *  con el índice único de teléfono/DNI vivo llega como 22023. */
