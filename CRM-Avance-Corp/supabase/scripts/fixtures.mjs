@@ -382,6 +382,10 @@ export const TRANSIENT_IDS = Object.freeze({
   repartoLeadCarrera: randomUUID(),
   repartoLeadReencolado: randomUUID(),
   repartoTareaReencolada: randomUUID(),
+  // C1-bis — descarte de la cola (el codigo marca, el coordinador cierra).
+  descarteLeadCredito: randomUUID(),
+  descarteLeadLimpio: randomUUID(),
+  descarteLeadCarrera: randomUUID(),
   foreignCreatorTarea: randomUUID(),
   directoryTarea: randomUUID(),
   portalClientTarea: randomUUID(),

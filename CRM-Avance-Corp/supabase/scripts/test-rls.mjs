@@ -328,6 +328,9 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.repartoLeadNoContactar,
       TRANSIENT_IDS.repartoLeadCarrera,
       TRANSIENT_IDS.repartoLeadReencolado,
+      TRANSIENT_IDS.descarteLeadCredito,
+      TRANSIENT_IDS.descarteLeadLimpio,
+      TRANSIENT_IDS.descarteLeadCarrera,
     ]),
   );
   // Metas sentinela de testObjetivos: periodo 2099-12 jamas es real; el DELETE
@@ -2040,6 +2043,235 @@ async function testReparto(sessions, seed) {
     JSON.stringify(tarea.data));
 }
 
+// ── C1-bis: descarte de la cola global (el codigo marca, el coordinador cierra) ─
+// Complementa al oraculo test-descarte.sql: aqui se prueba la VIA REAL
+// (PostgREST + sesiones), la proyeccion redactada de la cola v2 y la CARRERA de
+// descarte (dos sesiones simultaneas, imposible en el oraculo transaccional).
+async function testDescarte(sessions, seed) {
+  console.log('\n— Descarte de la cola global (C1-bis: pide_credito) —');
+  const coordinador = sessions.coordinador.client;
+  const gerencia = sessions.gerencia.client;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const coordId = sessions.coordinador.user.id;
+
+  // (A) Gate de rol de las 2 RPC nuevas: fuera vendedor, supervisor y directorio.
+  for (const key of ['vend1', 'sup1', 'directorio']) {
+    await expectBlockedMutation(
+      `${key} no puede descartar un lead de la cola`,
+      sessions[key].client.schema('crm').rpc('descartar_lead', {
+        p_lead: TRANSIENT_IDS.descarteLeadCredito,
+        p_motivo: 'pide_credito',
+      }),
+      ['42501'],
+    );
+    await expectBlockedMutation(
+      `${key} no puede deshacer un descarte`,
+      sessions[key].client.schema('crm').rpc('deshacer_descarte', {
+        p_lead: TRANSIENT_IDS.descarteLeadCredito,
+      }),
+      ['42501'],
+    );
+  }
+
+  // (B) Semillas por service_role: MISMO camino que la edge de importacion, asi
+  // que el trigger clasificador corre de verdad. La nota trae prestamo + PII:
+  // la marca debe nacer del texto y la cola debe mostrarla REDACTADA.
+  const colaComun = {
+    activo: true, asignado_supervisor_id: null, vendedor_id: null,
+    creado_por: sup1Id, etapa: 'nuevo', moneda: 'PEN', origen: 'otro',
+    no_contactar: false,
+  };
+  await requireAdmin(
+    'sembrar la cola del descarte',
+    admin.schema('crm').from('leads').insert([
+      {
+        ...colaComun, id: TRANSIENT_IDS.descarteLeadCredito, monto_estimado: 3000,
+        nombre_completo: 'DESCARTE CREDITO TRANSIENT', telefono: '999000120',
+        nota: 'Quiero un préstamo urgente, escríbanme a persona@test.invalid o al 987 654 321',
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.descarteLeadLimpio, monto_estimado: 15000,
+        nombre_completo: 'DESCARTE LIMPIO TRANSIENT', telefono: '999000121',
+        nota: '¿Son una cooperativa de ahorro y crédito? Quiero invertir a plazo fijo',
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.descarteLeadCarrera, monto_estimado: 7000,
+        nombre_completo: 'DESCARTE CARRERA TRANSIENT', telefono: '999000122',
+      },
+    ]),
+  );
+
+  // La cola v2: la marca del clasificador viaja y el comentario sale redactado.
+  const cola = await positive(
+    'coordinador relee la cola con la proyeccion v2 (marca + comentario)',
+    coordinador.schema('crm').rpc('leads_por_repartir'),
+  );
+  if (cola) {
+    const filas = cola.data ?? [];
+    const credito = filas.find((fila) => fila.id === TRANSIENT_IDS.descarteLeadCredito);
+    const limpio = filas.find((fila) => fila.id === TRANSIENT_IDS.descarteLeadLimpio);
+    check(credito?.clasificacion_auto === 'posible_credito',
+      'el clasificador marco "préstamo" en el INSERT real (posible_credito)',
+      JSON.stringify(credito ?? null));
+    check(limpio?.clasificacion_auto === null,
+      'la pregunta de la cooperativa NO quedo marcada (falso positivo)',
+      JSON.stringify(limpio ?? null));
+    const comentario = String(credito?.comentario ?? '');
+    check(comentario.includes('[correo oculto]') && comentario.includes('[teléfono oculto]'),
+      'el comentario de la cola viaja redactado (correo y celular ocultos)',
+      comentario);
+    check(!comentario.includes('persona@test.invalid') && !comentario.includes('987'),
+      'no queda PII legible dentro del comentario de la cola',
+      comentario);
+  }
+
+  // Ni service_role reescribe el veredicto del clasificador (trigger zz).
+  await requireAdmin(
+    'intentar reescribir clasificacion_auto con service_role',
+    admin.schema('crm').from('leads')
+      .update({ clasificacion_auto: 'posible_credito' })
+      .eq('id', TRANSIENT_IDS.descarteLeadLimpio),
+  );
+  const inmutable = await requireAdmin(
+    'releer la marca tras el intento de reescritura',
+    admin.schema('crm').from('leads')
+      .select('clasificacion_auto')
+      .eq('id', TRANSIENT_IDS.descarteLeadLimpio).single(),
+  );
+  check(inmutable.data?.clasificacion_auto === null,
+    'clasificacion_auto es inmutable incluso para service_role (dato de medicion)');
+
+  // (C) Camino feliz: descarte con motivo pide_credito y nota que se appendea.
+  const descarte = await positive(
+    'coordinador descarta el lead que pide credito',
+    coordinador.schema('crm').rpc('descartar_lead', {
+      p_lead: TRANSIENT_IDS.descarteLeadCredito,
+      p_motivo: 'pide_credito',
+      p_nota: 'confirmado: solo busca prestamo',
+    }),
+  );
+  if (descarte) {
+    check(descarte.data?.ya_estaba === false,
+      'el primer descarte no vino marcado como ya_estaba');
+    check(descarte.data?.descartado_por === coordId,
+      'el sello del descarte acredita al coordinador');
+  }
+  const cerrado = await requireAdmin(
+    'releer el lead descartado con service_role',
+    admin.schema('crm').from('leads')
+      .select('etapa, motivo_descarte, descartado_por, descartado_en, clasificacion_auto, activo, nota')
+      .eq('id', TRANSIENT_IDS.descarteLeadCredito).single(),
+  );
+  check(cerrado.data?.etapa === 'descartado'
+    && cerrado.data?.motivo_descarte === 'pide_credito'
+    && cerrado.data?.descartado_por === coordId
+    && cerrado.data?.descartado_en !== null,
+    'el lead quedo descartado con motivo y sello nominal',
+    JSON.stringify(cerrado.data));
+  check(cerrado.data?.activo === true,
+    'el descarte NO desactiva el lead (nada se pierde)');
+  check(cerrado.data?.clasificacion_auto === 'posible_credito',
+    'la marca del clasificador sobrevive al cierre (matriz de confusion)');
+  check(String(cerrado.data?.nota ?? '').startsWith('Quiero un préstamo')
+    && String(cerrado.data?.nota ?? '').includes('DESCARTE: confirmado'),
+    'la nota del cliente se appendeo sin pisarse');
+
+  // Idempotencia: mismo actor y motivo → ya_estaba; otro motivo → conflicto real.
+  const reintento = await positive(
+    'el reintento del mismo descarte es idempotente',
+    coordinador.schema('crm').rpc('descartar_lead', {
+      p_lead: TRANSIENT_IDS.descarteLeadCredito,
+      p_motivo: 'pide_credito',
+      p_nota: 'confirmado: solo busca prestamo',
+    }),
+  );
+  if (reintento) {
+    check(reintento.data?.ya_estaba === true,
+      'el reintento devolvio ya_estaba=true sin doble traza');
+  }
+  await expectBlockedMutation(
+    're-descartar con OTRO motivo es un conflicto (P0002)',
+    coordinador.schema('crm').rpc('descartar_lead', {
+      p_lead: TRANSIENT_IDS.descarteLeadCredito,
+      p_motivo: 'sin_interes',
+    }),
+    ['P0002'],
+  );
+  // El descartado sale de la cola.
+  const colaTras = await positive(
+    'coordinador relee la cola tras el descarte',
+    coordinador.schema('crm').rpc('leads_por_repartir'),
+  );
+  if (colaTras) {
+    check(!(colaTras.data ?? []).some((fila) => fila.id === TRANSIENT_IDS.descarteLeadCredito),
+      'el lead descartado ya no aparece en la cola');
+  }
+
+  // (D) Deshacer: es personal (gerencia no toca lo ajeno) y restaura el estado.
+  await expectBlockedMutation(
+    'gerencia no puede deshacer el descarte del coordinador',
+    gerencia.schema('crm').rpc('deshacer_descarte', {
+      p_lead: TRANSIENT_IDS.descarteLeadCredito,
+    }),
+    ['P0002'],
+  );
+  const deshecho = await positive(
+    'el coordinador deshace su propio descarte',
+    coordinador.schema('crm').rpc('deshacer_descarte', {
+      p_lead: TRANSIENT_IDS.descarteLeadCredito,
+    }),
+  );
+  if (deshecho) {
+    check(deshecho.data?.etapa === 'nuevo' && Number(deshecho.data?.ciclo_actual) === 2,
+      'el deshacer reabrio en etapa nuevo e incremento el ciclo',
+      JSON.stringify(deshecho.data));
+  }
+  const reabierto = await requireAdmin(
+    'releer el lead reabierto con service_role',
+    admin.schema('crm').from('leads')
+      .select('etapa, motivo_descarte, descartado_por, descartado_en')
+      .eq('id', TRANSIENT_IDS.descarteLeadCredito).single(),
+  );
+  check(reabierto.data?.etapa === 'nuevo'
+    && reabierto.data?.motivo_descarte === null
+    && reabierto.data?.descartado_por === null
+    && reabierto.data?.descartado_en === null,
+    'el deshacer limpio motivo y sello (describe el cierre VIGENTE)',
+    JSON.stringify(reabierto.data));
+
+  // (E) CARRERA REAL: dos sesiones descartan el MISMO lead con motivos distintos.
+  const [a, b] = await Promise.allSettled([
+    coordinador.schema('crm').rpc('descartar_lead', {
+      p_lead: TRANSIENT_IDS.descarteLeadCarrera, p_motivo: 'sin_interes',
+    }),
+    gerencia.schema('crm').rpc('descartar_lead', {
+      p_lead: TRANSIENT_IDS.descarteLeadCarrera, p_motivo: 'pide_credito',
+    }),
+  ]);
+  const resueltas = [a, b].filter((r) => r.status === 'fulfilled');
+  const ganadores = resueltas.filter((r) => !r.value.error);
+  const perdedores = resueltas.filter((r) => r.value.error);
+  check(ganadores.length === 1 && perdedores.length === 1,
+    'carrera de descarte: exactamente uno gana',
+    `ok=${ganadores.length} err=${perdedores.length}`);
+  if (perdedores.length === 1) {
+    const codigo = String(perdedores[0].value.error.code);
+    check(['P0002', '40001'].includes(codigo),
+      'carrera de descarte: el perdedor recibe P0002 (o 40001 si el aislamiento es mayor)',
+      codigo);
+  }
+  const trasCarrera = await requireAdmin(
+    'releer el lead de la carrera de descarte',
+    admin.schema('crm').from('leads')
+      .select('etapa, motivo_descarte')
+      .eq('id', TRANSIENT_IDS.descarteLeadCarrera).single(),
+  );
+  check(trasCarrera.data?.etapa === 'descartado'
+    && ['sin_interes', 'pide_credito'].includes(trasCarrera.data?.motivo_descarte),
+    'carrera: quedo UN descarte consistente con el ganador',
+    JSON.stringify(trasCarrera.data));
+}
+
 async function testAnon(seed) {
   console.log('\n— Acceso anonimo —');
   const anon = createClient(
@@ -2131,6 +2363,7 @@ async function main() {
       await testAgendaIcs(sessions, verifiedSeed);
       await testObjetivos(sessions);
       await testReparto(sessions, verifiedSeed);
+      await testDescarte(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }
