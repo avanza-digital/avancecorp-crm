@@ -209,3 +209,17 @@ inmutabilidad de la marca, cola v2 redactada y trunca, gates 42501, contrato
 con la vía PostgREST real: marca nacida del INSERT de service_role, comentario
 redactado en la proyección v2, inmutabilidad incluso para service_role, ya_estaba,
 deshacer personal y estado tras la carrera.
+
+## Vista de descartados de la cola — C1-ter (2026-07-24)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260724203052 | crm_descartados_coordinador_c1c | **La pestaña "Descartados" de Rosa** (pedido de Miguel): hoy el descarte desaparece de su pantalla y el "Deshacer" solo vive 15 s en un toast, pero `crm.deshacer_descarte` da 24 h — sin vista, esa ventana era inalcanzable. RPC nueva `crm.leads_descartados()` (SECURITY DEFINER `search_path=''`, STABLE) que lista los descartes recientes de la COLA GLOBAL (30 días, LIMIT 200, `descartado_en DESC`) con: `clasificacion_auto` (marca del código), `comentario` del cliente y `nota_descarte` de Rosa **REDACTADOS Y TRUNCADOS A 400 POR SEPARADO** (auditoría c1c: c1b appendea `· DESCARTE: …` al comentario → truncar el texto pegado empujaría la razón del cierre fuera del corte, y con ámbito ∅ no hay otra vía de recuperarla; se separan por el marcador `' · DESCARTE: '`), `motivo_descarte`, `descartado_en`, `descartado_por_nombre`, `creado_en`+`categoria_interes` (para avisar qué tan viejo es el lead que, al deshacerse, vuelve al frente del FIFO), y los hints de UI `es_mio` / `puede_deshacer` (propio + 24 h; el servidor RE-VALIDA todo en `deshacer_descarte`). **DOBLE filtro de alcance** (auditoría c1c): (1) tenencia actual nula (excluye descartes de cartera del vendedor, que tienen dueño) y (2) `exists` de rol `coordinador\|gerencia` sobre `descartado_por` — sin (2), un lead que un vendedor descartó y que gerencia liberó luego a la cola reaparecería con el nombre del vendedor. Gate `coordinador\|gerencia` activos (42501). Solo LECTURA sobre `crm.leads` + JOIN de lectura a `public.perfiles` (no altera public). `revoke public,anon` + `grant authenticated` (clase WARN 0029 aceptada). Auditada por workflow adversarial (4 lentes) ANTES de aplicar: veredicto GO, 4 hallazgos incorporados (separación comentario/nota, `creado_en`, filtro de autor, este ledger). | ⏳ escrita+auditada, SIN aplicar: pendiente branch → oráculo `DESCARTADOS_TX_OK` → gate RLS (`testDescarte` §F) → advisors → merge |
+
+Oráculo: `supabase/scripts/test-descartados.sql` (patrón 4A-4C; éxito = token
+`DESCARTADOS_TX_OK`; V01–V24: gate 42501, alcance doble —L5 con dueño y L6
+autor-vendedor NO aparecen—, ventana de 30 días, orden DESC, separación
+comentario/nota_descarte, `creado_en`/`categoria_interes`, `es_mio`/`puede_deshacer`
+por actor y ventana, e integración con `deshacer_descarte`). Aserciones vivas
+adicionales en el bloque (F) de `testDescarte` (`test-rls.mjs`): vía PostgREST real,
+gate por rol, `es_mio`/`puede_deshacer` propios vs ajenos, sin PII de contacto.

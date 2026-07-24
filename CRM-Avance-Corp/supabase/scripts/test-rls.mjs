@@ -331,6 +331,7 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.descarteLeadCredito,
       TRANSIENT_IDS.descarteLeadLimpio,
       TRANSIENT_IDS.descarteLeadCarrera,
+      TRANSIENT_IDS.descarteLeadVista,
     ]),
   );
   // Metas sentinela de testObjetivos: periodo 2099-12 jamas es real; el DELETE
@@ -2270,6 +2271,62 @@ async function testDescarte(sessions, seed) {
     && ['sin_interes', 'pide_credito'].includes(trasCarrera.data?.motivo_descarte),
     'carrera: quedo UN descarte consistente con el ganador',
     JSON.stringify(trasCarrera.data));
+
+  // (F) C1-ter: la vista de descartados — gate, alcance y hints por actor.
+  for (const key of ['vend1', 'sup1', 'directorio']) {
+    await expectBlockedMutation(
+      `${key} no puede listar los descartados de la cola`,
+      sessions[key].client.schema('crm').rpc('leads_descartados'),
+      ['42501'],
+    );
+  }
+  // Un descarte fresco del coordinador para aserciones deterministas (el de la
+  // carrera lo pudo ganar cualquiera de los dos actores).
+  await requireAdmin(
+    'sembrar el lead de la vista de descartados',
+    admin.schema('crm').from('leads').insert({
+      ...colaComun, id: TRANSIENT_IDS.descarteLeadVista, monto_estimado: 9000,
+      nombre_completo: 'DESCARTE VISTA TRANSIENT', telefono: '999000123',
+      nota: 'Busco financiamiento para mi negocio',
+    }),
+  );
+  await positive(
+    'coordinador descarta el lead de la vista',
+    coordinador.schema('crm').rpc('descartar_lead', {
+      p_lead: TRANSIENT_IDS.descarteLeadVista,
+      p_motivo: 'pide_credito',
+    }),
+  );
+  const listado = await positive(
+    'coordinador lista los descartados de la cola',
+    coordinador.schema('crm').rpc('leads_descartados'),
+  );
+  if (listado) {
+    const filas = listado.data ?? [];
+    const mio = filas.find((fila) => fila.id === TRANSIENT_IDS.descarteLeadVista);
+    check(!!mio, 'el descarte fresco aparece en el listado');
+    check(mio?.es_mio === true && mio?.puede_deshacer === true,
+      'el descarte propio y reciente llega con es_mio y puede_deshacer',
+      JSON.stringify(mio ?? null));
+    check(mio?.clasificacion_auto === 'posible_credito'
+      && mio?.motivo_descarte === 'pide_credito',
+      'la marca del clasificador y el motivo viajan en el listado');
+    check(!!mio?.creado_en && mio?.nota_descarte === null,
+      'creado_en viaja y nota_descarte es null cuando no hubo nota de cierre',
+      JSON.stringify({ creado_en: mio?.creado_en, nota_descarte: mio?.nota_descarte }));
+    check(!('telefono' in (filas[0] ?? {})) && !('dni' in (filas[0] ?? {})),
+      'el listado no proyecta PII de contacto');
+  }
+  const listadoAjeno = await positive(
+    'gerencia tambien lista los descartados',
+    gerencia.schema('crm').rpc('leads_descartados'),
+  );
+  if (listadoAjeno) {
+    const ajeno = (listadoAjeno.data ?? []).find((fila) => fila.id === TRANSIENT_IDS.descarteLeadVista);
+    check(ajeno?.es_mio === false && ajeno?.puede_deshacer === false,
+      'para OTRO actor el mismo descarte llega sin es_mio ni puede_deshacer',
+      JSON.stringify(ajeno ?? null));
+  }
 }
 
 async function testAnon(seed) {
@@ -2323,6 +2380,12 @@ async function testAnon(seed) {
       p_lead: knownLead.id,
       p_supervisor: seed.profileIdByKey.sup1,
     }),
+    ['42501', 'PGRST202'],
+  );
+  // C1-ter: la vista de descartados tampoco (paridad con las hermanas).
+  await expectBlockedMutation(
+    'anon no puede listar los descartados de la cola',
+    anon.schema('crm').rpc('leads_descartados'),
     ['42501', 'PGRST202'],
   );
   await expectHidden(
