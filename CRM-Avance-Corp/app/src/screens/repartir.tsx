@@ -10,15 +10,23 @@
 // Estado local con React (sin XState: eso vive solo en auth). La verdad la tiene
 // el servidor — cada reparto pasa por la RPC atómica crm.repartir_lead.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Split, Users, Wallet, Inbox } from 'lucide-react'
+import { Split, Users, Wallet, Inbox, AlertTriangle } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   CrmApiError,
+  descartarLead,
+  deshacerDescarte,
   leadsPorRepartir,
   repartirLead,
   supervisoresParaReparto,
 } from '@/data/crm-api'
-import { origenLabel, type ColaLead, type SupervisorReparto } from '@/lib/tipos'
+import {
+  MOTIVOS_DESCARTE,
+  origenLabel,
+  type ColaLead,
+  type MotivoDescarte,
+  type SupervisorReparto,
+} from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -112,12 +120,54 @@ function useReparto() {
     }
   }, [cargar, estado.supervisores])
 
-  return { ...estado, enviandoId, recargar: cargar, repartir }
+  /** C1-bis: cierra el lead con motivo. El deshacer vive en el toast (la RPC
+   *  de servidor da 24 h, pero el gesto natural es el arrepentimiento al tiro). */
+  const descartar = useCallback(async (lead: ColaLead, motivo: MotivoDescarte) => {
+    setEnviandoId(lead.id)
+    try {
+      await descartarLead(lead.id, motivo)
+      setEstado((e) => ({ ...e, cola: e.cola.filter((l) => l.id !== lead.id) }))
+      const label = MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
+      toast.success(`${lead.nombre_completo} descartado · ${label}`, {
+        duration: 8000,
+        action: {
+          label: 'Deshacer',
+          onClick: () => {
+            void (async () => {
+              try {
+                await deshacerDescarte(lead.id)
+                toast.success(`${lead.nombre_completo} volvió a la cola`)
+              } catch (error) {
+                toast.error(error instanceof Error ? error.message : 'No se pudo deshacer.')
+              } finally {
+                // Con o sin éxito, la verdad la tiene el servidor.
+                void cargar()
+              }
+            })()
+          },
+        },
+      })
+    } catch (error) {
+      const mensaje = error instanceof Error ? error.message : 'No se pudo descartar el lead.'
+      toast.error(mensaje)
+      if (error instanceof CrmApiError
+        && ['FUERA_DE_COLA', 'REINTENTAR'].includes(error.code)) {
+        void cargar()
+      }
+    } finally {
+      setEnviandoId(null)
+    }
+  }, [cargar])
+
+  return { ...estado, enviandoId, recargar: cargar, repartir, descartar }
 }
 
 export function Repartir() {
-  const { cola, supervisores, cargando, error, enviandoId, recargar, repartir } = useReparto()
+  const { cola, supervisores, cargando, error, enviandoId, recargar, repartir, descartar } = useReparto()
   const [destino, setDestino] = useState<Record<string, string>>({})
+  // C1-bis: filas en "modo descarte" y el motivo elegido en cada una.
+  const [descartando, setDescartando] = useState<Record<string, boolean>>({})
+  const [motivo, setMotivo] = useState<Record<string, MotivoDescarte | ''>>({})
   const ahora = Date.now()
 
   // Capital en juego, SIEMPRE separado por moneda (nunca una suma mixta).
@@ -185,13 +235,28 @@ export function Repartir() {
               const dias = diasEnCola(lead.creado_en, ahora)
               const elegido = destino[lead.id] ?? ''
               const enviando = enviandoId === lead.id
+              const marcado = lead.clasificacion_auto === 'posible_credito'
+              const enDescarte = descartando[lead.id] === true
+              // La marca del código PROPONE el motivo; el humano confirma.
+              const motivoElegido = motivo[lead.id] ?? (marcado ? 'pide_credito' : '')
               return (
                 <div
                   key={lead.id}
                   className="flex flex-col gap-2.5 rounded-xl border border-border p-3 sm:flex-row sm:items-center"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{lead.nombre_completo}</p>
+                    <p className="flex items-center gap-1.5 text-sm font-semibold">
+                      <span className="truncate">{lead.nombre_completo}</span>
+                      {marcado ? (
+                        <span
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning"
+                          title="El sistema detectó que el comentario menciona préstamo/financiamiento. Es una marca: la decisión de descartar es tuya."
+                        >
+                          <AlertTriangle className="size-3" aria-hidden />
+                          Posible crédito
+                        </span>
+                      ) : null}
+                    </p>
                     <p className="truncate text-[11px] text-muted-foreground">
                       {origenLabel(lead.origen)}
                       {' · '}
@@ -204,29 +269,85 @@ export function Repartir() {
                         {esperaTxt(dias)}
                       </span>
                     </p>
+                    {lead.comentario ? (
+                      // Lo que escribió el cliente (ya redactado por el servidor):
+                      // el dato con el que Rosa decide repartir o descartar.
+                      <p className="mt-1 line-clamp-2 text-[12px] italic text-foreground/80">
+                        “{lead.comentario}”
+                      </p>
+                    ) : null}
                   </div>
-                  <div className="flex items-center gap-2 sm:w-[320px] sm:shrink-0">
-                    <Select
-                      value={elegido}
-                      disabled={enviando}
-                      onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
-                      aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
-                    >
-                      <option value="">Asignar a…</option>
-                      {supervisores.map((s) => (
-                        <option key={s.perfil_id} value={s.perfil_id}>
-                          {s.nombre} ({s.bandeja_pendiente} en bandeja)
-                        </option>
-                      ))}
-                    </Select>
-                    <Button
-                      size="sm"
-                      disabled={!elegido || enviando}
-                      onClick={() => void repartir(lead, elegido)}
-                    >
-                      {enviando ? 'Enviando…' : 'Repartir'}
-                    </Button>
-                  </div>
+                  {enDescarte ? (
+                    <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
+                      <Select
+                        value={motivoElegido}
+                        disabled={enviando}
+                        onChange={(e) => setMotivo((m) => ({ ...m, [lead.id]: e.target.value as MotivoDescarte | '' }))}
+                        aria-label={`Motivo para descartar a ${lead.nombre_completo}`}
+                      >
+                        <option value="">Motivo…</option>
+                        {MOTIVOS_DESCARTE.map((m) => (
+                          <option key={m.k} value={m.k}>{m.label}</option>
+                        ))}
+                      </Select>
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        disabled={!motivoElegido || enviando}
+                        onClick={() => {
+                          if (!motivoElegido) return
+                          // Al terminar el intento (éxito O fallo) la fila vuelve a
+                          // modo normal: si reaparece (deshacer, resincronización),
+                          // no debe renacer con el modo descarte pegado.
+                          void descartar(lead, motivoElegido).then(() =>
+                            setDescartando((d) => ({ ...d, [lead.id]: false })),
+                          )
+                        }}
+                      >
+                        {enviando ? 'Cerrando…' : 'Descartar'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={enviando}
+                        onClick={() => setDescartando((d) => ({ ...d, [lead.id]: false }))}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
+                      <Select
+                        value={elegido}
+                        disabled={enviando}
+                        onChange={(e) => setDestino((d) => ({ ...d, [lead.id]: e.target.value }))}
+                        aria-label={`Asignar ${lead.nombre_completo} a un supervisor`}
+                      >
+                        <option value="">Asignar a…</option>
+                        {supervisores.map((s) => (
+                          <option key={s.perfil_id} value={s.perfil_id}>
+                            {s.nombre} ({s.bandeja_pendiente} en bandeja)
+                          </option>
+                        ))}
+                      </Select>
+                      <Button
+                        size="sm"
+                        disabled={!elegido || enviando}
+                        onClick={() => void repartir(lead, elegido)}
+                      >
+                        {enviando ? 'Enviando…' : 'Repartir'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        disabled={enviando}
+                        onClick={() => setDescartando((d) => ({ ...d, [lead.id]: true }))}
+                        aria-label={`Descartar a ${lead.nombre_completo} de la cola`}
+                      >
+                        Descartar
+                      </Button>
+                    </div>
+                  )}
                 </div>
               )
             })}

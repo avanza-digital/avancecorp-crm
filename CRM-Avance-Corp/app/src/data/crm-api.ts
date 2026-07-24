@@ -17,6 +17,7 @@ import {
   type Etapa,
   type Lead,
   type Miembro,
+  type MotivoDescarte,
   type Origen,
   type SupervisorReparto,
   type Tarea,
@@ -431,6 +432,11 @@ const ColaLeadSchema = v.object({
   monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
   moneda: v.picklist(['PEN', 'USD'] as const),
   creado_en: v.string(),
+  // C1-bis — OPCIONALES a propósito: si el front corre contra una BD sin la
+  // v2 de la cola, la fila degrada a "sin marca, sin comentario" en vez de
+  // caerse del parseo (deploy seguro en cualquier orden, BD antes o después).
+  clasificacion_auto: v.optional(v.nullable(v.picklist(['posible_credito'] as const)), null),
+  comentario: v.optional(v.nullable(v.string()), null),
 })
 
 const SupervisorRepartoSchema = v.object({
@@ -485,6 +491,34 @@ export async function repartirLead(leadId: string, supervisorId: string): Promis
     p_supervisor: supervisorId,
   })
   if (error) throw aErrorApi(error, 'crm.reparto.repartir_fallido')
+}
+
+// ── C1-bis: descarte de la cola (el código marca, el coordinador cierra) ─────
+
+/** Cierra un lead de la COLA GLOBAL con motivo obligatorio. Idempotente en el
+ *  servidor para el mismo actor+motivo (doble clic seguro). La nota se
+ *  appendea allá (`· DESCARTE: …`), nunca pisa el comentario del cliente.
+ *  Errores: P0002→FUERA_DE_COLA (carrera o ya cerrado), 22023→REGLA_SERVIDOR. */
+export async function descartarLead(
+  leadId: string,
+  motivo: MotivoDescarte,
+  nota?: string,
+): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('descartar_lead', {
+    p_lead: leadId,
+    p_motivo: motivo,
+    ...(nota?.trim() ? { p_nota: nota.trim() } : {}),
+  })
+  if (error) throw aErrorApi(error, 'crm.descarte.descartar_fallido')
+}
+
+/** Deshace un descarte PROPIO de las últimas 24 h (el lead vuelve a la cola en
+ *  etapa nuevo). El servidor rechaza deshacer descartes ajenos o viejos. */
+export async function deshacerDescarte(leadId: string): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('deshacer_descarte', {
+    p_lead: leadId,
+  })
+  if (error) throw aErrorApi(error, 'crm.descarte.deshacer_fallido')
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
