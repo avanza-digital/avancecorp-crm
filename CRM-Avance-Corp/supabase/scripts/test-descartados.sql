@@ -98,15 +98,23 @@ select set_config('request.jwt.claim.sub', '', true);
 -- UPDATE (esa inmutabilidad ya la asevera c1b) → se apaga SOLO para fabricar los
 -- fixtures, dentro de la tx. L3 a 25h (mio, fuera de la ventana del deshacer),
 -- L4 a 40 dias (fuera de la ventana del LISTADO), L6 sellado por el VENDEDOR.
+-- Timestamps EXPLÍCITOS para un orden determinista: bajo psql statement_timestamp()
+-- avanza por statement, pero en un batch (MCP/simple-query) TODOS los descartes
+-- comparten el mismo instante → L1 y L2 empatarían y el orden del empate es
+-- indefinido. Se fijan distintos (ambos dentro de 24 h salvo L3/L4 fuera).
 alter table crm.leads disable trigger trg_leads_zz_sello_descarte;
+update crm.leads set descartado_en = statement_timestamp() - interval '2 hours'
+ where id = '1c000000-0000-4000-8000-000000000001';   -- L1: mío, reciente, ANTES que L2
+update crm.leads set descartado_en = statement_timestamp() - interval '1 hour'
+ where id = '1c000000-0000-4000-8000-000000000002';   -- L2: el más nuevo del trío visible
 update crm.leads set descartado_en = statement_timestamp() - interval '25 hours'
- where id = '1c000000-0000-4000-8000-000000000003';
+ where id = '1c000000-0000-4000-8000-000000000003';   -- L3: mío, fuera de la ventana del deshacer
 update crm.leads set descartado_en = statement_timestamp() - interval '40 days'
- where id = '1c000000-0000-4000-8000-000000000004';
+ where id = '1c000000-0000-4000-8000-000000000004';   -- L4: fuera de la ventana del listado
 update crm.leads
    set etapa = 'descartado', motivo_descarte = 'sin_interes',
        descartado_en = statement_timestamp(), descartado_por = '1b000000-0000-4000-8000-000000000003'
- where id = '1c000000-0000-4000-8000-000000000006';
+ where id = '1c000000-0000-4000-8000-000000000006';   -- L6: autor VENDEDOR (no staff de la cola)
 alter table crm.leads enable trigger trg_leads_zz_sello_descarte;
 
 -- ── V1: gate de rol — vendedor y supervisor no ven el listado ────────────────
@@ -183,7 +191,8 @@ begin
   if v_fila.motivo_descarte <> 'pide_credito' then
     raise exception 'V11 el motivo no viaja (%)', v_fila.motivo_descarte;
   end if;
-  if v_fila.descartado_por_nombre <> 'Vista Coordinadora' then
+  -- El portal normaliza nombre_completo a MAYÚSCULAS por trigger.
+  if v_fila.descartado_por_nombre <> 'VISTA COORDINADORA' then
     raise exception 'V12 el nombre del actor no viaja (%)', v_fila.descartado_por_nombre;
   end if;
   if v_fila.creado_en is null or v_fila.categoria_interes <> 'nuevo' then
@@ -198,8 +207,8 @@ begin
   if v_fila.es_mio is distinct from false or v_fila.puede_deshacer is distinct from false then
     raise exception 'V15 L2 (de gerencia) deberia ser es_mio=false y puede_deshacer=false';
   end if;
-  if v_fila.descartado_por_nombre <> 'Vista Gerencia' then
-    raise exception 'V16 el actor de L2 deberia ser Vista Gerencia (%)', v_fila.descartado_por_nombre;
+  if v_fila.descartado_por_nombre <> 'VISTA GERENCIA' then
+    raise exception 'V16 el actor de L2 deberia ser VISTA GERENCIA (%)', v_fila.descartado_por_nombre;
   end if;
   select * into v_fila from crm.leads_descartados() where id = '1c000000-0000-4000-8000-000000000003';
   if v_fila.es_mio is distinct from true or v_fila.puede_deshacer is distinct from false then
