@@ -194,7 +194,7 @@ test('descartar un lead marcado: motivo pre-propuesto, RPC exacta y fila fuera',
   await page.getByRole('button', { name: 'Descartar a PEDRO HUAMÁN de la cola' }).click()
   // La marca del código PROPONE el motivo; el humano solo confirma.
   await expect(page.getByLabel('Motivo para descartar a PEDRO HUAMÁN')).toHaveValue('pide_credito')
-  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+  await page.getByRole('button', { name: 'Descartar a PEDRO HUAMÁN', exact: true }).click()
 
   // El servidor recibió lead y motivo exactos, sin nota.
   await expect.poll(() => backend.llamadas.rpcDescartarLead).toBe(1)
@@ -210,7 +210,7 @@ test('el descarte se puede deshacer desde el aviso y el lead vuelve a la cola', 
   const backend = await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
 
   await page.getByRole('button', { name: 'Descartar a PEDRO HUAMÁN de la cola' }).click()
-  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+  await page.getByRole('button', { name: 'Descartar a PEDRO HUAMÁN', exact: true }).click()
   await expect(page.getByLabel(/PEDRO HUAMÁN/)).toHaveCount(0)
 
   // El aviso de éxito ofrece Deshacer (la ventana real de 24 h vive en la BD).
@@ -227,10 +227,10 @@ test('un lead sin marca exige elegir motivo antes de poder descartar', async ({ 
   await page.getByRole('button', { name: 'Descartar a MARTHA VILCA de la cola' }).click()
   // Sin marca no hay motivo pre-propuesto: el botón queda deshabilitado.
   await expect(page.getByLabel('Motivo para descartar a MARTHA VILCA')).toHaveValue('')
-  await expect(page.getByRole('button', { name: 'Descartar', exact: true })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Descartar a MARTHA VILCA', exact: true })).toBeDisabled()
 
   await page.getByLabel('Motivo para descartar a MARTHA VILCA').selectOption('no_responde')
-  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+  await page.getByRole('button', { name: 'Descartar a MARTHA VILCA', exact: true }).click()
 
   await expect.poll(() => backend.llamadas.rpcDescartarLead).toBe(1)
   expect(backend.ultimoDescarte).toEqual({ lead: 'lead-usd', motivo: 'no_responde', nota: null })
@@ -247,7 +247,7 @@ test('si el descarte pierde la carrera, avisa y resincroniza la cola', async ({ 
   const releidasAntes = backend.llamadas.rpcLeadsPorRepartir
   await page.getByRole('button', { name: 'Descartar a MARTHA VILCA de la cola' }).click()
   await page.getByLabel('Motivo para descartar a MARTHA VILCA').selectOption('sin_interes')
-  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+  await page.getByRole('button', { name: 'Descartar a MARTHA VILCA', exact: true }).click()
 
   await expect(page.getByText(/carrera de descarte/)).toBeVisible()
   await expect.poll(() => backend.llamadas.rpcLeadsPorRepartir).toBeGreaterThan(releidasAntes)

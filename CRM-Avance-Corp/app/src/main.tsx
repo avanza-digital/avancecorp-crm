@@ -24,6 +24,9 @@ createRoot(document.getElementById('root')!).render(
     {/* Sin richColors: sonner pintaría los success de verde; el chrome es navy/azul. */}
     <Toaster
       position="top-right"
+      // a11y: botón de cierre visible — sin él, un toast con acción (p.ej.
+      // "Deshacer" del descarte) solo se despacha esperando su timeout.
+      closeButton
       toastOptions={{
         style: {
           background: 'var(--card)',

@@ -36,6 +36,9 @@
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
   --warning: #d97706;            /* ámbar (no hay verde: "positivo" = azul) */
+  --warning-text: #92400e;       /* ámbar OSCURO para TEXTO pequeño sobre fondos claros:
+                                    7.1:1 sobre blanco, 6.4:1 sobre bg-warning/10
+                                    (--warning puro da ~3:1 y falla WCAG 4.5:1) */
   --exito: #2563eb;              /* institucional SIN verde */
 
   --border: #e4e9f2;
@@ -97,6 +100,7 @@
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
+  --color-warning-text: var(--warning-text);
   --color-exito: var(--exito);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);
