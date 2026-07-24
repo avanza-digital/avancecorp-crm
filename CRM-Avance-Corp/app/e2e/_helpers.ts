@@ -609,6 +609,8 @@ export interface BackendReal {
    * vez de repartir (P0429 = veto legal No Insista, P0002 = fuera de cola…).
    */
   fallarProximoReparto: { code: string; message: string } | null
+  /** C1-bis — igual que arriba pero para crm.descartar_lead. */
+  fallarProximoDescarte: { code: string; message: string } | null
   /**
    * Simula la TRAMPA de la ventana de 5 h vencida: el PATCH a perfiles responde
    * 200 con [] (0 filas, SIN error) y la RPC actualizar_contrato rechaza P0001.
@@ -632,9 +634,15 @@ export interface BackendReal {
     rpcRepartirLead: number
     /** C1 — cuántas veces se releyó la cola (resincronización tras rechazo). */
     rpcLeadsPorRepartir: number
+    /** C1-bis — cuántas veces se llamó a crm.descartar_lead. */
+    rpcDescartarLead: number
+    /** C1-bis — cuántas veces se llamó a crm.deshacer_descarte. */
+    rpcDeshacerDescarte: number
   }
   /** C1 — último par (lead, supervisor) enviado a crm.repartir_lead. */
   ultimoReparto: { lead: string; supervisor: string } | null
+  /** C1-bis — último (lead, motivo, nota) enviado a crm.descartar_lead. */
+  ultimoDescarte: { lead: string; motivo: string; nota: string | null } | null
   ultimaActualizacionCapacidad: {
     analistaId: string
     capacidad: number | null
@@ -701,6 +709,7 @@ export async function montarBackendReal(
     colaReparto: init.colaReparto ?? [],
     supervisoresReparto: init.supervisoresReparto ?? [],
     fallarProximoReparto: init.fallarProximoReparto ?? null,
+    fallarProximoDescarte: init.fallarProximoDescarte ?? null,
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
@@ -708,10 +717,16 @@ export async function montarBackendReal(
       altaCliente: 0, patchPerfil: 0, rpcCrearContrato: 0, rpcActualizarContrato: 0,
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
       rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
+      rpcDescartarLead: 0, rpcDeshacerDescarte: 0,
     },
     ultimaActualizacionCapacidad: init.ultimaActualizacionCapacidad ?? null,
     ultimoReparto: init.ultimoReparto ?? null,
+    ultimoDescarte: init.ultimoDescarte ?? null,
   }
+
+  // C1-bis: la última fila descartada, para que deshacer_descarte la devuelva a
+  // la cola como haría el servidor real (reabre en 'nuevo' y la cola la lista).
+  let filaDescartada: Record<string, unknown> | null = null
 
   const cors: Record<string, string> = {
     'access-control-allow-origin': '*',
@@ -904,6 +919,40 @@ export async function montarBackendReal(
         asignado_supervisor_id: args.p_supervisor,
         repartido_en: '2026-07-22T16:00:00.000Z',
       })
+    }
+    // ── C1-bis: descartar y deshacer (segunda malla del coordinador) ──
+    if (p === '/rest/v1/rpc/descartar_lead' && method === 'POST') {
+      estado.llamadas.rpcDescartarLead += 1
+      const args = (req.postDataJSON() ?? {}) as { p_lead?: string; p_motivo?: string; p_nota?: string }
+      estado.ultimoDescarte = {
+        lead: args.p_lead ?? '',
+        motivo: args.p_motivo ?? '',
+        nota: args.p_nota ?? null,
+      }
+      const fallo = estado.fallarProximoDescarte
+      if (fallo) {
+        estado.fallarProximoDescarte = null
+        return json(route, { code: fallo.code, message: fallo.message }, 400)
+      }
+      // Éxito: la fila sale de la cola; se recuerda para que deshacer la devuelva
+      // (espejo del servidor: reabre en 'nuevo' y la cola la vuelve a listar).
+      filaDescartada = estado.colaReparto.find((l) => l.id === args.p_lead) ?? null
+      estado.colaReparto = estado.colaReparto.filter((l) => l.id !== args.p_lead)
+      return json(route, {
+        lead_id: args.p_lead,
+        motivo_descarte: args.p_motivo,
+        descartado_en: '2026-07-24T16:00:00.000Z',
+        ya_estaba: false,
+      })
+    }
+    if (p === '/rest/v1/rpc/deshacer_descarte' && method === 'POST') {
+      estado.llamadas.rpcDeshacerDescarte += 1
+      const args = (req.postDataJSON() ?? {}) as { p_lead?: string }
+      if (filaDescartada && filaDescartada.id === args.p_lead) {
+        estado.colaReparto = [...estado.colaReparto, filaDescartada]
+        filaDescartada = null
+      }
+      return json(route, { lead_id: args.p_lead, etapa: 'nuevo', ciclo_actual: 2 })
     }
 
     // ── agenda: crm.tareas (el boot las carga SIEMPRE junto a los leads) ──

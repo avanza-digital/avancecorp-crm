@@ -24,6 +24,8 @@ const COLA = [
     monto_estimado: 45000,
     moneda: 'USD',
     creado_en: '2026-07-20T12:00:00.000Z',
+    clasificacion_auto: null,
+    comentario: 'Quiero información sobre el plazo fijo para invertir',
   },
   {
     id: 'lead-pen',
@@ -34,8 +36,24 @@ const COLA = [
     monto_estimado: 120000,
     moneda: 'PEN',
     creado_en: '2026-07-21T12:00:00.000Z',
+    clasificacion_auto: null,
+    comentario: null,
   },
 ]
+
+/** C1-bis: lead que el clasificador marcó (menciona préstamo en el comentario). */
+const LEAD_CREDITO = {
+  id: 'lead-credito',
+  nombre_completo: 'PEDRO HUAMÁN',
+  distrito: 'Comas',
+  origen: 'formulario',
+  categoria_interes: null,
+  monto_estimado: 1000,
+  moneda: 'PEN',
+  creado_en: '2026-07-22T12:00:00.000Z',
+  clasificacion_auto: 'posible_credito',
+  comentario: 'Necesito un préstamo urgente, mi número es [teléfono oculto]',
+}
 
 /** Monta el backend con rol coordinador y entra; devuelve el estado mutable. */
 async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init = {}) {
@@ -153,4 +171,96 @@ test('sin supervisores activos no se puede repartir y la pantalla lo dice', asyn
 
   await expect(page.getByText('No hay supervisores activos')).toBeVisible()
   await expect(page.getByRole('button', { name: 'Repartir', exact: true })).toHaveCount(0)
+})
+
+// ── C1-bis: el código marca, Rosa lee el comentario y cierra ────────────────
+
+test('el lead marcado muestra la etiqueta "Posible crédito" y el comentario redactado', async ({ page }) => {
+  await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
+
+  // La marca del clasificador es visible y el comentario (ya redactado por el
+  // servidor) se lee en la fila: el dato con el que Rosa decide.
+  await expect(page.getByText('Posible crédito')).toBeVisible()
+  await expect(page.getByText(/Necesito un préstamo urgente/)).toBeVisible()
+  // Los leads sin marca NO llevan etiqueta (una sola en toda la cola).
+  await expect(page.getByText('Posible crédito')).toHaveCount(1)
+  // El comentario del lead limpio también se muestra.
+  await expect(page.getByText(/plazo fijo para invertir/)).toBeVisible()
+})
+
+test('descartar un lead marcado: motivo pre-propuesto, RPC exacta y fila fuera', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
+
+  await page.getByRole('button', { name: 'Descartar a PEDRO HUAMÁN de la cola' }).click()
+  // La marca del código PROPONE el motivo; el humano solo confirma.
+  await expect(page.getByLabel('Motivo para descartar a PEDRO HUAMÁN')).toHaveValue('pide_credito')
+  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+
+  // El servidor recibió lead y motivo exactos, sin nota.
+  await expect.poll(() => backend.llamadas.rpcDescartarLead).toBe(1)
+  expect(backend.ultimoDescarte).toEqual({ lead: 'lead-credito', motivo: 'pide_credito', nota: null })
+
+  // La fila salió de la cola (se asevera por sus CONTROLES: el toast de éxito
+  // también contiene el nombre y un getByText lo confundiría con la fila).
+  await expect(page.getByLabel(/PEDRO HUAMÁN/)).toHaveCount(0)
+  await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toBeVisible()
+})
+
+test('el descarte se puede deshacer desde el aviso y el lead vuelve a la cola', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page, { colaReparto: [...COLA, LEAD_CREDITO] })
+
+  await page.getByRole('button', { name: 'Descartar a PEDRO HUAMÁN de la cola' }).click()
+  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+  await expect(page.getByLabel(/PEDRO HUAMÁN/)).toHaveCount(0)
+
+  // El aviso de éxito ofrece Deshacer (la ventana real de 24 h vive en la BD).
+  await page.getByRole('button', { name: 'Deshacer' }).click()
+
+  await expect.poll(() => backend.llamadas.rpcDeshacerDescarte).toBe(1)
+  // Tras deshacer se relee la cola: la fila está de vuelta con sus controles.
+  await expect(page.getByLabel('Asignar PEDRO HUAMÁN a un supervisor')).toBeVisible()
+})
+
+test('un lead sin marca exige elegir motivo antes de poder descartar', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page)
+
+  await page.getByRole('button', { name: 'Descartar a MARTHA VILCA de la cola' }).click()
+  // Sin marca no hay motivo pre-propuesto: el botón queda deshabilitado.
+  await expect(page.getByLabel('Motivo para descartar a MARTHA VILCA')).toHaveValue('')
+  await expect(page.getByRole('button', { name: 'Descartar', exact: true })).toBeDisabled()
+
+  await page.getByLabel('Motivo para descartar a MARTHA VILCA').selectOption('no_responde')
+  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+
+  await expect.poll(() => backend.llamadas.rpcDescartarLead).toBe(1)
+  expect(backend.ultimoDescarte).toEqual({ lead: 'lead-usd', motivo: 'no_responde', nota: null })
+})
+
+test('si el descarte pierde la carrera, avisa y resincroniza la cola', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page, {
+    fallarProximoDescarte: {
+      code: 'P0002',
+      message: 'El lead ya no está en la cola por repartir (carrera de descarte)',
+    },
+  })
+
+  const releidasAntes = backend.llamadas.rpcLeadsPorRepartir
+  await page.getByRole('button', { name: 'Descartar a MARTHA VILCA de la cola' }).click()
+  await page.getByLabel('Motivo para descartar a MARTHA VILCA').selectOption('sin_interes')
+  await page.getByRole('button', { name: 'Descartar', exact: true }).click()
+
+  await expect(page.getByText(/carrera de descarte/)).toBeVisible()
+  await expect.poll(() => backend.llamadas.rpcLeadsPorRepartir).toBeGreaterThan(releidasAntes)
+})
+
+test('Cancelar sale del modo descarte sin llamar al servidor', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page)
+
+  await page.getByRole('button', { name: 'Descartar a MARTHA VILCA de la cola' }).click()
+  await expect(page.getByLabel('Motivo para descartar a MARTHA VILCA')).toBeVisible()
+
+  await page.getByRole('button', { name: 'Cancelar' }).click()
+
+  await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toBeVisible()
+  expect(backend.llamadas.rpcDescartarLead).toBe(0)
 })

@@ -31,7 +31,9 @@ type OrigenDb =
   | 'web'
   | 'campania'
   | 'whatsapp'
-type MotivoDescarteDb = 'sin_interes' | 'sin_fondos' | 'competencia' | 'no_responde' | 'datos_invalidos' | 'otro'
+type MotivoDescarteDb = 'sin_interes' | 'sin_fondos' | 'competencia' | 'no_responde' | 'datos_invalidos' | 'pide_credito' | 'otro'
+// C1-bis: veredicto del clasificador de crédito (trigger en el INSERT, inmutable).
+type ClasificacionAutoDb = 'posible_credito'
 type MonedaDb = 'PEN' | 'USD'
 // CHECK leads_genero_valido: binario (sexo del documento), nullable.
 type GeneroDb = 'F' | 'M'
@@ -238,6 +240,12 @@ export interface Database {
           contrato_id: string | null
           convertido_en: string | null
           nota: string | null
+          // C1-bis (20260723120000): marca del clasificador + sello del descarte.
+          // Las tres las gobierna el trigger zz_sello_descarte: lo que mande el
+          // cliente API se ignora (por eso no aparecen en Insert/Update).
+          clasificacion_auto: ClasificacionAutoDb | null
+          descartado_en: string | null
+          descartado_por: string | null
           activo: boolean
           creado_por: string | null
           creado_en: string
@@ -598,6 +606,8 @@ export interface Database {
       //    SECURITY DEFINER con gate propio (coordinador|gerencia): el
       //    coordinador NO ve crm.leads por RLS. La cola se proyecta SIN PII
       //    de contacto — no hay teléfono, correo ni DNI en el contrato. ─────
+      // C1-bis (v2): + marca del clasificador y comentario del cliente
+      //    REDACTADO (correo/celular/documento ocultos) y trunco a 400.
       leads_por_repartir: {
         Args: Record<string, never>
         Returns: {
@@ -609,6 +619,8 @@ export interface Database {
           monto_estimado: number // numeric — PostgREST puede serializar string
           moneda: MonedaDb
           creado_en: string
+          clasificacion_auto: ClasificacionAutoDb | null
+          comentario: string | null
         }[]
       }
       supervisores_para_reparto: {
@@ -625,6 +637,22 @@ export interface Database {
        *  no_contactar con SQLSTATE propio P0429 (Ley 29571). */
       repartir_lead: {
         Args: { p_lead: string; p_supervisor: string }
+        Returns: Json
+      }
+      // ── C1-bis: descarte de la cola global (el código marca, Rosa cierra).
+      //    SQLSTATE: 42501 rol · 22023 argumento · P0002 fuera de cola/carrera. ─
+      /** Cierra un lead de la COLA GLOBAL con motivo obligatorio. Idempotente
+       *  para el mismo actor+motivo (`ya_estaba: true`). La nota se appendea
+       *  (`· DESCARTE: …`), nunca se pisa. No toca activo ni tenencia. */
+      descartar_lead: {
+        Args: { p_lead: string; p_motivo: MotivoDescarteDb; p_nota?: string | null }
+        Returns: Json
+      }
+      /** Deshace un descarte PROPIO de las últimas 24 h si el lead sigue sin
+       *  dueño: reabre en 'nuevo' (el guard incrementa ciclo_actual). Choque
+       *  con el índice único de teléfono/DNI vivo llega como 22023. */
+      deshacer_descarte: {
+        Args: { p_lead: string }
         Returns: Json
       }
     }

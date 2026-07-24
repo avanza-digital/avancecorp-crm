@@ -22,13 +22,15 @@ export type EtapaActiva = (typeof ETAPAS)[number]['k']
 /** Etapas terminales como set runtime — derivado de TERMINALES (fuente única). */
 export const TERMINALES_K: ReadonlySet<string> = new Set(TERMINALES.map((t) => t.k))
 
-/** Motivos del CHECK de crm.leads.motivo_descarte (F0). Descartar SIEMPRE lleva motivo. */
+/** Motivos del CHECK de crm.leads.motivo_descarte (F0; 'pide_credito' desde C1-bis).
+ *  Descartar SIEMPRE lleva motivo. */
 export type MotivoDescarte =
   | 'sin_interes'
   | 'sin_fondos'
   | 'competencia'
   | 'no_responde'
   | 'datos_invalidos'
+  | 'pide_credito'
   | 'otro'
 
 /** Tipos de actividad del timeline (espejo del CHECK de crm.actividades.tipo). */
@@ -154,6 +156,9 @@ export const MOTIVOS_DESCARTE: ReadonlyArray<{ k: MotivoDescarte; label: string 
   { k: 'competencia', label: 'Se fue a la competencia' },
   { k: 'no_responde', label: 'No responde' },
   { k: 'datos_invalidos', label: 'Datos inválidos' },
+  // C1-bis: motivo propio para MEDIR la basura de crédito que entra por la
+  // landing/formulario (enterrarla en 'sin_interes' contamina la conversión).
+  { k: 'pide_credito', label: 'Pide préstamo / crédito' },
   { k: 'otro', label: 'Otro' },
 ]
 
@@ -248,6 +253,12 @@ export interface ColaLead {
   monto_estimado: number
   moneda: Moneda
   creado_en: string
+  /** C1-bis: veredicto del clasificador (trigger del INSERT). MARCA, nunca
+   *  cierra: el coordinador decide leyendo el comentario. */
+  clasificacion_auto?: 'posible_credito' | null
+  /** C1-bis: lo que escribió el cliente, ya REDACTADO por el servidor
+   *  (correo/celular/documento ocultos) y trunco a 400. */
+  comentario?: string | null
 }
 
 /** Destino de reparto — proyección de `crm.supervisores_para_reparto()`. */

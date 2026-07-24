@@ -14,6 +14,8 @@ vi.mock('@/lib/supabase', async () => {
 
 import {
   CrmApiError,
+  descartarLead,
+  deshacerDescarte,
   leadsPorRepartir,
   repartirLead,
   supervisoresParaReparto,
@@ -74,6 +76,34 @@ describe('leadsPorRepartir (msw)', () => {
 
     expect(filas).toHaveLength(1)
     expect(filas[0]?.id).toBe('buena')
+  })
+
+  // C1-bis — contrato v2: la marca del clasificador y el comentario redactado
+  // viajan; una RPC v1 (sin esas claves) degrada a null en vez de tumbar filas.
+  it('v2: proyecta clasificacion_auto y comentario; sin ellas degrada a null', async () => {
+    server.use(
+      http.post(RPC('leads_por_repartir'), () =>
+        HttpResponse.json([
+          {
+            ...FILA_COLA,
+            clasificacion_auto: 'posible_credito',
+            comentario: 'Quiero un [teléfono oculto] préstamo urgente',
+          },
+          { ...FILA_COLA, id: 'lead-v1' }, // RPC vieja: sin claves nuevas
+          { ...FILA_COLA, id: 'lead-limpio', clasificacion_auto: null, comentario: null },
+        ]),
+      ),
+    )
+
+    const filas = await leadsPorRepartir()
+
+    expect(filas).toHaveLength(3)
+    expect(filas[0]).toMatchObject({
+      clasificacion_auto: 'posible_credito',
+      comentario: 'Quiero un [teléfono oculto] préstamo urgente',
+    })
+    expect(filas[1]).toMatchObject({ id: 'lead-v1', clasificacion_auto: null, comentario: null })
+    expect(filas[2]).toMatchObject({ id: 'lead-limpio', clasificacion_auto: null, comentario: null })
   })
 
   it('un rechazo de permisos sube como CrmApiError', async () => {
@@ -156,6 +186,101 @@ describe('repartirLead (msw) — mapeo de errores del servidor', () => {
     await expect(repartirLead('lead-1', 'sup-1')).rejects.toMatchObject({
       code: 'NO_INSISTA',
       message: 'Lead marcado No Insista (Ley 29571): no se puede repartir',
+    })
+  })
+})
+
+// ── C1-bis: descartar y deshacer (msw) ───────────────────────────────────────
+describe('descartarLead (msw)', () => {
+  it('manda p_lead y p_motivo exactos, y OMITE p_nota cuando no hay nota', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('descartar_lead'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json({ lead_id: 'lead-1', motivo_descarte: 'pide_credito', ya_estaba: false })
+      }),
+    )
+
+    await descartarLead('lead-1', 'pide_credito')
+
+    expect(cuerpo).toEqual({ p_lead: 'lead-1', p_motivo: 'pide_credito' })
+  })
+
+  it('la nota viaja recortada como p_nota cuando existe', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('descartar_lead'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json({ ya_estaba: false })
+      }),
+    )
+
+    await descartarLead('lead-1', 'otro', '  confirmado por teléfono  ')
+
+    expect(cuerpo).toEqual({
+      p_lead: 'lead-1',
+      p_motivo: 'otro',
+      p_nota: 'confirmado por teléfono',
+    })
+  })
+
+  it.each([
+    ['P0002', 'FUERA_DE_COLA', 'El lead ya fue descartado con otro motivo o por otra persona'],
+    ['22023', 'REGLA_SERVIDOR', 'Motivo de descarte inválido'],
+    ['42501', 'SIN_PERMISO', 'permission denied'],
+    ['40001', 'REINTENTAR', 'conflicto de serializacion'],
+  ])('el SQLSTATE %s se traduce a %s', async (pg, code, message) => {
+    server.use(
+      http.post(RPC('descartar_lead'), () =>
+        HttpResponse.json({ code: pg, message }, { status: 400 }),
+      ),
+    )
+
+    await expect(descartarLead('lead-1', 'sin_interes')).rejects.toMatchObject({ code })
+  })
+})
+
+describe('deshacerDescarte (msw)', () => {
+  it('manda p_lead exacto', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('deshacer_descarte'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json({ lead_id: 'lead-1', etapa: 'nuevo', ciclo_actual: 2 })
+      }),
+    )
+
+    await deshacerDescarte('lead-1')
+
+    expect(cuerpo).toEqual({ p_lead: 'lead-1' })
+  })
+
+  it('fuera de ventana o ajeno sube como FUERA_DE_COLA (P0002)', async () => {
+    server.use(
+      http.post(RPC('deshacer_descarte'), () =>
+        HttpResponse.json(
+          { code: 'P0002', message: 'Solo puedes deshacer tus propios descartes de las últimas 24 horas, y solo si el lead sigue sin dueño' },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    await expect(deshacerDescarte('lead-1')).rejects.toMatchObject({ code: 'FUERA_DE_COLA' })
+  })
+
+  it('el choque de reapertura (índice único vivo) llega como REGLA_SERVIDOR con mensaje humano', async () => {
+    server.use(
+      http.post(RPC('deshacer_descarte'), () =>
+        HttpResponse.json(
+          { code: '22023', message: 'Ya existe otro lead vivo con ese mismo teléfono o documento: no se puede reabrir' },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    await expect(deshacerDescarte('lead-1')).rejects.toMatchObject({
+      code: 'REGLA_SERVIDOR',
+      message: 'Ya existe otro lead vivo con ese mismo teléfono o documento: no se puede reabrir',
     })
   })
 })
