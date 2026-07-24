@@ -352,3 +352,102 @@ test('un comentario largo se expande con "Ver todo" y se vuelve a plegar', async
   await page.getByRole('button', { name: 'Ver menos' }).click()
   await expect(page.getByRole('button', { name: 'Ver todo el comentario' })).toBeVisible()
 })
+
+// ── C1-ter: la pestaña "Descartados" (vista + deshacer dentro de las 24 h) ───
+
+const DESCARTADOS = [
+  {
+    id: 'dsc-mio',
+    nombre_completo: 'LUCÍA MENDOZA',
+    distrito: 'Ate',
+    origen: 'formulario',
+    categoria_interes: null,
+    monto_estimado: 2000,
+    moneda: 'PEN',
+    creado_en: '2026-07-22T09:00:00.000Z',
+    clasificacion_auto: 'posible_credito',
+    comentario: 'Necesito un préstamo rápido',
+    nota_descarte: 'confirmado por teléfono: solo busca crédito',
+    motivo_descarte: 'pide_credito',
+    descartado_en: '2026-07-24T14:00:00.000Z',
+    descartado_por_nombre: 'ROSA COORDINADORA',
+    es_mio: true,
+    puede_deshacer: true,
+  },
+  {
+    id: 'dsc-ajeno',
+    nombre_completo: 'CARLOS RUIZ',
+    distrito: null,
+    origen: 'landing',
+    categoria_interes: null,
+    monto_estimado: 8000,
+    moneda: 'USD',
+    creado_en: '2026-07-10T09:00:00.000Z',
+    clasificacion_auto: null,
+    comentario: 'No me interesa por ahora',
+    nota_descarte: null,
+    motivo_descarte: 'sin_interes',
+    descartado_en: '2026-07-23T11:00:00.000Z',
+    descartado_por_nombre: 'GERENTE REAL',
+    es_mio: false,
+    puede_deshacer: false,
+  },
+]
+
+test('la pestaña Descartados lista lo cerrado, con motivo, autor y nota', async ({ page }) => {
+  await entrarComoCoordinador(page, { descartados: DESCARTADOS })
+
+  await page.getByRole('tab', { name: 'Descartados' }).click()
+
+  await expect(page.getByText('Leads descartados')).toBeVisible()
+  const mio = page.locator('[data-descartado-id="dsc-mio"]')
+  await expect(mio).toContainText('LUCÍA MENDOZA')
+  await expect(mio).toContainText('Pide préstamo / crédito') // motivo legible
+  await expect(mio).toContainText('Posible crédito') // marca del clasificador
+  await expect(mio).toContainText('Necesito un préstamo rápido') // comentario
+  await expect(mio).toContainText('confirmado por teléfono') // nota_descarte
+  await expect(mio).toContainText('por ti') // es_mio
+})
+
+test('deshacer un descarte propio dentro de la ventana lo saca de la lista', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page, { descartados: DESCARTADOS })
+  await page.getByRole('tab', { name: 'Descartados' }).click()
+
+  await page.getByRole('button', { name: 'Deshacer el descarte de LUCÍA MENDOZA' }).click()
+
+  await expect.poll(() => backend.llamadas.rpcDeshacerDescarte).toBe(1)
+  await expect(page.locator('[data-descartado-id="dsc-mio"]')).toHaveCount(0)
+  // El ajeno sigue: no tenía botón, tenía el aviso.
+  await expect(page.locator('[data-descartado-id="dsc-ajeno"]')).toBeVisible()
+})
+
+test('un descarte ajeno o fuera de ventana NO ofrece deshacer, explica por qué', async ({ page }) => {
+  await entrarComoCoordinador(page, { descartados: DESCARTADOS })
+  await page.getByRole('tab', { name: 'Descartados' }).click()
+
+  const ajeno = page.locator('[data-descartado-id="dsc-ajeno"]')
+  await expect(ajeno.getByRole('button', { name: /Deshacer/ })).toHaveCount(0)
+  await expect(ajeno).toContainText('Descartado por otra persona')
+})
+
+test('si el deshacer falla (ventana vencida en el server), avisa y no miente', async ({ page }) => {
+  await entrarComoCoordinador(page, {
+    descartados: DESCARTADOS,
+    fallarProximoDeshacer: {
+      code: 'P0002',
+      message: 'Solo puedes deshacer tus propios descartes de las últimas 24 horas',
+    },
+  })
+  await page.getByRole('tab', { name: 'Descartados' }).click()
+
+  await page.getByRole('button', { name: 'Deshacer el descarte de LUCÍA MENDOZA' }).click()
+
+  await expect(page.getByText(/últimas 24 horas/)).toBeVisible()
+})
+
+test('la pestaña Descartados vacía explica de dónde saldrán los datos', async ({ page }) => {
+  await entrarComoCoordinador(page, { descartados: [] })
+  await page.getByRole('tab', { name: 'Descartados' }).click()
+
+  await expect(page.getByText('No hay leads descartados')).toBeVisible()
+})

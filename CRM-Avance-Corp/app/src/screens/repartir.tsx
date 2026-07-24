@@ -16,12 +16,13 @@
 // Estado local con React (sin XState: eso vive solo en auth). La verdad la tiene
 // el servidor — cada reparto/descarte pasa por su RPC atómica.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Split, Users, Wallet, Inbox, AlertTriangle, Search } from 'lucide-react'
+import { Split, Users, Wallet, Inbox, AlertTriangle, Search, Ban, RotateCcw } from 'lucide-react'
 import { toast } from 'sonner'
 import {
   CrmApiError,
   descartarLead,
   deshacerDescarte,
+  leadsDescartados,
   leadsPorRepartir,
   repartirLead,
   supervisoresParaReparto,
@@ -30,6 +31,7 @@ import {
   MOTIVOS_DESCARTE,
   origenLabel,
   type ColaLead,
+  type LeadDescartado,
   type MotivoDescarte,
   type Origen,
   type SupervisorReparto,
@@ -52,6 +54,26 @@ import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estad
 
 /** Cuántas filas se muestran por página local ("Mostrar 20 más"). */
 const PAGINA = 20
+
+/** Etiqueta humana de cada motivo de descarte (fuente única MOTIVOS_DESCARTE). */
+const MOTIVO_LABEL: Record<string, string> =
+  Object.fromEntries(MOTIVOS_DESCARTE.map((m) => [m.k, m.label]))
+
+/** Badge "Posible crédito" — mismo en la cola y en descartados (a11y idéntica). */
+function BadgeCredito() {
+  return (
+    <span
+      className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning-text"
+      title="El sistema detectó que el comentario menciona préstamo/financiamiento. Es una marca: la decisión de descartar es tuya."
+    >
+      <AlertTriangle className="size-3" aria-hidden />
+      Posible crédito
+      <span className="sr-only">
+        . Marca automática: el comentario menciona préstamo o financiamiento; la decisión de descartar es tuya.
+      </span>
+    </span>
+  )
+}
 
 /** Días transcurridos desde que el lead entró a la cola (para la urgencia). */
 function diasEnCola(desde: string, ahora: number): number {
@@ -184,7 +206,8 @@ function useReparto() {
   return { ...estado, enviandoId, recargar: cargar, repartir, descartar }
 }
 
-export function Repartir() {
+/** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
+function PanelCola() {
   const { cola, supervisores, cargando, error, enviandoId, recargar, repartir, descartar } = useReparto()
   const [destino, setDestino] = useState<Record<string, string>>({})
   // C1-bis: filas en "modo descarte" y el motivo elegido en cada una.
@@ -370,21 +393,7 @@ export function Repartir() {
                       <div className="min-w-0 flex-1">
                         <p className="flex items-center gap-1.5 text-sm font-semibold">
                           <span className="truncate">{lead.nombre_completo}</span>
-                          {marcado ? (
-                            // text-warning-text (no --warning): texto de 10px exige
-                            // 4.5:1 y el ámbar base da ~2.9:1 sobre este fondo.
-                            <span
-                              className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning-text"
-                              title="El sistema detectó que el comentario menciona préstamo/financiamiento. Es una marca: la decisión de descartar es tuya."
-                            >
-                              <AlertTriangle className="size-3" aria-hidden />
-                              Posible crédito
-                              {/* El title no llega a teclado ni a lectores: paridad sr-only. */}
-                              <span className="sr-only">
-                                . Marca automática: el comentario menciona préstamo o financiamiento; la decisión de descartar es tuya.
-                              </span>
-                            </span>
-                          ) : null}
+                          {marcado ? <BadgeCredito /> : null}
                         </p>
                         <p className="truncate text-[11px] text-muted-foreground">
                           {origenLabel(lead.origen)}
@@ -541,6 +550,203 @@ export function Repartir() {
           </>
         )}
       </Card>
+    </div>
+  )
+}
+
+/** Pestaña "Descartados": lo que Rosa cerró en los últimos 30 días. Se monta al
+ *  abrir la pestaña (y así siempre trae datos frescos del servidor). El Deshacer
+ *  vive aquí toda la ventana de 24 h — no solo en el toast de 15 s de la cola. */
+function PanelDescartados({ onCambio }: { onCambio: () => void }) {
+  const [lista, setLista] = useState<LeadDescartado[]>([])
+  const [cargando, setCargando] = useState(true)
+  const [error, setError] = useState<string | null>(null)
+  const [deshaciendo, setDeshaciendo] = useState<string | null>(null)
+  const [expandidos, setExpandidos] = useState<Record<string, boolean>>({})
+  const abortRef = useRef<AbortController | null>(null)
+
+  const cargar = useCallback(async () => {
+    abortRef.current?.abort()
+    const ctrl = new AbortController()
+    abortRef.current = ctrl
+    setCargando(true)
+    setError(null)
+    try {
+      const filas = await leadsDescartados(ctrl.signal)
+      if (ctrl.signal.aborted) return
+      setLista(filas)
+    } catch (e) {
+      if (ctrl.signal.aborted) return
+      setError(e instanceof Error ? e.message : 'No se pudo cargar la lista de descartados.')
+    } finally {
+      if (!ctrl.signal.aborted) setCargando(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    void cargar()
+    return () => abortRef.current?.abort()
+  }, [cargar])
+
+  const deshacer = useCallback(async (lead: LeadDescartado) => {
+    setDeshaciendo(lead.id)
+    try {
+      await deshacerDescarte(lead.id)
+      setLista((l) => l.filter((x) => x.id !== lead.id))
+      toast.success(`${lead.nombre_completo} volvió a la cola`)
+      onCambio() // el lead reabierto reaparece en la cola: que se refresque.
+    } catch (e) {
+      const mensaje = e instanceof Error ? e.message : 'No se pudo deshacer el descarte.'
+      toast.error(mensaje)
+      // La ventana venció, otro lo tocó o el lead ya tiene dueño: la lista local
+      // quedó desfasada → se relee en vez de adivinar.
+      if (e instanceof CrmApiError && ['FUERA_DE_COLA', 'REINTENTAR'].includes(e.code)) {
+        void cargar()
+      }
+    } finally {
+      setDeshaciendo(null)
+    }
+  }, [cargar, onCambio])
+
+  return (
+    <Card className="overflow-hidden">
+      <SectionHead
+        icon={Ban}
+        title="Leads descartados"
+        right={
+          <span className="text-[11px] font-semibold text-muted-foreground">
+            {!cargando && !error && lista.length > 0 ? `${lista.length} · últimos 30 días` : ''}
+          </span>
+        }
+      />
+      {cargando ? (
+        <PanelCargando filas={3} />
+      ) : error ? (
+        <PanelError mensaje={error} onReintentar={() => void cargar()} reintentando={cargando} />
+      ) : lista.length === 0 ? (
+        <PanelVacio
+          icono={Ban}
+          titulo="No hay leads descartados"
+          detalle="Cuando descartes un lead de la cola aparecerá aquí por 30 días. Podrás deshacerlo dentro de las primeras 24 horas."
+        />
+      ) : (
+        <div className="space-y-2 px-5 pb-5">
+          {lista.map((lead) => {
+            const marcado = lead.clasificacion_auto === 'posible_credito'
+            const expandido = expandidos[lead.id] === true
+            const comentarioLargo = (lead.comentario ?? '').length > 160
+            const deshaciendoEste = deshaciendo === lead.id
+            return (
+              <div
+                key={lead.id}
+                data-descartado-id={lead.id}
+                className="flex flex-col gap-2.5 rounded-xl border border-border p-3 sm:flex-row sm:items-start"
+              >
+                <div className="min-w-0 flex-1">
+                  <p className="flex flex-wrap items-center gap-1.5 text-sm font-semibold">
+                    <span className="truncate">{lead.nombre_completo}</span>
+                    {marcado ? <BadgeCredito /> : null}
+                    <span className="rounded-full bg-muted px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                      {MOTIVO_LABEL[lead.motivo_descarte ?? ''] ?? lead.motivo_descarte ?? 'Sin motivo'}
+                    </span>
+                  </p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {origenLabel(lead.origen)}
+                    {' · '}
+                    <span className="font-semibold text-foreground">
+                      {moneyK(lead.monto_estimado, lead.moneda)}
+                    </span>
+                    {lead.distrito ? ` · ${lead.distrito}` : ''}
+                    {' · descartado '}
+                    <span className="font-semibold text-foreground">{fechaHora(lead.descartado_en)}</span>
+                    {` por ${lead.es_mio ? 'ti' : lead.descartado_por_nombre}`}
+                  </p>
+                  {lead.comentario ? (
+                    <div className={`mt-1.5 rounded-md border-l-2 py-1.5 pl-2.5 pr-2 ${
+                      marcado ? 'border-warning bg-warning/5' : 'border-accent/40 bg-muted/50'}`}
+                    >
+                      <p className={`text-[13px] leading-snug text-foreground ${expandido ? '' : 'line-clamp-3'}`}>
+                        “{lead.comentario}”
+                      </p>
+                      {comentarioLargo ? (
+                        <button
+                          type="button"
+                          aria-expanded={expandido}
+                          className="mt-0.5 text-[11px] font-semibold text-accent hover:underline"
+                          onClick={() => setExpandidos((e2) => ({ ...e2, [lead.id]: !expandido }))}
+                        >
+                          {expandido ? 'Ver menos' : 'Ver todo el comentario'}
+                        </button>
+                      ) : null}
+                    </div>
+                  ) : null}
+                  {lead.nota_descarte ? (
+                    <p className="mt-1 text-[12px] text-muted-foreground">
+                      <span className="font-semibold">Nota al descartar:</span> {lead.nota_descarte}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2 sm:w-[190px] sm:shrink-0 sm:justify-end">
+                  {lead.puede_deshacer ? (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={deshaciendoEste}
+                      aria-label={`Deshacer el descarte de ${lead.nombre_completo}`}
+                      onClick={() => void deshacer(lead)}
+                    >
+                      <RotateCcw className="size-3.5" aria-hidden />
+                      {deshaciendoEste ? 'Deshaciendo…' : 'Deshacer'}
+                    </Button>
+                  ) : (
+                    <span className="text-[11px] text-muted-foreground">
+                      {lead.es_mio ? 'Ventana de 24 h vencida' : 'Descartado por otra persona'}
+                    </span>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+        </div>
+      )}
+    </Card>
+  )
+}
+
+export function Repartir() {
+  const [tab, setTab] = useState<'cola' | 'descartados'>('cola')
+  // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
+  // de la pestaña Cola (key) para que la relea al volver a ella.
+  const [colaKey, setColaKey] = useState(0)
+
+  return (
+    <div className="space-y-4">
+      <div
+        role="tablist"
+        aria-label="Vistas de la cola de leads"
+        className="inline-flex gap-1 rounded-lg border border-border bg-muted/50 p-1"
+      >
+        {([['cola', 'Cola de nuevos'], ['descartados', 'Descartados']] as const).map(([k, label]) => (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={tab === k}
+            onClick={() => setTab(k)}
+            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+              tab === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      {tab === 'cola' ? (
+        <PanelCola key={colaKey} />
+      ) : (
+        <PanelDescartados onCambio={() => setColaKey((n) => n + 1)} />
+      )}
     </div>
   )
 }

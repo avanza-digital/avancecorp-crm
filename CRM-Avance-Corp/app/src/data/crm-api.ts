@@ -16,6 +16,7 @@ import {
   type ColaLead,
   type Etapa,
   type Lead,
+  type LeadDescartado,
   type Miembro,
   type MotivoDescarte,
   type Origen,
@@ -519,6 +520,47 @@ export async function deshacerDescarte(leadId: string): Promise<void> {
     p_lead: leadId,
   })
   if (error) throw aErrorApi(error, 'crm.descarte.deshacer_fallido')
+}
+
+// ── C1-ter: la pestaña "Descartados" del coordinador (solo lectura) ──────────
+const MOTIVOS_K = MOTIVOS_DESCARTE.map((m) => m.k) as [MotivoDescarte, ...MotivoDescarte[]]
+const LeadDescartadoSchema = v.object({
+  id: v.string(),
+  nombre_completo: v.string(),
+  distrito: v.nullable(v.string()),
+  origen: v.picklist(ORIGENES_K),
+  categoria_interes: v.nullable(v.picklist(CATEGORIAS_K)),
+  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  moneda: v.picklist(['PEN', 'USD'] as const),
+  creado_en: v.string(),
+  clasificacion_auto: v.optional(v.nullable(v.picklist(['posible_credito'] as const)), null),
+  comentario: v.optional(v.nullable(v.string()), null),
+  nota_descarte: v.optional(v.nullable(v.string()), null),
+  motivo_descarte: v.nullable(v.picklist(MOTIVOS_K)),
+  descartado_en: v.string(),
+  descartado_por_nombre: v.string(),
+  es_mio: v.boolean(),
+  puede_deshacer: v.boolean(),
+})
+
+/** Lista los descartes recientes de la cola global (últimos 30 días, tope 200,
+ *  más nuevos primero). Solo coordinador/gerencia; el servidor filtra alcance,
+ *  redacta la PII y marca `puede_deshacer` (que igual re-valida al deshacer). */
+export async function leadsDescartados(signal?: AbortSignal): Promise<LeadDescartado[]> {
+  let consulta = cliente().schema('crm').rpc('leads_descartados')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo cargar la lista de descartados.', error.code || 'POSTGREST_ERROR')
+    if (!signal?.aborted) registrarError('crm.descarte.lista_fallida', fallo)
+    throw fallo
+  }
+  const items: LeadDescartado[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(LeadDescartadoSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)
