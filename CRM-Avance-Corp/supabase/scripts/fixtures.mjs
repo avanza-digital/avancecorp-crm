@@ -386,6 +386,8 @@ export const TRANSIENT_IDS = Object.freeze({
   descarteLeadCredito: randomUUID(),
   descarteLeadLimpio: randomUUID(),
   descarteLeadCarrera: randomUUID(),
+  // C1-ter — la vista de descartados (pestaña del coordinador).
+  descarteLeadVista: randomUUID(),
   foreignCreatorTarea: randomUUID(),
   directoryTarea: randomUUID(),
   portalClientTarea: randomUUID(),
