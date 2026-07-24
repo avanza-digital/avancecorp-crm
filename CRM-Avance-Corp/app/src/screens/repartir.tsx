@@ -120,16 +120,18 @@ function useReparto() {
     }
   }, [cargar, estado.supervisores])
 
-  /** C1-bis: cierra el lead con motivo. El deshacer vive en el toast (la RPC
-   *  de servidor da 24 h, pero el gesto natural es el arrepentimiento al tiro). */
-  const descartar = useCallback(async (lead: ColaLead, motivo: MotivoDescarte) => {
+  /** C1-bis: cierra el lead con motivo. Devuelve si el descarte ENTRÓ (el
+   *  llamador decide a dónde va el foco). El deshacer vive en el toast — la
+   *  RPC de servidor da 24 h, pero el gesto natural es el arrepentimiento al
+   *  tiro; 15 s + closeButton del Toaster dan margen a teclado y lector. */
+  const descartar = useCallback(async (lead: ColaLead, motivo: MotivoDescarte): Promise<boolean> => {
     setEnviandoId(lead.id)
     try {
       await descartarLead(lead.id, motivo)
       setEstado((e) => ({ ...e, cola: e.cola.filter((l) => l.id !== lead.id) }))
       const label = MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
       toast.success(`${lead.nombre_completo} descartado · ${label}`, {
-        duration: 8000,
+        duration: 15000,
         action: {
           label: 'Deshacer',
           onClick: () => {
@@ -147,6 +149,7 @@ function useReparto() {
           },
         },
       })
+      return true
     } catch (error) {
       const mensaje = error instanceof Error ? error.message : 'No se pudo descartar el lead.'
       toast.error(mensaje)
@@ -154,6 +157,7 @@ function useReparto() {
         && ['FUERA_DE_COLA', 'REINTENTAR'].includes(error.code)) {
         void cargar()
       }
+      return false
     } finally {
       setEnviandoId(null)
     }
@@ -168,6 +172,12 @@ export function Repartir() {
   // C1-bis: filas en "modo descarte" y el motivo elegido en cada una.
   const [descartando, setDescartando] = useState<Record<string, boolean>>({})
   const [motivo, setMotivo] = useState<Record<string, MotivoDescarte | ''>>({})
+  // El conmutador de modo DESTRUYE el control enfocado: sin foco programático,
+  // el teclado cae a <body> y hay que retabular toda la página (revisor a11y).
+  // NO autoFocus: fuera de un modal es hallazgo (excepción 3 de .oxlintrc.json).
+  const refMotivo = useRef(new Map<string, HTMLSelectElement>())
+  const refDescartarGhost = useRef(new Map<string, HTMLButtonElement>())
+  const refCola = useRef<HTMLDivElement>(null)
   const ahora = Date.now()
 
   // Capital en juego, SIEMPRE separado por moneda (nunca una suma mixta).
@@ -230,7 +240,10 @@ export function Repartir() {
             detalle="Sin una bandeja de destino no se puede repartir. Avisa a gerencia para activar al menos un supervisor."
           />
         ) : (
-          <div className="space-y-2 px-5 pb-5">
+          <div ref={refCola} tabIndex={-1} className="space-y-2 px-5 pb-5 outline-none">
+            {/* tabIndex={-1}: destino PROGRAMÁTICO del foco cuando la fila
+                enfocada desaparece (descarte exitoso); no es alcanzable con
+                Tab, por eso el outline-none aquí es legítimo. */}
             {cola.map((lead) => {
               const dias = diasEnCola(lead.creado_en, ahora)
               const elegido = destino[lead.id] ?? ''
@@ -248,12 +261,18 @@ export function Repartir() {
                     <p className="flex items-center gap-1.5 text-sm font-semibold">
                       <span className="truncate">{lead.nombre_completo}</span>
                       {marcado ? (
+                        // text-warning-text (no --warning): texto de 10px exige
+                        // 4.5:1 y el ámbar base da ~2.9:1 sobre este fondo.
                         <span
-                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning"
+                          className="inline-flex shrink-0 items-center gap-1 rounded-full border border-warning/40 bg-warning/10 px-1.5 py-px text-[10px] font-bold uppercase tracking-wide text-warning-text"
                           title="El sistema detectó que el comentario menciona préstamo/financiamiento. Es una marca: la decisión de descartar es tuya."
                         >
                           <AlertTriangle className="size-3" aria-hidden />
                           Posible crédito
+                          {/* El title no llega a teclado ni a lectores: paridad sr-only. */}
+                          <span className="sr-only">
+                            . Marca automática: el comentario menciona préstamo o financiamiento; la decisión de descartar es tuya.
+                          </span>
                         </span>
                       ) : null}
                     </p>
@@ -280,6 +299,10 @@ export function Repartir() {
                   {enDescarte ? (
                     <div className="flex items-center gap-2 sm:w-[380px] sm:shrink-0">
                       <Select
+                        ref={(el) => {
+                          if (el) refMotivo.current.set(lead.id, el)
+                          else refMotivo.current.delete(lead.id)
+                        }}
                         value={motivoElegido}
                         disabled={enviando}
                         onChange={(e) => setMotivo((m) => ({ ...m, [lead.id]: e.target.value as MotivoDescarte | '' }))}
@@ -294,14 +317,21 @@ export function Repartir() {
                         size="sm"
                         variant="destructive"
                         disabled={!motivoElegido || enviando}
+                        aria-label={`Descartar a ${lead.nombre_completo}`}
                         onClick={() => {
                           if (!motivoElegido) return
-                          // Al terminar el intento (éxito O fallo) la fila vuelve a
-                          // modo normal: si reaparece (deshacer, resincronización),
-                          // no debe renacer con el modo descarte pegado.
-                          void descartar(lead, motivoElegido).then(() =>
-                            setDescartando((d) => ({ ...d, [lead.id]: false })),
-                          )
+                          // Al terminar el intento la fila vuelve a modo normal (si
+                          // reaparece por deshacer/resincronización no debe renacer
+                          // en modo descarte) y el foco ATERRIZA donde corresponde:
+                          // éxito → la fila ya no existe, va al contenedor de la
+                          // cola; fallo → al "Descartar" ghost de la misma fila.
+                          void descartar(lead, motivoElegido).then((ok) => {
+                            setDescartando((d) => ({ ...d, [lead.id]: false }))
+                            requestAnimationFrame(() => {
+                              if (ok) refCola.current?.focus()
+                              else refDescartarGhost.current.get(lead.id)?.focus()
+                            })
+                          })
                         }}
                       >
                         {enviando ? 'Cerrando…' : 'Descartar'}
@@ -310,7 +340,13 @@ export function Repartir() {
                         size="sm"
                         variant="ghost"
                         disabled={enviando}
-                        onClick={() => setDescartando((d) => ({ ...d, [lead.id]: false }))}
+                        aria-label={`Cancelar el descarte de ${lead.nombre_completo}`}
+                        onClick={() => {
+                          setDescartando((d) => ({ ...d, [lead.id]: false }))
+                          // El botón que tiene el foco se desmonta: devolverlo al
+                          // "Descartar" ghost que reaparece en su lugar.
+                          requestAnimationFrame(() => refDescartarGhost.current.get(lead.id)?.focus())
+                        }}
                       >
                         Cancelar
                       </Button>
@@ -338,10 +374,19 @@ export function Repartir() {
                         {enviando ? 'Enviando…' : 'Repartir'}
                       </Button>
                       <Button
+                        ref={(el) => {
+                          if (el) refDescartarGhost.current.set(lead.id, el)
+                          else refDescartarGhost.current.delete(lead.id)
+                        }}
                         size="sm"
                         variant="ghost"
                         disabled={enviando}
-                        onClick={() => setDescartando((d) => ({ ...d, [lead.id]: true }))}
+                        onClick={() => {
+                          setDescartando((d) => ({ ...d, [lead.id]: true }))
+                          // El foco sigue al modo: aterriza en el select de motivo
+                          // (su aria-label anuncia el cambio al lector de pantalla).
+                          requestAnimationFrame(() => refMotivo.current.get(lead.id)?.focus())
+                        }}
                         aria-label={`Descartar a ${lead.nombre_completo} de la cola`}
                       >
                         Descartar
