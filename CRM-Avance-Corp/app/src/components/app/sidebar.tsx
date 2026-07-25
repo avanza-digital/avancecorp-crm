@@ -156,7 +156,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
     [],
   )
 
-  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
   const items = NAV.filter((n) => (leadsVisibles || !esVistaLeads(n.id)) && (!n.cap || can(rol, n.cap)))
     // Rótulo por rol de la pantalla fusionada: el vendedor ve "Mi cartera"; quien supervisa, "Cartera".
     .map((n) => (n.id === 'mi-cartera' && can(rol, 'verEquipo') ? { ...n, label: 'Cartera' } : n))
