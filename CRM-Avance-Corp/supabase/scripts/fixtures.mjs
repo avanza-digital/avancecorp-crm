@@ -388,6 +388,9 @@ export const TRANSIENT_IDS = Object.freeze({
   descarteLeadCarrera: randomUUID(),
   // C1-ter — la vista de descartados (pestaña del coordinador).
   descarteLeadVista: randomUUID(),
+  // El reloj del vendedor — tenencia_desde (mide al asesor, no al lead).
+  tenenciaLeadViejo: randomUUID(),
+  tenenciaLeadPropio: randomUUID(),
   foreignCreatorTarea: randomUUID(),
   directoryTarea: randomUUID(),
   portalClientTarea: randomUUID(),

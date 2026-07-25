@@ -4,7 +4,7 @@
 // así la misma función sirve para vendedor/supervisor/gerencia/directorio.
 //
 // Los colores salen de lib/semaforo.ts (paleta única, sin verde en el chrome).
-import { ETAPAS, ORIGENES_TODOS, TERMINALES_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
+import { ETAPAS, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
 import { SEMAFORO } from './semaforo'
 
 export const DIA_MS = 86_400_000
@@ -120,6 +120,30 @@ export function indexarUltimaActividad(acts: Actividad[]): IndiceUltimaActividad
 }
 
 /**
+ * Índice del último CONTACTO REAL (llamada, WhatsApp, reunión) — NO de cualquier
+ * fila del timeline.
+ *
+ * Por qué existe (auditoría 2026-07-25, hallazgo crítico verificado en prod):
+ * el timeline se llena de actividades que emite el SISTEMA, no una persona.
+ * Cada movimiento de tenencia escribe una `reasignacion` (trigger
+ * `private.trg_leads_reasignacion` en el servidor + copia optimista del store),
+ * y cada cambio de etapa un `cambio_etapa`. Como `colaDe` preguntaba "¿tiene
+ * ALGUNA actividad?" para decidir si nadie lo ha contactado, **todo lead que
+ * pasaba por el circuito Rosa → supervisor → vendedor salía de la cola el
+ * instante en que se asignaba**: llegaba con su `reasignacion` puesta. El
+ * vendedor veía "Al día ✦ sin pendientes" sobre un lead que nadie había
+ * llamado. En prod el 100% de las actividades eran `reasignacion`/`cambio_etapa`.
+ *
+ * `indexarUltimaActividad` se deja INTACTA: el timeline de la ficha sí quiere
+ * verlo todo, y las métricas rotuladas "Última actividad" siguen midiendo
+ * actividad a secas. Este índice es solo para las señales que afirman que
+ * alguien HABLÓ con el cliente.
+ */
+export function indexarUltimoContacto(acts: Actividad[]): IndiceUltimaActividad {
+  return indexarUltimaActividad(acts.filter((a) => TIPOS_CONTACTO_K.has(a.tipo)))
+}
+
+/**
  * Días (con fracción, nunca negativos) desde un ISO hasta `ahora` (epoch ms).
  * Pasa el reloj vivo de useAhora() como `ahora` para que el valor refresque
  * solo — NUNCA re-derivar con Date.now() en render (queda congelado).
@@ -139,6 +163,39 @@ function diasSinActividadIndexado(
 }
 
 /**
+ * Instante desde el que se mide la espera de un lead ANTE SU DUEÑO ACTUAL: el
+ * MÁS RECIENTE entre su última actividad y el momento en que su asesor lo
+ * recibió (`tenencia_desde`).
+ *
+ * Por qué existe (pedido de Miguel, 2026-07-24): con el circuito de leads vivo
+ * — origen → hoja → cola de Rosa → bandeja del supervisor → vendedor — un lead
+ * puede pasar DÍAS antes de llegar a un asesor. Midiendo desde `creado_en`, su
+ * cola lo pintaba en ROJO CRÍTICO el primer segundo que lo veía, culpándolo de
+ * una espera que no fue suya. Tomar el MÁXIMO resuelve de una vez los tres
+ * casos: el lead recién asignado arranca en cero; el TRANSFERIDO no le hereda
+ * al nuevo dueño la mora del anterior (aunque tenga actividades viejas); y el
+ * lead sin dueño —`tenencia_desde` null, la cola de Rosa— sigue midiéndose
+ * desde que entró, que es lo correcto para quien lo reparte.
+ *
+ * SOLO para la cola de acción. `diasSinActividadMax` y `estancados` siguen
+ * midiendo inactividad PURA: sus etiquetas dicen "Última actividad" y mezclar
+ * la tenencia ahí las volvería mentira.
+ */
+function diasEnEsperaIndexado(
+  lead: Lead,
+  indice: IndiceUltimaActividad,
+  ahora: number,
+): number {
+  const ultima = indice.get(lead.id)?.creado_en ?? lead.creado_en
+  const tenencia = lead.tenencia_desde
+  if (tenencia == null) return diasDesdeReferencia(ultima, ahora)
+  // NaN si el ISO viniera corrupto → la comparación da false y degradamos a la
+  // referencia de siempre en vez de romper la cola.
+  const referencia = Date.parse(tenencia) > Date.parse(ultima) ? tenencia : ultima
+  return diasDesdeReferencia(referencia, ahora)
+}
+
+/**
  * Días (con fracción) sin actividad: desde la última actividad, o desde
  * creado_en si el lead nunca fue tocado. Nunca negativo.
  * `ahora` (epoch ms, default Date.now()) permite un reloj vivo (useAhora)
@@ -154,15 +211,21 @@ export function diasSinActividad(lead: Lead, acts: Actividad[], ahora: number = 
  * Reglas (contrato F1c):
  *  - vendedor_id null → por_repartir (crítica) — solo la ven supervisor/gerencia
  *    porque el ámbito del vendedor nunca incluye parkeados.
- *  - nuevo SIN ninguna actividad → sin_responder (crítica si ≥1 día; media antes).
- *  - propuesta_enviada sin actividad ≥5 días → propuesta_sin_respuesta (media).
- *  - contactado/reunion_agendada sin actividad ≥3 días → seguimiento (baja).
+ *  - nuevo SIN NINGÚN CONTACTO → sin_responder (crítica si ≥1 día; media antes).
+ *  - propuesta_enviada sin contacto ≥5 días → propuesta_sin_respuesta (media).
+ *  - contactado/reunion_agendada sin contacto ≥3 días → seguimiento (baja).
+ *
+ * ⚠️ TODA la cola se mide contra el último CONTACTO REAL, no contra cualquier
+ * fila del timeline (auditoría 2026-07-25). Las actividades que emite el
+ * SISTEMA —`reasignacion` en cada movimiento de tenencia, `cambio_etapa` en
+ * cada paso de etapa— no son trabajo comercial: contarlas hacía que un lead
+ * recién repartido saliera de la cola por completo, porque llegaba con su
+ * `reasignacion` ya puesta. Ver `indexarUltimoContacto`.
  */
 export function colaDe(
   leads: Lead[],
   acts: Actividad[],
   ahora: number = Date.now(),
-  indicePrevio?: IndiceUltimaActividad,
   // Leads con tarea PENDIENTE en la agenda (Fase B): los buckets por
   // INACTIVIDAD (seguimiento/propuesta) pasan a ser el FALLBACK de quien no
   // tiene plan — un lead con tarea futura ya tiene dueño de su siguiente paso.
@@ -171,16 +234,34 @@ export function colaDe(
   conTareaPendiente?: ReadonlySet<string>,
 ): ItemCola[] {
   const items: ItemCola[] = []
-  const indice = indicePrevio ?? indexarUltimaActividad(acts)
+  // El índice se construye AQUÍ DENTRO a propósito: antes se aceptaba uno ya
+  // calculado por el caller, pero `IndiceUltimaActividad` es el mismo TIPO para
+  // el índice de toda actividad y para el de contacto — nada impedía pasar el
+  // equivocado, y el compilador no diría nada. Esa ambigüedad es justo lo que
+  // dejó vivo el bug. Filtrar 3 tipos sobre unas pocas filas no es un costo real.
+  const indice = indexarUltimoContacto(acts)
   for (const lead of leads) {
     if (!esAbierto(lead)) continue
     const ultima = indice.get(lead.id)
-    const dias = diasSinActividadIndexado(lead, indice, ahora)
+    // La espera se mide ANTE SU DUEÑO ACTUAL, no desde que el lead entró al
+    // CRM: quien acaba de recibirlo no puede nacer en rojo (ver
+    // diasEnEsperaIndexado). Sin dueño, `tenencia_desde` es null y esto es
+    // exactamente lo de siempre.
+    const dias = diasEnEsperaIndexado(lead, indice, ahora)
     const tienePlan = conTareaPendiente?.has(lead.id) === true
     if (lead.vendedor_id == null) {
       items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo` })
     } else if (lead.etapa === 'nuevo' && !ultima) {
-      items.push({ lead, bucket: 'sin_responder', sev: dias >= 1 ? 'critica' : 'media', dias, motivo: `Entró ${haceTexto(dias)} y nadie lo ha contactado` })
+      // El motivo lleva LOS DOS relojes cuando difieren de verdad (≥1 día): el
+      // del asesor —que es el que lo juzga— y el del cliente, que no puede
+      // desaparecer. Alguien lleva días esperando aunque su asesor lo tenga
+      // hace minutos, y esa urgencia es real. Redacción neutra a propósito:
+      // esta cola también la leen supervisor y gerencia sobre leads ajenos.
+      const esperaCliente = diasDesdeReferencia(lead.creado_en, ahora)
+      const motivo = esperaCliente - dias >= 1
+        ? `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
+        : `Entró ${haceTexto(dias)} y nadie lo ha contactado`
+      items.push({ lead, bucket: 'sin_responder', sev: dias >= 1 ? 'critica' : 'media', dias, motivo })
     } else if (tienePlan) {
       continue // tiene próxima acción agendada: su cola es la agenda, no esta
     } else if (lead.etapa === 'propuesta_enviada' && dias >= 5) {
@@ -216,16 +297,24 @@ export interface MetricasVendedor {
   capitalUSD: number // ídem en USD — JAMÁS se suma con el PEN
   convertidos: number
   conversion: number // 0-100: convertidos / total de sus leads
-  sinTocar: number // abiertos sin NINGUNA actividad registrada
+  /** Abiertos que NADIE ha contactado (ni llamada, ni WhatsApp, ni reunión).
+   *  Cuenta CONTACTO, no cualquier fila del timeline: la `reasignacion` que
+   *  escribe el sistema al repartir un lead lo dejaba en 0 para siempre. */
+  sinTocar: number
   diasSinActividadMax: number // el abierto más abandonado (0 si no tiene abiertos)
 }
 
 /**
  * Métricas de captación por vendedor sobre el ámbito recibido.
  * Orden: capitalPEN desc (el ranking por capital captado en proceso).
+ *
+ * Ojo a los DOS índices: `sinTocar` afirma que nadie habló con el cliente y por
+ * tanto mide CONTACTO; `diasSinActividadMax` alimenta una columna rotulada
+ * "Última actividad" y sigue midiendo actividad a secas. No se fusionan.
  */
 export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Actividad[], ahora: number = Date.now(), indicePrevio?: IndiceUltimaActividad): MetricasVendedor[] {
   const indice = indicePrevio ?? indexarUltimaActividad(acts)
+  const indiceContacto = indexarUltimoContacto(acts)
   const porVendedor = new Map<string, Lead[]>()
   for (const lead of leads) {
     if (!lead.activo || !lead.vendedor_id) continue
@@ -243,7 +332,7 @@ export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Activida
       let sinTocar = 0
       let diasMax = 0
       for (const l of abiertos) {
-        if (!indice.has(l.id)) sinTocar++
+        if (!indiceContacto.has(l.id)) sinTocar++
         const d = diasSinActividadIndexado(l, indice, ahora)
         if (d > diasMax) diasMax = d
       }

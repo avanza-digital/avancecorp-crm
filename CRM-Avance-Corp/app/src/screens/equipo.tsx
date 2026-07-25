@@ -353,7 +353,10 @@ function EquipoSupervisor(): JSX.Element {
     const conTarea = new Set(
       tareas.filter((x) => x.estado === 'pendiente' && x.activo && x.lead_id).map((x) => x.lead_id as string),
     )
-    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, indice, conTarea)
+    // colaDe ya no recibe índice: se construye el suyo de CONTACTO (los tipos
+    // de índice son indistinguibles y pasarle el de actividad reintroduciría el
+    // bug de la `reasignacion` que vaciaba la cola).
+    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, conTarea)
 
     // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
     // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.

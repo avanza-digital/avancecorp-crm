@@ -93,7 +93,9 @@ export function HoySupervisor(): JSX.Element {
     const conTarea = new Set(
       tareas.filter((t) => t.estado === 'pendiente' && t.activo && t.lead_id).map((t) => t.lead_id as string),
     )
-    const cola = colaDe(ambito.leads, actividades, ahora, indice, conTarea)
+    // colaDe ya no recibe índice: construye el suyo de CONTACTO (ver
+    // indexarUltimoContacto — la `reasignacion` del sistema vaciaba la cola).
+    const cola = colaDe(ambito.leads, actividades, ahora, conTarea)
     const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
     const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora, indice)
     const alertas = estancados(ambito.leads, actividades, 5, ahora, indice, conTarea)

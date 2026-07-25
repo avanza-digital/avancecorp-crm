@@ -249,6 +249,13 @@ export interface Database {
           activo: boolean
           creado_por: string | null
           creado_en: string
+          // El reloj del ASESOR (20260725012707): instante en que el vendedor
+          // ACTUAL recibió el lead; null fuera de tenencia operativa. Igual que
+          // los sellos del descarte, lo gobierna un trigger
+          // (zzz_tenencia_desde) y por eso NO aparece en Insert/Update: lo que
+          // mande el cliente API se descarta. `creado_en` es el reloj del
+          // CLIENTE; este es el que mide al asesor.
+          tenencia_desde: string | null
           actualizado_en: string
         }
         Insert: {
