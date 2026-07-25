@@ -79,6 +79,7 @@ const COLUMNAS_LEAD = [
   'vendedor_id',
   'asignado_supervisor_id',
   'creado_en',
+  'tenencia_desde',
   'actualizado_en',
   'activo',
   'nota',
@@ -116,6 +117,11 @@ const LeadRowSchema = v.object({
   vendedor_id: v.nullable(v.string()),
   asignado_supervisor_id: v.nullable(v.string()),
   creado_en: v.string(),
+  // OPCIONAL a propósito, igual que `genero`: si el front corriera contra una
+  // base sin la migración de tenencia, el lead debe seguir apareciendo en la
+  // cartera — la cola degrada a medir por `creado_en`, que es el comportamiento
+  // viejo, en vez de vaciarse.
+  tenencia_desde: v.optional(v.nullable(v.string())),
   actualizado_en: v.string(),
   activo: v.boolean(),
   nota: v.nullable(v.string()),
@@ -222,6 +228,7 @@ function aLead(fila: LeadRow): Lead {
     vendedor_id: fila.vendedor_id,
     asignado_supervisor_id: fila.asignado_supervisor_id,
     creado_en: fila.creado_en,
+    tenencia_desde: fila.tenencia_desde ?? null,
     activo: fila.activo,
     nota: fila.nota,
   }

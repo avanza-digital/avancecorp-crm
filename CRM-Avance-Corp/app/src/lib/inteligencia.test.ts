@@ -123,6 +123,137 @@ describe('señales comerciales', () => {
     expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
     expect(cola[0]?.motivo).toContain('hace horas')
   })
+
+  // El reloj del asesor (pedido de Miguel, 2026-07-24): con el circuito vivo un
+  // lead pasa días en la cola de Rosa y en la bandeja del supervisor antes de
+  // llegar a un vendedor. Medir desde `creado_en` lo pintaba en rojo el primer
+  // segundo que lo veía.
+  describe('mide la espera ante el DUEÑO ACTUAL, no desde que entró el lead', () => {
+    it('un lead viejo recién asignado NO nace en crítico', () => {
+      const cola = colaDe(
+        [lead({ id: 'recien', creado_en: haceDias(3), tenencia_desde: haceDias(0.02) })],
+        [],
+        AHORA,
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
+      // …pero la espera del CLIENTE no se esconde: va en el mismo motivo.
+      expect(cola[0]?.motivo).toContain('Asignado hace horas')
+      expect(cola[0]?.motivo).toContain('el cliente escribió hace 3 días')
+    })
+
+    it('el reloj sí corre una vez asignado: a los 2 días es crítico', () => {
+      const cola = colaDe(
+        [lead({ id: 'moroso', creado_en: haceDias(5), tenencia_desde: haceDias(2) })],
+        [],
+        AHORA,
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]?.dias).toBeCloseTo(2)
+    })
+
+    it('sin dueño (cola de Rosa) sigue midiéndose desde que entró', () => {
+      const cola = colaDe(
+        [lead({ id: 'sin-duenio', vendedor_id: null, creado_en: haceDias(4) })],
+        [],
+        AHORA,
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'por_repartir', sev: 'critica' })
+      expect(cola[0]?.dias).toBeCloseTo(4)
+    })
+
+    it('el transferido no le hereda al nuevo dueño la mora del anterior', () => {
+      // Actividad vieja del asesor previo + transferencia reciente: manda la
+      // transferencia (el MÁXIMO de las dos referencias).
+      const cola = colaDe(
+        [lead({ id: 'transferido', etapa: 'contactado', creado_en: haceDias(30), tenencia_desde: haceDias(0.5) })],
+        [actividad('transferido', 20)],
+        AHORA,
+      )
+      expect(cola).toHaveLength(0) // 0.5 días de tenencia < los 3 de seguimiento
+    })
+
+    it('sin el dato (demo o base sin migración) se comporta como siempre', () => {
+      const cola = colaDe([lead({ id: 'legacy', creado_en: haceDias(2) })], [], AHORA)
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]?.motivo).toBe('Entró hace 2 días y nadie lo ha contactado')
+    })
+
+    it('un ISO corrupto degrada a la referencia de siempre en vez de romper la cola', () => {
+      const cola = colaDe(
+        [lead({ id: 'corrupto', creado_en: haceDias(2), tenencia_desde: 'no-es-fecha' })],
+        [],
+        AHORA,
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]?.dias).toBeCloseTo(2)
+    })
+  })
+
+  // Auditoría 2026-07-25 (hallazgo crítico verificado en prod): el timeline se
+  // llena de actividades que emite el SISTEMA. Como la cola preguntaba "¿tiene
+  // ALGUNA actividad?", TODO lead repartido salía de la cola en el instante en
+  // que se asignaba — llegaba con su `reasignacion` puesta. El vendedor veía
+  // "Al día ✦ sin pendientes" sobre un lead que nadie había llamado.
+  describe('solo el CONTACTO REAL saca un lead de la cola', () => {
+    // El caso EXACTO de producción: el trigger del servidor escribe la
+    // `reasignacion` con el mismo instante que `tenencia_desde`.
+    const asignadoHace = (dias: number) => ({
+      lead: lead({ id: 'repartido', creado_en: haceDias(3), tenencia_desde: haceDias(dias) }),
+      acts: [actividad('repartido', dias, { tipo: 'reasignacion' })],
+    })
+
+    it('un lead recién repartido SIGUE en sin_responder pese a su actividad de reasignación', () => {
+      const { lead: l, acts } = asignadoHace(0.02)
+      const cola = colaDe([l], acts, AHORA)
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
+      expect(cola[0]?.motivo).toContain('el cliente escribió hace 3 días')
+    })
+
+    it('un cambio de etapa automático tampoco cuenta como haberlo contactado', () => {
+      const cola = colaDe(
+        [lead({ id: 'movido', creado_en: haceDias(3), tenencia_desde: haceDias(2) })],
+        [actividad('movido', 1, { tipo: 'cambio_etapa' })],
+        AHORA,
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+    })
+
+    it('una nota interna tampoco: escribirla no es haber hablado con la persona', () => {
+      const cola = colaDe(
+        [lead({ id: 'anotado', creado_en: haceDias(3), tenencia_desde: haceDias(2) })],
+        [actividad('anotado', 1, { tipo: 'nota' })],
+        AHORA,
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+    })
+
+    it.each([
+      'llamada_realizada',
+      'llamada_no_contestada',
+      'whatsapp_enviado',
+      'whatsapp_recibido',
+      'reunion_realizada',
+    ] as const)('una %s SÍ lo saca de sin_responder', (tipo) => {
+      const cola = colaDe(
+        [lead({ id: 'contactado-ya', creado_en: haceDias(3), tenencia_desde: haceDias(2) })],
+        [actividad('contactado-ya', 1, { tipo })],
+        AHORA,
+      )
+      // Etapa 'nuevo' con contacto ya no es speed-to-lead; y sin ser
+      // contactado/propuesta tampoco cae en los buckets por inactividad.
+      expect(cola.find((i) => i.lead.id === 'contactado-ya')?.bucket).not.toBe('sin_responder')
+    })
+
+    it('el cronómetro tiene de dónde salir: dias se mide desde la tenencia, no desde la reasignación', () => {
+      // La reasignación comparte instante con tenencia_desde (mismo statement
+      // en el servidor), así que ambos dan lo mismo — pero el lead DEBE estar
+      // en la cola para que el cronómetro llegue a pintarse.
+      const { lead: l, acts } = asignadoHace(0.02)
+      const cola = colaDe([l], acts, AHORA)
+      expect(cola).toHaveLength(1)
+      expect(cola[0]?.dias).toBeCloseTo(0.02, 2)
+    })
+  })
 })
 
 describe('agregaciones comerciales', () => {
@@ -146,7 +277,12 @@ describe('agregaciones comerciales', () => {
       capitalUSD: 50,
       convertidos: 1,
       conversion: 25,
-      sinTocar: 1,
+      // 2, no 1: `sinTocar` cuenta CONTACTO (llamada/WhatsApp/reunión) y la
+      // única actividad del fixture es una `nota`. Escribir una nota interna no
+      // es haber hablado con el cliente — decisión de Miguel 2026-07-25.
+      sinTocar: 2,
+      // …pero "Última actividad" sigue midiendo actividad a secas, así que la
+      // nota de hace 2 días SÍ cuenta aquí: el máximo lo pone 'usd' con 4.
       diasSinActividadMax: 4,
     })
     expect(filas[1]).toMatchObject({
@@ -285,7 +421,7 @@ describe('Fase B — la cola y estancados respetan el PLAN (tareas pendientes)',
   it('lead con tarea pendiente sale del fallback por inactividad; asignación y speed-to-lead se mantienen', () => {
     const ahora = Date.now()
     const conTarea = new Set(['con-plan', 'nuevo-frio', 'parkeado'])
-    const cola = colaDe(base(), [], ahora, undefined, conTarea)
+    const cola = colaDe(base(), [], ahora, conTarea)
     const buckets = new Map(cola.map((i) => [i.lead.id, i.bucket]))
     expect(buckets.has('con-plan')).toBe(false) // tiene plan → su cola es la agenda
     expect(buckets.get('sin-plan')).toBe('seguimiento') // fallback para quien no tiene

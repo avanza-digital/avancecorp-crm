@@ -332,6 +332,8 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.descarteLeadLimpio,
       TRANSIENT_IDS.descarteLeadCarrera,
       TRANSIENT_IDS.descarteLeadVista,
+      TRANSIENT_IDS.tenenciaLeadViejo,
+      TRANSIENT_IDS.tenenciaLeadPropio,
     ]),
   );
   // Metas sentinela de testObjetivos: periodo 2099-12 jamas es real; el DELETE
@@ -1131,6 +1133,156 @@ async function testReassignmentTrigger(sessions, seed) {
       'UPDATE sin cambio de tenencia no emite reasignacion',
       `emitio ${activities.count}`);
   }
+}
+
+/**
+ * El reloj del vendedor — crm.leads.tenencia_desde (pedido de Miguel 2026-07-24).
+ *
+ * Complementa al oraculo SQL (test-tenencia.sql) por la via PostgREST REAL, que
+ * es la unica que recorre grants por columna + RLS + trigger juntos. Prueba lo
+ * que de verdad importa en produccion: que el asesor LEA su reloj, que NO pueda
+ * falsificarlo (el ACL de crm.leads es de TABLA, asi que PostgREST acepta la
+ * columna en el body: la defensa es el trigger, no un 403) y que una asignacion
+ * de hoy sobre un lead viejo arranque el reloj HOY.
+ */
+async function testTenencia(sessions, seed) {
+  console.log('\n— El reloj del vendedor: tenencia_desde —');
+  const sup1 = sessions.sup1;
+  const vend1 = sessions.vend1;
+  const vend3 = sessions.vend3;
+  const sup1Id = seed.profileIdByKey.sup1;
+  const vend1Id = seed.profileIdByKey.vend1;
+
+  const common = {
+    creado_por: sup1Id,
+    etapa: 'nuevo',
+    moneda: 'PEN',
+    monto_estimado: 1000,
+    origen: 'otro',
+  };
+
+  // ── Un lead VIEJO parkeado en la bandeja de sup1 (el caso de produccion:
+  // paso dias en la cola de Rosa antes de que alguien lo bajara a un asesor).
+  await requireAdmin(
+    'crear lead viejo parkeado para el reloj de tenencia',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.tenenciaLeadViejo,
+      nombre_completo: 'TENENCIA LEAD VIEJO TRANSIENT',
+      telefono: '999000031',
+      vendedor_id: null,
+      asignado_supervisor_id: sup1Id,
+    }),
+  );
+
+  const sinDuenio = await positive(
+    'leer el lead parkeado antes de asignarlo',
+    admin.schema('crm').from('leads')
+      .select('id, creado_en, tenencia_desde')
+      .eq('id', TRANSIENT_IDS.tenenciaLeadViejo)
+      .single(),
+  );
+  check(sinDuenio?.data?.tenencia_desde == null,
+    'un lead parkeado en bandeja NO tiene reloj de asesor',
+    `tenencia_desde=${sinDuenio?.data?.tenencia_desde ?? 'null'}`);
+
+  // Envejecer creado_en exige saltarse leads_before_update (lo restaura desde
+  // OLD), cosa que ni service_role puede por PostgREST. En su lugar se compara
+  // contra el instante de la asignacion, que es lo que la migracion promete.
+  const antesDeAsignar = Date.now();
+  const asignado = await positive(
+    'sup1 baja el lead de su bandeja a vend1',
+    sup1.client.schema('crm').from('leads')
+      .update({ vendedor_id: vend1Id, asignado_supervisor_id: null })
+      .eq('id', TRANSIENT_IDS.tenenciaLeadViejo)
+      .select('id, creado_en, tenencia_desde')
+      .single(),
+  );
+  const relojAsignacion = asignado?.data?.tenencia_desde;
+  check(relojAsignacion != null,
+    'asignar a un vendedor enciende el reloj de tenencia',
+    `tenencia_desde=${relojAsignacion ?? 'null'}`);
+  check(relojAsignacion != null
+    && Date.parse(relojAsignacion) >= antesDeAsignar - 60_000,
+    'el reloj arranca en la ASIGNACION, no cuando entro el lead',
+    `tenencia_desde=${relojAsignacion} creado_en=${asignado?.data?.creado_en}`);
+
+  // ── El asesor LEE su propio reloj (grant por columna + RLS).
+  const leidoPorDuenio = await positive(
+    'vend1 lee el reloj de su propio lead',
+    vend1.client.schema('crm').from('leads')
+      .select('id, tenencia_desde')
+      .eq('id', TRANSIENT_IDS.tenenciaLeadViejo)
+      .maybeSingle(),
+  );
+  check(leidoPorDuenio?.data?.tenencia_desde != null,
+    'el vendedor recibe tenencia_desde de su lead (sin grant, PostgREST la omitiria en silencio)',
+    `fila=${JSON.stringify(leidoPorDuenio?.data ?? null)}`);
+
+  // ── INFALSIFICABLE. No esperamos un 403: el ACL de crm.leads es de TABLA, de
+  // modo que PostgREST acepta la columna. Lo que la defiende es el trigger, que
+  // reimpone el valor anterior — asi que el UPDATE responde OK y NO cambia nada.
+  await requireAdmin(
+    'crear lead propio de vend1 para el intento de falsificacion',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.tenenciaLeadPropio,
+      nombre_completo: 'TENENCIA LEAD PROPIO TRANSIENT',
+      telefono: '999000032',
+      vendedor_id: vend1Id,
+      asignado_supervisor_id: null,
+    }),
+  );
+  const original = await positive(
+    'leer el reloj original del lead propio',
+    admin.schema('crm').from('leads')
+      .select('id, tenencia_desde')
+      .eq('id', TRANSIENT_IDS.tenenciaLeadPropio)
+      .single(),
+  );
+  const falsificado = new Date(Date.now() - 90 * 86_400_000).toISOString();
+  await vend1.client.schema('crm').from('leads')
+    .update({ tenencia_desde: falsificado })
+    .eq('id', TRANSIENT_IDS.tenenciaLeadPropio);
+  const trasIntento = await positive(
+    'releer el reloj tras el intento de falsificacion',
+    admin.schema('crm').from('leads')
+      .select('id, tenencia_desde')
+      .eq('id', TRANSIENT_IDS.tenenciaLeadPropio)
+      .single(),
+  );
+  check(trasIntento?.data?.tenencia_desde === original?.data?.tenencia_desde,
+    'un vendedor NO puede falsificar su propio reloj (lo reimpone el trigger)',
+    `antes=${original?.data?.tenencia_desde} despues=${trasIntento?.data?.tenencia_desde}`);
+
+  // ── El ruido no lo mueve: editar la nota no reinicia el reloj.
+  await positive(
+    'vend1 edita la nota de su lead',
+    vend1.client.schema('crm').from('leads')
+      .update({ nota: 'llamar por la tarde' })
+      .eq('id', TRANSIENT_IDS.tenenciaLeadPropio),
+  );
+  const trasEditar = await positive(
+    'releer el reloj tras editar la nota',
+    admin.schema('crm').from('leads')
+      .select('id, tenencia_desde')
+      .eq('id', TRANSIENT_IDS.tenenciaLeadPropio)
+      .single(),
+  );
+  check(trasEditar?.data?.tenencia_desde === original?.data?.tenencia_desde,
+    'editar el lead no reinicia el reloj de tenencia',
+    `antes=${original?.data?.tenencia_desde} despues=${trasEditar?.data?.tenencia_desde}`);
+
+  // ── Fuera del ambito no se ve la fila (ni su reloj).
+  const ajeno = await positive(
+    'vend3 (otro equipo) intenta leer el lead de vend1',
+    vend3.client.schema('crm').from('leads')
+      .select('id, tenencia_desde')
+      .eq('id', TRANSIENT_IDS.tenenciaLeadPropio),
+  );
+  check((ajeno?.data?.length ?? 0) === 0,
+    'un vendedor de otro equipo no ve el lead ajeno ni su reloj',
+    `filas=${ajeno?.data?.length ?? 'n/a'}`);
 }
 
 async function testTareaIsolation(sessions, seed) {
@@ -2420,6 +2572,7 @@ async function main() {
       await testCrossReads(sessions, verifiedSeed);
       await testWrites(sessions, verifiedSeed);
       await testReassignmentTrigger(sessions, verifiedSeed);
+      await testTenencia(sessions, verifiedSeed);
       await testTareaIsolation(sessions, verifiedSeed);
       await testTareaCloseRpc(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);

@@ -54,6 +54,32 @@ export const TIPOS_AUTO_K: ReadonlySet<string> = new Set(TIPOS_AUTO)
 /** Actividades que el usuario registra a mano (las automáticas SOLO las emite el store). */
 export type TipoActividadManual = Exclude<TipoActividad, (typeof TIPOS_AUTO)[number]>
 
+/**
+ * CONTACTO REAL con el cliente: haberle hablado, escrito o reunido con él.
+ *
+ * ESPEJO EXACTO del índice `crm.actividades_contacto_episodio_idx` y de
+ * `private.metricas_sla_global_core` — la BD ya define este conjunto y aquí NO
+ * se reinventa. Si allá cambia, cambia aquí (y al revés): son la misma regla.
+ *
+ * Es una LISTA BLANCA a propósito, no "todo lo que no sea automático": si
+ * mañana se añade un tipo nuevo de actividad de sistema, no debe colarse en
+ * silencio como si alguien hubiera contactado al cliente.
+ *
+ * `nota` queda FUERA por decisión de Miguel (2026-07-25): escribir una nota
+ * interna no es haber hablado con la persona, y el lead debe seguir gritando
+ * en la cola hasta que alguien lo llame de verdad.
+ */
+export const TIPOS_CONTACTO = [
+  'llamada_realizada',
+  'llamada_no_contestada',
+  'whatsapp_enviado',
+  'whatsapp_recibido',
+  'reunion_realizada',
+] as const satisfies readonly TipoActividad[]
+
+/** Set runtime de los tipos de contacto — derivado de TIPOS_CONTACTO (fuente única). */
+export const TIPOS_CONTACTO_K: ReadonlySet<string> = new Set(TIPOS_CONTACTO)
+
 /** Orígenes retirados del selector, conservados para leer leads históricos. */
 const ORIGENES_HEREDADOS = [
   { k: 'web', label: 'Web' },
@@ -216,6 +242,16 @@ export interface Lead {
   /** Parkeado = vendedor_id null asignado a la bandeja de un supervisor (espejo F0). */
   asignado_supervisor_id?: string | null
   creado_en: string
+  /**
+   * Instante en que el VENDEDOR ACTUAL recibió el lead (null si no tiene dueño,
+   * está inactivo o cerrado). Es el reloj que mide AL ASESOR: `creado_en` mide
+   * cuánto lleva esperando EL CLIENTE, y entre uno y otro puede haber días de
+   * cola de Rosa y bandeja del supervisor. La cola de acción usa este para no
+   * pintar en rojo a quien acaba de recibir el lead. Lo sella el servidor
+   * (trigger espejo del ledger `crm.lead_asignaciones`); opcional porque el
+   * modo demo no lo trae y una base sin la migración tampoco.
+   */
+  tenencia_desde?: string | null
   /** En terminales ≡ instante del cierre (un lead cerrado es inmutable para el
    *  API) — lo usan las series de tendencia. Opcional: demo no lo trae. */
   actualizado_en?: string

@@ -197,7 +197,7 @@ guards en `lib/vistas.ts` y omisión de `listarEquipo` en el boot del coordinado
 
 | Version | Nombre | Qué hace | Estado |
 |---------|--------|----------|--------|
-| 20260723120000 | crm_descarte_coordinador_c1b | **Los leads que piden préstamo dejan de llegar al vendedor, con DOBLE filtro** (sobre 187 leads reales solo 1 pide crédito → un clasificador que cerrara solo destruiría depositantes por falsos positivos; por eso el código MARCA y solo Rosa CIERRA): (a) motivo `pide_credito` en `leads_motivo_descarte_check` (medir la basura de crédito sin contaminar `sin_interes`); (b) columnas `clasificacion_auto` (CHECK `posible_credito`\|null) + sello `descartado_en`/`descartado_por` (FK `public.perfiles` ON DELETE SET NULL, autorizada por Miguel) con grants por columna + 3 índices parciales; (c) `private.redactar_pii(text)` — correo→celular (con separadores)→documento, fuente única de redacción; (d) trigger `zz_sello_descarte` (último BEFORE): clasifica en el INSERT con regla ESTRECHA `\m(prestam\|financiamient)` sobre nota sin tildes (auditoría 2026-07-23: `credit*` marcaba "cooperativa de ahorro y crédito" y `prestar` marcaba "prestar información"), sella el cierre con `statement_timestamp()`+`auth.uid()`, limpia el sello al reabrir y hace `clasificacion_auto` INMUTABLE (dato de medición: sin él no hay matriz de confusión); (e) `leads_por_repartir()` v2 (DROP+CREATE por cambio de retorno, ACL re-emitida): + `clasificacion_auto` y `comentario` = nota REDACTADA y trunca a 400 — Rosa lee la pregunta del cliente, no sus datos de contacto; FIFO y filtros idénticos (la marca resalta en UI, no reordena); (f) `crm.descartar_lead(p_lead, p_motivo, p_nota)` — SOLO cola global (Rosa no cierra trabajo ajeno), FOR UPDATE + UPDATE CAS anti-carrera, idempotente para mismo actor+motivo (`ya_estaba`), nota se APPENDEA (`· DESCARTE: …`), no toca `activo` ni tenencia, descartar a un No Insista SÍ se permite (cerrar no es contactar); (g) `crm.deshacer_descarte(p_lead)` — ventana 24 h, SOLO descartes propios, reabre en `nuevo` (el guard incrementa `ciclo_actual`), choque con índice único vivo → 22023 humano. SQLSTATE: 42501 rol · 22023 argumento · P0002 fuera de cola/carrera/ajeno. Ambas RPC SECURITY DEFINER `search_path=''`, revoke public/anon + grant authenticated (clase WARN aceptada). Auditada ANTES de aplicar: 8 agentes, NO-GO→GO (`302b5c0`). | ⏳ escrita+auditada, SIN aplicar a ninguna base: pendiente branch → oráculo `DESCARTE_TX_OK` → gate RLS vivo (`testDescarte`) → advisors → merge |
+| 20260723120000 | crm_descarte_coordinador_c1b | **Los leads que piden préstamo dejan de llegar al vendedor, con DOBLE filtro** (sobre 187 leads reales solo 1 pide crédito → un clasificador que cerrara solo destruiría depositantes por falsos positivos; por eso el código MARCA y solo Rosa CIERRA): (a) motivo `pide_credito` en `leads_motivo_descarte_check` (medir la basura de crédito sin contaminar `sin_interes`); (b) columnas `clasificacion_auto` (CHECK `posible_credito`\|null) + sello `descartado_en`/`descartado_por` (FK `public.perfiles` ON DELETE SET NULL, autorizada por Miguel) con grants por columna + 3 índices parciales; (c) `private.redactar_pii(text)` — correo→celular (con separadores)→documento, fuente única de redacción; (d) trigger `zz_sello_descarte` (último BEFORE): clasifica en el INSERT con regla ESTRECHA `\m(prestam\|financiamient)` sobre nota sin tildes (auditoría 2026-07-23: `credit*` marcaba "cooperativa de ahorro y crédito" y `prestar` marcaba "prestar información"), sella el cierre con `statement_timestamp()`+`auth.uid()`, limpia el sello al reabrir y hace `clasificacion_auto` INMUTABLE (dato de medición: sin él no hay matriz de confusión); (e) `leads_por_repartir()` v2 (DROP+CREATE por cambio de retorno, ACL re-emitida): + `clasificacion_auto` y `comentario` = nota REDACTADA y trunca a 400 — Rosa lee la pregunta del cliente, no sus datos de contacto; FIFO y filtros idénticos (la marca resalta en UI, no reordena); (f) `crm.descartar_lead(p_lead, p_motivo, p_nota)` — SOLO cola global (Rosa no cierra trabajo ajeno), FOR UPDATE + UPDATE CAS anti-carrera, idempotente para mismo actor+motivo (`ya_estaba`), nota se APPENDEA (`· DESCARTE: …`), no toca `activo` ni tenencia, descartar a un No Insista SÍ se permite (cerrar no es contactar); (g) `crm.deshacer_descarte(p_lead)` — ventana 24 h, SOLO descartes propios, reabre en `nuevo` (el guard incrementa `ciclo_actual`), choque con índice único vivo → 22023 humano. SQLSTATE: 42501 rol · 22023 argumento · P0002 fuera de cola/carrera/ajeno. Ambas RPC SECURITY DEFINER `search_path=''`, revoke public/anon + grant authenticated (clase WARN aceptada). Auditada ANTES de aplicar: 8 agentes, NO-GO→GO (`302b5c0`). | ✅ **Producción 2026-07-24** (registrada `20260724152923`): branch `crm-descarte-c1b` → oráculo `DESCARTE_TX_OK` (D01–D55) → advisors sin clases nuevas → gate RLS vivo **309/309** → merge → branch borrado. Deploy FE `index-B9S8YLrv.js` |
 
 Oráculo: `supabase/scripts/test-descarte.sql` (patrón 4A-4C; éxito = token
 `DESCARTE_TX_OK`; D01–D55: clasificador marca/no-marca y el cliente API no decide,
@@ -214,7 +214,7 @@ deshacer personal y estado tras la carrera.
 
 | Version | Nombre | Qué hace | Estado |
 |---------|--------|----------|--------|
-| 20260724203052 | crm_descartados_coordinador_c1c | **La pestaña "Descartados" de Rosa** (pedido de Miguel): hoy el descarte desaparece de su pantalla y el "Deshacer" solo vive 15 s en un toast, pero `crm.deshacer_descarte` da 24 h — sin vista, esa ventana era inalcanzable. RPC nueva `crm.leads_descartados()` (SECURITY DEFINER `search_path=''`, STABLE) que lista los descartes recientes de la COLA GLOBAL (30 días, LIMIT 200, `descartado_en DESC`) con: `clasificacion_auto` (marca del código), `comentario` del cliente y `nota_descarte` de Rosa **REDACTADOS Y TRUNCADOS A 400 POR SEPARADO** (auditoría c1c: c1b appendea `· DESCARTE: …` al comentario → truncar el texto pegado empujaría la razón del cierre fuera del corte, y con ámbito ∅ no hay otra vía de recuperarla; se separan por el marcador `' · DESCARTE: '`), `motivo_descarte`, `descartado_en`, `descartado_por_nombre`, `creado_en`+`categoria_interes` (para avisar qué tan viejo es el lead que, al deshacerse, vuelve al frente del FIFO), y los hints de UI `es_mio` / `puede_deshacer` (propio + 24 h; el servidor RE-VALIDA todo en `deshacer_descarte`). **DOBLE filtro de alcance** (auditoría c1c): (1) tenencia actual nula (excluye descartes de cartera del vendedor, que tienen dueño) y (2) `exists` de rol `coordinador\|gerencia` sobre `descartado_por` — sin (2), un lead que un vendedor descartó y que gerencia liberó luego a la cola reaparecería con el nombre del vendedor. Gate `coordinador\|gerencia` activos (42501). Solo LECTURA sobre `crm.leads` + JOIN de lectura a `public.perfiles` (no altera public). `revoke public,anon` + `grant authenticated` (clase WARN 0029 aceptada). Auditada por workflow adversarial (4 lentes) ANTES de aplicar: veredicto GO, 4 hallazgos incorporados (separación comentario/nota, `creado_en`, filtro de autor, este ledger). | ⏳ escrita+auditada, SIN aplicar: pendiente branch → oráculo `DESCARTADOS_TX_OK` → gate RLS (`testDescarte` §F) → advisors → merge |
+| 20260724203052 | crm_descartados_coordinador_c1c | **La pestaña "Descartados" de Rosa** (pedido de Miguel): hoy el descarte desaparece de su pantalla y el "Deshacer" solo vive 15 s en un toast, pero `crm.deshacer_descarte` da 24 h — sin vista, esa ventana era inalcanzable. RPC nueva `crm.leads_descartados()` (SECURITY DEFINER `search_path=''`, STABLE) que lista los descartes recientes de la COLA GLOBAL (30 días, LIMIT 200, `descartado_en DESC`) con: `clasificacion_auto` (marca del código), `comentario` del cliente y `nota_descarte` de Rosa **REDACTADOS Y TRUNCADOS A 400 POR SEPARADO** (auditoría c1c: c1b appendea `· DESCARTE: …` al comentario → truncar el texto pegado empujaría la razón del cierre fuera del corte, y con ámbito ∅ no hay otra vía de recuperarla; se separan por el marcador `' · DESCARTE: '`), `motivo_descarte`, `descartado_en`, `descartado_por_nombre`, `creado_en`+`categoria_interes` (para avisar qué tan viejo es el lead que, al deshacerse, vuelve al frente del FIFO), y los hints de UI `es_mio` / `puede_deshacer` (propio + 24 h; el servidor RE-VALIDA todo en `deshacer_descarte`). **DOBLE filtro de alcance** (auditoría c1c): (1) tenencia actual nula (excluye descartes de cartera del vendedor, que tienen dueño) y (2) `exists` de rol `coordinador\|gerencia` sobre `descartado_por` — sin (2), un lead que un vendedor descartó y que gerencia liberó luego a la cola reaparecería con el nombre del vendedor. Gate `coordinador\|gerencia` activos (42501). Solo LECTURA sobre `crm.leads` + JOIN de lectura a `public.perfiles` (no altera public). `revoke public,anon` + `grant authenticated` (clase WARN 0029 aceptada). Auditada por workflow adversarial (4 lentes) ANTES de aplicar: veredicto GO, 4 hallazgos incorporados (separación comentario/nota, `creado_en`, filtro de autor, este ledger). | ✅ **Producción 2026-07-24** (registrada `20260724210352`): branch → oráculo `DESCARTADOS_TX_OK` → advisors sin clases nuevas → gate RLS vivo **319/319** → merge → branch borrado. Deploy FE `index-CmAeIm2U.js` |
 
 Oráculo: `supabase/scripts/test-descartados.sql` (patrón 4A-4C; éxito = token
 `DESCARTADOS_TX_OK`; V01–V24: gate 42501, alcance doble —L5 con dueño y L6
@@ -223,3 +223,67 @@ comentario/nota_descarte, `creado_en`/`categoria_interes`, `es_mio`/`puede_desha
 por actor y ventana, e integración con `deshacer_descarte`). Aserciones vivas
 adicionales en el bloque (F) de `testDescarte` (`test-rls.mjs`): vía PostgREST real,
 gate por rol, `es_mio`/`puede_deshacer` propios vs ajenos, sin PII de contacto.
+
+## El reloj del vendedor — tenencia_desde (2026-07-25)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260725012707 | crm_tenencia_desde_vendedor | **El reloj que mide al ASESOR, no al lead** (pedido de Miguel): con el circuito vivo (origen → hoja → cola de Rosa → bandeja del supervisor → vendedor) un lead pasa DÍAS antes de llegar a un asesor, y la cola lo medía desde `creado_en` → le nacía en ROJO CRÍTICO el primer segundo que lo veía. Columna nueva `crm.leads.tenencia_desde timestamptz` + trigger `trg_leads_zzz_tenencia_desde` → `private.trg_leads_tenencia_desde()` (SECURITY DEFINER, `search_path=pg_catalog`, sin leer ninguna tabla). Es una **PROYECCIÓN de `crm.lead_asignaciones.asignado_en` del episodio ABIERTO**: el ledger sigue SELLADO (RLS on, cero policies, cero grants) — abrirlo al cliente solo para pintar un reloj habría expuesto el historial completo de tenencia. **El trigger ESPEJA la condición del escritor del ledger** (`activo AND etapa operativa AND vendedor_id not null`), no solo el cambio de dueño: la auditoría (hallazgo A1) encontró 5 caminos de divergencia, y uno REPRODUCÍA el bug —un descartado reabierto al MISMO asesor conservaba el reloj viejo—. Mismos instantes que el ledger (`creado_en` en INSERT, `statement_timestamp()` al abrir episodio) → al compartir statement no pueden divergir. Backfill desde el ledger **ANTES** de crear el trigger (si no, la rama `else` lo borraría en el mismo statement) y con `trg_leads_before_update` apagado (si no, `actualizado_en := now()` reordenaría de golpe la cartera de todos los asesores, que el front ordena por esa columna). Índice `idx_leads_tenencia`. `grant select (tenencia_desde) to authenticated, service_role`. **⚠️ El grant NO es lo que protege la columna**: el ACL de `crm.leads` es de TABLA (`relacl` verificado en prod: `authenticated=arw`), así que un `revoke update (columna)` sería no-op silencioso y PostgREST acepta la columna en el body — **la inmutabilidad la sostiene el TRIGGER**, que reimpone `old.tenencia_desde` en todo UPDATE que no abra episodio. El `COMMENT ON COLUMN` lo dice así a propósito (la primera versión afirmaba "sin grant de UPDATE", que era **falso**, y ese texto vive en la BD engañando a la próxima auditoría). Auditada por `auditor-rls` ANTES de aplicar: veredicto NO-GO → 2 críticos + 2 altos + 4 medios corregidos → aplicada. | ✅ **Producción 2026-07-25**: branch `crm-tenencia` → oráculo `TENENCIA_TX_OK` (V01–V30) → advisors sin clases nuevas → gate RLS vivo **326/326** → merge → branch borrado. ⚠️ **prod la registró como versión `20260725015135`, NO como el `20260725012707` del nombre de archivo**: `apply_migration` por MCP sella su propio timestamp. No se corrige renombrando (nunca se edita una migración ya aplicada); la migración es IDEMPOTENTE de punta a punta (`add column if not exists`, `create or replace function`, `drop trigger if exists`, `create index if not exists`, y un backfill que ya no encuentra filas), así que un `db push` que la re-aplique no rompe nada |
+
+Oráculo: `supabase/scripts/test-tenencia.sql` (éxito = token `TENENCIA_TX_OK`;
+V01–V30: alta con y sin dueño, orden de disparo del trigger, parkeo, LA
+ASIGNACIÓN sobre un lead envejecido 3 días, invariancia del SLA del cliente,
+igualdad exacta con el ledger en cada camino, inmunidad al ruido, transferencia,
+CIERRE que apaga el reloj, REAPERTURA que lo estrena, infalsificabilidad desde
+una sesión `authenticated` real y el estado honesto de los grants).
+⚠️ El oráculo NO asevera "el reloj avanzó" entre dos operaciones:
+`statement_timestamp()` no avanza dentro de un batch (MCP/simple-query), donde
+heredar y re-sellar dan el MISMO valor — sería falso rojo bajo MCP y falso verde
+bajo psql. En su lugar asevera que la columna sigue al EPISODIO ABIERTO (fila
+nueva en el ledger). El avance estricto se asevera en `testTenencia` de
+`test-rls.mjs`, donde cada llamada PostgREST es su propio statement.
+Aserciones vivas en el gate: bloque `testTenencia` (vía PostgREST real): lectura
+del reloj por su dueño, asignación que arranca el reloj HOY sobre un lead de la
+bandeja, intento de falsificación que responde OK y NO cambia nada, edición que
+no lo reinicia, y ámbito ajeno sin fila.
+
+### ⚠️ La migración por sí sola NO alcanzaba: el bug del índice de actividad
+
+Una auditoría de completitud (2026-07-25, 35 agentes con refutación adversarial;
+4 hallazgos confirmados de ~30 levantados) descubrió que `tenencia_desde` era
+**código muerto en producción**, por un bug PREEXISTENTE en el front:
+
+`colaDe` metía un lead en el bucket `sin_responder` solo si **no tenía NINGUNA
+actividad**. Pero cada movimiento de tenencia escribe una actividad automática
+`reasignacion` — la emite `private.trg_leads_reasignacion` en el servidor y la
+copia optimista del store en el cliente. Resultado: **todo lead que pasaba por
+el circuito Rosa → supervisor → vendedor salía de la cola en el instante mismo
+en que se asignaba**, porque llegaba con su `reasignacion` puesta. La etapa
+`nuevo` no cae en ningún otro bucket, así que desaparecía por completo:
+
+- el vendedor veía «Al día ✦ sin pendientes» sobre un lead que nadie llamó;
+- el cronómetro de speed-to-lead (que solo se pinta para `sin_responder`) nunca
+  se renderizaba, así que `tenencia_desde` no llegaba a usarse jamás;
+- `diasEnEspera` = `max(última actividad, tenencia_desde)` comparaba dos valores
+  IDÉNTICOS al microsegundo (la `reasignacion` y el sello comparten el
+  `statement_timestamp()` del mismo UPDATE) → el `max()` era un no-op;
+- el KPI «Nuevos sin responder» del supervisor y la columna «Sin tocar» de
+  Equipo marcaban 0 en verde para siempre.
+
+Verificado en prod: el 100% de las filas de `crm.actividades` eran
+`reasignacion`/`cambio_etapa` — jamás se había registrado un contacto humano.
+
+**Fix** (`app/src/lib/tipos.ts` + `inteligencia.ts`): `TIPOS_CONTACTO_K` como
+LISTA BLANCA —espejo exacto del índice `crm.actividades_contacto_episodio_idx` y
+de `private.metricas_sla_global_core`, no una regla inventada— e
+`indexarUltimoContacto()`. La cola y `sinTocar` miden CONTACTO; el timeline de
+la ficha y todo lo rotulado «Última actividad» siguen midiendo actividad a
+secas. `colaDe` perdió el parámetro `indicePrevio`: los dos índices comparten
+tipo (`IndiceUltimaActividad`), nada impedía pasar el equivocado y el compilador
+no diría nada — esa ambigüedad es justo lo que mantuvo el bug vivo.
+`nota` queda FUERA del contacto por decisión de Miguel: escribir una nota
+interna no es haber hablado con la persona.
+
+Los dos cambios se necesitan MUTUAMENTE: arreglar el índice sin `tenencia_desde`
+habría devuelto el rojo injusto por la puerta de atrás (el lead reaparecería en
+la cola midiendo desde `creado_en`).

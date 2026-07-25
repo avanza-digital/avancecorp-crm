@@ -462,7 +462,7 @@ export function HoyVendedor(): JSX.Element {
     [tareas],
   )
   const cola = useMemo(
-    () => colaDe(ambito.leads, actividades, ahora, undefined, conTarea),
+    () => colaDe(ambito.leads, actividades, ahora, conTarea),
     [ambito.leads, actividades, ahora, conTarea],
   )
 
@@ -783,8 +783,13 @@ function FilaCola({
   // Speed-to-lead (evidencia: contactar cae ~100x entre el minuto 5 y el 30):
   // para un lead SIN primer contacto el reloj se muestra en MINUTOS con
   // semáforo, no en días — cumplir minutos es la ventaja más barata que hay.
+  // El reloj arranca cuando el lead LLEGÓ A SUS MANOS (`tenencia_desde`), no
+  // cuando entró al CRM: entre una cosa y otra hay cola de Rosa y bandeja del
+  // supervisor, y esa espera no es suya. Sin el dato (demo, o base sin la
+  // migración) degrada a `creado_en`, el comportamiento de siempre.
+  const desde = item.lead.tenencia_desde ?? item.lead.creado_en
   const minutos = item.bucket === 'sin_responder' && ahora != null
-    ? Math.max(0, Math.floor((ahora - Date.parse(item.lead.creado_en)) / 60_000))
+    ? Math.max(0, Math.floor((ahora - Date.parse(desde)) / 60_000))
     : null
   const cronometro = minutos != null && minutos < 24 * 60
     ? {
@@ -826,7 +831,7 @@ function FilaCola({
         <span
           className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums sm:block"
           style={{ color: cronometro.color, background: `color-mix(in srgb, ${cronometro.color} 12%, transparent)` }}
-          title="Tiempo desde que entró el lead — contactar en minutos multiplica el contacto"
+          title="Tiempo desde que el lead llegó a tus manos — contactar en minutos multiplica el contacto"
         >
           {cronometro.texto}
         </span>
