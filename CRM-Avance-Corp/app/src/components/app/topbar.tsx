@@ -69,7 +69,7 @@ export function Topbar({ vista }: { vista: Vista }) {
       : TITULOS[vista]
   // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
   // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
-  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
 
   // Aún no hay origen real de notificaciones: cuando exista, este número
   // vendrá de ahí y el punto de la campana volverá solo.

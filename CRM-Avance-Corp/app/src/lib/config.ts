@@ -105,16 +105,45 @@ export const FUNCIONES_LEADS_APROBADAS: boolean = false
 const LEADS_PREVIEW_LOCAL = import.meta.env.DEV && import.meta.env.VITE_LEADS_PREVIEW === 'true'
 
 /**
+ * PILOTO EN PRODUCCIÓN — cuentas concretas que ven las funciones de leads ANTES
+ * de la aprobación general (pedido de Miguel, 2026-07-25: quiere probar el
+ * circuito completo como vendedor real, y textual: "solo para la cuenta
+ * miguel@cacmascapital.com").
+ *
+ * Es una lista de `perfil_id` y no de correos porque la identidad que llega al
+ * navegador (`Yo`) trae `id`/`nombre`/`rol` pero NO el correo; añadirlo obligaría
+ * a tocar la máquina de auth entera por una llave temporal. El UUID no es
+ * secreto: es la misma clave que ya viaja en cada fila de lead.
+ *
+ * ⚠️ Esto NO es un permiso: es solo qué PINTA el navegador. El ámbito de datos
+ * lo sigue decidiendo la RLS (`private.vendedor_ids_visibles`), que para un
+ * vendedor devuelve únicamente su propio perfil. Abrirle la vista no le enseña
+ * un solo lead que no fuera ya suyo.
+ *
+ * Cuando Miguel apruebe el pipeline para toda la fuerza de ventas, esto se
+ * BORRA y se pone `FUNCIONES_LEADS_APROBADAS = true` — no se deja creciendo.
+ */
+export const CUENTAS_PILOTO_LEADS: ReadonlySet<string> = new Set([
+  'd731f284-eeaa-4c27-b71f-ac4f1d8e96c2', // MIGUEL BRICEÑO · miguel@cacmascapital.com
+])
+
+/**
  * ¿Se muestran las vistas de leads (Hoy/Pipeline/Cartera/Agenda)?
  * En modo DEMO siempre — el demo es el escaparate del CRM completo.
  * En sesiones reales: GERENCIA y DIRECTORIO sí (aprobación parcial de Miguel,
  * 2026-07-16: "desplegar solo las funciones de gerencia" — su Hoy con las
  * gráficas y la supervisión de solo lectura; con 0 leads pintan estados vacíos
  * honestos). La FUERZA DE VENTAS (vendedor/supervisor) espera la aprobación
- * del pipeline (FUNCIONES_LEADS_APROBADAS) — su mundo es Clientes/Contratos.
+ * del pipeline (FUNCIONES_LEADS_APROBADAS) — su mundo es Clientes/Contratos,
+ * SALVO las cuentas del piloto (CUENTAS_PILOTO_LEADS).
  */
-export function funcionesLeadsVisibles(esDemo: boolean, rol?: string | null): boolean {
+export function funcionesLeadsVisibles(
+  esDemo: boolean,
+  rol?: string | null,
+  perfilId?: string | null,
+): boolean {
   if (esDemo) return true
   if (rol === 'gerencia' || rol === 'directorio') return true
+  if (perfilId != null && CUENTAS_PILOTO_LEADS.has(perfilId)) return true
   return FUNCIONES_LEADS_APROBADAS || LEADS_PREVIEW_LOCAL
 }
