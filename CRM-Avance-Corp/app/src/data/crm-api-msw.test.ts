@@ -36,6 +36,7 @@ function fila(sobre: Record<string, unknown> = {}): Record<string, unknown> {
     vendedor_id: null,
     asignado_supervisor_id: null,
     creado_en: '2026-07-01T12:00:00.000Z',
+    convertido_en: null,
     actualizado_en: '2026-07-02T12:00:00.000Z',
     activo: true,
     nota: null,
@@ -82,6 +83,50 @@ describe('listarLeads (msw)', () => {
     })
     expect(pagina.items[1]).toMatchObject({ id: 'l-api-2', monto_estimado: 200 })
     expect(pagina).toMatchObject({ pagina: 0, tamano: 50, total: 2, paginas: 1 })
+  })
+
+  // La CADENA ENTERA de convertido_en, eslabón por eslabón. Es la tercera vez
+  // que este patrón muerde al proyecto (`actualizado_en` y `tenencia_desde` se
+  // pedían al servidor, se validaban… y no se copiaban en el mapper, así que
+  // llegaban `undefined` al navegador). Un test que solo mire el select o solo
+  // el schema no lo habría visto.
+  it('convertido_en LLEGA al navegador: se pide en el select Y sale del mapper', async () => {
+    const capturadas: URL[] = []
+    server.use(
+      http.get(RUTA_LEADS, ({ request }) => {
+        capturadas.push(new URL(request.url))
+        return HttpResponse.json(
+          [
+            fila({ id: 'l-ganado', etapa: 'convertido', convertido_en: '2026-07-09T15:00:00.000Z' }),
+            fila({ id: 'l-abierto' }), // sigue abierto: sin sello
+          ],
+          { headers: { 'content-range': '0-1/2' } },
+        )
+      }),
+    )
+
+    const pagina = await listarLeads({ pagina: 0 })
+
+    // 1) Se PIDE (sin esto PostgREST no la manda y el schema opcional la traga).
+    expect(capturadas[0]?.searchParams.get('select')?.split(',')).toContain('convertido_en')
+    // 2) Se COPIA (el eslabón que se olvidó dos veces).
+    expect(pagina.items[0]?.convertido_en).toBe('2026-07-09T15:00:00.000Z')
+    // 3) Un lead sin sello llega como null, nunca undefined.
+    expect(pagina.items[1]?.convertido_en).toBeNull()
+  })
+
+  it('una base SIN la columna convertido_en no vacía la cartera (opcional a propósito)', async () => {
+    server.use(
+      http.get(RUTA_LEADS, () => {
+        const { convertido_en: _omitida, ...sinColumna } = fila()
+        return HttpResponse.json([sinColumna], { headers: { 'content-range': '0-0/1' } })
+      }),
+    )
+
+    const pagina = await listarLeads({ pagina: 0 })
+
+    expect(pagina.items).toHaveLength(1)
+    expect(pagina.items[0]?.convertido_en).toBeNull()
   })
 
   it.each([null, 0, '0'])('descarta una fila sin capital positivo: %s', async (monto) => {

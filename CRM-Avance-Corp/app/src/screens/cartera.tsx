@@ -13,7 +13,7 @@ import { Paginacion } from '@/components/common/paginacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, origenLabel, type Etapa } from '@/lib/tipos'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { capitalPorMoneda } from '@/lib/inteligencia'
+import { capitalPorMoneda, esAbierto } from '@/lib/inteligencia'
 import { money, moneyK, fmtFecha } from '@/lib/format'
 import { paginar } from '@/lib/paginacion'
 import { can } from '@/lib/roles'
@@ -41,21 +41,37 @@ export function Cartera() {
 
   // ── KPIs y distribución de la cartera del ámbito (no dependen de los filtros) ──
   const { stats, segmentos } = useMemo(() => {
-    // esAbierto (lib/inteligencia): vivo (l.activo) y en etapa de trabajo.
-    const activos = leads.filter((l) => l.activo && !['convertido', 'descartado'].includes(l.etapa))
+    // Fuente ÚNICA de "vivo": esAbierto (lib/inteligencia) = l.activo y en etapa
+    // de trabajo. Antes esta pantalla reimplementaba la regla con un array
+    // literal de terminales; dos copias de la misma definición terminan
+    // divergiendo en cuanto se añade una etapa terminal.
+    const abiertos = leads.filter(esAbierto)
     const convertidos = leads.filter((l) => l.etapa === 'convertido')
-    // Los totales NO mezclan monedas: PEN es el principal y USD va aparte.
-    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(leads)
+    // El capital se acota a los ABIERTOS. Sumarlo sobre `leads` metía en la
+    // cifra a los DESCARTADOS y a los CONVERTIDOS: dinero que ya no está en
+    // juego (el descartado no se va a cerrar; el convertido ya vive como
+    // contrato en la cartera de clientes, y contarlo aquí lo duplica). El chip
+    // anunciaba así un capital que nadie puede ganar, y encima crecía cada vez
+    // que se descartaba un lead. La etiqueta se renombra en consecuencia: no es
+    // el capital "total" de nada, es el que sigue en juego.
+    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(abiertos)
+    // La cifra grande es la moneda que DE VERDAD tiene volumen (mismo criterio
+    // ya aprobado en Pipeline). Fijar PEN como principal hacía que una cartera
+    // íntegramente en dólares cantara "S/ 0" con su capital real escondido en
+    // el subtítulo. PEN manda cuando hay soles (es la moneda del negocio); si
+    // solo hay dólares, manda USD; con las dos se muestran las dos, cada una
+    // con su símbolo — PEN y USD JAMÁS se suman ni se convierten.
+    const soloDolares = capitalPEN <= 0 && capitalUSD > 0
     const stats: StatChipData[] = [
       { icon: Users, label: 'Total leads', value: String(leads.length), tone: 'primary' },
       {
         icon: TrendingUp,
-        label: 'Capital total',
-        value: money(capitalPEN),
+        label: 'Capital en juego',
+        value: soloDolares ? money(capitalUSD, 'USD') : money(capitalPEN),
         tone: 'accent',
-        sub: capitalUSD > 0 ? `PEN · +${moneyK(capitalUSD, 'USD')}` : 'PEN',
+        sub: soloDolares ? 'USD' : capitalUSD > 0 ? `PEN · +${moneyK(capitalUSD, 'USD')}` : 'PEN',
       },
-      { icon: Activity, label: 'Activos', value: String(activos.length), tone: 'default', sub: 'Sin convertir ni descartar' },
+      { icon: Activity, label: 'Activos', value: String(abiertos.length), tone: 'default', sub: 'Sin convertir ni descartar' },
       { icon: CheckCircle2, label: 'Convertidos', value: String(convertidos.length), tone: 'primary' },
     ]
     const segmentos: Segment[] = [...ETAPAS, ...TERMINALES].map((e) => ({

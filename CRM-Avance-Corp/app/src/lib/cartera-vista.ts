@@ -101,36 +101,104 @@ function diasHasta(fecha: string, hoy: Date): number {
   return Math.round((objetivo - base) / 86_400_000)
 }
 
-/** Números del StatStrip. `hoy` es inyectable para pruebas deterministas. */
-export function resumenCartera(
-  grupos: GrupoCartera[],
-  hoy: Date = new Date(),
-): {
+/**
+ * Ventana de la ALARMA de renovación, en días. Una sola constante para que el
+ * chip («Por vencer ≤30 d»), el filtro de la tabla y la marca de la sub-fila no
+ * puedan discrepar entre sí.
+ */
+export const DIAS_ALARMA_RENOVACION = 30
+
+/**
+ * ¿Este contrato es una renovación por atender? Activo y venciendo dentro de la
+ * ventana, con HOY incluido. Una fecha ya pasada no cuenta (el contrato ya está
+ * vencido, no "por vencer") y una malformada tampoco: `diasHasta` devuelve NaN y
+ * toda comparación con NaN es false → nunca lanza ni inventa una alarma.
+ */
+export function esPorVencer(
+  c: ContratoRow,
+  hoy: Date,
+  dias: number = DIAS_ALARMA_RENOVACION,
+): boolean {
+  if (c.estado !== 'activo' || !c.fecha_vencimiento) return false
+  const d = diasHasta(c.fecha_vencimiento, hoy)
+  return d >= 0 && d <= dias
+}
+
+/**
+ * ids de los contratos por vencer en TODA la cartera — incluidos los de clientes
+ * DADOS DE BAJA en el portal (`cliente.activo === false`). La alarma NO se
+ * filtra por ese flag: el contrato sigue vigente y hay que renovarlo aunque su
+ * titular ya no figure como cliente activo, y esta es la única superficie del
+ * CRM que lo avisa (la tabla filtra por estado de CONTRATO, no por vencimiento).
+ * Devolver el Set —y no un booleano por grupo— deja que la pantalla filtre las
+ * filas Y marque el contrato exacto con un solo recorrido.
+ */
+export function idsPorVencer(grupos: GrupoCartera[], hoy: Date = new Date()): Set<string> {
+  const ids = new Set<string>()
+  for (const g of grupos) {
+    for (const c of g.contratos) {
+      if (esPorVencer(c, hoy)) ids.add(c.id)
+    }
+  }
+  return ids
+}
+
+/** Números del StatStrip: dinero de la cartera en gestión + alarma de toda ella. */
+export interface ResumenCartera {
   capitalActivoPen: number
   capitalActivoUsd: number
   clientesConCapital: number
+  /** Clientes EN GESTIÓN (los dados de baja los cuenta aparte la pantalla). */
   totalClientes: number
+  /** Contratos activos que vencen ≤30 d en TODA la cartera (alarma, no total). */
   porVencer30: number
-} {
+  /** De esos, cuántos son de clientes dados de baja — para decirlo, no ocultarlo. */
+  porVencer30DeBaja: number
+}
+
+/**
+ * Números del StatStrip. Recibe la cartera COMPLETA y separa dos conceptos que
+ * NO se miden sobre lo mismo:
+ *
+ *  · DINERO y conteo de clientes → solo la cartera EN GESTIÓN (`cliente.activo`).
+ *    Es un TOTAL, y sumar a quien ya fue dado de baja en el portal le inflaría al
+ *    asesor un capital que no puede trabajar ni renovar.
+ *  · ALARMA de vencimiento → TODOS los clientes. No es un total inflable sino un
+ *    aviso: un contrato activo que vence en ≤30 d hay que renovarlo aunque su
+ *    titular esté dado de baja, la renovación es el ingreso más rentable del
+ *    negocio y si no salta aquí no salta en ningún otro sitio del CRM.
+ *
+ * Por eso además del conteo va el desglose `porVencer30DeBaja`: el chip dice
+ * cuántos vienen de bajas en vez de mezclarlos en silencio.
+ * `hoy` es inyectable para pruebas deterministas.
+ */
+export function resumenCartera(grupos: GrupoCartera[], hoy: Date = new Date()): ResumenCartera {
   let pen = 0
   let usd = 0
   let conCapital = 0
+  let enGestion = 0
   let porVencer = 0
+  let porVencerDeBaja = 0
   for (const g of grupos) {
-    pen += g.capitalActivoPen
-    usd += g.capitalActivoUsd
-    if (g.tieneCapital) conCapital += 1
+    const gestionable = g.cliente.activo
+    if (gestionable) {
+      enGestion += 1
+      pen += g.capitalActivoPen
+      usd += g.capitalActivoUsd
+      if (g.tieneCapital) conCapital += 1
+    }
     for (const c of g.contratos) {
-      if (c.estado !== 'activo' || !c.fecha_vencimiento) continue
-      const dias = diasHasta(c.fecha_vencimiento, hoy)
-      if (dias >= 0 && dias <= 30) porVencer += 1
+      if (!esPorVencer(c, hoy)) continue
+      porVencer += 1
+      if (!gestionable) porVencerDeBaja += 1
     }
   }
   return {
     capitalActivoPen: redondear2(pen),
     capitalActivoUsd: redondear2(usd),
     clientesConCapital: conCapital,
-    totalClientes: grupos.length,
+    totalClientes: enGestion,
     porVencer30: porVencer,
+    porVencer30DeBaja: porVencerDeBaja,
   }
 }

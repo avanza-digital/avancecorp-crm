@@ -334,6 +334,11 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.descarteLeadVista,
       TRANSIENT_IDS.tenenciaLeadViejo,
       TRANSIENT_IDS.tenenciaLeadPropio,
+      TRANSIENT_IDS.avanceLeadConversacion,
+      TRANSIENT_IDS.avanceLeadIntento,
+      TRANSIENT_IDS.avanceLeadManual,
+      TRANSIENT_IDS.avanceLeadColaGlobal,
+      TRANSIENT_IDS.avanceLeadReunion,
     ]),
   );
   // Metas sentinela de testObjetivos: periodo 2099-12 jamas es real; el DELETE
@@ -1283,6 +1288,281 @@ async function testTenencia(sessions, seed) {
   check((ajeno?.data?.length ?? 0) === 0,
     'un vendedor de otro equipo no ve el lead ajeno ni su reloj',
     `filas=${ajeno?.data?.length ?? 'n/a'}`);
+}
+
+async function testAvanceEtapa(sessions, seed) {
+  console.log('\n— La etapa avanza sola: conversacion vs intento —');
+  const vend1 = sessions.vend1;
+  const vend3 = sessions.vend3;
+  const vend1Id = seed.profileIdByKey.vend1;
+
+  const common = {
+    creado_por: vend1Id,
+    etapa: 'nuevo',
+    moneda: 'PEN',
+    monto_estimado: 1000,
+    origen: 'otro',
+    vendedor_id: vend1Id,
+    asignado_supervisor_id: null,
+  };
+
+  for (const [id, nombre, telefono] of [
+    [TRANSIENT_IDS.avanceLeadConversacion, 'AVANCE CONVERSACION TRANSIENT', '999000041'],
+    [TRANSIENT_IDS.avanceLeadIntento, 'AVANCE INTENTO TRANSIENT', '999000042'],
+    [TRANSIENT_IDS.avanceLeadManual, 'AVANCE MANUAL TRANSIENT', '999000043'],
+  ]) {
+    await requireAdmin(
+      `crear ${nombre} para el avance automatico`,
+      admin.schema('crm').from('leads').insert({ ...common, id, nombre_completo: nombre, telefono }),
+    );
+  }
+
+  // ── El caso de Miguel, END TO END y con una sesion REAL de vendedor: el
+  // asesor registra que SI hablo con la persona y la etapa sube sola.
+  await positive(
+    'vend1 registra una conversacion (llamada_realizada) en su lead nuevo',
+    vend1.client.schema('crm').from('actividades').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadConversacion,
+      tipo: 'llamada_realizada',
+      detalle: 'GATE contesto',
+      creado_por: vend1Id,
+    }),
+  );
+  const trasConversacion = await positive(
+    'leer la etapa tras la conversacion',
+    vend1.client.schema('crm').from('leads')
+      .select('id, etapa')
+      .eq('id', TRANSIENT_IDS.avanceLeadConversacion)
+      .single(),
+  );
+  check(trasConversacion?.data?.etapa === 'contactado',
+    'una CONVERSACION sube el lead de nuevo a contactado, sin que nadie mueva la tarjeta',
+    `etapa=${trasConversacion?.data?.etapa}`);
+
+  // ── La mitad que impide inflar el embudo: un intento fallido NO avanza. Si
+  // esto se rompiera, "No contesto" seria un boton de posponer la alarma 48 h
+  // (umbral nuevo 24 h → contactado 72 h) sobre alguien con quien nadie hablo.
+  await positive(
+    'vend1 registra un intento fallido (llamada_no_contestada)',
+    vend1.client.schema('crm').from('actividades').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadIntento,
+      tipo: 'llamada_no_contestada',
+      detalle: 'GATE no contesto',
+      creado_por: vend1Id,
+    }),
+  );
+  const trasIntento = await positive(
+    'leer la etapa tras el intento fallido',
+    vend1.client.schema('crm').from('leads')
+      .select('id, etapa')
+      .eq('id', TRANSIENT_IDS.avanceLeadIntento)
+      .single(),
+  );
+  check(trasIntento?.data?.etapa === 'nuevo',
+    'un INTENTO fallido NO avanza la etapa (el embudo no se infla solo)',
+    `etapa=${trasIntento?.data?.etapa}`);
+
+  // ── El rastro: el avance queda marcado como automatico, para que el
+  // historial no le atribuya al vendedor un movimiento que el no pidio.
+  const rastro = await positive(
+    'leer el cambio_etapa que escribio el trigger',
+    admin.schema('crm').from('actividades')
+      .select('tipo, metadata')
+      .eq('lead_id', TRANSIENT_IDS.avanceLeadConversacion)
+      .eq('tipo', 'cambio_etapa'),
+  );
+  check((rastro?.data?.length ?? 0) === 1,
+    'el avance escribe EXACTAMENTE un cambio_etapa',
+    `filas=${rastro?.data?.length ?? 'n/a'}`);
+  check(rastro?.data?.[0]?.metadata?.automatico === true,
+    'el cambio de etapa automatico queda marcado como tal en el timeline',
+    `metadata=${JSON.stringify(rastro?.data?.[0]?.metadata ?? null)}`);
+
+  // ── INFALSIFICABLE: el cliente no puede hacerse pasar por el sistema. El
+  // flag vive en un set_config LOCAL a la transaccion del trigger; PostgREST no
+  // da manera de encenderlo, asi que un movimiento a mano se marca manual.
+  await positive(
+    'vend1 mueve la etapa A MANO (lo que hace hoy arrastrando la tarjeta)',
+    vend1.client.schema('crm').from('leads')
+      .update({ etapa: 'contactado' })
+      .eq('id', TRANSIENT_IDS.avanceLeadManual),
+  );
+  const rastroManual = await positive(
+    'leer el cambio_etapa del movimiento manual',
+    admin.schema('crm').from('actividades')
+      .select('metadata')
+      .eq('lead_id', TRANSIENT_IDS.avanceLeadManual)
+      .eq('tipo', 'cambio_etapa'),
+  );
+  check(rastroManual?.data?.[0]?.metadata?.automatico === false,
+    'un cambio de etapa MANUAL no se puede disfrazar de automatico',
+    `metadata=${JSON.stringify(rastroManual?.data?.[0]?.metadata ?? null)}`);
+
+  // ── La via de las TAREAS, que es donde vivia el critico C1 de la auditoria.
+  const sup1 = sessions.sup1;
+  const sup1Id = seed.profileIdByKey.sup1;
+
+  // (a) Camino legitimo: el DUENIO agenda una reunion sobre su lead trabajado.
+  await requireAdmin(
+    'crear lead trabajado para la reunion legitima',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.avanceLeadReunion,
+      nombre_completo: 'AVANCE REUNION TRANSIENT',
+      telefono: '999000044',
+      etapa: 'contactado',
+    }),
+  );
+  await positive(
+    'vend1 registra un intento sobre su lead (deja rastro de trabajo)',
+    vend1.client.schema('crm').from('actividades').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadReunion,
+      tipo: 'llamada_no_contestada',
+      creado_por: vend1Id,
+    }),
+  );
+  await positive(
+    'vend1 agenda una reunion sobre su propio lead',
+    vend1.client.schema('crm').from('tareas').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadReunion,
+      tipo: 'reunion',
+      titulo: 'GATE reunion legitima',
+      vence_en: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      creado_por: vend1Id,
+    }),
+  );
+  const trasReunion = await positive(
+    'leer la etapa tras agendar la reunion',
+    vend1.client.schema('crm').from('leads')
+      .select('id, etapa')
+      .eq('id', TRANSIENT_IDS.avanceLeadReunion)
+      .single(),
+  );
+  check(trasReunion?.data?.etapa === 'reunion_agendada',
+    'agendar una reunion sobre un lead trabajado lo sube solo a reunion_agendada',
+    `etapa=${trasReunion?.data?.etapa}`);
+
+  // (b) C1 — REGRESION PERMANENTE. Un lead de la COLA GLOBAL (sin dueno y sin
+  // bandeja) que el supervisor ni siquiera puede VER. La policy tareas_insert
+  // NO consulta crm.leads, asi que el INSERT de la tarea SI pasa (hueco previo,
+  // fuera del alcance de esta migracion) — lo que jamas puede pasar es que
+  // ARRASTRE una escritura sobre crm.leads saltandose leads_update.
+  await requireAdmin(
+    'crear lead de la cola global (vector de C1)',
+    admin.schema('crm').from('leads').insert({
+      ...common,
+      id: TRANSIENT_IDS.avanceLeadColaGlobal,
+      nombre_completo: 'AVANCE COLA GLOBAL TRANSIENT',
+      telefono: '999000045',
+      vendedor_id: null,
+      asignado_supervisor_id: null,
+    }),
+  );
+  await requireAdmin(
+    'dejar rastro de trabajo en el lead de la cola global (peor caso)',
+    admin.schema('crm').from('actividades').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadColaGlobal,
+      tipo: 'llamada_no_contestada',
+      creado_por: vend1Id,
+    }),
+  );
+  const invisible = await positive(
+    'sup1 intenta VER el lead de la cola global',
+    sup1.client.schema('crm').from('leads')
+      .select('id')
+      .eq('id', TRANSIENT_IDS.avanceLeadColaGlobal),
+  );
+  check((invisible?.data?.length ?? 0) === 0,
+    'el lead de la cola global es INVISIBLE para el supervisor (premisa de C1)',
+    `filas=${invisible?.data?.length ?? 'n/a'}`);
+
+  // DOS CAPAS, y las dos se prueban:
+  // (1) la policy `tareas_insert` ya no acepta tareas sobre leads invisibles
+  //     (migracion 20260725221530, que cerro el hueco previo que destapo C1);
+  // (2) aunque alguien la reabriera, el gate de ambito DENTRO del trigger de
+  //     avance impide que arrastre una escritura sobre crm.leads.
+  await expectBlockedMutation(
+    'sup1 intenta agendar una reunion sobre un lead de la cola global que NO puede ver',
+    sup1.client.schema('crm').from('tareas').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadColaGlobal,
+      tipo: 'reunion',
+      titulo: 'GATE reunion cola global',
+      vence_en: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      creado_por: sup1Id,
+    }),
+  );
+
+  const trasIntrusion = await positive(
+    'leer la etapa del lead de la cola global tras el intento',
+    admin.schema('crm').from('leads')
+      .select('id, etapa')
+      .eq('id', TRANSIENT_IDS.avanceLeadColaGlobal)
+      .single(),
+  );
+  check(trasIntrusion?.data?.etapa === 'nuevo',
+    'ESCALADA CERRADA: el lead de la cola global sigue en nuevo tras el intento',
+    `etapa=${trasIntrusion?.data?.etapa}`);
+
+  // La SEGUNDA capa, aislada: con las llaves de service_role se fabrica la
+  // tarea que la policy ya no deja crear (service_role no pasa por RLS), para
+  // comprobar que el gate del TRIGGER la frena igual. Sin esto, tapar la policy
+  // habria dejado el gate del trigger sin cobertura y nadie lo notaria el dia
+  // que alguien reabra la policy.
+  await requireAdmin(
+    'fabricar por service_role la reunion sobre el lead de la cola global',
+    admin.schema('crm').from('tareas').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadColaGlobal,
+      tipo: 'reunion',
+      titulo: 'GATE reunion cola global (service_role)',
+      vence_en: new Date(Date.now() + 2 * 86_400_000).toISOString(),
+      creado_por: sup1Id,
+    }),
+  );
+  const trasFabricada = await positive(
+    'releer la etapa tras la tarea fabricada saltandose la policy',
+    admin.schema('crm').from('leads')
+      .select('id, etapa')
+      .eq('id', TRANSIENT_IDS.avanceLeadColaGlobal)
+      .single(),
+  );
+  check(trasFabricada?.data?.etapa === 'nuevo',
+    'DEFENSA EN PROFUNDIDAD: ni saltandose la policy asciende un lead sin dueno',
+    `etapa=${trasFabricada?.data?.etapa}`);
+
+  // ── La via de ACTIVIDADES no lleva gate propio: toda su seguridad descansa
+  // en que `actividades_insert` SI consulta crm.leads bajo RLS. Eso hay que
+  // ATARLO con un tipo que MUEVA la etapa — hasta ahora el unico cross-team de
+  // actividades usaba `nota`, que no avanza nada y por tanto no probaba la
+  // cadena que aqui importa.
+  const etapaAntes = trasConversacion?.data?.etapa;
+  await expectBlockedMutation(
+    'vend3 (otro subarbol) intenta registrar una conversacion en un lead ajeno',
+    vend3.client.schema('crm').from('actividades').insert({
+      lead_id: TRANSIENT_IDS.avanceLeadConversacion,
+      tipo: 'llamada_realizada',
+      creado_por: seed.profileIdByKey.vend3,
+    }),
+  );
+  if (sessions.vendInactive) {
+    await expectBlockedMutation(
+      'un miembro DESACTIVADO intenta registrar una conversacion',
+      sessions.vendInactive.client.schema('crm').from('actividades').insert({
+        lead_id: TRANSIENT_IDS.avanceLeadConversacion,
+        tipo: 'llamada_realizada',
+        creado_por: seed.profileIdByKey.vendInactive,
+      }),
+    );
+  }
+  const trasIntentosAjenos = await positive(
+    'releer la etapa tras los intentos ajenos',
+    admin.schema('crm').from('leads')
+      .select('id, etapa')
+      .eq('id', TRANSIENT_IDS.avanceLeadConversacion)
+      .single(),
+  );
+  check(trasIntentosAjenos?.data?.etapa === etapaAntes,
+    'un tercero sin ambito no puede mover la etapa de un lead ajeno por la via de actividades',
+    `antes=${etapaAntes} despues=${trasIntentosAjenos?.data?.etapa}`);
 }
 
 async function testTareaIsolation(sessions, seed) {
@@ -2573,6 +2853,7 @@ async function main() {
       await testWrites(sessions, verifiedSeed);
       await testReassignmentTrigger(sessions, verifiedSeed);
       await testTenencia(sessions, verifiedSeed);
+      await testAvanceEtapa(sessions, verifiedSeed);
       await testTareaIsolation(sessions, verifiedSeed);
       await testTareaCloseRpc(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);

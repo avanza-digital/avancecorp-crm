@@ -2,6 +2,15 @@
 // real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un vendedor
 // no encuentra leads ajenos), campana honesta (sin punto rojo fijo) y alta de
 // lead. La búsqueda abre el drawer vía usePanelesActions().abrirLead.
+//
+// POR QUÉ el buscador NO alcanza a los CLIENTES (2026-07-25): prometía «lead o
+// cliente» y solo miraba leads, así que un cliente de la propia cartera salía
+// como «Sin resultados» — el CRM negando a alguien que sí existe. Los clientes
+// no están en el store (useCRMData() expone leads/ámbito/agenda/tareas, nunca
+// clientes: viven en useClientes() de TanStack, apagado en demo) y un resultado
+// de cliente no tendría a dónde aterrizar: `abrirLead` y el router solo conocen
+// #/<vista>/lead/<id>. Decisión: el texto promete SOLO lo que busca y el vacío
+// NOMBRA la pantalla donde el cliente sí está, en vez de afirmar que no existe.
 import {
   useDeferredValue,
   useEffect,
@@ -15,7 +24,7 @@ import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { funcionesLeadsVisibles } from '@/lib/config'
-import { puedeEscribir } from '@/lib/roles'
+import { can, puedeEscribir, type Rol } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
@@ -31,6 +40,16 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   repartir: { t: 'Repartir leads', s: 'Reparte la cola de leads nuevos a los supervisores' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
+}
+
+/**
+ * Rótulo de la pantalla de cartera SEGÚN EL ROL — mismo criterio que el sidebar
+ * (una sola regla en el archivo): el vendedor ve "Mi cartera" en el menú y quien
+ * supervisa ve "Cartera". Cualquier texto que mande al usuario allí debe llamarla
+ * EXACTAMENTE como la ve en su menú, o lo manda a buscar un ítem que no existe.
+ */
+function rotuloCartera(rol: Rol | null | undefined): string {
+  return can(rol, 'verEquipo') ? 'Cartera' : 'Mi cartera'
 }
 
 /** Minúsculas y sin acentos (es-PE) para comparar texto. */
@@ -65,7 +84,7 @@ export function Topbar({ vista }: { vista: Vista }) {
   // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el vendedor, "Cartera" para quien supervisa.
   const info =
     vista === 'mi-cartera'
-      ? { t: yo?.rol === 'vendedor' ? 'Mi cartera' : 'Cartera', s: 'Tus clientes y el capital invertido' }
+      ? { t: rotuloCartera(yo?.rol), s: 'Tus clientes y el capital invertido' }
       : TITULOS[vista]
   // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
   // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
@@ -174,12 +193,12 @@ export function Topbar({ vista }: { vista: Vista }) {
             onFocus={() => setAbierto(true)}
             onBlur={() => setAbierto(false)}
             onKeyDown={alTeclearBusqueda}
-            placeholder="Buscar lead o cliente…"
+            placeholder="Buscar lead…"
             role="combobox"
             aria-expanded={abierto && q.trim() !== ''}
             aria-controls="topbar-busqueda-lista"
             aria-autocomplete="list"
-            aria-label="Buscar lead o cliente por nombre, teléfono o DNI"
+            aria-label="Buscar lead por nombre, teléfono o DNI"
             className="h-8 w-60 rounded-lg border border-input bg-background pl-8 pr-8 text-xs text-foreground transition-colors placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30 lg:w-72"
           />
           <kbd className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 rounded border border-border bg-muted px-1.5 py-0.5 text-[10px] font-semibold text-muted-foreground">
@@ -192,9 +211,20 @@ export function Topbar({ vista }: { vista: Vista }) {
               className="ac-pop absolute left-0 right-0 top-full z-30 mt-1.5 overflow-hidden rounded-xl border border-border bg-card shadow-[var(--shadow-pop)]"
             >
               {resultados.length === 0 ? (
-                <p className="px-3 py-2.5 text-[11px] text-muted-foreground">
-                  Sin resultados para «{q.trim()}»
-                </p>
+                <div className="px-3 py-2.5">
+                  {/* "en tus leads" acota el vacío a lo que este buscador SÍ mira:
+                      un "Sin resultados" a secas se lee como "esa persona no existe". */}
+                  <p className="text-[11px] text-muted-foreground">
+                    Sin resultados en tus leads para «{q.trim()}»
+                  </p>
+                  {/* Y si ya es cliente, se le nombra la pantalla REAL donde está
+                      (rótulo del menú según su rol) en vez de dejarlo buscando. */}
+                  {can(yo?.rol, 'verCartera') && (
+                    <p className="mt-1 text-[11px] text-muted-foreground/80">
+                      ¿Ya es cliente? Búscalo en «{rotuloCartera(yo?.rol)}», en el menú lateral.
+                    </p>
+                  )}
+                </div>
               ) : (
                 <ul role="listbox" aria-label="Resultados de búsqueda" className="ac-scroll max-h-72 overflow-y-auto py-1">
                   {resultados.map((l, i) => {

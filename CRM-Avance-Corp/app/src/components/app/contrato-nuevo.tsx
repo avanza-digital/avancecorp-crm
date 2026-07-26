@@ -18,6 +18,7 @@ import {
   type CrearContratoInput,
 } from '@/data/crm-api'
 import {
+  esCuotaDeInteres,
   formatDateLocal,
   generarCronograma,
   vencimientoDesdePlazo,
@@ -35,12 +36,16 @@ import {
   RE_SEIS_DIGITOS,
 } from '@/lib/contratos-catalogo'
 
-// Forma LOCAL del select de plazo: value string + la opción 'custom' (fecha de
-// vencimiento manual) que SOLO existe en este formulario; los presets viven en
-// contratos-catalogo (misma base que ContratoCorregir).
+// Valor centinela del plazo fuera de los presets (vencimiento escrito a mano).
+// Mismo nombre que en ContratoCorregir para que ambos formularios hablen igual.
+const PLAZO_PERSONALIZADO = 'personalizado'
+
+// Forma LOCAL del select de plazo: value string + la opción 'personalizado'
+// (fecha de vencimiento manual); los presets viven en contratos-catalogo (misma
+// base que ContratoCorregir).
 const PLAZOS: { v: string; label: string; anioExacto: boolean }[] = [
   ...PLAZOS_BASE.map((p) => ({ v: String(p.meses), label: p.label, anioExacto: p.anioExacto })),
-  { v: 'custom', label: 'Personalizado', anioExacto: false },
+  { v: PLAZO_PERSONALIZADO, label: 'Personalizado', anioExacto: false },
 ]
 
 function hoyLocal(): string {
@@ -89,7 +94,7 @@ export function ContratoNuevo({
 
   // Vencimiento efectivo: personalizado usa la fecha escrita; si no, se calcula.
   const fechaVencimiento = useMemo(() => {
-    if (plazo === 'custom') return vencManual
+    if (plazo === PLAZO_PERSONALIZADO) return vencManual
     if (!fechaInicio) return ''
     return vencimientoDesdePlazo(fechaInicio, parseInt(plazo, 10))
   }, [plazo, vencManual, fechaInicio])
@@ -108,6 +113,30 @@ export function ContratoNuevo({
   }, [capitalNum, tasaNum, fechaInicio, fechaVencimiento, modalidad, tipoInteres])
 
   const totalCronograma = cronograma.reduce((a, c) => a + c.monto_programado, 0)
+
+  // El generador SIEMPRE empuja la fila del RETORNO del capital, así que
+  // `cronograma.length` NUNCA es 0 y el guard viejo (length === 0) no podía
+  // dispararse jamás: se creaban contratos SIN una sola cuota de interés — p. ej.
+  // 6 meses con modalidad anual (la 1ª cuota caería después del vencimiento) o
+  // un vencimiento personalizado más corto que un periodo. Lo que hay que exigir
+  // es RENDIMIENTO: al menos una cuota de interés y que sume más de 0.
+  const cuotasInteres = cronograma.filter(esCuotaDeInteres)
+  // Suma de importes numeric(12,2) ya redondeados: solo se compara contra 0.
+  const interesProgramado = cuotasInteres.reduce((a, c) => a + c.monto_programado, 0)
+
+  // Motivo ÚNICO de un cronograma que no se puede guardar: lo comparten el guard
+  // de guardar() y el aviso de la vista previa (el asesor lo ve ANTES de pulsar).
+  // null = cronograma válido.
+  const motivoCronograma: string | null =
+    cronograma.length === 0
+      ? esCompuesto
+        ? 'El interés compuesto requiere un plazo en años exactos'
+        : 'No se pudo generar el cronograma — revisa las fechas'
+      : cuotasInteres.length === 0
+        ? 'Este cronograma no tiene NINGUNA cuota de interés: el plazo es más corto que un periodo de la modalidad elegida. Cambia la modalidad de pago o alarga el plazo.'
+        : interesProgramado <= 0
+          ? 'Las cuotas de interés salen en 0.00 con este capital y esta tasa: el contrato no pagaría rendimiento.'
+          : null
 
   const cambiarTipo = (t: TipoInteres) => {
     setTipoInteres(t)
@@ -144,12 +173,9 @@ export function ContratoNuevo({
       setError('Falta la fecha de vencimiento')
       return
     }
-    if (cronograma.length === 0) {
-      setError(
-        esCompuesto
-          ? 'El interés compuesto requiere un plazo en años exactos'
-          : 'No se pudo generar el cronograma — revisa las fechas',
-      )
+    // Guard de RENDIMIENTO (no de longitud): sin cuotas de interés no hay contrato.
+    if (motivoCronograma) {
+      setError(motivoCronograma)
       return
     }
     // Co-titulares: filas vacías se ignoran; una a medio llenar o duplicada
@@ -255,7 +281,7 @@ export function ContratoNuevo({
           </div>
         </div>
 
-        {plazo === 'custom' ? (
+        {plazo === PLAZO_PERSONALIZADO ? (
           <div className="space-y-1.5">
             <Label htmlFor="ct-venc">Fecha de vencimiento</Label>
             <Input id="ct-venc" type="date" value={vencManual} onChange={(e) => setVencManual(e.target.value)} disabled={enviando} />
@@ -320,9 +346,21 @@ export function ContratoNuevo({
                 <b>{cronograma.length}</b> {cronograma.length === 1 ? 'cuota' : 'cuotas'} · total programado{' '}
                 <b className="tabular-nums text-primary">{money(totalCronograma, moneda)}</b>
               </p>
+              {/* Se cuentan aparte las de INTERÉS: el total incluye la devolución
+                  del capital y por sí solo hace parecer válido un cronograma vacío
+                  de rendimiento. */}
+              <p className="text-muted-foreground">
+                De ellas, <b className="text-foreground">{cuotasInteres.length}</b> de interés por{' '}
+                <b className="tabular-nums text-foreground">{money(interesProgramado, moneda)}</b>
+              </p>
               <p className="text-muted-foreground">
                 Primera: {fmtFecha(cronograma[0]!.fecha_programada)} · Última: {fmtFecha(cronograma[cronograma.length - 1]!.fecha_programada)}
               </p>
+              {/* Sin role=alert: se recalcula en CADA tecla (sería ruido para el
+                  lector de pantalla); el botón deshabilitado es el freno real. */}
+              {motivoCronograma && (
+                <p className="font-semibold text-destructive">{motivoCronograma}</p>
+              )}
             </div>
           )}
         </div>
@@ -333,7 +371,9 @@ export function ContratoNuevo({
         <Button variant="ghost" size="sm" onClick={onOmitir} disabled={enviando}>
           Omitir por ahora
         </Button>
-        <Button size="sm" onClick={guardar} disabled={enviando || cronograma.length === 0}>
+        {/* Se bloquea por el MOTIVO (sin cuotas de interés incluido), no por la
+            longitud del cronograma — que nunca es 0 (siempre trae el retorno). */}
+        <Button size="sm" onClick={guardar} disabled={enviando || motivoCronograma !== null}>
           <BadgeCheck /> {enviando ? 'Creando…' : 'Crear contrato'}
         </Button>
       </DialogFooter>

@@ -17,6 +17,20 @@ export interface CuotaCronograma {
   tipo: TipoCuota
 }
 
+/**
+ * ¿La fila es una cuota de INTERÉS (el rendimiento que cobra el cliente)?
+ * Son 'cuota' (interés simple, una por periodo) y 'devolucion' (interés
+ * compuesto acumulado, se paga al vencimiento). 'retorno' NO lo es: es la
+ * devolución del capital y el generador la empuja SIEMPRE, así que
+ * `cronograma.length` nunca vale 0 y NO sirve para validar que el contrato
+ * tenga rendimiento (auditoría 2026-07-25: se podían crear/corregir contratos
+ * con cero cuotas de interés). Vive aquí porque saber qué fila es interés es
+ * conocimiento del generador, no de los formularios.
+ */
+export function esCuotaDeInteres(cuota: CuotaCronograma): boolean {
+  return cuota.tipo !== 'retorno'
+}
+
 // Parse/format de fechas YYYY-MM-DD en zona LOCAL. `new Date("2026-05-22")` las
 // interpreta como UTC midnight → en Perú (UTC-5) es el día anterior 19:00 local.
 export function parseDateLocal(s: string): Date {

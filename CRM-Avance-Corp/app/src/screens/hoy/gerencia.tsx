@@ -14,7 +14,16 @@ import { useAuth } from '@/lib/auth-context'
 import { money, moneyK } from '@/lib/format'
 import { ETAPA_INFO } from '@/lib/tipos'
 import { SEMAFORO } from '@/lib/semaforo'
-import { capitalPorMoneda, colorMeta, DIA_MS, embudo, esAbierto, tendenciaDe } from '@/lib/inteligencia'
+import {
+  capitalPorMoneda,
+  colorMeta,
+  DIA_MS,
+  embudo,
+  esAbierto,
+  pctMeta,
+  tendenciaDe,
+} from '@/lib/inteligencia'
+import { cierresDelMes } from '@/lib/cierres-del-mes'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -64,11 +73,22 @@ function MetaItem({
   actual,
   objetivo,
   pct,
+  sinDato,
+  nota,
 }: {
   label: string
   actual: string
   objetivo: string
   pct: number
+  /**
+   * Texto neutro que REEMPLAZA la barra cuando no hay con qué semaforizar
+   * (típicamente: gerencia todavía no fijó esa meta del mes). El semáforo se
+   * cortocircuitaba solo — con objetivo 0 el pct es 0 y colorMeta(0) es ROJO
+   * CRÍTICO, así que una meta que nadie fijó se leía como incumplimiento.
+   */
+  sinDato?: string | undefined
+  /** Aclaración bajo la barra (p. ej. el acumulado frente a la cifra del mes). */
+  nota?: string | undefined
 }): JSX.Element {
   const progreso = Math.max(0, Math.min(100, Math.round(pct)))
   return (
@@ -78,15 +98,20 @@ function MetaItem({
         <span className="text-xl font-extrabold tracking-tight tabular-nums text-primary">{actual}</span>
         <span className="text-xs text-muted-foreground">{objetivo}</span>
       </div>
-      <div className="mt-2 flex items-center gap-2">
-        <Progress value={progreso} color={colorMeta(progreso)} className="flex-1" />
-        <span
-          className="w-9 text-right text-[11px] font-bold tabular-nums"
-          style={{ color: colorMeta(progreso) }}
-        >
-          {progreso}%
-        </span>
-      </div>
+      {sinDato ? (
+        <p className="mt-2 text-[11px] text-muted-foreground">{sinDato}</p>
+      ) : (
+        <div className="mt-2 flex items-center gap-2">
+          <Progress value={progreso} color={colorMeta(progreso)} className="flex-1" />
+          <span
+            className="w-9 text-right text-[11px] font-bold tabular-nums"
+            style={{ color: colorMeta(progreso) }}
+          >
+            {progreso}%
+          </span>
+        </div>
+      )}
+      {nota && <p className="mt-1.5 text-[11px] text-muted-foreground">{nota}</p>}
     </div>
   )
 }
@@ -121,17 +146,28 @@ export function HoyGerencia(): JSX.Element {
     const convertidos = vivos.filter((lead) => lead.etapa === 'convertido')
     const capital = capitalPorMoneda(asignados)
     const ganado = capitalPorMoneda(convertidos)
+    // Marcador del MES para la tarjeta "Meta del mes — Empresa": crm.objetivos
+    // guarda UNA fila por mes calendario, así que el numerador tiene que ser
+    // del mes. Contar los convertidos de TODA la vida contra la cuota mensual
+    // inflaba el avance de forma permanente desde el segundo mes de operación.
+    // Definición ÚNICA en lib/cierres-del-mes — mismo contrato de
+    // `actualizado_en` que las series de tendencia de esta misma pantalla, para
+    // que el marcador y las gráficas no cuenten cierres distintos.
+    const cierres = cierresDelMes(leads, ahora)
     return {
       abiertos: abiertos.length,
       activos: asignados.length,
       porRepartir: abiertos.filter((lead) => lead.vendedor_id == null).length,
       capitalPen: capital.pen,
       capitalUsd: capital.usd,
-      convertidos: convertidos.length,
+      convertidosMes: cierres.convertidos,
+      // Acumulado de vida: alimenta SOLO el KPI de capital ganado y la nota que
+      // aclara la diferencia con la cifra del mes. Nunca una meta mensual.
+      convertidosVida: cierres.convertidosVida,
       ganadoPen: ganado.pen,
       ganadoUsd: ganado.usd,
     }
-  }, [leads])
+  }, [leads, ahora])
 
   const etapas = useMemo(() => embudo(leads), [leads])
   // Tendencias reales (Fase 3): mes vigente vs mes anterior, de las series del
@@ -244,11 +280,14 @@ export function HoyGerencia(): JSX.Element {
           icon={Trophy}
           color={SEMAFORO.navy}
           sub={
+            // Este KPI es el ACUMULADO de vida, no una cifra del mes — y se
+            // dice, porque a su lado va un chip mes-contra-mes que invitaba a
+            // leerlo como mensual (la cifra del mes vive en la meta de abajo).
             // El chip de tendencia SOLO acompaña la vista en soles: las series
             // de capital suman únicamente PEN (jamás se mezclan monedas).
             tendenciaCierres && monedaMontos === 'PEN'
-              ? `Capital de ventas cerradas en soles · ${tendenciaCierres} vs mes pasado`
-              : `Capital de ventas cerradas en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`
+              ? `Acumulado en soles · cierres del mes ${tendenciaCierres} vs mes pasado`
+              : `Acumulado de ventas cerradas en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`
           }
           delay={180}
         />
@@ -274,24 +313,30 @@ export function HoyGerencia(): JSX.Element {
                   ? `de ${moneyK(meta.capitalObjetivo)} en soles`
                   : 'meta por definir'
               }
-              pct={
-                meta.capitalObjetivo > 0
-                  ? (datosLocales.capitalPen / meta.capitalObjetivo) * 100
-                  : 0
+              pct={pctMeta(datosLocales.capitalPen, meta.capitalObjetivo)}
+              sinDato={
+                meta.capitalObjetivo > 0 ? undefined : 'Meta del mes todavía sin fijar'
               }
             />
             <MetaItem
-              label="Ventas cerradas"
-              actual={String(datosLocales.convertidos)}
+              // Rotulado explícito: la cuota de crm.objetivos es del mes, así
+              // que el numerador también — antes contaba los cierres de toda la
+              // vida y el avance no bajaba nunca al empezar un mes nuevo.
+              label="Ventas cerradas este mes"
+              actual={String(datosLocales.convertidosMes)}
               objetivo={
                 meta.ventasObjetivo > 0
                 ? `de ${meta.ventasObjetivo} cierres`
                   : 'meta por definir'
               }
-              pct={
-                meta.ventasObjetivo > 0
-                  ? (datosLocales.convertidos / meta.ventasObjetivo) * 100
-                  : 0
+              pct={pctMeta(datosLocales.convertidosMes, meta.ventasObjetivo)}
+              sinDato={
+                meta.ventasObjetivo > 0 ? undefined : 'Meta del mes todavía sin fijar'
+              }
+              nota={
+                datosLocales.convertidosVida > datosLocales.convertidosMes
+                  ? `${datosLocales.convertidosVida} cierres acumulados en toda la operación.`
+                  : undefined
               }
             />
           </CardContent>

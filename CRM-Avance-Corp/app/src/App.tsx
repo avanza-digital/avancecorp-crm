@@ -1,5 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from 'react'
-import { DatabaseZap, LogOut, RotateCcw, WifiOff } from 'lucide-react'
+import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
+import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { can } from '@/lib/roles'
@@ -31,7 +31,113 @@ const Repartir = lazy(() => import('@/screens/repartir').then((m) => ({ default:
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 
-function Splash() {
+/**
+ * Tope de paciencia del splash. Deliberadamente MAYOR que el presupuesto de la
+ * carga real del store (LIMITE_CARGA_REAL_MS) y que el de la verificación de
+ * acceso: esos dos son la defensa primaria (abortan y caen en un estado de
+ * error). Esto es la red de seguridad de último recurso — cubre el cuelgue que
+ * ninguno de los dos vea (p. ej. un efecto que nunca llega a correr). El asesor
+ * NUNCA debe quedarse mirando un spinner sin salida.
+ */
+export const LIMITE_SPLASH_MS = 25_000
+
+/** Tarjeta a pantalla completa de los estados de arranque (mismo molde para los tres). */
+function AvisoArranque({
+  icono: Icono,
+  tono = 'primary',
+  titulo,
+  children,
+  acciones,
+}: {
+  icono: LucideIcon
+  tono?: 'primary' | 'destructive'
+  titulo: string
+  children: ReactNode
+  acciones: ReactNode
+}) {
+  return (
+    <div className="flex min-h-svh items-center justify-center p-6">
+      <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-7 text-center shadow-[var(--shadow-card)]">
+        <div
+          className={
+            tono === 'destructive'
+              ? 'mx-auto grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive'
+              : 'mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary'
+          }
+        >
+          <Icono className="size-6" aria-hidden />
+        </div>
+        <div className="space-y-1.5">
+          <h1 className="text-lg font-extrabold text-primary">{titulo}</h1>
+          <p className="text-sm leading-relaxed text-muted-foreground">{children}</p>
+        </div>
+        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">{acciones}</div>
+      </div>
+    </div>
+  )
+}
+
+/**
+ * La carga NO falló: simplemente no termina. Un spinner eterno es peor que un
+ * error porque no ofrece salida — aquí sí la hay (reintentar / cerrar sesión).
+ */
+function CargaAtascada({ onReintentar }: { onReintentar: () => void }) {
+  const { salir } = useAuth()
+  return (
+    <AvisoArranque
+      icono={Hourglass}
+      titulo="Esto está tardando demasiado"
+      acciones={
+        <>
+          <Button type="button" onClick={onReintentar}>
+            <RotateCcw className="size-4" aria-hidden /> Reintentar
+          </Button>
+          <Button type="button" variant="outline" onClick={() => void salir()}>
+            <LogOut className="size-4" aria-hidden /> Cerrar sesión
+          </Button>
+        </>
+      }
+    >
+      No pudimos terminar de preparar tu información. Puede ser tu conexión o el
+      servidor del CRM. Tu sesión sigue activa — vuelve a intentarlo.
+    </AvisoArranque>
+  )
+}
+
+/**
+ * Splash con FECHA DE CADUCIDAD: pasado `LIMITE_SPLASH_MS` sin que nadie lo
+ * desmonte, se transforma en un estado accionable. `onReintentar` es lo que
+ * hace ese estado (recargar los datos o re-verificar el acceso).
+ *
+ * ⚠️ El reloj mide LO QUE DURA ESTE MONTAJE, no el arranque entero. Cada uso
+ * debe llevar su `key` propia (ver App): sin ella, React ve el mismo nodo en el
+ * árbol al pasar del splash de ACCESO al de DATOS, no remonta, y un único reloj
+ * de 25 s cubre los dos presupuestos seguidos (12 s de auth + 20 s de datos).
+ * Una carga lenta pero SANA se declaraba atascada y el «Reintentar» abortaba un
+ * fetch bueno (regresión 2026-07-25).
+ */
+function Splash({ onReintentar }: { onReintentar: () => void }) {
+  const [atascado, setAtascado] = useState(false)
+
+  useEffect(() => {
+    if (atascado) return
+    const reloj = setTimeout(() => setAtascado(true), LIMITE_SPLASH_MS)
+    return () => clearTimeout(reloj)
+  }, [atascado])
+
+  if (atascado) {
+    return (
+      <CargaAtascada
+        onReintentar={() => {
+          // Vuelve al spinner: el reintento arranca de cero y, si se vuelve a
+          // atascar, el reloj lo detectará otra vez (efecto con dep [atascado]).
+          setAtascado(false)
+          onReintentar()
+        }}
+      />
+    )
+  }
+
   return (
     <div className="flex min-h-svh items-center justify-center">
       <div className="w-64 space-y-3">
@@ -64,23 +170,18 @@ function PantallaCargando() {
 function DatosRealesPendientes() {
   const { salir } = useAuth()
   return (
-    <div className="flex min-h-svh items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-7 text-center shadow-[var(--shadow-card)]">
-        <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-primary/10 text-primary">
-          <DatabaseZap className="size-6" aria-hidden />
-        </div>
-        <div className="space-y-1.5">
-          <h1 className="text-lg font-extrabold text-primary">Datos reales aún no conectados</h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Tu sesión es válida, pero la fuente real del CRM todavía no está habilitada.
-            Para proteger la información, una cuenta real nunca recibe datos de demostración.
-          </p>
-        </div>
+    <AvisoArranque
+      icono={DatabaseZap}
+      titulo="Datos reales aún no conectados"
+      acciones={
         <Button type="button" variant="outline" onClick={() => void salir()}>
           <LogOut className="size-4" aria-hidden /> Cerrar sesión
         </Button>
-      </div>
-    </div>
+      }
+    >
+      Tu sesión es válida, pero la fuente real del CRM todavía no está habilitada.
+      Para proteger la información, una cuenta real nunca recibe datos de demostración.
+    </AvisoArranque>
   )
 }
 
@@ -89,28 +190,24 @@ function DatosRealesPendientes() {
 function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
   const { salir } = useAuth()
   return (
-    <div className="flex min-h-svh items-center justify-center p-6">
-      <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-7 text-center shadow-[var(--shadow-card)]">
-        <div className="mx-auto grid size-12 place-items-center rounded-2xl bg-destructive/10 text-destructive">
-          <WifiOff className="size-6" aria-hidden />
-        </div>
-        <div className="space-y-1.5">
-          <h1 className="text-lg font-extrabold text-primary">No pudimos cargar tu información</h1>
-          <p className="text-sm leading-relaxed text-muted-foreground">
-            Hubo un problema al conectar con el servidor del CRM. Tu sesión sigue activa —
-            revisa tu conexión y vuelve a intentarlo.
-          </p>
-        </div>
-        <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">
+    <AvisoArranque
+      icono={WifiOff}
+      tono="destructive"
+      titulo="No pudimos cargar tu información"
+      acciones={
+        <>
           <Button type="button" onClick={onReintentar}>
             <RotateCcw className="size-4" aria-hidden /> Reintentar
           </Button>
           <Button type="button" variant="outline" onClick={() => void salir()}>
             <LogOut className="size-4" aria-hidden /> Cerrar sesión
           </Button>
-        </div>
-      </div>
-    </div>
+        </>
+      }
+    >
+      Hubo un problema al conectar con el servidor del CRM. Tu sesión sigue activa —
+      revisa tu conexión y vuelve a intentarlo.
+    </AvisoArranque>
   )
 }
 
@@ -231,12 +328,16 @@ function Workspace() {
 }
 
 export default function App() {
-  const { fase, yo } = useAuth()
+  const { fase, yo, reintentar } = useAuth()
   const estadoDatos = useStoreEstado()
 
   const content =
     fase === 'init' || fase === 'resolviendo' ? (
-      <Splash />
+      // Splash del ACCESO: si se atasca, su salida es re-verificar la sesión.
+      // La `key` distinta de la del splash de DATOS es LOAD-BEARING: obliga a
+      // React a remontar al pasar de uno al otro y reinicia el reloj de
+      // caducidad, para que cada etapa estrene sus 25 s de paciencia.
+      <Splash key="splash-acceso" onReintentar={reintentar} />
     ) : fase === 'anon' || fase === 'error' ? (
       <Login />
     ) : fase === 'no_enrolado' ? (
@@ -247,7 +348,9 @@ export default function App() {
       estadoDatos.error ? (
         <ErrorCargaReal onReintentar={estadoDatos.reintentar} />
       ) : estadoDatos.cargando ? (
-        <Splash />
+        // Splash de DATOS: su salida es volver a pedirlos. `key` propia → reloj
+        // propio (no hereda los segundos que ya consumió el splash del acceso).
+        <Splash key="splash-datos" onReintentar={estadoDatos.reintentar} />
       ) : (
         <Workspace />
       )

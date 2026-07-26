@@ -46,8 +46,29 @@ export function fechaLima(ms: number): string {
 }
 
 /** 'HH:MM' del instante en Lima. */
-function horaLima(ms: number): string {
+export function horaLima(ms: number): string {
   return new Date(ms - LIMA_OFFSET_MS).toISOString().slice(11, 16)
+}
+
+/**
+ * Fecha + hora ABSOLUTA en Lima: 'Vie 24 Jul 2026, 15:00'.
+ *
+ * Distinta de `etiquetaDia` a propósito: aquélla es RELATIVA ("Hoy", "Mañana")
+ * y sirve para una agenda que se relee cada día. Esto se GRABA en
+ * `crm.actividades`, que es un log INMUTABLE: "Mañana" no significaría nada
+ * dentro de seis meses, y por eso el AÑO no es opcional.
+ *
+ * Se arma de DIAS/MESES y NO de `toLocaleString('es-PE')`, y las dos razones
+ * pesan justamente porque el texto se graba y después nadie puede editarlo:
+ *  · ZONA: `toLocaleString` usa la del NAVEGADOR — un asesor de viaje, o con la
+ *    máquina mal configurada, quemaría una hora falsa en el historial. Aquí
+ *    Lima es UTC-5 fijo, como en todo este módulo.
+ *  · ICU: el formato es-PE de mes y meridiano cambia entre versiones de Node y
+ *    de navegador (los "p. m." con espacios duros). Aquí el texto es estable.
+ */
+export function fechaHoraLima(ms: number): string {
+  const d = new Date(ms - LIMA_OFFSET_MS)
+  return `${DIAS[d.getUTCDay()]} ${d.getUTCDate()} ${MESES[d.getUTCMonth()]} ${d.getUTCFullYear()}, ${horaLima(ms)}`
 }
 
 /** Etiqueta de día en Lima: Hoy / Mañana / "Vie 24 Jul". */

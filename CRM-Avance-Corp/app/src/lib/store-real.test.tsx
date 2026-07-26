@@ -34,7 +34,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
   }
 })
 
-const { StoreProvider } = await import('./store')
+const { StoreProvider, LIMITE_CARGA_REAL_MS } = await import('./store')
 const { CrmApiError } = crmApi
 
 const listarLeads = vi.mocked(crmApi.listarLeadsDelAmbito)
@@ -510,6 +510,69 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
     // El descarte NO se revierte ni se miente: el toast de rollback nunca aparece.
     expect(toast.error).not.toHaveBeenCalledWith(expect.stringContaining('se restauró el estado anterior'))
+  })
+
+  // Un fetch COLGADO no rechaza nunca: sin el reloj de LIMITE_CARGA_REAL_MS el
+  // asesor se quedaba para siempre en «Preparando tu información…».
+  it('carga inicial COLGADA → estado accionable de error (no un spinner eterno)', async () => {
+    vi.useFakeTimers()
+    try {
+      // Promesa que jamás se asienta: el peor caso (ni éxito ni fallo).
+      listarLeads.mockImplementationOnce(() => new Promise(() => {}))
+      const { estado } = montar('gerencia')
+      expect(estado().cargando).toBe(true)
+      expect(estado().error).toBe(false)
+
+      await act(async () => {
+        vi.advanceTimersByTime(LIMITE_CARGA_REAL_MS + 1)
+      })
+
+      expect(estado().error).toBe(true)
+      expect(estado().cargando).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('la carga normal NO se corta por el límite (no rompe el arranque lento pero vivo)', async () => {
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(estado().error).toBe(false)
+    expect(api().leads).toHaveLength(1)
+  })
+
+  // Un fallo de LECTURA de metas se pintaba como «Meta mensual por definir»:
+  // el asesor creía que gerencia no le fijó meta cuando sí lo hizo.
+  it('metas que NO se pudieron leer se marcan como error, no como "sin meta"', async () => {
+    listarObjetivosMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
+    const { api, estado } = montar('vendedor')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    // El CRM entero NO cae por las metas (siguen siendo un fetch auxiliar)…
+    expect(estado().error).toBe(false)
+    // …pero el consumidor sabe que los ceros no son un dato.
+    expect(api().objetivosError).toBe(true)
+  })
+
+  it('metas leídas OK (aunque estén vacías) NO son un error: el cero SÍ es el dato', async () => {
+    listarObjetivosMock.mockResolvedValue([])
+    const { api, estado } = montar('vendedor')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(api().objetivosError).toBe(false)
+  })
+
+  it('tras un fallo de metas, recargar() limpia la marca cuando el servidor vuelve', async () => {
+    listarObjetivosMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(api().objetivosError).toBe(true))
+
+    listarObjetivosMock.mockResolvedValue([])
+    await act(async () => {
+      await api().recargar()
+    })
+    await waitFor(() => expect(api().objetivosError).toBe(false))
+    expect(estado().error).toBe(false)
   })
 
   it('fallo de la carga inicial → estado.error (no pinta CRM vacío) y reintentar recupera', async () => {

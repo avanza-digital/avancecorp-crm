@@ -20,9 +20,11 @@ import {
   MOTIVOS_DESCARTE,
   TERMINALES_K,
   TIPOS_AUTO_K,
+  TIPOS_CONTACTO_K,
   type Actividad,
   type CategoriaInteres,
   esTipoTarea,
+  type Etapa,
   type EtapaActiva,
   type Genero,
   type Lead,
@@ -34,6 +36,8 @@ import {
   type TipoActividadManual,
 } from './tipos'
 import { esAbierto } from './inteligencia'
+import { avancePorContacto, avancePorReunion } from './avance-automatico'
+import { MOTIVOS_CON_EVIDENCIA, vetoNoResponde } from './descarte-evidencia'
 import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
 import type { Moneda } from './format'
 import { DEMO_HABILITADO } from './config'
@@ -86,6 +90,17 @@ export interface StoreEstado {
   error: boolean
   reintentar: () => void
 }
+
+/**
+ * Presupuesto de la carga inicial de la sesión real. Un fetch que se CUELGA no
+ * rechaza nunca: sin este límite el asesor se queda para siempre mirando
+ * «Preparando tu información…», y un spinner eterno es peor que un error porque
+ * no ofrece salida. Al vencer se abortan los fetch y se muestra el estado
+ * accionable de error + reintentar. Holgado a propósito: el arranque real
+ * (leads + equipo + actividades + tareas + metas) puede tardar varios segundos
+ * en 4G, así que esto NO recorta la carga normal.
+ */
+export const LIMITE_CARGA_REAL_MS = 20_000
 
 // v2: F1c re-siembra (20 leads + asignado_supervisor_id) — la clave vieja se ignora.
 const CLAVE = 'ac-crm-demo-datos-v2'
@@ -212,6 +227,16 @@ export interface StoreDataApi {
   ambito: Ambito
   agenda: EventoAgenda[]
   objetivos: ObjetivosPorRol
+  /**
+   * ¿Falló la LECTURA de las metas del mes? Cuando es `true`, los ceros de
+   * `objetivos` NO son un dato: no sabemos si gerencia fijó metas o no.
+   *
+   * El consumidor (la franja de meta en Hoy) DEBE mirarlo antes de decir «Meta
+   * mensual por definir»: afirmar ausencia cuando lo que hubo fue un error de
+   * red le hace creer al asesor que nadie fijó su meta. Con `true` el copy
+   * honesto es «No pudimos cargar tu meta del mes» + reintentar (`recargar()`).
+   */
+  objetivosError: boolean
   series: SeriesComerciales
   // Crudas, para lib/inteligencia (colaDe, estancados…). OJO: es el timeline
   // GLOBAL sin recorte (la RLS actividades_select SÍ recorta a leads visibles):
@@ -229,21 +254,53 @@ export interface StoreDataApi {
   // vista de display derivada (labels Lima). tareasDe alimenta el drawer.
   tareas: Tarea[]
   tareasDe(leadId: string): Tarea[] // pendientes del lead, orden por vence_en
-  crearTarea(input: NuevaTareaInput): ResultadoMut & { id?: string }
+  /** `avance` = etapa a la que subió el lead SOLO por agendar esta tarea
+   *  (espejo de `trg_zz_tareas_avance_etapa`: una reunión futura con quien ya
+   *  se trabajó sube a `reunion_agendada`). Se DEVUELVE, como en
+   *  `registrarActividad` y `completarTarea`, porque la UI tiene que cantarlo:
+   *  agendar desde la ficha movía el lead de etapa EN SILENCIO y el asesor veía
+   *  saltar el stepper sin saber quién lo tocó. */
+  crearTarea(input: NuevaTareaInput): ResultadoMut & { id?: string; avance?: EtapaActiva }
   /** Cierra por la RPC atómica (resultado→log + siguiente encadenada). En
    *  llamadas COMPLETADAS el resultado es obligatorio (patrón Outreach). */
-  completarTarea(input: CompletarTareaInput): ResultadoMut & { siguiente_id?: string }
+  /** `avance` = etapa a la que subió SOLO el lead por este cierre (el contacto
+   *  registrado o la reunión encadenada). La UI lo dice en voz alta: un cambio
+   *  de etapa silencioso asusta más que ayuda.
+   *
+   *  `persistido` = promesa de la escritura REAL (ver `persistir`): resuelve
+   *  `true` cuando la RPC ya commiteó en el servidor y `false` si la rechazó.
+   *  La necesita quien encadene otra escritura detrás del cierre y cuyo orden
+   *  en el SERVIDOR no sea negociable (ver `cerrarPorNoResponde` en
+   *  components/app/cerrar-tarea.tsx: descartar el lead cancela sus tareas
+   *  pendientes por trigger, así que el cierre tiene que haber commiteado
+   *  antes). En demo resuelve `true` de inmediato. */
+  completarTarea(input: CompletarTareaInput): ResultadoMut & {
+    siguiente_id?: string
+    avance?: EtapaActiva
+    persistido?: Promise<boolean>
+  }
   /** Reprogramar = mover vence_en de una PENDIENTE (el contador lo lleva el trigger). */
   reprogramarTarea(id: string, venceEn: string): ResultadoMut
   /** Anti no-show: el cliente respondió al recordatorio confirmando la cita. */
   confirmarTarea(id: string): ResultadoMut
   crearLead(input: NuevoLeadInput): ResultadoMut & { id?: string }
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
-  cambiarEtapa(id: string, etapa: EtapaActiva): ResultadoMut
+  /** `capital` (opcional) viaja EN LA MISMA escritura que la etapa: pasar a
+   *  "Propuesta enviada" es el momento de fijar lo que de verdad se propuso, y
+   *  partirlo en dos updates dejaría el lead avanzado con la cifra vieja si el
+   *  segundo falla. PEN y USD JAMÁS se suman: la moneda viaja con el monto. */
+  cambiarEtapa(
+    id: string,
+    etapa: EtapaActiva,
+    capital?: { monto_estimado: number; moneda: Moneda },
+  ): ResultadoMut
   descartar(id: string, motivo: MotivoDescarte, nota?: string): ResultadoMut
   convertir(id: string): ResultadoMut
   reabrir(id: string): ResultadoMut
-  registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string): ResultadoMut
+  /** `avance` = etapa a la que subió SOLO el lead por este contacto (ver
+   *  lib/avance-automatico.ts). La UI lo usa para decirlo en voz alta: un
+   *  cambio de etapa silencioso asusta más que ayuda. */
+  registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string): ResultadoMut & { avance?: EtapaActiva }
   reasignar(id: string, vendedorId: string | null): ResultadoMut
   /** Gerencia fija las metas del mes por rol (RPC crm.fijar_objetivos). */
   fijarObjetivos(metas: ObjetivosPorRol): ResultadoMut
@@ -275,12 +332,15 @@ const OBJETIVOS_VACIOS: ObjetivosPorRol = objetivosCero()
 interface Auxiliares {
   equipo: Miembro[]
   objetivos: ObjetivosPorRol
+  /** true si la LECTURA de metas falló: los ceros de `objetivos` no son un dato. */
+  objetivosError: boolean
   series: SeriesComerciales
 }
 
 const AUXILIARES_VACIOS: Auxiliares = {
   equipo: EQUIPO_VACIO,
   objetivos: OBJETIVOS_VACIOS,
+  objetivosError: false,
   series: SERIES_VACIAS,
 }
 
@@ -431,17 +491,23 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Promise.all sin catch tumbaría su boot entero. Los demás fetches son
     // seguros: leen por RLS con ámbito ∅ → [] (la RLS filtra, no lanza).
     const esCoordinador = yo?.rol === 'coordinador'
+    // Un fallo de LECTURA de metas no puede pintarse como "no hay metas": se
+    // marca aparte para que la pantalla diga la verdad (ver `objetivosError`).
+    let objetivosError = false
     const [leads, miembros, actividades, tareasAmbito, filasObjetivos] = await Promise.all([
       listarLeadsDelAmbito(signal),
       esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
       listarActividadesDelAmbito(signal),
       listarTareasDelAmbito(signal),
       // Metas del mes calendario vigente en Lima (no-render: Date.now() ok).
-      // Metas caídas ≠ CRM caído: este fetch AUXILIAR degrada a cero ("meta
-      // por definir") en vez de tumbar el boot; si la caída es general, los
-      // fetches primarios (leads/equipo) disparan el error real igual.
+      // Metas caídas ≠ CRM caído: este fetch AUXILIAR no tumba el boot; si la
+      // caída es general, los fetches primarios (leads/equipo) disparan el
+      // error real igual. Pero el fallo SE RECUERDA: antes degradaba a cero y
+      // la pantalla afirmaba «Meta mensual por definir» aunque gerencia sí las
+      // hubiera fijado — un error pintado como ausencia de dato.
       listarObjetivos(periodoLima(Date.now()), signal).catch((error: unknown) => {
         registrarError('crm.objetivos.boot_degradado', error)
+        objetivosError = true
         return []
       }),
     ])
@@ -451,6 +517,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       actividades,
       tareas: tareasAmbito,
       objetivos: aObjetivosPorRol(filasObjetivos),
+      objetivosError,
       leads: leads.map((l) => ({
         ...l,
         vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
@@ -466,14 +533,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const resincronizarReal = useCallback(async (): Promise<boolean> => {
     const miEpoca = epocaRef.current
     try {
-      const { leads, actividades, miembros, tareas: tareasServidor, objetivos } = await cargarReal()
+      const { leads, actividades, miembros, tareas: tareasServidor, objetivos, objetivosError } = await cargarReal()
       // La sesión cambió (logout/otro usuario/recarga) mientras viajaba: se
       // descarta en vez de repoblar el store de otra sesión.
       if (epocaRef.current !== miEpoca) return false
       setDatos({ leads, actividades })
       setTareas(tareasServidor)
       // objetivos también: el resync es el rollback de fijarObjetivos.
-      setAuxiliares((prev) => ({ ...prev, equipo: miembros, objetivos }))
+      setAuxiliares((prev) => ({ ...prev, equipo: miembros, objetivos, objetivosError }))
       return true
     } catch (error: unknown) {
       registrarError('crm.resincronizacion_fallida', error)
@@ -502,6 +569,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             setAuxiliares({
               equipo: demo.EQUIPO_DEMO,
               objetivos: demo.METAS_DEMO,
+              objetivosError: false, // el demo no lee del servidor: nada que fallar
               series: demo.SPARKS_DEMO,
             })
             setDemoListo(true)
@@ -519,16 +587,38 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     // Sesión REAL: lee del servidor.
     if (sesionReal) {
+      // Un cuelgue (fetch que ni resuelve ni rechaza) NO llega al .catch: sin
+      // este reloj el splash se queda para siempre. Al vencer se abortan las
+      // peticiones y se cae al MISMO estado accionable que un fallo.
+      let agotado = false
+      const relojCarga = setTimeout(() => {
+        if (cancelado) return
+        agotado = true
+        registrarError(
+          'crm.carga_real_colgada',
+          new Error(`La carga inicial del CRM superó ${LIMITE_CARGA_REAL_MS} ms`),
+        )
+        control.abort() // corta los fetch en vuelo (no dejamos peticiones zombis)
+        setDatos(datosVacios())
+        setTareas([])
+        setAuxiliares(AUXILIARES_VACIOS)
+        setErrorReal(true)
+      }, LIMITE_CARGA_REAL_MS)
+
       void cargarReal(control.signal)
-        .then(({ leads, actividades, miembros, tareas: tareasServidor, objetivos }) => {
-          if (cancelado) return
+        .then(({ leads, actividades, miembros, tareas: tareasServidor, objetivos, objetivosError }) => {
+          clearTimeout(relojCarga)
+          // `agotado`: una respuesta que llega DESPUÉS del límite ya no puede
+          // borrar la pantalla de error que el asesor está viendo.
+          if (cancelado || agotado) return
           setDatos({ leads, actividades })
           setTareas(tareasServidor)
-          setAuxiliares({ equipo: miembros, objetivos, series: SERIES_VACIAS })
+          setAuxiliares({ equipo: miembros, objetivos, objetivosError, series: SERIES_VACIAS })
           setRealListo(true)
         })
         .catch((error: unknown) => {
-          if (cancelado || control.signal.aborted) return
+          clearTimeout(relojCarga)
+          if (cancelado || agotado || control.signal.aborted) return
           registrarError('crm.carga_real_fallida', error)
           // Fallo de la carga inicial: NO se pinta el CRM vacío (parecería "no hay
           // leads"). Se marca error para que la app muestre reintento explícito.
@@ -537,7 +627,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           setAuxiliares(AUXILIARES_VACIOS)
           setErrorReal(true)
         })
-      return () => { cancelado = true; control.abort() }
+      return () => { cancelado = true; clearTimeout(relojCarga); control.abort() }
     }
 
     // Ni demo ni sesión real: vacío.
@@ -669,10 +759,20 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // pase, se resincroniza — los triggers (cambio_etapa/reasignacion) y la
     // verdad del servidor reemplazan el espejo optimista. Si el servidor la
     // rechaza (dedup global, RLS, regla de trigger): toast + rollback.
-    const persistir = (op: () => Promise<void>): void => {
-      if (!realActivo) return
-      void op().then(
-        () => { void resincronizarReal() },
+    //
+    // DEVUELVE la promesa de esa escritura: resuelve `true` cuando el servidor
+    // ya la aceptó y `false` cuando la rechazó (NUNCA rechaza — el error ya se
+    // reporta aquí dentro, así que ignorar el retorno es seguro y sigue siendo
+    // el uso normal). Existe para ENCADENAR dos escrituras cuyo orden EN EL
+    // SERVIDOR no es negociable: sin ella salían en el mismo tick y llegaban en
+    // orden indeterminado. Resuelve al confirmar la escritura, NO al terminar
+    // el resync: el resync sigue siendo fire-and-forget (esperar a releer todo
+    // el ámbito solo añadiría latencia a la escritura encadenada).
+    // En demo no hay servidor que ordenar: resuelve `true` de inmediato.
+    const persistir = (op: () => Promise<void>): Promise<boolean> => {
+      if (!realActivo) return Promise.resolve(true)
+      return op().then(
+        () => { void resincronizarReal(); return true },
         (causa: unknown) => {
           // Variante LOCAL de mensajeDeError (crm-api): además excluye
           // POSTGREST_ERROR — ese mensaje genérico es de LECTURA ("No se pudo
@@ -691,6 +791,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
                 : `${mensaje}. Sin conexión con el servidor: recarga la página para ver el estado real.`,
             )
           })
+          return false
         },
       )
     }
@@ -711,6 +812,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
           : [],
       objetivos: auxiliares.objetivos,
+      objetivosError: auxiliares.objetivosError,
       // Tendencias: en sesión real se CALCULAN de los leads del ámbito (mismo
       // criterio de "ahora al recomputar" que la agenda); demo usa sus sparks.
       series: realActivo ? seriesComerciales(ambito.leads, Date.now()) : auxiliares.series,
@@ -763,6 +865,22 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           creado_en: new Date().toISOString(),
         }
         setTareas((prev) => [tarea, ...prev])
+        // Espejo optimista de `trg_zz_tareas_avance_etapa`: agendar una reunión
+        // con quien ya trabajaste sube el lead a `reunion_agendada`. Ver las
+        // guardas (y por qué el no-show NO asciende) en lib/avance-automatico.ts.
+        const avance = avancePorReunion(
+          lead,
+          tarea,
+          datos.actividades.some((a) => a.lead_id === lead.id && TIPOS_CONTACTO_K.has(a.tipo)),
+          Date.now(),
+        )
+        if (avance) {
+          const actEtapa = actividadAuto(lead.id, 'cambio_etapa', `${ETAPA_INFO[lead.etapa].label} → ${ETAPA_INFO[avance].label}`)
+          setDatos((d) => ({
+            leads: d.leads.map((l) => (l.id === lead.id ? { ...l, etapa: avance } : l)),
+            actividades: [actEtapa, ...d.actividades],
+          }))
+        }
         persistir(() => insertarTarea({
           ...(UUID_RE.test(id) ? { id } : {}),
           lead_id: lead.id,
@@ -773,7 +891,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           duracion_min: tarea.duracion_min ?? null,
           creado_por: miId,
         }))
-        return { ok: true, id }
+        // El avance viaja al llamador para que lo ANUNCIE (los otros dos
+        // escritores ya lo hacían): mover la etapa sin decirlo asusta más que
+        // ayuda. `avance` solo puede ser una etapa activa — avancePorReunion
+        // nunca devuelve terminales.
+        return avance ? { ok: true, id, avance } : { ok: true, id }
       },
 
       completarTarea: (input) => {
@@ -831,14 +953,68 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           const marcadas = prev.map((x) => (x.id === t.id ? { ...x, estado: input.estado } : x))
           return sigLocal ? [sigLocal, ...marcadas] : marcadas
         })
-        if (resultado && t.lead_id) {
-          const act = actividadAuto(t.lead_id, resultado, detalle)
-          setDatos((d) => ({ ...d, actividades: [act, ...d.actividades] }))
+        // Espejo de los DOS avances automáticos de etapa, en el MISMO orden en
+        // que los ejecuta el servidor: `crm.cerrar_tarea` inserta primero la
+        // actividad del resultado (→ trg_zz_actividades_avance_etapa) y después
+        // la tarea siguiente (→ trg_zz_tareas_avance_etapa). Encadenarlos en ese
+        // orden importa: cerrar con "Contestó" y agendar reunión en el mismo
+        // gesto lleva el lead de `nuevo` a `contactado` y de ahí a
+        // `reunion_agendada`, igual que en el servidor.
+        let avanceFinal: EtapaActiva | null = null
+        if (t.lead_id && lead) {
+          const actos: Actividad[] = []
+          let etapaLocal: EtapaActiva | Etapa = lead.etapa
+          if (resultado) actos.push(actividadAuto(t.lead_id, resultado, detalle))
+          const trasContacto = resultado
+            ? avancePorContacto({ etapa: etapaLocal, activo: lead.activo }, resultado)
+            : null
+          if (trasContacto) {
+            actos.push(actividadAuto(t.lead_id, 'cambio_etapa', `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasContacto].label}`))
+            etapaLocal = trasContacto
+          }
+          // ¿Hay algún contacto REAL en el timeline? (los 5 tipos, no los 3 de
+          // conversación: para agendar basta con haber trabajado el lead). Cuenta
+          // el resultado que se acaba de registrar, igual que el EXISTS del
+          // trigger, que corre después del INSERT de la actividad.
+          const trasReunion = sigLocal
+            ? avancePorReunion(
+                {
+                  etapa: etapaLocal,
+                  activo: lead.activo,
+                  vendedor_id: lead.vendedor_id ?? null,
+                  asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+                },
+                sigLocal,
+                (resultado != null && TIPOS_CONTACTO_K.has(resultado))
+                  || datos.actividades.some((a) => a.lead_id === t.lead_id && TIPOS_CONTACTO_K.has(a.tipo)),
+                Date.now(),
+              )
+            : null
+          if (trasReunion) {
+            actos.push(actividadAuto(t.lead_id, 'cambio_etapa', `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasReunion].label}`))
+            etapaLocal = trasReunion
+          }
+          const etapaFinal = etapaLocal
+          if (etapaFinal !== lead.etapa && etapaFinal !== 'convertido' && etapaFinal !== 'descartado') {
+            avanceFinal = etapaFinal
+          }
+          if (actos.length > 0) {
+            setDatos((d) => ({
+              leads: etapaFinal !== lead.etapa
+                ? d.leads.map((l) => (l.id === t.lead_id ? { ...l, etapa: etapaFinal } : l))
+                : d.leads,
+              // `actos` se construyó en orden cronológico; el timeline pinta el
+              // más reciente arriba, así que entra invertido.
+              actividades: [...actos.reverse(), ...d.actividades],
+            }))
+          }
         }
         // REAL: la RPC crm.cerrar_tarea hace las tres escrituras EN UNA
         // transacción (por eso no se usa actualizarTarea+insertarActividad).
         const sig = sigLocal
-        persistir(() => cerrarTarea({
+        // `persistido` se DEVUELVE al llamador: el cierre por «No responde»
+        // encadena el descarte detrás de esta promesa (ver cerrar-tarea.tsx).
+        const persistido = persistir(() => cerrarTarea({
           tarea_id: t.id,
           estado: input.estado,
           resultado_tipo: resultado,
@@ -847,7 +1023,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             ? { tipo: sig.tipo, titulo: sig.titulo, vence_en: sig.vence_en }
             : null,
         }).then(() => undefined))
-        return { ok: true, ...(sigLocal ? { siguiente_id: sigLocal.id } : {}) }
+        return {
+          ok: true,
+          persistido,
+          ...(sigLocal ? { siguiente_id: sigLocal.id } : {}),
+          ...(avanceFinal ? { avance: avanceFinal } : {}),
+        }
       },
 
       reprogramarTarea: (id, venceEn) => {
@@ -1010,6 +1191,27 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return noEncontrado()
+        // GUARD DE TERMINAL. Era el ÚNICO escritor de leads sin él (cambiarEtapa,
+        // descartar, convertir, reabrir y registrarActividad ya lo tenían), y de
+        // esa grieta colgaba una cifra de negocio: cada edición reescribe
+        // `actualizado_en`, que era el "mes de cierre" del marcador. Tocar el
+        // teléfono de un convertido de agosto le sumaba un cierre a septiembre y
+        // se lo quitaba a agosto. El sello propio (`convertido_en`) ya blinda el
+        // cálculo, pero un lead cerrado no debe poder editarse igual: su ficha
+        // es el acta de lo que pasó.
+        if (TERMINALES_K.has(actual.etapa)) {
+          return actual.etapa === 'convertido'
+            ? {
+                ok: false,
+                codigo: 'lead_cerrado',
+                error: 'Ya es cliente — sus datos se corrigen en la ficha del cliente, no en el lead',
+              }
+            : {
+                ok: false,
+                codigo: 'lead_cerrado',
+                error: 'El lead está cerrado — reábrelo para editar sus datos',
+              }
+        }
         // MISMA validación que crearLead (antes: dos copias divergentes; la
         // edición saltaba teléfono/correo/DNI si el texto cambiaba de forma).
         const v = validarCamposLead({
@@ -1036,7 +1238,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         return { ok: true }
       },
 
-      cambiarEtapa: (id, etapa) => {
+      cambiarEtapa: (id, etapa, capital) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
         const actual = buscar(id)
@@ -1047,14 +1249,31 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (TERMINALES_K.has(etapa)) {
           return { ok: false, codigo: 'cerrar_con_flujo', error: 'Usa convertir o descartar para cerrar un lead' }
         }
-        if (actual.etapa === etapa) return { ok: true }
+        // El CAPITAL REAL de la propuesta viaja EN LA MISMA ESCRITURA que la
+        // etapa, no en una segunda. Con dos `actualizarLead` separados, si la
+        // del monto fallaba el lead quedaba en "Propuesta enviada" con la cifra
+        // vieja — exactamente el bug que esto viene a corregir, ahora invisible
+        // y con todo el mundo creyendo que se arregló.
+        let parche: { etapa: EtapaActiva; monto_estimado?: number; moneda?: Moneda } = { etapa }
+        if (capital) {
+          const v = validarCamposLead({ monto_estimado: capital.monto_estimado, moneda: capital.moneda })
+          if (!v.ok) return v
+          const { monto_estimado, moneda } = v.valores
+          if (monto_estimado == null || moneda == null) {
+            return { ok: false, codigo: 'monto_invalido', campo: 'monto_estimado', error: 'Capital inválido' }
+          }
+          parche = { etapa, monto_estimado, moneda }
+        }
+        if (actual.etapa === etapa && !capital) return { ok: true }
         aplicar(
           id,
-          { etapa },
-          actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO[etapa].label}`),
+          parche,
+          actual.etapa === etapa
+            ? undefined
+            : actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO[etapa].label}`),
         )
         // El trigger del servidor genera la actividad real; el resync la trae.
-        persistir(() => actualizarLead(id, { etapa }))
+        persistir(() => actualizarLead(id, parche))
         return { ok: true }
       },
 
@@ -1064,6 +1283,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        // «No responde» exige intentos registrados: es una afirmación de hecho
+        // sobre el cliente, no una opinión. Doble defensa del gate de la ficha
+        // (la UI ya deshabilita la opción); aquí se sostiene aunque alguien
+        // llame al store por otra vía. Ver lib/descarte-evidencia.ts para por
+        // qué esto NO es un trigger de BD (rompería los descartes de Rosa).
+        if (MOTIVOS_CON_EVIDENCIA.has(motivo)) {
+          const veto = vetoNoResponde(datos.actividades.filter((a) => a.lead_id === id))
+          if (veto) {
+            toast.error(veto)
+            return { ok: false, codigo: 'sin_permiso', error: veto }
+          }
+        }
         const labelMotivo = MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
         const notaLimpia = nota?.trim() || null
         const detalle = `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO.descartado.label} · Motivo: ${labelMotivo}${notaLimpia ? ` — ${notaLimpia}` : ''}`
@@ -1163,14 +1394,32 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para registrar actividad' }
         }
         const act = actividadAuto(id, tipo, detalle?.trim() || null)
-        setDatos((d) => ({ ...d, actividades: [act, ...d.actividades] }))
+        // AVANCE AUTOMÁTICO DE ETAPA (pedido de Miguel 2026-07-25). La verdad la
+        // escribe el trigger `trg_zz_actividades_avance_etapa`; esto es su
+        // espejo optimista para que la ficha no pinte "Nuevo" hasta el resync —
+        // y la ÚNICA implementación en modo demo, donde `persistir` sale en seco.
+        //
+        // El front NO persiste la etapa: no hace falta (el trigger la mueve en
+        // la misma transacción del INSERT) y sería una carrera. Tampoco persiste
+        // la actividad `cambio_etapa`: `actividades_insert` la veta al cliente
+        // justamente para que nadie fabrique historia. La fila optimista la
+        // reemplaza la real en el resync.
+        const avance = avancePorContacto(actual, tipo)
+        const actEtapa = avance
+          ? actividadAuto(id, 'cambio_etapa', `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO[avance].label}`)
+          : null
+        setDatos((d) => ({
+          leads: avance ? d.leads.map((l) => (l.id === id ? { ...l, etapa: avance } : l)) : d.leads,
+          // El `cambio_etapa` va DELANTE: ocurrió después del contacto.
+          actividades: actEtapa ? [actEtapa, act, ...d.actividades] : [act, ...d.actividades],
+        }))
         persistir(() => insertarActividad({
           lead_id: id,
           tipo,
           detalle: act.detalle,
           creado_por: miId,
         }))
-        return { ok: true }
+        return avance ? { ok: true, avance } : { ok: true }
       },
 
       fijarObjetivos: (metas) => {
@@ -1185,8 +1434,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const invalido = validarObjetivos(metas)
         if (invalido) return { ok: false, error: invalido }
         // Optimista: el marcador de meta se actualiza al toque; si el servidor
-        // rechaza, el resync de persistir() restaura las metas reales.
-        setAuxiliares((prev) => ({ ...prev, objetivos: metas }))
+        // rechaza, el resync de persistir() restaura las metas reales (y con
+        // ellas el estado real de la lectura).
+        setAuxiliares((prev) => ({ ...prev, objetivos: metas, objetivosError: false }))
         persistir(async () => {
           await fijarObjetivosRpc(periodoLima(Date.now()), aPayloadObjetivos(metas))
         })

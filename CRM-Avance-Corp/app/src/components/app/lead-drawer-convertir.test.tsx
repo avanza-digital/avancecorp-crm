@@ -26,6 +26,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     ...actual, // conserva CrmApiError real
     convertirLead: vi.fn(),
     actualizarClientePortal: vi.fn(),
+    esClienteDeMiCartera: vi.fn(),
   }
 })
 
@@ -34,6 +35,7 @@ const { CrmApiError } = crmApi
 
 const convertirEdge = vi.mocked(crmApi.convertirLead)
 const actualizarCliente = vi.mocked(crmApi.actualizarClientePortal)
+const enMiCartera = vi.mocked(crmApi.esClienteDeMiCartera)
 
 function leadBase(over: Partial<Lead> = {}): Lead {
   return {
@@ -59,10 +61,10 @@ function leadBase(over: Partial<Lead> = {}): Lead {
   }
 }
 
-function sesion(demo: boolean): AuthContextValue {
+function sesion(demo: boolean, rol: 'vendedor' | 'supervisor' = 'vendedor'): AuthContextValue {
   return {
     fase: 'listo',
-    yo: { id: 'u-v1', nombre_completo: 'Vendedor Real', rol: 'vendedor', demo, puede_contratar: true },
+    yo: { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo, puede_contratar: true },
     error: null,
     entrar: async () => ({ ok: true }),
     entrarDemo: () => undefined,
@@ -71,13 +73,17 @@ function sesion(demo: boolean): AuthContextValue {
   }
 }
 
-function montar({ demo = false, lead = {} }: { demo?: boolean; lead?: Partial<Lead> } = {}) {
+function montar({
+  demo = false,
+  lead = {},
+  rol = 'vendedor',
+}: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {}) {
   const onClose = vi.fn()
   const recargar = vi.fn().mockResolvedValue(true)
   // Stub mínimo del store: DialogConvertir solo usa convertir (demo) y recargar.
   const api = { convertir: vi.fn(() => ({ ok: true })), recargar } as unknown as StoreDataApi
   render(
-    <AuthContext.Provider value={sesion(demo)}>
+    <AuthContext.Provider value={sesion(demo, rol)}>
       <StoreDataContext.Provider value={api}>
         <DialogConvertir l={leadBase(lead)} onClose={onClose} />
       </StoreDataContext.Provider>
@@ -191,19 +197,82 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
   })
 
-  it('dedup ya_existia: NO pisa los bancarios del cliente existente y sigue al contrato', async () => {
+  it('dedup ya_existia CON el cliente en mi cartera: no pisa bancarios, LO DICE y el contrato sigue vivo', async () => {
     const user = userEvent.setup()
     convertirEdge.mockResolvedValue({ perfil_id: 'perfil-7', ya_existia: true, email_enviado: false })
+    // El caso legítimo y frecuente (renovación): el DNI ya era cliente… mío.
+    enMiCartera.mockResolvedValue(true)
     montar()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user) // el vendedor no puede saber que ya existía
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
     // Un PATCH ciego sobreescribiría las cuentas con las que YA cobra: no viaja.
     expect(actualizarCliente).not.toHaveBeenCalled()
-    expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS enlazado a su cuenta de cliente')
+    // La atribución se PREGUNTA al servidor, no se adivina.
+    expect(enMiCartera).toHaveBeenCalledWith('perfil-7')
+    // …y el asesor se entera de que lo que llenó NO se guardó, en vez de creer
+    // que registró la cuenta donde se le depositan los intereses.
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent(/ya tenía cuenta en el portal/)
+    expect(aviso).toHaveTextContent(/datos bancarios que llenaste NO se aplicaron/)
+    // Siendo suyo, NO se le acusa de haber perdido la cartera.
+    expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
+    // Tampoco se le manda a "Corregir": la policy perfiles_analista_update solo
+    // deja tocar clientes creados hace <5 h, y este ya existía. Antes se le
+    // prometía esa ruta y no funcionaba nunca.
+    expect(screen.queryByText(/Corregir/)).not.toBeInTheDocument()
+    expect(screen.getByText(/pídeselo a Gerencia/)).toBeInTheDocument()
+    // El foco entra AL AVISO: al enviar cayó a <body> (el botón se deshabilitó)
+    // y una advertencia que hay que leer no puede depender de que Radix lo rescate.
+    expect(aviso).toHaveFocus()
+    // Un toast de éxito aquí sería justo la mentira que este aviso viene a matar.
+    expect(toast.success).not.toHaveBeenCalled()
+    // El aviso NO es terminal: el contrato sigue siendo el paso lógico.
+    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Continuar al contrato' }))
+    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+  })
+
+  it('dedup ya_existia con el cliente de OTRO asesor: no se ofrece un contrato que la RPC rechazaría', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-8', ya_existia: true, email_enviado: false })
+    // La edge NO le cambia el asesor_perfil_id al cliente existente: sigue
+    // siendo de quien lo tenía, y `public.crear_contrato` exige cartera propia.
+    enMiCartera.mockResolvedValue(false)
+    montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).toHaveTextContent(/NO pasó a tu cartera/)
+    // La verdad completa: ni lo verá en su pantalla ni podrá contratarle.
+    expect(screen.getByText(/no lo verás en/)).toBeInTheDocument()
+    expect(screen.getByText(/te lo reasigne en el portal/)).toBeInTheDocument()
+    // Y el callejón sin salida se retira: el botón llevaba a un formulario
+    // largo que terminaba en un rechazo del servidor.
+    expect(screen.queryByRole('button', { name: /contrato/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Entendido' })).toBeInTheDocument()
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('dedup ya_existia sin poder comprobar la cartera: se dice que no se sabe, no se afirma', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-8', ya_existia: true, email_enviado: false })
+    enMiCartera.mockResolvedValue(null) // red caída / RLS: NO es un "false"
+    montar()
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).not.toHaveTextContent(/NO pasó a tu cartera/)
+    expect(screen.getByText(/No pudimos comprobar si el cliente quedó en tu cartera/)).toBeInTheDocument()
+    // Se ofrece el intento (puede ser suyo), rotulado como intento y no como promesa.
+    expect(screen.getByRole('button', { name: 'Intentar el contrato' })).toBeInTheDocument()
   })
 
   it('bancarios en 0 filas: aviso terminal honesto, SIN contrato y SIN re-submit', async () => {
@@ -218,7 +287,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
     const aviso = await screen.findByRole('alert')
     expect(aviso).toHaveTextContent(
-      'Cliente creado y correo enviado, pero los datos bancarios NO se guardaron — corrígelo en Clientes dentro de las 5 horas.',
+      'Cliente creado y correo enviado, pero los datos bancarios NO se guardaron — corrígelo en “Mi cartera → Corregir” dentro de las 5 horas.',
     )
     // Ni contrato ni re-submit: la cuenta ya existe y el correo ya salió.
     expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
@@ -227,6 +296,21 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(toast.success).not.toHaveBeenCalled()
     // El lead SÍ quedó convertido en el servidor: el pipeline debe reflejarlo.
     expect(recargar).toHaveBeenCalled()
+  })
+
+  it('la ruta del aviso usa el rótulo del MENÚ de quien convierte (supervisor → "Cartera")', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
+    actualizarCliente.mockResolvedValue(false)
+    montar({ rol: 'supervisor' })
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    // Al supervisor el sidebar le rotula la pantalla "Cartera": mandarlo a
+    // "Mi cartera" sería nombrarle un ítem que su menú no tiene.
+    expect(await screen.findByRole('alert')).toHaveTextContent('corrígelo en “Cartera → Corregir”')
   })
 
   it('bancarios lanzan y el correo no salió: variante honesta del mismo aviso terminal', async () => {

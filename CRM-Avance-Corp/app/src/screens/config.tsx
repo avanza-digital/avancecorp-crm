@@ -48,8 +48,12 @@ export function Config() {
         </CardContent>
       </Card>
 
-      {/* Banner de modo auditoría (solo lectura) */}
-      {!edita && (
+      {/* Banner de modo auditoría — SOLO para quien de verdad viene a auditar.
+          Desde que el vendedor entra aquí a conectar su calendario (2026-07-25),
+          `!edita` ya no significa "auditor": significa "no es gerencia". Al
+          asesor le salía un cartel diciéndole que está en modo auditoría cuando
+          lo único que vino a hacer es exportar SU agenda. */}
+      {!edita && !puedeEscribir(yo?.rol) && (
         <div className="flex items-center gap-2.5 rounded-xl bg-warning/10 px-4 py-3 text-warning ring-1 ring-warning/20">
           <Eye className="size-4 shrink-0" />
           <p className="text-xs font-semibold">

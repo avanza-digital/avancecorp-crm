@@ -32,13 +32,15 @@ import {
   capitalPorMoneda,
   colaDe,
   colorMeta,
-  conversionGlobal,
   diasSinActividad,
   estancados,
   haceTexto,
   indexarUltimaActividad,
   metricasPorVendedor,
+  pctMeta,
 } from '@/lib/inteligencia'
+import { cierresDelMes } from '@/lib/cierres-del-mes'
+import { planPorLead } from '@/lib/plan-lead'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { fechaLima } from '@/lib/agenda-derivada'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
@@ -55,6 +57,9 @@ import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
 // equipo (montada debajo) no quede varios pantallazos abajo.
 const COLA_VISIBLES = 8
+
+// Texto neutro de una meta que gerencia todavía no fijó para el mes.
+const SIN_META = 'Sin meta fijada para este mes'
 
 /** Semáforo por días sin actividad: azul <2 · ámbar 2–5 · rojo >5. */
 function semaforoDias(d: number): string {
@@ -90,24 +95,75 @@ export function HoySupervisor(): JSX.Element {
     // Fase B: un lead con tarea pendiente tiene PLAN — sale de la cola por
     // inactividad y de "estancados" (la señal de riesgo deja de pelearse con
     // la reunión agendada del vendedor).
-    const conTarea = new Set(
-      tareas.filter((t) => t.estado === 'pendiente' && t.activo && t.lead_id).map((t) => t.lead_id as string),
-    )
+    // `vigente` y no "tiene alguna tarea": una pendiente vencida hace semanas
+    // no es un plan, y escondía al lead justo cuando más abandonado estaba.
+    const plan = planPorLead(tareas, ahora)
     // colaDe ya no recibe índice: construye el suyo de CONTACTO (ver
     // indexarUltimoContacto — la `reasignacion` del sistema vaciaba la cola).
-    const cola = colaDe(ambito.leads, actividades, ahora, conTarea)
+    const cola = colaDe(ambito.leads, actividades, ahora, plan)
     const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
     const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora, indice)
-    const alertas = estancados(ambito.leads, actividades, 5, ahora, indice, conTarea)
-    const vivos = ambito.leads.filter((l) => l.activo)
-    const convertidos = vivos.filter((l) => l.etapa === 'convertido').length
-    // Conversión de fuente única (lib/inteligencia): misma base que
-    // comparativaEquipos — los parkeados no cuentan en el denominador.
-    const conversion = conversionGlobal(ambito.leads).pct
-    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas, convertidos, conversion }
+    const alertas = estancados(ambito.leads, actividades, 5, ahora, indice, plan.vigente)
+    // Marcador del MES. La tarjeta "Meta del equipo" se rotula "este mes" y su
+    // objetivo sale de crm.objetivos, que guarda UNA fila por mes calendario;
+    // aquí se contaban los `etapa === 'convertido'` de toda la vida (y la
+    // conversión salía de conversionGlobal, que tampoco mira el periodo), así
+    // que desde el segundo mes el avance mentía hacia arriba para siempre —
+    // con esta cifra se juzga al equipo, así que importa más que la propia.
+    // Definición ÚNICA en lib/cierres-del-mes: el mismo contrato de
+    // `actualizado_en` que ya usan las series de tendencia de gerencia.
+    const cierres = cierresDelMes(ambito.leads, ahora)
+    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas, cierres }
   }, [ambito, actividades, tareas, ahora])
 
   const meta = objetivos.supervisor
+  // ── Marcador del mes: cada fila mira SU propio objetivo ──
+  // Que gerencia haya fijado capital no significa que haya fijado conversión, y
+  // una fila con objetivo 0 NO puede pintarse como incumplida: pctMeta(x, 0)
+  // devuelve 0 y colorMeta(0) es ROJO CRÍTICO, así que una meta que nadie fijó
+  // se leía como un fracaso del equipo. Antes el bloque "por definir" tampoco
+  // miraba la conversión: bastaba con fijar capital y ventas para que la
+  // conversión en blanco se colara al bloque semaforizado.
+  const sinMetaEquipo =
+    meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0 && meta.conversionObjetivo <= 0
+  const filasMeta: Array<{ label: string; txt: string; pct: number; sinDato: string | null }> = [
+    {
+      label: 'Capital en proceso',
+      txt:
+        meta.capitalObjetivo > 0
+          ? `${moneyK(d.capitalPEN)} de ${moneyK(meta.capitalObjetivo)}`
+          : moneyK(d.capitalPEN),
+      pct: pctMeta(d.capitalPEN, meta.capitalObjetivo),
+      sinDato: meta.capitalObjetivo > 0 ? null : SIN_META,
+    },
+    {
+      label: 'Ventas cerradas',
+      txt:
+        meta.ventasObjetivo > 0
+          ? `${d.cierres.convertidos} de ${meta.ventasObjetivo}`
+          : String(d.cierres.convertidos),
+      pct: pctMeta(d.cierres.convertidos, meta.ventasObjetivo),
+      sinDato: meta.ventasObjetivo > 0 ? null : SIN_META,
+    },
+    {
+      label: 'Conversión',
+      // Sin nada resuelto en el mes no hay porcentaje que mostrar: un "0 %" ahí
+      // es "sin dato", no incumplimiento (el caso natural el día 1 del mes).
+      txt:
+        d.cierres.conversion == null
+          ? '—'
+          : meta.conversionObjetivo > 0
+            ? `${d.cierres.conversion}% de ${meta.conversionObjetivo}%`
+            : `${d.cierres.conversion}%`,
+      pct: pctMeta(d.cierres.conversion ?? 0, meta.conversionObjetivo),
+      sinDato:
+        meta.conversionObjetivo <= 0
+          ? SIN_META
+          : d.cierres.conversion == null
+            ? 'Todavía no se resolvió ningún lead este mes'
+            : null,
+    },
+  ]
 
   // ── Fase F — Agenda del equipo (RPC crm.metricas_agenda_fn) ──
   // Periodo fijo: últimos 7 días con el reloj vivo (se corre solo al pasar la
@@ -428,7 +484,7 @@ export function HoySupervisor(): JSX.Element {
             )}
           </Card>
 
-          {/* ── Meta del equipo (objetivo vs actual) ── */}
+          {/* ── Meta del equipo (objetivo MENSUAL vs avance del mes) ── */}
           <Card>
             <SectionHead
               icon={Target}
@@ -436,15 +492,15 @@ export function HoySupervisor(): JSX.Element {
               right={<span className="text-xs text-muted-foreground">este mes</span>}
             />
             <CardContent className="space-y-4 pb-5 pt-0">
-              {meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0 ? (
+              {sinMetaEquipo ? (
                 <>
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="text-xs font-semibold text-foreground/80">Capital en proceso (PEN)</span>
                     <span className="text-xs font-bold tabular-nums text-primary">{moneyK(d.capitalPEN)}</span>
                   </div>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-foreground/80">Ventas cerradas</span>
-                    <span className="text-xs font-bold tabular-nums text-primary">{d.convertidos}</span>
+                    <span className="text-xs font-semibold text-foreground/80">Ventas cerradas este mes</span>
+                    <span className="text-xs font-bold tabular-nums text-primary">{d.cierres.convertidos}</span>
                   </div>
                   <p className="text-[10.5px] text-muted-foreground">
                     Meta mensual del equipo por definir — cuando la establezcan, verás aquí el avance.
@@ -452,31 +508,29 @@ export function HoySupervisor(): JSX.Element {
                 </>
               ) : (
                 <>
-                  {[
-                    {
-                      label: 'Capital en proceso',
-                      txt: `${moneyK(d.capitalPEN)} de ${moneyK(meta.capitalObjetivo)}`,
-                      pct: meta.capitalObjetivo > 0 ? (d.capitalPEN / meta.capitalObjetivo) * 100 : 0,
-                    },
-                    {
-                      label: 'Ventas cerradas',
-                      txt: `${d.convertidos} de ${meta.ventasObjetivo}`,
-                      pct: meta.ventasObjetivo > 0 ? (d.convertidos / meta.ventasObjetivo) * 100 : 0,
-                    },
-                    {
-                      label: 'Conversión',
-                      txt: `${d.conversion}% de ${meta.conversionObjetivo}%`,
-                      pct: meta.conversionObjetivo > 0 ? (d.conversion / meta.conversionObjetivo) * 100 : 0,
-                    },
-                  ].map((f) => (
+                  {filasMeta.map((f) => (
                     <div key={f.label}>
                       <div className="mb-1.5 flex items-baseline justify-between gap-2">
                         <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
                         <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
                       </div>
-                      <Progress value={f.pct} color={colorMeta(f.pct)} />
+                      {/* Sin dato ≠ incumplimiento: ni una meta que gerencia no
+                          fijó ni un mes sin nada resuelto pueden pintarse como
+                          un 0 % en rojo crítico. Van en neutro y sin barra. */}
+                      {f.sinDato ? (
+                        <p className="text-[10.5px] text-muted-foreground">{f.sinDato}</p>
+                      ) : (
+                        <Progress value={f.pct} color={colorMeta(f.pct)} />
+                      )}
                     </div>
                   ))}
+                  {/* El marcador es del MES; si el equipo acumula más cierres de
+                      vida se dice en voz alta, o el número parece perdido. */}
+                  {d.cierres.convertidosVida > d.cierres.convertidos && (
+                    <p className="text-[10.5px] text-muted-foreground">
+                      Cerradas este mes · {d.cierres.convertidosVida} en total desde que el equipo lleva cartera.
+                    </p>
+                  )}
                   <p className="text-[10.5px] text-muted-foreground">
                     Meta en PEN — lo captado en USD no entra a este total.
                   </p>

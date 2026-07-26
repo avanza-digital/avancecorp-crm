@@ -478,10 +478,12 @@ describe('mutaciones del store demo', () => {
     it('registra una actividad manual y aparece primero en el timeline del lead', async () => {
       const { api, mutar } = await montarStore('vendedor')
 
+      // `l1` está en `nuevo`, así que una CONVERSACIÓN además lo avanza de
+      // etapa (2026-07-25) y el `cambio_etapa` queda ENCIMA: ocurrió después.
       const res = mutar((a) => a.registrarActividad('l1', 'llamada_realizada', 'habló con el titular'))
 
       expect(res).toMatchObject({ ok: true })
-      expect(api().actividadesDe('l1')[0]).toMatchObject({
+      expect(api().actividadesDe('l1')[1]).toMatchObject({
         tipo: 'llamada_realizada',
         detalle: 'habló con el titular',
         autor_nombre: 'VENDEDOR UNO',
@@ -492,6 +494,84 @@ describe('mutaciones del store demo', () => {
           (a) => a.lead_id === 'l1' && a.detalle === 'habló con el titular',
         ),
       ).toBe(true)
+    })
+
+    // ── Avance automático de etapa (pedido de Miguel, 2026-07-25) ────────────
+    // Espejo optimista de `trg_zz_actividades_avance_etapa`, y la ÚNICA
+    // implementación en modo demo. Ver lib/avance-automatico.ts.
+    describe('avance automático de etapa al registrar contacto', () => {
+      it('una CONVERSACIÓN sube el lead de nuevo a contactado y lo deja escrito en el timeline', async () => {
+        const { api, mutar } = await montarStore('vendedor')
+        expect(api().lead('l1')?.etapa).toBe('nuevo')
+
+        const res = mutar((a) => a.registrarActividad('l1', 'llamada_realizada'))
+
+        expect(res).toMatchObject({ ok: true, avance: 'contactado' })
+        expect(api().lead('l1')?.etapa).toBe('contactado')
+        expect(api().actividadesDe('l1')[0]).toMatchObject({
+          tipo: 'cambio_etapa',
+          detalle: 'Nuevo → Contactado',
+        })
+      })
+
+      it.each(['llamada_no_contestada', 'whatsapp_enviado', 'nota'] as const)(
+        'un INTENTO (%s) registra pero NO mueve la etapa — el embudo no se infla solo',
+        async (tipo) => {
+          const { api, mutar } = await montarStore('vendedor')
+
+          const res = mutar((a) => a.registrarActividad('l1', tipo))
+
+          expect(res).toMatchObject({ ok: true })
+          expect(res).not.toHaveProperty('avance')
+          expect(api().lead('l1')?.etapa).toBe('nuevo')
+          expect(api().actividadesDe('l1')[0]).toMatchObject({ tipo })
+        },
+      )
+
+      it('no avanza dos veces: el segundo contacto ya no mueve nada', async () => {
+        const { api, mutar } = await montarStore('vendedor')
+
+        mutar((a) => a.registrarActividad('l1', 'llamada_realizada'))
+        const segundo = mutar((a) => a.registrarActividad('l1', 'whatsapp_recibido'))
+
+        expect(segundo).toMatchObject({ ok: true })
+        expect(segundo).not.toHaveProperty('avance')
+        expect(api().lead('l1')?.etapa).toBe('contactado')
+        expect(api().actividadesDe('l1').filter((a) => a.tipo === 'cambio_etapa')).toHaveLength(1)
+      })
+    })
+  })
+
+  // El avance de etapa que provoca agendar una reunión NO puede quedarse dentro
+  // del store: los otros dos escritores (registrarActividad, completarTarea) ya
+  // lo devuelven y la UI lo canta. Sin esto, agendar desde la ficha movía el
+  // lead de etapa en silencio y el asesor veía saltar el stepper solo.
+  describe('crearTarea (avance automático de etapa, expuesto al llamador)', () => {
+    const manana = (): string => new Date(Date.now() + 86_400_000).toISOString()
+
+    it('agendar una reunión futura sube el lead a "reunion_agendada" Y lo devuelve', async () => {
+      // l2: contactado, con dueño (d-v1) y con una llamada_realizada en su
+      // timeline → cumple todas las guardas de avancePorReunion.
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión con María', vence_en: manana() }),
+      )
+
+      expect(res).toMatchObject({ ok: true, avance: 'reunion_agendada' })
+      expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
+    })
+
+    it('sin avance real no se inventa el campo (una llamada no es una reunión)', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar a María', vence_en: manana() }),
+      )
+
+      expect(res.ok).toBe(true)
+      expect(res.avance).toBeUndefined()
+      expect(api().lead('l2')?.etapa).toBe('contactado')
     })
   })
 
@@ -554,6 +634,25 @@ describe('mutaciones del store demo', () => {
 
       expect(res).toMatchObject({ ok: false, codigo: 'duplicado_telefono', campo: 'telefono' })
       expect(api().lead('l1')?.telefono).toBe('+51987654321')
+    })
+
+    // GUARD DE TERMINAL. Era el único escritor de leads sin él, y de esa grieta
+    // colgaba una cifra de negocio: cada edición reescribe `actualizado_en`, que
+    // era el "mes de cierre" del marcador — tocar un convertido de julio en
+    // agosto le sumaba un cierre falso a agosto y se lo quitaba a julio.
+    it.each([
+      ['l9', 'convertido', /ya es cliente/i],
+      ['l8', 'descartado', /reábrelo/i],
+    ] as const)('un lead %s (%s) NO se edita: la ficha cerrada es un acta', async (id, _etapa, mensaje) => {
+      const { api, mutar } = await montarStore('vendedor')
+      const antes = api().lead(id)?.nota
+
+      const res = mutar((a) => a.editarLead(id, { nota: 'retoque tardío', telefono: '900555444' }))
+
+      expect(res).toMatchObject({ ok: false, codigo: 'lead_cerrado' })
+      expect(res.error).toMatch(mensaje)
+      expect(api().lead(id)?.nota).toBe(antes)
+      expect(api().lead(id)?.telefono).not.toBe('+51900555444')
     })
 
     it('edita y normaliza campos válidos (trim de nombre, correo y +51 en teléfono)', async () => {

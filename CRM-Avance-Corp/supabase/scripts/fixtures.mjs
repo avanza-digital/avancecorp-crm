@@ -391,6 +391,13 @@ export const TRANSIENT_IDS = Object.freeze({
   // El reloj del vendedor — tenencia_desde (mide al asesor, no al lead).
   tenenciaLeadViejo: randomUUID(),
   tenenciaLeadPropio: randomUUID(),
+  // Avance automatico de etapa: la conversacion sube, el intento no.
+  avanceLeadConversacion: randomUUID(),
+  avanceLeadIntento: randomUUID(),
+  avanceLeadManual: randomUUID(),
+  // C1 de la auditoria: lead de la COLA GLOBAL, el vector de escalada.
+  avanceLeadColaGlobal: randomUUID(),
+  avanceLeadReunion: randomUUID(),
   foreignCreatorTarea: randomUUID(),
   directoryTarea: randomUUID(),
   portalClientTarea: randomUUID(),

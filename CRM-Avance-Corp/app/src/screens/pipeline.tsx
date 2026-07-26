@@ -4,7 +4,7 @@
 // F1c: consciente del rol — trabaja SIEMPRE sobre useCRMData().ambito y, para
 // supervisor/gerencia/directorio, ofrece pills de filtro por vendedor
 // (+ bandeja "Por repartir" de parkeados). El vendedor solo ve lo suyo.
-import { useEffect, useRef, useState, type CSSProperties, type DragEvent } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type DragEvent, useMemo } from 'react'
 import { Users, TrendingUp, FileText, Target, Plus, MoreHorizontal, ExternalLink, Inbox } from 'lucide-react'
 import { toast } from 'sonner'
 import { Card } from '@/components/ui/card'
@@ -17,22 +17,30 @@ import {
   DropdownSeparator,
 } from '@/components/ui/dropdown-menu'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
-import { CAT_LABEL, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
-import { capitalPorMoneda, diasDesdeReferencia } from '@/lib/inteligencia'
+import { CAT_LABEL, ETAPA_INFO, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
+import { capitalPorMoneda, indexarUltimoContacto } from '@/lib/inteligencia'
+import { semaforoEstancamiento, UMBRAL_DIAS_TXT, type SemaforoEtapa } from '@/lib/estancamiento'
+import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { money, moneyK } from '@/lib/format'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 
-// "hace X" compacto a partir de un ISO, contra el reloj vivo (useAhora).
-function hace(iso: string, ahora: number): string {
-  const d = Math.floor(diasDesdeReferencia(iso, ahora))
+// "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
+// `semaforoEstancamiento`, para que color y número no puedan divergir).
+function haceDias(dias: number): string {
+  const d = Math.floor(dias)
   if (d <= 0) return 'hoy'
   if (d === 1) return 'ayer'
   if (d < 7) return `hace ${d} d`
   return `hace ${Math.floor(d / 7)} sem`
 }
+
+// Ventana (ms) durante la que un click se atribuye al arrastre recién soltado y
+// no al asesor. Solo tiene que cubrir el click sintético que el navegador
+// dispara pegado al drop; cualquier click humano llega muchísimo después.
+const MS_CLICK_FANTASMA = 60
 
 // Pills del filtro por vendedor (sin verde: activo = azul primario; bandeja = ámbar)
 const PILL_BASE =
@@ -46,7 +54,9 @@ const pillCls = (activo: boolean) =>
 
 interface LeadCardProps {
   l: Lead
-  ahora: number
+  /** Semáforo por ETAPA — lo calcula la pantalla, que es quien tiene el índice
+   *  de contacto (construirlo por card sería O(actividades) × O(leads)). */
+  semaforo: SemaforoEtapa
   escribe: boolean
   arrastrando: boolean
   onAbrir: () => void
@@ -55,7 +65,7 @@ interface LeadCardProps {
   onDragEnd: () => void
 }
 
-function LeadCard({ l, ahora, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
+function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragStart, onDragEnd }: LeadCardProps) {
   // ac-lift (will-change) crea un stacking context por card: mientras el menú
   // está abierto hay que elevar ESTA card o el panel queda bajo la siguiente.
   const [menuAbierto, setMenuAbierto] = useState(false)
@@ -98,7 +108,33 @@ function LeadCard({ l, ahora, escribe, arrastrando, onAbrir, onMover, onDragStar
           <Badge color="var(--warning)" className="text-[10px]">sin asignar</Badge>
         )}
         <span className="flex items-center gap-1">
-          <span className="text-[11px] tabular-nums text-muted-foreground">{hace(l.creado_en, ahora)}</span>
+          {/* El punto y el número salen del MISMO reloj (el del asesor). Dejar
+              los días desde `creado_en` al lado de un punto calculado con otra
+              referencia haría que la card mienta por adyacencia. */}
+          {semaforo.color && (
+            <span
+              aria-hidden
+              className="size-1.5 shrink-0 rounded-full"
+              style={{ backgroundColor: semaforo.color }}
+            />
+          )}
+          <span
+            className="text-[11px] tabular-nums"
+            style={{ color: semaforo.estancado ? semaforo.color ?? undefined : undefined }}
+            // La etiqueta dice lo que el número MIDE: días sin contacto real
+            // (o desde que el asesor recibió el lead), NO antigüedad en la
+            // etapa. Decir "lleva N d en Contactado" con este reloj era falso:
+            // un lead recién movido de etapa con un intento de hace 10 días
+            // habría anunciado "10 d en Contactado" un segundo después de
+            // entrar. La antigüedad real en la etapa la mide `entradaEnEtapa`.
+            title={
+              semaforo.estancado
+                ? `Sin contacto hace ${Math.floor(semaforo.dias)} d — pasó el plazo de ${ETAPA_INFO[l.etapa].label}`
+                : `Sin contacto hace ${Math.floor(semaforo.dias)} d · plazo de ${ETAPA_INFO[l.etapa].label}: ${UMBRAL_DIAS_TXT[l.etapa] ?? '—'}`
+            }
+          >
+            {haceDias(semaforo.dias)}
+          </span>
           {escribe && (
             // stopPropagation (click y keydown): el menú vive dentro de una card
             // clicable e interactiva por teclado — sin esto, Enter/Space sobre el
@@ -140,7 +176,11 @@ function LeadCard({ l, ahora, escribe, arrastrando, onAbrir, onMover, onDragStar
 export function Pipeline() {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
-  const { ambito, cambiarEtapa } = useCRMData()
+  const { ambito, cambiarEtapa, actividadesDelAmbito } = useCRMData()
+  // Índice de CONTACTO REAL (no de cualquier actividad): la `reasignacion` que
+  // el sistema escribe al repartir apagaría el semáforo de un lead que nadie
+  // ha llamado. Se construye UNA vez por render, no una por card.
+  const indiceContacto = useMemo(() => indexarUltimoContacto(actividadesDelAmbito), [actividadesDelAmbito])
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const ahora = useAhora() // reloj vivo: "hace X" de las cards se refresca solo
   // F1c: el tablero SIEMPRE trabaja sobre el ámbito del rol, nunca el global.
@@ -189,12 +229,48 @@ export function Pipeline() {
     if (timerClickFantasma.current != null) clearTimeout(timerClickFantasma.current)
   }, [])
 
+  /**
+   * Fin del arrastre, en UN solo sitio y con salida garantizada.
+   * Se invoca desde el DROP *además* de desde `onDragEnd` porque `onDragEnd` no
+   * es de fiar: al soltar, el lead cambia de etapa y React DESMONTA la card de
+   * la columna vieja, así que su handler no llega a correr — y ese es el caso
+   * NORMAL, no el raro. Confiar solo en él dejaba `huboDrag` en true para
+   * siempre (el tablero no volvía a abrir ninguna ficha con un click) y `dragId`
+   * pegado, con una card fantasma en opacity-40.
+   */
+  const terminarArrastre = () => {
+    setDragId(null)
+    setColDestino(null)
+    if (timerClickFantasma.current != null) clearTimeout(timerClickFantasma.current)
+    // El click sintético que sigue a soltar cae DENTRO de la ventana → se
+    // ignora (que es para lo que existe `huboDrag`); pasada la ventana el guard
+    // se levanta pase lo que pase, sin depender de un `dragEnd` que quizá no
+    // llegue nunca.
+    timerClickFantasma.current = window.setTimeout(() => {
+      huboDrag.current = false
+      timerClickFantasma.current = null
+    }, MS_CLICK_FANTASMA)
+  }
+
   const abrir = (id: string) => {
     if (huboDrag.current) return
     abrirLead(id)
   }
 
+  // Pasar a "Propuesta enviada" es el ÚNICO momento en que el capital es un
+  // HECHO y no una corazonada del primer contacto — y de esa cifra viven el
+  // capital en proceso y las metas del mes. Se pregunta ahí, con un campo ya
+  // precargado: Enter confirma tal cual.
+  const [pidiendoCapital, setPidiendoCapital] = useState<Lead | null>(null)
+
   const mover = (id: string, etapa: EtapaActiva) => {
+    if (etapa === 'propuesta_enviada') {
+      const l = ambito.leads.find((x) => x.id === id)
+      if (l && l.etapa !== 'propuesta_enviada') {
+        setPidiendoCapital(l)
+        return
+      }
+    }
     const r = cambiarEtapa(id, etapa)
     if (!r.ok && r.error) toast.error(r.error)
   }
@@ -206,17 +282,12 @@ export function Pipeline() {
     setDragId(id)
   }
 
-  const alDragEnd = () => {
-    setDragId(null)
-    setColDestino(null)
-    // El click posterior al drop se dispara antes que este timeout → se ignora.
-    timerClickFantasma.current = window.setTimeout(() => { huboDrag.current = false }, 0)
-  }
-
   const alDrop = (etapa: EtapaActiva) => (e: DragEvent<HTMLDivElement>) => {
     e.preventDefault()
-    setColDestino(null)
     const id = e.dataTransfer.getData('text/plain')
+    // Cerrar el arrastre ANTES de mover: `mover` cambia la etapa y con ella
+    // desmonta la card de origen (y su `onDragEnd`) en el mismo latido.
+    terminarArrastre()
     if (id) mover(id, etapa)
   }
 
@@ -226,14 +297,28 @@ export function Pipeline() {
     (l) => l.activo && l.vendedor_id != null && !['convertido', 'descartado'].includes(l.etapa),
   )
   const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(activos)
+  // La cifra grande es la moneda que DE VERDAD tiene volumen. Fijar PEN como
+  // principal hacía que una cartera íntegramente en dólares anunciara "S/ 0"
+  // con su capital real escondido en el subtítulo: el chip decía justo lo
+  // contrario de lo que el asesor tiene en juego. PEN manda cuando hay soles
+  // (es la moneda del negocio); si solo hay dólares, manda USD. Cuando hay las
+  // dos se muestran las dos, cada una con su símbolo — PEN y USD JAMÁS se suman
+  // ni se convierten para caber en un número.
+  const soloDolares = capitalPEN <= 0 && capitalUSD > 0
+  const capitalValor = soloDolares ? money(capitalUSD, 'USD') : money(capitalPEN)
+  const capitalSub = soloDolares
+    ? 'USD'
+    : capitalUSD > 0
+      ? `PEN · +${moneyK(capitalUSD, 'USD')}`
+      : 'PEN'
   const stats: StatChipData[] = [
     { icon: Users, label: 'Leads activos', value: String(activos.length), tone: 'primary' },
     {
       icon: TrendingUp,
       label: 'Capital en proceso',
-      value: money(capitalPEN),
+      value: capitalValor,
       tone: 'accent',
-      sub: capitalUSD > 0 ? `PEN · +${moneyK(capitalUSD, 'USD')}` : 'PEN',
+      sub: capitalSub,
     },
     { icon: FileText, label: 'Propuestas', value: String(leads.filter((l) => l.etapa === 'propuesta_enviada').length) },
     { icon: Target, label: 'Convertidos', value: String(leads.filter((l) => l.etapa === 'convertido').length), tone: 'primary' },
@@ -348,13 +433,16 @@ export function Pipeline() {
                   <LeadCard
                     key={l.id}
                     l={l}
-                    ahora={ahora}
+                    semaforo={semaforoEstancamiento(l, indiceContacto, ahora)}
                     escribe={escribe}
                     arrastrando={dragId === l.id}
                     onAbrir={() => abrir(l.id)}
                     onMover={(etapa) => mover(l.id, etapa)}
                     onDragStart={alDragStart(l.id)}
-                    onDragEnd={alDragEnd}
+                    // Red de seguridad, no el camino principal: cubre el
+                    // arrastre ABORTADO (soltar fuera de una columna), el único
+                    // en el que la card sigue montada para recibirlo.
+                    onDragEnd={terminarArrastre}
                   />
                 ))}
                 {enCol.length === 0 && (
@@ -409,6 +497,9 @@ export function Pipeline() {
               : 'Tu rol es de solo lectura.'}
         </p>
       </div>
+      {pidiendoCapital && (
+        <DialogCapitalPropuesta lead={pidiendoCapital} onClose={() => setPidiendoCapital(null)} />
+      )}
     </div>
   )
 }

@@ -55,6 +55,24 @@ describe('capacidades por rol', () => {
     }
   })
 
+  it('deja al vendedor VER configuración (su calendario ICS) sin poder editarla', () => {
+    // Regresión: "Mi calendario de Google" (suscripción ICS de la agenda propia)
+    // vive en la pantalla de configuración. Con verConfiguracion:false el
+    // vendedor —el único rol que trabaja desde el celular— no llegaba a ella.
+    expect(can('vendedor', 'verConfiguracion')).toBe(true)
+    // Y NADA más: ver ≠ editar (metas del mes y demás escrituras son de gerencia).
+    expect(can('vendedor', 'editarConfiguracion')).toBe(false)
+    expect(can('vendedor', 'verTodo')).toBe(false)
+    expect(can('vendedor', 'verEquipo')).toBe(false)
+    expect(can('vendedor', 'reasignar')).toBe(false)
+    // El directorio conserva su auditoría: ve la pantalla, no escribe nada — y
+    // por eso la tarjeta ICS (gateada por puedeEscribir) no le aparece.
+    expect(can('directorio', 'verConfiguracion')).toBe(true)
+    expect(puedeEscribir('directorio')).toBe(false)
+    // El coordinador sigue acotado a "Repartir": ni configuración ni agenda.
+    expect(can('coordinador', 'verConfiguracion')).toBe(false)
+  })
+
   it('degrada identidades ausentes o desconocidas a solo lectura total', () => {
     expect(can(null, 'soloLecturaTotal')).toBe(true)
     expect(can(undefined, 'verReportes')).toBe(false)
