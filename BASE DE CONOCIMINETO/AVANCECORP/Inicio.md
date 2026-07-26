@@ -1,6 +1,6 @@
 ---
 tags: [moc, inicio]
-actualizado: 2026-07-15
+actualizado: 2026-07-22
 ---
 
 # 🏠 Inicio — Portal Avance Corp
@@ -34,6 +34,9 @@ Hay **tres capas**, complementarias:
 - [[Realtime de novedades]]
 - [[Bug de fechas UTC]]
 - [[Auditorías del portal]]
+
+**Herramientas independientes:**
+- [[SubLínea — subtítulos locales para X]]
 
 ## 👤 Reglas de trabajo con Miguel
 
