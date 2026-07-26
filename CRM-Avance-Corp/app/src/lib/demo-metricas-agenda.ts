@@ -78,12 +78,18 @@ export function metricasAgendaDemo(desde: string, hasta: string): MetricasAgenda
         leads_sin_accion: 3,
       }),
       // El más activo: 14 toques y 5 de 7 cierres completados (71 %).
+      // Es también el único que muestra la SEPARACIÓN de canceladas: 3 en total,
+      // pero solo 1 la anuló él (esa sí cuenta en el denominador: 5+1+1 = 7) y
+      // 2 las cerró el sistema al convertirse el lead — que no le penalizan.
+      // Sin este caso el fixture no ejercitaría la mitad nueva del panel.
       miembro('d-v1', 'VENDEDOR UNO', 'vendedor', dias, {
         toques: 14,
         reuniones_realizadas: 4,
         completadas: 5,
         no_asistio: 1,
-        canceladas: 1,
+        canceladas: 3,
+        canceladas_asesor: 1,
+        canceladas_sistema: 2,
         pct_completadas: 71,
         tareas_creadas: 9,
         reuniones_agendadas: 3,

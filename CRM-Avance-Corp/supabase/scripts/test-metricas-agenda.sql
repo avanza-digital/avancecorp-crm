@@ -161,6 +161,18 @@ begin
   if (fila->>'pct_completadas')::numeric <> 50 then
     raise exception 'FALLO pct_completadas V1: esperaba 50, hay %', fila->>'pct_completadas';
   end if;
+  -- Separacion asesor/sistema (20260726151751). Con 0 canceladas en el periodo
+  -- las dos mitades son 0, pero las CLAVES tienen que estar: el contrato Valibot
+  -- del front las declara opcionales solo para sobrevivir al desfase de deploy,
+  -- no porque el servidor pueda dejar de mandarlas.
+  if fila->'canceladas_asesor' is null or fila->'canceladas_sistema' is null then
+    raise exception 'FALLO desglose V1: faltan canceladas_asesor/canceladas_sistema en el payload';
+  end if;
+  if (fila->>'canceladas_asesor')::int + (fila->>'canceladas_sistema')::int
+     <> (fila->>'canceladas')::int then
+    raise exception 'FALLO desglose V1: las dos mitades (%/%) no suman el total %',
+      fila->>'canceladas_asesor', fila->>'canceladas_sistema', fila->>'canceladas';
+  end if;
   if (fila->>'reprogramaciones')::int <> 2 then
     raise exception 'FALLO reprogramaciones V1: esperaba 2, hay %', fila->>'reprogramaciones';
   end if;

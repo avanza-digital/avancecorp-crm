@@ -6,8 +6,10 @@
     "react/only-export-components": ["warn", { "allowConstantExport": true }],
     "react/exhaustive-deps": "warn",
 
-    // jsx-a11y: las reglas funcionales del plugin quedan activas. Las cuatro
-    // siguientes se apagan por FALSOS POSITIVOS de patrón (no por comodidad):
+    // jsx-a11y: las reglas funcionales del plugin quedan activas. Las CINCO
+    // siguientes se apagan por FALSOS POSITIVOS de patrón (no por comodidad).
+    // (Decía "cuatro" y listaba cinco desde que se añadió la del combobox: una
+    // revisión que confíe en el comentario cuenta mal las puertas abiertas.)
     // - prefer-tag-over-role: cards ricas con role=button + tabIndex +
     //   onKeyDown (ya operables por teclado), svg con role=img y el combobox
     //   WAI-ARIA del buscador no pueden ser <button>/<img>/<select> reales.

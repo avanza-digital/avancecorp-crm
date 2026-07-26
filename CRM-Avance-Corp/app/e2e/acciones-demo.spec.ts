@@ -129,3 +129,64 @@ test('convertir (demo): abre el diálogo y marca el lead como convertido', async
   await expect(page.getByText(/ahora es cliente \(demo\)/i)).toBeVisible()
   await expect(drawer.getByText(/Convertido a cliente \(demo\)/i)).toBeVisible()
 })
+
+// EL CASO DE MIGUEL (2026-07-26), de punta a punta: agendas la reunión y la
+// tarea anterior sobra. Antes de que existiera «anular», la única salida era
+// cerrarla con un resultado FALSO —«Contestó»/«No contestó»— que entra al log
+// inmutable del lead y puede subirle la etapa.
+test('anular la tarea que sobra tras agendar la reunión (demo)', async ({ page }) => {
+  await entrarDemo(page, 'Vendedor')
+  await irAPipeline(page)
+  const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
+
+  // Parte de una pendiente sembrada (el WhatsApp de la cola de hoy).
+  const whatsapp = drawer.getByText('WhatsApp — MARÍA LÓPEZ CASTRO')
+  await expect(whatsapp).toBeVisible()
+
+  // 1) Se agenda la reunión: ahora hay DOS pendientes y el WhatsApp sobra.
+  await drawer.getByRole('button', { name: /Agendar otra/i }).click()
+  await drawer.getByLabel('Tipo de tarea').selectOption('reunion')
+  await drawer.getByRole('button', { name: /^Agendar$/ }).click()
+  await expect(drawer.getByText('2 pendientes')).toBeVisible()
+
+  // 2) Anular pide confirmación: es irreversible en el servidor. La fila NO se
+  //    reemplaza —el destructivo nace ABAJO Y A LA IZQUIERDA, nunca bajo el
+  //    dedo que acaba de pulsar el icono—, así que el WhatsApp sigue visible.
+  const icono = drawer.getByRole('button', { name: 'Anular tarea — WhatsApp — MARÍA LÓPEZ CASTRO' })
+  await icono.click()
+  await expect(icono).toHaveAttribute('aria-expanded', 'true')
+  await expect(whatsapp).toBeVisible()
+  await drawer.getByRole('button', { name: 'Sí, anular — WhatsApp — MARÍA LÓPEZ CASTRO' }).click()
+
+  // 3) Se fue del plan, y NO se promete el amarillo: le queda la reunión.
+  await expect(page.getByText(/^Tarea anulada \(demo\)$/)).toBeVisible()
+  await expect(whatsapp).toBeHidden()
+  await expect(drawer.getByText('1 pendiente')).toBeVisible()
+})
+
+test('anular la reunión devuelve el lead a su etapa anterior (demo)', async ({ page }) => {
+  // Pedido de Miguel (2026-07-26): «si se anula la reu y no se reagenda una en
+  // ese mismo momento, debería bajar de etapa». El circuito completo: agendar
+  // sube, anular baja, y las dos veces la pantalla lo DICE.
+  await entrarDemo(page, 'Vendedor')
+  await irAPipeline(page)
+  const drawer = await abrirLead(page, /MARÍA LÓPEZ CASTRO/)
+
+  // 1) Agendar la reunión sube al lead a «Reunión agendada».
+  await drawer.getByRole('button', { name: /Agendar otra/i }).click()
+  await drawer.getByLabel('Tipo de tarea').selectOption('reunion')
+  await drawer.getByRole('button', { name: /^Agendar$/ }).click()
+  await expect(drawer.getByText('2 pendientes')).toBeVisible()
+
+  // 2) La confirmación AVISA del retroceso antes del tap — no después.
+  const icono = drawer.getByRole('button', { name: /^Anular tarea — Reunión/ })
+  await icono.click()
+  await expect(drawer.getByText(/Era su única reunión: vuelve a «/)).toBeVisible()
+
+  // 3) Al confirmar, el toast canta la etapa nueva en vez del genérico.
+  await drawer.getByRole('button', { name: /^Sí, anular — Reunión/ }).click()
+  await expect(page.getByText(/vuelve a «/)).toBeVisible()
+
+  // 4) …y el WhatsApp sembrado sigue en pie: anular no barre la agenda.
+  await expect(drawer.getByText('1 pendiente')).toBeVisible()
+})

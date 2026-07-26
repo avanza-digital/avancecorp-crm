@@ -17,6 +17,12 @@ import * as v from 'valibot'
  * - completadas / no_asistio / canceladas / pct_completadas: cierres de tareas
  *   DEL PERIODO, atribuidos por `actualizado_en` (cuándo se cerró, no cuándo
  *   se creó); pct_completadas es null cuando no hubo cierres que porcentuar.
+ * - canceladas_asesor / canceladas_sistema: el desglose de `canceladas` (que
+ *   sigue siendo el TOTAL). asesor = una persona anuló la tarea porque ya no
+ *   hacía falta; sistema = se canceló sola al convertirse o descartarse el
+ *   lead. Solo las del ASESOR pesan en el denominador de pct_completadas: las
+ *   del sistema lo hacían hasta 2026-07-26 y eso castigaba al vendedor
+ *   justamente por CERRAR la venta (convertir cancela sus pendientes).
  * - tareas_creadas / reuniones_agendadas / reprogramaciones: planificación
  *   registrada dentro del periodo.
  * - pendientes / vencidas / leads_sin_accion: FOTO ACTUAL (no dependen del
@@ -46,6 +52,14 @@ const VendedorAgendaSchema = v.strictObject({
   completadas: EnteroNoNegativoSchema,
   no_asistio: EnteroNoNegativoSchema,
   canceladas: EnteroNoNegativoSchema,
+  // OPCIONALES A PROPÓSITO, aunque el servidor nuevo SIEMPRE las manda. Este
+  // objeto es `strictObject`: una clave que sobra hace fallar la pantalla
+  // entera. Declararlas opcionales es lo que permite que la migración y el
+  // deploy del front no tengan que ser simultáneos — en cualquiera de los dos
+  // órdenes el panel sigue en pie, y con la BD vieja simplemente no hay
+  // desglose que pintar. `?? 0` en los consumidores, nunca `!`.
+  canceladas_asesor: v.optional(EnteroNoNegativoSchema),
+  canceladas_sistema: v.optional(EnteroNoNegativoSchema),
   pct_completadas: v.nullable(v.number()),
   tareas_creadas: EnteroNoNegativoSchema,
   reuniones_agendadas: EnteroNoNegativoSchema,

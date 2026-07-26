@@ -6,7 +6,7 @@ import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { StoreDataContext } from '@/lib/store-context'
 import type { StoreDataApi } from '@/lib/store'
-import type { Actividad, Lead, Tarea } from '@/lib/tipos'
+import type { Actividad, EtapaActiva, Lead, Tarea } from '@/lib/tipos'
 import { CerrarTareaDialog } from './cerrar-tarea'
 
 vi.mock('sonner', () => ({
@@ -55,18 +55,31 @@ function montar(
   tarea: Tarea | null = TAREA,
   actividades: Actividad[] = [],
   resultadoCierre: ReturnType<StoreDataApi['completarTarea']> = { ok: true },
+  // Otras pendientes VIVAS del lead. Con al menos una, el lead NO se queda sin
+  // próxima acción y el aviso ámbar sería mentira (rama negativa de
+  // `quedaSinPlan`) — que es justo el escenario que motivó «anular».
+  otrasTareas: Tarea[] = [],
+  // Parche del lead + qué devuelve `anularTarea`: el retroceso de etapa depende
+  // de la etapa VIVA del lead (solo baja desde `reunion_agendada`).
+  leadParche: Partial<Lead> = {},
+  retroceso?: EtapaActiva,
 ) {
+  const l = { ...LEAD, ...leadParche } as Lead
   const completarTarea = vi.fn<StoreDataApi['completarTarea']>(() => resultadoCierre)
   const descartar = vi.fn<StoreDataApi['descartar']>(() => ({ ok: true }))
+  const anularTarea = vi.fn<StoreDataApi['anularTarea']>(() =>
+    retroceso ? { ok: true, retroceso } : { ok: true },
+  )
   const api = {
-    lead: (id: string) => (id === LEAD.id ? LEAD : undefined),
+    lead: (id: string) => (id === l.id ? l : undefined),
     completarTarea,
+    anularTarea,
     descartar,
     // El diálogo lee el timeline para detectar el PLANTÓN (5 intentos sin
     // respuesta en ≥3 días → deja de proponer toques y ofrece cerrar).
-    actividadesDe: (id: string) => (id === LEAD.id ? actividades : []),
+    actividadesDe: (id: string) => (id === l.id ? actividades : []),
     // El aviso ámbar solo se emite si al lead NO le queda otra tarea viva.
-    tareasDe: () => [],
+    tareasDe: () => (tarea ? [tarea, ...otrasTareas] : otrasTareas),
   } as unknown as StoreDataApi
   const onCerrar = vi.fn()
   render(
@@ -74,7 +87,7 @@ function montar(
       <CerrarTareaDialog tarea={tarea} onCerrar={onCerrar} />
     </StoreDataContext.Provider>,
   )
-  return { completarTarea, descartar, onCerrar }
+  return { completarTarea, anularTarea, descartar, onCerrar }
 }
 
 describe('CerrarTareaDialog', () => {
@@ -222,5 +235,206 @@ describe('CerrarTareaDialog', () => {
 
     expect(descartar).toHaveBeenCalledWith('l1', 'no_responde', undefined)
     expect(onCerrar).toHaveBeenCalled()
+  })
+
+  // ANULAR — la cuarta salida (pedido de Miguel 2026-07-26). Sin ella, sacar de
+  // la agenda una llamada que sobra (porque ya se agendó la reunión) exigía
+  // elegir «Contestó»/«No contestó»: una afirmación FALSA sobre el cliente que
+  // entra al log inmutable y puede subir la etapa del lead.
+  describe('anular ("ya no hace falta")', () => {
+    const abrirAnular = async (user: ReturnType<typeof userEvent.setup>) => {
+      const m = montar()
+      await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
+      return m
+    }
+
+    it('anular NO pasa por completarTarea: no escribe resultado ninguno', async () => {
+      const user = userEvent.setup()
+      const { completarTarea, anularTarea, onCerrar } = await abrirAnular(user)
+
+      await user.click(screen.getByRole('button', { name: /sí, anular/i }))
+
+      expect(anularTarea).toHaveBeenCalledWith('t1')
+      expect(completarTarea).not.toHaveBeenCalled()
+      expect(onCerrar).toHaveBeenCalled()
+    })
+
+    it('esconde la nota: prometía "va al timeline" y anular no escribe nada', async () => {
+      const user = userEvent.setup()
+      expect(screen.queryByLabelText(/nota del resultado/i)).not.toBeInTheDocument()
+      await abrirAnular(user)
+
+      expect(screen.queryByLabelText(/nota del resultado/i)).not.toBeInTheDocument()
+      expect(screen.getByText(/no se puede deshacer/i)).toBeInTheDocument()
+    })
+
+    it('avisa que el lead se queda SIN próxima acción cuando es su única tarea', async () => {
+      const user = userEvent.setup()
+      await abrirAnular(user)
+      // El panel lo advierte ANTES de confirmar…
+      expect(screen.getByText(/es su única pendiente/i)).toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /sí, anular/i }))
+
+      // …y el toast lo repite después (mismo criterio que el cierre normal).
+      expect(toast.warning).toHaveBeenCalledWith(expect.stringMatching(/SIN próxima acción/))
+    })
+
+    // EL CASO DE MIGUEL, rama negativa: ya hay una reunión agendada, así que el
+    // lead NO se queda sin próxima acción y prometerlo sería mentira.
+    it('con otra pendiente viva no promete el amarillo, ni antes ni después', async () => {
+      const user = userEvent.setup()
+      const reunion: Tarea = { ...TAREA, id: 't2', tipo: 'reunion', titulo: 'Reunión con Ana' }
+      montar(TAREA, [], { ok: true }, [reunion])
+
+      await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
+      expect(screen.queryByText(/es su única pendiente/i)).not.toBeInTheDocument()
+
+      await user.click(screen.getByRole('button', { name: /sí, anular/i }))
+
+      expect(toast.success).toHaveBeenCalledWith('Tarea anulada — fuera de tu agenda')
+      expect(toast.warning).not.toHaveBeenCalled()
+    })
+
+    it('elegir un resultado sale del modo anular (elegirlo es afirmar algo)', async () => {
+      const user = userEvent.setup()
+      const { anularTarea } = await abrirAnular(user)
+
+      await user.click(screen.getByRole('button', { name: 'Contestó' }))
+
+      expect(screen.queryByRole('button', { name: /sí, anular/i })).not.toBeInTheDocument()
+      expect(screen.getByLabelText(/nota del resultado/i)).toBeInTheDocument()
+      expect(anularTarea).not.toHaveBeenCalled()
+    })
+
+    it('"Volver" deja la tarea intacta', async () => {
+      const user = userEvent.setup()
+      const { anularTarea } = await abrirAnular(user)
+
+      await user.click(screen.getByRole('button', { name: 'Volver' }))
+
+      expect(anularTarea).not.toHaveBeenCalled()
+      expect(screen.getByRole('button', { name: /cerrar tarea/i })).toBeInTheDocument()
+    })
+
+    // Regresión que encontró la auditoría: entrar al modo anular vaciaba
+    // `eleccion`, y en una tarea GENÉRICA —una sola opción, preseleccionada al
+    // montar— la guarda del footer (`opciones.length > 1 && !eleccion`) daba
+    // false igual: el botón principal quedaba habilitado y no hacía NADA.
+    it('asomarse a anular y volver NO deja muerto el botón de una tarea genérica', async () => {
+      const user = userEvent.setup()
+      const generica: Tarea = { ...TAREA, id: 't9', tipo: 'tarea', titulo: 'Preparar propuesta' }
+      const { completarTarea, onCerrar } = montar(generica)
+
+      await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
+      await user.click(screen.getByRole('button', { name: 'Volver' }))
+      const cerrar = screen.getByRole('button', { name: /cerrar tarea/i })
+      expect(cerrar).toBeEnabled()
+      await user.click(cerrar)
+
+      expect(completarTarea).toHaveBeenCalledWith(
+        expect.objectContaining({ tarea_id: 't9', estado: 'completada' }),
+      )
+      expect(onCerrar).toHaveBeenCalled()
+    })
+
+    it('asomarse a anular y volver NO borra la siguiente que ya se escribió', async () => {
+      const user = userEvent.setup()
+      const { completarTarea } = montar()
+      await user.click(screen.getByRole('button', { name: 'Contestó' }))
+      const titulo = screen.getByLabelText('Título de la siguiente')
+      await user.clear(titulo)
+      await user.type(titulo, 'Mandar cronograma firmado')
+
+      await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
+      await user.click(screen.getByRole('button', { name: 'Volver' }))
+
+      expect(screen.getByLabelText('Título de la siguiente')).toHaveValue('Mandar cronograma firmado')
+      await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
+      expect(completarTarea.mock.calls[0]?.[0]?.siguiente?.titulo).toBe('Mandar cronograma firmado')
+    })
+
+    it('si el store rechaza el anulado, el diálogo NO se cierra en falso', async () => {
+      const user = userEvent.setup()
+      const { anularTarea, onCerrar } = await abrirAnular(user)
+      anularTarea.mockReturnValueOnce({ ok: false, codigo: 'no_encontrado', error: 'Lead no encontrado' })
+
+      await user.click(screen.getByRole('button', { name: /sí, anular/i }))
+
+      expect(toast.error).toHaveBeenCalledWith('Lead no encontrado')
+      expect(onCerrar).not.toHaveBeenCalled()
+    })
+  })
+})
+describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa', () => {
+  // Miguel, 2026-07-26: «si se anula la reu y no se reagenda una en ese mismo
+  // momento, debería bajar de etapa». El diálogo lo dice ANTES del tap; los
+  // avances automáticos se cantan después porque suben, este baja.
+  const REUNION: Tarea = { ...TAREA, id: 't-reu', tipo: 'reunion', titulo: 'Reunión con Ana' }
+  // `vendedor_id` NO es decorado: sin dueño el lead está en la cola global y el
+  // retroceso no aplica (misma guarda que la subida — una reunión de nadie).
+  const EN_REUNION: Partial<Lead> = { etapa: 'reunion_agendada', vendedor_id: 'v1' }
+
+  /** Texto completo del panel ámbar: el aviso va partido en varios elementos
+   *  (nombre interpolado y <strong>), así que se asierta sobre el contenedor. */
+  const panelAnular = () => screen.getByText('Anular esta tarea').parentElement
+  const CONTACTO: Actividad[] = [
+    {
+      id: 'a1',
+      lead_id: 'l1',
+      tipo: 'llamada_realizada',
+      detalle: null,
+      autor_nombre: 'Vendedor',
+      creado_en: '2026-07-17T15:00:00.000Z',
+    },
+  ]
+
+  it('el panel de confirmación NOMBRA la etapa a la que vuelve el lead', async () => {
+    const user = userEvent.setup()
+    montar(REUNION, CONTACTO, { ok: true }, [], EN_REUNION)
+
+    await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
+
+    expect(panelAnular()?.textContent).toContain('Era su única reunión')
+    expect(panelAnular()?.textContent).toContain('vuelve a la etapa «Contactado»')
+  })
+
+  it('y encamina a Reprogramar, que es lo que casi siempre se quería hacer', async () => {
+    const user = userEvent.setup()
+    montar(REUNION, CONTACTO, { ok: true }, [], EN_REUNION)
+
+    await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
+
+    expect(panelAnular()?.textContent).toContain('usa Reprogramar en vez de anular')
+  })
+
+  it('si QUEDA otra reunión viva no promete ningún retroceso', async () => {
+    const user = userEvent.setup()
+    const otra: Tarea = { ...REUNION, id: 't-reu2', titulo: 'Otra reunión' }
+    montar(REUNION, CONTACTO, { ok: true }, [otra], EN_REUNION)
+
+    await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
+
+    expect(panelAnular()?.textContent).not.toContain('Era su única reunión')
+  })
+
+  it('anular una LLAMADA no menciona etapas aunque el lead esté en reunión', async () => {
+    const user = userEvent.setup()
+    montar(TAREA, CONTACTO, { ok: true }, [REUNION], EN_REUNION)
+
+    await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
+
+    expect(panelAnular()?.textContent).not.toContain('Era su única reunión')
+  })
+
+  it('el toast canta la etapa nueva y no el aviso de «sin próxima acción»', async () => {
+    const user = userEvent.setup()
+    montar(REUNION, CONTACTO, { ok: true }, [], EN_REUNION, 'contactado')
+
+    await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
+    await user.click(screen.getByRole('button', { name: /sí, anular/i }))
+
+    expect(toast.warning).toHaveBeenCalledTimes(1)
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('vuelve a «Contactado»'))
   })
 })

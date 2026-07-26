@@ -36,7 +36,7 @@ import {
   type TipoActividadManual,
 } from './tipos'
 import { esAbierto } from './inteligencia'
-import { avancePorContacto, avancePorReunion } from './avance-automatico'
+import { avancePorContacto, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
 import { MOTIVOS_CON_EVIDENCIA, vetoNoResponde } from './descarte-evidencia'
 import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
 import type { Moneda } from './format'
@@ -283,6 +283,18 @@ export interface StoreDataApi {
   reprogramarTarea(id: string, venceEn: string): ResultadoMut
   /** Anti no-show: el cliente respondió al recordatorio confirmando la cita. */
   confirmarTarea(id: string): ResultadoMut
+  /** ANULAR — el cuarto verbo de una tarea: «esto ya no hace falta».
+   *  Ni cierra con resultado, ni reprograma, ni confirma. NO escribe actividad
+   *  de contacto (ver la implementación: cualquier fila de trabajo comercial en
+   *  el timeline movería el reloj de la cola). Solo tareas PENDIENTES; una
+   *  cerrada es inmutable.
+   *
+   *  `retroceso` = etapa a la que BAJÓ el lead por esta anulación (espejo de
+   *  `private.retroceso_por_anular_reunion`: anular la última reunión viva sin
+   *  reagendar devuelve el lead a `contactado`, o a `nuevo` si nunca hubo
+   *  contacto real). Se DEVUELVE por la misma razón que `avance` en los otros
+   *  tres escritores: mover la etapa en silencio asusta más que ayuda. */
+  anularTarea(id: string): ResultadoMut & { retroceso?: EtapaActiva }
   crearLead(input: NuevoLeadInput): ResultadoMut & { id?: string }
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
   /** `capital` (opcional) viaja EN LA MISMA escritura que la etapa: pasar a
@@ -1061,6 +1073,89 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         setTareas((prev) => prev.map((x) => (x.id === id ? { ...x, confirmada_en: iso } : x)))
         persistir(() => actualizarTarea(id, { confirmada_en: iso }))
         return { ok: true }
+      },
+
+      // ── ANULAR: el cuarto verbo, el que faltaba ───────────────────────────
+      //
+      // EL AGUJERO (pedido de Miguel, 2026-07-26, textual: «si agendo una
+      // reunión el sistema no me deja cerrar la otra tarea que era una llamada
+      // … voy a tener llamadas agendadas innecesarias»). Una tarea pendiente
+      // solo podía CERRARSE con resultado, reprogramarse o confirmarse. Cuando
+      // el asesor agendaba la reunión, la llamada vieja se quedaba clavada, y
+      // para sacarla de su agenda el diálogo de cierre solo le ofrecía
+      // «Contestó»/«No contestó»: las dos MENTIRA. Y esa mentira no es barata
+      // — entra al log INMUTABLE de `crm.actividades`, cuenta como gestión
+      // ante supervisión y «Contestó» encima SUBE la etapa del lead
+      // (lib/avance-automatico). El asesor honesto se quedaba con basura en la
+      // agenda; el apurado ensuciaba el embudo. Faltaba poder decir «esto ya
+      // no aplica» sin afirmar nada sobre el cliente.
+      //
+      // CERO MIGRACIONES: `crm.cerrar_tarea` acepta `p_estado='cancelada'`
+      // desde el plan v2 (20260718180001) y con `p_resultado_tipo` null NO
+      // toca `crm.actividades`. Nunca se le puso botón.
+      //
+      // POR QUÉ NO ESCRIBE ACTIVIDAD DE CONTACTO (y no debe): las filas de
+      // trabajo comercial de `crm.actividades` mueven `referenciaEspera`
+      // (lib/inteligencia), que es el reloj con el que la cola decide a quién
+      // destapar. Anular pasaría por «atendí al cliente» y escondería el lead
+      // justo en el instante en que se quedó SIN plan. Sin esa actividad, el
+      // lead cae —correctamente— al bucket ámbar «sin próxima acción» y vuelve
+      // a la cola. Que anular DESTAPE el lead en vez de taparlo es la propiedad
+      // que hace que este botón no se pueda abusar. (El `cambio_etapa` del
+      // retroceso sí se escribe, y NO rompe eso: la cola se mide contra el
+      // último CONTACTO REAL, y las actividades que emite el sistema quedan
+      // fuera por diseño — ver la cabecera de `colaDeAccion`.)
+      //
+      // LA RENDICIÓN DE CUENTAS NO SE PIERDE, y desde 2026-07-26 es exacta: el
+      // UPDATE queda en `audit_log` (trigger de la tabla) y la anulación viaja
+      // ETIQUETADA como `cancelada_por = 'asesor'`, separada de las que cancela
+      // el sistema al cerrarse un lead. Supervisión ve las dos cuentas por
+      // separado en «Agenda del equipo» (screens/hoy/agenda-equipo.tsx), y solo
+      // las del asesor pesan en su % de cumplimiento. Vaciar la agenda a fuerza
+      // de anular se ve desde arriba, y convertir un lead ya no penaliza.
+      anularTarea: (id) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const t = tareas.find((x) => x.id === id)
+        // Espejo del `for update` de la RPC (activo + pendiente): una tarea ya
+        // cerrada es inmutable en el servidor y reintentarlo daría "Tarea no
+        // encontrada" DESPUÉS de haberla pintado como anulada.
+        if (!t || t.estado !== 'pendiente' || !t.activo) return noEncontrado()
+        setTareas((prev) => prev.map((x) => (x.id === id ? { ...x, estado: 'cancelada' } : x)))
+        // Espejo optimista de `private.retroceso_por_anular_reunion` (pedido de Miguel,
+        // 2026-07-26: «si se anula la reu y no se reagenda una en ese mismo
+        // momento, debería bajar de etapa»). Se calcula con la lista de tareas
+        // ANTES del setTareas de arriba —el estado de React no se lee dentro del
+        // mismo render— y por eso `retrocesoPorAnularReunion` excluye la tarea
+        // en curso por id en vez de fiarse de su estado.
+        const lead = t.lead_id ? buscar(t.lead_id) : undefined
+        const retroceso = lead
+          ? retrocesoPorAnularReunion(
+              lead,
+              t,
+              tareas.filter((x) => x.lead_id === lead.id),
+              datos.actividades.filter((a) => a.lead_id === lead.id),
+            )
+          : null
+        if (retroceso && lead) {
+          const actEtapa = actividadAuto(
+            lead.id,
+            'cambio_etapa',
+            `${ETAPA_INFO[lead.etapa].label} → ${ETAPA_INFO[retroceso].label}`,
+          )
+          setDatos((d) => ({
+            leads: d.leads.map((l) => (l.id === lead.id ? { ...l, etapa: retroceso } : l)),
+            actividades: [actEtapa, ...d.actividades],
+          }))
+        }
+        persistir(() => cerrarTarea({
+          tarea_id: id,
+          estado: 'cancelada',
+          resultado_tipo: null,
+          resultado_detalle: null,
+          siguiente: null,
+        }).then(() => undefined))
+        return retroceso ? { ok: true, retroceso } : { ok: true }
       },
 
       crearLead: (input) => {

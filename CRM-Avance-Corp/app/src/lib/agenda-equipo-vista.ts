@@ -6,11 +6,37 @@
 import type { MetricaAgendaVendedor } from './metricas-agenda'
 import type { Miembro } from './tipos'
 
+/**
+ * Las dos mitades de `canceladas`, con degradación honesta.
+ *
+ * FUENTE ÚNICA de la separación pedida por Miguel (2026-07-26): "separa lo que
+ * cancela el sistema y lo que cancela el asesor". Nadie debe volver a leer
+ * `ven.canceladas` a pelo para juzgar a una persona — ese número mezcla las
+ * anulaciones del asesor con las que dispara el trigger cuando un lead se
+ * convierte o se descarta.
+ *
+ * Si la BD todavía no tiene el desglose (migración sin aplicar), TODO cae del
+ * lado del asesor: es exactamente el comportamiento de antes, así que el panel
+ * no cambia de números por sorpresa a mitad de un despliegue. Nunca al revés —
+ * mandarlas a «sistema» inflaría los % de todo el equipo con datos inventados.
+ */
+export function canceladasAsesor(ven: MetricaAgendaVendedor): number {
+  return ven.canceladas_asesor ?? ven.canceladas
+}
+
+/** Las que canceló el trigger al cerrarse el lead. 0 si la BD no lo desglosa. */
+export function canceladasSistema(ven: MetricaAgendaVendedor): number {
+  return ven.canceladas_sistema ?? 0
+}
+
 /** Totales de agenda de un conjunto de miembros (ámbito completo o un equipo). */
 export interface ResumenAgenda {
   toques: number
   completadas: number
-  /** Cierres del periodo (completadas + no asistió + canceladas) — denominador del %. */
+  /** Cierres del periodo (completadas + no asistió + canceladas DEL ASESOR) —
+   *  denominador del %. Las que cancela el sistema quedan FUERA: convertir un
+   *  lead cancela sus pendientes, y contarlas hacía que cerrar la venta le
+   *  bajara la nota al vendedor. Espejo de pct_completadas en la RPC. */
   cierres: number
   /** % entero de completadas sobre cierres; null cuando no hubo cierres que porcentuar. */
   pctCompletadas: number | null
@@ -58,7 +84,7 @@ export function resumenAgenda(vendedores: readonly MetricaAgendaVendedor[]): Res
   for (const ven of vendedores) {
     toques += ven.toques
     completadas += ven.completadas
-    cierres += ven.completadas + ven.no_asistio + ven.canceladas
+    cierres += ven.completadas + ven.no_asistio + canceladasAsesor(ven)
     noAsistio += ven.no_asistio
     sinAccion += ven.leads_sin_accion
     vencidas += ven.vencidas
