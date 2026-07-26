@@ -9,7 +9,7 @@ import {
   StoreDataContext,
 } from '@/lib/store-context'
 import type { PanelesActions, ResultadoMut, StoreDataApi } from '@/lib/store'
-import type { EtapaActiva, Lead } from '@/lib/tipos'
+import type { EtapaActiva, Lead, Tarea } from '@/lib/tipos'
 import { LeadDrawer } from './lead-drawer'
 
 vi.mock('sonner', () => ({
@@ -58,6 +58,9 @@ function montar({
   resultadoEditar = { ok: true },
   avance,
   avanceTarea,
+  tareas = [],
+  actividades = [],
+  retroceso,
 }: {
   lead?: Partial<Lead>
   resultadoEditar?: ResultadoMut
@@ -65,6 +68,14 @@ function montar({
   avance?: EtapaActiva
   /** Etapa a la que sube el lead SOLO por AGENDAR la tarea (espejo del trigger). */
   avanceTarea?: EtapaActiva
+  /** Pendientes del lead — la lista que pinta «Próxima acción». */
+  tareas?: Tarea[]
+  /** Timeline del lead: `retrocesoPorAnularReunion` corre DE VERDAD en el
+   *  componente y necesita saber si hubo contacto real (y si la reunión llegó
+   *  a ocurrir) para decidir a qué etapa devolvería el lead. */
+  actividades?: { tipo: string }[]
+  /** Etapa a la que BAJA el lead al anular (lo que devuelve el store real). */
+  retroceso?: EtapaActiva
 } = {}) {
   const l: Lead = { ...LEAD, ...lead }
   const editarLead = vi.fn<StoreDataApi['editarLead']>(() => resultadoEditar)
@@ -74,12 +85,16 @@ function montar({
   const crearTarea = vi.fn<StoreDataApi['crearTarea']>(() =>
     avanceTarea ? { ok: true, id: 't-test', avance: avanceTarea } : { ok: true, id: 't-test' },
   )
+  const anularTarea = vi.fn<StoreDataApi['anularTarea']>(() =>
+    retroceso ? { ok: true, retroceso } : { ok: true },
+  )
   const api = {
     lead: (id: string) => (id === l.id ? l : undefined),
     ambito: { leads: [l], vendedores: [], esGlobal: false },
-    actividadesDe: () => [],
-    tareasDe: () => [],
+    actividadesDe: () => actividades,
+    tareasDe: () => tareas,
     crearTarea,
+    anularTarea,
     editarLead,
     reasignar: vi.fn(() => ({ ok: true })),
     cambiarEtapa: vi.fn(() => ({ ok: true })),
@@ -106,7 +121,7 @@ function montar({
     </AuthContext.Provider>,
   )
 
-  return { editarLead, registrarActividad, crearTarea }
+  return { editarLead, registrarActividad, crearTarea, anularTarea }
 }
 
 beforeEach(() => vi.clearAllMocks())
@@ -327,6 +342,110 @@ describe('LeadDrawer — «Próxima acción» canta el avance de agendar', () =>
   })
 })
 
+// ANULAR desde la ficha (pedido de Miguel 2026-07-26): agendas la reunión y la
+// llamada de la semana pasada sobra. Sin este botón el único camino para
+// sacarla de la agenda era cerrarla con un resultado FALSO.
+describe('LeadDrawer — anular una pendiente que ya no hace falta', () => {
+  const pendiente = (id: string, titulo: string, tipo: Tarea['tipo'] = 'llamada'): Tarea => ({
+    id,
+    lead_id: LEAD.id,
+    tipo,
+    titulo,
+    vence_en: new Date(Date.now() + 86_400_000).toISOString(),
+    estado: 'pendiente',
+    reprogramaciones: 0,
+    activo: true,
+    creado_en: new Date().toISOString(),
+  })
+
+  it('pide confirmación antes de anular (un tap no basta: es irreversible)', async () => {
+    const user = userEvent.setup()
+    const { anularTarea } = montar({ tareas: [pendiente('t1', 'Llamar a Ana')] })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' }))
+
+    expect(anularTarea).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Sí, anular — Llamar a Ana' })).toBeInTheDocument()
+  })
+
+  // El bug que encontró la auditoría: cuando la confirmación REEMPLAZABA la
+  // fila, «Sí, anular» nacía cubriendo los 24 px del icono que acababa de
+  // armarlo → un doble clic anulaba sin que nadie leyera la pregunta.
+  it('la fila NO se mueve al armar: el destructivo nunca nace bajo el cursor', async () => {
+    const user = userEvent.setup()
+    montar({ tareas: [pendiente('t1', 'Llamar a Ana')] })
+    const disparador = screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' })
+    const fila = disparador.closest('li')
+    const primeraLinea = disparador.parentElement
+
+    await user.click(disparador)
+
+    // El icono sigue existiendo, en la MISMA línea y en la misma posición.
+    expect(disparador.parentElement).toBe(primeraLinea)
+    expect(primeraLinea?.lastElementChild).toBe(disparador)
+    // Y el destructivo está en OTRA línea, la de abajo.
+    const confirmar = screen.getByRole('button', { name: 'Sí, anular — Llamar a Ana' })
+    expect(confirmar.parentElement).not.toBe(primeraLinea)
+    expect(fila?.contains(confirmar)).toBe(true)
+  })
+
+  it('doble clic en el icono se cancela a sí mismo (es un interruptor)', async () => {
+    const user = userEvent.setup()
+    const { anularTarea } = montar({ tareas: [pendiente('t1', 'Llamar a Ana')] })
+    const disparador = screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' })
+
+    await user.dblClick(disparador)
+
+    expect(anularTarea).not.toHaveBeenCalled()
+    expect(disparador).toHaveAttribute('aria-expanded', 'false')
+    expect(screen.queryByRole('button', { name: 'Sí, anular — Llamar a Ana' })).not.toBeInTheDocument()
+  })
+
+  it('confirmar anula esa tarea y avisa que el lead se queda sin plan', async () => {
+    const user = userEvent.setup()
+    const { anularTarea } = montar({ tareas: [pendiente('t1', 'Llamar a Ana')] })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Llamar a Ana' }))
+
+    expect(anularTarea).toHaveBeenCalledWith('t1')
+    expect(toast.warning).toHaveBeenCalledWith(
+      'Tarea anulada — Ana quedó SIN próxima acción (demo)',
+    )
+  })
+
+  it('con OTRA pendiente viva no promete el amarillo (el caso que lo motivó)', async () => {
+    // Exactamente el escenario de Miguel: queda la reunión agendada, así que el
+    // lead NO se queda sin próxima acción y decirlo sería mentira.
+    const user = userEvent.setup()
+    const reunion = { ...pendiente('t2', 'Reunión con Ana'), tipo: 'reunion' as const }
+    montar({ tareas: [pendiente('t1', 'Llamar a Ana'), reunion] })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Llamar a Ana' }))
+
+    expect(toast.success).toHaveBeenCalledWith('Tarea anulada (demo)')
+    expect(toast.warning).not.toHaveBeenCalled()
+  })
+
+  it('«No» cancela la confirmación sin tocar nada', async () => {
+    const user = userEvent.setup()
+    const { anularTarea } = montar({ tareas: [pendiente('t1', 'Llamar a Ana')] })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' }))
+    await user.click(screen.getByRole('button', { name: 'No anular — Llamar a Ana' }))
+
+    expect(anularTarea).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' })).toBeInTheDocument()
+  })
+
+  it('un lead CERRADO no ofrece anular (sus pendientes las cancela el trigger)', () => {
+    montar({ lead: { etapa: 'descartado', motivo_descarte: 'sin_interes' }, tareas: [pendiente('t1', 'Llamar a Ana')] })
+
+    expect(screen.queryByRole('button', { name: /^Anular tarea/ })).not.toBeInTheDocument()
+  })
+})
+
 // El bloque <Datos> era el ÚNICO sin `activa`: seguía ofreciendo escribir sobre
 // un lead que el store ya no deja tocar (y cada escritura reescribía
 // `actualizado_en`, que era el "mes de cierre" del marcador).
@@ -354,5 +473,121 @@ describe('LeadDrawer — un lead CERRADO no se edita desde la ficha', () => {
 
     expect(screen.getByRole('button', { name: 'Editar' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Completar' })).toBeInTheDocument()
+  })
+})
+
+describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
+  // Miguel, 2026-07-26: «si se anula la reu y no se reagenda una en ese mismo
+  // momento, debería bajar de etapa». La consecuencia se ANUNCIA antes del tap:
+  // descubrirla por el toast es descubrirla ya consumada.
+  const reunion = (id: string, titulo: string): Tarea => ({
+    id,
+    lead_id: LEAD.id,
+    tipo: 'reunion',
+    titulo,
+    vence_en: new Date(Date.now() + 86_400_000).toISOString(),
+    estado: 'pendiente',
+    reprogramaciones: 0,
+    activo: true,
+    creado_en: new Date().toISOString(),
+  })
+
+  const enReunion = { etapa: 'reunion_agendada' as const }
+
+  it('la nota de confirmación AVISA del retroceso en vez de la frase genérica', async () => {
+    const user = userEvent.setup()
+    montar({
+      lead: enReunion,
+      tareas: [reunion('t1', 'Reunión con Ana')],
+      actividades: [{ tipo: 'llamada_realizada' }],
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+
+    const nota = document.getElementById('anular-nota-t1')
+    expect(nota?.textContent).toContain('Era su única reunión')
+    expect(nota?.textContent).toContain('Contactado')
+  })
+
+  it('la nota queda ANCLADA al destructivo: quien va por teclado la oye antes', async () => {
+    const user = userEvent.setup()
+    montar({
+      lead: enReunion,
+      tareas: [reunion('t1', 'Reunión con Ana')],
+      actividades: [{ tipo: 'llamada_realizada' }],
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+
+    const si = screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' })
+    expect(si).toHaveAttribute('aria-describedby', 'anular-nota-t1')
+  })
+
+  it('si queda OTRA reunión viva vuelve a la frase genérica: ahí no baja nada', async () => {
+    const user = userEvent.setup()
+    montar({
+      lead: enReunion,
+      tareas: [reunion('t1', 'Reunión A'), reunion('t2', 'Reunión B')],
+      actividades: [{ tipo: 'llamada_realizada' }],
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión A' }))
+
+    const nota = document.getElementById('anular-nota-t1')
+    expect(nota?.textContent).toBe(
+      'No queda como gestión ni en el historial. No se puede deshacer.',
+    )
+  })
+
+  it('anular una LLAMADA no promete ningún retroceso', async () => {
+    const user = userEvent.setup()
+    montar({
+      lead: enReunion,
+      tareas: [
+        { ...reunion('t1', 'Llamar a Ana'), tipo: 'llamada' as const },
+        reunion('t2', 'Reunión con Ana'),
+      ],
+      actividades: [{ tipo: 'llamada_realizada' }],
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Llamar a Ana' }))
+
+    expect(document.getElementById('anular-nota-t1')?.textContent).toBe(
+      'No queda como gestión ni en el historial. No se puede deshacer.',
+    )
+  })
+
+  it('el toast canta la etapa nueva, no el genérico «Tarea anulada»', async () => {
+    const user = userEvent.setup()
+    montar({
+      lead: enReunion,
+      tareas: [reunion('t1', 'Reunión con Ana')],
+      actividades: [{ tipo: 'llamada_realizada' }],
+      retroceso: 'contactado',
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
+
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('vuelve a «Contactado»'))
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('el retroceso GANA al aviso de «sin próxima acción» (es el cambio mayor)', async () => {
+    // Las dos cosas son ciertas a la vez —anular la última reunión suele dejar
+    // al lead sin plan— pero dos toasts se pisan; canta el que más sorprende.
+    const user = userEvent.setup()
+    montar({
+      lead: enReunion,
+      tareas: [reunion('t1', 'Reunión con Ana')],
+      actividades: [{ tipo: 'llamada_realizada' }],
+      retroceso: 'contactado',
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
+
+    expect(toast.warning).toHaveBeenCalledTimes(1)
+    expect(toast.warning).toHaveBeenCalledWith(expect.not.stringContaining('SIN próxima acción'))
   })
 })

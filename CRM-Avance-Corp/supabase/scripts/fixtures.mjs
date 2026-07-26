@@ -404,6 +404,12 @@ export const TRANSIENT_IDS = Object.freeze({
   rpcCloseTarea: randomUUID(),
   taskFollowLead: randomUUID(),
   taskFollowTarea: randomUUID(),
+  // Anular con autoria + retroceso de etapa (20260726151751).
+  anularLead: randomUUID(),
+  anularTareaReunion: randomUUID(),
+  anularTareaLlamada: randomUUID(),
+  anularLeadSistema: randomUUID(),
+  anularTareaSistema: randomUUID(),
 });
 
 export function normalizePeruPhone(phone) {

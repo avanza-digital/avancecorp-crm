@@ -4,6 +4,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   agruparPorEquipo,
+  canceladasAsesor,
+  canceladasSistema,
   resumenAgenda,
   separarPorActividad,
   SIN_EQUIPO_ID,
@@ -50,8 +52,50 @@ function miembro(perfilId: string, supervisorId: string | null, rol: Miembro['ro
   }
 }
 
+describe('canceladasAsesor / canceladasSistema — la separación que pidió Miguel', () => {
+  // «separa lo que cancela el sistema y lo que cancela el asesor» (2026-07-26).
+  // El total `canceladas` mezclaba dos cosas incomparables: una decisión del
+  // asesor sobre su agenda y el trigger que limpia pendientes cuando el lead se
+  // convierte o se descarta.
+  it('reparte el total en sus dos mitades', () => {
+    const v = ven('v1', 'Ana', { canceladas: 5, canceladas_asesor: 2, canceladas_sistema: 3 })
+    expect(canceladasAsesor(v)).toBe(2)
+    expect(canceladasSistema(v)).toBe(3)
+    expect(canceladasAsesor(v) + canceladasSistema(v)).toBe(v.canceladas)
+  })
+
+  it('sin desglose (BD sin migrar) TODO cae del lado del asesor, como antes', () => {
+    // Degradación deliberada: mandarlas a «sistema» inflaría el % de todo el
+    // equipo con datos inventados. El panel no puede cambiar de números por
+    // sorpresa mientras la migración y el deploy del front no coinciden.
+    const v = ven('v1', 'Ana', { canceladas: 4 })
+    expect(canceladasAsesor(v)).toBe(4)
+    expect(canceladasSistema(v)).toBe(0)
+  })
+
+  it('convertir un lead ya NO le baja el % al vendedor', () => {
+    // El sesgo que existía desde 20260719013000: convertir cancela las tareas
+    // pendientes del lead, y cada una entraba al denominador. El mejor
+    // resultado del embudo empeoraba la nota, y más cuanto mejor planificado
+    // estuviera el lead.
+    const conVenta = resumenAgenda([
+      ven('v1', 'Ana', { completadas: 3, canceladas: 4, canceladas_asesor: 0, canceladas_sistema: 4 }),
+    ])
+    expect(conVenta.cierres).toBe(3)
+    expect(conVenta.pctCompletadas).toBe(100)
+  })
+
+  it('pero anular por su cuenta SÍ pesa: el botón no es una salida gratis', () => {
+    const conAnuladas = resumenAgenda([
+      ven('v1', 'Ana', { completadas: 3, canceladas: 1, canceladas_asesor: 1, canceladas_sistema: 0 }),
+    ])
+    expect(conAnuladas.cierres).toBe(4)
+    expect(conAnuladas.pctCompletadas).toBe(75)
+  })
+})
+
 describe('resumenAgenda', () => {
-  it('suma los totales del ámbito y calcula el % sobre los cierres (completadas + no asistió + canceladas)', () => {
+  it('suma los totales del ámbito y calcula el % sobre los cierres (completadas + no asistió + canceladas del asesor)', () => {
     const resumen = resumenAgenda([
       ven('v1', 'Ana', { toques: 10, completadas: 3, no_asistio: 1, vencidas: 2, leads_sin_accion: 1 }),
       ven('v2', 'Beto', { toques: 4, completadas: 1, canceladas: 1, no_asistio: 1 }),

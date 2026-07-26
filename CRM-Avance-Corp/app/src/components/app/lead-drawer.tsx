@@ -10,6 +10,7 @@ import {
   BadgeCheck,
   CalendarCheck,
   CalendarPlus,
+  CalendarX2,
   MessageCircle,
   MessageSquare,
   MoreHorizontal,
@@ -64,6 +65,7 @@ import {
 } from '@/data/crm-api'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
+import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
 import { agruparTimeline } from '@/lib/timeline-lead'
 import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
@@ -422,11 +424,23 @@ function fueraDeVentanaLegal(fecha: string, hora: string): boolean {
 }
 
 function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: boolean }) {
-  const { tareasDe, crearTarea } = useCRMData()
+  const { tareasDe, crearTarea, anularTarea, actividadesDe } = useCRMData()
   const { yo } = useAuth()
   const ahora = useAhora()
   const pendientes = tareasDe(l.id)
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
+  // Confirmación de anulado, INLINE y por fila (id de la tarea, no un boolean):
+  // la lista puede tener varias y el "¿seguro?" tiene que quedar pegado a la
+  // que se va a anular. Anular es irreversible en el servidor, así que no puede
+  // ir a un tap; `window.confirm` está descartado (bloquea el hilo y en móvil
+  // sale como diálogo del navegador, fuera del CRM).
+  const [anulandoId, setAnulandoId] = useState<string | null>(null)
+  // Los botones de la confirmación se DESMONTAN al pulsarlos (y con «Sí» se va
+  // el `<li>` entero). Sin devolver el foco a mano, Radix lo rescata al tope
+  // del drawer y hay que re-tabular stepper, banner y ficha completa para
+  // volver a la lista. Mismo idioma de refs por id que usa `repartir.tsx`.
+  const refInterruptores = useRef(new Map<string, HTMLButtonElement>())
+  const refSeccion = useRef<HTMLElement>(null)
   // Con pendientes vivas, agendar OTRA es un gesto raro: el quick-add se pliega
   // tras este botón. Solo con 0 pendientes (aviso ámbar) queda abierto siempre.
   const [agendarOtra, setAgendarOtra] = useState(false)
@@ -447,6 +461,48 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     setTipo(v)
     // El título sugerido sigue al tipo mientras el vendedor no lo haya tocado.
     if (!tituloEditado) setTitulo(tituloSugerido(v, l.nombre_completo))
+  }
+
+  /**
+   * ANULAR desde la ficha — el atajo para el caso que lo motivó: acabas de
+   * agendar la reunión y la llamada de la semana pasada sobra. Sin esto había
+   * que abrir el diálogo de cierre y elegir un resultado FALSO para sacarla.
+   * `anularTarea` no escribe actividad de contacto (ver lib/store.tsx); lo único
+   * que puede mover es la etapa, hacia atrás y solo al anular la última reunión
+   * viva sin reagendar (pedido de Miguel, 2026-07-26).
+   */
+  const anular = (t: Tarea) => {
+    setAnulandoId(null)
+    const res = anularTarea(t.id)
+    if (!res.ok) {
+      toast.error(res.error ?? 'No se pudo anular la tarea')
+      // La fila sigue ahí (no se anuló nada): el foco vuelve a su interruptor.
+      requestAnimationFrame(() => refInterruptores.current.get(t.id)?.focus())
+      return
+    }
+    // La fila se fue. El foco aterriza en la sección, que sigue montada aunque
+    // la lista quede vacía — desde ahí el siguiente Tab es el quick-add.
+    requestAnimationFrame(() => refSeccion.current?.focus())
+    const sufijo = yo?.demo ? ' (demo)' : ''
+    // Mismo orden de prioridad que en cerrar-tarea.tsx: el retroceso de etapa
+    // gana al "sin próxima acción" porque es el cambio que el asesor no pidió.
+    if (res.retroceso) {
+      toast.warning(
+        `Tarea anulada — ${primerNombre(l.nombre_completo)} vuelve a «${ETAPA_INFO[res.retroceso].label}»${sufijo}`,
+      )
+      return
+    }
+    // `pendientes` es la lista PREVIA a la mutación optimista: si esta era la
+    // única, el lead se queda sin plan y cae a la cola. Mismo criterio de
+    // honestidad que `quedaSinPlan` en cerrar-tarea.tsx — a un lead cerrado o
+    // a un "No Insista" no se le puede prometer esa consecuencia.
+    if (pendientes.length === 1 && activa && !l.no_contactar) {
+      toast.warning(
+        `Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción${sufijo}`,
+      )
+    } else {
+      toast.success(`Tarea anulada${sufijo}`)
+    }
   }
 
   const agendar = () => {
@@ -477,7 +533,16 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   const avisoVentana = fueraDeVentanaLegal(fecha, hora)
 
   return (
-    <section aria-label="Próxima acción">
+    <section
+      ref={refSeccion}
+      tabIndex={-1}
+      aria-label="Próxima acción"
+      // `focus-visible` (no `focus`): tras anular, el foco aterriza aquí y quien
+      // navega con teclado necesita VER dónde quedó antes de pulsar Tab. Como
+      // solo se dispara si la última interacción fue de teclado, el caso ratón
+      // no se ensucia con un anillo que nadie pidió.
+      className="rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+    >
       <div className="mb-1.5 flex items-center justify-between">
         <h3 className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
           <CalendarPlus className="size-3.5" aria-hidden /> Próxima acción
@@ -497,28 +562,154 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
             return (
               <li
                 key={t.id}
-                className="flex items-center gap-2 rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs"
+                // El estado «armado» se marca con FORMA (anillo), no con
+                // tinte de fondo. El `bg-[#d97706]/10` que había aquí hundía
+                // `text-muted-foreground` de 4.49:1 a 4.28:1 —por debajo de AA—
+                // y la fecha VENCIDA a 2.86:1: justo cuando armas el botón
+                // destructivo dejabas de poder leer el dato que decide si
+                // anulas o no. El fondo se queda quieto y el anillo dice lo
+                // mismo sin tocar ningún contraste.
+                className={cn(
+                  'rounded-lg bg-muted/50 px-2.5 py-1.5 text-xs',
+                  anulandoId === t.id && 'ring-1 ring-[#d97706]/60',
+                )}
               >
-                <span className="size-2 shrink-0 rounded-full" style={{ background: ev.color }} aria-hidden />
-                <span className="min-w-0 flex-1 truncate font-medium">{t.titulo}</span>
-                <span
-                  className={cn(
-                    'shrink-0 font-semibold tabular-nums',
-                    ev.vencida ? 'text-[#d97706]' : 'text-muted-foreground',
-                  )}
-                >
-                  {ev.cuando}
-                </span>
-                {escribe && activa && (
-                  <button
-                    type="button"
-                    aria-label={`Cerrar tarea — ${t.titulo}`}
-                    title="Cerrar tarea (resultado + siguiente)"
-                    className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground"
-                    onClick={() => setTareaACerrar(t)}
+                {/* ⚠️ ESTA LÍNEA NO SE MUEVE NUNCA. La confirmación de anular
+                    NO reemplaza la fila: se añade DEBAJO. Cuando sí la
+                    reemplazaba, el «Sí, anular» (destructivo, `h-6`, último
+                    hijo del flex) nacía cubriendo por completo los 24 px del
+                    icono que acababa de armarlo — mismo borde derecho, mismo
+                    alto. Un doble clic, o el segundo tap de quien cree que la
+                    ficha no respondió, caía sobre «Sí, anular» y anulaba la
+                    tarea sin que la pregunta llegara a leerse. Y anular es
+                    IRREVERSIBLE en el servidor: no hay «Deshacer» como en la
+                    pestaña Descartados. */}
+                <div className="flex items-center gap-2">
+                  <span className="size-2 shrink-0 rounded-full" style={{ background: ev.color }} aria-hidden />
+                  <span className="min-w-0 flex-1 truncate font-medium">{t.titulo}</span>
+                  <span
+                    className={cn(
+                      'shrink-0 font-semibold tabular-nums',
+                      // `--warning-text` y no el ámbar puro: `#d97706` daba
+                      // 3.01:1 sobre el fondo de la fila y AA pide 4.5.
+                      ev.vencida ? 'text-warning-text' : 'text-muted-foreground',
+                    )}
                   >
-                    <CalendarCheck className="size-3.5" aria-hidden />
-                  </button>
+                    {ev.cuando}
+                  </span>
+                  {escribe && activa && (
+                    <>
+                      {/* `pointer-coarse:size-8`: el criterio que el repo ya
+                          documentó en agenda.tsx — 24 px siempre, 32 px con
+                          puntero grueso (el dedo). El icono de cerrar lo lleva
+                          también porque ahora son DOS objetivos de 24 px a 8 px
+                          uno del otro en la misma fila, y uno arma un
+                          destructivo: dejarlos disparejos sería peor. */}
+                      <button
+                        type="button"
+                        aria-label={`Cerrar tarea — ${t.titulo}`}
+                        title="Cerrar tarea (resultado + siguiente)"
+                        className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground pointer-coarse:size-8"
+                        onClick={() => setTareaACerrar(t)}
+                      >
+                        <CalendarCheck className="size-3.5" aria-hidden />
+                      </button>
+                      {/* Anular: para la tarea que se volvió innecesaria (ya
+                          hay reunión agendada). Sin este botón el único camino
+                          era cerrarla con un resultado FALSO.
+                          Es un INTERRUPTOR (`aria-expanded`), no un disparador:
+                          el segundo clic desarma en vez de confirmar, así que
+                          un doble clic sobre él se cancela a sí mismo. */}
+                      <button
+                        type="button"
+                        ref={(el) => {
+                          if (el) refInterruptores.current.set(t.id, el)
+                          else refInterruptores.current.delete(t.id)
+                        }}
+                        aria-label={`Anular tarea — ${t.titulo}`}
+                        aria-expanded={anulandoId === t.id}
+                        // `aria-expanded` solo dice "expandido"; con
+                        // `aria-controls` el lector puede SALTAR al bloque que
+                        // abrió (mismo par que el panel de filtros de agenda).
+                        {...(anulandoId === t.id ? { 'aria-controls': `anular-${t.id}` } : {})}
+                        title="Anular (ya no hace falta) — no queda como gestión"
+                        className={cn(
+                          'grid size-6 shrink-0 cursor-pointer place-items-center rounded-md transition-colors pointer-coarse:size-8',
+                          anulandoId === t.id
+                            ? 'bg-[#d97706]/20 text-warning-text'
+                            : 'text-muted-foreground hover:bg-[#d97706]/15 hover:text-warning-text',
+                        )}
+                        onClick={() => setAnulandoId((prev) => (prev === t.id ? null : t.id))}
+                      >
+                        <CalendarX2 className="size-3.5" aria-hidden />
+                      </button>
+                    </>
+                  )}
+                </div>
+                {/* Segunda línea: el destructivo vive a la IZQUIERDA y abajo,
+                    lo más lejos posible del icono que lo armó (arriba a la
+                    derecha). Va dentro de la misma guarda `escribe && activa`
+                    que el interruptor, para que un lead que se cierre con la
+                    confirmación abierta no deje un botón destructivo armado. */}
+                {escribe && activa && anulandoId === t.id && (
+                  <div
+                    id={`anular-${t.id}`}
+                    className="mt-1.5 flex items-center gap-2 border-t border-[#d97706]/30 pt-1.5"
+                  >
+                    <Button
+                      size="xs"
+                      variant="destructive"
+                      className="pointer-coarse:h-8 pointer-coarse:px-3"
+                      aria-label={`Sí, anular — ${t.titulo}`}
+                      // La consecuencia se pinta DESPUÉS de los botones, así
+                      // que quien navega con teclado llegaría al destructivo
+                      // antes de oírla. `aria-describedby` la trae al foco.
+                      aria-describedby={`anular-nota-${t.id}`}
+                      onClick={() => anular(t)}
+                    >
+                      Sí, anular
+                    </Button>
+                    <Button
+                      size="xs"
+                      variant="ghost"
+                      className="pointer-coarse:h-8 pointer-coarse:px-3"
+                      aria-label={`No anular — ${t.titulo}`}
+                      onClick={() => {
+                        setAnulandoId(null)
+                        requestAnimationFrame(() => refInterruptores.current.get(t.id)?.focus())
+                      }}
+                    >
+                      No
+                    </Button>
+                    {/* La nota cambia cuando anular ARRASTRA la etapa: esa es
+                        la consecuencia grande, y callarla aquí obligaría a
+                        descubrirla por el toast, ya consumada. Se calcula por
+                        fila (cada tarea tiene su propia respuesta) y con la
+                        lista PREVIA a la mutación, igual que el store. */}
+                    {/* `aria-live` porque este texto PUEDE cambiar con la
+                        confirmación ya armada: desde aquí mismo se puede
+                        agendar otra reunión o mover el stepper, y entonces la
+                        respuesta pasa de «vuelve a Contactado» a la genérica.
+                        `aria-describedby` solo se lee AL ENFOCAR y nunca se
+                        re-anuncia solo, así que sin esto el botón destructivo
+                        se quedaría prometiendo lo que se leyó hace 20 s.
+                        La coletilla «No se puede deshacer» va en las DOS ramas:
+                        el ternario sustituía en vez de sumar, y quien opera
+                        desde la ficha (el que va más rápido) acababa con menos
+                        aviso que quien abre el diálogo. */}
+                    <span
+                      id={`anular-nota-${t.id}`}
+                      aria-live="polite"
+                      className="min-w-0 flex-1 text-[11px] font-semibold text-warning-text"
+                    >
+                      {(() => {
+                        const atras = retrocesoPorAnularReunion(l, t, pendientes, actividadesDe(l.id))
+                        return atras
+                          ? `Era su única reunión: vuelve a «${ETAPA_INFO[atras].label}». No se puede deshacer.`
+                          : 'No queda como gestión ni en el historial. No se puede deshacer.'
+                      })()}
+                    </span>
+                  </div>
                 )}
               </li>
             )

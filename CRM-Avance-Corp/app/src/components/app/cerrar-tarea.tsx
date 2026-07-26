@@ -9,9 +9,9 @@
 // La escritura real es la RPC atómica crm.cerrar_tarea (cierre + log +
 // siguiente en una transacción); aquí solo se arma el input y se traduce el
 // resultado a toasts honestos.
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, PhoneCall, PhoneMissed, Send, MessageSquare, Users, UserX, CircleCheckBig } from 'lucide-react'
+import { CheckCircle2, PhoneCall, PhoneMissed, Send, MessageSquare, Users, UserX, CircleCheckBig, CalendarX2 } from 'lucide-react'
 import {
   Dialog,
   DialogBody,
@@ -33,6 +33,7 @@ import { tareaAEvento } from '@/lib/agenda-derivada'
 import { camposDeSugerencia, isoDeCampos, type CamposSiguiente } from '@/lib/campos-siguiente'
 import { notaNoShow } from '@/lib/nota-no-show'
 import { esAbierto } from '@/lib/inteligencia'
+import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
 import { plantonDe } from '@/lib/cadencia'
 import { money, primerNombre } from '@/lib/format'
 import {
@@ -94,7 +95,7 @@ export function CerrarTareaDialog({
 }
 
 function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void }) {
-  const { lead, completarTarea, actividadesDe, descartar, tareasDe } = useCRMData()
+  const { lead, completarTarea, anularTarea, actividadesDe, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
   const l = tarea.lead_id ? lead(tarea.lead_id) : undefined
   const opciones = opcionesDe(tarea.tipo)
@@ -167,6 +168,8 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     setSaltar(false)
     setCerrarLead(false)
     setTsEleccion(Date.now())
+    // Elegir un resultado es afirmar algo del cliente: sale del modo anular.
+    setAnulando(false)
   }
 
   // SALIDA DE LA CADENCIA: tras 5 intentos sin respuesta en ≥3 días, el motor
@@ -185,6 +188,23 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   // Mientras espera, el botón se bloquea: un segundo clic mandaría un cierre de
   // una tarea que el espejo local ya dio por cerrada → "Tarea no encontrada".
   const [procesando, setProcesando] = useState(false)
+  // MODO ANULAR — "esta tarea ya no hace falta". No es un resultado más: no
+  // afirma NADA sobre el cliente, así que no puede vivir en la grilla de
+  // "¿Qué pasó?" (ahí, entre Contestó y No contestó, se elegiría por descarte).
+  // Vive debajo, en tono menor, y toma el diálogo entero al activarse: mientras
+  // está encendido no hay resultado, ni siguiente, ni plantón que valgan.
+  const [anulando, setAnulando] = useState(false)
+  // El disparador de anular se DESMONTA al activarse, y Radix solo rescata el
+  // foco al contenedor del diálogo. Quien no ve pulsaría el enlace y no oiría
+  // ni el panel nuevo ni el «no se puede deshacer» — justo lo que hay que leer
+  // antes de una acción irreversible. Mismo patrón que ya usa la advertencia de
+  // conversión en lead-drawer.tsx: el foco entra al panel, y «Volver» lo
+  // devuelve al enlace exactamente de donde salió.
+  const refPanelAnular = useRef<HTMLDivElement>(null)
+  const refEnlaceAnular = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (anulando) refPanelAnular.current?.focus()
+  }, [anulando])
 
   /** Rastro que va al timeline — MISMO cálculo para las dos salidas del
    *  diálogo (cierre normal y cierre por plantón), o el no-show volvía a
@@ -243,6 +263,68 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     toast.info(`${l ? primerNombre(l.nombre_completo) : 'El lead'} se cerró por «No responde»`)
   }
 
+  /**
+   * ¿Sacar ESTA tarea de en medio deja al lead sin ninguna otra pendiente?
+   *
+   * Una sola pregunta para las DOS salidas del diálogo (cerrar y anular): el
+   * aviso ámbar "quedó SIN próxima acción" solo se da cuando es VERDAD. Un lead
+   * cerrado jamás aparece en ese bucket (lo filtra `esAbierto`) y a un "No
+   * Insista" no se le puede empujar a agendar nada — prometer esa consecuencia
+   * en esos dos casos sería mentir. Se evalúa en render, o sea ANTES de que la
+   * mutación optimista saque la tarea de la lista.
+   */
+  const quedaSinPlan =
+    l != null && esAbierto(l) && !l.no_contactar && !tareasDe(l.id).some((t) => t.id !== tarea.id)
+
+  /**
+   * ¿Anular ESTA tarea devuelve el lead a una etapa anterior?
+   *
+   * Se calcula en RENDER (no en el handler) porque el panel de confirmación
+   * tiene que DECIRLO antes de que el asesor pulse: bajar de etapa a espaldas
+   * de quien anula es exactamente el susto que el resto del CRM evita cantando
+   * cada avance. El handler vuelve a leer el retroceso REAL que devuelve el
+   * store —esta copia es solo para el texto— y por eso las dos no pueden
+   * divergir en la escritura, solo, como mucho, en el aviso previo.
+   */
+  const retrocesoPrevisto =
+    l != null
+      ? retrocesoPorAnularReunion(l, tarea, tareasDe(l.id), actividadesDe(l.id))
+      : null
+
+  /**
+   * ANULAR — sale del diálogo SIN afirmar nada del cliente: ni actividad de
+   * contacto en el timeline, ni siguiente encadenada (ver `anularTarea` en
+   * lib/store.tsx). Es lo que faltaba para poder decir "ya agendé la reunión,
+   * esta llamada sobra" sin tener que mentir con «Contestó»/«No contestó».
+   *
+   * Lo ÚNICO que mueve es la etapa, y solo hacia atrás y solo al anular la
+   * última reunión viva: pedido de Miguel del 2026-07-26.
+   */
+  const anular = () => {
+    const res = anularTarea(tarea.id)
+    if (!res.ok) {
+      toast.error(res.error ?? 'No se pudo anular la tarea')
+      return
+    }
+    onCerrar()
+    // Orden de los avisos: el retroceso de etapa manda sobre el "sin próxima
+    // acción" porque es el cambio más grande y el que el asesor no pidió
+    // explícitamente. Los dos son ciertos a la vez a menudo (anular la última
+    // reunión suele dejar al lead sin plan), pero dos toasts encima de otro se
+    // pisan; gana el que más sorprende.
+    if (res.retroceso && l) {
+      toast.warning(
+        `Tarea anulada — ${primerNombre(l.nombre_completo)} vuelve a «${ETAPA_INFO[res.retroceso].label}»`,
+      )
+    } else if (quedaSinPlan && l) {
+      toast.warning(
+        `Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción`,
+      )
+    } else {
+      toast.success('Tarea anulada — fuera de tu agenda')
+    }
+  }
+
   const confirmar = () => {
     if (!eleccion) return
     // El plantón sustituye el flujo normal: cierra la tarea y cierra el lead,
@@ -294,18 +376,8 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       ).cuando
       partes.push(`siguiente agendada: ${cuando}`)
       toast.success(partes.join(' · '))
-    } else if (
-      l
-      && esAbierto(l)
-      && !l.no_contactar
-      // …y de verdad no le queda NADA agendado. Con otra tarea pendiente el
-      // aviso era falso: el lead no cae en el bucket "sin próxima acción".
-      && !tareasDe(l.id).some((t) => t.id !== tarea.id)
-    ) {
-      // El aviso ámbar solo se da cuando es VERDAD. Un lead cerrado jamás
-      // aparece en el bucket "sin próxima acción" (lo filtra `esAbierto`), y a
-      // un "No Insista" no se le puede empujar a agendar nada: prometer esa
-      // consecuencia en esos dos casos sería mentir.
+    } else if (quedaSinPlan && l) {
+      // Ver `quedaSinPlan`: el aviso ámbar solo se da cuando es VERDAD.
       toast.warning(`${partes.join(' · ')} — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción`)
     } else {
       toast.success(partes.join(' · '))
@@ -313,7 +385,12 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     onCerrar()
   }
 
-  const requiereEleccion = opciones.length > 1 && !eleccion
+  // La guarda del botón es EXACTAMENTE la de `confirmar()` (`if (!eleccion)
+  // return`). Antes era `opciones.length > 1 && !eleccion`, que en la tarea
+  // genérica —una sola opción— daba false aunque `eleccion` fuese null: el
+  // botón se pintaba habilitado y no hacía nada. Dos condiciones para lo mismo
+  // siempre acaban divergiendo; esta es la única.
+  const requiereEleccion = !eleccion
 
   return (
     <>
@@ -369,25 +446,116 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               </button>
             ))}
           </div>
+          {/* LA CUARTA SALIDA. Deliberadamente FUERA de la grilla y en tono
+              menor: no es "qué pasó" (no pasó nada), es "esto ya no aplica".
+              Meterla como tercer botón junto a Contestó/No contestó la
+              convertiría en el clic fácil para vaciar la agenda. */}
+          {!anulando && (
+            <button
+              type="button"
+              ref={refEnlaceAnular}
+              disabled={procesando}
+              // `min-h-6` (24 px, SC 2.5.8) y 32 en puntero grueso: es un
+              // botón SUELTO, no va dentro de una frase, así que no le vale la
+              // excepción de objetivo en línea. A 11 px medía unos 16.
+              className="mt-2 flex min-h-6 cursor-pointer items-center gap-1.5 py-1 text-[11px] font-semibold text-muted-foreground underline-offset-2 hover:text-foreground hover:underline disabled:cursor-not-allowed disabled:opacity-50 pointer-coarse:min-h-8"
+              // NO se toca `eleccion` al entrar: el modo anular la IGNORA (los
+              // paneles de abajo se apagan con `!anulando`), y así «Volver»
+              // devuelve el diálogo EXACTAMENTE como estaba. Vaciarla costaba
+              // dos bugs: en una tarea genérica —única opción, preseleccionada
+              // al montar— `requiereEleccion` seguía en false y el botón
+              // «Cerrar tarea» quedaba habilitado pero MUDO (`confirmar` sale
+              // por `if (!eleccion) return`: ni escribe, ni avisa, ni cierra);
+              // y en las demás obligaba a re-elegir, y `elegir` borra
+              // `editados` — o sea, la siguiente acción ya escrita a mano.
+              onClick={() => setAnulando(true)}
+            >
+              <CalendarX2 className="size-3.5" aria-hidden />
+              Ya no hace falta — anular esta tarea
+            </button>
+          )}
         </div>
 
-        <Textarea
-          aria-label="Nota del resultado (opcional)"
-          placeholder="Nota corta (opcional) — va al timeline del lead"
-          rows={2}
-          value={detalle}
-          onChange={(e) => setDetalle(e.target.value)}
-        />
+        {/* Confirmación de anulado: dice EXACTAMENTE qué hace y qué no hace.
+            Un cierre es irreversible en el servidor (`trg_tareas_before_update`
+            rechaza tocar una tarea ya cerrada), así que no puede ir a un tap. */}
+        {anulando && (
+          // `tabIndex={-1}` = destino de foco PROGRAMÁTICO, no una parada del
+          // tabulador: enfocar el contenedor hace que el lector lea el aviso
+          // entero antes de que el usuario llegue a «Sí, anular».
+          <div
+            ref={refPanelAnular}
+            tabIndex={-1}
+            // `role="group"` + `aria-labelledby` en vez de confiar en que el
+            // lector lea solo el subárbol de un div enfocado: eso NO lo define
+            // la spec y cada lector hace una cosa (NVDA suele leerlo entero,
+            // JAWS a menudo se queda en la primera línea). Con el grupo
+            // nombrado la lectura es determinista. `role="alert"` —el
+            // precedente del drawer— daría DOBLE lectura al combinarse con el
+            // foco programático de aquí arriba.
+            role="group"
+            aria-labelledby="anular-titulo"
+            className="rounded-xl border border-[#d97706]/40 bg-[#d97706]/10 p-2.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          >
+            <p id="anular-titulo" className="text-[11px] font-bold text-warning-text">Anular esta tarea</p>
+            {/* `--warning-text` (#92400e) y no el ámbar de siempre: a 11 px el
+                `#b45309/90` de los otros avisos da 3.84:1 y AA exige 4.5:1 — y
+                este párrafo es justo el que dice que no se puede deshacer. */}
+            <p id="anular-que-hace" className="mt-0.5 text-[11px] text-warning-text">
+              Sale de tu agenda. <strong>No</strong> cuenta como gestión y{' '}
+              <strong>no</strong> escribe nada en el historial
+              {l ? ` de ${primerNombre(l.nombre_completo)}` : ''} — úsala cuando la
+              tarea dejó de tener sentido (ya agendaste la reunión, el cliente se
+              adelantó). No se puede deshacer.
+            </p>
+            {/* El retroceso de etapa va PRIMERO y en negrita: es la única
+                consecuencia de anular que toca el embudo, y la que el asesor no
+                pidió. Anunciarla antes del tap es el mismo trato que el resto
+                del CRM le da a los avances automáticos (ahí se cantan DESPUÉS
+                porque suben; este baja, así que se avisa ANTES). */}
+            {retrocesoPrevisto && l && (
+              <p id="anular-retroceso" className="mt-1.5 text-[11px] font-semibold text-warning-text">
+                Era su única reunión: {primerNombre(l.nombre_completo)} vuelve a la
+                etapa «{ETAPA_INFO[retrocesoPrevisto].label}». Si la vas a mover de
+                fecha, usa <strong>Reprogramar</strong> en vez de anular.
+              </p>
+            )}
+            {quedaSinPlan && l && (
+              <p id="anular-sin-plan" className="mt-1.5 text-[11px] font-semibold text-warning-text">
+                Ojo: es su única pendiente. {primerNombre(l.nombre_completo)} quedará
+                sin próxima acción.
+              </p>
+            )}
+          </div>
+        )}
+
+        {/* La nota se esconde al anular, y no es cosmético: anular NO escribe
+            actividad, así que dejar visible un campo que promete "va al
+            timeline del lead" sería tragarse en silencio lo que el asesor
+            escribió. Si tiene algo que contar, cierra la tarea con resultado. */}
+        {!anulando && (
+          <Textarea
+            aria-label="Nota del resultado (opcional)"
+            placeholder="Nota corta (opcional) — va al timeline del lead"
+            rows={2}
+            value={detalle}
+            onChange={(e) => setDetalle(e.target.value)}
+          />
+        )}
 
         {/* SALIDA DE LA CADENCIA. Aparece por encima de la siguiente acción
             porque la sustituye: seguir proponiendo toques a quien no contesta
             desde hace días es lo que llena el embudo de zombis. */}
-        {eleccion && planton && l && (
+        {!anulando && eleccion && planton && l && (
           <div className="rounded-xl border border-[#d97706]/40 bg-[#d97706]/10 p-2.5">
-            <p className="text-[11px] font-bold text-[#b45309]">
+            {/* `--warning-text` también aquí: el `#b45309/90` de abajo daba
+                3.84:1 con AA exigiendo 4.5, y el opaco pasaba por 0.02. Se
+                salda la deuda que este mismo archivo documentaba 40 líneas más
+                abajo en vez de dejarla escrita al lado de su propio parche. */}
+            <p className="text-[11px] font-bold text-warning-text">
               {primerNombre(l.nombre_completo)} no responde
             </p>
-            <p className="mt-0.5 text-[11px] text-[#b45309]/90">
+            <p className="mt-0.5 text-[11px] text-warning-text">
               {planton.intentos} intentos en {Math.floor(planton.dias)} días sin una sola respuesta.
               Seguir insistiendo le cuesta un toque cada dos días.
             </p>
@@ -404,7 +572,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
         )}
 
         {/* La SIGUIENTE — la regla de oro, con saltar a un toque */}
-        {eleccion && campos && !saltar && !(planton && cerrarLead) && (
+        {!anulando && eleccion && campos && !saltar && !(planton && cerrarLead) && (
           <div className="rounded-xl border border-[var(--accent)]/40 bg-[var(--accent)]/5 p-2.5">
             <div className="mb-2 flex items-center justify-between">
               <p className="text-[11px] font-bold uppercase tracking-wide text-foreground/80">
@@ -458,9 +626,9 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             </div>
           </div>
         )}
-        {eleccion && saltar && (
+        {!anulando && eleccion && saltar && (
           <div className="flex items-center justify-between rounded-xl border border-[#d97706]/40 bg-[#d97706]/10 px-3 py-2">
-            <p className="text-[11px] font-semibold text-[#b45309]">
+            <p className="text-[11px] font-semibold text-warning-text">
               Sin siguiente — el lead quedará en “sin próxima acción”.
             </p>
             <button
@@ -473,11 +641,55 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
           </div>
         )}
       </DialogBody>
+      {/* ⚠️ LAS `key` NO SON DECORATIVAS. Las dos ramas tienen un <Button> en
+          cada posición, así que React reconcilia POR ÍNDICE y reutiliza el
+          MISMO nodo del DOM: al pulsar «Volver» el foco no se movía y el botón
+          que quedaba debajo del dedo pasaba a llamarse «Cancelar» y a ejecutar
+          `onCerrar()`. Un segundo Enter —el de quien no oyó nada y cree que no
+          respondió— cerraba el diálogo y se llevaba la nota y la siguiente
+          acción ya escritas. Con `key` distintas el nodo se desmonta de verdad
+          y el nombre accesible nunca cambia bajo el foco (WCAG 4.1.2). */}
       <DialogFooter className="justify-between">
-        <Button variant="ghost" size="sm" onClick={onCerrar}>Cancelar</Button>
-        <Button size="sm" onClick={confirmar} disabled={requiereEleccion || procesando}>
-          <CheckCircle2 /> Cerrar tarea
-        </Button>
+        {anulando ? (
+          <>
+            <Button
+              key="volver"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setAnulando(false)
+                // Devolver el foco al enlace de donde salió: si no, Radix lo
+                // rescata al tope del diálogo y hay que re-tabularlo entero.
+                requestAnimationFrame(() => refEnlaceAnular.current?.focus())
+              }}
+            >
+              Volver
+            </Button>
+            {/* La consecuencia viaja CON el foco: quien salte directo al
+                destructivo tiene que oírla igual. Mismo trato que su gemelo de
+                la ficha (lead-drawer.tsx), que ya lo hacía. */}
+            <Button
+              key="si-anular"
+              variant="destructive"
+              size="sm"
+              aria-describedby={[
+                'anular-que-hace',
+                retrocesoPrevisto && l ? 'anular-retroceso' : null,
+                quedaSinPlan && l ? 'anular-sin-plan' : null,
+              ].filter((x): x is string => x !== null).join(' ')}
+              onClick={anular}
+            >
+              <CalendarX2 aria-hidden /> Sí, anular
+            </Button>
+          </>
+        ) : (
+          <>
+            <Button key="cancelar" variant="ghost" size="sm" onClick={onCerrar}>Cancelar</Button>
+            <Button key="cerrar" size="sm" onClick={confirmar} disabled={requiereEleccion || procesando}>
+              <CheckCircle2 /> Cerrar tarea
+            </Button>
+          </>
+        )}
       </DialogFooter>
     </>
   )

@@ -349,6 +349,14 @@ export interface Database {
           confirmada_en: string | null
           reprogramaciones: number
           activo: boolean
+          /** Autoría de la cancelación (20260726161945): 'asesor' = una persona
+           *  la anuló por la RPC; 'sistema' = la canceló el trigger al cerrarse
+           *  el lead, o un proceso sin sesión. SOLO LECTURA desde el front: la
+           *  sellan los BEFORE triggers y por eso NO está en Insert ni Update —
+           *  mandarla en el payload es un no-op silencioso. Un CHECK
+           *  bicondicional garantiza que toda cancelada la lleva y ninguna
+           *  no-cancelada la tiene. */
+          cancelada_por: 'asesor' | 'sistema' | null
           creado_por: string | null
           creado_en: string
           actualizado_en: string
@@ -368,8 +376,11 @@ export interface Database {
           titulo?: string
           nota?: string | null
           vence_en?: string // reprogramar: el trigger incrementa reprogramaciones
-          duracion_min?: number | null
-          estado?: EstadoTareaDb // solo 'cancelada' pasa el trigger sin la RPC
+          // NINGÚN cierre pasa ya por aquí. Hasta 20260726161945 'cancelada' era
+          // el único que se colaba sin la RPC — un vendedor podía vaciarse la
+          // agenda por PATCH sin quedar etiquetado y saltándose el retroceso de
+          // etapa. Ahora los tres estados de cierre exigen crm.cerrar_tarea().
+          estado?: EstadoTareaDb
           confirmada_en?: string | null
           activo?: boolean
         }

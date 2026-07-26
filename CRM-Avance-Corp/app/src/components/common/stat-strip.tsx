@@ -72,7 +72,12 @@ export function SegmentBar({
   if (!total) return null
   return (
     <div className={cn('space-y-2', className)}>
-      <div className="flex h-2.5 overflow-hidden rounded-full bg-muted">
+      {/* `aria-hidden`: la pista es ADORNO. Los tres colores del semáforo
+          tienen entre sí 1.5–1.6:1, así que por sí sola no distingue nada para
+          daltonismo — el dato real está siempre en la leyenda de abajo o en el
+          texto contiguo cuando `legend={false}`. Los `title` de cada segmento
+          eran además nombre accesible solo-ratón: ruido sin valor. */}
+      <div className="flex h-2.5 overflow-hidden rounded-full bg-muted" aria-hidden="true">
         {visibles.map((s) => (
           <span
             key={s.label}

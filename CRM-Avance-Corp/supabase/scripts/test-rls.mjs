@@ -311,6 +311,9 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.rpcCloseTarea,
       TRANSIENT_IDS.taskFollowTarea,
       TRANSIENT_IDS.repartoTareaReencolada,
+      TRANSIENT_IDS.anularTareaReunion,
+      TRANSIENT_IDS.anularTareaLlamada,
+      TRANSIENT_IDS.anularTareaSistema,
     ]).eq('estado', 'pendiente'),
   );
   await requireAdmin(
@@ -324,6 +327,8 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.triggerSupervisorOnlyLead,
       TRANSIENT_IDS.triggerNoTenureLead,
       TRANSIENT_IDS.taskFollowLead,
+      TRANSIENT_IDS.anularLead,
+      TRANSIENT_IDS.anularLeadSistema,
       TRANSIENT_IDS.repartoLeadOk,
       TRANSIENT_IDS.repartoLeadNoContactar,
       TRANSIENT_IDS.repartoLeadCarrera,
@@ -1786,6 +1791,203 @@ async function testTareaCloseRpc(sessions, seed) {
   // el SET NULL de la FK dispara el trigger de inmutabilidad de la cerrada).
 }
 
+// ── Anular con AUTORIA + retroceso de etapa (migracion 20260726151751) ────────
+// Pedidos de Miguel (2026-07-26): "separa lo que cancela el sistema y lo que
+// cancela el asesor" y "si se anula la reu y no se reagenda una en ese mismo
+// momento, deberia bajar de etapa".
+//
+// Lo que se asevera aqui es la parte que NO se puede probar en el front: que la
+// etiqueta `cancelada_por` la escribe el SERVIDOR y es INFALSIFICABLE, y que el
+// retroceso de etapa (SECURITY DEFINER sobre crm.leads, saltandose leads_update)
+// no se convierte en un vector para mover leads ajenos.
+async function testAnularAutoriaYRetroceso(sessions, seed) {
+  console.log('\n— Agenda: anular con autoria y retroceso de etapa —');
+  const vend1 = sessions.vend1;
+  const vend1Id = seed.profileIdByKey.vend1;
+  const sup1Id = seed.profileIdByKey.sup1;
+
+  const leerTarea = (id, label) => requireAdmin(
+    label,
+    admin.schema('crm').from('tareas')
+      .select('estado, cancelada_por').eq('id', id).single(),
+  );
+  const leerEtapa = (id, label) => requireAdmin(
+    label,
+    admin.schema('crm').from('leads').select('etapa').eq('id', id).single(),
+  );
+
+  await requireAdmin(
+    'crear lead transitorio para anular (ya CONTACTADO)',
+    admin.schema('crm').from('leads').insert({
+      creado_por: sup1Id,
+      etapa: 'contactado',
+      id: TRANSIENT_IDS.anularLead,
+      moneda: 'PEN',
+      monto_estimado: 1000,
+      nombre_completo: 'ANULAR RETROCESO TRANSIENT',
+      origen: 'otro',
+      telefono: '999000020',
+      vendedor_id: vend1Id,
+    }),
+  );
+  // Contacto REAL: sin el, el trigger de subida no asciende (y el de bajada no
+  // tendria de donde volver a `contactado`).
+  await positive(
+    'vend1 registra un contacto real sobre el lead transitorio',
+    vend1.client.schema('crm').from('actividades').insert({
+      creado_por: vend1.user.id,
+      detalle: 'RLS ANULAR TRANSIENT',
+      lead_id: TRANSIENT_IDS.anularLead,
+      tipo: 'llamada_realizada',
+    }).select('id').single(),
+  );
+
+  const reunion = await positive(
+    'vend1 agenda una REUNION sobre el lead transitorio',
+    vend1.client.schema('crm').from('tareas').insert({
+      creado_por: vend1.user.id,
+      id: TRANSIENT_IDS.anularTareaReunion,
+      lead_id: TRANSIENT_IDS.anularLead,
+      tipo: 'reunion',
+      titulo: 'RLS ANULAR REUNION TRANSIENT',
+      vence_en: '2027-01-04T15:00:00Z',
+    }).select('id').single(),
+  );
+  if (!reunion) return;
+  const trasAgendar = await leerEtapa(TRANSIENT_IDS.anularLead, 'releer la etapa tras agendar');
+  check(trasAgendar.data.etapa === 'reunion_agendada',
+    'agendar la reunion subio el lead a reunion_agendada',
+    `etapa=${trasAgendar.data.etapa}`);
+
+  // 1) EL PORTAZO NUEVO: cancelar por PATCH directo deja de estar permitido.
+  //    Antes de esta migracion, `cancelada` era el unico cierre que no exigia la
+  //    RPC: un vendedor podia vaciar su agenda por /rest/v1/tareas SIN quedar
+  //    etiquetado y saltandose el retroceso de etapa.
+  await expectBlockedMutation(
+    'vend1 NO puede anular por UPDATE directo (tiene que pasar por la RPC)',
+    vend1.client.schema('crm').from('tareas')
+      .update({ estado: 'cancelada' }, { count: 'exact' })
+      .eq('id', TRANSIENT_IDS.anularTareaReunion)
+      .select('id'),
+    ['P0001'],
+  );
+
+  // 2) LA ETIQUETA NO SE PUEDE INYECTAR: escribirla suelta en el payload es un
+  //    no-op silencioso (el BEFORE trigger la reescribe desde old).
+  const forjada = await positive(
+    'vend1 intenta escribir cancelada_por="sistema" en una tarea viva',
+    vend1.client.schema('crm').from('tareas')
+      .update({ cancelada_por: 'sistema' })
+      .eq('id', TRANSIENT_IDS.anularTareaReunion)
+      .select('id, estado, cancelada_por')
+      .single(),
+  );
+  if (forjada) {
+    check(forjada.data.cancelada_por === null && forjada.data.estado === 'pendiente',
+      'la etiqueta inyectada por el cliente se ignora (sigue null y pendiente)',
+      `cancelada_por=${forjada.data.cancelada_por}`);
+  }
+
+  // 3) Por la RPC si, y queda firmada como ASESOR.
+  const anulada = await positive(
+    'vend1 anula SU reunion por crm.cerrar_tarea',
+    vend1.client.schema('crm').rpc('cerrar_tarea', {
+      p_estado: 'cancelada',
+      p_resultado_detalle: null,
+      p_resultado_tipo: null,
+      p_tarea_id: TRANSIENT_IDS.anularTareaReunion,
+    }),
+  );
+  if (!anulada) return;
+  const filaAnulada = await leerTarea(TRANSIENT_IDS.anularTareaReunion, 'releer la reunion anulada');
+  check(filaAnulada.data.estado === 'cancelada' && filaAnulada.data.cancelada_por === 'asesor',
+    'la anulacion quedo firmada por el ASESOR',
+    `cancelada_por=${filaAnulada.data.cancelada_por}`);
+  check(anulada.data?.actividad_id == null,
+    'anular NO escribe actividad de resultado en el log');
+
+  // 4) EL RETROCESO: sin reunion viva, el lead vuelve a contactado.
+  const trasAnular = await leerEtapa(TRANSIENT_IDS.anularLead, 'releer la etapa tras anular');
+  check(trasAnular.data.etapa === 'contactado',
+    'anular la ultima reunion devolvio el lead a contactado',
+    `etapa=${trasAnular.data.etapa}`);
+
+  // 5) Anular una LLAMADA no mueve ninguna etapa (el trigger filtra por tipo).
+  const llamada = await positive(
+    'vend1 agenda una llamada sobre el mismo lead',
+    vend1.client.schema('crm').from('tareas').insert({
+      creado_por: vend1.user.id,
+      id: TRANSIENT_IDS.anularTareaLlamada,
+      lead_id: TRANSIENT_IDS.anularLead,
+      tipo: 'llamada',
+      titulo: 'RLS ANULAR LLAMADA TRANSIENT',
+      vence_en: '2027-01-05T15:00:00Z',
+    }).select('id').single(),
+  );
+  if (llamada) {
+    await positive(
+      'vend1 anula esa llamada',
+      vend1.client.schema('crm').rpc('cerrar_tarea', {
+        p_estado: 'cancelada',
+        p_resultado_detalle: null,
+        p_resultado_tipo: null,
+        p_tarea_id: TRANSIENT_IDS.anularTareaLlamada,
+      }),
+    );
+    const sinCambio = await leerEtapa(TRANSIENT_IDS.anularLead, 'releer la etapa tras anular la llamada');
+    check(sinCambio.data.etapa === 'contactado',
+      'anular una LLAMADA no mueve la etapa',
+      `etapa=${sinCambio.data.etapa}`);
+  }
+
+  // 6) LA OTRA MITAD DE LA SEPARACION: lo que cancela el SISTEMA. Descartar el
+  //    lead cancela sus pendientes por trigger, y esas NO son gestion de nadie:
+  //    contarlas en el denominador de pct_completadas era lo que hacia que
+  //    cerrar bien un lead le bajara la nota al vendedor.
+  await requireAdmin(
+    'crear lead transitorio para la cancelacion del SISTEMA',
+    admin.schema('crm').from('leads').insert({
+      creado_por: sup1Id,
+      etapa: 'contactado',
+      id: TRANSIENT_IDS.anularLeadSistema,
+      moneda: 'PEN',
+      monto_estimado: 1000,
+      nombre_completo: 'ANULAR SISTEMA TRANSIENT',
+      origen: 'otro',
+      telefono: '999000021',
+      vendedor_id: vend1Id,
+    }),
+  );
+  const tareaSistema = await positive(
+    'vend1 agenda una tarea sobre el lead que se va a descartar',
+    vend1.client.schema('crm').from('tareas').insert({
+      creado_por: vend1.user.id,
+      id: TRANSIENT_IDS.anularTareaSistema,
+      lead_id: TRANSIENT_IDS.anularLeadSistema,
+      tipo: 'whatsapp',
+      titulo: 'RLS ANULAR SISTEMA TRANSIENT',
+      vence_en: '2027-01-06T15:00:00Z',
+    }).select('id').single(),
+  );
+  if (tareaSistema) {
+    await positive(
+      'vend1 descarta el lead (el trigger cancela sus pendientes)',
+      vend1.client.schema('crm').from('leads')
+        .update({ etapa: 'descartado', motivo_descarte: 'sin_interes' })
+        .eq('id', TRANSIENT_IDS.anularLeadSistema)
+        .select('id')
+        .single(),
+    );
+    const filaSistema = await leerTarea(
+      TRANSIENT_IDS.anularTareaSistema,
+      'releer la tarea cancelada por el trigger',
+    );
+    check(filaSistema.data.estado === 'cancelada' && filaSistema.data.cancelada_por === 'sistema',
+      'la cancelacion automatica quedo firmada por el SISTEMA, no por el asesor',
+      `cancelada_por=${filaSistema.data.cancelada_por}`);
+  }
+}
+
 async function testTareaFollowsLead(sessions, seed) {
   console.log('\n— Agenda: la tarea pendiente sigue al lead reasignado —');
   const sup1 = sessions.sup1;
@@ -2856,6 +3058,7 @@ async function main() {
       await testAvanceEtapa(sessions, verifiedSeed);
       await testTareaIsolation(sessions, verifiedSeed);
       await testTareaCloseRpc(sessions, verifiedSeed);
+      await testAnularAutoriaYRetroceso(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);
       await testAgendaIcs(sessions, verifiedSeed);
       await testObjetivos(sessions);

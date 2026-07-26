@@ -262,6 +262,9 @@ describe('mutaciones del store demo', () => {
         mutar((a) => a.reabrir('l8')),
         mutar((a) => a.registrarActividad('l1', 'nota', 'intento')),
         mutar((a) => a.reasignar('l1', 'd-v2')),
+        // El cuarto verbo de las tareas entra al mismo gate que el resto: el
+        // directorio no puede vaciarle la agenda a nadie.
+        mutar((a) => a.anularTarea(a.tareas[0]?.id ?? 'sin-tarea')),
       ]
 
       for (const res of resultados) {
@@ -572,6 +575,144 @@ describe('mutaciones del store demo', () => {
       expect(res.ok).toBe(true)
       expect(res.avance).toBeUndefined()
       expect(api().lead('l2')?.etapa).toBe('contactado')
+    })
+  })
+
+  // ANULAR — el cuarto verbo (pedido de Miguel 2026-07-26). El escenario exacto
+  // que lo motivó: agendas la reunión y la llamada vieja sobra. Antes de esto,
+  // sacarla de la agenda EXIGÍA cerrarla con «Contestó»/«No contestó» —una
+  // afirmación falsa sobre el cliente, en un log inmutable, que además podía
+  // subir la etapa del lead.
+  describe('anularTarea (la tarea que dejó de tener sentido)', () => {
+    const manana = (): string => new Date(Date.now() + 86_400_000).toISOString()
+
+    it('el caso de Miguel: agendar la reunión y anular la llamada que sobra', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const previas = api().tareasDe('l2').length // l2 ya trae una sembrada
+
+      const llamada = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar a María', vence_en: manana() }),
+      )
+      const reunion = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión con María', vence_en: manana() }),
+      )
+      expect(api().tareasDe('l2')).toHaveLength(previas + 2)
+
+      const res = mutar((a) => a.anularTarea(llamada.id ?? ''))
+
+      expect(res).toMatchObject({ ok: true })
+      // La llamada desaparece de las pendientes; la reunión sigue en pie.
+      const quedan = api().tareasDe('l2')
+      expect(quedan).toHaveLength(previas + 1)
+      expect(quedan.map((t) => t.id)).not.toContain(llamada.id)
+      expect(quedan.map((t) => t.id)).toContain(reunion.id)
+      // …y la tarea quedó CANCELADA, no completada: no cuenta como gestión.
+      expect(api().tareas.find((t) => t.id === llamada.id)?.estado).toBe('cancelada')
+    })
+
+    it('NO escribe actividad: anular no puede pasar por "atendí al cliente"', async () => {
+      // Si anular dejara cualquier fila en el timeline (aunque fuera una nota),
+      // movería `referenciaEspera` —el reloj con el que la cola decide a quién
+      // destapar— y escondería el lead justo al quedarse SIN plan.
+      const { api, mutar } = await montarStore('vendedor')
+      const t = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar', vence_en: manana() }),
+      )
+      const antes = api().actividadesDe('l2')
+
+      mutar((a) => a.anularTarea(t.id ?? ''))
+
+      expect(api().actividadesDe('l2')).toEqual(antes)
+    })
+
+    // ── EL RETROCESO DE ETAPA ────────────────────────────────────────────────
+    // Miguel, 2026-07-26: «si se anula la reu y no se reagenda una en ese mismo
+    // momento, debería bajar de etapa». Corrige la regla anterior de esta misma
+    // suite —"anular una reunión NO baja la etapa"— que venía de la doctrina de
+    // los AUTOMATISMOS (nunca bajan). Aquí no hay automatismo: hay una persona
+    // declarando que la reunión ya no existe, y sostener `reunion_agendada` sin
+    // reunión viva es sostener un hecho falso.
+    it('anular la ÚNICA reunión devuelve el lead a Contactado (y lo dice)', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const reunion = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana() }),
+      )
+      expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
+
+      const res = mutar((a) => a.anularTarea(reunion.id ?? ''))
+
+      expect(api().lead('l2')?.etapa).toBe('contactado')
+      // Viaja al llamador para que la UI lo CANTE: bajar de etapa en silencio
+      // es justo lo que el resto del CRM evita anunciando cada avance.
+      expect(res).toMatchObject({ ok: true, retroceso: 'contactado' })
+    })
+
+    it('el retroceso deja su rastro de cambio_etapa en el timeline', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const reunion = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana() }),
+      )
+
+      mutar((a) => a.anularTarea(reunion.id ?? ''))
+
+      // Es la ÚNICA fila que anular escribe, y no rompe la regla de "no escribe
+      // actividad": la cola se mide contra el último CONTACTO REAL, y los
+      // cambio_etapa del sistema quedan fuera de ese reloj por diseño.
+      const ultima = api().actividadesDe('l2')[0]
+      expect(ultima?.tipo).toBe('cambio_etapa')
+      expect(ultima?.detalle).toContain('Contactado')
+    })
+
+    it('si QUEDA otra reunión viva no baja nada: es el «y no se reagenda»', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      const primera = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión A', vence_en: manana() }),
+      )
+      mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión B', vence_en: manana() }),
+      )
+
+      const res = mutar((a) => a.anularTarea(primera.id ?? ''))
+
+      expect(res).toMatchObject({ ok: true })
+      expect(res.retroceso).toBeUndefined()
+      expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
+    })
+
+    it('anular una LLAMADA nunca mueve la etapa', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+      mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana() }),
+      )
+      const llamada = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar', vence_en: manana() }),
+      )
+
+      const res = mutar((a) => a.anularTarea(llamada.id ?? ''))
+
+      expect(res.retroceso).toBeUndefined()
+      expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
+    })
+
+    it('una tarea ya anulada no se puede volver a anular (espejo del `for update`)', async () => {
+      const { mutar } = await montarStore('vendedor')
+      const t = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar', vence_en: manana() }),
+      )
+      mutar((a) => a.anularTarea(t.id ?? ''))
+
+      const segunda = mutar((a) => a.anularTarea(t.id ?? ''))
+
+      expect(segunda).toMatchObject({ ok: false, codigo: 'no_encontrado' })
+    })
+
+    it('una tarea inexistente no revienta el store', async () => {
+      const { mutar } = await montarStore('vendedor')
+
+      expect(mutar((a) => a.anularTarea('no-existe'))).toMatchObject({
+        ok: false,
+        codigo: 'no_encontrado',
+      })
     })
   })
 

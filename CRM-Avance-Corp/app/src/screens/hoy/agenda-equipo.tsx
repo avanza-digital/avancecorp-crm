@@ -18,6 +18,8 @@ import { SEMAFORO } from '@/lib/semaforo'
 import { cn } from '@/lib/utils'
 import {
   agruparPorEquipo,
+  canceladasAsesor,
+  canceladasSistema,
   resumenAgenda,
   separarPorActividad,
   type GrupoAgendaEquipo,
@@ -45,16 +47,34 @@ function subLineaDe(ven: MetricaAgendaVendedor): string | null {
   return partes.length > 0 ? partes.join(' · ') : null
 }
 
-/** Desglose crudo de cierres para la sub-línea (omite las partes en cero). */
+/**
+ * Desglose crudo de cierres para la sub-línea (omite las partes en cero).
+ *
+ * Las canceladas van SEPARADAS desde 2026-07-26 y con nombres distintos a
+ * propósito: «anuladas» es una decisión del asesor sobre su agenda (y pesa en
+ * su %), «cerradas por el lead» es bookkeeping del sistema al convertirse o
+ * descartarse el prospecto (y no pesa). Llamarlas igual era exactamente el
+ * problema que Miguel señaló — un supervisor no puede juzgar un número que
+ * mezcla "decidió no hacerlo" con "cerró la venta".
+ */
 function desgloseCierres(ven: MetricaAgendaVendedor): string {
   const partes: string[] = []
   if (ven.completadas > 0) {
     partes.push(`${ven.completadas} ${ven.completadas === 1 ? 'completada' : 'completadas'}`)
   }
-  if (ven.canceladas > 0) {
-    partes.push(`${ven.canceladas} ${ven.canceladas === 1 ? 'cancelada' : 'canceladas'}`)
-  }
+  const anuladas = canceladasAsesor(ven)
+  if (anuladas > 0) partes.push(`${anuladas} ${anuladas === 1 ? 'anulada' : 'anuladas'}`)
   if (ven.no_asistio > 0) partes.push(`${ven.no_asistio} no asistió`)
+  const porSistema = canceladasSistema(ven)
+  // Fuera del cómputo y dicho con todas las letras: no es gestión de nadie.
+  // El «(fuera del %)» no es decorativo — esta línea es la ÚNICA alternativa
+  // textual al color de la barra, y va unida por el mismo `·` a las partes que
+  // SÍ cuentan: sin la marca, un supervisor suma 4 cierres donde el % usa 3.
+  if (porSistema > 0) {
+    partes.push(
+      `${porSistema} ${porSistema === 1 ? 'cerrada' : 'cerradas'} por el lead (fuera del %)`,
+    )
+  }
   return partes.join(' · ')
 }
 
@@ -204,7 +224,10 @@ function TablaMiembros({
       <tbody className="divide-y divide-border/60">
         {miembros.map((ven) => {
           const subLinea = subLineaDe(ven)
-          const cierres = ven.completadas + ven.canceladas + ven.no_asistio
+          // Denominador = SOLO lo que decidió esta persona. Espejo exacto de
+          // `resumenAgenda` y de pct_completadas en la RPC; las canceladas por
+          // el sistema se pintan en la sub-línea pero no entran aquí.
+          const cierres = ven.completadas + canceladasAsesor(ven) + ven.no_asistio
           const pct =
             cierres > 0
               ? Math.round(ven.pct_completadas ?? (ven.completadas / cierres) * 100)
@@ -250,7 +273,7 @@ function TablaMiembros({
                         className="w-16 shrink-0"
                         segments={[
                           { label: 'completadas', value: ven.completadas, color: SEMAFORO.ok },
-                          { label: 'canceladas', value: ven.canceladas, color: SEMAFORO.atencion },
+                          { label: 'anuladas', value: canceladasAsesor(ven), color: SEMAFORO.atencion },
                           { label: 'no asistió', value: ven.no_asistio, color: SEMAFORO.critico },
                         ]}
                       />
