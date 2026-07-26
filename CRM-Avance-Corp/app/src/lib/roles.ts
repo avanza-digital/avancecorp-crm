@@ -23,7 +23,7 @@ export type Accion =
   | 'repartirLeads'      // supervisor: baja leads de su bandeja a sus vendedores
   | 'repartirCola'       // coordinador: reparte la COLA GLOBAL a las bandejas (C1)
   | 'verCartera'         // pantalla unificada Clientes+Contratos ('mi-cartera')
-  | 'verConfiguracion'
+  | 'verConfiguracion'   // pantalla 'config' — incluye la suscripción ICS PROPIA
   | 'editarConfiguracion'
   | 'verReportes'
   | 'soloLecturaTotal'   // directorio/auditoría: NO escribe NADA (ni lo propio)
@@ -31,10 +31,18 @@ export type Accion =
 export type Caps = Record<Accion, boolean>
 
 export const CAPS: Record<Rol, Caps> = {
+  // El vendedor VE Configuración (no la edita): ahí vive "Mi calendario de
+  // Google", la suscripción ICS que lleva SU agenda al celular, y con
+  // verConfiguracion:false esa pantalla no existía para él — ni en el nav ni por
+  // URL (sanearVista lo expulsaba) — justo para el único rol que trabaja en la
+  // calle. No se abre nada más: editarConfiguracion sigue en false (las metas
+  // del mes y toda escritura de configuración siguen siendo de gerencia) y la
+  // tarjeta ICS pide SIEMPRE el perfil propio (perfil_id = yo.id, espejo de la
+  // RLS "cada quien SU fila" en crm.agenda_ics): nadie exporta agenda ajena.
   vendedor: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
-    verConfiguracion: false, editarConfiguracion: false,
+    verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, soloLecturaTotal: false,
   },
   supervisor: {

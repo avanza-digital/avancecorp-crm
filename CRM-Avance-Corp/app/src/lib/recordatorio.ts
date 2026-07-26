@@ -11,9 +11,12 @@
 import type { Lead, Tarea } from './tipos'
 import { tareaAEvento } from './agenda-derivada'
 import { money, primerNombre } from './format'
+import { soloDigitos } from './telefono'
 
-/** Teléfono E.164 +51… → dígitos para wa.me (mismo criterio que AccionesContacto). */
-const soloDigitos = (tel: string): string => tel.replace(/\D/g, '')
+// El criterio de teléfono vive en lib/telefono.ts desde 2026-07-25. Antes este
+// archivo tenía su propia copia con un comentario que decía ser "el mismo
+// criterio que AccionesContacto" — y no lo era: allá se hacía `replace('+','')`,
+// que deja espacios y guiones dentro de la URL de wa.me. Una sola fuente.
 
 /**
  * Mensaje de recordatorio de una cita: pide confirmación explícita y ancla el

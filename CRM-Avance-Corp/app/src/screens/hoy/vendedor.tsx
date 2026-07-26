@@ -38,6 +38,7 @@ import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import {
   BUCKET_LABEL,
   capitalPorMoneda,
+  capitalPrincipal,
   colaDe,
   colorMeta,
   diasDesdeReferencia,
@@ -46,12 +47,19 @@ import {
   pctMeta,
   type ItemCola,
 } from '@/lib/inteligencia'
+import { planPorLead } from '@/lib/plan-lead'
 import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } from '@/lib/agenda-vistas'
-import { tareaAEvento } from '@/lib/agenda-derivada'
+import {
+  agendaDeTareas,
+  esDeHoy,
+  fechaLima,
+  tareaAEvento,
+  type EventoAgenda,
+} from '@/lib/agenda-derivada'
+import { periodoLima } from '@/lib/objetivos'
 import { useTipoCambio, usdAPen, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
-import type { EventoAgenda } from '@/lib/store'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
@@ -94,9 +102,21 @@ function useProgresoAnimado(pct: number): number {
   return v
 }
 
+/** Motivo neutro más frecuente: gerencia no fijó ESA meta del mes. Constante
+ * porque lo usan las tres filas y el texto tiene que ser idéntico. */
+const SIN_META = 'Sin meta fijada para este mes'
+
 /** Una fila de la meta: chip de icono + label + valor actual (contador) arriba;
  * barra que sube sola; abajo "% del objetivo" + la meta a la derecha. El color
- * (chip/barra/pct) es el semáforo del avance. */
+ * (chip/barra/pct) es el semáforo del avance.
+ *
+ * `neutro` = por qué esta fila NO se puede juzgar todavía (el texto que se pinta
+ * en lugar de la barra). Dos casos, misma cura: gerencia dejó ESA meta en blanco
+ * (objetivo 0), o el indicador aún no tiene con qué calcularse (conversión sin
+ * nada resuelto en el mes). En los dos el semáforo se cortocircuitaba solo:
+ * `pctMeta(x, 0)` —y `pctMeta(0, y)`— devuelven 0, y `colorMeta(0)` es ROJO
+ * CRÍTICO, así que una meta que nadie fijó, o un mes recién estrenado, se leían
+ * como un incumplimiento grave del asesor. Sin dato ≠ incumplido. */
 function MetaFila({
   icon: Icon,
   label,
@@ -105,6 +125,7 @@ function MetaFila({
   pct,
   delay,
   nota,
+  neutro,
 }: {
   icon: LucideIcon
   label: string
@@ -113,8 +134,10 @@ function MetaFila({
   pct: number
   delay: number
   nota?: ReactNode
+  neutro?: string | undefined
 }): JSX.Element {
-  const color = colorMeta(pct)
+  const sinObjetivo = neutro != null
+  const color = sinObjetivo ? 'var(--muted-foreground)' : colorMeta(pct)
   const pctAnimado = useProgresoAnimado(pct)
   return (
     <div className="ac-rise" style={{ animationDelay: `${delay}ms` }}>
@@ -130,13 +153,19 @@ function MetaFila({
           <AnimatedValue value={valorTxt} />
         </p>
       </div>
-      <Progress value={pctAnimado} color={color} className="mt-1.5" />
-      <div className="mt-1 flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
-        <span>
-          <AnimatedValue value={`${Math.round(pct)}%`} /> del objetivo
-        </span>
-        <span>meta {metaTxt}</span>
-      </div>
+      {sinObjetivo ? (
+        <p className="mt-1.5 text-[11px] text-muted-foreground">{neutro}</p>
+      ) : (
+        <>
+          <Progress value={pctAnimado} color={color} className="mt-1.5" />
+          <div className="mt-1 flex items-baseline justify-between gap-2 text-[11px] tabular-nums text-muted-foreground">
+            <span>
+              <AnimatedValue value={`${Math.round(pct)}%`} /> del objetivo
+            </span>
+            <span>meta {metaTxt}</span>
+          </div>
+        </>
+      )}
       {nota && <div className="mt-1.5">{nota}</div>}
     </div>
   )
@@ -184,6 +213,53 @@ const ICONO_EVENTO: Record<string, LucideIcon> = {
 
 // El orden ES el timestamp: vence_en asc pone las VENCIDAS primero (regla de
 // la investigación: nadie esconde vencidas) y el resto cronológico.
+
+/** Cuántas vencidas LISTA de verdad la franja ámbar (el resto colapsa en
+ * "+N más"). Vive fuera de <AgendaHoy> porque la cola de al lado necesita el
+ * mismo número: solo puede callarse los leads que la agenda está mostrando. */
+const VENCIDAS_VISIBLES = 3
+
+/** Las vencidas que la franja ámbar pinta REALMENTE, en su mismo orden y con
+ * su mismo corte. Única fuente de verdad del anti-duplicado agenda↔cola: si
+ * la cola escondiera TODAS las vencidas, las que caen bajo el "+N más" se
+ * perderían de la pantalla (la agenda no las pinta y la cola tampoco), y con
+ * ellas el motivo y el capital en juego que solo la cola sabe calificar. */
+function vencidasListadas(eventos: EventoAgenda[]): EventoAgenda[] {
+  return eventos
+    .filter((e) => e.vencida)
+    .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
+    .slice(0, VENCIDAS_VISIBLES)
+}
+
+/**
+ * El pie del "+N más vencidas" — y por qué NO puede prometer la cola de al lado
+ * sin haberlo comprobado.
+ *
+ * EL DEFECTO QUE CIERRA (pedido de Miguel, 2026-07-26): este pie decía SIEMPRE
+ * "las tienes en la cola de al lado", y para las vencidas de HOY era falso. La
+ * agenda marca «vencida» por HORA (`tareaAEvento`, lib/agenda-derivada) y el
+ * plan de un lead muere por DÍA (`planPorLead`, lib/plan-lead): una tarea que
+ * venció hoy a las 09:00 ya es vencida arriba y sigue siendo plan VIGENTE
+ * abajo, así que `colaDe` salta a ese lead y su fila NO existe. El asesor leía
+ * "+2 más vencidas — las tienes en la cola" sobre una cola que, encima, se
+ * declaraba sin pendientes.
+ *
+ * Los dos criterios se dejan como están porque los dos son correctos, y son
+ * respuestas a preguntas DISTINTAS: la agenda responde "¿ya pasó la hora?" (una
+ * llamada de las 09:00 a las 15:00 llegó tarde, y esconderlo sería peor) y el
+ * plan responde "¿este lead tiene dueño de su siguiente paso?" — que se contesta
+ * por día a propósito, para que el asesor ordene su jornada como quiera y la
+ * cola no sea un eco minuto a minuto de la agenda (ver la REGLA en
+ * lib/plan-lead.ts, compartida con `tareaQueCierra` y consumida por cuatro
+ * pantallas más el botón Agendar). Lo único que mentía era la frase, y es la
+ * frase la que se corrige: `abajo` es cuántas de esas vencidas pinta DE VERDAD
+ * la mitad de abajo de la pantalla, contadas por quien puede saberlo.
+ */
+function textoRestoVencidas(resto: number, abajo: number): string {
+  if (abajo <= 0) return `+${resto} más vencidas — ábrelas desde Agenda.`
+  if (abajo >= resto) return `+${resto} más vencidas — las tienes en la cola de al lado y en Agenda.`
+  return `+${resto} más vencidas — ${abajo} en la cola de al lado; todas en Agenda.`
+}
 
 // Fila base COMÚN de agenda/cola/higiene/amarillos: mismo ritmo vertical
 // (p-2.5 · rounded-lg · título text-sm) entre las dos tarjetas vecinas — cada
@@ -306,6 +382,7 @@ function AgendaHoy({
   demo,
   nReuniones,
   nPropuestas,
+  vencidasAbajo,
   className,
 }: {
   eventos: EventoAgenda[]
@@ -315,6 +392,10 @@ function AgendaHoy({
   demo: boolean
   nReuniones: number
   nPropuestas: number
+  /** Cuántas de las vencidas que NO caben en la franja pinta la mitad de abajo
+   *  de la pantalla (cola + higiene). Solo la pantalla puede saberlo, y sin ese
+   *  dato el pie no puede prometer nada (ver `textoRestoVencidas`). */
+  vencidasAbajo: number
   className?: string
 }): JSX.Element {
   const ordenados = [...eventos].sort((a, b) => a.vence_en.localeCompare(b.vence_en))
@@ -325,7 +406,10 @@ function AgendaHoy({
   // cronología limpia del día con su hora como ancla.
   const vencidas = ordenados.filter((e) => e.vencida)
   const alDia = ordenados.filter((e) => !e.vencida)
-  const VENCIDAS_VISIBLES = 3
+  // Las filas que se pintan salen del MISMO helper que consulta la cola: si
+  // este corte y el de allá se separaran, o se duplicaría una vencida o se
+  // perdería de las dos superficies.
+  const visibles = vencidasListadas(eventos)
   const leadsVencidos = Array.from(new Set(vencidas.map((e) => e.lead_id)))
     .map(leadPorId)
     .filter((l): l is Lead => l != null)
@@ -381,12 +465,12 @@ function AgendaHoy({
                     </span>
                   )}
                 </div>
-                {vencidas.slice(0, VENCIDAS_VISIBLES).map((ev) => (
+                {visibles.map((ev) => (
                   <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} onCompletar={onCompletar} />
                 ))}
-                {vencidas.length > VENCIDAS_VISIBLES && (
+                {vencidas.length > visibles.length && (
                   <p className="px-2.5 pb-1 text-[11px] text-muted-foreground">
-                    +{vencidas.length - VENCIDAS_VISIBLES} más vencidas — ciérralas o reprográmalas desde Agenda.
+                    {textoRestoVencidas(vencidas.length - visibles.length, vencidasAbajo)}
                   </p>
                 )}
               </div>
@@ -424,7 +508,7 @@ function AgendaHoy({
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
-  const { ambito, actividades, agenda: agendaGlobal, tareas, objetivos, reprogramarTarea } = useCRMData()
+  const { ambito, actividades, tareas, objetivos, objetivosError, recargar, reprogramarTarea } = useCRMData()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const { yo } = useAuth()
   // Motor (Fase B): tarea seleccionada para cerrar desde la agenda héroe.
@@ -433,14 +517,23 @@ export function HoyVendedor(): JSX.Element {
   // dependencia de la cola para que los "hace X" y semáforos se refresquen solos.
   const ahora = useAhora()
 
-  // Universo del asesor — ambito.leads ya es SOLO su cartera.
-  const mios = ambito.leads.filter((l) => l.activo)
+  // Universo del asesor — ambito.leads ya es SOLO su cartera. Memoizado porque
+  // de él cuelgan `idsMios` y la agenda derivada: un array nuevo en cada render
+  // reventaría esos memos sin que haya cambiado un solo dato.
+  const mios = useMemo(() => ambito.leads.filter((l) => l.activo), [ambito.leads])
+  const idsMios = useMemo(() => new Set(mios.map((l) => l.id)), [mios])
   const abiertos = mios.filter((l) => l.etapa !== 'convertido' && l.etapa !== 'descartado')
   const convertidos = mios.filter((l) => l.etapa === 'convertido')
   const propuestas = abiertos.filter((l) => l.etapa === 'propuesta_enviada')
 
   // Capital en proceso — PEN y USD SIEMPRE por separado (jamás un total mixto).
   const { pen: capPEN, usd: capUSD } = capitalPorMoneda(abiertos)
+  // …y la MONEDA QUE MANDA en el número grande sale del criterio compartido
+  // (lib/inteligencia). Esta pantalla fijaba PEN a mano: el asesor con cartera
+  // 100 % en dólares abría su día leyendo "S/ 0.00" mientras Cartera y Pipeline
+  // —que ya usan este criterio— le mostraban su capital real. Tres pantallas
+  // contradiciéndose sobre el mismo lead.
+  const capital = capitalPrincipal(capPEN, capUSD)
   // …salvo para la META: el USD cuenta CONVERTIDO a soles al TC promedio de la
   // semana. La regla sigue viva (no se suman crudos): capMeta es soles + soles.
   const tc = useTipoCambio()
@@ -450,45 +543,125 @@ export function HoyVendedor(): JSX.Element {
   // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
   // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.
   const meta = objetivos.vendedor
-  // Sin meta configurada (objetivo 0): no inventamos cuotas — mostramos "por definir".
-  const sinMeta = meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0
-  const conversion = mios.length > 0 ? Math.round((convertidos.length / mios.length) * 100) : 0
+  // Sin NINGUNA meta configurada: no inventamos cuotas — mostramos "por definir".
+  // Las tres cuentan: antes bastaba con que capital y ventas estuvieran fijadas
+  // para que la conversión en blanco se colara al bloque de meta y se pintara.
+  const sinMeta = meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0 && meta.conversionObjetivo <= 0
+  // La meta es MENSUAL, así que el numerador tiene que serlo también: comparar
+  // el histórico de vida contra la cuota del mes dejaba a un asesor con 7
+  // conversiones y meta 3 en "233 %" para siempre, y encima la misma pantalla
+  // rotula ese conteo como "Histórico" doce líneas más arriba.
+  //
+  // Mes de CIERRE = `actualizado_en`: un lead terminal es inmutable para el API
+  // (editar un cerrado está bloqueado), así que ese sello ≡ instante del cierre.
+  // Es el MISMO contrato que ya usan lib/series-comerciales y
+  // crm.metricas_agenda_fn — una segunda fórmula haría que Hoy y las tendencias
+  // de gerencia contaran cierres distintos. Sin el dato (demo, o alta optimista
+  // local) cae al mes de creación, igual que allí.
+  const periodo = periodoLima(ahora)
+  const cerradoEnElMes = (l: Lead): boolean => {
+    const ms = Date.parse(l.actualizado_en ?? l.creado_en)
+    return Number.isFinite(ms) && `${fechaLima(ms).slice(0, 7)}-01` === periodo
+  }
+  const convertidosMes = mios.filter((l) => l.etapa === 'convertido' && cerradoEnElMes(l))
+  // Conversión DEL MES sobre lo RESUELTO en el mes (convertidos + descartados),
+  // la misma definición que la serie de tendencia de gerencia. Sobre `mios`
+  // (toda la cartera de vida) el porcentaje ni siquiera era del periodo.
+  const resueltosMes = convertidosMes.length + mios.filter((l) => l.etapa === 'descartado' && cerradoEnElMes(l)).length
+  // `null` = SIN DENOMINADOR, que no es lo mismo que 0 %. Antes esta rama
+  // devolvía 0 y la fila se pintaba en rojo crítico —chip, barra al 0 % y
+  // "0 % del objetivo"— junto a la nota "Sin leads resueltos este mes todavía":
+  // la pantalla contradiciéndose sola, y le pasaba a TODO asesor cada día 1 de
+  // mes. La fila lo trata como sin dato (ver `neutro` en MetaFila).
+  const conversion = resueltosMes > 0 ? Math.round((convertidosMes.length / resueltosMes) * 100) : null
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
   // agenda; aquí solo quedan speed-to-lead y los que se quedaron sin plan.
-  const conTarea = useMemo(
-    () => new Set(tareas.filter((t) => t.estado === 'pendiente' && t.activo && t.lead_id).map((t) => t.lead_id as string)),
-    [tareas],
-  )
+  // ⚠️ `plan.vigente` y NO "tiene alguna tarea": una pendiente que venció hace
+  // dos semanas no es un plan (ver lib/plan-lead.ts). `plan.conTarea` —viva o
+  // muerta— es el que necesita la higiene del viernes, que ya lista las
+  // vencidas por su cuenta y duplicaría el lead si recibiera `vigente`.
+  const plan = useMemo(() => planPorLead(tareas, ahora), [tareas, ahora])
+  const conTarea = plan.conTarea
   const cola = useMemo(
-    () => colaDe(ambito.leads, actividades, ahora, conTarea),
-    [ambito.leads, actividades, ahora, conTarea],
+    () => colaDe(ambito.leads, actividades, ahora, plan),
+    [ambito.leads, actividades, ahora, plan],
   )
 
-  // Agenda demo recortada a SUS leads.
-  const idsMios = new Set(mios.map((l) => l.id))
-  const agenda = agendaGlobal.filter((ev) => idsMios.has(ev.lead_id))
+  // Agenda héroe — se deriva AQUÍ, con el reloj vivo, y NO se consume la del
+  // store: allí sale de un `agendaDeTareas(tareas, Date.now())` encerrado en un
+  // memo cuyas dependencias no cambian con el tiempo, así que `vencida` y las
+  // etiquetas Hoy/Mañana quedaban CONGELADAS en el instante de la carga — la
+  // alarma ámbar no saltaba en toda la jornada y, pasada la medianoche, "Hoy"
+  // seguía siendo ayer mientras la cola de al lado (useAhora) decía otra cosa.
+  // El filtro por idsMios es el espejo RLS; v1 solo opera tareas de lead.
+  //
+  // Y se recorta al DÍA OPERABLE con el mismo criterio que la vista [Hoy] de la
+  // pantalla Agenda (vencidas + las de hoy): sin ese recorte la tarjeta listaba
+  // TODA la agenda futura mientras su badge y el chip "En juego hoy" ya contaban
+  // solo hoy — los números no cuadraban con las filas de abajo y un día
+  // realmente vacío se leía como un día lleno.
+  const agenda = useMemo(() => {
+    const mias = tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id))
+    return agendaDeTareas(mias, ahora).filter((ev) => ev.vencida || esDeHoy(ev, ahora))
+  }, [tareas, idsMios, ahora])
 
   // Modo "viernes 13:00" (Fase D): viernes p.m. es el peor momento para citas
   // nuevas → la cola deja de perseguir y ORDENA la próxima semana (vencidas,
   // reagendas de no-show fuera de mar–jue, leads sin próxima acción). El
   // speed-to-lead NUNCA se entierra: los "sin responder" siguen arriba.
   const higiene = esViernesDeHigiene(ahora)
-  const colaVisible = higiene ? cola.filter((i) => i.bucket === 'sin_responder') : cola
+  // ANTI-DUPLICADO agenda ↔ cola. La regla es "manda la agenda", pero SOLO
+  // sobre lo que la agenda enseña de verdad: la franja ámbar corta en
+  // VENCIDAS_VISIBLES y colapsa el resto en un "+N más" sin nombre ni motivo.
+  // Esconder de la cola TODAS las vencidas borraba de la pantalla a los leads
+  // del excedente —con su capital en juego y su "Propuesta sin movimiento hace
+  // 12 d"— mientras la cola, encima, se declaraba al día.
+  const listadasEnAgenda = useMemo(() => vencidasListadas(agenda), [agenda])
+  // Por LEAD para la cola (sus filas son leads) …
+  const leadsListadosEnAgenda = useMemo(
+    () => new Set(listadasEnAgenda.map((ev) => ev.lead_id)),
+    [listadasEnAgenda],
+  )
+  // … y por TAREA para la higiene del viernes (sus filas son tareas; el id del
+  // evento de agenda ES el id de la tarea, ver onCompletar).
+  const tareasListadasEnAgenda = useMemo(
+    () => new Set(listadasEnAgenda.map((ev) => ev.id)),
+    [listadasEnAgenda],
+  )
+  // Cuántas vencidas hay EN TOTAL: el vacío de la cola las necesita para no
+  // cantar "al día" mientras la tarjeta vecina cuenta N vencidas.
+  const nVencidasAgenda = useMemo(() => agenda.filter((ev) => ev.vencida).length, [agenda])
+  // EXCEPCIÓN deliberada — el speed-to-lead: un lead sin primer contacto NUNCA
+  // se entierra (regla de la casa), y su fila es la única que trae el cronómetro
+  // en minutos, que la agenda no muestra.
+  const colaSinRepetir = cola.filter(
+    (i) => i.bucket === 'sin_responder' || !leadsListadosEnAgenda.has(i.lead.id),
+  )
+  const colaVisible = higiene ? colaSinRepetir.filter((i) => i.bucket === 'sin_responder') : colaSinRepetir
   // Los leads que la cola ya pinta (speed-to-lead) se excluyen de los
   // amarillos — sin esto el mismo lead saldría dos veces y el badge contaría
   // doble. El filtro por idsMios es el espejo RLS; v1 solo opera tareas de
   // lead (las de cliente/perfil_id llegan con la fase de postventa).
-  const itemsHigiene = higiene
-    ? colaHigiene(
-        tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)),
-        ambito.leads,
-        conTarea,
-        ahora,
-        new Set(colaVisible.map((i) => i.lead.id)),
-      )
-    : []
+  //
+  // Y la MISMA regla de arriba sobre las vencidas: `colaHigiene` las lista
+  // todas, así que las que la franja ámbar ya está pintando se quitan aquí —
+  // el viernes salían dos veces en la misma pantalla, con su mismo botón de
+  // cerrar, y las contaban los dos badges. Cede la higiene, no la agenda: la
+  // agenda es el héroe del día y su fila trae la hora. Las que NO caben en la
+  // franja se quedan en la higiene, que es donde el viernes toca cerrarlas.
+  const itemsHigiene = (
+    higiene
+      ? colaHigiene(
+          tareas.filter((t) => t.lead_id && idsMios.has(t.lead_id)),
+          ambito.leads,
+          conTarea,
+          ahora,
+          new Set(colaVisible.map((i) => i.lead.id)),
+        )
+      : []
+  ).filter((i) => i.k !== 'vencida' || !tareasListadasEnAgenda.has(i.tarea.id))
   const tareasHigiene = itemsHigiene.filter(
     (i): i is Extract<ItemHigiene, { k: 'vencida' | 'no_show_fuera_ritmo' }> => i.k !== 'sin_accion',
   )
@@ -497,6 +670,22 @@ export function HoyVendedor(): JSX.Element {
   // La cola también se capa (mismo patrón que los amarillos): colaDe ya ordena
   // por severidad, así que los primeros N son la plata y el resto va a Cartera.
   const COLA_VISIBLES = 7
+  const colaPintada = colaVisible.slice(0, COLA_VISIBLES)
+  // ¿DÓNDE están de verdad las vencidas que la franja ámbar colapsa en "+N más"?
+  // Se cuenta lo que la mitad de abajo PINTA (cola ya recortada + filas de
+  // higiene), no lo que se supone que debería pintar: el pie de la agenda
+  // prometía la cola de al lado para todas y para las vencidas de HOY era
+  // mentira — su lead sigue con plan vigente y `colaDe` lo salta (el porqué,
+  // largo, en `textoRestoVencidas`). Un lead con varias vencidas cuenta por cada
+  // una: su fila está abajo, que es lo que el pie afirma.
+  const leadsEnCola = new Set(colaPintada.map((i) => i.lead.id))
+  const tareasEnHigiene = new Set(tareasHigiene.map((i) => i.tarea.id))
+  const vencidasAbajo = agenda.filter(
+    (ev) =>
+      ev.vencida &&
+      !tareasListadasEnAgenda.has(ev.id) &&
+      (tareasEnHigiene.has(ev.id) || leadsEnCola.has(ev.lead_id)),
+  ).length
   // Conteo por severidad para el mini-resumen de la cola (rojo/ámbar/azul).
   const porSev = { critica: 0, media: 0, baja: 0 }
   for (const i of colaVisible) porSev[i.sev] += 1
@@ -537,15 +726,17 @@ export function HoyVendedor(): JSX.Element {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
             label="Capital en proceso"
-            value={money(capPEN)}
+            value={capital.valor}
             icon={Wallet}
             color="#2563eb"
             sub={
-              capUSD > 0
-                ? `Pipeline activo (PEN) · +${moneyK(capUSD, 'USD')} aparte`
-                : capPEN === 0 && abiertos.length > 0
-                  ? 'Sin montos estimados — complétalos en cada ficha'
-                  : 'Pipeline activo (PEN)'
+              capital.otra
+                ? `Pipeline activo (PEN) · +${capital.otra} aparte`
+                : capital.soloDolares
+                  ? 'Pipeline activo (USD)'
+                  : capPEN === 0 && abiertos.length > 0
+                    ? 'Sin montos estimados — complétalos en cada ficha'
+                    : 'Pipeline activo (PEN)'
             }
             delay={0}
           />
@@ -600,6 +791,7 @@ export function HoyVendedor(): JSX.Element {
           demo={yo?.demo ?? false}
           nReuniones={reunionesAgendadas}
           nPropuestas={propuestas.length}
+          vencidasAbajo={vencidasAbajo}
           className="flex flex-col lg:col-span-3"
         />
         {/* Cola de acción personal — el viernes desde las 13:00 (Lima) cambia
@@ -624,15 +816,33 @@ export function HoyVendedor(): JSX.Element {
               </p>
             )}
             {nCola === 0 ? (
-              <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <CircleCheckBig className="size-8 text-accent" />
-                <p className="text-sm font-bold">{higiene ? 'Pipeline limpio ✦' : 'Al día ✦ sin pendientes'}</p>
-                <p className="text-xs text-muted-foreground">
-                  {higiene
-                    ? 'Nada vencido, las citas reagendadas en su día y toda tu cartera con próxima acción. Buen fin de semana.'
-                    : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
-                </p>
-              </div>
+              nVencidasAgenda > 0 ? (
+                // Cola vacía NO es "al día": lo vencido está en la agenda de al
+                // lado (donde vive su botón de cerrar). Decir "sin pendientes"
+                // mientras el badge vecino canta N vencidas es la pantalla
+                // contradiciéndose, y el asesor se va a casa creyendo que
+                // terminó. El vacío REMITE a la agenda en vez de negarla.
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <AlertTriangle className="size-8 text-warning" />
+                  <p className="text-sm font-bold">Lo pendiente está en tu agenda</p>
+                  <p className="text-xs text-muted-foreground">
+                    {nVencidasAgenda === 1
+                      ? 'Tienes 1 seguimiento vencido'
+                      : `Tienes ${nVencidasAgenda} seguimientos vencidos`}{' '}
+                    en «Tu agenda de hoy» — ciérralos o reprográmalos desde ahí.
+                  </p>
+                </div>
+              ) : (
+                <div className="flex flex-col items-center gap-2 py-10 text-center">
+                  <CircleCheckBig className="size-8 text-accent" />
+                  <p className="text-sm font-bold">{higiene ? 'Pipeline limpio ✦' : 'Al día ✦ sin pendientes'}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {higiene
+                      ? 'Nada vencido, las citas reagendadas en su día y toda tu cartera con próxima acción. Buen fin de semana.'
+                      : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
+                  </p>
+                </div>
+              )
             ) : (
               <>
                 {/* Mini-resumen por severidad: la respuesta a "¿cómo viene mi
@@ -655,7 +865,7 @@ export function HoyVendedor(): JSX.Element {
                     )}
                   </div>
                 )}
-                {colaVisible.slice(0, COLA_VISIBLES).map((item) => (
+                {colaPintada.map((item) => (
                   <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />
                 ))}
                 {colaVisible.length > COLA_VISIBLES && (
@@ -713,16 +923,36 @@ export function HoyVendedor(): JSX.Element {
                 </p>
               </div>
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-semibold text-foreground/80">Ventas cerradas</p>
-                <p className="text-xs font-bold tabular-nums">{convertidos.length}</p>
+                <p className="text-xs font-semibold text-foreground/80">Ventas cerradas este mes</p>
+                <p className="text-xs font-bold tabular-nums">{convertidosMes.length}</p>
               </div>
               <NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />
-              <p className="text-[11px] text-muted-foreground">
-                Meta mensual por definir — cuando la establezcan, verás aquí tu avance.
-              </p>
+              {objetivosError ? (
+                // Ceros por FALLO DE LECTURA ≠ ceros porque gerencia no fijó
+                // nada (`objetivosError` del store). Decir "por definir" cuando
+                // lo que hubo fue un error de red le hace creer al asesor que
+                // nadie le puso meta, y deja de buscarla. Los dos números de
+                // arriba SÍ son reales (salen de su cartera): lo único que
+                // falta es el denominador.
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="text-[11px] text-warning-text">
+                    No pudimos cargar tu meta del mes — los datos de arriba son tuyos y son reales.
+                  </p>
+                  <Button variant="ghost" size="sm" onClick={() => void recargar()}>
+                    Reintentar
+                  </Button>
+                </div>
+              ) : (
+                <p className="text-[11px] text-muted-foreground">
+                  Meta mensual por definir — cuando la establezcan, verás aquí tu avance.
+                </p>
+              )}
             </div>
           ) : (
             <div className="grid gap-x-8 gap-y-4 md:grid-cols-3">
+              {/* Cada fila mira SU propio objetivo: que gerencia haya fijado
+                  capital no significa que haya fijado conversión, y una fila con
+                  objetivo 0 no puede pintarse como incumplida (ver MetaFila). */}
               <MetaFila
                 icon={Wallet}
                 label="Capital"
@@ -730,23 +960,45 @@ export function HoyVendedor(): JSX.Element {
                 metaTxt={moneyK(meta.capitalObjetivo)}
                 pct={pctMeta(capMeta, meta.capitalObjetivo)}
                 delay={0}
+                neutro={meta.capitalObjetivo <= 0 ? SIN_META : undefined}
                 nota={<NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />}
               />
               <MetaFila
                 icon={Trophy}
                 label="Ventas cerradas"
-                valorTxt={String(convertidos.length)}
+                valorTxt={String(convertidosMes.length)}
                 metaTxt={String(meta.ventasObjetivo)}
-                pct={pctMeta(convertidos.length, meta.ventasObjetivo)}
+                pct={pctMeta(convertidosMes.length, meta.ventasObjetivo)}
                 delay={90}
+                neutro={meta.ventasObjetivo <= 0 ? SIN_META : undefined}
+                // El KPI de arriba dice "Histórico"; esta fila es del MES. Si
+                // los dos números difieren se dice en voz alta, o la misma
+                // pantalla parece contradecirse.
+                nota={
+                  convertidos.length > convertidosMes.length ? (
+                    <p className="text-[11px] text-muted-foreground">
+                      Cerradas este mes · {convertidos.length} en total desde que llevas cartera.
+                    </p>
+                  ) : undefined
+                }
               />
+              {/* El valor es "—" y no "0 %" cuando no hay resueltos: un
+                  porcentaje sin denominador no existe, y escribirlo como 0 %
+                  ya es afirmar que el asesor no convirtió nada. */}
               <MetaFila
                 icon={TrendingUp}
                 label="Conversión"
-                valorTxt={`${conversion}%`}
+                valorTxt={conversion == null ? '—' : `${conversion}%`}
                 metaTxt={`${meta.conversionObjetivo}%`}
-                pct={pctMeta(conversion, meta.conversionObjetivo)}
+                pct={pctMeta(conversion ?? 0, meta.conversionObjetivo)}
                 delay={180}
+                neutro={
+                  meta.conversionObjetivo <= 0
+                    ? SIN_META
+                    : conversion == null
+                      ? 'Sin leads resueltos este mes todavía — el % sale con el primer cierre'
+                      : undefined
+                }
               />
             </div>
           )}
@@ -840,7 +1092,7 @@ function FilaCola({
           {diasTxt(item.dias)}
         </span>
       )}
-      <AccionesContacto lead={item.lead} compacto soloIcono />
+      <AccionesContacto lead={item.lead} compacto soloIcono conAgendar />
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )
@@ -968,7 +1220,12 @@ function FilaAmarillo({ lead, abrirLead }: { lead: Lead; abrirLead: (id: string)
           {money(lead.monto_estimado, lead.moneda)} en juego — agéndale el siguiente paso
         </p>
       </div>
-      <AccionesContacto lead={lead} compacto soloIcono />
+      {/* `conAgendar` es justo lo que pide esta fila: son los leads SIN próxima
+          acción, y el texto de arriba les dice "agéndale el siguiente paso" —
+          mandarlos a abrir la ficha para hacerlo era la fricción que el botón
+          quita. Nunca se oculta por anti-duplicado: sin plan vivo, por
+          definición (ver BotonAgendar). */}
+      <AccionesContacto lead={lead} compacto soloIcono conAgendar />
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </div>
   )

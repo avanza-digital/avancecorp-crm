@@ -80,6 +80,33 @@ export const TIPOS_CONTACTO = [
 /** Set runtime de los tipos de contacto — derivado de TIPOS_CONTACTO (fuente única). */
 export const TIPOS_CONTACTO_K: ReadonlySet<string> = new Set(TIPOS_CONTACTO)
 
+/**
+ * CONVERSACIÓN — el cliente estuvo del otro lado. SUBCONJUNTO ESTRICTO de
+ * TIPOS_CONTACTO, y espejo del `WHEN` de `trg_zz_actividades_avance_etapa`.
+ *
+ * La diferencia con TIPOS_CONTACTO no es un matiz, son dos preguntas distintas:
+ *   · TIPOS_CONTACTO responde «¿el asesor TRABAJÓ el lead?» → mide esfuerzo, y
+ *     de eso viven el SLA y la cola (un intento fallido SÍ es trabajo).
+ *   · TIPOS_CONVERSACION responde «¿el cliente RESPONDIÓ?» → mide el embudo, y
+ *     de eso vive la etapa (un intento fallido NO es haber hablado con nadie).
+ *
+ * Por qué importa que sean distintas (decisión de Miguel, 2026-07-25): la etapa
+ * `nuevo` tiene 24 h de umbral y `contactado` 72 h (`private.umbral_estancamiento`).
+ * Si «no contestó» avanzara la etapa, ese botón sería en la práctica un
+ * "posponer la alarma dos días" sobre alguien con quien nadie habló — y la
+ * conversión del embudo se inflaría sola, sin que nadie mienta a propósito.
+ *
+ * JAMÁS fusionar los dos conjuntos, ni "simplificar" uno en términos del otro.
+ */
+export const TIPOS_CONVERSACION = [
+  'llamada_realizada',
+  'whatsapp_recibido',
+  'reunion_realizada',
+] as const satisfies readonly (typeof TIPOS_CONTACTO)[number][]
+
+/** Set runtime de los tipos de conversación — derivado de TIPOS_CONVERSACION. */
+export const TIPOS_CONVERSACION_K: ReadonlySet<string> = new Set(TIPOS_CONVERSACION)
+
 /** Orígenes retirados del selector, conservados para leer leads históricos. */
 const ORIGENES_HEREDADOS = [
   { k: 'web', label: 'Web' },
@@ -252,8 +279,18 @@ export interface Lead {
    * modo demo no lo trae y una base sin la migración tampoco.
    */
   tenencia_desde?: string | null
-  /** En terminales ≡ instante del cierre (un lead cerrado es inmutable para el
-   *  API) — lo usan las series de tendencia. Opcional: demo no lo trae. */
+  /**
+   * Sello del CIERRE GANADO, puesto por el trigger `trg_leads_cambio_etapa` en
+   * la misma transacción en que la etapa pasa a `convertido`, e INMUTABLE para
+   * el cliente API (`leads_before_update` lo restaura desde OLD salvo operación
+   * privilegiada). Es el ÚNICO dato honesto del "mes de cierre": ver
+   * `lib/cierres-del-mes.ts`. Opcional: null mientras el lead no se convirtió,
+   * y ausente en modo demo o contra una base sin la columna.
+   */
+  convertido_en?: string | null
+  /** Última escritura de CUALQUIER columna (trigger `set_actualizado_en_crm`).
+   *  NO es el sello del cierre: editar un lead lo reescribe. Sirve de último
+   *  recurso cuando `convertido_en` no viaja (demo). */
   actualizado_en?: string
   activo: boolean
   // Espejo del esquema F0 (opcionales)
@@ -263,6 +300,15 @@ export interface Lead {
   distrito?: string | null
   nota?: string | null
   motivo_descarte?: MotivoDescarte | null // solo si etapa === 'descartado'
+  /**
+   * "No Insista" (Ley 29571 / INDECOPI): el titular pidió no ser contactado.
+   * La columna existe en `crm.leads` desde F0 y ya la respeta el reparto
+   * (`crm.leads_por_repartir` la excluye), pero NO viajaba al navegador — por
+   * eso el kill-switch legal de `motor-siguiente.ts` estaba muerto: nadie podía
+   * pasarle el flag. Viaja desde 2026-07-25 para que ningún automatismo agende
+   * insistencia contra un "No Insista". Opcional: el modo demo no lo trae.
+   */
+  no_contactar?: boolean | null
 }
 
 export interface Miembro {

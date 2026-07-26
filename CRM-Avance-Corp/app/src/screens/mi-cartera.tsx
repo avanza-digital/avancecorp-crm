@@ -38,7 +38,7 @@ import { can } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
-import { agruparCartera, resumenCartera, type GrupoCartera } from '@/lib/cartera-vista'
+import { DIAS_ALARMA_RENOVACION, agruparCartera, idsPorVencer, resumenCartera, type GrupoCartera } from '@/lib/cartera-vista'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
 import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
@@ -73,8 +73,24 @@ function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
   // dentro de un <button> Y su texto forma parte del nombre accesible del botón.
   return (
     <span className="block min-w-0">
-      <span className="block max-w-[260px] truncate text-[13px] font-semibold text-foreground" title={cliente.nombre_completo}>
-        {cliente.nombre_completo || '—'}
+      <span className="flex items-center gap-1.5">
+        <span className="min-w-0 max-w-[260px] truncate text-[13px] font-semibold text-foreground" title={cliente.nombre_completo}>
+          {cliente.nombre_completo || '—'}
+        </span>
+        {/* Cliente DADO DE BAJA en el portal (perfiles.activo=false). Se marca
+            aquí —dentro de la identidad compartida— para que la tabla y la
+            tarjeta móvil no puedan divergir, y el texto del Badge entra en el
+            nombre accesible del botón: un lector de pantalla anuncia
+            "…INACTIVO" junto al nombre, no solo un color. */}
+        {!cliente.activo && (
+          <Badge
+            color="var(--muted-foreground)"
+            className="shrink-0"
+            title="Dado de baja en el portal — no cuenta en los totales de capital (sus vencimientos sí avisan)"
+          >
+            inactivo
+          </Badge>
+        )}
       </span>
       <span className="block text-[11px] tabular-nums text-muted-foreground">
         {cliente.dni ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}` : 'sin documento'}
@@ -132,8 +148,12 @@ interface PropsFilaGrupo {
   accionable: boolean
   yoId: string | null
   asesorNombre: string | null
-  /** Con filtro de estado, solo se pintan los contratos de ese estado. */
-  estadoVisible: FiltroEstado
+  /** Los contratos del grupo que pasan los filtros vivos (estado y/o «por
+   *  vencer»); ya recortados por el caller para que la tabla y las tarjetas
+   *  pinten EXACTAMENTE lo mismo. */
+  contratosVisibles: ContratoRow[]
+  /** ids de contratos que vencen en ≤30 d: se marcan «renovar» en su sub-fila. */
+  porVencer: ReadonlySet<string>
   onNuevoContrato: () => void
   onCorregirCliente: () => void
   onDetalleContrato: (k: ContratoRow) => void
@@ -147,6 +167,7 @@ function FilaContratoSub({
   colAsesor,
   conAcciones,
   esMia,
+  porVencer,
   onDetalle,
   onCorregir,
 }: {
@@ -155,10 +176,18 @@ function FilaContratoSub({
   conAcciones: boolean
   /** creado_por === yo.id — habilita reloj y Corregir de ESTE contrato. */
   esMia: boolean
+  /** Vence en ≤30 d: la fecha se marca con PALABRA («renovar») además de color
+   *  — el color solo no es información accesible. */
+  porVencer: boolean
   onDetalle: () => void
   onCorregir: () => void
 }) {
   const ventana = useVentana(esMia ? k.creado_en : null)
+  // Ojo con la clase de foco de la <tr>: el outline NATIVO no se quita. El
+  // cambio de fondo que antes lo "reemplazaba" (bg-muted/20 → bg-muted/50) da
+  // 1.03:1 de contraste —invisible— y encima es idéntico al hover; y en una fila
+  // de tabla el ring de Tailwind (box-shadow) es poco fiable con border-collapse.
+  // Así que el foco lo marca el navegador y el fondo queda solo como refuerzo.
   return (
     <tr
       tabIndex={0}
@@ -172,7 +201,7 @@ function FilaContratoSub({
           onDetalle()
         }
       }}
-      className="group cursor-pointer border-b border-border/40 bg-muted/20 transition-colors last:border-0 hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none"
+      className="group cursor-pointer border-b border-border/40 bg-muted/20 transition-colors last:border-0 hover:bg-muted/50 focus-visible:bg-muted/50"
     >
       <Td>
         <div className="flex items-center gap-2 pl-7">
@@ -190,7 +219,12 @@ function FilaContratoSub({
       {colAsesor && <Td className="hidden md:table-cell" />}
       <Td className="text-right tabular-nums">
         <span className="text-[13px] font-semibold text-foreground">{money(k.capital, k.moneda)}</span>
-        <span className="block text-[11px] text-muted-foreground">vence {fechaCorta(k.fecha_vencimiento)}</span>
+        {/* `text-warning-text` (ámbar oscuro), NO `text-warning`: a 11 px esto es
+            texto pequeño y el ámbar puro da ~3:1 → falla WCAG 4.5:1 (ver index.css). */}
+        <span className={`block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}>
+          vence {fechaCorta(k.fecha_vencimiento)}
+          {porVencer && ' · renovar'}
+        </span>
       </Td>
       {conAcciones && (
         <Td className="text-right">
@@ -229,7 +263,8 @@ function FilaGrupoCliente({
   accionable,
   yoId,
   asesorNombre,
-  estadoVisible,
+  contratosVisibles,
+  porVencer,
   onNuevoContrato,
   onCorregirCliente,
   onDetalleContrato,
@@ -237,9 +272,6 @@ function FilaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
-  const subContratos = estadoVisible === 'todos'
-    ? grupo.contratos
-    : grupo.contratos.filter((c) => c.estado === estadoVisible)
   // Reloj de la ventana de corrección del CLIENTE (solo en filas propias).
   const ventanaCliente = useVentana(accionable ? cliente.creado_en : null)
   const ident = <IdentidadCliente cliente={cliente} />
@@ -341,13 +373,14 @@ function FilaGrupoCliente({
       </tr>
       {expandido &&
         !sinContratos &&
-        subContratos.map((c) => (
+        contratosVisibles.map((c) => (
           <FilaContratoSub
             key={c.id}
             contrato={c}
             colAsesor={colAsesor}
             conAcciones={conAcciones}
             esMia={c.creado_por != null && c.creado_por === yoId}
+            porVencer={porVencer.has(c.id)}
             onDetalle={() => onDetalleContrato(c)}
             onCorregir={() => onCorregirContrato(c)}
           />
@@ -370,12 +403,15 @@ function TarjetaContratoSub({
   contrato: k,
   conAcciones,
   esMia,
+  porVencer,
   onDetalle,
   onCorregir,
 }: {
   contrato: ContratoRow
   conAcciones: boolean
   esMia: boolean
+  /** Vence en ≤30 d — misma marca con PALABRA que en la tabla (no solo color). */
+  porVencer: boolean
   onDetalle: () => void
   onCorregir: () => void
 }) {
@@ -397,8 +433,11 @@ function TarjetaContratoSub({
             <span className="font-mono text-xs font-semibold text-foreground">{k.numero_contrato}</span>
             <Badge color={ESTADO_COLOR[k.estado]} dot>{k.estado}</Badge>
           </span>
-          <span className="mt-0.5 block text-[11px] text-muted-foreground">
+          {/* Mismo ámbar OSCURO que en la tabla: a 11 px el `--warning` puro no
+              llega a 4.5:1 de contraste. */}
+          <span className={`mt-0.5 block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}>
             {k.categoria ? `${CATEGORIA_LABEL[k.categoria]} · ` : ''}vence {fechaCorta(k.fecha_vencimiento)}
+            {porVencer && ' · renovar'}
           </span>
         </span>
         <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">{money(k.capital, k.moneda)}</span>
@@ -428,7 +467,8 @@ function TarjetaGrupoCliente({
   accionable,
   yoId,
   asesorNombre,
-  estadoVisible,
+  contratosVisibles,
+  porVencer,
   onNuevoContrato,
   onCorregirCliente,
   onDetalleContrato,
@@ -436,9 +476,6 @@ function TarjetaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
-  const subContratos = estadoVisible === 'todos'
-    ? grupo.contratos
-    : grupo.contratos.filter((c) => c.estado === estadoVisible)
   const ventanaCliente = useVentana(accionable ? cliente.creado_en : null)
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
@@ -508,12 +545,13 @@ function TarjetaGrupoCliente({
       {/* Sub-tarjetas de contrato al expandir. */}
       {expandido && !sinContratos && (
         <div className="space-y-2 border-t border-border/40 bg-muted/10 p-3">
-          {subContratos.map((c) => (
+          {contratosVisibles.map((c) => (
             <TarjetaContratoSub
               key={c.id}
               contrato={c}
               conAcciones={conAcciones}
               esMia={c.creado_por != null && c.creado_por === yoId}
+              porVencer={porVencer.has(c.id)}
               onDetalle={() => onDetalleContrato(c)}
               onCorregir={() => onCorregirContrato(c)}
             />
@@ -563,6 +601,10 @@ function VistaMiCartera({
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
   // Filtro por asesor: solo lo usa supervisión (verEquipo). 'todos' | 'sin_asesor' | perfil_id.
   const [fAsesor, setFAsesor] = useState<FiltroAsesor>('todos')
+  // Filtro de RENOVACIÓN: deja solo los clientes con un contrato por vencer. Es
+  // el aterrizaje del chip «Por vencer ≤30 d» — sin él la alarma no lleva a
+  // ninguna fila (el Select filtra por estado de CONTRATO, no por vencimiento).
+  const [soloPorVencer, setSoloPorVencer] = useState(false)
   const [expandidos, setExpandidos] = useState<ReadonlySet<string>>(new Set())
   const [pagina, setPagina] = useState(0)
 
@@ -571,8 +613,37 @@ function VistaMiCartera({
   // cuenta como sin asesor — mismo criterio que la columna Asesor pinta '—'.
   const rosterIds = useMemo(() => new Set(equipo.map((m) => m.perfil_id)), [equipo])
   const bases = useMemo(() => grupos ?? [], [grupos])
+  // ── Clientes DADOS DE BAJA en el portal (perfiles.activo=false) ────────────
+  // Decisión (2026-07-25): se MUESTRAN marcados, pero salen de los TOTALES de
+  // dinero. No se excluyen de la lista a propósito: un cliente inactivo puede
+  // conservar contratos con capital y cronograma vivos, y esconder la fila
+  // haría desaparecer del CRM un documento legal que sigue existiendo — un
+  // silencio que nadie puede detectar es peor que el bug que se está
+  // corrigiendo (el asesor no podría ni abrir su detalle). Los KPIs de CAPITAL
+  // describen la cartera QUE SE GESTIONA: contar ahí a quien ya no es cliente
+  // le inflaba al asesor un capital que no puede trabajar.
+  // ⚠️ La ALARMA de vencimiento es la EXCEPCIÓN y se calcula sobre `bases`
+  // (corrección 2026-07-26): un contrato activo que vence en ≤30 d hay que
+  // renovarlo aunque el titular esté dado de baja, y este chip es el único
+  // radar de renovación del CRM — excluirlo lo borraba del negocio en silencio.
+  const enGestion = useMemo(() => bases.filter((g) => g.cliente.activo), [bases])
+  const inactivos = bases.length - enGestion.length
+  // resumenCartera separa por dentro los dos conceptos: dinero sobre lo
+  // gestionable, alarma sobre TODO (+ desglose porVencer30DeBaja).
   const resumen = useMemo(() => resumenCartera(bases), [bases])
-  const contratosActivosTotal = useMemo(() => bases.reduce((n, g) => n + g.contratosActivos, 0), [bases])
+  // ids de contratos por vencer de TODA la cartera: alimentan el filtro de
+  // renovación Y la marca «renovar» de cada sub-fila (una sola fuente).
+  const porVencer = useMemo(() => idsPorVencer(bases), [bases])
+  const contratosActivosTotal = useMemo(() => enGestion.reduce((n, g) => n + g.contratosActivos, 0), [enGestion])
+  // Pestillo del toggle «Por vencer»: una vez que hubo algo que renovar, el
+  // control se queda montado aunque el conteo baje a 0 (dirá «(0)», que es la
+  // verdad). Si se desmontara al apagarlo —el caso real: un refetch renueva el
+  // último contrato mientras el filtro está puesto— el botón desaparecería BAJO
+  // el foco del usuario y este saltaría a <body>, al inicio del documento.
+  const [huboPorVencer, setHuboPorVencer] = useState(false)
+  useEffect(() => {
+    if (resumen.porVencer30 > 0) setHuboPorVencer(true)
+  }, [resumen.porVencer30])
 
   // Buscador + filtro de estado sobre los GRUPOS. El grupo pasa si el cliente
   // matchea (nombre/doc/correo/teléfono, incl. solo-dígitos) O alguno de sus
@@ -594,6 +665,10 @@ function VistaMiCartera({
         }
       }
       if (fEstado !== 'todos' && !g.contratos.some((c) => c.estado === fEstado)) return false
+      // Renovación: el grupo pasa si ALGÚN contrato suyo vence en ≤30 d. Se
+      // evalúa sobre `bases` (no sobre `enGestion`) para que el cliente dado de
+      // baja con un contrato por vencer sí sea alcanzable desde el chip.
+      if (soloPorVencer && !g.contratos.some((c) => porVencer.has(c.id))) return false
       if (!nq) return true
       const c = g.cliente
       if (normalizar(c.nombre_completo).includes(nq)) return true
@@ -605,7 +680,7 @@ function VistaMiCartera({
       }
       return g.contratos.some((k) => normalizar(k.numero_contrato).includes(nq))
     })
-  }, [bases, q, fEstado, verEquipo, fAsesor, rosterIds])
+  }, [bases, q, fEstado, verEquipo, fAsesor, rosterIds, soloPorVencer, porVencer])
 
   // Al filtrar, auto-expandir los grupos que coinciden POR CONTRATO (para revelar
   // la sub-fila que hizo match), SIN un override global: el usuario puede
@@ -613,13 +688,16 @@ function VistaMiCartera({
   // estado verdadero). Solo AÑADE, al cambiar el filtro.
   useEffect(() => {
     const nq = normalizar(q.trim())
-    if (nq === '' && fEstado === 'todos') return
+    if (nq === '' && fEstado === 'todos' && !soloPorVencer) return
     setExpandidos((prev) => {
       let cambio = false
       const sig = new Set(prev)
       for (const g of bases) {
         const matchContrato =
           (fEstado !== 'todos' && g.contratos.some((c) => c.estado === fEstado)) ||
+          // Con el filtro de renovación, el contrato que vence se ve SIN un clic
+          // más: la fecha es el dato que el asesor viene a buscar.
+          (soloPorVencer && g.contratos.some((c) => porVencer.has(c.id))) ||
           (nq !== '' && g.contratos.some((c) => normalizar(c.numero_contrato).includes(nq)))
         if (matchContrato && !sig.has(g.cliente.id)) {
           sig.add(g.cliente.id)
@@ -628,9 +706,9 @@ function VistaMiCartera({
       }
       return cambio ? sig : prev
     })
-  }, [bases, q, fEstado])
+  }, [bases, q, fEstado, soloPorVencer, porVencer])
 
-  const hayFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos'
+  const hayFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos' || soloPorVencer
   const { visibles, paginas, paginaActual } = paginar(filtrados, pagina)
 
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
@@ -650,7 +728,12 @@ function VistaMiCartera({
     accionable: puedeContratar && esMiCliente(g.cliente, yoId),
     yoId,
     asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
-    estadoVisible: fEstado,
+    // Los dos filtros de contrato se componen en AND (mismo criterio que la
+    // lista): con «por vencer» activo la sub-fila que sobra es ruido.
+    contratosVisibles: g.contratos.filter(
+      (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
+    ),
+    porVencer,
     onNuevoContrato: () => onNuevoContrato(g.cliente),
     onCorregirCliente: () => onCorregirCliente(g.cliente),
     onDetalleContrato,
@@ -674,14 +757,26 @@ function VistaMiCartera({
   if (chipsCapital.length === 0) {
     chipsCapital.push({ icon: Wallet, label: 'Capital invertido', value: money(0, 'PEN'), tone: 'default', sub: 'sin capital vigente aún' })
   }
+  // La alarma cuenta TODA la cartera (incl. clientes dados de baja) — es un
+  // aviso, no un total. Cuando parte del conteo viene de bajas se DICE en el
+  // sub-texto: mezclarlos en silencio le haría dudar de la cifra al asesor.
+  const deBaja = resumen.porVencer30DeBaja
+  const subPorVencer =
+    resumen.porVencer30 === 0
+      ? 'nada por vencer'
+      : deBaja === 0
+        ? 'renovación = ingreso próximo'
+        : deBaja === 1
+          ? '1 es de un cliente dado de baja'
+          : `${deBaja} son de clientes dados de baja`
   const stats: StatChipData[] = [
     ...chipsCapital,
     {
       icon: AlarmClock,
-      label: 'Por vencer ≤30 d',
+      label: `Por vencer ≤${DIAS_ALARMA_RENOVACION} d`,
       value: String(resumen.porVencer30),
       tone: resumen.porVencer30 > 0 ? 'warn' : 'default',
-      sub: resumen.porVencer30 > 0 ? 'renovación = ingreso próximo' : 'nada por vencer',
+      sub: subPorVencer,
     },
     {
       icon: Users2,
@@ -693,7 +788,8 @@ function VistaMiCartera({
   if (verEquipo) {
     // Supervisión: el conteo de clientes SIN asesor (dueño null O fuera del
     // roster) — espejo EXACTO del filtro 'sin_asesor' — con CTA a repartirlos.
-    const sinAsesor = bases.reduce((n, g) => {
+    // Sobre `enGestion`: repartir a un cliente dado de baja no es una tarea real.
+    const sinAsesor = enGestion.reduce((n, g) => {
       const dueno = duenoDeCartera(g.cliente)
       return n + (dueno != null && rosterIds.has(dueno) ? 0 : 1)
     }, 0)
@@ -721,8 +817,16 @@ function VistaMiCartera({
           title={titulo}
           right={
             <div className="flex items-center gap-3">
+              {/* El conteo dice lo que MIDE: clientes en gestión. Los dados de
+                  baja se cuentan aparte para que la cifra cuadre con las filas
+                  visibles (si no, el usuario ve N+1 filas y lee N sin
+                  explicación). */}
               <span className="text-xs tabular-nums text-muted-foreground">
-                {grupos ? `${resumen.totalClientes} clientes` : '—'}
+                {grupos
+                  ? `${resumen.totalClientes} cliente${resumen.totalClientes === 1 ? '' : 's'}${
+                      inactivos > 0 ? ` · ${inactivos} inactivo${inactivos === 1 ? '' : 's'}` : ''
+                    }`
+                  : '—'}
               </span>
               {puedeContratar && (
                 <Button size="sm" onClick={onNuevoCliente}>
@@ -737,6 +841,10 @@ function VistaMiCartera({
           {verEquipo
             ? 'Clientes de la empresa con el capital que tienen invertido. Cada cliente agrupa sus contratos; expándelo para verlos.'
             : 'Tus clientes y el capital que tienen invertido contigo. Cada cliente agrupa sus contratos; expándelo para verlos.'}
+          {/* La marca «inactivo» se explica en texto, no solo con un tooltip:
+              el `title` del Badge no existe en táctil ni con lector de pantalla. */}
+          {inactivos > 0 &&
+            ' Los marcados «inactivo» están dados de baja en el portal: siguen listados para consultar sus contratos y sus vencimientos siguen avisando, pero no suman a los totales de capital.'}
         </p>
 
         {grupos == null && !error ? (
@@ -803,6 +911,30 @@ function VistaMiCartera({
                   </Select>
                 </div>
               )}
+              {/* Aterrizaje del chip «Por vencer»: el ÚNICO modo de llegar a la
+                  fila que vence (el Select filtra por estado de CONTRATO, no por
+                  vencimiento, y la fecha solo se lee en gris dentro del grupo).
+                  No se pinta si nunca hubo nada que renovar; a partir de ahí se
+                  queda (ver `huboPorVencer`): desmontarlo con el filtro puesto
+                  dejaría al asesor con una lista vacía y sin botón para salir. */}
+              {(huboPorVencer || soloPorVencer) && (
+                <button
+                  type="button"
+                  aria-pressed={soloPorVencer}
+                  onClick={() => {
+                    setSoloPorVencer((v) => !v)
+                    setPagina(0)
+                  }}
+                  className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold transition-colors ${
+                    soloPorVencer
+                      ? 'border-warning bg-warning/15 text-warning-text'
+                      : 'border-border bg-card text-muted-foreground hover:bg-muted'
+                  }`}
+                >
+                  <AlarmClock className="size-3" aria-hidden />
+                  Por vencer ≤{DIAS_ALARMA_RENOVACION} d ({resumen.porVencer30})
+                </button>
+              )}
               {hayFiltro && (
                 <span className="text-xs tabular-nums text-muted-foreground">
                   {filtrados.length} de {bases.length}
@@ -817,15 +949,17 @@ function VistaMiCartera({
                 detalle={
                   q.trim()
                     ? `Ningún cliente ni contrato coincide con “${q.trim()}”.`
-                    : // Asesor + estado combinados: el vacío puede deberse a cualquiera
-                      // de los dos, así que un mensaje neutral no afirma de más.
-                      fAsesor !== 'todos' && fEstado !== 'todos'
+                    : // Con DOS o más filtros el vacío puede deberse a cualquiera
+                      // de ellos, así que un mensaje neutral no afirma de más.
+                      [fAsesor !== 'todos', fEstado !== 'todos', soloPorVencer].filter(Boolean).length > 1
                       ? 'Ningún cliente coincide con los filtros aplicados.'
-                      : fAsesor === 'sin_asesor'
-                        ? 'No hay clientes sin asesor: toda la cartera tiene dueño.'
-                        : fAsesor !== 'todos'
-                          ? 'Ese asesor no tiene clientes en la cartera.'
-                          : 'Ningún cliente tiene contratos en ese estado.'
+                      : soloPorVencer
+                        ? `Ningún contrato vence en los próximos ${DIAS_ALARMA_RENOVACION} días.`
+                        : fAsesor === 'sin_asesor'
+                          ? 'No hay clientes sin asesor: toda la cartera tiene dueño.'
+                          : fAsesor !== 'todos'
+                            ? 'Ese asesor no tiene clientes en la cartera.'
+                            : 'Ningún cliente tiene contratos en ese estado.'
                 }
               />
             ) : esMovil ? (

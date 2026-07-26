@@ -43,6 +43,7 @@ import {
   type ItemCola,
   type MetricasVendedor,
 } from '@/lib/inteligencia'
+import { planPorLead } from '@/lib/plan-lead'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -350,13 +351,11 @@ function EquipoSupervisor(): JSX.Element {
     const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividadesDelAmbito, ahora, indice)
     const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
     // Fase B: leads con tarea pendiente tienen plan → fuera de la cola por inactividad.
-    const conTarea = new Set(
-      tareas.filter((x) => x.estado === 'pendiente' && x.activo && x.lead_id).map((x) => x.lead_id as string),
-    )
+    const plan = planPorLead(tareas, ahora)
     // colaDe ya no recibe índice: se construye el suyo de CONTACTO (los tipos
     // de índice son indistinguibles y pasarle el de actividad reintroduciría el
     // bug de la `reasignacion` que vaciaba la cola).
-    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, conTarea)
+    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, plan)
 
     // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
     // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.

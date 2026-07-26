@@ -3,7 +3,7 @@
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
-import { Fragment, useEffect, useMemo, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   ArrowRightLeft,
@@ -53,18 +53,22 @@ import {
 } from '@/lib/cliente-form-logica'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
+import { MOTIVOS_CON_EVIDENCIA, VETO_CORTO, vetoNoResponde } from '@/lib/descarte-evidencia'
+import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import {
   actualizarClientePortal,
   convertirLead,
   CrmApiError,
+  esClienteDeMiCartera,
   type TipoDocumentoCliente,
 } from '@/data/crm-api'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
 import { agruparTimeline } from '@/lib/timeline-lead'
-import { MONTO_ESTIMADO_MAX } from '@/lib/validacion'
+import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
 import {
+  CATEGORIAS_INTERES,
   CAT_LABEL,
   ETAPAS,
   ETAPA_INFO,
@@ -74,6 +78,8 @@ import {
   TIPOS_ACTIVIDAD,
   TIPOS_TAREA,
   type Actividad,
+  type CategoriaInteres,
+  type Etapa,
   type EtapaActiva,
   type Lead,
   type MotivoDescarte,
@@ -122,6 +128,18 @@ function haceRelativo(iso: string, ahora: number): string {
   if (d === 1) return 'ayer'
   if (d < 7) return `hace ${d} d`
   return fmtFecha(iso)
+}
+
+/**
+ * Rótulo del capital según el desenlace del lead. Un lead CERRADO no tiene
+ * capital "en juego": el convertido ya lo ganó y el descartado no lo concretó.
+ * Rotular ambos como "en juego" infla lo que el asesor cree tener vivo —
+ * justo la cifra con la que decide a quién llamar hoy.
+ */
+function rotuloCapital(etapa: Etapa): string {
+  if (etapa === 'convertido') return 'ganado'
+  if (etapa === 'descartado') return 'no concretado'
+  return 'en juego'
 }
 
 // ── Drawer (export) ───────────────────────────────────────────────────────────
@@ -181,7 +199,7 @@ function Ficha({ l }: { l: Lead }) {
               <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
               {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
               {l.monto_estimado == null &&
-                (escribe ? (
+                (escribe && !esTerminal ? (
                   <button
                     type="button"
                     className="cursor-pointer"
@@ -201,7 +219,7 @@ function Ficha({ l }: { l: Lead }) {
                 {money(l.monto_estimado, l.moneda)}
               </p>
               <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
-                {l.etapa === 'convertido' ? 'ganado' : 'en juego'}
+                {rotuloCapital(l.etapa)}
               </p>
             </div>
           )}
@@ -220,7 +238,16 @@ function Ficha({ l }: { l: Lead }) {
       <SheetBody className="space-y-5">
         {esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}
         <ProximaAccion l={l} escribe={escribe} activa={!esTerminal} />
-        <Datos l={l} escribe={escribe} puedeReasignar={puedeReasignar} pedirEditar={pedirEditarDatos} />
+        {/* `activa` faltaba AQUÍ y solo aquí: la ficha de un convertido seguía
+            ofreciendo "Editar" y "Faltan DNI… → Completar" sobre un lead que el
+            store ya no deja escribir. */}
+        <Datos
+          l={l}
+          escribe={escribe}
+          activa={!esTerminal}
+          puedeReasignar={puedeReasignar}
+          pedirEditar={pedirEditarDatos}
+        />
         <Timeline l={l} escribe={escribe} activa={!esTerminal} />
       </SheetBody>
 
@@ -261,15 +288,26 @@ function Ficha({ l }: { l: Lead }) {
 function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
   const { cambiarEtapa } = useCRMData()
   const idx = ETAPAS.findIndex((e) => e.k === l.etapa)
+  // Mismo diálogo que el kanban: la pregunta del capital no puede depender de
+  // POR DÓNDE se movió el lead, o la mitad de las propuestas guardaría la
+  // corazonada del primer contacto.
+  const [pidiendoCapital, setPidiendoCapital] = useState(false)
 
   const mover = (k: EtapaActiva) => {
     if (k === l.etapa) return
+    if (k === 'propuesta_enviada') {
+      setPidiendoCapital(true)
+      return
+    }
     const res = cambiarEtapa(l.id, k)
     if (!res.ok && res.error) toast.error(res.error)
   }
 
   return (
     <div className="flex items-center gap-1" role="group" aria-label="Etapa del lead">
+      {pidiendoCapital && (
+        <DialogCapitalPropuesta lead={l} onClose={() => setPidiendoCapital(false)} />
+      )}
       {ETAPAS.map((e, i) => {
         const actual = i === idx
         const pasada = i < idx
@@ -422,7 +460,15 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
       toast.error(res.error ?? 'No se pudo agendar la tarea')
       return
     }
-    toast.success(`Tarea agendada${yo?.demo ? ' (demo)' : ''} — la verás en Hoy y en Agenda`)
+    // NADA EN SILENCIO: agendar una reunión con quien ya se trabajó sube el lead
+    // a "Reunión agendada" por trigger (lib/avance-automatico). El store ya lo
+    // devolvía en los otros dos escritores y aquí se tiraba: el asesor veía
+    // moverse el stepper sin saber por qué. Mismo formato "hecho · hecho" que
+    // `avisoDe` en contacto.tsx, y el mismo orden en que ocurren las cosas.
+    const partes = ['Tarea agendada']
+    if (res.avance) partes.push(`pasó a ${ETAPA_INFO[res.avance].label}`)
+    partes.push('la verás en Hoy y en Agenda')
+    toast.success(`${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}`)
     setTituloEditado(false)
     setTitulo(tituloSugerido(tipo, l.nombre_completo))
     setAgendarOtra(false) // vuelve a plegarse: ya hay próxima acción visible
@@ -572,11 +618,14 @@ function listarFaltantes(xs: string[]): string {
 function Datos({
   l,
   escribe,
+  activa,
   puedeReasignar,
   pedirEditar = 0,
 }: {
   l: Lead
   escribe: boolean
+  /** false en leads terminales: se puede LEER la ficha, no reescribirla. */
+  activa: boolean
   puedeReasignar: boolean
   pedirEditar?: number
 }) {
@@ -584,13 +633,19 @@ function Datos({
   const { yo } = useAuth()
   const sufijoDemo = yo?.demo ? ' (demo)' : ''
   const [editando, setEditando] = useState(false)
-  const [error, setError] = useState<string | null>(null)
+  // El error se guarda CON su campo (código estructurado del store, nunca
+  // adivinando por regex sobre el texto) para marcar como inválido el input
+  // culpable y no el primero que pase por ahí. `campo: null` = error general.
+  const [error, setError] = useState<{ campo: CampoLead | null; mensaje: string } | null>(null)
   const [form, setForm] = useState({
     nombre: '',
     telefono: '',
     correo: '',
     monto: '',
     moneda: 'PEN' as Moneda,
+    dni: '',
+    distrito: '',
+    categoria: null as CategoriaInteres | null,
     nota: '',
   })
 
@@ -605,6 +660,9 @@ function Datos({
       correo: l.correo ?? '',
       monto: l.monto_estimado != null ? String(l.monto_estimado) : '',
       moneda: l.moneda,
+      dni: l.dni ?? '',
+      distrito: l.distrito ?? '',
+      categoria: l.categoria_interes ?? null,
       nota: l.nota ?? '',
     })
     setError(null)
@@ -615,25 +673,34 @@ function Datos({
     const montoTxt = form.monto.trim()
     const monto = Number(montoTxt.replace(',', '.'))
     if (!montoTxt || !Number.isFinite(monto) || monto <= 0) {
-      setError('El capital estimado es obligatorio y debe ser mayor que 0')
+      setError({ campo: 'monto_estimado', mensaje: 'El capital estimado es obligatorio y debe ser mayor que 0' })
       return
     }
+    // El DNI NO se revalida aquí: `editarLead` ya corre validarCamposLead (los
+    // 8 dígitos) y devuelve el error CON su `campo`. Una segunda copia de la
+    // regla en la UI es exactamente lo que hace divergir los mensajes.
     const res = editarLead(l.id, {
       nombre_completo: form.nombre,
       telefono: form.telefono,
       correo: form.correo.trim() || null,
       monto_estimado: monto,
       moneda: form.moneda,
+      dni: form.dni.trim() || null,
+      distrito: form.distrito.trim() || null,
+      categoria_interes: form.categoria,
       nota: form.nota.trim() || null,
     })
     if (!res.ok) {
-      setError(res.error ?? 'No se pudo guardar')
+      setError({ campo: res.campo ?? null, mensaje: res.error ?? 'No se pudo guardar' })
       return
     }
     setEditando(false)
     setError(null)
     toast.success(`Cambios guardados${sufijoDemo}`)
   }
+
+  /** ¿El error vivo apunta a este campo? (marca aria-invalid + describedby). */
+  const invalido = (campo: CampoLead) => error?.campo === campo
 
   const onReasignar = (v: string) => {
     const res = reasignar(l.id, v || null)
@@ -645,12 +712,16 @@ function Datos({
     toast.success(v ? `Lead reasignado${sufijoDemo}` : `Lead parkeado sin vendedor${sufijoDemo}`)
   }
 
-  const campo = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) =>
+  const campo = (k: keyof typeof form) => (e: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    // Al corregir, el error se va: si no, el input sigue marcado aria-invalid
+    // (y describiéndose con un mensaje ya resuelto) hasta el siguiente Guardar.
+    setError(null)
     setForm((f) => ({ ...f, [k]: e.target.value }))
+  }
 
   // El badge "Sin capital estimado → completar" del header pide abrir la edición.
   useEffect(() => {
-    if (pedirEditar > 0 && escribe) empezar()
+    if (pedirEditar > 0 && escribe && activa) empezar()
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pedirEditar])
 
@@ -668,7 +739,7 @@ function Datos({
     <section aria-label="Datos del lead">
       <div className="flex items-center justify-between">
         <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Datos</h3>
-        {escribe && !editando && (
+        {escribe && activa && !editando && (
           <Button size="xs" variant="ghost" onClick={empezar}>
             <Pencil /> Editar
           </Button>
@@ -679,17 +750,30 @@ function Datos({
         <div className="mt-2 space-y-3 rounded-xl border border-border bg-muted/40 p-3">
           <div className="space-y-1.5">
             <Label htmlFor="ld-nombre">Nombre completo</Label>
-            <Input id="ld-nombre" value={form.nombre} onChange={campo('nombre')} />
+            <Input
+              id="ld-nombre"
+              value={form.nombre}
+              onChange={campo('nombre')}
+              aria-invalid={invalido('nombre_completo')}
+              aria-describedby={invalido('nombre_completo') ? 'ld-datos-error' : undefined}
+            />
           </div>
           <div className="grid grid-cols-2 gap-2.5">
             <div className="space-y-1.5">
               <Label htmlFor="ld-telefono">Teléfono</Label>
-              <Input id="ld-telefono" value={form.telefono} onChange={campo('telefono')} placeholder="9########" />
+              <Input
+                id="ld-telefono"
+                value={form.telefono}
+                onChange={campo('telefono')}
+                placeholder="9########"
+                aria-invalid={invalido('telefono')}
+                aria-describedby={invalido('telefono') ? 'ld-datos-error' : undefined}
+              />
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="ld-monto">Capital estimado *</Label>
               <div className="flex gap-2">
-                <Input id="ld-monto" className="min-w-0 flex-1 tabular-nums" type="number" min={0.01} max={MONTO_ESTIMADO_MAX} step="0.01" inputMode="decimal" required aria-required="true" aria-invalid={!!error} aria-describedby={error ? 'ld-datos-error' : undefined} value={form.monto} onChange={campo('monto')} placeholder="Ej. 5000" />
+                <Input id="ld-monto" className="min-w-0 flex-1 tabular-nums" type="number" min={0.01} max={MONTO_ESTIMADO_MAX} step="0.01" inputMode="decimal" required aria-required="true" aria-invalid={invalido('monto_estimado')} aria-describedby={invalido('monto_estimado') ? 'ld-datos-error' : undefined} value={form.monto} onChange={campo('monto')} placeholder="Ej. 5000" />
                 <Select
                   aria-label="Moneda del capital estimado"
                   className="w-24 shrink-0"
@@ -709,13 +793,78 @@ function Datos({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ld-correo">Correo</Label>
-            <Input id="ld-correo" type="email" value={form.correo} onChange={campo('correo')} placeholder="opcional" />
+            <Input
+              id="ld-correo"
+              type="email"
+              value={form.correo}
+              onChange={campo('correo')}
+              placeholder="opcional"
+              aria-invalid={invalido('correo')}
+              aria-describedby={invalido('correo') ? 'ld-datos-error' : undefined}
+            />
+          </div>
+          {/* DNI y distrito viven AQUÍ y no solo en el alta: los pide la línea
+              "Faltan …" de abajo, y sin ellos ese aviso era un callejón sin
+              salida (el 100% de los leads importados llega sin DNI). El DNI
+              además es lo que desbloquea la conversión a cliente del portal. */}
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="ld-dni">DNI</Label>
+              <Input
+                id="ld-dni"
+                className="tabular-nums"
+                inputMode="numeric"
+                value={form.dni}
+                placeholder="8 dígitos"
+                aria-invalid={invalido('dni')}
+                aria-describedby={invalido('dni') ? 'ld-datos-error' : undefined}
+                // Se filtra a dígitos al teclear: el DNI peruano no tiene letras
+                // y así el error de formato casi nunca llega a hacer falta.
+                // El tope va DESPUÉS del filtro y no con maxLength, que cuenta
+                // caracteres crudos: pegar "12.345.678" se habría cortado a
+                // "12.345.6" → 6 dígitos guardados en silencio.
+                onChange={(e) => {
+                  setError(null)
+                  setForm((f) => ({ ...f, dni: e.target.value.replace(/\D/g, '').slice(0, 8) }))
+                }}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ld-distrito">Distrito</Label>
+              <Input id="ld-distrito" value={form.distrito} onChange={campo('distrito')} placeholder="Miraflores" />
+            </div>
+          </div>
+          {/* Chips en vez de <select>: la categoría se DESELECCIONA (volver a
+              "sin dato" es legítimo) y son 3 opciones — mismo patrón del alta. */}
+          <div className="space-y-1.5">
+            <Label id="ld-categoria-label">Categoría de interés</Label>
+            <div role="group" aria-labelledby="ld-categoria-label" className="flex flex-wrap gap-2">
+              {CATEGORIAS_INTERES.map((c) => {
+                const activa = form.categoria === c.k
+                return (
+                  <button
+                    key={c.k}
+                    type="button"
+                    aria-pressed={activa}
+                    onClick={() => setForm((f) => ({ ...f, categoria: activa ? null : c.k }))}
+                    className={cn(
+                      'cursor-pointer rounded-full border px-3 py-1.5 text-[11px] font-bold leading-none transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30',
+                      activa
+                        ? 'border-accent bg-accent text-accent-foreground'
+                        : 'border-input bg-background text-muted-foreground hover:border-border-strong hover:text-foreground',
+                    )}
+                  >
+                    {c.label}
+                  </button>
+                )
+              })}
+            </div>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ld-nota">Nota</Label>
             <Textarea id="ld-nota" value={form.nota} onChange={campo('nota')} placeholder="opcional" className="min-h-[56px]" />
           </div>
-          {error && <p id="ld-datos-error" role="alert" className="text-xs font-semibold text-destructive">{error}</p>}
+          {error && <p id="ld-datos-error" role="alert" className="text-xs font-semibold text-destructive">{error.mensaje}</p>}
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={() => setEditando(false)}>
               Cancelar
@@ -777,7 +926,10 @@ function Datos({
             <Fila label="Creado">{fmtFecha(l.creado_en)}</Fila>
             {l.nota && <Fila label="Nota">{l.nota}</Fila>}
           </dl>
-          {faltantes.length > 0 && (
+          {/* En un lead CERRADO la línea entera desaparece: era un vacío
+              accionable cuyo "Completar" abría un formulario que el store
+              rechaza. Un lead terminal es un acta, no una tarea pendiente. */}
+          {activa && faltantes.length > 0 && (
             <div className="mt-1 flex items-center justify-between gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
               <p className="min-w-0 text-[11px] text-muted-foreground">
                 {faltantes.length === 1 ? 'Falta' : 'Faltan'} {listarFaltantes(faltantes)}
@@ -897,7 +1049,13 @@ function Timeline({ l, escribe, activa }: { l: Lead; escribe: boolean; activa: b
     }
     setDetalle('')
     setComponiendo(false)
-    toast.success(`Actividad registrada${yo?.demo ? ' (demo)' : ''}`)
+    // NADA EN SILENCIO: un contacto de conversación sube la etapa por su cuenta
+    // (lib/avance-automatico). El resto del CRM ya lo canta (`avisoDe` de
+    // contacto.tsx) y aquí se tiraba el dato: el asesor veía moverse el stepper
+    // sin saber por qué. Mismo formato "hecho · hecho" y mismo orden.
+    const partes = ['Actividad registrada']
+    if (res.avance) partes.push(`pasó a ${ETAPA_INFO[res.avance].label}`)
+    toast.success(`${partes.join(' · ')}${yo?.demo ? ' (demo)' : ''}`)
   }
 
   return (
@@ -1012,14 +1170,23 @@ const RE_DOCUMENTO: Record<TipoDocumentoCliente, { re: RegExp; err: string }> = 
 
 // Cola del aviso de conversión parcial (paso 2 fallido). Mensaje de negocio del
 // mismo corte que el del alta directa (cliente-form): honesto y accionable.
-const MSG_BANCARIOS_NO_GUARDADOS_CV =
-  'los datos bancarios NO se guardaron — corrígelo en Clientes dentro de las 5 horas.'
+// La ruta se NOMBRA por parámetro porque "Clientes" ya no existe (Fase 6,
+// 2026-07-21: fusionada en 'mi-cartera') y porque el menú la rotula distinto
+// según el rol — ver `rotuloCartera` abajo. Mandar al asesor a una pantalla
+// inexistente con 5 horas de ventana es peor que no decirle nada.
+const msgBancariosNoGuardados = (rotuloCartera: string) =>
+  `los datos bancarios NO se guardaron — corrígelo en “${rotuloCartera} → Corregir” dentro de las 5 horas.`
 
 /** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
 export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   const { convertir, recargar } = useCRMData()
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
+  // Cómo se llama HOY la pantalla donde se corrigen los datos del cliente: la
+  // 'mi-cartera' unificada, rotulada "Mi cartera" para el vendedor y "Cartera"
+  // para quien supervisa (mismo criterio que el sidebar). Los avisos de abajo
+  // la nombran así para que el asesor encuentre el ítem tal cual en su menú.
+  const rotuloCartera = can(yo?.rol, 'verEquipo') ? 'Cartera' : 'Mi cartera'
 
   const confirmarDemo = () => {
     const res = convertir(l.id)
@@ -1047,6 +1214,27 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const [perfilId, setPerfilId] = useState<string | null>(null)
   /** Conversión con bancarios fallidos: cliente creado SIN cuentas → aviso terminal. */
   const [avisoParcial, setAvisoParcial] = useState<string | null>(null)
+  /** El documento YA era cliente: se enlazó y sus bancarios NO se tocaron → hay
+   *  que decírselo al asesor ANTES de seguir (acaba de llenar unos que no van). */
+  const [avisoYaExistia, setAvisoYaExistia] = useState(false)
+  /**
+   * ¿El cliente enlazado quedó en MI cartera? (`null` = no se pudo comprobar).
+   *
+   * La edge NO cambia el `asesor_perfil_id` de un cliente que ya existía: el
+   * lead se enlaza, pero el cliente sigue siendo del asesor que lo tenía. Sin
+   * esto la ficha prometía a ciegas un contrato que `public.crear_contrato`
+   * rechaza («Solo puedes crear contratos para clientes de tu cartera») después
+   * de hacerle llenar el formulario entero.
+   */
+  const [clienteEnMiCartera, setClienteEnMiCartera] = useState<boolean | null>(null)
+  const refAviso = useRef<HTMLDivElement>(null)
+
+  // Al enviar, el botón se deshabilita y el foco cae a <body>; que vuelva a
+  // entrar al diálogo NO puede quedar en manos del rescate implícito de Radix
+  // cuando lo que se pinta es una advertencia que hay que leer.
+  useEffect(() => {
+    if (avisoYaExistia) refAviso.current?.focus()
+  }, [avisoYaExistia])
 
   // Cierre BLINDADO: Radix cierra con Esc/overlay incondicionalmente, y un
   // cierre con el envío en vuelo perdería el aviso de "creado sin bancarios"
@@ -1100,7 +1288,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       // flujo de 2 pasos que el alta directa (cliente-form). Si el documento YA
       // era cliente del portal (dedup de la edge), NO se pisan sus cuentas: un
       // PATCH ciego sobreescribiría los bancarios con los que ya cobra — se
-      // salta el paso y se sigue al contrato.
+      // salta el paso y se AVISA (antes se descartaban en silencio).
       let bancariosOk = true
       if (!r.ya_existia) {
         try {
@@ -1120,18 +1308,28 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         // salió) y SIN encadenar al contrato — patrón exacto de cliente-form.
         setAvisoParcial(
           r.email_enviado
-            ? `Cliente creado y correo enviado, pero ${MSG_BANCARIOS_NO_GUARDADOS_CV}`
-            : `Cliente creado (el correo de bienvenida no se pudo enviar), pero ${MSG_BANCARIOS_NO_GUARDADOS_CV}`,
+            ? `Cliente creado y correo enviado, pero ${msgBancariosNoGuardados(rotuloCartera)}`
+            : `Cliente creado (el correo de bienvenida no se pudo enviar), pero ${msgBancariosNoGuardados(rotuloCartera)}`,
         )
         return
       }
+      setPerfilId(r.perfil_id)
+      // El asesor acaba de llenar unos bancarios OBLIGATORIOS que, por el dedup,
+      // no se guardaron en ningún sitio. Un toast de éxito ahí lo deja creyendo
+      // que registró la cuenta donde se depositan los intereses: se para el
+      // flujo y se le dice, con qué hacer después. Sigue al contrato con un tap.
+      if (r.ya_existia) {
+        // Antes de hablar, PREGUNTAR: el aviso cambia por completo según si el
+        // cliente enlazado es de este asesor o de otro, y eso solo lo sabe el
+        // servidor. `null` = no se pudo comprobar y se dice tal cual.
+        setClienteEnMiCartera(await esClienteDeMiCartera(r.perfil_id))
+        setAvisoYaExistia(true)
+        return
+      }
       toast.success(
-        r.ya_existia
-          ? `${l.nombre_completo} enlazado a su cuenta de cliente`
-          : `${l.nombre_completo} ahora es cliente${r.email_enviado ? ' — correo de bienvenida enviado' : ''}`,
+        `${l.nombre_completo} ahora es cliente${r.email_enviado ? ' — correo de bienvenida enviado' : ''}`,
       )
       // Seguido: el paso de crear el contrato (sin salir del CRM).
-      setPerfilId(r.perfil_id)
       setPaso('contrato')
     } catch (e) {
       setError(e instanceof CrmApiError ? e.message : 'No se pudo convertir el lead')
@@ -1156,12 +1354,94 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           </div>
           <p className="text-xs text-muted-foreground">
             El lead quedó convertido y la cuenta del cliente ya existe en el portal, pero NO se
-            creó su contrato. Complétale los datos bancarios desde “Clientes → Corregir datos”
+            creó su contrato. Complétale los datos bancarios desde “{rotuloCartera} → Corregir”
             antes de crear el contrato.
           </p>
         </DialogBody>
         <DialogFooter>
           <Button size="sm" onClick={onClose}>Entendido</Button>
+        </DialogFooter>
+      </Dialog>
+    )
+  }
+
+  // ── Cliente ya existente: ni los bancarios ni la ATRIBUCIÓN se movieron ─────
+  // El enlace salió bien, pero no es el éxito que el asesor cree, y dos de las
+  // promesas que este diálogo hacía antes eran falsas:
+  //
+  //  1. «actualízalas en Cartera → Corregir»: la policy `perfiles_analista_update`
+  //     exige `creado_en > now() - 5h`. Un cliente que YA existía es más viejo
+  //     que eso por definición → esa corrección no la puede hacer el asesor.
+  //  2. «Continuar al contrato»: `public.crear_contrato` exige que el cliente
+  //     sea de tu cartera (`asesor_perfil_id = auth.uid()`, o sin asesor y
+  //     registrado por ti). La edge NO reasigna al cliente existente, así que si
+  //     era de otro asesor la RPC lo rechaza — después de llenar el formulario.
+  //
+  // Ahora se PREGUNTA al servidor (esClienteDeMiCartera, misma regla exacta que
+  // el gate de la RPC) y se dice la verdad de cada caso, con el camino real.
+  if (avisoYaExistia && perfilId) {
+    const esMio = clienteEnMiCartera === true
+    const noEsMio = clienteEnMiCartera === false
+    return (
+      <Dialog open onClose={onClose} ariaLabel="Convertir a cliente">
+        <DialogHeader>
+          <DialogTitle>{primerNombre(l.nombre_completo)} ya era cliente</DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          {/* Foco AL AVISO, no al botón que lo despacha: este diálogo existe
+              para frenar al asesor, y autoenfocar "Continuar" lo dejaría a un
+              Enter de saltárselo sin leerlo. tabIndex=-1 = destino de foco
+              programático, nunca parada del tabulador. */}
+          <div
+            ref={refAviso}
+            tabIndex={-1}
+            role="alert"
+            className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold text-warning-text outline-none"
+          >
+            Ese documento ya tenía cuenta en el portal: el lead quedó enlazado a ella y cerrado
+            como ganado, pero los datos bancarios que llenaste NO se aplicaron
+            {noEsMio ? ' y el cliente NO pasó a tu cartera' : ''}.
+          </div>
+          <p className="text-xs leading-relaxed text-muted-foreground">
+            Se conservan las cuentas con las que ya se le deposita — sobreescribirlas a ciegas
+            desde aquí podría desviarle sus intereses. Desde el CRM ya no se pueden cambiar
+            (solo se corrigen las de un cliente que acabas de crear): si de verdad cambiaron,
+            pídeselo a Gerencia y que se verifiquen antes del próximo pago.
+          </p>
+          {noEsMio && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              El cliente sigue a nombre del asesor que lo tenía, así que no lo verás en
+              “{rotuloCartera}” ni podrás crearle el contrato desde aquí: el servidor lo
+              rechazaría. Pídele a Gerencia que te lo reasigne en el portal y créale el contrato
+              después.
+            </p>
+          )}
+          {clienteEnMiCartera === null && (
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              No pudimos comprobar si el cliente quedó en tu cartera. Puedes intentar el
+              contrato: si el servidor lo rechaza es porque sigue a nombre de otro asesor, y
+              entonces hay que pedirle a Gerencia que te lo reasigne.
+            </p>
+          )}
+        </DialogBody>
+        <DialogFooter>
+          <Button variant={noEsMio ? 'default' : 'outline'} size="sm" onClick={onClose}>
+            {noEsMio ? 'Entendido' : 'Cerrar'}
+          </Button>
+          {/* El botón solo aparece cuando el contrato es POSIBLE (o cuando no
+              se pudo comprobar). Con el cliente en otra cartera se retira: era
+              la puerta que llevaba a un formulario largo y a un rechazo. */}
+          {!noEsMio && (
+            <Button
+              size="sm"
+              onClick={() => {
+                setAvisoYaExistia(false)
+                setPaso('contrato')
+              }}
+            >
+              {esMio ? 'Continuar al contrato' : 'Intentar el contrato'}
+            </Button>
+          )}
         </DialogFooter>
       </Dialog>
     )
@@ -1257,7 +1537,8 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             {/* Bloque compartido con el alta directa (cliente-form): el cliente
                 convertido necesita dónde cobrar sus intereses desde el día uno.
                 Si el documento ya era cliente del portal, sus cuentas actuales
-                se respetan (el paso 2 se salta — dedup de la edge). */}
+                se respetan (el paso 2 se salta — dedup de la edge) y lo que se
+                escribió aquí se descarta: eso se avisa, nunca en silencio. */}
             <SeccionesBancarias
               idBase="cv"
               pen={pen}
@@ -1281,10 +1562,15 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
 }
 
 function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { descartar } = useCRMData()
+  const { descartar, actividadesDe } = useCRMData()
   const { yo } = useAuth()
   const [motivo, setMotivo] = useState<MotivoDescarte>('sin_interes')
   const [nota, setNota] = useState('')
+
+  // «No responde» no es una opinión: es una AFIRMACIÓN DE HECHO sobre el
+  // cliente. Sin intentos registrados es falsa, y encima ensucia la métrica con
+  // la que se decide de dónde traer leads. El veto se calcula del timeline.
+  const veto = vetoNoResponde(actividadesDe(l.id))
 
   const confirmar = () => {
     const res = descartar(l.id, motivo, nota)
@@ -1307,13 +1593,32 @@ function DialogDescartar({ l, onClose }: { l: Lead; onClose: () => void }) {
       <DialogBody className="space-y-3">
         <div className="space-y-1.5">
           <Label htmlFor="ld-motivo">Motivo</Label>
-          <Select id="ld-motivo" value={motivo} onChange={(e) => setMotivo(e.target.value as MotivoDescarte)}>
-            {MOTIVOS_DESCARTE.map((m) => (
-              <option key={m.k} value={m.k}>
-                {m.label}
-              </option>
-            ))}
+          <Select
+            id="ld-motivo"
+            value={motivo}
+            aria-describedby={veto ? 'ld-motivo-veto' : undefined}
+            onChange={(e) => setMotivo(e.target.value as MotivoDescarte)}
+          >
+            {MOTIVOS_DESCARTE.map((m) => {
+              // Deshabilitado y CON LA RAZÓN A LA VISTA, no escondido: si
+              // desapareciera, el asesor elegiría "Otro" y perderíamos el dato.
+              const vetado = veto != null && MOTIVOS_CON_EVIDENCIA.has(m.k)
+              return (
+                <option key={m.k} value={m.k} disabled={vetado}>
+                  {vetado ? `${m.label} — ${VETO_CORTO}` : m.label}
+                </option>
+              )
+            })}
           </Select>
+          {/* Se pinta SIEMPRE que haya veto, no solo cuando el motivo vetado
+              está seleccionado: el `aria-describedby` del select ya lo promete,
+              y si el <p> no existe la razón no llega ni al lector de pantalla
+              ni a la vista — el asesor solo veía una opción deshabilitada. */}
+          {veto && (
+            <p id="ld-motivo-veto" className="text-[11px] font-medium text-[#b45309]">
+              {veto}
+            </p>
+          )}
         </div>
         <div className="space-y-1.5">
           <Label htmlFor="ld-nota-descarte">Nota (opcional)</Label>

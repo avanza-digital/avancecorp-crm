@@ -3,7 +3,7 @@
 // USD JAMÁS sumados), el filtro por estado ('activo'), el orden por ingreso y
 // los números del StatStrip (con corte de vencimiento en TZ Lima).
 import { describe, expect, it } from 'vitest'
-import { agruparCartera, resumenCartera } from './cartera-vista'
+import { agruparCartera, esPorVencer, idsPorVencer, resumenCartera } from './cartera-vista'
 import type { ClienteBasico, ContratoRow } from './clientes-tipos'
 
 /** Cliente mínimo — cada test pisa solo lo que le importa. */
@@ -217,5 +217,99 @@ describe('resumenCartera — números del StatStrip (corte de vencimiento en TZ 
       [contrato({ id: 'k31', cliente_id: 'a', fecha_vencimiento: '2026-08-20' })], // hoy+31
     )
     expect(resumenCartera(g, HOY).porVencer30).toBe(0)
+  })
+})
+
+// —— Dinero vs ALARMA. Un cliente dado de baja en el portal (perfiles.activo =
+// false) sale de los TOTALES de capital —el asesor no puede trabajar esa
+// cartera— pero NO de la alarma de vencimiento: su contrato activo sigue
+// venciendo, la renovación es el ingreso más rentable del negocio y este chip
+// es el único radar de renovación del CRM. Estos tests fijan esa separación
+// (la pasada del 2026-07-25 la había roto: porVencer30 decía 0).
+describe('resumenCartera — cliente dado de baja: fuera del dinero, DENTRO de la alarma', () => {
+  const HOY = new Date(2026, 6, 20) // 20 de julio de 2026, medianoche en Lima
+
+  it('un contrato por vencer de un cliente de baja SÍ cuenta en la alarma (y se desglosa)', () => {
+    const g = agruparCartera(
+      [cliente({ id: 'baja', activo: false })],
+      [contrato({ id: 'k', cliente_id: 'baja', capital: 40000, fecha_vencimiento: '2026-08-04' })], // hoy+15
+    )
+    const r = resumenCartera(g, HOY)
+    expect(r.porVencer30).toBe(1) // ← el bug lo dejaba en 0
+    expect(r.porVencer30DeBaja).toBe(1)
+    // …y su dinero sigue fuera de los totales (PEN y USD, cada uno en su cifra).
+    expect(r.capitalActivoPen).toBe(0)
+    expect(r.capitalActivoUsd).toBe(0)
+    expect(r.clientesConCapital).toBe(0)
+    expect(r.totalClientes).toBe(0) // el conteo es de clientes EN GESTIÓN
+  })
+
+  it('mezcla: la alarma suma los dos, el capital solo el del cliente en gestión', () => {
+    const g = agruparCartera(
+      [cliente({ id: 'viva' }), cliente({ id: 'baja', activo: false })],
+      [
+        contrato({ id: 'kv', cliente_id: 'viva', capital: 10000, fecha_vencimiento: '2026-08-04' }), // hoy+15
+        contrato({ id: 'kb', cliente_id: 'baja', capital: 40000, fecha_vencimiento: '2026-07-25' }), // hoy+5
+      ],
+    )
+    const r = resumenCartera(g, HOY)
+    expect(r.porVencer30).toBe(2)
+    expect(r.porVencer30DeBaja).toBe(1)
+    expect(r.capitalActivoPen).toBe(10000) // jamás 50000
+    expect(r.clientesConCapital).toBe(1)
+    expect(r.totalClientes).toBe(1)
+  })
+
+  it('un cliente de baja SIN nada por vencer no aporta a la alarma', () => {
+    const g = agruparCartera(
+      [cliente({ id: 'baja', activo: false })],
+      [
+        contrato({ id: 'lejos', cliente_id: 'baja', fecha_vencimiento: '2027-01-01' }), // fuera de ventana
+        contrato({ id: 'ya-vencido', cliente_id: 'baja', estado: 'vencido', fecha_vencimiento: '2026-08-01' }),
+      ],
+    )
+    const r = resumenCartera(g, HOY)
+    expect(r.porVencer30).toBe(0)
+    expect(r.porVencer30DeBaja).toBe(0)
+  })
+
+  it('el USD de un cliente de baja tampoco entra al capital, y su alarma sí', () => {
+    const g = agruparCartera(
+      [cliente({ id: 'baja', activo: false })],
+      [contrato({ id: 'k', cliente_id: 'baja', moneda: 'USD', capital: 9000, fecha_vencimiento: '2026-08-19' })], // hoy+30
+    )
+    const r = resumenCartera(g, HOY)
+    expect(r.capitalActivoUsd).toBe(0)
+    expect(r.capitalActivoPen).toBe(0)
+    expect(r.porVencer30).toBe(1)
+  })
+})
+
+describe('esPorVencer / idsPorVencer — el radar de renovación', () => {
+  const HOY = new Date(2026, 6, 20)
+
+  it('activo dentro de la ventana sí; vencido/renovado/retirado no', () => {
+    expect(esPorVencer(contrato({ fecha_vencimiento: '2026-08-04' }), HOY)).toBe(true)
+    expect(esPorVencer(contrato({ estado: 'vencido', fecha_vencimiento: '2026-08-04' }), HOY)).toBe(false)
+    expect(esPorVencer(contrato({ estado: 'renovado', fecha_vencimiento: '2026-08-04' }), HOY)).toBe(false)
+    expect(esPorVencer(contrato({ estado: 'retirado', fecha_vencimiento: '2026-08-04' }), HOY)).toBe(false)
+  })
+
+  it('una fecha pasada o malformada nunca es "por vencer" (NaN no dispara alarmas)', () => {
+    expect(esPorVencer(contrato({ fecha_vencimiento: '2026-07-19' }), HOY)).toBe(false) // ayer
+    expect(esPorVencer(contrato({ fecha_vencimiento: 'sin-fecha' }), HOY)).toBe(false)
+    expect(esPorVencer(contrato({ fecha_vencimiento: '' }), HOY)).toBe(false)
+  })
+
+  it('los ids incluyen los contratos de clientes dados de baja (la fila es alcanzable)', () => {
+    const g = agruparCartera(
+      [cliente({ id: 'viva' }), cliente({ id: 'baja', activo: false })],
+      [
+        contrato({ id: 'kv', cliente_id: 'viva', fecha_vencimiento: '2026-08-04' }), // hoy+15
+        contrato({ id: 'kb', cliente_id: 'baja', fecha_vencimiento: '2026-07-25' }), // hoy+5
+        contrato({ id: 'klejos', cliente_id: 'viva', fecha_vencimiento: '2027-01-01' }),
+      ],
+    )
+    expect([...idsPorVencer(g, HOY)].sort()).toEqual(['kb', 'kv'])
   })
 })

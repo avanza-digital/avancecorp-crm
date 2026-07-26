@@ -80,9 +80,18 @@ const COLUMNAS_LEAD = [
   'asignado_supervisor_id',
   'creado_en',
   'tenencia_desde',
+  // Sello del cierre GANADO (trigger del servidor, inmutable para el cliente
+  // API). Sin ella, el "mes de cierre" salía de `actualizado_en` — que CUALQUIER
+  // edición reescribe — y corregirle el teléfono a un convertido de agosto lo
+  // mudaba al mes de la corrección: un cierre falso en un mes y uno de menos en
+  // el real. Ver lib/cierres-del-mes.ts.
+  'convertido_en',
   'actualizado_en',
   'activo',
   'nota',
+  // Ley 29571 "No Insista": ya tenía GRANT SELECT desde F0, pero nunca se pidió
+  // — sin ella el kill-switch legal de motor-siguiente.ts no podía dispararse.
+  'no_contactar',
 ].join(',')
 
 // Validación en runtime del borde con Supabase (los unions de TS se borran al
@@ -122,9 +131,17 @@ const LeadRowSchema = v.object({
   // cartera — la cola degrada a medir por `creado_en`, que es el comportamiento
   // viejo, en vez de vaciarse.
   tenencia_desde: v.optional(v.nullable(v.string())),
+  // OPCIONAL por la misma razón que `tenencia_desde`: contra una base sin la
+  // columna la cartera debe seguir cargando (el mes de cierre degrada al
+  // comportamiento viejo), nunca vaciarse.
+  convertido_en: v.optional(v.nullable(v.string())),
   actualizado_en: v.string(),
   activo: v.boolean(),
   nota: v.nullable(v.string()),
+  // Opcional por la misma razón que tenencia_desde: una base sin la columna no
+  // debe vaciar la cartera. Ausente ⇒ se trata como false (no hay veto legal
+  // conocido), que es exactamente el comportamiento previo a esta entrega.
+  no_contactar: v.optional(v.nullable(v.boolean())),
 })
 
 type LeadRow = v.InferOutput<typeof LeadRowSchema>
@@ -229,8 +246,22 @@ function aLead(fila: LeadRow): Lead {
     asignado_supervisor_id: fila.asignado_supervisor_id,
     creado_en: fila.creado_en,
     tenencia_desde: fila.tenencia_desde ?? null,
+    // ⚠️ TERCERA vez que este mapper es el eslabón que se olvida (ver el
+    // comentario de `actualizado_en` justo abajo): pedir la columna en
+    // COLUMNAS_LEAD y declararla en LeadRowSchema NO la pone en el navegador.
+    // Sin esta línea, `convertido_en` llega `undefined` a `cierresDelMes` y el
+    // mes de cierre cae en silencio al fallback que este cambio viene a matar.
+    convertido_en: fila.convertido_en ?? null,
+    // Se pedía al servidor y se validaba, pero NO se copiaba: en el navegador
+    // llegaba siempre `undefined`. De este campo dependen el "mes de cierre" de
+    // la meta del asesor y las series de tendencia de gerencia, que sin él caen
+    // al fallback `creado_en` y cuentan leads DADOS DE ALTA en el mes en vez de
+    // CERRADOS. Con los 324 leads del puente cargados en julio, agosto habría
+    // arrancado en cero para todo el equipo (auditoría 2026-07-25).
+    actualizado_en: fila.actualizado_en,
     activo: fila.activo,
     nota: fila.nota,
+    no_contactar: fila.no_contactar ?? false,
   }
 }
 
@@ -1165,6 +1196,47 @@ export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): P
     throw fallo
   }
   return { ...r.output, nombre_completo: r.output.nombre_completo ?? '' }
+}
+
+/**
+ * ¿ESE cliente del portal está en MI cartera, según el servidor?
+ *
+ * Pregunta barata (una fila, solo el id, cero PII) que responde EXACTAMENTE lo
+ * que va a decidir `public.crear_contrato`, porque las dos reglas son la misma:
+ * la policy `perfiles_analista_select` concede al analista los clientes con
+ * `asesor_perfil_id = auth.uid()` o (`asesor_perfil_id is null` y
+ * `creado_por = auth.uid()`), y ese es literalmente el gate de cartera de la
+ * RPC. Si la fila vuelve, el contrato pasará; si no vuelve, lo rechazará.
+ *
+ * Existe por la rama `ya_existia` de `crm-convertir-lead`: cuando el documento
+ * YA era cliente del portal, la edge lo ENLAZA al lead pero no le toca el
+ * `asesor_perfil_id`, así que el cliente puede quedar a nombre de otro asesor.
+ * Sin esta comprobación la ficha solo podía adivinar, y adivinar era prometer.
+ *
+ * `null` = NO SE PUDO COMPROBAR (red, RLS, servidor). El llamador no debe
+ * afirmar ninguna de las dos cosas: no es un `false` disfrazado.
+ */
+export async function esClienteDeMiCartera(
+  perfilId: string,
+  signal?: AbortSignal,
+): Promise<boolean | null> {
+  let consulta = cliente()
+    .from('perfiles')
+    .select('id')
+    .eq('id', perfilId)
+    .eq('rol', 'cliente')
+    .limit(1)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  if (error) {
+    registrarError(
+      'crm.clientes.cartera_no_verificable',
+      new CrmApiError('No se pudo comprobar la cartera del cliente.', error.code || 'POSTGREST_ERROR'),
+    )
+    return null
+  }
+  return (data ?? []).length > 0
 }
 
 // ── Alta de cliente (edge crear-cliente del portal: Auth + perfil + correo REAL

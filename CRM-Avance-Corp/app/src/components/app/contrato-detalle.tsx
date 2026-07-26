@@ -95,9 +95,17 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
   const errorCrono = !precargado && qCronograma.isError && qCronograma.data == null
     ? mensajeDeError(qCronograma.error, 'No se pudo cargar el cronograma.')
     : null
-  // Espejo del portal (cargarTitulares): un fallo aquí no rompe la pantalla —
-  // el bloque simplemente no se pinta (crm-api ya registró el error).
-  const titulares = datos?.titulares ?? qTitulares.data ?? []
+  // Un fallo aquí NO rompe el detalle (espejo del portal, cargarTitulares), pero
+  // tampoco puede silenciarse: `?? []` colapsaba "no se pudo cargar" con "no
+  // tiene", y el bloque, condicionado a length > 0, desaparecía. Una caída de
+  // red se leía entonces como "este contrato no es mancomunado" — una
+  // afirmación FALSA sobre quién es titular legal del capital, justo el dato
+  // que alguien abre el detalle para verificar. Tres estados distintos:
+  // null = cargando · error = no se sabe · [] = de verdad no tiene.
+  const titulares = datos?.titulares ?? qTitulares.data ?? null
+  const errorTitulares = !precargado && qTitulares.isError && qTitulares.data == null
+    ? mensajeDeError(qTitulares.error, 'No se pudieron cargar los co-titulares.')
+    : null
 
   // Reintento AMPLIO (mismo alcance que el intento++ anterior): el fallo suele
   // ser de red y afecta a las tres lecturas a la vez.
@@ -198,8 +206,27 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
               </div>
             )}
 
-            {/* ── Co-titulares (cuentas mancomunadas, solo lectura) ───────────── */}
-            {titulares.length > 0 && (
+            {/* ── Co-titulares (cuentas mancomunadas, solo lectura) ─────────────
+                El caso vacío ([]) sigue sin pintar nada: la mayoría de contratos
+                no son mancomunados y un bloque "sin co-titulares" en todos sería
+                ruido. Lo que NUNCA puede pasar por vacío es el FALLO: ahí se dice
+                explícitamente que el dato no se pudo leer, con reintento. */}
+            {errorTitulares ? (
+              <div className="space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
+                <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
+                  Co-titulares
+                </p>
+                <p className="text-xs font-semibold text-destructive">{errorTitulares}</p>
+                <p className="text-[11px] text-muted-foreground">
+                  No se sabe si este contrato tiene co-titulares — esto NO significa que no los tenga.
+                </p>
+                <Button variant="outline" size="xs" onClick={reintentar}>
+                  <RotateCcw aria-hidden /> Reintentar
+                </Button>
+              </div>
+            ) : titulares == null ? (
+              <Skeleton className="h-14 w-full" aria-busy />
+            ) : titulares.length > 0 ? (
               <div className="rounded-xl border border-border bg-muted/40 p-3">
                 <p className="text-[10px] font-extrabold uppercase tracking-widest text-muted-foreground">
                   Co-titulares
@@ -215,7 +242,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
                   ))}
                 </ul>
               </div>
-            )}
+            ) : null}
 
             {/* ── Cronograma COMPLETO (reglas finas del portal) ───────────────── */}
             <div>

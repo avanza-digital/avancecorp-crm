@@ -94,8 +94,14 @@ test('registrar actividad: entra al timeline con toast "(demo)"', async ({ page 
   await drawer.getByLabel('Detalle de la actividad').fill('Llamada de prueba E2E')
   await drawer.getByRole('button', { name: /^Registrar$/ }).click()
 
-  await expect(page.getByText(/Actividad registrada \(demo\)/i)).toBeVisible()
+  // El composer arranca en 'llamada_realizada', que es CONVERSACIÓN, y este
+  // lead demo está en 'nuevo' → la etapa sube sola (lib/avance-automatico) y el
+  // toast lo canta. Se asevera el aviso COMPLETO a propósito: un avance de
+  // etapa silencioso es justo lo que este comportamiento vino a evitar.
+  await expect(page.getByText(/Actividad registrada · pasó a Contactado \(demo\)/i)).toBeVisible()
   await expect(drawer.getByText('Llamada de prueba E2E')).toBeVisible()
+  // Y el hecho de verdad, no solo el aviso: el stepper quedó en Contactado.
+  await expect(drawer.getByRole('button', { name: 'Contactado' })).toHaveAttribute('aria-current', 'step')
 })
 
 test('reasignar (gerencia): cambia el vendedor con toast "(demo)"', async ({ page }) => {

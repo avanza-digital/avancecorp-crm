@@ -29,6 +29,7 @@ import {
 } from '@/data/crm-api'
 import { useTitulares } from '@/data/crm-queries'
 import {
+  esCuotaDeInteres,
   generarCronograma,
   parseDateLocal,
   vencimientoDesdePlazo,
@@ -49,11 +50,24 @@ import {
 } from '@/lib/contratos-catalogo'
 
 // Meses calendario entre dos fechas YYYY-MM-DD (espejo de mesesEntre de
-// analista.js) — deriva el preset del select sin tocar el vencimiento real.
+// analista.js) — solo para ETIQUETAR el plazo real; nunca decide el vencimiento.
 function mesesEntre(inicio: string, fin: string): number {
   const a = parseDateLocal(inicio)
   const b = parseDateLocal(fin)
   return (b.getFullYear() - a.getFullYear()) * 12 + (b.getMonth() - a.getMonth())
+}
+
+// Valor centinela del plazo que NO es preset (mismo nombre que en ContratoNuevo).
+const PLAZO_PERSONALIZADO = 'personalizado'
+
+/**
+ * Preset que reproduce EXACTAMENTE el vencimiento guardado, o undefined si el
+ * plazo es personalizado. Contar meses NO basta: un contrato del 15-01 que vence
+ * el 20-07 mide "6 meses" contados y sin embargo el preset de 6 daría el 15-07 —
+ * elegirlo recortaba el vencimiento pactado en silencio al guardar.
+ */
+function presetDelVencimiento(inicio: string, vencimiento: string) {
+  return PLAZOS_BASE.find((p) => vencimientoDesdePlazo(inicio, p.meses) === vencimiento)
 }
 
 /** Fila cruda del editor de co-titulares (se normaliza recién al guardar). */
@@ -85,13 +99,14 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const [moneda, setMoneda] = useState<Moneda>(contrato.moneda)
   const [tasa, setTasa] = useState(String(contrato.tasa_anual))
   const [fechaInicio, setFechaInicio] = useState(contrato.fecha_inicio)
-  const mesesIniciales = mesesEntre(contrato.fecha_inicio, contrato.fecha_vencimiento)
-  const [plazo, setPlazo] = useState(
-    PLAZOS_BASE.some((p) => p.meses === mesesIniciales) ? String(mesesIniciales) : '12',
-  )
+  // El select muestra el plazo REAL: si ningún preset reproduce el vencimiento
+  // guardado, arranca en 'personalizado' (antes caía a '12' y enseñaba "1 año"
+  // para un contrato de, p. ej., 18 meses — y al guardar lo recortaba de verdad).
+  const presetInicial = presetDelVencimiento(contrato.fecha_inicio, contrato.fecha_vencimiento)
+  const [plazo, setPlazo] = useState(presetInicial ? String(presetInicial.meses) : PLAZO_PERSONALIZADO)
   // Se PRESERVA el vencimiento REAL al abrir (espejo del portal): recalcularlo
   // de un plazo no-preset lo pisaría sin querer. Solo cambia si el usuario toca
-  // inicio o plazo.
+  // el plazo, la fecha de inicio con un preset elegido, o el vencimiento a mano.
   const [venc, setVenc] = useState(contrato.fecha_vencimiento)
   const [notas, setNotas] = useState(contrato.notas_internas ?? '')
   const [enviando, setEnviando] = useState(false)
@@ -130,13 +145,25 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const capitalNum = parseMonto(capital) ?? NaN
   const tasaNum = parseMonto(tasa) ?? NaN
 
+  const esPersonalizado = plazo === PLAZO_PERSONALIZADO
+  // Duración REAL en meses (solo para etiquetar la opción 'Personalizado'): el
+  // vencimiento exacto se ve al lado, en su propio campo.
+  const mesesReales = fechaInicio && venc ? mesesEntre(fechaInicio, venc) : 0
+
   const cambiarInicio = (v: string) => {
     setFechaInicio(v)
-    if (v) setVenc(vencimientoDesdePlazo(v, parseInt(plazo, 10)))
+    // Con plazo PERSONALIZADO el vencimiento pactado NO se toca: recalcularlo
+    // desde un preset inventado (antes, siempre '12') recortaba el contrato en
+    // silencio. Se conserva y el aviso de abajo lo dice explícitamente; si debe
+    // moverse, el asesor lo edita a mano en el campo de vencimiento.
+    if (v && !esPersonalizado) setVenc(vencimientoDesdePlazo(v, parseInt(plazo, 10)))
   }
   const cambiarPlazo = (v: string) => {
     setPlazo(v)
-    if (fechaInicio) setVenc(vencimientoDesdePlazo(fechaInicio, parseInt(v, 10)))
+    // Pasar a 'personalizado' conserva el vencimiento actual (es justamente el
+    // valor que no cabe en ningún preset); elegir un preset sí lo recalcula —
+    // pero eso es una decisión EXPLÍCITA del asesor y se ve al instante.
+    if (fechaInicio && v !== PLAZO_PERSONALIZADO) setVenc(vencimientoDesdePlazo(fechaInicio, parseInt(v, 10)))
   }
 
   // Mismo generador del preview de ContratoNuevo: lo que se ve es lo que viaja.
@@ -152,6 +179,28 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   }, [capitalNum, tasaNum, fechaInicio, venc, modalidad, tipoInteres])
 
   const totalCronograma = cronograma.reduce((a, c) => a + c.monto_programado, 0)
+
+  // Mismo guard de RENDIMIENTO que ContratoNuevo: el generador SIEMPRE empuja la
+  // fila del retorno del capital, así que `cronograma.length` nunca es 0 y el
+  // guard viejo (length === 0) no podía dispararse — una corrección podía dejar
+  // el contrato sin UNA sola cuota de interés (p. ej. bajando el plazo a 6 meses
+  // con modalidad anual). Se exige al menos una cuota de interés que sume > 0.
+  const cuotasInteres = cronograma.filter(esCuotaDeInteres)
+  // Suma de importes numeric(12,2) ya redondeados: solo se compara contra 0.
+  const interesProgramado = cuotasInteres.reduce((a, c) => a + c.monto_programado, 0)
+
+  // Motivo ÚNICO (null = válido): lo comparten el guard de guardar() y el aviso
+  // de la vista previa, para que el asesor lo vea ANTES de pulsar Guardar.
+  const motivoCronograma: string | null =
+    cronograma.length === 0
+      ? esCompuesto
+        ? 'El interés compuesto requiere un plazo en años exactos (12, 24, 36, 48 o 60 meses).'
+        : 'Las fechas/modalidad no permiten generar un cronograma.'
+      : cuotasInteres.length === 0
+        ? 'Este cronograma no tiene NINGUNA cuota de interés: el plazo es más corto que un periodo de la modalidad elegida. Cambia la modalidad de pago o alarga el plazo.'
+        : interesProgramado <= 0
+          ? 'Las cuotas de interés salen en 0.00 con este capital y esta tasa: el contrato no pagaría rendimiento.'
+          : null
 
   // ── Editor de co-titulares ────────────────────────────────────────────────
   const setFila = (i: number, patch: Partial<FilaTitular>) =>
@@ -187,12 +236,9 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
       setError('Selecciona la categoría de la inversión (Nuevo, Renovación o Upgrade).')
       return
     }
-    if (cronograma.length === 0) {
-      setError(
-        esCompuesto
-          ? 'El interés compuesto requiere un plazo en años exactos (12, 24, 36, 48 o 60 meses).'
-          : 'Las fechas/modalidad no permiten generar un cronograma.',
-      )
+    // Guard de RENDIMIENTO (no de longitud): sin cuotas de interés no se guarda.
+    if (motivoCronograma) {
+      setError(motivoCronograma)
       return
     }
     // Co-titulares: solo si sus valores ACTUALES cargaron (presente = reemplazar).
@@ -389,13 +435,40 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                   {p.label}
                 </option>
               ))}
+              {/* Plazo real fuera de los presets (p. ej. 18 meses): la etiqueta
+                  dice cuántos meses son DE VERDAD en vez de fingir "1 año".
+                  Deshabilitada en compuesto (capitaliza anual: exige años exactos,
+                  misma regla que ContratoNuevo). */}
+              <option value={PLAZO_PERSONALIZADO} disabled={esCompuesto}>
+                {mesesReales > 0 ? `Personalizado (${mesesReales} meses)` : 'Personalizado'}
+              </option>
             </Select>
           </div>
-          <p className="pb-2 text-[11px] text-muted-foreground">
-            Vence el <b className="text-foreground">{fmtFecha(venc)}</b>
-            {/* El vencimiento REAL se preserva al abrir; cambiar inicio/plazo lo recalcula. */}
-          </p>
+          {esPersonalizado ? (
+            <div className="space-y-1.5">
+              <Label htmlFor="cc-venc">Fecha de vencimiento</Label>
+              <Input
+                id="cc-venc"
+                type="date"
+                value={venc}
+                onChange={(e) => setVenc(e.target.value)}
+                disabled={enviando}
+              />
+            </div>
+          ) : (
+            <p className="pb-2 text-[11px] text-muted-foreground">
+              Vence el <b className="text-foreground">{fmtFecha(venc)}</b>
+              {/* Con un preset elegido, cambiar inicio/plazo sí recalcula (es explícito). */}
+            </p>
+          )}
         </div>
+        {esPersonalizado && (
+          <p className="text-[11px] text-muted-foreground">
+            Plazo <b className="text-foreground">personalizado</b>: el vencimiento pactado se
+            conserva y NO se recalcula al cambiar la fecha de inicio. Si también debe moverse,
+            edítalo aquí arriba.
+          </p>
+        )}
 
         <div className="space-y-1.5">
           <Label htmlFor="cc-notas">Notas internas</Label>
@@ -510,10 +583,21 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                 <b>{cronograma.length}</b> {cronograma.length === 1 ? 'cuota' : 'cuotas'} · total programado{' '}
                 <b className="tabular-nums text-primary">{money(totalCronograma, moneda)}</b>
               </p>
+              {/* Las de INTERÉS, contadas aparte: el total incluye la devolución
+                  del capital y disfraza un cronograma sin rendimiento. */}
+              <p className="text-muted-foreground">
+                De ellas, <b className="text-foreground">{cuotasInteres.length}</b> de interés por{' '}
+                <b className="tabular-nums text-foreground">{money(interesProgramado, moneda)}</b>
+              </p>
               <p className="text-muted-foreground">
                 Primera: {fmtFecha(cronograma[0]!.fecha_programada)} · Última:{' '}
                 {fmtFecha(cronograma[cronograma.length - 1]!.fecha_programada)}
               </p>
+              {/* Sin role=alert: se recalcula en CADA tecla (sería ruido para el
+                  lector de pantalla); el mensaje del guard sí lo lleva. */}
+              {motivoCronograma && (
+                <p className="font-semibold text-destructive">{motivoCronograma}</p>
+              )}
             </div>
           )}
         </div>

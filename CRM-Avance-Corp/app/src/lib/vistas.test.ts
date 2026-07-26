@@ -46,7 +46,10 @@ describe('sanearVista — expulsión por URL', () => {
   it('no altera el comportamiento previo de los roles operativos', () => {
     expect(sanearVista('mi-cartera', 'vendedor', false)).toBe('mi-cartera')
     expect(sanearVista('hoy', 'gerencia', true)).toBe('hoy')
-    expect(sanearVista('config', 'vendedor', false)).toBe('mi-cartera')
+    // #/config SÍ es del vendedor desde que su calendario ICS ("Mi calendario de
+    // Google") vive ahí: can('vendedor','verConfiguracion') pasó a true y el
+    // guard ya no lo expulsa. Ver ≠ editar: editarConfiguracion sigue en false.
+    expect(sanearVista('config', 'vendedor', false)).toBe('config')
     expect(sanearVista('equipo', 'vendedor', false)).toBe('mi-cartera')
     expect(sanearVista('equipo', 'supervisor', false)).toBe('equipo')
     // Gate de leads cerrado: las vistas de leads caen a la base del rol.

@@ -199,6 +199,185 @@ describe('MiCartera (pantalla)', () => {
   })
 })
 
+// —— Clientes DADOS DE BAJA en el portal (perfiles.activo=false). Decisión:
+// se muestran MARCADOS pero salen de todos los totales — esconderlos borraría
+// del CRM contratos que siguen existiendo; contarlos infla una cartera que el
+// asesor ya no gestiona.
+describe('MiCartera — cliente desactivado en el portal', () => {
+  const clienteBaja = (over: Partial<ClienteBasico> = {}) =>
+    cliente({ id: 'c-baja', nombre_completo: 'CLIENTE DE BAJA', activo: false, ...over })
+
+  it('sigue en la lista pero MARCADO como inactivo (visible y anunciado)', () => {
+    montar({ clientes: [clienteBaja()], contratos: [contrato({ cliente_id: 'c-baja' })] })
+    expect(screen.getByText('CLIENTE DE BAJA')).toBeInTheDocument()
+    expect(screen.getByText('inactivo')).toBeInTheDocument()
+    // La marca entra en el nombre accesible del toggle (no es solo un color).
+    expect(screen.getByRole('button', { name: /CLIENTE DE BAJA.*inactivo/s }).tagName).toBe('BUTTON')
+    // Y se explica en texto, no solo con un tooltip.
+    expect(screen.getByText(/no suman a los totales/)).toBeInTheDocument()
+  })
+
+  it('su capital NO cuenta en los KPIs', () => {
+    montar({
+      clientes: [clienteBaja()],
+      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, estado: 'activo' })],
+    })
+    // Sin cartera en gestión: tarjeta neutra, no "S/ 40,000".
+    expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
+    expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
+    // La cifra propia de SU fila sí se sigue viendo (el dato del cliente es real).
+    expect(screen.getByText('S/ 40,000')).toBeInTheDocument()
+  })
+
+  it('el capital del cliente activo queda intacto y el conteo separa a los de baja', () => {
+    montar({
+      clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
+      contratos: [
+        contrato({ id: 'k-viva', cliente_id: 'c-viva', capital: 10000 }),
+        contrato({ id: 'k-baja', cliente_id: 'c-baja', capital: 40000 }),
+      ],
+    })
+    // Solo el capital en gestión (10k), nunca 50k.
+    expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
+    expect(screen.getByText('S/ 10k')).toBeInTheDocument()
+    expect(screen.queryByText('S/ 50k')).not.toBeInTheDocument()
+    // El encabezado cuadra con las filas: 1 en gestión + 1 inactivo (2 filas).
+    expect(screen.getByText('1 cliente · 1 inactivo')).toBeInTheDocument()
+  })
+
+  it('"Sin asesor" (supervisión) no cuenta a los dados de baja', () => {
+    montar({
+      yo: { id: 'sup', rol: 'supervisor', puede_contratar: true, demo: false },
+      equipo: [{ perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true }],
+      clientes: [
+        cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' }),
+        clienteBaja({ asesor_perfil_id: null, creado_por: null }),
+      ],
+      contratos: [],
+    })
+    // El único sin dueño está de baja → no hay nada que repartir.
+    expect(screen.getByText(/Toda la cartera tiene dueño/)).toBeInTheDocument()
+    expect(screen.queryByText(/Repártelos/)).not.toBeInTheDocument()
+  })
+})
+
+// —— ALARMA DE RENOVACIÓN («Por vencer ≤30 d»). Es un AVISO, no un total: se
+// calcula sobre TODA la cartera, incluidos los clientes dados de baja en el
+// portal. Un contrato activo que vence en ≤30 d hay que renovarlo aunque su
+// titular ya no sea cliente activo, y este chip es el único radar de renovación
+// del CRM (la tabla filtra por estado de CONTRATO, no por vencimiento). Regresión
+// fijada: la pasada del 2026-07-25 sacó a esos clientes de TODOS los agregados y
+// el chip decía «0 · nada por vencer» con contratos venciendo esta semana.
+describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
+  /** Fecha YYYY-MM-DD a N días de HOY en hora local (TZ Lima, como la pantalla). */
+  function enDias(n: number): string {
+    const d = new Date()
+    d.setDate(d.getDate() + n)
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+
+  /** El chip del StatStrip que rotula `label` (la Card con la clase ac-lift). */
+  function chipDe(label: string): HTMLElement {
+    const card = screen.getByText(label).closest('.ac-lift')
+    if (!card) throw new Error(`chip “${label}” no encontrado`)
+    return card as HTMLElement
+  }
+
+  const clienteBaja = (over: Partial<ClienteBasico> = {}) =>
+    cliente({ id: 'c-baja', nombre_completo: 'CLIENTE DE BAJA', activo: false, ...over })
+
+  it('cuenta el contrato por vencer de un cliente DADO DE BAJA (no dice “nada por vencer”)', () => {
+    montar({
+      clientes: [clienteBaja()],
+      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, fecha_vencimiento: enDias(10) })],
+    })
+    const chip = chipDe('Por vencer ≤30 d')
+    expect(within(chip).getByText('1')).toBeInTheDocument()
+    expect(screen.queryByText('nada por vencer')).not.toBeInTheDocument()
+    // Y lo DICE: el desglose evita que la cifra parezca un descuadre.
+    expect(within(chip).getByText('1 es de un cliente dado de baja')).toBeInTheDocument()
+  })
+
+  it('el dinero NO cambia: su capital sigue fuera de los totales aunque la alarma avise', () => {
+    montar({
+      clientes: [clienteBaja()],
+      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, fecha_vencimiento: enDias(10) })],
+    })
+    expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
+    expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
+    expect(within(chipDe('Por vencer ≤30 d')).getByText('1')).toBeInTheDocument()
+  })
+
+  it('con clientes en gestión y de baja, el conteo los suma y desglosa los de baja', () => {
+    montar({
+      clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
+      contratos: [
+        contrato({ id: 'k-viva', cliente_id: 'c-viva', fecha_vencimiento: enDias(20) }),
+        contrato({ id: 'k-baja', cliente_id: 'c-baja', fecha_vencimiento: enDias(5) }),
+      ],
+    })
+    const chip = chipDe('Por vencer ≤30 d')
+    expect(within(chip).getByText('2')).toBeInTheDocument()
+    expect(within(chip).getByText('1 es de un cliente dado de baja')).toBeInTheDocument()
+  })
+
+  it('sin nada por vencer: chip en 0 y SIN botón de filtro (no hay a dónde ir)', () => {
+    montar({ contratos: [contrato({ fecha_vencimiento: enDias(200) })] })
+    const chip = chipDe('Por vencer ≤30 d')
+    expect(within(chip).getByText('0')).toBeInTheDocument()
+    expect(within(chip).getByText('nada por vencer')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Por vencer/ })).not.toBeInTheDocument()
+  })
+
+  it('el filtro «Por vencer» deja SOLO las filas que vencen — incluida la del cliente de baja', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
+      contratos: [
+        contrato({ id: 'k-viva', cliente_id: 'c-viva', fecha_vencimiento: enDias(200) }), // fuera de ventana
+        contrato({ id: 'k-baja', cliente_id: 'c-baja', numero_contrato: '2026-07-000099', fecha_vencimiento: enDias(10) }),
+      ],
+    })
+    const boton = screen.getByRole('button', { name: /Por vencer/ })
+    expect(boton).toHaveAttribute('aria-pressed', 'false')
+    await user.click(boton)
+    expect(screen.getByRole('button', { name: /Por vencer/ })).toHaveAttribute('aria-pressed', 'true')
+    // La fila que vence es la del cliente DE BAJA: sin este filtro era inalcanzable.
+    expect(screen.getByText('CLIENTE DE BAJA')).toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE VIVA')).not.toBeInTheDocument()
+    // Y se auto-expande con SU contrato marcado «renovar» (palabra, no solo color).
+    const sub = screen.getByText('2026-07-000099').closest('tr') as HTMLElement
+    expect(within(sub).getAllByText(/· renovar/).length).toBeGreaterThan(0)
+  })
+
+  it('el filtro se puede desactivar y la cartera completa vuelve', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
+      contratos: [
+        contrato({ id: 'k-viva', cliente_id: 'c-viva', fecha_vencimiento: enDias(200) }),
+        contrato({ id: 'k-baja', cliente_id: 'c-baja', fecha_vencimiento: enDias(10) }),
+      ],
+    })
+    await user.click(screen.getByRole('button', { name: /Por vencer/ }))
+    expect(screen.queryByText('CLIENTE VIVA')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Por vencer/ }))
+    expect(screen.getByText('CLIENTE VIVA')).toBeInTheDocument()
+    expect(screen.getByText('CLIENTE DE BAJA')).toBeInTheDocument()
+  })
+
+  it('«Por vencer» + estado se componen en AND (vacío con mensaje neutral)', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [clienteBaja()],
+      contratos: [contrato({ cliente_id: 'c-baja', fecha_vencimiento: enDias(10) })], // activo
+    })
+    await user.click(screen.getByRole('button', { name: /Por vencer/ }))
+    await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por estado de contrato/ }), 'vencido')
+    expect(screen.getByText('Ningún cliente coincide con los filtros aplicados.')).toBeInTheDocument()
+  })
+})
+
 // —— Supervisión (verEquipo): filtro por asesor + indicador "Sin asesor",
 // portados de la pantalla Clientes retirada en Fase 6 (parity de supervisión).
 describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {

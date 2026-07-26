@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  capitalPrincipal,
   colaDe,
   colorMeta,
   comparativaEquipos,
@@ -12,6 +13,7 @@ import {
   metricasPorVendedor,
   sinProximaAccion,
 } from './inteligencia'
+import { money } from './format'
 import type { Actividad, Lead, Miembro } from './tipos'
 
 const DIA_MS = 86_400_000
@@ -244,6 +246,58 @@ describe('señales comerciales', () => {
       expect(cola.find((i) => i.lead.id === 'contactado-ya')?.bucket).not.toBe('sin_responder')
     })
 
+    // Segunda mitad del mismo agujero (auditoría 2026-07-25). Arreglar el
+    // índice de contacto salvó al lead recién repartido, pero dejó vivo el
+    // caso de al lado: el `nuevo` al que YA se intentó llamar no caía en
+    // NINGÚN bucket — `sin_responder` exige `!ultima` y los otros tres solo
+    // miran contactado/reunion_agendada/propuesta_enviada. Bastaba pulsar "No
+    // contestó" una vez para que el lead se evaporara de la cola para siempre.
+    describe('el lead ya intentado vuelve a la cola en vez de evaporarse', () => {
+      const intentado = (tipo: 'llamada_no_contestada' | 'whatsapp_enviado', dias: number) =>
+        colaDe(
+          [lead({ id: 'insistir', creado_en: haceDias(5), tenencia_desde: haceDias(4) })],
+          [actividad('insistir', dias, { tipo })],
+          AHORA,
+        )
+
+      it.each(['llamada_no_contestada', 'whatsapp_enviado'] as const)(
+        'un lead nuevo con %s hace 2 días cae en `insistir`, no en la nada',
+        (tipo) => {
+          const cola = intentado(tipo, 2)
+          expect(cola).toHaveLength(1)
+          expect(cola[0]).toMatchObject({ bucket: 'insistir', sev: 'media' })
+          expect(cola[0]?.motivo).toContain('cambia de canal')
+        },
+      )
+
+      it('el mismo día NO reaparece: volver a las horas se lee como ruido', () => {
+        expect(intentado('llamada_no_contestada', 0.3)).toHaveLength(0)
+      })
+
+      it('si ya tiene tarea agendada vive en la agenda, no aquí (sin doble aviso)', () => {
+        const cola = colaDe(
+          [lead({ id: 'insistir', creado_en: haceDias(5), tenencia_desde: haceDias(4) })],
+          [actividad('insistir', 2, { tipo: 'llamada_no_contestada' })],
+          AHORA,
+          { vigente: new Set(['insistir']), vencido: new Map() },
+        )
+        expect(cola).toHaveLength(0)
+      })
+
+      it('si HABLARON pero sigue en Nuevo, el motivo no miente: dice que lo muevan', () => {
+        // Solo ocurre con datos anteriores al avance automático de etapa (o si
+        // el trigger no llegó a correr). El bucket lo saca a la superficie sin
+        // afirmar que el cliente no respondió.
+        const cola = colaDe(
+          [lead({ id: 'hablado', creado_en: haceDias(5), tenencia_desde: haceDias(4) })],
+          [actividad('hablado', 2, { tipo: 'llamada_realizada' })],
+          AHORA,
+        )
+        expect(cola[0]).toMatchObject({ bucket: 'insistir' })
+        expect(cola[0]?.motivo).toContain('sigue en Nuevo')
+      })
+    })
+
     it('el cronómetro tiene de dónde salir: dias se mide desde la tenencia, no desde la reasignación', () => {
       // La reasignación comparte instante con tenencia_desde (mismo statement
       // en el servidor), así que ambos dan lo mismo — pero el lead DEBE estar
@@ -418,10 +472,59 @@ describe('Fase B — la cola y estancados respetan el PLAN (tareas pendientes)',
     lead({ id: 'parkeado', vendedor_id: null }),
   ]
 
+  // El escudo del plan muerto (2026-07-25): una tarea pendiente vencida hace
+  // semanas escondía al lead de la cola. Al levantarlo, el lead vuelve por su
+  // propio pie al bucket que le toca; `plan_vencido` es el RESIDUO que captura
+  // solo al que no cae en ninguno.
+  describe('una tarea vencida ya no es plan', () => {
+    const muerta = (leadId: string, venceEn: string) => ({
+      vigente: new Set<string>(),
+      vencido: new Map([[leadId, {
+        id: 'tm', lead_id: leadId, tipo: 'llamada' as const, titulo: 'Llamar a Ana',
+        vence_en: venceEn, estado: 'pendiente' as const, reprogramaciones: 0,
+        activo: true, creado_en: haceDias(20),
+      }]]),
+    })
+
+    it('el lead vuelve al bucket que le toca por inactividad, con SU motivo', () => {
+      const cola = colaDe(
+        [lead({ id: 'olvidado', etapa: 'propuesta_enviada', creado_en: haceDias(30), tenencia_desde: haceDias(20) })],
+        [actividad('olvidado', 10, { tipo: 'whatsapp_enviado' })],
+        AHORA,
+        muerta('olvidado', haceDias(12)),
+      )
+      // NO se degrada a 'plan_vencido': eso bajaría la severidad de media a
+      // baja y cambiaría el motivo a "cierra una tarea", que no vende nada.
+      expect(cola[0]).toMatchObject({ bucket: 'propuesta_sin_respuesta', sev: 'media' })
+    })
+
+    it('el trabajado hace poco con tarea muerta cae en `plan_vencido` — antes era invisible', () => {
+      const cola = colaDe(
+        [lead({ id: 'reciente', etapa: 'contactado', creado_en: haceDias(30), tenencia_desde: haceDias(20) })],
+        [actividad('reciente', 0.5, { tipo: 'llamada_realizada' })],
+        AHORA,
+        muerta('reciente', haceDias(9)),
+      )
+      expect(cola[0]).toMatchObject({ bucket: 'plan_vencido', sev: 'baja' })
+      expect(cola[0]?.motivo).toContain('«Llamar a Ana»')
+      expect(cola[0]?.motivo).toContain('hace 9 días')
+    })
+
+    it('con plan VIVO el lead sigue fuera de la cola (la agenda es su cola)', () => {
+      const cola = colaDe(
+        [lead({ id: 'con-plan', etapa: 'contactado', creado_en: haceDias(30), tenencia_desde: haceDias(20) })],
+        [actividad('con-plan', 10, { tipo: 'llamada_realizada' })],
+        AHORA,
+        { vigente: new Set(['con-plan']), vencido: new Map() },
+      )
+      expect(cola).toHaveLength(0)
+    })
+  })
+
   it('lead con tarea pendiente sale del fallback por inactividad; asignación y speed-to-lead se mantienen', () => {
     const ahora = Date.now()
-    const conTarea = new Set(['con-plan', 'nuevo-frio', 'parkeado'])
-    const cola = colaDe(base(), [], ahora, conTarea)
+    const plan = { vigente: new Set(['con-plan', 'nuevo-frio', 'parkeado']), vencido: new Map() }
+    const cola = colaDe(base(), [], ahora, plan)
     const buckets = new Map(cola.map((i) => [i.lead.id, i.bucket]))
     expect(buckets.has('con-plan')).toBe(false) // tiene plan → su cola es la agenda
     expect(buckets.get('sin-plan')).toBe('seguimiento') // fallback para quien no tiene
@@ -449,5 +552,84 @@ describe('Fase B — la cola y estancados respetan el PLAN (tareas pendientes)',
     const ids = sinProximaAccion(leads, new Set(['con-plan'])).map((l) => l.id)
     // PEN desc primero (nunca mezclado con USD), USD después; sin parkeados ni cerrados.
     expect(ids).toEqual(['pen-grande', 'pen-chico', 'usd-grande'])
+  })
+})
+
+// ── El chip de capital: qué moneda MANDA en el número grande ──────────────────
+// Pedido de Miguel (2026-07-26): tres pantallas pintan el mismo capital y las
+// tres fijaban PEN a mano. Una cartera íntegramente en dólares se anunciaba como
+// "S/ 0.00" con el capital real en la letra chica. El criterio vive ahora una
+// sola vez aquí.
+describe('capitalPrincipal — la moneda que manda en el número grande', () => {
+  it('una cartera ÍNTEGRAMENTE en dólares se anuncia en dólares, no como "S/ 0"', () => {
+    const c = capitalPrincipal(0, 40_000)
+    expect(c).toMatchObject({ soloDolares: true, moneda: 'USD', sub: 'USD', otra: null })
+    expect(c.valor).toBe(money(40_000, 'USD'))
+    // El defecto exacto: un "S/ 0.00" enorme con el dinero escondido debajo.
+    expect(c.valor).not.toBe(money(0))
+  })
+
+  it('con soles manda el PEN y el USD se dice aparte — JAMÁS sumados', () => {
+    const c = capitalPrincipal(120_000, 40_000)
+    expect(c).toMatchObject({ soloDolares: false, moneda: 'PEN', otra: 'US$ 40k' })
+    expect(c.valor).toBe(money(120_000))
+    expect(c.sub).toBe('PEN · +US$ 40k')
+    // Los 160 000 mixtos no existen en ninguna parte del chip.
+    expect(c.valor).not.toBe(money(160_000))
+  })
+
+  it('solo soles: no menciona la otra moneda', () => {
+    expect(capitalPrincipal(120_000, 0)).toMatchObject({ soloDolares: false, otra: null, sub: 'PEN' })
+  })
+
+  it('cartera sin montos estimados: PEN en cero (no hay dólares que promover)', () => {
+    const c = capitalPrincipal(0, 0)
+    expect(c).toMatchObject({ soloDolares: false, moneda: 'PEN', sub: 'PEN' })
+    expect(c.valor).toBe(money(0))
+  })
+})
+
+// ── El bucket `sin_avance` y el reloj del DUEÑO ───────────────────────────────
+// Era la única rama de `colaDe` que se había quedado fuera del reloj de tenencia
+// (el resto ya usa `referenciaEspera`): un lead recién asignado entraba el
+// primer día por una antigüedad de etapa HEREDADA del dueño anterior.
+describe('`sin_avance` se le cobra al dueño ACTUAL, no al anterior', () => {
+  // Contactado tiene umbral de 72 h → el bucket dispara al doble: 6 días.
+  // 20 días clavado en la etapa; último contacto real ayer (está muy trabajado,
+  // que es justo el lead que este bucket existe para ver).
+  const clavado = (over: Partial<Lead>) =>
+    colaDe(
+      [lead({ id: 'clavado', etapa: 'contactado', creado_en: haceDias(40), ...over })],
+      [
+        actividad('clavado', 20, { tipo: 'cambio_etapa', detalle: 'nuevo → contactado' }),
+        actividad('clavado', 1, { tipo: 'llamada_realizada' }),
+      ],
+      AHORA,
+    )
+
+  it('el recién asignado NO nace reclamado por una antigüedad heredada', () => {
+    // En manos de este asesor desde hace medio día: la mora de 20 días no es suya.
+    expect(clavado({ tenencia_desde: haceDias(0.5) }).find((i) => i.bucket === 'sin_avance')).toBeUndefined()
+  })
+
+  it('el reloj sí corre con el dueño nuevo: pasado el doble del umbral, dispara', () => {
+    const cola = clavado({ tenencia_desde: haceDias(7) })
+    expect(cola[0]).toMatchObject({ bucket: 'sin_avance', sev: 'media' })
+    // Dispara con el reloj del dueño, pero CUENTA los días reales en la etapa
+    // (un hecho del lead que no se puede reescribir) y dice los dos.
+    expect(cola[0]?.dias).toBeCloseTo(20, 5)
+    expect(cola[0]?.motivo).toContain('hace 20 días en Contactado')
+    expect(cola[0]?.motivo).toContain('hace 7 días con su asesor actual')
+  })
+
+  it('sin transferencia de por medio el motivo no repite relojes', () => {
+    const cola = clavado({ tenencia_desde: haceDias(20) })
+    expect(cola[0]).toMatchObject({ bucket: 'sin_avance' })
+    expect(cola[0]?.motivo).toContain('y se sigue trabajando')
+    expect(cola[0]?.motivo).not.toContain('asesor actual')
+  })
+
+  it('sin el dato (demo o base sin la migración) se comporta como siempre', () => {
+    expect(clavado({})[0]).toMatchObject({ bucket: 'sin_avance' })
   })
 })

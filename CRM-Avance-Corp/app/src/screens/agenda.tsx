@@ -43,6 +43,8 @@ import { SegmentBar, StatStrip, type StatChipData } from '@/components/common/st
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
+import { useEsMovil } from '@/lib/media'
+import { slotHabil } from '@/lib/motor-siguiente'
 import { can, puedeEscribir } from '@/lib/roles'
 import { COLOR_EVENTO, enlaceGoogleCalendar, esDeHoy, fechaLima, LIMA_OFFSET_MS, MESES, tareaAEvento } from '@/lib/agenda-derivada'
 import {
@@ -85,18 +87,48 @@ function statsDe(tareas: Tarea[], ahora: number): StatChipData[] {
   ]
 }
 
-/** Reprogramar rápido: los 3 saltos del plan (posponer sin formulario). */
-const SALTOS: ReadonlyArray<{ label: string; dias: number }> = [
-  { label: '+1d', dias: 1 },
-  { label: '+3d', dias: 3 },
-  { label: '+1sem', dias: 7 },
+/** Reprogramar rápido: los 3 saltos del plan (posponer sin formulario).
+ *  `aria` va aparte del label: "+1d" se lee "más un de" en un lector. */
+const SALTOS: ReadonlyArray<{ label: string; aria: string; dias: number }> = [
+  { label: '+1d', aria: '+1 día', dias: 1 },
+  { label: '+3d', aria: '+3 días', dias: 3 },
+  { label: '+1sem', aria: '+1 semana', dias: 7 },
 ]
+
+/**
+ * Instante de destino de un salto rápido, con la ventana legal ya aplicada.
+ *
+ * La base NO es siempre `vence_en`: sobre una tarea VENCIDA se cuenta desde
+ * AHORA. Sumar sobre su fecha dejaba "+1d" de algo vencido hace 5 días todavía
+ * vencido (hace 4): la tarjeta no salía de la franja de vencidas, el asesor leía
+ * "Reprogramada" y volvía a pulsar — y cada pulsación inútil suma una
+ * `reprogramaciones` (la métrica con la que supervisión lo juzga, visible en la
+ * propia tarjeta como "movida ×N") y borra `confirmada_en`, el anti no-show.
+ *
+ * Sobre una tarea FUTURA la base sigue siendo su propia fecha: posponer "+1d"
+ * una cita del viernes es el sábado, que es lo que el asesor espera al aplazar
+ * algo que aún no vence (y no "mañana", que la ADELANTARÍA).
+ *
+ * `slotHabil` es el mismo normalizador del motor de la siguiente acción: ningún
+ * salto puede aterrizar en domingo ni fuera de 07:00–20:00 (Ley 29571).
+ *
+ * No se exporta (regla `react/only-export-components`: este archivo solo exporta
+ * componentes); se ejercita desde la pantalla en agenda.test.tsx.
+ */
+function destinoSalto(venceEn: string, dias: number, ahora: number): string {
+  const vence = Date.parse(venceEn)
+  // Fecha ilegible (dato corrupto) → se trata como vencida: base = ahora. Sin
+  // esta guarda, un NaN llegaría a new Date(NaN).toISOString() y reventaría.
+  const base = Number.isFinite(vence) && vence > ahora ? vence : ahora
+  return slotHabil(base + dias * 86_400_000)
+}
 
 function TarjetaTarea({
   t,
   lead,
   ahora,
   escribe,
+  esMovil,
   abrirLead,
   onCerrar,
 }: {
@@ -104,6 +136,8 @@ function TarjetaTarea({
   lead: Lead | undefined
   ahora: number
   escribe: boolean
+  /** Táctil: los saltos rápidos se pintan con área de toque, nunca en hover. */
+  esMovil: boolean
   abrirLead: (id: string) => void
   onCerrar: (t: Tarea) => void
 }) {
@@ -117,8 +151,14 @@ function TarjetaTarea({
   const recordatorio = lead && ameritaRecordatorio(t, ahora) ? enlaceRecordatorio(t, lead, ahora) : null
 
   const posponer = (dias: number) => {
-    const res = reprogramarTarea(t.id, new Date(Date.parse(t.vence_en) + dias * 86_400_000).toISOString())
-    if (res.ok) toast.success(`Reprogramada ${dias === 7 ? '+1 semana' : `+${dias} día${dias > 1 ? 's' : ''}`}${yo?.demo ? ' (demo)' : ''}`)
+    const destino = destinoSalto(t.vence_en, dias, ahora)
+    const res = reprogramarTarea(t.id, destino)
+    // El toast nombra el DÍA de destino en vez del salto pedido ("+1d"): si la
+    // base fue AHORA (vencida) o la ventana legal corrió el slot, el asesor lo
+    // ve — nunca vuelve a pulsar creyendo que no pasó nada (patrón de
+    // FilaHigiene en hoy/vendedor.tsx, que ya anuncia "Movida al …").
+    const cuando = tareaAEvento({ ...t, vence_en: destino }, ahora).cuando
+    if (res.ok) toast.success(`Reprogramada — ${cuando}${yo?.demo ? ' (demo)' : ''}`)
     else toast.error(res.error ?? 'No se pudo reprogramar')
   }
 
@@ -129,6 +169,12 @@ function TarjetaTarea({
       aria-label={`Abrir ficha — ${t.titulo}`}
       onClick={() => t.lead_id && abrirLead(t.lead_id)}
       onKeyDown={(e) => {
+        // Solo teclas sobre la TARJETA misma: un Enter/Espacio en un botón
+        // anidado (cerrar, confirmar, +1d…) burbujea hasta aquí, y el
+        // preventDefault le robaría su click nativo — se abría la ficha del
+        // lead en vez de ejecutar el botón que el asesor tenía enfocado.
+        // Mismo guard que FilaHigiene en hoy/vendedor.tsx.
+        if (e.target !== e.currentTarget) return
         if ((e.key === 'Enter' || e.key === ' ') && t.lead_id) {
           e.preventDefault()
           abrirLead(t.lead_id)
@@ -188,13 +234,33 @@ function TarjetaTarea({
             </span>
           )}
           {escribe && (
-            <span className="hidden items-center gap-1 sm:flex">
+            // Reprogramar rápido, SIEMPRE alcanzable. Antes iba `hidden sm:flex`
+            // y en el celular —donde el asesor de calle trabaja— no quedaba
+            // NINGUNA forma de posponer una tarea: en táctil no hay hover ni
+            // ancho ≥ 640 px.
+            <span className="flex items-center gap-1">
               {SALTOS.map((s) => (
                 <button
                   key={s.label}
                   type="button"
-                  title={`Reprogramar ${s.label}`}
-                  className="cursor-pointer rounded-md px-1.5 py-0.5 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                  title={`Reprogramar ${s.aria}`}
+                  aria-label={`Reprogramar ${s.aria} — ${t.titulo}`}
+                  className={cn(
+                    'cursor-pointer rounded-md font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
+                    // Escritorio: discreto, pero nunca por debajo de 24 px de
+                    // alto (mínimo de WCAG 2.5.8 — y aquí el objetivo vive
+                    // DENTRO de otro objetivo, la tarjeta, así que la excepción
+                    // de espaciado no aplica).
+                    'min-h-6 px-1.5 py-0.5 text-[10px]',
+                    // Puntero GRUESO (el dedo) a cualquier ancho: celular en
+                    // horizontal y tablet también son táctiles y no tienen
+                    // hover. Mismo criterio de interacción que usa la fila
+                    // hermana de acciones secundarias (`pointer-coarse:`).
+                    'pointer-coarse:min-h-8 pointer-coarse:px-2 pointer-coarse:py-1.5 pointer-coarse:text-[11px] pointer-coarse:ring-1 pointer-coarse:ring-muted-foreground/40',
+                    // Viewport angosto (incluye la ventana de escritorio a
+                    // ancho de celular, donde el `hidden sm:flex` mordía).
+                    esMovil && 'min-h-8 px-2 py-1.5 text-[11px] ring-1 ring-muted-foreground/40',
+                  )}
                   onClick={(e) => {
                     e.stopPropagation()
                     posponer(s.dias)
@@ -575,6 +641,9 @@ export function Agenda() {
   const { yo } = useAuth()
   const ahora = useAhora()
   const escribe = puedeEscribir(yo?.rol)
+  // Una sola suscripción a matchMedia para TODA la lista (la agenda pinta
+  // decenas de tarjetas): el hook vive aquí y baja como prop.
+  const esMovil = useEsMovil()
   // Supervisor/gerencia/directorio: la agenda se agrupa por PERSONA, no por día
   // — imposible supervisar una lista plana con las tareas de 20 anónimos.
   const verEquipo = can(yo?.rol, 'verEquipo')
@@ -959,6 +1028,7 @@ export function Agenda() {
                       lead={leadPorId(t.lead_id)}
                       ahora={ahora}
                       escribe={escribe}
+                      esMovil={esMovil}
                       abrirLead={abrirLead}
                       onCerrar={setTareaACerrar}
                     />
@@ -1082,6 +1152,7 @@ export function Agenda() {
                               lead={leadPorId(t.lead_id)}
                               ahora={ahora}
                               escribe={escribe}
+                              esMovil={esMovil}
                               abrirLead={abrirLead}
                               onCerrar={setTareaACerrar}
                             />
@@ -1140,6 +1211,7 @@ export function Agenda() {
                         lead={leadPorId(t.lead_id)}
                         ahora={ahora}
                         escribe={escribe}
+                        esMovil={esMovil}
                         abrirLead={abrirLead}
                         onCerrar={setTareaACerrar}
                       />

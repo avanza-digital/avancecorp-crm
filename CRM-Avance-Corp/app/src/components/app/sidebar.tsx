@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type CSSProperties } from 'react'
+import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split,
@@ -131,9 +131,26 @@ export function Sidebar({ vista }: { vista: Vista }) {
       return siguiente
     })
 
+  /**
+   * Cancela el asomo y el repliegue EN VUELO. Se llama antes de programar uno
+   * nuevo (re-disparar no debe dejar temporizadores huérfanos: el ref solo
+   * guarda el último id, así que el anterior ya no se podría cancelar), al
+   * navegar en móvil y al desmontar.
+   */
+  const cancelarTemporizadores = useCallback(() => {
+    window.clearTimeout(abrirRef.current)
+    abrirRef.current = undefined
+    window.clearTimeout(cerrarRef.current)
+    cerrarRef.current = undefined
+  }, [])
+
   const navegar = (destino: Vista) => {
     escribirHash(destino)
     if (esPantallaMovil()) {
+      // En móvil, el toque sobre el menú también dispara mouseEnter → hay un
+      // "asomar" programado que sobrevivía a la navegación y volvía a abrir el
+      // menú ENCIMA de la pantalla recién elegida. Se cancela antes de replegar.
+      cancelarTemporizadores()
       setColapsado(true)
       setAsomando(false)
     }
@@ -141,20 +158,14 @@ export function Sidebar({ vista }: { vista: Vista }) {
 
   const entrar = () => {
     if (!colapsado) return
-    window.clearTimeout(cerrarRef.current)
+    cancelarTemporizadores()
     abrirRef.current = window.setTimeout(() => setAsomando(true), ABRIR_MS)
   }
   const salirHover = () => {
-    window.clearTimeout(abrirRef.current)
+    cancelarTemporizadores()
     cerrarRef.current = window.setTimeout(() => setAsomando(false), CERRAR_MS)
   }
-  useEffect(
-    () => () => {
-      window.clearTimeout(abrirRef.current)
-      window.clearTimeout(cerrarRef.current)
-    },
-    [],
-  )
+  useEffect(() => cancelarTemporizadores, [cancelarTemporizadores])
 
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
   const items = NAV.filter((n) => (leadsVisibles || !esVistaLeads(n.id)) && (!n.cap || can(rol, n.cap)))

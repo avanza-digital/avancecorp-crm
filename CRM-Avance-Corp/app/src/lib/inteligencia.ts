@@ -4,8 +4,12 @@
 // así la misma función sirve para vendedor/supervisor/gerencia/directorio.
 //
 // Los colores salen de lib/semaforo.ts (paleta única, sin verde en el chrome).
-import { ETAPAS, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
+import { ETAPAS, ETAPA_INFO, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, TIPOS_CONVERSACION_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
 import { SEMAFORO } from './semaforo'
+import { money, moneyK, type Moneda } from './format'
+import type { PlanPorLead } from './plan-lead'
+import { entradaEnEtapa } from './antiguedad-etapa'
+import { UMBRAL_ETAPA_MS } from './estancamiento'
 
 export const DIA_MS = 86_400_000
 
@@ -27,6 +31,52 @@ export function capitalPorMoneda(leads: Lead[]): { pen: number; usd: number } {
     else pen += l.monto_estimado ?? 0
   }
   return { pen, usd }
+}
+
+/** Qué dice un chip de capital: el número grande y su letra chica. */
+export interface CapitalPrincipal {
+  /** La cartera es ÍNTEGRAMENTE en dólares → el número grande es el USD. */
+  soloDolares: boolean
+  /** Moneda que manda en el número grande. */
+  moneda: Moneda
+  /** El número grande, ya formateado con su símbolo. */
+  valor: string
+  /**
+   * La OTRA moneda, compacta ("US$ 40k"), cuando también tiene volumen; `null`
+   * si no hay nada que añadir (o si ella misma es la que manda).
+   */
+  otra: string | null
+  /** Subtítulo estándar de moneda: 'PEN' · 'USD' · 'PEN · +US$ 40k'. */
+  sub: string
+}
+
+/**
+ * Qué moneda MANDA en el número grande de un chip de capital, y qué se dice de
+ * la otra.
+ *
+ * EL DEFECTO QUE CIERRA (pedido de Miguel, 2026-07-26). Tres pantallas pintan el
+ * mismo capital y las tres fijaban PEN a mano: una cartera íntegramente en
+ * dólares anunciaba "S/ 0.00" con su capital real escondido en la letra chica —
+ * el chip decía justo lo contrario de lo que el asesor tiene en juego. Cartera y
+ * Pipeline ya lo corrigieron por su cuenta y Hoy se quedó atrás, así que las
+ * pantallas llegaron a contradecirse sobre el MISMO lead. El criterio vive aquí
+ * una sola vez para que eso no pueda volver a pasar.
+ *
+ * REGLA: PEN manda cuando hay soles (es la moneda del negocio); si solo hay
+ * dólares, manda USD; con las dos se muestran las dos, cada una con su símbolo.
+ * PEN y USD JAMÁS se suman ni se convierten para caber en un número.
+ */
+export function capitalPrincipal(pen: number, usd: number): CapitalPrincipal {
+  const soloDolares = pen <= 0 && usd > 0
+  const moneda: Moneda = soloDolares ? 'USD' : 'PEN'
+  const otra = !soloDolares && usd > 0 ? moneyK(usd, 'USD') : null
+  return {
+    soloDolares,
+    moneda,
+    valor: money(soloDolares ? usd : pen, moneda),
+    otra,
+    sub: soloDolares ? 'USD' : otra ? `PEN · +${otra}` : 'PEN',
+  }
 }
 
 // ── Semáforo compartido de avance de meta ─────────────────────────────────────
@@ -71,7 +121,14 @@ export function tendenciaDe(serie: number[], opts?: { mostrarCero?: boolean }): 
 
 // ── Cola de acción ────────────────────────────────────────────────────────────
 
-export type BucketCola = 'sin_responder' | 'propuesta_sin_respuesta' | 'seguimiento' | 'por_repartir'
+export type BucketCola =
+  | 'sin_responder'
+  | 'insistir'
+  | 'propuesta_sin_respuesta'
+  | 'seguimiento'
+  | 'sin_avance'
+  | 'plan_vencido'
+  | 'por_repartir'
 
 export interface ItemCola {
   lead: Lead
@@ -87,8 +144,11 @@ const PESO_SEV: Record<ItemCola['sev'], number> = { critica: 0, media: 1, baja: 
 /** Labels es-PE de los buckets de la cola (antes copiado en vendedor y supervisor). */
 export const BUCKET_LABEL: Record<BucketCola, string> = {
   sin_responder: 'Sin responder',
+  insistir: 'Insistir',
   propuesta_sin_respuesta: 'Propuesta sin respuesta',
   seguimiento: 'Seguimiento',
+  sin_avance: 'Sin avance',
+  plan_vencido: 'Plan vencido',
   por_repartir: 'Por repartir',
 }
 
@@ -180,19 +240,33 @@ function diasSinActividadIndexado(
  * SOLO para la cola de acción. `diasSinActividadMax` y `estancados` siguen
  * midiendo inactividad PURA: sus etiquetas dicen "Última actividad" y mezclar
  * la tenencia ahí las volvería mentira.
+ *
+ * EXPORTADA (2026-07-25) para que el semáforo del kanban use ESTE reloj y no
+ * una copia: dos fórmulas gemelas divergen, y entonces Hoy y Pipeline dan días
+ * distintos sobre el mismo lead y el CRM pierde autoridad.
  */
+export function referenciaEspera(lead: Lead, indice: IndiceUltimaActividad): string {
+  return masReciente(indice.get(lead.id)?.creado_en ?? lead.creado_en, lead.tenencia_desde)
+}
+
+/**
+ * El más reciente de dos instantes ISO, con `b` opcional. Fuente única de la
+ * regla "el reloj del dueño actual nunca corre hacia atrás": ausente o corrupto,
+ * `b` degrada a `a` en vez de romper la cola (Date.parse → NaN y la comparación
+ * da false). La usan los DOS relojes de tenencia: el de la espera
+ * (`referenciaEspera`) y el de la etapa (bucket `sin_avance`).
+ */
+function masReciente(a: string, b: string | null | undefined): string {
+  if (b == null) return a
+  return Date.parse(b) > Date.parse(a) ? b : a
+}
+
 function diasEnEsperaIndexado(
   lead: Lead,
   indice: IndiceUltimaActividad,
   ahora: number,
 ): number {
-  const ultima = indice.get(lead.id)?.creado_en ?? lead.creado_en
-  const tenencia = lead.tenencia_desde
-  if (tenencia == null) return diasDesdeReferencia(ultima, ahora)
-  // NaN si el ISO viniera corrupto → la comparación da false y degradamos a la
-  // referencia de siempre en vez de romper la cola.
-  const referencia = Date.parse(tenencia) > Date.parse(ultima) ? tenencia : ultima
-  return diasDesdeReferencia(referencia, ahora)
+  return diasDesdeReferencia(referenciaEspera(lead, indice), ahora)
 }
 
 /**
@@ -212,6 +286,7 @@ export function diasSinActividad(lead: Lead, acts: Actividad[], ahora: number = 
  *  - vendedor_id null → por_repartir (crítica) — solo la ven supervisor/gerencia
  *    porque el ámbito del vendedor nunca incluye parkeados.
  *  - nuevo SIN NINGÚN CONTACTO → sin_responder (crítica si ≥1 día; media antes).
+ *  - nuevo YA INTENTADO ≥1 día → insistir (media).
  *  - propuesta_enviada sin contacto ≥5 días → propuesta_sin_respuesta (media).
  *  - contactado/reunion_agendada sin contacto ≥3 días → seguimiento (baja).
  *
@@ -226,12 +301,16 @@ export function colaDe(
   leads: Lead[],
   acts: Actividad[],
   ahora: number = Date.now(),
-  // Leads con tarea PENDIENTE en la agenda (Fase B): los buckets por
-  // INACTIVIDAD (seguimiento/propuesta) pasan a ser el FALLBACK de quien no
-  // tiene plan — un lead con tarea futura ya tiene dueño de su siguiente paso.
+  // Plan de cada lead (lib/plan-lead.ts). Los buckets por INACTIVIDAD
+  // (seguimiento/propuesta/insistir) son el FALLBACK de quien no tiene plan
+  // VIVO — un lead con tarea futura ya tiene dueño de su siguiente paso.
   // Asignación (por_repartir) y speed-to-lead (sin_responder) se mantienen
   // SIEMPRE: son estados de tenencia/primer contacto, no de planificación.
-  conTareaPendiente?: ReadonlySet<string>,
+  //
+  // ⚠️ `vigente`, NO "tiene alguna tarea": una tarea pendiente que venció hace
+  // dos semanas NO es un plan. Antes lo era, y el lead se escondía de la cola
+  // detrás de una promesa incumplida — cuanto más se abandonaba, más invisible.
+  plan?: Pick<PlanPorLead, 'vigente' | 'vencido'>,
 ): ItemCola[] {
   const items: ItemCola[] = []
   // El índice se construye AQUÍ DENTRO a propósito: antes se aceptaba uno ya
@@ -248,7 +327,21 @@ export function colaDe(
     // diasEnEsperaIndexado). Sin dueño, `tenencia_desde` es null y esto es
     // exactamente lo de siempre.
     const dias = diasEnEsperaIndexado(lead, indice, ahora)
-    const tienePlan = conTareaPendiente?.has(lead.id) === true
+    const tienePlan = plan?.vigente.has(lead.id) === true
+    const desdeEtapa = entradaEnEtapa(lead, acts)
+    const umbralEtapa = UMBRAL_ETAPA_MS[lead.etapa]
+    const diasEnEtapa = desdeEtapa ? diasDesdeReferencia(desdeEtapa, ahora) : 0
+    // EL MISMO reloj de dueño de `diasEnEsperaIndexado`, aplicado a la etapa
+    // (alineación pedida por Miguel, 2026-07-26). El estancamiento de etapa se
+    // le cobra a quien tiene el lead AHORA: un lead clavado 20 días en
+    // Contactado y reasignado ayer disparaba "o avanza o se cierra" en el primer
+    // día del nuevo asesor, con una antigüedad HEREDADA del dueño anterior — la
+    // misma injusticia que ya se corrigió en el resto de la cola. Era la única
+    // rama que se había quedado fuera de ese reloj. Sin `tenencia_desde` (demo,
+    // o base sin la migración) esto es exactamente el comportamiento de siempre.
+    const diasEtapaDueno = desdeEtapa
+      ? diasDesdeReferencia(masReciente(desdeEtapa, lead.tenencia_desde), ahora)
+      : 0
     if (lead.vendedor_id == null) {
       items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo` })
     } else if (lead.etapa === 'nuevo' && !ultima) {
@@ -262,12 +355,100 @@ export function colaDe(
         ? `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
         : `Entró ${haceTexto(dias)} y nadie lo ha contactado`
       items.push({ lead, bucket: 'sin_responder', sev: dias >= 1 ? 'critica' : 'media', dias, motivo })
+    } else if (desdeEtapa && umbralEtapa != null && ultima && diasEtapaDueno * DIA_MS >= umbralEtapa * 2) {
+      // RELOJ DE ETAPA — va ANTES del atajo `tienePlan` a propósito: una tarea
+      // viva es un plan para el PRÓXIMO TOQUE, no un plan para AVANZAR. El lead
+      // clavado tres semanas en la misma etapa, al que se sigue llamando cada
+      // dos días, tenía siempre plan vigente y por eso este bucket no se podía
+      // disparar nunca. `estancados` tampoco lo ve: mide inactividad, y este
+      // está muy activo. Es justo el que consume tiempo sin avanzar.
+      //
+      // DISPARA con el reloj del DUEÑO (`diasEtapaDueno`) y CUENTA con el de la
+      // etapa (`diasEnEtapa`): cuándo es justo reclamar depende de hace cuánto
+      // el lead es tuyo, pero los días clavado en la etapa son un hecho del lead
+      // y no se pueden reescribir. Cuando los dos relojes difieren de verdad
+      // (≥1 día) el motivo dice LOS DOS — mismo criterio que `sin_responder` e
+      // `insistir`, y redacción neutra porque esta cola también la leen
+      // supervisor y gerencia sobre leads ajenos.
+      items.push({
+        lead,
+        bucket: 'sin_avance',
+        sev: 'media',
+        dias: diasEnEtapa,
+        motivo: diasEnEtapa - diasEtapaDueno >= 1
+          ? `Lleva ${haceTexto(diasEnEtapa)} en ${ETAPA_INFO[lead.etapa].label} · ${haceTexto(diasEtapaDueno)} con su asesor actual — o avanza o se cierra`
+          : `Lleva ${haceTexto(diasEnEtapa)} en ${ETAPA_INFO[lead.etapa].label} y se sigue trabajando — o avanza o se cierra`,
+      })
     } else if (tienePlan) {
       continue // tiene próxima acción agendada: su cola es la agenda, no esta
+    } else if (lead.etapa === 'nuevo' && ultima && dias >= 1) {
+      // EL AGUJERO QUE ESTA RAMA TAPA (auditoría 2026-07-25, verificado en prod):
+      // un lead en `nuevo` al que alguien YA intentó contactar no caía en NINGÚN
+      // bucket — `sin_responder` exige `!ultima`, y los otros tres solo miran
+      // `contactado`/`reunion_agendada`/`propuesta_enviada`. Bastaba pulsar
+      // "No contestó" una vez para que el lead se evaporara de la cola y no
+      // volviera nunca. Es la mitad complementaria del avance automático de
+      // etapa: el que SÍ contesta sube a `contactado` y reaparece por
+      // seguimiento; el que NO contesta se queda en `nuevo`, y sin esta rama se
+      // quedaría además invisible.
+      //
+      // Va DESPUÉS de `tienePlan` a propósito: quien ya tiene su WhatsApp
+      // agendado para mañana vive en la agenda, no aquí (si no, doble aviso).
+      // Y exige ≥1 día: reaparecer el mismo día se lee como ruido.
+      const hablo = TIPOS_CONVERSACION_K.has(ultima.tipo)
+      // El intento se fecha con SU PROPIO reloj, no con el de la tenencia: un
+      // lead reasignado hace 3 días cuyo único intento fue hace 9 decía
+      // "Intentado hace 3 días", que es sencillamente falso. Cuando los dos
+      // relojes difieren, se dicen los dos (mismo criterio que sin_responder).
+      const diasIntento = diasDesdeReferencia(ultima.creado_en, ahora)
+      const dosRelojes = diasIntento - dias >= 1
+      items.push({
+        lead,
+        bucket: 'insistir',
+        sev: 'media',
+        dias,
+        // Dos motivos porque hay dos historias distintas, y ninguna puede
+        // mentir. El segundo caso solo existe con datos anteriores al avance
+        // automático (o si el trigger no llegó a correr): el lead habló pero
+        // sigue en `nuevo`, y lo que toca no es insistir sino moverlo.
+        motivo: hablo
+          ? `Ya hablaron ${haceTexto(diasIntento)} pero sigue en Nuevo — muévelo de etapa`
+          : dosRelojes
+            ? `En tus manos ${haceTexto(dias)} · último intento ${haceTexto(diasIntento)} — cambia de canal`
+            : `Intentado ${haceTexto(diasIntento)} y aún no responde — cambia de canal`,
+      })
     } else if (lead.etapa === 'propuesta_enviada' && dias >= 5) {
       items.push({ lead, bucket: 'propuesta_sin_respuesta', sev: 'media', dias, motivo: `Propuesta enviada sin movimiento ${haceTexto(dias)}` })
     } else if ((lead.etapa === 'contactado' || lead.etapa === 'reunion_agendada') && dias >= 3) {
       items.push({ lead, bucket: 'seguimiento', sev: 'baja', dias, motivo: `Sin actividad ${haceTexto(dias)} — toca retomar el seguimiento` })
+    } else {
+      // RESIDUO, y por eso va AL FINAL de la cadena. Al quitarle el escudo al
+      // lead, lo normal es que vuelva por su propio pie al bucket que le toca
+      // por inactividad (insistir / propuesta / seguimiento), con su motivo y
+      // su severidad correctos. Esta rama solo captura al que no cae en
+      // ninguno: el trabajado hace poco cuya tarea de la semana pasada sigue
+      // abierta. Sin ella, volvería a ser invisible.
+      //
+      // Si `plan_vencido` fuera PRIMERO, un `propuesta_enviada` con 10 días
+      // muertos se degradaría de 'media' a 'baja' y su motivo pasaría de
+      // "propuesta sin movimiento" a "tienes una tarea sin cerrar" — nadie
+      // contacta a nadie por cerrar una tarea.
+      // RELOJ DE ETAPA: el lead que SÍ recibe toques pero lleva el doble de su
+      // plazo clavado en la misma etapa. No lo ve ninguna otra señal —
+      // `estancados` y los buckets de arriba miden INACTIVIDAD, y este está
+      // muy activo. Es justo el que consume tiempo del asesor sin avanzar:
+      // hay que rescatarlo o cerrarlo, no seguir tocándolo.
+      const muerta = plan?.vencido.get(lead.id)
+      if (muerta) {
+        const diasMuerta = diasDesdeReferencia(muerta.vence_en, ahora)
+        items.push({
+          lead,
+          bucket: 'plan_vencido',
+          sev: 'baja',
+          dias: diasMuerta,
+          motivo: `«${muerta.titulo}» venció ${haceTexto(diasMuerta)} y sigue abierta — ciérrala o reprográmala`,
+        })
+      }
     }
   }
   return items.sort((a, b) => PESO_SEV[a.sev] - PESO_SEV[b.sev] || b.dias - a.dias)

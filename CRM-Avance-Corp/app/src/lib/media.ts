@@ -35,3 +35,36 @@ export function useMediaQuery(consulta: string): boolean {
 export function useEsMovil(): boolean {
   return useMediaQuery(CONSULTA_MOVIL)
 }
+
+/**
+ * "Este aparato PUEDE marcar", que NO es lo mismo que "la pantalla es chica".
+ *
+ * El criterio es de INTERACCIÓN, no de ancho: `hover: none` + `pointer: coarse`
+ * describen el puntero PRIMARIO del dispositivo —el dedo— y solo son ciertos en
+ * teléfono y tablet. Una laptop con la ventana a media pantalla, con devtools
+ * abiertas o en split-screen sigue siendo `hover: hover` + `pointer: fine`, así
+ * que el escritorio conserva intacto su copiar-al-portapapeles. Por eso NO se
+ * reutiliza CONSULTA_MOVIL: con un max-width a secas, media laptop del equipo
+ * se volvería "celular" y el asesor perdería el número copiado.
+ *
+ * El segundo filtro mira el LADO CORTO del viewport, no el ancho: el ancho
+ * cambia al ROTAR y con `max-width` a secas el mismo celular perdía el marcador
+ * en horizontal (932×430) mientras un iPad vertical (744×1133) sí recibía un
+ * `tel:` muerto — un iPad cumple `hover:none`+`pointer:coarse` pero no tiene
+ * radio. Con `(max-width: 500px) or (max-height: 500px)` entran los teléfonos
+ * en las dos orientaciones y quedan fuera las tablets.
+ *
+ * Por qué NO user-agent: el UA miente por diseño (el "modo escritorio" de
+ * Chrome Android; iPadOS se anuncia como Macintosh desde iOS 13) y
+ * `navigator.userAgentData.mobile` solo existe en Chromium → falso negativo en
+ * TODO Safari, o sea en media flota. Si un navegador no entiende estas
+ * features la consulta es inválida y `matches` da false: el fallback es
+ * escritorio, que es exactamente el comportamiento de siempre.
+ */
+export const CONSULTA_PUEDE_MARCAR =
+  '(hover: none) and (pointer: coarse) and ((max-width: 500px) or (max-height: 500px))'
+
+/** ¿El aparato marca solo (celular)? Reactivo: acoplar un mouse lo cambia. */
+export function usePuedeMarcar(): boolean {
+  return useMediaQuery(CONSULTA_PUEDE_MARCAR)
+}

@@ -22,6 +22,26 @@ export const ERROR_TIMEOUT = 'No pudimos cargar tu sesión. Revisa tu conexión 
 /** Presupuesto máximo de una verificación (getUser + resolución de rol). */
 export const LIMITE_VERIFICACION_MS = 12_000
 
+/**
+ * Esperas del reintento SILENCIOSO cuando una revalidación no pudo PREGUNTAR
+ * (red caída / servidor inalcanzable). Backoff corto→largo: un parpadeo de wifi
+ * se recupera casi al instante y una caída larga no machaca al servidor.
+ *
+ * POR QUÉ existe: "el servidor dice que no hay sesión" y "no pude preguntar" no
+ * son lo mismo. Lo primero es un hecho y cierra la sesión; lo segundo es
+ * ignorancia y, si se trata como cierre, un parpadeo de red al volver a la
+ * pestaña EXPULSA al asesor al Login con la conversión a medio llenar. No
+ * abre ningún dato de más: la autoridad sigue siendo la RLS del servidor, así
+ * que una sesión de verdad muerta no puede leer nada aunque la UI siga montada.
+ */
+export const ESPERAS_REVALIDACION_MS = [3_000, 10_000, 30_000] as const
+
+/** Espera del intento N (1-based), acotada al último tramo del backoff. */
+function esperaRevalidacionDe(intento: number): number {
+  const indice = Math.min(Math.max(intento, 1), ESPERAS_REVALIDACION_MS.length) - 1
+  return ESPERAS_REVALIDACION_MS[indice] ?? ESPERAS_REVALIDACION_MS[0]
+}
+
 /** Resultado de verificar sesión + rol contra el servidor. */
 export type ResultadoVerificacion =
   | { tipo: 'sin_sesion' }
@@ -47,6 +67,11 @@ export interface ContextoAuth {
   arrancando: boolean
   /** Evita notificar la limpieza de caché dos veces seguidas. */
   limpiezaNotificada: boolean
+  /**
+   * Revalidaciones seguidas que NO pudieron preguntar (red). Elige la espera
+   * del backoff y se reinicia en cuanto el servidor vuelve a contestar.
+   */
+  reintentosRevalidacion: number
 }
 
 export interface InputAuth {
@@ -70,6 +95,10 @@ export const authMaquina = setup({
     verificar: fromPromise<ResultadoVerificacion, { verificar: Verificar }>(({ input }) =>
       input.verificar(),
     ),
+  },
+  delays: {
+    // Espera del reintento silencioso: crece con los fallos consecutivos.
+    esperaRevalidacion: ({ context }) => esperaRevalidacionDe(context.reintentosRevalidacion),
   },
   actions: {
     limpiarIdentidad: assign(({ context }) => {
@@ -103,6 +132,8 @@ export const authMaquina = setup({
         error: null,
         arrancando: false,
         limpiezaNotificada: false,
+        // El servidor contestó: el backoff de red vuelve a cero.
+        reintentosRevalidacion: 0,
       }
     }),
   },
@@ -117,6 +148,9 @@ export const authMaquina = setup({
     },
     sinUsuario: ({ event }) =>
       (event as Extract<EventoAuth, { type: 'SESION_CAMBIO' }>).userId == null,
+    /** ¿Queda presupuesto de reintentos silenciosos para esta caída de red? */
+    puedeReintentarRevalidacion: ({ context }) =>
+      context.reintentosRevalidacion < ESPERAS_REVALIDACION_MS.length,
   },
 }).createMachine({
   id: 'auth',
@@ -128,6 +162,7 @@ export const authMaquina = setup({
     ultimoUser: null,
     arrancando: true,
     limpiezaNotificada: false,
+    reintentosRevalidacion: 0,
   }),
   initial: 'verificando',
   // SALIR gana SIEMPRE: salir de `verificando`/`revalidando` cancela el actor
@@ -185,6 +220,10 @@ export const authMaquina = setup({
         },
       },
       on: {
+        // Reintento EXPLÍCITO del usuario mientras se verifica (la salida del
+        // splash atascado): reinicia la verificación en vez de caer en saco
+        // roto. `reenter` cancela la anterior — no quedan dos en vuelo.
+        REINTENTAR: { target: 'verificando', reenter: true, actions: assign({ error: null }) },
         // Cambio de cuenta a mitad de verificación: reinicia el actor (reenter
         // cancela el invoke anterior — su respuesta ya no puede aplicar).
         SESION_CAMBIO: [
@@ -196,30 +235,66 @@ export const authMaquina = setup({
 
     // Igual que `verificando` pero silencioso: la fase pública sigue 'listo'
     // (revalidación al volver a la pestaña — sin parpadeo de spinner).
+    //
+    // DIFERENCIA CLAVE con `verificando`: aquí ya hay una sesión CONFIRMADA por
+    // el servidor. Solo una respuesta del servidor puede quitarla:
+    //  · 'sin_sesion' / 'no_enrolado'  → el servidor HABLÓ: se cierra (fail-closed).
+    //  · error de red o timeout        → NO pudimos preguntar: se CONSERVA la
+    //    sesión y se reintenta sola. Tratar la ignorancia como cierre expulsaba
+    //    al asesor al Login con la conversión a medio llenar (bug 2026-07-25).
     revalidando: {
       invoke: {
         src: 'verificar',
         input: ({ context }) => ({ verificar: context.verificar }),
         onDone: [
-          { guard: 'esSinSesion', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null })] },
-          { guard: 'esNoEnrolado', target: 'no_enrolado', actions: 'limpiarIdentidad' },
+          { guard: 'esSinSesion', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null, reintentosRevalidacion: 0 })] },
+          { guard: 'esNoEnrolado', target: 'no_enrolado', actions: ['limpiarIdentidad', assign({ reintentosRevalidacion: 0 })] },
           { target: 'listo', actions: 'aplicarResultado' },
         ],
-        onError: {
-          target: 'error',
-          actions: ['limpiarIdentidad', assign(({ event }) => ({ error: mensajeDeError((event as { error: unknown }).error, ERROR_SESION) }))],
-        },
+        onError: [
+          {
+            guard: 'puedeReintentarRevalidacion',
+            target: 'revalidacion_diferida',
+            actions: assign(({ context }) => ({ reintentosRevalidacion: context.reintentosRevalidacion + 1 })),
+          },
+          // Agotado el backoff: la sesión SIGUE viva y la pantalla intacta. El
+          // contador se reinicia para que el próximo foco/REVALIDAR (o el
+          // regreso de la red) vuelva a tener su presupuesto completo.
+          { target: 'listo', actions: assign({ reintentosRevalidacion: 0 }) },
+        ],
       },
       after: {
-        [LIMITE_VERIFICACION_MS]: {
-          target: 'error',
-          actions: ['limpiarIdentidad', assign({ error: ERROR_TIMEOUT })],
-        },
+        // Un cuelgue tampoco es "no hay sesión": mismo trato que el fallo de red.
+        [LIMITE_VERIFICACION_MS]: [
+          {
+            guard: 'puedeReintentarRevalidacion',
+            target: 'revalidacion_diferida',
+            actions: assign(({ context }) => ({ reintentosRevalidacion: context.reintentosRevalidacion + 1 })),
+          },
+          { target: 'listo', actions: assign({ reintentosRevalidacion: 0 }) },
+        ],
       },
       on: {
         SESION_CAMBIO: [
           { guard: 'sinUsuario', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null })] },
           { guard: 'esOtroUsuario', target: 'verificando', reenter: true, actions: ['limpiarIdentidad', assign(({ event }) => ({ ultimoUser: (event as Extract<EventoAuth, { type: 'SESION_CAMBIO' }>).userId }))] },
+        ],
+      },
+    },
+
+    // Sala de espera del reintento silencioso: identidad INTACTA, fase pública
+    // 'listo' (el asesor sigue trabajando y no se entera de nada). Al vencer la
+    // espera se vuelve a preguntar; SALIR/SESION_CAMBIO siguen mandando.
+    revalidacion_diferida: {
+      after: {
+        esperaRevalidacion: { target: 'revalidando' },
+      },
+      on: {
+        // Volver a la pestaña (o un gesto explícito) no espera al backoff.
+        REVALIDAR: { target: 'revalidando' },
+        SESION_CAMBIO: [
+          { guard: 'sinUsuario', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null, reintentosRevalidacion: 0 })] },
+          { guard: 'esOtroUsuario', target: 'verificando', actions: ['limpiarIdentidad', assign(({ event }) => ({ ultimoUser: (event as Extract<EventoAuth, { type: 'SESION_CAMBIO' }>).userId, reintentosRevalidacion: 0 }))] },
         ],
       },
     },
@@ -257,10 +332,84 @@ export const authMaquina = setup({
 
     error: {
       on: {
+        // Gesto EXPLÍCITO («Reintentar verificación»): el asesor pidió el
+        // reintento, así que sí se le enseña el spinner.
         REINTENTAR: { target: 'verificando', actions: assign({ error: null }) },
+        // Volver a la pestaña con la app en error también reintenta: si el
+        // servidor ya volvió, el asesor recupera su sesión sin tocar nada.
+        // Pero EN SILENCIO (ver `revalidando_error`): nadie pidió esto, así que
+        // no puede desmontar el Login que el asesor está llenando.
+        REVALIDAR: { target: 'revalidando_error' },
         SESION_CAMBIO: [
           { guard: 'sinUsuario', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null })] },
-          { guard: 'esOtroUsuario', target: 'verificando', actions: assign(({ event }) => ({ ultimoUser: (event as Extract<EventoAuth, { type: 'SESION_CAMBIO' }>).userId, error: null })) },
+          // OJO: aquí NO se filtra por `esOtroUsuario`. Tras un error, `ultimoUser`
+          // conserva al usuario de la sesión caída, así que volver a entrar con la
+          // MISMA cuenta llegaba como "eco" y se descartaba: el botón «Entrar»
+          // quedaba muerto y solo se salía recargando a mano (bug 2026-07-25).
+          // En `error` no hay identidad viva que proteger de ecos — cualquier
+          // sesión anunciada es una orden de re-verificar.
+          {
+            target: 'verificando',
+            reenter: true,
+            actions: assign(({ event }) => ({
+              ultimoUser: (event as Extract<EventoAuth, { type: 'SESION_CAMBIO' }>).userId,
+              error: null,
+            })),
+          },
+        ],
+      },
+    },
+
+    // Re-verificación SILENCIOSA con la app en `error`: la misma pregunta que
+    // `verificando`, pero la fase pública sigue siendo 'error' (ver `faseDe`).
+    //
+    // POR QUÉ existe: en `error` la pantalla montada es el LOGIN. Mandar el
+    // REVALIDAR del focus/visibilitychange a `verificando` cambiaba la fase a
+    // 'resolviendo' → App pintaba el splash → el Login se DESMONTABA y volver a
+    // la pestaña borraba el correo y la clave a medio teclear (regresión
+    // 2026-07-25). El reintento automático se conserva entero; lo único que
+    // cambia es que ya no se ve — que es justo lo que "silencioso" significa.
+    // El error del contexto NO se limpia al entrar: el aviso sigue en pantalla
+    // hasta que haya respuesta (sin parpadeo), y solo un resultado lo cambia.
+    revalidando_error: {
+      invoke: {
+        src: 'verificar',
+        input: ({ context }) => ({ verificar: context.verificar }),
+        onDone: [
+          { guard: 'esSinSesion', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null })] },
+          { guard: 'esNoEnrolado', target: 'no_enrolado', actions: ['limpiarIdentidad', assign({ error: null })] },
+          { target: 'listo', actions: 'aplicarResultado' },
+        ],
+        // Sigue sin poder verificarse: se vuelve al error de siempre (mismo
+        // Login, mismo aviso) y el próximo foco lo intentará otra vez.
+        onError: {
+          target: 'error',
+          actions: assign(({ event }) => ({
+            error: mensajeDeError((event as { error: unknown }).error, ERROR_SESION),
+          })),
+        },
+      },
+      after: {
+        [LIMITE_VERIFICACION_MS]: { target: 'error', actions: assign({ error: ERROR_TIMEOUT }) },
+      },
+      on: {
+        // El gesto explícito manda sobre el silencioso (reenter cancela el
+        // actor en vuelo: no quedan dos verificaciones vivas).
+        REINTENTAR: { target: 'verificando', reenter: true, actions: assign({ error: null }) },
+        SESION_CAMBIO: [
+          { guard: 'sinUsuario', target: 'anon', actions: ['limpiarIdentidad', assign({ ultimoUser: null, error: null })] },
+          // Igual que en `error` y por el mismo motivo: sin filtro `esOtroUsuario`.
+          // Aquí tampoco hay identidad viva que proteger de ecos, y el botón
+          // «Entrar» con la MISMA cuenta debe funcionar aunque el reintento
+          // silencioso esté en vuelo.
+          {
+            target: 'verificando',
+            reenter: true,
+            actions: assign(({ event }) => ({
+              ultimoUser: (event as Extract<EventoAuth, { type: 'SESION_CAMBIO' }>).userId,
+              error: null,
+            })),
+          },
         ],
       },
     },
@@ -268,14 +417,30 @@ export const authMaquina = setup({
 })
 
 /** Fase pública (contrato de auth-context) derivada del estado de la máquina. */
-export type EstadoAuth = 'verificando' | 'revalidando' | 'anon' | 'listo' | 'no_enrolado' | 'error'
+export type EstadoAuth =
+  | 'verificando'
+  | 'revalidando'
+  | 'revalidacion_diferida'
+  | 'revalidando_error'
+  | 'anon'
+  | 'listo'
+  | 'no_enrolado'
+  | 'error'
 
 export function faseDe(estado: EstadoAuth, contexto: Pick<ContextoAuth, 'arrancando'>): 'init' | 'anon' | 'resolviendo' | 'listo' | 'no_enrolado' | 'error' {
   switch (estado) {
     case 'verificando':
       return contexto.arrancando ? 'init' : 'resolviendo'
     case 'revalidando':
-      return 'listo' // silenciosa: sin parpadeo de spinner
+    case 'revalidacion_diferida':
+      // Silenciosas: la sesión confirmada sigue en pie mientras se re-pregunta
+      // (o se espera a que vuelva la red). Ni spinner ni Login.
+      return 'listo'
+    case 'revalidando_error':
+      // También silenciosa, pero desde el otro lado: la pantalla montada es el
+      // Login. Mantener la fase en 'error' es lo que impide desmontarlo (y
+      // perder lo que el asesor ya tecleó) mientras se re-pregunta.
+      return 'error'
     default:
       return estado
   }
