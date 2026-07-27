@@ -59,6 +59,40 @@ npm run test:rls
 Ejecuta siempre el seed antes del gate. El seed es idempotente: sincroniza las
 cuentas demo, perfiles, jerarquia y fixtures conocidos.
 
+### ⚠️ El GATE, en cambio, NO es re-ejecutable sobre la misma base
+
+El seed es idempotente; **el gate no**. Sus fixtures transitorios nacen con
+`randomUUID()` en cada corrida (`TRANSIENT_IDS` de `fixtures.mjs`) y el teardown
+solo los **desactiva**, no los borra. La segunda corrida se encuentra los de la
+primera y las aserciones que cuentan filas —`directorio ve N lead(s)` y su
+gemela de conjunto exacto— fallan por acumulacion, no por un defecto real.
+
+Paso de verdad el 2026-07-27: una rama con el gate corrido dos veces dio
+**2 de 355 fallidas**, ambas de este tipo (7 demo + 23 residuos = 30 vistos).
+
+Si necesitas correrlo otra vez sobre la MISMA rama, limpia antes los residuos.
+El ledger `crm.lead_asignaciones` va primero (FK `RESTRICT`) y con DOS triggers
+apagados por nombre — el de auditoria y `trg_lead_asignaciones_00_inmutables`,
+que si no aborta con «Los episodios de asignacion no se eliminan»:
+
+```sql
+begin;
+alter table crm.lead_asignaciones disable trigger trg_audit_lead_asignaciones;
+alter table crm.lead_asignaciones disable trigger trg_lead_asignaciones_00_inmutables;
+delete from crm.lead_asignaciones la using crm.leads l
+ where la.lead_id = l.id and l.nombre_completo like '%TRANSIENT%';
+delete from crm.leads where nombre_completo like '%TRANSIENT%';  -- tareas y actividades caen por CASCADE
+alter table crm.lead_asignaciones enable trigger trg_audit_lead_asignaciones;
+alter table crm.lead_asignaciones enable trigger trg_lead_asignaciones_00_inmutables;
+-- Y las tareas transitorias colgadas de leads DEMO, que no caen por cascade:
+alter table crm.tareas disable trigger trg_audit_tareas;
+delete from crm.tareas where titulo like '%TRANSIENT%';
+alter table crm.tareas enable trigger trg_audit_tareas;
+commit;
+```
+
+Solo contra una RAMA desechable, nunca contra produccion.
+
 ## Matriz determinista
 
 | Sesion | Leads esperados |
