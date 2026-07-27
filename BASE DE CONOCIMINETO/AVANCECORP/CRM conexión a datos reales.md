@@ -101,10 +101,26 @@ servidor está en §Pendientes.
 **Para que la fuerza de ventas trabaje SOLO en el CRM** (decisión de Miguel), falta portar del área de
 analista del portal. Verificado: el analista NUNCA tuvo pagos/documentos/novedades/conciliación/
 renovaciones (eso es de admin) → apagar su pantalla no pierde nada de eso. Lo que sí falta:
-1. 🔴 **BLOQUEANTE — datos bancarios.** El CRM crea el cliente **sin cuenta bancaria**; el portal exige al
-   menos una (PEN/USD) porque sin ella **no se le puede depositar el interés** (sale "datos bancarios
-   incompletos" en el Excel de pagos). La ruta ya está abierta en prod → se pueden crear clientes así.
-   *Sin comprobar: si ya existen clientes creados desde el CRM sin cuenta.*
+1. ✅ **CERRADO 2026-07-27 — datos bancarios.** *(Estado real al reabrirlo: el formulario y la regla
+   "al menos una cuenta" YA existían desde el `dddca46` del 2026-07-17 — esta nota se quedó vieja. Lo
+   que seguía roto era otra cosa, y peor: la regla vivía **solo en el navegador** y las 14 columnas se
+   escribían en un **SEGUNDO UPDATE**, después de crear la cuenta de Auth y de mandar el correo de
+   bienvenida. Un POST directo con sesión de vendedor, un bundle viejo o un fallo de red dejaban un
+   cliente REAL, con su correo ya enviado, sin cuenta donde cobrar — el código incluso tenía un aviso
+   terminal dedicado a ese estado, o sea que se sabía que pasaba.)*
+   **Ahora la frontera es del SERVIDOR y las columnas entran en el MISMO INSERT del cliente:**
+   `_shared/bancarios.mjs` (módulo puro, 19 tests con `node --test`, espejo campo por campo de
+   `app/src/lib/cliente-form-logica.ts`) lo usan las DOS puertas de alta —`crm-convertir-lead` (lo
+   **exige**, fail-closed) y `crear-cliente` (**opcional**, para que el portal siga byte-idéntico)—.
+   Desaparece el segundo paso y con él el estado "creado sin bancarios". Comprobado en prod: **0
+   clientes creados desde el CRM hasta hoy**, así que no hubo nada que reparar. `importar-clientes`
+   (la 3ª puerta, del portal) ya exigía banco/tipo/número/CCI desde siempre.
+   ⚠️ **Queda un hueco ADYACENTE, sin cerrar y con decisión pendiente de Miguel:** *corregir* sigue
+   siendo un `PATCH` crudo a `public.perfiles` bajo RLS (`actualizarClientePortal`), así que el mismo
+   asesor que creó al cliente puede, dentro de su ventana de 5 h, dejar las 14 columnas en NULL con
+   una llamada a mano — la regla "al menos una" ahí sigue viviendo solo en el navegador. Cerrarlo de
+   verdad exige un **trigger/CHECK en `public.perfiles`**, que es tabla del PORTAL en producción y
+   necesita su OK explícito (y ojo: un CHECK a secas rompería filas legacy sin cuenta).
 2. **Corregir** cliente/contrato (el portal les da 5 h de autoservicio; el CRM no tiene nada).
 3. **Ver detalle + cronograma** del propio cliente (permiso ya dado en BD; es solo pantalla).
 4. **Pantalla de clientes** en el CRM (hoy "Cartera" es de LEADS; convertido el lead, el cliente desaparece)
