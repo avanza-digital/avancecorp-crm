@@ -2,11 +2,12 @@
 // del modal #modalCliente del panel del analista (public_html/admin/analista.html
 // + js/admin/analista.js), campo por campo y validación por validación.
 //
-// Flujo del ALTA (2 pasos, como el portal):
-//   1) edge crear-cliente (Auth + perfil + correo REAL de bienvenida; clave
-//      temporal = documento con ceros a 8) vía crearClientePortal.
-//   2) los BANCARIOS (la edge no los acepta) vía actualizarClientePortal.
-//   Si el paso 2 falla: aviso honesto y NO se encadena al contrato.
+// Flujo del ALTA (UN paso desde 2026-07-27): la edge crear-cliente crea Auth +
+//   perfil CON sus cuentas bancarias en el mismo INSERT y manda el correo REAL de
+//   bienvenida (clave temporal = documento con ceros a 8), vía crearClientePortal.
+//   Antes eran DOS pasos y los bancarios iban en un UPDATE posterior: si ese paso
+//   fallaba quedaba un cliente real, con su correo ya enviado, sin cuenta donde
+//   cobrar el interés. La regla "al menos una cuenta" ahora la exige el servidor.
 // Flujo de CORREGIR: obtenerClienteDetalle precarga TODO; el UPDATE va por RLS
 //   con ventana de 5 h — si venció, el servidor devuelve 0 filas SIN error →
 //   actualizarClientePortal da `false` y JAMÁS se dice "guardado".
@@ -44,8 +45,6 @@ import {
 // los E2E y el equipo los reconocen tal cual).
 const MSG_VENTANA_VENCIDA =
   'La ventana de corrección venció: los cambios NO se guardaron. Pide el cambio a administración.'
-const MSG_BANCARIOS_NO_GUARDADOS =
-  'pero los datos bancarios NO se guardaron — corrígelo ahora (tienes 5 horas).'
 
 export interface ClienteFormProps {
   modo: 'crear' | 'corregir'
@@ -57,8 +56,8 @@ export interface ClienteFormProps {
   /**
    * Notifica cuando hay un envío en vuelo. El caller DEBE bloquear el cierre del
    * Dialog mientras sea true: Radix cierra con Esc/overlay incondicionalmente, y
-   * un cierre a mitad del alta de 2 pasos pierde el aviso de "creado sin
-   * bancarios" (el cliente ya existe y el correo ya salió).
+   * un cierre a mitad del alta perdería el resultado de una operación que ya
+   * está corriendo en el servidor (cuenta creada + correo de bienvenida).
    */
   onEnviandoCambio?: (enviando: boolean) => void
 }
@@ -81,8 +80,6 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   // Envío
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
-  /** Alta con paso 2 fallido: cliente creado SIN bancarios → aviso terminal. */
-  const [avisoParcial, setAvisoParcial] = useState<string | null>(null)
 
   const ventana = useVentana(esCorregir ? detalle?.creado_en : null)
 
@@ -162,7 +159,9 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         toast.success('Datos del cliente corregidos.')
         onListo(clienteId as string)
       } else {
-        // Paso 1: la edge crea la cuenta y manda el correo de bienvenida REAL.
+        // UN SOLO PASO: la edge valida los bancarios, crea la cuenta CON sus
+        // cuentas de depósito en el mismo INSERT y manda el correo. Las
+        // secciones van CRUDAS: la validación que manda es la del servidor.
         const alta = await crearClientePortal({
           email: c.correo,
           nombre_completo: c.nombre_completo,
@@ -171,30 +170,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           dni: c.dni,
           telefono: c.telefono,
           tipo_documento: c.tipo_documento,
+          bancarios: { pen, usd },
         })
-        // Paso 2: bancarios por UPDATE (la edge no los acepta). apellidos/nombres
-        // van de refuerzo, igual que el portal.
-        let bancariosOk = true
-        try {
-          bancariosOk = await actualizarClientePortal(alta.userId, {
-            ...c.bancarios,
-            apellidos: c.apellidos,
-            nombres: c.nombres,
-            actualizado_en: new Date().toISOString(),
-          })
-        } catch {
-          bancariosOk = false
-        }
-        if (!bancariosOk) {
-          // Aviso honesto y SIN encadenar al contrato (no se llama onListo):
-          // el cliente existe y el correo salió, pero quedó sin bancarios.
-          setAvisoParcial(
-            alta.emailEnviado
-              ? `Cliente "${c.nombre_completo}" creado y correo enviado, ${MSG_BANCARIOS_NO_GUARDADOS}`
-              : `Cliente "${c.nombre_completo}" creado (el correo de bienvenida no se pudo enviar), ${MSG_BANCARIOS_NO_GUARDADOS}`,
-          )
-          return
-        }
         toast.success(`Cliente "${c.nombre_completo}" creado. Ahora crea su contrato.`)
         onListo(alta.userId)
       }
@@ -226,29 +203,8 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     </DialogHeader>
   )
 
-  // ── Alta parcial (paso 2 fallido): estado terminal, sin re-submit posible ──
-  if (avisoParcial) {
-    return (
-      <>
-        {encabezado}
-        <DialogBody className="space-y-3">
-          <div
-            role="alert"
-            className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-semibold text-destructive"
-          >
-            {avisoParcial}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            El cliente ya existe en el portal y NO se creó su contrato. Complétale los datos
-            bancarios desde “Corregir datos” antes de crear el contrato.
-          </p>
-        </DialogBody>
-        <DialogFooter>
-          <Button size="sm" onClick={onCerrar}>Entendido</Button>
-        </DialogFooter>
-      </>
-    )
-  }
+  // (Ya no existe el estado "alta parcial": la edge escribe las cuentas en el
+  //  mismo INSERT del cliente, así que o nace con su cuenta o no nace.)
 
   if (esCorregir && cargando) {
     return (

@@ -117,17 +117,17 @@ describe('ClienteForm — modo crear (alta en 2 pasos)', () => {
     expect(screen.getByText(/00AB1234/)).toBeInTheDocument()
   })
 
-  it('alta feliz: edge primero, bancarios después, y onListo(userId) al final', async () => {
+  it('alta feliz: UNA sola llamada con identidad + bancarios, y onListo(userId)', async () => {
     const user = userEvent.setup()
     crearCliente.mockResolvedValue({ userId: 'nuevo-1', emailEnviado: true })
-    actualizarCliente.mockResolvedValue(true)
     const { onListo } = montar()
 
     await llenarAltaMinima(user)
     await user.click(screen.getByRole('button', { name: /Crear cliente/ }))
 
     await waitFor(() => expect(onListo).toHaveBeenCalledWith('nuevo-1'))
-    // Paso 1: la edge recibe la identidad normalizada (APELLIDOS primero).
+    // La edge recibe la identidad normalizada (APELLIDOS primero) Y las cuentas
+    // en el MISMO envío: el cliente nace con su cuenta o no nace.
     expect(crearCliente).toHaveBeenCalledWith({
       email: 'hugo@correo.pe',
       nombre_completo: 'DIAZ HUAYTA HUGO GUALBERTO',
@@ -136,25 +136,19 @@ describe('ClienteForm — modo crear (alta en 2 pasos)', () => {
       dni: '45781234',
       telefono: null,
       tipo_documento: 'DNI',
+      bancarios: {
+        pen: expect.objectContaining({
+          banco: 'BCP',
+          tipo_cuenta: 'ahorros',
+          numero_cuenta: '19112345678901',
+          cci: '00219112345678901234',
+          titular_distinto: false,
+        }),
+        usd: expect.objectContaining({ banco: '', cci: '', titular_distinto: false }),
+      },
     })
-    // Paso 2: el UPDATE lleva las 14 bancarias al id que devolvió la edge…
-    expect(actualizarCliente).toHaveBeenCalledTimes(1)
-    const [idPatch, patch] = actualizarCliente.mock.calls[0]!
-    expect(idPatch).toBe('nuevo-1')
-    expect(patch).toMatchObject({
-      banco: 'BCP',
-      tipo_cuenta: 'ahorros',
-      numero_cuenta: '19112345678901',
-      cci: '00219112345678901234',
-      titular_distinto: false,
-      banco_usd: null,
-      titular_distinto_usd: false,
-      apellidos: 'DIAZ HUAYTA',
-      nombres: 'HUGO GUALBERTO',
-    })
-    // …y ocurre DESPUÉS de la edge (el orden de los 2 pasos importa).
-    expect(crearCliente.mock.invocationCallOrder[0]!)
-      .toBeLessThan(actualizarCliente.mock.invocationCallOrder[0]!)
+    // Y NO queda ningún segundo paso que pueda fallar y dejar al cliente sin cuenta.
+    expect(actualizarCliente).not.toHaveBeenCalled()
     expect(toast.success).toHaveBeenCalledWith('Cliente "DIAZ HUAYTA HUGO GUALBERTO" creado. Ahora crea su contrato.')
   })
 
@@ -180,37 +174,30 @@ describe('ClienteForm — modo crear (alta en 2 pasos)', () => {
     expect(crearCliente).not.toHaveBeenCalled()
   })
 
-  it('bancarios fallando (0 filas): aviso honesto, SIN onListo y sin re-submit posible', async () => {
+  it('si el servidor rechaza los bancarios NO queda cliente a medias: error y re-submit posible', async () => {
+    // Sustituye a los dos casos viejos de "paso 2 fallido". Ese estado ya no
+    // puede existir: la edge valida las cuentas ANTES de crear nada, así que el
+    // rechazo llega como error normal y el asesor puede corregir y reintentar.
     const user = userEvent.setup()
-    crearCliente.mockResolvedValue({ userId: 'nuevo-2', emailEnviado: true })
-    actualizarCliente.mockResolvedValue(false) // la trampa: 0 filas sin error
+    crearCliente.mockRejectedValue(
+      new CrmApiError(
+        'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+        'ALTA_CLIENTE_FALLIDA',
+      ),
+    )
     const { onListo } = montar()
 
     await llenarAltaMinima(user)
     await user.click(screen.getByRole('button', { name: /Crear cliente/ }))
 
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).toHaveTextContent(/creado y correo enviado, pero los datos bancarios NO se guardaron — corrígelo ahora \(tienes 5 horas\)\./)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+    )
     expect(onListo).not.toHaveBeenCalled() // NO se encadena al contrato
     expect(toast.success).not.toHaveBeenCalled()
-    // Estado terminal: ya no existe "Crear cliente" (evita un alta duplicada).
-    expect(screen.queryByRole('button', { name: /Crear cliente/ })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Entendido' })).toBeInTheDocument()
-  })
-
-  it('bancarios fallando (excepción del PATCH): mismo aviso honesto', async () => {
-    const user = userEvent.setup()
-    crearCliente.mockResolvedValue({ userId: 'nuevo-3', emailEnviado: false })
-    actualizarCliente.mockRejectedValue(new CrmApiError('No se pudo guardar el cambio.'))
-    const { onListo } = montar()
-
-    await llenarAltaMinima(user)
-    await user.click(screen.getByRole('button', { name: /Crear cliente/ }))
-
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).toHaveTextContent(/el correo de bienvenida no se pudo enviar/)
-    expect(aviso).toHaveTextContent(/los datos bancarios NO se guardaron/)
-    expect(onListo).not.toHaveBeenCalled()
+    expect(actualizarCliente).not.toHaveBeenCalled()
+    // Reintentable: el botón sigue ahí porque no se creó nada en el servidor.
+    expect(screen.getByRole('button', { name: /Crear cliente/ })).toBeEnabled()
   })
 
   it('la edge rechaza (409 documento duplicado): muestra su mensaje tal cual', async () => {

@@ -9,6 +9,9 @@ import {
   normalizarTipoDocumento,
   validarDocumento,
 } from "../_shared/documento.ts";
+// Datos bancarios: misma frontera que usa crm-convertir-lead, para que las dos
+// puertas de alta de clientes no puedan divergir.
+import { validarBancarios } from "../_shared/bancarios.mjs";
 
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
@@ -70,10 +73,24 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { email, password, nombre_completo, apellidos, nombres, dni, telefono, tipo_documento } = body || {};
+    const { email, password, nombre_completo, apellidos, nombres, dni, telefono, tipo_documento, bancarios } = body || {};
 
     if (!email || !nombre_completo) {
       return json(cors, { error: "email y nombre_completo son obligatorios" }, 400);
+    }
+
+    // DATOS BANCARIOS (2026-07-27) — ADITIVO Y RETROCOMPATIBLE. El portal
+    // (js/admin/clientes.js) NO manda este bloque y sigue con su flujo de
+    // siempre: crea el cliente aquí y escribe las cuentas en un UPDATE aparte.
+    // El CRM SÍ lo manda, y entonces las cuentas entran en el MISMO INSERT del
+    // cliente — sin ventana en la que exista un cliente, con su correo ya
+    // enviado, al que el área de pagos no le puede transferir. Si el bloque
+    // viene, se valida completo (fail-closed): mandarlo a medias es un 400.
+    let columnasBancarias = {};
+    if (bancarios !== undefined && bancarios !== null) {
+      const valBancarios = validarBancarios(bancarios);
+      if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
+      columnasBancarias = valBancarios.columnas;
     }
 
     const emailNormalizado = email.trim().toLowerCase();
@@ -155,6 +172,9 @@ Deno.serve(async (req: Request) => {
         // Auto-asignación: si quien crea es ANALISTA, queda como asesor del cliente
         // (figura en el portal del cliente). Para admin/superadmin se deja sin asignar.
         asesor_perfil_id: perfil.rol === "analista" ? userRes.user.id : null,
+        // Vacío cuando el caller no manda el bloque (portal): el insert queda
+        // EXACTAMENTE como antes.
+        ...columnasBancarias,
       });
 
     if (perfilErr) {
