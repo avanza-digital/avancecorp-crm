@@ -1031,14 +1031,14 @@ export function MiCartera() {
   if (esDemo) return <MiCarteraDemo />
 
   const cerrar = () => setOverlay(null)
-  // Cierre BLINDADO de ClienteForm: no cerrar con un envío en vuelo (perdería el
-  // aviso del alta parcial: cliente creado, bancarios sin guardar).
+  // Cierre BLINDADO de ClienteForm: no cerrar con un envío en vuelo. Radix cierra
+  // con Esc/overlay incondicionalmente y el alta ya está en el servidor.
   const cerrarSeguro = () => {
     if (envioEnCurso) return
     cerrar()
   }
-  // El alta puede terminar PARCIAL (cliente creado, bancarios fallaron): sin onListo
-  // en ese camino, el refetch va SIEMPRE al cerrar el alta.
+  // El alta puede cerrarse sin pasar por onListo (el asesor cancela el contrato
+  // encadenado): el refetch va SIEMPRE al cerrar el alta.
   const cerrarAlta = () => {
     if (envioEnCurso) return
     cerrar()

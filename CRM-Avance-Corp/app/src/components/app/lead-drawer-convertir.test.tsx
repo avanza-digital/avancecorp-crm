@@ -156,19 +156,19 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(convertirEdge).not.toHaveBeenCalled()
   })
 
-  it('feliz: edge primero, bancarios al perfil devuelto después, y encadena el contrato', async () => {
+  it('feliz: UNA sola llamada con identidad + bancarios, y encadena el contrato', async () => {
     const user = userEvent.setup()
     convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
-    actualizarCliente.mockResolvedValue(true)
     const { recargar } = montar()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    // Encadena el paso contrato sin salir del CRM (paso 2 del flujo del portal).
+    // Encadena el paso contrato sin salir del CRM.
     expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
-    // Paso 1: la edge recibe la identidad confirmada del lead.
+    // La edge recibe la identidad confirmada del lead Y las cuentas de depósito
+    // en el MISMO envío: el cliente nace con su cuenta o no nace.
     expect(convertirEdge).toHaveBeenCalledWith({
       lead_id: 'lead-1',
       correo: 'juan@correo.pe',
@@ -176,23 +176,19 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
       documento: '45781234',
       nombre_completo: 'JUAN PEREZ ROJAS',
       telefono: '+51999888777',
+      bancarios: {
+        pen: expect.objectContaining({
+          banco: 'BCP',
+          tipo_cuenta: 'ahorros',
+          numero_cuenta: '19112345678901',
+          cci: '00219112345678901234',
+          titular_distinto: false,
+        }),
+        usd: expect.objectContaining({ banco: '', cci: '', titular_distinto: false }),
+      },
     })
-    // Paso 2: el UPDATE lleva las 14 bancarias al id que devolvió la edge…
-    expect(actualizarCliente).toHaveBeenCalledTimes(1)
-    const [id, patch] = actualizarCliente.mock.calls[0]!
-    expect(id).toBe('perfil-9')
-    expect(patch).toMatchObject({
-      banco: 'BCP',
-      tipo_cuenta: 'ahorros',
-      numero_cuenta: '19112345678901',
-      cci: '00219112345678901234',
-      titular_distinto: false,
-      banco_usd: null,
-      titular_distinto_usd: false,
-    })
-    // …y ocurre DESPUÉS de la edge (el orden de los 2 pasos importa).
-    expect(convertirEdge.mock.invocationCallOrder[0]!)
-      .toBeLessThan(actualizarCliente.mock.invocationCallOrder[0]!)
+    // Y NO queda ningún segundo paso que pueda fallar y dejar al cliente sin cuenta.
+    expect(actualizarCliente).not.toHaveBeenCalled()
     expect(recargar).toHaveBeenCalled()
     expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
   })
@@ -212,18 +208,19 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(actualizarCliente).not.toHaveBeenCalled()
     // La atribución se PREGUNTA al servidor, no se adivina.
     expect(enMiCartera).toHaveBeenCalledWith('perfil-7')
-    // …y el asesor se entera de que lo que llenó NO se guardó, en vez de creer
-    // que registró la cuenta donde se le depositan los intereses.
+    // …y el asesor se entera de que manda la cuenta YA registrada, en vez de
+    // creer que acaba de registrar dónde se le depositan los intereses.
     const aviso = await screen.findByRole('alert')
     expect(aviso).toHaveTextContent(/ya tenía cuenta en el portal/)
-    expect(aviso).toHaveTextContent(/datos bancarios que llenaste NO se aplicaron/)
+    expect(aviso).toHaveTextContent(/se conservaron las cuentas bancarias que el cliente ya tenía/)
     // Siendo suyo, NO se le acusa de haber perdido la cartera.
     expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
-    // Tampoco se le manda a "Corregir": la policy perfiles_analista_update solo
-    // deja tocar clientes creados hace <5 h, y este ya existía. Antes se le
-    // prometía esa ruta y no funcionaba nunca.
-    expect(screen.queryByText(/Corregir/)).not.toBeInTheDocument()
-    expect(screen.getByText(/pídeselo a Gerencia/)).toBeInTheDocument()
+    // La ruta de corrección se enuncia CONDICIONADA a la ventana de 5 h, no como
+    // una promesa ni como una negación absoluta: tras un 409 de la RPC el
+    // reintento cae aquí con un cliente que el propio asesor acaba de crear, y
+    // decirle "ya no se pueden cambiar, pídeselo a Gerencia" sería falso.
+    expect(screen.getByText(/menos de 5 horas/)).toBeInTheDocument()
+    expect(screen.getByText(/pídeselo a\s+Gerencia/)).toBeInTheDocument()
     // El foco entra AL AVISO: al enviar cayó a <body> (el botón se deshabilitó)
     // y una advertencia que hay que leer no puede depender de que Radix lo rescate.
     expect(aviso).toHaveFocus()
@@ -275,58 +272,32 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(screen.getByRole('button', { name: 'Intentar el contrato' })).toBeInTheDocument()
   })
 
-  it('bancarios en 0 filas: aviso terminal honesto, SIN contrato y SIN re-submit', async () => {
+  it('si el servidor rechaza los bancarios NO queda lead convertido a medias', async () => {
+    // Sustituye a los tres casos viejos de "paso 2 fallido". Ese estado ya no
+    // puede existir: la edge valida las cuentas ANTES de crear la cuenta, mandar
+    // el correo y cerrar el lead, así que un rechazo no deja nada tocado.
     const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
-    actualizarCliente.mockResolvedValue(false) // la trampa: 0 filas sin error
+    convertirEdge.mockRejectedValue(
+      new CrmApiError(
+        'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+        'CONVERTIR_FALLIDO',
+      ),
+    )
     const { recargar } = montar()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).toHaveTextContent(
-      'Cliente creado y correo enviado, pero los datos bancarios NO se guardaron — corrígelo en “Mi cartera → Corregir” dentro de las 5 horas.',
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
     )
-    // Ni contrato ni re-submit: la cuenta ya existe y el correo ya salió.
     expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Convertir a cliente' })).not.toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Entendido' })).toBeInTheDocument()
     expect(toast.success).not.toHaveBeenCalled()
-    // El lead SÍ quedó convertido en el servidor: el pipeline debe reflejarlo.
-    expect(recargar).toHaveBeenCalled()
-  })
-
-  it('la ruta del aviso usa el rótulo del MENÚ de quien convierte (supervisor → "Cartera")', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
-    actualizarCliente.mockResolvedValue(false)
-    montar({ rol: 'supervisor' })
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    // Al supervisor el sidebar le rotula la pantalla "Cartera": mandarlo a
-    // "Mi cartera" sería nombrarle un ítem que su menú no tiene.
-    expect(await screen.findByRole('alert')).toHaveTextContent('corrígelo en “Cartera → Corregir”')
-  })
-
-  it('bancarios lanzan y el correo no salió: variante honesta del mismo aviso terminal', async () => {
-    const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: false })
-    actualizarCliente.mockRejectedValue(new CrmApiError('No se pudo guardar el cambio.'))
-    montar()
-
-    await llenarIdentidad(user)
-    await llenarPenCompleta(user)
-    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
-
-    const aviso = await screen.findByRole('alert')
-    expect(aviso).toHaveTextContent(/el correo de bienvenida no se pudo enviar/)
-    expect(aviso).toHaveTextContent(/los datos bancarios NO se guardaron/)
-    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
+    expect(actualizarCliente).not.toHaveBeenCalled()
+    expect(recargar).not.toHaveBeenCalled() // el lead no se movió
+    // Reintentable: no se creó nada en el servidor.
+    expect(screen.getByRole('button', { name: 'Convertir a cliente' })).toBeEnabled()
   })
 
   it('la edge rechaza: muestra su mensaje es-PE, sin PATCH y sin estado terminal', async () => {

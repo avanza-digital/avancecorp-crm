@@ -873,6 +873,18 @@ export async function montarBackendReal(
         return json(route, { error: 'Este documento ya está registrado para otro cliente.' }, 409)
       }
       const b = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      // Espejo de la frontera real (_shared/bancarios.mjs): sin al menos una
+      // cuenta la edge RECHAZA y no se crea nada. Es el punto del blindaje —
+      // aquí se comprueba que el front no puede saltárselo.
+      const banc = (b.bancarios ?? {}) as { pen?: Record<string, unknown>; usd?: Record<string, unknown> }
+      const conCuenta = (s?: Record<string, unknown>) => !!(s && String(s.banco ?? '').trim() && String(s.cci ?? '').trim())
+      if (!conCuenta(banc.pen) && !conCuenta(banc.usd)) {
+        return json(
+          route,
+          { error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.' },
+          400,
+        )
+      }
       const nuevo = clienteReal({
         id: `cli-nuevo-${estado.clientes.length + 1}`,
         nombre_completo: String(b.nombre_completo ?? ''),
@@ -883,8 +895,11 @@ export async function montarBackendReal(
         correo: (b.email as string | undefined) ?? null,
         telefono: (b.telefono as string | undefined) ?? null,
         creado_en: new Date().toISOString(), // recién creado → ventana de 5 h viva
-        // La edge NO recibe bancarios: nacen vacíos y llegan por el 2º paso (PATCH).
-        banco: null, tipo_cuenta: null, numero_cuenta: null, cci: null,
+        // El cliente NACE con su cuenta: mismo INSERT, sin segundo paso.
+        banco: (banc.pen?.banco as string | undefined) || null,
+        tipo_cuenta: (banc.pen?.tipo_cuenta as string | undefined) || null,
+        numero_cuenta: (banc.pen?.numero_cuenta as string | undefined) || null,
+        cci: (banc.pen?.cci as string | undefined) || null,
       })
       estado.clientes = [nuevo, ...estado.clientes]
       return json(route, { ok: true, user_id: nuevo.id, email: nuevo.correo, email_enviado: true })

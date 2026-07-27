@@ -41,6 +41,7 @@ import {
   type TitularInput,
 } from '@/lib/clientes-tipos'
 import { TIPOS_DOCUMENTO_K } from '@/lib/documento'
+import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type {
   FilaAltasAnalista,
   FilaCapitalMes,
@@ -930,6 +931,25 @@ export interface ConvertirLeadInput {
   telefono?: string | null
   apellidos?: string | null
   nombres?: string | null
+  /**
+   * Cuentas donde se le depositará el interés. OBLIGATORIO: la edge exige al
+   * menos una (soles o dólares) y las escribe en el MISMO INSERT del cliente, así
+   * que un cliente nunca nace sin cuenta. Si el documento ya era cliente del
+   * portal, la edge las IGNORA (no se pisan las cuentas con las que ya cobra).
+   */
+  bancarios: BancariosInput
+}
+
+/**
+ * Las dos secciones bancarias CRUDAS (tal cual salen de los inputs). Van sin
+ * pre-procesar a propósito: la validación de verdad es la de la edge
+ * (_shared/bancarios.mjs) y el navegador solo la espeja para dar feedback rápido
+ * — misma frontera que el documento. Si el front mandara el patch ya armado, la
+ * regla volvería a depender de él.
+ */
+export interface BancariosInput {
+  pen: SeccionBancariaForm
+  usd: SeccionBancariaForm
 }
 
 export interface ConvertirLeadResultado {
@@ -1241,8 +1261,10 @@ export async function esClienteDeMiCartera(
 
 // ── Alta de cliente (edge crear-cliente del portal: Auth + perfil + correo REAL
 //    de bienvenida; clave temporal = documento con padStart(8,'0') server-side).
-//    La edge NO acepta bancarios: esos van en un SEGUNDO paso con
-//    actualizarClientePortal (mismo flujo que el portal). ────────────────────────
+//    Desde 2026-07-27 la edge SÍ acepta los bancarios y los escribe en el mismo
+//    INSERT: ya no hay un segundo paso que pueda fallar y dejar al cliente sin la
+//    cuenta donde cobra. La clave es opcional en la edge (el portal no la manda y
+//    conserva su comportamiento de siempre), pero el CRM la manda SIEMPRE. ───────
 export interface CrearClientePortalInput {
   email: string
   /** Opcional: sin password la edge usa la clave temporal (= documento). */
@@ -1253,6 +1275,8 @@ export interface CrearClientePortalInput {
   dni: string
   telefono?: string | null
   tipo_documento: TipoDocumentoCliente
+  /** Cuentas de depósito. La edge exige al menos una cuando el bloque viaja. */
+  bancarios: BancariosInput
 }
 
 export interface AltaClienteResultado {
@@ -1278,6 +1302,7 @@ export async function crearClientePortal(payload: CrearClientePortalInput): Prom
     dni: payload.dni,
     telefono: payload.telefono ?? null,
     tipo_documento: payload.tipo_documento,
+    bancarios: payload.bancarios,
   }
   if (payload.password) body.password = payload.password
 

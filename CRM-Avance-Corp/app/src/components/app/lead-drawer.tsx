@@ -57,7 +57,6 @@ import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-cont
 import { MOTIVOS_CON_EVIDENCIA, VETO_CORTO, vetoNoResponde } from '@/lib/descarte-evidencia'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import {
-  actualizarClientePortal,
   convertirLead,
   CrmApiError,
   esClienteDeMiCartera,
@@ -1359,15 +1358,6 @@ const RE_DOCUMENTO: Record<TipoDocumentoCliente, { re: RegExp; err: string }> = 
   PASAPORTE: { re: /^[A-Z0-9]{6,12}$/, err: 'El pasaporte debe tener entre 6 y 12 caracteres' },
 }
 
-// Cola del aviso de conversión parcial (paso 2 fallido). Mensaje de negocio del
-// mismo corte que el del alta directa (cliente-form): honesto y accionable.
-// La ruta se NOMBRA por parámetro porque "Clientes" ya no existe (Fase 6,
-// 2026-07-21: fusionada en 'mi-cartera') y porque el menú la rotula distinto
-// según el rol — ver `rotuloCartera` abajo. Mandar al asesor a una pantalla
-// inexistente con 5 horas de ventana es peor que no decirle nada.
-const msgBancariosNoGuardados = (rotuloCartera: string) =>
-  `los datos bancarios NO se guardaron — corrígelo en “${rotuloCartera} → Corregir” dentro de las 5 horas.`
-
 /** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
 export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   const { convertir, recargar } = useCRMData()
@@ -1403,8 +1393,6 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   // Dos pasos: (1) crear el cliente, (2) crear su contrato — "todo en un sitio".
   const [paso, setPaso] = useState<'convertir' | 'contrato'>('convertir')
   const [perfilId, setPerfilId] = useState<string | null>(null)
-  /** Conversión con bancarios fallidos: cliente creado SIN cuentas → aviso terminal. */
-  const [avisoParcial, setAvisoParcial] = useState<string | null>(null)
   /** El documento YA era cliente: se enlazó y sus bancarios NO se tocaron → hay
    *  que decírselo al asesor ANTES de seguir (acaba de llenar unos que no van). */
   const [avisoYaExistia, setAvisoYaExistia] = useState(false)
@@ -1428,8 +1416,8 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   }, [avisoYaExistia])
 
   // Cierre BLINDADO: Radix cierra con Esc/overlay incondicionalmente, y un
-  // cierre con el envío en vuelo perdería el aviso de "creado sin bancarios"
-  // (la cuenta ya existe y el correo ya salió) — mismo patrón que clientes.tsx.
+  // cierre con el envío en vuelo perdería el resultado de una operación que ya
+  // está corriendo en el servidor — mismo patrón que clientes.tsx.
   const cerrarSeguro = () => {
     if (enviando) return
     onClose()
@@ -1458,7 +1446,9 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
     }
     // Bancarios ANTES de tocar el servidor (regla "al menos una cuenta", igual
     // que el alta del portal): si no validan, NO se crea la cuenta ni sale el
-    // correo de bienvenida — no se empieza algo que quedaría a medias.
+    // correo de bienvenida — no se empieza algo que quedaría a medias. Este
+    // chequeo es solo para dar el error SIN ida y vuelta: la frontera de verdad
+    // es la edge, que revalida el mismo bloque (_shared/bancarios.mjs).
     const valBanc = validarBancariosForm(pen, usd)
     if (!valBanc.ok) {
       setError(valBanc.error)
@@ -1466,7 +1456,11 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
     }
     setEnviando(true)
     try {
-      // Paso 1: la edge crea la cuenta + correo de bienvenida + cierra el lead.
+      // UN SOLO PASO: la edge valida los bancarios, crea la cuenta CON sus
+      // cuentas de depósito en el mismo INSERT, manda el correo y cierra el
+      // lead. Hasta 2026-07-27 los bancarios iban en un UPDATE posterior desde
+      // aquí, y si ese segundo paso fallaba quedaba un cliente real —con su
+      // correo ya enviado— sin cuenta donde cobrar. Ese estado ya no existe.
       const r = await convertirLead({
         lead_id: l.id,
         correo: correoLimpio,
@@ -1474,36 +1468,10 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         documento: docLimpio,
         nombre_completo: l.nombre_completo,
         telefono: l.telefono,
+        bancarios: { pen, usd },
       })
-      // Paso 2: bancarios por UPDATE vía RLS (la edge no los acepta) — mismo
-      // flujo de 2 pasos que el alta directa (cliente-form). Si el documento YA
-      // era cliente del portal (dedup de la edge), NO se pisan sus cuentas: un
-      // PATCH ciego sobreescribiría los bancarios con los que ya cobra — se
-      // salta el paso y se AVISA (antes se descartaban en silencio).
-      let bancariosOk = true
-      if (!r.ya_existia) {
-        try {
-          bancariosOk = await actualizarClientePortal(r.perfil_id, {
-            ...valBanc.bancarios,
-            actualizado_en: new Date().toISOString(),
-          })
-        } catch {
-          bancariosOk = false
-        }
-      }
-      // El lead YA quedó convertido en el servidor pase lo que pase con los
-      // bancarios: el pipeline debe reflejarlo también en el camino parcial.
+      // El lead ya quedó convertido en el servidor: el pipeline debe reflejarlo.
       await recargar()
-      if (!bancariosOk) {
-        // Aviso honesto y TERMINAL (sin re-submit: la cuenta existe y el correo
-        // salió) y SIN encadenar al contrato — patrón exacto de cliente-form.
-        setAvisoParcial(
-          r.email_enviado
-            ? `Cliente creado y correo enviado, pero ${msgBancariosNoGuardados(rotuloCartera)}`
-            : `Cliente creado (el correo de bienvenida no se pudo enviar), pero ${msgBancariosNoGuardados(rotuloCartera)}`,
-        )
-        return
-      }
       setPerfilId(r.perfil_id)
       // El asesor acaba de llenar unos bancarios OBLIGATORIOS que, por el dedup,
       // no se guardaron en ningún sitio. Un toast de éxito ahí lo deja creyendo
@@ -1529,32 +1497,8 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
     }
   }
 
-  // ── Conversión parcial (bancarios fallidos): estado terminal, sin re-submit ──
-  if (avisoParcial) {
-    return (
-      <Dialog open onClose={onClose} ariaLabel="Convertir a cliente">
-        <DialogHeader>
-          <DialogTitle>Convertir a cliente</DialogTitle>
-        </DialogHeader>
-        <DialogBody className="space-y-3">
-          <div
-            role="alert"
-            className="rounded-xl border border-destructive/40 bg-destructive/10 p-3 text-xs font-semibold text-destructive"
-          >
-            {avisoParcial}
-          </div>
-          <p className="text-xs text-muted-foreground">
-            El lead quedó convertido y la cuenta del cliente ya existe en el portal, pero NO se
-            creó su contrato. Complétale los datos bancarios desde “{rotuloCartera} → Corregir”
-            antes de crear el contrato.
-          </p>
-        </DialogBody>
-        <DialogFooter>
-          <Button size="sm" onClick={onClose}>Entendido</Button>
-        </DialogFooter>
-      </Dialog>
-    )
-  }
+  // (Ya no hay estado "cliente creado sin bancarios": la edge los escribe en el
+  //  mismo INSERT del cliente, así que o se crea con su cuenta o no se crea.)
 
   // ── Cliente ya existente: ni los bancarios ni la ATRIBUCIÓN se movieron ─────
   // El enlace salió bien, pero no es el éxito que el asesor cree, y dos de las
@@ -1590,14 +1534,15 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold text-warning-text outline-none"
           >
             Ese documento ya tenía cuenta en el portal: el lead quedó enlazado a ella y cerrado
-            como ganado, pero los datos bancarios que llenaste NO se aplicaron
-            {noEsMio ? ' y el cliente NO pasó a tu cartera' : ''}.
+            como ganado, y se conservaron las cuentas bancarias que el cliente ya tenía
+            registradas{noEsMio ? ', y el cliente NO pasó a tu cartera' : ''}.
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Se conservan las cuentas con las que ya se le deposita — sobreescribirlas a ciegas
-            desde aquí podría desviarle sus intereses. Desde el CRM ya no se pueden cambiar
-            (solo se corrigen las de un cliente que acabas de crear): si de verdad cambiaron,
-            pídeselo a Gerencia y que se verifiquen antes del próximo pago.
+            Lo que escribiste en el formulario no las reemplaza — sobreescribirlas a ciegas desde
+            aquí podría desviarle sus intereses. Si esas cuentas ya no son las correctas,
+            verifícalo antes del próximo pago: desde “{rotuloCartera} → Corregir” solo se pueden
+            cambiar las de un cliente que registraste tú hace menos de 5 horas; si no, pídeselo a
+            Gerencia.
           </p>
           {noEsMio && (
             <p className="text-xs leading-relaxed text-muted-foreground">
@@ -1728,8 +1673,9 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             {/* Bloque compartido con el alta directa (cliente-form): el cliente
                 convertido necesita dónde cobrar sus intereses desde el día uno.
                 Si el documento ya era cliente del portal, sus cuentas actuales
-                se respetan (el paso 2 se salta — dedup de la edge) y lo que se
-                escribió aquí se descarta: eso se avisa, nunca en silencio. */}
+                se respetan (la edge las deja intactas en el camino del dedup) y
+                lo que se escribió aquí se descarta: eso se avisa, nunca en
+                silencio. */}
             <SeccionesBancarias
               idBase="cv"
               pen={pen}

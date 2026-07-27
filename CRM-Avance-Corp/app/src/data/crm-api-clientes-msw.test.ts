@@ -244,6 +244,21 @@ describe('actualizarClientePortal (la TRAMPA de la ventana de 5 h)', () => {
   })
 })
 
+/** Cuenta en soles mínima válida: el alta exige al menos una (PEN o USD). */
+const PEN_OK = {
+  banco: 'BCP',
+  tipo_cuenta: 'ahorros',
+  numero_cuenta: '1912345678901',
+  cci: '00219100234567890112',
+  titular_distinto: false,
+  beneficiario_nombre: '',
+  beneficiario_dni: '',
+}
+const USD_VACIA = {
+  banco: '', tipo_cuenta: '', numero_cuenta: '', cci: '',
+  titular_distinto: false, beneficiario_nombre: '', beneficiario_dni: '',
+}
+
 describe('crearClientePortal (edge crear-cliente)', () => {
   it('feliz: devuelve userId + emailEnviado y manda tipo_documento en el body', async () => {
     let body: Record<string, unknown> = {}
@@ -262,12 +277,59 @@ describe('crearClientePortal (edge crear-cliente)', () => {
       dni: '45781234',
       telefono: '+51999888777',
       tipo_documento: 'DNI',
+      bancarios: { pen: PEN_OK, usd: USD_VACIA },
     })
 
     expect(r).toEqual({ userId: 'u-nuevo', emailEnviado: true })
     expect(body).toMatchObject({ email: 'qa@correo.pe', dni: '45781234', tipo_documento: 'DNI' })
     // Sin password el body NO lleva la clave (la edge pone la temporal = documento).
     expect('password' in body).toBe(false)
+  })
+
+  it('los bancarios viajan CRUDOS en el body: la validación que manda es la del servidor', async () => {
+    // Si el front mandara el patch ya armado, la regla "al menos una cuenta"
+    // volvería a depender del navegador — que es justo el agujero que se cerró.
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post(`${BASE}/functions/v1/crear-cliente`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({ ok: true, user_id: 'u-nuevo', email_enviado: true })
+      }),
+    )
+
+    await crearClientePortal({
+      email: 'qa@correo.pe',
+      nombre_completo: 'QA PRUEBA',
+      apellidos: 'QA',
+      nombres: 'PRUEBA',
+      dni: '45781234',
+      tipo_documento: 'DNI',
+      bancarios: { pen: PEN_OK, usd: USD_VACIA },
+    })
+
+    expect(body.bancarios).toEqual({ pen: PEN_OK, usd: USD_VACIA })
+  })
+
+  it('un rechazo bancario de la edge llega como error, no como alta a medias', async () => {
+    server.use(
+      http.post(`${BASE}/functions/v1/crear-cliente`, () =>
+        HttpResponse.json(
+          { error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.' },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    await expect(
+      crearClientePortal({
+        email: 'qa@correo.pe', nombre_completo: 'X', apellidos: 'X', nombres: 'X',
+        dni: '45781234', tipo_documento: 'DNI',
+        bancarios: { pen: USD_VACIA, usd: USD_VACIA },
+      }),
+    ).rejects.toMatchObject({
+      code: 'ALTA_CLIENTE_FALLIDA',
+      message: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+    })
   })
 
   it('rechazo de la edge (409 documento duplicado): expone el mensaje es-PE del servidor', async () => {
@@ -284,6 +346,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
       nombres: 'X',
       dni: '45781234',
       tipo_documento: 'DNI',
+      bancarios: { pen: PEN_OK, usd: USD_VACIA },
     })
 
     await expect(promesa).rejects.toBeInstanceOf(CrmApiError)
@@ -293,7 +356,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
     })
   })
 
-  it('respuesta sin user_id = fallo explícito (nunca éxito sin id para el 2º paso)', async () => {
+  it('respuesta sin user_id = fallo explícito (nunca éxito sin id para encadenar el contrato)', async () => {
     server.use(
       http.post(`${BASE}/functions/v1/crear-cliente`, () =>
         HttpResponse.json({ ok: true, email_enviado: true }),
@@ -304,6 +367,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
       crearClientePortal({
         email: 'qa@correo.pe', nombre_completo: 'X', apellidos: 'X', nombres: 'X',
         dni: '45781234', tipo_documento: 'DNI',
+        bancarios: { pen: PEN_OK, usd: USD_VACIA },
       }),
     ).rejects.toMatchObject({ code: 'ALTA_SIN_ID' })
   })

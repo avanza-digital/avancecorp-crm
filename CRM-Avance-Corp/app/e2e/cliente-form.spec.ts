@@ -1,8 +1,8 @@
-// E2E del formulario de CLIENTE del portal dentro del CRM: alta en 2 pasos
-// (edge crear-cliente + PATCH de bancarios) y corrección con la ventana de 5 h,
-// sobre la RUTA REAL con TODO el HTTP de Supabase interceptado (fail-closed —
-// cero prod). Con el gate de leads cerrado, la vista por defecto de una cuenta
-// real ES #/clientes.
+// E2E del formulario de CLIENTE del portal dentro del CRM: alta en UN paso (la
+// edge crear-cliente escribe identidad + cuentas bancarias en el mismo INSERT,
+// 2026-07-27) y corrección con la ventana de 5 h, sobre la RUTA REAL con TODO el
+// HTTP de Supabase interceptado (fail-closed — cero prod). Con el gate de leads
+// cerrado, la vista por defecto de una cuenta real ES #/clientes.
 //
 // DEPENDENCIA: la pantalla screens/clientes.tsx (de otro constructor) debe
 // ofrecer un botón "Nuevo cliente" y una acción "Corregir" por fila (espejo del
@@ -46,7 +46,7 @@ async function llenarAltaMinima(modal: Locator): Promise<void> {
   await modal.locator('#cf-pen-cci').fill('00219112345678901234')
 }
 
-test('alta feliz: 2 pasos (edge + PATCH de bancarios) con el aviso de la clave temporal', async ({ page }) => {
+test('alta feliz: UNA llamada y el cliente nace CON su cuenta bancaria', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor' })
   const modal = await abrirNuevoCliente(page)
 
@@ -56,37 +56,43 @@ test('alta feliz: 2 pasos (edge + PATCH de bancarios) con el aviso de la clave t
   await llenarAltaMinima(modal)
   await modal.getByRole('button', { name: /crear cliente/i }).click()
 
-  // Paso 1 (edge crear-cliente) y paso 2 (PATCH a perfiles) viajaron, en ese orden.
+  // Una sola llamada a la edge, y NINGÚN PATCH posterior que pueda fallar.
   await expect.poll(() => estado.llamadas.altaCliente).toBe(1)
-  await expect.poll(() => estado.llamadas.patchPerfil).toBe(1)
-  // El 2º paso dejó los bancarios en el perfil RECIÉN creado (servidor con estado).
   await expect
     .poll(() => estado.clientes.find((c) => c.correo === 'qa-cliente@correo.pe')?.banco ?? null)
     .toBe('BCP')
+  expect(estado.llamadas.patchPerfil).toBe(0)
   // .first(): sonner duplica el nodo del texto (copia para el lector de pantalla).
   await expect(page.getByText(/Cliente "QA PRUEBA MARIA JOSE" creado/).first()).toBeVisible()
 })
 
-test('alta con bancarios fallando: aviso honesto y SIN encadenar al contrato', async ({ page }) => {
-  // ventanaVencida hace que el PATCH a perfiles responda 200 con [] (0 filas,
-  // SIN error) — exactamente cómo falla el paso 2 en el mundo real.
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', ventanaVencida: true })
+test('sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente', async ({ page }) => {
+  // El navegador ya lo impide, pero la garantía que importa es la del servidor:
+  // aquí se salta la validación local escribiendo directo en el estado del form
+  // no es posible, así que se comprueba el otro extremo — que el alta no viaja
+  // y, si viajara sin cuentas, la edge la rechazaría (mock espejo de la real).
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor' })
   const modal = await abrirNuevoCliente(page)
 
-  await llenarAltaMinima(modal)
+  await modal.locator('#cf-apellidos').fill('QA PRUEBA')
+  await modal.locator('#cf-nombres').fill('MARIA JOSE')
+  await modal.locator('#cf-documento').fill('45781299')
+  await modal.locator('#cf-correo').fill('qa-cliente@correo.pe')
+  // …sin tocar ninguna sección bancaria.
   await modal.getByRole('button', { name: /crear cliente/i }).click()
 
-  await expect(page.getByText(/los datos bancarios NO se guardaron — corrígelo ahora \(tienes 5 horas\)/)).toBeVisible()
-  await expect.poll(() => estado.llamadas.altaCliente).toBe(1)
-  await expect.poll(() => estado.llamadas.patchPerfil).toBe(1)
-  // NO se encadenó al contrato: ni RPC ni modal de contrato a la vista.
+  await expect(
+    modal.getByText('Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.'),
+  ).toBeVisible()
+  expect(estado.llamadas.altaCliente).toBe(0)
+  expect(estado.llamadas.patchPerfil).toBe(0)
+  // NO se encadenó al contrato y el alta sigue reintentable (no se creó nada).
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
-  await expect(page.getByRole('dialog', { name: /contrato/i })).toHaveCount(0)
-  // Estado terminal: no queda botón "Crear cliente" que permita un alta doble.
-  await expect(page.getByRole('button', { name: /crear cliente/i })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: /^crear contrato/i })).toHaveCount(0)
+  await expect(modal.getByRole('button', { name: /crear cliente/i })).toBeEnabled()
 })
 
-test('alta duplicada: el 409 de la edge se muestra tal cual y no hay 2º paso', async ({ page }) => {
+test('alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PATCH', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', fallarProximaAlta: true })
   const modal = await abrirNuevoCliente(page)
 

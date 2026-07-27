@@ -1,6 +1,7 @@
 import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { errorResponsabilidadConversion } from "./preflight.mjs";
+import { validarBancarios } from "../_shared/bancarios.mjs";
 
 // Reglas de documento (DNI/CE/Pasaporte) — ESPEJO de ../_shared/documento.ts y del
 // frontend documento-core.js. Inlineado a propósito (edge autocontenido): si se
@@ -99,7 +100,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const {
       lead_id, correo, tipo_documento, documento,
-      nombre_completo, apellidos, nombres, telefono,
+      nombre_completo, apellidos, nombres, telefono, bancarios,
     } = body || {};
 
     if (!lead_id) return json(cors, { error: "Falta lead_id" }, 400);
@@ -136,6 +137,29 @@ Deno.serve(async (req: Request) => {
     }
     const errDoc = validarDocumento(tipoDoc, dniLimpio);
     if (errDoc) return json(cors, { error: errDoc }, 400);
+
+    // DATOS BANCARIOS — FRONTERA (2026-07-27). La cuenta donde se le deposita el
+    // interés al cliente deja de ser una regla del navegador: se exige AQUÍ, antes
+    // de tocar Auth, `perfiles` o el correo de bienvenida, y las columnas entran
+    // en el MISMO INSERT del cliente. Antes se escribían en un segundo UPDATE
+    // desde el front: un POST directo, un front viejo o un fallo de red creaban un
+    // cliente REAL, con correo enviado, al que el área de pagos no podía
+    // transferir. Fail-closed: sin bloque válido no se crea nada.
+    //
+    // ⚠️ ORDEN DE DESPLIEGUE: esta clave viaja en el REQUEST, así que aquí la
+    // regla es EDGE PRIMERO, front después — al revés de la lección de las RPC
+    // (donde la clave nueva va en la RESPUESTA y el front la valida con
+    // v.strictObject). Al revés se crearían clientes sin cuenta EN SILENCIO. En
+    // la ventana intermedia el bundle viejo no manda el bloque: se le dice que
+    // recargue, en vez de acusarlo de no haber llenado lo que sí llenó.
+    if (bancarios === undefined || bancarios === null) {
+      return json(cors, {
+        error: "El CRM se actualizó: recarga la página (Ctrl+Shift+R) y vuelve a intentarlo. Si sigue igual, avisa — falta publicar la versión nueva del CRM.",
+      }, 400);
+    }
+    const valBancarios = validarBancarios(bancarios);
+    if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
+    const columnasBancarias = valBancarios.columnas;
 
     // Asesor del nuevo cliente = el ANALISTA que ya era dueño del lead. El guard
     // anterior elimina el fallback al caller y conserva la atribución comercial.
@@ -199,6 +223,10 @@ Deno.serve(async (req: Request) => {
         creado_por: callerId,
         debe_cambiar_password: true,
         asesor_perfil_id: asesorId,
+        // Las 14 columnas bancarias, ya validadas arriba: el cliente NACE con su
+        // cuenta. Si este insert falla, no queda cliente a medias (se borra el
+        // usuario de Auth justo debajo).
+        ...columnasBancarias,
       });
       if (perfilErr) {
         await adminClient.auth.admin.deleteUser(perfilId);
