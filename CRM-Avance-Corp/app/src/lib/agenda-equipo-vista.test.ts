@@ -4,7 +4,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   agruparPorEquipo,
+  canceladasAjenas,
   canceladasAsesor,
+  canceladasPropias,
   canceladasSistema,
   resumenAgenda,
   separarPorActividad,
@@ -91,6 +93,70 @@ describe('canceladasAsesor / canceladasSistema — la separación que pidió Mig
     ])
     expect(conAnuladas.cierres).toBe(4)
     expect(conAnuladas.pctCompletadas).toBe(75)
+  })
+})
+
+describe('canceladasPropias / canceladasAjenas — lo que anula el jefe no lo paga el vendedor', () => {
+  // Decisión de Miguel (2026-07-26), cerrando lo que quedó abierto al desplegar
+  // la separación asesor/sistema: «si el supervisor anula una tarea el vendedor
+  // no debería poder hacer nada sobre esa tarea» → tampoco cargar con ella.
+  it('parte las anulaciones humanas en propias y ajenas, y las dos suman el total', () => {
+    const v = ven('v1', 'Ana', {
+      canceladas: 5,
+      canceladas_asesor: 3,
+      canceladas_ajenas: 1,
+      canceladas_sistema: 2,
+    })
+    expect(canceladasPropias(v)).toBe(2)
+    expect(canceladasAjenas(v)).toBe(1)
+    expect(canceladasPropias(v) + canceladasAjenas(v)).toBe(canceladasAsesor(v))
+  })
+
+  it('sin la clave nueva (BD sin migrar) TODO se considera propio, como antes', () => {
+    // Misma degradación que canceladas_asesor y en la misma dirección: sin dato
+    // no se le regala nada a nadie, el panel sigue dando el número de ayer.
+    const v = ven('v1', 'Ana', { canceladas: 3, canceladas_asesor: 3 })
+    expect(canceladasPropias(v)).toBe(3)
+    expect(canceladasAjenas(v)).toBe(0)
+  })
+
+  it('que su jefe le anule una tarea NO le baja el %', () => {
+    const soloAjenas = resumenAgenda([
+      ven('v1', 'Ana', {
+        completadas: 3,
+        canceladas: 2,
+        canceladas_asesor: 2,
+        canceladas_ajenas: 2,
+        canceladas_sistema: 0,
+      }),
+    ])
+    expect(soloAjenas.cierres).toBe(3)
+    expect(soloAjenas.pctCompletadas).toBe(100)
+  })
+
+  it('pero anular LO SUYO sigue pesando: el botón no es una salida gratis', () => {
+    const mitadYMitad = resumenAgenda([
+      ven('v1', 'Ana', {
+        completadas: 3,
+        canceladas: 2,
+        canceladas_asesor: 2,
+        canceladas_ajenas: 1,
+        canceladas_sistema: 0,
+      }),
+    ])
+    expect(mitadYMitad.cierres).toBe(4) // 3 completadas + 1 propia
+    expect(mitadYMitad.pctCompletadas).toBe(75)
+  })
+
+  it('un payload incoherente (más ajenas que humanas) no produce % por encima de 100', () => {
+    // Las dos claves llegan por separado y son OPCIONALES: una BD a medio
+    // migrar puede mandar la segunda sin la primera. Sin el suelo en 0 el
+    // denominador se iría en negativo y el porcentaje se dispararía.
+    const roto = ven('v1', 'Ana', { completadas: 2, canceladas: 3, canceladas_ajenas: 3 })
+    expect(canceladasPropias(roto)).toBe(0)
+    const resumen = resumenAgenda([roto])
+    expect(resumen.cierres).toBe(2)
+    expect(resumen.pctCompletadas).toBe(100)
   })
 })
 

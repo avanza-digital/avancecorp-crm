@@ -1108,11 +1108,15 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       //
       // LA RENDICIÓN DE CUENTAS NO SE PIERDE, y desde 2026-07-26 es exacta: el
       // UPDATE queda en `audit_log` (trigger de la tabla) y la anulación viaja
-      // ETIQUETADA como `cancelada_por = 'asesor'`, separada de las que cancela
-      // el sistema al cerrarse un lead. Supervisión ve las dos cuentas por
-      // separado en «Agenda del equipo» (screens/hoy/agenda-equipo.tsx), y solo
-      // las del asesor pesan en su % de cumplimiento. Vaciar la agenda a fuerza
-      // de anular se ve desde arriba, y convertir un lead ya no penaliza.
+      // ETIQUETADA como `cancelada_por = 'asesor'` + FIRMADA con el uuid de
+      // quien la ordenó (`cancelada_por_id`, 2026-07-27), separada de las que
+      // cancela el sistema al cerrarse un lead. Supervisión ve las tres cuentas
+      // por separado en «Agenda del equipo» (screens/hoy/agenda-equipo.tsx), y
+      // en el % de una persona solo pesan las que anuló ELLA sobre su propia
+      // agenda: ni las del sistema (convertir un lead ya no penaliza) ni las
+      // que le anuló un superior (no tuvo control sobre esa tarea — decisión de
+      // Miguel). Vaciarse la agenda a fuerza de anular sigue viéndose desde
+      // arriba, porque las propias sí cuentan.
       anularTarea: (id) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo

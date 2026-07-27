@@ -20,9 +20,14 @@ import * as v from 'valibot'
  * - canceladas_asesor / canceladas_sistema: el desglose de `canceladas` (que
  *   sigue siendo el TOTAL). asesor = una persona anuló la tarea porque ya no
  *   hacía falta; sistema = se canceló sola al convertirse o descartarse el
- *   lead. Solo las del ASESOR pesan en el denominador de pct_completadas: las
- *   del sistema lo hacían hasta 2026-07-26 y eso castigaba al vendedor
- *   justamente por CERRAR la venta (convertir cancela sus pendientes).
+ *   lead. Las del sistema pesaban en el denominador de pct_completadas hasta
+ *   2026-07-26 y eso castigaba al vendedor justamente por CERRAR la venta
+ *   (convertir cancela sus pendientes).
+ * - canceladas_ajenas: la parte de `canceladas_asesor` que firmó OTRO (su
+ *   supervisor o gerencia), no el vendedor de la tarea. También queda fuera del
+ *   denominador — decisión de Miguel del 2026-07-26: si no tuvo control sobre
+ *   esa tarea, no puede bajarle la nota. O sea que el denominador del % es
+ *   completadas + no_asistio + (canceladas_asesor − canceladas_ajenas).
  * - tareas_creadas / reuniones_agendadas / reprogramaciones: planificación
  *   registrada dentro del periodo.
  * - pendientes / vencidas / leads_sin_accion: FOTO ACTUAL (no dependen del
@@ -60,6 +65,7 @@ const VendedorAgendaSchema = v.strictObject({
   // desglose que pintar. `?? 0` en los consumidores, nunca `!`.
   canceladas_asesor: v.optional(EnteroNoNegativoSchema),
   canceladas_sistema: v.optional(EnteroNoNegativoSchema),
+  canceladas_ajenas: v.optional(EnteroNoNegativoSchema),
   pct_completadas: v.nullable(v.number()),
   tareas_creadas: EnteroNoNegativoSchema,
   reuniones_agendadas: EnteroNoNegativoSchema,

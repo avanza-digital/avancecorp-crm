@@ -410,6 +410,10 @@ export const TRANSIENT_IDS = Object.freeze({
   anularTareaLlamada: randomUUID(),
   anularLeadSistema: randomUUID(),
   anularTareaSistema: randomUUID(),
+  // La anulacion AJENA: el supervisor anula la tarea de su vendedor
+  // (20260727032429). Lead propio para no contaminar los conteos de arriba.
+  anularLeadAjena: randomUUID(),
+  anularTareaAjena: randomUUID(),
 });
 
 export function normalizePeruPhone(phone) {
