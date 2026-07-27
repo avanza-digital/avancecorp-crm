@@ -18,7 +18,8 @@ import { SEMAFORO } from '@/lib/semaforo'
 import { cn } from '@/lib/utils'
 import {
   agruparPorEquipo,
-  canceladasAsesor,
+  canceladasAjenas,
+  canceladasPropias,
   canceladasSistema,
   resumenAgenda,
   separarPorActividad,
@@ -62,9 +63,19 @@ function desgloseCierres(ven: MetricaAgendaVendedor): string {
   if (ven.completadas > 0) {
     partes.push(`${ven.completadas} ${ven.completadas === 1 ? 'completada' : 'completadas'}`)
   }
-  const anuladas = canceladasAsesor(ven)
+  const anuladas = canceladasPropias(ven)
   if (anuladas > 0) partes.push(`${anuladas} ${anuladas === 1 ? 'anulada' : 'anuladas'}`)
   if (ven.no_asistio > 0) partes.push(`${ven.no_asistio} no asistió`)
+  // Anuladas por su supervisor o por gerencia: desde 2026-07-27 tampoco pesan
+  // en su %, así que van marcadas igual que las del sistema. Sin esta parte la
+  // sub-línea MENTIRÍA por omisión — el «n anuladas» de arriba ya no es el
+  // total, y un supervisor volvería a sumar más cierres de los que usa el %.
+  const porSuperior = canceladasAjenas(ven)
+  if (porSuperior > 0) {
+    partes.push(
+      `${porSuperior} ${porSuperior === 1 ? 'anulada' : 'anuladas'} por un superior (fuera del %)`,
+    )
+  }
   const porSistema = canceladasSistema(ven)
   // Fuera del cómputo y dicho con todas las letras: no es gestión de nadie.
   // El «(fuera del %)» no es decorativo — esta línea es la ÚNICA alternativa
@@ -224,14 +235,21 @@ function TablaMiembros({
       <tbody className="divide-y divide-border/60">
         {miembros.map((ven) => {
           const subLinea = subLineaDe(ven)
-          // Denominador = SOLO lo que decidió esta persona. Espejo exacto de
-          // `resumenAgenda` y de pct_completadas en la RPC; las canceladas por
-          // el sistema se pintan en la sub-línea pero no entran aquí.
-          const cierres = ven.completadas + canceladasAsesor(ven) + ven.no_asistio
+          // Denominador = SOLO lo que decidió esta persona sobre su propia
+          // agenda. Espejo exacto de `resumenAgenda` y de pct_completadas en la
+          // RPC; lo que anuló el sistema —y lo que anuló un superior— se pinta
+          // en la sub-línea pero no entra aquí.
+          const cierres = ven.completadas + canceladasPropias(ven) + ven.no_asistio
           const pct =
             cierres > 0
               ? Math.round(ven.pct_completadas ?? (ven.completadas / cierres) * 100)
               : null
+          // Se calcula UNA vez porque ahora decide también qué pintar cuando no
+          // hay porcentaje: un vendedor al que su jefe le anuló los dos únicos
+          // cierres se queda sin denominador, y un «—» a secas es exactamente
+          // igual al de quien no registró nada en toda la semana. El desglose
+          // es lo único que distingue «no trabajó» de «se lo anularon».
+          const desglose = desgloseCierres(ven)
           return (
             <tr key={ven.vendedor_id}>
               <Td className="py-2">
@@ -273,14 +291,26 @@ function TablaMiembros({
                         className="w-16 shrink-0"
                         segments={[
                           { label: 'completadas', value: ven.completadas, color: SEMAFORO.ok },
-                          { label: 'anuladas', value: canceladasAsesor(ven), color: SEMAFORO.atencion },
+                          // `propias` y no `asesor`: los tres segmentos tienen que
+                          // sumar EXACTAMENTE `cierres`, que es el denominador del
+                          // % de al lado. Con el total la barra pintaría una
+                          // proporción que no corresponde al número que la
+                          // acompaña.
+                          { label: 'anuladas', value: canceladasPropias(ven), color: SEMAFORO.atencion },
                           { label: 'no asistió', value: ven.no_asistio, color: SEMAFORO.critico },
                         ]}
                       />
                     </span>
                     <span className="mt-0.5 block text-[10px] tabular-nums text-muted-foreground">
-                      {desgloseCierres(ven)}
+                      {desglose}
                     </span>
+                  </span>
+                ) : desglose !== '' ? (
+                  // Sin cierres PROPIOS que porcentuar, pero sí algo que
+                  // explicar: se pinta el desglose solo. Sin esto, «le anularon
+                  // sus 2 tareas» y «no hizo nada» se ven idénticos.
+                  <span className="block text-[10px] leading-tight tabular-nums text-muted-foreground">
+                    {desglose}
                   </span>
                 ) : (
                   <Vacia />

@@ -314,6 +314,7 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.anularTareaReunion,
       TRANSIENT_IDS.anularTareaLlamada,
       TRANSIENT_IDS.anularTareaSistema,
+      TRANSIENT_IDS.anularTareaAjena,
     ]).eq('estado', 'pendiente'),
   );
   await requireAdmin(
@@ -329,6 +330,7 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.taskFollowLead,
       TRANSIENT_IDS.anularLead,
       TRANSIENT_IDS.anularLeadSistema,
+      TRANSIENT_IDS.anularLeadAjena,
       TRANSIENT_IDS.repartoLeadOk,
       TRANSIENT_IDS.repartoLeadNoContactar,
       TRANSIENT_IDS.repartoLeadCarrera,
@@ -1809,7 +1811,7 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   const leerTarea = (id, label) => requireAdmin(
     label,
     admin.schema('crm').from('tareas')
-      .select('estado, cancelada_por').eq('id', id).single(),
+      .select('estado, cancelada_por, cancelada_por_id, vendedor_id').eq('id', id).single(),
   );
   const leerEtapa = (id, label) => requireAdmin(
     label,
@@ -1888,6 +1890,26 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       `cancelada_por=${forjada.data.cancelada_por}`);
   }
 
+  // 2b) LA FIRMA TAMPOCO (20260727032429). Mismo contrato que la etiqueta: un
+  //     no-op SILENCIOSO, no un 400 de constraint — el CHECK tambien la
+  //     atraparia, pero el cliente debe ver "campo ignorado" como en el resto de
+  //     columnas selladas. Se intenta firmar como sup1: si colara, un vendedor
+  //     podria marcar sus propias anulaciones como si se las hubiera ordenado su
+  //     jefe y sacarlas del denominador de su %.
+  const firmaForjada = await positive(
+    'vend1 intenta firmar una tarea viva como si la hubiera anulado sup1',
+    vend1.client.schema('crm').from('tareas')
+      .update({ cancelada_por_id: sup1Id })
+      .eq('id', TRANSIENT_IDS.anularTareaReunion)
+      .select('id, estado, cancelada_por_id')
+      .single(),
+  );
+  if (firmaForjada) {
+    check(firmaForjada.data.cancelada_por_id === null && firmaForjada.data.estado === 'pendiente',
+      'la firma inyectada por el cliente se ignora (sigue null y pendiente)',
+      `cancelada_por_id=${firmaForjada.data.cancelada_por_id}`);
+  }
+
   // 3) Por la RPC si, y queda firmada como ASESOR.
   const anulada = await positive(
     'vend1 anula SU reunion por crm.cerrar_tarea',
@@ -1903,6 +1925,13 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
   check(filaAnulada.data.estado === 'cancelada' && filaAnulada.data.cancelada_por === 'asesor',
     'la anulacion quedo firmada por el ASESOR',
     `cancelada_por=${filaAnulada.data.cancelada_por}`);
+  // 20260727032429: y la firma es EL PROPIO vendedor, o sea PROPIA — la unica
+  // clase de anulacion que sigue pesando en su % de cumplimiento.
+  check(filaAnulada.data.cancelada_por_id === vend1Id,
+    'la firma es el vendedor que la ordeno (anulacion PROPIA: cuenta en su %)',
+    `cancelada_por_id=${filaAnulada.data.cancelada_por_id}`);
+  check(filaAnulada.data.cancelada_por_id === filaAnulada.data.vendedor_id,
+    'firma == dueño de la tarea, que es como la metrica la clasifica como propia');
   check(anulada.data?.actividad_id == null,
     'anular NO escribe actividad de resultado en el log');
 
@@ -1985,6 +2014,81 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
     check(filaSistema.data.estado === 'cancelada' && filaSistema.data.cancelada_por === 'sistema',
       'la cancelacion automatica quedo firmada por el SISTEMA, no por el asesor',
       `cancelada_por=${filaSistema.data.cancelada_por}`);
+    // 20260727032429: sin persona no hay firma. Si aqui quedara un uuid, el
+    // CHECK tareas_cancelada_por_id_valida ni siquiera habria dejado escribir.
+    check(filaSistema.data.cancelada_por_id === null,
+      'una cancelacion de SISTEMA no lleva firma: no hay a quien atribuirla',
+      `cancelada_por_id=${filaSistema.data.cancelada_por_id}`);
+  }
+
+  // 7) EL CASO QUE MOTIVA 20260727032429: el SUPERVISOR anula la tarea de su
+  //    vendedor. La fila se sigue agrupando por vendedor_id (como el resto de
+  //    metricas de agenda), asi que sin una firma distinta no habria forma de
+  //    saber que esa anulacion no fue suya — y le bajaba el % por una decision
+  //    que no tomo y sobre la que no podia hacer nada.
+  await requireAdmin(
+    'crear lead transitorio para la anulacion AJENA',
+    admin.schema('crm').from('leads').insert({
+      creado_por: sup1Id,
+      etapa: 'contactado',
+      id: TRANSIENT_IDS.anularLeadAjena,
+      moneda: 'PEN',
+      monto_estimado: 1000,
+      nombre_completo: 'ANULAR AJENA TRANSIENT',
+      origen: 'otro',
+      telefono: '999000022',
+      vendedor_id: vend1Id,
+    }),
+  );
+  const tareaAjena = await positive(
+    'vend1 agenda una tarea que luego le anulara su supervisor',
+    vend1.client.schema('crm').from('tareas').insert({
+      creado_por: vend1.user.id,
+      id: TRANSIENT_IDS.anularTareaAjena,
+      lead_id: TRANSIENT_IDS.anularLeadAjena,
+      tipo: 'whatsapp',
+      titulo: 'RLS ANULAR AJENA TRANSIENT',
+      vence_en: '2027-01-07T15:00:00Z',
+    }).select('id').single(),
+  );
+  if (tareaAjena) {
+    await positive(
+      'sup1 anula por la RPC una tarea de SU vendedor',
+      sessions.sup1.client.schema('crm').rpc('cerrar_tarea', {
+        p_estado: 'cancelada',
+        p_resultado_detalle: null,
+        p_resultado_tipo: null,
+        p_tarea_id: TRANSIENT_IDS.anularTareaAjena,
+      }),
+    );
+    const filaAjena = await leerTarea(TRANSIENT_IDS.anularTareaAjena, 'releer la tarea anulada por el jefe');
+    check(filaAjena.data.estado === 'cancelada' && filaAjena.data.cancelada_por === 'asesor',
+      'anular siendo supervisor tambien es una PERSONA: etiqueta asesor',
+      `cancelada_por=${filaAjena.data.cancelada_por}`);
+    check(filaAjena.data.cancelada_por_id === sup1Id,
+      'la firma es el SUPERVISOR que la ordeno, no el vendedor',
+      `cancelada_por_id=${filaAjena.data.cancelada_por_id}`);
+    check(filaAjena.data.cancelada_por_id !== filaAjena.data.vendedor_id,
+      'firma != dueño de la tarea: la metrica la clasifica como AJENA y la saca del % del vendedor',
+      `firma=${filaAjena.data.cancelada_por_id} dueño=${filaAjena.data.vendedor_id}`);
+  }
+
+  // 8) INVARIANTE DE TODO EL MECANISMO (B1 de la auditoria): ninguna anulacion
+  //    humana puede quedarse SIN firma. Si alguna lo hiciera, la metrica la
+  //    mandaria a "ajena" en silencio y desapareceria del denominador de todos.
+  //    El CHECK la permite a proposito (historia inatribuible del backfill), asi
+  //    que la garantia para las filas NUEVAS tiene que vivir aqui, en el gate.
+  const huerfanas = await requireAdmin(
+    'buscar anulaciones de asesor sin firma',
+    admin.schema('crm').from('tareas')
+      .select('id')
+      .eq('cancelada_por', 'asesor')
+      .is('cancelada_por_id', null),
+  );
+  if (huerfanas) {
+    check(huerfanas.data.length === 0,
+      'ninguna anulacion de asesor quedo sin firma (si no, saldria del % de todos en silencio)',
+      `huerfanas=${huerfanas.data.length}`);
   }
 }
 

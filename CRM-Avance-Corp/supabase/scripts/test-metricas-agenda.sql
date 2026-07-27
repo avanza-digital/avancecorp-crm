@@ -47,6 +47,13 @@ values
 -- Filas de datos con triggers APAGADOS (replica): el oraculo fija tenencia,
 -- estados cerrados, contadores y timestamps a mano, como una historia ya
 -- ocurrida. Los CHECK siguen vigentes (no son triggers).
+--
+-- ⚠️ Y ESA FRASE TIENE DIENTES: apagar los triggers apaga los SELLOS, no las
+-- restricciones. Toda columna que normalmente rellene un BEFORE hay que darla
+-- aqui A MANO, o el CHECK correspondiente tumba los fixtures antes de la
+-- primera asercion. Paso de verdad: `20260726151751` anadio
+-- `tareas_cancelada_por_valida` y este oraculo, que no se re-corrio en aquel
+-- ciclo, quedo roto en silencio hasta el dia siguiente.
 set local session_replication_role = replica;
 
 insert into crm.leads (id, nombre_completo, telefono, etapa, origen,
@@ -67,33 +74,40 @@ values
    'bbbb1111-0000-4000-8000-000000000004', true, now() - interval '6 days');
 
 insert into crm.tareas (id, lead_id, vendedor_id, asignado_supervisor_id, tipo,
-                        titulo, vence_en, estado, reprogramaciones, activo,
-                        creado_en, actualizado_en)
+                        titulo, vence_en, estado, cancelada_por, reprogramaciones,
+                        activo, creado_en, actualizado_en)
 values
   -- V1 · cerradas DENTRO del periodo (actualizado_en = instante del cierre):
   ('dddd1111-0000-4000-8000-000000000001', 'cccc1111-0000-4000-8000-000000000001',
    'bbbb1111-0000-4000-8000-000000000004', 'bbbb1111-0000-4000-8000-000000000002',
    'llamada', 'ORACULO T1 completada', now() - interval '2 days', 'completada',
-   0, true, now() - interval '3 days', now() - interval '2 days'),
+   null, 0, true, now() - interval '3 days', now() - interval '2 days'),
   ('dddd1111-0000-4000-8000-000000000002', 'cccc1111-0000-4000-8000-000000000001',
    'bbbb1111-0000-4000-8000-000000000004', 'bbbb1111-0000-4000-8000-000000000002',
    'reunion', 'ORACULO T2 no asistio', now() - interval '2 days', 'no_show',
-   0, true, now() - interval '4 days', now() - interval '2 days'),
+   null, 0, true, now() - interval '4 days', now() - interval '2 days'),
   -- V1 · cancelada FUERA del periodo: no debe contar.
+  -- `cancelada_por` EXPLICITO y no heredado del trigger: este bloque corre con
+  -- `session_replication_role = replica`, asi que el BEFORE que sella la
+  -- etiqueta NO dispara — pero el CHECK `tareas_cancelada_por_valida`
+  -- (20260726151751) SI sigue vigente y exige que toda cancelada la lleve. Sin
+  -- esta palabra el oraculo revienta en los FIXTURES, antes de llegar a una sola
+  -- asercion. 'sistema' es la verdad literal: aqui no hay ningun asesor
+  -- decidiendo nada, es una historia sembrada a mano.
   ('dddd1111-0000-4000-8000-000000000003', 'cccc1111-0000-4000-8000-000000000001',
    'bbbb1111-0000-4000-8000-000000000004', 'bbbb1111-0000-4000-8000-000000000002',
    'tarea', 'ORACULO T3 vieja', now() - interval '30 days', 'cancelada',
-   0, true, now() - interval '31 days', now() - interval '30 days'),
+   'sistema', 0, true, now() - interval '31 days', now() - interval '30 days'),
   -- V1 · pendiente VENCIDA con 2 reprogramaciones (tocada ayer):
   ('dddd1111-0000-4000-8000-000000000004', 'cccc1111-0000-4000-8000-000000000001',
    'bbbb1111-0000-4000-8000-000000000004', 'bbbb1111-0000-4000-8000-000000000002',
    'llamada', 'ORACULO T4 vencida', now() - interval '1 hour', 'pendiente',
-   2, true, now() - interval '2 days', now() - interval '1 day'),
+   null, 2, true, now() - interval '2 days', now() - interval '1 day'),
   -- V2 · pendiente futura sobre L2 (creada en el periodo):
   ('dddd1111-0000-4000-8000-000000000005', 'cccc1111-0000-4000-8000-000000000002',
    'bbbb1111-0000-4000-8000-000000000005', 'bbbb1111-0000-4000-8000-000000000003',
    'whatsapp', 'ORACULO T5 futura', now() + interval '2 days', 'pendiente',
-   0, true, now() - interval '1 day', now() - interval '1 day');
+   null, 0, true, now() - interval '1 day', now() - interval '1 day');
 
 insert into crm.actividades (id, lead_id, tipo, detalle, creado_por, creado_en)
 values
@@ -172,6 +186,18 @@ begin
      <> (fila->>'canceladas')::int then
     raise exception 'FALLO desglose V1: las dos mitades (%/%) no suman el total %',
       fila->>'canceladas_asesor', fila->>'canceladas_sistema', fila->>'canceladas';
+  end if;
+  -- Anulacion AJENA (20260727032429): la parte de canceladas_asesor que firmo
+  -- OTRO. Misma regla que arriba — la clave tiene que ESTAR aunque valga 0.
+  if fila->'canceladas_ajenas' is null then
+    raise exception 'FALLO desglose V1: falta canceladas_ajenas en el payload';
+  end if;
+  -- Nunca puede superar a las humanas: es un subconjunto suyo. Si esto salta,
+  -- el `is distinct from` del CTE `cierres` se rompio y el denominador de
+  -- pct_completadas se estaria calculando en negativo.
+  if (fila->>'canceladas_ajenas')::int > (fila->>'canceladas_asesor')::int then
+    raise exception 'FALLO desglose V1: las ajenas (%) no pueden superar a las humanas (%)',
+      fila->>'canceladas_ajenas', fila->>'canceladas_asesor';
   end if;
   if (fila->>'reprogramaciones')::int <> 2 then
     raise exception 'FALLO reprogramaciones V1: esperaba 2, hay %', fila->>'reprogramaciones';

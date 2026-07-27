@@ -357,6 +357,14 @@ export interface Database {
            *  bicondicional garantiza que toda cancelada la lleva y ninguna
            *  no-cancelada la tiene. */
           cancelada_por: 'asesor' | 'sistema' | null
+          /** QUIÉN firmó la anulación (20260727): el perfil que llamó a la RPC.
+           *  null cuando cancelada_por = 'sistema' — ahí no hay persona a la que
+           *  atribuir. SOLO LECTURA, igual que la columna de arriba y por lo
+           *  mismo. Se compara contra vendedor_id para saber si la anulación fue
+           *  PROPIA (pesa en el % de esa persona) o AJENA —su jefe— que NO pesa.
+           *  Sin FK a public.perfiles a propósito: con on delete set null, dar
+           *  de baja a un supervisor movería hacia atrás el % de sus vendedores. */
+          cancelada_por_id: string | null
           creado_por: string | null
           creado_en: string
           actualizado_en: string

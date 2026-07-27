@@ -29,14 +29,45 @@ export function canceladasSistema(ven: MetricaAgendaVendedor): number {
   return ven.canceladas_sistema ?? 0
 }
 
+/**
+ * De las anulaciones humanas, las que firmó OTRO: su supervisor o gerencia.
+ *
+ * 0 cuando la BD no lo desglosa — misma degradación honesta que arriba, y en la
+ * misma dirección: sin el dato TODO se considera propio, que es el
+ * comportamiento anterior. Nunca al revés.
+ */
+export function canceladasAjenas(ven: MetricaAgendaVendedor): number {
+  return ven.canceladas_ajenas ?? 0
+}
+
+/**
+ * Las anulaciones que esta persona decidió SOBRE SU PROPIA agenda — las únicas
+ * que pesan en su %.
+ *
+ * Decisión de Miguel (2026-07-26): «si el supervisor anula una tarea el
+ * vendedor no debería poder hacer nada sobre esa tarea», o sea que tampoco
+ * puede cargar con ella. Las propias SÍ cuentan: anular lo tuyo es una decisión
+ * sobre tu agenda, y sacarlas convertiría el botón de anular en una salida
+ * gratis para no hacer nada.
+ *
+ * El `max(0)` no es paranoia decorativa: `canceladas_asesor` y
+ * `canceladas_ajenas` llegan como dos claves independientes y OPCIONALES. Una
+ * BD a medio migrar puede mandar la segunda sin la primera, y sin el suelo el
+ * denominador se iría en negativo y el % saldría disparado por encima de 100.
+ */
+export function canceladasPropias(ven: MetricaAgendaVendedor): number {
+  return Math.max(0, canceladasAsesor(ven) - canceladasAjenas(ven))
+}
+
 /** Totales de agenda de un conjunto de miembros (ámbito completo o un equipo). */
 export interface ResumenAgenda {
   toques: number
   completadas: number
-  /** Cierres del periodo (completadas + no asistió + canceladas DEL ASESOR) —
-   *  denominador del %. Las que cancela el sistema quedan FUERA: convertir un
+  /** Cierres del periodo (completadas + no asistió + anuladas POR ÉL MISMO) —
+   *  denominador del %. Quedan FUERA las que cancela el sistema (convertir un
    *  lead cancela sus pendientes, y contarlas hacía que cerrar la venta le
-   *  bajara la nota al vendedor. Espejo de pct_completadas en la RPC. */
+   *  bajara la nota) y las que anula un superior (no tuvo control sobre ellas).
+   *  Espejo de pct_completadas en la RPC. */
   cierres: number
   /** % entero de completadas sobre cierres; null cuando no hubo cierres que porcentuar. */
   pctCompletadas: number | null
@@ -84,7 +115,7 @@ export function resumenAgenda(vendedores: readonly MetricaAgendaVendedor[]): Res
   for (const ven of vendedores) {
     toques += ven.toques
     completadas += ven.completadas
-    cierres += ven.completadas + ven.no_asistio + canceladasAsesor(ven)
+    cierres += ven.completadas + ven.no_asistio + canceladasPropias(ven)
     noAsistio += ven.no_asistio
     sinAccion += ven.leads_sin_accion
     vencidas += ven.vencidas
