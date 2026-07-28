@@ -324,6 +324,7 @@ function procesar(escribir) {
   const origen = SpreadsheetApp.openById(ORIGEN_ID); // ← solo lectura, ver cabecera
   const aceptados = [];
   const rechazados = [];
+  const duplicados = []; // rechazados por duplicado: se huellán para no re-listarlos
   let leidas = 0;
   let repetidosPasadas = 0;
 
@@ -362,13 +363,21 @@ function procesar(escribir) {
 
       const huella = nombrePestana + "|" + lead.telefono;
       if (huellas[huella]) { repetidosPasadas++; continue; }
+      // Los DUPLICADOS también se huellán: se listan en REVISAR UNA sola vez (esta
+      // pasada) y las siguientes los saltan en silencio. Sin esto, cada corrida
+      // re-lista la historia completa de duplicados (163 filas el 2026-07-27) y
+      // entierra lo que Rosa sí tiene que mirar.
       if (vistosAhora[lead.telefono]) {
         lead.motivo = "Teléfono repetido dentro del origen";
+        lead.huella = huella;
+        duplicados.push(lead);
         rechazados.push(lead);
         continue;
       }
       if (telefonosEnHoja[lead.telefono]) {
         lead.motivo = "Teléfono ya presente en la hoja";
+        lead.huella = huella;
+        duplicados.push(lead);
         rechazados.push(lead);
         continue;
       }
@@ -382,8 +391,12 @@ function procesar(escribir) {
 
   if (escribir) {
     escribirLeads(hojaLeads, aceptados);
+    // Huellas ANTES que REVISAR: si la corrida muere a mitad (timeout de Apps
+    // Script sobre las ~12k filas del origen), lo grave es "leads escritos sin
+    // huella" — pasó el 2026-07-27 y la corrida siguiente re-listó TODO como
+    // "ya presente". REVISAR es cosmético: va al final.
+    guardarHuellas(destino, aceptados.concat(duplicados));
     escribirRechazos(destino, rechazados);
-    guardarHuellas(destino, aceptados);
   }
   return { leidas: leidas, aceptados: aceptados, rechazados: rechazados, repetidosPasadas: repetidosPasadas };
 }
@@ -751,6 +764,20 @@ function escribirLeads(hoja, leads) {
 }
 
 /**
+ * Prioridad de cada motivo al ordenar REVISAR (menor = más arriba). Función pura,
+ * probada en puente-drive-origen.test.mjs.
+ */
+function ordenRevision(motivo) {
+  const m = String(motivo || "");
+  if (m.indexOf("PRÉSTAMO") >= 0) return 0;
+  if (m.indexOf("Sin teléfono") === 0) return 1;
+  if (m.indexOf("Sin nombre") === 0) return 2;
+  if (m.indexOf("repetido dentro del origen") >= 0) return 8;
+  if (m.indexOf("ya presente") >= 0) return 9;
+  return 5;
+}
+
+/**
  * La pestaña de revisión es la RED DE SEGURIDAD: todo lead descartado que un humano
  * podría rescatar queda aquí, con el motivo y la fila COMPLETA del origen. Se
  * reescribe entera en cada pasada (es una foto del estado actual del origen, no un
@@ -761,6 +788,11 @@ function escribirLeads(hoja, leads) {
 function escribirRechazos(libro, rechazados) {
   rechazados = rechazados.filter(function (r) {
     return String(r.motivo).indexOf(MOTIVO_CORTE) !== 0;
+  });
+  // Lo accionable arriba (préstamo, sin teléfono, sin nombre); los duplicados al
+  // final — solo aparecen la pasada en que se descubren (quedan huellados).
+  rechazados = rechazados.slice().sort(function (a, b) {
+    return ordenRevision(a.motivo) - ordenRevision(b.motivo);
   });
   let hoja = libro.getSheetByName(HOJA_REVISAR);
   if (!hoja) hoja = libro.insertSheet(HOJA_REVISAR);

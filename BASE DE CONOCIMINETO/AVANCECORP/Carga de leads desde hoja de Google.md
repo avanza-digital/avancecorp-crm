@@ -255,6 +255,32 @@ arnés viejo se perdió por vivir en scratchpad.
 solos (REVISAR se reescribe entera en cada pasada) y de ahí el conector los sube al
 CRM en su ciclo de 5 min.
 
+### Primera corrida real con las reglas nuevas (2026-07-27 noche) — VERIFICADA
+
+- Miguel pegó el `.gs` y corrió "Traer" (dos veces). **158 leads entraron al CRM esa
+  noche → `crm.leads` = 279**, incluidos **4 con teléfono rescatado** de otra columna
+  (Hestilber/cuillrmo/David/Manuel Lomas — verificados por SQL, están en la base).
+- La 1ª corrida escribió ~165 filas en LEADS pero **murió antes de guardar huellas**
+  (timeout probable de Apps Script sobre las ~12k filas del origen) → la 2ª corrida
+  re-listó esas mismas filas como "Teléfono ya presente en la hoja" (163). **Ningún
+  duplicado entró**: la defensa por teléfono de la hoja funcionó, y el conector frenó
+  ~7 más que ya existían en el CRM (dedup de la edge, tercera línea).
+- ⚠️ **El export de Drive TRUNCA hojas grandes** (mostraba 154 filas de LEADS cuando
+  había ~232): verificar SIEMPRE contra `crm.leads` por SQL, no contra el export.
+- **Fix aplicado al `.gs` (2026-07-27 noche):** (1) las huellas se guardan ANTES de
+  escribir REVISAR — si la corrida muere a mitad, lo grave era "leads sin huella";
+  (2) los **duplicados también se huellán** → se listan en REVISAR UNA sola vez y las
+  corridas siguientes los saltan en silencio (sin esto, las 163 filas reaparecerían
+  en CADA corrida para siempre, enterrando lo accionable); (3) REVISAR **ordenada**:
+  préstamo / sin teléfono / sin nombre arriba, duplicados al final (`ordenRevision`,
+  pura y testeada). Tests `npm run test:puente` **15/15**.
+- **FALTA: re-pegar el `.gs` UNA vez más** (misma rutina de 2 min; no hay que correr
+  nada después). La próxima corrida normal mostrará los ~163 "ya presente" una última
+  vez —quedan huellados en esa pasada— y de ahí en adelante REVISAR queda limpio.
+- Lo único real que quedó en REVISAR hoy: 2 "Sin teléfono válido" (un fijo mal
+  tipeado `51481414044` y una fila basura "JULIO 2026*" del origen) y 2 "Sin nombre".
+  Cero préstamos en este lote.
+
 > ⚠️ Ese arnés **se perdió** (vivía en `scratchpad/`, nunca se commiteó). El `.gs` sobrevive
 > porque está en `CRM-Avance-Corp/scripts/`. Si hace falta re-verificar, se reconstruye
 > cargando el `.gs` con `new Function()` en Node y alimentándolo con las filas del origen.

@@ -20,7 +20,7 @@ const aqui = dirname(fileURLToPath(import.meta.url));
 const fuente = readFileSync(join(aqui, "puente-drive-origen.gs"), "utf8");
 const gs = new Function(
   fuente +
-    "\nreturn { ubicarColumnas, normalizarFila, telefonoPeru, telefonoEnOtraCelda, pidePrestamo, filaLegible, legible, montoDe, monedaDe, siNo };"
+    "\nreturn { ubicarColumnas, normalizarFila, telefonoPeru, telefonoEnOtraCelda, pidePrestamo, filaLegible, legible, montoDe, monedaDe, siNo, ordenRevision };"
 )();
 
 // Encabezados REALES de las dos pestañas del origen (2026-07-27).
@@ -154,6 +154,24 @@ test("preguntas de ahorro NO se confunden con préstamo", () => {
     "Tienen seguro de la SBS?", "solo cuenta de ahorros", "", "no", "ok"]) {
     assert.equal(gs.pidePrestamo(p), false, p || "(vacía)");
   }
+});
+
+test("orden de REVISAR: lo accionable arriba, los duplicados al final", () => {
+  const motivos = [
+    "Teléfono ya presente en la hoja",
+    "Sin nombre",
+    "Pide PRÉSTAMO — no es lead de ahorro",
+    "Teléfono repetido dentro del origen",
+    "Sin teléfono válido (se buscó en toda la fila)",
+  ];
+  const orden = motivos.slice().sort((a, b) => gs.ordenRevision(a) - gs.ordenRevision(b));
+  assert.deepEqual(orden, [
+    "Pide PRÉSTAMO — no es lead de ahorro",
+    "Sin teléfono válido (se buscó en toda la fila)",
+    "Sin nombre",
+    "Teléfono repetido dentro del origen",
+    "Teléfono ya presente en la hoja",
+  ]);
 });
 
 // ── Formato legible de REVISAR ───────────────────────────────────────────────
