@@ -836,13 +836,14 @@ function leerHuellas(libro) {
  * Hoja oculta: nunca viaja al CRM.
  */
 function guardarHuellas(libro, leads) {
-  if (!leads.length) return;
   let hoja = libro.getSheetByName(HOJA_HUELLAS);
   if (!hoja) {
     hoja = libro.insertSheet(HOJA_HUELLAS);
     hoja.appendRow(["Huella (no tocar)", "Teléfono", "Origen", "Registrado el", "Traído el"]);
     hoja.hideSheet();
   }
+  protegerHuellas(hoja);
+  if (!leads.length) return;
   const traidoEl = Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
   hoja.getRange(hoja.getLastRow() + 1, 1, leads.length, 5)
     .setValues(leads.map(function (l) {
@@ -854,6 +855,28 @@ function guardarHuellas(libro, leads) {
         traidoEl,
       ];
     }));
+}
+
+/**
+ * Blinda la pestaña de huellas: solo quien instaló el puente (y por tanto el propio
+ * script, que corre con su identidad) puede editarla o borrarla. Si alguien más la
+ * borrara, el puente perdería la memoria: re-listaría todos los avisos de duplicado
+ * y, con LEADS limpia, re-traería leads ya importados (el CRM los frena, pero es
+ * ruido). Idempotente: si ya está protegida, no hace nada.
+ *
+ * ⚠️ Si algún día OTRA persona va a operar "Traer leads del origen" desde el menú,
+ * hay que añadirla como editora de esta protección (Datos → Hojas e intervalos
+ * protegidos) — si no, su corrida fallaría justo al guardar las huellas.
+ */
+function protegerHuellas(hoja) {
+  if (hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET).length) return;
+  const p = hoja.protect().setDescription("Memoria del puente — solo el dueño");
+  const yo = Session.getEffectiveUser();
+  p.addEditor(yo);
+  p.removeEditors(p.getEditors().filter(function (u) {
+    return u.getEmail() !== yo.getEmail();
+  }));
+  if (p.canDomainEdit()) p.setDomainEdit(false);
 }
 
 function telefonosYaEnLaHoja(hoja) {
