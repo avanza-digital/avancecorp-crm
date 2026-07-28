@@ -130,7 +130,17 @@ Las 2 filas de ejemplo pueden quedarse en la hoja (estado no vacío = no se reim
 pero lo limpio es borrarlas. **El conector queda VIVO: toda fila nueva en la hoja entra
 sola al CRM en ≤5 min.**
 
-## Puente desde el documento de origen (CONSTRUIDO 2026-07-22, sin instalar)
+## Puente desde el documento de origen (CONSTRUIDO 2026-07-22)
+
+> ⚠️ **Corrección 2026-07-27:** esta nota decía "sin instalar". Es falso: el puente se
+> instaló y corre desde el **2026-07-23** (memoria de sesión: «cadena de leads viva» —
+> origen ~12.056 filas → puente → hoja → conector → `crm.leads`, primer lote 55).
+> `crm.leads` acumula **121** (1 del 21-jul + 55 del 23 + 65 del 24). Las cifras
+> "377 filas / 324 entran" de más abajo son de ANTES del arreglo del tope de lectura:
+> el origen real es mucho más grande. **Desde el 25-jul no entra nada nuevo** —
+> coincide con que las filas nuevas del origen vienen SIN "Fecha de Registro" y la
+> regla vieja las mandaba TODAS a REVISAR (159 presas; arreglado hoy, ver «Reglas
+> nuevas de REVISAR»).
 
 **El problema:** los leads caen primero en un documento de la empresa,
 `02PLAZOFIJOMAS LANDING` (`1VriA6vr-QjLDRnyH-sx-sgNwyYNvsNFR1d1JZbRBwEs`, dueño
@@ -186,7 +196,64 @@ Género, fecha de nacimiento, correo y DNI **no existen en el origen** → queda
 aserciones sobre filas reales de las dos pestañas (mapeo de columnas, teléfonos con
 espacios, correo metido en la columna de WhatsApp, fijo de 7 dígitos rechazado, montos
 con separador de miles, moneda mixta, emojis, fecha más antigua). **33/33 en verde.**
-NO instalado todavía: falta que Miguel lo pegue y corra *Vista previa*.
+
+### Formato de REVISAR arreglado (2026-07-27)
+
+Miguel reportó que la pestaña `REVISAR (no importados)` era ilegible. Causa: la
+columna F volcaba la fila cruda del origen entera en una sola celda, unida con `|` y
+SIN encabezados (`fila.join(" | ")`) — imposible saber qué campo era cuál.
+
+**Arreglo:** `filaLegible()` + `legible()` en el `.gs`. Cada celda ahora trae
+`Encabezado: valor`, UNA LÍNEA POR DATO (salto de línea dentro de la misma celda,
+`setWrap(true)` + ancho de columna fijado). `legible()` limpia guiones BAJOS y
+símbolos/emojis sueltos al inicio del encabezado de Facebook
+(`✅_si_deseo_aperturar_mi_cuenta` → "si deseo aperturar mi cuenta") — a propósito NO
+toca el guion normal, porque rompería fechas ISO (`2026-07-23T18:47:09-05:00`) y
+formatos de teléfono. Se aplica tanto al encabezado como al valor (el valor también
+venía crudo con guiones bajos: `"si_"`, `"50,000_"`).
+
+**Pendiente:** el `.gs` vive en el repo pero Apps Script no lo toma solo — falta que
+Miguel **re-pegue el archivo actualizado** en Extensiones → Apps Script de la hoja
+para que el arreglo tenga efecto. Hasta entonces, la pestaña REVISAR sigue mostrando
+el formato viejo (ilegible) porque ahí no corrió el .gs nuevo todavía.
+
+### Reglas nuevas de REVISAR (2026-07-27, orden de Miguel)
+
+Miguel, al ver REVISAR: la fecha NO es motivo de revisión — «la fecha la determinas
+por el día en el que entre el lead». Los motivos que importan son **duplicado** y
+**que pida préstamo**. Ese día había **159 leads potenciales presos** por "Sin fecha
+legible" (el origen dejó de llenar "Fecha de Registro" en las filas nuevas de la
+pestaña `landing`).
+
+1. **Sin fecha → ENTRA igual**, con "Sin fecha en el origen (vale la del ingreso)"
+   en la Nota. El motivo "Sin fecha legible" ya no existe. El corte del 2026-07-22
+   sigue frenando SOLO lo que trae fecha legible VIEJA (el backlog 2025 viene
+   fechado, así que sigue fuera). Se quitó la constante
+   `DESCARTAR_SIN_FECHA_SI_HAY_CORTE`.
+2. **Rescate de teléfono**: si celular/WhatsApp no dan número usable, se busca en
+   TODA la fila (saltando monto y DNI; `telefonoPeru()` es estricto, así que fechas
+   y montos no pasan por número). Razón: la pestaña de Facebook tiene DOS columnas
+   "celular" — la 1ª trae lo que la persona tipeó (a veces un monto o su nombre) y
+   el número real está en la 2ª con prefijo `p:`; el mapeo por encabezado solo veía
+   la 1ª. De los 7 "Sin teléfono válido" de ese día, 3 se rescataban solos. Entra
+   con aviso en la Nota; el motivo restante es "Sin teléfono válido (se buscó en
+   toda la fila)".
+3. **Préstamo → REVISAR**: comentario que mencione préstamo/crédito
+   (`/presta|credito/` sobre texto normalizado) cae con motivo **"Pide PRÉSTAMO — no
+   es lead de ahorro"** (captamos depósitos, no colocamos créditos). El chequeo corre
+   ANTES que los rechazos por dato faltante y con nombre/teléfono ya resueltos, para
+   que quien revise vea a la persona. ⚠️ Ya entró al CRM al menos un lead con
+   "quiero prestamo" ANTES de esta regla (fila de prueba de Miguel).
+4. REVISAR queda solo con lo accionable: duplicados, pide préstamo, sin teléfono
+   (tras rescate), sin nombre.
+
+**Tests:** `scripts/puente-drive-origen.test.mjs` (`npm run test:puente`, 14/14) —
+EN EL REPO esta vez, con encabezados y filas reales del origen como fixtures; el
+arnés viejo se perdió por vivir en scratchpad.
+
+**Al re-pegar el .gs y correr "Traer leads del origen"**: los ~159 presos entran
+solos (REVISAR se reescribe entera en cada pasada) y de ahí el conector los sube al
+CRM en su ciclo de 5 min.
 
 > ⚠️ Ese arnés **se perdió** (vivía en `scratchpad/`, nunca se commiteó). El `.gs` sobrevive
 > porque está en `CRM-Avance-Corp/scripts/`. Si hace falta re-verificar, se reconstruye

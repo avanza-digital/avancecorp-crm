@@ -55,24 +55,20 @@ const TOPE_POR_PASADA = 500;
 /**
  * FECHA DE CORTE — el backlog viejo NO entra al CRM (decisión de Miguel, 2026-07-23).
  *
- * Solo pasan los leads cuya fecha de registro sea ESA FECHA O POSTERIOR. Todo lo
- * anterior se descarta con motivo "Anterior al corte" (queda listado en la pestaña
- * de revisión, no se pierde: simplemente no viaja al CRM).
+ * Frena SOLO las filas que traen fecha legible ANTERIOR a esta. Se descartan con
+ * motivo "Anterior al corte": se cuentan en el reporte pero no se listan en REVISAR
+ * (son cientos, por diseño — taparían lo que sí hay que mirar).
+ *
+ * Una fila SIN fecha legible ENTRA IGUAL (decisión de Miguel, 2026-07-27): la fecha
+ * que vale es la del día en que el lead ingresa al CRM. El origen dejó de llenar
+ * "Fecha de Registro" en las filas nuevas y la regla anterior ("sin fecha → a
+ * revisar") tenía 159 leads potenciales presos en REVISAR. El backlog de 2025 sí
+ * viene fechado, así que el corte lo sigue dejando fuera.
  *
  * Formato "AAAA-MM-DD". Dejar en "" desactiva el corte (entra todo — NO recomendado:
  * son ~500 leads de 2025).
- *
- * 2026-07-22 = arrancamos con lo que entró ayer al origen, para probar el sistema
- * con datos reales y volumen chico.
  */
 const FECHA_CORTE = "2026-07-22";
-
-/**
- * Qué hacer con una fila cuya fecha no se puede leer (columna vacía o formato raro)
- * cuando hay corte activo. true = se descarta y queda en la pestaña de revisión
- * (elegido: evita que se cuele backlog viejo sin fecha, y nada se pierde en silencio).
- */
-const DESCARTAR_SIN_FECHA_SI_HAY_CORTE = true;
 
 /**
  * Motivo de los descartes POR DISEÑO (el backlog anterior al corte). Se cuentan en
@@ -263,16 +259,19 @@ function resumen(r) {
   r.rechazados.forEach(function (x) {
     porMotivo[x.motivo] = (porMotivo[x.motivo] || 0) + 1;
   });
-  let noAutoriza = 0, sinMonto = 0, sinMoneda = 0, conPregunta = 0;
+  let noAutoriza = 0, sinMonto = 0, sinMoneda = 0, conPregunta = 0, sinFecha = 0, telRescatado = 0;
   r.aceptados.forEach(function (l) {
     if (l.autorizo === "NO") noAutoriza++;
     if (l.sinMonto) sinMonto++;
     if (l.sinMoneda) sinMoneda++;
     if (l.pregunta) conPregunta++;
+    if (l.sinFecha) sinFecha++;
+    if (l.telefonoRescatado) telRescatado++;
   });
 
   let t = FECHA_CORTE
-    ? "CORTE ACTIVO: solo entran leads del " + FECHA_CORTE + " en adelante.\n\n"
+    ? "CORTE ACTIVO: se frena solo lo fechado ANTES del " + FECHA_CORTE +
+      " (sin fecha legible = entra igual).\n\n"
     : "⚠️ SIN CORTE: entraría TODO el origen, incluido el backlog viejo.\n\n";
 
   t += "Filas leídas del origen: " + r.leidas +
@@ -281,6 +280,8 @@ function resumen(r) {
     (conPregunta ? "\n   · " + conPregunta + " traen COMENTARIO del cliente → va al inicio de la Nota" : "") +
     (sinMonto ? "\n   · " + sinMonto + " SIN MONTO → entran con " + MONTO_SI_NO_INDICA + " y aviso en la Nota" : "") +
     (sinMoneda ? "\n   · " + sinMoneda + " SIN MONEDA → entran como " + MONEDA_SI_NO_INDICA + " y aviso en la Nota" : "") +
+    (sinFecha ? "\n   · " + sinFecha + " sin fecha en el origen → entran contando desde hoy" : "") +
+    (telRescatado ? "\n   · " + telRescatado + " con el teléfono fuera de su columna → número rescatado" : "") +
     "\nYa traídos antes (se omiten): " + r.repetidosPasadas +
     "\nDescartados: " + r.rechazados.length;
   Object.keys(porMotivo).forEach(function (m) {
@@ -355,7 +356,7 @@ function procesar(escribir) {
       if (esFilaDeEncabezado(fila, datos[0])) continue;
       leidas++;
 
-      const lead = normalizarFila(fila, col, nombrePestana, i + 1);
+      const lead = normalizarFila(fila, col, nombrePestana, i + 1, datos[0]);
 
       if (lead.motivo) { rechazados.push(lead); continue; }
 
@@ -448,39 +449,55 @@ function describirColumnas(col, cabeceras) {
 }
 
 /** Convierte una fila del origen en una fila de nuestra hoja, o la rechaza con motivo. */
-function normalizarFila(fila, col, pestana, numeroFila) {
+function normalizarFila(fila, col, pestana, numeroFila, cabeceras) {
   const val = function (i) { return i >= 0 && i < fila.length ? String(fila[i]).trim() : ""; };
 
   const lead = {
     pestana: pestana, fila: numeroFila, motivo: "",
-    crudo: fila.join(" | ").slice(0, 500),
+    crudo: filaLegible(fila, cabeceras),
   };
 
-  // FECHA DE CORTE — primero que todo: el backlog viejo ni se evalúa. Así el
-  // reporte separa "es viejo" de "tiene el dato mal", que son cosas distintas.
+  // FECHA DE CORTE — frena solo lo que trae fecha legible Y vieja. Sin fecha legible
+  // el lead ENTRA (decisión de Miguel, 2026-07-27): su fecha real es el día en que
+  // ingresa; a un posible cliente no se le frena por un dato administrativo que el
+  // origen olvidó llenar.
   const fecha = fechaMasAntigua(fila, col.fechas);
   lead.fecha = fecha;
+  lead.sinFecha = !fecha;
   const corte = corteEnMs();
-  if (corte !== null) {
-    if (!fecha) {
-      if (DESCARTAR_SIN_FECHA_SI_HAY_CORTE) {
-        lead.motivo = "Sin fecha legible (no se puede ubicar respecto al corte)";
-        return lead;
-      }
-    } else if (fecha.ms < corte) {
-      lead.motivo = MOTIVO_CORTE + " (" + FECHA_CORTE + ")";
-      return lead;
-    }
+  if (corte !== null && fecha && fecha.ms < corte) {
+    lead.motivo = MOTIVO_CORTE + " (" + FECHA_CORTE + ")";
+    return lead;
   }
 
-  // Nombre = nombre + apellidos.
+  // Nombre y teléfono se resuelven ANTES de cualquier rechazo: así toda fila que
+  // caiga en REVISAR sale con esas dos columnas llenas cuando el dato sí existe.
   lead.nombre = [val(col.nombre), val(col.apellido)]
     .filter(String).join(" ").replace(/\s+/g, " ").trim();
-  if (!lead.nombre) { lead.motivo = "Sin nombre"; return lead; }
 
-  // Teléfono: celular; si no sirve, el de respaldo (WhatsApp / celular 2).
+  // Teléfono: primero sus columnas (celular; respaldo WhatsApp / celular 2). Si no
+  // dan un número usable, RESCATE en el resto de la fila: la pestaña de Facebook
+  // tiene dos columnas "celular" — la primera trae lo que la persona tipeó (a veces
+  // un monto o su propio nombre) y el número real está en la otra, con prefijo "p:".
   lead.telefono = telefonoPeru(val(col.telefono)) || telefonoPeru(val(col.whatsapp));
-  if (!lead.telefono) { lead.motivo = "Sin teléfono válido"; return lead; }
+  if (!lead.telefono) {
+    lead.telefono = telefonoEnOtraCelda(fila, col);
+    lead.telefonoRescatado = !!lead.telefono;
+  }
+
+  // PRÉSTAMO — vino a pedir plata, no a depositarla (regla de Miguel, 2026-07-27).
+  // Lo decide un humano en REVISAR. Va antes que los rechazos por dato faltante
+  // porque es el motivo que más importa ver ahí.
+  if (pidePrestamo(val(col.pregunta))) {
+    lead.motivo = "Pide PRÉSTAMO — no es lead de ahorro";
+    return lead;
+  }
+
+  if (!lead.nombre) { lead.motivo = "Sin nombre"; return lead; }
+  if (!lead.telefono) {
+    lead.motivo = "Sin teléfono válido (se buscó en toda la fila)";
+    return lead;
+  }
 
   // Monto y moneda NO descartan al lead: si faltan, entra marcado (ver constantes).
   lead.capital = montoDe(val(col.monto));
@@ -519,6 +536,8 @@ function normalizarFila(fila, col, pestana, numeroFila) {
     lead.pregunta ? "💬 PREGUNTÓ: " + lead.pregunta : "",
     lead.sinMonto ? "⚠️ NO INDICÓ MONTO — confirmar con el cliente" : "",
     lead.sinMoneda ? "⚠️ NO INDICÓ MONEDA — se asumió " + MONEDA_SI_NO_INDICA : "",
+    lead.telefonoRescatado ? "⚠️ Teléfono tomado de OTRA columna del origen — confirmar al contactar" : "",
+    lead.sinFecha ? "Sin fecha en el origen (vale la del ingreso)" : "",
     esSocio ? "Ya es socio de la cooperativa" : "",
     m.mixta ? "Marcó soles y dólares — se asumió PEN" : "",
   ].filter(String).join(" · ");
@@ -544,6 +563,35 @@ function telefonoPeru(v) {
   if (/^9\d{8}$/.test(d)) return "+51" + d;           // celular de 9 dígitos
   if (/^0?51[9]\d{8}$/.test(d)) return "+" + d.slice(-11);
   return "";                                          // fijos, truncados, basura
+}
+
+/**
+ * RESCATE: busca un celular peruano válido en CUALQUIER otra celda de la fila, para
+ * los leads que escriben el número donde no toca (o cuando el origen tiene dos
+ * columnas "celular" y el mapeo por encabezado solo puede quedarse con la primera).
+ * Se saltan las columnas ya intentadas y las que por diseño traen números que NO son
+ * teléfono (monto, DNI). telefonoPeru() es estricto — 9 dígitos empezando en 9, con
+ * o sin +51 — así que fechas, DNIs y montos con miles no pasan por número.
+ */
+function telefonoEnOtraCelda(fila, col) {
+  for (let i = 0; i < fila.length; i++) {
+    if (i === col.telefono || i === col.whatsapp || i === col.monto || i === col.dni) continue;
+    const t = telefonoPeru(String(fila[i] == null ? "" : fila[i]).trim());
+    if (t) return t;
+  }
+  return "";
+}
+
+/**
+ * La persona pide un PRÉSTAMO o crédito: no es lead de ahorro (nosotros captamos
+ * depósitos, no colocamos créditos). "presta" cubre préstamo/prestamos/préstame/
+ * prestan; normalizar() ya quitó las tildes. Puede dar un falso positivo raro
+ * ("prestar atención"), pero REVISAR lo mira un humano: mejor una revisión de más
+ * que un préstamo colado al CRM.
+ */
+function pidePrestamo(v) {
+  const n = normalizar(v);
+  return n ? /presta|credito/.test(n) : false;
 }
 
 /** "50,000 a más" → 50000 · "más de 100,000" → 100000 · "5,000_" → 5000. */
@@ -588,6 +636,39 @@ function preguntaUtil(v) {
   // Respuestas vacías de contenido, tal como aparecen en el origen.
   if (/^(no|si|s|n|ok|oki|ninguna?|ninguno|nada|nada mas|todo bien|x|-|\.)$/.test(n)) return "";
   return t.slice(0, 300);
+}
+
+/**
+ * La fila del origen, legible para Rosa: "Encabezado: valor", una línea por dato
+ * (salto de línea DENTRO de la misma celda). Reemplaza el volcado plano de antes
+ * (`fila.join(" | ")`), que aplastaba toda la fila en un pipe sin etiquetas — nadie
+ * podía saber qué campo era cuál. Solo entran las columnas que traen dato.
+ */
+function filaLegible(fila, cabeceras) {
+  const partes = [];
+  for (let i = 0; i < fila.length; i++) {
+    const valor = legible(fila[i]);
+    if (!valor) continue;
+    const encabezado = legible(cabeceras && cabeceras[i] != null ? cabeceras[i] : "") || ("Columna " + (i + 1));
+    partes.push(encabezado + ": " + valor);
+  }
+  return partes.join("\n").slice(0, 800);
+}
+
+/**
+ * Encabezado o valor crudo → texto legible: quita guiones BAJOS y símbolos/emojis
+ * sueltos del inicio (así viene el formulario de Facebook, tanto la pregunta como
+ * a veces la respuesta: "✅_si_deseo_aperturar_mi_cuenta"). Solo toca "_", nunca
+ * "-": el guion normal aparece en fechas ISO ("2026-07-23T18:47:09-05:00") y hay
+ * que dejarlo intacto. A diferencia de normalizar(), conserva mayúsculas y tildes
+ * — esto es para MOSTRAR, no para comparar.
+ */
+function legible(s) {
+  return String(s == null ? "" : s)
+    .replace(/_+/g, " ")
+    .replace(/^[^\p{L}\p{N}¿¡+]+/u, "")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** Descarta lugares que en realidad son códigos o números sueltos ("15"). */
@@ -682,12 +763,19 @@ function escribirRechazos(libro, rechazados) {
     return String(r.motivo).indexOf(MOTIVO_CORTE) !== 0;
   });
   let hoja = libro.getSheetByName(HOJA_REVISAR);
-  if (!hoja) {
-    hoja = libro.insertSheet(HOJA_REVISAR);
-    hoja.appendRow(["Motivo", "Pestaña de origen", "Fila", "Nombre", "Teléfono crudo", "Fila completa del origen"]);
-    hoja.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#f4cccc");
-    hoja.setFrozenRows(1);
-  } else if (hoja.getLastRow() > 1) {
+  if (!hoja) hoja = libro.insertSheet(HOJA_REVISAR);
+
+  // El encabezado se reescribe SIEMPRE, exista la pestaña o no: si alguien la creó
+  // a mano (o quedó de una corrida vieja sin encabezado), esto la deja arreglada
+  // en la próxima corrida sin que nadie tenga que tocar nada manualmente.
+  hoja.getRange(1, 1, 1, 6).setValues(
+    [["Motivo", "Pestaña de origen", "Fila", "Nombre", "Teléfono crudo", "Fila completa del origen"]]
+  );
+  hoja.getRange(1, 1, 1, 6).setFontWeight("bold").setBackground("#f4cccc");
+  hoja.setFrozenRows(1);
+  hoja.setColumnWidth(6, 480);
+
+  if (hoja.getLastRow() > 1) {
     hoja.getRange(2, 1, hoja.getLastRow() - 1, 6).clearContent();
   }
   if (!rechazados.length) return;
@@ -695,6 +783,7 @@ function escribirRechazos(libro, rechazados) {
     return [r.motivo, r.pestana, r.fila, r.nombre || "", r.telefono || "", r.crudo];
   });
   hoja.getRange(2, 1, filas.length, 6).setValues(filas);
+  hoja.getRange(2, 6, filas.length, 1).setWrap(true).setVerticalAlignment("top");
 }
 
 function leerHuellas(libro) {
