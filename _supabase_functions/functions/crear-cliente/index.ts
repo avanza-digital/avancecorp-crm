@@ -20,8 +20,9 @@ const ALLOWED_ORIGINS = new Set([
   // 2026-07-16). El CORS solo decide desde qué páginas puede llamar un
   // navegador; la autorización real sigue siendo el JWT + rol de abajo.
   "https://crm.miavance.com",
-  // Desarrollo local del CRM — RETIRAR en el go-live (checklist del traspaso).
-  "http://localhost:5173",
+  // localhost:5173 (desarrollo local) se RETIRÓ el 2026-07-27 (go-live del
+  // equipo): en dev el alta real se prueba contra el mock de Playwright, no
+  // contra prod. Si algún día hace falta de nuevo, es re-agregarlo y redeploy.
 ]);
 
 const PORTAL_URL = "https://miavance.com";
