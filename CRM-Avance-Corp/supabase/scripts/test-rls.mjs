@@ -2338,6 +2338,93 @@ async function testBankingBoundary(sessions, seed) {
     }),
     ['P0001'],
   );
+
+  // ── Trigger perfiles_cuentas_no_vaciar (20260728044338) ────────────────────
+  // Un cliente que YA tiene cuenta no puede QUEDAR sin ninguna. La prueba dura
+  // es con `admin` (service_role): la RLS no aplica, solo el trigger puede
+  // frenar. Los casos permitidos terminan restaurando el fixture exacto.
+  const columnasVacias = {
+    banco: null, numero_cuenta: null, tipo_cuenta: null, cci: null,
+    beneficiario_nombre: null, beneficiario_dni: null,
+    banco_usd: null, numero_cuenta_usd: null, tipo_cuenta_usd: null, cci_usd: null,
+    beneficiario_nombre_usd: null, beneficiario_dni_usd: null,
+  };
+
+  await expectBlockedMutation(
+    'trigger: ni service_role puede dejar al cliente SIN ninguna cuenta',
+    admin.from('perfiles').update(columnasVacias).eq('id', bankProfileId).select('id'),
+    ['P0001'],
+  );
+
+  // El bypass que costó el NO-GO de la auditoría: '' satisface `is not null`.
+  // El trigger normaliza con nullif(btrim(...)) — cadena vacía = vacío.
+  await expectBlockedMutation(
+    'trigger: vaciar con cadenas VACIAS tampoco pasa (bypass del NO-GO)',
+    admin.from('perfiles').update({
+      banco: '', numero_cuenta: '', banco_usd: ' ', numero_cuenta_usd: '',
+    }).eq('id', bankProfileId).select('id'),
+    ['P0001'],
+  );
+
+  await expectBlockedMutation(
+    'trigger: el cliente tampoco puede vaciarse sus propias cuentas',
+    sessions.clientBank.client.from('perfiles').update(columnasVacias)
+      .eq('id', bankProfileId).select('id'),
+    ['P0001'],
+  );
+
+  const cambioNumero = await positive(
+    'trigger: corregir el numero de cuenta (full → full) sigue permitido',
+    admin.from('perfiles').update({ numero_cuenta: '19100000000099' })
+      .eq('id', bankProfileId).select('id'),
+  );
+  if (cambioNumero) {
+    await positive(
+      'trigger: restaurar el numero de cuenta del fixture',
+      admin.from('perfiles').update({ numero_cuenta: BANK_CLIENT.accountNumber })
+        .eq('id', bankProfileId).select('id'),
+    );
+  }
+
+  const sinUsd = await positive(
+    'trigger: quitar SOLO la cuenta USD (la PEN sigue viva) esta permitido',
+    admin.from('perfiles').update({
+      banco_usd: null, numero_cuenta_usd: null, tipo_cuenta_usd: null, cci_usd: null,
+    }).eq('id', bankProfileId).select('id'),
+  );
+  if (sinUsd) {
+    await positive(
+      'trigger: restaurar la cuenta USD del fixture',
+      admin.from('perfiles').update({
+        banco_usd: BANK_CLIENT.bankUsd,
+        numero_cuenta_usd: BANK_CLIENT.accountNumberUsd,
+        tipo_cuenta_usd: BANK_CLIENT.accountTypeUsd,
+        cci_usd: BANK_CLIENT.cciUsd,
+      }).eq('id', bankProfileId).select('id'),
+    );
+  }
+
+  // Simetria: la rama PEN de «queda» tambien tiene que sostener sola la regla.
+  const sinPen = await positive(
+    'trigger: quitar SOLO la cuenta PEN (la USD sigue viva) esta permitido',
+    admin.from('perfiles').update({
+      banco: null, numero_cuenta: null, tipo_cuenta: null, cci: null,
+    }).eq('id', bankProfileId).select('id'),
+  );
+  if (sinPen) {
+    await positive(
+      'trigger: restaurar la cuenta PEN del fixture',
+      admin.from('perfiles').update({
+        banco: BANK_CLIENT.bank,
+        numero_cuenta: BANK_CLIENT.accountNumber,
+        tipo_cuenta: BANK_CLIENT.accountType,
+        cci: BANK_CLIENT.cci,
+      }).eq('id', bankProfileId).select('id'),
+    );
+  }
+  // Los casos vacio→lleno (flujo del portal) y legacy-sin-cuenta-editable viven
+  // en el oraculo test-perfiles-cuentas.sql (V07/V08): alli corren en rollback,
+  // sin dejar un fixture compartido mutado si fallara a mitad.
 }
 
 // Periodo sentinela de las metas del gate: valido para el CHECK (< 2100) pero
