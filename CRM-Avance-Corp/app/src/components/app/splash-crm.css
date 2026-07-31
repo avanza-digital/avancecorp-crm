@@ -1,0 +1,236 @@
+.ac-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  min-height: 100svh;
+  place-items: center;
+  overflow: hidden;
+  color: #fff;
+  isolation: isolate;
+}
+
+.ac-splash__fondo {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: linear-gradient(155deg, #16264f 0%, #111e3d 46%, #0b1530 100%);
+  will-change: clip-path;
+}
+
+.ac-splash__aurora {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(70px);
+  pointer-events: none;
+}
+
+.ac-splash__aurora--uno {
+  width: min(680px, 52vw);
+  aspect-ratio: 1;
+  left: -14%;
+  top: -34%;
+  background: rgb(37 99 235 / 36%);
+}
+
+.ac-splash__aurora--dos {
+  width: min(620px, 46vw);
+  aspect-ratio: 1;
+  right: -10%;
+  bottom: -38%;
+  background: rgb(124 58 237 / 20%);
+}
+
+.ac-splash__reticula {
+  position: absolute;
+  inset: 0;
+  opacity: 0.24;
+  background-image:
+    linear-gradient(rgb(255 255 255 / 3.5%) 1px, transparent 1px),
+    linear-gradient(90deg, rgb(255 255 255 / 3.5%) 1px, transparent 1px);
+  background-size: 46px 46px;
+  mask-image: linear-gradient(to bottom, transparent, #000 22%, #000 72%, transparent);
+}
+
+.ac-splash__marca {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  transform: translateY(-5vh);
+}
+
+.ac-splash__isotipo {
+  position: relative;
+  display: grid;
+  width: clamp(80px, 8vw, 104px);
+  aspect-ratio: 1;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow:
+    0 24px 55px -22px rgb(0 0 0 / 72%),
+    inset 0 0 0 1px rgb(17 30 61 / 7%);
+  will-change: transform;
+}
+
+.ac-splash__logo {
+  width: 72%;
+  height: 72%;
+  object-fit: contain;
+}
+
+.ac-splash__chispa {
+  position: absolute;
+  z-index: 3;
+  top: 0;
+  left: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: #7bea82;
+  box-shadow:
+    0 0 4px #fff,
+    0 0 12px rgb(76 175 80 / 95%),
+    0 0 22px rgb(76 175 80 / 65%);
+  pointer-events: none;
+}
+
+.ac-splash__brillo-logo {
+  position: absolute;
+  z-index: 4;
+  top: -18%;
+  bottom: -18%;
+  width: 28%;
+  transform: skewX(-18deg);
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 90%), transparent);
+}
+
+.ac-splash__lockup {
+  line-height: 1;
+}
+
+.ac-splash__nombre {
+  font-size: clamp(30px, 4vw, 46px);
+  font-weight: 800;
+  letter-spacing: -0.055em;
+}
+
+.ac-splash__nombre span {
+  color: #9db8ff;
+  font-weight: 500;
+}
+
+.ac-splash__subtitulo {
+  margin-top: 10px;
+  color: rgb(255 255 255 / 64%);
+  font-size: clamp(9px, 1vw, 11px);
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+}
+
+.ac-splash__estado {
+  position: absolute;
+  z-index: 2;
+  left: 50%;
+  bottom: max(10%, 54px);
+  width: min(340px, calc(100% - 48px));
+  transform: translateX(-50%);
+  text-align: center;
+}
+
+.ac-splash__estado p {
+  min-height: 20px;
+  margin: 0;
+  color: rgb(255 255 255 / 88%);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ac-splash__progreso {
+  height: 3px;
+  margin: 13px 0 11px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgb(255 255 255 / 12%);
+}
+
+.ac-splash__progreso-carga {
+  position: relative;
+  display: block;
+  height: 100%;
+  overflow: hidden;
+  border-radius: inherit;
+  background: linear-gradient(90deg, #6d91ff, #c2d0ff);
+  box-shadow: 0 0 16px rgb(109 145 255 / 75%);
+}
+
+.ac-splash__progreso-brillo {
+  position: absolute;
+  inset: 0;
+  display: block;
+  background: linear-gradient(90deg, transparent, rgb(255 255 255 / 85%), transparent);
+}
+
+.ac-splash__estado small {
+  color: rgb(255 255 255 / 58%);
+  font-size: 10px;
+  letter-spacing: 0.03em;
+}
+
+@media (max-width: 640px) {
+  .ac-splash__marca {
+    flex-direction: column;
+    gap: 16px;
+    transform: translateY(-7vh);
+    text-align: center;
+  }
+
+  .ac-splash__isotipo {
+    width: 88px;
+  }
+
+  .ac-splash__subtitulo {
+    margin-top: 8px;
+  }
+
+  .ac-splash__estado {
+    bottom: max(11%, 52px);
+  }
+
+  .ac-splash__aurora--uno {
+    width: 92vw;
+    left: -38%;
+    top: -15%;
+  }
+
+  .ac-splash__aurora--dos {
+    width: 86vw;
+    right: -38%;
+    bottom: -18%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ac-splash__aurora,
+  .ac-splash__chispa,
+  .ac-splash__brillo-logo,
+  .ac-splash__progreso-brillo {
+    display: none;
+  }
+
+  .ac-splash__fondo,
+  .ac-splash__marca,
+  .ac-splash__isotipo,
+  .ac-splash__logo,
+  .ac-splash__lockup,
+  .ac-splash__estado,
+  .ac-splash__progreso-carga {
+    animation: none !important;
+    transition: none !important;
+  }
+}

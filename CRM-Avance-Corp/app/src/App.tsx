@@ -1,4 +1,13 @@
-import { lazy, Suspense, useEffect, useRef, useState, type ReactNode } from 'react'
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react'
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
@@ -8,6 +17,7 @@ import { escribirHash, esVistaLeads, leerHash, type Vista } from '@/lib/router'
 import { sanearVista, vistaBase } from '@/lib/vistas'
 import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
+import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
 import { Topbar } from '@/components/app/topbar'
 import { LeadDrawer } from '@/components/app/lead-drawer'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
@@ -41,6 +51,13 @@ const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.C
  */
 export const LIMITE_SPLASH_MS = 25_000
 
+/**
+ * En respuestas instantáneas (sobre todo el modo demo), deja respirar la marca
+ * antes de la salida. El tiempo ya consumido por la carga real cuenta dentro
+ * de este mínimo; una carga lenta no recibe una demora adicional.
+ */
+export const MINIMO_SPLASH_VISIBLE_MS = 2_000
+
 /** Tarjeta a pantalla completa de los estados de arranque (mismo molde para los tres). */
 function AvisoArranque({
   icono: Icono,
@@ -48,15 +65,28 @@ function AvisoArranque({
   titulo,
   children,
   acciones,
+  alerta = false,
+  enfocarTitulo = false,
 }: {
   icono: LucideIcon
   tono?: 'primary' | 'destructive'
   titulo: string
   children: ReactNode
   acciones: ReactNode
+  alerta?: boolean
+  enfocarTitulo?: boolean
 }) {
+  const tituloRef = useRef<HTMLHeadingElement>(null)
+
+  useEffect(() => {
+    if (enfocarTitulo) tituloRef.current?.focus()
+  }, [enfocarTitulo])
+
   return (
-    <div className="flex min-h-svh items-center justify-center p-6">
+    <div
+      className="flex min-h-svh items-center justify-center p-6"
+      role={alerta ? 'alert' : undefined}
+    >
       <div className="w-full max-w-md space-y-4 rounded-2xl border border-border bg-card p-7 text-center shadow-[var(--shadow-card)]">
         <div
           className={
@@ -68,7 +98,13 @@ function AvisoArranque({
           <Icono className="size-6" aria-hidden />
         </div>
         <div className="space-y-1.5">
-          <h1 className="text-lg font-extrabold text-primary">{titulo}</h1>
+          <h1
+            ref={tituloRef}
+            className="text-lg font-extrabold text-primary outline-none"
+            tabIndex={enfocarTitulo ? -1 : undefined}
+          >
+            {titulo}
+          </h1>
           <p className="text-sm leading-relaxed text-muted-foreground">{children}</p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row sm:justify-center">{acciones}</div>
@@ -87,6 +123,8 @@ function CargaAtascada({ onReintentar }: { onReintentar: () => void }) {
     <AvisoArranque
       icono={Hourglass}
       titulo="Esto está tardando demasiado"
+      alerta
+      enfocarTitulo
       acciones={
         <>
           <Button type="button" onClick={onReintentar}>
@@ -109,45 +147,58 @@ function CargaAtascada({ onReintentar }: { onReintentar: () => void }) {
  * desmonte, se transforma en un estado accionable. `onReintentar` es lo que
  * hace ese estado (recargar los datos o re-verificar el acceso).
  *
- * ⚠️ El reloj mide LO QUE DURA ESTE MONTAJE, no el arranque entero. Cada uso
- * debe llevar su `key` propia (ver App): sin ella, React ve el mismo nodo en el
- * árbol al pasar del splash de ACCESO al de DATOS, no remonta, y un único reloj
- * de 25 s cubre los dos presupuestos seguidos (12 s de auth + 20 s de datos).
- * Una carga lenta pero SANA se declaraba atascada y el «Reintentar» abortaba un
- * fetch bueno (regresión 2026-07-25).
+ * ⚠️ La caducidad pertenece a la FASE, no al montaje completo. Acceso y datos
+ * comparten el mismo nodo para mantener la continuidad visual, pero al cambiar
+ * de fase el efecto cancela el reloj anterior y comienza otro. Así 12 s de auth
+ * + 20 s de datos no se confunden con un único cuelgue de 32 s (regresión
+ * 2026-07-25).
  */
-function Splash({ onReintentar }: { onReintentar: () => void }) {
-  const [atascado, setAtascado] = useState(false)
+function Splash({
+  fase,
+  ciclo,
+  onReintentar,
+  onFinalizar,
+}: {
+  fase: FaseSplashCrm
+  ciclo: number
+  onReintentar: () => void
+  onFinalizar?: () => void
+}) {
+  const [caducidad, setCaducidad] = useState<{
+    fase: FaseSplashCrm
+    ciclo: number
+    atascado: boolean
+  }>({ fase, ciclo, atascado: false })
+  // Un atasco pertenece a una fase Y a un intento concreto. La fase puede
+  // volver a llamarse "datos" durante la salida, pero ya es otro ciclo.
+  const atascado =
+    caducidad.ciclo === ciclo
+    && caducidad.fase === fase
+    && caducidad.atascado
 
   useEffect(() => {
-    if (atascado) return
-    const reloj = setTimeout(() => setAtascado(true), LIMITE_SPLASH_MS)
+    if (fase === 'listo' || atascado) return
+    const reloj = setTimeout(
+      () => setCaducidad({ fase, ciclo, atascado: true }),
+      LIMITE_SPLASH_MS,
+    )
     return () => clearTimeout(reloj)
-  }, [atascado])
+  }, [atascado, ciclo, fase])
 
-  if (atascado) {
+  if (fase !== 'listo' && atascado) {
     return (
       <CargaAtascada
         onReintentar={() => {
           // Vuelve al spinner: el reintento arranca de cero y, si se vuelve a
-          // atascar, el reloj lo detectará otra vez (efecto con dep [atascado]).
-          setAtascado(false)
+          // atascar, el reloj lo detectará otra vez.
+          setCaducidad({ fase, ciclo, atascado: false })
           onReintentar()
         }}
       />
     )
   }
 
-  return (
-    <div className="flex min-h-svh items-center justify-center">
-      <div className="w-64 space-y-3">
-        <Skeleton className="h-8 w-32" />
-        <Skeleton className="h-4 w-full" />
-        <Skeleton className="h-4 w-3/4" />
-        <p className="pt-2 text-center text-xs text-muted-foreground">Preparando tu información…</p>
-      </div>
-    </div>
-  )
+  return <SplashCrm fase={fase} onFinalizar={onFinalizar} />
 }
 
 /** Fallback sobrio del Suspense mientras baja el chunk de la pantalla. */
@@ -300,7 +351,7 @@ function Workspace() {
   return (
     <div className="relative z-10 flex h-svh overflow-hidden">
       <Sidebar vista={vista} />
-      <main className="ac-scroll flex min-w-0 flex-1 flex-col">
+      <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
         <Topbar vista={vista} />
         <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
           {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
@@ -327,17 +378,172 @@ function Workspace() {
   )
 }
 
+/**
+ * Mantiene una sola entrada visual durante ACCESO → DATOS → LISTO. El Workspace
+ * real se monta en cuanto llegan los datos; permanece inerte y fuera del árbol
+ * accesible durante el breve cierre de la capa.
+ */
+type EstadoVisualEntrada = 'cargando' | 'completando' | 'saliendo' | 'oculto'
+
+interface EstadoEntrada {
+  estado: EstadoVisualEntrada
+  ciclo: number
+}
+
+const ahoraMonotono = () =>
+  typeof performance === 'undefined' ? 0 : performance.now()
+
+export function EntradaCrm({
+  faseCarga,
+  onReintentar,
+  children,
+}: {
+  faseCarga: Exclude<FaseSplashCrm, 'listo'> | null
+  onReintentar: () => void
+  /** Punto de inyección para pruebas; producción siempre usa Workspace. */
+  children?: ReactNode
+}) {
+  const [entrada, setEntrada] = useState<EstadoEntrada>(() => ({
+    estado: faseCarga ? 'cargando' : 'completando',
+    ciclo: 1,
+  }))
+  const workspaceRef = useRef<HTMLDivElement>(null)
+  const faseCargaAnteriorRef = useRef(faseCarga)
+  const inicioVisualRef = useRef(ahoraMonotono())
+
+  // Acceso y datos son capítulos de una misma presentación. Solo una recarga
+  // nueva (listo → cargando) incrementa el ciclo y reinicia el mínimo visible.
+  // LayoutEffect registra únicamente props ya comprometidas: ningún callback
+  // asíncrono observa valores de un render que React pudiera descartar.
+  useLayoutEffect(() => {
+    const faseAnterior = faseCargaAnteriorRef.current
+    faseCargaAnteriorRef.current = faseCarga
+
+    if (faseCarga) {
+      const iniciaCiclo = faseAnterior === null
+      if (iniciaCiclo) inicioVisualRef.current = ahoraMonotono()
+      setEntrada((actual) => ({
+        estado: 'cargando',
+        ciclo: actual.ciclo + (iniciaCiclo ? 1 : 0),
+      }))
+      return
+    }
+
+    setEntrada((actual) => (
+      actual.estado === 'cargando'
+        ? { ...actual, estado: 'completando' }
+        : actual
+    ))
+  }, [faseCarga])
+
+  // La espera mínima se programa una sola vez al completar la carga, no en
+  // cada render ni en cada salto entre acceso y datos.
+  useEffect(() => {
+    if (faseCarga !== null || entrada.estado !== 'completando') return
+    const cicloProgramado = entrada.ciclo
+    const restante = Math.max(
+      0,
+      MINIMO_SPLASH_VISIBLE_MS - (ahoraMonotono() - inicioVisualRef.current),
+    )
+    if (restante === 0) {
+      setEntrada((actual) => (
+        actual.ciclo === cicloProgramado && actual.estado === 'completando'
+          ? { ...actual, estado: 'saliendo' }
+          : actual
+      ))
+      return
+    }
+
+    const espera = setTimeout(() => {
+      setEntrada((actual) => (
+        actual.ciclo === cicloProgramado && actual.estado === 'completando'
+          ? { ...actual, estado: 'saliendo' }
+          : actual
+      ))
+    }, restante)
+    return () => clearTimeout(espera)
+  }, [entrada.ciclo, entrada.estado, faseCarga])
+
+  // Si el navegador interrumpe la timeline, el CRM listo no puede quedar
+  // inerte indefinidamente. La salida normal termina bastante antes.
+  useEffect(() => {
+    if (faseCarga !== null || entrada.estado !== 'saliendo') return
+    const cicloProgramado = entrada.ciclo
+    const salvavidas = setTimeout(() => {
+      setEntrada((actual) => (
+        actual.ciclo === cicloProgramado && actual.estado === 'saliendo'
+          ? { ...actual, estado: 'oculto' }
+          : actual
+      ))
+    }, 2_000)
+    return () => clearTimeout(salvavidas)
+  }, [entrada.ciclo, entrada.estado, faseCarga])
+
+  const cicloSplash =
+    faseCarga !== null && entrada.estado !== 'cargando'
+      ? entrada.ciclo + 1
+      : entrada.ciclo
+  const finalizarSalida = useCallback(() => {
+    const cicloFinalizado = cicloSplash
+    setEntrada((actual) => (
+      actual.ciclo === cicloFinalizado && actual.estado === 'saliendo'
+        ? { ...actual, estado: 'oculto' }
+        : actual
+    ))
+  }, [cicloSplash])
+  const mostrarSplash = faseCarga !== null || entrada.estado !== 'oculto'
+  const faseSplash: FaseSplashCrm = faseCarga
+    ?? (entrada.estado === 'saliendo' ? 'listo' : 'datos')
+
+  // Al desaparecer la capa, un botón de Login/splash recién desmontado suele
+  // devolver el foco a <body>. En ese único caso dejamos al lector de pantalla
+  // dentro del CRM; si otra interacción ya dejó un foco válido, se respeta.
+  useEffect(() => {
+    if (faseCarga !== null || entrada.estado !== 'oculto') return
+    const activo = document.activeElement
+    if (activo !== document.body && activo !== document.documentElement) return
+    workspaceRef.current
+      ?.querySelector<HTMLElement>('main')
+      ?.focus({ preventScroll: true })
+  }, [entrada.estado, faseCarga])
+
+  return (
+    <>
+      {faseCarga === null && (
+        <div
+          ref={workspaceRef}
+          className="h-svh"
+          inert={mostrarSplash ? true : undefined}
+          aria-hidden={mostrarSplash ? true : undefined}
+        >
+          {children ?? <Workspace />}
+        </div>
+      )}
+      {mostrarSplash && (
+        <Splash
+          fase={faseSplash}
+          ciclo={cicloSplash}
+          onReintentar={onReintentar}
+          onFinalizar={finalizarSalida}
+        />
+      )}
+    </>
+  )
+}
+
 export default function App() {
   const { fase, yo, reintentar } = useAuth()
   const estadoDatos = useStoreEstado()
 
   const content =
     fase === 'init' || fase === 'resolviendo' ? (
-      // Splash del ACCESO: si se atasca, su salida es re-verificar la sesión.
-      // La `key` distinta de la del splash de DATOS es LOAD-BEARING: obliga a
-      // React a remontar al pasar de uno al otro y reinicia el reloj de
-      // caducidad, para que cada etapa estrene sus 25 s de paciencia.
-      <Splash key="splash-acceso" onReintentar={reintentar} />
+      // El mismo componente continúa en DATOS al resolver Auth: no remonta la
+      // marca ni reinicia la animación. El cambio de fase sí renueva el reloj.
+      <EntradaCrm
+        key="entrada-crm"
+        faseCarga="acceso"
+        onReintentar={reintentar}
+      />
     ) : fase === 'anon' || fase === 'error' ? (
       <Login />
     ) : fase === 'no_enrolado' ? (
@@ -347,12 +553,12 @@ export default function App() {
       // reintento (nunca el CRM vacío); mientras carga, splash; luego workspace.
       estadoDatos.error ? (
         <ErrorCargaReal onReintentar={estadoDatos.reintentar} />
-      ) : estadoDatos.cargando ? (
-        // Splash de DATOS: su salida es volver a pedirlos. `key` propia → reloj
-        // propio (no hereda los segundos que ya consumió el splash del acceso).
-        <Splash key="splash-datos" onReintentar={estadoDatos.reintentar} />
       ) : (
-        <Workspace />
+        <EntradaCrm
+          key="entrada-crm"
+          faseCarga={estadoDatos.cargando ? 'datos' : null}
+          onReintentar={estadoDatos.reintentar}
+        />
       )
     ) : (
       <DatosRealesPendientes />
