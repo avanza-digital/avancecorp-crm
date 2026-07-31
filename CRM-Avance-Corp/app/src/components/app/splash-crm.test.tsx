@@ -129,6 +129,52 @@ describe('SplashCrm', () => {
     expect(media.cantidadOyentes()).toBe(0)
   })
 
+  it('la salida real (sin movimiento reducido) notifica onFinalizar exactamente una vez', async () => {
+    simularPreferenciaMovimiento(false)
+    const finalizar = vi.fn()
+    const vista = (fase: 'datos' | 'listo') => (
+      <StrictMode>
+        <SplashCrm fase={fase} onFinalizar={finalizar} />
+      </StrictMode>
+    )
+    const { rerender } = render(vista('datos'))
+
+    rerender(vista('listo'))
+    expect(finalizar).not.toHaveBeenCalled()
+
+    // Para el usuario SIN movimiento reducido (la mayoría) el único aviso de
+    // que la salida terminó es el onComplete de la timeline: si ese cableado
+    // se rompe, este waitFor caduca y el test cae. La aserción del test del
+    // ambiente no lo cubre — allí la llamada contada sale de la rama reducida.
+    await waitFor(() => expect(finalizar).toHaveBeenCalledTimes(1), { timeout: 3_000 })
+    await new Promise((resolve) => setTimeout(resolve, 60))
+    expect(finalizar).toHaveBeenCalledTimes(1)
+  })
+
+  it('reintentar durante la salida restaura la splash y permite finalizar de nuevo', () => {
+    simularPreferenciaMovimiento(true)
+    const finalizar = vi.fn()
+    const { container, rerender } = render(
+      <SplashCrm fase="datos" onFinalizar={finalizar} />,
+    )
+
+    rerender(<SplashCrm fase="listo" onFinalizar={finalizar} />)
+    expect(finalizar).toHaveBeenCalledTimes(1)
+
+    // Reintento mientras la salida estaba activa: la splash debe volver entera
+    // (ni invisible ni a medio desvanecer) y el cierre debe poder repetirse.
+    rerender(<SplashCrm fase="datos" onFinalizar={finalizar} />)
+    const raiz = container.querySelector('.ac-splash')
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'Preparando tu espacio de trabajo…',
+    )
+    expect(raiz).not.toHaveStyle({ visibility: 'hidden' })
+    expect(raiz).not.toHaveStyle({ opacity: '0' })
+
+    rerender(<SplashCrm fase="listo" onFinalizar={finalizar} />)
+    expect(finalizar).toHaveBeenCalledTimes(2)
+  })
+
   it('no inventa un viaje cuando el logo lateral está oculto', () => {
     const origen = { left: 450, top: 360, width: 100, height: 100 }
     const marcadorOculto = { left: 13, top: 13, width: 38, height: 38 }

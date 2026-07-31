@@ -69,7 +69,7 @@ function verificar(manifiestoEntrada) {
   for (const requerida of ['index.html', '.htaccess']) {
     if (!entradas.includes(requerida)) throw new Error(`El ZIP no contiene ${requerida} en la raíz`)
   }
-  if (entradas.some((entrada) => /(^|\/)(\.env|node_modules|\.git)(\/|$)/.test(entrada))) {
+  if (entradas.some((entrada) => /(^|\/)(\.env|node_modules|\.git|\.vite)(\/|$)/.test(entrada))) {
     throw new Error('El ZIP contiene una ruta interna o sensible')
   }
 
@@ -103,16 +103,21 @@ function crear(argumentos) {
     throw new Error(`El release ${releaseId} ya existe; no se sobrescribe`)
   }
 
-  const payload = archivosRecursivos(DIST).map((absoluta) => ({
-    ruta: path.relative(DIST, absoluta).split(path.sep).join('/'),
-    bytes: statSync(absoluta).size,
-    sha256: sha256Archivo(absoluta),
-  }))
+  // dist/.vite/ (license.md: inventario de dependencias con versiones exactas)
+  // NUNCA se publica — es justo lo que el bloqueo de package(-lock).json en el
+  // .htaccess intenta negar. Queda fuera del manifiesto, del ZIP y lo veta verify.
+  const payload = archivosRecursivos(DIST)
+    .filter((absoluta) => !path.relative(DIST, absoluta).split(path.sep).includes('.vite'))
+    .map((absoluta) => ({
+      ruta: path.relative(DIST, absoluta).split(path.sep).join('/'),
+      bytes: statSync(absoluta).size,
+      sha256: sha256Archivo(absoluta),
+    }))
   const migraciones = readdirSync(MIGRACIONES)
     .filter((nombre) => nombre.endsWith('.sql'))
     .sort()
 
-  ejecutar('zip', ['-q', '-r', '-X', rutaZip, '.'], { cwd: DIST })
+  ejecutar('zip', ['-q', '-r', '-X', rutaZip, '.', '-x', '.vite/*', '-x', './.vite/*', '-x', '.vite/'], { cwd: DIST })
 
   const manifiesto = {
     schema_version: 1,
