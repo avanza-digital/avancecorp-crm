@@ -3,6 +3,7 @@
 # unsafe-inline permitido queda acotado a CSS (nunca a scripts).
 
 Options -Indexes
+ErrorDocument 404 /404.html
 
 # Defensa si por error se publica algo distinto de dist/.
 <FilesMatch "(^\.env|package(-lock)?\.json$|tsconfig.*\.json$|vite\.config\.|\.map$)">
@@ -22,7 +23,7 @@ Options -Indexes
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Origin-Agent-Cluster "?1"
-  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.supabase.co wss://*.supabase.co; manifest-src 'self'; worker-src 'self' blob:; media-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests"
+  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://dctqcbznekcyxhjujuci.supabase.co wss://dctqcbznekcyxhjujuci.supabase.co; manifest-src 'self'; worker-src 'self' blob:; media-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests"
 
   # Solo los bundles con hash de Vite reciben caché inmutable. HTML y cualquier
   # futuro JS sin hash siempre revalidan para no dejar código de auth obsoleto.
@@ -30,6 +31,11 @@ Options -Indexes
     Header set Cache-Control "public, max-age=31536000, immutable"
   </FilesMatch>
   <FilesMatch "^index\.html$">
+    Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
+    Header set Pragma "no-cache"
+    Header set Expires "0"
+  </FilesMatch>
+  <FilesMatch "^404\.html$">
     Header set Cache-Control "no-store, no-cache, must-revalidate, max-age=0"
     Header set Pragma "no-cache"
     Header set Expires "0"

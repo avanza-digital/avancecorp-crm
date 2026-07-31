@@ -197,7 +197,18 @@ export function Sidebar({ vista }: { vista: Vista }) {
         }}
       >
         {/* Marca + botón ocultar/fijar */}
-        <div className={cn('flex h-16 items-center border-b border-sidebar-border', expandido ? 'justify-between px-4' : 'justify-center px-2')}>
+        <div className={cn('relative flex h-16 items-center border-b border-sidebar-border', expandido ? 'justify-between px-4' : 'justify-center px-2')}>
+          {/* Destino geométrico estable de la salida del splash. Existe también
+              con el menú colapsado, cuando el BrandLockup no está montado. */}
+          <span
+            data-splash-destino
+            data-splash-destino-visible={expandido ? 'true' : 'false'}
+            aria-hidden
+            className={cn(
+              'pointer-events-none absolute top-[13px] size-[38px]',
+              expandido ? 'left-4' : 'left-[13px]',
+            )}
+          />
           {expandido && (
             <div data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(0) : undefined}>
               <BrandLockup tone="dark" size={38} />
