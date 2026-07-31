@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { ClienteBasico, ContratoRow } from '@/lib/clientes-tipos'
+import type { ClienteBasico, ClienteDetalle, ContratoRow } from '@/lib/clientes-tipos'
 
 // `yo`, clientes y contratos se pisan antes de cada montaje; los mocks los leen
 // en cada llamada (no capturan el valor al definirse).
@@ -15,6 +15,7 @@ let YO: { id: string; rol: string; puede_contratar: boolean; demo: boolean } | n
 let CLIENTES: ClienteBasico[] = []
 let CONTRATOS: ContratoRow[] = []
 let EQUIPO: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }> = []
+let DETALLE: ClienteDetalle | null = null
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -22,11 +23,21 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
-  const q = <T,>(data: T) => ({ data, isPending: false, isError: false, error: null, refetch: vi.fn(), isFetching: false })
+  const q = <T,>(data: T) => ({
+    data,
+    isPending: false,
+    isSuccess: true,
+    isError: false,
+    error: null,
+    refetch: vi.fn(),
+    isFetching: false,
+    isFetchedAfterMount: true,
+  })
   return {
     ...actual, // conserva crmQueryKeys real
     useClientes: () => q(CLIENTES),
     useContratos: () => q(CONTRATOS),
+    useClienteDetalle: vi.fn(() => q(DETALLE)),
     // ContratoDetalle usa estos tres; con data null pinta skeletons (no red, no crash).
     useContrato: () => q(null),
     useCronograma: () => q(null),
@@ -34,6 +45,8 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   }
 })
 
+const { useClienteDetalle } = await import('@/data/crm-queries')
+const useClienteDetalleMock = vi.mocked(useClienteDetalle)
 const { MiCartera } = await import('./mi-cartera')
 
 function cliente(over: Partial<ClienteBasico> = {}): ClienteBasico {
@@ -76,11 +89,43 @@ function contrato(over: Partial<ContratoRow> = {}): ContratoRow {
   }
 }
 
+function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
+  return {
+    id: 'c-1',
+    nombre_completo: 'CLIENTE UNO',
+    nombres: 'UNO',
+    apellidos: 'CLIENTE',
+    tipo_documento: 'DNI',
+    dni: '45781234',
+    correo: 'cliente@avance.pe',
+    telefono: '+51999888777',
+    asesor_perfil_id: 'yo',
+    creado_por: 'yo',
+    creado_en: '2026-07-15T12:00:00.000Z',
+    banco: 'BCP',
+    tipo_cuenta: 'ahorros',
+    numero_cuenta: '19112345678901',
+    cci: '00219112345678901234',
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+    banco_usd: 'Interbank',
+    tipo_cuenta_usd: 'corriente',
+    numero_cuenta_usd: '2003001234567',
+    cci_usd: '00320030012345678901',
+    titular_distinto_usd: true,
+    beneficiario_nombre_usd: 'JUANA PEREZ',
+    beneficiario_dni_usd: '87654321',
+    ...over,
+  }
+}
+
 function montar(
   over: {
     yo?: typeof YO
     clientes?: ClienteBasico[]
     contratos?: ContratoRow[]
+    detalle?: ClienteDetalle | null
     equipo?: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }>
   } = {},
 ) {
@@ -88,6 +133,9 @@ function montar(
   CLIENTES = over.clientes ?? [cliente()]
   CONTRATOS = over.contratos ?? [contrato()]
   EQUIPO = over.equipo ?? []
+  // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
+  // significa "usa la ficha por defecto".
+  DETALLE = over.detalle === undefined ? detalle() : over.detalle
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
@@ -132,6 +180,22 @@ describe('MiCartera (pantalla)', () => {
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
+  })
+
+  it('muestra todos los datos del cliente propio, aun con la ventana de corrección vencida', async () => {
+    const user = userEvent.setup()
+    montar({ clientes: [cliente({ creado_en: '2020-01-01T00:00:00.000Z' })] })
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+    expect(screen.getByText('Datos personales')).toBeInTheDocument()
+    expect(screen.getByText('cliente@avance.pe')).toBeInTheDocument()
+    expect(screen.getByText('Cuenta para depósitos en soles')).toBeInTheDocument()
+    expect(screen.getByText('00219112345678901234')).toBeInTheDocument()
+    expect(screen.getByText('Cuenta para depósitos en dólares')).toBeInTheDocument()
+    expect(screen.getByText('JUANA PEREZ')).toBeInTheDocument()
   })
 
   it('con filtro activo el grupo se auto-expande y AÚN se puede colapsar (botón real)', async () => {
@@ -196,6 +260,37 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Dólares')).not.toBeInTheDocument()
+  })
+})
+
+describe('MiCartera (demo aislada)', () => {
+  afterEach(() => {
+    vi.unstubAllEnvs()
+  })
+
+  it('abre la ficha ficticia precargada y deshabilita la consulta a Supabase', async () => {
+    const user = userEvent.setup()
+    vi.stubEnv('VITE_ENABLE_DEMO', 'true')
+    montar({
+      yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
+      clientes: [],
+      contratos: [],
+    })
+
+    const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
+    const fila = nombre.closest('tr')
+    if (!fila) throw new Error('fila del cliente demo no encontrada')
+    useClienteDetalleMock.mockClear()
+
+    await user.click(within(fila).getByRole('button', { name: 'Ver detalle' }))
+
+    expect(screen.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })).toBeInTheDocument()
+    expect(screen.getByText('rosa.aguilar@correo.pe')).toBeInTheDocument()
+    expect(screen.getByText('19100000001234')).toBeInTheDocument()
+    expect(screen.getByText('00219100000000123456')).toBeInTheDocument()
+    // El hook conserva su orden estable, pero recibe enabled=false: el fixture
+    // es la única fuente y obtenerClienteDetalle nunca puede ejecutarse.
+    expect(useClienteDetalleMock).toHaveBeenCalledWith('dc-cli-1', false)
   })
 })
 
@@ -517,6 +612,19 @@ describe('MiCartera (móvil, card-stack)', () => {
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+  })
+
+  it('Ver detalle abre en móvil la ficha completa aun con la ventana vencida', async () => {
+    const user = userEvent.setup()
+    activarMovil()
+    montar({ clientes: [cliente({ creado_en: '2020-01-01T00:00:00.000Z' })] })
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+    expect(screen.getByText('cliente@avance.pe')).toBeInTheDocument()
+    expect(screen.getByText('00219112345678901234')).toBeInTheDocument()
+    expect(screen.getByText('JUANA PEREZ')).toBeInTheDocument()
   })
 
   it('capital por cliente: muestra soles Y dólares del mismo cliente (jamás sumados)', () => {

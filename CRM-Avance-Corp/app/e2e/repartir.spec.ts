@@ -95,10 +95,14 @@ test('#/mi-cartera por URL expulsa al coordinador de vuelta a Repartir', async (
 test('la cabecera separa el capital PEN del USD (jamás los suma)', async ({ page }) => {
   await entrarComoCoordinador(page)
 
-  await expect(page.getByText('Capital en juego (PEN)')).toBeVisible()
-  await expect(page.getByText('Capital en juego (USD)')).toBeVisible()
-  await expect(page.getByText('S/ 120k')).toBeVisible()
-  await expect(page.getByText('US$ 45k')).toBeVisible()
+  // Acotar cada cifra a SU KPI: "S/ 120k" también aparece legítimamente en la
+  // fila del lead y un selector global sería estricto-ambiguo, no una falla UI.
+  const pen = page.locator('.ac-lift').filter({ hasText: 'Capital en juego (PEN)' })
+  const usd = page.locator('.ac-lift').filter({ hasText: 'Capital en juego (USD)' })
+  await expect(pen).toHaveCount(1)
+  await expect(usd).toHaveCount(1)
+  await expect(pen.getByText('S/ 120k')).toBeVisible()
+  await expect(usd.getByText('US$ 45k')).toBeVisible()
   // 165k sería la suma mezclada de dos monedas: no debe existir.
   await expect(page.getByText(/165k/)).toHaveCount(0)
 })
