@@ -351,6 +351,9 @@ export function SplashCrm({
         return
       }
 
+      // Medición ÚNICA a propósito: un resize/rotación durante los ~0.9 s de
+      // salida aterriza el isotipo desviado hasta que su fade lo cubre.
+      // Transitorio, se autocorrige al desmontar; re-medir en vivo no paga.
       const destino = document.querySelector<HTMLElement>('[data-splash-destino]')
       const origenRect = isotipo.getBoundingClientRect()
       const destinoRect = destino?.getBoundingClientRect()

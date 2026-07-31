@@ -141,6 +141,11 @@ describe('App — el reloj del splash es POR ETAPA, no del arranque entero', () 
     fireEvent.click(screen.getByRole('button', { name: /Reintentar/ }))
     expect(reintentar).toHaveBeenCalledTimes(1)
     expect(screen.getByRole('status')).toHaveTextContent(TEXTO_SPLASH_DATOS)
+
+    // Y si el reintento TAMBIÉN se cuelga, el reloj re-armado por el clic lo
+    // vuelve a cazar: sin esto, un servidor caído dejaría el splash eterno.
+    act(() => vi.advanceTimersByTime(LIMITE_SPLASH_MS + 1))
+    expect(screen.getByText(TEXTO_ATASCADO)).toBeInTheDocument()
   })
 
   it('y un splash de ACCESO colgado también caduca (su salida re-verifica la sesión)', () => {
@@ -247,6 +252,26 @@ describe('EntradaCrm — ciclo visual, mínimo e inert', () => {
     expect(screen.queryByText(TEXTO_ATASCADO)).not.toBeInTheDocument()
     act(() => vi.advanceTimersByTime(1))
     expect(screen.getByText(TEXTO_ATASCADO)).toBeInTheDocument()
+  })
+
+  it('el salvavidas libera el CRM si la salida nunca notifica su fin', () => {
+    const { container, rerender } = render(entrada('datos'))
+    act(() => vi.advanceTimersByTime(MINIMO_SPLASH_VISIBLE_MS))
+    rerender(entrada(null))
+    act(() => vi.advanceTimersByTime(0))
+    expect(container.querySelector('.ac-splash')).toHaveAttribute('data-fase', 'listo')
+
+    // Nadie llama onFinalizar (p. ej. pestaña en segundo plano: el navegador
+    // congela el rAF y la timeline no avanza). El workspace no puede quedarse
+    // inert para siempre: a los 2 s el salvavidas retira la capa él solo.
+    act(() => vi.advanceTimersByTime(1_999))
+    expect(container.querySelector('.ac-splash')).toBeInTheDocument()
+    expect(screen.getByTestId('workspace').parentElement).toHaveAttribute('inert')
+
+    act(() => vi.advanceTimersByTime(1))
+    expect(container.querySelector('.ac-splash')).not.toBeInTheDocument()
+    expect(screen.getByTestId('workspace').parentElement).not.toHaveAttribute('inert')
+    expect(screen.getByTestId('workspace').parentElement).not.toHaveAttribute('aria-hidden')
   })
 
   it('ignora el callback de una salida anterior si una carga reentra', () => {

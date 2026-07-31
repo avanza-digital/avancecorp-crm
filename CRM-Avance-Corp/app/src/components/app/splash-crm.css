@@ -59,7 +59,10 @@
   display: flex;
   align-items: center;
   gap: 20px;
-  transform: translateY(-5vh);
+
+  /* Elevación óptica por `top` y NO por transform: GSAP escribe el transform
+     inline de este nodo en todos los caminos (y: 0/18) y pisaría un translateY. */
+  top: -5vh;
 }
 
 .ac-splash__isotipo {
@@ -186,7 +189,7 @@
   .ac-splash__marca {
     flex-direction: column;
     gap: 16px;
-    transform: translateY(-7vh);
+    top: -7vh;
     text-align: center;
   }
 

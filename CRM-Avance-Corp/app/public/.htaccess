@@ -6,7 +6,7 @@ Options -Indexes
 ErrorDocument 404 /404.html
 
 # Defensa si por error se publica algo distinto de dist/.
-<FilesMatch "(^\.env|package(-lock)?\.json$|tsconfig.*\.json$|vite\.config\.|\.map$)">
+<FilesMatch "(^\.env|package(-lock)?\.json$|tsconfig.*\.json$|vite\.config\.|\.map$|^license\.md$)">
   Require all denied
 </FilesMatch>
 
