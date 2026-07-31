@@ -29,6 +29,7 @@ import { Paginacion } from '@/components/common/paginacion'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ClienteForm } from '@/components/app/cliente-form'
+import { ClienteDetalle } from '@/components/app/cliente-detalle'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
@@ -45,7 +46,13 @@ import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
 import { mensajeDeError } from '@/data/crm-api'
 import { crmQueryKeys, useClientes, useContratos } from '@/data/crm-queries'
-import type { ClienteBasico, ContratoRow, Cuota, Titular } from '@/lib/clientes-tipos'
+import type {
+  ClienteBasico,
+  ClienteDetalle as ClienteDetalleDatos,
+  ContratoRow,
+  Cuota,
+  Titular,
+} from '@/lib/clientes-tipos'
 
 /**
  * Umbral de aviso de la ventana de corrección: con menos de 30 min vivos el
@@ -155,6 +162,7 @@ interface PropsFilaGrupo {
   /** ids de contratos que vencen en ≤30 d: se marcan «renovar» en su sub-fila. */
   porVencer: ReadonlySet<string>
   onNuevoContrato: () => void
+  onDetalleCliente: () => void
   onCorregirCliente: () => void
   onDetalleContrato: (k: ContratoRow) => void
   onCorregirContrato: (k: ContratoRow) => void
@@ -266,6 +274,7 @@ function FilaGrupoCliente({
   contratosVisibles,
   porVencer,
   onNuevoContrato,
+  onDetalleCliente,
   onCorregirCliente,
   onDetalleContrato,
   onCorregirContrato,
@@ -339,6 +348,17 @@ function FilaGrupoCliente({
           <Td className="text-right">
             {accionable ? (
               <div className="flex flex-wrap items-center justify-end gap-1.5">
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDetalleCliente()
+                  }}
+                >
+                  Ver detalle
+                </Button>
                 {ventanaCliente.vigente && (
                   <Button
                     type="button"
@@ -470,6 +490,7 @@ function TarjetaGrupoCliente({
   contratosVisibles,
   porVencer,
   onNuevoContrato,
+  onDetalleCliente,
   onCorregirCliente,
   onDetalleContrato,
   onCorregirContrato,
@@ -524,6 +545,9 @@ function TarjetaGrupoCliente({
       {/* Acciones (solo en lo propio). */}
       {conAcciones && accionable && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+          <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
+            Ver detalle
+          </Button>
           {ventanaCliente.vigente && (
             <Button
               type="button"
@@ -575,6 +599,7 @@ function VistaMiCartera({
   puedeContratar,
   onNuevoCliente,
   onNuevoContrato,
+  onDetalleCliente,
   onCorregirCliente,
   onDetalleContrato,
   onCorregirContrato,
@@ -587,6 +612,7 @@ function VistaMiCartera({
   puedeContratar: boolean
   onNuevoCliente: () => void
   onNuevoContrato: (cliente: ClienteBasico) => void
+  onDetalleCliente: (cliente: ClienteBasico) => void
   onCorregirCliente: (cliente: ClienteBasico) => void
   onDetalleContrato: (k: ContratoRow) => void
   onCorregirContrato: (k: ContratoRow) => void
@@ -735,6 +761,7 @@ function VistaMiCartera({
     ),
     porVencer,
     onNuevoContrato: () => onNuevoContrato(g.cliente),
+    onDetalleCliente: () => onDetalleCliente(g.cliente),
     onCorregirCliente: () => onCorregirCliente(g.cliente),
     onDetalleContrato,
     onCorregirContrato,
@@ -1007,6 +1034,7 @@ function VistaMiCartera({
 /** Overlay de acciones — uno solo abierto a la vez (como el portal). */
 type Overlay =
   | { tipo: 'cliente-crear' }
+  | { tipo: 'cliente-detalle'; clienteId: string; clienteNombre: string }
   | { tipo: 'cliente-corregir'; clienteId: string }
   | { tipo: 'contrato-crear'; clienteId: string; clienteNombre: string }
   | { tipo: 'contrato-detalle'; contrato: ContratoRow }
@@ -1096,6 +1124,7 @@ export function MiCartera() {
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
         onNuevoContrato={(c) =>
           setOverlay({ tipo: 'contrato-crear', clienteId: c.id, clienteNombre: c.nombre_completo || c.correo || 'el cliente' })}
+        onDetalleCliente={(c) => setOverlay({ tipo: 'cliente-detalle', clienteId: c.id, clienteNombre: c.nombre_completo })}
         onCorregirCliente={(c) => setOverlay({ tipo: 'cliente-corregir', clienteId: c.id })}
         onDetalleContrato={(k) => setOverlay({ tipo: 'contrato-detalle', contrato: k })}
         onCorregirContrato={(k) => setOverlay({ tipo: 'contrato-corregir', contrato: k })}
@@ -1104,6 +1133,11 @@ export function MiCartera() {
       {overlay?.tipo === 'cliente-crear' && (
         <Dialog open onClose={cerrarAlta} ariaLabel="Nuevo cliente">
           <ClienteForm modo="crear" onListo={(id) => void alClienteCreado(id)} onCerrar={cerrarAlta} onEnviandoCambio={setEnvioEnCurso} />
+        </Dialog>
+      )}
+      {overlay?.tipo === 'cliente-detalle' && (
+        <Dialog open onClose={cerrar} ariaLabel={`Detalle de ${overlay.clienteNombre || 'cliente'}`} className="w-[640px]">
+          <ClienteDetalle clienteId={overlay.clienteId} onCerrar={cerrar} />
         </Dialog>
       )}
       {overlay?.tipo === 'cliente-corregir' && (
@@ -1135,8 +1169,8 @@ export function MiCartera() {
  * cargados por import() dinámico gated → NUNCA toca la API real. El recorte de
  * ámbito que en real hace el servidor lo espeja carteraDelAmbito; los contratos
  * se limitan a los de los clientes visibles. Las acciones de ESCRITURA solo
- * emiten un toast "(demo)"; el DETALLE sí se abre, con cronograma/co-titulares
- * PRECARGADOS (ContratoDetalle.datos → cero fetch).
+ * emiten un toast "(demo)"; los DETALLES sí se abren con fichas, cronogramas y
+ * co-titulares PRECARGADOS (ClienteDetalle/ContratoDetalle.datos → cero fetch).
  */
 function MiCarteraDemo() {
   const { yo } = useAuth()
@@ -1144,10 +1178,12 @@ function MiCarteraDemo() {
   const [fixtures, setFixtures] = useState<{
     clientes: ClienteBasico[]
     contratos: ContratoRow[]
+    detallesClientes: Record<string, ClienteDetalleDatos>
     cronogramas: Record<string, Cuota[]>
     titulares: Record<string, Titular[]>
   } | null>(null)
-  const [detalle, setDetalle] = useState<ContratoRow | null>(null)
+  const [detalleCliente, setDetalleCliente] = useState<ClienteDetalleDatos | null>(null)
+  const [detalleContrato, setDetalleContrato] = useState<ContratoRow | null>(null)
 
   useEffect(() => {
     let vivo = true
@@ -1157,6 +1193,7 @@ function MiCarteraDemo() {
           setFixtures({
             clientes: m.CLIENTES_DEMO,
             contratos: m.CONTRATOS_DEMO,
+            detallesClientes: m.DETALLES_CLIENTES_DEMO,
             cronogramas: m.CRONOGRAMAS_DEMO,
             titulares: m.TITULARES_DEMO,
           })
@@ -1178,6 +1215,14 @@ function MiCarteraDemo() {
   }, [fixtures, yo, ambito])
 
   const tocaReal = () => toast.info('Disponible solo con tu cuenta real (demo)')
+  const abrirDetalleCliente = (cliente: ClienteBasico) => {
+    const detalle = fixtures?.detallesClientes[cliente.id]
+    if (!detalle) {
+      toast.error('No se encontró el detalle ficticio de este cliente.')
+      return
+    }
+    setDetalleCliente(detalle)
+  }
 
   return (
     <>
@@ -1189,21 +1234,37 @@ function MiCarteraDemo() {
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={tocaReal}
         onNuevoContrato={tocaReal}
+        onDetalleCliente={abrirDetalleCliente}
         onCorregirCliente={tocaReal}
-        onDetalleContrato={setDetalle}
+        onDetalleContrato={setDetalleContrato}
         onCorregirContrato={tocaReal}
       />
 
-      {detalle && (
-        <Dialog open onClose={() => setDetalle(null)} ariaLabel={`Detalle del contrato ${detalle.numero_contrato}`} className="w-[560px]">
+      {detalleCliente && (
+        <Dialog
+          open
+          onClose={() => setDetalleCliente(null)}
+          ariaLabel={`Detalle de ${detalleCliente.nombre_completo || 'cliente'}`}
+          className="w-[640px]"
+        >
+          <ClienteDetalle
+            clienteId={detalleCliente.id}
+            datos={detalleCliente}
+            onCerrar={() => setDetalleCliente(null)}
+          />
+        </Dialog>
+      )}
+
+      {detalleContrato && (
+        <Dialog open onClose={() => setDetalleContrato(null)} ariaLabel={`Detalle del contrato ${detalleContrato.numero_contrato}`} className="w-[560px]">
           <ContratoDetalle
-            contratoId={detalle.id}
+            contratoId={detalleContrato.id}
             datos={{
-              contrato: detalle,
-              cuotas: fixtures?.cronogramas[detalle.id] ?? [],
-              titulares: fixtures?.titulares[detalle.id] ?? [],
+              contrato: detalleContrato,
+              cuotas: fixtures?.cronogramas[detalleContrato.id] ?? [],
+              titulares: fixtures?.titulares[detalleContrato.id] ?? [],
             }}
-            onCerrar={() => setDetalle(null)}
+            onCerrar={() => setDetalleContrato(null)}
           />
         </Dialog>
       )}

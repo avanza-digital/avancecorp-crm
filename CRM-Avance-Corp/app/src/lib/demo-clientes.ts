@@ -5,8 +5,8 @@
 // POR QUÉ vive aparte y se carga por import() dinámico gated:
 //   1. AISLAMIENTO DE PROD (regla de oro): una sesión demo NO tiene Supabase.
 //      Estos datos alimentan la UI en demo para que NUNCA se llame a la API real
-//      (ni listar, ni detalle, ni crear). El detalle recibe el cronograma por
-//      prop precargada (ContratoDetalle.datos) → cero red.
+//      (ni listar, ni detalle, ni crear). Las fichas y cronogramas llegan por
+//      props precargadas (ClienteDetalle/ContratoDetalle.datos) → cero red.
 //   2. NO ENTRA AL BUNDLE DE PROD: las pantallas hacen `import('@/lib/demo-clientes')`
 //      bajo el guard literal `import.meta.env.DEV && VITE_ENABLE_DEMO==='true'`
 //      (mismo patrón que store.tsx con demo.ts) → Rolldown elimina el chunk en
@@ -20,7 +20,7 @@
 // Nombres/documentos: inconfundiblemente PERUANOS y DE MENTIRA (mismo estilo
 // que demo.ts). El documento del CE/pasaporte viaja en la columna `dni`
 // (grandfathering del portal: `dni` guarda el documento sea cual sea su tipo).
-import type { ClienteBasico, ContratoRow, Cuota, EstadoCuota, Titular } from './clientes-tipos'
+import type { ClienteBasico, ClienteDetalle, ContratoRow, Cuota, EstadoCuota, Titular } from './clientes-tipos'
 import {
   formatDateLocal,
   generarCronograma,
@@ -152,6 +152,115 @@ export const CLIENTES_DEMO: ClienteBasico[] = [
     creado_en: haceHoras(2), // ventana VIVA → el supervisor ve acciones en SU fila
   },
 ]
+
+// ── Detalle completo de los clientes demo ────────────────────────────────────
+// Las cuentas son enteramente ficticias. La ficha de Mi cartera recibe estas
+// filas por prop y deshabilita useClienteDetalle: una sesión demo no consulta
+// public.perfiles ni puede mezclar por accidente PII de una caché real.
+type DatosBancariosDemo = Pick<
+  ClienteDetalle,
+  | 'banco'
+  | 'tipo_cuenta'
+  | 'numero_cuenta'
+  | 'cci'
+  | 'titular_distinto'
+  | 'beneficiario_nombre'
+  | 'beneficiario_dni'
+  | 'banco_usd'
+  | 'tipo_cuenta_usd'
+  | 'numero_cuenta_usd'
+  | 'cci_usd'
+  | 'titular_distinto_usd'
+  | 'beneficiario_nombre_usd'
+  | 'beneficiario_dni_usd'
+>
+
+const BANCARIOS_DEMO_VACIOS: DatosBancariosDemo = {
+  banco: null,
+  tipo_cuenta: null,
+  numero_cuenta: null,
+  cci: null,
+  titular_distinto: false,
+  beneficiario_nombre: null,
+  beneficiario_dni: null,
+  banco_usd: null,
+  tipo_cuenta_usd: null,
+  numero_cuenta_usd: null,
+  cci_usd: null,
+  titular_distinto_usd: false,
+  beneficiario_nombre_usd: null,
+  beneficiario_dni_usd: null,
+}
+
+function detalleClienteDemo(id: string, bancarios: Partial<DatosBancariosDemo>): ClienteDetalle {
+  const cliente = CLIENTES_DEMO.find((fila) => fila.id === id)
+  if (!cliente) throw new Error(`Fixture de cliente demo inexistente: ${id}`)
+  return {
+    id: cliente.id,
+    nombre_completo: cliente.nombre_completo,
+    nombres: cliente.nombres,
+    apellidos: cliente.apellidos,
+    tipo_documento: cliente.tipo_documento,
+    dni: cliente.dni,
+    correo: cliente.correo,
+    telefono: cliente.telefono,
+    asesor_perfil_id: cliente.asesor_perfil_id,
+    creado_por: cliente.creado_por,
+    creado_en: cliente.creado_en,
+    ...BANCARIOS_DEMO_VACIOS,
+    ...bancarios,
+  }
+}
+
+/** Fichas por cliente_id; todos los documentos y números son de demostración. */
+export const DETALLES_CLIENTES_DEMO: Record<string, ClienteDetalle> = {
+  'dc-cli-1': detalleClienteDemo('dc-cli-1', {
+    banco: 'BCP',
+    tipo_cuenta: 'ahorros',
+    numero_cuenta: '19100000001234',
+    cci: '00219100000000123456',
+  }),
+  'dc-cli-2': detalleClienteDemo('dc-cli-2', {
+    banco_usd: 'Interbank',
+    tipo_cuenta_usd: 'ahorros',
+    numero_cuenta_usd: '2000000012345',
+    cci_usd: '00320000000012345678',
+  }),
+  'dc-cli-3': detalleClienteDemo('dc-cli-3', {
+    banco: 'BBVA',
+    tipo_cuenta: 'corriente',
+    numero_cuenta: '001100000012345678',
+    cci: '01100100000012345678',
+    titular_distinto: true,
+    beneficiario_nombre: 'MARÍA DEMO QUISPE ROJAS',
+    beneficiario_dni: '10000003',
+  }),
+  'dc-cli-4': detalleClienteDemo('dc-cli-4', {
+    banco_usd: 'Scotiabank',
+    tipo_cuenta_usd: 'corriente',
+    numero_cuenta_usd: '000000123456',
+    cci_usd: '00900000000012345678',
+  }),
+  'dc-cli-5': detalleClienteDemo('dc-cli-5', {
+    banco: 'BanBif',
+    tipo_cuenta: 'ahorros',
+    numero_cuenta: '00000000123456',
+    cci: '03800000000012345678',
+    titular_distinto: true,
+    beneficiario_nombre: 'CÉSAR DEMO ROMERO DELGADO',
+    beneficiario_dni: '10000005',
+  }),
+  'dc-cli-6': detalleClienteDemo('dc-cli-6', {
+    banco: 'Banco de la Nación',
+    tipo_cuenta: 'ahorros',
+    numero_cuenta: '04000000001234',
+    cci: '01804000000000123456',
+    banco_usd: 'BCP',
+    tipo_cuenta_usd: 'ahorros',
+    numero_cuenta_usd: '19300000001234',
+    cci_usd: '00219300000000123456',
+  }),
+}
 
 // ── Contratos: numeración estilo '2026-01-0009xx'. Solo el A tiene la ventana
 //    de 5 h VIVA (para que 'Corregir' se vea habilitado); B y C, vencida. ────────

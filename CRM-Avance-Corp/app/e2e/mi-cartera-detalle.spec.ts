@@ -1,0 +1,56 @@
+// E2E de la ficha completa del cliente dentro de Mi cartera. La ruta REAL usa
+// el backend Supabase interceptado (fail-closed) y la DEMO bloquea por completo
+// ese host: ambas prueban el flujo de navegador sin tocar producción.
+import { expect, test } from '@playwright/test'
+import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal } from './_helpers'
+
+test('real: un analista abre todos los datos de su cliente aunque la ventana de 5 h venció', async ({ page }) => {
+  const cliente = clienteReal({
+    creado_en: '2020-01-01T00:00:00.000Z',
+    banco_usd: 'Interbank',
+    tipo_cuenta_usd: 'corriente',
+    numero_cuenta_usd: '2003001234567',
+    cci_usd: '00320030012345678901',
+    titular_distinto_usd: true,
+    beneficiario_nombre_usd: 'JUANA PÉREZ QA',
+    beneficiario_dni_usd: '87654321',
+  })
+  const backend = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
+    clientes: [cliente],
+    contratos: [],
+  })
+  await loginReal(page)
+
+  const fila = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
+  await expect(fila).toBeVisible()
+  // Escritura vencida, lectura completa disponible.
+  await expect(fila.getByRole('button', { name: 'Corregir' })).toHaveCount(0)
+  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+
+  const ficha = page.getByRole('dialog', { name: 'CLIENTE PORTAL UNO' })
+  await expect(ficha).toBeVisible()
+  await expect(ficha.getByText('cliente1@correo.pe')).toBeVisible()
+  await expect(ficha.getByText('00219112345678901234')).toBeVisible()
+  await expect(ficha.getByText('00320030012345678901')).toBeVisible()
+  await expect(ficha.getByText('JUANA PÉREZ QA')).toBeVisible()
+  await expect(ficha.getByText('87654321')).toBeVisible()
+  expect(backend.llamadas.patchPerfil).toBe(0)
+})
+
+test('demo: abre la ficha ficticia completa sin ningún request a Supabase', async ({ page }) => {
+  const requestsSupabase = await bloquearSupabase(page)
+  await entrarDemo(page, 'Vendedor')
+  await page.getByRole('button', { name: 'Mi cartera' }).click()
+
+  const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
+  await expect(fila).toBeVisible()
+  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+
+  const ficha = page.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })
+  await expect(ficha).toBeVisible()
+  await expect(ficha.getByText('rosa.aguilar@correo.pe')).toBeVisible()
+  await expect(ficha.getByText('19100000001234')).toBeVisible()
+  await expect(ficha.getByText('00219100000000123456')).toBeVisible()
+  expect(requestsSupabase()).toBe(0)
+})
