@@ -21,3 +21,18 @@ Reglas:
 - Al iniciar sesión, lee las notas `.md` del vault para cargar el conocimiento del proyecto (no solo el grafo de código).
 - El MCP **CODEgraph** cubre **estructura de código**; el vault de Obsidian cubre **conocimiento de negocio/decisiones**. Son complementarios: usa ambos.
 - Cuando captures conocimiento nuevo y duradero del proyecto, escríbelo como una nota `.md` en el vault, enlazando con `[[wikilinks]]` a notas relacionadas.
+
+## UI Playground (laboratorio de animaciones)
+
+Vive **FUERA de este repo**, en la carpeta hermana `../ui-playground/`
+(= `/Users/usuario/Desktop/DESARROLLO/DESARROLLO/ui-playground/`). Es el laboratorio donde se
+crean y aprueban animaciones ANTES de tocar los proyectos reales.
+
+- `galeria/` — componentes de UI animados (React + Vite + **Motion** + **GSAP**) → `npm run dev` → `localhost:5173`.
+- `remotion/` — videos programados con **Remotion** (MP4: intros, piezas para redes) → `npm run dev` → `localhost:3000`.
+- Regla de herramientas: Remotion = SOLO videos; Motion/GSAP = componentes vivos de interfaz.
+- Flujo: crear en el laboratorio → Miguel aprueba → promover (CRM casi directo por ser React; portal portado a vanilla).
+
+**Comandos del flujo** (en `.claude/commands/`): `/lab` (arranca los 2 servidores), `/componente <pedido>`,
+`/animacion <pedido>`, `/render [id]`, `/promover <componente> al crm|portal`. Detalle en `../ui-playground/README.md`
+y en la nota del vault **"UI Playground (laboratorio de animaciones)"**.
