@@ -2292,6 +2292,19 @@ async function testBankingBoundary(sessions, seed) {
     sessions.vend3.client.schema('crm').from('clientes_basicos').select('id').eq('id', bankProfileId),
   );
 
+  // Vistas invoker (20260801092924): un cliente del portal tiene SELECT sobre
+  // las vistas (grant amplio a authenticated) pero la guardia de las *_fn()
+  // lo deja en 0 filas — sin excepción. Clavado aquí porque el flip a
+  // security_invoker no debe cambiar este resultado.
+  await expectHidden(
+    'cliente del portal lee crm.clientes_basicos: 0 filas (guardia de la fn)',
+    sessions.clientBank.client.schema('crm').from('clientes_basicos').select('id'),
+  );
+  await expectHidden(
+    'cliente del portal lee crm.contratos_cartera: 0 filas (guardia de la fn)',
+    sessions.clientBank.client.schema('crm').from('contratos_cartera').select('id'),
+  );
+
   const bankProjection = [
     'id', 'banco', 'numero_cuenta', 'tipo_cuenta', 'cci',
     'beneficiario_nombre', 'beneficiario_dni',
@@ -2338,6 +2351,63 @@ async function testBankingBoundary(sessions, seed) {
     }),
     ['P0001'],
   );
+
+  // ── contrato_tiene_pagos exige ámbito (20260801092924) ─────────────────────
+  // Era la ÚNICA RPC expuesta de las 41 sin guardia: cualquier authenticated
+  // (un cliente del portal, un comercial ajeno) podía sondear si un contrato
+  // tiene pagos conociendo el UUID. Ahora delega en puede_ver_contrato y para
+  // un no autorizado devuelve false SIN excepción (así el llamador del portal
+  // admin no cambia). La cuota pagada es transitoria: la crea service_role y
+  // se borra al final para no perforar el fixture.
+  const cuotaSonda = await positive(
+    'admin crea la cuota pagada transitoria del contrato fixture',
+    admin.from('cronograma_pagos').insert({
+      contrato_id: BANK_CONTRACT.id,
+      numero_cuota: 999,
+      fecha_programada: '2026-02-01',
+      monto_programado: 100,
+      estado: 'pagado',
+      tipo: 'cuota',
+      monto_pagado: 100,
+    }).select('id').single(),
+  );
+
+  if (cuotaSonda) {
+    const sondaDueno = await positive(
+      'el cliente dueño consulta pagos de SU contrato',
+      sessions.clientBank.client.rpc('contrato_tiene_pagos', {
+        p_contrato_id: BANK_CONTRACT.id,
+      }),
+    );
+    if (sondaDueno) check(sondaDueno.data === true,
+      'contrato_tiene_pagos: el dueño sigue viendo la señal real (true)');
+
+    const sondaAjena = await positive(
+      'vend3 (fuera de la cartera) sondea el mismo contrato',
+      sessions.vend3.client.rpc('contrato_tiene_pagos', {
+        p_contrato_id: BANK_CONTRACT.id,
+      }),
+    );
+    if (sondaAjena) check(sondaAjena.data === false,
+      'contrato_tiene_pagos devuelve false para un authenticated fuera de ámbito',
+      `devolvio ${JSON.stringify(sondaAjena.data)}`);
+
+    // Decisión consciente: service_role SIN JWT tampoco ve la señal por esta
+    // RPC (auth.uid() null → puede_ver_contrato false). La RPC es para humanos
+    // logueados; los procesos con service_role leen cronograma_pagos directo.
+    const sondaServiceRole = await positive(
+      'service_role sin JWT consulta la RPC (semantica clavada)',
+      admin.rpc('contrato_tiene_pagos', { p_contrato_id: BANK_CONTRACT.id }),
+    );
+    if (sondaServiceRole) check(sondaServiceRole.data === false,
+      'contrato_tiene_pagos: service_role sin JWT recibe false (lee tablas directo)');
+
+    await positive(
+      'admin borra la cuota transitoria (fixture restaurado)',
+      admin.from('cronograma_pagos').delete()
+        .eq('id', cuotaSonda.data.id).select('id').single(),
+    );
+  }
 
   // ── Trigger perfiles_cuentas_no_vaciar (20260728044338) ────────────────────
   // Un cliente que YA tiene cuenta no puede QUEDAR sin ninguna. La prueba dura
