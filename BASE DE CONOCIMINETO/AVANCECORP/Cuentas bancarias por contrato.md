@@ -41,7 +41,7 @@ Implementación local completada el 2026-08-03 en la rama `feat/cuentas-bancaria
 - Migración fusionada a Supabase producción después de un gate RLS de 453/453 aserciones; la rama temporal fue eliminada.
 - Portal `miavance.com` publicado desde el commit `eb536dc7ad67aa91f5e9d70a18badd31af3ff2f9`, con Service Worker `avance-v106` y caché de Hostinger purgada.
 - Los archivos críticos de Pagos y Contratos devolvieron HTTP 200 y coincidieron byte por byte con el artefacto; el ZIP de despliegue devolvió HTTP 404.
-- La publicación del frontend `crm.miavance.com` conserva el control humano obligatorio de [[Deploy a Hostinger]] mediante `/release-crm`.
+- Frontend `crm.miavance.com` publicado mediante `/release-crm`: release `crm-20260803T223544Z-bb9ffc602eb7`, SHA-256 `d7ad3c383beb099bebf175da30bf1b12ddf5e5bf031b671f83b6b4571a61b80b`. El HTML y el bundle `assets/index-De_ut-kj.js` respondieron HTTP 200 y coincidieron byte por byte con el artefacto; el ZIP respondió HTTP 404.
 
 Validado localmente con PostgreSQL 16 aislado (alta, versionado, historial, rollback, ACL y resolver), 1,097 pruebas unitarias/RTL/MSW, 68 E2E Playwright y 44 pruebas del portal. El gate RLS permanente incluye la nueva matriz, pero su ejecución contra un branch Supabase queda para la etapa de despliegue. **No está aplicada en Supabase ni desplegada en Hostinger.** Orden futuro obligatorio: migración en branch Supabase y gate completo → frontend CRM → portal Pagos. Ver [[Deploy a Hostinger]].
 
