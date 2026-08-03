@@ -434,6 +434,44 @@ export interface Database {
         Update: never
         Relationships: []
       }
+      /** Versiones bancarias inmutables por cliente. El navegador no accede a
+       * la tabla: lista/crea exclusivamente mediante RPCs gateadas. */
+      cuentas_bancarias: {
+        Row: {
+          id: string
+          cliente_id: string
+          moneda: MonedaDb
+          banco: string
+          tipo_cuenta: 'ahorros' | 'corriente'
+          numero_cuenta: string
+          cci: string
+          titular_distinto: boolean
+          beneficiario_nombre: string | null
+          beneficiario_dni: string | null
+          activa: boolean
+          origen: 'perfil' | 'contrato'
+          creado_por: string | null
+          creado_en: string
+          desactivada_por: string | null
+          desactivada_en: string | null
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
+      /** Enlace histórico de una sola cuenta de pago por contrato. */
+      contrato_cuentas_pago: {
+        Row: {
+          id: string
+          contrato_id: string
+          cuenta_bancaria_id: string
+          creado_por: string | null
+          creado_en: string
+        }
+        Insert: never
+        Update: never
+        Relationships: []
+      }
     }
     Views: {
       /** Cartera de clientes del portal YA scopeada por rol del CRM (la vista
@@ -486,6 +524,65 @@ export interface Database {
       }
     }
     Functions: {
+      /** Cuentas activas compatibles + slot legacy vigente del perfil. */
+      cuentas_bancarias_cliente_fn: {
+        Args: { p_cliente_id: string; p_moneda: MonedaDb }
+        Returns: {
+          cuenta_id: string | null
+          moneda: MonedaDb
+          banco: string
+          tipo_cuenta: 'ahorros' | 'corriente'
+          numero_cuenta: string
+          cci: string
+          titular_distinto: boolean
+          beneficiario_nombre: string | null
+          beneficiario_dni: string | null
+          origen: 'perfil' | 'contrato'
+          es_cuenta_perfil: boolean
+          creada_en: string | null
+        }[]
+      }
+      /** Alta atómica: versiona/reutiliza la cuenta y delega el contrato al
+       * motor public.crear_contrato dentro de la misma transacción. */
+      crear_contrato_con_cuenta: {
+        Args: {
+          p_contrato: Record<string, unknown>
+          p_cronograma: Record<string, unknown>[]
+          p_cuenta: Record<string, unknown>
+        }
+        Returns: {
+          id: string
+          numero_contrato: string
+          cuenta_bancaria_id: string
+        }
+      }
+      /** Conserva la RPC pública de corrección y bloquea cambios de moneda que
+       * dejarían incoherente una cuenta contractual ya fijada. */
+      actualizar_contrato_con_cuenta: {
+        Args: {
+          p_id: string
+          p_contrato: Record<string, unknown>
+          p_cronograma: Record<string, unknown>[]
+        }
+        Returns: undefined
+      }
+      /** Resolución administrativa usada por Pagos/Excel; no hay fallback en
+       * la RPC: la UI lo aplica únicamente a contratos legacy sin enlace. */
+      cuentas_pago_contratos_fn: {
+        Args: { p_contrato_ids: string[] }
+        Returns: {
+          contrato_id: string
+          cuenta_bancaria_id: string
+          moneda: MonedaDb
+          banco: string
+          tipo_cuenta: 'ahorros' | 'corriente'
+          numero_cuenta: string
+          cci: string
+          titular_distinto: boolean
+          beneficiario_nombre: string | null
+          beneficiario_dni: string | null
+        }[]
+      }
       /** Acceso propio canónico: distingue membresía ausente de revocación
        * explícita aunque RLS oculte ambas filas al cliente. */
       mi_acceso_fn: {

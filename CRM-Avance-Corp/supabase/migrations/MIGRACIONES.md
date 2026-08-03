@@ -358,3 +358,9 @@ Producción sirve `assets/index-CfihSZSH.js` (SHA-256
 HTML, código, CSS, SVG y demás recursos coinciden byte por byte; Hostinger
 recomprime los cuatro PNG de marca conservando el payload de píxeles. El ZIP,
 fuentes, migraciones, sourcemaps, `.env` y `package.json` no son públicos.
+
+## Cuentas bancarias versionadas por contrato (2026-08-03)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260803200253 | crm_cuentas_bancarias_por_contrato | Agrega `crm.cuentas_bancarias` como historial inmutable/versionado y `crm.contrato_cuentas_pago` como vínculo único por contrato. El alta atómica permite elegir una cuenta guardada, fotografiar la cuenta vigente del perfil o registrar una nueva; un snapshot optimista y locks por cuenta cierran carreras. Las tablas permanecen sin acceso directo para sesiones humanas; RPCs gateadas listan cuentas de cartera, crean/corrigen contratos y entregan a Pagos solo la cuenta contractual. Contratos anteriores conservan fallback explícito al perfil; una incoherencia cliente/moneda bloquea el desembolso. No añade verificación bancaria ni modifica objetos de `public`. | 🟡 **Solo local** en `feat/cuentas-bancarias-por-contrato`; NO aplicada a branch ni producción. Compila en PostgreSQL 16 aislado; atomicidad/ACL/RLS/inmutabilidad verificadas. Gate vivo ampliado, pendiente de ejecutarse contra un branch Supabase antes de cualquier merge. |

@@ -2,7 +2,7 @@
 // Clientes del portal + contratos contra un Supabase SIMULADO con msw (mismo
 // patrón que crm-api-msw.test.ts): se verifica el contrato HTTP real — schema
 // crm por header, la TRAMPA del PATCH con 0 filas, el shape del embed y el
-// cuerpo exacto de la RPC actualizar_contrato — sin tocar la red.
+// cuerpos exactos de las RPC bancarias/contractuales — sin tocar la red.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -15,9 +15,11 @@ vi.mock('@/lib/supabase', async () => {
 import {
   actualizarClientePortal,
   actualizarContrato,
+  crearContrato,
   crearClientePortal,
   CrmApiError,
   listarClientes,
+  listarCuentasBancariasCliente,
   listarMisContratos,
   obtenerClienteDetalle,
   obtenerCronograma,
@@ -440,7 +442,188 @@ describe('obtenerCronograma / obtenerTitulares', () => {
   })
 })
 
-describe('actualizarContrato (RPC actualizar_contrato)', () => {
+describe('cuentas bancarias y alta atómica de contrato', () => {
+  const cuenta = {
+    cuenta_id: null,
+    moneda: 'PEN',
+    banco: 'BCP',
+    tipo_cuenta: 'ahorros',
+    numero_cuenta: '19112345678901',
+    cci: '00219112345678901234',
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+    origen: 'perfil',
+    es_cuenta_perfil: true,
+    creada_en: null,
+  }
+
+  it('lista por RPC en crm y valida estrictamente cada cuenta', async () => {
+    let body: Record<string, unknown> = {}
+    let perfil: string | null = null
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        perfil = request.headers.get('content-profile')
+        return HttpResponse.json([cuenta])
+      }),
+    )
+
+    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).resolves.toEqual([cuenta])
+    expect(body).toEqual({ p_cliente_id: 'cli-1', p_moneda: 'PEN' })
+    expect(perfil).toBe('crm')
+  })
+
+  it('falla cerrado si una fila bancaria llega mutilada', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () =>
+        HttpResponse.json([{ ...cuenta, cci: null }]),
+      ),
+    )
+    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).rejects.toMatchObject({
+      code: 'ROW_CONTRACT',
+    })
+  })
+
+  it('acepta una cuenta histórica solo con UUID y fecha coherentes', async () => {
+    const historica = {
+      ...cuenta,
+      cuenta_id: '20000000-0000-4000-8000-000000000001',
+      origen: 'contrato',
+      es_cuenta_perfil: false,
+      creada_en: '2026-08-03T20:02:53.000Z',
+    }
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () =>
+        HttpResponse.json([historica]),
+      ),
+    )
+
+    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).resolves.toEqual([historica])
+  })
+
+  it('acepta reutilizar una versión histórica nacida desde el perfil', async () => {
+    const versionadaDesdePerfil = {
+      ...cuenta,
+      cuenta_id: '20000000-0000-4000-8000-000000000002',
+      es_cuenta_perfil: false,
+      creada_en: '2026-08-03T20:02:53.000Z',
+    }
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () =>
+        HttpResponse.json([versionadaDesdePerfil]),
+      ),
+    )
+
+    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).resolves.toEqual([
+      versionadaDesdePerfil,
+    ])
+  })
+
+  it.each([
+    ['perfil con UUID', { cuenta_id: '20000000-0000-4000-8000-000000000001' }],
+    ['perfil con fecha', { creada_en: '2026-08-03T20:02:53.000Z' }],
+    ['histórica sin UUID', { origen: 'contrato', es_cuenta_perfil: false }],
+    [
+      'UUID inválido',
+      {
+        cuenta_id: 'cb-1',
+        origen: 'contrato',
+        es_cuenta_perfil: false,
+        creada_en: '2026-08-03T20:02:53.000Z',
+      },
+    ],
+    [
+      'fecha inválida',
+      {
+        cuenta_id: '20000000-0000-4000-8000-000000000001',
+        origen: 'contrato',
+        es_cuenta_perfil: false,
+        creada_en: 'ayer',
+      },
+    ],
+    ['slot de perfil con origen contradictorio', { origen: 'contrato' }],
+    ['columna inesperada', { inesperada: true }],
+  ])('falla cerrado ante %s', async (_caso, parche) => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () =>
+        HttpResponse.json([{ ...cuenta, ...parche }]),
+      ),
+    )
+
+    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).rejects.toMatchObject({
+      code: 'ROW_CONTRACT',
+    })
+  })
+
+  it('crearContrato manda la fotografía bancaria a la RPC crm y valida su respuesta', async () => {
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json({
+          id: '10000000-0000-4000-8000-000000000001',
+          numero_contrato: '2026-01-000123',
+          cuenta_bancaria_id: '20000000-0000-4000-8000-000000000001',
+        })
+      }),
+    )
+
+    const resultado = await crearContrato({
+      cliente_id: 'cli-1',
+      capital: 10000,
+      moneda: 'PEN',
+      tasa_anual: 15,
+      modalidad: 'mensual',
+      tipo_interes: 'simple',
+      categoria: 'nuevo',
+      fecha_inicio: '2026-08-01',
+      fecha_vencimiento: '2027-08-01',
+      numero_contrato: '2026-01-000123',
+      notas_internas: null,
+      cuenta_pago: {
+        tipo: 'perfil',
+        cuenta_esperada: {
+          banco: cuenta.banco,
+          tipo_cuenta: cuenta.tipo_cuenta as 'ahorros',
+          numero_cuenta: cuenta.numero_cuenta,
+          cci: cuenta.cci,
+          titular_distinto: false,
+          beneficiario_nombre: null,
+          beneficiario_dni: null,
+        },
+      },
+    }, [{
+      numero_cuota: 1,
+      fecha_programada: '2026-09-01',
+      monto_programado: 125,
+      estado: 'pendiente',
+      tipo: 'cuota',
+    }])
+
+    expect(resultado.cuenta_bancaria_id).toBe('20000000-0000-4000-8000-000000000001')
+    expect(body.p_cuenta).toMatchObject({ tipo: 'perfil', cuenta_esperada: { cci: cuenta.cci } })
+  })
+
+  it('no confirma éxito si la RPC omite el id de la cuenta', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta`, () =>
+        HttpResponse.json({
+          id: '10000000-0000-4000-8000-000000000001',
+          numero_contrato: '2026-01-000123',
+        }),
+      ),
+    )
+    await expect(crearContrato({
+      cliente_id: 'cli-1', capital: 10000, moneda: 'PEN', tasa_anual: 15,
+      modalidad: 'mensual', tipo_interes: 'simple', categoria: 'nuevo',
+      fecha_inicio: '2026-08-01', fecha_vencimiento: '2027-08-01',
+      numero_contrato: '2026-01-000123', cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
+    }, [])).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+})
+
+describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta)', () => {
   const contratoBase = {
     capital: 12000,
     moneda: 'PEN' as const,
@@ -457,7 +640,7 @@ describe('actualizarContrato (RPC actualizar_contrato)', () => {
   it('p_contrato SIEMPRE lleva notas_internas (aunque null) y titulares solo si el caller lo mandó', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return new HttpResponse(null, { status: 204 }) // RPC void
       }),
@@ -477,7 +660,7 @@ describe('actualizarContrato (RPC actualizar_contrato)', () => {
   it('titulares presente (incluso []) SÍ viaja — semántica de reemplazo total', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return new HttpResponse(null, { status: 204 })
       }),
@@ -490,7 +673,7 @@ describe('actualizarContrato (RPC actualizar_contrato)', () => {
 
   it('ventana vencida: el RAISE P0001 del servidor llega con su mensaje es-PE', async () => {
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato`, () =>
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, () =>
         HttpResponse.json(
           { code: 'P0001', message: 'Solo puedes corregir un contrato dentro de las 5 horas de creado', details: null },
           { status: 400 },

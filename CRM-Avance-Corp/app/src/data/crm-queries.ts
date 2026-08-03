@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   actualizarCapacidadLeadsObjetivo,
   listarClientes,
+  listarCuentasBancariasCliente,
   listarMetricasAgenda,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
@@ -31,6 +32,8 @@ export const crmQueryKeys = {
   cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
   titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
+  cuentasBancarias: (clienteId: string, moneda: 'PEN' | 'USD') =>
+    [...crmQueryKeys.clientes(), clienteId, 'cuentas-bancarias', moneda] as const,
   // Métricas de gerencia (RPCs crm.metricas_*_fn): misma raíz por lo mismo.
   metricas: () => [...crmQueryKeys.raiz, 'metricas'] as const,
   metricasCapital: (meses: number) => [...crmQueryKeys.metricas(), 'capital', meses] as const,
@@ -129,6 +132,26 @@ export function useClienteDetalle(clienteId: string, habilitada = true) {
     queryFn: ({ signal }) => obtenerClienteDetalle(clienteId, signal),
     enabled: habilitada,
     staleTime: 0,
+  })
+}
+
+/**
+ * Cuentas elegibles para un contrato nuevo. Siempre obsoletas al desmontar:
+ * son datos sensibles y una cuenta puede haberse versionado en otra sesión.
+ */
+export function useCuentasBancariasCliente(
+  clienteId: string,
+  moneda: 'PEN' | 'USD',
+  habilitada = true,
+) {
+  return useQuery({
+    queryKey: crmQueryKeys.cuentasBancarias(clienteId, moneda),
+    queryFn: ({ signal }) => listarCuentasBancariasCliente(clienteId, moneda, signal),
+    enabled: habilitada,
+    staleTime: 0,
+    // No retener números/CCI al cerrar el modal; al reabrir siempre se pide una
+    // fotografía autorizada y fresca al servidor.
+    gcTime: 0,
   })
 }
 

@@ -177,6 +177,82 @@ export function clienteReal(over: Partial<PerfilReal> = {}): PerfilReal {
   }
 }
 
+// ── Cuentas bancarias contractuales (crm.cuentas_bancarias) ────────────────────
+
+/**
+ * Fila interna del backend E2E. `cliente_id` permite aplicar el mismo ámbito
+ * cliente+moneda de la RPC; se retira antes de responder porque la función real
+ * no lo expone al navegador.
+ */
+export interface CuentaBancariaReal {
+  cliente_id: string
+  cuenta_id: string
+  moneda: 'PEN' | 'USD'
+  banco: string
+  tipo_cuenta: 'ahorros' | 'corriente'
+  numero_cuenta: string
+  cci: string
+  titular_distinto: boolean
+  beneficiario_nombre: string | null
+  beneficiario_dni: string | null
+  origen: 'perfil' | 'contrato'
+  es_cuenta_perfil: boolean
+  creada_en: string | null
+}
+
+/** Cuenta versionada reutilizable para configurar escenarios E2E. */
+export function cuentaBancariaReal(over: Partial<CuentaBancariaReal> = {}): CuentaBancariaReal {
+  return {
+    cliente_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+    cuenta_id: 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb',
+    moneda: 'PEN',
+    banco: 'Interbank',
+    tipo_cuenta: 'ahorros',
+    numero_cuenta: '200300001234',
+    cci: '00320030000123456789',
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+    origen: 'contrato',
+    es_cuenta_perfil: false,
+    creada_en: '2026-07-15T10:00:00.000Z',
+    ...over,
+  }
+}
+
+/** Proyecta el slot vigente de public.perfiles al contrato estricto de la RPC. */
+function cuentaPerfilReal(
+  perfil: PerfilReal,
+  moneda: 'PEN' | 'USD',
+): Omit<CuentaBancariaReal, 'cliente_id' | 'cuenta_id'> & { cuenta_id: null } | null {
+  const usd = moneda === 'USD'
+  const banco = usd ? perfil.banco_usd : perfil.banco
+  const tipoCuenta = usd ? perfil.tipo_cuenta_usd : perfil.tipo_cuenta
+  const numeroCuenta = usd ? perfil.numero_cuenta_usd : perfil.numero_cuenta
+  const cci = usd ? perfil.cci_usd : perfil.cci
+  if (
+    !banco
+    || (tipoCuenta !== 'ahorros' && tipoCuenta !== 'corriente')
+    || !numeroCuenta
+    || !cci
+  ) return null
+
+  return {
+    cuenta_id: null,
+    moneda,
+    banco,
+    tipo_cuenta: tipoCuenta,
+    numero_cuenta: numeroCuenta,
+    cci,
+    titular_distinto: usd ? perfil.titular_distinto_usd : perfil.titular_distinto,
+    beneficiario_nombre: usd ? perfil.beneficiario_nombre_usd : perfil.beneficiario_nombre,
+    beneficiario_dni: usd ? perfil.beneficiario_dni_usd : perfil.beneficiario_dni,
+    origen: 'perfil',
+    es_cuenta_perfil: true,
+    creada_en: null,
+  }
+}
+
 // ── Contratos del portal (public.contratos con el embed cliente:perfiles) ─────
 export interface ContratoReal {
   id: string
@@ -580,6 +656,12 @@ export interface BackendReal {
   clientes: PerfilReal[]
   /** Contratos del portal (con el embed cliente ya resuelto). */
   contratos: ContratoReal[]
+  /** Versiones bancarias reutilizables; el slot actual del perfil se deriva aparte. */
+  cuentasBancarias: CuentaBancariaReal[]
+  /** Enlace cuenta↔contrato creado por el wrapper atómico. */
+  cuentasPorContrato: Record<string, string>
+  /** Última selección bancaria recibida, para aserciones de frontera. */
+  ultimaCuentaPagoContrato: Record<string, unknown> | null
   /** El próximo GET de contratos_cartera responde 500 una vez (panel de error + Reintentar). */
   fallarProximaCargaContratos: boolean
   /** Cronograma por contrato_id (el GET filtra por eq.<id>). */
@@ -630,6 +712,7 @@ export interface BackendReal {
     getLeads: number
     altaCliente: number
     patchPerfil: number
+    rpcListarCuentasBancarias: number
     rpcCrearContrato: number
     rpcActualizarContrato: number
     rpcMetricasDistribucion: number
@@ -697,6 +780,9 @@ export async function montarBackendReal(
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
+    cuentasBancarias: init.cuentasBancarias ?? [],
+    cuentasPorContrato: init.cuentasPorContrato ?? {},
+    ultimaCuentaPagoContrato: init.ultimaCuentaPagoContrato ?? null,
     fallarProximaCargaContratos: init.fallarProximaCargaContratos ?? false,
     cuotas: init.cuotas ?? {},
     titulares: init.titulares ?? {},
@@ -720,7 +806,8 @@ export async function montarBackendReal(
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
       insertLead: 0, patchLead: 0, insertActividad: 0, getLeads: 0,
-      altaCliente: 0, patchPerfil: 0, rpcCrearContrato: 0, rpcActualizarContrato: 0,
+      altaCliente: 0, patchPerfil: 0, rpcListarCuentasBancarias: 0,
+      rpcCrearContrato: 0, rpcActualizarContrato: 0,
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
       rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
       rpcDescartarLead: 0, rpcDeshacerDescarte: 0,
@@ -756,7 +843,16 @@ export async function montarBackendReal(
     if (p === '/auth/v1/user') return json(route, USER)
     if (p === '/auth/v1/logout') return route.fulfill({ status: 204, headers: cors })
 
-    // ── resolverRol + clientes del portal (misma tabla perfiles) ──
+    // ── Acceso canónico + clientes del portal (misma tabla perfiles) ──
+    if (p === '/rest/v1/rpc/mi_acceso_fn' && method === 'POST') {
+      return json(route, {
+        estado: 'miembro',
+        perfil_id: UID,
+        rol_crm: estado.rolCrm,
+        rol_portal: estado.rolPortal,
+        nombre_completo: 'Gerente Real',
+      })
+    }
     if (p === '/rest/v1/equipo') return json(route, [{ rol_crm: estado.rolCrm, activo: true }])
     if (p === '/rest/v1/perfiles') {
       const idFiltro = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
@@ -818,11 +914,47 @@ export async function montarBackendReal(
       return json(route, estado.titulares[cid] ?? [])
     }
 
-    // ── RPC crear_contrato (portal): crea contrato + cronograma atómico ──
-    if (p === '/rest/v1/rpc/crear_contrato' && method === 'POST') {
+    // ── Cuenta contractual: listado scopeado por cliente + moneda ──
+    if (p === '/rest/v1/rpc/cuentas_bancarias_cliente_fn' && method === 'POST') {
+      estado.llamadas.rpcListarCuentasBancarias += 1
+      const body = (req.postDataJSON() ?? {}) as {
+        p_cliente_id?: string
+        p_moneda?: string
+      }
+      const clienteId = String(body.p_cliente_id ?? '')
+      const moneda = body.p_moneda === 'USD' ? 'USD' : 'PEN'
+      const guardadas = estado.cuentasBancarias
+        .filter((cuenta) => cuenta.cliente_id === clienteId && cuenta.moneda === moneda)
+        .map(({ cliente_id: _clienteId, ...fila }) => fila)
+      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
+      const perfil = cliente ? cuentaPerfilReal(cliente, moneda) : null
+      // La RPC real no duplica el slot del perfil cuando ya existe la misma
+      // versión activa. El mock conserva esa semántica para no ofrecer dos radios
+      // indistinguibles en las pruebas.
+      const perfilYaVersionado = perfil != null && guardadas.some((cuenta) =>
+        cuenta.banco === perfil.banco
+        && cuenta.tipo_cuenta === perfil.tipo_cuenta
+        && cuenta.numero_cuenta === perfil.numero_cuenta
+        && cuenta.cci === perfil.cci
+        && cuenta.titular_distinto === perfil.titular_distinto
+        && cuenta.beneficiario_nombre === perfil.beneficiario_nombre
+        && cuenta.beneficiario_dni === perfil.beneficiario_dni,
+      )
+      return json(route, perfil && !perfilYaVersionado ? [...guardadas, perfil] : guardadas)
+    }
+
+    // ── RPC CRM: cuenta + contrato + cronograma en una transacción ──
+    if (p === '/rest/v1/rpc/crear_contrato_con_cuenta' && method === 'POST') {
       estado.llamadas.rpcCrearContrato += 1
-      const body = (req.postDataJSON() ?? {}) as { p_contrato?: Record<string, unknown> }
+      const body = (req.postDataJSON() ?? {}) as {
+        p_contrato?: Record<string, unknown>
+        p_cuenta?: Record<string, unknown>
+      }
       const pc = body.p_contrato ?? {}
+      const cuentaElegida = body.p_cuenta
+      estado.ultimaCuentaPagoContrato = cuentaElegida
+        ? JSON.parse(JSON.stringify(cuentaElegida)) as Record<string, unknown>
+        : null
       // Espejo del servidor: sin numero_contrato inventa la numeración VIEJA
       // 'AC-2026-XXXX' (por eso el campo del CRM debe ser obligatorio).
       const numero = typeof pc.numero_contrato === 'string' && pc.numero_contrato
@@ -830,20 +962,104 @@ export async function montarBackendReal(
         : `AC-2026-0${900 + estado.contratos.length}`
       const clienteId = String(pc.cliente_id ?? '')
       const duenio = estado.clientes.find((c) => c.id === clienteId)
+      const moneda = pc.moneda === 'USD' ? 'USD' : 'PEN'
+      if (!duenio || !cuentaElegida) {
+        return json(route, { code: 'P0001', message: 'Cliente o cuenta de pago inválidos' }, 400)
+      }
+
+      let cuentaId: string | null = null
+      if (cuentaElegida.tipo === 'existente') {
+        const id = String(cuentaElegida.cuenta_id ?? '')
+        const existente = estado.cuentasBancarias.find((cuenta) =>
+          cuenta.cuenta_id === id
+          && cuenta.cliente_id === clienteId
+          && cuenta.moneda === moneda,
+        )
+        if (!existente) {
+          return json(route, { code: 'P0001', message: 'La cuenta seleccionada no está disponible' }, 400)
+        }
+        cuentaId = existente.cuenta_id
+      } else if (cuentaElegida.tipo === 'perfil') {
+        const perfil = cuentaPerfilReal(duenio, moneda)
+        const esperada = esRegistro(cuentaElegida.cuenta_esperada)
+          ? cuentaElegida.cuenta_esperada
+          : null
+        const coincide = perfil != null && esperada != null
+          && perfil.banco === esperada.banco
+          && perfil.tipo_cuenta === esperada.tipo_cuenta
+          && perfil.numero_cuenta === esperada.numero_cuenta
+          && perfil.cci === esperada.cci
+          && perfil.titular_distinto === esperada.titular_distinto
+          && perfil.beneficiario_nombre === esperada.beneficiario_nombre
+          && perfil.beneficiario_dni === esperada.beneficiario_dni
+        if (!perfil || !coincide) {
+          return json(route, { code: 'P0001', message: 'La cuenta actual del perfil cambió' }, 400)
+        }
+        const version = cuentaBancariaReal({
+          cliente_id: clienteId,
+          ...perfil,
+          cuenta_id: `f0000000-0000-4000-8000-${String(estado.cuentasBancarias.length + 1).padStart(12, '0')}`,
+          origen: 'perfil',
+          es_cuenta_perfil: false,
+          creada_en: new Date().toISOString(),
+        })
+        estado.cuentasBancarias.push(version)
+        cuentaId = version.cuenta_id
+      } else if (cuentaElegida.tipo === 'nueva') {
+        if (
+          typeof cuentaElegida.banco !== 'string'
+          || (cuentaElegida.tipo_cuenta !== 'ahorros' && cuentaElegida.tipo_cuenta !== 'corriente')
+          || typeof cuentaElegida.numero_cuenta !== 'string'
+          || typeof cuentaElegida.cci !== 'string'
+        ) {
+          return json(route, { code: 'P0001', message: 'La cuenta nueva está incompleta' }, 400)
+        }
+        const nueva = cuentaBancariaReal({
+          cliente_id: clienteId,
+          cuenta_id: `f0000000-0000-4000-8000-${String(estado.cuentasBancarias.length + 1).padStart(12, '0')}`,
+          moneda,
+          banco: cuentaElegida.banco,
+          tipo_cuenta: cuentaElegida.tipo_cuenta,
+          numero_cuenta: cuentaElegida.numero_cuenta,
+          cci: cuentaElegida.cci,
+          titular_distinto: cuentaElegida.titular_distinto === true,
+          beneficiario_nombre: typeof cuentaElegida.beneficiario_nombre === 'string'
+            ? cuentaElegida.beneficiario_nombre
+            : null,
+          beneficiario_dni: typeof cuentaElegida.beneficiario_dni === 'string'
+            ? cuentaElegida.beneficiario_dni
+            : null,
+          origen: 'contrato',
+          es_cuenta_perfil: false,
+          creada_en: new Date().toISOString(),
+        })
+        estado.cuentasBancarias.push(nueva)
+        cuentaId = nueva.cuenta_id
+      }
+      if (!cuentaId) {
+        return json(route, { code: 'P0001', message: 'Tipo de cuenta de pago inválido' }, 400)
+      }
+
+      const idContrato = `e0000000-0000-4000-8000-${String(estado.contratos.length + 1).padStart(12, '0')}`
       const nuevo = contratoReal({
         ...(pc as Partial<ContratoReal>),
-        id: `ct-nuevo-${estado.contratos.length + 1}`,
+        id: idContrato,
         numero_contrato: numero,
         cliente_id: clienteId,
         creado_en: new Date().toISOString(), // recién creado → ventana de 5 h viva
-        cliente: { nombre_completo: duenio?.nombre_completo ?? null },
+        cliente_nombre: duenio.nombre_completo,
       })
       estado.contratos = [nuevo, ...estado.contratos]
-      return json(route, { id: nuevo.id, numero_contrato: numero })
+      estado.cuentasPorContrato[nuevo.id] = cuentaId
+      return json(route, {
+        id: nuevo.id,
+        numero_contrato: numero,
+        cuenta_bancaria_id: cuentaId,
+      })
     }
 
-    // ── RPC actualizar_contrato (portal): valida creado_por → 5 h → cartera ──
-    if (p === '/rest/v1/rpc/actualizar_contrato' && method === 'POST') {
+    // ── RPC CRM de corrección: preserva la coherencia de la cuenta fijada ──
+    if (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta' && method === 'POST') {
       estado.llamadas.rpcActualizarContrato += 1
       if (estado.ventanaVencida) {
         // A diferencia del PATCH a perfiles, la RPC SÍ es ruidosa: RAISE → P0001.

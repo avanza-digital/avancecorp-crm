@@ -1,8 +1,7 @@
 // Formulario de CONTRATO dentro del CRM (paso 2 de la conversión lead→cliente).
-// Reusa la RPC public.crear_contrato del portal + el generador de cronograma
-// portado (lib/cronograma) → el CRM produce EXACTAMENTE el mismo contrato que el
-// portal, sin salir del CRM (pedido de Miguel: "hacer todo en un solo sitio").
-import { useMemo, useState } from 'react'
+// Usa el wrapper atómico de `crm` sobre la RPC del portal + el generador de
+// cronograma portado: contrato, cuenta y vínculo se confirman o revierten juntos.
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { BadgeCheck, FileSignature } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
@@ -28,6 +27,18 @@ import {
 } from '@/lib/cronograma'
 import { normalizarTitulares, type TitularBorrador } from '@/lib/titulares'
 import { TitularesEditor } from '@/components/app/titulares'
+import { CuentaPagoContrato } from '@/components/app/cuenta-pago-contrato'
+import { useCuentasBancariasCliente } from '@/data/crm-queries'
+import {
+  SECCION_BANCARIA_VACIA,
+  type CampoSeccionBancaria,
+  type SeccionBancariaForm,
+} from '@/lib/cliente-form-logica'
+import {
+  CUENTA_NUEVA,
+  claveCuenta,
+  prepararCuentaPago,
+} from '@/lib/cuentas-bancarias-contrato'
 import {
   CATEGORIAS_CONTRATO_UI,
   MODALIDADES_UI,
@@ -47,6 +58,15 @@ const PLAZOS: { v: string; label: string; anioExacto: boolean }[] = [
   ...PLAZOS_BASE.map((p) => ({ v: String(p.meses), label: p.label, anioExacto: p.anioExacto })),
   { v: PLAZO_PERSONALIZADO, label: 'Personalizado', anioExacto: false },
 ]
+
+const ID_CAMPO_CUENTA: Record<CampoSeccionBancaria, string> = {
+  banco: 'ct-nueva-banco',
+  numero_cuenta: 'ct-nueva-numero',
+  tipo_cuenta: 'ct-nueva-tipo',
+  cci: 'ct-nueva-cci',
+  beneficiario_nombre: 'ct-nueva-benef-nombre',
+  beneficiario_dni: 'ct-nueva-benef-doc',
+}
 
 function hoyLocal(): string {
   return formatDateLocal(new Date())
@@ -82,10 +102,55 @@ export function ContratoNuevo({
   // Solo los 6 dígitos: el prefijo 2026-01- está pintado fijo en el form.
   const [numero, setNumero] = useState('')
   const [notas, setNotas] = useState('')
+  // La selección se reinicia al cambiar moneda: jamás se traslada implícitamente
+  // una cuenta PEN a USD (o viceversa).
+  const [cuentaSeleccionada, setCuentaSeleccionada] = useState('')
+  const [cuentaNueva, setCuentaNueva] = useState<SeccionBancariaForm>({
+    ...SECCION_BANCARIA_VACIA,
+  })
   // Co-titulares (cuentas mancomunadas, máx 5) — filas crudas del editor.
   const [titulares, setTitulares] = useState<TitularBorrador[]>([])
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [campoCuentaInvalido, setCampoCuentaInvalido] =
+    useState<CampoSeccionBancaria | null>(null)
+  const [avisoCuenta, setAvisoCuenta] = useState<string | null>(null)
+  const errorRef = useRef<HTMLParagraphElement>(null)
+  const cuentasQ = useCuentasBancariasCliente(clienteId, moneda)
+
+  // Una revalidación puede retirar/versionar la cuenta elegida desde otra
+  // sesión. Se limpia de inmediato; prepararCuentaPago lo vuelve a comprobar al
+  // enviar como segunda defensa.
+  useEffect(() => {
+    if (!cuentaSeleccionada || cuentaSeleccionada === CUENTA_NUEVA || !cuentasQ.data) return
+    if (!cuentasQ.data.some((cuenta) => claveCuenta(cuenta) === cuentaSeleccionada)) {
+      setCuentaSeleccionada('')
+      setAvisoCuenta('La cuenta que habías elegido cambió o ya no está disponible. Revísala y selecciona nuevamente el destino del contrato.')
+    }
+  }, [cuentaSeleccionada, cuentasQ.data])
+
+  // Un error describe la fotografía del formulario en el instante del submit.
+  // En cuanto cambia cualquier dato deja de ser vigente: retirarlo evita que un
+  // lector de pantalla siga anunciando un diagnóstico ya corregido.
+  useEffect(() => {
+    setError(null)
+    setCampoCuentaInvalido(null)
+  }, [
+    capital,
+    categoria,
+    cuentaNueva,
+    cuentaSeleccionada,
+    fechaInicio,
+    modalidad,
+    moneda,
+    notas,
+    numero,
+    plazo,
+    tasa,
+    tipoInteres,
+    titulares,
+    vencManual,
+  ])
 
   const esCompuesto = tipoInteres === 'compuesto'
   // parseMonto rechaza separadores de miles ('125,000' NO es 125) — ver lib/numero.
@@ -144,45 +209,84 @@ export function ContratoNuevo({
     if (t === 'compuesto' && !PLAZOS.find((p) => p.v === plazo)?.anioExacto) setPlazo('12')
   }
 
+  const cambiarMoneda = (siguiente: Moneda) => {
+    setMoneda(siguiente)
+    setCuentaSeleccionada('')
+    setCuentaNueva({ ...SECCION_BANCARIA_VACIA })
+    setAvisoCuenta(null)
+    setError(null)
+  }
+
+  const reportarError = (
+    mensaje: string,
+    campoCuenta: CampoSeccionBancaria | null = null,
+  ) => {
+    setError(mensaje)
+    setCampoCuentaInvalido(campoCuenta)
+    // El mensaje aparece después del evento; el timeout permite que React lo
+    // monte antes de enfocar el campo culpable (o el resumen si no hay uno).
+    window.setTimeout(() => {
+      const destino = campoCuenta
+        ? document.getElementById(ID_CAMPO_CUENTA[campoCuenta])
+        : errorRef.current
+      destino?.focus()
+    }, 0)
+  }
+
   const guardar = async () => {
     if (enviando) return // guard anti doble-submit (además del disabled del botón)
     setError(null)
+    setCampoCuentaInvalido(null)
     // El N° debe ser EXACTAMENTE 6 dígitos (espejo de analista.js:800-805): sin
     // ellos el servidor inventaría la numeración vieja 'AC-2026-XXXX'.
     if (!RE_SEIS_DIGITOS.test(numero)) {
-      setError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${PREFIJO_CONTRATO}).`)
+      reportarError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${PREFIJO_CONTRATO}).`)
       return
     }
     if (capital.trim() && parseMonto(capital) == null) {
-      setError(ERROR_MONTO)
+      reportarError(ERROR_MONTO)
       return
     }
     if (!categoria) {
-      setError('Selecciona la categoría de la inversión (Nuevo, Renovación o Upgrade).')
+      reportarError('Selecciona la categoría de la inversión (Nuevo, Renovación o Upgrade).')
       return
     }
     if (!Number.isFinite(capitalNum) || capitalNum < 100 || capitalNum > 100_000_000) {
-      setError('El capital debe estar entre 100 y 100,000,000')
+      reportarError('El capital debe estar entre 100 y 100,000,000')
       return
     }
     if (!Number.isFinite(tasaNum) || tasaNum <= 0 || tasaNum > 50) {
-      setError('La tasa anual debe ser mayor que 0 y hasta 50%')
+      reportarError('La tasa anual debe ser mayor que 0 y hasta 50%')
       return
     }
     if (!fechaVencimiento) {
-      setError('Falta la fecha de vencimiento')
+      reportarError('Falta la fecha de vencimiento')
       return
     }
     // Guard de RENDIMIENTO (no de longitud): sin cuotas de interés no hay contrato.
     if (motivoCronograma) {
-      setError(motivoCronograma)
+      reportarError(motivoCronograma)
+      return
+    }
+    if (cuentasQ.isPending || cuentasQ.isFetching || cuentasQ.isError) {
+      reportarError('No se pudo confirmar la cuenta de pago del contrato. Espera o reintenta la carga antes de crearlo.')
+      return
+    }
+    const cuentaPago = prepararCuentaPago({
+      seleccion: cuentaSeleccionada,
+      moneda,
+      cuentas: cuentasQ.data ?? [],
+      nueva: cuentaNueva,
+    })
+    if (!cuentaPago.ok) {
+      reportarError(cuentaPago.error, cuentaPago.campo ?? null)
       return
     }
     // Co-titulares: filas vacías se ignoran; una a medio llenar o duplicada
     // corta el guardado con el mensaje del núcleo (lib/titulares).
     const tit = normalizarTitulares(titulares)
     if (!tit.ok) {
-      setError(tit.error)
+      reportarError(tit.error)
       return
     }
     const input: CrearContratoInput = {
@@ -199,6 +303,7 @@ export function ContratoNuevo({
       notas_internas: notas.trim() || null,
       // Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas).
       titulares: tit.titulares,
+      cuenta_pago: cuentaPago.cuenta,
     }
     setEnviando(true)
     try {
@@ -206,21 +311,28 @@ export function ContratoNuevo({
       toast.success(`Contrato ${r.numero_contrato} creado para ${clienteNombre}`)
       onCreado(r.numero_contrato)
     } catch (e) {
-      setError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
+      reportarError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
     } finally {
       setEnviando(false)
     }
   }
 
   return (
-    <>
+    <form
+      className="flex min-h-0 flex-1 flex-col"
+      aria-describedby={error ? 'ct-error-resumen' : undefined}
+      onSubmit={(evento) => {
+        evento.preventDefault()
+        void guardar()
+      }}
+    >
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <FileSignature className="size-4 text-primary" /> Crear contrato de {clienteNombre}
         </DialogTitle>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-categoria">Categoría</Label>
             <Select id="ct-categoria" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaContrato | '')} disabled={enviando}>
@@ -237,21 +349,21 @@ export function ContratoNuevo({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-capital">Capital</Label>
             <Input id="ct-capital" inputMode="decimal" value={capital} onChange={(e) => setCapital(e.target.value)} placeholder="10000" disabled={enviando} />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ct-moneda">Moneda</Label>
-            <Select id="ct-moneda" value={moneda} onChange={(e) => setMoneda(e.target.value as Moneda)} disabled={enviando}>
+            <Select id="ct-moneda" value={moneda} onChange={(e) => cambiarMoneda(e.target.value as Moneda)} disabled={enviando}>
               <option value="PEN">Soles (PEN)</option>
               <option value="USD">Dólares (USD)</option>
             </Select>
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-tasa">Tasa anual (%)</Label>
             <Input id="ct-tasa" inputMode="decimal" value={tasa} onChange={(e) => setTasa(e.target.value)} placeholder="18" disabled={enviando} />
@@ -266,7 +378,7 @@ export function ContratoNuevo({
           )}
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-inicio">Fecha de inicio</Label>
             <Input id="ct-inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} disabled={enviando} />
@@ -294,7 +406,7 @@ export function ContratoNuevo({
           )
         )}
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-numero">N° de contrato</Label>
             <div className="flex">
@@ -329,6 +441,32 @@ export function ContratoNuevo({
             <Input id="ct-notas" value={notas} maxLength={500} onChange={(e) => setNotas(e.target.value)} placeholder="—" disabled={enviando} />
           </div>
         </div>
+
+        <CuentaPagoContrato
+          moneda={moneda}
+          cuentas={cuentasQ.data ?? []}
+          seleccion={cuentaSeleccionada}
+          nueva={cuentaNueva}
+          cargando={cuentasQ.isPending}
+          error={cuentasQ.isError}
+          reintentando={cuentasQ.isFetching}
+          deshabilitado={enviando}
+          campoNuevaInvalido={campoCuentaInvalido}
+          {...(error ? { errorId: 'ct-error-resumen' } : {})}
+          onSeleccion={(seleccion) => {
+            setCuentaSeleccionada(seleccion)
+            setAvisoCuenta(null)
+            setError(null)
+          }}
+          onNueva={setCuentaNueva}
+          onReintentar={() => void cuentasQ.refetch()}
+        />
+
+        {avisoCuenta && (
+          <p role="status" className="rounded-lg bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-text">
+            {avisoCuenta}
+          </p>
+        )}
 
         {/* Co-titulares (cuenta mancomunada) — hasta 5, viajan en p_contrato. */}
         <div className="rounded-xl border border-border p-3">
@@ -365,18 +503,39 @@ export function ContratoNuevo({
           )}
         </div>
 
-        {error && <p className="text-xs font-semibold text-destructive">{error}</p>}
+        {error && (
+          <p
+            ref={errorRef}
+            id="ct-error-resumen"
+            role="alert"
+            tabIndex={-1}
+            className="rounded-lg bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive outline-none"
+          >
+            {error}
+          </p>
+        )}
       </DialogBody>
       <DialogFooter className="justify-between">
-        <Button variant="ghost" size="sm" onClick={onOmitir} disabled={enviando}>
+        <Button type="button" variant="ghost" size="sm" onClick={onOmitir} disabled={enviando}>
           Omitir por ahora
         </Button>
         {/* Se bloquea por el MOTIVO (sin cuotas de interés incluido), no por la
             longitud del cronograma — que nunca es 0 (siempre trae el retorno). */}
-        <Button size="sm" onClick={guardar} disabled={enviando || motivoCronograma !== null}>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={
+            enviando
+            || motivoCronograma !== null
+            || cuentasQ.isPending
+            || cuentasQ.isFetching
+            || cuentasQ.isError
+            || !cuentaSeleccionada
+          }
+        >
           <BadgeCheck /> {enviando ? 'Creando…' : 'Crear contrato'}
         </Button>
       </DialogFooter>
-    </>
+    </form>
   )
 }

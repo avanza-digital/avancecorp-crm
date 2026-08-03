@@ -116,9 +116,23 @@ export interface DatosSeccionBancaria {
   beneficiario_dni: string | null
 }
 
+type ResultadoSeccionValida = { ok: true; vacia: boolean; datos: DatosSeccionBancaria }
+
+export type CampoSeccionBancaria =
+  | 'banco'
+  | 'numero_cuenta'
+  | 'tipo_cuenta'
+  | 'cci'
+  | 'beneficiario_nombre'
+  | 'beneficiario_dni'
+
 export type ResultadoSeccion =
-  | { ok: true; vacia: boolean; datos: DatosSeccionBancaria }
+  | ResultadoSeccionValida
   | { ok: false; error: string }
+
+export type ResultadoSeccionDetallado =
+  | ResultadoSeccionValida
+  | { ok: false; error: string; campo: CampoSeccionBancaria }
 
 const DATOS_SECCION_VACIA: DatosSeccionBancaria = Object.freeze({
   banco: null,
@@ -137,10 +151,10 @@ const DATOS_SECCION_VACIA: DatosSeccionBancaria = Object.freeze({
  * cuando la sección existe (analista.js:403). Mensajes idénticos a los del
  * portal, con la moneda como sufijo para no confundir las dos secciones.
  */
-export function validarSeccionBancaria(
+export function validarSeccionBancariaDetallada(
   s: SeccionBancariaForm,
   moneda: 'Soles' | 'Dólares',
-): ResultadoSeccion {
+): ResultadoSeccionDetallado {
   const suf = ` (${moneda})`
   const banco = s.banco.trim()
   const numero_cuenta = s.numero_cuenta.trim()
@@ -152,20 +166,44 @@ export function validarSeccionBancaria(
     return { ok: true, vacia: true, datos: { ...DATOS_SECCION_VACIA } }
   }
 
-  if (!banco) return { ok: false, error: `Selecciona el banco de la cuenta${suf}.` }
-  if (!numero_cuenta) return { ok: false, error: `El N° de cuenta${suf} es obligatorio.` }
+  if (!banco) {
+    return { ok: false, error: `Selecciona el banco de la cuenta${suf}.`, campo: 'banco' }
+  }
+  if (!numero_cuenta) {
+    return {
+      ok: false,
+      error: `El N° de cuenta${suf} es obligatorio.`,
+      campo: 'numero_cuenta',
+    }
+  }
   // Cajas municipales (ej. Caja Cusco) emiten cuentas con letras — se acepta
   // alfanumérico y guiones (regla espejo del portal, analista.js 2026-07-18).
   if (!/^[A-Za-z0-9-]+$/.test(numero_cuenta)) {
-    return { ok: false, error: `El N° de cuenta${suf} solo puede contener letras, números y guiones (sin espacios).` }
+    return {
+      ok: false,
+      error: `El N° de cuenta${suf} solo puede contener letras, números y guiones (sin espacios).`,
+      campo: 'numero_cuenta',
+    }
   }
-  if (!tipo_cuenta) return { ok: false, error: `Selecciona el tipo de cuenta${suf}.` }
+  if (!tipo_cuenta) {
+    return {
+      ok: false,
+      error: `Selecciona el tipo de cuenta${suf}.`,
+      campo: 'tipo_cuenta',
+    }
+  }
   if (!TIPOS_CUENTA.some((t) => t.k === tipo_cuenta)) {
-    return { ok: false, error: `Tipo de cuenta${suf} inválido.` }
+    return { ok: false, error: `Tipo de cuenta${suf} inválido.`, campo: 'tipo_cuenta' }
   }
-  if (!cci) return { ok: false, error: `El CCI${suf} es obligatorio.` }
+  if (!cci) {
+    return { ok: false, error: `El CCI${suf} es obligatorio.`, campo: 'cci' }
+  }
   if (!/^[0-9]{20}$/.test(cci)) {
-    return { ok: false, error: `El CCI${suf} debe tener exactamente 20 dígitos.` }
+    return {
+      ok: false,
+      error: `El CCI${suf} debe tener exactamente 20 dígitos.`,
+      campo: 'cci',
+    }
   }
 
   // Beneficiario (la cuenta es de un tercero): solo se exige con el check activo.
@@ -177,13 +215,25 @@ export function validarSeccionBancaria(
     beneficiario_nombre = normNombrePersona(s.beneficiario_nombre)
     beneficiario_dni = s.beneficiario_dni.trim()
     if (!beneficiario_nombre) {
-      return { ok: false, error: `Escribe el nombre completo del beneficiario${suf} (titular de la cuenta).` }
+      return {
+        ok: false,
+        error: `Escribe el nombre completo del beneficiario${suf} (titular de la cuenta).`,
+        campo: 'beneficiario_nombre',
+      }
     }
     if (!beneficiario_dni) {
-      return { ok: false, error: `El DNI del beneficiario${suf} es obligatorio.` }
+      return {
+        ok: false,
+        error: `El DNI del beneficiario${suf} es obligatorio.`,
+        campo: 'beneficiario_dni',
+      }
     }
     if (!RE_DOC_GENERICO.test(beneficiario_dni)) {
-      return { ok: false, error: `El DNI del beneficiario${suf} debe tener entre 8 y 12 dígitos.` }
+      return {
+        ok: false,
+        error: `El DNI del beneficiario${suf} debe tener entre 8 y 12 dígitos.`,
+        campo: 'beneficiario_dni',
+      }
     }
   }
 
@@ -192,6 +242,21 @@ export function validarSeccionBancaria(
     vacia: false,
     datos: { banco, numero_cuenta, tipo_cuenta, cci, titular_distinto, beneficiario_nombre, beneficiario_dni },
   }
+}
+
+/**
+ * Contrato histórico sin metadatos de UI. Los formularios generales consumen
+ * esta forma estable; el alta inline usa la variante detallada para asociar el
+ * error al control exacto sin duplicar ninguna regla bancaria.
+ */
+export function validarSeccionBancaria(
+  s: SeccionBancariaForm,
+  moneda: 'Soles' | 'Dólares',
+): ResultadoSeccion {
+  const resultado = validarSeccionBancariaDetallada(s, moneda)
+  return resultado.ok
+    ? resultado
+    : { ok: false, error: resultado.error }
 }
 
 /** Las 14 columnas bancarias EXACTAS de public.perfiles (PEN base + _usd). */

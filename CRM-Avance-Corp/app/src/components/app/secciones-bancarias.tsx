@@ -7,7 +7,12 @@
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
-import { BANCOS_PE, TIPOS_CUENTA, type SeccionBancariaForm } from '@/lib/cliente-form-logica'
+import {
+  BANCOS_PE,
+  TIPOS_CUENTA,
+  type CampoSeccionBancaria,
+  type SeccionBancariaForm,
+} from '@/lib/cliente-form-logica'
 
 export interface SeccionesBancariasProps {
   /**
@@ -30,12 +35,12 @@ export function SeccionesBancarias({ idBase, pen, usd, onPen, onUsd, deshabilita
       <div>
         <p className="text-xs font-bold text-foreground">Datos bancarios</p>
         <p className="text-[11px] text-muted-foreground">
-          Cuenta(s) donde se depositan los intereses. Si el cliente invierte en soles registra
-          la cuenta en soles; si invierte en dólares, la cuenta en dólares. Puedes registrar
-          ambas. Debes registrar al menos una.
+          Cuenta(s) que podrán elegirse para los pagos de cada contrato: intereses y devolución
+          de capital. Si el cliente invierte en soles registra la cuenta en soles; si invierte
+          en dólares, la cuenta en dólares. Puedes registrar ambas. Debes registrar al menos una.
         </p>
       </div>
-      <CamposSeccionBancaria
+      <SeccionBancariaCampos
         titulo="Cuenta bancaria en Soles (PEN)"
         idBase={idBase}
         prefijo="pen"
@@ -43,7 +48,7 @@ export function SeccionesBancarias({ idBase, pen, usd, onPen, onUsd, deshabilita
         onCambio={onPen}
         deshabilitado={deshabilitado}
       />
-      <CamposSeccionBancaria
+      <SeccionBancariaCampos
         titulo="Cuenta bancaria en Dólares (USD)"
         idBase={idBase}
         prefijo="usd"
@@ -56,35 +61,59 @@ export function SeccionesBancarias({ idBase, pen, usd, onPen, onUsd, deshabilita
 }
 
 // ── Sección bancaria (una por moneda) — mismo bloque para PEN y USD ───────────
-interface CamposSeccionBancariaProps {
+export interface SeccionBancariaCamposProps {
   titulo: string
   idBase: string
-  /** Sufijo de moneda de los ids ('pen' | 'usd') para labels únicos. */
-  prefijo: 'pen' | 'usd'
+  /** Sufijo estable de los ids ('pen', 'usd', 'nueva'...) para labels únicos. */
+  prefijo: string
   valores: SeccionBancariaForm
   onCambio: (v: SeccionBancariaForm) => void
   deshabilitado: boolean
+  /** La sección completa es obligatoria (p. ej. alta inline de una cuenta contractual). */
+  requerida?: boolean
+  /** Campo que falló la validación del alta inline. */
+  campoInvalido?: CampoSeccionBancaria | null
+  /** Mensaje global ya visible que describe el campo inválido. */
+  errorId?: string
 }
 
-function CamposSeccionBancaria({
+/**
+ * Editor de UNA cuenta. Se exporta para que el alta inline de un contrato use
+ * exactamente los mismos campos, catálogo y accesibilidad que el alta de
+ * cliente; la validación continúa centralizada en cliente-form-logica.
+ */
+export function SeccionBancariaCampos({
   titulo,
   idBase,
   prefijo,
   valores,
   onCambio,
   deshabilitado,
-}: CamposSeccionBancariaProps) {
+  requerida = false,
+  campoInvalido = null,
+  errorId,
+}: SeccionBancariaCamposProps) {
   const id = (campo: string) => `${idBase}-${prefijo}-${campo}`
   const set = (patch: Partial<SeccionBancariaForm>) => onCambio({ ...valores, ...patch })
+  const invalido = (campo: CampoSeccionBancaria) => campoInvalido === campo
+  const descripcion = (campo: CampoSeccionBancaria, ayuda?: string) =>
+    [ayuda, invalido(campo) ? errorId : null].filter(Boolean).join(' ') || undefined
 
   return (
     // fieldset disabled apaga TODOS los controles de la sección de una vez.
     <fieldset disabled={deshabilitado} className="space-y-2.5 rounded-xl border border-border p-3">
       <legend className="px-1 text-xs font-bold text-primary">{titulo}</legend>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor={id('banco')}>Banco</Label>
-          <Select id={id('banco')} value={valores.banco} onChange={(e) => set({ banco: e.target.value })}>
+          <Select
+            id={id('banco')}
+            value={valores.banco}
+            onChange={(e) => set({ banco: e.target.value })}
+            aria-required={requerida || undefined}
+            aria-invalid={invalido('banco') || undefined}
+            aria-describedby={descripcion('banco')}
+          >
             <option value="">— Seleccionar banco —</option>
             {BANCOS_PE.map((g) => (
               <optgroup key={g.grupo} label={g.grupo}>
@@ -97,13 +126,20 @@ function CamposSeccionBancaria({
         </div>
         <div className="space-y-1.5">
           <Label htmlFor={id('tipo')}>Tipo de cuenta</Label>
-          <Select id={id('tipo')} value={valores.tipo_cuenta} onChange={(e) => set({ tipo_cuenta: e.target.value })}>
+          <Select
+            id={id('tipo')}
+            value={valores.tipo_cuenta}
+            onChange={(e) => set({ tipo_cuenta: e.target.value })}
+            aria-required={requerida || undefined}
+            aria-invalid={invalido('tipo_cuenta') || undefined}
+            aria-describedby={descripcion('tipo_cuenta')}
+          >
             <option value="">— Seleccionar —</option>
             {TIPOS_CUENTA.map((t) => <option key={t.k} value={t.k}>{t.etiqueta}</option>)}
           </Select>
         </div>
       </div>
-      <div className="grid grid-cols-2 gap-2.5">
+      <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor={id('numero')}>N° de cuenta</Label>
           <Input
@@ -112,6 +148,9 @@ function CamposSeccionBancaria({
             onChange={(e) => set({ numero_cuenta: e.target.value })}
             maxLength={30}
             autoComplete="off"
+            aria-required={requerida || undefined}
+            aria-invalid={invalido('numero_cuenta') || undefined}
+            aria-describedby={descripcion('numero_cuenta')}
           />
         </div>
         <div className="space-y-1.5">
@@ -124,14 +163,16 @@ function CamposSeccionBancaria({
             inputMode="numeric"
             placeholder="20 dígitos"
             autoComplete="off"
-            aria-describedby={id('cci-hint')}
+            aria-describedby={descripcion('cci', id('cci-hint'))}
+            aria-required={requerida || undefined}
+            aria-invalid={invalido('cci') || undefined}
           />
-          <p id={id('cci-hint')} className="text-[10px] text-muted-foreground">
+          <p id={id('cci-hint')} className="text-xs text-muted-foreground">
             Exactamente 20 dígitos. Necesario para transferencias interbancarias.
           </p>
         </div>
       </div>
-      <label className="flex cursor-pointer items-center gap-2 text-xs font-medium">
+      <label className="flex min-h-8 cursor-pointer items-center gap-2 py-1 text-xs font-medium has-[:disabled]:cursor-not-allowed has-[:disabled]:opacity-60">
         <input
           type="checkbox"
           className="size-3.5 accent-primary"
@@ -142,7 +183,7 @@ function CamposSeccionBancaria({
       </label>
       {valores.titular_distinto && (
         <div className="space-y-2.5 rounded-lg bg-muted/40 p-3">
-          <p className="text-[10px] text-muted-foreground">
+          <p className="text-xs text-muted-foreground">
             Datos de la persona dueña de la cuenta donde se hará el depósito.
           </p>
           <div className="space-y-1.5">
@@ -154,6 +195,9 @@ function CamposSeccionBancaria({
               maxLength={200}
               style={{ textTransform: 'uppercase' }}
               autoComplete="off"
+              aria-required={requerida || undefined}
+              aria-invalid={invalido('beneficiario_nombre') || undefined}
+              aria-describedby={descripcion('beneficiario_nombre')}
             />
           </div>
           <div className="space-y-1.5">
@@ -165,6 +209,9 @@ function CamposSeccionBancaria({
               maxLength={20}
               inputMode="numeric"
               autoComplete="off"
+              aria-required={requerida || undefined}
+              aria-invalid={invalido('beneficiario_dni') || undefined}
+              aria-describedby={descripcion('beneficiario_dni')}
             />
           </div>
         </div>

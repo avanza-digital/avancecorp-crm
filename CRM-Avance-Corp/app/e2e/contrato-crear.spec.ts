@@ -8,7 +8,15 @@
 // → la sub-fila nueva aparece SIN reload (la única alarma posible para una
 // invalidación con la clave equivocada, heredada del viejo flujo cruzado).
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { loginReal, montarBackendReal, type ContratoReal } from './_helpers'
+import {
+  clienteReal,
+  cuentaBancariaReal,
+  loginReal,
+  montarBackendReal,
+  type ContratoReal,
+} from './_helpers'
+
+const CUENTA_GUARDADA_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
 /** Abre el ContratoNuevo desde la fila de CLIENTE PORTAL UNO (cartera vacía →
  *  el CTA dice "+ Primer contrato"; con contratos previos, "+ Contrato"). */
@@ -25,11 +33,15 @@ async function abrirFormContrato(page: Page): Promise<Locator> {
   return form
 }
 
-/** Mínimo válido del alta (categoría manual obligatoria + capital + tasa). */
+/**
+ * Mínimo válido del alta: términos + elección EXPLÍCITA de la cuenta
+ * vigente del perfil. Ninguna prueba obtiene una cuenta por preselección.
+ */
 async function llenarBase(form: Locator): Promise<void> {
   await form.locator('#ct-categoria').selectOption('nuevo')
   await form.locator('#ct-capital').fill('10000')
   await form.locator('#ct-tasa').fill('15')
+  await form.getByRole('radio', { name: /BCP.*8901/i }).check()
 }
 
 test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
@@ -55,6 +67,23 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   // El servidor recibió el número COMPLETO (prefijo fijo + 6 dígitos), no vacío.
   expect(estado.contratos[0]?.numero_contrato).toBe('2026-01-000777')
+  // Y recibe la fotografía completa que la RPC compara contra public.perfiles:
+  // no basta un centinela ambiguo como "usar cuenta actual".
+  expect(estado.ultimaCuentaPagoContrato).toEqual({
+    tipo: 'perfil',
+    cuenta_esperada: {
+      banco: 'BCP',
+      tipo_cuenta: 'ahorros',
+      numero_cuenta: '19112345678901',
+      cci: '00219112345678901234',
+      titular_distinto: false,
+      beneficiario_nombre: null,
+      beneficiario_dni: null,
+    },
+  })
+  expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toMatch(
+    /^f0000000-0000-4000-8000-/,
+  )
 
   // La cartera se recarga SOLA (invalidación de contratos()): expandir al
   // cliente revela la sub-fila nueva sin reload, con su ventana recién nacida
@@ -67,6 +96,110 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   // El centinela sigue vivo → la página NUNCA se recargó; la sub-fila apareció
   // por la invalidación de caché de TanStack Query, no por un reload.
   expect(await page.evaluate(() => (window as unknown as { __sinReload?: boolean }).__sinReload === true)).toBe(true)
+})
+
+test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', async ({ page }) => {
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
+    contratos: [],
+    cuentasBancarias: [cuentaBancariaReal({ cuenta_id: CUENTA_GUARDADA_ID })],
+  })
+  await loginReal(page)
+
+  const form = await abrirFormContrato(page)
+  await llenarBase(form)
+  await form.locator('#ct-numero').fill('000780')
+  // `llenarBase` eligió BCP (perfil); el asesor cambia deliberadamente a la
+  // versión Interbank ya guardada. El id nunca se deriva del texto visible.
+  await form.getByRole('radio', { name: /Interbank.*1234/i }).check()
+  await form.getByRole('button', { name: /Crear contrato/ }).click()
+
+  await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
+  expect(estado.ultimaCuentaPagoContrato).toEqual({
+    tipo: 'existente',
+    cuenta_id: CUENTA_GUARDADA_ID,
+  })
+  expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toBe(CUENTA_GUARDADA_ID)
+})
+
+test('puede registrar una cuenta nueva inline y la envía normalizada en la misma alta', async ({ page }) => {
+  const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+  await loginReal(page)
+
+  const form = await abrirFormContrato(page)
+  await llenarBase(form)
+  await form.locator('#ct-numero').fill('000781')
+  await form.getByRole('radio', { name: /Añadir una cuenta nueva/i }).check()
+  await form.locator('#ct-nueva-banco').selectOption('Scotiabank')
+  await form.locator('#ct-nueva-tipo').selectOption('corriente')
+  await form.locator('#ct-nueva-numero').fill('  AB-009900001111  ')
+  await form.locator('#ct-nueva-cci').fill('00990000111122223333')
+  await form.getByRole('button', { name: /Crear contrato/ }).click()
+
+  await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
+  expect(estado.ultimaCuentaPagoContrato).toEqual({
+    tipo: 'nueva',
+    banco: 'Scotiabank',
+    tipo_cuenta: 'corriente',
+    numero_cuenta: 'AB-009900001111',
+    cci: '00990000111122223333',
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+  })
+  const cuentaId = estado.cuentasPorContrato[estado.contratos[0]!.id]
+  expect(estado.cuentasBancarias.find((cuenta) => cuenta.cuenta_id === cuentaId)).toMatchObject({
+    moneda: 'PEN',
+    banco: 'Scotiabank',
+    numero_cuenta: 'AB-009900001111',
+  })
+})
+
+test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la nueva moneda', async ({ page }) => {
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
+    contratos: [],
+    clientes: [clienteReal({
+      banco_usd: 'BBVA',
+      tipo_cuenta_usd: 'corriente',
+      numero_cuenta_usd: '001100009876',
+      cci_usd: '01100000987654321098',
+    })],
+  })
+  await loginReal(page)
+
+  const form = await abrirFormContrato(page)
+  await llenarBase(form) // deja elegida la cuenta PEN del perfil
+  await form.locator('#ct-numero').fill('000782')
+  await form.locator('#ct-moneda').selectOption('USD')
+
+  // La selección PEN NO sobrevive al cambio. Aun cuando USD ya cargó y existe
+  // una cuenta completa, el botón sigue cerrado hasta una elección explícita.
+  const crear = form.getByRole('button', { name: /Crear contrato/ })
+  const cuentaUsd = form.getByRole('radio', { name: /BBVA.*9876/i })
+  await expect(cuentaUsd).toBeVisible()
+  await expect(cuentaUsd).not.toBeChecked()
+  await expect(crear).toBeDisabled()
+
+  await cuentaUsd.check()
+  await expect(crear).toBeEnabled()
+  await crear.click()
+
+  await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
+  expect(estado.llamadas.rpcListarCuentasBancarias).toBeGreaterThanOrEqual(2)
+  expect(estado.contratos[0]?.moneda).toBe('USD')
+  expect(estado.ultimaCuentaPagoContrato).toEqual({
+    tipo: 'perfil',
+    cuenta_esperada: {
+      banco: 'BBVA',
+      tipo_cuenta: 'corriente',
+      numero_cuenta: '001100009876',
+      cci: '01100000987654321098',
+      titular_distinto: false,
+      beneficiario_nombre: null,
+      beneficiario_dni: null,
+    },
+  })
 })
 
 test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page }) => {

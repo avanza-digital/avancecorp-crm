@@ -62,6 +62,35 @@ export interface ClienteDetalle {
   beneficiario_dni_usd: string | null
 }
 
+/**
+ * Cuenta que la RPC `crm.cuentas_bancarias_cliente_fn` permite elegir para un
+ * contrato nuevo. `cuenta_id=null` identifica el slot PEN/USD vigente de
+ * public.perfiles: al guardar, el servidor crea su versión histórica.
+ */
+export interface DatosCuentaPagoContrato {
+  banco: string
+  tipo_cuenta: 'ahorros' | 'corriente'
+  numero_cuenta: string
+  cci: string
+  titular_distinto: boolean
+  beneficiario_nombre: string | null
+  beneficiario_dni: string | null
+}
+
+export interface CuentaBancariaSeleccionable extends DatosCuentaPagoContrato {
+  cuenta_id: string | null
+  moneda: Moneda
+  origen: 'perfil' | 'contrato'
+  es_cuenta_perfil: boolean
+  creada_en: string | null
+}
+
+/** Selección discriminada que acepta la RPC atómica de alta de contrato. */
+export type CuentaPagoContratoInput =
+  | { tipo: 'perfil'; cuenta_esperada: DatosCuentaPagoContrato }
+  | { tipo: 'existente'; cuenta_id: string }
+  | ({ tipo: 'nueva' } & DatosCuentaPagoContrato)
+
 /** Estados del ciclo de vida de public.contratos (espejo del CHECK del portal). */
 export const ESTADOS_CONTRATO = ['activo', 'vencido', 'renovado', 'retirado'] as const
 export type EstadoContrato = (typeof ESTADOS_CONTRATO)[number]

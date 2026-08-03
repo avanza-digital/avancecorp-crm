@@ -43,12 +43,15 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', () 
 
   // Las claves de detalle cuelgan del PREFIJO de su lista a propósito: la
   // invalidación jerárquica de contratos() tras corregir cubre lista +
-  // cronograma + titulares de una pasada (actualizar_contrato REGENERA el
+  // cronograma + titulares de una pasada (el wrapper de actualizar_contrato REGENERA el
   // cronograma y puede reemplazar co-titulares) — pineadas como literales.
-  it('cronograma/titulares/clienteDetalle viven bajo el prefijo de su lista', () => {
+  it('cronograma/titulares/detalle/cuentas viven bajo el prefijo de su lista', () => {
     expect(crmQueryKeys.cronograma('ct-1')).toEqual(['crm', 'contratos', 'ct-1', 'cronograma'])
     expect(crmQueryKeys.titulares('ct-1')).toEqual(['crm', 'contratos', 'ct-1', 'titulares'])
     expect(crmQueryKeys.clienteDetalle('cli-1')).toEqual(['crm', 'clientes', 'cli-1', 'detalle'])
+    expect(crmQueryKeys.cuentasBancarias('cli-1', 'USD')).toEqual([
+      'crm', 'clientes', 'cli-1', 'cuentas-bancarias', 'USD',
+    ])
   })
 
   it('useContrato NO inventa clave: registra bajo crmQueryKeys.contratos() (select por id)', () => {

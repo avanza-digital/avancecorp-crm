@@ -36,6 +36,8 @@ import {
   type ClienteBasico,
   type ClienteDetalle,
   type ContratoRow,
+  type CuentaBancariaSeleccionable,
+  type CuentaPagoContratoInput,
   type Cuota,
   type Titular,
   type TitularInput,
@@ -983,9 +985,74 @@ export async function convertirLead(input: ConvertirLeadInput): Promise<Converti
   }
 }
 
-// ── Contrato del cliente convertido (RPC public.crear_contrato del PORTAL, reusada
-//    tal cual: crea contrato + cronograma de forma atómica y valida rol/cartera
-//    server-side). El cronograma se calcula con lib/cronograma (espejo del portal). ─
+// ── Cuenta de pago + contrato del cliente convertido ─────────────────────────
+// La lectura y el alta viven en `crm`, pero la RPC atómica delega contrato,
+// cronograma y co-titulares a public.crear_contrato (motor del portal). Así se
+// conserva una única lógica contractual y se añade el enlace bancario histórico
+// sin alterar objetos de public.
+
+const CuentaBancariaSeleccionableRowSchema = v.pipe(
+  v.strictObject({
+    cuenta_id: v.nullable(v.pipe(v.string(), v.uuid())),
+    moneda: v.picklist(['PEN', 'USD']),
+    banco: v.pipe(v.string(), v.minLength(1)),
+    tipo_cuenta: v.picklist(['ahorros', 'corriente']),
+    numero_cuenta: v.pipe(v.string(), v.regex(/^[A-Za-z0-9-]{1,30}$/)),
+    cci: v.pipe(v.string(), v.regex(/^\d{20}$/)),
+    titular_distinto: v.boolean(),
+    beneficiario_nombre: v.nullable(v.string()),
+    beneficiario_dni: v.nullable(v.string()),
+    origen: v.picklist(['perfil', 'contrato']),
+    es_cuenta_perfil: v.boolean(),
+    creada_en: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+  }),
+  v.check(
+    (fila) =>
+      fila.es_cuenta_perfil
+        ? fila.cuenta_id === null && fila.origen === 'perfil' && fila.creada_en === null
+        : fila.cuenta_id !== null && fila.creada_en !== null,
+    'Origen e identidad de cuenta incoherentes',
+  ),
+)
+
+export async function listarCuentasBancariasCliente(
+  clienteId: string,
+  moneda: 'PEN' | 'USD',
+  signal?: AbortSignal,
+): Promise<CuentaBancariaSeleccionable[]> {
+  let consulta = cliente().schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+    p_cliente_id: clienteId,
+    p_moneda: moneda,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudieron cargar las cuentas bancarias del cliente.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.cuentas_bancarias.listado_fallido', fallo)
+    throw fallo
+  }
+
+  const cuentas: CuentaBancariaSeleccionable[] = []
+  for (const cruda of data ?? []) {
+    const fila = v.safeParse(CuentaBancariaSeleccionableRowSchema, cruda)
+    if (!fila.success) {
+      const fallo = new CrmApiError(
+        'Las cuentas bancarias no tienen el formato esperado.',
+        'ROW_CONTRACT',
+      )
+      registrarError('crm.cuentas_bancarias.fila_invalida', fallo)
+      // Fail-closed: ocultar una sola fila podría hacer que el asesor elija una
+      // cuenta distinta creyendo que la autorizada ya no existe.
+      throw fallo
+    }
+    cuentas.push(fila.output)
+  }
+  return cuentas
+}
+
 export interface CrearContratoInput {
   cliente_id: string
   capital: number
@@ -1004,12 +1071,21 @@ export interface CrearContratoInput {
    * en el ALTA es lo mismo: contrato sin co-titulares.
    */
   titulares?: TitularInput[]
+  /** Obligatoria en el CRM nuevo; el servidor vuelve a validar dueño y moneda. */
+  cuenta_pago: CuentaPagoContratoInput
 }
 
 export interface CrearContratoResultado {
   id: string
   numero_contrato: string
+  cuenta_bancaria_id: string
 }
+
+const CrearContratoResultadoSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  numero_contrato: v.pipe(v.string(), v.minLength(1)),
+  cuenta_bancaria_id: v.pipe(v.string(), v.uuid()),
+})
 
 export async function crearContrato(
   input: CrearContratoInput,
@@ -1031,10 +1107,22 @@ export async function crearContrato(
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
   const p_cronograma = cronograma as unknown as Record<string, unknown>[]
-  const { data, error } = await cliente().rpc('crear_contrato', { p_contrato, p_cronograma })
+  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta', {
+    p_contrato,
+    p_cronograma,
+    p_cuenta: input.cuenta_pago as unknown as Record<string, unknown>,
+  })
   if (error) throw aErrorApi(error, 'crm.contrato.crear_fallido')
-  const r = (data ?? {}) as Partial<CrearContratoResultado>
-  return { id: String(r.id ?? ''), numero_contrato: String(r.numero_contrato ?? '') }
+  const r = v.safeParse(CrearContratoResultadoSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError(
+      'El servidor no confirmó completamente el contrato y su cuenta de pago.',
+      'ROW_CONTRACT',
+    )
+    registrarError('crm.contrato.respuesta_invalida', fallo)
+    throw fallo
+  }
+  return r.output
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -1537,8 +1625,9 @@ export async function obtenerTitulares(contratoId: string, signal?: AbortSignal)
   return items
 }
 
-// ── Corrección del contrato (RPC actualizar_contrato: creado_por → 5 h → cartera;
-//    regenera el cronograma conservando cuotas pagadas). ────────────────────────
+// ── Corrección del contrato (wrapper crm → RPC public): conserva la ventana de
+// 5 h/cartera/cronograma y evita cambiar la moneda de un contrato cuya cuenta
+// de pago histórica ya quedó fijada. ──────────────────────────────────────────
 export interface ActualizarContratoInput {
   capital: number
   moneda: 'PEN' | 'USD'
@@ -1581,7 +1670,7 @@ export async function actualizarContrato(
   }
   // `titulares` solo viaja si el caller lo decidió (ver ActualizarContratoInput).
   if (contrato.titulares) p_contrato.titulares = contrato.titulares
-  const { error } = await cliente().rpc('actualizar_contrato', {
+  const { error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta', {
     p_id: id,
     p_contrato,
     p_cronograma: cronograma as unknown as Record<string, unknown>[],

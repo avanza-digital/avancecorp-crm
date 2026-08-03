@@ -30,6 +30,34 @@ vi.mock('@/data/crm-api', async (importActual) => {
   }
 })
 
+// Este archivo prueba la conversión; el transporte de cuentas tiene su suite
+// propia (queries + MSW + E2E). Aislamos aquí el hook para que ContratoNuevo
+// pueda montarse sin convertir este test en otro harness de QueryClient.
+vi.mock('@/data/crm-queries', () => ({
+  useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
+    data: moneda === 'PEN'
+      ? [{
+          cuenta_id: null,
+          moneda: 'PEN',
+          banco: 'BCP',
+          tipo_cuenta: 'ahorros',
+          numero_cuenta: '191000001234',
+          cci: '00112233445566778899',
+          titular_distinto: false,
+          beneficiario_nombre: null,
+          beneficiario_dni: null,
+          origen: 'perfil',
+          es_cuenta_perfil: true,
+          creada_en: null,
+        }]
+      : [],
+    isPending: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  })),
+}))
+
 const { DialogConvertir } = await import('./lead-drawer')
 const { CrmApiError } = crmApi
 

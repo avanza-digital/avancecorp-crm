@@ -286,6 +286,64 @@ async function expectBlockedMutation(label, promise, allowedErrorCodes = []) {
   return false;
 }
 
+/**
+ * A diferencia de expectHidden/expectBlockedMutation, esta sonda exige un
+ * error explicito de autorizacion: 0 filas no basta para demostrar que una
+ * tabla o RPC sensible carece de acceso directo.
+ */
+async function expectExplicitAuthorizationDenied(label, promise, allowedErrorCodes = []) {
+  let response;
+  try {
+    response = await promise;
+  } catch (error) {
+    fail(`${label}: excepcion inesperada — ${error?.message ?? String(error)}`);
+    return false;
+  }
+
+  const code = String(response.error?.code ?? '');
+  const message = String(response.error?.message ?? '');
+  const isScopedDenial = /fuera de (?:tu|su) cartera|solo puedes|sin permiso/i.test(message);
+  if (response.error
+      && (isAuthorizationError(response.error)
+        || isScopedDenial
+        || allowedErrorCodes.includes(code))) {
+    pass(`${label} (denegado: ${code || 'sin codigo'})`);
+    return true;
+  }
+
+  if (response.error) {
+    fail(`${label}: error distinto a autorizacion — ${errorText(response.error)}`);
+  } else {
+    fail(`${label}: la operacion no devolvio un error explicito de autorizacion`);
+  }
+  return false;
+}
+
+/** Exige codigo Y mensaje para no confundir dos rechazos de negocio distintos. */
+async function expectExpectedFailure(label, promise, allowedErrorCodes, messagePattern) {
+  let response;
+  try {
+    response = await promise;
+  } catch (error) {
+    fail(`${label}: excepcion inesperada — ${error?.message ?? String(error)}`);
+    return false;
+  }
+
+  const code = String(response.error?.code ?? '');
+  const message = String(response.error?.message ?? '');
+  if (response.error && allowedErrorCodes.includes(code) && messagePattern.test(message)) {
+    pass(`${label} (rechazo esperado: ${code})`);
+    return true;
+  }
+
+  if (response.error) {
+    fail(`${label}: rechazo distinto al esperado — ${errorText(response.error)}`);
+  } else {
+    fail(`${label}: la operacion fue aceptada`);
+  }
+  return false;
+}
+
 function assertSeed(condition, message) {
   if (!condition) throw new Error(`Seed incoherente: ${message}`);
 }
@@ -2893,6 +2951,226 @@ async function testBankingBoundary(sessions, seed) {
   // sin dejar un fixture compartido mutado si fallara a mitad.
 }
 
+async function testContractBankAccounts(sessions, seed) {
+  console.log('\n— Cuenta bancaria fija por contrato —');
+  const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key];
+  const analystIds = [seed.profileIdByKey.vend1, seed.profileIdByKey.vend3];
+  const originalRoles = analystIds.map((id) => ({
+    id,
+    rol: seed.profiles.find((profile) => profile.id === id)?.rol,
+  }));
+  const expectedProfileAccount = {
+    banco: BANK_CLIENT.bank,
+    tipo_cuenta: BANK_CLIENT.accountType,
+    numero_cuenta: BANK_CLIENT.accountNumber,
+    cci: BANK_CLIENT.cci,
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+  };
+  const minimalContract = { cliente_id: bankProfileId, moneda: BANK_CONTRACT.currency };
+
+  // El fixture principal usa el rol portal neutro `comercial` para probar que el
+  // CRM no hereda las policies bancarias del portal. Esta sección cambia solo
+  // durante la sonda a los dos vendedores a `analista`: reproduce la identidad
+  // real que autoriza crear contratos y restaura ambos roles en `finally`.
+  try {
+    await requireAdmin(
+      'activar temporalmente el rol portal analista para las sondas bancarias',
+      admin.from('perfiles').update({ rol: 'analista' }).in('id', analystIds),
+    );
+
+    const listed = await positive(
+      'analista de cartera lista las cuentas elegibles del cliente',
+      sessions.vend1.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+    );
+    if (listed) {
+      const account = (listed.data ?? []).find((row) => row.cci === BANK_CLIENT.cci);
+      check(!!account,
+        'el listado autorizado incluye la cuenta PEN conocida del cliente');
+      if (account) {
+        check(
+          account.moneda === BANK_CONTRACT.currency
+            && account.banco === BANK_CLIENT.bank
+            && account.numero_cuenta === BANK_CLIENT.accountNumber
+            && account.tipo_cuenta === BANK_CLIENT.accountType,
+          'la RPC devuelve la cuenta completa en la moneda solicitada',
+          JSON.stringify(account),
+        );
+      }
+    }
+
+    await expectExplicitAuthorizationDenied(
+      'analista ajeno no lista cuentas fuera de su cartera',
+      sessions.vend3.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+    );
+    await expectExplicitAuthorizationDenied(
+      'directorio no lista cuentas bancarias de clientes',
+      sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+    );
+
+    // No se acepta como prueba un SELECT exitoso con 0 filas: las tablas deben
+    // carecer de GRANT para authenticated, aun cuando su RLS tambien este activa.
+    await expectExplicitAuthorizationDenied(
+      'authenticated no tiene SELECT directo sobre crm.cuentas_bancarias',
+      sessions.vend1.client.schema('crm').from('cuentas_bancarias').select('id').limit(1),
+    );
+    await expectExplicitAuthorizationDenied(
+      'authenticated no tiene SELECT directo sobre crm.contrato_cuentas_pago',
+      sessions.vend1.client.schema('crm').from('contrato_cuentas_pago').select('id').limit(1),
+    );
+
+    await expectExpectedFailure(
+      'el alta rechaza una instantanea obsoleta de la cuenta del perfil',
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+        p_contrato: minimalContract,
+        p_cronograma: [],
+        p_cuenta: {
+          tipo: 'perfil',
+          cuenta_esperada: { ...expectedProfileAccount, banco: 'BANCO OBSOLETO' },
+        },
+      }),
+      ['P0001'],
+      /cuenta actual del cliente cambio/i,
+    );
+    await expectExpectedFailure(
+      'el alta rechaza un UUID de cuenta existente forjado',
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+        p_contrato: minimalContract,
+        p_cronograma: [],
+        p_cuenta: { tipo: 'existente', cuenta_id: randomUUID() },
+      }),
+      ['22023'],
+      /cuenta bancaria no esta disponible/i,
+    );
+
+    // Oraculo de atomicidad sin DELETE: la cuenta se inserta antes de delegar en
+    // public.crear_contrato. Reutilizar el numero del fixture provoca una falla
+    // contractual controlada (UNIQUE); toda la llamada debe revertirse.
+    const rollbackToken = randomUUID().replaceAll('-', '').toUpperCase();
+    const rollbackCci = randomUUID().replace(/\D/g, '').padEnd(20, '0').slice(0, 20);
+    const accountBefore = await requireAdmin(
+      'precondicion: la cuenta sentinela de rollback no existe',
+      admin.schema('crm').from('cuentas_bancarias')
+        .select('id', { count: 'exact', head: true })
+        .eq('cliente_id', bankProfileId)
+        .eq('cci', rollbackCci),
+    );
+    check(accountBefore.count === 0,
+      'la cuenta sentinela es unica antes de probar el rollback');
+    const linksBefore = await requireAdmin(
+      'contar enlaces contractuales antes del rollback',
+      admin.schema('crm').from('contrato_cuentas_pago')
+        .select('id', { count: 'exact', head: true }),
+    );
+
+    const duplicateContract = {
+      cliente_id: bankProfileId,
+      numero_contrato: BANK_CONTRACT.number,
+      capital: BANK_CONTRACT.capital,
+      moneda: BANK_CONTRACT.currency,
+      tasa_anual: BANK_CONTRACT.annualRate,
+      modalidad: BANK_CONTRACT.paymentMode,
+      tipo_interes: BANK_CONTRACT.interestType,
+      fecha_inicio: BANK_CONTRACT.startDate,
+      fecha_vencimiento: BANK_CONTRACT.endDate,
+      categoria: BANK_CONTRACT.category,
+      notas_internas: 'RLS ROLLBACK ATOMICO',
+      titulares: [],
+    };
+    const validSchedule = [
+      {
+        numero_cuota: 1,
+        fecha_programada: BANK_CONTRACT.endDate,
+        monto_programado: 100,
+        tipo: 'cuota',
+      },
+      {
+        numero_cuota: 2,
+        fecha_programada: '2027-01-08',
+        monto_programado: BANK_CONTRACT.capital,
+        tipo: 'retorno',
+      },
+    ];
+    await expectExpectedFailure(
+      'una falla del contrato revierte tambien la cuenta nueva de la misma RPC',
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+        p_contrato: duplicateContract,
+        p_cronograma: validSchedule,
+        p_cuenta: {
+          tipo: 'nueva',
+          banco: 'BANCO RLS ROLLBACK',
+          tipo_cuenta: 'ahorros',
+          numero_cuenta: `RLS-${rollbackToken.slice(0, 12)}`,
+          cci: rollbackCci,
+          titular_distinto: false,
+          beneficiario_nombre: null,
+          beneficiario_dni: null,
+        },
+      }),
+      ['23505', 'P0001'],
+      /contrato.*(?:ya existe|duplicad)|duplicate key/i,
+    );
+
+    const accountAfter = await requireAdmin(
+      'verificar que el rollback no dejo la cuenta sentinela',
+      admin.schema('crm').from('cuentas_bancarias')
+        .select('id', { count: 'exact', head: true })
+        .eq('cliente_id', bankProfileId)
+        .eq('cci', rollbackCci),
+    );
+    check(accountAfter.count === 0,
+      'rollback atomico: no quedo ninguna cuenta bancaria sentinela');
+    const linksAfter = await requireAdmin(
+      'contar enlaces contractuales despues del rollback',
+      admin.schema('crm').from('contrato_cuentas_pago')
+        .select('id', { count: 'exact', head: true }),
+    );
+    check(linksAfter.count === linksBefore.count,
+      'rollback atomico: no quedo ningun enlace cuenta-contrato',
+      `antes=${linksBefore.count}, despues=${linksAfter.count}`);
+
+    // El cronograma deliberadamente invalido evita una mutacion aun si hubiera
+    // una regresion de autorizacion; la asercion solo acepta un error de scope.
+    for (const key of ['vend3', 'directorio']) {
+      await expectExplicitAuthorizationDenied(
+        `${key} no corrige el contrato bancario por el wrapper`,
+        sessions[key].client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+          p_id: BANK_CONTRACT.id,
+          p_contrato: duplicateContract,
+          p_cronograma: { invalido: true },
+        }),
+      );
+    }
+
+    for (const key of ['vend1', 'directorio']) {
+      await expectExplicitAuthorizationDenied(
+        `${key} no usa el resolver de cuentas reservado al administrador`,
+        sessions[key].client.schema('crm').rpc('cuentas_pago_contratos_fn', {
+          p_contrato_ids: [BANK_CONTRACT.id],
+        }),
+      );
+    }
+  } finally {
+    for (const original of originalRoles) {
+      if (!original.rol) continue;
+      await requireAdmin(
+        `restaurar rol portal de ${original.id} tras sondas bancarias`,
+        admin.from('perfiles').update({ rol: original.rol }).eq('id', original.id),
+      );
+    }
+  }
+}
+
 // Periodo sentinela de las metas del gate: valido para el CHECK (< 2100) pero
 // imposible como mes real de operacion — la limpieza borra exactamente esto.
 const PERIODO_OBJETIVOS_GATE = '2099-12-01';
@@ -3654,6 +3932,24 @@ async function testAnon(seed) {
     'anon no lee crm.objetivos',
     anon.schema('crm').from('objetivos').select('id').limit(1),
   );
+  await expectExplicitAuthorizationDenied(
+    'anon no lee directamente crm.cuentas_bancarias',
+    anon.schema('crm').from('cuentas_bancarias').select('id').limit(1),
+    ['PGRST205'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no lee directamente crm.contrato_cuentas_pago',
+    anon.schema('crm').from('contrato_cuentas_pago').select('id').limit(1),
+    ['PGRST205'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no ejecuta el listado de cuentas bancarias por cliente',
+    anon.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+      p_cliente_id: bankProfileId,
+      p_moneda: BANK_CONTRACT.currency,
+    }),
+    ['PGRST202'],
+  );
   // C1: las RPC de reparto solo tienen grant para `authenticated`.
   await expectBlockedMutation(
     'anon no puede ver la cola por repartir',
@@ -3723,6 +4019,7 @@ async function main() {
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);
+      await testContractBankAccounts(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
     }
   } catch (error) {
