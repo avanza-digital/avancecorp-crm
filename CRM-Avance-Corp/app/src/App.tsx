@@ -286,6 +286,16 @@ function Workspace() {
   // el efecto estado→hash no escribe hasta converger (evita bucles y pisadas).
   const objetivoHash = useRef<{ vista: Vista; leadId: string | null } | null>(null)
 
+  // Navegación iniciada por la UI: cambia la pantalla en el mismo evento que
+  // pulsó el usuario. Si el sidebar solo escribe el hash, `hashchange` llega
+  // después y la pantalla anterior sigue siendo interactiva durante ese lapso:
+  // una apertura de ficha ahí puede ser cerrada por la ruta que aún aterriza.
+  const navegarDesdeUI = useCallback((destino: Vista) => {
+    objetivoHash.current = null // una intención nueva de UI sustituye cualquier hash pendiente
+    cerrarPaneles()
+    setVista(destino)
+  }, [cerrarPaneles])
+
   // hash → estado (montaje + back/forward + URL editada a mano)
   useEffect(() => {
     const alCambiarHash = () => {
@@ -350,7 +360,7 @@ function Workspace() {
 
   return (
     <div className="relative z-10 flex h-svh overflow-hidden">
-      <Sidebar vista={vista} />
+      <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
       <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
         <Topbar vista={vista} />
         <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>

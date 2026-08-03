@@ -9,7 +9,7 @@ import { useAuth } from '@/lib/auth-context'
 import { Avatar } from '@/components/ui/avatar'
 import { BrandLockup } from '@/components/app/brand'
 import { cn } from '@/lib/utils'
-import { escribirHash, esVistaLeads, type Vista } from '@/lib/router'
+import { esVistaLeads, type Vista } from '@/lib/router'
 
 interface NavItem {
   id: Vista
@@ -106,11 +106,11 @@ function NavButton({
   )
 }
 
-// Navega escribiendo el hash (#/vista): App.tsx lo sincroniza con el estado.
+// App.tsx recibe la intención de navegación y sincroniza estado + hash.
 // El menú se puede FIJAR colapsado (botón) a un riel de íconos; estando
 // colapsado, al pasar el mouse ASOMA el menú completo (overlay animado) y se
 // repliega solo al salir. El <main> ocupa el ancho del riel en TODO el CRM.
-export function Sidebar({ vista }: { vista: Vista }) {
+export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destino: Vista) => void }) {
   const { yo, salir } = useAuth()
   const rol = yo?.rol
   const [colapsado, setColapsado] = useState(() => esPantallaMovil() || leerColapsado())
@@ -145,7 +145,7 @@ export function Sidebar({ vista }: { vista: Vista }) {
   }, [])
 
   const navegar = (destino: Vista) => {
-    escribirHash(destino)
+    onNavegar(destino)
     if (esPantallaMovil()) {
       // En móvil, el toque sobre el menú también dispara mouseEnter → hay un
       // "asomar" programado que sobrevivía a la navegación y volvía a abrir el

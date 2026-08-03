@@ -2,7 +2,7 @@
 // si se adopta un router de verdad). Formato de rutas:
 //   #/hoy · #/pipeline · #/cartera · #/agenda · #/mi-cartera · #/equipo · #/config
 //   #/<vista>/lead/<id>   → misma vista con la ficha del lead abierta
-// App.tsx sincroniza hash⇄estado; sidebar/topbar navegan con escribirHash().
+// App.tsx sincroniza hash⇄estado y concentra la navegación entre vistas.
 // Fase 6 (2026-07-21): 'clientes' y 'contratos' se retiraron — la pantalla
 // unificada 'mi-cartera' las reemplaza para todos los roles.
 

@@ -33,7 +33,9 @@ test('Vendedor: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuel
   await entrarDemo(page, 'Vendedor')
   await page.getByRole('button', { name: 'Pipeline' }).click()
 
-  // La card del lead es operable por teclado (role=button + Enter).
+  // Deliberadamente no esperamos un heading de Pipeline: esta secuencia fija la
+  // regresión donde el hash cambiaba antes que la pantalla y Enter accionaba una
+  // card homónima de Hoy. La navegación de UI debe ser atómica.
   const card = page.getByRole('button', { name: /JUAN PÉREZ ROJAS/ }).first()
   await card.focus()
   await page.keyboard.press('Enter')
@@ -41,6 +43,7 @@ test('Vendedor: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuel
   // El drawer (Radix Dialog) abre con la ficha…
   const drawer = page.getByRole('dialog')
   await expect(drawer).toBeVisible()
+  await expect(page).toHaveURL(/#\/pipeline\/lead\/[^/]+$/)
   await expect(drawer.getByText('JUAN PÉREZ ROJAS').first()).toBeVisible()
 
   // …atrapa el foco (Tab se queda dentro del dialog)…
@@ -54,6 +57,7 @@ test('Vendedor: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuel
   // …y Escape lo cierra devolviendo el foco a la página.
   await page.keyboard.press('Escape')
   await expect(drawer).not.toBeVisible()
+  await expect(page).toHaveURL(/#\/pipeline$/)
 })
 
 test('Directorio: es lector global (ve el pipeline completo sin acciones de alta)', async ({ page }) => {

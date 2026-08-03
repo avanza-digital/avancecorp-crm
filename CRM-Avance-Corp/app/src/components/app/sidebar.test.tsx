@@ -20,10 +20,11 @@ const ABRIR_MS = 120 // espejo del sidebar (retardo del asomo)
 function montar({ movil = true, rol = 'vendedor' as Rol } = {}) {
   vi.stubGlobal('matchMedia', () => ({ matches: movil }))
   YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo: true }
-  const { container, unmount } = render(<Sidebar vista="hoy" />)
+  const onNavegar = vi.fn()
+  const { container, unmount } = render(<Sidebar vista="hoy" onNavegar={onNavegar} />)
   const panel = container.querySelector('aside > div')
   if (!panel) throw new Error('no se montó el panel del menú')
-  return { panel, unmount }
+  return { panel, unmount, onNavegar }
 }
 
 /** El panel asoma a w-60 y se repliega al riel de w-16. */
@@ -44,7 +45,7 @@ describe('Sidebar — temporizadores del asomo', () => {
   })
 
   it('móvil: tras navegar, el menú NO se vuelve a abrir encima de la pantalla elegida', () => {
-    const { panel } = montar()
+    const { panel, onNavegar } = montar()
 
     // El toque abre el menú (mouseEnter también lo dispara un tap real).
     fireEvent.mouseEnter(panel)
@@ -55,7 +56,8 @@ describe('Sidebar — temporizadores del asomo', () => {
     fireEvent.mouseEnter(panel)
     fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }))
 
-    expect(window.location.hash).toBe('#/pipeline')
+    expect(onNavegar).toHaveBeenCalledOnce()
+    expect(onNavegar).toHaveBeenCalledWith('pipeline')
     expect(asomado(panel)).toBe(false)
     // …y ese temporizador huérfano era el que reabría el menú solo.
     act(() => vi.advanceTimersByTime(1000))
@@ -83,11 +85,11 @@ describe('Sidebar — temporizadores del asomo', () => {
   })
 
   it('escritorio: navegar no repliega el menú (el hover manda ahí)', () => {
-    const { panel } = montar({ movil: false })
+    const { panel, onNavegar } = montar({ movil: false })
     fireEvent.mouseEnter(panel)
     act(() => vi.advanceTimersByTime(ABRIR_MS))
     fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }))
-    expect(window.location.hash).toBe('#/pipeline')
+    expect(onNavegar).toHaveBeenCalledWith('pipeline')
     expect(asomado(panel)).toBe(true)
   })
 })
