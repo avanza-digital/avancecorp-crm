@@ -1,17 +1,22 @@
 ---
 tags: [crm, roles, auth, acceso]
-actualizado: 2026-07-10
+actualizado: 2026-08-03
 ---
 
 # Acceso y roles del CRM (crm.miavance.com)
 
-El CRM tiene **4 roles** — fuente única en `CRM-Avance-Corp/app/src/lib/roles.ts` (`ROLES`, `CAPS`, `can()`): **vendedor** (solo su cartera), **supervisor** (equipo, filtra/reasigna/reparte), **gerencia** (ve todo, único que edita configuración), **directorio** (ve todo en solo-lectura absoluta). `can()` es UX; la seguridad real es la RLS del esquema `crm`. Regla de oro: lo que `can()` oculta, la RLS también lo niega. Rol nulo/desconocido degrada a solo-lectura.
+El CRM tiene **5 roles de aplicación** — fuente única en `CRM-Avance-Corp/app/src/lib/roles.ts` (`ROLES`, `CAPS`, `can()`): **vendedor** (solo su cartera), **supervisor** (equipo, filtra/reasigna/reparte), **gerencia** (ve todo, único que edita configuración), **directorio** (ve todo en solo-lectura absoluta) y **coordinador** (off-roster; reparte la cola global). `can()` es UX; la seguridad real es la RLS del esquema `crm`. Regla de oro: lo que `can()` oculta, la RLS también lo niega.
 
-## Cómo se resuelve el acceso en producción (`resolverRol`, `auth.tsx`)
+## Cómo se resuelve el acceso (`crm.mi_acceso_fn` → `resolverRol`)
 
-1. **¿Enrolado en `crm.equipo`?** Fila con `perfil_id = auth.uid()`, `rol_crm` válido y `activo = true`. Además exige `public.perfiles.activo = true` (cuenta del portal viva). Una fila CRM **inactiva es revocación explícita**: no cae al fallback.
-2. **Fallback lector global:** si no hay fila en `crm.equipo` pero `perfiles.rol` ∈ {`directorio`, `admin`, `superadmin`} y activo → entra como **directorio** (solo lectura).
-3. Nada de lo anterior → fase `no_enrolado` (autentica pero no pasa).
+La app no intenta deducirlo leyendo `crm.equipo`: RLS oculta por igual una fila ausente y una inactiva. La RPC propia `crm.mi_acceso_fn()` resuelve dentro de la frontera uno de cuatro estados y devuelve el UUID de la sesión, que el cliente exige que coincida con el `getUser()` que inició la verificación.
+
+1. **`miembro`:** fila en `crm.equipo` con rol válido y ambos flags activos (`crm.equipo.activo` + `public.perfiles.activo`).
+2. **`global`:** no existe fila de equipo y el perfil activo tiene rol `directorio|admin|superadmin`; entra como Directorio.
+3. **`revocado`:** perfil inactivo o fila CRM explícitamente inactiva. Nunca cae al fallback global.
+4. **`no_enrolado`:** autentica, pero no pertenece al CRM ni cumple el fallback.
+
+Detalles y superficies cubiertas: [[Offboarding seguro del CRM (P04)]].
 
 **Para crear un usuario real por rol hacen falta 3 piezas:** cuenta en Auth (email+clave confirmados) + fila en `public.perfiles` (activo) + fila en `crm.equipo` (`rol_crm`, activo). Solo se puede con acceso admin al proyecto `dctqcbznekcyxhjujuci`.
 

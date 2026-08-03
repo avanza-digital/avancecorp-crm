@@ -376,6 +376,8 @@ export const TRANSIENT_IDS = Object.freeze({
   triggerSellerChangeLead: randomUUID(),
   triggerSupervisorOnlyLead: randomUUID(),
   triggerNoTenureLead: randomUUID(),
+  offboardingDestinationPortalLead: randomUUID(),
+  offboardingDestinationTeamLead: randomUUID(),
   // C1 — reparto de la cola global (todos nacen sin dueno: ambos-null).
   repartoLeadOk: randomUUID(),
   repartoLeadNoContactar: randomUUID(),

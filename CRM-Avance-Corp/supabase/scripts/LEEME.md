@@ -129,6 +129,11 @@ solo porque la tabla estaba vacia.
 - `crm.equipo` de solo lectura y `crm.actividades` inmutable;
 - directorio con lectura global y cero escritura;
 - usuario desactivado y cliente del portal sin acceso operativo;
+- matriz P04 de ambos flags (`true/true`, los dos casos mixtos y
+  `false/false`), auth canónica ligada al UUID de sesión, fila CRM inactiva que
+  revoca el fallback global y rol global que no eleva una membresía activa;
+- destino de lead con perfil o membresía inactivos bloqueado incluso para
+  `service_role`; política P-047 y feed ICS sin bypass de offboarding;
 - `crm.clientes_basicos` con una fila real, pero sin columnas bancarias;
 - acceso directo a columnas bancarias de `public.perfiles` y a
   `public.contratos` denegado para roles CRM;

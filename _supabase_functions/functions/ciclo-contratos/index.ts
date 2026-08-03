@@ -52,11 +52,19 @@ function json(cors: Record<string, string>, payload: unknown, status = 200) {
   })
 }
 
-webpush.setVapidDetails(
-  Deno.env.get('VAPID_SUBJECT')!,
-  Deno.env.get('VAPID_PUBLIC_KEY')!,
-  Deno.env.get('VAPID_PRIVATE_KEY')!,
-)
+let webPushConfigurado = false
+
+function configurarWebPush() {
+  if (webPushConfigurado) return
+  const subject = Deno.env.get('VAPID_SUBJECT')
+  const publicKey = Deno.env.get('VAPID_PUBLIC_KEY')
+  const privateKey = Deno.env.get('VAPID_PRIVATE_KEY')
+  if (!subject || !publicKey || !privateKey) {
+    throw new Error('Faltan secretos VAPID')
+  }
+  webpush.setVapidDetails(subject, publicKey, privateKey)
+  webPushConfigurado = true
+}
 
 type PerfilMin = {
   id: string
@@ -157,9 +165,19 @@ Deno.serve(async (req) => {
       if (token) {
         const { data: { user } } = await supabase.auth.getUser(token)
         if (user) {
-          const { data: perfil } = await supabase
+          const { data: perfil, error: errPerfil } = await supabase
             .from('perfiles').select('rol, activo').eq('id', user.id).single()
-          if (perfil?.activo && ['admin', 'superadmin'].includes(perfil.rol)) autorizado = true
+          if (!errPerfil && perfil?.activo && ['admin', 'superadmin'].includes(perfil.rol)) {
+            // Un rol global es fallback; una fila CRM explícitamente inactiva
+            // revoca también el dry-run, que expone nombres y contratos.
+            const { data: miembro, error: errMiembro } = await supabase
+              .schema('crm')
+              .from('equipo')
+              .select('activo')
+              .eq('perfil_id', user.id)
+              .maybeSingle()
+            autorizado = !errMiembro && miembro?.activo !== false
+          }
         }
       }
     }
@@ -214,6 +232,41 @@ Deno.serve(async (req) => {
       { sello: 'aviso_venc_30d_enviado_en', contratos: ((cand30 || []) as unknown as Contrato[]).filter(c => c.perfiles?.activo) },
     ]
 
+    // Resolver los asesores elegibles antes de reclamar los contratos. Así, una
+    // caída al consultar perfiles/equipo no consume el sello y el próximo run
+    // todavía puede reintentar todos los avisos.
+    const asesorIds = [...new Set(
+      ventanas
+        .flatMap(v => v.contratos)
+        .map(c => c.perfiles?.asesor_perfil_id)
+        .filter(Boolean),
+    )] as string[]
+    const asesores = new Map<string, Asesor>()
+    if (asesorIds.length) {
+      const { data: rows, error: errAsesores } = await supabase
+        .from('perfiles')
+        .select('id, nombre_completo, nombres, correo, activo')
+        .in('id', asesorIds)
+        .eq('activo', true)
+      if (errAsesores) throw errAsesores
+
+      // Esta salida contiene nombres y contratos de clientes: conservar el rol
+      // de portal no basta. El asesor debe seguir enrolado y activo en el CRM.
+      const { data: equipo, error: errEquipo } = await supabase
+        .schema('crm')
+        .from('equipo')
+        .select('perfil_id, rol_crm')
+        .in('perfil_id', asesorIds)
+        .eq('activo', true)
+        .in('rol_crm', ['vendedor', 'supervisor'])
+      if (errEquipo) throw errEquipo
+
+      const miembrosActivos = new Set((equipo || []).map((e: { perfil_id: string }) => e.perfil_id))
+      for (const a of (rows || []) as Asesor[]) {
+        if (miembrosActivos.has(a.id)) asesores.set(a.id, a)
+      }
+    }
+
     /* ---------- CLAIM ATÓMICO por ventana (idempotencia) ---------- */
     if (!dryRun) {
       for (const v of ventanas) {
@@ -248,18 +301,6 @@ Deno.serve(async (req) => {
       porCliente.get(p.id)!.contratos.push(c)
     }
 
-    // Asesores en una consulta aparte (sin adivinar nombres de FK anidadas).
-    const asesorIds = [...new Set(avisar.map(c => c.perfiles?.asesor_perfil_id).filter(Boolean))] as string[]
-    const asesores = new Map<string, Asesor>()
-    if (asesorIds.length) {
-      const { data: rows } = await supabase
-        .from('perfiles')
-        .select('id, nombre_completo, nombres, correo, activo')
-        .in('id', asesorIds)
-      for (const a of (rows || []) as Asesor[]) {
-        if (a.activo) asesores.set(a.id, a)
-      }
-    }
     const porAsesor = new Map<string, { asesor: Asesor; items: Array<{ cliente: string; c: Contrato }> }>()
     for (const c of avisar) {
       const aId = c.perfiles?.asesor_perfil_id
@@ -280,8 +321,10 @@ Deno.serve(async (req) => {
           .select('id, endpoint, p256dh, auth')
           .eq('cliente_id', perfilId)
           .eq('activo', true)
+        if (!subs?.length) return
+        configurarWebPush()
         const expiradas: string[] = []
-        for (const s of (subs || [])) {
+        for (const s of subs) {
           try {
             await webpush.sendNotification(
               { endpoint: s.endpoint, keys: { p256dh: s.p256dh, auth: s.auth } },

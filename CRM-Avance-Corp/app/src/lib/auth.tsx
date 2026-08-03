@@ -1,8 +1,8 @@
 // AuthGate del CRM — wrapper React delgado sobre lib/auth-maquina.ts (XState).
 //   init → anon → resolviendo → listo | no_enrolado | error
-// El rol se resuelve así: fila propia en crm.equipo (rol_crm) →
-// si no hay, perfiles.rol ∈ {directorio, admin, superadmin} → 'directorio' (lector global) →
-// si no, "no_enrolado" (privilegio mínimo: no ve nada del CRM).
+// crm.mi_acceso_fn resuelve el rol así: membresía activa en crm.equipo →
+// si NO existe fila, perfil global activo → 'directorio' (lector global) →
+// si hay revocación o no hay enrolamiento, "no_enrolado" (no ve nada del CRM).
 // Modo DEMO: sesión falsa con rol elegible, sin tocar Supabase (para explorar la UI).
 //
 // La lógica de fases/carreras vive en la MÁQUINA (testeable sin React ni red);
@@ -31,15 +31,9 @@ import {
 } from './seguridad'
 import { esRol, type Rol } from './roles'
 import type { Yo } from './tipos'
+import { interpretarMiAccesoParaUsuario } from './acceso-crm'
 
 import { DEMO_YO } from './auth-demo'
-
-/**
- * Roles del PORTAL que pasan el chequeo de rol de `public.crear_contrato`
- * — espejo de `es_analista() OR es_admin()`. Si cambia allá, cambia aquí
- * (el servidor sigue siendo el que manda).
- */
-const ROLES_PORTAL_QUE_CONTRATAN = ['analista', 'admin', 'superadmin']
 
 /**
  * El demo no tiene rol de portal, así que se refleja la realidad del equipo:
@@ -53,56 +47,29 @@ async function resolverRol(
   cliente: ClienteCrm,
   userId: string,
 ): Promise<{ rol: Rol | null; nombre: string; puedeContratar: boolean }> {
-  // 1) ¿Enrolado en crm.equipo? (requiere F0 aplicada + esquema crm expuesto)
-  const { data: miembro, error: errorEquipo } = await cliente.schema('crm').from('equipo')
-    .select('rol_crm, activo').eq('perfil_id', userId).maybeSingle()
-  if (errorEquipo) {
-    registrarError('auth.resolver_rol.equipo', errorEquipo, { userId })
+  // RLS oculta por igual una fila crm.equipo ausente y una inactiva. Resolver
+  // ambas desde el cliente reabriría por error el fallback global; la RPC
+  // canónica distingue los estados dentro de la frontera SECURITY DEFINER.
+  const { data, error } = await cliente.schema('crm').rpc('mi_acceso_fn')
+  if (error) {
+    registrarError('auth.resolver_rol.rpc', error, { userId })
     throw new Error(ERROR_ACCESO)
   }
 
-  if (miembro) {
-    // Una fila CRM inactiva es una revocación explícita: no cae al fallback.
-    if (!miembro.activo || !esRol(miembro.rol_crm)) {
-      if (miembro.activo && !esRol(miembro.rol_crm)) {
-        registrarAviso('auth.rol_crm_desconocido', { userId })
-      }
+  try {
+    const acceso = interpretarMiAccesoParaUsuario(data, userId)
+    if (acceso.tipo === 'sin_acceso') {
       return { rol: null, nombre: '', puedeContratar: false }
     }
-
-    // La cuenta del portal también debe seguir activa; equipo.activo por sí solo
-    // no basta para mantener acceso a una cuenta deshabilitada.
-    const { data: perfilMiembro, error: errorPerfilMiembro } = await cliente.from('perfiles')
-      .select('nombre_completo, activo, rol').eq('id', userId).maybeSingle()
-    if (errorPerfilMiembro) {
-      registrarError('auth.resolver_rol.perfil_miembro', errorPerfilMiembro, { userId })
-      throw new Error(ERROR_ACCESO)
-    }
-    if (!perfilMiembro?.activo) return { rol: null, nombre: '', puedeContratar: false }
     return {
-      rol: miembro.rol_crm,
-      nombre: perfilMiembro.nombre_completo ?? '',
-      puedeContratar: ROLES_PORTAL_QUE_CONTRATAN.includes(perfilMiembro.rol),
+      rol: acceso.rol,
+      nombre: acceso.nombre,
+      puedeContratar: acceso.puedeContratar,
     }
-  }
-
-  // 2) ¿Lector global del portal?
-  // Un error aquí NO se traga: sin esta respuesta no sabemos quién es el
-  // usuario, así que propagamos (la máquina lo convierte en fase 'error').
-  const { data: perfil, error: errPerfil } = await cliente.from('perfiles')
-    .select('rol, activo, nombre_completo').eq('id', userId).maybeSingle()
-  if (errPerfil) {
-    registrarError('auth.resolver_rol.perfil_portal', errPerfil, { userId })
+  } catch (errorContrato) {
+    registrarError('auth.resolver_rol.contrato_invalido', errorContrato, { userId })
     throw new Error(ERROR_ACCESO)
   }
-  if (perfil?.activo && ['directorio', 'admin', 'superadmin'].includes(perfil.rol)) {
-    return {
-      rol: 'directorio',
-      nombre: perfil.nombre_completo ?? '',
-      puedeContratar: ROLES_PORTAL_QUE_CONTRATAN.includes(perfil.rol),
-    }
-  }
-  return { rol: null, nombre: '', puedeContratar: false }
 }
 
 /**

@@ -328,3 +328,33 @@ Miguel (toggle del dashboard).
 | Version | Nombre | Qué hace | Estado |
 |---------|--------|----------|--------|
 | 20260801092924 | crm_hardening_advisors_vistas_pgnet | **(a)** `crm.contratos_cartera` y `crm.clientes_basicos` a `security_invoker = true`: **restaura el patrón aprobado en F0** (20260711000003/000004: función definer gateada + vista invoker, el que mata el ERROR `security_definer_view`); las vistas se habían recreado sin el flag y el ERROR reapareció. Sin cambio de filas visibles: la autorización vive en las `*_fn()`. **(b)** ⚠️ **TOCA `public` con OK explícito de Miguel (2026-08-01, chat: «dale, aplica la migración» tras propuesta detallada)**: `contrato_tiene_pagos` ahora exige `puede_ver_contrato` — era la única RPC expuesta sin guardia; cualquier authenticated (incl. clientes del portal) podía sondear pagos de contratos ajenos por UUID. Devuelve `false` sin excepción → el único llamador (`public_html/js/admin/contratos.js:1422`, pantalla admin) no cambia. Consecuencia clavada en el gate: service_role SIN JWT también recibe `false` (la RPC es para humanos logueados). **(c)** REVOKE de `pg_net` a `anon`/`authenticated`/PUBLIC — ⚠️ **NO-OP en Supabase gestionado** (hallado al verificar en el branch): los grants son de `supabase_admin` y `postgres` no puede revocarlos (ACL intacto tras el revoke). Los statements quedan como declaración de intención (aplican en shadow/CI con superuser). Mitigación real: `net` fuera de los Exposed schemas de la API (config de plataforma — **check visual de Miguel en dashboard**) + los 2 jobs pg_cron que sí usan `net.http_post` (`recordatorio-cuotas-3d`, `ciclo-contratos-diario` — hallazgo del auditor; mi escaneo de `pg_proc` no veía `cron.job`) corren como `postgres`, verificado en `cron.job.username`. **(d)** 3 índices FK (`contratos.cerrado_por`, `contratos.renovado_a_id`, `contrato_titulares.creado_por`). Gate: +6 aserciones nuevas en `test-rls.mjs` (sección bancaria: sonda de pagos dueño/ajeno/service_role con cuota transitoria restaurada). | ✅ **EN PROD (2026-08-01, ciclo completo)**. Historia: auditor-rls sobre el dump de prod (24/24 funciones crm CON guardia; 3 hallazgos accionables, todos resueltos antes del merge) → aplicada en branch `crm-hardening-advisors` → verificación conductual por SQL en el branch (dueño=true / ajeno=false / actor nulo=false; vistas invoker 0 filas para extraño; **policy DELETE probada en vivo con admin fabricado: con pagos el contrato sobrevive, sin pagos se borra**) → advisors del branch: los 2 ERROR muertos, sin clases nuevas → **gate RLS = 363 aserciones, 0 fallos** (355 previas + 8 nuevas; PAT del keychain con permiso explícito de Miguel en settings.local.json) → `merge_branch` (asíncrono: `RUNNING_MIGRATIONS` ~90 s) → verificado en prod: vistas invoker=2, guardia viva, 3 índices, migración registrada, **paridad exacta** (vendedor 28/27, gerencia 270/245), vendedor sondeando contrato ajeno pasó de `true` a `false` y el cliente dueño conserva `true` → advisors de prod: los 2 ERROR muertos → branch BORRADO (fin de US$0.01344/h). Quedan del lado de Miguel: toggle HIBP + confirmar `net` fuera de Exposed schemas (dashboard) |
+
+## Disponibilidad de leads y offboarding canónico (2026-08-03)
+
+| Version | Nombre | Qué hace | Estado |
+|---------|--------|----------|--------|
+| 20260801212050 | p047_enfriamiento_politica_y_rpc_disponibilidad_lead | Tabla de política de enfriamiento, reglas por motivo y RPC consultiva `crm.verificar_disponibilidad_lead`. | ✅ **EN PROD** |
+| 20260801212300 | p047b_grants_enfriamiento_politica | ACL explícitas de la política de enfriamiento. | ✅ **EN PROD** |
+| 20260801222231 | p047c_estado_en_bolsa_rpc_disponibilidad | Añade el estado `en_bolsa` a P-047 sin alterar sus demás estados. | ✅ **EN PROD** |
+| 20260803164348 | crm_offboarding_gate_activos | **P04 — offboarding seguro del CRM.** Un actor humano solo conserva acceso cuando `public.perfiles.activo` y `crm.equipo.activo` están ambos activos. `private.rol_crm` usa allowlist fail-closed; el fallback global solo existe sin fila de equipo; una fila inactiva prevalece. Añade gate RLS RESTRICTIVE a las 8 tablas, `crm.mi_acceso_fn()` para que la app distinga ausencia de revocación, wrapper gateado de P-047 con cuerpo comercial privado idéntico, validación de destinos incluso ante `service_role`, rotación irreversible del token ICS al apagar equipo y feed ICS atómico. Las Edges excluyen destinos/asesores parcialmente inactivos; el ciclo toma el snapshot antes del claim y Web Push se inicializa solo si habrá envío. No contiene DDL sobre `public`. | ✅ **EN PROD 2026-08-03, SERVIDOR Y FRONT** — Supabase la registró como `20260803182426`. Branch `p04-offboarding-activos`: PostgreSQL local `P04_POSTFIX_VALIDATION_OK`; gate PostgREST **434/434**; `P04_HTTP_SMOKE_OK` (ICS 200/404 + rotación, importador activo/inactivo, ciclo `dry_run` + admin revocado); advisors sin clase inesperada y −2 warnings `auth_rls_initplan`; merge verificado con 8/8 gates, ACL y MD5 P-047 `c54b0bae7b6d456dbcf3a376f8987d9f`; Edges en prod `crm-agenda-ics` v3 (`verify_jwt=false`), `crm-importar-leads` v9 (`true`) y `ciclo-contratos` v4 (`false`), fuentes exactas; rama borrada. Front publicado tras la invocación humana de `/release-crm` y verificado contra el manifiesto. |
+
+El advisor de seguridad añade la advertencia esperada
+`authenticated_security_definer_function_executable` para `crm.mi_acceso_fn()`:
+es intencional porque la app necesita consultar su propio estado. La función no
+acepta UUID de entrada, deriva y devuelve `auth.uid()`, valida ambos flags y la
+app liga la respuesta al UUID obtenido por `getUser()`. `anon` y
+`service_role` no tienen `EXECUTE`. Referencia del linter:
+https://supabase.com/docs/guides/database/database-linter?lint=0029_authenticated_security_definer_function_executable
+
+P-047 conserva exactamente su cuerpo comercial; P-048 sigue separado y solo
+añadirá la verificación de cortesía al formulario. Los índices únicos y triggers
+de la base continúan siendo la garantía real frente a carreras.
+
+Front P04 publicado el `2026-08-03T19:10:44Z` mediante la invocación humana
+obligatoria de `/release-crm`: release `crm-20260803T185343Z-f1e6042fbefb`,
+ZIP SHA-256 `fe93128613fbc35690b054060a5f48d92e7fb81f6d9ef60a5679f65212705a95`.
+Producción sirve `assets/index-CfihSZSH.js` (SHA-256
+`7dfc133761614c833af61b0014da32c19029e0169556b5578f3cb773bb8919f2`):
+HTML, código, CSS, SVG y demás recursos coinciden byte por byte; Hostinger
+recomprime los cuatro PNG de marca conservando el payload de píxeles. El ZIP,
+fuentes, migraciones, sourcemaps, `.env` y `package.json` no son públicos.

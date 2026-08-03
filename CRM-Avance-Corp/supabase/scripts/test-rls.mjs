@@ -39,10 +39,9 @@ Variables requeridas:
   CRM_DEMO_PASSWORD       Debe coincidir con seed-demo (minimo 12).
 
 El gate comprueba lecturas exactas, aislamiento entre subarboles, escrituras
-cruzadas, inmutabilidad, usuario inactivo, directorio de solo lectura, acceso
-anonimo, la agenda de tareas (tenencia derivada del lead, cierre solo por RPC),
-las metas del mes (crm.objetivos: todos leen, solo gerencia escribe via RPC)
-y ausencia de acceso bancario/contratos crudos desde los roles CRM.
+cruzadas, inmutabilidad, la matriz completa de offboarding (ambos flags y sus
+dos estados mixtos), directorio de solo lectura, acceso anonimo, la agenda de
+tareas/ICS, las metas del mes y la frontera bancaria del CRM.
 `;
 
 const args = new Set(process.argv.slice(2));
@@ -115,7 +114,8 @@ function printPreflight() {
   for (const [key, names] of Object.entries(EXPECTED_LEAD_NAMES)) {
     console.log(`  - ${key}: ${names.length} leads, ${EXPECTED_TAREA_TITULOS[key].length} tareas`);
   }
-  console.log(`✓ fixtures: ${LEADS.length} leads, ${LEADS.length} actividades, ${TAREAS.length} tareas, 1 usuario inactivo`);
+  console.log(`✓ fixtures: ${LEADS.length} leads, ${LEADS.length} actividades, ${TAREAS.length} tareas`);
+  console.log('✓ offboarding: true/true, false/true, true/false, false/false y fallback global');
   console.log('✓ fixtures: 1 cliente bancario + 1 contrato sensible');
   console.log('Preflight terminado; no se abrio ninguna conexion.');
 }
@@ -327,6 +327,8 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.triggerSellerChangeLead,
       TRANSIENT_IDS.triggerSupervisorOnlyLead,
       TRANSIENT_IDS.triggerNoTenureLead,
+      TRANSIENT_IDS.offboardingDestinationPortalLead,
+      TRANSIENT_IDS.offboardingDestinationTeamLead,
       TRANSIENT_IDS.taskFollowLead,
       TRANSIENT_IDS.anularLead,
       TRANSIENT_IDS.anularLeadSistema,
@@ -486,6 +488,7 @@ async function verifySeed() {
     leads: leadsResponse.data,
     profileIdByKey,
     profiles: profilesResponse.data,
+    team: teamResponse.data,
     tareaById,
     tareas: tareasResponse.data,
   };
@@ -501,7 +504,56 @@ function businessState(row) {
   return Object.fromEntries(LEAD_RESTORE_FIELDS.map((field) => [field, row[field]]));
 }
 
+async function restoreActorStateIfNeeded(seed) {
+  const profileIds = seed.profiles.map((row) => row.id);
+  const currentProfiles = await requireAdmin(
+    'verificar integridad final de perfiles fixture',
+    admin.from('perfiles').select('id, rol, activo').in('id', profileIds),
+  );
+  const currentProfileById = new Map(currentProfiles.data.map((row) => [row.id, row]));
+  for (const original of seed.profiles) {
+    const current = currentProfileById.get(original.id);
+    if (!current || current.rol !== original.rol || current.activo !== original.activo) {
+      await requireAdmin(
+        `restaurar perfil fixture ${original.correo}`,
+        admin.from('perfiles')
+          .update({ rol: original.rol, activo: original.activo })
+          .eq('id', original.id),
+      );
+    }
+  }
+
+  const teamIds = seed.team.map((row) => row.perfil_id);
+  const currentTeam = await requireAdmin(
+    'verificar integridad final de membresías CRM fixture',
+    admin.schema('crm').from('equipo')
+      .select('perfil_id, rol_crm, supervisor_id, activo')
+      .in('perfil_id', teamIds),
+  );
+  const currentTeamById = new Map(currentTeam.data.map((row) => [row.perfil_id, row]));
+  for (const original of seed.team) {
+    const current = currentTeamById.get(original.perfil_id);
+    if (!current
+        || current.rol_crm !== original.rol_crm
+        || current.supervisor_id !== original.supervisor_id
+        || current.activo !== original.activo) {
+      await requireAdmin(
+        `restaurar membresía CRM fixture ${original.perfil_id}`,
+        admin.schema('crm').from('equipo')
+          .update({
+            rol_crm: original.rol_crm,
+            supervisor_id: original.supervisor_id,
+            activo: original.activo,
+          })
+          .eq('perfil_id', original.perfil_id),
+      );
+    }
+  }
+}
+
 async function restoreSeedIfNeeded(seed) {
+  await restoreActorStateIfNeeded(seed);
+
   const currentResponse = await requireAdmin(
     'verificar integridad final de leads fixture',
     admin.schema('crm').from('leads').select('*').in('id', seed.leads.map((row) => row.id)),
@@ -2259,6 +2311,350 @@ async function testAgendaIcs(sessions, seed) {
   );
 }
 
+async function testOffboardingMatrix(sessions, seed) {
+  console.log('\n— P04: matriz completa de offboarding —');
+  const key = 'vendInactive';
+  const member = sessions[key];
+  const memberId = seed.profileIdByKey[key];
+  const originalProfile = seed.profiles.find((row) => row.id === memberId);
+  const originalTeam = seed.team.find((row) => row.perfil_id === memberId);
+  const ownedLead = seed.leadByName.get('LEAD DE VENDEDOR INACTIVO DEMO');
+  const ownedActivityId = LEAD_BY_KEY.inactiveOwned.activityId;
+  const freePhone = '900000009';
+  const since = new Date(Date.now() - 30 * 86_400_000).toISOString();
+
+  assertSeed(member, 'falta la sesión vendInactive para la matriz P04');
+  assertSeed(originalProfile, 'falta el perfil vendInactive');
+  assertSeed(originalTeam, 'falta la membresía CRM vendInactive');
+  assertSeed(ownedLead, 'falta el lead de vendInactive');
+
+  async function setState({ portalActive, crmActive, portalRole = originalProfile.rol }) {
+    const updateProfile = () => requireAdmin(
+      `P04: fijar perfil activo=${portalActive}, rol=${portalRole}`,
+      admin.from('perfiles')
+        .update({ activo: portalActive, rol: portalRole })
+        .eq('id', memberId),
+    );
+    const updateTeam = () => requireAdmin(
+      `P04: fijar equipo activo=${crmActive}`,
+      admin.schema('crm').from('equipo')
+        .update({ activo: crmActive })
+        .eq('perfil_id', memberId),
+    );
+
+    // Al habilitar, primero vive la cuenta; al revocar, primero se corta CRM.
+    // Evita fabricar durante el test una ventana intermedia más permisiva.
+    if (portalActive) {
+      await updateProfile();
+      await updateTeam();
+    } else {
+      await updateTeam();
+      await updateProfile();
+    }
+  }
+
+  async function agendaToken() {
+    const response = await requireAdmin(
+      'P04: leer token ICS con service_role',
+      admin.schema('crm').from('agenda_ics')
+        .select('token')
+        .eq('perfil_id', memberId)
+        .single(),
+    );
+    return response.data.token;
+  }
+
+  async function assertFeed(token, expected, label) {
+    const response = await positive(
+      label,
+      admin.schema('crm').rpc('agenda_ics_feed_fn', {
+        p_token: token,
+        p_desde: since,
+      }),
+    );
+    if (response) {
+      check(response.data?.autorizado === expected,
+        `${label}: autorizado=${expected}`,
+        `respuesta=${JSON.stringify(response.data)}`);
+    }
+  }
+
+  async function assertAccess(client, expectedState, label, expectedId, expectedRole = undefined) {
+    const response = await positive(
+      label,
+      client.schema('crm').rpc('mi_acceso_fn'),
+    );
+    if (response) {
+      check(response.data?.estado === expectedState,
+        `${label}: estado=${expectedState}`,
+        `respuesta=${JSON.stringify(response.data)}`);
+      check(response.data?.perfil_id === expectedId,
+        `${label}: identidad ligada a la sesión`,
+        `respuesta=${JSON.stringify(response.data)}`);
+      if (expectedRole !== undefined) {
+        check(response.data?.rol_crm === expectedRole,
+          `${label}: rol_crm=${expectedRole}`,
+          `respuesta=${JSON.stringify(response.data)}`);
+      }
+    }
+  }
+
+  async function assertDenied(label) {
+    await assertAccess(
+      member.client,
+      'revocado',
+      `${label}: auth canónica no aplica fallback`,
+      memberId,
+    );
+    await expectHidden(
+      `${label}: no lee su fila de equipo`,
+      member.client.schema('crm').from('equipo')
+        .select('perfil_id')
+        .eq('perfil_id', memberId),
+    );
+    await expectHidden(
+      `${label}: no lee su lead histórico`,
+      member.client.schema('crm').from('leads')
+        .select('id')
+        .eq('id', ownedLead.id),
+    );
+    await expectHidden(
+      `${label}: no lee la actividad de su lead`,
+      member.client.schema('crm').from('actividades')
+        .select('id')
+        .eq('id', ownedActivityId),
+    );
+    await expectHidden(
+      `${label}: no lee configuración de enfriamiento`,
+      member.client.schema('crm').from('enfriamiento_politica')
+        .select('motivo')
+        .limit(1),
+    );
+    await expectHidden(
+      `${label}: no lee objetivos`,
+      member.client.schema('crm').from('objetivos').select('*').limit(1),
+    );
+    await expectHidden(
+      `${label}: no lee su token ICS`,
+      member.client.schema('crm').from('agenda_ics')
+        .select('token')
+        .eq('perfil_id', memberId),
+    );
+    await expectHidden(
+      `${label}: equipo_visible_fn no filtra roster`,
+      member.client.schema('crm').rpc('equipo_visible_fn'),
+    );
+    await expectHidden(
+      `${label}: verificar_disponibilidad_lead queda denegada`,
+      member.client.schema('crm').rpc('verificar_disponibilidad_lead', {
+        p_telefono: freePhone,
+        p_dni: null,
+      }),
+    );
+    await expectBlockedMutation(
+      `${label}: no actualiza su lead histórico`,
+      member.client.schema('crm').from('leads')
+        .update({ nota: ownedLead.nota })
+        .eq('id', ownedLead.id)
+        .select('id'),
+    );
+  }
+
+  async function assertDestinationBlocked(id, phone, label) {
+    await expectBlockedMutation(
+      label,
+      admin.schema('crm').from('leads').insert({
+        id,
+        nombre_completo: 'P04 DESTINO INACTIVO TRANSIENT',
+        telefono: phone,
+        origen: 'otro',
+        etapa: 'nuevo',
+        monto_estimado: 1000,
+        moneda: 'PEN',
+        vendedor_id: memberId,
+      }).select('id'),
+      ['P0001'],
+    );
+  }
+
+  try {
+    // El fallback global legítimo se conserva si NO existe membresía CRM.
+    const globalRead = await positive(
+      'P04: directorio activo sin fila CRM conserva lectura global',
+      sessions.directorio.client.schema('crm').from('leads').select('id').limit(1),
+    );
+    if (globalRead) {
+      check(globalRead.data.length === 1,
+        'P04: el fallback global sin membresía devuelve datos');
+    }
+    await assertAccess(
+      sessions.directorio.client,
+      'global',
+      'P04: auth canónica conserva fallback global sin fila CRM',
+      seed.profileIdByKey.directorio,
+      'directorio',
+    );
+
+    // true / true: baseline permitido y RPC P-047 sin cambio de contrato.
+    await setState({ portalActive: true, crmActive: true });
+    const activeMembership = await positive(
+      'P04 true/true: resuelve membresía propia',
+      member.client.schema('crm').from('equipo')
+        .select('rol_crm')
+        .eq('perfil_id', memberId)
+        .single(),
+    );
+    if (activeMembership) {
+      check(activeMembership.data.rol_crm === originalTeam.rol_crm,
+        'P04 true/true: conserva el rol CRM');
+    }
+    await assertAccess(
+      member.client,
+      'miembro',
+      'P04 true/true: auth canónica reconoce la membresía',
+      memberId,
+      originalTeam.rol_crm,
+    );
+    await positive(
+      'P04 true/true: lee su lead',
+      member.client.schema('crm').from('leads')
+        .select('id')
+        .eq('id', ownedLead.id)
+        .single(),
+    );
+    const availability = await positive(
+      'P04 true/true: RPC de disponibilidad responde',
+      member.client.schema('crm').rpc('verificar_disponibilidad_lead', {
+        p_telefono: freePhone,
+        p_dni: null,
+      }),
+    );
+    if (availability) {
+      check(typeof availability.data?.estado === 'string',
+        'P04 true/true: conserva el JSON {estado} de P-047');
+    }
+    const cooling = await positive(
+      'P04 true/true: lee política de enfriamiento',
+      member.client.schema('crm').from('enfriamiento_politica')
+        .select('motivo', { count: 'exact' }),
+    );
+    if (cooling) {
+      check(cooling.count === 7 && cooling.data.length === 7,
+        'P04 true/true: conserva los siete motivos de enfriamiento');
+    }
+
+    const ownAgenda = await positive(
+      'P04 true/true: busca su fila ICS',
+      member.client.schema('crm').from('agenda_ics')
+        .select('token')
+        .eq('perfil_id', memberId)
+        .maybeSingle(),
+    );
+    if (ownAgenda && !ownAgenda.data) {
+      await positive(
+        'P04 true/true: crea su fila ICS',
+        member.client.schema('crm').from('agenda_ics')
+          .insert({ perfil_id: memberId })
+          .select('token')
+          .single(),
+      );
+    }
+    const tokenBeforePortalOff = await agendaToken();
+    await assertFeed(tokenBeforePortalOff, true, 'P04 true/true: feed ICS autorizado');
+
+    // Un rol global del portal no se SUMA a una membresía CRM activa: el rol
+    // CRM manda y conserva su ámbito. El fallback solo existe sin fila equipo.
+    await setState({ portalActive: true, crmActive: true, portalRole: 'directorio' });
+    await assertAccess(
+      member.client,
+      'miembro',
+      'P04 miembro + rol global: auth conserva la membresía CRM',
+      memberId,
+      originalTeam.rol_crm,
+    );
+    const scopedMember = await positive(
+      'P04 miembro + rol global: consulta leads sin elevar ámbito',
+      member.client.schema('crm').from('leads').select('nombre_completo'),
+    );
+    if (scopedMember) {
+      const actualNames = scopedMember.data.map((row) => row.nombre_completo);
+      check(sameStrings(actualNames, [ownedLead.nombre_completo]),
+        'P04 miembro + rol global: ve exactamente su cartera CRM',
+        `real=[${sorted(actualNames).join(', ')}]`);
+    }
+
+    // false / true: el caso que el fixture anterior nunca cubría.
+    await setState({ portalActive: false, crmActive: true });
+    await assertDenied('P04 false/true');
+    const tokenAfterPortalOff = await agendaToken();
+    check(tokenAfterPortalOff === tokenBeforePortalOff,
+      'P04 false/true: el gate corta el feed sin alterar tablas public');
+    await assertFeed(tokenBeforePortalOff, false,
+      'P04 false/true: el token no autoriza mientras el perfil está suspendido');
+    await assertDestinationBlocked(
+      TRANSIENT_IDS.offboardingDestinationPortalLead,
+      '999000096',
+      'P04 false/true: service_role no asigna a perfil portal inactivo',
+    );
+
+    // true / false: reactivar solo el perfil termina la suspensión temporal y
+    // conserva su URL; el offboarding CRM (equipo=false) sí la rota de forma
+    // irreversible y corta también superficies que antes usaban USING(true).
+    await setState({ portalActive: true, crmActive: true });
+    const tokenBeforeTeamOff = await agendaToken();
+    check(tokenBeforeTeamOff === tokenBeforePortalOff,
+      'P04 reactivar perfil: conserva el token de la suspensión temporal');
+    await assertFeed(tokenBeforeTeamOff, true,
+      'P04 reactivar perfil: el token suspendido vuelve a autorizar');
+    await setState({ portalActive: true, crmActive: false });
+    await assertDenied('P04 true/false');
+    const tokenAfterTeamOff = await agendaToken();
+    check(tokenAfterTeamOff !== tokenBeforeTeamOff,
+      'P04 true/false: apagar la membresía rota el token ICS');
+    await assertFeed(tokenBeforeTeamOff, false,
+      'P04 true/false: el token anterior queda inválido');
+    await assertDestinationBlocked(
+      TRANSIENT_IDS.offboardingDestinationTeamLead,
+      '999000097',
+      'P04 true/false: service_role no asigna a membresía CRM inactiva',
+    );
+
+    // false / false: también cerrado y service_role conserva su bypass RLS
+    // deliberado para operaciones de sistema, no el bypass del trigger destino.
+    await setState({ portalActive: false, crmActive: false });
+    await assertDenied('P04 false/false');
+    const serviceRead = await positive(
+      'P04: service_role conserva bypass RLS intencional',
+      admin.schema('crm').from('leads').select('id').eq('id', ownedLead.id).single(),
+    );
+    if (serviceRead) {
+      check(serviceRead.data.id === ownedLead.id,
+        'P04: el proceso de sistema todavía lee el fixture');
+    }
+
+    // Un rol portal global NO resucita una fila CRM explícitamente revocada.
+    await setState({ portalActive: true, crmActive: false, portalRole: 'directorio' });
+    await assertDenied('P04 global con equipo inactivo');
+
+    // La RPC de creación no es un oráculo para otros authenticated activos.
+    for (const deniedKey of ['coordinador', 'directorio', 'clientBank']) {
+      await expectHidden(
+        `P04: ${deniedKey} no usa verificar_disponibilidad_lead`,
+        sessions[deniedKey].client.schema('crm').rpc('verificar_disponibilidad_lead', {
+          p_telefono: freePhone,
+          p_dni: null,
+        }),
+      );
+    }
+  } finally {
+    await setState({
+      portalActive: originalProfile.activo,
+      crmActive: originalTeam.activo,
+      portalRole: originalProfile.rol,
+    });
+  }
+}
+
 async function testBankingBoundary(sessions, seed) {
   console.log('\n— Frontera portal/CRM y datos bancarios —');
   const vend1 = sessions.vend1.client;
@@ -3322,6 +3718,7 @@ async function main() {
       await testAnularAutoriaYRetroceso(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);
       await testAgendaIcs(sessions, verifiedSeed);
+      await testOffboardingMatrix(sessions, verifiedSeed);
       await testObjetivos(sessions);
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);

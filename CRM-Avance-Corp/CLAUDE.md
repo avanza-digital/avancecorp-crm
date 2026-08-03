@@ -20,8 +20,9 @@ proyecto Supabase del portal (`dctqcbznekcyxhjujuci`) con esquema **`crm`** dedi
 | `app/e2e/` | Specs Playwright (smoke por rol, modo demo) |
 | `supabase/migrations/` | Migraciones del esquema `crm` + ledger `MIGRACIONES.md` |
 | `supabase/scripts/` | `test-rls.mjs` (matriz RLS), `seed-demo.mjs`, fixtures |
+| `supabase/functions/` | Fuentes versionadas de las Edge Functions propias del CRM |
 | `scripts/` | `crear-artefacto-release.mjs` (ZIP + manifiesto SHA-256), Apps Script de leads |
-| `../../_supabase_functions/functions/` | **Edge functions (fuera de esta carpeta)**: crm-convertir-lead, crm-importar-leads, … |
+| `../../_supabase_functions/functions/` | Edges compartidas/legadas del portal; los espejos CRM deben quedar byte a byte iguales |
 
 ## Comandos
 

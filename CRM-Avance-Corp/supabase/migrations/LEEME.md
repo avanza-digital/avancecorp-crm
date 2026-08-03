@@ -1,6 +1,7 @@
 # supabase/migrations/ — migraciones del esquema `crm`
 
-**Vacía a propósito** (se llena en F0, tras aprobar el plan).
+Contiene el historial versionado del esquema `crm`; `MIGRACIONES.md` registra
+la intención, verificación y estado de producción de cada cambio.
 
 Reglas heredadas del plan (§5, condiciones no negociables):
 

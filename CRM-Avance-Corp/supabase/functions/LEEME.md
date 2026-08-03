@@ -1,15 +1,17 @@
-# supabase/functions/ — edge functions del CRM (prefijo `crm-`)
+# supabase/functions/ — Edge Functions del CRM
 
-**Vacía a propósito** (se llena desde F1).
+Fuentes versionadas actualmente:
 
-Previstas en el plan:
-- `crm-crear-vendedor` — alta con cuota + anti-escalación (fusión de `admin-crear-usuario` de
-  VITANOVA con las convenciones del portal: CORS allowlist, dry_run, imports jsr:).
-- `crm-convertir-lead` — conversión transaccional lead→cliente (extiende `crear-cliente` v12).
-- `crm-enviar-push` — notificaciones a vendedores vía Expo Push Service.
-- `crm-whatsapp-enviar` / `crm-whatsapp-webhook` — Cloud API con plantillas utility + ventana
-  24 h (patrón dual-cliente RLS + secretos en Vault + HMAC tiempo-constante).
-- `crm-importar-cartera` — import masivo server-side por lotes.
+- `crm-agenda-ics` — feed público por bearer token; `verify_jwt=false` porque
+  Google Calendar no envía JWT. La función valida el token mediante una RPC
+  service-role-only y responde 404 uniforme cuando no autoriza.
+- `crm-importar-leads` — ingreso por lotes desde la hoja comercial. Su copia
+  operativa histórica vive también en
+  `../../_supabase_functions/functions/crm-importar-leads/index.ts`; ambas deben
+  permanecer byte a byte idénticas (`cmp -s`) hasta retirar ese espejo.
+- `crm-tipo-cambio` — consulta del tipo de cambio usado por el CRM.
 
-Regla dura: **toda función desplegada tiene su fuente versionada aquí** (prohibido el drift
-tipo `intake-lead`/`diagnostico-push`). service_role jamás sale de las functions.
+Regla dura: **toda función desplegada del CRM tiene su fuente versionada aquí**
+(prohibido el drift tipo `intake-lead`/`diagnostico-push`). `service_role` jamás
+sale de las Functions. Cuando exista un espejo legado, el gate debe comprobar
+igualdad exacta antes del despliegue.

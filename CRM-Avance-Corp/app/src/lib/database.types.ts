@@ -486,6 +486,18 @@ export interface Database {
       }
     }
     Functions: {
+      /** Acceso propio canónico: distingue membresía ausente de revocación
+       * explícita aunque RLS oculte ambas filas al cliente. */
+      mi_acceso_fn: {
+        Args: Record<string, never>
+        Returns: {
+          estado: 'miembro' | 'global' | 'revocado' | 'no_enrolado'
+          perfil_id: string
+          rol_crm?: string
+          rol_portal?: string
+          nombre_completo?: string | null
+        }
+      }
       /** Cierre atómico de una tarea: resultado al log inmutable + siguiente
        *  opcional, en una transacción (SECURITY DEFINER, ámbito adentro). */
       cerrar_tarea: {

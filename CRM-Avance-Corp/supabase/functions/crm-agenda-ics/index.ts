@@ -9,10 +9,11 @@ import { createClient } from "jsr:@supabase/supabase-js@2";
 // no sincronización (la bidireccional quedó en Fase H del plan v2).
 //
 // Seguridad: se despliega con verify_jwt=false (Google no puede mandar JWT);
-// el control de acceso es el token secreto de crm.agenda_ics — cada token abre
-// SOLO el feed de su dueño (tareas donde él es el vendedor), nada más. Rotar
-// el token en el CRM invalida el enlace anterior de inmediato. La consulta va
-// con service_role pero SIEMPRE filtrada por el perfil dueño del token.
+// el control de acceso es el token secreto de crm.agenda_ics. La RPC de feed
+// resuelve en una sola sentencia token + perfil activo + membresía CRM activa
+// + tareas del dueño. El offboarding CRM (equipo=false) rota el token; una
+// suspensión del perfil corta el feed mientras dure. El gate comprueba ambos
+// flags en cada petición. La Edge nunca consulta tablas sueltas.
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const DURACION_DEFECTO_MIN = 30;
@@ -42,6 +43,31 @@ interface FilaTarea {
   nota: string | null;
   vence_en: string;
   duracion_min: number | null;
+}
+
+interface RespuestaFeed {
+  autorizado: boolean;
+  tareas: FilaTarea[];
+}
+
+function esFilaTarea(valor: unknown): valor is FilaTarea {
+  if (!valor || typeof valor !== "object") return false;
+  const tarea = valor as Record<string, unknown>;
+  return typeof tarea.id === "string"
+    && typeof tarea.tipo === "string"
+    && typeof tarea.titulo === "string"
+    && (tarea.nota === null || typeof tarea.nota === "string")
+    && typeof tarea.vence_en === "string"
+    && (tarea.duracion_min === null
+      || (typeof tarea.duracion_min === "number" && Number.isFinite(tarea.duracion_min)));
+}
+
+function esRespuestaFeed(valor: unknown): valor is RespuestaFeed {
+  if (!valor || typeof valor !== "object") return false;
+  const feed = valor as Record<string, unknown>;
+  return typeof feed.autorizado === "boolean"
+    && Array.isArray(feed.tareas)
+    && feed.tareas.every(esFilaTarea);
 }
 
 function calendarioIcs(tareas: FilaTarea[], ahora: number): string {
@@ -88,28 +114,17 @@ Deno.serve(async (req: Request) => {
     { db: { schema: "crm" } },
   );
 
-  // Token → dueño. Un token desconocido responde igual que uno mal formado.
-  const { data: fila, error: errToken } = await supabase
-    .from("agenda_ics")
-    .select("perfil_id")
-    .eq("token", token)
-    .maybeSingle();
-  if (errToken) return new Response("Error interno", { status: 500 });
-  if (!fila) return new Response("No encontrado", { status: 404 });
-
   const desde = new Date(Date.now() - VENTANA_PASADO_DIAS * 86_400_000).toISOString();
-  const { data: tareas, error: errTareas } = await supabase
-    .from("tareas")
-    .select("id, tipo, titulo, nota, vence_en, duracion_min")
-    .eq("vendedor_id", fila.perfil_id)
-    .eq("estado", "pendiente")
-    .eq("activo", true)
-    .gte("vence_en", desde)
-    .order("vence_en", { ascending: true })
-    .limit(500);
-  if (errTareas) return new Response("Error interno", { status: 500 });
+  const { data, error } = await supabase.rpc("agenda_ics_feed_fn", {
+    p_token: token,
+    p_desde: desde,
+  });
+  if (error || !esRespuestaFeed(data)) {
+    return new Response("Error interno", { status: 500 });
+  }
+  if (!data.autorizado) return new Response("No encontrado", { status: 404 });
 
-  return new Response(calendarioIcs((tareas ?? []) as FilaTarea[], Date.now()), {
+  return new Response(calendarioIcs(data.tareas, Date.now()), {
     status: 200,
     headers: {
       "Content-Type": "text/calendar; charset=utf-8",

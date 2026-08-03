@@ -229,6 +229,17 @@ async function ensureTeam({ activateForSeed = false } = {}) {
   }
 }
 
+async function ensureCrmProfileStates({ activateForSeed = false } = {}) {
+  for (const user of USERS.filter((candidate) => candidate.crmRole)) {
+    await requireResponse(
+      `fijar public.perfiles.activo (${user.key})`,
+      admin.from('perfiles')
+        .update({ activo: activateForSeed ? true : user.portalActive })
+        .eq('id', ids[user.key]),
+    );
+  }
+}
+
 async function findExistingLead(fixture) {
   const byId = await requireResponse(
     `buscar lead ${fixture.key} por UUID`,
@@ -350,8 +361,14 @@ async function main() {
   for (const user of USERS) await ensureProfile(user);
   console.log(`✓ ${USERS.length} perfiles del portal sincronizados`);
 
-  await ensureTeam({ activateForSeed: true });
   try {
+    // P04 exige AMBOS flags activos para recibir responsabilidad nueva. El
+    // fixture histórico inactiveOwned se construye con ambos flags vivos y se
+    // restaura inmediatamente a su estado final; primero vive el perfil y luego
+    // la membresía, para no abrir una ventana parcialmente más permisiva.
+    await ensureCrmProfileStates({ activateForSeed: true });
+    await ensureTeam({ activateForSeed: true });
+
     const leadIdByKey = Object.create(null);
     for (const fixture of LEADS) {
       const leadId = await ensureLead(fixture);
@@ -362,9 +379,13 @@ async function main() {
       await ensureTarea(fixture, leadIdByKey[fixture.leadKey]);
     }
   } finally {
-    // Tambien corre si falla un fixture: nunca deja habilitado por accidente al
-    // usuario que el gate necesita comprobar como inactivo.
-    await ensureTeam();
+    // También corre si falla un fixture. Al revocar se corta primero CRM y el
+    // finally anidado restaura perfiles aunque fallara la restauración de equipo.
+    try {
+      await ensureTeam();
+    } finally {
+      await ensureCrmProfileStates();
+    }
   }
   console.log(`✓ ${LEADS.length} leads y ${LEADS.length} actividades deterministas`);
   console.log(`✓ ${TAREAS.length} tareas de agenda deterministas`);
