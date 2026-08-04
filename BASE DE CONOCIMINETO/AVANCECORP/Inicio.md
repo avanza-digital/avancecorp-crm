@@ -16,6 +16,9 @@ Hay **tres capas**, complementarias:
 3. **Documentos canónicos** (la *fuente de verdad* técnica):
    - **`public_html/CLAUDE.md`** → memoria técnica detallada del portal. **GANA sobre todo lo demás** si hay diferencia.
    - **`PORTAL_AVANCE_CORP_IMPLEMENTACION.md`** → guía de implementación.
+   - **`CRM-Avance-Corp/PLAN-CRM-AVANCE-CORP.md`** → plan maestro vigente del CRM;
+     su sección inicial «Estado maestro vigente» concentra avance, ruta crítica y
+     definición de «CRM listo».
    - *(`MEMORIA DE PROYECTOS.md` se eliminó el 2026-06-01 por estar desactualizado — era copia vieja del CLAUDE.md.)*
 
 ## 🗺️ Mapa de notas

@@ -1,9 +1,103 @@
 # PLAN — CRM AVANCE CORP (P-054)
 
-> **Fecha:** 2026-07-09 · **Autor:** Claude (reconocimiento multi-agente, 12 agentes) · **Estado:** PENDIENTE DE APROBACIÓN DE MIGUEL
+> **Fecha base:** 2026-07-09 · **Autor:** Claude (reconocimiento multi-agente, 12 agentes) · **Estado inicial:** plan aprobado y evolucionado; el estado vigente está inmediatamente debajo
 > **Fuente analizada (READ-ONLY):** CRM VITANOVA de Clínica Álvarez — `AVANZA-DIGITAL/REPOSITORIO/CLINICA ALVAREZ/` (repo `avanzadigitald/cliente-clinica-alvarez`, último commit 2026-07-08)
-> **Destino:** CRM de Avance Corp S.A.C. en **React Native (Expo)**, sobre el proyecto Supabase del portal (`dctqcbznekcyxhjujuci`)
+> **Destino original:** CRM de Avance Corp S.A.C. en **React Native (Expo)**, sobre el proyecto Supabase del portal (`dctqcbznekcyxhjujuci`)
 > **Anexos:** los 10 informes técnicos completos del reconocimiento están en `docs/recon/` (citan archivo:línea de todo lo afirmado aquí).
+
+---
+
+## ESTADO MAESTRO VIGENTE — 2026-08-04
+
+Esta sección es la **guía principal del CRM** y prevalece sobre estados históricos
+posteriores de este documento, el README y notas antiguas del vault. El plan original
+se conserva debajo como arquitectura y trazabilidad. La decisión de plataforma cambió
+de «Expo primero» a **web primero**: el CRM operativo vive en React 19 + Vite y la app
+nativa quedó como evolución futura.
+
+### Foto comprobada del sistema
+
+Corte operativo consultado durante la auditoría del **2026-08-04 (hora Lima)**;
+estos valores son una fotografía, no metas ni constantes del producto.
+
+- Producción tiene 21 miembros CRM plenamente activos: 17 vendedores, 2 supervisores,
+  1 gerencia y 1 coordinador.
+- `crm.leads` tiene 279 filas. Las consultas de control encontraron 222 que cumplían
+  el filtro de abiertas, 1 descartada y 0 convertidas; esas cifras no forman una
+  partición completa: quedan 56 filas fuera de esos filtros cuya clasificación debe
+  conciliarse. Hay operación real, pero el ciclo de conversión completo todavía no
+  tiene evidencia en producción.
+- P04 (offboarding), P-047 (disponibilidad/enfriamiento) y cuentas bancarias por
+  contrato están en producción.
+- P-048 (creación atómica de leads) está terminado y auditado **solo en local**, commit
+  `31136bc`; producción todavía no registra la migración `crm_creacion_lead_atomica`.
+- Las funciones de leads continúan en piloto para la fuerza comercial:
+  `FUNCIONES_LEADS_APROBADAS=false`. Gerencia/directorio y la cuenta piloto pueden
+  verlas; el despliegue general a vendedores y supervisores aún requiere aceptación.
+
+### Avance del plan original
+
+| Fase principal | Estado vigente | Qué falta para cerrarla |
+|---|---|---|
+| **F0 — Cimientos BD y seguridad** | ✅ Producción | Solo reproducibilidad: reconciliar el historial remoto y versionar el drift de objetos de producción. |
+| **F1 — App y captación** | 🟡 Piloto | Desplegar P-048 y abrir Hoy/Pipeline/Agenda/leads a toda la fuerza comercial después del piloto. |
+| **F2 — Gestión diaria** | 🟡 Construida | Agenda, reparto, tareas y métricas existen; falta aceptación operativa completa de vendedores/supervisores y monitoreo real. |
+| **F3 — Conversión y contratos** | 🟡 En producción sin ciclo observado | Conversión, contratos, cronograma y cuenta bancaria contractual existen en producción; falta una prueba controlada punta a punta, dejar toda la fuente reproducible en el repo canónico y aprobar legalmente el PDF contractual. |
+| **F4 — Postventa y dirección** | 🟡 Parcialmente operativa | Cartera, gerencia, metas y radar de vencimientos están en producción; faltan administración autoservicio de usuarios/jerarquía, flujo de renovación/upgrade, exportaciones y base fría C2 cuando exista muestra suficiente. |
+| **F5 — Integraciones y salida** | 🟡 Parcial | Intake/importador están vivos; faltan el cierre de release general, observabilidad configurada y automatizaciones opcionales (WhatsApp/push/PWA). |
+
+### Ruta crítica para declarar el CRM listo
+
+1. **Reconciliar el repositorio canónico.** El remoto correcto es `avancecorp`, pero
+   la rama actual y `avancecorp/main` no comparten `merge-base`; `origin` apunta a
+   `avanza-platform`. Crear una rama limpia desde el CRM remoto, trasladar únicamente
+   los parches válidos, restaurar/versionar CI y repetir los gates. No hacer merge ni
+   push ciego.
+2. **Validar P-048 en una branch de Supabase.** Aplicar la migración completa; ejecutar
+   matriz RLS con sesiones reales, advisors de seguridad/rendimiento y smoke PostgREST
+   de creación, bloqueos P-047, P04 revocado, edición de teléfono/DNI y concurrencia.
+3. **Publicar P-048 en el orden obligatorio servidor → frontend.** Fusionar primero la
+   migración, verificar RPC/ACL/triggers y después publicar el frontend únicamente por
+   `/release-crm`, con smoke autenticado por rol.
+4. **Ejecutar el piloto punta a punta.** Con identidad controlada: lead → gestión →
+   conversión → cliente → contrato → cuenta bancaria del contrato → cronograma. Evitar
+   correos o datos de clientes reales durante la prueba y limpiar la semilla al cerrar.
+5. **Abrir leads a todo el equipo.** Con aprobación de Miguel, cambiar
+   `FUNCIONES_LEADS_APROBADAS` a `true`, retirar la lista temporal de cuenta piloto,
+   reactivar o ajustar los E2E hoy omitidos por ese gate, reconstruir, probar por rol
+   y desplegar.
+6. **Cerrar compatibilidad legacy.** Tras comprobar que no quedan bundles viejos,
+   revocar el `INSERT` directo de `authenticated` sobre leads y retirar su policy; la
+   RPC atómica queda como única puerta humana.
+7. **Resolver las dos fronteras conscientes.** Decidir si la atomicidad debe abarcar
+   cambios simultáneos de identidad en `public.perfiles`, y si el offboarding debe
+   retirar también `public.crear_contrato`/`public.actualizar_contrato`. Cualquiera de
+   las dos ampliaciones toca la frontera del portal y exige aprobación expresa.
+8. **Cerrar operación y observabilidad.** Activar HIBP, confirmar `net` fuera de
+   Exposed schemas, configurar el DSN de Sentry, ejecutar un replay limpio del esquema
+   y vigilar errores/adopción después del release.
+
+### Backlog posterior — no bloquea el piloto general
+
+- base fría personal/empresa C2, después de acumular descartes y confirmar reposo y
+  motivos repartibles;
+- administración de usuarios y jerarquía desde la interfaz;
+- catálogo configurable de productos y tiempos de atención;
+- flujo completo de postventa, cadencias de renovación/upgrade y exportaciones
+  CSV/PDF;
+- generador PDF de contratos, sujeto al visto bueno legal del texto;
+- guía comercial, correo semanal y bandeja de notificaciones;
+- WhatsApp Cloud API, push/PWA y app nativa.
+
+**Definición de «CRM listo»:** fuente versionada en el remoto correcto + CI verde;
+P-048 en producción; módulo de leads habilitado para los roles aprobados; un ciclo
+punta a punta verificado; rutas legacy retiradas o aceptadas por escrito; observabilidad
+y controles del dashboard confirmados. Las mejoras del backlog no impiden operar el CRM.
+
+Fuentes vivas de detalle: `supabase/migrations/MIGRACIONES.md`,
+`BASE DE CONOCIMINETO/AVANCECORP/Disponibilidad y enfriamiento de leads (P-047 y P-048).md`,
+`BASE DE CONOCIMINETO/AVANCECORP/Offboarding seguro del CRM (P04).md` y
+`BASE DE CONOCIMINETO/AVANCECORP/Cuentas bancarias por contrato.md`.
 
 ---
 
