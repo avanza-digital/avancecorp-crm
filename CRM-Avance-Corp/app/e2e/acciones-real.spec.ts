@@ -46,8 +46,28 @@ test('gate abierto: crear lead persiste (POST real) y el toast NO dice "(demo)"'
 
   await expect(page.getByText(/Lead creado —/i)).toBeVisible()
   await expect(page.getByText('(demo)')).toHaveCount(0)
+  // P-048 revalida inmediatamente antes del INSERT (puede existir además la
+  // consulta de blur, según cuánto tarde el llenado del formulario).
+  await expect.poll(() => estado.llamadas.rpcDisponibilidadLead).toBeGreaterThanOrEqual(1)
   // La mutación SÍ viajó al servidor (aserción reintentante sobre estado async).
   await expect.poll(() => estado.llamadas.insertLead).toBe(1)
+})
+
+test('P-048: un contacto en bolsa queda explicado y no llega al INSERT', async ({ page }) => {
+  const estado = await montarBackendReal(page, {
+    disponibilidadLead: { estado: 'en_bolsa' },
+  })
+  await loginReal(page)
+  await irAPipeline(page)
+
+  await page.getByRole('button', { name: /nuevo lead/i }).click()
+  const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
+  await modal.locator('#nl-telefono').fill('987222333')
+  await modal.locator('#nl-nombre').click() // blur del teléfono → debounce P-048
+
+  await expect(modal.getByRole('alert')).toContainText('bolsa de leads')
+  await expect(modal.getByRole('button', { name: /crear lead/i })).toBeDisabled()
+  expect(estado.llamadas.insertLead).toBe(0)
 })
 
 test('creación rechazada: rollback honesto y el POST sí se intentó', async ({ page }) => {
@@ -63,8 +83,10 @@ test('creación rechazada: rollback honesto y el POST sí se intentó', async ({
   await modal.locator('#nl-origen').selectOption('formulario')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
-  // El insert falló en el servidor → mensaje honesto de restauración.
-  await expect(page.getByText(/No se pudo guardar el cambio.*se restauró el estado anterior/i)).toBeVisible()
+  // El índice único ganó la carrera posterior al precheck: no hay falso éxito.
+  await expect(page.getByRole('alert')).toContainText(
+    'Este contacto acaba de ser registrado por otro usuario',
+  )
   await expect.poll(() => estado.llamadas.insertLead).toBe(1)
 })
 

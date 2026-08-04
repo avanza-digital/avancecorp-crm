@@ -149,6 +149,37 @@ const LeadRowSchema = v.object({
 
 type LeadRow = v.InferOutput<typeof LeadRowSchema>
 
+// P-047 devuelve un JSON discriminado, no una fila tabular. Se valida cada
+// variante completa en la frontera para que un estado nuevo o una respuesta a
+// medias no llegue silenciosamente al formulario de alta de P-048.
+const DisponibilidadLeadSchema = v.variant('estado', [
+  v.strictObject({ estado: v.literal('libre') }),
+  v.strictObject({ estado: v.literal('en_bolsa') }),
+  v.strictObject({
+    estado: v.literal('tomado'),
+    vendedor: v.nullable(v.string()),
+    tenencia_desde: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+  }),
+  v.strictObject({
+    estado: v.literal('enfriamiento'),
+    motivo_descarte: v.picklist(MOTIVOS_DESCARTE.map((motivo) => motivo.k)),
+    disponible_desde: v.pipe(v.string(), v.isoTimestamp()),
+    descartado_por: v.nullable(v.string()),
+  }),
+  v.strictObject({
+    estado: v.literal('ya_es_cliente'),
+    asesor: v.string(),
+  }),
+  v.strictObject({ estado: v.literal('no_contactar') }),
+  v.strictObject({
+    estado: v.literal('error'),
+    detalle: v.literal('telefono_invalido'),
+  }),
+])
+
+export type DisponibilidadLead =
+  Database['crm']['Functions']['verificar_disponibilidad_lead']['Returns']
+
 export interface FiltrosLeads {
   pagina: number
   tamano?: number
@@ -632,6 +663,64 @@ export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<
   return items
 }
 
+/**
+ * Precheck consultivo P-048. No reserva ni inserta el contacto: una carrera se
+ * resuelve después por los índices únicos y el mapeo 23505 de insertarLead.
+ */
+export async function verificarDisponibilidadLead(
+  telefono: string,
+  dni?: string | null,
+  signal?: AbortSignal,
+): Promise<DisponibilidadLead> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('verificar_disponibilidad_lead', {
+    p_telefono: telefono,
+    p_dni: dni ?? null,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error, status } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    // PGRST106 = esquema no expuesto; PGRST202 = función ausente del cache.
+    // No son una caída transitoria de red y el formulario no debe tratarlos
+    // como fail-open: indican que P-048 está mal configurado en ese entorno.
+    if (error.code === 'PGRST106' || error.code === 'PGRST202') {
+      const fallo = new CrmApiError(
+        'La verificación de disponibilidad no está habilitada.',
+        'DISPONIBILIDAD_NO_DISPONIBLE',
+      )
+      registrarError('crm.leads.disponibilidad_no_disponible', fallo, { postgrest: error.code })
+      throw fallo
+    }
+    // postgrest-js representa un fetch fallido con status=0; PGRST000–003 son
+    // indisponibilidad/conexión/pool de PostgREST. Son los únicos fallos del
+    // servidor que P-048 trata como cortesía fail-open. Un HTTP malformado sin
+    // code pero con status real NO se confunde con transporte.
+    if (status === 0 || ['PGRST000', 'PGRST001', 'PGRST002', 'PGRST003'].includes(error.code)) {
+      const fallo = new CrmApiError(
+        'No se pudo contactar el servicio de disponibilidad.',
+        'DISPONIBILIDAD_RED',
+      )
+      registrarError('crm.leads.disponibilidad_red', fallo, { postgrest: error.code || 'sin_codigo' })
+      throw fallo
+    }
+    throw aErrorApi(error, 'crm.leads.disponibilidad_fallida')
+  }
+
+  const resultado = v.safeParse(DisponibilidadLeadSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'La disponibilidad del contacto no tiene el formato esperado.',
+      'DISPONIBILIDAD_CONTRACT',
+    )
+    registrarError('crm.leads.disponibilidad_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
+  return resultado.output
+}
+
 // ── Mutaciones reales (insert/update; RLS + triggers del servidor mandan) ─────
 type LeadInsert = Database['crm']['Tables']['leads']['Insert']
 type LeadUpdate = Database['crm']['Tables']['leads']['Update']
@@ -700,9 +789,29 @@ function aErrorApi(
   return fallo
 }
 
+function aErrorInsertarLead(
+  error: { code?: string | null; message?: string | null; details?: string | null },
+): CrmApiError {
+  const texto = `${error.message ?? ''} ${error.details ?? ''}`
+  const esCarreraDelContacto = error.code === '23505' && (
+    texto.includes('uq_leads_telefono_vivo') || texto.includes('uq_leads_dni_vivo')
+  )
+  if (!esCarreraDelContacto) return aErrorApi(error, 'crm.leads.insert_fallido')
+
+  // El precheck es consultivo: entre su respuesta y el INSERT otro usuario
+  // puede registrar el mismo teléfono/DNI. El índice único es la autoridad y
+  // esta mutación presenta esa carrera con un contrato estable para la UI.
+  const fallo = new CrmApiError(
+    'Este contacto acaba de ser registrado por otro usuario',
+    'CONTACTO_RECIEN_REGISTRADO',
+  )
+  registrarError('crm.leads.insert_fallido', fallo, { pg: '23505' })
+  return fallo
+}
+
 export async function insertarLead(fila: LeadInsert): Promise<void> {
   const { error } = await cliente().schema('crm').from('leads').insert(fila)
-  if (error) throw aErrorApi(error, 'crm.leads.insert_fallido')
+  if (error) throw aErrorInsertarLead(error)
 }
 
 export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<void> {

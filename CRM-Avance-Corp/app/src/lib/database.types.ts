@@ -32,6 +32,19 @@ type OrigenDb =
   | 'campania'
   | 'whatsapp'
 type MotivoDescarteDb = 'sin_interes' | 'sin_fondos' | 'competencia' | 'no_responde' | 'datos_invalidos' | 'pide_credito' | 'otro'
+type DisponibilidadLeadDb =
+  | { estado: 'libre' }
+  | { estado: 'en_bolsa' }
+  | { estado: 'tomado'; vendedor: string | null; tenencia_desde: string | null }
+  | {
+      estado: 'enfriamiento'
+      motivo_descarte: MotivoDescarteDb
+      disponible_desde: string
+      descartado_por: string | null
+    }
+  | { estado: 'ya_es_cliente'; asesor: string }
+  | { estado: 'no_contactar' }
+  | { estado: 'error'; detalle: 'telefono_invalido' }
 // C1-bis: veredicto del clasificador de crédito (trigger en el INSERT, inmutable).
 type ClasificacionAutoDb = 'posible_credito'
 type MonedaDb = 'PEN' | 'USD'
@@ -678,6 +691,13 @@ export interface Database {
           autor_nombre: string
           creado_en: string
         }[]
+      }
+      /** P-047/P-048: consulta previa, sin escritura, para decidir si un
+       *  teléfono o DNI puede entrar como lead. La garantía final ante carreras
+       *  siguen siendo los índices únicos de `crm.leads`. */
+      verificar_disponibilidad_lead: {
+        Args: { p_telefono: string; p_dni?: string | null }
+        Returns: DisponibilidadLeadDb
       }
       // ── Métricas para las gráficas de gerencia (SECURITY DEFINER; el ámbito
       //    lo resuelve el SERVIDOR: gerencia=todo, supervisor=subárbol,

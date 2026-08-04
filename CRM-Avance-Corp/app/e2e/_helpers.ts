@@ -646,8 +646,10 @@ export interface BackendReal {
   fallarProximoPatch: boolean
   /** El próximo PATCH de leads responde 400 con 23505/uq_leads_telefono_vivo. */
   fallarProximoPatchTelefono: boolean
-  /** El próximo POST de leads (insertar) responde 400. */
+  /** El próximo POST de leads pierde la carrera única teléfono/DNI (23505). */
   fallarProximoPostLead: boolean
+  /** Veredicto de crm.verificar_disponibilidad_lead para P-048. */
+  disponibilidadLead: Record<string, unknown>
   /** El próximo POST de actividades responde 400 (nota del descarte, etc.). */
   fallarProximoInsertActividad: boolean
   /** Cualquier GET de leads responde 500 (servidor caído para resync). */
@@ -707,6 +709,7 @@ export interface BackendReal {
   /** Contadores para aserciones. */
   llamadas: {
     insertLead: number
+    rpcDisponibilidadLead: number
     patchLead: number
     insertActividad: number
     getLeads: number
@@ -776,6 +779,7 @@ export async function montarBackendReal(
     fallarProximoPatch: init.fallarProximoPatch ?? false,
     fallarProximoPatchTelefono: init.fallarProximoPatchTelefono ?? false,
     fallarProximoPostLead: init.fallarProximoPostLead ?? false,
+    disponibilidadLead: init.disponibilidadLead ?? { estado: 'libre' },
     fallarProximoInsertActividad: init.fallarProximoInsertActividad ?? false,
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
     clientes: init.clientes ?? [clienteReal()],
@@ -805,7 +809,8 @@ export async function montarBackendReal(
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
-      insertLead: 0, patchLead: 0, insertActividad: 0, getLeads: 0,
+      insertLead: 0, rpcDisponibilidadLead: 0,
+      patchLead: 0, insertActividad: 0, getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcListarCuentasBancarias: 0,
       rpcCrearContrato: 0, rpcActualizarContrato: 0,
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
@@ -1124,6 +1129,10 @@ export async function montarBackendReal(
     // ── cargarReal ──
     if (p === '/rest/v1/rpc/equipo_visible_fn') return json(route, ROSTER)
     if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, [])
+    if (p === '/rest/v1/rpc/verificar_disponibilidad_lead' && method === 'POST') {
+      estado.llamadas.rpcDisponibilidadLead += 1
+      return json(route, estado.disponibilidadLead)
+    }
 
     // ── C1: reparto de la cola global (pantalla del coordinador) ──
     if (p === '/rest/v1/rpc/leads_por_repartir') {
@@ -1325,7 +1334,11 @@ export async function montarBackendReal(
         estado.llamadas.insertLead += 1
         if (estado.fallarProximoPostLead) {
           estado.fallarProximoPostLead = false
-          return json(route, { code: '', message: 'insert rechazado', details: '' }, 400)
+          return json(route, {
+            code: '23505',
+            message: 'duplicate key value violates unique constraint',
+            details: 'uq_leads_telefono_vivo',
+          }, 409)
         }
         // Servidor con estado: la fila insertada aparece en el próximo GET (resync).
         const cuerpo = (req.postDataJSON() ?? {}) as Partial<LeadReal>

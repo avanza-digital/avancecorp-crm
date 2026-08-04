@@ -138,6 +138,26 @@ export interface ResultadoMut {
   campo?: CampoLead
 }
 
+/**
+ * Confirmación asíncrona de una escritura real. El store conserva su contrato
+ * síncrono para validar y aplicar el espejo optimista, pero los flujos que no
+ * pueden anunciar éxito antes del commit (como el alta de un lead) esperan
+ * esta promesa. Nunca rechaza: el error ya sale sanitizado para la interfaz.
+ */
+export interface ResultadoPersistencia {
+  ok: boolean
+  error?: string
+  codigo?: string
+}
+
+/**
+ * Un id de alta solo puede existir acompañado por la confirmación del commit.
+ * El tipo impide que otro provider represente «creado» sin `persistido`.
+ */
+export type ResultadoCrearLead =
+  | (ResultadoMut & { id?: never; persistido?: never })
+  | (ResultadoMut & { id: string; persistido: Promise<ResultadoPersistencia> })
+
 export interface NuevoLeadInput {
   nombre_completo: string
   telefono: string
@@ -295,7 +315,7 @@ export interface StoreDataApi {
    *  contacto real). Se DEVUELVE por la misma razón que `avance` en los otros
    *  tres escritores: mover la etapa en silencio asusta más que ayuda. */
   anularTarea(id: string): ResultadoMut & { retroceso?: EtapaActiva }
-  crearLead(input: NuevoLeadInput): ResultadoMut & { id?: string }
+  crearLead(input: NuevoLeadInput): ResultadoCrearLead
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
   /** `capital` (opcional) viaja EN LA MISMA escritura que la etapa: pasar a
    *  "Propuesta enviada" es el momento de fijar lo que de verdad se propuso, y
@@ -772,19 +792,32 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // verdad del servidor reemplazan el espejo optimista. Si el servidor la
     // rechaza (dedup global, RLS, regla de trigger): toast + rollback.
     //
-    // DEVUELVE la promesa de esa escritura: resuelve `true` cuando el servidor
-    // ya la aceptó y `false` cuando la rechazó (NUNCA rechaza — el error ya se
-    // reporta aquí dentro, así que ignorar el retorno es seguro y sigue siendo
-    // el uso normal). Existe para ENCADENAR dos escrituras cuyo orden EN EL
-    // SERVIDOR no es negociable: sin ella salían en el mismo tick y llegaban en
-    // orden indeterminado. Resuelve al confirmar la escritura, NO al terminar
-    // el resync: el resync sigue siendo fire-and-forget (esperar a releer todo
-    // el ámbito solo añadiría latencia a la escritura encadenada).
-    // En demo no hay servidor que ordenar: resuelve `true` de inmediato.
-    const persistir = (op: () => Promise<void>): Promise<boolean> => {
-      if (!realActivo) return Promise.resolve(true)
-      return op().then(
-        () => { void resincronizarReal(); return true },
+    // `persistirConDetalle` NUNCA rechaza: resuelve el resultado sanitizado al
+    // confirmar la escritura, no al terminar el resync. `persistir` conserva
+    // el contrato booleano histórico para los flujos que solo necesitan
+    // encadenar operaciones. En demo ambas variantes resuelven de inmediato.
+    const persistirConDetalle = (
+      op: () => Promise<void>,
+      {
+        notificarError = true,
+        revertirOptimista,
+      }: {
+        notificarError?: boolean
+        revertirOptimista?: () => void
+      } = {},
+    ): Promise<ResultadoPersistencia> => {
+      if (!realActivo) return Promise.resolve({ ok: true })
+      // La operación se inicia en este mismo tick (contrato histórico del
+      // store), pero una excepción síncrona también se convierte en rechazo:
+      // ninguna mutación debe escapar como unhandled error.
+      let escritura: Promise<void>
+      try {
+        escritura = op()
+      } catch (causa: unknown) {
+        escritura = Promise.reject(causa)
+      }
+      return escritura.then(
+        () => { void resincronizarReal(); return { ok: true } },
         (causa: unknown) => {
           // Variante LOCAL de mensajeDeError (crm-api): además excluye
           // POSTGREST_ERROR — ese mensaje genérico es de LECTURA ("No se pudo
@@ -792,21 +825,29 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           const mensaje = causa instanceof CrmApiError && causa.code !== 'POSTGREST_ERROR'
             ? causa.message
             : 'No se pudo guardar el cambio'
+          const codigo = causa instanceof CrmApiError ? causa.code : undefined
           registrarError('crm.mutacion_revertida', causa)
+          // El rollback local inmediato evita que un alta rechazada quede
+          // visible como un lead fantasma mientras termina la recarga global.
+          revertirOptimista?.()
           // El toast NO puede prometer "se restauró" a ciegas: si el resync de
           // rollback también falla (sin conexión), el espejo optimista sigue
           // pintado. Solo se afirma la restauración cuando de verdad se aplicó.
           void resincronizarReal().then((restaurado) => {
+            if (!notificarError) return
             toast.error(
               restaurado
                 ? `${mensaje} — se restauró el estado anterior`
                 : `${mensaje}. Sin conexión con el servidor: recarga la página para ver el estado real.`,
             )
           })
-          return false
+          return { ok: false, error: mensaje, ...(codigo ? { codigo } : {}) }
         },
       )
     }
+
+    const persistir = (op: () => Promise<void>): Promise<boolean> =>
+      persistirConDetalle(op).then((resultado) => resultado.ok)
 
     return {
       leads: datos.leads,
@@ -1263,7 +1304,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         setDatos((d) => ({ ...d, leads: [lead, ...d.leads] }))
         // El id viaja al servidor (si es UUID) para que el optimista y la fila
         // real sean LA MISMA identidad — un drawer abierto sobrevive al resync.
-        persistir(() => insertarLead({
+        const persistido = persistirConDetalle(() => insertarLead({
           ...(UUID_RE.test(id) ? { id } : {}),
           nombre_completo: nombre,
           telefono,
@@ -1281,8 +1322,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
           nota: lead.nota ?? null,
           creado_por: miId,
-        }))
-        return { ok: true, id }
+        }), {
+          notificarError: false,
+          revertirOptimista: () => {
+            setDatos((d) => ({ ...d, leads: d.leads.filter((item) => item.id !== id) }))
+          },
+        })
+        return { ok: true, id, persistido }
       },
 
       editarLead: (id, cambios) => {

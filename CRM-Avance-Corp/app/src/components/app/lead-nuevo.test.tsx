@@ -1,6 +1,7 @@
-import { describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { CrmApiError, verificarDisponibilidadLead } from '@/data/crm-api'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import {
   PanelActionsContext,
@@ -14,6 +15,13 @@ import { LeadNuevo } from './lead-nuevo'
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
+
+vi.mock('@/data/crm-api', async (importActual) => {
+  const actual = await importActual<typeof import('@/data/crm-api')>()
+  return { ...actual, verificarDisponibilidadLead: vi.fn() }
+})
+
+const verificarDisponibilidad = vi.mocked(verificarDisponibilidadLead)
 
 const SESION: AuthContextValue = {
   fase: 'listo',
@@ -31,14 +39,23 @@ const SESION: AuthContextValue = {
   salir: async () => undefined,
 }
 
-function montar() {
-  const crearLead = vi.fn<StoreDataApi['crearLead']>((input) => {
+function montar({
+  demo = true,
+  crearLeadImpl,
+}: {
+  demo?: boolean
+  crearLeadImpl?: StoreDataApi['crearLead']
+} = {}) {
+  const implementacionPorDefecto: StoreDataApi['crearLead'] = (input) => {
     const validacion = validarCamposLead({
       monto_estimado: input.monto_estimado,
       moneda: input.moneda,
     })
-    return validacion.ok ? { ok: true, id: 'lead-nuevo-1' } : validacion
-  })
+    return validacion.ok
+      ? { ok: true, id: 'lead-nuevo-1', persistido: Promise.resolve({ ok: true }) }
+      : validacion
+  }
+  const crearLead = vi.fn<StoreDataApi['crearLead']>(crearLeadImpl ?? implementacionPorDefecto)
   const api = {
     ambito: { leads: [], vendedores: [], esGlobal: false },
     crearLead,
@@ -50,7 +67,10 @@ function montar() {
   }
 
   render(
-    <AuthContext.Provider value={SESION}>
+    <AuthContext.Provider value={{
+      ...SESION,
+      yo: SESION.yo ? { ...SESION.yo, demo } : null,
+    }}>
       <StoreDataContext.Provider value={api}>
         <PanelStateContext.Provider
           value={{ leadAbiertoId: null, nuevoLeadAbierto: true, etapaInicial: 'nuevo' }}
@@ -65,6 +85,32 @@ function montar() {
 
   return { crearLead, actions }
 }
+
+function completarBaseReal() {
+  fireEvent.change(screen.getByLabelText('Nombre completo *'), {
+    target: { value: 'ANA NUEVO LEAD' },
+  })
+  fireEvent.change(screen.getByLabelText('Teléfono *'), {
+    target: { value: '987654321' },
+  })
+  fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'landing' } })
+  fireEvent.change(screen.getByLabelText('Capital estimado *'), { target: { value: '5000' } })
+}
+
+function diferida<T>() {
+  let resolver!: (valor: T) => void
+  const promesa = new Promise<T>((resolve) => { resolver = resolve })
+  return { promesa, resolver }
+}
+
+beforeEach(() => {
+  vi.clearAllMocks()
+  verificarDisponibilidad.mockResolvedValue({ estado: 'libre' })
+})
+
+afterEach(() => {
+  vi.useRealTimers()
+})
 
 async function completarBase(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Nombre completo *'), 'ANA NUEVO LEAD')
@@ -158,5 +204,246 @@ describe('LeadNuevo — género y fecha de nacimiento', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent(/al menos 18 años/i)
     expect(crearLead).not.toHaveBeenCalled()
+  })
+})
+
+describe('LeadNuevo — disponibilidad P-048', () => {
+  it('consulta el teléfono al perder foco después de 400 ms, no antes', async () => {
+    vi.useFakeTimers()
+    montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+
+    fireEvent.change(telefono, { target: { value: '+51 987 654 321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(399) })
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(1) })
+    expect(verificarDisponibilidad).toHaveBeenCalledWith(
+      '+51 987 654 321',
+      null,
+      expect.anything(),
+    )
+  })
+
+  it('consulta nuevamente cuando el DNI llega a 8 dígitos', async () => {
+    vi.useFakeTimers()
+    montar({ demo: false })
+    fireEvent.change(screen.getByLabelText('Teléfono *'), { target: { value: '987654321' } })
+    const dni = screen.getByLabelText('DNI')
+
+    fireEvent.change(dni, { target: { value: '1234567' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+
+    fireEvent.change(dni, { target: { value: '12345678' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(verificarDisponibilidad).toHaveBeenCalledWith(
+      '987654321',
+      '12345678',
+      expect.anything(),
+    )
+  })
+
+  it('ignora una respuesta antigua que llega después de la consulta vigente', async () => {
+    vi.useFakeTimers()
+    const primera = diferida<Awaited<ReturnType<typeof verificarDisponibilidadLead>>>()
+    const segunda = diferida<Awaited<ReturnType<typeof verificarDisponibilidadLead>>>()
+    verificarDisponibilidad
+      .mockReturnValueOnce(primera.promesa)
+      .mockReturnValueOnce(segunda.promesa)
+    montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    fireEvent.change(telefono, { target: { value: '976543210' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    await act(async () => { segunda.resolver({ estado: 'libre' }) })
+    await act(async () => {
+      primera.resolver({ estado: 'tomado', vendedor: 'OTRO VENDEDOR', tenencia_desde: null })
+    })
+
+    expect(screen.queryByText(/OTRO VENDEDOR/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeEnabled()
+  })
+
+  it('un estado de negocio bloquea el alta y explica el motivo', async () => {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue({ estado: 'en_bolsa' })
+    const { crearLead } = montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(screen.getByRole('alert')).toHaveTextContent(/bolsa de leads/i)
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
+    expect(crearLead).not.toHaveBeenCalled()
+  })
+
+  it('una caída de red deja continuar y el submit revalida sin debounce', async () => {
+    verificarDisponibilidad.mockRejectedValue(new CrmApiError(
+      'No se pudo contactar el servicio de disponibilidad.',
+      'DISPONIBILIDAD_RED',
+    ))
+    const { crearLead, actions } = montar({ demo: false })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(verificarDisponibilidad).toHaveBeenCalledTimes(1)
+    expect(crearLead).not.toHaveBeenCalled()
+    await waitFor(() => expect(crearLead).toHaveBeenCalledTimes(1))
+    expect(screen.getByRole('status')).toHaveTextContent(/puedes continuar/i)
+    expect(actions.abrirLead).toHaveBeenCalledWith('lead-nuevo-1')
+  })
+
+  it.each([
+    'DISPONIBILIDAD_CONTRACT',
+    'DISPONIBILIDAD_NO_DISPONIBLE',
+    'POSTGREST_ERROR',
+    'REGLA_SERVIDOR',
+    'SIN_PERMISO',
+    'SUPABASE_NOT_CONFIGURED',
+  ])('un fallo estructural %s bloquea el alta', async (codigo) => {
+    verificarDisponibilidad.mockRejectedValue(new CrmApiError('detalle interno', codigo))
+    const { crearLead } = montar({ demo: false })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      codigo === 'SIN_PERMISO' ? /no tienes permiso/i : /no está habilitada/i,
+    )
+    expect(screen.queryByText('detalle interno')).not.toBeInTheDocument()
+    expect(crearLead).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
+  })
+
+  it('un TypeError inesperado fuera del transporte tipado bloquea por defecto', async () => {
+    verificarDisponibilidad.mockRejectedValue(new TypeError('bug local'))
+    const { crearLead } = montar({ demo: false })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/no está habilitada/i)
+    expect(crearLead).not.toHaveBeenCalled()
+  })
+
+  it('espera la revalidación inmediata antes de invocar crearLead', async () => {
+    const user = userEvent.setup()
+    const veredicto = diferida<Awaited<ReturnType<typeof verificarDisponibilidadLead>>>()
+    verificarDisponibilidad.mockReturnValueOnce(veredicto.promesa)
+    const { crearLead } = montar({ demo: false })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    expect(verificarDisponibilidad).toHaveBeenCalledTimes(1)
+    expect(crearLead).not.toHaveBeenCalled()
+    const nombre = screen.getByLabelText('Nombre completo *')
+    expect(nombre).toBeDisabled()
+    await user.type(nombre, ' CAMBIADO DURANTE EL ENVÍO')
+    expect(nombre).toHaveValue('ANA NUEVO LEAD')
+
+    await act(async () => { veredicto.resolver({ estado: 'libre' }) })
+    await waitFor(() => expect(crearLead).toHaveBeenCalledTimes(1))
+    expect(crearLead).toHaveBeenCalledWith(
+      expect.objectContaining({ nombre_completo: 'ANA NUEVO LEAD' }),
+    )
+  })
+
+  it('bloquea si el contacto deja de estar libre en la revalidación final', async () => {
+    verificarDisponibilidad.mockResolvedValueOnce({ estado: 'en_bolsa' })
+    const { crearLead } = montar({ demo: false })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/bolsa de leads/i)
+    expect(crearLead).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
+  })
+
+  it('un timeout del precheck también falla abierto y permite guardar', async () => {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockImplementation((_telefono, _dni, signal) =>
+      new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('Timeout', 'AbortError'))
+        }, { once: true })
+      }),
+    )
+    const { crearLead } = montar({ demo: false })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    expect(crearLead).not.toHaveBeenCalled()
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(5_000) })
+
+    expect(crearLead).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('status')).toHaveTextContent(/puedes continuar/i)
+  })
+
+  it('muestra la carrera 23505 exacta y no abre un lead que no se guardó', async () => {
+    const mensaje = 'Este contacto acaba de ser registrado por otro usuario'
+    const { actions } = montar({
+      demo: false,
+      crearLeadImpl: () => ({
+        ok: true,
+        id: 'lead-optimista',
+        persistido: Promise.resolve({
+          ok: false,
+          error: mensaje,
+          codigo: 'CONTACTO_RECIEN_REGISTRADO',
+        }),
+      }),
+    })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(mensaje)
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+  })
+
+  it('no permite cerrar el modal mientras el INSERT está pendiente', async () => {
+    const confirmacion = diferida<{ ok: boolean }>()
+    const { actions } = montar({
+      demo: false,
+      crearLeadImpl: () => ({
+        ok: true,
+        id: 'lead-pendiente',
+        persistido: confirmacion.promesa,
+      }),
+    })
+    completarBaseReal()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Crear lead' }))
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled())
+
+    fireEvent.click(screen.getByRole('button', { name: 'Cancelar' }))
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' })
+    expect(actions.cerrarPaneles).not.toHaveBeenCalled()
+
+    await act(async () => { confirmacion.resolver({ ok: true }) })
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('lead-pendiente'))
+  })
+
+  it('en demo no consulta Supabase', async () => {
+    const user = userEvent.setup()
+    montar()
+    await completarBase(user)
+    await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
   })
 })

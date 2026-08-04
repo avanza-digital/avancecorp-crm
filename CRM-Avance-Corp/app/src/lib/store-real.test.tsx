@@ -222,7 +222,39 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(insertarLead).toHaveBeenCalledWith(
       expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }),
     )
+    await expect(res.persistido).resolves.toEqual({ ok: true })
     await waitFor(() => expect(listarLeads).toHaveBeenCalled()) // resync
+  })
+
+  it('crearLead expone el rechazo sanitizado del INSERT para no anunciar un falso éxito', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockRejectedValueOnce(new CrmApiError(
+      'Este contacto acaba de ser registrado por otro usuario',
+      'CONTACTO_RECIEN_REGISTRADO',
+    ))
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'CARRERA DE ALTA',
+        telefono: '987654324',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toEqual({
+      ok: false,
+      error: 'Este contacto acaba de ser registrado por otro usuario',
+      codigo: 'CONTACTO_RECIEN_REGISTRADO',
+    })
+    await waitFor(() => {
+      expect(api().leads.some((lead) => lead.nombre_completo === 'CARRERA DE ALTA')).toBe(false)
+    })
+    expect(toast.error).not.toHaveBeenCalled()
   })
 
   it('género y fecha de nacimiento llegan al INSERT (si no, el avatar nunca tiene silueta)', async () => {
