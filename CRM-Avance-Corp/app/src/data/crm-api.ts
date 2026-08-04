@@ -59,6 +59,15 @@ import {
   type MetricasAgenda,
 } from '@/lib/metricas-agenda'
 import { FilaObjetivoSchema, type FilaObjetivo } from '@/lib/objetivos'
+import {
+  DisponibilidadLeadSchema,
+  ResultadoCreacionLeadAtomicaSchema,
+  presentarDisponibilidadLead,
+  type DisponibilidadLead,
+  type ResultadoCreacionLeadAtomica,
+} from '@/lib/disponibilidad-lead'
+
+export type { DisponibilidadLead, ResultadoCreacionLeadAtomica } from '@/lib/disponibilidad-lead'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -148,37 +157,6 @@ const LeadRowSchema = v.object({
 })
 
 type LeadRow = v.InferOutput<typeof LeadRowSchema>
-
-// P-047 devuelve un JSON discriminado, no una fila tabular. Se valida cada
-// variante completa en la frontera para que un estado nuevo o una respuesta a
-// medias no llegue silenciosamente al formulario de alta de P-048.
-const DisponibilidadLeadSchema = v.variant('estado', [
-  v.strictObject({ estado: v.literal('libre') }),
-  v.strictObject({ estado: v.literal('en_bolsa') }),
-  v.strictObject({
-    estado: v.literal('tomado'),
-    vendedor: v.nullable(v.string()),
-    tenencia_desde: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
-  }),
-  v.strictObject({
-    estado: v.literal('enfriamiento'),
-    motivo_descarte: v.picklist(MOTIVOS_DESCARTE.map((motivo) => motivo.k)),
-    disponible_desde: v.pipe(v.string(), v.isoTimestamp()),
-    descartado_por: v.nullable(v.string()),
-  }),
-  v.strictObject({
-    estado: v.literal('ya_es_cliente'),
-    asesor: v.string(),
-  }),
-  v.strictObject({ estado: v.literal('no_contactar') }),
-  v.strictObject({
-    estado: v.literal('error'),
-    detalle: v.literal('telefono_invalido'),
-  }),
-])
-
-export type DisponibilidadLead =
-  Database['crm']['Functions']['verificar_disponibilidad_lead']['Returns']
 
 export interface FiltrosLeads {
   pagina: number
@@ -665,7 +643,8 @@ export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<
 
 /**
  * Precheck consultivo P-048. No reserva ni inserta el contacto: una carrera se
- * resuelve después por los índices únicos y el mapeo 23505 de insertarLead.
+ * resuelve después dentro de crear_lead_si_disponible; los índices únicos son
+ * solo la última defensa frente a escritores externos al protocolo.
  */
 export async function verificarDisponibilidadLead(
   telefono: string,
@@ -722,8 +701,28 @@ export async function verificarDisponibilidadLead(
 }
 
 // ── Mutaciones reales (insert/update; RLS + triggers del servidor mandan) ─────
-type LeadInsert = Database['crm']['Tables']['leads']['Insert']
 type LeadUpdate = Database['crm']['Tables']['leads']['Update']
+type CrearLeadArgs = Database['crm']['Functions']['crear_lead_si_disponible']['Args']
+
+/** DTO de la única vía de alta. Omite a propósito campos gobernados por el
+ * servidor (`creado_por`, `asignado_supervisor_id`, flags legales y sellos). */
+export interface CrearLeadAtomicoInput {
+  id?: NonNullable<CrearLeadArgs['p_id']>
+  nombre_completo: CrearLeadArgs['p_nombre_completo']
+  telefono: CrearLeadArgs['p_telefono']
+  correo?: CrearLeadArgs['p_correo']
+  dni?: CrearLeadArgs['p_dni']
+  genero?: CrearLeadArgs['p_genero']
+  fecha_nacimiento?: CrearLeadArgs['p_fecha_nacimiento']
+  distrito?: CrearLeadArgs['p_distrito']
+  origen: CrearLeadArgs['p_origen']
+  etapa?: CrearLeadArgs['p_etapa']
+  monto_estimado: CrearLeadArgs['p_monto_estimado']
+  moneda: CrearLeadArgs['p_moneda']
+  categoria_interes?: CrearLeadArgs['p_categoria_interes']
+  vendedor_id?: CrearLeadArgs['p_vendedor_id']
+  nota?: CrearLeadArgs['p_nota']
+}
 type ActividadInsert = Database['crm']['Tables']['actividades']['Insert']
 
 /**
@@ -778,6 +777,9 @@ function aErrorApi(
     // Carrera bajo aislamiento serializable (defensivo: el default es READ COMMITTED).
     code = 'REINTENTAR'
     mensaje = 'El lead se estaba repartiendo en simultáneo. Vuelve a intentarlo.'
+  } else if (codigoPg === 'P0481') {
+    code = 'CONTACTO_NO_DISPONIBLE'
+    mensaje = 'Ese teléfono o DNI no está disponible para este lead.'
   } else if (codigoPg === 'P0001' || codigoPg === '22023') {
     // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
     // 22023 = validaciones de parámetros de las RPC (fijar_objetivos, capacidad).
@@ -792,15 +794,41 @@ function aErrorApi(
 function aErrorInsertarLead(
   error: { code?: string | null; message?: string | null; details?: string | null },
 ): CrmApiError {
+  if (error.code === '55P03' || error.code === '40P01') {
+    const fallo = new CrmApiError(
+      'Otro usuario está procesando este contacto. Inténtalo nuevamente.',
+      'CONTACTO_EN_PROCESO',
+    )
+    registrarError('crm.leads.creacion_atomica_en_espera', fallo, { pg: error.code })
+    return fallo
+  }
+
+  if (error.code === 'P0481') {
+    try {
+      const detalle: unknown = JSON.parse(error.details ?? '')
+      const resultado = v.safeParse(DisponibilidadLeadSchema, detalle)
+      if (resultado.success) {
+        const presentacion = presentarDisponibilidadLead(resultado.output)
+        const fallo = new CrmApiError(
+          presentacion.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
+          'CONTACTO_NO_DISPONIBLE',
+        )
+        registrarError('crm.leads.creacion_atomica_bloqueada', fallo, { estado: resultado.output.estado })
+        return fallo
+      }
+    } catch {
+      // Un DETAIL roto no se refleja ni se registra: cae al error genérico.
+    }
+  }
+
   const texto = `${error.message ?? ''} ${error.details ?? ''}`
   const esCarreraDelContacto = error.code === '23505' && (
     texto.includes('uq_leads_telefono_vivo') || texto.includes('uq_leads_dni_vivo')
   )
   if (!esCarreraDelContacto) return aErrorApi(error, 'crm.leads.insert_fallido')
 
-  // El precheck es consultivo: entre su respuesta y el INSERT otro usuario
-  // puede registrar el mismo teléfono/DNI. El índice único es la autoridad y
-  // esta mutación presenta esa carrera con un contrato estable para la UI.
+  // La RPC es la autoridad. El índice único queda como última defensa ante un
+  // escritor que todavía no comparta el protocolo de candados.
   const fallo = new CrmApiError(
     'Este contacto acaba de ser registrado por otro usuario',
     'CONTACTO_RECIEN_REGISTRADO',
@@ -809,9 +837,36 @@ function aErrorInsertarLead(
   return fallo
 }
 
-export async function insertarLead(fila: LeadInsert): Promise<void> {
-  const { error } = await cliente().schema('crm').from('leads').insert(fila)
+export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<ResultadoCreacionLeadAtomica> {
+  const { data, error } = await cliente().schema('crm').rpc('crear_lead_si_disponible', {
+    p_nombre_completo: fila.nombre_completo,
+    p_telefono: fila.telefono,
+    p_origen: fila.origen,
+    p_monto_estimado: fila.monto_estimado,
+    p_moneda: fila.moneda,
+    p_id: fila.id ?? null,
+    p_correo: fila.correo ?? null,
+    p_dni: fila.dni ?? null,
+    p_genero: fila.genero ?? null,
+    p_fecha_nacimiento: fila.fecha_nacimiento ?? null,
+    p_distrito: fila.distrito ?? null,
+    p_etapa: fila.etapa ?? 'nuevo',
+    p_categoria_interes: fila.categoria_interes ?? null,
+    p_vendedor_id: fila.vendedor_id ?? null,
+    p_nota: fila.nota ?? null,
+  })
   if (error) throw aErrorInsertarLead(error)
+
+  const resultado = v.safeParse(ResultadoCreacionLeadAtomicaSchema, data)
+  if (!resultado.success || resultado.output.estado === 'libre') {
+    const fallo = new CrmApiError(
+      'El servidor no confirmó la creación del lead.',
+      'CREACION_LEAD_CONTRACT',
+    )
+    registrarError('crm.leads.creacion_atomica_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
 }
 
 export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<void> {

@@ -1,7 +1,7 @@
 // Modal de alta de lead (F1b) — se monta UNA vez en App.tsx y se abre con
 // usePanelesActions().abrirNuevoLead(etapa?). En demo trabaja solo en memoria;
-// en una sesión real consulta la disponibilidad y espera el INSERT confirmado
-// por Supabase antes de anunciar éxito. Doble defensa de escritura: este
+// en una sesión real consulta la disponibilidad y espera la RPC transaccional
+// confirmada por Supabase antes de anunciar éxito. Doble defensa de escritura: este
 // componente ni se renderiza para roles de solo lectura (directorio) y el
 // store re-valida cada mutación por su cuenta. El formulario vive DENTRO del
 // Dialog (que desmonta al cerrar), así que se resetea solo al reabrirse.
@@ -218,8 +218,7 @@ function FormularioNuevoLead({
   /**
    * Ejecuta el precheck. `null` significa que otra edición invalidó esta
    * respuesta; una caída operativa, en cambio, devuelve el estado degradado y
-   * deja continuar porque la restricción única del INSERT sigue siendo el
-   * árbitro final.
+   * deja continuar porque la RPC transaccional sigue siendo la autoridad final.
    */
   const consultarDisponibilidad = useCallback(async (
     telefonoConsulta: string,
@@ -346,8 +345,8 @@ function FormularioNuevoLead({
     setEnviando(true)
     onEnviandoChange(true)
     try {
-      // P-048: aunque el blur ya haya consultado, se revalida SIN debounce en
-      // el último instante previo al INSERT para cerrar la ventana de carrera.
+      // P-048: se revalida SIN debounce para dar feedback temprano. Esta lectura
+      // sigue siendo UX; crear_lead_si_disponible cierra la carrera al guardar.
       if (!yo?.demo) {
         const vigente = await consultarDisponibilidad(telefono, dni)
         if (!vigente || vigente.bloquea) return

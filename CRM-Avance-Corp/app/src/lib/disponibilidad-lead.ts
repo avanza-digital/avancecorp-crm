@@ -1,5 +1,45 @@
-import type { DisponibilidadLead } from '@/data/crm-api'
+import * as v from 'valibot'
+import type { Database } from './database.types'
 import { MOTIVOS_DESCARTE, type MotivoDescarte } from './tipos'
+
+const MOTIVOS_DISPONIBILIDAD = MOTIVOS_DESCARTE.map((motivo) => motivo.k)
+
+/** Contrato estricto de P-047. Vive junto a su presentación para que consulta
+ * y creación atómica compartan una sola frontera runtime, sin ciclos con API. */
+export const DisponibilidadLeadSchema = v.variant('estado', [
+  v.strictObject({ estado: v.literal('libre') }),
+  v.strictObject({ estado: v.literal('en_bolsa') }),
+  v.strictObject({
+    estado: v.literal('tomado'),
+    vendedor: v.nullable(v.string()),
+    tenencia_desde: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+  }),
+  v.strictObject({
+    estado: v.literal('enfriamiento'),
+    motivo_descarte: v.picklist(MOTIVOS_DISPONIBILIDAD),
+    disponible_desde: v.pipe(v.string(), v.isoTimestamp()),
+    descartado_por: v.nullable(v.string()),
+  }),
+  v.strictObject({ estado: v.literal('ya_es_cliente'), asesor: v.string() }),
+  v.strictObject({ estado: v.literal('no_contactar') }),
+  v.strictObject({ estado: v.literal('error'), detalle: v.literal('telefono_invalido') }),
+])
+
+export type DisponibilidadLead =
+  Database['crm']['Functions']['verificar_disponibilidad_lead']['Returns']
+
+/** Respuesta de la mutación: o confirma la identidad creada, o devuelve el
+ * mismo veredicto bloqueante de P-047. Nunca existe «libre sin insertar». */
+export const ResultadoCreacionLeadAtomicaSchema = v.union([
+  v.strictObject({
+    estado: v.literal('creado'),
+    lead_id: v.pipe(v.string(), v.uuid()),
+  }),
+  DisponibilidadLeadSchema,
+])
+
+export type ResultadoCreacionLeadAtomica =
+  Database['crm']['Functions']['crear_lead_si_disponible']['Returns']
 
 /**
  * Único estado que la UI necesita conservar después del precheck P-047.

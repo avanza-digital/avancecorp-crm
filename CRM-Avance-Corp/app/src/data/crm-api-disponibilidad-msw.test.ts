@@ -1,7 +1,7 @@
 // @vitest-environment node
 // P-048 contra el cliente supabase-js real y una Data API simulada: fija la
-// ruta RPC, el schema crm, los siete estados, el AbortSignal y la carrera 23505
-// del INSERT sin tocar producción.
+// ruta RPC, el schema crm, los siete estados, el AbortSignal y el contrato de
+// la creación atómica sin tocar producción.
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import { delay, http, HttpResponse } from 'msw'
 import { setupServer } from 'msw/node'
@@ -13,6 +13,7 @@ vi.mock('@/lib/supabase', async () => {
 
 import {
   CrmApiError,
+  actualizarLead,
   insertarLead,
   verificarDisponibilidadLead,
   type DisponibilidadLead,
@@ -20,7 +21,17 @@ import {
 
 const RUTA_DISPONIBILIDAD =
   'http://supabase.test/rest/v1/rpc/verificar_disponibilidad_lead'
-const RUTA_LEADS = 'http://supabase.test/rest/v1/leads'
+const RUTA_CREACION =
+  'http://supabase.test/rest/v1/rpc/crear_lead_si_disponible'
+
+const ALTA = {
+  id: '5c073c2a-f22a-4979-8ea4-8921f746ef22',
+  nombre_completo: 'CONTACTO ATÓMICO',
+  telefono: '+51987654321',
+  origen: 'formulario' as const,
+  monto_estimado: 10_000,
+  moneda: 'PEN' as const,
+}
 
 const server = setupServer()
 
@@ -210,12 +221,105 @@ describe('verificarDisponibilidadLead (MSW)', () => {
   })
 })
 
-describe('insertarLead: carrera posterior al precheck', () => {
+describe('insertarLead: RPC atómica', () => {
+  it('envía solo el DTO permitido y acepta la confirmación estricta del mismo id', async () => {
+    server.use(
+      http.post(RUTA_CREACION, async ({ request }) => {
+        expect(request.headers.get('content-profile')).toBe('crm')
+        expect(await request.json()).toEqual({
+          p_nombre_completo: ALTA.nombre_completo,
+          p_telefono: ALTA.telefono,
+          p_origen: 'formulario',
+          p_monto_estimado: 10_000,
+          p_moneda: 'PEN',
+          p_id: ALTA.id,
+          p_correo: null,
+          p_dni: null,
+          p_genero: null,
+          p_fecha_nacimiento: null,
+          p_distrito: null,
+          p_etapa: 'nuevo',
+          p_categoria_interes: null,
+          p_vendedor_id: null,
+          p_nota: null,
+        })
+        return HttpResponse.json({ estado: 'creado', lead_id: ALTA.id })
+      }),
+    )
+
+    await expect(insertarLead(ALTA)).resolves.toEqual({
+      estado: 'creado',
+      lead_id: ALTA.id,
+    })
+  })
+
+  it.each(RESPUESTAS_VALIDAS.filter(([, respuesta]) => respuesta.estado !== 'libre'))(
+    'conserva el veredicto bloqueante %s devuelto dentro de la transacción',
+    async (_nombre, respuesta) => {
+      server.use(http.post(RUTA_CREACION, () => HttpResponse.json(respuesta)))
+      await expect(insertarLead(ALTA)).resolves.toEqual(respuesta)
+    },
+  )
+
+  it.each([
+    ['libre sin INSERT', { estado: 'libre' }],
+    ['id ausente', { estado: 'creado' }],
+    ['id no UUID', { estado: 'creado', lead_id: 'lead-1' }],
+    ['campo extra', { estado: 'creado', lead_id: ALTA.id, creado_por: 'oculto' }],
+  ])('rechaza una confirmación fuera de contrato: %s', async (_nombre, respuesta) => {
+    server.use(http.post(RUTA_CREACION, () => HttpResponse.json(respuesta)))
+
+    await expect(insertarLead(ALTA)).rejects.toMatchObject({
+      code: 'CREACION_LEAD_CONTRACT',
+      message: 'El servidor no confirmó la creación del lead.',
+    })
+  })
+
+  it('mapea el bloqueo defensivo P0481 del trigger sin volcar el JSON crudo', async () => {
+    server.use(
+      http.post(RUTA_CREACION, () =>
+        HttpResponse.json(
+          {
+            code: 'P0481',
+            message: 'Contacto no disponible',
+            details: JSON.stringify({ estado: 'no_contactar' }),
+            hint: null,
+          },
+          { status: 409 },
+        ),
+      ),
+    )
+
+    await expect(insertarLead(ALTA)).rejects.toMatchObject({
+      code: 'CONTACTO_NO_DISPONIBLE',
+      message: 'Este contacto está marcado como «No contactar» y no se puede registrar nuevamente.',
+    })
+  })
+
+  it.each(['55P03', '40P01'])(
+    'convierte %s en una instrucción estable de reintento',
+    async (code) => {
+      server.use(
+        http.post(RUTA_CREACION, () =>
+          HttpResponse.json(
+            { code, message: 'detalle interno', details: null, hint: null },
+            { status: 409 },
+          ),
+        ),
+      )
+
+      await expect(insertarLead(ALTA)).rejects.toMatchObject({
+        code: 'CONTACTO_EN_PROCESO',
+        message: 'Otro usuario está procesando este contacto. Inténtalo nuevamente.',
+      })
+    },
+  )
+
   it.each(['uq_leads_telefono_vivo', 'uq_leads_dni_vivo'])(
-    'mapea la carrera de %s al mensaje exacto de P-048',
+    'mantiene la defensa 23505 de %s ante un escritor externo',
     async (constraint) => {
       server.use(
-        http.post(RUTA_LEADS, () =>
+        http.post(RUTA_CREACION, () =>
           HttpResponse.json(
             {
               code: '23505',
@@ -229,11 +333,7 @@ describe('insertarLead: carrera posterior al precheck', () => {
       )
 
       await expect(
-        insertarLead({
-          nombre_completo: 'CONTACTO EN CARRERA',
-          telefono: '+51987654321',
-          monto_estimado: 10_000,
-        }),
+        insertarLead(ALTA),
       ).rejects.toMatchObject({
         code: 'CONTACTO_RECIEN_REGISTRADO',
         message: 'Este contacto acaba de ser registrado por otro usuario',
@@ -243,7 +343,7 @@ describe('insertarLead: carrera posterior al precheck', () => {
 
   it('no disfraza como carrera de contacto un 23505 de otra restricción', async () => {
     server.use(
-      http.post(RUTA_LEADS, () =>
+      http.post(RUTA_CREACION, () =>
         HttpResponse.json(
           {
             code: '23505',
@@ -257,14 +357,35 @@ describe('insertarLead: carrera posterior al precheck', () => {
     )
 
     await expect(
-      insertarLead({
-        nombre_completo: 'COLISIÓN DE ID',
-        telefono: '+51987654321',
-        monto_estimado: 10_000,
-      }),
+      insertarLead(ALTA),
     ).rejects.toMatchObject({
       code: 'POSTGREST_ERROR',
       message: 'No se pudo guardar el cambio.',
+    })
+  })
+})
+
+describe('actualizarLead: identidad protegida por P-048', () => {
+  it('mapea el veto P0481 sin revelar el veredicto global del contacto', async () => {
+    server.use(
+      http.patch('http://supabase.test/rest/v1/leads', () =>
+        HttpResponse.json(
+          {
+            code: 'P0481',
+            message: 'Contacto no disponible',
+            details: JSON.stringify({ estado: 'ya_es_cliente', asesor: 'OCULTO' }),
+            hint: null,
+          },
+          { status: 409 },
+        ),
+      ),
+    )
+
+    await expect(
+      actualizarLead(ALTA.id, { telefono: '+51911111111' }),
+    ).rejects.toMatchObject({
+      code: 'CONTACTO_NO_DISPONIBLE',
+      message: 'Ese teléfono o DNI no está disponible para este lead.',
     })
   })
 })

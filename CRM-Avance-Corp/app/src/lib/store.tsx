@@ -78,6 +78,7 @@ import {
   seriesComerciales,
   type SeriesComerciales,
 } from './series-comerciales'
+import { presentarDisponibilidadLead } from './disponibilidad-lead'
 
 /**
  * Estado de la CARGA remota (solo sesión real). La app lo usa para decidir
@@ -386,7 +387,22 @@ function uid(): string {
   try {
     return crypto.randomUUID()
   } catch {
-    return `id-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`
+    // La identidad optimista también es la llave idempotente de las RPC. Aun
+    // en navegadores antiguos debe conservar formato UUID para viajar al
+    // servidor; un id local ad-hoc produciría un alta confirmada imposible de
+    // reconciliar si la respuesta usa otro identificador.
+    const bytes = new Uint8Array(16)
+    try {
+      crypto.getRandomValues(bytes)
+    } catch {
+      for (let i = 0; i < bytes.length; i += 1) {
+        bytes[i] = Math.floor(Math.random() * 256)
+      }
+    }
+    bytes[6] = (bytes[6]! & 0x0f) | 0x40
+    bytes[8] = (bytes[8]! & 0x3f) | 0x80
+    const hex = Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('')
+    return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`
   }
 }
 
@@ -1304,25 +1320,38 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         setDatos((d) => ({ ...d, leads: [lead, ...d.leads] }))
         // El id viaja al servidor (si es UUID) para que el optimista y la fila
         // real sean LA MISMA identidad — un drawer abierto sobrevive al resync.
-        const persistido = persistirConDetalle(() => insertarLead({
-          ...(UUID_RE.test(id) ? { id } : {}),
-          nombre_completo: nombre,
-          telefono,
-          correo: lead.correo ?? null,
-          dni,
-          genero,
-          fecha_nacimiento: fechaNacimiento,
-          distrito: lead.distrito ?? null,
-          origen: lead.origen,
-          etapa,
-          monto_estimado: lead.monto_estimado,
-          moneda: lead.moneda,
-          categoria_interes: lead.categoria_interes ?? null,
-          vendedor_id,
-          asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
-          nota: lead.nota ?? null,
-          creado_por: miId,
-        }), {
+        const persistido = persistirConDetalle(async () => {
+          const resultado = await insertarLead({
+            ...(UUID_RE.test(id) ? { id } : {}),
+            nombre_completo: nombre,
+            telefono,
+            correo: lead.correo ?? null,
+            dni,
+            genero,
+            fecha_nacimiento: fechaNacimiento,
+            distrito: lead.distrito ?? null,
+            origen: lead.origen,
+            etapa,
+            monto_estimado: lead.monto_estimado,
+            moneda: lead.moneda,
+            categoria_interes: lead.categoria_interes ?? null,
+            vendedor_id,
+            nota: lead.nota ?? null,
+          })
+          if (resultado.estado !== 'creado') {
+            const presentacion = presentarDisponibilidadLead(resultado)
+            throw new CrmApiError(
+              presentacion.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
+              'CONTACTO_NO_DISPONIBLE',
+            )
+          }
+          if (resultado.lead_id !== id) {
+            throw new CrmApiError(
+              'El servidor confirmó una identidad de lead inesperada.',
+              'CREACION_LEAD_CONTRACT',
+            )
+          }
+        }, {
           notificarError: false,
           revertirOptimista: () => {
             setDatos((d) => ({ ...d, leads: d.leads.filter((item) => item.id !== id) }))

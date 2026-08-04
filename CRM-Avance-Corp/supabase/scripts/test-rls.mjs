@@ -2442,6 +2442,19 @@ async function testOffboardingMatrix(sessions, seed) {
   assertSeed(originalTeam, 'falta la membresía CRM vendInactive');
   assertSeed(ownedLead, 'falta el lead de vendInactive');
 
+  // La sonda usa el contacto del lead histórico del propio actor. P-047 debe
+  // resolverlo como `tomado`, de modo que probar la RPC de alta nunca deje una
+  // fila transitoria ni necesite ampliar el ledger de cleanup.
+  const crearLeadSobreContactoBloqueado = (client) =>
+    client.schema('crm').rpc('crear_lead_si_disponible', {
+      p_nombre_completo: 'P04 SONDA CREACION ATOMICA',
+      p_telefono: ownedLead.telefono,
+      p_origen: 'otro',
+      p_monto_estimado: 1000,
+      p_moneda: 'PEN',
+      p_vendedor_id: memberId,
+    });
+
   async function setState({ portalActive, crmActive, portalRole = originalProfile.rol }) {
     const updateProfile = () => requireAdmin(
       `P04: fijar perfil activo=${portalActive}, rol=${portalRole}`,
@@ -2565,6 +2578,10 @@ async function testOffboardingMatrix(sessions, seed) {
         p_dni: null,
       }),
     );
+    await expectExplicitAuthorizationDenied(
+      `${label}: crear_lead_si_disponible queda denegada`,
+      crearLeadSobreContactoBloqueado(member.client),
+    );
     await expectBlockedMutation(
       `${label}: no actualiza su lead histórico`,
       member.client.schema('crm').from('leads')
@@ -2646,6 +2663,16 @@ async function testOffboardingMatrix(sessions, seed) {
     if (availability) {
       check(typeof availability.data?.estado === 'string',
         'P04 true/true: conserva el JSON {estado} de P-047');
+    }
+    const atomicCreation = await positive(
+      'P04 true/true: RPC de alta atómica ejecuta el veredicto de negocio',
+      crearLeadSobreContactoBloqueado(member.client),
+    );
+    if (atomicCreation) {
+      check(atomicCreation.data?.estado === 'tomado'
+        && !Object.hasOwn(atomicCreation.data ?? {}, 'lead_id'),
+        'P04 true/true: contacto existente queda tomado y no se crea otro lead',
+        `respuesta=${JSON.stringify(atomicCreation.data)}`);
     }
     const cooling = await positive(
       'P04 true/true: lee política de enfriamiento',

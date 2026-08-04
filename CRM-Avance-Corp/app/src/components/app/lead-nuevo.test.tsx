@@ -1,6 +1,7 @@
 import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { toast } from 'sonner'
 import { CrmApiError, verificarDisponibilidadLead } from '@/data/crm-api'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import {
@@ -392,8 +393,8 @@ describe('LeadNuevo — disponibilidad P-048', () => {
     expect(screen.getByRole('status')).toHaveTextContent(/puedes continuar/i)
   })
 
-  it('muestra la carrera 23505 exacta y no abre un lead que no se guardó', async () => {
-    const mensaje = 'Este contacto acaba de ser registrado por otro usuario'
+  it('si el precheck fue libre pero la RPC bloquea, conserva el formulario y no anuncia éxito', async () => {
+    const mensaje = 'Este contacto ya está asignado a otro analista.'
     const { actions } = montar({
       demo: false,
       crearLeadImpl: () => ({
@@ -402,7 +403,7 @@ describe('LeadNuevo — disponibilidad P-048', () => {
         persistido: Promise.resolve({
           ok: false,
           error: mensaje,
-          codigo: 'CONTACTO_RECIEN_REGISTRADO',
+          codigo: 'CONTACTO_NO_DISPONIBLE',
         }),
       }),
     })
@@ -412,6 +413,9 @@ describe('LeadNuevo — disponibilidad P-048', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent(mensaje)
     expect(actions.abrirLead).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Nombre completo *')).toHaveValue('ANA NUEVO LEAD')
+    expect(screen.getByLabelText('Teléfono *')).toHaveValue('987654321')
+    expect(toast.success).not.toHaveBeenCalled()
   })
 
   it('no permite cerrar el modal mientras el INSERT está pendiente', async () => {

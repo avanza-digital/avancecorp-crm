@@ -30,7 +30,7 @@ test('sesión real: entra al workspace y la UI NO muestra ninguna marca "(demo)"
   await expect(page.getByText('(demo)')).toHaveCount(0)
 })
 
-test('gate abierto: crear lead persiste (POST real) y el toast NO dice "(demo)"', async ({ page }) => {
+test('gate abierto: crear lead persiste por RPC atómica y el toast NO dice "(demo)"', async ({ page }) => {
   const estado = await montarBackendReal(page)
   await loginReal(page)
   await irAPipeline(page)
@@ -46,11 +46,12 @@ test('gate abierto: crear lead persiste (POST real) y el toast NO dice "(demo)"'
 
   await expect(page.getByText(/Lead creado —/i)).toBeVisible()
   await expect(page.getByText('(demo)')).toHaveCount(0)
-  // P-048 revalida inmediatamente antes del INSERT (puede existir además la
+  // P-048 revalida inmediatamente antes del alta (puede existir además la
   // consulta de blur, según cuánto tarde el llenado del formulario).
   await expect.poll(() => estado.llamadas.rpcDisponibilidadLead).toBeGreaterThanOrEqual(1)
-  // La mutación SÍ viajó al servidor (aserción reintentante sobre estado async).
-  await expect.poll(() => estado.llamadas.insertLead).toBe(1)
+  // La mutación usa una sola RPC y nunca el POST directo legacy.
+  await expect.poll(() => estado.llamadas.rpcCrearLeadAtomico).toBe(1)
+  expect(estado.llamadas.insertLeadDirecto).toBe(0)
 })
 
 test('P-048: un contacto en bolsa queda explicado y no llega al INSERT', async ({ page }) => {
@@ -67,11 +68,12 @@ test('P-048: un contacto en bolsa queda explicado y no llega al INSERT', async (
 
   await expect(modal.getByRole('alert')).toContainText('bolsa de leads')
   await expect(modal.getByRole('button', { name: /crear lead/i })).toBeDisabled()
-  expect(estado.llamadas.insertLead).toBe(0)
+  expect(estado.llamadas.rpcCrearLeadAtomico).toBe(0)
+  expect(estado.llamadas.insertLeadDirecto).toBe(0)
 })
 
-test('creación rechazada: rollback honesto y el POST sí se intentó', async ({ page }) => {
-  const estado = await montarBackendReal(page, { fallarProximoPostLead: true })
+test('creación rechazada: rollback honesto y la RPC sí se intentó', async ({ page }) => {
+  const estado = await montarBackendReal(page, { fallarProximaCreacionLeadAtomica: true })
   await loginReal(page)
   await irAPipeline(page)
 
@@ -83,11 +85,12 @@ test('creación rechazada: rollback honesto y el POST sí se intentó', async ({
   await modal.locator('#nl-origen').selectOption('formulario')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
-  // El índice único ganó la carrera posterior al precheck: no hay falso éxito.
+  // La última defensa única ganó una carrera externa: no hay falso éxito.
   await expect(page.getByRole('alert')).toContainText(
     'Este contacto acaba de ser registrado por otro usuario',
   )
-  await expect.poll(() => estado.llamadas.insertLead).toBe(1)
+  await expect.poll(() => estado.llamadas.rpcCrearLeadAtomico).toBe(1)
+  expect(estado.llamadas.insertLeadDirecto).toBe(0)
 })
 
 test('rollback honesto: rechazo del servidor mapea el mensaje, restaura el valor y no miente', async ({ page }) => {

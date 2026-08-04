@@ -17,15 +17,15 @@ Estados del contrato: `libre`, `en_bolsa`, `tomado`, `enfriamiento`,
 motivos en servidor; P04 solo endurece quién puede consultar la RPC y no cambia
 sus plazos ni el orden de decisión. Ver [[Acceso y roles del CRM]].
 
-La verificación es **consultiva**. Los candados únicos de la base siguen siendo
-la garantía transaccional frente a carreras; no se debe convertir P-047 en una
-RPC de inserción ni duplicar sus reglas en TypeScript sin una decisión de
-negocio nueva.
+La verificación es **consultiva** y sigue separada de la escritura. P-047 no se
+convirtió en una RPC de inserción ni se duplicaron sus reglas en TypeScript: la
+fase atómica de P-048 reutiliza su cuerpo canónico privado desde otra RPC de
+mutación. Los índices únicos continúan como última defensa.
 
-## P-048 — integración frontend completa en rama local
+## P-048 — primera integración frontend
 
-Objetivo: conectar la RPC al formulario existente de creación de leads sin DDL,
-policies, wrappers en `public` ni configuración de PostgREST.
+La primera etapa conectó la consulta P-047 al formulario existente de creación
+de leads sin DDL, policies, wrappers en `public` ni configuración de PostgREST.
 
 Paso 0 bloqueante: desde el mismo cliente del formulario ejecutar
 `supabase.schema('crm').rpc('verificar_disponibilidad_lead',
@@ -38,11 +38,11 @@ Reglas acordadas:
 - debounce de 400 ms e ignorar respuestas fuera de orden;
 - `libre` habilita y no muestra mensaje; los demás estados muestran el mensaje
   de negocio acordado y bloquean;
-- revalidar inmediatamente antes del INSERT;
+- revalidar inmediatamente antes de guardar para dar feedback temprano;
 - mapear una carrera `23505` a «Este contacto acaba de ser registrado por otro
   usuario»;
-- ante red o timeout del precheck, permitir el submit normal: la verificación es
-  de cortesía y no debe detener al vendedor;
+- ante red o timeout del precheck, permitir el submit normal: la consulta es de
+  cortesía; la RPC de escritura vuelve a decidir en servidor;
 - no conservar el JSON en cliente más allá de renderizar el estado actual y no
   agregar dependencias.
 
@@ -53,39 +53,74 @@ simulada del RPC demostrando que el alta sigue habilitada.
 P-048 se ejecuta **después de cerrar P04**, punto por punto. Relacionado:
 [[F0 Cimientos BD del CRM]].
 
-## Cierre local P-048 — 2026-08-04
+## Alta manual atómica P-048 — cierre local 2026-08-04
 
-Implementación completada en la rama `feat/p048-disponibilidad-leads`, todavía
-sin release a producción. Se integró el mismo cliente Supabase del formulario,
-contrato runtime estricto para los siete estados, presentación sin retener el
-JSON, debounce/cancelación/orden de respuestas, revalidación antes del INSERT y
-confirmación del commit antes de anunciar éxito.
+La evolución local añade
+`crm.crear_lead_si_disponible(...) returns jsonb`. El precheck de blur y la
+revalidación inmediata siguen dando feedback temprano, pero son **solo UX**: la
+autoridad final toma locks, reconsulta P-047 e inserta dentro de una misma
+transacción. El frontend ya guarda mediante esta RPC y solo anuncia éxito tras
+la confirmación del commit.
 
 La degradación es fail-open únicamente para transporte (`status=0`,
 `PGRST000`–`PGRST003`) o timeout. Contrato inválido, permisos, Supabase ausente,
 esquema no expuesto, RPC ausente y todo fallo desconocido bloquean por defecto.
-La carrera `23505` solo se traduce para `uq_leads_telefono_vivo` y
-`uq_leads_dni_vivo`; un rechazo revierte el optimista inmediatamente.
+La carrera `23505` de los índices únicos vivos queda como defensa final ante un
+escritor fuera del protocolo; un rechazo revierte el optimista inmediatamente.
 
-Riesgo residual aceptado del diseño consultivo: la revalidación y el INSERT no
-son una única transacción. Los duplicados vivos sí quedan protegidos por índices
-únicos; `no_contactar`, `ya_es_cliente` y `enfriamiento` no son todavía vetos
-atómicos de escritura. Si negocio decide que deben ser prohibiciones duras aun
-bajo concurrencia o caída del precheck, hará falta un trigger/RPC transaccional
-de servidor en una fase posterior.
+### Contrato transaccional
+
+- `private.bloquear_contactos_lead` toma advisory locks de transacción por todas
+  las llaves normalizadas de teléfono/DNI, ordenadas antes de bloquear;
+- la RPC vuelve a comprobar P04 después de cualquier espera, deriva
+  `creado_por`, autoasignación/bandeja y ámbito, y ejecuta el cuerpo canónico de
+  P-047 después de adquirir los locks;
+- `p_id` es la identidad optimista y la llave de idempotencia: un reintento
+  inmediato del mismo payload confirma la fila ya creada; reutilizarlo con datos
+  distintos, o después de que la fila cambió por otra operación, falla cerrado;
+- `trg_leads_00_disponibilidad_insert` hace que todo escritor de `crm.leads`
+  comparta los locks. Si hay sesión humana también impone el veredicto P-047 para
+  proteger un bundle anterior que aún use INSERT directo;
+- `trg_leads_00_disponibilidad_update` coordina cambios de teléfono, DNI,
+  `no_contactar`, etapa, activo y motivo de descarte con altas simultáneas; si
+  una sesión humana cambia teléfono/DNI, aplica el mismo cuerpo P-047 excluyendo
+  la propia fila, para que editar no permita saltar los vetos. Antes congela
+  ambos identificadores si esa misma fila porta `no_contactar` o enfriamiento
+  vigente: el veto no puede mudarse y dejar libre el dato anterior;
+- el importador con `service_role` no puede ejecutar la RPC humana, pero el
+  trigger lo serializa. Conserva deliberadamente su semántica especializada:
+  permite determinados reingresos y hereda `no_contactar` en vez de aplicar
+  todos los vetos del alta manual;
+- `EXECUTE` de la RPC pertenece solo a `authenticated`; `anon` y `service_role`
+  están revocados.
+
+La atomicidad afirmada es respecto de escritores de `crm.leads`. La migración no
+toca objetos de `public`, por lo que un alta de cliente o cambio de su identidad
+en `public.perfiles` exactamente concurrente todavía puede competir con la
+lectura `ya_es_cliente`. Universalizar ese protocolo exige una decisión
+posterior del portal y del CRM; no se disfraza como resuelto aquí.
+
+El INSERT directo de `authenticated` tampoco se revoca todavía. Durante la
+adopción, el trigger lo convierte en un camino protegido para clientes antiguos;
+la revocación del privilegio y el retiro de la policy quedan para una fase
+posterior, cuando se haya comprobado que no existen bundles activos sin la RPC.
 
 Verificación local:
 
-- gate completo de la app: lint, TypeScript, cobertura y build limpios;
-- 90 archivos / 1151 pruebas en la corrida integral final; cobertura focal de
-  P-048 y persistencia: 4 archivos / 85 pruebas;
-- Playwright: 68 escenarios aprobados y 38 omitidos por los gates previstos de
-  sesión real del entorno local;
-- smoke autenticado contra producción desde el cliente compartido: `libre`,
-  `en_bolsa`, `tomado`, teléfono con espacios y teléfono con `+51`, sin imprimir
-  PII ni secretos;
-- estados restantes, caída de red, timeout, respuesta fuera de orden,
-  revalidación cambiante y carrera `23505` cubiertos de forma simulada.
+- `supabase/scripts/test-creacion-lead-atomica.sql` es el oráculo autocontenido
+  sobre PostgreSQL vacío/desechable: pasó con el token terminal
+  `CREACION_LEAD_ATOMICA_TX_OK`;
+- validó ACL, autoridad derivada, estados P-047, idempotencia, P04/ámbito, el
+  trigger de compatibilidad, la inmovilidad de teléfono/DNI bajo vetos propios y
+  conexiones `dblink` reales para carreras por teléfono, DNI, rollback, INSERT
+  legacy y revocación P04 durante una espera;
+- gate integral de la app: 90 archivos / 1168 pruebas, lint, TypeScript y
+  cobertura en verde; build de producción correcto;
+- foco P-048: 4 archivos / 102 pruebas;
+- Playwright: 68 escenarios aprobados y 38 omitidos por gates intencionales;
+- scripts Node y `git diff --check`, en verde.
 
-Siguiente gate: prueba de piloto real con Miguel y, solo mediante
-`/release-crm`, construir/verificar el artefacto y desplegar el frontend.
+Estado: migración, oráculo y adaptación frontend están **solo en local**. No se
+han aplicado a Supabase ni desplegado en producción. Los gates siguientes son
+branch/staging con sesiones reales, advisors y smoke PostgREST. Un despliegue
+futuro seguirá requiriendo la invocación humana de `/release-crm`.

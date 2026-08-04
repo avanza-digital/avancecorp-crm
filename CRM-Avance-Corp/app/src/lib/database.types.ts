@@ -45,6 +45,9 @@ type DisponibilidadLeadDb =
   | { estado: 'ya_es_cliente'; asesor: string }
   | { estado: 'no_contactar' }
   | { estado: 'error'; detalle: 'telefono_invalido' }
+type ResultadoCreacionLeadAtomicaDb =
+  | { estado: 'creado'; lead_id: string }
+  | DisponibilidadLeadDb
 // C1-bis: veredicto del clasificador de crédito (trigger en el INSERT, inmutable).
 type ClasificacionAutoDb = 'posible_credito'
 type MonedaDb = 'PEN' | 'USD'
@@ -693,11 +696,33 @@ export interface Database {
         }[]
       }
       /** P-047/P-048: consulta previa, sin escritura, para decidir si un
-       *  teléfono o DNI puede entrar como lead. La garantía final ante carreras
-       *  siguen siendo los índices únicos de `crm.leads`. */
+       *  teléfono o DNI puede entrar como lead. Es una ayuda de UX; la garantía
+       *  del alta manual vive en `crear_lead_si_disponible`. */
       verificar_disponibilidad_lead: {
         Args: { p_telefono: string; p_dni?: string | null }
         Returns: DisponibilidadLeadDb
+      }
+      /** Alta autoritativa P-048. El servidor normaliza y bloquea las llaves
+       *  del contacto, revalida P-047 y hace el INSERT en la misma transacción. */
+      crear_lead_si_disponible: {
+        Args: {
+          p_nombre_completo: string
+          p_telefono: string
+          p_origen: OrigenDb
+          p_monto_estimado: number
+          p_moneda: MonedaDb
+          p_id?: string | null
+          p_correo?: string | null
+          p_dni?: string | null
+          p_genero?: GeneroDb | null
+          p_fecha_nacimiento?: string | null
+          p_distrito?: string | null
+          p_etapa?: Exclude<EtapaDb, 'convertido' | 'descartado'>
+          p_categoria_interes?: CategoriaInteresDb | null
+          p_vendedor_id?: string | null
+          p_nota?: string | null
+        }
+        Returns: ResultadoCreacionLeadAtomicaDb
       }
       // ── Métricas para las gráficas de gerencia (SECURITY DEFINER; el ámbito
       //    lo resuelve el SERVIDOR: gerencia=todo, supervisor=subárbol,

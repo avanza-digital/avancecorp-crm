@@ -68,6 +68,57 @@ La cobertura es deliberadamente del esquema `crm`. Las RPC heredadas
 portal y no se endurecen aqui: migrar o retirar esa alta administrativa es una
 decision separada porque hoy todavia produce contratos legacy sin enlace.
 
+## Oraculo local del alta atomica de leads P-048
+
+`test-creacion-lead-atomica.sql` prueba la migracion real
+`20260804165440_crm_creacion_lead_atomica.sql` sobre un PostgreSQL **vacio y
+desechable**. Crea la frontera minima de P-047/P04 y usa `dblink` con dos
+conexiones reales para demostrar que los advisory locks de telefono y DNI se
+esperan hasta `COMMIT`/`ROLLBACK`, que la segunda sesion vuelve a consultar el
+estado y que nunca quedan dos filas.
+
+El oraculo cubre tambien:
+
+- ACL de `crm.crear_lead_si_disponible`: solo `authenticated` tiene `EXECUTE`;
+- alta libre, autoridad derivada e idempotencia del reintento inmediato con el
+  mismo `p_id` + payload, antes de mutaciones posteriores de esa fila;
+- rechazo de reutilizar `p_id` con datos distintos;
+- `tomado`, `en_bolsa`, `no_contactar`, `ya_es_cliente`, enfriamiento vigente y
+  vencido, telefono invalido y P04/ambito;
+- el trigger de compatibilidad para un INSERT humano de un bundle anterior, el
+  veto a cambiar teléfono/DNI hacia una identidad bloqueada y la imposibilidad
+  de mudar una identidad que porta `no_contactar` o enfriamiento vigente;
+- carreras por telefono, por DNI, despertar tras rollback, RPC contra INSERT
+  legacy y revocacion P04 mientras una RPC espera el contacto.
+
+La variable psql `test_conn` debe apuntar a esa misma base desechable para que
+las conexiones `dblink` compartan los fixtures. Ejemplo:
+
+```bash
+psql -X -v ON_ERROR_STOP=1 \
+  -v test_conn='postgresql://postgres:postgres@127.0.0.1:5432/crm_p048_test' \
+  -f supabase/scripts/test-creacion-lead-atomica.sql
+```
+
+El oraculo termina con codigo 0 y el token
+`CREACION_LEAD_ATOMICA_TX_OK`. No se ejecuta
+contra una rama Supabase ni contra produccion: crea roles API, esquemas, tablas y
+la extension `dblink`, y la base completa es descartable al terminar.
+
+Alcance que la prueba no debe exagerar: la atomicidad cubre escritores que tocan
+`crm.leads`, porque la RPC y los triggers comparten los mismos locks. La migracion
+no instala ningun lock en `public.perfiles`; un alta o cambio de identidad alli
+exactamente en paralelo conserva una carrera residual respecto de
+`ya_es_cliente`. El
+importador comparte la serializacion, pero mantiene deliberadamente sus reglas
+propias de reingreso y `no_contactar`, distintas del alta manual.
+
+Durante la adopcion se conserva el INSERT directo de `authenticated`: el trigger
+lo protege para no romper un bundle anterior. Revocar ese privilegio y retirar la
+policy de INSERT es una fase posterior, solo despues de verificar que todos los
+clientes activos usan la RPC. Esta migracion y su frontend siguen **solo locales;
+no se han aplicado ni desplegado en produccion**.
+
 ## Ejecucion en branch/staging
 
 ```bash

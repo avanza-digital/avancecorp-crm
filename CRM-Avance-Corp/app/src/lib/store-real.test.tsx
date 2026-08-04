@@ -134,7 +134,10 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     listarLeads.mockResolvedValue([leadBase()])
     listarEquipo.mockResolvedValue(ROSTER)
     listarActs.mockResolvedValue([])
-    insertarLead.mockResolvedValue(undefined)
+    insertarLead.mockImplementation(async (fila) => {
+      if (!fila.id) throw new Error('El test real exige el id optimista')
+      return { estado: 'creado', lead_id: fila.id }
+    })
     listarTareas.mockResolvedValue([])
     listarObjetivosMock.mockResolvedValue([])
     fijarObjetivosMock.mockResolvedValue(undefined)
@@ -255,6 +258,66 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       expect(api().leads.some((lead) => lead.nombre_completo === 'CARRERA DE ALTA')).toBe(false)
     })
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('la RPC puede bloquear después del precheck y revierte el lead optimista', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockResolvedValueOnce({
+      estado: 'tomado',
+      vendedor: 'OTRO ANALISTA',
+      tenencia_desde: '2026-08-04T12:30:00.000Z',
+    })
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'BLOQUEADO POR RPC',
+        telefono: '987654325',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toMatchObject({
+      ok: false,
+      codigo: 'CONTACTO_NO_DISPONIBLE',
+    })
+    await waitFor(() => {
+      expect(api().leads.some((lead) => lead.nombre_completo === 'BLOQUEADO POR RPC')).toBe(false)
+    })
+    expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('rechaza una confirmación con otro lead_id y revierte el optimista', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarLead.mockResolvedValueOnce({
+      estado: 'creado',
+      lead_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+    })
+
+    const res = mutar((a) =>
+      a.crearLead({
+        nombre_completo: 'IDENTIDAD INESPERADA',
+        telefono: '987654326',
+        origen: 'formulario',
+        monto_estimado: 5000,
+        moneda: 'PEN',
+        vendedor_id: 'u-v1',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toMatchObject({
+      ok: false,
+      codigo: 'CREACION_LEAD_CONTRACT',
+    })
+    await waitFor(() => {
+      expect(api().leads.some((lead) => lead.nombre_completo === 'IDENTIDAD INESPERADA')).toBe(false)
+    })
   })
 
   it('género y fecha de nacimiento llegan al INSERT (si no, el avatar nunca tiene silueta)', async () => {

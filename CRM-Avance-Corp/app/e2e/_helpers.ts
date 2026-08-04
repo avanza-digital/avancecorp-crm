@@ -646,8 +646,8 @@ export interface BackendReal {
   fallarProximoPatch: boolean
   /** El próximo PATCH de leads responde 400 con 23505/uq_leads_telefono_vivo. */
   fallarProximoPatchTelefono: boolean
-  /** El próximo POST de leads pierde la carrera única teléfono/DNI (23505). */
-  fallarProximoPostLead: boolean
+  /** La próxima RPC de alta atómica pierde la última defensa única (23505). */
+  fallarProximaCreacionLeadAtomica: boolean
   /** Veredicto de crm.verificar_disponibilidad_lead para P-048. */
   disponibilidadLead: Record<string, unknown>
   /** El próximo POST de actividades responde 400 (nota del descarte, etc.). */
@@ -708,7 +708,9 @@ export interface BackendReal {
   fallarProximaAlta: boolean
   /** Contadores para aserciones. */
   llamadas: {
-    insertLead: number
+    rpcCrearLeadAtomico: number
+    /** Escrituras legacy directas: la UI nueva debe mantener este contador en cero. */
+    insertLeadDirecto: number
     rpcDisponibilidadLead: number
     patchLead: number
     insertActividad: number
@@ -778,7 +780,7 @@ export async function montarBackendReal(
     fallarProximaCargaLeads: init.fallarProximaCargaLeads ?? false,
     fallarProximoPatch: init.fallarProximoPatch ?? false,
     fallarProximoPatchTelefono: init.fallarProximoPatchTelefono ?? false,
-    fallarProximoPostLead: init.fallarProximoPostLead ?? false,
+    fallarProximaCreacionLeadAtomica: init.fallarProximaCreacionLeadAtomica ?? false,
     disponibilidadLead: init.disponibilidadLead ?? { estado: 'libre' },
     fallarProximoInsertActividad: init.fallarProximoInsertActividad ?? false,
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
@@ -809,7 +811,7 @@ export async function montarBackendReal(
     ventanaVencida: init.ventanaVencida ?? false,
     fallarProximaAlta: init.fallarProximaAlta ?? false,
     llamadas: {
-      insertLead: 0, rpcDisponibilidadLead: 0,
+      rpcCrearLeadAtomico: 0, insertLeadDirecto: 0, rpcDisponibilidadLead: 0,
       patchLead: 0, insertActividad: 0, getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcListarCuentasBancarias: 0,
       rpcCrearContrato: 0, rpcActualizarContrato: 0,
@@ -1133,6 +1135,37 @@ export async function montarBackendReal(
       estado.llamadas.rpcDisponibilidadLead += 1
       return json(route, estado.disponibilidadLead)
     }
+    if (p === '/rest/v1/rpc/crear_lead_si_disponible' && method === 'POST') {
+      estado.llamadas.rpcCrearLeadAtomico += 1
+      if (estado.fallarProximaCreacionLeadAtomica) {
+        estado.fallarProximaCreacionLeadAtomica = false
+        return json(route, {
+          code: '23505',
+          message: 'duplicate key value violates unique constraint',
+          details: 'uq_leads_telefono_vivo',
+        }, 409)
+      }
+
+      const cuerpo = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      const id = String(cuerpo.p_id ?? '')
+      estado.leads = [leadReal({
+        id,
+        nombre_completo: String(cuerpo.p_nombre_completo ?? ''),
+        telefono: String(cuerpo.p_telefono ?? ''),
+        correo: (cuerpo.p_correo as string | null | undefined) ?? null,
+        dni: (cuerpo.p_dni as string | null | undefined) ?? null,
+        distrito: (cuerpo.p_distrito as string | null | undefined) ?? null,
+        origen: cuerpo.p_origen as LeadReal['origen'],
+        etapa: cuerpo.p_etapa as LeadReal['etapa'],
+        monto_estimado: Number(cuerpo.p_monto_estimado),
+        moneda: cuerpo.p_moneda as LeadReal['moneda'],
+        categoria_interes:
+          (cuerpo.p_categoria_interes as LeadReal['categoria_interes'] | undefined) ?? null,
+        vendedor_id: (cuerpo.p_vendedor_id as string | null | undefined) ?? null,
+        nota: (cuerpo.p_nota as string | null | undefined) ?? null,
+      }), ...estado.leads]
+      return json(route, { estado: 'creado', lead_id: id })
+    }
 
     // ── C1: reparto de la cola global (pantalla del coordinador) ──
     if (p === '/rest/v1/rpc/leads_por_repartir') {
@@ -1331,19 +1364,8 @@ export async function montarBackendReal(
         return json(route, estado.leads)
       }
       if (method === 'POST') {
-        estado.llamadas.insertLead += 1
-        if (estado.fallarProximoPostLead) {
-          estado.fallarProximoPostLead = false
-          return json(route, {
-            code: '23505',
-            message: 'duplicate key value violates unique constraint',
-            details: 'uq_leads_telefono_vivo',
-          }, 409)
-        }
-        // Servidor con estado: la fila insertada aparece en el próximo GET (resync).
-        const cuerpo = (req.postDataJSON() ?? {}) as Partial<LeadReal>
-        estado.leads = [leadReal(cuerpo), ...estado.leads]
-        return json(route, [], 201)
+        estado.llamadas.insertLeadDirecto += 1
+        return json(route, { message: 'El alta directa de leads es una vía legacy' }, 500)
       }
       if (method === 'PATCH') {
         estado.llamadas.patchLead += 1
