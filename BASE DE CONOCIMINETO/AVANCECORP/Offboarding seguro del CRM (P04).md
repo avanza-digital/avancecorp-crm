@@ -50,6 +50,23 @@ del CRM, no retira correos ya entregados ni URLs ya copiadas, y no cambia las
 reglas comerciales de P-047. P-048 sigue separado en
 [[Disponibilidad y enfriamiento de leads (P-047 y P-048)]].
 
+## Extensión a banca contractual
+
+El 2026-08-04 la migración `20260804144555_crm_p04_gate_cuentas_bancarias`
+extendió el gate vivo a las RPC de [[Cuentas bancarias por contrato]] que
+habían nacido después del P04 original. Cubre listado y alta bancaria,
+corrección de contratos enlazados y legacy, y el resolver contractual de
+Pagos. Una membresía CRM revocada prevalece también para un admin del portal;
+un admin global sin fila de equipo conserva el fallback acordado.
+
+La migración se probó en una branch Supabase sin datos con gate PostgREST
+`475/475`, sin errores ni clases nuevas en advisors. Producción la registró
+como `20260804154054`; los hashes y ACL de las tres funciones reemplazadas
+coincidieron con la rama y esta se eliminó tras el merge. La frontera sigue
+siendo deliberada: `public.crear_contrato` y `public.actualizar_contrato` son
+capacidades legacy del portal y su migración o retiro pertenece a una fase
+separada; P04 no se comunica como revocación contractual universal.
+
 ## Despliegue y rollback
 
 Orden obligatorio: migración SQL → smoke de RPC/ICS → Edge Functions → app CRM.

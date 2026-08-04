@@ -34,7 +34,7 @@ No se hace backfill automático: una cuenta actual del perfil no demuestra cuál
 
 ## Estado de implementación
 
-Implementación local completada el 2026-08-03 en la rama `feat/cuentas-bancarias-por-contrato`, tanto en el CRM como en el repositorio anidado del portal. Migración: `20260803221622_crm_cuentas_bancarias_por_contrato.sql`.
+Implementación y despliegue completados. La funcionalidad base corresponde a `20260803221622_crm_cuentas_bancarias_por_contrato.sql`; el endurecimiento posterior que extiende el gate de [[Offboarding seguro del CRM (P04)]] a toda la superficie bancaria `crm.*` corresponde a `20260804144555_crm_p04_gate_cuentas_bancarias.sql`.
 
 ## Despliegue 2026-08-03
 
@@ -43,7 +43,9 @@ Implementación local completada el 2026-08-03 en la rama `feat/cuentas-bancaria
 - Los archivos críticos de Pagos y Contratos devolvieron HTTP 200 y coincidieron byte por byte con el artefacto; el ZIP de despliegue devolvió HTTP 404.
 - Frontend `crm.miavance.com` publicado mediante `/release-crm`: release `crm-20260803T223544Z-bb9ffc602eb7`, SHA-256 `d7ad3c383beb099bebf175da30bf1b12ddf5e5bf031b671f83b6b4571a61b80b`. El HTML y el bundle `assets/index-De_ut-kj.js` respondieron HTTP 200 y coincidieron byte por byte con el artefacto; el ZIP respondió HTTP 404.
 
-Validado localmente con PostgreSQL 16 aislado (alta, versionado, historial, rollback, ACL y resolver), 1,097 pruebas unitarias/RTL/MSW, 68 E2E Playwright y 44 pruebas del portal. El gate RLS permanente incluye la nueva matriz, pero su ejecución contra un branch Supabase queda para la etapa de despliegue. **No está aplicada en Supabase ni desplegada en Hostinger.** Orden futuro obligatorio: migración en branch Supabase y gate completo → frontend CRM → portal Pagos. Ver [[Deploy a Hostinger]].
+Validado localmente con PostgreSQL 16 aislado (alta, versionado, historial, rollback, ACL y resolver), 1,097 pruebas unitarias/RTL/MSW, 68 E2E Playwright y 44 pruebas del portal.
+
+El 2026-08-04 se desplegó el cierre P04 bancario: rama Supabase temporal `p04-bank-gate-20260804`, gate PostgREST **475/475**, advisors sin errores ni clases nuevas de seguridad, merge a producción y comprobación de hashes/ACL idénticos. Supabase registró la migración como `20260804154054`; la rama temporal fue eliminada.
 
 El alta administrativa antigua de `public_html/admin/contratos` conserva temporalmente `public.crear_contrato` y, por compatibilidad, genera un contrato sin enlace. Pagos lo trata explícitamente como `perfil_legacy`. La garantía de cuenta fija se aplica a todo contrato nuevo creado por el flujo del analista en el CRM; será universal cuando se migre o retire esa alta administrativa.
 
