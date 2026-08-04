@@ -9,6 +9,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   BANK_CLIENT,
   BANK_CONTRACT,
+  BANK_LEGACY_CONTRACT,
   LEADS,
   PRODUCTION_PROJECT_REF,
   TAREAS,
@@ -99,7 +100,7 @@ function printPlan() {
   console.log(`✓ plan: ${crmUsers.length} miembros CRM (${activeCrmUsers.length} activos, ${crmUsers.length - activeCrmUsers.length} inactivo)`);
   console.log(`✓ plan: ${LEADS.length} leads y ${LEADS.length} actividades deterministas`);
   console.log(`✓ plan: ${TAREAS.length} tareas de agenda deterministas (tenencia derivada del lead)`);
-  console.log('✓ plan: 1 cliente bancario y 1 contrato sensible de prueba');
+  console.log('✓ plan: 1 cliente bancario + 2 contratos (1 enlazado y 1 legacy) + 1 cuenta contractual');
   console.log('Preflight terminado; no se abrio ninguna conexion.');
 }
 
@@ -322,36 +323,126 @@ async function ensureTarea(fixture, leadId) {
   );
 }
 
-async function ensureBankContract() {
+async function ensureContractFixture(fixture) {
   const existing = await requireResponse(
-    'buscar contrato bancario fixture',
+    `buscar contrato fixture ${fixture.number}`,
     admin.from('contratos')
       .select('id')
-      .eq('numero_contrato', BANK_CONTRACT.number)
+      .eq('numero_contrato', fixture.number)
       .maybeSingle(),
   );
-  const id = existing.data?.id ?? BANK_CONTRACT.id;
+  const id = existing.data?.id ?? fixture.id;
   const payload = {
-    capital: BANK_CONTRACT.capital,
-    categoria: BANK_CONTRACT.category,
+    capital: fixture.capital,
+    categoria: fixture.category,
     cliente_id: ids[BANK_CLIENT.key],
     creado_por: ids[BANK_CLIENT.adviserKey],
     estado: 'activo',
-    fecha_inicio: BANK_CONTRACT.startDate,
-    fecha_vencimiento: BANK_CONTRACT.endDate,
+    fecha_inicio: fixture.startDate,
+    fecha_vencimiento: fixture.endDate,
     id,
-    modalidad: BANK_CONTRACT.paymentMode,
-    moneda: BANK_CONTRACT.currency,
-    notas_internas: BANK_CONTRACT.internalNotes,
-    numero_contrato: BANK_CONTRACT.number,
-    tasa_anual: BANK_CONTRACT.annualRate,
-    tipo_interes: BANK_CONTRACT.interestType,
+    modalidad: fixture.paymentMode,
+    moneda: fixture.currency,
+    notas_internas: fixture.internalNotes,
+    numero_contrato: fixture.number,
+    tasa_anual: fixture.annualRate,
+    tipo_interes: fixture.interestType,
   };
 
   const query = existing.data
     ? admin.from('contratos').update(payload).eq('id', id).select('id').single()
     : admin.from('contratos').insert(payload).select('id').single();
-  await requireResponse('guardar contrato bancario fixture', query);
+  await requireResponse(`guardar contrato fixture ${fixture.number}`, query);
+  return id;
+}
+
+async function ensureBankContractAccount(contractId) {
+  const expected = {
+    activa: true,
+    banco: BANK_CLIENT.bank,
+    beneficiario_dni: null,
+    beneficiario_nombre: null,
+    cci: BANK_CLIENT.cci,
+    cliente_id: ids[BANK_CLIENT.key],
+    moneda: BANK_CONTRACT.currency,
+    numero_cuenta: BANK_CLIENT.accountNumber,
+    origen: 'perfil',
+    tipo_cuenta: BANK_CLIENT.accountType,
+    titular_distinto: false,
+  };
+
+  const byId = await requireResponse(
+    'buscar cuenta bancaria fixture por UUID',
+    admin.schema('crm').from('cuentas_bancarias')
+      .select('id, activa, banco, beneficiario_dni, beneficiario_nombre, cci, cliente_id, moneda, numero_cuenta, origen, tipo_cuenta, titular_distinto')
+      .eq('id', BANK_CONTRACT.accountId)
+      .maybeSingle(),
+  );
+  const byNaturalKey = byId.data
+    ? { data: null }
+    : await requireResponse(
+      'buscar cuenta bancaria fixture por cliente/moneda/CCI',
+      admin.schema('crm').from('cuentas_bancarias')
+        .select('id, activa, banco, beneficiario_dni, beneficiario_nombre, cci, cliente_id, moneda, numero_cuenta, origen, tipo_cuenta, titular_distinto')
+        .eq('cliente_id', expected.cliente_id)
+        .eq('moneda', expected.moneda)
+        .eq('cci', expected.cci)
+        .eq('activa', true)
+        .maybeSingle(),
+    );
+
+  let account = byId.data ?? byNaturalKey.data;
+  if (!account) {
+    const inserted = await requireResponse(
+      'crear cuenta bancaria fixture inmutable',
+      admin.schema('crm').from('cuentas_bancarias').insert({
+        ...expected,
+        creado_por: ids[BANK_CLIENT.adviserKey],
+        id: BANK_CONTRACT.accountId,
+      }).select('id, activa, banco, beneficiario_dni, beneficiario_nombre, cci, cliente_id, moneda, numero_cuenta, origen, tipo_cuenta, titular_distinto').single(),
+    );
+    account = inserted.data;
+  }
+
+  for (const [field, value] of Object.entries(expected)) {
+    if (account[field] !== value) {
+      throw new Error(`Cuenta bancaria fixture incoherente en ${field}.`);
+    }
+  }
+
+  const existingLink = await requireResponse(
+    'buscar enlace bancario del contrato fixture',
+    admin.schema('crm').from('contrato_cuentas_pago')
+      .select('id, contrato_id, cuenta_bancaria_id')
+      .eq('contrato_id', contractId)
+      .maybeSingle(),
+  );
+  if (!existingLink.data) {
+    await requireResponse(
+      'crear enlace bancario contractual fixture',
+      admin.schema('crm').from('contrato_cuentas_pago').insert({
+        contrato_id: contractId,
+        creado_por: ids[BANK_CLIENT.adviserKey],
+        cuenta_bancaria_id: account.id,
+        id: BANK_CONTRACT.paymentLinkId,
+      }),
+    );
+  } else if (existingLink.data.cuenta_bancaria_id !== account.id) {
+    throw new Error('El contrato fixture ya esta ligado a otra cuenta bancaria.');
+  }
+}
+
+async function assertLegacyContractUnlinked(contractId) {
+  const link = await requireResponse(
+    'comprobar que el contrato legacy fixture no tiene enlace bancario',
+    admin.schema('crm').from('contrato_cuentas_pago')
+      .select('id')
+      .eq('contrato_id', contractId)
+      .maybeSingle(),
+  );
+  if (link.data) {
+    throw new Error('El contrato legacy fixture ya tiene una cuenta contractual; el gate no seria concluyente.');
+  }
 }
 
 async function main() {
@@ -394,8 +485,11 @@ async function main() {
   const inactiveCount = USERS.filter((user) => user.crmRole && !user.crmActive).length;
   console.log(`✓ crm.equipo: ${teamCount} miembros (${inactiveCount} inactivo)`);
 
-  await ensureBankContract();
-  console.log('✓ cliente bancario + contrato sensible de prueba');
+  const bankContractId = await ensureContractFixture(BANK_CONTRACT);
+  await ensureBankContractAccount(bankContractId);
+  const legacyContractId = await ensureContractFixture(BANK_LEGACY_CONTRACT);
+  await assertLegacyContractUnlinked(legacyContractId);
+  console.log('✓ cliente bancario + contrato enlazado + contrato legacy sin enlace');
 
   console.log('\nSeed listo. La password se tomo de CRM_DEMO_PASSWORD.');
   console.log(`Supervisor 1 debe ver 4 leads; total global: ${LEADS.length}.`);

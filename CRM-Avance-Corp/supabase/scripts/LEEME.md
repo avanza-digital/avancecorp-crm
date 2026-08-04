@@ -49,6 +49,25 @@ y ambos preflight con valores ficticios. No contiene secretos y no ejecuta el
 seed ni el gate vivo. Las pruebas contra Supabase quedan deliberadamente
 manuales hasta que se autorice trabajar con un branch de base de datos.
 
+## Oraculo local del gate bancario P04
+
+`test-p04-cuentas-bancarias.sql` es una prueba transaccional autocontenida para
+una base PostgreSQL **vacia y desechable**. Primero reproduce el bypass previo,
+aplica la migracion real `20260804144555_crm_p04_gate_cuentas_bancarias.sql` y
+comprueba los estados mixtos de offboarding, la cartera, las dos variantes de
+admin, el wrapper legacy, el resolver de Pagos y los privilegios. Termina en
+`ROLLBACK`.
+
+No lo ejecutes contra una rama Supabase ni contra produccion: crea de forma
+temporal los roles API y los esquemas minimos que necesita el oraculo. La prueba
+viva de las cuatro RPC y sus cinco caminos sigue siendo `npm run test:rls` en
+una rama.
+
+La cobertura es deliberadamente del esquema `crm`. Las RPC heredadas
+`public.crear_contrato` y `public.actualizar_contrato` siguen perteneciendo al
+portal y no se endurecen aqui: migrar o retirar esa alta administrativa es una
+decision separada porque hoy todavia produce contratos legacy sin enlace.
+
 ## Ejecucion en branch/staging
 
 ```bash
@@ -116,9 +135,9 @@ demuestra que la jerarquia se recorre de forma recursiva, no solo un nivel. El
 septimo lead pertenece al vendedor inactivo: gerencia/directorio y su supervisor
 lo conservan visible para reasignarlo, pero el usuario desactivado no puede leerlo.
 
-El seed tambien crea una actividad por lead y un cliente/contrato bancario
-ficticio. Estos fixtures evitan que una prueba de seguridad apruebe por accidente
-solo porque la tabla estaba vacia.
+El seed tambien crea una actividad por lead, un cliente bancario, un contrato
+enlazado y otro legacy sin enlace. Estos fixtures evitan que una prueba de
+seguridad apruebe por accidente solo porque la tabla o un camino estaban vacios.
 
 ## Cobertura del gate
 
@@ -137,6 +156,9 @@ solo porque la tabla estaba vacia.
 - `crm.clientes_basicos` con una fila real, pero sin columnas bancarias;
 - acceso directo a columnas bancarias de `public.perfiles` y a
   `public.contratos` denegado para roles CRM;
+- banca contractual CRM: fixture enlazado y fixture legacy real, las cuatro RPC
+  bloqueadas en sus cinco caminos al apagar cualquiera de los flags P04, admin
+  con membresia revocada bloqueado y admin global sin membresia conservado;
 - RPC de consulta de DNI disponible para staff, no para clientes;
 - `crm.agenda_ics`: cada quien SU fila (crear/rotar token); el token es
   privado incluso para supervisor, gerencia y lector global; sin DELETE ni

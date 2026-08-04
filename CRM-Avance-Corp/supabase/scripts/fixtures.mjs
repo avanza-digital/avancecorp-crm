@@ -352,6 +352,8 @@ export const BANK_CLIENT = Object.freeze({
 
 export const BANK_CONTRACT = Object.freeze({
   id: '33000000-0000-4000-8000-000000000001',
+  accountId: '55000000-0000-4000-8000-000000000001',
+  paymentLinkId: '66000000-0000-4000-8000-000000000001',
   number: '2026-01-990001',
   capital: 1000,
   currency: 'PEN',
@@ -362,6 +364,22 @@ export const BANK_CONTRACT = Object.freeze({
   endDate: '2027-01-01',
   category: 'nuevo',
   internalNotes: 'FIXTURE RLS: NO EXPONER AL CRM',
+});
+
+// Contrato anterior al ledger de cuentas. Debe permanecer SIN enlace para
+// demostrar que el wrapper de correccion tambien aplica P04 al fallback legacy.
+export const BANK_LEGACY_CONTRACT = Object.freeze({
+  id: '33000000-0000-4000-8000-000000000002',
+  number: '2026-01-990002',
+  capital: 2000,
+  currency: 'PEN',
+  annualRate: 10,
+  paymentMode: 'mensual',
+  interestType: 'simple',
+  startDate: '2026-02-01',
+  endDate: '2027-02-01',
+  category: 'nuevo',
+  internalNotes: 'FIXTURE RLS LEGACY SIN CUENTA CONTRACTUAL',
 });
 
 export const TRANSIENT_IDS = Object.freeze({
@@ -441,7 +459,31 @@ export function validateFixtureModel() {
   unique(TAREAS.map((tarea) => tarea.key), 'tarea.key');
   unique(TAREAS.map((tarea) => tarea.id), 'tarea.id');
   unique(TAREAS.map((tarea) => tarea.titulo), 'tarea.titulo');
+  unique(
+    [
+      BANK_CONTRACT.id,
+      BANK_CONTRACT.accountId,
+      BANK_CONTRACT.paymentLinkId,
+      BANK_LEGACY_CONTRACT.id,
+    ],
+    'BANK fixture ids',
+  );
+  unique(
+    [BANK_CONTRACT.number, BANK_LEGACY_CONTRACT.number],
+    'BANK contract numbers',
+  );
   unique(Object.values(TRANSIENT_IDS), 'TRANSIENT_IDS');
+
+  for (const id of [
+    BANK_CONTRACT.id,
+    BANK_CONTRACT.accountId,
+    BANK_CONTRACT.paymentLinkId,
+    BANK_LEGACY_CONTRACT.id,
+  ]) {
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-8[0-9a-f]{3}-[0-9a-f]{12}$/i.test(id)) {
+      throw new Error(`Fixtures invalidos: UUID bancario ${id}.`);
+    }
+  }
 
   for (const user of USERS) {
     if (user.supervisorKey && !USER_BY_KEY[user.supervisorKey]?.crmRole) {

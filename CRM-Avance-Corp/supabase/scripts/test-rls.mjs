@@ -8,6 +8,7 @@ import { createClient } from '@supabase/supabase-js';
 import {
   BANK_CLIENT,
   BANK_CONTRACT,
+  BANK_LEGACY_CONTRACT,
   EXPECTED_LEAD_NAMES,
   EXPECTED_TAREA_TITULOS,
   LEADS,
@@ -116,7 +117,7 @@ function printPreflight() {
   }
   console.log(`✓ fixtures: ${LEADS.length} leads, ${LEADS.length} actividades, ${TAREAS.length} tareas`);
   console.log('✓ offboarding: true/true, false/true, true/false, false/false y fallback global');
-  console.log('✓ fixtures: 1 cliente bancario + 1 contrato sensible');
+  console.log('✓ fixtures: 1 cliente bancario + 1 contrato enlazado + 1 contrato legacy + 1 cuenta contractual');
   console.log('Preflight terminado; no se abrio ninguna conexion.');
 }
 
@@ -538,10 +539,65 @@ async function verifySeed() {
   assertSeed(contractResponse.data.notas_internas === BANK_CONTRACT.internalNotes,
     'notas internas del contrato fixture no coinciden');
 
+  const bankLinkResponse = await requireAdmin(
+    'precondicion crm.contrato_cuentas_pago',
+    admin.schema('crm').from('contrato_cuentas_pago')
+      .select('id, contrato_id, cuenta_bancaria_id')
+      .eq('contrato_id', contractResponse.data.id)
+      .single(),
+  );
+  assertSeed(bankLinkResponse.data.contrato_id === contractResponse.data.id,
+    'el enlace bancario apunta a otro contrato');
+
+  const bankAccountResponse = await requireAdmin(
+    'precondicion crm.cuentas_bancarias',
+    admin.schema('crm').from('cuentas_bancarias')
+      .select('id, cliente_id, moneda, banco, tipo_cuenta, numero_cuenta, cci, activa')
+      .eq('id', bankLinkResponse.data.cuenta_bancaria_id)
+      .single(),
+  );
+  assertSeed(bankAccountResponse.data.cliente_id === bankProfile.id,
+    'la cuenta contractual pertenece a otro cliente');
+  assertSeed(bankAccountResponse.data.moneda === BANK_CONTRACT.currency,
+    'la cuenta contractual tiene otra moneda');
+  assertSeed(bankAccountResponse.data.banco === BANK_CLIENT.bank,
+    'la cuenta contractual tiene otro banco');
+  assertSeed(bankAccountResponse.data.tipo_cuenta === BANK_CLIENT.accountType,
+    'la cuenta contractual tiene otro tipo');
+  assertSeed(bankAccountResponse.data.numero_cuenta === BANK_CLIENT.accountNumber,
+    'la cuenta contractual tiene otro numero');
+  assertSeed(bankAccountResponse.data.cci === BANK_CLIENT.cci,
+    'la cuenta contractual tiene otro CCI');
+  assertSeed(bankAccountResponse.data.activa === true,
+    'la cuenta contractual fixture no esta activa');
+
+  const legacyContractResponse = await requireAdmin(
+    'precondicion public.contratos legacy sin enlace',
+    admin.from('contratos')
+      .select('*')
+      .eq('numero_contrato', BANK_LEGACY_CONTRACT.number)
+      .single(),
+  );
+  assertSeed(legacyContractResponse.data.cliente_id === bankProfile.id,
+    'el contrato legacy apunta a otro cliente');
+  assertSeed(legacyContractResponse.data.notas_internas === BANK_LEGACY_CONTRACT.internalNotes,
+    'notas internas del contrato legacy no coinciden');
+  const legacyLinkResponse = await requireAdmin(
+    'precondicion contrato legacy sin cuenta contractual',
+    admin.schema('crm').from('contrato_cuentas_pago')
+      .select('id', { count: 'exact', head: true })
+      .eq('contrato_id', legacyContractResponse.data.id),
+  );
+  assertSeed(legacyLinkResponse.count === 0,
+    'el contrato legacy tiene un enlace y no sirve para probar el fallback');
+
   return {
     activities: activitiesResponse.data,
     activityById,
+    bankAccount: bankAccountResponse.data,
+    bankLink: bankLinkResponse.data,
     contract: contractResponse.data,
+    legacyContract: legacyContractResponse.data,
     leadByName,
     leads: leadsResponse.data,
     profileIdByKey,
@@ -2955,10 +3011,25 @@ async function testContractBankAccounts(sessions, seed) {
   console.log('\n— Cuenta bancaria fija por contrato —');
   const bankProfileId = seed.profileIdByKey[BANK_CLIENT.key];
   const analystIds = [seed.profileIdByKey.vend1, seed.profileIdByKey.vend3];
-  const originalRoles = analystIds.map((id) => ({
+  const directorProfileId = seed.profileIdByKey.directorio;
+  const originalDirectorRole = seed.profiles.find(
+    (profile) => profile.id === directorProfileId,
+  )?.rol;
+  let directorRoleChanged = false;
+  const originalActors = analystIds.map((id) => ({
+    activo: seed.profiles.find((profile) => profile.id === id)?.activo,
+    crmActivo: seed.team.find((member) => member.perfil_id === id)?.activo,
     id,
     rol: seed.profiles.find((profile) => profile.id === id)?.rol,
   }));
+  assertSeed(typeof originalDirectorRole === 'string',
+    'falta el rol original de directorio para la sonda bancaria');
+  for (const actor of originalActors) {
+    assertSeed(typeof actor.activo === 'boolean' && typeof actor.crmActivo === 'boolean',
+      `faltan los flags originales del actor bancario ${actor.id}`);
+    assertSeed(typeof actor.rol === 'string',
+      `falta el rol original del actor bancario ${actor.id}`);
+  }
   const expectedProfileAccount = {
     banco: BANK_CLIENT.bank,
     tipo_cuenta: BANK_CLIENT.accountType,
@@ -2969,6 +3040,118 @@ async function testContractBankAccounts(sessions, seed) {
     beneficiario_dni: null,
   };
   const minimalContract = { cliente_id: bankProfileId, moneda: BANK_CONTRACT.currency };
+
+  async function setVend1State({ portalActive, crmActive }) {
+    const updateProfile = () => requireAdmin(
+      `banca P04: fijar perfil vend1 activo=${portalActive}`,
+      admin.from('perfiles')
+        .update({ activo: portalActive })
+        .eq('id', seed.profileIdByKey.vend1),
+    );
+    const updateTeam = () => requireAdmin(
+      `banca P04: fijar equipo vend1 activo=${crmActive}`,
+      admin.schema('crm').from('equipo')
+        .update({ activo: crmActive })
+        .eq('perfil_id', seed.profileIdByKey.vend1),
+    );
+
+    // Revocar corta primero CRM. Para habilitar ambos, primero vive el perfil.
+    // El estado false/true se construye apagando el perfil antes de asegurar la
+    // membresia; nunca hay una ventana mas permisiva que el estado de destino.
+    if (!crmActive) {
+      await updateTeam();
+      await updateProfile();
+    } else if (!portalActive) {
+      await updateProfile();
+      await updateTeam();
+    } else {
+      await updateProfile();
+      await updateTeam();
+    }
+  }
+
+  async function assertBankSurfaceDenied(label) {
+    await expectExpectedFailure(
+      `${label}: no lista cuentas contractuales`,
+      sessions.vend1.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      `${label}: no crea contrato con cuenta`,
+      sessions.vend1.client.schema('crm').rpc('crear_contrato_con_cuenta', {
+        p_contrato: minimalContract,
+        p_cronograma: [],
+        p_cuenta: {
+          tipo: 'perfil',
+          cuenta_esperada: expectedProfileAccount,
+        },
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      `${label}: no corrige contrato ya enlazado`,
+      sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+        p_id: seed.contract.id,
+        p_contrato: { moneda: BANK_CONTRACT.currency },
+        p_cronograma: [],
+      }),
+      ['42501'],
+      /contrato no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      `${label}: no corrige contrato legacy sin enlace`,
+      sessions.vend1.client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+        p_id: seed.legacyContract.id,
+        p_contrato: { moneda: BANK_LEGACY_CONTRACT.currency },
+        p_cronograma: { invalido: true },
+      }),
+      ['42501'],
+      /contrato no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      `${label}: no resuelve cuentas contractuales para Pagos`,
+      sessions.vend1.client.schema('crm').rpc('cuentas_pago_contratos_fn', {
+        p_contrato_ids: [seed.contract.id],
+      }),
+      ['42501'],
+      /no autorizado para consultar cuentas de pago/i,
+    );
+  }
+
+  async function assertAdminBankRead(client, label) {
+    const listed = await positive(
+      `${label}: lista cuentas bancarias`,
+      client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+    );
+    check(
+      Array.isArray(listed?.data)
+        && listed.data.some((row) => row.cci === BANK_CLIENT.cci),
+      `${label}: el listado incluye la cuenta contractual`,
+    );
+
+    const paymentAccounts = await positive(
+      `${label}: resuelve cuentas para Pagos`,
+      client.schema('crm').rpc('cuentas_pago_contratos_fn', {
+        p_contrato_ids: [seed.contract.id],
+      }),
+    );
+    check(
+      Array.isArray(paymentAccounts?.data)
+        && paymentAccounts.data.some(
+          (row) => row.contrato_id === seed.contract.id
+            && row.cuenta_bancaria_id === seed.bankAccount.id,
+        ),
+      `${label}: Pagos recibe la fotografia contractual esperada`,
+    );
+  }
 
   // El fixture principal usa el rol portal neutro `comercial` para probar que el
   // CRM no hereda las policies bancarias del portal. Esta sección cambia solo
@@ -3017,6 +3200,48 @@ async function testContractBankAccounts(sessions, seed) {
         p_moneda: BANK_CONTRACT.currency,
       }),
     );
+
+    // Regresion que motivo esta entrega: un JWT ya emitido no puede conservar
+    // ninguna RPC bancaria si UNO de los dos flags vivos de P04 queda apagado.
+    await setVend1State({ portalActive: false, crmActive: true });
+    await assertBankSurfaceDenied('banca P04 false/true');
+    await setVend1State({ portalActive: true, crmActive: false });
+    await assertBankSurfaceDenied('banca P04 true/false');
+    await setVend1State({ portalActive: true, crmActive: true });
+
+    // El gate tambien envuelve al admin cuando existe una membresia CRM: una
+    // fila activa permite su poder del portal y una fila revocada prevalece.
+    await requireAdmin(
+      'banca P04: convertir vend1 temporalmente en admin con membresia activa',
+      admin.from('perfiles').update({ rol: 'admin' }).eq('id', seed.profileIdByKey.vend1),
+    );
+    await assertAdminBankRead(
+      sessions.vend1.client,
+      'admin con membresia CRM activa',
+    );
+    await setVend1State({ portalActive: true, crmActive: false });
+    await assertBankSurfaceDenied('banca P04 admin con membresia revocada');
+    await setVend1State({ portalActive: true, crmActive: true });
+    await requireAdmin(
+      'banca P04: restaurar vend1 como analista para las sondas restantes',
+      admin.from('perfiles').update({ rol: 'analista' }).eq('id', seed.profileIdByKey.vend1),
+    );
+
+    // Sin fila en crm.equipo, el admin usa el fallback global previsto por P04.
+    await requireAdmin(
+      'banca P04: convertir directorio temporalmente en admin global',
+      admin.from('perfiles').update({ rol: 'admin' }).eq('id', directorProfileId),
+    );
+    directorRoleChanged = true;
+    await assertAdminBankRead(
+      sessions.directorio.client,
+      'admin global sin membresia CRM',
+    );
+    await requireAdmin(
+      'banca P04: restaurar el rol global de directorio',
+      admin.from('perfiles').update({ rol: originalDirectorRole }).eq('id', directorProfileId),
+    );
+    directorRoleChanged = false;
 
     // No se acepta como prueba un SELECT exitoso con 0 filas: las tablas deben
     // carecer de GRANT para authenticated, aun cuando su RLS tambien este activa.
@@ -3145,7 +3370,7 @@ async function testContractBankAccounts(sessions, seed) {
       await expectExplicitAuthorizationDenied(
         `${key} no corrige el contrato bancario por el wrapper`,
         sessions[key].client.schema('crm').rpc('actualizar_contrato_con_cuenta', {
-          p_id: BANK_CONTRACT.id,
+          p_id: seed.contract.id,
           p_contrato: duplicateContract,
           p_cronograma: { invalido: true },
         }),
@@ -3156,16 +3381,32 @@ async function testContractBankAccounts(sessions, seed) {
       await expectExplicitAuthorizationDenied(
         `${key} no usa el resolver de cuentas reservado al administrador`,
         sessions[key].client.schema('crm').rpc('cuentas_pago_contratos_fn', {
-          p_contrato_ids: [BANK_CONTRACT.id],
+          p_contrato_ids: [seed.contract.id],
         }),
       );
     }
   } finally {
-    for (const original of originalRoles) {
+    if (directorRoleChanged && originalDirectorRole) {
+      await requireAdmin(
+        'restaurar rol global de directorio tras sondas bancarias',
+        admin.from('perfiles')
+          .update({ rol: originalDirectorRole })
+          .eq('id', directorProfileId),
+      );
+    }
+    for (const original of originalActors) {
       if (!original.rol) continue;
       await requireAdmin(
-        `restaurar rol portal de ${original.id} tras sondas bancarias`,
-        admin.from('perfiles').update({ rol: original.rol }).eq('id', original.id),
+        `restaurar perfil portal de ${original.id} tras sondas bancarias`,
+        admin.from('perfiles')
+          .update({ activo: original.activo, rol: original.rol })
+          .eq('id', original.id),
+      );
+      await requireAdmin(
+        `restaurar membresia CRM de ${original.id} tras sondas bancarias`,
+        admin.schema('crm').from('equipo')
+          .update({ activo: original.crmActivo })
+          .eq('perfil_id', original.id),
       );
     }
   }
@@ -3947,6 +4188,31 @@ async function testAnon(seed) {
     anon.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
       p_cliente_id: bankProfileId,
       p_moneda: BANK_CONTRACT.currency,
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no crea contratos con cuenta bancaria',
+    anon.schema('crm').rpc('crear_contrato_con_cuenta', {
+      p_contrato: { cliente_id: bankProfileId, moneda: BANK_CONTRACT.currency },
+      p_cronograma: [],
+      p_cuenta: {},
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no corrige contratos legacy por el wrapper bancario',
+    anon.schema('crm').rpc('actualizar_contrato_con_cuenta', {
+      p_id: seed.legacyContract.id,
+      p_contrato: { moneda: BANK_LEGACY_CONTRACT.currency },
+      p_cronograma: [],
+    }),
+    ['PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no resuelve cuentas contractuales para Pagos',
+    anon.schema('crm').rpc('cuentas_pago_contratos_fn', {
+      p_contrato_ids: [seed.contract.id],
     }),
     ['PGRST202'],
   );
