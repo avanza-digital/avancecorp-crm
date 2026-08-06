@@ -290,3 +290,22 @@ puede resolver o escalar:
 - No se agregó tabla de notificaciones, Realtime, RPC ni migración. Si luego se
   requiere historial, acuse o escalamiento con SLA, deberá diseñarse como un
   sistema persistente aparte de esta bandeja de condiciones activas.
+
+#### Corrección liberada el 2026-08-06
+
+- Código confirmado en `567cb1f` (`fix(crm): enrutar pendientes segun
+  responsabilidad`). El bloque previo de Inteligencia Gerencial quedó
+  confirmado por separado en `772677c`.
+- Frontend: release `crm-20260806T192701Z-567cb1fd5e22`, SHA-256
+  `91c40e97d6897262f408beb8cefaad5e88f3318bebc7b05b51aa6af033fcec2c`.
+- Producción sirve `assets/index-D2TiPky0.js`,
+  `assets/index-eCnu--Tj.css`, `assets/alertas-Cs9QU2cx.js`,
+  `assets/gerencia-JpQ-7oWm.js` y `assets/hoy-DaNfU3Qd.js`; esos archivos y
+  `index.html` coinciden byte a byte con el build local.
+- El ZIP devuelve 404 tanto en CRM como en el portal; el manifiesto y
+  `package.json` devuelven 404, mientras `.htaccess` y `.env` devuelven 403.
+- Validación final: 107 archivos de prueba, 1,298 pruebas aprobadas, lint sin
+  advertencias, tipos y build correctos.
+- La validación visual automatizada no pudo ejecutarse porque esta sesión no
+  tenía ningún navegador enlazado. El servidor local sí respondió en
+  `127.0.0.1:5173` y las pruebas de componentes, rutas y accesibilidad pasaron.

@@ -45,13 +45,12 @@ Relacionado con [[Bienvenido]].
 ## Producción
 
 - Último frontend liberado el 2026-08-06 en `crm.miavance.com` con el release
-  `crm-20260806T185215Z-a0ba40c3cad5`. Incluye el rango inicial mensual, los
-  ajustes de robustez y la primera versión del Centro de alertas gerenciales.
-  Esa propuesta quedó marcada para reemplazo por la bandeja por responsabilidad
-  descrita abajo.
+  `crm-20260806T192701Z-567cb1fd5e22`. Incluye el rango inicial mensual, los
+  ajustes de robustez y la bandeja de pendientes por responsabilidad. Reemplaza
+  la primera propuesta gerencial `crm-20260806T185215Z-a0ba40c3cad5`.
 - SHA-256 del ZIP:
-  `3c53cc5c7410ffac917d3dbdd242705205461433c8c6eed335b4b25ed14e5071`.
-- Resultado final: 1,277 pruebas aprobadas, lint sin advertencias, tipos y build
+  `91c40e97d6897262f408beb8cefaad5e88f3318bebc7b05b51aa6af033fcec2c`.
+- Resultado final: 1,298 pruebas aprobadas, lint sin advertencias, tipos y build
   correctos.
 - Relacionado con [[Deploy a Hostinger]] y [[Bienvenido]].
 
