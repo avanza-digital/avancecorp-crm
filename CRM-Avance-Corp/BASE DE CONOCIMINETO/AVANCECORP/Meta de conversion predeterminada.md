@@ -91,3 +91,7 @@ Relacionado con [[Bienvenido]].
 - Vendedor y Supervisor trabajan sobre su ámbito ya recortado por RLS; Gerencia
   usa solo métricas agregadas. Toda fuente ausente o inválida falla cerrada.
 - Relacionado con [[Bienvenido]] y [[Deploy a Hostinger]].
+
+## Continuidad
+
+- Punto de reanudación: [[Continuidad CRM 2026-08-06]].

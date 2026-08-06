@@ -49,6 +49,49 @@ y ambos preflight con valores ficticios. No contiene secretos y no ejecuta el
 seed ni el gate vivo. Las pruebas contra Supabase quedan deliberadamente
 manuales hasta que se autorice trabajar con un branch de base de datos.
 
+## Limpieza controlada del dataset (branch/staging)
+
+> **WIP guardado el 2026-08-06 — no ejecutar todavía.** Antes de habilitarlo hay
+> que corregir la validación de opciones desconocidas, hacer que
+> `--preserve-reference` preserve todas las tablas que promete y alinear el
+> ejemplo de preflight con las variables que el script exige. El bloqueo de la
+> referencia de producción y la confirmación destructiva existen, pero este
+> borrador aún no se considera aprobado.
+
+Antes de reusar una rama para F2/operación o para demos limpias, usa:
+
+```bash
+npm run clean:crm -- --preflight
+```
+
+El preflight valida Node, variables y destino permitido (sin conectar ni borrar
+nada.
+
+Para probar el impacto sin tocar datos:
+
+```bash
+SUPABASE_URL='https://<ref-del-branch>.supabase.co' \
+SUPABASE_SERVICE_ROLE_KEY='....' \
+npm run clean:crm -- --dry-run
+```
+
+Ejecución real (con `SUPABASE_ANON_KEY` y `CRM_DEMO_PASSWORD` **no necesarios**):
+
+```bash
+SUPABASE_URL='https://<ref-del-branch>.supabase.co' \
+SUPABASE_SERVICE_ROLE_KEY='....' \
+CRM_CLEAN_CONFIRM='QUIERO_BORRAR_TODOS_LOS_DATOS' \
+npm run clean:crm
+```
+
+Opciones:
+
+- `--preserve-equipo`: mantiene `crm.equipo` (vuelve con defaults posteriores si el
+  fixture lo reprovisiona).
+- `--preserve-reference`: conserva `crm.enfriamiento_politica`, `crm.cuentas_bancarias`
+  y `crm.contrato_cuentas_pago` para no afectar fronteras bancarias.
+- Las dos opciones se pueden combinar.
+
 ## Oraculo local del gate bancario P04
 
 `test-p04-cuentas-bancarias.sql` es una prueba transaccional autocontenida para
