@@ -95,12 +95,11 @@ describe('Sidebar — temporizadores del asomo', () => {
   })
 
   it('Gerencia ve inteligencia separada y ninguna navegación operativa', () => {
-    const { onNavegar } = montar({ movil: false, rol: 'gerencia' })
+    montar({ movil: false, rol: 'gerencia' })
     const navegacion = screen.getByRole('navigation')
 
     const nombres = [
       'Resumen',
-      'Alertas',
       'Conversiones',
       'Ranking',
       'Reuniones',
@@ -112,8 +111,7 @@ describe('Sidebar — temporizadores del asomo', () => {
     for (const nombre of nombres) {
       expect(within(navegacion).getByRole('button', { name: nombre })).toBeVisible()
     }
-    fireEvent.click(within(navegacion).getByRole('button', { name: 'Alertas' }))
-    expect(onNavegar).toHaveBeenCalledWith('alertas')
+    expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
     for (const nombre of [
       'Pipeline',
       'Leads',

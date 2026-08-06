@@ -1,7 +1,7 @@
 // Topbar — título de vista (+ chip DEMO si la sesión es demo), búsqueda global
 // real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un vendedor
-// no encuentra leads ajenos), acceso real a Alertas para Gerencia (placeholder
-// honesto para los demás roles, sin badge inventado) y alta de lead. La búsqueda
+// no encuentra leads ajenos), bandeja de pendientes con conteo real por rol y
+// alta de lead. La búsqueda
 // abre el drawer vía usePanelesActions().abrirLead.
 //
 // POR QUÉ el buscador NO alcanza a los CLIENTES (2026-07-25): prometía «lead o
@@ -21,7 +21,6 @@ import {
   type KeyboardEvent as TeclaReact,
 } from 'react'
 import { Plus, Bell, Search } from 'lucide-react'
-import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -31,10 +30,11 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
 import { hashDe, type Vista } from '@/lib/router'
+import { useAlertasCRM } from '@/lib/alertas-context'
 
 const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
-  alertas: { t: 'Centro de alertas', s: 'Prioriza y resuelve los casos que requieren atención' },
+  alertas: { t: 'Pendientes', s: 'Acciones y señales que requieren tu atención' },
   conversiones: { t: 'Conversiones', s: 'Conversión de leads a clientes' },
   'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los vendedores' },
   reuniones: { t: 'Reuniones', s: 'Pactadas, concretadas, no realizadas y modalidad' },
@@ -88,6 +88,7 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
 export function Topbar({ vista }: { vista: Vista }) {
   const { yo } = useAuth()
   const { ambito } = useCRMData()
+  const { alertas, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el vendedor, "Cartera" para quien supervisa.
   const info =
@@ -274,26 +275,29 @@ export function Topbar({ vista }: { vista: Vista }) {
         </div>
         )}
 
-        {yo?.rol === 'gerencia' ? (
+        {can(yo?.rol, 'verAlertas') && (
           <a
             href={hashDe('alertas')}
-            title="Abrir centro de alertas"
-            aria-label="Abrir centro de alertas"
+            title="Abrir pendientes"
+            aria-label={alertas.length > 0
+              ? `Abrir pendientes: ${alertas.length} ${alertas.length === 1 ? 'activo' : 'activos'}`
+              : 'Abrir pendientes'}
             aria-current={vista === 'alertas' ? 'page' : undefined}
-            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            className="relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
-            <Bell className="size-4" />
+            <Bell className="size-4" aria-hidden />
+            {alertas.length > 0 && (
+              <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-extrabold leading-4 text-destructive-foreground" aria-hidden>
+                {alertas.length > 99 ? '99+' : alertas.length}
+              </span>
+            )}
+            {alertas.length === 0 && erroresAlertas.length > 0 && (
+              <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-warning ring-2 ring-card" aria-hidden />
+            )}
+            {alertas.length === 0 && erroresAlertas.length === 0 && cargandoAlertas && (
+              <span className="absolute right-0.5 top-0.5 size-2 animate-pulse rounded-full bg-primary ring-2 ring-card motion-reduce:animate-none" aria-hidden />
+            )}
           </a>
-        ) : (
-          <Button
-            variant="ghost"
-            size="icon"
-            title="Las notificaciones llegan pronto"
-            aria-label="Notificaciones"
-            onClick={() => toast.info('Las notificaciones llegan pronto')}
-          >
-            <Bell className="size-4" />
-          </Button>
         )}
 
         {leadsVisibles && puedeEscribir(yo?.rol) && (

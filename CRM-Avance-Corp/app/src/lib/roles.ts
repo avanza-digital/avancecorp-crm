@@ -27,6 +27,7 @@ export const ACCIONES = [
   'verLeads',
   'verAgenda',
   'verGestionEquipo',
+  'verAlertas',         // bandeja por destinatario (propia, equipo o ejecutiva)
   'verCartera',         // pantalla unificada Clientes+Contratos ('mi-cartera')
   'verConfiguracion',   // pantalla 'config' — incluye la suscripción ICS PROPIA
   'editarConfiguracion',
@@ -53,6 +54,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: false,
+    verAlertas: true,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
@@ -60,6 +62,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: false, verEquipo: true, filtrarPorVendedor: true,
     reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
+    verAlertas: true,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
@@ -67,6 +70,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: false,
     verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
+    verAlertas: true,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: true,
   },
@@ -74,6 +78,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
+    verAlertas: false,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: true,
   },
@@ -85,6 +90,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
     verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
+    verAlertas: false,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: false, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },

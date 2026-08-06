@@ -9,8 +9,8 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 
 const VISTAS_POR_GATE = {
   abierto: {
-    vendedor: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
-    supervisor: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo'],
+    vendedor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
+    supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config'],
     coordinador: ['hoy', 'repartir'],
@@ -106,10 +106,12 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('hoy', 'gerencia', false)).toBe('hoy')
   })
 
-  it('reserva #/alertas para Gerencia con ambos estados del gate', () => {
+  it('abre #/alertas para los roles destinatarios y respeta el gate operativo', () => {
     expect(sanearVista('alertas', 'gerencia', true)).toBe('alertas')
     expect(sanearVista('alertas', 'gerencia', false)).toBe('alertas')
-    expect(sanearVista('alertas', 'supervisor', true)).toBe('hoy')
+    expect(sanearVista('alertas', 'supervisor', true)).toBe('alertas')
+    expect(sanearVista('alertas', 'vendedor', true)).toBe('alertas')
+    expect(sanearVista('alertas', 'supervisor', false)).toBe('mi-cartera')
     expect(sanearVista('alertas', 'vendedor', false)).toBe('mi-cartera')
     expect(sanearVista('alertas', 'directorio', true)).toBe('hoy')
     expect(sanearVista('alertas', 'coordinador', false)).toBe('repartir')

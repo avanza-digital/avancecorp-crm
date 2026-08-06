@@ -20,7 +20,6 @@ let OBJETIVOS: ObjetivosPorRol = objetivosCero()
 let OBJETIVOS_ERROR = false
 const RECARGAR = vi.fn(async () => true)
 const CONSULTAS = vi.hoisted(() => ({
-  agenda: vi.fn(),
   conversiones: vi.fn(),
   reuniones: vi.fn(),
   distribucion: vi.fn(),
@@ -48,7 +47,6 @@ vi.mock('@/lib/store-context', () => ({
 // Paneles que viven de RPCs (TanStack) o de Recharts: fuera, no son lo que se
 // prueba aquí y montarlos exigiría un QueryClient y el bundle de gráficas.
 vi.mock('./distribucion-leads-gerencia', () => ({ DistribucionLeadsGerencia: () => null }))
-vi.mock('./alertas-gerencia', () => ({ AlertasGerenciaPanel: () => <h1>Centro de alertas</h1> }))
 vi.mock('./inteligencia-comercial', () => ({ InteligenciaComercialPanel: () => null }))
 vi.mock('./ranking-vendedores', () => ({ RankingVendedoresPanel: () => <h1>Ranking de vendedores</h1> }))
 vi.mock('./reuniones-gerencia', () => ({ ReunionesGerenciaPanel: () => null }))
@@ -60,10 +58,6 @@ vi.mock('@/components/gerencia/motion', () => ({
   GerenciaMotion: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
 vi.mock('@/data/crm-queries', () => ({
-  useMetricasAgenda: (...argumentos: [boolean, string, string]) => {
-    CONSULTAS.agenda(...argumentos)
-    return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
-  },
   useMetricasDistribucionLeads: (...argumentos: [boolean, string, string]) => {
     CONSULTAS.distribucion(...argumentos)
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
@@ -222,17 +216,6 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(screen.queryByText('Por repartir')).not.toBeInTheDocument()
   })
 
-  it('abre Alertas como fotografía MTD sin exponer el filtro histórico', () => {
-    montar({}, 'alertas')
-
-    expect(screen.getByRole('heading', { name: 'Centro de alertas' })).toBeInTheDocument()
-    expect(screen.queryByLabelText('Desde')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('Hasta')).not.toBeInTheDocument()
-    expect(CONSULTAS.agenda).toHaveBeenCalledWith(true, '2026-07-01', '2026-07-15')
-    expect(CONSULTAS.conversiones).toHaveBeenCalledWith(true, '2026-06-01', '2026-06-15')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
-    expect(CONSULTAS.reuniones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
-  })
 })
 
 describe('Hoy · gerencia — período del tablero', () => {

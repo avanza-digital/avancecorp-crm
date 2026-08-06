@@ -18,8 +18,6 @@ import { useAuth } from '@/lib/auth-context'
 import { money } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import { agregarObjetivos } from '@/lib/objetivos'
-import { derivarAlertasGerencia, periodoAnteriorComparable } from '@/lib/alertas-gerencia'
-import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import {
   conversionEquipoDemo,
@@ -30,13 +28,11 @@ import {
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
 import {
   useActualizarCapacidadLeadsObjetivo,
-  useMetricasAgenda,
   useMetricasConversiones,
   useMetricasDistribucionLeads,
   useMetricasReuniones,
 } from '@/data/crm-queries'
 import { mensajeDeError } from '@/data/crm-api'
-import { AlertasGerenciaPanel } from './alertas-gerencia'
 import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
 import { EquipoGerenciaPanel } from './equipo-gerencia'
 import { InteligenciaComercialPanel } from './inteligencia-comercial'
@@ -101,7 +97,7 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar }: {
   )
 }
 
-export type SeccionGerencia = 'completo' | 'resumen' | 'alertas' | 'conversiones' | 'ranking-vendedores' | 'reuniones' | 'metas' | 'rendimiento' | 'capital-cierres'
+export type SeccionGerencia = 'completo' | 'resumen' | 'conversiones' | 'ranking-vendedores' | 'reuniones' | 'metas' | 'rendimiento' | 'capital-cierres'
 
 export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerencia }): JSX.Element {
   const { ambito, equipo, objetivos, objetivosError = false, fijarObjetivos, recargar } = useCRMData()
@@ -111,14 +107,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const periodoAnterior = useRef(periodo)
   const [ejemploConversiones, setEjemploConversiones] = useState(false)
   const [ejemploReuniones, setEjemploReuniones] = useState(false)
-  const periodoAlertas = useMemo<PeriodoGerencia>(
-    () => ({ desde: `${diaLima.slice(0, 7)}-01`, hasta: diaLima }),
-    [diaLima],
-  )
-  const periodoAlertasAnterior = useMemo(
-    () => periodoAnteriorComparable(diaLima),
-    [diaLima],
-  )
   const metaMensual = useMemo(() => {
     const semantica = semanticaMetaMensual(periodo, Date.parse(`${diaLima}T12:00:00Z`))
     return objetivosError
@@ -136,19 +124,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   }, [periodo])
   const sesionReal = Boolean(yo && !yo.demo)
   const modoDemo = yo?.demo === true
-  const esAlertas = seccion === 'alertas'
-  const periodoMetricas = esAlertas ? periodoAlertas : periodo
-  const necesitaConversiones = ['completo', 'resumen', 'alertas', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento', 'capital-cierres'].includes(seccion)
-  const necesitaReuniones = ['completo', 'resumen', 'alertas', 'reuniones', 'capital-cierres'].includes(seccion)
+  const periodoMetricas = periodo
+  const necesitaConversiones = ['completo', 'resumen', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento', 'capital-cierres'].includes(seccion)
+  const necesitaReuniones = ['completo', 'resumen', 'reuniones', 'capital-cierres'].includes(seccion)
   const necesitaDistribucion = seccion === 'rendimiento'
-  // La comparación va primero para conservar la consulta principal como la
-  // última invocación del hook en pruebas y diagnósticos. Ambas claves incluyen
-  // las fechas, así TanStack las mantiene separadas sin carreras.
-  const conversionesAnteriores = useMetricasConversiones(
-    sesionReal && esAlertas,
-    periodoAlertasAnterior.desde,
-    periodoAlertasAnterior.hasta,
-  )
   const conversiones = useMetricasConversiones(
     sesionReal && necesitaConversiones,
     periodoMetricas.desde,
@@ -158,11 +137,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     sesionReal && necesitaReuniones,
     periodoMetricas.desde,
     periodoMetricas.hasta,
-  )
-  const agendaAlertas = useMetricasAgenda(
-    sesionReal && esAlertas,
-    periodoAlertas.desde,
-    periodoAlertas.hasta,
   )
   const distribucion = useMetricasDistribucionLeads(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
@@ -188,84 +162,26 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     ? semanticaMetaMensual(periodo)
     : metaMensual
   const datosReuniones = reunionesDeEjemplo ? metricasReunionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : reuniones.data
-  const datosAgendaAlertas = modoDemo
-    ? metricasAgendaDemo(periodoAlertas.desde, periodoAlertas.hasta)
-    : agendaAlertas.data
   const datosDistribucion = modoDemo ? metricasDistribucionDemo(periodo.desde, periodo.hasta) : distribucion.data
   const errorConversiones = conversionesDeEjemplo ? null : errorConsulta(sesionReal, conversiones.error, 'No se pudieron cargar las conversiones.')
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de reuniones.')
-  const errorAgendaAlertas = errorConsulta(sesionReal, agendaAlertas.error, 'No se pudo cargar la agenda del equipo.')
-  const errorComparacionAlertas = errorConsulta(sesionReal, conversionesAnteriores.error, 'No se pudo comparar la conversión con el mes anterior.')
   const errorResumen = [errorConversiones, errorReuniones].filter(Boolean).join(' ') || null
   const capitalActual = datosConversion?.produccion.capital_pen ?? null
   const conversionActual = datosConversion?.cohorte.conversion_contratos_pct ?? null
   const cargandoMetricasMetas = !conversionesDeEjemplo
     && estaCargando(sesionReal, conversiones)
     && datosConversion == null
-  const alertas = useMemo(
-    () => derivarAlertasGerencia({
-      conversiones: datosConversion,
-      conversionesAnteriores: modoDemo ? undefined : conversionesAnteriores.data,
-      agenda: datosAgendaAlertas,
-      reuniones: datosReuniones,
-      equipoConversion: datosEquipoConversion,
-      metasVendedores: metasVendedoresVisuales,
-      objetivosError,
-    }),
-    [
-      conversionesAnteriores.data,
-      datosAgendaAlertas,
-      datosConversion,
-      datosEquipoConversion,
-      datosReuniones,
-      metasVendedoresVisuales,
-      modoDemo,
-      objetivosError,
-    ],
-  )
-
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
   const reintentarDistribucion = () => { if (sesionReal) void distribucion.refetch() }
-  const reintentarAlertas = () => {
-    if (!sesionReal) return
-    void conversiones.refetch()
-    void conversionesAnteriores.refetch()
-    void reuniones.refetch()
-    void agendaAlertas.refetch()
-    if (objetivosError) void recargar()
-  }
   const esResumen = seccion === 'completo' || seccion === 'resumen' || seccion === 'capital-cierres'
-  const periodoMotion = esAlertas ? periodoAlertas : periodo
-  const claveMotion = `${seccion}|${periodoMotion.desde}|${periodoMotion.hasta}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
+  const claveMotion = `${seccion}|${periodo.desde}|${periodo.hasta}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
 
   return (
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
-      {!esAlertas && <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />}
+      <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} metaMensual={metaMensual} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
-
-      {esAlertas && (
-        <AlertasGerenciaPanel
-          alertas={alertas}
-          generadoEn={datosAgendaAlertas?.generado_en ?? datosConversion?.generado_en ?? datosReuniones?.generado_en ?? null}
-          cargando={!modoDemo && (
-            estaCargando(sesionReal, conversiones)
-            || estaCargando(sesionReal, conversionesAnteriores)
-            || estaCargando(sesionReal, reuniones)
-            || estaCargando(sesionReal, agendaAlertas)
-          )}
-          errores={[
-            errorConversiones,
-            errorReuniones,
-            errorAgendaAlertas,
-            errorComparacionAlertas,
-            objetivosError ? 'No se pudieron cargar las metas individuales.' : null,
-          ].filter((mensaje): mensaje is string => Boolean(mensaje))}
-          onReintentar={reintentarAlertas}
-          modoDemo={modoDemo}
-        />
-      )}
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 
@@ -372,9 +288,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       <p className="px-1 text-[11px] text-[var(--gi-muted)]">
         {modoDemo
           ? 'Datos de ejemplo. No modifican información real.'
-          : esAlertas
-            ? `Estado actual al ${periodoAlertas.hasta} · métricas agregadas sin descargar datos sensibles.`
-            : `${periodo.desde} al ${periodo.hasta} · PEN y USD se muestran por separado.`}
+          : `${periodo.desde} al ${periodo.hasta} · PEN y USD se muestran por separado.`}
       </p>
     </GerenciaMotion>
   )

@@ -1,10 +1,6 @@
 import type { JSX } from 'react'
 import { HoyGerencia } from '@/screens/hoy/gerencia'
 
-export function AlertasGerencia(): JSX.Element {
-  return <HoyGerencia seccion="alertas" />
-}
-
 export function ConversionesGerencia(): JSX.Element {
   return <HoyGerencia seccion="conversiones" />
 }

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, BadgeDollarSign, Trophy, BellRing,
+  Gauge, BadgeDollarSign, Trophy,
 } from 'lucide-react'
 import { can, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -21,10 +21,11 @@ interface NavMeta {
   seccion: SeccionNav
 }
 
+type VistaSidebar = Exclude<Vista, 'alertas'>
+
 /** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
 const NAV_META = {
   hoy: { label: 'Hoy', icon: LayoutDashboard, seccion: 'principal' },
-  alertas: { label: 'Alertas', icon: BellRing, seccion: 'principal' },
   conversiones: { label: 'Conversiones', icon: BarChart3, seccion: 'principal' },
   'ranking-vendedores': { label: 'Ranking', icon: Trophy, seccion: 'principal' },
   reuniones: { label: 'Reuniones', icon: Handshake, seccion: 'principal' },
@@ -41,9 +42,11 @@ const NAV_META = {
   repartir: { label: 'Repartir leads', icon: Split, seccion: 'principal' },
   equipo: { label: 'Equipo', icon: UsersRound, seccion: 'principal' },
   config: { label: 'Configuración', icon: Settings, seccion: 'administracion' },
-} as const satisfies Record<Vista, NavMeta>
+} as const satisfies Record<VistaSidebar, NavMeta>
 
-const NAV = VISTAS.map((id) => ({ id, ...NAV_META[id] }))
+// Alertas vive en la campana superior: no duplica un módulo en el menú lateral.
+const VISTAS_SIDEBAR = VISTAS.filter((id): id is VistaSidebar => id !== 'alertas')
+const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
 
 // Estado de colapso persistido: se recuerda entre recargas (por navegador).
 const LS_COLAPSADO = 'ac-crm-sidebar-colapsado'

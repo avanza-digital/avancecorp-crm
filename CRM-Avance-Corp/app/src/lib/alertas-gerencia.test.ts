@@ -3,11 +3,16 @@ import type { ConversionEquipoVendedor } from './conversion-equipo'
 import {
   conversionEquipoDemo,
   metricasConversionesDemo,
-  metricasReunionesDemo,
 } from './demo-inteligencia-comercial'
-import { metricasAgendaDemo } from './demo-metricas-agenda'
 import type { ObjetivosPorVendedor } from './objetivos'
 import {
+  BRECHA_CRITICA_ALERTA_CONVERSION_PP,
+  BRECHA_MINIMA_ALERTA_CONVERSION_PP,
+  CAIDA_CRITICA_ALERTA_GLOBAL_PP,
+  CAIDA_MINIMA_ALERTA_GLOBAL_PP,
+  DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL,
+  LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL,
+  LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR,
   derivarAlertasGerencia,
   periodoAnteriorComparable,
   type DerivarAlertasGerenciaInput,
@@ -38,6 +43,7 @@ function entradaSinFuentes(
   return {
     equipoConversion: [],
     metasVendedores: {},
+    diaDelMes: DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL,
     ...cambios,
   }
 }
@@ -76,68 +82,31 @@ describe('periodoAnteriorComparable', () => {
 })
 
 describe('derivarAlertasGerencia', () => {
-  it('crea rezagos solo para integrantes activos y no convierte ausencias en cero', () => {
-    const agenda = metricasAgendaDemo('2026-08-01', '2026-08-06')
-    agenda.vendedores = [
-      { ...agenda.vendedores[1]!, activo: false, vencidas: 9, leads_sin_accion: 9 },
-      { ...agenda.vendedores[2]!, vendedor_id: 'v-b', nombre: 'Bruno', vencidas: 2, leads_sin_accion: 3 },
-      { ...agenda.vendedores[0]!, vendedor_id: 's-a', nombre: 'Supervisora', vencidas: 8, leads_sin_accion: 7 },
-    ]
-
-    const alertas = derivarAlertasGerencia(entradaSinFuentes({
-      agenda,
-      equipoConversion: [identidad('v-b', 'Bruno', 'Equipo Norte')],
-    }))
-
-    expect(alertas).toEqual([
-      expect.objectContaining({
-        id: 'tarea_vencida:v-b',
-        tipo: 'tarea_vencida',
-        severidad: 'atencion',
-        responsable: 'Bruno',
-        equipo: 'Equipo Norte',
-        valor: 2,
-        destino: 'rendimiento',
-      }),
-      expect.objectContaining({
-        id: 'sin_proxima_accion:v-b',
-        tipo: 'sin_proxima_accion',
-        severidad: 'atencion',
-        valor: 3,
-        destino: 'rendimiento',
-      }),
-    ])
-    expect(derivarAlertasGerencia(entradaSinFuentes())).toEqual([])
-  })
-
-  it('excluye responsables nulos y eleva no-shows desde dos casos a crítica', () => {
-    const reuniones = metricasReunionesDemo('2026-08-01', '2026-08-06')
-    reuniones.responsables = [
-      { ...reuniones.responsables[0]!, responsable_id: 'v-uno', nombre: 'Zoe', no_show: 1 },
-      { ...reuniones.responsables[1]!, responsable_id: 'v-dos', nombre: 'Ana', no_show: 2 },
-      { ...reuniones.responsables[2]!, responsable_id: null, nombre: 'Sin dueño', no_show: 8 },
-    ]
-
-    const alertas = derivarAlertasGerencia(entradaSinFuentes({ reuniones }))
-
-    expect(alertas.map(({ id, severidad }) => ({ id, severidad }))).toEqual([
-      { id: 'no_show:v-dos', severidad: 'critica' },
-      { id: 'no_show:v-uno', severidad: 'atencion' },
-    ])
-    expect(alertas[0]).toMatchObject({
-      responsable: 'Ana',
-      equipo: reuniones.responsables[1]!.supervisor_nombre,
-      valor: 2,
-      destino: 'reuniones',
+  it('exporta umbrales ejecutivos explícitos y estables', () => {
+    expect({
+      dia: DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL,
+      leadsVendedor: LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR,
+      brechaVendedor: BRECHA_MINIMA_ALERTA_CONVERSION_PP,
+      brechaVendedorCritica: BRECHA_CRITICA_ALERTA_CONVERSION_PP,
+      leadsGlobal: LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL,
+      caidaGlobal: CAIDA_MINIMA_ALERTA_GLOBAL_PP,
+      caidaGlobalCritica: CAIDA_CRITICA_ALERTA_GLOBAL_PP,
+    }).toEqual({
+      dia: 10,
+      leadsVendedor: 10,
+      brechaVendedor: 5,
+      brechaVendedorCritica: 10,
+      leadsGlobal: 30,
+      caidaGlobal: 3,
+      caidaGlobalCritica: 5,
     })
   })
 
-  it('alerta solo a vendedores comparables bajo su meta individual o la inicial', () => {
+  it('alerta al vendedor solo desde el día 10, con 10 leads y brecha mínima de 5 pp', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
-    const equipoConversion = conversionEquipoDemo().slice(0, 2)
+    const equipoConversion = conversionEquipoDemo().slice(0, 1)
     conversiones.responsables = [
       { ...conversiones.responsables![0]!, leads: 10, clientes: 1, conversion_pct: 10 },
-      { ...conversiones.responsables![1]!, leads: 0, clientes: 0, conversion_pct: null },
     ]
     const metasVendedores: ObjetivosPorVendedor = {
       'demo-v1': {
@@ -145,10 +114,33 @@ describe('derivarAlertasGerencia', () => {
         supervisorId: 'demo-s1',
         capitalObjetivo: 0,
         ventasObjetivo: 0,
-        conversionObjetivo: 12,
+        conversionObjetivo: 15,
       },
     }
 
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      equipoConversion,
+      metasVendedores,
+      diaDelMes: 9,
+    }))).toEqual([])
+
+    conversiones.responsables[0]!.leads = 9
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      equipoConversion,
+      metasVendedores,
+    }))).toEqual([])
+
+    conversiones.responsables[0]!.leads = 10
+    conversiones.responsables[0]!.conversion_pct = 10.01
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      equipoConversion,
+      metasVendedores,
+    }))).toEqual([])
+
+    conversiones.responsables[0]!.conversion_pct = 10
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       equipoConversion,
@@ -162,29 +154,65 @@ describe('derivarAlertasGerencia', () => {
         responsable: 'Ana Torres',
         valor: 10,
         actual: 10,
-        objetivo: 12,
-        brechaPp: 2,
+        objetivo: 15,
+        brechaPp: 5,
         destino: 'ranking-vendedores',
       }),
     ])
+  })
 
-    const conMetaInicial = derivarAlertasGerencia(entradaSinFuentes({
+  it('eleva a crítica una brecha individual de 10 pp y aplica la meta inicial válida', () => {
+    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-10')
+    const equipoConversion = conversionEquipoDemo().slice(0, 1)
+    conversiones.responsables = [
+      { ...conversiones.responsables![0]!, leads: 10, clientes: 0, conversion_pct: 5 },
+    ]
+
+    const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       equipoConversion,
       metasVendedores: {},
     }))
-    expect(conMetaInicial[0]).toMatchObject({ objetivo: 15, brechaPp: 5 })
+
+    expect(alertas).toEqual([
+      expect.objectContaining({
+        id: 'bajo_meta_conversion:demo-v1',
+        severidad: 'critica',
+        objetivo: 15,
+        brechaPp: 10,
+      }),
+    ])
   })
 
-  it('falla cerrado ante objetivos con error o responsables ausentes y parciales', () => {
+  it('falla cerrado ante objetivos con error o inválidos y responsables ausentes o parciales', () => {
     const equipoConversion = conversionEquipoDemo().slice(0, 2)
     const completas = metricasConversionesDemo('2026-08-01', '2026-08-06')
     completas.responsables = completas.responsables!.slice(0, 2)
+    completas.responsables[0] = {
+      ...completas.responsables[0]!,
+      leads: 20,
+      conversion_pct: 0,
+    }
 
     expect(derivarAlertasGerencia(entradaSinFuentes({
       conversiones: completas,
       equipoConversion,
       objetivosError: true,
+    }))).toEqual([])
+
+    const metaInvalida: ObjetivosPorVendedor = {
+      'demo-v1': {
+        vendedorId: 'demo-v1',
+        supervisorId: 'demo-s1',
+        capitalObjetivo: 0,
+        ventasObjetivo: 0,
+        conversionObjetivo: Number.NaN,
+      },
+    }
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones: completas,
+      equipoConversion,
+      metasVendedores: metaInvalida,
     }))).toEqual([])
 
     const ausentes = { ...completas, responsables: undefined }
@@ -200,13 +228,15 @@ describe('derivarAlertasGerencia', () => {
     }))).toEqual([])
   })
 
-  it('detecta solo una caída global con porcentajes disponibles y conserva la referencia', () => {
+  it('alerta la caída global solo con 30 leads por periodo y una brecha de al menos 3 pp', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
     const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-06')
     conversiones.responsables = undefined
     conversionesAnteriores.responsables = undefined
-    conversiones.cohorte.conversion_contratos_pct = 10
-    conversionesAnteriores.cohorte.conversion_contratos_pct = 14.5
+    conversiones.cohorte.leads = 30
+    conversionesAnteriores.cohorte.leads = 30
+    conversiones.cohorte.conversion_contratos_pct = 12
+    conversionesAnteriores.cohorte.conversion_contratos_pct = 15
 
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
@@ -221,24 +251,52 @@ describe('derivarAlertasGerencia', () => {
         responsableId: null,
         responsable: 'Equipo comercial',
         equipo: 'Todos los equipos',
-        valor: 10,
-        actual: 10,
-        objetivo: 14.5,
-        brechaPp: 4.5,
+        valor: 12,
+        actual: 12,
+        objetivo: 15,
+        brechaPp: 3,
         destino: 'conversiones',
       },
     ])
 
-    conversionesAnteriores.cohorte.conversion_contratos_pct = 10
+    conversiones.cohorte.leads = 29
     expect(derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       conversionesAnteriores,
     }))).toEqual([])
 
-    conversionesAnteriores.cohorte.conversion_contratos_pct = null
+    conversiones.cohorte.leads = 30
+    conversionesAnteriores.cohorte.conversion_contratos_pct = 14.99
     expect(derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       conversionesAnteriores,
     }))).toEqual([])
+  })
+
+  it('eleva a crítica una caída global de 5 pp y la ordena antes de una brecha individual menor', () => {
+    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-10')
+    const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-10')
+    const equipoConversion = [identidad('demo-v1', 'Ana Torres', 'Equipo Norte')]
+    conversiones.cohorte.leads = 30
+    conversionesAnteriores.cohorte.leads = 30
+    conversiones.cohorte.conversion_contratos_pct = 10
+    conversionesAnteriores.cohorte.conversion_contratos_pct = 15
+    conversiones.responsables = [{
+      ...conversiones.responsables![0]!,
+      vendedor_id: 'demo-v1',
+      leads: 10,
+      conversion_pct: 10,
+    }]
+
+    const alertas = derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      conversionesAnteriores,
+      equipoConversion,
+    }))
+
+    expect(alertas.map(({ id, severidad }) => ({ id, severidad }))).toEqual([
+      { id: 'caida_conversion:global', severidad: 'critica' },
+      { id: 'bajo_meta_conversion:demo-v1', severidad: 'atencion' },
+    ])
   })
 })

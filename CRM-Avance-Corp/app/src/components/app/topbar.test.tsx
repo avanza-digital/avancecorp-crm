@@ -8,12 +8,16 @@
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { AlertaCRM } from '@/lib/alertas'
 import type { Rol } from '@/lib/roles'
 import type { Lead } from '@/lib/tipos'
 import type { Vista } from '@/lib/router'
 
 let YO: { id: string; nombre_completo: string; rol: Rol; demo: boolean } | null = null
 let LEADS: Lead[] = []
+let ALERTAS: AlertaCRM[] = []
+let CARGANDO_ALERTAS = false
+let ERRORES_ALERTAS: string[] = []
 const abrirLead = vi.fn()
 const abrirNuevoLead = vi.fn()
 
@@ -21,6 +25,16 @@ vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({ ambito: { leads: LEADS, vendedores: [], esGlobal: false } }),
   usePanelesActions: () => ({ abrirLead, abrirNuevoLead }),
+}))
+vi.mock('@/lib/alertas-context', () => ({
+  useAlertasCRM: () => ({
+    alertas: ALERTAS,
+    rol: YO?.rol ?? null,
+    cargando: CARGANDO_ALERTAS,
+    errores: ERRORES_ALERTAS,
+    generadoEn: null,
+    reintentar: vi.fn(),
+  }),
 }))
 
 const { Topbar } = await import('./topbar')
@@ -53,12 +67,32 @@ function montar({
   rol = 'vendedor' as Rol,
   vista = 'hoy' as Vista,
   leads = [lead()],
-}: { rol?: Rol; vista?: Vista; leads?: Lead[] } = {}) {
+  alertas = [],
+}: { rol?: Rol; vista?: Vista; leads?: Lead[]; alertas?: AlertaCRM[] } = {}) {
   // demo:true = el gate FUNCIONES_LEADS_APROBADAS deja ver el buscador sin
   // depender de la bandera de config (que cambia con la aprobación de Miguel).
   YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo: true }
   LEADS = leads
+  ALERTAS = alertas
+  CARGANDO_ALERTAS = false
+  ERRORES_ALERTAS = []
   return render(<Topbar vista={vista} />)
+}
+
+function alerta(over: Partial<AlertaCRM> = {}): AlertaCRM {
+  return {
+    id: 'tarea_vencida:lead-1',
+    tipo: 'tarea_vencida',
+    severidad: 'critica',
+    alcance: 'personal',
+    titulo: 'Tarea vencida',
+    detalle: 'La llamada venció hace 1 día.',
+    responsableId: 'u-v1',
+    responsable: 'Vendedor Real',
+    valor: 24,
+    destino: { vista: 'agenda', leadId: 'lead-1', etiqueta: 'Abrir en Agenda' },
+    ...over,
+  }
 }
 
 const campoBusqueda = () =>
@@ -115,26 +149,46 @@ describe('Topbar — buscador', () => {
   })
 })
 
-describe('Topbar — centro de alertas', () => {
-  it('presenta la ruta de Gerencia con título y subtítulo accionable', () => {
-    montar({ rol: 'gerencia', vista: 'alertas', leads: [] })
+describe('Topbar — pendientes por responsabilidad', () => {
+  it('presenta la ruta con título, conteo real y estado actual', () => {
+    montar({ rol: 'gerencia', vista: 'alertas', leads: [], alertas: [alerta()] })
 
-    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Centro de alertas')
-    expect(screen.getByText('Prioriza y resuelve los casos que requieren atención')).toBeVisible()
-    const enlace = screen.getByRole('link', { name: 'Abrir centro de alertas' })
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Pendientes')
+    expect(screen.getByText('Acciones y señales que requieren tu atención')).toBeVisible()
+    const enlace = screen.getByRole('link', { name: 'Abrir pendientes: 1 activo' })
     expect(enlace).toHaveAttribute('href', '#/alertas')
     expect(enlace).toHaveAttribute('aria-current', 'page')
-    expect(enlace.querySelector('span')).not.toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: 'Notificaciones' })).not.toBeInTheDocument()
+    expect(enlace).toHaveTextContent('1')
   })
 
-  it('mantiene la campana como placeholder para los demás roles', () => {
-    montar({ rol: 'supervisor', vista: 'hoy', leads: [] })
+  it.each(['vendedor', 'supervisor', 'gerencia'] as const)(
+    'habilita la campana real para %s',
+    (rol) => {
+      montar({ rol, vista: 'hoy', leads: [] })
 
-    expect(screen.getByRole('button', { name: 'Notificaciones' })).toHaveAttribute(
-      'title',
-      'Las notificaciones llegan pronto',
-    )
-    expect(screen.queryByRole('link', { name: 'Abrir centro de alertas' })).not.toBeInTheDocument()
+      expect(screen.getByRole('link', { name: 'Abrir pendientes' })).toHaveAttribute(
+        'href',
+        '#/alertas',
+      )
+    },
+  )
+
+  it.each(['directorio', 'coordinador'] as const)(
+    'no muestra una bandeja sin responsabilidad definida a %s',
+    (rol) => {
+      montar({ rol, vista: 'hoy', leads: [] })
+
+      expect(screen.queryByRole('link', { name: /Abrir pendientes/ })).not.toBeInTheDocument()
+    },
+  )
+
+  it('limita visualmente el conteo sin perder el total accesible', () => {
+    montar({
+      rol: 'supervisor',
+      alertas: Array.from({ length: 105 }, (_, indice) => alerta({ id: `alerta-${indice}` })),
+    })
+
+    const enlace = screen.getByRole('link', { name: 'Abrir pendientes: 105 activos' })
+    expect(enlace).toHaveTextContent('99+')
   })
 })

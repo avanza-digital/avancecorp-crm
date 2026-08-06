@@ -24,6 +24,14 @@ describe('capacidades por rol', () => {
     expect(can('directorio', 'verReportes')).toBe(true)
   })
 
+  it('dirige la bandeja de alertas solo a vendedor, supervisor y Gerencia', () => {
+    expect(can('vendedor', 'verAlertas')).toBe(true)
+    expect(can('supervisor', 'verAlertas')).toBe(true)
+    expect(can('gerencia', 'verAlertas')).toBe(true)
+    expect(can('directorio', 'verAlertas')).toBe(false)
+    expect(can('coordinador', 'verAlertas')).toBe(false)
+  })
+
   it('acota al coordinador al reparto de la cola (C1): sin ámbito, sin cartera', () => {
     // repartirCola ≠ repartirLeads: la primera es la COLA GLOBAL (coordinador),
     // la segunda es bajar de la bandeja al vendedor (supervisor).
@@ -91,6 +99,7 @@ describe('capacidades por rol', () => {
       verLeads: false,
       verAgenda: false,
       verGestionEquipo: false,
+      verAlertas: true,
       verCartera: false,
       verConfiguracion: false,
       editarConfiguracion: false,

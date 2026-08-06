@@ -222,7 +222,11 @@ con `ON_ERROR_STOP`.
   remotas documentadas; no se volvieron a aplicar. La rama temporal de
   validación se eliminó después de comprobar el estado de producción.
 
-### Centro de alertas gerenciales liberado el 2026-08-06
+### Centro de alertas gerenciales liberado el 2026-08-06 (reemplazado)
+
+> Registro histórico del release `crm-20260806T185215Z-a0ba40c3cad5`. La
+> propuesta se retiró el mismo día porque concentraba señales operativas en
+> Gerencia y funcionaba como otro reporte, no como una bandeja de trabajo.
 
 - La ruta `#/alertas` es exclusiva de Gerencia y también se abre desde la
   campana de la barra superior.
@@ -255,3 +259,34 @@ con `ON_ERROR_STOP`.
   devuelven 404, y `.htaccess` y `.env` devuelven 403.
 - Validación final: 105 archivos de prueba, 1,277 pruebas aprobadas, lint sin
   advertencias, tipos y build correctos.
+
+### Bandeja de pendientes por responsabilidad
+
+La corrección reemplaza el centro anterior por condiciones activas que cada rol
+puede resolver o escalar:
+
+| Rol | Qué recibe | Cuándo aparece | Destino |
+| --- | --- | --- | --- |
+| Vendedor | Tarea propia vencida, lead propio sin responder o sin próxima acción | Desde que requiere su intervención; máximo una señal por lead | Caso exacto en Agenda o Cartera |
+| Supervisor | Lead de su bandeja por repartir, tarea del equipo vencida por 24 h, cola crítica de al menos un día o vendedor con varios leads sin próxima acción | Solo al superar el umbral de escalamiento | Caso exacto o vista de Equipo |
+| Gerencia | Conversión individual materialmente bajo meta y caída global contra el corte comparable anterior | Desde el día 10 y con muestra mínima; la comparación global exige 30 leads por cohorte | Ranking o Conversión |
+
+- `#/alertas` deja de ser exclusiva de Gerencia. La campana es el único acceso
+  canónico; no se duplica en el menú lateral.
+- Directorio y Coordinador no reciben una bandeja hasta que exista una
+  responsabilidad concreta y datos adecuados para esos roles.
+- Son pendientes derivados del estado actual, no notificaciones persistentes:
+  no existe leído/no leído. Al resolver la condición de origen, la señal
+  desaparece en la siguiente sincronización.
+- Vendedor y Supervisor derivan sus señales de leads, actividades y tareas ya
+  recortados por el ámbito/RLS del store. Gerencia conserva únicamente las RPC
+  agregadas de conversión; no descarga casos operativos globales.
+- Cada fecha o fuente inválida falla cerrada. No se inventa urgencia a partir de
+  timestamps corruptos, respuestas incompletas ni metas que no cargaron.
+- Las inasistencias no generan una señal mientras el agregado disponible no
+  pueda distinguir una cita ya reprogramada. El capital continúa en sus paneles
+  de meta y producción: una desviación de monto no identifica por sí sola una
+  acción operativa ni un responsable inequívoco.
+- No se agregó tabla de notificaciones, Realtime, RPC ni migración. Si luego se
+  requiere historial, acuse o escalamiento con SLA, deberá diseñarse como un
+  sistema persistente aparte de esta bandeja de condiciones activas.

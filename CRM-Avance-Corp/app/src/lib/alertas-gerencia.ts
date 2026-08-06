@@ -1,17 +1,12 @@
 import type { ConversionEquipoVendedor } from './conversion-equipo'
 import { adaptarConversionVendedores } from './conversion-vendedores'
-import type { MetricasAgenda } from './metricas-agenda'
 import type { MetricasConversiones } from './metricas-conversiones'
-import type { MetricasReuniones } from './metricas-reuniones'
 import {
   metaConversionAplicable,
   type ObjetivosPorVendedor,
 } from './objetivos'
 
 export type TipoAlertaGerencia =
-  | 'tarea_vencida'
-  | 'sin_proxima_accion'
-  | 'no_show'
   | 'bajo_meta_conversion'
   | 'caida_conversion'
 
@@ -19,8 +14,6 @@ export type Severidad = 'critica' | 'atencion'
 export type SeveridadAlertaGerencia = Severidad
 
 export type DestinoAlertaGerencia =
-  | 'rendimiento'
-  | 'reuniones'
   | 'ranking-vendedores'
   | 'conversiones'
 
@@ -48,14 +41,26 @@ export interface PeriodoAnteriorComparable {
 export interface DerivarAlertasGerenciaInput {
   conversiones?: MetricasConversiones | null | undefined
   conversionesAnteriores?: MetricasConversiones | null | undefined
-  agenda?: MetricasAgenda | null | undefined
-  reuniones?: MetricasReuniones | null | undefined
   equipoConversion: readonly ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
   objetivosError?: boolean | undefined
+  diaDelMes: number
 }
 
 const EQUIPO_NO_DISPONIBLE = 'Equipo no disponible'
+
+/** El avance individual todavía es demasiado volátil durante los primeros días. */
+export const DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL = 10
+/** Muestra mínima para juzgar la conversión de una persona. */
+export const LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR = 10
+/** Brecha material contra la meta individual, expresada en puntos porcentuales. */
+export const BRECHA_MINIMA_ALERTA_CONVERSION_PP = 5
+export const BRECHA_CRITICA_ALERTA_CONVERSION_PP = 10
+/** Muestra mínima en cada cohorte para comparar la conversión global. */
+export const LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL = 30
+/** Caída material y crítica contra el MTD comparable anterior. */
+export const CAIDA_MINIMA_ALERTA_GLOBAL_PP = 3
+export const CAIDA_CRITICA_ALERTA_GLOBAL_PP = 5
 
 const ORDEN_SEVERIDAD: Record<Severidad, number> = {
   critica: 0,
@@ -63,11 +68,8 @@ const ORDEN_SEVERIDAD: Record<Severidad, number> = {
 }
 
 const ORDEN_TIPO: Record<TipoAlertaGerencia, number> = {
-  tarea_vencida: 0,
-  sin_proxima_accion: 1,
-  no_show: 2,
-  bajo_meta_conversion: 3,
-  caida_conversion: 4,
+  bajo_meta_conversion: 0,
+  caida_conversion: 1,
 }
 
 function esBisiesto(anio: number): boolean {
@@ -117,6 +119,14 @@ function redondearPp(valor: number): number {
   return Math.round(valor * 100) / 100
 }
 
+function porcentajeValido(valor: number | null | undefined): valor is number {
+  return valor != null && Number.isFinite(valor) && valor >= 0 && valor <= 100
+}
+
+function conteoValido(valor: number | null | undefined): valor is number {
+  return valor != null && Number.isInteger(valor) && valor >= 0
+}
+
 function ordenarAlertas(alertas: AlertaGerencia[]): AlertaGerencia[] {
   return alertas.sort((a, b) => (
     ORDEN_SEVERIDAD[a.severidad] - ORDEN_SEVERIDAD[b.severidad]
@@ -135,102 +145,54 @@ function ordenarAlertas(alertas: AlertaGerencia[]): AlertaGerencia[] {
 export function derivarAlertasGerencia({
   conversiones,
   conversionesAnteriores,
-  agenda,
-  reuniones,
   equipoConversion,
   metasVendedores,
   objetivosError = false,
+  diaDelMes,
 }: DerivarAlertasGerenciaInput): AlertaGerencia[] {
   const alertas: AlertaGerencia[] = []
-  const identidadPorId = new Map<string, Pick<ConversionEquipoVendedor, 'nombre' | 'supervisorNombre'>>()
-
-  for (const integrante of equipoConversion) {
-    if (!integrante.vendedorId || identidadPorId.has(integrante.vendedorId)) continue
-    identidadPorId.set(integrante.vendedorId, {
-      nombre: integrante.nombre,
-      supervisorNombre: integrante.supervisorNombre,
-    })
-  }
-
-  for (const vendedor of agenda?.vendedores ?? []) {
-    if (!vendedor.activo || vendedor.rol !== 'vendedor') continue
-    const equipo = identidadPorId.get(vendedor.vendedor_id)?.supervisorNombre
-      || EQUIPO_NO_DISPONIBLE
-
-    if (vendedor.vencidas > 0) {
-      alertas.push({
-        id: `tarea_vencida:${vendedor.vendedor_id}`,
-        tipo: 'tarea_vencida',
-        severidad: 'atencion',
-        responsableId: vendedor.vendedor_id,
-        responsable: vendedor.nombre,
-        equipo,
-        valor: vendedor.vencidas,
-        destino: 'rendimiento',
-      })
-    }
-
-    if (vendedor.leads_sin_accion > 0) {
-      alertas.push({
-        id: `sin_proxima_accion:${vendedor.vendedor_id}`,
-        tipo: 'sin_proxima_accion',
-        severidad: 'atencion',
-        responsableId: vendedor.vendedor_id,
-        responsable: vendedor.nombre,
-        equipo,
-        valor: vendedor.leads_sin_accion,
-        destino: 'rendimiento',
-      })
-    }
-  }
-
-  for (const responsable of reuniones?.responsables ?? []) {
-    if (responsable.responsable_id == null || responsable.no_show <= 0) continue
-    const identidad = identidadPorId.get(responsable.responsable_id)
-    const nombre = responsable.nombre || identidad?.nombre || 'Responsable no identificado'
-    const equipo = responsable.supervisor_nombre
-      || identidad?.supervisorNombre
-      || EQUIPO_NO_DISPONIBLE
-
-    alertas.push({
-      id: `no_show:${responsable.responsable_id}`,
-      tipo: 'no_show',
-      severidad: responsable.no_show >= 2 ? 'critica' : 'atencion',
-      responsableId: responsable.responsable_id,
-      responsable: nombre,
-      equipo,
-      valor: responsable.no_show,
-      destino: 'reuniones',
-    })
-  }
 
   const conversionAdaptada = adaptarConversionVendedores(conversiones, equipoConversion)
-  if (conversionAdaptada.responsablesDisponibles) {
+  const diaIndividualValido = Number.isInteger(diaDelMes)
+    && diaDelMes >= DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL
+    && diaDelMes <= 31
+  if (diaIndividualValido && conversionAdaptada.responsablesDisponibles) {
     for (const vendedor of conversionAdaptada.vendedores) {
       const detalle = vendedor.detalle
       if (
         vendedor.estadoConversion !== 'comparable'
         || detalle == null
-        || detalle.leads <= 0
-        || detalle.conversion_pct == null
+        || !conteoValido(detalle.leads)
+        || detalle.leads < LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR
+        || !porcentajeValido(detalle.conversion_pct)
       ) continue
 
-      const metaGuardada = metasVendedores[vendedor.vendedorId]?.conversionObjetivo ?? 0
+      const metaVendedor = metasVendedores[vendedor.vendedorId]
+      if (
+        metaVendedor != null
+        && !porcentajeValido(metaVendedor.conversionObjetivo)
+      ) continue
+      const metaGuardada = metaVendedor?.conversionObjetivo ?? 0
       const objetivo = metaConversionAplicable(metaGuardada, objetivosError)
       const actual = detalle.conversion_pct
-      if (objetivo == null || actual >= objetivo) continue
+      if (!porcentajeValido(objetivo) || actual >= objetivo) continue
+
+      const brechaPp = redondearPp(objetivo - actual)
+      if (brechaPp < BRECHA_MINIMA_ALERTA_CONVERSION_PP) continue
 
       alertas.push({
         id: `bajo_meta_conversion:${vendedor.vendedorId}`,
         tipo: 'bajo_meta_conversion',
-        severidad: 'atencion',
+        severidad: brechaPp >= BRECHA_CRITICA_ALERTA_CONVERSION_PP
+          ? 'critica'
+          : 'atencion',
         responsableId: vendedor.vendedorId,
         responsable: vendedor.nombre,
         equipo: vendedor.supervisorNombre || EQUIPO_NO_DISPONIBLE,
         valor: actual,
         actual,
         objetivo,
-        brechaPp: redondearPp(objetivo - actual),
+        brechaPp,
         destino: 'ranking-vendedores',
       })
     }
@@ -238,24 +200,34 @@ export function derivarAlertasGerencia({
 
   const conversionActual = conversiones?.cohorte.conversion_contratos_pct
   const conversionAnterior = conversionesAnteriores?.cohorte.conversion_contratos_pct
+  const leadsActuales = conversiones?.cohorte.leads
+  const leadsAnteriores = conversionesAnteriores?.cohorte.leads
   if (
-    conversionActual != null
-    && conversionAnterior != null
-    && conversionActual < conversionAnterior
+    porcentajeValido(conversionActual)
+    && porcentajeValido(conversionAnterior)
+    && conteoValido(leadsActuales)
+    && conteoValido(leadsAnteriores)
+    && leadsActuales >= LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL
+    && leadsAnteriores >= LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL
   ) {
-    alertas.push({
-      id: 'caida_conversion:global',
-      tipo: 'caida_conversion',
-      severidad: 'atencion',
-      responsableId: null,
-      responsable: 'Equipo comercial',
-      equipo: 'Todos los equipos',
-      valor: conversionActual,
-      actual: conversionActual,
-      objetivo: conversionAnterior,
-      brechaPp: redondearPp(conversionAnterior - conversionActual),
-      destino: 'conversiones',
-    })
+    const brechaPp = redondearPp(conversionAnterior - conversionActual)
+    if (brechaPp >= CAIDA_MINIMA_ALERTA_GLOBAL_PP) {
+      alertas.push({
+        id: 'caida_conversion:global',
+        tipo: 'caida_conversion',
+        severidad: brechaPp >= CAIDA_CRITICA_ALERTA_GLOBAL_PP
+          ? 'critica'
+          : 'atencion',
+        responsableId: null,
+        responsable: 'Equipo comercial',
+        equipo: 'Todos los equipos',
+        valor: conversionActual,
+        actual: conversionActual,
+        objetivo: conversionAnterior,
+        brechaPp,
+        destino: 'conversiones',
+      })
+    }
   }
 
   return ordenarAlertas(alertas)

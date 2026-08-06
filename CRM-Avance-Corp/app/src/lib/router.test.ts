@@ -74,10 +74,11 @@ describe('router por hash', () => {
     expect(hashDe('repartir')).toBe('#/repartir')
   })
 
-  it('registra Alertas justo después de Hoy como inteligencia exclusiva de Gerencia', () => {
+  it('registra Alertas justo después de Hoy como bandeja transversal', () => {
     expect(VISTAS.slice(0, 3)).toEqual(['hoy', 'alertas', 'conversiones'])
-    expect(VISTAS_GERENCIA[0]).toBe('alertas')
-    expect(esVistaGerencia('alertas')).toBe(true)
+    expect(VISTAS_GERENCIA[0]).toBe('conversiones')
+    expect(VISTAS_GERENCIA).not.toContain('alertas')
+    expect(esVistaGerencia('alertas')).toBe(false)
     expect(esVistaLeads('alertas')).toBe(false)
     expect(hashDe('alertas')).toBe('#/alertas')
   })

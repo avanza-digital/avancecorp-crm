@@ -29,7 +29,6 @@ export type Vista = (typeof VISTAS)[number]
 
 /** Vistas de inteligencia exclusivas de Gerencia; no son operación de leads. */
 export const VISTAS_GERENCIA = [
-  'alertas',
   'conversiones',
   'ranking-vendedores',
   'reuniones',

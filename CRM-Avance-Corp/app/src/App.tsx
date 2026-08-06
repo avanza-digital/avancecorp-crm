@@ -21,6 +21,7 @@ import { Topbar } from '@/components/app/topbar'
 import { LeadDrawer } from '@/components/app/lead-drawer'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
+import { AlertasCRMProvider } from '@/lib/alertas-provider'
 import { Login } from '@/screens/login'
 import { NoEnrolado } from '@/screens/no-enrolado'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,7 +34,7 @@ export type { Vista } from '@/lib/router'
 // Pantallas fuera del bundle inicial (chunk por vista). Login/NoEnrolado
 // quedan estáticas: son la primera pintura, lazy solo las retrasaría.
 const Hoy = lazy(() => import('@/screens/hoy').then((m) => ({ default: m.Hoy })))
-const AlertasGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.AlertasGerencia })))
+const Alertas = lazy(() => import('@/screens/alertas').then((m) => ({ default: m.Alertas })))
 const ConversionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ConversionesGerencia })))
 const RankingVendedoresGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.RankingVendedoresGerencia })))
 const ReunionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ReunionesGerencia })))
@@ -51,7 +52,7 @@ const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.C
 /** Registro exhaustivo: una Vista nueva exige declarar también su pantalla. */
 const PANTALLA_POR_VISTA = {
   hoy: Hoy,
-  alertas: AlertasGerencia,
+  alertas: Alertas,
   conversiones: ConversionesGerencia,
   'ranking-vendedores': RankingVendedoresGerencia,
   reuniones: ReunionesGerencia,
@@ -384,27 +385,29 @@ function Workspace() {
   const Pantalla = PANTALLA_POR_VISTA[vista]
 
   return (
-    <div className="relative z-10 flex h-svh overflow-hidden">
-      <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
-      <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
-        <PeriodoGerenciaProvider>
-          <Topbar vista={vista} />
-          <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
-            {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
-            <ErrorBoundary>
-              <Suspense fallback={<PantallaCargando />}>
-                <Pantalla />
-              </Suspense>
-            </ErrorBoundary>
-          </div>
-        </PeriodoGerenciaProvider>
-      </main>
-      {/* Paneles globales: cualquier pantalla los abre vía usePanelesActions(). */}
-      <ErrorBoundary>
-        <LeadDrawer />
-        <LeadNuevo />
-      </ErrorBoundary>
-    </div>
+    <AlertasCRMProvider>
+      <div className="relative z-10 flex h-svh overflow-hidden">
+        <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
+        <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
+          <PeriodoGerenciaProvider>
+            <Topbar vista={vista} />
+            <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
+              {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
+              <ErrorBoundary>
+                <Suspense fallback={<PantallaCargando />}>
+                  <Pantalla />
+                </Suspense>
+              </ErrorBoundary>
+            </div>
+          </PeriodoGerenciaProvider>
+        </main>
+        {/* Paneles globales: cualquier pantalla los abre vía usePanelesActions(). */}
+        <ErrorBoundary>
+          <LeadDrawer />
+          <LeadNuevo />
+        </ErrorBoundary>
+      </div>
+    </AlertasCRMProvider>
   )
 }
 

@@ -46,7 +46,9 @@ Relacionado con [[Bienvenido]].
 
 - Último frontend liberado el 2026-08-06 en `crm.miavance.com` con el release
   `crm-20260806T185215Z-a0ba40c3cad5`. Incluye el rango inicial mensual, los
-  ajustes de robustez y el Centro de alertas gerenciales.
+  ajustes de robustez y la primera versión del Centro de alertas gerenciales.
+  Esa propuesta quedó marcada para reemplazo por la bandeja por responsabilidad
+  descrita abajo.
 - SHA-256 del ZIP:
   `3c53cc5c7410ffac917d3dbdd242705205461433c8c6eed335b4b25ed14e5071`.
 - Resultado final: 1,277 pruebas aprobadas, lint sin advertencias, tipos y build
@@ -65,20 +67,28 @@ Relacionado con [[Bienvenido]].
   incorporada en el release actual. El arnés SQL fue aprobado en PostgreSQL
   16.14 aislado; las migraciones ya estaban en producción y no se reaplicaron.
 
-## Centro de alertas gerenciales
+## Bandeja de pendientes por responsabilidad
 
-- `#/alertas` es una página propia y exclusiva de Gerencia; también se abre
-  desde la campana superior.
-- Muestra siempre el mes en curso de `America/Lima`, aunque las demás vistas
-  conserven un rango histórico personalizado.
-- Incluye tareas vencidas, leads sin próxima acción, inasistencias, conversión
-  individual por debajo de la meta y caída global contra el mes anterior
-  comparable.
-- Permite filtrar por prioridad y tipo, buscar responsable o equipo y abrir el
-  módulo gerencial relacionado. Funciona con cualquier cantidad de vendedores.
-- Un error parcial se comunica como información incompleta; una fuente ausente
-  nunca se interpreta como cero o cumplimiento.
-- Usa métricas agregadas existentes y no descarga los leads, tareas o
-  actividades que originaron la señal. Un desglose de casos individuales
-  requeriría una RPC mínima y protegida en una fase posterior.
+- La primera página exclusiva de Gerencia se descartó porque mezclaba trabajo
+  operativo con dirección y se comportaba como otro reporte.
+- `#/alertas` pasa a ser una bandeja de condiciones activas para Vendedor,
+  Supervisor y Gerencia. La campana es su acceso canónico; no aparece también
+  en el menú lateral.
+- El Vendedor recibe solamente sus tareas vencidas y sus leads que requieren
+  respuesta o una próxima acción, con enlace al caso exacto.
+- El Supervisor recibe únicamente excepciones escaladas: su bandeja por
+  repartir, vencimientos de al menos 24 horas, colas críticas de al menos un día
+  y acumulaciones relevantes de leads sin próxima acción por vendedor.
+- Gerencia conserva solo desviaciones estratégicas de conversión: vendedor bajo
+  meta desde el día 10 con al menos 10 leads y caída general contra el mes
+  anterior comparable con al menos 30 leads en cada cohorte.
+- Directorio y Coordinador quedan fuera mientras no exista una responsabilidad
+  concreta que puedan resolver desde esta bandeja.
+- No hay semántica leído/no leído: al corregirse el dato de origen, el pendiente
+  desaparece. No se creó tabla, Realtime, RPC ni migración.
+- No se generan alertas por inasistencia mientras el agregado no pueda excluir
+  reuniones ya reprogramadas. El capital continúa como indicador en Meta y
+  Producción hasta que exista una acción y un responsable inequívocos.
+- Vendedor y Supervisor trabajan sobre su ámbito ya recortado por RLS; Gerencia
+  usa solo métricas agregadas. Toda fuente ausente o inválida falla cerrada.
 - Relacionado con [[Bienvenido]] y [[Deploy a Hostinger]].

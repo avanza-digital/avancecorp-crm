@@ -20,7 +20,7 @@ const VISTA_BASE_POR_ROL = {
  */
 const CAPACIDAD_POR_VISTA = {
   hoy: null,
-  alertas: null,
+  alertas: 'verAlertas',
   conversiones: null,
   'ranking-vendedores': null,
   reuniones: null,
@@ -58,6 +58,11 @@ export function vistaPermitida(
   // Ruta heredada conservada para sanear hashes antiguos, pero fuera de uso.
   if (vista === 'capital-cierres') return false
   if (vista === vistaBase(rol, leadsVisibles)) return true
+  // La bandeja es transversal, pero sus fuentes operativas dependen del gate
+  // de leads. Gerencia conserva siempre sus alertas ejecutivas agregadas.
+  if (vista === 'alertas') {
+    return can(rol, 'verAlertas') && (rol === 'gerencia' || leadsVisibles)
+  }
   if (esVistaGerencia(vista)) return rol === 'gerencia'
   // Gerencia dirige desde inteligencia comercial; no recibe pantallas operativas.
   if (rol === 'gerencia') return false
