@@ -1,35 +1,49 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties } from 'react'
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
-  PanelLeftClose, PanelLeftOpen, Wallet, Split,
+  PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
+  Gauge, BadgeDollarSign, Trophy, BellRing,
 } from 'lucide-react'
-import { can, ROL_LABEL, type Accion } from '@/lib/roles'
+import { can, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { useAuth } from '@/lib/auth-context'
 import { Avatar } from '@/components/ui/avatar'
 import { BrandLockup } from '@/components/app/brand'
 import { cn } from '@/lib/utils'
-import { esVistaLeads, type Vista } from '@/lib/router'
+import { VISTAS, type Vista } from '@/lib/router'
+import { vistaPermitida } from '@/lib/vistas'
 
-interface NavItem {
-  id: Vista
+type SeccionNav = 'principal' | 'administracion'
+
+interface NavMeta {
   label: string
   icon: typeof LayoutDashboard
-  cap?: Accion // si se define, solo se muestra con can()
+  seccion: SeccionNav
 }
 
-const NAV: NavItem[] = [
-  { id: 'hoy', label: 'Hoy', icon: LayoutDashboard },
-  { id: 'pipeline', label: 'Pipeline', icon: KanbanSquare },
-  { id: 'cartera', label: 'Leads', icon: Users },
-  { id: 'agenda', label: 'Agenda', icon: CalendarDays },
+/** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
+const NAV_META = {
+  hoy: { label: 'Hoy', icon: LayoutDashboard, seccion: 'principal' },
+  alertas: { label: 'Alertas', icon: BellRing, seccion: 'principal' },
+  conversiones: { label: 'Conversiones', icon: BarChart3, seccion: 'principal' },
+  'ranking-vendedores': { label: 'Ranking', icon: Trophy, seccion: 'principal' },
+  reuniones: { label: 'Reuniones', icon: Handshake, seccion: 'principal' },
+  metas: { label: 'Metas', icon: Target, seccion: 'principal' },
+  rendimiento: { label: 'Equipo', icon: Gauge, seccion: 'principal' },
+  'capital-cierres': { label: 'Capital', icon: BadgeDollarSign, seccion: 'principal' },
+  pipeline: { label: 'Pipeline', icon: KanbanSquare, seccion: 'principal' },
+  cartera: { label: 'Leads', icon: Users, seccion: 'principal' },
+  agenda: { label: 'Agenda', icon: CalendarDays, seccion: 'principal' },
   // "Cartera" (mi-cartera) reemplaza a Clientes y Contratos, retiradas del todo
   // en Fase 6 (2026-07-21): ya no existen como vistas ni son alcanzables por URL.
-  { id: 'mi-cartera', label: 'Mi cartera', icon: Wallet, cap: 'verCartera' },
-  // Reparto de la cola global (C1): coordinador y gerencia.
-  { id: 'repartir', label: 'Repartir leads', icon: Split, cap: 'repartirCola' },
-  { id: 'equipo', label: 'Equipo', icon: UsersRound, cap: 'verEquipo' },
-]
+  'mi-cartera': { label: 'Mi cartera', icon: Wallet, seccion: 'principal' },
+  // Reparto de la cola global (C1): solo coordinador.
+  repartir: { label: 'Repartir leads', icon: Split, seccion: 'principal' },
+  equipo: { label: 'Equipo', icon: UsersRound, seccion: 'principal' },
+  config: { label: 'Configuración', icon: Settings, seccion: 'administracion' },
+} as const satisfies Record<Vista, NavMeta>
+
+const NAV = VISTAS.map((id) => ({ id, ...NAV_META[id] }))
 
 // Estado de colapso persistido: se recuerda entre recargas (por navegador).
 const LS_COLAPSADO = 'ac-crm-sidebar-colapsado'
@@ -168,9 +182,16 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
   useEffect(() => cancelarTemporizadores, [cancelarTemporizadores])
 
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
-  const items = NAV.filter((n) => (leadsVisibles || !esVistaLeads(n.id)) && (!n.cap || can(rol, n.cap)))
-    // Rótulo por rol de la pantalla fusionada: el vendedor ve "Mi cartera"; quien supervisa, "Cartera".
-    .map((n) => (n.id === 'mi-cartera' && can(rol, 'verEquipo') ? { ...n, label: 'Cartera' } : n))
+  const items = NAV.filter((n) => vistaPermitida(n.id, rol, leadsVisibles))
+    // La misma ruta base se presenta como resumen ejecutivo solo a Gerencia.
+    .map((n) => {
+      if (n.id === 'hoy' && rol === 'gerencia') return { ...n, label: 'Resumen' }
+      return n.id === 'mi-cartera' && can(rol, 'verEquipo')
+        ? { ...n, label: 'Cartera' }
+        : n
+    })
+  const itemsPrincipales = items.filter((n) => n.seccion === 'principal')
+  const itemsAdministracion = items.filter((n) => n.seccion === 'administracion')
 
   return (
     <aside
@@ -236,29 +257,32 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
               Principal
             </p>
           )}
-          {items.map((n, i) => (
+          {itemsPrincipales.map((n, i) => (
             <NavButton key={n.id} item={n} active={vista === n.id} onClick={() => navegar(n.id)} expandido={expandido} animar={animar} indice={i + 2} />
           ))}
 
-          {can(rol, 'verConfiguracion') && (
+          {itemsAdministracion.length > 0 && (
             <>
               {expandido && (
                 <p
                   className="px-2 pb-1.5 pt-5 text-[10px] font-bold uppercase tracking-[0.14em] text-sidebar-foreground/45"
                   data-peek-anim={animar ? '' : undefined}
-                  style={animar ? estiloCascada(items.length + 2) : undefined}
+                  style={animar ? estiloCascada(itemsPrincipales.length + 2) : undefined}
                 >
                   Administración
                 </p>
               )}
-              <NavButton
-                item={{ label: 'Configuración', icon: Settings }}
-                active={vista === 'config'}
-                onClick={() => navegar('config')}
-                expandido={expandido}
-                animar={animar}
-                indice={items.length + 3}
-              />
+              {itemsAdministracion.map((n, i) => (
+                <NavButton
+                  key={n.id}
+                  item={n}
+                  active={vista === n.id}
+                  onClick={() => navegar(n.id)}
+                  expandido={expandido}
+                  animar={animar}
+                  indice={itemsPrincipales.length + i + 3}
+                />
+              ))}
             </>
           )}
         </nav>
@@ -280,7 +304,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
         >
           <Avatar nombre={yo?.nombre_completo} color="#7aa6ff" className="size-9" />
           {expandido && (
-            <div className="min-w-0 flex-1 leading-tight" data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(items.length + 4) : undefined}>
+            <div className="min-w-0 flex-1 leading-tight" data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(itemsPrincipales.length + 4) : undefined}>
               <p className="truncate text-[13px] font-semibold text-white">{yo?.nombre_completo ?? '—'}</p>
               <p className="text-[10px] uppercase tracking-wider text-sidebar-foreground/60">
                 {rol ? ROL_LABEL[rol] : ''}{yo?.demo ? ' · demo' : ''}

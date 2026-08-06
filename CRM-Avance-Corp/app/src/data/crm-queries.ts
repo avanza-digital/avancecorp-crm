@@ -1,9 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import {
   actualizarCapacidadLeadsObjetivo,
   listarClientes,
   listarCuentasBancariasCliente,
   listarMetricasAgenda,
+  listarMetricasConversiones,
+  listarMetricasReuniones,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
   listarMetricasDistribucionLeads,
@@ -44,6 +46,10 @@ export const crmQueryKeys = {
     [...crmQueryKeys.metricas(), 'distribucion-leads', desde, hasta] as const,
   metricasAgenda: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'agenda-equipo', desde, hasta] as const,
+  metricasConversiones: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'conversiones', desde, hasta] as const,
+  metricasReuniones: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -190,6 +196,30 @@ export function useMetricasVencimientos(habilitada: boolean, dias = 90) {
   })
 }
 
+interface ConsultaMetricaPorPeriodo<TData> {
+  queryKey: QueryKey
+  cargar: (signal: AbortSignal) => Promise<TData>
+  habilitada: boolean
+  desde: string
+  hasta: string
+}
+
+/** Contrato común de las fotografías F2: misma habilitación fail-closed y el
+ * periodo siempre forma parte de la clave y del payload del RPC. */
+function useMetricaPorPeriodo<TData>({
+  queryKey,
+  cargar,
+  habilitada,
+  desde,
+  hasta,
+}: ConsultaMetricaPorPeriodo<TData>) {
+  return useQuery({
+    queryKey,
+    queryFn: ({ signal }) => cargar(signal),
+    enabled: habilitada && Boolean(desde) && Boolean(hasta),
+  })
+}
+
 /**
  * Fotografía V1 de distribución/capacidad/SLA para un periodo inclusivo en
  * America/Lima. Las fechas forman parte de la clave: cambiar el periodo nunca
@@ -200,10 +230,12 @@ export function useMetricasDistribucionLeads(
   desde: string,
   hasta: string,
 ) {
-  return useQuery({
+  return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasDistribucionLeads(desde, hasta),
-    queryFn: ({ signal }) => listarMetricasDistribucionLeads(desde, hasta, signal),
-    enabled: habilitada && Boolean(desde) && Boolean(hasta),
+    cargar: (signal) => listarMetricasDistribucionLeads(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
   })
 }
 
@@ -218,10 +250,40 @@ export function useMetricasAgenda(
   desde: string,
   hasta: string,
 ) {
-  return useQuery({
+  return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasAgenda(desde, hasta),
-    queryFn: ({ signal }) => listarMetricasAgenda(desde, hasta, signal),
-    enabled: habilitada && Boolean(desde) && Boolean(hasta),
+    cargar: (signal) => listarMetricasAgenda(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
+  })
+}
+
+export function useMetricasConversiones(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+) {
+  return useMetricaPorPeriodo({
+    queryKey: crmQueryKeys.metricasConversiones(desde, hasta),
+    cargar: (signal) => listarMetricasConversiones(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
+  })
+}
+
+export function useMetricasReuniones(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+) {
+  return useMetricaPorPeriodo({
+    queryKey: crmQueryKeys.metricasReuniones(desde, hasta),
+    cargar: (signal) => listarMetricasReuniones(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
   })
 }
 

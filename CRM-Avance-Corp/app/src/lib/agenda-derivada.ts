@@ -11,6 +11,7 @@
 //  * El día se computa en America/Lima (UTC-5 FIJO, Perú no tiene DST).
 //  * El color sale del TIPO (nada de colores por fixture).
 import type { Tarea, TipoTarea } from './tipos'
+import { derivarReunionOperativa } from './reunion-operativa'
 
 /** Contrato de display de la agenda (HOY héroe + pantalla Agenda). */
 export interface EventoAgenda {
@@ -121,19 +122,36 @@ export function esDeHoy(ev: EventoAgenda, ahora: number): boolean {
  * el bloque dura 30 min (una llamada típica; el vendedor lo ajusta en Google).
  */
 export function enlaceGoogleCalendar(
-  t: Pick<Tarea, 'titulo' | 'vence_en'> & Partial<Pick<Tarea, 'duracion_min' | 'nota'>>,
+  t: Pick<Tarea, 'titulo' | 'vence_en'> & Partial<Pick<
+    Tarea,
+    'duracion_min' | 'nota' | 'modalidad_reunion' | 'ubicacion_reunion' | 'enlace_reunion'
+  >>,
 ): string | null {
   const inicio = Date.parse(t.vence_en)
   if (!Number.isFinite(inicio)) return null
   const fin = inicio + (t.duracion_min ?? 30) * 60_000
   const compacta = (ms: number) => `${new Date(ms).toISOString().slice(0, 19).replace(/[-:]/g, '')}Z`
+  const reunion = derivarReunionOperativa({
+    modalidad: t.modalidad_reunion,
+    ubicacion: t.ubicacion_reunion,
+    enlace: t.enlace_reunion,
+  })
+  const detalles = [
+    reunion.modalidad
+      ? `Modalidad: ${reunion.modalidad === 'presencial' ? 'Presencial' : 'Virtual'}`
+      : null,
+    reunion.enlace ? `Enlace: ${reunion.enlace}` : null,
+    t.nota,
+    '— CRM Avance Corp',
+  ].filter((linea): linea is string => Boolean(linea))
   const p = new URLSearchParams({
     action: 'TEMPLATE',
     text: t.titulo,
     dates: `${compacta(inicio)}/${compacta(fin)}`,
     ctz: 'America/Lima',
-    details: t.nota ? `${t.nota}\n\n— CRM Avance Corp` : '— CRM Avance Corp',
+    details: detalles.join('\n\n'),
   })
+  if (reunion.destino) p.set('location', reunion.destino)
   return `https://calendar.google.com/calendar/render?${p.toString()}`
 }
 

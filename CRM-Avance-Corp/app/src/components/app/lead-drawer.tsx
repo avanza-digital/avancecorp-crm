@@ -45,6 +45,13 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AccionesContacto } from '@/components/app/contacto'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
+import {
+  CAMPOS_REUNION_VACIOS,
+  CamposReunion,
+  camposTareaDeReunion,
+  type EstadoCamposReunion,
+} from '@/components/app/campos-reunion'
+import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import { useAuth } from '@/lib/auth-context'
 import {
@@ -74,6 +81,7 @@ import {
   ETAPAS,
   ETAPA_INFO,
   esTipoTarea,
+  MOTIVOS_NO_REALIZADA,
   MOTIVOS_DESCARTE,
   origenLabel,
   TIPOS_ACTIVIDAD,
@@ -84,6 +92,7 @@ import {
   type EtapaActiva,
   type Lead,
   type MotivoDescarte,
+  type MotivoNoRealizadaManual,
   type TipoActividad,
   type TipoActividadManual,
   type TipoTarea,
@@ -443,6 +452,8 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   // Con pendientes vivas, agendar OTRA es un gesto raro: el quick-add se pliega
   // tras este botón. Solo con 0 pendientes (aviso ámbar) queda abierto siempre.
   const [agendarOtra, setAgendarOtra] = useState(false)
+  const [motivoAnulacionReunion, setMotivoAnulacionReunion] =
+    useState<MotivoNoRealizadaManual | ''>('')
 
   const slot = proximoSlotSugerido(ahora)
   const [tipo, setTipo] = useState<TipoTarea>('llamada')
@@ -450,6 +461,8 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   const [tituloEditado, setTituloEditado] = useState(false)
   const [fecha, setFecha] = useState(() => fechaLima(Date.parse(slot)))
   const [hora, setHora] = useState('10:00')
+  const [camposReunion, setCamposReunion] =
+    useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
 
   if (!escribe && pendientes.length === 0) return null
   // Lead cerrado: sus pendientes ya fueron canceladas por el trigger; nada que agendar.
@@ -471,8 +484,17 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
    * viva sin reagendar (pedido de Miguel, 2026-07-26).
    */
   const anular = (t: Tarea) => {
+    let res
+    if (t.tipo === 'reunion') {
+      if (!motivoAnulacionReunion) {
+        toast.error('Selecciona por qué se cancela la reunión')
+        return
+      }
+      res = anularTarea(t.id, { motivo: motivoAnulacionReunion })
+    } else {
+      res = anularTarea(t.id)
+    }
     setAnulandoId(null)
-    const res = anularTarea(t.id)
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo anular la tarea')
       // La fila sigue ahí (no se anuló nada): el foco vuelve a su interruptor.
@@ -505,11 +527,19 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   }
 
   const agendar = () => {
+    const reunion = tipo === 'reunion'
+      ? validarReunionOperativa(camposReunion)
+      : null
+    if (reunion && !reunion.ok) {
+      toast.error(reunion.error)
+      return
+    }
     const res = crearTarea({
       lead_id: l.id,
       tipo,
       titulo,
       vence_en: new Date(`${fecha}T${hora}:00-05:00`).toISOString(),
+      ...camposTareaDeReunion(reunion?.ok ? reunion : null),
     })
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo agendar la tarea')
@@ -638,7 +668,11 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                             ? 'bg-[#d97706]/20 text-warning-text'
                             : 'text-muted-foreground hover:bg-[#d97706]/15 hover:text-warning-text',
                         )}
-                        onClick={() => setAnulandoId((prev) => (prev === t.id ? null : t.id))}
+                        onClick={() => {
+                          const abrir = anulandoId !== t.id
+                          setAnulandoId(abrir ? t.id : null)
+                          if (abrir) setMotivoAnulacionReunion('')
+                        }}
                       >
                         <CalendarX2 className="size-3.5" aria-hidden />
                       </button>
@@ -665,6 +699,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       // antes de oírla. `aria-describedby` la trae al foco.
                       aria-describedby={`anular-nota-${t.id}`}
                       onClick={() => anular(t)}
+                      disabled={t.tipo === 'reunion' && !motivoAnulacionReunion}
                     >
                       Sí, anular
                     </Button>
@@ -680,6 +715,21 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                     >
                       No
                     </Button>
+                    {t.tipo === 'reunion' && (
+                      <Select
+                        aria-label={`Motivo de cancelación — ${t.titulo}`}
+                        value={motivoAnulacionReunion}
+                        onChange={(evento) => setMotivoAnulacionReunion(
+                          evento.target.value as typeof motivoAnulacionReunion,
+                        )}
+                        className="h-7 w-44 text-[11px]"
+                      >
+                        <option value="">Selecciona el motivo</option>
+                        {MOTIVOS_NO_REALIZADA.map((opcion) => (
+                          <option key={opcion.k} value={opcion.k}>{opcion.label}</option>
+                        ))}
+                      </Select>
+                    )}
                     {/* La nota cambia cuando anular ARRASTRA la etapa: esa es
                         la consecuencia grande, y callarla aquí obligaría a
                         descubrirla por el toast, ya consumada. Se calcula por
@@ -703,8 +753,11 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                     >
                       {(() => {
                         const atras = retrocesoPorAnularReunion(l, t, pendientes, actividadesDe(l.id))
-                        return atras
-                          ? `Era su única reunión: vuelve a «${ETAPA_INFO[atras].label}». No se puede deshacer.`
+                        if (atras) {
+                          return `Era su única reunión: vuelve a «${ETAPA_INFO[atras].label}». La cancelación queda en el reporte. No se puede deshacer.`
+                        }
+                        return t.tipo === 'reunion'
+                          ? 'Queda cancelada con motivo en el reporte y no cuenta como realizada. No se puede deshacer.'
                           : 'No queda como gestión ni en el historial. No se puede deshacer.'
                       })()}
                     </span>
@@ -766,11 +819,26 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                 onChange={(e) => setHora(e.target.value)}
               />
             </div>
+            {tipo === 'reunion' && (
+              <CamposReunion
+                valor={camposReunion}
+                onChange={setCamposReunion}
+              />
+            )}
             <Button
               size="sm"
               className="w-full"
               onClick={agendar}
-              disabled={!titulo.trim() || !fecha || !hora}
+              disabled={
+                !titulo.trim()
+                || !fecha
+                || !hora
+                || (tipo === 'reunion' && (
+                  !camposReunion.modalidad
+                  || (camposReunion.modalidad === 'presencial' && !camposReunion.ubicacion.trim())
+                  || (camposReunion.modalidad === 'virtual' && !camposReunion.enlace.trim())
+                ))
+              }
             >
               <CalendarPlus /> Agendar
             </Button>

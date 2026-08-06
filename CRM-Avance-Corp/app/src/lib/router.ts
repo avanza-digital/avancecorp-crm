@@ -1,6 +1,6 @@
 // Router por hash del CRM — SIN dependencias (la fase de datos reales decidirá
 // si se adopta un router de verdad). Formato de rutas:
-//   #/hoy · #/pipeline · #/cartera · #/agenda · #/mi-cartera · #/equipo · #/config
+//   #/hoy · #/alertas · #/pipeline · #/cartera · #/agenda · #/mi-cartera · #/equipo · #/config
 //   #/<vista>/lead/<id>   → misma vista con la ficha del lead abierta
 // App.tsx sincroniza hash⇄estado y concentra la navegación entre vistas.
 // Fase 6 (2026-07-21): 'clientes' y 'contratos' se retiraron — la pantalla
@@ -8,8 +8,38 @@
 
 // 'repartir' (C1, 2026-07-22) NO entra en VISTAS_LEADS a propósito: el gate de
 // leads está cerrado para el coordinador y ocultaría la única pantalla que debe ver.
-export const VISTAS = ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config'] as const
+export const VISTAS = [
+  'hoy',
+  'alertas',
+  'conversiones',
+  'ranking-vendedores',
+  'reuniones',
+  'metas',
+  'rendimiento',
+  'capital-cierres',
+  'pipeline',
+  'cartera',
+  'agenda',
+  'mi-cartera',
+  'repartir',
+  'equipo',
+  'config',
+] as const
 export type Vista = (typeof VISTAS)[number]
+
+/** Vistas de inteligencia exclusivas de Gerencia; no son operación de leads. */
+export const VISTAS_GERENCIA = [
+  'alertas',
+  'conversiones',
+  'ranking-vendedores',
+  'reuniones',
+  'metas',
+  'rendimiento',
+] as const satisfies readonly Vista[]
+
+export function esVistaGerencia(vista: Vista): boolean {
+  return (VISTAS_GERENCIA as readonly Vista[]).includes(vista)
+}
 
 /**
  * Vistas del MUNDO LEADS, gateadas por FUNCIONES_LEADS_APROBADAS (config.ts):

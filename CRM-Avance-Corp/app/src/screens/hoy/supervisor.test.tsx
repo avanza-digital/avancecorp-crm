@@ -1,20 +1,9 @@
-// Tests de integración de la pantalla "Hoy · supervisor" — la tarjeta "Meta del
-// equipo", que se rotula "este mes" y sale de crm.objetivos (una fila por mes
-// calendario). Regresiones que cubren:
-//   1. "Ventas cerradas" contaba el HISTÓRICO de vida contra la cuota MENSUAL,
-//      así que desde el segundo mes el marcador mentía hacia arriba para
-//      siempre — y con esta cifra se juzga al equipo;
-//   2. "Conversión" salía de conversionGlobal(), que tampoco mira el periodo;
-//   3. un mes sin nada resuelto todavía se pintaba como "0 %" en rojo crítico
-//      (eso es SIN DATO, no incumplimiento — el caso natural el día 1);
-//   4. una meta que gerencia dejó en blanco (objetivo 0) también se pintaba
-//      como incumplida, y el bloque "por definir" ni siquiera miraba la
-//      conversión: bastaba con fijar capital y ventas para colarla al semáforo.
+// Tests de integración de la tarjeta mensual de monto y conversión del equipo.
 //
 // El reloj se fija con timers falsos: el mes vigente se deriva del instante y
 // sin fijarlo estos tests pasarían o fallarían según el día en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { objetivosCero, type ObjetivosPorRol } from '@/lib/objetivos'
 import type { Actividad, Lead, Miembro, Yo } from '@/lib/tipos'
 
@@ -25,6 +14,8 @@ let YO: Yo | null = null
 let LEADS: Lead[] = []
 let VENDEDORES: Miembro[] = []
 let OBJETIVOS: ObjetivosPorRol = objetivosCero()
+let OBJETIVOS_ERROR = false
+const recargar = vi.fn()
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -33,6 +24,8 @@ vi.mock('@/lib/store-context', () => ({
     actividades: [] as Actividad[],
     tareas: [],
     objetivos: OBJETIVOS,
+    objetivosError: OBJETIVOS_ERROR,
+    recargar,
     equipo: VENDEDORES,
     reasignar: () => ({ ok: true }),
   }),
@@ -73,7 +66,11 @@ function lead(over: Partial<Lead> = {}): Lead {
 }
 
 function montar(
-  over: { leads?: Lead[]; objetivos?: Partial<ObjetivosPorRol['supervisor']> } = {},
+  over: {
+    leads?: Lead[]
+    objetivos?: Partial<ObjetivosPorRol['supervisor']>
+    objetivosError?: boolean
+  } = {},
 ): void {
   vi.setSystemTime(MIERCOLES_10AM)
   YO = {
@@ -85,6 +82,7 @@ function montar(
   }
   LEADS = over.leads ?? [lead()]
   VENDEDORES = []
+  OBJETIVOS_ERROR = over.objetivosError ?? false
   OBJETIVOS = objetivosCero()
   OBJETIVOS.supervisor = {
     capitalObjetivo: 100_000,
@@ -97,6 +95,7 @@ function montar(
 
 beforeEach(() => {
   vi.useFakeTimers()
+  recargar.mockClear()
 })
 
 afterEach(() => {
@@ -104,25 +103,6 @@ afterEach(() => {
 })
 
 describe('Hoy · supervisor — meta del equipo', () => {
-  it('"Ventas cerradas" cuenta el MES vigente, no la vida entera', () => {
-    montar({
-      leads: [
-        lead({ id: 'l-viejo', etapa: 'convertido', actualizado_en: '2026-05-20T15:00:00Z' }),
-        lead({ id: 'l-viejo2', etapa: 'convertido', actualizado_en: '2026-06-20T15:00:00Z' }),
-        lead({ id: 'l-mes', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-      ],
-      objetivos: { ventasObjetivo: 4 },
-    })
-
-    // 1 de 4 este mes; antes decía "3 de 4" con dos cierres de meses cerrados.
-    expect(screen.getByText('1 de 4')).toBeInTheDocument()
-    expect(screen.queryByText('3 de 4')).not.toBeInTheDocument()
-    // La diferencia con el acumulado se dice en voz alta.
-    expect(
-      screen.getByText('Cerradas este mes · 3 en total desde que el equipo lleva cartera.'),
-    ).toBeInTheDocument()
-  })
-
   it('la conversión es la del mes: convertidos sobre lo RESUELTO en el mes', () => {
     montar({
       leads: [
@@ -150,18 +130,20 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.queryByText('0% de 40%')).not.toBeInTheDocument()
   })
 
-  it('una meta que gerencia dejó en blanco NO se pinta como incumplida', () => {
-    montar({ objetivos: { conversionObjetivo: 0 } })
+  it('usa la meta inicial de 15 % cuando Gerencia aún no guardó otra', () => {
+    montar({
+      leads: [
+        lead({ id: 'l-c', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
+        lead({ id: 'l-d', etapa: 'descartado', actualizado_en: '2026-07-10T15:00:00Z' }),
+      ],
+      objetivos: { conversionObjetivo: 0 },
+    })
 
-    expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
-    // Antes bastaba con tener capital y ventas fijadas para que la conversión
-    // en blanco cayera al bloque semaforizado como "0% de 0%".
+    expect(screen.getByText('50% de 15%')).toBeInTheDocument()
     expect(screen.queryByText('0% de 0%')).not.toBeInTheDocument()
-    // Las otras dos filas conservan su objetivo y su barra.
-    expect(screen.getByText('0 de 4')).toBeInTheDocument()
   })
 
-  it('sin NINGUNA meta fijada cae al bloque "por definir" con el conteo del mes', () => {
+  it('sin ninguna meta guardada conserva capital neutro y compara conversión con 15 %', () => {
     montar({
       leads: [
         lead({ id: 'l-mes', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
@@ -170,8 +152,21 @@ describe('Hoy · supervisor — meta del equipo', () => {
       objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
     })
 
-    expect(screen.getByText(/Meta mensual del equipo por definir/)).toBeInTheDocument()
-    expect(screen.getByText('Ventas cerradas este mes')).toBeInTheDocument()
-    expect(screen.getByText('1')).toBeInTheDocument()
+    expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
+    expect(screen.getByText('100% de 15%')).toBeInTheDocument()
+    expect(screen.queryByText(/Meta mensual del equipo por definir/)).not.toBeInTheDocument()
+  })
+
+  it('si la lectura de metas falla no reemplaza el error por 15 %', () => {
+    montar({
+      objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      objetivosError: true,
+    })
+
+    expect(screen.getByText('No pudimos cargar la meta mensual del equipo.')).toBeInTheDocument()
+    expect(screen.queryByText(/de 15%/)).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(recargar).toHaveBeenCalled()
   })
 })

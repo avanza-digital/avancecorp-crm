@@ -4,10 +4,14 @@ import type { Database } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
 import {
   CATEGORIAS_INTERES,
+  ESTADOS_TAREA,
   ETAPAS,
   GENEROS,
+  MODALIDADES_REUNION_TODAS,
   MOTIVOS_DESCARTE,
+  MOTIVOS_NO_REALIZADA_TODOS,
   ORIGENES_TODOS,
+  RESULTADOS_REUNION_TODOS,
   TERMINALES,
   TIPOS_ACTIVIDAD,
   TIPOS_TAREA,
@@ -23,6 +27,10 @@ import {
   type SupervisorReparto,
   type Tarea,
   type TipoActividad,
+  type ModalidadReunion,
+  type MotivoNoRealizada,
+  type ResultadoReunion,
+  type RespuestaReprogramarReunion,
 } from '@/lib/tipos'
 import type {
   CategoriaContrato,
@@ -58,6 +66,14 @@ import {
   MetricasAgendaSchema,
   type MetricasAgenda,
 } from '@/lib/metricas-agenda'
+import {
+  MetricasConversionesSchema,
+  type MetricasConversiones,
+} from '@/lib/metricas-conversiones'
+import {
+  MetricasReunionesSchema,
+  type MetricasReuniones,
+} from '@/lib/metricas-reuniones'
 import { FilaObjetivoSchema, type FilaObjetivo } from '@/lib/objetivos'
 import {
   DisponibilidadLeadSchema,
@@ -98,6 +114,7 @@ const COLUMNAS_LEAD = [
   // mudaba al mes de la corrección: un cierre falso en un mes y uno de menos en
   // el real. Ver lib/cierres-del-mes.ts.
   'convertido_en',
+  'contrato_id',
   'actualizado_en',
   'activo',
   'nota',
@@ -147,6 +164,7 @@ const LeadRowSchema = v.object({
   // columna la cartera debe seguir cargando (el mes de cierre degrada al
   // comportamiento viejo), nunca vaciarse.
   convertido_en: v.optional(v.nullable(v.string())),
+  contrato_id: v.optional(v.nullable(v.string())),
   actualizado_en: v.string(),
   activo: v.boolean(),
   nota: v.nullable(v.string()),
@@ -264,6 +282,7 @@ function aLead(fila: LeadRow): Lead {
     // Sin esta línea, `convertido_en` llega `undefined` a `cierresDelMes` y el
     // mes de cierre cae en silencio al fallback que este cambio viene a matar.
     convertido_en: fila.convertido_en ?? null,
+    contrato_id: fila.contrato_id ?? null,
     // Se pedía al servidor y se validaba, pero NO se copiaba: en el navegador
     // llegaba siempre `undefined`. De este campo dependen el "mes de cierre" de
     // la meta del asesor y las series de tendencia de gerencia, que sin él caen
@@ -438,14 +457,14 @@ export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
 // ── Metas del mes (crm.objetivos: lectura por RLS, escritura SOLO por RPC) ────
 
 export async function listarObjetivos(periodo: string, signal?: AbortSignal): Promise<FilaObjetivo[]> {
-  let consulta = cliente().schema('crm').from('objetivos')
-    .select('rol,capital_objetivo,ventas_objetivo,conversion_objetivo')
+  let consulta = cliente().schema('crm').from('objetivos_vendedores')
+    .select('vendedor_id,supervisor_id,capital_objetivo,ventas_objetivo,conversion_objetivo')
     .eq('periodo', periodo)
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   if (error) {
     const fallo = new CrmApiError('No se pudieron cargar las metas del mes.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.objetivos.listado_fallido', fallo)
+    registrarError('crm.objetivos_vendedores.listado_fallido', fallo)
     throw fallo
   }
   const items: FilaObjetivo[] = []
@@ -461,11 +480,11 @@ export async function fijarObjetivosRpc(
   periodo: string,
   payload: Record<string, Record<string, number>>,
 ): Promise<void> {
-  const { error } = await cliente().schema('crm').rpc('fijar_objetivos', {
+  const { error } = await cliente().schema('crm').rpc('fijar_objetivos_vendedores', {
     p_periodo: periodo,
     p_objetivos: payload,
   })
-  if (error) throw aErrorApi(error, 'crm.objetivos.fijar_fallido')
+  if (error) throw aErrorApi(error, 'crm.objetivos_vendedores.fijar_fallido')
 }
 
 // ── Reparto de la cola global (C1) — 3 RPC SECURITY DEFINER con gate propio ───
@@ -893,7 +912,9 @@ export async function insertarActividad(fila: ActividadInsert): Promise<void> {
 // La tabla es NUEVA (no hay filas legacy): el schema es estricto. La tenencia
 // (vendedor_id/asignado_supervisor_id) viene derivada del lead por trigger.
 
-const COLUMNAS_TAREA = [
+type TareaDatabaseRow = Database['crm']['Tables']['tareas']['Row']
+
+const COLUMNAS_TAREA = ([
   'id',
   'lead_id',
   'perfil_id',
@@ -905,12 +926,18 @@ const COLUMNAS_TAREA = [
   'vence_en',
   'duracion_min',
   'estado',
+  'modalidad_reunion',
+  'ubicacion_reunion',
+  'enlace_reunion',
+  'resultado_reunion',
+  'motivo_no_realizada',
+  'detalle_cierre_reunion',
   'confirmada_en',
   'reagendada_de',
   'reprogramaciones',
   'activo',
   'creado_en',
-].join(',')
+] as const satisfies readonly (keyof TareaDatabaseRow)[]).join(',')
 
 const TareaRowSchema = v.object({
   id: v.string(),
@@ -923,19 +950,19 @@ const TareaRowSchema = v.object({
   nota: v.nullable(v.string()),
   vence_en: v.string(),
   duracion_min: v.nullable(v.number()),
-  estado: v.picklist(['pendiente', 'completada', 'cancelada', 'no_show']),
+  estado: v.picklist(ESTADOS_TAREA),
+  modalidad_reunion: v.nullable(v.picklist(MODALIDADES_REUNION_TODAS)),
+  ubicacion_reunion: v.nullable(v.string()),
+  enlace_reunion: v.nullable(v.string()),
+  resultado_reunion: v.nullable(v.picklist(RESULTADOS_REUNION_TODOS)),
+  motivo_no_realizada: v.nullable(v.picklist(MOTIVOS_NO_REALIZADA_TODOS)),
+  detalle_cierre_reunion: v.nullable(v.string()),
   confirmada_en: v.nullable(v.string()),
   reagendada_de: v.nullable(v.string()),
   reprogramaciones: v.number(),
   activo: v.boolean(),
   creado_en: v.string(),
 })
-
-type TareaRow = v.InferOutput<typeof TareaRowSchema>
-
-function aTarea(fila: TareaRow): Tarea {
-  return { ...fila }
-}
 
 // Salvaguarda de payload (no seguridad): la RLS ya recorta al ámbito.
 const MAX_TAREAS_AMBITO = 2000
@@ -966,7 +993,7 @@ export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea
   let descartadas = 0
   for (const cruda of data ?? []) {
     const resultado = v.safeParse(TareaRowSchema, cruda)
-    if (resultado.success) items.push(aTarea(resultado.output))
+    if (resultado.success) items.push(resultado.output)
     else descartadas += 1
   }
   if (descartadas > 0) {
@@ -1057,11 +1084,15 @@ export interface CerrarTareaInput {
   resultado_tipo?: TipoActividad | null
   resultado_detalle?: string | null
   siguiente?: {
+    id?: string
     tipo: string
     titulo: string
     nota?: string | null
     vence_en: string
     duracion_min?: number | null
+    modalidad_reunion?: ModalidadReunion | null
+    ubicacion_reunion?: string | null
+    enlace_reunion?: string | null
   } | null
 }
 
@@ -1080,6 +1111,81 @@ export async function cerrarTarea(input: CerrarTareaInput): Promise<{ siguiente_
   if (error) throw aErrorApi(error, 'crm.tareas.cierre_fallido')
   const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
   return { siguiente_id: siguiente }
+}
+
+export interface CerrarReunionInput {
+  tarea_id: string
+  estado: 'completada' | 'no_show' | 'cancelada'
+  resultado_reunion?: Exclude<ResultadoReunion, 'sin_clasificar'> | null
+  motivo_no_realizada?: MotivoNoRealizada | null
+  detalle?: string | null
+  siguiente?: CerrarTareaInput['siguiente']
+}
+
+export async function cerrarReunion(
+  input: CerrarReunionInput,
+): Promise<{ siguiente_id: string | null }> {
+  const { data, error } = await cliente().schema('crm').rpc('cerrar_reunion', {
+    p_tarea_id: input.tarea_id,
+    p_estado: input.estado,
+    p_resultado_reunion: input.resultado_reunion ?? null,
+    p_motivo_no_realizada: input.motivo_no_realizada ?? null,
+    p_detalle: input.detalle ?? null,
+    p_siguiente: input.siguiente ?? null,
+  })
+  if (error) throw aErrorApi(error, 'crm.reuniones.cierre_fallido')
+  const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
+  return { siguiente_id: siguiente }
+}
+
+const UuidSchema = v.pipe(v.string(), v.uuid())
+
+const ReprogramarReunionRespuestaSchema = v.object({
+  ok: v.literal(true),
+  tarea_nueva_id: UuidSchema,
+  tarea_anterior_id: UuidSchema,
+  reprogramaciones: v.pipe(v.number(), v.integer(), v.minValue(1)),
+})
+
+function validarRespuestaReprogramarReunion(
+  data: unknown,
+  tareaId: string,
+  nuevaId: string,
+): RespuestaReprogramarReunion {
+  const respuesta = v.safeParse(ReprogramarReunionRespuestaSchema, data)
+  const idsCoherentes = respuesta.success
+    && respuesta.output.tarea_anterior_id === tareaId
+    && respuesta.output.tarea_nueva_id === nuevaId
+    && respuesta.output.tarea_anterior_id !== respuesta.output.tarea_nueva_id
+
+  if (!respuesta.success || !idsCoherentes) {
+    const fallo = new CrmApiError(
+      'La reprogramación respondió fuera del contrato esperado.',
+      'ROW_CONTRACT',
+    )
+    registrarError('crm.reuniones.reprogramacion_respuesta_invalida', fallo, {
+      tareaId,
+      nuevaId,
+    })
+    throw fallo
+  }
+
+  return respuesta.output
+}
+
+export async function reprogramarReunion(
+  tareaId: string,
+  venceEn: string,
+  nuevaId: string,
+): Promise<Pick<RespuestaReprogramarReunion, 'tarea_nueva_id'>> {
+  const { data, error } = await cliente().schema('crm').rpc('reprogramar_reunion', {
+    p_tarea_id: tareaId,
+    p_vence_en: venceEn,
+    p_nueva_id: nuevaId,
+  })
+  if (error) throw aErrorApi(error, 'crm.reuniones.reprogramacion_fallida')
+  const respuesta = validarRespuestaReprogramarReunion(data, tareaId, nuevaId)
+  return { tarea_nueva_id: respuesta.tarea_nueva_id }
 }
 
 // ── Conversión lead → cliente (edge crm-convertir-lead: crea el cliente en el
@@ -2156,6 +2262,64 @@ export async function listarMetricasAgenda(
     throw fallo
   }
 
+  return resultado.output
+}
+
+export async function listarMetricasConversiones(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<MetricasConversiones> {
+  if (!periodoMetricasValido(desde, hasta)) {
+    throw new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_conversiones_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.conversiones_fallido')
+  const resultado = v.safeParse(MetricasConversionesSchema, data)
+  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+    const fallo = new CrmApiError(
+      'Las métricas de conversión no tienen el formato esperado.',
+      'METRICAS_CONVERSIONES_CONTRACT',
+    )
+    registrarError('crm.metricas.conversiones_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+export async function listarMetricasReuniones(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<MetricasReuniones> {
+  if (!periodoMetricasValido(desde, hasta)) {
+    throw new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_reuniones_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.reuniones_fallido')
+  const resultado = v.safeParse(MetricasReunionesSchema, data)
+  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+    const fallo = new CrmApiError(
+      'Las métricas de reuniones no tienen el formato esperado.',
+      'METRICAS_REUNIONES_CONTRACT',
+    )
+    registrarError('crm.metricas.reuniones_fuera_de_contrato', fallo)
+    throw fallo
+  }
   return resultado.output
 }
 

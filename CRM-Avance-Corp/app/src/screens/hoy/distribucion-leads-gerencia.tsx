@@ -88,7 +88,9 @@ export interface DistribucionLeadsGerenciaProps {
   datos?: MetricasDistribucionLeads | null | undefined
   cargando: boolean
   error: string | null
-  modoDemo?: boolean | undefined
+  modoDemo?: boolean
+  mostrarOperacion?: boolean
+  mostrarPeriodo?: boolean
   desde: string
   hasta: string
   onCambiarPeriodo: (desde: string, hasta: string) => void
@@ -97,6 +99,69 @@ export interface DistribucionLeadsGerenciaProps {
 }
 
 const ENTERO = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 })
+const MARGEN_RECORTE = 2
+const TARJETA_RESUMEN_CLASS =
+  'min-w-0 rounded-xl border border-border/80 bg-card px-4 py-4 shadow-[0_10px_24px_-24px_rgba(15,31,61,0.8)]'
+
+type AvisoAtencion = ReturnType<typeof avisosAtencion>[number]
+type CandidatoReparto = ReturnType<typeof candidatosReparto>['candidatos'][number]
+type ModoTablaRangos = 'carga' | 'conversion'
+
+interface ListaRecortada<T> {
+  elementos: T[]
+  ocultos: number
+}
+
+function recortarConMargen<T>(
+  elementos: T[],
+  limite: number,
+  mostrarTodos: boolean,
+): ListaRecortada<T> {
+  const visibles =
+    !mostrarTodos && elementos.length > limite + MARGEN_RECORTE
+      ? elementos.slice(0, limite)
+      : elementos
+  return { elementos: visibles, ocultos: elementos.length - visibles.length }
+}
+
+function filtrarFichasPorEquipo(
+  fichas: FichaAnalista[],
+  equipoId: string | null,
+): FichaAnalista[] {
+  if (equipoId == null) return fichas
+  return fichas.filter((ficha) => idEquipoDeAnalista(ficha.analista) === equipoId)
+}
+
+function capacidadDesdeTexto(valor: string): number | null | undefined {
+  const limpio = valor.trim()
+  if (limpio === '') return null
+  const capacidad = Number(limpio)
+  return Number.isInteger(capacidad) && capacidad >= 1 && capacidad <= 1000
+    ? capacidad
+    : undefined
+}
+
+function avisoVisible(aviso: AvisoAtencion, mostrarOperacion: boolean): boolean {
+  if (mostrarOperacion) return true
+  return !(
+    aviso.id === 'altos-sin-asignar'
+    || aviso.id === 'cola-gerencia'
+    || aviso.id.startsWith('bandeja-')
+  )
+}
+
+function cierresUsd(analistas: AnalistaDistribucionLeads[]): {
+  convertidos: number
+  descartados: number
+} {
+  return analistas.reduce(
+    (total, analista) => ({
+      convertidos: total.convertidos + analista.usd_no_segmentado.convertidos,
+      descartados: total.descartados + analista.usd_no_segmentado.descartados,
+    }),
+    { convertidos: 0, descartados: 0 },
+  )
+}
 
 /** Montos de cartera SIEMPRE redondeados a enteros: lectura gerencial. */
 function dinero(valor: number, moneda: Moneda): string {
@@ -124,6 +189,25 @@ function rangoDeCola(
       rango_id: rangoId,
       cantidad: 0,
       capital: 0,
+    }
+  )
+}
+
+function rangoDeAnalista(
+  analista: AnalistaDistribucionLeads,
+  rangoId: RangoCapitalPenId,
+): RangoAnalistaDistribucion {
+  return (
+    analista.pen.rangos.find((rango) => rango.rango_id === rangoId) ?? {
+      rango_id: rangoId,
+      cartera_actual: { episodios: 0, capital: 0 },
+      cohorte: {
+        episodios_recibidos: 0,
+        leads_unicos_recibidos: 0,
+        convertidos: 0,
+        descartados: 0,
+        leads_unicos_resueltos: 0,
+      },
     }
   )
 }
@@ -254,18 +338,18 @@ function CargandoDistribucion(): JSX.Element {
 
 // ── Nivel 1: resumen + atención ──────────────────────────────────────────────
 
-function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element {
+function ResumenDistribucion({
+  datos,
+  mostrarOperacion,
+}: {
+  datos: MetricasDistribucionLeads
+  mostrarOperacion: boolean
+}): JSX.Element {
   const decisionesPen = datos.resumen.convertidos_pen + datos.resumen.descartados_pen
-  const cierresUsd = datos.analistas.reduce(
-    (total, analista) => ({
-      convertidos: total.convertidos + analista.usd_no_segmentado.convertidos,
-      descartados: total.descartados + analista.usd_no_segmentado.descartados,
-    }),
-    { convertidos: 0, descartados: 0 },
-  )
-  const decisionesUsd = cierresUsd.convertidos + cierresUsd.descartados
+  const cierresDolares = cierresUsd(datos.analistas)
+  const decisionesUsd = cierresDolares.convertidos + cierresDolares.descartados
   const conversionPen = porcentajeLegible(datos.resumen.convertidos_pen, decisionesPen)
-  const conversionUsd = porcentajeLegible(cierresUsd.convertidos, decisionesUsd)
+  const conversionUsd = porcentajeLegible(cierresDolares.convertidos, decisionesUsd)
   const sla = porcentajeLegible(
     datos.resumen.sla_global_en_24h,
     datos.resumen.sla_global_evaluables,
@@ -275,8 +359,8 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
   const porRepartir = datos.resumen.por_repartir_actuales
 
   return (
-    <dl className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <div className="min-w-0 rounded-xl border border-border/80 bg-card px-4 py-4 shadow-[0_10px_24px_-24px_rgba(15,31,61,0.8)]">
+    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+      <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Leads con analista
         </dt>
@@ -289,7 +373,7 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
         </dd>
       </div>
 
-      <div className="min-w-0 rounded-xl border border-border/80 bg-card px-4 py-4 shadow-[0_10px_24px_-24px_rgba(15,31,61,0.8)]">
+      {mostrarOperacion && <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Por repartir
         </dt>
@@ -304,9 +388,9 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
             ? 'Esperan en Gerencia o en bandejas de supervisor'
             : 'Todo está asignado'}
         </dd>
-      </div>
+      </div>}
 
-      <div className="min-w-0 rounded-xl border border-border/80 bg-card px-4 py-4 shadow-[0_10px_24px_-24px_rgba(15,31,61,0.8)]">
+      <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Cierres del período
         </dt>
@@ -333,14 +417,14 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
             </span>
             <span className="mt-1 block text-xs leading-snug text-muted-foreground">
               {decisionesUsd > 0
-                ? `${cierresUsd.convertidos} ${plural(cierresUsd.convertidos, 'venta', 'ventas')} de ${decisionesUsd} leads resueltos`
+                ? `${cierresDolares.convertidos} ${plural(cierresDolares.convertidos, 'venta', 'ventas')} de ${decisionesUsd} leads resueltos`
                 : 'Aún sin leads resueltos'}
             </span>
           </div>
         </dd>
       </div>
 
-      <div className="min-w-0 rounded-xl border border-border/80 bg-card px-4 py-4 shadow-[0_10px_24px_-24px_rgba(15,31,61,0.8)]">
+      <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Atención en 24 horas
         </dt>
@@ -368,8 +452,14 @@ function ResumenDistribucion({ datos }: { datos: MetricasDistribucionLeads }): J
   )
 }
 
-function AtencionHoy({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element {
-  const avisos = avisosAtencion(datos)
+function AtencionHoy({
+  datos,
+  mostrarOperacion,
+}: {
+  datos: MetricasDistribucionLeads
+  mostrarOperacion: boolean
+}): JSX.Element {
+  const avisos = avisosAtencion(datos).filter((aviso) => avisoVisible(aviso, mostrarOperacion))
 
   if (avisos.length === 0) {
     return (
@@ -733,17 +823,16 @@ function EquipoPorPersona({
   }, [filtroEquipoId, orden])
 
   const visibles = useMemo(() => {
-    const filtradas = filtroEquipoId == null
-      ? fichas
-      : fichas.filter((ficha) => idEquipoDeAnalista(ficha.analista) === filtroEquipoId)
+    const filtradas = filtrarFichasPorEquipo(fichas, filtroEquipoId)
     return ordenarFichas(filtradas, orden)
   }, [fichas, filtroEquipoId, orden])
 
   // Recorte con margen: jamás esconder solo 1-2 tarjetas detrás de un botón.
-  const recortadas = !mostrarTodas && visibles.length > TOPE_FICHAS + 2
-    ? visibles.slice(0, TOPE_FICHAS)
-    : visibles
-  const ocultas = visibles.length - recortadas.length
+  const { elementos: recortadas, ocultos: ocultas } = recortarConMargen(
+    visibles,
+    TOPE_FICHAS,
+    mostrarTodas,
+  )
 
   const empezarEdicion = (analista: AnalistaDistribucionLeads) => {
     setEdicion({
@@ -759,9 +848,8 @@ function EquipoPorPersona({
   ) => {
     evento.preventDefault()
     if (!edicion || edicion.analistaId !== analista.analista_id) return
-    const limpio = edicion.valor.trim()
-    const capacidad = limpio === '' ? null : Number(limpio)
-    if (capacidad !== null && (!Number.isInteger(capacidad) || capacidad < 1 || capacidad > 1000)) {
+    const capacidad = capacidadDesdeTexto(edicion.valor)
+    if (capacidad === undefined) {
       setErrorCapacidad('Usa un entero entre 1 y 1000, o déjalo vacío.')
       return
     }
@@ -837,9 +925,7 @@ function EquipoPorPersona({
           {equipos
             .filter((equipo) => equipo.analistas.length > 0)
             .map((equipo) => {
-              const fichasEquipo = fichas.filter(
-                (ficha) => idEquipoDeAnalista(ficha.analista) === equipo.id,
-              )
+              const fichasEquipo = filtrarFichasPorEquipo(fichas, equipo.id)
               return (
                 <TarjetaEquipoFiltro
                   key={equipo.id}
@@ -907,6 +993,63 @@ function EquipoPorPersona({
 /** El asistente muestra los primeros candidatos: con orden por espacio, el resto rara vez decide. */
 const TOPE_CANDIDATOS = 5
 
+function CandidatoRepartoItem({
+  candidato,
+  indice,
+  moneda,
+}: {
+  candidato: CandidatoReparto
+  indice: number
+  moneda: Moneda
+}): JSX.Element {
+  const { segmento } = candidato
+  const enSegmento = moneda === 'PEN' ? 'con este monto' : 'en dólares'
+
+  return (
+    <li className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5">
+      <span
+        className="w-6 shrink-0 text-center text-sm font-extrabold tabular-nums text-muted-foreground"
+        aria-hidden
+      >
+        {indice + 1}
+      </span>
+      <Avatar nombre={candidato.analista.nombre} className="size-9" />
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-bold text-foreground">{candidato.analista.nombre}</p>
+        <p className="text-xs leading-snug text-muted-foreground">
+          {segmento.conversion
+            ? `Cierra el ${segmento.conversion.pct} ${enSegmento} (${segmento.conversion.convertidos} de ${segmento.conversion.resueltos})`
+            : `Sin resultados ${enSegmento} aún`}
+          {' · '}
+          {segmento.activos > 0
+            ? `hoy tiene ${segmento.activos} ${enSegmento}`
+            : `hoy no tiene leads ${enSegmento}`}
+        </p>
+      </div>
+      <div className="shrink-0 text-right">
+        {candidato.cuposLibres != null && candidato.cuposLibres > 0 && (
+          <p className="text-sm font-extrabold tabular-nums" style={{ color: SEMAFORO.ok }}>
+            {candidato.cuposLibres}{' '}
+            {plural(candidato.cuposLibres, 'cupo libre', 'cupos libres')}
+          </p>
+        )}
+        {candidato.cuposLibres == null && (
+          <p className="text-sm font-bold text-foreground">Sin límite definido</p>
+        )}
+        {candidato.lleno && (
+          <p className="text-sm font-bold" style={{ color: SEMAFORO.atencion }}>
+            Sin cupo
+          </p>
+        )}
+        <p className="text-xs tabular-nums text-muted-foreground">
+          {candidato.cargaActiva}{' '}
+          {plural(candidato.cargaActiva, 'lead activo', 'leads activos')} en total
+        </p>
+      </div>
+    </li>
+  )
+}
+
 function AsistenteReparto({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element {
   const rangos = rangosPen(datos)
   const [moneda, setMoneda] = useState<Moneda>('PEN')
@@ -925,10 +1068,11 @@ function AsistenteReparto({ datos }: { datos: MetricasDistribucionLeads }): JSX.
   }, [datos, moneda, rangoId])
 
   // Mismo margen que las tarjetas: nunca esconder 1-2 filas tras un botón.
-  const listados = !verTodos && candidatos.length > TOPE_CANDIDATOS + 2
-    ? candidatos.slice(0, TOPE_CANDIDATOS)
-    : candidatos
-  const restantes = candidatos.length - listados.length
+  const { elementos: listados, ocultos: restantes } = recortarConMargen(
+    candidatos,
+    TOPE_CANDIDATOS,
+    verTodos,
+  )
 
   return (
     <section
@@ -996,56 +1140,14 @@ function AsistenteReparto({ datos }: { datos: MetricasDistribucionLeads }): JSX.
         </p>
       ) : (
         <ol className="divide-y divide-border/70">
-          {listados.map((candidato, indice) => {
-            const segmento = candidato.segmento
-            const enSegmento = moneda === 'PEN' ? 'con este monto' : 'en dólares'
-            return (
-              <li
-                key={candidato.analista.analista_id}
-                className="flex flex-wrap items-center gap-3 px-4 py-3 sm:px-5"
-              >
-                <span
-                  className="w-6 shrink-0 text-center text-sm font-extrabold tabular-nums text-muted-foreground"
-                  aria-hidden
-                >
-                  {indice + 1}
-                </span>
-                <Avatar nombre={candidato.analista.nombre} className="size-9" />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-bold text-foreground">
-                    {candidato.analista.nombre}
-                  </p>
-                  <p className="text-xs leading-snug text-muted-foreground">
-                    {segmento.conversion
-                      ? `Cierra el ${segmento.conversion.pct} ${enSegmento} (${segmento.conversion.convertidos} de ${segmento.conversion.resueltos})`
-                      : `Sin resultados ${enSegmento} aún`}
-                    {' · '}
-                    {segmento.activos > 0
-                      ? `hoy tiene ${segmento.activos} ${enSegmento}`
-                      : `hoy no tiene leads ${enSegmento}`}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  {candidato.cuposLibres != null && candidato.cuposLibres > 0 && (
-                    <p className="text-sm font-extrabold tabular-nums" style={{ color: SEMAFORO.ok }}>
-                      {candidato.cuposLibres} {plural(candidato.cuposLibres, 'cupo libre', 'cupos libres')}
-                    </p>
-                  )}
-                  {candidato.cuposLibres == null && (
-                    <p className="text-sm font-bold text-foreground">Sin límite definido</p>
-                  )}
-                  {candidato.lleno && (
-                    <p className="text-sm font-bold" style={{ color: SEMAFORO.atencion }}>
-                      Sin cupo
-                    </p>
-                  )}
-                  <p className="text-xs tabular-nums text-muted-foreground">
-                    {candidato.cargaActiva} {plural(candidato.cargaActiva, 'lead activo', 'leads activos')} en total
-                  </p>
-                </div>
-              </li>
-            )
-          })}
+          {listados.map((candidato, indice) => (
+            <CandidatoRepartoItem
+              key={candidato.analista.analista_id}
+              candidato={candidato}
+              indice={indice}
+              moneda={moneda}
+            />
+          ))}
         </ol>
       )}
 
@@ -1072,6 +1174,50 @@ function AsistenteReparto({ datos }: { datos: MetricasDistribucionLeads }): JSX.
 
 // ── Nivel 3b: tabla completa por rangos (respaldo) ───────────────────────────
 
+function CeldaRangoAnalista({
+  dato,
+  modo,
+}: {
+  dato: RangoAnalistaDistribucion
+  modo: ModoTablaRangos
+}): JSX.Element {
+  const decisiones = dato.cohorte.convertidos + dato.cohorte.descartados
+  const conversionRango = porcentajeLegible(dato.cohorte.convertidos, decisiones)
+
+  return (
+    <td className="border-b border-r border-border/70 px-2 py-2 text-center">
+      {modo === 'carga' ? (
+        <div
+          className={cn(
+            'mx-auto min-w-14 rounded-lg px-1.5 py-1.5 tabular-nums',
+            dato.cartera_actual.episodios === 0
+              ? 'text-muted-foreground'
+              : 'bg-accent/10 text-primary',
+          )}
+          title={`${dato.cartera_actual.episodios} leads activos · ${dinero(dato.cartera_actual.capital, 'PEN')}`}
+        >
+          <p className="text-sm font-extrabold">{dato.cartera_actual.episodios}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+            recibió {dato.cohorte.episodios_recibidos}
+          </p>
+        </div>
+      ) : (
+        <div
+          className={cn(
+            'mx-auto min-w-16 rounded-lg px-1.5 py-1.5 tabular-nums',
+            decisiones === 0 ? 'text-muted-foreground' : 'bg-accent/10 text-primary',
+          )}
+        >
+          <p className="text-sm font-extrabold">{conversionRango ?? '—'}</p>
+          <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
+            {decisiones > 0 ? `${dato.cohorte.convertidos} de ${decisiones}` : 'Sin casos'}
+          </p>
+        </div>
+      )}
+    </td>
+  )
+}
+
 function TablaRangos({
   datos,
   fichas,
@@ -1080,7 +1226,7 @@ function TablaRangos({
   fichas: FichaAnalista[]
 }): JSX.Element {
   const [abierta, setAbierta] = useState(false)
-  const [modo, setModo] = useState<'carga' | 'conversion'>('carga')
+  const [modo, setModo] = useState<ModoTablaRangos>('carga')
   const rangos = rangosPen(datos)
   const analistas = useMemo(
     () => ordenarFichas(fichas, 'nombre').map((ficha) => ficha.analista),
@@ -1185,58 +1331,13 @@ function TablaRangos({
                           <p className="truncate text-sm font-bold text-foreground">{analista.nombre}</p>
                         </div>
                       </th>
-                      {rangos.map((rango) => {
-                        const dato = analista.pen.rangos.find((r) => r.rango_id === rango.id) ?? {
-                          rango_id: rango.id,
-                          cartera_actual: { episodios: 0, capital: 0 },
-                          cohorte: {
-                            episodios_recibidos: 0,
-                            leads_unicos_recibidos: 0,
-                            convertidos: 0,
-                            descartados: 0,
-                            leads_unicos_resueltos: 0,
-                          },
-                        }
-                        const decisiones = dato.cohorte.convertidos + dato.cohorte.descartados
-                        const conversionRango = porcentajeLegible(dato.cohorte.convertidos, decisiones)
-                        return (
-                          <td
-                            key={rango.id}
-                            className="border-b border-r border-border/70 px-2 py-2 text-center"
-                          >
-                            {modo === 'carga' ? (
-                              <div
-                                className={cn(
-                                  'mx-auto min-w-14 rounded-lg px-1.5 py-1.5 tabular-nums',
-                                  dato.cartera_actual.episodios === 0
-                                    ? 'text-muted-foreground'
-                                    : 'bg-accent/10 text-primary',
-                                )}
-                                title={`${dato.cartera_actual.episodios} leads activos · ${dinero(dato.cartera_actual.capital, 'PEN')}`}
-                              >
-                                <p className="text-sm font-extrabold">{dato.cartera_actual.episodios}</p>
-                                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
-                                  recibió {dato.cohorte.episodios_recibidos}
-                                </p>
-                              </div>
-                            ) : (
-                              <div
-                                className={cn(
-                                  'mx-auto min-w-16 rounded-lg px-1.5 py-1.5 tabular-nums',
-                                  decisiones === 0 ? 'text-muted-foreground' : 'bg-accent/10 text-primary',
-                                )}
-                              >
-                                <p className="text-sm font-extrabold">{conversionRango ?? '—'}</p>
-                                <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
-                                  {decisiones > 0
-                                    ? `${dato.cohorte.convertidos} de ${decisiones}`
-                                    : 'Sin casos'}
-                                </p>
-                              </div>
-                            )}
-                          </td>
-                        )
-                      })}
+                      {rangos.map((rango) => (
+                        <CeldaRangoAnalista
+                          key={rango.id}
+                          dato={rangoDeAnalista(analista, rango.id)}
+                          modo={modo}
+                        />
+                      ))}
                       {modo === 'carga' ? (
                         <td className="border-b border-border px-3 py-2.5 text-center text-base font-extrabold tabular-nums text-primary">
                           {analista.capacidad.carga_activa}
@@ -1420,6 +1521,8 @@ export function DistribucionLeadsGerencia({
   cargando,
   error,
   modoDemo = false,
+  mostrarOperacion = true,
+  mostrarPeriodo = true,
   desde,
   hasta,
   onCambiarPeriodo,
@@ -1440,10 +1543,10 @@ export function DistribucionLeadsGerencia({
     }
   }, [equipos, filtroEquipoId])
 
-  const fichasFiltradas = useMemo(() => {
-    if (filtroEquipoId == null) return fichas
-    return fichas.filter((ficha) => idEquipoDeAnalista(ficha.analista) === filtroEquipoId)
-  }, [fichas, filtroEquipoId])
+  const fichasFiltradas = useMemo(
+    () => filtrarFichasPorEquipo(fichas, filtroEquipoId),
+    [fichas, filtroEquipoId],
+  )
 
   return (
     <Card className="overflow-hidden" aria-labelledby={tituloId}>
@@ -1453,19 +1556,20 @@ export function DistribucionLeadsGerencia({
             Gerencia comercial
           </p>
           <CardTitle id={tituloId} className="text-lg">
-            Distribución de leads
+            {mostrarOperacion ? 'Distribución de leads' : 'Rendimiento y capacidad comercial'}
           </CardTitle>
           <CardDescription className="mt-1 max-w-xl leading-relaxed">
-            Quién tiene qué, quién tiene espacio y qué falta repartir. Soles y dólares siempre
-            separados.
+            {mostrarOperacion
+              ? 'Quién tiene qué, quién tiene espacio y qué falta repartir. Soles y dólares siempre separados.'
+              : 'Conversión, velocidad de atención y capacidad por analista. Soles y dólares siempre separados.'}
           </CardDescription>
         </div>
-        <PeriodoControl
+        {mostrarPeriodo && <PeriodoControl
           desde={desde}
           hasta={hasta}
           cargando={cargando}
           onCambiarPeriodo={onCambiarPeriodo}
-        />
+        />}
       </CardHeader>
 
       {error && (
@@ -1529,8 +1633,8 @@ export function DistribucionLeadsGerencia({
             </p>
           )}
 
-          <ResumenDistribucion datos={datos} />
-          <AtencionHoy datos={datos} />
+          <ResumenDistribucion datos={datos} mostrarOperacion={mostrarOperacion} />
+          <AtencionHoy datos={datos} mostrarOperacion={mostrarOperacion} />
 
           <EquipoPorPersona
             fichas={fichas}
@@ -1540,9 +1644,9 @@ export function DistribucionLeadsGerencia({
             onEditarCapacidad={onEditarCapacidad}
           />
 
-          <AsistenteReparto datos={datos} />
+          {mostrarOperacion && <AsistenteReparto datos={datos} />}
           <TablaRangos datos={datos} fichas={fichasFiltradas} />
-          <PorRepartir datos={datos} />
+          {mostrarOperacion && <PorRepartir datos={datos} />}
           <AlertaCalidad datos={datos} />
 
           <p className="text-[11px] leading-relaxed text-muted-foreground">

@@ -14,9 +14,13 @@ vi.mock('@/lib/supabase', async () => {
   return { sb: createClient('http://supabase.test', 'anon-fake') }
 })
 
-import { CrmApiError, listarLeads, listarLeadsDelAmbito } from './crm-api'
+import { CrmApiError, listarLeads, listarLeadsDelAmbito, reprogramarReunion } from './crm-api'
 
 const RUTA_LEADS = 'http://supabase.test/rest/v1/leads'
+const RUTA_REPROGRAMAR = 'http://supabase.test/rest/v1/rpc/reprogramar_reunion'
+const TAREA_ID = '11111111-1111-4111-8111-111111111111'
+const NUEVA_ID = '22222222-2222-4222-8222-222222222222'
+const OTRA_ID = '33333333-3333-4333-8333-333333333333'
 
 /** Fila con el shape exacto de LeadRow (todas las columnas del select). */
 function fila(sobre: Record<string, unknown> = {}): Record<string, unknown> {
@@ -255,5 +259,63 @@ describe('listarLeadsDelAmbito (msw)', () => {
       '[ac-crm]',
       expect.objectContaining({ evento: 'crm.leads.ambito_filas_invalidas' }),
     )
+  })
+})
+
+describe('reprogramarReunion (msw)', () => {
+  it('conserva el payload exacto y acepta únicamente la confirmación coherente', async () => {
+    let payload: unknown
+    server.use(
+      http.post(RUTA_REPROGRAMAR, async ({ request }) => {
+        payload = await request.json()
+        return HttpResponse.json({
+          ok: true,
+          tarea_anterior_id: TAREA_ID,
+          tarea_nueva_id: NUEVA_ID,
+          reprogramaciones: 1,
+        })
+      }),
+    )
+
+    await expect(reprogramarReunion(TAREA_ID, '2026-08-06T15:00:00.000Z', NUEVA_ID))
+      .resolves.toEqual({ tarea_nueva_id: NUEVA_ID })
+    expect(payload).toEqual({
+      p_tarea_id: TAREA_ID,
+      p_vence_en: '2026-08-06T15:00:00.000Z',
+      p_nueva_id: NUEVA_ID,
+    })
+  })
+
+  it.each([
+    ['ok no verdadero', { ok: false, tarea_anterior_id: TAREA_ID, tarea_nueva_id: NUEVA_ID, reprogramaciones: 1 }],
+    ['id anterior inválido', { ok: true, tarea_anterior_id: 'invalido', tarea_nueva_id: NUEVA_ID, reprogramaciones: 1 }],
+    ['id nuevo inválido', { ok: true, tarea_anterior_id: TAREA_ID, tarea_nueva_id: 'invalido', reprogramaciones: 1 }],
+    ['id anterior distinto del solicitado', { ok: true, tarea_anterior_id: OTRA_ID, tarea_nueva_id: NUEVA_ID, reprogramaciones: 1 }],
+    ['id nuevo distinto del solicitado', { ok: true, tarea_anterior_id: TAREA_ID, tarea_nueva_id: OTRA_ID, reprogramaciones: 1 }],
+    ['contador ausente', { ok: true, tarea_anterior_id: TAREA_ID, tarea_nueva_id: NUEVA_ID }],
+    ['contador no positivo', { ok: true, tarea_anterior_id: TAREA_ID, tarea_nueva_id: NUEVA_ID, reprogramaciones: 0 }],
+    ['contador no entero', { ok: true, tarea_anterior_id: TAREA_ID, tarea_nueva_id: NUEVA_ID, reprogramaciones: 1.5 }],
+  ])('rechaza una respuesta fuera de contrato: %s', async (_caso, respuesta) => {
+    server.use(http.post(RUTA_REPROGRAMAR, () => HttpResponse.json(respuesta)))
+
+    await expect(reprogramarReunion(TAREA_ID, '2026-08-06T15:00:00.000Z', NUEVA_ID))
+      .rejects.toMatchObject({
+        code: 'ROW_CONTRACT',
+        message: 'La reprogramación respondió fuera del contrato esperado.',
+      })
+  })
+
+  it('rechaza que la tarea anterior y la nueva sean el mismo UUID', async () => {
+    server.use(
+      http.post(RUTA_REPROGRAMAR, () => HttpResponse.json({
+        ok: true,
+        tarea_anterior_id: TAREA_ID,
+        tarea_nueva_id: TAREA_ID,
+        reprogramaciones: 1,
+      })),
+    )
+
+    await expect(reprogramarReunion(TAREA_ID, '2026-08-06T15:00:00.000Z', TAREA_ID))
+      .rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })

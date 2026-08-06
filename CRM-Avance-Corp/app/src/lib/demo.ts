@@ -10,7 +10,8 @@
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
 // Solo tipos (se borran al compilar): no crea ciclo con el import dinámico
 // que hace el store de este módulo.
-import type { ObjetivosPorRol, SeriesComerciales } from './store'
+import type { SeriesComerciales } from './store'
+import type { ObjetivosJerarquicos } from './objetivos'
 
 export const EQUIPO_DEMO: Miembro[] = [
   { perfil_id: 'd-ger', nombre_completo: 'GERENCIA DEMO', rol_crm: 'gerencia', supervisor_id: null, activo: true },
@@ -152,12 +153,16 @@ export const SPARKS_DEMO: SeriesComerciales = {
   conversion: [12, 14, 13, 18, 19, 21, 23],
 }
 
-// Metas del mes por rol (contrato F1c). SOLO objetivos estáticos: los valores
-// "actuales" se calculan del store en cada pantalla (capital en proceso,
-// convertidos y % de conversión del ámbito correspondiente).
+// Metas individuales por vendedor. Los totales de supervisor y empresa son
+// lecturas derivadas; no existen como filas editables.
 // capitalObjetivo en PEN — NUNCA se mezcla con USD en un mismo total.
-export const METAS_DEMO: ObjetivosPorRol = {
-  vendedor: { capitalObjetivo: 250_000, ventasObjetivo: 3, conversionObjetivo: 25 },
-  supervisor: { capitalObjetivo: 500_000, ventasObjetivo: 6, conversionObjetivo: 25 },
-  gerencia: { capitalObjetivo: 1_000_000, ventasObjetivo: 12, conversionObjetivo: 28 },
+export const METAS_DEMO: ObjetivosJerarquicos = {
+  vendedor: { capitalObjetivo: 250_000, ventasObjetivo: 0, conversionObjetivo: 25 },
+  supervisor: { capitalObjetivo: 550_000, ventasObjetivo: 0, conversionObjetivo: 26.5 },
+  gerencia: { capitalObjetivo: 1_000_000, ventasObjetivo: 0, conversionObjetivo: 27.67 },
+  porVendedor: {
+    'd-v1': { vendedorId: 'd-v1', supervisorId: 'd-sup1', capitalObjetivo: 250_000, ventasObjetivo: 0, conversionObjetivo: 25 },
+    'd-v2': { vendedorId: 'd-v2', supervisorId: 'd-sup1', capitalObjetivo: 300_000, ventasObjetivo: 0, conversionObjetivo: 28 },
+    'd-v3': { vendedorId: 'd-v3', supervisorId: 'd-sup2', capitalObjetivo: 450_000, ventasObjetivo: 0, conversionObjetivo: 30 },
+  },
 }

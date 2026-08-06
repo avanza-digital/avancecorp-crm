@@ -114,3 +114,27 @@ describe('Topbar — buscador', () => {
     expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Cartera')
   })
 })
+
+describe('Topbar — centro de alertas', () => {
+  it('presenta la ruta de Gerencia con título y subtítulo accionable', () => {
+    montar({ rol: 'gerencia', vista: 'alertas', leads: [] })
+
+    expect(screen.getByRole('heading', { level: 1 })).toHaveTextContent('Centro de alertas')
+    expect(screen.getByText('Prioriza y resuelve los casos que requieren atención')).toBeVisible()
+    const enlace = screen.getByRole('link', { name: 'Abrir centro de alertas' })
+    expect(enlace).toHaveAttribute('href', '#/alertas')
+    expect(enlace).toHaveAttribute('aria-current', 'page')
+    expect(enlace.querySelector('span')).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Notificaciones' })).not.toBeInTheDocument()
+  })
+
+  it('mantiene la campana como placeholder para los demás roles', () => {
+    montar({ rol: 'supervisor', vista: 'hoy', leads: [] })
+
+    expect(screen.getByRole('button', { name: 'Notificaciones' })).toHaveAttribute(
+      'title',
+      'Las notificaciones llegan pronto',
+    )
+    expect(screen.queryByRole('link', { name: 'Abrir centro de alertas' })).not.toBeInTheDocument()
+  })
+})

@@ -369,3 +369,25 @@ fuentes, migraciones, sourcemaps, `.env` y `package.json` no son públicos.
 |---------|--------|----------|--------|
 | 20260803221622 | crm_cuentas_bancarias_por_contrato | Agrega `crm.cuentas_bancarias` como historial inmutable/versionado y `crm.contrato_cuentas_pago` como vínculo único por contrato. El alta atómica permite elegir una cuenta guardada, fotografiar la cuenta vigente del perfil o registrar una nueva; un snapshot optimista y locks por cuenta cierran carreras. Las tablas permanecen sin acceso directo para sesiones humanas; RPCs gateadas listan cuentas de cartera, crean/corrigen contratos y entregan a Pagos solo la cuenta contractual. Contratos anteriores conservan fallback explícito al perfil; una incoherencia cliente/moneda bloquea el desembolso. No añade verificación bancaria ni modifica objetos de `public`. | ✅ **Producción** 2026-08-03. Branch efímera `frhfezxzdhnhrjiddrzn`: gate RLS 453/453, advisors sin nuevos errores ni WARN de rendimiento; fusionada y eliminada. |
 | 20260804144555 | crm_p04_gate_cuentas_bancarias | Restablece la invariante P04 en todas las rutas bancarias del esquema `crm` añadidas después del offboarding: `private.puede_gestionar_cuentas_cliente` exige el gate vivo para todo actor; el wrapper de corrección resuelve y autoriza también contratos legacy sin enlace; Pagos exige admin **y** acceso CRM vivo. El analista conserva además el alcance de cartera; el admin sin fila de equipo conserva el fallback global, pero una membresía CRM revocada prevalece también sobre su rol del portal. Helpers internos sin `EXECUTE` directo para roles API. **Frontera consciente:** no cambia `public.crear_contrato` ni `public.actualizar_contrato`; migrar/retirar el alta administrativa legacy es una decisión separada. | ✅ **Producción 2026-08-04** (Supabase la registró como `20260804154054`). Branch efímera `p04-bank-gate-20260804` (`btzuomyfcjabiiybiidu`): oráculo autocontenido `P04_BANK_GATE_TX_OK` con 23 verificaciones y gate PostgREST **475/475**, incluidas las cuatro RPC, contrato enlazado y legacy, estados mixtos, admin activo/revocado/global y ACL anon. Advisors sin errores ni clases nuevas de seguridad; los tres hashes de definición y todas las ACL coincidieron entre branch y producción tras el merge. Branch fusionada y eliminada. |
+
+## Inteligencia comercial, metas y ranking gerencial (2026-08-06)
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260805180000 | 20260805180000 | crm_inteligencia_comercial_reuniones | ✅ Producción. Contrato global de conversiones/reuniones y campos auditables de reunión. |
+| 20260805200000 | 20260806160412 | crm_conversion_vendedor_detalle | ✅ Producción. Añade responsables, capital PEN/USD y tendencia semanal a la RPC gateada de Gerencia. `anon` sin `EXECUTE`; smoke real con 16 responsables. |
+| 20260805213000 | 20260805211322 | crm_objetivos_por_vendedor | ✅ Producción. Metas mensuales individuales; la meta organizacional se deriva. RLS activa y escrituras por RPC exclusiva de Gerencia. |
+
+Supabase reescribió dos timestamps al fusionar/aplicar. Es el patrón normal del
+proyecto: los archivos locales conservan sus versiones originales y las
+equivalencias remotas viven en este ledger. No ejecutar `supabase db push
+--include-all` para intentar igualar el historial global, que tiene drift
+deliberado.
+
+Frontend publicado como release `crm-20260806T162840Z-a0ba40c3cad5` (SHA-256
+`e3c411e10cb45e15069f6c64da50d8e09004bc135f08f799a49ccfb5ae542245`). Incluye
+detalle compacto por vendedor y la vista `#/ranking-vendedores`, escalable al
+equipo completo, con ranking por conversión y por cumplimiento de meta de
+capital PEN. USD permanece separado. Validación final: 1,208 pruebas, lint,
+typecheck y build verdes; assets principales verificados byte a byte en
+`crm.miavance.com` y ZIP público 404.

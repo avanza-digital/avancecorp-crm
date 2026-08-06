@@ -15,18 +15,28 @@ export function esRol(valor: unknown): valor is Rol {
   return typeof valor === 'string' && (ROLES as readonly string[]).includes(valor)
 }
 
-export type Accion =
-  | 'verTodo'            // ámbito completo de la empresa
-  | 'verEquipo'          // ver a otros miembros del equipo
-  | 'filtrarPorVendedor'
-  | 'reasignar'
-  | 'repartirLeads'      // supervisor: baja leads de su bandeja a sus vendedores
-  | 'repartirCola'       // coordinador: reparte la COLA GLOBAL a las bandejas (C1)
-  | 'verCartera'         // pantalla unificada Clientes+Contratos ('mi-cartera')
-  | 'verConfiguracion'   // pantalla 'config' — incluye la suscripción ICS PROPIA
-  | 'editarConfiguracion'
-  | 'verReportes'
-  | 'soloLecturaTotal'   // directorio/auditoría: NO escribe NADA (ni lo propio)
+/** Catálogo runtime de capacidades. El tipo y las pruebas se derivan de aquí. */
+export const ACCIONES = [
+  'verTodo',            // ámbito completo de la empresa
+  'verEquipo',          // ver a otros miembros del equipo
+  'filtrarPorVendedor',
+  'reasignar',
+  'repartirLeads',      // supervisor: baja leads de su bandeja a sus vendedores
+  'repartirCola',       // coordinador: reparte la COLA GLOBAL a las bandejas (C1)
+  'verPipeline',
+  'verLeads',
+  'verAgenda',
+  'verGestionEquipo',
+  'verCartera',         // pantalla unificada Clientes+Contratos ('mi-cartera')
+  'verConfiguracion',   // pantalla 'config' — incluye la suscripción ICS PROPIA
+  'editarConfiguracion',
+  'verReportes',
+  'editarMetas',
+  'editarCapacidad',
+  'soloLecturaTotal',   // directorio/auditoría: NO escribe NADA (ni lo propio)
+] as const
+
+export type Accion = (typeof ACCIONES)[number]
 
 export type Caps = Record<Accion, boolean>
 
@@ -42,26 +52,30 @@ export const CAPS: Record<Rol, Caps> = {
   vendedor: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
+    verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: false,
     verConfiguracion: true, editarConfiguracion: false,
-    verReportes: true, soloLecturaTotal: false,
+    verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
   supervisor: {
     verTodo: false, verEquipo: true, filtrarPorVendedor: true,
     reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
+    verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verConfiguracion: false, editarConfiguracion: false,
-    verReportes: true, soloLecturaTotal: false,
+    verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
   gerencia: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
-    reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
-    verConfiguracion: true, editarConfiguracion: true,
-    verReportes: true, soloLecturaTotal: false,
+    reasignar: false, repartirLeads: false, repartirCola: false, verCartera: false,
+    verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
+    verConfiguracion: false, editarConfiguracion: false,
+    verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: true,
   },
   directorio: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
+    verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verConfiguracion: true, editarConfiguracion: false,
-    verReportes: true, soloLecturaTotal: true,
+    verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: true,
   },
   // Coordinador (C1): SOLO reparte la cola global a las bandejas de supervisión.
   // verTodo:false es CRÍTICO — su ámbito de leads es ∅ (espejo exacto de la RLS:
@@ -70,8 +84,9 @@ export const CAPS: Record<Rol, Caps> = {
   coordinador: {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
+    verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
     verConfiguracion: false, editarConfiguracion: false,
-    verReportes: false, soloLecturaTotal: false,
+    verReportes: false, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
   },
 }
 

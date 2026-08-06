@@ -63,6 +63,7 @@ import {
 import { ameritaRecordatorio, enlaceRecordatorio } from '@/lib/recordatorio'
 import { AccionesContacto } from '@/components/app/contacto'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
+import { etiquetaModalidadReunion } from '@/components/app/campos-reunion'
 import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import { money } from '@/lib/format'
 import { ETAPAS, TIPO_EVENTO, TIPOS_TAREA, type Lead, type Tarea } from '@/lib/tipos'
@@ -147,6 +148,9 @@ function TarjetaTarea({
   const verEquipo = can(yo?.rol, 'verEquipo')
   const ev = tareaAEvento(t, ahora)
   const hora = ev.cuando.split(' · ')[1] ?? ''
+  const modalidadReunion = t.tipo === 'reunion'
+    ? etiquetaModalidadReunion(t.modalidad_reunion)
+    : null
   const gcal = enlaceGoogleCalendar(t)
   const recordatorio = lead && ameritaRecordatorio(t, ahora) ? enlaceRecordatorio(t, lead, ahora) : null
 
@@ -204,6 +208,11 @@ function TarjetaTarea({
             <p className="truncate text-sm font-semibold">{t.titulo}</p>
           )}
           <Badge color={ev.color} className="text-[10px]">{TIPO_EVENTO[t.tipo] ?? t.tipo}</Badge>
+          {modalidadReunion && (
+            <Badge color="var(--accent)" className="text-[10px]">
+              {modalidadReunion}
+            </Badge>
+          )}
           {t.tipo === 'reunion' && !ev.vencida && (
             t.confirmada_en ? (
               <Badge color="#16a34a" className="text-[10px]">

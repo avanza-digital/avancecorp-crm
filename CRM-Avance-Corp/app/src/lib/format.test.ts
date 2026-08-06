@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
-import { fechaHora, fmtFecha, iniciales, money, moneyK, primerNombre } from './format'
+import { fechaHora, fmtFecha, iniciales, money, moneyK, numero, primerNombre } from './format'
 
 describe('formato monetario', () => {
+  it('separa miles en todas las cantidades', () => {
+    expect(numero(1_500_000)).toBe('1,500,000')
+    expect(numero(12_345.67, 2)).toBe('12,345.67')
+    expect(numero(null)).toBe('—')
+  })
+
   it('formatea PEN y USD sin mezclar símbolos', () => {
     expect(money(1_234.5)).toBe('S/ 1,234.5')
     expect(money(1_234.5, 'USD')).toBe('US$ 1,234.5')

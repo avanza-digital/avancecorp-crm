@@ -1,20 +1,70 @@
-// Guard de vistas por capacidad — lógica pura, fuera de App.tsx (que solo la
-// consume) para no romper el fast-refresh y poder probarla sin montar el árbol.
-//
-// Doble defensa (patrón VITANOVA): el nav OCULTA lo que can() niega, este guard
-// EXPULSA lo que se alcance por URL, y la RLS del esquema crm lo NIEGA en el
-// servidor. Regla de oro: lo que can() oculta, la RLS también lo niega.
-import { can, type Rol } from '@/lib/roles'
-import { esVistaLeads, type Vista } from '@/lib/router'
+// Política única de acceso a vistas para la UX. Sidebar y App consumen estas
+// funciones; la seguridad real permanece en la RLS del esquema crm.
+import { can, esRol, type Accion, type Rol } from '@/lib/roles'
+import { esVistaGerencia, esVistaLeads, type Vista } from '@/lib/router'
+
+type EstadoGateLeads = 'abierto' | 'cerrado'
+
+/** Landing exhaustiva por rol; no concede acceso a ninguna otra vista. */
+const VISTA_BASE_POR_ROL = {
+  vendedor: { abierto: 'hoy', cerrado: 'mi-cartera' },
+  supervisor: { abierto: 'hoy', cerrado: 'mi-cartera' },
+  gerencia: { abierto: 'hoy', cerrado: 'hoy' },
+  directorio: { abierto: 'hoy', cerrado: 'mi-cartera' },
+  coordinador: { abierto: 'repartir', cerrado: 'repartir' },
+} as const satisfies Record<Rol, Record<EstadoGateLeads, Vista>>
 
 /**
- * Dónde ATERRIZA un rol: su vista base cuando la pedida no existe o no le
- * corresponde. El coordinador (C1) reparte la cola y no tiene cartera, así que
- * su base es 'repartir'; el resto conserva 'hoy'/'mi-cartera' según el gate.
+ * Capacidad exigida por cada vista. `hoy` conserva su acceso histórico por rol
+ * y gate; el contenido interno continúa aplicando sus capacidades específicas.
  */
+const CAPACIDAD_POR_VISTA = {
+  hoy: null,
+  alertas: null,
+  conversiones: null,
+  'ranking-vendedores': null,
+  reuniones: null,
+  metas: null,
+  rendimiento: null,
+  'capital-cierres': null,
+  pipeline: 'verPipeline',
+  cartera: 'verLeads',
+  agenda: 'verAgenda',
+  'mi-cartera': 'verCartera',
+  repartir: 'repartirCola',
+  equipo: 'verGestionEquipo',
+  config: 'verConfiguracion',
+} as const satisfies Record<Vista, Accion | null>
+
+/** Dónde aterriza un rol cuando la ruta pedida no existe o no está permitida. */
 export function vistaBase(rol: Rol | null | undefined, leadsVisibles: boolean): Vista {
-  if (can(rol, 'repartirCola') && !can(rol, 'verCartera')) return 'repartir'
-  return leadsVisibles ? 'hoy' : 'mi-cartera'
+  // Compatibilidad defensiva: Workspace solo se monta con un perfil enrolado,
+  // pero los callers históricos conservan el mismo fallback para un rol ausente.
+  if (!esRol(rol)) return leadsVisibles ? 'hoy' : 'mi-cartera'
+  const estado: EstadoGateLeads = leadsVisibles ? 'abierto' : 'cerrado'
+  return VISTA_BASE_POR_ROL[rol][estado]
+}
+
+/**
+ * Única decisión de acceso a una vista. Es fail-closed para identidades ajenas
+ * al catálogo y mantiene la landing de Gerencia en Hoy aun si el gate se cierra.
+ */
+export function vistaPermitida(
+  vista: Vista,
+  rol: Rol | null | undefined,
+  leadsVisibles: boolean,
+): boolean {
+  if (!esRol(rol)) return false
+  // Ruta heredada conservada para sanear hashes antiguos, pero fuera de uso.
+  if (vista === 'capital-cierres') return false
+  if (vista === vistaBase(rol, leadsVisibles)) return true
+  if (esVistaGerencia(vista)) return rol === 'gerencia'
+  // Gerencia dirige desde inteligencia comercial; no recibe pantallas operativas.
+  if (rol === 'gerencia') return false
+  if (!leadsVisibles && esVistaLeads(vista)) return false
+
+  const capacidad = CAPACIDAD_POR_VISTA[vista]
+  return capacidad === null || can(rol, capacidad)
 }
 
 /** Corrige una vista pedida (hash/estado) a una que el rol SÍ puede ver. */
@@ -23,11 +73,7 @@ export function sanearVista(
   rol: Rol | null | undefined,
   leadsVisibles: boolean,
 ): Vista {
-  const base = vistaBase(rol, leadsVisibles)
-  if (!leadsVisibles && esVistaLeads(vista)) return base
-  if (vista === 'config' && !can(rol, 'verConfiguracion')) return base
-  if (vista === 'equipo' && !can(rol, 'verEquipo')) return base
-  if (vista === 'repartir' && !can(rol, 'repartirCola')) return base
-  if (vista === 'mi-cartera' && !can(rol, 'verCartera')) return base
-  return vista
+  return vistaPermitida(vista, rol, leadsVisibles)
+    ? vista
+    : vistaBase(rol, leadsVisibles)
 }

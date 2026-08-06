@@ -1,21 +1,17 @@
-// Series comerciales mensuales REALES — la reactivación de tendencias.
-// Fuente: los leads del ámbito YA cargados (la RLS del servidor recorta; cada
-// rol ve su propia tendencia). El mes de CIERRE usa actualizado_en: un lead
-// terminal es inmutable para el API (editar un cerrado está bloqueado), así
-// que actualizado_en ≡ instante del cierre — el MISMO contrato que usa
-// crm.metricas_agenda_fn para contar cierres.
-// capital SOLO suma PEN (regla de la casa: PEN y USD jamás se suman).
+// Series mensuales construidas únicamente con los leads que la RLS ya permitió
+// cargar. Un cliente requiere contrato_id: crear un perfil no acredita una
+// inversión. Capital solo suma PEN; PEN y USD nunca se mezclan.
 import { fechaLima } from './agenda-derivada'
 import type { Lead } from './tipos'
 
 export interface SeriesComerciales {
-  /** Capital de ventas cerradas por mes, SOLO PEN (mes de cierre, Lima). */
+  /** Capital invertido por mes, SOLO PEN (fecha operativa disponible, Lima). */
   capital: number[]
   /** Leads nuevos por mes (creado_en, Lima). */
   leads: number[]
-  /** Ventas cerradas por mes (leads convertidos, cualquier moneda). */
+  /** Clientes con inversión formalizada por mes, cualquier moneda. */
   cierres: number[]
-  /** % de conversión del mes: convertidos / (convertidos + descartados). */
+  /** % de la cohorte mensual: clientes con contrato / leads recibidos. */
   conversion: number[]
 }
 
@@ -29,6 +25,21 @@ export const SERIES_VACIAS: SeriesComerciales = {
 function mesLima(iso: string): string {
   const ms = Date.parse(iso)
   return Number.isFinite(ms) ? fechaLima(ms).slice(0, 7) : ''
+}
+
+/** Etiquetas ascendentes de meses, sin depender de la zona horaria del equipo. */
+export function etiquetasMeses(hasta: string, cantidad: number): string[] {
+  const partes = hasta.slice(0, 7).split('-').map(Number)
+  const anio = partes[0]
+  const mes = partes[1]
+  if (!anio || !mes || mes < 1 || mes > 12 || cantidad <= 0) return []
+  const formato = new Intl.DateTimeFormat('es-PE', { month: 'short', timeZone: 'UTC' })
+  return Array.from({ length: cantidad }, (_valor, indice) => {
+    const total = anio * 12 + (mes - 1) - (cantidad - 1 - indice)
+    const fecha = new Date(Date.UTC(Math.floor(total / 12), total % 12, 1))
+    const etiqueta = formato.format(fecha).replace('.', '')
+    return etiqueta.charAt(0).toUpperCase() + etiqueta.slice(1)
+  })
 }
 
 /**
@@ -51,30 +62,32 @@ export function seriesComerciales(leads: Lead[], ahoraMs: number, meses = 6): Se
   const capital = claves.map(() => 0)
   const nuevos = claves.map(() => 0)
   const cierres = claves.map(() => 0)
-  const convertidos = claves.map(() => 0)
-  const resueltos = claves.map(() => 0)
+  const clientesCohorte = claves.map(() => 0)
 
   for (const lead of leads) {
     if (!lead.activo) continue
     const mesAlta = indice.get(mesLima(lead.creado_en))
-    if (mesAlta != null) nuevos[mesAlta] = (nuevos[mesAlta] ?? 0) + 1
-
-    if (lead.etapa !== 'convertido' && lead.etapa !== 'descartado') continue
-    const mesCierre = indice.get(mesLima(lead.actualizado_en ?? lead.creado_en))
-    if (mesCierre == null) continue
-    resueltos[mesCierre] = (resueltos[mesCierre] ?? 0) + 1
-    if (lead.etapa === 'convertido') {
-      convertidos[mesCierre] = (convertidos[mesCierre] ?? 0) + 1
-      cierres[mesCierre] = (cierres[mesCierre] ?? 0) + 1
-      if (lead.moneda === 'PEN') {
-        capital[mesCierre] = (capital[mesCierre] ?? 0) + lead.monto_estimado
+    if (mesAlta != null) {
+      nuevos[mesAlta] = (nuevos[mesAlta] ?? 0) + 1
+      if (lead.contrato_id != null) {
+        clientesCohorte[mesAlta] = (clientesCohorte[mesAlta] ?? 0) + 1
       }
+    }
+
+    if (lead.contrato_id == null) continue
+    const mesCierre = indice.get(mesLima(
+      lead.actualizado_en ?? lead.convertido_en ?? lead.creado_en,
+    ))
+    if (mesCierre == null) continue
+    cierres[mesCierre] = (cierres[mesCierre] ?? 0) + 1
+    if (lead.moneda === 'PEN') {
+      capital[mesCierre] = (capital[mesCierre] ?? 0) + lead.monto_estimado
     }
   }
 
   const conversion = claves.map((_clave, i) => {
-    const total = resueltos[i] ?? 0
-    return total > 0 ? Math.round(((convertidos[i] ?? 0) / total) * 100) : 0
+    const total = nuevos[i] ?? 0
+    return total > 0 ? Math.round(((clientesCohorte[i] ?? 0) / total) * 1000) / 10 : 0
   })
 
   return { capital, leads: nuevos, cierres, conversion }

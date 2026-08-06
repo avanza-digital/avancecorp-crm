@@ -3,7 +3,26 @@
 // vista se alcanza por URL sin permiso — la doble defensa del patrón VITANOVA
 // (el nav oculta, el guard expulsa, el servidor niega).
 import { describe, expect, it } from 'vitest'
-import { sanearVista, vistaBase } from './vistas'
+import { ROLES, type Rol } from './roles'
+import { VISTAS, type Vista } from './router'
+import { sanearVista, vistaBase, vistaPermitida } from './vistas'
+
+const VISTAS_POR_GATE = {
+  abierto: {
+    vendedor: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
+    supervisor: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento'],
+    directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config'],
+    coordinador: ['hoy', 'repartir'],
+  },
+  cerrado: {
+    vendedor: ['mi-cartera', 'config'],
+    supervisor: ['mi-cartera', 'equipo'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento'],
+    directorio: ['mi-cartera', 'equipo', 'config'],
+    coordinador: ['repartir'],
+  },
+} as const satisfies Record<'abierto' | 'cerrado', Record<Rol, readonly Vista[]>>
 
 describe('vistaBase — dónde aterriza cada rol', () => {
   it('aterriza al coordinador en Repartir (no tiene cartera ni leads)', () => {
@@ -17,9 +36,32 @@ describe('vistaBase — dónde aterriza cada rol', () => {
     expect(vistaBase('vendedor', true)).toBe('hoy')
     expect(vistaBase('supervisor', false)).toBe('mi-cartera')
     expect(vistaBase('gerencia', true)).toBe('hoy')
-    // Gerencia SÍ puede repartir la cola, pero su landing sigue siendo la suya.
-    expect(vistaBase('gerencia', false)).toBe('mi-cartera')
+    // Gerencia aterriza siempre en inteligencia, aunque no haya funciones de leads.
+    expect(vistaBase('gerencia', false)).toBe('hoy')
     expect(vistaBase(null, false)).toBe('mi-cartera')
+  })
+})
+
+describe('vistaPermitida — fuente única de acceso', () => {
+  it('mantiene exhaustiva la matriz actual de todos los roles y vistas', () => {
+    for (const [leadsVisibles, esperadasPorRol] of [
+      [true, VISTAS_POR_GATE.abierto],
+      [false, VISTAS_POR_GATE.cerrado],
+    ] as const) {
+      for (const rol of ROLES) {
+        expect(VISTAS.filter((vista) => vistaPermitida(vista, rol, leadsVisibles))).toEqual(
+          esperadasPorRol[rol],
+        )
+      }
+    }
+  })
+
+  it('niega todas las vistas cuando falta una identidad válida', () => {
+    for (const vista of VISTAS) {
+      expect(vistaPermitida(vista, null, true)).toBe(false)
+      expect(vistaPermitida(vista, undefined, false)).toBe(false)
+      expect(vistaPermitida(vista, 'rol-inexistente' as Rol, true)).toBe(false)
+    }
   })
 })
 
@@ -39,8 +81,7 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('repartir', 'supervisor', false)).toBe('mi-cartera')
     expect(sanearVista('repartir', 'directorio', true)).toBe('hoy')
     expect(sanearVista('repartir', null, false)).toBe('mi-cartera')
-    // Gerencia sí puede: la pantalla queda accesible.
-    expect(sanearVista('repartir', 'gerencia', true)).toBe('repartir')
+    expect(sanearVista('repartir', 'gerencia', true)).toBe('hoy')
   })
 
   it('no altera el comportamiento previo de los roles operativos', () => {
@@ -54,5 +95,23 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('equipo', 'supervisor', false)).toBe('equipo')
     // Gate de leads cerrado: las vistas de leads caen a la base del rol.
     expect(sanearVista('pipeline', 'vendedor', false)).toBe('mi-cartera')
+  })
+
+  it('expulsa a Gerencia de las rutas operativas', () => {
+    for (const vista of ['pipeline', 'cartera', 'agenda', 'equipo', 'repartir', 'mi-cartera', 'config'] as const) {
+      expect(sanearVista(vista, 'gerencia', true)).toBe('hoy')
+      expect(sanearVista(vista, 'gerencia', false)).toBe('hoy')
+    }
+    expect(sanearVista('hoy', 'gerencia', true)).toBe('hoy')
+    expect(sanearVista('hoy', 'gerencia', false)).toBe('hoy')
+  })
+
+  it('reserva #/alertas para Gerencia con ambos estados del gate', () => {
+    expect(sanearVista('alertas', 'gerencia', true)).toBe('alertas')
+    expect(sanearVista('alertas', 'gerencia', false)).toBe('alertas')
+    expect(sanearVista('alertas', 'supervisor', true)).toBe('hoy')
+    expect(sanearVista('alertas', 'vendedor', false)).toBe('mi-cartera')
+    expect(sanearVista('alertas', 'directorio', true)).toBe('hoy')
+    expect(sanearVista('alertas', 'coordinador', false)).toBe('repartir')
   })
 })

@@ -4,8 +4,7 @@
 //      solo hoy (los números no cuadraban con las filas);
 //   2. esa agenda venía CONGELADA del store (`Date.now()` dentro de un memo sin
 //      dependencia temporal) y las vencidas nunca aparecían durante la jornada;
-//   3. "Ventas cerradas" comparaba el HISTÓRICO de vida contra la cuota MENSUAL;
-//   4. una meta que gerencia no fijó (objetivo 0) se pintaba en rojo crítico;
+//   3. una meta que gerencia no fijó (objetivo 0) se pintaba en rojo crítico;
 //   5. las filas "Sin próxima acción" no traían el botón Agendar;
 //   6. la misma tarea vencida se listaba y contaba en la agenda Y en la cola.
 //
@@ -342,26 +341,6 @@ describe('Hoy · vendedor — capital en proceso', () => {
 })
 
 describe('Hoy · vendedor — meta del mes', () => {
-  it('"Ventas cerradas" cuenta el MES vigente, no la vida entera', () => {
-    montar({
-      leads: [
-        lead({ id: 'l-viejo', etapa: 'convertido', actualizado_en: '2026-05-20T15:00:00Z' }),
-        lead({ id: 'l-viejo2', etapa: 'convertido', actualizado_en: '2026-06-20T15:00:00Z' }),
-        lead({ id: 'l-mes', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-      ],
-      objetivos: { ventasObjetivo: 3 },
-    })
-
-    // 1 de 3 este mes = 33 %, no 100 % por tres conversiones de vida.
-    expect(screen.getByText('33% del objetivo')).toBeInTheDocument()
-    expect(screen.getByText('meta 3')).toBeInTheDocument()
-    // El KPI de arriba sigue siendo el histórico y la fila lo dice en voz alta.
-    expect(screen.getByText('Histórico · clientes ganados')).toBeInTheDocument()
-    expect(
-      screen.getByText('Cerradas este mes · 3 en total desde que llevas cartera.'),
-    ).toBeInTheDocument()
-  })
-
   it('la conversión es la del mes: convertidos sobre lo RESUELTO en el mes', () => {
     montar({
       leads: [
@@ -393,21 +372,22 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
     expect(screen.queryByText('meta 40%')).not.toBeInTheDocument()
     // La fila de ventas SÍ conserva su semáforo: 0 de 3 sí es incumplimiento.
-    expect(screen.getByText('meta 3')).toBeInTheDocument()
   })
 
-  it('una meta que gerencia dejó en blanco NO se pinta como incumplida', () => {
-    montar({ objetivos: { conversionObjetivo: 0 } })
+  it('usa la meta inicial de 15 % cuando Gerencia aún no guardó otra', () => {
+    montar({
+      leads: [
+        lead({ id: 'l-c', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
+        lead({ id: 'l-d', etapa: 'descartado', actualizado_en: '2026-07-10T15:00:00Z' }),
+      ],
+      objetivos: { conversionObjetivo: 0 },
+    })
 
-    expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
-    // Antes: "0 % del objetivo · meta 0 %" en rojo crítico sobre una cuota
-    // que nadie fijó.
+    expect(screen.getByText('meta 15%')).toBeInTheDocument()
     expect(screen.queryByText('meta 0%')).not.toBeInTheDocument()
-    // Las otras dos filas conservan su barra y su semáforo.
-    expect(screen.getByText('meta 3')).toBeInTheDocument()
   })
 
-  it('sin ninguna meta fijada cae al bloque "por definir" con el conteo del mes', () => {
+  it('sin ninguna meta guardada conserva capital neutro y compara conversión con 15 %', () => {
     montar({
       leads: [
         lead({ id: 'l-mes', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
@@ -416,8 +396,9 @@ describe('Hoy · vendedor — meta del mes', () => {
       objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
     })
 
-    expect(screen.getByText(/Meta mensual por definir/)).toBeInTheDocument()
-    expect(screen.getByText('Ventas cerradas este mes')).toBeInTheDocument()
+    expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
+    expect(screen.getByText('meta 15%')).toBeInTheDocument()
+    expect(screen.queryByText(/Meta mensual por definir/)).not.toBeInTheDocument()
   })
 
   it('si la LECTURA de metas falló no dice "por definir": lo confiesa y ofrece reintentar', () => {
@@ -430,6 +411,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     // cuando lo que se cayó fue la red hace que el asesor deje de buscarla.
     expect(screen.queryByText(/Meta mensual por definir/)).not.toBeInTheDocument()
     expect(screen.getByText(/No pudimos cargar tu meta del mes/)).toBeInTheDocument()
+    expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(recargar).toHaveBeenCalled()

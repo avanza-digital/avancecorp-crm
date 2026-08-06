@@ -11,9 +11,8 @@ import {
 import { DatabaseZap, Hourglass, LogOut, RotateCcw, WifiOff, type LucideIcon } from 'lucide-react'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
-import { can } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
-import { escribirHash, esVistaLeads, leerHash, type Vista } from '@/lib/router'
+import { escribirHash, leerHash, type Vista } from '@/lib/router'
 import { sanearVista, vistaBase } from '@/lib/vistas'
 import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
@@ -21,6 +20,7 @@ import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
 import { Topbar } from '@/components/app/topbar'
 import { LeadDrawer } from '@/components/app/lead-drawer'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
+import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
 import { Login } from '@/screens/login'
 import { NoEnrolado } from '@/screens/no-enrolado'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -33,6 +33,13 @@ export type { Vista } from '@/lib/router'
 // Pantallas fuera del bundle inicial (chunk por vista). Login/NoEnrolado
 // quedan estáticas: son la primera pintura, lazy solo las retrasaría.
 const Hoy = lazy(() => import('@/screens/hoy').then((m) => ({ default: m.Hoy })))
+const AlertasGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.AlertasGerencia })))
+const ConversionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ConversionesGerencia })))
+const RankingVendedoresGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.RankingVendedoresGerencia })))
+const ReunionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ReunionesGerencia })))
+const MetasGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.MetasGerencia })))
+const RendimientoGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.RendimientoGerencia })))
+const CapitalCierresGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.CapitalCierresGerencia })))
 const Pipeline = lazy(() => import('@/screens/pipeline').then((m) => ({ default: m.Pipeline })))
 const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m.Cartera })))
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
@@ -40,6 +47,25 @@ const MiCartera = lazy(() => import('@/screens/mi-cartera').then((m) => ({ defau
 const Repartir = lazy(() => import('@/screens/repartir').then((m) => ({ default: m.Repartir })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
+
+/** Registro exhaustivo: una Vista nueva exige declarar también su pantalla. */
+const PANTALLA_POR_VISTA = {
+  hoy: Hoy,
+  alertas: AlertasGerencia,
+  conversiones: ConversionesGerencia,
+  'ranking-vendedores': RankingVendedoresGerencia,
+  reuniones: ReunionesGerencia,
+  metas: MetasGerencia,
+  rendimiento: RendimientoGerencia,
+  'capital-cierres': CapitalCierresGerencia,
+  pipeline: Pipeline,
+  cartera: Cartera,
+  agenda: Agenda,
+  'mi-cartera': MiCartera,
+  repartir: Repartir,
+  equipo: Equipo,
+  config: Config,
+} satisfies Record<Vista, unknown>
 
 /**
  * Tope de paciencia del splash. Deliberadamente MAYOR que el presupuesto de la
@@ -291,10 +317,11 @@ function Workspace() {
   // después y la pantalla anterior sigue siendo interactiva durante ese lapso:
   // una apertura de ficha ahí puede ser cerrada por la ruta que aún aterriza.
   const navegarDesdeUI = useCallback((destino: Vista) => {
+    const destinoSeguro = sanearVista(destino, rol, leadsVisibles)
     objetivoHash.current = null // una intención nueva de UI sustituye cualquier hash pendiente
     cerrarPaneles()
-    setVista(destino)
-  }, [cerrarPaneles])
+    setVista(destinoSeguro)
+  }, [cerrarPaneles, leadsVisibles, rol])
 
   // hash → estado (montaje + back/forward + URL editada a mano)
   useEffect(() => {
@@ -350,34 +377,27 @@ function Workspace() {
   // defensa, patrón VITANOVA). Cubre cambios de rol en caliente; el hash se
   // corrige detrás.
   useEffect(() => {
-    const base = vistaBase(rol, leadsVisibles)
-    if (!leadsVisibles && esVistaLeads(vista)) setVista(base)
-    if (vista === 'config' && !can(rol, 'verConfiguracion')) setVista(base)
-    if (vista === 'equipo' && !can(rol, 'verEquipo')) setVista(base)
-    if (vista === 'repartir' && !can(rol, 'repartirCola')) setVista(base)
-    if (vista === 'mi-cartera' && !can(rol, 'verCartera')) setVista(base)
+    const vistaSegura = sanearVista(vista, rol, leadsVisibles)
+    if (vistaSegura !== vista) setVista(vistaSegura)
   }, [vista, rol, leadsVisibles])
+
+  const Pantalla = PANTALLA_POR_VISTA[vista]
 
   return (
     <div className="relative z-10 flex h-svh overflow-hidden">
       <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
       <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
-        <Topbar vista={vista} />
-        <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
-          {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
-          <ErrorBoundary>
-            <Suspense fallback={<PantallaCargando />}>
-              {vista === 'hoy' && <Hoy />}
-              {vista === 'pipeline' && <Pipeline />}
-              {vista === 'cartera' && <Cartera />}
-              {vista === 'agenda' && <Agenda />}
-              {vista === 'mi-cartera' && <MiCartera />}
-              {vista === 'repartir' && <Repartir />}
-              {vista === 'equipo' && <Equipo />}
-              {vista === 'config' && <Config />}
-            </Suspense>
-          </ErrorBoundary>
-        </div>
+        <PeriodoGerenciaProvider>
+          <Topbar vista={vista} />
+          <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
+            {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
+            <ErrorBoundary>
+              <Suspense fallback={<PantallaCargando />}>
+                <Pantalla />
+              </Suspense>
+            </ErrorBoundary>
+          </div>
+        </PeriodoGerenciaProvider>
       </main>
       {/* Paneles globales: cualquier pantalla los abre vía usePanelesActions(). */}
       <ErrorBoundary>

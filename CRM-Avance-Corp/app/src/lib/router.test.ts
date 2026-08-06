@@ -1,5 +1,13 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { escribirHash, esVistaLeads, hashDe, leerHash, VISTAS } from './router'
+import {
+  escribirHash,
+  esVistaGerencia,
+  esVistaLeads,
+  hashDe,
+  leerHash,
+  VISTAS,
+  VISTAS_GERENCIA,
+} from './router'
 
 describe('router por hash', () => {
   beforeEach(() => {
@@ -14,6 +22,7 @@ describe('router por hash', () => {
 
   it.each([
     ['#/hoy', 'hoy'],
+    ['#/alertas', 'alertas'],
     ['#pipeline', 'pipeline'],
     ['#/agenda/', 'agenda'],
     ['#/equipo///', 'equipo'],
@@ -63,6 +72,14 @@ describe('router por hash', () => {
     expect(VISTAS).toContain('repartir')
     expect(esVistaLeads('repartir')).toBe(false)
     expect(hashDe('repartir')).toBe('#/repartir')
+  })
+
+  it('registra Alertas justo después de Hoy como inteligencia exclusiva de Gerencia', () => {
+    expect(VISTAS.slice(0, 3)).toEqual(['hoy', 'alertas', 'conversiones'])
+    expect(VISTAS_GERENCIA[0]).toBe('alertas')
+    expect(esVistaGerencia('alertas')).toBe(true)
+    expect(esVistaLeads('alertas')).toBe(false)
+    expect(hashDe('alertas')).toBe('#/alertas')
   })
 
   it('navega con historial normal y evita escrituras redundantes', () => {

@@ -9,6 +9,15 @@
 // `public.perfiles` es un SUBCONJUNTO deliberado: solo las columnas que el CRM
 // lee (la tabla completa la define el portal). Insert/Update son `never` en
 // las tablas que el CRM tiene PROHIBIDO escribir desde el navegador.
+import type {
+  EstadoTarea as EstadoTareaDb,
+  ModalidadReunion as ModalidadReunionDb,
+  MotivoNoRealizada as MotivoNoRealizadaDb,
+  RespuestaReprogramarReunion,
+  ResultadoReunion as ResultadoReunionDb,
+  TipoTarea as TipoTareaDb,
+} from './tipos'
+
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
 type RolCrmDb = 'vendedor' | 'supervisor' | 'gerencia'
@@ -54,9 +63,6 @@ type MonedaDb = 'PEN' | 'USD'
 // CHECK leads_genero_valido: binario (sexo del documento), nullable.
 type GeneroDb = 'F' | 'M'
 type CategoriaInteresDb = 'nuevo' | 'renovacion' | 'upgrade'
-// CHECKs de crm.tareas (20260718180001).
-type TipoTareaDb = 'llamada' | 'whatsapp' | 'reunion' | 'tarea'
-type EstadoTareaDb = 'pendiente' | 'completada' | 'cancelada' | 'no_show'
 type TipoActividadDb =
   | 'llamada_realizada'
   | 'llamada_no_contestada'
@@ -360,6 +366,12 @@ export interface Database {
           vence_en: string
           duracion_min: number | null
           estado: EstadoTareaDb
+          modalidad_reunion: ModalidadReunionDb | null
+          ubicacion_reunion: string | null
+          enlace_reunion: string | null
+          resultado_reunion: ResultadoReunionDb | null
+          motivo_no_realizada: MotivoNoRealizadaDb | null
+          detalle_cierre_reunion: string | null
           resultado_actividad_id: string | null
           reagendada_de: string | null
           confirmada_en: string | null
@@ -394,12 +406,18 @@ export interface Database {
           nota?: string | null
           vence_en: string
           duracion_min?: number | null
+          modalidad_reunion?: ModalidadReunionDb | null
+          ubicacion_reunion?: string | null
+          enlace_reunion?: string | null
           creado_por?: string | null
         }
         Update: {
           titulo?: string
           nota?: string | null
           vence_en?: string // reprogramar: el trigger incrementa reprogramaciones
+          modalidad_reunion?: ModalidadReunionDb | null
+          ubicacion_reunion?: string | null
+          enlace_reunion?: string | null
           // NINGÚN cierre pasa ya por aquí. Hasta 20260726161945 'cancelada' era
           // el único que se colaba sin la RPC — un vendedor podía vaciarse la
           // agenda por PATCH sin quedar etiquetado y saltándose el retroceso de
@@ -447,6 +465,25 @@ export interface Database {
           actualizado_en: string
         }
         Insert: never // escritura solo vía RPC fijar_objetivos
+        Update: never
+        Relationships: []
+      }
+      /** Metas mensuales por vendedor. Supervisor y empresa son agregados
+       * calculados; escritura exclusiva de fijar_objetivos_vendedores. */
+      objetivos_vendedores: {
+        Row: {
+          id: string
+          periodo: string
+          vendedor_id: string
+          supervisor_id: string
+          capital_objetivo: number | string
+          ventas_objetivo: number
+          conversion_objetivo: number | string
+          actualizado_por: string
+          creado_en: string
+          actualizado_en: string
+        }
+        Insert: never
         Update: never
         Relationships: []
       }
@@ -628,6 +665,21 @@ export interface Database {
           siguiente_id: string | null
         }
       }
+      cerrar_reunion: {
+        Args: {
+          p_tarea_id: string
+          p_estado: 'completada' | 'no_show' | 'cancelada'
+          p_resultado_reunion?: ResultadoReunionDb | null
+          p_motivo_no_realizada?: MotivoNoRealizadaDb | null
+          p_detalle?: string | null
+          p_siguiente?: Record<string, unknown> | null
+        }
+        Returns: Json
+      }
+      reprogramar_reunion: {
+        Args: { p_tarea_id: string; p_vence_en: string; p_nueva_id?: string | null }
+        Returns: RespuestaReprogramarReunion
+      }
       cronograma_contrato_fn: {
         Args: { p_contrato_id: string }
         Returns: {
@@ -680,6 +732,24 @@ export interface Database {
           ventas_objetivo: number
           conversion_objetivo: number | string
           actualizado_por: string | null
+          creado_en: string
+          actualizado_en: string
+        }[]
+      }
+      fijar_objetivos_vendedores: {
+        Args: {
+          p_periodo: string
+          p_objetivos: Record<string, Record<string, number>>
+        }
+        Returns: {
+          id: string
+          periodo: string
+          vendedor_id: string
+          supervisor_id: string
+          capital_objetivo: number | string
+          ventas_objetivo: number
+          conversion_objetivo: number | string
+          actualizado_por: string
           creado_en: string
           actualizado_en: string
         }[]
@@ -779,6 +849,14 @@ export interface Database {
       // Fase F — agenda del equipo (JSON V1 atómico; contrato en
       // lib/metricas-agenda.ts).
       metricas_agenda_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      metricas_conversiones_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      metricas_reuniones_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }

@@ -172,6 +172,11 @@ describe('CerrarTareaDialog', () => {
     const { completarTarea } = montar({ ...TAREA, tipo: 'reunion', titulo: 'Reunión con Ana' })
     await user.click(screen.getByRole('button', { name: 'No asistió' }))
     expect(screen.getByLabelText('Título de la siguiente')).toHaveValue('Reagendar con Ana')
+    await user.selectOptions(screen.getByLabelText('Modalidad de la reunión'), 'virtual')
+    await user.type(
+      screen.getByLabelText('Enlace de la reunión'),
+      'https://meet.google.com/abc-defg-hij',
+    )
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
     expect(completarTarea.mock.calls[0]?.[0]).toMatchObject({ estado: 'no_show' })
   })
@@ -432,6 +437,10 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
     montar(REUNION, CONTACTO, { ok: true }, [], EN_REUNION, 'contactado')
 
     await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
+    await user.selectOptions(
+      screen.getByLabelText('Motivo de cancelación de la reunión'),
+      'cancelada_cliente',
+    )
     await user.click(screen.getByRole('button', { name: /sí, anular/i }))
 
     expect(toast.warning).toHaveBeenCalledTimes(1)

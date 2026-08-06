@@ -1,458 +1,381 @@
-// Hoy · GERENCIA — tablero ejecutivo de toda la operación comercial.
-// PEN y USD jamás se suman. La conversión de leads se muestra únicamente
-// sobre cierres resueltos de la cohorte: convertidos / (convertidos + descartados).
-import { lazy, Suspense, useMemo, useState, type JSX } from 'react'
-import { Filter, Inbox, Target, TrendingUp, Trophy, Users } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
+import { AlertTriangle, CalendarRange, RefreshCw, Target } from 'lucide-react'
+import { Button } from '@/components/ui/button'
 import { Card, CardContent } from '@/components/ui/card'
 import { Progress } from '@/components/ui/progress'
-import { KpiCard } from '@/components/common/kpi-card'
-import { SectionHead } from '@/components/common/section-head'
-import { SegmentBar } from '@/components/common/stat-strip'
 import { Skeleton } from '@/components/ui/skeleton'
+import { GerenciaMotion } from '@/components/gerencia/motion'
+import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
+import {
+  mensajeMetaNoComparable,
+  periodoInicialGerencia,
+  semanticaMetaMensual,
+  validarPeriodoGerencia,
+  type PeriodoGerencia,
+} from '@/components/gerencia/periodo'
 import { useCRMData } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK } from '@/lib/format'
-import { ETAPA_INFO } from '@/lib/tipos'
-import { SEMAFORO } from '@/lib/semaforo'
-import {
-  capitalPorMoneda,
-  colorMeta,
-  DIA_MS,
-  embudo,
-  esAbierto,
-  pctMeta,
-  tendenciaDe,
-} from '@/lib/inteligencia'
-import { cierresDelMes } from '@/lib/cierres-del-mes'
-import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
+import { money } from '@/lib/format'
+import { colorMeta, pctMeta } from '@/lib/inteligencia'
+import { agregarObjetivos } from '@/lib/objetivos'
+import { derivarAlertasGerencia, periodoAnteriorComparable } from '@/lib/alertas-gerencia'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
-import { fechaLima } from '@/lib/agenda-derivada'
-import { useAhora } from '@/lib/ahora'
+import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
+import {
+  conversionEquipoDemo,
+  metasConversionEquipoDemo,
+  metricasConversionesDemo,
+  metricasReunionesDemo,
+} from '@/lib/demo-inteligencia-comercial'
+import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
 import {
   useActualizarCapacidadLeadsObjetivo,
   useMetricasAgenda,
+  useMetricasConversiones,
   useMetricasDistribucionLeads,
+  useMetricasReuniones,
 } from '@/data/crm-queries'
 import { mensajeDeError } from '@/data/crm-api'
+import { AlertasGerenciaPanel } from './alertas-gerencia'
 import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
-import { AgendaEquipoPanel } from './agenda-equipo'
+import { EquipoGerenciaPanel } from './equipo-gerencia'
+import { InteligenciaComercialPanel } from './inteligencia-comercial'
 import { MetasEditor } from './metas-editor'
+import { RankingVendedoresPanel } from './ranking-vendedores'
+import { ReunionesGerenciaPanel } from './reuniones-gerencia'
+import { ResumenGerenciaPanel } from './resumen-gerencia'
 
-// Recharts baja solo al entrar en Gerencia; el gate de rol vive en hoy.tsx.
-const GraficasGerencia = lazy(() =>
-  import('./graficas-gerencia').then((modulo) => ({ default: modulo.GraficasGerencia })),
-)
-
-interface PeriodoDistribucion {
-  desde: string
-  hasta: string
+interface ConsultaCargable {
+  isPending: boolean
+  isFetching: boolean
 }
 
-function fechaIso(fecha: Date): string {
-  return `${fecha.getUTCFullYear()}-${String(fecha.getUTCMonth() + 1).padStart(2, '0')}-${String(fecha.getUTCDate()).padStart(2, '0')}`
-}
-
-/** Últimos 90 días calendario inclusivos según America/Lima. */
-function periodoInicialDistribucion(): PeriodoDistribucion {
-  const hoyLima = new Intl.DateTimeFormat('en-CA', {
-    timeZone: 'America/Lima',
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).format(new Date())
-  const [anio, mes, dia] = hoyLima.split('-').map(Number)
-  const hasta = new Date(Date.UTC(anio ?? 1970, (mes ?? 1) - 1, dia ?? 1))
-  const desde = new Date(hasta)
-  desde.setUTCDate(desde.getUTCDate() - 89)
-  return { desde: fechaIso(desde), hasta: fechaIso(hasta) }
-}
-
-/** Ítem de meta: valor actual, objetivo explícito y barra semaforizada. */
-function MetaItem({
-  label,
-  actual,
-  objetivo,
-  pct,
-  sinDato,
-  nota,
-}: {
+interface MetaItemProps {
   label: string
   actual: string
   objetivo: string
-  pct: number
-  /**
-   * Texto neutro que REEMPLAZA la barra cuando no hay con qué semaforizar
-   * (típicamente: gerencia todavía no fijó esa meta del mes). El semáforo se
-   * cortocircuitaba solo — con objetivo 0 el pct es 0 y colorMeta(0) es ROJO
-   * CRÍTICO, así que una meta que nadie fijó se leía como incumplimiento.
-   */
-  sinDato?: string | undefined
-  /** Aclaración bajo la barra (p. ej. el acumulado frente a la cifra del mes). */
-  nota?: string | undefined
-}): JSX.Element {
-  const progreso = Math.max(0, Math.min(100, Math.round(pct)))
+  progreso: number | null
+  mensajeSinProgreso?: string | undefined
+}
+
+function estaCargando(sesionReal: boolean, consulta: ConsultaCargable): boolean {
+  return sesionReal && (consulta.isPending || consulta.isFetching)
+}
+
+function errorConsulta(sesionReal: boolean, error: unknown, mensajeSeguro: string): string | null {
+  return sesionReal && error ? mensajeDeError(error, mensajeSeguro) : null
+}
+
+function MetaItem({ label, actual, objetivo, progreso, mensajeSinProgreso }: MetaItemProps): JSX.Element {
   return (
-    <div>
-      <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{label}</p>
-      <div className="mt-1 flex items-baseline gap-2">
-        <span className="text-xl font-extrabold tracking-tight tabular-nums text-primary">{actual}</span>
-        <span className="text-xs text-muted-foreground">{objetivo}</span>
-      </div>
-      {sinDato ? (
-        <p className="mt-2 text-[11px] text-muted-foreground">{sinDato}</p>
-      ) : (
-        <div className="mt-2 flex items-center gap-2">
-          <Progress value={progreso} color={colorMeta(progreso)} className="flex-1" />
-          <span
-            className="w-9 text-right text-[11px] font-bold tabular-nums"
-            style={{ color: colorMeta(progreso) }}
-          >
-            {progreso}%
-          </span>
-        </div>
-      )}
-      {nota && <p className="mt-1.5 text-[11px] text-muted-foreground">{nota}</p>}
+    <div data-gi-kpi className="gi-kpi-card">
+      <p className="gi-label">{label}</p>
+      <div className="mt-2 flex items-baseline gap-2"><span className="text-2xl font-bold tabular-nums text-[var(--gi-blue)]">{actual}</span><span className="text-xs text-[var(--gi-muted)]">{objetivo}</span></div>
+      {progreso == null ? <p className="mt-3 text-xs text-[var(--gi-muted)]">{mensajeSinProgreso ?? 'Meta del mes todavía sin fijar'}</p> : <div className="mt-3 flex items-center gap-2"><Progress value={Math.min(100, progreso)} color={colorMeta(progreso)} className="flex-1" /><span className="w-10 text-right text-xs font-bold tabular-nums" style={{ color: colorMeta(progreso) }}>{Math.round(progreso)}%</span></div>}
     </div>
   )
 }
 
-export function HoyGerencia(): JSX.Element {
-  const { ambito, equipo, objetivos, fijarObjetivos, series } = useCRMData()
+function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar }: { periodo: PeriodoGerencia; borrador: PeriodoGerencia; onCambiarBorrador: (campo: keyof PeriodoGerencia, valor: string) => void; onAplicar: () => void }): JSX.Element {
+  const validacion = validarPeriodoGerencia(borrador)
+  const sinCambios = borrador.desde === periodo.desde && borrador.hasta === periodo.hasta
+  const hoyLima = periodoInicialGerencia().hasta
+  const maximoDesde = borrador.hasta && borrador.hasta < hoyLima ? borrador.hasta : hoyLima
+  return (
+    <div data-gi-toolbar className="gi-toolbar">
+      <div className="flex items-center gap-2"><CalendarRange className="size-4 text-[var(--gi-blue)]" /><span className="gi-label">Período</span></div>
+      <div>
+        <div className="flex flex-wrap items-center gap-2">
+          <input aria-label="Desde" aria-describedby={!validacion.valido ? 'error-periodo-gerencia' : undefined} type="date" value={borrador.desde} max={maximoDesde} onChange={(e) => onCambiarBorrador('desde', e.target.value)} className="gi-date" />
+          <span className="text-xs text-[var(--gi-muted)]">a</span>
+          <input aria-label="Hasta" aria-describedby={!validacion.valido ? 'error-periodo-gerencia' : undefined} type="date" value={borrador.hasta} min={borrador.desde} max={hoyLima} onChange={(e) => onCambiarBorrador('hasta', e.target.value)} className="gi-date" />
+          <button type="button" disabled={!validacion.valido || sinCambios} onClick={onAplicar} className="gi-apply">Aplicar</button>
+        </div>
+        {!validacion.valido && (
+          <p id="error-periodo-gerencia" role="alert" className="mt-1.5 text-[11px] font-semibold text-destructive">
+            {validacion.mensaje}
+          </p>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export type SeccionGerencia = 'completo' | 'resumen' | 'alertas' | 'conversiones' | 'ranking-vendedores' | 'reuniones' | 'metas' | 'rendimiento' | 'capital-cierres'
+
+export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerencia }): JSX.Element {
+  const { ambito, equipo, objetivos, objetivosError = false, fijarObjetivos, recargar } = useCRMData()
   const { yo } = useAuth()
-  const [periodo, setPeriodo] = useState<PeriodoDistribucion>(periodoInicialDistribucion)
-  const [monedaMontos, setMonedaMontos] = useState<'PEN' | 'USD'>('PEN')
-  const [mostrarEjemploDistribucion, setMostrarEjemploDistribucion] = useState(false)
+  const { periodo, setPeriodo, diaLima } = usePeriodoGerencia()
+  const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
+  const periodoAnterior = useRef(periodo)
+  const [ejemploConversiones, setEjemploConversiones] = useState(false)
+  const [ejemploReuniones, setEjemploReuniones] = useState(false)
+  const periodoAlertas = useMemo<PeriodoGerencia>(
+    () => ({ desde: `${diaLima.slice(0, 7)}-01`, hasta: diaLima }),
+    [diaLima],
+  )
+  const periodoAlertasAnterior = useMemo(
+    () => periodoAnteriorComparable(diaLima),
+    [diaLima],
+  )
+  const metaMensual = useMemo(() => {
+    const semantica = semanticaMetaMensual(periodo, Date.parse(`${diaLima}T12:00:00Z`))
+    return objetivosError
+      ? { ...semantica, comparable: false, errorCarga: true }
+      : semantica
+  }, [diaLima, objetivosError, periodo])
+  useEffect(() => {
+    const anterior = periodoAnterior.current
+    setBorrador((actual) => (
+      actual.desde === anterior.desde && actual.hasta === anterior.hasta
+        ? periodo
+        : actual
+    ))
+    periodoAnterior.current = periodo
+  }, [periodo])
   const sesionReal = Boolean(yo && !yo.demo)
   const modoDemo = yo?.demo === true
-  const consultaDistribucion = useMetricasDistribucionLeads(
-    sesionReal,
-    periodo.desde,
-    periodo.hasta,
+  const esAlertas = seccion === 'alertas'
+  const periodoMetricas = esAlertas ? periodoAlertas : periodo
+  const necesitaConversiones = ['completo', 'resumen', 'alertas', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento', 'capital-cierres'].includes(seccion)
+  const necesitaReuniones = ['completo', 'resumen', 'alertas', 'reuniones', 'capital-cierres'].includes(seccion)
+  const necesitaDistribucion = seccion === 'rendimiento'
+  // La comparación va primero para conservar la consulta principal como la
+  // última invocación del hook en pruebas y diagnósticos. Ambas claves incluyen
+  // las fechas, así TanStack las mantiene separadas sin carreras.
+  const conversionesAnteriores = useMetricasConversiones(
+    sesionReal && esAlertas,
+    periodoAlertasAnterior.desde,
+    periodoAlertasAnterior.hasta,
   )
-  // Fase F: agenda del equipo — últimos 7 días calendario de Lima sobre el
-  // reloj vivo (mismo periodo fijo que el panel del supervisor).
-  const ahora = useAhora()
-  const hastaAgenda = fechaLima(ahora)
-  const desdeAgenda = fechaLima(ahora - 6 * DIA_MS)
-  const consultaAgenda = useMetricasAgenda(sesionReal, desdeAgenda, hastaAgenda)
+  const conversiones = useMetricasConversiones(
+    sesionReal && necesitaConversiones,
+    periodoMetricas.desde,
+    periodoMetricas.hasta,
+  )
+  const reuniones = useMetricasReuniones(
+    sesionReal && necesitaReuniones,
+    periodoMetricas.desde,
+    periodoMetricas.hasta,
+  )
+  const agendaAlertas = useMetricasAgenda(
+    sesionReal && esAlertas,
+    periodoAlertas.desde,
+    periodoAlertas.hasta,
+  )
+  const distribucion = useMetricasDistribucionLeads(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
-  const leads = ambito.leads
   const meta = objetivos.gerencia
+  const conversionesDeEjemplo = modoDemo || ejemploConversiones
+  const reunionesDeEjemplo = modoDemo || ejemploReuniones
+  const equipoConversion = useMemo(
+    () => identidadesEquipoConversion(ambito.vendedores, equipo),
+    [ambito.vendedores, equipo],
+  )
+  const datosConversion = conversionesDeEjemplo ? metricasConversionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : conversiones.data
+  const datosEquipoConversion = conversionesDeEjemplo ? conversionEquipoDemo() : equipoConversion
+  const metasVendedoresVisuales = useMemo(
+    () => conversionesDeEjemplo
+      ? metasConversionEquipoDemo()
+      : (objetivos.porVendedor ?? {}),
+    [conversionesDeEjemplo, objetivos.porVendedor],
+  )
+  const metaConversionVisual = conversionesDeEjemplo
+    ? agregarObjetivos(Object.values(metasVendedoresVisuales)).conversionObjetivo
+    : meta.conversionObjetivo
+  const metaMensualConversion = conversionesDeEjemplo
+    ? semanticaMetaMensual(periodo)
+    : metaMensual
+  const datosReuniones = reunionesDeEjemplo ? metricasReunionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : reuniones.data
+  const datosAgendaAlertas = modoDemo
+    ? metricasAgendaDemo(periodoAlertas.desde, periodoAlertas.hasta)
+    : agendaAlertas.data
+  const datosDistribucion = modoDemo ? metricasDistribucionDemo(periodo.desde, periodo.hasta) : distribucion.data
+  const errorConversiones = conversionesDeEjemplo ? null : errorConsulta(sesionReal, conversiones.error, 'No se pudieron cargar las conversiones.')
+  const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de reuniones.')
+  const errorAgendaAlertas = errorConsulta(sesionReal, agendaAlertas.error, 'No se pudo cargar la agenda del equipo.')
+  const errorComparacionAlertas = errorConsulta(sesionReal, conversionesAnteriores.error, 'No se pudo comparar la conversión con el mes anterior.')
+  const errorResumen = [errorConversiones, errorReuniones].filter(Boolean).join(' ') || null
+  const capitalActual = datosConversion?.produccion.capital_pen ?? null
+  const conversionActual = datosConversion?.cohorte.conversion_contratos_pct ?? null
+  const cargandoMetricasMetas = !conversionesDeEjemplo
+    && estaCargando(sesionReal, conversiones)
+    && datosConversion == null
+  const alertas = useMemo(
+    () => derivarAlertasGerencia({
+      conversiones: datosConversion,
+      conversionesAnteriores: modoDemo ? undefined : conversionesAnteriores.data,
+      agenda: datosAgendaAlertas,
+      reuniones: datosReuniones,
+      equipoConversion: datosEquipoConversion,
+      metasVendedores: metasVendedoresVisuales,
+      objetivosError,
+    }),
+    [
+      conversionesAnteriores.data,
+      datosAgendaAlertas,
+      datosConversion,
+      datosEquipoConversion,
+      datosReuniones,
+      metasVendedoresVisuales,
+      modoDemo,
+      objetivosError,
+    ],
+  )
 
-  const datosLocales = useMemo(() => {
-    const vivos = leads.filter((lead) => lead.activo)
-    const abiertos = vivos.filter(esAbierto)
-    const asignados = abiertos.filter((lead) => lead.vendedor_id != null)
-    const convertidos = vivos.filter((lead) => lead.etapa === 'convertido')
-    const capital = capitalPorMoneda(asignados)
-    const ganado = capitalPorMoneda(convertidos)
-    // Marcador del MES para la tarjeta "Meta del mes — Empresa": crm.objetivos
-    // guarda UNA fila por mes calendario, así que el numerador tiene que ser
-    // del mes. Contar los convertidos de TODA la vida contra la cuota mensual
-    // inflaba el avance de forma permanente desde el segundo mes de operación.
-    // Definición ÚNICA en lib/cierres-del-mes — mismo contrato de
-    // `actualizado_en` que las series de tendencia de esta misma pantalla, para
-    // que el marcador y las gráficas no cuenten cierres distintos.
-    const cierres = cierresDelMes(leads, ahora)
-    return {
-      abiertos: abiertos.length,
-      activos: asignados.length,
-      porRepartir: abiertos.filter((lead) => lead.vendedor_id == null).length,
-      capitalPen: capital.pen,
-      capitalUsd: capital.usd,
-      convertidosMes: cierres.convertidos,
-      // Acumulado de vida: alimenta SOLO el KPI de capital ganado y la nota que
-      // aclara la diferencia con la cifra del mes. Nunca una meta mensual.
-      convertidosVida: cierres.convertidosVida,
-      ganadoPen: ganado.pen,
-      ganadoUsd: ganado.usd,
-    }
-  }, [leads, ahora])
-
-  const etapas = useMemo(() => embudo(leads), [leads])
-  // Tendencias reales (Fase 3): mes vigente vs mes anterior, de las series del
-  // ámbito. Sin historia (mes anterior en 0) no hay chip — jamás se inventa.
-  const tendenciaCierres = tendenciaDe(series.capital)
-  const tendenciaLeads = tendenciaDe(series.leads)
-  const porRepartir =
-    consultaDistribucion.data?.resumen.por_repartir_actuales ?? datosLocales.porRepartir
-  const errorDistribucion =
-    sesionReal && consultaDistribucion.error
-      ? mensajeDeError(
-          consultaDistribucion.error,
-          'No pudimos consultar la distribución. Revisa tu conexión e inténtalo otra vez.',
-        )
-      : null
-  const cargandoDistribucion =
-    sesionReal && (consultaDistribucion.isPending || consultaDistribucion.isFetching)
-  const distribucionRealVacia =
-    consultaDistribucion.data == null || consultaDistribucion.data.analistas.length === 0
-  const puedeMostrarEjemplo =
-    sesionReal && !cargandoDistribucion && distribucionRealVacia
-  const mostrandoEjemplo =
-    modoDemo || (puedeMostrarEjemplo && mostrarEjemploDistribucion)
-  const datosDistribucion = mostrandoEjemplo
-    ? metricasDistribucionDemo(periodo.desde, periodo.hasta)
-    : consultaDistribucion.data
-
-  const guardarCapacidad = async (analistaId: string, capacidad: number | null) => {
-    await actualizarCapacidad.mutateAsync({ analistaId, capacidad })
+  const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
+  const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
+  const reintentarDistribucion = () => { if (sesionReal) void distribucion.refetch() }
+  const reintentarAlertas = () => {
+    if (!sesionReal) return
+    void conversiones.refetch()
+    void conversionesAnteriores.refetch()
+    void reuniones.refetch()
+    void agendaAlertas.refetch()
+    if (objetivosError) void recargar()
   }
+  const esResumen = seccion === 'completo' || seccion === 'resumen' || seccion === 'capital-cierres'
+  const periodoMotion = esAlertas ? periodoAlertas : periodo
+  const claveMotion = `${seccion}|${periodoMotion.desde}|${periodoMotion.hasta}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
 
   return (
-    <div className="gerencia-legible mx-auto max-w-[1600px] space-y-7 ac-rise">
-      <section className="overflow-hidden rounded-3xl border border-border/80 bg-gradient-to-br from-card via-card to-accent/[0.06] p-4 shadow-[0_18px_45px_-34px_rgba(15,31,61,0.7)] sm:p-5">
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-4">
-          <div className="max-w-xl">
-            <p className="text-[11px] font-extrabold uppercase tracking-[0.18em] text-accent">
-              Resumen general
-            </p>
-            <h2 className="mt-1 text-xl font-extrabold tracking-tight text-primary sm:text-2xl">
-              Así está la operación hoy
-            </h2>
-            <p className="mt-1 text-sm leading-relaxed text-muted-foreground">
-              Revisa los montos, los leads activos y lo que todavía falta asignar.
-            </p>
-          </div>
-          <div className="flex flex-wrap items-center gap-2 rounded-full border border-border bg-background/85 p-1 shadow-sm">
-            <span className="pl-2 text-xs font-semibold text-muted-foreground">Ver montos en</span>
-            <div role="group" aria-label="Moneda de los montos" className="flex gap-1">
-          {(['PEN', 'USD'] as const).map((moneda) => {
-            const seleccionada = monedaMontos === moneda
-            return (
-              <button
-                key={moneda}
-                type="button"
-                onClick={() => setMonedaMontos(moneda)}
-                aria-pressed={seleccionada}
-                className={`rounded-full border px-3 py-1.5 text-[11px] font-bold transition-colors ${
-                  seleccionada
-                    ? 'border-transparent bg-primary text-primary-foreground'
-                    : 'border-border text-muted-foreground hover:bg-muted/60'
-                }`}
-              >
-                {moneda === 'PEN' ? 'Soles' : 'Dólares'}
-              </button>
-            )
-          })}
+    <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
+      {!esAlertas && <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />}
+
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} metaMensual={metaMensual} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
+
+      {esAlertas && (
+        <AlertasGerenciaPanel
+          alertas={alertas}
+          generadoEn={datosAgendaAlertas?.generado_en ?? datosConversion?.generado_en ?? datosReuniones?.generado_en ?? null}
+          cargando={!modoDemo && (
+            estaCargando(sesionReal, conversiones)
+            || estaCargando(sesionReal, conversionesAnteriores)
+            || estaCargando(sesionReal, reuniones)
+            || estaCargando(sesionReal, agendaAlertas)
+          )}
+          errores={[
+            errorConversiones,
+            errorReuniones,
+            errorAgendaAlertas,
+            errorComparacionAlertas,
+            objetivosError ? 'No se pudieron cargar las metas individuales.' : null,
+          ].filter((mensaje): mensaje is string => Boolean(mensaje))}
+          onReintentar={reintentarAlertas}
+          modoDemo={modoDemo}
+        />
+      )}
+
+      {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
+
+      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} metaMensual={metaMensual} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={reintentarConversiones} />}
+
+      {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
+
+      {seccion === 'metas' && (
+        <Card className="gi-card overflow-hidden border-0 shadow-none">
+          <div className="flex items-center gap-2 border-b border-[var(--gi-line)] bg-white px-5 py-4">
+            <Target className="size-4 text-[var(--gi-blue)]" />
+            <div>
+              <h2 className="gi-title">Metas mensuales</h2>
+              <p className="gi-caption mt-0.5">Meta mensual · {metaMensual.etiqueta}</p>
             </div>
           </div>
-        </div>
-
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiCard
-          label="Monto de leads activos"
-          value={money(
-            monedaMontos === 'PEN' ? datosLocales.capitalPen : datosLocales.capitalUsd,
-            monedaMontos,
-          )}
-          icon={TrendingUp}
-          color="var(--accent)"
-          sub={`Leads activos en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`}
-          delay={0}
-        />
-        <KpiCard
-          label="Leads activos"
-          value={String(datosLocales.activos)}
-          icon={Users}
-          color="var(--chart-2)"
-          sub={
-            tendenciaLeads
-              ? `Leads abiertos con analista · ${tendenciaLeads} nuevos vs mes pasado`
-              : 'Leads abiertos con analista'
-          }
-          delay={60}
-        />
-        <KpiCard
-          label="Por repartir"
-          value={String(porRepartir)}
-          icon={Inbox}
-          color={porRepartir > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
-          sub={porRepartir > 0 ? 'Gerencia y supervisores' : 'Todo asignado'}
-          delay={120}
-        />
-        <KpiCard
-          label="Monto de ventas cerradas"
-          value={money(
-            monedaMontos === 'PEN' ? datosLocales.ganadoPen : datosLocales.ganadoUsd,
-            monedaMontos,
-          )}
-          icon={Trophy}
-          color={SEMAFORO.navy}
-          sub={
-            // Este KPI es el ACUMULADO de vida, no una cifra del mes — y se
-            // dice, porque a su lado va un chip mes-contra-mes que invitaba a
-            // leerlo como mensual (la cifra del mes vive en la meta de abajo).
-            // El chip de tendencia SOLO acompaña la vista en soles: las series
-            // de capital suman únicamente PEN (jamás se mezclan monedas).
-            tendenciaCierres && monedaMontos === 'PEN'
-              ? `Acumulado en soles · cierres del mes ${tendenciaCierres} vs mes pasado`
-              : `Acumulado de ventas cerradas en ${monedaMontos === 'PEN' ? 'soles' : 'dólares'}`
-          }
-          delay={180}
-        />
-        </div>
-      </section>
-
-      {/* Zona alta comercial: el marcador del mes y el estado del embudo van
-          inmediatamente después del hero — lectura diaria primaria del gerente,
-          antes de los paneles operativos (regla: lo que genera ingreso, primero). */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <SectionHead
-            icon={Target}
-            title="Meta del mes — Empresa"
-            right={<span className="text-xs text-muted-foreground">Objetivos de gerencia</span>}
-          />
-          <CardContent className="grid gap-5 pt-1 sm:grid-cols-2">
-            <MetaItem
-              label="Monto de leads activos"
-              actual={money(datosLocales.capitalPen)}
-              objetivo={
-                meta.capitalObjetivo > 0
-                  ? `de ${moneyK(meta.capitalObjetivo)} en soles`
-                  : 'meta por definir'
-              }
-              pct={pctMeta(datosLocales.capitalPen, meta.capitalObjetivo)}
-              sinDato={
-                meta.capitalObjetivo > 0 ? undefined : 'Meta del mes todavía sin fijar'
-              }
-            />
-            <MetaItem
-              // Rotulado explícito: la cuota de crm.objetivos es del mes, así
-              // que el numerador también — antes contaba los cierres de toda la
-              // vida y el avance no bajaba nunca al empezar un mes nuevo.
-              label="Ventas cerradas este mes"
-              actual={String(datosLocales.convertidosMes)}
-              objetivo={
-                meta.ventasObjetivo > 0
-                ? `de ${meta.ventasObjetivo} cierres`
-                  : 'meta por definir'
-              }
-              pct={pctMeta(datosLocales.convertidosMes, meta.ventasObjetivo)}
-              sinDato={
-                meta.ventasObjetivo > 0 ? undefined : 'Meta del mes todavía sin fijar'
-              }
-              nota={
-                datosLocales.convertidosVida > datosLocales.convertidosMes
-                  ? `${datosLocales.convertidosVida} cierres acumulados en toda la operación.`
-                  : undefined
-              }
-            />
-          </CardContent>
-          {/* Fase 1 (metas reales): gerencia fija las metas sin depender de
-              nadie — el editor escribe crm.objetivos vía la RPC gerencia-gated. */}
-          <CardContent className="pt-0">
-            <MetasEditor objetivos={objetivos} demo={modoDemo} onGuardar={fijarObjetivos} />
-          </CardContent>
-        </Card>
-
-        {/* Distribución por etapa como barra única de la casa (SegmentBar):
-            misma pieza que Cartera y que el embudo del Directorio. */}
-        <Card>
-          <SectionHead
-            icon={Filter}
-            title="Estado de los leads"
-            right={
-              <span className="text-xs tabular-nums text-muted-foreground">
-                {datosLocales.abiertos} abiertos
-              </span>
-            }
-          />
-          <CardContent className="space-y-3 pt-1">
-            {etapas.some((etapa) => etapa.n > 0) ? (
-              <>
-                <SegmentBar
-                  segments={etapas.map((etapa) => {
-                    const info = ETAPA_INFO[etapa.etapa]
-                    return {
-                      label: info.label,
-                      value: etapa.n,
-                      color: info.color,
-                      valTxt: `${etapa.n} · ${etapa.pctDelTotal}%`,
-                    }
-                  })}
-                />
-                <p className="text-[11px] text-muted-foreground">
-                  Distribución de {datosLocales.abiertos} leads abiertos. Los cierres se muestran por separado.
-                </p>
-              </>
-            ) : (
-              <p className="py-4 text-center text-xs text-muted-foreground">
-                No hay leads abiertos por ahora — cuando ingresen nuevos leads verás aquí su
-                distribución por etapa.
+          <CardContent className="space-y-5 bg-[var(--gi-canvas)] p-4 sm:p-5">
+            {!metaMensual.comparable && !metaMensual.errorCarga && (
+              <p role="status" className="rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">
+                {mensajeMetaNoComparable(metaMensual)}
               </p>
+            )}
+
+            {errorConversiones && (
+              <div role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-destructive/25 p-4">
+                <span className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                  <AlertTriangle className="size-4" aria-hidden /> {errorConversiones}
+                </span>
+                <Button type="button" variant="outline" size="sm" onClick={reintentarConversiones}>
+                  <RefreshCw aria-hidden /> Reintentar métricas
+                </Button>
+              </div>
+            )}
+
+            {cargandoMetricasMetas ? (
+              <div className="grid gap-4 sm:grid-cols-2" aria-label="Cargando avance de metas">
+                <Skeleton className="h-32 rounded-2xl" />
+                <Skeleton className="h-32 rounded-2xl" />
+              </div>
+            ) : (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <MetaItem
+                  label="Meta en monto"
+                  actual={capitalActual == null ? '—' : money(capitalActual, 'PEN')}
+                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : meta.capitalObjetivo > 0 ? `de ${money(meta.capitalObjetivo, 'PEN')}` : 'meta por definir'}
+                  progreso={metaMensual.comparable && meta.capitalObjetivo > 0 && capitalActual != null ? pctMeta(capitalActual, meta.capitalObjetivo) : null}
+                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : meta.capitalObjetivo <= 0 ? undefined : capitalActual == null ? 'Monto alcanzado no disponible' : undefined}
+                />
+                <MetaItem
+                  label="Meta de conversión"
+                  actual={conversionActual == null ? '—' : `${conversionActual}%`}
+                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
+                  progreso={metaMensual.comparable && meta.conversionObjetivo > 0 && conversionActual != null ? pctMeta(conversionActual, meta.conversionObjetivo) : null}
+                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : meta.conversionObjetivo <= 0 ? undefined : datosConversion == null ? 'Conversión alcanzada no disponible' : conversionActual == null ? 'Todavía no hay clientes para medir' : undefined}
+                />
+              </div>
+            )}
+
+            {objetivosError ? (
+              <div data-gi-panel role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-destructive/25 p-4 sm:p-5">
+                <div className="flex items-start gap-3">
+                  <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
+                  <div>
+                    <p className="text-sm font-bold text-[var(--gi-navy)]">No pudimos cargar las metas mensuales</p>
+                    <p className="mt-1 text-xs text-[var(--gi-muted)]">No se mostrará ni guardará ningún objetivo hasta recuperar los datos.</p>
+                  </div>
+                </div>
+                <Button type="button" variant="outline" size="sm" onClick={() => void recargar()}>
+                  <RefreshCw aria-hidden /> Reintentar
+                </Button>
+              </div>
+            ) : (
+              <div data-gi-panel className="gi-card p-4 sm:p-5">
+                <MetasEditor objetivos={objetivos} equipo={equipo} demo={modoDemo} onGuardar={fijarObjetivos} />
+              </div>
             )}
           </CardContent>
         </Card>
-      </div>
-
-      {puedeMostrarEjemplo && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-accent/35 bg-accent/[0.07] px-4 py-3 shadow-sm">
-          <div>
-            <p className="text-sm font-extrabold text-primary">
-              {mostrarEjemploDistribucion
-                ? 'Estás viendo un ejemplo con datos ficticios'
-                : 'La distribución todavía no tiene información para mostrar'}
-            </p>
-            <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-              {mostrarEjemploDistribucion
-                ? 'Sirve únicamente para conocer la interfaz. No reemplaza ni modifica datos reales.'
-                : 'Puedes abrir un ejemplo completo para conocer cómo se verá cuando existan asignaciones.'}
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setMostrarEjemploDistribucion((actual) => !actual)}
-            className="rounded-xl bg-primary px-4 py-2 text-xs font-bold text-primary-foreground shadow-sm transition-colors hover:bg-primary-press focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-          >
-            {mostrarEjemploDistribucion ? 'Volver a datos reales' : 'Ver ejemplo con datos'}
-          </button>
-        </div>
       )}
 
-      <DistribucionLeadsGerencia
-        datos={datosDistribucion}
-        cargando={mostrandoEjemplo ? false : cargandoDistribucion}
-        error={mostrandoEjemplo ? null : errorDistribucion}
-        modoDemo={mostrandoEjemplo}
-        desde={periodo.desde}
-        hasta={periodo.hasta}
-        onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })}
-        onReintentar={() => {
-          if (sesionReal) void consultaDistribucion.refetch()
-        }}
-        onEditarCapacidad={guardarCapacidad}
-      />
+      {seccion === 'rendimiento' && (
+        <>
+          {errorConversiones && (
+            <div role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-destructive/25 p-4">
+              <span className="flex items-center gap-2 text-sm font-semibold text-destructive">
+                <AlertTriangle className="size-4" aria-hidden /> {errorConversiones}
+              </span>
+              <Button type="button" variant="outline" size="sm" onClick={reintentarConversiones}>
+                <RefreshCw aria-hidden /> Reintentar
+              </Button>
+            </div>
+          )}
+          {estaCargando(sesionReal, conversiones) && !datosConversion
+            ? <Skeleton className="h-72 rounded-2xl" aria-label="Cargando rendimiento del equipo" />
+            : datosConversion || !errorConversiones
+              ? <EquipoGerenciaPanel datos={datosConversion} conversiones={datosEquipoConversion} miembros={equipo} />
+              : null}
+          <div data-gi-panel>
+            <DistribucionLeadsGerencia datos={datosDistribucion} cargando={estaCargando(sesionReal, distribucion)} error={errorConsulta(sesionReal, distribucion.error, 'No se pudo cargar la capacidad por analista.')} modoDemo={modoDemo} mostrarOperacion={false} mostrarPeriodo={false} desde={periodo.desde} hasta={periodo.hasta} onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })} onReintentar={reintentarDistribucion} onEditarCapacidad={async (analistaId, capacidad) => { await actualizarCapacidad.mutateAsync({ analistaId, capacidad }) }} />
+          </div>
+        </>
+      )}
 
-      {/* Fase F: ejecución de la agenda por miembro — el mismo panel que ve
-          el supervisor, aquí con el equipo completo (el ámbito lo recorta la
-          RPC en el servidor). */}
-      <AgendaEquipoPanel
-        datos={sesionReal ? consultaAgenda.data : metricasAgendaDemo(desdeAgenda, hastaAgenda)}
-        cargando={sesionReal && (consultaAgenda.isPending || consultaAgenda.isFetching)}
-        error={
-          sesionReal && consultaAgenda.error
-            ? mensajeDeError(consultaAgenda.error, 'No se pudo cargar la agenda del equipo.')
-            : null
-        }
-        modoDemo={!sesionReal}
-        onReintentar={() => {
-          if (sesionReal) void consultaAgenda.refetch()
-        }}
-        equipo={equipo}
-      />
-
-      {/* Gráficas del negocio de contratos. No mezclan PEN y USD. */}
-      <Suspense fallback={<Skeleton className="h-[240px] w-full" aria-busy />}>
-        <GraficasGerencia />
-      </Suspense>
-
-      <p className="text-[11px] text-muted-foreground">
+      <p className="px-1 text-[11px] text-[var(--gi-muted)]">
         {modoDemo
-          ? 'Demostración: los datos de esta sección son ficticios.'
-          : 'Los números abarcan toda la operación comercial de la empresa.'}
+          ? 'Datos de ejemplo. No modifican información real.'
+          : esAlertas
+            ? `Estado actual al ${periodoAlertas.hasta} · métricas agregadas sin descargar datos sensibles.`
+            : `${periodo.desde} al ${periodo.hasta} · PEN y USD se muestran por separado.`}
       </p>
-    </div>
+    </GerenciaMotion>
   )
 }

@@ -1,102 +1,96 @@
 import { describe, expect, it } from 'vitest'
-import * as v from 'valibot'
 import {
-  FilaObjetivoSchema,
   aObjetivosPorRol,
   aPayloadObjetivos,
-  objetivosCero,
-  periodoLima,
+  agregarObjetivos,
+  metaConversionAplicable,
   validarObjetivos,
-  type FilaObjetivo,
+  type ObjetivosPorVendedor,
 } from './objetivos'
 
-describe('aObjetivosPorRol', () => {
-  it('mapea filas del servidor al mapa por rol', () => {
-    const filas: FilaObjetivo[] = [
-      { rol: 'vendedor', capital_objetivo: 250_000, ventas_objetivo: 3, conversion_objetivo: 25 },
-      { rol: 'gerencia', capital_objetivo: 1_000_000, ventas_objetivo: 12, conversion_objetivo: 28 },
-    ]
-    const metas = aObjetivosPorRol(filas)
-    expect(metas.vendedor.capitalObjetivo).toBe(250_000)
-    expect(metas.gerencia.ventasObjetivo).toBe(12)
-    // rol sin fila → cero (vacío honesto, jamás undefined)
-    expect(metas.supervisor).toEqual({ capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 })
+const FILAS = [
+  { vendedor_id: 'v1', supervisor_id: 's1', capital_objetivo: 100_000, ventas_objetivo: 2, conversion_objetivo: 20 },
+  { vendedor_id: 'v2', supervisor_id: 's1', capital_objetivo: 150_000, ventas_objetivo: 3, conversion_objetivo: 30 },
+  { vendedor_id: 'v3', supervisor_id: 's2', capital_objetivo: 250_000, ventas_objetivo: 5, conversion_objetivo: 40 },
+]
+
+describe('objetivos individuales y jerarquía', () => {
+  it('aplica 15 % solo cuando no existe meta guardada y la lectura fue válida', () => {
+    expect(metaConversionAplicable(0)).toBe(15)
+    expect(metaConversionAplicable(27)).toBe(27)
+    expect(metaConversionAplicable(0, true)).toBeNull()
   })
 
-  it('sin filas devuelve el mapa en cero', () => {
-    expect(aObjetivosPorRol([])).toEqual(objetivosCero())
-  })
-})
-
-describe('FilaObjetivoSchema (borde PostgREST)', () => {
-  it('acepta numeric como string y lo normaliza a número', () => {
-    const r = v.safeParse(FilaObjetivoSchema, {
-      rol: 'vendedor',
-      capital_objetivo: '250000.00',
-      ventas_objetivo: 3,
-      conversion_objetivo: '25.50',
+  it('entrega al vendedor únicamente su meta y suma su supervisor', () => {
+    const objetivos = aObjetivosPorRol(FILAS, 'v2')
+    expect(objetivos.vendedor).toEqual({
+      capitalObjetivo: 150_000,
+      ventasObjetivo: 0,
+      conversionObjetivo: 30,
     })
-    expect(r.success).toBe(true)
-    if (r.success) {
-      expect(r.output.capital_objetivo).toBe(250_000)
-      expect(r.output.conversion_objetivo).toBe(25.5)
-    }
+    expect(objetivos.supervisor).toEqual({ capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 })
+
+    const supervisor = aObjetivosPorRol(FILAS, 's1')
+    expect(supervisor.supervisor.capitalObjetivo).toBe(250_000)
+    expect(supervisor.supervisor.ventasObjetivo).toBe(0)
+    expect(supervisor.supervisor.conversionObjetivo).toBe(25)
   })
 
-  it('rechaza basura no numérica y roles desconocidos', () => {
-    expect(v.safeParse(FilaObjetivoSchema, {
-      rol: 'vendedor', capital_objetivo: 'abc', ventas_objetivo: 0, conversion_objetivo: 0,
-    }).success).toBe(false)
-    expect(v.safeParse(FilaObjetivoSchema, {
-      rol: 'analista', capital_objetivo: 1, ventas_objetivo: 0, conversion_objetivo: 0,
-    }).success).toBe(false)
+  it('calcula la empresa desde todas las metas de vendedores', () => {
+    const objetivos = aObjetivosPorRol(FILAS, 'gerencia')
+    expect(objetivos.gerencia.capitalObjetivo).toBe(500_000)
+    expect(objetivos.gerencia.ventasObjetivo).toBe(0)
+    expect(objetivos.gerencia.conversionObjetivo).toBe(30)
   })
-})
 
-describe('periodoLima', () => {
-  it('la madrugada UTC del día 1 sigue siendo el mes anterior en Lima (UTC-5)', () => {
-    // 2026-08-01 03:00Z = 2026-07-31 22:00 en Lima → periodo julio.
-    expect(periodoLima(Date.UTC(2026, 7, 1, 3, 0))).toBe('2026-07-01')
-    // 2026-08-01 06:00Z = 2026-08-01 01:00 en Lima → periodo agosto.
-    expect(periodoLima(Date.UTC(2026, 7, 1, 6, 0))).toBe('2026-08-01')
-  })
-})
+  it('incluye 15 % para vendedores activos que aún no tienen fila guardada', () => {
+    const objetivos = aObjetivosPorRol(
+      [FILAS[0]!],
+      'gerencia',
+      [
+        { vendedorId: 'v1', supervisorId: 's1' },
+        { vendedorId: 'v-nuevo', supervisorId: 's1' },
+      ],
+    )
 
-describe('aPayloadObjetivos', () => {
-  it('convierte el mapa por rol al snake_case de la RPC', () => {
-    const metas = objetivosCero()
-    metas.vendedor = { capitalObjetivo: 250_000, ventasObjetivo: 3, conversionObjetivo: 25 }
-    const payload = aPayloadObjetivos(metas)
-    expect(payload['vendedor']).toEqual({
-      capital_objetivo: 250_000,
-      ventas_objetivo: 3,
-      conversion_objetivo: 25,
+    expect(objetivos.porVendedor['v-nuevo']).toMatchObject({
+      capitalObjetivo: 0,
+      conversionObjetivo: 15,
     })
-    expect(Object.keys(payload)).toEqual(['vendedor', 'supervisor', 'gerencia'])
-  })
-})
-
-describe('validarObjetivos (espejo del CHECK del servidor)', () => {
-  it('acepta ceros (meta por definir) y valores válidos', () => {
-    expect(validarObjetivos(objetivosCero())).toBeNull()
-    const metas = objetivosCero()
-    metas.gerencia = { capitalObjetivo: 1_000_000, ventasObjetivo: 12, conversionObjetivo: 28 }
-    expect(validarObjetivos(metas)).toBeNull()
+    expect(objetivos.gerencia.conversionObjetivo).toBe(17.5)
   })
 
-  it('rechaza negativos, no-finitos, decimales en cierres y porcentajes imposibles', () => {
-    const casos: Array<[Partial<ReturnType<typeof objetivosCero>['vendedor']>, RegExp]> = [
-      [{ capitalObjetivo: -1 }, /positivos/],
-      [{ capitalObjetivo: Number.NaN }, /positivos/],
-      [{ capitalObjetivo: 200_000_000 }, /100 millones/],
-      [{ ventasObjetivo: 3.5 }, /entero/],
-      [{ ventasObjetivo: 2000 }, /1000/],
-      [{ conversionObjetivo: 120 }, /porcentaje/],
-    ]
-    for (const [parche, esperado] of casos) {
-      const metas = objetivosCero()
-      metas.vendedor = { ...metas.vendedor, ...parche }
-      expect(validarObjetivos(metas)).toMatch(esperado)
+  it('nunca suma porcentajes; promedia las metas de conversión definidas', () => {
+    expect(agregarObjetivos([
+      { capitalObjetivo: 1, ventasObjetivo: 1, conversionObjetivo: 10 },
+      { capitalObjetivo: 1, ventasObjetivo: 3, conversionObjetivo: 30 },
+    ]).conversionObjetivo).toBe(20)
+  })
+
+  it('genera un payload únicamente por vendedor, sin metas por rol', () => {
+    const metas = aObjetivosPorRol(FILAS, 'gerencia').porVendedor
+    expect(aPayloadObjetivos(metas)).toEqual({
+      v1: { capital_objetivo: 100_000, ventas_objetivo: 0, conversion_objetivo: 20 },
+      v2: { capital_objetivo: 150_000, ventas_objetivo: 0, conversion_objetivo: 30 },
+      v3: { capital_objetivo: 250_000, ventas_objetivo: 0, conversion_objetivo: 40 },
+    })
+  })
+
+  it('rechaza vendedores sin supervisor y valores fuera de rango', () => {
+    const metas: ObjetivosPorVendedor = {
+      v1: {
+        vendedorId: 'v1',
+        supervisorId: null,
+        capitalObjetivo: 100,
+        ventasObjetivo: 1,
+        conversionObjetivo: 20,
+      },
     }
+    expect(validarObjetivos(metas)).toContain('supervisor activo')
+    const meta = metas.v1
+    if (!meta) throw new Error('fixture inválido')
+    meta.supervisorId = 's1'
+    meta.conversionObjetivo = 101
+    expect(validarObjetivos(metas)).toContain('0 a 100')
   })
 })

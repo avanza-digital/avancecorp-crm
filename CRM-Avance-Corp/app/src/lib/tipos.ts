@@ -162,24 +162,83 @@ export const TIPO_EVENTO: Record<string, string> = {
 // ── Tareas de la agenda (crm.tareas — Fase A del plan v2) ─────────────────────
 // Mismo catálogo que el CHECK tareas_tipo_valido. `vencimiento` NO es un tipo
 // de tarea: los vencimientos de contrato son eventos DERIVADOS del cronograma.
-export type TipoTarea = 'llamada' | 'whatsapp' | 'reunion' | 'tarea'
-
-export const TIPOS_TAREA: ReadonlyArray<{ k: TipoTarea; label: string }> = [
+export const TIPOS_TAREA = [
   { k: 'llamada', label: 'Llamada' },
   { k: 'whatsapp', label: 'WhatsApp' },
   { k: 'reunion', label: 'Reunión' },
   { k: 'tarea', label: 'Tarea' },
-]
+] as const
 
-export const esTipoTarea = (v: string): v is TipoTarea =>
-  v === 'llamada' || v === 'whatsapp' || v === 'reunion' || v === 'tarea'
+export type TipoTarea = (typeof TIPOS_TAREA)[number]['k']
+
+/** Narrow derivado del catálogo; no replica sus literales en un segundo sitio. */
+export const esTipoTarea = (valor: string): valor is TipoTarea =>
+  TIPOS_TAREA.some(({ k }) => k === valor)
 
 /**
  * Máquina mínima (CHECK tareas_estado_valido): `pendiente` es el único estado
  * vivo. "Vencida" NO existe como estado: SE DERIVA (pendiente + vence_en <
  * ahora) — sin cron, sin drift. Reagendar un no_show crea una tarea NUEVA.
  */
-export type EstadoTarea = 'pendiente' | 'completada' | 'cancelada' | 'no_show'
+export const ESTADOS_TAREA = [
+  'pendiente',
+  'completada',
+  'cancelada',
+  'no_show',
+  'reprogramada',
+] as const
+
+export type EstadoTarea = (typeof ESTADOS_TAREA)[number]
+
+export const MODALIDADES_REUNION = [
+  { k: 'presencial', label: 'Presencial' },
+  { k: 'virtual', label: 'Virtual' },
+] as const
+
+export type ModalidadReunionOperativa = (typeof MODALIDADES_REUNION)[number]['k']
+
+/** Contrato completo del CHECK; `sin_clasificar` nunca aparece en el selector. */
+export const MODALIDADES_REUNION_TODAS = [
+  ...MODALIDADES_REUNION.map(({ k }) => k),
+  'sin_clasificar',
+] as const
+
+export type ModalidadReunion = (typeof MODALIDADES_REUNION_TODAS)[number]
+
+export const RESULTADOS_REUNION = [
+  { k: 'interesado', label: 'Interesado' },
+  { k: 'seguimiento', label: 'Requiere seguimiento' },
+  { k: 'propuesta', label: 'Propuesta presentada' },
+  { k: 'inicia_registro', label: 'Inicia registro' },
+  { k: 'no_interesado', label: 'No interesado' },
+] as const
+
+export type ResultadoReunionOperativo = (typeof RESULTADOS_REUNION)[number]['k']
+
+/** Contrato completo del CHECK; el valor legacy no es un resultado elegible. */
+export const RESULTADOS_REUNION_TODOS = [
+  ...RESULTADOS_REUNION.map(({ k }) => k),
+  'sin_clasificar',
+] as const
+
+export type ResultadoReunion = (typeof RESULTADOS_REUNION_TODOS)[number]
+
+export const MOTIVOS_NO_REALIZADA = [
+  { k: 'cancelada_cliente', label: 'Cancelada por el cliente' },
+  { k: 'cancelada_empresa', label: 'Cancelada por la empresa' },
+  { k: 'otro', label: 'Otro motivo' },
+] as const
+
+export type MotivoNoRealizadaManual = (typeof MOTIVOS_NO_REALIZADA)[number]['k']
+
+/** Contrato completo del CHECK, incluidos los motivos que asigna el servidor. */
+export const MOTIVOS_NO_REALIZADA_TODOS = [
+  'cliente_no_asistio',
+  ...MOTIVOS_NO_REALIZADA.map(({ k }) => k),
+  'reprogramada',
+] as const
+
+export type MotivoNoRealizada = (typeof MOTIVOS_NO_REALIZADA_TODOS)[number]
 
 export interface Tarea {
   id: string
@@ -196,11 +255,26 @@ export interface Tarea {
   vence_en: string
   duracion_min?: number | null
   estado: EstadoTarea
+  modalidad_reunion?: ModalidadReunion | null
+  ubicacion_reunion?: string | null
+  enlace_reunion?: string | null
+  resultado_reunion?: ResultadoReunion | null
+  motivo_no_realizada?: MotivoNoRealizada | null
+  detalle_cierre_reunion?: string | null
   confirmada_en?: string | null // anti no-show: el cliente confirmó la cita
   reagendada_de?: string | null
   reprogramaciones: number
   activo: boolean
   creado_en: string
+}
+
+/** Respuesta autoritativa de crm.reprogramar_reunion (F2). La validación
+ * runtime vive en la frontera Supabase de data/crm-api.ts. */
+export interface RespuestaReprogramarReunion {
+  ok: true
+  tarea_nueva_id: string
+  tarea_anterior_id: string
+  reprogramaciones: number
 }
 
 export const MOTIVOS_DESCARTE: ReadonlyArray<{ k: MotivoDescarte; label: string }> = [
@@ -286,8 +360,10 @@ export interface Lead {
    * privilegiada). Es el ÚNICO dato honesto del "mes de cierre": ver
    * `lib/cierres-del-mes.ts`. Opcional: null mientras el lead no se convirtió,
    * y ausente en modo demo o contra una base sin la columna.
-   */
+  */
   convertido_en?: string | null
+  /** Enlace opaco al contrato que acredita una inversión formalizada. */
+  contrato_id?: string | null
   /** Última escritura de CUALQUIER columna (trigger `set_actualizado_en_crm`).
    *  NO es el sello del cierre: editar un lead lo reescribe. Sirve de último
    *  recurso cuando `convertido_en` no viaja (demo). */

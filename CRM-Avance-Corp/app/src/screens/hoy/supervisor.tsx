@@ -43,6 +43,7 @@ import { cierresDelMes } from '@/lib/cierres-del-mes'
 import { planPorLead } from '@/lib/plan-lead'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { fechaLima } from '@/lib/agenda-derivada'
+import { metaConversionAplicable } from '@/lib/objetivos'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
@@ -69,7 +70,16 @@ function semaforoDias(d: number): string {
 }
 
 export function HoySupervisor(): JSX.Element {
-  const { ambito, actividades, tareas, reasignar, objetivos, equipo } = useCRMData()
+  const {
+    ambito,
+    actividades,
+    tareas,
+    reasignar,
+    objetivos,
+    objetivosError,
+    recargar,
+    equipo,
+  } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
   // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
@@ -117,15 +127,10 @@ export function HoySupervisor(): JSX.Element {
   }, [ambito, actividades, tareas, ahora])
 
   const meta = objetivos.supervisor
+  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
   // ── Marcador del mes: cada fila mira SU propio objetivo ──
-  // Que gerencia haya fijado capital no significa que haya fijado conversión, y
-  // una fila con objetivo 0 NO puede pintarse como incumplida: pctMeta(x, 0)
-  // devuelve 0 y colorMeta(0) es ROJO CRÍTICO, así que una meta que nadie fijó
-  // se leía como un fracaso del equipo. Antes el bloque "por definir" tampoco
-  // miraba la conversión: bastaba con fijar capital y ventas para que la
-  // conversión en blanco se colara al bloque semaforizado.
-  const sinMetaEquipo =
-    meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0 && meta.conversionObjetivo <= 0
+  // Capital sin objetivo sigue neutro. Conversión, en cambio, arranca en 15 %
+  // hasta que Gerencia guarde otra meta; una lectura fallida queda indisponible.
   const filasMeta: Array<{ label: string; txt: string; pct: number; sinDato: string | null }> = [
     {
       label: 'Capital en proceso',
@@ -137,28 +142,19 @@ export function HoySupervisor(): JSX.Element {
       sinDato: meta.capitalObjetivo > 0 ? null : SIN_META,
     },
     {
-      label: 'Ventas cerradas',
-      txt:
-        meta.ventasObjetivo > 0
-          ? `${d.cierres.convertidos} de ${meta.ventasObjetivo}`
-          : String(d.cierres.convertidos),
-      pct: pctMeta(d.cierres.convertidos, meta.ventasObjetivo),
-      sinDato: meta.ventasObjetivo > 0 ? null : SIN_META,
-    },
-    {
       label: 'Conversión',
       // Sin nada resuelto en el mes no hay porcentaje que mostrar: un "0 %" ahí
       // es "sin dato", no incumplimiento (el caso natural el día 1 del mes).
       txt:
         d.cierres.conversion == null
           ? '—'
-          : meta.conversionObjetivo > 0
-            ? `${d.cierres.conversion}% de ${meta.conversionObjetivo}%`
+          : metaConversion != null
+            ? `${d.cierres.conversion}% de ${metaConversion}%`
             : `${d.cierres.conversion}%`,
-      pct: pctMeta(d.cierres.conversion ?? 0, meta.conversionObjetivo),
+      pct: pctMeta(d.cierres.conversion ?? 0, metaConversion ?? 0),
       sinDato:
-        meta.conversionObjetivo <= 0
-          ? SIN_META
+        metaConversion == null
+          ? 'Meta de conversión no disponible'
           : d.cierres.conversion == null
             ? 'Todavía no se resolvió ningún lead este mes'
             : null,
@@ -492,20 +488,25 @@ export function HoySupervisor(): JSX.Element {
               right={<span className="text-xs text-muted-foreground">este mes</span>}
             />
             <CardContent className="space-y-4 pb-5 pt-0">
-              {sinMetaEquipo ? (
-                <>
+              {metaConversion == null ? (
+                <div className="space-y-2">
                   <div className="flex items-baseline justify-between gap-2">
                     <span className="text-xs font-semibold text-foreground/80">Capital en proceso (PEN)</span>
                     <span className="text-xs font-bold tabular-nums text-primary">{moneyK(d.capitalPEN)}</span>
                   </div>
                   <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-foreground/80">Ventas cerradas este mes</span>
-                    <span className="text-xs font-bold tabular-nums text-primary">{d.cierres.convertidos}</span>
+                    <span className="text-xs font-semibold text-foreground/80">Conversión este mes</span>
+                    <span className="text-xs font-bold tabular-nums text-primary">{d.cierres.conversion == null ? '—' : `${d.cierres.conversion}%`}</span>
                   </div>
-                  <p className="text-[10.5px] text-muted-foreground">
-                    Meta mensual del equipo por definir — cuando la establezcan, verás aquí el avance.
-                  </p>
-                </>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-[10.5px] text-warning-text">
+                      No pudimos cargar la meta mensual del equipo.
+                    </p>
+                    <Button variant="ghost" size="sm" onClick={() => void recargar()}>
+                      Reintentar
+                    </Button>
+                  </div>
+                </div>
               ) : (
                 <>
                   {filasMeta.map((f) => (
@@ -526,11 +527,6 @@ export function HoySupervisor(): JSX.Element {
                   ))}
                   {/* El marcador es del MES; si el equipo acumula más cierres de
                       vida se dice en voz alta, o el número parece perdido. */}
-                  {d.cierres.convertidosVida > d.cierres.convertidos && (
-                    <p className="text-[10.5px] text-muted-foreground">
-                      Cerradas este mes · {d.cierres.convertidosVida} en total desde que el equipo lleva cartera.
-                    </p>
-                  )}
                   <p className="text-[10.5px] text-muted-foreground">
                     Meta en PEN — lo captado en USD no entra a este total.
                   </p>

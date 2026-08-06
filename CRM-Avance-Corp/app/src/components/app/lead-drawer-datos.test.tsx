@@ -325,6 +325,11 @@ describe('LeadDrawer — «Próxima acción» canta el avance de agendar', () =>
     montar({ avanceTarea: 'reunion_agendada' })
 
     await user.selectOptions(screen.getByLabelText('Tipo de tarea'), 'reunion')
+    await user.selectOptions(screen.getByLabelText('Modalidad de la reunión'), 'virtual')
+    await user.type(
+      screen.getByLabelText('Enlace de la reunión'),
+      'https://meet.google.com/abc-defg-hij',
+    )
     await user.click(screen.getByRole('button', { name: 'Agendar' }))
 
     expect(toast.success).toHaveBeenCalledWith(
@@ -535,7 +540,7 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
 
     const nota = document.getElementById('anular-nota-t1')
     expect(nota?.textContent).toBe(
-      'No queda como gestión ni en el historial. No se puede deshacer.',
+      'Queda cancelada con motivo en el reporte y no cuenta como realizada. No se puede deshacer.',
     )
   })
 
@@ -567,6 +572,10 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.selectOptions(
+      screen.getByLabelText('Motivo de cancelación — Reunión con Ana'),
+      'cancelada_cliente',
+    )
     await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
 
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('vuelve a «Contactado»'))
@@ -585,6 +594,10 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.selectOptions(
+      screen.getByLabelText('Motivo de cancelación — Reunión con Ana'),
+      'cancelada_cliente',
+    )
     await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
 
     expect(toast.warning).toHaveBeenCalledTimes(1)

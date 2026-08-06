@@ -1,19 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { CAPS, can, puedeEscribir, ROL_LABEL, type Accion, type Rol } from './roles'
-
-const ACCIONES: Accion[] = [
-  'verTodo',
-  'verEquipo',
-  'filtrarPorVendedor',
-  'reasignar',
-  'repartirLeads',
-  'repartirCola',
-  'verCartera',
-  'verConfiguracion',
-  'editarConfiguracion',
-  'verReportes',
-  'soloLecturaTotal',
-]
+import { ACCIONES, CAPS, can, puedeEscribir, ROL_LABEL, type Rol } from './roles'
 
 describe('capacidades por rol', () => {
   it('mantiene una matriz completa y etiquetada para cada rol', () => {
@@ -29,7 +15,10 @@ describe('capacidades por rol', () => {
   it('reserva las mutaciones globales para los roles operativos autorizados', () => {
     expect(can('vendedor', 'reasignar')).toBe(false)
     expect(can('supervisor', 'reasignar')).toBe(true)
-    expect(can('gerencia', 'editarConfiguracion')).toBe(true)
+    expect(can('gerencia', 'editarConfiguracion')).toBe(false)
+    expect(can('gerencia', 'editarMetas')).toBe(true)
+    expect(can('gerencia', 'editarCapacidad')).toBe(true)
+    expect(can('gerencia', 'reasignar')).toBe(false)
     expect(can('directorio', 'reasignar')).toBe(false)
     expect(can('directorio', 'editarConfiguracion')).toBe(false)
     expect(can('directorio', 'verReportes')).toBe(true)
@@ -39,7 +28,7 @@ describe('capacidades por rol', () => {
     // repartirCola ≠ repartirLeads: la primera es la COLA GLOBAL (coordinador),
     // la segunda es bajar de la bandeja al vendedor (supervisor).
     expect(can('coordinador', 'repartirCola')).toBe(true)
-    expect(can('gerencia', 'repartirCola')).toBe(true)
+    expect(can('gerencia', 'repartirCola')).toBe(false)
     expect(can('supervisor', 'repartirCola')).toBe(false)
     expect(can('vendedor', 'repartirCola')).toBe(false)
     expect(can('directorio', 'repartirCola')).toBe(false)
@@ -49,10 +38,12 @@ describe('capacidades por rol', () => {
     expect(can('coordinador', 'verCartera')).toBe(false)
     expect(can('coordinador', 'reasignar')).toBe(false)
     expect(can('coordinador', 'repartirLeads')).toBe(false)
-    // El resto de roles SÍ conserva la cartera unificada.
-    for (const rol of ['vendedor', 'supervisor', 'gerencia', 'directorio'] as const) {
+    // Los roles operativos y de auditoría conservan la cartera unificada;
+    // Gerencia entra solo a inteligencia comercial.
+    for (const rol of ['vendedor', 'supervisor', 'directorio'] as const) {
       expect(can(rol, 'verCartera')).toBe(true)
     }
+    expect(can('gerencia', 'verCartera')).toBe(false)
   })
 
   it('deja al vendedor VER configuración (su calendario ICS) sin poder editarla', () => {
@@ -84,7 +75,29 @@ describe('capacidades por rol', () => {
   it('solo permite escritura general a roles que no son de auditoría', () => {
     expect(puedeEscribir('vendedor')).toBe(true)
     expect(puedeEscribir('supervisor')).toBe(true)
-    expect(puedeEscribir('gerencia')).toBe(true)
+    expect(puedeEscribir('gerencia')).toBe(false)
     expect(puedeEscribir('directorio')).toBe(false)
+  })
+
+  it('limita Gerencia a inteligencia, metas y capacidad', () => {
+    expect(CAPS.gerencia).toEqual({
+      verTodo: true,
+      verEquipo: true,
+      filtrarPorVendedor: true,
+      reasignar: false,
+      repartirLeads: false,
+      repartirCola: false,
+      verPipeline: false,
+      verLeads: false,
+      verAgenda: false,
+      verGestionEquipo: false,
+      verCartera: false,
+      verConfiguracion: false,
+      editarConfiguracion: false,
+      verReportes: true,
+      editarMetas: true,
+      editarCapacidad: true,
+      soloLecturaTotal: true,
+    })
   })
 })

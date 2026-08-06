@@ -26,6 +26,13 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  CAMPOS_REUNION_VACIOS,
+  CamposReunion,
+  camposTareaDeReunion,
+  type EstadoCamposReunion,
+} from '@/components/app/campos-reunion'
+import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useCRMData } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { sugerirSiguiente } from '@/lib/motor-siguiente'
@@ -38,10 +45,14 @@ import { plantonDe } from '@/lib/cadencia'
 import { money, primerNombre } from '@/lib/format'
 import {
   ETAPA_INFO,
+  MOTIVOS_NO_REALIZADA,
+  RESULTADOS_REUNION,
   TIPOS_CONVERSACION_K,
   TIPOS_TAREA,
   esTipoTarea,
   type Tarea,
+  type MotivoNoRealizadaManual,
+  type ResultadoReunionOperativo,
   type TipoActividadManual,
   type TipoTarea,
 } from '@/lib/tipos'
@@ -105,6 +116,11 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     opciones.length === 1 ? (opciones[0] ?? null) : null,
   )
   const [detalle, setDetalle] = useState('')
+  const [resultadoReunion, setResultadoReunion] = useState<ResultadoReunionOperativo | null>(null)
+  const [motivoAnulacion, setMotivoAnulacion] = useState<MotivoNoRealizadaManual | ''>('')
+  const [detalleAnulacion, setDetalleAnulacion] = useState('')
+  const [camposReunionSiguiente, setCamposReunionSiguiente] =
+    useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
   const [saltar, setSaltar] = useState(false)
   // `null` = el vendedor NO ha tocado la siguiente → manda la sugerencia del
   // motor. En cuanto edita un campo, esto pasa a ser la fuente y el motor deja
@@ -168,6 +184,8 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     setSaltar(false)
     setCerrarLead(false)
     setTsEleccion(Date.now())
+    setResultadoReunion(null)
+    setCamposReunionSiguiente(CAMPOS_REUNION_VACIOS)
     // Elegir un resultado es afirmar algo del cliente: sale del modo anular.
     setAnulando(false)
   }
@@ -301,7 +319,23 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * última reunión viva: pedido de Miguel del 2026-07-26.
    */
   const anular = () => {
-    const res = anularTarea(tarea.id)
+    let res
+    if (tarea.tipo === 'reunion') {
+      if (!motivoAnulacion) {
+        toast.error('Selecciona por qué se cancela la reunión')
+        return
+      }
+      if (motivoAnulacion === 'otro' && !detalleAnulacion.trim()) {
+        toast.error('Describe brevemente por qué se cancela la reunión')
+        return
+      }
+      res = anularTarea(tarea.id, {
+        motivo: motivoAnulacion,
+        detalle: detalleAnulacion.trim() || null,
+      })
+    } else {
+      res = anularTarea(tarea.id)
+    }
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo anular la tarea')
       return
@@ -327,6 +361,10 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
 
   const confirmar = () => {
     if (!eleccion) return
+    if (tarea.tipo === 'reunion' && eleccion.estado === 'completada' && !resultadoReunion) {
+      toast.error('Selecciona el resultado comercial de la reunión')
+      return
+    }
     // El plantón sustituye el flujo normal: cierra la tarea y cierra el lead,
     // en ese orden (ver `cerrarPorNoResponde`). Es la ÚNICA salida asíncrona
     // del diálogo — espera a que el cierre haya llegado al servidor.
@@ -344,6 +382,13 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       return
     }
     const conSiguiente = quiereSiguiente && venceEn != null
+    const reunionSiguiente = conSiguiente && campos?.tipo === 'reunion'
+      ? validarReunionOperativa(camposReunionSiguiente)
+      : null
+    if (reunionSiguiente && !reunionSiguiente.ok) {
+      toast.error(reunionSiguiente.error)
+      return
+    }
     const res = completarTarea({
       tarea_id: tarea.id,
       estado: eleccion.estado,
@@ -353,9 +398,19 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       // no sube la etapa ni cuenta como contacto.
       // Una tarea genérica con nota deja rastro igual; sin nota, solo cierra.
       ...rastroDe(eleccion),
+      resultado_reunion: tarea.tipo === 'reunion' ? resultadoReunion : null,
+      motivo_no_realizada:
+        tarea.tipo === 'reunion' && eleccion.estado === 'no_show'
+          ? 'cliente_no_asistio'
+          : null,
       siguiente:
         conSiguiente && campos && venceEn
-          ? { tipo: campos.tipo, titulo: campos.titulo.trim(), vence_en: venceEn }
+          ? {
+              tipo: campos.tipo,
+              titulo: campos.titulo.trim(),
+              vence_en: venceEn,
+              ...camposTareaDeReunion(reunionSiguiente?.ok ? reunionSiguiente : null),
+            }
           : null,
     })
     if (!res.ok) {
@@ -468,13 +523,35 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               // por `if (!eleccion) return`: ni escribe, ni avisa, ni cierra);
               // y en las demás obligaba a re-elegir, y `elegir` borra
               // `editados` — o sea, la siguiente acción ya escrita a mano.
-              onClick={() => setAnulando(true)}
+              onClick={() => {
+                setMotivoAnulacion('')
+                setDetalleAnulacion('')
+                setAnulando(true)
+              }}
             >
               <CalendarX2 className="size-3.5" aria-hidden />
               Ya no hace falta — anular esta tarea
             </button>
           )}
         </div>
+
+        {!anulando && tarea.tipo === 'reunion' && eleccion?.estado === 'completada' && (
+          <div>
+            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground" htmlFor="resultado-reunion">
+              Resultado comercial
+            </label>
+            <Select
+              id="resultado-reunion"
+              value={resultadoReunion ?? ''}
+              onChange={(evento) => setResultadoReunion(
+                (evento.target.value || null) as ResultadoReunionOperativo | null,
+              )}
+            >
+              <option value="">Selecciona un resultado</option>
+              {RESULTADOS_REUNION.map((opcion) => <option key={opcion.k} value={opcion.k}>{opcion.label}</option>)}
+            </Select>
+          </div>
+        )}
 
         {/* Confirmación de anulado: dice EXACTAMENTE qué hace y qué no hace.
             Un cierre es irreversible en el servidor (`trg_tareas_before_update`
@@ -502,11 +579,11 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 `#b45309/90` de los otros avisos da 3.84:1 y AA exige 4.5:1 — y
                 este párrafo es justo el que dice que no se puede deshacer. */}
             <p id="anular-que-hace" className="mt-0.5 text-[11px] text-warning-text">
-              Sale de tu agenda. <strong>No</strong> cuenta como gestión y{' '}
-              <strong>no</strong> escribe nada en el historial
-              {l ? ` de ${primerNombre(l.nombre_completo)}` : ''} — úsala cuando la
-              tarea dejó de tener sentido (ya agendaste la reunión, el cliente se
-              adelantó). No se puede deshacer.
+              {tarea.tipo === 'reunion' ? (
+                <>La reunión quedará cancelada con su motivo y autor para el reporte de Gerencia. No se puede deshacer.</>
+              ) : (
+                <>Sale de tu agenda. <strong>No</strong> cuenta como gestión y <strong>no</strong> escribe nada en el historial{l ? ` de ${primerNombre(l.nombre_completo)}` : ''} — úsala cuando la tarea dejó de tener sentido. No se puede deshacer.</>
+              )}
             </p>
             {/* El retroceso de etapa va PRIMERO y en negrita: es la única
                 consecuencia de anular que toca el embudo, y la que el asesor no
@@ -525,6 +602,25 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 Ojo: es su única pendiente. {primerNombre(l.nombre_completo)} quedará
                 sin próxima acción.
               </p>
+            )}
+            {tarea.tipo === 'reunion' && (
+              <div className="mt-3 grid gap-2">
+                <Select
+                  aria-label="Motivo de cancelación de la reunión"
+                  value={motivoAnulacion}
+                  onChange={(evento) => setMotivoAnulacion(evento.target.value as typeof motivoAnulacion)}
+                >
+                  <option value="">Selecciona el motivo</option>
+                  {MOTIVOS_NO_REALIZADA.map((opcion) => <option key={opcion.k} value={opcion.k}>{opcion.label}</option>)}
+                </Select>
+                <Textarea
+                  aria-label="Detalle de cancelación de la reunión"
+                  placeholder={motivoAnulacion === 'otro' ? 'Describe el motivo (obligatorio)' : 'Detalle adicional (opcional)'}
+                  rows={2}
+                  value={detalleAnulacion}
+                  onChange={(evento) => setDetalleAnulacion(evento.target.value)}
+                />
+              </div>
             )}
           </div>
         )}
@@ -623,6 +719,12 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                   onChange={(e) => editar({ hora: e.target.value })}
                 />
               </div>
+              {campos.tipo === 'reunion' && (
+                <CamposReunion
+                  valor={camposReunionSiguiente}
+                  onChange={setCamposReunionSiguiente}
+                />
+              )}
             </div>
           </div>
         )}
@@ -678,6 +780,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 quedaSinPlan && l ? 'anular-sin-plan' : null,
               ].filter((x): x is string => x !== null).join(' ')}
               onClick={anular}
+              disabled={tarea.tipo === 'reunion' && !motivoAnulacion}
             >
               <CalendarX2 aria-hidden /> Sí, anular
             </Button>

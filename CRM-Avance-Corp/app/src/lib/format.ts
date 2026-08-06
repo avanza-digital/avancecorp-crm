@@ -10,6 +10,18 @@ export function esMoneda(valor: string): valor is Moneda {
 /** Símbolo por moneda — fuente única (no re-derivar `moneda === 'USD' ? … : …` en pantallas). */
 export const SIMBOLO: Record<Moneda, string> = { PEN: 'S/', USD: 'US$' }
 
+/** Cantidades legibles en todo el CRM: 1500000 -> 1,500,000 en es-PE. */
+export function numero(
+  n: number | null | undefined,
+  maximosDecimales = 0,
+): string {
+  if (n == null || !Number.isFinite(n)) return '—'
+  return n.toLocaleString('es-PE', {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: maximosDecimales,
+  })
+}
+
 export function money(n: number | null | undefined, moneda: Moneda = 'PEN'): string {
   if (n == null || !Number.isFinite(n)) return `${SIMBOLO[moneda]} 0`
   return `${SIMBOLO[moneda]} ${n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`

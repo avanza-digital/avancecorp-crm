@@ -1,7 +1,8 @@
 // Topbar — título de vista (+ chip DEMO si la sesión es demo), búsqueda global
 // real (leads del ÁMBITO por nombre/teléfono/DNI — espejo RLS F1c: un vendedor
-// no encuentra leads ajenos), campana honesta (sin punto rojo fijo) y alta de
-// lead. La búsqueda abre el drawer vía usePanelesActions().abrirLead.
+// no encuentra leads ajenos), acceso real a Alertas para Gerencia (placeholder
+// honesto para los demás roles, sin badge inventado) y alta de lead. La búsqueda
+// abre el drawer vía usePanelesActions().abrirLead.
 //
 // POR QUÉ el buscador NO alcanza a los CLIENTES (2026-07-25): prometía «lead o
 // cliente» y solo miraba leads, así que un cliente de la propia cartera salía
@@ -29,10 +30,17 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
-import type { Vista } from '@/lib/router'
+import { hashDe, type Vista } from '@/lib/router'
 
 const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
+  alertas: { t: 'Centro de alertas', s: 'Prioriza y resuelve los casos que requieren atención' },
+  conversiones: { t: 'Conversiones', s: 'Conversión de leads a clientes' },
+  'ranking-vendedores': { t: 'Ranking', s: 'Desempeño general de todos los vendedores' },
+  reuniones: { t: 'Reuniones', s: 'Pactadas, concretadas, no realizadas y modalidad' },
+  metas: { t: 'Metas', s: 'Objetivos individuales y suma automática de la organización' },
+  rendimiento: { t: 'Equipo', s: 'Desempeño comercial por responsable' },
+  'capital-cierres': { t: 'Capital', s: 'Producción comercial confirmada' },
   pipeline: { t: 'Pipeline', s: 'Leads de inversión por etapa' },
   cartera: { t: 'Leads', s: 'Todos tus prospectos captados' },
   agenda: { t: 'Agenda', s: 'Reuniones, llamadas y vencimientos' },
@@ -83,16 +91,14 @@ export function Topbar({ vista }: { vista: Vista }) {
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el vendedor, "Cartera" para quien supervisa.
   const info =
-    vista === 'mi-cartera'
+    vista === 'hoy' && yo?.rol === 'gerencia'
+      ? { t: 'Resumen', s: 'Estado comercial del equipo' }
+      : vista === 'mi-cartera'
       ? { t: rotuloCartera(yo?.rol), s: 'Tus clientes y el capital invertido' }
       : TITULOS[vista]
   // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
   // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
-
-  // Aún no hay origen real de notificaciones: cuando exista, este número
-  // vendrá de ahí y el punto de la campana volverá solo.
-  const notificacionesPendientes: number = 0
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
@@ -268,22 +274,27 @@ export function Topbar({ vista }: { vista: Vista }) {
         </div>
         )}
 
-        <Button
-          variant="ghost"
-          size="icon"
-          title="Las notificaciones llegan pronto"
-          aria-label="Notificaciones"
-          onClick={() => toast.info('Las notificaciones llegan pronto')}
-          className="relative"
-        >
-          <Bell className="size-4" />
-          {/* Campana honesta: el punto solo aparece con conteo REAL de
-              notificaciones pendientes — hoy no existe ese origen, así que
-              nunca se pinta (nada de badges decorativos). */}
-          {notificacionesPendientes > 0 && (
-            <span className="ac-flick absolute right-2 top-2 size-1.5 rounded-full bg-destructive" />
-          )}
-        </Button>
+        {yo?.rol === 'gerencia' ? (
+          <a
+            href={hashDe('alertas')}
+            title="Abrir centro de alertas"
+            aria-label="Abrir centro de alertas"
+            aria-current={vista === 'alertas' ? 'page' : undefined}
+            className="inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          >
+            <Bell className="size-4" />
+          </a>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            title="Las notificaciones llegan pronto"
+            aria-label="Notificaciones"
+            onClick={() => toast.info('Las notificaciones llegan pronto')}
+          >
+            <Bell className="size-4" />
+          </Button>
+        )}
 
         {leadsVisibles && puedeEscribir(yo?.rol) && (
           <Button variant="accent" onClick={() => abrirNuevoLead()}>

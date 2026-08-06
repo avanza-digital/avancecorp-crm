@@ -5,8 +5,9 @@
 // media queries) y se usan timers falsos + fireEvent (userEvent necesitaría
 // advanceTimers y aquí lo que se mide es justo el reloj).
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Rol } from '@/lib/roles'
+import type { Vista } from '@/lib/router'
 
 let YO: { id: string; nombre_completo: string; rol: Rol; demo: boolean } | null = null
 const salir = vi.fn()
@@ -17,11 +18,11 @@ const { Sidebar } = await import('./sidebar')
 
 const ABRIR_MS = 120 // espejo del sidebar (retardo del asomo)
 
-function montar({ movil = true, rol = 'vendedor' as Rol } = {}) {
+function montar({ movil = true, rol = 'vendedor' as Rol, vista = 'hoy' as Vista } = {}) {
   vi.stubGlobal('matchMedia', () => ({ matches: movil }))
   YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo: true }
   const onNavegar = vi.fn()
-  const { container, unmount } = render(<Sidebar vista="hoy" onNavegar={onNavegar} />)
+  const { container, unmount } = render(<Sidebar vista={vista} onNavegar={onNavegar} />)
   const panel = container.querySelector('aside > div')
   if (!panel) throw new Error('no se montó el panel del menú')
   return { panel, unmount, onNavegar }
@@ -91,5 +92,39 @@ describe('Sidebar — temporizadores del asomo', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Pipeline' }))
     expect(onNavegar).toHaveBeenCalledWith('pipeline')
     expect(asomado(panel)).toBe(true)
+  })
+
+  it('Gerencia ve inteligencia separada y ninguna navegación operativa', () => {
+    const { onNavegar } = montar({ movil: false, rol: 'gerencia' })
+    const navegacion = screen.getByRole('navigation')
+
+    const nombres = [
+      'Resumen',
+      'Alertas',
+      'Conversiones',
+      'Ranking',
+      'Reuniones',
+      'Metas',
+      'Equipo',
+    ]
+    expect(within(navegacion).getAllByRole('button')).toHaveLength(nombres.length)
+    expect(within(navegacion).getAllByRole('button').map((boton) => boton.textContent?.trim())).toEqual(nombres)
+    for (const nombre of nombres) {
+      expect(within(navegacion).getByRole('button', { name: nombre })).toBeVisible()
+    }
+    fireEvent.click(within(navegacion).getByRole('button', { name: 'Alertas' }))
+    expect(onNavegar).toHaveBeenCalledWith('alertas')
+    for (const nombre of [
+      'Pipeline',
+      'Leads',
+      'Agenda',
+      'Mi cartera',
+      'Cartera',
+      'Repartir leads',
+      'Capital',
+      'Configuración',
+    ]) {
+      expect(within(navegacion).queryByRole('button', { name: nombre })).not.toBeInTheDocument()
+    }
   })
 })

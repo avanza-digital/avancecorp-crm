@@ -252,6 +252,8 @@ describe('mutaciones del store demo', () => {
       const { api, mutar } = await montarStore('directorio')
       const leadsAntes = api().leads
       const actividadesAntes = api().actividades
+      const tareasAntes = api().tareas
+      const tareaId = tareasAntes[0]?.id ?? 'sin-tarea'
 
       const resultados = [
         mutar((a) => a.crearLead(inputBase())),
@@ -262,9 +264,17 @@ describe('mutaciones del store demo', () => {
         mutar((a) => a.reabrir('l8')),
         mutar((a) => a.registrarActividad('l1', 'nota', 'intento')),
         mutar((a) => a.reasignar('l1', 'd-v2')),
-        // El cuarto verbo de las tareas entra al mismo gate que el resto: el
-        // directorio no puede vaciarle la agenda a nadie.
-        mutar((a) => a.anularTarea(a.tareas[0]?.id ?? 'sin-tarea')),
+        // Los cuatro verbos de agenda entran al gate ANTES de validar payload o
+        // tocar estado: el directorio no puede modificarle la agenda a nadie.
+        mutar((a) => a.crearTarea({
+          lead_id: 'l1',
+          tipo: 'reunion',
+          titulo: '',
+          vence_en: 'fecha-manipulada',
+        })),
+        mutar((a) => a.completarTarea({ tarea_id: tareaId, estado: 'completada' })),
+        mutar((a) => a.reprogramarTarea(tareaId, 'fecha-manipulada')),
+        mutar((a) => a.anularTarea(tareaId)),
       ]
 
       for (const res of resultados) {
@@ -273,6 +283,7 @@ describe('mutaciones del store demo', () => {
       // Ninguna mutación disparó setDatos: mismas referencias, mismo contenido
       expect(api().leads).toBe(leadsAntes)
       expect(api().actividades).toBe(actividadesAntes)
+      expect(api().tareas).toBe(tareasAntes)
       expect(api().lead('l1')?.etapa).toBe('nuevo')
       expect(api().lead('l8')?.etapa).toBe('descartado')
     })
@@ -308,7 +319,7 @@ describe('mutaciones del store demo', () => {
       })
     })
 
-    it('Gerencia mueve una bandeja a la cola global aunque vendedor_id ya sea null', async () => {
+    it('Gerencia no mueve bandejas ni reasigna leads', async () => {
       const { api, mutar } = await montarStore('gerencia')
       expect(api().lead('l5')).toMatchObject({
         vendedor_id: null,
@@ -317,14 +328,10 @@ describe('mutaciones del store demo', () => {
 
       const res = mutar((a) => a.reasignar('l5', null))
 
-      expect(res).toMatchObject({ ok: true })
+      expect(res).toMatchObject({ ok: false, codigo: 'sin_permiso' })
       expect(api().lead('l5')).toMatchObject({
         vendedor_id: null,
-        asignado_supervisor_id: null,
-      })
-      expect(api().actividadesDe('l5')[0]).toMatchObject({
-        tipo: 'reasignacion',
-        detalle: 'Bandeja de SUPERVISOR UNO → Sin asignar',
+        asignado_supervisor_id: 'd-sup1',
       })
     })
 
@@ -558,11 +565,82 @@ describe('mutaciones del store demo', () => {
       const { api, mutar } = await montarStore('vendedor')
 
       const res = mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión con María', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión con María', vence_en: manana(), modalidad_reunion: 'virtual', enlace_reunion: 'https://meet.google.com/abc-defg-hij' }),
       )
 
       expect(res).toMatchObject({ ok: true, avance: 'reunion_agendada' })
       expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
+    })
+
+    it('rechaza una reunión nueva sin modalidad explícita', async () => {
+      const { mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) =>
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión sin clasificar', vence_en: manana() }),
+      )
+
+      expect(res).toMatchObject({ ok: false, codigo: 'modalidad_reunion_obligatoria' })
+    })
+
+    it('rechaza una reunión virtual sin enlace HTTPS seguro', async () => {
+      const { mutar } = await montarStore('vendedor')
+
+      const sinEnlace = mutar((a) =>
+        a.crearTarea({
+          lead_id: 'l2',
+          tipo: 'reunion',
+          titulo: 'Reunión sin enlace',
+          vence_en: manana(),
+          modalidad_reunion: 'virtual',
+        }),
+      )
+      const insegura = mutar((a) =>
+        a.crearTarea({
+          lead_id: 'l2',
+          tipo: 'reunion',
+          titulo: 'Reunión insegura',
+          vence_en: manana(),
+          modalidad_reunion: 'virtual',
+          enlace_reunion: 'http://meet.example.com/sala',
+        }),
+      )
+
+      expect(sinEnlace).toMatchObject({ ok: false, codigo: 'destino_reunion_obligatorio' })
+      expect(insegura).toMatchObject({ ok: false, codigo: 'enlace_reunion_invalido' })
+    })
+
+    it('normaliza la reunión una sola vez y elimina campos incompatibles del payload manipulado', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const presencial = mutar((a) => a.crearTarea({
+        lead_id: 'l2',
+        tipo: 'reunion',
+        titulo: 'Reunión presencial',
+        vence_en: manana(),
+        modalidad_reunion: 'presencial',
+        ubicacion_reunion: '  Av. Arequipa 123  ',
+        enlace_reunion: 'https://no-debe-persistir.example.com',
+      }))
+      const virtual = mutar((a) => a.crearTarea({
+        lead_id: 'l2',
+        tipo: 'reunion',
+        titulo: 'Reunión virtual',
+        vence_en: manana(),
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: 'No debe persistir',
+        enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
+      }))
+
+      expect(api().tareas.find((t) => t.id === presencial.id)).toMatchObject({
+        modalidad_reunion: 'presencial',
+        ubicacion_reunion: 'Av. Arequipa 123',
+        enlace_reunion: null,
+      })
+      expect(api().tareas.find((t) => t.id === virtual.id)).toMatchObject({
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: null,
+        enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+      })
     })
 
     it('sin avance real no se inventa el campo (una llamada no es una reunión)', async () => {
@@ -594,7 +672,7 @@ describe('mutaciones del store demo', () => {
         a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar a María', vence_en: manana() }),
       )
       const reunion = mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión con María', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión con María', vence_en: manana(), modalidad_reunion: 'presencial', ubicacion_reunion: 'Av. Arequipa 123' }),
       )
       expect(api().tareasDe('l2')).toHaveLength(previas + 2)
 
@@ -635,11 +713,14 @@ describe('mutaciones del store demo', () => {
     it('anular la ÚNICA reunión devuelve el lead a Contactado (y lo dice)', async () => {
       const { api, mutar } = await montarStore('vendedor')
       const reunion = mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana(), modalidad_reunion: 'virtual', enlace_reunion: 'https://meet.google.com/abc-defg-hij' }),
       )
       expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
 
-      const res = mutar((a) => a.anularTarea(reunion.id ?? ''))
+      const res = mutar((a) => a.anularTarea(
+        reunion.id ?? '',
+        { motivo: 'cancelada_cliente' },
+      ))
 
       expect(api().lead('l2')?.etapa).toBe('contactado')
       // Viaja al llamador para que la UI lo CANTE: bajar de etapa en silencio
@@ -650,10 +731,10 @@ describe('mutaciones del store demo', () => {
     it('el retroceso deja su rastro de cambio_etapa en el timeline', async () => {
       const { api, mutar } = await montarStore('vendedor')
       const reunion = mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana(), modalidad_reunion: 'virtual', enlace_reunion: 'https://meet.google.com/abc-defg-hij' }),
       )
 
-      mutar((a) => a.anularTarea(reunion.id ?? ''))
+      mutar((a) => a.anularTarea(reunion.id ?? '', { motivo: 'cancelada_cliente' }))
 
       // Es la ÚNICA fila que anular escribe, y no rompe la regla de "no escribe
       // actividad": la cola se mide contra el último CONTACTO REAL, y los
@@ -666,13 +747,16 @@ describe('mutaciones del store demo', () => {
     it('si QUEDA otra reunión viva no baja nada: es el «y no se reagenda»', async () => {
       const { api, mutar } = await montarStore('vendedor')
       const primera = mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión A', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión A', vence_en: manana(), modalidad_reunion: 'presencial', ubicacion_reunion: 'Av. Arequipa 123' }),
       )
       mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión B', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión B', vence_en: manana(), modalidad_reunion: 'virtual', enlace_reunion: 'https://meet.google.com/abc-defg-hij' }),
       )
 
-      const res = mutar((a) => a.anularTarea(primera.id ?? ''))
+      const res = mutar((a) => a.anularTarea(
+        primera.id ?? '',
+        { motivo: 'cancelada_cliente' },
+      ))
 
       expect(res).toMatchObject({ ok: true })
       expect(res.retroceso).toBeUndefined()
@@ -682,7 +766,7 @@ describe('mutaciones del store demo', () => {
     it('anular una LLAMADA nunca mueve la etapa', async () => {
       const { api, mutar } = await montarStore('vendedor')
       mutar((a) =>
-        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana() }),
+        a.crearTarea({ lead_id: 'l2', tipo: 'reunion', titulo: 'Reunión', vence_en: manana(), modalidad_reunion: 'virtual', enlace_reunion: 'https://meet.google.com/abc-defg-hij' }),
       )
       const llamada = mutar((a) =>
         a.crearTarea({ lead_id: 'l2', tipo: 'llamada', titulo: 'Llamar', vence_en: manana() }),

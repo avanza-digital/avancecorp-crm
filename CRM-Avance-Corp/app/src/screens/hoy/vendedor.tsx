@@ -56,7 +56,7 @@ import {
   tareaAEvento,
   type EventoAgenda,
 } from '@/lib/agenda-derivada'
-import { periodoLima } from '@/lib/objetivos'
+import { metaConversionAplicable, periodoLima } from '@/lib/objetivos'
 import { useTipoCambio, usdAPen, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
@@ -543,10 +543,9 @@ export function HoyVendedor(): JSX.Element {
   // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
   // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.
   const meta = objetivos.vendedor
-  // Sin NINGUNA meta configurada: no inventamos cuotas — mostramos "por definir".
-  // Las tres cuentan: antes bastaba con que capital y ventas estuvieran fijadas
-  // para que la conversión en blanco se colara al bloque de meta y se pintara.
-  const sinMeta = meta.capitalObjetivo <= 0 && meta.ventasObjetivo <= 0 && meta.conversionObjetivo <= 0
+  // Conversión tiene una meta inicial común de 15 % hasta que Gerencia guarde
+  // otra. Los ceros de una lectura fallida no activan ese fallback.
+  const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
   // La meta es MENSUAL, así que el numerador tiene que serlo también: comparar
   // el histórico de vida contra la cuota del mes dejaba a un asesor con 7
   // conversiones y meta 3 en "233 %" para siempre, y encima la misma pantalla
@@ -914,7 +913,7 @@ export function HoyVendedor(): JSX.Element {
           right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'objetivos demo' : 'objetivo mensual'}</span>}
         />
         <CardContent className="pt-0">
-          {sinMeta ? (
+          {metaConversion == null ? (
             <div className="space-y-2">
               <div className="flex items-baseline justify-between gap-2">
                 <p className="text-xs font-semibold text-foreground/80">Capital en proceso</p>
@@ -923,33 +922,24 @@ export function HoyVendedor(): JSX.Element {
                 </p>
               </div>
               <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-semibold text-foreground/80">Ventas cerradas este mes</p>
-                <p className="text-xs font-bold tabular-nums">{convertidosMes.length}</p>
+                <p className="text-xs font-semibold text-foreground/80">Conversión este mes</p>
+                <p className="text-xs font-bold tabular-nums">{conversion == null ? '—' : `${conversion}%`}</p>
               </div>
               <NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />
-              {objetivosError ? (
-                // Ceros por FALLO DE LECTURA ≠ ceros porque gerencia no fijó
-                // nada (`objetivosError` del store). Decir "por definir" cuando
-                // lo que hubo fue un error de red le hace creer al asesor que
-                // nadie le puso meta, y deja de buscarla. Los dos números de
-                // arriba SÍ son reales (salen de su cartera): lo único que
-                // falta es el denominador.
-                <div className="flex flex-wrap items-center gap-2">
-                  <p className="text-[11px] text-warning-text">
-                    No pudimos cargar tu meta del mes — los datos de arriba son tuyos y son reales.
-                  </p>
-                  <Button variant="ghost" size="sm" onClick={() => void recargar()}>
-                    Reintentar
-                  </Button>
-                </div>
-              ) : (
-                <p className="text-[11px] text-muted-foreground">
-                  Meta mensual por definir — cuando la establezcan, verás aquí tu avance.
+              {/* Ceros por FALLO DE LECTURA ≠ ausencia de una meta guardada.
+                  Los dos valores de arriba siguen siendo reales; lo que falta
+                  es el denominador para compararlos. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <p className="text-[11px] text-warning-text">
+                  No pudimos cargar tu meta del mes — los datos de arriba son tuyos y son reales.
                 </p>
-              )}
+                <Button variant="ghost" size="sm" onClick={() => void recargar()}>
+                  Reintentar
+                </Button>
+              </div>
             </div>
           ) : (
-            <div className="grid gap-x-8 gap-y-4 md:grid-cols-3">
+            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
               {/* Cada fila mira SU propio objetivo: que gerencia haya fijado
                   capital no significa que haya fijado conversión, y una fila con
                   objetivo 0 no puede pintarse como incumplida (ver MetaFila). */}
@@ -963,25 +953,6 @@ export function HoyVendedor(): JSX.Element {
                 neutro={meta.capitalObjetivo <= 0 ? SIN_META : undefined}
                 nota={<NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />}
               />
-              <MetaFila
-                icon={Trophy}
-                label="Ventas cerradas"
-                valorTxt={String(convertidosMes.length)}
-                metaTxt={String(meta.ventasObjetivo)}
-                pct={pctMeta(convertidosMes.length, meta.ventasObjetivo)}
-                delay={90}
-                neutro={meta.ventasObjetivo <= 0 ? SIN_META : undefined}
-                // El KPI de arriba dice "Histórico"; esta fila es del MES. Si
-                // los dos números difieren se dice en voz alta, o la misma
-                // pantalla parece contradecirse.
-                nota={
-                  convertidos.length > convertidosMes.length ? (
-                    <p className="text-[11px] text-muted-foreground">
-                      Cerradas este mes · {convertidos.length} en total desde que llevas cartera.
-                    </p>
-                  ) : undefined
-                }
-              />
               {/* El valor es "—" y no "0 %" cuando no hay resueltos: un
                   porcentaje sin denominador no existe, y escribirlo como 0 %
                   ya es afirmar que el asesor no convirtió nada. */}
@@ -989,15 +960,13 @@ export function HoyVendedor(): JSX.Element {
                 icon={TrendingUp}
                 label="Conversión"
                 valorTxt={conversion == null ? '—' : `${conversion}%`}
-                metaTxt={`${meta.conversionObjetivo}%`}
-                pct={pctMeta(conversion ?? 0, meta.conversionObjetivo)}
+                metaTxt={`${metaConversion}%`}
+                pct={pctMeta(conversion ?? 0, metaConversion)}
                 delay={180}
                 neutro={
-                  meta.conversionObjetivo <= 0
-                    ? SIN_META
-                    : conversion == null
-                      ? 'Sin leads resueltos este mes todavía — el % sale con el primer cierre'
-                      : undefined
+                  conversion == null
+                    ? 'Sin leads resueltos este mes todavía — el % sale con el primer cierre'
+                    : undefined
                 }
               />
             </div>

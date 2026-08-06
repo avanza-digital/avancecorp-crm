@@ -28,6 +28,8 @@ vi.mock('@/data/crm-api', async (importActual) => {
     insertarLead: vi.fn(),
     insertarTarea: vi.fn(),
     cerrarTarea: vi.fn(),
+    cerrarReunion: vi.fn(),
+    reprogramarReunion: vi.fn(),
     actualizarLead: vi.fn(),
     actualizarTarea: vi.fn(),
     insertarActividad: vi.fn(),
@@ -47,12 +49,15 @@ const insertarActividad = vi.mocked(crmApi.insertarActividad)
 const listarTareas = vi.mocked(crmApi.listarTareasDelAmbito)
 const insertarTarea = vi.mocked(crmApi.insertarTarea)
 const cerrarTareaMock = vi.mocked(crmApi.cerrarTarea)
+const cerrarReunionMock = vi.mocked(crmApi.cerrarReunion)
+const reprogramarReunionMock = vi.mocked(crmApi.reprogramarReunion)
 const listarObjetivosMock = vi.mocked(crmApi.listarObjetivos)
 const fijarObjetivosMock = vi.mocked(crmApi.fijarObjetivosRpc)
 
 const ROSTER = [
   { perfil_id: 'u-ger', nombre_completo: 'Gerente Real', rol_crm: 'gerencia' as const, supervisor_id: null, activo: true },
-  { perfil_id: 'u-v1', nombre_completo: 'Vendedor Real', rol_crm: 'vendedor' as const, supervisor_id: 'u-ger', activo: true },
+  { perfil_id: 'u-s1', nombre_completo: 'Supervisor Real', rol_crm: 'supervisor' as const, supervisor_id: null, activo: true },
+  { perfil_id: 'u-v1', nombre_completo: 'Vendedor Real', rol_crm: 'vendedor' as const, supervisor_id: 'u-s1', activo: true },
 ]
 
 function leadBase() {
@@ -78,9 +83,16 @@ function leadBase() {
 }
 
 function sesionReal(rol: Rol): AuthContextValue {
+  const identidad = rol === 'gerencia'
+    ? { id: 'u-ger', nombre_completo: 'Gerente Real' }
+    : rol === 'supervisor'
+      ? { id: 'u-s1', nombre_completo: 'Supervisor Real' }
+      : rol === 'vendedor'
+        ? { id: 'u-v1', nombre_completo: 'Vendedor Real' }
+        : { id: `u-${rol}`, nombre_completo: `Usuario ${rol}` }
   return {
     fase: 'listo',
-    yo: { id: 'u-ger', nombre_completo: 'Gerente Real', rol, demo: false, puede_contratar: true },
+    yo: { ...identidad, rol, demo: false, puede_contratar: true },
     error: null,
     entrar: async () => ({ ok: true }),
     entrarDemo: () => undefined,
@@ -143,26 +155,102 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     fijarObjetivosMock.mockResolvedValue(undefined)
     insertarTarea.mockResolvedValue(undefined)
     cerrarTareaMock.mockResolvedValue({ siguiente_id: null })
+    cerrarReunionMock.mockResolvedValue({ siguiente_id: null })
+    reprogramarReunionMock.mockImplementation(async (_tareaId, _venceEn, nuevaId) => ({
+      tarea_nueva_id: nuevaId,
+    }))
     actualizarLead.mockResolvedValue(undefined)
     actualizarTarea.mockResolvedValue(undefined)
     insertarActividad.mockResolvedValue(undefined)
   })
   afterEach(() => vi.clearAllMocks())
 
-  it('carga el ámbito real y resuelve vendedor_nombre desde el roster', async () => {
-    const { api } = montar('gerencia')
+  it('carga el ámbito operativo y resuelve vendedor_nombre desde el roster', async () => {
+    const { api } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     expect(api().leads[0]?.vendedor_nombre).toBe('Vendedor Real')
   })
 
+  it('Gerencia carga roster y metas, pero no descarga leads, actividades ni tareas', async () => {
+    const { api, estado } = montar('gerencia')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(api().equipo).toEqual(ROSTER)
+    expect(api().leads).toEqual([])
+    expect(api().actividades).toEqual([])
+    expect(api().tareas).toEqual([])
+    expect(listarEquipo).toHaveBeenCalledTimes(1)
+    expect(listarObjetivosMock).toHaveBeenCalledTimes(1)
+    expect(listarLeads).not.toHaveBeenCalled()
+    expect(listarActs).not.toHaveBeenCalled()
+    expect(listarTareas).not.toHaveBeenCalled()
+  })
+
+  it('Gerencia conserva metas individuales reales y sus agregados con la carga ligera', async () => {
+    listarObjetivosMock.mockResolvedValueOnce([{
+      vendedor_id: 'u-v1',
+      supervisor_id: 'u-s1',
+      capital_objetivo: 420_000,
+      ventas_objetivo: 0,
+      conversion_objetivo: 18,
+    }])
+    const { api, estado } = montar('gerencia')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(api().objetivos.porVendedor?.['u-v1']).toEqual({
+      vendedorId: 'u-v1',
+      supervisorId: 'u-s1',
+      capitalObjetivo: 420_000,
+      ventasObjetivo: 0,
+      conversionObjetivo: 18,
+    })
+    expect(api().objetivos.gerencia).toEqual({
+      capitalObjetivo: 420_000,
+      ventasObjetivo: 0,
+      conversionObjetivo: 18,
+    })
+  })
+
+  it('recargar Gerencia resincroniza roster/metas sin activar loaders operativos', async () => {
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    vi.clearAllMocks()
+    listarEquipo.mockResolvedValue(ROSTER)
+    listarObjetivosMock.mockResolvedValue([])
+
+    await act(async () => {
+      expect(await api().recargar()).toBe(true)
+    })
+
+    expect(listarEquipo).toHaveBeenCalledTimes(1)
+    expect(listarObjetivosMock).toHaveBeenCalledTimes(1)
+    expect(listarLeads).not.toHaveBeenCalled()
+    expect(listarActs).not.toHaveBeenCalled()
+    expect(listarTareas).not.toHaveBeenCalled()
+  })
+
+  it('la omisión de datos operativos es exclusiva de Gerencia', async () => {
+    const { api, estado } = montar('directorio')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(api().leads).toHaveLength(1)
+    expect(listarLeads).toHaveBeenCalledTimes(1)
+    expect(listarActs).toHaveBeenCalledTimes(1)
+    expect(listarTareas).toHaveBeenCalledTimes(1)
+  })
+
   it('fijarObjetivos: optimista + RPC con el periodo Lima (solo gerencia)', async () => {
     const { api, mutar } = montar('gerencia')
-    await waitFor(() => expect(api().leads).toHaveLength(1))
+    await waitFor(() => expect(api().equipo).toHaveLength(ROSTER.length))
 
     const metas = {
-      vendedor: { capitalObjetivo: 250_000, ventasObjetivo: 3, conversionObjetivo: 25 },
-      supervisor: { capitalObjetivo: 500_000, ventasObjetivo: 6, conversionObjetivo: 25 },
-      gerencia: { capitalObjetivo: 1_000_000, ventasObjetivo: 12, conversionObjetivo: 28 },
+      'u-v1': {
+        vendedorId: 'u-v1',
+        supervisorId: 'u-s1',
+        capitalObjetivo: 1_000_000,
+        ventasObjetivo: 0,
+        conversionObjetivo: 28,
+      },
     }
     const res = mutar((a) => a.fijarObjetivos(metas))
 
@@ -172,8 +260,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(fijarObjetivosMock).toHaveBeenCalledTimes(1))
     const [periodo, payload] = fijarObjetivosMock.mock.calls[0] ?? []
     expect(periodo).toMatch(/^\d{4}-\d{2}-01$/) // primer día del mes (Lima)
-    expect(payload?.['vendedor']).toEqual({
-      capital_objetivo: 250_000, ventas_objetivo: 3, conversion_objetivo: 25,
+    expect(payload?.['u-v1']).toEqual({
+      capital_objetivo: 1_000_000, ventas_objetivo: 0, conversion_objetivo: 28,
     })
   })
 
@@ -190,7 +278,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
   it('fijarObjetivos: metas inválidas no viajan a la red', async () => {
     const { api, mutar } = montar('gerencia')
-    await waitFor(() => expect(api().leads).toHaveLength(1))
+    await waitFor(() => expect(api().equipo).toHaveLength(ROSTER.length))
 
     const res = mutar((a) => a.fijarObjetivos({
       vendedor: { capitalObjetivo: -1, ventasObjetivo: 0, conversionObjetivo: 0 },
@@ -204,7 +292,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('el gate de acciones está ABIERTO: crearLead persiste y resincroniza', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     listarLeads.mockClear()
 
@@ -230,7 +318,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('crearLead expone el rechazo sanitizado del INSERT para no anunciar un falso éxito', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     insertarLead.mockRejectedValueOnce(new CrmApiError(
       'Este contacto acaba de ser registrado por otro usuario',
@@ -261,7 +349,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('la RPC puede bloquear después del precheck y revierte el lead optimista', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     insertarLead.mockResolvedValueOnce({
       estado: 'tomado',
@@ -292,7 +380,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('rechaza una confirmación con otro lead_id y revierte el optimista', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     insertarLead.mockResolvedValueOnce({
       estado: 'creado',
@@ -321,7 +409,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('género y fecha de nacimiento llegan al INSERT (si no, el avatar nunca tiene silueta)', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
 
     const res = mutar((a) =>
@@ -346,7 +434,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('un lead menor de edad NO se crea ni se persiste', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     insertarLead.mockClear()
 
@@ -367,7 +455,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('crearTarea agenda de verdad: optimista + INSERT + agenda derivada', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const leadId = api().leads[0]!.id
 
@@ -388,7 +476,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
         tipo: 'llamada',
         titulo: 'Llamar a CLIENTE EXISTENTE',
         vence_en: '2027-01-05T15:00:00.000Z',
-        creado_por: 'u-ger',
+        creado_por: 'u-s1',
       }),
     )
     // Optimista: la tarea ya vive en el store y la agenda derivada la pinta
@@ -403,8 +491,48 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(listarTareas).toHaveBeenCalled()) // resync
   })
 
+  it('crearTarea valida y normaliza la reunión antes del optimista y del INSERT real', async () => {
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    const leadId = api().leads[0]!.id
+    insertarTarea.mockClear()
+
+    const invalida = mutar((a) => a.crearTarea({
+      lead_id: leadId,
+      tipo: 'reunion',
+      titulo: 'Enlace manipulado',
+      vence_en: '2027-01-05T15:00:00.000Z',
+      modalidad_reunion: 'virtual',
+      enlace_reunion: 'http://meet.example.com/sala',
+    }))
+    expect(invalida).toMatchObject({ ok: false, codigo: 'enlace_reunion_invalido' })
+    expect(insertarTarea).not.toHaveBeenCalled()
+
+    const valida = mutar((a) => a.crearTarea({
+      lead_id: leadId,
+      tipo: 'reunion',
+      titulo: 'Reunión virtual segura',
+      vence_en: '2027-01-05T15:00:00.000Z',
+      modalidad_reunion: 'virtual',
+      ubicacion_reunion: 'Campo incompatible inyectado',
+      enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
+    }))
+
+    expect(valida.ok).toBe(true)
+    expect(api().tareas.find((t) => t.id === valida.id)).toMatchObject({
+      modalidad_reunion: 'virtual',
+      ubicacion_reunion: null,
+      enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+    })
+    expect(insertarTarea).toHaveBeenCalledWith(expect.objectContaining({
+      modalidad_reunion: 'virtual',
+      ubicacion_reunion: null,
+      enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+    }))
+  })
+
   it('crearTarea rechaza tipo inválido y lead fuera del ámbito, sin tocar la red', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     insertarTarea.mockClear()
 
@@ -450,7 +578,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       creado_en: '2026-07-17T15:00:00.000Z',
     }
     listarTareas.mockResolvedValue([tareaBase])
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().tareas).toHaveLength(1))
 
     // Sin resultado → bloqueada (patrón Outreach) y la RPC no se toca.
@@ -474,7 +602,15 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       estado: 'completada',
       resultado_tipo: 'llamada_no_contestada',
       resultado_detalle: null,
-      siguiente: { tipo: 'whatsapp', titulo: 'WhatsApp a CLIENTE', vence_en: '2026-07-19T15:00:00.000Z' },
+      siguiente: {
+        id: expect.any(String),
+        tipo: 'whatsapp',
+        titulo: 'WhatsApp a CLIENTE',
+        vence_en: '2026-07-19T15:00:00.000Z',
+        modalidad_reunion: null,
+        ubicacion_reunion: null,
+        enlace_reunion: null,
+      },
     })
     // Optimista: la original cerrada, la siguiente pendiente, y el resultado ya en el timeline.
     expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('completada')
@@ -482,7 +618,75 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().actividades.some((a2) => a2.tipo === 'llamada_no_contestada')).toBe(true)
   })
 
-  it('reprogramar mueve la fecha (contador espejo, confirmación cae) y confirmar marca la cita', async () => {
+  it('completarTarea aplica la misma validación y normalización a una reunión encadenada', async () => {
+    const tareaBase = {
+      id: '44444444-4444-4444-8444-444444444444',
+      lead_id: '11111111-1111-4111-8111-111111111111',
+      perfil_id: null,
+      vendedor_id: 'u-v1',
+      asignado_supervisor_id: null,
+      tipo: 'llamada' as const,
+      titulo: 'Llamar antes de agendar',
+      nota: null,
+      vence_en: '2026-07-18T15:00:00.000Z',
+      duracion_min: null,
+      estado: 'pendiente' as const,
+      confirmada_en: null,
+      reagendada_de: null,
+      reprogramaciones: 0,
+      activo: true,
+      creado_en: '2026-07-17T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([tareaBase])
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+
+    const invalida = mutar((a) => a.completarTarea({
+      tarea_id: tareaBase.id,
+      estado: 'completada',
+      resultado_tipo: 'llamada_no_contestada',
+      siguiente: {
+        tipo: 'reunion',
+        titulo: 'Reunión insegura',
+        vence_en: '2026-07-19T15:00:00.000Z',
+        modalidad_reunion: 'virtual',
+        enlace_reunion: 'http://meet.example.com/sala',
+      },
+    }))
+    expect(invalida).toMatchObject({ ok: false, codigo: 'enlace_reunion_invalido' })
+    expect(cerrarTareaMock).not.toHaveBeenCalled()
+    expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('pendiente')
+
+    const valida = mutar((a) => a.completarTarea({
+      tarea_id: tareaBase.id,
+      estado: 'completada',
+      resultado_tipo: 'llamada_no_contestada',
+      siguiente: {
+        tipo: 'reunion',
+        titulo: 'Reunión segura',
+        vence_en: '2026-07-19T15:00:00.000Z',
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: 'Campo incompatible inyectado',
+        enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
+      },
+    }))
+
+    expect(valida.ok).toBe(true)
+    expect(cerrarTareaMock).toHaveBeenCalledWith(expect.objectContaining({
+      siguiente: expect.objectContaining({
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: null,
+        enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+      }),
+    }))
+    expect(api().tareas.find((t) => t.id === valida.siguiente_id)).toMatchObject({
+      modalidad_reunion: 'virtual',
+      ubicacion_reunion: null,
+      enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+    })
+  })
+
+  it('reprogramar conserva la original, enlaza una cita nueva y permite confirmarla', async () => {
     const cita = {
       id: '33333333-3333-4333-8333-333333333333',
       lead_id: '11111111-1111-4111-8111-111111111111',
@@ -502,24 +706,79 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       creado_en: '2026-07-17T15:00:00.000Z',
     }
     listarTareas.mockResolvedValue([cita])
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().tareas).toHaveLength(1))
 
     const rep = mutar((a) => a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
     expect(rep.ok).toBe(true)
-    expect(actualizarTarea).toHaveBeenCalledWith(cita.id, {
-      vence_en: '2026-07-19T20:00:00.000Z',
-      confirmada_en: null, // cita movida = hay que reconfirmar
+    expect(reprogramarReunionMock).toHaveBeenCalledWith(
+      cita.id,
+      '2026-07-19T20:00:00.000Z',
+      expect.any(String),
+    )
+    expect(api().tareas.find((t) => t.id === cita.id)).toMatchObject({
+      estado: 'reprogramada',
+      motivo_no_realizada: 'reprogramada',
     })
-    expect(api().tareas[0]).toMatchObject({ reprogramaciones: 1, confirmada_en: null })
+    const nueva = api().tareas.find((t) => t.reagendada_de === cita.id)
+    expect(nueva).toMatchObject({
+      vence_en: '2026-07-19T20:00:00.000Z',
+      reprogramaciones: 1,
+      confirmada_en: null,
+    })
 
-    const conf = mutar((a) => a.confirmarTarea(cita.id))
+    const conf = mutar((a) => a.confirmarTarea(nueva?.id ?? ''))
     expect(conf.ok).toBe(true)
     expect(api().tareas[0]?.confirmada_en).toBeTruthy()
   })
 
+  it('anular una reunión conserva motivo/detalle y usa solo la RPC especializada', async () => {
+    const cita = {
+      id: '55555555-5555-4555-8555-555555555555',
+      lead_id: '11111111-1111-4111-8111-111111111111',
+      perfil_id: null,
+      vendedor_id: 'u-v1',
+      asignado_supervisor_id: null,
+      tipo: 'reunion' as const,
+      titulo: 'Reunión que ya no aplica',
+      nota: null,
+      vence_en: '2026-07-18T20:00:00.000Z',
+      duracion_min: 60,
+      estado: 'pendiente' as const,
+      confirmada_en: null,
+      reagendada_de: null,
+      reprogramaciones: 0,
+      activo: true,
+      creado_en: '2026-07-17T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([cita])
+    const { api, mutar } = montar('supervisor')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+
+    const res = mutar((a) => a.anularTarea(cita.id, {
+      motivo: 'cancelada_cliente',
+      detalle: '  El cliente pidió cancelar  ',
+    }))
+
+    expect(res.ok).toBe(true)
+    expect(api().tareas.find((t) => t.id === cita.id)).toMatchObject({
+      estado: 'cancelada',
+      motivo_no_realizada: 'cancelada_cliente',
+      detalle_cierre_reunion: 'El cliente pidió cancelar',
+    })
+    expect(cerrarReunionMock).toHaveBeenCalledWith({
+      tarea_id: cita.id,
+      estado: 'cancelada',
+      resultado_reunion: null,
+      motivo_no_realizada: 'cancelada_cliente',
+      detalle: '  El cliente pidió cancelar  ',
+      siguiente: null,
+    })
+    expect(cerrarTareaMock).not.toHaveBeenCalled()
+  })
+
   it('editar capital real persiste monto y moneda juntos', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
 
@@ -535,7 +794,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   // verdad crea la cuenta del cliente vía edge desde la ficha. Marcar la etapa a
   // secas dejaría un "convertido" sin cliente detrás.
   it('convertir por el store sigue cerrado en real (la vía buena es la ficha/edge)', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
     const res = mutar((a) => a.convertir(id))
@@ -544,7 +803,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('rechazo del servidor: rollback con mensaje HONESTO cuando el resync sí aplica', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
     actualizarLead.mockRejectedValueOnce(new CrmApiError('Ese teléfono ya existe', 'DUP_TELEFONO'))
@@ -559,7 +818,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('rechazo + servidor inalcanzable: el toast NO miente ("se restauró")', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
     actualizarLead.mockRejectedValueOnce(new CrmApiError('No se pudo guardar el cambio', 'POSTGREST_ERROR'))
@@ -575,7 +834,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('descartar real con nota: persiste el update Y la nota como actividad aparte', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
 
@@ -591,7 +850,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('descartar real: si la nota falla tras el update OK, avisa el fallo parcial SIN mentir "se restauró"', async () => {
-    const { api, mutar } = montar('gerencia')
+    const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const id = api().leads[0]!.id
     // El update descarta OK; solo el insert de la nota falla.
@@ -614,7 +873,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     try {
       // Promesa que jamás se asienta: el peor caso (ni éxito ni fallo).
       listarLeads.mockImplementationOnce(() => new Promise(() => {}))
-      const { estado } = montar('gerencia')
+      const { estado } = montar('supervisor')
       expect(estado().cargando).toBe(true)
       expect(estado().error).toBe(false)
 
@@ -630,7 +889,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('la carga normal NO se corta por el límite (no rompe el arranque lento pero vivo)', async () => {
-    const { api, estado } = montar('gerencia')
+    const { api, estado } = montar('supervisor')
     await waitFor(() => expect(estado().cargando).toBe(false))
     expect(estado().error).toBe(false)
     expect(api().leads).toHaveLength(1)
@@ -659,7 +918,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
   it('tras un fallo de metas, recargar() limpia la marca cuando el servidor vuelve', async () => {
     listarObjetivosMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
-    const { api, estado } = montar('gerencia')
+    const { api, estado } = montar('supervisor')
     await waitFor(() => expect(api().objetivosError).toBe(true))
 
     listarObjetivosMock.mockResolvedValue([])
@@ -672,7 +931,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
   it('fallo de la carga inicial → estado.error (no pinta CRM vacío) y reintentar recupera', async () => {
     listarLeads.mockRejectedValueOnce(new CrmApiError('caída inicial', 'POSTGREST_ERROR'))
-    const { api, estado } = montar('gerencia')
+    const { api, estado } = montar('supervisor')
     await waitFor(() => expect(estado().error).toBe(true))
     expect(api().leads).toHaveLength(0)
 

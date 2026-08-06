@@ -36,6 +36,13 @@ import {
 } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  CAMPOS_REUNION_VACIOS,
+  CamposReunion,
+  camposTareaDeReunion,
+  type EstadoCamposReunion,
+} from '@/components/app/campos-reunion'
+import { validarReunionOperativa } from '@/lib/reunion-operativa'
 import { useAuth } from '@/lib/auth-context'
 import { puedeEscribir } from '@/lib/roles'
 import { useCRMData } from '@/lib/store-context'
@@ -47,7 +54,13 @@ import { proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { TIPO_TAREA_DE_CANAL, tareaQueCierra, type Canal } from '@/lib/contacto-tarea'
 import { esPlanVivo } from '@/lib/plan-lead'
 import { primerNombre } from '@/lib/format'
-import { ETAPA_INFO, type EtapaActiva, type Lead, type Tarea, type TipoActividadManual } from '@/lib/tipos'
+import {
+  ETAPA_INFO,
+  type EtapaActiva,
+  type Lead,
+  type Tarea,
+  type TipoActividadManual,
+} from '@/lib/tipos'
 
 // ── Constantes ────────────────────────────────────────────────────────────────
 
@@ -319,6 +332,8 @@ function DialogResultado({
   const [nota, setNota] = useState('')
   const [cierraTarea, setCierraTarea] = useState(true)
   const [agendaSiguiente, setAgendaSiguiente] = useState(true)
+  const [camposReunion, setCamposReunion] =
+    useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
 
   const pendientes = tareasDe(lead.id)
   const conPlanVivo = pendientes.filter((t) => esPlanVivo(t, ahora))
@@ -350,6 +365,16 @@ function DialogResultado({
           ahora,
         })
       : null
+    const reunionSugerida = sugerida?.tipo === 'reunion'
+      ? validarReunionOperativa(camposReunion)
+      : null
+    if (reunionSugerida && !reunionSugerida.ok) {
+      toast.error(reunionSugerida.error)
+      return
+    }
+    const payloadReunionSugerida = camposTareaDeReunion(
+      reunionSugerida?.ok ? reunionSugerida : null,
+    )
 
     // CAMINO A — este contacto cierra la tarea que lo motivó. UNA sola
     // escritura: la RPC `crm.cerrar_tarea` ya inserta la actividad del
@@ -362,7 +387,12 @@ function DialogResultado({
         resultado_tipo: tipo,
         resultado_detalle: detalle ?? null,
         siguiente: sugerida
-          ? { tipo: sugerida.tipo, titulo: sugerida.titulo, vence_en: sugerida.vence_en }
+          ? {
+              tipo: sugerida.tipo,
+              titulo: sugerida.titulo,
+              vence_en: sugerida.vence_en,
+              ...payloadReunionSugerida,
+            }
           : null,
       })
       if (res.ok) {
@@ -391,6 +421,7 @@ function DialogResultado({
         tipo: sugerida.tipo,
         titulo: sugerida.titulo,
         vence_en: sugerida.vence_en,
+        ...payloadReunionSugerida,
       })
       if (!creada.ok) toast.warning('Contacto registrado, pero no se pudo agendar el siguiente paso')
     }
@@ -446,20 +477,33 @@ function DialogResultado({
               </label>
             )}
             {puedeAgendar && (
-              <label className="flex cursor-pointer items-start gap-2 text-[11px] font-semibold text-foreground/85">
-                <input
-                  type="checkbox"
-                  className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-[var(--accent)]"
-                  checked={agendaSiguiente}
-                  onChange={(e) => setAgendaSiguiente(e.target.checked)}
-                />
-                <span>
-                  Agendar el siguiente paso{' '}
-                  <span className="font-normal text-muted-foreground">
-                    (el canal y la fecha los propone el sistema al elegir el resultado)
+              <>
+                <label className="flex cursor-pointer items-start gap-2 text-[11px] font-semibold text-foreground/85">
+                  <input
+                    type="checkbox"
+                    className="mt-0.5 size-3.5 shrink-0 cursor-pointer accent-[var(--accent)]"
+                    checked={agendaSiguiente}
+                    onChange={(e) => setAgendaSiguiente(e.target.checked)}
+                  />
+                  <span>
+                    Agendar el siguiente paso{' '}
+                    <span className="font-normal text-muted-foreground">
+                      (el canal y la fecha los propone el sistema al elegir el resultado)
+                    </span>
                   </span>
-                </span>
-              </label>
+                </label>
+                {agendaSiguiente && (
+                  <div className="ml-5 mt-2 space-y-1.5">
+                    <p className="text-[10px] font-medium text-muted-foreground">
+                      Si el siguiente paso propuesto es una reunión, indica su modalidad.
+                    </p>
+                    <CamposReunion
+                      valor={camposReunion}
+                      onChange={setCamposReunion}
+                    />
+                  </div>
+                )}
+              </>
             )}
           </div>
         )}

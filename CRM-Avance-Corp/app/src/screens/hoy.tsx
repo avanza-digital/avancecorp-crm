@@ -14,7 +14,7 @@ export function Hoy(): JSX.Element {
     case 'supervisor':
       return <HoySupervisor />
     case 'gerencia':
-      return <HoyGerencia />
+      return <HoyGerencia seccion="resumen" />
     case 'directorio':
       return <HoyDirectorio />
     case 'vendedor':
