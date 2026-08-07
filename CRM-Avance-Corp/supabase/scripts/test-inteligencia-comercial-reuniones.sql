@@ -1,3 +1,6 @@
+-- LEGACY / FIXTURE HISTORICO PRE-20260807203757.
+-- Define las metas antiguas solo para reproducir migraciones históricas; no es
+-- el gate vigente de Metas. Usar test-metas-versionadas.sql para esa frontera.
 \set ON_ERROR_STOP on
 
 -- Oráculo autocontenido de 20260805180000, 20260805200000 y 20260805213000.

@@ -1,3 +1,7 @@
+-- LEGACY / ORACULO HISTORICO PRE-20260807203757.
+-- Depende deliberadamente del fixture antiguo de Inteligencia Comercial; no es
+-- el gate vigente de Metas. La frontera actual se valida con
+-- test-metas-versionadas.sql.
 \set ON_ERROR_STOP on
 
 -- Oraculo autocontenido: levanta la frontera de Inteligencia (que instalaba el

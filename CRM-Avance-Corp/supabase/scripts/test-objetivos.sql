@@ -1,3 +1,6 @@
+-- LEGACY / SOLO HISTORIA PRE-20260807203757.
+-- No ejecutar como gate vigente: prueba crm.objetivos + fijar_objetivos(),
+-- superficies retiradas. El reemplazo es test-metas-versionadas.sql.
 -- Oraculo transaccional autocontenido de metas comerciales (crm.objetivos).
 -- Exito = token OBJETIVOS_TX_OK; todo queda en rollback.
 

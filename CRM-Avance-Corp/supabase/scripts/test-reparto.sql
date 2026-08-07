@@ -89,8 +89,13 @@ begin
     raise exception 'R07 la coordinadora ve PII de clientes (clientes_basicos)';
   end if;
 
-  if exists (select 1 from crm.objetivos) then
-    raise exception 'R08 la coordinadora ve las metas comerciales';
+  if jsonb_array_length(
+    coalesce(
+      crm.configuracion_metas_fn(date_trunc('month',current_date)::date)->'vendedores',
+      '[]'::jsonb
+    )
+  ) <> 0 then
+    raise exception 'R08 la coordinadora ve metas comerciales fuera de su ambito';
   end if;
 
   begin

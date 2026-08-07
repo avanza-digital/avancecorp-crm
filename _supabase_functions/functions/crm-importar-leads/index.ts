@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // Versión EXACTA (no `@2`): esta función corre con service_role; un rango podría
 // resolver otra versión en un deploy futuro. Al subir, revisar contra la última 2.x.
 import { createClient } from "jsr:@supabase/supabase-js@2.110.8";
+import { indexarDestinosImportacion } from "./destinos.ts";
 
 // ============================================================================
 // crm-importar-leads — conector hoja de Google → crm.leads (2026-07-20).
@@ -39,7 +40,7 @@ import { createClient } from "jsr:@supabase/supabase-js@2.110.8";
 
 // Secreto compartido con el Apps Script de la hoja — SOLO del entorno.
 // Debe ser 64 hex (openssl rand -hex 32). Si falta o no cumple el formato,
-// secretoValido() rechaza TODO (fail-closed): un valor débil no debe habilitar
+// secretoValido() rechaza todas las solicitudes (fail-closed): un valor débil no debe habilitar
 // el conector por accidente.
 const IMPORTAR_SECRET = Deno.env.get("CRM_IMPORTAR_SECRET") ?? "";
 const SECRETO_BIEN_FORMADO = /^[0-9a-f]{64}$/i.test(IMPORTAR_SECRET);
@@ -156,7 +157,8 @@ function edadCumplida(isoNacimiento: string): number {
  *   NO:  "5000.999" (3 dec) · "12,50" (millar mal puesto) · "50.000,00" (formato UE)
  */
 function parseCapital(valor: string): number | null {
-  const limpio = valor.replace(/US\$|S\/\.?|\$/gi, "").replace(/\s/g, "").trim();
+  const limpio = valor.replace(/US\$|S\/\.?|\$/gi, "").replace(/\s/g, "")
+    .trim();
   if (limpio === "") return null;
   // Solo dígitos, comas de millar en grupos de 3, y a lo sumo un punto decimal
   // con 1-2 dígitos. Cualquier otra cosa NO matchea → null (rechazo, no arreglo).
@@ -216,11 +218,6 @@ Deno.serve(async (req: Request) => {
     Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
     { auth: { persistSession: false }, db: { schema: "crm" } },
   );
-  const adminPublic = createClient(
-    Deno.env.get("SUPABASE_URL")!,
-    Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!,
-    { auth: { persistSession: false } },
-  );
 
   // ── Pase 1: validar cada fila en memoria ───────────────────────────────────
   type Valida = {
@@ -261,14 +258,17 @@ Deno.serve(async (req: Request) => {
 
     const capital = parseCapital((f.capital ?? "").trim());
     if (capital === null) {
-      rechazo("capital inválido (número mayor a 0, formato coma=millar punto=decimal, máx 2 decimales)");
+      rechazo(
+        "capital inválido (número mayor a 0, formato coma=millar punto=decimal, máx 2 decimales)",
+      );
       continue;
     }
 
     const monedaRaw = (f.moneda ?? "").trim().toUpperCase();
     const moneda = monedaRaw === "PEN" || monedaRaw === "SOLES"
       ? "PEN"
-      : monedaRaw === "USD" || monedaRaw === "DOLARES" || monedaRaw === "DÓLARES"
+      : monedaRaw === "USD" || monedaRaw === "DOLARES" ||
+          monedaRaw === "DÓLARES"
       ? "USD"
       : null;
     if (!moneda) {
@@ -278,7 +278,9 @@ Deno.serve(async (req: Request) => {
 
     const canal = CANALES[(f.canal ?? "").trim().toLowerCase()];
     if (!canal) {
-      rechazo("canal inválido (Referido / LANDING / FORMULARIO / Wallking / Otro)");
+      rechazo(
+        "canal inválido (Referido / LANDING / FORMULARIO / Wallking / Otro)",
+      );
       continue;
     }
 
@@ -338,13 +340,17 @@ Deno.serve(async (req: Request) => {
     let registrarConsentimiento = false;
     if (autorizoRaw === "") {
       noContactar = false;
-    } else if (autorizoRaw === "SI" || autorizoRaw === "SÍ" || autorizoRaw === "S") {
+    } else if (
+      autorizoRaw === "SI" || autorizoRaw === "SÍ" || autorizoRaw === "S"
+    ) {
       noContactar = false;
       registrarConsentimiento = true;
     } else if (autorizoRaw === "NO" || autorizoRaw === "N") {
       noContactar = true;
     } else {
-      rechazo('¿Autorizó contacto? debe ser SI o NO (vacío = sin registrar consentimiento)');
+      rechazo(
+        "¿Autorizó contacto? debe ser SI o NO (vacío = sin registrar consentimiento)",
+      );
       continue;
     }
     const fuente = (f.fuente_consentimiento ?? "").trim().slice(0, 80) || null;
@@ -371,7 +377,9 @@ Deno.serve(async (req: Request) => {
         categoria_interes: interes,
         nota: (f.nota ?? "").trim().slice(0, 2000) || null,
         no_contactar: noContactar,
-        consentimiento_en: registrarConsentimiento ? new Date().toISOString() : null,
+        consentimiento_en: registrarConsentimiento
+          ? new Date().toISOString()
+          : null,
         consentimiento_fuente: registrarConsentimiento ? fuente : null,
         vendedor_id: null,
         asignado_supervisor_id: null,
@@ -397,7 +405,9 @@ Deno.serve(async (req: Request) => {
       .select("telefono, etapa, activo, no_contactar")
       .in("telefono", validas.map((v) => v.telefono));
     if (errDedup) {
-      return json({ error: `Error consultando duplicados: ${errDedup.message}` }, 500);
+      return json({
+        error: `Error consultando duplicados: ${errDedup.message}`,
+      }, 500);
     }
 
     const CERRADAS = new Set(["convertido", "descartado"]);
@@ -411,7 +421,7 @@ Deno.serve(async (req: Request) => {
     // CANDADO LEGAL, inseparable del cambio de arriba. Al reabrir la puerta a un
     // teléfono que ya existía, el consentimiento se recalcularía desde la hoja y
     // podría BORRAR un "no me llamen" anterior. Por eso este set se calcula sobre
-    // TODO el histórico (sin mirar activo ni etapa, a propósito): si esa persona
+    // el historial completo (sin mirar activo ni etapa, a propósito): si esa persona
     // alguna vez dijo que no, la fila nueva nace con no_contactar = true.
     // Ley 29571 (INDECOPI). Ojo: solo cruza por TELÉFONO, que es la misma llave
     // del reingreso que se reabre aquí; enlazar por DNI es deuda preexistente.
@@ -421,47 +431,43 @@ Deno.serve(async (req: Request) => {
         .map((r) => r.telefono),
     );
 
-    // ── Pase 3: resolver vendedor por correo (perfiles → crm.equipo) ─────────
+    // ── Pase 3: resolver destino por el rol CRM efectivo canónico ───────────
     const correosVendedor = [
       ...new Set(validas.map((v) => v.vendedorCorreo).filter(Boolean)),
     ] as string[];
     const vendedorPorCorreo = new Map<string, string>();
     if (correosVendedor.length > 0) {
-      const { data: perfiles, error: errPerfiles } = await adminPublic
-        .from("perfiles")
-        .select("id, correo, activo")
-        .in("correo", correosVendedor)
-        .eq("activo", true);
-      // Un fallo aquí (permisos/columna/servicio) NO debe leerse como "vendedor no
+      const { data: destinos, error: errDestinos } = await admin.rpc(
+        "destinos_importacion_por_correo_fn",
+        { p_correos: correosVendedor },
+      );
+      // Un fallo aquí (permisos/contrato/servicio) NO debe leerse como "vendedor no
       // encontrado" e importar todo sin dueño: se corta con 500 ANTES de cualquier
       // insert y el Apps Script reintenta el lote como "ERROR temporal".
-      if (errPerfiles) {
-        return json({ error: `Error resolviendo vendedores: ${errPerfiles.message}` }, 500);
+      if (errDestinos) {
+        return json({
+          error: `Error resolviendo vendedores: ${errDestinos.message}`,
+        }, 500);
       }
-      const perfilIds = (perfiles ?? []).map((p) => p.id);
-      if (perfilIds.length > 0) {
-        const { data: equipo, error: errEquipo } = await admin
-          .from("equipo")
-          .select("perfil_id, rol_crm, activo")
-          .in("perfil_id", perfilIds)
-          .eq("activo", true)
-          .in("rol_crm", ["vendedor", "supervisor"]);
-        if (errEquipo) {
-          return json({ error: `Error resolviendo equipo: ${errEquipo.message}` }, 500);
+      try {
+        for (const [correo, perfilId] of indexarDestinosImportacion(destinos)) {
+          vendedorPorCorreo.set(correo, perfilId);
         }
-        const habilitados = new Set((equipo ?? []).map((e) => e.perfil_id));
-        for (const p of perfiles ?? []) {
-          if (habilitados.has(p.id)) {
-            vendedorPorCorreo.set((p.correo ?? "").toLowerCase(), p.id);
-          }
-        }
+      } catch (error) {
+        const detalle = error instanceof Error
+          ? error.message
+          : "respuesta inválida";
+        return json({ error: `Error resolviendo vendedores: ${detalle}` }, 500);
       }
     }
 
     // ── Pase 4: insertar UNA a una (un lead malo no tumba el lote) ───────────
     for (const v of validas) {
       if (yaEnCrm.has(v.telefono)) {
-        resultados.push({ fila: v.fila, estado: "DUPLICADO: ya existe en el CRM" });
+        resultados.push({
+          fila: v.fila,
+          estado: "DUPLICADO: ya existe en el CRM",
+        });
         continue;
       }
       // El "no me llamen" histórico manda sobre lo que diga la hoja hoy.

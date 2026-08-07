@@ -1,3 +1,8 @@
+-- LEGACY / ORACULO HISTORICO PRE-20260807203757.
+-- Conserva el contrato V2 original para reproducir su migracion, incluida la
+-- medicion fija que ya no sale por el RPC publico. El gate vigente del contrato
+-- saneado y del SLA versionado es `test-sla-versionado.sql`.
+--
 -- Oraculo transaccional autocontenido de la V2 de distribucion por capital.
 -- Usa private.metricas_distribucion_leads_core con un reloj fijo y revierte
 -- todos los fixtures. La RPC publica se prueba aparte bajo roles reales.
@@ -14,7 +19,8 @@ values
   ('15000000-0000-4000-8000-000000000003', 'authenticated', 'authenticated', 'metricas-s@test.invalid', now(), '{}', '{}', now(), now()),
   ('15000000-0000-4000-8000-000000000004', 'authenticated', 'authenticated', 'metricas-g@test.invalid', now(), '{}', '{}', now(), now()),
   ('15000000-0000-4000-8000-000000000005', 'authenticated', 'authenticated', 'metricas-d@test.invalid', now(), '{}', '{}', now(), now()),
-  ('15000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'metricas-i@test.invalid', now(), '{}', '{}', now(), now());
+  ('15000000-0000-4000-8000-000000000006', 'authenticated', 'authenticated', 'metricas-i@test.invalid', now(), '{}', '{}', now(), now()),
+  ('15000000-0000-4000-8000-000000000007', 'authenticated', 'authenticated', 'metricas-sa@test.invalid', now(), '{}', '{}', now(), now());
 
 insert into public.perfiles (id, nombre_completo, correo, rol, activo)
 values
@@ -23,8 +29,10 @@ values
   ('15000000-0000-4000-8000-000000000003', 'Metricas Supervisor', 'metricas-s@test.invalid', 'comercial', true),
   ('15000000-0000-4000-8000-000000000004', 'Metricas Gerencia', 'metricas-g@test.invalid', 'directorio', true),
   ('15000000-0000-4000-8000-000000000005', 'Metricas Directorio', 'metricas-d@test.invalid', 'directorio', true),
-  ('15000000-0000-4000-8000-000000000006', 'Metricas Analista Inactivo', 'metricas-i@test.invalid', 'comercial', true);
+  ('15000000-0000-4000-8000-000000000006', 'Metricas Analista Inactivo', 'metricas-i@test.invalid', 'comercial', true),
+  ('15000000-0000-4000-8000-000000000007', 'Metricas Superadmin Residual', 'metricas-sa@test.invalid', 'superadmin', true);
 
+set local session_replication_role=replica;
 insert into crm.equipo (
   perfil_id, rol_crm, supervisor_id, activo, capacidad_leads_objetivo
 )
@@ -33,11 +41,22 @@ values
   ('15000000-0000-4000-8000-000000000001', 'vendedor', '15000000-0000-4000-8000-000000000003', true, 4),
   ('15000000-0000-4000-8000-000000000002', 'vendedor', '15000000-0000-4000-8000-000000000003', true, 3),
   ('15000000-0000-4000-8000-000000000004', 'gerencia', null, true, null),
-  ('15000000-0000-4000-8000-000000000006', 'vendedor', '15000000-0000-4000-8000-000000000003', false, null);
+  ('15000000-0000-4000-8000-000000000006', 'vendedor', '15000000-0000-4000-8000-000000000003', false, null),
+  ('15000000-0000-4000-8000-000000000007', 'vendedor', '15000000-0000-4000-8000-000000000003', true, 8);
+set local session_replication_role=origin;
 
 -- Evita que los triggers creen episodios con statement_timestamp(): el oraculo
 -- necesita ventanas exactas. CHECK, UNIQUE y EXCLUDE permanecen activos.
 set local session_replication_role = replica;
+
+-- Compatibilidad del fixture histórico con las columnas NOT NULL añadidas por
+-- el SLA versionado. Los defaults viven solo dentro de esta transacción; el
+-- core legacy no usa estos campos y los triggers están suspendidos a propósito.
+alter table crm.lead_asignaciones
+  alter column sla_politica_asignacion_id
+    set default private.sla_politica_vigente(statement_timestamp()),
+  alter column primera_gestion_limite_en set default statement_timestamp(),
+  alter column primer_contacto_limite_en set default statement_timestamp();
 
 insert into crm.leads (
   id, nombre_completo, telefono, origen, etapa, monto_estimado, moneda,
@@ -256,10 +275,35 @@ $test$;
 select set_config('request.jwt.claim.sub', '15000000-0000-4000-8000-000000000004', true);
 set local role authenticated;
 do $test$
+declare v jsonb; v_agenda jsonb; v_conversiones jsonb;
 begin
-  if crm.metricas_distribucion_leads_v2_fn(date '2026-05-01', date '2026-05-17')->>'version' <> '2' then
+  v:=crm.metricas_distribucion_leads_v2_fn(date '2026-05-01', date '2026-05-17');
+  v_agenda:=crm.metricas_agenda_fn(date '2026-05-01', date '2026-05-17');
+  v_conversiones:=crm.metricas_conversiones_fn(date '2026-05-01', date '2026-05-17');
+  if v->>'version' <> '2' then
     raise exception 'M13 Gerencia no pudo ejecutar V2';
   end if;
+  if not exists(
+    select 1 from jsonb_array_elements(v->'analistas') a
+    where a.value->>'analista_id'='15000000-0000-4000-8000-000000000007'
+      and (a.value->>'activo')::boolean is false
+      and (a.value->>'disponible_para_recibir')::boolean is false
+  ) then
+    raise exception 'M13a Superadmin residual quedo activo/disponible';
+  end if;
+  if exists(select 1 from jsonb_array_elements(v_agenda->'vendedores') a
+       where a.value->>'vendedor_id'='15000000-0000-4000-8000-000000000007')
+     or exists(select 1 from jsonb_array_elements(v_conversiones->'responsables') a
+       where a.value->>'vendedor_id'='15000000-0000-4000-8000-000000000007') then
+    raise exception 'M13c Superadmin residual reaparecio en metricas antiguas';
+  end if;
+  begin
+    perform * from crm.actualizar_capacidad_leads_objetivo(
+      '15000000-0000-4000-8000-000000000007',10
+    );
+    raise exception 'M13d Gerencia configuro capacidad a destino residual';
+  exception when no_data_found then null;
+  end;
   if crm.metricas_distribucion_leads_fn(date '2026-05-01', date '2026-05-17')->>'version' <> '1' then
     raise exception 'M13b Gerencia perdio el endpoint V1 de rollback';
   end if;
@@ -268,6 +312,59 @@ begin
     raise exception 'M14 acepto periodo mayor a 366 dias';
   exception when invalid_parameter_value then null;
   end;
+end;
+$test$;
+reset role;
+
+-- La misma membresía residual tampoco recupera autoridad usando el endpoint.
+select set_config('request.jwt.claim.sub', '15000000-0000-4000-8000-000000000007', true);
+set local role authenticated;
+do $test$
+begin
+  begin
+    perform crm.metricas_distribucion_leads_v2_fn(date '2026-05-01', date '2026-05-17');
+    raise exception 'M16b Superadmin residual consulto metricas gerenciales';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform crm.metricas_agenda_fn(date '2026-05-01', date '2026-05-17');
+    raise exception 'M16d Superadmin residual consulto agenda gerencial';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform crm.metricas_conversiones_fn(date '2026-05-01', date '2026-05-17');
+    raise exception 'M16e Superadmin residual consulto conversiones';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform crm.metricas_reuniones_fn(date '2026-05-01', date '2026-05-17');
+    raise exception 'M16f Superadmin residual consulto reuniones';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform * from crm.actualizar_capacidad_leads_objetivo(
+      '15000000-0000-4000-8000-000000000001',10
+    );
+    raise exception 'M16g Superadmin residual configuro capacidad';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$test$;
+reset role;
+
+-- El RPC server-to-server devuelve solo destinos efectivos; Edge no consulta
+-- public.perfiles/crm.equipo ni reconstruye esta autorización.
+set local role service_role;
+do $test$
+begin
+  if (select count(*) from crm.destinos_importacion_por_correo_fn(array[
+       'metricas-a@test.invalid','metricas-sa@test.invalid'
+     ]))<>1
+     or not exists(select 1 from crm.destinos_importacion_por_correo_fn(array[
+       'METRICAS-A@TEST.INVALID','METRICAS-SA@TEST.INVALID'
+     ]) where perfil_id='15000000-0000-4000-8000-000000000001') then
+    raise exception 'M16c importador resolvio destino sin rol efectivo';
+  end if;
 end;
 $test$;
 reset role;
@@ -301,6 +398,13 @@ do $test$
 begin
   if has_function_privilege('anon', 'crm.metricas_distribucion_leads_fn(date,date)', 'EXECUTE') then
     raise exception 'M17 anon tiene EXECUTE';
+  end if;
+  if has_function_privilege(
+    'authenticated','crm.destinos_importacion_por_correo_fn(text[])','EXECUTE'
+  ) or not has_function_privilege(
+    'service_role','crm.destinos_importacion_por_correo_fn(text[])','EXECUTE'
+  ) then
+    raise exception 'M17c ACL del resolver de importacion incorrecta';
   end if;
   if has_function_privilege('anon', 'crm.metricas_distribucion_leads_v2_fn(date,date)', 'EXECUTE') then
     raise exception 'M17b anon tiene EXECUTE V2';
@@ -347,7 +451,7 @@ $test$;
 
 select jsonb_build_object(
   'resultado', 'METRICAS_DISTRIBUCION_TX_OK',
-  'analistas_fixture', 4,
+  'analistas_fixture', 5,
   'episodios_cohorte', 7,
   'leads_por_repartir', 3
 ) as validacion;
