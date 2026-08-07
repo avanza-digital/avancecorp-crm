@@ -48,3 +48,8 @@ Pendientes de auditoría:
 - Los documentos, el PDF, el contrato y `public_html` que aparecen fuera de
   este trabajo pertenecen a otros frentes y no deben incluirse automáticamente
   en commits del CRM.
+
+## Continuidad posterior
+
+- El siguiente ciclo quedó documentado en
+  [[Configuración operativa CRM 2026-08-07]].

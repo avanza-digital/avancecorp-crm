@@ -419,3 +419,48 @@ Producción sirve `index-mxMTOI1H.js`; HTML y chunks críticos coincidieron byte
 byte, el asset previo y el ZIP responden 404. Smoke autenticado real con CARLOS
 VALLES mostró operaciones globales de Cartera y el formulario «Corrección
 autorizada por Gerencia», sin guardar datos y con consola limpia.
+
+## Configuración operativa versionada (2026-08-07, solo local)
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260807203740 | — | crm_usuarios_jerarquia_autoservicio | 🧪 **SOLO LOCAL — NO APLICADA NI DESPLEGADA EN PRODUCCIÓN.** Añade el contrato de administración de personas y jerarquía: Gerencia crea/edita, activa o desactiva la membresía CRM, organiza la estructura y solicita recuperación; Superadmin Portal conserva en exclusiva la asignación/cambio de `rol_crm`. Agrega `directorio` al dominio CRM, auditoría `crm.usuario_eventos`, validación de ciclos/compatibilidad y transferencias atómicas con control optimista. La Edge Function `crm-usuarios` mantiene Auth Admin y `service_role` fuera del navegador; ninguna autorización depende del correo. |
+| 20260807203751 | — | crm_catalogo_productos_versionado | 🧪 **SOLO LOCAL — NO APLICADA NI DESPLEGADA EN PRODUCCIÓN.** Crea producto estable, versiones y condiciones normalizadas; publica/retira de forma inmutable e integra `public.contratos.producto_condicion_id` con snapshot histórico exacto, FK `ON DELETE RESTRICT` y wrappers de alta/corrección. Gerencia administra el catálogo; los consumidores operativos solo seleccionan condiciones publicadas. El bridge de altas legacy permanece deliberadamente abierto hasta migrar `public_html`; por tanto esta pieza **no está cerrada integralmente**. |
+| 20260807203757 | — | crm_metas_sla_versionados | 🧪 **SOLO LOCAL — NO APLICADA NI DESPLEGADA EN PRODUCCIÓN.** Sustituye los dos modelos antiguos de metas por publicaciones append-only por vendedor, categoría y moneda, con revisión optimista; separa explícitamente `fuentes_reales.capital_y_contratos = contratos_confirmados` de `fuentes_reales.conversion = leads_resueltos`. Versiona políticas SLA y sella política/deadlines por ciclo, asignación y etapa; expone configuración, cumplimiento, métricas y estado vivo. La V2 de Distribución deja de transportar el SLA fijo de 24 h y “estancados” derivados de esa política. Actores, sujetos y destinos vivos se resuelven por rol CRM efectivo, incluidas métricas históricas, tareas e importación, para que una membresía residual de Superadmin sin Gerencia no recupere operación. Los archivos legacy de metas quedan inmutables, sin policies ni acceso Data API; sus writers antiguos se retiran. |
+
+Oráculos transaccionales dedicados, todos con rollback y sin aplicar estado
+remoto:
+
+- `supabase/scripts/test-usuarios-jerarquia.sql` →
+  `USUARIOS_JERARQUIA_TX_OK`.
+- `supabase/scripts/test-productos-inversion.sql` →
+  `PRODUCTOS_INVERSION_TX_OK`.
+- `supabase/scripts/test-metas-versionadas.sql` →
+  `METAS_VERSIONADAS_TX_OK`.
+- `supabase/scripts/test-sla-versionado.sql` → `SLA_VERSIONADO_TX_OK`.
+- `supabase/scripts/test-metricas-distribucion-leads.sql` →
+  `METRICAS_DISTRIBUCION_TX_OK`.
+
+Gate local final en PostgreSQL 16 desechable: replay limpio de
+`203740 → 203751 → 203757`, cinco tokens SQL verdes, app 1,403/1,403,
+E2E 73 aprobados y 38 omitidos por requerir sesión real, Edge Usuarios 10/10,
+Edge Importador 3/3, typecheck, lint, build, check y formato verdes. Advisors:
+sin hallazgos nuevos atribuibles a estas migraciones; solo permanecen warnings
+históricos del esquema base. El clon completó únicamente el stub estándar de
+`auth.users` que el dump sanitizado reduce a `id`; no se modificó producción.
+
+El frontend local ya abre los cuatro módulos desde Configuración. El riel
+operativo consulta solo los dominios autorizados y resume personas, catálogo,
+metas y SLA. El modo demo usa fixtures validados por los mismos contratos
+estrictos, rechaza escrituras antes de la API y tiene recorrido E2E de las cuatro
+tarjetas para Gerencia y Directorio con cero solicitudes a Supabase.
+
+**Único gate funcional abierto:** `public_html/js/admin/analista.js` y
+`public_html/js/admin/contratos.js`, en un repo hermano fuera del alcance y de la
+autorización de escritura actual, todavía consumen las RPC legacy de contratos.
+La compatibilidad `permite_altas_legacy` no puede cerrarse sin migrar, desplegar
+y verificar primero esos callers. Después Gerencia debe ejecutar el cierre
+irreversible `crm.cerrar_altas_legacy_productos(p_expected_revision)`. Mientras
+eso no ocurra, no se declara deuda saldada ni cierre integral. No hubo branch
+remota, `db push`, merge de migraciones, deploy de Edge Function ni release de
+frontend para estas tres versiones.
