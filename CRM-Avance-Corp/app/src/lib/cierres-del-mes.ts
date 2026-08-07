@@ -1,8 +1,8 @@
 // Cierres del MES vigente (Lima) — la definición ÚNICA de "ventas del mes".
 //
-// POR QUÉ existe este módulo: las metas de `crm.objetivos` son MENSUALES (una
-// fila por mes calendario y rol), así que el numerador que se enfrenta a ellas
-// tiene que ser del mes también. Contar `etapa === 'convertido'` sobre toda la
+// POR QUÉ existe este módulo: las métricas comerciales son MENSUALES, así que
+// cualquier numerador histórico que se compare por período tiene que usar el
+// mismo mes calendario. Contar `etapa === 'convertido'` sobre toda la
 // vida del ámbito y compararlo con la cuota del mes hace que el marcador mienta
 // hacia arriba de forma PERMANENTE desde el segundo mes de operación — y es la
 // cifra con la que se juzga a la fuerza comercial.

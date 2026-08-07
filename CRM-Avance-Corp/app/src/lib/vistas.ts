@@ -1,7 +1,7 @@
 // Política única de acceso a vistas para la UX. Sidebar y App consumen estas
 // funciones; la seguridad real permanece en la RLS del esquema crm.
 import { can, esRol, type Accion, type Rol } from '@/lib/roles'
-import { esVistaGerencia, esVistaLeads, type Vista } from '@/lib/router'
+import { esVistaConfiguracion, esVistaGerencia, esVistaLeads, type Vista } from '@/lib/router'
 
 type EstadoGateLeads = 'abierto' | 'cerrado'
 
@@ -34,13 +34,24 @@ const CAPACIDAD_POR_VISTA = {
   repartir: 'repartirCola',
   equipo: 'verGestionEquipo',
   config: 'verConfiguracion',
+  'config-usuarios': null,
+  'config-productos': null,
+  'config-metas': null,
+  'config-sla': null,
 } as const satisfies Record<Vista, Accion | null>
 
 /** Dónde aterriza un rol cuando la ruta pedida no existe o no está permitida. */
-export function vistaBase(rol: Rol | null | undefined, leadsVisibles: boolean): Vista {
+export function vistaBase(
+  rol: Rol | null | undefined,
+  leadsVisibles: boolean,
+  rolPortal?: string | null,
+): Vista {
   // Compatibilidad defensiva: Workspace solo se monta con un perfil enrolado,
   // pero los callers históricos conservan el mismo fallback para un rol ausente.
   if (!esRol(rol)) return leadsVisibles ? 'hoy' : 'mi-cartera'
+  // La autoridad Portal para gobernar roles no convierte a Superadmin en un
+  // lector/operador CRM. Gerencia + Superadmin conserva la landing de Gerencia.
+  if (rolPortal === 'superadmin' && rol !== 'gerencia') return 'config-usuarios'
   const estado: EstadoGateLeads = leadsVisibles ? 'abierto' : 'cerrado'
   return VISTA_BASE_POR_ROL[rol][estado]
 }
@@ -53,15 +64,23 @@ export function vistaPermitida(
   vista: Vista,
   rol: Rol | null | undefined,
   leadsVisibles: boolean,
+  rolPortal?: string | null,
 ): boolean {
   if (!esRol(rol)) return false
+  if (rolPortal === 'superadmin' && rol !== 'gerencia') {
+    return vista === 'config-usuarios'
+  }
   // Ruta heredada conservada para sanear hashes antiguos, pero fuera de uso.
   if (vista === 'capital-cierres') return false
-  if (vista === vistaBase(rol, leadsVisibles)) return true
+  if (vista === vistaBase(rol, leadsVisibles, rolPortal)) return true
   // La bandeja es transversal, pero sus fuentes operativas dependen del gate
   // de leads. Gerencia conserva siempre sus alertas ejecutivas agregadas.
   if (vista === 'alertas') {
     return can(rol, 'verAlertas') && (rol === 'gerencia' || leadsVisibles)
+  }
+  if (esVistaConfiguracion(vista)) {
+    if (vista === 'config-usuarios' && rolPortal === 'superadmin') return true
+    return rol === 'gerencia' || rol === 'directorio'
   }
   if (esVistaGerencia(vista)) return rol === 'gerencia'
   if (!leadsVisibles && esVistaLeads(vista)) return false
@@ -75,8 +94,9 @@ export function sanearVista(
   vista: Vista,
   rol: Rol | null | undefined,
   leadsVisibles: boolean,
+  rolPortal?: string | null,
 ): Vista {
-  return vistaPermitida(vista, rol, leadsVisibles)
+  return vistaPermitida(vista, rol, leadsVisibles, rolPortal)
     ? vista
-    : vistaBase(rol, leadsVisibles)
+    : vistaBase(rol, leadsVisibles, rolPortal)
 }

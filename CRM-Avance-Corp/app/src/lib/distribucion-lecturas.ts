@@ -1,5 +1,5 @@
 // Lecturas derivadas de la fotografía de distribución (RPC V2) para que la
-// pantalla de Gerencia hable en lenguaje comercial: avisos de atención,
+// pantalla de Gerencia hable en lenguaje comercial: avisos operativos,
 // fichas por analista, candidatos de reparto y presets de período.
 //
 // Reglas congeladas que este módulo respeta (ver vault "Distribución de leads
@@ -27,16 +27,6 @@ export function porcentajeLegible(numerador: number, denominador: number): strin
   if (denominador <= 0) return null
   const valor = (numerador / denominador) * 100
   return `${new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 }).format(valor)}%`
-}
-
-/** Minutos → "45 min" / "3.5 h" / "2 d" para la mediana de primer contacto. */
-export function textoMinutos(minutos: number | null): string | null {
-  if (minutos == null) return null
-  const formato = new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 })
-  if (minutos < 60) return `${new Intl.NumberFormat('es-PE', { maximumFractionDigits: 0 }).format(minutos)} min`
-  const horas = minutos / 60
-  if (horas < 24) return `${formato.format(horas)} h`
-  return `${formato.format(horas / 24)} d`
 }
 
 // ── Período: presets en días calendario de Lima ───────────────────────────────
@@ -103,15 +93,6 @@ const RANGOS_ALTOS: readonly RangoCapitalPenId[] = ['pen_50000_100000', 'pen_mas
 export function avisosAtencion(datos: MetricasDistribucionLeads): AvisoAtencion[] {
   const criticas: AvisoAtencion[] = []
   const medias: AvisoAtencion[] = []
-
-  const vencidos = datos.resumen.sla_global_sin_contacto_vencidos_actuales
-  if (vencidos > 0) {
-    criticas.push({
-      id: 'vencidos-24h',
-      severidad: 'critica',
-      texto: `${vencidos} ${plural(vencidos, 'lead lleva', 'leads llevan')} más de 24 horas sin primera atención.`,
-    })
-  }
 
   const altos = datos.por_repartir.total.pen.rangos.filter((rango) =>
     RANGOS_ALTOS.includes(rango.rango_id),
@@ -191,18 +172,6 @@ export function avisosAtencion(datos: MetricasDistribucionLeads): AvisoAtencion[
     })
   }
 
-  const estancados = datos.analistas.reduce(
-    (total, analista) => total + analista.operacion.estancados_actual,
-    0,
-  )
-  if (estancados > 0) {
-    medias.push({
-      id: 'sin-avance',
-      severidad: 'media',
-      texto: `${estancados} ${plural(estancados, 'lead está', 'leads están')} sin avance según los plazos de su etapa.`,
-    })
-  }
-
   return [...criticas, ...medias]
 }
 
@@ -225,9 +194,7 @@ export interface FichaAnalista {
   recibidosPeriodo: number
   conversionPen: ConversionLegible | null
   conversionUsd: ConversionLegible | null
-  sla: { pct: string; en24: number; evaluables: number } | null
   sinAtender: number
-  sinAvance: number
   transferidos: number
   parqueados: number
   capitalPen: number
@@ -247,10 +214,6 @@ export function fichaAnalista(analista: MetricaDistribucionAnalista): FichaAnali
   const objetivo = analista.capacidad.objetivo
   const carga = analista.capacidad.carga_activa
   const usd = analista.usd_no_segmentado
-  const sla = porcentajeLegible(
-    analista.operacion.sla_asignacion_en_24h,
-    analista.operacion.sla_asignacion_evaluables,
-  )
   return {
     analista,
     cuposLibres: objetivo == null ? null : Math.max(0, objetivo - carga),
@@ -262,15 +225,7 @@ export function fichaAnalista(analista: MetricaDistribucionAnalista): FichaAnali
       analista.pen.cohorte.descartados,
     ),
     conversionUsd: conversionLegible(usd.convertidos, usd.descartados),
-    sla: sla == null
-      ? null
-      : {
-          pct: sla,
-          en24: analista.operacion.sla_asignacion_en_24h,
-          evaluables: analista.operacion.sla_asignacion_evaluables,
-        },
     sinAtender: analista.operacion.sin_tocar_actual,
-    sinAvance: analista.operacion.estancados_actual,
     transferidos: analista.operacion.transferidos,
     parqueados: analista.operacion.parqueados,
     capitalPen: analista.pen.cartera_actual.capital,
@@ -332,7 +287,7 @@ export function ordenarFichas(fichas: FichaAnalista[], orden: OrdenFichas): Fich
       b.analista.capacidad.carga_activa - a.analista.capacidad.carga_activa || porNombre(a, b),
     cierres: (a, b) => pctNumerico(b.conversionPen) - pctNumerico(a.conversionPen) || porNombre(a, b),
     sin_atender: (a, b) =>
-      b.sinAtender - a.sinAtender || b.sinAvance - a.sinAvance || porNombre(a, b),
+      b.sinAtender - a.sinAtender || porNombre(a, b),
     nombre: porNombre,
   }
 

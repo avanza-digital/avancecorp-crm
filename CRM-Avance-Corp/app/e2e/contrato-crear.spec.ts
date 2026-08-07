@@ -13,6 +13,8 @@ import {
   cuentaBancariaReal,
   loginReal,
   montarBackendReal,
+  PRODUCTO_CONDICION_PEN_ID,
+  PRODUCTO_CONDICION_USD_ID,
   type ContratoReal,
 } from './_helpers'
 
@@ -38,7 +40,7 @@ async function abrirFormContrato(page: Page): Promise<Locator> {
  * vigente del perfil. Ninguna prueba obtiene una cuenta por preselección.
  */
 async function llenarBase(form: Locator): Promise<void> {
-  await form.locator('#ct-categoria').selectOption('nuevo')
+  await form.locator('#ct-producto').selectOption(PRODUCTO_CONDICION_PEN_ID)
   await form.locator('#ct-capital').fill('10000')
   await form.locator('#ct-tasa').fill('15')
   await form.getByRole('radio', { name: /BCP.*8901/i }).check()
@@ -171,7 +173,7 @@ test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la n
   const form = await abrirFormContrato(page)
   await llenarBase(form) // deja elegida la cuenta PEN del perfil
   await form.locator('#ct-numero').fill('000782')
-  await form.locator('#ct-moneda').selectOption('USD')
+  await form.locator('#ct-producto').selectOption(PRODUCTO_CONDICION_USD_ID)
 
   // La selección PEN NO sobrevive al cambio. Aun cuando USD ya cargó y existe
   // una cuenta completa, el botón sigue cerrado hasta una elección explícita.

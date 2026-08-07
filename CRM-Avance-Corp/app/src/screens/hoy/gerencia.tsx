@@ -17,9 +17,14 @@ import { useCRMData } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { money } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
-import { agregarObjetivos } from '@/lib/objetivos'
+import {
+  agregarObjetivos,
+  capitalObjetivo,
+  capitalReal,
+} from '@/lib/objetivos'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import {
+  cumplimientoMetasConversionEquipoDemo,
   conversionEquipoDemo,
   metasConversionEquipoDemo,
   metricasConversionesDemo,
@@ -100,7 +105,15 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar }: {
 export type SeccionGerencia = 'completo' | 'resumen' | 'conversiones' | 'ranking-vendedores' | 'reuniones' | 'metas' | 'rendimiento' | 'capital-cierres'
 
 export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerencia }): JSX.Element {
-  const { ambito, equipo, objetivos, objetivosError = false, fijarObjetivos, recargar } = useCRMData()
+  const {
+    ambito,
+    equipo,
+    objetivos,
+    objetivosError = false,
+    cumplimientoMetas,
+    cumplimientoMetasError,
+    recargar,
+  } = useCRMData()
   const { yo } = useAuth()
   const { periodo, setPeriodo, diaLima } = usePeriodoGerencia()
   const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
@@ -141,6 +154,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const distribucion = useMetricasDistribucionLeads(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
   const meta = objetivos.gerencia
+  const cumplimiento = cumplimientoMetas?.gerencia ?? null
   const conversionesDeEjemplo = modoDemo || ejemploConversiones
   const reunionesDeEjemplo = modoDemo || ejemploReuniones
   const equipoConversion = useMemo(
@@ -155,6 +169,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       : (objetivos.porVendedor ?? {}),
     [conversionesDeEjemplo, objetivos.porVendedor],
   )
+  const cumplimientoVisual = useMemo(
+    () => conversionesDeEjemplo ? cumplimientoMetasConversionEquipoDemo() : cumplimientoMetas,
+    [conversionesDeEjemplo, cumplimientoMetas],
+  )
   const metaConversionVisual = conversionesDeEjemplo
     ? agregarObjetivos(Object.values(metasVendedoresVisuales)).conversionObjetivo
     : meta.conversionObjetivo
@@ -166,11 +184,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const errorConversiones = conversionesDeEjemplo ? null : errorConsulta(sesionReal, conversiones.error, 'No se pudieron cargar las conversiones.')
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de reuniones.')
   const errorResumen = [errorConversiones, errorReuniones].filter(Boolean).join(' ') || null
-  const capitalActual = datosConversion?.produccion.capital_pen ?? null
-  const conversionActual = datosConversion?.cohorte.conversion_contratos_pct ?? null
-  const cargandoMetricasMetas = !conversionesDeEjemplo
-    && estaCargando(sesionReal, conversiones)
-    && datosConversion == null
+  const capitalActualPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
+  const capitalActualUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+  const metaCapitalPen = capitalObjetivo(meta, 'PEN')
+  const metaCapitalUsd = capitalObjetivo(meta, 'USD')
+  const conversionActual = cumplimiento?.conversionReal ?? null
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
   const reintentarDistribucion = () => { if (sesionReal) void distribucion.refetch() }
@@ -181,11 +199,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
       <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />
 
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} metaMensual={metaMensual} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
 
-      {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
+      {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 
-      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} metaMensual={metaMensual} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={reintentarConversiones} />}
+      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={reintentarConversiones} />}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 
@@ -205,40 +223,40 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               </p>
             )}
 
-            {errorConversiones && (
+            {cumplimientoMetasError && (
               <div role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-destructive/25 p-4">
                 <span className="flex items-center gap-2 text-sm font-semibold text-destructive">
-                  <AlertTriangle className="size-4" aria-hidden /> {errorConversiones}
+                  <AlertTriangle className="size-4" aria-hidden /> No se pudo calcular el cumplimiento confirmado de las metas.
                 </span>
-                <Button type="button" variant="outline" size="sm" onClick={reintentarConversiones}>
-                  <RefreshCw aria-hidden /> Reintentar métricas
+                <Button type="button" variant="outline" size="sm" onClick={() => void recargar()}>
+                  <RefreshCw aria-hidden /> Reintentar cumplimiento
                 </Button>
               </div>
             )}
 
-            {cargandoMetricasMetas ? (
-              <div className="grid gap-4 sm:grid-cols-2" aria-label="Cargando avance de metas">
-                <Skeleton className="h-32 rounded-2xl" />
-                <Skeleton className="h-32 rounded-2xl" />
-              </div>
-            ) : (
-              <div className="grid gap-4 sm:grid-cols-2">
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 <MetaItem
-                  label="Meta en monto"
-                  actual={capitalActual == null ? '—' : money(capitalActual, 'PEN')}
-                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : meta.capitalObjetivo > 0 ? `de ${money(meta.capitalObjetivo, 'PEN')}` : 'meta por definir'}
-                  progreso={metaMensual.comparable && meta.capitalObjetivo > 0 && capitalActual != null ? pctMeta(capitalActual, meta.capitalObjetivo) : null}
-                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : meta.capitalObjetivo <= 0 ? undefined : capitalActual == null ? 'Monto alcanzado no disponible' : undefined}
+                  label="Capital confirmado PEN"
+                  actual={capitalActualPen == null ? '—' : money(capitalActualPen, 'PEN')}
+                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : metaCapitalPen > 0 ? `de ${money(metaCapitalPen, 'PEN')}` : 'meta por definir'}
+                  progreso={metaMensual.comparable && metaCapitalPen > 0 && capitalActualPen != null ? pctMeta(capitalActualPen, metaCapitalPen) : null}
+                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : metaCapitalPen <= 0 ? undefined : capitalActualPen == null ? 'Cumplimiento confirmado no disponible' : undefined}
                 />
                 <MetaItem
-                  label="Meta de conversión"
+                  label="Capital confirmado USD"
+                  actual={capitalActualUsd == null ? '—' : money(capitalActualUsd, 'USD')}
+                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : metaCapitalUsd > 0 ? `de ${money(metaCapitalUsd, 'USD')}` : 'meta por definir'}
+                  progreso={metaMensual.comparable && metaCapitalUsd > 0 && capitalActualUsd != null ? pctMeta(capitalActualUsd, metaCapitalUsd) : null}
+                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : metaCapitalUsd <= 0 ? undefined : capitalActualUsd == null ? 'Cumplimiento confirmado no disponible' : undefined}
+                />
+                <MetaItem
+                  label="Conversión resuelta"
                   actual={conversionActual == null ? '—' : `${conversionActual}%`}
                   objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
                   progreso={metaMensual.comparable && meta.conversionObjetivo > 0 && conversionActual != null ? pctMeta(conversionActual, meta.conversionObjetivo) : null}
-                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : meta.conversionObjetivo <= 0 ? undefined : datosConversion == null ? 'Conversión alcanzada no disponible' : conversionActual == null ? 'Todavía no hay clientes para medir' : undefined}
+                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : meta.conversionObjetivo <= 0 ? undefined : conversionActual == null ? 'Todavía no hay leads resueltos para medir' : undefined}
                 />
-              </div>
-            )}
+            </div>
 
             {objetivosError ? (
               <div data-gi-panel role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-destructive/25 p-4 sm:p-5">
@@ -246,7 +264,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                   <AlertTriangle className="mt-0.5 size-4 shrink-0 text-destructive" aria-hidden />
                   <div>
                     <p className="text-sm font-bold text-[var(--gi-navy)]">No pudimos cargar las metas mensuales</p>
-                    <p className="mt-1 text-xs text-[var(--gi-muted)]">No se mostrará ni guardará ningún objetivo hasta recuperar los datos.</p>
+                    <p className="mt-1 text-xs text-[var(--gi-muted)]">No se mostrará ningún objetivo hasta recuperar la revisión publicada.</p>
                   </div>
                 </div>
                 <Button type="button" variant="outline" size="sm" onClick={() => void recargar()}>
@@ -255,7 +273,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               </div>
             ) : (
               <div data-gi-panel className="gi-card p-4 sm:p-5">
-                <MetasEditor objetivos={objetivos} equipo={equipo} demo={modoDemo} onGuardar={fijarObjetivos} />
+                <MetasEditor objetivos={objetivos} demo={modoDemo} />
               </div>
             )}
           </CardContent>

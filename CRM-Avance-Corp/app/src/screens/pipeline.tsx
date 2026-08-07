@@ -19,13 +19,15 @@ import {
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { CAT_LABEL, ETAPA_INFO, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
 import { capitalPorMoneda, indexarUltimoContacto } from '@/lib/inteligencia'
-import { semaforoEstancamiento, UMBRAL_DIAS_TXT, type SemaforoEtapa } from '@/lib/estancamiento'
+import { semaforoEstancamiento, type SemaforoEtapa } from '@/lib/estancamiento'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { money, moneyK } from '@/lib/format'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
+import { minutosLegibles } from '@/lib/sla-versionado'
+import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
 // "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
 // `semaforoEstancamiento`, para que color y número no puedan divergir).
@@ -108,9 +110,8 @@ function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragS
           <Badge color="var(--warning)" className="text-[10px]">sin asignar</Badge>
         )}
         <span className="flex items-center gap-1">
-          {/* El punto y el número salen del MISMO reloj (el del asesor). Dejar
-              los días desde `creado_en` al lado de un punto calculado con otra
-              referencia haría que la card mienta por adyacencia. */}
+          {/* El punto y el número salen del MISMO episodio de etapa sellado en
+              BD. Sin fotografía SLA no se inventa color con la política actual. */}
           {semaforo.color && (
             <span
               aria-hidden
@@ -121,16 +122,10 @@ function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragS
           <span
             className="text-[11px] tabular-nums"
             style={{ color: semaforo.estancado ? semaforo.color ?? undefined : undefined }}
-            // La etiqueta dice lo que el número MIDE: días sin contacto real
-            // (o desde que el asesor recibió el lead), NO antigüedad en la
-            // etapa. Decir "lleva N d en Contactado" con este reloj era falso:
-            // un lead recién movido de etapa con un intento de hace 10 días
-            // habría anunciado "10 d en Contactado" un segundo después de
-            // entrar. La antigüedad real en la etapa la mide `entradaEnEtapa`.
             title={
-              semaforo.estancado
-                ? `Sin contacto hace ${Math.floor(semaforo.dias)} d — pasó el plazo de ${ETAPA_INFO[l.etapa].label}`
-                : `Sin contacto hace ${Math.floor(semaforo.dias)} d · plazo de ${ETAPA_INFO[l.etapa].label}: ${UMBRAL_DIAS_TXT[l.etapa] ?? '—'}`
+              semaforo.objetivoMinutos == null
+                ? `Sin fotografía SLA disponible · referencia operativa ${haceDias(semaforo.dias)}`
+                : `Lleva ${haceDias(semaforo.dias)} en ${ETAPA_INFO[l.etapa].label} · plazo sellado ${minutosLegibles(semaforo.objetivoMinutos)} · SLA v${semaforo.politicaVersion ?? '—'}${semaforo.aproximado ? ' (aproximado)' : ''}`
             }
           >
             {haceDias(semaforo.dias)}
@@ -177,6 +172,7 @@ export function Pipeline() {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
   const { ambito, cambiarEtapa, actividadesDelAmbito } = useCRMData()
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito)
   // Índice de CONTACTO REAL (no de cualquier actividad): la `reasignacion` que
   // el sistema escribe al repartir apagaría el semáforo de un lead que nadie
   // ha llamado. Se construye UNA vez por render, no una por card.
@@ -328,6 +324,22 @@ export function Pipeline() {
     <div className="mx-auto max-w-[1440px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
 
+      {Boolean(estadoSla.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudo cargar el reloj SLA. Los plazos se ocultan para no mostrar vencimientos incorrectos.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={estadoSla.recargar}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* Filtro por vendedor — supervisor: su equipo; gerencia/directorio: todos */}
       {mostrarFiltro && (
         <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar tablero por vendedor">
@@ -433,7 +445,12 @@ export function Pipeline() {
                   <LeadCard
                     key={l.id}
                     l={l}
-                    semaforo={semaforoEstancamiento(l, indiceContacto, ahora)}
+                    semaforo={semaforoEstancamiento(
+                      l,
+                      indiceContacto,
+                      ahora,
+                      estadoSla.indice.get(l.id),
+                    )}
                     escribe={escribe}
                     arrastrando={dragId === l.id}
                     onAbrir={() => abrir(l.id)}

@@ -20,7 +20,7 @@ import type {
 
 export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[]
 
-type RolCrmDb = 'vendedor' | 'supervisor' | 'gerencia'
+type RolCrmDb = 'vendedor' | 'supervisor' | 'gerencia' | 'directorio' | 'coordinador'
 type TipoDocumentoDb = 'DNI' | 'CE' | 'PASAPORTE'
 type EstadoContratoDb = 'activo' | 'vencido' | 'renovado' | 'retirado'
 type ModalidadContratoDb = 'mensual' | 'trimestral' | 'semestral' | 'anual'
@@ -28,6 +28,7 @@ type TipoInteresDb = 'simple' | 'compuesto'
 // Mismos literales que CategoriaInteresDb pero es OTRO dominio (contratos.categoria
 // del portal, no crm.leads.categoria_interes) — se mantienen separados a propósito.
 type CategoriaContratoDb = 'nuevo' | 'renovacion' | 'upgrade'
+type EstadoProductoVersionDb = 'borrador' | 'publicada' | 'retirada'
 type EstadoCuotaDb = 'pendiente' | 'pagado' | 'vencido' | 'trasladado'
 type TipoCuotaDb = 'cuota' | 'retorno' | 'devolucion'
 type EtapaDb = 'nuevo' | 'contactado' | 'reunion_agendada' | 'propuesta_enviada' | 'convertido' | 'descartado'
@@ -157,6 +158,7 @@ export interface Database {
           notas_internas: string | null
           creado_por: string | null
           creado_en: string
+          producto_condicion_id: string
         }
         Insert: never // crear_contrato (RPC atómica) es el único camino
         Update: never // actualizar_contrato (RPC) es el único camino
@@ -449,44 +451,6 @@ export interface Database {
         }
         Relationships: []
       }
-      /** Metas comerciales del mes (20260719120000): UNA fila por (mes, rol);
-       *  capital SIEMPRE en PEN. Lectura por RLS (árbol comercial + lector
-       *  global); escritura SOLO por la RPC fijar_objetivos (gerencia). */
-      objetivos: {
-        Row: {
-          id: string
-          periodo: string
-          rol: 'vendedor' | 'supervisor' | 'gerencia'
-          capital_objetivo: number | string
-          ventas_objetivo: number
-          conversion_objetivo: number | string
-          actualizado_por: string | null
-          creado_en: string
-          actualizado_en: string
-        }
-        Insert: never // escritura solo vía RPC fijar_objetivos
-        Update: never
-        Relationships: []
-      }
-      /** Metas mensuales por vendedor. Supervisor y empresa son agregados
-       * calculados; escritura exclusiva de fijar_objetivos_vendedores. */
-      objetivos_vendedores: {
-        Row: {
-          id: string
-          periodo: string
-          vendedor_id: string
-          supervisor_id: string
-          capital_objetivo: number | string
-          ventas_objetivo: number
-          conversion_objetivo: number | string
-          actualizado_por: string
-          creado_en: string
-          actualizado_en: string
-        }
-        Insert: never
-        Update: never
-        Relationships: []
-      }
       /** Versiones bancarias inmutables por cliente. El navegador no accede a
        * la tabla: lista/crea exclusivamente mediante RPCs gateadas. */
       cuentas_bancarias: {
@@ -572,6 +536,13 @@ export interface Database {
           notas_internas: string | null
           creado_por: string | null
           creado_en: string
+          producto_condicion_id: string
+          producto_id: string
+          producto_codigo: string
+          producto_version_id: string
+          producto_version: number
+          producto_nombre: string
+          producto_version_estado: EstadoProductoVersionDb
         }
         Relationships: []
       }
@@ -618,6 +589,25 @@ export interface Database {
           cuenta_bancaria_id: string
         }
       }
+      /** Alta catalogada sin cuenta: fija la condición en la misma transacción. */
+      crear_contrato_producto: {
+        Args: {
+          p_producto_condicion_id: string
+          p_contrato: Record<string, unknown>
+          p_cronograma: Record<string, unknown>[]
+        }
+        Returns: Json
+      }
+      /** Alta catalogada + cuenta bancaria atómica. */
+      crear_contrato_con_cuenta_producto: {
+        Args: {
+          p_producto_condicion_id: string
+          p_contrato: Record<string, unknown>
+          p_cronograma: Record<string, unknown>[]
+          p_cuenta: Record<string, unknown>
+        }
+        Returns: Json
+      }
       /** Conserva la RPC pública de corrección y bloquea cambios de moneda que
        * dejarían incoherente una cuenta contractual ya fijada. */
       actualizar_contrato_con_cuenta: {
@@ -627,6 +617,26 @@ export interface Database {
           p_cronograma: Record<string, unknown>[]
         }
         Returns: undefined
+      }
+      /** Corrección catalogada sin administración de cuenta. */
+      actualizar_contrato_producto: {
+        Args: {
+          p_id: string
+          p_producto_condicion_id: string
+          p_contrato: Record<string, unknown>
+          p_cronograma: Record<string, unknown>[]
+        }
+        Returns: Json
+      }
+      /** Corrección catalogada preservando la cuenta contractual. */
+      actualizar_contrato_con_cuenta_producto: {
+        Args: {
+          p_id: string
+          p_producto_condicion_id: string
+          p_contrato: Record<string, unknown>
+          p_cronograma: Record<string, unknown>[]
+        }
+        Returns: Json
       }
       /** Resolución administrativa usada por Pagos/Excel; no hay fallback en
        * la RPC: la UI lo aplica únicamente a contratos legacy sin enlace. */
@@ -655,7 +665,225 @@ export interface Database {
           rol_crm?: string
           rol_portal?: string
           nombre_completo?: string | null
+          puede_listar_usuarios?: boolean
+          puede_administrar_usuarios?: boolean
+          puede_organizar_jerarquia?: boolean
+          puede_administrar_roles?: boolean
         }
+      }
+      /** Directorio operacional. Gerencia recibe PII necesaria para gestionar;
+       * Superadmin-only recibe una proyección mínima para asignar roles. */
+      usuarios_administrables_fn: {
+        Args: { p_busqueda?: string | null; p_limite?: number; p_desde?: number }
+        Returns: {
+          perfil_id: string
+          nombre_completo: string
+          tipo_documento: string | null
+          documento: string | null
+          correo: string | null
+          telefono: string | null
+          whatsapp: string | null
+          cargo: string | null
+          tipo_cuenta: 'solo_crm' | 'compartida_portal'
+          estado: 'pendiente_rol' | 'inactivo_crm' | 'activo' | 'suspendido_portal'
+          rol_crm: RolCrmDb | null
+          supervisor_id: string | null
+          activo_crm: boolean | null
+          activo_portal: boolean
+          version_perfil: string | null
+          version_equipo: string | null
+          total: number
+        }[]
+      }
+      actualizar_usuario_administrable_fn: {
+        Args: {
+          p_perfil_id: string
+          p_nombre_completo: string
+          p_tipo_documento: string
+          p_documento: string
+          p_telefono: string | null
+          p_whatsapp: string | null
+          p_cargo: string | null
+          p_version_perfil: string
+          p_idempotencia: string
+        }
+        Returns: Json
+      }
+      asignar_rol_usuario_fn: {
+        Args: {
+          p_perfil_id: string
+          p_rol_crm: RolCrmDb
+          p_version_equipo: string | null
+          p_idempotencia: string
+        }
+        Returns: Json
+      }
+      actualizar_jerarquia_usuario_fn: {
+        Args: {
+          p_perfil_id: string
+          p_supervisor_id: string | null
+          p_version_equipo: string
+          p_idempotencia: string
+        }
+        Returns: Json
+      }
+      impacto_desactivacion_usuario_fn: {
+        Args: { p_perfil_id: string }
+        Returns: Json
+      }
+      fijar_membresia_activa_fn: {
+        Args: {
+          p_perfil_id: string
+          p_activo: boolean
+          p_reemplazo_id: string | null
+          p_version_equipo: string
+          p_idempotencia: string
+        }
+        Returns: Json
+      }
+      productos_inversion_gestion_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      productos_inversion_seleccion_fn: {
+        Args: Record<string, never>
+        Returns: {
+          condicion_id: string
+          producto_id: string
+          producto_codigo: string
+          producto_revision: number
+          version_id: string
+          numero_version: number
+          version_nombre: string
+          vigente_desde: string
+          vigente_hasta: string | null
+          categoria: CategoriaContratoDb
+          moneda: MonedaDb
+          plazo_meses: number
+          modalidad: ModalidadContratoDb
+          tipo_interes: TipoInteresDb
+          capital_minimo: number | string
+          capital_maximo: number | string
+          tasa_referencia: number | string
+          tasa_minima: number | string
+          tasa_maxima: number | string
+        }[]
+      }
+      crear_producto_inversion: {
+        Args: {
+          p_codigo: string
+          p_nombre: string
+          p_descripcion: string | null
+          p_vigente_desde: string
+          p_vigente_hasta: string | null
+          p_condiciones: Json
+        }
+        Returns: Json
+      }
+      crear_version_producto_inversion: {
+        Args: {
+          p_producto_id: string
+          p_expected_revision: number
+          p_nombre: string
+          p_descripcion: string | null
+          p_vigente_desde: string
+          p_vigente_hasta: string | null
+          p_condiciones: Json
+        }
+        Returns: Json
+      }
+      actualizar_borrador_producto_inversion: {
+        Args: {
+          p_version_id: string
+          p_expected_revision: number
+          p_nombre: string
+          p_descripcion: string | null
+          p_vigente_desde: string
+          p_vigente_hasta: string | null
+          p_condiciones: Json
+        }
+        Returns: Json
+      }
+      publicar_version_producto_inversion: {
+        Args: { p_version_id: string; p_expected_revision: number }
+        Returns: Json
+      }
+      archivar_producto_inversion: {
+        Args: { p_producto_id: string; p_expected_revision: number }
+        Returns: Json
+      }
+      cerrar_altas_legacy_productos: {
+        Args: { p_expected_revision: number }
+        Returns: Json
+      }
+      configuracion_metas_fn: {
+        Args: { p_periodo: string }
+        Returns: Json
+      }
+      publicar_metas_vendedores: {
+        Args: { p_periodo: string; p_expected_revision: number; p_metas: Json }
+        Returns: {
+          id: string
+          periodo: string
+          revision: number
+          revision_anterior_id: string | null
+          publicada_por: string
+          publicada_en: string
+        }[]
+      }
+      cumplimiento_metas_fn: {
+        Args: { p_periodo: string }
+        Returns: Json
+      }
+      configuracion_sla_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      publicar_politica_sla: {
+        Args: { p_expected_version: number; p_vigente_desde: string | null; p_config: Json }
+        Returns: {
+          id: string
+          version: number
+          version_anterior_id: string | null
+          vigente_desde: string
+          zona_horaria: 'America/Lima'
+          tipo_reloj: 'corrido'
+          primera_gestion_minutos: number
+          primer_contacto_minutos: number
+          publicada_por: string | null
+          publicada_en: string
+        }[]
+      }
+      metricas_sla_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
+      estado_sla_leads_fn: {
+        Args: Record<string, never>
+        Returns: {
+          lead_id: string
+          ciclo_politica_id: string
+          ciclo_politica_version: number
+          primera_gestion_limite_en: string
+          primera_gestion_en: string | null
+          primer_contacto_limite_en: string
+          primer_contacto_en: string | null
+          ciclo_aproximado: boolean
+          asignacion_id: string | null
+          asignacion_politica_id: string | null
+          asignacion_politica_version: number | null
+          asignacion_primera_gestion_limite_en: string | null
+          asignacion_primera_gestion_en: string | null
+          asignacion_primer_contacto_limite_en: string | null
+          asignacion_primer_contacto_en: string | null
+          etapa_politica_id: string | null
+          etapa_politica_version: number | null
+          etapa: Exclude<EtapaDb, 'convertido' | 'descartado'> | null
+          etapa_iniciada_en: string | null
+          etapa_limite_en: string | null
+          etapa_objetivo_minutos: number | null
+          etapa_aproximada: boolean | null
+        }[]
       }
       /** Cierre atómico de una tarea: resultado al log inmutable + siguiente
        *  opcional, en una transacción (SECURITY DEFINER, ámbito adentro). */
@@ -725,43 +953,6 @@ export interface Database {
       actualizar_capacidad_leads_objetivo: {
         Args: { p_analista_id: string; p_capacidad_leads_objetivo: number | null }
         Returns: { perfil_id: string; capacidad_leads_objetivo: number | null }[]
-      }
-      /** Gerencia fija las metas del mes por rol (upsert atómico; roles
-       *  parciales permitidos). Devuelve las filas del periodo completo. */
-      fijar_objetivos: {
-        Args: {
-          p_periodo: string
-          p_objetivos: Record<string, Record<string, number>>
-        }
-        Returns: {
-          id: string
-          periodo: string
-          rol: 'vendedor' | 'supervisor' | 'gerencia'
-          capital_objetivo: number | string
-          ventas_objetivo: number
-          conversion_objetivo: number | string
-          actualizado_por: string | null
-          creado_en: string
-          actualizado_en: string
-        }[]
-      }
-      fijar_objetivos_vendedores: {
-        Args: {
-          p_periodo: string
-          p_objetivos: Record<string, Record<string, number>>
-        }
-        Returns: {
-          id: string
-          periodo: string
-          vendedor_id: string
-          supervisor_id: string
-          capital_objetivo: number | string
-          ventas_objetivo: number
-          conversion_objetivo: number | string
-          actualizado_por: string
-          creado_en: string
-          actualizado_en: string
-        }[]
       }
       actividades_del_ambito_fn: {
         Args: Record<string, never>

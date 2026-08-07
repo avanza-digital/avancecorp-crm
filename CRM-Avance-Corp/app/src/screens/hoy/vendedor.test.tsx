@@ -23,7 +23,12 @@
 // pasarían o fallarían según la hora en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen } from '@testing-library/react'
-import { objetivosCero, type ObjetivosPorRol } from '@/lib/objetivos'
+import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
+import {
+  objetivosCero,
+  type CumplimientoMetasJerarquico,
+  type ObjetivosPorRol,
+} from '@/lib/objetivos'
 import { money } from '@/lib/format'
 import type { Actividad, Lead, Tarea, Yo } from '@/lib/tipos'
 
@@ -38,6 +43,8 @@ let TAREAS: Tarea[] = []
 let ACTIVIDADES: Actividad[] = []
 let OBJETIVOS: ObjetivosPorRol = objetivosCero()
 let OBJETIVOS_ERROR = false
+let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
+let CUMPLIMIENTO_ERROR = false
 const crearTarea = vi.fn()
 const recargar = vi.fn()
 
@@ -49,6 +56,8 @@ vi.mock('@/lib/store-context', () => ({
     tareas: TAREAS,
     objetivos: OBJETIVOS,
     objetivosError: OBJETIVOS_ERROR,
+    cumplimientoMetas: CUMPLIMIENTO,
+    cumplimientoMetasError: CUMPLIMIENTO_ERROR,
     recargar,
     // La agenda del STORE va SIEMPRE vacía a propósito: la pantalla debe
     // derivar la suya de `tareas` con el reloj vivo. Si alguien vuelve a
@@ -65,6 +74,9 @@ vi.mock('@/lib/store-context', () => ({
 // el texto quedaría a medio camino y las aserciones serían una lotería.
 vi.mock('@/components/common/animated-value', () => ({
   AnimatedValue: ({ value }: { value: string }) => <>{value}</>,
+}))
+vi.mock('@/data/use-estado-sla-operativo', () => ({
+  useEstadoSlaOperativo: () => ({ indice: new Map(), cargando: false, error: null, recargar: vi.fn() }),
 }))
 
 const { HoyVendedor } = await import('./vendedor')
@@ -138,6 +150,8 @@ function montar(
     objetivos?: Partial<ObjetivosPorRol['vendedor']>
     /** El store no pudo LEER las metas: sus ceros no son un dato. */
     objetivosError?: boolean
+    cumplimiento?: CumplimientoMetasJerarquico | null
+    cumplimientoError?: boolean
   } = {},
 ): void {
   vi.setSystemTime(over.ahora ?? MIERCOLES_10AM)
@@ -152,14 +166,36 @@ function montar(
   TAREAS = over.tareas ?? []
   ACTIVIDADES = over.actividades ?? []
   OBJETIVOS_ERROR = over.objetivosError ?? false
-  OBJETIVOS = objetivosCero()
-  OBJETIVOS.vendedor = { capitalObjetivo: 100_000, ventasObjetivo: 3, conversionObjetivo: 40, ...over.objetivos }
+  CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
+  OBJETIVOS = { ...METAS_DEMO, vendedor: { ...METAS_DEMO.vendedor, ...over.objetivos } }
+  CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
   render(<HoyVendedor />)
+}
+
+function cumplimientoVendedor(
+  conversionReal: number | null,
+  resueltos: number,
+): CumplimientoMetasJerarquico {
+  const base = CUMPLIMIENTO_METAS_DEMO.vendedor
+  if (!base) throw new Error('fixture demo sin vendedor')
+  return {
+    ...CUMPLIMIENTO_METAS_DEMO,
+    vendedor: {
+      ...base,
+      conversionReal,
+      convertidos: conversionReal == null ? 0 : Math.round((conversionReal * resueltos) / 100),
+      resueltos,
+    },
+  }
 }
 
 beforeEach(() => {
   vi.useFakeTimers()
+  vi.clearAllMocks()
   crearTarea.mockReturnValue({ ok: true, id: 't-nueva' })
+  CUMPLIMIENTO = null
+  CUMPLIMIENTO_ERROR = false
+  OBJETIVOS_ERROR = false
 })
 
 afterEach(() => {
@@ -341,18 +377,18 @@ describe('Hoy · vendedor — capital en proceso', () => {
 })
 
 describe('Hoy · vendedor — meta del mes', () => {
-  it('la conversión es la del mes: convertidos sobre lo RESUELTO en el mes', () => {
+  it('la conversión proviene del cumplimiento confirmado, no de etapas locales del pipeline', () => {
     montar({
       leads: [
-        lead({ id: 'l-c', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-        lead({ id: 'l-d', etapa: 'descartado', actualizado_en: '2026-07-10T15:00:00Z' }),
-        // Resuelto el mes pasado: fuera del cálculo.
-        lead({ id: 'l-viejo', etapa: 'descartado', actualizado_en: '2026-06-10T15:00:00Z' }),
+        lead({ id: 'l-c', etapa: 'convertido' }),
+        lead({ id: 'l-d', etapa: 'descartado' }),
+        lead({ id: 'l-abierto', etapa: 'propuesta_enviada' }),
       ],
       objetivos: { conversionObjetivo: 50 },
+      cumplimiento: cumplimientoVendedor(50, 2),
     })
 
-    expect(screen.getByText('50%')).toBeInTheDocument() // 1 de 2 resueltos
+    expect(screen.getByText('50%')).toBeInTheDocument()
     expect(screen.getByText('100% del objetivo')).toBeInTheDocument()
   })
 
@@ -361,6 +397,7 @@ describe('Hoy · vendedor — meta del mes', () => {
       // Cartera viva, nada cerrado todavía: el día 1 de cada mes, para todos.
       leads: [lead({ id: 'l-1', etapa: 'contactado' })],
       objetivos: { conversionObjetivo: 40 },
+      cumplimiento: cumplimientoVendedor(null, 0),
     })
 
     expect(
@@ -371,50 +408,55 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.getByText('—')).toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
     expect(screen.queryByText('meta 40%')).not.toBeInTheDocument()
-    // La fila de ventas SÍ conserva su semáforo: 0 de 3 sí es incumplimiento.
   })
 
-  it('usa la meta inicial de 15 % cuando Gerencia aún no guardó otra', () => {
+  it('no inventa una meta inicial de 15 % cuando no existe una revisión publicada', () => {
     montar({
-      leads: [
-        lead({ id: 'l-c', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-        lead({ id: 'l-d', etapa: 'descartado', actualizado_en: '2026-07-10T15:00:00Z' }),
-      ],
       objetivos: { conversionObjetivo: 0 },
-    })
-
-    expect(screen.getByText('meta 15%')).toBeInTheDocument()
-    expect(screen.queryByText('meta 0%')).not.toBeInTheDocument()
-  })
-
-  it('sin ninguna meta guardada conserva capital neutro y compara conversión con 15 %', () => {
-    montar({
-      leads: [
-        lead({ id: 'l-mes', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-        lead({ id: 'l-viejo', etapa: 'convertido', actualizado_en: '2026-05-20T15:00:00Z' }),
-      ],
-      objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      cumplimiento: cumplimientoVendedor(50, 2),
     })
 
     expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
-    expect(screen.getByText('meta 15%')).toBeInTheDocument()
-    expect(screen.queryByText(/Meta mensual por definir/)).not.toBeInTheDocument()
+    expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
+    expect(screen.queryByText('meta 0%')).not.toBeInTheDocument()
+  })
+
+  it('sin ninguna meta publicada mantiene las tres dimensiones neutrales', () => {
+    montar({
+      objetivos: objetivosCero('2026-07-01').vendedor,
+      cumplimiento: cumplimientoVendedor(100, 1),
+    })
+
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(3)
+    expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
   })
 
   it('si la LECTURA de metas falló no dice "por definir": lo confiesa y ofrece reintentar', () => {
     montar({
-      objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      objetivos: objetivosCero('2026-07-01').vendedor,
       objetivosError: true,
     })
 
     // Los mismos ceros, dos causas opuestas: afirmar que nadie fijó la meta
     // cuando lo que se cayó fue la red hace que el asesor deje de buscarla.
     expect(screen.queryByText(/Meta mensual por definir/)).not.toBeInTheDocument()
-    expect(screen.getByText(/No pudimos cargar tu meta del mes/)).toBeInTheDocument()
+    expect(screen.getByText('No pudimos cargar toda la información mensual.')).toBeInTheDocument()
     expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(recargar).toHaveBeenCalled()
+  })
+
+  it('si falla el cumplimiento no usa el pronóstico abierto como sustituto', () => {
+    montar({
+      leads: [lead({ monto_estimado: 900_000, etapa: 'propuesta_enviada' })],
+      cumplimiento: null,
+      cumplimientoError: true,
+    })
+
+    expect(screen.getByText('S/ 900,000')).toBeInTheDocument()
+    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(3)
+    expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
   })
 })
 

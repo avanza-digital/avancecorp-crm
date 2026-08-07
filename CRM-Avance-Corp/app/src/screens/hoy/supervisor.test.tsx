@@ -4,7 +4,12 @@
 // sin fijarlo estos tests pasarían o fallarían según el día en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
-import { objetivosCero, type ObjetivosPorRol } from '@/lib/objetivos'
+import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
+import {
+  objetivosCero,
+  type CumplimientoMetasJerarquico,
+  type ObjetivosPorRol,
+} from '@/lib/objetivos'
 import type { Actividad, Lead, Miembro, Yo } from '@/lib/tipos'
 
 // Miércoles 2026-07-15, 10:00 en Lima (UTC-5).
@@ -15,6 +20,8 @@ let LEADS: Lead[] = []
 let VENDEDORES: Miembro[] = []
 let OBJETIVOS: ObjetivosPorRol = objetivosCero()
 let OBJETIVOS_ERROR = false
+let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
+let CUMPLIMIENTO_ERROR = false
 const recargar = vi.fn()
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
@@ -25,6 +32,8 @@ vi.mock('@/lib/store-context', () => ({
     tareas: [],
     objetivos: OBJETIVOS,
     objetivosError: OBJETIVOS_ERROR,
+    cumplimientoMetas: CUMPLIMIENTO,
+    cumplimientoMetasError: CUMPLIMIENTO_ERROR,
     recargar,
     equipo: VENDEDORES,
     reasignar: () => ({ ok: true }),
@@ -46,6 +55,9 @@ vi.mock('@/data/crm-queries', () => ({
 // crm-api arrastra el cliente de Supabase al importarse; solo se usa su
 // formateador de errores.
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_e: unknown, f: string) => f }))
+vi.mock('@/data/use-estado-sla-operativo', () => ({
+  useEstadoSlaOperativo: () => ({ indice: new Map(), cargando: false, error: null, recargar: vi.fn() }),
+}))
 
 const { HoySupervisor } = await import('./supervisor')
 
@@ -70,6 +82,8 @@ function montar(
     leads?: Lead[]
     objetivos?: Partial<ObjetivosPorRol['supervisor']>
     objetivosError?: boolean
+    cumplimiento?: CumplimientoMetasJerarquico | null
+    cumplimientoError?: boolean
   } = {},
 ): void {
   vi.setSystemTime(MIERCOLES_10AM)
@@ -83,19 +97,35 @@ function montar(
   LEADS = over.leads ?? [lead()]
   VENDEDORES = []
   OBJETIVOS_ERROR = over.objetivosError ?? false
-  OBJETIVOS = objetivosCero()
-  OBJETIVOS.supervisor = {
-    capitalObjetivo: 100_000,
-    ventasObjetivo: 4,
-    conversionObjetivo: 40,
-    ...over.objetivos,
-  }
+  CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
+  OBJETIVOS = { ...METAS_DEMO, supervisor: { ...METAS_DEMO.supervisor, ...over.objetivos } }
+  CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
   render(<HoySupervisor />)
+}
+
+function cumplimientoSupervisor(
+  conversionReal: number | null,
+  resueltos: number,
+): CumplimientoMetasJerarquico {
+  const base = CUMPLIMIENTO_METAS_DEMO.supervisor
+  if (!base) throw new Error('fixture demo sin supervisor')
+  return {
+    ...CUMPLIMIENTO_METAS_DEMO,
+    supervisor: {
+      ...base,
+      conversionReal,
+      convertidos: conversionReal == null ? 0 : Math.round((conversionReal * resueltos) / 100),
+      resueltos,
+    },
+  }
 }
 
 beforeEach(() => {
   vi.useFakeTimers()
-  recargar.mockClear()
+  vi.clearAllMocks()
+  CUMPLIMIENTO = null
+  CUMPLIMIENTO_ERROR = false
+  OBJETIVOS_ERROR = false
 })
 
 afterEach(() => {
@@ -103,17 +133,15 @@ afterEach(() => {
 })
 
 describe('Hoy · supervisor — meta del equipo', () => {
-  it('la conversión es la del mes: convertidos sobre lo RESUELTO en el mes', () => {
+  it('la conversión del equipo proviene del cumplimiento confirmado y no del pipeline local', () => {
     montar({
       leads: [
-        lead({ id: 'l-c', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-        lead({ id: 'l-d', etapa: 'descartado', actualizado_en: '2026-07-10T15:00:00Z' }),
-        // Resuelto el mes pasado: fuera del cálculo del periodo.
-        lead({ id: 'l-viejo', etapa: 'descartado', actualizado_en: '2026-06-10T15:00:00Z' }),
-        // Abierto: no vota todavía (conversionGlobal sí lo metía al divisor).
+        lead({ id: 'l-c', etapa: 'convertido' }),
+        lead({ id: 'l-d', etapa: 'descartado' }),
         lead({ id: 'l-abierto', etapa: 'propuesta_enviada' }),
       ],
       objetivos: { conversionObjetivo: 50 },
+      cumplimiento: cumplimientoSupervisor(50, 2),
     })
 
     expect(screen.getByText('50% de 50%')).toBeInTheDocument()
@@ -123,6 +151,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
     montar({
       leads: [lead({ id: 'l-abierto', etapa: 'propuesta_enviada' })],
       objetivos: { conversionObjetivo: 40 },
+      cumplimiento: cumplimientoSupervisor(null, 0),
     })
 
     expect(screen.getByText('Todavía no se resolvió ningún lead este mes')).toBeInTheDocument()
@@ -130,43 +159,49 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.queryByText('0% de 40%')).not.toBeInTheDocument()
   })
 
-  it('usa la meta inicial de 15 % cuando Gerencia aún no guardó otra', () => {
+  it('no inventa una meta inicial de 15 % cuando no hay meta publicada', () => {
     montar({
-      leads: [
-        lead({ id: 'l-c', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-        lead({ id: 'l-d', etapa: 'descartado', actualizado_en: '2026-07-10T15:00:00Z' }),
-      ],
       objetivos: { conversionObjetivo: 0 },
-    })
-
-    expect(screen.getByText('50% de 15%')).toBeInTheDocument()
-    expect(screen.queryByText('0% de 0%')).not.toBeInTheDocument()
-  })
-
-  it('sin ninguna meta guardada conserva capital neutro y compara conversión con 15 %', () => {
-    montar({
-      leads: [
-        lead({ id: 'l-mes', etapa: 'convertido', actualizado_en: '2026-07-09T15:00:00Z' }),
-        lead({ id: 'l-viejo', etapa: 'convertido', actualizado_en: '2026-05-20T15:00:00Z' }),
-      ],
-      objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      cumplimiento: cumplimientoSupervisor(50, 2),
     })
 
     expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
-    expect(screen.getByText('100% de 15%')).toBeInTheDocument()
-    expect(screen.queryByText(/Meta mensual del equipo por definir/)).not.toBeInTheDocument()
+    expect(screen.queryByText('50% de 15%')).not.toBeInTheDocument()
+    expect(screen.queryByText('0% de 0%')).not.toBeInTheDocument()
+  })
+
+  it('sin ninguna meta publicada mantiene PEN, USD y conversión neutrales', () => {
+    montar({
+      objetivos: objetivosCero('2026-07-01').supervisor,
+      cumplimiento: cumplimientoSupervisor(100, 1),
+    })
+
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(3)
+    expect(screen.queryByText('100% de 15%')).not.toBeInTheDocument()
   })
 
   it('si la lectura de metas falla no reemplaza el error por 15 %', () => {
     montar({
-      objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      objetivos: objetivosCero('2026-07-01').supervisor,
       objetivosError: true,
     })
 
-    expect(screen.getByText('No pudimos cargar la meta mensual del equipo.')).toBeInTheDocument()
+    expect(screen.getAllByText('Meta mensual no disponible')).toHaveLength(3)
     expect(screen.queryByText(/de 15%/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(recargar).toHaveBeenCalled()
+  })
+
+  it('si falla el cumplimiento conserva el pipeline únicamente como pronóstico', () => {
+    montar({
+      leads: [lead({ monto_estimado: 900_000, etapa: 'propuesta_enviada' })],
+      cumplimiento: null,
+      cumplimientoError: true,
+    })
+
+    expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
+    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(3)
+    expect(screen.getByText(/no cuenta como cumplimiento/)).toBeInTheDocument()
   })
 })

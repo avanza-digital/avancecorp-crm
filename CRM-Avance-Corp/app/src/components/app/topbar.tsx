@@ -24,7 +24,7 @@ import { Plus, Bell, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { funcionesLeadsVisibles } from '@/lib/config'
-import { can, puedeEscribir, type Rol } from '@/lib/roles'
+import { administraSoloRolesCrm, can, puedeEscribir, type Rol } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
@@ -48,6 +48,10 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   repartir: { t: 'Repartir leads', s: 'Reparte la cola de leads nuevos a los supervisores' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
+  'config-usuarios': { t: 'Usuarios y jerarquía', s: 'Personas, acceso y estructura comercial' },
+  'config-productos': { t: 'Productos de inversión', s: 'Catálogo, condiciones y vigencias' },
+  'config-metas': { t: 'Metas', s: 'Objetivos mensuales versionados' },
+  'config-sla': { t: 'Tiempos de atención', s: 'Políticas y cumplimiento de SLA' },
 }
 
 /**
@@ -87,6 +91,7 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
 
 export function Topbar({ vista }: { vista: Vista }) {
   const { yo } = useAuth()
+  const soloRoles = administraSoloRolesCrm(yo)
   const { ambito } = useCRMData()
   const { alertas, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
@@ -99,7 +104,8 @@ export function Topbar({ vista }: { vista: Vista }) {
       : TITULOS[vista]
   // Gate de leads (espejo del sidebar): con las funciones de leads sin aprobar,
   // la búsqueda de leads y el alta de lead no se ofrecen a cuentas reales.
-  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
+  const leadsVisibles = !soloRoles
+    && funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
 
   const inputRef = useRef<HTMLInputElement>(null)
   const [q, setQ] = useState('')
@@ -275,7 +281,7 @@ export function Topbar({ vista }: { vista: Vista }) {
         </div>
         )}
 
-        {can(yo?.rol, 'verAlertas') && (
+        {!soloRoles && can(yo?.rol, 'verAlertas') && (
           <a
             href={hashDe('alertas')}
             title="Abrir pendientes"

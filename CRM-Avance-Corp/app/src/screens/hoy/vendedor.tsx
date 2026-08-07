@@ -52,18 +52,21 @@ import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } fr
 import {
   agendaDeTareas,
   esDeHoy,
-  fechaLima,
   tareaAEvento,
   type EventoAgenda,
 } from '@/lib/agenda-derivada'
-import { metaConversionAplicable, periodoLima } from '@/lib/objetivos'
-import { useTipoCambio, usdAPen, type TipoCambio } from '@/lib/tipo-cambio'
+import {
+  capitalObjetivo,
+  capitalReal,
+  metaConversionAplicable,
+} from '@/lib/objetivos'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, primerNombre } from '@/lib/format'
+import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
@@ -80,7 +83,7 @@ function fechaLarga(ahora: number): string {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-// ── Meta del mes (animaciones sutiles + USD convertido) ───────────────────────
+// ── Cumplimiento del mes (animaciones sutiles) ────────────────────────────────
 
 // Respeta prefers-reduced-motion: sin animación de barras para quien la desactiva.
 const PREFERS_REDUCED =
@@ -168,32 +171,6 @@ function MetaFila({
       )}
       {nota && <div className="mt-1.5">{nota}</div>}
     </div>
-  )
-}
-
-/** Nota bajo el capital: cómo entró el USD a la meta (convertido a soles), o que
- * queda pendiente de tipo de cambio (modo real sin fuente conectada aún). */
-function NotaUSD({
-  capUSD,
-  enPEN,
-  tc,
-}: {
-  capUSD: number
-  enPEN: number
-  tc: TipoCambio | null
-}): JSX.Element | null {
-  if (capUSD <= 0) return null
-  if (!tc) {
-    return (
-      <p className="text-[11px] text-muted-foreground">
-        Tienes {moneyK(capUSD, 'USD')} en dólares — pendiente de tipo de cambio para sumarlos a la meta.
-      </p>
-    )
-  }
-  return (
-    <p className="text-[11px] text-muted-foreground">
-      Incluye {moneyK(capUSD, 'USD')} → {moneyK(enPEN)} al TC {tc.fuente} S/ {tc.promedio.toFixed(3)}.
-    </p>
   )
 }
 
@@ -508,9 +485,20 @@ function AgendaHoy({
 // ── Pantalla ──────────────────────────────────────────────────────────────────
 
 export function HoyVendedor(): JSX.Element {
-  const { ambito, actividades, tareas, objetivos, objetivosError, recargar, reprogramarTarea } = useCRMData()
+  const {
+    ambito,
+    actividades,
+    tareas,
+    objetivos,
+    objetivosError,
+    cumplimientoMetas,
+    cumplimientoMetasError,
+    recargar,
+    reprogramarTarea,
+  } = useCRMData()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const { yo } = useAuth()
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades)
   // Motor (Fase B): tarea seleccionada para cerrar desde la agenda héroe.
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
@@ -534,45 +522,17 @@ export function HoyVendedor(): JSX.Element {
   // —que ya usan este criterio— le mostraban su capital real. Tres pantallas
   // contradiciéndose sobre el mismo lead.
   const capital = capitalPrincipal(capPEN, capUSD)
-  // …salvo para la META: el USD cuenta CONVERTIDO a soles al TC promedio de la
-  // semana. La regla sigue viva (no se suman crudos): capMeta es soles + soles.
-  const tc = useTipoCambio()
-  const capUSDenPEN = usdAPen(capUSD, tc?.promedio ?? 0)
-  const capMeta = capPEN + capUSDenPEN
 
-  // Meta del mes: objetivos demo estáticos vs actuales calculados de SUS leads.
-  // Misma semántica que supervisor/gerencia: capital EN PROCESO (PEN) vs objetivo.
+  // La meta viene de la revisión publicada; el numerador viene únicamente del
+  // RPC de cumplimiento confirmado. El pipeline abierto no entra aquí.
   const meta = objetivos.vendedor
-  // Conversión tiene una meta inicial común de 15 % hasta que Gerencia guarde
-  // otra. Los ceros de una lectura fallida no activan ese fallback.
   const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
-  // La meta es MENSUAL, así que el numerador tiene que serlo también: comparar
-  // el histórico de vida contra la cuota del mes dejaba a un asesor con 7
-  // conversiones y meta 3 en "233 %" para siempre, y encima la misma pantalla
-  // rotula ese conteo como "Histórico" doce líneas más arriba.
-  //
-  // Mes de CIERRE = `actualizado_en`: un lead terminal es inmutable para el API
-  // (editar un cerrado está bloqueado), así que ese sello ≡ instante del cierre.
-  // Es el MISMO contrato que ya usan lib/series-comerciales y
-  // crm.metricas_agenda_fn — una segunda fórmula haría que Hoy y las tendencias
-  // de gerencia contaran cierres distintos. Sin el dato (demo, o alta optimista
-  // local) cae al mes de creación, igual que allí.
-  const periodo = periodoLima(ahora)
-  const cerradoEnElMes = (l: Lead): boolean => {
-    const ms = Date.parse(l.actualizado_en ?? l.creado_en)
-    return Number.isFinite(ms) && `${fechaLima(ms).slice(0, 7)}-01` === periodo
-  }
-  const convertidosMes = mios.filter((l) => l.etapa === 'convertido' && cerradoEnElMes(l))
-  // Conversión DEL MES sobre lo RESUELTO en el mes (convertidos + descartados),
-  // la misma definición que la serie de tendencia de gerencia. Sobre `mios`
-  // (toda la cartera de vida) el porcentaje ni siquiera era del periodo.
-  const resueltosMes = convertidosMes.length + mios.filter((l) => l.etapa === 'descartado' && cerradoEnElMes(l)).length
-  // `null` = SIN DENOMINADOR, que no es lo mismo que 0 %. Antes esta rama
-  // devolvía 0 y la fila se pintaba en rojo crítico —chip, barra al 0 % y
-  // "0 % del objetivo"— junto a la nota "Sin leads resueltos este mes todavía":
-  // la pantalla contradiciéndose sola, y le pasaba a TODO asesor cada día 1 de
-  // mes. La fila lo trata como sin dato (ver `neutro` en MetaFila).
-  const conversion = resueltosMes > 0 ? Math.round((convertidosMes.length / resueltosMes) * 100) : null
+  const cumplimiento = cumplimientoMetas?.vendedor ?? null
+  const metaCapitalPen = capitalObjetivo(meta, 'PEN')
+  const metaCapitalUsd = capitalObjetivo(meta, 'USD')
+  const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
+  const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+  const conversion = cumplimiento?.conversionReal ?? null
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
@@ -584,8 +544,8 @@ export function HoyVendedor(): JSX.Element {
   const plan = useMemo(() => planPorLead(tareas, ahora), [tareas, ahora])
   const conTarea = plan.conTarea
   const cola = useMemo(
-    () => colaDe(ambito.leads, actividades, ahora, plan),
-    [ambito.leads, actividades, ahora, plan],
+    () => colaDe(ambito.leads, actividades, ahora, plan, estadoSla.indice),
+    [ambito.leads, actividades, ahora, plan, estadoSla.indice],
   )
 
   // Agenda héroe — se deriva AQUÍ, con el reloj vivo, y NO se consume la del
@@ -706,6 +666,22 @@ export function HoyVendedor(): JSX.Element {
         </p>
       </div>
 
+      {Boolean(estadoSla.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudo cargar el reloj SLA. La cola conserva tus pendientes, pero omite vencimientos no verificables.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={estadoSla.recargar}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* KPIs personales — capital PEN con el USD aparte (nunca sumados).
           Sin cartera NO pintamos una fila de ceros extrabold: vacío honesto que
           encamina a la acción real (pedir asignación o registrar el primer lead). */}
@@ -724,7 +700,7 @@ export function HoyVendedor(): JSX.Element {
       ) : (
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
-            label="Capital en proceso"
+            label="Pronóstico de capital abierto"
             value={capital.valor}
             icon={Wallet}
             color="#2563eb"
@@ -905,70 +881,67 @@ export function HoyVendedor(): JSX.Element {
 
       </div>
 
-      {/* Meta del mes — franja compacta full-width: es el marcador, no una acción. */}
+      {/* Cumplimiento mensual: solo contratos confirmados; el pipeline queda arriba. */}
       <Card>
         <SectionHead
           icon={Target}
-          title="Tu meta del mes"
-          right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'objetivos demo' : 'objetivo mensual'}</span>}
+          title="Tu cumplimiento del mes"
+          right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'datos confirmados demo' : 'contratos confirmados'}</span>}
         />
         <CardContent className="pt-0">
-          {metaConversion == null ? (
-            <div className="space-y-2">
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-semibold text-foreground/80">Capital en proceso</p>
-                <p className="text-xs font-bold tabular-nums">
-                  <AnimatedValue value={moneyK(capMeta)} />
-                </p>
-              </div>
-              <div className="flex items-baseline justify-between gap-2">
-                <p className="text-xs font-semibold text-foreground/80">Conversión este mes</p>
-                <p className="text-xs font-bold tabular-nums">{conversion == null ? '—' : `${conversion}%`}</p>
-              </div>
-              <NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />
-              {/* Ceros por FALLO DE LECTURA ≠ ausencia de una meta guardada.
-                  Los dos valores de arriba siguen siendo reales; lo que falta
-                  es el denominador para compararlos. */}
-              <div className="flex flex-wrap items-center gap-2">
-                <p className="text-[11px] text-warning-text">
-                  No pudimos cargar tu meta del mes — los datos de arriba son tuyos y son reales.
-                </p>
-                <Button variant="ghost" size="sm" onClick={() => void recargar()}>
-                  Reintentar
-                </Button>
-              </div>
-            </div>
-          ) : (
-            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-              {/* Cada fila mira SU propio objetivo: que gerencia haya fijado
-                  capital no significa que haya fijado conversión, y una fila con
-                  objetivo 0 no puede pintarse como incumplida (ver MetaFila). */}
-              <MetaFila
-                icon={Wallet}
-                label="Capital"
-                valorTxt={moneyK(capMeta)}
-                metaTxt={moneyK(meta.capitalObjetivo)}
-                pct={pctMeta(capMeta, meta.capitalObjetivo)}
-                delay={0}
-                neutro={meta.capitalObjetivo <= 0 ? SIN_META : undefined}
-                nota={<NotaUSD capUSD={capUSD} enPEN={capUSDenPEN} tc={tc} />}
-              />
-              {/* El valor es "—" y no "0 %" cuando no hay resueltos: un
-                  porcentaje sin denominador no existe, y escribirlo como 0 %
-                  ya es afirmar que el asesor no convirtió nada. */}
-              <MetaFila
-                icon={TrendingUp}
-                label="Conversión"
-                valorTxt={conversion == null ? '—' : `${conversion}%`}
-                metaTxt={`${metaConversion}%`}
-                pct={pctMeta(conversion ?? 0, metaConversion)}
-                delay={180}
-                neutro={
-                  conversion == null
-                    ? 'Sin leads resueltos este mes todavía — el % sale con el primer cierre'
-                    : undefined
-                }
-              />
+          <div className="grid gap-x-8 gap-y-4 md:grid-cols-3">
+            <MetaFila
+              icon={Wallet}
+              label="Capital confirmado PEN"
+              valorTxt={capitalConfirmadoPen == null ? '—' : moneyK(capitalConfirmadoPen, 'PEN')}
+              metaTxt={moneyK(metaCapitalPen, 'PEN')}
+              pct={pctMeta(capitalConfirmadoPen ?? 0, metaCapitalPen)}
+              delay={0}
+              neutro={objetivosError
+                ? 'Meta mensual no disponible'
+                : metaCapitalPen <= 0
+                  ? SIN_META
+                  : cumplimientoMetasError || capitalConfirmadoPen == null
+                    ? 'Cumplimiento confirmado no disponible'
+                    : undefined}
+            />
+            <MetaFila
+              icon={Wallet}
+              label="Capital confirmado USD"
+              valorTxt={capitalConfirmadoUsd == null ? '—' : moneyK(capitalConfirmadoUsd, 'USD')}
+              metaTxt={moneyK(metaCapitalUsd, 'USD')}
+              pct={pctMeta(capitalConfirmadoUsd ?? 0, metaCapitalUsd)}
+              delay={90}
+              neutro={objetivosError
+                ? 'Meta mensual no disponible'
+                : metaCapitalUsd <= 0
+                  ? SIN_META
+                  : cumplimientoMetasError || capitalConfirmadoUsd == null
+                    ? 'Cumplimiento confirmado no disponible'
+                    : undefined}
+            />
+            <MetaFila
+              icon={TrendingUp}
+              label="Conversión resuelta"
+              valorTxt={conversion == null ? '—' : `${conversion}%`}
+              metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
+              pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
+              delay={180}
+              neutro={objetivosError
+                ? 'Meta mensual no disponible'
+                : metaConversion == null
+                  ? SIN_META
+                  : cumplimientoMetasError
+                    ? 'Cumplimiento confirmado no disponible'
+                    : conversion == null
+                      ? 'Sin leads resueltos este mes todavía — el % sale con el primer cierre'
+                      : undefined}
+            />
+          </div>
+          {(objetivosError || cumplimientoMetasError) && (
+            <div className="mt-4 flex flex-wrap items-center gap-2">
+              <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
+              <Button variant="ghost" size="sm" onClick={() => void recargar()}>Reintentar</Button>
             </div>
           )}
         </CardContent>

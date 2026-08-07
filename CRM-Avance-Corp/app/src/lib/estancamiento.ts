@@ -20,39 +20,22 @@
 //    cola el 2026-07-24.
 import { SEMAFORO } from './semaforo'
 import { referenciaEspera, diasDesdeReferencia, type IndiceUltimaActividad } from './inteligencia'
-import type { Etapa, Lead } from './tipos'
+import type { EstadoSlaLead } from './sla-versionado'
+import type { Lead } from './tipos'
 
-const HORA_MS = 3_600_000
-
-/**
- * ESPEJO EXACTO de `private.umbral_estancamiento(text)`.
- *
- * Si allá cambia, cambia aquí (y al revés): son la misma regla, y de ella viven
- * a la vez el color de esta card y las métricas de distribución del servidor.
- * Las etapas terminales no tienen umbral: un lead cerrado no se estanca.
- */
-export const UMBRAL_ETAPA_MS: Partial<Record<Etapa, number>> = {
-  nuevo: 24 * HORA_MS,
-  contactado: 72 * HORA_MS,
-  reunion_agendada: 72 * HORA_MS,
-  propuesta_enviada: 120 * HORA_MS,
-}
-
-/** Plazo de cada etapa en texto, DERIVADO del umbral — nunca escrito a mano. */
-export const UMBRAL_DIAS_TXT: Partial<Record<Etapa, string>> = Object.fromEntries(
-  Object.entries(UMBRAL_ETAPA_MS).map(([k, ms]) => {
-    const horas = (ms ?? 0) / HORA_MS
-    return [k, horas < 48 ? `${horas} h` : `${horas / 24} d`]
-  }),
-)
+const DIA_MS = 86_400_000
 
 export interface SemaforoEtapa {
-  /** Días (con fracción) desde la referencia del ASESOR. */
+  /** Días (con fracción) dentro del episodio vigente de la etapa. */
   dias: number
   /** Color del punto, o `null` si esa etapa no tiene umbral (terminales). */
   color: string | null
   /** ¿Cruzó el umbral de SU etapa? */
   estancado: boolean
+  /** Plazo sellado en el episodio; null cuando no existe fotografía confiable. */
+  objetivoMinutos: number | null
+  politicaVersion: number | null
+  aproximado: boolean
 }
 
 /**
@@ -64,12 +47,48 @@ export function semaforoEstancamiento(
   lead: Lead,
   indice: IndiceUltimaActividad,
   ahora: number,
+  estado?: EstadoSlaLead,
 ): SemaforoEtapa {
-  const dias = diasDesdeReferencia(referenciaEspera(lead, indice), ahora)
-  const umbral = UMBRAL_ETAPA_MS[lead.etapa]
-  if (umbral == null) return { dias, color: null, estancado: false }
-  const transcurrido = dias * 86_400_000
-  if (transcurrido >= umbral * 2) return { dias, color: SEMAFORO.critico, estancado: true }
-  if (transcurrido >= umbral) return { dias, color: SEMAFORO.atencion, estancado: true }
-  return { dias, color: SEMAFORO.ok, estancado: false }
+  const diasContacto = diasDesdeReferencia(referenciaEspera(lead, indice), ahora)
+  if (
+    !estado
+    || estado.etapa !== lead.etapa
+    || estado.etapa_iniciada_en == null
+    || estado.etapa_limite_en == null
+    || estado.etapa_objetivo_minutos == null
+  ) {
+    return {
+      dias: diasContacto,
+      color: null,
+      estancado: false,
+      objetivoMinutos: null,
+      politicaVersion: null,
+      aproximado: false,
+    }
+  }
+
+  const inicio = Date.parse(estado.etapa_iniciada_en)
+  const limite = Date.parse(estado.etapa_limite_en)
+  if (!Number.isFinite(inicio) || !Number.isFinite(limite) || limite < inicio) {
+    return {
+      dias: diasContacto,
+      color: null,
+      estancado: false,
+      objetivoMinutos: null,
+      politicaVersion: null,
+      aproximado: false,
+    }
+  }
+
+  const dias = Math.max(0, (ahora - inicio) / DIA_MS)
+  const duracion = limite - inicio
+  const comun = {
+    dias,
+    objetivoMinutos: estado.etapa_objetivo_minutos,
+    politicaVersion: estado.etapa_politica_version,
+    aproximado: estado.etapa_aproximada ?? false,
+  }
+  if (ahora >= limite + duracion) return { ...comun, color: SEMAFORO.critico, estancado: true }
+  if (ahora >= limite) return { ...comun, color: SEMAFORO.atencion, estancado: true }
+  return { ...comun, color: SEMAFORO.ok, estancado: false }
 }

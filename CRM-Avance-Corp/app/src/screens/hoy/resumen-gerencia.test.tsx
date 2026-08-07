@@ -2,12 +2,19 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
+  metasConversionEquipoDemo,
   metricasConversionesDemo,
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
+import { agregarObjetivos, objetivosCero } from '@/lib/objetivos'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
+
+const META_EQUIPO = agregarObjetivos(Object.values(metasConversionEquipoDemo()))
+const CUMPLIMIENTO_EQUIPO = cumplimientoMetasConversionEquipoDemo().gerencia
+const META_VACIA = objetivosCero('2026-08-01').gerencia
 
 vi.mock('@/components/gerencia/echart-lazy', () => ({
   GerenciaEChart: ({
@@ -146,7 +153,8 @@ describe('ranking general de vendedores', () => {
         conversiones={conversiones}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={equipo}
-        meta={{ capitalObjetivo: 1_500_000, ventasObjetivo: 20, conversionObjetivo: 15 }}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -172,7 +180,8 @@ describe('ranking general de vendedores', () => {
         conversiones={conversiones}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
-        meta={{ capitalObjetivo: 1_500_000, ventasObjetivo: 20, conversionObjetivo: 15 }}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -194,7 +203,8 @@ describe('estados vacíos del resumen de Gerencia', () => {
         conversiones={conversionesSinActividad()}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={[]}
-        meta={{ capitalObjetivo: 1_500_000, ventasObjetivo: 20, conversionObjetivo: 15 }}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -218,7 +228,8 @@ describe('estados vacíos del resumen de Gerencia', () => {
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         reuniones={undefined}
         equipo={conversionEquipoDemo()}
-        meta={{ capitalObjetivo: 1_500_000, ventasObjetivo: 0, conversionObjetivo: 15 }}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error="No se pudieron cargar las reuniones."
@@ -240,7 +251,8 @@ describe('estados vacíos del resumen de Gerencia', () => {
         conversiones={conversionesSinActividad()}
         reuniones={reunionesSinActividad()}
         equipo={[]}
-        meta={{ capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 }}
+        meta={META_VACIA}
+        cumplimiento={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -254,14 +266,15 @@ describe('estados vacíos del resumen de Gerencia', () => {
   })
 })
 
-describe('meta inicial de conversión en el resumen de Gerencia', () => {
-  it('muestra y grafica 15 % cuando todavía no existe una meta guardada', () => {
+describe('meta publicada de conversión en el resumen de Gerencia', () => {
+  it('no inventa un 15 % cuando todavía no existe una meta publicada', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
-        meta={{ capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 }}
+        meta={META_VACIA}
+        cumplimiento={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -270,18 +283,20 @@ describe('meta inicial de conversión en el resumen de Gerencia', () => {
       />,
     )
 
-    expect(screen.getByText('15%', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
+    expect(screen.getByText('Sin meta', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
+    expect(screen.queryByText('15%', { selector: '.gi-hero-metric strong' })).not.toBeInTheDocument()
     const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
-    expect(JSON.parse(evolucion.getAttribute('data-meta-series') ?? '[]')).toEqual([15, 15, 15, 15])
+    expect(JSON.parse(evolucion.getAttribute('data-meta-series') ?? '[]')).toEqual([])
   })
 
-  it('si la meta no cargó conserva el error y no lo sustituye por 15 %', () => {
+  it('si la meta no cargó conserva el error y tampoco inventa un porcentaje', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
-        meta={{ capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 }}
+        meta={META_VACIA}
+        cumplimiento={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false, errorCarga: true }}
         cargando={false}
         error={null}

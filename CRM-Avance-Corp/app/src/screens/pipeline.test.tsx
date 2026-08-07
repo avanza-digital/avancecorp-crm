@@ -26,6 +26,14 @@ const cambiarEtapa = vi.fn((id: string, etapa: EtapaActiva) => {
 
 vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
+vi.mock('@/data/use-estado-sla-operativo', () => ({
+  useEstadoSlaOperativo: () => ({
+    indice: new Map(),
+    cargando: false,
+    error: null,
+    recargar: vi.fn(),
+  }),
+}))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     ambito: { leads: LEADS, vendedores: [], esGlobal: false },

@@ -3,7 +3,13 @@ import type {
   DetalleConversionVendedor,
   MetricasConversiones,
 } from './metricas-conversiones'
-import type { ObjetivosPorVendedor } from './objetivos'
+import {
+  capitalObjetivo,
+  capitalReal,
+  type CumplimientoVendedor,
+  type MonedaMeta,
+  type ObjetivosPorVendedor,
+} from './objetivos'
 
 export type EstadoConversionVendedor = 'comparable' | 'sin_muestra' | 'indisponible'
 
@@ -40,24 +46,22 @@ export type EstadoCapitalVendedor = 'comparable' | 'sin_meta' | 'indisponible'
 
 export interface CapitalVendedorAdaptado {
   vendedor: ConversionVendedorAdaptada
-  capitalPen: number | null
-  capitalUsd: number | null
+  moneda: MonedaMeta
+  capitalReal: number | null
   metaCapital: number | null
   avance: number | null
   estadoCapital: EstadoCapitalVendedor
 }
 
 export type CapitalVendedorConPuesto = CapitalVendedorAdaptado & {
-  capitalPen: number
-  capitalUsd: number
+  capitalReal: number
   metaCapital: number
   avance: number
   estadoCapital: 'comparable'
 }
 
 export type CapitalVendedorSinMeta = CapitalVendedorAdaptado & {
-  capitalPen: number
-  capitalUsd: number
+  capitalReal: number
   metaCapital: null
   avance: null
   estadoCapital: 'sin_meta'
@@ -204,13 +208,16 @@ export function clasificarRankingConversion(
 export function clasificarRankingCapital(
   vendedores: readonly ConversionVendedorAdaptada[],
   metas: ObjetivosPorVendedor,
+  cumplimientos: Record<string, CumplimientoVendedor>,
+  moneda: MonedaMeta,
 ): RankingCapitalVendedores {
   const filas = vendedores.map<CapitalVendedorAdaptado>((vendedor) => {
-    const capitalPen = vendedor.detalle?.capital_pen ?? null
-    const capitalUsd = vendedor.detalle?.capital_usd ?? null
-    const objetivo = metas[vendedor.vendedorId]?.capitalObjetivo
+    const cumplimiento = cumplimientos[vendedor.vendedorId]
+    const capitalConfirmado = cumplimiento ? capitalReal(cumplimiento, moneda) : null
+    const meta = metas[vendedor.vendedorId]
+    const objetivo = meta ? capitalObjetivo(meta, moneda) : null
     const metaCapital = objetivo != null && objetivo > 0 ? objetivo : null
-    const estadoCapital: EstadoCapitalVendedor = vendedor.detalle == null
+    const estadoCapital: EstadoCapitalVendedor = cumplimiento == null
       ? 'indisponible'
       : metaCapital == null
         ? 'sin_meta'
@@ -218,11 +225,11 @@ export function clasificarRankingCapital(
 
     return {
       vendedor,
-      capitalPen,
-      capitalUsd,
+      moneda,
+      capitalReal: capitalConfirmado,
       metaCapital,
-      avance: estadoCapital === 'comparable' && capitalPen != null && metaCapital != null
-        ? Math.max(0, (capitalPen / metaCapital) * 100)
+      avance: estadoCapital === 'comparable' && capitalConfirmado != null && metaCapital != null
+        ? Math.max(0, (capitalConfirmado / metaCapital) * 100)
         : null,
       estadoCapital,
     }
@@ -231,23 +238,21 @@ export function clasificarRankingCapital(
   const conPuesto = filas
     .filter((fila): fila is CapitalVendedorConPuesto => (
       fila.estadoCapital === 'comparable'
-      && fila.capitalPen != null
-      && fila.capitalUsd != null
+      && fila.capitalReal != null
       && fila.metaCapital != null
       && fila.avance != null
     ))
     .sort((a, b) => (b.avance ?? -1) - (a.avance ?? -1)
-      || (b.capitalPen ?? -1) - (a.capitalPen ?? -1)
+      || (b.capitalReal ?? -1) - (a.capitalReal ?? -1)
       || porNombre(a.vendedor, b.vendedor))
   const sinMeta = filas
     .filter((fila): fila is CapitalVendedorSinMeta => (
       fila.estadoCapital === 'sin_meta'
-      && fila.capitalPen != null
-      && fila.capitalUsd != null
+      && fila.capitalReal != null
       && fila.metaCapital == null
       && fila.avance == null
     ))
-    .sort((a, b) => (b.capitalPen ?? -1) - (a.capitalPen ?? -1)
+    .sort((a, b) => (b.capitalReal ?? -1) - (a.capitalReal ?? -1)
       || porNombre(a.vendedor, b.vendedor))
   const indisponibles = filas
     .filter((fila) => fila.estadoCapital === 'indisponible')

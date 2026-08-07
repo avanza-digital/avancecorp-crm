@@ -1,6 +1,11 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { conversionEquipoDemo, metricasConversionesDemo } from '@/lib/demo-inteligencia-comercial'
+import {
+  conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
+  metasConversionEquipoDemo,
+  metricasConversionesDemo,
+} from '@/lib/demo-inteligencia-comercial'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import type { ObjetivosPorVendedor } from '@/lib/objetivos'
 import { RankingVendedoresPanel } from './ranking-vendedores'
@@ -26,10 +31,12 @@ describe('ranking general de vendedores', () => {
       leads: 8,
       conversionPct: 0,
     }
+    const todasLasMetas = metasConversionEquipoDemo()
     const metas: ObjetivosPorVendedor = {
-      'demo-v1': { vendedorId: 'demo-v1', supervisorId: 'demo-s1', capitalObjetivo: 400_000, ventasObjetivo: 5, conversionObjetivo: 15 },
-      'demo-v2': { vendedorId: 'demo-v2', supervisorId: 'demo-s1', capitalObjetivo: 200_000, ventasObjetivo: 4, conversionObjetivo: 15 },
+      'demo-v1': todasLasMetas['demo-v1']!,
+      'demo-v2': todasLasMetas['demo-v2']!,
     }
+    const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
 
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     datos.responsables?.push({
@@ -49,6 +56,7 @@ describe('ranking general de vendedores', () => {
         datos={datos}
         equipo={[...conversionEquipoDemo(), sinLeads, sinAsignar]}
         metasVendedores={metas}
+        cumplimientoVendedores={cumplimientos}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -68,14 +76,14 @@ describe('ranking general de vendedores', () => {
     expect(within(fueraConversion).getByText('Sin muestra')).toBeInTheDocument()
     expect(within(fueraConversion).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Meta de capital' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital PEN' }))
 
-    const tablaCapital = screen.getByRole('table', { name: 'Ranking de meta de capital' })
+    const tablaCapital = screen.getByRole('table', { name: 'Ranking de meta de capital PEN' })
     const filasCapital = within(tablaCapital).getAllByRole('row')
     expect(filasCapital).toHaveLength(3)
     expect(within(filasCapital[1]!).getByText('Bruno Díaz')).toBeInTheDocument()
-    expect(within(filasCapital[1]!).getByText('145%')).toBeInTheDocument()
-    expect(within(filasCapital[1]!).getByText(/aparte/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(/161/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(/S\/ 290,000/)).toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Gabriela Soto')).not.toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Sin vendedor asignado')).not.toBeInTheDocument()
     const fueraCapital = screen.getByRole('region', { name: 'Vendedores sin posición en capital' })
@@ -88,6 +96,7 @@ describe('ranking general de vendedores', () => {
         datos={metricasConversionesDemo('2026-07-01', '2026-07-31')}
         equipo={[...conversionEquipoDemo(), sinLeads, sinAsignar]}
         metasVendedores={metas}
+        cumplimientoVendedores={cumplimientos}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
         cargando={false}
         error={null}
@@ -95,8 +104,8 @@ describe('ranking general de vendedores', () => {
       />,
     )
 
-    expect(screen.queryByRole('table', { name: 'Ranking de meta de capital' })).not.toBeInTheDocument()
-    expect(screen.queryByText('145%')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Ranking de meta de capital PEN' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/161/)).not.toBeInTheDocument()
     expect(screen.getByText('La meta mensual de agosto 2026 no es comparable con el rango aplicado.')).toBeInTheDocument()
   })
 
@@ -109,6 +118,7 @@ describe('ranking general de vendedores', () => {
         datos={datos}
         equipo={conversionEquipoDemo()}
         metasVendedores={{}}
+        cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}

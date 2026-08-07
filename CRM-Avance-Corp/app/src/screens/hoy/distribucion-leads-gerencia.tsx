@@ -63,7 +63,6 @@ import {
   porcentajeLegible,
   presetsPeriodo,
   resumenEquipo,
-  textoMinutos,
   ORDEN_FICHAS_ETIQUETAS,
   type EquipoDistribucion,
   type FichaAnalista,
@@ -166,12 +165,6 @@ function cierresUsd(analistas: AnalistaDistribucionLeads[]): {
 /** Montos de cartera SIEMPRE redondeados a enteros: lectura gerencial. */
 function dinero(valor: number, moneda: Moneda): string {
   return money(Math.round(valor), moneda)
-}
-
-function colorSla(pct: number): string {
-  if (pct >= 80) return SEMAFORO.ok
-  if (pct >= 50) return SEMAFORO.atencion
-  return SEMAFORO.critico
 }
 
 function rangosPen(datos: MetricasDistribucionLeads): RangoCapitalDistribucion[] {
@@ -350,16 +343,10 @@ function ResumenDistribucion({
   const decisionesUsd = cierresDolares.convertidos + cierresDolares.descartados
   const conversionPen = porcentajeLegible(datos.resumen.convertidos_pen, decisionesPen)
   const conversionUsd = porcentajeLegible(cierresDolares.convertidos, decisionesUsd)
-  const sla = porcentajeLegible(
-    datos.resumen.sla_global_en_24h,
-    datos.resumen.sla_global_evaluables,
-  )
-  const medianaGlobal = textoMinutos(datos.resumen.primer_contacto_global_mediana_minutos)
-  const vencidos = datos.resumen.sla_global_sin_contacto_vencidos_actuales
   const porRepartir = datos.resumen.por_repartir_actuales
 
   return (
-    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
+    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-3' : 'xl:grid-cols-2'}`}>
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Leads con analista
@@ -424,30 +411,6 @@ function ResumenDistribucion({
         </dd>
       </div>
 
-      <div className={TARJETA_RESUMEN_CLASS}>
-        <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Atención en 24 horas
-        </dt>
-        <dd className="mt-1.5 text-3xl font-extrabold tracking-tight tabular-nums text-primary">
-          {sla ?? 'Aún sin datos'}
-        </dd>
-        <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
-          {sla != null && (
-            <>
-              {datos.resumen.sla_global_en_24h} de {datos.resumen.sla_global_evaluables} leads
-              atendidos a tiempo{medianaGlobal ? ` · lo habitual: ${medianaGlobal}` : ''}
-              {' · '}
-            </>
-          )}
-          {vencidos > 0 ? (
-            <span className="font-bold" style={{ color: SEMAFORO.critico }}>
-              {vencidos} {plural(vencidos, 'lead vencido ahora', 'leads vencidos ahora')}
-            </span>
-          ) : (
-            'sin leads vencidos ahora'
-          )}
-        </dd>
-      </div>
     </dl>
   )
 }
@@ -473,7 +436,7 @@ function AtencionHoy({
             Sin pendientes urgentes
           </h4>
           <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-            Los leads del período están asignados y atendidos a tiempo.
+            No hay alertas de carga, asignación ni actividad en esta fotografía.
           </p>
         </div>
       </section>
@@ -687,25 +650,8 @@ function TarjetaAnalista({
         </p>
       </div>
 
-      <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
-        {ficha.sla
-          ? (
-              <span
-                className="rounded-md px-2 py-1 tabular-nums"
-                style={{
-                  color: colorSla(Number.parseFloat(ficha.sla.pct)),
-                  backgroundColor: 'color-mix(in oklab, currentColor 10%, transparent)',
-                }}
-              >
-                24 h: {ficha.sla.pct} ({ficha.sla.en24} de {ficha.sla.evaluables})
-              </span>
-            )
-          : (
-              <span className="rounded-md bg-muted/50 px-2 py-1 text-muted-foreground">
-                24 h: aún sin medición
-              </span>
-            )}
-        {ficha.sinAtender > 0 && (
+      {ficha.sinAtender > 0 && (
+        <div className="flex flex-wrap gap-1.5 text-xs font-semibold">
           <span
             className="rounded-md px-2 py-1 tabular-nums"
             style={{
@@ -715,19 +661,8 @@ function TarjetaAnalista({
           >
             {ficha.sinAtender} sin atender
           </span>
-        )}
-        {ficha.sinAvance > 0 && (
-          <span
-            className="rounded-md px-2 py-1 tabular-nums"
-            style={{
-              color: SEMAFORO.atencion,
-              backgroundColor: 'color-mix(in oklab, currentColor 10%, transparent)',
-            }}
-          >
-            {ficha.sinAvance} sin avance
-          </span>
-        )}
-      </div>
+        </div>
+      )}
 
       <div className="mt-auto border-t border-border/70 pt-2.5 text-xs leading-relaxed text-muted-foreground">
         <p className="tabular-nums">
@@ -1561,7 +1496,7 @@ export function DistribucionLeadsGerencia({
           <CardDescription className="mt-1 max-w-xl leading-relaxed">
             {mostrarOperacion
               ? 'Quién tiene qué, quién tiene espacio y qué falta repartir. Soles y dólares siempre separados.'
-              : 'Conversión, velocidad de atención y capacidad por analista. Soles y dólares siempre separados.'}
+              : 'Conversión, carga y capacidad por analista. Soles y dólares siempre separados.'}
           </CardDescription>
         </div>
         {mostrarPeriodo && <PeriodoControl
@@ -1653,8 +1588,8 @@ export function DistribucionLeadsGerencia({
             Período: {datos.cohorte.desde_inclusivo} al {datos.cohorte.hasta_inclusivo}. «Recibió»
             cuenta cada vez que un lead entró a la cartera de una persona durante el período; la
             cartera actual es la foto de hoy. Los cierres se calculan solo sobre leads resueltos
-            (ventas + descartes). El reloj de 24 horas empieza cuando el lead ingresa o se reabre y
-            no se reinicia si cambia de analista.
+            (ventas + descartes). Los tiempos de atención se consultan en las métricas SLA
+            versionadas, fuera de este tablero de distribución.
           </p>
         </CardContent>
       )}

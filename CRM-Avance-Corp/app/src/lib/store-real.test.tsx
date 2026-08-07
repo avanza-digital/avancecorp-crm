@@ -9,6 +9,9 @@ import { AuthContext, type AuthContextValue } from './auth-context'
 import { useCRMData, useStoreEstado } from './store-context'
 import type { Rol } from './roles'
 import type { StoreDataApi, StoreEstado } from './store'
+import type { Yo } from './tipos'
+import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
+import type { CumplimientoMetasRpc } from './objetivos'
 import * as crmApi from '@/data/crm-api'
 
 vi.mock('sonner', () => ({
@@ -23,8 +26,8 @@ vi.mock('@/data/crm-api', async (importActual) => {
     listarEquipo: vi.fn(),
     listarActividadesDelAmbito: vi.fn(),
     listarTareasDelAmbito: vi.fn(),
-    listarObjetivos: vi.fn(),
-    fijarObjetivosRpc: vi.fn(),
+    obtenerMetasDelMes: vi.fn(),
+    obtenerCumplimientoMetas: vi.fn(),
     insertarLead: vi.fn(),
     insertarTarea: vi.fn(),
     cerrarTarea: vi.fn(),
@@ -51,14 +54,86 @@ const insertarTarea = vi.mocked(crmApi.insertarTarea)
 const cerrarTareaMock = vi.mocked(crmApi.cerrarTarea)
 const cerrarReunionMock = vi.mocked(crmApi.cerrarReunion)
 const reprogramarReunionMock = vi.mocked(crmApi.reprogramarReunion)
-const listarObjetivosMock = vi.mocked(crmApi.listarObjetivos)
-const fijarObjetivosMock = vi.mocked(crmApi.fijarObjetivosRpc)
+const obtenerMetasMock = vi.mocked(crmApi.obtenerMetasDelMes)
+const obtenerCumplimientoMock = vi.mocked(crmApi.obtenerCumplimientoMetas)
 
 const ROSTER = [
   { perfil_id: 'u-ger', nombre_completo: 'Gerente Real', rol_crm: 'gerencia' as const, supervisor_id: null, activo: true },
   { perfil_id: 'u-s1', nombre_completo: 'Supervisor Real', rol_crm: 'supervisor' as const, supervisor_id: null, activo: true },
   { perfil_id: 'u-v1', nombre_completo: 'Vendedor Real', rol_crm: 'vendedor' as const, supervisor_id: 'u-s1', activo: true },
 ]
+
+function detallesMeta(capitalPen = 0, capitalUsd = 0): DetalleMeta[] {
+  return [
+    { categoria: 'nuevo', moneda: 'PEN', capital_objetivo: capitalPen, contratos_objetivo: capitalPen > 0 ? 2 : 0 },
+    { categoria: 'nuevo', moneda: 'USD', capital_objetivo: capitalUsd, contratos_objetivo: capitalUsd > 0 ? 1 : 0 },
+    { categoria: 'renovacion', moneda: 'PEN', capital_objetivo: 0, contratos_objetivo: 0 },
+    { categoria: 'renovacion', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
+    { categoria: 'upgrade', moneda: 'PEN', capital_objetivo: 0, contratos_objetivo: 0 },
+    { categoria: 'upgrade', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
+  ]
+}
+
+function configuracionMetas(
+  capitalPen = 0,
+  capitalUsd = 0,
+  conversionObjetivo = 0,
+): ConfiguracionMetas {
+  return {
+    version: 1,
+    periodo: '2026-08-01',
+    revision: capitalPen > 0 || capitalUsd > 0 || conversionObjetivo > 0 ? 4 : 0,
+    publicada_en: null,
+    publicada_por: null,
+    publicada_por_nombre: null,
+    puede_editar: true,
+    vendedores: [{
+      vendedor_id: 'u-v1',
+      nombre: 'Vendedor Real',
+      supervisor_id: 'u-s1',
+      supervisor_nombre: 'Supervisor Real',
+      conversion_objetivo: conversionObjetivo,
+      detalles: detallesMeta(capitalPen, capitalUsd),
+    }],
+  }
+}
+
+function cumplimientoMetas(
+  capitalPen = 0,
+  capitalUsd = 0,
+  conversionReal: number | null = null,
+  configuracion = configuracionMetas(),
+): CumplimientoMetasRpc {
+  return {
+    version: 1,
+    periodo: configuracion.periodo,
+    revision: configuracion.revision,
+    publicada_en: configuracion.publicada_en,
+    fuentes_reales: {
+      capital_y_contratos: 'contratos_confirmados',
+      conversion: 'leads_resueltos',
+    },
+    vendedores: configuracion.vendedores.map((vendedor) => ({
+      vendedor_id: vendedor.vendedor_id,
+      nombre: vendedor.nombre,
+      supervisor_id: vendedor.supervisor_id,
+      supervisor_nombre: vendedor.supervisor_nombre,
+      conversion_objetivo: vendedor.conversion_objetivo,
+      conversion_real: conversionReal,
+      convertidos: conversionReal == null ? 0 : 2,
+      resueltos: conversionReal == null ? 0 : 4,
+      detalles: vendedor.detalles.map((detalle) => ({
+        ...detalle,
+        capital_real: detalle.categoria === 'nuevo'
+          ? detalle.moneda === 'PEN' ? capitalPen : capitalUsd
+          : 0,
+        capital_cumplimiento_pct: null,
+        contratos_real: 0,
+        contratos_cumplimiento_pct: null,
+      })),
+    })),
+  }
+}
 
 function leadBase() {
   return {
@@ -82,7 +157,7 @@ function leadBase() {
   }
 }
 
-function sesionReal(rol: Rol): AuthContextValue {
+function sesionReal(rol: Rol, overrides: Partial<Yo> = {}): AuthContextValue {
   const identidad = rol === 'gerencia'
     ? { id: 'u-ger', nombre_completo: 'Gerente Real' }
     : rol === 'supervisor'
@@ -92,7 +167,7 @@ function sesionReal(rol: Rol): AuthContextValue {
         : { id: `u-${rol}`, nombre_completo: `Usuario ${rol}` }
   return {
     fase: 'listo',
-    yo: { ...identidad, rol, demo: false, puede_contratar: true },
+    yo: { ...identidad, rol, demo: false, puede_contratar: true, ...overrides },
     error: null,
     entrar: async () => ({ ok: true }),
     entrarDemo: () => undefined,
@@ -107,7 +182,7 @@ interface Montaje {
   mutar: <T>(fn: (api: StoreDataApi) => T) => T
 }
 
-function montar(rol: Rol = 'gerencia'): Montaje {
+function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
   const ref: { api: StoreDataApi | null; estado: StoreEstado | null } = { api: null, estado: null }
   function Sonda(): null {
     ref.api = useCRMData()
@@ -115,7 +190,7 @@ function montar(rol: Rol = 'gerencia'): Montaje {
     return null
   }
   render(
-    <AuthContext.Provider value={sesionReal(rol)}>
+    <AuthContext.Provider value={sesionReal(rol, overrides)}>
       <StoreProvider>
         <Sonda />
       </StoreProvider>
@@ -151,8 +226,8 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       return { estado: 'creado', lead_id: fila.id }
     })
     listarTareas.mockResolvedValue([])
-    listarObjetivosMock.mockResolvedValue([])
-    fijarObjetivosMock.mockResolvedValue(undefined)
+    obtenerMetasMock.mockResolvedValue(configuracionMetas())
+    obtenerCumplimientoMock.mockResolvedValue(cumplimientoMetas())
     insertarTarea.mockResolvedValue(undefined)
     cerrarTareaMock.mockResolvedValue({ siguiente_id: null })
     cerrarReunionMock.mockResolvedValue({ siguiente_id: null })
@@ -181,35 +256,41 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().actividades).toEqual([])
     expect(api().tareas).toEqual([])
     expect(listarEquipo).toHaveBeenCalledTimes(1)
-    expect(listarObjetivosMock).toHaveBeenCalledTimes(1)
+    expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
+    expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
     expect(listarLeads).toHaveBeenCalledTimes(1)
     expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
   it('Gerencia conserva metas individuales reales y sus agregados con la carga operativa', async () => {
-    listarObjetivosMock.mockResolvedValueOnce([{
-      vendedor_id: 'u-v1',
-      supervisor_id: 'u-s1',
-      capital_objetivo: 420_000,
-      ventas_objetivo: 0,
-      conversion_objetivo: 18,
-    }])
+    const configuracion = configuracionMetas(420_000, 42_000, 18)
+    obtenerMetasMock.mockResolvedValueOnce(configuracion)
+    obtenerCumplimientoMock.mockResolvedValueOnce(cumplimientoMetas(210_000, 10_500, 50, configuracion))
     const { api, estado } = montar('gerencia')
 
     await waitFor(() => expect(estado().cargando).toBe(false))
-    expect(api().objetivos.porVendedor?.['u-v1']).toEqual({
+    expect(api().objetivos.porVendedor?.['u-v1']).toMatchObject({
       vendedorId: 'u-v1',
+      nombre: 'Vendedor Real',
       supervisorId: 'u-s1',
-      capitalObjetivo: 420_000,
-      ventasObjetivo: 0,
       conversionObjetivo: 18,
     })
-    expect(api().objetivos.gerencia).toEqual({
-      capitalObjetivo: 420_000,
-      ventasObjetivo: 0,
-      conversionObjetivo: 18,
+    expect(api().objetivos.gerencia.detalles).toEqual(expect.arrayContaining([
+      expect.objectContaining({ categoria: 'nuevo', moneda: 'PEN', capitalObjetivo: 420_000 }),
+      expect.objectContaining({ categoria: 'nuevo', moneda: 'USD', capitalObjetivo: 42_000 }),
+    ]))
+    expect(api().cumplimientoMetas).toMatchObject({
+      fuentesReales: {
+        capitalYContratos: 'contratos_confirmados',
+        conversion: 'leads_resueltos',
+      },
+      gerencia: { conversionReal: 50 },
     })
+    expect(api().cumplimientoMetas?.gerencia?.detalles).toEqual(expect.arrayContaining([
+      expect.objectContaining({ categoria: 'nuevo', moneda: 'PEN', capitalReal: 210_000 }),
+      expect.objectContaining({ categoria: 'nuevo', moneda: 'USD', capitalReal: 10_500 }),
+    ]))
   })
 
   it('recargar Gerencia resincroniza roster, metas y fuentes operativas', async () => {
@@ -220,14 +301,16 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     listarActs.mockResolvedValue([])
     listarTareas.mockResolvedValue([])
     listarEquipo.mockResolvedValue(ROSTER)
-    listarObjetivosMock.mockResolvedValue([])
+    obtenerMetasMock.mockResolvedValue(configuracionMetas())
+    obtenerCumplimientoMock.mockResolvedValue(cumplimientoMetas())
 
     await act(async () => {
       expect(await api().recargar()).toBe(true)
     })
 
     expect(listarEquipo).toHaveBeenCalledTimes(1)
-    expect(listarObjetivosMock).toHaveBeenCalledTimes(1)
+    expect(obtenerMetasMock).toHaveBeenCalledTimes(1)
+    expect(obtenerCumplimientoMock).toHaveBeenCalledTimes(1)
     expect(listarLeads).toHaveBeenCalledTimes(1)
     expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
@@ -241,6 +324,30 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(listarLeads).toHaveBeenCalledTimes(1)
     expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
+  })
+
+  it('Superadmin sin Gerencia arranca con store vacío sin consultar operación', async () => {
+    const { api, estado } = montar('directorio', {
+      rol_portal: 'superadmin',
+      puede_contratar: false,
+      capacidades_config: {
+        puede_listar_usuarios: true,
+        puede_administrar_usuarios: false,
+        puede_organizar_jerarquia: false,
+        puede_administrar_roles: true,
+      },
+    })
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(estado().error).toBe(false)
+    expect(api().leads).toEqual([])
+    expect(api().equipo).toEqual([])
+    expect(listarLeads).not.toHaveBeenCalled()
+    expect(listarEquipo).not.toHaveBeenCalled()
+    expect(listarActs).not.toHaveBeenCalled()
+    expect(listarTareas).not.toHaveBeenCalled()
+    expect(obtenerMetasMock).not.toHaveBeenCalled()
+    expect(obtenerCumplimientoMock).not.toHaveBeenCalled()
   })
 
   it('Gerencia edita un lead de otro asesor y persiste el cambio', async () => {
@@ -257,56 +364,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
   })
 
-  it('fijarObjetivos: optimista + RPC con el periodo Lima (solo gerencia)', async () => {
-    const { api, mutar } = montar('gerencia')
-    await waitFor(() => expect(api().equipo).toHaveLength(ROSTER.length))
+  it('expone las metas en solo lectura; la escritura vive únicamente en Configuración', async () => {
+    const { api, estado } = montar('gerencia')
+    await waitFor(() => expect(estado().cargando).toBe(false))
 
-    const metas = {
-      'u-v1': {
-        vendedorId: 'u-v1',
-        supervisorId: 'u-s1',
-        capitalObjetivo: 1_000_000,
-        ventasObjetivo: 0,
-        conversionObjetivo: 28,
-      },
-    }
-    const res = mutar((a) => a.fijarObjetivos(metas))
-
-    expect(res.ok).toBe(true)
-    // Optimista: el marcador se actualiza al toque.
-    expect(api().objetivos.gerencia.capitalObjetivo).toBe(1_000_000)
-    await waitFor(() => expect(fijarObjetivosMock).toHaveBeenCalledTimes(1))
-    const [periodo, payload] = fijarObjetivosMock.mock.calls[0] ?? []
-    expect(periodo).toMatch(/^\d{4}-\d{2}-01$/) // primer día del mes (Lima)
-    expect(payload?.['u-v1']).toEqual({
-      capital_objetivo: 1_000_000, ventas_objetivo: 0, conversion_objetivo: 28,
-    })
-  })
-
-  it('fijarObjetivos: un vendedor NO puede (espejo del gate del servidor)', async () => {
-    const { api, mutar } = montar('vendedor')
-    await waitFor(() => expect(api().leads).toHaveLength(1))
-
-    const res = mutar((a) => a.fijarObjetivos(api().objetivos))
-
-    expect(res.ok).toBe(false)
-    expect(res.codigo).toBe('sin_permiso')
-    expect(fijarObjetivosMock).not.toHaveBeenCalled()
-  })
-
-  it('fijarObjetivos: metas inválidas no viajan a la red', async () => {
-    const { api, mutar } = montar('gerencia')
-    await waitFor(() => expect(api().equipo).toHaveLength(ROSTER.length))
-
-    const res = mutar((a) => a.fijarObjetivos({
-      vendedor: { capitalObjetivo: -1, ventasObjetivo: 0, conversionObjetivo: 0 },
-      supervisor: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
-      gerencia: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
-    }))
-
-    expect(res.ok).toBe(false)
-    expect(res.error).toMatch(/positivos/)
-    expect(fijarObjetivosMock).not.toHaveBeenCalled()
+    expect('fijarObjetivos' in api()).toBe(false)
+    expect(obtenerMetasMock).toHaveBeenCalledWith(expect.stringMatching(/^\d{4}-\d{2}-01$/), expect.any(AbortSignal))
   })
 
   it('el gate de acciones está ABIERTO: crearLead persiste y resincroniza', async () => {
@@ -916,7 +979,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   // Un fallo de LECTURA de metas se pintaba como «Meta mensual por definir»:
   // el asesor creía que gerencia no le fijó meta cuando sí lo hizo.
   it('metas que NO se pudieron leer se marcan como error, no como "sin meta"', async () => {
-    listarObjetivosMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
+    obtenerMetasMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
     const { api, estado } = montar('vendedor')
 
     await waitFor(() => expect(estado().cargando).toBe(false))
@@ -924,10 +987,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(estado().error).toBe(false)
     // …pero el consumidor sabe que los ceros no son un dato.
     expect(api().objetivosError).toBe(true)
+    expect(api().cumplimientoMetas).toBeNull()
+    expect(api().cumplimientoMetasError).toBe(true)
   })
 
   it('metas leídas OK (aunque estén vacías) NO son un error: el cero SÍ es el dato', async () => {
-    listarObjetivosMock.mockResolvedValue([])
+    obtenerMetasMock.mockResolvedValue(configuracionMetas())
     const { api, estado } = montar('vendedor')
 
     await waitFor(() => expect(estado().cargando).toBe(false))
@@ -935,16 +1000,42 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   })
 
   it('tras un fallo de metas, recargar() limpia la marca cuando el servidor vuelve', async () => {
-    listarObjetivosMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
+    obtenerMetasMock.mockRejectedValueOnce(new CrmApiError('metas caídas', 'POSTGREST_ERROR'))
     const { api, estado } = montar('supervisor')
     await waitFor(() => expect(api().objetivosError).toBe(true))
 
-    listarObjetivosMock.mockResolvedValue([])
+    obtenerMetasMock.mockResolvedValue(configuracionMetas())
     await act(async () => {
       await api().recargar()
     })
     await waitFor(() => expect(api().objetivosError).toBe(false))
     expect(estado().error).toBe(false)
+  })
+
+  it('un fallo de cumplimiento no se reemplaza con pipeline ni derriba el CRM', async () => {
+    obtenerCumplimientoMock.mockRejectedValueOnce(new CrmApiError('cumplimiento caído', 'POSTGREST_ERROR'))
+    const { api, estado } = montar('gerencia')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(estado().error).toBe(false)
+    expect(api().cumplimientoMetas).toBeNull()
+    expect(api().cumplimientoMetasError).toBe(true)
+  })
+
+  it('oculta el cumplimiento si llegó de una revisión distinta a la configuración', async () => {
+    const configuracion = configuracionMetas(420_000, 42_000, 18)
+    const cumplimientoDesfasado = cumplimientoMetas(210_000, 10_500, 50, configuracion)
+    obtenerMetasMock.mockResolvedValueOnce(configuracion)
+    obtenerCumplimientoMock.mockResolvedValueOnce({
+      ...cumplimientoDesfasado,
+      revision: configuracion.revision + 1,
+    })
+    const { api, estado } = montar('gerencia')
+
+    await waitFor(() => expect(estado().cargando).toBe(false))
+    expect(api().objetivosError).toBe(false)
+    expect(api().cumplimientoMetas).toBeNull()
+    expect(api().cumplimientoMetasError).toBe(true)
   })
 
   it('fallo de la carga inicial → estado.error (no pinta CRM vacío) y reintentar recupera', async () => {

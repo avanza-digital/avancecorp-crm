@@ -1,7 +1,12 @@
 import type { MetricasConversiones } from './metricas-conversiones'
 import type { MetricasReuniones } from './metricas-reuniones'
 import type { ConversionEquipoVendedor } from './conversion-equipo'
-import type { ObjetivosPorVendedor } from './objetivos'
+import {
+  agregarCumplimientos,
+  type CumplimientoMetasJerarquico,
+  type CumplimientoVendedor,
+  type ObjetivosPorVendedor,
+} from './objetivos'
 import type { SeriesComerciales } from './series-comerciales'
 
 type PeriodoDemo = MetricasConversiones['periodo']
@@ -121,23 +126,110 @@ export function conversionEquipoDemo(): ConversionEquipoVendedor[] {
  */
 export function metasConversionEquipoDemo(): ObjetivosPorVendedor {
   const metas = [
-    ['demo-v1', 'demo-s1', 250_000, 25],
-    ['demo-v2', 'demo-s1', 180_000, 28],
-    ['demo-v3', 'demo-s2', 160_000, 30],
-    ['demo-v4', 'demo-s2', 150_000, 27],
-    ['demo-v5', 'demo-s1', 140_000, 28],
-    ['demo-v6', 'demo-s2', 120_000, 28],
+    ['demo-v1', 'demo-s1', 'Ana Torres', 'María Salas', 250_000, 40_000, 25],
+    ['demo-v2', 'demo-s1', 'Bruno Díaz', 'María Salas', 180_000, 30_000, 28],
+    ['demo-v3', 'demo-s2', 'Carla Ruiz', 'José Rivas', 160_000, 24_000, 30],
+    ['demo-v4', 'demo-s2', 'Diego Soto', 'José Rivas', 150_000, 20_000, 27],
+    ['demo-v5', 'demo-s1', 'Elena Paz', 'María Salas', 140_000, 18_000, 28],
+    ['demo-v6', 'demo-s2', 'Fabio León', 'José Rivas', 120_000, 16_000, 28],
   ] as const
-  return Object.fromEntries(metas.map(([vendedorId, supervisorId, capitalObjetivo, conversionObjetivo]) => [
+  return Object.fromEntries(metas.map(([
+    vendedorId,
+    supervisorId,
+    nombre,
+    supervisorNombre,
+    capitalPen,
+    capitalUsd,
+    conversionObjetivo,
+  ]) => [
     vendedorId,
     {
       vendedorId,
+      nombre,
       supervisorId,
-      capitalObjetivo,
-      ventasObjetivo: 0,
+      supervisorNombre,
       conversionObjetivo,
+      detalles: [
+        { categoria: 'nuevo', moneda: 'PEN', capitalObjetivo: capitalPen, contratosObjetivo: 2 },
+        { categoria: 'nuevo', moneda: 'USD', capitalObjetivo: capitalUsd, contratosObjetivo: 1 },
+        { categoria: 'renovacion', moneda: 'PEN', capitalObjetivo: 0, contratosObjetivo: 0 },
+        { categoria: 'renovacion', moneda: 'USD', capitalObjetivo: 0, contratosObjetivo: 0 },
+        { categoria: 'upgrade', moneda: 'PEN', capitalObjetivo: 0, contratosObjetivo: 0 },
+        { categoria: 'upgrade', moneda: 'USD', capitalObjetivo: 0, contratosObjetivo: 0 },
+      ],
     },
   ]))
+}
+
+/** Cumplimiento ficticio explícito, separado del pipeline y por moneda. */
+export function cumplimientoMetasConversionEquipoDemo(): CumplimientoMetasJerarquico {
+  const metas = metasConversionEquipoDemo()
+  const reales = [
+    // id, capital PEN/USD y contratos confirmados PEN/USD son una fuente;
+    // convertidos/resueltos pertenecen a la cohorte terminal de leads.
+    ['demo-v1', 360_000, 20_000, 3, 1, 5, 42],
+    ['demo-v2', 290_000, 16_000, 2, 1, 4, 37],
+    ['demo-v3', 250_000, 18_000, 2, 0, 3, 34],
+    ['demo-v4', 210_000, 14_000, 2, 1, 2, 29],
+    ['demo-v5', 200_000, 16_000, 1, 0, 2, 24],
+    ['demo-v6', 170_000, 12_000, 1, 0, 1, 18],
+  ] as const
+  const realPorId = new Map<string, (typeof reales)[number]>(
+    reales.map((fila) => [fila[0], fila]),
+  )
+  const porVendedor = Object.fromEntries(Object.values(metas).map((meta) => {
+    const real = realPorId.get(meta.vendedorId)
+    const capitalPen = real?.[1] ?? 0
+    const capitalUsd = real?.[2] ?? 0
+    const contratosPen = real?.[3] ?? 0
+    const contratosUsd = real?.[4] ?? 0
+    const convertidos = real?.[5] ?? 0
+    const resueltos = real?.[6] ?? 0
+    const cumplimiento: CumplimientoVendedor = {
+      ...meta,
+      conversionReal: resueltos > 0
+        ? Math.round((10_000 * convertidos) / resueltos) / 100
+        : null,
+      convertidos,
+      resueltos,
+      detalles: meta.detalles.map((detalle) => {
+        const capitalReal = detalle.categoria === 'nuevo'
+          ? detalle.moneda === 'PEN'
+            ? capitalPen
+            : capitalUsd
+          : 0
+        const contratosReal = detalle.categoria === 'nuevo'
+          ? detalle.moneda === 'PEN' ? contratosPen : contratosUsd
+          : 0
+        return {
+          ...detalle,
+          capitalReal,
+          capitalCumplimientoPct: detalle.capitalObjetivo > 0
+            ? Math.round((10_000 * capitalReal) / detalle.capitalObjetivo) / 100
+            : null,
+          contratosReal,
+          contratosCumplimientoPct: detalle.contratosObjetivo > 0
+            ? Math.round((10_000 * contratosReal) / detalle.contratosObjetivo) / 100
+            : null,
+        }
+      }),
+    }
+    return [meta.vendedorId, cumplimiento]
+  }))
+  const filas = Object.values(porVendedor)
+  return {
+    periodo: '2026-08-01',
+    revision: 1,
+    publicadaEn: '2026-08-01T14:00:00.000Z',
+    fuentesReales: {
+      capitalYContratos: 'contratos_confirmados',
+      conversion: 'leads_resueltos',
+    },
+    vendedor: null,
+    supervisor: null,
+    gerencia: agregarCumplimientos(filas),
+    porVendedor,
+  }
 }
 
 export function metricasReunionesDemo(desde: string, hasta: string): MetricasReuniones {

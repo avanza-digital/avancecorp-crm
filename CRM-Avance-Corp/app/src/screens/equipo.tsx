@@ -44,6 +44,7 @@ import {
   type MetricasVendedor,
 } from '@/lib/inteligencia'
 import { planPorLead } from '@/lib/plan-lead'
+import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -340,6 +341,8 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
 
 function EquipoSupervisor(): JSX.Element {
   const { ambito, actividadesDelAmbito, tareas } = useCRMData()
+  const { yo } = useAuth()
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito)
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
   // Todo el cómputo en UN memo (patrón de Hoy·Supervisor): el índice de última
@@ -355,14 +358,14 @@ function EquipoSupervisor(): JSX.Element {
     // colaDe ya no recibe índice: se construye el suyo de CONTACTO (los tipos
     // de índice son indistinguibles y pasarle el de actividad reintroduciría el
     // bug de la `reasignacion` que vaciaba la cola).
-    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, plan)
+    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, plan, estadoSla.indice)
 
     // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
     // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.
     const abiertosAsignados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id != null)
     const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(abiertosAsignados)
     return { filas, parkeados, cola, capitalPEN, capitalUSD, activos: abiertosAsignados.length }
-  }, [ambito, actividadesDelAmbito, tareas, ahora])
+  }, [ambito, actividadesDelAmbito, tareas, ahora, estadoSla.indice])
 
   const stats: StatChipData[] = [
     { icon: Users, label: 'Mis vendedores', value: String(ambito.vendedores.length), tone: 'accent' },
@@ -374,6 +377,22 @@ function EquipoSupervisor(): JSX.Element {
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
+
+      {Boolean(estadoSla.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudo cargar el reloj SLA. La cola omite esas alertas hasta recuperar la fotografía histórica.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={estadoSla.recargar}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* Cards de MIS vendedores (orden: capital captado PEN desc) */}
       <Card>

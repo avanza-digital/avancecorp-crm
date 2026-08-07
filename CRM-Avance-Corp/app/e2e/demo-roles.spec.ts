@@ -15,11 +15,13 @@ async function entrarDemo(page: Page, rol: (typeof ROLES)[number]): Promise<void
 }
 
 for (const rol of ROLES) {
-  test(`${rol}: entra a la demo, ve su panel Hoy y navega el pipeline`, async ({ page }) => {
+  test(`${rol}: entra a la demo, ve su panel principal y navega el pipeline`, async ({ page }) => {
     await entrarDemo(page, rol)
 
-    // Panel Hoy con señal de datos demo (los fixtures siembran 20 leads).
-    await expect(page.getByRole('button', { name: 'Hoy' })).toBeVisible()
+    // Gerencia tiene un riel analítico propio; los demás roles conservan Hoy.
+    await expect(
+      page.getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy' }),
+    ).toBeVisible()
 
     // Navegación al pipeline: las 4 etapas activas del embudo están pintadas.
     await page.getByRole('button', { name: 'Pipeline' }).click()

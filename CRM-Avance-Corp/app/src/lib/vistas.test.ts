@@ -11,15 +11,15 @@ const VISTAS_POR_GATE = {
   abierto: {
     vendedor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
     supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config'],
-    directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
+    directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     coordinador: ['hoy', 'repartir'],
   },
   cerrado: {
     vendedor: ['mi-cartera', 'config'],
     supervisor: ['mi-cartera', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'mi-cartera', 'repartir', 'equipo', 'config'],
-    directorio: ['mi-cartera', 'equipo', 'config'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
+    directorio: ['mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     coordinador: ['repartir'],
   },
 } as const satisfies Record<'abierto' | 'cerrado', Record<Rol, readonly Vista[]>>
@@ -39,6 +39,12 @@ describe('vistaBase — dónde aterriza cada rol', () => {
     // Gerencia aterriza siempre en inteligencia, aunque no haya funciones de leads.
     expect(vistaBase('gerencia', false)).toBe('hoy')
     expect(vistaBase(null, false)).toBe('mi-cartera')
+  })
+
+  it('aterriza a Superadmin sin Gerencia directamente en Usuarios', () => {
+    expect(vistaBase('directorio', true, 'superadmin')).toBe('config-usuarios')
+    expect(vistaBase('vendedor', false, 'superadmin')).toBe('config-usuarios')
+    expect(vistaBase('gerencia', false, 'superadmin')).toBe('hoy')
   })
 })
 
@@ -117,5 +123,26 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('alertas', 'vendedor', false)).toBe('mi-cartera')
     expect(sanearVista('alertas', 'directorio', true)).toBe('hoy')
     expect(sanearVista('alertas', 'coordinador', false)).toBe('repartir')
+  })
+
+  it('limita los módulos de gobierno y abre Usuarios al Superadmin Portal', () => {
+    for (const vista of ['config-usuarios', 'config-productos', 'config-metas', 'config-sla'] as const) {
+      expect(sanearVista(vista, 'gerencia', false)).toBe(vista)
+      expect(sanearVista(vista, 'directorio', false)).toBe(vista)
+      expect(sanearVista(vista, 'vendedor', false)).toBe('mi-cartera')
+    }
+
+    expect(sanearVista('config-usuarios', 'vendedor', false, 'superadmin')).toBe('config-usuarios')
+    expect(sanearVista('config-productos', 'vendedor', false, 'superadmin')).toBe('config-usuarios')
+
+    // Caso real del RPC: Superadmin sin membresía se proyecta a Directorio para
+    // mantener el tipo `Yo`, pero su capacidad viva lo reduce a una sola ruta.
+    expect(VISTAS.filter((vista) =>
+      vistaPermitida(vista, 'directorio', true, 'superadmin'),
+    )).toEqual(['config-usuarios'])
+    expect(sanearVista('hoy', 'directorio', true, 'superadmin')).toBe('config-usuarios')
+
+    // La combinación explícita sí suma autoridades.
+    expect(sanearVista('config-productos', 'gerencia', false, 'superadmin')).toBe('config-productos')
   })
 })

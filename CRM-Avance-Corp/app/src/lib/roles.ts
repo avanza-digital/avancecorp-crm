@@ -118,3 +118,61 @@ export function can(rol: Rol | null | undefined, accion: Accion): boolean {
 export function puedeEscribir(rol: Rol | null | undefined): boolean {
   return !can(rol, 'soloLecturaTotal')
 }
+
+/** Identidad mínima para capacidades que cruzan la frontera Portal ↔ CRM. */
+export interface IdentidadAdministrativa {
+  rol?: Rol | null
+  rol_portal?: string | null
+  capacidades_config?: {
+    puede_listar_usuarios: boolean
+    puede_administrar_usuarios: boolean
+    puede_organizar_jerarquia: boolean
+    puede_administrar_roles: boolean
+  }
+}
+
+/** Gerencia administra las personas y el estado de su membresía CRM. */
+export function puedeAdministrarUsuariosCrm(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.capacidades_config?.puede_administrar_usuarios
+    ?? identidad?.rol === 'gerencia'
+}
+
+/** La jerarquía pertenece exclusivamente a Gerencia. */
+export function puedeOrganizarJerarquiaCrm(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.capacidades_config?.puede_organizar_jerarquia
+    ?? identidad?.rol === 'gerencia'
+}
+
+/** Superadmin Portal solo asigna o cambia roles CRM. */
+export function puedeAdministrarRolesCrm(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.capacidades_config?.puede_administrar_roles
+    ?? identidad?.rol_portal === 'superadmin'
+}
+
+/**
+ * Superadmin Portal gobierna roles, no hereda por ello la operación comercial.
+ * Gerencia + Superadmin sí suma ambas autoridades de forma explícita.
+ */
+export function administraSoloRolesCrm(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.rol !== 'gerencia' && puedeAdministrarRolesCrm(identidad)
+}
+
+/** Directorio audita; Gerencia administra; Superadmin ve el mínimo para roles. */
+export function puedeVerDirectorioUsuariosCrm(
+  identidad: IdentidadAdministrativa | null | undefined,
+): boolean {
+  return identidad?.capacidades_config?.puede_listar_usuarios
+    ?? (
+      identidad?.rol === 'gerencia'
+      || identidad?.rol === 'directorio'
+      || identidad?.rol_portal === 'superadmin'
+    )
+}

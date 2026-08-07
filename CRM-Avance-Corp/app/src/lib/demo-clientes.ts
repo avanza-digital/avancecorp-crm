@@ -284,6 +284,13 @@ const CONTRATO_A: ContratoRow = {
   notas_internas: 'Cliente puntual; domicilia el pago los primeros días del mes.',
   creado_por: ASESOR_DEMO,
   creado_en: haceHoras(2), // ventana VIVA → Corregir habilitado
+  producto_condicion_id: '10000000-0000-4000-8000-000000000101',
+  producto_id: '20000000-0000-4000-8000-000000000101',
+  producto_codigo: 'DEMO-RENTA-PEN',
+  producto_version_id: '30000000-0000-4000-8000-000000000101',
+  producto_version: 1,
+  producto_nombre: 'Renta Demo Soles',
+  producto_version_estado: 'publicada',
 }
 
 // B — COMPUESTO: intereses al vencimiento (devolución) + retorno del capital (2 filas).
@@ -304,6 +311,13 @@ const CONTRATO_B: ContratoRow = {
   notas_internas: 'Renovación en dólares; capitaliza al año.',
   creado_por: ASESOR_DEMO,
   creado_en: haceDias(3), // ventana VENCIDA → Corregir bloqueado
+  producto_condicion_id: '10000000-0000-4000-8000-000000000102',
+  producto_id: '20000000-0000-4000-8000-000000000102',
+  producto_codigo: 'DEMO-RENTA-USD',
+  producto_version_id: '30000000-0000-4000-8000-000000000102',
+  producto_version: 1,
+  producto_nombre: 'Renta Demo Dólares',
+  producto_version_estado: 'publicada',
 }
 
 // C — mancomunada: 2 co-titulares. Trimestral simple, 4 cuotas + retorno.
@@ -325,6 +339,13 @@ const CONTRATO_C: ContratoRow = {
   notas_internas: 'Cuenta mancomunada con dos co-titulares (cónyuges).',
   creado_por: ASESOR_DEMO,
   creado_en: haceDias(20), // ventana VENCIDA → Corregir bloqueado
+  producto_condicion_id: '10000000-0000-4000-8000-000000000103',
+  producto_id: '20000000-0000-4000-8000-000000000103',
+  producto_codigo: 'DEMO-UPGRADE-PEN',
+  producto_version_id: '30000000-0000-4000-8000-000000000103',
+  producto_version: 2,
+  producto_nombre: 'Upgrade Demo',
+  producto_version_estado: 'publicada',
 }
 
 export const CONTRATOS_DEMO: ContratoRow[] = [CONTRATO_A, CONTRATO_B, CONTRATO_C]

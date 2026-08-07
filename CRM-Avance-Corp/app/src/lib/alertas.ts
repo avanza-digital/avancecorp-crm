@@ -6,6 +6,7 @@ import {
 } from './inteligencia'
 import { planPorLead } from './plan-lead'
 import type { Vista } from './router'
+import type { EstadoSlaLead } from './sla-versionado'
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
 
 export type SeveridadAlerta = 'critica' | 'atencion'
@@ -44,6 +45,7 @@ export interface DerivarAlertasVendedorInput {
   actividades: readonly Actividad[]
   tareas: readonly Tarea[]
   ahora: number
+  estadosSla?: ReadonlyMap<string, EstadoSlaLead>
 }
 
 export interface DerivarAlertasSupervisorInput {
@@ -53,6 +55,7 @@ export interface DerivarAlertasSupervisorInput {
   tareas: readonly Tarea[]
   vendedores: readonly Miembro[]
   ahora: number
+  estadosSla?: ReadonlyMap<string, EstadoSlaLead>
 }
 
 const HORA_MS = 3_600_000
@@ -261,6 +264,7 @@ export function derivarAlertasVendedor({
   actividades,
   tareas,
   ahora,
+  estadosSla,
 }: DerivarAlertasVendedorInput): AlertaCRM[] {
   if (!vendedorId || !Number.isFinite(ahora)) return []
 
@@ -298,7 +302,7 @@ export function derivarAlertasVendedor({
     usadas.add(lead.id)
   }
 
-  for (const item of colaDe(confiables, actividadesPropias, ahora, plan)) {
+  for (const item of colaDe(confiables, actividadesPropias, ahora, plan, estadosSla)) {
     if (usadas.has(item.lead.id) || item.bucket === 'por_repartir') continue
     alertas.push(
       alertaDesdeCola(item, 'personal', nombreResponsable(item.lead)),
@@ -324,6 +328,7 @@ export function derivarAlertasSupervisor({
   tareas,
   vendedores,
   ahora,
+  estadosSla,
 }: DerivarAlertasSupervisorInput): AlertaCRM[] {
   if (!supervisorId || !Number.isFinite(ahora)) return []
 
@@ -412,7 +417,7 @@ export function derivarAlertasSupervisor({
 
   // Solo escala la cola crítica que ya cumplió un día. Los recordatorios
   // normales permanecen en la bandeja personal del vendedor.
-  for (const item of colaDe(confiables, actividadesAmbito, ahora, plan)) {
+  for (const item of colaDe(confiables, actividadesAmbito, ahora, plan, estadosSla)) {
     if (
       usadas.has(item.lead.id)
       || item.bucket === 'por_repartir'

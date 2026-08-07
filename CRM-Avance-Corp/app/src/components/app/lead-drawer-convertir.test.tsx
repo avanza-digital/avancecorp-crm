@@ -58,6 +58,18 @@ vi.mock('@/data/crm-queries', () => ({
   })),
 }))
 
+// El catálogo versionado tiene sus pruebas propias. Este diálogo solo necesita
+// que el paso contractual pueda montarse sin una frontera remota ni QueryClient.
+vi.mock('@/data/crm-config-queries', () => ({
+  useProductosSeleccionables: () => ({
+    data: [],
+    isPending: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  }),
+}))
+
 const { DialogConvertir } = await import('./lead-drawer')
 const { CrmApiError } = crmApi
 

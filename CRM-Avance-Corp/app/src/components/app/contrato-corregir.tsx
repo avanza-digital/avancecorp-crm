@@ -19,6 +19,10 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import {
+  CODIGO_PRODUCTO_HISTORICO,
+  ProductoContratoSelector,
+} from '@/components/app/producto-contrato-selector'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
 import { fmtFecha, money, type Moneda } from '@/lib/format'
@@ -28,6 +32,9 @@ import {
   type ActualizarContratoInput,
 } from '@/data/crm-api'
 import { useTitulares } from '@/data/crm-queries'
+import { useProductosSeleccionables } from '@/data/crm-config-queries'
+import { validarRangosProducto } from '@/lib/contrato-producto'
+import type { ProductoCondicionSeleccion } from '@/lib/productos-inversion'
 import {
   esCuotaDeInteres,
   generarCronograma,
@@ -85,6 +92,25 @@ export interface ContratoCorregirProps {
 
 export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCorregirProps) {
   const ventana = useVentana(contrato.creado_en)
+  const [productoCondicionId, setProductoCondicionId] = useState(contrato.producto_condicion_id)
+  const [avisoProducto, setAvisoProducto] = useState<string | null>(null)
+  const qProductos = useProductosSeleccionables()
+  // Una cuenta contractual ya está versionada en la moneda original. Cambiar
+  // de moneda exigiría otra operación bancaria; esta corrección solo ofrece
+  // condiciones compatibles con la cuenta que ya pertenece al contrato.
+  const condicionesCompatibles = useMemo(
+    () => (qProductos.data ?? []).filter((item) => item.moneda === contrato.moneda),
+    [contrato.moneda, qProductos.data],
+  )
+  const condicionProducto = condicionesCompatibles.find(
+    (item) => item.condicion_id === productoCondicionId,
+  ) ?? null
+  const esCondicionOriginal = productoCondicionId === contrato.producto_condicion_id
+  const esSnapshotHistorico =
+    esCondicionOriginal && contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
+  const esVersionCatalogadaNoVigente =
+    esCondicionOriginal && !esSnapshotHistorico && condicionProducto == null
+  const terminosFijosPorCatalogo = condicionProducto != null
 
   // Solo los 6 dígitos del formato nuevo; una numeración vieja (AC-2026-XXXX)
   // deja el casillero vacío y obliga a asignar el formato actual al guardar.
@@ -111,6 +137,38 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const [notas, setNotas] = useState(contrato.notas_internas ?? '')
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (esCondicionOriginal || !qProductos.data) return
+    if (!condicionesCompatibles.some((item) => item.condicion_id === productoCondicionId)) {
+      setProductoCondicionId(contrato.producto_condicion_id)
+      setCategoria(contrato.categoria ?? '')
+      setTipoInteres(contrato.tipo_interes)
+      setModalidad(contrato.modalidad)
+      setCapital(String(contrato.capital))
+      setMoneda(contrato.moneda)
+      setTasa(String(contrato.tasa_anual))
+      setFechaInicio(contrato.fecha_inicio)
+      setVenc(contrato.fecha_vencimiento)
+      const preset = presetDelVencimiento(contrato.fecha_inicio, contrato.fecha_vencimiento)
+      setPlazo(preset ? String(preset.meses) : PLAZO_PERSONALIZADO)
+      setAvisoProducto('La nueva condición dejó de estar vigente. Se restauró el origen contractual anterior.')
+    }
+  }, [
+    condicionesCompatibles,
+    contrato.capital,
+    contrato.categoria,
+    contrato.fecha_inicio,
+    contrato.fecha_vencimiento,
+    contrato.modalidad,
+    contrato.moneda,
+    contrato.producto_condicion_id,
+    contrato.tasa_anual,
+    contrato.tipo_interes,
+    esCondicionOriginal,
+    productoCondicionId,
+    qProductos.data,
+  ])
 
   // Co-titulares ACTUALES cargados antes de habilitar el guardado (la trampa
   // del reemplazo: la clave presente REEMPLAZA el set completo en el servidor).
@@ -152,6 +210,10 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
 
   const cambiarInicio = (v: string) => {
     setFechaInicio(v)
+    if (v && condicionProducto) {
+      setVenc(vencimientoDesdePlazo(v, condicionProducto.plazo_meses))
+      return
+    }
     // Con plazo PERSONALIZADO el vencimiento pactado NO se toca: recalcularlo
     // desde un preset inventado (antes, siempre '12') recortaba el contrato en
     // silencio. Se conserva y el aviso de abajo lo dice explícitamente; si debe
@@ -164,6 +226,46 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     // valor que no cabe en ningún preset); elegir un preset sí lo recalcula —
     // pero eso es una decisión EXPLÍCITA del asesor y se ve al instante.
     if (fechaInicio && v !== PLAZO_PERSONALIZADO) setVenc(vencimientoDesdePlazo(fechaInicio, parseInt(v, 10)))
+  }
+
+  const restaurarTerminosOriginales = () => {
+    setCategoria(contrato.categoria ?? '')
+    setTipoInteres(contrato.tipo_interes)
+    setModalidad(contrato.modalidad)
+    setCapital(String(contrato.capital))
+    setMoneda(contrato.moneda)
+    setTasa(String(contrato.tasa_anual))
+    setFechaInicio(contrato.fecha_inicio)
+    setVenc(contrato.fecha_vencimiento)
+    const preset = presetDelVencimiento(contrato.fecha_inicio, contrato.fecha_vencimiento)
+    setPlazo(preset ? String(preset.meses) : PLAZO_PERSONALIZADO)
+  }
+
+  const seleccionarProducto = (
+    id: string,
+    condicion: ProductoCondicionSeleccion | null,
+  ) => {
+    setProductoCondicionId(id)
+    setAvisoProducto(null)
+    if (!condicion) {
+      restaurarTerminosOriginales()
+      return
+    }
+    setCategoria(condicion.categoria)
+    setTipoInteres(condicion.tipo_interes)
+    setModalidad(condicion.modalidad)
+    setMoneda(condicion.moneda)
+    setPlazo(String(condicion.plazo_meses))
+    setVenc(fechaInicio ? vencimientoDesdePlazo(fechaInicio, condicion.plazo_meses) : '')
+    const capitalActual = parseMonto(capital)
+    if (
+      capitalActual == null
+      || capitalActual < condicion.capital_minimo
+      || capitalActual > condicion.capital_maximo
+    ) {
+      setCapital(String(condicion.capital_minimo))
+    }
+    setTasa(String(condicion.tasa_referencia))
   }
 
   // Mismo generador del preview de ContratoNuevo: lo que se ve es lo que viaja.
@@ -211,6 +313,19 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   const guardar = async () => {
     if (enviando) return // guard anti doble-submit (además del disabled del botón)
     setError(null)
+    if (!productoCondicionId) {
+      setError('El contrato no tiene una condición de producto confirmada.')
+      return
+    }
+    if (!esCondicionOriginal && (
+      qProductos.isPending
+      || qProductos.isFetching
+      || qProductos.isError
+      || !condicionProducto
+    )) {
+      setError('La nueva condición debe seguir publicada y vigente antes de guardar.')
+      return
+    }
     // Validaciones espejo de guardarContrato de analista.js (mensajes tal cual).
     if (!RE_SEIS_DIGITOS.test(numero)) {
       setError('El N° de contrato debe tener exactamente 6 dígitos (después de 2026-01-).')
@@ -227,6 +342,16 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     if (!Number.isFinite(tasaNum) || tasaNum <= 0 || tasaNum > 50) {
       setError('La tasa anual debe estar entre 0 y 50%.')
       return
+    }
+    if (condicionProducto) {
+      const errorRango = validarRangosProducto(condicionProducto, {
+        capital: capitalNum,
+        tasa: tasaNum,
+      })
+      if (errorRango) {
+        setError(errorRango)
+        return
+      }
     }
     if (capitalNum < 100) {
       setError('El capital debe ser de al menos 100.')
@@ -257,11 +382,13 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     }
 
     const input: ActualizarContratoInput = {
+      producto_condicion_id: productoCondicionId,
       capital: capitalNum,
       moneda,
       tasa_anual: tasaNum,
-      // En compuesto la modalidad no aplica (capitaliza anual) — regla del portal.
-      modalidad: esCompuesto ? 'anual' : modalidad,
+      // Una condición catalogada conserva su modalidad exacta; el snapshot
+      // legacy mantiene el comportamiento histórico del portal.
+      modalidad: condicionProducto ? modalidad : esCompuesto ? 'anual' : modalidad,
       tipo_interes: tipoInteres,
       categoria,
       fecha_inicio: fechaInicio,
@@ -303,6 +430,30 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
+        <ProductoContratoSelector
+          id="cc-producto"
+          value={productoCondicionId}
+          condiciones={condicionesCompatibles}
+          actual={{
+            condicionId: contrato.producto_condicion_id,
+            codigo: contrato.producto_codigo,
+            nombre: contrato.producto_nombre,
+            version: contrato.producto_version,
+            estado: contrato.producto_version_estado,
+          }}
+          cargando={qProductos.isPending}
+          error={qProductos.isError}
+          reintentando={qProductos.isFetching}
+          disabled={enviando}
+          onChange={seleccionarProducto}
+          onReintentar={() => void qProductos.refetch()}
+        />
+        {avisoProducto && (
+          <p role="status" className="rounded-lg bg-warning/10 px-3 py-2 text-xs font-semibold text-warning-text">
+            {avisoProducto}
+          </p>
+        )}
+
         <div className="grid grid-cols-2 gap-2.5">
           <div className="space-y-1.5">
             <Label htmlFor="cc-numero">N° de contrato</Label>
@@ -327,7 +478,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               id="cc-categoria"
               value={categoria}
               onChange={(e) => setCategoria(e.target.value as CategoriaContrato | '')}
-              disabled={enviando}
+              disabled={enviando || terminosFijosPorCatalogo || esVersionCatalogadaNoVigente}
             >
               <option value="">— Seleccionar —</option>
               {CATEGORIAS_CONTRATO_UI.map((c) => (
@@ -350,20 +501,20 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               id="cc-tipo"
               value={tipoInteres}
               onChange={(e) => setTipoInteres(e.target.value as TipoInteres)}
-              disabled={enviando}
+              disabled={enviando || terminosFijosPorCatalogo || esVersionCatalogadaNoVigente}
             >
               <option value="simple">Simple</option>
               <option value="compuesto">Compuesto</option>
             </Select>
           </div>
-          {!esCompuesto && (
+          {(!esCompuesto || terminosFijosPorCatalogo || esVersionCatalogadaNoVigente) && (
             <div className="space-y-1.5">
               <Label htmlFor="cc-modalidad">Modalidad de pago</Label>
               <Select
                 id="cc-modalidad"
                 value={modalidad}
                 onChange={(e) => setModalidad(e.target.value as ModalidadContrato)}
-                disabled={enviando}
+                disabled={enviando || terminosFijosPorCatalogo || esVersionCatalogadaNoVigente}
               >
                 {MODALIDADES_UI.map((m) => (
                   <option key={m.k} value={m.k}>{m.label}</option>
@@ -381,7 +532,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               inputMode="decimal"
               value={capital}
               onChange={(e) => setCapital(e.target.value)}
-              disabled={enviando}
+              disabled={enviando || esVersionCatalogadaNoVigente}
             />
           </div>
           <div className="space-y-1.5">
@@ -389,8 +540,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
             <Select
               id="cc-moneda"
               value={moneda}
-              onChange={(e) => setMoneda(e.target.value as Moneda)}
-              disabled={enviando}
+              disabled
             >
               <option value="PEN">Soles (PEN)</option>
               <option value="USD">Dólares (USD)</option>
@@ -406,7 +556,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               inputMode="decimal"
               value={tasa}
               onChange={(e) => setTasa(e.target.value)}
-              disabled={enviando}
+              disabled={enviando || esVersionCatalogadaNoVigente}
             />
           </div>
           <div className="space-y-1.5">
@@ -416,7 +566,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               type="date"
               value={fechaInicio}
               onChange={(e) => cambiarInicio(e.target.value)}
-              disabled={enviando}
+              disabled={enviando || esVersionCatalogadaNoVigente}
             />
           </div>
         </div>
@@ -424,27 +574,32 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
         <div className="grid grid-cols-2 items-end gap-2.5">
           <div className="space-y-1.5">
             <Label htmlFor="cc-plazo">Plazo</Label>
-            <Select
-              id="cc-plazo"
-              value={plazo}
-              onChange={(e) => cambiarPlazo(e.target.value)}
-              disabled={enviando}
-            >
-              {PLAZOS_BASE.map((p) => (
-                <option key={p.meses} value={String(p.meses)} disabled={esCompuesto && !p.anioExacto}>
-                  {p.label}
+            {terminosFijosPorCatalogo || esVersionCatalogadaNoVigente ? (
+              <Input
+                id="cc-plazo"
+                value={`${condicionProducto?.plazo_meses ?? mesesReales} meses`}
+                disabled
+              />
+            ) : (
+              <Select
+                id="cc-plazo"
+                value={plazo}
+                onChange={(e) => cambiarPlazo(e.target.value)}
+                disabled={enviando}
+              >
+                {PLAZOS_BASE.map((p) => (
+                  <option key={p.meses} value={String(p.meses)} disabled={esCompuesto && !p.anioExacto}>
+                    {p.label}
+                  </option>
+                ))}
+                {/* Solo un snapshot histórico puede conservar un plazo libre. */}
+                <option value={PLAZO_PERSONALIZADO} disabled={esCompuesto}>
+                  {mesesReales > 0 ? `Personalizado (${mesesReales} meses)` : 'Personalizado'}
                 </option>
-              ))}
-              {/* Plazo real fuera de los presets (p. ej. 18 meses): la etiqueta
-                  dice cuántos meses son DE VERDAD en vez de fingir "1 año".
-                  Deshabilitada en compuesto (capitaliza anual: exige años exactos,
-                  misma regla que ContratoNuevo). */}
-              <option value={PLAZO_PERSONALIZADO} disabled={esCompuesto}>
-                {mesesReales > 0 ? `Personalizado (${mesesReales} meses)` : 'Personalizado'}
-              </option>
-            </Select>
+              </Select>
+            )}
           </div>
-          {esPersonalizado ? (
+          {esPersonalizado && !terminosFijosPorCatalogo && !esVersionCatalogadaNoVigente ? (
             <div className="space-y-1.5">
               <Label htmlFor="cc-venc">Fecha de vencimiento</Label>
               <Input
@@ -462,7 +617,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
             </p>
           )}
         </div>
-        {esPersonalizado && (
+        {esPersonalizado && !terminosFijosPorCatalogo && !esVersionCatalogadaNoVigente && (
           <p className="text-[11px] text-muted-foreground">
             Plazo <b className="text-foreground">personalizado</b>: el vencimiento pactado se
             conserva y NO se recalcula al cambiar la fecha de inicio. Si también debe moverse,
@@ -618,7 +773,17 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           // El disabled por ventana es cortesía visual: la autoridad es la RPC
           // (P0001). Mientras cargan los co-titulares NO se puede guardar — un
           // guardado muy rápido con el editor vacío los borraría (lección del portal).
-          disabled={enviando || estadoTitulares === 'cargando' || !ventana.vigente}
+          disabled={
+            enviando
+            || estadoTitulares === 'cargando'
+            || !ventana.vigente
+            || (!esCondicionOriginal && (
+              qProductos.isPending
+              || qProductos.isFetching
+              || qProductos.isError
+              || !condicionProducto
+            ))
+          }
           title={ventana.vigente ? undefined : 'La ventana de corrección de 5 horas ya venció'}
         >
           <Save aria-hidden /> {enviando ? 'Guardando…' : 'Guardar corrección'}

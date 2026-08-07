@@ -20,7 +20,13 @@ import {
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
 import { money, numero } from '@/lib/format'
-import { metaConversionAplicable, type ObjetivoComercial } from '@/lib/objetivos'
+import {
+  capitalObjetivo,
+  capitalReal,
+  metaConversionAplicable,
+  type CumplimientoComercial,
+  type ObjetivoComercial,
+} from '@/lib/objetivos'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   adaptarConversionVendedores,
@@ -34,6 +40,7 @@ interface ResumenGerenciaPanelProps {
   reuniones: MetricasReuniones | null | undefined
   equipo: ConversionEquipoVendedor[]
   meta: ObjetivoComercial
+  cumplimiento: CumplimientoComercial | null
   metaMensual: MetaMensualGerencia
   cargando: boolean
   error: string | null
@@ -106,6 +113,7 @@ export function ResumenGerenciaPanel({
   reuniones,
   equipo,
   meta,
+  cumplimiento,
   metaMensual,
   cargando,
   error,
@@ -124,11 +132,19 @@ export function ResumenGerenciaPanel({
     meta.conversionObjetivo,
     metaMensual.errorCarga === true,
   )
-  const avanceMonto = metasComparables && meta.capitalObjetivo > 0 && capitalPen != null
-    ? limitar((capitalPen / meta.capitalObjetivo) * 100)
+  const metaCapitalPen = capitalObjetivo(meta, 'PEN')
+  const metaCapitalUsd = capitalObjetivo(meta, 'USD')
+  const cumplimientoCapitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
+  const cumplimientoCapitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+  const conversionCumplida = cumplimiento?.conversionReal ?? null
+  const avanceMontoPen = metasComparables && metaCapitalPen > 0 && cumplimientoCapitalPen != null
+    ? limitar((cumplimientoCapitalPen / metaCapitalPen) * 100)
     : null
-  const avanceConversion = metasComparables && metaConversion != null && conversion != null
-    ? limitar((conversion / metaConversion) * 100)
+  const avanceMontoUsd = metasComparables && metaCapitalUsd > 0 && cumplimientoCapitalUsd != null
+    ? limitar((cumplimientoCapitalUsd / metaCapitalUsd) * 100)
+    : null
+  const avanceConversion = metasComparables && metaConversion != null && conversionCumplida != null
+    ? limitar((conversionCumplida / metaConversion) * 100)
     : null
 
   const vendedoresAdaptados = useMemo(
@@ -236,8 +252,8 @@ export function ResumenGerenciaPanel({
     reuniones?.conversion.capital_pen,
     reuniones?.conversion.capital_usd,
   ].some((valor) => (valor ?? 0) > 0)
-  const hayMetas = meta.capitalObjetivo > 0
-    || meta.ventasObjetivo > 0
+  const hayMetas = metaCapitalPen > 0
+    || metaCapitalUsd > 0
     || meta.conversionObjetivo > 0
   const hayActividadEquipo = vendedoresAdaptados.vendedores.some((fila) => fila.detalle != null && [
     fila.detalle.leads,
@@ -280,7 +296,9 @@ export function ResumenGerenciaPanel({
                 ? 'No disponible'
                 : metasComparables && metaConversion != null
                   ? `${numero(metaConversion, 1)}%`
-                  : 'No comparable'}
+                  : metasComparables
+                    ? 'Sin meta'
+                    : 'No comparable'}
             </strong>
           </div>
         </div>
@@ -351,7 +369,8 @@ export function ResumenGerenciaPanel({
           <p className="gi-caption mt-1">Meta mensual · {metaMensual.etiqueta}</p>
           {metasComparables ? (
             <div className="mt-5 space-y-5">
-              <div><div className="mb-2 flex justify-between text-xs"><span>Monto</span><strong>{avanceMonto == null ? 'Sin meta' : `${numero(avanceMonto, 0)}%`}</strong></div><div className="gi-track h-2.5"><div className="gi-fill" style={{ width: `${avanceMonto ?? 0}%`, background: C.teal }} /></div></div>
+              <div><div className="mb-2 flex justify-between text-xs"><span>Capital PEN</span><strong>{avanceMontoPen == null ? 'Sin meta' : `${numero(avanceMontoPen, 0)}%`}</strong></div><div className="gi-track h-2.5"><div className="gi-fill" style={{ width: `${avanceMontoPen ?? 0}%`, background: C.teal }} /></div></div>
+              <div><div className="mb-2 flex justify-between text-xs"><span>Capital USD</span><strong>{avanceMontoUsd == null ? 'Sin meta' : `${numero(avanceMontoUsd, 0)}%`}</strong></div><div className="gi-track h-2.5"><div className="gi-fill" style={{ width: `${avanceMontoUsd ?? 0}%`, background: C.blue }} /></div></div>
               <div><div className="mb-2 flex justify-between text-xs"><span>Conversión</span><strong>{avanceConversion == null ? 'Sin meta' : `${numero(avanceConversion, 0)}%`}</strong></div><div className="gi-track h-2.5"><div className="gi-fill" style={{ width: `${avanceConversion ?? 0}%`, background: C.amber }} /></div></div>
             </div>
           ) : <p role="status" className="mt-5 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">{mensajeMetaNoComparable(metaMensual)}</p>}

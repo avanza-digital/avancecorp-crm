@@ -8,7 +8,7 @@
 //     silencio (18 meses → 12, sin aviso y sin vuelta atrás desde Corregir).
 // @/data/crm-api se mockea (sin red) conservando CrmApiError; el form precarga
 // los co-titulares por TanStack Query, así que va dentro de un QueryClient limpio.
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
@@ -29,6 +29,46 @@ const { ContratoCorregir } = await import('./contrato-corregir')
 const actualizarContrato = vi.mocked(crmApi.actualizarContrato)
 const obtenerTitulares = vi.mocked(crmApi.obtenerTitulares)
 
+const productosEstado = vi.hoisted(() => ({
+  data: [] as import('@/lib/productos-inversion').ProductoCondicionSeleccion[],
+  error: false,
+  pending: false,
+  fetching: false,
+  refetch: vi.fn(),
+}))
+
+const CONDICION_VIGENTE: import('@/lib/productos-inversion').ProductoCondicionSeleccion = {
+  condicion_id: '10000000-0000-4000-8000-000000000010',
+  producto_id: '20000000-0000-4000-8000-000000000010',
+  producto_codigo: 'RENTA-12',
+  producto_revision: 2,
+  version_id: '30000000-0000-4000-8000-000000000010',
+  numero_version: 2,
+  version_nombre: 'Renta 12 meses',
+  vigente_desde: '2026-01-01',
+  vigente_hasta: null,
+  categoria: 'renovacion',
+  moneda: 'PEN',
+  plazo_meses: 12,
+  modalidad: 'trimestral',
+  tipo_interes: 'simple',
+  capital_minimo: 5_000,
+  capital_maximo: 50_000,
+  tasa_referencia: 16,
+  tasa_minima: 14,
+  tasa_maxima: 18,
+}
+
+vi.mock('@/data/crm-config-queries', () => ({
+  useProductosSeleccionables: () => ({
+    data: productosEstado.data,
+    isError: productosEstado.error,
+    isPending: productosEstado.pending,
+    isFetching: productosEstado.fetching,
+    refetch: productosEstado.refetch,
+  }),
+}))
+
 function contratoBase(over: Partial<ContratoRow> = {}): ContratoRow {
   return {
     id: 'ctr-1',
@@ -47,6 +87,13 @@ function contratoBase(over: Partial<ContratoRow> = {}): ContratoRow {
     notas_internas: null,
     creado_por: 'yo',
     creado_en: new Date().toISOString(), // ventana de 5 h viva
+    producto_condicion_id: '10000000-0000-4000-8000-000000000001',
+    producto_id: '20000000-0000-4000-8000-000000000001',
+    producto_codigo: 'HISTORICO-SIN-CATALOGO',
+    producto_version_id: '30000000-0000-4000-8000-000000000001',
+    producto_version: 1,
+    producto_nombre: 'Snapshot histórico 2026-01-000123',
+    producto_version_estado: 'retirada',
     ...over,
   }
 }
@@ -78,6 +125,16 @@ function escribirFecha(etiqueta: string, valor: string) {
   fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } })
 }
 
+beforeEach(() => {
+  productosEstado.data = []
+  productosEstado.error = false
+  productosEstado.pending = false
+  productosEstado.fetching = false
+  productosEstado.refetch.mockReset()
+  actualizarContrato.mockReset()
+  obtenerTitulares.mockReset()
+})
+
 describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => {
   it('plazo de 18 meses (no preset): el select dice Personalizado (18 meses), no "1 año"', async () => {
     await montar({ fecha_vencimiento: '2027-07-15' }) // 2026-01-15 + 18 meses
@@ -103,6 +160,7 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
     const [id, input] = actualizarContrato.mock.calls[0]!
     expect(id).toBe('ctr-1')
+    expect(input.producto_condicion_id).toBe('10000000-0000-4000-8000-000000000001')
     expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15' })
   })
 
@@ -133,6 +191,59 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     await user.click(guardar())
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
     expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-02-15' })
+  })
+})
+
+describe('ContratoCorregir — producto versionado', () => {
+  it('una condición vigente fija los términos estructurales y limita la tasa efectiva', async () => {
+    const user = userEvent.setup()
+    productosEstado.data = [CONDICION_VIGENTE]
+    await montar({
+      producto_condicion_id: CONDICION_VIGENTE.condicion_id,
+      producto_id: CONDICION_VIGENTE.producto_id,
+      producto_codigo: CONDICION_VIGENTE.producto_codigo,
+      producto_version_id: CONDICION_VIGENTE.version_id,
+      producto_version: CONDICION_VIGENTE.numero_version,
+      producto_nombre: CONDICION_VIGENTE.version_nombre,
+      producto_version_estado: 'publicada',
+      categoria: CONDICION_VIGENTE.categoria,
+      modalidad: CONDICION_VIGENTE.modalidad,
+      tasa_anual: 16,
+    })
+
+    expect(screen.getByLabelText('Categoría')).toBeDisabled()
+    expect(screen.getByLabelText('Tipo de interés')).toBeDisabled()
+    expect(screen.getByLabelText('Modalidad de pago')).toBeDisabled()
+    expect(screen.getByLabelText('Moneda')).toBeDisabled()
+    expect(screen.getByLabelText('Plazo')).toBeDisabled()
+
+    await user.clear(screen.getByLabelText('Tasa anual (%)'))
+    await user.type(screen.getByLabelText('Tasa anual (%)'), '19')
+    await user.click(guardar())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/entre 14% y 18%/)
+    expect(actualizarContrato).not.toHaveBeenCalled()
+  })
+
+  it('un snapshot histórico puede migrarse explícitamente a una condición vigente', async () => {
+    const user = userEvent.setup()
+    productosEstado.data = [CONDICION_VIGENTE]
+    actualizarContrato.mockResolvedValue()
+    await montar()
+
+    await user.selectOptions(screen.getByLabelText('Producto de inversión'), CONDICION_VIGENTE.condicion_id)
+    expect(screen.getByLabelText('Categoría')).toHaveValue('renovacion')
+    expect(screen.getByLabelText('Modalidad de pago')).toHaveValue('trimestral')
+    expect(screen.getByLabelText('Plazo')).toHaveValue('12 meses')
+
+    await user.click(guardar())
+    await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
+    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({
+      producto_condicion_id: CONDICION_VIGENTE.condicion_id,
+      categoria: 'renovacion',
+      modalidad: 'trimestral',
+      tasa_anual: 16,
+    })
   })
 })
 

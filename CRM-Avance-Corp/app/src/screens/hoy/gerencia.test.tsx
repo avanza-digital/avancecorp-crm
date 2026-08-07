@@ -6,7 +6,13 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { useState, type ReactNode } from 'react'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
-import { objetivosCero, type ObjetivosPorRol } from '@/lib/objetivos'
+import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
+import {
+  objetivosCero,
+  type CumplimientoMetasJerarquico,
+  type ObjetivoComercial,
+  type ObjetivosPorRol,
+} from '@/lib/objetivos'
 import { SERIES_VACIAS } from '@/lib/series-comerciales'
 import type { Lead, Yo } from '@/lib/tipos'
 import type { SeccionGerencia } from './gerencia'
@@ -18,6 +24,8 @@ let YO: Yo | null = null
 let LEADS: Lead[] = []
 let OBJETIVOS: ObjetivosPorRol = objetivosCero()
 let OBJETIVOS_ERROR = false
+let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
+let CUMPLIMIENTO_ERROR = false
 const RECARGAR = vi.fn(async () => true)
 const CONSULTAS = vi.hoisted(() => ({
   conversiones: vi.fn(),
@@ -39,7 +47,8 @@ vi.mock('@/lib/store-context', () => ({
     equipo: [],
     objetivos: OBJETIVOS,
     objetivosError: OBJETIVOS_ERROR,
-    fijarObjetivos: () => ({ ok: true }),
+    cumplimientoMetas: CUMPLIMIENTO,
+    cumplimientoMetasError: CUMPLIMIENTO_ERROR,
     recargar: RECARGAR,
     series: SERIES_VACIAS,
   }),
@@ -94,7 +103,13 @@ function lead(over: Partial<Lead> = {}): Lead {
 }
 
 function montar(
-  over: { leads?: Lead[]; objetivos?: Partial<ObjetivosPorRol['gerencia']>; objetivosError?: boolean } = {},
+  over: {
+    leads?: Lead[]
+    objetivos?: ObjetivoComercial
+    objetivosError?: boolean
+    cumplimiento?: CumplimientoMetasJerarquico | null
+    cumplimientoError?: boolean
+  } = {},
   seccion: SeccionGerencia = 'completo',
   ahora: Date = MIERCOLES_10AM,
 ): ReturnType<typeof render> {
@@ -108,13 +123,9 @@ function montar(
   }
   LEADS = over.leads ?? [lead()]
   OBJETIVOS_ERROR = over.objetivosError ?? false
-  OBJETIVOS = objetivosCero()
-  OBJETIVOS.gerencia = {
-    capitalObjetivo: 100_000,
-    ventasObjetivo: 4,
-    conversionObjetivo: 40,
-    ...over.objetivos,
-  }
+  CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
+  OBJETIVOS = { ...METAS_DEMO, gerencia: over.objetivos ?? METAS_DEMO.gerencia }
+  CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
   return render(<PeriodoGerenciaProvider><HoyGerencia seccion={seccion} /></PeriodoGerenciaProvider>)
 }
 
@@ -130,6 +141,8 @@ beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
   OBJETIVOS_ERROR = false
+  CUMPLIMIENTO = null
+  CUMPLIMIENTO_ERROR = false
   ESTADO_CONVERSIONES.data = undefined
   ESTADO_CONVERSIONES.error = null
   ESTADO_CONVERSIONES.isPending = false
@@ -143,13 +156,13 @@ afterEach(() => {
 
 describe('Hoy · gerencia — meta del mes', () => {
   it('una meta que gerencia todavía no fijó NO se pinta como incumplida', () => {
-    montar({ objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 } }, 'metas')
+    montar({ objetivos: objetivosCero('2026-07-01').gerencia }, 'metas')
 
     const meta = within(tarjetaMeta())
-    expect(meta.getAllByText('Meta del mes todavía sin fijar')).toHaveLength(2)
+    expect(meta.getAllByText('Meta del mes todavía sin fijar')).toHaveLength(3)
     // Antes: dos barras en ROJO CRÍTICO con "0%" sobre cuotas que nadie fijó.
     expect(meta.queryByText('0%')).not.toBeInTheDocument()
-    expect(meta.getAllByText('meta por definir')).toHaveLength(2)
+    expect(meta.getAllByText('meta por definir')).toHaveLength(3)
   })
 
   it('solo compara el avance contra la meta mensual en el corte exacto mes-a-la-fecha', () => {
@@ -158,8 +171,8 @@ describe('Hoy · gerencia — meta del mes', () => {
     const metaVigente = within(tarjetaMeta())
     expect(metaVigente.getByText('Meta mensual · julio 2026')).toBeInTheDocument()
     expect(metaVigente.queryByText('0%')).not.toBeInTheDocument()
-    expect(metaVigente.getByText('Monto alcanzado no disponible')).toBeInTheDocument()
-    expect(metaVigente.getByText('Conversión alcanzada no disponible')).toBeInTheDocument()
+    expect(metaVigente.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
+    expect(metaVigente.getByText('Todavía no hay leads resueltos para medir')).toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-06-01' } })
     fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-06-30' } })
@@ -173,7 +186,7 @@ describe('Hoy · gerencia — meta del mes', () => {
 
   it('si falla la lectura de metas no muestra ceros como objetivos ni permite editar encima', () => {
     montar({
-      objetivos: { capitalObjetivo: 0, ventasObjetivo: 0, conversionObjetivo: 0 },
+      objetivos: objetivosCero('2026-07-01').gerencia,
       objetivosError: true,
     }, 'metas')
 
@@ -182,31 +195,31 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(meta.queryByText('Editor de metas')).not.toBeInTheDocument()
     expect(meta.queryAllByRole('progressbar')).toHaveLength(0)
     expect(meta.getByText('No pudimos cargar las metas mensuales')).toBeInTheDocument()
-    expect(meta.getAllByText('meta no disponible')).toHaveLength(2)
+    expect(meta.getAllByText('meta no disponible')).toHaveLength(3)
 
     fireEvent.click(meta.getByRole('button', { name: 'Reintentar' }))
     expect(RECARGAR).toHaveBeenCalledTimes(1)
   })
 
-  it('no convierte una carga o fallo de métricas en producción cero', () => {
+  it('el cumplimiento no depende de la consulta de pipeline y nunca se reemplaza con producción', () => {
     ESTADO_CONVERSIONES.isPending = true
-    const carga = montar({}, 'metas')
+    const carga = montar({ cumplimiento: CUMPLIMIENTO_METAS_DEMO }, 'metas')
 
     let meta = within(tarjetaMeta())
-    expect(meta.getByLabelText('Cargando avance de metas')).toBeInTheDocument()
-    expect(meta.queryByText('S/ 0')).not.toBeInTheDocument()
+    expect(meta.queryByLabelText('Cargando avance de metas')).not.toBeInTheDocument()
+    expect(meta.getByText('S/ 650,000')).toBeInTheDocument()
     carga.unmount()
 
     ESTADO_CONVERSIONES.isPending = false
     ESTADO_CONVERSIONES.error = new Error('sin conexión')
-    montar({}, 'metas')
+    montar({ cumplimiento: null, cumplimientoError: true }, 'metas')
 
     meta = within(tarjetaMeta())
-    expect(meta.getByRole('alert')).toHaveTextContent('No se pudieron cargar las conversiones.')
-    expect(meta.getByText('Monto alcanzado no disponible')).toBeInTheDocument()
+    expect(meta.getByRole('alert')).toHaveTextContent('No se pudo calcular el cumplimiento confirmado')
+    expect(meta.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
     expect(meta.queryByText('S/ 0')).not.toBeInTheDocument()
-    fireEvent.click(meta.getByRole('button', { name: 'Reintentar métricas' }))
-    expect(ESTADO_CONVERSIONES.refetch).toHaveBeenCalledTimes(1)
+    fireEvent.click(meta.getByRole('button', { name: 'Reintentar cumplimiento' }))
+    expect(RECARGAR).toHaveBeenCalledTimes(1)
   })
 
   it('presenta inteligencia comercial sin herramientas operativas', () => {

@@ -114,6 +114,14 @@ export interface ContratoRow {
   notas_internas: string | null
   creado_por: string | null
   creado_en: string // ISO — ventana de 5 h para "Corregir"
+  /** Condición/version inmutable que originó los términos del contrato. */
+  producto_condicion_id: string
+  producto_id: string
+  producto_codigo: string
+  producto_version_id: string
+  producto_version: number
+  producto_nombre: string
+  producto_version_estado: 'borrador' | 'publicada' | 'retirada'
 }
 
 /** Estados de cuota de public.cronograma_pagos ('trasladado' = capital roleado, JAMÁS mora). */

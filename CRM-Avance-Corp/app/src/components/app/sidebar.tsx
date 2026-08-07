@@ -4,13 +4,18 @@ import {
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
   Gauge, BadgeDollarSign, Trophy,
 } from 'lucide-react'
-import { can, ROL_LABEL } from '@/lib/roles'
+import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { useAuth } from '@/lib/auth-context'
 import { Avatar } from '@/components/ui/avatar'
 import { BrandLockup } from '@/components/app/brand'
 import { cn } from '@/lib/utils'
-import { VISTAS, type Vista } from '@/lib/router'
+import {
+  VISTAS,
+  esVistaConfiguracion,
+  type Vista,
+  type VistaConfiguracion,
+} from '@/lib/router'
 import { vistaPermitida } from '@/lib/vistas'
 
 type SeccionNav = 'principal' | 'administracion'
@@ -21,7 +26,7 @@ interface NavMeta {
   seccion: SeccionNav
 }
 
-type VistaSidebar = Exclude<Vista, 'alertas'>
+type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion>
 
 /** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
 const NAV_META = {
@@ -45,8 +50,16 @@ const NAV_META = {
 } as const satisfies Record<VistaSidebar, NavMeta>
 
 // Alertas vive en la campana superior: no duplica un módulo en el menú lateral.
-const VISTAS_SIDEBAR = VISTAS.filter((id): id is VistaSidebar => id !== 'alertas')
+const VISTAS_SIDEBAR = VISTAS.filter(
+  (id): id is VistaSidebar => id !== 'alertas' && !esVistaConfiguracion(id),
+)
 const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
+const NAV_GOBIERNO_ROLES = [{
+  id: 'config-usuarios',
+  label: 'Usuarios y roles',
+  icon: UsersRound,
+  seccion: 'administracion',
+}] as const
 
 // Estado de colapso persistido: se recuerda entre recargas (por navegador).
 const LS_COLAPSADO = 'ac-crm-sidebar-colapsado'
@@ -185,7 +198,11 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
   useEffect(() => cancelarTemporizadores, [cancelarTemporizadores])
 
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
-  const items = NAV.filter((n) => vistaPermitida(n.id, rol, leadsVisibles))
+  const rolPortalAutorizado = puedeAdministrarRolesCrm(yo) ? 'superadmin' : null
+  const soloRoles = administraSoloRolesCrm(yo)
+  const candidatos = soloRoles ? NAV_GOBIERNO_ROLES : NAV
+  const items = candidatos
+    .filter((n) => vistaPermitida(n.id, rol, leadsVisibles, rolPortalAutorizado))
     // La misma ruta base se presenta como resumen ejecutivo solo a Gerencia.
     .map((n) => {
       if (n.id === 'hoy' && rol === 'gerencia') return { ...n, label: 'Resumen' }
@@ -234,7 +251,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
               expandido ? 'left-4' : 'left-[13px]',
             )}
           />
-          {expandido && (
+          {expandido && itemsPrincipales.length > 0 && (
             <div data-peek-anim={animar ? '' : undefined} style={animar ? estiloCascada(0) : undefined}>
               <BrandLockup tone="dark" size={38} />
             </div>
@@ -291,10 +308,15 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
           )}
         </nav>
 
-        {/* Modo auditoría del directorio (se oculta el texto en el riel) */}
-        {can(rol, 'soloLecturaTotal') && expandido && (
+        {/* Autoridad visible sin confundir gobierno de roles con auditoría CRM. */}
+        {soloRoles && expandido ? (
           <div className="mx-3 mb-3 flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-2 text-[11px] font-medium text-sidebar-foreground/85 ring-1 ring-white/10">
-            <Eye className="size-3.5 shrink-0 text-accent" />
+            <UsersRound className="size-3.5 shrink-0 text-accent" aria-hidden />
+            Gobierno de roles CRM
+          </div>
+        ) : can(rol, 'soloLecturaTotal') && expandido && (
+          <div className="mx-3 mb-3 flex items-center gap-2 rounded-lg bg-white/[0.06] px-3 py-2 text-[11px] font-medium text-sidebar-foreground/85 ring-1 ring-white/10">
+            <Eye className="size-3.5 shrink-0 text-accent" aria-hidden />
             Modo auditoría · solo lectura
           </div>
         )}

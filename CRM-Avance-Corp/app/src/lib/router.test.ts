@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   escribirHash,
   esVistaGerencia,
+  esVistaConfiguracion,
   esVistaLeads,
   hashDe,
   leerHash,
@@ -26,6 +27,10 @@ describe('router por hash', () => {
     ['#pipeline', 'pipeline'],
     ['#/agenda/', 'agenda'],
     ['#/equipo///', 'equipo'],
+    ['#/config-usuarios', 'config-usuarios'],
+    ['#/config-productos', 'config-productos'],
+    ['#/config-metas', 'config-metas'],
+    ['#/config-sla', 'config-sla'],
   ] as const)('acepta variantes compatibles de %s', (hash, vista) => {
     window.location.hash = hash
     expect(leerHash()).toEqual({ vista, leadId: null })
@@ -72,6 +77,22 @@ describe('router por hash', () => {
     expect(VISTAS).toContain('repartir')
     expect(esVistaLeads('repartir')).toBe(false)
     expect(hashDe('repartir')).toBe('#/repartir')
+  })
+
+  it('registra los cuatro módulos como rutas internas de Configuración', () => {
+    for (const vista of [
+      'config-usuarios',
+      'config-productos',
+      'config-metas',
+      'config-sla',
+    ] as const) {
+      expect(VISTAS).toContain(vista)
+      expect(esVistaConfiguracion(vista)).toBe(true)
+      expect(esVistaLeads(vista)).toBe(false)
+      expect(esVistaGerencia(vista)).toBe(false)
+      expect(hashDe(vista)).toBe(`#/${vista}`)
+    }
+    expect(esVistaConfiguracion('config')).toBe(false)
   })
 
   it('registra Alertas justo después de Hoy como bandeja transversal', () => {

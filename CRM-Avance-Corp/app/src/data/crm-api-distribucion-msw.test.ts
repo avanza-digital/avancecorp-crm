@@ -86,16 +86,12 @@ function payloadValido() {
       hasta_inclusivo: '2026-06-30',
       hasta_exclusivo: '2026-07-01',
       criterio: 'episodio_asignado_en',
-      criterio_sla_global: 'ciclo_sla_global_iniciado_en',
-      politica_pausas: 'SIN_DESCUENTO',
       zona_horaria: 'America/Lima',
     },
     alcances: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
-      sla_principal: 'GLOBAL_POR_CICLO',
-      sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
     },
     rangos: rangosCatalogo(),
     resumen: {
@@ -108,13 +104,6 @@ function payloadValido() {
       cohorte_leads_unicos: 3,
       convertidos_pen: 1,
       descartados_pen: 1,
-      sla_global_ciclos_cohorte: 3,
-      sla_global_leads_unicos_cohorte: 3,
-      sla_global_contactos: 2,
-      sla_global_evaluables: 2,
-      sla_global_en_24h: 1,
-      primer_contacto_global_mediana_minutos: '35.5',
-      sla_global_sin_contacto_vencidos_actuales: 1,
       reasignaciones_cohorte: 1,
     },
     analistas: [{
@@ -148,15 +137,10 @@ function payloadValido() {
       },
       operacion: {
         cohorte_episodios: 3,
-        contactos_asignacion: 2,
-        sla_asignacion_evaluables: 2,
-        sla_asignacion_en_24h: 1,
-        primer_contacto_asignacion_mediana_minutos: '35.5',
         transferidos: 1,
         parqueados: 0,
         desactivados: 0,
         sin_tocar_actual: 1,
-        estancados_actual: 1,
       },
     }],
     por_repartir: {
@@ -181,7 +165,6 @@ function payloadValido() {
       episodios_aproximados_cohorte: 0,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
-      ciclos_sla_global_aproximados_cohorte: 0,
     },
   }
 }
@@ -202,15 +185,15 @@ describe('listarMetricasDistribucionLeads (msw)', () => {
     expect(metricas.version).toBe(2)
     expect(metricas.rangos).toHaveLength(8)
     expect(metricas.analistas[0]!.pen.cartera_actual.capital).toBe(7000.5)
-    expect(metricas.analistas[0]!.operacion.primer_contacto_asignacion_mediana_minutos).toBe(35.5)
-    expect(metricas.resumen.primer_contacto_global_mediana_minutos).toBe(35.5)
+    expect(metricas.analistas[0]!.operacion.transferidos).toBe(1)
+    expect(metricas.resumen.reasignaciones_cohorte).toBe(1)
     expect(metricas.por_repartir.total.pen.capital).toBe(1000)
   })
 
   it('rechaza el payload completo si falta una métrica anidada', async () => {
     const payload = payloadValido()
     const operacion = payload.analistas[0]!.operacion as Record<string, unknown>
-    delete operacion.sla_asignacion_en_24h
+    delete operacion.transferidos
     server.use(
       http.post(RPC('metricas_distribucion_leads_v2_fn'), () => HttpResponse.json(payload)),
     )
@@ -221,6 +204,19 @@ describe('listarMetricasDistribucionLeads (msw)', () => {
       code: 'METRICAS_DISTRIBUCION_CONTRACT',
       message: 'Las métricas de distribución no tienen el formato esperado.',
     })
+  })
+
+  it('rechaza campos del SLA fijo retirado aunque el resto del payload sea válido', async () => {
+    const payload = payloadValido()
+    Object.assign(payload.resumen, { sla_global_en_24h: 1 })
+    Object.assign(payload.analistas[0]!.operacion, { sla_asignacion_en_24h: 1 })
+    server.use(
+      http.post(RPC('metricas_distribucion_leads_v2_fn'), () => HttpResponse.json(payload)),
+    )
+
+    await expect(
+      listarMetricasDistribucionLeads('2026-04-01', '2026-06-30'),
+    ).rejects.toMatchObject({ code: 'METRICAS_DISTRIBUCION_CONTRACT' })
   })
 
   it('rechaza fechas inválidas antes de tocar la red', async () => {

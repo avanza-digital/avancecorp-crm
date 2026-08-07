@@ -45,7 +45,21 @@ function esperaRevalidacionDe(intento: number): number {
 /** Resultado de verificar sesión + rol contra el servidor. */
 export type ResultadoVerificacion =
   | { tipo: 'sin_sesion' }
-  | { tipo: 'acceso'; userId: string; rol: Rol; nombre: string; puedeContratar: boolean }
+  | {
+      tipo: 'acceso'
+      userId: string
+      rol: Rol
+      nombre: string
+      puedeContratar: boolean
+      /** Rol global del Portal; ausente solo en dobles de prueba antiguos. */
+      rolPortal?: string
+      capacidadesConfig?: {
+        puedeListarUsuarios: boolean
+        puedeAdministrarUsuarios: boolean
+        puedeOrganizarJerarquia: boolean
+        puedeAdministrarRoles: boolean
+      }
+    }
   | { tipo: 'no_enrolado'; userId: string }
 
 /** La dependencia inyectada: valida la sesión en el SERVIDOR y resuelve el rol. */
@@ -110,7 +124,7 @@ export const authMaquina = setup({
       // (los eventos done.invoke no forman parte del union EventoAuth).
       const output = (event as unknown as { output: ResultadoVerificacion }).output
       if (output.tipo !== 'acceso') return {}
-      const { userId, rol, nombre, puedeContratar } = output
+      const { userId, rol, nombre, puedeContratar, rolPortal, capacidadesConfig } = output
       const anterior = context.yo
       // Cambio de cuenta o de rol: la caché del acceso anterior muere ANTES
       // de exponer la identidad nueva.
@@ -122,12 +136,32 @@ export const authMaquina = setup({
         anterior.id === userId &&
         anterior.nombre_completo === nombre &&
         anterior.rol === rol &&
+        anterior.rol_portal === rolPortal &&
+        anterior.capacidades_config?.puede_listar_usuarios === capacidadesConfig?.puedeListarUsuarios &&
+        anterior.capacidades_config?.puede_administrar_usuarios === capacidadesConfig?.puedeAdministrarUsuarios &&
+        anterior.capacidades_config?.puede_organizar_jerarquia === capacidadesConfig?.puedeOrganizarJerarquia &&
+        anterior.capacidades_config?.puede_administrar_roles === capacidadesConfig?.puedeAdministrarRoles &&
         anterior.puede_contratar === puedeContratar &&
         !anterior.demo
       return {
         yo: sinCambios
           ? anterior
-          : ({ id: userId, nombre_completo: nombre, rol, demo: false, puede_contratar: puedeContratar } satisfies Yo),
+          : ({
+              id: userId,
+              nombre_completo: nombre,
+              rol,
+              ...(rolPortal ? { rol_portal: rolPortal } : {}),
+              ...(capacidadesConfig ? {
+                capacidades_config: {
+                  puede_listar_usuarios: capacidadesConfig.puedeListarUsuarios,
+                  puede_administrar_usuarios: capacidadesConfig.puedeAdministrarUsuarios,
+                  puede_organizar_jerarquia: capacidadesConfig.puedeOrganizarJerarquia,
+                  puede_administrar_roles: capacidadesConfig.puedeAdministrarRoles,
+                },
+              } : {}),
+              demo: false,
+              puede_contratar: puedeContratar,
+            } satisfies Yo),
         ultimoUser: userId,
         error: null,
         arrancando: false,

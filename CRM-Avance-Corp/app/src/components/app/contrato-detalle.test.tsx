@@ -50,6 +50,13 @@ const CONTRATO: ContratoRow = {
   notas_internas: null,
   creado_por: 'yo',
   creado_en: new Date().toISOString(),
+  producto_condicion_id: '10000000-0000-4000-8000-000000000001',
+  producto_id: '20000000-0000-4000-8000-000000000001',
+  producto_codigo: 'RENTA-BASE',
+  producto_version_id: '30000000-0000-4000-8000-000000000001',
+  producto_version: 2,
+  producto_nombre: 'Plan Base 2026',
+  producto_version_estado: 'publicada',
 }
 
 vi.mock('@/data/crm-queries', async (importActual) => {
@@ -73,6 +80,14 @@ function montar() {
 }
 
 describe('ContratoDetalle · co-titulares', () => {
+  it('muestra el producto y la versión contractual de origen', () => {
+    TITULARES = consulta([])
+    montar()
+
+    expect(screen.getByText('RENTA-BASE · Plan Base 2026')).toBeInTheDocument()
+    expect(screen.getByText('v2 · publicada')).toBeInTheDocument()
+  })
+
   it('con co-titulares los lista', () => {
     TITULARES = consulta([{ nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 }])
     montar()

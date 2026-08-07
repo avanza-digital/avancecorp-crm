@@ -3,6 +3,7 @@ import {
   derivarAlertasSupervisor,
   derivarAlertasVendedor,
 } from './alertas'
+import type { EstadoSlaLead } from './sla-versionado'
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
 
 const HORA_MS = 3_600_000
@@ -69,6 +70,31 @@ const vendedor = (
   ...cambios,
 })
 
+const estadoSlaVencido = (leadId: string): EstadoSlaLead => ({
+  lead_id: leadId,
+  ciclo_politica_id: '00000000-0000-4000-8000-000000000001',
+  ciclo_politica_version: 1,
+  primera_gestion_limite_en: haceHoras(1),
+  primera_gestion_en: null,
+  primer_contacto_limite_en: haceHoras(1),
+  primer_contacto_en: null,
+  ciclo_aproximado: false,
+  asignacion_id: '00000000-0000-4000-8000-000000000002',
+  asignacion_politica_id: '00000000-0000-4000-8000-000000000001',
+  asignacion_politica_version: 1,
+  asignacion_primera_gestion_limite_en: haceHoras(1),
+  asignacion_primera_gestion_en: null,
+  asignacion_primer_contacto_limite_en: haceHoras(1),
+  asignacion_primer_contacto_en: null,
+  etapa_politica_id: null,
+  etapa_politica_version: null,
+  etapa: null,
+  etapa_iniciada_en: null,
+  etapa_limite_en: null,
+  etapa_objetivo_minutos: null,
+  etapa_aproximada: null,
+})
+
 describe('derivarAlertasVendedor', () => {
   it('filtra estrictamente por vendedor y una tarea vencida gana por lead', () => {
     const propia = lead({ id: 'propia' })
@@ -128,6 +154,7 @@ describe('derivarAlertasVendedor', () => {
       actividades: [],
       tareas: [],
       ahora: AHORA,
+      estadosSla: new Map([['sin-respuesta', estadoSlaVencido('sin-respuesta')]]),
     })[0]
 
     expect(alerta).toMatchObject({
@@ -139,6 +166,25 @@ describe('derivarAlertasVendedor', () => {
         leadId: 'sin-respuesta',
         etiqueta: 'Abrir lead',
       },
+    })
+  })
+
+  it('sin fotografía SLA conserva el aviso pero no fabrica severidad crítica', () => {
+    const alerta = derivarAlertasVendedor({
+      vendedorId: 'v1',
+      leads: [lead({
+        id: 'sin-fotografia',
+        creado_en: haceHoras(48),
+        tenencia_desde: haceHoras(48),
+      })],
+      actividades: [],
+      tareas: [],
+      ahora: AHORA,
+    })[0]
+
+    expect(alerta).toMatchObject({
+      tipo: 'lead_sin_responder',
+      severidad: 'atencion',
     })
   })
 
@@ -253,6 +299,7 @@ describe('derivarAlertasSupervisor', () => {
       tareas: [],
       vendedores: [vendedor('v1')],
       ahora: AHORA,
+      estadosSla: new Map([['un-dia', estadoSlaVencido('un-dia')]]),
     })
 
     expect(alertas.map((alerta) => alerta.id)).toEqual([

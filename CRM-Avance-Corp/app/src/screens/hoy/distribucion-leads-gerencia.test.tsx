@@ -96,15 +96,10 @@ const ANA: AnalistaDistribucionLeads = {
   },
   operacion: {
     cohorte_episodios: 7,
-    contactos_asignacion: 5,
-    sla_asignacion_evaluables: 4,
-    sla_asignacion_en_24h: 3,
-    primer_contacto_asignacion_mediana_minutos: 90,
     transferidos: 1,
     parqueados: 0,
     desactivados: 0,
     sin_tocar_actual: 1,
-    estancados_actual: 2,
   },
 }
 
@@ -136,15 +131,10 @@ const BRUNO: AnalistaDistribucionLeads = {
   },
   operacion: {
     cohorte_episodios: 0,
-    contactos_asignacion: 0,
-    sla_asignacion_evaluables: 0,
-    sla_asignacion_en_24h: 0,
-    primer_contacto_asignacion_mediana_minutos: null,
     transferidos: 0,
     parqueados: 0,
     desactivados: 0,
     sin_tocar_actual: 0,
-    estancados_actual: 0,
   },
 }
 
@@ -156,16 +146,12 @@ const DATOS: MetricasDistribucionLeads = {
     hasta_inclusivo: '2026-07-17',
     hasta_exclusivo: '2026-07-18',
     criterio: 'episodio_asignado_en',
-    criterio_sla_global: 'ciclo_sla_global_iniciado_en',
-    politica_pausas: 'SIN_DESCUENTO',
     zona_horaria: 'America/Lima',
   },
   alcances: {
     matriz: 'PEN',
     capacidad: 'TODAS_LAS_MONEDAS',
     montos: 'SEPARADOS_SIN_CONVERSION',
-    sla_principal: 'GLOBAL_POR_CICLO',
-    sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
   },
   rangos: RANGOS.map(([id, etiqueta, desdeExclusivo, hastaInclusivo], indice) => ({
     id,
@@ -184,13 +170,6 @@ const DATOS: MetricasDistribucionLeads = {
     cohorte_leads_unicos: 7,
     convertidos_pen: 3,
     descartados_pen: 1,
-    sla_global_ciclos_cohorte: 8,
-    sla_global_leads_unicos_cohorte: 7,
-    sla_global_contactos: 3,
-    sla_global_evaluables: 6,
-    sla_global_en_24h: 2,
-    primer_contacto_global_mediana_minutos: 180,
-    sla_global_sin_contacto_vencidos_actuales: 2,
     reasignaciones_cohorte: 1,
   },
   analistas: [ANA, BRUNO],
@@ -237,7 +216,6 @@ const DATOS: MetricasDistribucionLeads = {
     episodios_aproximados_cohorte: 0,
     episodios_sin_monto_actuales: 0,
     episodios_sin_monto_cohorte: 0,
-    ciclos_sla_global_aproximados_cohorte: 0,
   },
 }
 
@@ -275,21 +253,14 @@ describe('DistribucionLeadsGerencia', () => {
     expect(within(cierresPorMoneda).getByText('50%')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('1 venta de 2 leads resueltos')).toBeInTheDocument()
 
-    expect(screen.getByText(/2 de 6 leads atendidos a tiempo/)).toBeInTheDocument()
-    expect(screen.getByText(/lo habitual: 3 h/)).toBeInTheDocument()
-
     expect(screen.getByRole('heading', { name: 'Lo que merece tu atención' })).toBeInTheDocument()
-    expect(
-      screen.getByText('2 leads llevan más de 24 horas sin primera atención.'),
-    ).toBeInTheDocument()
     expect(
       screen.getByText('1 lead sin responsable espera directamente a Gerencia.'),
     ).toBeInTheDocument()
     expect(screen.getByText('La bandeja de César Ruiz tiene 1 lead por asignar.')).toBeInTheDocument()
     expect(screen.getByText('Ana Torres tiene 1 lead sin atender.')).toBeInTheDocument()
-    expect(
-      screen.getByText('2 leads están sin avance según los plazos de su etapa.'),
-    ).toBeInTheDocument()
+    expect(screen.queryByText(/24 horas|24 h|SLA global/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/métricas SLA versionadas/i)).toBeInTheDocument()
   })
 
   it('nivel 2: tarjetas por analista con cartera, resultados y quien no recibe al final', () => {
@@ -301,9 +272,7 @@ describe('DistribucionLeadsGerencia', () => {
     expect(ana).toHaveTextContent('Recibió 9 leads en el período')
     expect(ana).toHaveTextContent('Cierra el 75% de lo que resuelve en soles (3 de 4)')
     expect(ana).toHaveTextContent('en dólares: 50% (1 de 2)')
-    expect(ana).toHaveTextContent('24 h: 75% (3 de 4)')
     expect(ana).toHaveTextContent('1 sin atender')
-    expect(ana).toHaveTextContent('2 sin avance')
     expect(ana).toHaveTextContent('S/ 12,000 en soles · US$ 8,000 en dólares')
     expect(ana).toHaveTextContent('Salidas del período: 1 transferido · 0 parqueados')
 
@@ -311,7 +280,6 @@ describe('DistribucionLeadsGerencia', () => {
     expect(bruno).toHaveTextContent('No recibe por ahora')
     expect(bruno).toHaveTextContent('sin límite definido')
     expect(bruno).toHaveTextContent('Aún sin ventas ni descartes en soles')
-    expect(bruno).toHaveTextContent('24 h: aún sin medición')
 
     // Orden por cupos: quien no recibe va al final, con el criterio declarado.
     const fichas = screen.getAllByRole('article', { name: /^Ficha de/ })

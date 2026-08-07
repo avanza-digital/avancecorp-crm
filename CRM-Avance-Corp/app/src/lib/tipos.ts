@@ -55,11 +55,12 @@ export const TIPOS_AUTO_K: ReadonlySet<string> = new Set(TIPOS_AUTO)
 export type TipoActividadManual = Exclude<TipoActividad, (typeof TIPOS_AUTO)[number]>
 
 /**
- * CONTACTO REAL con el cliente: haberle hablado, escrito o reunido con él.
+ * GESTIÓN registrada sobre el lead. El nombre histórico TIPOS_CONTACTO se
+ * conserva por compatibilidad, pero incluye intentos sin respuesta.
  *
  * ESPEJO EXACTO del índice `crm.actividades_contacto_episodio_idx` y de
- * `private.metricas_sla_global_core` — la BD ya define este conjunto y aquí NO
- * se reinventa. Si allá cambia, cambia aquí (y al revés): son la misma regla.
+ * la primera-gestión del SLA versionado — la BD ya define este conjunto y aquí
+ * NO se reinventa. Si allá cambia, cambia aquí (y al revés): son la misma regla.
  *
  * Es una LISTA BLANCA a propósito, no "todo lo que no sea automático": si
  * mañana se añade un tipo nuevo de actividad de sistema, no debe colarse en
@@ -90,10 +91,9 @@ export const TIPOS_CONTACTO_K: ReadonlySet<string> = new Set(TIPOS_CONTACTO)
  *   · TIPOS_CONVERSACION responde «¿el cliente RESPONDIÓ?» → mide el embudo, y
  *     de eso vive la etapa (un intento fallido NO es haber hablado con nadie).
  *
- * Por qué importa que sean distintas (decisión de Miguel, 2026-07-25): la etapa
- * `nuevo` tiene 24 h de umbral y `contactado` 72 h (`private.umbral_estancamiento`).
- * Si «no contestó» avanzara la etapa, ese botón sería en la práctica un
- * "posponer la alarma dos días" sobre alguien con quien nadie habló — y la
+ * Por qué importa que sean distintas (decisión de Miguel, 2026-07-25): si «no
+ * contestó» avanzara la etapa, una gestión fallida reiniciaría indebidamente el
+ * episodio de etapa versionado sobre alguien con quien nadie habló — y la
  * conversión del embudo se inflaría sola, sin que nadie mienta a propósito.
  *
  * JAMÁS fusionar los dos conjuntos, ni "simplificar" uno en términos del otro.
@@ -458,6 +458,15 @@ export interface Yo {
   id: string
   nombre_completo: string
   rol: Rol
+  /** Rol global del Portal, solo para excepciones explícitas revalidadas por servidor. */
+  rol_portal?: string
+  /** Capacidades vivas calculadas por `crm.mi_acceso_fn`; la RLS/RPC manda. */
+  capacidades_config?: {
+    puede_listar_usuarios: boolean
+    puede_administrar_usuarios: boolean
+    puede_organizar_jerarquia: boolean
+    puede_administrar_roles: boolean
+  }
   demo: boolean
   /**
    * Si su identidad puede contratar desde el CRM. La fuerza de ventas pasa por

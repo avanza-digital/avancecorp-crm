@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { conversionEquipoDemo, metricasConversionesDemo } from './demo-inteligencia-comercial'
+import {
+  conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
+  metasConversionEquipoDemo,
+  metricasConversionesDemo,
+} from './demo-inteligencia-comercial'
 import {
   adaptarConversionVendedores,
   clasificarRankingCapital,
@@ -94,11 +99,35 @@ describe('adapter de responsables de conversión', () => {
     expect(conversion.sinMuestra.map((fila) => fila.vendedorId)).toEqual(['demo-v2'])
     expect(conversion.indisponibles.map((fila) => fila.vendedorId)).toEqual(['demo-v3'])
 
-    const capital = clasificarRankingCapital(adaptada.vendedores, {
-      'demo-v1': { vendedorId: 'demo-v1', supervisorId: 'demo-s1', capitalObjetivo: 400_000, ventasObjetivo: 5, conversionObjetivo: 15 },
-    })
+    const todasLasMetas = metasConversionEquipoDemo()
+    const capital = clasificarRankingCapital(
+      adaptada.vendedores,
+      { 'demo-v1': todasLasMetas['demo-v1']! },
+      cumplimientoMetasConversionEquipoDemo().porVendedor,
+      'PEN',
+    )
     expect(capital.conPuesto.map((fila) => fila.vendedor.vendedorId)).toEqual(['demo-v1'])
     expect(capital.sinMeta.map((fila) => fila.vendedor.vendedorId)).toEqual(['demo-v2', 'demo-v3'])
     expect(capital.indisponibles).toEqual([])
+    expect(capital.conPuesto[0]).toMatchObject({
+      moneda: 'PEN',
+      capitalReal: 360_000,
+      metaCapital: 250_000,
+    })
+  })
+
+  it('clasifica el capital confirmado por moneda sin sumar PEN y USD', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
+    const equipo = conversionEquipoDemo().slice(0, 1)
+    datos.responsables = datos.responsables?.slice(0, 1)
+    const adaptada = adaptarConversionVendedores(datos, equipo)
+    const metas = metasConversionEquipoDemo()
+    const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
+
+    const pen = clasificarRankingCapital(adaptada.vendedores, metas, cumplimientos, 'PEN')
+    const usd = clasificarRankingCapital(adaptada.vendedores, metas, cumplimientos, 'USD')
+
+    expect(pen.conPuesto[0]).toMatchObject({ capitalReal: 360_000, metaCapital: 250_000 })
+    expect(usd.conPuesto[0]).toMatchObject({ capitalReal: 20_000, metaCapital: 40_000 })
   })
 })

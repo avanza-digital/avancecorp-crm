@@ -1,20 +1,20 @@
-// Contrato del semáforo por etapa de la tarjeta del kanban.
+// Contrato del semáforo SLA de las cards del kanban.
 //
-// Dos invariantes que valen más que los colores:
-//  1. UN SOLO RELOJ — los días que pinta la card tienen que ser LOS MISMOS que
-//     calcula la cola de acción para ese lead. Si divergen, Hoy y Pipeline se
-//     contradicen sobre el mismo prospecto y el CRM pierde autoridad.
-//  2. Es el reloj del ASESOR, no el del cliente: un lead que pasó semanas en la
-//     cola de Rosa no puede nacer rojo el día que alguien lo recibe.
+// Los plazos no se derivan de la política vigente: llegan sellados por episodio
+// desde `crm.estado_sla_leads_fn`. Si esa fotografía falta, la UI falla cerrada
+// y omite el color en lugar de fabricar una urgencia retroactiva.
 import { describe, expect, it } from 'vitest'
-import { semaforoEstancamiento, UMBRAL_ETAPA_MS } from './estancamiento'
+import { semaforoEstancamiento } from './estancamiento'
 import { colaDe, indexarUltimoContacto } from './inteligencia'
 import { SEMAFORO } from './semaforo'
-import type { Actividad, Etapa, Lead } from './tipos'
+import type { EstadoSlaLead } from './sla-versionado'
+import type { Actividad, Lead } from './tipos'
 
 const DIA_MS = 86_400_000
+const HORA_MS = 3_600_000
 const AHORA = Date.UTC(2026, 6, 22, 15)
-const haceDias = (d: number) => new Date(AHORA - d * DIA_MS).toISOString()
+const haceDias = (dias: number) => new Date(AHORA - dias * DIA_MS).toISOString()
+const haceHoras = (horas: number) => new Date(AHORA - horas * HORA_MS).toISOString()
 
 const lead = (cambios: Partial<Lead>): Lead => ({
   id: 'l1',
@@ -30,79 +30,197 @@ const lead = (cambios: Partial<Lead>): Lead => ({
   ...cambios,
 })
 
-const sinActividad = indexarUltimoContacto([])
-
-describe('UMBRAL_ETAPA_MS — espejo de private.umbral_estancamiento', () => {
-  it.each([
-    ['nuevo', 24],
-    ['contactado', 72],
-    ['reunion_agendada', 72],
-    ['propuesta_enviada', 120],
-  ] as const)('%s vence a las %i h', (etapa, horas) => {
-    expect(UMBRAL_ETAPA_MS[etapa]).toBe(horas * 3_600_000)
-  })
-
-  it.each(['convertido', 'descartado'] as const)('un lead %s no se estanca', (etapa) => {
-    expect(UMBRAL_ETAPA_MS[etapa as Etapa]).toBeUndefined()
-    expect(semaforoEstancamiento(lead({ etapa }), sinActividad, AHORA).color).toBeNull()
-  })
+const estado = (cambios: Partial<EstadoSlaLead> = {}): EstadoSlaLead => ({
+  lead_id: 'l1',
+  ciclo_politica_id: '00000000-0000-4000-8000-000000000001',
+  ciclo_politica_version: 1,
+  primera_gestion_limite_en: haceHoras(23),
+  primera_gestion_en: null,
+  primer_contacto_limite_en: haceHoras(22),
+  primer_contacto_en: null,
+  ciclo_aproximado: false,
+  asignacion_id: '00000000-0000-4000-8000-000000000002',
+  asignacion_politica_id: '00000000-0000-4000-8000-000000000001',
+  asignacion_politica_version: 1,
+  asignacion_primera_gestion_limite_en: haceHoras(23),
+  asignacion_primera_gestion_en: null,
+  asignacion_primer_contacto_limite_en: haceHoras(22),
+  asignacion_primer_contacto_en: null,
+  etapa_politica_id: '00000000-0000-4000-8000-000000000001',
+  etapa_politica_version: 1,
+  etapa: 'nuevo',
+  etapa_iniciada_en: haceDias(1),
+  etapa_limite_en: new Date(AHORA).toISOString(),
+  etapa_objetivo_minutos: 1_440,
+  etapa_aproximada: false,
+  ...cambios,
 })
 
-describe('semaforoEstancamiento — cada etapa con SU plazo', () => {
-  it('6 días en Nuevo es rojo, pero 6 días en Propuesta enviada sigue azul', () => {
-    // El caso que motiva todo: hoy las dos cards se ven idénticas.
-    const enNuevo = semaforoEstancamiento(lead({ etapa: 'nuevo', creado_en: haceDias(6) }), sinActividad, AHORA)
-    const enPropuesta = semaforoEstancamiento(
-      lead({ etapa: 'propuesta_enviada', creado_en: haceDias(4) }),
-      sinActividad,
+const sinContacto = indexarUltimoContacto([])
+
+describe('semaforoEstancamiento — fotografía versionada', () => {
+  it('sin fotografía SLA omite el color y conserva solo una referencia neutra', () => {
+    const resultado = semaforoEstancamiento(
+      lead({ creado_en: haceDias(30), tenencia_desde: haceDias(0.1) }),
+      sinContacto,
       AHORA,
     )
-    expect(enNuevo.color).toBe(SEMAFORO.critico)
-    expect(enPropuesta.color).toBe(SEMAFORO.ok)
-    expect(enPropuesta.estancado).toBe(false)
+    expect(resultado).toMatchObject({
+      dias: 0.1,
+      color: null,
+      estancado: false,
+      objetivoMinutos: null,
+      politicaVersion: null,
+    })
   })
 
-  it('dentro de plazo va azul; pasado el umbral, ámbar; al doble, rojo', () => {
-    const en = (h: number) =>
-      semaforoEstancamiento(
-        lead({ etapa: 'contactado', creado_en: new Date(AHORA - h * 3_600_000).toISOString() }),
-        sinActividad,
-        AHORA,
-      ).color
+  it('un episodio terminal, incompleto o de otra etapa tampoco inventa plazo', () => {
+    const terminal = estado({
+      etapa: null,
+      etapa_politica_id: null,
+      etapa_politica_version: null,
+      etapa_iniciada_en: null,
+      etapa_limite_en: null,
+      etapa_objetivo_minutos: null,
+      etapa_aproximada: null,
+    })
+    expect(
+      semaforoEstancamiento(lead({ etapa: 'convertido' }), sinContacto, AHORA, terminal),
+    ).toMatchObject({ color: null, estancado: false })
+  })
+
+  it('cada episodio usa SU plazo sellado: Nuevo está rojo y Propuesta sigue azul', () => {
+    const nuevo = semaforoEstancamiento(
+      lead({ etapa: 'nuevo' }),
+      sinContacto,
+      AHORA,
+      estado({
+        etapa: 'nuevo',
+        etapa_iniciada_en: haceDias(6),
+        etapa_limite_en: haceDias(5),
+        etapa_objetivo_minutos: 1_440,
+      }),
+    )
+    const propuesta = semaforoEstancamiento(
+      lead({ etapa: 'propuesta_enviada' }),
+      sinContacto,
+      AHORA,
+      estado({
+        etapa: 'propuesta_enviada',
+        etapa_iniciada_en: haceDias(4),
+        etapa_limite_en: new Date(AHORA + DIA_MS).toISOString(),
+        etapa_objetivo_minutos: 7_200,
+      }),
+    )
+    expect(nuevo.color).toBe(SEMAFORO.critico)
+    expect(propuesta).toMatchObject({ color: SEMAFORO.ok, estancado: false })
+  })
+
+  it('dentro del plazo va azul, vencido ámbar y al doble rojo', () => {
+    const en = (horas: number) => semaforoEstancamiento(
+      lead({ etapa: 'contactado' }),
+      sinContacto,
+      AHORA,
+      estado({
+        etapa: 'contactado',
+        etapa_iniciada_en: haceHoras(horas),
+        etapa_limite_en: new Date(AHORA + (72 - horas) * HORA_MS).toISOString(),
+        etapa_objetivo_minutos: 4_320,
+      }),
+    ).color
+
     expect(en(71)).toBe(SEMAFORO.ok)
     expect(en(73)).toBe(SEMAFORO.atencion)
     expect(en(145)).toBe(SEMAFORO.critico)
   })
 
-  it('el reloj es del ASESOR: un lead viejo recién asignado arranca en cero', () => {
-    const recien = lead({ etapa: 'nuevo', creado_en: haceDias(30), tenencia_desde: haceDias(0.1) })
-    const s = semaforoEstancamiento(recien, sinActividad, AHORA)
-    expect(s.dias).toBeCloseTo(0.1, 1)
-    expect(s.color).toBe(SEMAFORO.ok)
+  it('una transferencia o un contacto no reescribe el episodio de etapa', () => {
+    const l = lead({
+      etapa: 'contactado',
+      creado_en: haceDias(30),
+      tenencia_desde: haceDias(0.1),
+    })
+    const actividad: Actividad = {
+      id: 'a1',
+      lead_id: 'l1',
+      tipo: 'llamada_realizada',
+      detalle: null,
+      autor_nombre: 'V',
+      creado_en: haceHoras(1),
+    }
+    const fotografia = estado({
+      etapa: 'contactado',
+      etapa_iniciada_en: haceDias(8),
+      etapa_limite_en: haceDias(5),
+      etapa_objetivo_minutos: 4_320,
+      etapa_politica_version: 3,
+    })
+    const resultado = semaforoEstancamiento(
+      l,
+      indexarUltimoContacto([actividad]),
+      AHORA,
+      fotografia,
+    )
+    expect(resultado).toMatchObject({
+      dias: 8,
+      color: SEMAFORO.critico,
+      politicaVersion: 3,
+    })
   })
 
-  it('un CONTACTO REAL reinicia el reloj; una reasignación del sistema NO', () => {
-    const l = lead({ etapa: 'contactado', creado_en: haceDias(30), tenencia_desde: haceDias(20) })
-    const act = (tipo: Actividad['tipo'], dias: number): Actividad => ({
-      id: `a-${tipo}`, lead_id: 'l1', tipo, detalle: null, autor_nombre: 'V', creado_en: haceDias(dias),
-    })
-    expect(semaforoEstancamiento(l, indexarUltimoContacto([act('llamada_realizada', 1)]), AHORA).color)
-      .toBe(SEMAFORO.ok)
-    // La `reasignacion` no entra en el índice de contacto → sigue midiendo
-    // desde la tenencia (20 días) y el semáforo NO se apaga solo.
-    expect(semaforoEstancamiento(l, indexarUltimoContacto([act('reasignacion', 1)]), AHORA).color)
-      .toBe(SEMAFORO.critico)
+  it('cambiar el número de versión no altera un deadline histórico ya sellado', () => {
+    const base = {
+      etapa: 'contactado' as const,
+      etapa_iniciada_en: haceHoras(73),
+      etapa_limite_en: haceHoras(1),
+      etapa_objetivo_minutos: 4_320,
+    }
+    const anterior = semaforoEstancamiento(
+      lead({ etapa: 'contactado' }),
+      sinContacto,
+      AHORA,
+      estado({ ...base, etapa_politica_version: 1 }),
+    )
+    const rotuladaNueva = semaforoEstancamiento(
+      lead({ etapa: 'contactado' }),
+      sinContacto,
+      AHORA,
+      estado({ ...base, etapa_politica_version: 9 }),
+    )
+    expect(rotuladaNueva.color).toBe(anterior.color)
+    expect(rotuladaNueva.dias).toBe(anterior.dias)
   })
 })
 
-describe('UN SOLO RELOJ — kanban y cola no pueden contradecirse', () => {
-  it('los días de la card son EXACTAMENTE los que calcula colaDe', () => {
-    const l = lead({ etapa: 'propuesta_enviada', creado_en: haceDias(30), tenencia_desde: haceDias(9) })
-    const acts: Actividad[] = [
-      { id: 'a1', lead_id: 'l1', tipo: 'whatsapp_enviado', detalle: null, autor_nombre: 'V', creado_en: haceDias(7) },
-    ]
-    const enCola = colaDe([l], acts, AHORA)[0]
-    const enCard = semaforoEstancamiento(l, indexarUltimoContacto(acts), AHORA)
-    expect(enCola?.dias).toBeCloseTo(enCard.dias, 6)
+describe('UN SOLO EPISODIO — Pipeline y cola no se contradicen', () => {
+  it('el bucket sin_avance usa los mismos días y la misma versión que la card', () => {
+    const l = lead({ etapa: 'contactado', creado_en: haceDias(20) })
+    const actividades: Actividad[] = [{
+      id: 'a1',
+      lead_id: 'l1',
+      tipo: 'llamada_realizada',
+      detalle: null,
+      autor_nombre: 'V',
+      creado_en: haceDias(1),
+    }]
+    const fotografia = estado({
+      etapa: 'contactado',
+      etapa_iniciada_en: haceDias(7),
+      etapa_limite_en: haceDias(4),
+      etapa_objetivo_minutos: 4_320,
+      etapa_politica_version: 2,
+    })
+    const estados = new Map([['l1', fotografia]])
+    const enCola = colaDe([l], actividades, AHORA, undefined, estados)[0]
+    const enCard = semaforoEstancamiento(
+      l,
+      indexarUltimoContacto(actividades),
+      AHORA,
+      fotografia,
+    )
+
+    expect(enCola).toMatchObject({ bucket: 'sin_avance', dias: enCard.dias })
+    expect(enCola?.motivo).toContain('SLA v2')
+    expect(enCard).toMatchObject({ color: SEMAFORO.critico, politicaVersion: 2 })
   })
 })

@@ -85,6 +85,13 @@ function contrato(over: Partial<ContratoRow> = {}): ContratoRow {
     notas_internas: null,
     creado_por: 'yo',
     creado_en: new Date().toISOString(),
+    producto_condicion_id: '10000000-0000-4000-8000-000000000001',
+    producto_id: '20000000-0000-4000-8000-000000000001',
+    producto_codigo: 'RENTA-BASE',
+    producto_version_id: '30000000-0000-4000-8000-000000000001',
+    producto_version: 1,
+    producto_nombre: 'Plan base',
+    producto_version_estado: 'publicada',
     ...over,
   }
 }

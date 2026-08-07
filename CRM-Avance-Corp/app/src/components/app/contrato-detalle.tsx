@@ -17,6 +17,7 @@ import { useContrato, useCronograma, useTitulares } from '@/data/crm-queries'
 import { CATEGORIA_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import { etiquetaDocumento } from '@/lib/titulares'
 import type { ContratoRow, Cuota, EstadoContrato, EstadoCuota, Titular } from '@/lib/clientes-tipos'
+import { CODIGO_PRODUCTO_HISTORICO } from '@/components/app/producto-contrato-selector'
 
 // Sin verde en el sistema ("positivo" = azul): activo/pagado en accent,
 // vencido en destructive, renovado/trasladado en ámbar, retirado neutro.
@@ -170,6 +171,16 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
             {/* ── Términos del contrato (espejo de renderDetalleMeta) ─────────── */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Termino label="Cliente">{contrato.cliente_nombre ?? '—'}</Termino>
+              <Termino label="Producto">
+                <span title={`Condición ${contrato.producto_condicion_id}`}>
+                  {contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
+                    ? 'Snapshot histórico'
+                    : `${contrato.producto_codigo} · ${contrato.producto_nombre}`}
+                </span>
+              </Termino>
+              <Termino label="Versión de producto">
+                v{contrato.producto_version} · {contrato.producto_version_estado}
+              </Termino>
               <Termino label="Capital">{money(contrato.capital, contrato.moneda)}</Termino>
               <Termino label="Tasa anual">{contrato.tasa_anual}%</Termino>
               <Termino label="Tipo de interés">

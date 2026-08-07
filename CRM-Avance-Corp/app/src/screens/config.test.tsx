@@ -1,0 +1,162 @@
+import { render, screen, within } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { Clock, Users } from 'lucide-react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  catalogoUsuariosAdministrablesDemo,
+  configuracionMetasDemo,
+  configuracionProductosDemo,
+  configuracionSlaDemo,
+} from '@/lib/demo-config'
+import type { Yo } from '@/lib/tipos'
+
+const dobles = vi.hoisted(() => ({
+  yo: null as Yo | null,
+  habilitaciones: {
+    usuarios: [] as boolean[],
+    productos: [] as boolean[],
+    metas: [] as boolean[],
+    sla: [] as boolean[],
+  },
+}))
+
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({ yo: dobles.yo }),
+}))
+
+vi.mock('@/components/app/calendario-google', () => ({
+  CalendarioGoogle: () => <div>Calendario personal</div>,
+}))
+
+function consulta<T>(data: T) {
+  return {
+    data,
+    isPending: false,
+    isError: false,
+    refetch: vi.fn(),
+  }
+}
+
+vi.mock('@/data/crm-config-queries', () => ({
+  useCatalogoUsuariosAdministrables: (habilitada: boolean) => {
+    dobles.habilitaciones.usuarios.push(habilitada)
+    return consulta(catalogoUsuariosAdministrablesDemo())
+  },
+  useConfiguracionProductos: (habilitada: boolean) => {
+    dobles.habilitaciones.productos.push(habilitada)
+    return consulta(configuracionProductosDemo())
+  },
+  useConfiguracionMetas: (_periodo: string, habilitada: boolean) => {
+    dobles.habilitaciones.metas.push(habilitada)
+    return consulta(configuracionMetasDemo('2026-08-01'))
+  },
+  useConfiguracionSla: (habilitada: boolean) => {
+    dobles.habilitaciones.sla.push(habilitada)
+    return consulta(configuracionSlaDemo())
+  },
+}))
+
+const { Config, RielEstadoConfiguracion } = await import('./config')
+
+function identidad(overrides: Partial<Yo> = {}): Yo {
+  return {
+    id: '90000000-0000-4000-8000-000000000001',
+    nombre_completo: 'GERENCIA DEMO',
+    rol: 'gerencia',
+    demo: true,
+    puede_contratar: true,
+    ...overrides,
+  }
+}
+
+beforeEach(() => {
+  dobles.yo = identidad()
+  dobles.habilitaciones.usuarios.length = 0
+  dobles.habilitaciones.productos.length = 0
+  dobles.habilitaciones.metas.length = 0
+  dobles.habilitaciones.sla.length = 0
+})
+
+describe('Configuración y riel operativo', () => {
+  it('muestra a Gerencia demo los cuatro estados coherentes, todos en solo lectura', () => {
+    render(<Config />)
+
+    expect(screen.getByText(/Demostración de solo lectura/)).toBeInTheDocument()
+    const riel = screen.getByRole('list', { name: 'Estado operativo de la configuración' })
+    expect(within(riel).getAllByRole('listitem')).toHaveLength(4)
+    expect(within(riel).getByText('8 de 9 habilitadas')).toBeInTheDocument()
+    expect(within(riel).getByText('2 productos · revisión 6')).toBeInTheDocument()
+    expect(within(riel).getByText('4 vendedores · revisión 5')).toBeInTheDocument()
+    expect(within(riel).getByText('v3 · gestión 2 horas')).toBeInTheDocument()
+    expect(screen.getAllByText('Solo lectura')).toHaveLength(4)
+
+    expect(dobles.habilitaciones).toEqual({
+      usuarios: [true],
+      productos: [true],
+      metas: [true],
+      sla: [true],
+    })
+  })
+
+  it('limita al Superadmin real al gobierno de roles y no habilita otras lecturas', () => {
+    dobles.yo = identidad({
+      // Proyección real de `administrador_roles`: sin rol CRM en el RPC y con
+      // Directorio únicamente como compatibilidad interna del tipo `Yo`.
+      rol: 'directorio',
+      rol_portal: 'superadmin',
+      capacidades_config: {
+        puede_listar_usuarios: true,
+        puede_administrar_usuarios: false,
+        puede_organizar_jerarquia: false,
+        puede_administrar_roles: true,
+      },
+      demo: false,
+      puede_contratar: false,
+    })
+    render(<Config />)
+
+    const riel = screen.getByRole('list', { name: 'Estado operativo de la configuración' })
+    expect(within(riel).getAllByRole('listitem')).toHaveLength(1)
+    expect(screen.getByText('Usuarios y jerarquía')).toBeInTheDocument()
+    expect(screen.queryByText('Productos de inversión')).not.toBeInTheDocument()
+    expect(screen.getByText('Administración')).toBeInTheDocument()
+    expect(screen.getByText(/Gobierno de roles/)).toBeInTheDocument()
+    expect(screen.queryByText('Calendario personal')).not.toBeInTheDocument()
+    expect(dobles.habilitaciones).toEqual({
+      usuarios: [true],
+      productos: [false],
+      metas: [false],
+      sla: [false],
+    })
+  })
+
+  it('representa carga y error por tramo, con reintento accesible', async () => {
+    const recargar = vi.fn()
+    render(<RielEstadoConfiguracion pasos={[
+      {
+        vista: 'config-usuarios',
+        icono: Users,
+        etiqueta: 'Personas activas',
+        detalle: '',
+        cargando: true,
+        error: false,
+        recargar: vi.fn(),
+      },
+      {
+        vista: 'config-sla',
+        icono: Clock,
+        etiqueta: 'SLA vigente',
+        detalle: '',
+        cargando: false,
+        error: true,
+        recargar,
+      },
+    ]} />)
+
+    expect(screen.getByRole('status')).toHaveTextContent('Verificando')
+    expect(screen.getByText('Lectura no disponible')).toBeInTheDocument()
+    await userEvent.click(screen.getByRole('button', { name: 'Reintentar SLA vigente' }))
+    expect(recargar).toHaveBeenCalledOnce()
+    expect(screen.getByRole('link', { name: 'Abrir SLA vigente' })).toHaveAttribute('href', '#/config-sla')
+  })
+})

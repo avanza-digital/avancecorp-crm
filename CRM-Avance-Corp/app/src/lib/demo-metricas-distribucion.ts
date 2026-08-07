@@ -99,15 +99,10 @@ const ANA: MetricaDistribucionAnalista = {
   },
   operacion: {
     cohorte_episodios: 22,
-    contactos_asignacion: 19,
-    sla_asignacion_evaluables: 18,
-    sla_asignacion_en_24h: 15,
-    primer_contacto_asignacion_mediana_minutos: 175,
     transferidos: 2,
     parqueados: 1,
     desactivados: 0,
     sin_tocar_actual: 1,
-    estancados_actual: 2,
   },
 }
 
@@ -143,15 +138,10 @@ const BRUNO: MetricaDistribucionAnalista = {
   },
   operacion: {
     cohorte_episodios: 18,
-    contactos_asignacion: 15,
-    sla_asignacion_evaluables: 15,
-    sla_asignacion_en_24h: 11,
-    primer_contacto_asignacion_mediana_minutos: 285,
     transferidos: 2,
     parqueados: 0,
     desactivados: 0,
     sin_tocar_actual: 2,
-    estancados_actual: 2,
   },
 }
 
@@ -186,15 +176,10 @@ const CAMILA: MetricaDistribucionAnalista = {
   },
   operacion: {
     cohorte_episodios: 16,
-    contactos_asignacion: 11,
-    sla_asignacion_evaluables: 13,
-    sla_asignacion_en_24h: 7,
-    primer_contacto_asignacion_mediana_minutos: 510,
     transferidos: 3,
     parqueados: 1,
     desactivados: 0,
     sin_tocar_actual: 2,
-    estancados_actual: 3,
   },
 }
 
@@ -230,15 +215,10 @@ const DIEGO: MetricaDistribucionAnalista = {
   },
   operacion: {
     cohorte_episodios: 17,
-    contactos_asignacion: 10,
-    sla_asignacion_evaluables: 14,
-    sla_asignacion_en_24h: 6,
-    primer_contacto_asignacion_mediana_minutos: 780,
     transferidos: 2,
     parqueados: 2,
     desactivados: 0,
     sin_tocar_actual: 3,
-    estancados_actual: 4,
   },
 }
 
@@ -260,16 +240,12 @@ export function metricasDistribucionDemo(
       hasta_inclusivo: hasta,
       hasta_exclusivo: fechaSiguiente(hasta),
       criterio: 'episodio_asignado_en',
-      criterio_sla_global: 'ciclo_sla_global_iniciado_en',
-      politica_pausas: 'SIN_DESCUENTO',
       zona_horaria: 'America/Lima',
     },
     alcances: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
-      sla_principal: 'GLOBAL_POR_CICLO',
-      sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
     },
     rangos: RANGOS.map(([id, etiqueta, desdeExclusivo, hastaInclusivo], indice) => ({
       id,
@@ -288,13 +264,6 @@ export function metricasDistribucionDemo(
       cohorte_leads_unicos: 68,
       convertidos_pen: 26,
       descartados_pen: 23,
-      sla_global_ciclos_cohorte: 68,
-      sla_global_leads_unicos_cohorte: 64,
-      sla_global_contactos: 58,
-      sla_global_evaluables: 60,
-      sla_global_en_24h: 43,
-      primer_contacto_global_mediana_minutos: 320,
-      sla_global_sin_contacto_vencidos_actuales: 7,
       reasignaciones_cohorte: 9,
     },
     analistas: [ANA, BRUNO, CAMILA, DIEGO],
@@ -349,7 +318,6 @@ export function metricasDistribucionDemo(
       episodios_aproximados_cohorte: 2,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
-      ciclos_sla_global_aproximados_cohorte: 2,
     },
   }
 }

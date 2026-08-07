@@ -11,7 +11,15 @@ import type { Actividad, Lead, Miembro, Tarea } from './tipos'
 // Solo tipos (se borran al compilar): no crea ciclo con el import dinámico
 // que hace el store de este módulo.
 import type { SeriesComerciales } from './store'
-import type { ObjetivosJerarquicos } from './objetivos'
+import {
+  agregarCumplimientos,
+  agregarObjetivos,
+  periodoLima,
+  type CumplimientoMetasJerarquico,
+  type CumplimientoVendedor,
+  type ObjetivoVendedor,
+  type ObjetivosJerarquicos,
+} from './objetivos'
 
 export const EQUIPO_DEMO: Miembro[] = [
   { perfil_id: 'd-ger', nombre_completo: 'GERENCIA DEMO', rol_crm: 'gerencia', supervisor_id: null, activo: true },
@@ -153,16 +161,98 @@ export const SPARKS_DEMO: SeriesComerciales = {
   conversion: [12, 14, 13, 18, 19, 21, 23],
 }
 
-// Metas individuales por vendedor. Los totales de supervisor y empresa son
-// lecturas derivadas; no existen como filas editables.
-// capitalObjetivo en PEN — NUNCA se mezcla con USD en un mismo total.
+// Fixture explícito del modelo versionado: seis dimensiones por vendedor.
+// Los agregados de supervisor/empresa se derivan igual que en producción.
+function metaDemo(
+  vendedorId: string,
+  nombre: string,
+  supervisorId: string,
+  supervisorNombre: string,
+  pen: readonly [number, number, number],
+  usd: readonly [number, number, number],
+  conversionObjetivo: number,
+): ObjetivoVendedor {
+  const categorias = ['nuevo', 'renovacion', 'upgrade'] as const
+  return {
+    vendedorId,
+    nombre,
+    supervisorId,
+    supervisorNombre,
+    conversionObjetivo,
+    detalles: categorias.flatMap((categoria, indice) => [
+      { categoria, moneda: 'PEN' as const, capitalObjetivo: pen[indice] ?? 0, contratosObjetivo: pen[indice] ? 1 : 0 },
+      { categoria, moneda: 'USD' as const, capitalObjetivo: usd[indice] ?? 0, contratosObjetivo: usd[indice] ? 1 : 0 },
+    ]),
+  }
+}
+
+const METAS_VENDEDORES_DEMO = {
+  'd-v1': metaDemo('d-v1', 'VENDEDOR UNO', 'd-sup1', 'SUPERVISOR UNO', [150_000, 60_000, 40_000], [25_000, 10_000, 5_000], 25),
+  'd-v2': metaDemo('d-v2', 'VENDEDOR DOS', 'd-sup1', 'SUPERVISOR UNO', [180_000, 70_000, 50_000], [30_000, 12_000, 8_000], 28),
+  'd-v3': metaDemo('d-v3', 'VENDEDOR TRES', 'd-sup2', 'SUPERVISOR DOS', [270_000, 110_000, 70_000], [45_000, 15_000, 10_000], 30),
+} satisfies Record<string, ObjetivoVendedor>
+
+const METAS_DEMO_FILAS = Object.values(METAS_VENDEDORES_DEMO)
 export const METAS_DEMO: ObjetivosJerarquicos = {
-  vendedor: { capitalObjetivo: 250_000, ventasObjetivo: 0, conversionObjetivo: 25 },
-  supervisor: { capitalObjetivo: 550_000, ventasObjetivo: 0, conversionObjetivo: 26.5 },
-  gerencia: { capitalObjetivo: 1_000_000, ventasObjetivo: 0, conversionObjetivo: 27.67 },
-  porVendedor: {
-    'd-v1': { vendedorId: 'd-v1', supervisorId: 'd-sup1', capitalObjetivo: 250_000, ventasObjetivo: 0, conversionObjetivo: 25 },
-    'd-v2': { vendedorId: 'd-v2', supervisorId: 'd-sup1', capitalObjetivo: 300_000, ventasObjetivo: 0, conversionObjetivo: 28 },
-    'd-v3': { vendedorId: 'd-v3', supervisorId: 'd-sup2', capitalObjetivo: 450_000, ventasObjetivo: 0, conversionObjetivo: 30 },
+  periodo: periodoLima(Date.now()),
+  revision: 1,
+  publicadaEn: '2026-08-01T14:00:00.000Z',
+  vendedor: METAS_VENDEDORES_DEMO['d-v1'],
+  supervisor: agregarObjetivos(METAS_DEMO_FILAS.filter((meta) => meta.supervisorId === 'd-sup1')),
+  gerencia: agregarObjetivos(METAS_DEMO_FILAS),
+  porVendedor: METAS_VENDEDORES_DEMO,
+}
+
+function cumplimientoDemo(
+  meta: ObjetivoVendedor,
+  capitalRealPen: readonly [number, number, number],
+  capitalRealUsd: readonly [number, number, number],
+  convertidos: number,
+  resueltos: number,
+): CumplimientoVendedor {
+  return {
+    ...meta,
+    conversionReal: resueltos > 0 ? Math.round((10_000 * convertidos) / resueltos) / 100 : null,
+    convertidos,
+    resueltos,
+    detalles: meta.detalles.map((detalle) => {
+      const indice = ['nuevo', 'renovacion', 'upgrade'].indexOf(detalle.categoria)
+      const capitalReal = detalle.moneda === 'PEN'
+        ? (capitalRealPen[indice] ?? 0)
+        : (capitalRealUsd[indice] ?? 0)
+      const contratosReal = capitalReal > 0 ? 1 : 0
+      return {
+        ...detalle,
+        capitalReal,
+        capitalCumplimientoPct: detalle.capitalObjetivo > 0
+          ? Math.round((10_000 * capitalReal) / detalle.capitalObjetivo) / 100
+          : null,
+        contratosReal,
+        contratosCumplimientoPct: detalle.contratosObjetivo > 0
+          ? Math.round((10_000 * contratosReal) / detalle.contratosObjetivo) / 100
+          : null,
+      }
+    }),
+  }
+}
+
+const CUMPLIMIENTO_VENDEDORES_DEMO = {
+  'd-v1': cumplimientoDemo(METAS_VENDEDORES_DEMO['d-v1'], [120_000, 40_000, 0], [20_000, 0, 0], 3, 8),
+  'd-v2': cumplimientoDemo(METAS_VENDEDORES_DEMO['d-v2'], [90_000, 50_000, 20_000], [10_000, 8_000, 0], 4, 10),
+  'd-v3': cumplimientoDemo(METAS_VENDEDORES_DEMO['d-v3'], [210_000, 70_000, 50_000], [35_000, 12_000, 4_000], 5, 13),
+} satisfies Record<string, CumplimientoVendedor>
+
+const CUMPLIMIENTO_DEMO_FILAS = Object.values(CUMPLIMIENTO_VENDEDORES_DEMO)
+export const CUMPLIMIENTO_METAS_DEMO: CumplimientoMetasJerarquico = {
+  periodo: METAS_DEMO.periodo,
+  revision: 1,
+  publicadaEn: METAS_DEMO.publicadaEn,
+  fuentesReales: {
+    capitalYContratos: 'contratos_confirmados',
+    conversion: 'leads_resueltos',
   },
+  vendedor: CUMPLIMIENTO_VENDEDORES_DEMO['d-v1'],
+  supervisor: agregarCumplimientos(CUMPLIMIENTO_DEMO_FILAS.filter((fila) => fila.supervisorId === 'd-sup1')),
+  gerencia: agregarCumplimientos(CUMPLIMIENTO_DEMO_FILAS),
+  porVendedor: CUMPLIMIENTO_VENDEDORES_DEMO,
 }

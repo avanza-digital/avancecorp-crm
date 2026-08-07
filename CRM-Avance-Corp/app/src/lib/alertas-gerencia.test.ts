@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import type { ConversionEquipoVendedor } from './conversion-equipo'
 import {
-  conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
+  metasConversionEquipoDemo,
   metricasConversionesDemo,
 } from './demo-inteligencia-comercial'
-import type { ObjetivosPorVendedor } from './objetivos'
+import type { CumplimientoVendedor, ObjetivosPorVendedor } from './objetivos'
 import {
   BRECHA_CRITICA_ALERTA_CONVERSION_PP,
   BRECHA_MINIMA_ALERTA_CONVERSION_PP,
@@ -12,39 +12,46 @@ import {
   CAIDA_MINIMA_ALERTA_GLOBAL_PP,
   DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL,
   LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL,
-  LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR,
+  CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR,
   derivarAlertasGerencia,
   periodoAnteriorComparable,
   type DerivarAlertasGerenciaInput,
 } from './alertas-gerencia'
 
-function identidad(
-  vendedorId: string,
-  nombre: string,
-  supervisorNombre: string,
-): ConversionEquipoVendedor {
-  return {
-    vendedorId,
-    nombre,
-    supervisorNombre,
-    leads: 0,
-    contactados: 0,
-    reunionesPactadas: 0,
-    reunionesRealizadas: 0,
-    clientes: 0,
-    descartados: 0,
-    conversionPct: null,
-  }
-}
-
 function entradaSinFuentes(
   cambios: Partial<DerivarAlertasGerenciaInput> = {},
 ): DerivarAlertasGerenciaInput {
   return {
-    equipoConversion: [],
     metasVendedores: {},
+    cumplimientosVendedores: {},
     diaDelMes: DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL,
     ...cambios,
+  }
+}
+
+function fuentesIndividuales(
+  conversionObjetivo: number,
+  conversionReal: number,
+  resueltos: number,
+): {
+  metasVendedores: ObjetivosPorVendedor
+  cumplimientosVendedores: Record<string, CumplimientoVendedor>
+} {
+  const metaBase = metasConversionEquipoDemo()['demo-v1']!
+  const cumplimientoBase = cumplimientoMetasConversionEquipoDemo().porVendedor['demo-v1']!
+  return {
+    metasVendedores: {
+      'demo-v1': { ...metaBase, conversionObjetivo },
+    },
+    cumplimientosVendedores: {
+      'demo-v1': {
+        ...cumplimientoBase,
+        conversionObjetivo,
+        conversionReal,
+        convertidos: Math.round((resueltos * conversionReal) / 100),
+        resueltos,
+      },
+    },
   }
 }
 
@@ -85,7 +92,7 @@ describe('derivarAlertasGerencia', () => {
   it('exporta umbrales ejecutivos explícitos y estables', () => {
     expect({
       dia: DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL,
-      leadsVendedor: LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR,
+      casosResueltosVendedor: CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR,
       brechaVendedor: BRECHA_MINIMA_ALERTA_CONVERSION_PP,
       brechaVendedorCritica: BRECHA_CRITICA_ALERTA_CONVERSION_PP,
       leadsGlobal: LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL,
@@ -93,7 +100,7 @@ describe('derivarAlertasGerencia', () => {
       caidaGlobalCritica: CAIDA_CRITICA_ALERTA_GLOBAL_PP,
     }).toEqual({
       dia: 10,
-      leadsVendedor: 10,
+      casosResueltosVendedor: 10,
       brechaVendedor: 5,
       brechaVendedorCritica: 10,
       leadsGlobal: 30,
@@ -102,50 +109,21 @@ describe('derivarAlertasGerencia', () => {
     })
   })
 
-  it('alerta al vendedor solo desde el día 10, con 10 leads y brecha mínima de 5 pp', () => {
-    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
-    const equipoConversion = conversionEquipoDemo().slice(0, 1)
-    conversiones.responsables = [
-      { ...conversiones.responsables![0]!, leads: 10, clientes: 1, conversion_pct: 10 },
-    ]
-    const metasVendedores: ObjetivosPorVendedor = {
-      'demo-v1': {
-        vendedorId: 'demo-v1',
-        supervisorId: 'demo-s1',
-        capitalObjetivo: 0,
-        ventasObjetivo: 0,
-        conversionObjetivo: 15,
-      },
-    }
+  it('alerta al vendedor solo desde el día 10, con 10 casos resueltos confirmados y brecha mínima de 5 pp', () => {
+    const fuentes = fuentesIndividuales(15, 10, 10)
 
     expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones,
-      equipoConversion,
-      metasVendedores,
+      ...fuentes,
       diaDelMes: 9,
     }))).toEqual([])
 
-    conversiones.responsables[0]!.leads = 9
-    expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones,
-      equipoConversion,
-      metasVendedores,
-    }))).toEqual([])
+    const muestraInsuficiente = fuentesIndividuales(15, 10, 9)
+    expect(derivarAlertasGerencia(entradaSinFuentes(muestraInsuficiente))).toEqual([])
 
-    conversiones.responsables[0]!.leads = 10
-    conversiones.responsables[0]!.conversion_pct = 10.01
-    expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones,
-      equipoConversion,
-      metasVendedores,
-    }))).toEqual([])
+    const brechaInsuficiente = fuentesIndividuales(15, 10.01, 10)
+    expect(derivarAlertasGerencia(entradaSinFuentes(brechaInsuficiente))).toEqual([])
 
-    conversiones.responsables[0]!.conversion_pct = 10
-    const alertas = derivarAlertasGerencia(entradaSinFuentes({
-      conversiones,
-      equipoConversion,
-      metasVendedores,
-    }))
+    const alertas = derivarAlertasGerencia(entradaSinFuentes(fuentes))
 
     expect(alertas).toEqual([
       expect.objectContaining({
@@ -161,18 +139,10 @@ describe('derivarAlertasGerencia', () => {
     ])
   })
 
-  it('eleva a crítica una brecha individual de 10 pp y aplica la meta inicial válida', () => {
-    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-10')
-    const equipoConversion = conversionEquipoDemo().slice(0, 1)
-    conversiones.responsables = [
-      { ...conversiones.responsables![0]!, leads: 10, clientes: 0, conversion_pct: 5 },
-    ]
-
-    const alertas = derivarAlertasGerencia(entradaSinFuentes({
-      conversiones,
-      equipoConversion,
-      metasVendedores: {},
-    }))
+  it('eleva a crítica una brecha individual de 10 pp contra una meta publicada', () => {
+    const alertas = derivarAlertasGerencia(entradaSinFuentes(
+      fuentesIndividuales(15, 5, 10),
+    ))
 
     expect(alertas).toEqual([
       expect.objectContaining({
@@ -184,47 +154,43 @@ describe('derivarAlertasGerencia', () => {
     ])
   })
 
-  it('falla cerrado ante objetivos con error o inválidos y responsables ausentes o parciales', () => {
-    const equipoConversion = conversionEquipoDemo().slice(0, 2)
-    const completas = metricasConversionesDemo('2026-08-01', '2026-08-06')
-    completas.responsables = completas.responsables!.slice(0, 2)
-    completas.responsables[0] = {
-      ...completas.responsables[0]!,
-      leads: 20,
-      conversion_pct: 0,
-    }
-
+  it('falla cerrado ante metas/cumplimiento con error, inválidos, ausentes o parciales', () => {
+    const completas = fuentesIndividuales(15, 0, 20)
     expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones: completas,
-      equipoConversion,
+      ...completas,
       objetivosError: true,
     }))).toEqual([])
 
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      ...completas,
+      cumplimientoError: true,
+    }))).toEqual([])
+
     const metaInvalida: ObjetivosPorVendedor = {
-      'demo-v1': {
-        vendedorId: 'demo-v1',
-        supervisorId: 'demo-s1',
-        capitalObjetivo: 0,
-        ventasObjetivo: 0,
-        conversionObjetivo: Number.NaN,
-      },
+      'demo-v1': { ...completas.metasVendedores['demo-v1']!, conversionObjetivo: Number.NaN },
     }
     expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones: completas,
-      equipoConversion,
       metasVendedores: metaInvalida,
+      cumplimientosVendedores: completas.cumplimientosVendedores,
     }))).toEqual([])
 
-    const ausentes = { ...completas, responsables: undefined }
     expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones: ausentes,
-      equipoConversion,
+      metasVendedores: completas.metasVendedores,
+      cumplimientosVendedores: {},
     }))).toEqual([])
 
-    const parciales = { ...completas, responsables: completas.responsables!.slice(0, 1) }
+    const otraMeta = metasConversionEquipoDemo()['demo-v2']!
     expect(derivarAlertasGerencia(entradaSinFuentes({
-      conversiones: parciales,
-      equipoConversion,
+      metasVendedores: { ...completas.metasVendedores, 'demo-v2': otraMeta },
+      cumplimientosVendedores: completas.cumplimientosVendedores,
+    }))).toEqual([])
+  })
+
+  it('no crea alertas individuales sin una meta publicada', () => {
+    const cumplimiento = fuentesIndividuales(15, 0, 20).cumplimientosVendedores
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      metasVendedores: {},
+      cumplimientosVendedores: cumplimiento,
     }))).toEqual([])
   })
 
@@ -276,22 +242,15 @@ describe('derivarAlertasGerencia', () => {
   it('eleva a crítica una caída global de 5 pp y la ordena antes de una brecha individual menor', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-10')
     const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-10')
-    const equipoConversion = [identidad('demo-v1', 'Ana Torres', 'Equipo Norte')]
     conversiones.cohorte.leads = 30
     conversionesAnteriores.cohorte.leads = 30
     conversiones.cohorte.conversion_contratos_pct = 10
     conversionesAnteriores.cohorte.conversion_contratos_pct = 15
-    conversiones.responsables = [{
-      ...conversiones.responsables![0]!,
-      vendedor_id: 'demo-v1',
-      leads: 10,
-      conversion_pct: 10,
-    }]
 
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       conversionesAnteriores,
-      equipoConversion,
+      ...fuentesIndividuales(15, 10, 10),
     }))
 
     expect(alertas.map(({ id, severidad }) => ({ id, severidad }))).toEqual([

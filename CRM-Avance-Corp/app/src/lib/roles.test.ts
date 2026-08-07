@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { ACCIONES, CAPS, can, puedeEscribir, ROL_LABEL, type Rol } from './roles'
+import {
+  ACCIONES,
+  administraSoloRolesCrm,
+  CAPS,
+  can,
+  puedeAdministrarRolesCrm,
+  puedeAdministrarUsuariosCrm,
+  puedeEscribir,
+  puedeOrganizarJerarquiaCrm,
+  puedeVerDirectorioUsuariosCrm,
+  ROL_LABEL,
+  type Rol,
+} from './roles'
 
 describe('capacidades por rol', () => {
   it('mantiene una matriz completa y etiquetada para cada rol', () => {
@@ -106,5 +118,54 @@ describe('capacidades por rol', () => {
       editarCapacidad: true,
       soloLecturaTotal: false,
     })
+  })
+})
+
+describe('capacidades administrativas Portal ↔ CRM', () => {
+  it('Gerencia administra personas y jerarquía, pero no roles', () => {
+    const yo = { rol: 'gerencia' as const, rol_portal: 'directorio' }
+    expect(puedeAdministrarUsuariosCrm(yo)).toBe(true)
+    expect(puedeOrganizarJerarquiaCrm(yo)).toBe(true)
+    expect(puedeAdministrarRolesCrm(yo)).toBe(false)
+  })
+
+  it('Superadmin administra roles, pero no personas ni jerarquía', () => {
+    const yo = { rol: 'directorio' as const, rol_portal: 'superadmin' }
+    expect(puedeAdministrarRolesCrm(yo)).toBe(true)
+    expect(administraSoloRolesCrm(yo)).toBe(true)
+    expect(puedeAdministrarUsuariosCrm(yo)).toBe(false)
+    expect(puedeOrganizarJerarquiaCrm(yo)).toBe(false)
+    expect(puedeVerDirectorioUsuariosCrm(yo)).toBe(true)
+    expect(puedeEscribir(yo.rol)).toBe(false)
+  })
+
+  it('Gerencia + Superadmin suma autoridades y no se reduce a solo roles', () => {
+    const yo = { rol: 'gerencia' as const, rol_portal: 'superadmin' }
+    expect(puedeAdministrarRolesCrm(yo)).toBe(true)
+    expect(administraSoloRolesCrm(yo)).toBe(false)
+  })
+
+  it('Directorio normal solo consulta y una identidad ausente queda cerrada', () => {
+    expect(puedeVerDirectorioUsuariosCrm({ rol: 'directorio' })).toBe(true)
+    expect(puedeAdministrarRolesCrm({ rol: 'directorio', rol_portal: 'admin' })).toBe(false)
+    expect(puedeVerDirectorioUsuariosCrm(null)).toBe(false)
+  })
+
+  it('prioriza las capacidades vivas del servidor sobre inferencias de UX', () => {
+    const identidad = {
+      rol: 'gerencia' as const,
+      rol_portal: 'superadmin',
+      capacidades_config: {
+        puede_listar_usuarios: true,
+        puede_administrar_usuarios: false,
+        puede_organizar_jerarquia: false,
+        puede_administrar_roles: false,
+      },
+    }
+    expect(puedeVerDirectorioUsuariosCrm(identidad)).toBe(true)
+    expect(puedeAdministrarUsuariosCrm(identidad)).toBe(false)
+    expect(puedeOrganizarJerarquiaCrm(identidad)).toBe(false)
+    expect(puedeAdministrarRolesCrm(identidad)).toBe(false)
+    expect(administraSoloRolesCrm(identidad)).toBe(false)
   })
 })

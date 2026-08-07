@@ -16,7 +16,6 @@ import {
   presetsPeriodo,
   resumenEquipo,
   sumarDiasIso,
-  textoMinutos,
 } from './distribucion-lecturas'
 
 function rangosVacios(): RangoDistribucionAnalista[] {
@@ -74,15 +73,10 @@ function analista(
     },
     operacion: {
       cohorte_episodios: 0,
-      contactos_asignacion: 0,
-      sla_asignacion_evaluables: 0,
-      sla_asignacion_en_24h: 0,
-      primer_contacto_asignacion_mediana_minutos: null,
       transferidos: 0,
       parqueados: 0,
       desactivados: 0,
       sin_tocar_actual: 0,
-      estancados_actual: 0,
       ...operacion,
     },
     ...resto,
@@ -99,7 +93,6 @@ function colaVacia() {
 
 function datos(cambios: {
   analistas?: MetricaDistribucionAnalista[]
-  vencidos?: number
   colaAltos?: { cantidad: number; capital: number }
   colaGerencia?: number
   bandejas?: Array<{ id: string; nombre: string; activo?: boolean; carga: number }>
@@ -122,16 +115,12 @@ function datos(cambios: {
       hasta_inclusivo: '2026-07-18',
       hasta_exclusivo: '2026-07-19',
       criterio: 'episodio_asignado_en',
-      criterio_sla_global: 'ciclo_sla_global_iniciado_en',
-      politica_pausas: 'SIN_DESCUENTO',
       zona_horaria: 'America/Lima',
     },
     alcances: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
-      sla_principal: 'GLOBAL_POR_CICLO',
-      sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
     },
     rangos: RANGOS_CAPITAL_PEN.map((id, indice) => ({
       id,
@@ -150,13 +139,6 @@ function datos(cambios: {
       cohorte_leads_unicos: 0,
       convertidos_pen: 0,
       descartados_pen: 0,
-      sla_global_ciclos_cohorte: 0,
-      sla_global_leads_unicos_cohorte: 0,
-      sla_global_contactos: 0,
-      sla_global_evaluables: 0,
-      sla_global_en_24h: 0,
-      primer_contacto_global_mediana_minutos: null,
-      sla_global_sin_contacto_vencidos_actuales: cambios.vencidos ?? 0,
       reasignaciones_cohorte: 0,
     },
     analistas: cambios.analistas ?? [],
@@ -182,19 +164,14 @@ function datos(cambios: {
       episodios_aproximados_cohorte: 0,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
-      ciclos_sla_global_aproximados_cohorte: 0,
     },
   }
 }
 
-describe('porcentajeLegible y textoMinutos', () => {
-  it('no inventa un 0% sin denominador y formatea minutos por magnitud', () => {
+describe('porcentajeLegible', () => {
+  it('no inventa un 0% sin denominador', () => {
     expect(porcentajeLegible(3, 0)).toBeNull()
     expect(porcentajeLegible(1, 4)).toBe('25%')
-    expect(textoMinutos(null)).toBeNull()
-    expect(textoMinutos(45)).toBe('45 min')
-    expect(textoMinutos(90)).toBe('1.5 h')
-    expect(textoMinutos(2880)).toBe('2 d')
   })
 })
 
@@ -225,20 +202,18 @@ describe('avisosAtencion', () => {
     expect(avisosAtencion(datos({ analistas: [analista()] }))).toEqual([])
   })
 
-  it('pone lo crítico primero: vencidos de 24 h y montos altos sin asignar', () => {
+  it('pone primero el monto alto sin asignar y conserva los avisos operativos', () => {
     const avisos = avisosAtencion(
       datos({
-        vencidos: 3,
         colaAltos: { cantidad: 2, capital: 250_000 },
         colaGerencia: 1,
-        analistas: [analista({ operacion: { estancados_actual: 2 } })],
+        analistas: [analista({ operacion: { sin_tocar_actual: 2 } })],
       }),
     )
-    expect(avisos.map((aviso) => aviso.severidad)).toEqual(['critica', 'critica', 'media', 'media'])
-    expect(avisos[0]?.texto).toBe('3 leads llevan más de 24 horas sin primera atención.')
-    expect(avisos[1]?.texto).toBe('2 leads de más de S/ 50 mil esperan asignación.')
-    expect(avisos[2]?.texto).toBe('1 lead sin responsable espera directamente a Gerencia.')
-    expect(avisos[3]?.texto).toBe('2 leads están sin avance según los plazos de su etapa.')
+    expect(avisos.map((aviso) => aviso.severidad)).toEqual(['critica', 'media', 'media'])
+    expect(avisos[0]?.texto).toBe('2 leads de más de S/ 50 mil esperan asignación.')
+    expect(avisos[1]?.texto).toBe('1 lead sin responsable espera directamente a Gerencia.')
+    expect(avisos[2]?.texto).toContain('2 leads sin atender')
   })
 
   it('nombra bandejas con pendientes, carteras llenas y al mayor caso sin atender', () => {

@@ -20,15 +20,15 @@ import {
 } from '@/lib/alertas-gerencia'
 import { AlertasCRMContext, type EstadoAlertasCRM } from '@/lib/alertas-context'
 import { useAuth } from '@/lib/auth-context'
-import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
 import {
-  conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
   metricasConversionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData } from '@/lib/store-context'
-import type { Rol } from '@/lib/roles'
+import { administraSoloRolesCrm, type Rol } from '@/lib/roles'
+import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
 function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
   if (alerta.tipo === 'bajo_meta_conversion') {
@@ -76,14 +76,21 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     ambito,
     actividadesDelAmbito,
     tareas,
-    equipo,
     objetivos,
     objetivosError,
+    cumplimientoMetas,
+    cumplimientoMetasError,
     recargar,
   } = useCRMData()
   const ahora = useAhora()
   const [actualizandoOperativo, setActualizandoOperativo] = useState(false)
   const rol = yo?.rol ?? null
+  const soloRoles = administraSoloRolesCrm(yo)
+  const estadoSla = useEstadoSlaOperativo(
+    ambito.leads,
+    actividadesDelAmbito,
+    !soloRoles && esRolOperativo(rol),
+  )
   const diaLima = fechaLima(ahora)
   const periodoActual = useMemo(
     () => ({ desde: `${diaLima.slice(0, 7)}-01`, hasta: diaLima }),
@@ -105,15 +112,15 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     periodoActual.hasta,
   )
 
-  const identidadesGerencia = useMemo(
-    () => yo?.demo
-      ? conversionEquipoDemo()
-      : identidadesEquipoConversion(ambito.vendedores, equipo),
-    [ambito.vendedores, equipo, yo?.demo],
-  )
   const metasGerencia = useMemo(
     () => yo?.demo ? metasConversionEquipoDemo() : (objetivos.porVendedor ?? {}),
     [objetivos.porVendedor, yo?.demo],
+  )
+  const cumplimientoGerencia = useMemo(
+    () => yo?.demo
+      ? cumplimientoMetasConversionEquipoDemo().porVendedor
+      : (cumplimientoMetas?.porVendedor ?? {}),
+    [cumplimientoMetas?.porVendedor, yo?.demo],
   )
   const conversionGerencia = useMemo(
     () => yo?.demo
@@ -123,7 +130,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   )
 
   const alertas = useMemo<AlertaCRM[]>(() => {
-    if (!yo) return []
+    if (!yo || soloRoles) return []
     if (rol === 'vendedor') {
       return derivarAlertasVendedor({
         vendedorId: yo.id,
@@ -131,6 +138,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
         actividades: actividadesDelAmbito,
         tareas,
         ahora,
+        estadosSla: estadoSla.indice,
       })
     }
     if (rol === 'supervisor') {
@@ -141,6 +149,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
         tareas,
         vendedores: ambito.vendedores,
         ahora,
+        estadosSla: estadoSla.indice,
       })
     }
     if (rol !== 'gerencia') return []
@@ -148,9 +157,10 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     return derivarAlertasGerencia({
       conversiones: conversionGerencia,
       conversionesAnteriores: yo.demo ? undefined : conversionAnterior.data,
-      equipoConversion: identidadesGerencia,
       metasVendedores: metasGerencia,
+      cumplimientosVendedores: cumplimientoGerencia,
       objetivosError,
+      cumplimientoError: cumplimientoMetasError,
       diaDelMes: Number(diaLima.slice(8, 10)),
     }).map(adaptarAlertaGerencial)
   }, [
@@ -161,31 +171,48 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     conversionAnterior.data,
     conversionGerencia,
     diaLima,
-    identidadesGerencia,
+    estadoSla.indice,
+    cumplimientoGerencia,
+    cumplimientoMetasError,
     metasGerencia,
     objetivosError,
     rol,
     tareas,
     yo,
+    soloRoles,
   ])
 
   const errores = useMemo(() => {
-    if (rol !== 'gerencia' || yo?.demo) return []
+    if (yo?.demo || soloRoles) return []
     const mensajes = [
-      conversionActual.error
+      rol === 'gerencia' && conversionActual.error
         ? mensajeDeError(conversionActual.error, 'No se pudo calcular la conversión actual.')
         : null,
-      conversionAnterior.error
+      rol === 'gerencia' && conversionAnterior.error
         ? mensajeDeError(conversionAnterior.error, 'No se pudo comparar con el mes anterior.')
         : null,
-      objetivosError ? 'No se pudieron cargar las metas individuales.' : null,
+      rol === 'gerencia' && objetivosError
+        ? 'No se pudieron cargar las metas individuales.'
+        : null,
+      rol === 'gerencia' && cumplimientoMetasError
+        ? 'No se pudo calcular el cumplimiento confirmado.'
+        : null,
+      esRolOperativo(rol) && estadoSla.error
+        ? mensajeDeError(
+            estadoSla.error,
+            'No se pudo verificar el reloj SLA; se ocultaron las escalaciones temporales.',
+          )
+        : null,
     ]
     return mensajes.filter((mensaje): mensaje is string => Boolean(mensaje))
   }, [
     conversionActual.error,
     conversionAnterior.error,
     objetivosError,
+    cumplimientoMetasError,
+    estadoSla.error,
     rol,
+    soloRoles,
     yo?.demo,
   ])
 
@@ -197,6 +224,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   )
 
   const reintentar = useCallback(() => {
+    if (soloRoles) return
     if (rol === 'gerencia' && !yo?.demo) {
       void conversionActual.refetch()
       void conversionAnterior.refetch()
@@ -205,7 +233,10 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     }
     if (esRolOperativo(rol) && !yo?.demo) {
       setActualizandoOperativo(true)
-      void recargar().finally(() => setActualizandoOperativo(false))
+      void Promise.all([
+        recargar(),
+        estadoSla.error ? estadoSla.recargar() : Promise.resolve(),
+      ]).finally(() => setActualizandoOperativo(false))
     }
   }, [
     conversionActual,
@@ -213,10 +244,14 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     objetivosError,
     recargar,
     rol,
+    soloRoles,
+    estadoSla,
     yo?.demo,
   ])
 
-  const cargando = cargandoGerencia || actualizandoOperativo
+  const cargando = cargandoGerencia
+    || actualizandoOperativo
+    || (!soloRoles && esRolOperativo(rol) && estadoSla.cargando)
   const valor = useMemo<EstadoAlertasCRM>(() => ({
     alertas,
     rol,

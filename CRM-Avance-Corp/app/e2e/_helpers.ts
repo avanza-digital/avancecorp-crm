@@ -12,7 +12,7 @@ export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
   await page.goto('/')
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
-  await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Pipeline' })).toBeVisible({ timeout: 10_000 })
 }
 
 /** Navega al Pipeline (donde viven las cards de lead operables). */
@@ -273,7 +273,64 @@ export interface ContratoReal {
   /** Plano, como lo devuelve la vista crm.contratos_cartera. */
   cliente_nombre: string | null
   asesor_perfil_id: string | null
+  producto_condicion_id: string
+  producto_id: string
+  producto_codigo: string
+  producto_version_id: string
+  producto_version: number
+  producto_nombre: string
+  producto_version_estado: 'borrador' | 'publicada' | 'retirada'
 }
+
+export const PRODUCTO_CONDICION_PEN_ID = '10000000-0000-4000-8000-000000000001'
+export const PRODUCTO_CONDICION_USD_ID = '10000000-0000-4000-8000-000000000002'
+const PRODUCTO_ID = '20000000-0000-4000-8000-000000000001'
+const PRODUCTO_VERSION_ID = '30000000-0000-4000-8000-000000000001'
+
+const PRODUCTOS_SELECCIONABLES_REAL: Record<string, unknown>[] = [
+  {
+    condicion_id: PRODUCTO_CONDICION_PEN_ID,
+    producto_id: PRODUCTO_ID,
+    producto_codigo: 'RENTA-BASE',
+    producto_revision: 2,
+    version_id: PRODUCTO_VERSION_ID,
+    numero_version: 1,
+    version_nombre: 'Plan base 2026',
+    vigente_desde: '2026-01-01',
+    vigente_hasta: null,
+    categoria: 'nuevo',
+    moneda: 'PEN',
+    plazo_meses: 12,
+    modalidad: 'mensual',
+    tipo_interes: 'simple',
+    capital_minimo: 100,
+    capital_maximo: 100_000,
+    tasa_referencia: 15,
+    tasa_minima: 10,
+    tasa_maxima: 20,
+  },
+  {
+    condicion_id: PRODUCTO_CONDICION_USD_ID,
+    producto_id: PRODUCTO_ID,
+    producto_codigo: 'RENTA-BASE',
+    producto_revision: 2,
+    version_id: PRODUCTO_VERSION_ID,
+    numero_version: 1,
+    version_nombre: 'Plan base 2026',
+    vigente_desde: '2026-01-01',
+    vigente_hasta: null,
+    categoria: 'nuevo',
+    moneda: 'USD',
+    plazo_meses: 12,
+    modalidad: 'mensual',
+    tipo_interes: 'simple',
+    capital_minimo: 100,
+    capital_maximo: 50_000,
+    tasa_referencia: 15,
+    tasa_minima: 10,
+    tasa_maxima: 20,
+  },
+]
 
 export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
   return {
@@ -294,6 +351,13 @@ export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
     creado_en: '2026-07-01T00:00:00.000Z',
     cliente_nombre: 'CLIENTE PORTAL UNO',
     asesor_perfil_id: UID,
+    producto_condicion_id: PRODUCTO_CONDICION_PEN_ID,
+    producto_id: PRODUCTO_ID,
+    producto_codigo: 'RENTA-BASE',
+    producto_version_id: PRODUCTO_VERSION_ID,
+    producto_version: 1,
+    producto_nombre: 'Plan base 2026',
+    producto_version_estado: 'publicada',
     ...over,
   }
 }
@@ -419,15 +483,10 @@ export function metricasDistribucionReal(
     },
     operacion: {
       cohorte_episodios: 7,
-      contactos_asignacion: 6,
-      sla_asignacion_evaluables: 6,
-      sla_asignacion_en_24h: 5,
-      primer_contacto_asignacion_mediana_minutos: 45,
       transferidos: 1,
       parqueados: 0,
       desactivados: 0,
       sin_tocar_actual: 1,
-      estancados_actual: 2,
     },
   }
 
@@ -467,15 +526,10 @@ export function metricasDistribucionReal(
     },
     operacion: {
       cohorte_episodios: 4,
-      contactos_asignacion: 3,
-      sla_asignacion_evaluables: 4,
-      sla_asignacion_en_24h: 2,
-      primer_contacto_asignacion_mediana_minutos: 180,
       transferidos: 1,
       parqueados: 1,
       desactivados: 0,
       sin_tocar_actual: 1,
-      estancados_actual: 1,
     },
   }
 
@@ -494,16 +548,12 @@ export function metricasDistribucionReal(
       hasta_inclusivo: hasta,
       hasta_exclusivo: fechaSiguiente(hasta),
       criterio: 'episodio_asignado_en',
-      criterio_sla_global: 'ciclo_sla_global_iniciado_en',
-      politica_pausas: 'SIN_DESCUENTO',
       zona_horaria: 'America/Lima',
     },
     alcances: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
-      sla_principal: 'GLOBAL_POR_CICLO',
-      sla_operativo: 'POR_EPISODIO_DE_ASIGNACION',
     },
     rangos: RANGOS_DISTRIBUCION.map((rango) => ({ ...rango })),
     resumen: {
@@ -516,13 +566,6 @@ export function metricasDistribucionReal(
       cohorte_leads_unicos: 10,
       convertidos_pen: 4,
       descartados_pen: 6,
-      sla_global_ciclos_cohorte: 10,
-      sla_global_leads_unicos_cohorte: 10,
-      sla_global_contactos: 9,
-      sla_global_evaluables: 10,
-      sla_global_en_24h: 7,
-      primer_contacto_global_mediana_minutos: 60,
-      sla_global_sin_contacto_vencidos_actuales: 1,
       reasignaciones_cohorte: 2,
     },
     analistas: [ana, bruno],
@@ -552,7 +595,6 @@ export function metricasDistribucionReal(
       episodios_aproximados_cohorte: 0,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
-      ciclos_sla_global_aproximados_cohorte: 0,
     },
   }
 }
@@ -572,13 +614,6 @@ function metricasDistribucionVaciaReal(): unknown {
       cohorte_leads_unicos: 0,
       convertidos_pen: 0,
       descartados_pen: 0,
-      sla_global_ciclos_cohorte: 0,
-      sla_global_leads_unicos_cohorte: 0,
-      sla_global_contactos: 0,
-      sla_global_evaluables: 0,
-      sla_global_en_24h: 0,
-      primer_contacto_global_mediana_minutos: null,
-      sla_global_sin_contacto_vencidos_actuales: 0,
       reasignaciones_cohorte: 0,
     },
     analistas: [],
@@ -599,12 +634,198 @@ function metricasDistribucionVaciaReal(): unknown {
   }
 }
 
+function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
+  const dias = Math.max(
+    1,
+    Math.round(
+      (Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000,
+    ) + 1,
+  )
+  return { desde, hasta, dias, zona: 'America/Lima' }
+}
+
+/** Snapshot válido de las métricas comerciales que consume el Resumen actual. */
+export function metricasConversionesReal(): Record<string, unknown> {
+  return {
+    version: 1,
+    generado_en: '2026-08-07T17:00:00.000Z',
+    periodo: periodoMetricasReal(),
+    cohorte: {
+      leads: 20,
+      asignados: 18,
+      contactados: 14,
+      reuniones_agendadas: 8,
+      reuniones_realizadas: 6,
+      propuestas: 4,
+      clientes: 2,
+      contratos: 2,
+      descartados: 6,
+      conversion_clientes_pct: 10,
+      conversion_contratos_pct: 10,
+      conversion_resueltos_pct: 25,
+    },
+    produccion: { clientes: 2, contratos: 2, capital_pen: 125_000, capital_usd: 8_000 },
+    embudo: [
+      { etapa: 'leads', cantidad: 20, pct_anterior: 100, pct_total: 100 },
+      { etapa: 'contactados', cantidad: 14, pct_anterior: 70, pct_total: 70 },
+      { etapa: 'reuniones_agendadas', cantidad: 8, pct_anterior: 57.14, pct_total: 40 },
+      { etapa: 'reuniones_realizadas', cantidad: 6, pct_anterior: 75, pct_total: 30 },
+      { etapa: 'propuestas', cantidad: 4, pct_anterior: 66.67, pct_total: 20 },
+      { etapa: 'clientes', cantidad: 2, pct_anterior: 50, pct_total: 10 },
+      { etapa: 'contratos', cantidad: 2, pct_anterior: 100, pct_total: 10 },
+    ],
+    origenes: [{
+      origen: 'Referido',
+      leads: 20,
+      contactados: 14,
+      reuniones_agendadas: 8,
+      reuniones_realizadas: 6,
+      clientes: 2,
+      contratos: 2,
+      descartados: 6,
+      conversion_clientes_pct: 10,
+      conversion_contratos_pct: 10,
+      conversion_resueltos_pct: 25,
+      capital_pen: 125_000,
+      capital_usd: 8_000,
+    }],
+    categorias: [],
+    responsables: [{
+      vendedor_id: 'vend-1',
+      leads: 20,
+      contactados: 14,
+      reuniones_realizadas: 6,
+      clientes: 2,
+      conversion_pct: 10,
+      capital_pen: 125_000,
+      capital_usd: 8_000,
+      tendencia_semanal: [
+        { semana: 1, desde: '2026-08-01', hasta: '2026-08-03', leads: 8, clientes: 1, conversion_pct: 12.5 },
+        { semana: 2, desde: '2026-08-04', hasta: '2026-08-07', leads: 12, clientes: 1, conversion_pct: 8.33 },
+      ],
+    }, {
+      vendedor_id: 'vend-2',
+      leads: 0,
+      contactados: 0,
+      reuniones_realizadas: 0,
+      clientes: 0,
+      conversion_pct: null,
+      capital_pen: 0,
+      capital_usd: 0,
+      tendencia_semanal: [
+        { semana: 1, desde: '2026-08-01', hasta: '2026-08-03', leads: 0, clientes: 0, conversion_pct: null },
+        { semana: 2, desde: '2026-08-04', hasta: '2026-08-07', leads: 0, clientes: 0, conversion_pct: null },
+      ],
+    }],
+  }
+}
+
+function metricasConversionesVaciasReal(): Record<string, unknown> {
+  return {
+    version: 1,
+    generado_en: '2026-08-07T17:00:00.000Z',
+    periodo: periodoMetricasReal(),
+    cohorte: {
+      leads: 0,
+      asignados: 0,
+      contactados: 0,
+      reuniones_agendadas: 0,
+      reuniones_realizadas: 0,
+      propuestas: 0,
+      clientes: 0,
+      contratos: 0,
+      descartados: 0,
+      conversion_clientes_pct: null,
+      conversion_contratos_pct: null,
+      conversion_resueltos_pct: null,
+    },
+    produccion: { clientes: 0, contratos: 0, capital_pen: 0, capital_usd: 0 },
+    embudo: [],
+    origenes: [],
+    categorias: [],
+    responsables: [],
+  }
+}
+
+/** Snapshot válido de reuniones para el Resumen actual. */
+export function metricasReunionesReal(): Record<string, unknown> {
+  return {
+    version: 1,
+    generado_en: '2026-08-07T17:00:00.000Z',
+    periodo: periodoMetricasReal(),
+    resumen: {
+      pactadas: 8,
+      debieron_ocurrir: 7,
+      realizadas: 6,
+      no_concretadas: 1,
+      no_show: 1,
+      canceladas: 0,
+      canceladas_sistema: 0,
+      reprogramadas: 1,
+      pendientes_cierre: 0,
+      programadas_futuras: 1,
+      pct_realizacion: 85.71,
+      pct_asistencia: 85.71,
+    },
+    conversion: {
+      leads_reunidos: 6,
+      clientes: 2,
+      contratos: 2,
+      conversion_cliente_pct: 33.33,
+      conversion_contrato_pct: 33.33,
+      capital_pen: 125_000,
+      capital_usd: 8_000,
+    },
+    modalidades: [],
+    origenes: [],
+    responsables: [],
+    resultados: [],
+  }
+}
+
+function metricasReunionesVaciasReal(): Record<string, unknown> {
+  const vacias = metricasReunionesReal()
+  return {
+    ...vacias,
+    resumen: {
+      pactadas: 0,
+      debieron_ocurrir: 0,
+      realizadas: 0,
+      no_concretadas: 0,
+      no_show: 0,
+      canceladas: 0,
+      canceladas_sistema: 0,
+      reprogramadas: 0,
+      pendientes_cierre: 0,
+      programadas_futuras: 0,
+      pct_realizacion: null,
+      pct_asistencia: null,
+    },
+    conversion: {
+      leads_reunidos: 0,
+      clientes: 0,
+      contratos: 0,
+      conversion_cliente_pct: null,
+      conversion_contrato_pct: null,
+      capital_pen: 0,
+      capital_usd: 0,
+    },
+  }
+}
+
 function esRegistro(valor: unknown): valor is Record<string, unknown> {
   return typeof valor === 'object' && valor !== null && !Array.isArray(valor)
 }
 
 function metricasParaPeriodo(payload: unknown, desde: string, hasta: string): unknown {
-  if (!esRegistro(payload) || !esRegistro(payload.cohorte)) return payload
+  if (!esRegistro(payload)) return payload
+  if (esRegistro(payload.periodo)) {
+    return {
+      ...payload,
+      periodo: { ...periodoMetricasReal(desde, hasta) },
+    }
+  }
+  if (!esRegistro(payload.cohorte)) return payload
   return {
     ...payload,
     cohorte: {
@@ -659,6 +880,8 @@ export interface BackendReal {
   clientes: PerfilReal[]
   /** Contratos del portal (con el embed cliente ya resuelto). */
   contratos: ContratoReal[]
+  /** Condiciones publicadas y vigentes ofrecidas por el catálogo versionado. */
+  productosSeleccionables: Record<string, unknown>[]
   /** Versiones bancarias reutilizables; el slot actual del perfil se deriva aparte. */
   cuentasBancarias: CuentaBancariaReal[]
   /** Enlace cuenta↔contrato creado por el wrapper atómico. */
@@ -673,10 +896,14 @@ export interface BackendReal {
   titulares: Record<string, unknown[]>
   /** Tareas pendientes de crm.tareas (la agenda; el boot las carga SIEMPRE). */
   tareas: Record<string, unknown>[]
-  /** Filas de crm.objetivos (metas del mes; el boot las carga SIEMPRE). */
-  objetivos: Record<string, unknown>[]
+  /** Snapshot versionado de crm.configuracion_metas_fn (boot del store). */
+  configuracionMetas: Record<string, unknown>
+  /** Cumplimiento autoritativo de crm.cumplimiento_metas_fn. */
+  cumplimientoMetas: Record<string, unknown>
   /** Respuestas de las RPC de métricas del panel Hoy. */
   metricas: {
+    conversiones: Record<string, unknown>
+    reuniones: Record<string, unknown>
     capital: unknown[]
     pagos: unknown[]
     altas: unknown[]
@@ -788,6 +1015,8 @@ export async function montarBackendReal(
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
+    productosSeleccionables: init.productosSeleccionables
+      ?? PRODUCTOS_SELECCIONABLES_REAL.map((fila) => ({ ...fila })),
     cuentasBancarias: init.cuentasBancarias ?? [],
     cuentasPorContrato: init.cuentasPorContrato ?? {},
     ultimaCuentaPagoContrato: init.ultimaCuentaPagoContrato ?? null,
@@ -795,8 +1024,30 @@ export async function montarBackendReal(
     cuotas: init.cuotas ?? {},
     titulares: init.titulares ?? {},
     tareas: init.tareas ?? [],
-    objetivos: init.objetivos ?? [],
+    configuracionMetas: init.configuracionMetas ?? {
+      version: 1,
+      periodo: '2026-08-01',
+      revision: 0,
+      publicada_en: null,
+      publicada_por: null,
+      publicada_por_nombre: null,
+      puede_editar: true,
+      vendedores: [],
+    },
+    cumplimientoMetas: init.cumplimientoMetas ?? {
+      version: 1,
+      periodo: '2026-08-01',
+      revision: 0,
+      publicada_en: null,
+      fuentes_reales: {
+        capital_y_contratos: 'contratos_confirmados',
+        conversion: 'leads_resueltos',
+      },
+      vendedores: [],
+    },
     metricas: {
+      conversiones: init.metricas?.conversiones ?? metricasConversionesVaciasReal(),
+      reuniones: init.metricas?.reuniones ?? metricasReunionesVaciasReal(),
       capital: init.metricas?.capital ?? [],
       pagos: init.metricas?.pagos ?? [],
       altas: init.metricas?.altas ?? [],
@@ -855,15 +1106,36 @@ export async function montarBackendReal(
 
     // ── Acceso canónico + clientes del portal (misma tabla perfiles) ──
     if (p === '/rest/v1/rpc/mi_acceso_fn' && method === 'POST') {
+      const esGerencia = estado.rolCrm === 'gerencia'
+      const esSuperadmin = estado.rolPortal === 'superadmin'
+      if (esSuperadmin && !esGerencia) {
+        return json(route, {
+          estado: 'administrador_roles',
+          perfil_id: UID,
+          rol_portal: estado.rolPortal,
+          nombre_completo: 'Superadmin Real',
+          puede_listar_usuarios: true,
+          puede_administrar_usuarios: false,
+          puede_organizar_jerarquia: false,
+          puede_administrar_roles: true,
+        })
+      }
       return json(route, {
         estado: 'miembro',
         perfil_id: UID,
         rol_crm: estado.rolCrm,
         rol_portal: estado.rolPortal,
         nombre_completo: 'Gerente Real',
+        puede_listar_usuarios: esGerencia || esSuperadmin,
+        puede_administrar_usuarios: esGerencia,
+        puede_organizar_jerarquia: esGerencia,
+        puede_administrar_roles: esSuperadmin,
       })
     }
     if (p === '/rest/v1/equipo') return json(route, [{ rol_crm: estado.rolCrm, activo: true }])
+    if (p === '/rest/v1/rpc/usuarios_administrables_fn') {
+      return json(route, [])
+    }
     if (p === '/rest/v1/rpc/actualizar_cliente_gerencia' && method === 'POST') {
       estado.llamadas.rpcActualizarClienteGerencia += 1
       const cuerpo = (req.postDataJSON() ?? {}) as Record<string, unknown>
@@ -924,6 +1196,10 @@ export async function montarBackendReal(
       return json(route, estado.contratos)
     }
 
+    if (p === '/rest/v1/rpc/productos_inversion_seleccion_fn') {
+      return json(route, estado.productosSeleccionables)
+    }
+
     if (p === '/rest/v1/rpc/cronograma_contrato_fn' && method === 'POST') {
       const cid = String(((req.postDataJSON() ?? {}) as { p_contrato_id?: string }).p_contrato_id ?? '')
       return json(route, estado.cuotas[cid] ?? [])
@@ -964,13 +1240,17 @@ export async function montarBackendReal(
     }
 
     // ── RPC CRM: cuenta + contrato + cronograma en una transacción ──
-    if (p === '/rest/v1/rpc/crear_contrato_con_cuenta' && method === 'POST') {
+    if (p === '/rest/v1/rpc/crear_contrato_con_cuenta_producto' && method === 'POST') {
       estado.llamadas.rpcCrearContrato += 1
       const body = (req.postDataJSON() ?? {}) as {
+        p_producto_condicion_id?: string
         p_contrato?: Record<string, unknown>
         p_cuenta?: Record<string, unknown>
       }
       const pc = body.p_contrato ?? {}
+      const condicion = estado.productosSeleccionables.find(
+        (fila) => fila.condicion_id === body.p_producto_condicion_id,
+      )
       const cuentaElegida = body.p_cuenta
       estado.ultimaCuentaPagoContrato = cuentaElegida
         ? JSON.parse(JSON.stringify(cuentaElegida)) as Record<string, unknown>
@@ -983,8 +1263,8 @@ export async function montarBackendReal(
       const clienteId = String(pc.cliente_id ?? '')
       const duenio = estado.clientes.find((c) => c.id === clienteId)
       const moneda = pc.moneda === 'USD' ? 'USD' : 'PEN'
-      if (!duenio || !cuentaElegida) {
-        return json(route, { code: 'P0001', message: 'Cliente o cuenta de pago inválidos' }, 400)
+      if (!duenio || !cuentaElegida || !condicion) {
+        return json(route, { code: 'P0001', message: 'Cliente, producto o cuenta de pago inválidos' }, 400)
       }
 
       let cuentaId: string | null = null
@@ -1068,6 +1348,13 @@ export async function montarBackendReal(
         cliente_id: clienteId,
         creado_en: new Date().toISOString(), // recién creado → ventana de 5 h viva
         cliente_nombre: duenio.nombre_completo,
+        producto_condicion_id: String(condicion.condicion_id),
+        producto_id: String(condicion.producto_id),
+        producto_codigo: String(condicion.producto_codigo),
+        producto_version_id: String(condicion.version_id),
+        producto_version: Number(condicion.numero_version),
+        producto_nombre: String(condicion.version_nombre),
+        producto_version_estado: 'publicada',
       })
       estado.contratos = [nuevo, ...estado.contratos]
       estado.cuentasPorContrato[nuevo.id] = cuentaId
@@ -1075,11 +1362,19 @@ export async function montarBackendReal(
         id: nuevo.id,
         numero_contrato: numero,
         cuenta_bancaria_id: cuentaId,
+        producto_condicion_id: condicion.condicion_id,
+        producto_id: condicion.producto_id,
+        producto_revision: condicion.producto_revision,
+        version_id: condicion.version_id,
+        version_revision: 1,
+        numero_version: condicion.numero_version,
+        version_estado: 'publicada',
+        version_nombre: condicion.version_nombre,
       })
     }
 
     // ── RPC CRM de corrección: preserva la coherencia de la cuenta fijada ──
-    if (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta' && method === 'POST') {
+    if (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto' && method === 'POST') {
       estado.llamadas.rpcActualizarContrato += 1
       if (estado.ventanaVencida) {
         // A diferencia del PATCH a perfiles, la RPC SÍ es ruidosa: RAISE → P0001.
@@ -1089,16 +1384,50 @@ export async function montarBackendReal(
           details: '',
         }, 400)
       }
-      const body = (req.postDataJSON() ?? {}) as { p_id?: string; p_contrato?: Record<string, unknown> }
+      const body = (req.postDataJSON() ?? {}) as {
+        p_id?: string
+        p_producto_condicion_id?: string
+        p_contrato?: Record<string, unknown>
+      }
       const { titulares: titularesNuevos, ...cambios } = (body.p_contrato ?? {}) as
         Record<string, unknown> & { titulares?: unknown[] }
       const pId = String(body.p_id ?? '')
-      estado.contratos = estado.contratos.map((k) => (k.id === pId ? { ...k, ...cambios } : k))
+      const contratoActual = estado.contratos.find((contrato) => contrato.id === pId)
+      const condicion = estado.productosSeleccionables.find(
+        (fila) => fila.condicion_id === body.p_producto_condicion_id,
+      )
+      if (!contratoActual || !condicion) {
+        return json(route, { code: 'P0001', message: 'Contrato o producto inválido' }, 400)
+      }
+      estado.contratos = estado.contratos.map((contrato) => contrato.id === pId
+        ? {
+            ...contrato,
+            ...cambios,
+            producto_condicion_id: String(condicion.condicion_id),
+            producto_id: String(condicion.producto_id),
+            producto_codigo: String(condicion.producto_codigo),
+            producto_version_id: String(condicion.version_id),
+            producto_version: Number(condicion.numero_version),
+            producto_nombre: String(condicion.version_nombre),
+            producto_version_estado: 'publicada',
+          }
+        : contrato)
       // Semántica del servidor: clave ausente = no tocar; presente (incl. []) = reemplazar.
       if (titularesNuevos) {
         estado.titulares[pId] = titularesNuevos.map((t, i) => ({ ...(t as object), orden: i + 1 }))
       }
-      return route.fulfill({ status: 204, headers: cors }) // RPC void → 204 sin cuerpo
+      return json(route, {
+        id: pId,
+        ok: true,
+        producto_condicion_id: condicion.condicion_id,
+        producto_id: condicion.producto_id,
+        producto_revision: condicion.producto_revision,
+        version_id: condicion.version_id,
+        version_revision: 1,
+        numero_version: condicion.numero_version,
+        version_estado: 'publicada',
+        version_nombre: condicion.version_nombre,
+      })
     }
 
     // ── edge crear-cliente (alta REAL en el portal: Auth + perfil + correo) ──
@@ -1283,25 +1612,23 @@ export async function montarBackendReal(
       return json(route, { siguiente_id: null })
     }
 
-    // ── metas del mes (crm.objetivos: el boot las carga SIEMPRE) ──
-    if (p === '/rest/v1/objetivos' && method === 'GET') return json(route, estado.objetivos)
-    if (p === '/rest/v1/rpc/fijar_objetivos' && method === 'POST') {
-      const body = (req.postDataJSON() ?? {}) as {
-        p_periodo?: string
-        p_objetivos?: Record<string, Record<string, number>>
-      }
-      // Upsert del mock por (periodo, rol) — espejo de la RPC real.
-      for (const [rol, m] of Object.entries(body.p_objetivos ?? {})) {
-        const resto = estado.objetivos.filter((o) => o.rol !== rol)
-        estado.objetivos = [...resto, {
-          rol,
-          periodo: body.p_periodo ?? '',
-          capital_objetivo: m?.capital_objetivo ?? 0,
-          ventas_objetivo: m?.ventas_objetivo ?? 0,
-          conversion_objetivo: m?.conversion_objetivo ?? 0,
-        }]
-      }
-      return json(route, estado.objetivos)
+    // ── metas versionadas + cumplimiento confirmado (boot del store) ──
+    if (p === '/rest/v1/rpc/configuracion_metas_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      return json(route, {
+        ...estado.configuracionMetas,
+        periodo: body.p_periodo ?? estado.configuracionMetas.periodo,
+      })
+    }
+    if (p === '/rest/v1/rpc/cumplimiento_metas_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      return json(route, {
+        ...estado.cumplimientoMetas,
+        periodo: body.p_periodo ?? estado.cumplimientoMetas.periodo,
+      })
+    }
+    if (p === '/rest/v1/rpc/estado_sla_leads_fn') {
+      return json(route, [])
     }
 
     // ── suscripción ICS (solo se toca si el test abre el diálogo del calendario) ──
@@ -1322,6 +1649,18 @@ export async function montarBackendReal(
     }
 
     // ── métricas de gerencia (gráficas del panel Hoy) ──
+    if (p === '/rest/v1/rpc/metricas_conversiones_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      const desde = String(body.p_desde ?? '')
+      const hasta = String(body.p_hasta ?? '')
+      return json(route, metricasParaPeriodo(estado.metricas.conversiones, desde, hasta))
+    }
+    if (p === '/rest/v1/rpc/metricas_reuniones_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
+      const desde = String(body.p_desde ?? '')
+      const hasta = String(body.p_hasta ?? '')
+      return json(route, metricasParaPeriodo(estado.metricas.reuniones, desde, hasta))
+    }
     if (p === '/rest/v1/rpc/metricas_capital_mes_fn') return json(route, estado.metricas.capital)
     if (p === '/rest/v1/rpc/metricas_pagos_mes_fn') return json(route, estado.metricas.pagos)
     if (p === '/rest/v1/rpc/metricas_altas_analista_fn') return json(route, estado.metricas.altas)
@@ -1421,4 +1760,5 @@ export async function loginReal(page: Page): Promise<void> {
   await page.locator('#correo').fill('qa-real@avancecorp.pe')
   await page.locator('#clave').fill('cualquier-cosa')
   await page.getByRole('button', { name: /^Entrar$/ }).click()
+  await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
 }

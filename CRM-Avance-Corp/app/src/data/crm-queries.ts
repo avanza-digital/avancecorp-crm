@@ -22,6 +22,17 @@ import {
 // crm-api.ts (listarLeads) para cuando el volumen la exija.
 export const crmQueryKeys = {
   raiz: ['crm'] as const,
+  config: () => [...crmQueryKeys.raiz, 'config'] as const,
+  configUsuarios: (busqueda: string, limite: number, desde: number) =>
+    [...crmQueryKeys.config(), 'usuarios', busqueda, limite, desde] as const,
+  configUsuariosCatalogo: () => [...crmQueryKeys.config(), 'usuarios-catalogo'] as const,
+  configProductos: () => [...crmQueryKeys.config(), 'productos'] as const,
+  productosSeleccionables: () => [...crmQueryKeys.raiz, 'productos-seleccionables'] as const,
+  configMetas: (periodo: string) => [...crmQueryKeys.config(), 'metas', periodo] as const,
+  configSla: () => [...crmQueryKeys.config(), 'sla'] as const,
+  metricasSla: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'sla', desde, hasta] as const,
+  estadoSlaLeads: () => [...crmQueryKeys.raiz, 'sla', 'estado-leads'] as const,
   // Cartera del portal (panel del analista): bajo la misma raíz para que el
   // logout (queryClient.clear) y las invalidaciones jerárquicas la cubran.
   clientes: () => [...crmQueryKeys.raiz, 'clientes'] as const,

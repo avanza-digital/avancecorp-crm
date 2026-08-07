@@ -2,6 +2,8 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
+  metasConversionEquipoDemo,
   metricasConversionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { money } from '@/lib/format'
@@ -35,6 +37,7 @@ describe('detalle de conversión por vendedor', () => {
         equipo={conversionEquipoDemo()}
         metaConversion={15}
         metasVendedores={{}}
+        cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error="No se pudieron cargar las conversiones."
@@ -54,8 +57,9 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
-        metaConversion={0}
-        metasVendedores={{}}
+        metaConversion={25}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -77,8 +81,8 @@ describe('detalle de conversión por vendedor', () => {
     expect(contenido.getByText('Capital confirmado USD')).toBeInTheDocument()
     expect(contenido.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
     expect(contenido.getByText(money(20_000, 'USD'))).toBeInTheDocument()
-    expect(contenido.getByText('Meta de capital en PEN')).toBeInTheDocument()
-    expect(contenido.getByText(/de 15%/)).toBeInTheDocument()
+    expect(contenido.getByText('Capital en PEN')).toBeInTheDocument()
+    expect(contenido.getByText(/de 25%/)).toBeInTheDocument()
 
     fireEvent.click(contenido.getByRole('button', { name: 'Cerrar detalle de vendedor' }))
     expect(screen.queryByRole('dialog', { name: 'Ana Torres' })).not.toBeInTheDocument()
@@ -91,6 +95,7 @@ describe('detalle de conversión por vendedor', () => {
         equipo={conversionEquipoDemo()}
         metaConversion={0}
         metasVendedores={{}}
+        cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
         cargando={false}
         error={null}
@@ -129,6 +134,7 @@ describe('detalle de conversión por vendedor', () => {
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
+        cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
         cargando={false}
         error={null}
@@ -166,6 +172,7 @@ describe('detalle de conversión por vendedor', () => {
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
+        cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}

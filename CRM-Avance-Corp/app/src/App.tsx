@@ -14,6 +14,7 @@ import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { escribirHash, leerHash, type Vista } from '@/lib/router'
 import { sanearVista, vistaBase } from '@/lib/vistas'
+import { puedeAdministrarRolesCrm } from '@/lib/roles'
 import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
@@ -48,6 +49,10 @@ const MiCartera = lazy(() => import('@/screens/mi-cartera').then((m) => ({ defau
 const Repartir = lazy(() => import('@/screens/repartir').then((m) => ({ default: m.Repartir })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
+const ConfigUsuarios = lazy(() => import('@/screens/config-usuarios').then((m) => ({ default: m.ConfigUsuarios })))
+const ConfigProductos = lazy(() => import('@/screens/config-productos').then((m) => ({ default: m.ConfigProductos })))
+const ConfigMetas = lazy(() => import('@/screens/config-metas').then((m) => ({ default: m.ConfigMetas })))
+const ConfigSla = lazy(() => import('@/screens/config-sla').then((m) => ({ default: m.ConfigSla })))
 
 /** Registro exhaustivo: una Vista nueva exige declarar también su pantalla. */
 const PANTALLA_POR_VISTA = {
@@ -66,6 +71,10 @@ const PANTALLA_POR_VISTA = {
   repartir: Repartir,
   equipo: Equipo,
   config: Config,
+  'config-usuarios': ConfigUsuarios,
+  'config-productos': ConfigProductos,
+  'config-metas': ConfigMetas,
+  'config-sla': ConfigSla,
 } satisfies Record<Vista, unknown>
 
 /**
@@ -295,6 +304,9 @@ function Workspace() {
   const { leadAbiertoId } = usePanelesState()
   const { abrirLead, cerrarPaneles } = usePanelesActions()
   const rol = yo?.rol
+  // La ruta excepcional de Usuarios se abre por la capacidad viva del
+  // servidor; el string del Portal por sí solo no concede nada.
+  const rolPortal = puedeAdministrarRolesCrm(yo) ? 'superadmin' : null
   // Gate de leads: el demo enseña el CRM completo; una cuenta real solo ve el
   // mundo leads cuando Miguel lo apruebe (FUNCIONES_LEADS_APROBADAS).
   const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
@@ -302,12 +314,17 @@ function Workspace() {
   // Arranca en lo que diga el hash (recargar conserva pantalla); saneado por
   // capacidad para no pintar ni un frame de config/equipo a quien no puede.
   const [vista, setVista] = useState<Vista>(() =>
-    sanearVista(leerHash().vista ?? vistaBase(rol, leadsVisibles), rol, leadsVisibles),
+    sanearVista(
+      leerHash().vista ?? vistaBase(rol, leadsVisibles, rolPortal),
+      rol,
+      leadsVisibles,
+      rolPortal,
+    ),
   )
 
   // Contexto vivo para el listener de hashchange (registrado una sola vez).
-  const ctxRef = useRef({ rol, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles })
-  ctxRef.current = { rol, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles }
+  const ctxRef = useRef({ rol, rolPortal, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles })
+  ctxRef.current = { rol, rolPortal, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles }
 
   // Cuando el hash ORIGINA un cambio de estado, aquí queda el estado esperado:
   // el efecto estado→hash no escribe hasta converger (evita bucles y pisadas).
@@ -318,11 +335,11 @@ function Workspace() {
   // después y la pantalla anterior sigue siendo interactiva durante ese lapso:
   // una apertura de ficha ahí puede ser cerrada por la ruta que aún aterriza.
   const navegarDesdeUI = useCallback((destino: Vista) => {
-    const destinoSeguro = sanearVista(destino, rol, leadsVisibles)
+    const destinoSeguro = sanearVista(destino, rol, leadsVisibles, rolPortal)
     objetivoHash.current = null // una intención nueva de UI sustituye cualquier hash pendiente
     cerrarPaneles()
     setVista(destinoSeguro)
-  }, [cerrarPaneles, leadsVisibles, rol])
+  }, [cerrarPaneles, leadsVisibles, rol, rolPortal])
 
   // hash → estado (montaje + back/forward + URL editada a mano)
   useEffect(() => {
@@ -331,9 +348,10 @@ function Workspace() {
       const leido = leerHash()
       // Ruta desconocida → vista base; vista sin permiso o gateada → base (espejo del guard).
       let destino = sanearVista(
-        leido.vista ?? vistaBase(ctx.rol, ctx.leadsVisibles),
+        leido.vista ?? vistaBase(ctx.rol, ctx.leadsVisibles, ctx.rolPortal),
         ctx.rol,
         ctx.leadsVisibles,
+        ctx.rolPortal,
       )
       let leadDestino = destino === leido.vista ? leido.leadId : null
       // Lead fuera del ÁMBITO por rol (o inexistente) → se ignora: el hash no
@@ -378,9 +396,9 @@ function Workspace() {
   // defensa, patrón VITANOVA). Cubre cambios de rol en caliente; el hash se
   // corrige detrás.
   useEffect(() => {
-    const vistaSegura = sanearVista(vista, rol, leadsVisibles)
+    const vistaSegura = sanearVista(vista, rol, leadsVisibles, rolPortal)
     if (vistaSegura !== vista) setVista(vistaSegura)
-  }, [vista, rol, leadsVisibles])
+  }, [vista, rol, leadsVisibles, rolPortal])
 
   const Pantalla = PANTALLA_POR_VISTA[vista]
 

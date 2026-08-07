@@ -46,6 +46,7 @@ const ACTIVIDADES = [{ id: 'actividad-store' }]
 const TAREAS = [{ id: 'tarea-store' }]
 const VENDEDORES = [{ perfil_id: 'v1' }]
 const EQUIPO = [{ perfil_id: 'v1' }]
+const ESTADOS_SLA = new Map()
 const recargar = vi.fn(() => Promise.resolve(true))
 const refetchActual = vi.fn()
 const refetchAnterior = vi.fn()
@@ -61,6 +62,14 @@ const consultasConversion = vi.fn((habilitada: boolean, desde: string) => ({
 }))
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
+vi.mock('@/data/use-estado-sla-operativo', () => ({
+  useEstadoSlaOperativo: () => ({
+    indice: ESTADOS_SLA,
+    cargando: false,
+    error: null,
+    recargar: vi.fn(),
+  }),
+}))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     ambito: { leads: LEADS, vendedores: VENDEDORES },
@@ -126,6 +135,7 @@ describe('AlertasCRMProvider', () => {
       actividades: ACTIVIDADES,
       tareas: TAREAS,
       ahora: Date.UTC(2026, 7, 6, 17),
+      estadosSla: ESTADOS_SLA,
     })
     expect(derivarSupervisor).not.toHaveBeenCalled()
     expect(derivarGerencia).not.toHaveBeenCalled()
@@ -143,6 +153,7 @@ describe('AlertasCRMProvider', () => {
       tareas: TAREAS,
       vendedores: VENDEDORES,
       ahora: Date.UTC(2026, 7, 6, 17),
+      estadosSla: ESTADOS_SLA,
     })
     expect(derivarVendedor).not.toHaveBeenCalled()
     expect(derivarGerencia).not.toHaveBeenCalled()

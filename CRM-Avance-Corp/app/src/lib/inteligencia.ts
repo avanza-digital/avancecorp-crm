@@ -8,8 +8,7 @@ import { ETAPAS, ETAPA_INFO, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, TIP
 import { SEMAFORO } from './semaforo'
 import { money, moneyK, type Moneda } from './format'
 import type { PlanPorLead } from './plan-lead'
-import { entradaEnEtapa } from './antiguedad-etapa'
-import { UMBRAL_ETAPA_MS } from './estancamiento'
+import type { EstadoSlaLead } from './sla-versionado'
 
 export const DIA_MS = 86_400_000
 
@@ -311,6 +310,7 @@ export function colaDe(
   // dos semanas NO es un plan. Antes lo era, y el lead se escondía de la cola
   // detrás de una promesa incumplida — cuanto más se abandonaba, más invisible.
   plan?: Pick<PlanPorLead, 'vigente' | 'vencido'>,
+  estadosSla?: ReadonlyMap<string, EstadoSlaLead>,
 ): ItemCola[] {
   const items: ItemCola[] = []
   // El índice se construye AQUÍ DENTRO a propósito: antes se aceptaba uno ya
@@ -328,20 +328,37 @@ export function colaDe(
     // exactamente lo de siempre.
     const dias = diasEnEsperaIndexado(lead, indice, ahora)
     const tienePlan = plan?.vigente.has(lead.id) === true
-    const desdeEtapa = entradaEnEtapa(lead, acts)
-    const umbralEtapa = UMBRAL_ETAPA_MS[lead.etapa]
-    const diasEnEtapa = desdeEtapa ? diasDesdeReferencia(desdeEtapa, ahora) : 0
-    // EL MISMO reloj de dueño de `diasEnEsperaIndexado`, aplicado a la etapa
-    // (alineación pedida por Miguel, 2026-07-26). El estancamiento de etapa se
-    // le cobra a quien tiene el lead AHORA: un lead clavado 20 días en
-    // Contactado y reasignado ayer disparaba "o avanza o se cierra" en el primer
-    // día del nuevo asesor, con una antigüedad HEREDADA del dueño anterior — la
-    // misma injusticia que ya se corrigió en el resto de la cola. Era la única
-    // rama que se había quedado fuera de ese reloj. Sin `tenencia_desde` (demo,
-    // o base sin la migración) esto es exactamente el comportamiento de siempre.
-    const diasEtapaDueno = desdeEtapa
-      ? diasDesdeReferencia(masReciente(desdeEtapa, lead.tenencia_desde), ahora)
+    const estadoSla = estadosSla?.get(lead.id)
+    const etapaInicio = estadoSla?.etapa === lead.etapa && estadoSla.etapa_iniciada_en
+      ? Date.parse(estadoSla.etapa_iniciada_en)
+      : Number.NaN
+    const etapaLimite = estadoSla?.etapa === lead.etapa && estadoSla.etapa_limite_en
+      ? Date.parse(estadoSla.etapa_limite_en)
+      : Number.NaN
+    const etapaDuracion = etapaLimite - etapaInicio
+    const diasEnEtapa = Number.isFinite(etapaInicio)
+      ? Math.max(0, (ahora - etapaInicio) / DIA_MS)
       : 0
+    // Para el dueño actual manda la fotografía de SU asignación. Un lead sin
+    // asignación usa la del ciclo global; nunca se reaplica la política vigente.
+    const gestionEn = estadoSla?.asignacion_id
+      ? estadoSla.asignacion_primera_gestion_en
+      : estadoSla?.primera_gestion_en
+    const gestionLimite = estadoSla?.asignacion_id
+      ? estadoSla.asignacion_primera_gestion_limite_en
+      : estadoSla?.primera_gestion_limite_en
+    const contactoEn = estadoSla?.asignacion_id
+      ? estadoSla.asignacion_primer_contacto_en
+      : estadoSla?.primer_contacto_en
+    const contactoLimite = estadoSla?.asignacion_id
+      ? estadoSla.asignacion_primer_contacto_limite_en
+      : estadoSla?.primer_contacto_limite_en
+    const gestionVencida = gestionEn == null
+      && gestionLimite != null
+      && ahora >= Date.parse(gestionLimite)
+    const contactoVencido = contactoEn == null
+      && contactoLimite != null
+      && ahora >= Date.parse(contactoLimite)
     if (lead.vendedor_id == null) {
       items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo` })
     } else if (lead.etapa === 'nuevo' && !ultima) {
@@ -351,33 +368,32 @@ export function colaDe(
       // hace minutos, y esa urgencia es real. Redacción neutra a propósito:
       // esta cola también la leen supervisor y gerencia sobre leads ajenos.
       const esperaCliente = diasDesdeReferencia(lead.creado_en, ahora)
-      const motivo = esperaCliente - dias >= 1
+      const contexto = esperaCliente - dias >= 1
         ? `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
         : `Entró ${haceTexto(dias)} y nadie lo ha contactado`
-      items.push({ lead, bucket: 'sin_responder', sev: dias >= 1 ? 'critica' : 'media', dias, motivo })
-    } else if (desdeEtapa && umbralEtapa != null && ultima && diasEtapaDueno * DIA_MS >= umbralEtapa * 2) {
-      // RELOJ DE ETAPA — va ANTES del atajo `tienePlan` a propósito: una tarea
-      // viva es un plan para el PRÓXIMO TOQUE, no un plan para AVANZAR. El lead
-      // clavado tres semanas en la misma etapa, al que se sigue llamando cada
-      // dos días, tenía siempre plan vigente y por eso este bucket no se podía
-      // disparar nunca. `estancados` tampoco lo ve: mide inactividad, y este
-      // está muy activo. Es justo el que consume tiempo sin avanzar.
-      //
-      // DISPARA con el reloj del DUEÑO (`diasEtapaDueno`) y CUENTA con el de la
-      // etapa (`diasEnEtapa`): cuándo es justo reclamar depende de hace cuánto
-      // el lead es tuyo, pero los días clavado en la etapa son un hecho del lead
-      // y no se pueden reescribir. Cuando los dos relojes difieren de verdad
-      // (≥1 día) el motivo dice LOS DOS — mismo criterio que `sin_responder` e
-      // `insistir`, y redacción neutra porque esta cola también la leen
-      // supervisor y gerencia sobre leads ajenos.
+      const vencimiento = gestionVencida
+        ? 'Venció la primera gestión'
+        : contactoVencido
+          ? 'Venció el primer contacto'
+          : null
+      const motivo = vencimiento ? `${vencimiento} · ${contexto}` : contexto
+      items.push({ lead, bucket: 'sin_responder', sev: vencimiento ? 'critica' : 'media', dias, motivo })
+    } else if (
+      Number.isFinite(etapaInicio)
+      && Number.isFinite(etapaLimite)
+      && etapaDuracion > 0
+      && ultima
+      && ahora >= etapaLimite + etapaDuracion
+    ) {
+      // Va ANTES de `tienePlan`: una tarea futura es un plan para el próximo
+      // toque, no para avanzar de etapa. El deadline viene del episodio sellado
+      // en BD, por lo que una política nueva no cambia este diagnóstico.
       items.push({
         lead,
         bucket: 'sin_avance',
         sev: 'media',
         dias: diasEnEtapa,
-        motivo: diasEnEtapa - diasEtapaDueno >= 1
-          ? `Lleva ${haceTexto(diasEnEtapa)} en ${ETAPA_INFO[lead.etapa].label} · ${haceTexto(diasEtapaDueno)} con su asesor actual — o avanza o se cierra`
-          : `Lleva ${haceTexto(diasEnEtapa)} en ${ETAPA_INFO[lead.etapa].label} y se sigue trabajando — o avanza o se cierra`,
+        motivo: `Lleva ${haceTexto(diasEnEtapa)} en ${ETAPA_INFO[lead.etapa].label} · SLA v${estadoSla?.etapa_politica_version ?? '—'} vencido — o avanza o se cierra`,
       })
     } else if (tienePlan) {
       continue // tiene próxima acción agendada: su cola es la agenda, no esta

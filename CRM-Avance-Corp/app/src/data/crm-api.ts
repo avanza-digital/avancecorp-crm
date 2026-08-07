@@ -74,7 +74,11 @@ import {
   MetricasReunionesSchema,
   type MetricasReuniones,
 } from '@/lib/metricas-reuniones'
-import { FilaObjetivoSchema, type FilaObjetivo } from '@/lib/objetivos'
+import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
+import {
+  CumplimientoMetasSchema,
+  type CumplimientoMetasRpc,
+} from '@/lib/objetivos'
 import {
   DisponibilidadLeadSchema,
   ResultadoCreacionLeadAtomicaSchema,
@@ -454,37 +458,55 @@ export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
   return items
 }
 
-// ── Metas del mes (crm.objetivos: lectura por RLS, escritura SOLO por RPC) ────
+// ── Metas versionadas y cumplimiento confirmado ─────────────────────────────
 
-export async function listarObjetivos(periodo: string, signal?: AbortSignal): Promise<FilaObjetivo[]> {
-  let consulta = cliente().schema('crm').from('objetivos_vendedores')
-    .select('vendedor_id,supervisor_id,capital_objetivo,ventas_objetivo,conversion_objetivo')
-    .eq('periodo', periodo)
+function contratoMetasInvalido(evento: string): CrmApiError {
+  const fallo = new CrmApiError(
+    'El servidor devolvió metas con un formato no reconocido.',
+    'ROW_CONTRACT',
+  )
+  registrarError(evento, fallo)
+  return fallo
+}
+
+/** Fotografía completa del roster y su última revisión mensual publicada. */
+export async function obtenerMetasDelMes(
+  periodo: string,
+  signal?: AbortSignal,
+): Promise<ConfiguracionMetas> {
+  let consulta = cliente().schema('crm').rpc('configuracion_metas_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   if (error) {
     const fallo = new CrmApiError('No se pudieron cargar las metas del mes.', error.code || 'POSTGREST_ERROR')
-    registrarError('crm.objetivos_vendedores.listado_fallido', fallo)
+    registrarError('crm.metas.configuracion_fallida', fallo)
     throw fallo
   }
-  const items: FilaObjetivo[] = []
-  for (const cruda of data ?? []) {
-    const r = v.safeParse(FilaObjetivoSchema, cruda)
-    if (r.success) items.push(r.output)
-  }
-  return items
+  const resultado = v.safeParse(ConfiguracionMetasSchema, data)
+  if (!resultado.success) throw contratoMetasInvalido('crm.metas.configuracion_contrato_invalido')
+  return resultado.output
 }
 
-/** Gerencia fija las metas del mes (upsert atómico servidor; gate en la RPC). */
-export async function fijarObjetivosRpc(
+/**
+ * Cumplimiento autoritativo: capital/contratos salen de contratos confirmados
+ * y la conversión de leads resueltos. El RPC declara ambas fuentes y conserva
+ * categoría/moneda en cada dimensión contractual.
+ */
+export async function obtenerCumplimientoMetas(
   periodo: string,
-  payload: Record<string, Record<string, number>>,
-): Promise<void> {
-  const { error } = await cliente().schema('crm').rpc('fijar_objetivos_vendedores', {
-    p_periodo: periodo,
-    p_objetivos: payload,
-  })
-  if (error) throw aErrorApi(error, 'crm.objetivos_vendedores.fijar_fallido')
+  signal?: AbortSignal,
+): Promise<CumplimientoMetasRpc> {
+  let consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) {
+    const fallo = new CrmApiError('No se pudo calcular el cumplimiento de metas.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.metas.cumplimiento_fallido', fallo)
+    throw fallo
+  }
+  const resultado = v.safeParse(CumplimientoMetasSchema, data)
+  if (!resultado.success) throw contratoMetasInvalido('crm.metas.cumplimiento_contrato_invalido')
+  return resultado.output
 }
 
 // ── Reparto de la cola global (C1) — 3 RPC SECURITY DEFINER con gate propio ───
@@ -801,7 +823,7 @@ function aErrorApi(
     mensaje = 'Ese teléfono o DNI no está disponible para este lead.'
   } else if (codigoPg === 'P0001' || codigoPg === '22023') {
     // RAISE EXCEPTION de nuestros propios triggers/RPCs (es-PE, sin PII);
-    // 22023 = validaciones de parámetros de las RPC (fijar_objetivos, capacidad).
+    // 22023 = validaciones de parámetros de las RPC operativas.
     code = 'REGLA_SERVIDOR'
     if (error.message) mensaje = error.message
   }
@@ -1324,6 +1346,8 @@ export async function listarCuentasBancariasCliente(
 }
 
 export interface CrearContratoInput {
+  /** Condición publicada elegida del catálogo; las altas legacy están prohibidas. */
+  producto_condicion_id: string
   cliente_id: string
   capital: number
   moneda: 'PEN' | 'USD'
@@ -1349,13 +1373,44 @@ export interface CrearContratoResultado {
   id: string
   numero_contrato: string
   cuenta_bancaria_id: string
+  producto_condicion_id: string
+  producto_id: string
+  producto_revision: number
+  version_id: string
+  version_revision: number
+  numero_version: number
+  version_estado: 'borrador' | 'publicada' | 'retirada'
+  version_nombre: string
 }
 
-const CrearContratoResultadoSchema = v.object({
+const EnteroProductoSchema = v.pipe(
+  v.union([v.number(), v.string()]),
+  v.transform(Number),
+  v.integer(),
+  v.minValue(1),
+)
+
+const MetadataProductoContratoSchema = v.object({
+  producto_condicion_id: v.pipe(v.string(), v.uuid()),
+  producto_id: v.pipe(v.string(), v.uuid()),
+  producto_revision: EnteroProductoSchema,
+  version_id: v.pipe(v.string(), v.uuid()),
+  version_revision: EnteroProductoSchema,
+  numero_version: EnteroProductoSchema,
+  version_estado: v.picklist(['borrador', 'publicada', 'retirada']),
+  version_nombre: v.pipe(v.string(), v.minLength(1)),
+})
+
+const CrearContratoResultadoSchema = v.intersect([v.object({
   id: v.pipe(v.string(), v.uuid()),
   numero_contrato: v.pipe(v.string(), v.minLength(1)),
   cuenta_bancaria_id: v.pipe(v.string(), v.uuid()),
-})
+}), MetadataProductoContratoSchema])
+
+const ActualizarContratoResultadoSchema = v.intersect([v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  ok: v.literal(true),
+}), MetadataProductoContratoSchema])
 
 export async function crearContrato(
   input: CrearContratoInput,
@@ -1377,7 +1432,8 @@ export async function crearContrato(
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
   const p_cronograma = cronograma as unknown as Record<string, unknown>[]
-  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta', {
+  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta_producto', {
+    p_producto_condicion_id: input.producto_condicion_id,
     p_contrato,
     p_cronograma,
     p_cuenta: input.cuenta_pago as unknown as Record<string, unknown>,
@@ -1750,6 +1806,13 @@ const COLUMNAS_CONTRATO = [
   'creado_por',
   'creado_en',
   'cliente_nombre',
+  'producto_condicion_id',
+  'producto_id',
+  'producto_codigo',
+  'producto_version_id',
+  'producto_version',
+  'producto_nombre',
+  'producto_version_estado',
 ].join(',')
 
 const ContratoRowSchema = v.object({
@@ -1770,6 +1833,13 @@ const ContratoRowSchema = v.object({
   creado_por: v.nullable(v.string()),
   creado_en: v.string(),
   cliente_nombre: v.nullable(v.string()),
+  producto_condicion_id: v.pipe(v.string(), v.uuid()),
+  producto_id: v.pipe(v.string(), v.uuid()),
+  producto_codigo: v.pipe(v.string(), v.minLength(1)),
+  producto_version_id: v.pipe(v.string(), v.uuid()),
+  producto_version: EnteroProductoSchema,
+  producto_nombre: v.pipe(v.string(), v.minLength(1)),
+  producto_version_estado: v.picklist(['borrador', 'publicada', 'retirada']),
 })
 
 export async function listarMisContratos(signal?: AbortSignal): Promise<ContratoRow[]> {
@@ -1817,6 +1887,13 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
       notas_internas: fila.notas_internas,
       creado_por: fila.creado_por,
       creado_en: fila.creado_en,
+      producto_condicion_id: fila.producto_condicion_id,
+      producto_id: fila.producto_id,
+      producto_codigo: fila.producto_codigo,
+      producto_version_id: fila.producto_version_id,
+      producto_version: fila.producto_version,
+      producto_nombre: fila.producto_nombre,
+      producto_version_estado: fila.producto_version_estado,
     })
   }
   if (descartadas > 0) {
@@ -1914,6 +1991,8 @@ export async function obtenerTitulares(contratoId: string, signal?: AbortSignal)
 // 5 h/cartera/cronograma y evita cambiar la moneda de un contrato cuya cuenta
 // de pago histórica ya quedó fijada. ──────────────────────────────────────────
 export interface ActualizarContratoInput {
+  /** Condición vigente o snapshot histórico ya vinculado al contrato. */
+  producto_condicion_id: string
   capital: number
   moneda: 'PEN' | 'USD'
   tasa_anual: number
@@ -1955,14 +2034,24 @@ export async function actualizarContrato(
   }
   // `titulares` solo viaja si el caller lo decidió (ver ActualizarContratoInput).
   if (contrato.titulares) p_contrato.titulares = contrato.titulares
-  const { error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta', {
+  const { data, error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta_producto', {
     p_id: id,
+    p_producto_condicion_id: contrato.producto_condicion_id,
     p_contrato,
     p_cronograma: cronograma as unknown as Record<string, unknown>[],
   })
   // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
   // a diferencia del UPDATE a perfiles que se queda callado.
   if (error) throw aErrorApi(error, 'crm.contrato.actualizar_fallido')
+  const resultado = v.safeParse(ActualizarContratoResultadoSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El servidor no confirmó la condición de producto de la corrección.',
+      'ROW_CONTRACT',
+    )
+    registrarError('crm.contrato.actualizar_respuesta_invalida', fallo)
+    throw fallo
+  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -2147,7 +2236,7 @@ export async function listarMetricasVencimientos(
   return items
 }
 
-// ── Distribución de leads por capital (JSON V1 atómico) ──────────────────────
+// ── Distribución y capacidad por capital (JSON V2 sin SLA embebido) ──────────
 
 const FechaMetricaSchema = v.pipe(v.string(), v.isoDate())
 
@@ -2185,8 +2274,8 @@ function lanzarAbortSiCorresponde(signal?: AbortSignal): void {
 }
 
 /**
- * Fotografía atómica V2 de distribución, capacidad, resultados, SLA global
- * por ciclo y SLA operativo por episodio de asignación.
+ * Fotografía atómica V2 de distribución, capacidad y resultados comerciales.
+ * El SLA versionado tiene contratos propios y no se mezcla en este payload.
  * A diferencia de las RPC tabulares antiguas, aquí no se descartan ramas
  * inválidas: una sola falla invalida el payload completo para no mezclar
  * denominadores o periodos incompatibles en Gerencia.

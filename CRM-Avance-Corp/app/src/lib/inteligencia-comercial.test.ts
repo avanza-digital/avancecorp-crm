@@ -1,9 +1,15 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
-import { conversionEquipoDemo, metricasConversionesDemo, metricasReunionesDemo, seriesComercialesDemo } from './demo-inteligencia-comercial'
+import {
+  conversionEquipoDemo,
+  cumplimientoMetasConversionEquipoDemo,
+  metasConversionEquipoDemo,
+  metricasConversionesDemo,
+  metricasReunionesDemo,
+  seriesComercialesDemo,
+} from './demo-inteligencia-comercial'
 import { MetricasConversionesSchema } from './metricas-conversiones'
 import { MetricasReunionesSchema } from './metricas-reuniones'
-import { META_CONVERSION_PREDETERMINADA } from './objetivos'
 
 describe('contratos de inteligencia comercial', () => {
   it('mantiene los demos bajo el mismo contrato que las RPC', () => {
@@ -35,8 +41,23 @@ describe('contratos de inteligencia comercial', () => {
     expect(detalle?.[0]?.tendencia_semanal).toHaveLength(4)
   })
 
-  it('usa 15% como meta inicial de conversión', () => {
-    expect(META_CONVERSION_PREDETERMINADA).toBe(15)
+  it('mantiene las metas demo explícitas y el cumplimiento confirmado separado del pipeline', () => {
+    const metas = metasConversionEquipoDemo()
+    const cumplimiento = cumplimientoMetasConversionEquipoDemo()
+
+    expect(metas['demo-v1']?.conversionObjetivo).toBe(25)
+    expect(cumplimiento.fuentesReales).toEqual({
+      capitalYContratos: 'contratos_confirmados',
+      conversion: 'leads_resueltos',
+    })
+    expect(cumplimiento.porVendedor['demo-v1']?.detalles).toEqual(expect.arrayContaining([
+      expect.objectContaining({ moneda: 'PEN', capitalReal: 360_000, contratosReal: 3 }),
+      expect.objectContaining({ moneda: 'USD', capitalReal: 20_000, contratosReal: 1 }),
+    ]))
+    expect(cumplimiento.porVendedor['demo-v1']).toMatchObject({
+      convertidos: 5,
+      resueltos: 42,
+    })
   })
 
   it('rechaza reuniones con modalidad desconocida', () => {

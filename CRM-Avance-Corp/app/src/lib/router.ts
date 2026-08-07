@@ -24,8 +24,25 @@ export const VISTAS = [
   'repartir',
   'equipo',
   'config',
+  'config-usuarios',
+  'config-productos',
+  'config-metas',
+  'config-sla',
 ] as const
 export type Vista = (typeof VISTAS)[number]
+
+/** Rutas internas del panel de gobierno; no se duplican en el menú lateral. */
+export const VISTAS_CONFIGURACION = [
+  'config-usuarios',
+  'config-productos',
+  'config-metas',
+  'config-sla',
+] as const satisfies readonly Vista[]
+export type VistaConfiguracion = (typeof VISTAS_CONFIGURACION)[number]
+
+export function esVistaConfiguracion(vista: Vista): vista is VistaConfiguracion {
+  return (VISTAS_CONFIGURACION as readonly Vista[]).includes(vista)
+}
 
 /** Vistas de inteligencia exclusivas de Gerencia; no son operación de leads. */
 export const VISTAS_GERENCIA = [

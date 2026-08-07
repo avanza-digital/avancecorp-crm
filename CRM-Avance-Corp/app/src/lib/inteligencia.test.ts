@@ -14,6 +14,7 @@ import {
   sinProximaAccion,
 } from './inteligencia'
 import { money } from './format'
+import type { EstadoSlaLead } from './sla-versionado'
 import type { Actividad, Lead, Miembro } from './tipos'
 
 const DIA_MS = 86_400_000
@@ -54,6 +55,35 @@ const miembro = (perfilId: string, cambios: Partial<Miembro> = {}): Miembro => (
   nombre_completo: perfilId.toUpperCase(),
   rol_crm: 'vendedor',
   activo: true,
+  ...cambios,
+})
+
+const estadoSla = (
+  leadId: string,
+  cambios: Partial<EstadoSlaLead> = {},
+): EstadoSlaLead => ({
+  lead_id: leadId,
+  ciclo_politica_id: '00000000-0000-4000-8000-000000000001',
+  ciclo_politica_version: 2,
+  primera_gestion_limite_en: haceDias(1),
+  primera_gestion_en: null,
+  primer_contacto_limite_en: haceDias(0.5),
+  primer_contacto_en: null,
+  ciclo_aproximado: false,
+  asignacion_id: '00000000-0000-4000-8000-000000000002',
+  asignacion_politica_id: '00000000-0000-4000-8000-000000000001',
+  asignacion_politica_version: 2,
+  asignacion_primera_gestion_limite_en: haceDias(1),
+  asignacion_primera_gestion_en: null,
+  asignacion_primer_contacto_limite_en: haceDias(0.5),
+  asignacion_primer_contacto_en: null,
+  etapa_politica_id: null,
+  etapa_politica_version: null,
+  etapa: null,
+  etapa_iniciada_en: null,
+  etapa_limite_en: null,
+  etapa_objetivo_minutos: null,
+  etapa_aproximada: null,
   ...cambios,
 })
 
@@ -108,7 +138,13 @@ describe('señales comerciales', () => {
       actividad('fresco', 1),
     ]
 
-    const cola = colaDe(leads, acts, AHORA)
+    const cola = colaDe(
+      leads,
+      acts,
+      AHORA,
+      undefined,
+      new Map([['sin-responder', estadoSla('sin-responder')]]),
+    )
 
     expect(cola.map((item) => [item.lead.id, item.bucket, item.sev])).toEqual([
       ['sin-responder', 'sin_responder', 'critica'],
@@ -143,11 +179,13 @@ describe('señales comerciales', () => {
       expect(cola[0]?.motivo).toContain('el cliente escribió hace 3 días')
     })
 
-    it('el reloj sí corre una vez asignado: a los 2 días es crítico', () => {
+    it('el snapshot de la asignación vuelve crítico el SLA vencido', () => {
       const cola = colaDe(
         [lead({ id: 'moroso', creado_en: haceDias(5), tenencia_desde: haceDias(2) })],
         [],
         AHORA,
+        undefined,
+        new Map([['moroso', estadoSla('moroso')]]),
       )
       expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
       expect(cola[0]?.dias).toBeCloseTo(2)
@@ -174,9 +212,9 @@ describe('señales comerciales', () => {
       expect(cola).toHaveLength(0) // 0.5 días de tenencia < los 3 de seguimiento
     })
 
-    it('sin el dato (demo o base sin migración) se comporta como siempre', () => {
+    it('sin fotografía SLA conserva la cola pero no inventa severidad crítica', () => {
       const cola = colaDe([lead({ id: 'legacy', creado_en: haceDias(2) })], [], AHORA)
-      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
       expect(cola[0]?.motivo).toBe('Entró hace 2 días y nadie lo ha contactado')
     })
 
@@ -186,7 +224,7 @@ describe('señales comerciales', () => {
         [],
         AHORA,
       )
-      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
       expect(cola[0]?.dias).toBeCloseTo(2)
     })
   })
@@ -217,7 +255,7 @@ describe('señales comerciales', () => {
         [actividad('movido', 1, { tipo: 'cambio_etapa' })],
         AHORA,
       )
-      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
     })
 
     it('una nota interna tampoco: escribirla no es haber hablado con la persona', () => {
@@ -226,7 +264,7 @@ describe('señales comerciales', () => {
         [actividad('anotado', 1, { tipo: 'nota' })],
         AHORA,
       )
-      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'critica' })
+      expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
     })
 
     it.each([
@@ -589,47 +627,48 @@ describe('capitalPrincipal — la moneda que manda en el número grande', () => 
   })
 })
 
-// ── El bucket `sin_avance` y el reloj del DUEÑO ───────────────────────────────
-// Era la única rama de `colaDe` que se había quedado fuera del reloj de tenencia
-// (el resto ya usa `referenciaEspera`): un lead recién asignado entraba el
-// primer día por una antigüedad de etapa HEREDADA del dueño anterior.
-describe('`sin_avance` se le cobra al dueño ACTUAL, no al anterior', () => {
-  // Contactado tiene umbral de 72 h → el bucket dispara al doble: 6 días.
-  // 20 días clavado en la etapa; último contacto real ayer (está muy trabajado,
-  // que es justo el lead que este bucket existe para ver).
-  const clavado = (over: Partial<Lead>) =>
-    colaDe(
-      [lead({ id: 'clavado', etapa: 'contactado', creado_en: haceDias(40), ...over })],
-      [
-        actividad('clavado', 20, { tipo: 'cambio_etapa', detalle: 'nuevo → contactado' }),
-        actividad('clavado', 1, { tipo: 'llamada_realizada' }),
-      ],
-      AHORA,
-    )
-
-  it('el recién asignado NO nace reclamado por una antigüedad heredada', () => {
-    // En manos de este asesor desde hace medio día: la mora de 20 días no es suya.
-    expect(clavado({ tenencia_desde: haceDias(0.5) }).find((i) => i.bucket === 'sin_avance')).toBeUndefined()
+// ── El bucket `sin_avance` y la fotografía del EPISODIO ──────────────────────
+describe('`sin_avance` usa el episodio sellado, no constantes del navegador', () => {
+  const fotografia = estadoSla('clavado', {
+    etapa_politica_id: '00000000-0000-4000-8000-000000000001',
+    etapa_politica_version: 4,
+    etapa: 'contactado',
+    etapa_iniciada_en: haceDias(20),
+    etapa_limite_en: haceDias(17),
+    etapa_objetivo_minutos: 4_320,
+    etapa_aproximada: false,
   })
 
-  it('el reloj sí corre con el dueño nuevo: pasado el doble del umbral, dispara', () => {
-    const cola = clavado({ tenencia_desde: haceDias(7) })
-    expect(cola[0]).toMatchObject({ bucket: 'sin_avance', sev: 'media' })
-    // Dispara con el reloj del dueño, pero CUENTA los días reales en la etapa
-    // (un hecho del lead que no se puede reescribir) y dice los dos.
-    expect(cola[0]?.dias).toBeCloseTo(20, 5)
+  const clavado = (snapshot?: EstadoSlaLead) => colaDe(
+    [lead({
+      id: 'clavado',
+      etapa: 'contactado',
+      creado_en: haceDias(40),
+      tenencia_desde: haceDias(0.5),
+    })],
+    [actividad('clavado', 1, { tipo: 'llamada_realizada' })],
+    AHORA,
+    undefined,
+    snapshot ? new Map([['clavado', snapshot]]) : undefined,
+  )
+
+  it('sin fotografía no fabrica un estancamiento con la política vigente', () => {
+    expect(clavado().find((item) => item.bucket === 'sin_avance')).toBeUndefined()
+  })
+
+  it('pasado el doble del plazo sellado dispara con días y versión del episodio', () => {
+    const cola = clavado(fotografia)
+    expect(cola[0]).toMatchObject({ bucket: 'sin_avance', sev: 'media', dias: 20 })
     expect(cola[0]?.motivo).toContain('hace 20 días en Contactado')
-    expect(cola[0]?.motivo).toContain('hace 7 días con su asesor actual')
+    expect(cola[0]?.motivo).toContain('SLA v4 vencido')
   })
 
-  it('sin transferencia de por medio el motivo no repite relojes', () => {
-    const cola = clavado({ tenencia_desde: haceDias(20) })
-    expect(cola[0]).toMatchObject({ bucket: 'sin_avance' })
-    expect(cola[0]?.motivo).toContain('y se sigue trabajando')
-    expect(cola[0]?.motivo).not.toContain('asesor actual')
+  it('una transferencia reciente no reescribe retroactivamente la etapa', () => {
+    expect(clavado(fotografia)[0]).toMatchObject({ bucket: 'sin_avance' })
   })
 
-  it('sin el dato (demo o base sin la migración) se comporta como siempre', () => {
-    expect(clavado({})[0]).toMatchObject({ bucket: 'sin_avance' })
+  it('una nueva versión solo afecta episodios nuevos, no el deadline recibido', () => {
+    const mismaFechaOtraVersion = { ...fotografia, etapa_politica_version: 99 }
+    expect(clavado(mismaFechaOtraVersion)[0]?.dias).toBe(clavado(fotografia)[0]?.dias)
   })
 })

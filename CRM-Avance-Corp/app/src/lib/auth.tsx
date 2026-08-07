@@ -42,7 +42,18 @@ const contrataEnDemo = (rol: Rol): boolean =>
 async function resolverRol(
   cliente: ClienteCrm,
   userId: string,
-): Promise<{ rol: Rol | null; nombre: string; puedeContratar: boolean }> {
+): Promise<{
+  rol: Rol | null
+  rolPortal?: string
+  capacidadesConfig?: {
+    puedeListarUsuarios: boolean
+    puedeAdministrarUsuarios: boolean
+    puedeOrganizarJerarquia: boolean
+    puedeAdministrarRoles: boolean
+  }
+  nombre: string
+  puedeContratar: boolean
+}> {
   // RLS oculta por igual una fila crm.equipo ausente y una inactiva. Resolver
   // ambas desde el cliente reabriría por error el fallback global; la RPC
   // canónica distingue los estados dentro de la frontera SECURITY DEFINER.
@@ -59,6 +70,8 @@ async function resolverRol(
     }
     return {
       rol: acceso.rol,
+      rolPortal: acceso.rolPortal,
+      capacidadesConfig: acceso.capacidadesConfig,
       nombre: acceso.nombre,
       puedeContratar: acceso.puedeContratar,
     }
@@ -84,12 +97,21 @@ function crearVerificador(cliente: ClienteCrm): () => Promise<ResultadoVerificac
     if (!data.user) return { tipo: 'sin_sesion' }
 
     const userId = data.user.id
-    const { rol, nombre, puedeContratar } = await resolverRol(cliente, userId)
+    const { rol, rolPortal, capacidadesConfig, nombre, puedeContratar } =
+      await resolverRol(cliente, userId)
     if (!rol) {
       registrarAviso('auth.acceso_revocado_o_no_enrolado', { userId })
       return { tipo: 'no_enrolado', userId }
     }
-    return { tipo: 'acceso', userId, rol, nombre, puedeContratar }
+    return {
+      tipo: 'acceso',
+      userId,
+      rol,
+      ...(rolPortal ? { rolPortal } : {}),
+      ...(capacidadesConfig ? { capacidadesConfig } : {}),
+      nombre,
+      puedeContratar,
+    }
   }
 }
 

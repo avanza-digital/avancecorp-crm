@@ -1,8 +1,7 @@
-import type { ConversionEquipoVendedor } from './conversion-equipo'
-import { adaptarConversionVendedores } from './conversion-vendedores'
 import type { MetricasConversiones } from './metricas-conversiones'
 import {
   metaConversionAplicable,
+  type CumplimientoVendedor,
   type ObjetivosPorVendedor,
 } from './objetivos'
 
@@ -41,9 +40,10 @@ export interface PeriodoAnteriorComparable {
 export interface DerivarAlertasGerenciaInput {
   conversiones?: MetricasConversiones | null | undefined
   conversionesAnteriores?: MetricasConversiones | null | undefined
-  equipoConversion: readonly ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
+  cumplimientosVendedores: Record<string, CumplimientoVendedor>
   objetivosError?: boolean | undefined
+  cumplimientoError?: boolean | undefined
   diaDelMes: number
 }
 
@@ -51,8 +51,8 @@ const EQUIPO_NO_DISPONIBLE = 'Equipo no disponible'
 
 /** El avance individual todavía es demasiado volátil durante los primeros días. */
 export const DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL = 10
-/** Muestra mínima para juzgar la conversión de una persona. */
-export const LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR = 10
+/** Casos resueltos mínimos en el cumplimiento confirmado para juzgar conversión. */
+export const CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR = 10
 /** Brecha material contra la meta individual, expresada en puntos porcentuales. */
 export const BRECHA_MINIMA_ALERTA_CONVERSION_PP = 5
 export const BRECHA_CRITICA_ALERTA_CONVERSION_PP = 10
@@ -145,26 +145,27 @@ function ordenarAlertas(alertas: AlertaGerencia[]): AlertaGerencia[] {
 export function derivarAlertasGerencia({
   conversiones,
   conversionesAnteriores,
-  equipoConversion,
   metasVendedores,
+  cumplimientosVendedores,
   objetivosError = false,
+  cumplimientoError = false,
   diaDelMes,
 }: DerivarAlertasGerenciaInput): AlertaGerencia[] {
   const alertas: AlertaGerencia[] = []
 
-  const conversionAdaptada = adaptarConversionVendedores(conversiones, equipoConversion)
   const diaIndividualValido = Number.isInteger(diaDelMes)
     && diaDelMes >= DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL
     && diaDelMes <= 31
-  if (diaIndividualValido && conversionAdaptada.responsablesDisponibles) {
-    for (const vendedor of conversionAdaptada.vendedores) {
-      const detalle = vendedor.detalle
+  const cumplimientoCompleto = !objetivosError
+    && !cumplimientoError
+    && Object.keys(metasVendedores).length > 0
+    && Object.keys(metasVendedores).every((vendedorId) => cumplimientosVendedores[vendedorId] != null)
+  if (diaIndividualValido && cumplimientoCompleto) {
+    for (const vendedor of Object.values(cumplimientosVendedores)) {
       if (
-        vendedor.estadoConversion !== 'comparable'
-        || detalle == null
-        || !conteoValido(detalle.leads)
-        || detalle.leads < LEADS_MINIMOS_ALERTA_CONVERSION_VENDEDOR
-        || !porcentajeValido(detalle.conversion_pct)
+        !conteoValido(vendedor.resueltos)
+        || vendedor.resueltos < CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR
+        || !porcentajeValido(vendedor.conversionReal)
       ) continue
 
       const metaVendedor = metasVendedores[vendedor.vendedorId]
@@ -174,7 +175,7 @@ export function derivarAlertasGerencia({
       ) continue
       const metaGuardada = metaVendedor?.conversionObjetivo ?? 0
       const objetivo = metaConversionAplicable(metaGuardada, objetivosError)
-      const actual = detalle.conversion_pct
+      const actual = vendedor.conversionReal
       if (!porcentajeValido(objetivo) || actual >= objetivo) continue
 
       const brechaPp = redondearPp(objetivo - actual)

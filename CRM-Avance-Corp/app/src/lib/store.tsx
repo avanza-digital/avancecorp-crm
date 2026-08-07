@@ -14,7 +14,7 @@ import {
 } from 'react'
 import { toast } from 'sonner'
 import { useAuth } from './auth-context'
-import { can, puedeEscribir } from './roles'
+import { administraSoloRolesCrm, can, puedeEscribir } from './roles'
 import {
   ETAPA_INFO,
   MOTIVOS_DESCARTE,
@@ -59,7 +59,6 @@ import {
 import {
   actualizarLead,
   CrmApiError,
-  fijarObjetivosRpc,
   insertarActividad,
   insertarLead,
   insertarTarea,
@@ -69,19 +68,17 @@ import {
   listarActividadesDelAmbito,
   listarEquipo,
   listarLeadsDelAmbito,
-  listarObjetivos,
+  obtenerCumplimientoMetas,
+  obtenerMetasDelMes,
   listarTareasDelAmbito,
   reprogramarReunion,
 } from '@/data/crm-api'
 import {
-  aObjetivosPorRol,
-  aPayloadObjetivos,
-  esObjetivosJerarquicos,
-  metasEditablesDe,
+  cumplimientoDesdeRpc,
   objetivosCero,
-  objetivosParaActor,
+  objetivosDesdeConfiguracion,
   periodoLima,
-  validarObjetivos,
+  type CumplimientoMetasJerarquico,
   type ObjetivoComercial,
   type ObjetivosPorRol,
   type ObjetivosPorVendedor,
@@ -261,9 +258,8 @@ export interface Ambito {
 // se re-exporta para no romper a los consumidores históricos del store.
 export type { EventoAgenda }
 
-// El contrato de metas vive en lib/objetivos (fila del servidor ↔ mapa por
-// rol, validación espejo del CHECK); se re-exporta para los consumidores
-// históricos del store.
+// El contrato de metas vive en lib/objetivos. Las metas de supervisor y
+// empresa se derivan siempre desde las filas individuales versionadas.
 export type { ObjetivoComercial, ObjetivosPorRol, ObjetivosPorVendedor }
 
 // Las series de tendencia viven en lib/series-comerciales (cálculo puro desde
@@ -286,6 +282,14 @@ export interface StoreDataApi {
    * honesto es «No pudimos cargar tu meta del mes» + reintentar (`recargar()`).
    */
   objetivosError: boolean
+  /**
+   * Resultado mensual autoritativo de `crm.cumplimiento_metas_fn`: capital y
+   * contratos confirmados (PEN/USD y categoría preservados), más conversión
+   * sobre la cohorte de leads resueltos del periodo.
+   */
+  cumplimientoMetas: CumplimientoMetasJerarquico | null
+  /** Falló el cálculo confirmado; nunca se reemplaza por pipeline abierto. */
+  cumplimientoMetasError: boolean
   series: SeriesComerciales
   // Crudas, para lib/inteligencia (colaDe, estancados…). OJO: es el timeline
   // GLOBAL sin recorte (la RLS actividades_select SÍ recorta a leads visibles):
@@ -366,8 +370,6 @@ export interface StoreDataApi {
    *  cambio de etapa silencioso asusta más que ayuda. */
   registrarActividad(id: string, tipo: TipoActividadManual, detalle?: string): ResultadoMut & { avance?: EtapaActiva }
   reasignar(id: string, vendedorId: string | null): ResultadoMut
-  /** Gerencia fija metas individuales; supervisor y empresa son agregados calculados. */
-  fijarObjetivos(metas: ObjetivosPorVendedor | ObjetivosPorRol): ResultadoMut
   // Refresco explícito desde el servidor (tras un flujo async que NO pasa por el
   // camino optimista: p. ej. la conversión lead→cliente vía edge). En demo es no-op.
   recargar(): Promise<boolean>
@@ -398,6 +400,8 @@ interface Auxiliares {
   objetivos: ObjetivosPorRol
   /** true si la LECTURA de metas falló: los ceros de `objetivos` no son un dato. */
   objetivosError: boolean
+  cumplimientoMetas: CumplimientoMetasJerarquico | null
+  cumplimientoMetasError: boolean
   series: SeriesComerciales
 }
 
@@ -405,6 +409,8 @@ const AUXILIARES_VACIOS: Auxiliares = {
   equipo: EQUIPO_VACIO,
   objetivos: OBJETIVOS_VACIOS,
   objetivosError: false,
+  cumplimientoMetas: null,
+  cumplimientoMetasError: false,
   series: SERIES_VACIAS,
 }
 
@@ -621,6 +627,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Sesión autenticada real (no demo): la capa de datos lee del servidor y la
   // RLS del esquema crm decide el ámbito; el navegador nunca recorta seguridad.
   const sesionReal = !!yo && yo.demo !== true
+  const soloRoles = administraSoloRolesCrm(yo)
   // El store local solo contiene datos ficticios durante una sesión demo
   // explícita. Una sesión real nunca recibe ni persiste PII de demostración.
   const [datos, setDatos] = useState<Datos>(datosVacios)
@@ -679,6 +686,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Carga de la sesión REAL. La RLS del esquema crm decide el ámbito; el
   // vendedor_nombre se resuelve con el roster (crm.leads solo guarda el id).
   const cargarReal = useCallback(async (signal?: AbortSignal) => {
+    const periodoMetas = periodoLima(Date.now())
+    if (soloRoles) {
+      return {
+        miembros: [] as Miembro[],
+        actividades: [] as Actividad[],
+        tareas: [] as Tarea[],
+        objetivos: objetivosCero(periodoMetas),
+        objetivosError: false,
+        cumplimientoMetas: null,
+        cumplimientoMetasError: false,
+        leads: [] as Lead[],
+      }
+    }
     // El coordinador (C1) es OFF-ROSTER: no tiene cartera ni panel de equipo, y
     // su pantalla usa supervisores_para_reparto (no `ambito.equipo`). Se omite
     // listarEquipo porque equipo_visible_fn puede RAISE para su rol y el
@@ -688,48 +708,67 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Gerencia también opera la cartera completa: necesita las mismas fuentes
     // transaccionales que el resto del equipo además de sus RPC de inteligencia.
     // La RLS conserva el alcance real y excluye los soft-deletes.
-    // Un fallo de LECTURA de metas no puede pintarse como "no hay metas": se
-    // marca aparte para que la pantalla diga la verdad (ver `objetivosError`).
+    // Configuración y cumplimiento son auxiliares independientes: una caída
+    // no puede convertirse en «sin meta» ni en resultados confirmados en cero.
     let objetivosError = false
-    const [leads, miembros, actividades, tareasAmbito, filasObjetivos] = await Promise.all([
+    let cumplimientoMetasError = false
+    const [leads, miembros, actividades, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
       listarLeadsDelAmbito(signal),
       esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
       listarActividadesDelAmbito(signal),
       listarTareasDelAmbito(signal),
-      // Metas del mes calendario vigente en Lima (no-render: Date.now() ok).
-      // Metas caídas ≠ CRM caído: este fetch AUXILIAR no tumba el boot; si la
-      // caída es general, los fetches primarios (leads/equipo) disparan el
-      // error real igual. Pero el fallo SE RECUERDA: antes degradaba a cero y
-      // la pantalla afirmaba «Meta mensual por definir» aunque gerencia sí las
-      // hubiera fijado — un error pintado como ausencia de dato.
-      listarObjetivos(periodoLima(Date.now()), signal).catch((error: unknown) => {
-        registrarError('crm.objetivos.boot_degradado', error)
+      obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
+        registrarError('crm.metas.configuracion_boot_degradada', error)
         objetivosError = true
-        return []
+        return null
+      }),
+      obtenerCumplimientoMetas(periodoMetas, signal).catch((error: unknown) => {
+        registrarError('crm.metas.cumplimiento_boot_degradado', error)
+        cumplimientoMetasError = true
+        return null
       }),
     ])
+    let cumplimientoCoherente = cumplimientoRpc
+    if (cumplimientoCoherente && !configuracionMetas) {
+      // Sin la revisión de objetivos no hay denominador confiable para mostrar
+      // el cumplimiento. Se conserva el error de configuración y se oculta el
+      // numerador para que ningún ranking lo presente como «sin meta».
+      cumplimientoCoherente = null
+      cumplimientoMetasError = true
+    } else if (
+      cumplimientoCoherente
+      && configuracionMetas
+      && (
+        cumplimientoCoherente.periodo !== configuracionMetas.periodo
+        || cumplimientoCoherente.revision !== configuracionMetas.revision
+      )
+    ) {
+      registrarError(
+        'crm.metas.revisiones_inconsistentes',
+        new Error('Configuración y cumplimiento pertenecen a revisiones distintas'),
+      )
+      cumplimientoCoherente = null
+      cumplimientoMetasError = true
+    }
     const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
     return {
       miembros,
       actividades,
       tareas: tareasAmbito,
-      objetivos: aObjetivosPorRol(
-        filasObjetivos,
-        yo?.id,
-        miembros
-          .filter((miembro) => miembro.activo && miembro.rol_crm === 'vendedor')
-          .map((miembro) => ({
-            vendedorId: miembro.perfil_id,
-            supervisorId: miembro.supervisor_id ?? null,
-          })),
-      ),
+      objetivos: configuracionMetas
+        ? objetivosDesdeConfiguracion(configuracionMetas, yo?.id)
+        : objetivosCero(periodoMetas),
       objetivosError,
+      cumplimientoMetas: cumplimientoCoherente
+        ? cumplimientoDesdeRpc(cumplimientoCoherente, yo?.id)
+        : null,
+      cumplimientoMetasError,
       leads: leads.map((l) => ({
         ...l,
         vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
       })),
     }
-  }, [yo?.id, yo?.rol])
+  }, [soloRoles, yo?.id, yo?.rol])
 
   // Tras cada mutación real (éxito o rechazo) el SERVIDOR es la verdad: se
   // recargan leads/actividades/equipo para reflejar triggers y RLS (y, en un
@@ -739,14 +778,29 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const resincronizarReal = useCallback(async (): Promise<boolean> => {
     const miEpoca = epocaRef.current
     try {
-      const { leads, actividades, miembros, tareas: tareasServidor, objetivos, objetivosError } = await cargarReal()
+      const {
+        leads,
+        actividades,
+        miembros,
+        tareas: tareasServidor,
+        objetivos,
+        objetivosError,
+        cumplimientoMetas,
+        cumplimientoMetasError,
+      } = await cargarReal()
       // La sesión cambió (logout/otro usuario/recarga) mientras viajaba: se
       // descarta en vez de repoblar el store de otra sesión.
       if (epocaRef.current !== miEpoca) return false
       setDatos({ leads, actividades })
       setTareas(tareasServidor)
-      // objetivos también: el resync es el rollback de fijarObjetivos.
-      setAuxiliares((prev) => ({ ...prev, equipo: miembros, objetivos, objetivosError }))
+      setAuxiliares((prev) => ({
+        ...prev,
+        equipo: miembros,
+        objetivos,
+        objetivosError,
+        cumplimientoMetas,
+        cumplimientoMetasError,
+      }))
       return true
     } catch (error: unknown) {
       registrarError('crm.resincronizacion_fallida', error)
@@ -776,6 +830,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               equipo: demo.EQUIPO_DEMO,
               objetivos: demo.METAS_DEMO,
               objetivosError: false, // el demo no lee del servidor: nada que fallar
+              cumplimientoMetas: demo.CUMPLIMIENTO_METAS_DEMO,
+              cumplimientoMetasError: false,
               series: demo.SPARKS_DEMO,
             })
             setDemoListo(true)
@@ -788,6 +844,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             setAuxiliares(AUXILIARES_VACIOS)
           })
       }
+      return () => { cancelado = true; control.abort() }
+    }
+
+    // Superadmin Portal sin Gerencia no tiene una sesión operativa: su única
+    // superficie es Usuarios/roles. Se marca listo con un store vacío y no se
+    // intenta ninguna lectura que el servidor debe negar.
+    if (sesionReal && soloRoles) {
+      setDatos(datosVacios())
+      setTareas([])
+      setAuxiliares(AUXILIARES_VACIOS)
+      setRealListo(true)
       return () => { cancelado = true; control.abort() }
     }
 
@@ -812,14 +879,30 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       }, LIMITE_CARGA_REAL_MS)
 
       void cargarReal(control.signal)
-        .then(({ leads, actividades, miembros, tareas: tareasServidor, objetivos, objetivosError }) => {
+        .then(({
+          leads,
+          actividades,
+          miembros,
+          tareas: tareasServidor,
+          objetivos,
+          objetivosError,
+          cumplimientoMetas,
+          cumplimientoMetasError,
+        }) => {
           clearTimeout(relojCarga)
           // `agotado`: una respuesta que llega DESPUÉS del límite ya no puede
           // borrar la pantalla de error que el asesor está viendo.
           if (cancelado || agotado) return
           setDatos({ leads, actividades })
           setTareas(tareasServidor)
-          setAuxiliares({ equipo: miembros, objetivos, objetivosError, series: SERIES_VACIAS })
+          setAuxiliares({
+            equipo: miembros,
+            objetivos,
+            objetivosError,
+            cumplimientoMetas,
+            cumplimientoMetasError,
+            series: SERIES_VACIAS,
+          })
           setRealListo(true)
         })
         .catch((error: unknown) => {
@@ -841,7 +924,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     setTareas([])
     setAuxiliares(AUXILIARES_VACIOS)
     return () => { cancelado = true; control.abort() }
-  }, [demoSolicitado, sesionReal, yo?.id, intentoReal, cargarReal])
+  }, [demoSolicitado, sesionReal, soloRoles, yo?.id, intentoReal, cargarReal])
 
   // Persistencia demo (solo sessionStorage — jamás Supabase)
   useEffect(() => {
@@ -1043,10 +1126,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               .filter((t) => t.lead_id === leadId && t.estado === 'pendiente' && t.activo)
               .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
           : [],
-      objetivos: auxiliares.objetivos.porVendedor
-        ? objetivosParaActor(auxiliares.objetivos.porVendedor, yo?.id)
-        : auxiliares.objetivos,
+      objetivos: auxiliares.objetivos,
       objetivosError: auxiliares.objetivosError,
+      cumplimientoMetas: auxiliares.cumplimientoMetas,
+      cumplimientoMetasError: auxiliares.cumplimientoMetasError,
       // Tendencias: en sesión real se CALCULAN de los leads del ámbito (mismo
       // criterio de "ahora al recomputar" que la agenda); demo usa sus sparks.
       series: realActivo ? seriesComerciales(ambito.leads, Date.now()) : auxiliares.series,
@@ -1842,28 +1925,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           creado_por: miId,
         }))
         return avance ? { ok: true, avance } : { ok: true }
-      },
-
-      fijarObjetivos: (metas) => {
-        if (!can(yo?.rol, 'editarMetas')) {
-          const error = 'Tu rol no puede modificar las metas comerciales'
-          toast.error(error)
-          return { ok: false, codigo: 'sin_permiso', error }
-        }
-        const metasPorVendedor = metasEditablesDe(metas)
-        const invalido = validarObjetivos(metas)
-        if (invalido) return { ok: false, error: invalido }
-        // Optimista: el marcador de meta se actualiza al toque; si el servidor
-        // rechaza, el resync de persistir() restaura las metas reales (y con
-        // ellas el estado real de la lectura).
-        const objetivosSiguientes = esObjetivosJerarquicos(metas) && !metas.porVendedor
-          ? metas
-          : objetivosParaActor(metasPorVendedor, yo?.id)
-        setAuxiliares((prev) => ({ ...prev, objetivos: objetivosSiguientes, objetivosError: false }))
-        persistir(async () => {
-          await fijarObjetivosRpc(periodoLima(Date.now()), aPayloadObjetivos(metasPorVendedor))
-        })
-        return { ok: true }
       },
 
       reasignar: (id, vendedorId) => {

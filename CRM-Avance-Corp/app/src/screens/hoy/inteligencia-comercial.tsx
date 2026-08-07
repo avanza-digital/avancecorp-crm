@@ -35,7 +35,9 @@ import {
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import {
-  META_CONVERSION_PREDETERMINADA,
+  capitalObjetivo,
+  capitalReal,
+  type CumplimientoVendedor,
   type ObjetivoComercial,
   type ObjetivosPorVendedor,
 } from '@/lib/objetivos'
@@ -45,6 +47,7 @@ interface InteligenciaComercialPanelProps {
   equipo: ConversionEquipoVendedor[]
   metaConversion: number
   metasVendedores: ObjetivosPorVendedor
+  cumplimientoVendedores: Record<string, CumplimientoVendedor>
   metaMensual: MetaMensualGerencia
   cargando: boolean
   error: string | null
@@ -165,12 +168,14 @@ function DatoDetalle({
 function DetalleVendedor({
   fila,
   meta,
+  cumplimiento,
   periodo,
   metaMensual,
   onCerrar,
 }: {
   fila: ConversionVendedorAdaptada | null
   meta: ObjetivoComercial | null
+  cumplimiento: CumplimientoVendedor | null
   periodo: MetricasConversiones['periodo'] | null
   metaMensual: MetaMensualGerencia
   onCerrar: () => void
@@ -182,19 +187,22 @@ function DetalleVendedor({
   const conversion = detalle?.conversion_pct ?? null
   const capitalPen = detalle?.capital_pen ?? null
   const capitalUsd = detalle?.capital_usd ?? null
-  const conversionGuardada = meta?.conversionObjetivo ?? 0
-  const metaConversion = conversionGuardada > 0
-    ? conversionGuardada
-    : META_CONVERSION_PREDETERMINADA
-  const metaCapital = meta?.capitalObjetivo ?? 0
-  const progresoCapital = metaMensual.comparable ? progreso(capitalPen, metaCapital) : null
-  const progresoConversion = metaMensual.comparable && conversion != null ? progreso(conversion, metaConversion) : null
+  const metaConversion = meta?.conversionObjetivo ?? 0
+  const metaCapitalPen = meta ? capitalObjetivo(meta, 'PEN') : 0
+  const metaCapitalUsd = meta ? capitalObjetivo(meta, 'USD') : 0
+  const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
+  const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+  const conversionConfirmada = cumplimiento?.conversionReal ?? null
+  const progresoCapitalPen = metaMensual.comparable ? progreso(capitalConfirmadoPen, metaCapitalPen) : null
+  const progresoCapitalUsd = metaMensual.comparable ? progreso(capitalConfirmadoUsd, metaCapitalUsd) : null
+  const progresoConversion = metaMensual.comparable ? progreso(conversionConfirmada, metaConversion) : null
   const tendencia = useMemo(
     () => detalle?.tendencia_semanal ?? null,
     [detalle?.tendencia_semanal],
   )
   const puntosTendencia = useMemo(() => tendencia ?? [], [tendencia])
-  const enMeta = metaMensual.comparable && conversion != null && (leads ?? 0) > 0 && conversion >= metaConversion
+  const enMeta = metaMensual.comparable && metaConversion > 0
+    && conversionConfirmada != null && conversionConfirmada >= metaConversion
   const estado = fila?.estadoConversion === 'indisponible'
     ? 'No disponible'
     : fila?.estadoConversion === 'sin_muestra'
@@ -203,6 +211,10 @@ function DetalleVendedor({
         ? 'Meta no disponible'
       : !metaMensual.comparable
         ? 'No comparable'
+        : metaConversion <= 0
+          ? 'Sin meta'
+        : cumplimiento == null
+          ? 'Cumplimiento no disponible'
         : enMeta
           ? 'En meta'
           : 'Por alcanzar'
@@ -236,7 +248,7 @@ function DetalleVendedor({
         splitLine: { lineStyle: { color: C.grid } },
         axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans', fontSize: 10 },
       },
-      series: metaMensual.comparable
+      series: metaMensual.comparable && metaConversion > 0
         ? [
             {
               name: 'Conversión real',
@@ -321,27 +333,32 @@ function DetalleVendedor({
 
             {metaMensual.comparable ? (
               <section aria-label="Avance de metas" className="divide-y divide-[var(--gi-line)] overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
-                <div className="px-4 py-3">
-                  <p className="mb-2 text-[11px] font-medium text-[var(--gi-muted)]">Meta mensual · {metaMensual.etiqueta}</p>
-                  <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
-                    <span className="text-xs font-bold">Meta de capital en PEN</span>
-                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{metaCapital > 0 ? `${capitalDisponible(capitalPen, 'PEN')} de ${money(metaCapital, 'PEN')}` : 'Meta por definir'}</span>
+                {([
+                  ['PEN', metaCapitalPen, capitalConfirmadoPen, progresoCapitalPen],
+                  ['USD', metaCapitalUsd, capitalConfirmadoUsd, progresoCapitalUsd],
+                ] as const).map(([moneda, objetivo, real, avance], indice) => (
+                  <div className="px-4 py-3" key={moneda}>
+                    {indice === 0 && <p className="mb-2 text-[11px] font-medium text-[var(--gi-muted)]">Cumplimiento confirmado · {metaMensual.etiqueta}</p>}
+                    <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                      <span className="text-xs font-bold">Capital en {moneda}</span>
+                      <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{objetivo > 0 ? `${capitalDisponible(real, moneda)} de ${money(objetivo, moneda)}` : 'Meta por definir'}</span>
+                    </div>
+                    <div
+                      className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e1d8]"
+                      role={objetivo > 0 && avance != null ? 'progressbar' : undefined}
+                      aria-label={objetivo > 0 && avance != null ? `Cumplimiento de capital en ${moneda}` : undefined}
+                      aria-valuemin={objetivo > 0 && avance != null ? 0 : undefined}
+                      aria-valuemax={objetivo > 0 && avance != null ? 100 : undefined}
+                      aria-valuenow={objetivo > 0 && avance != null ? Math.min(100, avance) : undefined}
+                    >
+                      <div className="h-full rounded-full bg-emerald-600 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%` }} />
+                    </div>
                   </div>
-                  <div
-                    className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e1d8]"
-                    role={metaCapital > 0 && progresoCapital != null ? 'progressbar' : undefined}
-                    aria-label={metaCapital > 0 && progresoCapital != null ? 'Avance de la meta de capital en PEN' : undefined}
-                    aria-valuemin={metaCapital > 0 && progresoCapital != null ? 0 : undefined}
-                    aria-valuemax={metaCapital > 0 && progresoCapital != null ? 100 : undefined}
-                    aria-valuenow={metaCapital > 0 && progresoCapital != null ? Math.min(100, progresoCapital) : undefined}
-                  >
-                    <div className="h-full rounded-full bg-emerald-600 transition-[width] duration-500 motion-reduce:transition-none" style={{ width: `${Math.min(100, progresoCapital ?? 0)}%` }} />
-                  </div>
-                </div>
+                ))}
                 <div className="px-4 py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="text-xs font-bold">Meta de conversión</span>
-                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{pct(conversion)} de {numero(metaConversion, 1)}%</span>
+                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{metaConversion > 0 ? `${pct(conversionConfirmada)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}</span>
                   </div>
                   <div
                     className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e1d8]"
@@ -388,6 +405,7 @@ export function InteligenciaComercialPanel({
   equipo,
   metaConversion,
   metasVendedores,
+  cumplimientoVendedores,
   metaMensual,
   cargando,
   error,
@@ -412,9 +430,8 @@ export function InteligenciaComercialPanel({
   )
   const vendedor = vendedores.find((fila) => fila.vendedorId === vendedorId) ?? vendedores[0] ?? null
   const metaVendedor = vendedor ? metasVendedores[vendedor.vendedorId] ?? null : null
-  const metaConversionVisual = metaConversion > 0
-    ? metaConversion
-    : META_CONVERSION_PREDETERMINADA
+  const cumplimientoVendedor = vendedor ? cumplimientoVendedores[vendedor.vendedorId] ?? null : null
+  const metaConversionVisual = metaConversion > 0 ? metaConversion : 0
 
   const opcionEquipo = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
@@ -465,7 +482,7 @@ export function InteligenciaComercialPanel({
     legend: { top: 0, right: 0, itemWidth: 14, itemHeight: 8, textStyle: { color: C.muted, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
     xAxis: { type: 'category', boundaryGap: false, data: etiquetas, axisTick: { show: false }, axisLine: { lineStyle: { color: C.grid } }, axisLabel: { color: C.muted, fontFamily: 'IBM Plex Sans' } },
     yAxis: { type: 'value', min: 0, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: C.grid } }, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' } },
-    series: metaMensual.comparable
+    series: metaMensual.comparable && metaConversionVisual > 0
       ? [
           { name: 'Conversión real', type: 'line', data: valoresEvolucion, smooth: true, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } },
           { name: 'Meta', type: 'line', data: etiquetas.map(() => metaConversionVisual), symbol: 'none', lineStyle: { type: 'dashed', width: 1.5 } },
@@ -498,7 +515,7 @@ export function InteligenciaComercialPanel({
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>
               <div className="gi-hero-metric"><span>Capital</span><strong>{money(datos.produccion.capital_pen, 'PEN')}</strong></div>
-              <div className="gi-hero-metric"><span>Meta mensual · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? `${numero(metaConversionVisual, 1)}%` : 'No comparable'}</strong></div>
+              <div className="gi-hero-metric"><span>Meta mensual · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
@@ -525,7 +542,7 @@ export function InteligenciaComercialPanel({
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Evolución de la conversión</h3><span className="gi-caption">{metaMensual.comparable ? `Semanal vs. meta mensual · ${metaMensual.etiqueta}` : 'Semanas del rango aplicado'}</span></div>{!metaMensual.comparable && <p className="mt-2 text-xs font-medium text-[var(--gi-muted)]">{mensajeMetaNoComparable(metaMensual)}</p>}{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Evolución semanal de la conversión a clientes en el rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
-      <DetalleVendedor fila={detalleAbierto ? vendedor : null} meta={metaVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
+      <DetalleVendedor fila={detalleAbierto ? vendedor : null} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }

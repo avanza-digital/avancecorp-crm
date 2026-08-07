@@ -1,218 +1,392 @@
 import * as v from 'valibot'
 import { fechaLima } from './agenda-derivada'
+import {
+  EnteroNoNegativoRpcSchema,
+  FechaHoraSchema,
+  FechaSchema,
+  NumeroRpcSchema,
+  TextoNoVacioSchema,
+  UuidSchema,
+} from './esquemas-rpc'
+import type { ConfiguracionMetas, DetalleMeta, MetaVendedorConfig } from './metas-versionadas'
+import { CATEGORIAS_PRODUCTO, MONEDAS_PRODUCTO } from './productos-inversion'
 
-export interface ObjetivoComercial {
+export type CategoriaMeta = DetalleMeta['categoria']
+export type MonedaMeta = DetalleMeta['moneda']
+
+export interface ObjetivoDetalle {
+  categoria: CategoriaMeta
+  moneda: MonedaMeta
   capitalObjetivo: number
-  ventasObjetivo: number
-  conversionObjetivo: number
+  contratosObjetivo: number
 }
 
-/** Única unidad editable: la meta mensual de una persona vendedora. */
+/** Meta mensual. La moneda y la categoría nunca se pierden al agregar. */
+export interface ObjetivoComercial {
+  conversionObjetivo: number
+  detalles: ObjetivoDetalle[]
+}
+
 export interface ObjetivoVendedor extends ObjetivoComercial {
   vendedorId: string
-  /** Snapshot de la jerarquía al guardar; el servidor nunca confía en el cliente. */
-  supervisorId: string | null
+  nombre: string
+  supervisorId: string
+  supervisorNombre: string
 }
 
 export type ObjetivosPorVendedor = Record<string, ObjetivoVendedor>
 
-export interface VendedorObjetivoVisible {
-  vendedorId: string
-  supervisorId: string | null
-}
-
-/** Meta inicial visible hasta que Gerencia guarde una meta individual distinta. */
-export const META_CONVERSION_PREDETERMINADA = 15
-
-/**
- * Meta de conversión que puede mostrarse y compararse en los paneles.
- *
- * Un cero leído correctamente significa que todavía no existe una meta
- * guardada y activa el valor inicial. En cambio, los objetivos también llegan
- * en cero cuando su lectura falla; en ese caso no inventamos el 15 %.
- */
-export function metaConversionAplicable(
-  conversionGuardada: number,
-  errorCarga = false,
-): number | null {
-  if (errorCarga) return null
-  return conversionGuardada > 0
-    ? conversionGuardada
-    : META_CONVERSION_PREDETERMINADA
-}
-
-/**
- * Lectura derivada para las pantallas existentes. Supervisor y empresa jamás
- * se persisten: siempre se recalculan desde `porVendedor`.
- */
+/** Supervisor y empresa siempre son derivados de las metas individuales. */
 export interface ObjetivosJerarquicos {
+  periodo: string
+  revision: number
+  publicadaEn: string | null
   vendedor: ObjetivoComercial
   supervisor: ObjetivoComercial
   gerencia: ObjetivoComercial
   porVendedor: ObjetivosPorVendedor
 }
 
-/** Compatibilidad de consumidores de lectura; ya no representa metas editables por rol. */
-export type ObjetivosPorRol = Omit<ObjetivosJerarquicos, 'porVendedor'> & {
-  porVendedor?: ObjetivosPorVendedor
-}
+/** Nombre histórico conservado para consumidores de lectura del store. */
+export type ObjetivosPorRol = ObjetivosJerarquicos
 
-const OBJETIVO_CERO: Readonly<ObjetivoComercial> = {
-  capitalObjetivo: 0,
-  ventasObjetivo: 0,
-  conversionObjetivo: 0,
-}
-
-function cero(): ObjetivoComercial {
-  return { ...OBJETIVO_CERO }
-}
-
-export function objetivosCero(): ObjetivosJerarquicos {
-  return { vendedor: cero(), supervisor: cero(), gerencia: cero(), porVendedor: {} }
-}
-
-const NumeroServidor = v.pipe(
-  v.union([v.number(), v.string()]),
-  v.transform((x) => (typeof x === 'string' ? Number(x) : x)),
-  v.check((n) => Number.isFinite(n), 'número inválido'),
+const CLAVES_DIMENSION = CATEGORIAS_PRODUCTO.flatMap((categoria) =>
+  MONEDAS_PRODUCTO.map((moneda) => `${categoria}:${moneda}` as const),
 )
 
-export const FilaObjetivoSchema = v.object({
-  vendedor_id: v.string(),
-  supervisor_id: v.string(),
-  capital_objetivo: NumeroServidor,
-  ventas_objetivo: NumeroServidor,
-  conversion_objetivo: NumeroServidor,
-})
-export type FilaObjetivo = v.InferOutput<typeof FilaObjetivoSchema>
+function detallesCero(): ObjetivoDetalle[] {
+  return CATEGORIAS_PRODUCTO.flatMap((categoria) =>
+    MONEDAS_PRODUCTO.map((moneda) => ({
+      categoria,
+      moneda,
+      capitalObjetivo: 0,
+      contratosObjetivo: 0,
+    })),
+  )
+}
 
-/**
- * El monto se suma. La conversión del supervisor y de la empresa es el promedio
- * de las metas individuales que sí fueron definidas; un porcentaje nunca se suma.
- */
+function objetivoCero(): ObjetivoComercial {
+  return { conversionObjetivo: 0, detalles: detallesCero() }
+}
+
+export function objetivosCero(periodo = periodoLima(Date.now())): ObjetivosJerarquicos {
+  return {
+    periodo,
+    revision: 0,
+    publicadaEn: null,
+    vendedor: objetivoCero(),
+    supervisor: objetivoCero(),
+    gerencia: objetivoCero(),
+    porVendedor: {},
+  }
+}
+
+function objetivoDesdeVendedor(meta: MetaVendedorConfig): ObjetivoVendedor {
+  return {
+    vendedorId: meta.vendedor_id,
+    nombre: meta.nombre,
+    supervisorId: meta.supervisor_id,
+    supervisorNombre: meta.supervisor_nombre,
+    conversionObjetivo: meta.conversion_objetivo,
+    detalles: meta.detalles.map((detalle) => ({
+      categoria: detalle.categoria,
+      moneda: detalle.moneda,
+      capitalObjetivo: detalle.capital_objetivo,
+      contratosObjetivo: detalle.contratos_objetivo,
+    })),
+  }
+}
+
+/** Suma capital/contratos por dimensión; los porcentajes definidos se promedian. */
 export function agregarObjetivos(items: Iterable<ObjetivoComercial>): ObjetivoComercial {
   const metas = Array.from(items)
-  if (metas.length === 0) return cero()
+  if (metas.length === 0) return objetivoCero()
 
-  const capitalObjetivo = metas.reduce((total, meta) => total + meta.capitalObjetivo, 0)
-  const metasConConversion = metas.filter((meta) => meta.conversionObjetivo > 0)
-  const conversionObjetivo = metasConConversion.length > 0
-    ? metasConConversion.reduce((total, meta) => total + meta.conversionObjetivo, 0)
-      / metasConConversion.length
-    : 0
-
-  return {
-    capitalObjetivo,
-    ventasObjetivo: 0,
-    conversionObjetivo: Math.round(conversionObjetivo * 100) / 100,
-  }
-}
-
-export function objetivosParaActor(
-  porVendedor: ObjetivosPorVendedor,
-  actorId?: string | null,
-  vendedores: readonly VendedorObjetivoVisible[] = [],
-): ObjetivosJerarquicos {
-  const metasCompletas: ObjetivosPorVendedor = { ...porVendedor }
-  for (const vendedor of vendedores) {
-    if (metasCompletas[vendedor.vendedorId]) continue
-    metasCompletas[vendedor.vendedorId] = {
-      vendedorId: vendedor.vendedorId,
-      supervisorId: vendedor.supervisorId,
-      capitalObjetivo: 0,
-      ventasObjetivo: 0,
-      conversionObjetivo: META_CONVERSION_PREDETERMINADA,
+  const acumulado = new Map(CLAVES_DIMENSION.map((clave) => [clave, {
+    capitalObjetivo: 0,
+    contratosObjetivo: 0,
+  }]))
+  for (const meta of metas) {
+    for (const detalle of meta.detalles) {
+      const clave = `${detalle.categoria}:${detalle.moneda}` as const
+      const destino = acumulado.get(clave)
+      if (!destino) continue
+      destino.capitalObjetivo += detalle.capitalObjetivo
+      destino.contratosObjetivo += detalle.contratosObjetivo
     }
   }
 
-  const filas = Object.values(metasCompletas)
-  const propia = actorId ? metasCompletas[actorId] : undefined
+  const conversiones = metas
+    .map((meta) => meta.conversionObjetivo)
+    .filter((valor) => valor > 0)
+  const conversionObjetivo = conversiones.length === 0
+    ? 0
+    : Math.round((conversiones.reduce((total, valor) => total + valor, 0) / conversiones.length) * 100) / 100
+
   return {
-    vendedor: propia
-      ? {
-          capitalObjetivo: propia.capitalObjetivo,
-          ventasObjetivo: 0,
-          conversionObjetivo: propia.conversionObjetivo,
-        }
-      : cero(),
+    conversionObjetivo,
+    detalles: detallesCero().map((detalle) => {
+      const valor = acumulado.get(`${detalle.categoria}:${detalle.moneda}`)
+      return { ...detalle, ...(valor ?? {}) }
+    }),
+  }
+}
+
+export function objetivosDesdeConfiguracion(
+  configuracion: ConfiguracionMetas,
+  actorId?: string | null,
+): ObjetivosJerarquicos {
+  const porVendedor: ObjetivosPorVendedor = Object.fromEntries(
+    configuracion.vendedores.map((meta) => [meta.vendedor_id, objetivoDesdeVendedor(meta)]),
+  )
+  const filas = Object.values(porVendedor)
+  const propia = actorId ? porVendedor[actorId] : undefined
+  return {
+    periodo: configuracion.periodo,
+    revision: configuracion.revision,
+    publicadaEn: configuracion.publicada_en,
+    vendedor: propia ?? objetivoCero(),
     supervisor: agregarObjetivos(filas.filter((meta) => meta.supervisorId === actorId)),
     gerencia: agregarObjetivos(filas),
-    porVendedor: metasCompletas,
+    porVendedor,
   }
 }
 
-export function aObjetivosPorRol(
-  filas: FilaObjetivo[],
-  actorId?: string | null,
-  vendedores: readonly VendedorObjetivoVisible[] = [],
-): ObjetivosJerarquicos {
-  const porVendedor: ObjetivosPorVendedor = {}
+export function capitalObjetivo(
+  meta: ObjetivoComercial,
+  moneda: MonedaMeta,
+  categoria?: CategoriaMeta,
+): number {
+  return meta.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
+      ? total + detalle.capitalObjetivo
+      : total
+  ), 0)
+}
+
+export function contratosObjetivo(
+  meta: ObjetivoComercial,
+  moneda: MonedaMeta,
+  categoria?: CategoriaMeta,
+): number {
+  return meta.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
+      ? total + detalle.contratosObjetivo
+      : total
+  ), 0)
+}
+
+/** Cero significa «sin meta publicada»; nunca inventamos un porcentaje. */
+export function metaConversionAplicable(
+  conversionGuardada: number,
+  errorCarga = false,
+): number | null {
+  if (errorCarga || conversionGuardada <= 0) return null
+  return conversionGuardada
+}
+
+// ── Cumplimiento autoritativo: contratos confirmados + leads resueltos ──
+
+const DetalleCumplimientoSchema = v.strictObject({
+  categoria: v.picklist(CATEGORIAS_PRODUCTO),
+  moneda: v.picklist(MONEDAS_PRODUCTO),
+  capital_objetivo: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_real: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_cumplimiento_pct: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  contratos_objetivo: EnteroNoNegativoRpcSchema,
+  contratos_real: EnteroNoNegativoRpcSchema,
+  contratos_cumplimiento_pct: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
+})
+
+const DetallesCumplimientoSchema = v.pipe(
+  v.array(DetalleCumplimientoSchema),
+  v.length(6),
+  v.check((detalles) => {
+    const claves = new Set(detalles.map((detalle) => `${detalle.categoria}:${detalle.moneda}`))
+    return claves.size === CLAVES_DIMENSION.length
+      && CLAVES_DIMENSION.every((clave) => claves.has(clave))
+  }, 'El cumplimiento debe contener exactamente categoría × moneda'),
+)
+
+const CumplimientoVendedorSchema = v.strictObject({
+  vendedor_id: UuidSchema,
+  nombre: TextoNoVacioSchema,
+  supervisor_id: UuidSchema,
+  supervisor_nombre: TextoNoVacioSchema,
+  conversion_objetivo: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100)),
+  conversion_real: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100))),
+  convertidos: EnteroNoNegativoRpcSchema,
+  resueltos: EnteroNoNegativoRpcSchema,
+  detalles: DetallesCumplimientoSchema,
+})
+
+export const CumplimientoMetasSchema = v.strictObject({
+  version: v.literal(1),
+  periodo: FechaSchema,
+  revision: EnteroNoNegativoRpcSchema,
+  publicada_en: v.nullable(FechaHoraSchema),
+  fuentes_reales: v.strictObject({
+    capital_y_contratos: v.literal('contratos_confirmados'),
+    conversion: v.literal('leads_resueltos'),
+  }),
+  vendedores: v.array(CumplimientoVendedorSchema),
+})
+
+export type CumplimientoMetasRpc = v.InferOutput<typeof CumplimientoMetasSchema>
+
+export interface CumplimientoDetalle extends ObjetivoDetalle {
+  capitalReal: number
+  capitalCumplimientoPct: number | null
+  contratosReal: number
+  contratosCumplimientoPct: number | null
+}
+
+export interface CumplimientoComercial {
+  conversionObjetivo: number
+  conversionReal: number | null
+  convertidos: number
+  resueltos: number
+  detalles: CumplimientoDetalle[]
+}
+
+export interface CumplimientoVendedor extends CumplimientoComercial {
+  vendedorId: string
+  nombre: string
+  supervisorId: string
+  supervisorNombre: string
+}
+
+export interface FuentesRealesCumplimientoMetas {
+  capitalYContratos: 'contratos_confirmados'
+  conversion: 'leads_resueltos'
+}
+
+export interface CumplimientoMetasJerarquico {
+  periodo: string
+  revision: number
+  publicadaEn: string | null
+  fuentesReales: FuentesRealesCumplimientoMetas
+  vendedor: CumplimientoComercial | null
+  supervisor: CumplimientoComercial | null
+  gerencia: CumplimientoComercial | null
+  porVendedor: Record<string, CumplimientoVendedor>
+}
+
+function cumplimientoDesdeVendedor(
+  fila: CumplimientoMetasRpc['vendedores'][number],
+): CumplimientoVendedor {
+  return {
+    vendedorId: fila.vendedor_id,
+    nombre: fila.nombre,
+    supervisorId: fila.supervisor_id,
+    supervisorNombre: fila.supervisor_nombre,
+    conversionObjetivo: fila.conversion_objetivo,
+    conversionReal: fila.conversion_real,
+    convertidos: fila.convertidos,
+    resueltos: fila.resueltos,
+    detalles: fila.detalles.map((detalle) => ({
+      categoria: detalle.categoria,
+      moneda: detalle.moneda,
+      capitalObjetivo: detalle.capital_objetivo,
+      capitalReal: detalle.capital_real,
+      capitalCumplimientoPct: detalle.capital_cumplimiento_pct,
+      contratosObjetivo: detalle.contratos_objetivo,
+      contratosReal: detalle.contratos_real,
+      contratosCumplimientoPct: detalle.contratos_cumplimiento_pct,
+    })),
+  }
+}
+
+export function agregarCumplimientos(
+  items: Iterable<CumplimientoComercial>,
+): CumplimientoComercial | null {
+  const filas = Array.from(items)
+  if (filas.length === 0) return null
+
+  const metas = agregarObjetivos(filas)
+  const convertidos = filas.reduce((total, fila) => total + fila.convertidos, 0)
+  const resueltos = filas.reduce((total, fila) => total + fila.resueltos, 0)
+  const reales = new Map(CLAVES_DIMENSION.map((clave) => [clave, {
+    capitalReal: 0,
+    contratosReal: 0,
+  }]))
   for (const fila of filas) {
-    porVendedor[fila.vendedor_id] = {
-      vendedorId: fila.vendedor_id,
-      supervisorId: fila.supervisor_id,
-      capitalObjetivo: fila.capital_objetivo,
-      ventasObjetivo: 0,
-      conversionObjetivo: fila.conversion_objetivo,
+    for (const detalle of fila.detalles) {
+      const destino = reales.get(`${detalle.categoria}:${detalle.moneda}`)
+      if (!destino) continue
+      destino.capitalReal += detalle.capitalReal
+      destino.contratosReal += detalle.contratosReal
     }
   }
-  return objetivosParaActor(porVendedor, actorId, vendedores)
-}
 
-export function esObjetivosJerarquicos(
-  metas: ObjetivosPorVendedor | ObjetivosPorRol,
-): metas is ObjetivosPorRol {
-  return Object.hasOwn(metas, 'vendedor')
-    && Object.hasOwn(metas, 'supervisor')
-    && Object.hasOwn(metas, 'gerencia')
-}
-
-export function metasEditablesDe(
-  metas: ObjetivosPorVendedor | ObjetivosPorRol,
-): ObjetivosPorVendedor {
-  return esObjetivosJerarquicos(metas) ? (metas.porVendedor ?? {}) : metas
-}
-
-export function aPayloadObjetivos(
-  metas: ObjetivosPorVendedor | ObjetivosPorRol,
-): Record<string, Record<string, number>> {
-  const payload: Record<string, Record<string, number>> = {}
-  for (const [vendedorId, meta] of Object.entries(metasEditablesDe(metas))) {
-    payload[vendedorId] = {
-      capital_objetivo: meta.capitalObjetivo,
-      // Compatibilidad con la RPC vigente: cierres dejó de ser una meta y viaja en cero.
-      ventas_objetivo: 0,
-      conversion_objetivo: meta.conversionObjetivo,
-    }
+  return {
+    conversionObjetivo: metas.conversionObjetivo,
+    conversionReal: resueltos > 0 ? Math.round((10_000 * convertidos) / resueltos) / 100 : null,
+    convertidos,
+    resueltos,
+    detalles: metas.detalles.map((meta) => {
+      const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? { capitalReal: 0, contratosReal: 0 }
+      return {
+        ...meta,
+        ...real,
+        capitalCumplimientoPct: meta.capitalObjetivo > 0
+          ? Math.round((10_000 * real.capitalReal) / meta.capitalObjetivo) / 100
+          : null,
+        contratosCumplimientoPct: meta.contratosObjetivo > 0
+          ? Math.round((10_000 * real.contratosReal) / meta.contratosObjetivo) / 100
+          : null,
+      }
+    }),
   }
-  return payload
+}
+
+export function cumplimientoDesdeRpc(
+  respuesta: CumplimientoMetasRpc,
+  actorId?: string | null,
+): CumplimientoMetasJerarquico {
+  const porVendedor = Object.fromEntries(
+    respuesta.vendedores.map((fila) => [fila.vendedor_id, cumplimientoDesdeVendedor(fila)]),
+  )
+  const filas = Object.values(porVendedor)
+  return {
+    periodo: respuesta.periodo,
+    revision: respuesta.revision,
+    publicadaEn: respuesta.publicada_en,
+    fuentesReales: {
+      capitalYContratos: respuesta.fuentes_reales.capital_y_contratos,
+      conversion: respuesta.fuentes_reales.conversion,
+    },
+    vendedor: actorId ? (porVendedor[actorId] ?? null) : null,
+    supervisor: agregarCumplimientos(filas.filter((fila) => fila.supervisorId === actorId)),
+    gerencia: agregarCumplimientos(filas),
+    porVendedor,
+  }
+}
+
+export function capitalReal(
+  cumplimiento: CumplimientoComercial,
+  moneda: MonedaMeta,
+  categoria?: CategoriaMeta,
+): number {
+  return cumplimiento.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
+      ? total + detalle.capitalReal
+      : total
+  ), 0)
+}
+
+export function contratosReales(
+  cumplimiento: CumplimientoComercial,
+  moneda: MonedaMeta,
+  categoria?: CategoriaMeta,
+): number {
+  return cumplimiento.detalles.reduce((total, detalle) => (
+    detalle.moneda === moneda && (categoria == null || detalle.categoria === categoria)
+      ? total + detalle.contratosReal
+      : total
+  ), 0)
 }
 
 export function periodoLima(ahoraMs: number): string {
   return `${fechaLima(ahoraMs).slice(0, 7)}-01`
-}
-
-export function validarObjetivos(
-  metas: ObjetivosPorVendedor | ObjetivosPorRol,
-): string | null {
-  const editables = metasEditablesDe(metas)
-  const filas = Object.entries(editables)
-  const valores = filas.length > 0
-    ? filas.map(([, meta]) => meta)
-    : esObjetivosJerarquicos(metas)
-      ? [metas.vendedor, metas.supervisor, metas.gerencia]
-      : []
-
-  for (const [vendedorId, meta] of filas) {
-    if (meta.vendedorId !== vendedorId) return 'La meta no corresponde al vendedor indicado'
-    if (!meta.supervisorId) return 'Todos los vendedores deben tener un supervisor activo antes de fijar metas'
-  }
-
-  for (const meta of valores) {
-    const numeros = [meta.capitalObjetivo, meta.conversionObjetivo]
-    if (numeros.some((n) => !Number.isFinite(n) || n < 0)) return 'Las metas deben ser números positivos'
-    if (meta.capitalObjetivo > 100_000_000) return 'El capital objetivo no puede pasar de 100 millones (PEN)'
-    if (meta.conversionObjetivo > 100) return 'La conversión objetivo es un porcentaje (0 a 100)'
-  }
-  return null
 }

@@ -26,8 +26,8 @@ function diferida<T>() {
   return { promesa, resolver, rechazar }
 }
 
-const ACCESO_ANA: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-ana', rol: 'vendedor', nombre: 'ANA', puedeContratar: true }
-const ACCESO_BETO: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-beto', rol: 'supervisor', nombre: 'BETO', puedeContratar: true }
+const ACCESO_ANA: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-ana', rol: 'vendedor', rolPortal: 'analista', nombre: 'ANA', puedeContratar: true }
+const ACCESO_BETO: ResultadoVerificacion = { tipo: 'acceso', userId: 'u-beto', rol: 'supervisor', rolPortal: 'comercial', nombre: 'BETO', puedeContratar: true }
 
 function montar(verificar: Verificar, alLimpiar = vi.fn()) {
   const actor = createActor(authMaquina, { input: { verificar, alLimpiar } })
@@ -456,6 +456,7 @@ describe('auth-maquina — flujo de fases', () => {
       id: 'u-ana',
       nombre_completo: 'ANA',
       rol: 'vendedor',
+      rol_portal: 'analista',
       demo: false,
       puede_contratar: true,
     })
@@ -552,6 +553,20 @@ describe('auth-maquina — flujo de fases', () => {
     actor.send({ type: 'REVALIDAR' })
     await drenar()
     expect(actor.getSnapshot().context.yo?.puede_contratar).toBe(false)
+  })
+
+  it('revalidación que cambia el rol del Portal refresca la identidad', async () => {
+    const verificar = vi.fn<Verificar>()
+      .mockResolvedValueOnce(ACCESO_ANA)
+      .mockResolvedValueOnce({ ...ACCESO_ANA, rolPortal: 'superadmin' })
+    const { actor } = montar(verificar)
+
+    await drenar()
+    expect(actor.getSnapshot().context.yo?.rol_portal).toBe('analista')
+
+    actor.send({ type: 'REVALIDAR' })
+    await drenar()
+    expect(actor.getSnapshot().context.yo?.rol_portal).toBe('superadmin')
   })
 
   it('faseDe mapea estados internos al contrato público', () => {

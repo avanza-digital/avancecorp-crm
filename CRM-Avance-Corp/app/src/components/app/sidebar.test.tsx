@@ -8,8 +8,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import type { Rol } from '@/lib/roles'
 import type { Vista } from '@/lib/router'
+import type { Yo } from '@/lib/tipos'
 
-let YO: { id: string; nombre_completo: string; rol: Rol; demo: boolean } | null = null
+let YO: Yo | null = null
 const salir = vi.fn()
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO, salir }) }))
@@ -18,9 +19,26 @@ const { Sidebar } = await import('./sidebar')
 
 const ABRIR_MS = 120 // espejo del sidebar (retardo del asomo)
 
-function montar({ movil = true, rol = 'vendedor' as Rol, vista = 'hoy' as Vista } = {}) {
+function montar({
+  movil = true,
+  rol = 'vendedor',
+  vista = 'hoy',
+  identidad = {},
+}: {
+  movil?: boolean
+  rol?: Rol
+  vista?: Vista
+  identidad?: Partial<Yo>
+} = {}) {
   vi.stubGlobal('matchMedia', () => ({ matches: movil }))
-  YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo: true }
+  YO = {
+    id: 'u-v1',
+    nombre_completo: 'Vendedor Real',
+    rol,
+    demo: true,
+    puede_contratar: true,
+    ...identidad,
+  }
   const onNavegar = vi.fn()
   const { container, unmount } = render(<Sidebar vista={vista} onNavegar={onNavegar} />)
   const panel = container.querySelector('aside > div')
@@ -120,5 +138,32 @@ describe('Sidebar — temporizadores del asomo', () => {
     }
     expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
     expect(within(navegacion).queryByRole('button', { name: 'Capital' })).not.toBeInTheDocument()
+  })
+
+  it('Superadmin sin Gerencia ve y navega únicamente a Usuarios y roles', () => {
+    const { onNavegar } = montar({
+      movil: false,
+      rol: 'directorio',
+      vista: 'config-usuarios',
+      identidad: {
+        demo: false,
+        rol_portal: 'superadmin',
+        capacidades_config: {
+          puede_listar_usuarios: true,
+          puede_administrar_usuarios: false,
+          puede_organizar_jerarquia: false,
+          puede_administrar_roles: true,
+        },
+      },
+    })
+    const navegacion = screen.getByRole('navigation')
+
+    expect(within(navegacion).getAllByRole('button')).toHaveLength(1)
+    expect(within(navegacion).getByRole('button', { name: 'Usuarios y roles' })).toBeVisible()
+    expect(screen.getByText('Gobierno de roles CRM')).toBeVisible()
+    expect(screen.queryByText(/Modo auditoría/)).not.toBeInTheDocument()
+
+    fireEvent.click(within(navegacion).getByRole('button', { name: 'Usuarios y roles' }))
+    expect(onNavegar).toHaveBeenCalledWith('config-usuarios')
   })
 })

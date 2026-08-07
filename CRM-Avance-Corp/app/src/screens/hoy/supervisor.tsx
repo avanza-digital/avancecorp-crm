@@ -39,11 +39,14 @@ import {
   metricasPorVendedor,
   pctMeta,
 } from '@/lib/inteligencia'
-import { cierresDelMes } from '@/lib/cierres-del-mes'
 import { planPorLead } from '@/lib/plan-lead'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { fechaLima } from '@/lib/agenda-derivada'
-import { metaConversionAplicable } from '@/lib/objetivos'
+import {
+  capitalObjetivo,
+  capitalReal,
+  metaConversionAplicable,
+} from '@/lib/objetivos'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
@@ -53,6 +56,7 @@ import { useMetricasAgenda } from '@/data/crm-queries'
 import { money, moneyK } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
+import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -77,11 +81,14 @@ export function HoySupervisor(): JSX.Element {
     reasignar,
     objetivos,
     objetivosError,
+    cumplimientoMetas,
+    cumplimientoMetasError,
     recargar,
     equipo,
   } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades)
   // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
   // para que cola/ranking/alertas SLA se refresquen solos al pasar el tiempo.
   const ahora = useAhora()
@@ -110,54 +117,71 @@ export function HoySupervisor(): JSX.Element {
     const plan = planPorLead(tareas, ahora)
     // colaDe ya no recibe índice: construye el suyo de CONTACTO (ver
     // indexarUltimoContacto — la `reasignacion` del sistema vaciaba la cola).
-    const cola = colaDe(ambito.leads, actividades, ahora, plan)
+    const cola = colaDe(ambito.leads, actividades, ahora, plan, estadoSla.indice)
     const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
     const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora, indice)
     const alertas = estancados(ambito.leads, actividades, 5, ahora, indice, plan.vigente)
-    // Marcador del MES. La tarjeta "Meta del equipo" se rotula "este mes" y su
-    // objetivo sale de crm.objetivos, que guarda UNA fila por mes calendario;
-    // aquí se contaban los `etapa === 'convertido'` de toda la vida (y la
-    // conversión salía de conversionGlobal, que tampoco mira el periodo), así
-    // que desde el segundo mes el avance mentía hacia arriba para siempre —
-    // con esta cifra se juzga al equipo, así que importa más que la propia.
-    // Definición ÚNICA en lib/cierres-del-mes: el mismo contrato de
-    // `actualizado_en` que ya usan las series de tendencia de gerencia.
-    const cierres = cierresDelMes(ambito.leads, ahora)
-    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas, cierres }
-  }, [ambito, actividades, tareas, ahora])
+    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas }
+  }, [ambito, actividades, tareas, ahora, estadoSla.indice])
 
   const meta = objetivos.supervisor
   const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
-  // ── Marcador del mes: cada fila mira SU propio objetivo ──
-  // Capital sin objetivo sigue neutro. Conversión, en cambio, arranca en 15 %
-  // hasta que Gerencia guarde otra meta; una lectura fallida queda indisponible.
+  const cumplimiento = cumplimientoMetas?.supervisor ?? null
+  const metaCapitalPen = capitalObjetivo(meta, 'PEN')
+  const metaCapitalUsd = capitalObjetivo(meta, 'USD')
+  const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
+  const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+  const conversionConfirmada = cumplimiento?.conversionReal ?? null
+  // ── Cumplimiento del mes: cada fila conserva su propia moneda ──
   const filasMeta: Array<{ label: string; txt: string; pct: number; sinDato: string | null }> = [
     {
-      label: 'Capital en proceso',
+      label: 'Capital confirmado PEN',
       txt:
-        meta.capitalObjetivo > 0
-          ? `${moneyK(d.capitalPEN)} de ${moneyK(meta.capitalObjetivo)}`
-          : moneyK(d.capitalPEN),
-      pct: pctMeta(d.capitalPEN, meta.capitalObjetivo),
-      sinDato: meta.capitalObjetivo > 0 ? null : SIN_META,
+        metaCapitalPen > 0 && capitalConfirmadoPen != null
+          ? `${moneyK(capitalConfirmadoPen, 'PEN')} de ${moneyK(metaCapitalPen, 'PEN')}`
+          : capitalConfirmadoPen == null ? '—' : moneyK(capitalConfirmadoPen, 'PEN'),
+      pct: pctMeta(capitalConfirmadoPen ?? 0, metaCapitalPen),
+      sinDato: objetivosError
+        ? 'Meta mensual no disponible'
+        : metaCapitalPen <= 0
+          ? SIN_META
+          : cumplimientoMetasError || capitalConfirmadoPen == null
+            ? 'Cumplimiento confirmado no disponible'
+            : null,
     },
     {
-      label: 'Conversión',
-      // Sin nada resuelto en el mes no hay porcentaje que mostrar: un "0 %" ahí
-      // es "sin dato", no incumplimiento (el caso natural el día 1 del mes).
+      label: 'Capital confirmado USD',
       txt:
-        d.cierres.conversion == null
+        metaCapitalUsd > 0 && capitalConfirmadoUsd != null
+          ? `${moneyK(capitalConfirmadoUsd, 'USD')} de ${moneyK(metaCapitalUsd, 'USD')}`
+          : capitalConfirmadoUsd == null ? '—' : moneyK(capitalConfirmadoUsd, 'USD'),
+      pct: pctMeta(capitalConfirmadoUsd ?? 0, metaCapitalUsd),
+      sinDato: objetivosError
+        ? 'Meta mensual no disponible'
+        : metaCapitalUsd <= 0
+          ? SIN_META
+          : cumplimientoMetasError || capitalConfirmadoUsd == null
+            ? 'Cumplimiento confirmado no disponible'
+            : null,
+    },
+    {
+      label: 'Conversión resuelta',
+      txt:
+        conversionConfirmada == null
           ? '—'
           : metaConversion != null
-            ? `${d.cierres.conversion}% de ${metaConversion}%`
-            : `${d.cierres.conversion}%`,
-      pct: pctMeta(d.cierres.conversion ?? 0, metaConversion ?? 0),
-      sinDato:
-        metaConversion == null
-          ? 'Meta de conversión no disponible'
-          : d.cierres.conversion == null
-            ? 'Todavía no se resolvió ningún lead este mes'
-            : null,
+            ? `${conversionConfirmada}% de ${metaConversion}%`
+            : `${conversionConfirmada}%`,
+      pct: pctMeta(conversionConfirmada ?? 0, metaConversion ?? 0),
+      sinDato: objetivosError
+        ? 'Meta mensual no disponible'
+        : metaConversion == null
+          ? SIN_META
+          : cumplimientoMetasError
+            ? 'Cumplimiento confirmado no disponible'
+            : conversionConfirmada == null
+              ? 'Todavía no se resolvió ningún lead este mes'
+              : null,
     },
   ]
 
@@ -207,11 +231,11 @@ export function HoySupervisor(): JSX.Element {
       {/* ── KPIs del equipo ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Capital en proceso del equipo"
+          label="Pronóstico de capital abierto"
           value={money(d.capitalPEN)}
           icon={Wallet}
           color={SEMAFORO.ok}
-          sub={d.capitalUSD > 0 ? `PEN · +${moneyK(d.capitalUSD, 'USD')} aparte` : 'PEN · abiertos con vendedor'}
+          sub={d.capitalUSD > 0 ? `Pipeline PEN · +${moneyK(d.capitalUSD, 'USD')} aparte` : 'Pipeline PEN · abiertos con vendedor'}
           delay={0}
         />
         <KpiCard
@@ -239,6 +263,22 @@ export function HoySupervisor(): JSX.Element {
           delay={180}
         />
       </div>
+
+      {Boolean(estadoSla.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudo cargar el reloj SLA. La cola omite escalaciones hasta recuperar la fotografía histórica.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={estadoSla.recargar}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       {/* ── Bandeja prioritaria: parkeados por repartir ── */}
       {d.parkeados.length > 0 && (
@@ -480,57 +520,32 @@ export function HoySupervisor(): JSX.Element {
             )}
           </Card>
 
-          {/* ── Meta del equipo (objetivo MENSUAL vs avance del mes) ── */}
+          {/* ── Cumplimiento confirmado del equipo ── */}
           <Card>
             <SectionHead
               icon={Target}
-              title="Meta del equipo"
-              right={<span className="text-xs text-muted-foreground">este mes</span>}
+              title="Cumplimiento del equipo"
+              right={<span className="text-xs text-muted-foreground">contratos confirmados · este mes</span>}
             />
             <CardContent className="space-y-4 pb-5 pt-0">
-              {metaConversion == null ? (
-                <div className="space-y-2">
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-foreground/80">Capital en proceso (PEN)</span>
-                    <span className="text-xs font-bold tabular-nums text-primary">{moneyK(d.capitalPEN)}</span>
+              {filasMeta.map((f) => (
+                <div key={f.label}>
+                  <div className="mb-1.5 flex items-baseline justify-between gap-2">
+                    <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
+                    <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
                   </div>
-                  <div className="flex items-baseline justify-between gap-2">
-                    <span className="text-xs font-semibold text-foreground/80">Conversión este mes</span>
-                    <span className="text-xs font-bold tabular-nums text-primary">{d.cierres.conversion == null ? '—' : `${d.cierres.conversion}%`}</span>
-                  </div>
-                  <div className="flex flex-wrap items-center gap-2">
-                    <p className="text-[10.5px] text-warning-text">
-                      No pudimos cargar la meta mensual del equipo.
-                    </p>
-                    <Button variant="ghost" size="sm" onClick={() => void recargar()}>
-                      Reintentar
-                    </Button>
-                  </div>
+                  {f.sinDato ? (
+                    <p className="text-[10.5px] text-muted-foreground">{f.sinDato}</p>
+                  ) : (
+                    <Progress value={f.pct} color={colorMeta(f.pct)} />
+                  )}
                 </div>
-              ) : (
-                <>
-                  {filasMeta.map((f) => (
-                    <div key={f.label}>
-                      <div className="mb-1.5 flex items-baseline justify-between gap-2">
-                        <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
-                        <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
-                      </div>
-                      {/* Sin dato ≠ incumplimiento: ni una meta que gerencia no
-                          fijó ni un mes sin nada resuelto pueden pintarse como
-                          un 0 % en rojo crítico. Van en neutro y sin barra. */}
-                      {f.sinDato ? (
-                        <p className="text-[10.5px] text-muted-foreground">{f.sinDato}</p>
-                      ) : (
-                        <Progress value={f.pct} color={colorMeta(f.pct)} />
-                      )}
-                    </div>
-                  ))}
-                  {/* El marcador es del MES; si el equipo acumula más cierres de
-                      vida se dice en voz alta, o el número parece perdido. */}
-                  <p className="text-[10.5px] text-muted-foreground">
-                    Meta en PEN — lo captado en USD no entra a este total.
-                  </p>
-                </>
+              ))}
+              <p className="text-[10.5px] text-muted-foreground">
+                PEN y USD se evalúan por separado. El capital abierto de arriba es pronóstico y no cuenta como cumplimiento.
+              </p>
+              {(objetivosError || cumplimientoMetasError) && (
+                <Button variant="ghost" size="sm" onClick={() => void recargar()}>Reintentar</Button>
               )}
             </CardContent>
           </Card>
