@@ -66,10 +66,20 @@ Deno.serve(async (req: Request) => {
       .eq("id", userRes.user.id)
       .single();
 
-    // Pueden crear clientes: admin, superadmin y ANALISTA (alta de cliente nuevo).
-    // creado_por queda = quien llama (más abajo), así el analista "es dueño" del
-    // cliente que registró: solo él lo ve/corrige (RLS) dentro de su ventana de 5 h.
-    if (!perfil || !perfil.activo || !["admin", "superadmin", "analista"].includes(perfil.rol)) {
+    // El portal conserva sus roles. La única ampliación es Gerencia ACTIVA del
+    // CRM: puede dar de alta desde crm.miavance.com sin volverse admin global.
+    const portalPuedeCrear = perfil?.activo && ["admin", "superadmin", "analista"].includes(perfil.rol);
+    let gerenciaCrm = false;
+    if (perfil?.activo && !portalPuedeCrear) {
+      const { data: miembro } = await adminClient
+        .schema("crm")
+        .from("equipo")
+        .select("rol_crm, activo")
+        .eq("perfil_id", userRes.user.id)
+        .maybeSingle();
+      gerenciaCrm = miembro?.activo === true && miembro.rol_crm === "gerencia";
+    }
+    if (!perfil || !perfil.activo || (!portalPuedeCrear && !gerenciaCrm)) {
       return json(cors, { error: "No autorizado" }, 403);
     }
 
@@ -170,8 +180,8 @@ Deno.serve(async (req: Request) => {
         activo: true,
         creado_por: userRes.user.id,
         debe_cambiar_password: claveTemporal,
-        // Auto-asignación: si quien crea es ANALISTA, queda como asesor del cliente
-        // (figura en el portal del cliente). Para admin/superadmin se deja sin asignar.
+        // El analista se autoasigna. Gerencia y administradores crean al cliente
+        // sin asesor; la distribución comercial se mantiene como acto separado.
         asesor_perfil_id: perfil.rol === "analista" ? userRes.user.id : null,
         // Vacío cuando el caller no manda el bloque (portal): el insert queda
         // EXACTAMENTE como antes.

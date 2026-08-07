@@ -127,6 +127,36 @@ test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servid
   await expect.poll(() => estado.clientes[0]?.telefono).toBe('999111222')
 })
 
+test('Gerencia corrige un cliente ajeno y antiguo mediante la RPC acotada', async ({ page }) => {
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'gerencia',
+    rolPortal: 'directorio',
+    clientes: [
+      clienteReal({
+        asesor_perfil_id: 'vend-1',
+        creado_por: 'vend-1',
+        creado_en: '2020-01-01T00:00:00.000Z',
+      }),
+    ],
+  })
+  await loginReal(page)
+  // Gerencia aterriza en Resumen; su cartera operativa se abre desde el menú.
+  await page.getByRole('button', { name: 'Cartera', exact: true }).click()
+  await page.getByRole('button', { name: 'Corregir', exact: true }).first().click()
+  const modal = page.getByRole('dialog', { name: /corregir cliente/i })
+  await expect(modal).toBeVisible()
+
+  await expect(modal.getByText('Corrección autorizada por Gerencia')).toBeVisible()
+  await expect(modal.getByText(/Ventana de corrección:/)).toHaveCount(0)
+  await modal.locator('#cf-telefono').fill('999111222')
+  await modal.getByRole('button', { name: /guardar corrección/i }).click()
+
+  await expect.poll(() => estado.llamadas.rpcActualizarClienteGerencia).toBe(1)
+  expect(estado.llamadas.patchPerfil).toBe(0)
+  await expect.poll(() => estado.clientes[0]?.telefono).toBe('999111222')
+  await expect(page.getByText('Datos del cliente corregidos.').first()).toBeVisible()
+})
+
 test('corregir con la ventana vencida: 0 filas sin error → mensaje de NO guardado', async ({ page }) => {
   // LA TRAMPA: el reloj local dice "vigente" (creado_en reciente) pero el
   // servidor ya no matchea la fila → 200 con [] y ningún error.

@@ -171,22 +171,23 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().leads[0]?.vendedor_nombre).toBe('Vendedor Real')
   })
 
-  it('Gerencia carga roster y metas, pero no descarga leads, actividades ni tareas', async () => {
+  it('Gerencia carga el ámbito operativo completo además del roster y las metas', async () => {
     const { api, estado } = montar('gerencia')
 
     await waitFor(() => expect(estado().cargando).toBe(false))
     expect(api().equipo).toEqual(ROSTER)
-    expect(api().leads).toEqual([])
+    expect(api().leads).toHaveLength(1)
+    expect(api().ambito.leads).toHaveLength(1)
     expect(api().actividades).toEqual([])
     expect(api().tareas).toEqual([])
     expect(listarEquipo).toHaveBeenCalledTimes(1)
     expect(listarObjetivosMock).toHaveBeenCalledTimes(1)
-    expect(listarLeads).not.toHaveBeenCalled()
-    expect(listarActs).not.toHaveBeenCalled()
-    expect(listarTareas).not.toHaveBeenCalled()
+    expect(listarLeads).toHaveBeenCalledTimes(1)
+    expect(listarActs).toHaveBeenCalledTimes(1)
+    expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
-  it('Gerencia conserva metas individuales reales y sus agregados con la carga ligera', async () => {
+  it('Gerencia conserva metas individuales reales y sus agregados con la carga operativa', async () => {
     listarObjetivosMock.mockResolvedValueOnce([{
       vendedor_id: 'u-v1',
       supervisor_id: 'u-s1',
@@ -211,10 +212,13 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     })
   })
 
-  it('recargar Gerencia resincroniza roster/metas sin activar loaders operativos', async () => {
+  it('recargar Gerencia resincroniza roster, metas y fuentes operativas', async () => {
     const { api, estado } = montar('gerencia')
     await waitFor(() => expect(estado().cargando).toBe(false))
     vi.clearAllMocks()
+    listarLeads.mockResolvedValue([leadBase()])
+    listarActs.mockResolvedValue([])
+    listarTareas.mockResolvedValue([])
     listarEquipo.mockResolvedValue(ROSTER)
     listarObjetivosMock.mockResolvedValue([])
 
@@ -224,12 +228,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(listarEquipo).toHaveBeenCalledTimes(1)
     expect(listarObjetivosMock).toHaveBeenCalledTimes(1)
-    expect(listarLeads).not.toHaveBeenCalled()
-    expect(listarActs).not.toHaveBeenCalled()
-    expect(listarTareas).not.toHaveBeenCalled()
+    expect(listarLeads).toHaveBeenCalledTimes(1)
+    expect(listarActs).toHaveBeenCalledTimes(1)
+    expect(listarTareas).toHaveBeenCalledTimes(1)
   })
 
-  it('la omisión de datos operativos es exclusiva de Gerencia', async () => {
+  it('Directorio conserva la lectura de datos operativos sin heredar escritura', async () => {
     const { api, estado } = montar('directorio')
 
     await waitFor(() => expect(estado().cargando).toBe(false))
@@ -237,6 +241,20 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(listarLeads).toHaveBeenCalledTimes(1)
     expect(listarActs).toHaveBeenCalledTimes(1)
     expect(listarTareas).toHaveBeenCalledTimes(1)
+  })
+
+  it('Gerencia edita un lead de otro asesor y persiste el cambio', async () => {
+    const { api, mutar } = montar('gerencia')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+
+    const res = mutar((a) => a.editarLead(leadBase().id, { telefono: '999111222' }))
+
+    expect(res).toMatchObject({ ok: true })
+    expect(api().lead(leadBase().id)?.telefono).toBe('+51999111222')
+    expect(actualizarLead).toHaveBeenCalledWith(
+      leadBase().id,
+      expect.objectContaining({ telefono: '+51999111222' }),
+    )
   })
 
   it('fijarObjetivos: optimista + RPC con el periodo Lima (solo gerencia)', async () => {

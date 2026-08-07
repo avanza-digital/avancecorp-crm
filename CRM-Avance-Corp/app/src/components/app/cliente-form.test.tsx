@@ -12,6 +12,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { Dialog } from '@/components/ui/dialog'
 import type { ClienteDetalle } from '@/lib/clientes-tipos'
+import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
+import type { Rol } from '@/lib/roles'
 import * as crmApi from '@/data/crm-api'
 
 vi.mock('sonner', () => ({
@@ -69,6 +71,7 @@ function detalleBase(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
 interface PropsParciales {
   modo?: 'crear' | 'corregir'
   clienteId?: string
+  rol?: Rol
 }
 
 function montar(props: PropsParciales = {}) {
@@ -77,22 +80,40 @@ function montar(props: PropsParciales = {}) {
   // QueryClient NUEVO por montaje: caché aislada entre tests (la precarga de
   // corregir usa la clave clienteDetalle(id) y no debe sobrevivir de un test a otro).
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const rol = props.rol ?? 'vendedor'
+  const auth: AuthContextValue = {
+    fase: 'listo',
+    yo: {
+      id: rol === 'gerencia' ? 'gerencia' : 'yo',
+      nombre_completo: rol === 'gerencia' ? 'GERENCIA' : 'ANALISTA',
+      rol,
+      demo: false,
+      puede_contratar: true,
+    },
+    error: null,
+    entrar: async () => ({ ok: true }),
+    entrarDemo: () => undefined,
+    reintentar: () => undefined,
+    salir: async () => undefined,
+  }
   // exactOptionalPropertyTypes: clienteId solo se pasa cuando existe.
   render(
-    <QueryClientProvider client={queryClient}>
-      <Dialog open onClose={() => undefined}>
-        {props.clienteId !== undefined
-          ? (
-              <ClienteForm
-                modo={props.modo ?? 'corregir'}
-                clienteId={props.clienteId}
-                onListo={onListo}
-                onCerrar={onCerrar}
-              />
-            )
-          : <ClienteForm modo={props.modo ?? 'crear'} onListo={onListo} onCerrar={onCerrar} />}
-      </Dialog>
-    </QueryClientProvider>,
+    <AuthContext.Provider value={auth}>
+      <QueryClientProvider client={queryClient}>
+        <Dialog open onClose={() => undefined}>
+          {props.clienteId !== undefined
+            ? (
+                <ClienteForm
+                  modo={props.modo ?? 'corregir'}
+                  clienteId={props.clienteId}
+                  onListo={onListo}
+                  onCerrar={onCerrar}
+                />
+              )
+            : <ClienteForm modo={props.modo ?? 'crear'} onListo={onListo} onCerrar={onCerrar} />}
+        </Dialog>
+      </QueryClientProvider>
+    </AuthContext.Provider>,
   )
   return { onListo, onCerrar }
 }
@@ -270,6 +291,30 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     )
     expect(onListo).not.toHaveBeenCalled()
     expect(toast.success).not.toHaveBeenCalled()
+  })
+
+  it('Gerencia corrige sin ventana y activa el camino RPC de la capa de datos', async () => {
+    const user = userEvent.setup()
+    obtenerDetalle.mockResolvedValue(
+      detalleBase({
+        asesor_perfil_id: 'otro',
+        creado_por: 'otro',
+        creado_en: '2020-01-01T00:00:00.000Z',
+      }),
+    )
+    actualizarCliente.mockResolvedValue(true)
+    const { onListo } = montar({ modo: 'corregir', clienteId: 'cli-1', rol: 'gerencia' })
+
+    expect(await screen.findByText('Corrección autorizada por Gerencia')).toBeInTheDocument()
+    expect(screen.queryByText(/Ventana de corrección:/)).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
+
+    await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
+    expect(actualizarCliente).toHaveBeenCalledWith(
+      'cli-1',
+      expect.objectContaining({ dni: '45781234' }),
+      true,
+    )
   })
 
   it('cliente LEGACY sin separar: muestra el nombre original y permite guardar sin apellidos/nombres', async () => {

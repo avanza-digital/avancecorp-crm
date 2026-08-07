@@ -79,21 +79,19 @@ Deno.serve(async (req: Request) => {
     if (userErr || !userRes?.user) return json(cors, { error: "Sesión inválida" }, 401);
     const callerId = userRes.user.id;
 
-    // El que convierte debe ser miembro escritor del equipo CRM (vendedor/supervisor/gerencia).
+    // El que convierte debe ser miembro escritor del equipo CRM.
     const { data: miembro } = await adminClient
       .schema("crm").from("equipo")
       .select("rol_crm, activo").eq("perfil_id", callerId).maybeSingle();
-    // REGLA DE NEGOCIO EN EL SERVIDOR (Miguel, 2026-07-16): el alta de clientes
-    // la hace la FUERZA DE VENTAS (vendedor/supervisor) con rol de portal que
-    // da de alta (analista/admin) — gerencia/directorio NO crean clientes.
-    // Antes la regla vivía solo en el navegador (botón oculto): un POST directo
-    // con la cuenta de gerencia creaba clientes reales con correo real.
-    if (!miembro || !miembro.activo || !["vendedor", "supervisor"].includes(miembro.rol_crm)) {
+    if (!miembro || !miembro.activo || !["vendedor", "supervisor", "gerencia"].includes(miembro.rol_crm)) {
       return json(cors, { error: "No autorizado para convertir leads" }, 403);
     }
     const { data: perfilCaller } = await adminClient
       .from("perfiles").select("rol, activo").eq("id", callerId).maybeSingle();
-    if (!perfilCaller || !perfilCaller.activo || !["analista", "admin", "superadmin"].includes(perfilCaller.rol)) {
+    const gerenciaCrm = miembro.rol_crm === "gerencia";
+    if (!perfilCaller || !perfilCaller.activo || (
+      !gerenciaCrm && !["analista", "admin", "superadmin"].includes(perfilCaller.rol)
+    )) {
       return json(cors, { error: "El alta de clientes la registra el analista" }, 403);
     }
 
@@ -123,7 +121,7 @@ Deno.serve(async (req: Request) => {
     // 0C: el resultado ganado exige responsabilidad comercial PREVIA. Esta
     // frontera corre antes de deduplicar, crear Auth/perfiles o enviar correo:
     // un lead parqueado nunca puede dejar un cliente huérfano si el cierre falla.
-    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId);
+    const errorResponsabilidad = errorResponsabilidadConversion(lead, callerId, miembro.rol_crm);
     if (errorResponsabilidad) return json(cors, { error: errorResponsabilidad }, 409);
 
     // Documento (DNI/CE/Pasaporte). Se valida en la FRONTERA (el navegador es espejo).

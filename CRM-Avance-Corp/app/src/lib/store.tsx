@@ -685,20 +685,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Promise.all sin catch tumbaría su boot entero. Los demás fetches son
     // seguros: leen por RLS con ámbito ∅ → [] (la RLS filtra, no lanza).
     const esCoordinador = yo?.rol === 'coordinador'
-    // Gerencia trabaja exclusivamente con las vistas de inteligencia agregada.
-    // Esas pantallas consultan RPC gateadas y solo necesitan el roster para
-    // resolver nombres/supervisores y las metas del mes. Descargar además cada
-    // lead, actividad y tarea exponía PII que esta sesión no usa y hacía que el
-    // tablero ejecutivo esperara por toda la operación antes de poder abrir.
-    const soloInteligenciaAgregada = yo?.rol === 'gerencia'
+    // Gerencia también opera la cartera completa: necesita las mismas fuentes
+    // transaccionales que el resto del equipo además de sus RPC de inteligencia.
+    // La RLS conserva el alcance real y excluye los soft-deletes.
     // Un fallo de LECTURA de metas no puede pintarse como "no hay metas": se
     // marca aparte para que la pantalla diga la verdad (ver `objetivosError`).
     let objetivosError = false
     const [leads, miembros, actividades, tareasAmbito, filasObjetivos] = await Promise.all([
-      soloInteligenciaAgregada ? Promise.resolve<Lead[]>([]) : listarLeadsDelAmbito(signal),
+      listarLeadsDelAmbito(signal),
       esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
-      soloInteligenciaAgregada ? Promise.resolve<Actividad[]>([]) : listarActividadesDelAmbito(signal),
-      soloInteligenciaAgregada ? Promise.resolve<Tarea[]>([]) : listarTareasDelAmbito(signal),
+      listarActividadesDelAmbito(signal),
+      listarTareasDelAmbito(signal),
       // Metas del mes calendario vigente en Lima (no-render: Date.now() ok).
       // Metas caídas ≠ CRM caído: este fetch AUXILIAR no tumba el boot; si la
       // caída es general, los fetches primarios (leads/equipo) disparan el

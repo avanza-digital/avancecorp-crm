@@ -64,8 +64,6 @@ export function vistaPermitida(
     return can(rol, 'verAlertas') && (rol === 'gerencia' || leadsVisibles)
   }
   if (esVistaGerencia(vista)) return rol === 'gerencia'
-  // Gerencia dirige desde inteligencia comercial; no recibe pantallas operativas.
-  if (rol === 'gerencia') return false
   if (!leadsVisibles && esVistaLeads(vista)) return false
 
   const capacidad = CAPACIDAD_POR_VISTA[vista]

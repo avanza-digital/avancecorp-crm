@@ -108,8 +108,8 @@ test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida;
   await expect(page.getByRole('row', { name: /Abrir detalle del contrato/ })).toHaveCount(3)
 })
 
-// Gerencia/directorio leen, no operan: la tabla no les pinta Ventana/Acciones
-// (~230 px de ruido menos) ni corre ningún reloj de 15 s por fila.
+// Caso heredado de la tabla retirada. Directorio conserva lectura; Gerencia
+// ahora opera desde la cartera unificada, cubierta por gerencia-operativa.spec.
 test('gerencia: sin columnas Ventana/Acciones ni relojes; la fila clicable abre el detalle', async ({ page }) => {
   await montarBackendReal(page, { rolPortal: 'directorio', contratos: [contratoReal()] })
   await loginReal(page)

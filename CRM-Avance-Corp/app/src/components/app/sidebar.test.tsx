@@ -94,7 +94,7 @@ describe('Sidebar — temporizadores del asomo', () => {
     expect(asomado(panel)).toBe(true)
   })
 
-  it('Gerencia ve inteligencia separada y ninguna navegación operativa', () => {
+  it('Gerencia ve inteligencia y toda la navegación operativa', () => {
     montar({ movil: false, rol: 'gerencia' })
     const navegacion = screen.getByRole('navigation')
 
@@ -104,7 +104,14 @@ describe('Sidebar — temporizadores del asomo', () => {
       'Ranking',
       'Reuniones',
       'Metas',
-      'Equipo',
+      'Rendimiento',
+      'Pipeline',
+      'Leads',
+      'Agenda',
+      'Cartera',
+      'Repartir leads',
+      'Gestión de equipo',
+      'Configuración',
     ]
     expect(within(navegacion).getAllByRole('button')).toHaveLength(nombres.length)
     expect(within(navegacion).getAllByRole('button').map((boton) => boton.textContent?.trim())).toEqual(nombres)
@@ -112,17 +119,6 @@ describe('Sidebar — temporizadores del asomo', () => {
       expect(within(navegacion).getByRole('button', { name: nombre })).toBeVisible()
     }
     expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
-    for (const nombre of [
-      'Pipeline',
-      'Leads',
-      'Agenda',
-      'Mi cartera',
-      'Cartera',
-      'Repartir leads',
-      'Capital',
-      'Configuración',
-    ]) {
-      expect(within(navegacion).queryByRole('button', { name: nombre })).not.toBeInTheDocument()
-    }
+    expect(within(navegacion).queryByRole('button', { name: 'Capital' })).not.toBeInTheDocument()
   })
 })

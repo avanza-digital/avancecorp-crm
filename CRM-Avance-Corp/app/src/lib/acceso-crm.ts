@@ -48,7 +48,10 @@ export function interpretarMiAcceso(valor: unknown): AccesoCrmInterpretado {
     perfilId: valor.perfil_id,
     rol: valor.rol_crm,
     nombre: valor.nombre_completo ?? '',
-    puedeContratar: ROLES_PORTAL_QUE_CONTRATAN.has(valor.rol_portal),
+    // Gerencia opera el CRM completo sin convertirse en admin del portal. Las
+    // edges/RPC vuelven a comprobar la membresía activa en el servidor.
+    puedeContratar:
+      valor.rol_crm === 'gerencia' || ROLES_PORTAL_QUE_CONTRATAN.has(valor.rol_portal),
   }
 }
 

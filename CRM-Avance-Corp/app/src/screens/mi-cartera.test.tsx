@@ -183,6 +183,53 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
   })
 
+  it('Gerencia opera clientes y contratos ajenos aunque su ventana haya vencido', async () => {
+    const user = userEvent.setup()
+    montar({
+      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false },
+      clientes: [
+        cliente({
+          id: 'c-ajeno',
+          asesor_perfil_id: 'asesor-1',
+          creado_por: 'asesor-1',
+          creado_en: '2020-01-01T00:00:00.000Z',
+        }),
+      ],
+      contratos: [
+        contrato({
+          id: 'k-ajeno',
+          cliente_id: 'c-ajeno',
+          creado_por: 'asesor-1',
+          creado_en: '2020-01-01T00:00:00.000Z',
+        }),
+      ],
+      equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ASESOR UNO', activo: true }],
+    })
+
+    expect(screen.getByRole('button', { name: 'Nuevo cliente' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Corregir' })).toHaveAttribute(
+      'title',
+      'Corregir datos del cliente · autorización global de Gerencia',
+    )
+    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    expect(within(subFilaDe('2026-01-000001')).getByRole('button', { name: 'Corregir' })).toBeInTheDocument()
+    expect(screen.queryByText('Bloqueado')).not.toBeInTheDocument()
+  })
+
+  it('Directorio sigue sin acciones aunque un dato externo diga que puede contratar', () => {
+    montar({
+      yo: { id: 'directorio', rol: 'directorio', puede_contratar: true, demo: false },
+      clientes: [cliente({ asesor_perfil_id: 'otro', creado_por: 'otro' })],
+    })
+
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+  })
+
   it('muestra todos los datos del cliente propio, aun con la ventana de corrección vencida', async () => {
     const user = userEvent.setup()
     montar({ clientes: [cliente({ creado_en: '2020-01-01T00:00:00.000Z' })] })

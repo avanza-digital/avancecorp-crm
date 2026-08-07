@@ -6,7 +6,7 @@
 //    y el detalle por vendedor de UN equipo bajo demanda (fila/botón "Ver
 //    equipo" — patrón aprobado de EquiposBajoSupervision en Hoy·Distribución:
 //    "el detalle se abre solo cuando hace falta"); también puede repartir.
-//  - Directorio: la misma radiografía que gerencia, SOLO LECTURA (cero
+//  - Directorio: la misma radiografía que gerencia, pero Directorio es SOLO LECTURA (cero
 //    botones de acción).
 // Los números salen del ámbito jerárquico (useCRMData().ambito) + lib/inteligencia,
 // SIEMPRE sobre actividadesDelAmbito (timeline ya recortado por el store — el

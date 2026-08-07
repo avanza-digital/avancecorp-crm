@@ -113,9 +113,8 @@ test('reasignar (gerencia): cambia el vendedor con toast "(demo)"', async ({ pag
   await expect(page.getByText(/Lead reasignado \(demo\)/i)).toBeVisible()
 })
 
-// Como Vendedor sobre SU lead: el único caso que existe de verdad. (Gerencia no
-// da de alta, y un supervisor sobre el lead de su vendedor tampoco — el cliente
-// quedaría en la cartera del vendedor y el contrato le sería negado.)
+// El caso del vendedor sobre SU lead; Gerencia tiene otro camino global, pero el
+// analista responsable conserva la atribución del cliente y del contrato.
 test('convertir (demo): abre el diálogo y marca el lead como convertido', async ({ page }) => {
   await entrarDemo(page, 'Vendedor')
   await irAPipeline(page)

@@ -40,7 +40,7 @@ const NAV_META = {
   'mi-cartera': { label: 'Mi cartera', icon: Wallet, seccion: 'principal' },
   // Reparto de la cola global (C1): solo coordinador.
   repartir: { label: 'Repartir leads', icon: Split, seccion: 'principal' },
-  equipo: { label: 'Equipo', icon: UsersRound, seccion: 'principal' },
+  equipo: { label: 'Gestión de equipo', icon: UsersRound, seccion: 'principal' },
   config: { label: 'Configuración', icon: Settings, seccion: 'administracion' },
 } as const satisfies Record<VistaSidebar, NavMeta>
 
@@ -189,6 +189,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
     // La misma ruta base se presenta como resumen ejecutivo solo a Gerencia.
     .map((n) => {
       if (n.id === 'hoy' && rol === 'gerencia') return { ...n, label: 'Resumen' }
+      if (n.id === 'rendimiento' && rol === 'gerencia') return { ...n, label: 'Rendimiento' }
       return n.id === 'mi-cartera' && can(rol, 'verEquipo')
         ? { ...n, label: 'Cartera' }
         : n

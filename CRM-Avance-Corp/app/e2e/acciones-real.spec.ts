@@ -169,17 +169,16 @@ test('convertir en real: pide los datos de la cuenta y valida antes de tocar el 
   await expect(page.getByText(/ahora es cliente/i)).toHaveCount(0)
 })
 
-// Regla del negocio (Miguel, 2026-07-16): el alta de clientes y contratos la
-// hace el vendedor. Gerencia —Carlos, rol de portal 'directorio'— no la hace.
-test('gerencia (rol de portal directorio) NO ve el botón de convertir', async ({ page }) => {
+// Decisión 2026-08-07: Gerencia puede cerrar la conversión aunque su rol del
+// portal sea directorio. El cliente conserva al vendedor del lead como asesor.
+test('gerencia (rol de portal directorio) puede convertir un lead asignado', async ({ page }) => {
   await montarBackendReal(page, { rolCrm: 'gerencia', rolPortal: 'directorio' })
   await loginReal(page)
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await expect(drawer.getByRole('button', { name: /Convertir a cliente/i })).toHaveCount(0)
-  await expect(drawer.getByText(/El alta del cliente la registra el vendedor/i)).toBeVisible()
-  // El resto de su trabajo sigue intacto (descartar, mover, etc.).
+  await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
+  await expect(page.getByRole('dialog', { name: 'Convertir a cliente' })).toBeVisible()
   await expect(drawer.getByRole('button', { name: /Descartar/i })).toBeVisible()
 })
 

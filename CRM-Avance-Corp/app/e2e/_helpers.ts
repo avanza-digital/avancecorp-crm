@@ -634,10 +634,11 @@ export interface BackendReal {
   leads: LeadReal[]
   rolCrm: string
   /**
-   * Rol del PORTAL del usuario (`perfiles.rol`). Define si el CRM le ofrece dar
-   * de alta clientes/contratos: analista/admin/superadmin sí, directorio no.
+   * Rol del PORTAL del usuario (`perfiles.rol`). Define las capacidades nativas
+   * del portal. Gerencia obtiene su permiso operativo por el rol CRM activo, sin
+   * convertirse en admin/superadmin; Directorio sin rol CRM sigue en lectura.
    * Por defecto 'analista' = el equipo real (los 17 vendedores y los 2
-   * supervisores lo son); Carlos (gerencia) es 'directorio'.
+   * supervisores lo son); Carlos (gerencia) es 'directorio' en el portal.
    */
   rolPortal: string
   /** El próximo GET de leads (carga/resync) responde 500 una vez. */
@@ -717,6 +718,7 @@ export interface BackendReal {
     getLeads: number
     altaCliente: number
     patchPerfil: number
+    rpcActualizarClienteGerencia: number
     rpcListarCuentasBancarias: number
     rpcCrearContrato: number
     rpcActualizarContrato: number
@@ -813,7 +815,8 @@ export async function montarBackendReal(
     llamadas: {
       rpcCrearLeadAtomico: 0, insertLeadDirecto: 0, rpcDisponibilidadLead: 0,
       patchLead: 0, insertActividad: 0, getLeads: 0,
-      altaCliente: 0, patchPerfil: 0, rpcListarCuentasBancarias: 0,
+      altaCliente: 0, patchPerfil: 0, rpcActualizarClienteGerencia: 0,
+      rpcListarCuentasBancarias: 0,
       rpcCrearContrato: 0, rpcActualizarContrato: 0,
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
       rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
@@ -861,6 +864,16 @@ export async function montarBackendReal(
       })
     }
     if (p === '/rest/v1/equipo') return json(route, [{ rol_crm: estado.rolCrm, activo: true }])
+    if (p === '/rest/v1/rpc/actualizar_cliente_gerencia' && method === 'POST') {
+      estado.llamadas.rpcActualizarClienteGerencia += 1
+      const cuerpo = (req.postDataJSON() ?? {}) as Record<string, unknown>
+      const clienteId = String(cuerpo.p_cliente_id ?? '')
+      const cambios = (cuerpo.p_patch ?? {}) as Partial<PerfilReal>
+      estado.clientes = estado.clientes.map((c) =>
+        c.id === clienteId ? { ...c, ...cambios } : c,
+      )
+      return json(route, true)
+    }
     if (p === '/rest/v1/perfiles') {
       const idFiltro = (url.searchParams.get('id') ?? '').replace(/^eq\./, '')
       if (method === 'GET') {

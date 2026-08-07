@@ -174,19 +174,14 @@ function Ficha({ l }: { l: Lead }) {
   const rol = yo?.rol
   const escribe = puedeEscribir(rol)
   const puedeReasignar = escribe && can(rol, 'reasignar')
-  // Convertir es de UNA pieza para el usuario, pero por dentro son dos permisos
-  // distintos, y hay que pasar los DOS o no empezar: la edge crea el cliente (y
-  // le manda el correo de bienvenida a una persona real), y recién después
-  // `crear_contrato` decide. Esa RPC exige (a) rol de portal que dé de alta y
-  // (b) que el cliente sea de TU cartera. Como la edge pone
-  // `asesor = vendedor del lead ?? quien convierte`, el (b) solo se cumple si el
-  // cliente va a quedar a tu nombre. Un supervisor sobre el lead de su vendedor
-  // pasa (a) y falla (b) → cliente creado, correo enviado, lead cerrado y
-  // contrato imposible. Por eso se exigen los dos aquí: para no empezar algo que
-  // no se puede terminar (si quiere cerrarla él, primero se reasigna el lead).
+  // Vendedor/supervisor conservan la regla de cartera propia. Gerencia puede
+  // cerrar cualquier lead que ya tenga analista: el cliente conserva a ese
+  // analista como asesor y las edges/RPC revalidan la membresía global.
   const tieneAnalista = l.vendedor_id != null
   const seraMiCliente = l.vendedor_id === yo?.id
-  const puedeConvertir = escribe && (yo?.puede_contratar ?? false) && seraMiCliente
+  const operaGlobal = escribe && can(rol, 'verTodo')
+  const puedeConvertir =
+    escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista))
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
@@ -279,7 +274,7 @@ function Ficha({ l }: { l: Lead }) {
             <p className="max-w-[62%] text-right text-[11px] leading-tight text-muted-foreground">
               {!tieneAnalista
                 ? 'Asigna primero el lead a un analista; una conversión necesita responsable comercial.'
-                : yo?.puede_contratar
+                : yo?.puede_contratar && !operaGlobal
                 ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el vendedor del lead'}. Para hacerla tú, reasígnate el lead.`
                 : 'El alta del cliente la registra el vendedor.'}
             </p>

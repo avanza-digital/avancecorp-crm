@@ -35,13 +35,9 @@ import { interpretarMiAccesoParaUsuario } from './acceso-crm'
 
 import { DEMO_YO } from './auth-demo'
 
-/**
- * El demo no tiene rol de portal, así que se refleja la realidad del equipo:
- * la fuerza de ventas (vendedor/supervisor) es 'analista' y da de alta;
- * gerencia es 'directorio' y no. Antes el demo lo forzaba a `true` para todos
- * y enseñaba a un gerente convirtiendo — lo contrario de la regla del negocio.
- */
-const contrataEnDemo = (rol: Rol): boolean => rol === 'vendedor' || rol === 'supervisor'
+/** El demo refleja la autorización real del CRM, incluida Gerencia operativa. */
+const contrataEnDemo = (rol: Rol): boolean =>
+  rol === 'vendedor' || rol === 'supervisor' || rol === 'gerencia'
 
 async function resolverRol(
   cliente: ClienteCrm,

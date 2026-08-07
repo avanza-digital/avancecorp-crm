@@ -11,8 +11,8 @@
 // (ClienteForm, ContratoNuevo, ContratoDetalle, ContratoCorregir): alta de
 // cliente + contrato encadenado, corregir cliente/contrato dentro de la ventana
 // de 5 h (la RLS del servidor es la autoridad; aquí el reloj es cortesía) y ver
-// el detalle con cronograma. El gate POR FILA (esMiCliente / esMia) espeja lo
-// que el servidor ya valida — jamás se ofrece un botón que el servidor rechazaría.
+// el detalle con cronograma. Fuerza de ventas conserva el gate por fila y la
+// ventana de 5 h; Gerencia opera el ámbito completo, como revalida el servidor.
 import { useEffect, useMemo, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
@@ -35,7 +35,7 @@ import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
-import { can } from '@/lib/roles'
+import { can, puedeEscribir } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
@@ -153,6 +153,8 @@ interface PropsFilaGrupo {
   conAcciones: boolean
   /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
   accionable: boolean
+  /** Gerencia opera cualquier fila y no hereda la ventana antifraude del analista. */
+  edicionGlobal: boolean
   yoId: string | null
   asesorNombre: string | null
   /** Los contratos del grupo que pasan los filtros vivos (estado y/o «por
@@ -174,7 +176,8 @@ function FilaContratoSub({
   contrato: k,
   colAsesor,
   conAcciones,
-  esMia,
+  corregible,
+  sinLimiteVentana,
   porVencer,
   onDetalle,
   onCorregir,
@@ -182,15 +185,16 @@ function FilaContratoSub({
   contrato: ContratoRow
   colAsesor: boolean
   conAcciones: boolean
-  /** creado_por === yo.id — habilita reloj y Corregir de ESTE contrato. */
-  esMia: boolean
+  /** Contrato propio del analista o cualquier contrato para Gerencia. */
+  corregible: boolean
+  sinLimiteVentana: boolean
   /** Vence en ≤30 d: la fecha se marca con PALABRA («renovar») además de color
    *  — el color solo no es información accesible. */
   porVencer: boolean
   onDetalle: () => void
   onCorregir: () => void
 }) {
-  const ventana = useVentana(esMia ? k.creado_en : null)
+  const ventana = useVentana(corregible && !sinLimiteVentana ? k.creado_en : null)
   // Ojo con la clase de foco de la <tr>: el outline NATIVO no se quita. El
   // cambio de fondo que antes lo "reemplazaba" (bg-muted/20 → bg-muted/50) da
   // 1.03:1 de contraste —invisible— y encima es idéntico al hover; y en una fila
@@ -236,7 +240,7 @@ function FilaContratoSub({
       </Td>
       {conAcciones && (
         <Td className="text-right">
-          {esMia && ventana.vigente ? (
+          {corregible && (sinLimiteVentana || ventana.vigente) ? (
             <Button
               type="button"
               size="xs"
@@ -248,7 +252,7 @@ function FilaContratoSub({
             >
               Corregir
             </Button>
-          ) : esMia ? (
+          ) : corregible ? (
             <span className="text-[11px] text-muted-foreground" title="La ventana de corrección de 5 horas ya venció">
               {ventana.texto}
             </span>
@@ -269,6 +273,7 @@ function FilaGrupoCliente({
   colAsesor,
   conAcciones,
   accionable,
+  edicionGlobal,
   yoId,
   asesorNombre,
   contratosVisibles,
@@ -281,8 +286,8 @@ function FilaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
-  // Reloj de la ventana de corrección del CLIENTE (solo en filas propias).
-  const ventanaCliente = useVentana(accionable ? cliente.creado_en : null)
+  // El analista conserva su ventana; Gerencia puede corregir cualquier cliente.
+  const ventanaCliente = useVentana(accionable && !edicionGlobal ? cliente.creado_en : null)
   const ident = <IdentidadCliente cliente={cliente} />
   return (
     <>
@@ -359,13 +364,21 @@ function FilaGrupoCliente({
                 >
                   Ver detalle
                 </Button>
-                {ventanaCliente.vigente && (
+                {(edicionGlobal || ventanaCliente.vigente) && (
                   <Button
                     type="button"
                     size="xs"
                     variant="outline"
-                    className={ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
-                    title={`Corregir datos del cliente · ${ventanaCliente.texto} de ventana`}
+                    className={
+                      !edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS
+                        ? 'text-warning'
+                        : undefined
+                    }
+                    title={
+                      edicionGlobal
+                        ? 'Corregir datos del cliente · autorización global de Gerencia'
+                        : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
+                    }
                     onClick={(e) => {
                       e.stopPropagation()
                       onCorregirCliente()
@@ -399,7 +412,8 @@ function FilaGrupoCliente({
             contrato={c}
             colAsesor={colAsesor}
             conAcciones={conAcciones}
-            esMia={c.creado_por != null && c.creado_por === yoId}
+            corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
+            sinLimiteVentana={edicionGlobal}
             porVencer={porVencer.has(c.id)}
             onDetalle={() => onDetalleContrato(c)}
             onCorregir={() => onCorregirContrato(c)}
@@ -422,20 +436,22 @@ function FilaGrupoCliente({
 function TarjetaContratoSub({
   contrato: k,
   conAcciones,
-  esMia,
+  corregible,
+  sinLimiteVentana,
   porVencer,
   onDetalle,
   onCorregir,
 }: {
   contrato: ContratoRow
   conAcciones: boolean
-  esMia: boolean
+  corregible: boolean
+  sinLimiteVentana: boolean
   /** Vence en ≤30 d — misma marca con PALABRA que en la tabla (no solo color). */
   porVencer: boolean
   onDetalle: () => void
   onCorregir: () => void
 }) {
-  const ventana = useVentana(esMia ? k.creado_en : null)
+  const ventana = useVentana(corregible && !sinLimiteVentana ? k.creado_en : null)
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 pr-3 transition-colors focus-within:bg-muted/40">
       {/* El área de info ES el control que abre el detalle: un <button> NATIVO
@@ -462,8 +478,8 @@ function TarjetaContratoSub({
         </span>
         <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">{money(k.capital, k.moneda)}</span>
       </button>
-      {conAcciones && esMia && (
-        ventana.vigente ? (
+      {conAcciones && corregible && (
+        sinLimiteVentana || ventana.vigente ? (
           <Button type="button" size="xs" variant="outline" className="shrink-0" onClick={onCorregir}>
             Corregir
           </Button>
@@ -485,6 +501,7 @@ function TarjetaGrupoCliente({
   colAsesor,
   conAcciones,
   accionable,
+  edicionGlobal,
   yoId,
   asesorNombre,
   contratosVisibles,
@@ -497,7 +514,7 @@ function TarjetaGrupoCliente({
 }: PropsFilaGrupo) {
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
-  const ventanaCliente = useVentana(accionable ? cliente.creado_en : null)
+  const ventanaCliente = useVentana(accionable && !edicionGlobal ? cliente.creado_en : null)
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
       {/* Cabecera: identidad (toggle si tiene contratos) + capital invertido. */}
@@ -542,19 +559,27 @@ function TarjetaGrupoCliente({
         )}
       </div>
 
-      {/* Acciones (solo en lo propio). */}
+      {/* Acciones: cartera propia para analistas; ámbito completo para Gerencia. */}
       {conAcciones && accionable && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
           <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
             Ver detalle
           </Button>
-          {ventanaCliente.vigente && (
+          {(edicionGlobal || ventanaCliente.vigente) && (
             <Button
               type="button"
               size="xs"
               variant="outline"
-              className={ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
-              title={`Corregir datos del cliente · ${ventanaCliente.texto} de ventana`}
+              className={
+                !edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS
+                  ? 'text-warning'
+                  : undefined
+              }
+              title={
+                edicionGlobal
+                  ? 'Corregir datos del cliente · autorización global de Gerencia'
+                  : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
+              }
               onClick={onCorregirCliente}
             >
               Corregir cliente
@@ -574,7 +599,8 @@ function TarjetaGrupoCliente({
               key={c.id}
               contrato={c}
               conAcciones={conAcciones}
-              esMia={c.creado_por != null && c.creado_por === yoId}
+              corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
+              sinLimiteVentana={edicionGlobal}
               porVencer={porVencer.has(c.id)}
               onDetalle={() => onDetalleContrato(c)}
               onCorregir={() => onCorregirContrato(c)}
@@ -620,6 +646,8 @@ function VistaMiCartera({
   const { yo } = useAuth()
   const { equipo } = useCRMData()
   const verEquipo = can(yo?.rol, 'verEquipo')
+  const accionesHabilitadas = puedeContratar && puedeEscribir(yo?.rol)
+  const edicionGlobal = accionesHabilitadas && can(yo?.rol, 'verTodo')
   const titulo = verEquipo ? 'Cartera' : 'Mi cartera'
   const esMovil = useEsMovil()
 
@@ -750,8 +778,9 @@ function VistaMiCartera({
         return sig
       }),
     colAsesor: verEquipo,
-    conAcciones: puedeContratar,
-    accionable: puedeContratar && esMiCliente(g.cliente, yoId),
+    conAcciones: accionesHabilitadas,
+    accionable: accionesHabilitadas && (edicionGlobal || esMiCliente(g.cliente, yoId)),
+    edicionGlobal,
     yoId,
     asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
     // Los dos filtros de contrato se componen en AND (mismo criterio que la
@@ -855,7 +884,7 @@ function VistaMiCartera({
                     }`
                   : '—'}
               </span>
-              {puedeContratar && (
+              {accionesHabilitadas && (
                 <Button size="sm" onClick={onNuevoCliente}>
                   <Users2 aria-hidden /> Nuevo cliente
                 </Button>
@@ -880,7 +909,7 @@ function VistaMiCartera({
           <PanelError mensaje={error.mensaje} onReintentar={error.reintentar} reintentando={error.reintentando} />
         ) : bases.length === 0 ? (
           <PanelVacio icono={Inbox} titulo={verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no tienes clientes en tu cartera.'}>
-            {puedeContratar && <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>}
+            {accionesHabilitadas && <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>}
           </PanelVacio>
         ) : (
           <>
@@ -1007,7 +1036,7 @@ function VistaMiCartera({
                   <Th className="text-right" aria-label="Capital invertido">
                     Capital invertido
                   </Th>
-                  {puedeContratar && <Th className="text-right">Acciones</Th>}
+                  {accionesHabilitadas && <Th className="text-right">Acciones</Th>}
                 </TheadCrm>
                 <tbody>
                   {visibles.map((g) => (

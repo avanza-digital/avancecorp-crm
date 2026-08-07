@@ -8,9 +8,10 @@
 //   Antes eran DOS pasos y los bancarios iban en un UPDATE posterior: si ese paso
 //   fallaba quedaba un cliente real, con su correo ya enviado, sin cuenta donde
 //   cobrar el interés. La regla "al menos una cuenta" ahora la exige el servidor.
-// Flujo de CORREGIR: obtenerClienteDetalle precarga TODO; el UPDATE va por RLS
-//   con ventana de 5 h — si venció, el servidor devuelve 0 filas SIN error →
-//   actualizarClientePortal da `false` y JAMÁS se dice "guardado".
+// Flujo de CORREGIR: obtenerClienteDetalle precarga TODO. El analista usa UPDATE
+//   por RLS con ventana de 5 h; Gerencia usa una RPC con allowlist que preserva
+//   identidad/rol/asesor. Un rechazo devuelve false o error y JAMÁS se dice
+//   "guardado".
 //
 // La lógica pura (validaciones, catálogo de bancos, patch de 14 bancarias) vive
 // en lib/cliente-form-logica; aquí solo el estado y el pintado.
@@ -33,6 +34,7 @@ import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import type { ClienteDetalle } from '@/lib/clientes-tipos'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { useVentana } from '@/lib/ventana'
+import { useAuth } from '@/lib/auth-context'
 import {
   SECCION_BANCARIA_VACIA,
   seccionPenDesdeDetalle,
@@ -64,6 +66,8 @@ export interface ClienteFormProps {
 
 export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCambio }: ClienteFormProps) {
   const esCorregir = modo === 'corregir'
+  const { yo } = useAuth()
+  const esGerencia = yo?.rol === 'gerencia'
 
   // Identidad
   const [apellidos, setApellidos] = useState('')
@@ -81,7 +85,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const [error, setError] = useState<string | null>(null)
   const [enviando, setEnviando] = useState(false)
 
-  const ventana = useVentana(esCorregir ? detalle?.creado_en : null)
+  const ventana = useVentana(esCorregir && !esGerencia ? detalle?.creado_en : null)
 
   // PRECARGA vía caché (clave clienteDetalle(id), staleTime 0): el UPDATE de
   // corregir viaja con el set COMPLETO de campos, así que la precarga es
@@ -138,20 +142,24 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     onEnviandoCambio?.(true)
     try {
       if (esCorregir) {
-        // UPDATE directo: la RLS valida dueño + ventana de 5 h. Si venció NO hay
-        // error — 0 filas → `false` → jamás decir "guardado".
-        const guardo = await actualizarClientePortal(clienteId as string, {
-          nombre_completo: c.nombre_completo,
-          tipo_documento: c.tipo_documento,
-          dni: c.dni,
-          telefono: c.telefono,
-          // En un legacy sin separar (ambos vacíos) van null y se conserva su
-          // nombre_completo original (rama esLegacySinSeparar de la validación).
-          apellidos: c.apellidos,
-          nombres: c.nombres,
-          ...c.bancarios,
-          actualizado_en: new Date().toISOString(),
-        })
+        // Analista: UPDATE directo y ventana RLS de 5 h. Gerencia: RPC acotada
+        // sin esa ventana, pero sin capacidad de tocar rol, estado ni asesor.
+        const guardo = await actualizarClientePortal(
+          clienteId as string,
+          {
+            nombre_completo: c.nombre_completo,
+            tipo_documento: c.tipo_documento,
+            dni: c.dni,
+            telefono: c.telefono,
+            // En un legacy sin separar (ambos vacíos) van null y se conserva su
+            // nombre_completo original (rama esLegacySinSeparar de la validación).
+            apellidos: c.apellidos,
+            nombres: c.nombres,
+            ...c.bancarios,
+            actualizado_en: new Date().toISOString(),
+          },
+          esGerencia,
+        )
         if (!guardo) {
           setError(MSG_VENTANA_VENCIDA)
           return
@@ -193,11 +201,16 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           : <UserRoundPlus className="size-4 text-primary" aria-hidden />}
         {esCorregir ? 'Corregir cliente' : 'Nuevo cliente'}
       </DialogTitle>
-      {esCorregir && detalle && (
+      {esCorregir && detalle && !esGerencia && (
         // Cuenta regresiva visual; la ventana REAL la decide el servidor, por eso
         // el guardado no se bloquea aquí (espejo del portal: el modal no gatea).
         <p className={`text-[11px] font-semibold ${ventana.vigente ? 'text-primary' : 'text-destructive'}`}>
           Ventana de corrección: {ventana.texto}
+        </p>
+      )}
+      {esCorregir && detalle && esGerencia && (
+        <p className="text-[11px] font-semibold text-primary">
+          Corrección autorizada por Gerencia
         </p>
       )}
     </DialogHeader>

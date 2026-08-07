@@ -17,10 +17,14 @@ describe('navegación de Gerencia', () => {
     }
   })
 
-  it('retira Pipeline y las herramientas operativas de Gerencia', () => {
-    expect(vistaPermitida('pipeline', 'gerencia', true)).toBe(false)
-    expect(vistaPermitida('cartera', 'gerencia', true)).toBe(false)
-    expect(vistaPermitida('agenda', 'gerencia', true)).toBe(false)
+  it('combina inteligencia con todas las herramientas operativas', () => {
+    expect(vistaPermitida('pipeline', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('cartera', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('agenda', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('mi-cartera', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('repartir', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('equipo', 'gerencia', true)).toBe(true)
+    expect(vistaPermitida('config', 'gerencia', true)).toBe(true)
     expect(vistaPermitida('hoy', 'gerencia', true)).toBe(true)
   })
 })

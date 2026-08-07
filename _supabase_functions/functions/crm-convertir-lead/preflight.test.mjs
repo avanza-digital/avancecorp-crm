@@ -22,3 +22,17 @@ test('acepta al analista que ya es dueño del lead', () => {
     null,
   );
 });
+
+test('acepta a Gerencia sobre un lead que conserva analista responsable', () => {
+  assert.equal(
+    errorResponsabilidadConversion({ vendedor_id: 'analista-1' }, 'gerencia-1', 'gerencia'),
+    null,
+  );
+});
+
+test('Gerencia tampoco convierte un lead sin analista responsable', () => {
+  assert.equal(
+    errorResponsabilidadConversion({ vendedor_id: null }, 'gerencia-1', 'gerencia'),
+    'Asigna el lead a un analista antes de convertirlo',
+  );
+});

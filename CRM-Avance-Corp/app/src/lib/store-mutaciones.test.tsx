@@ -319,7 +319,7 @@ describe('mutaciones del store demo', () => {
       })
     })
 
-    it('Gerencia no mueve bandejas ni reasigna leads', async () => {
+    it('Gerencia libera bandejas y reasigna leads en todo el ámbito', async () => {
       const { api, mutar } = await montarStore('gerencia')
       expect(api().lead('l5')).toMatchObject({
         vendedor_id: null,
@@ -328,10 +328,15 @@ describe('mutaciones del store demo', () => {
 
       const res = mutar((a) => a.reasignar('l5', null))
 
-      expect(res).toMatchObject({ ok: false, codigo: 'sin_permiso' })
+      expect(res).toMatchObject({ ok: true })
       expect(api().lead('l5')).toMatchObject({
         vendedor_id: null,
-        asignado_supervisor_id: 'd-sup1',
+        asignado_supervisor_id: null,
+      })
+      expect(api().actividadesDe('l5')[0]).toMatchObject({
+        tipo: 'reasignacion',
+        detalle: 'Bandeja de SUPERVISOR UNO → Sin asignar',
+        autor_nombre: 'GERENCIA DEMO',
       })
     })
 

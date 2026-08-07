@@ -577,6 +577,15 @@ export interface Database {
       }
     }
     Functions: {
+      /** Corrección acotada de clientes por Gerencia; no abre UPDATE crudo
+       * sobre identidad, rol, estado, asesor ni autoría del perfil. */
+      actualizar_cliente_gerencia: {
+        Args: {
+          p_cliente_id: string
+          p_patch: Json
+        }
+        Returns: boolean
+      }
       /** Cuentas activas compatibles + slot legacy vigente del perfil. */
       cuentas_bancarias_cliente_fn: {
         Args: { p_cliente_id: string; p_moneda: MonedaDb }

@@ -18,6 +18,16 @@ describe('interpretarMiAcceso', () => {
     })
   })
 
+  it('autoriza a Gerencia a contratar desde el CRM sin volverla admin del portal', () => {
+    expect(interpretarMiAcceso({
+      estado: 'miembro',
+      perfil_id: 'gerencia-1',
+      rol_crm: 'gerencia',
+      rol_portal: 'directorio',
+      nombre_completo: 'Gerencia',
+    })).toMatchObject({ tipo: 'acceso', rol: 'gerencia', puedeContratar: true })
+  })
+
   it('acepta el fallback global solo como Directorio', () => {
     expect(interpretarMiAcceso({
       estado: 'global',

@@ -11,14 +11,14 @@ const VISTAS_POR_GATE = {
   abierto: {
     vendedor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
     supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config'],
     coordinador: ['hoy', 'repartir'],
   },
   cerrado: {
     vendedor: ['mi-cartera', 'config'],
     supervisor: ['mi-cartera', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'mi-cartera', 'repartir', 'equipo', 'config'],
     directorio: ['mi-cartera', 'equipo', 'config'],
     coordinador: ['repartir'],
   },
@@ -81,7 +81,7 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('repartir', 'supervisor', false)).toBe('mi-cartera')
     expect(sanearVista('repartir', 'directorio', true)).toBe('hoy')
     expect(sanearVista('repartir', null, false)).toBe('mi-cartera')
-    expect(sanearVista('repartir', 'gerencia', true)).toBe('hoy')
+    expect(sanearVista('repartir', 'gerencia', true)).toBe('repartir')
   })
 
   it('no altera el comportamiento previo de los roles operativos', () => {
@@ -97,13 +97,15 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('pipeline', 'vendedor', false)).toBe('mi-cartera')
   })
 
-  it('expulsa a Gerencia de las rutas operativas', () => {
-    for (const vista of ['pipeline', 'cartera', 'agenda', 'equipo', 'repartir', 'mi-cartera', 'config'] as const) {
-      expect(sanearVista(vista, 'gerencia', true)).toBe('hoy')
+  it('abre a Gerencia todas las rutas operativas y conserva el gate de leads', () => {
+    for (const vista of ['pipeline', 'cartera', 'agenda'] as const) {
+      expect(sanearVista(vista, 'gerencia', true)).toBe(vista)
       expect(sanearVista(vista, 'gerencia', false)).toBe('hoy')
     }
-    expect(sanearVista('hoy', 'gerencia', true)).toBe('hoy')
-    expect(sanearVista('hoy', 'gerencia', false)).toBe('hoy')
+    for (const vista of ['equipo', 'repartir', 'mi-cartera', 'config'] as const) {
+      expect(sanearVista(vista, 'gerencia', true)).toBe(vista)
+      expect(sanearVista(vista, 'gerencia', false)).toBe(vista)
+    }
   })
 
   it('abre #/alertas para los roles destinatarios y respeta el gate operativo', () => {

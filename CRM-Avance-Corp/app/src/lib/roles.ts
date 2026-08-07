@@ -68,11 +68,11 @@ export const CAPS: Record<Rol, Caps> = {
   },
   gerencia: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
-    reasignar: false, repartirLeads: false, repartirCola: false, verCartera: false,
-    verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
+    reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
+    verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
     verAlertas: true,
-    verConfiguracion: false, editarConfiguracion: false,
-    verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: true,
+    verConfiguracion: true, editarConfiguracion: true,
+    verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: false,
   },
   directorio: {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,

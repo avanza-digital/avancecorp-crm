@@ -2,8 +2,8 @@
 // cuenta real con el gate de leads cerrado (FUNCIONES_LEADS_APROBADAS=false).
 // La pantalla se adapta por rol: vendedor ("Mis clientes", acciones en sus
 // filas), supervisor (su cartera + equipo, acciones SOLO en filas propias —
-// regla de cartera POR FILA del servidor) y gerencia/directorio (todo, solo
-// lectura, columna Asesor). Todo el HTTP de Supabase va interceptado por
+// regla de cartera POR FILA del servidor), Gerencia (todo y opera todo) y
+// Directorio (todo en lectura). Todo el HTTP de Supabase va interceptado por
 // montarBackendReal (fail-closed): nada llega a producción.
 import { expect, test } from '@playwright/test'
 import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal, UID } from './_helpers'
@@ -229,10 +229,9 @@ test('paginación: 60 clientes → 2 páginas de 50 con Anterior/Siguiente', asy
   await expect(page.getByRole('row', { name: /CLIENTE PAGINA 001/ })).toBeVisible()
 })
 
-// Regla del negocio: gerencia (rol de portal 'directorio') VE toda la cartera
-// pero no da de alta ni corrige — la pantalla no le ofrece ninguna acción y en
-// vez del reloj de 5 h (que no puede usar) le muestra quién es el asesor.
-test('gerencia: cartera completa con columna Asesor y CERO acciones', async ({ page }) => {
+// Gerencia (aunque su rol de portal sea 'directorio') ve y opera toda la cartera
+// por su rol CRM. No hereda la ventana de 5 h del analista.
+test('gerencia: cartera completa con columna Asesor y acciones globales', async ({ page }) => {
   await montarBackendReal(page, { rolPortal: 'directorio', clientes: carteraConVentanas() })
   await loginReal(page)
   // Gerencia aterriza en su panel Hoy (gate parcial 2026-07-16): navega a Clientes.
@@ -247,10 +246,10 @@ test('gerencia: cartera completa con columna Asesor y CERO acciones', async ({ p
   await expect(page.getByRole('columnheader', { name: 'Asesor' })).toBeVisible()
   await expect(filaVieja.getByText('Gerente Real')).toBeVisible()
 
-  // Sin acciones ni reloj: la columna de ventana es del asesor, no del lector.
-  await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
+  // Acciones globales, sin reloj: la ventana de 5 h solo limita al analista.
+  await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible()
+  await expect(filaVieja.getByRole('button', { name: 'Corregir datos' })).toBeVisible()
+  await expect(filaVieja.getByRole('button', { name: '+ Contrato' })).toBeVisible()
   await expect(page.getByRole('columnheader', { name: 'Ventana de corrección' })).toHaveCount(0)
   await expect(page.getByRole('columnheader', { name: 'Registrado' })).toBeVisible()
 })
@@ -327,7 +326,7 @@ test('demo supervisor: su cartera + equipo, acciones SOLO en la fila propia', as
   expect(requestsSupabase()).toBe(0)
 })
 
-test('demo gerencia: los 6 clientes, columna Asesor, búsqueda y filtro — solo lectura', async ({ page }) => {
+test('demo gerencia: los 6 clientes, acciones globales, búsqueda y filtro', async ({ page }) => {
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Gerencia')
@@ -342,10 +341,10 @@ test('demo gerencia: los 6 clientes, columna Asesor, búsqueda y filtro — solo
   await expect(filaBruno.getByText('PE1548792')).toBeVisible()
   await expect(filaBruno.getByText('VENDEDOR TRES')).toBeVisible()
 
-  // Gerencia NO opera la cartera: cero botones de acción.
-  await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: 'Corregir datos' })).toHaveCount(0)
-  await expect(page.getByRole('button', { name: '+ Contrato' })).toHaveCount(0)
+  // Gerencia opera toda la cartera, incluso si el cliente pertenece a otro asesor.
+  await expect(page.getByRole('button', { name: 'Nuevo cliente' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Corregir datos' }).first()).toBeVisible()
+  await expect(page.getByRole('button', { name: '+ Contrato' }).first()).toBeVisible()
 
   // Búsqueda normalizada sobre los fixtures.
   await page.getByLabel('Buscar clientes').fill('nadia')

@@ -15,10 +15,10 @@ describe('capacidades por rol', () => {
   it('reserva las mutaciones globales para los roles operativos autorizados', () => {
     expect(can('vendedor', 'reasignar')).toBe(false)
     expect(can('supervisor', 'reasignar')).toBe(true)
-    expect(can('gerencia', 'editarConfiguracion')).toBe(false)
+    expect(can('gerencia', 'editarConfiguracion')).toBe(true)
     expect(can('gerencia', 'editarMetas')).toBe(true)
     expect(can('gerencia', 'editarCapacidad')).toBe(true)
-    expect(can('gerencia', 'reasignar')).toBe(false)
+    expect(can('gerencia', 'reasignar')).toBe(true)
     expect(can('directorio', 'reasignar')).toBe(false)
     expect(can('directorio', 'editarConfiguracion')).toBe(false)
     expect(can('directorio', 'verReportes')).toBe(true)
@@ -36,7 +36,7 @@ describe('capacidades por rol', () => {
     // repartirCola ≠ repartirLeads: la primera es la COLA GLOBAL (coordinador),
     // la segunda es bajar de la bandeja al vendedor (supervisor).
     expect(can('coordinador', 'repartirCola')).toBe(true)
-    expect(can('gerencia', 'repartirCola')).toBe(false)
+    expect(can('gerencia', 'repartirCola')).toBe(true)
     expect(can('supervisor', 'repartirCola')).toBe(false)
     expect(can('vendedor', 'repartirCola')).toBe(false)
     expect(can('directorio', 'repartirCola')).toBe(false)
@@ -46,12 +46,10 @@ describe('capacidades por rol', () => {
     expect(can('coordinador', 'verCartera')).toBe(false)
     expect(can('coordinador', 'reasignar')).toBe(false)
     expect(can('coordinador', 'repartirLeads')).toBe(false)
-    // Los roles operativos y de auditoría conservan la cartera unificada;
-    // Gerencia entra solo a inteligencia comercial.
-    for (const rol of ['vendedor', 'supervisor', 'directorio'] as const) {
+    // Los roles operativos y de auditoría conservan la cartera unificada.
+    for (const rol of ['vendedor', 'supervisor', 'gerencia', 'directorio'] as const) {
       expect(can(rol, 'verCartera')).toBe(true)
     }
-    expect(can('gerencia', 'verCartera')).toBe(false)
   })
 
   it('deja al vendedor VER configuración (su calendario ICS) sin poder editarla', () => {
@@ -83,30 +81,30 @@ describe('capacidades por rol', () => {
   it('solo permite escritura general a roles que no son de auditoría', () => {
     expect(puedeEscribir('vendedor')).toBe(true)
     expect(puedeEscribir('supervisor')).toBe(true)
-    expect(puedeEscribir('gerencia')).toBe(false)
+    expect(puedeEscribir('gerencia')).toBe(true)
     expect(puedeEscribir('directorio')).toBe(false)
   })
 
-  it('limita Gerencia a inteligencia, metas y capacidad', () => {
+  it('habilita Gerencia como operador total del CRM', () => {
     expect(CAPS.gerencia).toEqual({
       verTodo: true,
       verEquipo: true,
       filtrarPorVendedor: true,
-      reasignar: false,
-      repartirLeads: false,
-      repartirCola: false,
-      verPipeline: false,
-      verLeads: false,
-      verAgenda: false,
-      verGestionEquipo: false,
+      reasignar: true,
+      repartirLeads: true,
+      repartirCola: true,
+      verPipeline: true,
+      verLeads: true,
+      verAgenda: true,
+      verGestionEquipo: true,
       verAlertas: true,
-      verCartera: false,
-      verConfiguracion: false,
-      editarConfiguracion: false,
+      verCartera: true,
+      verConfiguracion: true,
+      editarConfiguracion: true,
       verReportes: true,
       editarMetas: true,
       editarCapacidad: true,
-      soloLecturaTotal: true,
+      soloLecturaTotal: false,
     })
   })
 })

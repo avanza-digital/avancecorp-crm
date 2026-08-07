@@ -61,7 +61,7 @@ const ASESOR_DEMO = 'd-v1'
 //      — los 3 dueños de los contratos demo A/B/C, la narrativa no se rompe.
 //    · d-sup1 (sesión supervisor): TERESA propia con ventana VIVA (acciones en
 //      SU fila) y el equipo d-v1/d-v2 visible SIN acciones (regla de cartera).
-//    · gerencia/directorio: los 6, solo lectura, columna Asesor variada.
+//    · gerencia/directorio: los 6 y columna Asesor variada; solo Gerencia opera.
 //    Los documentos CE (NADIA) y PASAPORTE (BRUNO) viven en carteras ajenas a
 //    d-v1: la sigla se luce en las vistas de supervisión.
 export const CLIENTES_DEMO: ClienteBasico[] = [

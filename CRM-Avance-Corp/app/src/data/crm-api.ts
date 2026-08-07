@@ -1697,15 +1697,30 @@ export async function crearClientePortal(payload: CrearClientePortalInput): Prom
   return { userId, emailEnviado: Boolean(cuerpo.email_enviado) }
 }
 
-// ── Corrección del cliente (UPDATE directo a perfiles; RLS = dueño + 5 h) ──────
+// ── Corrección del cliente (analista: RLS 5 h; Gerencia: RPC acotada) ──────────
 export type ClientePortalPatch = Database['public']['Tables']['perfiles']['Update']
 
 /**
- * Devuelve `true` si el servidor guardó y `false` si el UPDATE tocó 0 filas —
- * LA trampa de la ventana de 5 h: al vencer, la RLS deja de matchear la fila y
- * PostgREST responde 200 con lista vacía, SIN error. Jamás asumir éxito sin filas.
+ * Devuelve `true` si el servidor guardó. En el camino del analista, `false`
+ * significa que UPDATE tocó 0 filas (ventana RLS vencida). Gerencia usa una RPC
+ * con allowlist y sello de tiempo del servidor. Jamás asumir éxito sin confirmación.
  */
-export async function actualizarClientePortal(id: string, patch: ClientePortalPatch): Promise<boolean> {
+export async function actualizarClientePortal(
+  id: string,
+  patch: ClientePortalPatch,
+  comoGerencia = false,
+): Promise<boolean> {
+  if (comoGerencia) {
+    const { data, error } = await cliente()
+      .schema('crm')
+      .rpc('actualizar_cliente_gerencia', {
+        p_cliente_id: id,
+        p_patch: patch as Database['crm']['Functions']['actualizar_cliente_gerencia']['Args']['p_patch'],
+      })
+    if (error) throw aErrorApi(error, 'crm.clientes.update_gerencia_fallido')
+    return data === true
+  }
+
   const { data, error } = await cliente()
     .from('perfiles')
     .update(patch)

@@ -205,6 +205,30 @@ describe('obtenerClienteDetalle (public.perfiles)', () => {
 })
 
 describe('actualizarClientePortal (la TRAMPA de la ventana de 5 h)', () => {
+  it('Gerencia usa la RPC acotada y no el UPDATE crudo de perfiles', async () => {
+    let body: Record<string, unknown> = {}
+    let patchCrudo = 0
+    server.use(
+      http.patch(`${BASE}/rest/v1/perfiles`, () => {
+        patchCrudo += 1
+        return HttpResponse.json([{ id: 'cli-1' }])
+      }),
+      http.post(`${BASE}/rest/v1/rpc/actualizar_cliente_gerencia`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(true)
+      }),
+    )
+
+    await expect(
+      actualizarClientePortal('cli-1', { telefono: '+51911111111' }, true),
+    ).resolves.toBe(true)
+    expect(body).toEqual({
+      p_cliente_id: 'cli-1',
+      p_patch: { telefono: '+51911111111' },
+    })
+    expect(patchCrudo).toBe(0)
+  })
+
   it('ventana vencida: el PATCH responde 200 con [] y la función devuelve false', async () => {
     server.use(
       http.patch(`${BASE}/rest/v1/perfiles`, () =>
