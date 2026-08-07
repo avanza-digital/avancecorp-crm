@@ -1,11 +1,11 @@
 ---
 tags: [crm, roles, auth, acceso]
-actualizado: 2026-08-03
+actualizado: 2026-08-07
 ---
 
 # Acceso y roles del CRM (crm.miavance.com)
 
-El CRM tiene **5 roles de aplicación** — fuente única en `CRM-Avance-Corp/app/src/lib/roles.ts` (`ROLES`, `CAPS`, `can()`): **vendedor** (solo su cartera), **supervisor** (equipo, filtra/reasigna/reparte), **gerencia** (ve todo, único que edita configuración), **directorio** (ve todo en solo-lectura absoluta) y **coordinador** (off-roster; reparte la cola global). `can()` es UX; la seguridad real es la RLS del esquema `crm`. Regla de oro: lo que `can()` oculta, la RLS también lo niega.
+El CRM tiene **5 roles de aplicación** — fuente única en `CRM-Avance-Corp/app/src/lib/roles.ts` (`ROLES`, `CAPS`, `can()`): **vendedor** (solo su cartera), **supervisor** (equipo, filtra/reasigna/reparte), **gerencia** (opera globalmente y edita configuración), **directorio** (ve todo en solo-lectura absoluta) y **coordinador** (off-roster; reparte la cola global). `can()` es UX; la seguridad real es la RLS del esquema `crm`. Regla de oro: lo que `can()` oculta, la RLS también lo niega.
 
 ## Cómo se resuelve el acceso (`crm.mi_acceso_fn` → `resolverRol`)
 
@@ -17,6 +17,20 @@ La app no intenta deducirlo leyendo `crm.equipo`: RLS oculta por igual una fila 
 4. **`no_enrolado`:** autentica, pero no pertenece al CRM ni cumple el fallback.
 
 Detalles y superficies cubiertas: [[Offboarding seguro del CRM (P04)]].
+
+## Decisión 2026-08-07 — Gerencia operativa global
+
+Miguel decidió que **Gerencia deja de ser un rol de inteligencia/consulta y puede hacer todo el trabajo operativo del CRM sobre todo el ámbito**: trabajar y distribuir leads, registrar actividades, crear/cerrar/reprogramar tareas y reuniones, convertir leads, corregir clientes y datos bancarios, crear/editar contratos y gestionar configuración, metas y capacidad.
+
+La amplitud operativa no convierte a Gerencia en `admin`/`superadmin` del portal. Se mantienen estas fronteras:
+
+- **Directorio** continúa en solo-lectura absoluta.
+- No hay borrado físico ni reescritura de auditoría/historial; siguen vigentes las reglas de No Insista y de aislamiento de datos.
+- Gerencia solo convierte un lead si ya tiene analista asignado y conserva a ese analista como responsable del cliente/contrato.
+- Gerencia no administra usuarios, pagos ni funciones administrativas del portal.
+- Los contratos ya cerrados por renovación o retiro siguen reservados al `superadmin` real del portal.
+
+**EN PRODUCCIÓN desde el 2026-08-07.** Miguel revisó el alcance y confirmó explícitamente el despliegue. La migración local `20260807123000_crm_gerencia_operativa.sql` quedó registrada por Supabase como `20260807180637_crm_gerencia_operativa`; retiró el veto de solo lectura y habilitó RLS/RPC con rol CRM vivo. Edges activas: `crm-convertir-lead` v8 y `crear-cliente` v26, ambas con JWT obligatorio. Frontend: release `crm-20260807T182333Z-ea53f103ab2c`, bundle principal `index-mxMTOI1H.js`. Pasó 1.304 pruebas unitarias, lint, tipos, build, 24 preflight Edge, oráculo PostgreSQL `GERENCIA_OPERATIVA_TX_OK` y 7 E2E focalizados. El smoke real con CARLOS VALLES confirmó las acciones globales de Cartera y cero errores de consola. Ver [[CRM conexión a datos reales]] y [[Deploy a Hostinger]].
 
 **Para crear un usuario real por rol hacen falta 3 piezas:** cuenta en Auth (email+clave confirmados) + fila en `public.perfiles` (activo) + fila en `crm.equipo` (`rol_crm`, activo). Solo se puede con acceso admin al proyecto `dctqcbznekcyxhjujuci`.
 

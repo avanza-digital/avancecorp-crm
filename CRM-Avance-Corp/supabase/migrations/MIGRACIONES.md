@@ -391,3 +391,31 @@ equipo completo, con ranking por conversión y por cumplimiento de meta de
 capital PEN. USD permanece separado. Validación final: 1,208 pruebas, lint,
 typecheck y build verdes; assets principales verificados byte a byte en
 `crm.miavance.com` y ZIP público 404.
+
+## Gerencia operativa global (2026-08-07)
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260807123000 | 20260807180637 | crm_gerencia_operativa | ✅ **EN PRODUCCIÓN 2026-08-07**, con confirmación explícita de Miguel después de revisar el SQL. Retira el veto transversal de solo lectura y habilita a Gerencia activa para operar globalmente leads, actividades, tareas/reuniones, conversión, corrección acotada de clientes, banca y contratos. No la convierte en admin/superadmin del portal. Directorio sigue en lectura; no se abre hard-delete; la conversión exige analista asignado y conserva su atribución; contratos renovados/retirados siguen cerrados salvo superadmin. |
+
+La migración es transaccional y pasó el oráculo autocontenido
+`supabase/scripts/test-gerencia-operativa.sql` (`GERENCIA_OPERATIVA_TX_OK`),
+incluidos negativos de UPDATE crudo a perfiles, inyección de campos, perfil
+staff, actor analista, tarea asignada fuera del equipo, contrato cerrado y
+DELETE físico. Verificación remota: función/3 triggers del veto ausentes; cuatro
+policies operativas `TO authenticated` con rama Gerencia; nuevas RPC y contratos
+sin EXECUTE para `anon`; `authenticated` conserva únicamente las puertas
+gateadas. El advisor reporta la clase esperada
+`authenticated_security_definer_function_executable` para la RPC nueva: es
+intencional, porque `crm.actualizar_cliente_gerencia` valida Gerencia CRM viva,
+acepta solo la allowlist del formulario, preserva rol/activo/asesor/autoría y
+sella `actualizado_en` en servidor.
+
+Orden de despliegue completado: migración → `crm-convertir-lead` v8 y
+`crear-cliente` v26 (`verify_jwt=true`) → frontend release
+`crm-20260807T182333Z-ea53f103ab2c` (ZIP SHA-256
+`0db76d72defed2e2be33d8da95e8b2ad08bb5e2546e974b0dfe3aef199ff994c`).
+Producción sirve `index-mxMTOI1H.js`; HTML y chunks críticos coincidieron byte a
+byte, el asset previo y el ZIP responden 404. Smoke autenticado real con CARLOS
+VALLES mostró operaciones globales de Cartera y el formulario «Corrección
+autorizada por Gerencia», sin guardar datos y con consola limpia.

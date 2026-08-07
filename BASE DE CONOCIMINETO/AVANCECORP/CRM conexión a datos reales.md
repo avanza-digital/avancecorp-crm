@@ -1,6 +1,6 @@
 ---
 tags: [crm, datos-reales, produccion, f2, en-curso]
-actualizado: 2026-07-16
+actualizado: 2026-08-07
 ---
 
 # CRM — conexión a datos reales (EN CURSO, 2026-07-15)
@@ -65,8 +65,9 @@ Una auditoría (3 lentes × verificación, 16 hallazgos) encontró un bug **ALTA
 - **Acciones siguen GATED** en prod (muy pronto). El CRM real es de solo consulta hasta el bloque de acciones.
 - **Probar en prod:** login con QA gerente (`avancecorp26+crm-gerente@gmail.com`/`Avance.Gerente2026`) ve todo (23 equipo + 9 leads); QA analista ve 3. El equipo real entra con su credencial de portal (cartera vacía salvo asignaciones piloto).
 
-## Quién da de alta clientes/contratos — la regla REAL (2026-07-16)
-Decisión de Miguel: **el alta la hace el vendedor** ("a veces el supervisor"); **gerencia NUNCA**.
+## Quién da de alta clientes/contratos — historial y decisión vigente
+
+La decisión del 2026-07-16 —“el alta la hace el vendedor, a veces el supervisor; gerencia nunca”— fue **reemplazada por Miguel el 2026-08-07**. La regla vigente es: **Gerencia puede ejecutar todas las operaciones del CRM, incluido convertir leads, corregir clientes y crear/editar contratos, sobre todo el ámbito**. Ver el alcance y las fronteras en [[Acceso y roles del CRM#Decisión 2026-08-07 — Gerencia operativa global]].
 Y: "**analista y comercial son lo mismo, no distingas**; usa `analista` para el CRM".
 
 **Verificado contra prod — no hay nada que unificar, ya está unificado:**
@@ -76,21 +77,21 @@ Y: "**analista y comercial son lo mismo, no distingas**; usa `analista` para el 
 - ⚠️ **NO pasar la fuerza de ventas a `comercial`**: `analista` es la llave de 8 cosas del servidor
   (incl. `crear_contrato`). Se quedarían sin alta de contratos y sin ver su propia cartera.
 
-**El servidor exige DOS cosas para crear un contrato** (`public.crear_contrato`), y hay que pasar las dos:
-1. **Rol:** `es_analista() OR es_admin()` → espejado en el cliente por `Yo.puede_contratar`.
-2. **Cartera:** el cliente debe ser TUYO (`asesor_perfil_id = auth.uid()`, o lo registraste con asesor nulo).
+**Para la fuerza de ventas**, el servidor conserva las dos condiciones históricas de `public.crear_contrato`:
+1. **Rol de portal:** `es_analista() OR es_admin()`.
+2. **Cartera:** el cliente debe ser propio (`asesor_perfil_id = auth.uid()`, o lo registró con asesor nulo).
 
-Y la edge `crm-convertir-lead` pone **`asesor = vendedor del lead ?? quien convierte`**. De ahí sale la
-trampa que se arregló hoy: **un supervisor sobre el lead de su vendedor pasa (1) y falla (2)** → creaba el
-cliente, le mandaba el correo de bienvenida a una persona real, cerraba el lead… y el contrato reventaba.
-Por eso el gate del drawer exige **rol Y cartera** (`seraMiCliente`): no empezar lo que no se puede terminar.
-Si el supervisor quiere cerrarla él, **se reasigna el lead** primero (queda a su nombre y ya pasa las dos).
+**Gerencia tiene una tercera vía, acotada al CRM:** `private.rol_crm(auth.uid()) = 'gerencia'`. No necesita
+convertirse en admin del portal ni apropiarse de la cartera. En conversión, vendedor/supervisor siguen
+exigiendo responsabilidad propia; Gerencia puede cerrar un lead ajeno solo si ya tiene analista asignado,
+y ese analista se conserva como asesor del nuevo cliente.
 
-⚠️ **La regla "gerencia no da de alta" es SOLO de UI.** La edge autoriza por `rol_crm` (vendedor/supervisor/
-gerencia) y **jamás mira `perfiles.rol`**; `crm.convertir_lead` incluso privilegia a gerencia. Un pedido
-directo al servidor con la cuenta de Carlos **crea un cliente real y manda el correo** — y ese cliente nace
-huérfano (asesor `directorio`), invisible para la fuerza de ventas y sin contrato posible. Bajarla al
-servidor está en §Pendientes.
+La brecha histórica entre el rol CRM `gerencia` y el rol de portal `directorio` se resuelve sin elevar a
+Carlos a administrador del portal: la nueva frontera de servidor autoriza a Gerencia por su enrolamiento
+CRM activo, exige que el lead tenga analista asignado y conserva a ese analista como responsable. Así se
+evita crear clientes huérfanos y se mantiene la atribución comercial. **Está activa en producción desde
+el 2026-08-07**: migración remota `20260807180637`, edges `crm-convertir-lead` v8 / `crear-cliente` v26 y
+frontend `crm-20260807T182333Z-ea53f103ab2c`.
 
 ## Notas técnicas clave
 - **rol_crm** CHECK = vendedor|supervisor|gerencia; directorio entra por fallback lector-global (no por crm.equipo).
@@ -132,9 +133,9 @@ renovaciones (eso es de admin) → apagar su pantalla no pierde nada de eso. Lo 
 reales** y puede crear clientes reales con correo real. Además **3 leads reales cuelgan de la cuenta QA**
 (Mariana Quispe, Diego Fernández, Lucía Mendoza): hoy **ningún vendedor real los puede trabajar**.
 
-**Otros:** bajar al servidor "gerencia no da de alta" · `cronograma.ts` trunca en silencio a 120 cuotas
-(el portal no) · el `<input type=date>` sin `min`/`max` acepta año de 2 dígitos → 19xx · la conversión real
-(edge) no tiene ningún test automático.
+**Otros (actualizado 2026-08-07):** la habilitación segura de Gerencia ya está aplicada y verificada en
+producción · `cronograma.ts` trunca en silencio a 120 cuotas
+(el portal no) · el `<input type=date>` sin `min`/`max` acepta año de 2 dígitos → 19xx.
 
 ## Relacionadas
 [[Acceso y roles del CRM]] · [[F0 Cimientos BD del CRM]] · [[Deploy a Hostinger]] · [[CRM Avance Corp P-054]]
