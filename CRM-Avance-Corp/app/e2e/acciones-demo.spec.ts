@@ -145,6 +145,8 @@ test('anular la tarea que sobra tras agendar la reunión (demo)', async ({ page 
   // 1) Se agenda la reunión: ahora hay DOS pendientes y el WhatsApp sobra.
   await drawer.getByRole('button', { name: /Agendar otra/i }).click()
   await drawer.getByLabel('Tipo de tarea').selectOption('reunion')
+  await drawer.getByLabel('Modalidad de la reunión').selectOption('virtual')
+  await drawer.getByLabel('Enlace de la reunión').fill('https://meet.google.com/demo-avance')
   await drawer.getByRole('button', { name: /^Agendar$/ }).click()
   await expect(drawer.getByText('2 pendientes')).toBeVisible()
 
@@ -174,16 +176,20 @@ test('anular la reunión devuelve el lead a su etapa anterior (demo)', async ({ 
   // 1) Agendar la reunión sube al lead a «Reunión agendada».
   await drawer.getByRole('button', { name: /Agendar otra/i }).click()
   await drawer.getByLabel('Tipo de tarea').selectOption('reunion')
+  await drawer.getByLabel('Modalidad de la reunión').selectOption('virtual')
+  await drawer.getByLabel('Enlace de la reunión').fill('https://meet.google.com/demo-avance')
   await drawer.getByRole('button', { name: /^Agendar$/ }).click()
   await expect(drawer.getByText('2 pendientes')).toBeVisible()
 
   // 2) La confirmación AVISA del retroceso antes del tap — no después.
   const icono = drawer.getByRole('button', { name: /^Anular tarea — Reunión/ })
   await icono.click()
-  await expect(drawer.getByText(/Era su única reunión: vuelve a «/)).toBeVisible()
+  const confirmar = drawer.getByRole('button', { name: /^Sí, anular — Reunión/ })
+  await expect(confirmar).toHaveAccessibleDescription(/Era su única reunión: vuelve a «/)
+  await drawer.getByLabel(/^Motivo de cancelación — Reunión/).selectOption('cancelada_cliente')
 
   // 3) Al confirmar, el toast canta la etapa nueva en vez del genérico.
-  await drawer.getByRole('button', { name: /^Sí, anular — Reunión/ }).click()
+  await confirmar.click()
   await expect(page.getByText(/vuelve a «/)).toBeVisible()
 
   // 4) …y el WhatsApp sembrado sigue en pie: anular no barre la agenda.
