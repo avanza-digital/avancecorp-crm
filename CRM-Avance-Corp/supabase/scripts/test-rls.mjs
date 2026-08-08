@@ -1182,15 +1182,22 @@ async function testReassignmentTrigger(sessions, seed) {
     origen: 'otro',
   };
 
+  // Desde la creación atómica (20260804165440, en prod 2026-08-04) el INSERT
+  // directo sobre crm.leads está revocado para authenticated: los leads nacen
+  // SOLO por crm.crear_lead_si_disponible. La sonda usa la vía legal — mismo
+  // lead transitorio, mismo vendedor destino — y el trigger de reasignación
+  // debe emitir su actividad igual que antes.
   const assignedInsert = await positive(
     'sup1 crea un lead que nace asignado',
-    sup1.client.schema('crm').from('leads').insert({
-      ...common,
-      id: TRANSIENT_IDS.triggerAssignedInsertLead,
-      nombre_completo: 'TRIGGER INSERT ASIGNADO TRANSIENT',
-      telefono: '999000006',
-      vendedor_id: vend1Id,
-    }).select('id').single(),
+    sup1.client.schema('crm').rpc('crear_lead_si_disponible', {
+      p_id: TRANSIENT_IDS.triggerAssignedInsertLead,
+      p_nombre_completo: 'TRIGGER INSERT ASIGNADO TRANSIENT',
+      p_telefono: '999000006',
+      p_origen: common.origen,
+      p_monto_estimado: common.monto_estimado,
+      p_moneda: common.moneda,
+      p_vendedor_id: vend1Id,
+    }),
   );
   if (assignedInsert) {
     const activities = await readReassignmentActivities(
@@ -1648,6 +1655,11 @@ async function testAvanceEtapa(sessions, seed) {
   //     (migracion 20260725221530, que cerro el hueco previo que destapo C1);
   // (2) aunque alguien la reabriera, el gate de ambito DENTRO del trigger de
   //     avance impide que arrastre una escritura sobre crm.leads.
+  // Desde 2026-08-08 (metas/SLA versionados) existe una TERCERA capa que corre
+  // ANTES que la policy: el trigger de destino exige que toda tarea pendiente
+  // tenga un destino CRM efectivo, y un lead de la cola global no lo tiene.
+  // El bloqueo llega como 23514 (BEFORE trigger gana a la evaluacion WITH
+  // CHECK), asi que se acepta ese codigo ademas del de RLS.
   await expectBlockedMutation(
     'sup1 intenta agendar una reunion sobre un lead de la cola global que NO puede ver',
     sup1.client.schema('crm').from('tareas').insert({
@@ -1657,6 +1669,7 @@ async function testAvanceEtapa(sessions, seed) {
       vence_en: new Date(Date.now() + 2 * 86_400_000).toISOString(),
       creado_por: sup1Id,
     }),
+    ['23514'],
   );
 
   const trasIntrusion = await positive(
@@ -1670,13 +1683,16 @@ async function testAvanceEtapa(sessions, seed) {
     'ESCALADA CERRADA: el lead de la cola global sigue en nuevo tras el intento',
     `etapa=${trasIntrusion?.data?.etapa}`);
 
-  // La SEGUNDA capa, aislada: con las llaves de service_role se fabrica la
-  // tarea que la policy ya no deja crear (service_role no pasa por RLS), para
-  // comprobar que el gate del TRIGGER la frena igual. Sin esto, tapar la policy
-  // habria dejado el gate del trigger sin cobertura y nadie lo notaria el dia
-  // que alguien reabra la policy.
-  await requireAdmin(
-    'fabricar por service_role la reunion sobre el lead de la cola global',
+  // La SEGUNDA capa, aislada: hasta 2026-08-08 se fabricaba con service_role
+  // la tarea que la policy no deja crear, para probar que el gate del TRIGGER
+  // de avance la frenaba igual. El trigger de destino (metas/SLA versionados)
+  // volvio ese estado INFABRICABLE para cualquier escritor, incluido
+  // service_role: la reunion sobre un lead sin dueno muere en 23514 antes de
+  // existir. Se asevera exactamente eso — la defensa se movio una capa antes y
+  // el gate del trigger de avance queda subsumido (su estado gatillo ya es
+  // inalcanzable).
+  await expectBlockedMutation(
+    'ni service_role fabrica una reunion sobre el lead de la cola global (trigger de destino)',
     admin.schema('crm').from('tareas').insert({
       lead_id: TRANSIENT_IDS.avanceLeadColaGlobal,
       tipo: 'reunion',
@@ -1684,16 +1700,17 @@ async function testAvanceEtapa(sessions, seed) {
       vence_en: new Date(Date.now() + 2 * 86_400_000).toISOString(),
       creado_por: sup1Id,
     }),
+    ['23514'],
   );
   const trasFabricada = await positive(
-    'releer la etapa tras la tarea fabricada saltandose la policy',
+    'releer la etapa tras el intento de fabricacion bloqueado',
     admin.schema('crm').from('leads')
       .select('id, etapa')
       .eq('id', TRANSIENT_IDS.avanceLeadColaGlobal)
       .single(),
   );
   check(trasFabricada?.data?.etapa === 'nuevo',
-    'DEFENSA EN PROFUNDIDAD: ni saltandose la policy asciende un lead sin dueno',
+    'DEFENSA EN PROFUNDIDAD: el lead sin dueno sigue en nuevo; el estado gatillo es infabricable',
     `etapa=${trasFabricada?.data?.etapa}`);
 
   // ── La via de ACTIVIDADES no lleva gate propio: toda su seguridad descansa
@@ -1815,14 +1832,16 @@ async function testTareaIsolation(sessions, seed) {
     }).select('id'),
   );
 
-  // Completar va SOLO por la RPC: el trigger corta el UPDATE directo (P0001).
+  // Completar va SOLO por la RPC: el trigger corta el UPDATE directo. Emitía
+  // P0001; desde 2026-08-08 (configuración operativa) el guard reescrito emite
+  // 22023. Ambos códigos prueban lo mismo: el cierre directo no pasa.
   await expectBlockedMutation(
     'vend1 no completa su tarea por UPDATE directo',
     sessions.vend1.client.schema('crm').from('tareas')
       .update({ estado: 'completada' }, { count: 'exact' })
       .eq('id', llamadaJuan.id)
       .select('id'),
-    ['P0001'],
+    ['P0001', '22023'],
   );
   const juanTarea = await readOneTarea(
     sessions.vend1,
@@ -1939,14 +1958,15 @@ async function testTareaCloseRpc(sessions, seed) {
     }
   }
 
-  // Cerrada => inmutable: nadie la reabre por UPDATE directo (trigger P0001).
+  // Cerrada => inmutable: nadie la reabre por UPDATE directo (trigger; P0001
+  // histórico, 22023 desde la configuración operativa 2026-08-08).
   await expectBlockedMutation(
     'vend1 no reabre una tarea cerrada',
     vend1.client.schema('crm').from('tareas')
       .update({ estado: 'pendiente' }, { count: 'exact' })
       .eq('id', TRANSIENT_IDS.rpcCloseTarea)
       .select('id'),
-    ['P0001'],
+    ['P0001', '22023'],
   );
   // Restauracion: ver cleanupTransientRows — la tarea cerrada y su actividad de
   // resultado QUEDAN (log INSERT-only; borrar la actividad es imposible porque
@@ -2031,7 +2051,8 @@ async function testAnularAutoriaYRetroceso(sessions, seed) {
       .update({ estado: 'cancelada' }, { count: 'exact' })
       .eq('id', TRANSIENT_IDS.anularTareaReunion)
       .select('id'),
-    ['P0001'],
+    // P0001 histórico; 22023 desde la configuración operativa 2026-08-08.
+    ['P0001', '22023'],
   );
 
   // 2) LA ETIQUETA NO SE PUEDE INYECTAR: escribirla suelta en el payload es un
@@ -3251,15 +3272,72 @@ async function testContractBankAccounts(sessions, seed) {
       admin.from('perfiles').update({ rol: 'analista' }).eq('id', seed.profileIdByKey.vend1),
     );
 
-    // Sin fila en crm.equipo, el admin usa el fallback global previsto por P04.
+    // ⚠️ DISEÑO INVERTIDO EL 2026-08-08 (configuración operativa + prevalencia
+    // P04 restaurada). El fallback original de P04 («sin fila en crm.equipo,
+    // el admin usa su poder global») fue retirado a propósito: el comment de
+    // es_lector_global (20260807203740) dice literal «Admin/Superadmin Portal
+    // no heredan lectura operativa». Hoy un admin del portal SIN actor CRM
+    // efectivo no tiene banca NI resolver de Pagos. Estas sondas clavan el
+    // diseño nuevo; si un ciclo futuro decide devolver el fallback, pasarán a
+    // rojo y forzarán la decisión consciente. Impacto operativo anotado en el
+    // vault: la página de Pagos exige ahora operador con membresía CRM viva.
     await requireAdmin(
       'banca P04: convertir directorio temporalmente en admin global',
       admin.from('perfiles').update({ rol: 'admin' }).eq('id', directorProfileId),
     );
     directorRoleChanged = true;
-    await assertAdminBankRead(
-      sessions.directorio.client,
-      'admin global sin membresia CRM',
+    await expectExpectedFailure(
+      'admin global sin membresia CRM: ya no lista cuentas bancarias',
+      sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      'admin global sin membresia CRM: ya no resuelve cuentas para Pagos',
+      sessions.directorio.client.schema('crm').rpc('cuentas_pago_contratos_fn', {
+        p_contrato_ids: [seed.contract.id],
+      }),
+      ['42501'],
+      /no autorizado para consultar cuentas de pago/i,
+    );
+    // Rama analista del guard SIN membresía CRM (hallazgo del auditor-rls
+    // 2026-08-08): las sondas de analista usan vend1/vend3, que SÍ tienen fila
+    // activa en crm.equipo. Aquí se clava el caso sin fila reutilizando a
+    // directorio (único fixture sin membresía): con rol portal `analista` y
+    // cero membresía, ni la banca del CRM ni el ALTA LEGACY del portal
+    // (`public.crear_contrato`, llamador del guard desde el catálogo) le
+    // responden. Verificado en prod: los 20 analistas reales tienen membresía
+    // activa — este caso solo existe para actores mal provisionados.
+    await requireAdmin(
+      'banca P04: convertir directorio temporalmente en analista sin membresia',
+      admin.from('perfiles').update({ rol: 'analista' }).eq('id', directorProfileId),
+    );
+    await expectExpectedFailure(
+      'analista del portal sin membresia CRM: no lista cuentas bancarias',
+      sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      'analista del portal sin membresia CRM: no crea contrato por el canal legacy',
+      sessions.directorio.client.rpc('crear_contrato', {
+        p_contrato: {
+          cliente_id: bankProfileId,
+          moneda: BANK_CONTRACT.currency,
+          capital: 1000,
+          tasa_anual: 10,
+          categoria: 'nuevo',
+        },
+        p_cronograma: [],
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
     );
     await requireAdmin(
       'banca P04: restaurar el rol global de directorio',
@@ -3462,6 +3540,73 @@ function dimensionesMetasValidas(configuracion) {
     return recibidas.size === esperadas.size
       && [...esperadas].every((dimension) => recibidas.has(dimension));
   });
+}
+
+// — Ventana de actividades del ámbito (F0 del plan de escalabilidad) ---------
+// 20260808163638 recorta actividades_del_ambito_fn a 365 días + limit 10000.
+// Se siembra con service_role una actividad VIEJA (400 días) sobre un lead de
+// vend1 y se asevera que NO viaja ni para el dueño ni para los lectores
+// globales, mientras la actividad reciente del MISMO lead sí sigue viajando
+// (prueba que el recorte es la ventana y no el scoping). La fila vieja queda
+// en el branch a propósito: el log es INSERT-only y el branch se descarta
+// (mismo criterio que las actividades transitorias de otros tests).
+async function testVentanaActividades(sessions, seed) {
+  console.log('\n— Ventana de actividades: fuera de 365 dias no viaja —');
+
+  const juanFixture = LEAD_BY_KEY.juan;
+  const juanLead = seed.leadByName.get(juanFixture.name);
+  const actividadViejaId = randomUUID();
+  const creadoViejo = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000).toISOString();
+  await requireAdmin(
+    'sembrar actividad fuera de la ventana de 365 dias',
+    admin.schema('crm').from('actividades').insert({
+      id: actividadViejaId,
+      lead_id: juanLead.id,
+      tipo: 'nota',
+      detalle: 'gate ventana: actividad fuera de rango temporal',
+      creado_por: seed.profileIdByKey[juanFixture.sellerKey],
+      creado_en: creadoViejo,
+    }),
+  );
+
+  for (const key of ['vend1', 'sup1', 'gerencia', 'directorio']) {
+    const respuesta = await positive(
+      `${key} lee el timeline del ambito con la ventana aplicada`,
+      sessions[key].client.schema('crm').rpc('actividades_del_ambito_fn'),
+    );
+    if (!respuesta) continue;
+    const ids = new Set((respuesta.data ?? []).map((fila) => fila.id));
+    check(!ids.has(actividadViejaId),
+      `${key} no recibe la actividad fuera de la ventana de 365 dias`);
+    check(ids.has(juanFixture.activityId),
+      `${key} sigue recibiendo la actividad reciente del mismo lead`);
+  }
+
+  // Espejo de RLS de la RPC (definer, salta las policies): primera vez que la
+  // función queda versionada → se clava su WHERE con sondas NEGATIVAS. vend3
+  // (subárbol de sup2) no ve nada de juan (vend1); el coordinador es
+  // off-roster (ámbito ∅ por diseño); un miembro desactivado pierde el ámbito
+  // entero (rol_crm/vendedor_ids_visibles solo miran equipo.activo).
+  const vend3 = await positive(
+    'vend3 llama el timeline del ambito sin cruzar de subarbol',
+    sessions.vend3.client.schema('crm').rpc('actividades_del_ambito_fn'),
+  );
+  if (vend3) {
+    const ids = new Set((vend3.data ?? []).map((fila) => fila.id));
+    check(!ids.has(juanFixture.activityId),
+      'vend3 no recibe actividades del subarbol de sup1');
+    check(!ids.has(actividadViejaId),
+      'vend3 tampoco recibe la actividad vieja ajena');
+  }
+  for (const key of ['coordinador', 'vendInactive']) {
+    const respuesta = await positive(
+      `${key} llama el timeline del ambito`,
+      sessions[key].client.schema('crm').rpc('actividades_del_ambito_fn'),
+    );
+    if (!respuesta) continue;
+    check((respuesta.data ?? []).length === 0,
+      `${key} recibe el timeline vacio (ambito nulo por diseno)`);
+  }
 }
 
 async function testMetasVersionadas(sessions, seed) {
@@ -3763,15 +3908,21 @@ async function testReparto(sessions, seed) {
         moneda: 'USD', nombre_completo: 'REPARTO CARRERA TRANSIENT', telefono: '999000112',
       },
       {
+        // Desde 2026-08-08 (trigger de destino efectivo, metas/SLA
+        // versionados) un lead EN COLA no puede tener tarea pendiente: el
+        // espejo trg_tareas_00_before_insert copia la tenencia del lead y el
+        // destino nulo muere en 23514 — para cualquier escritor, incluido
+        // service_role. El fixture nace entonces en la BANDEJA de sup2 con su
+        // tarea, y mas abajo se clava el conflicto con el re-encolado.
         ...colaComun, id: TRANSIENT_IDS.repartoLeadReencolado, monto_estimado: 5000,
         nombre_completo: 'REPARTO REENCOLADO TRANSIENT', telefono: '999000113',
+        asignado_supervisor_id: seed.profileIdByKey.sup2,
       },
     ]),
   );
-  // Camino real no cubierto antes: un lead devuelto a la cola por gerencia
-  // conserva tareas pendientes; al repartirlo deben SEGUIR al lead a la bandeja.
+  // La tarea hereda la bandeja del lead por el espejo (sup2): destino efectivo.
   await requireAdmin(
-    'sembrar la tarea pendiente del lead re-encolado',
+    'sembrar la tarea pendiente del lead en bandeja',
     admin.schema('crm').from('tareas').insert({
       creado_por: sup1Id,
       id: TRANSIENT_IDS.repartoTareaReencolada,
@@ -3894,24 +4045,34 @@ async function testReparto(sessions, seed) {
     && trasCarrera.data?.vendedor_id === null,
     'carrera: quedo UN solo supervisor asignado y ningun vendedor');
 
-  // sync_tareas: la pendiente del lead re-encolado sigue al lead a la bandeja.
-  await positive(
-    'coordinador reparte el lead re-encolado (con tarea pendiente)',
-    coordinador.schema('crm').rpc('repartir_lead', {
-      p_lead: TRANSIENT_IDS.repartoLeadReencolado,
-      p_supervisor: sup1Id,
-    }),
+  // ⚠️ CONFLICTO CLAVADO A PROPOSITO (2026-08-08). El escenario original
+  // («un lead devuelto a la cola conserva su tarea pendiente y al repartirlo
+  // la tarea lo sigue») quedo INALCANZABLE: re-encolar dispara
+  // trg_leads_zz_sync_tareas (la tarea espeja tenencia nula) y el trigger de
+  // destino efectivo lo aborta con 23514. Consecuencia REAL: gerencia ya no
+  // puede devolver a la cola un lead con tareas pendientes sin cancelarlas o
+  // reasignarlas antes. Esta sonda pina ese comportamiento: si algun ciclo
+  // futuro lo corrige (p. ej. cancelando tareas al re-encolar), fallara en
+  // verde-a-rojo y obligara a re-disenar este escenario. La cobertura de «la
+  // tarea sigue al lead» en asignaciones vivas queda en testTareaFollowsLead.
+  await expectBlockedMutation(
+    're-encolar un lead con tarea pendiente queda bloqueado por el destino efectivo',
+    admin.schema('crm').from('leads')
+      .update({ vendedor_id: null, asignado_supervisor_id: null })
+      .eq('id', TRANSIENT_IDS.repartoLeadReencolado)
+      .select('id'),
+    ['23514'],
   );
   const tarea = await requireAdmin(
-    'releer la tarea del lead re-encolado',
+    'releer la tarea del lead en bandeja tras el re-encolado bloqueado',
     admin.schema('crm').from('tareas')
       .select('asignado_supervisor_id, vendedor_id, estado')
       .eq('id', TRANSIENT_IDS.repartoTareaReencolada).single(),
   );
-  check(tarea.data?.asignado_supervisor_id === sup1Id
+  check(tarea.data?.asignado_supervisor_id === seed.profileIdByKey.sup2
     && tarea.data?.vendedor_id === null
     && tarea.data?.estado === 'pendiente',
-    'la tarea pendiente siguio al lead hasta la bandeja, sin bloquearse',
+    'la tarea pendiente quedo intacta en su bandeja (el bloqueo fue atomico)',
     JSON.stringify(tarea.data));
 }
 
@@ -4236,6 +4397,11 @@ async function testAnon(seed) {
     ['42501', 'PGRST202'],
   );
   await expectExplicitAuthorizationDenied(
+    'anon no ejecuta el timeline del ambito',
+    anon.schema('crm').rpc('actividades_del_ambito_fn'),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
     'anon no lee directamente crm.cuentas_bancarias',
     anon.schema('crm').from('cuentas_bancarias').select('id').limit(1),
     ['PGRST205'],
@@ -4343,6 +4509,7 @@ async function main() {
       await testTareaFollowsLead(sessions, verifiedSeed);
       await testAgendaIcs(sessions, verifiedSeed);
       await testOffboardingMatrix(sessions, verifiedSeed);
+      await testVentanaActividades(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);

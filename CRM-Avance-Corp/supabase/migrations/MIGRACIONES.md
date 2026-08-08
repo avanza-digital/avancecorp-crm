@@ -317,7 +317,8 @@ Miguel (toggle del dashboard).
    NO existen como archivo en el repo: un replay limpio desde el repo no los recrea, y
    `clientes_basicos` del repo (20260711000003) se creó `security_invoker=true` pero alguien
    la recreó en prod sin el flag (por eso reapareció el ERROR del linter). Versionarlos
-   as-built cuando se toquen.
+   as-built cuando se toquen. **Avance 2026-08-08:** `actividades_del_ambito_fn` reconciliada
+   as-built en `20260808163618` (quedan ~10 objetos en drift).
 2. **Flags de activo desalineados**: `private.rol_crm` y `vendedor_ids_visibles` solo miran
    `crm.equipo.activo`; un miembro desactivado SOLO en el portal (`perfiles.activo=false`)
    conserva acceso en ~12 de las 24 funciones (las otras 12 exigen ambos flags). Unificar
@@ -420,13 +421,14 @@ byte, el asset previo y el ZIP responden 404. Smoke autenticado real con CARLOS
 VALLES mostró operaciones globales de Cartera y el formulario «Corrección
 autorizada por Gerencia», sin guardar datos y con consola limpia.
 
-## Configuración operativa versionada (2026-08-07, solo local)
+## Configuración operativa versionada (2026-08-08, producción)
 
 | Versión local | Versión remota | Nombre | Estado |
 |---------------|----------------|--------|--------|
-| 20260807203740 | — | crm_usuarios_jerarquia_autoservicio | 🧪 **SOLO LOCAL — NO APLICADA NI DESPLEGADA EN PRODUCCIÓN.** Añade el contrato de administración de personas y jerarquía: Gerencia crea/edita, activa o desactiva la membresía CRM, organiza la estructura y solicita recuperación; Superadmin Portal conserva en exclusiva la asignación/cambio de `rol_crm`. Agrega `directorio` al dominio CRM, auditoría `crm.usuario_eventos`, validación de ciclos/compatibilidad y transferencias atómicas con control optimista. La Edge Function `crm-usuarios` mantiene Auth Admin y `service_role` fuera del navegador; ninguna autorización depende del correo. |
-| 20260807203751 | — | crm_catalogo_productos_versionado | 🧪 **SOLO LOCAL — NO APLICADA NI DESPLEGADA EN PRODUCCIÓN.** Crea producto estable, versiones y condiciones normalizadas; publica/retira de forma inmutable e integra `public.contratos.producto_condicion_id` con snapshot histórico exacto, FK `ON DELETE RESTRICT` y wrappers de alta/corrección. Gerencia administra el catálogo; los consumidores operativos solo seleccionan condiciones publicadas. El bridge de altas legacy permanece deliberadamente abierto hasta migrar `public_html`; por tanto esta pieza **no está cerrada integralmente**. |
-| 20260807203757 | — | crm_metas_sla_versionados | 🧪 **SOLO LOCAL — NO APLICADA NI DESPLEGADA EN PRODUCCIÓN.** Sustituye los dos modelos antiguos de metas por publicaciones append-only por vendedor, categoría y moneda, con revisión optimista; separa explícitamente `fuentes_reales.capital_y_contratos = contratos_confirmados` de `fuentes_reales.conversion = leads_resueltos`. Versiona políticas SLA y sella política/deadlines por ciclo, asignación y etapa; expone configuración, cumplimiento, métricas y estado vivo. La V2 de Distribución deja de transportar el SLA fijo de 24 h y “estancados” derivados de esa política. Actores, sujetos y destinos vivos se resuelven por rol CRM efectivo, incluidas métricas históricas, tareas e importación, para que una membresía residual de Superadmin sin Gerencia no recupere operación. Los archivos legacy de metas quedan inmutables, sin policies ni acceso Data API; sus writers antiguos se retiran. |
+| 20260807203740 | 20260808160113 | crm_usuarios_jerarquia_autoservicio | ✅ **PRODUCCIÓN.** Añade el contrato de administración de personas y jerarquía: Gerencia crea/edita, activa o desactiva la membresía CRM, organiza la estructura y solicita recuperación; Superadmin Portal conserva en exclusiva la asignación/cambio de `rol_crm`. Agrega `directorio`, auditoría `crm.usuario_eventos`, validación de ciclos/compatibilidad y transferencias atómicas con control optimista. Edge `crm-usuarios` v1 activa con `verify_jwt=true`. |
+| 20260807203751 | 20260808160129 | crm_catalogo_productos_versionado | ✅ **PRODUCCIÓN, BRIDGE ABIERTO.** Crea producto estable, versiones y condiciones normalizadas; publica/retira de forma inmutable e integra `public.contratos.producto_condicion_id` con 325 snapshots históricos exactos, FK `ON DELETE RESTRICT` y wrappers de alta/corrección. Gerencia administra el catálogo. `permite_altas_legacy=true`, revisión 1, mientras no exista el primer producto real publicado. |
+| 20260807203757 | 20260808160137 | crm_metas_sla_versionados | ✅ **PRODUCCIÓN.** Sustituye los dos modelos antiguos de metas por publicaciones append-only por vendedor, categoría y moneda, con revisión optimista; separa `contratos_confirmados` de `leads_resueltos`. Versiona políticas SLA y sella política/deadlines por ciclo, asignación y etapa. Los archivos legacy quedan inmutables y sus writers antiguos se retiran. |
+| 20260807235933 | 20260808160148 | crm_portal_catalogo_productos | ✅ **PRODUCCIÓN.** Publica selector y wrappers catalogados para Admin/Analista, corrige el alcance Portal/CRM, exige interés compuesto anual por años completos e impide cerrar el bridge si faltan callers o una condición publicada. El cierre es irreversible y todavía no se invocó. |
 
 Oráculos transaccionales dedicados, todos con rollback y sin aplicar estado
 remoto:
@@ -442,12 +444,10 @@ remoto:
   `METRICAS_DISTRIBUCION_TX_OK`.
 
 Gate local final en PostgreSQL 16 desechable: replay limpio de
-`203740 → 203751 → 203757`, cinco tokens SQL verdes, app 1,403/1,403,
-E2E 73 aprobados y 38 omitidos por requerir sesión real, Edge Usuarios 10/10,
-Edge Importador 3/3, typecheck, lint, build, check y formato verdes. Advisors:
-sin hallazgos nuevos atribuibles a estas migraciones; solo permanecen warnings
-históricos del esquema base. El clon completó únicamente el stub estándar de
-`auth.users` que el dump sanitizado reduce a `id`; no se modificó producción.
+`203740 → 203751 → 203757 → 235933`, cinco tokens SQL verdes, app
+1,404/1,404 con cobertura, typecheck, lint y build, Portal 50/50, Edge Usuarios
+10/10 y Edge Importador 3/3. Los advisors posteriores no mostraron errores de
+seguridad. Supabase confirmó las cuatro migraciones y sus objetos en producción.
 
 El frontend local ya abre los cuatro módulos desde Configuración. El riel
 operativo consulta solo los dominios autorizados y resume personas, catálogo,
@@ -455,12 +455,127 @@ metas y SLA. El modo demo usa fixtures validados por los mismos contratos
 estrictos, rechaza escrituras antes de la API y tiene recorrido E2E de las cuatro
 tarjetas para Gerencia y Directorio con cero solicitudes a Supabase.
 
-**Único gate funcional abierto:** `public_html/js/admin/analista.js` y
-`public_html/js/admin/contratos.js`, en un repo hermano fuera del alcance y de la
-autorización de escritura actual, todavía consumen las RPC legacy de contratos.
-La compatibilidad `permite_altas_legacy` no puede cerrarse sin migrar, desplegar
-y verificar primero esos callers. Después Gerencia debe ejecutar el cierre
-irreversible `crm.cerrar_altas_legacy_productos(p_expected_revision)`. Mientras
-eso no ocurra, no se declara deuda saldada ni cierre integral. No hubo branch
-remota, `db push`, merge de migraciones, deploy de Edge Function ni release de
-frontend para estas tres versiones.
+**Único gate funcional abierto:** CRM y Portal ya están desplegados con callers
+catalogados, pero producción tiene cero condiciones no legacy seleccionables.
+Debe publicarse el primer producto comercial real, repetir el smoke y recién
+entonces ejecutar `crm.cerrar_altas_legacy_productos(1)`. Mientras eso no ocurra,
+el bridge queda abierto y no se declara el cierre integral irreversible.
+
+## Índices de lectura de la cartera (2026-08-08, solo local)
+
+Preparación del terreno para que la cartera de leads soporte volumen grande.
+Nace del diagnóstico de escalabilidad del 2026-08-08: `listarLeadsDelAmbito`
+trae un máximo de 2000 leads ordenados por `actualizado_en desc` **sin ningún
+índice que cubra ese orden**, y la búsqueda por nombre/teléfono/DNI usa
+`ilike '%…%'` con `pg_trgm` instalado pero sin un solo índice que lo aproveche.
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260808155128 | 20260808170231 | crm_indices_lectura_cartera | ✅ **EN PROD 2026-08-08** (branch crm-f0-escalabilidad → gate 521/521 → advisors sin ERROR → merge; branch borrado). Solo agrega índices: orden de cartera `(actualizado_en desc, id)`, compuesto `(vendedor_id, actualizado_en desc)`, tres GIN trigram para la búsqueda (nombre, teléfono, DNI) y la FK de `enfriamiento_politica` (advisor 0001). ⚠️ Reescrita el mismo día ANTES de aplicarse (permitido: aún sin commit ni aplicar): las 3 FK de `objetivos_vendedores` que también reportaba el advisor murieron cuando la migración de metas versionadas (aplicada en prod 2026-08-08 16:01 UTC por otra sesión) archivó esa tabla; el modelo nuevo nació indexado. No toca policies, funciones, grants, columnas ni datos; ningún objeto de `public`. |
+
+Decisiones que conviene no volver a discutir:
+
+- **El índice de orden NO es parcial a propósito.** Un `where activo = true`
+  sería más chico, pero `listarLeadsDelAmbito` no envía ese predicado (confía en
+  la RLS) y `leads_select` lo tiene dentro de un `OR` con `es_lector_global()`,
+  de donde el planner no puede deducirlo. Con índice parcial, justo la consulta
+  que hoy tiene el techo de 2000 se quedaría sin usarlo.
+- **No se elimina ningún índice.** El advisor marca varios como no usados, pero
+  `crm.tareas` y `crm.actividades` tienen 0 filas y `crm.leads` tiene 1: "nunca
+  escaneado" a ese volumen no prueba inutilidad. La poda se decide con tráfico
+  real, no con estas estadísticas.
+- **`create index` sin CONCURRENTLY** porque las tablas están prácticamente
+  vacías. Si esto se replicara contra una base poblada, hay que sacarlo de la
+  transacción y usar `concurrently`.
+
+Pendiente del ciclo obligatorio: branch de Supabase → aplicar → `test-rls.mjs` →
+advisors → merge. No ejecutado en esta sesión.
+
+## F0 de escalabilidad: as-built + ventana de actividades (2026-08-08)
+
+Contexto en el vault: «Plan de escalabilidad del CRM a data gigante» (F0).
+`actividades_del_ambito_fn` era la ÚNICA lectura del CRM sin techo y además
+vivía SOLO en producción (drift documentado arriba). Decisión de convertidos
+cerrada por Miguel el 2026-08-08: ventana de 45 días (se implementa en F1).
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260808163618 | 20260808170243 | crm_actividades_ambito_asbuilt | ✅ **EN PROD 2026-08-08** (no-op byte a byte verificado por hash md5 antes y después de aplicar). Reconciliación fiel de la función de prod (pg_get_functiondef 2026-08-08 + ACL real `{postgres,authenticated}`). Conserva A PROPÓSITO su search_path legacy y su scoping en WHERE: es reconciliación, no modernización. En prod es no-op byte a byte. |
+| 20260808163638 | 20260808170301 | crm_actividades_ambito_ventana | ✅ **EN PROD 2026-08-08** (ventana+límite+índice verificados en prod; ACL intacto). Ventana de seguridad `creado_en >= now()-365d` + `limit 10000` con `order by creado_en desc, id` (si desborda, sobreviven las más recientes — la señal operativa usa la última actividad por lead) + índice `actividades_recientes_idx (creado_en desc, id)` que sirve ese barrido. Firma y retorno idénticos; scoping intacto. La ventana OPERATIVA de 90 días es F4. |
+
+Front acompañante (mismo ciclo): alarma de topes `crm_api.tope_alcanzado` en
+las 5 lecturas acotadas (4× MAX_*=2000 + espejo `LIMITE_ACTIVIDADES_AMBITO=10000`),
+con 6 tests MSW nuevos. Gate: caso nuevo `testVentanaActividades` (actividad
+sembrada a −400 días no viaja para vend1/sup1/gerencia/directorio; la reciente
+del mismo lead sí).
+
+Pendiente del ciclo obligatorio: branch → aplicar (155128 → 163618 → 163638) →
+seed + gate → advisors → merge. Estados se actualizan al cerrar.
+
+## Reconciliación del gate compartido + prevalencia P04 (2026-08-08)
+
+La corrida F0 fue la PRIMERA corrida completa del gate desde el 2026-08-03: los
+ciclos creación atómica (08-04), inteligencia/gerencia (08-05→07) y
+configuración operativa/catálogo (08-08) entraron a prod sin pasar la matriz
+completa de sesiones reales. Resultado: 14 aserciones desalineadas — 13 de
+guion (comportamiento nuevo deliberado que el guion no conocía) y **1 regresión
+real de servidor**:
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260808173537 | 20260808173903 | crm_restaurar_prevalencia_p04_banca | ✅ **EN PROD 2026-08-08** (auditor-rls OBSERVADA→condiciones cumplidas; línea P04 verificada en prod). El catálogo (20260807235933) reescribió `private.puede_gestionar_cuentas_cliente` y PERDIÓ el `and private.puede_acceder_crm()` que P04 (20260804144555, gate verde 08-04) exigía antes de todo poder de portal: un analista/admin del portal con membresía CRM REVOCADA recuperaba la banca contractual (PII bancaria). Se reaplica exactamente esa línea sobre la forma vigente (ramas del catálogo intactas). Con las bases de hoy («rol CRM efectivo»), admin/superadmin del portal sin membresía CRM quedan fuera de la banca — coherente con el comment de `es_lector_global`. **Efecto colateral documentado (auditor-rls):** `public.crear_contrato` (canal legacy del portal) es llamador del guard desde el catálogo → el alta legacy queda condicionada a membresía CRM efectiva; verificado en prod: los 20 analistas del portal tienen membresía activa, solo pierden `gloria@` (admin sin fila) y `AdminCorp@` (superadmin) — alineado con el diseño «rol CRM efectivo»; si deben operar, se les da membresía. **Deuda conocida (NO cerrada aquí, tocaría `public`):** la rama admin de `public.actualizar_contrato` no consulta el guard — un admin sin membresía aún corrige TÉRMINOS de contratos (no cuentas); pendiente de OK de Miguel para migración separada. |
+
+Ajustes de GUION de `test-rls.mjs` (misma sesión):
+- 3 sondas de tareas aceptan `22023` además de `P0001` (guard reescrito por la
+  configuración operativa; mismo bloqueo, código nuevo).
+- «sup1 crea un lead que nace asignado» pasa del INSERT directo (revocado desde
+  la creación atómica) a `crm.crear_lead_si_disponible` con `p_id`/`p_vendedor_id`.
+- El estado «admin global sin membresía CRM» de la matriz bancaria queda
+  INVERTIDO al diseño nuevo (banca y Pagos denegados) — deliberado según el
+  comment de `es_lector_global`; impacto operativo de la página de Pagos
+  anotado en el vault.
+- El escenario «tarea pendiente sigue al lead re-encolado» quedó inalcanzable
+  (sync de tareas × destino efectivo = 23514): la sonda ahora CLAVA el bloqueo
+  atómico. Conflicto documentado en el vault («Conflicto re-encolado vs destino
+  efectivo»).
+- Sondas de avance de etapa aceptan `23514` (trigger de destino corre antes que
+  la policy) y la fabricación por service_role pasa a aseverar que el estado
+  gatillo es infabricable.
+
+Deuda que queda ANOTADA (dueño: ciclo de configuración operativa): `seed-demo`
+y la matriz P04 de offboarding fabrican estados históricos que el guard de
+dependencias (20260807203740) ya no permite escribir; en el branch del gate se
+suspende `trg_equipo_validar_usuarios_jerarquia` durante seed+corrida (solo
+branch desechable, documentado aquí). Falta una vía sancionada de fabricación
+de estados históricos o un rediseño de esos fixtures.
+
+
+Cierre del ciclo F0 (2026-08-08): gate final **521/521** en branch reseteado
+(tercera corrida limpia), advisors de branch y de prod sin ERROR ni hallazgos
+nuevos atribuibles, merge verificado objeto por objeto en prod, branch borrado.
+`gen:types` ejecutado: F0 no introduce delta de tipos (índices + cuerpo de
+función con firma idéntica); el delta grande observado (1145→2879 líneas)
+pertenece a la configuración operativa aplicada hoy y su archivo curado — se
+dejó intacto para no pisar el trabajo en curso de esa sesión. Front verde:
+1410/1410 unit · 73 E2E (38 skipped por sesión real, histórico).
+
+## Meta total por analista + contratos libres (2026-08-08)
+
+La interfaz reduce la configuración a una sola meta mensual PEN por vendedor.
+La base conserva las seis dimensiones históricas, pero las publica normalizadas
+en `nuevo/PEN`; conversión, contratos y las otras cinco dimensiones quedan en
+cero. `crm.cumplimiento_metas_fn` amplía la atribución de contratos confirmados:
+lead explícitamente enlazado → autor inmutable del alta, siempre validado
+contra el snapshot de vendedores con meta publicado para ese mes. No usa el
+asesor actual del cliente porque el offboarding lo reasigna y movería
+producción histórica. Así los contratos libres del Portal/CRM dejan de quedar
+fuera del cumplimiento sin adjudicar contratos a actores no elegibles.
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260808183527 | Pendiente | crm_metas_contratos_libres_atribuidos | ⏳ Pendiente de branch → gate RLS → advisors → merge. Redefine `crm.cumplimiento_metas_fn` y añade el índice faltante `public.contratos(creado_en)`; firma, ACL, autorización, visibilidad jerárquica y contrato JSON v1 permanecen iguales. |
+
+Evidencia previa de producción (solo lectura): agosto tenía 64 contratos
+canónicos, 0 enlazados a `crm.leads`, 64 con asesor/creador y 60 atribuibles a
+vendedores CRM. Los 4 restantes pertenecen directamente a supervisores y no se
+reasignan artificialmente a un subordinado.
