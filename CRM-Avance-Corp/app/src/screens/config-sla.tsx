@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { Select } from '@/components/ui/select'
 import { useConfiguracionSla, useMetricasSla, usePublicarPoliticaSla } from '@/data/crm-config-queries'
 import { mensajeDeError } from '@/data/crm-api'
 import { fechaLima } from '@/lib/agenda-derivada'
@@ -61,12 +62,12 @@ function validar(config: PublicacionSla): string | null {
   if (!Number.isInteger(config.primera_gestion_minutos)
     || config.primera_gestion_minutos < 1
     || config.primera_gestion_minutos > 43_200) {
-    return 'La primera gestión debe estar entre 1 y 43,200 minutos.'
+    return 'La primera gestión debe ser mayor a cero y no superar 30 días.'
   }
   if (!Number.isInteger(config.primer_contacto_minutos)
     || config.primer_contacto_minutos < config.primera_gestion_minutos
     || config.primer_contacto_minutos > 43_200) {
-    return 'El primer contacto no puede vencer antes que la primera gestión ni superar 43,200 minutos.'
+    return 'El primer contacto debe ser igual o posterior a la primera gestión y no superar 30 días.'
   }
   if (config.etapas.length !== ETAPAS_SLA.length) return 'Deben definirse las cuatro etapas.'
   for (const regla of config.etapas) {
@@ -79,40 +80,61 @@ function validar(config: PublicacionSla): string | null {
   return null
 }
 
-function CampoMinutos({
+type UnidadDuracion = 'horas' | 'dias'
+
+const MINUTOS_POR_UNIDAD: Record<UnidadDuracion, number> = {
+  horas: 60,
+  dias: 1_440,
+}
+
+function CampoDuracion({
   id,
   etiqueta,
   valor,
+  unidadInicial,
+  ayuda,
   disabled,
   onChange,
 }: {
   id: string
   etiqueta: string
   valor: number
+  unidadInicial: UnidadDuracion
+  ayuda: string
   disabled: boolean
   onChange: (valor: number) => void
 }) {
+  const [unidad, setUnidad] = useState<UnidadDuracion>(unidadInicial)
+  const factor = MINUTOS_POR_UNIDAD[unidad]
+  const valorVisible = Number((valor / factor).toFixed(4))
   return (
     <div>
       <Label htmlFor={id}>{etiqueta}</Label>
-      <div className="mt-1 grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
+      <div className="mt-1.5 grid grid-cols-[minmax(0,1fr)_7.5rem] items-center gap-2">
         <Input
           id={id}
           type="number"
-          inputMode="numeric"
-          min={1}
-          max={43_200}
-          step={1}
-          value={valor}
+          inputMode="decimal"
+          min={0.5}
+          max={43_200 / factor}
+          step={0.5}
+          value={valorVisible}
           disabled={disabled}
-          onChange={(evento) => onChange(Number(evento.target.value || 0))}
-          className="tabular-nums"
+          onChange={(evento) => onChange(Math.round(Number(evento.target.value || 0) * factor))}
+          className="h-11 text-base font-bold tabular-nums"
         />
-        <span className="min-w-24 text-right text-[11px] font-semibold text-muted-foreground">
-          {valor > 0 ? minutosLegibles(valor) : '—'}
-        </span>
+        <Select
+          aria-label={`Unidad de ${etiqueta}`}
+          value={unidad}
+          disabled={disabled}
+          onChange={(evento) => setUnidad(evento.target.value as UnidadDuracion)}
+          className="h-11 font-semibold"
+        >
+          <option value="horas">Horas</option>
+          <option value="dias">Días</option>
+        </Select>
       </div>
-      <p className="mt-1 text-[10px] text-muted-foreground">Minutos corridos</p>
+      <p className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">{ayuda}</p>
     </div>
   )
 }
@@ -240,10 +262,10 @@ export function ConfigSla() {
     <ConfiguracionShell
       icono={Clock}
       titulo="Tiempos de atención"
-      descripcion="Política versionada para primera gestión, contacto efectivo y permanencia máxima por etapa. Cada caso conserva la versión que le correspondía al comenzar."
+      descripcion="Define plazos claros en horas o días para atender cada lead. Los casos ya iniciados conservan los tiempos con los que comenzaron."
       soloLectura={consulta.data ? !consulta.data.puede_editar : true}
       estado={consulta.data ? {
-        etiqueta: `SLA v${consulta.data.politica.version}`,
+        etiqueta: `Versión ${consulta.data.politica.version}`,
         detalle: `Vigente ${fechaCorta(consulta.data.politica.vigente_desde)} · publicada por ${consulta.data.politica.publicada_por_nombre ?? 'sistema'}`,
       } : undefined}
       acciones={editable ? (
@@ -267,8 +289,8 @@ export function ConfigSla() {
           <CardHeader className="border-b border-border/70 pb-3">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
-                <CardTitle>Política operativa</CardTitle>
-                <p className="mt-1 text-xs text-muted-foreground">Zona America/Lima · reloj corrido · máximo 30 días por umbral</p>
+                <CardTitle>Plazos de atención</CardTitle>
+                <p className="mt-1 text-xs text-muted-foreground">Los tiempos cuentan todos los días y horas, incluidos fines de semana. Máximo 30 días.</p>
               </div>
               {consulta.data.expected_version > consulta.data.politica.version && (
                 <Badge color="var(--warning)" variant="outline">
@@ -279,30 +301,37 @@ export function ConfigSla() {
           </CardHeader>
           <CardContent className="space-y-6 pt-5">
             <div className="grid gap-4 md:grid-cols-2">
-              <CampoMinutos
+              <CampoDuracion
                 id="sla-primera-gestion"
                 etiqueta="Primera gestión"
                 valor={borrador.primera_gestion_minutos}
+                unidadInicial="horas"
+                ayuda="Tiempo para hacer la primera llamada o enviar el primer mensaje, aunque el cliente todavía no responda."
                 disabled={!editable || publicar.isPending}
                 onChange={(valor) => actualizar({ primera_gestion_minutos: valor })}
               />
-              <CampoMinutos
+              <CampoDuracion
                 id="sla-primer-contacto"
                 etiqueta="Primer contacto efectivo"
                 valor={borrador.primer_contacto_minutos}
+                unidadInicial="horas"
+                ayuda="Tiempo para lograr una conversación o recibir una respuesta efectiva del cliente."
                 disabled={!editable || publicar.isPending}
                 onChange={(valor) => actualizar({ primer_contacto_minutos: valor })}
               />
             </div>
             <div>
-              <p className="text-xs font-extrabold text-primary">Permanencia máxima por etapa</p>
+              <p className="text-xs font-extrabold text-primary">Tiempo máximo en cada etapa</p>
+              <p className="mt-1 text-[11px] text-muted-foreground">Al vencer este plazo, el lead aparecerá como retrasado.</p>
               <div className="mt-3 grid gap-4 md:grid-cols-2">
                 {borrador.etapas.map((regla) => (
-                  <CampoMinutos
+                  <CampoDuracion
                     key={regla.etapa}
                     id={`sla-${regla.etapa}`}
                     etiqueta={ETIQUETA_ETAPA[regla.etapa]}
                     valor={regla.maximo_minutos}
+                    unidadInicial="dias"
+                    ayuda="Tiempo máximo permitido en esta etapa."
                     disabled={!editable || publicar.isPending}
                     onChange={(valor) => actualizarEtapa(regla.etapa, valor)}
                   />

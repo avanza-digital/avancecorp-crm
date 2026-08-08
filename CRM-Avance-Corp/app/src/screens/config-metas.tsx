@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react'
 import { ChevronLeft, ChevronRight, Copy, RefreshCw, Save, Target } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfiguracionShell } from '@/components/config/configuracion-shell'
-import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
@@ -10,15 +9,8 @@ import { Label } from '@/components/ui/label'
 import { useConfiguracionMetas, usePublicarMetas } from '@/data/crm-config-queries'
 import { obtenerConfiguracionMetas, publicacionDesdeConfiguracion } from '@/data/crm-config-api'
 import { mensajeDeError } from '@/data/crm-api'
-import type { ConfiguracionMetas, DetalleMeta } from '@/lib/metas-versionadas'
+import type { ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { periodoLima } from '@/lib/objetivos'
-import { MONEDAS_PRODUCTO } from '@/lib/productos-inversion'
-
-const ETIQUETA_CATEGORIA = {
-  nuevo: 'Nuevo',
-  renovacion: 'Renovación',
-  upgrade: 'Upgrade',
-} as const
 
 function desplazarPeriodo(periodo: string, meses: number): string {
   const anio = Number(periodo.slice(0, 4))
@@ -58,24 +50,34 @@ function clonar(config: ConfiguracionMetas): ConfiguracionMetas {
   }
 }
 
+function metaTotal(vendedor: ConfiguracionMetas['vendedores'][number]): number {
+  return vendedor.detalles
+    .filter((detalle) => detalle.moneda === 'PEN')
+    .reduce((total, detalle) => total + detalle.capital_objetivo, 0)
+}
+
+/**
+ * La base conserva seis dimensiones por compatibilidad histórica. La experiencia
+ * operativa usa una sola meta: la guardamos en el slot canónico nuevo/PEN y
+ * dejamos las demás dimensiones y objetivos auxiliares en cero.
+ */
+function fijarMetaTotal(
+  vendedor: ConfiguracionMetas['vendedores'][number],
+  total: number,
+) {
+  vendedor.conversion_objetivo = 0
+  vendedor.detalles = vendedor.detalles.map((detalle) => ({
+    ...detalle,
+    capital_objetivo: detalle.categoria === 'nuevo' && detalle.moneda === 'PEN' ? total : 0,
+    contratos_objetivo: 0,
+  }))
+}
+
 function validar(config: ConfiguracionMetas): string | null {
   for (const vendedor of config.vendedores) {
-    if (!Number.isFinite(vendedor.conversion_objetivo)
-      || vendedor.conversion_objetivo < 0
-      || vendedor.conversion_objetivo > 100) {
-      return `La conversión de ${vendedor.nombre} debe estar entre 0 y 100.`
-    }
-    for (const detalle of vendedor.detalles) {
-      if (!Number.isFinite(detalle.capital_objetivo)
-        || detalle.capital_objetivo < 0
-        || detalle.capital_objetivo > 100_000_000) {
-        return `El capital de ${vendedor.nombre} está fuera del rango permitido.`
-      }
-      if (!Number.isInteger(detalle.contratos_objetivo)
-        || detalle.contratos_objetivo < 0
-        || detalle.contratos_objetivo > 1_000) {
-        return `Los contratos de ${vendedor.nombre} deben ser enteros entre 0 y 1,000.`
-      }
+    const total = metaTotal(vendedor)
+    if (!Number.isFinite(total) || total < 0 || total > 100_000_000) {
+      return `La meta mensual de ${vendedor.nombre} debe estar entre S/ 0 y S/ 100,000,000.`
     }
   }
   return null
@@ -84,97 +86,46 @@ function validar(config: ConfiguracionMetas): string | null {
 function MetaVendedor({
   vendedor,
   editable,
-  onConversion,
-  onDetalle,
+  onMetaTotal,
 }: {
   vendedor: ConfiguracionMetas['vendedores'][number]
   editable: boolean
-  onConversion: (valor: number) => void
-  onDetalle: (indice: number, patch: Partial<DetalleMeta>) => void
+  onMetaTotal: (valor: number) => void
 }) {
+  const total = metaTotal(vendedor)
   return (
     <Card>
-      <CardHeader className="border-b border-border/70 pb-3">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
+      <CardHeader className="border-b border-border/70 pb-4">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle>{vendedor.nombre}</CardTitle>
             <p className="mt-1 text-xs text-muted-foreground">Supervisor: {vendedor.supervisor_nombre}</p>
           </div>
-          <div className="w-full sm:w-44">
-            <Label htmlFor={`conversion-${vendedor.vendedor_id}`}>Conversión objetivo</Label>
-            <div className="relative mt-1">
-              <Input
-                id={`conversion-${vendedor.vendedor_id}`}
-                aria-label={`Conversión objetivo de ${vendedor.nombre}`}
-                type="number"
-                inputMode="decimal"
-                min={0}
-                max={100}
-                step="0.1"
-                value={vendedor.conversion_objetivo}
-                disabled={!editable}
-                onChange={(evento) => onConversion(aNumero(evento.target.value))}
-                className="pr-8 tabular-nums"
-              />
-              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">%</span>
-            </div>
+          <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-3 py-2 text-xs text-foreground sm:max-w-xs">
+            Una sola meta mensual, sin dividirla entre Nuevo, Renovación o Upgrade.
           </div>
         </div>
       </CardHeader>
-      <CardContent className="pt-4">
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-[680px] border-separate border-spacing-0 text-left text-xs">
-            <thead>
-              <tr className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">
-                <th className="border-b border-border px-2 py-2">Categoría</th>
-                <th className="border-b border-border px-2 py-2">Moneda</th>
-                <th className="border-b border-border px-2 py-2">Capital objetivo</th>
-                <th className="border-b border-border px-2 py-2">Contratos objetivo</th>
-              </tr>
-            </thead>
-            <tbody>
-              {vendedor.detalles.map((detalle, indice) => (
-                <tr key={`${detalle.categoria}-${detalle.moneda}`}>
-                  <td className="border-b border-border/60 px-2 py-2 font-semibold text-primary">
-                    {ETIQUETA_CATEGORIA[detalle.categoria]}
-                  </td>
-                  <td className="border-b border-border/60 px-2 py-2">
-                    <Badge variant="outline" color={detalle.moneda === 'PEN' ? 'var(--accent)' : 'var(--info)'}>
-                      {detalle.moneda}
-                    </Badge>
-                  </td>
-                  <td className="border-b border-border/60 px-2 py-2">
-                    <Input
-                      aria-label={`Capital ${detalle.categoria} ${detalle.moneda} de ${vendedor.nombre}`}
-                      type="number"
-                      inputMode="decimal"
-                      min={0}
-                      max={100_000_000}
-                      step="0.01"
-                      value={detalle.capital_objetivo}
-                      disabled={!editable}
-                      onChange={(evento) => onDetalle(indice, { capital_objetivo: aNumero(evento.target.value) })}
-                      className="h-8 tabular-nums"
-                    />
-                  </td>
-                  <td className="border-b border-border/60 px-2 py-2">
-                    <Input
-                      aria-label={`Contratos ${detalle.categoria} ${detalle.moneda} de ${vendedor.nombre}`}
-                      type="number"
-                      inputMode="numeric"
-                      min={0}
-                      max={1_000}
-                      step={1}
-                      value={detalle.contratos_objetivo}
-                      disabled={!editable}
-                      onChange={(evento) => onDetalle(indice, { contratos_objetivo: aNumero(evento.target.value) })}
-                      className="h-8 tabular-nums"
-                    />
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <CardContent className="pt-5">
+        <div className="max-w-md">
+          <Label htmlFor={`meta-total-${vendedor.vendedor_id}`}>Meta mensual total</Label>
+          <div className="relative mt-1.5">
+            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-extrabold text-primary">S/</span>
+            <Input
+              id={`meta-total-${vendedor.vendedor_id}`}
+              aria-label={`Meta mensual total de ${vendedor.nombre}`}
+              type="number"
+              inputMode="decimal"
+              min={0}
+              max={100_000_000}
+              step="1000"
+              value={total}
+              disabled={!editable}
+              onChange={(evento) => onMetaTotal(aNumero(evento.target.value))}
+              className="h-12 pl-10 text-lg font-extrabold tabular-nums"
+            />
+          </div>
+          <p className="mt-2 text-[11px] text-muted-foreground">Monto total esperado para el analista durante el mes seleccionado.</p>
         </div>
       </CardContent>
     </Card>
@@ -192,20 +143,14 @@ export function ConfigMetas() {
     if (consulta.data) setBorrador(clonar(consulta.data))
   }, [consulta.data])
 
-  const resumen = useMemo(() => {
-    const base = Object.fromEntries(MONEDAS_PRODUCTO.map((moneda) => [moneda, { capital: 0, contratos: 0 }])) as Record<'PEN' | 'USD', { capital: number; contratos: number }>
-    for (const vendedor of borrador?.vendedores ?? []) {
-      for (const detalle of vendedor.detalles) {
-        base[detalle.moneda].capital += detalle.capital_objetivo
-        base[detalle.moneda].contratos += detalle.contratos_objetivo
-      }
-    }
-    return base
+  const metaEquipo = useMemo(() => {
+    return (borrador?.vendedores ?? []).reduce((total, vendedor) => total + metaTotal(vendedor), 0)
   }, [borrador])
 
   const editable = Boolean(borrador?.puede_editar)
   const dirty = Boolean(consulta.data && borrador
-    && JSON.stringify(publicacionDesdeConfiguracion(consulta.data)) !== JSON.stringify(publicacionDesdeConfiguracion(borrador)))
+    && JSON.stringify(consulta.data.vendedores.map((vendedor) => [vendedor.vendedor_id, metaTotal(vendedor)]))
+      !== JSON.stringify(borrador.vendedores.map((vendedor) => [vendedor.vendedor_id, metaTotal(vendedor)])))
 
   const editarVendedor = (
     vendedorId: string,
@@ -232,8 +177,7 @@ export function ConfigMetas() {
         for (const vendedor of siguiente.vendedores) {
           const previa = metasAnteriores.get(vendedor.vendedor_id)
           if (!previa) continue
-          vendedor.conversion_objetivo = previa.conversion_objetivo
-          vendedor.detalles = previa.detalles.map((detalle) => ({ ...detalle }))
+          fijarMetaTotal(vendedor, metaTotal(previa))
         }
         return siguiente
       })
@@ -247,7 +191,9 @@ export function ConfigMetas() {
 
   const guardar = async () => {
     if (!borrador) return
-    const error = validar(borrador)
+    const normalizado = clonar(borrador)
+    for (const vendedor of normalizado.vendedores) fijarMetaTotal(vendedor, metaTotal(vendedor))
+    const error = validar(normalizado)
     if (error) {
       toast.error(error)
       return
@@ -256,7 +202,7 @@ export function ConfigMetas() {
       await publicar.mutateAsync({
         periodo,
         expectedRevision: borrador.revision,
-        metas: publicacionDesdeConfiguracion(borrador),
+        metas: publicacionDesdeConfiguracion(normalizado),
       })
       toast.success(`Metas de ${nombrePeriodo(periodo)} publicadas.`)
     } catch (fallo) {
@@ -268,7 +214,7 @@ export function ConfigMetas() {
     <ConfiguracionShell
       icono={Target}
       titulo="Metas mensuales"
-      descripcion="Objetivos de capital y contratos por vendedor, categoría y moneda. PEN y USD se gobiernan y comparan por separado."
+      descripcion="Una sola meta mensual en soles por analista, sin categorías, cantidad de contratos ni porcentaje de conversión."
       soloLectura={borrador ? !borrador.puede_editar : true}
       estado={borrador ? {
         etiqueta: borrador.revision > 0 ? `Revisión ${borrador.revision}` : 'Sin publicar',
@@ -320,13 +266,12 @@ export function ConfigMetas() {
             </div>
           </div>
           {borrador && (
-            <div className="grid grid-cols-2 gap-2 text-xs">
-              {MONEDAS_PRODUCTO.map((moneda) => (
-                <div key={moneda} className="rounded-xl border border-border bg-muted/30 px-3 py-2">
-                  <p className="font-extrabold text-primary">{moneda} {resumen[moneda].capital.toLocaleString('es-PE', { maximumFractionDigits: 2 })}</p>
-                  <p className="mt-0.5 text-[10px] text-muted-foreground">{resumen[moneda].contratos} contratos objetivo</p>
-                </div>
-              ))}
+            <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-4 py-3 text-right">
+              <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Meta total del equipo</p>
+              <p className="mt-1 text-lg font-extrabold tabular-nums text-primary">
+                S/ {metaEquipo.toLocaleString('es-PE', { maximumFractionDigits: 2 })}
+              </p>
+              <p className="mt-0.5 text-[10px] text-muted-foreground">{borrador.vendedores.length} analista{borrador.vendedores.length === 1 ? '' : 's'}</p>
             </div>
           )}
         </CardContent>
@@ -356,17 +301,7 @@ export function ConfigMetas() {
           key={vendedor.vendedor_id}
           vendedor={vendedor}
           editable={editable && !publicar.isPending}
-          onConversion={(valor) => editarVendedor(vendedor.vendedor_id, (fila) => { fila.conversion_objetivo = valor })}
-          onDetalle={(indice, patch) => editarVendedor(vendedor.vendedor_id, (fila) => {
-            const actual = fila.detalles[indice]
-            if (!actual) return
-            fila.detalles[indice] = {
-              categoria: actual.categoria,
-              moneda: actual.moneda,
-              capital_objetivo: patch.capital_objetivo ?? actual.capital_objetivo,
-              contratos_objetivo: patch.contratos_objetivo ?? actual.contratos_objetivo,
-            }
-          })}
+          onMetaTotal={(valor) => editarVendedor(vendedor.vendedor_id, (fila) => fijarMetaTotal(fila, valor))}
         />
       ))}
 

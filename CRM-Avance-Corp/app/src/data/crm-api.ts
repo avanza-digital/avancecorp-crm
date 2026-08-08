@@ -209,6 +209,23 @@ export class CrmApiError extends Error {
   }
 }
 
+// ── Alarma de topes (F0 del plan de escalabilidad, 2026-08-08) ────────────────
+// Cuando una lectura devuelve EXACTAMENTE su tope, lo más probable es que el
+// servidor tenía más filas y el recorte fue MUDO: la pantalla miente por
+// omisión (y muerde primero los leads menos tocados — los dormidos). Se avisa
+// por registrarError (canal sin PII, llega a Sentry cuando haya DSN) para
+// enterarse MESES antes de chocar el techo. Falso positivo posible (exactamente
+// N filas reales): aceptado — es alarma de tendencia, no error duro, por eso
+// NO lanza ni degrada la respuesta.
+function avisarTopeAlcanzado(lectura: string, tope: number, recibidas: number): void {
+  if (recibidas < tope) return
+  registrarError(
+    'crm_api.tope_alcanzado',
+    new CrmApiError(`La lectura «${lectura}» devolvió su tope de ${tope} filas.`, 'TOPE_ALCANZADO'),
+    { lectura, tope },
+  )
+}
+
 /**
  * Mensaje MOSTRABLE de un fallo de esta capa: los CrmApiError ya traen su texto
  * es-PE (este módulo los traduce con código estable); cualquier otra cosa
@@ -411,6 +428,7 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
     registrarError('crm.leads.ambito_fallido', fallo)
     throw fallo
   }
+  avisarTopeAlcanzado('leads_del_ambito', MAX_LEADS_AMBITO, (data ?? []).length)
   const items: Lead[] = []
   let descartadas = 0
   for (const cruda of data ?? []) {
@@ -665,6 +683,10 @@ const ActividadRowSchema = v.object({
   creado_en: v.string(),
 })
 
+// Espejo del LIMIT de crm.actividades_del_ambito_fn (migración 20260808163638):
+// el tope vive en el SERVIDOR; esta constante solo alimenta la alarma de topes.
+const LIMITE_ACTIVIDADES_AMBITO = 10000
+
 export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<Actividad[]> {
   let consulta = cliente().schema('crm').rpc('actividades_del_ambito_fn')
   if (signal) consulta = consulta.abortSignal(signal)
@@ -674,6 +696,7 @@ export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<
     registrarError('crm.actividades.listado_fallido', fallo)
     throw fallo
   }
+  avisarTopeAlcanzado('actividades_del_ambito', LIMITE_ACTIVIDADES_AMBITO, (data ?? []).length)
   const items: Actividad[] = []
   for (const cruda of data ?? []) {
     const r = v.safeParse(ActividadRowSchema, cruda)
@@ -1011,6 +1034,7 @@ export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea
     registrarError('crm.tareas.ambito_fallido', fallo)
     throw fallo
   }
+  avisarTopeAlcanzado('tareas_del_ambito', MAX_TAREAS_AMBITO, (data ?? []).length)
   const items: Tarea[] = []
   let descartadas = 0
   for (const cruda of data ?? []) {
@@ -1346,8 +1370,8 @@ export async function listarCuentasBancariasCliente(
 }
 
 export interface CrearContratoInput {
-  /** Condición publicada elegida del catálogo; las altas legacy están prohibidas. */
-  producto_condicion_id: string
+  /** Compatibilidad temporal de callers antiguos; el flujo libre lo omite. */
+  producto_condicion_id?: string
   cliente_id: string
   capital: number
   moneda: 'PEN' | 'USD'
@@ -1373,14 +1397,15 @@ export interface CrearContratoResultado {
   id: string
   numero_contrato: string
   cuenta_bancaria_id: string
-  producto_condicion_id: string
-  producto_id: string
-  producto_revision: number
-  version_id: string
-  version_revision: number
-  numero_version: number
-  version_estado: 'borrador' | 'publicada' | 'retirada'
-  version_nombre: string
+  /** Los wrappers catalogados antiguos podían devolver esta fotografía. */
+  producto_condicion_id?: string
+  producto_id?: string
+  producto_revision?: number
+  version_id?: string
+  version_revision?: number
+  numero_version?: number
+  version_estado?: 'borrador' | 'publicada' | 'retirada'
+  version_nombre?: string
 }
 
 const EnteroProductoSchema = v.pipe(
@@ -1390,27 +1415,11 @@ const EnteroProductoSchema = v.pipe(
   v.minValue(1),
 )
 
-const MetadataProductoContratoSchema = v.object({
-  producto_condicion_id: v.pipe(v.string(), v.uuid()),
-  producto_id: v.pipe(v.string(), v.uuid()),
-  producto_revision: EnteroProductoSchema,
-  version_id: v.pipe(v.string(), v.uuid()),
-  version_revision: EnteroProductoSchema,
-  numero_version: EnteroProductoSchema,
-  version_estado: v.picklist(['borrador', 'publicada', 'retirada']),
-  version_nombre: v.pipe(v.string(), v.minLength(1)),
-})
-
-const CrearContratoResultadoSchema = v.intersect([v.object({
+const CrearContratoResultadoSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
   numero_contrato: v.pipe(v.string(), v.minLength(1)),
   cuenta_bancaria_id: v.pipe(v.string(), v.uuid()),
-}), MetadataProductoContratoSchema])
-
-const ActualizarContratoResultadoSchema = v.intersect([v.object({
-  id: v.pipe(v.string(), v.uuid()),
-  ok: v.literal(true),
-}), MetadataProductoContratoSchema])
+})
 
 export async function crearContrato(
   input: CrearContratoInput,
@@ -1432,8 +1441,7 @@ export async function crearContrato(
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
   const p_cronograma = cronograma as unknown as Record<string, unknown>[]
-  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta_producto', {
-    p_producto_condicion_id: input.producto_condicion_id,
+  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta', {
     p_contrato,
     p_cronograma,
     p_cuenta: input.cuenta_pago as unknown as Record<string, unknown>,
@@ -1521,6 +1529,7 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
     registrarError('crm.clientes.listado_fallido', fallo)
     throw fallo
   }
+  avisarTopeAlcanzado('clientes_cartera', MAX_CLIENTES_CARTERA, (data ?? []).length)
   const items: ClienteBasico[] = []
   let descartadas = 0
   for (const cruda of data ?? []) {
@@ -1861,6 +1870,7 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
     registrarError('crm.contratos.listado_fallido', fallo)
     throw fallo
   }
+  avisarTopeAlcanzado('contratos_cartera', MAX_CONTRATOS_CARTERA, (data ?? []).length)
   const items: ContratoRow[] = []
   let descartadas = 0
   for (const cruda of data ?? []) {
@@ -1991,8 +2001,8 @@ export async function obtenerTitulares(contratoId: string, signal?: AbortSignal)
 // 5 h/cartera/cronograma y evita cambiar la moneda de un contrato cuya cuenta
 // de pago histórica ya quedó fijada. ──────────────────────────────────────────
 export interface ActualizarContratoInput {
-  /** Condición vigente o snapshot histórico ya vinculado al contrato. */
-  producto_condicion_id: string
+  /** Compatibilidad temporal de callers antiguos; el flujo libre lo omite. */
+  producto_condicion_id?: string
   capital: number
   moneda: 'PEN' | 'USD'
   tasa_anual: number
@@ -2034,24 +2044,14 @@ export async function actualizarContrato(
   }
   // `titulares` solo viaja si el caller lo decidió (ver ActualizarContratoInput).
   if (contrato.titulares) p_contrato.titulares = contrato.titulares
-  const { data, error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta_producto', {
+  const { error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta', {
     p_id: id,
-    p_producto_condicion_id: contrato.producto_condicion_id,
     p_contrato,
     p_cronograma: cronograma as unknown as Record<string, unknown>[],
   })
   // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
   // a diferencia del UPDATE a perfiles que se queda callado.
   if (error) throw aErrorApi(error, 'crm.contrato.actualizar_fallido')
-  const resultado = v.safeParse(ActualizarContratoResultadoSchema, data)
-  if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'El servidor no confirmó la condición de producto de la corrección.',
-      'ROW_CONTRACT',
-    )
-    registrarError('crm.contrato.actualizar_respuesta_invalida', fallo)
-    throw fallo
-  }
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════

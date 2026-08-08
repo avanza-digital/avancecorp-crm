@@ -46,10 +46,56 @@ create table public.perfiles (
   creado_por uuid
 );
 
+create function public.es_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles p
+    where p.id = (select auth.uid())
+      and p.activo is true
+      and p.rol in ('admin', 'superadmin')
+  );
+$$;
+
+create function public.es_analista()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles p
+    where p.id = (select auth.uid())
+      and p.activo is true
+      and p.rol = 'analista'
+  );
+$$;
+
+create function public.es_superadmin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select exists (
+    select 1 from public.perfiles p
+    where p.id = (select auth.uid())
+      and p.activo is true
+      and p.rol = 'superadmin'
+  );
+$$;
+
 create table crm.equipo (
   perfil_id uuid primary key references public.perfiles(id),
   rol_crm text not null,
-  activo boolean not null default true
+  activo boolean not null default true,
+  supervisor_id uuid references crm.equipo(perfil_id)
 );
 
 create table public.audit_log (
@@ -106,15 +152,47 @@ $$;
 
 create function private.vendedor_ids_visibles(p_perfil_id uuid)
 returns setof uuid
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+declare
+  v_rol text := private.rol_crm(p_perfil_id);
+begin
+  if p_perfil_id is distinct from (select auth.uid())
+     and not private.es_lector_global() then
+    return;
+  elsif v_rol = 'gerencia' then
+    return query select e.perfil_id from crm.equipo e;
+  elsif v_rol = 'supervisor' then
+    return query
+    with recursive subarbol as (
+      select e.perfil_id
+      from crm.equipo e
+      where e.perfil_id = p_perfil_id
+      union
+      select e.perfil_id
+      from crm.equipo e
+      join subarbol s on e.supervisor_id = s.perfil_id
+    )
+    select s.perfil_id from subarbol s;
+  elsif v_rol = 'vendedor' then
+    return next p_perfil_id;
+  else
+    return;
+  end if;
+end;
+$$;
+
+create function private.puede_gestionar_cuentas_cliente(p_cliente_id uuid)
+returns boolean
 language sql
 stable
 security definer
 set search_path = ''
 as $$
-  select e.perfil_id
-  from crm.equipo e
-  where private.rol_crm(p_perfil_id) = 'gerencia'
-     or e.perfil_id = p_perfil_id;
+  select false;
 $$;
 
 create function private.log_audit_crm()
@@ -159,6 +237,33 @@ create table public.contratos (
   actualizado_en timestamptz not null default now()
 );
 grant select on public.contratos to authenticated;
+
+create table public.cronograma_pagos (
+  id uuid primary key default gen_random_uuid(),
+  contrato_id uuid not null references public.contratos(id) on delete cascade,
+  numero_cuota integer not null,
+  fecha_programada date not null,
+  monto_programado numeric(12,2) not null,
+  estado text not null default 'pendiente',
+  tipo text not null default 'cuota',
+  monto_pagado numeric(12,2)
+);
+
+create function public._sync_contrato_titulares(
+  p_contrato_id uuid,
+  p_titulares jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if p_contrato_id is null or p_titulares is null then
+    raise exception 'Titulares inválidos' using errcode = '22023';
+  end if;
+end;
+$$;
 
 create function public.set_actualizado_en()
 returns trigger
@@ -209,7 +314,24 @@ set search_path = ''
 as $$
 declare
   v_id uuid;
+  v_uid uuid := (select auth.uid());
+  v_cliente_id uuid := (p_contrato->>'cliente_id')::uuid;
 begin
+  if not ((select public.es_admin()) or (select public.es_analista()))
+     and private.rol_crm(v_uid) <> 'gerencia' then
+    raise insufficient_privilege using message = 'No autorizado para crear contratos';
+  end if;
+  if (select public.es_analista()) and not (select public.es_admin())
+     and not exists (
+       select 1 from public.perfiles cli
+       where cli.id = v_cliente_id and cli.rol = 'cliente' and cli.activo
+         and (
+           cli.asesor_perfil_id = v_uid
+           or (cli.asesor_perfil_id is null and cli.creado_por = v_uid)
+         )
+     ) then
+    raise insufficient_privilege using message = 'Cliente fuera de cartera Portal';
+  end if;
   insert into public.contratos (
     cliente_id, numero_contrato, capital, moneda, tasa_anual, modalidad,
     tipo_interes, fecha_inicio, fecha_vencimiento, categoria, creado_por
@@ -238,7 +360,32 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_uid uuid := (select auth.uid());
+  v_row public.contratos%rowtype;
 begin
+  select * into v_row from public.contratos where id = p_id;
+  if not found then
+    raise exception 'Contrato no encontrado' using errcode = 'P0002';
+  end if;
+  if (select public.es_admin()) or private.rol_crm(v_uid) = 'gerencia' then
+    null;
+  elsif (select public.es_analista()) then
+    if v_row.creado_por is distinct from v_uid
+       or v_row.creado_en <= now() - interval '5 hours'
+       or not exists (
+         select 1 from public.perfiles cli
+         where cli.id = v_row.cliente_id and cli.rol = 'cliente' and cli.activo
+           and (
+             cli.asesor_perfil_id = v_uid
+             or (cli.asesor_perfil_id is null and cli.creado_por = v_uid)
+           )
+       ) then
+      raise insufficient_privilege using message = 'Contrato fuera de alcance Portal';
+    end if;
+  else
+    raise insufficient_privilege using message = 'No autorizado para actualizar contratos';
+  end if;
   update public.contratos
      set capital = (p_contrato->>'capital')::numeric,
          moneda = p_contrato->>'moneda',
@@ -273,7 +420,14 @@ language plpgsql
 security definer
 set search_path = ''
 as $$
+declare
+  v_cliente_id uuid;
 begin
+  select ct.cliente_id into v_cliente_id
+  from public.contratos ct where ct.id = p_id;
+  if not found or not private.puede_gestionar_cuentas_cliente(v_cliente_id) then
+    raise insufficient_privilege using message = 'Contrato fuera de alcance de cuentas';
+  end if;
   perform public.actualizar_contrato(p_id, p_contrato, p_cronograma);
 end;
 $$;
@@ -287,18 +441,32 @@ values
   ('51000000-0000-4000-8000-000000000005', 'Cliente Portal', 'prod-c@test.invalid', 'cliente', true),
   ('51000000-0000-4000-8000-000000000006', 'Productos Supervisor', 'prod-s@test.invalid', 'comercial', true),
   ('51000000-0000-4000-8000-000000000007', 'Superadmin Portal', 'prod-sa@test.invalid', 'superadmin', true),
-  ('51000000-0000-4000-8000-000000000008', 'Admin Portal', 'prod-a@test.invalid', 'admin', true);
+  ('51000000-0000-4000-8000-000000000008', 'Admin Portal', 'prod-a@test.invalid', 'admin', true),
+  ('51000000-0000-4000-8000-000000000009', 'Analista Portal', 'prod-ap@test.invalid', 'analista', true),
+  ('51000000-0000-4000-8000-000000000010', 'Cliente Analista', 'prod-ca@test.invalid', 'cliente', true),
+  ('51000000-0000-4000-8000-000000000011', 'Productos Coordinador', 'prod-co@test.invalid', 'comercial', true),
+  ('51000000-0000-4000-8000-000000000012', 'Productos Gerencia CRM', 'prod-gc@test.invalid', 'comercial', true),
+  ('51000000-0000-4000-8000-000000000013', 'Productos Directorio CRM', 'prod-dc@test.invalid', 'comercial', true);
 
-insert into crm.equipo (perfil_id, rol_crm, activo)
+insert into crm.equipo (perfil_id, rol_crm, activo, supervisor_id)
 values
-  ('51000000-0000-4000-8000-000000000001', 'gerencia', true),
-  ('51000000-0000-4000-8000-000000000002', 'vendedor', true),
-  ('51000000-0000-4000-8000-000000000004', 'gerencia', true),
-  ('51000000-0000-4000-8000-000000000006', 'supervisor', true);
+  ('51000000-0000-4000-8000-000000000001', 'gerencia', true, null),
+  ('51000000-0000-4000-8000-000000000006', 'supervisor', true, null),
+  ('51000000-0000-4000-8000-000000000002', 'vendedor', true, '51000000-0000-4000-8000-000000000006'),
+  ('51000000-0000-4000-8000-000000000004', 'gerencia', true, null),
+  ('51000000-0000-4000-8000-000000000007', 'vendedor', true, '51000000-0000-4000-8000-000000000006'),
+  ('51000000-0000-4000-8000-000000000011', 'coordinador', true, null),
+  ('51000000-0000-4000-8000-000000000012', 'gerencia', true, null),
+  ('51000000-0000-4000-8000-000000000013', 'directorio', true, null);
 
 update public.perfiles
 set asesor_perfil_id = '51000000-0000-4000-8000-000000000002'
 where id = '51000000-0000-4000-8000-000000000005';
+
+update public.perfiles
+set asesor_perfil_id = '51000000-0000-4000-8000-000000000009',
+    creado_por = '51000000-0000-4000-8000-000000000009'
+where id = '51000000-0000-4000-8000-000000000010';
 
 -- Dos historias contradictorias a propósito: categoría NULL y renovación sin
 -- predecesor. El backfill debe fotografiarlas, no reinterpretarlas.
@@ -318,6 +486,7 @@ commit;
 -- Se incluye sin una transacción exterior: esto detecta migraciones que solo
 -- funcionan por accidente bajo el BEGIN del oráculo.
 \ir ../migrations/20260807203751_crm_catalogo_productos_versionado.sql
+\ir ../migrations/20260807235933_crm_portal_catalogo_productos.sql
 
 begin;
 
@@ -361,8 +530,18 @@ begin
     raise exception 'P05 authenticated conserva escritura directa de catálogo';
   end if;
   if has_table_privilege('anon', 'crm.productos_inversion', 'SELECT')
-     or has_function_privilege('anon', 'crm.crear_producto_inversion(text,text,text,date,date,jsonb)', 'EXECUTE') then
+     or has_function_privilege('anon', 'crm.crear_producto_inversion(text,text,text,date,date,jsonb)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.productos_inversion_seleccion_fn(uuid)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.crear_contrato_producto(uuid,jsonb,jsonb)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.actualizar_contrato_producto(uuid,uuid,jsonb,jsonb)', 'EXECUTE')
+     or has_function_privilege('anon', 'public.actualizar_contrato_con_cuenta_producto(uuid,uuid,jsonb,jsonb)', 'EXECUTE') then
     raise exception 'P06 anon puede leer o mutar el catálogo';
+  end if;
+
+  if has_function_privilege(
+       'authenticated', 'private.puede_gestionar_cuentas_cliente(uuid)', 'EXECUTE'
+     ) then
+    raise exception 'P06a authenticated ejecuta el helper privado de alcance';
   end if;
 end;
 $test$;
@@ -456,6 +635,98 @@ $test$;
 reset role;
 
 
+-- Analista Portal: selector público, alta y corrección dentro de su cartera y
+-- ventana. Ni el selector por contrato ni el writer cruzan a clientes ajenos.
+select set_config(
+  'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000009', true
+);
+set local role authenticated;
+do $test$
+declare
+  v_condicion_id uuid;
+  v_contrato_id uuid;
+  v_resultado jsonb;
+begin
+  select condicion_id into v_condicion_id
+  from public.productos_inversion_seleccion_fn(null)
+  where producto_codigo = 'RENTA-12' and seleccionable_nuevo;
+  if v_condicion_id is null then
+    raise exception 'P11a Analista Portal no recibió el catálogo vigente';
+  end if;
+
+  v_resultado := public.crear_contrato_producto(
+    v_condicion_id,
+    jsonb_build_object(
+      'cliente_id', '51000000-0000-4000-8000-000000000010',
+      'numero_contrato', 'PORTAL-ANALISTA-001',
+      'capital', 20000, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', current_date,
+      'fecha_vencimiento', (current_date + interval '12 months')::date,
+      'categoria', 'nuevo'
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1, 'fecha_programada', current_date + 30,
+      'monto_programado', 250, 'tipo', 'cuota'
+    ))
+  );
+  v_contrato_id := (v_resultado->>'id')::uuid;
+
+  if (select count(*) from public.productos_inversion_seleccion_fn(v_contrato_id)
+      where es_actual and condicion_id = v_condicion_id) <> 1 then
+    raise exception 'P11b selector Portal no devolvió el producto actual propio';
+  end if;
+
+  v_resultado := public.actualizar_contrato_producto(
+    v_contrato_id,
+    v_condicion_id,
+    jsonb_build_object(
+      'capital', 21000, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', current_date,
+      'fecha_vencimiento', (current_date + interval '12 months')::date,
+      'categoria', 'nuevo', 'notas_internas', 'Corrección Portal'
+    ),
+    '[]'::jsonb
+  );
+  if (v_resultado->>'producto_condicion_id')::uuid is distinct from v_condicion_id
+     or (select capital from public.contratos where id = v_contrato_id) <> 21000 then
+    raise exception 'P11c corrección Portal perdió condición o términos';
+  end if;
+
+  begin
+    perform public.productos_inversion_seleccion_fn(
+      '52000000-0000-4000-8000-000000000001'
+    );
+    raise exception 'P11d Analista consultó producto de contrato ajeno';
+  exception when insufficient_privilege then null;
+  end;
+
+  begin
+    perform public.crear_contrato_producto(
+      v_condicion_id,
+      jsonb_build_object(
+        'cliente_id', '51000000-0000-4000-8000-000000000005',
+        'numero_contrato', 'PORTAL-AJENO-BLOQUEADO',
+        'capital', 20000, 'moneda', 'PEN', 'tasa_anual', 15,
+        'modalidad', 'mensual', 'tipo_interes', 'simple',
+        'fecha_inicio', current_date,
+        'fecha_vencimiento', (current_date + interval '12 months')::date,
+        'categoria', 'nuevo'
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'numero_cuota', 1, 'fecha_programada', current_date + 30,
+        'monto_programado', 250, 'tipo', 'cuota'
+      ))
+    );
+    raise exception 'P11e Analista creó contrato fuera de cartera';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$test$;
+reset role;
+
+
 -- Alta catalogada: el wrapper conserva la FK y devuelve metadatos de revisión.
 select set_config(
   'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000002', true
@@ -468,6 +739,26 @@ declare
 begin
   select condicion_id into v_condicion_id
   from crm.productos_inversion_seleccion_fn();
+
+  begin
+    perform public.crear_contrato(
+      jsonb_build_object(
+        'cliente_id', '51000000-0000-4000-8000-000000000005',
+        'numero_contrato', 'CRM-DIRECTO-BLOQUEADO',
+        'capital', 20000, 'moneda', 'PEN', 'tasa_anual', 15,
+        'modalidad', 'mensual', 'tipo_interes', 'simple',
+        'fecha_inicio', current_date,
+        'fecha_vencimiento', (current_date + interval '12 months')::date,
+        'categoria', 'nuevo'
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'numero_cuota', 1, 'fecha_programada', current_date + 30,
+        'monto_programado', 250, 'tipo', 'cuota'
+      ))
+    );
+    raise exception 'P17a Vendedor saltó el wrapper catalogado';
+  exception when insufficient_privilege then null;
+  end;
 
   v_resultado := crm.crear_contrato_producto(
     v_condicion_id,
@@ -483,7 +774,12 @@ begin
       'fecha_vencimiento', (current_date + interval '12 months')::date,
       'categoria', 'nuevo'
     ),
-    '[]'::jsonb
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1,
+      'fecha_programada', current_date + 30,
+      'monto_programado', 250,
+      'tipo', 'cuota'
+    ))
   );
 
   if (v_resultado->>'producto_condicion_id')::uuid is distinct from v_condicion_id
@@ -503,9 +799,67 @@ end;
 $test$;
 reset role;
 
--- Caller antiguo: temporalmente recibe snapshot exacto, nunca queda NULL.
+-- Supervisor: puede contratar para la cartera de su subárbol solo mediante el
+-- wrapper CRM; un cliente del Analista Portal queda fuera de alcance.
 select set_config(
-  'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000002', true
+  'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000006', true
+);
+set local role authenticated;
+do $test$
+declare
+  v_condicion_id uuid;
+  v_resultado jsonb;
+begin
+  select condicion_id into v_condicion_id
+  from crm.productos_inversion_seleccion_fn();
+
+  v_resultado := crm.crear_contrato_producto(
+    v_condicion_id,
+    jsonb_build_object(
+      'cliente_id', '51000000-0000-4000-8000-000000000005',
+      'numero_contrato', 'CAT-SUP-001',
+      'capital', 22000, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', current_date,
+      'fecha_vencimiento', (current_date + interval '12 months')::date,
+      'categoria', 'nuevo'
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1, 'fecha_programada', current_date + 30,
+      'monto_programado', 275, 'tipo', 'cuota'
+    ))
+  );
+  if (v_resultado->>'producto_condicion_id')::uuid is distinct from v_condicion_id then
+    raise exception 'P20a Supervisor no creó dentro de su subárbol';
+  end if;
+
+  begin
+    perform crm.crear_contrato_producto(
+      v_condicion_id,
+      jsonb_build_object(
+        'cliente_id', '51000000-0000-4000-8000-000000000010',
+        'numero_contrato', 'CAT-SUP-AJENO',
+        'capital', 22000, 'moneda', 'PEN', 'tasa_anual', 15,
+        'modalidad', 'mensual', 'tipo_interes', 'simple',
+        'fecha_inicio', current_date,
+        'fecha_vencimiento', (current_date + interval '12 months')::date,
+        'categoria', 'nuevo'
+      ),
+      jsonb_build_array(jsonb_build_object(
+        'numero_cuota', 1, 'fecha_programada', current_date + 30,
+        'monto_programado', 275, 'tipo', 'cuota'
+      ))
+    );
+    raise exception 'P20b Supervisor creó fuera de su subárbol';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$test$;
+reset role;
+
+-- Caller Portal antiguo: temporalmente recibe snapshot exacto, nunca queda NULL.
+select set_config(
+  'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000008', true
 );
 set local role authenticated;
 do $test$
@@ -526,7 +880,12 @@ begin
       'fecha_vencimiento', (current_date + interval '24 months')::date,
       'categoria', 'upgrade'
     ),
-    '[]'::jsonb
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1,
+      'fecha_programada', current_date + 90,
+      'monto_programado', 300,
+      'tipo', 'cuota'
+    ))
   );
   v_id := (v_resultado->>'id')::uuid;
   if (select producto_condicion_id from public.contratos where id = v_id) is null then
@@ -742,6 +1101,7 @@ set local role authenticated;
 do $test$
 declare
   v_producto_id uuid;
+  v_version_id uuid;
   v_resultado jsonb;
 begin
   select id into v_producto_id
@@ -755,10 +1115,47 @@ begin
     raise exception 'P28 un producto archivado sigue siendo seleccionable';
   end if;
 
+  begin
+    perform crm.cerrar_altas_legacy_productos(1);
+    raise exception 'P29 cerró el bridge sin una condición comercial vigente';
+  exception when check_violation then null;
+  end;
+
+  begin
+    perform crm.crear_producto_inversion(
+      'COMPUESTO-INVALIDO', 'No publicable', null,
+      current_date - 1, current_date + 365,
+      jsonb_build_array(jsonb_build_object(
+        'categoria', 'nuevo', 'moneda', 'PEN', 'plazo_meses', 18,
+        'modalidad', 'mensual', 'tipo_interes', 'compuesto',
+        'capital_minimo', 1000, 'capital_maximo', 10000,
+        'tasa_referencia', 12
+      ))
+    );
+    raise exception 'P29a aceptó compuesto sin años exactos/modalidad anual';
+  exception when check_violation then null;
+  end;
+
+  v_resultado := crm.crear_producto_inversion(
+    'PORTAL-24', 'Producto Portal 24 meses', 'Condición de continuidad',
+    current_date - 1, current_date + 365,
+    jsonb_build_array(jsonb_build_object(
+      'categoria', 'upgrade', 'moneda', 'USD', 'plazo_meses', 24,
+      'modalidad', 'anual', 'tipo_interes', 'compuesto',
+      'capital_minimo', 5000, 'capital_maximo', 500000,
+      'tasa_referencia', 12, 'tasa_minima', 11, 'tasa_maxima', 13
+    ))
+  );
+  v_version_id := (v_resultado->>'version_id')::uuid;
+  perform crm.publicar_version_producto_inversion(v_version_id, 1);
+  if (select count(*) from crm.productos_inversion_seleccion_fn()) <> 1 then
+    raise exception 'P29b el reemplazo vigente no quedó seleccionable';
+  end if;
+
   v_resultado := crm.cerrar_altas_legacy_productos(1);
   if (v_resultado->>'compatibilidad_altas_legacy')::boolean
      or (v_resultado->>'compatibilidad_revision')::int <> 2 then
-    raise exception 'P29 no cerró el puente legacy: %', v_resultado;
+    raise exception 'P29c no cerró el puente legacy: %', v_resultado;
   end if;
   begin
     perform crm.cerrar_altas_legacy_productos(2);
@@ -769,24 +1166,27 @@ end;
 $test$;
 reset role;
 
--- Una alta antigua ya falla tras el cierre. Una corrección de historia legacy
--- por el wrapper vigente sigue siendo posible y rota el snapshot en vez de
--- mutar el anterior. El wrapper debe devolver la FK realmente persistida.
+-- Tras el cierre: las firmas antiguas no crean ni generan snapshots nuevos.
+-- Conservar términos históricos sigue permitido, pero cambiarlos exige migrar
+-- el contrato a una condición comercial publicada mediante los wrappers Portal.
 select set_config(
-  'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000002', true
+  'request.jwt.claim.sub', '51000000-0000-4000-8000-000000000008', true
 );
 set local role authenticated;
 do $test$
 declare
-  v_id uuid;
-  v_snapshot_antes uuid;
-  v_snapshot_ajeno uuid;
-  v_snapshot_despues uuid;
-  v_id_sin_cuenta uuid;
-  v_snapshot_sin_cuenta_antes uuid;
-  v_snapshot_sin_cuenta_despues uuid;
+  v_condicion_portal uuid;
+  v_id_creado uuid;
+  v_id_legacy_1 uuid;
+  v_id_legacy_2 uuid;
+  v_snapshot_1 uuid;
+  v_snapshot_2 uuid;
   v_resultado jsonb;
 begin
+  select condicion_id into v_condicion_portal
+  from public.productos_inversion_seleccion_fn(null)
+  where producto_codigo = 'PORTAL-24' and seleccionable_nuevo;
+
   begin
     perform public.crear_contrato(
       jsonb_build_object(
@@ -798,23 +1198,73 @@ begin
         'fecha_vencimiento', (current_date + interval '12 months')::date,
         'categoria', 'nuevo'
       ),
-      '[]'::jsonb
+      jsonb_build_array(jsonb_build_object(
+        'numero_cuota', 1, 'fecha_programada', current_date + 30,
+        'monto_programado', 100, 'tipo', 'cuota'
+      ))
     );
     raise exception 'P31 un caller antiguo creó contrato tras cerrar el puente';
   exception when check_violation then null;
   end;
 
-  select id, producto_condicion_id into v_id, v_snapshot_antes
+  v_resultado := public.crear_contrato_producto(
+    v_condicion_portal,
+    jsonb_build_object(
+      'cliente_id', '51000000-0000-4000-8000-000000000005',
+      'numero_contrato', 'PORTAL-CATALOGADO-001',
+      'capital', 6000, 'moneda', 'USD', 'tasa_anual', 12,
+      'modalidad', 'anual', 'tipo_interes', 'compuesto',
+      'fecha_inicio', current_date,
+      'fecha_vencimiento', (current_date + interval '24 months')::date,
+      'categoria', 'upgrade'
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1, 'fecha_programada', current_date + 730,
+      'monto_programado', 1500, 'tipo', 'devolucion'
+    ))
+  );
+  v_id_creado := (v_resultado->>'id')::uuid;
+  if (v_resultado->>'producto_condicion_id')::uuid
+       is distinct from v_condicion_portal
+     or (select producto_condicion_id from public.contratos
+         where id = v_id_creado) is distinct from v_condicion_portal then
+    raise exception 'P31a el wrapper Portal no creó con la condición vigente';
+  end if;
+
+  select id, producto_condicion_id into v_id_legacy_1, v_snapshot_1
   from public.contratos where numero_contrato = 'LEGACY-001';
-  select producto_condicion_id into v_snapshot_ajeno
+  select id, producto_condicion_id into v_id_legacy_2, v_snapshot_2
   from public.contratos where numero_contrato = 'LEGACY-002';
 
+  if (select count(*) from public.productos_inversion_seleccion_fn(v_id_legacy_1)
+      where es_actual and es_legacy) <> 1
+     or (select count(*) from public.productos_inversion_seleccion_fn(v_id_legacy_1)
+         where seleccionable_nuevo) <> 1 then
+    raise exception 'P31b el selector Portal no combinó origen actual y catálogo vigente';
+  end if;
+
+  v_resultado := public.actualizar_contrato_con_cuenta_producto(
+    v_id_legacy_1,
+    v_snapshot_1,
+    jsonb_build_object(
+      'capital', 25000, 'moneda', 'PEN', 'tasa_anual', 15,
+      'modalidad', 'mensual', 'tipo_interes', 'simple',
+      'fecha_inicio', date '2025-01-15',
+      'fecha_vencimiento', date '2026-01-15',
+      'categoria', null
+    ),
+    '[]'::jsonb
+  );
+  if (v_resultado->>'producto_condicion_id')::uuid is distinct from v_snapshot_1 then
+    raise exception 'P32 conservar términos legacy cambió su snapshot';
+  end if;
+
   begin
-    perform crm.actualizar_contrato_con_cuenta_producto(
-      v_id,
-      v_snapshot_ajeno,
+    perform public.actualizar_contrato_con_cuenta_producto(
+      v_id_legacy_1,
+      v_snapshot_1,
       jsonb_build_object(
-        'capital', 25000, 'moneda', 'PEN', 'tasa_anual', 15,
+        'capital', 26000, 'moneda', 'PEN', 'tasa_anual', 15,
         'modalidad', 'mensual', 'tipo_interes', 'simple',
         'fecha_inicio', date '2025-01-15',
         'fecha_vencimiento', date '2026-01-15',
@@ -822,75 +1272,42 @@ begin
       ),
       '[]'::jsonb
     );
-    raise exception 'P32a un wrapper aceptó el snapshot legacy de otro contrato';
+    raise exception 'P32a una corrección creó otro snapshot tras el cierre';
   exception when check_violation then null;
   end;
 
-  v_resultado := crm.actualizar_contrato_con_cuenta_producto(
-    v_id,
-    v_snapshot_antes,
+  v_resultado := public.actualizar_contrato_con_cuenta_producto(
+    v_id_legacy_1,
+    v_condicion_portal,
     jsonb_build_object(
-      'capital', 26000, 'moneda', 'USD', 'tasa_anual', 14,
-      'modalidad', 'trimestral', 'tipo_interes', 'compuesto',
-      'fecha_inicio', date '2025-02-01',
-      'fecha_vencimiento', date '2027-02-01',
+      'capital', 6000, 'moneda', 'USD', 'tasa_anual', 12,
+      'modalidad', 'anual', 'tipo_interes', 'compuesto',
+      'fecha_inicio', current_date,
+      'fecha_vencimiento', (current_date + interval '24 months')::date,
       'categoria', 'upgrade'
     ),
     '[]'::jsonb
   );
-
-  select producto_condicion_id into v_snapshot_despues
-  from public.contratos where id = v_id;
-  if v_snapshot_despues is not distinct from v_snapshot_antes then
-    raise exception 'P32b corregir legacy reutilizó el snapshot anterior';
-  end if;
-  if (v_resultado->>'id')::uuid is distinct from v_id
-     or (v_resultado->>'producto_condicion_id')::uuid
-        is distinct from v_snapshot_despues then
-    raise exception 'P32c wrapper devolvió metadata anterior a la rotación: %',
-      v_resultado;
+  if (v_resultado->>'producto_condicion_id')::uuid
+       is distinct from v_condicion_portal then
+    raise exception 'P32b el wrapper con cuenta no migró legacy al catálogo';
   end if;
 
-  begin
-    perform crm.actualizar_contrato_con_cuenta_producto(
-      v_id,
-      v_snapshot_antes,
-      jsonb_build_object(
-        'capital', 26000, 'moneda', 'USD', 'tasa_anual', 14,
-        'modalidad', 'trimestral', 'tipo_interes', 'compuesto',
-        'fecha_inicio', date '2025-02-01',
-        'fecha_vencimiento', date '2027-02-01',
-        'categoria', 'upgrade'
-      ),
-      '[]'::jsonb
-    );
-    raise exception 'P32d un wrapper reutilizó un snapshot histórico no vigente';
-  exception when check_violation then null;
-  end;
-
-  select id, producto_condicion_id
-    into v_id_sin_cuenta, v_snapshot_sin_cuenta_antes
-  from public.contratos where numero_contrato = 'LEGACY-002';
-  v_resultado := crm.actualizar_contrato_producto(
-    v_id_sin_cuenta,
-    v_snapshot_sin_cuenta_antes,
+  v_resultado := public.actualizar_contrato_producto(
+    v_id_legacy_2,
+    v_condicion_portal,
     jsonb_build_object(
-      'capital', 13000, 'moneda', 'USD', 'tasa_anual', 17,
-      'modalidad', 'anual', 'tipo_interes', 'simple',
-      'fecha_inicio', date '2025-04-01',
-      'fecha_vencimiento', date '2026-04-01',
-      'categoria', 'renovacion'
+      'capital', 7000, 'moneda', 'USD', 'tasa_anual', 13,
+      'modalidad', 'anual', 'tipo_interes', 'compuesto',
+      'fecha_inicio', current_date,
+      'fecha_vencimiento', (current_date + interval '24 months')::date,
+      'categoria', 'upgrade'
     ),
     '[]'::jsonb
   );
-  select producto_condicion_id into v_snapshot_sin_cuenta_despues
-  from public.contratos where id = v_id_sin_cuenta;
-  if v_snapshot_sin_cuenta_despues
-       is not distinct from v_snapshot_sin_cuenta_antes
-     or (v_resultado->>'producto_condicion_id')::uuid
-        is distinct from v_snapshot_sin_cuenta_despues then
-    raise exception 'P32e wrapper sin cuenta no rotó/devolvió la FK real: %',
-      v_resultado;
+  if (v_resultado->>'producto_condicion_id')::uuid
+       is distinct from v_condicion_portal then
+    raise exception 'P32c el wrapper sin cuenta no migró legacy al catálogo';
   end if;
 end;
 $test$;
@@ -899,74 +1316,29 @@ reset role;
 do $test$
 begin
   if (select count(*) from crm.producto_condiciones c
-      where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000001') <> 2
-     or not exists (
-       select 1 from crm.producto_condiciones c
-       where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000001'
-         and c.categoria is null
-         and c.moneda = 'PEN'
-         and c.modalidad = 'mensual'
-         and c.tipo_interes = 'simple'
-         and c.capital_minimo = 25000
-         and c.capital_maximo = 25000
-         and c.tasa_referencia = 15
-         and c.fecha_inicio_legacy = date '2025-01-15'
-         and c.fecha_vencimiento_legacy = date '2026-01-15'
-     )
-     or not exists (
-       select 1 from crm.producto_condiciones c
-       where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000001'
-         and c.categoria = 'upgrade'
-         and c.moneda = 'USD'
-         and c.modalidad = 'trimestral'
-         and c.tipo_interes = 'compuesto'
-         and c.capital_minimo = 26000
-         and c.capital_maximo = 26000
-         and c.tasa_referencia = 14
-         and c.tasa_minima = 14
-         and c.tasa_maxima = 14
-         and c.fecha_inicio_legacy = date '2025-02-01'
-         and c.fecha_vencimiento_legacy = date '2027-02-01'
-     ) then
-    raise exception 'P32f corregir legacy mutó historia o no creó snapshot exacto';
-  end if;
-
-  if (select count(*) from crm.producto_condiciones c
-      where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000002') <> 2
-     or not exists (
-       select 1 from crm.producto_condiciones c
-       where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000002'
-         and c.categoria = 'renovacion'
-         and c.moneda = 'USD'
-         and c.modalidad = 'anual'
-         and c.tipo_interes = 'simple'
-         and c.capital_minimo = 13000
-         and c.capital_maximo = 13000
-         and c.tasa_referencia = 17
-         and c.fecha_inicio_legacy = date '2025-04-01'
-         and c.fecha_vencimiento_legacy = date '2026-04-01'
-     ) then
-    raise exception 'P32g wrapper sin cuenta no preservó un snapshot exacto';
+      where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000001') <> 1
+     or (select count(*) from crm.producto_condiciones c
+         where c.legacy_contrato_id = '52000000-0000-4000-8000-000000000002') <> 1 then
+    raise exception 'P32d el cierre permitió crear historia legacy nueva';
   end if;
 
   if exists (
        select 1 from crm.productos_inversion p
        where p.es_legacy and p.permite_altas_legacy
      ) then
-    raise exception 'P32h la corrección reabrió las altas legacy';
+    raise exception 'P32e una corrección reabrió las altas legacy';
   end if;
 
-  if not exists (
-       select 1
-       from public.contratos ct
-       join public.audit_log a
-         on a.tabla = 'crm.producto_condiciones'
-        and a.operacion = 'INSERT'
-        and a.fila_id = ct.producto_condicion_id
-       where ct.id = '52000000-0000-4000-8000-000000000001'
-         and a.usuario_id = '51000000-0000-4000-8000-000000000002'
-     ) then
-    raise exception 'P32i la rotación legacy no quedó auditada con su actor';
+  if (select count(*)
+      from public.contratos ct
+      join crm.producto_condiciones c on c.id = ct.producto_condicion_id
+      join crm.producto_versiones v on v.id = c.version_id
+      join crm.productos_inversion p on p.id = v.producto_id
+      where ct.id in (
+        '52000000-0000-4000-8000-000000000001',
+        '52000000-0000-4000-8000-000000000002'
+      ) and p.codigo = 'PORTAL-24') <> 2 then
+    raise exception 'P32f los contratos legacy no terminaron catalogados';
   end if;
 end;
 $test$;
@@ -1014,6 +1386,16 @@ begin
     raise exception 'P36 cliente portal ejecutó selector';
   exception when insufficient_privilege then null;
   end;
+  begin
+    perform public.productos_inversion_seleccion_fn(null);
+    raise exception 'P36e cliente portal ejecutó selector público';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform public.crear_contrato_producto(null, null, null);
+    raise exception 'P36f cliente portal ejecutó writer público';
+  exception when insufficient_privilege then null;
+  end;
 end;
 $test$;
 reset role;
@@ -1048,6 +1430,11 @@ begin
       raise exception 'P36c actor Portal % ejecutó selector de productos', v_actor;
     exception when insufficient_privilege then null;
     end;
+
+    if (select count(*) from public.productos_inversion_seleccion_fn(null)
+        where seleccionable_nuevo) <> 1 then
+      raise exception 'P36c0 actor Portal % no recibió selector público', v_actor;
+    end if;
 
     begin
       perform crm.crear_contrato_producto(null, null, null);
@@ -1113,8 +1500,18 @@ begin
   if exists (
     select 1 from pg_proc p
     join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname in ('crm', 'private')
-      and p.proname like '%producto%'
+    where (
+        (n.nspname in ('crm', 'private') and p.proname like '%producto%')
+        or (
+          n.nspname = 'public'
+          and p.proname in (
+            'productos_inversion_seleccion_fn',
+            'crear_contrato', 'actualizar_contrato',
+            'crear_contrato_producto', 'actualizar_contrato_producto',
+            'actualizar_contrato_con_cuenta_producto'
+          )
+        )
+      )
       and p.prosecdef
       and not exists (
         select 1 from unnest(coalesce(p.proconfig, '{}')) cfg

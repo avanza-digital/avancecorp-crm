@@ -1,10 +1,11 @@
-# Configuración operativa del CRM — plan y estado local
+# Configuración operativa del CRM — plan y estado de producción
 
 > Fecha: 2026-08-07
 > Alcance: Usuarios y jerarquía, Productos de inversión, Metas y Tiempos de atención
-> Estado: implementación local materializada; **NO aplicada ni desplegada en
-> producción**. El cierre integral sigue abierto por el bridge de altas legacy
-> de Productos descrito en [Gate único de cierre](#gate-único-de-cierre).
+> Estado actualizado 2026-08-08: cuatro migraciones aplicadas, Edge
+> `crm-usuarios` v1 activa y CRM + Portal desplegados. El cierre integral sigue
+> abierto únicamente porque todavía no existe una condición comercial no legacy
+> publicada; el bridge se mantiene habilitado para no interrumpir las altas.
 
 ## Objetivo
 
@@ -18,28 +19,29 @@ asignación y el cambio de roles.
 
 | Dominio | Implementación local | Evidencia dedicada | Estado |
 |---|---|---|---|
-| Usuarios y jerarquía | Migración `20260807203740`, Edge Function `crm-usuarios`, capa de datos y pantalla operativa | `test-usuarios-jerarquia.sql` → `USUARIOS_JERARQUIA_TX_OK`; pruebas enfocadas de la Edge Function | ✅ Local |
-| Productos de inversión | Migración `20260807203751`, catálogo versionado, selector y wrappers contractuales, pantalla operativa | `test-productos-inversion.sql` → `PRODUCTOS_INVERSION_TX_OK` | ⚠️ Local; bridge legacy abierto |
-| Metas | Primera mitad de la migración `20260807203757`, consumidores y pantalla versionada | `test-metas-versionadas.sql` → `METAS_VERSIONADAS_TX_OK` | ✅ Local |
-| SLA | Segunda mitad de la migración `20260807203757`, snapshots, métricas, alertas y pantalla versionada | `test-sla-versionado.sql` → `SLA_VERSIONADO_TX_OK` | ✅ Local |
-| Configuración y demo | Cuatro rutas reales, riel de estado por permiso y fixtures demo estrictos de solo lectura | Unitarias de queries/fixtures y E2E de Gerencia/Directorio sin solicitudes a Supabase | ✅ Local |
+| Usuarios y jerarquía | Migración `20260807203740`, Edge Function `crm-usuarios`, capa de datos y pantalla operativa | `test-usuarios-jerarquia.sql` → `USUARIOS_JERARQUIA_TX_OK`; Edge v1 `ACTIVE`, `verify_jwt=true`, OPTIONS 204 y POST sin sesión 401 | ✅ Producción |
+| Productos de inversión | Migraciones `20260807203751` + `20260807235933`, catálogo versionado, selector y wrappers contractuales en CRM/Portal | `test-productos-inversion.sql` → `PRODUCTOS_INVERSION_TX_OK`; 325 snapshots legacy verificados | ⚠️ Producción; falta publicar el primer producto y cerrar bridge |
+| Metas | Primera mitad de la migración `20260807203757`, consumidores y pantalla versionada | `test-metas-versionadas.sql` → `METAS_VERSIONADAS_TX_OK` | ✅ Producción |
+| SLA | Segunda mitad de la migración `20260807203757`, snapshots, métricas, alertas y pantalla versionada | `test-sla-versionado.sql` → `SLA_VERSIONADO_TX_OK` | ✅ Producción |
+| Configuración y demo | Cuatro rutas reales, riel de estado por permiso y fixtures demo estrictos de solo lectura | Gate oficial: lint, typecheck, coverage, 118 archivos / 1,404 pruebas y build | ✅ Producción |
 
-Los tokens anteriores corresponden a oráculos transaccionales con rollback: no
-constituyen una aplicación remota. La matriz no autoriza por sí sola un merge o
-despliegue; antes de producción se repiten el replay, la suite integral, los
-advisors y los smokes autenticados del ciclo.
+Los tokens anteriores corresponden a oráculos transaccionales con rollback. La
+aplicación remota fue un paso separado, autorizado por Miguel después de mostrar
+los cuatro archivos SQL. Supabase registró las versiones remotas
+`20260808160113`, `20260808160129`, `20260808160137` y `20260808160148`.
 
 El gate local final se ejecutó sobre PostgreSQL 16 desechable creado desde un
-clon de esquema de producción: las migraciones `203740 → 203751 → 203757`
+clon de esquema de producción: las migraciones `203740 → 203751 → 203757 → 235933`
 aplicaron en orden y quedaron verdes `USUARIOS_JERARQUIA_TX_OK`,
 `PRODUCTOS_INVERSION_TX_OK`, `METAS_VERSIONADAS_TX_OK`,
-`SLA_VERSIONADO_TX_OK` y `METRICAS_DISTRIBUCION_TX_OK`. La app aprobó 118
-archivos / 1,403 pruebas unitarias, 73 E2E (38 casos de sesión real omitidos por
-no usar producción), typecheck, lint y build. Las Edge Functions aprobaron
+`SLA_VERSIONADO_TX_OK` y `METRICAS_DISTRIBUCION_TX_OK`. En el gate de release la
+app aprobó 118 archivos / 1,404 pruebas unitarias con cobertura, typecheck, lint
+y build. Las Edge Functions aprobaron
 10/10 pruebas de Usuarios y 3/3 del importador, además de check y formato. Los
-advisors no añadieron hallazgos atribuibles a estas tres migraciones; permanecen
-solo advertencias históricas del esquema base. Nada de este gate escribió en
-producción.
+advisors no mostraron errores de seguridad; permanecen advertencias históricas
+del esquema base y avisos esperados sobre RPC `SECURITY DEFINER` con autorización
+interna. La verificación posterior confirmó objetos, ACL, 325 snapshots legacy y
+el bridge abierto en revisión 1.
 
 ## Decisión de administración confirmada
 
@@ -127,8 +129,9 @@ reescribe contratos previos.
 - Archivar impide nuevas selecciones pero conserva toda la historia.
 - Un cierre por renovación exige que el contrato destino sea Renovación.
 - La migración contiene `crm.cerrar_altas_legacy_productos(p_expected_revision)`,
-  cierre irreversible que se ejecutará únicamente cuando todos los consumidores
-  usen los wrappers con producto. Todavía no corresponde invocarlo.
+  cierre irreversible que se ejecutará únicamente cuando exista al menos una
+  condición no legacy publicada/vigente y el smoke autenticado pueda seleccionarla.
+  Todavía no corresponde invocarlo: producción tiene cero condiciones seleccionables.
 
 ### Migración histórica
 
@@ -234,11 +237,11 @@ Configuración del CRM                         [Gerencia]
 4. ✅ Cuatro rutas y pantallas reales, riel operativo y demo de solo lectura.
 5. ✅ Integración local de productos con contratos y de SLA con
    métricas/alertas; el SLA fijo fue retirado del contrato de Distribución.
-6. ⚠️ Consumidores del CRM migrados; el consumidor heredado del repo hermano
-   `public_html` conserva el bridge de Productos y bloquea su cierre definitivo.
-7. ✅ Replay limpio, oráculos, suite integral, advisors, build y E2E locales
-   ejecutados. El smoke autenticado remoto se reserva para el gate de release;
-   no se ha ejecutado ningún deploy de este ciclo.
+6. ✅ Consumidores del CRM y del repo hermano `public_html` migrados a los
+   wrappers catalogados; Portal publicado con service worker `avance-v107`.
+7. ✅ Migraciones, Edge `crm-usuarios`, CRM y Portal desplegados y verificados.
+   Miguel pasa el smoke remoto de identidad/alcance; el selector devuelve cero
+   por ausencia de producto publicado, no por un fallo de permisos.
 
 ## Definición de terminado
 
@@ -258,24 +261,21 @@ técnica saldada mientras ese bridge siga habilitado.
 
 ## Gate único de cierre
 
-El portal administrativo del repo hermano `public_html` todavía llama las RPC
-legacy `crear_contrato`, `actualizar_contrato` y
-`crm.actualizar_contrato_con_cuenta`. Por eso la migración de Productos mantiene
-`permite_altas_legacy = true` y convierte cada escritura antigua en un snapshot
-legacy exacto por contrato: preserva integridad e historia, pero no obliga al
-caller a escoger una condición comercial publicada.
+El Portal ya no llama las RPC legacy: Admin y Analista usan exclusivamente los
+wrappers públicos catalogados. El despliegue vivo quedó comprobado byte por byte
+en los HTML, callers, módulos de Productos y `_helpers.js`; el ZIP, las pruebas y
+`CLAUDE.md` no son públicos.
 
-Cerrar el bridge antes de migrar esos callers rompería altas y correcciones del
-portal. El repo hermano está fuera del alcance y de la autorización de escritura
-de este ciclo. El cierre requiere, en este orden:
+El bridge permanece abierto por un solo motivo: no existe una condición comercial
+no legacy publicada. Cerrarlo ahora impediría cualquier alta nueva. El cierre
+requiere, en este orden:
 
-1. autorización explícita para modificar y validar `public_html`;
-2. migrar sus callers a los wrappers contractuales con producto;
-3. desplegar y verificar el portal actualizado;
-4. ejecutar una sola vez `crm.cerrar_altas_legacy_productos(p_expected_revision)`
-   y comprobar que no puede reabrirse.
+1. acordar código/nombre, moneda, categoría, plazo, modalidad, interés, capital y
+   rango de tasa del primer producto real;
+2. crear el borrador y publicar su versión desde Configuración;
+3. repetir el smoke autenticado y confirmar que CRM/Portal reciben la condición;
+4. ejecutar una sola vez `crm.cerrar_altas_legacy_productos(1)` y comprobar que
+   no puede reabrirse ni crear snapshots legacy nuevos.
 
-Hasta completar esas cuatro acciones, este plan permanece **implementado en
-local pero no terminado integralmente**. Ninguna de las tres migraciones nuevas,
-la Edge Function ni el frontend de Configuración fue aplicada o desplegada en
-producción como parte de este ciclo.
+Hasta completar esos cuatro pasos, el sistema está desplegado y operativo con
+compatibilidad controlada, pero no se declara el cierre integral irreversible.

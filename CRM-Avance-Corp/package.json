@@ -7,14 +7,17 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/test-rls.mjs",
+    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs",
     "seed:demo": "node supabase/scripts/seed-demo.mjs",
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
     "clean:crm": "node supabase/scripts/clean-crm-data.mjs",
+    "test:clean:crm": "node --test supabase/scripts/clean-crm-data.test.mjs",
     "test:edge-preflight": "node --test ../_supabase_functions/functions/_shared/bancarios.test.mjs ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs",
     "test:puente": "node --test scripts/puente-drive-origen.test.mjs",
     "test:rls": "node supabase/scripts/test-rls.mjs",
     "test:rls:preflight": "node supabase/scripts/test-rls.mjs --preflight",
+    "gate:config": "node supabase/scripts/gate-config-operativa.mjs",
+    "gate:config:preflight": "node supabase/scripts/gate-config-operativa.mjs --preflight",
     "release:crm": "npm --prefix app run build && node scripts/crear-artefacto-release.mjs create",
     "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify"
   },

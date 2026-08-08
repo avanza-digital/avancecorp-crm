@@ -133,23 +133,17 @@ describe('ConfigMetas', () => {
     render(<ConfigMetas />)
 
     expect(await screen.findByText(/Solo lectura: puedes auditar/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Conversión objetivo de ANA VENDEDORA')).toBeDisabled()
-    expect(screen.getByLabelText('Capital nuevo PEN de ANA VENDEDORA')).toBeDisabled()
+    expect(screen.getByLabelText('Meta mensual total de ANA VENDEDORA')).toBeDisabled()
     expect(screen.queryByRole('button', { name: 'Publicar revisión' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copiar mes anterior' })).not.toBeInTheDocument()
   })
 
-  it('publica una revisión con las seis dimensiones y la revisión esperada', async () => {
+  it('publica una sola meta total y normaliza las dimensiones internas', async () => {
     const user = userEvent.setup()
     render(<ConfigMetas />)
 
-    const conversion = await screen.findByLabelText('Conversión objetivo de ANA VENDEDORA')
-    fireEvent.change(conversion, { target: { value: '18.5' } })
-    fireEvent.change(screen.getByLabelText('Capital nuevo PEN de ANA VENDEDORA'), {
-      target: { value: '12500.75' },
-    })
-    fireEvent.change(screen.getByLabelText('Contratos upgrade USD de ANA VENDEDORA'), {
-      target: { value: '9' },
+    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA'), {
+      target: { value: '500000' },
     })
 
     expect(screen.getByRole('status')).toHaveTextContent('Hay cambios sin publicar')
@@ -161,14 +155,14 @@ describe('ConfigMetas', () => {
       expectedRevision: 4,
       metas: {
         [ID_VENDEDOR]: {
-          conversion_objetivo: 18.5,
+          conversion_objetivo: 0,
           detalles: [
-            { categoria: 'nuevo', moneda: 'PEN', capital_objetivo: 12_500.75, contratos_objetivo: 1 },
-            { categoria: 'nuevo', moneda: 'USD', capital_objetivo: 2_000, contratos_objetivo: 2 },
-            { categoria: 'renovacion', moneda: 'PEN', capital_objetivo: 3_000, contratos_objetivo: 3 },
-            { categoria: 'renovacion', moneda: 'USD', capital_objetivo: 4_000, contratos_objetivo: 4 },
-            { categoria: 'upgrade', moneda: 'PEN', capital_objetivo: 5_000, contratos_objetivo: 5 },
-            { categoria: 'upgrade', moneda: 'USD', capital_objetivo: 6_000, contratos_objetivo: 9 },
+            { categoria: 'nuevo', moneda: 'PEN', capital_objetivo: 500_000, contratos_objetivo: 0 },
+            { categoria: 'nuevo', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
+            { categoria: 'renovacion', moneda: 'PEN', capital_objetivo: 0, contratos_objetivo: 0 },
+            { categoria: 'renovacion', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
+            { categoria: 'upgrade', moneda: 'PEN', capital_objetivo: 0, contratos_objetivo: 0 },
+            { categoria: 'upgrade', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
           ],
         },
       },
@@ -180,13 +174,13 @@ describe('ConfigMetas', () => {
     const user = userEvent.setup()
     render(<ConfigMetas />)
 
-    fireEvent.change(await screen.findByLabelText('Conversión objetivo de ANA VENDEDORA'), {
-      target: { value: '101' },
+    fireEvent.change(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA'), {
+      target: { value: '100000001' },
     })
     await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
 
     expect(dobles.toastError).toHaveBeenCalledWith(
-      'La conversión de ANA VENDEDORA debe estar entre 0 y 100.',
+      'La meta mensual de ANA VENDEDORA debe estar entre S/ 0 y S/ 100,000,000.',
     )
     expect(dobles.publicar).not.toHaveBeenCalled()
   })
@@ -200,8 +194,7 @@ describe('ConfigMetas', () => {
     await waitFor(() => expect(dobles.obtenerAnterior).toHaveBeenCalledWith(
       '2026-07-01',
     ))
-    expect(await screen.findByLabelText('Conversión objetivo de ANA VENDEDORA')).toHaveValue(22)
-    expect(screen.getByLabelText('Capital nuevo PEN de ANA VENDEDORA')).toHaveValue(9_000)
+    expect(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')).toHaveValue(17_000)
     expect(dobles.publicar).not.toHaveBeenCalled()
     expect(dobles.toastSuccess).toHaveBeenCalledWith('Se copiaron las metas de julio de 2026.')
   })

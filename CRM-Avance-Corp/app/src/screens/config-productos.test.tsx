@@ -176,7 +176,7 @@ describe('ConfigProductos', () => {
               orden: 2,
               categoria: 'renovacion',
               moneda: 'USD',
-              modalidad: 'trimestral',
+              modalidad: 'anual',
               tipo_interes: 'compuesto',
               activa: false,
               retirada_en: '2026-08-02T10:00:00.000Z',
@@ -242,6 +242,8 @@ describe('ConfigProductos', () => {
     await user.type(within(dialogo).getByLabelText('Plazo (meses)'), '24')
     await user.selectOptions(within(dialogo).getByLabelText('Modalidad'), 'trimestral')
     await user.selectOptions(within(dialogo).getByLabelText('Tipo de interés'), 'compuesto')
+    expect(within(dialogo).getByLabelText('Modalidad')).toHaveValue('anual')
+    expect(within(dialogo).getByLabelText('Modalidad')).toBeDisabled()
     await user.clear(within(dialogo).getByLabelText('Capital mínimo'))
     await user.type(within(dialogo).getByLabelText('Capital mínimo'), '5000')
     await user.clear(within(dialogo).getByLabelText('Capital máximo'))
@@ -264,7 +266,7 @@ describe('ConfigProductos', () => {
         categoria: 'renovacion',
         moneda: 'USD',
         plazo_meses: 24,
-        modalidad: 'trimestral',
+        modalidad: 'anual',
         tipo_interes: 'compuesto',
         capital_minimo: 5_000,
         capital_maximo: 50_000,

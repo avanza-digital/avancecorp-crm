@@ -250,6 +250,12 @@ function validarFormulario(
     if (!Number.isInteger(plazoMeses) || plazoMeses < 1 || plazoMeses > 600) {
       return { error: `El plazo de la condición ${posicion} debe ser un entero entre 1 y 600 meses.` }
     }
+    if (condicion.tipoInteres === 'compuesto'
+      && (condicion.modalidad !== 'anual' || plazoMeses < 12 || plazoMeses % 12 !== 0)) {
+      return {
+        error: `El interés compuesto de la condición ${posicion} requiere modalidad anual y un plazo en años completos.`,
+      }
+    }
 
     const capitalMinimo = numero(condicion.capitalMinimo)
     const capitalMaximo = numero(condicion.capitalMaximo)
@@ -586,9 +592,9 @@ function EditorProductoDialog({
                         className="mt-1 tabular-nums"
                         type="number"
                         inputMode="numeric"
-                        min={1}
+                        min={condicion.tipoInteres === 'compuesto' ? 12 : 1}
                         max={600}
-                        step={1}
+                        step={condicion.tipoInteres === 'compuesto' ? 12 : 1}
                         value={condicion.plazoMeses}
                         onChange={(evento) => actualizarCondicion(indice, { plazoMeses: evento.target.value })}
                       />
@@ -599,6 +605,7 @@ function EditorProductoDialog({
                         id={`condicion-${indice}-modalidad`}
                         className="mt-1"
                         value={condicion.modalidad}
+                        disabled={guardando || condicion.tipoInteres === 'compuesto'}
                         onChange={(evento) => actualizarCondicion(indice, {
                           modalidad: evento.target.value as CondicionFormulario['modalidad'],
                         })}
@@ -614,14 +621,29 @@ function EditorProductoDialog({
                         id={`condicion-${indice}-interes`}
                         className="mt-1"
                         value={condicion.tipoInteres}
-                        onChange={(evento) => actualizarCondicion(indice, {
-                          tipoInteres: evento.target.value as CondicionFormulario['tipoInteres'],
-                        })}
+                        onChange={(evento) => {
+                          const tipoInteres = evento.target.value as CondicionFormulario['tipoInteres']
+                          const plazo = Number(condicion.plazoMeses)
+                          actualizarCondicion(indice, tipoInteres === 'compuesto'
+                            ? {
+                                tipoInteres,
+                                modalidad: 'anual',
+                                plazoMeses: Number.isInteger(plazo) && plazo >= 12 && plazo % 12 === 0
+                                  ? condicion.plazoMeses
+                                  : '12',
+                              }
+                            : { tipoInteres })
+                        }}
                       >
                         {TIPOS_INTERES_PRODUCTO.map((tipo) => (
                           <option key={tipo} value={tipo}>{ETIQUETA_INTERES[tipo]}</option>
                         ))}
                       </Select>
+                      {condicion.tipoInteres === 'compuesto' && (
+                        <p className="mt-1 text-[10px] text-muted-foreground">
+                          El cronograma compuesto se liquida anualmente y en años completos.
+                        </p>
+                      )}
                     </div>
                     <div className="hidden lg:block" aria-hidden />
                     <div>

@@ -51,23 +51,42 @@ manuales hasta que se autorice trabajar con un branch de base de datos.
 
 ## Limpieza controlada del dataset (branch/staging)
 
-> **WIP guardado el 2026-08-06 — no ejecutar todavía.** Antes de habilitarlo hay
-> que corregir la validación de opciones desconocidas, hacer que
-> `--preserve-reference` preserve todas las tablas que promete y alinear el
-> ejemplo de preflight con las variables que el script exige. El bloqueo de la
-> referencia de producción y la confirmación destructiva existen, pero este
-> borrador aún no se considera aprobado.
+> **WIP auditado localmente — no ejecutar la limpieza efectiva todavía.** La
+> validación de opciones, los modos de preservación, el ejemplo de preflight y
+> las pruebas de bloqueos destructivos ya están corregidos. Queda un bloqueo de
+> integración: `crm.lead_asignaciones` veta todo `DELETE` mediante el trigger
+> append-only `trg_lead_asignaciones_00_inmutables`, incluso para `service_role`.
+> Hasta definir un camino transaccional exclusivo para una base desechable y
+> probarlo allí, solo están aprobados `--help` y `--preflight`; no `--dry-run` ni
+> la limpieza real. El propio CLI impone este bloqueo antes de crear el cliente,
+> incluso si recibe la frase de confirmación correcta.
 
 Antes de reusar una rama para F2/operación o para demos limpias, usa:
 
 ```bash
+SUPABASE_URL='https://<ref-del-branch>.supabase.co' \
+SUPABASE_SERVICE_ROLE_KEY='preflight-sin-red' \
 npm run clean:crm -- --preflight
 ```
 
-El preflight valida Node, variables y destino permitido (sin conectar ni borrar
-nada.
+El preflight exige ambas variables, pero la clave ficticia del ejemplo solo
+satisface la validación de presencia: no se crea el cliente Supabase ni se abre
+una conexión. Valida Node, variables, destino permitido y el plan, sin borrar
+nada. El plan incluye también `crm.objetivos_vendedores`, que debe vaciarse antes
+de `crm.equipo` por sus claves foráneas.
 
-Para probar el impacto sin tocar datos:
+Pruebas locales, sin red:
+
+```bash
+npm run test:clean:crm
+```
+
+Cubren flags desconocidos (incluidos `--...`), modos incompatibles, variables
+obligatorias, bloqueo de producción, confirmación destructiva, URLs inseguras y
+las combinaciones de preservación.
+
+`--dry-run` queda reservado para cuando se cierre el bloqueo transaccional. Hoy
+este comando aborta antes de conectarse:
 
 ```bash
 SUPABASE_URL='https://<ref-del-branch>.supabase.co' \
@@ -75,7 +94,8 @@ SUPABASE_SERVICE_ROLE_KEY='....' \
 npm run clean:crm -- --dry-run
 ```
 
-Ejecución real (con `SUPABASE_ANON_KEY` y `CRM_DEMO_PASSWORD` **no necesarios**):
+La forma prevista para una futura ejecución real (con `SUPABASE_ANON_KEY` y
+`CRM_DEMO_PASSWORD` **no necesarios**) también permanece bloqueada:
 
 ```bash
 SUPABASE_URL='https://<ref-del-branch>.supabase.co' \
@@ -88,8 +108,9 @@ Opciones:
 
 - `--preserve-equipo`: mantiene `crm.equipo` (vuelve con defaults posteriores si el
   fixture lo reprovisiona).
-- `--preserve-reference`: conserva `crm.enfriamiento_politica`, `crm.cuentas_bancarias`
-  y `crm.contrato_cuentas_pago` para no afectar fronteras bancarias.
+- `--preserve-reference`: conserva `crm.enfriamiento_politica`,
+  `crm.cuentas_bancarias` y `crm.contrato_cuentas_pago`; las dos últimas se
+  preservan juntas para no romper el enlace histórico contrato → cuenta.
 - Las dos opciones se pueden combinar.
 
 ## Oraculo local del gate bancario P04
@@ -106,10 +127,23 @@ temporal los roles API y los esquemas minimos que necesita el oraculo. La prueba
 viva de las cuatro RPC y sus cinco caminos sigue siendo `npm run test:rls` en
 una rama.
 
-La cobertura es deliberadamente del esquema `crm`. Las RPC heredadas
-`public.crear_contrato` y `public.actualizar_contrato` siguen perteneciendo al
-portal y no se endurecen aqui: migrar o retirar esa alta administrativa es una
-decision separada porque hoy todavia produce contratos legacy sin enlace.
+La cobertura es deliberadamente del esquema `crm`. Desde el cierre de Productos
+del 2026-08-08, Admin y Analista del Portal escriben mediante las fronteras
+públicas catalogadas; las RPC canónicas rechazan altas directas de vendedor o
+supervisor si no existe una condición seleccionada por wrapper.
+
+## Oráculo local del catálogo de Productos
+
+`test-productos-inversion.sql` reproduce las migraciones de catálogo e
+integración Portal sobre una base PostgreSQL vacía y desechable. Cubre creación,
+publicación, selección por rol, snapshot histórico, actualización contractual,
+interés compuesto anual por años completos, ACL/search path y el cierre
+irreversible de `permite_altas_legacy`. Termina en `ROLLBACK` y emite
+`PRODUCTOS_INVERSION_TX_OK`.
+
+No ejecutarlo contra producción. En producción el bridge permanece abierto hasta
+publicar al menos una condición comercial real y repetir el smoke autenticado;
+cerrarlo antes bloquearía todas las altas nuevas.
 
 ## Oraculo local del alta atomica de leads P-048
 

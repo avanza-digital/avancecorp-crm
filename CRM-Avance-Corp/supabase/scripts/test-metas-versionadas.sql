@@ -1,3 +1,5 @@
+\set ON_ERROR_STOP on
+
 -- Oraculo transaccional de metas versionadas.
 -- Exito: METAS_VERSIONADAS_TX_OK. Todo queda en rollback.
 
@@ -12,7 +14,8 @@ insert into auth.users(
   ('71000000-0000-4000-8000-000000000004','authenticated','authenticated','metas-d@test.invalid',now(),'{}','{}',now(),now()),
   ('71000000-0000-4000-8000-000000000005','authenticated','authenticated','metas-c@test.invalid',now(),'{}','{}',now(),now()),
   ('71000000-0000-4000-8000-000000000006','authenticated','authenticated','metas-sa@test.invalid',now(),'{}','{}',now(),now()),
-  ('71000000-0000-4000-8000-000000000007','authenticated','authenticated','metas-a@test.invalid',now(),'{}','{}',now(),now());
+  ('71000000-0000-4000-8000-000000000007','authenticated','authenticated','metas-a@test.invalid',now(),'{}','{}',now(),now()),
+  ('71000000-0000-4000-8000-000000000008','authenticated','authenticated','metas-v2@test.invalid',now(),'{}','{}',now(),now());
 
 insert into public.perfiles(id,nombre_completo,correo,rol,activo) values
   ('71000000-0000-4000-8000-000000000001','Metas Gerencia','metas-g@test.invalid','superadmin',true),
@@ -21,7 +24,8 @@ insert into public.perfiles(id,nombre_completo,correo,rol,activo) values
   ('71000000-0000-4000-8000-000000000004','Metas Directorio','metas-d@test.invalid','directorio',true),
   ('71000000-0000-4000-8000-000000000005','Metas Cliente','metas-c@test.invalid','cliente',true),
   ('71000000-0000-4000-8000-000000000006','Metas Superadmin','metas-sa@test.invalid','superadmin',true),
-  ('71000000-0000-4000-8000-000000000007','Metas Admin','metas-a@test.invalid','admin',true);
+  ('71000000-0000-4000-8000-000000000007','Metas Admin','metas-a@test.invalid','admin',true),
+  ('71000000-0000-4000-8000-000000000008','Metas Vendedor Dos','metas-v2@test.invalid','comercial',true);
 
 -- Simula una fila residual/preexistente por debajo de los triggers defensivos:
 -- aunque exista físicamente, el rol efectivo debe quedar enmascarado.
@@ -30,7 +34,8 @@ insert into crm.equipo(perfil_id,rol_crm,supervisor_id,activo) values
   ('71000000-0000-4000-8000-000000000001','gerencia',null,true),
   ('71000000-0000-4000-8000-000000000002','supervisor',null,true),
   ('71000000-0000-4000-8000-000000000003','vendedor','71000000-0000-4000-8000-000000000002',true),
-  ('71000000-0000-4000-8000-000000000006','vendedor','71000000-0000-4000-8000-000000000002',true);
+  ('71000000-0000-4000-8000-000000000006','vendedor','71000000-0000-4000-8000-000000000002',true),
+  ('71000000-0000-4000-8000-000000000008','vendedor','71000000-0000-4000-8000-000000000002',true);
 set local session_replication_role=origin;
 
 select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
@@ -259,18 +264,64 @@ end;
 $test$;
 reset role;
 
--- Un contrato CRM creado/confirmado en el mes alimenta cumplimiento, sin sumar USD.
+-- Oráculo de atribución: enlace explícito autoritativo, contrato libre por
+-- autor-snapshot y conflictos fail-closed. Todos los casos comparten cliente
+-- a propósito para demostrar que cambiar su asesor actual no mueve históricos.
 reset request.jwt.claim.sub;
 insert into public.contratos(
   id,cliente_id,numero_contrato,capital,moneda,tasa_anual,modalidad,tipo_interes,
   categoria,estado,fecha_inicio,fecha_vencimiento,creado_por,creado_en
-) values (
-  '71000000-0000-4000-8000-000000000101',
-  '71000000-0000-4000-8000-000000000005',
-  'TEST-META-7101',25000,'PEN',10,'mensual','simple','nuevo','activo',
-  date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
-  timestamptz '2099-07-15 12:00:00-05'
-);
+) values
+  -- Lead A + autor A: atribución explícita normal.
+  ('71000000-0000-4000-8000-000000000101','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7101',25000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-15 12:00:00-05'),
+  -- Sin lead + autor A en snapshot: fallback válido.
+  ('71000000-0000-4000-8000-000000000102','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7102',4000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-16 12:00:00-05'),
+  -- Sin lead + autor supervisor fuera del snapshot: excluido.
+  ('71000000-0000-4000-8000-000000000103','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7103',8000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000002',
+   timestamptz '2099-07-17 12:00:00-05'),
+  -- Lead supervisor inelegible + autor A válido: no hace fallback.
+  ('71000000-0000-4000-8000-000000000104','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7104',16000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-18 12:00:00-05'),
+  -- Leads de A y B: conflicto explícito, excluido.
+  ('71000000-0000-4000-8000-000000000105','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7105',32000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-19 12:00:00-05'),
+  -- Lead B + autor A: manda B.
+  ('71000000-0000-4000-8000-000000000106','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7106',64000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-20 12:00:00-05'),
+  -- Solo lead con vendedor nulo: autor A conserva fallback.
+  ('71000000-0000-4000-8000-000000000107','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7107',128000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-21 12:00:00-05'),
+  -- Dos leads del mismo B: una sola atribución/contrato.
+  ('71000000-0000-4000-8000-000000000108','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7108',256000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-22 12:00:00-05'),
+  -- Límite inferior Lima incluido.
+  ('71000000-0000-4000-8000-000000000109','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7109',512000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-01 00:00:00-05'),
+  -- Límite superior Lima excluido.
+  ('71000000-0000-4000-8000-000000000110','71000000-0000-4000-8000-000000000005',
+   'TEST-META-7110',1024000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-08-01',date '2100-08-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-08-01 00:00:00-05');
 select set_config('crm.op_privilegiada','on',true);
 insert into crm.leads(
   id,nombre_completo,telefono,origen,etapa,monto_estimado,moneda,categoria_interes,
@@ -310,25 +361,113 @@ insert into crm.leads(
     timestamptz '2099-07-21 12:00:00-05',
     '71000000-0000-4000-8000-000000000003',
     timestamptz '2099-07-11 12:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000204','Lead Explícito Supervisor',
+    '51999007104','otro','nuevo',null,16000,'PEN','nuevo',
+    '71000000-0000-4000-8000-000000000002',
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000104',
+    null,null,'71000000-0000-4000-8000-000000000002',
+    timestamptz '2099-07-18 12:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000205','Lead Conflicto A',
+    '51999007105','otro','nuevo',null,32000,'PEN','nuevo',
+    '71000000-0000-4000-8000-000000000003',
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000105',
+    null,null,'71000000-0000-4000-8000-000000000003',
+    timestamptz '2099-07-19 12:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000206','Lead Conflicto B',
+    '51999007106','otro','nuevo',null,32000,'PEN','nuevo',
+    '71000000-0000-4000-8000-000000000008',
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000105',
+    null,null,'71000000-0000-4000-8000-000000000008',
+    timestamptz '2099-07-19 13:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000207','Lead B Autor A',
+    '51999007107','otro','nuevo',null,64000,'PEN','nuevo',
+    '71000000-0000-4000-8000-000000000008',
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000106',
+    null,null,'71000000-0000-4000-8000-000000000008',
+    timestamptz '2099-07-20 12:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000208','Lead Sin Vendedor',
+    '51999007108','otro','nuevo',null,128000,'PEN','nuevo',null,
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000107',
+    null,null,'71000000-0000-4000-8000-000000000003',
+    timestamptz '2099-07-21 12:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000209','Lead Duplicado B Uno',
+    '51999007109','otro','nuevo',null,256000,'PEN','nuevo',
+    '71000000-0000-4000-8000-000000000008',
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000108',
+    null,null,'71000000-0000-4000-8000-000000000008',
+    timestamptz '2099-07-22 12:00:00-05'
+  ),
+  (
+    '71000000-0000-4000-8000-000000000210','Lead Duplicado B Dos',
+    '51999007110','otro','nuevo',null,256000,'PEN','nuevo',
+    '71000000-0000-4000-8000-000000000008',
+    '71000000-0000-4000-8000-000000000005','71000000-0000-4000-8000-000000000108',
+    null,null,'71000000-0000-4000-8000-000000000008',
+    timestamptz '2099-07-22 13:00:00-05'
   );
+
+-- Dos mutaciones vivas que NO deben alterar el snapshot de atribución.
+update public.perfiles
+set asesor_perfil_id='71000000-0000-4000-8000-000000000002'
+where id='71000000-0000-4000-8000-000000000005';
+update crm.equipo set activo=false
+where perfil_id='71000000-0000-4000-8000-000000000003';
 set local session_replication_role = origin;
 
 select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
 set local role authenticated;
 do $test$
-declare v_c jsonb; v_vendedor jsonb; v_nuevo_pen jsonb;
+declare
+  v_c jsonb;
+  v_vendedor_a jsonb;
+  v_nuevo_pen_a jsonb;
+  v_vendedor_b jsonb;
+  v_nuevo_pen_b jsonb;
+  v_total_contratos integer;
+  v_total_capital numeric;
 begin
   v_c:=crm.cumplimiento_metas_fn(date '2099-07-01');
-  select v.value,d.value into v_vendedor,v_nuevo_pen
+  select v.value,d.value into v_vendedor_a,v_nuevo_pen_a
   from jsonb_array_elements(v_c->'vendedores') v
   cross join lateral jsonb_array_elements(v.value->'detalles') d
   where v.value->>'vendedor_id'='71000000-0000-4000-8000-000000000003'
     and d.value->>'categoria'='nuevo' and d.value->>'moneda'='PEN';
-  if (v_nuevo_pen->>'capital_real')::numeric<>25000
-     or (v_nuevo_pen->>'contratos_real')::int<>1
-     or (v_vendedor->>'convertidos')::int<>1
-     or (v_vendedor->>'resueltos')::int<>2
-     or (v_vendedor->>'conversion_real')::numeric<>50
+
+  select v.value,d.value into v_vendedor_b,v_nuevo_pen_b
+  from jsonb_array_elements(v_c->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d
+  where v.value->>'vendedor_id'='71000000-0000-4000-8000-000000000008'
+    and d.value->>'categoria'='nuevo' and d.value->>'moneda'='PEN';
+
+  select
+    coalesce(sum((d.value->>'contratos_real')::integer),0),
+    coalesce(sum((d.value->>'capital_real')::numeric),0)
+    into v_total_contratos,v_total_capital
+  from jsonb_array_elements(v_c->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d;
+
+  if (v_nuevo_pen_a->>'capital_real')::numeric<>669000
+     or (v_nuevo_pen_a->>'contratos_real')::int<>4
+     or (v_nuevo_pen_b->>'capital_real')::numeric<>320000
+     or (v_nuevo_pen_b->>'contratos_real')::int<>2
+     or v_total_capital<>989000
+     or v_total_contratos<>6
+     or private.rol_crm('71000000-0000-4000-8000-000000000003') is not null
+     or (v_vendedor_a->>'convertidos')::int<>1
+     or (v_vendedor_a->>'resueltos')::int<>2
+     or (v_vendedor_a->>'conversion_real')::numeric<>50
      or v_c ? 'fuente_reales'
      or v_c->'fuentes_reales'<>jsonb_build_object(
        'capital_y_contratos','contratos_confirmados',
@@ -343,6 +482,9 @@ reset role;
 do $test$
 begin
   if has_function_privilege('anon','crm.publicar_metas_vendedores(date,integer,jsonb)','execute')
+     or has_function_privilege('anon','crm.cumplimiento_metas_fn(date)','execute')
+     or has_function_privilege('service_role','crm.cumplimiento_metas_fn(date)','execute')
+     or not has_function_privilege('authenticated','crm.cumplimiento_metas_fn(date)','execute')
      or has_table_privilege('authenticated','crm.meta_periodos','insert,update,delete')
      or has_table_privilege('authenticated','crm.objetivos_legacy_archivo','select')
      or to_regclass('crm.objetivos') is not null
@@ -359,7 +501,14 @@ begin
            'objetivos_legacy_archivo',
            'objetivos_vendedores_legacy_archivo'
          )
-     ) then
+     )
+     or coalesce((
+       select pg_get_indexdef(c.oid)
+       from pg_class c
+       join pg_namespace n on n.oid=c.relnamespace
+       where n.nspname='public' and c.relname='idx_contratos_creado_en'
+     ),'') not like 'CREATE INDEX idx_contratos_creado_en ON public.contratos USING btree (creado_en)%'
+     then
     raise exception 'M13 ACL legacy/nuevo incorrecta';
   end if;
   if not exists(select 1 from public.audit_log

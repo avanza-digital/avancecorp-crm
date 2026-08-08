@@ -128,7 +128,9 @@ describe('ConfigSla', () => {
 
     expect(await screen.findByText(/Solo lectura: puedes auditar/)).toBeInTheDocument()
     expect(screen.getByLabelText('Primera gestión')).toBeDisabled()
+    expect(screen.getByLabelText('Unidad de Primera gestión')).toBeDisabled()
     expect(screen.getByLabelText('Lead nuevo')).toBeDisabled()
+    expect(screen.getByLabelText('Unidad de Lead nuevo')).toBeDisabled()
     expect(screen.queryByLabelText('Programar vigencia (opcional)')).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Publicar nueva versión' })).not.toBeInTheDocument()
   })
@@ -137,8 +139,13 @@ describe('ConfigSla', () => {
     const user = userEvent.setup()
     render(<ConfigSla />)
 
+    expect(await screen.findByLabelText('Primera gestión')).toHaveValue(1)
+    expect(screen.getByLabelText('Unidad de Primera gestión')).toHaveValue('horas')
+    expect(screen.getByLabelText('Primer contacto efectivo')).toHaveValue(2)
+    expect(screen.getByLabelText('Lead nuevo')).toHaveValue(1)
+    expect(screen.getByLabelText('Unidad de Lead nuevo')).toHaveValue('dias')
     fireEvent.change(await screen.findByLabelText('Primera gestión'), {
-      target: { value: '90' },
+      target: { value: '1.5' },
     })
     await user.click(screen.getByRole('button', { name: 'Publicar nueva versión' }))
 
@@ -179,12 +186,12 @@ describe('ConfigSla', () => {
     render(<ConfigSla />)
 
     fireEvent.change(await screen.findByLabelText('Primera gestión'), {
-      target: { value: '180' },
+      target: { value: '3' },
     })
     await user.click(screen.getByRole('button', { name: 'Publicar nueva versión' }))
 
     expect(dobles.toastError).toHaveBeenCalledWith(
-      'El primer contacto no puede vencer antes que la primera gestión ni superar 43,200 minutos.',
+      'El primer contacto debe ser igual o posterior a la primera gestión y no superar 30 días.',
     )
     expect(screen.queryByRole('dialog', { name: 'Publicar política SLA v3' })).not.toBeInTheDocument()
     expect(dobles.publicar).not.toHaveBeenCalled()
@@ -199,7 +206,7 @@ describe('ConfigSla', () => {
     render(<ConfigSla />)
 
     fireEvent.change(await screen.findByLabelText('Primer contacto efectivo'), {
-      target: { value: '180' },
+      target: { value: '3' },
     })
     await user.click(screen.getByRole('button', { name: 'Publicar nueva versión' }))
     const dialogo = screen.getByRole('dialog', { name: 'Publicar política SLA v3' })
@@ -209,5 +216,16 @@ describe('ConfigSla', () => {
       'La política cambió en otra sesión. Recarga antes de continuar.',
     ))
     expect(screen.getByRole('dialog', { name: 'Publicar política SLA v3' })).toBeInTheDocument()
+  })
+
+  it('cambia entre días y horas sin obligar a calcular minutos', async () => {
+    const user = userEvent.setup()
+    render(<ConfigSla />)
+
+    const campo = await screen.findByLabelText('Lead nuevo')
+    expect(campo).toHaveValue(1)
+    await user.selectOptions(screen.getByLabelText('Unidad de Lead nuevo'), 'horas')
+    expect(campo).toHaveValue(24)
+    expect(screen.getByRole('button', { name: 'Publicar nueva versión' })).toBeDisabled()
   })
 })

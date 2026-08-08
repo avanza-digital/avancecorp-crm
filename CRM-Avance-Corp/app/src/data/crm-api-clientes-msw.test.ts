@@ -607,19 +607,17 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
   it('crearContrato manda la fotografía bancaria a la RPC crm y valida su respuesta', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_producto`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return HttpResponse.json({
           id: '10000000-0000-4000-8000-000000000001',
           numero_contrato: '2026-01-000123',
           cuenta_bancaria_id: '20000000-0000-4000-8000-000000000001',
-          ...META_PRODUCTO,
         })
       }),
     )
 
     const resultado = await crearContrato({
-      producto_condicion_id: META_PRODUCTO.producto_condicion_id,
       cliente_id: 'cli-1',
       capital: 10000,
       moneda: 'PEN',
@@ -652,14 +650,12 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
     }])
 
     expect(resultado.cuenta_bancaria_id).toBe('20000000-0000-4000-8000-000000000001')
-    expect(resultado.producto_condicion_id).toBe(META_PRODUCTO.producto_condicion_id)
-    expect(body.p_producto_condicion_id).toBe(META_PRODUCTO.producto_condicion_id)
     expect(body.p_cuenta).toMatchObject({ tipo: 'perfil', cuenta_esperada: { cci: cuenta.cci } })
   })
 
   it('no confirma éxito si la RPC omite el id de la cuenta', async () => {
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_producto`, () =>
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta`, () =>
         HttpResponse.json({
           id: '10000000-0000-4000-8000-000000000001',
           numero_contrato: '2026-01-000123',
@@ -668,7 +664,6 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
       ),
     )
     await expect(crearContrato({
-      producto_condicion_id: META_PRODUCTO.producto_condicion_id,
       cliente_id: 'cli-1', capital: 10000, moneda: 'PEN', tasa_anual: 15,
       modalidad: 'mensual', tipo_interes: 'simple', categoria: 'nuevo',
       fecha_inicio: '2026-08-01', fecha_vencimiento: '2027-08-01',
@@ -677,9 +672,8 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
   })
 })
 
-describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_producto)', () => {
+describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta)', () => {
   const contratoBase = {
-    producto_condicion_id: META_PRODUCTO.producto_condicion_id,
     capital: 12000,
     moneda: 'PEN' as const,
     tasa_anual: 18,
@@ -695,16 +689,15 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_product
   it('p_contrato SIEMPRE lleva notas_internas (aunque null) y titulares solo si el caller lo mandó', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_producto`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
-        return HttpResponse.json({ id: '10000000-0000-4000-8000-000000000001', ok: true, ...META_PRODUCTO })
+        return new HttpResponse(null, { status: 204 })
       }),
     )
 
     await actualizarContrato('ct-1', contratoBase, [])
 
     expect(body.p_id).toBe('ct-1')
-    expect(body.p_producto_condicion_id).toBe(META_PRODUCTO.producto_condicion_id)
     const pContrato = body.p_contrato as Record<string, unknown>
     // La clave existe con valor null — si faltara, el servidor BORRA las notas.
     expect('notas_internas' in pContrato).toBe(true)
@@ -716,9 +709,9 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_product
   it('titulares presente (incluso []) SÍ viaja — semántica de reemplazo total', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_producto`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
-        return HttpResponse.json({ id: '10000000-0000-4000-8000-000000000001', ok: true, ...META_PRODUCTO })
+        return new HttpResponse(null, { status: 204 })
       }),
     )
 
@@ -727,36 +720,9 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_product
     expect((body.p_contrato as Record<string, unknown>).titulares).toEqual([])
   })
 
-  it('no confirma una corrección si el wrapper omite la metadata del producto', async () => {
-    server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_producto`, () =>
-        HttpResponse.json({ id: '10000000-0000-4000-8000-000000000001', ok: true }),
-      ),
-    )
-
-    await expect(actualizarContrato('ct-1', contratoBase, [])).rejects.toMatchObject({
-      code: 'ROW_CONTRACT',
-    })
-  })
-
-  it('acepta la nueva identidad cuando una corrección histórica rota su snapshot', async () => {
-    server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_producto`, () =>
-        HttpResponse.json({
-          id: '10000000-0000-4000-8000-000000000001',
-          ok: true,
-          ...META_PRODUCTO,
-          producto_condicion_id: '30000000-0000-4000-8000-000000000099',
-        }),
-      ),
-    )
-
-    await expect(actualizarContrato('ct-1', contratoBase, [])).resolves.toBeUndefined()
-  })
-
   it('ventana vencida: el RAISE P0001 del servidor llega con su mensaje es-PE', async () => {
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_producto`, () =>
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, () =>
         HttpResponse.json(
           { code: 'P0001', message: 'Solo puedes corregir un contrato dentro de las 5 horas de creado', details: null },
           { status: 400 },

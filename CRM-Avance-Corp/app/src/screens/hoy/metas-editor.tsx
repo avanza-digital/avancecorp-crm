@@ -1,18 +1,7 @@
 import type { JSX } from 'react'
 import { ArrowRight, Settings2 } from 'lucide-react'
-import { money, numero } from '@/lib/format'
-import {
-  capitalObjetivo,
-  contratosObjetivo,
-  type CategoriaMeta,
-  type ObjetivosPorRol,
-} from '@/lib/objetivos'
-
-const CATEGORIAS: Array<{ clave: CategoriaMeta; label: string }> = [
-  { clave: 'nuevo', label: 'Nuevo' },
-  { clave: 'renovacion', label: 'Renovación' },
-  { clave: 'upgrade', label: 'Upgrade' },
-]
+import { money } from '@/lib/format'
+import { capitalObjetivo, type ObjetivosPorRol } from '@/lib/objetivos'
 
 /**
  * Resumen de solo lectura. La única vía de edición vive en Configuración →
@@ -43,44 +32,10 @@ export function MetasEditor({
         </a>
       </div>
 
-      <div className="grid gap-3 sm:grid-cols-3">
-        <div className="rounded-xl border bg-background px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Capital PEN</p>
-          <p className="mt-1 text-lg font-bold tabular-nums">{money(capitalObjetivo(meta, 'PEN'), 'PEN')}</p>
-        </div>
-        <div className="rounded-xl border bg-background px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Capital USD</p>
-          <p className="mt-1 text-lg font-bold tabular-nums">{money(capitalObjetivo(meta, 'USD'), 'USD')}</p>
-        </div>
-        <div className="rounded-xl border bg-background px-4 py-3">
-          <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Conversión</p>
-          <p className="mt-1 text-lg font-bold tabular-nums">{meta.conversionObjetivo > 0 ? `${numero(meta.conversionObjetivo, 2)}%` : 'Sin meta'}</p>
-        </div>
-      </div>
-
-      <div className="overflow-x-auto rounded-xl border bg-background">
-        <table className="w-full min-w-[620px] text-left text-xs" aria-label="Metas publicadas por categoría y moneda">
-          <thead className="bg-muted/45 text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2.5" scope="col">Categoría</th>
-              <th className="px-4 py-2.5 text-right" scope="col">Capital PEN</th>
-              <th className="px-4 py-2.5 text-right" scope="col">Contratos PEN</th>
-              <th className="px-4 py-2.5 text-right" scope="col">Capital USD</th>
-              <th className="px-4 py-2.5 text-right" scope="col">Contratos USD</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y">
-            {CATEGORIAS.map(({ clave, label }) => (
-              <tr key={clave}>
-                <th className="px-4 py-3 font-semibold" scope="row">{label}</th>
-                <td className="px-4 py-3 text-right tabular-nums">{money(capitalObjetivo(meta, 'PEN', clave), 'PEN')}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{numero(contratosObjetivo(meta, 'PEN', clave))}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{money(capitalObjetivo(meta, 'USD', clave), 'USD')}</td>
-                <td className="px-4 py-3 text-right tabular-nums">{numero(contratosObjetivo(meta, 'USD', clave))}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+      <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-5 py-4">
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Meta mensual total del equipo</p>
+        <p className="mt-1 text-2xl font-extrabold tabular-nums text-primary">{money(capitalObjetivo(meta, 'PEN'), 'PEN')}</p>
+        <p className="mt-2 text-xs text-muted-foreground">Una sola meta en soles. No se divide por Nuevo, Renovación, Upgrade, cantidad de contratos ni conversión.</p>
       </div>
     </div>
   )

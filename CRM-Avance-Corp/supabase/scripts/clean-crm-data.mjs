@@ -12,13 +12,15 @@
 //   --preflight            Valida entorno y destino permitido sin conexiones de datos.
 //   --dry-run              Muestra conteos previos y no ejecuta DELETE.
 //   --preserve-equipo      Mantiene crm.equipo (por defecto se borra en limpieza normal).
-//   --preserve-reference    Mantiene datos de referencia (enfriamiento, cuentas y objetivo bancario).
+//   --preserve-reference    Mantiene enfriamiento, cuentas bancarias y sus enlaces con contratos.
 //   --help                 Muestra esta ayuda.
 //
 // Restricciones de seguridad:
 //   * NUNCA corre sobre producción: se rechaza si la URL contiene `dctqcbznekcyxhjujuci`.
 //   * Requiere confirmación explícita por variable `CRM_CLEAN_CONFIRM=QUIERO_BORRAR_TODOS_LOS_DATOS`
 //     (salvo preflight/dry-run).
+//   * WIP: dry-run y limpieza efectiva permanecen bloqueados hasta resolver el
+//     ledger append-only crm.lead_asignaciones con una operación transaccional.
 
 import { createClient } from '@supabase/supabase-js';
 import { PRODUCTION_PROJECT_REF } from './fixtures.mjs';
@@ -33,7 +35,7 @@ Opciones:
   --preflight            Valida entorno y destino permitido sin tocar datos.
   --dry-run              Muestra conteos y no ejecuta DELETE.
   --preserve-equipo      Mantiene crm.equipo (sin borrar estructura de roles).
-  --preserve-reference    Mantiene tablas de referencia (enfriamiento/cuentas).
+  --preserve-reference    Mantiene enfriamiento, cuentas bancarias y sus enlaces con contratos.
   --help                 Muestra esta ayuda.
 
 Variables requeridas para limpieza:
@@ -42,6 +44,10 @@ Variables requeridas para limpieza:
 
 Variables requeridas para ejecución real (excepto preflight/dry-run):
   CRM_CLEAN_CONFIRM = QUIERO_BORRAR_TODOS_LOS_DATOS
+
+Estado actual:
+  Solo --help y --preflight están habilitados. Dry-run y limpieza efectiva
+  abortan antes de crear el cliente mientras siga pendiente el ledger append-only.
 `;
 
 const args = new Set(process.argv.slice(2));
@@ -53,7 +59,7 @@ const allowedArgs = new Set([
   '--preserve-equipo',
   '--preserve-reference',
 ]);
-const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg) && !arg.startsWith('--'));
+const unknownArgs = [...args].filter((arg) => !allowedArgs.has(arg));
 if (unknownArgs.length > 0) {
   console.error(`Opciones desconocidas: ${unknownArgs.join(', ')}`);
   console.error('Usa --help para ver las opciones disponibles.');
@@ -63,6 +69,11 @@ if (unknownArgs.length > 0) {
 if (args.has('--help') || args.has('-h')) {
   console.log(HELP.trim());
   process.exit(0);
+}
+
+if (args.has('--preflight') && args.has('--dry-run')) {
+  console.error('Las opciones --preflight y --dry-run son mutuamente excluyentes.');
+  process.exit(2);
 }
 
 const SUPABASE_URL = process.env.SUPABASE_URL?.trim();
@@ -116,6 +127,14 @@ function validateEnvironment() {
   }
 }
 
+function validateOperationalGate() {
+  if (isPreflight) return;
+  fail(
+    'Ejecución deshabilitada: crm.lead_asignaciones veta DELETE mediante un trigger '
+    + 'append-only. Define y prueba primero una limpieza transaccional en una base desechable.',
+  );
+}
+
 function formatTableLabel(prefix) {
   return `${prefix.schema}.${prefix.table}`;
 }
@@ -128,13 +147,20 @@ function pkSentinel(pkType) {
 
 function printPlan() {
   const targets = getTargets();
+  const mode = isPreflight
+    ? 'PREFLIGHT SIN RED'
+    : (isDryRun ? 'DRY-RUN' : 'LIMPIEZA EFECTIVA');
   console.log('✓ runtime y variables validos');
   console.log(`✓ destino permitido: ${new URL(SUPABASE_URL).host}`);
-  console.log(`✓ modo: ${isDryRun ? 'DRY-RUN' : 'LIMPIEZA EFECTIVA'}`);
+  console.log(`✓ modo: ${mode}`);
   for (const target of targets) {
     console.log(`  - ${formatTableLabel(target)}`);
   }
-  console.log('✓ seguridad: incluye confirmación explícita (no ejecuta sobre producción).');
+  console.log(
+    needsConfirmation
+      ? '✓ seguridad: confirmación destructiva validada; producción bloqueada.'
+      : '✓ seguridad: modo sin borrado; producción bloqueada.',
+  );
 }
 
 function getTargets() {
@@ -145,6 +171,7 @@ function getTargets() {
     { schema: 'crm', table: 'contrato_cuentas_pago', pk: 'id', pkType: 'uuid' },
     { schema: 'crm', table: 'cuentas_bancarias', pk: 'id', pkType: 'uuid' },
     { schema: 'crm', table: 'agenda_ics', pk: 'perfil_id', pkType: 'uuid' },
+    { schema: 'crm', table: 'objetivos_vendedores', pk: 'id', pkType: 'uuid' },
     { schema: 'crm', table: 'objetivos', pk: 'id', pkType: 'uuid' },
     { schema: 'crm', table: 'enfriamiento_politica', pk: 'motivo', pkType: 'text' },
     { schema: 'crm', table: 'leads', pk: 'id', pkType: 'uuid' },
@@ -154,10 +181,14 @@ function getTargets() {
     { schema: 'crm', table: 'equipo', pk: 'perfil_id', pkType: 'uuid' },
   ];
 
-  const baseTargets = hardTargets.filter((target) => {
-    if (target.table === 'enfriamiento_politica' && preserveReference) return false;
-    return true;
-  });
+  const referenceTables = new Set([
+    'enfriamiento_politica',
+    'cuentas_bancarias',
+    'contrato_cuentas_pago',
+  ]);
+  const baseTargets = hardTargets.filter(
+    (target) => !(preserveReference && referenceTables.has(target.table)),
+  );
 
   const team = (!preserveEquipo) ? optionalTargets : [];
   return [...baseTargets, ...team];
@@ -204,6 +235,12 @@ async function deleteRows(client, target) {
 }
 
 async function clean() {
+  printPlan();
+  if (isPreflight) {
+    console.log('Preflight terminado; no se creó ningún cliente ni se abrió una conexión.');
+    return;
+  }
+
   const client = createClient(SUPABASE_URL, SERVICE_KEY, {
     auth: {
       autoRefreshToken: false,
@@ -211,14 +248,7 @@ async function clean() {
       persistSession: false,
     },
   });
-
   const targets = getTargets();
-
-  printPlan();
-  if (isPreflight) {
-    console.log('Preflight terminado; no se abrió ninguna transacción ni se borró nada.');
-    return;
-  }
 
   const totalBefore = [];
   for (const target of targets) {
@@ -246,6 +276,7 @@ async function clean() {
 
 validateNode();
 validateEnvironment();
+validateOperationalGate();
 
 if (preserveEquipo && preserveReference) {
   console.log('Aviso: se ejecutará limpieza preservando equipo y referencia.');

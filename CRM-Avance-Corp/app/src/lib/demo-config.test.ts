@@ -12,6 +12,7 @@ import {
 import { ConfiguracionMetasSchema } from './metas-versionadas'
 import {
   ConfiguracionProductosSchema,
+  ProductoCondicionSchema,
   ProductoCondicionSeleccionSchema,
 } from './productos-inversion'
 import { ConfiguracionSlaSchema, MetricasSlaSchema } from './sla-versionado'
@@ -58,6 +59,23 @@ describe('fixtures de Configuración demo', () => {
     expect(new Set(selector.map((fila) => fila.condicion_id))).toEqual(idsPublicados)
     expect(selector.some((fila) => idsBorrador.has(fila.condicion_id))).toBe(false)
     expect(new Set(selector.map((fila) => fila.moneda))).toEqual(new Set(['PEN', 'USD']))
+  })
+
+  it('rechaza interés compuesto fuera de modalidad anual o de años completos', () => {
+    const base = configuracionProductosDemo().productos
+      .flatMap((producto) => producto.versiones)
+      .flatMap((version) => version.condiciones)
+      .find((condicion) => condicion.tipo_interes === 'compuesto')
+    expect(base).toBeDefined()
+    if (!base) throw new Error('Falta fixture compuesto')
+    expect(v.safeParse(ProductoCondicionSchema, {
+      ...base,
+      modalidad: 'trimestral',
+    }).success).toBe(false)
+    expect(v.safeParse(ProductoCondicionSchema, {
+      ...base,
+      plazo_meses: 18,
+    }).success).toBe(false)
   })
 
   it('devuelve copias aisladas para que una pantalla no contamine otra consulta', () => {

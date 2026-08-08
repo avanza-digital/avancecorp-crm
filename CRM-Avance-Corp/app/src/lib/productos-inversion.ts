@@ -41,8 +41,12 @@ export const ProductoCondicionSchema = v.pipe(
     (condicion) =>
       condicion.capital_minimo <= condicion.capital_maximo
       && condicion.tasa_minima <= condicion.tasa_referencia
-      && condicion.tasa_referencia <= condicion.tasa_maxima,
-    'Rangos de la condición incoherentes',
+      && condicion.tasa_referencia <= condicion.tasa_maxima
+      && (condicion.tipo_interes === 'simple'
+        || (condicion.modalidad === 'anual'
+          && condicion.plazo_meses >= 12
+          && condicion.plazo_meses % 12 === 0)),
+    'Rangos o cronograma de la condición incoherentes',
   ),
 )
 
@@ -116,8 +120,12 @@ export const ProductoCondicionSeleccionSchema = v.pipe(
     (condicion) =>
       condicion.capital_minimo <= condicion.capital_maximo
       && condicion.tasa_minima <= condicion.tasa_referencia
-      && condicion.tasa_referencia <= condicion.tasa_maxima,
-    'Rangos de la condición seleccionable incoherentes',
+      && condicion.tasa_referencia <= condicion.tasa_maxima
+      && (condicion.tipo_interes === 'simple'
+        || (condicion.modalidad === 'anual'
+          && condicion.plazo_meses >= 12
+          && condicion.plazo_meses % 12 === 0)),
+    'Rangos o cronograma de la condición seleccionable incoherentes',
   ),
 )
 

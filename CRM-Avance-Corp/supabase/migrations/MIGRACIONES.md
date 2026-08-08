@@ -573,9 +573,16 @@ fuera del cumplimiento sin adjudicar contratos a actores no elegibles.
 
 | Versión local | Versión remota | Nombre | Estado |
 |---------------|----------------|--------|--------|
-| 20260808183527 | Pendiente | crm_metas_contratos_libres_atribuidos | ⏳ Pendiente de branch → gate RLS → advisors → merge. Redefine `crm.cumplimiento_metas_fn` y añade el índice faltante `public.contratos(creado_en)`; firma, ACL, autorización, visibilidad jerárquica y contrato JSON v1 permanecen iguales. |
+| 20260808183527 | 20260808190441 | crm_metas_contratos_libres_atribuidos | ✅ **EN PROD 2026-08-08**. Redefine `crm.cumplimiento_metas_fn` y añade `public.contratos(creado_en)`; firma, ACL, autorización, visibilidad jerárquica y JSON v1 permanecen iguales. Oráculo transaccional `METAS_VERSIONADAS_TX_OK`; gate RLS **521/521**; trigger histórico del fixture reactivado (`tgenabled='O'`) antes del merge; advisors de branch/prod sin `ERROR` ni hallazgos nuevos atribuibles. |
 
-Evidencia previa de producción (solo lectura): agosto tenía 64 contratos
-canónicos, 0 enlazados a `crm.leads`, 64 con asesor/creador y 60 atribuibles a
-vendedores CRM. Los 4 restantes pertenecen directamente a supervisores y no se
-reasignan artificialmente a un subordinado.
+Verificación posterior al merge (solo lectura): agosto tenía 65 contratos
+canónicos, 0 con vendedor explícito enlazado, 61 con autor vendedor elegible y
+4 fuera de meta individual (supervisores). ACL comprobado: `anon=false`,
+`authenticated=true`, `service_role=false`; cuerpo fail-closed e índice exacto
+verificados. Los 4 contratos fuera de roster no se reasignan artificialmente a
+un subordinado.
+
+Front acompañante: release `crm-20260808T185153Z-6d3bfb75d4d6`, SHA-256 del
+ZIP `c01068853df7591b12df07467081f83be29e99a26e230a332fa98386951d0db0`.
+Producción sirvió `index-yG0C8pp2.js`, `config-metas-C9BdWeJ8.js` y
+`config-sla-DDSk4PR_.js` byte por byte contra el artefacto local.

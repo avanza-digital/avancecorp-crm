@@ -14,7 +14,16 @@ vi.mock('@/lib/supabase', async () => {
   return { sb: createClient('http://supabase.test', 'anon-fake') }
 })
 
-import { CrmApiError, listarLeads, listarLeadsDelAmbito, reprogramarReunion } from './crm-api'
+import {
+  CrmApiError,
+  listarActividadesDelAmbito,
+  listarClientes,
+  listarLeads,
+  listarLeadsDelAmbito,
+  listarMisContratos,
+  listarTareasDelAmbito,
+  reprogramarReunion,
+} from './crm-api'
 
 const RUTA_LEADS = 'http://supabase.test/rest/v1/leads'
 const RUTA_REPROGRAMAR = 'http://supabase.test/rest/v1/rpc/reprogramar_reunion'
@@ -258,6 +267,77 @@ describe('listarLeadsDelAmbito (msw)', () => {
     expect(console.error).toHaveBeenCalledWith(
       '[ac-crm]',
       expect.objectContaining({ evento: 'crm.leads.ambito_filas_invalidas' }),
+    )
+  })
+
+  // Alarma de topes (F0 escalabilidad): tope lleno = probable recorte MUDO del
+  // servidor. Se cuentan las filas CRUDAS recibidas (2000), no las que
+  // sobreviven al parse — el recorte ocurre antes de validar.
+  it('avisa a observabilidad cuando la respuesta llena el tope de 2000', async () => {
+    server.use(
+      http.get(RUTA_LEADS, () =>
+        HttpResponse.json(
+          Array.from({ length: 2000 }, (_, i) => fila({ id: `l-tope-${i}` })),
+        ),
+      ),
+    )
+
+    const leads = await listarLeadsDelAmbito()
+
+    expect(leads).toHaveLength(2000)
+    expect(console.error).toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({
+        evento: 'crm_api.tope_alcanzado',
+        datos: expect.objectContaining({
+          contexto: expect.objectContaining({ lectura: 'leads_del_ambito', tope: 2000 }),
+        }),
+      }),
+    )
+  })
+
+  it('NO dispara la alarma de tope por debajo del límite', async () => {
+    server.use(
+      http.get(RUTA_LEADS, () => HttpResponse.json([fila({ id: 'l-bajo-tope' })])),
+    )
+
+    await listarLeadsDelAmbito()
+
+    expect(console.error).not.toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({ evento: 'crm_api.tope_alcanzado' }),
+    )
+  })
+})
+
+describe('alarma de topes en el resto de lecturas acotadas (msw)', () => {
+  // La alarma cuenta las filas CRUDAS del servidor (el recorte ocurre antes de
+  // validar), así que basta responder N objetos vacíos: la lectura devuelve []
+  // (filas fuera de contrato) pero el tope SÍ debe avisarse. Cubre que cada
+  // call-site pasa su constante correcta.
+  it.each([
+    ['tareas_del_ambito', 2000, 'GET', 'http://supabase.test/rest/v1/tareas', () => listarTareasDelAmbito()],
+    ['clientes_cartera', 2000, 'GET', 'http://supabase.test/rest/v1/clientes_basicos', () => listarClientes()],
+    ['contratos_cartera', 2000, 'GET', 'http://supabase.test/rest/v1/contratos_cartera', () => listarMisContratos()],
+    ['actividades_del_ambito', 10000, 'POST', 'http://supabase.test/rest/v1/rpc/actividades_del_ambito_fn', () => listarActividadesDelAmbito()],
+  ] as const)('avisa cuando %s llena su tope de %i', async (lectura, tope, metodo, ruta, invocar) => {
+    const filasVacias = Array.from({ length: tope }, () => ({}))
+    server.use(
+      metodo === 'GET'
+        ? http.get(ruta, () => HttpResponse.json(filasVacias))
+        : http.post(ruta, () => HttpResponse.json(filasVacias)),
+    )
+
+    await invocar()
+
+    expect(console.error).toHaveBeenCalledWith(
+      '[ac-crm]',
+      expect.objectContaining({
+        evento: 'crm_api.tope_alcanzado',
+        datos: expect.objectContaining({
+          contexto: expect.objectContaining({ lectura, tope }),
+        }),
+      }),
     )
   })
 })

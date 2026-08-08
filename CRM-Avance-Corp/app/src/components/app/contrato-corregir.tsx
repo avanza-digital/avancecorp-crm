@@ -382,7 +382,6 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     }
 
     const input: ActualizarContratoInput = {
-      producto_condicion_id: productoCondicionId,
       capital: capitalNum,
       moneda,
       tasa_anual: tasaNum,

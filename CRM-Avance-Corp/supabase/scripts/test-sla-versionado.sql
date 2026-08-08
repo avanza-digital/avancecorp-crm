@@ -1,3 +1,5 @@
+\set ON_ERROR_STOP on
+
 -- Oraculo transaccional de SLA versionado.
 -- Exito: SLA_VERSIONADO_TX_OK. Todo queda en rollback.
 

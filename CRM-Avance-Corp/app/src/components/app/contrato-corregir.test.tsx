@@ -160,7 +160,6 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
     const [id, input] = actualizarContrato.mock.calls[0]!
     expect(id).toBe('ctr-1')
-    expect(input.producto_condicion_id).toBe('10000000-0000-4000-8000-000000000001')
     expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15' })
   })
 
@@ -225,7 +224,7 @@ describe('ContratoCorregir — producto versionado', () => {
     expect(actualizarContrato).not.toHaveBeenCalled()
   })
 
-  it('un snapshot histórico puede migrarse explícitamente a una condición vigente', async () => {
+  it('una condición vigente puede precargar los términos de la corrección', async () => {
     const user = userEvent.setup()
     productosEstado.data = [CONDICION_VIGENTE]
     actualizarContrato.mockResolvedValue()
@@ -239,7 +238,6 @@ describe('ContratoCorregir — producto versionado', () => {
     await user.click(guardar())
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
     expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({
-      producto_condicion_id: CONDICION_VIGENTE.condicion_id,
       categoria: 'renovacion',
       modalidad: 'trimestral',
       tasa_anual: 16,
