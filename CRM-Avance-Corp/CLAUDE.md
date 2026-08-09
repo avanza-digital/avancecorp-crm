@@ -45,8 +45,9 @@ proyecto Supabase del portal (`dctqcbznekcyxhjujuci`) con esquema **`crm`** dedi
 
 ## Accesibilidad
 
-`.oxlintrc.json` apaga 4 reglas de jsx-a11y por falsos positivos **documentados** (cards con
-`role=button` + teclado, combobox WAI-ARIA, `autoFocus` solo en modales). No apagar reglas
+`.oxlintrc.json` apaga 5 reglas de jsx-a11y por falsos positivos **documentados** (cards con
+`role=button` + teclado, combobox WAI-ARIA — rol correcto Y elemento no interactivo—,
+`autoFocus` solo en modales). No apagar reglas
 nuevas por comodidad; los componentes nuevos deben respetar esos mismos patrones
 (revisión: subagente `revisor-a11y`).
 
