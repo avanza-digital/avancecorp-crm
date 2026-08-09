@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, arquitectura, plan]
-actualizado: 2026-08-08
-estado: en-ejecucion (F0 ✅ · sigue F1)
+actualizado: 2026-08-09
+estado: en-ejecucion (F0 ✅ · F1 tanda 1 servidor ✅ · siguen hooks F1 por pantalla)
 ---
 
 # Plan de escalabilidad del CRM a data gigante
@@ -23,7 +23,7 @@ hallazgos están incorporados abajo, en su fase.
 | Fase | Estado | Detalle |
 |---|---|---|
 | **F0 Cimientos** | ✅ **EN PROD** | 4 migraciones mergeadas (gate 521/521, advisors limpios, branch borrado) |
-| **F1 Métricas al servidor** | ⬜ SIGUE | La fase que mata el techo de 2000; arranca con «retomemos F1 de escalabilidad» |
+| **F1 Métricas al servidor** | 🟡 **TANDA 1 EN PROD** (2026-08-09) | Migración `20260809043802→remota 20260809051400` con las 4 RPC de la tanda 1 (`resumen_cartera_fn`, `cola_accion_fn`, `metricas_vendedores_fn`, `series_comerciales_fn`) + ventana de convertidos 45 d implementada. Gate **593/593** (539+54), oráculo `METRICAS_SERVIDOR_TX_OK`, md5 repo↔prod 4/4. El front AÚN NO las consume. SIGUE: hooks por pantalla (F1b, 2–3 tandas de release; el corte de `listarLeadsDelAmbito` a 45 d va con la primera) y la tanda 2 (`resumen_tareas_fn`, `resumen_cartera_clientes_fn`, `resumen_reparto_fn`). Detalle y 3 notas para Miguel en el ledger (índice `leads(creado_en)` para series; coordinador sin parkeados en tanda 1; optimización `= any(array)` de la familia). |
 | **F2 Keyset** | ⬜ pendiente | Requiere F1 |
 | **F3 Desmontar el store** | ⬜ pendiente | Requiere F1+F2 |
 | **F4 Histórico vs vivo** | ⬜ pendiente | **Bloqueada por el DSN de Sentry** (Miguel) |
