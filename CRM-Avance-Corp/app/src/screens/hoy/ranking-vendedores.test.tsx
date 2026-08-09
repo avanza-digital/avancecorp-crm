@@ -140,6 +140,7 @@ describe('ranking general de vendedores', () => {
 
   it('sin tipo de cambio degrada a solo PEN con el US$ rotulado aparte', () => {
     const todasLasMetas = metasConversionEquipoDemo()
+    const onReintentar = vi.fn()
     render(
       <RankingVendedoresPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
@@ -150,13 +151,17 @@ describe('ranking general de vendedores', () => {
         tc={null}
         cargando={false}
         error={null}
-        onReintentar={vi.fn()}
+        onReintentar={onReintentar}
       />,
     )
 
     fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
 
     expect(screen.getByText(/US\$ aparte: tipo de cambio no disponible/)).toBeInTheDocument()
+
+    // Un fallo AISLADO del TC tiene su propia vía de recuperación (hallazgo Codex).
+    fireEvent.click(screen.getByRole('button', { name: /Reintentar tipo de cambio/ }))
+    expect(onReintentar).toHaveBeenCalledTimes(1)
     const tabla = screen.getByRole('table', { name: 'Ranking de capital total en soles' })
     const filas = within(tabla).getAllByRole('row')
     // Bruno solo-PEN: 290k vs meta 180k → 161.1%; su US$ va aparte, no dentro del total.

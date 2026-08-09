@@ -141,6 +141,20 @@ describe('adapter de responsables de conversión', () => {
     expect(total.conPuesto[0]!.avance).toBeCloseTo((430_000 / 390_000) * 100, 6)
   })
 
+  it('un cumplimiento sin detalles degrada a indisponible — jamás a un puesto con S/ 0', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
+    const equipo = conversionEquipoDemo().slice(0, 1)
+    datos.responsables = datos.responsables?.slice(0, 1)
+    const adaptada = adaptarConversionVendedores(datos, equipo)
+    const metas = metasConversionEquipoDemo()
+    const roto = { ...cumplimientoMetasConversionEquipoDemo().porVendedor['demo-v1']!, detalles: [] }
+
+    const total = clasificarRankingCapitalTotal(adaptada.vendedores, metas, { 'demo-v1': roto }, 3.5)
+    expect(total.conPuesto).toEqual([])
+    expect(total.sinMeta).toEqual([])
+    expect(total.indisponibles.map((f) => f.vendedor.vendedorId)).toEqual(['demo-v1'])
+  })
+
   it('meta 100% en US$ sin TC → queda fuera del ranking pero con el split de la meta para rotularla', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     const equipo = conversionEquipoDemo().slice(0, 1)

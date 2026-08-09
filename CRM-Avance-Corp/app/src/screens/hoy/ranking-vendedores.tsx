@@ -336,7 +336,23 @@ export function RankingVendedoresPanel({
             <p role="status" className="mt-2 text-xs font-medium text-amber-900">{mensajeMetaNoComparable(metaMensual)}</p>
           </div>
         </div>
-      ) : tc === undefined ? <CargandoRanking /> : <RankingCapitalTotal ranking={rankingCapitalTotal} />}
+      ) : tc === undefined ? <CargandoRanking /> : (
+        <>
+          {tc === null && (
+            // Sin este botón, un fallo AISLADO del TC no tenía vía de recuperación:
+            // ErrorRanking solo aparece cuando fallan las conversiones (hallazgo Codex).
+            <div className="mx-4 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-2.5 sm:mx-5">
+              <span className="text-xs font-semibold text-amber-900">
+                Tipo de cambio no disponible: el total muestra solo S/ y el US$ va aparte.
+              </span>
+              <Button type="button" variant="outline" size="sm" onClick={onReintentar}>
+                <RefreshCw aria-hidden /> Reintentar tipo de cambio
+              </Button>
+            </div>
+          )}
+          <RankingCapitalTotal ranking={rankingCapitalTotal} />
+        </>
+      )}
     </section>
   )
 }

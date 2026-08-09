@@ -73,6 +73,36 @@ al total.
   implementa roving tabindex/flechas del patrón APG — operable por teclado
   igual; si se vuelve a tocar ese tablist, resolverlo.
 
+## Segunda pasada: Codex como revisor independiente (post-deploy)
+
+Pedido de Miguel («recuerda hacer que codex nos ayude»). Codex revisó el
+commit `143084d` con la instrucción de NO repetir los 13 hallazgos ya triados.
+Devolvió **4 nuevos (0 ALTA, 2 MEDIA, 2 BAJA) — los 4 corregidos**, y validó
+que `useTipoCambio` no tiene carreras (la limpieza descarta respuestas
+obsoletas al reintentar/desmontar/cambiar `habilitado`):
+
+1. **MEDIA — edge `crm-tipo-cambio`**: la unión compra∪venta hereda el orden
+   de inserción (un período que solo trae venta quedaba appendeado al final) y
+   `slice(-7)` podía promediar un día viejo excluyendo uno reciente; además el
+   rótulo decía `prom. 7d` aunque hubiera menos datos. Fix: orden cronológico
+   explícito (`clavePeriodo` sobre "DD.MMM.YY") antes de recortar + rótulo con
+   el conteo REAL (`SBS · prom. ${n}d`). **Edge v4 EN PROD** (deriva verificada
+   ANTES byte a byte: la v3 remota era idéntica al HEAD commiteado; smoke: 401
+   sin sesión desde nuestro código, OPTIONS 200, contenido remoto v4 = local).
+2. **MEDIA — sin vía de recuperación para un fallo AISLADO del TC**:
+   `ErrorRanking` solo aparece si fallan las conversiones. Fix: aviso amber con
+   botón «Reintentar tipo de cambio» dentro del tab cuando `tc === null`.
+3. **BAJA — cumplimiento con `detalles: []`** clasificaba comparable con
+   «S/ 0 · 0%». Fix: guarda local → indisponible (la frontera RPC ya lo
+   impedía; ahora el clasificador no depende de eso).
+4. **BAJA — el pie de gerencia** decía «PEN y USD se muestran por separado»
+   también en el Ranking, contradiciendo el total unificado. Fix: pie propio
+   para la sección ranking.
+
+⚠️ Los fixes de FRONT (2–4) están commiteados pero entran a prod recién con el
+próximo `/release-crm`; el de la EDGE (1) ya está vivo (server-side, sin
+dependencia del bundle: la respuesta conserva su shape).
+
 Ver también [[Plan de escalabilidad del CRM a data gigante]] (los % del
 ranking de equipo vienen de `metricas_vendedores_fn` — ese ranking NO se tocó)
 y [[Deploy a Hostinger]].

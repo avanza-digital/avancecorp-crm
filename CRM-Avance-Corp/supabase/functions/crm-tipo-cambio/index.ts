@@ -68,6 +68,20 @@ async function serieBcrp(codigo: string, desde: string, hasta: string): Promise<
   return mapa;
 }
 
+// Los períodos del BCRP (serie pedida en /ing) llegan como "08.Jul.26".
+const MES_ING: Record<string, number> = {
+  Jan: 0, Feb: 1, Mar: 2, Apr: 3, May: 4, Jun: 5,
+  Jul: 6, Aug: 7, Sep: 8, Oct: 9, Nov: 10, Dec: 11,
+};
+
+/** Clave ordenable de un período "DD.MMM.YY"; formato inesperado → 0 (va al fondo). */
+function clavePeriodo(p: string): number {
+  const [dia, mes, anio] = p.split(".");
+  const m = MES_ING[mes ?? ""];
+  const t = m == null ? Number.NaN : Date.UTC(2000 + Number(anio), m, Number(dia));
+  return Number.isFinite(t) ? t : 0;
+}
+
 async function calcular(): Promise<Resultado> {
   const desde = fechaLima(-DIAS_VENTANA);
   const hasta = fechaLima(0);
@@ -78,15 +92,21 @@ async function calcular(): Promise<Resultado> {
 
   // Punto medio por día; si un lado falta ese día, vale el otro (mejor un dato
   // de un solo lado que descartar el día entero).
+  //
+  // ⚠️ ORDEN EXPLÍCITO (hallazgo Codex 2026-08-09): la unión de claves hereda
+  // el orden de inserción — un período que solo trae `venta` quedaba APPENDEADO
+  // al final y `slice(-7)` podía promediar un día viejo y excluir uno reciente.
+  // Se ordena cronológicamente ANTES de recortar.
   const periodos = [...new Set([...compra.keys(), ...venta.keys()])];
   const medios = periodos
     .map((p) => {
       const c = compra.get(p);
       const v = venta.get(p);
-      if (c != null && v != null) return { p, valor: (c + v) / 2 };
-      return { p, valor: (c ?? v)! };
+      if (c != null && v != null) return { p, t: clavePeriodo(p), valor: (c + v) / 2 };
+      return { p, t: clavePeriodo(p), valor: (c ?? v)! };
     })
-    .filter((x) => Number.isFinite(x.valor) && x.valor > 0);
+    .filter((x) => Number.isFinite(x.valor) && x.valor > 0)
+    .sort((a, b) => a.t - b.t);
 
   const ultimos = medios.slice(-DIAS_PROMEDIO);
   if (ultimos.length === 0) throw new Error("BCRP sin datos en la ventana consultada");
@@ -94,7 +114,10 @@ async function calcular(): Promise<Resultado> {
   const promedio = ultimos.reduce((a, b) => a + b.valor, 0) / ultimos.length;
   return {
     promedio: Math.round(promedio * 10_000) / 10_000,
-    fuente: "SBS · prom. 7d",
+    // Rótulo honesto: si el BCRP entregó menos de 7 días hábiles (feriados
+    // largos, respuesta parcial), la fuente declara el conteo REAL — jamás se
+    // anuncia un promedio de 7 días que no lo es (hallazgo Codex 2026-08-09).
+    fuente: `SBS · prom. ${ultimos.length}d`,
     dias: ultimos.length,
     desde: ultimos[0].p,
     hasta: ultimos[ultimos.length - 1].p,

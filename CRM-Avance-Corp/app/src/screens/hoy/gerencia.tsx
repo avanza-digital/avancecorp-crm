@@ -311,7 +311,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       <p className="px-1 text-[11px] text-[var(--gi-muted)]">
         {modoDemo
           ? 'Datos de ejemplo. No modifican información real.'
-          : `${periodo.desde} al ${periodo.hasta} · PEN y USD se muestran por separado.`}
+          // En el ranking el capital SÍ se unifica (US$ convertido al TC rotulado);
+          // repetir aquí «por separado» contradiría el total (hallazgo Codex).
+          : seccion === 'ranking-vendedores'
+            ? `${periodo.desde} al ${periodo.hasta} · Capital total: US$ convertido a S/ al TC rotulado; desglose por moneda en cada fila.`
+            : `${periodo.desde} al ${periodo.hasta} · PEN y USD se muestran por separado.`}
       </p>
     </GerenciaMotion>
   )

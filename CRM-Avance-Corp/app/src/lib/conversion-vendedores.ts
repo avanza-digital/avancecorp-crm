@@ -234,7 +234,11 @@ export function clasificarRankingCapitalTotal(
   const tcValido = tc != null && Number.isFinite(tc) && tc > 0 ? tc : null
 
   const filas = vendedores.map<CapitalTotalVendedor>((vendedor) => {
-    const cumplimiento = cumplimientos[vendedor.vendedorId]
+    // Un cumplimiento SIN detalles no es «S/ 0 confirmado»: es un payload que la
+    // frontera RPC no debería producir — se degrada a indisponible, no a puesto
+    // con cero (hallazgo Codex: el tipo público no garantiza la matriz completa).
+    const crudo = cumplimientos[vendedor.vendedorId]
+    const cumplimiento = crudo != null && crudo.detalles.length > 0 ? crudo : undefined
     const capitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
     const capitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
     const capitalTotal = capitalPen != null && capitalUsd != null
