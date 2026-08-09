@@ -42,6 +42,20 @@ vi.mock('@/lib/store-context', () => ({
   }),
   usePanelesActions: () => ({ abrirLead, abrirNuevoLead }),
 }))
+// F1: el hook operativo se sustituye por el espejo puro sobre los MISMOS leads
+// del mock — los chips se prueban con números derivados de verdad, sin red ni
+// QueryClientProvider (el shape es el del RPC, validado en resumen-cartera.test).
+vi.mock('@/data/use-resumen-cartera-operativo', async () => {
+  const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
+  return {
+    useResumenCarteraOperativo: (leads: Lead[]) => ({
+      resumen: resumenCarteraDesdeAmbito(leads, [], Date.now()),
+      cargando: false,
+      error: null,
+      recargar: vi.fn(),
+    }),
+  }
+})
 
 const { Pipeline } = await import('./pipeline')
 

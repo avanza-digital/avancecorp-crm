@@ -4,6 +4,7 @@ import {
   listarClientes,
   listarCuentasBancariasCliente,
   listarMetricasAgenda,
+  listarResumenCartera,
   listarMetricasConversiones,
   listarMetricasReuniones,
   listarMetricasAltasAnalista,
@@ -61,6 +62,13 @@ export const crmQueryKeys = {
     [...crmQueryKeys.metricas(), 'conversiones', desde, hasta] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
+  // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
+  // Prefijo PROPIO, separado de metricas(): el puente transitorio del store
+  // (persistir/resincronizarReal) las invalida tras CADA mutación de leads, y
+  // hacerlo sobre metricas() refrescaría también las fotografías por periodo
+  // de gerencia en cada llamada del vendedor. Se retira en F3.
+  metricasAmbito: () => [...crmQueryKeys.raiz, 'metricas-ambito'] as const,
+  resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -169,6 +177,19 @@ export function useCuentasBancariasCliente(
     // No retener números/CCI al cerrar el modal; al reabrir siempre se pide una
     // fotografía autorizada y fresca al servidor.
     gcTime: 0,
+  })
+}
+
+// ── Métricas del ámbito operativo (F1) — SOLO sesión real (`habilitada`): en
+//    demo el MISMO shape lo calcula lib/resumen-cartera sobre el estado vivo y
+//    NUNCA se toca la red (fail-closed). Las pantallas no usan este hook a pelo:
+//    consumen data/use-resumen-cartera-operativo, que decide la fuente. ─────────
+
+export function useResumenCartera(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.resumenCartera(),
+    queryFn: ({ signal }) => listarResumenCartera(signal),
+    enabled: habilitada,
   })
 }
 

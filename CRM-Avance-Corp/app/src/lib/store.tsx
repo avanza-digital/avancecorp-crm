@@ -13,6 +13,8 @@ import {
   type ReactNode,
 } from 'react'
 import { toast } from 'sonner'
+import { crmQueryKeys } from '@/data/crm-queries'
+import { queryClient } from './query-client'
 import { useAuth } from './auth-context'
 import { administraSoloRolesCrm, can, puedeEscribir } from './roles'
 import {
@@ -777,6 +779,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // rollback cuando el servidor está inalcanzable.
   const resincronizarReal = useCallback(async (): Promise<boolean> => {
     const miEpoca = epocaRef.current
+    // Puente de coherencia F1 (TRANSITORIO hasta F3): mientras las mutaciones
+    // pasen por el store, cada resincronización invalida por prefijo las
+    // métricas del ámbito servidas por RPC — sin esto, crear o mover un lead
+    // dejaría los tiles de Cartera/Pipeline contando el mundo de ANTES de la
+    // escritura. Se dispara también en el resync de un rollback (costo: un
+    // refetch de más en un caso raro; mentir en un tile sería peor).
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() })
     try {
       const {
         leads,

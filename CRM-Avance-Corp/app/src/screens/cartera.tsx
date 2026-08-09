@@ -13,8 +13,9 @@ import { Paginacion } from '@/components/common/paginacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ETAPAS, TERMINALES, ETAPA_INFO, MOTIVOS_DESCARTE, CAT_LABEL, origenLabel, type Etapa } from '@/lib/tipos'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { capitalPorMoneda, esAbierto } from '@/lib/inteligencia'
-import { money, moneyK, fmtFecha } from '@/lib/format'
+import { capitalPrincipal } from '@/lib/inteligencia'
+import { money, fmtFecha } from '@/lib/format'
+import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { paginar } from '@/lib/paginacion'
 import { can } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
@@ -27,10 +28,15 @@ type FiltroVendedor = string
 
 export function Cartera() {
   const { yo } = useAuth()
-  const { ambito } = useCRMData()
+  const { ambito, actividadesDelAmbito } = useCRMData()
   const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
   const leads = ambito.leads
+  // F1: los KPIs vienen del servidor (RPC resumen_cartera_fn) o del espejo demo
+  // vivo — la pantalla ya no cuenta filas. La tabla de abajo sigue sobre el
+  // ámbito (eso migra en F2 con keyset).
+  const resumenOp = useResumenCarteraOperativo(leads, actividadesDelAmbito)
+  const resumen = resumenOp.resumen
   const [q, setQ] = useState('')
   const [fEtapa, setFEtapa] = useState<FiltroEtapa>('todas')
   const [fVend, setFVend] = useState<FiltroVendedor>('todos')
@@ -39,48 +45,48 @@ export function Cartera() {
   const verVendedor = can(yo?.rol, 'verEquipo')
   const filtrarVendedor = can(yo?.rol, 'filtrarPorVendedor')
 
-  // ── KPIs y distribución de la cartera del ámbito (no dependen de los filtros) ──
+  // ── KPIs y distribución del ámbito (no dependen de los filtros) ──
+  // Sin payload (cargando o RPC caída) los tiles dicen «—»: jamás se inventa
+  // una cifra contando un array parcial del navegador.
   const { stats, segmentos } = useMemo(() => {
-    // Fuente ÚNICA de "vivo": esAbierto (lib/inteligencia) = l.activo y en etapa
-    // de trabajo. Antes esta pantalla reimplementaba la regla con un array
-    // literal de terminales; dos copias de la misma definición terminan
-    // divergiendo en cuanto se añade una etapa terminal.
-    const abiertos = leads.filter(esAbierto)
-    const convertidos = leads.filter((l) => l.etapa === 'convertido')
-    // El capital se acota a los ABIERTOS. Sumarlo sobre `leads` metía en la
-    // cifra a los DESCARTADOS y a los CONVERTIDOS: dinero que ya no está en
-    // juego (el descartado no se va a cerrar; el convertido ya vive como
-    // contrato en la cartera de clientes, y contarlo aquí lo duplica). El chip
-    // anunciaba así un capital que nadie puede ganar, y encima crecía cada vez
-    // que se descartaba un lead. La etiqueta se renombra en consecuencia: no es
-    // el capital "total" de nada, es el que sigue en juego.
-    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(abiertos)
-    // La cifra grande es la moneda que DE VERDAD tiene volumen (mismo criterio
-    // ya aprobado en Pipeline). Fijar PEN como principal hacía que una cartera
-    // íntegramente en dólares cantara "S/ 0" con su capital real escondido en
-    // el subtítulo. PEN manda cuando hay soles (es la moneda del negocio); si
-    // solo hay dólares, manda USD; con las dos se muestran las dos, cada una
-    // con su símbolo — PEN y USD JAMÁS se suman ni se convierten.
-    const soloDolares = capitalPEN <= 0 && capitalUSD > 0
+    if (!resumen) {
+      const stats: StatChipData[] = [
+        { icon: Users, label: 'Total leads', value: '—', tone: 'primary' },
+        { icon: TrendingUp, label: 'Capital en juego', value: '—', tone: 'accent' },
+        { icon: Activity, label: 'Activos', value: '—', tone: 'default', sub: 'Sin convertir ni descartar' },
+        { icon: CheckCircle2, label: 'Convertidos', value: '—', tone: 'primary' },
+      ]
+      return { stats, segmentos: [] as Segment[] }
+    }
+    // El capital en juego se acota a los ABIERTOS (asignados + parkeados: esta
+    // es la vista de inventario). El ganado no entra: ya vive como contrato en
+    // la cartera de clientes y contarlo aquí lo duplicaría. La cifra grande es
+    // la moneda que DE VERDAD tiene volumen (capitalPrincipal) — PEN y USD
+    // JAMÁS se suman ni se convierten.
+    const capital = capitalPrincipal(
+      resumen.capital.asignado.pen + resumen.capital.parkeado.pen,
+      resumen.capital.asignado.usd + resumen.capital.parkeado.usd,
+    )
     const stats: StatChipData[] = [
-      { icon: Users, label: 'Total leads', value: String(leads.length), tone: 'primary' },
+      { icon: Users, label: 'Total leads', value: String(resumen.totales.vivos), tone: 'primary' },
       {
         icon: TrendingUp,
         label: 'Capital en juego',
-        value: soloDolares ? money(capitalUSD, 'USD') : money(capitalPEN),
+        value: capital.valor,
         tone: 'accent',
-        sub: soloDolares ? 'USD' : capitalUSD > 0 ? `PEN · +${moneyK(capitalUSD, 'USD')}` : 'PEN',
+        sub: capital.sub,
       },
-      { icon: Activity, label: 'Activos', value: String(abiertos.length), tone: 'default', sub: 'Sin convertir ni descartar' },
-      { icon: CheckCircle2, label: 'Convertidos', value: String(convertidos.length), tone: 'primary' },
+      { icon: Activity, label: 'Activos', value: String(resumen.totales.abiertos), tone: 'default', sub: 'Sin convertir ni descartar' },
+      { icon: CheckCircle2, label: 'Convertidos', value: String(resumen.totales.convertidos), tone: 'primary' },
     ]
+    const porEtapa = new Map(resumen.embudo.map((p) => [p.etapa, p.n]))
     const segmentos: Segment[] = [...ETAPAS, ...TERMINALES].map((e) => ({
       label: e.label,
-      value: leads.filter((l) => l.etapa === e.k).length,
+      value: porEtapa.get(e.k) ?? 0,
       color: e.color,
     }))
     return { stats, segmentos }
-  }, [leads])
+  }, [resumen])
 
   // ── Filtro: etapa + vendedor + búsqueda por nombre / teléfono / DNI ──
   const items = useMemo(() => {
@@ -111,12 +117,34 @@ export function Cartera() {
       {/* Mini-KPIs de la cartera */}
       <StatStrip stats={stats} />
 
+      {/* Degradación honesta (precedente objetivosError): la pantalla vive con
+          aviso y «—», sin bloquear la tabla, que tiene su propia fuente. */}
+      {Boolean(resumenOp.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudieron cargar los indicadores de la cartera. Se muestran «—» para no inventar cifras.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={() => { void resumenOp.recargar() }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
       {/* Distribución por etapa */}
       <Card>
         <SectionHead
           icon={PieChart}
           title="Distribución por etapa"
-          right={<span className="text-xs text-muted-foreground">{leads.length} leads</span>}
+          right={
+            <span className="text-xs text-muted-foreground">
+              {resumen ? `${resumen.totales.vivos} leads` : '—'}
+            </span>
+          }
         />
         <CardContent className="pt-1">
           <SegmentBar segments={segmentos} />

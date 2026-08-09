@@ -86,6 +86,12 @@ import {
   type DisponibilidadLead,
   type ResultadoCreacionLeadAtomica,
 } from '@/lib/disponibilidad-lead'
+import {
+  ResumenCarteraSchema,
+  VENTANA_CONVERTIDOS_MS,
+  VENTANA_CONVERTIDOS_DIAS,
+  type ResumenCartera,
+} from '@/lib/resumen-cartera'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica } from '@/lib/disponibilidad-lead'
 
@@ -413,10 +419,18 @@ export async function listarLeads(
 const MAX_LEADS_AMBITO = 2000
 
 export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]> {
+  // Ventana de convertidos (decisión de Miguel 2026-08-08, F1): un convertido
+  // con más de 45 días deja de ser lead operativo — MISMO corte que aplican
+  // las RPC de métricas del servidor, para que los tiles y las filas cuenten
+  // la misma película. El valor va entre comillas: en la mini-sintaxis de
+  // `.or()` de PostgREST el literal ISO viaja como valor citado, nunca como
+  // parte de la expresión lógica.
+  const corteConvertidos = new Date(Date.now() - VENTANA_CONVERTIDOS_MS).toISOString()
   let consulta = cliente()
     .schema('crm')
     .from('leads')
     .select(COLUMNAS_LEAD)
+    .or(`etapa.neq.convertido,convertido_en.gte."${corteConvertidos}"`)
     .order('actualizado_en', { ascending: false })
     .order('id', { ascending: true })
     .limit(MAX_LEADS_AMBITO)
@@ -2422,6 +2436,36 @@ export async function listarMetricasReuniones(
       'METRICAS_REUNIONES_CONTRACT',
     )
     registrarError('crm.metricas.reuniones_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Resumen agregado del ámbito operativo (RPC crm.resumen_cartera_fn, F1):
+ * los tiles de Cartera/Pipeline dejan de contar filas en el navegador. El
+ * payload jsonb version:1 se valida fail-closed y además se CERTIFICA que la
+ * ventana de convertidos del servidor sea la misma que aplica
+ * `listarLeadsDelAmbito` — dos cortes distintos en la misma pantalla serían
+ * números que no cuadran entre tiles y tabla.
+ */
+export async function listarResumenCartera(signal?: AbortSignal): Promise<ResumenCartera> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('resumen_cartera_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.resumen_cartera_fallido')
+  const resultado = v.safeParse(ResumenCarteraSchema, data)
+  if (
+    !resultado.success
+    || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS
+  ) {
+    const fallo = new CrmApiError(
+      'El resumen de cartera no tiene el formato esperado.',
+      'RESUMEN_CARTERA_CONTRACT',
+    )
+    registrarError('crm.metricas.resumen_cartera_fuera_de_contrato', fallo)
     throw fallo
   }
   return resultado.output

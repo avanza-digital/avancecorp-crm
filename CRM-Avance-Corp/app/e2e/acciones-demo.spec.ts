@@ -195,3 +195,27 @@ test('anular la reunión devuelve el lead a su etapa anterior (demo)', async ({ 
   // 4) …y el WhatsApp sembrado sigue en pie: anular no barre la agenda.
   await expect(drawer.getByText('1 pendiente')).toBeVisible()
 })
+
+test('crear lead mueve el tile "Leads activos" al instante (espejo demo VIVO, F1)', async ({ page }) => {
+  // El bloqueante del plan F1: los tiles demo se calculan del estado vivo del
+  // store, no de la semilla estática — crear un lead debe moverlos sin reload.
+  await entrarDemo(page, 'Vendedor')
+  await irAPipeline(page)
+
+  const chip = page.locator('[data-slot="card"]').filter({ hasText: 'Leads activos' }).first()
+  const antes = Number(/\d+/.exec(await chip.innerText())?.[0])
+  expect(Number.isFinite(antes)).toBe(true)
+
+  // Alta por columna (el "+ Agregar lead" de Nuevo abre el mismo modal).
+  await page.getByRole('button', { name: /agregar lead/i }).first().click()
+  const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
+  await modal.locator('#nl-nombre').fill('LEAD TILE E2E')
+  await modal.locator('#nl-telefono').fill('987333444')
+  await modal.locator('#nl-monto').fill('7000')
+  await modal.locator('#nl-origen').selectOption('landing')
+  await modal.getByRole('button', { name: /crear lead/i }).click()
+  await expect(page.getByText(/Lead creado \(demo\)/i)).toBeVisible()
+
+  // El drawer del lead nuevo queda abierto por encima; el tile ya cambió detrás.
+  await expect(chip).toContainText(String(antes + 1))
+})

@@ -18,16 +18,17 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { CAT_LABEL, ETAPA_INFO, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
-import { capitalPorMoneda, indexarUltimoContacto } from '@/lib/inteligencia'
+import { capitalPorMoneda, capitalPrincipal, indexarUltimoContacto } from '@/lib/inteligencia'
 import { semaforoEstancamiento, type SemaforoEtapa } from '@/lib/estancamiento'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
-import { money, moneyK } from '@/lib/format'
+import { moneyK } from '@/lib/format'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { minutosLegibles } from '@/lib/sla-versionado'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
+import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 
 // "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
 // `semaforoEstancamiento`, para que color y número no puedan divergir).
@@ -287,37 +288,30 @@ export function Pipeline() {
     if (id) mover(id, etapa)
   }
 
-  // Convención de KPIs (misma que Hoy y Equipo): solo abiertos VIVOS (l.activo)
-  // y CON vendedor — los parkeados van aparte en la pill "Por repartir".
-  const activos = leads.filter(
-    (l) => l.activo && l.vendedor_id != null && !['convertido', 'descartado'].includes(l.etapa),
-  )
-  const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(activos)
-  // La cifra grande es la moneda que DE VERDAD tiene volumen. Fijar PEN como
-  // principal hacía que una cartera íntegramente en dólares anunciara "S/ 0"
-  // con su capital real escondido en el subtítulo: el chip decía justo lo
-  // contrario de lo que el asesor tiene en juego. PEN manda cuando hay soles
-  // (es la moneda del negocio); si solo hay dólares, manda USD. Cuando hay las
-  // dos se muestran las dos, cada una con su símbolo — PEN y USD JAMÁS se suman
-  // ni se convierten para caber en un número.
-  const soloDolares = capitalPEN <= 0 && capitalUSD > 0
-  const capitalValor = soloDolares ? money(capitalUSD, 'USD') : money(capitalPEN)
-  const capitalSub = soloDolares
-    ? 'USD'
-    : capitalUSD > 0
-      ? `PEN · +${moneyK(capitalUSD, 'USD')}`
-      : 'PEN'
+  // ── KPIs del tablero — F1: servidos por resumen_cartera_fn (o espejo demo
+  // vivo); la pantalla ya no cuenta filas. Convención (misma que Hoy y Equipo):
+  // solo abiertos CON vendedor — los parkeados van aparte en la pill "Por
+  // repartir". La cifra grande del capital es la moneda que DE VERDAD tiene
+  // volumen (capitalPrincipal) — PEN y USD JAMÁS se suman ni se convierten.
+  // Sin payload (cargando o RPC caída): «—», jamás una cifra inventada.
+  const resumenOp = useResumenCarteraOperativo(leads, actividadesDelAmbito)
+  const resumen = resumenOp.resumen
+  const capital = resumen
+    ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
+    : null
+  const propuestas = resumen?.embudo.find((p) => p.etapa === 'propuesta_enviada')?.n
   const stats: StatChipData[] = [
-    { icon: Users, label: 'Leads activos', value: String(activos.length), tone: 'primary' },
+    { icon: Users, label: 'Leads activos', value: resumen ? String(resumen.totales.asignados) : '—', tone: 'primary' },
     {
       icon: TrendingUp,
       label: 'Capital en proceso',
-      value: capitalValor,
+      value: capital?.valor ?? '—',
       tone: 'accent',
-      sub: capitalSub,
+      // exactOptionalPropertyTypes: sin capital el sub se OMITE, no viaja undefined.
+      ...(capital ? { sub: capital.sub } : {}),
     },
-    { icon: FileText, label: 'Propuestas', value: String(leads.filter((l) => l.etapa === 'propuesta_enviada').length) },
-    { icon: Target, label: 'Convertidos', value: String(leads.filter((l) => l.etapa === 'convertido').length), tone: 'primary' },
+    { icon: FileText, label: 'Propuestas', value: propuestas != null ? String(propuestas) : '—' },
+    { icon: Target, label: 'Convertidos', value: resumen ? String(resumen.totales.convertidos) : '—', tone: 'primary' },
   ]
 
   return (
@@ -334,6 +328,24 @@ export function Pipeline() {
             type="button"
             className="font-semibold text-foreground underline-offset-2 hover:underline"
             onClick={estadoSla.recargar}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
+
+      {/* Degradación honesta de los KPIs (precedente objetivosError): el
+          tablero sigue operable; solo los chips quedan en «—». */}
+      {Boolean(resumenOp.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudieron cargar los indicadores del tablero. Se muestran «—» para no inventar cifras.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={() => { void resumenOp.recargar() }}
           >
             Reintentar
           </button>

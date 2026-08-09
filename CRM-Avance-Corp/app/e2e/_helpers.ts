@@ -84,6 +84,8 @@ export interface LeadReal {
   vendedor_id: string | null
   asignado_supervisor_id: string | null
   creado_en: string
+  /** Sello del cierre ganado (trigger del servidor); los fixtures viejos no lo traen. */
+  convertido_en?: string | null
   actualizado_en: string
   activo: boolean
   nota: string | null
@@ -634,6 +636,75 @@ function metricasDistribucionVaciaReal(): unknown {
   }
 }
 
+/**
+ * Payload de crm.resumen_cartera_fn calculado del ESTADO VIVO del mock: tras
+ * una mutación + resync, los tiles F1 de Cartera/Pipeline deben reflejar las
+ * mismas filas que este backend simulado sirve. Misma semántica que el espejo
+ * demo (lib/resumen-cartera): ventana de convertidos de 45 días con la cadena
+ * de fallback de cierres-del-mes (los fixtures no traen `convertido_en`) y
+ * USD estricto. `sin_tocar` queda en 0: el mock no modela contactos por lead.
+ */
+export function resumenCarteraReal(leads: LeadReal[]): Record<string, unknown> {
+  const corteMs = Date.now() - 45 * 86_400_000
+  const ambito = leads.filter((l) => {
+    if (!l.activo) return false
+    if (l.etapa !== 'convertido') return true
+    const sello = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
+    return Number.isFinite(sello) && sello >= corteMs
+  })
+  const esUsd = (l: LeadReal) => l.moneda === 'USD'
+  const abiertos = ambito.filter((l) => l.etapa !== 'convertido' && l.etapa !== 'descartado')
+  const asignados = abiertos.filter((l) => l.vendedor_id != null)
+  const parkeados = abiertos.filter((l) => l.vendedor_id == null)
+  const convertidos = ambito.filter((l) => l.etapa === 'convertido')
+  const descartados = ambito.filter((l) => l.etapa === 'descartado')
+  const suma = (grupo: LeadReal[], usd: boolean) =>
+    grupo.reduce((acc, l) => (esUsd(l) === usd ? acc + (l.monto_estimado ?? 0) : acc), 0)
+  const base = ambito.filter((l) => l.vendedor_id != null)
+  const ganadosConVendedor = convertidos.filter((l) => l.vendedor_id != null)
+  const porMotivo = new Map<string, number>()
+  for (const l of descartados) {
+    if (l.motivo_descarte != null) {
+      porMotivo.set(l.motivo_descarte, (porMotivo.get(l.motivo_descarte) ?? 0) + 1)
+    }
+  }
+  const etapas = ['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada', 'convertido', 'descartado']
+  return {
+    version: 1,
+    generado_en: new Date().toISOString(),
+    ventana_convertidos_dias: 45,
+    totales: {
+      vivos: ambito.length,
+      abiertos: abiertos.length,
+      asignados: asignados.length,
+      parkeados: parkeados.length,
+      convertidos: convertidos.length,
+      descartados: descartados.length,
+      asignados_pen: asignados.filter((l) => !esUsd(l)).length,
+      asignados_usd: asignados.filter(esUsd).length,
+    },
+    capital: {
+      asignado: { pen: suma(asignados, false), usd: suma(asignados, true) },
+      parkeado: { pen: suma(parkeados, false), usd: suma(parkeados, true) },
+      ganado: { pen: suma(convertidos, false), usd: suma(convertidos, true) },
+    },
+    conversion: {
+      convertidos: ganadosConVendedor.length,
+      base: base.length,
+      pct: base.length > 0 ? Math.round((100 * ganadosConVendedor.length) / base.length) : 0,
+    },
+    descartes: {
+      total: descartados.length,
+      sin_motivo: descartados.filter((l) => l.motivo_descarte == null).length,
+      por_motivo: [...porMotivo.entries()]
+        .map(([motivo, n]) => ({ motivo, n }))
+        .sort((a, b) => b.n - a.n || a.motivo.localeCompare(b.motivo)),
+    },
+    embudo: etapas.map((etapa) => ({ etapa, n: ambito.filter((l) => l.etapa === etapa).length })),
+    sin_tocar: 0,
+  }
+}
+
 function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
   const dias = Math.max(
     1,
@@ -876,6 +947,8 @@ export interface BackendReal {
   fallarProximoInsertActividad: boolean
   /** Cualquier GET de leads responde 500 (servidor caído para resync). */
   leadsSiempreCaido: boolean
+  /** La RPC resumen_cartera_fn responde 500 SIEMPRE (tiles F1 degradados a «—»). */
+  fallarResumenCartera: boolean
   /** Clientes del portal (alimentan clientes_basicos + el detalle de perfiles). */
   clientes: PerfilReal[]
   /** Contratos del portal (con el embed cliente ya resuelto). */
@@ -1013,6 +1086,7 @@ export async function montarBackendReal(
     disponibilidadLead: init.disponibilidadLead ?? { estado: 'libre' },
     fallarProximoInsertActividad: init.fallarProximoInsertActividad ?? false,
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
+    fallarResumenCartera: init.fallarResumenCartera ?? false,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
     productosSeleccionables: init.productosSeleccionables
@@ -1646,6 +1720,14 @@ export async function montarBackendReal(
     }
     if (p === '/functions/v1/crm-convertir-lead' && method === 'POST') {
       return json(route, { perfil_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ya_existia: false, email_enviado: true })
+    }
+
+    // ── métricas del ámbito operativo (F1: tiles de Cartera/Pipeline) ──
+    if (p === '/rest/v1/rpc/resumen_cartera_fn' && method === 'POST') {
+      if (estado.fallarResumenCartera) {
+        return json(route, { message: 'resumen caido', code: 'PGRST000', details: null, hint: null }, 500)
+      }
+      return json(route, resumenCarteraReal(estado.leads))
     }
 
     // ── métricas de gerencia (gráficas del panel Hoy) ──

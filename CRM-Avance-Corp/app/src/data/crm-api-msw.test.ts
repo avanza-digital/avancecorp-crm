@@ -21,9 +21,11 @@ import {
   listarLeads,
   listarLeadsDelAmbito,
   listarMisContratos,
+  listarResumenCartera,
   listarTareasDelAmbito,
   reprogramarReunion,
 } from './crm-api'
+import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
 
 const RUTA_LEADS = 'http://supabase.test/rest/v1/leads'
 const RUTA_REPROGRAMAR = 'http://supabase.test/rest/v1/rpc/reprogramar_reunion'
@@ -307,6 +309,82 @@ describe('listarLeadsDelAmbito (msw)', () => {
       '[ac-crm]',
       expect.objectContaining({ evento: 'crm_api.tope_alcanzado' }),
     )
+  })
+
+  // Ventana de convertidos (F1): el corte viaja como filtro OR de PostgREST —
+  // un convertido con más de 45 días no debe llegar al navegador. El mismo
+  // corte lo aplican las RPC de métricas; si este param desaparece, tiles y
+  // tabla contarían películas distintas.
+  it('pide al servidor la ventana de convertidos de 45 días (etapa.neq OR convertido_en.gte)', async () => {
+    const capturadas: URL[] = []
+    server.use(
+      http.get(RUTA_LEADS, ({ request }) => {
+        capturadas.push(new URL(request.url))
+        return HttpResponse.json([])
+      }),
+    )
+
+    const antes = Date.now()
+    await listarLeadsDelAmbito()
+
+    const or = capturadas[0]?.searchParams.get('or') ?? ''
+    expect(or).toContain('etapa.neq.convertido')
+    const sello = /convertido_en\.gte\."([^"]+)"/.exec(or)?.[1]
+    expect(sello).toBeTruthy()
+    // El corte es "hoy − 45 días" calculado al momento de la llamada.
+    const corteMs = Date.parse(sello ?? '')
+    expect(Math.abs(corteMs - (antes - 45 * 86_400_000))).toBeLessThan(60_000)
+  })
+})
+
+describe('listarResumenCartera (msw)', () => {
+  const RUTA_RESUMEN = 'http://supabase.test/rest/v1/rpc/resumen_cartera_fn'
+  // El espejo demo produce el shape EXACTO del RPC: sirve de payload de prueba
+  // sin duplicar el contrato a mano.
+  const payloadValido = () => resumenCarteraDesdeAmbito([], [], Date.now())
+
+  it('devuelve el payload validado cuando cumple el contrato version:1', async () => {
+    server.use(http.post(RUTA_RESUMEN, () => HttpResponse.json(payloadValido())))
+
+    const resumen = await listarResumenCartera()
+
+    expect(resumen.version).toBe(1)
+    expect(resumen.totales.vivos).toBe(0)
+    expect(resumen.embudo).toHaveLength(6)
+  })
+
+  it('rechaza fail-closed un payload fuera de contrato (sin totales)', async () => {
+    const { totales: _omitidos, ...roto } = payloadValido()
+    server.use(http.post(RUTA_RESUMEN, () => HttpResponse.json(roto)))
+
+    await expect(listarResumenCartera()).rejects.toMatchObject({
+      code: 'RESUMEN_CARTERA_CONTRACT',
+    })
+  })
+
+  it('rechaza una ventana de convertidos DISTINTA de la del front: dos cortes no pueden convivir', async () => {
+    server.use(
+      http.post(RUTA_RESUMEN, () =>
+        HttpResponse.json({ ...payloadValido(), ventana_convertidos_dias: 60 }),
+      ),
+    )
+
+    await expect(listarResumenCartera()).rejects.toMatchObject({
+      code: 'RESUMEN_CARTERA_CONTRACT',
+    })
+  })
+
+  it('un error PostgREST se traduce a CrmApiError con su code original', async () => {
+    server.use(
+      http.post(RUTA_RESUMEN, () =>
+        HttpResponse.json(
+          { message: 'boom', code: 'PGRST123', details: null, hint: null },
+          { status: 500 },
+        ),
+      ),
+    )
+
+    await expect(listarResumenCartera()).rejects.toMatchObject({ code: 'PGRST123' })
   })
 })
 
