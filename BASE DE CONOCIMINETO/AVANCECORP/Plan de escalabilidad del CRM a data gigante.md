@@ -18,12 +18,12 @@ con 30 hallazgos de crítica adversarial (4 bloqueantes) en tres lentes:
 RLS/seguridad, front/demo/tests y secuenciación de despliegue. Todos los
 hallazgos están incorporados abajo, en su fase.
 
-## 📊 Estado de avance (al 2026-08-09, madrugada)
+## 📊 Estado de avance (al 2026-08-09, noche — F1b tandas 1+2 EN PROD)
 
 | Fase | Estado | Detalle |
 |---|---|---|
 | **F0 Cimientos** | ✅ **EN PROD** | 4 migraciones mergeadas (gate 521/521, advisors limpios, branch borrado) |
-| **F1 Métricas al servidor** | 🟢 **SERVIDOR COMPLETO** — tandas 1+2 EN PROD (2026-08-09) | Tanda 1 (`20260809051400`): las 4 RPC base + ventana de convertidos 45 d. **Tanda 2 (`20260809151422/23/36`)**: las 3 RPC restantes (`resumen_tareas_fn` con los DOS criterios de vencida + señales de alertas; `resumen_cartera_clientes_fn` 100 % canónica con alarma de renovación y `sin_asesor` solo gerencia/lector; `resumen_reparto_fn` gateada al coordinador) **+ las 3 notas aprobadas por Miguel**: índice `leads(creado_en)` (BitmapOr con `idx_leads_contrato`), parkeados del coordinador en resumen/series (NO en cola_accion —PII, premisa C1— ni en metricas_vendedores —código muerto, hallazgo del auditor—), y optimización `= any(array)` en las 6 funciones que escanean leads/actividades (las de roster y las de cartera-clientes quedan fuera a propósito — regla de exclusión + F2 keyset + drift de `clientes_basicos_fn`). Gate **648/648** (+55), oráculo `METRICAS_SERVIDOR_TX_OK` (M01–M15), advisors 0 ERROR, md5 branch↔prod 9/9. **F1b tanda 1 ✅ (2026-08-09, solo front):** Cartera y Pipeline consumen `resumen_cartera_fn` (hook `useResumenCarteraOperativo`: RPC en real, espejo VIVO en demo — `lib/resumen-cartera.ts` con el shape validado por el MISMO schema Valibot del wrapper), corte de `listarLeadsDelAmbito` a 45 d aplicado (filtro OR de PostgREST + test MSW; el debounce de `verificarDisponibilidadLead` YA existía del ciclo de creación atómica), puente de invalidaciones en `resincronizarReal` (prefijo `metricas-ambito`, transitorio hasta F3), degradación honesta («—» + banner con Reintentar, precedente objetivosError), handler `resumen_cartera_fn` en `montarBackendReal` + 3 E2E nuevos (tile demo vivo tras crear lead, tiles RPC en real, RPC caída → degradado operable). `npm run check` 1422 ✔ · e2e 65 ✔. **F1b tanda 2 ✅ (2026-08-09, mismo día):** hoy/vendedor + hoy/supervisor + equipo + hoy/directorio consumen `cola_accion_fn`/`metricas_vendedores_fn`/`resumen_cartera_fn` (detalle y decisiones en la sección F1); redacción de motivos unificada en `redactarMotivoCola`; `series` del store eliminado (código muerto); agenda y `resumen_tareas_fn` diferidas a F2/F3 a propósito; verificación adversarial (4 lentes) + a11y + Codex; check 1430 ✔ · e2e **78/0** (incluye los 12 specs de config/contratos heredados rotos del ciclo `0230929`, reconciliados — cero bugs reales). **Resta tanda 3: repartir sobre `resumen_reparto_fn`.** |
+| **F1 Métricas al servidor** | 🟢 **SERVIDOR COMPLETO** — tandas 1+2 EN PROD (2026-08-09) | Tanda 1 (`20260809051400`): las 4 RPC base + ventana de convertidos 45 d. **Tanda 2 (`20260809151422/23/36`)**: las 3 RPC restantes (`resumen_tareas_fn` con los DOS criterios de vencida + señales de alertas; `resumen_cartera_clientes_fn` 100 % canónica con alarma de renovación y `sin_asesor` solo gerencia/lector; `resumen_reparto_fn` gateada al coordinador) **+ las 3 notas aprobadas por Miguel**: índice `leads(creado_en)` (BitmapOr con `idx_leads_contrato`), parkeados del coordinador en resumen/series (NO en cola_accion —PII, premisa C1— ni en metricas_vendedores —código muerto, hallazgo del auditor—), y optimización `= any(array)` en las 6 funciones que escanean leads/actividades (las de roster y las de cartera-clientes quedan fuera a propósito — regla de exclusión + F2 keyset + drift de `clientes_basicos_fn`). Gate **648/648** (+55), oráculo `METRICAS_SERVIDOR_TX_OK` (M01–M15), advisors 0 ERROR, md5 branch↔prod 9/9. **F1b tanda 1 ✅ (2026-08-09, solo front):** Cartera y Pipeline consumen `resumen_cartera_fn` (hook `useResumenCarteraOperativo`: RPC en real, espejo VIVO en demo — `lib/resumen-cartera.ts` con el shape validado por el MISMO schema Valibot del wrapper), corte de `listarLeadsDelAmbito` a 45 d aplicado (filtro OR de PostgREST + test MSW; el debounce de `verificarDisponibilidadLead` YA existía del ciclo de creación atómica), puente de invalidaciones en `resincronizarReal` (prefijo `metricas-ambito`, transitorio hasta F3), degradación honesta («—» + banner con Reintentar, precedente objetivosError), handler `resumen_cartera_fn` en `montarBackendReal` + 3 E2E nuevos (tile demo vivo tras crear lead, tiles RPC en real, RPC caída → degradado operable). `npm run check` 1422 ✔ · e2e 65 ✔. **F1b tanda 2 ✅ (2026-08-09, mismo día):** hoy/vendedor + hoy/supervisor + equipo + hoy/directorio consumen `cola_accion_fn`/`metricas_vendedores_fn`/`resumen_cartera_fn` (detalle y decisiones en la sección F1); redacción de motivos unificada en `redactarMotivoCola`; `series` del store eliminado (código muerto); agenda y `resumen_tareas_fn` diferidas a F2/F3 a propósito; verificación adversarial (4 lentes) + a11y + Codex; check 1430 ✔ · e2e **78/0** (incluye los 12 specs de config/contratos heredados rotos del ciclo `0230929`, reconciliados — cero bugs reales). **F1b tandas 1+2 EN PROD** (release `crm-20260809T190736Z`, ~19:08 UTC, sha idéntico local↔prod) + **ciclo satélite del ranking el mismo día**: capital total unificado al TC BCRP en el panel de gerencia (release `…202628Z`), revisión Codex → edge `crm-tipo-cambio` **v4** + 3 fixes de front (release `…205248Z`); ver [[Ranking de capital total unificado (TC BCRP)]]. **Resta tanda 3: repartir sobre `resumen_reparto_fn`.** |
 | **F2 Keyset** | ⬜ pendiente | Requiere F1 |
 | **F3 Desmontar el store** | ⬜ pendiente | Requiere F1+F2 |
 | **F4 Histórico vs vivo** | ⬜ pendiente | **Bloqueada por el DSN de Sentry** (Miguel) |
@@ -157,7 +157,7 @@ tope más grande); tocar el store; ventana de 90 días.
 
 ---
 
-## F1 — Métricas al servidor (🟢 servidor completo · F1b tandas 1+2 ✅ 2026-08-09 · resta tanda 3: reparto)
+## F1 — Métricas al servidor (🟢 servidor completo · F1b tandas 1+2 ✅ EN PROD 2026-08-09 · resta tanda 3: reparto)
 
 **Objetivo:** cada agregado que escala con leads/actividades llega calculado
 por RPC SQL. **Requisito DURO de F2** (los totales de la UI dejan de depender
@@ -233,7 +233,33 @@ Decisiones y hechos del ciclo:
   desplegado sin reconciliarlos) se actualizaron a la UI vigente — CERO bugs
   reales (el P0001 de la ventana de 5 h SÍ se muestra tal cual, verificado).
 
-Sigue **tanda 3**: repartir.tsx sobre `resumen_reparto_fn`; luego F2 keyset.
+**F1b EN PROD (2026-08-09 noche) + ciclo satélite del ranking, mismo día:**
+- Tres releases del front en la jornada (ledger en [[Deploy a Hostinger]]):
+  `crm-20260809T190736Z` (F1b tandas 1+2), `…202628Z` (ranking de capital
+  total) y `…205248Z` (fixes Codex). Los tres con sha256 idéntico local↔prod;
+  el último necesitó purga LiteSpeed explícita para que el asset viejo diera
+  404 (remedio conocido del 27-jul).
+- **Ciclo satélite** (pedido de Miguel al ver F1b en prod, fuera del alcance
+  del plan pero sobre el mismo terreno): el panel «Ranking general de
+  vendedores» ahora rankea por **capital total en soles** (PEN + USD convertido
+  al TC BCRP de la edge `crm-tipo-cambio`, reconectada) con desglose por moneda
+  y TC rotulado. Doble verificación (4 lentes + a11y: 12/13 corregidos) y
+  **Codex como revisor independiente** (4 hallazgos, todos corregidos): edge
+  **v4** en prod (orden cronológico de la serie BCRP + rótulo `prom. ${n}d`
+  honesto) y 3 fixes de front. Detalle completo en
+  [[Ranking de capital total unificado (TC BCRP)]]. OJO: NO toca
+  `metricas_vendedores_fn` ni el ranking de equipo de F1b — usa
+  `metricas_conversiones_fn` + cumplimiento de metas.
+- **Efecto colateral clave**: el **DSN de Sentry entró a prod** con estos
+  releases (estaba en `app/.env` local desde el 2026-08-08 esperando un
+  deploy del front). La telemetría que F4 necesita EMPEZÓ a juntarse hoy —
+  falta confirmar que llegan eventos al proyecto de Sentry.
+
+Sigue **tanda 3**: repartir.tsx sobre `resumen_reparto_fn` (~media sesión);
+luego F2 keyset. Pendientes menores que viajan con esas fases:
+`descartes_45d` como campo del RPC (tanda 3/F2), `useLead(id)` para el borde
+del tope 2000 (F2/F3), y la decisión de Miguel sobre extender el total
+unificado a las filas de equipo (ver Decisiones abiertas #10).
 
 ### Inventario a migrar (11 métricas, todas con archivo:línea en el borrador)
 
@@ -481,22 +507,23 @@ sostenido una semana, O ámbito de gerencia > 300.000 leads.
 | 1 | Convertidos en el ámbito | ✅ CERRADA (Miguel, 2026-08-08): ventana de **45 días**; `activo` intacto | Se implementa en F1 |
 | 2 | Ventana de actividades | 365 d + LIMIT 10000 (F0); 90 d o deprecación (F4) | Confirmar en F4 con telemetría |
 | 3 | Forma del keyset | RPC `returns table` con cursor tipado (no `.or()` de PostgREST) | Cerrada salvo objeción |
-| 4 | DSN de Sentry | Pendiente paralelo; **bloqueante del arranque de F4** | Miguel |
+| 4 | DSN de Sentry | 🟡 **EN PROD desde 2026-08-09** (entró con los releases de F1b) — falta confirmar eventos en el proyecto Sentry; F4 arranca cuando haya telemetría acumulada | Confirmar eventos y dejar correr semanas |
 | 5 | Umbral partición actividades | > 5 M filas O p95 timeline > 300 ms/semana | Chequeo mensual |
 | 6 | Umbral activación F5 | p95 resumen > 500 ms/semana O gerencia > 300 k leads | Chequeo mensual |
 | 7 | Umbral subida de instancia | leads > 250 k O CPU p95 > 70 % O cache hit < 99 % | Miguel aprueba gasto |
 | 8 | Refresco tableros F5 | pg_cron 5 min | Se ratifica al activar F5 |
 | 9 | Cambios de firma en RPC públicas | SIEMPRE drop explícito + defaults en todos los params + revoke/grant completo | Cerrada — regla permanente |
+| 10 | Total unificado (TC) también en filas de equipo (supervisor/equipo/directorio) | Extensión rápida sobre la lib ya construida; hoy esas filas siguen «PEN protagonista + USD aparte» | Miguel decide tras la prueba visual del Ranking |
 
 ## Orden global y estimación
 
 | Orden | Fase | Sesiones (≈ media jornada) |
 |---|---|---|
 | 1 | ✅ F0 Cimientos | HECHA (2026-08-08; tomó ~1 sesión larga, incluida la reconciliación no planificada del gate) |
-| 2 | 🟡 F1 Métricas al servidor | **SERVIDOR HECHO en 2 sesiones** (tandas 1+2, ambas 2026-08-09). **F1b tandas 1 y 2 HECHAS el mismo día** (cartera+pipeline+corte 45 d; hoy/*+equipo+directorio con cola y ranking servidos). Resta F1b tanda 3 (reparto): ~0.5 |
+| 2 | 🟡 F1 Métricas al servidor | **SERVIDOR HECHO en 2 sesiones** (tandas 1+2, ambas 2026-08-09). **F1b tandas 1 y 2 HECHAS y EN PROD el mismo día** (cartera+pipeline+corte 45 d; hoy/*+equipo+directorio con cola y ranking servidos; 3 releases). Resta F1b tanda 3 (reparto): ~0.5 |
 | 3 | F2 Keyset | 3–4 |
 | 4 | F3 Desmontar el store | 6–8 |
-| 5 | F4 Histórico vs vivo | 2 (el DSN de Sentry ya está en `app/.env` local desde 2026-08-08; entra a prod con el próximo release del front y recién ahí empieza a juntar la telemetría que F4 necesita) |
+| 5 | F4 Histórico vs vivo | 2 (el DSN de Sentry **entró a prod el 2026-08-09** con los releases de F1b — la telemetría que F4 necesita ya corre; falta confirmar eventos en Sentry y dejarla acumular) |
 | — | F5 Tableros | 0 (diferida; 2–3 al activarse) |
 | ∥ | Infra | 1–2 repartidas |
 
