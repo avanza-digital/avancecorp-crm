@@ -370,6 +370,9 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.rpcCloseTarea,
       TRANSIENT_IDS.taskFollowTarea,
       TRANSIENT_IDS.repartoTareaReencolada,
+      TRANSIENT_IDS.repartoTareaReencoladaContactado,
+      TRANSIENT_IDS.repartoTareaReunionHecha,
+      TRANSIENT_IDS.repartoTareaBandeja,
       TRANSIENT_IDS.anularTareaReunion,
       TRANSIENT_IDS.anularTareaLlamada,
       TRANSIENT_IDS.anularTareaSistema,
@@ -396,6 +399,9 @@ async function cleanupTransientRows() {
       TRANSIENT_IDS.repartoLeadNoContactar,
       TRANSIENT_IDS.repartoLeadCarrera,
       TRANSIENT_IDS.repartoLeadReencolado,
+      TRANSIENT_IDS.repartoLeadReencoladoContactado,
+      TRANSIENT_IDS.repartoLeadReunionHecha,
+      TRANSIENT_IDS.repartoLeadBandeja,
       TRANSIENT_IDS.descarteLeadCredito,
       TRANSIENT_IDS.descarteLeadLimpio,
       TRANSIENT_IDS.descarteLeadCarrera,
@@ -4105,20 +4111,109 @@ async function testReparto(sessions, seed) {
         ...colaComun, id: TRANSIENT_IDS.repartoLeadReencolado, monto_estimado: 5000,
         nombre_completo: 'REPARTO REENCOLADO TRANSIENT', telefono: '999000113',
         asignado_supervisor_id: seed.profileIdByKey.sup2,
+        // etapa REUNION_AGENDADA a proposito (2026-08-09): es el caso REAL que
+        // motivo la migracion 20260809024942 — «un lead con cita agendada
+        // devuelto a la cola». Con el fixture anterior (etapa 'nuevo' + tipo
+        // 'tarea') el retroceso de etapa no se ejercitaba NUNCA, y el gate
+        // habria dado verde sobre media correccion.
+        //
+        // Esta es la UNICA de las cuatro semillas que fuerza la etapa, y no por
+        // comodidad: prueba la rama 'nuevo', que exige CERO contacto en el
+        // ciclo — justo lo que el trigger de ascenso pide para subir por si
+        // solo. El estado es alcanzable en produccion por la via que importa:
+        // un lead reciclado cuyo contacto quedo en un ciclo anterior.
+        etapa: 'reunion_agendada',
+      },
+      // Las otras TRES ramas del retroceso. Con una sola semilla el gate solo
+      // clavaba el caso 'nuevo' y daba por buena una regla de la que probaba un
+      // cuarto.
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadReencoladoContactado,
+        monto_estimado: 5500, nombre_completo: 'REPARTO REENCOLADO CONTACTADO TRANSIENT',
+        telefono: '999000114', asignado_supervisor_id: seed.profileIdByKey.sup2,
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadReunionHecha,
+        monto_estimado: 6000, nombre_completo: 'REPARTO REUNION YA HECHA TRANSIENT',
+        telefono: '999000115', asignado_supervisor_id: seed.profileIdByKey.sup2,
+      },
+      {
+        ...colaComun, id: TRANSIENT_IDS.repartoLeadBandeja,
+        monto_estimado: 6500, nombre_completo: 'REPARTO NO ES REENCOLADO TRANSIENT',
+        telefono: '999000116', asignado_supervisor_id: seed.profileIdByKey.sup2,
       },
     ]),
   );
   // La tarea hereda la bandeja del lead por el espejo (sup2): destino efectivo.
+  // Es una REUNION, no una tarea suelta: solo asi el lead sostiene de verdad la
+  // etapa reunion_agendada y el retroceso tiene algo que corregir.
   await requireAdmin(
-    'sembrar la tarea pendiente del lead en bandeja',
+    'sembrar la reunion pendiente del lead en bandeja',
     admin.schema('crm').from('tareas').insert({
       creado_por: sup1Id,
+      // `tareas_destino_reunion_coherente`: una reunion virtual EXIGE enlace
+      // (y una presencial, ubicacion). Una reunion sin canal seria
+      // 'sin_clasificar'; aqui se siembra completa para que el fixture sea una
+      // cita de verdad, no un caparazon que pase el check por omision.
+      enlace_reunion: 'https://meet.example.com/reencolado-transient',
       id: TRANSIENT_IDS.repartoTareaReencolada,
       lead_id: TRANSIENT_IDS.repartoLeadReencolado,
-      tipo: 'tarea',
-      titulo: 'REPARTO TAREA REENCOLADA TRANSIENT',
+      modalidad_reunion: 'virtual',
+      tipo: 'reunion',
+      titulo: 'REPARTO REUNION REENCOLADA TRANSIENT',
       vence_en: '2026-08-05T15:00:00Z',
     }),
+  );
+  // Semillas de las otras tres ramas. Aqui la etapa NO se fuerza: se construye
+  // el estado por el CAMINO REAL —contacto y despues reunion— y el trigger de
+  // ascenso la sube solo. Dos condiciones suyas mandan el orden y las fechas:
+  // exige contacto previo registrado, y exige `vence_en > now()` («agendar en
+  // el pasado no es agendar»). Por eso las actividades van ANTES que las tareas
+  // y las citas son futuras.
+  await requireAdmin(
+    'sembrar el contacto previo de las semillas del retroceso',
+    admin.schema('crm').from('actividades').insert([
+      {
+        creado_por: seed.profileIdByKey.sup2,
+        detalle: 'REPARTO REENCOLADO CONTACTO TRANSIENT',
+        lead_id: TRANSIENT_IDS.repartoLeadReencoladoContactado,
+        tipo: 'llamada_realizada',
+      },
+      // La reunion de ESTE lead YA OCURRIO: su etapa se sostiene en un hecho
+      // verdadero y el retroceso debe abstenerse.
+      {
+        creado_por: seed.profileIdByKey.sup2,
+        detalle: 'REPARTO REUNION HECHA TRANSIENT',
+        lead_id: TRANSIENT_IDS.repartoLeadReunionHecha,
+        tipo: 'reunion_realizada',
+      },
+      {
+        creado_por: seed.profileIdByKey.sup2,
+        detalle: 'REPARTO BANDEJA CONTACTO TRANSIENT',
+        lead_id: TRANSIENT_IDS.repartoLeadBandeja,
+        tipo: 'llamada_realizada',
+      },
+    ]),
+  );
+  await requireAdmin(
+    'agendar las reuniones que suben las tres semillas a reunion_agendada',
+    admin.schema('crm').from('tareas').insert([
+      {
+        creado_por: sup1Id, id: TRANSIENT_IDS.repartoTareaReencoladaContactado,
+        lead_id: TRANSIENT_IDS.repartoLeadReencoladoContactado, tipo: 'reunion',
+        titulo: 'REPARTO REUNION CONTACTADO TRANSIENT', vence_en: '2027-01-05T16:00:00Z',
+      },
+      {
+        creado_por: sup1Id, id: TRANSIENT_IDS.repartoTareaReunionHecha,
+        lead_id: TRANSIENT_IDS.repartoLeadReunionHecha, tipo: 'reunion',
+        titulo: 'REPARTO REUNION HECHA TRANSIENT', vence_en: '2027-01-05T17:00:00Z',
+      },
+      {
+        creado_por: sup1Id, id: TRANSIENT_IDS.repartoTareaBandeja,
+        lead_id: TRANSIENT_IDS.repartoLeadBandeja, tipo: 'reunion',
+        titulo: 'REPARTO REUNION BANDEJA TRANSIENT', vence_en: '2027-01-05T18:00:00Z',
+      },
+    ]),
   );
 
   // La cola que ve el coordinador: proyeccion util y sin PII de contacto.
@@ -4233,35 +4328,169 @@ async function testReparto(sessions, seed) {
     && trasCarrera.data?.vendedor_id === null,
     'carrera: quedo UN solo supervisor asignado y ningun vendedor');
 
-  // ⚠️ CONFLICTO CLAVADO A PROPOSITO (2026-08-08). El escenario original
-  // («un lead devuelto a la cola conserva su tarea pendiente y al repartirlo
-  // la tarea lo sigue») quedo INALCANZABLE: re-encolar dispara
-  // trg_leads_zz_sync_tareas (la tarea espeja tenencia nula) y el trigger de
-  // destino efectivo lo aborta con 23514. Consecuencia REAL: gerencia ya no
-  // puede devolver a la cola un lead con tareas pendientes sin cancelarlas o
-  // reasignarlas antes. Esta sonda pina ese comportamiento: si algun ciclo
-  // futuro lo corrige (p. ej. cancelando tareas al re-encolar), fallara en
-  // verde-a-rojo y obligara a re-disenar este escenario. La cobertura de «la
-  // tarea sigue al lead» en asignaciones vivas queda en testTareaFollowsLead.
-  await expectBlockedMutation(
-    're-encolar un lead con tarea pendiente queda bloqueado por el destino efectivo',
+  // RE-ENCOLADO CON TAREA PENDIENTE — resuelto el 2026-08-09 (opcion B de
+  // Miguel, migracion 20260809024942). Historia de esta sonda, porque cambio de
+  // signo dos veces y conviene que el proximo que la lea no la "arregle" al
+  // reves:
+  //   · Escenario original: «un lead devuelto a la cola conserva su tarea y al
+  //     repartirlo la tarea lo sigue».
+  //   · 2026-08-08: quedo INALCANZABLE. Re-encolar disparaba el sync (la tarea
+  //     espejaba tenencia nula) y el trigger de destino efectivo abortaba el
+  //     update entero con 23514. La sonda se reescribio para CLAVAR ese
+  //     bloqueo, con la nota de que un ciclo futuro que lo corrigiera la
+  //     pondria en rojo. Eso es exactamente lo que paso.
+  //   · 2026-08-09: el sync CANCELA por sistema las tareas pendientes cuando el
+  //     lead vuelve a la cola. El re-encolado deja de fallar.
+  // La cobertura de «la tarea sigue al lead» en asignaciones vivas (que es lo
+  // que el escenario original queria probar) vive en testTareaFollowsLead.
+  await positive(
+    're-encolar un lead con tarea pendiente ya no falla',
     admin.schema('crm').from('leads')
       .update({ vendedor_id: null, asignado_supervisor_id: null })
       .eq('id', TRANSIENT_IDS.repartoLeadReencolado)
       .select('id'),
-    ['23514'],
   );
+  const leadReencolado = await requireAdmin(
+    'releer el lead tras el re-encolado',
+    admin.schema('crm').from('leads')
+      .select('vendedor_id, asignado_supervisor_id, etapa')
+      .eq('id', TRANSIENT_IDS.repartoLeadReencolado).single(),
+  );
+  check(leadReencolado.data?.vendedor_id === null
+    && leadReencolado.data?.asignado_supervisor_id === null,
+    're-encolado: el lead quedo sin dueno, listo para la cola global',
+    JSON.stringify(leadReencolado.data));
+  // LA MITAD QUE FALTABA. Cancelar la reunion sin bajar la etapa devolveria el
+  // lead a la cola AFIRMANDO tener una cita que ya no existe: el coordinador lo
+  // repartiria y el nuevo dueno heredaria un hecho falso, el SLA usaria la
+  // ventana de reunion_agendada y el embudo lo contaria como reunion viva. El
+  // fixture no registra contacto en el ciclo, asi que la regla —la misma de
+  // anular reunion— lo devuelve a 'nuevo'.
+  check(leadReencolado.data?.etapa === 'nuevo',
+    're-encolado: la etapa retrocedio y el lead ya no sostiene una reunion inexistente',
+    JSON.stringify(leadReencolado.data));
   const tarea = await requireAdmin(
-    'releer la tarea del lead en bandeja tras el re-encolado bloqueado',
+    'releer la tarea del lead re-encolado',
     admin.schema('crm').from('tareas')
-      .select('asignado_supervisor_id, vendedor_id, estado')
+      .select('asignado_supervisor_id, vendedor_id, estado, cancelada_por, cancelada_por_id')
       .eq('id', TRANSIENT_IDS.repartoTareaReencolada).single(),
   );
-  check(tarea.data?.asignado_supervisor_id === seed.profileIdByKey.sup2
-    && tarea.data?.vendedor_id === null
-    && tarea.data?.estado === 'pendiente',
-    'la tarea pendiente quedo intacta en su bandeja (el bloqueo fue atomico)',
+  // La tarea se cancela pero CONSERVA su bandeja anterior: es historia, no un
+  // destino vivo. Y el sello debe decir 'sistema' sin actor humano, para que la
+  // auditoria no le impute a nadie una cancelacion que hizo un trigger.
+  check(tarea.data?.estado === 'cancelada'
+    && tarea.data?.cancelada_por === 'sistema'
+    && tarea.data?.cancelada_por_id === null
+    && tarea.data?.asignado_supervisor_id === seed.profileIdByKey.sup2,
+    're-encolado: la tarea quedo cancelada POR SISTEMA, conservando su bandeja como historia',
     JSON.stringify(tarea.data));
+  // El retroceso lo hace un TRIGGER, no la persona que re-encolo: la actividad
+  // debe venir marcada como automatica. Sin esta sonda, un cambio futuro podria
+  // imputarle a quien devolvio el lead un movimiento que no decidio — que es el
+  // motivo entero de existir del flag crm.avance_auto.
+  const trazaRetroceso = await requireAdmin(
+    'releer la actividad de cambio de etapa del re-encolado',
+    admin.schema('crm').from('actividades')
+      .select('tipo, metadata')
+      .eq('lead_id', TRANSIENT_IDS.repartoLeadReencolado)
+      .eq('tipo', 'cambio_etapa'),
+  );
+  check((trazaRetroceso.data ?? []).some((fila) => fila.metadata?.automatico === true),
+    're-encolado: el retroceso quedo sellado como AUTOMATICO, no imputado a la persona',
+    JSON.stringify(trazaRetroceso.data));
+
+  // RAMA 'contactado': mismo re-encolado, pero con contacto registrado en el
+  // ciclo. La regla de anular reunion no manda todo a 'nuevo'; distingue.
+  const contactadoAntes = await requireAdmin(
+    'releer la etapa del lead con contacto antes de re-encolar',
+    admin.schema('crm').from('leads').select('etapa')
+      .eq('id', TRANSIENT_IDS.repartoLeadReencoladoContactado).single(),
+  );
+  check(contactadoAntes.data?.etapa === 'reunion_agendada',
+    'la semilla con contacto llego de verdad a reunion_agendada (si no, la sonda no probaria nada)',
+    JSON.stringify(contactadoAntes.data));
+  await positive(
+    're-encolar el lead que SI tuvo contacto',
+    admin.schema('crm').from('leads')
+      .update({ vendedor_id: null, asignado_supervisor_id: null })
+      .eq('id', TRANSIENT_IDS.repartoLeadReencoladoContactado)
+      .select('id'),
+  );
+  const contactado = await requireAdmin(
+    'releer el lead con contacto tras el re-encolado',
+    admin.schema('crm').from('leads').select('etapa')
+      .eq('id', TRANSIENT_IDS.repartoLeadReencoladoContactado).single(),
+  );
+  check(contactado.data?.etapa === 'contactado',
+    're-encolado: con contacto en el ciclo la etapa cae a contactado, NO a nuevo',
+    JSON.stringify(contactado.data));
+
+  // RAMA NO-RETROCESO: si la reunion YA se realizo, la etapa se sostiene en un
+  // hecho verdadero y bajarla borraria trabajo hecho. Es el guard mas caro de la
+  // doctrina de 20260726151751 y hasta hoy nada lo clavaba.
+  const hechaAntes = await requireAdmin(
+    'releer la etapa del lead con reunion realizada antes de re-encolar',
+    admin.schema('crm').from('leads').select('etapa')
+      .eq('id', TRANSIENT_IDS.repartoLeadReunionHecha).single(),
+  );
+  check(hechaAntes.data?.etapa === 'reunion_agendada',
+    'la semilla de reunion realizada llego de verdad a reunion_agendada',
+    JSON.stringify(hechaAntes.data));
+  await positive(
+    're-encolar un lead cuya reunion YA se realizo',
+    admin.schema('crm').from('leads')
+      .update({ vendedor_id: null, asignado_supervisor_id: null })
+      .eq('id', TRANSIENT_IDS.repartoLeadReunionHecha)
+      .select('id'),
+  );
+  const reunionHecha = await requireAdmin(
+    'releer el lead de reunion realizada tras el re-encolado',
+    admin.schema('crm').from('leads').select('etapa')
+      .eq('id', TRANSIENT_IDS.repartoLeadReunionHecha).single(),
+  );
+  check(reunionHecha.data?.etapa === 'reunion_agendada',
+    're-encolado: con la reunion YA realizada la etapa NO retrocede (el hecho es verdadero)',
+    JSON.stringify(reunionHecha.data));
+
+  // NO-REGRESION DEL ALCANCE: bajar de la bandeja a un vendedor NO es un
+  // re-encolado. La tarea debe SEGUIR viva y espejar al nuevo dueno, y la etapa
+  // no se toca. Sin esto, un futuro "simplifiquemos la condicion" mataria citas
+  // vivas en cada reasignacion.
+  const bandejaAntes = await requireAdmin(
+    'releer la etapa del lead de bandeja antes de reasignarlo',
+    admin.schema('crm').from('leads').select('etapa')
+      .eq('id', TRANSIENT_IDS.repartoLeadBandeja).single(),
+  );
+  check(bandejaAntes.data?.etapa === 'reunion_agendada',
+    'la semilla de la no-regresion llego de verdad a reunion_agendada',
+    JSON.stringify(bandejaAntes.data));
+  await positive(
+    'bajar el lead de la bandeja a un vendedor (NO es re-encolado)',
+    admin.schema('crm').from('leads')
+      .update({ vendedor_id: seed.profileIdByKey.vend3, asignado_supervisor_id: null })
+      .eq('id', TRANSIENT_IDS.repartoLeadBandeja)
+      .select('id'),
+  );
+  const bandeja = await requireAdmin(
+    'releer el lead bajado a vendedor',
+    admin.schema('crm').from('leads').select('etapa, vendedor_id')
+      .eq('id', TRANSIENT_IDS.repartoLeadBandeja).single(),
+  );
+  const tareaBandeja = await requireAdmin(
+    'releer la reunion del lead bajado a vendedor',
+    admin.schema('crm').from('tareas')
+      .select('estado, vendedor_id, asignado_supervisor_id')
+      .eq('id', TRANSIENT_IDS.repartoTareaBandeja).single(),
+  );
+  check(bandeja.data?.etapa === 'reunion_agendada'
+    && bandeja.data?.vendedor_id === seed.profileIdByKey.vend3,
+    'reasignar NO retrocede la etapa: solo el re-encolado real la mueve',
+    JSON.stringify(bandeja.data));
+  check(tareaBandeja.data?.estado === 'pendiente'
+    && tareaBandeja.data?.vendedor_id === seed.profileIdByKey.vend3
+    && tareaBandeja.data?.asignado_supervisor_id === null,
+    'reasignar NO cancela la reunion: la tarea sigue viva y espeja al nuevo dueno',
+    JSON.stringify(tareaBandeja.data));
 }
 
 // ── C1-bis: descarte de la cola global (el codigo marca, el coordinador cierra) ─

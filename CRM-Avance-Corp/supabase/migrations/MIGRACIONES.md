@@ -777,3 +777,98 @@ bajo P04»**: lo está la corrección, no el borrado ni los pagos.
 
 Sube de prioridad, además, el trigger que vete el `DELETE` sobre `crm.equipo`:
 ese agujero ya sostiene TRES superficies (banca, Pagos y ahora corrección).
+
+---
+
+## 2026-08-09 · Re-encolar un lead cancela sus tareas y retrocede su etapa
+
+Cierra el conflicto anotado el 2026-08-08 entre dos triggers correctos por
+separado: `private.trg_leads_sync_tareas` espejaba la tenencia del lead sobre
+sus tareas pendientes, y `private.trg_tareas_destino_efectivo` (metas/SLA
+versionados) prohíbe que una tarea pendiente se quede sin destino. Devolver un
+lead a la cola global deja su tenencia en NULL ⇒ el espejo propagaba ese NULL
+⇒ **23514 abortaba el UPDATE entero**. Efecto real: un lead con cita agendada
+**no se podía devolver a la cola**. Decisión de Miguel: opción B — es un bug.
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260809024942 | 20260809034548 | crm_reencolar_cancela_tareas | ✅ **EN PROD 2026-08-09** (branch `crm-reencolar` → réplica verificada en el hash auditado de prod `b10c9f95…` ANTES de aplicar → gate RLS **539/539** sobre branch **reseteado** → advisors **sin ERROR** (95 avisos: 87 WARN + 8 INFO, el mismo total que los dos branches anteriores; ninguna clase nueva y cero menciones a la función tocada) → trigger `trg_equipo_validar_usuarios_jerarquia` reactivado (`tgenabled='O'`) antes del merge → merge → verificado en prod → branch borrado). |
+
+**Dos partes, y la segunda salió de la auditoría.** PARTE 1 cancela las tareas
+pendientes con el flag `crm.cancela_sistema` que la propia función YA usa en
+convertido/descartado/inactivo: la tarea queda sellada `cancelada_por='sistema'`
+sin actor humano y conserva su bandeja anterior como historia. PARTE 2 retrocede
+la etapa: cancelar sin bajar de `reunion_agendada` devolvería el lead a la cola
+**afirmando una cita que ya no existe** — el «hecho falso más caro» de la
+doctrina de `20260726151751`. Se replica la regla exacta de anular reunión
+(`contactado` si hay contacto en el ciclo, `nuevo` si no; y **no** retrocede si
+ya hubo `reunion_realizada`) porque `private.retroceso_por_anular_reunion` no
+era reutilizable: solo la llaman las RPC humanas `cerrar_tarea`/`cerrar_reunion`
+—una cancelación por trigger se la salta— y exige tenencia no nula, que en el
+re-encolado ya es NULL. El flag `crm.avance_auto` hace que el cambio se registre
+como automático en vez de imputárselo a quien devolvió el lead.
+
+**Alcance preciso:** solo cuando vendedor y supervisor pasan AMBOS a NULL. Bajar
+de bandeja a vendedor, subir a bandeja o cambiar de bandeja siguen ESPEJANDO
+como hasta hoy — ahí la cita debe seguir al lead, no morir.
+
+**Re-entrada auditada trigger por trigger.** El UPDATE de la etapa vuelve a
+disparar el mismo AFTER: en la segunda pasada la tenencia no cambia (NULL→NULL)
+y la etapa nueva no es terminal, así que ambos `if` son falsos y termina. Se
+verificó además que ninguno de los otros triggers de `crm.leads` abre episodio
+espurio, duplica actividad ni aborta (`trg_leads_asignaciones` ya cerró el
+episodio por orden alfabético AFTER; `trg_leads_00_guard_tenencia` no puede
+disparar con ambos ya en NULL; `clasificar_movimiento_tenencia` devuelve
+`sin_cambio`). Efecto de negocio anotado: el SLA de etapa se reinicia y el lead
+en cola pasa a tener reloj de `nuevo`/`contactado` corriendo.
+
+**Guarda de fidelidad de DOS hashes** (hallazgo de la auditoría): el preflight
+distingue el cuerpo auditado de prod (aplicar) del cuerpo exacto de esta
+migración (ya aplicada, salir con notice) y aborta ante cualquier otro md5.
+Detectar solo la palabra «RE-ENCOLADO» no bastaba: el `CREATE OR REPLACE` vive
+FUERA del bloque, así que un cambio futuro que conservara esa palabra habría
+sido pisado en silencio por un replay — justo lo que la guarda existe para
+impedir. Se preserva además el valor previo de `crm.avance_auto` en vez de
+apagarlo a ciegas («quien lo enciende, lo apaga»).
+
+**Un hallazgo bloqueante de la auditoría se refutó con evidencia.** B1 sostenía
+que cancelar una tarea `tipo='reunion'` violaría `tareas_cierre_reunion_coherente`
+(23514) por dejar `motivo_no_realizada` en NULL, y que eso era además un bug
+latente en prod desde el 2026-08-05 en la rama convertido/descartado. Es falso:
+`NULL = ANY(array[...])` evalúa a **NULL**, no a false, y un CHECK **solo
+rechaza cuando evalúa a FALSE**. Comprobado empíricamente en el branch (la
+reunión quedó `cancelada` + `sistema`) y aritméticamente en SQL. Se deja el
+`motivo_no_realizada` en NULL a propósito: es el comportamiento vivo de las tres
+cancelaciones por sistema preexistentes y ninguna métrica agrega por esa
+columna; cambiarlo alteraría la semántica de esas tres rutas y excede el alcance.
+
+**Nadie con rol humano puede re-encolar hoy**: `trg_00_gerencia_solo_lectura`
+veta a gerencia todo UPDATE sobre `crm.leads` y `trg_leads_guard_tenencia`
+reserva la cola global a gerencia; el único camino vivo es service_role/SQL. La
+corrección llega ANTES de que exista la vía humana y de que haya volumen —
+estado en prod al aplicar: 1 lead, 0 tareas, así que no puede alterar dato
+alguno.
+
+Gate: la sonda cambió de signo (clavaba el bloqueo 23514, ahora clava la
+corrección) y el fixture se rehízo porque **no probaba el caso real**: usaba una
+tarea suelta sobre un lead en etapa `nuevo`, así que el retroceso no se
+ejercitaba nunca y el gate habría dado verde sobre media corrección. Ahora son
+cuatro semillas que cubren las cuatro ramas — `nuevo`, `contactado`, la
+abstención por `reunion_realizada` y la no-regresión de la reasignación — más la
+aserción de que la actividad de retroceso queda sellada como automática.
+
+**Fidelidad probada mecánicamente.** El cuerpo del archivo reproduce EXACTAMENTE
+el md5 que la propia migración declara como estado POST
+(`6874c23294da0027f25475b4e1fc49d7`), comprobado en el branch antes del merge y
+en producción después. La ruta de idempotencia se ejercitó de verdad: la
+migración se aplicó dos veces seguidas sobre el mismo branch y la segunda tomó
+la rama «reaplicación idéntica» sin abortar ni derivar.
+
+**Verificación funcional en vivo sobre producción**, dentro de
+`begin … rollback` y tras comprobar que ninguno de los 26 triggers de
+`crm.leads`/`crm.tareas`/`crm.actividades` hace llamadas externas (un rollback
+no desharía un webhook ya enviado): se creó un lead en `reunion_agendada` con
+una reunión pendiente, se re-encoló —la operación que antes moría con 23514— y
+las cuatro aserciones pasaron: etapa `nuevo`, tarea `cancelada` sellada
+`sistema` sin actor humano, y la actividad de retroceso marcada como
+automática. Producción quedó intacta (1 lead, 0 tareas).

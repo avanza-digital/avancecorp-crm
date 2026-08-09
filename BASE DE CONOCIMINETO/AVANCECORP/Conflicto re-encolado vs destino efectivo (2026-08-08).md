@@ -1,7 +1,7 @@
 ---
 tags: [crm, bug-potencial, triggers, reparto, sla]
-actualizado: 2026-08-08
-estado: pendiente-decision
+actualizado: 2026-08-09
+estado: resuelto
 ---
 
 # Conflicto re-encolado vs destino efectivo (2026-08-08)
@@ -34,18 +34,52 @@ bloqueo atómico, la tarea queda intacta en su bandeja. Si un ciclo futuro
 cambia este comportamiento, esa sonda pasará a rojo y obligará a re-diseñar
 el escenario (consciente, no silencioso).
 
-## Decisión pendiente (de Miguel / del ciclo de configuración operativa)
+## Decisión: opción B (Miguel, 2026-08-09) — es un bug
 
-- **Opción A — es un feature:** re-encolar exige antes cancelar o reasignar
-  las tareas pendientes. Habría que hacerlo visible en la UI (hoy el error
-  llegaría crudo) y documentarlo como regla comercial.
-- **Opción B — es un bug:** el re-encolado debe cancelar (o mover a la bandeja
-  del supervisor saliente) las tareas pendientes automáticamente, como ya hace
-  el sync con convertido/descartado (`estado='cancelada'` vía
-  `crm.cancela_sistema`). Migración pequeña en el sync.
+Re-encolar cancela las tareas pendientes automáticamente, con el mismo
+mecanismo que el sync ya usa en convertido/descartado (`estado='cancelada'` vía
+`crm.cancela_sistema`, sellada `cancelada_por='sistema'` sin actor humano). Se
+descartó la opción A: obligar a cancelar a mano antes de devolver un lead no es
+una regla comercial que nadie defienda, es el error crudo disfrazado de norma.
 
-Ninguna de las dos la resuelve F0: se anota aquí para el ciclo dueño de la
-regla de destino efectivo.
+**Y una segunda mitad que no estaba en ninguna de las dos opciones.** La
+auditoría encontró que cancelar sin más devolvía el lead a la cola con
+`etapa='reunion_agendada'` y cero reuniones vivas. Eso es exactamente lo que la
+doctrina de [[Anular reunión y retroceso de etapa]] llama el hecho falso más
+caro: el coordinador repartiría un lead que AFIRMA tener cita, el nuevo dueño
+heredaría el dato falso, el SLA usaría la ventana equivocada y el embudo lo
+contaría como reunión viva. Así que la etapa retrocede con la MISMA regla que
+ya usa anular una reunión — `contactado` si hubo contacto en el ciclo, `nuevo`
+si no — y **no** retrocede si la reunión ya se realizó, porque ahí la etapa se
+sostiene en un hecho verdadero.
+
+No se pudo reutilizar la función de retroceso que ya existía: solo la llaman
+las RPC humanas (cerrar tarea / cerrar reunión), así que una cancelación por
+trigger se la salta, y además exige que el lead tenga dueño — que es justo lo
+que deja de tener al re-encolarse.
+
+Migración `20260809024942_crm_reencolar_cancela_tareas.sql`.
+
+## Lo que enseñó este ciclo
+
+**Un fixture puede dar verde sin probar nada.** La sonda del gate usaba una
+tarea suelta sobre un lead en etapa `nuevo`: el retroceso no se ejercitaba
+NUNCA. Con esa semilla el gate habría certificado media corrección. Ahora son
+cuatro semillas —`nuevo`, `contactado`, la abstención por reunión ya realizada
+y la no-regresión de la reasignación— y cada una asevera su **estado previo**
+antes de actuar, para que ninguna pueda volver a pasar por la razón equivocada.
+
+**Construir el estado por el camino real destapa las reglas.** Al sembrar las
+citas con fecha pasada, la etapa no subía: el trigger de ascenso exige
+`vence_en > now()` («agendar en el pasado no es agendar») y contacto previo
+registrado. Forzar la etapa a mano lo habría ocultado.
+
+**Un hallazgo bloqueante de la auditoría era falso, y verificarlo importó.**
+Se afirmó que cancelar una reunión violaría su CHECK de cierre por dejar el
+motivo en NULL, y que eso era además un bug latente en producción. No: en SQL
+`NULL = ANY(...)` da NULL, y un CHECK **solo rechaza cuando evalúa a FALSE**.
+Comprobado en el branch y aritméticamente. Haberlo aceptado habría metido un
+cambio de semántica en tres rutas de cancelación que hoy funcionan.
 
 ## Anexo — otros dos impactos del mismo día (descubiertos por el gate F0)
 

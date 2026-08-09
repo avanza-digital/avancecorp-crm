@@ -402,6 +402,14 @@ export const TRANSIENT_IDS = Object.freeze({
   repartoLeadCarrera: randomUUID(),
   repartoLeadReencolado: randomUUID(),
   repartoTareaReencolada: randomUUID(),
+  // Re-encolado (20260809024942): la etapa retrocede con la regla de anular
+  // reunion, y tiene CUATRO ramas. Una sola semilla solo probaba la de 'nuevo'.
+  repartoLeadReencoladoContactado: randomUUID(),
+  repartoTareaReencoladaContactado: randomUUID(),
+  repartoLeadReunionHecha: randomUUID(),
+  repartoTareaReunionHecha: randomUUID(),
+  repartoLeadBandeja: randomUUID(),
+  repartoTareaBandeja: randomUUID(),
   // C1-bis — descarte de la cola (el codigo marca, el coordinador cierra).
   descarteLeadCredito: randomUUID(),
   descarteLeadLimpio: randomUUID(),
