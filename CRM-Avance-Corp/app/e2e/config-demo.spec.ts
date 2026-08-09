@@ -23,7 +23,11 @@ const MODULOS = [
   {
     tarjeta: 'Tiempos de atención',
     pantalla: 'Tiempos de atención',
-    evidencia: 'Política operativa',
+    // 0230929 retiró el literal «Política operativa» (hoy la tarjeta dice
+    // «Plazos de atención»). La evidencia ahora es un dato del fixture demo:
+    // el ciclo de primera gestión de metricasSlaDemo (48 casos, 44 evaluables,
+    // 38 cumplidos) pintado por la tarjeta de cumplimiento histórico.
+    evidencia: '38 cumplidos · 6 fuera · 4 pendientes',
   },
 ] as const
 

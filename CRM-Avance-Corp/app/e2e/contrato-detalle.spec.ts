@@ -9,7 +9,13 @@
 // Depende de la pantalla Contratos: fila CLICABLE por contrato (abre el
 // detalle) + botón "Corregir" solo en lo propio y vivo, paneles en <Dialog>.
 import { expect, test, type Page } from '@playwright/test'
-import { contratoReal, loginReal, montarBackendReal } from './_helpers'
+import {
+  contratoReal,
+  loginReal,
+  montarBackendReal,
+  PRODUCTO_CONDICION_PEN_ID,
+  PRODUCTO_CONDICION_USD_ID,
+} from './_helpers'
 
 // Fase 6.1 (2026-07-21): la entrada migró a la cartera unificada (#/mi-cartera,
 // la vista por defecto). Los contratos cuelgan del cliente como sub-filas; se
@@ -29,6 +35,31 @@ const CUOTAS = [
 const TITULARES = [
   { nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 },
 ]
+
+/**
+ * 0230929 devolvió la corrección al flujo LIBRE: el front vigente llama a
+ * actualizar_contrato_con_cuenta (sin producto catalogado), pero el mock de
+ * _helpers.ts todavía habla el dialecto *_producto. Aquí solo se TRADUCE la
+ * llamada — mismos p_id/p_contrato/p_cronograma, más la condición del catálogo
+ * del mock equivalente por moneda — para que TODA la semántica del backend
+ * simulado (estado, contadores, el P0001 de la ventana) siga en _helpers.ts.
+ */
+async function traducirRpcContratoLibre(page: Page): Promise<void> {
+  for (const rpc of ['crear_contrato_con_cuenta', 'actualizar_contrato_con_cuenta'] as const) {
+    await page.route(`**/rest/v1/rpc/${rpc}`, async (ruta) => {
+      const cuerpo = (ruta.request().postDataJSON() ?? {}) as { p_contrato?: { moneda?: string } }
+      await ruta.fallback({
+        url: ruta.request().url().replace(`/rpc/${rpc}`, `/rpc/${rpc}_producto`),
+        postData: JSON.stringify({
+          ...cuerpo,
+          p_producto_condicion_id: cuerpo.p_contrato?.moneda === 'USD'
+            ? PRODUCTO_CONDICION_USD_ID
+            : PRODUCTO_CONDICION_PEN_ID,
+        }),
+      })
+    })
+  }
+}
 
 /** La cuenta real cae en #/mi-cartera (cartera unificada). Los contratos cuelgan
  *  del cliente: se expande CLIENTE PORTAL UNO para revelar la sub-fila del contrato. */
@@ -95,6 +126,7 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
     cuotas: { [CONTRATO_ID]: CUOTAS },
     titulares: { [CONTRATO_ID]: TITULARES },
   })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
   await irAContratos(page)
 
@@ -132,6 +164,7 @@ test('ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual', a
     cuotas: { [CONTRATO_ID]: CUOTAS },
     titulares: { [CONTRATO_ID]: [] },
   })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
   await irAContratos(page)
 

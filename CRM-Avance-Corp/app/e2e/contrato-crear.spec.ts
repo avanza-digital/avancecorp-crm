@@ -20,6 +20,31 @@ import {
 
 const CUENTA_GUARDADA_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
+/**
+ * 0230929 devolvió el ALTA al flujo LIBRE: el front vigente llama a
+ * crear/actualizar_contrato_con_cuenta (sin producto catalogado), pero el mock
+ * de _helpers.ts todavía habla el dialecto *_producto. Aquí solo se TRADUCE la
+ * llamada — misma p_contrato/p_cuenta/p_cronograma, más la condición del
+ * catálogo del mock equivalente por moneda — para que TODA la semántica del
+ * backend simulado (estado, contadores, P0001) siga viviendo en _helpers.ts.
+ */
+async function traducirRpcContratoLibre(page: Page): Promise<void> {
+  for (const rpc of ['crear_contrato_con_cuenta', 'actualizar_contrato_con_cuenta'] as const) {
+    await page.route(`**/rest/v1/rpc/${rpc}`, async (ruta) => {
+      const cuerpo = (ruta.request().postDataJSON() ?? {}) as { p_contrato?: { moneda?: string } }
+      await ruta.fallback({
+        url: ruta.request().url().replace(`/rpc/${rpc}`, `/rpc/${rpc}_producto`),
+        postData: JSON.stringify({
+          ...cuerpo,
+          p_producto_condicion_id: cuerpo.p_contrato?.moneda === 'USD'
+            ? PRODUCTO_CONDICION_USD_ID
+            : PRODUCTO_CONDICION_PEN_ID,
+        }),
+      })
+    })
+  }
+}
+
 /** Abre el ContratoNuevo desde la fila de CLIENTE PORTAL UNO (cartera vacía →
  *  el CTA dice "+ Primer contrato"; con contratos previos, "+ Contrato"). */
 async function abrirFormContrato(page: Page): Promise<Locator> {
@@ -36,11 +61,14 @@ async function abrirFormContrato(page: Page): Promise<Locator> {
 }
 
 /**
- * Mínimo válido del alta: términos + elección EXPLÍCITA de la cuenta
- * vigente del perfil. Ninguna prueba obtiene una cuenta por preselección.
+ * Mínimo válido del alta LIBRE (0230929): la categoría es decisión explícita
+ * del analista (arranca en «— Seleccionar —»); tipo simple, modalidad mensual,
+ * plazo 12 y fecha de inicio hoy ya vienen por defecto. Más la elección
+ * EXPLÍCITA de la cuenta vigente del perfil: ninguna prueba obtiene una
+ * cuenta por preselección.
  */
 async function llenarBase(form: Locator): Promise<void> {
-  await form.locator('#ct-producto').selectOption(PRODUCTO_CONDICION_PEN_ID)
+  await form.locator('#ct-categoria').selectOption('nuevo')
   await form.locator('#ct-capital').fill('10000')
   await form.locator('#ct-tasa').fill('15')
   await form.getByRole('radio', { name: /BCP.*8901/i }).check()
@@ -48,6 +76,7 @@ async function llenarBase(form: Locator): Promise<void> {
 
 test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+  await traducirRpcContratoLibre(page)
   await loginReal(page) // cuenta real → aterriza en #/mi-cartera
 
   // Centinela de "sin reload": una marca en window que NO sobrevive a un
@@ -106,6 +135,7 @@ test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', 
     contratos: [],
     cuentasBancarias: [cuentaBancariaReal({ cuenta_id: CUENTA_GUARDADA_ID })],
   })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
 
   const form = await abrirFormContrato(page)
@@ -126,6 +156,7 @@ test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', 
 
 test('puede registrar una cuenta nueva inline y la envía normalizada en la misma alta', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
 
   const form = await abrirFormContrato(page)
@@ -168,12 +199,15 @@ test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la n
       cci_usd: '01100000987654321098',
     })],
   })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form) // deja elegida la cuenta PEN del perfil
   await form.locator('#ct-numero').fill('000782')
-  await form.locator('#ct-producto').selectOption(PRODUCTO_CONDICION_USD_ID)
+  // En el flujo libre la moneda se cambia directo en su select (ya no la
+  // arrastra un producto del catálogo).
+  await form.locator('#ct-moneda').selectOption('USD')
 
   // La selección PEN NO sobrevive al cambio. Aun cuando USD ya cargó y existe
   // una cuenta completa, el botón sigue cerrado hasta una elección explícita.
@@ -206,6 +240,7 @@ test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la n
 
 test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
 
   const form = await abrirFormContrato(page)
@@ -219,6 +254,7 @@ test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page })
 
 test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
 
   const form = await abrirFormContrato(page)
@@ -244,6 +280,7 @@ test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados',
 
 test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
+  await traducirRpcContratoLibre(page)
   await loginReal(page)
 
   const form = await abrirFormContrato(page)
