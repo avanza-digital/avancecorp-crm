@@ -157,11 +157,19 @@ tope más grande); tocar el store; ventana de 90 días.
 
 ---
 
-## F1 — Métricas al servidor (6–8 sesiones; partible en F1a/F1b)
+## F1 — Métricas al servidor (🟢 SERVIDOR COMPLETO 2026-08-09 · resta F1b front)
 
 **Objetivo:** cada agregado que escala con leads/actividades llega calculado
 por RPC SQL. **Requisito DURO de F2** (los totales de la UI dejan de depender
 de contar filas).
+
+**Estado:** las 7 RPC del inventario están EN PROD (tanda 1 `20260809051400`,
+tanda 2 `20260809151422/23/36`) junto con las 3 notas aprobadas por Miguel
+(índice `leads(creado_en)`, parkeados del coordinador en resumen/series,
+`= any(array)` en las 6 funciones que escanean leads/actividades). Detalle
+completo y decisiones deliberadas en el ledger, sección «F1 tanda 2». El
+tramo restante de F1 es **F1b**: la sección «Front y demo» de abajo, que
+sigue vigente como guía, pantalla por pantalla.
 
 ### Inventario a migrar (11 métricas, todas con archivo:línea en el borrador)
 
@@ -170,11 +178,11 @@ sinTocar/estancados; métricas por vendedor; comparativa de equipos + parkeados;
 conversión global/por origen + descartes por motivo; series comerciales 6 meses;
 stats de tareas; resumen mi-cartera; resumen de reparto.
 
-### RPC nuevas (7, en 2 migraciones)
+### RPC nuevas (7, en 2 migraciones) — ✅ LAS 7 EN PROD
 
-**Tanda 1:** `resumen_cartera_fn()`, `cola_accion_fn(p_limite)`,
+**Tanda 1 ✅ (2026-08-09):** `resumen_cartera_fn()`, `cola_accion_fn(p_limite)`,
 `metricas_vendedores_fn()`, `series_comerciales_fn(p_meses)`.
-**Tanda 2:** `resumen_tareas_fn()`, `resumen_cartera_clientes_fn()`,
+**Tanda 2 ✅ (2026-08-09):** `resumen_tareas_fn()`, `resumen_cartera_clientes_fn()`,
 `resumen_reparto_fn()`.
 
 Reglas grabadas por la crítica (no negociables al implementar):
@@ -421,10 +429,10 @@ sostenido una semana, O ámbito de gerencia > 300.000 leads.
 | Orden | Fase | Sesiones (≈ media jornada) |
 |---|---|---|
 | 1 | ✅ F0 Cimientos | HECHA (2026-08-08; tomó ~1 sesión larga, incluida la reconciliación no planificada del gate) |
-| 2 | F1 Métricas al servidor | 6–8 (partible F1a/F1b) |
+| 2 | 🟡 F1 Métricas al servidor | **SERVIDOR HECHO en 2 sesiones** (tandas 1+2, ambas 2026-08-09 — muy por debajo del estimado 6–8 porque las 3 notas viajaron en el mismo ciclo). Resta **F1b** (hooks por pantalla): ~3–4 |
 | 3 | F2 Keyset | 3–4 |
 | 4 | F3 Desmontar el store | 6–8 |
-| 5 | F4 Histórico vs vivo | 2 |
+| 5 | F4 Histórico vs vivo | 2 (el DSN de Sentry ya está en `app/.env` local desde 2026-08-08; entra a prod con el próximo release del front y recién ahí empieza a juntar la telemetría que F4 necesita) |
 | — | F5 Tableros | 0 (diferida; 2–3 al activarse) |
 | ∥ | Infra | 1–2 repartidas |
 
