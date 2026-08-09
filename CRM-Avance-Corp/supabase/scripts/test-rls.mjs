@@ -3928,6 +3928,220 @@ async function testMetasVersionadas(sessions, seed) {
   );
 }
 
+// ── F1 tanda 1: métricas agregadas en el servidor ─────────────────────────────
+// Las 4 RPC (resumen_cartera_fn / cola_accion_fn / metricas_vendedores_fn /
+// series_comerciales_fn) replican cálculos del navegador con el predicado
+// espejo de leads_select. El oráculo aquí es AUTOCONSISTENTE: lo que cada
+// sesión puede SELECTear de crm.leads por RLS (aplicando en JS la ventana de
+// convertidos de 45 días) debe cuadrar con los agregados que la RPC le
+// devuelve — así la matriz no depende de residuos transitorios de suites
+// anteriores. La aritmética fina (cascada de buckets, series, 45d exactos)
+// vive en el oráculo SQL desechable test-metricas-servidor.sql
+// (token METRICAS_SERVIDOR_TX_OK).
+const ETAPAS_ABIERTAS_F1 = new Set(['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada']);
+const VENTANA_CONVERTIDOS_MS_F1 = 45 * 24 * 60 * 60 * 1000;
+
+async function testMetricasServidor(sessions, seed) {
+  console.log('\n— Metricas agregadas en el servidor (F1 tanda 1) —');
+
+  for (const key of ['vend1', 'sup1', 'sup2', 'gerencia', 'directorio']) {
+    const client = sessions[key].client;
+    const visibles = await positive(
+      `${key} lista su ambito RLS como oraculo de las metricas`,
+      client.schema('crm').from('leads')
+        .select('id, etapa, moneda, monto_estimado, vendedor_id, convertido_en, activo')
+        .limit(2000),
+    );
+    if (!visibles) continue;
+    const corte = Date.now() - VENTANA_CONVERTIDOS_MS_F1;
+    // El lector global ve también soft-borrados por RLS; las RPC solo ámbito
+    // vivo — el oráculo aplica el mismo recorte (activo + ventana).
+    const filas = (visibles.data ?? []).filter((l) => l.activo === true
+      && (l.etapa !== 'convertido'
+        || (l.convertido_en && Date.parse(l.convertido_en) >= corte)));
+    const abiertos = filas.filter((l) => ETAPAS_ABIERTAS_F1.has(l.etapa));
+    const asignados = abiertos.filter((l) => l.vendedor_id != null);
+    const parkeados = abiertos.filter((l) => l.vendedor_id == null);
+    const capitalPen = asignados
+      .filter((l) => l.moneda !== 'USD')
+      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
+    const capitalUsd = asignados
+      .filter((l) => l.moneda === 'USD')
+      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
+
+    const resumen = await positive(
+      `${key} obtiene resumen_cartera_fn`,
+      client.schema('crm').rpc('resumen_cartera_fn'),
+    );
+    if (resumen) {
+      const t = resumen.data?.totales ?? {};
+      check(resumen.data?.version === 1 && resumen.data?.ventana_convertidos_dias === 45,
+        `${key} recibe el contrato v1 con la ventana de 45 dias`);
+      check(t.vivos === filas.length && t.abiertos === abiertos.length
+        && t.asignados === asignados.length && t.parkeados === parkeados.length,
+        `${key}: los totales del resumen cuadran con su propio SELECT por RLS`,
+        JSON.stringify({ rpc: t, esperado: { vivos: filas.length, abiertos: abiertos.length, asignados: asignados.length, parkeados: parkeados.length } }));
+      check(Number(resumen.data?.capital?.asignado?.pen ?? -1) === capitalPen
+        && Number(resumen.data?.capital?.asignado?.usd ?? -1) === capitalUsd,
+        `${key}: el capital asignado por moneda cuadra (PEN y USD jamas sumados)`);
+    }
+
+    const cola = await positive(
+      `${key} obtiene cola_accion_fn`,
+      client.schema('crm').rpc('cola_accion_fn', { p_limite: 100 }),
+    );
+    if (cola) {
+      const items = cola.data?.items ?? [];
+      const idsVisibles = new Set(filas.map((l) => l.id));
+      check(items.every((i) => idsVisibles.has(i.lead_id)),
+        `${key}: cada item de la cola es un lead que su RLS ya le muestra`);
+      const porRepartir = Number(cola.data?.resumen?.por_bucket?.por_repartir ?? 0);
+      check(porRepartir === parkeados.length,
+        `${key}: por_repartir cuadra con sus parkeados visibles (${parkeados.length})`);
+    }
+  }
+
+  // vend1 JAMAS recibe por_repartir ni items ajenos (negativa dura del plan).
+  const colaVend1 = await positive(
+    'vend1 vuelve a pedir su cola para las negativas',
+    sessions.vend1.client.schema('crm').rpc('cola_accion_fn', { p_limite: 100 }),
+  );
+  if (colaVend1) {
+    const items = colaVend1.data?.items ?? [];
+    check(items.every((i) => i.bucket !== 'por_repartir'),
+      'vend1 jamas recibe un item por_repartir');
+    check(items.every((i) => i.lead?.vendedor_id === seed.profileIdByKey.vend1),
+      'vend1 solo recibe items de su propia cartera');
+  }
+
+  // metricas_vendedores_fn: recorte lateral del roster + comparativa.
+  const mvSup2 = await positive(
+    'sup2 lee metricas de vendedores sin cruzar de subarbol',
+    sessions.sup2.client.schema('crm').rpc('metricas_vendedores_fn'),
+  );
+  if (mvSup2) {
+    const ids = new Set((mvSup2.data?.vendedores ?? []).map((v) => v.vendedor_id));
+    check(ids.has(seed.profileIdByKey.vend3), 'sup2 incluye a vend3');
+    check(ids.has(seed.profileIdByKey.vendInactive),
+      'sup2 incluye a su vendedor desactivado (gerencia reasigna esa cartera)');
+    check(!ids.has(seed.profileIdByKey.vend1), 'sup2 excluye a vend1 (subarbol ajeno)');
+    const equipos = new Set((mvSup2.data?.equipos ?? []).map((e) => e.supervisor_id));
+    check(equipos.has(seed.profileIdByKey.sup2) && !equipos.has(seed.profileIdByKey.sup1),
+      'sup2 solo recibe la comparativa de su propio equipo');
+  }
+  const mvVend1 = await positive(
+    'vend1 lee metricas de vendedores',
+    sessions.vend1.client.schema('crm').rpc('metricas_vendedores_fn'),
+  );
+  if (mvVend1) {
+    check((mvVend1.data?.vendedores ?? []).length === 1
+      && (mvVend1.data?.equipos ?? []).length === 0,
+      'vend1 recibe solo su propia fila y cero equipos');
+  }
+  const mvGerencia = await positive(
+    'gerencia lee metricas de vendedores del roster completo',
+    sessions.gerencia.client.schema('crm').rpc('metricas_vendedores_fn'),
+  );
+  if (mvGerencia) {
+    const filaInactivo = (mvGerencia.data?.vendedores ?? [])
+      .find((v) => v.vendedor_id === seed.profileIdByKey.vendInactive);
+    check(filaInactivo?.activo === false,
+      'gerencia ve la fila del vendedor desactivado marcada activo=false');
+  }
+
+  // series_comerciales_fn: shape de 6 arrays paralelos.
+  const series = await positive(
+    'gerencia obtiene series_comerciales_fn',
+    sessions.gerencia.client.schema('crm').rpc('series_comerciales_fn', { p_meses: 6 }),
+  );
+  if (series) {
+    const d = series.data ?? {};
+    check((d.meses ?? []).length === 6
+      && ['nuevos', 'cierres', 'cohorte_clientes', 'capital_pen', 'capital_usd', 'conversion_pct']
+        .every((k) => (d[k] ?? []).length === 6),
+      'gerencia recibe 6 arrays paralelos de 6 meses');
+  }
+
+  // Ambito nulo por diseño: el coordinador pasa la guardia y recibe TODO en
+  // cero (su superficie de reparto llega en la tanda 2 con resumen_reparto_fn).
+  const coordResumen = await positive(
+    'coordinador llama resumen_cartera_fn',
+    sessions.coordinador.client.schema('crm').rpc('resumen_cartera_fn'),
+  );
+  if (coordResumen) {
+    check(coordResumen.data?.totales?.vivos === 0,
+      'coordinador recibe el resumen en cero (ambito nulo por diseno)');
+  }
+  const coordCola = await positive(
+    'coordinador llama cola_accion_fn',
+    sessions.coordinador.client.schema('crm').rpc('cola_accion_fn', { p_limite: 100 }),
+  );
+  if (coordCola) {
+    check((coordCola.data?.items ?? []).length === 0
+      && (coordCola.data?.estancados?.items ?? []).length === 0,
+      'coordinador recibe la cola vacia (ni siquiera por_repartir)');
+  }
+  const coordMv = await positive(
+    'coordinador llama metricas_vendedores_fn',
+    sessions.coordinador.client.schema('crm').rpc('metricas_vendedores_fn'),
+  );
+  if (coordMv) {
+    check((coordMv.data?.vendedores ?? []).length === 0
+      && (coordMv.data?.equipos ?? []).length === 0,
+      'coordinador recibe roster y comparativa vacios');
+  }
+  const coordSeries = await positive(
+    'coordinador llama series_comerciales_fn',
+    sessions.coordinador.client.schema('crm').rpc('series_comerciales_fn', { p_meses: 6 }),
+  );
+  if (coordSeries) {
+    check((coordSeries.data?.nuevos ?? []).every((n) => n === 0),
+      'coordinador recibe las series en cero');
+  }
+
+  // Sin membresia viva ni lector global: denegacion DURA (42501), no vacio.
+  for (const key of ['vendInactive', 'clientBank']) {
+    for (const [fn, args] of [
+      ['resumen_cartera_fn', {}],
+      ['cola_accion_fn', { p_limite: 100 }],
+      ['metricas_vendedores_fn', {}],
+      ['series_comerciales_fn', { p_meses: 6 }],
+    ]) {
+      await expectExplicitAuthorizationDenied(
+        `${key} recibe 42501 en ${fn}`,
+        sessions[key].client.schema('crm').rpc(fn, args),
+        ['42501'],
+      );
+    }
+  }
+
+  // Parametros fuera de rango: 22023 con su mensaje (no un 42501 enmascarado).
+  await expectExpectedFailure(
+    'cola_accion_fn rechaza p_limite=0',
+    sessions.gerencia.client.schema('crm').rpc('cola_accion_fn', { p_limite: 0 }),
+    ['22023'],
+    /p_limite invalido/i,
+  );
+  await expectExpectedFailure(
+    'cola_accion_fn rechaza p_limite=501',
+    sessions.gerencia.client.schema('crm').rpc('cola_accion_fn', { p_limite: 501 }),
+    ['22023'],
+    /p_limite invalido/i,
+  );
+  await expectExpectedFailure(
+    'series_comerciales_fn rechaza p_meses=0',
+    sessions.gerencia.client.schema('crm').rpc('series_comerciales_fn', { p_meses: 0 }),
+    ['22023'],
+    /p_meses invalido/i,
+  );
+  await expectExpectedFailure(
+    'series_comerciales_fn rechaza p_meses=25',
+    sessions.gerencia.client.schema('crm').rpc('series_comerciales_fn', { p_meses: 25 }),
+    ['22023'],
+    /p_meses invalido/i,
+  );
+}
+
 // ── C1: reparto de la cola global por el rol `coordinador` ────────────────────
 // Tres capas: (A) aislamiento del rol nuevo — incluidas las superficies que se
 // abren al dejar de ser rol_crm NULL; (B) control de acceso de las 3 RPC;
@@ -4886,6 +5100,19 @@ async function testAnon(seed) {
     anon.schema('crm').rpc('leads_descartados'),
     ['42501', 'PGRST202'],
   );
+  // F1 tanda 1: las 4 RPC de metricas agregadas solo existen para authenticated.
+  for (const [fn, args] of [
+    ['resumen_cartera_fn', {}],
+    ['cola_accion_fn', { p_limite: 100 }],
+    ['metricas_vendedores_fn', {}],
+    ['series_comerciales_fn', { p_meses: 6 }],
+  ]) {
+    await expectExplicitAuthorizationDenied(
+      `anon no ejecuta ${fn}`,
+      anon.schema('crm').rpc(fn, args),
+      ['42501', 'PGRST202'],
+    );
+  }
   await expectHidden(
     'anon no lee datos bancarios public.perfiles',
     anon.from('perfiles').select('id, banco, numero_cuenta, cci').eq('id', bankProfileId),
@@ -4928,6 +5155,7 @@ async function main() {
       await testOffboardingMatrix(sessions, verifiedSeed);
       await testVentanaActividades(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
+      await testMetricasServidor(sessions, verifiedSeed);
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);

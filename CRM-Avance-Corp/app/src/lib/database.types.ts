@@ -1060,6 +1060,26 @@ export interface Database {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
+      // ── F1 tanda 1: métricas agregadas en el servidor (JSON v1 con
+      //    version/generado_en; la ventana de convertidos de 45 días viaja
+      //    como ventana_convertidos_dias). Los contratos Valibot llegan con
+      //    los hooks de pantalla (tandas F1 siguientes). ─────────────────────
+      resumen_cartera_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      cola_accion_fn: {
+        Args: { p_limite?: number }
+        Returns: Json
+      }
+      metricas_vendedores_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      series_comerciales_fn: {
+        Args: { p_meses?: number }
+        Returns: Json
+      }
       // ── C1: reparto de la cola global por el coordinador. Las tres son
       //    SECURITY DEFINER con gate propio (coordinador|gerencia): el
       //    coordinador NO ve crm.leads por RLS. La cola se proyecta SIN PII

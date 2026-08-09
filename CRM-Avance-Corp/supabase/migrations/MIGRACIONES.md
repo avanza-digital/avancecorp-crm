@@ -872,3 +872,86 @@ una reunión pendiente, se re-encoló —la operación que antes moría con 2351
 las cuatro aserciones pasaron: etapa `nuevo`, tarea `cancelada` sellada
 `sistema` sin actor humano, y la actividad de retroceso marcada como
 automática. Producción quedó intacta (1 lead, 0 tareas).
+
+## F1 tanda 1 — métricas al servidor (2026-08-09)
+
+Primera tanda de la fase F1 del plan de escalabilidad («el navegador NUNCA
+recibe filas para contarlas»): cuatro RPC de agregados que replican en SQL los
+cálculos que el front hacía recorriendo arrays del store, con el predicado
+espejo de `leads_select` (visibles + parkeados por bandeja + gerencia + lector
+global) y la **ventana de convertidos de 45 días** (decisión de Miguel
+2026-08-08) implementada por primera vez. El front aún NO las consume: los
+hooks llegan por pantalla en las tandas siguientes; el corte de
+`listarLeadsDelAmbito` a la ventana de 45 d va con la primera pantalla migrada
+(hacerlo antes degradaría las series y el aviso de duplicado, plan F0§5).
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260809043802 | 20260809051400 | crm_metricas_servidor_tanda1 | ✅ **EN PROD 2026-08-09** (branch `f1-metricas-servidor-tanda1` → gate RLS **593/593** sobre branch recién creado (539+54 casos F1) → oráculo `METRICAS_SERVIDOR_TX_OK` → advisors sin ERROR ni hallazgos nuevos atribuibles (solo el WARN definer-ejecutable que comparten TODAS las RPC de métricas) → trigger `trg_equipo_validar_usuarios_jerarquia` reactivado (`tgenabled='O'`) antes del merge → merge → verificado en prod (md5 de `prosrc` 4/4 idéntico repo↔prod, ACL exacta, definer+stable+`search_path=''`) → branch borrado). |
+
+**Las 4 RPC** (security definer + stable + `search_path=''` + guardia 42501 +
+revoke 4 audiencias/grant authenticated + jsonb `version:1`):
+- `resumen_cartera_fn()` — totales/capital (asignado·parkeado·ganado, por
+  moneda), embudo de 6 etapas, conversión global, descartes por motivo,
+  sin_tocar. `asignados_pen/usd` cuenta SOLO abiertos con vendedor (el donut de
+  directorio no cuenta parkeados — hallazgo de la auditoría de paridad).
+- `cola_accion_fn(p_limite 1..500)` — cascada EXACTA de `colaDe` (un bucket por
+  lead, sev critica<media<baja, días desc), `datos_motivo` con los ingredientes
+  (el texto lo redacta el front), `ultimo_contacto_en` por item (el dato del
+  semáforo del kanban: deja F3 sin migraciones) y bloque `estancados` (umbral 5,
+  tope 50). Tubería ESTRECHA: el lead completo se une por PK tras el LIMIT
+  (hallazgo de rendimiento: filas anchas materializadas ≈ cientos de MB a 1M).
+- `metricas_vendedores_fn()` — filas por miembro visible (sin nombres: el front
+  une con su roster, precedente `metricas_conversiones_fn`) + comparativa por
+  supervisor activo con reportes DIRECTOS de cualquier rol (espejo del front) y
+  parkeados aparte. Una sola pasada agrupada por el ámbito (la versión con
+  laterales re-escaneaba 2·S veces — hallazgo de rendimiento).
+- `series_comerciales_fn(p_meses 1..24)` — series mensuales Lima ascendentes:
+  nuevos, cohorte, cierres, capital POR MONEDA, conversión (1 decimal). SIN
+  ventana de 45 d (histórico).
+
+**Contrato de denegación** (fijado antes de codificar): anon → sin EXECUTE;
+ajeno al CRM y membresía inactiva → 42501; coordinador → pasa la guardia y
+recibe agregados VACÍOS (ámbito ∅ por diseño; su superficie llega en la tanda 2
+con `resumen_reparto_fn` + `puede_operar_reparto_crm()`); parámetros fuera de
+rango → 22023 tras la guardia.
+
+**Divergencias deliberadas vs el front** (adoptará los números del RPC al
+migrar cada pantalla):
+1. Mes de cierre de series = sello canónico `coalesce(convertido_en,
+   actualizado_en, creado_en)` (cierres-del-mes.ts), no el orden accidental de
+   series-comerciales.ts (`actualizado_en` primero movía el cierre de mes).
+2. «Sin contacto jamás» sobre TODO el historial (el front solo ve 365 d/10 k).
+3. Conversión por origen NO viaja (ya existe en `metricas_conversiones_fn`).
+4. Desempate de la cola por `id` (el front conservaba orden de llegada en
+   empates exactos — determinismo del server).
+
+**Verificación**: matriz `testMetricasServidor` en test-rls.mjs (oráculo
+AUTOCONSISTENTE: los agregados deben cuadrar con lo que la MISMA sesión
+SELECTea por RLS + ventana; robusto a residuos transitorios) + sondas anon +
+oráculo transaccional `test-metricas-servidor.sql` (token
+METRICAS_SERVIDOR_TX_OK: cascada completa de buckets con un lead fabricado por
+rama, ventana 45 d en resumen/vendedores y NO en series, 22023, 42501, tríada
+`has_function_privilege` + prosecdef + `search_path=""`).
+
+**Notas para Miguel (no bloquean)**:
+- El prefiltro de series (`creado_en >= v_ini or contrato_id is not null`) no
+  lo sirve ningún índice → seq scan de `crm.leads` por llamada. Aceptable hasta
+  ~300 k leads; a 1 M conviene `create index on crm.leads (creado_en)`
+  (rompería el «cero índices nuevos» de F0 — decisión pendiente; la vigilancia
+  mensual por pg_stat_statements lo detectará si duele antes).
+- La paráfrasis del plan F1 incluía `puede_operar_reparto_crm()` en la rama de
+  parkeados (el coordinador vería parkeados en estas métricas). Se implementó
+  el predicado REAL de `estado_sla_leads_fn` (coordinador ∅, como los fixtures
+  declaran por diseño): darle parkeados aquí ampliaría su visibilidad por
+  encima de la RLS en una migración de métricas. Si Miguel lo quiere, es un
+  cambio de una línea + tests en la tanda 2.
+- Optimización futura de la familia entera de RPC de ámbito: capturar
+  `vendedor_ids_visibles` en un array del `declare` y filtrar con `= any(...)`
+  (indexable) en vez del `in (select fn())` (SubPlan por fila) — hoy toda la
+  casa paga el mismo patrón; cambiarlo es decisión aparte, no de esta tanda.
+
+Front acompañante: delta A MANO en `database.types.ts` (4 firmas nuevas,
+`Returns: Json`; el regen completo contra prod ROMPE el build — archivo
+curado); `npm run check` del app en verde. Sin cambios de pantallas en esta
+tanda.
