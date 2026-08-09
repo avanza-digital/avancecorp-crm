@@ -3061,6 +3061,15 @@ async function testContractBankAccounts(sessions, seed) {
     (profile) => profile.id === directorProfileId,
   )?.rol;
   let directorRoleChanged = false;
+  // La sonda de revocación fabrica una fila en crm.equipo para directorio (el
+  // único fixture que nace SIN membresía). Si una aserción falla a mitad, esa
+  // fila apagada sobrevive a la corrida y envenena la siguiente: el lector
+  // global cuenta inactivos y el conteo del DIRECTORIO se rompe. Se limpia en
+  // el finally, no solo en el camino feliz.
+  let directorMembershipFabricated = false;
+  // Igual que la fila fabricada: si la sonda del perfil apagado falla a mitad,
+  // directorio se queda desactivado y envenena todo lo que venga después.
+  let directorDeactivated = false;
   const originalActors = analystIds.map((id) => ({
     activo: seed.profiles.find((profile) => profile.id === id)?.activo,
     crmActivo: seed.team.find((member) => member.perfil_id === id)?.activo,
@@ -3272,51 +3281,51 @@ async function testContractBankAccounts(sessions, seed) {
       admin.from('perfiles').update({ rol: 'analista' }).eq('id', seed.profileIdByKey.vend1),
     );
 
-    // ⚠️ DISEÑO INVERTIDO EL 2026-08-08 (configuración operativa + prevalencia
-    // P04 restaurada). El fallback original de P04 («sin fila en crm.equipo,
-    // el admin usa su poder global») fue retirado a propósito: el comment de
-    // es_lector_global (20260807203740) dice literal «Admin/Superadmin Portal
-    // no heredan lectura operativa». Hoy un admin del portal SIN actor CRM
-    // efectivo no tiene banca NI resolver de Pagos. Estas sondas clavan el
-    // diseño nuevo; si un ciclo futuro decide devolver el fallback, pasarán a
-    // rojo y forzarán la decisión consciente. Impacto operativo anotado en el
-    // vault: la página de Pagos exige ahora operador con membresía CRM viva.
+    // FALLBACK GLOBAL DE P04, RESTAURADO EL 2026-08-09 (20260809000530).
+    //
+    // Historia de estas sondas, porque se invirtieron dos veces en dos días:
+    //   · P04 original (20260804144555:5-8) lo declaró por escrito: «Un admin
+    //     del portal sin membresia CRM conserva el fallback global; si tiene
+    //     una fila en crm.equipo y esa membresia se apaga, la revocacion
+    //     prevalece». Funcionaba porque es_lector_global() aún cubría a
+    //     admin/superadmin, así que puede_acceder_crm() les daba true.
+    //   · El 2026-08-08 estas sondas se invirtieron a «ya no lista / ya no
+    //     resuelve» al observar el efecto del es_lector_global() estrecho
+    //     (20260807203740) compuesto con la línea de P04 repuesta. Se clavó el
+    //     SÍNTOMA como si fuera el diseño.
+    //   · Medición en prod (2026-08-08) del costo real de esa inversión:
+    //     `gloria@` — admin del portal que da soporte a los analistas
+    //     gestionando Pagos y creando contratos, sin fila en crm.equipo porque
+    //     su trabajo vive en el portal — quedó sin crear contratos, sin
+    //     corregirlos y sin la página de Pagos. No es una persona
+    //     offboardeada; nunca fue del CRM.
+    //   · 20260809000530 separa las dos preguntas: lo que prevalece sobre el
+    //     rol de portal es la REVOCACIÓN explícita (private.membresia_crm_revocada),
+    //     no la ausencia de membresía. Estas sondas vuelven a su sentido
+    //     original y la invariante de offboarding queda clavada aparte, en
+    //     'banca P04 admin con membresia revocada' (arriba, con fila apagada).
     await requireAdmin(
       'banca P04: convertir directorio temporalmente en admin global',
       admin.from('perfiles').update({ rol: 'admin' }).eq('id', directorProfileId),
     );
     directorRoleChanged = true;
-    await expectExpectedFailure(
-      'admin global sin membresia CRM: ya no lista cuentas bancarias',
-      sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
-        p_cliente_id: bankProfileId,
-        p_moneda: BANK_CONTRACT.currency,
-      }),
-      ['42501'],
-      /cliente no encontrado o fuera de tu cartera/i,
+    await assertAdminBankRead(
+      sessions.directorio.client,
+      'admin global sin membresia CRM (fallback P04)',
     );
-    await expectExpectedFailure(
-      'admin global sin membresia CRM: ya no resuelve cuentas para Pagos',
-      sessions.directorio.client.schema('crm').rpc('cuentas_pago_contratos_fn', {
-        p_contrato_ids: [seed.contract.id],
-      }),
-      ['42501'],
-      /no autorizado para consultar cuentas de pago/i,
-    );
-    // Rama analista del guard SIN membresía CRM (hallazgo del auditor-rls
-    // 2026-08-08): las sondas de analista usan vend1/vend3, que SÍ tienen fila
-    // activa en crm.equipo. Aquí se clava el caso sin fila reutilizando a
-    // directorio (único fixture sin membresía): con rol portal `analista` y
-    // cero membresía, ni la banca del CRM ni el ALTA LEGACY del portal
-    // (`public.crear_contrato`, llamador del guard desde el catálogo) le
-    // responden. Verificado en prod: los 20 analistas reales tienen membresía
-    // activa — este caso solo existe para actores mal provisionados.
+    // Rama analista del guard SIN membresía CRM. Con el fallback restaurado el
+    // gate de P04 ya no la frena, así que lo que queda expuesto —y es lo que
+    // debe seguir cerrado— es el SCOPING POR CARTERA: el cliente bancario tiene
+    // asesor_perfil_id = vend1, de modo que un analista ajeno sigue sin
+    // alcanzarlo ni por la banca del CRM ni por el ALTA LEGACY del portal
+    // (`public.crear_contrato`, llamador del guard desde el catálogo). Mismo
+    // 42501 que antes, pero ahora por la razón correcta.
     await requireAdmin(
       'banca P04: convertir directorio temporalmente en analista sin membresia',
       admin.from('perfiles').update({ rol: 'analista' }).eq('id', directorProfileId),
     );
     await expectExpectedFailure(
-      'analista del portal sin membresia CRM: no lista cuentas bancarias',
+      'analista sin membresia CRM: la cartera sigue cerrando la banca ajena',
       sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
         p_cliente_id: bankProfileId,
         p_moneda: BANK_CONTRACT.currency,
@@ -3325,7 +3334,7 @@ async function testContractBankAccounts(sessions, seed) {
       /cliente no encontrado o fuera de tu cartera/i,
     );
     await expectExpectedFailure(
-      'analista del portal sin membresia CRM: no crea contrato por el canal legacy',
+      'analista sin membresia CRM: la cartera sigue cerrando el alta legacy ajena',
       sessions.directorio.client.rpc('crear_contrato', {
         p_contrato: {
           cliente_id: bankProfileId,
@@ -3339,6 +3348,85 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /cliente no encontrado o fuera de tu cartera/i,
     );
+    // La distinción que introduce 20260809000530, clavada sobre el MISMO actor
+    // para que no pueda pasar en falso por diferencias de fixture: directorio
+    // como admin global gana la banca sin fila en crm.equipo (arriba) y la
+    // pierde en cuanto existe una fila APAGADA. Sin esta pareja, un futuro
+    // `not exists(...)` mal escrito —o un regreso a `puede_acceder_crm()`—
+    // pasaría verde con solo una de las dos mitades.
+    await requireAdmin(
+      'banca P04: devolver a directorio el rol admin global',
+      admin.from('perfiles').update({ rol: 'admin' }).eq('id', directorProfileId),
+    );
+    await requireAdmin(
+      'banca P04: fabricar membresia CRM REVOCADA para directorio',
+      admin.schema('crm').from('equipo').insert({
+        perfil_id: directorProfileId,
+        rol_crm: 'directorio',
+        activo: false,
+      }),
+    );
+    directorMembershipFabricated = true;
+    await expectExpectedFailure(
+      'admin con membresia CRM revocada: la revocacion prevalece sobre la banca',
+      sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      'admin con membresia CRM revocada: la revocacion prevalece sobre Pagos',
+      sessions.directorio.client.schema('crm').rpc('cuentas_pago_contratos_fn', {
+        p_contrato_ids: [seed.contract.id],
+      }),
+      ['42501'],
+      /no autorizado para consultar cuentas de pago/i,
+    );
+    await requireAdmin(
+      'banca P04: retirar la membresia revocada fabricada',
+      admin.schema('crm').from('equipo').delete().eq('perfil_id', directorProfileId),
+    );
+    directorMembershipFabricated = false;
+
+    // Perfil de portal APAGADO, rama admin (hallazgo del auditor-rls
+    // 2026-08-08). Antes de 20260809000530 el cierre de un perfil desactivado
+    // lo garantizaba `puede_acceder_crm()` de forma independiente del portal
+    // (private.rol_crm y es_lector_global exigen ambos `perfiles.activo`). Esa
+    // migración retira esa garantía y la delega en `public.es_admin()`, que
+    // vive en un esquema que este repo NO versiona. Se verificó con
+    // pg_get_functiondef que hoy filtra por `activo = true`; estas sondas lo
+    // CLAVAN para que un cambio del portal no lo rompa en silencio. Sin ellas,
+    // un empleado desactivado conservaría cuentas_pago_contratos_fn, que
+    // devuelve numero_cuenta, cci y beneficiario_dni SIN scoping alguno.
+    await requireAdmin(
+      'banca P04: apagar el perfil portal de directorio-admin',
+      admin.from('perfiles').update({ activo: false }).eq('id', directorProfileId),
+    );
+    directorDeactivated = true;
+    await expectExpectedFailure(
+      'admin sin membresia con perfil APAGADO: no lista cuentas bancarias',
+      sessions.directorio.client.schema('crm').rpc('cuentas_bancarias_cliente_fn', {
+        p_cliente_id: bankProfileId,
+        p_moneda: BANK_CONTRACT.currency,
+      }),
+      ['42501'],
+      /cliente no encontrado o fuera de tu cartera/i,
+    );
+    await expectExpectedFailure(
+      'admin sin membresia con perfil APAGADO: no resuelve cuentas para Pagos',
+      sessions.directorio.client.schema('crm').rpc('cuentas_pago_contratos_fn', {
+        p_contrato_ids: [seed.contract.id],
+      }),
+      ['42501'],
+      /no autorizado para consultar cuentas de pago/i,
+    );
+    await requireAdmin(
+      'banca P04: reactivar el perfil portal de directorio',
+      admin.from('perfiles').update({ activo: true }).eq('id', directorProfileId),
+    );
+    directorDeactivated = false;
     await requireAdmin(
       'banca P04: restaurar el rol global de directorio',
       admin.from('perfiles').update({ rol: originalDirectorRole }).eq('id', directorProfileId),
@@ -3488,6 +3576,18 @@ async function testContractBankAccounts(sessions, seed) {
       );
     }
   } finally {
+    if (directorMembershipFabricated) {
+      await requireAdmin(
+        'retirar la membresia CRM fabricada para directorio tras sondas bancarias',
+        admin.schema('crm').from('equipo').delete().eq('perfil_id', directorProfileId),
+      );
+    }
+    if (directorDeactivated) {
+      await requireAdmin(
+        'reactivar el perfil portal de directorio tras sondas bancarias',
+        admin.from('perfiles').update({ activo: true }).eq('id', directorProfileId),
+      );
+    }
     if (directorRoleChanged && originalDirectorRole) {
       await requireAdmin(
         'restaurar rol global de directorio tras sondas bancarias',

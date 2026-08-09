@@ -586,3 +586,99 @@ Front acompañante: release `crm-20260808T185153Z-6d3bfb75d4d6`, SHA-256 del
 ZIP `c01068853df7591b12df07467081f83be29e99a26e230a332fa98386951d0db0`.
 Producción sirvió `index-yG0C8pp2.js`, `config-metas-C9BdWeJ8.js` y
 `config-sla-DDSk4PR_.js` byte por byte contra el artefacto local.
+
+## P04 distingue revocado de ajeno al CRM (2026-08-09)
+
+Corrección de una regresión que la reconciliación del gate F0 introdujo el mismo
+2026-08-08 y que dejó **sin poder trabajar** a personal real del portal.
+
+La migración ORIGINAL de P04 (`20260804144555`, líneas 5-8) declaró por escrito
+la semántica pretendida: «Un admin del portal sin membresia CRM **conserva el
+fallback global** definido por P04; si tiene una fila en crm.equipo y esa
+membresia **se apaga**, la revocacion prevalece». P04 nunca quiso frenar a quien
+NUNCA fue del CRM: quiso frenar el OFFBOARDING. Esa distinción se perdió en tres
+pasos, ninguno equivocado por sí solo:
+
+1. `20260804144555` escribe `and private.puede_acceder_crm()` cuando
+   `es_lector_global()` **aún cubría a admin/superadmin** → el fallback existía y
+   el único bloqueado era el revocado. Gate verde 2026-08-04.
+2. `20260807203740` («rol CRM efectivo») **estrecha** `es_lector_global()` a
+   Directorio con membresía. Nadie lo nota: el catálogo `20260807235933` había
+   borrado la línea de P04 del guard, así que el fallback ya no se consultaba.
+3. `20260808173537` **repone** la línea sobre esa base estrecha. Correcto en
+   intención, pero la composición cambió el sentido: de «bloquea al revocado» a
+   «bloquea a todo el que no sea del CRM».
+
+Efecto medido en prod con sesiones simuladas: `gloria@` — admin del portal que da
+soporte a los analistas gestionando **Pagos** y creando contratos, sin fila en
+`crm.equipo` porque su trabajo vive en el portal — tenía `es_admin()` = true pero
+`puede_acceder_crm()` = false, y quedó sin crear contratos, sin corregirlos y sin
+la página de Pagos. `AdminCorp@` (superadmin) igual. **Ninguno de los dos está
+offboardeado.** Decisión de negocio de Miguel: el offboarding real se hace
+eliminando/desactivando el usuario desde administración, y toda función del
+portal ya exige `perfiles.activo = true`; la membresía CRM no es ni debe ser el
+documento de identidad del personal de portal.
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260809000530 | 20260809002309 | crm_p04_revocado_vs_ajeno_al_crm | ✅ **EN PROD 2026-08-09** (branch `crm-p04-ajeno` → réplica verificada idéntica a prod por hash md5 de las 3 funciones ANTES de aplicar → gate RLS **525/525** → advisors del branch **sin ERROR** (95 avisos, todos de clases preexistentes; la única mención propia es el `WARN authenticated_security_definer_function_executable` ya aceptado de `cuentas_pago_contratos_fn`) → trigger `trg_equipo_validar_usuarios_jerarquia` reactivado (`tgenabled='O'`) antes del merge → merge → verificado en prod → branch borrado). Crea `private.membresia_crm_revocada()` y sustituye el gate `puede_acceder_crm()` por `not membresia_crm_revocada()` en `private.puede_gestionar_cuentas_cliente` y `crm.cuentas_pago_contratos_fn`. Cuerpos copiados VERBATIM de prod salvo esa línea; cero cambios de scoping. |
+
+Verificación posterior al merge (sesiones simuladas, solo lectura):
+`gloria@` → banca/contratos **true**, `membresia_crm_revocada` false, y
+`puede_acceder_crm()` **sigue false** (no gana ni una tabla `crm.*`: el
+`crm_actor_activo_gate` conserva el predicado viejo, como debe ser). Un
+`comercial` revocado → detectado revocado **true** y banca **false**: la
+invariante de offboarding intacta.
+
+**Delta de autorización, censado en prod (auditoría adversarial previa).** El
+cambio es monótono creciente. Como `¬puede_acceder_crm()` implica
+`rol_crm() IS NULL`, la rama CRM del guard es inalcanzable dentro del delta ⇒
+quien gane algo lo gana por `es_admin()` o `es_analista()`+cartera:
+
+1. **admin/superadmin de portal SIN fila — 2 hoy** (gloria, AdminCorp). Es el objetivo.
+2. **analista de portal SIN fila — 0 hoy.** ⚠️ El ledger del 08-08 decía «los 20
+   analistas tienen membresía activa»: el conteo real es **19**, y no existe
+   ningún analista sin fila. Corregido aquí.
+3. **superadmin CON fila ACTIVA de rol ≠ gerencia — 0 hoy. ACEPTADO a propósito**
+   (no omisión): `public.es_admin()` incluye a superadmin por diseño DEL PORTAL.
+   No contradice `20260807203740:87-89` («queda fuera del gate GLOBAL»):
+   `rol_crm()` sigue devolviendo NULL, así que no obtiene ámbito CRM alguno.
+4. **perfil con `activo = false` — 0 hoy y CERRADO**: `public.es_admin()` y
+   `public.es_analista()` exigen `activo = true` (verificado con
+   `pg_get_functiondef` en prod). Clavado además en el gate.
+
+No ganan nada los roles de portal `comercial` ni `directorio`.
+
+**Superficie real:** se reescriben 2 funciones, pero
+`private.puede_gestionar_cuentas_cliente` es el gate único de CINCO entradas —
+`crm.cuentas_bancarias_cliente_fn`, `crm.crear_contrato_con_cuenta` (+ wrapper
+`_producto`), `crm.actualizar_contrato_con_cuenta`, `public.crear_contrato` y
+`public.actualizar_contrato` — y `crm.cuentas_bancarias` /
+`crm.contrato_cuentas_pago` tienen RLS ON con CERO policies, así que bajo el
+guard no hay segunda línea de defensa. Se suma `crm.cuentas_pago_contratos_fn`.
+`crm.equipo_visible_fn` y `private.es_directorio_crm_activo` quedan intactas a
+propósito (son superficies CRM).
+
+Gate (`test-rls.mjs`, misma sesión): las sondas «admin global sin membresía»
+vuelven a POSITIVAS (`assertAdminBankRead`) tras haberse invertido el 08-08, y se
+añade una **pareja sobre el mismo actor** — gana la banca sin fila, la pierde en
+cuanto existe una fila APAGADA — para que un `not exists(...)` mal escrito no
+pueda pasar verde con solo una mitad. Más las sondas de perfil de portal apagado
+en la rama admin. La fila fabricada y la desactivación se limpian en el `finally`,
+no solo en el camino feliz: una fila apagada superviviente envenena la corrida
+siguiente (el lector global cuenta inactivos).
+
+**Deudas anotadas por la auditoría (NO cerradas aquí):**
+- ⚠️ **El offboarding CRM es `activo = false`, NUNCA `DELETE`.** Borrar la fila de
+  un analista lo vuelve «ajeno» y le DEVUELVE la banca de su cartera; antes
+  borrarla lo dejaba igual de bloqueado. No hay policy DELETE para
+  `authenticated` y el proceso real desactiva al usuario completo. Pendiente:
+  trigger que vete el `DELETE` sobre `crm.equipo`.
+- Cobertura de gate pendiente: superadmin con membresía activa no-gerencia (G1),
+  analista sin fila sobre SU PROPIO cliente (G3) y las superficies de ESCRITURA
+  para admin sin fila / admin revocado (G4).
+- `supabase/scripts/test-p04-cuentas-bancarias.sql` quedó desincronizado: sus
+  stubs de `es_lector_global`/`rol_crm` son la versión PRE-`20260807203740`, así
+  que sus aserciones prueban un mundo que ya no existe.
+- Sigue abierta la deuda del 08-08: la rama admin de `public.actualizar_contrato`
+  no consulta el guard (corrige TÉRMINOS, no cuentas).
