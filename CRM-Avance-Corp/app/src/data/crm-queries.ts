@@ -2,8 +2,10 @@ import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/
 import {
   actualizarCapacidadLeadsObjetivo,
   listarClientes,
+  listarColaAccion,
   listarCuentasBancariasCliente,
   listarMetricasAgenda,
+  listarMetricasVendedores,
   listarResumenCartera,
   listarMetricasConversiones,
   listarMetricasReuniones,
@@ -69,6 +71,8 @@ export const crmQueryKeys = {
   // de gerencia en cada llamada del vendedor. Se retira en F3.
   metricasAmbito: () => [...crmQueryKeys.raiz, 'metricas-ambito'] as const,
   resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
+  colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
+  metricasVendedores: () => [...crmQueryKeys.metricasAmbito(), 'metricas-vendedores'] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -190,6 +194,29 @@ export function useResumenCartera(habilitada: boolean) {
     queryKey: crmQueryKeys.resumenCartera(),
     queryFn: ({ signal }) => listarResumenCartera(signal),
     enabled: habilitada,
+  })
+}
+
+// refetchInterval 60 s: los buckets de la cola y los «días sin actividad»
+// dependen del RELOJ, no solo de mutaciones — antes el cliente los recalculaba
+// con useAhora cada minuto; el snapshot servido debe refrescarse igual o un
+// lead cruza su umbral (3 d de seguimiento, 5 d de estancado) sin que la
+// pantalla se entere mientras la pestaña siga enfocada (revisión Codex).
+export function useColaAccion(habilitada: boolean, limite: number) {
+  return useQuery({
+    queryKey: crmQueryKeys.colaAccion(limite),
+    queryFn: ({ signal }) => listarColaAccion(limite, signal),
+    enabled: habilitada,
+    refetchInterval: 60_000,
+  })
+}
+
+export function useMetricasVendedores(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.metricasVendedores(),
+    queryFn: ({ signal }) => listarMetricasVendedores(signal),
+    enabled: habilitada,
+    refetchInterval: 60_000,
   })
 }
 

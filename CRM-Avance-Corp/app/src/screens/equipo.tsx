@@ -33,18 +33,15 @@ import { moneyK } from '@/lib/format'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
 import {
-  capitalPorMoneda,
-  colaDe,
-  comparativaEquipos,
   diasDesdeReferencia,
   esAbierto,
-  indexarUltimaActividad,
-  metricasPorVendedor,
   type ItemCola,
   type MetricasVendedor,
 } from '@/lib/inteligencia'
-import { planPorLead } from '@/lib/plan-lead'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
+import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
+import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
+import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -146,7 +143,7 @@ function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number })
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
-            {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'}
+            {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'} · 45 d
           </p>
         </div>
         {r.activos === 0 ? (
@@ -289,7 +286,7 @@ function Bandeja({
 
 // ── Mini-cola del equipo (top N de colaDe con nombre del vendedor) ────────────
 
-function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.Element {
+function MiniCola({ items, total, max = 5 }: { items: ItemCola[]; total: number; max?: number }): JSX.Element {
   const { abrirLead } = usePanelesActions()
 
   if (items.length === 0) {
@@ -328,9 +325,9 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
           </button>
         )
       })}
-      {items.length > max && (
+      {total > max && (
         <p className="pt-1 text-[11px] text-muted-foreground">
-          +{items.length - max} pendientes más en la cola del equipo.
+          +{total - max} pendientes más en la cola del equipo.
         </p>
       )}
     </div>
@@ -340,54 +337,66 @@ function MiniCola({ items, max = 5 }: { items: ItemCola[]; max?: number }): JSX.
 // ── Vista SUPERVISOR — su equipo, su bandeja, su cola ─────────────────────────
 
 function EquipoSupervisor(): JSX.Element {
-  const { ambito, actividadesDelAmbito, tareas } = useCRMData()
+  const { ambito, actividadesDelAmbito, tareas, equipo } = useCRMData()
   const { yo } = useAuth()
-  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito)
+  // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola (en real esos
+  // vencimientos llegan resueltos dentro de cola_accion_fn).
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito, yo?.demo === true)
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
 
-  // Todo el cómputo en UN memo (patrón de Hoy·Supervisor): el índice de última
-  // actividad se construye UNA vez y lo comparten cards y cola — con useAhora
-  // tickeando por minuto, antes se re-indexaba el timeline en cada render.
-  // `ahora` DEBE seguir en las deps para que los "d sin act." refresquen.
-  const d = useMemo(() => {
-    const indice = indexarUltimaActividad(actividadesDelAmbito)
-    const filas = metricasPorVendedor(ambito.vendedores, ambito.leads, actividadesDelAmbito, ahora, indice)
-    const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
-    // Fase B: leads con tarea pendiente tienen plan → fuera de la cola por inactividad.
-    const plan = planPorLead(tareas, ahora)
-    // colaDe ya no recibe índice: se construye el suyo de CONTACTO (los tipos
-    // de índice son indistinguibles y pasarle el de actividad reintroduciría el
-    // bug de la `reasignacion` que vaciaba la cola).
-    const cola = colaDe(ambito.leads, actividadesDelAmbito, ahora, plan, estadoSla.indice)
+  // ── F1b: agregados del servidor (o espejo demo vivo) ──
+  const resumenOp = useResumenCarteraOperativo(ambito.leads, actividadesDelAmbito)
+  const resumen = resumenOp.resumen
+  const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
+  const cola = colaOp.cola
+  const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
+  const filas = vendedoresOp.metricas?.filas ?? null
 
-    // Totales sobre el ámbito completo con vendedor (incluye leads asignados al
-    // PROPIO supervisor) — misma base que Hoy·Supervisor; los parkeados no suman.
-    const abiertosAsignados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id != null)
-    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(abiertosAsignados)
-    return { filas, parkeados, cola, capitalPEN, capitalUSD, activos: abiertosAsignados.length }
-  }, [ambito, actividadesDelAmbito, tareas, ahora, estadoSla.indice])
+  // La BANDEJA es una lista operable: sigue en cliente hasta F2/F3, y su badge
+  // cuenta las filas que de verdad pinta (el chip agregado sale del RPC).
+  const parkeados = useMemo(
+    () => ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null),
+    [ambito.leads],
+  )
+
+  const errorIndicadores = !yo?.demo
+    && Boolean(resumenOp.error || colaOp.error || vendedoresOp.error)
+  const reintentarIndicadores = () => {
+    if (resumenOp.error) void resumenOp.recargar()
+    if (colaOp.error) void colaOp.recargar()
+    if (vendedoresOp.error) void vendedoresOp.recargar()
+  }
 
   const stats: StatChipData[] = [
     { icon: Users, label: 'Mis vendedores', value: String(ambito.vendedores.length), tone: 'accent' },
-    chipCapitalEnProceso(d.capitalPEN, d.capitalUSD),
-    { icon: Activity, label: 'Leads activos', value: String(d.activos), sub: `${d.cola.length} en cola de acción` },
-    chipPorRepartir(d.parkeados.length, 'Bandeja del equipo'),
+    resumen
+      ? chipCapitalEnProceso(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
+      : { icon: Wallet, label: 'Capital en proceso (PEN)', value: '—', tone: 'primary' },
+    {
+      icon: Activity,
+      label: 'Leads activos',
+      value: resumen ? String(resumen.totales.asignados) : '—',
+      ...(cola ? { sub: `${cola.total} en cola de acción` } : {}),
+    },
+    resumen
+      ? chipPorRepartir(resumen.totales.parkeados, 'Bandeja del equipo')
+      : { icon: Inbox, label: 'Por repartir', value: '—', sub: 'Bandeja del equipo' },
   ]
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
 
-      {Boolean(estadoSla.error) && !yo?.demo && (
+      {errorIndicadores && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
         >
-          <span>No se pudo cargar el reloj SLA. La cola omite esas alertas hasta recuperar la fotografía histórica.</span>
+          <span>No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.</span>
           <button
             type="button"
             className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={estadoSla.recargar}
+            onClick={reintentarIndicadores}
           >
             Reintentar
           </button>
@@ -402,14 +411,20 @@ function EquipoSupervisor(): JSX.Element {
           right={<span className="text-xs text-muted-foreground">Orden: capital en proceso (PEN)</span>}
         />
         <CardContent className="pt-0">
-          {d.filas.length === 0 ? (
+          {filas == null ? (
+            <p className="text-sm text-muted-foreground">
+              {vendedoresOp.error
+                ? 'El resumen por vendedor no está disponible en este momento.'
+                : 'Cargando el resumen por vendedor…'}
+            </p>
+          ) : filas.length === 0 ? (
             <p className="text-sm text-muted-foreground">No tienes vendedores a cargo todavía.</p>
           ) : (
             <ul
               aria-label="Vendedores de mi equipo"
               className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4"
             >
-              {d.filas.map((r, i) => (
+              {filas.map((r, i) => (
                 <li key={r.m.perfil_id}>
                   <VendedorCard r={r} delay={i * 60} />
                 </li>
@@ -426,14 +441,14 @@ function EquipoSupervisor(): JSX.Element {
             icon={Inbox}
             title="Por repartir"
             right={
-              d.parkeados.length > 0 ? (
+              parkeados.length > 0 ? (
                 <Badge color={SEMAFORO.atencion} variant="outline" dot>
-                  {d.parkeados.length} en bandeja
+                  {parkeados.length} en bandeja
                 </Badge>
               ) : undefined
             }
           />
-          <Bandeja parkeados={d.parkeados} vendedores={ambito.vendedores} ahora={ahora} />
+          <Bandeja parkeados={parkeados} vendedores={ambito.vendedores} ahora={ahora} />
         </Card>
         <Card>
           <SectionHead
@@ -441,7 +456,15 @@ function EquipoSupervisor(): JSX.Element {
             title="Cola del equipo"
             right={<span className="text-xs text-muted-foreground">Top 5 por urgencia</span>}
           />
-          <MiniCola items={d.cola} />
+          {cola == null ? (
+            <p className="px-5 pb-4 text-sm text-muted-foreground">
+              {colaOp.error
+                ? 'La cola del equipo no está disponible en este momento.'
+                : 'Cargando la cola del equipo…'}
+            </p>
+          ) : (
+            <MiniCola items={cola.items} total={cola.total} />
+          )}
         </Card>
       </div>
 
@@ -456,21 +479,22 @@ function EquipoSupervisor(): JSX.Element {
 
 function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   const { ambito, actividadesDelAmbito, equipo } = useCRMData()
+  const { yo } = useAuth()
   const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
   // Supervisores PRIMERO, detalle por vendedor bajo demanda (patrón aprobado
   // de EquiposBajoSupervision en Hoy·Distribución): qué equipo está abierto.
   const [supervisorSel, setSupervisorSel] = useState<string | null>(null)
 
-  // Un memo para TODO el tablero: el índice de última actividad se construye
-  // UNA vez y las métricas de cada bloque se precomputan aquí — antes
-  // metricasPorVendedor corría dentro del map del JSX, re-indexando el
-  // timeline completo POR SUPERVISOR en cada render (y useAhora tickea por
-  // minuto). `ahora` DEBE seguir en deps para que los "d sin act." refresquen.
-  const d = useMemo(() => {
-    const indice = indexarUltimaActividad(actividadesDelAmbito)
-    const filas = comparativaEquipos(equipo, ambito.leads, actividadesDelAmbito)
-    const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
+  // ── F1b: ranking y comparativa llegan de metricas_vendedores_fn (o del
+  // espejo demo vivo). Los chips del StatStrip se derivan del MISMO payload
+  // que la tabla (reduce O(supervisores)) para que cuadren SIEMPRE entre sí.
+  const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
+  const metricas = vendedoresOp.metricas
 
+  // Roster y bandeja global: puro cliente (la bandeja es una lista operable y
+  // sus contadores describen las filas que de verdad pinta).
+  const d = useMemo(() => {
+    const parkeados = ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null)
     // Vendedores activos por supervisor en UNA pasada sobre el roster —
     // lo comparten los bloques y los optgroups de la bandeja global.
     const vendedoresPorSupervisor = new Map<string, Miembro[]>()
@@ -480,62 +504,73 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       if (lista) lista.push(m)
       else vendedoresPorSupervisor.set(m.supervisor_id, [m])
     }
+    // Optgroups de la bandeja: del ROSTER, no de las métricas — repartir debe
+    // seguir funcionando aunque el RPC de métricas esté caído.
+    const grupos: GrupoVendedores[] = equipo
+      .filter((m) => m.rol_crm === 'supervisor' && m.activo)
+      .map((sup) => ({ sup, vs: vendedoresPorSupervisor.get(sup.perfil_id) ?? [] }))
+      .filter((g) => g.vs.length > 0)
+    return { parkeados, vendedoresPorSupervisor, grupos }
+  }, [ambito.leads, equipo])
 
+  // Tablero derivado del payload: bloques por supervisor con sus vendedores.
+  const tablero = useMemo(() => {
+    if (!metricas) return null
+    const filas = metricas.equipos
     const bloques = filas.map((f) => {
-      const metricas = metricasPorVendedor(
-        vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? [],
-        ambito.leads,
-        actividadesDelAmbito,
-        ahora,
-        indice,
+      const rosterSup = new Set(
+        (d.vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? []).map((m) => m.perfil_id),
       )
+      const delEquipo = metricas.filas.filter((r) => rosterSup.has(r.m.perfil_id))
       // Cartera primero (ya vienen por capital PEN desc): los vendedores en
       // cero absoluto van al final — la mirada cae en el capital en juego.
       // OJO: activos=0 con convertidos>0 NO es cero (convirtió toda su cartera).
-      const conCartera = metricas.filter((r) => r.activos > 0 || r.convertidos > 0)
-      const vendedores = [...conCartera, ...metricas.filter((r) => r.activos === 0 && r.convertidos === 0)]
+      const conCartera = delEquipo.filter((r) => r.activos > 0 || r.convertidos > 0)
+      const vendedores = [...conCartera, ...delEquipo.filter((r) => r.activos === 0 && r.convertidos === 0)]
       // Peor última actividad entre vendedores CON abiertos — alimenta el
       // semáforo de la fila comparativa; null = ningún vendedor con abiertos.
       let peorDias: number | null = null
-      for (const r of metricas) {
+      for (const r of delEquipo) {
         if (r.activos > 0 && (peorDias == null || r.diasSinActividadMax > peorDias)) peorDias = r.diasSinActividadMax
       }
-      return { f, vendedores, peorDias, todoEnCero: metricas.length > 0 && conCartera.length === 0 }
+      return { f, vendedores, peorDias, todoEnCero: delEquipo.length > 0 && conCartera.length === 0 }
     })
-    const grupos: GrupoVendedores[] = filas
-      .map((f) => ({ sup: f.supervisor, vs: vendedoresPorSupervisor.get(f.supervisor.perfil_id) ?? [] }))
-      .filter((g) => g.vs.length > 0)
-
     return {
       filas,
-      parkeados,
       bloques,
-      grupos,
       capPEN: filas.reduce((a, f) => a + f.capitalPEN, 0),
       capUSD: filas.reduce((a, f) => a + f.capitalUSD, 0),
       activos: filas.reduce((a, f) => a + f.activos, 0),
       convertidos: filas.reduce((a, f) => a + f.convertidos, 0),
     }
-  }, [ambito, actividadesDelAmbito, equipo, ahora])
+  }, [metricas, d.vendedoresPorSupervisor])
 
   const stats: StatChipData[] = [
     {
       icon: ShieldCheck,
       label: 'Equipos',
-      value: String(d.filas.length),
+      value: tablero ? String(tablero.filas.length) : '—',
       tone: 'accent',
       sub: `${ambito.vendedores.length} vendedores en total`,
     },
-    chipCapitalEnProceso(d.capPEN, d.capUSD),
-    { icon: Activity, label: 'Leads activos', value: String(d.activos), sub: `${d.convertidos} convertidos` },
+    tablero
+      ? chipCapitalEnProceso(tablero.capPEN, tablero.capUSD)
+      : { icon: Wallet, label: 'Capital en proceso (PEN)', value: '—', tone: 'primary' },
+    {
+      icon: Activity,
+      label: 'Leads activos',
+      value: tablero ? String(tablero.activos) : '—',
+      ...(tablero ? { sub: `${tablero.convertidos} convertidos · 45 d` } : {}),
+    },
     chipPorRepartir(d.parkeados.length, 'En bandejas de supervisores'),
   ]
 
   // Con un solo equipo el detalle se abre solo (no hay nada que comparar);
   // si el seleccionado dejó de existir (roster cambió), el find lo descarta.
+  const bloques = tablero?.bloques ?? []
   const bloqueSel =
-    d.bloques.find((b) => b.f.supervisor.perfil_id === supervisorSel) ??
-    (d.bloques.length === 1 ? d.bloques[0] : undefined)
+    bloques.find((b) => b.f.supervisor.perfil_id === supervisorSel) ??
+    (bloques.length === 1 ? bloques[0] : undefined)
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -545,6 +580,22 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         <p className="text-[11px] text-muted-foreground">
           Vista de auditoría del Directorio — solo lectura, sin acciones de gestión.
         </p>
+      )}
+
+      {Boolean(vendedoresOp.error) && !yo?.demo && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
+        >
+          <span>No se pudieron cargar las métricas por equipo. Se muestran «—» para no inventar cifras.</span>
+          <button
+            type="button"
+            className="font-semibold text-foreground underline-offset-2 hover:underline"
+            onClick={() => { void vendedoresOp.recargar() }}
+          >
+            Reintentar
+          </button>
+        </div>
       )}
 
       {/* Supervisores PRIMERO: una tabla comparativa (equipo vs equipo en una
@@ -569,14 +620,22 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               </Th>
             </TheadCrm>
             <tbody>
-              {d.bloques.length === 0 ? (
+              {tablero == null ? (
+                <tr>
+                  <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
+                    {vendedoresOp.error
+                      ? 'La comparativa no está disponible en este momento.'
+                      : 'Cargando la comparativa de equipos…'}
+                  </td>
+                </tr>
+              ) : bloques.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-3 py-6 text-center text-sm text-muted-foreground">
                     Aún no hay supervisores activos — enrola al equipo para ver la comparativa.
                   </td>
                 </tr>
               ) : (
-                d.bloques.map(({ f, peorDias }) => {
+                bloques.map(({ f, peorDias }) => {
                   const abierto = bloqueSel?.f.supervisor.perfil_id === f.supervisor.perfil_id
                   const sem = peorDias != null ? semaforoActividad(peorDias) : null
                   return (
@@ -664,7 +723,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               )}
             </tbody>
           </TablaEnvoltura>
-          {d.bloques.length > 1 && bloqueSel == null && (
+          {bloques.length > 1 && bloqueSel == null && (
             <p className="mt-3 text-xs text-muted-foreground">
               El detalle por vendedor se abre solo cuando hace falta — elige un equipo en la tabla.
             </p>
@@ -673,7 +732,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       </Card>
 
       {/* Detalle del equipo SELECCIONADO: cabecera comparativa + TABLA de sus vendedores */}
-      {d.bloques.filter((b) => b === bloqueSel).map(({ f, vendedores, todoEnCero }) => (
+      {bloques.filter((b) => b === bloqueSel).map(({ f, vendedores, todoEnCero }) => (
         <Card key={f.supervisor.perfil_id}>
           <SectionHead
             icon={ShieldCheck}

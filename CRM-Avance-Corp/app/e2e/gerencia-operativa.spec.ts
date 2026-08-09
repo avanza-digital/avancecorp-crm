@@ -52,3 +52,38 @@ test('RPC de resumen caída: el tablero degrada a «—» con aviso y sigue oper
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
   await expect(drawer).toBeVisible()
 })
+
+test('Equipo (gerencia real): comparativa y chips cargan desde metricas_vendedores_fn', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'gerencia',
+    rolPortal: 'directorio',
+    leads: [leadReal({ vendedor_id: 'vend-1', monto_estimado: 12000, moneda: 'PEN' })],
+  })
+  await loginReal(page)
+  await page.getByRole('button', { name: 'Equipo' }).click()
+
+  // El payload parsea y la pantalla pinta: chips con números (no «—») y la
+  // tabla en su estado honesto (el ROSTER del mock no tiene supervisores).
+  await expect(page.getByText('Comparativa de equipos')).toBeVisible()
+  await expect(page.getByText(/Aún no hay supervisores activos/)).toBeVisible()
+  const chipEquipos = page.locator('[data-slot="card"]').filter({ hasText: 'Equipos' }).first()
+  await expect(chipEquipos).toContainText('0')
+  await expect(chipEquipos).not.toContainText('—')
+})
+
+test('métricas de equipo caídas: Equipo degrada a «—» con aviso y reintento', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'gerencia',
+    rolPortal: 'directorio',
+    fallarMetricasEquipo: true,
+    leads: [leadReal({ vendedor_id: 'vend-1' })],
+  })
+  await loginReal(page)
+  await page.getByRole('button', { name: 'Equipo' }).click()
+
+  await expect(page.getByText(/No se pudieron cargar las métricas por equipo/)).toBeVisible()
+  await expect(page.getByText('La comparativa no está disponible en este momento.')).toBeVisible()
+  await expect(
+    page.locator('[data-slot="card"]').filter({ hasText: 'Equipos' }).first(),
+  ).toContainText('—')
+})

@@ -4,7 +4,7 @@
 // así la misma función sirve para vendedor/supervisor/gerencia/directorio.
 //
 // Los colores salen de lib/semaforo.ts (paleta única, sin verde en el chrome).
-import { ETAPAS, ETAPA_INFO, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, TIPOS_CONVERSACION_K, type Actividad, type EtapaActiva, type Lead, type Miembro } from './tipos'
+import { ETAPAS, ETAPA_INFO, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, TIPOS_CONVERSACION_K, type Actividad, type Etapa, type EtapaActiva, type Lead, type Miembro } from './tipos'
 import { SEMAFORO } from './semaforo'
 import { money, moneyK, type Moneda } from './format'
 import type { PlanPorLead } from './plan-lead'
@@ -156,6 +156,81 @@ export function haceTexto(dias: number): string {
   if (dias < 1) return 'hace horas'
   const d = Math.floor(dias)
   return d === 1 ? 'hace 1 día' : `hace ${d} días`
+}
+
+/**
+ * Ingredientes del motivo de un item de la cola — espejo 1:1 del `datos_motivo`
+ * de crm.cola_accion_fn (F1). Cada bucket usa su subconjunto; el resto llega
+ * vacío. En el cliente los produce `colaDe`; en sesión real los manda el RPC.
+ */
+export interface DatosMotivoCola {
+  /** sin_responder: espera del CLIENTE (desde creado_en), puede diferir de la del asesor. */
+  espera_cliente_dias?: number
+  gestion_vencida?: boolean
+  contacto_vencido?: boolean
+  /** sin_avance */
+  dias_en_etapa?: number
+  etapa_politica_version?: number | null
+  /** insistir */
+  ultimo_intento_dias?: number
+  hablo?: boolean
+  dos_relojes?: boolean
+  /** plan_vencido */
+  tarea_titulo?: string
+  tarea_vence_en?: string
+}
+
+/**
+ * Redacta el motivo de un item de la cola desde sus INGREDIENTES.
+ *
+ * FUENTE ÚNICA DE REDACCIÓN (F1b): la usan `colaDe` (cálculo en cliente: demo y
+ * la campana de alertas hasta F3) y el mapper de crm.cola_accion_fn (sesión
+ * real, que manda solo los ingredientes en `datos_motivo`). Si estos textos
+ * vivieran dos veces, la campana y la pantalla dirían cosas distintas del
+ * mismo lead — por construcción aquí no pueden divergir.
+ */
+export function redactarMotivoCola(
+  bucket: BucketCola,
+  dias: number,
+  etapa: Etapa,
+  datos: DatosMotivoCola,
+): string {
+  switch (bucket) {
+    case 'por_repartir':
+      return `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo`
+    case 'sin_responder': {
+      const esperaCliente = datos.espera_cliente_dias ?? dias
+      // El motivo lleva LOS DOS relojes cuando difieren de verdad (≥1 día): el
+      // del asesor —que es el que lo juzga— y el del cliente, que no puede
+      // desaparecer. Redacción neutra: también la leen supervisor y gerencia.
+      const contexto = esperaCliente - dias >= 1
+        ? `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
+        : `Entró ${haceTexto(dias)} y nadie lo ha contactado`
+      const vencimiento = datos.gestion_vencida
+        ? 'Venció la primera gestión'
+        : datos.contacto_vencido
+          ? 'Venció el primer contacto'
+          : null
+      return vencimiento ? `${vencimiento} · ${contexto}` : contexto
+    }
+    case 'sin_avance':
+      return `Lleva ${haceTexto(datos.dias_en_etapa ?? dias)} en ${ETAPA_INFO[etapa].label} · SLA v${datos.etapa_politica_version ?? '—'} vencido — o avanza o se cierra`
+    case 'insistir': {
+      const diasIntento = datos.ultimo_intento_dias ?? dias
+      // Dos motivos porque hay dos historias distintas, y ninguna puede mentir.
+      return datos.hablo
+        ? `Ya hablaron ${haceTexto(diasIntento)} pero sigue en Nuevo — muévelo de etapa`
+        : datos.dos_relojes
+          ? `En tus manos ${haceTexto(dias)} · último intento ${haceTexto(diasIntento)} — cambia de canal`
+          : `Intentado ${haceTexto(diasIntento)} y aún no responde — cambia de canal`
+    }
+    case 'propuesta_sin_respuesta':
+      return `Propuesta enviada sin movimiento ${haceTexto(dias)}`
+    case 'seguimiento':
+      return `Sin actividad ${haceTexto(dias)} — toca retomar el seguimiento`
+    case 'plan_vencido':
+      return `«${datos.tarea_titulo ?? ''}» venció ${haceTexto(dias)} y sigue abierta — ciérrala o reprográmala`
+  }
 }
 
 /** "hoy" / "N d" compacto para columnas de días (dias viene con fracción). */
@@ -360,24 +435,22 @@ export function colaDe(
       && contactoLimite != null
       && ahora >= Date.parse(contactoLimite)
     if (lead.vendedor_id == null) {
-      items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo` })
+      items.push({ lead, bucket: 'por_repartir', sev: 'critica', dias, motivo: redactarMotivoCola('por_repartir', dias, lead.etapa, {}) })
     } else if (lead.etapa === 'nuevo' && !ultima) {
-      // El motivo lleva LOS DOS relojes cuando difieren de verdad (≥1 día): el
-      // del asesor —que es el que lo juzga— y el del cliente, que no puede
-      // desaparecer. Alguien lleva días esperando aunque su asesor lo tenga
-      // hace minutos, y esa urgencia es real. Redacción neutra a propósito:
-      // esta cola también la leen supervisor y gerencia sobre leads ajenos.
-      const esperaCliente = diasDesdeReferencia(lead.creado_en, ahora)
-      const contexto = esperaCliente - dias >= 1
-        ? `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
-        : `Entró ${haceTexto(dias)} y nadie lo ha contactado`
-      const vencimiento = gestionVencida
-        ? 'Venció la primera gestión'
-        : contactoVencido
-          ? 'Venció el primer contacto'
-          : null
-      const motivo = vencimiento ? `${vencimiento} · ${contexto}` : contexto
-      items.push({ lead, bucket: 'sin_responder', sev: vencimiento ? 'critica' : 'media', dias, motivo })
+      // Los ingredientes van en el MISMO shape que datos_motivo del RPC; la
+      // redacción vive UNA vez en redactarMotivoCola (ver su comentario).
+      const datos: DatosMotivoCola = {
+        espera_cliente_dias: diasDesdeReferencia(lead.creado_en, ahora),
+        gestion_vencida: gestionVencida,
+        contacto_vencido: contactoVencido,
+      }
+      items.push({
+        lead,
+        bucket: 'sin_responder',
+        sev: gestionVencida || contactoVencido ? 'critica' : 'media',
+        dias,
+        motivo: redactarMotivoCola('sin_responder', dias, lead.etapa, datos),
+      })
     } else if (
       Number.isFinite(etapaInicio)
       && Number.isFinite(etapaLimite)
@@ -393,7 +466,10 @@ export function colaDe(
         bucket: 'sin_avance',
         sev: 'media',
         dias: diasEnEtapa,
-        motivo: `Lleva ${haceTexto(diasEnEtapa)} en ${ETAPA_INFO[lead.etapa].label} · SLA v${estadoSla?.etapa_politica_version ?? '—'} vencido — o avanza o se cierra`,
+        motivo: redactarMotivoCola('sin_avance', diasEnEtapa, lead.etapa, {
+          dias_en_etapa: diasEnEtapa,
+          etapa_politica_version: estadoSla?.etapa_politica_version ?? null,
+        }),
       })
     } else if (tienePlan) {
       continue // tiene próxima acción agendada: su cola es la agenda, no esta
@@ -411,32 +487,26 @@ export function colaDe(
       // Va DESPUÉS de `tienePlan` a propósito: quien ya tiene su WhatsApp
       // agendado para mañana vive en la agenda, no aquí (si no, doble aviso).
       // Y exige ≥1 día: reaparecer el mismo día se lee como ruido.
-      const hablo = TIPOS_CONVERSACION_K.has(ultima.tipo)
       // El intento se fecha con SU PROPIO reloj, no con el de la tenencia: un
       // lead reasignado hace 3 días cuyo único intento fue hace 9 decía
       // "Intentado hace 3 días", que es sencillamente falso. Cuando los dos
       // relojes difieren, se dicen los dos (mismo criterio que sin_responder).
       const diasIntento = diasDesdeReferencia(ultima.creado_en, ahora)
-      const dosRelojes = diasIntento - dias >= 1
       items.push({
         lead,
         bucket: 'insistir',
         sev: 'media',
         dias,
-        // Dos motivos porque hay dos historias distintas, y ninguna puede
-        // mentir. El segundo caso solo existe con datos anteriores al avance
-        // automático (o si el trigger no llegó a correr): el lead habló pero
-        // sigue en `nuevo`, y lo que toca no es insistir sino moverlo.
-        motivo: hablo
-          ? `Ya hablaron ${haceTexto(diasIntento)} pero sigue en Nuevo — muévelo de etapa`
-          : dosRelojes
-            ? `En tus manos ${haceTexto(dias)} · último intento ${haceTexto(diasIntento)} — cambia de canal`
-            : `Intentado ${haceTexto(diasIntento)} y aún no responde — cambia de canal`,
+        motivo: redactarMotivoCola('insistir', dias, lead.etapa, {
+          ultimo_intento_dias: diasIntento,
+          hablo: TIPOS_CONVERSACION_K.has(ultima.tipo),
+          dos_relojes: diasIntento - dias >= 1,
+        }),
       })
     } else if (lead.etapa === 'propuesta_enviada' && dias >= 5) {
-      items.push({ lead, bucket: 'propuesta_sin_respuesta', sev: 'media', dias, motivo: `Propuesta enviada sin movimiento ${haceTexto(dias)}` })
+      items.push({ lead, bucket: 'propuesta_sin_respuesta', sev: 'media', dias, motivo: redactarMotivoCola('propuesta_sin_respuesta', dias, lead.etapa, {}) })
     } else if ((lead.etapa === 'contactado' || lead.etapa === 'reunion_agendada') && dias >= 3) {
-      items.push({ lead, bucket: 'seguimiento', sev: 'baja', dias, motivo: `Sin actividad ${haceTexto(dias)} — toca retomar el seguimiento` })
+      items.push({ lead, bucket: 'seguimiento', sev: 'baja', dias, motivo: redactarMotivoCola('seguimiento', dias, lead.etapa, {}) })
     } else {
       // RESIDUO, y por eso va AL FINAL de la cadena. Al quitarle el escudo al
       // lead, lo normal es que vuelva por su propio pie al bucket que le toca
@@ -462,12 +532,18 @@ export function colaDe(
           bucket: 'plan_vencido',
           sev: 'baja',
           dias: diasMuerta,
-          motivo: `«${muerta.titulo}» venció ${haceTexto(diasMuerta)} y sigue abierta — ciérrala o reprográmala`,
+          motivo: redactarMotivoCola('plan_vencido', diasMuerta, lead.etapa, {
+            tarea_titulo: muerta.titulo,
+            tarea_vence_en: muerta.vence_en,
+          }),
         })
       }
     }
   }
-  return items.sort((a, b) => PESO_SEV[a.sev] - PESO_SEV[b.sev] || b.dias - a.dias)
+  // Desempate por id: espejo del ORDER BY del servidor (cola_accion_fn) —
+  // sin él, demo y real podrían listar distinto dos items empatados exactos.
+  return items.sort((a, b) =>
+    PESO_SEV[a.sev] - PESO_SEV[b.sev] || b.dias - a.dias || a.lead.id.localeCompare(b.lead.id))
 }
 
 /**
@@ -544,7 +620,8 @@ export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Activida
         diasSinActividadMax: diasMax,
       }
     })
-    .sort((a, b) => b.capitalPEN - a.capitalPEN)
+    // Desempate por perfil_id: espejo del ORDER BY de metricas_vendedores_fn.
+    .sort((a, b) => b.capitalPEN - a.capitalPEN || a.m.perfil_id.localeCompare(b.m.perfil_id))
 }
 
 // ── Embudo y conversión ───────────────────────────────────────────────────────
@@ -603,7 +680,8 @@ export function estancados(
     .filter((l) => esAbierto(l) && conTareaPendiente?.has(l.id) !== true)
     .map((lead) => ({ lead, dias: diasSinActividadIndexado(lead, indice, ahora) }))
     .filter((x) => x.dias >= dias)
-    .sort((a, b) => b.dias - a.dias)
+    // Desempate por id: espejo del bloque estancados de cola_accion_fn.
+    .sort((a, b) => b.dias - a.dias || a.lead.id.localeCompare(b.lead.id))
 }
 
 // ── Conversión global del ámbito ──────────────────────────────────────────────
@@ -656,5 +734,6 @@ export function comparativaEquipos(equipo: Miembro[], leads: Lead[], acts: Activ
         parkeados: vivos.filter((l) => esAbierto(l) && l.vendedor_id == null && l.asignado_supervisor_id === supervisor.perfil_id).length,
       }
     })
-    .sort((a, b) => b.capitalPEN - a.capitalPEN)
+    // Desempate por perfil_id del supervisor: espejo del ORDER BY del servidor.
+    .sort((a, b) => b.capitalPEN - a.capitalPEN || a.supervisor.perfil_id.localeCompare(b.supervisor.perfil_id))
 }

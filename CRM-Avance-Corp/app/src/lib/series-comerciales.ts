@@ -1,6 +1,13 @@
 // Series mensuales construidas únicamente con los leads que la RLS ya permitió
 // cargar. Un cliente requiere contrato_id: crear un perfil no acredita una
 // inversión. Capital solo suma PEN; PEN y USD nunca se mezclan.
+//
+// ⚠️ HUÉRFANO A PROPÓSITO desde F1b tanda 2: ningún consumidor de producción —
+// StoreDataApi.series se eliminó (nadie lo leía) y el cálculo vive en el
+// SERVIDOR (crm.series_comerciales_fn, SIN ventana de 45 d). Este módulo queda
+// como especificación semántica con sus tests; NO re-cablearlo como fuente en
+// sesión real — un futuro consumidor usa la RPC (y en demo, un fixture
+// RPC-shaped POR MONEDA).
 import { fechaLima } from './agenda-derivada'
 import type { Lead } from './tipos'
 

@@ -29,17 +29,13 @@ import { AgendaEquipoPanel } from './agenda-equipo'
 import {
   BUCKET_LABEL,
   DIA_MS,
-  capitalPorMoneda,
-  colaDe,
   colorMeta,
   diasSinActividad,
-  estancados,
   haceTexto,
   indexarUltimaActividad,
-  metricasPorVendedor,
   pctMeta,
 } from '@/lib/inteligencia'
-import { planPorLead } from '@/lib/plan-lead'
+import { TOPE_ESTANCADOS } from '@/lib/cola-accion'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
@@ -57,6 +53,9 @@ import { money, moneyK } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
+import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
+import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
+import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -88,41 +87,52 @@ export function HoySupervisor(): JSX.Element {
   } = useCRMData()
   const { abrirLead } = usePanelesActions()
   const { yo } = useAuth()
-  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades)
-  // Reloj vivo: tick por minuto y al volver a la pestaña — dependencia del memo
-  // para que cola/ranking/alertas SLA se refresquen solos al pasar el tiempo.
+  // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola — en sesión real
+  // esos vencimientos ya llegan resueltos dentro de cola_accion_fn, así que el
+  // RPC de estado SLA ni se pide (habilitado = demo).
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades, yo?.demo === true)
+  // Reloj vivo: tick por minuto y al volver a la pestaña — la bandeja y los
+  // "hace N" se refrescan solos al pasar el tiempo.
   const ahora = useAhora()
   // Vendedor elegido en el select de cada lead parkeado (leadId → perfil_id).
   const [sel, setSel] = useState<Record<string, string>>({})
   // Cola del equipo expandida más allá del tope de COLA_VISIBLES.
   const [colaExpandida, setColaExpandida] = useState(false)
 
+  // ── F1b: los agregados llegan del servidor (o del espejo demo vivo) ──
+  // resumen_cartera_fn → tiles de capital/activos/parkeados; cola_accion_fn →
+  // cola + estancados + tile "sin responder"; metricas_vendedores_fn → ranking.
+  const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
+  const resumen = resumenOp.resumen
+  const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice)
+  const cola = colaOp.cola
+  const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividades)
+  const rank = vendedoresOp.metricas?.filas ?? null
+
+  // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
+  // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
   const d = useMemo(() => {
-    const abiertos = ambito.leads.filter(
-      (l) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado',
+    const parkeados = ambito.leads.filter(
+      (l) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado' && l.vendedor_id == null,
     )
-    const parkeados = abiertos.filter((l) => l.vendedor_id == null)
-    const asignados = abiertos.filter((l) => l.vendedor_id != null)
-    // Capital en proceso del EQUIPO: solo abiertos CON vendedor. Los parkeados
-    // no suman (nadie los trabaja aún) y PEN/USD jamás se mezclan en un total.
-    const { pen: capitalPEN, usd: capitalUSD } = capitalPorMoneda(asignados)
-    // Índice de última actividad compartido: se calcula UNA vez y se reutiliza
-    // en cola/ranking/alertas (y en la bandeja) en lugar de reindexar por llamada.
     const indice = indexarUltimaActividad(actividades)
-    // Fase B: un lead con tarea pendiente tiene PLAN — sale de la cola por
-    // inactividad y de "estancados" (la señal de riesgo deja de pelearse con
-    // la reunión agendada del vendedor).
-    // `vigente` y no "tiene alguna tarea": una pendiente vencida hace semanas
-    // no es un plan, y escondía al lead justo cuando más abandonado estaba.
-    const plan = planPorLead(tareas, ahora)
-    // colaDe ya no recibe índice: construye el suyo de CONTACTO (ver
-    // indexarUltimoContacto — la `reasignacion` del sistema vaciaba la cola).
-    const cola = colaDe(ambito.leads, actividades, ahora, plan, estadoSla.indice)
-    const sinTocar = cola.filter((i) => i.bucket === 'sin_responder').length
-    const rank = metricasPorVendedor(ambito.vendedores, ambito.leads, actividades, ahora, indice)
-    const alertas = estancados(ambito.leads, actividades, 5, ahora, indice, plan.vigente)
-    return { abiertos, parkeados, asignados, capitalPEN, capitalUSD, indice, cola, sinTocar, rank, alertas }
-  }, [ambito, actividades, tareas, ahora, estadoSla.indice])
+    return { parkeados, indice }
+  }, [ambito, actividades])
+
+  // Nombres para los estancados del payload (el servidor no manda nombres de
+  // personas): join con el roster completo, una sola vez por render.
+  const nombrePorId = useMemo(
+    () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
+    [equipo],
+  )
+
+  const errorIndicadores = !yo?.demo
+    && Boolean(resumenOp.error || colaOp.error || vendedoresOp.error)
+  const reintentarIndicadores = () => {
+    if (resumenOp.error) void resumenOp.recargar()
+    if (colaOp.error) void colaOp.recargar()
+    if (vendedoresOp.error) void vendedoresOp.recargar()
+  }
 
   const meta = objetivos.supervisor
   const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
@@ -228,52 +238,66 @@ export function HoySupervisor(): JSX.Element {
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
-      {/* ── KPIs del equipo ── */}
+      {/* ── KPIs del equipo — servidos por RPC (o espejo demo); sin dato: «—» ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Pronóstico de capital abierto"
-          value={money(d.capitalPEN)}
+          value={resumen ? money(resumen.capital.asignado.pen) : '—'}
           icon={Wallet}
           color={SEMAFORO.ok}
-          sub={d.capitalUSD > 0 ? `Pipeline PEN · +${moneyK(d.capitalUSD, 'USD')} aparte` : 'Pipeline PEN · abiertos con vendedor'}
+          sub={resumen && resumen.capital.asignado.usd > 0 ? `Pipeline PEN · +${moneyK(resumen.capital.asignado.usd, 'USD')} aparte` : 'Pipeline PEN · abiertos con vendedor'}
           delay={0}
         />
         <KpiCard
           label="Leads activos del equipo"
-          value={String(d.asignados.length)}
+          value={resumen ? String(resumen.totales.asignados) : '—'}
           icon={Users}
           color={SEMAFORO.violeta}
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'vendedor' : 'vendedores'} a cargo`}
           delay={60}
         />
+        {/* Sin payload, los subs NO afirman estados positivos («todos
+            contactados», «bandeja vacía»): sin dato no hay afirmación. */}
         <KpiCard
           label="Nuevos sin responder"
-          value={String(d.sinTocar)}
+          value={cola ? String(cola.porBucket.sin_responder ?? 0) : '—'}
           icon={AlertTriangle}
-          color={d.sinTocar > 0 ? SEMAFORO.critico : SEMAFORO.ok}
-          sub={d.sinTocar > 0 ? 'Nuevos sin primer contacto — urge' : 'Todos los nuevos fueron contactados'}
+          color={(cola?.porBucket.sin_responder ?? 0) > 0 ? SEMAFORO.critico : SEMAFORO.ok}
+          sub={
+            cola == null
+              ? 'Sin dato por ahora'
+              : (cola.porBucket.sin_responder ?? 0) > 0
+                ? 'Nuevos sin primer contacto — urge'
+                : 'Todos los nuevos fueron contactados'
+          }
           delay={120}
         />
         <KpiCard
           label="Por repartir"
-          value={String(d.parkeados.length)}
+          value={resumen ? String(resumen.totales.parkeados) : '—'}
           icon={Inbox}
-          color={d.parkeados.length > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
-          sub={d.parkeados.length > 0 ? 'En tu bandeja sin vendedor' : 'Bandeja de reparto vacía'}
+          color={(resumen?.totales.parkeados ?? 0) > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
+          sub={
+            resumen == null
+              ? 'Sin dato por ahora'
+              : resumen.totales.parkeados > 0
+                ? 'En tu bandeja sin vendedor'
+                : 'Bandeja de reparto vacía'
+          }
           delay={180}
         />
       </div>
 
-      {Boolean(estadoSla.error) && !yo?.demo && (
+      {errorIndicadores && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
         >
-          <span>No se pudo cargar el reloj SLA. La cola omite escalaciones hasta recuperar la fotografía histórica.</span>
+          <span>No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.</span>
           <button
             type="button"
             className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={estadoSla.recargar}
+            onClick={reintentarIndicadores}
           >
             Reintentar
           </button>
@@ -351,16 +375,24 @@ export function HoySupervisor(): JSX.Element {
               icon={ListChecks}
               title="Cola del equipo"
               right={
-                d.cola.length > 0 ? (
-                  <Badge color={SEV_COLOR[d.cola[0]!.sev]} dot>
-                    {d.cola.length} {d.cola.length === 1 ? 'pendiente' : 'pendientes'}
+                cola && cola.total > 0 ? (
+                  <Badge color={SEV_COLOR[cola.items[0]?.sev ?? 'baja']} dot>
+                    {cola.total} {cola.total === 1 ? 'pendiente' : 'pendientes'}
                   </Badge>
                 ) : (
-                  <span className="text-xs text-muted-foreground">al día</span>
+                  <span className="text-xs text-muted-foreground">{cola ? 'al día' : '—'}</span>
                 )
               }
             />
-            {d.cola.length === 0 ? (
+            {cola == null ? (
+              <CardContent className="pb-5 pt-0">
+                <p className="text-sm text-muted-foreground">
+                  {colaOp.error
+                    ? 'La cola del equipo no está disponible en este momento.'
+                    : 'Cargando la cola del equipo…'}
+                </p>
+              </CardContent>
+            ) : cola.items.length === 0 ? (
               <CardContent className="pb-5 pt-0">
                 <p className="text-sm text-muted-foreground">
                   Sin pendientes — el equipo está al día con todos sus leads abiertos.
@@ -370,7 +402,7 @@ export function HoySupervisor(): JSX.Element {
               <div className="divide-y divide-border/60 border-t border-border/60">
                 {/* Fila = div role="button" (no <button>: contiene los links de
                     AccionesContacto y un botón no puede anidar interactivos). */}
-                {(colaExpandida ? d.cola : d.cola.slice(0, COLA_VISIBLES)).map((i) => {
+                {(colaExpandida ? cola.items : cola.items.slice(0, COLA_VISIBLES)).map((i) => {
                   const abrir = () => abrirLead(i.lead.id)
                   return (
                     <div
@@ -419,7 +451,7 @@ export function HoySupervisor(): JSX.Element {
                     </div>
                   )
                 })}
-                {d.cola.length > COLA_VISIBLES && (
+                {cola.items.length > COLA_VISIBLES && (
                   <button
                     type="button"
                     onClick={() => setColaExpandida((e) => !e)}
@@ -432,7 +464,11 @@ export function HoySupervisor(): JSX.Element {
                     />
                     {colaExpandida
                       ? `Mostrar solo los ${COLA_VISIBLES} más urgentes`
-                      : `Ver los ${d.cola.length} pendientes`}
+                      // Con más pendientes que el p_limite del RPC, el botón no
+                      // puede prometer el total del badge: dice lo que muestra.
+                      : cola.total > cola.items.length
+                        ? `Ver los ${cola.items.length} más urgentes de ${cola.total}`
+                        : `Ver los ${cola.items.length} pendientes`}
                   </button>
                 )}
               </div>
@@ -455,13 +491,21 @@ export function HoySupervisor(): JSX.Element {
           {/* ── Tu equipo hoy (semáforo por vendedor) ── */}
           <Card className="overflow-hidden">
             <SectionHead icon={UsersRound} title="Tu equipo hoy" />
-            {d.rank.length === 0 ? (
+            {rank == null ? (
+              <CardContent className="pb-5 pt-0">
+                <p className="text-sm text-muted-foreground">
+                  {vendedoresOp.error
+                    ? 'El resumen por vendedor no está disponible en este momento.'
+                    : 'Cargando el resumen por vendedor…'}
+                </p>
+              </CardContent>
+            ) : rank.length === 0 ? (
               <CardContent className="pb-5 pt-0">
                 <p className="text-sm text-muted-foreground">Sin vendedores a cargo.</p>
               </CardContent>
             ) : (
               <div className="divide-y divide-border/60 border-t border-border/60">
-                {d.rank.map((r) => {
+                {rank.map((r) => {
                   const c = semaforoDias(r.diasSinActividadMax)
                   // Rezago de agenda del miembro (mismos umbrales del panel
                   // Agenda del equipo: ámbar por rezago, rojo solo no-shows ≥2).
@@ -550,22 +594,31 @@ export function HoySupervisor(): JSX.Element {
             </CardContent>
           </Card>
 
-          {/* ── Alertas SLA (≥5 días sin actividad) ── */}
+          {/* ── Alertas SLA (≥5 días sin actividad) — bloque estancados del RPC.
+               El tope de 50 es señal, no listado: con 50 justos el badge dice 50+. ── */}
           <Card className="overflow-hidden">
             <SectionHead
               icon={AlarmClock}
               title="Leads sin movimiento"
               right={
-                d.alertas.length > 0 ? (
+                cola && cola.estancados.length > 0 ? (
                   <Badge color={SEMAFORO.critico} dot>
-                    {d.alertas.length}
+                    {cola.estancados.length >= TOPE_ESTANCADOS ? `${TOPE_ESTANCADOS}+` : cola.estancados.length}
                   </Badge>
                 ) : (
-                  <span className="text-xs text-muted-foreground">sin alertas</span>
+                  <span className="text-xs text-muted-foreground">{cola ? 'sin alertas' : '—'}</span>
                 )
               }
             />
-            {d.alertas.length === 0 ? (
+            {cola == null ? (
+              <CardContent className="pb-5 pt-0">
+                <p className="text-sm text-muted-foreground">
+                  {colaOp.error
+                    ? 'Las alertas de inactividad no están disponibles en este momento.'
+                    : 'Cargando las alertas de inactividad…'}
+                </p>
+              </CardContent>
+            ) : cola.estancados.length === 0 ? (
               <CardContent className="pb-5 pt-0">
                 <p className="text-sm text-muted-foreground">
                   Ningún lead del equipo lleva 5 días o más sin actividad.
@@ -573,19 +626,19 @@ export function HoySupervisor(): JSX.Element {
               </CardContent>
             ) : (
               <div className="divide-y divide-border/60 border-t border-border/60">
-                {d.alertas.map((a) => (
+                {cola.estancados.map((a) => (
                   <button
-                    key={a.lead.id}
+                    key={a.leadId}
                     type="button"
-                    onClick={() => abrirLead(a.lead.id)}
-                    aria-label={`Abrir ficha de ${a.lead.nombre_completo}`}
+                    onClick={() => abrirLead(a.leadId)}
+                    aria-label={`Abrir ficha de ${a.nombre}`}
                     className="flex w-full cursor-pointer items-center gap-2.5 px-5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
                   >
                     <div className="min-w-0 flex-1 leading-tight">
                       <p className="truncate text-sm font-semibold">
-                        {a.lead.nombre_completo}{' '}
+                        {a.nombre}{' '}
                         <span className="text-xs font-medium text-muted-foreground">
-                          ({a.lead.vendedor_nombre ?? 'sin asignar'})
+                          ({(a.vendedorId != null ? nombrePorId.get(a.vendedorId) : null) ?? 'sin asignar'})
                         </span>
                       </p>
                       <p

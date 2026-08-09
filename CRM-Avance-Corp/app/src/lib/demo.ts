@@ -8,9 +8,6 @@
 // produzcan señal en TODOS los roles. La cola y el ranking ya NO viven aquí:
 // se computan con colaDe() y metricasPorVendedor().
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
-// Solo tipos (se borran al compilar): no crea ciclo con el import dinámico
-// que hace el store de este módulo.
-import type { SeriesComerciales } from './store'
 import {
   agregarCumplimientos,
   agregarObjetivos,
@@ -153,13 +150,10 @@ export const TAREAS_DEMO: Tarea[] = [
   { id: 't-d5', lead_id: 'l4', vendedor_id: 'd-v3', tipo: 'tarea', titulo: 'Preparar propuesta — ANA TORRES QUISPE', vence_en: enHoras(26), estado: 'pendiente', reprogramaciones: 0, activo: true, creado_en: hace(1) },
 ]
 
-// Series de tendencia (últimas 7 semanas) para los sparklines de los KPIs.
-export const SPARKS_DEMO: SeriesComerciales = {
-  capital: [62, 71, 68, 84, 96, 112, 127],
-  leads: [3, 4, 4, 5, 6, 6, 7],
-  cierres: [0, 1, 1, 2, 1, 2, 3],
-  conversion: [12, 14, 13, 18, 19, 21, 23],
-}
+// SPARKS_DEMO (series de sparklines) se eliminó en F1b tanda 2 junto con
+// StoreDataApi.series: no tenía consumidores. Si una pantalla vuelve a
+// necesitar series en demo, el plan F1 manda un fixture RPC-shaped estático
+// POR MONEDA (espejo de series_comerciales_fn), no este formato.
 
 // Fixture explícito del modelo versionado: seis dimensiones por vendedor.
 // Los agregados de supervisor/empresa se derivan igual que en producción.

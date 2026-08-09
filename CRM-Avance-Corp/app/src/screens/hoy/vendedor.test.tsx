@@ -79,6 +79,38 @@ vi.mock('@/data/use-estado-sla-operativo', () => ({
   useEstadoSlaOperativo: () => ({ indice: new Map(), cargando: false, error: null, recargar: vi.fn() }),
 }))
 
+// F1b: los hooks operativos se sustituyen por los ESPEJOS puros sobre los
+// mismos datos del mock — la pantalla se prueba con números derivados de
+// verdad, sin red ni QueryClientProvider (el shape es el del RPC, validado en
+// los tests de lib/).
+vi.mock('@/data/use-resumen-cartera-operativo', async () => {
+  const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
+  return {
+    useResumenCarteraOperativo: (leads: Lead[], actividades: Actividad[]) => ({
+      resumen: resumenCarteraDesdeAmbito(leads, actividades ?? [], Date.now()),
+      cargando: false,
+      error: null,
+      recargar: vi.fn(),
+    }),
+  }
+})
+vi.mock('@/data/use-cola-accion-operativa', async () => {
+  const { colaAccionDesdeAmbito } = await import('@/lib/cola-accion')
+  return {
+    useColaAccionOperativa: (
+      leads: Lead[],
+      actividades: Actividad[],
+      tareas: never[],
+      indice?: ReadonlyMap<string, never>,
+    ) => ({
+      cola: colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
+      cargando: false,
+      error: null,
+      recargar: vi.fn(),
+    }),
+  }
+})
+
 const { HoyVendedor } = await import('./vendedor')
 
 function lead(over: Partial<Lead> = {}): Lead {

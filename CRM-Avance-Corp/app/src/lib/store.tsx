@@ -85,11 +85,6 @@ import {
   type ObjetivosPorRol,
   type ObjetivosPorVendedor,
 } from './objetivos'
-import {
-  SERIES_VACIAS,
-  seriesComerciales,
-  type SeriesComerciales,
-} from './series-comerciales'
 import { presentarDisponibilidadLead } from './disponibilidad-lead'
 
 /**
@@ -264,10 +259,6 @@ export type { EventoAgenda }
 // empresa se derivan siempre desde las filas individuales versionadas.
 export type { ObjetivoComercial, ObjetivosPorRol, ObjetivosPorVendedor }
 
-// Las series de tendencia viven en lib/series-comerciales (cálculo puro desde
-// los leads del ámbito); se re-exporta el tipo para los consumidores del store.
-export type { SeriesComerciales }
-
 export interface StoreDataApi {
   leads: Lead[] // todos, activos y terminales (legacy — preferir `ambito`)
   equipo: Miembro[]
@@ -292,7 +283,6 @@ export interface StoreDataApi {
   cumplimientoMetas: CumplimientoMetasJerarquico | null
   /** Falló el cálculo confirmado; nunca se reemplaza por pipeline abierto. */
   cumplimientoMetasError: boolean
-  series: SeriesComerciales
   // Crudas, para lib/inteligencia (colaDe, estancados…). OJO: es el timeline
   // GLOBAL sin recorte (la RLS actividades_select SÍ recorta a leads visibles):
   // toda lista visible al usuario debe cruzarse con ambito.leads, nunca
@@ -404,7 +394,6 @@ interface Auxiliares {
   objetivosError: boolean
   cumplimientoMetas: CumplimientoMetasJerarquico | null
   cumplimientoMetasError: boolean
-  series: SeriesComerciales
 }
 
 const AUXILIARES_VACIOS: Auxiliares = {
@@ -413,7 +402,6 @@ const AUXILIARES_VACIOS: Auxiliares = {
   objetivosError: false,
   cumplimientoMetas: null,
   cumplimientoMetasError: false,
-  series: SERIES_VACIAS,
 }
 
 function datosVacios(): Datos {
@@ -841,7 +829,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               objetivosError: false, // el demo no lee del servidor: nada que fallar
               cumplimientoMetas: demo.CUMPLIMIENTO_METAS_DEMO,
               cumplimientoMetasError: false,
-              series: demo.SPARKS_DEMO,
             })
             setDemoListo(true)
           })
@@ -910,7 +897,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             objetivosError,
             cumplimientoMetas,
             cumplimientoMetasError,
-            series: SERIES_VACIAS,
           })
           setRealListo(true)
         })
@@ -1139,9 +1125,6 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       objetivosError: auxiliares.objetivosError,
       cumplimientoMetas: auxiliares.cumplimientoMetas,
       cumplimientoMetasError: auxiliares.cumplimientoMetasError,
-      // Tendencias: en sesión real se CALCULAN de los leads del ámbito (mismo
-      // criterio de "ahora al recomputar" que la agenda); demo usa sus sparks.
-      series: realActivo ? seriesComerciales(ambito.leads, Date.now()) : auxiliares.series,
       actividades: datos.actividades,
       actividadesDelAmbito: datos.actividades.filter((a) => idsDelAmbito.has(a.lead_id)),
       lead: (id) => buscar(id),

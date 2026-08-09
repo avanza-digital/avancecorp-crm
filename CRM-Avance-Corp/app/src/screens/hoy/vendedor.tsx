@@ -39,7 +39,6 @@ import {
   BUCKET_LABEL,
   capitalPorMoneda,
   capitalPrincipal,
-  colaDe,
   colorMeta,
   diasDesdeReferencia,
   diasTxt,
@@ -47,6 +46,8 @@ import {
   pctMeta,
   type ItemCola,
 } from '@/lib/inteligencia'
+import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
+import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { planPorLead } from '@/lib/plan-lead'
 import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } from '@/lib/agenda-vistas'
 import {
@@ -498,7 +499,9 @@ export function HoyVendedor(): JSX.Element {
   } = useCRMData()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   const { yo } = useAuth()
-  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades)
+  // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola — en real esos
+  // vencimientos llegan resueltos dentro de cola_accion_fn (ni se pide el RPC).
+  const estadoSla = useEstadoSlaOperativo(ambito.leads, actividades, yo?.demo === true)
   // Motor (Fase B): tarea seleccionada para cerrar desde la agenda héroe.
   const [tareaACerrar, setTareaACerrar] = useState<Tarea | null>(null)
   // Reloj vivo: re-tick por minuto y al volver a la pestaña — entra como
@@ -510,18 +513,21 @@ export function HoyVendedor(): JSX.Element {
   // reventaría esos memos sin que haya cambiado un solo dato.
   const mios = useMemo(() => ambito.leads.filter((l) => l.activo), [ambito.leads])
   const idsMios = useMemo(() => new Set(mios.map((l) => l.id)), [mios])
-  const abiertos = mios.filter((l) => l.etapa !== 'convertido' && l.etapa !== 'descartado')
-  const convertidos = mios.filter((l) => l.etapa === 'convertido')
-  const propuestas = abiertos.filter((l) => l.etapa === 'propuesta_enviada')
 
-  // Capital en proceso — PEN y USD SIEMPRE por separado (jamás un total mixto).
-  const { pen: capPEN, usd: capUSD } = capitalPorMoneda(abiertos)
-  // …y la MONEDA QUE MANDA en el número grande sale del criterio compartido
-  // (lib/inteligencia). Esta pantalla fijaba PEN a mano: el asesor con cartera
-  // 100 % en dólares abría su día leyendo "S/ 0.00" mientras Cartera y Pipeline
-  // —que ya usan este criterio— le mostraban su capital real. Tres pantallas
-  // contradiciéndose sobre el mismo lead.
-  const capital = capitalPrincipal(capPEN, capUSD)
+  // ── F1b: los KPIs llegan del servidor (resumen_cartera_fn) o del espejo
+  // demo vivo — esta pantalla ya no cuenta filas para sus tiles. Sin payload
+  // (cargando o RPC caída): «—», jamás una cifra inventada. La MONEDA QUE
+  // MANDA en el número grande sigue saliendo de capitalPrincipal (criterio
+  // compartido con Cartera/Pipeline — jamás un total mixto PEN+USD).
+  const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
+  const resumen = resumenOp.resumen
+  const capital = resumen
+    ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
+    : null
+  const nAbiertos = resumen?.totales.abiertos
+  const nConvertidos = resumen?.totales.convertidos
+  const nPropuestas = resumen?.embudo.find((p) => p.etapa === 'propuesta_enviada')?.n ?? 0
+  const reunionesAgendadas = resumen?.embudo.find((p) => p.etapa === 'reunion_agendada')?.n ?? 0
 
   // La meta viene de la revisión publicada; el numerador viene únicamente del
   // RPC de cumplimiento confirmado. El pipeline abierto no entra aquí.
@@ -543,10 +549,18 @@ export function HoyVendedor(): JSX.Element {
   // vencidas por su cuenta y duplicaría el lead si recibiera `vigente`.
   const plan = useMemo(() => planPorLead(tareas, ahora), [tareas, ahora])
   const conTarea = plan.conTarea
-  const cola = useMemo(
-    () => colaDe(ambito.leads, actividades, ahora, plan, estadoSla.indice),
-    [ambito.leads, actividades, ahora, plan, estadoSla.indice],
-  )
+  // F1b: la cola la calcula el SERVIDOR (cola_accion_fn) — buckets, severidad,
+  // relojes SLA y plan vigente incluidos; en demo, el espejo vivo (colaDe).
+  // Todo el contrato anti-duplicado de abajo opera sobre los items mapeados.
+  const colaOp = useColaAccionOperativa(ambito.leads, actividades, tareas, estadoSla.indice)
+  const colaDisponible = colaOp.cola != null
+  const cola = useMemo(() => colaOp.cola?.items ?? [], [colaOp.cola])
+  // Excedente que el servidor conoce y el recorte de p_limite dejó fuera: el
+  // pie «+N más en cola» lo suma para no mentir por defecto. Aproximación
+  // asumida: el excedente no pasa por el anti-duplicado agenda↔cola (sus leads
+  // no viajaron), así que uno ya pintado en la franja ámbar contaría doble en
+  // el pie — solo posible con >100 items en cola PERSONAL, hoy irreal.
+  const restoServidor = Math.max(0, (colaOp.cola?.total ?? 0) - cola.length)
 
   // Agenda héroe — se deriva AQUÍ, con el reloj vivo, y NO se consume la del
   // store: allí sale de un `agendaDeTareas(tareas, Date.now())` encerrado en un
@@ -652,7 +666,6 @@ export function HoyVendedor(): JSX.Element {
   // Lookup de lead por id (capital en juego de cada cita) + señales reales para
   // el vacío honesto de la agenda (mientras no exista calendario real).
   const leadPorId = (id: string): Lead | undefined => mios.find((l) => l.id === id)
-  const reunionesAgendadas = abiertos.filter((l) => l.etapa === 'reunion_agendada').length
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
@@ -666,16 +679,19 @@ export function HoyVendedor(): JSX.Element {
         </p>
       </div>
 
-      {Boolean(estadoSla.error) && !yo?.demo && (
+      {Boolean(resumenOp.error || colaOp.error) && !yo?.demo && (
         <div
           role="alert"
           className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
         >
-          <span>No se pudo cargar el reloj SLA. La cola conserva tus pendientes, pero omite vencimientos no verificables.</span>
+          <span>No se pudieron cargar algunos indicadores. Se muestran «—» para no inventar cifras; tu agenda sigue completa.</span>
           <button
             type="button"
             className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={estadoSla.recargar}
+            onClick={() => {
+              if (resumenOp.error) void resumenOp.recargar()
+              if (colaOp.error) void colaOp.recargar()
+            }}
           >
             Reintentar
           </button>
@@ -701,15 +717,15 @@ export function HoyVendedor(): JSX.Element {
         <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
           <KpiCard
             label="Pronóstico de capital abierto"
-            value={capital.valor}
+            value={capital?.valor ?? '—'}
             icon={Wallet}
             color="#2563eb"
             sub={
-              capital.otra
+              capital?.otra
                 ? `Pipeline activo (PEN) · +${capital.otra} aparte`
-                : capital.soloDolares
+                : capital?.soloDolares
                   ? 'Pipeline activo (USD)'
-                  : capPEN === 0 && abiertos.length > 0
+                  : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
                     ? 'Sin montos estimados — complétalos en cada ficha'
                     : 'Pipeline activo (PEN)'
             }
@@ -717,7 +733,7 @@ export function HoyVendedor(): JSX.Element {
           />
           <KpiCard
             label="Leads activos"
-            value={String(abiertos.length)}
+            value={nAbiertos != null ? String(nAbiertos) : '—'}
             icon={Users}
             color="#7c3aed"
             sub="Abiertos en tu cartera"
@@ -725,27 +741,33 @@ export function HoyVendedor(): JSX.Element {
           />
           <KpiCard
             label="Propuestas enviadas"
-            value={String(propuestas.length)}
+            value={resumen ? String(nPropuestas) : '—'}
             icon={FileText}
             color="#d97706"
             sub={
-              propuestas.length > 0
-                ? 'Esperando respuesta del cliente'
-                : abiertos.length > 0
-                  ? 'Ninguna en la calle — revisa tus reuniones'
-                  : 'Sin leads abiertos por ahora'
+              resumen == null
+                ? 'Sin dato por ahora'
+                : nPropuestas > 0
+                  ? 'Esperando respuesta del cliente'
+                  : (nAbiertos ?? 0) > 0
+                    ? 'Ninguna en la calle — revisa tus reuniones'
+                    : 'Sin leads abiertos por ahora'
             }
             delay={120}
           />
           <KpiCard
             label="Convertidos"
-            value={String(convertidos.length)}
+            value={nConvertidos != null ? String(nConvertidos) : '—'}
             icon={Trophy}
             color="#111e3d"
             sub={
-              convertidos.length > 0
-                ? 'Histórico · clientes ganados'
-                : 'Aún sin cierres — tu primera venta sale de la cola'
+              resumen == null
+                ? 'Sin dato por ahora'
+                : (nConvertidos ?? 0) > 0
+                  // Rótulo honesto desde el corte de 45 d (decisión F0§5): el
+                  // convertido viejo ya no es lead — decía "Histórico" y mentía.
+                  ? 'Últimos 45 días · clientes ganados'
+                  : 'Aún sin cierres — tu primera venta sale de la cola'
             }
             delay={180}
           />
@@ -765,7 +787,7 @@ export function HoyVendedor(): JSX.Element {
           }}
           demo={yo?.demo ?? false}
           nReuniones={reunionesAgendadas}
-          nPropuestas={propuestas.length}
+          nPropuestas={nPropuestas}
           vencidasAbajo={vencidasAbajo}
           className="flex flex-col lg:col-span-3"
         />
@@ -790,7 +812,18 @@ export function HoyVendedor(): JSX.Element {
                 vencido, mueve a mar–jue las citas de quien no asistió y que ningún lead quede sin próxima acción.
               </p>
             )}
-            {nCola === 0 ? (
+            {!colaDisponible ? (
+              <div className="flex flex-col items-center gap-2 py-10 text-center">
+                <p className="text-sm font-bold">
+                  {colaOp.error ? 'Tu cola no está disponible' : 'Cargando tu cola…'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {colaOp.error
+                    ? 'No se pudo consultar la cola de acción. Tu agenda de al lado sigue completa.'
+                    : 'Un momento — estamos trayendo tus pendientes.'}
+                </p>
+              </div>
+            ) : nCola === 0 ? (
               nVencidasAgenda > 0 ? (
                 // Cola vacía NO es "al día": lo vencido está en la agenda de al
                 // lado (donde vive su botón de cerrar). Decir "sin pendientes"
@@ -843,9 +876,9 @@ export function HoyVendedor(): JSX.Element {
                 {colaPintada.map((item) => (
                   <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />
                 ))}
-                {colaVisible.length > COLA_VISIBLES && (
+                {Math.max(0, colaVisible.length - COLA_VISIBLES) + restoServidor > 0 && (
                   <p className="px-2 text-[11px] text-muted-foreground">
-                    +{colaVisible.length - COLA_VISIBLES} más en cola — trabájalos desde Cartera.
+                    +{Math.max(0, colaVisible.length - COLA_VISIBLES) + restoServidor} más en cola — trabájalos desde Cartera.
                   </p>
                 )}
                 {tareasHigiene.map((item) => (

@@ -34,11 +34,14 @@ export function useResumenCarteraOperativo(
   const resumen = useMemo(
     () => {
       if (!habilitado || !yo) return null
-      return yo.demo
-        ? resumenCarteraDesdeAmbito(leads, actividades, Date.now())
-        : consulta.data ?? null
+      if (yo.demo) return resumenCarteraDesdeAmbito(leads, actividades, Date.now())
+      // Fail-closed TAMBIÉN en refetch: TanStack conserva `data` cuando un
+      // refetch falla, y servir esa foto vieja mientras el banner promete
+      // «—» sería mentir dos veces (hallazgo ALTA de la revisión Codex).
+      if (consulta.error) return null
+      return consulta.data ?? null
     },
-    [actividades, consulta.data, habilitado, leads, yo],
+    [actividades, consulta.data, consulta.error, habilitado, leads, yo],
   )
 
   return {

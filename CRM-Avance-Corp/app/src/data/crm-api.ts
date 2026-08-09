@@ -92,6 +92,15 @@ import {
   VENTANA_CONVERTIDOS_DIAS,
   type ResumenCartera,
 } from '@/lib/resumen-cartera'
+import {
+  ColaAccionSchema,
+  LIMITE_COLA_ACCION,
+  type ColaAccion,
+} from '@/lib/cola-accion'
+import {
+  MetricasVendedoresSchema,
+  type MetricasVendedoresPayload,
+} from '@/lib/metricas-vendedores'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica } from '@/lib/disponibilidad-lead'
 
@@ -2466,6 +2475,66 @@ export async function listarResumenCartera(signal?: AbortSignal): Promise<Resume
       'RESUMEN_CARTERA_CONTRACT',
     )
     registrarError('crm.metricas.resumen_cartera_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Cola de acción servida (RPC crm.cola_accion_fn, F1b): la cascada de buckets,
+ * la severidad, los relojes SLA y el plan vigente/muerto los decide el
+ * SERVIDOR; aquí solo se valida el contrato fail-closed. El texto del motivo
+ * lo redacta el front desde `datos_motivo` (lib/cola-accion). `resumen.total`
+ * viene SIN el recorte de p_limite — es el dato del «+N más en cola».
+ */
+export async function listarColaAccion(
+  pLimite = LIMITE_COLA_ACCION,
+  signal?: AbortSignal,
+): Promise<ColaAccion> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('cola_accion_fn', { p_limite: pLimite })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.cola_accion_fallido')
+  const resultado = v.safeParse(ColaAccionSchema, data)
+  if (!resultado.success || resultado.output.p_limite !== pLimite) {
+    const fallo = new CrmApiError(
+      'La cola de acción no tiene el formato esperado.',
+      'COLA_ACCION_CONTRACT',
+    )
+    registrarError('crm.metricas.cola_accion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Métricas por vendedor + comparativa de equipos (RPC crm.metricas_vendedores_fn,
+ * F1b). El payload viaja SIN nombres (el front une con su roster) y con la
+ * ventana de convertidos de 45 días, que se CERTIFICA contra la del front —
+ * un ranking y unos tiles con cortes distintos en la misma pantalla serían
+ * números que se contradicen.
+ */
+export async function listarMetricasVendedores(
+  signal?: AbortSignal,
+): Promise<MetricasVendedoresPayload> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_vendedores_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.vendedores_fallido')
+  const resultado = v.safeParse(MetricasVendedoresSchema, data)
+  if (
+    !resultado.success
+    || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS
+  ) {
+    const fallo = new CrmApiError(
+      'Las métricas por vendedor no tienen el formato esperado.',
+      'METRICAS_VENDEDORES_CONTRACT',
+    )
+    registrarError('crm.metricas.vendedores_fuera_de_contrato', fallo)
     throw fallo
   }
   return resultado.output

@@ -13,7 +13,6 @@ import {
   type ObjetivoComercial,
   type ObjetivosPorRol,
 } from '@/lib/objetivos'
-import { SERIES_VACIAS } from '@/lib/series-comerciales'
 import type { Lead, Yo } from '@/lib/tipos'
 import type { SeccionGerencia } from './gerencia'
 
@@ -50,7 +49,6 @@ vi.mock('@/lib/store-context', () => ({
     cumplimientoMetas: CUMPLIMIENTO,
     cumplimientoMetasError: CUMPLIMIENTO_ERROR,
     recargar: RECARGAR,
-    series: SERIES_VACIAS,
   }),
 }))
 // Paneles que viven de RPCs (TanStack) o de Recharts: fuera, no son lo que se

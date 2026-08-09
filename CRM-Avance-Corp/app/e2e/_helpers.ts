@@ -705,6 +705,123 @@ export function resumenCarteraReal(leads: LeadReal[]): Record<string, unknown> {
   }
 }
 
+/**
+ * Payload de crm.metricas_vendedores_fn desde el estado vivo del mock: una
+ * fila por vendedor con leads (sin nombres — el front une con ROSTER), con la
+ * ventana de 45 días. `equipos` va vacío: el ROSTER del mock no tiene
+ * supervisores, y una comparativa sin miembro con quien unirse se descarta.
+ */
+export function metricasVendedoresReal(leads: LeadReal[]): Record<string, unknown> {
+  const corteMs = Date.now() - 45 * 86_400_000
+  const enVentana = leads.filter((l) => {
+    if (!l.activo) return false
+    if (l.etapa !== 'convertido') return true
+    const sello = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
+    return Number.isFinite(sello) && sello >= corteMs
+  })
+  const porVendedor = new Map<string, LeadReal[]>()
+  for (const l of enVentana) {
+    if (!l.vendedor_id) continue
+    const lista = porVendedor.get(l.vendedor_id)
+    if (lista) lista.push(l)
+    else porVendedor.set(l.vendedor_id, [l])
+  }
+  const vendedores = [...porVendedor.entries()]
+    .map(([id, suyos]) => {
+      const abiertos = suyos.filter((l) => l.etapa !== 'convertido' && l.etapa !== 'descartado')
+      const convertidos = suyos.filter((l) => l.etapa === 'convertido').length
+      return {
+        vendedor_id: id,
+        rol_crm: 'vendedor',
+        activo: true,
+        activos: abiertos.length,
+        capital_pen: abiertos.reduce((a, l) => (l.moneda !== 'USD' ? a + (l.monto_estimado ?? 0) : a), 0),
+        capital_usd: abiertos.reduce((a, l) => (l.moneda === 'USD' ? a + (l.monto_estimado ?? 0) : a), 0),
+        convertidos,
+        conversion_pct: suyos.length > 0 ? Math.round((100 * convertidos) / suyos.length) : 0,
+        sin_tocar: 0,
+        dias_sin_actividad_max: 0,
+      }
+    })
+    .sort((a, b) => b.capital_pen - a.capital_pen || a.vendedor_id.localeCompare(b.vendedor_id))
+  return {
+    version: 1,
+    generado_en: new Date().toISOString(),
+    ventana_convertidos_dias: 45,
+    vendedores,
+    equipos: [],
+  }
+}
+
+/**
+ * Payload de crm.cola_accion_fn desde el estado vivo del mock. Clasificación
+ * SIMPLIFICADA (nuevo→sin_responder; propuesta≥5d; resto≥3d→seguimiento) pero
+ * con el shape EXACTO del contrato — el front lo valida fail-closed.
+ */
+export function colaAccionReal(leads: LeadReal[], pLimite: number): Record<string, unknown> {
+  const abiertos = leads.filter(
+    (l) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado',
+  )
+  const items = abiertos.flatMap((l) => {
+    const dias = Math.max(0, (Date.now() - Date.parse(l.creado_en)) / 86_400_000)
+    let bucket: string | null = null
+    let sev = 'media'
+    let datos: Record<string, unknown> = {}
+    if (l.vendedor_id == null) {
+      bucket = 'por_repartir'
+      sev = 'critica'
+    } else if (l.etapa === 'nuevo') {
+      bucket = 'sin_responder'
+      datos = { espera_cliente_dias: Math.round(dias * 10000) / 10000, gestion_vencida: false, contacto_vencido: false }
+    } else if (l.etapa === 'propuesta_enviada' && dias >= 5) {
+      bucket = 'propuesta_sin_respuesta'
+    } else if (dias >= 3) {
+      bucket = 'seguimiento'
+      sev = 'baja'
+    }
+    if (!bucket) return []
+    return [{
+      lead_id: l.id,
+      bucket,
+      sev,
+      dias: Math.round(dias * 10000) / 10000,
+      ultimo_contacto_en: null,
+      datos_motivo: datos,
+      lead: {
+        nombre_completo: l.nombre_completo,
+        telefono: l.telefono,
+        correo: l.correo,
+        genero: null,
+        no_contactar: false,
+        etapa: l.etapa,
+        origen: l.origen,
+        categoria_interes: l.categoria_interes,
+        monto_estimado: l.monto_estimado ?? 0,
+        moneda: l.moneda,
+        creado_en: l.creado_en,
+        tenencia_desde: null,
+        vendedor_id: l.vendedor_id,
+        asignado_supervisor_id: l.asignado_supervisor_id,
+        motivo_descarte: null,
+      },
+    }]
+  })
+  const porBucket: Record<string, number> = {}
+  const porSev: Record<string, number> = {}
+  for (const i of items) {
+    porBucket[i.bucket] = (porBucket[i.bucket] ?? 0) + 1
+    porSev[i.sev] = (porSev[i.sev] ?? 0) + 1
+  }
+  return {
+    version: 1,
+    generado_en: new Date().toISOString(),
+    p_limite: pLimite,
+    resumen: { total: items.length, por_bucket: porBucket, por_sev: porSev },
+    items: items.slice(0, pLimite),
+    estancados: { umbral_dias: 5, tope: 50, items: [] },
+  }
+}
+
 function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
   const dias = Math.max(
     1,
@@ -949,6 +1066,10 @@ export interface BackendReal {
   leadsSiempreCaido: boolean
   /** La RPC resumen_cartera_fn responde 500 SIEMPRE (tiles F1 degradados a «—»). */
   fallarResumenCartera: boolean
+  /** La RPC cola_accion_fn responde 500 SIEMPRE (cola degradada). */
+  fallarColaAccion: boolean
+  /** La RPC metricas_vendedores_fn responde 500 SIEMPRE (ranking/comparativa degradados). */
+  fallarMetricasEquipo: boolean
   /** Clientes del portal (alimentan clientes_basicos + el detalle de perfiles). */
   clientes: PerfilReal[]
   /** Contratos del portal (con el embed cliente ya resuelto). */
@@ -1087,6 +1208,8 @@ export async function montarBackendReal(
     fallarProximoInsertActividad: init.fallarProximoInsertActividad ?? false,
     leadsSiempreCaido: init.leadsSiempreCaido ?? false,
     fallarResumenCartera: init.fallarResumenCartera ?? false,
+    fallarColaAccion: init.fallarColaAccion ?? false,
+    fallarMetricasEquipo: init.fallarMetricasEquipo ?? false,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
     productosSeleccionables: init.productosSeleccionables
@@ -1722,12 +1845,25 @@ export async function montarBackendReal(
       return json(route, { perfil_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ya_existia: false, email_enviado: true })
     }
 
-    // ── métricas del ámbito operativo (F1: tiles de Cartera/Pipeline) ──
+    // ── métricas del ámbito operativo (F1: tiles, cola y ranking) ──
     if (p === '/rest/v1/rpc/resumen_cartera_fn' && method === 'POST') {
       if (estado.fallarResumenCartera) {
         return json(route, { message: 'resumen caido', code: 'PGRST000', details: null, hint: null }, 500)
       }
       return json(route, resumenCarteraReal(estado.leads))
+    }
+    if (p === '/rest/v1/rpc/cola_accion_fn' && method === 'POST') {
+      if (estado.fallarColaAccion) {
+        return json(route, { message: 'cola caida', code: 'PGRST000', details: null, hint: null }, 500)
+      }
+      const body = (req.postDataJSON() ?? {}) as { p_limite?: number }
+      return json(route, colaAccionReal(estado.leads, Number(body.p_limite ?? 100)))
+    }
+    if (p === '/rest/v1/rpc/metricas_vendedores_fn' && method === 'POST') {
+      if (estado.fallarMetricasEquipo) {
+        return json(route, { message: 'metricas caidas', code: 'PGRST000', details: null, hint: null }, 500)
+      }
+      return json(route, metricasVendedoresReal(estado.leads))
     }
 
     // ── métricas de gerencia (gráficas del panel Hoy) ──

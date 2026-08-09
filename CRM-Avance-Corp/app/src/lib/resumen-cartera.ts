@@ -96,18 +96,25 @@ const esUsd = (l: Lead): boolean => l.moneda === 'USD'
  * donde el RPC no participa. Un convertido ilegible (fecha rota) queda fuera,
  * igual que `null >= corte` en SQL.
  */
+/**
+ * ¿El lead pertenece al ámbito OPERATIVO? Activo y, si es convertido, dentro
+ * de la ventana de 45 días (con la cadena de fallback de cierres-del-mes —
+ * ver el comentario de resumenCarteraDesdeAmbito). Compartida por TODOS los
+ * espejos demo de F1 para que apliquen el mismo corte que el servidor.
+ */
+export function enVentanaOperativa(l: Lead, ahoraMs: number): boolean {
+  if (!l.activo) return false
+  if (l.etapa !== 'convertido') return true
+  const selloMs = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
+  return Number.isFinite(selloMs) && selloMs >= ahoraMs - VENTANA_CONVERTIDOS_MS
+}
+
 export function resumenCarteraDesdeAmbito(
   leads: readonly Lead[],
   actividades: readonly Actividad[],
   ahoraMs: number,
 ): ResumenCartera {
-  const corteMs = ahoraMs - VENTANA_CONVERTIDOS_MS
-  const ambito = leads.filter((l) => {
-    if (!l.activo) return false
-    if (l.etapa !== 'convertido') return true
-    const selloMs = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
-    return Number.isFinite(selloMs) && selloMs >= corteMs
-  })
+  const ambito = leads.filter((l) => enVentanaOperativa(l, ahoraMs))
 
   const abiertos = ambito.filter((l) => !TERMINALES_K.has(l.etapa))
   const asignados = abiertos.filter((l) => l.vendedor_id != null)
