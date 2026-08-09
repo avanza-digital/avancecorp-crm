@@ -23,4 +23,6 @@ test('Superadmin con membresía Coordinador aterriza solo en Usuarios y no preca
   await expect(page).toHaveURL(/#\/config-usuarios$/)
   expect(estado.llamadas.getLeads).toBe(0)
   expect(estado.llamadas.rpcMetricasDistribucion).toBe(0)
+  // Expulsado de #/repartir: tampoco pide el agregado de la cola (F1b tanda 3).
+  expect(estado.llamadas.rpcResumenReparto).toBe(0)
 })

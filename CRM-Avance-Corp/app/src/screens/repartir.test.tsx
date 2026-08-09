@@ -28,6 +28,25 @@ vi.mock('@/data/crm-api', async (importActual) => {
   }
 })
 
+// F1b tanda 3: los tiles ya NO los cuenta la pantalla, se los sirve el RPC. Se
+// mockea el hook de fuente con el ESPEJO PURO sobre la misma cola del test —
+// números derivados de verdad, sin red ni QueryClientProvider — y con un
+// conmutador para el caso «RPC caído».
+let RESUMEN_CAIDO = false
+const recargarResumenMock = vi.fn(async () => {})
+
+vi.mock('@/data/use-resumen-reparto-operativo', async () => {
+  const { resumenRepartoDesdeCola } = await import('@/lib/resumen-reparto')
+  return {
+    useResumenRepartoOperativo: () => ({
+      resumen: RESUMEN_CAIDO ? null : resumenRepartoDesdeCola(COLA, Date.now()),
+      cargando: false,
+      error: RESUMEN_CAIDO ? new Error('resumen caído') : null,
+      recargar: recargarResumenMock,
+    }),
+  }
+})
+
 const { Repartir } = await import('./repartir')
 const { CrmApiError } = await import('@/data/crm-api')
 
@@ -53,6 +72,8 @@ const SUP: SupervisorReparto[] = [
 beforeEach(() => {
   COLA = []
   SUPERVISORES = SUP
+  RESUMEN_CAIDO = false
+  recargarResumenMock.mockClear()
   repartirMock.mockReset().mockResolvedValue(undefined)
   colaMock.mockClear()
   supervisoresMock.mockClear()
@@ -61,6 +82,26 @@ beforeEach(() => {
 })
 
 afterEach(() => vi.clearAllMocks())
+
+/** El mini-KPI (Card `.ac-lift` del StatStrip) que lleva esa etiqueta. */
+function tile(etiqueta: string): HTMLElement {
+  const card = screen.getByText(etiqueta).closest('.ac-lift')
+  if (!(card instanceof HTMLElement)) throw new Error(`Sin tile para «${etiqueta}»`)
+  return card
+}
+
+/**
+ * Espera el valor YA ASENTADO de un tile. Los KPIs pasan por `AnimatedValue`,
+ * que cuenta de 0 al objetivo durante 700 ms con requestAnimationFrame: el
+ * timeout por defecto de findBy* (1 s) se queda corto bajo cobertura y el test
+ * ve una cifra intermedia. Aquí solo importa el número final.
+ */
+async function valorDelTile(etiqueta: string, esperado: string): Promise<void> {
+  await waitFor(
+    () => expect(tile(etiqueta)).toHaveTextContent(esperado),
+    { timeout: 4000 },
+  )
+}
 
 describe('pantalla Repartir leads', () => {
   it('pinta un vacío honesto cuando no hay nada por repartir', async () => {
@@ -76,12 +117,55 @@ describe('pantalla Repartir leads', () => {
     render(<Repartir />)
 
     await screen.findByText('ROSA QUISPE')
-    expect(screen.getByText('Capital en juego (PEN)')).toBeInTheDocument()
-    expect(screen.getByText('Capital en juego (USD)')).toBeInTheDocument()
-    expect(screen.getByText('S/ 12k')).toBeInTheDocument()
-    expect(screen.getByText('US$ 30k')).toBeInTheDocument()
+    // Cada cifra acotada a SU tile: "S/ 12k" también aparece —con razón— en la
+    // fila del lead, y un selector global sería ambiguo, no una falla de UI.
+    await valorDelTile('Capital en juego (PEN)', 'S/ 12k')
+    await valorDelTile('Capital en juego (USD)', 'US$ 30k')
     // El total mezclado (42k) no debe existir en ninguna moneda.
     expect(screen.queryByText(/42k/)).not.toBeInTheDocument()
+  })
+
+  it('los tiles los sirve el resumen del servidor, no el conteo de filas', async () => {
+    COLA = [
+      lead({ id: 'l-1', monto_estimado: 12000, moneda: 'PEN' }),
+      lead({ id: 'l-2', monto_estimado: 30000, moneda: 'USD', nombre_completo: 'JUAN PEREZ' }),
+    ]
+    render(<Repartir />)
+
+    await screen.findByText('ROSA QUISPE')
+    await valorDelTile('Por repartir', '2')
+  })
+
+  it('sin cola, la espera más larga se muestra como «—» (no como "hoy")', async () => {
+    render(<Repartir />)
+
+    await screen.findByText('No hay leads por repartir')
+    expect(within(tile('Espera más larga')).getByText('—')).toBeInTheDocument()
+  })
+
+  it('si el resumen del servidor cae: tiles a «—» con aviso, y la cola sigue repartible', async () => {
+    RESUMEN_CAIDO = true
+    COLA = [lead({ monto_estimado: 12000, moneda: 'PEN' })]
+    render(<Repartir />)
+
+    // La lista tiene su propia fuente: no se cae con el resumen.
+    await screen.findByText('ROSA QUISPE')
+    expect(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' })).toBeInTheDocument()
+
+    // Y ningún tile inventa una cifra: cuatro guiones, ni un "0" ni un "S/ 0".
+    for (const etiqueta of ['Por repartir', 'Capital en juego (PEN)', 'Capital en juego (USD)', 'Espera más larga']) {
+      expect(within(tile(etiqueta)).getByText('—')).toBeInTheDocument()
+    }
+    expect(within(tile('Capital en juego (PEN)')).queryByText('S/ 0')).not.toBeInTheDocument()
+
+    const aviso = screen.getByRole('alert')
+    expect(aviso).toHaveTextContent(/No se pudieron cargar los indicadores de la cola/)
+    // Nombre accesible distinguible del OTRO «Reintentar» (el del PanelError).
+    const reintentar = within(aviso).getByRole('button', {
+      name: 'Reintentar la carga de los indicadores de la cola',
+    })
+    await userEvent.setup().click(reintentar)
+    expect(recargarResumenMock).toHaveBeenCalledTimes(1)
   })
 
   it('reparte a un supervisor, saca la fila de la cola y sube su bandeja', async () => {

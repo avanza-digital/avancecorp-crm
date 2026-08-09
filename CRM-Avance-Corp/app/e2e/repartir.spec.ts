@@ -170,6 +170,58 @@ test('cola vacía: estado honesto que explica de dónde vendrán los leads', asy
   await expect(page.getByRole('button', { name: /Repartir a / })).toHaveCount(0)
 })
 
+// ── F1b tanda 3: los indicadores los cuenta el SERVIDOR ─────────────────────
+
+test('los tiles de la cola los sirve resumen_reparto_fn, no el conteo del navegador', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page)
+
+  const total = page.locator('.ac-lift').filter({ hasText: 'Por repartir' })
+  await expect(total.getByText('2')).toBeVisible()
+  // Y consta que el número salió de una llamada al agregado, no de contar filas.
+  await expect.poll(() => backend.llamadas.rpcResumenReparto).toBeGreaterThan(0)
+})
+
+test('el StatStrip dice lo que dice el SERVIDOR, aunque no cuadre con las filas cargadas', async ({ page }) => {
+  // Divergencia deliberada: el agregado habla de la cola GLOBAL (57 leads) y la
+  // lista muestra 2. Es la única prueba fuerte del objetivo de la tanda — con un
+  // payload derivado de la cola, un verde no distingue "lo dijo el servidor" de
+  // "lo contó el navegador". En producción coinciden hasta que F2 pagine.
+  await entrarComoCoordinador(page, {
+    resumenRepartoOverride: {
+      version: 1,
+      generado_en: '2026-08-09T15:00:00+00:00',
+      cola: {
+        total: 57,
+        capital: { pen: 999000, usd: 0 },
+        espera_max_dias: 9,
+        posible_credito: 4,
+        por_origen: [{ origen: 'landing', n: 57 }],
+      },
+    },
+  })
+
+  await expect(page.locator('.ac-lift').filter({ hasText: 'Por repartir' }).getByText('57')).toBeVisible()
+  await expect(page.locator('.ac-lift').filter({ hasText: 'Capital en juego (PEN)' }).getByText('S/ 999k')).toBeVisible()
+  await expect(page.locator('.ac-lift').filter({ hasText: 'Espera más larga' }).getByText('hace 9 días')).toBeVisible()
+  // …mientras la lista sigue mostrando las 2 filas que sí tiene cargadas.
+  await expect(page.getByText('MARTHA VILCA')).toBeVisible()
+  await expect(page.getByText('JORGE CASTRO')).toBeVisible()
+})
+
+test('resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la cola sigue repartible', async ({ page }) => {
+  const backend = await entrarComoCoordinador(page, { fallarResumenReparto: true })
+
+  await expect(page.getByRole('alert')).toContainText(/No se pudieron cargar los indicadores de la cola/)
+  for (const etiqueta of ['Por repartir', 'Capital en juego (PEN)', 'Capital en juego (USD)', 'Espera más larga']) {
+    await expect(page.locator('.ac-lift').filter({ hasText: etiqueta }).getByText('—')).toBeVisible()
+  }
+  // Y —lo que importa— la operación no se bloquea: la lista tiene su propia fuente.
+  await page.getByLabel('Asignar MARTHA VILCA a un supervisor').selectOption('sup-1')
+  await page.getByRole('button', { name: 'Repartir a MARTHA VILCA', exact: true }).click()
+  await expect.poll(() => backend.llamadas.rpcRepartirLead).toBe(1)
+  await expect(page.getByText('MARTHA VILCA')).toHaveCount(0)
+})
+
 test('sin supervisores activos no se puede repartir y la pantalla lo dice', async ({ page }) => {
   await entrarComoCoordinador(page, { supervisoresReparto: [] })
 
@@ -209,6 +261,10 @@ test('descartar un lead marcado: motivo pre-propuesto, RPC exacta y fila fuera',
   // también contiene el nombre y un getByText lo confundiría con la fila).
   await expect(page.getByLabel(/PEDRO HUAMÁN/)).toHaveCount(0)
   await expect(page.getByLabel('Asignar MARTHA VILCA a un supervisor')).toBeVisible()
+  // …y el tile SERVIDO baja con ella: sin la invalidación del descarte, el
+  // agregado se quedaría en 3 durante los 30 s de staleTime mientras la lista
+  // muestra 2 — exactamente la divergencia que esta tanda vino a evitar.
+  await expect(page.locator('.ac-lift').filter({ hasText: 'Por repartir' }).getByText('2')).toBeVisible()
 })
 
 test('el descarte se puede deshacer desde el aviso y el lead vuelve a la cola', async ({ page }) => {
@@ -222,8 +278,10 @@ test('el descarte se puede deshacer desde el aviso y el lead vuelve a la cola', 
   await page.getByRole('button', { name: 'Deshacer' }).click()
 
   await expect.poll(() => backend.llamadas.rpcDeshacerDescarte).toBe(1)
-  // Tras deshacer se relee la cola: la fila está de vuelta con sus controles.
+  // Tras deshacer se relee la cola: la fila está de vuelta con sus controles…
   await expect(page.getByLabel('Asignar PEDRO HUAMÁN a un supervisor')).toBeVisible()
+  // …y el tile servido vuelve a 3 (cubre la invalidación del Deshacer del toast).
+  await expect(page.locator('.ac-lift').filter({ hasText: 'Por repartir' }).getByText('3')).toBeVisible()
 })
 
 test('un lead sin marca exige elegir motivo antes de poder descartar', async ({ page }) => {
@@ -250,12 +308,16 @@ test('si el descarte pierde la carrera, avisa y resincroniza la cola', async ({ 
   })
 
   const releidasAntes = backend.llamadas.rpcLeadsPorRepartir
+  const resumenAntes = backend.llamadas.rpcResumenReparto
   await page.getByRole('button', { name: 'Descartar a MARTHA VILCA de la cola' }).click()
   await page.getByLabel('Motivo para descartar a MARTHA VILCA').selectOption('sin_interes')
   await page.getByRole('button', { name: 'Descartar a MARTHA VILCA', exact: true }).click()
 
   await expect(page.getByText(/carrera de descarte/)).toBeVisible()
   await expect.poll(() => backend.llamadas.rpcLeadsPorRepartir).toBeGreaterThan(releidasAntes)
+  // La fila no se movió, pero la foto local quedó en duda: el agregado también
+  // se re-pide (rama FUERA_DE_COLA/REINTENTAR de la invalidación).
+  await expect.poll(() => backend.llamadas.rpcResumenReparto).toBeGreaterThan(resumenAntes)
 })
 
 test('Cancelar sale del modo descarte sin llamar al servidor', async ({ page }) => {
@@ -419,10 +481,17 @@ test('deshacer un descarte propio dentro de la ventana lo saca de la lista', asy
 
   await page.getByRole('button', { name: 'Deshacer el descarte de LUCÍA MENDOZA' }).click()
 
+  const resumenAntes = backend.llamadas.rpcResumenReparto
   await expect.poll(() => backend.llamadas.rpcDeshacerDescarte).toBe(1)
   await expect(page.locator('[data-descartado-id="dsc-mio"]')).toHaveCount(0)
   // El ajeno sigue: no tenía botón, tenía el aviso.
   await expect(page.locator('[data-descartado-id="dsc-ajeno"]')).toBeVisible()
+
+  // El lead reabierto vuelve a la cola, así que el agregado de la otra pestaña
+  // quedó rancio: al volver debe RE-PEDIRSE. Sin la invalidación de `onCambio`
+  // el remonte serviría la foto anterior durante los 30 s de staleTime.
+  await page.getByRole('tab', { name: 'Cola de nuevos' }).click()
+  await expect.poll(() => backend.llamadas.rpcResumenReparto).toBeGreaterThan(resumenAntes)
 })
 
 test('un descarte ajeno o fuera de ventana NO ofrece deshacer, explica por qué', async ({ page }) => {

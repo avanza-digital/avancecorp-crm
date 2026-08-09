@@ -7,6 +7,7 @@ import {
   listarMetricasAgenda,
   listarMetricasVendedores,
   listarResumenCartera,
+  listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasReuniones,
   listarMetricasAltasAnalista,
@@ -73,6 +74,10 @@ export const crmQueryKeys = {
   resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   metricasVendedores: () => [...crmQueryKeys.metricasAmbito(), 'metricas-vendedores'] as const,
+  // Cuelga del MISMO prefijo aunque su ámbito sea la cola GLOBAL (no el del
+  // usuario): es lo que la hace caducar con el logout (queryClient.clear) y lo
+  // que permite invalidarla por prefijo desde la pantalla de reparto.
+  resumenReparto: () => [...crmQueryKeys.metricasAmbito(), 'resumen-reparto'] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -215,6 +220,19 @@ export function useMetricasVendedores(habilitada: boolean) {
   return useQuery({
     queryKey: crmQueryKeys.metricasVendedores(),
     queryFn: ({ signal }) => listarMetricasVendedores(signal),
+    enabled: habilitada,
+    refetchInterval: 60_000,
+  })
+}
+
+// La «espera más larga» de la cola la calcula el servidor con su propio now():
+// depende del RELOJ, no solo de las mutaciones. Sin intervalo, un lead que cruza
+// su primer día no movería el tile mientras la pestaña siga abierta — misma
+// doctrina que cola_accion y metricas_vendedores.
+export function useResumenReparto(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.resumenReparto(),
+    queryFn: ({ signal }) => listarResumenReparto(signal),
     enabled: habilitada,
     refetchInterval: 60_000,
   })

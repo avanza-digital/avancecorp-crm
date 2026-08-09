@@ -54,6 +54,16 @@ describe('claves de la caché de cartera (contrato con las invalidaciones)', () 
     ])
   })
 
+  // Las métricas del ÁMBITO OPERATIVO (F1/F1b) cuelgan de su propio prefijo:
+  // el puente transitorio del store y la pantalla de reparto invalidan POR
+  // PREFIJO, así que la forma literal de la clave es contrato, no detalle.
+  it('las métricas del ámbito operativo cuelgan de metricas-ambito', () => {
+    expect(crmQueryKeys.metricasAmbito()).toEqual(['crm', 'metricas-ambito'])
+    expect(crmQueryKeys.resumenCartera()).toEqual(['crm', 'metricas-ambito', 'resumen-cartera'])
+    expect(crmQueryKeys.metricasVendedores()).toEqual(['crm', 'metricas-ambito', 'metricas-vendedores'])
+    expect(crmQueryKeys.resumenReparto()).toEqual(['crm', 'metricas-ambito', 'resumen-reparto'])
+  })
+
   it('useContrato NO inventa clave: registra bajo crmQueryKeys.contratos() (select por id)', () => {
     const { cliente, wrapper } = arnes()
     renderHook(() => useContrato('ct-1', false), { wrapper })

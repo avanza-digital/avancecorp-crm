@@ -17,9 +17,11 @@ import {
   descartarLead,
   deshacerDescarte,
   leadsPorRepartir,
+  listarResumenReparto,
   repartirLead,
   supervisoresParaReparto,
 } from './crm-api'
+import { resumenRepartoDesdeCola } from '@/lib/resumen-reparto'
 
 const RPC = (fn: string) => `http://supabase.test/rest/v1/rpc/${fn}`
 
@@ -282,5 +284,77 @@ describe('deshacerDescarte (msw)', () => {
       code: 'REGLA_SERVIDOR',
       message: 'Ya existe otro lead vivo con ese mismo teléfono o documento: no se puede reabrir',
     })
+  })
+})
+
+// ── F1b tanda 3: el resumen agregado de la cola (crm.resumen_reparto_fn) ──────
+describe('listarResumenReparto (msw)', () => {
+  // El espejo de lib/resumen-reparto produce el shape EXACTO del RPC: usarlo
+  // como generador evita que el fixture y el contrato se separen con el tiempo.
+  const payloadValido = () =>
+    resumenRepartoDesdeCola(
+      [
+        {
+          id: 'lead-1',
+          nombre_completo: 'ROSA QUISPE',
+          distrito: 'Miraflores',
+          origen: 'landing',
+          categoria_interes: 'nuevo',
+          monto_estimado: 30000,
+          moneda: 'USD',
+          creado_en: '2026-08-08T15:00:00Z',
+        },
+        {
+          id: 'lead-2',
+          nombre_completo: 'JUAN PEREZ',
+          distrito: null,
+          origen: 'referido',
+          categoria_interes: null,
+          monto_estimado: 120000,
+          moneda: 'PEN',
+          creado_en: '2026-08-07T15:00:00Z',
+        },
+      ],
+      Date.parse('2026-08-09T15:00:00Z'),
+    )
+
+  it('valida y devuelve el payload version:1 con el capital por moneda separado', async () => {
+    server.use(http.post(RPC('resumen_reparto_fn'), () => HttpResponse.json(payloadValido())))
+
+    const resumen = await listarResumenReparto()
+
+    expect(resumen.version).toBe(1)
+    expect(resumen.cola.total).toBe(2)
+    expect(resumen.cola.capital).toEqual({ pen: 120000, usd: 30000 })
+  })
+
+  it('fail-closed: si falta una clave del contrato, NO devuelve un agregado a medias', async () => {
+    const { cola: _omitida, ...roto } = payloadValido()
+    server.use(http.post(RPC('resumen_reparto_fn'), () => HttpResponse.json(roto)))
+
+    await expect(listarResumenReparto()).rejects.toMatchObject({ code: 'RESUMEN_REPARTO_CONTRACT' })
+  })
+
+  it('una versión de payload distinta se rechaza (el cinturón es version:1)', async () => {
+    server.use(
+      http.post(RPC('resumen_reparto_fn'), () => HttpResponse.json({ ...payloadValido(), version: 2 })),
+    )
+
+    await expect(listarResumenReparto()).rejects.toMatchObject({ code: 'RESUMEN_REPARTO_CONTRACT' })
+  })
+
+  it('el gate de rol del servidor (42501) sube con su código, no como "sin formato"', async () => {
+    server.use(
+      http.post(RPC('resumen_reparto_fn'), () =>
+        HttpResponse.json(
+          { code: '42501', message: 'Solo Coordinacion o Gerencia puede ver el resumen de reparto' },
+          { status: 403 },
+        ),
+      ),
+    )
+
+    const fallo = await listarResumenReparto().catch((e: unknown) => e)
+    expect(fallo).toBeInstanceOf(CrmApiError)
+    expect(fallo).toMatchObject({ code: '42501' })
   })
 })

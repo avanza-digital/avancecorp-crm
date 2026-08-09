@@ -101,6 +101,10 @@ import {
   MetricasVendedoresSchema,
   type MetricasVendedoresPayload,
 } from '@/lib/metricas-vendedores'
+import {
+  ResumenRepartoSchema,
+  type ResumenReparto,
+} from '@/lib/resumen-reparto'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica } from '@/lib/disponibilidad-lead'
 
@@ -2535,6 +2539,34 @@ export async function listarMetricasVendedores(
       'METRICAS_VENDEDORES_CONTRACT',
     )
     registrarError('crm.metricas.vendedores_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Resumen agregado de la cola GLOBAL de reparto (RPC crm.resumen_reparto_fn,
+ * F1b tanda 3): el total, el capital por moneda, la espera máxima y los
+ * marcados los cuenta el SERVIDOR con el MISMO predicado que
+ * `leads_por_repartir`. No hay ventana ni argumento que certificar contra el
+ * front (la función no recibe parámetros): el cinturón del contrato es el
+ * `version: 1` del schema. El gate de rol vive en el servidor — coordinador o
+ * gerencia; para el resto la RPC responde 42501 y la pantalla degrada.
+ */
+export async function listarResumenReparto(signal?: AbortSignal): Promise<ResumenReparto> {
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('resumen_reparto_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.reparto.resumen_fallido')
+  const resultado = v.safeParse(ResumenRepartoSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El resumen de la cola no tiene el formato esperado.',
+      'RESUMEN_REPARTO_CONTRACT',
+    )
+    registrarError('crm.reparto.resumen_fuera_de_contrato', fallo)
     throw fallo
   }
   return resultado.output

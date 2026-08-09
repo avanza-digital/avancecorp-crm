@@ -822,6 +822,46 @@ export function colaAccionReal(leads: LeadReal[], pLimite: number): Record<strin
   }
 }
 
+/**
+ * Payload de crm.resumen_reparto_fn desde el estado VIVO del mock. Se calcula
+ * sobre `estado.colaReparto` —no sobre `estado.leads`—: el coordinador nunca
+ * carga leads (su boot los omite), y `colaReparto` es exactamente lo que sirve
+ * /rpc/leads_por_repartir y lo que mutan repartir/descartar/deshacer, así que
+ * el agregado y la lista se mueven juntos como en producción.
+ */
+export function resumenRepartoReal(cola: Record<string, unknown>[]): Record<string, unknown> {
+  let pen = 0
+  let usd = 0
+  let posibleCredito = 0
+  let esperaMaxDias = 0
+  const porOrigen = new Map<string, number>()
+  for (const fila of cola) {
+    const monto = Number(fila.monto_estimado ?? 0)
+    if (fila.moneda === 'USD') usd += monto
+    else pen += monto
+    if (fila.clasificacion_auto === 'posible_credito') posibleCredito += 1
+    const desde = Date.parse(String(fila.creado_en))
+    if (Number.isFinite(desde)) {
+      esperaMaxDias = Math.max(esperaMaxDias, Math.max(0, Math.floor((Date.now() - desde) / 86_400_000)))
+    }
+    const origen = String(fila.origen)
+    porOrigen.set(origen, (porOrigen.get(origen) ?? 0) + 1)
+  }
+  return {
+    version: 1,
+    generado_en: new Date().toISOString(),
+    cola: {
+      total: cola.length,
+      capital: { pen, usd },
+      espera_max_dias: esperaMaxDias,
+      posible_credito: posibleCredito,
+      por_origen: [...porOrigen.entries()]
+        .map(([origen, n]) => ({ origen, n }))
+        .sort((a, b) => b.n - a.n || a.origen.localeCompare(b.origen)),
+    },
+  }
+}
+
 function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
   const dias = Math.max(
     1,
@@ -1070,6 +1110,12 @@ export interface BackendReal {
   fallarColaAccion: boolean
   /** La RPC metricas_vendedores_fn responde 500 SIEMPRE (ranking/comparativa degradados). */
   fallarMetricasEquipo: boolean
+  /** La RPC resumen_reparto_fn responde 500 SIEMPRE (tiles de Repartir a «—»). */
+  fallarResumenReparto: boolean
+  /** Si se setea, resumen_reparto_fn devuelve ESTE payload en vez de derivarlo de
+   *  `colaReparto`: sirve para DIVERGIR agregado y filas y probar que el
+   *  navegador ya no cuenta (tile en 57 con 2 filas en la lista). */
+  resumenRepartoOverride: Record<string, unknown> | null
   /** Clientes del portal (alimentan clientes_basicos + el detalle de perfiles). */
   clientes: PerfilReal[]
   /** Contratos del portal (con el embed cliente ya resuelto). */
@@ -1153,6 +1199,8 @@ export interface BackendReal {
     rpcDescartarLead: number
     /** C1-bis — cuántas veces se llamó a crm.deshacer_descarte. */
     rpcDeshacerDescarte: number
+    /** F1b tanda 3 — cuántas veces se pidió el resumen agregado de la cola. */
+    rpcResumenReparto: number
   }
   /** C1 — último par (lead, supervisor) enviado a crm.repartir_lead. */
   ultimoReparto: { lead: string; supervisor: string } | null
@@ -1210,6 +1258,8 @@ export async function montarBackendReal(
     fallarResumenCartera: init.fallarResumenCartera ?? false,
     fallarColaAccion: init.fallarColaAccion ?? false,
     fallarMetricasEquipo: init.fallarMetricasEquipo ?? false,
+    fallarResumenReparto: init.fallarResumenReparto ?? false,
+    resumenRepartoOverride: init.resumenRepartoOverride ?? null,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
     productosSeleccionables: init.productosSeleccionables
@@ -1269,6 +1319,7 @@ export async function montarBackendReal(
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
       rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
       rpcDescartarLead: 0, rpcDeshacerDescarte: 0,
+      rpcResumenReparto: 0,
     },
     ultimaActualizacionCapacidad: init.ultimaActualizacionCapacidad ?? null,
     ultimoReparto: init.ultimoReparto ?? null,
@@ -1864,6 +1915,13 @@ export async function montarBackendReal(
         return json(route, { message: 'metricas caidas', code: 'PGRST000', details: null, hint: null }, 500)
       }
       return json(route, metricasVendedoresReal(estado.leads))
+    }
+    if (p === '/rest/v1/rpc/resumen_reparto_fn' && method === 'POST') {
+      estado.llamadas.rpcResumenReparto += 1
+      if (estado.fallarResumenReparto) {
+        return json(route, { message: 'resumen de reparto caido', code: 'PGRST000', details: null, hint: null }, 500)
+      }
+      return json(route, estado.resumenRepartoOverride ?? resumenRepartoReal(estado.colaReparto))
     }
 
     // ── métricas de gerencia (gráficas del panel Hoy) ──

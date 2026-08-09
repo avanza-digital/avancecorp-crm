@@ -44,16 +44,34 @@ import {
   origenesDeCola,
   type FiltrosCola,
 } from '@/lib/cola-reparto'
+import { useResumenRepartoOperativo } from '@/data/use-resumen-reparto-operativo'
+import { crmQueryKeys } from '@/data/crm-queries'
+import { queryClient } from '@/lib/query-client'
+import { useAhora } from '@/lib/ahora'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
-import { StatStrip } from '@/components/common/stat-strip'
+import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 
 /** Cuántas filas se muestran por página local ("Mostrar 20 más"). */
 const PAGINA = 20
+
+/**
+ * Los tiles los sirve el servidor (F1b tanda 3), así que tras cada mutación de
+ * la cola hay que pedirle la foto nueva. Esta pantalla NO pasa por el store: el
+ * puente transitorio de `resincronizarReal` nunca corre para el coordinador
+ * (es off-roster y sus mutaciones van directas a la RPC), de modo que la
+ * invalidación se hace a mano. Se invalida —y no solo se refetchea— porque el
+ * remonte de la pestaña Cola por `colaKey` volvería a servir la foto anterior
+ * mientras siga fresca (staleTime 30 s). El singleton de query-client, no
+ * useQueryClient: la pantalla se monta en tests sin provider.
+ */
+function refrescarResumenReparto(): void {
+  void queryClient.invalidateQueries({ queryKey: crmQueryKeys.resumenReparto() })
+}
 
 /** Etiqueta humana de cada motivo de descarte (fuente única MOTIVOS_DESCARTE). */
 const MOTIVO_LABEL: Record<string, string> =
@@ -144,6 +162,8 @@ function useReparto() {
           s.perfil_id === destino ? { ...s, bandeja_pendiente: s.bandeja_pendiente + 1 } : s,
         ),
       }))
+      // La lista se corrige sola (arriba), pero los tiles vienen del servidor.
+      refrescarResumenReparto()
       const nombre = estado.supervisores.find((s) => s.perfil_id === destino)?.nombre ?? 'la bandeja'
       toast.success(`${lead.nombre_completo} pasó a ${nombre}`)
     } catch (error) {
@@ -154,6 +174,7 @@ function useReparto() {
       if (error instanceof CrmApiError
         && ['FUERA_DE_COLA', 'NO_INSISTA', 'REINTENTAR'].includes(error.code)) {
         void cargar()
+        refrescarResumenReparto()
       }
     } finally {
       setEnviandoId(null)
@@ -169,6 +190,7 @@ function useReparto() {
     try {
       await descartarLead(lead.id, motivo)
       setEstado((e) => ({ ...e, cola: e.cola.filter((l) => l.id !== lead.id) }))
+      refrescarResumenReparto()
       const label = MOTIVOS_DESCARTE.find((m) => m.k === motivo)?.label ?? motivo
       toast.success(`${lead.nombre_completo} descartado · ${label}`, {
         duration: 15000,
@@ -184,6 +206,7 @@ function useReparto() {
               } finally {
                 // Con o sin éxito, la verdad la tiene el servidor.
                 void cargar()
+                refrescarResumenReparto()
               }
             })()
           },
@@ -196,6 +219,7 @@ function useReparto() {
       if (error instanceof CrmApiError
         && ['FUERA_DE_COLA', 'REINTENTAR'].includes(error.code)) {
         void cargar()
+        refrescarResumenReparto()
       }
       return false
     } finally {
@@ -209,6 +233,15 @@ function useReparto() {
 /** Pestaña "Cola": repartir o descartar los leads nuevos sin dueño. */
 function PanelCola() {
   const { cola, supervisores, cargando, error, enviandoId, recargar, repartir, descartar } = useReparto()
+  // Los TILES los cuenta el servidor sobre la cola GLOBAL (F1b tanda 3); las
+  // FILAS cargadas siguen gobernando lo que es de la lista: el panel vacío, el
+  // «N en espera», el «X de Y», el «Mostrando…», el selector de orígenes y el
+  // chip «Posible crédito (N)» —que rotula un filtro LOCAL: un control debe
+  // contar exactamente lo que va a filtrar—. Hoy ambos universos coinciden
+  // (mismo predicado, la RPC de la cola no tiene tope); cuando F2 la pagine
+  // divergirán, y cada cifra ya sabe de quién depende.
+  const resumenOp = useResumenRepartoOperativo()
+  const resumen = resumenOp.resumen
   const [destino, setDestino] = useState<Record<string, string>>({})
   // C1-bis: filas en "modo descarte" y el motivo elegido en cada una.
   const [descartando, setDescartando] = useState<Record<string, boolean>>({})
@@ -224,29 +257,18 @@ function PanelCola() {
   const refMotivo = useRef(new Map<string, HTMLSelectElement>())
   const refDescartarGhost = useRef(new Map<string, HTMLButtonElement>())
   const refCola = useRef<HTMLDivElement>(null)
-  const ahora = Date.now()
+  // Destino del foco cuando el aviso de degradación se desmonta al reintentar.
+  const refPanel = useRef<HTMLDivElement>(null)
+  // Reloj VIVO: el tile de espera lo recalcula el servidor cada minuto (el hook
+  // reconsulta), así que las filas tienen que envejecer al mismo ritmo o el
+  // tile diría «hace 2 días» mientras la fila sigue clavada en «hace 1 día».
+  const ahora = useAhora()
 
   /** Cambia un filtro y vuelve a la primera página (evita "Mostrando 40 de 3"). */
   const setFiltro = useCallback((patch: Partial<FiltrosCola>) => {
     setFiltros((f) => ({ ...f, ...patch }))
     setVisibles(PAGINA)
   }, [])
-
-  // Capital en juego, SIEMPRE separado por moneda (nunca una suma mixta).
-  const capital = useMemo(() => {
-    let pen = 0
-    let usd = 0
-    for (const l of cola) {
-      if (l.moneda === 'USD') usd += l.monto_estimado
-      else pen += l.monto_estimado
-    }
-    return { pen, usd }
-  }, [cola])
-
-  const masAntiguo = useMemo(() => {
-    if (cola.length === 0) return 0
-    return Math.max(...cola.map((l) => diasEnCola(l.creado_en, ahora)))
-  }, [cola, ahora])
 
   const marcados = useMemo(() => contarMarcados(cola), [cola])
   const origenes = useMemo(() => origenesDeCola(cola), [cola])
@@ -255,21 +277,94 @@ function PanelCola() {
   const hayFiltrosActivos = filtros.busqueda.trim() !== ''
     || filtros.soloMarcados || filtros.origen !== ''
 
-  const stats = useMemo(() => [
-    { icon: Inbox, label: 'Por repartir', value: String(cola.length), tone: cola.length > 0 ? 'accent' : 'default' as const },
-    { icon: Wallet, label: 'Capital en juego (PEN)', value: moneyK(capital.pen, 'PEN') },
-    { icon: Wallet, label: 'Capital en juego (USD)', value: moneyK(capital.usd, 'USD') },
-    {
-      icon: Users,
-      label: 'Espera más larga',
-      value: cola.length === 0 ? '—' : esperaTxt(masAntiguo),
-      tone: masAntiguo >= 1 ? 'warn' : 'default' as const,
-    },
-  ], [cola.length, capital.pen, capital.usd, masAntiguo])
+  // Sin resumen (cargando o RPC caído) los cuatro van a «—»: moneyK(null)
+  // pintaría «S/ 0», que afirma que NO hay capital cuando lo que pasa es que no
+  // se sabe. Prohibido el atajo de volver a contar `cola` si el RPC cae: sería
+  // reintroducir justo lo que esta tanda quita.
+  // El «—» es MUDO para un lector de pantalla (no se pronuncia con la
+  // puntuación por defecto), así que cada tile degradado dice en voz alta si
+  // está cargando o si no se sabe — nunca se deja inferir un cero.
+  const cargandoResumen = resumenOp.cargando
+  const stats = useMemo<StatChipData[]>(() => {
+    // Locuciones DENTRO del memo: como objetos nuevos en cada render anularían
+    // la memoización de la que cuelgan (aviso de exhaustive-deps).
+    type Locucion = Partial<Pick<StatChipData, 'valorAccesible'>>
+    const mudo: Locucion = resumen ? {} : { valorAccesible: cargandoResumen ? 'cargando' : 'sin dato' }
+    const mudoEspera: Locucion = resumen && resumen.cola.total === 0
+      ? { valorAccesible: 'no aplica: la cola está vacía' }
+      : mudo
+    return [
+      {
+        icon: Inbox,
+        label: 'Por repartir',
+        value: resumen ? String(resumen.cola.total) : '—',
+        tone: resumen && resumen.cola.total > 0 ? 'accent' : 'default',
+        ...mudo,
+      },
+      {
+        icon: Wallet,
+        label: 'Capital en juego (PEN)',
+        value: resumen ? moneyK(resumen.cola.capital.pen, 'PEN') : '—',
+        ...mudo,
+      },
+      {
+        icon: Wallet,
+        label: 'Capital en juego (USD)',
+        value: resumen ? moneyK(resumen.cola.capital.usd, 'USD') : '—',
+        ...mudo,
+      },
+      {
+        icon: Users,
+        label: 'Espera más larga',
+        value: !resumen || resumen.cola.total === 0 ? '—' : esperaTxt(resumen.cola.espera_max_dias),
+        tone: resumen && resumen.cola.espera_max_dias >= 1 ? 'warn' : 'default',
+        ...mudoEspera,
+      },
+    ]
+  }, [cargandoResumen, resumen])
 
   return (
-    <div className="space-y-5">
+    <div ref={refPanel} tabIndex={-1} className="space-y-5 outline-none">
+      {/* tabIndex={-1}: destino PROGRAMÁTICO del foco cuando el aviso que lo
+          tenía desaparece al reintentar con éxito; no es alcanzable con Tab,
+          por eso el outline-none aquí es legítimo (mismo trato que refCola). */}
       <StatStrip stats={stats} />
+
+      {/* Degradación honesta (precedente objetivosError): los indicadores dicen
+          «—» y la cola sigue siendo repartible, porque tiene su propia fuente
+          (leads_por_repartir). En demo el hook ya devuelve error null.
+          role="alert" a propósito, igual que los seis banners hermanos ya en
+          producción: la consistencia pesa más que el matiz status/alert, y con
+          retry:false el nodo no se remonta, así que no hay re-anuncio en bucle.
+          El texto va en `warning-text` (ámbar oscuro) porque `muted-foreground`
+          sobre este fondo no llega al 4.5:1 que exige un texto de 12 px. */}
+      {Boolean(resumenOp.error) && (
+        <div
+          role="alert"
+          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning-text"
+        >
+          <span>No se pudieron cargar los indicadores de la cola. Se muestran «—» para no inventar cifras.</span>
+          <button
+            type="button"
+            // El PanelError de la cola tiene OTRO «Reintentar»: sin este
+            // aria-label, el lector de pantalla lista dos botones idénticos
+            // con acciones distintas (el texto visible queda contenido en él).
+            aria-label="Reintentar la carga de los indicadores de la cola"
+            className="rounded font-semibold text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+            onClick={() => {
+              void resumenOp.recargar().then(() => {
+                // Si el reintento funciona, este botón se desmonta con el aviso
+                // y el teclado caería a <body>: se recoge el foco en el panel.
+                requestAnimationFrame(() => {
+                  if (document.activeElement === document.body) refPanel.current?.focus()
+                })
+              })
+            }}
+          >
+            Reintentar
+          </button>
+        </div>
+      )}
 
       <Card className="overflow-hidden">
         <SectionHead
@@ -745,7 +840,9 @@ export function Repartir() {
       {tab === 'cola' ? (
         <PanelCola key={colaKey} />
       ) : (
-        <PanelDescartados onCambio={() => setColaKey((n) => n + 1)} />
+        <PanelDescartados
+          onCambio={() => { setColaKey((n) => n + 1); refrescarResumenReparto() }}
+        />
       )}
     </div>
   )

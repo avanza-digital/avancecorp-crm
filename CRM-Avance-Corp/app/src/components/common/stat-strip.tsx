@@ -18,6 +18,13 @@ export interface StatChipData {
   icon: LucideIcon
   label: string
   value: string
+  /**
+   * Qué debe OÍR el lector de pantalla cuando `value` es un símbolo mudo. El
+   * em dash «—» de las métricas degradadas no se pronuncia con la puntuación
+   * por defecto de NVDA/JAWS: el usuario oye la etiqueta y luego silencio, que
+   * es indistinguible de un cero. Pasar aquí «sin dato» / «cargando».
+   */
+  valorAccesible?: string
   tone?: keyof typeof TONE
   sub?: string
 }
@@ -39,7 +46,14 @@ export function StatStrip({ stats, className }: { stats: StatChipData[]; classNa
               <span className="truncate">{s.label}</span>
             </div>
             <div className={cn('mt-1 text-xl font-extrabold leading-none tracking-tight tabular-nums', TONE[s.tone || 'default'])}>
-              <AnimatedValue value={s.value} />
+              {s.valorAccesible ? (
+                <>
+                  <span aria-hidden="true"><AnimatedValue value={s.value} /></span>
+                  <span className="sr-only">{s.valorAccesible}</span>
+                </>
+              ) : (
+                <AnimatedValue value={s.value} />
+              )}
             </div>
             {s.sub && <div className="mt-1 truncate text-[10.5px] text-muted-foreground">{s.sub}</div>}
           </Card>
