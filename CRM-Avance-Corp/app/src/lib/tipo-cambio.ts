@@ -6,7 +6,7 @@
 // total sin convertir. Aquí NO se suman a ciegas — se CONVIERTE el USD a PEN a un
 // tipo de cambio conocido (promedio de ~7 días) y recién ese equivalente en soles
 // entra a la meta. Convertir a una tasa real ≠ sumar peras con manzanas.
-import { useEffect, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import * as v from 'valibot'
 import { useAuth } from './auth-context'
 import { sb } from './supabase'
@@ -41,19 +41,38 @@ const TipoCambioSchema = v.object({
   fuente: v.string(),
 })
 
+export interface EstadoTipoCambio {
+  /**
+   * Tri-estado honesto: `undefined` = consultando (la UI muestra carga, no
+   * afirma "no disponible" con el fetch en vuelo), `null` = no disponible
+   * (fail-closed: se degrada a solo-PEN, jamás se inventa tasa), objeto = listo.
+   */
+  tc: TipoCambio | null | undefined
+  /** Vuelve a consultar la edge (cablear al Reintentar de la pantalla). */
+  recargar: () => void
+}
+
 /**
  * Tipo de cambio USD→PEN promedio de la última semana.
  * - Demo: promedio de una serie simulada, etiquetado "demo".
  * - Real: edge `crm-tipo-cambio` (promedio 7 días hábiles del TC SBS vía la API
  *   pública del BCRP; cache de 1 h en la edge). Si la edge o el BCRP fallan →
- *   null y la meta cae con honestidad a solo-PEN ("pendiente de tipo de cambio").
+ *   null y la pantalla degrada con honestidad a solo-PEN.
+ * - `habilitado=false` (vistas que no muestran TC): ni consulta ni queda
+ *   "consultando" — tc = null sin tocar la red ni la observabilidad.
  */
-export function useTipoCambio(): TipoCambio | null {
+export function useTipoCambio(habilitado = true): EstadoTipoCambio {
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
-  const [tc, setTc] = useState<TipoCambio | null>(null)
+  const [tc, setTc] = useState<TipoCambio | null | undefined>(undefined)
+  const [version, setVersion] = useState(0)
+  const recargar = useCallback(() => setVersion((n) => n + 1), [])
 
   useEffect(() => {
+    if (!habilitado) {
+      setTc(null)
+      return
+    }
     if (esDemo) {
       setTc({ promedio: promedioSemanal(SERIE_DEMO), fuente: 'demo · prom. 7d' })
       return
@@ -63,6 +82,7 @@ export function useTipoCambio(): TipoCambio | null {
       return
     }
     let cancelado = false
+    setTc(undefined) // consultando (también al reintentar tras un fallo)
     sb.functions
       .invoke('crm-tipo-cambio')
       .then(({ data, error }) => {
@@ -84,7 +104,7 @@ export function useTipoCambio(): TipoCambio | null {
     return () => {
       cancelado = true
     }
-  }, [esDemo])
+  }, [esDemo, habilitado, version])
 
-  return tc
+  return { tc, recargar }
 }

@@ -1,7 +1,7 @@
 // Tests de las funciones puras de tipo de cambio + el camino REAL del hook
 // (edge crm-tipo-cambio): respuesta válida entra, fuera de contrato o error → null.
 import { describe, expect, it, vi, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { promedioSemanal, usdAPen, useTipoCambio } from './tipo-cambio'
 
 const invoke = vi.fn()
@@ -50,14 +50,17 @@ describe('usdAPen', () => {
 describe('useTipoCambio (sesión real → edge crm-tipo-cambio)', () => {
   afterEach(() => vi.clearAllMocks())
 
-  it('respuesta válida de la edge → promedio y fuente reales', async () => {
+  it('respuesta válida de la edge → promedio y fuente reales (pasando por «consultando»)', async () => {
     invoke.mockResolvedValue({
       data: { promedio: 3.3965, fuente: 'SBS · prom. 7d', dias: 7 },
       error: null,
     })
     const { result } = renderHook(() => useTipoCambio())
-    await waitFor(() => expect(result.current).not.toBeNull())
-    expect(result.current).toEqual({ promedio: 3.3965, fuente: 'SBS · prom. 7d' })
+    // Mientras el fetch está en vuelo el estado es «consultando» (undefined),
+    // nunca «no disponible»: la UI no debe afirmar lo segundo durante la carga.
+    expect(result.current.tc).toBeUndefined()
+    await waitFor(() => expect(result.current.tc).not.toBeUndefined())
+    expect(result.current.tc).toEqual({ promedio: 3.3965, fuente: 'SBS · prom. 7d' })
     expect(invoke).toHaveBeenCalledWith('crm-tipo-cambio')
   })
 
@@ -69,15 +72,34 @@ describe('useTipoCambio (sesión real → edge crm-tipo-cambio)', () => {
   ])('respuesta fuera de contrato (%s) → null, jamás inventa TC', async (_caso, data) => {
     invoke.mockResolvedValue({ data, error: null })
     const { result } = renderHook(() => useTipoCambio())
-    // El hook arranca en null y DEBE seguir en null: se espera al ciclo del efecto.
     await waitFor(() => expect(invoke).toHaveBeenCalled())
-    await waitFor(() => expect(result.current).toBeNull())
+    await waitFor(() => expect(result.current.tc).toBeNull())
   })
 
-  it('error de la edge (BCRP caído) → null y la meta degrada a solo-PEN', async () => {
+  it('error de la edge (BCRP caído) → null y la pantalla degrada a solo-PEN', async () => {
     invoke.mockResolvedValue({ data: null, error: new Error('502') })
     const { result } = renderHook(() => useTipoCambio())
     await waitFor(() => expect(invoke).toHaveBeenCalled())
-    await waitFor(() => expect(result.current).toBeNull())
+    await waitFor(() => expect(result.current.tc).toBeNull())
+  })
+
+  it('habilitado=false → null inmediato SIN tocar la red (vistas que no muestran TC)', async () => {
+    const { result } = renderHook(() => useTipoCambio(false))
+    await waitFor(() => expect(result.current.tc).toBeNull())
+    expect(invoke).not.toHaveBeenCalled()
+  })
+
+  it('recargar() reintenta tras un fallo transitorio (cableado al Reintentar del panel)', async () => {
+    invoke.mockResolvedValueOnce({ data: null, error: new Error('502') })
+    invoke.mockResolvedValueOnce({
+      data: { promedio: 3.41, fuente: 'SBS · prom. 7d' },
+      error: null,
+    })
+    const { result } = renderHook(() => useTipoCambio())
+    await waitFor(() => expect(result.current.tc).toBeNull())
+
+    act(() => result.current.recargar())
+    await waitFor(() => expect(result.current.tc).toEqual({ promedio: 3.41, fuente: 'SBS · prom. 7d' }))
+    expect(invoke).toHaveBeenCalledTimes(2)
   })
 })

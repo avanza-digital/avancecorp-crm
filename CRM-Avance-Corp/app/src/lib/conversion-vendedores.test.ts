@@ -7,7 +7,7 @@ import {
 } from './demo-inteligencia-comercial'
 import {
   adaptarConversionVendedores,
-  clasificarRankingCapital,
+  clasificarRankingCapitalTotal,
   clasificarRankingConversion,
 } from './conversion-vendedores'
 
@@ -100,23 +100,25 @@ describe('adapter de responsables de conversión', () => {
     expect(conversion.indisponibles.map((fila) => fila.vendedorId)).toEqual(['demo-v3'])
 
     const todasLasMetas = metasConversionEquipoDemo()
-    const capital = clasificarRankingCapital(
+    const capital = clasificarRankingCapitalTotal(
       adaptada.vendedores,
       { 'demo-v1': todasLasMetas['demo-v1']! },
       cumplimientoMetasConversionEquipoDemo().porVendedor,
-      'PEN',
+      3.5,
     )
     expect(capital.conPuesto.map((fila) => fila.vendedor.vendedorId)).toEqual(['demo-v1'])
+    // Sin meta se ordena por capital TOTAL desc: v2 = 290k + 16k×3.5 = 346k > v3 = 250k + 18k×3.5 = 313k.
     expect(capital.sinMeta.map((fila) => fila.vendedor.vendedorId)).toEqual(['demo-v2', 'demo-v3'])
     expect(capital.indisponibles).toEqual([])
     expect(capital.conPuesto[0]).toMatchObject({
-      moneda: 'PEN',
-      capitalReal: 360_000,
-      metaCapital: 250_000,
+      capitalPen: 360_000,
+      capitalUsd: 20_000,
+      capitalTotal: 430_000,
+      metaCapital: 390_000,
     })
   })
 
-  it('clasifica el capital confirmado por moneda sin sumar PEN y USD', () => {
+  it('unifica capital y meta al TC del servidor (PEN + USD convertido, nunca sumado a ciegas)', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     const equipo = conversionEquipoDemo().slice(0, 1)
     datos.responsables = datos.responsables?.slice(0, 1)
@@ -124,10 +126,62 @@ describe('adapter de responsables de conversión', () => {
     const metas = metasConversionEquipoDemo()
     const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
 
-    const pen = clasificarRankingCapital(adaptada.vendedores, metas, cumplimientos, 'PEN')
-    const usd = clasificarRankingCapital(adaptada.vendedores, metas, cumplimientos, 'USD')
+    const total = clasificarRankingCapitalTotal(adaptada.vendedores, metas, cumplimientos, 3.5)
 
-    expect(pen.conPuesto[0]).toMatchObject({ capitalReal: 360_000, metaCapital: 250_000 })
-    expect(usd.conPuesto[0]).toMatchObject({ capitalReal: 20_000, metaCapital: 40_000 })
+    // demo-v1: real 360k PEN + 20k USD×3.5 = 430k; meta 250k PEN + 40k USD×3.5 = 390k.
+    expect(total.tc).toBe(3.5)
+    expect(total.conPuesto[0]).toMatchObject({
+      capitalPen: 360_000,
+      capitalUsd: 20_000,
+      capitalTotal: 430_000,
+      metaPen: 250_000,
+      metaUsd: 40_000,
+      metaCapital: 390_000,
+    })
+    expect(total.conPuesto[0]!.avance).toBeCloseTo((430_000 / 390_000) * 100, 6)
+  })
+
+  it('meta 100% en US$ sin TC → queda fuera del ranking pero con el split de la meta para rotularla', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
+    const equipo = conversionEquipoDemo().slice(0, 1)
+    datos.responsables = datos.responsables?.slice(0, 1)
+    const adaptada = adaptarConversionVendedores(datos, equipo)
+    const metaV1 = metasConversionEquipoDemo()['demo-v1']!
+    const soloUsd = { ...metaV1, detalles: metaV1.detalles.filter((d) => d.moneda === 'USD') }
+    const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
+
+    const sinTc = clasificarRankingCapitalTotal(adaptada.vendedores, { 'demo-v1': soloUsd }, cumplimientos, null)
+    // Sin TC no hay objetivo convertible: fuera del ranking, PERO metaUsd viaja
+    // para que la UI diga «Meta en US$ · sin TC» y no el falso «Sin meta».
+    expect(sinTc.sinMeta.map((f) => f.vendedor.vendedorId)).toEqual(['demo-v1'])
+    expect(sinTc.sinMeta[0]).toMatchObject({ metaPen: 0, metaUsd: 40_000, metaCapital: null })
+
+    // Con TC la MISMA meta sí compite.
+    const conTc = clasificarRankingCapitalTotal(adaptada.vendedores, { 'demo-v1': soloUsd }, cumplimientos, 3.5)
+    expect(conTc.conPuesto.map((f) => f.vendedor.vendedorId)).toEqual(['demo-v1'])
+    expect(conTc.conPuesto[0]).toMatchObject({ metaCapital: 140_000 })
+  })
+
+  it('sin TC degrada a solo PEN con el USD aparte — jamás inventa una tasa', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
+    const equipo = conversionEquipoDemo().slice(0, 1)
+    datos.responsables = datos.responsables?.slice(0, 1)
+    const adaptada = adaptarConversionVendedores(datos, equipo)
+    const metas = metasConversionEquipoDemo()
+    const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
+
+    for (const tcInvalido of [null, 0, -1, Number.NaN]) {
+      const total = clasificarRankingCapitalTotal(adaptada.vendedores, metas, cumplimientos, tcInvalido)
+      expect(total.tc).toBeNull()
+      // El USD sigue viajando (la UI lo rotula «aparte»), pero NO entra al total ni a la meta.
+      expect(total.conPuesto[0]).toMatchObject({
+        capitalPen: 360_000,
+        capitalUsd: 20_000,
+        capitalTotal: 360_000,
+        metaPen: 250_000,
+        metaUsd: 40_000,
+        metaCapital: 250_000,
+      })
+    }
   })
 })

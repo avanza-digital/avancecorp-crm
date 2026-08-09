@@ -58,6 +58,7 @@ describe('ranking general de vendedores', () => {
         metasVendedores={metas}
         cumplimientoVendedores={cumplimientos}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
         cargando={false}
         error={null}
         onReintentar={vi.fn()}
@@ -76,14 +77,19 @@ describe('ranking general de vendedores', () => {
     expect(within(fueraConversion).getByText('Sin muestra')).toBeInTheDocument()
     expect(within(fueraConversion).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
 
-    fireEvent.click(screen.getByRole('tab', { name: 'Capital PEN' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
 
-    const tablaCapital = screen.getByRole('table', { name: 'Ranking de meta de capital PEN' })
+    // TC visible y auditable en el sub-encabezado del tab.
+    expect(screen.getByText(/TC S\/ 3.5 \(SBS · prom\. 7d\)/)).toBeInTheDocument()
+    const tablaCapital = screen.getByRole('table', { name: 'Ranking de capital total en soles' })
     const filasCapital = within(tablaCapital).getAllByRole('row')
     expect(filasCapital).toHaveLength(3)
+    // Bruno: total 290k + 16k×3.5 = 346k vs meta 180k + 30k×3.5 = 285k → 121.4% (> Ana 110.3%).
     expect(within(filasCapital[1]!).getByText('Bruno Díaz')).toBeInTheDocument()
-    expect(within(filasCapital[1]!).getByText(/161/)).toBeInTheDocument()
-    expect(within(filasCapital[1]!).getByText(/S\/ 290,000/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(/121/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(/S\/ 346,000/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(/S\/ 290,000 \+ US\$ 16,000/)).toBeInTheDocument()
+    expect(within(filasCapital[1]!).getByText(/S\/ 285,000/)).toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Gabriela Soto')).not.toBeInTheDocument()
     expect(within(tablaCapital).queryByText('Sin vendedor asignado')).not.toBeInTheDocument()
     const fueraCapital = screen.getByRole('region', { name: 'Vendedores sin posición en capital' })
@@ -98,15 +104,66 @@ describe('ranking general de vendedores', () => {
         metasVendedores={metas}
         cumplimientoVendedores={cumplimientos}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false }}
+        tc={{ promedio: 3.5, fuente: 'SBS · prom. 7d' }}
         cargando={false}
         error={null}
         onReintentar={vi.fn()}
       />,
     )
 
-    expect(screen.queryByRole('table', { name: 'Ranking de meta de capital PEN' })).not.toBeInTheDocument()
-    expect(screen.queryByText(/161/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Ranking de capital total en soles' })).not.toBeInTheDocument()
+    expect(screen.queryByText(/121/)).not.toBeInTheDocument()
     expect(screen.getByText('La meta mensual de agosto 2026 no es comparable con el rango aplicado.')).toBeInTheDocument()
+  })
+
+  it('mientras el TC está en consulta muestra carga — nunca afirma «no disponible»', () => {
+    render(
+      <RankingVendedoresPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={undefined}
+        cargando={false}
+        error={null}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+
+    expect(screen.getByText(/consultando tipo de cambio/)).toBeInTheDocument()
+    expect(screen.queryByText(/tipo de cambio no disponible/)).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Ranking de capital total en soles' })).not.toBeInTheDocument()
+  })
+
+  it('sin tipo de cambio degrada a solo PEN con el US$ rotulado aparte', () => {
+    const todasLasMetas = metasConversionEquipoDemo()
+    render(
+      <RankingVendedoresPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{ 'demo-v2': todasLasMetas['demo-v2']! }}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={null}
+        cargando={false}
+        error={null}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
+
+    expect(screen.getByText(/US\$ aparte: tipo de cambio no disponible/)).toBeInTheDocument()
+    const tabla = screen.getByRole('table', { name: 'Ranking de capital total en soles' })
+    const filas = within(tabla).getAllByRole('row')
+    // Bruno solo-PEN: 290k vs meta 180k → 161.1%; su US$ va aparte, no dentro del total.
+    expect(within(filas[1]!).getByText('Bruno Díaz')).toBeInTheDocument()
+    expect(within(filas[1]!).getByText(/161/)).toBeInTheDocument()
+    expect(within(filas[1]!).getByText(/S\/ 290,000/)).toBeInTheDocument()
+    expect(within(filas[1]!).getByText(/\+ US\$ 16,000 aparte \(sin TC\)/)).toBeInTheDocument()
   })
 
   it('no sustituye una RPC sin responsables con los contadores operativos del equipo', () => {
@@ -120,6 +177,7 @@ describe('ranking general de vendedores', () => {
         metasVendedores={{}}
         cumplimientoVendedores={{}}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={null}
         cargando={false}
         error={null}
         onReintentar={vi.fn()}

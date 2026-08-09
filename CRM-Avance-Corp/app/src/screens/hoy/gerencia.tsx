@@ -31,6 +31,7 @@ import {
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
+import { useTipoCambio } from '@/lib/tipo-cambio'
 import {
   useActualizarCapacidadLeadsObjetivo,
   useMetricasConversiones,
@@ -115,6 +116,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     recargar,
   } = useCRMData()
   const { yo } = useAuth()
+  // TC USD→PEN del servidor (edge crm-tipo-cambio · BCRP): lo consume SOLO el
+  // ranking de capital total — en las demás secciones ni se consulta (hallazgo
+  // de la verificación: cada cambio de vista remonta la pantalla).
+  const tipoCambio = useTipoCambio(seccion === 'ranking-vendedores')
   const { periodo, setPeriodo, diaLima } = usePeriodoGerencia()
   const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
   const periodoAnterior = useRef(periodo)
@@ -203,7 +208,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 
-      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={reintentarConversiones} />}
+      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={() => { reintentarConversiones(); tipoCambio.recargar() }} />}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 

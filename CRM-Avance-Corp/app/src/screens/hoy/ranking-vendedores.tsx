@@ -11,17 +11,17 @@ import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   adaptarConversionVendedores,
-  clasificarRankingCapital,
+  clasificarRankingCapitalTotal,
   clasificarRankingConversion,
-  type RankingCapitalVendedores,
+  type RankingCapitalTotalVendedores,
   type RankingConversionVendedores,
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type {
   CumplimientoVendedor,
-  MonedaMeta,
   ObjetivosPorVendedor,
 } from '@/lib/objetivos'
+import type { TipoCambio } from '@/lib/tipo-cambio'
 
 interface RankingVendedoresPanelProps {
   datos: MetricasConversiones | null | undefined
@@ -29,12 +29,18 @@ interface RankingVendedoresPanelProps {
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
   metaMensual: MetaMensualGerencia
+  /**
+   * TC USD→PEN resuelto por el servidor (edge crm-tipo-cambio · BCRP).
+   * `undefined` = consultando (el tab de capital muestra carga, no degrada);
+   * `null` = no disponible → total solo-PEN con US$ rotulado aparte.
+   */
+  tc: TipoCambio | null | undefined
   cargando: boolean
   error: string | null
   onReintentar: () => void
 }
 
-type TipoRanking = 'conversion' | 'capital-pen' | 'capital-usd'
+type TipoRanking = 'conversion' | 'capital-total'
 
 function pct(valor: number | null): string {
   return valor == null ? '—' : `${numero(valor, 1)}%`
@@ -167,39 +173,54 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores }
   )
 }
 
-function RankingCapital({
-  ranking,
-  moneda,
-}: {
-  ranking: RankingCapitalVendedores
-  moneda: MonedaMeta
-}): JSX.Element {
+/**
+ * Desglose por moneda bajo el total; sin TC el US$ se declara aparte, jamás
+ * dentro. La variante sin TC va en navy (no muted): es el aviso que evita leer
+ * el total como si incluyera los dólares — hallazgo a11y de contraste.
+ */
+function DesgloseMonedas({ pen, usd, tc }: { pen: number; usd: number; tc: number | null }): JSX.Element | null {
+  if (usd <= 0) return null
+  return (
+    <span className={`block text-[11px] font-medium ${tc != null ? 'text-[var(--gi-muted)]' : 'text-[var(--gi-navy)]'}`}>
+      <span className="sr-only">Desglose: </span>
+      {tc != null
+        ? `${money(pen, 'PEN')} + ${money(usd, 'USD')}`
+        : `+ ${money(usd, 'USD')} aparte (sin TC)`}
+    </span>
+  )
+}
+
+function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores }): JSX.Element {
   const filas = ranking.conPuesto
   return (
-    <div role="tabpanel" id="panel-ranking-capital" aria-labelledby={`tab-ranking-capital-${moneda.toLowerCase()}`}>
+    <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total">
       <div className="hidden overflow-x-auto md:block">
-        <table aria-label={`Ranking de meta de capital ${moneda}`} className="w-full min-w-[900px] border-collapse text-left">
+        <table aria-label="Ranking de capital total en soles" className="w-full min-w-[900px] border-collapse text-left">
           <thead className="bg-[#f7f5f1] text-[10px] font-bold uppercase tracking-[0.08em] text-[var(--gi-muted)]">
             <tr>
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
               <th className="px-3 py-3" scope="col">Vendedor</th>
               <th className="px-3 py-3" scope="col">Equipo</th>
-              <th className="px-3 py-3 text-right" scope="col">Capital confirmado {moneda}</th>
-              <th className="px-3 py-3 text-right" scope="col">Meta en {moneda}</th>
+              <th className="px-3 py-3 text-right" scope="col">Capital confirmado (S/)</th>
+              <th className="px-3 py-3 text-right" scope="col">Meta (S/)</th>
               <th className="px-3 py-3 text-right" scope="col">Avance</th>
               <th className="min-w-56 px-5 py-3" scope="col">Cumplimiento</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-[var(--gi-line)]">
-            {filas.map(({ vendedor, capitalReal: logrado, metaCapital, avance }, indice) => (
+            {filas.map(({ vendedor, capitalPen, capitalUsd, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
               <tr key={vendedor.vendedorId} className="transition-colors hover:bg-[#f7f5f1]/70">
                 <td className="px-5 py-3"><Puesto indice={indice} /></td>
                 <th className="max-w-56 px-3 py-3 text-sm font-bold text-[var(--gi-navy)]" scope="row"><span className="block truncate">{vendedor.nombre}</span></th>
                 <td className="max-w-48 px-3 py-3 text-xs font-medium text-[var(--gi-muted)]"><span className="block truncate">{vendedor.supervisorNombre}</span></td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
-                  <span className="block">{money(logrado, moneda)}</span>
+                  <span className="block">{money(capitalTotal, 'PEN')}</span>
+                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} />
                 </td>
-                <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{money(metaCapital, moneda)}</td>
+                <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
+                  <span className="block">{money(metaCapital, 'PEN')}</span>
+                  <DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} />
+                </td>
                 <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" style={{ color: colorAvance(avance) }}>{pct(avance)}</td>
                 <td className="px-5 py-3" aria-label={`Cumplimiento ${pct(avance)}`}>
                   <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
@@ -210,8 +231,8 @@ function RankingCapital({
         </table>
       </div>
 
-      <ol aria-label={`Ranking de meta de capital ${moneda}`} className="divide-y divide-[var(--gi-line)] md:hidden">
-        {filas.map(({ vendedor, capitalReal: logrado, metaCapital, avance }, indice) => (
+      <ol aria-label="Ranking de capital total en soles" className="divide-y divide-[var(--gi-line)] md:hidden">
+        {filas.map(({ vendedor, capitalPen, capitalUsd, capitalTotal, metaPen, metaUsd, metaCapital, avance }, indice) => (
           <li key={vendedor.vendedorId} className="px-4 py-4">
             <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-start gap-3">
               <Puesto indice={indice} />
@@ -219,8 +240,8 @@ function RankingCapital({
               <strong className="text-sm tabular-nums" style={{ color: colorAvance(avance) }}>{pct(avance)}</strong>
             </div>
             <div className="ml-12 mt-3 grid grid-cols-2 gap-3 text-[11px] font-medium text-[var(--gi-muted)]">
-              <span>Logrado <strong className="block text-xs text-[var(--gi-navy)]">{money(logrado, moneda)}</strong></span>
-              <span className="text-right">Meta <strong className="block text-xs text-[var(--gi-navy)]">{money(metaCapital, moneda)}</strong></span>
+              <span>Logrado <strong className="block text-xs text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} /></span>
+              <span className="text-right">Meta <strong className="block text-xs text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} /></span>
             </div>
             <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
           </li>
@@ -233,8 +254,9 @@ function RankingCapital({
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {ranking.sinMeta.map((fila) => (
               <li key={fila.vendedor.vendedorId} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--gi-line)] bg-white px-3 py-2.5">
-                <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalReal, moneda)} confirmado</span></span>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Sin meta</span>
+                <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalTotal, 'PEN')} confirmado</span><DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} /></span>
+                {/* Una meta 100% US$ sin TC NO es «sin meta»: está pendiente de conversión. */}
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{fila.metaUsd > 0 ? 'Meta en US$ · sin TC' : 'Sin meta'}</span>
               </li>
             ))}
             {ranking.indisponibles.map((fila) => (
@@ -256,6 +278,7 @@ export function RankingVendedoresPanel({
   metasVendedores,
   cumplimientoVendedores,
   metaMensual,
+  tc,
   cargando,
   error,
   onReintentar,
@@ -269,10 +292,9 @@ export function RankingVendedoresPanel({
     () => clasificarRankingConversion(adaptada.vendedores),
     [adaptada.vendedores],
   )
-  const monedaCapital: MonedaMeta = tipo === 'capital-usd' ? 'USD' : 'PEN'
-  const rankingCapital = useMemo(
-    () => clasificarRankingCapital(adaptada.vendedores, metasVendedores, cumplimientoVendedores, monedaCapital),
-    [adaptada.vendedores, cumplimientoVendedores, metasVendedores, monedaCapital],
+  const rankingCapitalTotal = useMemo(
+    () => clasificarRankingCapitalTotal(adaptada.vendedores, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
+    [adaptada.vendedores, cumplimientoVendedores, metasVendedores, tc],
   )
   const totalVendedores = adaptada.vendedores.length
 
@@ -290,22 +312,31 @@ export function RankingVendedoresPanel({
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-white px-4 py-3 sm:px-5">
         <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
           <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
-          <button id="tab-ranking-capital-pen" type="button" role="tab" aria-selected={tipo === 'capital-pen'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-pen')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-pen' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital PEN</button>
-          <button id="tab-ranking-capital-usd" type="button" role="tab" aria-selected={tipo === 'capital-usd'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-usd')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-usd' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital USD</button>
+          <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
         </div>
-        <p className="text-[11px] font-medium text-[var(--gi-muted)]">{tipo === 'conversion' ? 'Clientes ÷ leads recibidos' : `Contratos confirmados · ${monedaCapital} · ${metaMensual.etiqueta}`}</p>
+        <p className="text-[11px] font-medium text-[var(--gi-muted)]">
+          {tipo === 'conversion'
+            ? 'Clientes ÷ leads recibidos'
+            : tc === undefined
+              ? `Contratos confirmados · total en S/ · consultando tipo de cambio… · ${metaMensual.etiqueta}`
+              // El rótulo del TC sale del MISMO tc que aplicó la lib (ranking.tc,
+              // re-validado finito y > 0): jamás se anuncia un TC que no entró al total.
+              : rankingCapitalTotal.tc != null
+                ? `Contratos confirmados · total en S/ · TC S/ ${numero(rankingCapitalTotal.tc, 4)} (${tc?.fuente ?? 'BCRP'}) · ${metaMensual.etiqueta}`
+                : `Contratos confirmados · S/ · US$ aparte: tipo de cambio no disponible · ${metaMensual.etiqueta}`}
+        </p>
       </div>
 
       {cargando && !datos ? <CargandoRanking /> : error ? <ErrorRanking error={error} onReintentar={onReintentar} /> : totalVendedores === 0 ? (
         <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay vendedores para mostrar</p></div></div>
-      ) : tipo === 'conversion' ? <RankingConversion ranking={rankingConversion} /> : metaMensual.comparable ? <RankingCapital ranking={rankingCapital} moneda={monedaCapital} /> : (
-        <div role="tabpanel" id="panel-ranking-capital" aria-labelledby={`tab-ranking-capital-${monedaCapital.toLowerCase()}`} className="grid min-h-64 place-items-center px-5 text-center">
+      ) : tipo === 'conversion' ? <RankingConversion ranking={rankingConversion} /> : !metaMensual.comparable ? (
+        <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total" className="grid min-h-64 place-items-center px-5 text-center">
           <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">
             <p className="text-xs font-bold text-amber-900">Meta mensual · {metaMensual.etiqueta}</p>
             <p role="status" className="mt-2 text-xs font-medium text-amber-900">{mensajeMetaNoComparable(metaMensual)}</p>
           </div>
         </div>
-      )}
+      ) : tc === undefined ? <CargandoRanking /> : <RankingCapitalTotal ranking={rankingCapitalTotal} />}
     </section>
   )
 }

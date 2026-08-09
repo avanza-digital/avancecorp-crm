@@ -7,9 +7,9 @@ import {
   capitalObjetivo,
   capitalReal,
   type CumplimientoVendedor,
-  type MonedaMeta,
   type ObjetivosPorVendedor,
 } from './objetivos'
+import { usdAPen } from './tipo-cambio'
 
 export type EstadoConversionVendedor = 'comparable' | 'sin_muestra' | 'indisponible'
 
@@ -43,35 +43,6 @@ export interface RankingConversionVendedores {
 }
 
 export type EstadoCapitalVendedor = 'comparable' | 'sin_meta' | 'indisponible'
-
-export interface CapitalVendedorAdaptado {
-  vendedor: ConversionVendedorAdaptada
-  moneda: MonedaMeta
-  capitalReal: number | null
-  metaCapital: number | null
-  avance: number | null
-  estadoCapital: EstadoCapitalVendedor
-}
-
-export type CapitalVendedorConPuesto = CapitalVendedorAdaptado & {
-  capitalReal: number
-  metaCapital: number
-  avance: number
-  estadoCapital: 'comparable'
-}
-
-export type CapitalVendedorSinMeta = CapitalVendedorAdaptado & {
-  capitalReal: number
-  metaCapital: null
-  avance: null
-  estadoCapital: 'sin_meta'
-}
-
-export interface RankingCapitalVendedores {
-  conPuesto: CapitalVendedorConPuesto[]
-  sinMeta: CapitalVendedorSinMeta[]
-  indisponibles: CapitalVendedorAdaptado[]
-}
 
 function porNombre(
   a: Pick<ConversionVendedorAdaptada, 'nombre' | 'vendedorId'>,
@@ -205,17 +176,76 @@ export function clasificarRankingConversion(
   return { conPuesto, sinMuestra, indisponibles }
 }
 
-export function clasificarRankingCapital(
+export interface CapitalTotalVendedor {
+  vendedor: ConversionVendedorAdaptada
+  capitalPen: number | null
+  capitalUsd: number | null
+  /** PEN + USD convertido al TC; sin TC, solo PEN (el USD se rotula aparte). */
+  capitalTotal: number | null
+  /** Split crudo de la meta (0 si no hay meta): permite rotular el recorte sin TC. */
+  metaPen: number
+  metaUsd: number
+  metaCapital: number | null
+  avance: number | null
+  estadoCapital: EstadoCapitalVendedor
+}
+
+export type CapitalTotalConPuesto = CapitalTotalVendedor & {
+  capitalPen: number
+  capitalUsd: number
+  capitalTotal: number
+  metaCapital: number
+  avance: number
+  estadoCapital: 'comparable'
+}
+
+export type CapitalTotalSinMeta = CapitalTotalVendedor & {
+  capitalPen: number
+  capitalUsd: number
+  capitalTotal: number
+  metaCapital: null
+  avance: null
+  estadoCapital: 'sin_meta'
+}
+
+export interface RankingCapitalTotalVendedores {
+  conPuesto: CapitalTotalConPuesto[]
+  sinMeta: CapitalTotalSinMeta[]
+  indisponibles: CapitalTotalVendedor[]
+  /** TC realmente aplicado; null = el USD quedó FUERA del total (jamás se inventa tasa). */
+  tc: number | null
+}
+
+/**
+ * Ranking por capital TOTAL en soles: PEN + USD convertido al TC del BCRP que
+ * resuelve el servidor (edge crm-tipo-cambio). Es la única conversión admitida
+ * por la regla PEN≠USD (decisión 2026-07-17: la meta se mide en soles y el USD
+ * cuenta convertido, no sumado a ciegas). Sin TC el total degrada a solo-PEN y
+ * el USD se muestra aparte — mismo fail-closed que la meta del vendedor.
+ * La meta también unifica (objetivo USD legado convertido; hoy las metas están
+ * normalizadas a PEN, así que suele ser solo el objetivo en soles).
+ */
+export function clasificarRankingCapitalTotal(
   vendedores: readonly ConversionVendedorAdaptada[],
   metas: ObjetivosPorVendedor,
   cumplimientos: Record<string, CumplimientoVendedor>,
-  moneda: MonedaMeta,
-): RankingCapitalVendedores {
-  const filas = vendedores.map<CapitalVendedorAdaptado>((vendedor) => {
+  tc: number | null,
+): RankingCapitalTotalVendedores {
+  const tcValido = tc != null && Number.isFinite(tc) && tc > 0 ? tc : null
+
+  const filas = vendedores.map<CapitalTotalVendedor>((vendedor) => {
     const cumplimiento = cumplimientos[vendedor.vendedorId]
-    const capitalConfirmado = cumplimiento ? capitalReal(cumplimiento, moneda) : null
+    const capitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
+    const capitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
+    const capitalTotal = capitalPen != null && capitalUsd != null
+      ? capitalPen + (tcValido != null ? usdAPen(capitalUsd, tcValido) : 0)
+      : null
     const meta = metas[vendedor.vendedorId]
-    const objetivo = meta ? capitalObjetivo(meta, moneda) : null
+    const metaPen = meta ? capitalObjetivo(meta, 'PEN') : 0
+    const metaUsd = meta ? capitalObjetivo(meta, 'USD') : 0
+    const objetivo = meta
+      ? metaPen + (tcValido != null ? usdAPen(metaUsd, tcValido) : 0)
+      : null
     const metaCapital = objetivo != null && objetivo > 0 ? objetivo : null
     const estadoCapital: EstadoCapitalVendedor = cumplimiento == null
       ? 'indisponible'
@@ -225,38 +255,42 @@ export function clasificarRankingCapital(
 
     return {
       vendedor,
-      moneda,
-      capitalReal: capitalConfirmado,
+      capitalPen,
+      capitalUsd,
+      capitalTotal,
+      metaPen,
+      metaUsd,
       metaCapital,
-      avance: estadoCapital === 'comparable' && capitalConfirmado != null && metaCapital != null
-        ? Math.max(0, (capitalConfirmado / metaCapital) * 100)
+      avance: estadoCapital === 'comparable' && capitalTotal != null && metaCapital != null
+        ? Math.max(0, (capitalTotal / metaCapital) * 100)
         : null,
       estadoCapital,
     }
   })
 
   const conPuesto = filas
-    .filter((fila): fila is CapitalVendedorConPuesto => (
+    .filter((fila): fila is CapitalTotalConPuesto => (
       fila.estadoCapital === 'comparable'
-      && fila.capitalReal != null
+      && fila.capitalTotal != null
       && fila.metaCapital != null
       && fila.avance != null
     ))
     .sort((a, b) => (b.avance ?? -1) - (a.avance ?? -1)
-      || (b.capitalReal ?? -1) - (a.capitalReal ?? -1)
+      || (b.capitalTotal ?? -1) - (a.capitalTotal ?? -1)
       || porNombre(a.vendedor, b.vendedor))
   const sinMeta = filas
-    .filter((fila): fila is CapitalVendedorSinMeta => (
+    .filter((fila): fila is CapitalTotalSinMeta => (
       fila.estadoCapital === 'sin_meta'
-      && fila.capitalReal != null
+      && fila.capitalTotal != null
       && fila.metaCapital == null
       && fila.avance == null
     ))
-    .sort((a, b) => (b.capitalReal ?? -1) - (a.capitalReal ?? -1)
+    .sort((a, b) => (b.capitalTotal ?? -1) - (a.capitalTotal ?? -1)
       || porNombre(a.vendedor, b.vendedor))
   const indisponibles = filas
     .filter((fila) => fila.estadoCapital === 'indisponible')
     .sort((a, b) => porNombre(a.vendedor, b.vendedor))
 
-  return { conPuesto, sinMeta, indisponibles }
+  return { conPuesto, sinMeta, indisponibles, tc: tcValido }
 }
+

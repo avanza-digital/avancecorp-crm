@@ -56,6 +56,14 @@ vi.mock('@/lib/store-context', () => ({
 vi.mock('./distribucion-leads-gerencia', () => ({ DistribucionLeadsGerencia: () => null }))
 vi.mock('./inteligencia-comercial', () => ({ InteligenciaComercialPanel: () => null }))
 vi.mock('./ranking-vendedores', () => ({ RankingVendedoresPanel: () => <h1>Ranking de vendedores</h1> }))
+// El TC real invocaría la edge crm-tipo-cambio desde el hook; en tests queda
+// hermético en null (la pantalla solo lo reenvía al panel, que aquí está
+// mockeado). importOriginal conserva usdAPen/promedioSemanal: la lib pura
+// conversion-vendedores los importa de este módulo (hallazgo de la verificación).
+vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/tipo-cambio')>()),
+  useTipoCambio: () => ({ tc: null, recargar: () => {} }),
+}))
 vi.mock('./reuniones-gerencia', () => ({ ReunionesGerenciaPanel: () => null }))
 vi.mock('./resumen-gerencia', () => ({ ResumenGerenciaPanel: () => <h1>Resumen comercial</h1> }))
 vi.mock('./equipo-gerencia', () => ({ EquipoGerenciaPanel: () => null }))
