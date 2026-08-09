@@ -3,7 +3,21 @@
 Proyecto: `dctqcbznekcyxhjujuci` (el MISMO del portal — ver condiciones §5 del plan).
 Ciclo obligatorio: **branch de Supabase → aplicar → `scripts/test-rls.mjs` → advisors → merge**.
 Prohibido `apply_migration` directo a producción. Ninguna migración del CRM altera objetos
-de `public` (única excepción documentada: `20260711000001`, con OK explícito de Miguel).
+de `public` sin OK explícito de Miguel.
+
+**Registro de excepciones a `public`** (corregido el 2026-08-09: esta lista decía «única
+excepción documentada: 20260711000001» cuando ya eran siete. El registro había dejado de
+funcionar como control — mantenerlo al día es parte de la regla, no un extra):
+
+| Versión | Qué toca de `public` | OK de Miguel |
+|---------|----------------------|--------------|
+| 20260711000001 | `perfiles_rol_check` acepta `'comercial'` | sí, 2026-07-11 |
+| 20260714000001 | `perfiles.tipo_documento` | sí, 2026-07-14 |
+| 20260728044338 | trigger sobre `public.perfiles` | sí, 2026-07-27 |
+| 20260801092924 | `public.contrato_tiene_pagos` | sí, 2026-08-01 |
+| 20260807123000 | funciones `public.*` de gerencia operativa | sí, 2026-08-07 |
+| 20260807235933 | `public.crear_contrato`, `public.actualizar_contrato`, wrappers catalogados, `public.contratos.producto_condicion_id` | sí, 2026-08-07 |
+| 20260809003923 | `public.actualizar_contrato`, `public.actualizar_numero_contrato` (gate P04) | sí, 2026-08-09 |
 
 ## Prehistoria: squash del historial del portal (2026-07-11)
 
@@ -680,5 +694,86 @@ siguiente (el lector global cuenta inactivos).
 - `supabase/scripts/test-p04-cuentas-bancarias.sql` quedó desincronizado: sus
   stubs de `es_lector_global`/`rol_crm` son la versión PRE-`20260807203740`, así
   que sus aserciones prueban un mundo que ya no existe.
-- Sigue abierta la deuda del 08-08: la rama admin de `public.actualizar_contrato`
-  no consulta el guard (corrige TÉRMINOS, no cuentas).
+- ~~Sigue abierta la deuda del 08-08: la rama admin de `public.actualizar_contrato`
+  no consulta el guard~~ → cerrada por `20260809003923` (abajo).
+
+## P04 alcanza la corrección de contratos por la vía admin (2026-08-09)
+
+⚠️ **Toca `public`**, con OK explícito de Miguel el 2026-08-09 («ok dale con la
+migración de actualizar_contrato»). Ver el registro de excepciones arriba.
+
+Cierra la deuda que el auditor-rls registró el 08-08. El alta ya estaba gateada
+(`public.crear_contrato` consulta el guard para TODO actor, admin incluido); la
+corrección no. Al auditar apareció una **segunda puerta** que la deuda no
+mencionaba y que no sale en ninguna búsqueda por el nombre del guard:
+
+| Función | Qué deja cambiar | Gate previo |
+|---|---|---|
+| `public.actualizar_contrato` (rama admin) | capital, tasa, fechas, modalidad, cronograma, titulares | **ninguno** (`null`) |
+| `public.actualizar_numero_contrato` | N° de contrato, notas, categoría — **sobrevive a cuotas pagadas** | solo `es_admin()` |
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260809003923 | 20260809010408 | crm_p04_correccion_contratos_admin | ✅ **EN PROD 2026-08-09** (branch `crm-p04-correccion` → réplica verificada idéntica por hash → gate RLS **530/530** → advisors **sin ERROR** (95 avisos, mismo total que el branch anterior: ninguna clase nueva) → trigger reactivado antes del merge → merge → verificado en prod → branch borrado). Añade `if private.membresia_crm_revocada() then raise insufficient_privilege` a ambas. Cuerpos VERBATIM de `pg_get_functiondef` en prod (hashes auditados `2a55ddea…` y `c9184d97…`), asertados en el preflight. |
+
+**Fidelidad probada mecánicamente, no afirmada.** Antes y después del merge se
+comprobó que al revertir el bloque insertado por `regexp_replace` el cuerpo
+reproduce EXACTAMENTE el hash auditado de producción (`true` en ambas
+funciones): cero deriva de transcripción en un pegado verbatim de ~180 líneas
+sobre `public`. ACL post-merge intactos (`{authenticated}` y
+`{authenticated,service_role}`).
+
+Verificación posterior al merge con la sesión real de `gloria@` (payload
+inválido dentro de `begin … rollback`, para no tocar contratos reales):
+`actualizar_contrato` respondió «El capital debe estar entre 100 y
+100,000,000» — es decir, **atravesó la autorización** y murió en la validación
+de negocio. Sigue corrigiendo contratos, y no se escribió nada.
+
+Censo del alcance, medido en prod el 2026-08-09: `admins/superadmins con
+membresía CRM revocada` = **0**, así que hoy nadie pierde acceso; los 3
+revocados son rol de portal `comercial`, que ya caía en la rama `else`.
+
+**Por qué el predicado estrecho y NO el guard completo** (decisión validada por
+el auditor): sobre la rama admin, `puede_gestionar_cuentas_cliente` **no añade
+scoping alguno** — `es_admin()` satisface el OR por sí solo. Lo único que
+sumaría es `cli.rol='cliente' and cli.activo is true`, condiciones sobre el
+SUJETO y no sobre el ACTOR: no cierran ninguna fuga entre roles, solo cerrarían
+la corrección de contratos históricos de clientes desactivados. Aplicarlo habría
+sido meter una regresión funcional en `public` ajena a P04 — la clase de bug
+exacta de toda esta saga. Hoy: 0 contratos de clientes inactivos sobre 330.
+
+**Asimetría deliberada, anotada para que nadie la «unifique»:** para un cliente
+INACTIVO un admin ya no puede CREAR contrato (guard completo en `crear_contrato`)
+pero SÍ puede CORREGIRLO. Crear para alguien dado de baja es un error de negocio;
+corregir su historia no lo es.
+
+**Controles que la migración lleva DENTRO de la transacción** (exigidos por la
+auditoría porque es una migración a `public`): md5 de ambos cuerpos antes de
+reemplazarlos — `actualizar_numero_contrato` **nunca fue definida por una
+migración de este repo**, así que la guarda de hash es su única red —, verificación
+de que el owner puede ejecutar `private.membresia_crm_revocada()` (la función
+legacy estrena llamada a `private`; sin esto fallaría en RUNTIME, no al crear),
+reafirmación del `NOT NULL` de `crm.equipo.activo`, y post-condición de `proacl`
+sobre ambas funciones.
+
+Gate: pareja completa sobre el mismo actor — admin SIN fila **sigue corrigiendo**
+(sondas no destructivas: payload inválido, así que atravesar la autorización y
+morir en la validación prueba que el gate dejó pasar sin escribir) y admin con
+fila APAGADA no corrige, más una aserción de que la fila del contrato quedó
+intacta: «la RPC lanzó excepción» no es lo mismo que «no escribió».
+
+**⚠️ DEUDA P04-b, abierta a propósito** (en una migración a `public`, la
+disciplina de alcance vale más que la completitud). Siguen sin la invariante,
+todas por vías de admin del Portal:
+1. **PRIORITARIA — hard-DELETE de contratos** por PostgREST
+   (`public_html/js/admin/contratos.js:1525`), con CASCADE a `cronograma_pagos`
+   y `documentos`. Un admin revocado no puede corregir un contrato pero sí
+   **borrarlo entero**. Gobernado por una policy DELETE, no por una RPC.
+2. `public.cerrar_contrato` (renovado/retirado + traslado de cuotas).
+3. UPDATE directo sobre `public.cronograma_pagos` (registrar, importar y revertir
+   pagos).
+Mientras siga abierto, **no se puede comunicar «la operación contractual está
+bajo P04»**: lo está la corrección, no el borrado ni los pagos.
+
+Sube de prioridad, además, el trigger que vete el `DELETE` sobre `crm.equipo`:
+ese agujero ya sostiene TRES superficies (banca, Pagos y ahora corrección).

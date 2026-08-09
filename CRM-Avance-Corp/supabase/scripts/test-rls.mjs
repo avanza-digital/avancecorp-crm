@@ -3384,11 +3384,99 @@ async function testContractBankAccounts(sessions, seed) {
       ['42501'],
       /no autorizado para consultar cuentas de pago/i,
     );
+    // P04 sobre la CORRECCION de contratos por la via admin del Portal
+    // (20260809003923). El alta ya estaba gateada para todo actor desde el
+    // catalogo; corregir no lo estaba: la rama admin de public.actualizar_contrato
+    // pasaba con `null`, y public.actualizar_numero_contrato solo miraba
+    // es_admin(). Esta ultima es la mas silenciosa porque no nombra al guard en
+    // ninguna parte y ademas SOBREVIVE A CUOTAS PAGADAS. Con el actor revocado ya
+    // fabricado arriba, se clavan ambas puertas.
+    await expectExpectedFailure(
+      'admin con membresia CRM revocada: no corrige terminos del contrato',
+      sessions.directorio.client.rpc('actualizar_contrato', {
+        p_id: seed.contract.id,
+        p_contrato: {
+          capital: 5000,
+          tasa_anual: 12,
+          modalidad: 'mensual',
+          fecha_inicio: '2026-01-01',
+          fecha_vencimiento: '2027-01-01',
+        },
+        p_cronograma: [],
+      }),
+      ['42501'],
+      /membresia crm fue revocada/i,
+    );
+    await expectExpectedFailure(
+      'admin con membresia CRM revocada: no corrige N/notas aunque haya cuotas pagadas',
+      sessions.directorio.client.rpc('actualizar_numero_contrato', {
+        p_id: seed.contract.id,
+        p_numero: 'SONDA-P04-REVOCADO',
+        p_notas: null,
+        p_categoria: null,
+      }),
+      ['42501'],
+      /membresia crm fue revocada/i,
+    );
+    // «La RPC lanzó excepción» NO es lo mismo que «no escribió». Si el gate
+    // regresara, las dos sondas de arriba habrian reescrito capital/tasa/fechas
+    // y el numero del contrato del fixture (y puesto notas_internas en NULL,
+    // porque el payload no trae la clave). Se comprueba la fila real: asi el
+    // rechazo se convierte en prueba de NO-ESCRITURA, que es lo que importa.
+    const filaTrasRechazo = await requireAdmin(
+      'banca P04: releer el contrato tras las sondas de revocacion',
+      admin.from('contratos')
+        .select('numero_contrato, capital, notas_internas')
+        .eq('id', seed.contract.id)
+        .single(),
+    );
+    check(
+      filaTrasRechazo?.data?.numero_contrato === BANK_CONTRACT.number
+        && Number(filaTrasRechazo?.data?.capital) === BANK_CONTRACT.capital
+        && filaTrasRechazo?.data?.notas_internas === BANK_CONTRACT.internalNotes,
+      'admin revocado: el contrato quedo intacto (el rechazo no escribio nada)',
+      JSON.stringify(filaTrasRechazo?.data),
+    );
     await requireAdmin(
       'banca P04: retirar la membresia revocada fabricada',
       admin.schema('crm').from('equipo').delete().eq('perfil_id', directorProfileId),
     );
     directorMembershipFabricated = false;
+
+    // MITAD POSITIVA de la pareja para la correccion de contratos. Sin ella, un
+    // futuro predicado invertido —o un regreso a puede_acceder_crm()— dejaria a
+    // gloria@ y AdminCorp@ sin corregir contratos (el incidente exacto del
+    // 08-08) y el gate seguiria verde con solo las sondas negativas.
+    // NO DESTRUCTIVAS a proposito: se envia un payload invalido, asi que
+    // atravesar la autorizacion y morir en la VALIDACION siguiente prueba que el
+    // gate dejo pasar, sin escribir una sola fila.
+    await expectExpectedFailure(
+      'admin sin membresia CRM: la correccion de terminos NO se le cierra',
+      sessions.directorio.client.rpc('actualizar_contrato', {
+        p_id: seed.contract.id,
+        p_contrato: {
+          capital: 1,
+          tasa_anual: 12,
+          modalidad: 'mensual',
+          fecha_inicio: '2026-01-01',
+          fecha_vencimiento: '2027-01-01',
+        },
+        p_cronograma: [],
+      }),
+      ['P0001'],
+      /capital debe estar entre/i,
+    );
+    await expectExpectedFailure(
+      'admin sin membresia CRM: la correccion de N/notas NO se le cierra',
+      sessions.directorio.client.rpc('actualizar_numero_contrato', {
+        p_id: seed.contract.id,
+        p_numero: '   ',
+        p_notas: null,
+        p_categoria: null,
+      }),
+      ['P0001'],
+      /no puede quedar vacio/i,
+    );
 
     // Perfil de portal APAGADO, rama admin (hallazgo del auditor-rls
     // 2026-08-08). Antes de 20260809000530 el cierre de un perfil desactivado
