@@ -67,6 +67,56 @@ siendo deliberada: `public.crear_contrato` y `public.actualizar_contrato` son
 capacidades legacy del portal y su migración o retiro pertenece a una fase
 separada; P04 no se comunica como revocación contractual universal.
 
+## El fallback se rompió y se restauró (2026-08-08 → 2026-08-09)
+
+Durante 24 horas el fallback que esta nota declara en «Reglas canónicas» dejó de
+cumplirse, y con él **personal real del portal quedó sin poder trabajar**. Vale
+la pena entender cómo, porque ningún paso fue erróneo por separado:
+
+1. El gate bancario de P04 preguntaba `private.puede_acceder_crm()`. Funcionaba
+   como fallback porque `es_lector_global()` **aún cubría a admin/superadmin**.
+2. El rediseño «rol CRM efectivo» (`20260807203740`) **estrechó**
+   `es_lector_global()` a Directorio con membresía. No se notó: el catálogo de
+   productos había borrado la línea de P04 del guard, así que nadie la consultaba.
+3. La reconciliación del gate F0 (`20260808173537`) **repuso** la línea sobre esa
+   base ya estrecha. Correcto en intención, pero la composición invirtió el
+   sentido: de «bloquea al revocado» pasó a «bloquea a todo el que no sea del CRM».
+
+**Quién lo pagó:** `gloria@`, administradora del portal que da soporte a los
+analistas gestionando Pagos y creando contratos. Nunca tuvo fila en `crm.equipo`
+porque su trabajo vive en el portal, no en el CRM. No está offboardeada — y aun
+así el gate la trató como si lo estuviera. `AdminCorp@` (superadmin) igual.
+
+La corrección (`20260809000530`, prod `20260809002309`) separa las dos preguntas
+que se habían fundido en una:
+
+| Pregunta | Antes (rota) | Ahora |
+|---|---|---|
+| ¿Tiene acceso CRM? | gobernaba la banca del portal | ya no la gobierna |
+| ¿Le **revocamos** el CRM? | — | `private.membresia_crm_revocada()` |
+
+Se aplicó a las dos funciones que gobiernan operaciones **del portal**
+(`private.puede_gestionar_cuentas_cliente` y `crm.cuentas_pago_contratos_fn`).
+`crm.equipo_visible_fn` y `private.es_directorio_crm_activo` quedaron intactas:
+son superficies CRM y ahí exigir acceso CRM es lo correcto. Verificado en
+producción: gloria opera **y sigue sin poder leer una sola tabla `crm.*`**.
+
+**Decisión de negocio de Miguel que sostiene el diseño:** el offboarding real de
+la empresa se hace eliminando/desactivando el usuario desde administración, y
+toda función del portal ya exige `perfiles.activo = true`. La membresía CRM no es
+ni debe ser el documento de identidad del personal de portal.
+
+⚠️ **Consecuencia operativa que hay que respetar:** a partir de aquí el
+offboarding del CRM es `activo = false`, **nunca `DELETE`**. Borrar la fila de
+`crm.equipo` convierte a la persona en «ajena al CRM» y le devuelve el poder de
+su rol de portal. Queda como deuda un trigger que vete el `DELETE`.
+
+Lección transversal: cuando un predicado de seguridad se usa como *proxy* de dos
+preguntas distintas («¿es del CRM?» y «¿le quitamos el CRM?»), un cambio legítimo
+en una de ellas cambia en silencio el significado de la otra. El detalle completo,
+el delta de autorización censado y las deudas de cobertura del gate están en
+`supabase/migrations/MIGRACIONES.md`, sección «P04 distingue revocado de ajeno».
+
 ## Despliegue y rollback
 
 Orden obligatorio: migración SQL → smoke de RPC/ICS → Edge Functions → app CRM.
