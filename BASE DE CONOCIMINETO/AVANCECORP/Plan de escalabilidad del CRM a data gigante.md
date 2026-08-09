@@ -18,7 +18,7 @@ con 30 hallazgos de crítica adversarial (4 bloqueantes) en tres lentes:
 RLS/seguridad, front/demo/tests y secuenciación de despliegue. Todos los
 hallazgos están incorporados abajo, en su fase.
 
-## 📊 Estado de avance (al 2026-08-08, noche)
+## 📊 Estado de avance (al 2026-08-09, madrugada)
 
 | Fase | Estado | Detalle |
 |---|---|---|
@@ -45,10 +45,28 @@ completo desde el 03-08 y destapó deuda de 3 ciclos ya en prod:
   atómica, guards de agenda, matriz bancaria, canal legacy, ventana de
   actividades).
 - 4 hallazgos documentados en [[Conflicto re-encolado vs destino efectivo (2026-08-08)]]
-  y el ledger: re-encolado bloqueado con tareas pendientes (¿feature o bug?),
-  Pagos exige membresía CRM (afecta solo `gloria@` y `AdminCorp@`), seed/gate
-  sin vía sancionada para estados históricos, y la rama admin de
-  `public.actualizar_contrato` sin guard (espera OK de Miguel).
+  y el ledger. **Tres se cerraron el 2026-08-09, antes de arrancar F1:**
+  1. ✅ **Pagos exigía membresía CRM** — resultó ser un bug del guard, no una
+     decisión: `gloria@` (administradora del portal, soporte de los analistas)
+     quedó 24 h sin Pagos ni contratos. Miguel rechazó el parche fácil de darle
+     un rol CRM y tenía razón. Arreglado distinguiendo «membresía REVOCADA» de
+     «persona AJENA al CRM» (`20260809002309`) y extendido a la corrección de
+     contratos (`20260809010408`). Ver [[Offboarding seguro del CRM (P04)]].
+  2. ✅ **Re-encolado bloqueado** — era un bug (opción B de Miguel): ahora
+     cancela las citas pendientes y retrocede la etapa (`20260809034548`).
+  3. ⬜ **Rama admin de `public.actualizar_contrato`** — cerrada dentro de (1).
+  Sigue abierto solo: **seed/gate sin vía sancionada para estados históricos**
+  (se suspende `trg_equipo_validar_usuarios_jerarquia` en el branch del gate;
+  deuda del ciclo de configuración operativa).
+
+**Estado real del gate al arrancar F1: 539 aserciones verdes.** Subió de 521 a
+539 en tres ciclos correctivos, no por F1.
+
+**⚠️ Deuda que F1 hereda y conviene tener presente:** P04-b sigue abierta —un
+admin del portal con membresía revocada no puede corregir un contrato pero SÍ
+**borrarlo entero** por PostgREST (con CASCADE a cuotas y documentos)—, y sube
+de prioridad el trigger que vete el `DELETE` sobre `crm.equipo`, que ya sostiene
+tres superficies. No bloquea F1.
 
 **Desviación del plan original en F0:** de los 4 índices de FK del advisor
 sobrevivió solo 1 (`enfriamiento_politica`) — los otros 3 eran de
