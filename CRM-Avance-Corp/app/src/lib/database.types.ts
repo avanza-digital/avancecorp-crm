@@ -1080,6 +1080,21 @@ export interface Database {
         Args: { p_meses?: number }
         Returns: Json
       }
+      // ── F1 tanda 2: cierre del servidor de métricas. resumen_reparto_fn
+      //    lleva gate propio (coordinador|gerencia; 42501 para el resto,
+      //    lector global incluido). Sin PII: solo agregados. ────────────────
+      resumen_tareas_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      resumen_cartera_clientes_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
+      resumen_reparto_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
       // ── C1: reparto de la cola global por el coordinador. Las tres son
       //    SECURITY DEFINER con gate propio (coordinador|gerencia): el
       //    coordinador NO ve crm.leads por RLS. La cola se proyecta SIN PII

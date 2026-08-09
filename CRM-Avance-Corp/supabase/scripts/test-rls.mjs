@@ -3940,9 +3940,17 @@ async function testMetasVersionadas(sessions, seed) {
 // (token METRICAS_SERVIDOR_TX_OK).
 const ETAPAS_ABIERTAS_F1 = new Set(['nuevo', 'contactado', 'reunion_agendada', 'propuesta_enviada']);
 const VENTANA_CONVERTIDOS_MS_F1 = 45 * 24 * 60 * 60 * 1000;
+const LIMA_OFFSET_MS_F1 = 5 * 3600 * 1000; // UTC-5 fijo (Perú no tiene DST)
+
+/** Primer instante (ms UTC) del mes inicial de una ventana de 6 meses en Lima
+ *  — espejo del v_ini de series_comerciales_fn(6). */
+function inicioVentanaSeisMesesLimaF1() {
+  const lima = new Date(Date.now() - LIMA_OFFSET_MS_F1);
+  return Date.UTC(lima.getUTCFullYear(), lima.getUTCMonth() - 5, 1) + LIMA_OFFSET_MS_F1;
+}
 
 async function testMetricasServidor(sessions, seed) {
-  console.log('\n— Metricas agregadas en el servidor (F1 tanda 1) —');
+  console.log('\n— Metricas agregadas en el servidor (F1 tandas 1+2) —');
 
   for (const key of ['vend1', 'sup1', 'sup2', 'gerencia', 'directorio']) {
     const client = sessions[key].client;
@@ -4062,15 +4070,36 @@ async function testMetricasServidor(sessions, seed) {
       'gerencia recibe 6 arrays paralelos de 6 meses');
   }
 
-  // Ambito nulo por diseño: el coordinador pasa la guardia y recibe TODO en
-  // cero (su superficie de reparto llega en la tanda 2 con resumen_reparto_fn).
+  // Tanda 2 (20260809144920): la rama de reparto da al coordinador los
+  // AGREGADOS de TODOS los sin-dueño (cola global + bandejas) en resumen y
+  // series — y NADA más. Oraculo: los sin-dueño que ve gerencia por RLS,
+  // leidos inmediatamente antes (la suite es secuencial: nada muta entre
+  // ambas lecturas).
+  const parkGerencia = await positive(
+    'gerencia lista los sin-dueno como oraculo del coordinador',
+    sessions.gerencia.client.schema('crm').from('leads')
+      .select('id, etapa, moneda, monto_estimado, creado_en, activo')
+      .is('vendedor_id', null)
+      .eq('activo', true)
+      .limit(2000),
+  );
+  const sinDueno = parkGerencia ? (parkGerencia.data ?? []) : null;
   const coordResumen = await positive(
     'coordinador llama resumen_cartera_fn',
     sessions.coordinador.client.schema('crm').rpc('resumen_cartera_fn'),
   );
-  if (coordResumen) {
-    check(coordResumen.data?.totales?.vivos === 0,
-      'coordinador recibe el resumen en cero (ambito nulo por diseno)');
+  if (coordResumen && sinDueno) {
+    const abiertosSinDueno = sinDueno.filter((l) => ETAPAS_ABIERTAS_F1.has(l.etapa));
+    const parkPen = abiertosSinDueno
+      .filter((l) => l.moneda !== 'USD')
+      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
+    const t = coordResumen.data?.totales ?? {};
+    check(t.parkeados === abiertosSinDueno.length && t.asignados === 0,
+      'coordinador ve exactamente los parkeados (rama de reparto) y cero asignados',
+      JSON.stringify({ rpc: t, esperado: abiertosSinDueno.length }));
+    check(Number(coordResumen.data?.capital?.parkeado?.pen ?? -1) === parkPen
+      && Number(coordResumen.data?.capital?.asignado?.pen ?? -1) === 0,
+      'coordinador: el capital parkeado cuadra y el asignado sigue en cero');
   }
   const coordCola = await positive(
     'coordinador llama cola_accion_fn',
@@ -4094,9 +4123,197 @@ async function testMetricasServidor(sessions, seed) {
     'coordinador llama series_comerciales_fn',
     sessions.coordinador.client.schema('crm').rpc('series_comerciales_fn', { p_meses: 6 }),
   );
-  if (coordSeries) {
-    check((coordSeries.data?.nuevos ?? []).every((n) => n === 0),
-      'coordinador recibe las series en cero');
+  if (coordSeries && sinDueno) {
+    const iniVentana = inicioVentanaSeisMesesLimaF1();
+    const nuevosEsperados = sinDueno
+      .filter((l) => Date.parse(l.creado_en) >= iniVentana).length;
+    const d = coordSeries.data ?? {};
+    const sumaNuevos = (d.nuevos ?? []).reduce((s, n) => s + Number(n), 0);
+    const sumaCierres = (d.cierres ?? []).reduce((s, n) => s + Number(n), 0);
+    check(sumaNuevos === nuevosEsperados && sumaCierres === 0,
+      'coordinador: las series suman solo las altas de los sin-dueno',
+      JSON.stringify({ sumaNuevos, nuevosEsperados }));
+  }
+
+  // ── Tanda 2: resumen_tareas_fn autoconsistente por rol ─────────────────────
+  for (const key of ['vend1', 'sup1', 'sup2', 'gerencia', 'directorio']) {
+    const client = sessions[key].client;
+    const tareasRls = await positive(
+      `${key} lista sus tareas pendientes como oraculo`,
+      client.schema('crm').from('tareas')
+        .select('id, lead_id, tipo, vence_en')
+        .eq('estado', 'pendiente').eq('activo', true).limit(2000),
+    );
+    const leadsRls = await positive(
+      `${key} lista sus leads para las senales de tareas`,
+      client.schema('crm').from('leads')
+        .select('id, etapa, vendedor_id, activo').limit(2000),
+    );
+    const rt = await positive(
+      `${key} obtiene resumen_tareas_fn`,
+      client.schema('crm').rpc('resumen_tareas_fn'),
+    );
+    if (!tareasRls || !leadsRls || !rt) continue;
+    const ahora = Date.now();
+    const pendientes = tareasRls.data ?? [];
+    const abiertos = new Map((leadsRls.data ?? [])
+      .filter((l) => l.activo === true && ETAPAS_ABIERTAS_F1.has(l.etapa))
+      .map((l) => [l.id, l]));
+    const d = rt.data ?? {};
+    check(d.version === 1 && d.pendientes?.total === pendientes.length,
+      `${key}: el total de tareas pendientes cuadra con su propio SELECT por RLS`,
+      JSON.stringify({ rpc: d.pendientes?.total, esperado: pendientes.length }));
+    const porTipo = { llamada: 0, whatsapp: 0, reunion: 0, tarea: 0 };
+    let vencidasHora = 0;
+    for (const t of pendientes) {
+      if (t.tipo in porTipo) porTipo[t.tipo] += 1;
+      if (Date.parse(t.vence_en) < ahora) vencidasHora += 1;
+    }
+    check(['llamada', 'whatsapp', 'reunion', 'tarea']
+      .every((tipo) => (d.pendientes?.por_tipo?.[tipo] ?? -1) === porTipo[tipo]),
+      `${key}: el desglose de pendientes por tipo cuadra`);
+    check(d.pendientes?.vencidas_hora === vencidasHora
+      && d.pendientes?.vencidas_dia <= vencidasHora,
+      `${key}: vencidas por hora cuadran (las de dia jamas las superan)`);
+    // La vencida mas antigua por lead ABIERTO (espejo de tareasVencidasPorLead).
+    const vencidasPorLead = new Set();
+    for (const t of pendientes) {
+      if (t.lead_id && abiertos.has(t.lead_id) && Date.parse(t.vence_en) < ahora) {
+        vencidasPorLead.add(t.lead_id);
+      }
+    }
+    check(d.vencidas?.leads_total === vencidasPorLead.size
+      && (d.vencidas?.items ?? []).every((i) => abiertos.has(i.lead_id)),
+      `${key}: un lead vencido por fila y todos de su propio ambito`,
+      JSON.stringify({ rpc: d.vencidas?.leads_total, esperado: vencidasPorLead.size }));
+    // sin_accion: abiertos CON dueno y sin pendiente alguna. En los fixtures la
+    // visibilidad de una tarea calca la de su lead, asi que el espejo local es
+    // exacto (la divergencia del anti-join canonico esta documentada en la
+    // migracion 20260809144912).
+    const conTarea = new Set(pendientes.filter((t) => t.lead_id).map((t) => t.lead_id));
+    const sinAccion = [...abiertos.values()]
+      .filter((l) => l.vendedor_id != null && !conTarea.has(l.id));
+    check(d.sin_accion?.total === sinAccion.length
+      && (d.sin_accion?.items ?? []).every((i) => abiertos.has(i.lead_id)),
+      `${key}: sin_accion cuadra con su ambito`,
+      JSON.stringify({ rpc: d.sin_accion?.total, esperado: sinAccion.length }));
+  }
+  const coordTareas = await positive(
+    'coordinador llama resumen_tareas_fn',
+    sessions.coordinador.client.schema('crm').rpc('resumen_tareas_fn'),
+  );
+  if (coordTareas) {
+    check(coordTareas.data?.pendientes?.total === 0
+      && coordTareas.data?.vencidas?.leads_total === 0
+      && coordTareas.data?.sin_accion?.total === 0,
+      'coordinador recibe las tareas en cero (su superficie es el reparto)');
+  }
+
+  // ── Tanda 2: resumen_cartera_clientes_fn autoconsistente por rol ───────────
+  for (const key of ['vend1', 'sup1', 'gerencia', 'directorio']) {
+    const client = sessions[key].client;
+    const cli = await positive(
+      `${key} lista clientes_basicos_fn como oraculo`,
+      client.schema('crm').rpc('clientes_basicos_fn'),
+    );
+    const cons = await positive(
+      `${key} lista contratos_cartera_fn como oraculo`,
+      client.schema('crm').rpc('contratos_cartera_fn'),
+    );
+    const rc = await positive(
+      `${key} obtiene resumen_cartera_clientes_fn`,
+      client.schema('crm').rpc('resumen_cartera_clientes_fn'),
+    );
+    if (!cli || !cons || !rc) continue;
+    const clientes = cli.data ?? [];
+    const activoPorCliente = new Map(clientes.map((c) => [c.id, c.activo]));
+    // contratos_cartera_fn tiene una rama extra (huerfanos por creado_por); el
+    // resumen NO la tiene: el oraculo descarta contratos cuyo cliente no esta
+    // en clientes_basicos_fn (mismo descarte que agruparCartera en el front).
+    const contratos = (cons.data ?? []).filter((c) => activoPorCliente.has(c.cliente_id));
+    const d = rc.data ?? {};
+    const enGestion = clientes.filter((c) => c.activo).length;
+    const deBaja = clientes.length - enGestion;
+    let pen = 0;
+    let usd = 0;
+    const conCapital = new Set();
+    for (const c of contratos) {
+      if (c.estado !== 'activo' || activoPorCliente.get(c.cliente_id) !== true) continue;
+      conCapital.add(c.cliente_id);
+      const capital = Number(c.capital) || 0;
+      if (c.moneda === 'USD') usd += capital;
+      else pen += capital;
+    }
+    check(d.version === 1
+      && d.clientes?.en_gestion === enGestion
+      && d.clientes?.de_baja === deBaja
+      && d.clientes?.con_capital === conCapital.size,
+      `${key}: los conteos de clientes cuadran con clientes_basicos_fn`,
+      JSON.stringify({ rpc: d.clientes, esperado: { enGestion, deBaja, conCapital: conCapital.size } }));
+    check(Math.abs(Number(d.capital_activo?.pen ?? -1) - pen) < 0.005
+      && Math.abs(Number(d.capital_activo?.usd ?? -1) - usd) < 0.005,
+      `${key}: el capital activo por moneda cuadra (PEN y USD jamas sumados)`);
+    const sinAsesor = clientes.filter((c) => c.activo && c.asesor_perfil_id == null).length;
+    check(d.clientes?.sin_asesor === sinAsesor,
+      `${key}: sin_asesor cuadra con su visibilidad (${sinAsesor})`);
+    // Alarma de renovacion: contrato activo venciendo en [hoy, hoy+30] Lima,
+    // sobre TODOS los clientes visibles (las bajas no la apagan).
+    const hoyLima = new Date(Date.now() - LIMA_OFFSET_MS_F1);
+    const base = Date.UTC(hoyLima.getUTCFullYear(), hoyLima.getUTCMonth(), hoyLima.getUTCDate());
+    const porVencer = contratos.filter((c) => {
+      if (c.estado !== 'activo' || !c.fecha_vencimiento) return false;
+      const [y, m, dia] = String(c.fecha_vencimiento).split('-').map(Number);
+      const dias = Math.round((Date.UTC(y, m - 1, dia) - base) / 86_400_000);
+      return dias >= 0 && dias <= 30;
+    });
+    check(d.contratos?.por_vencer_30 === porVencer.length,
+      `${key}: la alarma de renovacion cuadra (${porVencer.length})`);
+  }
+  const coordCartClientes = await positive(
+    'coordinador llama resumen_cartera_clientes_fn',
+    sessions.coordinador.client.schema('crm').rpc('resumen_cartera_clientes_fn'),
+  );
+  if (coordCartClientes) {
+    check(coordCartClientes.data?.clientes?.en_gestion === 0
+      && Number(coordCartClientes.data?.capital_activo?.pen ?? -1) === 0,
+      'coordinador recibe la cartera de clientes en cero');
+  }
+
+  // ── Tanda 2: resumen_reparto_fn — gate coordinador|gerencia ────────────────
+  for (const key of ['coordinador', 'gerencia']) {
+    const client = sessions[key].client;
+    const colaOraculo = await positive(
+      `${key} lista leads_por_repartir como oraculo del resumen`,
+      client.schema('crm').rpc('leads_por_repartir'),
+    );
+    const rr = await positive(
+      `${key} obtiene resumen_reparto_fn`,
+      client.schema('crm').rpc('resumen_reparto_fn'),
+    );
+    if (!colaOraculo || !rr) continue;
+    const cola = colaOraculo.data ?? [];
+    const pen = cola.filter((l) => l.moneda !== 'USD')
+      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
+    const usd = cola.filter((l) => l.moneda === 'USD')
+      .reduce((suma, l) => suma + Number(l.monto_estimado ?? 0), 0);
+    const credito = cola.filter((l) => l.clasificacion_auto === 'posible_credito').length;
+    const d = rr.data?.cola ?? {};
+    check(rr.data?.version === 1
+      && d.total === cola.length
+      && Number(d.capital?.pen ?? -1) === pen
+      && Number(d.capital?.usd ?? -1) === usd
+      && d.posible_credito === credito,
+      `${key}: el resumen de reparto cuadra con leads_por_repartir`,
+      JSON.stringify({ rpc: d, esperado: { total: cola.length, pen, usd, credito } }));
+  }
+  // El lector global (directorio) NO opera el reparto: 42501 igual que en
+  // leads_por_repartir (contrato historico de C1).
+  for (const key of ['vend1', 'sup1', 'directorio']) {
+    await expectExplicitAuthorizationDenied(
+      `${key} recibe 42501 en resumen_reparto_fn`,
+      sessions[key].client.schema('crm').rpc('resumen_reparto_fn'),
+      ['42501'],
+    );
   }
 
   // Sin membresia viva ni lector global: denegacion DURA (42501), no vacio.
@@ -4106,6 +4323,9 @@ async function testMetricasServidor(sessions, seed) {
       ['cola_accion_fn', { p_limite: 100 }],
       ['metricas_vendedores_fn', {}],
       ['series_comerciales_fn', { p_meses: 6 }],
+      ['resumen_tareas_fn', {}],
+      ['resumen_cartera_clientes_fn', {}],
+      ['resumen_reparto_fn', {}],
     ]) {
       await expectExplicitAuthorizationDenied(
         `${key} recibe 42501 en ${fn}`,

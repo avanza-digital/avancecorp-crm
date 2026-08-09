@@ -1,10 +1,18 @@
--- Oráculo transaccional de F1 tanda 1 (20260809043802_crm_metricas_servidor_tanda1).
--- Éxito = token METRICAS_SERVIDOR_TX_OK; todo queda en rollback.
+-- Oráculo transaccional de F1 tandas 1 y 2 (20260809043802 + 20260809144912 +
+-- 20260809144920). Éxito = token METRICAS_SERVIDOR_TX_OK; todo queda en rollback.
 -- Cubre lo que la matriz .mjs NO puede con los fixtures del seed: la cascada
 -- COMPLETA de buckets de cola_accion_fn (una rama por lead fabricado), la
 -- ventana de convertidos de 45 días (resumen/vendedores la aplican, series NO),
 -- la aritmética exacta de los agregados, los 22023 de parámetros, el 42501 de
 -- un autenticado ajeno al CRM, y la tríada de ACL + prosecdef + search_path.
+-- Tanda 2: resumen_tareas_fn (dos criterios de vencida + señales de alertas),
+-- resumen_cartera_clientes_fn (alarma de renovación con bajas y sin_asesor
+-- invisible fuera de gerencia/lector), resumen_reparto_fn (gate coordinador),
+-- y la rama de parkeados del coordinador en las 3 RPC de agregados puros
+-- (cola_accion_fn queda deliberadamente SIN ella: items con PII, premisa C1).
+-- Los esperados del coordinador se calculan como postgres en GUCs `oraculo.*`
+-- ANTES de asumir roles: inmunes a residuos de otras suites y con now()
+-- congelado por la transacción.
 --
 -- Fixtures fabricados con triggers apagados (session_replication_role=replica,
 -- solo rama desechable): los CHECK sí aplican (motivo_descarte obligatorio en
@@ -114,7 +122,115 @@ insert into crm.tareas(id, lead_id, vendedor_id, tipo, titulo, vence_en, estado,
    '7f100000-0000-4000-8000-000000000002', 'tarea', 'ORACULO TAREA VIGENTE L7',
    now() + interval '1 day', 'pendiente', true, '7f100000-0000-4000-8000-000000000002');
 
+-- ── Tanda 2: coordinador CO, clientes con contratos, cola global, T3 ─────────
+-- CO opera el reparto; C es cliente EN GESTIÓN del vendedor V con 3 contratos
+-- (activo PEN por vencer, activo USD lejano, vencido); CB es cliente DE BAJA
+-- de V con contrato activo por vencer (la alarma no se apaga con la baja);
+-- CS es cliente activo SIN asesor (solo gerencia/lector deben contarlo).
+insert into public.perfiles(id, nombre_completo, correo, rol, activo, asesor_perfil_id) values
+  ('7f100000-0000-4000-8000-000000000004', 'ORACULO F1 COORDINADOR', 'f1-co@test.invalid', 'comercial', true, null),
+  ('7f100000-0000-4000-8000-000000000005', 'ORACULO CLIENTE GESTION', 'f1-c@test.invalid', 'cliente', true, '7f100000-0000-4000-8000-000000000002'),
+  ('7f100000-0000-4000-8000-000000000006', 'ORACULO CLIENTE DE BAJA', 'f1-cb@test.invalid', 'cliente', false, '7f100000-0000-4000-8000-000000000002'),
+  ('7f100000-0000-4000-8000-000000000007', 'ORACULO CLIENTE SIN ASESOR', 'f1-cs@test.invalid', 'cliente', true, null);
+
+insert into crm.equipo(perfil_id, rol_crm, supervisor_id, activo) values
+  ('7f100000-0000-4000-8000-000000000004', 'coordinador', null, true);
+
+-- Contratos K1..K5 (producto_condicion_id apunta a un uuid inerte: la FK está
+-- suspendida por replica y el resumen NO une con el catálogo — NOT NULL en
+-- prod garantiza que el INNER JOIN de contratos_cartera_fn tampoco descarta).
+insert into public.contratos(id, numero_contrato, cliente_id, capital, moneda, tasa_anual,
+                             modalidad, tipo_interes, categoria, estado,
+                             fecha_inicio, fecha_vencimiento, producto_condicion_id, creado_por) values
+  ('7f100000-0000-4000-8000-000000000b01', 'ORACULO-K1', '7f100000-0000-4000-8000-000000000005', 3000, 'PEN', 10,
+   'mensual', 'simple', 'nuevo', 'activo',
+   (now() at time zone 'America/Lima')::date - 355, (now() at time zone 'America/Lima')::date + 10,
+   '7f100000-0000-4000-8000-000000000a03', '7f100000-0000-4000-8000-000000000002'),
+  ('7f100000-0000-4000-8000-000000000b02', 'ORACULO-K2', '7f100000-0000-4000-8000-000000000005', 1500, 'USD', 10,
+   'mensual', 'simple', 'nuevo', 'activo',
+   (now() at time zone 'America/Lima')::date - 100, (now() at time zone 'America/Lima')::date + 200,
+   '7f100000-0000-4000-8000-000000000a03', '7f100000-0000-4000-8000-000000000002'),
+  ('7f100000-0000-4000-8000-000000000b03', 'ORACULO-K3', '7f100000-0000-4000-8000-000000000005', 9000, 'PEN', 10,
+   'mensual', 'simple', 'nuevo', 'vencido',
+   (now() at time zone 'America/Lima')::date - 400, (now() at time zone 'America/Lima')::date - 10,
+   '7f100000-0000-4000-8000-000000000a03', '7f100000-0000-4000-8000-000000000002'),
+  ('7f100000-0000-4000-8000-000000000b04', 'ORACULO-K4', '7f100000-0000-4000-8000-000000000006', 4000, 'PEN', 10,
+   'mensual', 'simple', 'renovacion', 'activo',
+   (now() at time zone 'America/Lima')::date - 360, (now() at time zone 'America/Lima')::date + 5,
+   '7f100000-0000-4000-8000-000000000a03', '7f100000-0000-4000-8000-000000000002'),
+  ('7f100000-0000-4000-8000-000000000b05', 'ORACULO-K5', '7f100000-0000-4000-8000-000000000007', 7770, 'PEN', 10,
+   'mensual', 'simple', 'nuevo', 'activo',
+   (now() at time zone 'America/Lima')::date - 30, (now() at time zone 'America/Lima')::date + 3,
+   '7f100000-0000-4000-8000-000000000a03', null);
+
+-- Cola GLOBAL de reparto: G1 (posible crédito, 3 días esperando), G2 (USD,
+-- hoy), G3 (no_contactar: JAMÁS en la cola — Ley 29571 — pero SÍ parkeado
+-- para los agregados de cartera del coordinador).
+insert into crm.leads(id, nombre_completo, telefono, origen, etapa, monto_estimado, moneda,
+                      vendedor_id, asignado_supervisor_id, creado_por, creado_en,
+                      clasificacion_auto, no_contactar) values
+  ('7f100000-0000-4000-8000-000000000112', 'ORACULO G1 COLA CREDITO', '51999117112', 'landing', 'nuevo', 10000, 'PEN',
+   null, null, '7f100000-0000-4000-8000-000000000004', now() - interval '3 days', 'posible_credito', false),
+  ('7f100000-0000-4000-8000-000000000113', 'ORACULO G2 COLA USD', '51999117113', 'otro', 'nuevo', 500, 'USD',
+   null, null, '7f100000-0000-4000-8000-000000000004', now(), null, false),
+  ('7f100000-0000-4000-8000-000000000114', 'ORACULO G3 NO INSISTA', '51999117114', 'otro', 'nuevo', 900, 'PEN',
+   null, null, '7f100000-0000-4000-8000-000000000004', now(), null, true);
+
+-- T3: la vencida POR HORA de L3 (26 h: siempre día-Lima anterior → cuenta en
+-- ambos criterios de forma determinista). No cambia la cascada de cola_accion:
+-- seguimiento (dias>=3) dispara ANTES que plan_vencido.
+insert into crm.tareas(id, lead_id, vendedor_id, tipo, titulo, vence_en, estado, activo, creado_por) values
+  ('7f100000-0000-4000-8000-000000000408', '7f100000-0000-4000-8000-000000000103',
+   '7f100000-0000-4000-8000-000000000002', 'llamada', 'ORACULO LLAMADA VENCIDA L3',
+   now() - interval '26 hours', 'pendiente', true, '7f100000-0000-4000-8000-000000000002');
+
 set local session_replication_role = origin;
+
+-- ── Esperados del coordinador, calculados como postgres (RLS al margen) ──────
+-- Inmunes a residuos de otras suites; now() está congelado por la transacción,
+-- así que la aritmética de días coincide EXACTA con la de las RPC.
+select set_config('oraculo.reparto_total', (
+  select count(*)::text from crm.leads l
+  where l.activo and l.vendedor_id is null and l.asignado_supervisor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')
+    and l.no_contactar = false), true);
+select set_config('oraculo.reparto_pen', (
+  select coalesce(sum(coalesce(l.monto_estimado, 0)) filter (where l.moneda is distinct from 'USD'), 0)::text
+  from crm.leads l
+  where l.activo and l.vendedor_id is null and l.asignado_supervisor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')
+    and l.no_contactar = false), true);
+select set_config('oraculo.reparto_usd', (
+  select coalesce(sum(coalesce(l.monto_estimado, 0)) filter (where l.moneda = 'USD'), 0)::text
+  from crm.leads l
+  where l.activo and l.vendedor_id is null and l.asignado_supervisor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')
+    and l.no_contactar = false), true);
+select set_config('oraculo.reparto_espera', (
+  select coalesce(greatest(floor(extract(epoch from (now() - min(l.creado_en))) / 86400.0), 0)::int, 0)::text
+  from crm.leads l
+  where l.activo and l.vendedor_id is null and l.asignado_supervisor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')
+    and l.no_contactar = false), true);
+select set_config('oraculo.reparto_credito', (
+  select count(*)::text from crm.leads l
+  where l.activo and l.vendedor_id is null and l.asignado_supervisor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')
+    and l.no_contactar = false and l.clasificacion_auto = 'posible_credito'), true);
+select set_config('oraculo.park_n', (
+  select count(*)::text from crm.leads l
+  where l.activo and l.vendedor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')), true);
+select set_config('oraculo.park_pen', (
+  select coalesce(sum(coalesce(l.monto_estimado, 0)) filter (where l.moneda is distinct from 'USD'), 0)::text
+  from crm.leads l
+  where l.activo and l.vendedor_id is null
+    and l.etapa in ('nuevo','contactado','reunion_agendada','propuesta_enviada')), true);
+select set_config('oraculo.series_nuevos', (
+  select count(*)::text from crm.leads l
+  where l.activo and l.vendedor_id is null
+    and l.creado_en >= (((date_trunc('month', (now() at time zone 'America/Lima'))::date
+                          - make_interval(months => 5))::timestamp) at time zone 'America/Lima')), true);
 
 -- ═════════════════════════════════════════════════════════════════════════════
 -- Asserts como el SUPERVISOR S (ve su subárbol + su bandeja)
@@ -416,6 +532,259 @@ begin
          and p.proconfig @> array['search_path=""']
          and p.provolatile = 's') <> 4 then
     raise exception 'M09b prosecdef/search_path/stable incompletos en las 4 RPC';
+  end if;
+end;
+$test$;
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- M10 — resumen_tareas_fn como S: stats con DOS criterios de vencida, la
+-- vencida más antigua por lead y sin_accion ordenado por capital.
+-- ═════════════════════════════════════════════════════════════════════════════
+select set_config('request.jwt.claim.sub', '7f100000-0000-4000-8000-000000000001', true);
+set local role authenticated;
+
+do $test$
+declare
+  v jsonb := crm.resumen_tareas_fn();
+begin
+  if (v ->> 'version')::int <> 1 then
+    raise exception 'M10a version incorrecta: %', v;
+  end if;
+  -- T406 (L6 tarea -3d), T407 (L7 tarea +1d), T3 (L3 llamada -26h).
+  if (v -> 'pendientes' ->> 'total')::int <> 3
+     or (v -> 'pendientes' -> 'por_tipo' ->> 'tarea')::int <> 2
+     or (v -> 'pendientes' -> 'por_tipo' ->> 'llamada')::int <> 1
+     or (v -> 'pendientes' -> 'por_tipo' ->> 'whatsapp')::int <> 0
+     or (v -> 'pendientes' -> 'por_tipo' ->> 'reunion')::int <> 0
+     or (v -> 'pendientes' ->> 'de_cliente')::int <> 0 then
+    raise exception 'M10b pendientes incorrectos: %', v -> 'pendientes';
+  end if;
+  -- 26 h > 24 h: T3 venció AYER en Lima siempre → ambos criterios dan 2.
+  if (v -> 'pendientes' ->> 'vencidas_hora')::int <> 2
+     or (v -> 'pendientes' ->> 'vencidas_dia')::int <> 2 then
+    raise exception 'M10c criterios de vencida incorrectos: %', v -> 'pendientes';
+  end if;
+  -- La más antigua encabeza (L6, 72 h, critica); L3 (26 h) también critica.
+  if (v -> 'vencidas' ->> 'leads_total')::int <> 2
+     or (v -> 'vencidas' ->> 'leads_criticos')::int <> 2
+     or (v -> 'vencidas' -> 'items' -> 0 ->> 'lead_id') <> '7f100000-0000-4000-8000-000000000106'
+     or round((v -> 'vencidas' -> 'items' -> 0 ->> 'horas')::numeric) <> 72
+     or (v -> 'vencidas' -> 'items' -> 0 ->> 'titulo') <> 'ORACULO TAREA VENCIDA L6'
+     or (v -> 'vencidas' -> 'items' -> 0 ->> 'vendedor_id') <> '7f100000-0000-4000-8000-000000000002'
+     or (v -> 'vencidas' -> 'items' -> 1 ->> 'lead_id') <> '7f100000-0000-4000-8000-000000000103'
+     or round((v -> 'vencidas' -> 'items' -> 1 ->> 'horas')::numeric) <> 26 then
+    raise exception 'M10d vencidas incorrectas: %', v -> 'vencidas';
+  end if;
+  -- sin_accion: L1, L2, L4, L5 (L3/L6/L7 tienen pendiente; L8 sin dueño).
+  -- Orden espejo de sinProximaAccion: PEN primero, monto desc → L5 encabeza.
+  if (v -> 'sin_accion' ->> 'total')::int <> 4
+     or jsonb_array_length(v -> 'sin_accion' -> 'por_vendedor') <> 1
+     or (v -> 'sin_accion' -> 'por_vendedor' -> 0 ->> 'vendedor_id') <> '7f100000-0000-4000-8000-000000000002'
+     or (v -> 'sin_accion' -> 'por_vendedor' -> 0 ->> 'n')::int <> 4
+     or (v -> 'sin_accion' -> 'items' -> 0 ->> 'lead_id') <> '7f100000-0000-4000-8000-000000000105'
+     or (v -> 'sin_accion' -> 'items' -> 3 ->> 'lead_id') <> '7f100000-0000-4000-8000-000000000101' then
+    raise exception 'M10e sin_accion incorrecto: %', v -> 'sin_accion';
+  end if;
+end;
+$test$;
+
+-- M11 — resumen_cartera_clientes_fn como S: capital solo de la cartera EN
+-- GESTIÓN, alarma sobre TODOS (incluida la baja), sin_asesor INVISIBLE para S.
+do $test$
+declare
+  v jsonb := crm.resumen_cartera_clientes_fn();
+begin
+  if (v ->> 'version')::int <> 1 or (v ->> 'dias_alarma_renovacion')::int <> 30 then
+    raise exception 'M11a version/alarma incorrectas: %', v;
+  end if;
+  -- C en gestión, CB de baja; CS (sin asesor) NO existe para S.
+  if (v -> 'clientes' ->> 'en_gestion')::int <> 1
+     or (v -> 'clientes' ->> 'de_baja')::int <> 1
+     or (v -> 'clientes' ->> 'con_capital')::int <> 1
+     or (v -> 'clientes' ->> 'sin_asesor')::int <> 0 then
+    raise exception 'M11b clientes incorrectos (sin_asesor debe ser 0 para S): %', v -> 'clientes';
+  end if;
+  -- K1 (3000 PEN) + K2 (1500 USD); K4 es de la baja → fuera del capital.
+  if (v -> 'capital_activo' ->> 'pen')::numeric <> 3000
+     or (v -> 'capital_activo' ->> 'usd')::numeric <> 1500 then
+    raise exception 'M11c capital incorrecto (PEN y USD jamas se suman): %', v -> 'capital_activo';
+  end if;
+  -- K1/K2/K4 activos + K3 vencido (K5 pertenece a CS, invisible para S).
+  if (v -> 'contratos' -> 'por_estado' ->> 'activo')::int <> 3
+     or (v -> 'contratos' -> 'por_estado' ->> 'vencido')::int <> 1
+     or (v -> 'contratos' ->> 'por_vencer_30')::int <> 2
+     or (v -> 'contratos' ->> 'por_vencer_30_de_baja')::int <> 1 then
+    raise exception 'M11d contratos/alarma incorrectos: %', v -> 'contratos';
+  end if;
+end;
+$test$;
+
+-- M12a — resumen_reparto_fn: el SUPERVISOR no opera el reparto → 42501.
+do $test$
+begin
+  begin
+    perform crm.resumen_reparto_fn();
+    raise exception 'M12a supervisor obtuvo el resumen de reparto';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$test$;
+
+reset role;
+
+-- M12b — el VENDEDOR tampoco.
+select set_config('request.jwt.claim.sub', '7f100000-0000-4000-8000-000000000002', true);
+set local role authenticated;
+
+do $test$
+begin
+  begin
+    perform crm.resumen_reparto_fn();
+    raise exception 'M12b vendedor obtuvo el resumen de reparto';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$test$;
+
+reset role;
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- M13 — el COORDINADOR CO: resumen_reparto_fn con la aritmética de la cola
+-- global, la rama de parkeados en resumen/series, y TODO lo demás vacío.
+-- Esperados desde los GUC `oraculo.*` (calculados como postgres).
+-- ═════════════════════════════════════════════════════════════════════════════
+select set_config('request.jwt.claim.sub', '7f100000-0000-4000-8000-000000000004', true);
+set local role authenticated;
+
+do $test$
+declare
+  r jsonb := crm.resumen_reparto_fn();
+  c jsonb := crm.resumen_cartera_fn();
+  q jsonb := crm.cola_accion_fn(100);
+  m jsonb := crm.metricas_vendedores_fn();
+  s jsonb := crm.series_comerciales_fn(6);
+  t jsonb := crm.resumen_tareas_fn();
+  k jsonb := crm.resumen_cartera_clientes_fn();
+begin
+  -- Reparto: espejo EXACTO de la cola global (G3 no_contactar JAMÁS cuenta).
+  if (r -> 'cola' ->> 'total')::int <> current_setting('oraculo.reparto_total')::int
+     or (r -> 'cola' -> 'capital' ->> 'pen')::numeric <> current_setting('oraculo.reparto_pen')::numeric
+     or (r -> 'cola' -> 'capital' ->> 'usd')::numeric <> current_setting('oraculo.reparto_usd')::numeric
+     or (r -> 'cola' ->> 'espera_max_dias')::int <> current_setting('oraculo.reparto_espera')::int
+     or (r -> 'cola' ->> 'posible_credito')::int <> current_setting('oraculo.reparto_credito')::int then
+    raise exception 'M13a resumen_reparto no cuadra con la cola global: % vs GUCs %/%/%/%/%',
+      r -> 'cola', current_setting('oraculo.reparto_total'), current_setting('oraculo.reparto_pen'),
+      current_setting('oraculo.reparto_usd'), current_setting('oraculo.reparto_espera'),
+      current_setting('oraculo.reparto_credito');
+  end if;
+  if current_setting('oraculo.reparto_espera')::int < 3 then
+    raise exception 'M13b la espera del oraculo deberia incluir los 3 dias de G1';
+  end if;
+  -- Cartera: la rama de reparto le da TODOS los sin-dueño… y nada más.
+  if (c -> 'totales' ->> 'parkeados')::int <> current_setting('oraculo.park_n')::int
+     or (c -> 'totales' ->> 'asignados')::int <> 0
+     or (c -> 'capital' -> 'parkeado' ->> 'pen')::numeric <> current_setting('oraculo.park_pen')::numeric
+     or (c -> 'capital' -> 'asignado' ->> 'pen')::numeric <> 0
+     or (c ->> 'sin_tocar')::int <> 0
+     or (c -> 'conversion' ->> 'base')::int <> 0 then
+    raise exception 'M13c cartera del coordinador incorrecta: %', c;
+  end if;
+  -- La cola de acción sigue VACÍA (premisa C1: sus items llevan PII).
+  if (q -> 'resumen' ->> 'total')::int <> 0 or jsonb_array_length(q -> 'items') <> 0 then
+    raise exception 'M13d el coordinador recibio items de cola_accion: %', q -> 'resumen';
+  end if;
+  -- Vendedores/equipos vacíos (roster ∅; la rama habría sido código muerto).
+  if jsonb_array_length(m -> 'vendedores') <> 0 or jsonb_array_length(m -> 'equipos') <> 0 then
+    raise exception 'M13e metricas_vendedores del coordinador no vacias: %', m;
+  end if;
+  -- Series: solo las altas de los sin-dueño.
+  if (select sum((x)::text::int) from jsonb_array_elements(s -> 'nuevos') x)
+       <> current_setting('oraculo.series_nuevos')::int
+     or (select sum((x)::text::int) from jsonb_array_elements(s -> 'cierres') x) <> 0 then
+    raise exception 'M13f series del coordinador incorrectas: %', s;
+  end if;
+  -- Tareas y cartera de clientes: ∅ por diseño.
+  if (t -> 'pendientes' ->> 'total')::int <> 0
+     or (t -> 'vencidas' ->> 'leads_total')::int <> 0
+     or (t -> 'sin_accion' ->> 'total')::int <> 0 then
+    raise exception 'M13g resumen_tareas del coordinador no vacio: %', t;
+  end if;
+  if (k -> 'clientes' ->> 'en_gestion')::int <> 0
+     or (k -> 'clientes' ->> 'de_baja')::int <> 0
+     or (k -> 'capital_activo' ->> 'pen')::numeric <> 0 then
+    raise exception 'M13h cartera de clientes del coordinador no vacia: %', k;
+  end if;
+end;
+$test$;
+
+reset role;
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- M14 — autenticado AJENO al CRM: 42501 en las 3 nuevas.
+-- ═════════════════════════════════════════════════════════════════════════════
+select set_config('request.jwt.claim.sub', '7f100000-0000-4000-8000-000000000003', true);
+set local role authenticated;
+
+do $test$
+begin
+  begin
+    perform crm.resumen_tareas_fn();
+    raise exception 'M14a ajeno obtuvo resumen_tareas';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform crm.resumen_cartera_clientes_fn();
+    raise exception 'M14b ajeno obtuvo resumen_cartera_clientes';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform crm.resumen_reparto_fn();
+    raise exception 'M14c ajeno obtuvo resumen_reparto';
+  exception when insufficient_privilege then null;
+  end;
+end;
+$test$;
+
+reset role;
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- M15 — ACL/definer/stable de la tanda 2 + las 2 reemplazadas que no cubría
+-- M09. actividades_del_ambito_fn conserva su search_path legacy as-built, por
+-- eso la verificación de search_path='' la excluye a propósito.
+-- ═════════════════════════════════════════════════════════════════════════════
+do $test$
+declare
+  fn text;
+begin
+  foreach fn in array array[
+    'crm.resumen_tareas_fn()',
+    'crm.resumen_cartera_clientes_fn()',
+    'crm.resumen_reparto_fn()',
+    'crm.estado_sla_leads_fn()',
+    'crm.actividades_del_ambito_fn()'
+  ] loop
+    if not has_function_privilege('authenticated', fn, 'execute')
+       or has_function_privilege('anon', fn, 'execute')
+       or has_function_privilege('service_role', fn, 'execute') then
+      raise exception 'M15a ACL incorrecta en %', fn;
+    end if;
+  end loop;
+  if (select count(*) from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'crm'
+         and p.proname in ('resumen_tareas_fn', 'resumen_cartera_clientes_fn',
+                           'resumen_reparto_fn', 'estado_sla_leads_fn')
+         and p.prosecdef
+         and p.proconfig @> array['search_path=""']
+         and p.provolatile = 's') <> 4 then
+    raise exception 'M15b prosecdef/search_path/stable incompletos en la tanda 2';
+  end if;
+  if (select count(*) from pg_proc p
+        join pg_namespace n on n.oid = p.pronamespace
+       where n.nspname = 'crm'
+         and p.proname = 'actividades_del_ambito_fn'
+         and p.prosecdef and p.provolatile = 's') <> 1 then
+    raise exception 'M15c actividades_del_ambito_fn perdio definer/stable';
   end if;
 end;
 $test$;

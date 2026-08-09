@@ -955,3 +955,112 @@ Front acompañante: delta A MANO en `database.types.ts` (4 firmas nuevas,
 `Returns: Json`; el regen completo contra prod ROMPE el build — archivo
 curado); `npm run check` del app en verde. Sin cambios de pantallas en esta
 tanda.
+
+## F1 tanda 2 — cierre del servidor de métricas (2026-08-09)
+
+Cierra la superficie SERVIDOR de la fase F1 y ejecuta las **3 notas del ledger
+de la tanda 1, aprobadas las 3 por Miguel el 2026-08-09** (índice `creado_en`,
+parkeados del coordinador, optimización `= any(array)`). El front sigue SIN
+consumir ninguna RPC de F1: los hooks llegan por pantalla (F1b).
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260809144912 | 20260809151422 | crm_metricas_servidor_tanda2 | ✅ **EN PROD 2026-08-09** (ciclo completo, ver abajo) |
+| 20260809144920 | 20260809151423 | crm_ambito_any_array_parkeados_coordinador | ✅ **EN PROD 2026-08-09** (ciclo completo, ver abajo) |
+| 20260809144930 | 20260809151436 | crm_indice_leads_creado_en | ✅ **EN PROD 2026-08-09** (ciclo completo, ver abajo) |
+
+**Ciclo (2026-08-09):** branch `f1-metricas-servidor-tanda2` → migraciones por
+Management API (⚠️ trampa nueva: dos en el mismo segundo colisionan la PK de
+`schema_migrations` — la 3ª se reintenta sola) → seed idempotente
+(`seed:demo`; ⚠️ el branch nace VACÍO: correr el seed ANTES del gate) → gate
+RLS **648/648** (593 previas + 55 de la tanda 2, verde a la primera) → oráculo
+`METRICAS_SERVIDOR_TX_OK` (M01–M15; 1 reintento: `facebook` no está en
+`leads_origen_check`, se cambió a `landing`) → advisors 0 ERROR (las 9 solo en
+la clase WARN definer aceptada) → trigger `trg_equipo_validar_usuarios_jerarquia`
+reactivado (`'O'`) → paridad prod re-verificada ANTES del merge (6/6 md5
+intactos) → merge → verificado en prod (md5 branch↔prod **9/9**, ACL exacta
+`{authenticated}`, definer+stable+`search_path` correctos, índice presente,
+3 migraciones registradas) → branch borrado.
+
+**20260809144912 — las 3 RPC nuevas** (patrón canónico completo: definer +
+stable + `search_path=''` + guardia 42501 + revoke 4 audiencias/grant
+authenticated + jsonb `version:1`; nacen ya con `= any(v_visibles)`):
+- `resumen_tareas_fn()` — stats de la agenda (pendientes por tipo, `de_cliente`,
+  y los DOS criterios de vencida por separado: `vencidas_hora` para los chips,
+  `vencidas_dia` para el plan muerto de colaDe) + señales de alertas: la
+  vencida MÁS ANTIGUA por lead abierto (criterio hora, tope 50, `horas` para
+  que el front decida severidad) y `sin_accion` (abiertos con dueño sin tarea
+  pendiente, con conteo por vendedor para la alerta del supervisor y items
+  ordenados PEN-primero/monto desc, tope 50). Ámbito = espejo de la RLS
+  `tareas_select` acotado a pendiente+activa; leads por el predicado canónico
+  con rama de bandeja (SIN rama de coordinador).
+- `resumen_cartera_clientes_fn()` — espejo de `resumenCartera` (cartera-vista):
+  clientes en_gestion/de_baja/con_capital, capital activo por moneda SOLO de la
+  cartera en gestión, alarma `por_vencer_30` sobre TODOS los visibles con
+  desglose `_de_baja`, `por_estado` para los chips de F2, y bucket `sin_asesor`
+  que solo se llena para gerencia/lector (por construcción del predicado, no
+  por un case). 100 % canónica: MISMO predicado que `clientes_basicos_fn`
+  (SIN la rama `creado_por` de contratos_cartera_fn), `search_path=''`.
+- `resumen_reparto_fn()` — espejo del StatStrip de repartir.tsx: total de la
+  cola GLOBAL, capital por moneda, `espera_max_dias` (enteros), `posible_credito`
+  y `por_origen`. Gate `private.puede_operar_reparto_crm()` (coordinador y
+  gerencia; **el lector global recibe 42501**, coherente con
+  `leads_por_repartir`). Predicado idéntico a la implementación de la cola
+  (sin dueño total, etapas abiertas, `no_contactar=false` — Ley 29571). Sin PII.
+
+**20260809144920 — la familia de ámbito a `= any(array)` + parkeados del
+coordinador** (cuerpos as-built con paridad md5 repo↔prod verificada 6/6 antes
+de editar; diff mecánico cuerpo a cuerpo con SOLO los cambios declarados):
+- Optimización: `col in (select vendedor_ids_visibles())` (SubPlan por fila,
+  jamás usa índice) → captura única en `v_visibles uuid[]` + `col = any(...)`
+  (indexable). Alcance DELIBERADO: solo las 6 que ESCANEAN leads/actividades
+  (`resumen_cartera_fn`, `cola_accion_fn`, `metricas_vendedores_fn`,
+  `series_comerciales_fn`, `estado_sla_leads_fn`, `actividades_del_ambito_fn`).
+  Quedan fuera a propósito: `configuracion_metas_fn`/`cumplimiento_metas_fn`/
+  `metricas_agenda_implementacion` (su `in (select)` filtra tablas del tamaño
+  del ROSTER — regla de exclusión del plan) y `clientes_basicos_fn`/
+  `contratos_cartera_fn` (F2 las re-arquitectura con keyset; además la
+  definición viva de `clientes_basicos_fn` NO está versionada — drift del
+  ledger 20260721120000 — y la regla F0 prohíbe modificar sin versionar antes).
+- Parkeados del coordinador (**cambio de scoping, no solo de rendimiento**):
+  la rama pasa a `(vendedor_id is null and (asignado_supervisor_id =
+  any(visibles) or puede_operar_reparto_crm()))` SOLO en `resumen_cartera_fn`
+  y `series_comerciales_fn` — el coordinador ve los AGREGADOS de todos los
+  sin-dueño (cola global + bandejas), su negocio. NO la reciben:
+  `cola_accion_fn` (items con PII de contacto; premisa C1 «enruta, no
+  contacta» — su agregado es `resumen_reparto_fn`), `metricas_vendedores_fn`
+  (hallazgo del auditor: todo su payload agrega por dueño con vendedor — la
+  rama habría sido código muerto), ni `estado_sla_leads_fn`/
+  `actividades_del_ambito_fn` (filas, no agregados).
+- `actividades_del_ambito_fn` conserva su `search_path` legacy as-built
+  (deuda declarada; canonizarlo será su propia migración).
+- ACL re-asentada idéntica en las 6 (regla permanente #9).
+
+**20260809144930 — índice `crm.leads(creado_en)`**: el prefiltro de las series
+(`creado_en >= v_ini OR contrato_id IS NOT NULL`) deja de ser seq scan — el
+planner puede resolver el OR por BitmapOr contra `idx_leads_contrato` (F0).
+
+**Contrato de denegación tanda 2** (fijado antes de codificar tests): anon →
+sin EXECUTE; ajeno al CRM y membresía inactiva → 42501 en las 3; coordinador →
+pasa la guardia con agregados VACÍOS en tareas/cartera-clientes y es titular en
+reparto; vendedor/supervisor/directorio → 42501 SOLO en `resumen_reparto_fn`.
+
+**Divergencias deliberadas vs el front** (se suman a las 4 de la tanda 1):
+5. `sin_accion` usa el anti-join canónico del servidor (mismo criterio que
+   `metricas_agenda_implementacion`): el front solo ve las tareas de su RLS,
+   así que una tarea ajena sobre su lead podía inflar su «sin próxima acción».
+   El auditor deja constancia (NOTA) de la inferencia de 1 bit que esto
+   permite (el lead desaparece de la lista si ALGUIEN le puso tarea) — aceptada.
+6. Los topes de listas (50) son señales para alertas, no listados.
+
+**Verificación**: auditoría adversarial previa (auditor-rls: 0 BLOQUEANTES,
+2 MAYORES de proceso resueltos —matriz y este ledger—, 1 MENOR aplicado —rama
+muerta retirada de metricas_vendedores_fn—, 5 notas) · matriz
+`testMetricasServidor` ampliada (autoconsistente: resumen_tareas contra el
+SELECT RLS de tareas+leads de la misma sesión; cartera-clientes contra
+`clientes_basicos_fn`+`contratos_cartera_fn`; reparto contra
+`leads_por_repartir`; el coordinador contra los sin-dueño que ve gerencia,
+leídos adyacentes) · oráculo TX ampliado (M10–M15: dos criterios de vencida
+deterministas —26 h—, alarma de renovación con bajas, `sin_asesor` invisible
+para supervisor, cola global con GUCs `oraculo.*` calculados como postgres
+—inmunes a residuos—, 42501 del ajeno, tríada ACL de las 5 tocadas).
