@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, arquitectura, plan]
 actualizado: 2026-08-09
-estado: en-ejecucion (F0 ✅ · F1 servidor ✅ · F1b tandas 1+2 ✅ · sigue tanda 3 reparto y luego F2)
+estado: en-ejecucion (F0 ✅ · **F1 COMPLETA** ✅ servidor + F1b tandas 1+2+3 · sigue F2 keyset)
 ---
 
 # Plan de escalabilidad del CRM a data gigante
@@ -23,7 +23,7 @@ hallazgos están incorporados abajo, en su fase.
 | Fase | Estado | Detalle |
 |---|---|---|
 | **F0 Cimientos** | ✅ **EN PROD** | 4 migraciones mergeadas (gate 521/521, advisors limpios, branch borrado) |
-| **F1 Métricas al servidor** | 🟢 **SERVIDOR COMPLETO** — tandas 1+2 EN PROD (2026-08-09) | Tanda 1 (`20260809051400`): las 4 RPC base + ventana de convertidos 45 d. **Tanda 2 (`20260809151422/23/36`)**: las 3 RPC restantes (`resumen_tareas_fn` con los DOS criterios de vencida + señales de alertas; `resumen_cartera_clientes_fn` 100 % canónica con alarma de renovación y `sin_asesor` solo gerencia/lector; `resumen_reparto_fn` gateada al coordinador) **+ las 3 notas aprobadas por Miguel**: índice `leads(creado_en)` (BitmapOr con `idx_leads_contrato`), parkeados del coordinador en resumen/series (NO en cola_accion —PII, premisa C1— ni en metricas_vendedores —código muerto, hallazgo del auditor—), y optimización `= any(array)` en las 6 funciones que escanean leads/actividades (las de roster y las de cartera-clientes quedan fuera a propósito — regla de exclusión + F2 keyset + drift de `clientes_basicos_fn`). Gate **648/648** (+55), oráculo `METRICAS_SERVIDOR_TX_OK` (M01–M15), advisors 0 ERROR, md5 branch↔prod 9/9. **F1b tanda 1 ✅ (2026-08-09, solo front):** Cartera y Pipeline consumen `resumen_cartera_fn` (hook `useResumenCarteraOperativo`: RPC en real, espejo VIVO en demo — `lib/resumen-cartera.ts` con el shape validado por el MISMO schema Valibot del wrapper), corte de `listarLeadsDelAmbito` a 45 d aplicado (filtro OR de PostgREST + test MSW; el debounce de `verificarDisponibilidadLead` YA existía del ciclo de creación atómica), puente de invalidaciones en `resincronizarReal` (prefijo `metricas-ambito`, transitorio hasta F3), degradación honesta («—» + banner con Reintentar, precedente objetivosError), handler `resumen_cartera_fn` en `montarBackendReal` + 3 E2E nuevos (tile demo vivo tras crear lead, tiles RPC en real, RPC caída → degradado operable). `npm run check` 1422 ✔ · e2e 65 ✔. **F1b tanda 2 ✅ (2026-08-09, mismo día):** hoy/vendedor + hoy/supervisor + equipo + hoy/directorio consumen `cola_accion_fn`/`metricas_vendedores_fn`/`resumen_cartera_fn` (detalle y decisiones en la sección F1); redacción de motivos unificada en `redactarMotivoCola`; `series` del store eliminado (código muerto); agenda y `resumen_tareas_fn` diferidas a F2/F3 a propósito; verificación adversarial (4 lentes) + a11y + Codex; check 1430 ✔ · e2e **78/0** (incluye los 12 specs de config/contratos heredados rotos del ciclo `0230929`, reconciliados — cero bugs reales). **F1b tandas 1+2 EN PROD** (release `crm-20260809T190736Z`, ~19:08 UTC, sha idéntico local↔prod) + **ciclo satélite del ranking el mismo día**: capital total unificado al TC BCRP en el panel de gerencia (release `…202628Z`), revisión Codex → edge `crm-tipo-cambio` **v4** + 3 fixes de front (release `…205248Z`); ver [[Ranking de capital total unificado (TC BCRP)]]. **Resta tanda 3: repartir sobre `resumen_reparto_fn`.** |
+| **F1 Métricas al servidor** | ✅ **COMPLETA** — servidor (tandas 1+2) y front (F1b tandas 1+2+3), todo del 2026-08-09; solo la tanda 3 espera deploy | Tanda 1 (`20260809051400`): las 4 RPC base + ventana de convertidos 45 d. **Tanda 2 (`20260809151422/23/36`)**: las 3 RPC restantes (`resumen_tareas_fn` con los DOS criterios de vencida + señales de alertas; `resumen_cartera_clientes_fn` 100 % canónica con alarma de renovación y `sin_asesor` solo gerencia/lector; `resumen_reparto_fn` gateada al coordinador) **+ las 3 notas aprobadas por Miguel**: índice `leads(creado_en)` (BitmapOr con `idx_leads_contrato`), parkeados del coordinador en resumen/series (NO en cola_accion —PII, premisa C1— ni en metricas_vendedores —código muerto, hallazgo del auditor—), y optimización `= any(array)` en las 6 funciones que escanean leads/actividades (las de roster y las de cartera-clientes quedan fuera a propósito — regla de exclusión + F2 keyset + drift de `clientes_basicos_fn`). Gate **648/648** (+55), oráculo `METRICAS_SERVIDOR_TX_OK` (M01–M15), advisors 0 ERROR, md5 branch↔prod 9/9. **F1b tanda 1 ✅ (2026-08-09, solo front):** Cartera y Pipeline consumen `resumen_cartera_fn` (hook `useResumenCarteraOperativo`: RPC en real, espejo VIVO en demo — `lib/resumen-cartera.ts` con el shape validado por el MISMO schema Valibot del wrapper), corte de `listarLeadsDelAmbito` a 45 d aplicado (filtro OR de PostgREST + test MSW; el debounce de `verificarDisponibilidadLead` YA existía del ciclo de creación atómica), puente de invalidaciones en `resincronizarReal` (prefijo `metricas-ambito`, transitorio hasta F3), degradación honesta («—» + banner con Reintentar, precedente objetivosError), handler `resumen_cartera_fn` en `montarBackendReal` + 3 E2E nuevos (tile demo vivo tras crear lead, tiles RPC en real, RPC caída → degradado operable). `npm run check` 1422 ✔ · e2e 65 ✔. **F1b tanda 2 ✅ (2026-08-09, mismo día):** hoy/vendedor + hoy/supervisor + equipo + hoy/directorio consumen `cola_accion_fn`/`metricas_vendedores_fn`/`resumen_cartera_fn` (detalle y decisiones en la sección F1); redacción de motivos unificada en `redactarMotivoCola`; `series` del store eliminado (código muerto); agenda y `resumen_tareas_fn` diferidas a F2/F3 a propósito; verificación adversarial (4 lentes) + a11y + Codex; check 1430 ✔ · e2e **78/0** (incluye los 12 specs de config/contratos heredados rotos del ciclo `0230929`, reconciliados — cero bugs reales). **F1b tandas 1+2 EN PROD** (release `crm-20260809T190736Z`, ~19:08 UTC, sha idéntico local↔prod) + **ciclo satélite del ranking el mismo día**: capital total unificado al TC BCRP en el panel de gerencia (release `…202628Z`), revisión Codex → edge `crm-tipo-cambio` **v4** + 3 fixes de front (release `…205248Z`); ver [[Ranking de capital total unificado (TC BCRP)]]. **Resta tanda 3: repartir sobre `resumen_reparto_fn`.** |
 | **F2 Keyset** | ⬜ pendiente | Requiere F1 |
 | **F3 Desmontar el store** | ⬜ pendiente | Requiere F1+F2 |
 | **F4 Histórico vs vivo** | ⬜ pendiente | **Bloqueada por el DSN de Sentry** (Miguel) |
@@ -255,11 +255,51 @@ Decisiones y hechos del ciclo:
   deploy del front). La telemetría que F4 necesita EMPEZÓ a juntarse hoy —
   falta confirmar que llegan eventos al proyecto de Sentry.
 
-Sigue **tanda 3**: repartir.tsx sobre `resumen_reparto_fn` (~media sesión);
-luego F2 keyset. Pendientes menores que viajan con esas fases:
-`descartes_45d` como campo del RPC (tanda 3/F2), `useLead(id)` para el borde
-del tope 2000 (F2/F3), y la decisión de Miguel sobre extender el total
-unificado a las filas de equipo (ver Decisiones abiertas #10).
+**F1b tanda 3 ✅ (2026-08-09, solo front, sin migraciones) — CIERRA F1
+COMPLETA:** los 4 tiles de `repartir.tsx` (Por repartir · Capital PEN ·
+Capital USD · Espera más larga) los sirve `resumen_reparto_fn`; el navegador
+ya no recorre la cola. Piezas: `lib/resumen-reparto.ts` (schema Valibot +
+espejo puro `resumenRepartoDesdeCola`), wrapper `listarResumenReparto`
+fail-closed con `version:1` de cinturón, clave `resumen-reparto` bajo
+`metricas-ambito` + `refetchInterval` 60 s, hook
+`use-resumen-reparto-operativo`, y el arnés E2E (`resumenRepartoReal` +
+`fallarResumenReparto` + `resumenRepartoOverride`). Decisiones del ciclo:
+- **En demo el resumen es `null` a propósito** (única divergencia con los
+  espejos hermanos de F1): no hay cola de reparto en los fixtures —todos los
+  leads demo tienen dueño o supervisor—, así que un espejo diría siempre
+  «0 · S/ 0 · US$ 0» junto al panel que avisa que la cola no cargó. De paso se
+  corrigió un defecto previo: esos ceros se pintaban como si fueran reales.
+- **La invalidación va A MANO, en 6 puntos**: la pantalla no pasa por el store
+  y el puente de `resincronizarReal` NUNCA corre para el coordinador
+  (off-roster). Se usa el SINGLETON `lib/query-client` (no `useQueryClient`):
+  la pantalla se monta en tests sin provider. Se invalida —y no solo se
+  refetchea— porque el remonte por `colaKey` serviría la foto rancia dentro de
+  los 30 s de `staleTime`.
+- **`posible_credito` y `por_origen` se validan pero NO se consumen**: el chip
+  «Posible crédito (N)» y el `<select>` de orígenes rotulan un filtro LOCAL —un
+  control debe contar lo que va a filtrar— y servirlos del RPC haría
+  DESAPARECER el filtro cuando el RPC cae. Se estrenan en F2, con la lista
+  paginada.
+- Verificación: workflow adversarial de 5 lentes (**21 hallazgos crudos → 20
+  refutados, 1 confirmado**: el arnés no aseveraba 5 de los 6 puntos de
+  invalidación) + `revisor-a11y` (6 arreglos: foco recogido al desmontarse el
+  «Reintentar», contraste del aviso a `warning-text`, `aria-label` que lo
+  distingue del otro «Reintentar» de la pantalla, anillo de foco, y
+  `valorAccesible` nuevo en `StatStrip` para que el «—» se OIGA como «sin
+  dato»/«cargando» en vez de sonar a cero).
+- **Prueba de mutación real**: quitando la invalidación del descarte, el E2E se
+  pone rojo (`Por repartir` se queda en 3 con 2 filas). Restaurado y verde.
+- `npm run check` **1454** ✔ · e2e **81 passed** ✔. Trampa registrada: los KPIs
+  pasan por `AnimatedValue` (cuenta 0→valor en 700 ms), así que aseverar el
+  valor de un tile con el timeout por defecto de `findBy*` es FLAKY bajo
+  cobertura — hay que esperar el valor asentado.
+
+Sigue **F2 keyset**. Pendientes menores que viajan con esa fase:
+`descartes_45d` como campo del RPC, `useLead(id)` para el borde del tope 2000,
+la decisión de Miguel sobre extender el total unificado a las filas de equipo
+(Decisiones abiertas #10), y el barrido de contraste/foco de los 5 banners de
+degradación hermanos (cartera, pipeline ×2, equipo, hoy/supervisor,
+hoy/vendedor) que comparten los defectos ya corregidos en repartir.
 
 ### Inventario a migrar (11 métricas, todas con archivo:línea en el borrador)
 
@@ -520,7 +560,7 @@ sostenido una semana, O ámbito de gerencia > 300.000 leads.
 | Orden | Fase | Sesiones (≈ media jornada) |
 |---|---|---|
 | 1 | ✅ F0 Cimientos | HECHA (2026-08-08; tomó ~1 sesión larga, incluida la reconciliación no planificada del gate) |
-| 2 | 🟡 F1 Métricas al servidor | **SERVIDOR HECHO en 2 sesiones** (tandas 1+2, ambas 2026-08-09). **F1b tandas 1 y 2 HECHAS y EN PROD el mismo día** (cartera+pipeline+corte 45 d; hoy/*+equipo+directorio con cola y ranking servidos; 3 releases). Resta F1b tanda 3 (reparto): ~0.5 |
+| 2 | ✅ F1 Métricas al servidor | HECHA. Servidor en 2 sesiones (tandas 1+2) y front en 3 tandas, todo el 2026-08-09: F1b 1+2 EN PROD (3 releases) y F1b 3 (reparto) implementada y verde, pendiente de deploy |
 | 3 | F2 Keyset | 3–4 |
 | 4 | F3 Desmontar el store | 6–8 |
 | 5 | F4 Histórico vs vivo | 2 (el DSN de Sentry **entró a prod el 2026-08-09** con los releases de F1b — la telemetría que F4 necesita ya corre; falta confirmar eventos en Sentry y dejarla acumular) |
