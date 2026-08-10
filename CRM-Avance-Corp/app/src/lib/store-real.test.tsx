@@ -82,6 +82,7 @@ function configuracionMetas(
   return {
     version: 1,
     periodo: '2026-08-01',
+    sin_supervisor: [],
     revision: capitalPen > 0 || capitalUsd > 0 || conversionObjetivo > 0 ? 4 : 0,
     publicada_en: null,
     publicada_por: null,

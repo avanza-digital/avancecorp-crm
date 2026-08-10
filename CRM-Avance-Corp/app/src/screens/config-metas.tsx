@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ChevronLeft, ChevronRight, Copy, RefreshCw, Save, Target } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Copy, RefreshCw, Save, Target, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfiguracionShell } from '@/components/config/configuracion-shell'
 import { Button } from '@/components/ui/button'
@@ -127,6 +127,69 @@ function MetaVendedor({
           </div>
           <p className="mt-2 text-[11px] text-muted-foreground">Monto total esperado para el analista durante el mes seleccionado.</p>
         </div>
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Cada motivo es un arreglo distinto; decir «sin supervisor» a los tres manda
+ * a Gerencia a buscar un problema que no es. */
+const MOTIVO_SIN_SUPERVISOR: Record<
+  ConfiguracionMetas['sin_supervisor'][number]['motivo'], string
+> = {
+  sin_supervisor: 'no tiene supervisor asignado',
+  supervisor_inactivo: 'su supervisor está dado de baja',
+  supervisor_no_es_supervisor: 'quien figura como su supervisor ya no tiene ese rol',
+}
+
+/**
+ * A quién NO se le puede fijar meta y por qué. Un analista fuera del roster no
+ * cabe en la meta del mes —`crm.metas_vendedor.supervisor_id` es obligatorio— y
+ * callarlo dejaría a alguien sin objetivo y sin producción atribuida hasta que
+ * alguien se diera cuenta a fin de mes.
+ */
+function AnalistasFueraDeMetas({
+  analistas,
+}: {
+  analistas: ConfiguracionMetas['sin_supervisor']
+}) {
+  if (analistas.length === 0) return null
+  const plural = analistas.length !== 1
+  return (
+    <Card className="border-warning/40 bg-warning/[0.06]">
+      <CardContent className="flex flex-col gap-3 py-4 sm:flex-row sm:items-start sm:justify-between">
+        <div className="flex items-start gap-3">
+          <TriangleAlert className="mt-0.5 size-5 shrink-0 text-warning" aria-hidden />
+          <div>
+            {/* Encabezado real: con 17 analistas la pantalla emite ~18 h3, y sin
+                este el único bloque ausente de la navegación por encabezados
+                sería justo el aviso que Gerencia no puede pasar por alto. */}
+            <h3 id="analistas-sin-meta" className="text-sm font-extrabold text-foreground">
+              {analistas.length} analista{plural ? 's' : ''} sin meta este mes
+            </h3>
+            <ul className="mt-1.5 space-y-1" aria-labelledby="analistas-sin-meta">
+              {analistas.map((analista) => (
+                // `text-foreground/70` y no `muted-foreground`: la tinta ámbar de
+                // la card gana a `bg-card` en twMerge y deja el gris en 4.21:1.
+                <li key={analista.vendedor_id} className="text-xs text-foreground/70">
+                  <span className="font-semibold text-foreground">{analista.nombre}</span>
+                  {` — ${MOTIVO_SIN_SUPERVISOR[analista.motivo]}.`}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-foreground/70">
+              Mientras siga así no {plural ? 'se les' : 'se le'} puede fijar meta y su
+              producción no se atribuye en el cumplimiento del mes. La publicación del
+              resto del equipo no se detiene.
+            </p>
+          </div>
+        </div>
+        <a
+          href="#/config-usuarios"
+          className="inline-flex h-9 shrink-0 items-center justify-center gap-2 rounded-md border border-border bg-card px-3 text-xs font-semibold text-foreground transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+        >
+          Revisar jerarquía <ArrowRight className="size-4" aria-hidden />
+        </a>
       </CardContent>
     </Card>
   )
@@ -276,6 +339,8 @@ export function ConfigMetas() {
           )}
         </CardContent>
       </Card>
+
+      {borrador && <AnalistasFueraDeMetas analistas={borrador.sin_supervisor} />}
 
       {consulta.isPending && (
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground" role="status">Cargando las metas del período…</CardContent></Card>

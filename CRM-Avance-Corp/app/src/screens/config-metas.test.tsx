@@ -57,6 +57,7 @@ function configuracion(overrides: Partial<ConfiguracionMetas> = {}): Configuraci
     publicada_por: '30000000-0000-4000-8000-000000000001',
     publicada_por_nombre: 'GERENCIA UNO',
     puede_editar: true,
+    sin_supervisor: [],
     vendedores: [{
       vendedor_id: ID_VENDEDOR,
       nombre: 'ANA VENDEDORA',
@@ -183,6 +184,64 @@ describe('ConfigMetas', () => {
       'La meta mensual de ANA VENDEDORA debe estar entre S/ 0 y S/ 100,000,000.',
     )
     expect(dobles.publicar).not.toHaveBeenCalled()
+  })
+
+  // ESTADO DE PRODUCCIÓN (2026-08-10): 16 analistas con supervisor y una
+  // analista sin él. Ese único caso bloqueaba la publicación del mes ENTERO —
+  // el editor ofrecía 16 metas y el servidor exigía 17 — y la pantalla no decía
+  // nada. Aquí se fija lo contrario: se avisa de quién queda fuera Y se publica
+  // igual el resto.
+  it('señala a quien queda fuera de las metas sin bloquear la publicación', async () => {
+    const user = userEvent.setup()
+    dobles.consulta = consultaCon(configuracion({
+      revision: 0,
+      publicada_en: null,
+      publicada_por: null,
+      publicada_por_nombre: null,
+      sin_supervisor: [
+        {
+          vendedor_id: '40000000-0000-4000-8000-000000000001',
+          nombre: 'IVETT SIN JEFE',
+          motivo: 'sin_supervisor',
+        },
+        {
+          vendedor_id: '40000000-0000-4000-8000-000000000002',
+          nombre: 'RUTH CON JEFE DE BAJA',
+          motivo: 'supervisor_inactivo',
+        },
+      ],
+    }))
+    render(<ConfigMetas />)
+
+    // Encabezado real, no un <p> en negrita: es el único bloque de la pantalla
+    // que un lector de pantalla no encontraría navegando por encabezados.
+    expect(await screen.findByRole('heading', { name: '2 analistas sin meta este mes' }))
+      .toBeInTheDocument()
+    // Cada motivo es un arreglo distinto y la pantalla no puede confundirlos.
+    expect(screen.getByText(/IVETT SIN JEFE/)).toBeInTheDocument()
+    expect(screen.getByText(/no tiene supervisor asignado/)).toBeInTheDocument()
+    expect(screen.getByText(/RUTH CON JEFE DE BAJA/)).toBeInTheDocument()
+    expect(screen.getByText(/su supervisor está dado de baja/)).toBeInTheDocument()
+    // La consecuencia real, no solo el síntoma.
+    expect(screen.getByText(/su producción no se atribuye/)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: /Revisar jerarquía/ }))
+      .toHaveAttribute('href', '#/config-usuarios')
+
+    fireEvent.change(screen.getByLabelText('Meta mensual total de ANA VENDEDORA'), {
+      target: { value: '80000' },
+    })
+    await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
+
+    await waitFor(() => expect(dobles.publicar).toHaveBeenCalledOnce())
+    const enviado = dobles.publicar.mock.calls[0]?.[0] as { metas: Record<string, unknown> }
+    // Solo el roster: quien no tiene supervisor no cabe en crm.metas_vendedor.
+    expect(Object.keys(enviado.metas)).toEqual([ID_VENDEDOR])
+  })
+
+  it('no menciona a nadie cuando el roster está completo', async () => {
+    render(<ConfigMetas />)
+    expect(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')).toBeInTheDocument()
+    expect(screen.queryByText(/sin meta este mes/)).not.toBeInTheDocument()
   })
 
   it('copia el mes anterior sin publicarlo automáticamente', async () => {

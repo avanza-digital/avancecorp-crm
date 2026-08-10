@@ -42,6 +42,28 @@ export const MetaVendedorConfigSchema = v.strictObject({
   detalles: DetallesMetaSchema,
 })
 
+/**
+ * Analista activo que queda FUERA de las metas del mes por no tener supervisor
+ * activo. No cabe en `crm.metas_vendedor` (supervisor_id es NOT NULL), así que
+ * el servidor no le pide meta; la pantalla lo dice en voz alta para que
+ * Gerencia lo corrija en vez de descubrirlo cuando falte el dato.
+ */
+/**
+ * Tres arreglos distintos, no uno. Agruparlos bajo «sin supervisor» mandaría a
+ * Gerencia a asignarle uno a alguien que en pantalla ya lo tiene.
+ */
+export const MOTIVOS_SIN_SUPERVISOR = [
+  'sin_supervisor',
+  'supervisor_inactivo',
+  'supervisor_no_es_supervisor',
+] as const
+
+export const VendedorSinSupervisorSchema = v.strictObject({
+  vendedor_id: UuidSchema,
+  nombre: TextoNoVacioSchema,
+  motivo: v.picklist(MOTIVOS_SIN_SUPERVISOR),
+})
+
 export const ConfiguracionMetasSchema = v.strictObject({
   version: v.literal(1),
   periodo: FechaSchema,
@@ -50,6 +72,10 @@ export const ConfiguracionMetasSchema = v.strictObject({
   publicada_por: v.nullable(UuidSchema),
   publicada_por_nombre: v.nullable(v.string()),
   puede_editar: v.boolean(),
+  // Opcional a propósito: el front se despliega ANTES que la migración que la
+  // añade, y con `strictObject` una clave desconocida rompería la pantalla
+  // entera. Mientras el servidor no la mande, la lista llega vacía.
+  sin_supervisor: v.optional(v.array(VendedorSinSupervisorSchema), []),
   vendedores: v.array(MetaVendedorConfigSchema),
 })
 
@@ -68,6 +94,7 @@ export const RespuestaPublicacionMetasSchema = v.pipe(
 )
 
 export type DetalleMeta = v.InferOutput<typeof CombinacionMetaSchema>
+export type VendedorSinSupervisor = v.InferOutput<typeof VendedorSinSupervisorSchema>
 export type MetaVendedorConfig = v.InferOutput<typeof MetaVendedorConfigSchema>
 export type ConfiguracionMetas = v.InferOutput<typeof ConfiguracionMetasSchema>
 export type ResultadoPublicacionMetas = v.InferOutput<typeof ResultadoPublicacionMetasSchema>

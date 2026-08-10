@@ -518,5 +518,154 @@ begin
 end;
 $test$;
 
+-- ============================================================================
+-- M15..M18 — Un vendedor sin supervisor no puede secuestrar el mes entero.
+--
+-- El bug real (2026-08-10): el editor ofrecia las metas del roster (vendedores
+-- CON supervisor) y el publicador las exigia de TODOS los vendedores, ademas de
+-- abortar con 23514 si a alguno le faltaba. Con una sola analista huerfana,
+-- publicar metas era imposible y `crm.meta_periodos` llevaba 0 filas.
+-- Aqui se fija el contrato nuevo: se publica el roster, al excluido se le
+-- nombra, y colarlo en el payload sigue siendo un error.
+-- ============================================================================
+
+-- Los TRES caminos por los que un vendedor cae fuera del roster. Se prueban
+-- juntos porque el arreglo de cada uno esta en un sitio distinto y una sola
+-- etiqueta para los tres manda a Gerencia a buscar el problema equivocado.
+insert into auth.users(
+  id,aud,role,email,email_confirmed_at,raw_app_meta_data,raw_user_meta_data,created_at,updated_at
+) values
+  ('71000000-0000-4000-8000-000000000009','authenticated','authenticated',
+   'metas-huerfano@test.invalid',now(),'{}','{}',now(),now()),
+  ('71000000-0000-4000-8000-00000000000a','authenticated','authenticated',
+   'metas-sup-baja@test.invalid',now(),'{}','{}',now(),now()),
+  ('71000000-0000-4000-8000-00000000000b','authenticated','authenticated',
+   'metas-v-supbaja@test.invalid',now(),'{}','{}',now(),now()),
+  ('71000000-0000-4000-8000-00000000000c','authenticated','authenticated',
+   'metas-coord@test.invalid',now(),'{}','{}',now(),now()),
+  ('71000000-0000-4000-8000-00000000000d','authenticated','authenticated',
+   'metas-v-coord@test.invalid',now(),'{}','{}',now(),now());
+
+insert into public.perfiles(id,nombre_completo,correo,rol,activo) values
+  ('71000000-0000-4000-8000-000000000009','Metas Vendedor Sin Jefe',
+   'metas-huerfano@test.invalid','comercial',true),
+  ('71000000-0000-4000-8000-00000000000a','Metas Supervisor De Baja',
+   'metas-sup-baja@test.invalid','comercial',true),
+  ('71000000-0000-4000-8000-00000000000b','Metas Vendedor Con Jefe De Baja',
+   'metas-v-supbaja@test.invalid','comercial',true),
+  ('71000000-0000-4000-8000-00000000000c','Metas Coordinador',
+   'metas-coord@test.invalid','comercial',true),
+  ('71000000-0000-4000-8000-00000000000d','Metas Vendedor Bajo Coordinador',
+   'metas-v-coord@test.invalid','comercial',true);
+
+set local session_replication_role=replica;
+insert into crm.equipo(perfil_id,rol_crm,supervisor_id,activo) values
+  ('71000000-0000-4000-8000-000000000009','vendedor',null,true),
+  ('71000000-0000-4000-8000-00000000000a','supervisor',null,false),
+  ('71000000-0000-4000-8000-00000000000b','vendedor','71000000-0000-4000-8000-00000000000a',true),
+  ('71000000-0000-4000-8000-00000000000c','coordinador',null,true),
+  ('71000000-0000-4000-8000-00000000000d','vendedor','71000000-0000-4000-8000-00000000000c',true);
+set local session_replication_role=origin;
+
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $test$
+declare
+  v_c jsonb;
+  v_payload jsonb;
+  v_periodo date := date '2099-09-01';
+  v_revision integer;
+begin
+  v_c := crm.configuracion_metas_fn(v_periodo);
+
+  -- M15: el huerfano queda FUERA del roster editable y DENTRO de la lista de
+  -- excluidos, con nombre. Callarlo dejaria a alguien sin meta en silencio.
+  -- Ninguno de los tres entra al roster editable...
+  if exists (
+       select 1 from jsonb_array_elements(v_c->'vendedores') v
+       where v.value->>'vendedor_id' in (
+         '71000000-0000-4000-8000-000000000009',
+         '71000000-0000-4000-8000-00000000000b',
+         '71000000-0000-4000-8000-00000000000d')
+     ) then
+    raise exception 'M15 un vendedor sin supervisor valido entro al roster editable';
+  end if;
+
+  -- ...y cada uno sale nombrado CON SU MOTIVO, que es lo que decide donde se
+  -- arregla: asignar supervisor, reactivar al que esta de baja, o corregir un
+  -- rol. Una sola etiqueta para los tres seria un predicado usado como proxy
+  -- de tres preguntas distintas.
+  if jsonb_array_length(v_c->'sin_supervisor')<>3
+     or not exists (
+       select 1 from jsonb_array_elements(v_c->'sin_supervisor') s
+       where s.value->>'vendedor_id'='71000000-0000-4000-8000-000000000009'
+         -- En MAYUSCULAS: public.perfiles normaliza el nombre al insertarlo.
+         and s.value->>'nombre'='METAS VENDEDOR SIN JEFE'
+         and s.value->>'motivo'='sin_supervisor')
+     or not exists (
+       select 1 from jsonb_array_elements(v_c->'sin_supervisor') s
+       where s.value->>'vendedor_id'='71000000-0000-4000-8000-00000000000b'
+         and s.value->>'motivo'='supervisor_inactivo')
+     or not exists (
+       select 1 from jsonb_array_elements(v_c->'sin_supervisor') s
+       where s.value->>'vendedor_id'='71000000-0000-4000-8000-00000000000d'
+         and s.value->>'motivo'='supervisor_no_es_supervisor') then
+    raise exception 'M15 los excluidos no se nombran o no distinguen el motivo';
+  end if;
+
+  -- M16: con el huerfano vivo, publicar el roster DEBE funcionar. Este es el
+  -- caso exacto que estaba roto en produccion.
+  select jsonb_object_agg(v.value->>'vendedor_id', jsonb_build_object(
+           'conversion_objetivo',0,'detalles',v.value->'detalles'))
+    into v_payload
+  from jsonb_array_elements(v_c->'vendedores') v;
+
+  select mp.revision into v_revision
+  from crm.publicar_metas_vendedores(v_periodo,0,v_payload) mp;
+
+  if v_revision is distinct from 1 then
+    raise exception 'M16 el roster no se pudo publicar con un vendedor huerfano vivo';
+  end if;
+  if exists (
+       select 1 from crm.metas_vendedor mv
+       join crm.meta_periodos mp on mp.id=mv.meta_periodo_id
+       where mp.periodo=v_periodo
+         and mv.vendedor_id='71000000-0000-4000-8000-000000000009'
+     ) then
+    raise exception 'M16b se creo meta para un vendedor sin supervisor';
+  end if;
+
+  -- M17: colar al excluido en el payload sigue siendo un error de contrato.
+  begin
+    perform * from crm.publicar_metas_vendedores(v_periodo,1,
+      v_payload || jsonb_build_object('71000000-0000-4000-8000-000000000009',
+        jsonb_build_object('conversion_objetivo',0,
+          'detalles',(v_payload->(select v.value->>'vendedor_id'
+                                  from jsonb_array_elements(v_c->'vendedores') v
+                                  limit 1))->'detalles')));
+    raise exception 'M17 se acepto una meta para alguien fuera del roster';
+  exception when sqlstate '22023' then null;
+  end;
+end;
+$test$;
+reset role;
+
+-- M18: a un supervisor no le corresponde enumerar analistas fuera de su
+-- subarbol; la lista de excluidos es cosa de quien gobierna el roster entero.
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000002',true);
+set local role authenticated;
+do $test$
+declare
+  v_c jsonb;
+begin
+  v_c := crm.configuracion_metas_fn(date '2099-09-01');
+  if jsonb_array_length(v_c->'sin_supervisor')<>0
+     or (v_c->>'puede_editar')::boolean then
+    raise exception 'M18 el supervisor enumero excluidos o pudo editar';
+  end if;
+end;
+$test$;
+reset role;
+
 select 'METAS_VERSIONADAS_TX_OK' as resultado;
 rollback;

@@ -55,5 +55,9 @@ publicada** (`crm.meta_periodos` con 0 filas), así que hoy cualquier asesor rea
 ve su panel con las metas de capital en blanco. Las cifras que se ven en la
 cuenta **demo** son fixtures, no producción.
 
+> **Actualización 2026-08-10 (tarde):** ese cero no era pereza de nadie —
+> publicar metas era **imposible**. La causa y el arreglo, en
+> [[Por que el CRM nunca tuvo metas publicadas]].
+
 Relacionado: [[Acceso y roles del CRM]],
 [[Plan de escalabilidad del CRM a data gigante]].

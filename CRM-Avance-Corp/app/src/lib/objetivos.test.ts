@@ -31,6 +31,7 @@ function detalles(capitalPen: number, capitalUsd: number): DetalleMeta[] {
 const CONFIGURACION: ConfiguracionMetas = {
   version: 1,
   periodo: '2026-08-01',
+  sin_supervisor: [],
   revision: 3,
   publicada_en: '2026-08-01T15:00:00Z',
   publicada_por: null,

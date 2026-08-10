@@ -1249,3 +1249,131 @@ RPC sí lo envía; cuando esa lectura muera con el store, el índice podrá pasa
 que una que afecta a todos, y el rol raro suele ser el lector global — es el
 único cuya rama de la policy es distinta. Comprobar tiles↔filas **rol por rol**,
 no «en general».
+
+---
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260810163458 | _(pendiente)_ | crm_roster_metas_fuente_unica | 🚧 en branch `roster-metas` |
+
+**El defecto**: publicar metas era **imposible**, y lo era desde que existe la
+pantalla — por eso `crm.meta_periodos` llevaba **0 filas** en producción. El
+editor y el publicador tenían dos definiciones distintas del roster del mes:
+
+- `crm.configuracion_metas_fn` mostraba los vendedores activos **con supervisor
+  activo** (join interno contra `crm.equipo s`) → **16** en producción;
+- `crm.publicar_metas_vendedores` exigía una meta por **cada** vendedor activo
+  → **17**, y antes de eso abortaba con `23514` si a alguno le faltaba el
+  supervisor.
+
+Una sola analista sin supervisor (IVETT TEEVIN) bloqueaba el mes **entero**: el
+editor ofrecía 16 metas y el servidor exigía 17. Reproducido en producción
+dentro de `begin/rollback`: sin supervisor → `23514`; asignándoselo en la misma
+transacción → publica `revision 1`. Ningún test lo cazó porque el fixture
+siembra a todos los vendedores con supervisor.
+
+**El arreglo**: `private.roster_metas_vendedores()` define **una sola vez** a
+quién se le puede fijar meta, y las dos funciones la comparten. Lo que el editor
+ofrece es exactamente lo que el servidor acepta.
+
+**La decisión de fondo**: un vendedor sin supervisor **no cabe** en
+`crm.metas_vendedor` — `supervisor_id` es `NOT NULL` con FK. Exigir su meta era
+pedir algo que el esquema no puede almacenar, así que queda fuera del roster y
+**deja de bloquear al resto**. Pero no en silencio: `configuracion_metas_fn`
+devuelve ahora `sin_supervisor` y la pantalla lo dice con nombre y con el camino
+a Configuración → Usuarios. Ocultar la exclusión habría cambiado un bug ruidoso
+por uno mudo — alguien sin meta y nadie enterado hasta fin de mes.
+
+**Alcance de la lista**: `sin_supervisor` solo se rellena para **gerencia** y
+**lector global**. A un supervisor no le corresponde enumerar analistas fuera de
+su subárbol, así que recibe `[]` (M18 del oráculo).
+
+**Orden de deploy — FRONT PRIMERO**: la clave es nueva en la **respuesta** de la
+RPC y el contrato del front es `strictObject`, donde una clave desconocida
+rompería la pantalla de metas entera. El schema la declara `v.optional(..., [])`
+para tolerar al servidor viejo; `metas-versionadas.test.ts` fija las dos mitades
+del acuerdo. Ver [[crm-orden-deploy-front-primero]].
+
+**Lo que NO cambia**: el control de concurrencia (advisory lock por periodo +
+`lock table` sobre `perfiles` y `equipo` + `expected_revision`), la
+inmutabilidad append-only, la auditoría y el `42501` de «solo Gerencia publica».
+Y sigue siendo imposible colar una meta para alguien fuera del roster: con los
+totales iguales y ninguna clave faltante, tampoco puede sobrar (M17).
+
+**Tres motivos, no uno** (hallazgo del `auditor-rls`): quedar fuera del roster
+tiene tres causas con tres arreglos distintos — `sin_supervisor`,
+`supervisor_inactivo` y `supervisor_no_es_supervisor`. Agruparlas bajo una sola
+etiqueta mandaría a gerencia a «asignarle supervisor» a alguien que en pantalla
+ya tiene uno: el mismo error de usar un predicado como proxy de varias preguntas
+que costó el incidente [[crm-p04-revocado-vs-ajeno]]. Como la función nace en
+esta migración, el `motivo` va en su firma desde el principio y no hace falta
+`drop`.
+
+**`nombre_completo` es NULLABLE y podía tumbar la pantalla entera** (hallazgo
+del `auditor-rls`): el contrato del front exige texto no vacío dentro de un
+`strictObject`, así que un solo nombre en blanco no habría dejado a gerencia sin
+una fila, sino **sin pantalla de metas**. Y la población de riesgo es la misma:
+al registro al que nadie le puso supervisor tampoco suele ponerle nombre. Se
+blinda en el servidor con `coalesce(nullif(btrim(...),''), '(sin nombre · …)')`,
+tanto en los excluidos como en el roster y su supervisor.
+
+**Se estrecha un lock que congelaba el PORTAL** (hallazgo del `auditor-rls`,
+heredado de `20260807203757`): el cuerpo hacía
+`lock table public.perfiles in share mode`, de modo que **cada publicación de
+metas del CRM bloqueaba las altas y ediciones de perfil del portal en
+producción**. Se sustituye por un `select … for share` acotado a las filas del
+equipo comercial (21), que da el mismo aislamiento sobre lo único que puede
+cambiar `private.rol_crm` a mitad de transacción. `crm.equipo` sigue en
+`share mode`, y sin fila ahí nadie entra al roster. Alineado con
+[[crm-portal-separados]].
+
+**Deuda viva que ESTA migración no cierra** (hallazgo A2 del `auditor-rls`):
+`crm.cumplimiento_metas_fn` construye su universo desde `crm.metas_vendedor`, así
+que un analista fuera del roster **no aparece en el cumplimiento del mes y sus
+contratos no se atribuyen a nadie**. Antes el `23514` lo tapaba abortando la
+publicación entera — pero como publicar era imposible, esa garantía nunca llegó a
+ejercerse. Se documenta y **la pantalla lo dice** («su producción no se atribuye
+en el cumplimiento del mes»); cerrar el agujero en la RPC de cumplimiento queda
+como trabajo aparte.
+
+**Cobertura nueva** — el hallazgo más incómodo de la auditoría: `test-rls.mjs`
+solo tenía casos **negativos** de publicación, y por eso el gate daba 732/732
+mientras publicar era imposible. Ahora se publica de verdad (leyendo la revisión
+vigente, para que siga siendo re-ejecutable), se comprueba el ida y vuelta del
+capital, y se añaden roster incompleto, clave ajena y CAS perdido. El roster
+degradado —los tres motivos— se ejercita en `test-metas-versionadas.sql`
+(M15–M18), que sí puede fabricarlo.
+
+**Los mensajes dejan de nombrar al vendedor** (hallazgo de Codex): las cinco
+excepciones del bucle interpolaban el UUID del analista, que viaja al cliente con
+el `22023` y de ahí a Sentry — y el scrub de `observabilidad.ts` limpia correos,
+JWT y bearer, **no UUID**. Nadie los necesitaba: el payload lo construye el
+propio front, así que un fallo de formato es un bug del cliente, no un dato que
+gerencia deba leer. Heredado de `20260807203757`; se cierra aquí porque el cuerpo
+se reescribe entero.
+
+**Riesgo conocido y aceptado — pestañas ya abiertas** (hallazgo de Codex): «front
+primero» protege las cargas nuevas, no una pestaña que siga viva con el bundle
+anterior. Cuando esa pestaña vuelva a llamar a `configuracion_metas_fn`, su
+`strictObject` viejo verá `sin_supervisor` como clave desconocida. **No rompe el
+CRM**: `store.tsx` envuelve esa lectura en un `catch` que marca
+`objetivosError` y degrada (`crm.metas.configuracion_boot_degradada`), así que el
+usuario ve el aviso de degradación hasta que recargue. Verificado en
+`store.tsx:709-714`.
+
+**Trampa del gate, medida en vivo**: la primera versión del caso de CAS mandaba
+el payload completo y **colgaba**. Con `pg_stat_activity` se vio la causa exacta:
+tres llamadas a `publicar_metas_vendedores` en cola sobre el **mismo advisory
+lock** del periodo (`wait_event = advisory`), porque una publicación lenta en una
+instancia de branch se pasa del timeout del gateway, el gateway reintenta y el
+reintento vuelve a encolarse. Se prueba el CAS con `p_metas = {}`, que además es
+**más estricto**: el chequeo de revisión precede al del roster, así que un
+payload vacío debe morir en `40001` y no en `22023` — si alguien invierte ese
+orden, el caso lo caza.
+
+**La regla que queda**: cuando **dos** funciones deciden sobre el mismo conjunto
+—una para ofrecerlo y otra para aceptarlo— ese conjunto se define **una vez**.
+Dos copias del mismo predicado no divergen el día que se escriben: divergen el
+día que los datos estrenan un caso que ninguna de las dos contemplaba. Y el
+corolario: una suite sin un solo caso **positivo** de la acción principal no
+prueba que la acción funcione, por muchos negativos que acumule.

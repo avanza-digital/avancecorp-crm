@@ -82,6 +82,47 @@ const SUPUESTOS = [
     esperado: '≥ 1 periodo con revisión publicada',
   },
   {
+    clave: 'roster_metas_completo',
+    titulo: 'Todo vendedor activo tiene supervisor activo',
+    asume: 'Los fixtures cuelgan a TODOS los vendedores de un supervisor; nadie queda huérfano.',
+    afecta: [
+      'Configuración · Metas → publicar la revisión del mes',
+      'Hoy · asesor → sin revisión publicada no hay meta que enseñar',
+      'Rankings y metas de equipo (la atribución sale del supervisor)',
+    ],
+    consecuencia:
+      'Un vendedor sin supervisor no cabe en crm.metas_vendedor (supervisor_id es '
+      + 'NOT NULL). Ese hueco de datos DEJÓ SIN METAS AL CRM ENTERO durante días: '
+      + 'el editor ofrecía las metas del roster y el servidor las exigía de todos, '
+      + 'así que la publicación fallaba siempre y nadie tenía objetivo del mes.',
+    async medir() {
+      // Sin acceso a private.* desde PostgREST se replica el predicado de
+      // private.rol_crm, que exige activo en LOS DOS lados: la membresía del
+      // equipo y el perfil del portal. Comprobar solo uno da un conteo bonito
+      // y falso, que es justo lo que este gate existe para no hacer.
+      const { data, error } = await admin.from('equipo')
+        .select('perfil_id, rol_crm, supervisor_id').eq('activo', true);
+      if (error) throw error;
+      const miembros = data ?? [];
+      if (miembros.length === 0) return 0;
+      const { data: perfiles, error: errorPerfiles } = await admin.schema('public')
+        .from('perfiles').select('id, activo, rol').in('id', miembros.map((f) => f.perfil_id));
+      if (errorPerfiles) throw errorPerfiles;
+      const portal = new Map((perfiles ?? []).map((p) => [p.id, p]));
+      // Misma excepción que private.rol_crm: al superadmin del portal solo le
+      // suma autoridad una membresía de Gerencia; con cualquier otro rol queda
+      // fuera del CRM y no debe contarse como vendedor huérfano.
+      const rolVigente = new Map(miembros
+        .filter((f) => portal.get(f.perfil_id)?.activo
+          && (portal.get(f.perfil_id)?.rol !== 'superadmin' || f.rol_crm === 'gerencia'))
+        .map((f) => [f.perfil_id, f.rol_crm]));
+      return miembros.filter((fila) => rolVigente.get(fila.perfil_id) === 'vendedor'
+        && rolVigente.get(fila.supervisor_id ?? '') !== 'supervisor').length;
+    },
+    divergeSi: (n) => n > 0,
+    esperado: '0 vendedores sin supervisor activo',
+  },
+  {
     clave: 'leads_en_cartera',
     titulo: 'La cartera tiene leads que trabajar',
     asume: 'Los fixtures siembran 7 leads y la demo ~20; las pantallas se prueban con lista llena.',

@@ -392,6 +392,8 @@ export function configuracionMetasDemo(periodo: string): ConfiguracionMetas {
   return {
     version: 1,
     periodo,
+    // La demo enseña el roster completo y sano: todos con supervisor.
+    sin_supervisor: [],
     revision: 5,
     publicada_en: GENERADO_EN,
     publicada_por: IDS.gerencia,

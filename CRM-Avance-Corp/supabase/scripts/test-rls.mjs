@@ -3708,11 +3708,15 @@ async function testContractBankAccounts(sessions, seed) {
   }
 }
 
-// Este gate de branch es deliberadamente no destructivo: la historia de metas
-// es append-only y no debe sembrar una revisión nueva en cada corrida. Las
-// mutaciones, CAS, dimensiones y auditoría se ejercitan en PostgreSQL
-// desechable mediante `test-metas-versionadas.sql`; aquí se cubre la matriz
-// autenticada/anon y se verifica el contrato de lectura vigente.
+// Aquí se cubre la matriz autenticada/anon, el contrato de lectura vigente y
+// —desde 2026-08-10— el ciclo de publicación completo. Se evitó durante meses
+// porque la historia de metas es append-only y cada corrida siembra una
+// revisión; el precio de esa prudencia fue que publicar metas estuvo roto en
+// producción sin que nada lo señalara. Ahora se publica de verdad, leyendo la
+// revisión vigente para que el caso siga siendo re-ejecutable sobre la misma
+// base. Las dimensiones, la auditoría y los casos que exigen fabricar un roster
+// degradado (vendedor sin supervisor, supervisor de baja) siguen en PostgreSQL
+// desechable vía `test-metas-versionadas.sql`.
 const PERIODO_METAS_GATE = '2099-11-01';
 
 function idsMetas(configuracion) {
@@ -3883,6 +3887,40 @@ async function testMetasVersionadas(sessions, seed) {
       'directorio y Gerencia ven el mismo roster global');
   }
 
+  // `sin_supervisor` es la contracara del roster: quien no tiene supervisor
+  // activo no cabe en crm.metas_vendedor (supervisor_id NOT NULL) y por eso el
+  // servidor no le pide meta. El caso con un huérfano VIVO se ejercita en
+  // `test-metas-versionadas.sql` (M15..M18), que sí puede fabricarlo; aquí se
+  // fija el contrato y, sobre todo, quién tiene derecho a esa lista.
+  const excluidosDe = (configuracion) => (configuracion?.sin_supervisor ?? []);
+  if (gerencia) {
+    const excluidos = excluidosDe(configGerencia);
+    check(Array.isArray(configGerencia?.sin_supervisor),
+      'la configuracion de metas siempre declara la lista de excluidos');
+    check(excluidos.every((fila) => typeof fila?.vendedor_id === 'string'
+      && typeof fila?.nombre === 'string' && fila.nombre.length > 0),
+    'cada excluido llega con id y nombre utilizables');
+    const enRoster = new Set(idsMetas(configGerencia));
+    check(excluidos.every((fila) => !enRoster.has(fila.vendedor_id)),
+      'ningun excluido aparece tambien en el roster editable');
+  }
+  if (directorio && gerencia) {
+    check(JSON.stringify(excluidosDe(directorio.data).map((f) => f.vendedor_id).sort())
+      === JSON.stringify(excluidosDe(configGerencia).map((f) => f.vendedor_id).sort()),
+    'directorio, como lector global, ve los mismos excluidos que Gerencia');
+  }
+  for (const actor of ['vend1', 'sup1', 'sup2', 'coordinador']) {
+    const respuesta = await positive(
+      `${actor} lee metas sin enumerar excluidos`,
+      sessions[actor].client.schema('crm').rpc('configuracion_metas_fn', {
+        p_periodo: PERIODO_METAS_GATE,
+      }),
+    );
+    if (!respuesta) continue;
+    check(excluidosDe(respuesta.data).length === 0,
+      `${actor} no enumera analistas fuera de su ambito`);
+  }
+
   for (const key of ['vend1', 'sup1', 'coordinador', 'directorio']) {
     await expectBlockedMutation(
       `${key} no publica metas`,
@@ -3926,6 +3964,95 @@ async function testMetasVersionadas(sessions, seed) {
     }),
     ['PGRST202'],
   );
+
+  // ── El ciclo completo: publicar de verdad ────────────────────────────────
+  // Hasta 2026-08-10 esta matriz solo tenía casos NEGATIVOS de publicación, y
+  // por eso el deadlock del roster vivió desde que existe la pantalla: el gate
+  // daba 732/732 mientras publicar metas era imposible en producción (el editor
+  // ofrecía N y el servidor exigía N+1). Aquí se ejercita lo único que lo
+  // demuestra: que el roster que el editor OFRECE es exactamente el que el
+  // publicador ACEPTA. Es re-ejecutable —la revisión esperada se lee, no se
+  // asume— porque el gate corre más de una vez sobre la misma base.
+  if (configGerencia?.vendedores?.length) {
+    const revisionPrevia = configGerencia.revision;
+    const capitalTestigo = 12_345;
+    const metasDelRoster = Object.fromEntries(configGerencia.vendedores.map((vendedor) => [
+      vendedor.vendedor_id,
+      {
+        conversion_objetivo: 0,
+        detalles: vendedor.detalles.map((detalle) => ({
+          ...detalle,
+          capital_objetivo: detalle.categoria === 'nuevo' && detalle.moneda === 'PEN'
+            ? capitalTestigo
+            : 0,
+          contratos_objetivo: 0,
+        })),
+      },
+    ]));
+
+    const publicacion = await positive(
+      'gerencia publica el roster exacto que el editor le ofrece',
+      sessions.gerencia.client.schema('crm').rpc('publicar_metas_vendedores', {
+        p_periodo: PERIODO_METAS_GATE,
+        p_expected_revision: revisionPrevia,
+        p_metas: metasDelRoster,
+      }),
+    );
+    check(publicacion?.data?.[0]?.revision === revisionPrevia + 1,
+      'la publicacion crea la revision siguiente',
+      `esperada ${revisionPrevia + 1}, recibida ${JSON.stringify(publicacion?.data?.[0]?.revision)}`);
+
+    // Ida y vuelta: lo publicado es lo que el editor vuelve a leer.
+    const relectura = await positive(
+      'el editor relee la revision recien publicada',
+      sessions.gerencia.client.schema('crm').rpc('configuracion_metas_fn', {
+        p_periodo: PERIODO_METAS_GATE,
+      }),
+    );
+    if (relectura) {
+      check(relectura.data?.revision === revisionPrevia + 1,
+        'el editor ve la revision nueva');
+      const nuevoPen = (relectura.data?.vendedores ?? []).flatMap((vendedor) => vendedor.detalles)
+        .filter((detalle) => detalle.categoria === 'nuevo' && detalle.moneda === 'PEN');
+      check(nuevoPen.length > 0 && nuevoPen.every((d) => Number(d.capital_objetivo) === capitalTestigo),
+        'el capital publicado vuelve intacto en la relectura',
+        JSON.stringify(nuevoPen.slice(0, 3)));
+    }
+
+    const revisionVigente = revisionPrevia + 1;
+    const [primerVendedor] = Object.keys(metasDelRoster);
+    const rosterIncompleto = { ...metasDelRoster };
+    delete rosterIncompleto[primerVendedor];
+    await expectBlockedMutation(
+      'Gerencia no publica un roster incompleto',
+      sessions.gerencia.client.schema('crm').rpc('publicar_metas_vendedores', {
+        p_periodo: PERIODO_METAS_GATE,
+        p_expected_revision: revisionVigente,
+        p_metas: rosterIncompleto,
+      }),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'Gerencia no cuela una meta para alguien fuera del roster',
+      sessions.gerencia.client.schema('crm').rpc('publicar_metas_vendedores', {
+        p_periodo: PERIODO_METAS_GATE,
+        p_expected_revision: revisionVigente,
+        p_metas: {
+          ...metasDelRoster,
+          [seed.profileIdByKey.coordinador]: metasDelRoster[primerVendedor],
+        },
+      }),
+      ['22023'],
+    );
+    // El CAS (expected_revision obsoleta → 40001) NO se prueba aquí: ya lo hace
+    // M05 de `test-metas-versionadas.sql`, que es su sitio. Se intentó igual y
+    // resultó ser una cuarta llamada de red que se encola tras el advisory lock
+    // del periodo y se pasa del timeout del gateway en una instancia de branch
+    // —medido con pg_stat_activity: `wait_event = advisory`—, mientras la misma
+    // llamada por SQL directo responde 40001 en 31 ms. Duplicar cobertura que ya
+    // existe a cambio de un caso intermitente es un mal negocio: un gate que
+    // falla por la red enseña a ignorar los fallos del gate.
+  }
 }
 
 // ── F1 tanda 1: métricas agregadas en el servidor ─────────────────────────────
