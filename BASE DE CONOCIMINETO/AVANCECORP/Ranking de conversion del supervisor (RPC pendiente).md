@@ -1,7 +1,7 @@
 ---
 tags: [crm, sql, rls, seguridad, plan, pendiente]
-actualizado: 2026-08-10
-estado: DISEÑADO y ATACADO — NO aplicar todavía (4 bloqueantes abiertos)
+actualizado: 2026-08-09
+estado: DISEÑADO, ATACADO y AUDITADO — falta la decisión de Miguel y el ciclo de branch
 ---
 
 # Ranking de conversión del supervisor — la RPC que falta (decisión #10, parte b2)
@@ -89,6 +89,43 @@ listas del gate son literales y no se autodescubren, así que el ciclo pasaría
 **verde sin haber ejercido jamás el gate nuevo** — moviendo una frontera de
 seguridad sin una sola aserción. El ataque dejó redactados **~30 casos** (bloques
 A permitidos/forma, B denegaciones, C no-vacuidad) listos para codificar.
+
+## Auditoría RLS (subagente `auditor-rls`) — sin bloqueantes de seguridad
+
+Veredicto: **el ámbito NO fuga fuera del subárbol, no hay PII y no se toca
+`public`**. Verificó una por una las citas del borrador y confirmó el contrato de
+denegación rol por rol, el gate-antes-de-validación y la ACL. Confirmó también que
+la rama de parkeados sería **código muerto** aquí (el agregado es un `LEFT JOIN`
+sobre `vendedor_id`, así que un lead sin dueño no puede sumar en ninguna fila).
+
+Encontró un **MAYOR real, ya corregido**, que es la clase de defecto que solo se ve
+leyendo la RLS:
+
+> **Faltaba `activo = true` en el predicado.** El canónico `leads_select` lo lleva
+> DENTRO de la rama de ámbito, y `leads_update` concede el soft-delete a
+> supervisor/gerencia. Sin ese filtro, **un supervisor que apaga un lead deja de
+> verlo en las cinco RPC de F1 y lo seguiría contando en el denominador de su
+> propio ranking — bajándole el porcentaje al vendedor.**
+
+Es un choque entre dos reglas de la casa: «espejo exacto de `leads_select`» vs
+«paridad as-built con gerencia» (que no filtra `activo`). Se resolvió a favor de la
+primera —la que impide contar como propio lo que la RLS ya no deja ver— y la
+divergencia queda declarada en la cabecera del SQL.
+
+También corregidos: el postflight prometía custodiar tres patas y solo vigilaba
+dos (faltaban `stable` y **el revoke a `service_role`**, justo «lo que un
+copy-paste incompleto rompe en silencio»), y `vendedor_ids_visibles` se calculaba
+también para gerencia, donde devuelve toda `crm.equipo` sin usarse.
+
+**Queda un BLOQUEANTE de proceso**: la RPC nacería sin una sola línea en el gate
+— y el auditor descubrió de paso que **la función global tampoco está cubierta hoy**
+(`grep metricas_conversiones` en `test-rls.mjs` → cero). Los casos están redactados;
+se codifican junto con la migración, no antes: sin la función aplicada dejarían el
+gate en rojo.
+
+Dato que importa para la decisión de abajo: los leads **parkeados** de la bandeja
+del propio supervisor no entran en su denominador, así que este total **nunca va a
+cuadrar con `resumen_cartera_fn`**. Conviene rotularlo, no explicarlo después.
 
 ## ⚠️ Decisión de negocio que necesita Miguel
 
