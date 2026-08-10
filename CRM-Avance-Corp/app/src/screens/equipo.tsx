@@ -27,10 +27,13 @@ import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
+import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { moneyK } from '@/lib/format'
+import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
 import {
@@ -71,15 +74,93 @@ const TOOLTIP_ULT_ACT = 'Última actividad del lead abierto más abandonado'
 
 // ── Piezas locales compartidas por las dos vistas (sin exportar) ──────────────
 
-/** Chip de capital en proceso: PEN protagonista, USD aparte — JAMÁS sumados. */
-function chipCapitalEnProceso(pen: number, usd: number): StatChipData {
+/**
+ * Chip de capital en proceso. Desde la decisión #10 (Miguel, 2026-08-10) el
+ * PROTAGONISTA es el total unificado en soles; el desglose por moneda se conserva
+ * en el `sub`. Sin TC degrada al comportamiento anterior —PEN protagonista y USD
+ * aparte— porque el USD NO entra al total sin una tasa real: jamás se inventa.
+ */
+function chipCapitalEnProceso(pen: number, usd: number, tc: TipoCambio | null | undefined): StatChipData {
+  const cap = totalEnSoles(pen, usd, tc?.promedio)
+  if (cap.estado !== 'convertido' || cap.total == null) {
+    return {
+      icon: Wallet,
+      label: 'Capital en proceso (PEN)',
+      value: moneyK(pen),
+      tone: 'primary',
+      sub: usd > 0 ? `+${moneyK(usd, 'USD')} aparte` : 'Solo soles',
+    }
+  }
   return {
     icon: Wallet,
-    label: 'Capital en proceso (PEN)',
-    value: moneyK(pen),
+    label: 'Capital en proceso (S/)',
+    value: moneyK(cap.total),
     tone: 'primary',
-    sub: usd > 0 ? `+${moneyK(usd, 'USD')} aparte` : 'Solo soles',
+    sub: usd > 0 ? `${moneyK(pen)} + ${moneyK(usd, 'USD')}` : 'Solo soles',
   }
+}
+
+/**
+ * Celda de capital dentro de una TABLA (vista de empresa).
+ *
+ * Arregla de paso un defecto vivo: cuando el capital en soles era 0 la celda decía
+ * «—», de modo que un vendedor con cartera 100 % en dólares aparecía como si no
+ * tuviera capital, con su cifra real escondida en la letra chica. Con el total
+ * unificado aparece lo que de verdad gestiona (Miguel lo confirmó al cerrar la #10).
+ */
+function CeldaCapitalTabla({
+  pen,
+  usd,
+  tc,
+}: {
+  pen: number
+  usd: number
+  tc: TipoCambio | null | undefined
+}): JSX.Element {
+  const cap = totalEnSoles(pen, usd, tc?.promedio)
+  return (
+    <>
+      {cap.total != null && cap.total > 0 ? (
+        <span className="font-extrabold tabular-nums text-primary">{moneyK(cap.total)}</span>
+      ) : (
+        <span className="tabular-nums text-muted-foreground">—</span>
+      )}
+      <DesgloseMonedas pen={pen} usd={usd} tc={cap.tc} compacto />
+    </>
+  )
+}
+
+/**
+ * Celda de capital de una fila de equipo: total unificado como número grande y el
+ * desglose por moneda debajo. Es la pieza ÚNICA de las dos vistas de esta pantalla.
+ *
+ * Con el TC consultándose (`undefined`) o caído (`null`) muestra el PEN y lo dice en
+ * la etiqueta: es exactamente lo que se veía antes de la decisión #10, así que la
+ * degradación no estrena comportamiento, vuelve al conocido.
+ */
+function CapitalDeFila({
+  pen,
+  usd,
+  tc,
+  denso = false,
+}: {
+  pen: number
+  usd: number
+  tc: TipoCambio | null | undefined
+  denso?: boolean
+}): JSX.Element {
+  const cap = totalEnSoles(pen, usd, tc?.promedio)
+  const unificado = cap.estado === 'convertido' && cap.total != null
+  return (
+    <MiniDato
+      denso={denso}
+      label={unificado ? 'Capital (S/)' : 'Capital (PEN)'}
+      // `moneyK(null)` imprimiría «S/ 0» — un cero afirmado donde no sabemos nada.
+      valor={cap.total != null ? moneyK(cap.total) : '—'}
+    >
+      <DesgloseMonedas pen={pen} usd={usd} tc={cap.tc} compacto />
+    </MiniDato>
+  )
 }
 
 /** Chip de la bandeja por repartir (ámbar mientras haya pendientes). */
@@ -134,7 +215,15 @@ function MiniDato({
 
 // ── Card de vendedor (vista del supervisor: ≤6 vendedores, card densa) ────────
 
-function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number }): JSX.Element {
+function VendedorCard({
+  r,
+  tc,
+  delay = 0,
+}: {
+  r: MetricasVendedor
+  tc: TipoCambio | null | undefined
+  delay?: number
+}): JSX.Element {
   const sem = semaforoActividad(r.diasSinActividadMax)
   return (
     <Card className="ac-lift ac-pop h-full p-3" style={{ animationDelay: `${delay}ms` }}>
@@ -156,15 +245,10 @@ function VendedorCard({ r, delay = 0 }: { r: MetricasVendedor; delay?: number })
         )}
       </div>
 
-      {/* Números clave — capital PEN y USD SIEMPRE por separado */}
+      {/* Números clave — capital unificado con su desglose SIEMPRE debajo */}
       <div className="mt-2 grid grid-cols-3 gap-1.5">
         <MiniDato denso label="Activos" valor={String(r.activos)} />
-        <MiniDato
-          denso
-          label="Capital (PEN)"
-          valor={moneyK(r.capitalPEN)}
-          sub={r.capitalUSD > 0 ? `+${moneyK(r.capitalUSD, 'USD')}` : undefined}
-        />
+        <CapitalDeFila denso pen={r.capitalPEN} usd={r.capitalUSD} tc={tc} />
         <MiniDato
           denso
           label="Sin tocar"
@@ -348,6 +432,9 @@ function EquipoSupervisor(): JSX.Element {
   // ── F1b: agregados del servidor (o espejo demo vivo) ──
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividadesDelAmbito)
   const resumen = resumenOp.resumen
+  // TC izado UNA vez por pantalla: el hook no pasa por TanStack (no hay cache ni
+  // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
+  const { tc } = useTipoCambio()
   const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
@@ -371,7 +458,7 @@ function EquipoSupervisor(): JSX.Element {
   const stats: StatChipData[] = [
     { icon: Users, label: 'Mis vendedores', value: String(ambito.vendedores.length), tone: 'accent' },
     resumen
-      ? chipCapitalEnProceso(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
+      ? chipCapitalEnProceso(resumen.capital.asignado.pen, resumen.capital.asignado.usd, tc)
       : { icon: Wallet, label: 'Capital en proceso (PEN)', value: '—', tone: 'primary' },
     {
       icon: Activity,
@@ -401,7 +488,15 @@ function EquipoSupervisor(): JSX.Element {
         <SectionHead
           icon={Users}
           title="Mi equipo"
-          right={<span className="text-xs text-muted-foreground">Orden: capital en proceso (PEN)</span>}
+          // El orden lo sigue mandando el servidor por capital PEN: ordenar en
+          // cliente por el total desincronizaría con el RPC y —peor— haría que el
+          // orden CAMBIARA solo cuando la edge del TC se cae. Se rotula tal cual es.
+          right={
+            <span className="text-xs text-muted-foreground">
+              Orden: capital en proceso (PEN)
+              {tc ? ` · ${rotuloTipoCambio(tc.promedio, tc.fuente)}` : ''}
+            </span>
+          }
         />
         <CardContent className="pt-0">
           {filas == null ? (
@@ -419,7 +514,7 @@ function EquipoSupervisor(): JSX.Element {
             >
               {filas.map((r, i) => (
                 <li key={r.m.perfil_id}>
-                  <VendedorCard r={r} delay={i * 60} />
+                  <VendedorCard r={r} tc={tc} delay={i * 60} />
                 </li>
               ))}
             </ul>
@@ -483,6 +578,8 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   // que la tabla (reduce O(supervisores)) para que cuadren SIEMPRE entre sí.
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
   const metricas = vendedoresOp.metricas
+  // TC izado UNA vez por pantalla (ver la nota en EquipoSupervisor).
+  const { tc } = useTipoCambio()
 
   // Roster y bandeja global: puro cliente (la bandeja es una lista operable y
   // sus contadores describen las filas que de verdad pinta).
@@ -547,7 +644,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       sub: `${ambito.vendedores.length} vendedores en total`,
     },
     tablero
-      ? chipCapitalEnProceso(tablero.capPEN, tablero.capUSD)
+      ? chipCapitalEnProceso(tablero.capPEN, tablero.capUSD, tc)
       : { icon: Wallet, label: 'Capital en proceso (PEN)', value: '—', tone: 'primary' },
     {
       icon: Activity,
@@ -589,7 +686,12 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         <SectionHead
           icon={ShieldCheck}
           title="Comparativa de equipos"
-          right={<span className="text-xs text-muted-foreground">Orden: capital en proceso (PEN)</span>}
+          right={
+            <span className="text-xs text-muted-foreground">
+              Orden: capital en proceso (PEN)
+              {tc ? ` · ${rotuloTipoCambio(tc.promedio, tc.fuente)}` : ''}
+            </span>
+          }
         />
         <CardContent className="pt-0">
           <TablaEnvoltura ariaLabel="Comparativa de supervisores">
@@ -663,16 +765,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                         {f.activos}
                       </Td>
                       <Td className="whitespace-nowrap text-right">
-                        {f.capitalPEN > 0 ? (
-                          <span className="font-extrabold tabular-nums text-primary">{moneyK(f.capitalPEN)}</span>
-                        ) : (
-                          <span className="tabular-nums text-muted-foreground">—</span>
-                        )}
-                        {f.capitalUSD > 0 && (
-                          <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
-                            +{moneyK(f.capitalUSD, 'USD')}
-                          </span>
-                        )}
+                        <CeldaCapitalTabla pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
                       </Td>
                       <Td>
                         {f.conversion > 0 ? (
@@ -729,13 +822,9 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             }
           />
           <CardContent className="space-y-4 pt-0">
-            {/* Cabecera del bloque — comparativaEquipos (PEN y USD separados) */}
+            {/* Cabecera del bloque — comparativaEquipos (total unificado + desglose) */}
             <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-primary/[0.03] p-3 sm:grid-cols-4">
-              <MiniDato
-                label="Capital (PEN)"
-                valor={moneyK(f.capitalPEN)}
-                sub={f.capitalUSD > 0 ? `+${moneyK(f.capitalUSD, 'USD')}` : undefined}
-              />
+              <CapitalDeFila pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
               <MiniDato label="Activos" valor={String(f.activos)} />
               <MiniDato label="Conversión" valor={`${f.conversion}%`}>
                 <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
@@ -817,16 +906,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                           {r.activos}
                         </Td>
                         <Td className="whitespace-nowrap text-right">
-                          {r.capitalPEN > 0 ? (
-                            <span className="font-extrabold tabular-nums text-primary">{moneyK(r.capitalPEN)}</span>
-                          ) : (
-                            <span className="tabular-nums text-muted-foreground">—</span>
-                          )}
-                          {r.capitalUSD > 0 && (
-                            <span className="ml-1 text-[10px] tabular-nums text-muted-foreground">
-                              +{moneyK(r.capitalUSD, 'USD')}
-                            </span>
-                          )}
+                          <CeldaCapitalTabla pen={r.capitalPEN} usd={r.capitalUSD} tc={tc} />
                         </Td>
                         <Td
                           className={`text-right tabular-nums ${r.sinTocar > 0 ? 'font-extrabold' : 'text-muted-foreground'}`}

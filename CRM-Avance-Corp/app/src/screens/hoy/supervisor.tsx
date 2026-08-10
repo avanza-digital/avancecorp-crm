@@ -57,6 +57,9 @@ import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import { DesgloseMonedas } from '@/components/common/desglose-monedas'
+import { totalEnSoles } from '@/lib/capital-unificado'
+import { useTipoCambio } from '@/lib/tipo-cambio'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -109,6 +112,9 @@ export function HoySupervisor(): JSX.Element {
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividades)
   const rank = vendedoresOp.metricas?.filas ?? null
+  // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
+  // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
+  const { tc } = useTipoCambio()
 
   // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
   // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
@@ -505,6 +511,7 @@ export function HoySupervisor(): JSX.Element {
                   const rez = rezagosAgenda.get(r.m.perfil_id)
                   const conRezago =
                     rez != null && (rez.no_asistio >= 2 || rez.vencidas > 0 || rez.leads_sin_accion > 0)
+                  const cap = totalEnSoles(r.capitalPEN, r.capitalUSD, tc?.promedio)
                   return (
                     <div key={r.m.perfil_id} className="px-5 py-3">
                       <div className="flex items-center gap-2.5">
@@ -516,15 +523,14 @@ export function HoySupervisor(): JSX.Element {
                             {r.sinTocar > 0 ? ` · ${r.sinTocar} sin tocar` : ''}
                           </p>
                         </div>
+                        {/* Decisión #10: el total unificado es el número grande y el
+                            desglose por moneda va debajo. Sin TC degrada al PEN de
+                            siempre — el USD no entra al total sin una tasa real. */}
                         <div className="shrink-0 text-right leading-tight">
                           <p className="text-sm font-extrabold tabular-nums text-primary">
-                            {moneyK(r.capitalPEN)}
+                            {cap.total != null ? moneyK(cap.total) : '—'}
                           </p>
-                          {r.capitalUSD > 0 && (
-                            <p className="text-[10.5px] tabular-nums text-muted-foreground">
-                              +{moneyK(r.capitalUSD, 'USD')}
-                            </p>
-                          )}
+                          <DesgloseMonedas pen={r.capitalPEN} usd={r.capitalUSD} tc={cap.tc} compacto />
                         </div>
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[46px]">

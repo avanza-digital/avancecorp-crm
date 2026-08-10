@@ -48,6 +48,9 @@ import {
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import { DesgloseMonedas } from '@/components/common/desglose-monedas'
+import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 
 // ── Constantes de la vista ────────────────────────────────────────────────────
 
@@ -66,6 +69,31 @@ const ICONO_ACTIVIDAD: Record<TipoActividad, LucideIcon> = {
 
 /** "hace Xh / hace Xd" compacto para la bitácora; fechas raras caen a fmtFecha.
  *  Recibe `ahora` (reloj vivo de useAhora) — NUNCA Date.now() en render. */
+/**
+ * Capital de un equipo: total unificado en soles y desglose por moneda debajo
+ * (decisión #10). Sin TC muestra el PEN, que es exactamente lo que se veía antes.
+ */
+function CapitalEquipo({
+  pen,
+  usd,
+  tc,
+}: {
+  pen: number
+  usd: number
+  tc: TipoCambio | null | undefined
+}): JSX.Element {
+  const cap = totalEnSoles(pen, usd, tc?.promedio)
+  return (
+    <>
+      {/* `moneyK(null)` imprimiría «S/ 0»: un cero afirmado donde no sabemos nada. */}
+      <span className="font-bold tabular-nums text-primary">
+        {cap.total != null ? moneyK(cap.total) : '—'}
+      </span>
+      <DesgloseMonedas pen={pen} usd={usd} tc={cap.tc} compacto />
+    </>
+  )
+}
+
 function haceCorto(iso: string, ahora: number): string {
   const ms = ahora - new Date(iso).getTime()
   if (!Number.isFinite(ms) || ms < 0) return fmtFecha(iso)
@@ -95,6 +123,8 @@ export function HoyDirectorio(): JSX.Element {
   const resumen = resumenOp.resumen
   const vendedoresOp = useMetricasVendedoresOperativas([], equipo, ambito.leads, actividades)
   const filasEquipos = vendedoresOp.metricas?.equipos ?? null
+  // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni dedupe).
+  const { tc } = useTipoCambio()
 
   const r = useMemo(() => {
     if (!resumen) return null
@@ -310,6 +340,7 @@ export function HoyDirectorio(): JSX.Element {
           right={
             <span className="text-xs text-muted-foreground">
               Por supervisor · capital en proceso
+              {tc ? ` · ${rotuloTipoCambio(tc.promedio, tc.fuente)}` : ''}
             </span>
           }
         />
@@ -320,7 +351,7 @@ export function HoyDirectorio(): JSX.Element {
                 <th className="pb-2 pr-3 font-bold">Equipo</th>
                 <th className="pb-2 pr-3 text-right font-bold">Vendedores</th>
                 <th className="pb-2 pr-3 text-right font-bold">Activos</th>
-                <th className="pb-2 pr-3 text-right font-bold">Capital (PEN)</th>
+                <th className="pb-2 pr-3 text-right font-bold">{tc ? 'Capital (S/)' : 'Capital (PEN)'}</th>
                 <th className="pb-2 pr-3 text-right font-bold">Convertidos (45 d)</th>
                 <th className="pb-2 pr-3 text-right font-bold">Conversión</th>
                 <th className="pb-2 text-right font-bold">Por repartir</th>
@@ -346,13 +377,9 @@ export function HoyDirectorio(): JSX.Element {
                   </td>
                   <td className="py-2.5 pr-3 text-right tabular-nums">{f.vendedores}</td>
                   <td className="py-2.5 pr-3 text-right tabular-nums">{f.activos}</td>
+                  {/* Decisión #10: total unificado protagonista + desglose debajo. */}
                   <td className="py-2.5 pr-3 text-right">
-                    <span className="font-bold tabular-nums text-primary">{moneyK(f.capitalPEN)}</span>
-                    {f.capitalUSD > 0 && (
-                      <span className="block text-[11px] tabular-nums text-muted-foreground">
-                        +{moneyK(f.capitalUSD, 'USD')}
-                      </span>
-                    )}
+                    <CapitalEquipo pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
                   </td>
                   <td className="py-2.5 pr-3 text-right">
                     <span className="font-semibold tabular-nums" style={{ color: SEMAFORO.navy }}>{f.convertidos}</span>
