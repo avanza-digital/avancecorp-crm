@@ -13,33 +13,54 @@ import { tcAplicable, totalEnSoles } from './capital-unificado'
 
 export type EstadoConversionVendedor = 'comparable' | 'sin_muestra' | 'indisponible'
 
-export interface ConversionVendedorAdaptada {
+/**
+ * Lo ÚNICO que el ranking de conversión necesita de un vendedor.
+ *
+ * Se nombra aparte porque hay dos payloads que lo satisfacen: el de gerencia
+ * (`metricas_conversiones_fn`, que trae mucho más) y el del equipo del supervisor
+ * (`metricas_conversiones_equipo_fn`, que a propósito trae solo esto — menos
+ * superficie que auditar). El clasificador y la tabla usan estos tres campos y
+ * nada más: verificado en clasificarRankingConversion y en RankingConversion.
+ */
+export interface DetalleRankeable {
+  leads: number
+  clientes: number
+  conversion_pct: number | null
+}
+
+/**
+ * `D` es el detalle que trae cada payload. Por defecto el COMPLETO de gerencia,
+ * para que sus pantallas (inteligencia-comercial, resumen-gerencia) sigan viendo
+ * capital, contactados y tendencia con el tipo exacto; el ranking del supervisor
+ * la instancia con su detalle reducido. Un genérico y no un estrechamiento: lo
+ * segundo habría dejado sin tipar a esas dos pantallas.
+ */
+export interface ConversionVendedorAdaptada<D extends DetalleRankeable = DetalleConversionVendedor> {
   vendedorId: string
   nombre: string
   supervisorNombre: string
-  detalle: DetalleConversionVendedor | null
+  detalle: D | null
   estadoConversion: EstadoConversionVendedor
 }
 
-export interface ConversionVendedoresAdaptada {
+export interface ConversionVendedoresAdaptada<D extends DetalleRankeable = DetalleConversionVendedor> {
   /**
    * `true` solo cuando la RPC entregó una fila única para cada vendedor visible.
    * Una colección ausente, vacía o parcial nunca equivale a métricas en cero ni
    * permite construir un ranking representativo del equipo completo.
    */
   responsablesDisponibles: boolean
-  vendedores: ConversionVendedorAdaptada[]
+  vendedores: ConversionVendedorAdaptada<D>[]
   tendenciaSemanal: DetalleConversionVendedor['tendencia_semanal'] | null
 }
 
-export type ConversionVendedorConDetalle = ConversionVendedorAdaptada & {
-  detalle: DetalleConversionVendedor
-}
+export type ConversionVendedorConDetalle<D extends DetalleRankeable = DetalleConversionVendedor> =
+  ConversionVendedorAdaptada<D> & { detalle: D }
 
-export interface RankingConversionVendedores {
-  conPuesto: ConversionVendedorConDetalle[]
-  sinMuestra: ConversionVendedorConDetalle[]
-  indisponibles: ConversionVendedorAdaptada[]
+export interface RankingConversionVendedores<D extends DetalleRankeable = DetalleConversionVendedor> {
+  conPuesto: ConversionVendedorConDetalle<D>[]
+  sinMuestra: ConversionVendedorConDetalle<D>[]
+  indisponibles: ConversionVendedorAdaptada<D>[]
 }
 
 export type EstadoCapitalVendedor = 'comparable' | 'sin_meta' | 'indisponible'
@@ -51,8 +72,8 @@ function porNombre(
   return a.nombre.localeCompare(b.nombre, 'es') || a.vendedorId.localeCompare(b.vendedorId)
 }
 
-function estadoConversion(
-  detalle: DetalleConversionVendedor | null,
+export function estadoConversion(
+  detalle: DetalleRankeable | null,
 ): EstadoConversionVendedor {
   if (!detalle || (detalle.leads > 0 && detalle.conversion_pct == null)) return 'indisponible'
   return detalle.leads === 0 ? 'sin_muestra' : 'comparable'
@@ -149,11 +170,11 @@ export function adaptarConversionVendedores(
   }
 }
 
-export function clasificarRankingConversion(
-  vendedores: readonly ConversionVendedorAdaptada[],
-): RankingConversionVendedores {
+export function clasificarRankingConversion<D extends DetalleRankeable>(
+  vendedores: readonly ConversionVendedorAdaptada<D>[],
+): RankingConversionVendedores<D> {
   const conPuesto = vendedores
-    .filter((fila): fila is ConversionVendedorConDetalle => (
+    .filter((fila): fila is ConversionVendedorConDetalle<D> => (
       fila.estadoConversion === 'comparable' && fila.detalle != null
     ))
     .sort((a, b) => {
@@ -165,7 +186,7 @@ export function clasificarRankingConversion(
         || porNombre(a, b)
     })
   const sinMuestra = vendedores
-    .filter((fila): fila is ConversionVendedorConDetalle => (
+    .filter((fila): fila is ConversionVendedorConDetalle<D> => (
       fila.estadoConversion === 'sin_muestra' && fila.detalle != null
     ))
     .sort(porNombre)
