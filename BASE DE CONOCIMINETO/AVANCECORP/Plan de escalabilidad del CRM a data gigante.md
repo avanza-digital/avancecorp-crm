@@ -568,13 +568,13 @@ sostenido una semana, O ámbito de gerencia > 300.000 leads.
 | 1 | Convertidos en el ámbito | ✅ CERRADA (Miguel, 2026-08-08): ventana de **45 días**; `activo` intacto | Se implementa en F1 |
 | 2 | Ventana de actividades | 365 d + LIMIT 10000 (F0); 90 d o deprecación (F4) | Confirmar en F4 con telemetría |
 | 3 | Forma del keyset | RPC `returns table` con cursor tipado (no `.or()` de PostgREST) | Cerrada salvo objeción |
-| 4 | DSN de Sentry | 🟡 **EN PROD desde 2026-08-09** (entró con los releases de F1b) — falta confirmar eventos en el proyecto Sentry; F4 arranca cuando haya telemetría acumulada | Confirmar eventos y dejar correr semanas |
+| 4 | DSN de Sentry | 🔴 **2026-08-10: el DSN estaba en prod pero AMORDAZADO** — la CSP (`connect-src`) no incluía el host de ingesta, así que producción no había emitido ni un evento; y sin gate de entorno, `npm run dev` + Playwright llenaron el proyecto con 742 eventos de laboratorio. Ambas mitades corregidas en `dd6b610`; **F4 no arranca hasta ver un evento real con `environment: production`**. Ver [[Telemetria del CRM tiene dos extremos]] | Desplegar y verificar en vivo |
 | 5 | Umbral partición actividades | > 5 M filas O p95 timeline > 300 ms/semana | Chequeo mensual |
 | 6 | Umbral activación F5 | p95 resumen > 500 ms/semana O gerencia > 300 k leads | Chequeo mensual |
 | 7 | Umbral subida de instancia | leads > 250 k O CPU p95 > 70 % O cache hit < 99 % | Miguel aprueba gasto |
 | 8 | Refresco tableros F5 | pg_cron 5 min | Se ratifica al activar F5 |
 | 9 | Cambios de firma en RPC públicas | SIEMPRE drop explícito + defaults en todos los params + revoke/grant completo | Cerrada — regla permanente |
-| 10 | Total unificado (TC) también en filas de equipo (supervisor/equipo/directorio) | Extensión rápida sobre la lib ya construida; hoy esas filas siguen «PEN protagonista + USD aparte» | Miguel decide tras la prueba visual del Ranking |
+| 10 | Total unificado (TC) también en filas de equipo (supervisor/equipo/directorio) | ✅ **CERRADA (Miguel, 2026-08-10)**, con dos partes: (a) las filas muestran el monto unificado **ADEMÁS** del desglose por moneda —el desglose se queda—, y (b) **los supervisores ven el ranking, restringido a SU equipo** (hoy el panel solo se monta en `hoy/gerencia.tsx`). El TC real ronda **S/ 3,3947**, y ojo: la edge lo rotula **SBS**, no BCRP — corregir donde el vault diga BCRP | Se implementa tras el ciclo de telemetría |
 
 ## Orden global y estimación
 
