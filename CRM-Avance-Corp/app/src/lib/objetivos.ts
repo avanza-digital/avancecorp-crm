@@ -340,6 +340,35 @@ export function agregarCumplimientos(
   }
 }
 
+/**
+ * La meta contra la que se mide el mes.
+ *
+ * `objetivos` describe el roster VIVO (lo que devuelve `configuracion_metas_fn`,
+ * jerarquía de hoy) y sirve para EDITAR. El cumplimiento, en cambio, sale del
+ * snapshot `crm.metas_vendedor` congelado al publicar. Mezclarlos descuadra el
+ * porcentaje en cuanto alguien se mueve a mitad de mes:
+ *
+ *   · si un analista se da de baja, su meta desaparece del denominador pero su
+ *     producción sigue en el numerador → el avance se INFLA;
+ *   · si se reasigna de un supervisor a otro, el que lo recibe hereda la meta
+ *     sin la producción → el avance se HUNDE.
+ *
+ * Decisión de negocio (Miguel, 2026-08-10): «si un analista se va, el progreso
+ * hasta la fecha debe quedar ahí plasmado y contar para el supervisor al que
+ * pertenecía». Eso es exactamente la FOTO: meta y cierres del mismo snapshot,
+ * que además es lo que hace auditable un mes ya cerrado.
+ *
+ * Funciona porque `CumplimientoDetalle extends ObjetivoDetalle`: el cumplimiento
+ * ya lleva dentro su propia meta, construida en `agregarCumplimientos` a partir
+ * de las MISMAS filas que su producción.
+ */
+export function metaVigente(
+  objetivo: ObjetivoComercial,
+  cumplimiento: CumplimientoComercial | null,
+): ObjetivoComercial {
+  return cumplimiento ?? objetivo
+}
+
 export function cumplimientoDesdeRpc(
   respuesta: CumplimientoMetasRpc,
   actorId?: string | null,

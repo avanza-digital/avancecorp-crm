@@ -41,6 +41,7 @@ import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
   capitalObjetivo,
+  metaVigente,
   capitalReal,
   metaConversionAplicable,
 } from '@/lib/objetivos'
@@ -147,7 +148,9 @@ export function HoySupervisor(): JSX.Element {
     if (vendedoresOp.error) void vendedoresOp.recargar()
   }
 
-  const meta = objetivos.supervisor
+  // La meta sale del snapshot cuando lo hay: si un analista se fue o cambió
+  // de equipo, su meta y su producción viajan juntas (ver `metaVigente`).
+  const meta = metaVigente(objetivos.supervisor, cumplimientoMetas?.supervisor ?? null)
   const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
   const cumplimiento = cumplimientoMetas?.supervisor ?? null
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')

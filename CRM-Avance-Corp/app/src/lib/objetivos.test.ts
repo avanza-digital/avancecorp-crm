@@ -3,6 +3,8 @@ import { describe, expect, it } from 'vitest'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import {
   agregarCumplimientos,
+  agregarObjetivos,
+  metaVigente,
   capitalObjetivo,
   capitalReal,
   contratosObjetivo,
@@ -160,5 +162,29 @@ describe('metas versionadas y jerarquía', () => {
     expect(fila).not.toBeNull()
     const sinMuestra = agregarCumplimientos([{ ...fila!, convertidos: 0, resueltos: 0, conversionReal: null }])
     expect(sinMuestra?.conversionReal).toBeNull()
+  })
+
+  // Decisión de Miguel (2026-08-10): «si un analista se va, el progreso hasta la
+  // fecha debe quedar ahí plasmado y contar para el supervisor al que
+  // pertenecía». Se mide contra la FOTO del snapshot, no contra el roster vivo:
+  // mezclarlos inflaba el avance (meta fuera del denominador, cierres dentro
+  // del numerador) o lo hundía al reasignar (meta sin producción).
+  it('mide contra la foto del snapshot, no contra el roster de hoy', () => {
+    const cumplimiento = cumplimientoDesdeRpc(respuestaCumplimiento(), S1).supervisor
+    expect(cumplimiento).not.toBeNull()
+
+    // El roster vivo ya no incluye al analista que se fue: su meta desapareció.
+    const rosterHoy = agregarObjetivos([])
+    expect(capitalObjetivo(rosterHoy, 'PEN')).toBe(0)
+
+    // La meta vigente es la del snapshot, con su cuota dentro.
+    const vigente = metaVigente(rosterHoy, cumplimiento)
+    expect(capitalObjetivo(vigente, 'PEN')).toBeGreaterThan(0)
+    // Y el avance vuelve a cuadrar: mismo origen para meta y producción.
+    expect(capitalReal(cumplimiento!, 'PEN')).toBeGreaterThan(0)
+
+    // Sin cumplimiento publicado se sigue leyendo el roster vivo, que es lo que
+    // el editor de metas necesita para ofrecer a quién fijarle meta.
+    expect(metaVigente(rosterHoy, null)).toBe(rosterHoy)
   })
 })

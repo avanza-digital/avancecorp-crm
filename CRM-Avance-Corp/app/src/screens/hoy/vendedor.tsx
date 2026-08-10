@@ -58,6 +58,7 @@ import {
 } from '@/lib/agenda-derivada'
 import {
   capitalObjetivo,
+  metaVigente,
   capitalReal,
   metaConversionAplicable,
 } from '@/lib/objetivos'
@@ -572,7 +573,10 @@ export function HoyVendedor(): JSX.Element {
 
   // La meta viene de la revisión publicada; el numerador viene únicamente del
   // RPC de cumplimiento confirmado. El pipeline abierto no entra aquí.
-  const meta = objetivos.vendedor
+  // Meta y producción del MISMO snapshot: ver `metaVigente`. Para el asesor
+  // importa igual, porque un cambio de equipo a mitad de mes no debe borrarle
+  // la meta con la que se le está midiendo.
+  const meta = metaVigente(objetivos.vendedor, cumplimientoMetas?.vendedor ?? null)
   const metaConversion = metaConversionAplicable(meta.conversionObjetivo, objetivosError)
   const cumplimiento = cumplimientoMetas?.vendedor ?? null
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')

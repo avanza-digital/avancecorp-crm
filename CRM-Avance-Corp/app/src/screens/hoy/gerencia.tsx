@@ -19,6 +19,7 @@ import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import {
   agregarObjetivos,
   capitalObjetivo,
+  metaVigente,
   capitalReal,
 } from '@/lib/objetivos'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
@@ -184,7 +185,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   )
   const distribucion = useMetricasDistribucionLeads(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
-  const meta = objetivos.gerencia
+  // Meta y producción del MISMO snapshot: ver `metaVigente`.
+  const meta = metaVigente(objetivos.gerencia, cumplimientoMetas?.gerencia ?? null)
   const cumplimiento = cumplimientoMetas?.gerencia ?? null
   const conversionesDeEjemplo = modoDemo || ejemploConversiones
   const reunionesDeEjemplo = modoDemo || ejemploReuniones

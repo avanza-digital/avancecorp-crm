@@ -162,9 +162,17 @@ function montar(
   render(<HoySupervisor />)
 }
 
+/**
+ * `metas` describe si la revisión publicada TRAE metas o viene en cero, porque
+ * desde 2026-08-10 el avance se mide contra la FOTO del snapshot
+ * (`metaVigente`): «no hay meta» ya no se simula poniendo `objetivos` a cero
+ * mientras el cumplimiento sigue trayendo las suyas.
+ */
 function cumplimientoSupervisor(
   conversionReal: number | null,
   resueltos: number,
+  metas: 'con-metas' | 'sin-metas' = 'con-metas',
+  metaConversion?: number,
 ): CumplimientoMetasJerarquico {
   const base = CUMPLIMIENTO_METAS_DEMO.supervisor
   if (!base) throw new Error('fixture demo sin supervisor')
@@ -172,6 +180,13 @@ function cumplimientoSupervisor(
     ...CUMPLIMIENTO_METAS_DEMO,
     supervisor: {
       ...base,
+      ...(metas === 'sin-metas'
+        ? {
+            conversionObjetivo: 0,
+            detalles: base.detalles.map((d) => ({ ...d, capitalObjetivo: 0, contratosObjetivo: 0 })),
+          }
+        : {}),
+      ...(metaConversion == null ? {} : { conversionObjetivo: metaConversion }),
       conversionReal,
       convertidos: conversionReal == null ? 0 : Math.round((conversionReal * resueltos) / 100),
       resueltos,
@@ -201,7 +216,8 @@ describe('Hoy · supervisor — meta del equipo', () => {
         lead({ id: 'l-abierto', etapa: 'propuesta_enviada' }),
       ],
       objetivos: { conversionObjetivo: 50 },
-      cumplimiento: cumplimientoSupervisor(50, 2),
+      // La meta viaja en el snapshot, que es contra lo que se mide.
+      cumplimiento: cumplimientoSupervisor(50, 2, 'con-metas', 50),
     })
 
     expect(screen.getByText('50% de 50%')).toBeInTheDocument()
@@ -211,7 +227,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
     montar({
       leads: [lead({ id: 'l-abierto', etapa: 'propuesta_enviada' })],
       objetivos: { conversionObjetivo: 40 },
-      cumplimiento: cumplimientoSupervisor(null, 0),
+      cumplimiento: cumplimientoSupervisor(null, 0, 'con-metas', 40),
     })
 
     expect(screen.getByText('Todavía no se resolvió ningún lead este mes')).toBeInTheDocument()
@@ -222,10 +238,11 @@ describe('Hoy · supervisor — meta del equipo', () => {
   it('no inventa una meta inicial de 15 % cuando no hay meta publicada', () => {
     montar({
       objetivos: { conversionObjetivo: 0 },
-      cumplimiento: cumplimientoSupervisor(50, 2),
+      cumplimiento: cumplimientoSupervisor(50, 2, 'sin-metas'),
     })
 
-    expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
+    // Las dos dimensiones: la revisión publicada vino en cero.
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
     expect(screen.queryByText('50% de 15%')).not.toBeInTheDocument()
     expect(screen.queryByText('0% de 0%')).not.toBeInTheDocument()
   })
@@ -237,7 +254,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
   it('sin ninguna meta publicada mantiene capital y conversión neutrales', () => {
     montar({
       objetivos: objetivosCero('2026-07-01').supervisor,
-      cumplimiento: cumplimientoSupervisor(100, 1),
+      cumplimiento: cumplimientoSupervisor(100, 1, 'sin-metas'),
     })
 
     expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)

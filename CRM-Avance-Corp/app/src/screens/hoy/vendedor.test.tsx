@@ -212,9 +212,18 @@ function montar(
   render(<HoyVendedor />)
 }
 
+/**
+ * `metas` describe si la revisión publicada TRAE metas o viene en cero. Es un
+ * parámetro y no un detalle del fixture porque desde 2026-08-10 el avance se
+ * mide contra la foto del snapshot: «no hay meta» ya no se simula poniendo
+ * `objetivos` a cero mientras el cumplimiento sigue trayendo las suyas — eso
+ * describía un mundo que producción no puede generar.
+ */
 function cumplimientoVendedor(
   conversionReal: number | null,
   resueltos: number,
+  metas: 'con-metas' | 'sin-metas' = 'con-metas',
+  metaConversion?: number,
 ): CumplimientoMetasJerarquico {
   const base = CUMPLIMIENTO_METAS_DEMO.vendedor
   if (!base) throw new Error('fixture demo sin vendedor')
@@ -222,6 +231,13 @@ function cumplimientoVendedor(
     ...CUMPLIMIENTO_METAS_DEMO,
     vendedor: {
       ...base,
+      ...(metas === 'sin-metas'
+        ? {
+            conversionObjetivo: 0,
+            detalles: base.detalles.map((d) => ({ ...d, capitalObjetivo: 0, contratosObjetivo: 0 })),
+          }
+        : {}),
+      ...(metaConversion == null ? {} : { conversionObjetivo: metaConversion }),
       conversionReal,
       convertidos: conversionReal == null ? 0 : Math.round((conversionReal * resueltos) / 100),
       resueltos,
@@ -243,8 +259,20 @@ function metaPenUsd(pen: number, usd: number): ObjetivosPorRol['vendedor'] {
   }
 }
 
-/** Cumplimiento con capital CERRADO exacto por moneda. */
-function cumplimientoPenUsd(pen: number, usd: number): CumplimientoMetasJerarquico {
+/**
+ * Cumplimiento con capital CERRADO exacto por moneda, y con la META DENTRO.
+ *
+ * La meta viaja aquí y no solo en `objetivos` porque desde 2026-08-10 el avance
+ * se mide contra la FOTO del snapshot (`metaVigente`): meta y producción del
+ * mismo origen. Un fixture que declarase una meta en `objetivos` y otra distinta
+ * en el cumplimiento describiría un mundo que producción no puede generar.
+ */
+function cumplimientoPenUsd(
+  pen: number,
+  usd: number,
+  metaPen = 150_000,
+  metaUsd = 20_000,
+): CumplimientoMetasJerarquico {
   const base = cumplimientoVendedor(50, 2)
   const vendedor = base.vendedor
   if (!vendedor) throw new Error('fixture demo sin vendedor')
@@ -254,6 +282,7 @@ function cumplimientoPenUsd(pen: number, usd: number): CumplimientoMetasJerarqui
       ...vendedor,
       detalles: vendedor.detalles.map((d) => ({
         ...d,
+        capitalObjetivo: d.categoria === 'nuevo' ? (d.moneda === 'PEN' ? metaPen : metaUsd) : 0,
         capitalReal: d.categoria === 'nuevo' ? (d.moneda === 'PEN' ? pen : usd) : 0,
       })),
     },
@@ -457,7 +486,8 @@ describe('Hoy · vendedor — meta del mes', () => {
         lead({ id: 'l-abierto', etapa: 'propuesta_enviada' }),
       ],
       objetivos: { conversionObjetivo: 50 },
-      cumplimiento: cumplimientoVendedor(50, 2),
+      // La meta viaja en el snapshot, que es contra lo que se mide.
+      cumplimiento: cumplimientoVendedor(50, 2, 'con-metas', 50),
     })
 
     expect(screen.getByText('50%')).toBeInTheDocument()
@@ -485,10 +515,11 @@ describe('Hoy · vendedor — meta del mes', () => {
   it('no inventa una meta inicial de 15 % cuando no existe una revisión publicada', () => {
     montar({
       objetivos: { conversionObjetivo: 0 },
-      cumplimiento: cumplimientoVendedor(50, 2),
+      cumplimiento: cumplimientoVendedor(50, 2, 'sin-metas'),
     })
 
-    expect(screen.getByText('Sin meta fijada para este mes')).toBeInTheDocument()
+    // Las dos dimensiones quedan sin meta: la revisión publicada vino en cero.
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
     expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
     expect(screen.queryByText('meta 0%')).not.toBeInTheDocument()
   })
@@ -496,7 +527,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   it('sin ninguna meta publicada mantiene neutrales las dimensiones que se pintan', () => {
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
-      cumplimiento: cumplimientoVendedor(100, 1),
+      cumplimiento: cumplimientoVendedor(100, 1, 'sin-metas'),
     })
 
     // Las DOS dimensiones del asesor —capital consolidado y conversión— sin
@@ -560,7 +591,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   it('sin dólares no se pinta desglose: repetiría el total', () => {
     montar({
       objetivos: metaPenUsd(150_000, 0),
-      cumplimiento: cumplimientoPenUsd(120_000, 0),
+      cumplimiento: cumplimientoPenUsd(120_000, 0, 150_000, 0),
     })
 
     expect(screen.getByText('S/ 120k')).toBeInTheDocument()
