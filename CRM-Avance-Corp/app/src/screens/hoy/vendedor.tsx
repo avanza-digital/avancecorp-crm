@@ -540,6 +540,20 @@ export function HoyVendedor(): JSX.Element {
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
   const conversion = cumplimiento?.conversionReal ?? null
+  // El asesor trabaja su meta en SOLES (decisión de Miguel 2026-08-10): la
+  // columna de dólares ocupaba un tercio del panel para decir «Sin meta fijada»
+  // todos los días del mes. Se muestra solo cuando tiene algo que decir:
+  //   · le fijaron meta en USD, o
+  //   · cerró capital en USD (aunque nadie se lo pidiera — ocultarlo sería
+  //     esconderle trabajo hecho, y ese sí es un error caro), o
+  //   · NO SE SABE: si las metas o el cumplimiento no cargaron, no se puede
+  //     afirmar que no hay nada en dólares, así que se muestra. Fail-safe hacia
+  //     enseñar de más, nunca hacia esconder.
+  const mostrarCapitalUsd = objetivosError
+    || cumplimientoMetasError
+    || capitalConfirmadoUsd == null
+    || metaCapitalUsd > 0
+    || capitalConfirmadoUsd > 0
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
@@ -915,7 +929,7 @@ export function HoyVendedor(): JSX.Element {
           right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'datos confirmados demo' : 'contratos confirmados'}</span>}
         />
         <CardContent className="pt-0">
-          <div className="grid gap-x-8 gap-y-4 md:grid-cols-3">
+          <div className={`grid gap-x-8 gap-y-4 ${mostrarCapitalUsd ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
             <MetaFila
               icon={Wallet}
               label="Capital confirmado PEN"
@@ -931,21 +945,23 @@ export function HoyVendedor(): JSX.Element {
                     ? 'Cumplimiento confirmado no disponible'
                     : undefined}
             />
-            <MetaFila
-              icon={Wallet}
-              label="Capital confirmado USD"
-              valorTxt={capitalConfirmadoUsd == null ? '—' : moneyK(capitalConfirmadoUsd, 'USD')}
-              metaTxt={moneyK(metaCapitalUsd, 'USD')}
-              pct={pctMeta(capitalConfirmadoUsd ?? 0, metaCapitalUsd)}
-              delay={90}
-              neutro={objetivosError
-                ? 'Meta mensual no disponible'
-                : metaCapitalUsd <= 0
-                  ? SIN_META
-                  : cumplimientoMetasError || capitalConfirmadoUsd == null
-                    ? 'Cumplimiento confirmado no disponible'
-                    : undefined}
-            />
+            {mostrarCapitalUsd && (
+              <MetaFila
+                icon={Wallet}
+                label="Capital confirmado USD"
+                valorTxt={capitalConfirmadoUsd == null ? '—' : moneyK(capitalConfirmadoUsd, 'USD')}
+                metaTxt={moneyK(metaCapitalUsd, 'USD')}
+                pct={pctMeta(capitalConfirmadoUsd ?? 0, metaCapitalUsd)}
+                delay={90}
+                neutro={objetivosError
+                  ? 'Meta mensual no disponible'
+                  : metaCapitalUsd <= 0
+                    ? 'Cerraste en dólares sin meta fijada en esa moneda'
+                    : cumplimientoMetasError || capitalConfirmadoUsd == null
+                      ? 'Cumplimiento confirmado no disponible'
+                      : undefined}
+              />
+            )}
             <MetaFila
               icon={TrendingUp}
               label="Conversión resuelta"

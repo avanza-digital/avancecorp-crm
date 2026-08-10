@@ -221,6 +221,21 @@ function cumplimientoVendedor(
   }
 }
 
+/** El mismo cumplimiento del fixture pero SIN capital cerrado en ninguna
+ *  moneda — el estado real de un asesor que aún no cierra nada este mes. */
+function cumplimientoSinCapital(): CumplimientoMetasJerarquico {
+  const base = cumplimientoVendedor(50, 2)
+  const vendedor = base.vendedor
+  if (!vendedor) throw new Error('fixture demo sin vendedor')
+  return {
+    ...base,
+    vendedor: {
+      ...vendedor,
+      detalles: vendedor.detalles.map((d) => ({ ...d, capitalObjetivo: 0, capitalReal: 0 })),
+    },
+  }
+}
+
 beforeEach(() => {
   vi.useFakeTimers()
   vi.clearAllMocks()
@@ -453,13 +468,17 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.queryByText('meta 0%')).not.toBeInTheDocument()
   })
 
-  it('sin ninguna meta publicada mantiene las tres dimensiones neutrales', () => {
+  it('sin ninguna meta publicada mantiene neutrales las dimensiones que se pintan', () => {
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
       cumplimiento: cumplimientoVendedor(100, 1),
     })
 
-    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(3)
+    // Soles y conversión — las dos del asesor. La de dólares se pinta aquí
+    // porque el cumplimiento demo trae 20.000 USD cerrados, y entonces ya no
+    // dice "sin meta": dice que cerró sin que nadie se lo pidiera.
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
+    expect(screen.getByText('Cerraste en dólares sin meta fijada en esa moneda')).toBeInTheDocument()
     expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
   })
 
@@ -477,6 +496,61 @@ describe('Hoy · vendedor — meta del mes', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(recargar).toHaveBeenCalled()
+  })
+
+  // El asesor trabaja su meta en SOLES (decisión de Miguel 2026-08-10). La
+  // columna de dólares dejó de ser fija: ocupaba un tercio del panel para decir
+  // "Sin meta fijada" todos los días del mes. Pero ocultarla siempre habría
+  // escondido capital cerrado, así que la regla es "solo si tiene algo que
+  // decir" — y estos cuatro casos son las cuatro razones para decir algo.
+  it('el asesor con meta solo en soles NO ve la columna de dólares', () => {
+    montar({
+      objetivos: objetivosCero('2026-07-01').vendedor,
+      // Nada cerrado en ninguna moneda: es el caso de producción.
+      cumplimiento: cumplimientoSinCapital(),
+    })
+
+    expect(screen.getByText('Capital confirmado PEN')).toBeInTheDocument()
+    expect(screen.getByText('Conversión resuelta')).toBeInTheDocument()
+    expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
+  })
+
+  it('si le fijaron meta en dólares, la columna vuelve', () => {
+    montar({
+      objetivos: {
+        detalles: objetivosCero('2026-07-01').vendedor.detalles.map((d) => (
+          d.moneda === 'USD' && d.categoria === 'nuevo'
+            ? { ...d, capitalObjetivo: 20_000 }
+            : d
+        )),
+      },
+      cumplimiento: cumplimientoVendedor(50, 2),
+    })
+
+    expect(screen.getByText('Capital confirmado USD')).toBeInTheDocument()
+  })
+
+  it('sin meta en dólares pero con capital cerrado en dólares, la columna vuelve (no se esconde trabajo hecho)', () => {
+    montar({
+      objetivos: objetivosCero('2026-07-01').vendedor,
+      // El cumplimiento demo cierra 20.000 USD sin meta en esa moneda.
+      cumplimiento: cumplimientoVendedor(50, 2),
+    })
+
+    expect(screen.getByText('Capital confirmado USD')).toBeInTheDocument()
+    expect(screen.getByText('Cerraste en dólares sin meta fijada en esa moneda')).toBeInTheDocument()
+  })
+
+  it('si no se sabe lo que hay en dólares (lectura caída) la columna se muestra: fail-safe hacia enseñar', () => {
+    montar({
+      objetivos: objetivosCero('2026-07-01').vendedor,
+      cumplimiento: null,
+      cumplimientoError: true,
+    })
+
+    // Ocultarla aquí afirmaría "no tienes nada en dólares" sin haber podido
+    // leerlo — el mismo error que confundir un cero con un dato ausente.
+    expect(screen.getByText('Capital confirmado USD')).toBeInTheDocument()
   })
 
   it('si falla el cumplimiento no usa el pronóstico abierto como sustituto', () => {
