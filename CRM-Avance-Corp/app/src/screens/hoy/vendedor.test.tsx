@@ -70,6 +70,14 @@ vi.mock('@/lib/store-context', () => ({
   }),
   usePanelesActions: () => ({ abrirLead: () => {}, abrirNuevoLead: () => {} }),
 }))
+// El tipo de cambio viene de una edge; aquí se fija para que el CONSOLIDADO sea
+// determinista. `TC = null` prueba el caso honesto: sin tasa, el total no puede
+// incluir los dólares y la pantalla tiene que decirlo.
+let TC: { promedio: number; fuente: string } | null = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
+vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
+  ...await importOriginal<typeof import('@/lib/tipo-cambio')>(),
+  useTipoCambio: () => ({ tc: TC, recargar: vi.fn() }),
+}))
 // El contador animado cuenta 0→N por requestAnimationFrame: con timers falsos
 // el texto quedaría a medio camino y las aserciones serían una lotería.
 vi.mock('@/components/common/animated-value', () => ({
@@ -221,9 +229,22 @@ function cumplimientoVendedor(
   }
 }
 
-/** El mismo cumplimiento del fixture pero SIN capital cerrado en ninguna
- *  moneda — el estado real de un asesor que aún no cierra nada este mes. */
-function cumplimientoSinCapital(): CumplimientoMetasJerarquico {
+/** Meta del asesor con importes exactos por moneda (todo en la categoría
+ *  'nuevo'; el panel agrega por moneda, así que la categoría da igual). */
+function metaPenUsd(pen: number, usd: number): ObjetivosPorRol['vendedor'] {
+  const base = objetivosCero('2026-07-01').vendedor
+  return {
+    ...base,
+    detalles: base.detalles.map((d) => (
+      d.categoria === 'nuevo'
+        ? { ...d, capitalObjetivo: d.moneda === 'PEN' ? pen : usd }
+        : d
+    )),
+  }
+}
+
+/** Cumplimiento con capital CERRADO exacto por moneda. */
+function cumplimientoPenUsd(pen: number, usd: number): CumplimientoMetasJerarquico {
   const base = cumplimientoVendedor(50, 2)
   const vendedor = base.vendedor
   if (!vendedor) throw new Error('fixture demo sin vendedor')
@@ -231,7 +252,10 @@ function cumplimientoSinCapital(): CumplimientoMetasJerarquico {
     ...base,
     vendedor: {
       ...vendedor,
-      detalles: vendedor.detalles.map((d) => ({ ...d, capitalObjetivo: 0, capitalReal: 0 })),
+      detalles: vendedor.detalles.map((d) => ({
+        ...d,
+        capitalReal: d.categoria === 'nuevo' ? (d.moneda === 'PEN' ? pen : usd) : 0,
+      })),
     },
   }
 }
@@ -243,6 +267,7 @@ beforeEach(() => {
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
   OBJETIVOS_ERROR = false
+  TC = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
 })
 
 afterEach(() => {
@@ -474,12 +499,13 @@ describe('Hoy · vendedor — meta del mes', () => {
       cumplimiento: cumplimientoVendedor(100, 1),
     })
 
-    // Soles y conversión — las dos del asesor. La de dólares se pinta aquí
-    // porque el cumplimiento demo trae 20.000 USD cerrados, y entonces ya no
-    // dice "sin meta": dice que cerró sin que nadie se lo pidiera.
+    // Las DOS dimensiones del asesor —capital consolidado y conversión— sin
+    // juicio: una meta que nadie fijó no es un incumplimiento.
     expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
-    expect(screen.getByText('Cerraste en dólares sin meta fijada en esa moneda')).toBeInTheDocument()
     expect(screen.queryByText('meta 15%')).not.toBeInTheDocument()
+    // El capital cerrado en dólares del fixture SIGUE viéndose en el desglose:
+    // sin meta no hay barra que pintar, pero el trabajo hecho no se esconde.
+    expect(screen.getByText(/US\$/)).toBeInTheDocument()
   })
 
   it('si la LECTURA de metas falló no dice "por definir": lo confiesa y ofrece reintentar', () => {
@@ -498,77 +524,83 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(recargar).toHaveBeenCalled()
   })
 
-  // El asesor trabaja su meta en SOLES (decisión de Miguel 2026-08-10). La
-  // columna de dólares dejó de ser fija: ocupaba un tercio del panel para decir
-  // "Sin meta fijada" todos los días del mes. Pero ocultarla siempre habría
-  // escondido capital cerrado, así que la regla es "solo si tiene algo que
-  // decir" — y estos cuatro casos son las cuatro razones para decir algo.
-  it('el asesor con meta solo en soles NO ve la columna de dólares', () => {
+  // ── CAPITAL CONSOLIDADO (Miguel, 2026-08-10) ────────────────────────────────
+  // «que vea cuánto ha metido en soles y en dólares, pero también, y como más
+  // importante, el consolidado de las dos». El panel pasa a UNA cifra —el total
+  // en soles al TC real— con el desglose por moneda debajo.
+  it('un cierre en DÓLARES sube el avance: entra al total convertido al TC', () => {
+    // 120k PEN + 20k USD a 3,5 → S/ 190k de capital; meta 150k PEN + 20k USD → S/ 220k.
     montar({
-      objetivos: objetivosCero('2026-07-01').vendedor,
-      // Nada cerrado en ninguna moneda: es el caso de producción.
-      cumplimiento: cumplimientoSinCapital(),
+      objetivos: metaPenUsd(150_000, 20_000),
+      cumplimiento: cumplimientoPenUsd(120_000, 20_000),
     })
 
-    expect(screen.getByText('Capital confirmado PEN')).toBeInTheDocument()
-    expect(screen.getByText('Conversión resuelta')).toBeInTheDocument()
-    expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
+    expect(screen.getByText('Capital confirmado')).toBeInTheDocument()
+    expect(screen.getByText('S/ 190k')).toBeInTheDocument()
+    expect(screen.getByText('meta S/ 220k')).toBeInTheDocument()
+    // 190/220 = 86 % — el texto vive dentro de «86% del objetivo».
+    expect(screen.getByText(/86%/)).toBeInTheDocument()
   })
 
-  it('si le fijaron meta en dólares, la columna vuelve', () => {
+  it('el desglose dice cuánto entró en cada moneda y a qué tasa se unificó', () => {
     montar({
-      objetivos: {
-        detalles: objetivosCero('2026-07-01').vendedor.detalles.map((d) => (
-          d.moneda === 'USD' && d.categoria === 'nuevo'
-            ? { ...d, capitalObjetivo: 20_000 }
-            : d
-        )),
-      },
-      cumplimiento: cumplimientoVendedor(50, 2),
+      objetivos: metaPenUsd(150_000, 20_000),
+      cumplimiento: cumplimientoPenUsd(120_000, 20_000),
     })
 
-    expect(screen.getByText('Capital confirmado USD')).toBeInTheDocument()
+    const desglose = screen.getByText(
+      (_, el) => (el?.textContent ?? '').startsWith('S/ 120k + US$ 20k'),
+      { selector: 'p' },
+    )
+    // La tasa que se ROTULA es la que de verdad entró en el número.
+    expect(desglose.textContent).toContain('TC S/ 3.5')
+    expect(desglose.textContent).toContain('BCRP · prom. 7d')
   })
 
-  it('sin meta en dólares pero con capital cerrado en dólares, la columna vuelve (no se esconde trabajo hecho)', () => {
+  it('sin dólares no se pinta desglose: repetiría el total', () => {
     montar({
-      objetivos: objetivosCero('2026-07-01').vendedor,
-      // El cumplimiento demo cierra 20.000 USD sin meta en esa moneda.
-      cumplimiento: cumplimientoVendedor(50, 2),
+      objetivos: metaPenUsd(150_000, 0),
+      cumplimiento: cumplimientoPenUsd(120_000, 0),
     })
 
-    expect(screen.getByText('Capital confirmado USD')).toBeInTheDocument()
-    expect(screen.getByText('Cerraste en dólares sin meta fijada en esa moneda')).toBeInTheDocument()
+    expect(screen.getByText('S/ 120k')).toBeInTheDocument()
+    expect(screen.queryByText(/US\$/)).not.toBeInTheDocument()
   })
 
-  // ⚠️ ESTE es el test que faltaba, y el que habría evitado el redespliegue: el
-  // ESTADO REAL DE PRODUCCIÓN hoy — gerencia no ha publicado ninguna revisión de
+  it('SIN tipo de cambio el total NO incluye los dólares, y lo dice', () => {
+    TC = null
+    montar({
+      objetivos: metaPenUsd(150_000, 20_000),
+      cumplimiento: cumplimientoPenUsd(120_000, 20_000),
+    })
+
+    // El total cae a los soles solos (120k) — jamás se inventa una tasa…
+    expect(screen.getByText('S/ 120k')).toBeInTheDocument()
+    // …y el asesor tiene que enterarse de que le falta media moneda en el avance.
+    expect(screen.getByText(/sin tipo de cambio: el total NO incluye los dólares/))
+      .toBeInTheDocument()
+  })
+
+  // ⚠️ ESTE es el test que faltaba, y el que habría evitado un redespliegue: el
+  // ESTADO REAL DE PRODUCCIÓN — gerencia no ha publicado ninguna revisión de
   // metas (`crm.meta_periodos` con 0 filas), así que el store degrada a
-  // `objetivosCero` y el cumplimiento llega nulo. La primera versión mostraba la
-  // columna de dólares por «no se sabe», y como ese estado es el de TODOS los
-  // días, el arreglo no arreglaba nada.
-  it('ESTADO DE PRODUCCIÓN (sin metas publicadas): el asesor ve soles y conversión, no dólares', () => {
+  // `objetivosCero` y el cumplimiento llega nulo. Una versión anterior decidía
+  // qué pintar con un fail-safe de «no se sabe», y como ese es el estado de
+  // TODOS los días, el arreglo no arreglaba nada. Ver `npm run gate:realidad`.
+  it('ESTADO DE PRODUCCIÓN (sin metas publicadas): capital y conversión, ambos neutrales', () => {
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
       cumplimiento: null,
     })
 
-    expect(screen.getByText('Capital confirmado PEN')).toBeInTheDocument()
+    expect(screen.getByText('Capital confirmado')).toBeInTheDocument()
     expect(screen.getByText('Conversión resuelta')).toBeInTheDocument()
+    // Dos filas, las dos sin juicio: sin meta no hay incumplimiento que pintar.
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
+    // Y ninguna columna suelta por moneda: eso era el ruido que se quitó.
+    expect(screen.queryByText('Capital confirmado PEN')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
   })
-
-  it('con la lectura caída tampoco aparece: el banner ya declara el fallo, una columna vacía no lo explica mejor', () => {
-    montar({
-      objetivos: objetivosCero('2026-07-01').vendedor,
-      cumplimiento: null,
-      cumplimientoError: true,
-    })
-
-    expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
-    expect(screen.getByText('No pudimos cargar toda la información mensual.')).toBeInTheDocument()
-  })
-
   it('si falla el cumplimiento no usa el pronóstico abierto como sustituto', () => {
     montar({
       leads: [lead({ monto_estimado: 900_000, etapa: 'propuesta_enviada' })],
@@ -577,7 +609,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     })
 
     expect(screen.getByText('S/ 900,000')).toBeInTheDocument()
-    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(3)
+    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
     expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
   })
 })

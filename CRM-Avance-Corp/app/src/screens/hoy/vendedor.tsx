@@ -67,6 +67,8 @@ import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, primerNombre } from '@/lib/format'
+import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 
@@ -173,6 +175,44 @@ function MetaFila({
       )}
       {nota && <div className="mt-1.5">{nota}</div>}
     </div>
+  )
+}
+
+/**
+ * Sub-línea del capital consolidado: cuánto entró en cada moneda y a qué tasa se
+ * unificó. Va DEBAJO del total y no al lado a propósito — el asesor mira una
+ * cifra, y el desglose está para responder «¿de dónde sale?», no para competir
+ * con ella.
+ *
+ * Los tres estados de `totalEnSoles` se dicen en voz alta:
+ *   · `convertido` → «S/ X + US$ Y · TC S/ Z (fuente)»: la tasa que DE VERDAD
+ *     entró en el número, leída del resultado y no del TC que se creía tener.
+ *   · `solo_pen`   → el USD existe pero no hubo tasa: se muestra aparte y con la
+ *     advertencia, porque el total de arriba NO lo incluye. Callarlo haría que
+ *     el asesor leyera su avance como completo cuando le falta media moneda.
+ *   · `indisponible` → no hay nada que desglosar todavía.
+ */
+function DesgloseCapital({
+  capital,
+  fuenteTc,
+}: {
+  capital: ReturnType<typeof totalEnSoles>
+  fuenteTc: string | null
+}): JSX.Element | null {
+  if (capital.estado === 'indisponible') return null
+  const soloPen = capital.estado === 'solo_pen'
+  const hayUsd = (capital.usd ?? 0) > 0
+  // Sin dólares, el desglose repetiría el total: se calla.
+  if (!hayUsd) return null
+  return (
+    <p className="text-[11px] tabular-nums text-muted-foreground">
+      {moneyK(capital.pen ?? 0, 'PEN')} + {moneyK(capital.usd ?? 0, 'USD')}
+      {soloPen || capital.tc == null ? (
+        <span className="text-warning-text"> · sin tipo de cambio: el total NO incluye los dólares</span>
+      ) : (
+        <span> · {rotuloTipoCambio(capital.tc, fuenteTc ?? 'TC del día')}</span>
+      )}
+    </p>
   )
 }
 
@@ -540,23 +580,22 @@ export function HoyVendedor(): JSX.Element {
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
   const conversion = cumplimiento?.conversionReal ?? null
-  // El asesor trabaja su meta en SOLES (decisión de Miguel 2026-08-10): la
-  // columna de dólares ocupaba un tercio del panel para decir «Sin meta fijada»
-  // todos los días del mes. Se muestra solo cuando hay ALGO EN DÓLARES:
-  //   · le fijaron meta en USD, o
-  //   · cerró capital en USD aunque nadie se lo pidiera — ocultar eso sería
-  //     esconderle trabajo hecho, y ese sí es un error caro.
+  // CAPITAL CONSOLIDADO (decisión de Miguel 2026-08-10, extendiendo la #10 al
+  // asesor): lo que manda es UN solo número —cuánto ha metido en total, en
+  // soles— y el desglose por moneda vive debajo como sub-línea. Si cierra en
+  // dólares, su avance sube igual, convertido al TC real.
   //
-  // ⚠️ Deliberadamente NO se muestra por «no se sabe». La primera versión
-  // añadía un fail-safe para los estados degradados (metas o cumplimiento sin
-  // cargar) y resultó ser la condición que SIEMPRE gana en producción: mientras
-  // gerencia no publique una revisión de metas, el cumplimiento llega nulo,
-  // así que la columna volvía a salir todos los días — el bug que esto venía a
-  // arreglar, intacto. Y no aportaba nada: una columna con «—» en el valor y
-  // «—» en la meta no informa de un fallo que el banner de abajo («No pudimos
-  // cargar toda la información mensual» + Reintentar) ya declara, y que las
-  // otras dos columnas ya muestran en su propio texto.
-  const mostrarCapitalUsd = metaCapitalUsd > 0 || (capitalConfirmadoUsd ?? 0) > 0
+  // La regla de la casa (PEN y USD JAMÁS se suman) sigue intacta: `totalEnSoles`
+  // no suma a ciegas, convierte a una tasa conocida y devuelve el TC que
+  // REALMENTE aplicó, que es el que se rotula. Sin tasa, el USD queda fuera del
+  // total y se dice — nunca se inventa una.
+  //
+  // El MISMO tc entra en el capital y en la meta: si falta, los dos quedan
+  // solo-PEN y el porcentaje sigue comparando peras con peras.
+  const { tc: tipoCambio } = useTipoCambio()
+  const tcPromedio = tipoCambio?.promedio ?? null
+  const capitalTotal = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tcPromedio)
+  const metaTotal = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la
@@ -932,39 +971,23 @@ export function HoyVendedor(): JSX.Element {
           right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'datos confirmados demo' : 'contratos confirmados'}</span>}
         />
         <CardContent className="pt-0">
-          <div className={`grid gap-x-8 gap-y-4 ${mostrarCapitalUsd ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
+          <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
             <MetaFila
               icon={Wallet}
-              label="Capital confirmado PEN"
-              valorTxt={capitalConfirmadoPen == null ? '—' : moneyK(capitalConfirmadoPen, 'PEN')}
-              metaTxt={moneyK(metaCapitalPen, 'PEN')}
-              pct={pctMeta(capitalConfirmadoPen ?? 0, metaCapitalPen)}
+              label="Capital confirmado"
+              valorTxt={capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
+              metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
+              pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
               delay={0}
+              nota={<DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
               neutro={objetivosError
                 ? 'Meta mensual no disponible'
-                : metaCapitalPen <= 0
+                : (metaTotal.total ?? 0) <= 0
                   ? SIN_META
-                  : cumplimientoMetasError || capitalConfirmadoPen == null
+                  : cumplimientoMetasError || capitalTotal.total == null
                     ? 'Cumplimiento confirmado no disponible'
                     : undefined}
             />
-            {mostrarCapitalUsd && (
-              <MetaFila
-                icon={Wallet}
-                label="Capital confirmado USD"
-                valorTxt={capitalConfirmadoUsd == null ? '—' : moneyK(capitalConfirmadoUsd, 'USD')}
-                metaTxt={moneyK(metaCapitalUsd, 'USD')}
-                pct={pctMeta(capitalConfirmadoUsd ?? 0, metaCapitalUsd)}
-                delay={90}
-                neutro={objetivosError
-                  ? 'Meta mensual no disponible'
-                  : metaCapitalUsd <= 0
-                    ? 'Cerraste en dólares sin meta fijada en esa moneda'
-                    : cumplimientoMetasError || capitalConfirmadoUsd == null
-                      ? 'Cumplimiento confirmado no disponible'
-                      : undefined}
-              />
-            )}
             <MetaFila
               icon={TrendingUp}
               label="Conversión resuelta"
