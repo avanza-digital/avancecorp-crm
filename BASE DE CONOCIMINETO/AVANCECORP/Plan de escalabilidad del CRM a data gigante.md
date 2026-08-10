@@ -446,6 +446,18 @@ muere `count: 'exact'`; la UI pasa a «cargar más».
 >   invalidaba `metricas-ambito` (tiles); ahora invalida además el prefijo
 >   `leads` (filas). Sin eso, crear un lead movía los números de arriba y dejaba
 >   la tabla de abajo en la foto anterior.
+> - **Los tiles y las filas tienen que contar lo mismo, y hay que comprobarlo
+>   ROL POR ROL.** La primera versión no filtraba `activo` (copiando a
+>   `listarLeadsDelAmbito`) mientras `resumen_cartera_fn` sí lo hace siempre.
+>   Para cuatro de los cinco roles daba igual —su policy ya lo exige—, pero el
+>   **directorio** es lector global y su rama del OR no: veía en las FILAS los
+>   soft-borrados que sus propios TILES nunca contaron. Corregido el mismo día
+>   por orden de Miguel (`20260810151433`). La regla que queda: **una divergencia
+>   que solo afecta a un rol es igual de real que una que afecta a todos**, y el
+>   rol raro suele ser el lector global, porque su rama de la policy es la única
+>   distinta. Ojo al corregirlo: un lead DESCARTADO no es un lead BORRADO —
+>   `etapa` no es `activo`, y los descartes comerciales tienen que seguir en la
+>   cartera con su motivo.
 
 **Decisión de diseño (absorbe un hallazgo mayor de inyección):** las listas
 keyset van por **RPC `returns table` con parámetros tipados**
