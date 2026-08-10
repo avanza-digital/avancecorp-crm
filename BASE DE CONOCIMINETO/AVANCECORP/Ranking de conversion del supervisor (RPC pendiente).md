@@ -64,6 +64,9 @@ El repo ya tiene el literal correcto en tres gates vivos
 (`test-metricas-servidor.sql:532` y `:778`,
 `test-inteligencia-comercial-reuniones.sql:340`).
 
+✅ **Ya corregido en el borrador guardado** (`search_path=""`), para que no vuelva
+a morder al retomarlo. Los otros tres bloqueantes siguen abiertos.
+
 ### 🔴 B2 — el payload mínimo NO lo puede consumir el front
 
 La cabecera justificaba la superficie mínima diciendo que el ranking solo pinta
@@ -102,6 +105,17 @@ El precedente de F1 no zanja esto: aquellas RPC son foto del *ahora*, y la únic
 con historia larga (`series_comerciales_fn`) entrega agregado de equipo, **nunca
 desglose nominal por persona**. Esta sería la primera que da rendimiento histórico
 nominal a un supervisor.
+
+## Por qué la migración NO se commitea todavía
+
+No es prudencia de más: es una **regla dura del proyecto**. «Nunca editar una
+migración ya commiteada — se crea una nueva». La decisión de negocio de abajo
+cambia el CÁLCULO de la RPC (dueño actual vs. ledger de asignaciones), así que
+commitear el archivo ahora y responder después significaría **una segunda
+migración correctiva** por un cambio que aún estábamos a tiempo de evitar.
+
+El archivo se escribe cuando estén las dos cosas: la decisión de Miguel y el visto
+bueno para abrir branch en la base **compartida con el portal**.
 
 ## Lección del ciclo
 
