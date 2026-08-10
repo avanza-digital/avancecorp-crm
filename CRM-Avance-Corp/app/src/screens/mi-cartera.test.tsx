@@ -12,10 +12,18 @@ import type { ClienteBasico, ClienteDetalle, ContratoRow } from '@/lib/clientes-
 // `yo`, clientes y contratos se pisan antes de cada montaje; los mocks los leen
 // en cada llamada (no capturan el valor al definirse).
 let YO: { id: string; rol: string; puede_contratar: boolean; demo: boolean } | null = null
-let CLIENTES: ClienteBasico[] = []
-let CONTRATOS: ContratoRow[] = []
+// `null` = la lectura nunca trajo datos (primera carga). Es distinto de `[]`
+// (cartera vacía) y distingue el PanelError del aviso de datos rancios.
+let CLIENTES: ClienteBasico[] | null = []
+let CONTRATOS: ContratoRow[] | null = []
 let EQUIPO: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }> = []
 let DETALLE: ClienteDetalle | null = null
+// Fallo de las lecturas CON data ya servida: es el caso que TanStack conserva
+// (al fallar un refetch mantiene `data`) y el que dejaba la cartera muda.
+let ERROR_CLIENTES: Error | null = null
+let ERROR_CONTRATOS: Error | null = null
+let REFETCH_CLIENTES = vi.fn()
+let REFETCH_CONTRATOS = vi.fn()
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -23,20 +31,20 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
-  const q = <T,>(data: T) => ({
+  const q = <T,>(data: T, error: Error | null = null, refetch = vi.fn()) => ({
     data,
     isPending: false,
-    isSuccess: true,
-    isError: false,
-    error: null,
-    refetch: vi.fn(),
+    isSuccess: error == null,
+    isError: error != null,
+    error,
+    refetch,
     isFetching: false,
     isFetchedAfterMount: true,
   })
   return {
     ...actual, // conserva crmQueryKeys real
-    useClientes: () => q(CLIENTES),
-    useContratos: () => q(CONTRATOS),
+    useClientes: () => q(CLIENTES, ERROR_CLIENTES, REFETCH_CLIENTES),
+    useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useClienteDetalle: vi.fn(() => q(DETALLE)),
     // ContratoDetalle usa estos tres; con data null pinta skeletons (no red, no crash).
     useContrato: () => q(null),
@@ -130,15 +138,21 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
 function montar(
   over: {
     yo?: typeof YO
-    clientes?: ClienteBasico[]
-    contratos?: ContratoRow[]
+    clientes?: ClienteBasico[] | null
+    contratos?: ContratoRow[] | null
     detalle?: ClienteDetalle | null
     equipo?: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }>
+    errorClientes?: Error | null
+    errorContratos?: Error | null
   } = {},
 ) {
   YO = over.yo ?? { id: 'yo', rol: 'vendedor', puede_contratar: true, demo: false }
-  CLIENTES = over.clientes ?? [cliente()]
-  CONTRATOS = over.contratos ?? [contrato()]
+  CLIENTES = over.clientes === undefined ? [cliente()] : over.clientes
+  CONTRATOS = over.contratos === undefined ? [contrato()] : over.contratos
+  ERROR_CLIENTES = over.errorClientes ?? null
+  ERROR_CONTRATOS = over.errorContratos ?? null
+  REFETCH_CLIENTES = vi.fn()
+  REFETCH_CONTRATOS = vi.fn()
   EQUIPO = over.equipo ?? []
   // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
   // significa "usa la ficha por defecto".
@@ -314,6 +328,48 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Dólares')).not.toBeInTheDocument()
+  })
+})
+
+describe('MiCartera — recarga fallida CON datos en pantalla', () => {
+  // El defecto que cierran: `hayError` exigía `grupos == null`, así que un refetch
+  // caído (TanStack conserva la data anterior) dejaba la cartera EXACTAMENTE igual
+  // que si estuviera al día. El asesor decidía sobre datos viejos sin saberlo.
+  it('avisa de que los datos pueden estar desactualizados y NO borra la cartera', () => {
+    montar({ errorClientes: new Error('red caída') })
+    expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
+    expect(screen.getByText(/pueden estar desactualizados/i)).toBeInTheDocument()
+  })
+
+  it('el fallo de CONTRATOS también avisa (no solo el de clientes)', () => {
+    montar({ errorContratos: new Error('red caída') })
+    expect(screen.getByText(/pueden estar desactualizados/i)).toBeInTheDocument()
+  })
+
+  it('la pantalla sigue OPERABLE: no se sustituye por el panel de error', () => {
+    montar({ errorClientes: new Error('red caída') })
+    expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
+    expect(screen.queryByText(/No se pudo cargar tu cartera/i)).not.toBeInTheDocument()
+  })
+
+  it('«Reintentar» del aviso recarga clientes Y contratos', async () => {
+    const user = userEvent.setup()
+    montar({ errorClientes: new Error('red caída') })
+    await user.click(screen.getByRole('button', { name: /Reintentar la carga de tu cartera/i }))
+    expect(REFETCH_CLIENTES).toHaveBeenCalledTimes(1)
+    expect(REFETCH_CONTRATOS).toHaveBeenCalledTimes(1)
+  })
+
+  it('sin fallo NO hay aviso (no se alarma a nadie sin motivo)', () => {
+    montar()
+    expect(screen.queryByText(/pueden estar desactualizados/i)).not.toBeInTheDocument()
+  })
+
+  it('primera carga caída (sin datos): panel de error, NO el aviso de rancio', () => {
+    montar({ clientes: null, errorClientes: new Error('red caída') })
+    // Un solo mensaje de error, no dos compitiendo.
+    expect(screen.queryByText(/pueden estar desactualizados/i)).not.toBeInTheDocument()
+    expect(screen.getByText(/No se pudo cargar tu cartera/i)).toBeInTheDocument()
   })
 })
 

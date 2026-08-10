@@ -24,6 +24,7 @@ import { Select } from '@/components/ui/select'
 import { Dialog } from '@/components/ui/dialog'
 import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
@@ -621,6 +622,7 @@ function VistaMiCartera({
   grupos,
   demo,
   error,
+  recargaFallida,
   yoId,
   puedeContratar,
   onNuevoCliente,
@@ -634,6 +636,13 @@ function VistaMiCartera({
   grupos: GrupoCartera[] | null
   demo: boolean
   error: { mensaje: string; reintentando: boolean; reintentar: () => void } | null
+  /**
+   * Recarga fallida CON datos ya en pantalla. Es un estado distinto de `error`
+   * (que solo cubre «no hay nada que mostrar»): TanStack conserva la data previa
+   * cuando falla un refetch, así que sin este aviso el asesor seguía viendo su
+   * cartera como si estuviera al día. Silencioso = peor que vacío.
+   */
+  recargaFallida: { reintentar: () => void } | null
   yoId: string | null
   puedeContratar: boolean
   onNuevoCliente: () => void
@@ -866,6 +875,14 @@ function VistaMiCartera({
 
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
+      <AvisoDegradacion
+        activo={recargaFallida != null}
+        queReintenta="de tu cartera"
+        onReintentar={() => recargaFallida?.reintentar()}
+      >
+        No se pudo actualizar la cartera. Se muestran los últimos datos cargados, que
+        pueden estar desactualizados.
+      </AvisoDegradacion>
       {bases.length > 0 && <StatStrip stats={stats} />}
       <Card className="overflow-hidden">
         <SectionHead
@@ -1130,6 +1147,14 @@ export function MiCartera() {
 
   const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError)
   const hayError = (clientesQ.isError || contratosQ.isError) && grupos == null
+  // Falló la recarga PERO seguimos con datos: la pantalla es plenamente operable,
+  // así que no se bloquea con PanelError — se avisa de que lo que se ve puede
+  // estar rancio. Sin esto la cartera se veía idéntica a una recién cargada.
+  const recargaFallida = (clientesQ.isError || contratosQ.isError) && grupos != null
+  const reintentarCarga = () => {
+    void clientesQ.refetch()
+    void contratosQ.refetch()
+  }
 
   return (
     <>
@@ -1141,13 +1166,11 @@ export function MiCartera() {
             ? {
                 mensaje: mensajeDeError(clientesQ.error ?? contratosQ.error, 'No se pudo cargar tu cartera.'),
                 reintentando: clientesQ.isFetching || contratosQ.isFetching,
-                reintentar: () => {
-                  void clientesQ.refetch()
-                  void contratosQ.refetch()
-                },
+                reintentar: reintentarCarga,
               }
             : null
         }
+        recargaFallida={recargaFallida ? { reintentar: reintentarCarga } : null}
         yoId={yo?.id ?? null}
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
@@ -1259,6 +1282,7 @@ function MiCarteraDemo() {
         grupos={grupos}
         demo
         error={null}
+        recargaFallida={null}
         yoId={yo?.id ?? null}
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={tocaReal}

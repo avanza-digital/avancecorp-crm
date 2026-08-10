@@ -16,6 +16,16 @@ import {
 } from './observabilidad'
 
 export function instalarSentry(): void {
+  // SILENCIO TOTAL fuera de producción (decisión de Miguel, 2026-08-10).
+  //
+  // `app/.env` es el único fichero con DSN y Vite lo carga en TODOS los modos, así
+  // que cada `npm run dev` —y cada corrida de Playwright, que levanta ese mismo
+  // servidor de dev— reportaba al proyecto de PRODUCCIÓN. El 2026-08-09 eso enterró
+  // la señal bajo 742 eventos de laboratorio: mocks de E2E y fetches cancelados que
+  // parecían caídas del backend. El gate va aquí y no en el `.env` porque el `.env`
+  // se repone sin querer y no protege de un build local; esto es incondicional.
+  if (!import.meta.env.PROD) return
+
   const dsn = import.meta.env.VITE_SENTRY_DSN
   if (typeof dsn !== 'string' || dsn.trim() === '') return
 

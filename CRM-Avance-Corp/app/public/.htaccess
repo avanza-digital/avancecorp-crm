@@ -23,7 +23,12 @@ ErrorDocument 404 /404.html
   Header always set Cross-Origin-Opener-Policy "same-origin"
   Header always set Cross-Origin-Resource-Policy "same-origin"
   Header always set Origin-Agent-Cluster "?1"
-  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://dctqcbznekcyxhjujuci.supabase.co wss://dctqcbznekcyxhjujuci.supabase.co; manifest-src 'self'; worker-src 'self' blob:; media-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests"
+  # connect-src incluye el host de ingesta de Sentry: con `default-src 'none'`, no
+  # declararlo hacía que el navegador BLOQUEARA cada envío de telemetría — el DSN
+  # llevaba en producción desde el 2026-08-09 sin poder emitir un solo evento, y
+  # los «0 errores» se leían como salud cuando eran silencio forzado. Solo el host
+  # de ingesta de esta organización, nunca un comodín.
+  Header always set Content-Security-Policy "default-src 'none'; script-src 'self'; script-src-attr 'none'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://dctqcbznekcyxhjujuci.supabase.co wss://dctqcbznekcyxhjujuci.supabase.co https://o4511877814026240.ingest.us.sentry.io; manifest-src 'self'; worker-src 'self' blob:; media-src 'self'; object-src 'none'; frame-src 'none'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'; upgrade-insecure-requests"
 
   # Solo los bundles con hash de Vite reciben caché inmutable. HTML y cualquier
   # futuro JS sin hash siempre revalidan para no dejar código de auth obsoleto.

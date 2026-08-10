@@ -381,6 +381,7 @@ export async function listarLeads(
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error, count } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
     // No se registra el texto ni IDs del filtro: pueden contener PII.
@@ -450,6 +451,7 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.leads.ambito_fallido', fallo)
@@ -490,6 +492,7 @@ export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
   let consulta = cliente().schema('crm').rpc('equipo_visible_fn')
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar el equipo.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.equipo.listado_fallido', fallo)
@@ -522,6 +525,7 @@ export async function obtenerMetasDelMes(
   let consulta = cliente().schema('crm').rpc('configuracion_metas_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudieron cargar las metas del mes.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.metas.configuracion_fallida', fallo)
@@ -544,6 +548,7 @@ export async function obtenerCumplimientoMetas(
   let consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo calcular el cumplimiento de metas.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.metas.cumplimiento_fallido', fallo)
@@ -587,12 +592,14 @@ export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]
   let consulta = cliente().schema('crm').rpc('leads_por_repartir')
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  // Un fetch ABORTADO (desmontaje, recarga, doble efecto de StrictMode) no es un
+  // fallo del servidor. Antes se propagaba como CrmApiError sin reportarlo, lo que
+  // dejaba la query en ERROR y podía pintar un aviso de degradación falso al volver
+  // a la pantalla; ahora usa la MISMA guarda que el resto de lecturas.
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar la cola de leads.', error.code || 'POSTGREST_ERROR')
-    // Un fetch ABORTADO (desmontaje, recarga, doble efecto de StrictMode) no es
-    // un fallo del servidor: se propaga para que el llamador lo descarte, pero
-    // NO se reporta — si no, la observabilidad se llena de errores fantasma.
-    if (!signal?.aborted) registrarError('crm.reparto.cola_fallida', fallo)
+    registrarError('crm.reparto.cola_fallida', fallo)
     throw fallo
   }
   const items: ColaLead[] = []
@@ -607,9 +614,10 @@ export async function supervisoresParaReparto(signal?: AbortSignal): Promise<Sup
   let consulta = cliente().schema('crm').rpc('supervisores_para_reparto')
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudieron cargar los supervisores.', error.code || 'POSTGREST_ERROR')
-    if (!signal?.aborted) registrarError('crm.reparto.supervisores_fallida', fallo)
+    registrarError('crm.reparto.supervisores_fallida', fallo)
     throw fallo
   }
   const items: SupervisorReparto[] = []
@@ -686,9 +694,10 @@ export async function leadsDescartados(signal?: AbortSignal): Promise<LeadDescar
   let consulta = cliente().schema('crm').rpc('leads_descartados')
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar la lista de descartados.', error.code || 'POSTGREST_ERROR')
-    if (!signal?.aborted) registrarError('crm.descarte.lista_fallida', fallo)
+    registrarError('crm.descarte.lista_fallida', fallo)
     throw fallo
   }
   const items: LeadDescartado[] = []
@@ -718,6 +727,7 @@ export async function listarActividadesDelAmbito(signal?: AbortSignal): Promise<
   let consulta = cliente().schema('crm').rpc('actividades_del_ambito_fn')
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar el historial.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.actividades.listado_fallido', fallo)
@@ -1056,6 +1066,7 @@ export async function listarTareasDelAmbito(signal?: AbortSignal): Promise<Tarea
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar la agenda.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.tareas.ambito_fallido', fallo)
@@ -1369,6 +1380,7 @@ export async function listarCuentasBancariasCliente(
   })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError(
       'No se pudieron cargar las cuentas bancarias del cliente.',
@@ -1551,6 +1563,7 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar tu cartera de clientes.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.clientes.listado_fallido', fallo)
@@ -1648,6 +1661,7 @@ export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): P
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar el cliente.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.clientes.detalle_fallido', fallo)
@@ -1892,6 +1906,7 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudieron cargar tus contratos.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.contratos.listado_fallido', fallo)
@@ -1976,6 +1991,7 @@ export async function obtenerCronograma(contratoId: string, signal?: AbortSignal
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudo cargar el cronograma.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.cronograma.listado_fallido', fallo)
@@ -2011,6 +2027,7 @@ export async function obtenerTitulares(contratoId: string, signal?: AbortSignal)
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError('No se pudieron cargar los co-titulares.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.titulares.listado_fallido', fallo)
@@ -2293,6 +2310,18 @@ function periodoMetricasValido(desde: string, hasta: string): boolean {
     && desde <= hasta
 }
 
+/**
+ * Guarda de cancelación. Va SIEMPRE entre el `await consulta` y el `if (error)`
+ * de toda lectura que acepte `signal`.
+ *
+ * Por qué (2026-08-10): al cancelarse un fetch, postgrest-js devuelve `code: ''`
+ * y nuestro `error.code || 'POSTGREST_ERROR'` lo convertía en un fallo indistinguible
+ * de una caída real, que se reportaba a Sentry. Y TanStack CANCELA de oficio: al
+ * desmontarse la última pantalla observadora aborta la petición en vuelo. Resultado:
+ * cambiar de pantalla generaba «listado_fallido» sin que nada estuviera roto.
+ * Lanzar aquí el AbortError deja que TanStack lo trate como lo que es —una
+ * cancelación, no un error— y el evento nunca nace.
+ */
 function lanzarAbortSiCorresponde(signal?: AbortSignal): void {
   if (!signal?.aborted) return
   throw signal.reason instanceof Error
