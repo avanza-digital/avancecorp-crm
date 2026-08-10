@@ -1254,7 +1254,7 @@ no «en general».
 
 | Versión local | Versión remota | Nombre | Estado |
 |---------------|----------------|--------|--------|
-| 20260810163458 | _(pendiente)_ | crm_roster_metas_fuente_unica | 🚧 en branch `roster-metas` |
+| 20260810163458 | 20260810163458 | crm_roster_metas_fuente_unica | ✅ **EN PROD 2026-08-10** (branch `roster-metas` → gate RLS **745/745** → oráculo `METAS_VERSIONADAS_TX_OK` con M15–M18 nuevos → advisors **0 ERROR** en seguridad y rendimiento → trigger de jerarquía reactivado (0 en disable) → merge → branch borrado). **Prueba de no vacuidad en producción**, en `begin/rollback`: antes → `23514` y publicación imposible; después → roster **16**, excluidos **1** (`IVETT TEEVIN`, motivo `sin_supervisor`) y `revision 1` creada. Verificado además: `authenticated` **no** alcanza los helpers de `private` (`has_function_privilege` = false) y el WARN de definer-ejecutable sigue en **92**, sin sumar los dos nuevos. Front: check **1577/1577**. |
 
 **El defecto**: publicar metas era **imposible**, y lo era desde que existe la
 pantalla — por eso `crm.meta_periodos` llevaba **0 filas** en producción. El
