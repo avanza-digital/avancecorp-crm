@@ -88,13 +88,58 @@ Corolarios que valen para cualquier canal de observabilidad:
    (`if (!import.meta.env.PROD) return`) y no en el `.env`, que se repone sin
    querer.
 
-## Lo que se hizo (commit `dd6b610`)
+## El tercer defecto: abrir la CSP ACTIVABA una fuga de PII
+
+Lo encontró la **revisión independiente de Codex** (`gpt-5.6-sol`) sobre `dd6b610`,
+y es el hallazgo más caro del ciclo porque **ninguno de los cinco diagnósticos ni
+de los tres refutadores lo vio**: todos miraban si la telemetría *funcionaba*,
+nadie si *lo que iba a empezar a viajar* era seguro.
+
+Sentry trae activas por defecto las migas (`breadcrumbs`) de UI, y su serializador
+copia **literalmente** el árbol DOM del elemento pulsado, con su `aria-label`. El
+CRM pone nombres de clientes justo ahí:
+
+- `contacto.tsx` → `aria-label="Llamar a ${lead.nombre_completo}"`
+- `repartir.tsx` → `aria-label="Repartir a ${lead.nombre_completo}"`
+
+Nuestro `limpiarTexto` **no conoce nombres propios**: solo Bearer, JWT, correos y
+números personales. Y `sendDefaultPii: false` NO desactiva esa integración.
+
+> **Mientras la CSP bloqueaba la salida, el defecto era inofensivo. Abrirla lo
+> convertía en una fuga efectiva.** Es decir: el «arreglo» de la mordaza habría
+> estrenado, el mismo día, un canal de PII hacia un tercero.
+
+Arreglado: las migas `ui.*` se descartan **enteras** (la miga de reproducción no
+vale una fuga), y a las de red se les quita la **query** —donde viaja el texto que
+el usuario escribe en el buscador, `nombre_completo=ilike.%…%`— conservando la
+ruta, que dice QUÉ se llamó sin decir CON QUÉ datos.
+
+### La lección de segundo orden
+
+> **Al abrir un canal que estaba cerrado, hay que auditar lo que va a salir por
+> él, no solo comprobar que ya sale.** Un defecto latente tras una barrera no es
+> un defecto menor: es un defecto con fecha de activación, y la fecha la pone
+> quien retira la barrera.
+
+De paso, Codex encontró que el barrido de abortos estaba **incompleto** (5 lecturas
+más: `esClienteDeMiCartera` y las 4 métricas de gerencia — eran 21, no 16) y que el
+gate miraba `PROD`, que Vite deriva de `NODE_ENV`, así que `vite build --mode
+staging` habría reportado a producción; ahora compara `MODE` contra `'production'`.
+
+Y una lección sobre los propios tests: los míos **solo cubrían la rama negativa**,
+así que un `return` incondicional al principio de `instalarSentry()` los dejaba
+todos en verde y nos habría devuelto al silencio sin avisar. Hermana de la lección
+del 2026-08-09: **una prueba de mutación hay que hacerla en las DOS direcciones —
+quitar el arreglo Y anular la función entera.**
+
+## Lo que se hizo (commits `dd6b610` y `0fe89cd`)
 
 | Extremo | Arreglo |
 |---|---|
 | Salida | `connect-src` incluye `https://o4511877814026240.ingest.us.sentry.io` (host exacto, sin comodín) |
-| Entrada | `if (!import.meta.env.PROD) return` en `instalarSentry()` — **silencio total fuera de producción, decisión de Miguel** |
-| Instrumentación | `lanzarAbortSiCorresponde(signal)` en las 16 lecturas que no la tenían; desaparecen los TRES patrones que convivían para lo mismo |
+| Entrada | `if (import.meta.env.MODE !== 'production') return` en `instalarSentry()` — **silencio total fuera de producción, decisión de Miguel**. Con `PROD` no bastaba: Vite lo deriva de `NODE_ENV` y un build `--mode staging` habría reportado al DSN de producción |
+| Privacidad | Migas `ui.*` descartadas y query de las URLs redactada — sin esto, abrir la CSP estrenaba una fuga de nombres de clientes |
+| Instrumentación | `lanzarAbortSiCorresponde(signal)` en las **21** lecturas que no la tenían (16 + 5 que encontró Codex); desaparecen los TRES patrones que convivían para lo mismo |
 | Honestidad de UI | `mi-cartera` gana su aviso de degradación: era la única pantalla donde un refetch fallido dejaba al asesor viendo datos rancios como si fueran frescos |
 
 Gate: `npm run check` **1469/1469** (+9) · e2e **81** · **prueba de mutación**: 3
