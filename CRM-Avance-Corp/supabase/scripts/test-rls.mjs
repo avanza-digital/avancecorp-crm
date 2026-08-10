@@ -4362,6 +4362,152 @@ async function testMetricasServidor(sessions, seed) {
   );
 }
 
+// ── Decision #10 (b2): ranking de CONVERSION del equipo del supervisor ───────
+// La RPC abre a SUPERVISOR una superficie que hasta ahora era exclusiva de
+// gerencia/lector global, asi que el gate es parte del entregable, no un
+// seguimiento. Tres bloques: (A) permitidos y FORMA, (B) denegaciones duras,
+// (C) NO VACUIDAD — sin el bloque C, todo A puede estar verde y vacio.
+async function testMetricasConversionEquipo(sessions, seed) {
+  console.log('\n— Ranking de conversion del equipo (decision #10 b2) —');
+
+  // Ventana de 30 dias terminada HOY: el mismo periodo para todos los actores,
+  // que es lo que hace comparable la paridad con gerencia.
+  const hasta = new Date();
+  const desde = new Date(hasta.getTime() - 29 * 24 * 60 * 60 * 1000);
+  const P = { p_desde: desde.toISOString().slice(0, 10), p_hasta: hasta.toISOString().slice(0, 10) };
+  const ids = seed.profileIdByKey;
+  const idsDe = (payload) => new Set((payload?.responsables ?? []).map((f) => f.vendedor_id));
+
+  // ── A · permitidos y forma ────────────────────────────────────────────────
+  const global = await positive(
+    'gerencia obtiene el ranking de conversion global',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
+  );
+  if (global) {
+    check(global.data?.version === 1, 'el payload de conversion del equipo declara version 1');
+    check(global.data?.alcance === 'global', 'gerencia recibe alcance "global"');
+    check(Array.isArray(global.data?.responsables),
+      'responsables es SIEMPRE un array, nunca null');
+    // La forma la fija el contrato: un campo de mas es superficie sin auditar.
+    const claves = [...new Set((global.data?.responsables ?? []).flatMap((f) => Object.keys(f)))].sort();
+    check(claves.length === 0
+      || JSON.stringify(claves) === JSON.stringify(['clientes', 'conversion_pct', 'leads', 'vendedor_id']),
+      'cada responsable trae SOLO los 4 campos del contrato', claves.join(','));
+  }
+
+  const directorio = await positive(
+    'directorio (lector global) obtiene el ranking global',
+    sessions.directorio.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
+  );
+  if (directorio && global) {
+    check(directorio.data?.alcance === 'global', 'el lector global recibe alcance "global"');
+    check(JSON.stringify([...idsDe(directorio.data)].sort())
+      === JSON.stringify([...idsDe(global.data)].sort()),
+      'directorio ve el MISMO conjunto que gerencia');
+  }
+
+  const deSup1 = await positive(
+    'sup1 obtiene el ranking de SU equipo',
+    sessions.sup1.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
+  );
+  const deSup2 = await positive(
+    'sup2 obtiene el ranking de SU equipo',
+    sessions.sup2.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
+  );
+  const deNested = await positive(
+    'sup1Nested obtiene el ranking de su rama',
+    sessions.sup1Nested.client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
+  );
+
+  if (deSup1) {
+    const suyos = idsDe(deSup1.data);
+    check(deSup1.data?.alcance === 'equipo', 'el supervisor recibe alcance "equipo"');
+    // vendNested cuelga de sup1Nested, que cuelga de sup1: prueba la RECURSION.
+    check(suyos.has(ids.vendNested),
+      'el subarbol es RECURSIVO: sup1 ve al vendedor de su supervisor anidado');
+    check(!suyos.has(ids.vend3) && !suyos.has(ids.vend4),
+      'sup1 NO ve a los vendedores de sup2');
+    check(!suyos.has(ids.sup1) && !suyos.has(ids.sup1Nested),
+      'los supervisores no aparecen como filas del ranking');
+    check(!suyos.has(ids.vendInactive),
+      'el vendedor inactivo NO figura como responsable');
+  }
+  if (deSup2) {
+    const suyos = idsDe(deSup2.data);
+    check(suyos.has(ids.vend3) && suyos.has(ids.vend4), 'sup2 ve a sus dos vendedores');
+    check(!suyos.has(ids.vend1) && !suyos.has(ids.vend2) && !suyos.has(ids.vendNested),
+      'sup2 NO ve el subarbol de sup1');
+  }
+  if (deNested) {
+    const suyos = idsDe(deNested.data);
+    check(!suyos.has(ids.vend1) && !suyos.has(ids.vend2),
+      'sup1Nested no ve HACIA ARRIBA: solo su propia rama');
+  }
+
+  // Paridad con gerencia: el mismo vendedor y el mismo periodo dan los MISMOS
+  // numeros mire quien mire. Es el invariante que justifica la RPC nueva.
+  const globalPorId = new Map((global?.data?.responsables ?? []).map((f) => [f.vendedor_id, f]));
+  if (deSup1) {
+    const desviados = (deSup1.data?.responsables ?? []).filter((fila) => {
+      const suyo = globalPorId.get(fila.vendedor_id);
+      return suyo && !(suyo.leads === fila.leads
+        && suyo.clientes === fila.clientes
+        && suyo.conversion_pct === fila.conversion_pct);
+    });
+    check(desviados.length === 0,
+      'PARIDAD: sup1 ve los mismos numeros que gerencia para sus vendedores',
+      desviados.map((f) => f.vendedor_id).join(','));
+  }
+
+  // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ──────────────
+  for (const key of ['vend1', 'vend3', 'coordinador', 'vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `${key} no ejecuta metricas_conversiones_equipo_fn`,
+      sessions[key].client.schema('crm').rpc('metricas_conversiones_equipo_fn', P),
+    );
+  }
+
+  // El GATE va antes que la validacion de periodo: un rol denegado recibe 42501
+  // aunque el periodo tambien sea invalido. Sin este par, el orden no esta probado.
+  const periodoInvalido = { p_desde: P.p_desde, p_hasta: '2999-01-01' };
+  await expectExplicitAuthorizationDenied(
+    'un rol denegado recibe 42501 y NO 22023 con un periodo invalido',
+    sessions.vend1.client.schema('crm').rpc('metricas_conversiones_equipo_fn', periodoInvalido),
+  );
+  await expectExpectedFailure(
+    'gerencia recibe 22023 con p_hasta en el futuro',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_equipo_fn', periodoInvalido),
+    ['22023'],
+    /periodo invalido/i,
+  );
+  await expectExpectedFailure(
+    'el supervisor entra en la MISMA rama de validacion que gerencia',
+    sessions.sup1.client.schema('crm').rpc('metricas_conversiones_equipo_fn', periodoInvalido),
+    ['22023'],
+    /periodo invalido/i,
+  );
+
+  // La implementacion privada no puede llamarse desde el Data API.
+  await expectExplicitAuthorizationDenied(
+    'la implementacion privada no es invocable por PostgREST',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_equipo_implementacion', P),
+  );
+
+  // ── C · NO VACUIDAD (leccion de RETOMAR-41) ───────────────────────────────
+  if (global && deSup1 && deSup2) {
+    const g = idsDe(global.data);
+    const s1 = idsDe(deSup1.data);
+    const s2 = idsDe(deSup2.data);
+    check(g.size > s1.size && g.size > s2.size,
+      'el scope del supervisor es ESTRICTAMENTE menor que el global',
+      `global=${g.size} sup1=${s1.size} sup2=${s2.size}`);
+    check([...s1].every((id) => !s2.has(id)),
+      'los dos subarboles no se solapan (forma observable de "subarbol ajeno")');
+    check(s1.size > 0 && s2.size > 0,
+      'ambos supervisores reciben al menos un responsable: el recorte no es vacio');
+  }
+}
+
 // ── C1: reparto de la cola global por el rol `coordinador` ────────────────────
 // Tres capas: (A) aislamiento del rol nuevo — incluidas las superficies que se
 // abren al dejar de ser rol_crm NULL; (B) control de acceso de las 3 RPC;
@@ -5326,6 +5472,9 @@ async function testAnon(seed) {
     ['cola_accion_fn', { p_limite: 100 }],
     ['metricas_vendedores_fn', {}],
     ['series_comerciales_fn', { p_meses: 6 }],
+    // Decision #10 (b2): la RPC del ranking de conversion del equipo nace con
+    // la misma sonda que sus hermanas — anon no la ve ni existiendo.
+    ['metricas_conversiones_equipo_fn', { p_desde: '2026-01-01', p_hasta: '2026-01-31' }],
   ]) {
     await expectExplicitAuthorizationDenied(
       `anon no ejecuta ${fn}`,
@@ -5376,6 +5525,7 @@ async function main() {
       await testVentanaActividades(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
+      await testMetricasConversionEquipo(sessions, verifiedSeed);
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);

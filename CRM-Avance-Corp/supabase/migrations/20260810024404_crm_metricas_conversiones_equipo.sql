@@ -1,33 +1,13 @@
--- ⛔⛔ NO APLICAR TODAVÍA — DECISIÓN DE PRODUCTO ABIERTA ⛔⛔
+-- DECISIÓN DE ÁMBITO — CERRADA por Miguel (2026-08-09)
 --
--- Este archivo está COMMITEADO pero NO APLICADO (ledger: «SOLO LOCAL»). Falta una
--- decisión de Miguel que cambia el CÁLCULO, no la forma:
+--   «El ranking del supervisor cuenta a su gente de HOY, con toda su historia».
 --
---     ¿El ranking del supervisor mide «MI GENTE HOY, con toda su historia»
---     o «LO PRODUCIDO BAJO MI MANDO»?
---
--- Tal como está escrito, el ámbito es por DUEÑO ACTUAL (`crm.leads.vendedor_id`
--- vigente) sobre una ventana de hasta 366 días — el default de todo F1. Con eso,
--- basta que gerencia traspase un vendedor para que su nuevo supervisor reciba el
--- AÑO ENTERO de esa persona, incluido el periodo en que rindió para otro; y el
--- ranking de un supervisor se reescribe solo cuando alguien cambia de equipo.
--- La alternativa («bajo mi mando») exige atribuir por el ledger
--- `crm.lead_asignaciones`, que es OTRA consulta.
---
--- Como una migración APLICADA ya no se edita, corregir el archivo ahora es
--- gratis y corregirlo después cuesta una segunda migración. Por eso se para aquí.
---
--- FALTA ADEMÁS, antes del ciclo (bloqueante de PROCESO del auditor-rls):
---   · los casos en `supabase/scripts/test-rls.mjs` (positivos por subárbol,
---     42501 duro para vendedor/coordinador/inactivo/ajeno/anon, y la paridad
---     numérica con gerencia). Están redactados en la nota del vault.
---   · OJO: `crm.metricas_conversiones_fn` (la global) TAMPOCO tiene hoy ni un
---     caso en el gate. Conviene cubrirla en el mismo ciclo.
---
--- Auditoría RLS ya pasada: sin fugas de ámbito, sin PII, sin tocar `public`.
--- Correcciones aplicadas del auditor: `activo is true` en el predicado,
--- postflight con las tres patas (definer + stable + service_role) y
--- `vendedor_ids_visibles` calculado solo cuando recorta.
+-- Es decir: atribución por DUEÑO ACTUAL (`crm.leads.vendedor_id` vigente), que es
+-- lo que ya hace el resto de F1 y lo que esta función implementa. Consecuencia
+-- aceptada y consciente: si gerencia traspasa un vendedor, su nuevo supervisor
+-- recibe el año entero de esa persona —incluido lo que produjo bajo otro— y el
+-- ranking se reordena solo cuando alguien cambia de equipo. La alternativa
+-- descartada era atribuir por el ledger `crm.lead_asignaciones`.
 --
 -- =========================================================================
 
