@@ -39,6 +39,21 @@ interface RankingVendedoresPanelProps {
   cargando: boolean
   error: string | null
   onReintentar: () => void
+  /** Encabezado. El supervisor ve «Ranking de mi equipo», no «general». */
+  titulo?: string
+  /** Chip de alcance: «Equipo completo» en gerencia, «Mi equipo» en supervisión. */
+  etiquetaAlcance?: string
+  /** Pestaña abierta al montar. */
+  tabInicial?: TipoRanking
+  /**
+   * Si la conversión NO está disponible para este rol, su pestaña ni se ofrece.
+   *
+   * Es el caso del supervisor: `metricas_conversiones_fn` deniega a todo lo que no
+   * sea gerencia/lector global, y relajarla sería una fuga —sus vistas base no
+   * tienen predicado jerárquico—. Se abre cuando exista la RPC scopeada; hasta
+   * entonces, ofrecer un tab que siempre falla sería mentir.
+   */
+  conversionDisponible?: boolean
 }
 
 type TipoRanking = 'conversion' | 'capital-total'
@@ -275,8 +290,12 @@ export function RankingVendedoresPanel({
   cargando,
   error,
   onReintentar,
+  titulo = 'Ranking general de vendedores',
+  etiquetaAlcance = 'Equipo completo',
+  tabInicial = 'conversion',
+  conversionDisponible = true,
 }: RankingVendedoresPanelProps): JSX.Element {
-  const [tipo, setTipo] = useState<TipoRanking>('conversion')
+  const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
   const adaptada = useMemo(
     () => adaptarConversionVendedores(datos, equipo),
     [datos, equipo],
@@ -296,15 +315,17 @@ export function RankingVendedoresPanel({
       <header className="flex flex-wrap items-start justify-between gap-4 border-b border-[var(--gi-line)] bg-white px-4 py-4 sm:px-5">
         <div>
           <p className="gi-label text-[var(--gi-blue)]">Desempeño comercial</p>
-          <h2 className="mt-1 text-xl font-bold tracking-[-.025em] text-[var(--gi-navy)] sm:text-2xl">Ranking general de vendedores</h2>
+          <h2 className="mt-1 text-xl font-bold tracking-[-.025em] text-[var(--gi-navy)] sm:text-2xl">{titulo}</h2>
           <p className="mt-1 text-xs font-medium text-[var(--gi-muted)]">{numero(totalVendedores)} vendedores · sin límite fijo de participantes</p>
         </div>
-        <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />Equipo completo</div>
+        <div className="flex items-center gap-2 rounded-xl bg-[#f7f5f1] px-3 py-2 text-xs font-semibold text-[var(--gi-navy)]"><Trophy className="size-4 text-[var(--gi-blue)]" aria-hidden />{etiquetaAlcance}</div>
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-white px-4 py-3 sm:px-5">
         <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
-          <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
+          {conversionDisponible && (
+            <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
+          )}
           <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
         </div>
         <p className="text-[11px] font-medium text-[var(--gi-muted)]">

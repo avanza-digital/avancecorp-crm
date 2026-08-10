@@ -253,3 +253,30 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.getByText(/no cuenta como cumplimiento/)).toBeInTheDocument()
   })
 })
+
+describe('Hoy · supervisor — ranking de mi equipo (decisión #10)', () => {
+  it('monta el ranking acotado a SU equipo, no el general de la empresa', () => {
+    montar()
+
+    expect(screen.getByText('Ranking de mi equipo')).toBeInTheDocument()
+    expect(screen.getByText('Mi equipo')).toBeInTheDocument()
+    // El título de gerencia no debe filtrarse a esta pantalla.
+    expect(screen.queryByText('Ranking general de vendedores')).not.toBeInTheDocument()
+  })
+
+  it('NO ofrece la pestaña «Conversión general»: su RPC deniega al supervisor', () => {
+    // Ofrecer un tab que siempre falla sería mentirle. Se abrirá cuando exista la
+    // RPC scopeada al subárbol (hoy `metricas_conversiones_fn` responde 42501, y
+    // relajarla sería una fuga: sus vistas base no tienen predicado jerárquico).
+    montar()
+
+    expect(screen.queryByRole('tab', { name: /Conversión general/i })).not.toBeInTheDocument()
+    expect(screen.getByRole('tab', { name: /Capital total/i })).toBeInTheDocument()
+  })
+
+  it('abre directamente en la pestaña de capital, la única que puede servir', () => {
+    montar()
+
+    expect(screen.getByRole('tab', { name: /Capital total/i })).toHaveAttribute('aria-selected', 'true')
+  })
+})

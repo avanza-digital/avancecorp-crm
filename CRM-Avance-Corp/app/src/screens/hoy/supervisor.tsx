@@ -60,6 +60,9 @@ import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
+import { RankingVendedoresPanel } from './ranking-vendedores'
+import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
+import { periodoInicialGerencia, semanticaMetaMensual } from '@/components/gerencia/periodo'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -115,6 +118,17 @@ export function HoySupervisor(): JSX.Element {
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
   const { tc } = useTipoCambio()
+  // Identidades y meta del mes para el ranking de MI equipo. El periodo es el mes
+  // en curso (el supervisor no tiene selector de rango como gerencia), y un fallo
+  // al cargar objetivos lo deja no-comparable en vez de comparar contra el vacío.
+  const equipoConversion = useMemo(
+    () => identidadesEquipoConversion(ambito.vendedores, equipo),
+    [ambito.vendedores, equipo],
+  )
+  const metaMensual = useMemo(() => {
+    const semantica = semanticaMetaMensual(periodoInicialGerencia())
+    return objetivosError ? { ...semantica, comparable: false, errorCarga: true } : semantica
+  }, [objetivosError])
 
   // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
   // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
@@ -654,6 +668,31 @@ export function HoySupervisor(): JSX.Element {
             )}
           </Card>
         </div>
+      </div>
+
+      {/* ── Ranking de MI equipo por capital total (decisión #10 de Miguel) ──
+           Va dentro de «Hoy» y no como vista propia del menú: así no toca router,
+           vistas, roles ni topbar. Solo la pestaña de capital: la de conversión
+           necesita una RPC scopeada al subárbol que todavía no existe (ver el
+           prop `conversionDisponible`), y ofrecer un tab que siempre falla sería
+           mentirle al supervisor. Las tres fuentes que alimentan el capital
+           —roster, metas y cumplimiento— YA llegan recortadas a su subárbol. */}
+      <div className="gerencia-inteligencia">
+        <RankingVendedoresPanel
+          datos={null}
+          equipo={equipoConversion}
+          metasVendedores={objetivos.porVendedor ?? {}}
+          cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}
+          metaMensual={metaMensual}
+          tc={tc}
+          cargando={vendedoresOp.cargando}
+          error={null}
+          onReintentar={() => void recargar()}
+          titulo="Ranking de mi equipo"
+          etiquetaAlcance="Mi equipo"
+          tabInicial="capital-total"
+          conversionDisponible={false}
+        />
       </div>
 
       <p className="text-[11px] text-muted-foreground">
