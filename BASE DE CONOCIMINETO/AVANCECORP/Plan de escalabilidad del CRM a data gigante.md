@@ -562,6 +562,31 @@ sostenido una semana, O ámbito de gerencia > 300.000 leads.
 
 ---
 
+## ⚠️ Decisión de producto identificada y NO tomada (2026-08-09)
+
+**Abrir el CRM de leads a toda la fuerza de ventas.** Salió al investigar por qué
+un supervisor no veía su ranking ni la campana de notificaciones: hoy
+`FUNCIONES_LEADS_APROBADAS = false` (config.ts:99) deja el mundo de leads —Hoy,
+Pipeline, Cartera de leads, Agenda y las alertas de la campana— abierto **solo**
+a gerencia, directorio y la cuenta piloto de Miguel. Para un vendedor o
+supervisor real, su CRM es Clientes + Contratos y nada más.
+
+Miguel preguntó si se podía abrir «ya, para todos los usuarios» y, al plantearle
+que antes convenía comprobar si los leads están repartidos entre vendedores
+reales —abrir pantallas vacías da peor impresión que no tenerlas—, respondió
+«déjalo». **Queda sin tomar, a propósito.**
+
+El mecanismo, para cuando se retome:
+1. `FUNCIONES_LEADS_APROBADAS = true`.
+2. **Borrar** `CUENTAS_PILOTO_LEADS` y su rama en `funcionesLeadsVisibles` — el
+   propio comentario del código lo pide: «no se deja creciendo».
+3. Antes: comprobar cuántos leads hay ASIGNADOS a vendedores reales.
+
+Dato que quita miedo: el flag **no es un permiso**, solo decide qué pinta el
+navegador. El ámbito de datos lo sigue mandando la RLS
+(`private.vendedor_ids_visibles`), así que abrir la vista no enseña ni un lead
+que no fuera ya del usuario.
+
 ## Decisiones abiertas
 
 | # | Decisión | Default recomendado | Quién/cuándo |
