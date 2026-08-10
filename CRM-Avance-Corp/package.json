@@ -7,7 +7,7 @@
     "node": ">=22.12.0"
   },
   "scripts": {
-    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs",
+    "check:scripts": "node --check supabase/scripts/fixtures.mjs && node --check supabase/scripts/seed-demo.mjs && node --check supabase/scripts/clean-crm-data.mjs && node --check supabase/scripts/clean-crm-data.test.mjs && node --check supabase/scripts/test-rls.mjs && node --check supabase/scripts/gate-config-operativa.mjs && node --check supabase/scripts/gate-realidad.mjs",
     "seed:demo": "node supabase/scripts/seed-demo.mjs",
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
     "clean:crm": "node supabase/scripts/clean-crm-data.mjs",
@@ -18,6 +18,7 @@
     "test:rls:preflight": "node supabase/scripts/test-rls.mjs --preflight",
     "gate:config": "node supabase/scripts/gate-config-operativa.mjs",
     "gate:config:preflight": "node supabase/scripts/gate-config-operativa.mjs --preflight",
+    "gate:realidad": "node supabase/scripts/gate-realidad.mjs",
     "release:crm": "npm --prefix app run build && node scripts/crear-artefacto-release.mjs create",
     "release:crm:verify": "node scripts/crear-artefacto-release.mjs verify"
   },

@@ -31,6 +31,22 @@ proyecto Supabase del portal (`dctqcbznekcyxhjujuci`) con esquema **`crm`** dedi
 - Gates ya montados (no duplicar): Lefthook pre-commit (lint+typecheck) y pre-push (tests);
   CI GitHub Actions `crm-app-quality` y `crm-rls-preflight`.
 
+## ⚠️ El gate de REALIDAD (`npm run gate:realidad`) — correr ANTES de arreglar una pantalla
+
+Tres veces en dos días un cambio pasó el gate entero (1.500+ tests, e2e, RLS) y **no
+hizo nada en producción**, siempre por la misma razón: los tests montan el mundo del
+FIXTURE (metas publicadas, cartera poblada, gate de leads abierto) y producción es
+otro mundo. El bug no estaba en el código: estaba en el mundo que el código asumía.
+
+`supabase/scripts/gate-realidad.mjs` mide esa distancia y dice, por cada supuesto
+incumplido, **qué pantallas se están probando hoy contra un mundo que no existe**.
+Al 2026-08-10 fallan 4 de 5: sin metas publicadas, 1 lead, 0 actividades, 0 tareas.
+
+**Regla:** antes de dar por bueno un arreglo de UI, escribe el test **en el estado
+que hay en producción** (el vacío/degradado), no solo con el fixture lleno. Si el
+arreglo depende de un dato que en prod no existe, no es un arreglo. El caso canónico
+está en `screens/hoy/vendedor.test.tsx` («ESTADO DE PRODUCCIÓN (sin metas publicadas)»).
+
 ## Reglas de migraciones (no negociables — detalle en `supabase/migrations/LEEME.md`)
 
 - **Nunca editar una migración ya commiteada**: se crea una nueva (`/nueva-migracion`).

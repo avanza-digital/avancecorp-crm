@@ -542,18 +542,21 @@ export function HoyVendedor(): JSX.Element {
   const conversion = cumplimiento?.conversionReal ?? null
   // El asesor trabaja su meta en SOLES (decisión de Miguel 2026-08-10): la
   // columna de dólares ocupaba un tercio del panel para decir «Sin meta fijada»
-  // todos los días del mes. Se muestra solo cuando tiene algo que decir:
+  // todos los días del mes. Se muestra solo cuando hay ALGO EN DÓLARES:
   //   · le fijaron meta en USD, o
-  //   · cerró capital en USD (aunque nadie se lo pidiera — ocultarlo sería
-  //     esconderle trabajo hecho, y ese sí es un error caro), o
-  //   · NO SE SABE: si las metas o el cumplimiento no cargaron, no se puede
-  //     afirmar que no hay nada en dólares, así que se muestra. Fail-safe hacia
-  //     enseñar de más, nunca hacia esconder.
-  const mostrarCapitalUsd = objetivosError
-    || cumplimientoMetasError
-    || capitalConfirmadoUsd == null
-    || metaCapitalUsd > 0
-    || capitalConfirmadoUsd > 0
+  //   · cerró capital en USD aunque nadie se lo pidiera — ocultar eso sería
+  //     esconderle trabajo hecho, y ese sí es un error caro.
+  //
+  // ⚠️ Deliberadamente NO se muestra por «no se sabe». La primera versión
+  // añadía un fail-safe para los estados degradados (metas o cumplimiento sin
+  // cargar) y resultó ser la condición que SIEMPRE gana en producción: mientras
+  // gerencia no publique una revisión de metas, el cumplimiento llega nulo,
+  // así que la columna volvía a salir todos los días — el bug que esto venía a
+  // arreglar, intacto. Y no aportaba nada: una columna con «—» en el valor y
+  // «—» en la meta no informa de un fallo que el banner de abajo («No pudimos
+  // cargar toda la información mensual» + Reintentar) ya declara, y que las
+  // otras dos columnas ya muestran en su propio texto.
+  const mostrarCapitalUsd = metaCapitalUsd > 0 || (capitalConfirmadoUsd ?? 0) > 0
 
   // Cola de acción personal (el ámbito del vendedor no trae parkeados).
   // Fase B: los leads CON tarea pendiente ya tienen plan — su cola es la

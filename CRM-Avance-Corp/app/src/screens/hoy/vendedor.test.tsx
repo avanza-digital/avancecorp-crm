@@ -541,16 +541,32 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.getByText('Cerraste en dólares sin meta fijada en esa moneda')).toBeInTheDocument()
   })
 
-  it('si no se sabe lo que hay en dólares (lectura caída) la columna se muestra: fail-safe hacia enseñar', () => {
+  // ⚠️ ESTE es el test que faltaba, y el que habría evitado el redespliegue: el
+  // ESTADO REAL DE PRODUCCIÓN hoy — gerencia no ha publicado ninguna revisión de
+  // metas (`crm.meta_periodos` con 0 filas), así que el store degrada a
+  // `objetivosCero` y el cumplimiento llega nulo. La primera versión mostraba la
+  // columna de dólares por «no se sabe», y como ese estado es el de TODOS los
+  // días, el arreglo no arreglaba nada.
+  it('ESTADO DE PRODUCCIÓN (sin metas publicadas): el asesor ve soles y conversión, no dólares', () => {
+    montar({
+      objetivos: objetivosCero('2026-07-01').vendedor,
+      cumplimiento: null,
+    })
+
+    expect(screen.getByText('Capital confirmado PEN')).toBeInTheDocument()
+    expect(screen.getByText('Conversión resuelta')).toBeInTheDocument()
+    expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
+  })
+
+  it('con la lectura caída tampoco aparece: el banner ya declara el fallo, una columna vacía no lo explica mejor', () => {
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
       cumplimiento: null,
       cumplimientoError: true,
     })
 
-    // Ocultarla aquí afirmaría "no tienes nada en dólares" sin haber podido
-    // leerlo — el mismo error que confundir un cero con un dato ausente.
-    expect(screen.getByText('Capital confirmado USD')).toBeInTheDocument()
+    expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
+    expect(screen.getByText('No pudimos cargar toda la información mensual.')).toBeInTheDocument()
   })
 
   it('si falla el cumplimiento no usa el pronóstico abierto como sustituto', () => {
