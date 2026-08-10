@@ -6,6 +6,7 @@ import type { ConfiguracionMetas, DetalleMeta } from '@/lib/metas-versionadas'
 const dobles = vi.hoisted(() => ({
   consulta: {} as Record<string, unknown>,
   publicar: vi.fn(),
+  recargar: vi.fn(),
   obtenerAnterior: vi.fn(),
   toastSuccess: vi.fn(),
   toastError: vi.fn(),
@@ -15,6 +16,11 @@ const dobles = vi.hoisted(() => ({
 vi.mock('sonner', () => ({
   toast: { success: dobles.toastSuccess, error: dobles.toastError },
 }))
+
+// Publicar tiene que resincronizar el store: los paneles no leen de la consulta
+// del editor, así que sin esto gerencia publicaba y sus pantallas seguían
+// diciendo «Sin meta».
+vi.mock('@/lib/store-context', () => ({ useCRMData: () => ({ recargar: dobles.recargar }) }))
 
 vi.mock('@/data/crm-config-queries', () => ({
   useConfiguracionMetas: (periodo: string) => {
@@ -89,6 +95,7 @@ beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 7, 18))
   dobles.consulta = consultaCon(configuracion())
   dobles.publicar.mockReset().mockResolvedValue({})
+  dobles.recargar.mockReset().mockResolvedValue(undefined)
   dobles.obtenerAnterior.mockReset().mockResolvedValue(configuracion({
     periodo: '2026-07-01',
     revision: 2,
@@ -163,7 +170,10 @@ describe('ConfigMetas', () => {
       expectedRevision: 4,
       metas: {
         [ID_VENDEDOR]: {
-          conversion_objetivo: 0,
+          // La conversión pactada VIAJA: hasta 2026-08-10 el editor la pisaba a
+          // 0 en cada publicación, así que la meta de conversión era imposible
+          // de fijar y los paneles decían «meta por definir» para siempre.
+          conversion_objetivo: 15,
           detalles: [
             { categoria: 'nuevo', moneda: 'PEN', capital_objetivo: 500_000, contratos_objetivo: 0 },
             { categoria: 'nuevo', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
@@ -366,6 +376,68 @@ describe('ConfigMetas', () => {
     // 22.000 aparece UNA vez y es el total de la empresa, no un subtotal
     // fundido: si los dos equipos se hubieran juntado, saldría dos veces.
     expect(screen.getAllByText('S/ 22,000')).toHaveLength(1)
+  })
+
+  // La conversión se pacta para la EMPRESA (decisión de Miguel, 2026-08-10):
+  // un solo número aquí, y el detalle por analista en la pantalla de
+  // Conversiones. El modelo la guarda por vendedor, así que el valor único se
+  // replica en todos.
+  it('pacta una sola conversión de empresa y la replica a cada analista', async () => {
+    const user = userEvent.setup()
+    dobles.consulta = consultaCon(configuracion({
+      vendedores: [
+        {
+          vendedor_id: ID_VENDEDOR,
+          nombre: 'ANA VENDEDORA',
+          supervisor_id: ID_SUPERVISOR,
+          supervisor_nombre: 'SUPERVISOR UNO',
+          conversion_objetivo: 0,
+          detalles: detalles(),
+        },
+        {
+          vendedor_id: '10000000-0000-4000-8000-000000000002',
+          nombre: 'BEA VENDEDORA',
+          supervisor_id: ID_SUPERVISOR,
+          supervisor_nombre: 'SUPERVISOR UNO',
+          conversion_objetivo: 0,
+          detalles: detalles(),
+        },
+      ],
+    }))
+    render(<ConfigMetas />)
+
+    const campo = await screen.findByLabelText(/Meta de conversión de la empresa/)
+    fireEvent.change(campo, { target: { value: '35' } })
+    expect(campo).toHaveValue('35')
+
+    // Cambiar SOLO la conversión ya deja el mes por publicar: antes la huella
+    // de cambios ignoraba este campo y el botón se quedaba deshabilitado.
+    await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
+
+    await waitFor(() => expect(dobles.publicar).toHaveBeenCalledOnce())
+    const enviado = dobles.publicar.mock.calls[0]?.[0] as {
+      metas: Record<string, { conversion_objetivo: number }>
+    }
+    expect(Object.values(enviado.metas).map((meta) => meta.conversion_objetivo))
+      .toEqual([35, 35])
+  })
+
+  // Un `Math.min(100, …)` mudo cambiaba la intención por el máximo y dejaba
+  // muerta la validación. Peor: al reutilizar el parser de importes, «12.5» se
+  // convertía en «100» y «1.5» en «15» — error de un orden de magnitud.
+  it('respeta los decimales de la conversión y avisa en vez de recortar', async () => {
+    const user = userEvent.setup()
+    render(<ConfigMetas />)
+    const campo = await screen.findByLabelText(/Meta de conversión de la empresa/)
+
+    fireEvent.change(campo, { target: { value: '12.5' } })
+    expect(campo).toHaveValue('12.5')
+
+    fireEvent.change(campo, { target: { value: '350' } })
+    expect(campo).toHaveValue('350')
+    await user.click(screen.getByRole('button', { name: 'Publicar revisión' }))
+    expect(dobles.toastError).toHaveBeenCalledWith('La meta de conversión debe estar entre 0 % y 100 %.')
+    expect(dobles.publicar).not.toHaveBeenCalled()
   })
 
   it('copia el mes anterior sin publicarlo automáticamente', async () => {

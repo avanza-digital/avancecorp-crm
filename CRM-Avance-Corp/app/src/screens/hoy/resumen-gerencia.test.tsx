@@ -12,6 +12,9 @@ import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { agregarObjetivos, objetivosCero } from '@/lib/objetivos'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
 
+// TC real para que el consolidado se ejercite en su rama normal.
+const TC_TEST = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
+
 const META_EQUIPO = agregarObjetivos(Object.values(metasConversionEquipoDemo()))
 const CUMPLIMIENTO_EQUIPO = cumplimientoMetasConversionEquipoDemo().gerencia
 const META_VACIA = objetivosCero('2026-08-01').gerencia
@@ -155,6 +158,7 @@ describe('ranking general de vendedores', () => {
         equipo={equipo}
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -182,6 +186,7 @@ describe('ranking general de vendedores', () => {
         equipo={conversionEquipoDemo()}
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -205,6 +210,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         equipo={[]}
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -215,6 +221,12 @@ describe('estados vacíos del resumen de Gerencia', () => {
 
     expect(screen.queryByText('Aún no hay actividad comercial en este período')).not.toBeInTheDocument()
     expect(screen.getByText('Avance de metas')).toBeInTheDocument()
+    // UNA barra de capital, consolidada. Antes eran «Capital PEN» y «Capital
+    // USD», y la de dólares no podía tener meta —el editor pacta en soles—, así
+    // que decía «Sin meta» para siempre en la primera pantalla de gerencia.
+    expect(screen.getAllByText('Capital').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Capital PEN')).not.toBeInTheDocument()
+    expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
     expect(screen.getAllByText('Reuniones realizadas').length).toBeGreaterThan(0)
     expect(screen.getByText('Aún no hay conversiones para mostrar')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay vendedores con leads en este período')).toBeInTheDocument()
@@ -230,6 +242,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         equipo={conversionEquipoDemo()}
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error="No se pudieron cargar las reuniones."
@@ -253,6 +266,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         equipo={[]}
         meta={META_VACIA}
         cumplimiento={null}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -275,6 +289,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
         equipo={conversionEquipoDemo()}
         meta={META_VACIA}
         cumplimiento={null}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -297,6 +312,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
         equipo={conversionEquipoDemo()}
         meta={META_VACIA}
         cumplimiento={null}
+        tc={TC_TEST}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false, errorCarga: true }}
         cargando={false}
         error={null}

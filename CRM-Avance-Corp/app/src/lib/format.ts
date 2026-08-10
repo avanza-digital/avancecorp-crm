@@ -54,6 +54,32 @@ export function montoDesdeTexto(texto: string): number {
   return digitos === '' ? 0 : Number(digitos)
 }
 
+/**
+ * Porcentaje tal y como se teclea: admite UN separador decimal y hasta dos
+ * decimales, que es lo que la base guarda (`numeric(5,2)`).
+ *
+ * Deliberadamente NO recorta el valor. Un `Math.min(100, …)` convierte «305»
+ * en «100» sin decir nada y deja muerta la validación que debía avisar; peor
+ * aún, tirar el punto decimal convierte «1.5» en «15» — un error de un orden de
+ * magnitud, plausible y silencioso. Aquí se conserva lo tecleado y quien avisa
+ * es la validación al publicar.
+ */
+export function porcentajeEditable(texto: string): string {
+  const normalizado = texto.replace(',', '.').replace(/[^\d.]/g, '')
+  if (normalizado === '') return ''
+  const [enteros = '', ...resto] = normalizado.split('.')
+  const limpio = enteros.replace(/^0+(?=\d)/, '')
+  if (!normalizado.includes('.')) return limpio
+  return `${limpio === '' ? '0' : limpio}.${resto.join('').slice(0, 2)}`
+}
+
+/** Número que representa un porcentaje tecleado; vacío o incompleto es 0. */
+export function porcentajeDesdeTexto(texto: string): number {
+  const limpio = porcentajeEditable(texto)
+  if (limpio === '' || limpio.endsWith('.')) return Number(limpio.slice(0, -1)) || 0
+  return Number(limpio) || 0
+}
+
 export function money(n: number | null | undefined, moneda: Moneda = 'PEN'): string {
   if (n == null || !Number.isFinite(n)) return `${SIMBOLO[moneda]} 0`
   return `${SIMBOLO[moneda]} ${n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`

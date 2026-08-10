@@ -9,8 +9,11 @@ import { Label } from '@/components/ui/label'
 import { useConfiguracionMetas, usePublicarMetas } from '@/data/crm-config-queries'
 import { obtenerConfiguracionMetas, publicacionDesdeConfiguracion } from '@/data/crm-config-api'
 import { mensajeDeError } from '@/data/crm-api'
+import { useCRMData } from '@/lib/store-context'
 import type { ConfiguracionMetas } from '@/lib/metas-versionadas'
-import { digitosDeMonto, money, montoDesdeTexto, montoEditable } from '@/lib/format'
+import {
+  digitosDeMonto, money, montoDesdeTexto, montoEditable, porcentajeDesdeTexto, porcentajeEditable,
+} from '@/lib/format'
 import { periodoLima } from '@/lib/objetivos'
 import { cn } from '@/lib/utils'
 
@@ -57,17 +60,36 @@ function metaTotal(vendedor: ConfiguracionMetas['vendedores'][number]): number {
  * La base conserva seis dimensiones por compatibilidad histórica. La experiencia
  * operativa usa una sola meta: la guardamos en el slot canónico nuevo/PEN y
  * dejamos las demás dimensiones y objetivos auxiliares en cero.
+ *
+ * NO toca `conversion_objetivo`: hasta 2026-08-10 lo forzaba a 0 en cada
+ * edición, de modo que la meta de conversión era imposible de fijar y los
+ * paneles de gerencia y del asesor enseñaban «meta por definir» para siempre.
  */
 function fijarMetaTotal(
   vendedor: ConfiguracionMetas['vendedores'][number],
   total: number,
 ) {
-  vendedor.conversion_objetivo = 0
   vendedor.detalles = vendedor.detalles.map((detalle) => ({
     ...detalle,
     capital_objetivo: detalle.categoria === 'nuevo' && detalle.moneda === 'PEN' ? total : 0,
     contratos_objetivo: 0,
   }))
+}
+
+/**
+ * La conversión se pacta para la EMPRESA, no analista por analista: el detalle
+ * individual vive en la pantalla de Conversiones. El modelo la guarda por
+ * vendedor, así que el único valor se replica en todos — y `agregarObjetivos`,
+ * que promedia los mayores que cero, devuelve exactamente ese número.
+ */
+function conversionEmpresa(config: ConfiguracionMetas): number {
+  const fijadas = config.vendedores.map((v) => v.conversion_objetivo).filter((valor) => valor > 0)
+  if (fijadas.length === 0) return 0
+  return Math.round((fijadas.reduce((a, b) => a + b, 0) / fijadas.length) * 100) / 100
+}
+
+function fijarConversionEmpresa(config: ConfiguracionMetas, valor: number) {
+  for (const vendedor of config.vendedores) vendedor.conversion_objetivo = valor
 }
 
 function validar(config: ConfiguracionMetas): string | null {
@@ -76,6 +98,10 @@ function validar(config: ConfiguracionMetas): string | null {
     if (!Number.isFinite(total) || total < 0 || total > 100_000_000) {
       return `La meta mensual de ${vendedor.nombre} debe estar entre S/ 0 y S/ 100,000,000.`
     }
+  }
+  const conversion = conversionEmpresa(config)
+  if (!Number.isFinite(conversion) || conversion < 0 || conversion > 100) {
+    return 'La meta de conversión debe estar entre 0 % y 100 %.'
   }
   return null
 }
@@ -257,11 +283,28 @@ export function ConfigMetas() {
   const [periodo, setPeriodo] = useState(() => periodoLima(Date.now()))
   const consulta = useConfiguracionMetas(periodo)
   const publicar = usePublicarMetas(periodo)
+  // Publicar invalida la consulta del EDITOR, pero los paneles («Hoy», el
+  // resumen de gerencia) leen del store, que solo se puebla en el arranque:
+  // sin esto, gerencia publicaba y sus propias pantallas seguían diciendo «Sin
+  // meta» hasta que otra acción cualquiera disparaba una resincronización.
+  const { recargar } = useCRMData()
+  // El periodo vigente, legible desde un callback asíncrono sin depender de su
+  // closure ni del momento en que React corra un updater.
+  const periodoRef = useRef(periodo)
+  periodoRef.current = periodo
   const [borrador, setBorrador] = useState<ConfiguracionMetas | null>(null)
+  const [conversionTexto, setConversionTexto] = useState('')
   const [copiando, setCopiando] = useState(false)
 
   useEffect(() => {
-    if (consulta.data) setBorrador(clonar(consulta.data))
+    if (!consulta.data) {
+      setBorrador(null)
+      setConversionTexto('')
+      return
+    }
+    setBorrador(clonar(consulta.data))
+    const guardada = conversionEmpresa(consulta.data)
+    setConversionTexto(guardada > 0 ? String(guardada) : '')
   }, [consulta.data])
 
   const metaEquipo = useMemo(() => {
@@ -269,9 +312,14 @@ export function ConfigMetas() {
   }, [borrador])
 
   const editable = Boolean(borrador?.puede_editar)
-  const dirty = Boolean(consulta.data && borrador
-    && JSON.stringify(consulta.data.vendedores.map((vendedor) => [vendedor.vendedor_id, metaTotal(vendedor)]))
-      !== JSON.stringify(borrador.vendedores.map((vendedor) => [vendedor.vendedor_id, metaTotal(vendedor)])))
+  // La huella incluye la conversión: si no, cambiarla sola dejaba el botón de
+  // publicar deshabilitado y el cambio se perdía sin avisar.
+  const huella = (config: ConfiguracionMetas) => JSON.stringify(
+    config.vendedores.map((vendedor) => [
+      vendedor.vendedor_id, metaTotal(vendedor), vendedor.conversion_objetivo,
+    ]),
+  )
+  const dirty = Boolean(consulta.data && borrador && huella(consulta.data) !== huella(borrador))
 
   const editarVendedor = (
     vendedorId: string,
@@ -288,20 +336,32 @@ export function ConfigMetas() {
 
   const copiarAnterior = async () => {
     if (!borrador) return
+    // El mes puede cambiar mientras se espera la respuesta: sin esta guardia, lo
+    // copiado de julio acababa aplicándose —y publicándose— sobre septiembre.
+    const periodoAlPulsar = periodo
     setCopiando(true)
     try {
-      const anterior = await obtenerConfiguracionMetas(desplazarPeriodo(periodo, -1))
+      const anterior = await obtenerConfiguracionMetas(desplazarPeriodo(periodoAlPulsar, -1))
       const metasAnteriores = new Map(anterior.vendedores.map((vendedor) => [vendedor.vendedor_id, vendedor]))
+      const conversionPrevia = conversionEmpresa(anterior)
+      // Si el mes cambió mientras se esperaba, esto ya no va dirigido a la
+      // pantalla que hay delante: ni se aplica ni se canta éxito.
+      if (periodoRef.current !== periodoAlPulsar) return
       setBorrador((actual) => {
-        if (!actual) return actual
+        if (!actual || actual.periodo !== periodoAlPulsar) return actual
         const siguiente = clonar(actual)
         for (const vendedor of siguiente.vendedores) {
           const previa = metasAnteriores.get(vendedor.vendedor_id)
           if (!previa) continue
           fijarMetaTotal(vendedor, metaTotal(previa))
         }
+        // La conversión pactada también es parte del mes que se copia.
+        fijarConversionEmpresa(siguiente, conversionPrevia)
         return siguiente
       })
+      // Fuera del updater: un `setState` dentro se ejecuta dos veces en
+      // StrictMode y el updater debe seguir siendo puro.
+      setConversionTexto(conversionPrevia > 0 ? String(conversionPrevia) : '')
       toast.success(`Se copiaron las metas de ${nombrePeriodo(anterior.periodo)}.`)
     } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudieron copiar las metas del mes anterior.'))
@@ -314,6 +374,10 @@ export function ConfigMetas() {
     if (!borrador) return
     const normalizado = clonar(borrador)
     for (const vendedor of normalizado.vendedores) fijarMetaTotal(vendedor, metaTotal(vendedor))
+    // Sin esto, quien entró al roster después de la última publicación viaja con
+    // su 0 heredado —invisible para `conversionEmpresa`, que filtra los > 0— y
+    // se queda sin meta de conversión él solo.
+    fijarConversionEmpresa(normalizado, porcentajeDesdeTexto(conversionTexto))
     const error = validar(normalizado)
     if (error) {
       toast.error(error)
@@ -325,6 +389,7 @@ export function ConfigMetas() {
         expectedRevision: borrador.revision,
         metas: publicacionDesdeConfiguracion(normalizado),
       })
+      await recargar()
       toast.success(`Metas de ${nombrePeriodo(periodo)} publicadas.`)
     } catch (fallo) {
       toast.error(mensajeDeError(fallo, 'No se pudieron publicar las metas.'))
@@ -335,7 +400,7 @@ export function ConfigMetas() {
     <ConfiguracionShell
       icono={Target}
       titulo="Metas mensuales"
-      descripcion="Una sola meta mensual en soles por analista, sin categorías, cantidad de contratos ni porcentaje de conversión."
+      descripcion="Una sola meta mensual en soles por analista y una conversión objetivo para toda la empresa. Sin categorías ni cantidad de contratos."
       soloLectura={borrador ? !borrador.puede_editar : true}
       estado={borrador ? {
         etiqueta: borrador.revision > 0 ? `Revisión ${borrador.revision}` : 'Sin publicar',
@@ -387,12 +452,44 @@ export function ConfigMetas() {
             </div>
           </div>
           {borrador && (
-            <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-4 py-3 text-right">
-              <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Meta total del equipo</p>
-              <p className="mt-1 text-lg font-extrabold tabular-nums text-primary">
-                S/ {metaEquipo.toLocaleString('es-PE', { maximumFractionDigits: 2 })}
-              </p>
-              <p className="mt-0.5 text-[10px] text-muted-foreground">{borrador.vendedores.length} analista{borrador.vendedores.length === 1 ? '' : 's'}</p>
+            <div className="flex flex-wrap items-end gap-3">
+              {/* La conversión se pacta para la EMPRESA: un solo número, no
+                  diecisiete. El detalle por analista vive en Conversiones. */}
+              <div>
+                <Label htmlFor="meta-conversion-empresa">Conversión objetivo</Label>
+                <div className="relative mt-1.5 w-36">
+                  <Input
+                    id="meta-conversion-empresa"
+                    aria-label="Meta de conversión de la empresa, en porcentaje"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="off"
+                    placeholder="0"
+                    value={conversionTexto}
+                    readOnly={!editable}
+                    aria-readonly={!editable}
+                    onChange={(evento) => {
+                      const limpio = porcentajeEditable(evento.target.value)
+                      setConversionTexto(limpio)
+                      setBorrador((actual) => {
+                        if (!actual) return actual
+                        const siguiente = clonar(actual)
+                        fijarConversionEmpresa(siguiente, porcentajeDesdeTexto(limpio))
+                        return siguiente
+                      })
+                    }}
+                    className="h-10 pr-8 text-right font-extrabold tabular-nums read-only:bg-muted/50 read-only:text-foreground/80"
+                  />
+                  <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-sm font-extrabold text-primary">%</span>
+                </div>
+              </div>
+              <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-4 py-3 text-right">
+                <p className="text-[10px] font-extrabold uppercase tracking-[0.08em] text-muted-foreground">Meta total del equipo</p>
+                <p className="mt-1 text-lg font-extrabold tabular-nums text-primary">
+                  S/ {metaEquipo.toLocaleString('es-PE', { maximumFractionDigits: 2 })}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">{borrador.vendedores.length} analista{borrador.vendedores.length === 1 ? '' : 's'}</p>
+              </div>
             </div>
           )}
         </CardContent>

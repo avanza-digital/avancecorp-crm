@@ -60,9 +60,16 @@ vi.mock('./ranking-vendedores', () => ({ RankingVendedoresPanel: () => <h1>Ranki
 // hermético en null (la pantalla solo lo reenvía al panel, que aquí está
 // mockeado). importOriginal conserva usdAPen/promedioSemanal: la lib pura
 // conversion-vendedores los importa de este módulo (hallazgo de la verificación).
+// Mutable a propósito: con `tc: null` fijo, `totalEnSoles` degradaba a
+// «solo_pen» y el consolidado —el cambio central de esta pantalla— no se
+// ejecutaba NUNCA en su rama normal. El fixture da S/ 650,000 sin TC y
+// S/ 961,500 con TC 3.5: 311.500 soles que ningún test habría echado en falta.
+const TIPO_CAMBIO: { tc: { promedio: number, fuente: string } | null | undefined } = {
+  tc: { promedio: 3.5, fuente: 'BCRP · prom. 7d' },
+}
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/lib/tipo-cambio')>()),
-  useTipoCambio: () => ({ tc: null, recargar: () => {} }),
+  useTipoCambio: () => ({ tc: TIPO_CAMBIO.tc, recargar: () => {} }),
 }))
 vi.mock('./reuniones-gerencia', () => ({ ReunionesGerenciaPanel: () => null }))
 vi.mock('./resumen-gerencia', () => ({ ResumenGerenciaPanel: () => <h1>Resumen comercial</h1> }))
@@ -144,6 +151,7 @@ function tarjetaMeta(): HTMLElement {
 }
 
 beforeEach(() => {
+  TIPO_CAMBIO.tc = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
   vi.useFakeTimers()
   vi.clearAllMocks()
   OBJETIVOS_ERROR = false
@@ -165,29 +173,38 @@ describe('Hoy · gerencia — meta del mes', () => {
     montar({ objetivos: objetivosCero('2026-07-01').gerencia }, 'metas')
 
     const meta = within(tarjetaMeta())
-    expect(meta.getAllByText('Meta del mes todavía sin fijar')).toHaveLength(3)
+    // Dos tarjetas desde 2026-08-10: capital consolidado y conversión de
+    // empresa. Antes eran tres —PEN, USD y conversión— y dos de ellas no
+    // podían tener meta porque el editor no permitía fijarlas.
+    expect(meta.getAllByText('Meta del mes todavía sin fijar')).toHaveLength(2)
     // Antes: dos barras en ROJO CRÍTICO con "0%" sobre cuotas que nadie fijó.
     expect(meta.queryByText('0%')).not.toBeInTheDocument()
-    expect(meta.getAllByText('meta por definir')).toHaveLength(3)
+    expect(meta.getAllByText('meta por definir')).toHaveLength(2)
   })
 
-  it('solo compara el avance contra la meta mensual en el corte exacto mes-a-la-fecha', () => {
+  // Las metas se pactan por MES, así que esta sección mide siempre el mes en
+  // curso y el selector de rango de arriba no la toca. Antes se desactivaba la
+  // comparación al cambiar el rango, pero el importe que quedaba en pantalla
+  // seguía siendo el del mes: una cifra mensual rotulada «rango aplicado».
+  it('mide siempre el mes en curso y lo dice cuando el rango es otro', () => {
     montar({}, 'metas')
 
     const metaVigente = within(tarjetaMeta())
     expect(metaVigente.getByText('Meta mensual · julio 2026')).toBeInTheDocument()
     expect(metaVigente.queryByText('0%')).not.toBeInTheDocument()
-    expect(metaVigente.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
+    expect(metaVigente.getByText('Cumplimiento confirmado no disponible')).toBeInTheDocument()
     expect(metaVigente.getByText('Todavía no hay leads resueltos para medir')).toBeInTheDocument()
+    // Sin rango raro no hay por qué advertir nada.
+    expect(metaVigente.queryByText(/no del rango que elegiste/)).not.toBeInTheDocument()
 
     fireEvent.change(screen.getByLabelText('Desde'), { target: { value: '2026-06-01' } })
     fireEvent.change(screen.getByLabelText('Hasta'), { target: { value: '2026-06-30' } })
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
 
     const metaHistorica = within(tarjetaMeta())
-    expect(metaHistorica.getByText('La meta mensual de julio 2026 no es comparable con el rango aplicado.')).toBeInTheDocument()
+    expect(metaHistorica.getByText(/Estas cifras son del mes en curso \(julio 2026\)/))
+      .toBeInTheDocument()
     expect(metaHistorica.queryByText('0%')).not.toBeInTheDocument()
-    expect(metaHistorica.queryAllByRole('progressbar')).toHaveLength(0)
   })
 
   it('si falla la lectura de metas no muestra ceros como objetivos ni permite editar encima', () => {
@@ -201,7 +218,7 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(meta.queryByText('Editor de metas')).not.toBeInTheDocument()
     expect(meta.queryAllByRole('progressbar')).toHaveLength(0)
     expect(meta.getByText('No pudimos cargar las metas mensuales')).toBeInTheDocument()
-    expect(meta.getAllByText('meta no disponible')).toHaveLength(3)
+    expect(meta.getAllByText('meta no disponible')).toHaveLength(2)
 
     fireEvent.click(meta.getByRole('button', { name: 'Reintentar' }))
     expect(RECARGAR).toHaveBeenCalledTimes(1)
@@ -213,7 +230,10 @@ describe('Hoy · gerencia — meta del mes', () => {
 
     let meta = within(tarjetaMeta())
     expect(meta.queryByLabelText('Cargando avance de metas')).not.toBeInTheDocument()
-    expect(meta.getByText('S/ 650,000')).toBeInTheDocument()
+    // El total CONSOLIDADO, no el PEN puro: 650.000 en soles + los dólares del
+    // fixture convertidos a TC 3.5. Con el mock viejo (tc fijo a null) esta
+    // aserción pasaba con S/ 650,000 aunque el consolidado estuviera roto.
+    expect(meta.getByText('S/ 961,500')).toBeInTheDocument()
     carga.unmount()
 
     ESTADO_CONVERSIONES.isPending = false
@@ -222,10 +242,51 @@ describe('Hoy · gerencia — meta del mes', () => {
 
     meta = within(tarjetaMeta())
     expect(meta.getByRole('alert')).toHaveTextContent('No se pudo calcular el cumplimiento confirmado')
-    expect(meta.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
+    expect(meta.getByText('Cumplimiento confirmado no disponible')).toBeInTheDocument()
     expect(meta.queryByText('S/ 0')).not.toBeInTheDocument()
     fireEvent.click(meta.getByRole('button', { name: 'Reintentar cumplimiento' }))
     expect(RECARGAR).toHaveBeenCalledTimes(1)
+  })
+
+  // Pedido de Miguel (2026-08-10): «me gustaría ver cuánto vamos en soles y
+  // dólares y luego un total en soles». Antes eran dos tarjetas separadas y la
+  // de dólares no podía tener meta, así que vivía vacía.
+  it('enseña soles, dólares y el total consolidado en una sola lectura', () => {
+    montar({ cumplimiento: CUMPLIMIENTO_METAS_DEMO }, 'metas')
+
+    const meta = within(tarjetaMeta())
+    expect(meta.getByText('Capital confirmado del mes')).toBeInTheDocument()
+    // Las dos monedas, juntas y con la tasa APLICADA rotulada.
+    expect(meta.getByText(/S\/ .* \+ US\$/)).toBeInTheDocument()
+    expect(meta.getByText(/TC S\/ 3\.5/)).toBeInTheDocument()
+    expect(meta.getByText(/BCRP/)).toBeInTheDocument()
+    // Y la conversión es la de la EMPRESA; el detalle vive en Conversiones.
+    expect(meta.getByText('Conversión de la empresa')).toBeInTheDocument()
+    expect(meta.getByText('El detalle por analista está en Conversiones.')).toBeInTheDocument()
+  })
+
+  // El dinero en dólares no se convierte a una tasa inventada: se dice que el
+  // total no los incluye y se ofrece un camino de vuelta.
+  it('sin tipo de cambio avisa, no consolida a ciegas, y deja reintentar', () => {
+    TIPO_CAMBIO.tc = null
+    montar({ cumplimiento: CUMPLIMIENTO_METAS_DEMO }, 'metas')
+
+    const meta = within(tarjetaMeta())
+    expect(meta.getByText(/sin tipo de cambio: el total NO incluye los dólares/))
+      .toBeInTheDocument()
+    expect(meta.getByRole('button', { name: /Reintentar tipo de cambio/ })).toBeInTheDocument()
+  })
+
+  // Mientras la consulta del TC está en vuelo no se puede afirmar el total ni
+  // el porcentaje: antes se aplanaba con «caído» y el % salía inflado porque
+  // ignoraba los dólares de los dos lados.
+  it('no afirma el cumplimiento mientras el tipo de cambio está en vuelo', () => {
+    TIPO_CAMBIO.tc = undefined
+    montar({ cumplimiento: CUMPLIMIENTO_METAS_DEMO }, 'metas')
+
+    const meta = within(tarjetaMeta())
+    expect(meta.getByText(/Consultando el tipo de cambio/)).toBeInTheDocument()
+    expect(meta.queryAllByRole('progressbar')).toHaveLength(0)
   })
 
   it('presenta inteligencia comercial sin herramientas operativas', () => {

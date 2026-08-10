@@ -29,6 +29,7 @@ import { AgendaEquipoPanel } from './agenda-equipo'
 import {
   BUCKET_LABEL,
   DIA_MS,
+  capitalPrincipal,
   colorMeta,
   diasSinActividad,
   haceTexto,
@@ -58,7 +59,7 @@ import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
-import { totalEnSoles } from '@/lib/capital-unificado'
+import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
@@ -115,6 +116,12 @@ export function HoySupervisor(): JSX.Element {
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
   const { tc } = useTipoCambio()
+  // Pronóstico: `capitalPrincipal` (criterio compartido con Cartera/Pipeline),
+  // NUNCA un total mixto. Antes se fijaba PEN a mano y un equipo que vende en
+  // dólares se titulaba «S/ 0».
+  const capitalPronostico = resumen
+    ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
+    : null
   // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
   // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
   const d = useMemo(() => {
@@ -148,37 +155,47 @@ export function HoySupervisor(): JSX.Element {
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
   const conversionConfirmada = cumplimiento?.conversionReal ?? null
-  // ── Cumplimiento del mes: cada fila conserva su propia moneda ──
-  const filasMeta: Array<{ label: string; txt: string; pct: number; sinDato: string | null }> = [
+  // ── Cumplimiento del mes ──────────────────────────────────────────────────
+  // PEN y USD ya NO van por separado: la meta se pacta en soles (el editor
+  // escribe todo en `nuevo/PEN`), así que la fila de dólares vivía en «Sin meta
+  // fijada» para siempre mientras el capital real en USD no movía ninguna
+  // barra. Se consolida con el MISMO tipo de cambio en numerador y denominador
+  // —comparar a tasas distintas es comparar peras con manzanas— igual que en el
+  // panel del asesor y en el de gerencia.
+  const capitalConfirmado = totalEnSoles(capitalConfirmadoPen, capitalConfirmadoUsd, tc?.promedio)
+  const metaCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
+  const hayDolares = (capitalConfirmadoUsd ?? 0) > 0 || metaCapitalUsd > 0
+  const tcEnVuelo = tc === undefined && hayDolares
+  const filasMeta: Array<{
+    label: string
+    txt: string
+    pct: number
+    sinDato: string | null
+    nota?: string | null
+  }> = [
     {
-      label: 'Capital confirmado PEN',
+      label: 'Capital confirmado',
       txt:
-        metaCapitalPen > 0 && capitalConfirmadoPen != null
-          ? `${moneyK(capitalConfirmadoPen, 'PEN')} de ${moneyK(metaCapitalPen, 'PEN')}`
-          : capitalConfirmadoPen == null ? '—' : moneyK(capitalConfirmadoPen, 'PEN'),
-      pct: pctMeta(capitalConfirmadoPen ?? 0, metaCapitalPen),
+        (metaCapital.total ?? 0) > 0 && capitalConfirmado.total != null
+          ? `${moneyK(capitalConfirmado.total, 'PEN')} de ${moneyK(metaCapital.total ?? 0, 'PEN')}`
+          : capitalConfirmado.total == null ? '—' : moneyK(capitalConfirmado.total, 'PEN'),
+      pct: tcEnVuelo ? 0 : pctMeta(capitalConfirmado.total ?? 0, metaCapital.total ?? 0),
+      // El desglose solo aporta cuando hay dólares; si no, repetiría el total.
+      nota: (capitalConfirmadoUsd ?? 0) > 0
+        ? `${moneyK(capitalConfirmadoPen ?? 0, 'PEN')} + ${moneyK(capitalConfirmadoUsd ?? 0, 'USD')}`
+          + (capitalConfirmado.tc == null
+            ? ' · sin tipo de cambio: el total NO incluye los dólares'
+            : ` · ${rotuloTipoCambio(capitalConfirmado.tc, tc?.fuente ?? 'TC del día')}`)
+        : null,
       sinDato: objetivosError
         ? 'Meta mensual no disponible'
-        : metaCapitalPen <= 0
-          ? SIN_META
-          : cumplimientoMetasError || capitalConfirmadoPen == null
-            ? 'Cumplimiento confirmado no disponible'
-            : null,
-    },
-    {
-      label: 'Capital confirmado USD',
-      txt:
-        metaCapitalUsd > 0 && capitalConfirmadoUsd != null
-          ? `${moneyK(capitalConfirmadoUsd, 'USD')} de ${moneyK(metaCapitalUsd, 'USD')}`
-          : capitalConfirmadoUsd == null ? '—' : moneyK(capitalConfirmadoUsd, 'USD'),
-      pct: pctMeta(capitalConfirmadoUsd ?? 0, metaCapitalUsd),
-      sinDato: objetivosError
-        ? 'Meta mensual no disponible'
-        : metaCapitalUsd <= 0
-          ? SIN_META
-          : cumplimientoMetasError || capitalConfirmadoUsd == null
-            ? 'Cumplimiento confirmado no disponible'
-            : null,
+        : tcEnVuelo
+          ? 'Consultando el tipo de cambio para consolidar los dólares…'
+          : (metaCapital.total ?? 0) <= 0
+            ? SIN_META
+            : cumplimientoMetasError || capitalConfirmado.total == null
+              ? 'Cumplimiento confirmado no disponible'
+              : null,
     },
     {
       label: 'Conversión resuelta',
@@ -248,10 +265,21 @@ export function HoySupervisor(): JSX.Element {
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Pronóstico de capital abierto"
-          value={resumen ? money(resumen.capital.asignado.pen) : '—'}
+          // `capitalPrincipal` y NO `totalEnSoles`: esto es PRONÓSTICO, no
+          // cumplimiento, y no se convierte a una tasa que aquí no se rotula.
+          // Fijar PEN a mano titulaba «S/ 0» a un equipo que vende en dólares.
+          value={capitalPronostico ? capitalPronostico.valor : '—'}
           icon={Wallet}
           color={SEMAFORO.ok}
-          sub={resumen && resumen.capital.asignado.usd > 0 ? `Pipeline PEN · +${moneyK(resumen.capital.asignado.usd, 'USD')} aparte` : 'Pipeline PEN · abiertos con vendedor'}
+          sub={
+            capitalPronostico?.otra
+              ? `Pipeline (PEN) · +${capitalPronostico.otra} aparte`
+              : capitalPronostico?.soloDolares
+                ? 'Pipeline (USD)'
+                : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.asignados > 0
+                  ? 'Sin montos estimados — complétalos en cada ficha'
+                  : 'Pipeline (PEN) · abiertos con vendedor'
+          }
           delay={0}
         />
         <KpiCard
@@ -488,7 +516,15 @@ export function HoySupervisor(): JSX.Element {
         <div className="space-y-4 lg:col-span-2">
           {/* ── Tu equipo hoy (semáforo por vendedor) ── */}
           <Card className="overflow-hidden">
-            <SectionHead icon={UsersRound} title="Tu equipo hoy" />
+            <SectionHead
+              icon={UsersRound}
+              title="Tu equipo hoy"
+              right={tc ? (
+                <span className="text-xs text-muted-foreground">
+                  Capital en proceso · {rotuloTipoCambio(tc.promedio, tc.fuente)}
+                </span>
+              ) : undefined}
+            />
             {rank == null ? (
               <CardContent className="pb-5 pt-0">
                 <p className="text-sm text-muted-foreground">
@@ -533,7 +569,14 @@ export function HoySupervisor(): JSX.Element {
                         </div>
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[46px]">
-                        <span className="size-2 shrink-0 rounded-full" style={{ background: c }} aria-hidden />
+                        {/* Sin leads abiertos no hay «al día» que celebrar:
+                            `semaforoDias(0)` devolvía azul y un analista sin
+                            cartera se pintaba como el que va al corriente. */}
+                        <span
+                          className="size-2 shrink-0 rounded-full"
+                          style={{ background: r.activos === 0 ? SEMAFORO.neutro : c }}
+                          aria-hidden
+                        />
                         <span className="text-[11px] text-muted-foreground">
                           {r.activos === 0
                             ? 'Sin leads abiertos'
@@ -576,6 +619,9 @@ export function HoySupervisor(): JSX.Element {
                     <span className="text-xs font-semibold text-foreground/80">{f.label}</span>
                     <span className="text-xs font-bold tabular-nums text-primary">{f.txt}</span>
                   </div>
+                  {f.nota && (
+                    <p className="mb-1 text-[10.5px] tabular-nums text-muted-foreground">{f.nota}</p>
+                  )}
                   {f.sinDato ? (
                     <p className="text-[10.5px] text-muted-foreground">{f.sinDato}</p>
                   ) : (
@@ -584,7 +630,7 @@ export function HoySupervisor(): JSX.Element {
                 </div>
               ))}
               <p className="text-[10.5px] text-muted-foreground">
-                PEN y USD se evalúan por separado. El capital abierto de arriba es pronóstico y no cuenta como cumplimiento.
+                El capital en dólares entra al total convertido a tipo de cambio real. El capital abierto de arriba es pronóstico y no cuenta como cumplimiento.
               </p>
               {(objetivosError || cumplimientoMetasError) && (
                 <Button variant="ghost" size="sm" onClick={() => void recargar()}>Reintentar</Button>

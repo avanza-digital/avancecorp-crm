@@ -7,7 +7,6 @@ import { Skeleton } from '@/components/ui/skeleton'
 import { GerenciaMotion } from '@/components/gerencia/motion'
 import { usePeriodoGerencia } from '@/components/gerencia/use-periodo-gerencia'
 import {
-  mensajeMetaNoComparable,
   periodoInicialGerencia,
   semanticaMetaMensual,
   validarPeriodoGerencia,
@@ -15,7 +14,7 @@ import {
 } from '@/components/gerencia/periodo'
 import { useCRMData } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import { money } from '@/lib/format'
+import { money, moneyK } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import {
   agregarObjetivos,
@@ -32,6 +31,7 @@ import {
 } from '@/lib/demo-inteligencia-comercial'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
 import { useTipoCambio } from '@/lib/tipo-cambio'
+import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   useActualizarCapacidadLeadsObjetivo,
   useMetricasConversiones,
@@ -58,6 +58,7 @@ interface MetaItemProps {
   objetivo: string
   progreso: number | null
   mensajeSinProgreso?: string | undefined
+  nota?: JSX.Element | string | undefined
 }
 
 function estaCargando(sesionReal: boolean, consulta: ConsultaCargable): boolean {
@@ -68,11 +69,33 @@ function errorConsulta(sesionReal: boolean, error: unknown, mensajeSeguro: strin
   return sesionReal && error ? mensajeDeError(error, mensajeSeguro) : null
 }
 
-function MetaItem({ label, actual, objetivo, progreso, mensajeSinProgreso }: MetaItemProps): JSX.Element {
+function DesgloseMonedas({
+  capital,
+  fuenteTc,
+}: {
+  capital: ReturnType<typeof totalEnSoles>
+  fuenteTc: string | null
+}): JSX.Element | null {
+  if (capital.estado === 'indisponible') return null
+  const hayUsd = (capital.usd ?? 0) > 0
+  return (
+    <p className="text-[11px] tabular-nums text-[var(--gi-muted)]">
+      {moneyK(capital.pen ?? 0, 'PEN')} + {moneyK(capital.usd ?? 0, 'USD')}
+      {!hayUsd ? null : capital.tc == null ? (
+        <span className="text-amber-700"> · sin tipo de cambio: el total NO incluye los dólares</span>
+      ) : (
+        <span> · {rotuloTipoCambio(capital.tc, fuenteTc ?? 'TC del día')}</span>
+      )}
+    </p>
+  )
+}
+
+function MetaItem({ label, actual, objetivo, progreso, mensajeSinProgreso, nota }: MetaItemProps): JSX.Element {
   return (
     <div data-gi-kpi className="gi-kpi-card">
       <p className="gi-label">{label}</p>
       <div className="mt-2 flex items-baseline gap-2"><span className="text-2xl font-bold tabular-nums text-[var(--gi-blue)]">{actual}</span><span className="text-xs text-[var(--gi-muted)]">{objetivo}</span></div>
+      {nota && <div className="mt-1">{nota}</div>}
       {progreso == null ? <p className="mt-3 text-xs text-[var(--gi-muted)]">{mensajeSinProgreso ?? 'Meta del mes todavía sin fijar'}</p> : <div className="mt-3 flex items-center gap-2"><Progress value={Math.min(100, progreso)} color={colorMeta(progreso)} className="flex-1" /><span className="w-10 text-right text-xs font-bold tabular-nums" style={{ color: colorMeta(progreso) }}>{Math.round(progreso)}%</span></div>}
     </div>
   )
@@ -119,7 +142,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // TC USD→PEN del servidor (edge crm-tipo-cambio · BCRP): lo consume SOLO el
   // ranking de capital total — en las demás secciones ni se consulta (hallazgo
   // de la verificación: cada cambio de vista remonta la pantalla).
-  const tipoCambio = useTipoCambio(seccion === 'ranking-vendedores')
+  const tipoCambio = useTipoCambio(
+    seccion === 'ranking-vendedores' || seccion === 'metas'
+    || seccion === 'completo' || seccion === 'resumen' || seccion === 'capital-cierres',
+  )
   const { periodo, setPeriodo, diaLima } = usePeriodoGerencia()
   const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
   const periodoAnterior = useRef(periodo)
@@ -193,6 +219,16 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const capitalActualUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
+  // PEN y USD no se suman a ciegas: se convierte a tasa real y se rotula cuál
+  // se aplicó. Mismo criterio que el panel del asesor (decisión #10).
+  const tcPromedio = tipoCambio.tc?.promedio ?? null
+  const capitalTotal = totalEnSoles(capitalActualPen, capitalActualUsd, tcPromedio)
+  const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tcPromedio)
+  // Sin dólares el tipo de cambio es irrelevante y no debe degradar nada; con
+  // dólares y el TC en vuelo, no se puede afirmar todavía ni el total ni el %.
+  const hayDolares = (capitalActualUsd ?? 0) > 0 || metaCapitalUsd > 0
+  const tcEnVuelo = tipoCambio.tc === undefined && hayDolares
+  const tcCaido = tipoCambio.tc === null && hayDolares
   const conversionActual = cumplimiento?.conversionReal ?? null
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
@@ -204,7 +240,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
       <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />
 
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 
@@ -222,9 +258,14 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
             </div>
           </div>
           <CardContent className="space-y-5 bg-[var(--gi-canvas)] p-4 sm:p-5">
+            {/* Las metas son MENSUALES y estas tarjetas SIEMPRE miden el mes en
+                curso: el selector de rango de arriba no las toca. Antes se
+                desactivaba la comparación y se rotulaba «rango aplicado», pero
+                el importe que quedaba en pantalla seguía siendo el del mes —
+                una cifra mensual con etiqueta de rango. */}
             {!metaMensual.comparable && !metaMensual.errorCarga && (
               <p role="status" className="rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">
-                {mensajeMetaNoComparable(metaMensual)}
+                Estas cifras son del mes en curso ({metaMensual.etiqueta}), no del rango que elegiste arriba: las metas se pactan por mes.
               </p>
             )}
 
@@ -239,27 +280,57 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
               </div>
             )}
 
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+            {tcCaido && (
+              <div role="alert" className="gi-card flex flex-wrap items-center justify-between gap-3 border border-amber-300/70 p-4">
+                <span className="flex items-center gap-2 text-sm font-semibold text-amber-900">
+                  <AlertTriangle className="size-4" aria-hidden /> Sin tipo de cambio, el total no incluye los dólares.
+                </span>
+                <Button type="button" variant="outline" size="sm" onClick={() => tipoCambio.recargar()}>
+                  <RefreshCw aria-hidden /> Reintentar tipo de cambio
+                </Button>
+              </div>
+            )}
+
+            <div className="grid gap-4 sm:grid-cols-2">
                 <MetaItem
-                  label="Capital confirmado PEN"
-                  actual={capitalActualPen == null ? '—' : money(capitalActualPen, 'PEN')}
-                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : metaCapitalPen > 0 ? `de ${money(metaCapitalPen, 'PEN')}` : 'meta por definir'}
-                  progreso={metaMensual.comparable && metaCapitalPen > 0 && capitalActualPen != null ? pctMeta(capitalActualPen, metaCapitalPen) : null}
-                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : metaCapitalPen <= 0 ? undefined : capitalActualPen == null ? 'Cumplimiento confirmado no disponible' : undefined}
+                  label="Capital confirmado del mes"
+                  actual={capitalTotal.total == null ? '—' : money(capitalTotal.total, 'PEN')}
+                  objetivo={metaMensual.errorCarga
+                    ? 'meta no disponible'
+                    : (metaTotalCapital.total ?? 0) > 0
+                        ? `de ${money(metaTotalCapital.total ?? 0, 'PEN')}`
+                        : 'meta por definir'}
+                  nota={<DesgloseMonedas capital={capitalTotal} fuenteTc={tipoCambio.tc?.fuente ?? null} />}
+                  progreso={!tcEnVuelo && (metaTotalCapital.total ?? 0) > 0 && capitalTotal.total != null
+                    ? pctMeta(capitalTotal.total, metaTotalCapital.total ?? 0)
+                    : null}
+                  mensajeSinProgreso={metaMensual.errorCarga
+                    ? 'No pudimos cargar la meta mensual'
+                    : tcEnVuelo
+                        ? 'Consultando el tipo de cambio para consolidar los dólares…'
+                        : (metaTotalCapital.total ?? 0) <= 0
+                            ? undefined
+                            : capitalTotal.total == null
+                                ? 'Cumplimiento confirmado no disponible'
+                                : undefined}
                 />
                 <MetaItem
-                  label="Capital confirmado USD"
-                  actual={capitalActualUsd == null ? '—' : money(capitalActualUsd, 'USD')}
-                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : metaCapitalUsd > 0 ? `de ${money(metaCapitalUsd, 'USD')}` : 'meta por definir'}
-                  progreso={metaMensual.comparable && metaCapitalUsd > 0 && capitalActualUsd != null ? pctMeta(capitalActualUsd, metaCapitalUsd) : null}
-                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : metaCapitalUsd <= 0 ? undefined : capitalActualUsd == null ? 'Cumplimiento confirmado no disponible' : undefined}
-                />
-                <MetaItem
-                  label="Conversión resuelta"
+                  label="Conversión de la empresa"
                   actual={conversionActual == null ? '—' : `${conversionActual}%`}
-                  objetivo={metaMensual.errorCarga ? 'meta no disponible' : !metaMensual.comparable ? 'rango aplicado' : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
-                  progreso={metaMensual.comparable && meta.conversionObjetivo > 0 && conversionActual != null ? pctMeta(conversionActual, meta.conversionObjetivo) : null}
-                  mensajeSinProgreso={metaMensual.errorCarga ? 'No pudimos cargar la meta mensual' : !metaMensual.comparable ? 'Comparación no disponible para este rango' : meta.conversionObjetivo <= 0 ? undefined : conversionActual == null ? 'Todavía no hay leads resueltos para medir' : undefined}
+                  objetivo={metaMensual.errorCarga
+                    ? 'meta no disponible'
+                    : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
+                  nota="El detalle por analista está en Conversiones."
+                  progreso={meta.conversionObjetivo > 0 && conversionActual != null
+                    ? pctMeta(conversionActual, meta.conversionObjetivo)
+                    : null}
+                  mensajeSinProgreso={metaMensual.errorCarga
+                    ? 'No pudimos cargar la meta mensual'
+                    : meta.conversionObjetivo <= 0
+                        ? undefined
+                        : conversionActual == null
+                            ? 'Todavía no hay leads resueltos para medir'
+                            : undefined}
                 />
             </div>
 

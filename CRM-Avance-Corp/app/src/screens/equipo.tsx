@@ -54,7 +54,7 @@ import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
-const GRIS = '#8b95a7' // neutro (sin señal) — no forma parte del semáforo central
+const GRIS = SEMAFORO.neutro // neutro (sin señal) — no forma parte del semáforo central
 
 const SEV_UI: Record<ItemCola['sev'], { label: string; color: string }> = {
   critica: { label: 'Crítica', color: SEV_COLOR.critica },

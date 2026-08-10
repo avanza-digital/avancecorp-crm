@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import {
   digitosDeMonto, fechaHora, fmtFecha, iniciales, money, moneyK, montoDesdeTexto,
-  montoEditable, numero, primerNombre,
+  montoEditable, numero, porcentajeDesdeTexto, porcentajeEditable, primerNombre,
 } from './format'
 
 describe('formato monetario', () => {
@@ -116,5 +116,46 @@ describe('importes que se escriben', () => {
     expect(digitosDeMonto('a1b2c3')).toBe('123')
     expect(montoEditable('-50000')).toBe('50,000')
     expect(montoEditable('abc')).toBe('')
+  })
+})
+
+// La meta de conversión se guarda en `numeric(5,2)`. La primera versión de este
+// campo reutilizaba el parser de importes, que borra el punto: «1.5» se
+// convertía en «15» y «12.5» en «100» por un clamp que además dejaba muerta la
+// validación. Un error de un orden de magnitud, plausible y sin señal.
+describe('porcentajes que se escriben', () => {
+  it('conserva el decimal en vez de multiplicar por diez', () => {
+    expect(porcentajeEditable('1.5')).toBe('1.5')
+    expect(porcentajeEditable('12.5')).toBe('12.5')
+    expect(porcentajeDesdeTexto('1.5')).toBe(1.5)
+    expect(porcentajeDesdeTexto('12,5')).toBe(12.5)
+  })
+
+  it('deja escribir el punto sin comérselo a mitad de tecleo', () => {
+    expect(porcentajeEditable('12')).toBe('12')
+    expect(porcentajeEditable('12.')).toBe('12.')
+    expect(porcentajeDesdeTexto('12.')).toBe(12)
+    expect(porcentajeEditable('.5')).toBe('0.5')
+  })
+
+  it('NO recorta a 100: quien avisa es la validación, no un clamp mudo', () => {
+    expect(porcentajeEditable('305')).toBe('305')
+    expect(porcentajeDesdeTexto('305')).toBe(305)
+  })
+
+  it('corta en dos decimales, que es lo que la base guarda', () => {
+    expect(porcentajeEditable('12.3456')).toBe('12.34')
+  })
+
+  it('ignora un segundo separador y la basura alfabética', () => {
+    expect(porcentajeEditable('12.3.4')).toBe('12.34')
+    expect(porcentajeEditable('abc')).toBe('')
+    expect(porcentajeEditable('')).toBe('')
+    expect(porcentajeDesdeTexto('')).toBe(0)
+  })
+
+  it('come los ceros a la izquierda sin tocar el «0,algo»', () => {
+    expect(porcentajeEditable('007')).toBe('7')
+    expect(porcentajeEditable('0.5')).toBe('0.5')
   })
 })

@@ -7,6 +7,9 @@ export const SEMAFORO = {
   critico: '#dc2626', // rojo — crítico
   navy: '#111e3d', // ganado/convertido
   violeta: '#7c3aed', // acento (reunión agendada, podios)
+  // Neutro: NO forma parte del semáforo, se usa para «no hay señal que medir».
+  // Sin él, quien no tiene ni un lead se pinta igual que quien está al día.
+  neutro: '#8b95a7',
 } as const
 
 /** Severidad de la cola de acción → color (rojo crítico · ámbar · azul). */
