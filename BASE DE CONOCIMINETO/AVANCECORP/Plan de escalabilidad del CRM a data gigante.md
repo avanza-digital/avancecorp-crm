@@ -1,7 +1,7 @@
 ---
 tags: [crm, escalabilidad, arquitectura, plan]
-actualizado: 2026-08-09
-estado: en-ejecucion (F0 ✅ · **F1 COMPLETA** ✅ servidor + F1b tandas 1+2+3 · sigue F2 keyset)
+actualizado: 2026-08-10
+estado: en-ejecucion (F0 ✅ · **F1 COMPLETA** ✅ servidor + F1b tandas 1+2+3 · **F2 tramo 1 EN PROD** ✅ cartera keyset · siguen mi-cartera, descartados y timeline)
 ---
 
 # Plan de escalabilidad del CRM a data gigante
@@ -24,7 +24,7 @@ hallazgos están incorporados abajo, en su fase.
 |---|---|---|
 | **F0 Cimientos** | ✅ **EN PROD** | 4 migraciones mergeadas (gate 521/521, advisors limpios, branch borrado) |
 | **F1 Métricas al servidor** | ✅ **COMPLETA Y EN PROD** — servidor (tandas 1+2) y front (F1b tandas 1+2+3), todo del 2026-08-09 | Tanda 1 (`20260809051400`): las 4 RPC base + ventana de convertidos 45 d. **Tanda 2 (`20260809151422/23/36`)**: las 3 RPC restantes (`resumen_tareas_fn` con los DOS criterios de vencida + señales de alertas; `resumen_cartera_clientes_fn` 100 % canónica con alarma de renovación y `sin_asesor` solo gerencia/lector; `resumen_reparto_fn` gateada al coordinador) **+ las 3 notas aprobadas por Miguel**: índice `leads(creado_en)` (BitmapOr con `idx_leads_contrato`), parkeados del coordinador en resumen/series (NO en cola_accion —PII, premisa C1— ni en metricas_vendedores —código muerto, hallazgo del auditor—), y optimización `= any(array)` en las 6 funciones que escanean leads/actividades (las de roster y las de cartera-clientes quedan fuera a propósito — regla de exclusión + F2 keyset + drift de `clientes_basicos_fn`). Gate **648/648** (+55), oráculo `METRICAS_SERVIDOR_TX_OK` (M01–M15), advisors 0 ERROR, md5 branch↔prod 9/9. **F1b tanda 1 ✅ (2026-08-09, solo front):** Cartera y Pipeline consumen `resumen_cartera_fn` (hook `useResumenCarteraOperativo`: RPC en real, espejo VIVO en demo — `lib/resumen-cartera.ts` con el shape validado por el MISMO schema Valibot del wrapper), corte de `listarLeadsDelAmbito` a 45 d aplicado (filtro OR de PostgREST + test MSW; el debounce de `verificarDisponibilidadLead` YA existía del ciclo de creación atómica), puente de invalidaciones en `resincronizarReal` (prefijo `metricas-ambito`, transitorio hasta F3), degradación honesta («—» + banner con Reintentar, precedente objetivosError), handler `resumen_cartera_fn` en `montarBackendReal` + 3 E2E nuevos (tile demo vivo tras crear lead, tiles RPC en real, RPC caída → degradado operable). `npm run check` 1422 ✔ · e2e 65 ✔. **F1b tanda 2 ✅ (2026-08-09, mismo día):** hoy/vendedor + hoy/supervisor + equipo + hoy/directorio consumen `cola_accion_fn`/`metricas_vendedores_fn`/`resumen_cartera_fn` (detalle y decisiones en la sección F1); redacción de motivos unificada en `redactarMotivoCola`; `series` del store eliminado (código muerto); agenda y `resumen_tareas_fn` diferidas a F2/F3 a propósito; verificación adversarial (4 lentes) + a11y + Codex; check 1430 ✔ · e2e **78/0** (incluye los 12 specs de config/contratos heredados rotos del ciclo `0230929`, reconciliados — cero bugs reales). **F1b tandas 1+2 EN PROD** (release `crm-20260809T190736Z`, ~19:08 UTC, sha idéntico local↔prod) + **ciclo satélite del ranking el mismo día**: capital total unificado al TC BCRP en el panel de gerencia (release `…202628Z`), revisión Codex → edge `crm-tipo-cambio` **v4** + 3 fixes de front (release `…205248Z`); ver [[Ranking de capital total unificado (TC BCRP)]]. **Resta tanda 3: repartir sobre `resumen_reparto_fn`.** |
-| **F2 Keyset** | ⬜ pendiente | Requiere F1 |
+| **F2 Keyset** | 🟡 **TRAMO 1 EN PROD 2026-08-10** (de 5) | `crm.cartera_pagina_fn` + la pantalla **Cartera** paginando por cursor `(actualizado_en desc, id asc)` con etapa/vendedor/texto resueltos en el servidor y «Cargar más» en lugar de páginas numeradas. Migración `20260810141953` (remota `20260810145041`): gate **732/732**, oráculo `CARTERA_KEYSET_TX_OK`, advisors 0 ERROR, branch borrado; front verde (check 1564 · e2e 81) pero **SIN desplegar** (falta `/release-crm`, invocación humana). **La decisión del tramo: `SECURITY INVOKER`, rompiendo el patrón de las 8 RPC de F1** — esta devuelve FILAS con PII, no agregados, así que el alcance lo pone `leads_select` y no un predicado copiado; se conserva solo la guardia de admisión 42501 (P04). El `auditor-rls` lo validó y añadió el hallazgo que de verdad importaba: sin una **pista de ámbito `= any(array)`** en el cuerpo, el recorte de la policy es un SubPlan —filtro, nunca index qual— y F2 no habría acotado el trabajo por página para vendedor/supervisor. Con la pista, EXPLAIN bajo sesión real muestra `Index Cond` sobre `vendedor_id`. Detalle completo en el ledger `supabase/migrations/MIGRACIONES.md`. **Restan: mi-cartera (con su índice `(nombre,id)`), `leads_descartados` + `leads_por_repartir` keyset, y `actividades_de_lead_fn` (timeline).** |
 | **F3 Desmontar el store** | ⬜ pendiente | Requiere F1+F2 |
 | **F4 Histórico vs vivo** | 🟢 **DESBLOQUEADA 2026-08-09** | El bloqueo no era «falta el DSN»: el DSN llevaba un día en prod **amordazado por la CSP** y el proyecto de Sentry lleno de ruido de laboratorio. Ambos extremos corregidos y **verificado en vivo** (evento real desde crm.miavance.com con `environment: production`, cero violaciones de CSP). La telemetría que F4 necesita **empieza a acumularse de verdad ahora**. Ver [[Telemetria del CRM tiene dos extremos]] |
 | **F5 Tableros** | ⏸️ diferida | Se abre por umbral medido, no por calendario |
@@ -410,6 +410,42 @@ service_role es lo que un copy-paste incompleto rompe en silencio.
 
 **Objetivo:** toda lista que escala con leads pagina por keyset en servidor;
 muere `count: 'exact'`; la UI pasa a «cargar más».
+
+> **Tramo 1 ✅ EN PROD (servidor) 2026-08-10 — puntos 1 y 2 de la lista de abajo.**
+> Lo que salió distinto de lo planeado, y hay que arrastrar a los tramos que
+> quedan:
+>
+> - **`SECURITY INVOKER`, no `definer`.** El plan no lo fijaba y la casa venía de
+>   8 RPC definer. Una RPC que devuelve FILAS con PII no debe re-implementar el
+>   predicado de visibilidad: el alcance lo pone `leads_select` y solo se conserva
+>   la guardia de admisión 42501 (P04: revocado ≠ ajeno). **Los otros tres tramos
+>   (mi-cartera, descartados, timeline) devuelven filas igual → misma decisión**,
+>   salvo que alguno necesite ver más allá de la RLS del actor (que es justo lo
+>   que obligaría a definer y a escribir por qué).
+> - **Con invoker hay que dar una PISTA de ámbito al planner.** El recorte de la
+>   policy llega como SubPlan hasheado: filtro, jamás index qual. Sin repetir el
+>   predicado como `= any(array de visibles)` dentro del cuerpo, paginar no acota
+>   el trabajo — se recorre el índice global hasta juntar N coincidencias en cada
+>   página. Es redundante a propósito y solo puede RESTAR filas. Verificar
+>   siempre con `EXPLAIN` **bajo sesión `authenticated` real**, no como
+>   `postgres` (que no ve la RLS y enseña un plan que no existe).
+> - **El «hay más» lo decide el servidor, no el tamaño de la página.** El front
+>   pide `limite + 1` y devuelve `cursor: null` cuando no llega la fila extra;
+>   así no se gasta una petición vacía al final ni se promete una página que no
+>   existe. Con la RPC caída, `hayMas` se fuerza a false y el aviso explica que
+>   la lista está incompleta.
+> - **El cursor sale de la última fila CRUDA de la ventana**, no de la última
+>   fila válida: si se descarta la de la cola por contrato, avanzar desde la
+>   anterior la repetiría, y anular el cursor cortaría la lista fingiendo que ya
+>   no hay nada.
+> - **Los filtros van al servidor o mienten.** Con keyset, filtrar en el cliente
+>   sobre lo ya descargado produce vacíos falsos y contadores parciales. Por eso
+>   cada combinación de filtros es su propia lista (y su propia clave de caché),
+>   y el «N de M» desaparece: el total lo dice el tile servido de F1.
+> - **La invalidación tras mutar hay que ampliarla**: `resincronizarReal` ya
+>   invalidaba `metricas-ambito` (tiles); ahora invalida además el prefijo
+>   `leads` (filas). Sin eso, crear un lead movía los números de arriba y dejaba
+>   la tabla de abajo en la foto anterior.
 
 **Decisión de diseño (absorbe un hallazgo mayor de inyección):** las listas
 keyset van por **RPC `returns table` con parámetros tipados**
