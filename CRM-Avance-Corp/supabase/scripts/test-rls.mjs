@@ -5373,21 +5373,41 @@ async function testCarteraKeyset(sessions, seed) {
   console.log('\n— Cartera paginada por keyset (F2 tramo 1) —');
 
   const corte = Date.now() - VENTANA_CONVERTIDOS_MS_F1;
-  const enVentana = (l) => l.etapa !== 'convertido'
-    || (l.convertido_en && Date.parse(l.convertido_en) >= corte);
+  // Ambito operativo = vivo (activo) Y dentro de la ventana de convertidos. El
+  // `activo` importa SOLO para el directorio: su rama de `leads_select` es la
+  // unica que no lo exige, y hasta 20260810151433 la cartera le mezclaba en las
+  // filas los soft-borrados que sus tiles nunca contaron.
+  const enAmbito = (l) => l.activo === true
+    && (l.etapa !== 'convertido'
+      || (l.convertido_en && Date.parse(l.convertido_en) >= corte));
 
   for (const key of ['vend1', 'sup1', 'sup2', 'gerencia', 'directorio', 'coordinador']) {
     const client = sessions[key].client;
     const oraculo = await positive(
       `${key} lista su cartera por RLS como oraculo del keyset`,
       client.schema('crm').from('leads')
-        .select('id, nombre_completo, etapa, vendedor_id, convertido_en, actualizado_en')
+        .select('id, nombre_completo, etapa, vendedor_id, convertido_en, actualizado_en, activo')
         .order('actualizado_en', { ascending: false })
         .order('id', { ascending: true })
         .limit(2000),
     );
     if (!oraculo) continue;
-    const esperados = (oraculo.data ?? []).filter(enVentana);
+    const esperados = (oraculo.data ?? []).filter(enAmbito);
+    // Negativa explicita del cambio: ningun soft-borrado que su RLS le muestre
+    // puede aparecer en la pagina. Para 5 de los 6 roles el conjunto es vacio
+    // (su policy ya los excluia); para el directorio es el caso real.
+    const borradosVisibles = (oraculo.data ?? []).filter((l) => l.activo === false);
+    if (borradosVisibles.length > 0) {
+      const idsBorrados = new Set(borradosVisibles.map((l) => l.id));
+      const pagina = await positive(
+        `${key} pide la cartera para comprobar que no trae soft-borrados`,
+        client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200 }),
+      );
+      if (pagina) {
+        check((pagina.data ?? []).every((f) => !idsBorrados.has(f.id)),
+          `${key}: ninguno de sus ${borradosVisibles.length} soft-borrados llega a la cartera`);
+      }
+    }
 
     const completa = await positive(
       `${key} obtiene cartera_pagina_fn`,

@@ -79,6 +79,10 @@ export function filtrarCarteraLocal(
   filtros: FiltrosCarteraLocal,
 ): Lead[] {
   return leads.filter((l) => {
+    // Soft-delete: fuera de la cartera operativa, igual que en el servidor. Un
+    // lead DESCARTADO no es un lead borrado — conserva `activo` y sigue aquí
+    // con su motivo; lo que este filtro saca es lo que cerró la cola global.
+    if (l.activo === false) return false
     if (filtros.etapa && filtros.etapa !== 'todas' && l.etapa !== filtros.etapa) return false
     if (filtros.vendedorId === 'sin_asignar') {
       if (l.vendedor_id != null) return false

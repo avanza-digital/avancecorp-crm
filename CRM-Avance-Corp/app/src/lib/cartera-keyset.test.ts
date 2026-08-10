@@ -114,6 +114,18 @@ describe('filtrarCarteraLocal', () => {
     expect(filtrarCarteraLocal(leads, { etapa: 'nuevo', texto: 'ana' }).map((l) => l.id))
       .toEqual(['c'])
   })
+
+  it('un lead soft-borrado (activo=false) queda fuera de la cartera operativa', () => {
+    const conBorrado = [...leads, lead({ id: 'z', activo: false, nombre_completo: 'BORRADO' })]
+    expect(filtrarCarteraLocal(conBorrado, {}).map((l) => l.id)).not.toContain('z')
+    // Ni siquiera buscándolo por su nombre: el filtro es del ámbito, no del texto.
+    expect(filtrarCarteraLocal(conBorrado, { texto: 'BORRADO' })).toEqual([])
+  })
+
+  it('un lead DESCARTADO sí sigue en la cartera (etapa ≠ soft-delete)', () => {
+    const descartado = lead({ id: 'd', etapa: 'descartado', motivo_descarte: 'sin_interes' })
+    expect(filtrarCarteraLocal([descartado], {}).map((l) => l.id)).toEqual(['d'])
+  })
 })
 
 describe('ordenarCarteraLocal', () => {

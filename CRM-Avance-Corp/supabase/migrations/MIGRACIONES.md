@@ -1204,3 +1204,48 @@ mueve, y lo tiene delante en la primera página.
   contactos reales sobre ese mismo lead. Se reemplazó por un oráculo
   autoconsistente. Un test que depende de que nadie más toque los datos no es un
   test, es una carrera.
+
+---
+
+## F2 tramo 1 (corrección) — la cartera del directorio deja de mezclar borrados (2026-08-10)
+
+`20260810141953` dejó la divergencia **anotada y sin corregir a propósito**, para
+que la decidiera Miguel; la decidió el mismo día: «arregla lo del directorio».
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260810151433 | 20260810152201 | crm_cartera_keyset_solo_activos | ✅ **EN PROD 2026-08-10** (branch `f2-cartera-solo-activos` → gate RLS **732/732** → oráculo `CARTERA_KEYSET_TX_OK` con los casos K10a–K10f nuevos → **prueba de no vacuidad**: en la misma transacción se comprobó que la RLS del directorio SÍ le entrega el lead soft-borrado (`t`) y que la RPC ya NO (`f`) — el defecto era real y el filtro actúa exactamente donde debe → advisors **0 ERROR** → trigger de jerarquía reactivado (0 en disable) → merge → verificado en prod (md5 `e52ed18ecf4a109abc09ccc3cb567b4d` idéntico branch↔prod, `prosecdef=false`, ACL exacta) → branch borrado). Front: check **1566** ✔ · e2e **81** ✔. |
+
+**El defecto**: `crm.cartera_pagina_fn` no filtraba `activo` —copiando a
+`listarLeadsDelAmbito`, que tampoco lo hace— mientras `crm.resumen_cartera_fn`
+lo filtra SIEMPRE. Para vendedor, supervisor, gerencia y coordinador daba lo
+mismo: su rama de `leads_select` ya exige `activo = true`. Pero el **directorio**
+es lector global y su rama del OR (`or private.es_lector_global()`) no lo exige,
+así que veía en las **filas** los soft-borrados que sus propios **tiles** nunca
+contaron. Una pantalla que dice una cosa arriba y otra abajo.
+
+**El arreglo**: `and l.activo is true` en el WHERE, vía `create or replace` con
+la firma idéntica. Todo lo demás —invoker, guardia 42501, pista de ámbito,
+keyset, filtros, escapes— es byte a byte lo aplicado horas antes.
+
+**Lo que NO cambia, y es lo que había que no romper**: un lead **DESCARTADO** no
+es un lead **BORRADO**. Los descartes del flujo comercial conservan
+`activo = true` (los cierra la `etapa`, no el soft-delete) y siguen en la cartera
+con su motivo para todos los roles. Lo que desaparece de la vista del directorio
+son los que `crm.descartar_lead` cierra sobre la cola global — que ningún otro
+rol veía ya.
+
+**Simetría demo/real**: el espejo `filtrarCarteraLocal` y el arnés E2E
+`carteraPaginaReal` aplican el mismo filtro. En demo no había leads con
+`activo = false` (el `descartar` del store solo toca la etapa), así que el
+cambio no altera lo que se enseña — pero deja la regla escrita en los dos lados.
+
+**Nota para F3**: `leads_orden_cartera_idx` se creó DELIBERADAMENTE no parcial
+(`20260808155128`) porque `listarLeadsDelAmbito` no enviaba `activo = true`. Esta
+RPC sí lo envía; cuando esa lectura muera con el store, el índice podrá pasar a
+`where activo = true` y encoger. No se toca mientras las dos convivan.
+
+**La regla que queda**: una divergencia que solo afecta a UN rol es igual de real
+que una que afecta a todos, y el rol raro suele ser el lector global — es el
+único cuya rama de la policy es distinta. Comprobar tiles↔filas **rol por rol**,
+no «en general».

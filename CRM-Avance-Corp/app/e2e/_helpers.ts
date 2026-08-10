@@ -674,6 +674,7 @@ export function carteraPaginaReal(
   const texto = (args.p_texto ?? '').trim()
   const digitos = texto.replace(/\D/g, '')
   const filtrados = leads.filter((l) => {
+    if (!l.activo) return false
     if (l.etapa === 'convertido') {
       const sello = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
       if (!Number.isFinite(sello) || sello < corteMs) return false

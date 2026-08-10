@@ -23,7 +23,10 @@ set local session_replication_role = replica;
 insert into public.perfiles(id, nombre_completo, correo, rol, activo) values
   ('7f200000-0000-4000-8000-000000000001', 'ORACULO F2 SUPERVISOR', 'f2-s@test.invalid', 'comercial', true),
   ('7f200000-0000-4000-8000-000000000002', 'ORACULO F2 VENDEDOR', 'f2-v@test.invalid', 'comercial', true),
-  ('7f200000-0000-4000-8000-000000000003', 'ORACULO F2 PORTAL PURO', 'f2-p@test.invalid', 'cliente', true);
+  ('7f200000-0000-4000-8000-000000000003', 'ORACULO F2 PORTAL PURO', 'f2-p@test.invalid', 'cliente', true),
+  -- Lector global (directorio): el ÚNICO rol cuya rama de `leads_select` no
+  -- exige `activo`, y por tanto el único al que le afecta el filtro nuevo.
+  ('7f200000-0000-4000-8000-000000000004', 'ORACULO F2 DIRECTORIO', 'f2-d@test.invalid', 'directorio', true);
 
 insert into crm.equipo(perfil_id, rol_crm, supervisor_id, activo) values
   ('7f200000-0000-4000-8000-000000000001', 'supervisor', null, true),
@@ -67,6 +70,15 @@ insert into crm.leads(id, nombre_completo, telefono, dni, origen, etapa, monto_e
   ('7f200000-0000-4000-8000-000000000109', 'ORACULO K9 PARKEADO', '51999227109', null, 'otro', 'nuevo', 9000, 'PEN',
    null, '7f200000-0000-4000-8000-000000000001', '7f200000-0000-4000-8000-000000000001',
    now() - interval '5 days', timestamptz '2026-07-29 12:00:00+00', null, null, null);
+
+-- K10: SOFT-BORRADO (lo que hace `crm.descartar_lead` sobre la cola global).
+-- Se inserta aparte para poder poner `activo = false` sin repetir 15 columnas.
+insert into crm.leads(id, nombre_completo, telefono, origen, etapa, monto_estimado, moneda,
+                      vendedor_id, creado_por, creado_en, actualizado_en, motivo_descarte, activo)
+values ('7f200000-0000-4000-8000-000000000110', 'ORACULO K10 BORRADO', '51999227110', 'otro',
+        'descartado', 10000, 'PEN', '7f200000-0000-4000-8000-000000000002',
+        '7f200000-0000-4000-8000-000000000002', now() - interval '20 days',
+        timestamptz '2026-08-03 12:00:00+00', 'datos_invalidos', false);
 
 -- Timeline de K1: primero un CONTACTO, después una NOTA más reciente. Si el
 -- lateral tomara la última fila de cualquier tipo, devolvería la nota.
@@ -330,6 +342,70 @@ begin
        where f.id = '7f200000-0000-4000-8000-000000000101')
      is distinct from timestamptz '2026-07-20 09:00:00+00' then
     raise exception 'K08c el supervisor ve otro ultimo_contacto_en que su vendedor';
+  end if;
+end;
+$test$;
+
+reset role;
+
+-- ═════════════════════════════════════════════════════════════════════════════
+-- K10 — El DIRECTORIO (lector global) NO ve los soft-borrados (20260810151433).
+-- Es el único rol al que le afecta: su rama de `leads_select` no exige `activo`,
+-- así que hasta esta migración la Cartera le mezclaba en las FILAS lo que sus
+-- TILES (resumen_cartera_fn, que sí filtra) nunca contaron.
+-- ═════════════════════════════════════════════════════════════════════════════
+select set_config('request.jwt.claim.sub', '7f200000-0000-4000-8000-000000000004', true);
+set local role authenticated;
+
+do $test$
+declare
+  v_ve_borrado boolean;
+  v_ve_vivo boolean;
+  v_ve_descartado boolean;
+begin
+  select exists (select 1 from crm.cartera_pagina_fn(p_limite => 200) f
+                  where f.id = '7f200000-0000-4000-8000-000000000110'),
+         exists (select 1 from crm.cartera_pagina_fn(p_limite => 200) f
+                  where f.id = '7f200000-0000-4000-8000-000000000101'),
+         exists (select 1 from crm.cartera_pagina_fn(p_limite => 200) f
+                  where f.id = '7f200000-0000-4000-8000-000000000106')
+    into v_ve_borrado, v_ve_vivo, v_ve_descartado;
+
+  if v_ve_borrado then
+    raise exception 'K10a el lector global sigue viendo un lead soft-borrado';
+  end if;
+  if not v_ve_vivo then
+    raise exception 'K10b el filtro de activo se llevo por delante un lead vivo';
+  end if;
+  -- La otra mitad, y la que de verdad podria haberse roto: un lead DESCARTADO
+  -- (etapa) no es un lead BORRADO (activo) y tiene que seguir en la cartera.
+  if not v_ve_descartado then
+    raise exception 'K10c un lead descartado desaparecio de la cartera';
+  end if;
+  -- El lector global comprueba ademas que sigue viendo lo AJENO vivo: el filtro
+  -- de activo no debe haberse comido su alcance global.
+  if not exists (select 1 from crm.cartera_pagina_fn(p_limite => 200) f
+                  where f.id = '7f200000-0000-4000-8000-000000000109') then
+    raise exception 'K10d el lector global perdio el parkeado de otra bandeja';
+  end if;
+end;
+$test$;
+
+reset role;
+
+-- Y el vendedor tampoco lo ve — no porque lo filtre esta migracion, sino
+-- porque su policy ya lo excluia. Aserto de NO REGRESION del predicado.
+select set_config('request.jwt.claim.sub', '7f200000-0000-4000-8000-000000000002', true);
+set local role authenticated;
+
+do $test$
+begin
+  if exists (select 1 from crm.cartera_pagina_fn(p_limite => 200) f
+              where f.id = '7f200000-0000-4000-8000-000000000110') then
+    raise exception 'K10e el vendedor ve un lead soft-borrado';
+  end if;
+  if (select count(*) from crm.cartera_pagina_fn(p_limite => 200)) <> 7 then
+    raise exception 'K10f el ambito del vendedor cambio de tamano con el filtro nuevo';
   end if;
 end;
 $test$;
