@@ -25,6 +25,7 @@ import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { administraSoloRolesCrm, can, puedeEscribir, type Rol } from '@/lib/roles'
+import { vistaPermitida } from '@/lib/vistas'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { ETAPA_INFO, type Lead } from '@/lib/tipos'
@@ -281,7 +282,16 @@ export function Topbar({ vista }: { vista: Vista }) {
         </div>
         )}
 
-        {!soloRoles && can(yo?.rol, 'verAlertas') && (
+        {/* La campana se pinta con la MISMA función que decide si la vista se
+            puede abrir. Antes usaba `can(rol, 'verAlertas')` —que vendedor y
+            supervisor tienen— mientras el router exige además el gate de leads:
+            con las funciones de leads sin aprobar, el clic intentaba ir a
+            #/alertas, `sanearVista` lo devolvía a su landing con `replaceState`
+            —que NO redispara hashchange— y no pasaba absolutamente nada. Ni
+            error, ni cambio de pantalla: indistinguible de un botón muerto, y
+            encima con burbuja roja encima. Fuente única: si no se puede abrir,
+            no se pinta. */}
+        {!soloRoles && vistaPermitida('alertas', yo?.rol, leadsVisibles) && (
           <a
             href={hashDe('alertas')}
             title="Abrir pendientes"

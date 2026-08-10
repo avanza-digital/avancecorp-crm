@@ -68,10 +68,14 @@ function montar({
   vista = 'hoy' as Vista,
   leads = [lead()],
   alertas = [],
-}: { rol?: Rol; vista?: Vista; leads?: Lead[]; alertas?: AlertaCRM[] } = {}) {
+  demo = true,
+}: { rol?: Rol; vista?: Vista; leads?: Lead[]; alertas?: AlertaCRM[]; demo?: boolean } = {}) {
   // demo:true = el gate FUNCIONES_LEADS_APROBADAS deja ver el buscador sin
   // depender de la bandera de config (que cambia con la aprobación de Miguel).
-  YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo: true }
+  // `demo: false` es el mundo REAL de producción, y es donde vivía el bug de la
+  // campana: TODAS las pruebas de aquí corrían en demo, así que ninguna podía
+  // verlo.
+  YO = { id: 'u-v1', nombre_completo: 'Vendedor Real', rol, demo }
   LEADS = leads
   ALERTAS = alertas
   CARGANDO_ALERTAS = false
@@ -172,6 +176,29 @@ describe('Topbar — pendientes por responsabilidad', () => {
       )
     },
   )
+
+  // ── El bug de la campana muerta (2026-08-09) ──────────────────────────────
+  // La campana se PINTABA con `can(rol,'verAlertas')` —que vendedor y supervisor
+  // tienen— mientras el router exige ADEMÁS el gate de leads. En producción, con
+  // `FUNCIONES_LEADS_APROBADAS = false`, el clic intentaba ir a #/alertas,
+  // `sanearVista` devolvía al usuario a su landing con `replaceState` (que no
+  // redispara hashchange) y no ocurría NADA: ni error, ni cambio de pantalla.
+  // Un enlace muerto, encima con burbuja roja. Estas dos pruebas son las que
+  // faltaban: las demás corren en demo, un mundo donde el gate está abierto.
+  it.each(['vendedor', 'supervisor'] as const)(
+    'sesión REAL con el gate de leads cerrado: %s NO ve la campana (no la vería funcionar)',
+    (rol) => {
+      montar({ rol, vista: 'mi-cartera', leads: [], demo: false })
+
+      expect(screen.queryByRole('link', { name: /Abrir pendientes/ })).not.toBeInTheDocument()
+    },
+  )
+
+  it('sesión REAL: gerencia SÍ conserva la campana (su vista de alertas no depende del gate)', () => {
+    montar({ rol: 'gerencia', vista: 'hoy', leads: [], demo: false })
+
+    expect(screen.getByRole('link', { name: 'Abrir pendientes' })).toHaveAttribute('href', '#/alertas')
+  })
 
   it.each(['directorio', 'coordinador'] as const)(
     'no muestra una bandeja sin responsabilidad definida a %s',
