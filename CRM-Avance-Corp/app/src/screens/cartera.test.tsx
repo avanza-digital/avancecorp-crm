@@ -10,6 +10,7 @@
 // Los asserts se acotan al CHIP (la tabla repite los mismos montos por fila).
 import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
+import type { FiltrosCarteraLocal } from '@/lib/cartera-keyset'
 import type { Lead } from '@/lib/tipos'
 
 let YO: { id: string; rol: string; demo: boolean } | null = null
@@ -33,6 +34,25 @@ vi.mock('@/data/use-resumen-cartera-operativo', async () => {
       resumen: resumenCarteraDesdeAmbito(leads, [], Date.now()),
       cargando: false,
       error: null,
+      recargar: vi.fn(),
+    }),
+  }
+})
+
+// F2: la TABLA la sirve `crm.cartera_pagina_fn` por cursor. Aquí se sustituye
+// por el MISMO espejo puro que usa el modo demo (`lib/cartera-keyset`), que es
+// justo lo que garantiza que demo y real filtren y ordenen igual. Sin este
+// mock la pantalla exigiría un QueryClientProvider para probar un chip.
+vi.mock('@/data/use-cartera-paginada', async () => {
+  const { filtrarCarteraLocal, ordenarCarteraLocal } = await import('@/lib/cartera-keyset')
+  return {
+    useCarteraPaginada: (leads: Lead[], filtros: FiltrosCarteraLocal) => ({
+      leads: ordenarCarteraLocal(filtrarCarteraLocal(leads, filtros)),
+      hayMas: false,
+      cargando: false,
+      cargandoMas: false,
+      error: null,
+      cargarMas: vi.fn(),
       recargar: vi.fn(),
     }),
   }

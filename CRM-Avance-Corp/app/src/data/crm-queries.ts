@@ -1,6 +1,14 @@
-import { useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
+import {
+  useInfiniteQuery,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryKey,
+} from '@tanstack/react-query'
+import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import {
   actualizarCapacidadLeadsObjetivo,
+  listarCarteraPagina,
   listarClientes,
   listarColaAccion,
   listarCuentasBancariasCliente,
@@ -22,9 +30,10 @@ import {
   obtenerTitulares,
 } from './crm-api'
 
-// Sin claves de leads a propósito: la app los carga vía listarLeadsDelAmbito en
-// el store (no por TanStack). La lectura paginada queda como reserva en
-// crm-api.ts (listarLeads) para cuando el volumen la exija.
+// El store sigue cargando el ámbito completo (listarLeadsDelAmbito) para las
+// pantallas que aún no migraron; la prohibición general de claves de leads se
+// levanta en F3. La ÚNICA excepción viva es `carteraPagina` (F2): esa pantalla
+// ya no cuenta filas del store, pagina por cursor keyset contra el servidor.
 export const crmQueryKeys = {
   raiz: ['crm'] as const,
   config: () => [...crmQueryKeys.raiz, 'config'] as const,
@@ -84,6 +93,16 @@ export const crmQueryKeys = {
   // usuario): es lo que la hace caducar con el logout (queryClient.clear) y lo
   // que permite invalidarla por prefijo desde la pantalla de reparto.
   resumenReparto: () => [...crmQueryKeys.metricasAmbito(), 'resumen-reparto'] as const,
+  // Cartera paginada por keyset (F2). Prefijo PROPIO `leads`: las mutaciones
+  // que aún pasan por el store lo invalidan entero (resincronizarReal), y una
+  // invalidación de leads no debe arrastrar las fotografías por periodo de
+  // gerencia ni al revés.
+  leads: () => [...crmQueryKeys.raiz, 'leads'] as const,
+  // Los filtros forman parte de la clave: con keyset NO se puede filtrar en el
+  // cliente sobre lo ya cargado (mentiría con vacíos falsos), así que cada
+  // combinación es una lista distinta con su propio cursor.
+  carteraPagina: (etapa: string, vendedor: string, texto: string) =>
+    [...crmQueryKeys.leads(), 'cartera-pagina', etapa, vendedor, texto] as const,
 }
 
 // ── Cartera del portal (clientes + contratos) ─────────────────────────────────
@@ -241,6 +260,29 @@ export function useResumenReparto(habilitada: boolean) {
     queryFn: ({ signal }) => listarResumenReparto(signal),
     enabled: habilitada,
     refetchInterval: 60_000,
+  })
+}
+
+// ── Cartera paginada por cursor keyset (F2) ───────────────────────────────────
+
+/**
+ * Páginas de la cartera servidas por `crm.cartera_pagina_fn`. SOLO sesión real:
+ * en demo la pantalla pagina el ámbito vivo del store (fail-closed, ni un
+ * request sale). Los filtros van en la clave Y en el request: filtrar en el
+ * cliente sobre lo ya cargado es exactamente lo que el keyset hace imposible.
+ */
+export function useCarteraInfinita(habilitada: boolean, filtros: FiltrosCartera) {
+  const etapa = filtros.etapa ?? 'todas'
+  const vendedor = filtros.vendedorId ?? 'todos'
+  const texto = filtros.texto ?? ''
+  return useInfiniteQuery({
+    queryKey: crmQueryKeys.carteraPagina(etapa, vendedor, texto),
+    queryFn: ({ pageParam, signal }) => listarCarteraPagina(filtros, pageParam, signal),
+    initialPageParam: null as CursorCartera | null,
+    // `cursor: null` significa "no hay más" y lo decide el SERVIDOR (pidió una
+    // fila de más y no llegó), nunca el tamaño de la última página.
+    getNextPageParam: (ultima: PaginaCartera) => ultima.cursor,
+    enabled: habilitada,
   })
 }
 

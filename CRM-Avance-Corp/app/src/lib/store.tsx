@@ -774,6 +774,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // escritura. Se dispara también en el resync de un rollback (costo: un
     // refetch de más en un caso raro; mentir en un tile sería peor).
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() })
+    // F2: la tabla de Cartera ya NO se pinta desde este store — la sirve
+    // `cartera_pagina_fn` por cursor. Sin esta segunda invalidación, crear o
+    // mover un lead actualizaría los tiles y dejaría las FILAS de abajo en la
+    // foto anterior. Invalidar (no refetch): un remonte dentro del staleTime
+    // serviría la página rancia desde caché.
+    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() })
     try {
       const {
         leads,

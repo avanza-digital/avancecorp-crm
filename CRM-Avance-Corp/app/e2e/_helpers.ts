@@ -21,6 +21,12 @@ export async function irAPipeline(page: Page): Promise<void> {
   await expect(page.getByText('Nuevo', { exact: true }).first()).toBeVisible()
 }
 
+/** Navega a la Cartera (la tabla paginada por cursor keyset desde F2). */
+export async function irACartera(page: Page): Promise<void> {
+  await page.getByRole('button', { name: 'Cartera' }).click()
+  await expect(page.getByRole('table', { name: 'Cartera de leads' })).toBeVisible()
+}
+
 /** Abre la ficha (drawer) de un lead por su nombre desde el Pipeline.
  * El Sheet (Radix) queda etiquetado por el SheetTitle (aria-labelledby gana a
  * aria-label), así que el nombre accesible del dialog ES el nombre del lead. */
@@ -644,6 +650,62 @@ function metricasDistribucionVaciaReal(): unknown {
  * de fallback de cierres-del-mes (los fixtures no traen `convertido_en`) y
  * USD estricto. `sin_tocar` queda en 0: el mock no modela contactos por lead.
  */
+/**
+ * Espejo de `crm.cartera_pagina_fn` (F2) sobre el estado VIVO del mock: filtra,
+ * ordena por `(actualizado_en desc, id asc)` y corta por cursor, igual que el
+ * servidor. Devuelve `p_limite` filas COMO MÁXIMO — y el front pide una de más
+ * a propósito, así que este mock es también quien decide si aparece «Cargar
+ * más». Si aquí se paginara mal, los specs de sesión real pasarían con una
+ * lista que en producción se corta o se repite.
+ */
+export function carteraPaginaReal(
+  leads: LeadReal[],
+  args: {
+    p_limite?: number
+    p_antes_de?: string | null
+    p_antes_id?: string | null
+    p_etapa?: string | null
+    p_vendedor_id?: string | null
+    p_sin_asignar?: boolean
+    p_texto?: string | null
+  },
+): Record<string, unknown>[] {
+  const corteMs = Date.now() - 45 * 86_400_000
+  const texto = (args.p_texto ?? '').trim()
+  const digitos = texto.replace(/\D/g, '')
+  const filtrados = leads.filter((l) => {
+    if (l.etapa === 'convertido') {
+      const sello = Date.parse(l.convertido_en ?? l.actualizado_en ?? l.creado_en)
+      if (!Number.isFinite(sello) || sello < corteMs) return false
+    }
+    if (args.p_etapa && l.etapa !== args.p_etapa) return false
+    if (args.p_sin_asignar && l.vendedor_id != null) return false
+    if (args.p_vendedor_id && l.vendedor_id !== args.p_vendedor_id) return false
+    if (texto.length >= 2) {
+      const porNombre = l.nombre_completo.toLowerCase().includes(texto.toLowerCase())
+      const porDigitos = digitos.length >= 3
+        && (l.telefono.includes(digitos) || (l.dni ?? '').includes(digitos))
+      if (!porNombre && !porDigitos) return false
+    }
+    return true
+  })
+  const ordenados = [...filtrados].sort((a, b) => {
+    if (a.actualizado_en !== b.actualizado_en) return a.actualizado_en < b.actualizado_en ? 1 : -1
+    return a.id < b.id ? -1 : a.id > b.id ? 1 : 0
+  })
+  const desde = args.p_antes_de
+    ? ordenados.filter((l) => (
+      l.actualizado_en < args.p_antes_de!
+      || (l.actualizado_en === args.p_antes_de && l.id > String(args.p_antes_id ?? ''))
+    ))
+    : ordenados
+  return desde
+    .slice(0, Math.max(1, Number(args.p_limite ?? 51)))
+    .map((l) => ({ ...l, genero: null, fecha_nacimiento: null, tenencia_desde: null,
+      convertido_en: l.convertido_en ?? null, contrato_id: null, no_contactar: false,
+      ultimo_contacto_en: null }))
+}
+
 export function resumenCarteraReal(leads: LeadReal[]): Record<string, unknown> {
   const corteMs = Date.now() - 45 * 86_400_000
   const ambito = leads.filter((l) => {
@@ -1112,6 +1174,8 @@ export interface BackendReal {
   fallarMetricasEquipo: boolean
   /** La RPC resumen_reparto_fn responde 500 SIEMPRE (tiles de Repartir a «—»). */
   fallarResumenReparto: boolean
+  /** La RPC cartera_pagina_fn responde 500 SIEMPRE (la TABLA de Cartera degradada). */
+  fallarCarteraPagina: boolean
   /** Si se setea, resumen_reparto_fn devuelve ESTE payload en vez de derivarlo de
    *  `colaReparto`: sirve para DIVERGIR agregado y filas y probar que el
    *  navegador ya no cuenta (tile en 57 con 2 filas en la lista). */
@@ -1201,6 +1265,8 @@ export interface BackendReal {
     rpcDeshacerDescarte: number
     /** F1b tanda 3 — cuántas veces se pidió el resumen agregado de la cola. */
     rpcResumenReparto: number
+    /** F2 — cuántas páginas de cartera keyset pidió la pantalla. */
+    rpcCarteraPagina: number
   }
   /** C1 — último par (lead, supervisor) enviado a crm.repartir_lead. */
   ultimoReparto: { lead: string; supervisor: string } | null
@@ -1259,6 +1325,7 @@ export async function montarBackendReal(
     fallarColaAccion: init.fallarColaAccion ?? false,
     fallarMetricasEquipo: init.fallarMetricasEquipo ?? false,
     fallarResumenReparto: init.fallarResumenReparto ?? false,
+    fallarCarteraPagina: init.fallarCarteraPagina ?? false,
     resumenRepartoOverride: init.resumenRepartoOverride ?? null,
     clientes: init.clientes ?? [clienteReal()],
     contratos: init.contratos ?? [contratoReal()],
@@ -1319,7 +1386,7 @@ export async function montarBackendReal(
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
       rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
       rpcDescartarLead: 0, rpcDeshacerDescarte: 0,
-      rpcResumenReparto: 0,
+      rpcResumenReparto: 0, rpcCarteraPagina: 0,
     },
     ultimaActualizacionCapacidad: init.ultimaActualizacionCapacidad ?? null,
     ultimoReparto: init.ultimoReparto ?? null,
@@ -1902,6 +1969,16 @@ export async function montarBackendReal(
         return json(route, { message: 'resumen caido', code: 'PGRST000', details: null, hint: null }, 500)
       }
       return json(route, resumenCarteraReal(estado.leads))
+    }
+    // F2: la TABLA de Cartera. Va con las métricas del ámbito porque comparte
+    // su ciclo de invalidación (una mutación refresca tiles Y filas).
+    if (p === '/rest/v1/rpc/cartera_pagina_fn' && method === 'POST') {
+      estado.llamadas.rpcCarteraPagina += 1
+      if (estado.fallarCarteraPagina) {
+        return json(route, { message: 'cartera caida', code: 'PGRST000', details: null, hint: null }, 500)
+      }
+      const body = (req.postDataJSON() ?? {}) as Parameters<typeof carteraPaginaReal>[1]
+      return json(route, carteraPaginaReal(estado.leads, body))
     }
     if (p === '/rest/v1/rpc/cola_accion_fn' && method === 'POST') {
       if (estado.fallarColaAccion) {

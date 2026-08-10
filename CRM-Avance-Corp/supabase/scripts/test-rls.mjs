@@ -5360,6 +5360,392 @@ async function testDescarte(sessions, seed) {
   }
 }
 
+// ── F2 tramo 1: cursor keyset de la cartera ──────────────────────────────────
+// Esta RPC no devuelve agregados: devuelve FILAS DE LEADS con PII. Por eso la
+// matriz mira DOS cosas que no se implican entre si:
+//   (A) que pagine bien — orden estable, sin huecos ni repetidos, con los
+//       filtros resueltos en el servidor;
+//   (B) que no ensanche NI UN LEAD el ambito que la RLS ya concedia. El oraculo
+//       es el propio SELECT del actor, leido adyacente (la suite es secuencial:
+//       nada muta entre ambas lecturas).
+// Sin (B), (A) puede estar entero en verde sobre una fuga.
+async function testCarteraKeyset(sessions, seed) {
+  console.log('\n— Cartera paginada por keyset (F2 tramo 1) —');
+
+  const corte = Date.now() - VENTANA_CONVERTIDOS_MS_F1;
+  const enVentana = (l) => l.etapa !== 'convertido'
+    || (l.convertido_en && Date.parse(l.convertido_en) >= corte);
+
+  for (const key of ['vend1', 'sup1', 'sup2', 'gerencia', 'directorio', 'coordinador']) {
+    const client = sessions[key].client;
+    const oraculo = await positive(
+      `${key} lista su cartera por RLS como oraculo del keyset`,
+      client.schema('crm').from('leads')
+        .select('id, nombre_completo, etapa, vendedor_id, convertido_en, actualizado_en')
+        .order('actualizado_en', { ascending: false })
+        .order('id', { ascending: true })
+        .limit(2000),
+    );
+    if (!oraculo) continue;
+    const esperados = (oraculo.data ?? []).filter(enVentana);
+
+    const completa = await positive(
+      `${key} obtiene cartera_pagina_fn`,
+      client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200 }),
+    );
+    if (!completa) continue;
+    const filas = completa.data ?? [];
+
+    // Se compara el PREFIJO, no la longitud: el oraculo lee hasta 2000 filas y
+    // la RPC sirve 200. Con el seed coinciden; contra una base con volumen
+    // —que es para lo que existe F2— exigir igualdad daria un rojo falso.
+    check(filas.every((f, i) => f.id === esperados[i]?.id),
+      `${key}: la pagina cuadra fila a fila (y en orden) con su propio SELECT`,
+      JSON.stringify({ rpc: filas.length, oraculo: esperados.length }));
+    check(filas.length === Math.min(esperados.length, 200),
+      `${key}: la pagina trae todo lo visible que cabe en el limite pedido`,
+      JSON.stringify({ rpc: filas.length, oraculo: esperados.length }));
+
+    // (B) La negativa que de verdad importa: ni un id fuera del ambito RLS.
+    const idsVisibles = new Set(esperados.map((l) => l.id));
+    check(filas.every((f) => idsVisibles.has(f.id)),
+      `${key}: ninguna fila servida cae fuera de lo que su RLS ya mostraba`);
+
+    // Paginacion real: dos pasadas de 2 reconstruyen el prefijo del oraculo.
+    if (esperados.length >= 3) {
+      const p1 = await positive(
+        `${key} pide la primera pagina de 2`,
+        client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 2 }),
+      );
+      const ultima = (p1?.data ?? [])[1];
+      if (ultima) {
+        const p2 = await positive(
+          `${key} pide la segunda pagina con el cursor de la primera`,
+          client.schema('crm').rpc('cartera_pagina_fn', {
+            p_limite: 2,
+            p_antes_de: ultima.actualizado_en,
+            p_antes_id: ultima.id,
+          }),
+        );
+        if (p2) {
+          const concatenado = [...p1.data, ...(p2.data ?? [])].map((f) => f.id);
+          check(new Set(concatenado).size === concatenado.length,
+            `${key}: las dos paginas no repiten ningun lead`);
+          check(concatenado.every((id, i) => id === esperados[i]?.id),
+            `${key}: las dos paginas reconstruyen el orden del oraculo sin huecos`,
+            JSON.stringify({ paginado: concatenado.length, oraculo: esperados.length }));
+        }
+      }
+    }
+  }
+
+  // No vacuidad: si el seed dejara de poblar, todo lo de arriba pasaria vacio.
+  const gerenciaCompleta = await positive(
+    'gerencia obtiene su cartera completa para las aserciones de forma',
+    sessions.gerencia.client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200 }),
+  );
+  const filasGerencia = gerenciaCompleta?.data ?? [];
+  check(filasGerencia.length >= 5,
+    `gerencia recibe una cartera no vacia (${filasGerencia.length} leads)`);
+
+  // El semaforo del kanban viaja YA en la pagina (lo que deja a F3 sin
+  // migraciones) y mide CONTACTO, no cualquier fila del timeline. El oraculo es
+  // el propio SELECT de actividades del actor, leido adyacente: aseverar un
+  // valor fijo seria fragil (esta suite registra contactos en tests anteriores)
+  // y ademas no probaria que el criterio de tipos sea el correcto.
+  const TIPOS_CONTACTO_F2 = new Set([
+    'llamada_realizada', 'llamada_no_contestada',
+    'whatsapp_enviado', 'whatsapp_recibido', 'reunion_realizada',
+  ]);
+  const actividadesGerencia = await positive(
+    'gerencia lista actividades como oraculo del ultimo contacto',
+    sessions.gerencia.client.schema('crm').from('actividades')
+      .select('lead_id, tipo, creado_en').limit(5000),
+  );
+  if (actividadesGerencia) {
+    const ultimoPorLead = new Map();
+    for (const a of actividadesGerencia.data ?? []) {
+      if (!TIPOS_CONTACTO_F2.has(a.tipo)) continue;
+      const previo = ultimoPorLead.get(a.lead_id);
+      if (!previo || Date.parse(a.creado_en) > Date.parse(previo)) {
+        ultimoPorLead.set(a.lead_id, a.creado_en);
+      }
+    }
+    check(filasGerencia.every((f) => 'ultimo_contacto_en' in f),
+      'ultimo_contacto_en viaja en todas las filas de la pagina');
+    const desalineadas = filasGerencia.filter((f) => {
+      const esperado = ultimoPorLead.get(f.id) ?? null;
+      if (esperado === null) return f.ultimo_contacto_en !== null;
+      return f.ultimo_contacto_en === null
+        || Date.parse(f.ultimo_contacto_en) !== Date.parse(esperado);
+    });
+    check(desalineadas.length === 0,
+      'ultimo_contacto_en es el ultimo CONTACTO real de cada lead (nunca una nota)',
+      JSON.stringify(desalineadas.map((f) => ({
+        id: f.id, rpc: f.ultimo_contacto_en, oraculo: ultimoPorLead.get(f.id) ?? null,
+      }))));
+    // No vacuidad del check anterior: si NINGUN lead tuviera contactos, la
+    // comparacion de arriba pasaria entera contra puros null.
+    check([...ultimoPorLead.keys()].some((id) => filasGerencia.some((f) => f.id === id)),
+      'al menos un lead de la pagina tiene contacto real (el check anterior no es vacio)');
+  }
+
+  // ── Filtros resueltos en el SERVIDOR (con keyset, filtrar en el cliente
+  //    sobre lo ya cargado mentiria: vacios falsos y contadores parciales) ────
+  const gerencia = sessions.gerencia.client;
+  const nuevosOraculo = await positive(
+    'gerencia lista sus leads en etapa nuevo como oraculo del filtro',
+    gerencia.schema('crm').from('leads').select('id').eq('etapa', 'nuevo').limit(2000),
+  );
+  const porEtapa = await positive(
+    'gerencia filtra la cartera por etapa en el servidor',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200, p_etapa: 'nuevo' }),
+  );
+  if (nuevosOraculo && porEtapa) {
+    const filas = porEtapa.data ?? [];
+    check(filas.length === (nuevosOraculo.data ?? []).length
+      && filas.every((f) => f.etapa === 'nuevo'),
+      'el filtro por etapa devuelve exactamente los nuevos visibles',
+      JSON.stringify({ rpc: filas.length, oraculo: (nuevosOraculo.data ?? []).length }));
+  }
+
+  const sinAsignar = await positive(
+    'gerencia filtra los leads sin asignar',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200, p_sin_asignar: true }),
+  );
+  if (sinAsignar) {
+    const filas = sinAsignar.data ?? [];
+    check(filas.length > 0 && filas.every((f) => f.vendedor_id === null),
+      `el filtro sin_asignar solo devuelve parkeados (${filas.length})`);
+  }
+
+  const porVendedor = await positive(
+    'gerencia filtra la cartera por vendedor',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 200, p_vendedor_id: seed.profileIdByKey.vend1,
+    }),
+  );
+  if (porVendedor) {
+    const filas = porVendedor.data ?? [];
+    check(filas.length > 0 && filas.every((f) => f.vendedor_id === seed.profileIdByKey.vend1),
+      `el filtro por vendedor solo devuelve su cartera (${filas.length})`);
+  }
+
+  // El filtro NO es una puerta: pedir la cartera de un vendedor ajeno devuelve
+  // vacio porque la RLS ya recorto ANTES — no porque el filtro sea amable.
+  const ajena = await positive(
+    'vend1 pide la cartera de un vendedor de otro subarbol',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 200, p_vendedor_id: seed.profileIdByKey.vend3,
+    }),
+  );
+  if (ajena) {
+    check((ajena.data ?? []).length === 0,
+      'vend1 no obtiene ni una fila filtrando por un vendedor ajeno');
+  }
+
+  // Busqueda: por nombre dentro del ambito, y NADA fuera de el.
+  const buscaPropio = await positive(
+    'vend1 busca por nombre dentro de su cartera',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_texto: 'MARIA',
+    }),
+  );
+  if (buscaPropio) {
+    const filas = buscaPropio.data ?? [];
+    check(filas.length === 1 && filas[0].nombre_completo === 'MARIA LOPEZ DEMO',
+      'la busqueda por nombre encuentra el lead propio');
+  }
+  const buscaAjeno = await positive(
+    'vend1 busca por nombre un lead de otro subarbol',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_texto: 'ANA TORRES',
+    }),
+  );
+  if (buscaAjeno) {
+    check((buscaAjeno.data ?? []).length === 0,
+      'la busqueda jamas alcanza un lead fuera del ambito');
+  }
+  const buscaTelefono = await positive(
+    'vend1 busca por telefono (3+ digitos)',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_texto: '987654322',
+    }),
+  );
+  if (buscaTelefono) {
+    const filas = buscaTelefono.data ?? [];
+    check(filas.length === 1 && filas[0].nombre_completo === 'MARIA LOPEZ DEMO',
+      'la busqueda por telefono encuentra el lead propio');
+  }
+  // La rama de DIGITOS es un OR distinto al del nombre: necesita sus propias
+  // negativas o un fallo ahi (p. ej. que dejara de estar bajo la RLS) pasaria
+  // entero por delante de los tests de nombre.
+  const telefonoAjeno = await positive(
+    'vend1 busca el telefono exacto de un lead de otro subarbol',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_texto: '987654324',
+    }),
+  );
+  if (telefonoAjeno) {
+    check((telefonoAjeno.data ?? []).length === 0,
+      'el telefono exacto de un lead ajeno no lo saca del ambito');
+  }
+  // El prefijo que comparten los 5 telefonos del fixture: la prueba de que el
+  // recorte ocurre ANTES del filtro, no despues.
+  const prefijoComun = await positive(
+    'vend1 busca el prefijo comun a toda la cartera del fixture',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_texto: '98765432',
+    }),
+  );
+  if (prefijoComun) {
+    const nombres = (prefijoComun.data ?? []).map((f) => f.nombre_completo).sort();
+    check(nombres.length === EXPECTED_LEAD_NAMES.vend1.length
+      && nombres.every((n, i) => n === EXPECTED_LEAD_NAMES.vend1[i]),
+      'un prefijo que casa con TODA la tabla sigue devolviendo solo su ambito',
+      JSON.stringify({ recibidos: nombres, esperados: EXPECTED_LEAD_NAMES.vend1 }));
+  }
+  // `%` y `_` son LITERALES del usuario, no comodines suyos: si no se
+  // escaparan, 'A%' traeria media cartera.
+  const comodin = await positive(
+    'gerencia busca un texto con comodines de LIKE',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200, p_texto: 'A%' }),
+  );
+  if (comodin) {
+    check((comodin.data ?? []).length === 0,
+      'los comodines de LIKE del texto se tratan como literales');
+  }
+
+  // ── Denegaciones duras: sin membresia viva no hay lista vacia, hay 42501 ───
+  for (const key of ['vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `${key} recibe 42501 en cartera_pagina_fn`,
+      sessions[key].client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
+      ['42501'],
+    );
+  }
+
+  // ── Parametros invalidos: 22023 con su mensaje, nunca un 42501 enmascarado ─
+  await expectExpectedFailure(
+    'cartera_pagina_fn rechaza p_limite=0',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 0 }),
+    ['22023'], /p_limite invalido/i,
+  );
+  await expectExpectedFailure(
+    'cartera_pagina_fn rechaza p_limite=201',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 201 }),
+    ['22023'], /p_limite invalido/i,
+  );
+  await expectExpectedFailure(
+    'cartera_pagina_fn rechaza un cursor a medias',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_antes_de: new Date().toISOString(),
+    }),
+    ['22023'], /cursor incompleto/i,
+  );
+  await expectExpectedFailure(
+    'cartera_pagina_fn rechaza una etapa fuera del catalogo',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50, p_etapa: 'perdido' }),
+    ['22023'], /p_etapa invalido/i,
+  );
+  await expectExpectedFailure(
+    'cartera_pagina_fn rechaza una busqueda de 1 caracter',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50, p_texto: 'a' }),
+    ['22023'], /p_texto invalido/i,
+  );
+  await expectExpectedFailure(
+    'cartera_pagina_fn rechaza sin_asignar junto a un vendedor',
+    gerencia.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50, p_sin_asignar: true, p_vendedor_id: seed.profileIdByKey.vend1,
+    }),
+    ['22023'], /filtro contradictorio/i,
+  );
+  // Los EXTREMOS validos: probar solo los rechazos deja sin cubrir que el
+  // rango aceptado lo sea de verdad (un `< 1` mal escrito rechazaria el 1).
+  for (const limite of [1, 200]) {
+    await positive(
+      `cartera_pagina_fn acepta p_limite=${limite}`,
+      gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: limite }),
+    );
+  }
+  // Los OTROS dos metacaracteres de LIKE (`%` ya se probo arriba).
+  for (const patron of ['A_', 'A\\']) {
+    const literal = await positive(
+      `gerencia busca el texto literal ${JSON.stringify(patron)}`,
+      gerencia.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200, p_texto: patron }),
+    );
+    if (literal) {
+      check((literal.data ?? []).length === 0,
+        `${JSON.stringify(patron)} se busca como literal, no como patron`);
+    }
+  }
+  // Un cursor VALIDO pero de una fila ajena no es una puerta: sigue paginando
+  // sobre el ambito propio, nunca sobre el del dueno del cursor.
+  const anaAjena = seed.leadByName.get('ANA TORRES DEMO');
+  const cursorAjeno = await positive(
+    'vend1 pagina con el cursor de un lead que no puede ver',
+    sessions.vend1.client.schema('crm').rpc('cartera_pagina_fn', {
+      p_limite: 50,
+      p_antes_de: anaAjena.actualizado_en,
+      p_antes_id: anaAjena.id,
+    }),
+  );
+  if (cursorAjeno) {
+    const nombres = (cursorAjeno.data ?? []).map((f) => f.nombre_completo);
+    check(nombres.every((n) => EXPECTED_LEAD_NAMES.vend1.includes(n)),
+      'un cursor ajeno no amplia el ambito de la pagina',
+      JSON.stringify(nombres));
+  }
+
+  // ── El coordinador: 0 filas, pero NO un error ─────────────────────────────
+  // Es la mitad que da sentido a la guardia de admision. Sin esta asercion, la
+  // comparacion "vacio == vacio" del bucle de arriba pasa sin probar nada.
+  const coordinador = await positive(
+    'coordinador ejecuta cartera_pagina_fn (pasa la guardia)',
+    sessions.coordinador.client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
+  );
+  if (coordinador) {
+    check((coordinador.data ?? []).length === 0,
+      'el coordinador recibe 0 filas y NO un 42501 (su ambito de leads es ∅ por diseno)');
+  }
+
+  // ── ultimo_contacto_en: mismo valor para todos los que ven el lead ─────────
+  // La cabecera de la migracion AFIRMA que el lateral no diverge porque
+  // actividades_select es co-extensiva con leads_select. Esto lo comprueba: un
+  // contacto real registrado por el vendedor debe verse identico desde su
+  // supervisor y desde gerencia.
+  const maria = seed.leadByName.get('MARIA LOPEZ DEMO');
+  const contacto = await positive(
+    'vend1 registra una llamada realizada sobre su lead',
+    sessions.vend1.client.schema('crm').from('actividades').insert({
+      creado_por: sessions.vend1.user.id,
+      detalle: 'F2 CONTACTO TRANSIENT',
+      id: TRANSIENT_IDS.carteraContactoActividad,
+      lead_id: maria.id,
+      tipo: 'llamada_realizada',
+    }).select('id, creado_en').single(),
+  );
+  if (contacto) {
+    const sellos = new Map();
+    for (const key of ['vend1', 'sup1', 'gerencia']) {
+      const pagina = await positive(
+        `${key} relee la cartera tras el contacto`,
+        sessions[key].client.schema('crm').rpc('cartera_pagina_fn', { p_limite: 200 }),
+      );
+      if (!pagina) continue;
+      const fila = (pagina.data ?? []).find((f) => f.id === maria.id);
+      sellos.set(key, fila?.ultimo_contacto_en ?? null);
+    }
+    const valores = [...sellos.values()];
+    check(valores.length === 3 && valores.every((v) => v !== null),
+      'el contacto real llena ultimo_contacto_en (ya no es null)',
+      JSON.stringify([...sellos]));
+    check(new Set(valores.map((v) => (v === null ? 'null' : Date.parse(v)))).size === 1,
+      'vendedor, supervisor y gerencia ven EXACTAMENTE el mismo ultimo contacto',
+      JSON.stringify([...sellos]));
+  }
+}
+
 async function testAnon(seed) {
   console.log('\n— Acceso anonimo —');
   const anon = createClient(
@@ -5398,6 +5784,11 @@ async function testAnon(seed) {
   await expectExplicitAuthorizationDenied(
     'anon no ejecuta el timeline del ambito',
     anon.schema('crm').rpc('actividades_del_ambito_fn'),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no ejecuta la cartera paginada por keyset',
+    anon.schema('crm').rpc('cartera_pagina_fn', { p_limite: 50 }),
     ['42501', 'PGRST202'],
   );
   await expectExplicitAuthorizationDenied(
@@ -5528,6 +5919,7 @@ async function main() {
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
       await testMetricasConversionEquipo(sessions, verifiedSeed);
+      await testCarteraKeyset(sessions, verifiedSeed);
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);
       await testBankingBoundary(sessions, verifiedSeed);

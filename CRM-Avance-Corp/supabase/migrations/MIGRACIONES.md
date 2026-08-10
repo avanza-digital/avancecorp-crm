@@ -1065,3 +1065,142 @@ leídos adyacentes) · oráculo TX ampliado (M10–M15: dos criterios de vencida
 deterministas —26 h—, alarma de renovación con bajas, `sin_asesor` invisible
 para supervisor, cola global con GUCs `oraculo.*` calculados como postgres
 —inmunes a residuos—, 42501 del ajeno, tríada ACL de las 5 tocadas).
+
+---
+
+## F2 tramo 1 — cursor keyset de la cartera (2026-08-10)
+
+Primer tramo de la fase F2 del plan de escalabilidad: la cartera deja de
+descargarse entera para recortarse en el navegador. Una RPC pagina por keyset
+`(actualizado_en desc, id asc)` con los tres filtros (etapa / vendedor / texto)
+resueltos en el servidor, y la UI cambia de páginas numeradas a «Cargar más»
+—con cursor no existe «la página 7», existe «lo siguiente a lo que ya tengo», y
+saltar a una arbitraria exigiría el `count: 'exact'` que esta fase elimina.
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260810141953 | 20260810145041 | crm_cartera_keyset | ✅ **EN PROD 2026-08-10** (branch `f2-cartera-keyset` → gate RLS **732/732** (675 + 57 casos F2) → oráculo `CARTERA_KEYSET_TX_OK` → advisors **0 ERROR** (seguridad y rendimiento; la función no engrosa siquiera el WARN definer-ejecutable, ver abajo) → trigger `trg_equipo_validar_usuarios_jerarquia` reactivado (`tgenabled='O'`, 0 triggers en disable) antes del merge → merge → verificado en prod (md5 de `prosrc` `437a9ef581ba4bdd5e5975fdd8ed538e` idéntico branch↔prod, `prosecdef=false`, `stable`, `search_path=""`, ACL exacta `{authenticated}`) → branch borrado). |
+
+**`crm.cartera_pagina_fn(p_limite, p_antes_de, p_antes_id, p_etapa,
+p_vendedor_id, p_sin_asignar, p_texto)` — `returns table` de 25 columnas** (las
+24 de `COLUMNAS_LEAD` más `ultimo_contacto_en`).
+
+### La decisión del ciclo: SECURITY INVOKER, y por qué rompe el patrón
+
+Las 8 RPC de F1 son `security definer` porque devuelven AGREGADOS: números que
+no identifican a nadie, y re-implementar el predicado de visibilidad es el
+precio de agregarlos de una pasada. Esta devuelve **filas de leads con PII**
+(nombre, teléfono, DNI, fecha de nacimiento). Con `definer`, un solo error en el
+predicado copiado abriría la cartera entera de la empresa a cualquier vendedor;
+con `invoker` la única fuente de verdad del alcance es `leads_select` — la misma
+policy que ya recortaba la lectura que esta función sustituye.
+
+Se conserva la **guardia de admisión 42501** (uid nulo o ajeno al CRM) para que
+el contrato de denegación siga siendo uniforme y un revocado no reciba una lista
+vacía indistinguible de «no tienes leads» (P04: revocado ≠ ajeno al CRM). O sea:
+**admisión propia, alcance de la RLS**.
+
+La auditoría (`auditor-rls`) confirmó la tesis con el SQL en la mano: no hay
+camino por el que devuelva una fila que `leads_select` no dé, y
+`actividades_select` es **co-extensiva** con `leads_select` (literalmente el
+mismo predicado envuelto en un `exists`), así que `ultimo_contacto_en` no puede
+mentir por asimetría de RLS. Efecto colateral bueno: al no ser definer, es la
+primera RPC del CRM que **no aparece** en el WARN `authenticated_security_
+definer_function_executable` que comparten las otras 92.
+
+⚠️ Nota que hay que recordar el día que se toque el ACL: con `invoker`, los
+grants **por columna** de `crm.leads` sí importarían (el chequeo se hace contra
+el ACL del invocante). Hoy ese ACL es de TABLA, así que no hay columna invisible
+— pero si algún día se pasa a grants por columna, esta RPC se rompe con
+`permission denied` mientras las definer de F1 seguirían funcionando.
+
+### El hallazgo MAYOR de la auditoría, y su medición
+
+El recorte de ámbito llega desde la policy como `vendedor_id in (select
+private.vendedor_ids_visibles(...))`: un SubPlan hasheado, es decir **filtro,
+nunca index qual**. Sin nada más, un vendedor con 20 leads sobre un millón
+obligaría a recorrer el índice global hasta juntar 50 coincidencias EN CADA
+PÁGINA — justo el trabajo que F2 existe para matar. El cuerpo captura el array
+de visibles una vez y **repite el predicado como `= any(...)`** (misma técnica
+que la tanda 2 de F1). Es redundante a propósito y la asimetría es lo que lo
+hace seguro: bajo `invoker`, un error ahí solo puede OCULTAR filas.
+
+**Medido con EXPLAIN en el branch, bajo sesión `authenticated` real** (no como
+`postgres`, que no ve la RLS):
+- gerencia / lector global → `Index Scan using leads_orden_cartera_idx` (el
+  orden se sirve por índice; la RLS queda como Filter).
+- vendedor → `Index Scan using idx_leads_vendedor_creado_en` con **Index Cond**
+  sobre `vendedor_id` (ya no Filter) + Sort del subconjunto propio. Sin la pista
+  el ámbito no habría llegado nunca al índice.
+
+### Divergencias deliberadas (documentadas también en la cabecera del archivo)
+
+1. **Teléfono/DNI exigen 3 dígitos** (el filtro local viejo reaccionaba desde 1):
+   `%9%` sobre dos columnas es un escaneo completo en cada tecla. El **nombre**
+   se acepta desde 2 caracteres, por compatibilidad con `listarLeads`.
+2. `%`, `_` y `\` del usuario se **escapan**: son literales que se teclean, no
+   comodines que pueda inyectar. Los `ilike` declaran `escape` explícito para no
+   depender de `standard_conforming_strings`.
+3. **No se filtra `activo = true`** — igual que `listarLeadsDelAmbito`: se confía
+   en la RLS. Consecuencia anotada y NO corregida de tapadillo: el **directorio**
+   (lector global) ve soft-borrados en las filas que sus tiles no cuentan. Es el
+   comportamiento de hoy; alinearlo cambiaría lo que ve un rol de auditoría sin
+   que nadie lo haya pedido.
+4. **Coordinador**: sus tiles cuentan los sin-dueño de la cola global y aquí
+   recibe 0 filas. No es visible en producto — ese rol tiene `verLeads: false` y
+   la vista `cartera` no se le abre; su destino es «Repartir». Comprobado antes
+   de darlo por bueno, que es la lección del ciclo anterior.
+
+### El keyset ordena por una columna MUTABLE
+
+`actualizado_en` se reescribe en cada UPDATE. Un lead editado durante el scroll
+puede **repetirse** (el front deduplica por id) o **saltarse** (si cruza hacia
+delante del cursor, no aparece en las páginas siguientes). Lo segundo es
+indetectable desde el cliente y se acepta igual: cerrarlo exigiría congelar un
+snapshot, o sea servir datos viejos. Quien acaba de tocar ese lead es quien lo
+mueve, y lo tiene delante en la primera página.
+
+### Verificación
+
+- **Auditoría adversarial previa** (`auditor-rls`): 0 BLOQUEANTES de seguridad;
+  4 MAYORES (ledger ausente, la pista de ámbito, la falta de oráculo TX, y la
+  cobertura de la rama de dígitos), 3 MEDIOS y 6 MENORES — todos aplicados o
+  documentados aquí.
+- **Matriz `testCarteraKeyset`** (`test-rls.mjs`, 6 roles): oráculo = el propio
+  SELECT del actor leído adyacente; prefijo fila a fila y en orden; paginación de
+  2 en 2 sin repetidos ni huecos; filtros contra su propio SELECT; el filtro por
+  un vendedor ajeno devuelve vacío **porque la RLS recortó antes**; el prefijo
+  telefónico común a TODA la tabla sigue devolviendo solo el ámbito propio; un
+  **cursor válido pero ajeno** no amplía nada; el coordinador recibe **0 filas y
+  no 42501**; `ultimo_contacto_en` contrastado contra el max de actividades de
+  contacto que ve el propio actor, con su check de no vacuidad; y el mismo
+  contacto leído por vendedor, supervisor y gerencia da **el mismo instante**.
+- **Oráculo `test-cartera-keyset.sql`** (token `CARTERA_KEYSET_TX_OK`, todo en
+  rollback): lo que la matriz no puede con el seed — el **empate exacto de
+  `actualizado_en`** (4 leads con el mismo sello: el caso que el desempate por id
+  existe para resolver), el recorrido completo de 2 en 2 reconstruyendo el
+  conjunto, `prosecdef=false` aseverado sobre `pg_proc` (sin esto, un
+  `create or replace` futuro que heredara el `definer` de las hermanas de F1
+  pasaría inadvertido), la ACL, la ventana de 45 d, `ultimo_contacto_en` con una
+  NOTA posterior al contacto (si el lateral tomara la última fila del timeline,
+  devolvería la nota), los tres metacaracteres de LIKE como literales, los seis
+  22023 y el 42501 del ajeno.
+- **Front**: `npm run check` **1564** ✔ (+42) · e2e **81** ✔ (los 4 specs nuevos
+  de cartera quedan bajo el skip de `FUNCIONES_LEADS_APROBADAS`, escritos ya
+  contra el contrato nuevo para que resuciten probando la cartera que existe).
+- `database.types.ts`: la firma se añadió **A MANO** (deuda conocida: `gen:types`
+  con la CLI 2.113 reformatea el archivo entero y rompe 100+ tipos).
+
+### Trampas del ciclo que conviene no volver a pagar
+
+- **El gate NO es re-ejecutable sobre la misma base**: la 2.ª corrida arrastró
+  los leads transitorios de la 1.ª y las dos aserciones que cuentan filas de
+  `directorio` fallaron por acumulación (7 esperados, 33 vistos). Se limpiaron
+  los no-fixture por SQL (`lead_asignaciones` primero por FK, con
+  `session_replication_role=replica`) y se re-sembró.
+- **Un fixture no es un invariante**: la primera versión aseveraba
+  `ultimo_contacto_en === null` «porque las actividades del seed son notas» —
+  cierto al arrancar la suite, falso al final: tests anteriores registran
+  contactos reales sobre ese mismo lead. Se reemplazó por un oráculo
+  autoconsistente. Un test que depende de que nadie más toque los datos no es un
+  test, es una carrera.

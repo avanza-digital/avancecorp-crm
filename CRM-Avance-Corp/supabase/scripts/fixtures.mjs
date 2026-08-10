@@ -389,6 +389,10 @@ export const TRANSIENT_IDS = Object.freeze({
   crossTeamLead: randomUUID(),
   directoryActivity: randomUUID(),
   crossTeamActivity: randomUUID(),
+  // F2: un CONTACTO real (no una nota) para probar que `ultimo_contacto_en` de
+  // cartera_pagina_fn se llena, y que los tres roles que ven el lead ven la
+  // MISMA fecha (co-extensividad de actividades_select con leads_select).
+  carteraContactoActividad: randomUUID(),
   portalClientLead: randomUUID(),
   triggerAssignedInsertLead: randomUUID(),
   triggerSellerChangeLead: randomUUID(),

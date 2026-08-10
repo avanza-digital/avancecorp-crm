@@ -385,6 +385,15 @@ export interface Lead {
    * insistencia contra un "No Insista". Opcional: el modo demo no lo trae.
    */
   no_contactar?: boolean | null
+  /**
+   * Último CONTACTO real del lead (los 5 tipos de TIPOS_CONTACTO; una nota o
+   * una reasignación NO cuentan) — el dato del semáforo del kanban. Solo lo
+   * sirve la página keyset de la cartera (`crm.cartera_pagina_fn`, F2): el
+   * store carga el ámbito sin él y lo deriva del timeline completo. Opcional
+   * por eso, y porque `null` significa «nadie lo ha contactado jamás», que es
+   * distinto de «no lo sé».
+   */
+  ultimo_contacto_en?: string | null
 }
 
 export interface Miembro {

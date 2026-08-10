@@ -50,6 +50,11 @@ import {
   type Titular,
   type TitularInput,
 } from '@/lib/clientes-tipos'
+import {
+  TAMANO_PAGINA_CARTERA,
+  normalizarBusquedaCartera,
+  textoBuscable,
+} from '@/lib/cartera-keyset'
 import { TIPOS_DOCUMENTO_K } from '@/lib/documento'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type {
@@ -114,7 +119,6 @@ export type { DisponibilidadLead, ResultadoCreacionLeadAtomica } from '@/lib/dis
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
-const MAX_BUSQUEDA = 80
 
 const COLUMNAS_LEAD = [
   'id',
@@ -276,23 +280,13 @@ function enteroSeguro(valor: number, minimo: number, maximo: number): number {
 }
 
 /**
- * PostgREST `.or()` recibe una mini-sintaxis, no parámetros independientes.
- * Usamos una allowlist pequeña (letras, números, espacios y guiones) para que
- * el texto del usuario solo pueda ser un patrón ILIKE, nunca parte de la
- * expresión lógica. Los dígitos se conservan aparte para teléfono/DNI.
+ * Normalización del texto de búsqueda de la cartera. Vive en
+ * `lib/cartera-keyset` porque desde F2 la comparten TRES sitios que deben
+ * coincidir o la pantalla miente: esta capa (que decide si el filtro viaja al
+ * servidor), el espejo demo y la RPC. Se conserva el nombre viejo para
+ * `listarLeads` —la reserva dormida— y sus tests MSW.
  */
-export function normalizarBusquedaPostgrest(valor: string | undefined): {
-  texto: string
-  digitos: string
-} {
-  const crudo = (valor ?? '').normalize('NFKC').trim().slice(0, MAX_BUSQUEDA)
-  const texto = crudo
-    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-  const digitos = crudo.replace(/\D/g, '').slice(0, 15)
-  return { texto, digitos }
-}
+export const normalizarBusquedaPostgrest = normalizarBusquedaCartera
 
 function aNumero(valor: number | string | null): number | null {
   if (valor == null) return null
@@ -477,6 +471,130 @@ export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]
     )
   }
   return items
+}
+
+// ── Cartera paginada por CURSOR KEYSET (F2) ───────────────────────────────────
+// Sustituye a `listarLeadsDelAmbito` en la pantalla Cartera: nada de `range`
+// con `count: 'exact'` (que obliga al servidor a contar la tabla entera en cada
+// página) ni de tope mudo. Los filtros viajan TIPADOS a la RPC — el cursor lo
+// valida Postgres, no la allowlist de `normalizarBusquedaPostgrest`, que sigue
+// aquí solo para normalizar lo que teclea el usuario.
+
+export interface FiltrosCartera {
+  etapa?: Etapa | 'todas'
+  vendedorId?: string | 'todos' | 'sin_asignar'
+  texto?: string
+}
+
+/** Posición exacta en el orden `(actualizado_en desc, id asc)`. */
+export interface CursorCartera {
+  actualizadoEn: string
+  id: string
+}
+
+export interface PaginaCartera {
+  items: Lead[]
+  /** `null` = no hay más páginas; nunca se infiere de `items.length`. */
+  cursor: CursorCartera | null
+}
+
+const LeadCarteraRowSchema = v.object({
+  ...LeadRowSchema.entries,
+  ultimo_contacto_en: v.nullable(v.string()),
+})
+
+/** Lo MÍNIMO para poder avanzar: si una fila no lo cumple, no hay cursor honesto. */
+const CursorRowSchema = v.object({
+  id: v.string(),
+  actualizado_en: v.string(),
+})
+
+export async function listarCarteraPagina(
+  filtros: FiltrosCartera,
+  cursor: CursorCartera | null,
+  signal?: AbortSignal,
+): Promise<PaginaCartera> {
+  const texto = textoBuscable(filtros.texto)
+  // Se pide UNA fila de más: es lo que distingue "hay más" de "justo cabía",
+  // sin gastar una petición extra que vuelva vacía al final de la lista.
+  const argumentos: Record<string, unknown> = { p_limite: TAMANO_PAGINA_CARTERA + 1 }
+  if (cursor) {
+    argumentos.p_antes_de = cursor.actualizadoEn
+    argumentos.p_antes_id = cursor.id
+  }
+  if (filtros.etapa && filtros.etapa !== 'todas') argumentos.p_etapa = filtros.etapa
+  if (filtros.vendedorId === 'sin_asignar') {
+    argumentos.p_sin_asignar = true
+  } else if (filtros.vendedorId && filtros.vendedorId !== 'todos') {
+    argumentos.p_vendedor_id = filtros.vendedorId
+  }
+  // El servidor RECHAZA (22023) un texto por debajo del mínimo: quien decide si
+  // el filtro viaja es `textoBuscable`, la MISMA regla que aplica el espejo demo.
+  if (texto !== null) argumentos.p_texto = texto
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('cartera_pagina_fn', argumentos)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    // 42501 NO es «se cayó el servidor»: es la guardia de admisión de la RPC
+    // diciendo que esta cuenta no pertenece al CRM (P04: revocado ≠ ajeno). Con
+    // el mensaje genérico, un offboarding vivido como avería mandaría a alguien
+    // a reintentar durante horas.
+    const fallo = error.code === '42501'
+      ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
+      : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
+    // Sin texto ni IDs del filtro: pueden contener PII.
+    registrarError('crm.leads.pagina_fallida', fallo, {
+      etapa: filtros.etapa ?? 'todas',
+      filtraVendedor: Boolean(filtros.vendedorId && filtros.vendedorId !== 'todos'),
+      tieneBusqueda: texto !== null,
+      conCursor: cursor != null,
+    })
+    throw fallo
+  }
+
+  const crudas = Array.isArray(data) ? data : []
+  const hayMas = crudas.length > TAMANO_PAGINA_CARTERA
+  const ventana = hayMas ? crudas.slice(0, TAMANO_PAGINA_CARTERA) : crudas
+
+  const items: Lead[] = []
+  let descartadas = 0
+  for (const cruda of ventana) {
+    const r = v.safeParse(LeadCarteraRowSchema, cruda)
+    if (r.success) {
+      items.push({ ...aLead(r.output), ultimo_contacto_en: r.output.ultimo_contacto_en })
+    } else {
+      descartadas += 1
+    }
+  }
+  if (descartadas > 0) {
+    registrarError(
+      'crm.leads.pagina_filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+      { descartadas },
+    )
+  }
+
+  // El cursor sale de la ÚLTIMA fila CRUDA de la ventana, no de la última
+  // válida: si se descartara la de la cola, avanzar desde la anterior repetiría
+  // esa fila en la página siguiente — y si se descartaran todas, la lista se
+  // cortaría en seco fingiendo que ya no hay nada.
+  let siguiente: CursorCartera | null = null
+  if (hayMas) {
+    const ultima = v.safeParse(CursorRowSchema, ventana.at(-1))
+    if (ultima.success) {
+      siguiente = { actualizadoEn: ultima.output.actualizado_en, id: ultima.output.id }
+    } else {
+      registrarError(
+        'crm.leads.pagina_sin_cursor',
+        new CrmApiError('La última fila de la página no permite calcular el cursor', 'CURSOR_CONTRACT'),
+      )
+    }
+  }
+
+  return { items, cursor: siguiente }
 }
 
 // ── Roster del equipo con NOMBRES (RPC SECURITY DEFINER equipo_visible_fn) ─────

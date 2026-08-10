@@ -1125,6 +1125,48 @@ export interface Database {
           comentario: string | null
         }[]
       }
+      /** F2 — Página de la cartera por cursor keyset (actualizado_en desc, id
+       *  asc). SECURITY INVOKER: el alcance lo pone la policy leads_select.
+       *  Firma añadida A MANO: `gen:types` con la CLI 2.113 reformatea el
+       *  archivo entero y rompe 100+ tipos (deuda anotada 2026-08-09). */
+      cartera_pagina_fn: {
+        Args: {
+          p_limite?: number
+          p_antes_de?: string | null
+          p_antes_id?: string | null
+          p_etapa?: EtapaDb | null
+          p_vendedor_id?: string | null
+          p_sin_asignar?: boolean
+          p_texto?: string | null
+        }
+        Returns: {
+          id: string
+          nombre_completo: string
+          telefono: string
+          correo: string | null
+          dni: string | null
+          genero: GeneroDb | null
+          fecha_nacimiento: string | null
+          distrito: string | null
+          origen: OrigenDb
+          etapa: EtapaDb
+          motivo_descarte: MotivoDescarteDb | null
+          monto_estimado: number // numeric — PostgREST puede serializar string
+          moneda: MonedaDb
+          categoria_interes: CategoriaInteresDb | null
+          vendedor_id: string | null
+          asignado_supervisor_id: string | null
+          creado_en: string
+          tenencia_desde: string | null
+          convertido_en: string | null
+          contrato_id: string | null
+          actualizado_en: string
+          activo: boolean
+          nota: string | null
+          no_contactar: boolean
+          ultimo_contacto_en: string | null
+        }[]
+      }
       supervisores_para_reparto: {
         Args: Record<string, never>
         Returns: {
