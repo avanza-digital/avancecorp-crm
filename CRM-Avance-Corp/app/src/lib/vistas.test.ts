@@ -146,3 +146,31 @@ describe('sanearVista — expulsión por URL', () => {
     expect(sanearVista('config-productos', 'gerencia', false, 'superadmin')).toBe('config-productos')
   })
 })
+
+describe('dónde puede vivir una función nueva del supervisor (decisión #10)', () => {
+  // Esta suite nace de un error real: el ranking del supervisor se montó dentro
+  // de «Hoy», y en producción un supervisor NO ve «Hoy» —`FUNCIONES_LEADS_APROBADAS`
+  // está en false y esa vista pertenece al mundo de leads—, así que la función
+  // quedó invisible para su único destinatario. Los tests de render no lo
+  // detectaron porque montan el componente saltándose el router.
+  //
+  // La regla que dejan escrita: antes de colgar algo de una vista, comprobar que
+  // el rol al que va dirigido PUEDE ABRIRLA con el gate de leads CERRADO.
+  const LEADS_CERRADOS = false
+
+  it('un supervisor NO puede abrir «hoy» con el gate de leads cerrado', () => {
+    expect(vistaPermitida('hoy', 'supervisor', LEADS_CERRADOS)).toBe(false)
+  })
+
+  it('un supervisor SÍ puede abrir «equipo»: por eso vive ahí su ranking', () => {
+    expect(vistaPermitida('equipo', 'supervisor', LEADS_CERRADOS)).toBe(true)
+  })
+
+  it('y «mi-cartera», su otra pantalla viva en producción', () => {
+    expect(vistaPermitida('mi-cartera', 'supervisor', LEADS_CERRADOS)).toBe(true)
+  })
+
+  it('gerencia sí conserva «hoy» aunque el gate esté cerrado (su ranking sigue ahí)', () => {
+    expect(vistaPermitida('hoy', 'gerencia', LEADS_CERRADOS)).toBe(true)
+  })
+})

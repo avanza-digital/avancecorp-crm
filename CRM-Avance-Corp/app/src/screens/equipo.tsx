@@ -33,6 +33,11 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { moneyK } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
+import { adaptarConversionEquipo } from '@/lib/metricas-conversiones-equipo'
+import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
+import { useMetricasConversionesEquipo } from '@/data/crm-queries'
+import { periodoInicialGerencia, semanticaMetaMensual } from '@/components/gerencia/periodo'
+import { RankingVendedoresPanel } from './hoy/ranking-vendedores'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
@@ -422,7 +427,16 @@ function MiniCola({ items, total, max = 5 }: { items: ItemCola[]; total: number;
 // ── Vista SUPERVISOR — su equipo, su bandeja, su cola ─────────────────────────
 
 function EquipoSupervisor(): JSX.Element {
-  const { ambito, actividadesDelAmbito, tareas, equipo } = useCRMData()
+  const {
+    ambito,
+    actividadesDelAmbito,
+    tareas,
+    equipo,
+    objetivos,
+    objetivosError,
+    cumplimientoMetas,
+    recargar,
+  } = useCRMData()
   const { yo } = useAuth()
   // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola (en real esos
   // vencimientos llegan resueltos dentro de cola_accion_fn).
@@ -435,6 +449,29 @@ function EquipoSupervisor(): JSX.Element {
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (no hay cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
   const { tc } = useTipoCambio()
+  // ── Ranking de MI equipo (decisión #10) ──
+  // Vive AQUÍ y no en «Hoy» porque en producción `FUNCIONES_LEADS_APROBADAS`
+  // está en false: un supervisor real NO ve el mundo de leads, así que «Hoy» no
+  // existe para él. «Gestión de equipo» sí la ve —no está en VISTAS_LEADS— y es
+  // además donde ya mira a su gente.
+  const equipoConversion = useMemo(
+    () => identidadesEquipoConversion(ambito.vendedores, equipo),
+    [ambito.vendedores, equipo],
+  )
+  const periodoRanking = useMemo(() => periodoInicialGerencia(), [])
+  const metaMensual = useMemo(() => {
+    const semantica = semanticaMetaMensual(periodoRanking)
+    return objetivosError ? { ...semantica, comparable: false, errorCarga: true } : semantica
+  }, [objetivosError, periodoRanking])
+  const conversionEquipo = useMetricasConversionesEquipo(
+    !yo?.demo,
+    periodoRanking.desde,
+    periodoRanking.hasta,
+  )
+  const rankingEquipo = useMemo(
+    () => adaptarConversionEquipo(conversionEquipo.data, equipoConversion),
+    [conversionEquipo.data, equipoConversion],
+  )
   const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
@@ -559,6 +596,31 @@ function EquipoSupervisor(): JSX.Element {
       <p className="text-[11px] text-muted-foreground">
         Los números corresponden solo a tu equipo — cada rol ve únicamente lo que le corresponde.
       </p>
+
+      {/* Ranking de MI equipo (decisión #10). Vive en esta pantalla y NO en «Hoy»
+          porque en producción FUNCIONES_LEADS_APROBADAS está en false: un
+          supervisor real no ve el mundo de leads y «Hoy» no existe para él.
+          «Gestión de equipo» sí la ve (no está en VISTAS_LEADS) y es donde ya
+          mira a su gente. */}
+      <div className="gerencia-inteligencia">
+        <RankingVendedoresPanel
+          datos={null}
+          equipo={equipoConversion}
+          metasVendedores={objetivos.porVendedor ?? {}}
+          cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}
+          metaMensual={metaMensual}
+          tc={tc}
+          cargando={false}
+          error={null}
+          onReintentar={() => void recargar()}
+          titulo="Ranking de mi equipo"
+          etiquetaAlcance="Mi equipo"
+          tabInicial="capital-total"
+          conversionDisponible={!yo?.demo}
+          adaptadaExterna={rankingEquipo}
+        />
+      </div>
+
     </div>
   )
 }

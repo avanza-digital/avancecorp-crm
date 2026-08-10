@@ -48,7 +48,7 @@ import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
-import { useMetricasAgenda, useMetricasConversionesEquipo } from '@/data/crm-queries'
+import { useMetricasAgenda } from '@/data/crm-queries'
 import { money, moneyK } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
@@ -59,11 +59,7 @@ import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { totalEnSoles } from '@/lib/capital-unificado'
-import { adaptarConversionEquipo } from '@/lib/metricas-conversiones-equipo'
 import { useTipoCambio } from '@/lib/tipo-cambio'
-import { RankingVendedoresPanel } from './ranking-vendedores'
-import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { periodoInicialGerencia, semanticaMetaMensual } from '@/components/gerencia/periodo'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -119,31 +115,6 @@ export function HoySupervisor(): JSX.Element {
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni
   // dedupe), así que uno por fila multiplicaría las llamadas a la edge.
   const { tc } = useTipoCambio()
-  // Identidades y meta del mes para el ranking de MI equipo. El periodo es el mes
-  // en curso (el supervisor no tiene selector de rango como gerencia), y un fallo
-  // al cargar objetivos lo deja no-comparable en vez de comparar contra el vacío.
-  const equipoConversion = useMemo(
-    () => identidadesEquipoConversion(ambito.vendedores, equipo),
-    [ambito.vendedores, equipo],
-  )
-  const metaMensual = useMemo(() => {
-    const semantica = semanticaMetaMensual(periodoInicialGerencia())
-    return objetivosError ? { ...semantica, comparable: false, errorCarga: true } : semantica
-  }, [objetivosError])
-  // Decisión #10 (b2): la conversión de SU equipo la sirve la RPC scopeada. En
-  // demo no se consulta (no hay backend) y el panel degrada a la pestaña de
-  // capital, igual que antes de existir la RPC.
-  const periodoRanking = useMemo(() => periodoInicialGerencia(), [])
-  const conversionEquipo = useMetricasConversionesEquipo(
-    !yo?.demo,
-    periodoRanking.desde,
-    periodoRanking.hasta,
-  )
-  const rankingEquipo = useMemo(
-    () => adaptarConversionEquipo(conversionEquipo.data, equipoConversion),
-    [conversionEquipo.data, equipoConversion],
-  )
-
   // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
   // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
   const d = useMemo(() => {
@@ -682,34 +653,6 @@ export function HoySupervisor(): JSX.Element {
             )}
           </Card>
         </div>
-      </div>
-
-      {/* ── Ranking de MI equipo por capital total (decisión #10 de Miguel) ──
-           Va dentro de «Hoy» y no como vista propia del menú: así no toca router,
-           vistas, roles ni topbar. Solo la pestaña de capital: la de conversión
-           necesita una RPC scopeada al subárbol que todavía no existe (ver el
-           prop `conversionDisponible`), y ofrecer un tab que siempre falla sería
-           mentirle al supervisor. Las tres fuentes que alimentan el capital
-           —roster, metas y cumplimiento— YA llegan recortadas a su subárbol. */}
-      <div className="gerencia-inteligencia">
-        <RankingVendedoresPanel
-          datos={null}
-          equipo={equipoConversion}
-          metasVendedores={objetivos.porVendedor ?? {}}
-          cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}
-          metaMensual={metaMensual}
-          tc={tc}
-          cargando={vendedoresOp.cargando}
-          error={null}
-          onReintentar={() => void recargar()}
-          titulo="Ranking de mi equipo"
-          etiquetaAlcance="Mi equipo"
-          tabInicial="capital-total"
-          // La pestaña de conversión ya tiene su RPC scopeada al subárbol; en
-          // demo no hay backend, así que allí se sigue ofreciendo solo capital.
-          conversionDisponible={!yo?.demo}
-          adaptadaExterna={rankingEquipo}
-        />
       </div>
 
       <p className="text-[11px] text-muted-foreground">

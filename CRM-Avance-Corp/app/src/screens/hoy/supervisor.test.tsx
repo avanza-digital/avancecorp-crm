@@ -23,7 +23,6 @@ let OBJETIVOS_ERROR = false
 let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
 let CUMPLIMIENTO_ERROR = false
 const recargar = vi.fn()
-let CONVERSION_EQUIPO: unknown = undefined
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -47,16 +46,6 @@ vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => null }))
 vi.mock('@/data/crm-queries', () => ({
   useMetricasAgenda: () => ({
     data: undefined,
-    error: null,
-    isPending: false,
-    isFetching: false,
-    refetch: () => {},
-  }),
-  // Decisión #10 (b2): el ranking de conversión del equipo. `data: undefined`
-  // deja a los vendedores en «indisponible», que es lo correcto sin respuesta:
-  // un 0 % se leería como «no convierte».
-  useMetricasConversionesEquipo: () => ({
-    data: CONVERSION_EQUIPO,
     error: null,
     isPending: false,
     isFetching: false,
@@ -262,32 +251,5 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
     expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(3)
     expect(screen.getByText(/no cuenta como cumplimiento/)).toBeInTheDocument()
-  })
-})
-
-describe('Hoy · supervisor — ranking de mi equipo (decisión #10)', () => {
-  it('monta el ranking acotado a SU equipo, no el general de la empresa', () => {
-    montar()
-
-    expect(screen.getByText('Ranking de mi equipo')).toBeInTheDocument()
-    expect(screen.getByText('Mi equipo')).toBeInTheDocument()
-    // El título de gerencia no debe filtrarse a esta pantalla.
-    expect(screen.queryByText('Ranking general de vendedores')).not.toBeInTheDocument()
-  })
-
-  it('ofrece AMBAS pestañas: la conversión ya tiene su RPC scopeada al subárbol', () => {
-    // Antes se ocultaba porque `metricas_conversiones_fn` deniega al supervisor y
-    // relajarla habría sido una fuga. Con `metricas_conversiones_equipo_fn` en
-    // producción, el tab se ofrece porque de verdad puede servir datos.
-    montar()
-
-    expect(screen.getByRole('tab', { name: /Conversión general/i })).toBeInTheDocument()
-    expect(screen.getByRole('tab', { name: /Capital total/i })).toBeInTheDocument()
-  })
-
-  it('abre directamente en la pestaña de capital, la única que puede servir', () => {
-    montar()
-
-    expect(screen.getByRole('tab', { name: /Capital total/i })).toHaveAttribute('aria-selected', 'true')
   })
 })
