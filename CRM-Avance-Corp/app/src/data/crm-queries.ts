@@ -9,6 +9,7 @@ import {
   listarResumenCartera,
   listarResumenReparto,
   listarMetricasConversiones,
+  listarMetricasConversionesEquipo,
   listarMetricasReuniones,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
@@ -63,6 +64,11 @@ export const crmQueryKeys = {
     [...crmQueryKeys.metricas(), 'agenda-equipo', desde, hasta] as const,
   metricasConversiones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'conversiones', desde, hasta] as const,
+  // Clave PROPIA y no una variante de la anterior: el payload es distinto (el del
+  // equipo no trae los agregados de empresa) y el ÁMBITO depende de quién pregunta.
+  // Compartir clave serviría a un supervisor la foto global cacheada por gerencia.
+  metricasConversionesEquipo: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'conversiones-equipo', desde, hasta] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
@@ -344,6 +350,21 @@ export function useMetricasConversiones(
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasConversiones(desde, hasta),
     cargar: (signal) => listarMetricasConversiones(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
+  })
+}
+
+/** Ranking de conversión del equipo del actor (decisión #10, parte b2). */
+export function useMetricasConversionesEquipo(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+) {
+  return useMetricaPorPeriodo({
+    queryKey: crmQueryKeys.metricasConversionesEquipo(desde, hasta),
+    cargar: (signal) => listarMetricasConversionesEquipo(desde, hasta, signal),
     habilitada,
     desde,
     hasta,

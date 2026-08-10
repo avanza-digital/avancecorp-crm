@@ -48,7 +48,7 @@ import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
-import { useMetricasAgenda } from '@/data/crm-queries'
+import { useMetricasAgenda, useMetricasConversionesEquipo } from '@/data/crm-queries'
 import { money, moneyK } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
@@ -59,6 +59,7 @@ import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { totalEnSoles } from '@/lib/capital-unificado'
+import { adaptarConversionEquipo } from '@/lib/metricas-conversiones-equipo'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { RankingVendedoresPanel } from './ranking-vendedores'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
@@ -129,6 +130,19 @@ export function HoySupervisor(): JSX.Element {
     const semantica = semanticaMetaMensual(periodoInicialGerencia())
     return objetivosError ? { ...semantica, comparable: false, errorCarga: true } : semantica
   }, [objetivosError])
+  // Decisión #10 (b2): la conversión de SU equipo la sirve la RPC scopeada. En
+  // demo no se consulta (no hay backend) y el panel degrada a la pestaña de
+  // capital, igual que antes de existir la RPC.
+  const periodoRanking = useMemo(() => periodoInicialGerencia(), [])
+  const conversionEquipo = useMetricasConversionesEquipo(
+    !yo?.demo,
+    periodoRanking.desde,
+    periodoRanking.hasta,
+  )
+  const rankingEquipo = useMemo(
+    () => adaptarConversionEquipo(conversionEquipo.data, equipoConversion),
+    [conversionEquipo.data, equipoConversion],
+  )
 
   // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
   // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
@@ -691,7 +705,10 @@ export function HoySupervisor(): JSX.Element {
           titulo="Ranking de mi equipo"
           etiquetaAlcance="Mi equipo"
           tabInicial="capital-total"
-          conversionDisponible={false}
+          // La pestaña de conversión ya tiene su RPC scopeada al subárbol; en
+          // demo no hay backend, así que allí se sigue ofreciendo solo capital.
+          conversionDisponible={!yo?.demo}
+          adaptadaExterna={rankingEquipo}
         />
       </div>
 

@@ -71,6 +71,10 @@ import {
   type MetricasConversiones,
 } from '@/lib/metricas-conversiones'
 import {
+  MetricasConversionesEquipoSchema,
+  type MetricasConversionesEquipo,
+} from '@/lib/metricas-conversiones-equipo'
+import {
   MetricasReunionesSchema,
   type MetricasReuniones,
 } from '@/lib/metricas-reuniones'
@@ -2454,6 +2458,50 @@ export async function listarMetricasConversiones(
       'METRICAS_CONVERSIONES_CONTRACT',
     )
     registrarError('crm.metricas.conversiones_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Ranking de conversión del EQUIPO del actor (decisión #10, parte b2).
+ *
+ * Hermana de `listarMetricasConversiones`, pero con su PROPIO esquema: el de
+ * gerencia exige cinco agregados de toda la empresa que esta RPC no calcula a
+ * propósito —calcularlos sería la fuga que la función existe para evitar—, así
+ * que validar este payload con aquel fallaría siempre.
+ *
+ * El servidor decide el `alcance`: «equipo» para el supervisor, «global» para
+ * gerencia y el lector. El front no lo infiere de su propio rol.
+ */
+export async function listarMetricasConversionesEquipo(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<MetricasConversionesEquipo> {
+  if (!periodoMetricasValido(desde, hasta)) {
+    throw new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_conversiones_equipo_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.conversiones_equipo_fallido')
+  const resultado = v.safeParse(MetricasConversionesEquipoSchema, data)
+  if (
+    !resultado.success
+    || resultado.output.periodo.desde !== desde
+    || resultado.output.periodo.hasta !== hasta
+  ) {
+    const fallo = new CrmApiError(
+      'El ranking de conversión del equipo no tiene el formato esperado.',
+      'METRICAS_CONVERSIONES_EQUIPO_CONTRACT',
+    )
+    registrarError('crm.metricas.conversiones_equipo_fuera_de_contrato', fallo)
     throw fallo
   }
   return resultado.output

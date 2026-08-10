@@ -12,6 +12,8 @@ import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   adaptarConversionVendedores,
+  type ConversionVendedoresAdaptada,
+  type DetalleRankeable,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
   type RankingCapitalTotalVendedores,
@@ -54,6 +56,15 @@ interface RankingVendedoresPanelProps {
    * entonces, ofrecer un tab que siempre falla sería mentir.
    */
   conversionDisponible?: boolean
+  /**
+   * Colección YA adaptada, para quien no consume el payload de gerencia.
+   *
+   * El supervisor recibe el suyo de `metricas_conversiones_equipo_fn`, cuyo
+   * payload es distinto a propósito (sin los agregados de empresa). En vez de
+   * enseñar a este panel dos formas de payload, se le pasa el resultado del
+   * adaptador correspondiente y él solo clasifica.
+   */
+  adaptadaExterna?: ConversionVendedoresAdaptada<DetalleRankeable>
 }
 
 type TipoRanking = 'conversion' | 'capital-total'
@@ -108,7 +119,7 @@ function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: ()
   )
 }
 
-function RankingConversion({ ranking }: { ranking: RankingConversionVendedores }): JSX.Element {
+function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<DetalleRankeable> }): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
   return (
@@ -198,7 +209,7 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores }
 // ranking y las filas de equipo desde la decisión #10. Aquí va con `tono="gerencia"`
 // porque los tokens --gi-* solo resuelven dentro de .gerencia-inteligencia.
 
-function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores }): JSX.Element {
+function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores<DetalleRankeable> }): JSX.Element {
   const filas = ranking.conPuesto
   return (
     <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total">
@@ -294,12 +305,14 @@ export function RankingVendedoresPanel({
   etiquetaAlcance = 'Equipo completo',
   tabInicial = 'conversion',
   conversionDisponible = true,
+  adaptadaExterna,
 }: RankingVendedoresPanelProps): JSX.Element {
   const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
-  const adaptada = useMemo(
+  const adaptadaPropia = useMemo(
     () => adaptarConversionVendedores(datos, equipo),
     [datos, equipo],
   )
+  const adaptada = adaptadaExterna ?? adaptadaPropia
   const rankingConversion = useMemo(
     () => clasificarRankingConversion(adaptada.vendedores),
     [adaptada.vendedores],

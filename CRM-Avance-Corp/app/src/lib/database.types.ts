@@ -1056,6 +1056,15 @@ export interface Database {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json
       }
+      // Decisión #10 (b2): ranking de conversión RECALCULADO sobre el ámbito del
+      // actor. Supervisor = su subárbol recursivo; gerencia y lector = la empresa;
+      // el resto recibe 42501. El payload lo valida
+      // `lib/metricas-conversiones-equipo.ts` con su propio esquema: el de la
+      // global exige cinco agregados empresa-wide que esta RPC no calcula.
+      metricas_conversiones_equipo_fn: {
+        Args: { p_desde: string; p_hasta: string }
+        Returns: Json
+      }
       metricas_reuniones_fn: {
         Args: { p_desde: string; p_hasta: string }
         Returns: Json

@@ -197,8 +197,8 @@ export function clasificarRankingConversion<D extends DetalleRankeable>(
   return { conPuesto, sinMuestra, indisponibles }
 }
 
-export interface CapitalTotalVendedor {
-  vendedor: ConversionVendedorAdaptada
+export interface CapitalTotalVendedor<D extends DetalleRankeable = DetalleConversionVendedor> {
+  vendedor: ConversionVendedorAdaptada<D>
   capitalPen: number | null
   capitalUsd: number | null
   /** PEN + USD convertido al TC; sin TC, solo PEN (el USD se rotula aparte). */
@@ -211,7 +211,7 @@ export interface CapitalTotalVendedor {
   estadoCapital: EstadoCapitalVendedor
 }
 
-export type CapitalTotalConPuesto = CapitalTotalVendedor & {
+export type CapitalTotalConPuesto<D extends DetalleRankeable = DetalleConversionVendedor> = CapitalTotalVendedor<D> & {
   capitalPen: number
   capitalUsd: number
   capitalTotal: number
@@ -220,7 +220,7 @@ export type CapitalTotalConPuesto = CapitalTotalVendedor & {
   estadoCapital: 'comparable'
 }
 
-export type CapitalTotalSinMeta = CapitalTotalVendedor & {
+export type CapitalTotalSinMeta<D extends DetalleRankeable = DetalleConversionVendedor> = CapitalTotalVendedor<D> & {
   capitalPen: number
   capitalUsd: number
   capitalTotal: number
@@ -229,10 +229,10 @@ export type CapitalTotalSinMeta = CapitalTotalVendedor & {
   estadoCapital: 'sin_meta'
 }
 
-export interface RankingCapitalTotalVendedores {
-  conPuesto: CapitalTotalConPuesto[]
-  sinMeta: CapitalTotalSinMeta[]
-  indisponibles: CapitalTotalVendedor[]
+export interface RankingCapitalTotalVendedores<D extends DetalleRankeable = DetalleConversionVendedor> {
+  conPuesto: CapitalTotalConPuesto<D>[]
+  sinMeta: CapitalTotalSinMeta<D>[]
+  indisponibles: CapitalTotalVendedor<D>[]
   /** TC realmente aplicado; null = el USD quedó FUERA del total (jamás se inventa tasa). */
   tc: number | null
 }
@@ -246,17 +246,17 @@ export interface RankingCapitalTotalVendedores {
  * La meta también unifica (objetivo USD legado convertido; hoy las metas están
  * normalizadas a PEN, así que suele ser solo el objetivo en soles).
  */
-export function clasificarRankingCapitalTotal(
-  vendedores: readonly ConversionVendedorAdaptada[],
+export function clasificarRankingCapitalTotal<D extends DetalleRankeable>(
+  vendedores: readonly ConversionVendedorAdaptada<D>[],
   metas: ObjetivosPorVendedor,
   cumplimientos: Record<string, CumplimientoVendedor>,
   tc: number | null,
-): RankingCapitalTotalVendedores {
+): RankingCapitalTotalVendedores<D> {
   // La política de conversión vive en lib/capital-unificado (fuente única): la
   // comparten este ranking y las filas de equipo desde la decisión #10.
   const tcValido = tcAplicable(tc)
 
-  const filas = vendedores.map<CapitalTotalVendedor>((vendedor) => {
+  const filas = vendedores.map<CapitalTotalVendedor<D>>((vendedor) => {
     // Un cumplimiento SIN detalles no es «S/ 0 confirmado»: es un payload que la
     // frontera RPC no debería producir — se degrada a indisponible, no a puesto
     // con cero (hallazgo Codex: el tipo público no garantiza la matriz completa).
@@ -292,7 +292,7 @@ export function clasificarRankingCapitalTotal(
   })
 
   const conPuesto = filas
-    .filter((fila): fila is CapitalTotalConPuesto => (
+    .filter((fila): fila is CapitalTotalConPuesto<D> => (
       fila.estadoCapital === 'comparable'
       && fila.capitalTotal != null
       && fila.metaCapital != null
@@ -302,7 +302,7 @@ export function clasificarRankingCapitalTotal(
       || (b.capitalTotal ?? -1) - (a.capitalTotal ?? -1)
       || porNombre(a.vendedor, b.vendedor))
   const sinMeta = filas
-    .filter((fila): fila is CapitalTotalSinMeta => (
+    .filter((fila): fila is CapitalTotalSinMeta<D> => (
       fila.estadoCapital === 'sin_meta'
       && fila.capitalTotal != null
       && fila.metaCapital == null
