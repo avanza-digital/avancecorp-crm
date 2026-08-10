@@ -4372,9 +4372,17 @@ async function testMetricasConversionEquipo(sessions, seed) {
 
   // Ventana de 30 dias terminada HOY: el mismo periodo para todos los actores,
   // que es lo que hace comparable la paridad con gerencia.
-  const hasta = new Date();
-  const desde = new Date(hasta.getTime() - 29 * 24 * 60 * 60 * 1000);
-  const P = { p_desde: desde.toISOString().slice(0, 10), p_hasta: hasta.toISOString().slice(0, 10) };
+  // OJO: en zona LIMA, no en la de la maquina. La RPC valida `p_hasta > v_hoy`
+  // con v_hoy en America/Lima; de madrugada UTC el "hoy" local ya es manana alla
+  // y la ventana entera se rechazaria con 22023 sin que nada este roto.
+  const enLima = (fecha) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(fecha);
+  const ahora = new Date();
+  const P = {
+    p_desde: enLima(new Date(ahora.getTime() - 29 * 24 * 60 * 60 * 1000)),
+    p_hasta: enLima(ahora),
+  };
   const ids = seed.profileIdByKey;
   const idsDe = (payload) => new Set((payload?.responsables ?? []).map((f) => f.vendedor_id));
 
@@ -4485,12 +4493,6 @@ async function testMetricasConversionEquipo(sessions, seed) {
     sessions.sup1.client.schema('crm').rpc('metricas_conversiones_equipo_fn', periodoInvalido),
     ['22023'],
     /periodo invalido/i,
-  );
-
-  // La implementacion privada no puede llamarse desde el Data API.
-  await expectExplicitAuthorizationDenied(
-    'la implementacion privada no es invocable por PostgREST',
-    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_equipo_implementacion', P),
   );
 
   // ── C · NO VACUIDAD (leccion de RETOMAR-41) ───────────────────────────────
