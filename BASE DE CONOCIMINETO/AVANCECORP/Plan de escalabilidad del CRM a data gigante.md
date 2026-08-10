@@ -294,12 +294,33 @@ fail-closed con `version:1` de cinturón, clave `resumen-reparto` bajo
   valor de un tile con el timeout por defecto de `findBy*` es FLAKY bajo
   cobertura — hay que esperar el valor asentado.
 
+**Barrido del aviso de degradación ✅ (2026-08-09, después del deploy de la
+tanda 3 — PENDIENTE DE DEPLOY):** la franja «No se pudieron cargar los
+indicadores…» vivía CLONADA en 9 sitios con tres defectos clonados con ella.
+Se extrajo a `components/common/aviso-degradacion.tsx` (fuente única, 0 clones
+restantes) y se migraron los 9 consumidores. Corregido: contraste del texto
+(4,25:1 → 6,34:1; era el único texto que explica por qué faltan los números),
+el foco que caía a `<body>` al desmontarse el «Reintentar», y el nombre
+accesible que hacía indistinguibles los dos avisos de Pipeline.
+**La lección del ciclo (dos revisiones independientes, Codex y `revisor-a11y`,
+coincidieron):** el primer rescate de foco era CÓDIGO MUERTO —colgaba de dos
+`requestAnimationFrame` tras el click, pero el reintento es un refetch de red y
+el aviso se desmonta cientos de ms después—, y el test lo bendecía porque
+resolvía el reintento DENTRO del click, el único caso que no existe en
+producción. Regla: **un test de comportamiento asíncrono que resuelve síncrono
+no prueba nada**. Además la unificación había propagado a 8 pantallas un anillo
+de foco de 1,76:1 donde antes estaba el contorno nativo del navegador: al
+unificar hay que comprobar que se propaga la MEJOR variante, no la última.
+`role="alert"` pasó a `status` con la región montada antes que el contenido.
+Check 1460 · e2e 81. Queda anotado como mejora NO hecha: confirmación tras el
+reintento (hoy «reintenté y volvió a fallar» es mudo) y `aria-busy` en el
+botón; y como deuda previa, `ring-ring/40` está por debajo de 3:1 en 24 sitios
+más del CRM.
+
 Sigue **F2 keyset**. Pendientes menores que viajan con esa fase:
 `descartes_45d` como campo del RPC, `useLead(id)` para el borde del tope 2000,
-la decisión de Miguel sobre extender el total unificado a las filas de equipo
-(Decisiones abiertas #10), y el barrido de contraste/foco de los 5 banners de
-degradación hermanos (cartera, pipeline ×2, equipo, hoy/supervisor,
-hoy/vendedor) que comparten los defectos ya corregidos en repartir.
+y la decisión de Miguel sobre extender el total unificado a las filas de equipo
+(Decisiones abiertas #10).
 
 ### Inventario a migrar (11 métricas, todas con archivo:línea en el borrador)
 
