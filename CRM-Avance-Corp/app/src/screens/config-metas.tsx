@@ -3,7 +3,7 @@ import { ArrowRight, ChevronLeft, ChevronRight, Copy, RefreshCw, Save, Target, T
 import { toast } from 'sonner'
 import { ConfiguracionShell } from '@/components/config/configuracion-shell'
 import { Button } from '@/components/ui/button'
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useConfiguracionMetas, usePublicarMetas } from '@/data/crm-config-queries'
@@ -12,6 +12,7 @@ import { mensajeDeError } from '@/data/crm-api'
 import type { ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { digitosDeMonto, money, montoDesdeTexto, montoEditable } from '@/lib/format'
 import { periodoLima } from '@/lib/objetivos'
+import { cn } from '@/lib/utils'
 
 function desplazarPeriodo(periodo: string, meses: number): string {
   const anio = Number(periodo.slice(0, 4))
@@ -122,53 +123,71 @@ function MetaVendedor({
   }, [texto])
 
   return (
-    <Card>
-      <CardHeader className="border-b border-border/70 pb-4">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <CardTitle>{vendedor.nombre}</CardTitle>
-            <p className="mt-1 text-xs text-muted-foreground">Supervisor: {vendedor.supervisor_nombre}</p>
-          </div>
-          <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-3 py-2 text-xs text-foreground sm:max-w-xs">
-            Una sola meta mensual, sin dividirla entre Nuevo, Renovación o Upgrade.
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="pt-5">
-        <div className="max-w-md">
-          <Label htmlFor={`meta-total-${vendedor.vendedor_id}`}>Meta mensual total</Label>
-          <div className="relative mt-1.5">
-            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-extrabold text-primary">S/</span>
-            <Input
-              ref={inputRef}
-              id={`meta-total-${vendedor.vendedor_id}`}
-              aria-label={`Meta mensual total de ${vendedor.nombre}`}
-              type="text"
-              inputMode="numeric"
-              autoComplete="off"
-              placeholder="0"
-              value={texto}
-              disabled={!editable}
-              onChange={(evento) => {
-                const el = evento.currentTarget
-                caretRef.current = digitosDeMonto(
-                  el.value.slice(0, el.selectionStart ?? el.value.length),
-                ).length
-                const limpio = montoEditable(el.value)
-                setTexto(limpio)
-                onMetaTotal(montoDesdeTexto(limpio))
-              }}
-              className="h-12 pl-10 text-lg font-extrabold tabular-nums"
-            />
-          </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">
-            Monto total esperado para el analista durante el mes seleccionado.
-            {total > 0 && ` Son ${money(total, 'PEN')}.`}
-          </p>
-        </div>
-      </CardContent>
-    </Card>
+    <li className="flex items-center justify-between gap-4 border-t border-border/60 px-4 py-2 first:border-t-0">
+      {/* El nombre hace de etiqueta visible; el campo lleva su `aria-label`
+          completo, que lo contiene como prefijo (2.5.3 Label in Name). */}
+      <p className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">
+        {vendedor.nombre}
+      </p>
+      <div className="relative w-40 shrink-0 sm:w-48">
+        <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-xs font-extrabold text-primary">S/</span>
+        <Input
+          ref={inputRef}
+          id={`meta-total-${vendedor.vendedor_id}`}
+          aria-label={`Meta mensual total de ${vendedor.nombre}`}
+          type="text"
+          inputMode="numeric"
+          autoComplete="off"
+          placeholder="0"
+          value={texto}
+          // `readOnly`, no `disabled`: a este rol el shell le promete que puede
+          // AUDITAR la configuración, y el dato auditado es justo el importe —
+          // `disabled:opacity-50` lo dejaba en 3.08:1, atenuado como si fuera
+          // adorno. Así conserva contraste, foco y lectura del valor.
+          readOnly={!editable}
+          aria-readonly={!editable}
+          onChange={(evento) => {
+            const el = evento.currentTarget
+            caretRef.current = digitosDeMonto(
+              el.value.slice(0, el.selectionStart ?? el.value.length),
+            ).length
+            const limpio = montoEditable(el.value)
+            setTexto(limpio)
+            onMetaTotal(montoDesdeTexto(limpio))
+          }}
+          // `scroll-mb-20`: el aviso pegajoso de «cambios sin publicar» ocupa
+          // la banda inferior, y al tabular entre 17 campos el navegador dejaba
+          // el enfocado justo debajo, tapado entero (WCAG 2.4.11).
+          className="h-9 scroll-mb-20 pl-9 text-right text-sm font-extrabold tabular-nums read-only:bg-muted/50 read-only:text-foreground/80"
+        />
+      </div>
+    </li>
   )
+}
+
+/**
+ * Cada bloque es un equipo, y su subtotal es lo que de verdad se le está
+ * pidiendo a ese supervisor este mes.
+ *
+ * Se agrupa por `supervisor_id`, NO por nombre: la RPC ordena por
+ * `supervisor_nombre`, así que dos supervisores homónimos salen adyacentes con
+ * sus analistas intercalados, y un corte por nombre los fundiría en un grupo
+ * con el subtotal equivocado. El Map conserva el orden de primera aparición,
+ * que es el que ya trae el servidor.
+ */
+function agruparPorSupervisor(vendedores: ConfiguracionMetas['vendedores']) {
+  const porId = new Map<string, {
+    id: string
+    supervisor: string
+    filas: ConfiguracionMetas['vendedores']
+  }>()
+  for (const vendedor of vendedores) {
+    const grupo = porId.get(vendedor.supervisor_id)
+      ?? { id: vendedor.supervisor_id, supervisor: vendedor.supervisor_nombre, filas: [] }
+    grupo.filas.push(vendedor)
+    porId.set(vendedor.supervisor_id, grupo)
+  }
+  return [...porId.values()]
 }
 
 /** Cada motivo es un arreglo distinto; decir «sin supervisor» a los tres manda
@@ -400,14 +419,57 @@ export function ConfigMetas() {
         <Card><CardContent className="py-10 text-center text-sm text-muted-foreground">No hay vendedores activos en el roster de este período.</CardContent></Card>
       )}
 
-      {borrador?.vendedores.map((vendedor) => (
-        <MetaVendedor
-          key={vendedor.vendedor_id}
-          vendedor={vendedor}
-          editable={editable && !publicar.isPending}
-          onMetaTotal={(valor) => editarVendedor(vendedor.vendedor_id, (fila) => fijarMetaTotal(fila, valor))}
-        />
-      ))}
+      {/* Una sola tarjeta con la lista entera: antes cada analista traía su
+          propia Card con cabecera y dos textos repetidos —los mismos 17
+          veces—, y el mes no cabía en varias pantallas de scroll. */}
+      {borrador && borrador.vendedores.length > 0 && (
+        <Card className="overflow-hidden">
+          {/* Encabezado que cuelga la lista del módulo en vez de dejar a los
+              equipos como hermanos del aviso de excluidos. Invisible: el
+              rediseño existía para quitar chrome, no para añadirlo. */}
+          <h3 className="sr-only">Metas por analista, agrupadas por supervisor</h3>
+          {agruparPorSupervisor(borrador.vendedores).map((grupo, indice) => (
+            // `role="group"` y no una `section` con nombre: los lectores
+            // anuncian el equipo AL ENTRAR EL FOCO —que es como se rellenan 17
+            // importes, tabulando— y además evita convertir cada supervisor en
+            // un landmark más de la página.
+            <section key={grupo.id} role="group" aria-labelledby={`equipo-${grupo.id}`}>
+              <div className={cn(
+                'flex items-baseline justify-between gap-3 border-b border-border/60 bg-muted/40 px-4 py-1.5',
+                // El borde superior separa un equipo del anterior; en el
+                // primero no hay nada que separar.
+                indice > 0 && 'border-t',
+              )}
+              >
+                <h4
+                  id={`equipo-${grupo.id}`}
+                  className="truncate text-[11px] font-extrabold uppercase tracking-[0.06em] text-muted-foreground"
+                >
+                  {grupo.supervisor}
+                </h4>
+                {/* El subtotal por equipo es lo que de verdad se le pide a ese
+                    supervisor: sin él, la lista es solo una lista. */}
+                <p className="shrink-0 text-xs font-extrabold tabular-nums text-primary">
+                  {money(grupo.filas.reduce((suma, fila) => suma + metaTotal(fila), 0), 'PEN')}
+                </p>
+              </div>
+              <ul aria-labelledby={`equipo-${grupo.id}`}>
+                {grupo.filas.map((vendedor) => (
+                  <MetaVendedor
+                    key={vendedor.vendedor_id}
+                    vendedor={vendedor}
+                    editable={editable && !publicar.isPending}
+                    onMetaTotal={(valor) => editarVendedor(
+                      vendedor.vendedor_id,
+                      (fila) => fijarMetaTotal(fila, valor),
+                    )}
+                  />
+                ))}
+              </ul>
+            </section>
+          ))}
+        </Card>
+      )}
 
       {dirty && editable && (
         <p className="sticky bottom-4 rounded-xl border border-warning/30 bg-card px-4 py-3 text-center text-xs font-semibold text-warning shadow-[var(--shadow-pop)]" role="status">

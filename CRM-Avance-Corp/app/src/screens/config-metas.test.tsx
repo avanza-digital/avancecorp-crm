@@ -134,7 +134,14 @@ describe('ConfigMetas', () => {
     render(<ConfigMetas />)
 
     expect(await screen.findByText(/Solo lectura: puedes auditar/)).toBeInTheDocument()
-    expect(screen.getByLabelText('Meta mensual total de ANA VENDEDORA')).toBeDisabled()
+    // `readOnly`, no `disabled`: al rol que solo audita hay que dejarle LEER el
+    // importe con contraste y poder enfocarlo, no atenuarlo como si fuera
+    // adorno. Lo que no puede es cambiarlo.
+    const campo = screen.getByLabelText('Meta mensual total de ANA VENDEDORA')
+    expect(campo).toHaveAttribute('readonly')
+    expect(campo).toHaveAttribute('aria-readonly', 'true')
+    fireEvent.change(campo, { target: { value: '999999' } })
+    expect(dobles.publicar).not.toHaveBeenCalled()
     expect(screen.queryByRole('button', { name: 'Publicar revisión' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Copiar mes anterior' })).not.toBeInTheDocument()
   })
@@ -259,8 +266,57 @@ describe('ConfigMetas', () => {
 
     fireEvent.change(campo, { target: { value: '1500000' } })
     expect(campo).toHaveValue('1,500,000')
-    // Y el número que viaja al servidor sigue siendo un número, no el texto.
-    expect(screen.getByText(/Son S\/ 1,500,000/)).toBeInTheDocument()
+    // Y sigue siendo un NÚMERO por dentro: el subtotal del supervisor y el
+    // total del equipo suman, no concatenan texto.
+    expect(screen.getAllByText('S/ 1,500,000').length).toBeGreaterThanOrEqual(1)
+  })
+
+  // La pantalla mostraba una tarjeta por analista, con cabecera y dos textos
+  // repetidos idénticos; con 17 analistas el mes no cabía en varias pantallas.
+  it('agrupa a los analistas por supervisor con el subtotal de cada equipo', async () => {
+    dobles.consulta = consultaCon(configuracion({
+      vendedores: [
+        {
+          vendedor_id: ID_VENDEDOR,
+          nombre: 'ANA VENDEDORA',
+          supervisor_id: ID_SUPERVISOR,
+          supervisor_nombre: 'SUPERVISOR UNO',
+          conversion_objetivo: 0,
+          detalles: detalles(10_000),
+        },
+        {
+          vendedor_id: '10000000-0000-4000-8000-000000000002',
+          nombre: 'BEA VENDEDORA',
+          supervisor_id: ID_SUPERVISOR,
+          supervisor_nombre: 'SUPERVISOR UNO',
+          conversion_objetivo: 0,
+          detalles: detalles(5_000),
+        },
+        {
+          vendedor_id: '10000000-0000-4000-8000-000000000003',
+          nombre: 'CARLA VENDEDORA',
+          supervisor_id: '20000000-0000-4000-8000-000000000002',
+          supervisor_nombre: 'SUPERVISOR DOS',
+          conversion_objetivo: 0,
+          detalles: detalles(7_000),
+        },
+      ],
+    }))
+    render(<ConfigMetas />)
+
+    // Un encabezado por equipo, no uno por analista.
+    expect(await screen.findByRole('heading', { name: 'SUPERVISOR UNO' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'SUPERVISOR DOS' })).toBeInTheDocument()
+
+    // detalles(n) pone n en nuevo/PEN y deja 3.000 y 5.000 en las otras dos
+    // dimensiones PEN, que `metaTotal` también suma: cada analista aporta
+    // n + 8.000.
+    expect(screen.getByText('S/ 31,000')).toBeInTheDocument() // 18.000 + 13.000
+    expect(screen.getByText('S/ 15,000')).toBeInTheDocument() // 7.000 + 8.000
+
+    // Y los campos siguen siendo uno por analista.
+    expect(screen.getByLabelText('Meta mensual total de ANA VENDEDORA')).toBeInTheDocument()
+    expect(screen.getByLabelText('Meta mensual total de CARLA VENDEDORA')).toBeInTheDocument()
   })
 
   it('deja borrar el campo sin que reaparezca un 0', async () => {
@@ -274,6 +330,42 @@ describe('ConfigMetas', () => {
     expect(campo).toHaveValue('')
     // El 0 imborrable venía de repintar Number('') tras cada borrado.
     expect(campo).not.toHaveValue('0')
+  })
+
+  // La RPC ordena por NOMBRE de supervisor, así que dos homónimos salen
+  // adyacentes: agrupar por nombre los fundía en un equipo con el subtotal
+  // equivocado, y en silencio. Se agrupa por `supervisor_id`.
+  it('no funde a dos supervisores distintos que se llaman igual', async () => {
+    dobles.consulta = consultaCon(configuracion({
+      vendedores: [
+        {
+          vendedor_id: ID_VENDEDOR,
+          nombre: 'ANA VENDEDORA',
+          supervisor_id: '20000000-0000-4000-8000-00000000000a',
+          supervisor_nombre: 'JORGE PEREZ',
+          conversion_objetivo: 0,
+          detalles: detalles(2_000),
+        },
+        {
+          vendedor_id: '10000000-0000-4000-8000-000000000002',
+          nombre: 'BEA VENDEDORA',
+          supervisor_id: '20000000-0000-4000-8000-00000000000b',
+          supervisor_nombre: 'JORGE PEREZ',
+          conversion_objetivo: 0,
+          detalles: detalles(4_000),
+        },
+      ],
+    }))
+    render(<ConfigMetas />)
+
+    // Dos equipos, no uno: mismo nombre, personas distintas.
+    expect(await screen.findAllByRole('heading', { name: 'JORGE PEREZ' })).toHaveLength(2)
+    // Y cada subtotal es el suyo (n + 8.000), no la suma de los dos.
+    expect(screen.getByText('S/ 10,000')).toBeInTheDocument()
+    expect(screen.getByText('S/ 12,000')).toBeInTheDocument()
+    // 22.000 aparece UNA vez y es el total de la empresa, no un subtotal
+    // fundido: si los dos equipos se hubieran juntado, saldría dos veces.
+    expect(screen.getAllByText('S/ 22,000')).toHaveLength(1)
   })
 
   it('copia el mes anterior sin publicarlo automáticamente', async () => {
