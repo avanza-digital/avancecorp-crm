@@ -244,6 +244,38 @@ describe('ConfigMetas', () => {
     expect(screen.queryByText(/sin meta este mes/)).not.toBeInTheDocument()
   })
 
+  // Reporte de Miguel (2026-08-10): «no hay ni , ni . es dificil pues saber si
+  // es 50 mil o 500 mil ademas de que hay un 0 que no se borra». Las dos cosas
+  // salían del mismo sitio: un `type="number"` con `value` numérico.
+  it('separa los miles mientras se escribe la meta', async () => {
+    render(<ConfigMetas />)
+    const campo = await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')
+
+    fireEvent.change(campo, { target: { value: '50000' } })
+    expect(campo).toHaveValue('50,000')
+
+    fireEvent.change(campo, { target: { value: '500000' } })
+    expect(campo).toHaveValue('500,000')
+
+    fireEvent.change(campo, { target: { value: '1500000' } })
+    expect(campo).toHaveValue('1,500,000')
+    // Y el número que viaja al servidor sigue siendo un número, no el texto.
+    expect(screen.getByText(/Son S\/ 1,500,000/)).toBeInTheDocument()
+  })
+
+  it('deja borrar el campo sin que reaparezca un 0', async () => {
+    render(<ConfigMetas />)
+    const campo = await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')
+
+    fireEvent.change(campo, { target: { value: '80000' } })
+    expect(campo).toHaveValue('80,000')
+
+    fireEvent.change(campo, { target: { value: '' } })
+    expect(campo).toHaveValue('')
+    // El 0 imborrable venía de repintar Number('') tras cada borrado.
+    expect(campo).not.toHaveValue('0')
+  })
+
   it('copia el mes anterior sin publicarlo automáticamente', async () => {
     const user = userEvent.setup()
     render(<ConfigMetas />)
@@ -253,7 +285,9 @@ describe('ConfigMetas', () => {
     await waitFor(() => expect(dobles.obtenerAnterior).toHaveBeenCalledWith(
       '2026-07-01',
     ))
-    expect(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA')).toHaveValue(17_000)
+    // Con separadores: lo copiado se lee igual que lo tecleado.
+    expect(await screen.findByLabelText('Meta mensual total de ANA VENDEDORA'))
+      .toHaveValue('17,000')
     expect(dobles.publicar).not.toHaveBeenCalled()
     expect(dobles.toastSuccess).toHaveBeenCalledWith('Se copiaron las metas de julio de 2026.')
   })

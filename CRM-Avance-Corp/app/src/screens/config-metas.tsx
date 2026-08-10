@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { ArrowRight, ChevronLeft, ChevronRight, Copy, RefreshCw, Save, Target, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfiguracionShell } from '@/components/config/configuracion-shell'
@@ -10,6 +10,7 @@ import { useConfiguracionMetas, usePublicarMetas } from '@/data/crm-config-queri
 import { obtenerConfiguracionMetas, publicacionDesdeConfiguracion } from '@/data/crm-config-api'
 import { mensajeDeError } from '@/data/crm-api'
 import type { ConfiguracionMetas } from '@/lib/metas-versionadas'
+import { digitosDeMonto, money, montoDesdeTexto, montoEditable } from '@/lib/format'
 import { periodoLima } from '@/lib/objetivos'
 
 function desplazarPeriodo(periodo: string, meses: number): string {
@@ -24,11 +25,6 @@ function nombrePeriodo(periodo: string): string {
   const mes = Number(periodo.slice(5, 7))
   return new Intl.DateTimeFormat('es-PE', { month: 'long', year: 'numeric', timeZone: 'UTC' })
     .format(new Date(Date.UTC(anio, mes - 1, 1)))
-}
-
-function aNumero(valor: string): number {
-  const numero = Number(valor)
-  return Number.isFinite(numero) ? numero : 0
 }
 
 function fechaPublicacion(valor: string | null): string {
@@ -93,6 +89,38 @@ function MetaVendedor({
   onMetaTotal: (valor: number) => void
 }) {
   const total = metaTotal(vendedor)
+  // El campo guarda TEXTO, no el número. Con `value={total}` numérico, borrarlo
+  // devolvía '' → Number('') → 0 → se repintaba un 0 imborrable; y con
+  // `type="number"` el navegador prohíbe los separadores de miles, que es justo
+  // lo que hace falta para no confundir 50 000 con 500 000.
+  const [texto, setTexto] = useState(() => montoEditable(String(total || '')))
+  const inputRef = useRef<HTMLInputElement>(null)
+  const caretRef = useRef<number | null>(null)
+
+  // El importe también cambia por fuera (copiar mes anterior, recarga). Se
+  // resincroniza SOLO cuando difiere de lo escrito, para no pisar lo que el
+  // usuario está tecleando ni resucitar el cero.
+  useEffect(() => {
+    if (montoDesdeTexto(texto) !== total) setTexto(montoEditable(String(total || '')))
+  }, [total, texto])
+
+  // Al insertar una coma el texto se desplaza y el cursor saltaría al final,
+  // que es insoportable al corregir un dígito del medio. Se recoloca contando
+  // DÍGITOS a la izquierda, no caracteres.
+  useLayoutEffect(() => {
+    const el = inputRef.current
+    const objetivo = caretRef.current
+    if (!el || objetivo === null) return
+    caretRef.current = null
+    let digitos = 0
+    let pos = 0
+    while (pos < el.value.length && digitos < objetivo) {
+      if (/\d/.test(el.value[pos]!)) digitos += 1
+      pos += 1
+    }
+    el.setSelectionRange(pos, pos)
+  }, [texto])
+
   return (
     <Card>
       <CardHeader className="border-b border-border/70 pb-4">
@@ -112,20 +140,31 @@ function MetaVendedor({
           <div className="relative mt-1.5">
             <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-sm font-extrabold text-primary">S/</span>
             <Input
+              ref={inputRef}
               id={`meta-total-${vendedor.vendedor_id}`}
               aria-label={`Meta mensual total de ${vendedor.nombre}`}
-              type="number"
-              inputMode="decimal"
-              min={0}
-              max={100_000_000}
-              step="1000"
-              value={total}
+              type="text"
+              inputMode="numeric"
+              autoComplete="off"
+              placeholder="0"
+              value={texto}
               disabled={!editable}
-              onChange={(evento) => onMetaTotal(aNumero(evento.target.value))}
+              onChange={(evento) => {
+                const el = evento.currentTarget
+                caretRef.current = digitosDeMonto(
+                  el.value.slice(0, el.selectionStart ?? el.value.length),
+                ).length
+                const limpio = montoEditable(el.value)
+                setTexto(limpio)
+                onMetaTotal(montoDesdeTexto(limpio))
+              }}
               className="h-12 pl-10 text-lg font-extrabold tabular-nums"
             />
           </div>
-          <p className="mt-2 text-[11px] text-muted-foreground">Monto total esperado para el analista durante el mes seleccionado.</p>
+          <p className="mt-2 text-[11px] text-muted-foreground">
+            Monto total esperado para el analista durante el mes seleccionado.
+            {total > 0 && ` Son ${money(total, 'PEN')}.`}
+          </p>
         </div>
       </CardContent>
     </Card>

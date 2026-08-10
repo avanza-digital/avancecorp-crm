@@ -22,6 +22,38 @@ export function numero(
   })
 }
 
+/**
+ * Dígitos de lo que hay tecleado en un campo de importe. Tolera separadores,
+ * espacios, símbolo de moneda y texto pegado desde una hoja de cálculo.
+ */
+export function digitosDeMonto(texto: string): string {
+  return texto.replace(/\D/g, '')
+}
+
+/**
+ * Importe tal y como debe verse MIENTRAS se escribe: `500000` → `500,000`.
+ *
+ * Un campo vacío se queda vacío — es la diferencia entre «todavía no puse
+ * meta» y «la meta es cero», y `type="number"` no sabe distinguirlas: al
+ * borrar el contenido devuelve `''`, que convertido a número es 0 y se repinta
+ * como un `0` imborrable.
+ *
+ * Sin decimales a propósito: las metas del mes son cifras redondas de seis o
+ * siete dígitos, y ahí lo que se confunde es 50 000 con 500 000, no los
+ * céntimos.
+ */
+export function montoEditable(texto: string): string {
+  const digitos = digitosDeMonto(texto).replace(/^0+(?=\d)/, '')
+  if (digitos === '') return ''
+  return Number(digitos).toLocaleString('es-PE', { maximumFractionDigits: 0 })
+}
+
+/** Número que representa un importe tecleado; vacío es 0. */
+export function montoDesdeTexto(texto: string): number {
+  const digitos = digitosDeMonto(texto)
+  return digitos === '' ? 0 : Number(digitos)
+}
+
 export function money(n: number | null | undefined, moneda: Moneda = 'PEN'): string {
   if (n == null || !Number.isFinite(n)) return `${SIMBOLO[moneda]} 0`
   return `${SIMBOLO[moneda]} ${n.toLocaleString('es-PE', { minimumFractionDigits: 0, maximumFractionDigits: 2 })}`
