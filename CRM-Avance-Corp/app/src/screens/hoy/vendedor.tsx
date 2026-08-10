@@ -68,6 +68,7 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
@@ -679,24 +680,16 @@ export function HoyVendedor(): JSX.Element {
         </p>
       </div>
 
-      {Boolean(resumenOp.error || colaOp.error) && !yo?.demo && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar algunos indicadores. Se muestran «—» para no inventar cifras; tu agenda sigue completa.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={() => {
-              if (resumenOp.error) void resumenOp.recargar()
-              if (colaOp.error) void colaOp.recargar()
-            }}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={Boolean(resumenOp.error || colaOp.error) && !yo?.demo}
+        queReintenta="de tus indicadores"
+        onReintentar={() => {
+          if (resumenOp.error) void resumenOp.recargar()
+          if (colaOp.error) void colaOp.recargar()
+        }}
+      >
+        No se pudieron cargar algunos indicadores. Se muestran «—» para no inventar cifras; tu agenda sigue completa.
+      </AvisoDegradacion>
 
       {/* KPIs personales — capital PEN con el USD aparte (nunca sumados).
           Sin cartera NO pintamos una fila de ceros extrabold: vacío honesto que

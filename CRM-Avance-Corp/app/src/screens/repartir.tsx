@@ -54,6 +54,7 @@ import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 
 /** Cuántas filas se muestran por página local ("Mostrar 20 más"). */
@@ -257,8 +258,6 @@ function PanelCola() {
   const refMotivo = useRef(new Map<string, HTMLSelectElement>())
   const refDescartarGhost = useRef(new Map<string, HTMLButtonElement>())
   const refCola = useRef<HTMLDivElement>(null)
-  // Destino del foco cuando el aviso de degradación se desmonta al reintentar.
-  const refPanel = useRef<HTMLDivElement>(null)
   // Reloj VIVO: el tile de espera lo recalcula el servidor cada minuto (el hook
   // reconsulta), así que las filas tienen que envejecer al mismo ritmo o el
   // tile diría «hace 2 días» mientras la fila sigue clavada en «hace 1 día».
@@ -324,47 +323,19 @@ function PanelCola() {
   }, [cargandoResumen, resumen])
 
   return (
-    <div ref={refPanel} tabIndex={-1} className="space-y-5 outline-none">
-      {/* tabIndex={-1}: destino PROGRAMÁTICO del foco cuando el aviso que lo
-          tenía desaparece al reintentar con éxito; no es alcanzable con Tab,
-          por eso el outline-none aquí es legítimo (mismo trato que refCola). */}
+    <div className="space-y-5">
       <StatStrip stats={stats} />
 
-      {/* Degradación honesta (precedente objetivosError): los indicadores dicen
-          «—» y la cola sigue siendo repartible, porque tiene su propia fuente
-          (leads_por_repartir). En demo el hook ya devuelve error null.
-          role="alert" a propósito, igual que los seis banners hermanos ya en
-          producción: la consistencia pesa más que el matiz status/alert, y con
-          retry:false el nodo no se remonta, así que no hay re-anuncio en bucle.
-          El texto va en `warning-text` (ámbar oscuro) porque `muted-foreground`
-          sobre este fondo no llega al 4.5:1 que exige un texto de 12 px. */}
-      {Boolean(resumenOp.error) && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-warning-text"
-        >
-          <span>No se pudieron cargar los indicadores de la cola. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            // El PanelError de la cola tiene OTRO «Reintentar»: sin este
-            // aria-label, el lector de pantalla lista dos botones idénticos
-            // con acciones distintas (el texto visible queda contenido en él).
-            aria-label="Reintentar la carga de los indicadores de la cola"
-            className="rounded font-semibold text-foreground underline-offset-2 hover:underline focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-            onClick={() => {
-              void resumenOp.recargar().then(() => {
-                // Si el reintento funciona, este botón se desmonta con el aviso
-                // y el teclado caería a <body>: se recoge el foco en el panel.
-                requestAnimationFrame(() => {
-                  if (document.activeElement === document.body) refPanel.current?.focus()
-                })
-              })
-            }}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      {/* Los indicadores dicen «—» y la cola sigue siendo repartible, porque
+          tiene su propia fuente (leads_por_repartir). En demo el hook ya
+          devuelve error null, así que no hace falta guardia extra. */}
+      <AvisoDegradacion
+        activo={Boolean(resumenOp.error)}
+        queReintenta="de los indicadores de la cola"
+        onReintentar={() => { void resumenOp.recargar() }}
+      >
+        No se pudieron cargar los indicadores de la cola. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       <Card className="overflow-hidden">
         <SectionHead

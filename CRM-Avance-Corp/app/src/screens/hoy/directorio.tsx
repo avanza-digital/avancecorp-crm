@@ -47,6 +47,7 @@ import {
 } from '@/lib/tipos'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 
 // ── Constantes de la vista ────────────────────────────────────────────────────
 
@@ -153,24 +154,16 @@ export function HoyDirectorio(): JSX.Element {
         </Badge>
       </div>
 
-      {Boolean(resumenOp.error || vendedoresOp.error) && !yo?.demo && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar algunos indicadores de la operación. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={() => {
-              if (resumenOp.error) void resumenOp.recargar()
-              if (vendedoresOp.error) void vendedoresOp.recargar()
-            }}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={Boolean(resumenOp.error || vendedoresOp.error) && !yo?.demo}
+        queReintenta="de los indicadores de la operación"
+        onReintentar={() => {
+          if (resumenOp.error) void resumenOp.recargar()
+          if (vendedoresOp.error) void vendedoresOp.recargar()
+        }}
+      >
+        No se pudieron cargar algunos indicadores de la operación. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       {/* KPIs ejecutivos — servidos por resumen_cartera_fn; sin dato: «—» */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">

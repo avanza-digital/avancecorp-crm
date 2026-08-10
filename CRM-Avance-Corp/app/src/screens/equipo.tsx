@@ -25,6 +25,7 @@ import { Select } from '@/components/ui/select'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
@@ -387,21 +388,13 @@ function EquipoSupervisor(): JSX.Element {
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
 
-      {errorIndicadores && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={reintentarIndicadores}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={errorIndicadores}
+        queReintenta="de los indicadores del equipo"
+        onReintentar={reintentarIndicadores}
+      >
+        No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       {/* Cards de MIS vendedores (orden: capital captado PEN desc) */}
       <Card>
@@ -582,21 +575,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
         </p>
       )}
 
-      {Boolean(vendedoresOp.error) && !yo?.demo && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar las métricas por equipo. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={() => { void vendedoresOp.recargar() }}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={Boolean(vendedoresOp.error) && !yo?.demo}
+        queReintenta="de las métricas por equipo"
+        onReintentar={() => { void vendedoresOp.recargar() }}
+      >
+        No se pudieron cargar las métricas por equipo. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       {/* Supervisores PRIMERO: una tabla comparativa (equipo vs equipo en una
          sola pantalla); el detalle por vendedor se abre bajo demanda. */}

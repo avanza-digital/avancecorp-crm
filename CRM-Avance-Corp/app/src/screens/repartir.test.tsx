@@ -158,7 +158,9 @@ describe('pantalla Repartir leads', () => {
     }
     expect(within(tile('Capital en juego (PEN)')).queryByText('S/ 0')).not.toBeInTheDocument()
 
-    const aviso = screen.getByRole('alert')
+    // `status` y no `alert`: la pantalla queda operable con «—» y no hay nada
+    // urgente que justifique interrumpir la lectura en curso.
+    const aviso = screen.getByRole('status')
     expect(aviso).toHaveTextContent(/No se pudieron cargar los indicadores de la cola/)
     // Nombre accesible distinguible del OTRO «Reintentar» (el del PanelError).
     const reintentar = within(aviso).getByRole('button', {

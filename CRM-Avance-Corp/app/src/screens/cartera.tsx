@@ -8,6 +8,7 @@ import { Avatar } from '@/components/ui/avatar'
 import { LeadHoverCard } from '@/components/app/lead-hover-card'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, SegmentBar, type StatChipData, type Segment } from '@/components/common/stat-strip'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { Paginacion } from '@/components/common/paginacion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
@@ -119,21 +120,13 @@ export function Cartera() {
 
       {/* Degradación honesta (precedente objetivosError): la pantalla vive con
           aviso y «—», sin bloquear la tabla, que tiene su propia fuente. */}
-      {Boolean(resumenOp.error) && !yo?.demo && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar los indicadores de la cartera. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={() => { void resumenOp.recargar() }}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={Boolean(resumenOp.error) && !yo?.demo}
+        queReintenta="de los indicadores de la cartera"
+        onReintentar={() => { void resumenOp.recargar() }}
+      >
+        No se pudieron cargar los indicadores de la cartera. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       {/* Distribución por etapa */}
       <Card>

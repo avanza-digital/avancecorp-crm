@@ -56,6 +56,7 @@ import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 
 // Tope de la cola del equipo: los primeros son la plata (colaDe ya ordena por
 // severidad); el resto vive tras "Ver los N pendientes" para que la Agenda del
@@ -288,21 +289,13 @@ export function HoySupervisor(): JSX.Element {
         />
       </div>
 
-      {errorIndicadores && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={reintentarIndicadores}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={errorIndicadores}
+        queReintenta="de los indicadores del equipo"
+        onReintentar={reintentarIndicadores}
+      >
+        No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       {/* ── Bandeja prioritaria: parkeados por repartir ── */}
       {d.parkeados.length > 0 && (

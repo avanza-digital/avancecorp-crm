@@ -17,6 +17,7 @@ import {
   DropdownSeparator,
 } from '@/components/ui/dropdown-menu'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
+import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { CAT_LABEL, ETAPA_INFO, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
 import { capitalPorMoneda, capitalPrincipal, indexarUltimoContacto } from '@/lib/inteligencia'
 import { semaforoEstancamiento, type SemaforoEtapa } from '@/lib/estancamiento'
@@ -318,39 +319,23 @@ export function Pipeline() {
     <div className="mx-auto max-w-[1440px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
 
-      {Boolean(estadoSla.error) && !yo?.demo && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudo cargar el reloj SLA. Los plazos se ocultan para no mostrar vencimientos incorrectos.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={estadoSla.recargar}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={Boolean(estadoSla.error) && !yo?.demo}
+        queReintenta="de los plazos del reloj SLA"
+        onReintentar={estadoSla.recargar}
+      >
+        No se pudo cargar el reloj SLA. Los plazos se ocultan para no mostrar vencimientos incorrectos.
+      </AvisoDegradacion>
 
       {/* Degradación honesta de los KPIs (precedente objetivosError): el
           tablero sigue operable; solo los chips quedan en «—». */}
-      {Boolean(resumenOp.error) && !yo?.demo && (
-        <div
-          role="alert"
-          className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-warning/30 bg-warning/5 px-3 py-2 text-xs text-muted-foreground"
-        >
-          <span>No se pudieron cargar los indicadores del tablero. Se muestran «—» para no inventar cifras.</span>
-          <button
-            type="button"
-            className="font-semibold text-foreground underline-offset-2 hover:underline"
-            onClick={() => { void resumenOp.recargar() }}
-          >
-            Reintentar
-          </button>
-        </div>
-      )}
+      <AvisoDegradacion
+        activo={Boolean(resumenOp.error) && !yo?.demo}
+        queReintenta="de los indicadores del tablero"
+        onReintentar={() => { void resumenOp.recargar() }}
+      >
+        No se pudieron cargar los indicadores del tablero. Se muestran «—» para no inventar cifras.
+      </AvisoDegradacion>
 
       {/* Filtro por vendedor — supervisor: su equipo; gerencia/directorio: todos */}
       {mostrarFiltro && (

@@ -211,7 +211,7 @@ test('el StatStrip dice lo que dice el SERVIDOR, aunque no cuadre con las filas 
 test('resumen_reparto_fn caída: los tiles degradan a «—» con aviso y la cola sigue repartible', async ({ page }) => {
   const backend = await entrarComoCoordinador(page, { fallarResumenReparto: true })
 
-  await expect(page.getByRole('alert')).toContainText(/No se pudieron cargar los indicadores de la cola/)
+  await expect(page.getByRole('status')).toContainText(/No se pudieron cargar los indicadores de la cola/)
   for (const etiqueta of ['Por repartir', 'Capital en juego (PEN)', 'Capital en juego (USD)', 'Espera más larga']) {
     await expect(page.locator('.ac-lift').filter({ hasText: etiqueta }).getByText('—')).toBeVisible()
   }
