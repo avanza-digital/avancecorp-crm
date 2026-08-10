@@ -2,6 +2,7 @@ import { useMemo, useState, type JSX } from 'react'
 import { AlertTriangle, RefreshCw, Target, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
+import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
 import {
   mensajeMetaNoComparable,
@@ -178,17 +179,9 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores }
  * dentro. La variante sin TC va en navy (no muted): es el aviso que evita leer
  * el total como si incluyera los dólares — hallazgo a11y de contraste.
  */
-function DesgloseMonedas({ pen, usd, tc }: { pen: number; usd: number; tc: number | null }): JSX.Element | null {
-  if (usd <= 0) return null
-  return (
-    <span className={`block text-[11px] font-medium ${tc != null ? 'text-[var(--gi-muted)]' : 'text-[var(--gi-navy)]'}`}>
-      <span className="sr-only">Desglose: </span>
-      {tc != null
-        ? `${money(pen, 'PEN')} + ${money(usd, 'USD')}`
-        : `+ ${money(usd, 'USD')} aparte (sin TC)`}
-    </span>
-  )
-}
+// El desglose vive ahora en components/common/desglose-monedas: lo comparten este
+// ranking y las filas de equipo desde la decisión #10. Aquí va con `tono="gerencia"`
+// porque los tokens --gi-* solo resuelven dentro de .gerencia-inteligencia.
 
 function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedores }): JSX.Element {
   const filas = ranking.conPuesto
@@ -215,11 +208,11 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
                 <td className="max-w-48 px-3 py-3 text-xs font-medium text-[var(--gi-muted)]"><span className="block truncate">{vendedor.supervisorNombre}</span></td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(capitalTotal, 'PEN')}</span>
-                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} />
+                  <DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" />
                 </td>
                 <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">
                   <span className="block">{money(metaCapital, 'PEN')}</span>
-                  <DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} />
+                  <DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" />
                 </td>
                 <td className="px-3 py-3 text-right text-sm font-bold tabular-nums" style={{ color: colorAvance(avance) }}>{pct(avance)}</td>
                 <td className="px-5 py-3" aria-label={`Cumplimiento ${pct(avance)}`}>
@@ -240,8 +233,8 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
               <strong className="text-sm tabular-nums" style={{ color: colorAvance(avance) }}>{pct(avance)}</strong>
             </div>
             <div className="ml-12 mt-3 grid grid-cols-2 gap-3 text-[11px] font-medium text-[var(--gi-muted)]">
-              <span>Logrado <strong className="block text-xs text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} /></span>
-              <span className="text-right">Meta <strong className="block text-xs text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} /></span>
+              <span>Logrado <strong className="block text-xs text-[var(--gi-navy)]">{money(capitalTotal, 'PEN')}</strong><DesgloseMonedas pen={capitalPen} usd={capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
+              <span className="text-right">Meta <strong className="block text-xs text-[var(--gi-navy)]">{money(metaCapital, 'PEN')}</strong><DesgloseMonedas pen={metaPen} usd={metaUsd} tc={ranking.tc} tono="gerencia" /></span>
             </div>
             <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${Math.min(100, avance ?? 0)}%`, background: colorAvance(avance) }} /></div>
           </li>
@@ -254,7 +247,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
           <ul className="mt-2 grid gap-2 sm:grid-cols-2">
             {ranking.sinMeta.map((fila) => (
               <li key={fila.vendedor.vendedorId} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--gi-line)] bg-white px-3 py-2.5">
-                <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalTotal, 'PEN')} confirmado</span><DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} /></span>
+                <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.vendedor.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{money(fila.capitalTotal, 'PEN')} confirmado</span><DesgloseMonedas pen={fila.capitalPen} usd={fila.capitalUsd} tc={ranking.tc} tono="gerencia" /></span>
                 {/* Una meta 100% US$ sin TC NO es «sin meta»: está pendiente de conversión. */}
                 <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">{fila.metaUsd > 0 ? 'Meta en US$ · sin TC' : 'Sin meta'}</span>
               </li>

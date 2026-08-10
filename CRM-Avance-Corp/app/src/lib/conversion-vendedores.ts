@@ -9,7 +9,7 @@ import {
   type CumplimientoVendedor,
   type ObjetivosPorVendedor,
 } from './objetivos'
-import { usdAPen } from './tipo-cambio'
+import { tcAplicable, totalEnSoles } from './capital-unificado'
 
 export type EstadoConversionVendedor = 'comparable' | 'sin_muestra' | 'indisponible'
 
@@ -231,7 +231,9 @@ export function clasificarRankingCapitalTotal(
   cumplimientos: Record<string, CumplimientoVendedor>,
   tc: number | null,
 ): RankingCapitalTotalVendedores {
-  const tcValido = tc != null && Number.isFinite(tc) && tc > 0 ? tc : null
+  // La política de conversión vive en lib/capital-unificado (fuente única): la
+  // comparten este ranking y las filas de equipo desde la decisión #10.
+  const tcValido = tcAplicable(tc)
 
   const filas = vendedores.map<CapitalTotalVendedor>((vendedor) => {
     // Un cumplimiento SIN detalles no es «S/ 0 confirmado»: es un payload que la
@@ -241,15 +243,11 @@ export function clasificarRankingCapitalTotal(
     const cumplimiento = crudo != null && crudo.detalles.length > 0 ? crudo : undefined
     const capitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
     const capitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-    const capitalTotal = capitalPen != null && capitalUsd != null
-      ? capitalPen + (tcValido != null ? usdAPen(capitalUsd, tcValido) : 0)
-      : null
+    const capitalTotal = totalEnSoles(capitalPen, capitalUsd, tcValido).total
     const meta = metas[vendedor.vendedorId]
     const metaPen = meta ? capitalObjetivo(meta, 'PEN') : 0
     const metaUsd = meta ? capitalObjetivo(meta, 'USD') : 0
-    const objetivo = meta
-      ? metaPen + (tcValido != null ? usdAPen(metaUsd, tcValido) : 0)
-      : null
+    const objetivo = meta ? totalEnSoles(metaPen, metaUsd, tcValido).total : null
     const metaCapital = objetivo != null && objetivo > 0 ? objetivo : null
     const estadoCapital: EstadoCapitalVendedor = cumplimiento == null
       ? 'indisponible'
