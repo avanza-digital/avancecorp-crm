@@ -1713,6 +1713,7 @@ export async function esClienteDeMiCartera(
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) {
     registrarError(
       'crm.clientes.cartera_no_verificable',
@@ -2172,6 +2173,7 @@ export async function listarMetricasCapitalMes(
   let consulta = cliente().schema('crm').rpc('metricas_capital_mes_fn', { p_meses: pMeses })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.capital_fallido')
   const items: FilaCapitalMes[] = []
   let descartadas = 0
@@ -2201,6 +2203,7 @@ export async function listarMetricasPagosMes(
   let consulta = cliente().schema('crm').rpc('metricas_pagos_mes_fn', { p_meses: pMeses })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.pagos_fallido')
   const items: FilaPagosMes[] = []
   let descartadas = 0
@@ -2232,6 +2235,7 @@ export async function listarMetricasAltasAnalista(
   let consulta = cliente().schema('crm').rpc('metricas_altas_analista_fn', { p_meses: pMeses })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.altas_fallido')
   const items: FilaAltasAnalista[] = []
   let descartadas = 0
@@ -2260,6 +2264,7 @@ export async function listarMetricasVencimientos(
   let consulta = cliente().schema('crm').rpc('metricas_vencimientos_fn', { p_dias: pDias })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.vencimientos_fallido')
   const items: FilaVencimientos[] = []
   let descartadas = 0

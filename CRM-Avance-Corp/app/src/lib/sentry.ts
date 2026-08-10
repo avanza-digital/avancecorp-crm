@@ -15,6 +15,12 @@ import {
   registrarAviso,
 } from './observabilidad'
 
+/** Deja la ruta (QUÉ se llamó) y descarta la query (CON QUÉ datos se llamó). */
+function sinQuery(url: string): string {
+  const corte = url.search(/[?#]/)
+  return corte === -1 ? url : `${url.slice(0, corte)}?[QUERY REDACTADA]`
+}
+
 export function instalarSentry(): void {
   // SILENCIO TOTAL fuera de producción (decisión de Miguel, 2026-08-10).
   //
@@ -24,7 +30,12 @@ export function instalarSentry(): void {
   // la señal bajo 742 eventos de laboratorio: mocks de E2E y fetches cancelados que
   // parecían caídas del backend. El gate va aquí y no en el `.env` porque el `.env`
   // se repone sin querer y no protege de un build local; esto es incondicional.
-  if (!import.meta.env.PROD) return
+  // Se compara MODE contra 'production' y NO se usa `PROD`: Vite deriva `PROD` de
+  // NODE_ENV, así que `vite build --mode staging` da PROD=true (staging reportaría
+  // al DSN de producción) y `NODE_ENV=production vite` also. MODE es el modo real
+  // del build, que es lo que queremos discriminar. Hallazgo de la revisión de Codex.
+  // (`NODE_ENV=production vite` —un servidor de desarrollo— también daba PROD=true.)
+  if (import.meta.env.MODE !== 'production') return
 
   const dsn = import.meta.env.VITE_SENTRY_DSN
   if (typeof dsn !== 'string' || dsn.trim() === '') return
@@ -52,7 +63,22 @@ export function instalarSentry(): void {
           return evento
         },
         beforeBreadcrumb(miga) {
-          // Las migas de navegación/console pueden arrastrar texto libre.
+          // ── Fuga de PII cerrada (hallazgo BLOQUEANTE de la revisión de Codex) ──
+          // Sentry trae activas por defecto las migas de UI, y su serializador copia
+          // LITERALMENTE el árbol DOM del elemento pulsado, `aria-label` incluido.
+          // El CRM pone nombres de clientes justo ahí: «Llamar a JUAN PÉREZ»
+          // (contacto.tsx), «Repartir a …» (repartir.tsx). Y nuestro `limpiarTexto`
+          // NO conoce nombres propios — solo credenciales, correos y números.
+          // `sendDefaultPii: false` tampoco desactiva esta integración.
+          // Se descartan ENTERAS: la miga de reproducción no vale una fuga de PII.
+          if (miga.category?.startsWith('ui.')) return null
+          // En fetch/xhr la QUERY lleva los filtros de PostgREST, y ahí viaja el
+          // texto que el usuario escribió en el buscador
+          // (`nombre_completo=ilike.%…%`). Se conserva la ruta —dice QUÉ se llamó—
+          // y se tira la query, que dice CON QUÉ datos.
+          if (miga.data && typeof miga.data.url === 'string') {
+            miga.data = { ...miga.data, url: sinQuery(miga.data.url) }
+          }
           if (miga.message) miga.message = limpiarTexto(miga.message)
           if (miga.data) miga.data = limpiarDato(miga.data) as Record<string, unknown>
           return miga
