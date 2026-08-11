@@ -195,7 +195,8 @@ export function useClienteDetalle(clienteId: string, habilitada = true) {
 }
 
 /**
- * Cuentas elegibles para un contrato nuevo. Siempre obsoletas al desmontar:
+ * Cuentas del cliente (ledger + casilla del perfil): las elige el contrato
+ * nuevo y las muestra la ficha "Ver detalle". Siempre obsoletas al desmontar:
  * son datos sensibles y una cuenta puede haberse versionado en otra sesión.
  */
 export function useCuentasBancariasCliente(

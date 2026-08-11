@@ -8,10 +8,10 @@ import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { mensajeDeError } from '@/data/crm-api'
-import { useClienteDetalle } from '@/data/crm-queries'
+import { useClienteDetalle, useCuentasBancariasCliente } from '@/data/crm-queries'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
-import { fechaHora } from '@/lib/format'
-import type { ClienteDetalle as ClienteDetalleDatos } from '@/lib/clientes-tipos'
+import { fechaHora, type Moneda } from '@/lib/format'
+import type { ClienteDetalle as ClienteDetalleDatos, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (
@@ -26,17 +26,13 @@ function valor(valor: string | null): string {
   return valor?.trim() || '—'
 }
 
-function CuentaBancaria({
-  moneda,
-  banco,
-  tipoCuenta,
-  numeroCuenta,
-  cci,
-  titularDistinto,
-  beneficiarioNombre,
-  beneficiarioDni,
-}: {
-  moneda: 'PEN' | 'USD'
+/**
+ * Vista unificada de una cuenta de depósito, venga del ledger
+ * `crm.cuentas_bancarias` (vía RPC) o de las columnas embebidas del perfil
+ * (solo demo/precarga). Un solo shape → un solo render.
+ */
+interface CuentaVista {
+  clave: string
   banco: string | null
   tipoCuenta: string | null
   numeroCuenta: string | null
@@ -44,29 +40,91 @@ function CuentaBancaria({
   titularDistinto: boolean
   beneficiarioNombre: string | null
   beneficiarioDni: string | null
-}) {
-  const tieneCuenta = [banco, tipoCuenta, numeroCuenta, cci].some((dato) => dato?.trim())
-  const titulo = moneda === 'PEN' ? 'Cuenta para depósitos en soles' : 'Cuenta para depósitos en dólares'
+  /** null = casilla vigente del perfil (no tiene fecha de registro propia). */
+  registradaEn: string | null
+}
+
+function cuentaDesdeRpc(cuenta: CuentaBancariaSeleccionable): CuentaVista {
+  return {
+    clave: cuenta.cuenta_id ?? `perfil-${cuenta.moneda}`,
+    banco: cuenta.banco,
+    tipoCuenta: cuenta.tipo_cuenta,
+    numeroCuenta: cuenta.numero_cuenta,
+    cci: cuenta.cci,
+    titularDistinto: cuenta.titular_distinto,
+    beneficiarioNombre: cuenta.beneficiario_nombre,
+    beneficiarioDni: cuenta.beneficiario_dni,
+    registradaEn: cuenta.creada_en,
+  }
+}
+
+/**
+ * Demo/precarga: el fixture trae solo las 2 casillas embebidas del perfil
+ * (modelo viejo). Se adaptan a la vista común; sin red no hay ledger que mirar.
+ */
+function cuentasEmbebidas(detalle: ClienteDetalleDatos, moneda: Moneda): CuentaVista[] {
+  const c = moneda === 'USD'
+    ? {
+        banco: detalle.banco_usd,
+        tipoCuenta: detalle.tipo_cuenta_usd,
+        numeroCuenta: detalle.numero_cuenta_usd,
+        cci: detalle.cci_usd,
+        titularDistinto: detalle.titular_distinto_usd,
+        beneficiarioNombre: detalle.beneficiario_nombre_usd,
+        beneficiarioDni: detalle.beneficiario_dni_usd,
+      }
+    : {
+        banco: detalle.banco,
+        tipoCuenta: detalle.tipo_cuenta,
+        numeroCuenta: detalle.numero_cuenta,
+        cci: detalle.cci,
+        titularDistinto: detalle.titular_distinto,
+        beneficiarioNombre: detalle.beneficiario_nombre,
+        beneficiarioDni: detalle.beneficiario_dni,
+      }
+  const tieneCuenta = [c.banco, c.tipoCuenta, c.numeroCuenta, c.cci].some((dato) => dato?.trim())
+  return tieneCuenta ? [{ clave: `perfil-${moneda}`, ...c, registradaEn: null }] : []
+}
+
+function CuentasMoneda({ moneda, cuentas }: { moneda: Moneda; cuentas: CuentaVista[] }) {
+  const titulo = moneda === 'PEN'
+    ? (cuentas.length > 1 ? 'Cuentas para depósitos en soles' : 'Cuenta para depósitos en soles')
+    : (cuentas.length > 1 ? 'Cuentas para depósitos en dólares' : 'Cuenta para depósitos en dólares')
 
   return (
     <section className="rounded-xl border border-border bg-muted/30 p-3" aria-label={titulo}>
       <div className="flex items-center gap-2">
         <Landmark className="size-4 text-primary" aria-hidden />
-        <h3 className="text-xs font-bold text-foreground">{titulo}</h3>
+        {/* h4: subsección de "Datos bancarios" (h3) — el outline del diálogo lo refleja. */}
+        <h4 className="text-xs font-bold text-foreground">{titulo}</h4>
       </div>
-      {tieneCuenta ? (
-        <div className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-4">
-          <Dato etiqueta="Banco">{valor(banco)}</Dato>
-          <Dato etiqueta="Tipo de cuenta">{valor(tipoCuenta)}</Dato>
-          <Dato etiqueta="N° de cuenta">{valor(numeroCuenta)}</Dato>
-          <Dato etiqueta="CCI">{valor(cci)}</Dato>
-          <Dato etiqueta="Titular de la cuenta">{titularDistinto ? 'Beneficiario' : 'Cliente'}</Dato>
-          {titularDistinto && (
-            <>
-              <Dato etiqueta="Beneficiario">{valor(beneficiarioNombre)}</Dato>
-              <Dato etiqueta="Documento del beneficiario">{valor(beneficiarioDni)}</Dato>
-            </>
-          )}
+      {cuentas.length > 0 ? (
+        // div role="list" (patrón de mi-cartera): semántica de lista explícita
+        // que el preflight de Tailwind no puede degradar en VoiceOver.
+        <div className="mt-3 space-y-3" role="list">
+          {cuentas.map((cuenta, indice) => (
+            <div
+              key={cuenta.clave}
+              role="listitem"
+              aria-label={cuentas.length > 1 ? `Cuenta ${indice + 1} de ${cuentas.length}` : undefined}
+              className="grid grid-cols-2 gap-3 border-t border-border/60 pt-3 first:border-t-0 first:pt-0 sm:grid-cols-4"
+            >
+              <Dato etiqueta="Banco">{valor(cuenta.banco)}</Dato>
+              <Dato etiqueta="Tipo de cuenta">{valor(cuenta.tipoCuenta)}</Dato>
+              <Dato etiqueta="N° de cuenta">{valor(cuenta.numeroCuenta)}</Dato>
+              <Dato etiqueta="CCI">{valor(cuenta.cci)}</Dato>
+              <Dato etiqueta="Titular de la cuenta">{cuenta.titularDistinto ? 'Beneficiario' : 'Cliente'}</Dato>
+              {cuenta.titularDistinto && (
+                <>
+                  <Dato etiqueta="Beneficiario">{valor(cuenta.beneficiarioNombre)}</Dato>
+                  <Dato etiqueta="Documento del beneficiario">{valor(cuenta.beneficiarioDni)}</Dato>
+                </>
+              )}
+              {cuenta.registradaEn != null && (
+                <Dato etiqueta="Registrada el">{fechaHora(cuenta.registradaEn)}</Dato>
+              )}
+            </div>
+          ))}
         </div>
       ) : (
         <p className="mt-2 text-xs text-muted-foreground">No registró una cuenta en esta moneda.</p>
@@ -83,12 +141,19 @@ export interface ClienteDetalleProps {
 }
 
 /**
- * Ficha completa del perfil del cliente: identidad, contacto y sus dos cuentas
- * de depósito. Está hecha para consulta comercial; nunca ofrece edición.
+ * Ficha completa del perfil del cliente: identidad, contacto y TODAS sus
+ * cuentas de depósito vigentes (ledger crm.cuentas_bancarias + casilla del
+ * perfil). Está hecha para consulta comercial; nunca ofrece edición.
  */
 export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetalleProps) {
   const precargado = datos !== undefined
   const qDetalle = useClienteDetalle(clienteId, !precargado)
+  // Las cuentas salen de la MISMA RPC del flujo de contrato (ledger
+  // crm.cuentas_bancarias + casilla vigente del perfil, deduplicados por el
+  // servidor): es la única fuente que incluye las cuentas registradas AL CREAR
+  // un contrato — leer solo las columnas embebidas de perfiles las escondía.
+  const qPen = useCuentasBancariasCliente(clienteId, 'PEN', !precargado)
+  const qUsd = useCuentasBancariasCliente(clienteId, 'USD', !precargado)
 
   // El detalle contiene cuentas bancarias: en una sesión REAL nunca se pinta la
   // copia que React Query pudiera conservar de una apertura anterior. Solo se
@@ -110,6 +175,39 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
     if (!precargado && qDetalle.isError) setConfirmado(null)
   }, [precargado, qDetalle.isError])
 
+  // Misma disciplina que la ficha para las CUENTAS: solo se pintan copias
+  // confirmadas DESPUÉS de montar (nunca una caché de otra apertura) y un
+  // fallo las oculta hasta que Reintentar traiga una fotografía fresca.
+  // Limitación aceptada (auditoría Codex 2026-08-11): PEN y USD son dos RPC
+  // independientes, no una fotografía transaccional — una corrección concurrente
+  // entre ambas respuestas puede mezclar monedas de dos versiones. Ventana de
+  // milisegundos y ambas copias post-montaje; unificar exigiría una RPC conjunta.
+  const [cuentasConfirmadas, setCuentasConfirmadas] = useState<{
+    clienteId: string
+    pen: CuentaVista[]
+    usd: CuentaVista[]
+  } | null>(null)
+
+  useEffect(() => {
+    if (precargado) return
+    if (!qPen.isSuccess || qPen.isFetching || !qPen.isFetchedAfterMount) return
+    if (!qUsd.isSuccess || qUsd.isFetching || !qUsd.isFetchedAfterMount) return
+    setCuentasConfirmadas({
+      clienteId,
+      pen: qPen.data.map(cuentaDesdeRpc),
+      usd: qUsd.data.map(cuentaDesdeRpc),
+    })
+  }, [
+    clienteId,
+    precargado,
+    qPen.isSuccess, qPen.isFetching, qPen.isFetchedAfterMount, qPen.data,
+    qUsd.isSuccess, qUsd.isFetching, qUsd.isFetchedAfterMount, qUsd.data,
+  ])
+
+  useEffect(() => {
+    if (!precargado && (qPen.isError || qUsd.isError)) setCuentasConfirmadas(null)
+  }, [precargado, qPen.isError, qUsd.isError])
+
   const detalle = datos !== undefined
     ? datos
     : confirmado?.clienteId === clienteId
@@ -125,6 +223,43 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
     setConfirmado(null)
     void qDetalle.refetch()
   }
+
+  const cuentasPen = datos !== undefined
+    ? cuentasEmbebidas(datos, 'PEN')
+    : cuentasConfirmadas?.clienteId === clienteId
+      ? cuentasConfirmadas.pen
+      : null
+  const cuentasUsd = datos !== undefined
+    ? cuentasEmbebidas(datos, 'USD')
+    : cuentasConfirmadas?.clienteId === clienteId
+      ? cuentasConfirmadas.usd
+      : null
+  // El fallo de las cuentas degrada SOLO su sección (identidad y contacto
+  // siguen visibles): vienen de consultas distintas y un fallo operativo del
+  // lado bancario (red, RPC, permisos si el gating de fila cambiara) no debe
+  // secuestrar una ficha cuya identidad ya está confirmada.
+  const cuentasError = !precargado && (qPen.isError || qUsd.isError)
+    ? mensajeDeError(qPen.error ?? qUsd.error, 'No se pudieron cargar las cuentas bancarias.')
+    : null
+  // Con el reintento EN VUELO se muestra la carga, no el alert: así el usuario
+  // ve que algo pasa y, si vuelve a fallar, el alert se re-monta y el lector de
+  // pantalla lo re-anuncia (un role="alert" que no cambia no se vuelve a leer).
+  const cuentasReintentando = !precargado
+    && (qPen.isError || qUsd.isError)
+    && (qPen.isFetching || qUsd.isFetching)
+  const reintentarCuentas = () => {
+    setCuentasConfirmadas(null)
+    void qPen.refetch()
+    void qUsd.refetch()
+  }
+
+  // Clientes migrados ANTES de separar nombres/apellidos: solo tienen
+  // nombre_completo (mismo criterio esLegacySinSeparar del form de corregir).
+  // Sin esto, la ficha mostraba «—» en Nombres y Apellidos con el nombre a la vista.
+  const sinSeparar = detalle != null
+    && !detalle.nombres?.trim()
+    && !detalle.apellidos?.trim()
+    && detalle.nombre_completo.trim() !== ''
 
   return (
     <>
@@ -160,8 +295,14 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
             <section>
               <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Datos personales</h3>
               <div className="mt-2 grid grid-cols-2 gap-3 sm:grid-cols-3">
-                <Dato etiqueta="Nombres">{valor(detalle.nombres)}</Dato>
-                <Dato etiqueta="Apellidos">{valor(detalle.apellidos)}</Dato>
+                {sinSeparar ? (
+                  <Dato etiqueta="Nombres y apellidos">{valor(detalle.nombre_completo)}</Dato>
+                ) : (
+                  <>
+                    <Dato etiqueta="Nombres">{valor(detalle.nombres)}</Dato>
+                    <Dato etiqueta="Apellidos">{valor(detalle.apellidos)}</Dato>
+                  </>
+                )}
                 <Dato etiqueta={TIPOS_DOCUMENTO[detalle.tipo_documento].etiqueta}>{valor(detalle.dni)}</Dato>
                 <Dato etiqueta="Correo">{valor(detalle.correo)}</Dato>
                 <Dato etiqueta="Teléfono">{valor(detalle.telefono)}</Dato>
@@ -171,28 +312,28 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
 
             <section>
               <h3 className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Datos bancarios</h3>
-              <div className="mt-2 space-y-3">
-                <CuentaBancaria
-                  moneda="PEN"
-                  banco={detalle.banco}
-                  tipoCuenta={detalle.tipo_cuenta}
-                  numeroCuenta={detalle.numero_cuenta}
-                  cci={detalle.cci}
-                  titularDistinto={detalle.titular_distinto}
-                  beneficiarioNombre={detalle.beneficiario_nombre}
-                  beneficiarioDni={detalle.beneficiario_dni}
-                />
-                <CuentaBancaria
-                  moneda="USD"
-                  banco={detalle.banco_usd}
-                  tipoCuenta={detalle.tipo_cuenta_usd}
-                  numeroCuenta={detalle.numero_cuenta_usd}
-                  cci={detalle.cci_usd}
-                  titularDistinto={detalle.titular_distinto_usd}
-                  beneficiarioNombre={detalle.beneficiario_nombre_usd}
-                  beneficiarioDni={detalle.beneficiario_dni_usd}
-                />
-              </div>
+              {cuentasError && !cuentasReintentando ? (
+                <div
+                  className="mt-2 flex flex-col items-center justify-center gap-3 rounded-xl border border-border bg-muted/30 p-4 text-center"
+                  role="alert"
+                >
+                  <p className="text-sm font-semibold text-foreground">{cuentasError}</p>
+                  <Button type="button" variant="outline" size="sm" onClick={reintentarCuentas}>
+                    <RotateCcw aria-hidden /> Reintentar
+                  </Button>
+                </div>
+              ) : cuentasPen == null || cuentasUsd == null || cuentasReintentando ? (
+                <div className="mt-2 space-y-3" aria-busy>
+                  <span className="sr-only">Cargando cuentas bancarias</span>
+                  <Skeleton className="h-24 w-full" />
+                  <Skeleton className="h-24 w-full" />
+                </div>
+              ) : (
+                <div className="mt-2 space-y-3">
+                  <CuentasMoneda moneda="PEN" cuentas={cuentasPen} />
+                  <CuentasMoneda moneda="USD" cuentas={cuentasUsd} />
+                </div>
+              )}
             </section>
           </>
         )}

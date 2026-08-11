@@ -7,7 +7,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { ClienteBasico, ClienteDetalle, ContratoRow } from '@/lib/clientes-tipos'
+import type { ClienteBasico, ClienteDetalle, ContratoRow, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
 
 // `yo`, clientes y contratos se pisan antes de cada montaje; los mocks los leen
 // en cada llamada (no capturan el valor al definirse).
@@ -18,6 +18,50 @@ let CLIENTES: ClienteBasico[] | null = []
 let CONTRATOS: ContratoRow[] | null = []
 let EQUIPO: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }> = []
 let DETALLE: ClienteDetalle | null = null
+// Cuentas que "devuelve la RPC" en la ficha, derivadas del fixture DETALLE en
+// montar(): una por moneda desde las casillas embebidas (como el perfil real).
+let CUENTAS: { PEN: CuentaBancariaSeleccionable[]; USD: CuentaBancariaSeleccionable[] } = { PEN: [], USD: [] }
+
+function cuentasDesdeDetalle(d: ClienteDetalle | null): typeof CUENTAS {
+  if (d == null) return { PEN: [], USD: [] }
+  const porMoneda = (moneda: 'PEN' | 'USD'): CuentaBancariaSeleccionable[] => {
+    const c = moneda === 'USD'
+      ? {
+          banco: d.banco_usd,
+          tipo_cuenta: d.tipo_cuenta_usd,
+          numero_cuenta: d.numero_cuenta_usd,
+          cci: d.cci_usd,
+          titular_distinto: d.titular_distinto_usd,
+          beneficiario_nombre: d.beneficiario_nombre_usd,
+          beneficiario_dni: d.beneficiario_dni_usd,
+        }
+      : {
+          banco: d.banco,
+          tipo_cuenta: d.tipo_cuenta,
+          numero_cuenta: d.numero_cuenta,
+          cci: d.cci,
+          titular_distinto: d.titular_distinto,
+          beneficiario_nombre: d.beneficiario_nombre,
+          beneficiario_dni: d.beneficiario_dni,
+        }
+    if (![c.banco, c.tipo_cuenta, c.numero_cuenta, c.cci].some((dato) => dato?.trim())) return []
+    return [{
+      cuenta_id: null,
+      moneda,
+      origen: 'perfil',
+      es_cuenta_perfil: true,
+      creada_en: null,
+      banco: c.banco ?? '',
+      tipo_cuenta: (c.tipo_cuenta ?? 'ahorros') as CuentaBancariaSeleccionable['tipo_cuenta'],
+      numero_cuenta: c.numero_cuenta ?? '',
+      cci: c.cci ?? '',
+      titular_distinto: c.titular_distinto,
+      beneficiario_nombre: c.beneficiario_nombre,
+      beneficiario_dni: c.beneficiario_dni,
+    }]
+  }
+  return { PEN: porMoneda('PEN'), USD: porMoneda('USD') }
+}
 // Fallo de las lecturas CON data ya servida: es el caso que TanStack conserva
 // (al fallar un refetch mantiene `data`) y el que dejaba la cartera muda.
 let ERROR_CLIENTES: Error | null = null
@@ -46,6 +90,11 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useClientes: () => q(CLIENTES, ERROR_CLIENTES, REFETCH_CLIENTES),
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useClienteDetalle: vi.fn(() => q(DETALLE)),
+    // La ficha lee las cuentas del ledger vía la RPC; aquí se sirven desde
+    // CUENTAS (calculado en montar() a partir del fixture DETALLE). La
+    // referencia debe ser ESTABLE entre renders: el efecto de confirmación de
+    // la ficha depende de `data`, y un array nuevo por render lo vuelve bucle.
+    useCuentasBancariasCliente: (_clienteId: string, moneda: 'PEN' | 'USD') => q(CUENTAS[moneda]),
     // ContratoDetalle usa estos tres; con data null pinta skeletons (no red, no crash).
     useContrato: () => q(null),
     useCronograma: () => q(null),
@@ -157,6 +206,7 @@ function montar(
   // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
   // significa "usa la ficha por defecto".
   DETALLE = over.detalle === undefined ? detalle() : over.detalle
+  CUENTAS = cuentasDesdeDetalle(DETALLE)
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
