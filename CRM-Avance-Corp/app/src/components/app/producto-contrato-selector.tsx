@@ -63,6 +63,11 @@ export function ProductoContratoSelector({
   const condicion = condiciones.find((item) => item.condicion_id === value) ?? null
   const actualNoSeleccionable = actual && !condiciones.some((item) => item.condicion_id === actual.condicionId)
   const esHistorico = actual?.codigo === CODIGO_PRODUCTO_HISTORICO
+  // Un contrato con condiciones propias (las que se firmaron) solo tiene ALGO
+  // que decidir si el catálogo ofrece alternativas. Sin catálogo publicado
+  // —hoy, el 100 % de los contratos— explicarlo es ruido en cada corrección:
+  // el vendedor lee jerga de base de datos sobre una elección que no existe.
+  const explicarCondicionesPropias = esHistorico && condiciones.length > 0
 
   return (
     <section className="space-y-2 rounded-xl border border-primary/25 bg-primary/[0.035] p-3">
@@ -101,7 +106,7 @@ export function ProductoContratoSelector({
         {actualNoSeleccionable && (
           <option value={actual.condicionId}>
             {esHistorico
-              ? 'Conservar snapshot histórico del contrato'
+              ? 'Mantener las condiciones con las que se firmó'
               : `${actual.codigo} · ${actual.nombre} · v${actual.version} (no vigente)`}
           </option>
         )}
@@ -134,10 +139,10 @@ export function ProductoContratoSelector({
             <span className="text-muted-foreground"> · referencia {condicion.tasa_referencia}%</span>
           </p>
         </div>
-      ) : actualNoSeleccionable ? (
+      ) : actualNoSeleccionable && (!esHistorico || explicarCondicionesPropias) ? (
         <p className="border-t border-primary/15 pt-2 text-xs text-muted-foreground">
           {esHistorico
-            ? 'Este contrato conserva un snapshot exacto anterior al catálogo. Solo esta corrección puede seguir usándolo; nunca aparece en altas nuevas.'
+            ? 'Este contrato mantiene las condiciones con las que se firmó. Puedes corregir sus datos sin cambiarlas; para vender con un producto del catálogo, crea un contrato nuevo.'
             : 'La versión contractual ya no está vigente. Puedes conservar sus términos o elegir una condición vigente para modificarlos.'}
         </p>
       ) : null}

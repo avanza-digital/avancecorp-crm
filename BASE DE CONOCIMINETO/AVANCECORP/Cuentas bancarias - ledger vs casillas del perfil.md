@@ -22,10 +22,23 @@ La RPC ya devuelve la unión correcta: ledger activo + casilla vigente del perfi
 - `cliente-detalle.tsx`: cuentas desde la RPC (antes: casillas embebidas → la cuenta USD del contrato nuevo era invisible). Muestra N cuentas por moneda con "Registrada el".
 - Mismo cambio aprovechado: cliente legacy sin `nombres`/`apellidos` separados (2 de 295, este piloto incluido) muestra "Nombres y apellidos" con `nombre_completo` en vez de «—».
 
+## «Corregir cliente» — arreglado 2026-08-11 (mismo día), con VETO de Codex al primer diseño
+
+El primer diseño («convergencia»: sembrar la cuenta del ledger en las casillas y dejar que el guardado la escriba en `perfiles`) fue **vetado por Codex** con un ALTO de negocio: el módulo de **Pagos** usa las casillas embebidas como fallback `perfil_legacy` para contratos **sin** vínculo en `crm.contrato_cuentas_pago` — copiar una cuenta contractual al perfil convertiría esa cuenta en el destino de cobro de contratos viejos ajenos, el **backfill por inferencia** que prohíbe [[Cuentas bancarias por contrato]].
+
+⚠️ **Lección cara del deploy (2026-08-11):** el primer release de este arreglo se construyó desde un worktree limpio de git… **sin `app/.env`** (gitignorado) → el bundle salió sin las llaves de Supabase y el LOGIN de producción se apagó («El acceso con cuenta aún no está disponible aquí») hasta el rollback. **Regla: todo build desde worktree/CI copia `app/.env` primero, y antes de publicar se verifica que el ZIP contenga el ref de Supabase** (`unzip -p … | grep dctqcbznekcyxhjujuci`).
+
+**Diseño final (en prod, release `crm-20260811T221604Z-c13b79ee9d37`):**
+- Las cuentas del ledger se muestran en un **bloque de solo lectura** («Cuentas registradas en contratos — se administran desde el contrato, no aquí»). **Jamás se siembran** en las casillas editables.
+- La regla «Registra al menos una cuenta» se **perdona** cuando el ledger cubre (`validarBancariosForm({cuentaEnLedger})`), con patch bancario **en null** — idempotente sobre `perfiles`. Nunca perdona una sección malformada.
+- Si el ledger no se puede leer: **aviso visible** con su Reintentar (degradación nunca muda), y el Reintentar del error de carga repara las tres consultas.
+
+**Regla que queda:** las casillas de `perfiles` son la «cuenta global» del cliente (con efecto en Pagos legacy); las cuentas de `crm.cuentas_bancarias` son de SU contrato. **Ningún flujo copia del ledger a las casillas.**
+
 ## Pendientes conocidos
 
-- **"Corregir" del cliente tiene el mismo sesgo, confirmado por la auditoría Codex 2026-08-11:** precarga solo las casillas embebidas (`cliente-form.tsx`, `cliente-form-logica.ts`), así que un cliente con USD solo en ledger aparece SIN cuenta USD al corregir; y si ambas casillas del perfil están vacías, la validación «Registra al menos una cuenta» (`cliente-form-logica.ts:322`) **bloquea cualquier corrección** aunque el ledger tenga una cuenta activa. Arreglarlo toca el flujo de ESCRITURA (Corregir escribe las casillas del portal) — decisión de diseño pendiente de Miguel.
 - **Snapshot PEN/USD no transaccional en la ficha (limitación aceptada):** son dos RPC independientes; una corrección concurrente entre ambas respuestas puede mezclar versiones por unos milisegundos. Unificarlo exigiría una RPC conjunta (servidor).
+- **Escritura concurrente sin CAS en Corregir (preexistente, señalado por Codex):** el UPDATE de set completo puede pisar una casilla que otra sesión escribió después de la precarga. Existía antes de estos cambios; arreglo real = CAS del lado del servidor.
 - Issue aparte detectado por Sentry el mismo día: 235 errores 42501 (`crm.clientes.listado_fallido` / `crm.contratos.listado_fallido`) desde el 2026-08-09, de un usuario/rol aún no identificado (el vendedor piloto NO es — verificado por impersonación). Sin resolver.
 
 Relacionadas: [[Cuenta piloto CRM Miguel]] · [[Configuración operativa CRM 2026-08-07]]

@@ -194,6 +194,29 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
 })
 
 describe('ContratoCorregir — producto versionado', () => {
+  // ESTADO DE PRODUCCIÓN (2026-08-11): gerencia no publicó el catálogo, así que
+  // los 349 contratos llevan condiciones propias. Explicárselo al vendedor en
+  // CADA corrección era ruido —y jerga de base de datos— sobre una elección que
+  // no existe: sin catálogo no hay nada que elegir.
+  it('sin catálogo publicado no explica nada del origen y la opción está en idioma de vendedor', async () => {
+    await montar() // beforeEach deja productosEstado.data = []
+
+    expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó' }))
+      .toBeInTheDocument()
+    expect(screen.queryByText(/snapshot/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/catálogo/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(/mantiene las condiciones con las que se firmó/i)).not.toBeInTheDocument()
+  })
+
+  it('con catálogo publicado SÍ explica la elección, sin jerga', async () => {
+    productosEstado.data = [CONDICION_VIGENTE] // el contrato sigue con las suyas
+    await montar()
+
+    expect(screen.getByText(/Este contrato mantiene las condiciones con las que se firmó/))
+      .toBeInTheDocument()
+    expect(screen.queryByText(/snapshot/i)).not.toBeInTheDocument()
+  })
+
   it('una condición vigente fija los términos estructurales y limita la tasa efectiva', async () => {
     const user = userEvent.setup()
     productosEstado.data = [CONDICION_VIGENTE]
