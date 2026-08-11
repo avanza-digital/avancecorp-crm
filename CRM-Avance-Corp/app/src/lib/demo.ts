@@ -208,6 +208,9 @@ function cumplimientoDemo(
     ...meta,
     conversionReal: resueltos > 0 ? Math.round((10_000 * convertidos) / resueltos) / 100 : null,
     convertidos,
+    // Mundo demo sin referidos ponderados: el numerador coincide con los
+    // convertidos enteros (el mismo fallback pre-B que aplica crm-api).
+    numerador: convertidos,
     resueltos,
     detalles: meta.detalles.map((detalle) => {
       const indice = ['nuevo', 'renovacion', 'upgrade'].indexOf(detalle.categoria)

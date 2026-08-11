@@ -61,13 +61,17 @@ import {
   metaVigente,
   capitalReal,
   metaConversionAplicable,
+  periodoLima,
 } from '@/lib/objetivos'
+import { useConversionMensual } from '@/data/crm-queries'
+import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
+import { lineaProcedencia } from '@/lib/conversion-mensual'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK, primerNombre } from '@/lib/format'
+import { money, moneyK, numero, primerNombre } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
@@ -583,7 +587,21 @@ export function HoyVendedor(): JSX.Element {
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-  const conversion = cumplimiento?.conversionReal ?? null
+
+  // LA CONVERSIÓN DEL MES — de `crm.conversion_mensual_fn` (la definición
+  // acordada), NO del cumplimiento: hasta la migración B el cumplimiento sigue
+  // con la fórmula vieja y este tile ya enseña la buena (decisión E1, plan
+  // §4bis). El alcance 'propio' devuelve EXACTAMENTE una fila: la suya.
+  const periodoConversion = periodoLima(Date.now())
+  const esDemo = yo?.demo === true
+  const qConversionMensual = useConversionMensual(!esDemo, periodoConversion)
+  const conversionMensual = esDemo
+    ? conversionMensualDemo(Date.now(), { alcance: 'propio', actorId: yo?.id ?? 'd-v1' })
+    : (qConversionMensual.data ?? null)
+  const conversionMensualError = !esDemo && qConversionMensual.isError
+  const miConversion = conversionMensual?.responsables[0] ?? null
+  const conversionMedible = conversionMensual?.cobertura.medible ?? false
+  const conversion = conversionMedible ? (miConversion?.conversion_pct ?? null) : null
   // CAPITAL CONSOLIDADO (decisión de Miguel 2026-08-10, extendiendo la #10 al
   // asesor): lo que manda es UN solo número —cuánto ha metido en total, en
   // soles— y el desglose por moneda vive debajo como sub-línea. Si cierra en
@@ -994,20 +1012,39 @@ export function HoyVendedor(): JSX.Element {
             />
             <MetaFila
               icon={TrendingUp}
-              label="Conversión resuelta"
-              valorTxt={conversion == null ? '—' : `${conversion}%`}
+              label="Conversión del mes"
+              valorTxt={conversion == null ? '—' : `${numero(conversion, 1)}%`}
               metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
               pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
               delay={180}
-              neutro={objetivosError
-                ? 'Meta mensual no disponible'
-                : metaConversion == null
-                  ? SIN_META
-                  : cumplimientoMetasError
-                    ? 'Cumplimiento confirmado no disponible'
-                    : conversion == null
-                      ? 'Sin leads resueltos este mes todavía — el % sale con el primer cierre'
-                      : undefined}
+              nota={miConversion && conversionMedible
+                ? (
+                  <span className="text-[11px] text-[var(--gi-muted)]">
+                    {/* El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
+                        lo llena el reparto, no el asesor, y el número solo
+                        miente por omisión. */}
+                    Recibidos {numero(miConversion.divisor)} · cierres{' '}
+                    {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
+                    {miConversion.cierres_de_arrastre > 0
+                      && ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
+                  </span>
+                )
+                : undefined}
+              neutro={conversionMensualError
+                ? 'Conversión del mes no disponible'
+                : !conversionMedible
+                  ? 'Sin datos de asignación para este mes'
+                  : miConversion?.estado === 'solo_referidos'
+                    ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
+                    : miConversion?.estado === 'solo_arrastre'
+                      ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
+                      : miConversion?.estado === 'sin_actividad' || conversion == null
+                        ? 'Sin leads recibidos este mes'
+                        : objetivosError
+                          ? 'Meta mensual no disponible'
+                          : metaConversion == null
+                            ? SIN_META
+                            : undefined}
             />
           </div>
           {(objetivosError || cumplimientoMetasError) && (

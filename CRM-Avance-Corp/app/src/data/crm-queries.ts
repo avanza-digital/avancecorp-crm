@@ -18,6 +18,7 @@ import {
   listarResumenReparto,
   listarMetricasConversiones,
   listarMetricasConversionesEquipo,
+  obtenerConversionMensual,
   listarMetricasReuniones,
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
@@ -78,6 +79,10 @@ export const crmQueryKeys = {
   // Compartir clave serviría a un supervisor la foto global cacheada por gerencia.
   metricasConversionesEquipo: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'conversiones-equipo', desde, hasta] as const,
+  // La conversión mensual ponderada (LA definición). También con clave propia y
+  // por el mismo motivo: el ámbito lo recorta el servidor según quién pregunta.
+  conversionMensual: (periodo: string) =>
+    [...crmQueryKeys.metricas(), 'conversion-mensual', periodo] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
@@ -396,6 +401,19 @@ export function useMetricasConversiones(
     habilitada,
     desde,
     hasta,
+  })
+}
+
+/**
+ * La conversión mensual ponderada (crm.conversion_mensual_fn). No pasa por
+ * `useMetricaPorPeriodo` a propósito: ese molde exige desde+hasta y esta RPC es
+ * MENSUAL por contrato — un solo argumento, el primer día del mes.
+ */
+export function useConversionMensual(habilitada: boolean, periodo: string) {
+  return useQuery({
+    queryKey: crmQueryKeys.conversionMensual(periodo),
+    queryFn: ({ signal }) => obtenerConversionMensual(periodo, signal),
+    enabled: habilitada && Boolean(periodo),
   })
 }
 

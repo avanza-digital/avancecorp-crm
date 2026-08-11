@@ -14,7 +14,7 @@ import {
 } from '@/components/gerencia/periodo'
 import { useCRMData } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK } from '@/lib/format'
+import { money, moneyK, numero } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import {
   agregarObjetivos,
@@ -24,6 +24,7 @@ import {
 } from '@/lib/objetivos'
 import { metricasDistribucionDemo } from '@/lib/demo-metricas-distribucion'
 import {
+  conversionMensualInteligenciaDemo,
   cumplimientoMetasConversionEquipoDemo,
   conversionEquipoDemo,
   metasConversionEquipoDemo,
@@ -35,6 +36,7 @@ import { useTipoCambio } from '@/lib/tipo-cambio'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   useActualizarCapacidadLeadsObjetivo,
+  useConversionMensual,
   useMetricasConversiones,
   useMetricasDistribucionLeads,
   useMetricasReuniones,
@@ -188,8 +190,34 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // Meta y producción del MISMO snapshot: ver `metaVigente`.
   const meta = metaVigente(objetivos.gerencia, cumplimientoMetas?.gerencia ?? null)
   const cumplimiento = cumplimientoMetas?.gerencia ?? null
+  // LA CONVERSIÓN DEL MES de la empresa (crm.conversion_mensual_fn). La RPC es
+  // MENSUAL por contrato y este panel se gobierna con un rango LIBRE: se pide
+  // el mes de la FECHA FINAL del rango (decisión E2, plan §4bis) — mismo
+  // criterio que ya usa el aviso del panel de metas.
+  const periodoConversionMes = `${periodoMetricas.hasta.slice(0, 7)}-01`
+  const qConversionMensual = useConversionMensual(sesionReal && necesitaConversiones, periodoConversionMes)
   const conversionesDeEjemplo = modoDemo || ejemploConversiones
   const reunionesDeEjemplo = modoDemo || ejemploReuniones
+  // El mundo demo de gerencia es `demo-v*` (el de inteligencia comercial): el
+  // tile héroe y los paneles de la familia beben del MISMO payload derivado —
+  // un total en el héroe y otro en el ranking sería la demo enseñando dos
+  // negocios distintos.
+  const conversionMensualDemoIntel = useMemo(
+    () => (conversionesDeEjemplo ? conversionMensualInteligenciaDemo(Date.now()) : null),
+    [conversionesDeEjemplo],
+  )
+  const conversionMensual = modoDemo
+    ? conversionMensualDemoIntel
+    : (qConversionMensual.data ?? null)
+  const conversionMensualMedible = conversionMensual?.cobertura.medible ?? false
+  // Para los paneles: tri-estado como el TC — `undefined` mientras consulta
+  // (skeleton), `null` cuando no está (fail-closed: jamás ceros ni fórmulas
+  // viejas bajo el rótulo nuevo).
+  const conversionMensualPaneles = conversionesDeEjemplo
+    ? conversionMensualDemoIntel
+    : estaCargando(sesionReal, qConversionMensual)
+      ? undefined
+      : (qConversionMensual.data ?? null)
   const equipoConversion = useMemo(
     () => identidadesEquipoConversion(ambito.vendedores, equipo),
     [ambito.vendedores, equipo],
@@ -231,8 +259,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const hayDolares = (capitalActualUsd ?? 0) > 0 || metaCapitalUsd > 0
   const tcEnVuelo = tipoCambio.tc === undefined && hayDolares
   const tcCaido = tipoCambio.tc === null && hayDolares
-  const conversionActual = cumplimiento?.conversionReal ?? null
+  const conversionActual = conversionMensualMedible
+    ? (conversionMensual?.total.conversion_pct ?? null)
+    : null
+  const recibidosEmpresa = conversionMensual?.total.divisor ?? null
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
+  const reintentarConversionMensual = () => { if (sesionReal) void qConversionMensual.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
   const reintentarDistribucion = () => { if (sesionReal) void distribucion.refetch() }
   const esResumen = seccion === 'completo' || seccion === 'resumen' || seccion === 'capital-cierres'
@@ -242,11 +274,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
       <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />
 
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={conversionMensualPaneles} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
 
-      {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
+      {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 
-      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={() => { reintentarConversiones(); tipoCambio.recargar() }} />}
+      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); tipoCambio.recargar() }} />}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 
@@ -318,21 +350,25 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                 />
                 <MetaItem
                   label="Conversión de la empresa"
-                  actual={conversionActual == null ? '—' : `${conversionActual}%`}
+                  actual={conversionActual == null ? '—' : `${numero(conversionActual, 1)}%`}
                   objetivo={metaMensual.errorCarga
                     ? 'meta no disponible'
                     : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
-                  nota="El detalle por analista está en Conversiones."
+                  nota={recibidosEmpresa == null
+                    ? 'El detalle por analista está en Conversiones.'
+                    : `${numero(recibidosEmpresa)} leads recibidos este mes · detalle por analista en Conversiones.`}
                   progreso={meta.conversionObjetivo > 0 && conversionActual != null
                     ? pctMeta(conversionActual, meta.conversionObjetivo)
                     : null}
-                  mensajeSinProgreso={metaMensual.errorCarga
-                    ? 'No pudimos cargar la meta mensual'
-                    : meta.conversionObjetivo <= 0
-                        ? undefined
-                        : conversionActual == null
-                            ? 'Todavía no hay leads resueltos para medir'
-                            : undefined}
+                  mensajeSinProgreso={!conversionMensualMedible && conversionMensual != null
+                    ? 'Sin datos de asignación para este mes'
+                    : metaMensual.errorCarga
+                        ? 'No pudimos cargar la meta mensual'
+                        : meta.conversionObjetivo <= 0
+                            ? undefined
+                            : conversionActual == null
+                                ? 'Todavía no hay leads recibidos este mes'
+                                : undefined}
                 />
             </div>
 
@@ -373,7 +409,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           {estaCargando(sesionReal, conversiones) && !datosConversion
             ? <Skeleton className="h-72 rounded-2xl" aria-label="Cargando rendimiento del equipo" />
             : datosConversion || !errorConversiones
-              ? <EquipoGerenciaPanel datos={datosConversion} conversiones={datosEquipoConversion} miembros={equipo} />
+              ? <EquipoGerenciaPanel conversionMensual={conversionMensualPaneles} conversiones={datosEquipoConversion} miembros={equipo} />
               : null}
           <div data-gi-panel>
             <DistribucionLeadsGerencia datos={datosDistribucion} cargando={estaCargando(sesionReal, distribucion)} error={errorConsulta(sesionReal, distribucion.error, 'No se pudo cargar la capacidad por analista.')} modoDemo={modoDemo} mostrarOperacion={false} mostrarPeriodo={false} desde={periodo.desde} hasta={periodo.hasta} onCambiarPeriodo={(desde, hasta) => setPeriodo({ desde, hasta })} onReintentar={reintentarDistribucion} onEditarCapacidad={async (analistaId, capacidad) => { await actualizarCapacidad.mutateAsync({ analistaId, capacidad }) }} />

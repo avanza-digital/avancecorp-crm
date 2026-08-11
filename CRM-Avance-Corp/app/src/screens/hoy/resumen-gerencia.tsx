@@ -29,7 +29,9 @@ import {
   type ObjetivoComercial,
 } from '@/lib/objetivos'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
+import type { ConversionMensual } from '@/lib/conversion-mensual'
 import {
+  adaptarConversionMensual,
   adaptarConversionVendedores,
   clasificarRankingConversion,
 } from '@/lib/conversion-vendedores'
@@ -38,6 +40,13 @@ import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
+  /**
+   * La conversión mensual ponderada (`crm.conversion_mensual_fn`): alimenta el
+   * héroe, el KPI de conversión y «Mejores vendedores». Tri-estado: `undefined`
+   * consultando · `null` no disponible (todo degrada a «—», jamás a la fórmula
+   * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO.
+   */
+  conversionMensual: ConversionMensual | null | undefined
   reuniones: MetricasReuniones | null | undefined
   equipo: ConversionEquipoVendedor[]
   meta: ObjetivoComercial
@@ -112,6 +121,7 @@ function ErrorResumen({ error, onReintentar }: { error: string; onReintentar: ()
 
 export function ResumenGerenciaPanel({
   conversiones,
+  conversionMensual,
   reuniones,
   equipo,
   meta,
@@ -125,7 +135,14 @@ export function ResumenGerenciaPanel({
 }: ResumenGerenciaPanelProps): JSX.Element {
   const clientes = conversiones?.cohorte.contratos ?? null
   const leads = conversiones?.cohorte.leads ?? null
-  const conversion = conversiones?.cohorte.conversion_contratos_pct ?? null
+  // El número grande del resumen es LA conversión del MES (servida, jamás
+  // dividida aquí); «medible: false» del servidor degrada a «—» con rótulo.
+  const totalMes = conversionMensual != null && conversionMensual.cobertura.medible
+    ? conversionMensual.total
+    : null
+  const conversionMes = totalMes?.conversion_pct ?? null
+  const recibidosMes = totalMes?.divisor ?? null
+  const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
   const capitalPen = conversiones?.produccion.capital_pen ?? null
   const capitalUsd = conversiones?.produccion.capital_usd ?? null
   const reunionesRealizadas = reuniones?.resumen.realizadas ?? null
@@ -218,11 +235,17 @@ export function ResumenGerenciaPanel({
       : [{ name: 'Conversión real', type: 'line', smooth: true, data: valoresEvolucion, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } }],
   }), [etiquetas, metaConversion, metasComparables, valoresEvolucion])
 
-  const ranking = useMemo(
-    () => clasificarRankingConversion(vendedoresAdaptados.vendedores),
-    [vendedoresAdaptados.vendedores],
+  const adaptadaMensual = useMemo(
+    () => adaptarConversionMensual(conversionMensual ?? null, equipo),
+    [conversionMensual, equipo],
   )
-  const mejores = ranking.conPuesto.slice(0, 5)
+  const rankingMes = useMemo(
+    () => clasificarRankingConversion(adaptadaMensual.vendedores),
+    [adaptadaMensual.vendedores],
+  )
+  // Top 5 MEDIBLES del mes (solo_arrastre compite en el ranking pero sin %,
+  // y una lista de «mejores» sin número no ordena nada).
+  const mejores = rankingMes.conPuesto.filter((fila) => fila.detalle.conversion_pct != null).slice(0, 5)
   const maxMejor = Math.max(1, ...mejores.map((fila) => fila.detalle.conversion_pct ?? 0))
   const origenes = [...(conversiones?.origenes ?? [])]
     .sort((a, b) => (b.conversion_contratos_pct ?? -1) - (a.conversion_contratos_pct ?? -1))
@@ -275,6 +298,8 @@ export function ResumenGerenciaPanel({
     || hayActividadReuniones
     || hayMetas
     || hayActividadEquipo
+    || (conversionMensual?.total.divisor ?? 0) > 0
+    || (conversionMensual?.total.numerador ?? 0) > 0
     || metaMensual.errorCarga === true
 
   if (cargando && !conversiones && !reuniones) {
@@ -290,9 +315,15 @@ export function ResumenGerenciaPanel({
       {error && <ErrorResumen error={error} onReintentar={onReintentar} />}
       <section data-gi-hero className="gi-summary-hero">
         <div>
-          <p className="gi-label text-white/65">Conversión a clientes</p>
-          <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{pct(conversion)}</p>
-          <p className="mt-2 text-xs text-white/65">{numeroDisponible(clientes)} clientes de {numeroDisponible(leads)} leads</p>
+          <p className="gi-label text-white/65">Conversión del mes</p>
+          <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{pct(conversionMes)}</p>
+          <p className="mt-2 text-xs text-white/65">
+            {conversionMensual != null && !conversionMensual.cobertura.medible
+              ? 'Sin datos de asignación para este mes'
+              : totalMes == null
+                ? 'Conversión del mes no disponible'
+                : `${numero(cierresMes ?? 0)} cierres de ${numero(recibidosMes ?? 0)} recibidos este mes`}
+          </p>
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-3">
           <div className="gi-hero-metric"><span>Capital</span><strong>{moneyDisponible(capitalPen, 'PEN')}</strong></div>
@@ -314,7 +345,7 @@ export function ResumenGerenciaPanel({
       </section>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi label="Conversión" valor={pct(conversion)} detalle={`${numeroDisponible(clientes)} clientes`} Icon={TrendingUp} color={C.blue} />
+        <Kpi label="Conversión del mes" valor={pct(conversionMes)} detalle={cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
         <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads`} Icon={UserRoundCheck} color={C.green} />
         <Kpi label="Capital invertido" valor={moneyDisponible(capitalPen, 'PEN')} detalle={capitalUsd == null || capitalPen == null ? 'Dato no disponible' : capitalUsd > 0 ? money(capitalUsd, 'USD') : capitalPen > 0 ? 'Todo en soles' : 'Sin capital confirmado'} Icon={WalletCards} color={C.teal} />
         <Kpi label="Reuniones realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando reuniones…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
@@ -338,7 +369,7 @@ export function ResumenGerenciaPanel({
             <h2 className="gi-title">Mejores vendedores</h2>
             <a
               href="#/ranking-vendedores"
-              aria-label="Abrir ranking general de vendedores"
+              aria-label="Ver ranking general de vendedores"
               className="after:absolute after:inset-0 after:content-[''] flex items-center gap-1 text-[11px] font-bold text-[var(--gi-blue)] outline-none"
             >
               Ver ranking
@@ -353,7 +384,7 @@ export function ResumenGerenciaPanel({
                     <div className="gi-track"><div className="gi-fill motion-reduce:transition-none" style={{ width: `${((fila.detalle.conversion_pct ?? 0) / maxMejor) * 100}%`, background: indice < 3 ? C.green : indice === 3 ? C.amber : C.red }} /></div>
                   </div>
                 ))
-              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{vendedoresAdaptados.responsablesDisponibles ? 'Aún no hay vendedores con leads en este período' : 'Detalle por vendedor no disponible'}</p>}
+              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)]">{adaptadaMensual.responsablesDisponibles ? 'Aún no hay vendedores medibles este mes' : 'Detalle por vendedor no disponible'}</p>}
           </div>
         </section>
       </div>

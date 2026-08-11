@@ -54,6 +54,9 @@ vi.mock('@/lib/store-context', () => ({
 // El panel de agenda del equipo vive de una RPC (TanStack) que no es lo que se
 // prueba aquí: se apaga junto con su consulta para no montar un QueryClient.
 vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => null }))
+// La conversión mensual del equipo, controlable por test (sin QueryClient).
+let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
+let CONVERSION_MENSUAL_ERROR = false
 vi.mock('@/data/crm-queries', () => ({
   useMetricasAgenda: () => ({
     data: undefined,
@@ -61,6 +64,10 @@ vi.mock('@/data/crm-queries', () => ({
     isPending: false,
     isFetching: false,
     refetch: () => {},
+  }),
+  useConversionMensual: () => ({
+    data: CONVERSION_MENSUAL ?? undefined,
+    isError: CONVERSION_MENSUAL_ERROR,
   }),
 }))
 // crm-api arrastra el cliente de Supabase al importarse; solo se usa su
@@ -168,6 +175,21 @@ function montar(
  * (`metaVigente`): «no hay meta» ya no se simula poniendo `objetivos` a cero
  * mientras el cumplimiento sigue trayendo las suyas.
  */
+/** Payload de alcance 'equipo' cuyo TOTAL trae el % y el divisor dados. */
+function conversionMensualEquipo(pct: number | null, divisor: number): import('@/lib/conversion-mensual').ConversionMensual {
+  return {
+    version: 1,
+    generado_en: '2026-07-15T15:00:00Z',
+    alcance: 'equipo',
+    periodo: { mes: '2026-07', mes_nombre: 'julio', anio: 2026, zona: 'America/Lima', desde: '2026-07-01T05:00:00Z', hasta: '2026-08-01T05:00:00Z' },
+    ponderacion: { referido: 0.15, fuente: 'crm.conversion_pesos' },
+    fuentes: { divisor: 'crm.lead_asignaciones.asignado_en', numerador: 'crm.lead_asignaciones.resultado_en', referido: 'crm.lead_asignaciones.origen' },
+    cobertura: { medible: true, suelo_historico: null, motivo_no_medible: null, divisor_aproximado: 0, divisor_por_motivo: divisor > 0 ? { ingreso: divisor } : {}, cierres_sin_episodio: 0, fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 } },
+    total: { analistas: divisor > 0 ? 1 : 0, divisor, cierres_no_referidos: 0, cierres_referidos: 0, cierres_de_arrastre: 0, referidos_recibidos: 0, numerador: pct == null ? 0 : (pct * divisor) / 100, conversion_pct: pct, referidos_aporta_pct: null },
+    responsables: [],
+  }
+}
+
 function cumplimientoSupervisor(
   conversionReal: number | null,
   resueltos: number,
@@ -195,6 +217,8 @@ function cumplimientoSupervisor(
 }
 
 beforeEach(() => {
+  CONVERSION_MENSUAL = null
+  CONVERSION_MENSUAL_ERROR = false
   TIPO_CAMBIO.tc = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
   vi.useFakeTimers()
   vi.clearAllMocks()
@@ -208,7 +232,10 @@ afterEach(() => {
 })
 
 describe('Hoy · supervisor — meta del equipo', () => {
-  it('la conversión del equipo proviene del cumplimiento confirmado y no del pipeline local', () => {
+  it('la conversión del equipo proviene de la RPC MENSUAL, no del cumplimiento ni del pipeline', () => {
+    // El cumplimiento dice 80 % (fórmula vieja); la RPC mensual, 50 % con 10
+    // recibidos. El tile pinta la mensual: número nuevo bajo rótulo nuevo (E1).
+    CONVERSION_MENSUAL = conversionMensualEquipo(50, 10)
     montar({
       leads: [
         lead({ id: 'l-c', etapa: 'convertido' }),
@@ -217,25 +244,27 @@ describe('Hoy · supervisor — meta del equipo', () => {
       ],
       objetivos: { conversionObjetivo: 50 },
       // La meta viaja en el snapshot, que es contra lo que se mide.
-      cumplimiento: cumplimientoSupervisor(50, 2, 'con-metas', 50),
+      cumplimiento: cumplimientoSupervisor(80, 2, 'con-metas', 50),
     })
 
-    expect(screen.getByText('50% de 50%')).toBeInTheDocument()
+    expect(screen.getByText('50% de 50% · 10 recibidos')).toBeInTheDocument()
   })
 
-  it('un mes sin nada resuelto es SIN DATO, no un 0 % en rojo crítico', () => {
+  it('un mes sin leads RECIBIDOS es SIN DATO, no un 0 % en rojo crítico', () => {
+    CONVERSION_MENSUAL = conversionMensualEquipo(null, 0)
     montar({
       leads: [lead({ id: 'l-abierto', etapa: 'propuesta_enviada' })],
       objetivos: { conversionObjetivo: 40 },
       cumplimiento: cumplimientoSupervisor(null, 0, 'con-metas', 40),
     })
 
-    expect(screen.getByText('Todavía no se resolvió ningún lead este mes')).toBeInTheDocument()
+    expect(screen.getByText('Sin leads recibidos este mes')).toBeInTheDocument()
     expect(screen.getByText('—')).toBeInTheDocument()
     expect(screen.queryByText('0% de 40%')).not.toBeInTheDocument()
   })
 
   it('no inventa una meta inicial de 15 % cuando no hay meta publicada', () => {
+    CONVERSION_MENSUAL = conversionMensualEquipo(50, 4)
     montar({
       objetivos: { conversionObjetivo: 0 },
       cumplimiento: cumplimientoSupervisor(50, 2, 'sin-metas'),
@@ -252,6 +281,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
   // escribe todo en soles— y vivía en «Sin meta fijada» para siempre mientras
   // el capital real en USD no movía ninguna barra.
   it('sin ninguna meta publicada mantiene capital y conversión neutrales', () => {
+    CONVERSION_MENSUAL = conversionMensualEquipo(100, 1)
     montar({
       objetivos: objetivosCero('2026-07-01').supervisor,
       cumplimiento: cumplimientoSupervisor(100, 1, 'sin-metas'),
@@ -263,6 +293,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
   })
 
   it('si la lectura de metas falla no reemplaza el error por 15 %', () => {
+    CONVERSION_MENSUAL = conversionMensualEquipo(30, 10)
     montar({
       objetivos: objetivosCero('2026-07-01').supervisor,
       objetivosError: true,
@@ -283,7 +314,10 @@ describe('Hoy · supervisor — meta del equipo', () => {
     })
 
     expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
-    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
+    // Solo el CAPITAL cuelga del cumplimiento; la conversión del mes viene de
+    // su propia RPC y aquí, sin payload, declara su propio vacío.
+    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(1)
+    expect(screen.getByText('Sin datos de asignación para este mes')).toBeInTheDocument()
     expect(screen.getByText(/no cuenta como cumplimiento/)).toBeInTheDocument()
   })
 
@@ -317,6 +351,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
   // que el cumplimiento llega NULO sin que haya fallado nada. Ni un solo test
   // cubría este caso, que es el que un supervisor real ve hoy.
   it('sin metas publicadas ni error no pinta ceros ni barras rojas', () => {
+    CONVERSION_MENSUAL = conversionMensualEquipo(25, 8)
     montar({
       objetivos: objetivosCero('2026-07-01').supervisor,
       cumplimiento: null,

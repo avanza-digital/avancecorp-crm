@@ -4,6 +4,7 @@
 import { expect, test } from '@playwright/test'
 import {
   bloquearSupabase,
+  conversionMensualReal,
   entrarDemo,
   loginReal,
   metricasConversionesReal,
@@ -34,12 +35,14 @@ test.describe('resumen de Gerencia en sesión real', () => {
       metricas: {
         conversiones: metricasConversionesReal(),
         reuniones: metricasReunionesReal(),
+        conversionMensual: conversionMensualReal(),
       },
     })
     await loginReal(page)
 
     await expect(page.getByRole('heading', { name: 'Resumen' })).toBeVisible()
-    await expect(page.getByText('2 clientes de 20 leads')).toBeVisible()
+    // El héroe dice LA conversión del MES (RPC mensual), no la cohorte del rango.
+    await expect(page.getByText('2 cierres de 20 recibidos este mes')).toBeVisible()
     await expect(page.getByText('S/ 125,000').first()).toBeVisible()
     await expect(page.getByText('8 pactadas')).toBeVisible()
     await expect(

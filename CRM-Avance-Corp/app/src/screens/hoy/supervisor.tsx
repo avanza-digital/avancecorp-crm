@@ -44,14 +44,17 @@ import {
   metaVigente,
   capitalReal,
   metaConversionAplicable,
+  periodoLima,
 } from '@/lib/objetivos'
+import { useConversionMensual } from '@/data/crm-queries'
+import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
 import { useMetricasAgenda } from '@/data/crm-queries'
-import { money, moneyK } from '@/lib/format'
+import { money, moneyK, numero } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
@@ -157,7 +160,22 @@ export function HoySupervisor(): JSX.Element {
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-  const conversionConfirmada = cumplimiento?.conversionReal ?? null
+
+  // LA CONVERSIÓN DEL MES del EQUIPO — total del payload de alcance 'equipo'
+  // (crm.conversion_mensual_fn), no el cumplimiento: la definición acordada
+  // llega ya, sin esperar a la migración B (E1, plan §4bis). El total viene
+  // RECALCULADO del servidor (suma÷suma, jamás media de porcentajes).
+  const esDemoConversion = yo?.demo === true
+  const qConversionMensual = useConversionMensual(!esDemoConversion, periodoLima(Date.now()))
+  const conversionMensual = esDemoConversion
+    ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
+    : (qConversionMensual.data ?? null)
+  const conversionMensualError = !esDemoConversion && qConversionMensual.isError
+  const conversionMedible = conversionMensual?.cobertura.medible ?? false
+  const conversionConfirmada = conversionMedible
+    ? (conversionMensual?.total.conversion_pct ?? null)
+    : null
+  const recibidosEquipo = conversionMensual?.total.divisor ?? null
   // ── Cumplimiento del mes ──────────────────────────────────────────────────
   // PEN y USD ya NO van por separado: la meta se pacta en soles (el editor
   // escribe todo en `nuevo/PEN`), así que la fila de dólares vivía en «Sin meta
@@ -201,23 +219,25 @@ export function HoySupervisor(): JSX.Element {
               : null,
     },
     {
-      label: 'Conversión resuelta',
+      label: 'Conversión del mes',
       txt:
         conversionConfirmada == null
           ? '—'
           : metaConversion != null
-            ? `${conversionConfirmada}% de ${metaConversion}%`
-            : `${conversionConfirmada}%`,
+            ? `${numero(conversionConfirmada, 1)}% de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
+            : `${numero(conversionConfirmada, 1)}% · ${numero(recibidosEquipo)} recibidos`,
       pct: pctMeta(conversionConfirmada ?? 0, metaConversion ?? 0),
-      sinDato: objetivosError
-        ? 'Meta mensual no disponible'
-        : metaConversion == null
-          ? SIN_META
-          : cumplimientoMetasError
-            ? 'Cumplimiento confirmado no disponible'
-            : conversionConfirmada == null
-              ? 'Todavía no se resolvió ningún lead este mes'
-              : null,
+      sinDato: conversionMensualError
+        ? 'Conversión del mes no disponible'
+        : !conversionMedible
+          ? 'Sin datos de asignación para este mes'
+          : conversionConfirmada == null
+            ? 'Sin leads recibidos este mes'
+            : objetivosError
+              ? 'Meta mensual no disponible'
+              : metaConversion == null
+                ? SIN_META
+                : null,
     },
   ]
 

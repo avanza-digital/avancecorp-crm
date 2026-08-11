@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { conversionEquipoDemo, metricasConversionesDemo } from '@/lib/demo-inteligencia-comercial'
+import { conversionEquipoDemo, conversionMensualInteligenciaDemo } from '@/lib/demo-inteligencia-comercial'
 import type { Miembro } from '@/lib/tipos'
 import { EquipoGerenciaPanel } from './equipo-gerencia'
 
@@ -38,36 +38,47 @@ function identidadSinMetricas() {
   }))
 }
 
-describe('rendimiento de Gerencia desde responsables de la RPC', () => {
-  it('usa el store solo para identidad aunque sus contadores estén en cero', () => {
+describe('rendimiento de Gerencia desde la conversión mensual', () => {
+  it('usa el store solo para identidad y TODOS los números vienen de la RPC mensual', () => {
     render(
       <EquipoGerenciaPanel
-        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         conversiones={identidadSinMetricas()}
         miembros={MIEMBROS}
       />,
     )
 
-    expect(screen.getByText('42 leads · 5 clientes')).toBeInTheDocument()
-    expect(screen.getByText('37 leads · 4 clientes')).toBeInTheDocument()
+    // Tarjetas por vendedor: recibidos/cierres del MES (identidad en cero no pisa nada).
+    expect(screen.getByText('12 recibidos · 5 cierres')).toBeInTheDocument()
+    expect(screen.getByText('10 recibidos · 2 cierres')).toBeInTheDocument()
+    // KPIs servidos: divisor y cierres de la empresa, sin divisiones en cliente.
+    expect(screen.getByText('Recibidos del mes')).toBeInTheDocument()
+    expect(screen.getByText('39')).toBeInTheDocument()
+    expect(screen.getByText('Cierres del mes')).toBeInTheDocument()
+    // La gráfica compara solo a los MEDIBLES, ordenados por % del mes.
     const grafico = screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })
     expect(JSON.parse(grafico.getAttribute('data-series') ?? '[]')).toEqual([
-      11.9,
-      10.8,
-      8.8,
-      8.3,
-      6.9,
-      5.6,
+      34.58,
+      20,
+      12.78,
+      12.5,
     ])
+    // El % del grupo SUMA numerador y divisor (María: 6.15÷22, no la media de %).
+    const maria = screen.getByText('María Salazar').closest('section')!
+    expect(within(maria).getByText('28%')).toBeInTheDocument()
+    expect(within(maria).getByText('7 cierres · 22 recibidos')).toBeInTheDocument()
+    const jose = screen.getByText('José Rivas').closest('section')!
+    expect(within(jose).getByText('18.5%')).toBeInTheDocument()
+    expect(within(jose).getByText('4 cierres · 17 recibidos')).toBeInTheDocument()
+    // Los estados sin % llevan rótulo, jamás un «0 %» inventado.
+    expect(within(maria).getByText('Solo referidos')).toBeInTheDocument()
+    expect(within(jose).getByText('Solo arrastre')).toBeInTheDocument()
   })
 
-  it('expone indisponible cuando la RPC no incluye responsables', () => {
-    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
-    delete datos.responsables
-
+  it('sin conversión mensual expone indisponible — no rescata la fórmula vieja', () => {
     render(
       <EquipoGerenciaPanel
-        datos={datos}
+        conversionMensual={null}
         conversiones={identidadSinMetricas()}
         miembros={MIEMBROS}
       />,
@@ -76,5 +87,7 @@ describe('rendimiento de Gerencia desde responsables de la RPC', () => {
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
     expect(screen.getAllByText('No disponible')).toHaveLength(conversionEquipoDemo().length)
     expect(screen.getAllByText('Datos no disponibles').length).toBeGreaterThan(0)
+    // Los KPIs del mes degradan a «—», nunca a cero.
+    expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
 })

@@ -10,9 +10,11 @@ import {
 } from '@/components/gerencia/periodo'
 import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
+import type { ConversionMensual } from '@/lib/conversion-mensual'
 import {
+  adaptarConversionMensual,
   adaptarConversionVendedores,
-  type ConversionVendedoresAdaptada,
+  type DetalleConversionMensual,
   type DetalleRankeable,
   clasificarRankingCapitalTotal,
   clasificarRankingConversion,
@@ -28,6 +30,16 @@ import type { TipoCambio } from '@/lib/tipo-cambio'
 
 interface RankingVendedoresPanelProps {
   datos: MetricasConversiones | null | undefined
+  /**
+   * LA fuente del tab «Conversión» desde la conversión mensual ponderada
+   * (`crm.conversion_mensual_fn`) — tri-estado como `tc`:
+   * `undefined` = consultando (el tab muestra carga, no afirma nada);
+   * `null` = no disponible → fail-closed: todos «No disponible», jamás ceros.
+   * El payload viejo (`datos`) ya NO alimenta este tab: mide otra pregunta
+   * (el rango elegido, sin ponderar) y mezclar fórmulas bajo un mismo rótulo
+   * es la mentira que este cambio elimina.
+   */
+  conversionMensual: ConversionMensual | null | undefined
   equipo: ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
@@ -47,24 +59,6 @@ interface RankingVendedoresPanelProps {
   etiquetaAlcance?: string
   /** Pestaña abierta al montar. */
   tabInicial?: TipoRanking
-  /**
-   * Si la conversión NO está disponible para este rol, su pestaña ni se ofrece.
-   *
-   * Es el caso del supervisor: `metricas_conversiones_fn` deniega a todo lo que no
-   * sea gerencia/lector global, y relajarla sería una fuga —sus vistas base no
-   * tienen predicado jerárquico—. Se abre cuando exista la RPC scopeada; hasta
-   * entonces, ofrecer un tab que siempre falla sería mentir.
-   */
-  conversionDisponible?: boolean
-  /**
-   * Colección YA adaptada, para quien no consume el payload de gerencia.
-   *
-   * El supervisor recibe el suyo de `metricas_conversiones_equipo_fn`, cuyo
-   * payload es distinto a propósito (sin los agregados de empresa). En vez de
-   * enseñar a este panel dos formas de payload, se le pasa el resultado del
-   * adaptador correspondiente y él solo clasifica.
-   */
-  adaptadaExterna?: ConversionVendedoresAdaptada<DetalleRankeable>
 }
 
 type TipoRanking = 'conversion' | 'capital-total'
@@ -106,6 +100,26 @@ function CargandoRanking(): JSX.Element {
   )
 }
 
+/**
+ * Carga DENTRO del tabpanel: mantiene vivo el id que `aria-controls` promete
+ * (sin él, el tab activo apunta a un nodo inexistente) y ANUNCIA la consulta —
+ * los esqueletos son divs mudos y un lector no recibía ninguna señal.
+ */
+function CargandoTabpanel({ tab, mensaje }: { tab: TipoRanking; mensaje: string }): JSX.Element {
+  const esConversion = tab === 'conversion'
+  return (
+    <div
+      role="tabpanel"
+      id={esConversion ? 'panel-ranking-conversion' : 'panel-ranking-capital'}
+      aria-labelledby={esConversion ? 'tab-ranking-conversion' : 'tab-ranking-capital-total'}
+      aria-busy="true"
+    >
+      <span className="sr-only">{mensaje}</span>
+      <CargandoRanking />
+    </div>
+  )
+}
+
 function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: () => void }): JSX.Element {
   return (
     <div className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:m-5" role="alert">
@@ -119,7 +133,7 @@ function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: ()
   )
 }
 
-function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<DetalleRankeable> }): JSX.Element {
+function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<DetalleConversionMensual> }): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
   return (
@@ -131,8 +145,8 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
               <th className="w-20 px-5 py-3" scope="col">Puesto</th>
               <th className="px-3 py-3" scope="col">Vendedor</th>
               <th className="px-3 py-3" scope="col">Equipo</th>
-              <th className="px-3 py-3 text-right" scope="col">Leads</th>
-              <th className="px-3 py-3 text-right" scope="col">Clientes</th>
+              <th className="px-3 py-3 text-right" scope="col">Recibidos</th>
+              <th className="px-3 py-3 text-right" scope="col">Cierres</th>
               <th className="px-3 py-3 text-right" scope="col">Conversión</th>
               <th className="min-w-56 px-5 py-3" scope="col">Nivel de conversión</th>
             </tr>
@@ -149,8 +163,15 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                   <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.leads)}</td>
                   <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.clientes)}</td>
                   <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</td>
-                  <td className="px-5 py-3" aria-label={`Nivel de conversión ${pct(conversion)}`}>
-                    <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>
+                  <td
+                    className="px-5 py-3"
+                    aria-label={fila.estadoConversion === 'solo_arrastre'
+                      ? 'Nivel de conversión: solo cierres de arrastre'
+                      : `Nivel de conversión ${pct(conversion)}`}
+                  >
+                    {fila.estadoConversion === 'solo_arrastre'
+                      ? <span className="inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
+                      : <div className="gi-track h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>}
                   </td>
                 </tr>
               )
@@ -170,8 +191,10 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                 <div className="min-w-0"><p className="truncate text-sm font-bold text-[var(--gi-navy)]">{fila.nombre}</p><p className="mt-0.5 truncate text-[11px] font-medium text-[var(--gi-muted)]">{fila.supervisorNombre}</p></div>
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
-              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} leads</span><span>{numero(fila.detalle.clientes)} clientes</span></div>
-              <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>
+              <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} recibidos</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
+              {fila.estadoConversion === 'solo_arrastre'
+                ? <span className="ml-12 mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
+                : <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>}
             </li>
           )
         })}
@@ -184,7 +207,12 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
             {ranking.sinMuestra.map((fila) => (
               <li key={fila.vendedorId} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[var(--gi-line)] bg-white px-3 py-2.5">
                 <span className="min-w-0"><strong className="block truncate text-xs text-[var(--gi-navy)]">{fila.nombre}</strong><span className="block truncate text-[10px] text-[var(--gi-muted)]">{fila.supervisorNombre}</span></span>
-                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Sin muestra</span>
+                {/* «Solo recibió referidos» ≠ «Sin muestra»: el primero TRABAJÓ
+                    (los referidos no ocupan divisor y suman 15 % al cerrarse);
+                    leerlo como inactividad es la confusión que el estado evita. */}
+                <span className="shrink-0 rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">
+                  {fila.estadoConversion === 'solo_referidos' ? 'Solo recibió referidos' : 'Sin muestra'}
+                </span>
               </li>
             ))}
             {ranking.indisponibles.map((fila) => (
@@ -293,6 +321,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
 
 export function RankingVendedoresPanel({
   datos,
+  conversionMensual,
   equipo,
   metasVendedores,
   cumplimientoVendedores,
@@ -304,24 +333,28 @@ export function RankingVendedoresPanel({
   titulo = 'Ranking general de vendedores',
   etiquetaAlcance = 'Equipo completo',
   tabInicial = 'conversion',
-  conversionDisponible = true,
-  adaptadaExterna,
 }: RankingVendedoresPanelProps): JSX.Element {
   const [tipo, setTipo] = useState<TipoRanking>(tabInicial)
-  const adaptadaPropia = useMemo(
+  // El payload viejo sigue siendo el roster del tab de CAPITAL (sus números
+  // salen de metas/cumplimientos, no de él); el de CONVERSIÓN se adapta aparte
+  // desde la mensual — cada tab con su fuente, ninguna maquillando a la otra.
+  const adaptada = useMemo(
     () => adaptarConversionVendedores(datos, equipo),
     [datos, equipo],
   )
-  const adaptada = adaptadaExterna ?? adaptadaPropia
+  const adaptadaMensual = useMemo(
+    () => adaptarConversionMensual(conversionMensual ?? null, equipo),
+    [conversionMensual, equipo],
+  )
   const rankingConversion = useMemo(
-    () => clasificarRankingConversion(adaptada.vendedores),
-    [adaptada.vendedores],
+    () => clasificarRankingConversion(adaptadaMensual.vendedores),
+    [adaptadaMensual.vendedores],
   )
   const rankingCapitalTotal = useMemo(
     () => clasificarRankingCapitalTotal(adaptada.vendedores, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
     [adaptada.vendedores, cumplimientoVendedores, metasVendedores, tc],
   )
-  const totalVendedores = adaptada.vendedores.length
+  const totalVendedores = Math.max(adaptada.vendedores.length, adaptadaMensual.vendedores.length)
 
   return (
     <section data-gi-panel className="gi-card overflow-hidden">
@@ -336,14 +369,12 @@ export function RankingVendedoresPanel({
 
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-white px-4 py-3 sm:px-5">
         <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
-          {conversionDisponible && (
-            <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
-          )}
+          <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
           <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
         </div>
         <p className="text-[11px] font-medium text-[var(--gi-muted)]">
           {tipo === 'conversion'
-            ? 'Clientes ÷ leads recibidos'
+            ? 'Cierres del mes (referidos al 15 %) ÷ leads recibidos en el mes'
             : tc === undefined
               ? `Contratos confirmados · total en S/ · consultando tipo de cambio… · ${metaMensual.etiqueta}`
               // El rótulo del TC sale del MISMO tc que aplicó la lib (ranking.tc,
@@ -354,16 +385,20 @@ export function RankingVendedoresPanel({
         </p>
       </div>
 
-      {cargando && !datos ? <CargandoRanking /> : error ? <ErrorRanking error={error} onReintentar={onReintentar} /> : totalVendedores === 0 ? (
+      {cargando && !datos ? <CargandoTabpanel tab={tipo} mensaje="Cargando el ranking…" /> : error ? <ErrorRanking error={error} onReintentar={onReintentar} /> : totalVendedores === 0 ? (
         <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay vendedores para mostrar</p></div></div>
-      ) : tipo === 'conversion' ? <RankingConversion ranking={rankingConversion} /> : !metaMensual.comparable ? (
+      ) : tipo === 'conversion' ? (
+        conversionMensual === undefined
+          ? <CargandoTabpanel tab="conversion" mensaje="Consultando la conversión del mes…" />
+          : <RankingConversion ranking={rankingConversion} />
+      ) : !metaMensual.comparable ? (
         <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total" className="grid min-h-64 place-items-center px-5 text-center">
           <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">
             <p className="text-xs font-bold text-amber-900">Meta mensual · {metaMensual.etiqueta}</p>
             <p role="status" className="mt-2 text-xs font-medium text-amber-900">{mensajeMetaNoComparable(metaMensual)}</p>
           </div>
         </div>
-      ) : tc === undefined ? <CargandoRanking /> : (
+      ) : tc === undefined ? <CargandoTabpanel tab="capital-total" mensaje="Consultando el tipo de cambio…" /> : (
         <>
           {tc === null && (
             // Sin este botón, un fallo AISLADO del TC no tenía vía de recuperación:

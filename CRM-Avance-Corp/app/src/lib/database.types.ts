@@ -835,6 +835,10 @@ export interface Database {
         Args: { p_periodo: string }
         Returns: Json
       }
+      conversion_mensual_fn: {
+        Args: { p_periodo: string }
+        Returns: Json
+      }
       configuracion_sla_fn: {
         Args: Record<string, never>
         Returns: Json

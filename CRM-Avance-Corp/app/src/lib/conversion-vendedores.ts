@@ -1,5 +1,9 @@
 import type { ConversionEquipoVendedor } from './conversion-equipo'
 import type {
+  ConversionMensual,
+  ResponsableConversionMensual,
+} from './conversion-mensual'
+import type {
   DetalleConversionVendedor,
   MetricasConversiones,
 } from './metricas-conversiones'
@@ -11,7 +15,31 @@ import {
 } from './objetivos'
 import { tcAplicable, totalEnSoles } from './capital-unificado'
 
-export type EstadoConversionVendedor = 'comparable' | 'sin_muestra' | 'indisponible'
+/**
+ * Los estados del vendedor en el ranking. Mapa CERRADO servidor→front (la
+ * conversión mensual emite cuatro; el quinto lo produce SOLO el cliente):
+ *
+ *   medible         → 'comparable'      (tiene divisor: compite por puesto)
+ *   solo_arrastre   → 'solo_arrastre'   (divisor 0 pero CERRÓ cartera vieja:
+ *                                        entra al ranking, al fondo, sin %)
+ *   solo_referidos  → 'solo_referidos'  (divisor 0 pero RECIBIÓ referidos:
+ *                                        trabajó; se rotula aparte, jamás como
+ *                                        «sin muestra» — leerlo como «no
+ *                                        trabajó» es la confusión que este
+ *                                        estado existe para impedir)
+ *   sin_actividad   → 'sin_muestra'     (ni recibió ni cerró)
+ *   (fail-closed)   → 'indisponible'    (colección incompleta: SOLO cliente)
+ *
+ * Los payloads viejos (metricas_conversiones_fn / _equipo_fn) no traen estado
+ * del servidor y siguen derivando comparable/sin_muestra de sus números — sus
+ * casos de test NO se invierten (miden otro payload).
+ */
+export type EstadoConversionVendedor =
+  | 'comparable'
+  | 'solo_arrastre'
+  | 'solo_referidos'
+  | 'sin_muestra'
+  | 'indisponible'
 
 /**
  * Lo ÚNICO que el ranking de conversión necesita de un vendedor.
@@ -26,6 +54,14 @@ export interface DetalleRankeable {
   leads: number
   clientes: number
   conversion_pct: number | null
+  /**
+   * Solo el payload de la conversión MENSUAL los trae (los dos viejos no):
+   * con numerador ponderado, el entero `clientes` deja de ordenar bien y el
+   * desempate baja a numerador y luego divisor. Opcionales para que los
+   * payloads viejos sigan satisfaciendo la interfaz sin cambiar.
+   */
+  numerador?: number
+  divisor?: number
 }
 
 /**
@@ -74,8 +110,23 @@ function porNombre(
 
 export function estadoConversion(
   detalle: DetalleRankeable | null,
+  estadoServidor?: 'medible' | 'solo_referidos' | 'solo_arrastre' | 'sin_actividad',
 ): EstadoConversionVendedor {
-  if (!detalle || (detalle.leads > 0 && detalle.conversion_pct == null)) return 'indisponible'
+  if (!detalle) return 'indisponible'
+  // El payload de la conversión mensual DECLARA el estado y el servidor es la
+  // única fuente que puede distinguir «solo recibió referidos» de «no recibió
+  // nada» (los dos tienen divisor 0). Derivarlo aquí sería inventar.
+  if (estadoServidor !== undefined) {
+    if (estadoServidor === 'medible') {
+      // Con divisor > 0 el % es obligatorio; si falta, la fila está enferma y
+      // se declara indisponible en vez de competir con un dato a medias.
+      return detalle.conversion_pct == null ? 'indisponible' : 'comparable'
+    }
+    if (estadoServidor === 'sin_actividad') return 'sin_muestra'
+    return estadoServidor
+  }
+  // Payloads viejos (sin estado del servidor): la derivación de siempre.
+  if (detalle.leads > 0 && detalle.conversion_pct == null) return 'indisponible'
   return detalle.leads === 0 ? 'sin_muestra' : 'comparable'
 }
 
@@ -170,24 +221,123 @@ export function adaptarConversionVendedores(
   }
 }
 
+/**
+ * El detalle del ranking cuando la fuente es la conversión MENSUAL ponderada.
+ * `leads`/`clientes` se rellenan con divisor/cierres para satisfacer
+ * DetalleRankeable (las columnas se re-rotulan «Recibidos»/«Cierres» en
+ * pantalla); el resto viaja para el sheet: procedencia, referidos y el
+ * arrastre que explica un % por encima de 100.
+ */
+export interface DetalleConversionMensual extends DetalleRankeable {
+  numerador: number
+  divisor: number
+  estado: ResponsableConversionMensual['estado']
+  cierres_de_arrastre: number
+  procedencia: ResponsableConversionMensual['procedencia']
+  referidos: ResponsableConversionMensual['referidos']
+  supervisorId: string | null
+}
+
+/**
+ * Adapta el payload de `crm.conversion_mensual_fn` al ranking. MISMO
+ * fail-closed que `adaptarConversionVendedores`: una colección ausente o
+ * parcial marca TODO como indisponible — jamás ceros, jamás puestos con un
+ * subconjunto.
+ */
+export function adaptarConversionMensual(
+  datos: ConversionMensual | null | undefined,
+  equipo: readonly ConversionEquipoVendedor[],
+): ConversionVendedoresAdaptada<DetalleConversionMensual> {
+  const responsables = datos?.responsables
+  const detallePorId = new Map(
+    (responsables ?? []).map((fila) => [fila.vendedor_id, fila]),
+  )
+  const identidadPorId = new Map<string, Pick<ConversionEquipoVendedor, 'nombre' | 'supervisorNombre'>>()
+
+  for (const integrante of equipo) {
+    if (!integrante.vendedorId || identidadPorId.has(integrante.vendedorId)) continue
+    identidadPorId.set(integrante.vendedorId, {
+      nombre: integrante.nombre,
+      supervisorNombre: integrante.supervisorNombre,
+    })
+  }
+  for (const fila of responsables ?? []) {
+    if (identidadPorId.has(fila.vendedor_id)) continue
+    identidadPorId.set(fila.vendedor_id, {
+      nombre: 'Vendedor no identificado',
+      supervisorNombre: 'Equipo no disponible',
+    })
+  }
+
+  const responsablesCompletos = responsables !== undefined
+    && detallePorId.size === responsables.length
+    && [...identidadPorId.keys()].every((vendedorId) => detallePorId.has(vendedorId))
+
+  const vendedores = [...identidadPorId.entries()].map(([vendedorId, identidad]) => {
+    const fila = responsablesCompletos ? (detallePorId.get(vendedorId) ?? null) : null
+    const detalle: DetalleConversionMensual | null = fila === null ? null : {
+      leads: fila.divisor,
+      clientes: fila.cierres_no_referidos + fila.cierres_referidos,
+      conversion_pct: fila.conversion_pct,
+      numerador: fila.numerador,
+      divisor: fila.divisor,
+      estado: fila.estado,
+      cierres_de_arrastre: fila.cierres_de_arrastre,
+      procedencia: fila.procedencia,
+      referidos: fila.referidos,
+      supervisorId: fila.supervisor_id,
+    }
+    return {
+      vendedorId,
+      ...identidad,
+      detalle,
+      estadoConversion: estadoConversion(detalle, fila?.estado),
+    }
+  })
+
+  return {
+    responsablesDisponibles: responsablesCompletos,
+    vendedores,
+    // El payload mensual no trae tendencia semanal: mide OTRA pregunta.
+    tendenciaSemanal: null,
+  }
+}
+
 export function clasificarRankingConversion<D extends DetalleRankeable>(
   vendedores: readonly ConversionVendedorAdaptada<D>[],
 ): RankingConversionVendedores<D> {
+  // Tres cubos y CINCO estados: los nuevos viven DENTRO de los cubos de
+  // siempre a propósito — un cubo nuevo haría desaparecer a esa gente de toda
+  // pantalla que concatene los tres (el modo de fallo que ya costó caro: verde
+  // en 1.600 tests y nadie en pantalla). El rótulo distinto lo pone la pantalla
+  // leyendo `estadoConversion`, no la estructura.
+  //   conPuesto  ← comparable + solo_arrastre (cerró: compite; sin %, al fondo)
+  //   sinMuestra ← sin_muestra + solo_referidos (sin divisor; rótulo propio)
+  //   indisponibles ← fail-closed del cliente
   const conPuesto = vendedores
     .filter((fila): fila is ConversionVendedorConDetalle<D> => (
-      fila.estadoConversion === 'comparable' && fila.detalle != null
+      (fila.estadoConversion === 'comparable' || fila.estadoConversion === 'solo_arrastre')
+      && fila.detalle != null
     ))
     .sort((a, b) => {
       const detalleA = a.detalle
       const detalleB = b.detalle
+      // `?? -1` deja los % en NULL (solo_arrastre) al fondo del ranking: ya no
+      // es código muerto, es la regla que impide que un null encabece nada.
+      // El desempate baja a numerador y luego divisor (payload mensual); los
+      // payloads viejos no los traen y caen a clientes/leads, su orden de
+      // siempre.
       return (detalleB?.conversion_pct ?? -1) - (detalleA?.conversion_pct ?? -1)
-        || (detalleB?.clientes ?? -1) - (detalleA?.clientes ?? -1)
-        || (detalleB?.leads ?? -1) - (detalleA?.leads ?? -1)
+        || (detalleB?.numerador ?? detalleB?.clientes ?? -1)
+          - (detalleA?.numerador ?? detalleA?.clientes ?? -1)
+        || (detalleB?.divisor ?? detalleB?.leads ?? -1)
+          - (detalleA?.divisor ?? detalleA?.leads ?? -1)
         || porNombre(a, b)
     })
   const sinMuestra = vendedores
     .filter((fila): fila is ConversionVendedorConDetalle<D> => (
-      fila.estadoConversion === 'sin_muestra' && fila.detalle != null
+      (fila.estadoConversion === 'sin_muestra' || fila.estadoConversion === 'solo_referidos')
+      && fila.detalle != null
     ))
     .sort(porNombre)
   const indisponibles = vendedores

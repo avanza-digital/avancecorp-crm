@@ -935,6 +935,57 @@ function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
   return { desde, hasta, dias, zona: 'America/Lima' }
 }
 
+/**
+ * crm.conversion_mensual_fn sin actividad: divisor 0, % NULL — el default del
+ * mock, para que los specs de vacío sigan viendo su vacío honesto.
+ */
+export function conversionMensualVaciaReal(): { total: Record<string, unknown>; responsables: Record<string, unknown>[] } {
+  return {
+    total: {
+      analistas: 0,
+      divisor: 0,
+      cierres_no_referidos: 0,
+      cierres_referidos: 0,
+      cierres_de_arrastre: 0,
+      referidos_recibidos: 0,
+      numerador: 0,
+      conversion_pct: null,
+      referidos_aporta_pct: null,
+    },
+    responsables: [],
+  }
+}
+
+/**
+ * crm.conversion_mensual_fn con actividad: 2 cierres sobre 20 recibidos (10 %).
+ * Los ids son UUID porque el contrato del front los exige (fail-closed).
+ */
+export function conversionMensualReal(): { total: Record<string, unknown>; responsables: Record<string, unknown>[] } {
+  const filaBase = {
+    cierres_referidos: 0,
+    cierres_de_arrastre: 0,
+    procedencia: [],
+    referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: 0 },
+  }
+  return {
+    total: {
+      analistas: 2,
+      divisor: 20,
+      cierres_no_referidos: 2,
+      cierres_referidos: 0,
+      cierres_de_arrastre: 0,
+      referidos_recibidos: 0,
+      numerador: 2,
+      conversion_pct: 10,
+      referidos_aporta_pct: 0,
+    },
+    responsables: [
+      { ...filaBase, vendedor_id: ANALISTA_ANA_ID, supervisor_id: SUPERVISOR_DIEGO_ID, divisor: 12, cierres_no_referidos: 1, numerador: 1, conversion_pct: 8.33, estado: 'medible' },
+      { ...filaBase, vendedor_id: ANALISTA_BRUNO_ID, supervisor_id: SUPERVISOR_DIEGO_ID, divisor: 8, cierres_no_referidos: 1, numerador: 1, conversion_pct: 12.5, estado: 'medible' },
+    ],
+  }
+}
+
 /** Snapshot válido de las métricas comerciales que consume el Resumen actual. */
 export function metricasConversionesReal(): Record<string, unknown> {
   return {
@@ -1216,6 +1267,8 @@ export interface BackendReal {
     distribucion: unknown
     /** Vendedores de crm.metricas_agenda_fn (panel "Agenda del equipo"). */
     agenda: unknown[]
+    /** Total y filas de crm.conversion_mensual_fn (el periodo lo eco-a el handler). */
+    conversionMensual: { total: Record<string, unknown>; responsables: Record<string, unknown>[] }
   }
   /** C1 — cola global que devuelve crm.leads_por_repartir() al coordinador. */
   colaReparto: Record<string, unknown>[]
@@ -1369,6 +1422,7 @@ export async function montarBackendReal(
       vencimientos: init.metricas?.vencimientos ?? [],
       distribucion: init.metricas?.distribucion ?? metricasDistribucionVaciaReal(),
       agenda: init.metricas?.agenda ?? [],
+      conversionMensual: init.metricas?.conversionMensual ?? conversionMensualVaciaReal(),
     },
     colaReparto: init.colaReparto ?? [],
     descartados: init.descartados ?? [],
@@ -2008,6 +2062,44 @@ export async function montarBackendReal(
       const desde = String(body.p_desde ?? '')
       const hasta = String(body.p_hasta ?? '')
       return json(route, metricasParaPeriodo(estado.metricas.conversiones, desde, hasta))
+    }
+    if (p === '/rest/v1/rpc/conversion_mensual_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
+      // El contrato del front ECO-verifica el mes pedido: el mock lo devuelve tal cual.
+      const mes = String(body.p_periodo ?? '2026-08-01').slice(0, 7)
+      const [anioTxt = '2026', mesTxt = '08'] = mes.split('-')
+      const nombresMes = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'setiembre', 'octubre', 'noviembre', 'diciembre']
+      const alcance = estado.rolCrm === 'vendedor' ? 'propio' : estado.rolCrm === 'supervisor' ? 'equipo' : 'global'
+      return json(route, {
+        version: 1,
+        generado_en: '2026-08-07T17:00:00.000Z',
+        alcance,
+        periodo: {
+          mes,
+          mes_nombre: nombresMes[Number(mesTxt) - 1] ?? 'agosto',
+          anio: Number(anioTxt),
+          zona: 'America/Lima',
+          desde: `${mes}-01T05:00:00+00:00`,
+          hasta: `${mes}-28T05:00:00+00:00`,
+        },
+        ponderacion: { referido: 0.15, fuente: 'crm.conversion_pesos' },
+        fuentes: {
+          divisor: 'crm.lead_asignaciones.asignado_en',
+          numerador: 'crm.lead_asignaciones.resultado_en',
+          referido: 'crm.lead_asignaciones.origen',
+        },
+        cobertura: {
+          medible: true,
+          suelo_historico: null,
+          motivo_no_medible: null,
+          divisor_aproximado: 0,
+          divisor_por_motivo: {},
+          cierres_sin_episodio: 0,
+          fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
+        },
+        total: estado.metricas.conversionMensual.total,
+        responsables: estado.metricas.conversionMensual.responsables,
+      })
     }
     if (p === '/rest/v1/rpc/metricas_reuniones_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }

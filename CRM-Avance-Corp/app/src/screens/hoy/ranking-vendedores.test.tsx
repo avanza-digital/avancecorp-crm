@@ -2,13 +2,32 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
+  conversionMensualInteligenciaDemo,
   cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
   metricasConversionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
+import type { ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { ObjetivosPorVendedor } from '@/lib/objetivos'
 import { RankingVendedoresPanel } from './ranking-vendedores'
+
+/** Fila mensual sin actividad — el roster real siempre trae UNA fila por analista. */
+function filaSinActividad(vendedorId: string): ResponsableConversionMensual {
+  return {
+    vendedor_id: vendedorId,
+    supervisor_id: null,
+    divisor: 0,
+    cierres_no_referidos: 0,
+    cierres_referidos: 0,
+    cierres_de_arrastre: 0,
+    numerador: 0,
+    conversion_pct: null,
+    estado: 'sin_actividad',
+    procedencia: [],
+    referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+  }
+}
 
 describe('ranking general de vendedores', () => {
   it('muestra cualquier cantidad de vendedores, incluidos los que aún no tienen leads', () => {
@@ -50,10 +69,15 @@ describe('ranking general de vendedores', () => {
       capital_usd: 0,
       tendencia_semanal: [],
     })
+    // El tab de conversión bebe de la MENSUAL: mismo roster que `equipo` (el
+    // fail-closed exige una fila por identidad visible, como la RPC real).
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    mensual.responsables.push(filaSinActividad('demo-v7'))
 
     const { rerender } = render(
       <RankingVendedoresPanel
         datos={datos}
+        conversionMensual={mensual}
         equipo={[...conversionEquipoDemo(), sinLeads, sinAsignar]}
         metasVendedores={metas}
         cumplimientoVendedores={cumplimientos}
@@ -66,15 +90,33 @@ describe('ranking general de vendedores', () => {
     )
 
     expect(screen.getByText('7 vendedores · sin límite fijo de participantes')).toBeInTheDocument()
+    expect(screen.getByText('Cierres del mes (referidos al 15 %) ÷ leads recibidos en el mes')).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
+    // Columnas de la conversión MENSUAL: recibidos del mes y cierres — no los
+    // rótulos del payload viejo (Leads/Clientes medían el rango completo).
+    expect(within(tabla).getByRole('columnheader', { name: 'Recibidos' })).toBeInTheDocument()
+    expect(within(tabla).getByRole('columnheader', { name: 'Cierres' })).toBeInTheDocument()
     const filas = within(tabla).getAllByRole('row')
-    expect(filas).toHaveLength(7)
-    expect(within(filas[1]!).getByText('Ana Torres')).toBeInTheDocument()
+    // 1 cabecera + 4 medibles + Fabio (solo arrastre: compite al fondo, sin %).
+    expect(filas).toHaveLength(6)
+    const filaAna = filas[1]!
+    expect(within(filaAna).getByText('Ana Torres')).toBeInTheDocument()
+    expect(within(filaAna).getByText('12')).toBeInTheDocument()
+    expect(within(filaAna).getByText('5')).toBeInTheDocument()
+    // 4.15 ÷ 12 — el numerador pondera el referido al 15 %, no cuenta 5/12.
+    expect(within(filaAna).getByText('34.6%')).toBeInTheDocument()
+    const filaFabio = filas[5]!
+    expect(within(filaFabio).getByText('Fabio León')).toBeInTheDocument()
+    expect(within(filaFabio).getByText('—')).toBeInTheDocument()
+    expect(within(filaFabio).getByText('Solo cierres de arrastre')).toBeInTheDocument()
     expect(within(tabla).queryByText('Gabriela Soto')).not.toBeInTheDocument()
     expect(within(tabla).queryByText('Sin vendedor asignado')).not.toBeInTheDocument()
     const fueraConversion = screen.getByRole('region', { name: 'Vendedores sin posición en conversión' })
     expect(within(fueraConversion).getByText('Gabriela Soto')).toBeInTheDocument()
     expect(within(fueraConversion).getByText('Sin muestra')).toBeInTheDocument()
+    // Elena trabajó (recibió referidos): rótulo PROPIO, jamás «Sin muestra».
+    expect(within(fueraConversion).getByText('Elena Vega')).toBeInTheDocument()
+    expect(within(fueraConversion).getByText('Solo recibió referidos')).toBeInTheDocument()
     expect(within(fueraConversion).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('tab', { name: 'Capital total' }))
@@ -100,6 +142,7 @@ describe('ranking general de vendedores', () => {
     rerender(
       <RankingVendedoresPanel
         datos={metricasConversionesDemo('2026-07-01', '2026-07-31')}
+        conversionMensual={mensual}
         equipo={[...conversionEquipoDemo(), sinLeads, sinAsignar]}
         metasVendedores={metas}
         cumplimientoVendedores={cumplimientos}
@@ -120,6 +163,7 @@ describe('ranking general de vendedores', () => {
     render(
       <RankingVendedoresPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         equipo={conversionEquipoDemo()}
         metasVendedores={metasConversionEquipoDemo()}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
@@ -144,6 +188,7 @@ describe('ranking general de vendedores', () => {
     render(
       <RankingVendedoresPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
         equipo={conversionEquipoDemo()}
         metasVendedores={{ 'demo-v2': todasLasMetas['demo-v2']! }}
         cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
@@ -171,13 +216,14 @@ describe('ranking general de vendedores', () => {
     expect(within(filas[1]!).getByText(/\+ US\$ 16,000 aparte \(sin TC\)/)).toBeInTheDocument()
   })
 
-  it('no sustituye una RPC sin responsables con los contadores operativos del equipo', () => {
-    const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
-    delete datos.responsables
-
+  it('sin conversión mensual el tab queda «No disponible» — JAMÁS sirve la fórmula vieja', () => {
+    // El payload viejo llega COMPLETO (responsables incluidos) a propósito:
+    // si el tab lo usara de fallback, aquí habría tabla con puestos. La
+    // fórmula del rango bajo el rótulo mensual es la mentira que se elimina.
     render(
       <RankingVendedoresPanel
-        datos={datos}
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={null}
         equipo={conversionEquipoDemo()}
         metasVendedores={{}}
         cumplimientoVendedores={{}}
@@ -194,5 +240,26 @@ describe('ranking general de vendedores', () => {
     const fuera = screen.getByRole('region', { name: 'Vendedores sin posición en conversión' })
     expect(within(fuera).getAllByText('No disponible')).toHaveLength(conversionEquipoDemo().length)
     expect(within(fuera).queryByLabelText(/Puesto/)).not.toBeInTheDocument()
+  })
+
+  it('mientras la conversión mensual está en consulta muestra carga, no «No disponible»', () => {
+    render(
+      <RankingVendedoresPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={undefined}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={null}
+        cargando={false}
+        error={null}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('No disponible')).not.toBeInTheDocument()
+    expect(screen.queryByRole('table', { name: 'Ranking de conversión general' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Vendedores sin posición en conversión' })).not.toBeInTheDocument()
   })
 })

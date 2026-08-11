@@ -2,11 +2,14 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
+  conversionMensualInteligenciaDemo,
   cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
   metricasConversionesDemo,
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
+import { numero } from '@/lib/format'
+import type { ConversionMensual, ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { agregarObjetivos, objetivosCero } from '@/lib/objetivos'
@@ -14,6 +17,44 @@ import { ResumenGerenciaPanel } from './resumen-gerencia'
 
 // TC real para que el consolidado se ejercite en su rama normal.
 const TC_TEST = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
+// Instante fijo a mitad de mes: la conversión mensual se deriva contra Lima.
+const AHORA = Date.parse('2026-08-15T17:00:00-05:00')
+
+function filaMensualSinActividad(vendedorId: string): ResponsableConversionMensual {
+  return {
+    vendedor_id: vendedorId,
+    supervisor_id: null,
+    divisor: 0,
+    cierres_no_referidos: 0,
+    cierres_referidos: 0,
+    cierres_de_arrastre: 0,
+    numerador: 0,
+    conversion_pct: null,
+    estado: 'sin_actividad',
+    procedencia: [],
+    referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+  }
+}
+
+function conversionMensualSinActividad(): ConversionMensual {
+  const base = conversionMensualInteligenciaDemo(AHORA)
+  return {
+    ...base,
+    responsables: [],
+    total: {
+      ...base.total,
+      analistas: 0,
+      divisor: 0,
+      cierres_no_referidos: 0,
+      cierres_referidos: 0,
+      cierres_de_arrastre: 0,
+      referidos_recibidos: 0,
+      numerador: 0,
+      conversion_pct: null,
+      referidos_aporta_pct: null,
+    },
+  }
+}
 
 const META_EQUIPO = agregarObjetivos(Object.values(metasConversionEquipoDemo()))
 const CUMPLIMIENTO_EQUIPO = cumplimientoMetasConversionEquipoDemo().gerencia
@@ -151,9 +192,13 @@ describe('ranking general de vendedores', () => {
       },
     ]
 
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    mensual.responsables.push(filaMensualSinActividad('demo-v7'))
+
     render(
       <ResumenGerenciaPanel
         conversiones={conversiones}
+        conversionMensual={mensual}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={equipo}
         meta={META_EQUIPO}
@@ -169,7 +214,7 @@ describe('ranking general de vendedores', () => {
 
     expect(screen.queryByText('Fabio León')).not.toBeInTheDocument()
 
-    const enlace = screen.getByRole('link', { name: 'Abrir ranking general de vendedores' })
+    const enlace = screen.getByRole('link', { name: 'Ver ranking general de vendedores' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
     const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
@@ -182,6 +227,7 @@ describe('ranking general de vendedores', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={conversiones}
+        conversionMensual={null}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
         meta={META_EQUIPO}
@@ -206,6 +252,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={conversionesSinActividad()}
+        conversionMensual={conversionMensualSinActividad()}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={[]}
         meta={META_EQUIPO}
@@ -229,7 +276,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
     expect(screen.getAllByText('Reuniones realizadas').length).toBeGreaterThan(0)
     expect(screen.getByText('Aún no hay conversiones para mostrar')).toBeInTheDocument()
-    expect(screen.getByText('Aún no hay vendedores con leads en este período')).toBeInTheDocument()
+    expect(screen.getByText('Aún no hay vendedores medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
     expect(screen.getByText('Sin capital confirmado')).toBeInTheDocument()
   })
@@ -238,6 +285,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         reuniones={undefined}
         equipo={conversionEquipoDemo()}
         meta={META_EQUIPO}
@@ -252,7 +300,11 @@ describe('estados vacíos del resumen de Gerencia', () => {
     )
 
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las reuniones.')
-    expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
+    // El héroe y el KPI dicen LA conversión del MES — la del rango vive en Conversiones.
+    const pctMes = `${numero(conversionMensualInteligenciaDemo(AHORA).total.conversion_pct!, 1)}%`
+    expect(screen.getAllByText(pctMes).length).toBeGreaterThan(0)
+    // 11 = 9 no referidos + 2 referidos (los referidos cierran, no dividen).
+    expect(screen.getByText('11 cierres de 39 recibidos este mes')).toBeInTheDocument()
     const tarjetaReuniones = screen.getByText('Reuniones realizadas').closest('[data-gi-kpi]')
     expect(tarjetaReuniones).toHaveTextContent('—')
     expect(tarjetaReuniones).toHaveTextContent('Dato no disponible')
@@ -262,6 +314,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={conversionesSinActividad()}
+        conversionMensual={null}
         reuniones={reunionesSinActividad()}
         equipo={[]}
         meta={META_VACIA}
@@ -285,6 +338,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
         meta={META_VACIA}
@@ -308,6 +362,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     render(
       <ResumenGerenciaPanel
         conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
         equipo={conversionEquipoDemo()}
         meta={META_VACIA}

@@ -29,9 +29,16 @@ import {
 import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
+  lineaProcedencia,
+  lineaReferidos,
+  type ConversionMensual,
+} from '@/lib/conversion-mensual'
+import {
+  adaptarConversionMensual,
   adaptarConversionVendedores,
   clasificarRankingConversion,
   type ConversionVendedorAdaptada,
+  type DetalleConversionMensual,
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import {
@@ -44,6 +51,14 @@ import {
 
 interface InteligenciaComercialPanelProps {
   datos: MetricasConversiones | null | undefined
+  /**
+   * La conversión mensual ponderada (`crm.conversion_mensual_fn`) — alimenta
+   * el héroe y el bloque «del mes» de la ficha del vendedor. Tri-estado:
+   * `undefined` consultando · `null` no disponible (fail-closed, «—»/rótulo).
+   * Los análisis del RANGO (embudo, orígenes, tendencia) siguen en `datos`:
+   * miden otra pregunta y conservan su rótulo de periodo.
+   */
+  conversionMensual: ConversionMensual | null | undefined
   equipo: ConversionEquipoVendedor[]
   metaConversion: number
   metasVendedores: ObjetivosPorVendedor
@@ -167,6 +182,8 @@ function DatoDetalle({
 
 function DetalleVendedor({
   fila,
+  filaMensual,
+  mensual,
   meta,
   cumplimiento,
   periodo,
@@ -174,6 +191,9 @@ function DetalleVendedor({
   onCerrar,
 }: {
   fila: ConversionVendedorAdaptada | null
+  /** La fila del MISMO vendedor en la conversión mensual (null = no llegó). */
+  filaMensual: ConversionVendedorAdaptada<DetalleConversionMensual> | null
+  mensual: ConversionMensual | null | undefined
   meta: ObjetivoComercial | null
   cumplimiento: CumplimientoVendedor | null
   periodo: MetricasConversiones['periodo'] | null
@@ -184,7 +204,10 @@ function DetalleVendedor({
   const leads = detalle?.leads ?? null
   const clientes = detalle?.clientes ?? null
   const reuniones = detalle?.reuniones_realizadas ?? null
-  const conversion = detalle?.conversion_pct ?? null
+  // El número grande de la ficha es LA conversión del MES (la misma fórmula
+  // que el ranking y los tiles): el mismo nombre jamás puede valer dos cosas.
+  const detalleMes = filaMensual?.detalle ?? null
+  const conversionMes = detalleMes?.conversion_pct ?? null
   const capitalPen = detalle?.capital_pen ?? null
   const capitalUsd = detalle?.capital_usd ?? null
   const metaConversion = meta?.conversionObjetivo ?? 0
@@ -203,21 +226,29 @@ function DetalleVendedor({
   const puntosTendencia = useMemo(() => tendencia ?? [], [tendencia])
   const enMeta = metaMensual.comparable && metaConversion > 0
     && conversionConfirmada != null && conversionConfirmada >= metaConversion
-  const estado = fila?.estadoConversion === 'indisponible'
-    ? 'No disponible'
-    : fila?.estadoConversion === 'sin_muestra'
-      ? 'Sin muestra'
-      : metaMensual.errorCarga
-        ? 'Meta no disponible'
-      : !metaMensual.comparable
-        ? 'No comparable'
-        : metaConversion <= 0
-          ? 'Sin meta'
-        : cumplimiento == null
-          ? 'Cumplimiento no disponible'
-        : enMeta
-          ? 'En meta'
-          : 'Por alcanzar'
+  // La cadena arranca por los estados de la conversión MENSUAL (fuente del
+  // número grande) y solo si el vendedor es medible baja a los estados de meta.
+  const estado = mensual != null && !mensual.cobertura.medible
+    ? 'Sin datos del mes'
+    : filaMensual == null || filaMensual.estadoConversion === 'indisponible'
+      ? 'No disponible'
+      : filaMensual.estadoConversion === 'solo_referidos'
+        ? 'Solo recibió referidos'
+        : filaMensual.estadoConversion === 'solo_arrastre'
+          ? 'Solo arrastre'
+          : filaMensual.estadoConversion === 'sin_muestra'
+            ? 'Sin muestra'
+            : metaMensual.errorCarga
+              ? 'Meta no disponible'
+              : !metaMensual.comparable
+                ? 'No comparable'
+                : metaConversion <= 0
+                  ? 'Sin meta'
+                  : cumplimiento == null
+                    ? 'Cumplimiento no disponible'
+                    : enMeta
+                      ? 'En meta'
+                      : 'Por alcanzar'
   const opcionTendencia = useMemo<EChartsOption>(() => {
     const valores = puntosTendencia.flatMap((punto) => (
       punto.conversion_pct == null ? [] : [punto.conversion_pct]
@@ -313,10 +344,15 @@ function DetalleVendedor({
           <SheetBody className="space-y-3.5 px-4 pb-5 pt-0 sm:px-5">
             <section className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-[#f7f5f1] px-4 py-3.5">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{pct(conversion)}</strong>
-                <span className="text-xs font-semibold text-[var(--gi-muted)]">conversión a clientes</span>
+                <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{pct(conversionMes)}</strong>
+                <span className="text-xs font-semibold text-[var(--gi-muted)]">conversión del mes</span>
+                {detalleMes != null && (
+                  <span className="w-full text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
+                    Recibidos {numero(detalleMes.divisor)} · cierres {numero(detalleMes.clientes)}
+                  </span>
+                )}
               </div>
-              <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || fila.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
+              <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || (mensual != null && !mensual.cobertura.medible) || filaMensual?.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
             </section>
 
             <section aria-label="Resultados del periodo" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
@@ -330,6 +366,24 @@ function DetalleVendedor({
                 <DatoDetalle label="Capital confirmado USD" valor={capitalDisponible(capitalUsd, 'USD')} capital />
               </dl>
             </section>
+
+            {detalleMes != null && (
+              <section aria-label="Conversión del mes" className="rounded-2xl border border-[var(--gi-line)] bg-white px-4 py-3">
+                <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <span className="text-xs font-bold">Cierres del mes</span>
+                  <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">
+                    {lineaProcedencia(detalleMes.procedencia, mensual?.periodo.anio ?? new Date().getFullYear()) || 'Sin cierres este mes'}
+                  </span>
+                </div>
+                <div className="mt-1.5 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
+                  <span className="text-xs font-bold">Referidos</span>
+                  <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{lineaReferidos(detalleMes.referidos)}</span>
+                </div>
+                <p className="mt-2 text-[11px] font-medium text-[var(--gi-muted)]">
+                  Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.
+                </p>
+              </section>
+            )}
 
             {metaMensual.comparable ? (
               <section aria-label="Avance de metas" className="divide-y divide-[var(--gi-line)] overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
@@ -402,6 +456,7 @@ function DetalleVendedor({
 
 export function InteligenciaComercialPanel({
   datos,
+  conversionMensual,
   equipo,
   metaConversion,
   metasVendedores,
@@ -420,6 +475,10 @@ export function InteligenciaComercialPanel({
     () => adaptarConversionVendedores(datos, equipo),
     [datos, equipo],
   )
+  const adaptadaMensual = useMemo(
+    () => adaptarConversionMensual(conversionMensual ?? null, equipo),
+    [conversionMensual, equipo],
+  )
   const ranking = useMemo(
     () => clasificarRankingConversion(adaptada.vendedores),
     [adaptada.vendedores],
@@ -429,6 +488,9 @@ export function InteligenciaComercialPanel({
     [ranking],
   )
   const vendedor = vendedores.find((fila) => fila.vendedorId === vendedorId) ?? vendedores[0] ?? null
+  const vendedorMensual = vendedor
+    ? adaptadaMensual.vendedores.find((fila) => fila.vendedorId === vendedor.vendedorId) ?? null
+    : null
   const metaVendedor = vendedor ? metasVendedores[vendedor.vendedorId] ?? null : null
   const cumplimientoVendedor = vendedor ? cumplimientoVendedores[vendedor.vendedorId] ?? null : null
   const metaConversionVisual = metaConversion > 0 ? metaConversion : 0
@@ -542,7 +604,7 @@ export function InteligenciaComercialPanel({
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Evolución de la conversión</h3><span className="gi-caption">{metaMensual.comparable ? `Semanal vs. meta mensual · ${metaMensual.etiqueta}` : 'Semanas del rango aplicado'}</span></div>{!metaMensual.comparable && <p className="mt-2 text-xs font-medium text-[var(--gi-muted)]">{mensajeMetaNoComparable(metaMensual)}</p>}{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Evolución semanal de la conversión a clientes en el rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
-      <DetalleVendedor fila={detalleAbierto ? vendedor : null} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
+      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }

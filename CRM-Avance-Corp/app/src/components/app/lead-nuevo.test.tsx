@@ -42,9 +42,12 @@ const SESION: AuthContextValue = {
 
 function montar({
   demo = true,
+  rol,
   crearLeadImpl,
 }: {
   demo?: boolean
+  /** Rol del actor; por defecto el vendedor de SESION. Para la regla D8. */
+  rol?: 'vendedor' | 'supervisor' | 'gerencia'
   crearLeadImpl?: StoreDataApi['crearLead']
 } = {}) {
   const implementacionPorDefecto: StoreDataApi['crearLead'] = (input) => {
@@ -70,7 +73,7 @@ function montar({
   render(
     <AuthContext.Provider value={{
       ...SESION,
-      yo: SESION.yo ? { ...SESION.yo, demo } : null,
+      yo: SESION.yo ? { ...SESION.yo, demo, ...(rol ? { rol } : {}) } : null,
     }}>
       <StoreDataContext.Provider value={api}>
         <PanelStateContext.Provider
@@ -94,7 +97,9 @@ function completarBaseReal() {
   fireEvent.change(screen.getByLabelText('Teléfono *'), {
     target: { value: '987654321' },
   })
-  fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'landing' } })
+  // D8 (2026-08-11): el alta manual ya no ofrece canales automáticos; el
+  // vendedor de esta sesión declara SU referido — el flujo real de la regla.
+  fireEvent.change(screen.getByLabelText('Origen *'), { target: { value: 'referido' } })
   fireEvent.change(screen.getByLabelText('Capital estimado *'), { target: { value: '5000' } })
 }
 
@@ -116,7 +121,7 @@ afterEach(() => {
 async function completarBase(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Nombre completo *'), 'ANA NUEVO LEAD')
   await user.type(screen.getByLabelText('Teléfono *'), '987654321')
-  await user.selectOptions(screen.getByLabelText('Origen *'), 'landing')
+  await user.selectOptions(screen.getByLabelText('Origen *'), 'referido')
 }
 
 describe('LeadNuevo — capital obligatorio', () => {
@@ -449,5 +454,35 @@ describe('LeadNuevo — disponibilidad P-048', () => {
     await user.click(screen.getByRole('button', { name: 'Crear lead' }))
 
     expect(verificarDisponibilidad).not.toHaveBeenCalled()
+  })
+})
+
+describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
+  // Espejo del 42501 del servidor (20260811210049): landing y formulario se
+  // cargan solos por el puente; el alta manual no puede suplantarlos, y el
+  // referido lo declara SOLO el vendedor. Si estas opciones reaparecieran en el
+  // selector, el usuario elegiría algo que el servidor va a rechazar.
+  it('el vendedor ve exactamente Referido, Wallking y Otro', () => {
+    montar()
+    const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
+      .map((opcion) => opcion.value)
+      .filter((valor) => valor !== '')
+    expect(opciones).toEqual(['referido', 'oficina', 'otro'])
+  })
+
+  it('un supervisor NO ve Referido (solo los vendedores, a su propio nombre)', () => {
+    montar({ rol: 'supervisor' })
+    const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
+      .map((opcion) => opcion.value)
+      .filter((valor) => valor !== '')
+    expect(opciones).toEqual(['oficina', 'otro'])
+  })
+
+  it('gerencia tampoco ve Referido', () => {
+    montar({ rol: 'gerencia' })
+    const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
+      .map((opcion) => opcion.value)
+      .filter((valor) => valor !== '')
+    expect(opciones).toEqual(['oficina', 'otro'])
   })
 })

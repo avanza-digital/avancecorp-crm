@@ -8,7 +8,7 @@
   --gi-green: #2f9e63;
   --gi-amber: #c9820e;
   --gi-red: #d16456;
-  --gi-muted: #7c8794;
+  --gi-muted: #64748b; /* = --muted-foreground de la casa: 4.76:1 sobre blanco (AA); #7c8794 quedaba en 3.65:1 */
   --gi-line: #e8e3da;
   --gi-soft: #f8f6f1;
   color: var(--gi-ink);

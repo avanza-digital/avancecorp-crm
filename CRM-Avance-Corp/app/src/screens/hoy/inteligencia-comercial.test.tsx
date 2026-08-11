@@ -2,6 +2,7 @@ import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
+  conversionMensualInteligenciaDemo,
   cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
   metricasConversionesDemo,
@@ -29,11 +30,16 @@ vi.mock('@/components/gerencia/echart-lazy', () => ({
   ),
 }))
 
+// Instante fijo a mitad de mes: la procedencia nombra meses reales de Lima y
+// un Date.now() haría rotar el texto esperado cada mes.
+const AHORA = Date.parse('2026-08-15T17:00:00-05:00')
+
 describe('detalle de conversión por vendedor', () => {
   it('no mezcla un error inicial con el mensaje de datos vacíos', () => {
     render(
       <InteligenciaComercialPanel
         datos={undefined}
+        conversionMensual={null}
         equipo={conversionEquipoDemo()}
         metaConversion={15}
         metasVendedores={{}}
@@ -56,6 +62,7 @@ describe('detalle de conversión por vendedor', () => {
     render(
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -77,6 +84,14 @@ describe('detalle de conversión por vendedor', () => {
     expect(detalle).not.toHaveClass('max-w-[780px]')
 
     const contenido = within(detalle)
+    // El número grande es LA conversión del MES (4.15÷12), no la del rango.
+    expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
+    expect(contenido.getByText('34.6%')).toBeInTheDocument()
+    expect(contenido.getByText('Recibidos 12 · cierres 5')).toBeInTheDocument()
+    // Procedencia y referidos con la letra corregida del plan.
+    expect(contenido.getByText('de agosto 4, de julio 1')).toBeInTheDocument()
+    expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
+    expect(contenido.getByText('Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.')).toBeInTheDocument()
     expect(contenido.getByText('Capital confirmado PEN')).toBeInTheDocument()
     expect(contenido.getByText('Capital confirmado USD')).toBeInTheDocument()
     expect(contenido.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
@@ -92,6 +107,7 @@ describe('detalle de conversión por vendedor', () => {
     render(
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-07-01', '2026-07-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         equipo={conversionEquipoDemo()}
         metaConversion={0}
         metasVendedores={{}}
@@ -131,6 +147,7 @@ describe('detalle de conversión por vendedor', () => {
     render(
       <InteligenciaComercialPanel
         datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
@@ -169,6 +186,7 @@ describe('detalle de conversión por vendedor', () => {
     render(
       <InteligenciaComercialPanel
         datos={datos}
+        conversionMensual={null}
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
@@ -191,5 +209,61 @@ describe('detalle de conversión por vendedor', () => {
     expect(detalle.getAllByText('—').length).toBeGreaterThan(0)
     expect(detalle.queryByText(money(360_000, 'PEN'))).not.toBeInTheDocument()
     expect(detalle.getByText('Tendencia no disponible')).toBeInTheDocument()
+  })
+
+  it('la ficha rotula los estados del mes: Elena solo referidos, y el mes no medible', () => {
+    const { unmount } = render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Vendedor para abrir detalle' }), {
+      target: { value: 'demo-v5' },
+    })
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const elena = within(screen.getByRole('dialog', { name: 'Elena Vega' }))
+    // Trabajó (recibió 2 referidos): rótulo propio, jamás «Sin muestra» ni «0 %».
+    expect(elena.getByText('Solo recibió referidos')).toBeInTheDocument()
+    expect(elena.getByText('—')).toBeInTheDocument()
+    expect(elena.getByText(/2 registrados · 0 cerrados/)).toBeInTheDocument()
+    unmount()
+
+    const sinDatos = conversionMensualInteligenciaDemo(AHORA)
+    sinDatos.cobertura = { ...sinDatos.cobertura, medible: false }
+    render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={sinDatos}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const ana = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    // El servidor declara el mes no medible: la ficha lo dice, no inventa %.
+    expect(ana.getByText('Sin datos del mes')).toBeInTheDocument()
   })
 })

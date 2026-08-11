@@ -214,9 +214,22 @@ const CumplimientoVendedorSchema = v.strictObject({
   supervisor_id: UuidSchema,
   supervisor_nombre: TextoNoVacioSchema,
   conversion_objetivo: v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100)),
-  conversion_real: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(100))),
+  // SIN maxValue(100), a propósito y con historia: la conversión mensual
+  // ponderada supera el 100 % POR DISEÑO (cierres de arrastre + referidos que
+  // suman arriba y no abajo). Este cap vivía dentro de un strictObject
+  // fail-closed: el primer asesor por encima de 100 tras la migración B habría
+  // dejado SIN METAS a los tres roles a la vez. La META (arriba) sí conserva su
+  // techo: un objetivo se pacta ≤ 100; un resultado no tiene techo.
+  conversion_real: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
   convertidos: EnteroNoNegativoRpcSchema,
   resueltos: EnteroNoNegativoRpcSchema,
+  // Las tres llegan con la migración B (cumplimiento sobre la definición
+  // ponderada). `v.optional` es OBLIGATORIO mientras el servidor viejo viva:
+  // un strictObject también falla por clave FALTANTE, y entre este release y la
+  // B el payload no las trae.
+  numerador: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  cierres_no_referidos: v.optional(EnteroNoNegativoRpcSchema),
+  cierres_referidos: v.optional(EnteroNoNegativoRpcSchema),
   detalles: DetallesCumplimientoSchema,
 })
 
@@ -227,8 +240,13 @@ export const CumplimientoMetasSchema = v.strictObject({
   publicada_en: v.nullable(FechaHoraSchema),
   fuentes_reales: v.strictObject({
     capital_y_contratos: v.literal('contratos_confirmados'),
-    conversion: v.literal('leads_resueltos'),
+    // Tolerar los DOS literales es lo que hace barata la reversión de la
+    // migración B: el bundle acepta el servidor viejo (`leads_resueltos`) y el
+    // nuevo (`leads_recibidos_ponderado`) sin redeploy.
+    conversion: v.picklist(['leads_resueltos', 'leads_recibidos_ponderado']),
   }),
+  // Llega con la migración B; optional por la misma ventana que arriba.
+  ponderacion_referido: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1))),
   vendedores: v.array(CumplimientoVendedorSchema),
 })
 
@@ -246,6 +264,13 @@ export interface CumplimientoComercial {
   conversionReal: number | null
   convertidos: number
   resueltos: number
+  /**
+   * Cierres PONDERADOS (no referidos al 100 % + referidos al peso vigente).
+   * Hasta la migración B el servidor no lo manda y vale `convertidos` (el
+   * fallback de cumplimientoDesdeVendedor): con eso los agregados de hoy salen
+   * idénticos a los de siempre, y el día que B entre, cambian solos de fórmula.
+   */
+  numerador: number
   detalles: CumplimientoDetalle[]
 }
 
@@ -258,7 +283,8 @@ export interface CumplimientoVendedor extends CumplimientoComercial {
 
 export interface FuentesRealesCumplimientoMetas {
   capitalYContratos: 'contratos_confirmados'
-  conversion: 'leads_resueltos'
+  /** Los dos mundos de la ventana de despliegue (ver el picklist del esquema). */
+  conversion: 'leads_resueltos' | 'leads_recibidos_ponderado'
 }
 
 export interface CumplimientoMetasJerarquico {
@@ -284,6 +310,11 @@ function cumplimientoDesdeVendedor(
     conversionReal: fila.conversion_real,
     convertidos: fila.convertidos,
     resueltos: fila.resueltos,
+    // Fallback de transición: el servidor pre-B no manda `numerador`, y con
+    // `?? convertidos` la suma de agregados de hoy da EXACTAMENTE lo de siempre
+    // (sin él, un solo undefined convertiría el agregado en NaN y el NaN pasa
+    // en silencio hasta la pantalla).
+    numerador: fila.numerador ?? fila.convertidos,
     detalles: fila.detalles.map((detalle) => ({
       categoria: detalle.categoria,
       moneda: detalle.moneda,
@@ -306,6 +337,7 @@ export function agregarCumplimientos(
   const metas = agregarObjetivos(filas)
   const convertidos = filas.reduce((total, fila) => total + fila.convertidos, 0)
   const resueltos = filas.reduce((total, fila) => total + fila.resueltos, 0)
+  const numerador = filas.reduce((total, fila) => total + fila.numerador, 0)
   const reales = new Map(CLAVES_DIMENSION.map((clave) => [clave, {
     capitalReal: 0,
     contratosReal: 0,
@@ -321,9 +353,14 @@ export function agregarCumplimientos(
 
   return {
     conversionObjetivo: metas.conversionObjetivo,
-    conversionReal: resueltos > 0 ? Math.round((10_000 * convertidos) / resueltos) / 100 : null,
+    // Sobre el NUMERADOR ponderado, no sobre `convertidos` crudos: con el
+    // fallback de transición son iguales hasta la migración B, y desde B sumar
+    // crudos dejaría de dar la conversión acordada. Redondeo half-up estilo
+    // Postgres, una sola vez.
+    conversionReal: resueltos > 0 ? Math.round((10_000 * numerador) / resueltos) / 100 : null,
     convertidos,
     resueltos,
+    numerador,
     detalles: metas.detalles.map((meta) => {
       const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? { capitalReal: 0, contratosReal: 0 }
       return {

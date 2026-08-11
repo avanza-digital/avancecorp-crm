@@ -31,6 +31,23 @@ import {
 } from '@/lib/objetivos'
 import { money } from '@/lib/format'
 import type { Actividad, Lead, Tarea, Yo } from '@/lib/tipos'
+import type { ConversionMensual } from '@/lib/conversion-mensual'
+
+// El arnés monta SIN QueryClientProvider a propósito (sin red): el hook de la
+// conversión mensual se sustituye aquí y cada test decide qué payload «llegó».
+// En demo la pantalla ni lo consulta (deriva de demo-conversion-mensual).
+let CONVERSION_MENSUAL: ConversionMensual | null = null
+let CONVERSION_MENSUAL_ERROR = false
+vi.mock('@/data/crm-queries', async (importActual) => {
+  const actual = await importActual<typeof import('@/data/crm-queries')>()
+  return {
+    ...actual,
+    useConversionMensual: () => ({
+      data: CONVERSION_MENSUAL ?? undefined,
+      isError: CONVERSION_MENSUAL_ERROR,
+    }),
+  }
+})
 
 // Miércoles 2026-07-15, 10:00 en Lima (UTC-5) — día normal, sin higiene.
 const MIERCOLES_10AM = new Date('2026-07-15T15:00:00Z')
@@ -245,6 +262,74 @@ function cumplimientoVendedor(
   }
 }
 
+/**
+ * Payload mínimo de `crm.conversion_mensual_fn` con la fila del propio asesor
+ * (alcance 'propio'). Es la fuente NUEVA del tile «Conversión del mes» — el
+ * cumplimiento ya no manda ahí (decisión E1: rótulo nuevo sobre número nuevo,
+ * sin esperar a la migración B).
+ */
+function conversionMensualPropia(
+  conversionPct: number | null,
+  divisor: number,
+  extras: Partial<ConversionMensual['responsables'][number]> = {},
+): ConversionMensual {
+  const cierres = extras.cierres_no_referidos ?? (conversionPct == null ? 0 : 1)
+  const fila: ConversionMensual['responsables'][number] = {
+    vendedor_id: '00000000-0000-4000-8000-000000000001',
+    supervisor_id: null,
+    divisor,
+    cierres_no_referidos: cierres,
+    cierres_referidos: 0,
+    cierres_de_arrastre: 0,
+    numerador: cierres,
+    conversion_pct: conversionPct,
+    estado: divisor > 0 ? 'medible' : cierres > 0 ? 'solo_arrastre' : 'sin_actividad',
+    procedencia: [],
+    referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+    ...extras,
+  }
+  return {
+    version: 1,
+    generado_en: '2026-07-15T15:00:00Z',
+    alcance: 'propio',
+    periodo: {
+      mes: '2026-07',
+      mes_nombre: 'julio',
+      anio: 2026,
+      zona: 'America/Lima',
+      desde: '2026-07-01T05:00:00Z',
+      hasta: '2026-08-01T05:00:00Z',
+    },
+    ponderacion: { referido: 0.15, fuente: 'crm.conversion_pesos' },
+    fuentes: {
+      divisor: 'crm.lead_asignaciones.asignado_en',
+      numerador: 'crm.lead_asignaciones.resultado_en',
+      referido: 'crm.lead_asignaciones.origen',
+    },
+    cobertura: {
+      medible: true,
+      suelo_historico: null,
+      motivo_no_medible: null,
+      divisor_aproximado: 0,
+      divisor_por_motivo: divisor > 0 ? { ingreso: divisor } : {},
+      cierres_sin_episodio: 0,
+      fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
+    },
+    total: {
+      analistas: 1,
+      divisor,
+      cierres_no_referidos: fila.cierres_no_referidos,
+      cierres_referidos: fila.cierres_referidos,
+      cierres_de_arrastre: fila.cierres_de_arrastre,
+      referidos_recibidos: fila.referidos.recibidos,
+      numerador: fila.numerador,
+      conversion_pct: conversionPct,
+      referidos_aporta_pct: null,
+    },
+    responsables: [fila],
+  }
+}
+
 /** Meta del asesor con importes exactos por moneda (todo en la categoría
  *  'nuevo'; el panel agrega por moneda, así que la categoría da igual). */
 function metaPenUsd(pen: number, usd: number): ObjetivosPorRol['vendedor'] {
@@ -296,6 +381,10 @@ beforeEach(() => {
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
   OBJETIVOS_ERROR = false
+  // ESTADO DE PRODUCCIÓN por defecto: la RPC de conversión no respondió nada.
+  // Cada test que quiera un mes medible siembra su propio payload.
+  CONVERSION_MENSUAL = null
+  CONVERSION_MENSUAL_ERROR = false
   TC = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
 })
 
@@ -478,7 +567,14 @@ describe('Hoy · vendedor — capital en proceso', () => {
 })
 
 describe('Hoy · vendedor — meta del mes', () => {
-  it('la conversión proviene del cumplimiento confirmado, no de etapas locales del pipeline', () => {
+  it('la conversión proviene de la RPC MENSUAL (la definición), no del cumplimiento ni del pipeline', () => {
+    // El cumplimiento dice 80 % (fórmula vieja, viva hasta la migración B) y la
+    // RPC mensual dice 50 %: el tile pinta la MENSUAL. Rótulo nuevo sobre
+    // número nuevo — jamás rótulo nuevo sobre número viejo (E1, plan §4bis).
+    CONVERSION_MENSUAL = conversionMensualPropia(50, 10, {
+      cierres_no_referidos: 5,
+      numerador: 5,
+    })
     montar({
       leads: [
         lead({ id: 'l-c', etapa: 'convertido' }),
@@ -487,14 +583,23 @@ describe('Hoy · vendedor — meta del mes', () => {
       ],
       objetivos: { conversionObjetivo: 50 },
       // La meta viaja en el snapshot, que es contra lo que se mide.
-      cumplimiento: cumplimientoVendedor(50, 2, 'con-metas', 50),
+      cumplimiento: cumplimientoVendedor(80, 2, 'con-metas', 50),
     })
 
+    expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
     expect(screen.getByText('50%')).toBeInTheDocument()
     expect(screen.getByText('100% del objetivo')).toBeInTheDocument()
+    // El divisor SIEMPRE al lado del %: se lo llena el reparto, no el asesor.
+    expect(screen.getByText(/Recibidos 10/)).toBeInTheDocument()
   })
 
-  it('sin nada resuelto en el mes la conversión es SIN DATO, no un 0 % en rojo', () => {
+  it('sin leads RECIBIDOS en el mes la conversión es SIN DATO, no un 0 % en rojo', () => {
+    // Divisor 0 con actividad ninguna: el estado sin_actividad de la RPC.
+    CONVERSION_MENSUAL = conversionMensualPropia(null, 0, {
+      estado: 'sin_actividad',
+      cierres_no_referidos: 0,
+      numerador: 0,
+    })
     montar({
       // Cartera viva, nada cerrado todavía: el día 1 de cada mes, para todos.
       leads: [lead({ id: 'l-1', etapa: 'contactado' })],
@@ -502,9 +607,7 @@ describe('Hoy · vendedor — meta del mes', () => {
       cumplimiento: cumplimientoVendedor(null, 0),
     })
 
-    expect(
-      screen.getByText('Sin leads resueltos este mes todavía — el % sale con el primer cierre'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('Sin leads recibidos este mes')).toBeInTheDocument()
     // Un porcentaje sin denominador no se escribe como 0 %, ni se compara con
     // la cuota: ni valor, ni barra, ni "% del objetivo" para esta fila.
     expect(screen.getByText('—')).toBeInTheDocument()
@@ -513,6 +616,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   })
 
   it('no inventa una meta inicial de 15 % cuando no existe una revisión publicada', () => {
+    CONVERSION_MENSUAL = conversionMensualPropia(50, 4, { cierres_no_referidos: 2, numerador: 2 })
     montar({
       objetivos: { conversionObjetivo: 0 },
       cumplimiento: cumplimientoVendedor(50, 2, 'sin-metas'),
@@ -525,6 +629,7 @@ describe('Hoy · vendedor — meta del mes', () => {
   })
 
   it('sin ninguna meta publicada mantiene neutrales las dimensiones que se pintan', () => {
+    CONVERSION_MENSUAL = conversionMensualPropia(100, 1, { cierres_no_referidos: 1, numerador: 1 })
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
       cumplimiento: cumplimientoVendedor(100, 1, 'sin-metas'),
@@ -618,16 +723,25 @@ describe('Hoy · vendedor — meta del mes', () => {
   // `objetivosCero` y el cumplimiento llega nulo. Una versión anterior decidía
   // qué pintar con un fail-safe de «no se sabe», y como ese es el estado de
   // TODOS los días, el arreglo no arreglaba nada. Ver `npm run gate:realidad`.
-  it('ESTADO DE PRODUCCIÓN (sin metas publicadas): capital y conversión, ambos neutrales', () => {
+  it('ESTADO DE PRODUCCIÓN (sin metas publicadas): capital neutral y conversión sin fila propia', () => {
+    // La base real HOY: la RPC responde (medible) pero el asesor no tiene fila
+    // — responsables vacío. El tile no inventa un 0 %: dice «sin leads
+    // recibidos», que es la verdad.
+    CONVERSION_MENSUAL = {
+      ...conversionMensualPropia(null, 0, { estado: 'sin_actividad', cierres_no_referidos: 0, numerador: 0 }),
+      responsables: [],
+    }
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
       cumplimiento: null,
     })
 
     expect(screen.getByText('Capital confirmado')).toBeInTheDocument()
-    expect(screen.getByText('Conversión resuelta')).toBeInTheDocument()
-    // Dos filas, las dos sin juicio: sin meta no hay incumplimiento que pintar.
-    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
+    expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
+    // Capital sin meta publicada = neutral; conversión sin fila = sin dato.
+    expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(1)
+    expect(screen.getByText('Sin leads recibidos este mes')).toBeInTheDocument()
+    expect(screen.queryByText('0%')).not.toBeInTheDocument()
     // Y ninguna columna suelta por moneda: eso era el ruido que se quitó.
     expect(screen.queryByText('Capital confirmado PEN')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital confirmado USD')).not.toBeInTheDocument()
@@ -640,7 +754,10 @@ describe('Hoy · vendedor — meta del mes', () => {
     })
 
     expect(screen.getByText('S/ 900,000')).toBeInTheDocument()
-    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(2)
+    // Solo el CAPITAL depende del cumplimiento; la conversión del mes es fuente
+    // independiente (RPC propia) y aquí, sin payload, dice su propio vacío.
+    expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(1)
+    expect(screen.getByText('Sin datos de asignación para este mes')).toBeInTheDocument()
     expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
   })
 })

@@ -79,7 +79,16 @@ vi.mock('./metas-editor', () => ({ MetasEditor: () => <div>Editor de metas</div>
 vi.mock('@/components/gerencia/motion', () => ({
   GerenciaMotion: ({ children }: { children: ReactNode }) => <>{children}</>,
 }))
+// La conversión mensual (la definición), controlable por test.
+let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 vi.mock('@/data/crm-queries', () => ({
+  useConversionMensual: () => ({
+    data: CONVERSION_MENSUAL ?? undefined,
+    isError: false,
+    isPending: false,
+    isFetching: false,
+    refetch: () => {},
+  }),
   useMetricasDistribucionLeads: (...argumentos: [boolean, string, string]) => {
     CONSULTAS.distribucion(...argumentos)
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
@@ -193,7 +202,7 @@ describe('Hoy · gerencia — meta del mes', () => {
     expect(metaVigente.getByText('Meta mensual · julio 2026')).toBeInTheDocument()
     expect(metaVigente.queryByText('0%')).not.toBeInTheDocument()
     expect(metaVigente.getByText('Cumplimiento confirmado no disponible')).toBeInTheDocument()
-    expect(metaVigente.getByText('Todavía no hay leads resueltos para medir')).toBeInTheDocument()
+    expect(metaVigente.getByText('Todavía no hay leads recibidos este mes')).toBeInTheDocument()
     // Sin rango raro no hay por qué advertir nada.
     expect(metaVigente.queryByText(/no del rango que elegiste/)).not.toBeInTheDocument()
 

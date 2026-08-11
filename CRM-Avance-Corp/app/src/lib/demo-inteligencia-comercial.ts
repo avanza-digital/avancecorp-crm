@@ -1,3 +1,9 @@
+import type { ConversionMensual } from './conversion-mensual'
+import {
+  derivarConversionMensual,
+  type EpisodioConversionDemo,
+  type RosterConversionDemo,
+} from './demo-conversion-mensual'
 import type { MetricasConversiones } from './metricas-conversiones'
 import type { MetricasReuniones } from './metricas-reuniones'
 import type { ConversionEquipoVendedor } from './conversion-equipo'
@@ -161,6 +167,78 @@ export function metasConversionEquipoDemo(): ObjetivosPorVendedor {
   ]))
 }
 
+/**
+ * Episodios de asignación del mundo `demo-v*` — la conversión MENSUAL de la
+ * familia de gerencia se DERIVA de aquí con el mismo derivador que el mundo
+ * «Hoy» (jamás un payload a mano). No cuadran con los contadores del rango
+ * (`leads`/`clientes` de arriba) a propósito: aquellos miden el RANGO elegido
+ * y esto mide el MES en curso — la misma divergencia que existe en producción.
+ * El fixture enseña los tres estados que la ley obliga a distinguir: Elena
+ * solo recibió referidos, Fabio vive de arrastre, Ana cierra un referido y un
+ * arrastre (su % los separa en pantalla).
+ */
+const abiertosIntel = (analistaId: string, prefijo: string, cantidad: number): EpisodioConversionDemo[] =>
+  Array.from({ length: cantidad }, (_, indice) => ({
+    leadId: `${prefijo}${indice + 1}`,
+    analistaId,
+    asignadoHaceMeses: 0,
+    origen: 'landing',
+  }))
+
+const EPISODIOS_CONVERSION_INTEL: readonly EpisodioConversionDemo[] = [
+  // ── Ana (demo-v1) · divisor 12 · 3 cierres del mes + 1 arrastre + 1 referido
+  ...abiertosIntel('demo-v1', 'ic-a', 7),
+  { leadId: 'ic-a8', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'formulario', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-a9', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'landing', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-a10', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'web', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-a11', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'landing', resultado: 'descartado', resultadoHaceMeses: 0 },
+  { leadId: 'ic-a12', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'web', resultado: 'descartado', resultadoHaceMeses: 0 },
+  { leadId: 'ic-a13', analistaId: 'demo-v1', asignadoHaceMeses: 1, origen: 'landing', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-a14', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'referido' },
+  { leadId: 'ic-a15', analistaId: 'demo-v1', asignadoHaceMeses: 0, origen: 'referido', resultado: 'convertido', resultadoHaceMeses: 0 },
+  // ── Bruno (demo-v2) · divisor 10 · 2 cierres
+  ...abiertosIntel('demo-v2', 'ic-b', 7),
+  { leadId: 'ic-b8', analistaId: 'demo-v2', asignadoHaceMeses: 0, origen: 'formulario', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-b9', analistaId: 'demo-v2', asignadoHaceMeses: 0, origen: 'landing', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-b10', analistaId: 'demo-v2', asignadoHaceMeses: 0, origen: 'web', resultado: 'descartado', resultadoHaceMeses: 0 },
+  // ── Carla (demo-v3) · divisor 9 · 1 cierre + 1 referido cerrado
+  ...abiertosIntel('demo-v3', 'ic-c', 8),
+  { leadId: 'ic-c9', analistaId: 'demo-v3', asignadoHaceMeses: 0, origen: 'formulario', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-c10', analistaId: 'demo-v3', asignadoHaceMeses: 0, origen: 'referido', resultado: 'convertido', resultadoHaceMeses: 0 },
+  // ── Diego (demo-v4) · divisor 8 · 1 cierre
+  ...abiertosIntel('demo-v4', 'ic-d', 7),
+  { leadId: 'ic-d8', analistaId: 'demo-v4', asignadoHaceMeses: 0, origen: 'landing', resultado: 'convertido', resultadoHaceMeses: 0 },
+  // ── Elena (demo-v5) · SOLO REFERIDOS: recibió 2, ninguno cerró aún
+  { leadId: 'ic-e1', analistaId: 'demo-v5', asignadoHaceMeses: 0, origen: 'referido' },
+  { leadId: 'ic-e2', analistaId: 'demo-v5', asignadoHaceMeses: 0, origen: 'referido' },
+  // ── Fabio (demo-v6) · SOLO ARRASTRE: nada recibido este mes, un cierre viejo
+  { leadId: 'ic-f1', analistaId: 'demo-v6', asignadoHaceMeses: 1, origen: 'landing', resultado: 'convertido', resultadoHaceMeses: 0 },
+  { leadId: 'ic-f2', analistaId: 'demo-v6', asignadoHaceMeses: 1, origen: 'web' },
+]
+
+/** Mismo mapa vendedor→supervisor que `metasConversionEquipoDemo`. */
+const ROSTER_CONVERSION_INTEL: readonly RosterConversionDemo[] = [
+  { analistaId: 'demo-v1', supervisorId: 'demo-s1' },
+  { analistaId: 'demo-v2', supervisorId: 'demo-s1' },
+  { analistaId: 'demo-v3', supervisorId: 'demo-s2' },
+  { analistaId: 'demo-v4', supervisorId: 'demo-s2' },
+  { analistaId: 'demo-v5', supervisorId: 'demo-s1' },
+  { analistaId: 'demo-v6', supervisorId: 'demo-s2' },
+]
+
+/**
+ * La conversión mensual que la demo de gerencia serviría (alcance global,
+ * mundo `demo-v*`): Ana 4.15÷12 = 34.58 % · total 9.30÷39 = 23.85 %.
+ */
+export function conversionMensualInteligenciaDemo(ahoraMs: number): ConversionMensual {
+  return derivarConversionMensual(
+    ahoraMs,
+    { alcance: 'global' },
+    EPISODIOS_CONVERSION_INTEL,
+    ROSTER_CONVERSION_INTEL,
+  )
+}
+
 /** Cumplimiento ficticio explícito, separado del pipeline y por moneda. */
 export function cumplimientoMetasConversionEquipoDemo(): CumplimientoMetasJerarquico {
   const metas = metasConversionEquipoDemo()
@@ -191,6 +269,9 @@ export function cumplimientoMetasConversionEquipoDemo(): CumplimientoMetasJerarq
         ? Math.round((10_000 * convertidos) / resueltos) / 100
         : null,
       convertidos,
+      // Mundo demo sin referidos ponderados: numerador = convertidos enteros
+      // (el mismo fallback pre-B que aplica crm-api).
+      numerador: convertidos,
       resueltos,
       detalles: meta.detalles.map((detalle) => {
         const capitalReal = detalle.categoria === 'nuevo'

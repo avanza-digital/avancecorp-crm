@@ -80,6 +80,10 @@ import {
   type MetricasConversionesEquipo,
 } from '@/lib/metricas-conversiones-equipo'
 import {
+  ConversionMensualSchema,
+  type ConversionMensual,
+} from '@/lib/conversion-mensual'
+import {
   MetricasReunionesSchema,
   type MetricasReuniones,
 } from '@/lib/metricas-reuniones'
@@ -2576,6 +2580,59 @@ export async function listarMetricasConversiones(
       'METRICAS_CONVERSIONES_CONTRACT',
     )
     registrarError('crm.metricas.conversiones_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/** Primer día de un mes: la única forma de periodo que la RPC mensual acepta. */
+const PERIODO_MENSUAL_RE = /^\d{4}-\d{2}-01$/
+
+/**
+ * La conversión mensual ponderada del asesor (crm.conversion_mensual_fn) — LA
+ * definición acordada, no las cohortes de la pantalla «Conversiones».
+ *
+ * MENSUAL POR CONTRATO: `periodo` es el PRIMER DÍA del mes ('2026-08-01') y la
+ * pregunta «qué devuelve en un rango libre» es inexpresable. El ámbito lo
+ * decide el SERVIDOR (vendedor→su fila, supervisor→su subárbol, gerencia y
+ * lector global→empresa) y viaja en `alcance`; los denegados reciben 42501
+ * duro, jamás un payload de ceros.
+ *
+ * La verificación de eco compara `periodo.mes` con el MES pedido — el payload
+ * no trae `desde/hasta` en fecha-plana como sus hermanas, trae el mes nombrado
+ * (copiar aquí el patrón desde/hasta rechazaría el 100 % de las respuestas).
+ */
+export async function obtenerConversionMensual(
+  periodo: string,
+  signal?: AbortSignal,
+): Promise<ConversionMensual> {
+  if (!PERIODO_MENSUAL_RE.test(periodo)) {
+    const fallo = new CrmApiError(
+      'El período de la conversión mensual no es válido.',
+      'PERIODO_METRICAS_INVALIDO',
+    )
+    // Con registro (patrón agenda, no el de conversiones): un periodo inválido
+    // aquí es un bug del front, no del usuario, y sin evento no se detecta.
+    registrarError('crm.metricas.conversion_mensual_periodo_invalido', fallo)
+    throw fallo
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('conversion_mensual_fn', {
+    p_periodo: periodo,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.conversion_mensual_fallido')
+
+  const resultado = v.safeParse(ConversionMensualSchema, data)
+  if (!resultado.success || resultado.output.periodo.mes !== periodo.slice(0, 7)) {
+    const fallo = new CrmApiError(
+      'La conversión mensual no tiene el formato esperado.',
+      'CONVERSION_MENSUAL_CONTRACT',
+    )
+    registrarError('crm.metricas.conversion_mensual_fuera_de_contrato', fallo)
     throw fallo
   }
   return resultado.output

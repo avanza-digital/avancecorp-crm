@@ -33,9 +33,9 @@ import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
 import { moneyK } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
-import { adaptarConversionEquipo } from '@/lib/metricas-conversiones-equipo'
+import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { useMetricasConversionesEquipo } from '@/data/crm-queries'
+import { useConversionMensual } from '@/data/crm-queries'
 import { periodoInicialGerencia, semanticaMetaMensual } from '@/components/gerencia/periodo'
 import { RankingVendedoresPanel } from './hoy/ranking-vendedores'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
@@ -51,6 +51,7 @@ import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
+import { VENTANA_CONVERTIDOS_DIAS } from '@/lib/resumen-cartera'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -168,6 +169,19 @@ function CapitalDeFila({
   )
 }
 
+/**
+ * «—» de conversión sin muestra: el porqué viaja en TEXTO para el lector
+ * (sr-only), no solo en un title que teclado y táctil jamás ven.
+ */
+function SinMuestraOperativa({ className }: { className: string }): JSX.Element {
+  return (
+    <span className={className}>
+      <span aria-hidden="true" title="Sin leads en la ventana operativa">—</span>
+      <span className="sr-only">Sin leads en la ventana operativa</span>
+    </span>
+  )
+}
+
 /** Chip de la bandeja por repartir (ámbar mientras haya pendientes). */
 function chipPorRepartir(n: number, sub: string): StatChipData {
   return {
@@ -192,6 +206,7 @@ function MiniDato({
   color,
   denso = false,
   title,
+  srDetalle,
   children,
 }: {
   label: string
@@ -200,6 +215,8 @@ function MiniDato({
   color?: string | undefined
   denso?: boolean
   title?: string
+  /** Explicación solo-lector junto al valor (un «—» sin ella es mudo). */
+  srDetalle?: string
   children?: ReactNode
 }): JSX.Element {
   return (
@@ -211,6 +228,7 @@ function MiniDato({
         title={title}
       >
         {valor}
+        {srDetalle && <span className="sr-only">{srDetalle}</span>}
         {sub && <span className="ml-1 text-[10px] font-normal tabular-nums text-muted-foreground">{sub}</span>}
       </p>
       {children}
@@ -263,11 +281,21 @@ function VendedorCard({
         />
       </div>
 
-      {/* Conversión en UN renglón (convertidos / total de sus leads) — navy, sin verde */}
+      {/* Conversión en UN renglón (convertidos / total de sus leads) — navy, sin
+          verde. El payload no trae el total de leads de la ventana: sin activos
+          NI convertidos no hay evidencia de muestra → «—», no un 0 % fabricado
+          (el mapper rellena 0 para el roster sin fila). El rótulo lleva la
+          ventana para que nadie lo lea como la conversión MENSUAL ponderada. */}
       <div className="mt-2 flex items-center gap-2 text-[11px]">
-        <span className="font-semibold text-muted-foreground">Conversión</span>
-        <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 flex-1" />
-        <span className="font-bold tabular-nums">{r.conversion}%</span>
+        <span className="font-semibold text-muted-foreground">Conversión · {VENTANA_CONVERTIDOS_DIAS} días</span>
+        {r.activos === 0 && r.convertidos === 0 ? (
+          <SinMuestraOperativa className="flex-1 text-right font-bold tabular-nums text-muted-foreground" />
+        ) : (
+          <>
+            <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 flex-1" />
+            <span className="font-bold tabular-nums">{r.conversion}%</span>
+          </>
+        )}
       </div>
     </Card>
   )
@@ -463,15 +491,17 @@ function EquipoSupervisor(): JSX.Element {
     const semantica = semanticaMetaMensual(periodoRanking)
     return objetivosError ? { ...semantica, comparable: false, errorCarga: true } : semantica
   }, [objetivosError, periodoRanking])
-  const conversionEquipo = useMetricasConversionesEquipo(
-    !yo?.demo,
-    periodoRanking.desde,
-    periodoRanking.hasta,
-  )
-  const rankingEquipo = useMemo(
-    () => adaptarConversionEquipo(conversionEquipo.data, equipoConversion),
-    [conversionEquipo.data, equipoConversion],
-  )
+  // La conversión de MI equipo sale de la MISMA RPC mensual que su tile de
+  // «Hoy» (`crm.conversion_mensual_fn`, alcance equipo por rol) — el payload
+  // viejo del equipo medía otra pregunta y ya no alimenta este tab. Tri-estado
+  // como el TC: undefined = consultando, null = no disponible (fail-closed).
+  const periodoConversionMes = `${periodoRanking.hasta.slice(0, 7)}-01`
+  const qConversionMensual = useConversionMensual(!yo?.demo, periodoConversionMes)
+  const conversionMensualEquipo = yo?.demo
+    ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
+    : qConversionMensual.isPending || qConversionMensual.isFetching
+      ? undefined
+      : (qConversionMensual.data ?? null)
   const colaOp = useColaAccionOperativa(ambito.leads, actividadesDelAmbito, tareas, estadoSla.indice)
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
@@ -605,6 +635,7 @@ function EquipoSupervisor(): JSX.Element {
       <div className="gerencia-inteligencia">
         <RankingVendedoresPanel
           datos={null}
+          conversionMensual={conversionMensualEquipo}
           equipo={equipoConversion}
           metasVendedores={objetivos.porVendedor ?? {}}
           cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}
@@ -612,12 +643,10 @@ function EquipoSupervisor(): JSX.Element {
           tc={tc}
           cargando={false}
           error={null}
-          onReintentar={() => void recargar()}
+          onReintentar={() => { void recargar(); if (!yo?.demo) void qConversionMensual.refetch() }}
           titulo="Ranking de mi equipo"
           etiquetaAlcance="Mi equipo"
           tabInicial="capital-total"
-          conversionDisponible={!yo?.demo}
-          adaptadaExterna={rankingEquipo}
         />
       </div>
 
@@ -762,7 +791,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               <Th>Últ. actividad</Th>
               <Th className="text-right">Activos</Th>
               <Th className="text-right">Capital PEN</Th>
-              <Th>Conversión</Th>
+              <Th>Conversión · {VENTANA_CONVERTIDOS_DIAS} días</Th>
               <Th className="text-right">Por repartir</Th>
               <Th>
                 <span className="sr-only">Detalle del equipo</span>
@@ -835,6 +864,8 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                             <Progress value={f.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
                             <span className="text-xs font-bold tabular-nums">{f.conversion}%</span>
                           </div>
+                        ) : f.activos === 0 && f.convertidos === 0 ? (
+                          <SinMuestraOperativa className="text-xs tabular-nums text-muted-foreground" />
                         ) : (
                           <span className="text-xs tabular-nums text-muted-foreground">0%</span>
                         )}
@@ -888,7 +919,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
             <div className="grid grid-cols-2 gap-3 rounded-xl border border-border bg-primary/[0.03] p-3 sm:grid-cols-4">
               <CapitalDeFila pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
               <MiniDato label="Activos" valor={String(f.activos)} />
-              <MiniDato label="Conversión" valor={`${f.conversion}%`}>
+              <MiniDato
+                label={`Conversión · ${VENTANA_CONVERTIDOS_DIAS} días`}
+                valor={f.activos === 0 && f.convertidos === 0 ? '—' : `${f.conversion}%`}
+                {...(f.activos === 0 && f.convertidos === 0
+                  ? { title: 'Sin leads en la ventana operativa', srDetalle: 'Sin leads en la ventana operativa' }
+                  : {})}
+              >
                 <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
               </MiniDato>
               <MiniDato
@@ -935,7 +972,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                   <Th className="text-right">Activos</Th>
                   <Th className="text-right">Capital PEN</Th>
                   <Th className="text-right">Sin tocar</Th>
-                  <Th>Conversión</Th>
+                  <Th>Conversión · {VENTANA_CONVERTIDOS_DIAS} días</Th>
                 </TheadCrm>
                 <tbody>
                   {vendedores.map((r) => {
@@ -983,6 +1020,8 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                               <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
                               <span className="text-xs font-bold tabular-nums">{r.conversion}%</span>
                             </div>
+                          ) : r.activos === 0 && r.convertidos === 0 ? (
+                            <SinMuestraOperativa className="text-xs tabular-nums text-muted-foreground" />
                           ) : (
                             <span className="text-xs tabular-nums text-muted-foreground">0%</span>
                           )}

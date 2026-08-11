@@ -119,8 +119,23 @@ function redondearPp(valor: number): number {
   return Math.round(valor * 100) / 100
 }
 
-function porcentajeValido(valor: number | null | undefined): valor is number {
+/** Una META se pacta en [0,100]: el techo aquí es correcto y se queda. */
+function porcentajeMetaValido(valor: number | null | undefined): valor is number {
   return valor != null && Number.isFinite(valor) && valor >= 0 && valor <= 100
+}
+
+/**
+ * Un RESULTADO de conversión NO tiene techo (la mensual ponderada supera 100
+ * por diseño: referidos que suman arriba y no abajo, cierres de arrastre).
+ * Antes ambos compartían un [0,100] y un asesor por encima de 100 se saltaba
+ * con `continue` — un fail-open sin rastro. OJO: eso NO cambiaba el resultado
+ * de hoy (a quien supera su meta no le toca alerta de conversión BAJA), pero
+ * dejaba una mina para la primera alerta de sobre-rendimiento o de caída
+ * global que reutilizara el helper. Higiene, no bugfix: la razón exacta quedó
+ * en el plan (§4bis-C8).
+ */
+function porcentajeConversionValido(valor: number | null | undefined): valor is number {
+  return valor != null && Number.isFinite(valor) && valor >= 0
 }
 
 function conteoValido(valor: number | null | undefined): valor is number {
@@ -165,18 +180,18 @@ export function derivarAlertasGerencia({
       if (
         !conteoValido(vendedor.resueltos)
         || vendedor.resueltos < CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR
-        || !porcentajeValido(vendedor.conversionReal)
+        || !porcentajeConversionValido(vendedor.conversionReal)
       ) continue
 
       const metaVendedor = metasVendedores[vendedor.vendedorId]
       if (
         metaVendedor != null
-        && !porcentajeValido(metaVendedor.conversionObjetivo)
+        && !porcentajeMetaValido(metaVendedor.conversionObjetivo)
       ) continue
       const metaGuardada = metaVendedor?.conversionObjetivo ?? 0
       const objetivo = metaConversionAplicable(metaGuardada, objetivosError)
       const actual = vendedor.conversionReal
-      if (!porcentajeValido(objetivo) || actual >= objetivo) continue
+      if (!porcentajeMetaValido(objetivo) || actual >= objetivo) continue
 
       const brechaPp = redondearPp(objetivo - actual)
       if (brechaPp < BRECHA_MINIMA_ALERTA_CONVERSION_PP) continue
@@ -204,8 +219,8 @@ export function derivarAlertasGerencia({
   const leadsActuales = conversiones?.cohorte.leads
   const leadsAnteriores = conversionesAnteriores?.cohorte.leads
   if (
-    porcentajeValido(conversionActual)
-    && porcentajeValido(conversionAnterior)
+    porcentajeConversionValido(conversionActual)
+    && porcentajeConversionValido(conversionAnterior)
     && conteoValido(leadsActuales)
     && conteoValido(leadsAnteriores)
     && leadsActuales >= LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL

@@ -10,16 +10,19 @@ test('crear lead: alta rápida, toast "(demo)" y abre la ficha del nuevo lead', 
 
   const modal = page.getByRole('dialog', { name: 'Nuevo lead' })
   await expect(modal).toBeVisible()
-  for (const origen of ['referido', 'landing', 'formulario', 'oficina', 'otro']) {
+  // Regla D8 (Miguel, 2026-08-11): el alta manual del vendedor ofrece SOLO
+  // Referido/Oficina/Otro — Landing y Formulario se cargan solos (puente) y
+  // jamás a mano. El servidor lo exige (migración F); el form lo espeja.
+  for (const origen of ['referido', 'oficina', 'otro']) {
     await expect(modal.locator(`#nl-origen option[value="${origen}"]`)).toHaveCount(1)
   }
-  for (const origenRetirado of ['web', 'campania', 'whatsapp']) {
+  for (const origenRetirado of ['landing', 'formulario', 'web', 'campania', 'whatsapp']) {
     await expect(modal.locator(`#nl-origen option[value="${origenRetirado}"]`)).toHaveCount(0)
   }
   await modal.locator('#nl-nombre').fill('LEAD PRUEBA E2E')
   await modal.locator('#nl-telefono').fill('987111222')
   await modal.locator('#nl-monto').fill('5000')
-  await modal.locator('#nl-origen').selectOption('landing')
+  await modal.locator('#nl-origen').selectOption('referido')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   await expect(page.getByText(/Lead creado \(demo\)/i)).toBeVisible()
@@ -212,7 +215,7 @@ test('crear lead mueve el tile "Leads activos" al instante (espejo demo VIVO, F1
   await modal.locator('#nl-nombre').fill('LEAD TILE E2E')
   await modal.locator('#nl-telefono').fill('987333444')
   await modal.locator('#nl-monto').fill('7000')
-  await modal.locator('#nl-origen').selectOption('landing')
+  await modal.locator('#nl-origen').selectOption('referido')
   await modal.getByRole('button', { name: /crear lead/i }).click()
   await expect(page.getByText(/Lead creado \(demo\)/i)).toBeVisible()
 
