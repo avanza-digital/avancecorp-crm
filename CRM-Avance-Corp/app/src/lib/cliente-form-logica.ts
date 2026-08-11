@@ -4,7 +4,7 @@
 // BANCOS_PE, leerYValidarBancarios y las validaciones de guardarCliente).
 // Vive separada del componente (patrón documento-core del portal) para poder
 // testearse sin DOM. Si el portal cambia una regla, cambiar AMBOS lados.
-import type { ClienteDetalle } from './clientes-tipos'
+import type { ClienteDetalle, CuentaBancariaSeleccionable } from './clientes-tipos'
 import { RE_DOC_GENERICO, validarDocumento, type TipoDocumento } from './documento'
 
 /**
@@ -103,6 +103,22 @@ export function seccionUsdDesdeDetalle(d: ClienteDetalle): SeccionBancariaForm {
     beneficiario_nombre: d.beneficiario_nombre_usd ?? '',
     beneficiario_dni: d.beneficiario_dni_usd ?? '',
   }
+}
+
+/**
+ * ¿El ledger (RPC cuentas_bancarias_cliente_fn) trae alguna cuenta REAL del
+ * cliente? Cuenta las filas que no son la casilla del perfil: esas viven en
+ * crm.cuentas_bancarias (una cuenta registrada al crear un contrato, o la
+ * copia histórica de la casilla). Decide dos cosas en CORREGIR: mostrar el
+ * bloque informativo y perdonar la regla «al menos una cuenta».
+ * ⚠️ Las cuentas del ledger JAMÁS se siembran en las casillas editables: al
+ * guardar irían a public.perfiles y el fallback perfil_legacy de Pagos las
+ * usaría para contratos viejos SIN vínculo — un backfill por inferencia que
+ * la nota del vault «Cuentas bancarias por contrato» prohíbe (veto Codex
+ * 2026-08-11 al diseño anterior de este mismo arreglo).
+ */
+export function hayCuentaEnLedger(cuentas: readonly CuentaBancariaSeleccionable[]): boolean {
+  return cuentas.some((c) => !c.es_cuenta_perfil)
 }
 
 /** Sección ya validada, con nulls listos para las columnas de perfiles. */
@@ -314,12 +330,22 @@ export type ResultadoBancarios =
 export function validarBancariosForm(
   pen: SeccionBancariaForm,
   usd: SeccionBancariaForm,
+  opciones?: {
+    /**
+     * SOLO corregir: el cliente ya tiene cuenta activa en crm.cuentas_bancarias
+     * (vinculada a un contrato). Perdona ÚNICAMENTE la regla «al menos una»
+     * con ambas casillas vacías — el patch va con nulls (idempotente: si las
+     * casillas ya estaban vacías, el perfil no cambia). Nunca perdona una
+     * sección malformada: eso se corrige o se vacía, jamás pasa a medias.
+     */
+    cuentaEnLedger?: boolean
+  },
 ): ResultadoBancarios {
   const valPen = validarSeccionBancaria(pen, 'Soles')
   if (!valPen.ok) return valPen
   const valUsd = validarSeccionBancaria(usd, 'Dólares')
   if (!valUsd.ok) return valUsd
-  if (valPen.vacia && valUsd.vacia) {
+  if (valPen.vacia && valUsd.vacia && !opciones?.cuentaEnLedger) {
     return {
       ok: false,
       error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
@@ -373,6 +399,7 @@ export type ResultadoClienteForm =
 export function validarClienteForm(
   valores: ValoresClienteForm,
   actual: ClienteDetalle | null = null,
+  opciones?: { cuentaEnLedger?: boolean },
 ): ResultadoClienteForm {
   const apellidos = normNombrePersona(valores.apellidos)
   const nombres = normNombrePersona(valores.nombres)
@@ -420,7 +447,7 @@ export function validarClienteForm(
   // por moneda. Cada una es opcional por separado, pero debe haber AL MENOS UNA
   // — regla que el portal aplica tanto al alta como a la corrección (y aquí
   // también a la conversión de lead, vía la misma validarBancariosForm).
-  const valBanc = validarBancariosForm(valores.pen, valores.usd)
+  const valBanc = validarBancariosForm(valores.pen, valores.usd, opciones)
   if (!valBanc.ok) return valBanc
 
   return {

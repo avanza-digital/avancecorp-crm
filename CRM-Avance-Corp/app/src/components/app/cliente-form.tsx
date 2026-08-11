@@ -29,7 +29,7 @@ import {
   mensajeDeError,
   CrmApiError,
 } from '@/data/crm-api'
-import { useClienteDetalle } from '@/data/crm-queries'
+import { useClienteDetalle, useCuentasBancariasCliente } from '@/data/crm-queries'
 import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import type { ClienteDetalle } from '@/lib/clientes-tipos'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
@@ -37,6 +37,7 @@ import { useVentana } from '@/lib/ventana'
 import { useAuth } from '@/lib/auth-context'
 import {
   SECCION_BANCARIA_VACIA,
+  hayCuentaEnLedger,
   seccionPenDesdeDetalle,
   seccionUsdDesdeDetalle,
   validarClienteForm,
@@ -47,6 +48,7 @@ import {
 // los E2E y el equipo los reconocen tal cual).
 const MSG_VENTANA_VENCIDA =
   'La ventana de corrección venció: los cambios NO se guardaron. Pide el cambio a administración.'
+
 
 export interface ClienteFormProps {
   modo: 'crear' | 'corregir'
@@ -92,18 +94,30 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   // prerequisito del guardado y revalida SIEMPRE al abrir — jamás se siembra
   // el formulario con una copia cacheada que podría estar vieja.
   const qDetalle = useClienteDetalle(clienteId ?? '', esCorregir && !!clienteId)
+  // Las cuentas del LEDGER completan la precarga bancaria: una cuenta
+  // registrada al crear un contrato vive SOLO en crm.cuentas_bancarias y las
+  // casillas de perfiles no la conocen (regla en precargarSeccionBancaria).
+  // Solo alimentan la siembra; el guardado sigue escribiendo las casillas.
+  const qCuentasPen = useCuentasBancariasCliente(clienteId ?? '', 'PEN', esCorregir && !!clienteId)
+  const qCuentasUsd = useCuentasBancariasCliente(clienteId ?? '', 'USD', esCorregir && !!clienteId)
   // Siembra ÚNICA y solo con datos RECIÉN traídos: isFetchedAfterMount exige un
   // fetch COMPLETADO tras el mount — sin red el refetch queda 'paused' (isFetching
   // false + isSuccess true con la copia cacheada) y sembrar esa copia vieja haría
   // que el UPDATE de set completo pise bancarios corregidos por otra sesión. Un
   // refetch posterior (foco de ventana) no debe pisar lo que el asesor edita.
+  // Las cuentas del ledger esperan lo mismo, pero su FALLO no bloquea el
+  // formulario: degrada a la precarga de siempre (solo casillas del perfil).
   const sembrado = useRef(false)
   useEffect(() => {
     if (!esCorregir || sembrado.current) return
     if (!qDetalle.isSuccess || qDetalle.isFetching || !qDetalle.isFetchedAfterMount) return
     const d = qDetalle.data
     sembrado.current = true
-    // Precarga TODO (espejo de abrirModalClienteCorregir del portal).
+    // Precarga TODO (espejo de abrirModalClienteCorregir del portal). Las
+    // casillas bancarias vienen SOLO del perfil: las cuentas del ledger jamás
+    // se siembran aquí (se muestran aparte, en solo lectura) porque al guardar
+    // irían a perfiles y el fallback perfil_legacy de Pagos las usaría para
+    // contratos viejos sin vínculo (veto Codex 2026-08-11 a esa convergencia).
     setApellidos(d.apellidos ?? '')
     setNombres(d.nombres ?? '')
     setTipoDoc(d.tipo_documento)
@@ -114,6 +128,24 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     setUsd(seccionUsdDesdeDetalle(d))
     setDetalle(d)
   }, [esCorregir, qDetalle.isSuccess, qDetalle.isFetching, qDetalle.isFetchedAfterMount, qDetalle.data])
+
+  // Derivados del ledger (crm.cuentas_bancarias) — la fuente que la ficha ya
+  // usa. NO alimentan las casillas: informan al asesor y perdonan la regla
+  // «al menos una cuenta» cuando los contratos ya tienen dónde depositar.
+  const cuentasLedger = esCorregir
+    ? [...(qCuentasPen.data ?? []), ...(qCuentasUsd.data ?? [])]
+    : []
+  const cuentasDeContrato = cuentasLedger.filter((c) => c.origen === 'contrato')
+  const ledgerCubre = hayCuentaEnLedger(cuentasLedger)
+  // La degradación NO es muda: si el ledger no se pudo leer, el asesor lo ve —
+  // sin el aviso escribiría a mano una cuenta «que no existía» o chocaría con
+  // «Registra al menos una cuenta» sin pista del porqué. Derivado en vivo: un
+  // reintento exitoso lo limpia solo.
+  const avisoLedger = esCorregir && detalle != null && (qCuentasPen.isError || qCuentasUsd.isError)
+  const reintentarCuentasLedger = () => {
+    if (qCuentasPen.isError) void qCuentasPen.refetch()
+    if (qCuentasUsd.isError) void qCuentasUsd.refetch()
+  }
 
   // Una vez sembrado, el formulario manda: un fallo de un refetch posterior no
   // lo tumba (el guardado revalida en el servidor de todos modos).
@@ -132,6 +164,10 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     const r = validarClienteForm(
       { apellidos, nombres, tipo_documento: tipoDoc, documento, telefono, correo, pen, usd },
       esCorregir ? detalle : null,
+      // El ledger perdona la regla «al menos una cuenta» SOLO en corregir: el
+      // cliente ya tiene dónde cobrar (cuenta activa vinculada a contrato) y
+      // el patch con casillas vacías es idempotente sobre perfiles.
+      { cuentaEnLedger: ledgerCubre },
     )
     if (!r.ok) {
       setError(r.error)
@@ -233,6 +269,16 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     )
   }
 
+  // Reintentar repara las TRES consultas, no solo el detalle: si la red
+  // parpadeó al abrir, las cuentas del ledger quedaron en un isError que la
+  // siembra aceptaría como «listo» y el formulario degradaría en silencio con
+  // la red ya sana (hallazgo medio de la verificación multi-lente 2026-08-11).
+  const reintentarCarga = () => {
+    void qDetalle.refetch()
+    if (qCuentasPen.isError) void qCuentasPen.refetch()
+    if (qCuentasUsd.isError) void qCuentasUsd.refetch()
+  }
+
   if (esCorregir && errorCarga) {
     return (
       <>
@@ -242,7 +288,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         </DialogBody>
         <DialogFooter className="justify-between">
           <Button variant="ghost" size="sm" onClick={onCerrar}>Cerrar</Button>
-          <Button variant="outline" size="sm" onClick={() => void qDetalle.refetch()}>
+          <Button variant="outline" size="sm" onClick={reintentarCarga}>
             <RotateCcw /> Reintentar
           </Button>
         </DialogFooter>
@@ -372,6 +418,40 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             de 8 caracteres se completa con ceros a la izquierda, ej. AB1234 → 00AB1234); en su
             primer ingreso el cliente creará su propia contraseña.
           </p>
+        )}
+
+        {avisoLedger && (
+          <div
+            role="status"
+            className="flex items-center justify-between gap-2 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-800 dark:text-amber-300"
+          >
+            <span>
+              No se pudieron consultar las cuentas registradas en contratos: puede faltar
+              información abajo.
+            </span>
+            <Button type="button" variant="outline" size="sm" onClick={reintentarCuentasLedger}>
+              <RotateCcw aria-hidden /> Reintentar
+            </Button>
+          </div>
+        )}
+
+        {cuentasDeContrato.length > 0 && (
+          // Solo lectura A PROPÓSITO: estas cuentas viven en crm.cuentas_bancarias
+          // atadas a SU contrato. Copiarlas a las casillas del perfil las volvería
+          // la cuenta de cobro de contratos viejos sin vínculo (fallback
+          // perfil_legacy de Pagos) — el backfill por inferencia que está prohibido.
+          <div className="rounded-lg border border-border bg-muted/40 px-3 py-2 text-[11px] text-muted-foreground">
+            <b className="text-foreground">Cuentas registradas en contratos</b> — se administran
+            desde el contrato, no aquí:
+            <ul className="mt-1 list-disc pl-4">
+              {cuentasDeContrato.map((c) => (
+                <li key={c.cuenta_id ?? `${c.moneda}-${c.cci}`}>
+                  {c.banco} · {c.tipo_cuenta} · {c.numero_cuenta} —{' '}
+                  {c.moneda === 'PEN' ? 'soles' : 'dólares'}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
 
         {/* Bloque compartido con la conversión de lead (mismo formulario del portal). */}

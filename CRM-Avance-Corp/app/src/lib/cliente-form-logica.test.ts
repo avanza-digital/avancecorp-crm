@@ -2,11 +2,12 @@
 // Los MENSAJES se afirman VERBATIM: son los mismos que muestra el portal y
 // cambiarlos rompería la paridad del traspaso.
 import { describe, expect, it } from 'vitest'
-import type { ClienteDetalle } from './clientes-tipos'
+import type { ClienteDetalle, CuentaBancariaSeleccionable } from './clientes-tipos'
 import {
   BANCOS_PE,
   SECCION_BANCARIA_VACIA,
   armarPatchBancarios,
+  hayCuentaEnLedger,
   normNombrePersona,
   seccionPenDesdeDetalle,
   seccionUsdDesdeDetalle,
@@ -362,5 +363,70 @@ describe('validarBancariosForm (compartida: alta directa y conversión de lead)'
     expect(r.bancarios.banco).toBeNull()
     expect(r.bancarios.banco_usd).toBe('Interbank')
     expect(r.bancarios.cci_usd).toBe('00219112345678901234')
+  })
+})
+
+describe('hayCuentaEnLedger + la regla «al menos una» perdonada (rediseño tras veto Codex 2026-08-11)', () => {
+  const cuentaLedger = (over: Partial<CuentaBancariaSeleccionable> = {}): CuentaBancariaSeleccionable => ({
+    cuenta_id: 'cta-1',
+    moneda: 'USD',
+    banco: 'BBVA',
+    tipo_cuenta: 'corriente',
+    numero_cuenta: '72728282828282',
+    cci: '27273827282828282828',
+    titular_distinto: false,
+    beneficiario_nombre: null,
+    beneficiario_dni: null,
+    origen: 'contrato',
+    es_cuenta_perfil: false,
+    creada_en: '2026-08-11T19:36:47.000Z',
+    ...over,
+  })
+
+  it('cuenta la copia histórica del perfil y la de contrato; la fila es_cuenta_perfil NO cuenta (es la propia casilla)', () => {
+    expect(hayCuentaEnLedger([cuentaLedger()])).toBe(true)
+    expect(hayCuentaEnLedger([cuentaLedger({ origen: 'perfil' })])).toBe(true)
+    expect(hayCuentaEnLedger([
+      cuentaLedger({ cuenta_id: null, es_cuenta_perfil: true, origen: 'perfil', creada_en: null }),
+    ])).toBe(false)
+    expect(hayCuentaEnLedger([])).toBe(false)
+  })
+
+  it('ambas casillas vacías SIN respaldo del ledger: bloquea con el mensaje del portal (verbatim)', () => {
+    const r = validarBancariosForm(seccion(), seccion(), { cuentaEnLedger: false })
+    expect(r.ok).toBe(false)
+    if (!r.ok) {
+      expect(r.error).toBe(
+        'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+      )
+    }
+  })
+
+  it('ambas casillas vacías CON cuenta en el ledger: pasa y el patch va TODO en null (perfiles intacto)', () => {
+    // La clave anti-backfill: perdonar la regla JAMÁS copia la cuenta del
+    // ledger a perfiles — el patch conserva las 14 columnas en null.
+    const r = validarBancariosForm(seccion(), seccion(), { cuentaEnLedger: true })
+    expect(r.ok).toBe(true)
+    if (r.ok) {
+      expect(r.bancarios.banco).toBeNull()
+      expect(r.bancarios.numero_cuenta).toBeNull()
+      expect(r.bancarios.cci).toBeNull()
+      expect(r.bancarios.banco_usd).toBeNull()
+      expect(r.bancarios.numero_cuenta_usd).toBeNull()
+      expect(r.bancarios.cci_usd).toBeNull()
+      expect(r.bancarios.titular_distinto).toBe(false)
+      expect(r.bancarios.titular_distinto_usd).toBe(false)
+    }
+  })
+
+  it('el ledger NO perdona una sección malformada: se corrige o se vacía, jamás pasa a medias', () => {
+    const r = validarBancariosForm(seccion({ cci: '123' }), seccion(), { cuentaEnLedger: true })
+    expect(r.ok).toBe(false)
+    if (!r.ok) expect(r.error).toMatch(/Soles/)
+  })
+
+  it('sin opciones se comporta EXACTO como siempre (alta y conversión de lead intactas)', () => {
+    const r = validarBancariosForm(seccion(), seccion())
+    expect(r.ok).toBe(false)
   })
 })
