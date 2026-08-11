@@ -5893,6 +5893,886 @@ async function testCarteraKeyset(sessions, seed) {
   }
 }
 
+// ── Migracion A: conversion mensual ponderada (crm.conversion_mensual_fn) ────
+// La RPC nueva abre al VENDEDOR un informe (cobertura del ledger, total del
+// ambito, ranking) y al SUPERVISOR su subarbol entero, asi que el gate es parte
+// del entregable y no un seguimiento. Nueve tramos:
+//   (0) LINEA BASE + NO VACUIDAD — se fotografia el payload ANTES de sembrar y
+//       despues se aseveran DELTAS EXACTAS. Sin la linea base todo lo que sigue
+//       es consistencia INTERNA del payload, y la regla central del ciclo —T10:
+//       el referido queda FUERA del divisor— no tendria ni una asercion: un
+//       servidor que la revirtiera de forma coherente (divisor +2 en vez de +1,
+//       numerador 1,15, porcentaje recalculado) pasaria en verde. El delta es
+//       ademas RELATIVO: sobrevive a un ledger que solo crece.
+//   (A) permitidos y forma · (B) denegaciones DURAS · (C) ORDEN de los errores
+//   (D) PARIDAD entre roles · (E) aritmetica · (F) forma del contrato
+//   (G) lo que NO se recorta por ambito, y la tabla del peso, que no existe
+//       para la Data API · (H) el soft-delete no mueve la metrica ·
+//       (I) anon no ve la RPC ni existiendo.
+// El oraculo NO son numeros fijos: son DELTAS e INVARIANTES (el total es la
+// suma de las filas, el numerador es la formula, el ambito estrecho es un
+// subconjunto del ancho). Es lo unico que sobrevive a un ledger append-only.
+//
+// ⚠️ ORDEN EN main(): este bloque va EL ULTIMO, despues de testAnon(). Dos
+// razones, y la segunda no es evidente: (1) deja cuatro leads nuevos en la
+// cartera de vend1, de sup1 y de un tercer analista; (2) el soft-delete NO los
+// esconde al rol `directorio`, porque la policy `leads_select` pone su rama
+// `es_lector_global()` FUERA del `(activo = true and ...)` — verificado en el
+// `qual` de produccion. Encadenarlo antes de readVisibilityMatrix rompe
+// «directorio ve exactamente su conjunto» por una causa que no tiene nada que
+// ver con la conversion. Es tambien el motivo REAL —junto con la inmutabilidad
+// del ledger— por el que el gate no es re-ejecutable sobre la misma base: en
+// una segunda corrida esos leads siguen VISIBLES para el lector global.
+const CLAVES_PAYLOAD_CONVERSION = ['alcance', 'cobertura', 'fuentes', 'generado_en',
+  'periodo', 'ponderacion', 'responsables', 'total', 'version'];
+const CLAVES_PERIODO_CONVERSION = ['anio', 'desde', 'hasta', 'mes', 'mes_nombre', 'zona'];
+const CLAVES_PONDERACION_CONVERSION = ['fuente', 'referido'];
+const CLAVES_COBERTURA_CONVERSION = ['cierres_sin_episodio', 'divisor_aproximado',
+  'divisor_por_motivo', 'fuera_de_roster', 'medible', 'motivo_no_medible', 'suelo_historico'];
+// Actualizadas el 2026-08-11 tras la consolidación final de la migración A:
+// `cierres_de_arrastre` (exigida por los revisores para que un % > 100 sea
+// explicable en pantalla) viaja en la fila Y en el total, y el total lleva
+// además `referidos_aporta_pct` (espejo del aporta_pct por fila).
+const CLAVES_TOTAL_CONVERSION = ['analistas', 'cierres_de_arrastre',
+  'cierres_no_referidos', 'cierres_referidos', 'conversion_pct', 'divisor',
+  'numerador', 'referidos_aporta_pct', 'referidos_recibidos'];
+const CLAVES_RESPONSABLE_CONVERSION = ['cierres_de_arrastre',
+  'cierres_no_referidos', 'cierres_referidos', 'conversion_pct', 'divisor',
+  'estado', 'numerador', 'procedencia', 'referidos',
+  'supervisor_id', 'vendedor_id'];
+const CLAVES_REFERIDOS_CONVERSION = ['aporta_pct', 'cerrados', 'dados_de_alta', 'recibidos'];
+const CLAVES_PROCEDENCIA_CONVERSION = ['anio', 'cierres', 'cierres_referidos', 'mes', 'mes_nombre'];
+// `fuera_de_roster` es un AGREGADO SIN IDENTIDAD a proposito: devolver el uuid
+// de alguien sin rol efectivo seria filtrar a una persona por la puerta de atras.
+const CLAVES_FUERA_DE_ROSTER = ['analistas', 'cierres', 'divisor', 'numerador'];
+// Vocabulario CERRADO: el front los declara como picklist y un valor de mas
+// rompe la pantalla en silencio.
+const ESTADOS_CONVERSION = new Set(['medible', 'solo_referidos', 'solo_arrastre', 'sin_actividad']);
+const MOTIVOS_NO_MEDIBLE = new Set([null, 'sin_ledger', 'anterior_al_ledger', 'mes_parcial',
+  'sin_supervisor', 'supervisor_inactivo', 'supervisor_no_es_supervisor']);
+// Los TRES motivos del paso 5b: la RPC los sobreescribe SOLO para alcance
+// 'propio' cuando el vendedor no esta en el roster. No son metadato del ledger
+// y por eso no pueden exigirse identicos entre roles (ver tramo G).
+const MOTIVOS_EXCLUSION_ROSTER = new Set(['sin_supervisor', 'supervisor_inactivo',
+  'supervisor_no_es_supervisor']);
+
+// Ids propios del bloque, y NO en fixtures.TRANSIENT_IDS a proposito: la unica
+// limpieza que de verdad los alcanza es el `finally` de aqui abajo. Los
+// TRANSIENT_IDS se generan con randomUUID() por PROCESO, asi que el
+// cleanupTransientRows() del arranque de main() jamas puede ver los de una
+// corrida anterior: registrarlos alli daria una sensacion de red que no existe.
+// Manteniendolos locales, el bloque es autocontenido y su limpieza no depende
+// ni de otro fichero ni de que el tramo H llegue a ejecutarse.
+const IDS_CONVERSION = Object.freeze({
+  leadReferido: randomUUID(),
+  leadDirecto: randomUUID(),
+  leadSoloReferidos: randomUUID(),
+  leadFueraDeRoster: randomUUID(),
+});
+
+async function testConversionMensual(sessions, seed) {
+  console.log('\n— Conversion mensual ponderada (migracion A) —');
+
+  // El periodo se calcula EN LIMA, no en la zona de la maquina: la RPC rechaza
+  // el mes futuro comparando contra date_trunc('month', now() at time zone
+  // 'America/Lima'), y de madrugada UTC el mes local puede ser todavia el
+  // anterior — el gate pediria un mes futuro y moriria con 22023 sin que nada
+  // este roto.
+  const enLima = (fecha) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(fecha);
+  const MES = enLima(new Date()).slice(0, 7);
+  const PERIODO = `${MES}-01`;
+  const ids = seed.profileIdByKey;
+  const bankProfileId = ids[BANK_CLIENT.key];
+
+  const pedir = (clave, periodo = PERIODO) => sessions[clave].client
+    .schema('crm').rpc('conversion_mensual_fn', { p_periodo: periodo });
+  const filasDe = (payload) => payload?.responsables ?? [];
+  const idsDe = (payload) => new Set(filasDe(payload).map((fila) => fila.vendedor_id));
+  const filaDe = (payload, vendedorId) => filasDe(payload)
+    .find((fila) => fila.vendedor_id === vendedorId) ?? null;
+  const clavesDe = (objeto) => Object.keys(objeto ?? {}).sort();
+  const mismasClaves = (objeto, esperadas) => JSON.stringify(clavesDe(objeto))
+    === JSON.stringify(esperadas);
+  // Serializacion canonica: dos payloads con las mismas claves en otro orden son
+  // el MISMO payload. Sin esto la paridad compararia el orden de jsonb, no los
+  // datos.
+  const canonico = (valor) => JSON.stringify(valor, (_clave, v) => (
+    v && typeof v === 'object' && !Array.isArray(v)
+      ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, v[k]]))
+      : v));
+  // `generado_en` es el reloj de la llamada: comparar dos payloads sin quitarlo
+  // solo demostraria que el tiempo pasa.
+  const sinReloj = (payload) => canonico({ ...payload, generado_en: null });
+  const num = (valor) => Number(valor ?? 0);
+  const cerca = (a, b, tolerancia = 1e-9) => Math.abs(num(a) - num(b)) <= tolerancia;
+
+  const UUID_V4 = /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  // Precondicion DURA, no un check: si un refactor futuro vuelve a dejar un id
+  // en `undefined`, supabase-js lo elimina al serializar y los leads nacen con
+  // uuid aleatorio que nadie limpia, la RPC de cierre viaja sin argumento
+  // (PGRST202) y el `.in('id', [undefined])` de la limpieza muere con 22P02
+  // TRESCIENTAS lineas mas abajo. Que muera aqui, nombrando la causa.
+  assertSeed(
+    Object.values(IDS_CONVERSION).every((id) => typeof id === 'string' && UUID_V4.test(id)),
+    'los cuatro ids transitorios de la conversion deben ser uuid v4 reales',
+  );
+
+  // ── 0 · LINEA BASE: la foto del mes ANTES de tocar nada ────────────────────
+  const antes = await positive(
+    'gerencia fotografia la conversion del mes ANTES de sembrar (linea base)',
+    pedir('gerencia'),
+  );
+  if (!antes) {
+    fail('sin linea base no se puede aseverar ni una delta: el bloque de conversion se aborta');
+    return;
+  }
+  const filaAntesVend1 = filaDe(antes.data, ids.vend1);
+  const totalAntes = antes.data?.total ?? {};
+  const coberturaAntes = antes.data?.cobertura ?? {};
+  if (!check(filaAntesVend1 !== null,
+    'vend1 tiene fila en la linea base: los tramos de delta, paridad y soft-delete tienen sujeto',
+    JSON.stringify([...idsDe(antes.data)]))) {
+    return;
+  }
+  // El LEFT JOIN desde el roster: «desaparecer no es un estado». Se asevera
+  // sobre la linea base y no sobre el payload final porque el tramo 0 consume
+  // justamente al analista ocioso para fabricar `solo_referidos`.
+  check(filasDe(antes.data).some((fila) => fila.estado === 'sin_actividad'),
+    'la linea base tiene al menos una fila sin_actividad (el roster manda, no la actividad)',
+    JSON.stringify(filasDe(antes.data).map((f) => [f.vendedor_id, f.estado])));
+
+  // El sujeto de `solo_referidos` se elige del PAYLOAD, no del fixture: quien
+  // esta ocioso depende de lo que hayan hecho los bloques anteriores de main()
+  // (testReassignmentTrigger y testTareaFollowsLead mueven leads a vend2), y
+  // clavar una clave aqui seria un fixture que caduca al reordenar el gate.
+  const candidato = filasDe(antes.data).find((fila) => Number(fila.divisor) === 0
+    && Number(fila.cierres_no_referidos) === 0
+    && Number(fila.cierres_referidos) === 0
+    && Number(fila.referidos?.recibidos) === 0);
+  if (!check(candidato != null,
+    'hay un analista del roster sin actividad al que darle SOLO un referido (estado solo_referidos)',
+    JSON.stringify(filasDe(antes.data).map((f) => [f.vendedor_id, f.divisor, f.estado])))) {
+    return;
+  }
+  const candidatoId = candidato.vendedor_id;
+
+  try {
+    // ── 0b · la semilla, por la VIA REAL ────────────────────────────────────
+    // Los cierres se producen con `crm.convertir_lead` y la sesion del vendedor:
+    // el ledger solo registra un cierre cuando el trigger lo ve pasar, y un
+    // UPDATE directo a etapa='convertido' es imposible incluso con service_role
+    // (exige crm.op_privilegiada, que solo pone esa RPC). El cliente destino es
+    // el del fixture bancario, cuyo asesor_perfil_id ES vend1 — convertir_lead
+    // exige que el cliente pertenezca a la cartera de quien cierra.
+    const leadComun = {
+      activo: true,
+      asignado_supervisor_id: null,
+      etapa: 'nuevo',
+      moneda: 'PEN',
+      no_contactar: false,
+    };
+    await requireAdmin(
+      'sembrar los cuatro leads de la conversion',
+      admin.schema('crm').from('leads').insert([
+        {
+          // origen 'referido' → FUERA del divisor (T10) y al 15 % en el
+          // numerador. Nace creado_por vend1 para ejercitar tambien
+          // `referidos.dados_de_alta`.
+          ...leadComun,
+          creado_por: ids.vend1,
+          id: IDS_CONVERSION.leadReferido,
+          monto_estimado: 9000,
+          nombre_completo: 'CONVERSION REFERIDO TRANSIENT',
+          origen: 'referido',
+          telefono: '999000130',
+          vendedor_id: ids.vend1,
+        },
+        {
+          ...leadComun,
+          creado_por: ids.vend1,
+          id: IDS_CONVERSION.leadDirecto,
+          monto_estimado: 11000,
+          nombre_completo: 'CONVERSION DIRECTO TRANSIENT',
+          origen: 'otro',
+          telefono: '999000131',
+          vendedor_id: ids.vend1,
+        },
+        {
+          // El TERCER estado. Un analista al que en el mes solo le llega un
+          // referido tiene divisor 0 LEGITIMO: trabajo sin denominador. Sin
+          // esta fila el gate solo veria 'medible' y 'sin_actividad', y la
+          // rama que T10 estreno seria inobservable.
+          ...leadComun,
+          creado_por: candidatoId,
+          id: IDS_CONVERSION.leadSoloReferidos,
+          monto_estimado: 4000,
+          nombre_completo: 'CONVERSION SOLO REFERIDOS TRANSIENT',
+          origen: 'referido',
+          telefono: '999000132',
+          vendedor_id: candidatoId,
+        },
+        {
+          // Un PRODUCTOR fuera del roster. El guard de tenencia admite
+          // explicitamente a un supervisor como analista
+          // (`es_destino_crm_activo(vendedor_id, array['vendedor','supervisor'])`)
+          // y `roster_metas_vendedores()` solo devuelve rol 'vendedor': su
+          // episodio entra en `base`, no en `roster`, y cae en
+          // `cobertura.fuera_de_roster`. Sin el, ese agregado vale 0 para todos
+          // y las tres comparaciones de monotonia que lo usan son `0 > 0`:
+          // aserciones que no pueden fallar. Da ademas sujeto real a «los
+          // supervisores no figuran como filas».
+          ...leadComun,
+          creado_por: ids.sup1,
+          id: IDS_CONVERSION.leadFueraDeRoster,
+          monto_estimado: 3000,
+          nombre_completo: 'CONVERSION FUERA DE ROSTER TRANSIENT',
+          origen: 'otro',
+          telefono: '999000133',
+          vendedor_id: ids.sup1,
+        },
+      ]),
+    );
+    for (const [etiqueta, leadId] of [
+      ['referido', IDS_CONVERSION.leadReferido],
+      ['directo', IDS_CONVERSION.leadDirecto],
+    ]) {
+      await positive(
+        `vend1 cierra el lead ${etiqueta} por la via real (convertir_lead)`,
+        sessions.vend1.client.schema('crm').rpc('convertir_lead', {
+          p_lead_id: leadId,
+          p_perfil_id: bankProfileId,
+        }),
+      );
+    }
+
+    // ── A · permitidos y forma ──────────────────────────────────────────────
+    const global = await positive(
+      'gerencia obtiene la conversion mensual de la empresa',
+      pedir('gerencia'),
+    );
+    if (!check(global !== null,
+      'sin el payload de gerencia no hay oraculo: el bloque de conversion se aborta')) {
+      return;
+    }
+    const payload = global.data;
+    check(payload?.version === 1, 'el payload de conversion declara version 1');
+    check(payload?.alcance === 'global', 'gerencia recibe alcance "global"');
+    check(Array.isArray(payload?.responsables),
+      'responsables es SIEMPRE un array, nunca null');
+    check(payload?.periodo?.mes === MES && payload?.periodo?.zona === 'America/Lima',
+      'el periodo viaja etiquetado y en hora de Lima',
+      JSON.stringify(payload?.periodo));
+    const factor = Number(payload?.ponderacion?.referido ?? 0);
+    check(factor === 0.15 && payload?.ponderacion?.fuente === 'crm.conversion_pesos',
+      'la ponderacion vigente es 0,15 y declara su fuente versionada',
+      JSON.stringify(payload?.ponderacion));
+    // Eco del contrato para el `v.literal` del front: si un servidor viejo
+    // colara otra definicion del divisor, el cliente lo rechaza en vez de pintar
+    // un numero de otra formula. OJO con lo que esto NO es: son literales de
+    // jsonb_build_object, asi que ningun cambio de COMPORTAMIENTO puede
+    // romperlos — cambiar el numerador a `finalizado_en` dejando la cadena
+    // intacta pasa por aqui sin despeinarse. La formula la cubren las deltas
+    // del tramo E, no estas tres cadenas.
+    check(payload?.fuentes?.divisor === 'crm.lead_asignaciones.asignado_en'
+      && payload?.fuentes?.numerador === 'crm.lead_asignaciones.resultado_en'
+      && payload?.fuentes?.referido === 'crm.lead_asignaciones.origen',
+      'las tres fuentes viajan literales para el contrato fail-closed',
+      JSON.stringify(payload?.fuentes));
+
+    const directorio = await positive(
+      'directorio (lector global) obtiene la conversion de la empresa',
+      pedir('directorio'),
+    );
+    if (directorio) {
+      check(directorio.data?.alcance === 'global',
+        'el lector global recibe alcance "global" (no cae en el deny-by-default de vendedor_ids_visibles)');
+      check(JSON.stringify([...idsDe(directorio.data)].sort())
+        === JSON.stringify([...idsDe(payload)].sort()),
+        'directorio ve EL MISMO conjunto de responsables que gerencia');
+    }
+
+    const deSup1 = await positive('sup1 obtiene la conversion de SU equipo', pedir('sup1'));
+    const deSup2 = await positive('sup2 obtiene la conversion de SU equipo', pedir('sup2'));
+    const deNested = await positive('sup1Nested obtiene la conversion de su rama', pedir('sup1Nested'));
+    if (deSup1) {
+      const suyos = idsDe(deSup1.data);
+      check(deSup1.data?.alcance === 'equipo', 'el supervisor recibe alcance "equipo"');
+      // vendNested cuelga de sup1Nested, que cuelga de sup1: prueba la RECURSION.
+      check(suyos.has(ids.vendNested),
+        'el subarbol es RECURSIVO: sup1 ve al vendedor de su supervisor anidado');
+      check(!suyos.has(ids.vend3) && !suyos.has(ids.vend4),
+        'sup1 NO ve la rama de sup2');
+      // Ahora sup1 SI produce (lead fuera de roster) y sigue sin ser fila: la
+      // asercion pasa a tener sujeto en vez de ser decorativa.
+      check(!suyos.has(ids.sup1) && !suyos.has(ids.sup1Nested),
+        'un supervisor que PRODUCE no figura como fila (roster + filtrar_desglose_sujetos_crm)');
+      check(!suyos.has(ids.vendInactive),
+        'sup1 no ve a vendInactive (recorte de AMBITO: cuelga de sup2, no del roster)');
+    }
+    if (deSup2) {
+      const suyos = idsDe(deSup2.data);
+      check(suyos.has(ids.vend3) && suyos.has(ids.vend4), 'sup2 ve a sus dos vendedores');
+      check(!suyos.has(ids.vend1) && !suyos.has(ids.vend2) && !suyos.has(ids.vendNested),
+        'sup2 NO ve el subarbol de sup1');
+      // AQUI la revocacion es una decision y no un accidente de topologia: el
+      // CTE recursivo de private.vendedor_ids_visibles recorre crm.equipo SIN
+      // predicado de `activo`, asi que vendInactive SI esta en el ambito de
+      // sup2 (el propio gate lo constata en testMetasVersionadas). Lo unico que
+      // lo saca es el roster, que exige rol_crm activo en los dos extremos. Es
+      // la invariante de [[crm-p04-revocado-vs-ajeno]]: offboarding =
+      // activo=false, y un asesor dado de baja no reaparece con nombre propio
+      // en el informe que decide sueldos.
+      check(!suyos.has(ids.vendInactive),
+        'sup2 NO ve a vendInactive aunque SI esta en su subarbol: lo excluye el ROSTER',
+        JSON.stringify([...suyos]));
+    }
+    check(!idsDe(payload).has(ids.vendInactive),
+      'gerencia tampoco ve a vendInactive: el roster es el unico guardian en alcance global');
+    if (directorio) {
+      check(!idsDe(directorio.data).has(ids.vendInactive),
+        'el lector global tampoco ve a vendInactive');
+    }
+    if (deNested) {
+      check(![ids.vend1, ids.vend2].some((id) => idsDe(deNested.data).has(id)),
+        'sup1Nested no mira HACIA ARRIBA: solo su propia rama');
+    }
+
+    const propio = await positive('vend1 obtiene SU propia conversion', pedir('vend1'));
+    if (propio) {
+      const filas = filasDe(propio.data);
+      check(propio.data?.alcance === 'propio', 'el vendedor recibe alcance "propio"');
+      check(filas.length === 1 && filas[0]?.vendedor_id === ids.vend1,
+        'el vendedor recibe EXACTAMENTE una fila y es la suya',
+        JSON.stringify(filas.map((f) => f.vendedor_id)));
+    }
+
+    // ── B · denegaciones DURAS: 42501, jamas un payload de ceros ─────────────
+    // Un cero se leeria como «0 % de conversion», o sea como que no cerro nada
+    // de lo que recibio: por eso la denegacion es un ERROR y no una lista vacia.
+    //   coordinador     — miembro del CRM con rol denegado por contrato (la
+    //                     allowlist existe para que `rol_crm is not null` no lo
+    //                     cuele).
+    //   vendInactive    — membresia inactiva = revocacion.
+    //   clientBank      — cliente del portal y, a la vez, AJENO al CRM: no tiene
+    //                     fila en crm.equipo. El fixture no distingue esos dos
+    //                     casos porque no hay un tercer actor sin membresia.
+    for (const clave of ['coordinador', 'vendInactive', 'clientBank']) {
+      await expectExplicitAuthorizationDenied(
+        `${clave} recibe 42501 en conversion_mensual_fn`,
+        pedir(clave),
+        ['42501'],
+      );
+    }
+
+    // ── C · ORDEN de los errores: el codigo NO puede ser un oraculo de pertenencia
+    // Si el gate corriera DESPUES de validar el periodo, un ajeno sabria por el
+    // codigo de error si el periodo que adivino era el bueno.
+    const DIA_15 = `${MES}-15`;
+    const MES_FUTURO = `${Number(MES.slice(0, 4)) + 1}-01-01`;
+    for (const clave of ['coordinador', 'clientBank']) {
+      await expectExplicitAuthorizationDenied(
+        `${clave} con un periodo basura recibe 42501 y NO 22023`,
+        pedir(clave, DIA_15),
+        ['42501'],
+      );
+    }
+    await expectExpectedFailure(
+      'gerencia recibe 22023 con un dia 15 (el periodo es MENSUAL por contrato)',
+      pedir('gerencia', DIA_15),
+      ['22023'],
+      /periodo invalido: debe ser el primer dia del mes/i,
+    );
+    await expectExpectedFailure(
+      'gerencia recibe 22023 con un mes futuro (no es "todavia sin datos")',
+      pedir('gerencia', MES_FUTURO),
+      ['22023'],
+      /periodo invalido: el mes no puede ser futuro/i,
+    );
+    await expectExpectedFailure(
+      'el vendedor entra en la MISMA rama de validacion que gerencia',
+      pedir('vend1', MES_FUTURO),
+      ['22023'],
+      /periodo invalido: el mes no puede ser futuro/i,
+    );
+
+    // ── D · PARIDAD: la invariante que la casa se comprometio a custodiar ────
+    // La misma persona y el mismo mes dan los MISMOS numeros mire quien mire. Es
+    // lo que hace que una conversacion sobre el sueldo de alguien no dependa de
+    // quien abrio la pantalla.
+    const filaGerencia = filaDe(payload, ids.vend1);
+    if (check(filaGerencia !== null,
+      'vend1 sigue teniendo fila tras la siembra: la PARIDAD tiene sujeto',
+      JSON.stringify([...idsDe(payload)]))) {
+      for (const [clave, respuesta] of [['vend1', propio], ['sup1', deSup1], ['directorio', directorio]]) {
+        if (!respuesta) continue;
+        const fila = filaDe(respuesta.data, ids.vend1);
+        check(fila !== null && canonico(fila) === canonico(filaGerencia),
+          `PARIDAD: la fila de vend1 es identica campo a campo para ${clave} y para gerencia`,
+          JSON.stringify({ [clave]: fila, gerencia: filaGerencia }));
+      }
+    }
+
+    // ── E · DELTAS EXACTAS: la unica prueba de T1, T2 y T10 ──────────────────
+    // Dos leads recibidos por vend1 en el mes, uno REFERIDO, los dos cerrados
+    // por el. Si el referido volviera al divisor —la reversion natural de la
+    // regla que Miguel cambio la noche del 2026-08-10— la delta seria +2 y no
+    // +1, y el porcentaje seguiria cuadrando con el resto del payload: las
+    // invariantes internas no lo verian.
+    const filaDespuesVend1 = filaGerencia;
+    const deltaVend1 = (extraer) => num(extraer(filaDespuesVend1)) - num(extraer(filaAntesVend1));
+    check(deltaVend1((f) => f.divisor) === 1,
+      'T10 · el divisor de vend1 sube +1 (el REFERIDO no entra: seria +2)',
+      JSON.stringify({ antes: filaAntesVend1.divisor, despues: filaDespuesVend1.divisor }));
+    check(deltaVend1((f) => f.referidos.recibidos) === 1,
+      'T10 · el referido recibido SI se cuenta, en su propio contador');
+    check(deltaVend1((f) => f.cierres_no_referidos) === 1
+      && deltaVend1((f) => f.cierres_referidos) === 1,
+      'T2/T3 · los dos cierres del mes se atribuyen a vend1, cada uno en su cubo',
+      JSON.stringify({ cnr: deltaVend1((f) => f.cierres_no_referidos), cr: deltaVend1((f) => f.cierres_referidos) }));
+    check(cerca(deltaVend1((f) => f.numerador), 1.15),
+      'T6 · el numerador sube 1,15 exactos: 1 + 0,15 × 1, fraccionario y sin redondear',
+      String(deltaVend1((f) => f.numerador)));
+    check(deltaVend1((f) => f.referidos.cerrados) === 1
+      && deltaVend1((f) => f.referidos.dados_de_alta) === 1,
+      'el bloque de referidos de vend1 sube su cierre y su alta del mes',
+      JSON.stringify(filaDespuesVend1.referidos));
+
+    const filaCandidato = filaDe(payload, candidatoId);
+    if (check(filaCandidato !== null,
+      'el analista del referido unico sigue en el payload', String(candidatoId))) {
+      check(Number(filaCandidato.divisor) === 0
+        && Number(filaCandidato.referidos?.recibidos) === 1,
+        'T10 · recibir SOLO un referido deja el divisor en 0 y el contador de referidos en 1',
+        JSON.stringify(filaCandidato));
+      check(filaCandidato.estado === 'solo_referidos',
+        'el TERCER estado existe y se emite: divisor 0 con referidos NO es sin_actividad',
+        String(filaCandidato.estado));
+      check(filaCandidato.conversion_pct === null
+        && filaCandidato.referidos?.aporta_pct === null,
+        'sin divisor no hay porcentaje: NULL, jamas 0, ni en la fila ni en el aporte',
+        JSON.stringify([filaCandidato.conversion_pct, filaCandidato.referidos?.aporta_pct]));
+      check(Number(filaCandidato.referidos?.dados_de_alta) === 1,
+        'el alta del referido se le acredita a quien lo dio de alta');
+    }
+
+    const totalDespues = payload?.total ?? {};
+    const deltaTotal = (campo) => num(totalDespues[campo]) - num(totalAntes[campo]);
+    check(deltaTotal('divisor') === 1
+      && deltaTotal('cierres_no_referidos') === 1
+      && deltaTotal('cierres_referidos') === 1
+      && deltaTotal('referidos_recibidos') === 2
+      && cerca(deltaTotal('numerador'), 1.15)
+      && deltaTotal('analistas') === 0,
+      'el TOTAL del ambito global se mueve exactamente lo que se sembro (2 referidos recibidos, 1 al divisor)',
+      JSON.stringify({ antes: totalAntes, despues: totalDespues }));
+
+    const coberturaDespues = payload?.cobertura ?? {};
+    const motivoAntes = num(coberturaAntes?.divisor_por_motivo?.ingreso);
+    const motivoDespues = num(coberturaDespues?.divisor_por_motivo?.ingreso);
+    check(motivoDespues - motivoAntes === 1,
+      'el desglose por motivo sube +1 en "ingreso" (el valor REAL del CHECK, no "reasignacion")',
+      JSON.stringify(coberturaDespues?.divisor_por_motivo));
+    check(num(coberturaDespues?.fuera_de_roster?.analistas)
+      - num(coberturaAntes?.fuera_de_roster?.analistas) === 1
+      && num(coberturaDespues?.fuera_de_roster?.divisor)
+      - num(coberturaAntes?.fuera_de_roster?.divisor) === 1,
+      'el productor SIN rol de vendedor se cuenta entero en fuera_de_roster, y solo alli',
+      JSON.stringify({ antes: coberturaAntes?.fuera_de_roster, despues: coberturaDespues?.fuera_de_roster }));
+    // La sonda no puede inventarse un hueco: los dos cierres que acaban de
+    // nacer TIENEN su episodio cerrado dentro del mismo mes. Si la ventana del
+    // `not exists` estuviera mal escrita, estos dos apareceria como cierres sin
+    // respaldo y la delta seria +2.
+    check(num(coberturaDespues?.cierres_sin_episodio)
+      - num(coberturaAntes?.cierres_sin_episodio) === 0,
+      'dos cierres por la via real NO ensucian la sonda cierres_sin_episodio',
+      JSON.stringify({ antes: coberturaAntes?.cierres_sin_episodio, despues: coberturaDespues?.cierres_sin_episodio }));
+
+    // ── E-bis · invariantes aritmeticas (sobre TODAS las filas, no sobre una) ─
+    const filas = filasDe(payload);
+    const desviadas = [];
+    const procedenciaDescuadrada = [];
+    const pctDescuadrado = [];
+    const aporteDescuadrado = [];
+    const estadoDescuadrado = [];
+    for (const fila of filas) {
+      const cnr = Number(fila.cierres_no_referidos);
+      const cr = Number(fila.cierres_referidos);
+      const div = Number(fila.divisor);
+      if (!cerca(fila.numerador, cnr + factor * cr)) desviadas.push(fila.vendedor_id);
+      const cierresProcedencia = (fila.procedencia ?? [])
+        .reduce((suma, tramo) => suma + Number(tramo.cierres), 0);
+      const referidosProcedencia = (fila.procedencia ?? [])
+        .reduce((suma, tramo) => suma + Number(tramo.cierres_referidos), 0);
+      if (cierresProcedencia !== cnr + cr || referidosProcedencia !== cr) {
+        procedenciaDescuadrada.push(fila.vendedor_id);
+      }
+      // NULL, jamas 0, cuando el divisor es 0: «sin datos» y «0 %» son dos
+      // frases muy distintas sobre el trabajo de una persona.
+      const pctEsperado = div > 0 ? (100 * Number(fila.numerador)) / div : null;
+      if (pctEsperado === null
+        ? fila.conversion_pct !== null
+        : Math.abs(Number(fila.conversion_pct) - pctEsperado) > 0.01) {
+        pctDescuadrado.push(fila.vendedor_id);
+      }
+      // `aporta_pct` lleva el FACTOR dentro. Sin el, la pantalla diria que los
+      // referidos pusieron 100 puntos donde pusieron 15.
+      const aporteEsperado = div > 0 ? (100 * factor * cr) / div : null;
+      if (aporteEsperado === null
+        ? fila.referidos?.aporta_pct !== null
+        : Math.abs(Number(fila.referidos?.aporta_pct) - aporteEsperado) > 0.01) {
+        aporteDescuadrado.push(fila.vendedor_id);
+      }
+      // ⚠️ Lo que este case NO prueba es el ORDEN de sus dos ramas centrales,
+      // porque replica el mismo case del servidor y solo lo discriminaria una
+      // fila con divisor 0, referidos > 0 Y cierres > 0 — un arrastre, que por
+      // la Data API es INFABRICABLE (el reloj del ledger lo sella el trigger).
+      // Ese caso vive en supabase/scripts/test-conversion-mensual.sql
+      // (CONV-04b y CONV-08), que retro-fecha episodios con
+      // session_replication_role.
+      let estadoEsperado = 'sin_actividad';
+      if (div > 0) estadoEsperado = 'medible';
+      else if (Number(fila.referidos?.recibidos) > 0) estadoEsperado = 'solo_referidos';
+      else if (cnr + cr > 0) estadoEsperado = 'solo_arrastre';
+      if (fila.estado !== estadoEsperado || !ESTADOS_CONVERSION.has(fila.estado)) {
+        estadoDescuadrado.push(`${fila.vendedor_id}:${fila.estado}`);
+      }
+    }
+    check(desviadas.length === 0,
+      'numerador == cierres_no_referidos + 0,15 x cierres_referidos en TODAS las filas',
+      desviadas.join(','));
+    check(procedenciaDescuadrada.length === 0,
+      'la suma de procedencia[].cierres cuadra con los cierres de la fila',
+      procedenciaDescuadrada.join(','));
+    check(pctDescuadrado.length === 0,
+      'conversion_pct es 100 x numerador / divisor, y NULL —jamas 0— sin divisor',
+      pctDescuadrado.join(','));
+    check(aporteDescuadrado.length === 0,
+      'referidos.aporta_pct lleva el factor 0,15 dentro (y es NULL sin divisor)',
+      aporteDescuadrado.join(','));
+    check(estadoDescuadrado.length === 0,
+      'cada estado se deriva de los numeros de su propia fila',
+      estadoDescuadrado.join(','));
+    check(filas.some((fila) => fila.estado === 'medible')
+      && filas.some((fila) => fila.estado === 'solo_referidos'),
+      'el payload emite de verdad DOS de los cuatro estados (solo_arrastre es del oraculo SQL)',
+      JSON.stringify(filas.map((f) => f.estado)));
+
+    // NO VACUIDAD (leccion de RETOMAR-44): sin un cierre de referido, la formula
+    // se prueba sobre 0 == 0 y el redondeo que borraria el aporte de los
+    // referidos (0,15 × 1 al entero mas cercano es 0) no se ejercita jamas.
+    const conCierreReferido = filas.filter((fila) => Number(fila.cierres_referidos) > 0);
+    check(conCierreReferido.length > 0,
+      'al menos una fila tiene un cierre de REFERIDO: la aritmetica no se prueba sobre ceros',
+      JSON.stringify(filas.map((f) => [f.vendedor_id, f.cierres_referidos])));
+    check(filas.some((fila) => Number(fila.divisor) > 0),
+      'al menos una fila tiene divisor > 0: el mes tiene muestra de verdad');
+    for (const fila of conCierreReferido) {
+      const esperado = Number(fila.cierres_no_referidos) + factor * Number(fila.cierres_referidos);
+      if (esperado % 1 === 0) continue;
+      check(Number(fila.numerador) % 1 !== 0,
+        'el numerador viaja FRACCIONARIO y sin redondear (0,15 x 1 = 0,15, no 0)',
+        `${fila.vendedor_id} → ${fila.numerador}`);
+    }
+
+    // El ORDEN de `responsables` es DECISION DE PRODUCTO, no un detalle: «quien
+    // no recibio nada NO encabeza el ranking por tener el porcentaje en NULL».
+    // Cambiar `nulls last` por `nulls first` pone a los ociosos delante y
+    // ninguna otra asercion del bloque lo mira.
+    const posiciones = filas.map((fila) => fila.conversion_pct);
+    const primeraNula = posiciones.findIndex((pct) => pct === null);
+    check(primeraNula === -1
+      || posiciones.slice(primeraNula).every((pct) => pct === null),
+      'el ranking pone los porcentajes NULOS al final (nulls last), nunca encabezando',
+      JSON.stringify(posiciones));
+    const conPct = posiciones.filter((pct) => pct !== null).map(Number);
+    check(conPct.every((pct, i) => i === 0 || conPct[i - 1] >= pct),
+      'dentro del tramo con porcentaje el orden es descendente',
+      JSON.stringify(conPct));
+
+    // El TOTAL se recalcula sobre el ambito YA recortado: no es la media de los
+    // porcentajes de las filas, y tiene que cuadrar para CADA alcance, no solo
+    // para el global (si solo cuadrara en global, el recorte del supervisor
+    // estaria dejando fuera filas que el total sigue contando).
+    for (const [clave, respuesta] of [
+      ['gerencia', global], ['directorio', directorio], ['sup1', deSup1],
+      ['sup2', deSup2], ['vend1', propio],
+    ]) {
+      if (!respuesta) continue;
+      const suyas = filasDe(respuesta.data);
+      const total = respuesta.data?.total ?? {};
+      const suma = (extraer) => suyas.reduce((acumulado, fila) => acumulado + Number(extraer(fila)), 0);
+      check(Number(total.analistas) === suyas.length,
+        `${clave}: total.analistas == numero de responsables`,
+        JSON.stringify({ total: total.analistas, filas: suyas.length }));
+      check(Number(total.divisor) === suma((f) => f.divisor)
+        && Number(total.cierres_no_referidos) === suma((f) => f.cierres_no_referidos)
+        && Number(total.cierres_referidos) === suma((f) => f.cierres_referidos)
+        && Number(total.referidos_recibidos) === suma((f) => f.referidos.recibidos)
+        && cerca(total.numerador, suma((f) => f.numerador)),
+        `${clave}: total.* == suma de responsables[].*`,
+        JSON.stringify(total));
+      const totalPctEsperado = Number(total.divisor) > 0
+        ? (100 * Number(total.numerador)) / Number(total.divisor)
+        : null;
+      check(totalPctEsperado === null
+        ? total.conversion_pct === null
+        : Math.abs(Number(total.conversion_pct) - totalPctEsperado) <= 0.01,
+        `${clave}: total.conversion_pct se RECALCULA (no promedia porcentajes) y es NULL sin divisor`,
+        JSON.stringify({ pct: total.conversion_pct, esperado: totalPctEsperado }));
+      // El desglose por motivo del ambito se agrega desde las MISMAS filas: si su
+      // suma no es el divisor, hay un lead contado en un sitio y no en el otro.
+      const porMotivo = Object.values(respuesta.data?.cobertura?.divisor_por_motivo ?? {})
+        .reduce((acumulado, valor) => acumulado + Number(valor), 0);
+      check(porMotivo === Number(total.divisor),
+        `${clave}: cobertura.divisor_por_motivo suma exactamente el divisor del ambito`,
+        JSON.stringify({ porMotivo, divisor: total.divisor }));
+    }
+
+    // ── F · forma del contrato: una clave de mas es superficie sin auditar ───
+    check(mismasClaves(payload, CLAVES_PAYLOAD_CONVERSION),
+      'el payload trae SOLO las 9 claves del contrato', clavesDe(payload).join(','));
+    check(mismasClaves(payload?.periodo, CLAVES_PERIODO_CONVERSION),
+      'periodo trae SOLO sus 6 claves', clavesDe(payload?.periodo).join(','));
+    check(mismasClaves(payload?.ponderacion, CLAVES_PONDERACION_CONVERSION),
+      'ponderacion trae SOLO sus 2 claves', clavesDe(payload?.ponderacion).join(','));
+    check(mismasClaves(payload?.cobertura, CLAVES_COBERTURA_CONVERSION),
+      'cobertura trae SOLO las 7 claves del contrato', clavesDe(payload?.cobertura).join(','));
+    check(mismasClaves(payload?.total, CLAVES_TOTAL_CONVERSION),
+      'total trae SOLO las 9 claves del contrato', clavesDe(payload?.total).join(','));
+    check(mismasClaves(payload?.cobertura?.fuera_de_roster, CLAVES_FUERA_DE_ROSTER),
+      'fuera_de_roster es un AGREGADO SIN IDENTIDAD (ni un uuid dentro)',
+      clavesDe(payload?.cobertura?.fuera_de_roster).join(','));
+    check(MOTIVOS_NO_MEDIBLE.has(payload?.cobertura?.motivo_no_medible ?? null),
+      'motivo_no_medible pertenece al vocabulario CERRADO que el front declara como picklist',
+      String(payload?.cobertura?.motivo_no_medible));
+
+    const clavesFilas = [...new Set(filas.flatMap((fila) => Object.keys(fila)))].sort();
+    check(clavesFilas.length > 0
+      && JSON.stringify(clavesFilas) === JSON.stringify(CLAVES_RESPONSABLE_CONVERSION),
+      'cada responsable trae SOLO las 11 claves del contrato', clavesFilas.join(','));
+    const clavesReferidos = [...new Set(filas
+      .flatMap((fila) => Object.keys(fila.referidos ?? {})))].sort();
+    check(JSON.stringify(clavesReferidos) === JSON.stringify(CLAVES_REFERIDOS_CONVERSION),
+      'el bloque referidos trae SOLO sus 4 claves', clavesReferidos.join(','));
+    const tramos = filas.flatMap((fila) => fila.procedencia ?? []);
+    const clavesTramo = [...new Set(tramos.flatMap((tramo) => Object.keys(tramo)))].sort();
+    check(tramos.length > 0
+      && JSON.stringify(clavesTramo) === JSON.stringify(CLAVES_PROCEDENCIA_CONVERSION),
+      'cada tramo de procedencia trae SOLO sus 5 claves (y hay al menos uno)',
+      clavesTramo.join(','));
+    // La procedencia se compara como texto 'YYYY-MM': ningun cierre puede venir
+    // de un mes POSTERIOR al que se pregunta, y el mes en curso tiene que estar
+    // (los dos cierres del tramo 0 nacieron y murieron en el). ⚠️ `mes` es NULL
+    // A PROPOSITO en el cubo `anteriores` (cierres de mas de 11 meses atras), y
+    // en JavaScript `typeof null === 'object'`: exigir `typeof === 'string'` a
+    // secas pondria el gate en rojo contra un payload perfectamente correcto el
+    // primer mes en que alguien cierre cartera de mas de un ano.
+    check(tramos.some((tramo) => tramo.mes === MES)
+      && tramos.every((tramo) => tramo.mes === null
+        || (typeof tramo.mes === 'string' && tramo.mes <= MES)),
+      'la procedencia incluye el mes en curso y jamas un mes posterior',
+      JSON.stringify(tramos.map((t) => t.mes)));
+    check(tramos.every((tramo) => tramo.mes !== null
+      || (tramo.mes_nombre === 'anteriores' && tramo.anio === null)),
+      'el cubo sin mes se identifica como "anteriores" y sin anio: eso lo distingue de un bug',
+      JSON.stringify(tramos.filter((t) => t.mes === null)));
+
+    // ── G · lo que NO se recorta por ambito, y lo que SI ─────────────────────
+    // `suelo_historico` es min(asignado_en) de TODO el ledger, sin predicado de
+    // ambito, y viaja tambien al vendedor: la cobertura es una propiedad del
+    // LEDGER —cuando empieza a existir el registro—, no de una persona. Si se
+    // recortara, el supervisor de un equipo nuevo veria «mes_parcial» sobre un
+    // mes que la empresa mide perfectamente, y dos roles dirian cosas distintas
+    // del mismo mes.
+    //
+    // ⚠️ `medible` y `motivo_no_medible` NO entran en esta cabecera comun. La
+    // RPC los SOBREESCRIBE a proposito (paso 5b) para alcance 'propio' cuando el
+    // vendedor no esta en el roster — la correccion #7, que existe para que ese
+    // vendedor no reciba una pantalla en blanco sin explicacion. Exigirlos
+    // identicos entre roles cementaria como invariante justo lo que la migracion
+    // rompe, y pondria el gate en rojo el dia que el fixture tenga un vendedor
+    // fuera del roster (en produccion HOY hay 1 de 17). Se aseveran abajo, cada
+    // uno donde su contrato los garantiza.
+    const respuestasPorAlcance = [
+      ['gerencia', global], ['directorio', directorio], ['sup1', deSup1], ['vend1', propio],
+    ].filter(([, respuesta]) => respuesta);
+    if (check(respuestasPorAlcance.length === 4,
+      'los cuatro alcances respondieron: el tramo G tiene con que comparar')) {
+      const cabeceraLedger = (datos) => canonico({
+        version: datos?.version,
+        periodo: datos?.periodo,
+        ponderacion: datos?.ponderacion,
+        fuentes: datos?.fuentes,
+        suelo_historico: datos?.cobertura?.suelo_historico,
+      });
+      const referencia = cabeceraLedger(payload);
+      for (const [clave, respuesta] of respuestasPorAlcance) {
+        check(cabeceraLedger(respuesta.data) === referencia,
+          `${clave}: cabecera y suelo_historico identicos a los de gerencia (metadato del LEDGER)`,
+          JSON.stringify({ suyo: cabeceraLedger(respuesta.data), gerencia: referencia }));
+      }
+      check(payload?.cobertura?.suelo_historico !== null
+        && !Number.isNaN(Date.parse(payload?.cobertura?.suelo_historico ?? '')),
+        'suelo_historico se CALCULA y llega como instante utilizable (nunca una constante escrita a mano)',
+        String(payload?.cobertura?.suelo_historico));
+
+      // `medible` sin recorte para los alcances donde 5b no puede dispararse.
+      for (const [clave, respuesta] of [['directorio', directorio], ['sup1', deSup1]]) {
+        if (!respuesta) continue;
+        check(respuesta.data?.cobertura?.medible === payload?.cobertura?.medible
+          && (respuesta.data?.cobertura?.motivo_no_medible ?? null)
+            === (payload?.cobertura?.motivo_no_medible ?? null),
+          `${clave}: la cobertura del ledger dice lo MISMO que a gerencia (alcance no 'propio')`,
+          JSON.stringify(respuesta.data?.cobertura?.motivo_no_medible));
+      }
+      // Y para 'propio' se asevera la regla EXACTA del paso 5b, no la igualdad:
+      // si el vendedor esta en el roster (lo esta si tiene fila en el payload
+      // global), 5b no se ejecuta y la cobertura debe coincidir; si no lo
+      // estuviera, debe venir medible=false con uno de los TRES motivos de
+      // exclusion. Escrito asi, el dia que el fixture crezca con un vendedor
+      // sin supervisor esta asercion PRUEBA la correccion #7 en vez de romperse.
+      if (propio) {
+        const motivoPropio = propio.data?.cobertura?.motivo_no_medible ?? null;
+        const vend1EnRoster = filaGerencia !== null;
+        check(vend1EnRoster
+          ? (propio.data?.cobertura?.medible === payload?.cobertura?.medible
+            && motivoPropio === (payload?.cobertura?.motivo_no_medible ?? null))
+          : (propio.data?.cobertura?.medible === false
+            && MOTIVOS_EXCLUSION_ROSTER.has(motivoPropio)),
+          'vend1 (alcance propio): en el roster ve la cobertura del ledger; fuera de el, su motivo de exclusion',
+          JSON.stringify({ vend1EnRoster, motivoPropio }));
+      }
+
+      // Y TODO lo demas si se recorta: el ambito estrecho nunca puede ver mas que
+      // el ancho. Sin esta mitad, «identico» podria significar «no recorta nada».
+      const escalares = ['analistas', 'divisor', 'cierres_no_referidos', 'cierres_referidos'];
+      const excesos = [];
+      for (const [clave, respuesta] of [['sup1', deSup1], ['vend1', propio]]) {
+        if (!respuesta) continue;
+        for (const campo of escalares) {
+          if (num(respuesta.data?.total?.[campo]) > num(payload?.total?.[campo])) {
+            excesos.push(`${clave}.${campo}`);
+          }
+        }
+        if (num(respuesta.data?.cobertura?.cierres_sin_episodio)
+          > num(payload?.cobertura?.cierres_sin_episodio)) {
+          excesos.push(`${clave}.cierres_sin_episodio`);
+        }
+        if (num(respuesta.data?.cobertura?.fuera_de_roster?.analistas)
+          > num(payload?.cobertura?.fuera_de_roster?.analistas)) {
+          excesos.push(`${clave}.fuera_de_roster`);
+        }
+      }
+      check(excesos.length === 0,
+        'ningun agregado del ambito estrecho supera al del global: todo menos el suelo se recorta',
+        excesos.join(','));
+      // Y el recorte de `fuera_de_roster` se asevera con CONTENIDO, no contra 0:
+      // hay un productor ajeno al roster de verdad (el lead de sup1), global lo
+      // cuenta y el vendedor —cuyo ambito es el suyo— NO puede verlo.
+      check(num(payload?.cobertura?.fuera_de_roster?.analistas) >= 1,
+        'fuera_de_roster tiene CONTENIDO en global: las monotonias de arriba no son 0 > 0',
+        JSON.stringify(payload?.cobertura?.fuera_de_roster));
+      if (propio) {
+        check(num(propio.data?.cobertura?.fuera_de_roster?.analistas) === 0,
+          'el vendedor no ve NADA del agregado de fuera de roster: su ambito es el suyo',
+          JSON.stringify(propio.data?.cobertura?.fuera_de_roster));
+      }
+      check(num(payload?.total?.analistas) > num(deSup1?.data?.total?.analistas)
+        && num(deSup1?.data?.total?.analistas) > 1
+        && num(propio?.data?.total?.analistas) === 1,
+        'el recorte es ESTRICTO: global > equipo > propio (y propio es exactamente 1)',
+        JSON.stringify({
+          global: payload?.total?.analistas,
+          equipo: deSup1?.data?.total?.analistas,
+          propio: propio?.data?.total?.analistas,
+        }));
+    }
+
+    // La tabla del peso NO existe para la Data API: RLS ON, cero policies y cero
+    // grants. El verbo peligroso no es el SELECT sino la ESCRITURA — quien pudiera
+    // poner peso_referido = 1.000 reescribiria el numerador de un mes YA ENSEÑADO
+    // —, pero desde una sesion de usuario solo se puede sondear la lectura; la
+    // matriz de los cuatro verbos vive en el postflight de la migracion.
+    for (const clave of ['gerencia', 'directorio', 'sup1', 'vend1']) {
+      await expectExplicitAuthorizationDenied(
+        `${clave} no lee crm.conversion_pesos por la Data API`,
+        sessions[clave].client.schema('crm').from('conversion_pesos')
+          .select('vigente_desde, peso_referido').limit(1),
+        ['42501', 'PGRST205'],
+      );
+    }
+    // El ledger es la fuente de TODA la metrica y sigue cerrado a la Data API: sin
+    // esto, la migracion A abriria la puerta a leer los episodios crudos (con
+    // analista, importe y origen) saltandose el recorte del payload.
+    for (const clave of ['gerencia', 'directorio', 'vend1']) {
+      await expectExplicitAuthorizationDenied(
+        `${clave} no lee crm.lead_asignaciones por la Data API`,
+        sessions[clave].client.schema('crm').from('lead_asignaciones')
+          .select('lead_id, analista_id').limit(1),
+        ['42501', 'PGRST205'],
+      );
+    }
+
+    // ── H · un lead soft-borrado SIGUE contando ─────────────────────────────
+    // La LEY: la conversion no filtra `activo` (un descartado cuenta, un lead
+    // borrado tambien). Se cumple por construccion en el divisor y el numerador
+    // —el ledger no tiene columna `activo`—, pero hay DOS sitios del payload que
+    // leen `crm.leads` de verdad: la sonda `cierres_sin_episodio` y el alta de
+    // referidos. Por eso se compara el payload ENTERO (menos `generado_en`) y no
+    // solo la fila de vend1: anadir `and l.activo` a la sonda no movería esa
+    // fila y pasaría desapercibido. Sirve ademas de limpieza del tramo 0.
+    await requireAdmin(
+      'desactivar los cuatro leads de la conversion (soft-delete, nunca hard-delete)',
+      admin.schema('crm').from('leads').update({ activo: false })
+        .in('id', Object.values(IDS_CONVERSION)).eq('activo', true),
+    );
+    const trasBorrar = await positive(
+      'gerencia relee la conversion tras el soft-delete',
+      pedir('gerencia'),
+    );
+    if (trasBorrar) {
+      check(sinReloj(trasBorrar.data) === sinReloj(payload),
+        'un lead soft-borrado no altera NI UN DIGITO del payload: la conversion NO filtra activo',
+        JSON.stringify({
+          antes: { cobertura: payload?.cobertura, total: payload?.total },
+          despues: { cobertura: trasBorrar.data?.cobertura, total: trasBorrar.data?.total },
+        }));
+    }
+  } finally {
+    // Red de la red: si algo de arriba lanzo (requireAdmin es fatal por diseño),
+    // los leads no se quedan vivos esperando al tramo H. Idempotente.
+    await requireAdmin(
+      'limpieza: desactivar los leads transitorios de la conversion',
+      admin.schema('crm').from('leads').update({ activo: false })
+        .in('id', Object.values(IDS_CONVERSION)).eq('activo', true),
+    );
+  }
+
+  // ── I · anon ──────────────────────────────────────────────────────────────
+  // El contrato de denegacion de la migracion nombra a anon explicitamente, y el
+  // postflight (2) solo asevera el CATALOGO dentro de la propia transaccion de
+  // la migracion: no prueba el canal real (PostgREST + anon key), que es donde
+  // vive el riesgo. Sus cinco hermanas de metricas ya tienen esta sonda en
+  // testAnon; esta vive aqui, junto a su contrato.
+  const anonConversion = createClient(
+    SUPABASE_URL,
+    ANON_KEY,
+    clientOptions('crm-rls-anon-conversion'),
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no ejecuta conversion_mensual_fn',
+    anonConversion.schema('crm').rpc('conversion_mensual_fn', { p_periodo: PERIODO }),
+    ['42501', 'PGRST202'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no lee crm.conversion_pesos',
+    anonConversion.schema('crm').from('conversion_pesos').select('vigente_desde').limit(1),
+    ['42501', 'PGRST205'],
+  );
+}
+
 async function testAnon(seed) {
   console.log('\n— Acceso anonimo —');
   const anon = createClient(
@@ -6072,6 +6952,11 @@ async function main() {
       await testBankingBoundary(sessions, verifiedSeed);
       await testContractBankAccounts(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
+      // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
+      // `directorio` (la rama del lector global de `leads_select` no lleva
+      // predicado de `activo`), así que cualquier bloque posterior heredaría ese
+      // estado. Limpia lo suyo en su propio `finally`.
+      await testConversionMensual(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

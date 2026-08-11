@@ -67,8 +67,19 @@ const TOPE_POR_PASADA = 500;
  *
  * Formato "AAAA-MM-DD". Dejar en "" desactiva el corte (entra todo — NO recomendado:
  * son ~500 leads de 2025).
+ *
+ * 2026-08-11 — corte movido al 2026-08-15 (decisión D6 de Miguel, 2026-08-10). Es la
+ * fecha desde la que la conversión mensual empieza a contar de verdad: el dataset se
+ * limpió y `crm.leads` quedó en 1 fila, así que lo que entre antes del 15 falsearía el
+ * divisor del mes de estreno de la métrica.
+ *
+ * ⚠️ EL CORTE POR SÍ SOLO NO BASTA. Solo frena las filas CON fecha legible; las que
+ * vienen sin fecha lo esquivan por diseño (regla del 2026-07-27, arriba). Para que
+ * agosto empiece limpio hay que ADEMÁS **pausar el temporizador del puente** en Apps
+ * Script hasta el 15 y reactivarlo ese día. Cambiar solo esta constante deja la puerta
+ * medio abierta.
  */
-const FECHA_CORTE = "2026-07-22";
+const FECHA_CORTE = "2026-08-15";
 
 /**
  * Motivo de los descartes POR DISEÑO (el backlog anterior al corte). Se cuentan en

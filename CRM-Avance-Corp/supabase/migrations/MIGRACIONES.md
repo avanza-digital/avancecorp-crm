@@ -1,7 +1,11 @@
 # Ledger de migraciones — esquema `crm`
 
 Proyecto: `dctqcbznekcyxhjujuci` (el MISMO del portal — ver condiciones §5 del plan).
-Ciclo obligatorio: **branch de Supabase → aplicar → `scripts/test-rls.mjs` → advisors → merge**.
+Ciclo obligatorio: **branch de Supabase → `npm run seed:demo` → aplicar → oráculo(s) →
+`scripts/test-rls.mjs` → advisors → merge**. ⚠️ El **seed va ANTES de aplicar**, y no es una
+comodidad: aplicar sobre un branch vacío deja las sondas de comportamiento del postflight en su
+rama de aviso y la migración pasa en verde sin ejercitar nada. El porqué, con el precedente que
+ya costó un ciclo, en «⚠️ El orden del ciclo estaba mal» justo debajo.
 Prohibido `apply_migration` directo a producción. Ninguna migración del CRM altera objetos
 de `public` sin OK explícito de Miguel.
 
@@ -18,6 +22,52 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 | 20260807123000 | funciones `public.*` de gerencia operativa | sí, 2026-08-07 |
 | 20260807235933 | `public.crear_contrato`, `public.actualizar_contrato`, wrappers catalogados, `public.contratos.producto_condicion_id` | sí, 2026-08-07 |
 | 20260809003923 | `public.actualizar_contrato`, `public.actualizar_numero_contrato` (gate P04) | sí, 2026-08-09 |
+
+## ⚠️ El orden del ciclo estaba mal: el seed va ANTES de aplicar (2026-08-11)
+
+Hasta hoy este fichero prescribía **«branch → aplicar → gate → advisors → merge»**, y en las
+notas de pendientes se escribió tal cual: «branch → aplicar (155128 → 163618 → 163638) →
+**seed + gate** → advisors → merge» (sección de índices de lectura, 2026-08-08). Ese orden
+está **mal**, y el auditor lo marcó como bloqueante antes de dejar aplicar el ciclo del
+2026-08-11.
+
+**Por qué.** Un branch de Supabase replica el **esquema**, no los datos: nace VACÍO. Si las
+migraciones se aplican ahí y solo después se siembra, entonces, en el momento en que corre el
+postflight, no hay ni un lead, ni un episodio, ni un cierre. Todas las sondas de comportamiento
+—las que existen precisamente para demostrar que la regla nueva hace lo que dice— caen en su
+rama de aviso («no hay datos suficientes para comprobarlo») y la migración **pasa en verde sin
+haber ejercitado ni una sola rama**. Lo que se verifica en ese escenario es que el SQL compila,
+no que la regla funcione.
+
+**El precedente, que ya costó un ciclo entero a este proyecto** (20260810163458): la suite daba
+**732/732 en verde** mientras publicar metas era **imposible desde que existe la pantalla**,
+porque no había un solo caso **positivo** de la acción principal. Aplicar antes de sembrar
+reproduce ese mismo fallo por otra vía: no es que falte el caso positivo en la suite, es que el
+mundo donde correría el caso positivo todavía no existe. Y el `gate:realidad` dice lo mismo
+desde otro ángulo: los tests montan el mundo del fixture y producción es otro mundo — aquí el
+mundo del branch al aplicar no es ninguno de los dos, es el vacío.
+
+**El orden correcto, que es el que manda a partir de ahora:**
+
+1. `create_branch` (branch de Supabase).
+2. **`npm run seed:demo` contra el branch** — el mundo poblado primero. El seed corre contra el
+   esquema VIEJO (el que replicó el branch), así que solo vale para migraciones que no exigen
+   estructura nueva para sembrar; si alguna la exigiera, se siembra en dos pasadas y se dice
+   aquí cuál y por qué.
+3. **Aplicar** las migraciones, en orden de timestamp.
+4. **Leer el postflight fila por fila**: cada sonda tiene que decir OK **con datos**. Una sonda
+   en su rama de aviso («0 filas, no se pudo comprobar») es un **FALLO del ciclo**, no un pase.
+   Esta lectura es parte del ciclo, no una cortesía.
+5. Oráculo(s) de la migración (`supabase/scripts/test-*.sql`) + `npm run test:rls`.
+6. `get_advisors` (seguridad y rendimiento).
+7. `merge_branch` → verificación en prod → borrar el branch.
+
+**Corolario para quien ESCRIBE una migración**: una sonda que dependa de datos de ambiente va
+después del seed; una sonda que **fabrica su propio caso** dentro de una subtransacción que se
+deshace vale en cualquier orden — pero entonces tiene que **fallar** si no consigue fabricarlo,
+nunca avisar. Un postflight que solo mira catálogos (`pg_constraint`, `pg_trigger`,
+`pg_get_functiondef`) no prueba que un agujero esté cerrado: solo una inserción **rechazada** lo
+prueba.
 
 ## Prehistoria: squash del historial del portal (2026-07-11)
 
@@ -1377,3 +1427,412 @@ Dos copias del mismo predicado no divergen el día que se escriben: divergen el
 día que los datos estrenan un caso que ninguna de las dos contemplaba. Y el
 corolario: una suite sin un solo caso **positivo** de la acción principal no
 prueba que la acción funcione, por muchos negativos que acumule.
+
+## Conversión mensual ponderada, integridad del ledger y sello del origen (2026-08-11)
+
+Tres migraciones de un mismo ciclo, y una sola frase las une: **el origen de un
+lead pasa a tener consecuencia económica**. Con la regla cerrada el 2026-08-10
+por la noche (T10), un lead `referido` **sale del divisor** y su cierre pondera
+0,15 en el numerador — así que mover un origen mueve el porcentaje de alguien, y
+un cierre mal contado mueve su sueldo. La **A** construye la métrica, la **E**
+hace imposibles en el almacenamiento las dos filas que la métrica no sabría
+contar, y la **D** sella la columna de la que sale «era referido».
+
+Contexto en el vault: «Conversión mensual — plan de implementación» (§3.1 y
+§3.4) e [[Conversion mensual - definicion cerrada]]. La unificación de
+`cumplimiento_metas_fn` (**migración B**) NO está en este ciclo: va **la última,
+después del front**.
+
+| Versión local | Versión remota | Nombre | Estado |
+|---------------|----------------|--------|--------|
+| 20260811154434 | 20260811154434 | crm_conversion_mensual_ponderada | ✅ **EN PROD 2026-08-11** (merge del branch `conversion-mensual-a-e-d-f` tras ciclo completo en verde). 1 tabla + 4 funciones + 4 índices, servidor primero; nadie la lee hasta el release del front. |
+| 20260811190310 | 20260811190310 | crm_ledger_cierres_integros | ✅ **EN PROD 2026-08-11**. El CHECK `cierre_no_trivaluado` (ojo: `pg_get_constraintdef` lo enseña normalizado como `NOT (... IS DISTINCT FROM ...)`) + el único parcial «una conversión por lead». Verificados ambos en prod tras el merge. |
+| 20260811190324 | 20260811190324 | crm_origen_inmutable | ✅ **EN PROD 2026-08-11**. La versión **simple**: el origen sellado en UPDATE, sin ventana de gerencia ni carve-out del ledger; `crm.op_privilegiada` como único escape. Sello verificado en el cuerpo vivo de `private.leads_before_update` tras el merge. |
+| ~~20260811164017~~ | — | ~~crm_origen_inmutable_correccion_gerencia~~ | ❌ **DESCARTADA Y BORRADA DEL ÁRBOL el 2026-08-11, jamás aplicada** (bloqueada por `auditor-rls` + Codex: la ventana de 24 h podía cruzar la medianoche de fin de mes y reescribir un mes cerrado, y la corrección no alcanzaba a los episodios terminales). El preflight (0.2) de `20260811190324` aborta si detecta que llegó a aplicarse en algún branch. |
+| 20260811210049 | 20260811210049 | crm_alta_manual_origen_restringido | ✅ **EN PROD 2026-08-11**. **La regla D8 de Miguel** («referido, Wallking y OTRO esto puede registrar el vendedor; landing y formulario se carga solo» + «solo los vendedores a su propio nombre»): el alta manual solo admite `referido`/`oficina`/`otro`, y `referido` exige rol **vendedor** (la autoasignación ya la forzaba el bloque de destino). Cuerpo reproducido íntegro desde producción (md5 vigilado en preflight). Toca un camino de **escritura** (el alta), pero solo AÑADE denegaciones. Ventana declarada: el form del front ofrece LANDING/FORMULARIO hasta el release del paso 2. Casos CONV-23a..d en el oráculo. |
+
+⚠️ **Las tres son UNTRACKED y por eso se pueden reescribir en sitio** (la regla
+de «nunca editar una migración ya commiteada» empieza a aplicar en el commit).
+En cuanto se commiteen, cualquier corrección es una migración nueva.
+
+⚠️ **Ninguna de las tres entra en el registro de excepciones a `public`**: no hay
+un solo DDL sobre `public`. La A **inserta datos** en `public.audit_log` a través
+del trigger de auditoría de la casa (`private.log_audit_crm`), que es el patrón
+obligatorio de `LEEME.md` para toda tabla `crm.*`, y la D **lee** `public.perfiles`
+por los helpers de siempre. Escribir una fila de auditoría no es alterar el
+portal; crear, borrar o modificar un objeto sí lo sería.
+
+**Orden de aplicación en el branch: por timestamp, A → D → E.** Es también el
+orden lógico: D declara en su cabecera que va después de A (la métrica debe
+existir antes que el sello que la protege), y E es independiente de las dos —
+puede ir en cualquier posición mientras vaya en el mismo branch. Las tres en una
+sola pasada de gate.
+
+### 20260811154434 — la conversión mensual ponderada
+
+**Qué cierra.** El negocio no tenía forma de contar la conversión de un mes: se
+calculaba en el navegador, con reglas distintas según la pantalla. Esta
+migración la pone en el servidor, entera y con una sola definición. Crea:
+
+- `crm.conversion_pesos` — el **15 % versionado por mes** (`vigente_desde` =
+  primer día del mes, `peso_referido numeric(4,3)`, `nota`). Con la constante en
+  el código, cambiar el peso **recalcularía todo el histórico** y nadie podría
+  reconstruir con qué regla se pagó marzo. RLS ON con **cero policies y cero
+  grants** (deny-by-default absoluto para la Data API; precedente aceptado:
+  `crm.cuentas_bancarias`, `crm.contrato_cuentas_pago`, `crm.lead_sla_*`), y
+  trigger de auditoría `trg_audit_conversion_pesos`. Dispara el advisor INFO
+  `rls_enabled_no_policy`, de la clase ya aceptada.
+- `private.peso_referido_conversion(date)` y `private.etiqueta_mes_es(date)`.
+- `private.conversion_mensual_por_vendedor(timestamptz, timestamptz, boolean,
+  uuid[], numeric)` — el motor.
+- `crm.conversion_mensual_fn(date)` — la RPC, `security definer`,
+  `search_path = ''`, `grant execute … to authenticated`, con **gate explícito
+  42501 antes de tocar ningún dato** (nunca RLS implícita).
+- Cuatro índices: `lead_asignaciones_convertido_analista_idx`,
+  `lead_asignaciones_convertido_fecha_idx`, `idx_leads_convertido_en`,
+  `idx_leads_creado_por_referido`.
+
+La regla, en una línea: **divisor** = leads NO referidos que el asesor RECIBIÓ en
+el mes (entran los abiertos y los descartados; los referidos quedan fuera);
+**numerador** = cierres del mes, no referidos ×1 + referidos ×0,15, atribuidos al
+`analista_id` de la fila inmutable que cerró. Caso canónico de Ana: 90 no
+referidos + 20 referidos, cierra 16 y 12 → **17,80 / 90 = 19,78 %**, de los que
+los referidos aportan 2,00 puntos.
+
+**La decisión de reloj.** Todo se fecha en **`America/Lima`**, y los dos extremos
+del mes se construyen como `p_periodo::timestamp at time zone 'America/Lima'` —
+nunca comparando fechas sueltas, que es como se cuelan los cierres de la
+medianoche del día 1 en el mes de al lado. El **divisor** se fecha por
+`asignado_en`; el **numerador**, por **`coalesce(resultado_en, finalizado_en)`**.
+Ese `coalesce` es el cinturón del agujero 1: la migración E hace imposible que
+`resultado_en` sea nulo en un cierre, pero la métrica no depende de ello para no
+perder un cierre en silencio, que es la peor forma de fallar para un informe que
+decide sueldos. En la misma línea, los cierres se cuentan con
+**`count(distinct la.lead_id) filter (…)`**, no con `count(*)`: es el cinturón
+del agujero 2 y además es lo que ya hacía el divisor, por el mismo motivo
+(A→B→A dentro del mes le pesa **uno** a A: se cuenta el LEAD, no el episodio).
+Dos detalles más del reloj: un **mes futuro** se rechaza con `22023` (el default
+de copiar `cumplimiento_metas_fn` habría sido devolver un payload de ceros), y el
+**suelo histórico** se CALCULA (`min(asignado_en) where not aproximado`, hoy
+`2026-08-05 18:19:55+00` porque la limpieza del 5 de agosto se llevó las filas de
+julio) — ningún test puede fijar una constante ahí.
+
+**La decisión de roster.** El universo de la métrica es
+**`private.roster_metas_vendedores()`**, la fuente única que nació en
+`20260810163458`. No se define un roster propio: dos definiciones del mismo
+conjunto no divergen el día que se escriben, divergen el día que los datos
+estrenan un caso que ninguna contemplaba — y eso ya costó un ciclo. Hoy en
+producción son **16 en el roster frente a 17 con rol efectivo**, así que hay
+exactamente una persona que, al consultar su propia conversión, recibía una
+pantalla en blanco sin explicación y un `medible = true` calculado sobre el
+ledger de los demás. Ahora se le dice **por qué**, con el mismo vocabulario
+cerrado de tres motivos que ya usa Configuración → Usuarios (`sin_supervisor`,
+`supervisor_inactivo`, `supervisor_no_es_supervisor`). ⚠️ El front declara
+`cobertura.motivo_no_medible` como `v.picklist`: **añadir un valor más adelante
+rompe la pantalla**, así que el vocabulario es CERRADO
+(`null · sin_ledger · anterior_al_ledger · mes_parcial` + los tres del roster).
+Una sola excepción deliberada al recorte por ámbito: `cobertura.suelo_historico`
+es `min(asignado_en)` de TODO el ledger y viaja también al vendedor — es una
+propiedad del LEDGER, no de una persona, y recortarla haría que dos roles
+dijeran cosas distintas del mismo mes. Es un timestamp de instalación, sin PII.
+
+**El aviso del orden de despliegue: SERVIDOR PRIMERO, y sin prisa por el front.**
+No cambia ni un byte del payload de ninguna función existente y **nadie la lee
+todavía**, así que no hay regresión posible: puede vivir en producción semanas
+sin que la pantalla cambie. Lo que **no** puede es adelantarse a su front la
+**migración B** (unificar `cumplimiento_metas_fn`), que sí reescribe un payload
+que la pantalla ya consume: B va **la última**, después del front. Regla de la
+casa en [[crm-orden-deploy-front-primero]].
+
+**Dos precisiones que la auditoría exigió dejar por escrito**, porque la cabecera
+decía menos de lo que hacía:
+
+- **No es «100 % aditiva» en sentido estricto.** Crea
+  `trg_audit_conversion_pesos`, que **INSERTA en `public.audit_log`**. Cero DDL
+  sobre `public` y patrón obligatorio de la casa, pero la frase original era
+  imprecisa y una imprecisión en la cabecera es la que hace que la próxima
+  auditoría desconfíe del resto.
+- **Los cuatro índices se crean sin `CONCURRENTLY`, dentro de la transacción**, y
+  eso es aceptable **hoy** por un dato concreto: producción tiene **1 lead y 1
+  episodio**, así que el lock es instantáneo. Dejaría de serlo con
+  `crm.lead_asignaciones` en el orden de 10⁵ filas: a partir de ahí hay que
+  sacarlos de la transacción y crearlos `concurrently`.
+
+**El estado real de la base, para que nadie confunda «funciona» con «dice algo»**:
+producción tiene hoy 1 lead, 1 episodio abierto, 0 cierres y 0 referidos. El día
+que se publique, esta métrica va a decir «mes parcial» y «sin actividad» para los
+16 del roster, **y eso es correcto**. Los tests de pantalla van en el estado de
+producción (vacío), no solo con el fixture lleno — regla del `gate:realidad`.
+
+### 20260811190310 — los dos agujeros del ledger, cerrados en la raíz
+
+**Qué cierra.** Dos filas que la métrica no sabría contar y que **hoy la base
+admite**. Las dos se comprobaron con `INSERT` reales sobre una réplica de los
+constraints en un PostgreSQL 16.14 efímero, no por lectura del SQL.
+
+- **Agujero 1 — el cierre sin fecha.** `lead_asignaciones_cierre_consistente`
+  exige, en la rama `motivo_cierre = 'convertido'`, que `resultado_en =
+  finalizado_en`. Con `resultado_en` NULL esa comparación da **NULL**, la rama da
+  NULL, el `OR` da NULL y **el CHECK PASA** — un CHECK solo rechaza en FALSE.
+  Resultado: un cierre `convertido` con `resultado_en` nulo, **invisible** para el
+  numerador: divisor 1, numerador 0, **0 % en vez de 100 %**. Y una **variante que
+  casi se escapa**: `motivo_cierre = 'convertido'` con `resultado` **también**
+  nulo entra igual, y a esa no la vería un índice que solo mirase `resultado`.
+- **Agujero 2 — el cierre contado dos veces.** El EXCLUDE
+  `lead_asignaciones_sin_solape` usa `tstzrange(asignado_en,
+  coalesce(finalizado_en, 'infinity'), '[)')`: si `finalizado_en = asignado_en` el
+  rango es **vacío**, y un rango vacío no se solapa con nada. Dos cierres
+  `convertido` del mismo lead conviven y `count(*)` canta **200 % con divisor 1**.
+
+**El hallazgo que decide el arreglo, y que descarta el arreglo obvio:** la
+duración cero **no es necesaria** para el doble conteo. Dos episodios
+`convertido` **adyacentes y no vacíos** —`[10:00, 11:00)` y `[11:00, 12:00)`—
+también pasan el EXCLUDE. Endurecer `finalizado_en > asignado_en` **no cierra el
+agujero**: solo tapa una de sus formas. Con los tres casos sembrados, el
+`count(*)` de la migración A devolvió 1, 2 y 2 conversiones para 3 leads.
+
+**El arreglo, en dos piezas:**
+
+1. **Des-trivaluar el CHECK.** Se hace en migración nueva (`drop constraint` +
+   `add constraint … not valid` + `validate constraint`), nunca editando la
+   20260717212639. En las ramas `convertido` y `descartado` se escribe
+   `resultado is not null and resultado = '…'` y `resultado_en is not null and
+   resultado_en = finalizado_en`. La forma robusta es exigir la **no nulidad**
+   con `is not null`, jamás con una igualdad. **Todas las demás ramas se
+   reproducen byte a byte** desde el `pg_get_constraintdef` de producción.
+2. **Un único parcial que diga «un lead se convierte una sola vez»:**
+
+   ```sql
+   create unique index lead_asignaciones_una_conversion_por_lead_idx
+     on crm.lead_asignaciones (lead_id)
+     where motivo_cierre = 'convertido' or resultado = 'convertido';
+   ```
+
+   El predicado mira **las dos columnas a propósito**: cubre las dos variantes
+   NULL del agujero 1 y deja de depender del orden en que se apliquen las dos
+   piezas. Con el CHECK endurecido los dos términos coinciden y dejar ambos no
+   cuesta nada.
+
+**Por qué un índice y no un trigger.** Hoy «un lead se convierte una sola vez» lo
+sostiene **únicamente** `private.trg_leads_guard_tenencia` («Un lead convertido
+no se puede reabrir», `20260803164348:562`), verificado contra el cuerpo **vivo**
+de producción: existe, está habilitado (`tgenabled = 'O'`) y —a diferencia de
+`leads_before_update`— **no tiene válvula `op_privilegiada`**, así que ni una RPC
+privilegiada lo deshace. Pero es **código**: no sobrevive a un `disable trigger`
+—patrón ya usado sobre esta misma tabla en `20260807203757:747-748`—, ni a
+`session_replication_role`, ni a un backfill privilegiado. El índice escribe la
+invariante en el **almacenamiento**, que es donde nadie la puede apagar.
+Verificado además que **no existe salida de `convertido`** por ninguno de los
+tres caminos de retroceso: `retroceso_por_anular_reunion` y el re-encolado exigen
+`reunion_agendada` en su propio `WHERE`, y `deshacer_descarte` exige
+`descartado`. La única salida de un estado terminal en todo el CRM es
+descartado → nuevo.
+
+**La decisión de reloj — la que prohíbe el arreglo fácil.**
+`statement_timestamp()` es **constante dentro de una función plpgsql** (medido:
+una función con `pg_sleep(0.2)` entre dos lecturas devuelve `t1 = t2`), y el
+ledger sella apertura y cierre con **ese** reloj (`v_evento_en`,
+`20260717212639:602` y `:636`; `creado_en` forzado en `:367`). Por tanto,
+cualquier comando que mueva **dos veces** la tenencia del mismo lead abre y
+cierra el episodio **en el mismo instante**: los episodios de duración cero son
+alcanzables y algunos son **papeleo verdadero** (un traspaso o un parqueo
+instantáneo ocurrió de verdad; un backfill que solo conoce un instante es
+legítimo). Por eso `lead_asignaciones_intervalo_valido` se escribió con `>=` y no
+con `>`, y por eso **NO se toca**: con `>` estricto, un reparto correcto abortaría
+con `23514` desde el propio trigger del ledger. Tampoco se pasa el EXCLUDE de
+`'[)'` a `'[]'`: haría chocar dos episodios legítimos consecutivos en su instante
+de relevo. El rango vacío no era el problema de fondo; el problema de fondo era
+que **nada decía que un lead se convierte una sola vez**.
+
+**La decisión de roster: ninguna, y es deliberado.** La integridad del ledger no
+se filtra por roster ni por `activo`. Un episodio de la persona que hoy está
+fuera del roster (17 con rol efectivo, 16 en el roster) queda **igual de sujeto**
+a la constraint aunque su conversión no se cuente en ninguna métrica. Es la misma
+distinción que ya está escrita en [[crm-conversion-descartados-cuentan]]: una
+cosa es qué se **ve**, otra qué se **cuenta**, y otra qué se **almacena**.
+
+**Preflight y postflight.** Preflight que aborta si existe **una sola** fila que
+violaría lo que se va a exigir, diciendo cuántas y con qué SQL encontrarlas.
+Postflight que **ejercita** el comportamiento en subtransacciones que se
+deshacen: debe **rechazar** el cierre `convertido` con `resultado_en` nulo, el
+cierre con `motivo_cierre = 'convertido'` y `resultado` nulo, la segunda
+conversión **adyacente** y la segunda conversión de **duración cero**; y debe
+**aceptar** los descartes repetidos del mismo lead en ciclos distintos, el
+descarte en el ciclo 1 con conversión en el ciclo 2, los episodios de duración
+cero `transferido`/`parqueado`, y el episodio abierto conviviendo con el
+histórico. Un postflight que solo mire `pg_constraint` no prueba que el agujero
+esté cerrado: **solo una inserción rechazada lo prueba**.
+
+**Producción, verificada por SELECT y no supuesta** (proyecto
+`dctqcbznekcyxhjujuci`, solo lectura): `crm.lead_asignaciones` = 1 fila, 1
+abierta, 0 con `resultado`, 0 cierres convertidos con `resultado_en` nulo, 0 con
+`finalizado_en = asignado_en`, 0 leads con dos conversiones. `crm.leads` = 1
+fila, 0 convertidos, 0 descartados, 0 con `ciclo_actual > 1`. **Los dos
+endurecimientos entran con cero filas en conflicto.**
+
+**El aviso del orden de despliegue.** Es **puro servidor, sin front**: no hay
+payload que cambie ni pantalla que avisar. Va en el **mismo branch** que la A y
+cuanto antes mejor, por una razón asimétrica: aplicarla **antes** de que la
+métrica esté en pantalla no puede romper nada, mientras que aplicarla **después**
+significa que cualquier fila mala colada entretanto haría fallar el
+`validate constraint` en producción, con la migración a medio aplicar. El
+`create unique index` va sin `CONCURRENTLY` por lo mismo que en la A: 1 fila.
+
+⚠️ **Aviso para el futuro:** si una migración posterior choca con este índice
+—típicamente un backfill que intente escribir dos cierres `convertido` del mismo
+lead con `trg_lead_asignaciones_00_inmutables` apagado—, **la equivocada es la
+migración**, no el índice. Ese es hoy el único camino alcanzable del agujero 2, y
+es exactamente el que el índice existe para cerrar.
+
+### 20260811190324 — el origen de un lead deja de moverse por UPDATE
+
+**Qué cierra.** `crm.leads.origen` pasa a ser **inmutable**: un UPDATE que
+intente cambiarlo **lanza excepción** con un mensaje útil. La métrica no lee esta
+columna —lee el **snapshot** `crm.lead_asignaciones.origen`, inmutable por
+trigger desde el día uno (T4)—, pero la palanca que quedaba abierta es la que va
+del UPDATE al snapshot **futuro**: un lead todavía sin episodio (cola global,
+bandeja del supervisor, base fría) cuyo origen se cambie antes de asignarlo entra
+—o sale— del divisor con el valor nuevo; y un lead reasignado abre un episodio
+nuevo que vuelve a fotografiar la columna viva, con lo que el mismo lead podría
+contarse con **dos reglas distintas en el mismo mes**.
+
+**Lo que esta versión TIRA, por decisión de Miguel de hoy.** La versión anterior
+de este fichero traía la **ventana de corrección de gerencia de 24 h**, con su
+propagación al ledger, su regla TODO-O-NADA y su `P0409`. Queda **descartada
+entera**. Toda su complejidad —escribir en `crm.lead_asignaciones`, y por tanto
+debilitar «un episodio cerrado es inmutable», que es la frase más fuerte del
+ledger— nacía de resolver un problema que **no existe**: en todo
+`public.audit_log` hay **CERO** cambios históricos de origen. Con la ventana se
+van también todos los reparos del auditor sobre concurrencia, orden de triggers y
+meses ya cerrados. **La corrección de gerencia queda APARCADA**, y el motivo
+queda escrito aquí para que se entienda dentro de seis meses: no se quitó por
+difícil, se quitó por **innecesaria**.
+
+**La decisión de reloj: ninguna, y ésa es la decisión.** Sin ventana no hay
+`creado_en + interval '24 hours'` que comparar, y con ella desaparece el borde
+más feo que tenía la versión anterior: un lead creado el **31 de agosto a las
+23:00** era corregible hasta el **1 de septiembre a las 23:00**, y esa corrección
+movía el divisor de **agosto**, un mes ya cerrado. La inmutabilidad **no
+caduca**, así que no hay reloj, no hay medianoche de fin de mes y no hay
+`America/Lima` que acertar.
+
+**La decisión de roster: no se toca, y el sello no distingue rol.** No hay
+excepción para gerencia, ni para el coordinador, ni para `service_role`. La única
+diferencia entre unos y otros es la **válvula**, y ése es el punto siguiente.
+
+**La colocación, que es lo único delicado.** El sello va **POR DEBAJO del gate de
+`crm.op_privilegiada`**, igual que las demás protecciones de la casa que
+necesitan una válvula de escape. La versión anterior lo puso **por encima** y el
+auditor lo marcó como grave: dejaba el dato **incorregible para siempre**, y el
+único remedio habría sido un `disable trigger` en producción, que `CLAUDE.md`
+prohíbe. Con el sello debajo del gate, una operación privilegiada y auditada
+siempre puede corregir un origen el día que de verdad haga falta.
+
+El cuerpo de `private.leads_before_update()` se saca **íntegro** con
+`pg_get_functiondef` contra producción y se reproduce con **todas** sus
+protecciones y **en el mismo orden** —incluidas «La conversión a cliente solo se
+hace vía la operación de conversión» y la exigencia de `perfil_id` no nulo—:
+perder una sola en la reescritura abre un agujero distinto del que se venía a
+cerrar. La lista completa, protección por protección, va en la cabecera del
+fichero.
+
+**Y aquí está la diferencia con las otras dos: ésta TOCA UN CAMINO DE
+ESCRITURA.** Es la única de las tres que puede romper algo en caliente, y por eso
+se comprobó quién escribe `origen` **antes** de escribirla:
+
+- El front actualiza leads con **cambios parciales** (`actualizarLead`,
+  `app/src/data/crm-api.ts:1095`) y **hoy no ofrece editar el origen**.
+- Los escritores de `origen` verificados son de **ALTA, no de UPDATE**: el edge
+  `crm-importar-leads` lo manda en el `insert`
+  (`supabase/functions/crm-importar-leads/index.ts:373`) y
+  `crm.crear_lead_si_disponible` lo recibe como `p_origen`.
+- Aun así, el sello se escribe con **`is distinct from`**: un UPDATE de payload
+  completo que reenvíe el **mismo** valor **no lanza nada**. Ésa es la diferencia
+  entre sellar una columna y romper a un importador, y el postflight lo ejercita
+  como caso positivo (cambiar el origen **falla**; reenviar el mismo origen
+  **pasa**; cambiar otra columna **pasa**; la operación privilegiada **sí** puede
+  cambiarlo).
+
+**El aviso del orden de despliegue.** No es el caso de «front primero» de
+[[crm-orden-deploy-front-primero]] —no hay clave nueva en la respuesta que el
+front deba tolerar—, sino su **espejo**: es un **endurecimiento del request**, o
+sea una escritura que el servidor empieza a rechazar. La regla ahí es **el
+escritor primero**: se verifica que ningún escritor manda `origen` en un UPDATE
+con valor distinto (hecho, arriba), y **solo entonces** se aplica. Y va
+**después de la A**: la métrica debe existir antes que el sello que la protege.
+
+**El rastro de un intento denegado no está donde parece.** `trg_audit_leads` es
+`AFTER` y la excepción **aborta la transacción**, así que la fila de auditoría se
+va con ella: la excepción deja exactamente las **mismas cero líneas** en
+`public.audit_log` que dejaría una restauración muda. El rastro real es un
+**`raise warning` inmediatamente antes de cada `raise exception`**: un WARNING se
+escribe en el log de Postgres en el momento en que se emite, **sobrevive al
+rollback** y queda consultable por `get_logs`. La auditoría en tabla solo existe
+para la corrección **autorizada**, que sí commitea.
+
+**Por qué excepción y no restauración muda**, que es el patrón de la casa para
+las columnas inmutables (`id`, `creado_por`, `creado_en`, `ciclo_actual`,
+`sla_global_*`, `clasificacion_auto`, `descartado_*`, `tenencia_desde` — ninguno
+de los cuales se toca aquí): por **honestidad**. `aplicar()` es optimista en el
+store, así que con un 200 mudo gerencia vería el valor nuevo en pantalla y
+cerraría la pestaña convencida de que el lead salió del divisor. Con la
+excepción, el intento aborta y el error llega al cliente.
+
+**Lo que esta migración NO consigue, sin adornos.** El origen **se elige en el
+alta**. `crm.crear_lead_si_disponible` es ejecutable por `authenticated`, su gate
+admite el rol `vendedor`, valida `p_origen` solo contra el dominio de 8 valores
+del CHECK `leads_origen_check` y para un vendedor **autoasigna** el lead. Un
+analista puede, por tanto, **dar de alta como `referido`** los leads que no
+espera cerrar y sacarlos de su propio divisor desde el primer segundo. Sellar el
+UPDATE impide **reescribir** el origen después; no impide **elegirlo mal al
+nacer**. Cerrar esa puerta es otra migración, sobre otra función, y exige que
+Miguel decida **qué rol puede declarar un referido**.
+
+⚠️ **Sobre el nombre del fichero:** conserva `…_correccion_gerencia.sql` aunque la
+corrección de gerencia ya no exista dentro, porque renombrarlo obliga a un
+timestamp nuevo. Si al desplegar se le pone uno nuevo, **esta fila se renombra y
+el fichero viejo se BORRA**: no pueden convivir dos ficheros que reescriben el
+mismo trigger.
+
+### Ciclo obligatorio de las CUATRO — EJECUTADO EN BRANCH el 2026-08-11 ✅
+
+Branch `conversion-mensual-a-e-d-f` (`zmrzjsmhgmiwtxnnhkex`), con el orden
+**corregido**: seed → aplicar (`20260811154434` → `20260811190310` →
+`20260811190324` → `20260811210049`) → sondas → oráculo → RLS → advisors.
+
+| Gate | Resultado |
+|---|---|
+| Aplicación por `psql` (sondas visibles) | 4/4 `exit=0`, **cero WARNING**: todas las sondas corrieron su rama real |
+| Replay desde el registro (reset del branch) | 86 migraciones, las 4 nuevas incluidas — **ensayo exacto de lo que hará el merge** |
+| Oráculo | **`CONVERSION_MENSUAL_OK` · 53 casos · 236 aserciones · rollback limpio** (×2: mundo pre-reset y mundo virgen) |
+| `test-rls.mjs` | **✅ RLS OK — 862 aserciones** (las ~117 de la conversión incluidas) |
+| Advisors seguridad | **0 ERROR** · WARN definer-ejecutable 92→**93** (solo `conversion_mensual_fn`, la cifra que esta sección vigila) · INFO nuevo esperado: `rls_enabled_no_policy` en `crm.conversion_pesos` |
+| Advisors rendimiento | **0 ERROR** · 5 WARN preexistentes del portal, ninguno de objetos de hoy |
+| `trg_equipo_validar_usuarios_jerarquia` | Suspendido para el seed y **reactivado antes del merge** (verificado `tgenabled='O'`) |
+
+**Merge EJECUTADO el 2026-08-11 con OK de Miguel.** Verificación en prod: 4/4 migraciones registradas, RPC definer/stable/search_path OK, `conversion_pesos`=1 fila, índice único presente, CHECK no-trivaluado presente, sello de origen y regla del alta en los cuerpos vivos, datos intocados (1 lead · 1 episodio), `trg_equipo_validar_usuarios_jerarquia` VIVO (`tgenabled='O'`). Branch borrado.
+
+⚠️ **Lección de re-ejecución (cara, no repetirla):** el gate NO se relanza
+re-sembrando. El ledger es inmutable e imborrable, así que cada corrida deja
+episodios que inflan el divisor del mundo semilla y rompen la línea base de la
+conversión (vend1 llegó a divisor 29). **Relanzar el gate = `reset_branch` +
+seed**, nunca seed solo. Dos fallos legítimos del primer intento quedaron
+corregidos en el bloque (claves `cierres_de_arrastre`/`referidos_aporta_pct`
+añadidas a las listas declaradas del contrato — la migración A consolidada las
+emite y el tramo fail-closed exige declararlas).
+
+Detalle operativo del canal: las migraciones se aplicaron por `psql` (pooler de
+sesión, puerto 5432 — el host directo `db.<ref>` de un branch no resuelve) y se
+registraron a mano en `supabase_migrations.schema_migrations` con el contenido
+íntegro, que es lo que el CLI hace y lo que el replay/merge consume. El canal
+MCP (`postgres`) NO puede `set session_replication_role` — comprobado en vivo,
+`permission denied` — y por eso el oráculo siembra con
+`alter table ... disable trigger user` (transaccional) en vez del GUC; los
+oráculos viejos que aún usan el GUC (`test-metricas-agenda.sql`) están sujetos a
+la misma mina.
+
+Y una consecuencia directa de aplicar sobre un branch **poblado**: el preflight
+de la `20260811190310` deja de ser decorativo. Contra un branch vacío no hay
+ninguna fila que pueda violar nada y el preflight pasa por vacuidad; contra el
+seed, comprueba de verdad que el mundo que el CRM sabe fabricar **ya cumple** las
+dos invariantes nuevas.
