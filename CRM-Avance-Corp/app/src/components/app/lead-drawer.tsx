@@ -75,6 +75,8 @@ import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
 import { agruparTimeline } from '@/lib/timeline-lead'
 import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
+import { INFO_COOPERATIVA, type Cooperativa } from '@/lib/cierres-externos'
+import { useConvertirLeadExterno } from '@/data/crm-queries'
 import {
   CATEGORIAS_INTERES,
   CAT_LABEL,
@@ -1423,7 +1425,7 @@ const RE_DOCUMENTO: Record<TipoDocumentoCliente, { re: RegExp; err: string }> = 
 
 /** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
 export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
-  const { convertir, recargar } = useCRMData()
+  const { convertir, convertirExterno, recargar } = useCRMData()
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
   // Cómo se llama HOY la pantalla donde se corrigen los datos del cliente: la
@@ -1453,8 +1455,34 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const [usd, setUsd] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
   const [enviando, setEnviando] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  // Dos pasos: (1) crear el cliente, (2) crear su contrato — "todo en un sitio".
-  const [paso, setPaso] = useState<'convertir' | 'contrato'>('convertir')
+  // El flujo arranca en «¿Dónde invirtió?» (destino): Avance sigue su camino de
+  // siempre (cliente en el portal → contrato); una COOPERATIVA va al formulario
+  // corto del cierre externo (sin portal, sin correo, sin contrato).
+  const [paso, setPaso] = useState<'destino' | 'convertir' | 'coop' | 'contrato'>('destino')
+  const [coop, setCoop] = useState<Cooperativa>('qorilazo')
+  // ── Cierre en cooperativa: lo que llena el vendedor ──
+  // Monto REAL invertido (no el estimado del lead: ése era una promesa, éste es
+  // el cierre). Nombre precargado del lead, editable.
+  // NO se pregunta la moneda: en cooperativas solo se invierte en SOLES (regla
+  // de negocio, 2026-08-12) y el servidor rechaza cualquier otra.
+  const [montoCoop, setMontoCoop] = useState('')
+  const [nombreCoop, setNombreCoop] = useState(l.nombre_completo)
+  // El n.º de operación del depósito es la PRUEBA del cierre: obligatorio, único
+  // por cooperativa, y una vez enviado solo gerencia lo corrige.
+  const [transaccionCoop, setTransaccionCoop] = useState('')
+  const [referenciaCoop, setReferenciaCoop] = useState('')
+  const [venceCoop, setVenceCoop] = useState('')
+  const [notaCoop, setNotaCoop] = useState('')
+  // Qué campo del formulario coop falló: enlaza el error (cx-error) al input
+  // culpable con aria-invalid/aria-describedby — sin esto, quien navega campo
+  // a campo oye el alert pero no sabe cuál corregir (hallazgo M2 a11y).
+  const [campoErrorCoop, setCampoErrorCoop] = useState<
+    'monto' | 'documento' | 'nombre' | 'transaccion' | 'vence' | null
+  >(null)
+  /** Las tarjetas del paso «¿Dónde invirtió?», para devolverles el foco al
+   *  pulsar «Volver» desde el formulario de la cooperativa. */
+  const refTarjetaCoop = useRef(new Map<Cooperativa, HTMLButtonElement>())
+  const cierreExternoMut = useConvertirLeadExterno()
   const [perfilId, setPerfilId] = useState<string | null>(null)
   /** El documento YA era cliente: se enlazó y sus bancarios NO se tocaron → hay
    *  que decírselo al asesor ANTES de seguir (acaba de llenar unos que no van). */
@@ -1563,6 +1591,108 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   // (Ya no hay estado "cliente creado sin bancarios": la edge los escribe en el
   //  mismo INSERT del cliente, así que o se crea con su cuenta o no se crea.)
 
+  // ── Cierre en COOPERATIVA (Qorilazo/Prodelco) ──────────────────────────────
+  // No crea usuario ni manda correo: registra la foto del cierre y el lead pasa
+  // a convertido — cuenta en la cuota y en la conversión igual que Avance. La
+  // fecha es automática (hoy): sin retro-datar, el mes del cierre es el real.
+  const confirmarCoop = async () => {
+    if (enviando) return
+    setError(null)
+    setCampoErrorCoop(null)
+    if (!l.vendedor_id) {
+      setError('Asigna el lead a un analista antes de convertirlo')
+      return
+    }
+    const monto = Number(montoCoop)
+    if (!montoCoop.trim() || !Number.isFinite(monto) || monto <= 0) {
+      setCampoErrorCoop('monto')
+      setError('Ingresa el monto REAL invertido — es lo que suma a tu cuota')
+      return
+    }
+    // Tolerancia y no igualdad exacta: `10000.03 * 100` da 1000003.0000000001
+    // en coma flotante y este aviso saltaba sobre un monto válido.
+    if (Math.abs(Math.round(monto * 100) - monto * 100) >= 1e-6) {
+      setCampoErrorCoop('monto')
+      setError('El monto admite como máximo 2 decimales')
+      return
+    }
+    const docLimpio = documento.trim().toUpperCase()
+    if (!docLimpio) {
+      setCampoErrorCoop('documento')
+      setError('El documento es obligatorio — es el ancla de identidad del cierre')
+      return
+    }
+    if (!RE_DOCUMENTO[tipoDoc].re.test(docLimpio)) {
+      setCampoErrorCoop('documento')
+      setError(RE_DOCUMENTO[tipoDoc].err)
+      return
+    }
+    const nombreLimpio = nombreCoop.trim()
+    if (!nombreLimpio) {
+      setCampoErrorCoop('nombre')
+      setError('El nombre completo es obligatorio')
+      return
+    }
+    const transaccionLimpia = transaccionCoop.trim()
+    if (!transaccionLimpia) {
+      setCampoErrorCoop('transaccion')
+      setError('El N.° de operación del depósito es obligatorio — es la prueba del cierre')
+      return
+    }
+    // Hoy EN LIMA (en-CA = YYYY-MM-DD): a las 7 pm de Lima el reloj UTC ya va
+    // por mañana y compararía mal — el servidor valida con el reloj de Lima.
+    const hoyLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' })
+      .format(new Date())
+    if (venceCoop && venceCoop <= hoyLima) {
+      setCampoErrorCoop('vence')
+      setError('El vencimiento de la inversión debe ser una fecha futura')
+      return
+    }
+
+    if (esDemo) {
+      const res = convertirExterno(l.id, {
+        cooperativa: coop,
+        monto,
+        numeroTransaccion: transaccionLimpia,
+      })
+      if (!res.ok) {
+        if (res.error) setError(res.error)
+        return
+      }
+      onClose()
+      toast.success(`${nombreLimpio} cerrado en ${INFO_COOPERATIVA[coop].nombre} (demo)`)
+      return
+    }
+
+    setEnviando(true)
+    try {
+      await cierreExternoMut.mutateAsync({
+        leadId: l.id,
+        cooperativa: coop,
+        monto,
+        moneda: 'PEN',
+        documentoTipo: tipoDoc,
+        documento: docLimpio,
+        nombre: nombreLimpio,
+        numeroTransaccion: transaccionLimpia,
+        referencia: referenciaCoop.trim() || null,
+        venceEn: venceCoop || null,
+        nota: notaCoop.trim() || null,
+      })
+      // El lead ya quedó convertido en el servidor: el pipeline debe reflejarlo
+      // (mismo patrón que la conversión Avance vía edge).
+      await recargar()
+      onClose()
+      toast.success(
+        `${nombreLimpio} cerrado en ${INFO_COOPERATIVA[coop].nombre} — ya cuenta en tu cuota y conversión`,
+      )
+    } catch (e) {
+      setError(e instanceof CrmApiError ? e.message : 'No se pudo registrar el cierre en la cooperativa')
+    } finally {
+      setEnviando(false)
+    }
+  }
+
   // ── Cliente ya existente: ni los bancarios ni la ATRIBUCIÓN se movieron ─────
   // El enlace salió bien, pero no es el éxito que el asesor cree, y dos de las
   // promesas que este diálogo hacía antes eran falsas:
@@ -1658,6 +1788,234 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           onCreado={onClose}
           onOmitir={onClose}
         />
+      </Dialog>
+    )
+  }
+
+  // ── Paso 0: ¿DÓNDE invirtió? ────────────────────────────────────────────────
+  // Avance sigue intacto su camino de siempre; una cooperativa NO crea usuario
+  // de portal ni manda correo — solo registra el cierre, que igual cuenta en la
+  // cuota y en la conversión del asesor.
+  if (paso === 'destino') {
+    return (
+      <Dialog open onClose={onClose} ariaLabel="Convertir lead">
+        <DialogHeader>
+          <DialogTitle>¿Dónde invirtió?</DialogTitle>
+          <DialogDescription>
+            {l.nombre_completo} pasará a {ETAPA_INFO.convertido.label}. Elige la empresa donde
+            cerró su inversión:
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-2">
+          <button
+            type="button"
+            className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
+            onClick={() => setPaso('convertir')}
+          >
+            <span className="block text-sm font-bold text-foreground">Avance Corp</span>
+            <span className="block text-xs text-muted-foreground">
+              Crea su cuenta del portal, le llega el correo de bienvenida y sigues al contrato.
+            </span>
+          </button>
+          {(['qorilazo', 'prodelco'] as const).map((c) => (
+            <button
+              key={c}
+              ref={(el) => {
+                if (el) refTarjetaCoop.current.set(c, el)
+                else refTarjetaCoop.current.delete(c)
+              }}
+              type="button"
+              className="w-full rounded-xl border border-border bg-card p-3 text-left transition-colors hover:border-primary/60 hover:bg-primary/5"
+              onClick={() => {
+                setCoop(c)
+                setPaso('coop')
+              }}
+            >
+              <span className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">{INFO_COOPERATIVA[c].nombre}</span>
+                <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide', INFO_COOPERATIVA[c].chipClase)}>
+                  {INFO_COOPERATIVA[c].corto}
+                </span>
+              </span>
+              <span className="block text-xs text-muted-foreground">
+                Solo se registra el cierre — sin portal ni correo. Cuenta igual en tu cuota y conversión.
+              </span>
+            </button>
+          ))}
+        </DialogBody>
+        {/* ⚠️ LA `key` NO ES DECORATIVA. El paso «coop» tiene otro <Button> en
+            esta misma posición, así que React reconcilia POR ÍNDICE y reutiliza
+            el MISMO nodo del DOM: al pulsar «Volver» el foco no se movía y el
+            botón que quedaba debajo del dedo pasaba a llamarse «Cancelar» y a
+            ejecutar `onClose()`. Un segundo Enter —el de quien no oyó nada y
+            cree que no respondió— cerraba el diálogo y se llevaba el monto, el
+            documento y el N.° de operación ya escritos. Con `key` distintas el
+            nodo se desmonta de verdad y el nombre accesible nunca cambia bajo
+            el foco (WCAG 4.1.2). Mismo bug, misma cura que en cerrar-tarea.tsx. */}
+        <DialogFooter>
+          <Button key="cancelar-destino" variant="outline" size="sm" onClick={onClose}>
+            Cancelar
+          </Button>
+        </DialogFooter>
+      </Dialog>
+    )
+  }
+
+  // ── Cierre en COOPERATIVA: el formulario corto ─────────────────────────────
+  if (paso === 'coop') {
+    const infoCoop = INFO_COOPERATIVA[coop]
+    return (
+      <Dialog open onClose={cerrarSeguro} ariaLabel={`Cerrar en ${infoCoop.nombre}`}>
+        <DialogHeader>
+          <DialogTitle>
+            Cerrar en {infoCoop.nombre}
+            {esDemo ? ' (demo)' : ''}
+          </DialogTitle>
+          <DialogDescription>
+            Sin portal ni correo: queda el registro del cierre y {primerNombre(l.nombre_completo)}{' '}
+            pasa a {ETAPA_INFO.convertido.label}. El monto suma a tu cuota del mes.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogBody className="space-y-3">
+          {/* Sin selector de moneda: en cooperativas solo se invierte en soles,
+              así que se dice en el rótulo en vez de ofrecer una decisión que no
+              existe (y que el servidor rechazaría). */}
+          <div className="space-y-1.5">
+            <Label htmlFor="cx-monto">Monto REAL invertido (S/)</Label>
+            <Input
+              id="cx-monto"
+              type="number"
+              inputMode="decimal"
+              min="0"
+              step="0.01"
+              value={montoCoop}
+              onChange={(e) => setMontoCoop(e.target.value)}
+              placeholder="10000.00"
+              disabled={enviando}
+              aria-invalid={campoErrorCoop === 'monto'}
+              aria-describedby={campoErrorCoop === 'monto' ? 'cx-error' : undefined}
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cx-nombre">Nombre completo</Label>
+            <Input
+              id="cx-nombre"
+              value={nombreCoop}
+              onChange={(e) => setNombreCoop(e.target.value)}
+              disabled={enviando}
+              aria-invalid={campoErrorCoop === 'nombre'}
+              aria-describedby={campoErrorCoop === 'nombre' ? 'cx-error' : undefined}
+            />
+          </div>
+          <div className="grid grid-cols-[132px_1fr] gap-2.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="cx-tipodoc">Tipo doc.</Label>
+              <Select
+                id="cx-tipodoc"
+                value={tipoDoc}
+                onChange={(e) => setTipoDoc(e.target.value as TipoDocumentoCliente)}
+                disabled={enviando}
+              >
+                <option value="DNI">DNI</option>
+                <option value="CE">C. Extranjería</option>
+                <option value="PASAPORTE">Pasaporte</option>
+              </Select>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cx-doc">N° de documento</Label>
+              <Input
+                id="cx-doc"
+                value={documento}
+                onChange={(e) => setDocumento(e.target.value)}
+                placeholder="Documento que registró la cooperativa"
+                disabled={enviando}
+                aria-invalid={campoErrorCoop === 'documento'}
+                aria-describedby={campoErrorCoop === 'documento' ? 'cx-error' : undefined}
+              />
+            </div>
+          </div>
+          {/* LA PRUEBA del cierre. Va solo y arriba de los opcionales a propósito:
+              no es un dato administrativo más, es lo que hace que este cierre se
+              pueda contrastar. Una vez enviado, solo gerencia lo corrige. */}
+          <div className="space-y-1.5">
+            <Label htmlFor="cx-transaccion">N.° de operación del depósito</Label>
+            <Input
+              id="cx-transaccion"
+              value={transaccionCoop}
+              onChange={(e) => setTransaccionCoop(e.target.value)}
+              placeholder="Código de la transferencia o del voucher"
+              disabled={enviando}
+              aria-invalid={campoErrorCoop === 'transaccion'}
+              // La ayuda NO se pierde cuando hay error: es justo cuando más
+              // falta hace. `aria-describedby` admite lista y el error sigue
+              // teniendo su único id.
+              aria-describedby={
+                campoErrorCoop === 'transaccion'
+                  ? 'cx-error cx-transaccion-ayuda'
+                  : 'cx-transaccion-ayuda'
+              }
+            />
+            <p id="cx-transaccion-ayuda" className="text-[11px] text-muted-foreground">
+              Es lo que permite verificar el cierre. Después solo gerencia puede corregirlo.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-2.5">
+            <div className="space-y-1.5">
+              <Label htmlFor="cx-ref">Certificado de la coop (opcional)</Label>
+              <Input
+                id="cx-ref"
+                value={referenciaCoop}
+                onChange={(e) => setReferenciaCoop(e.target.value)}
+                placeholder="N° de contrato/certificado"
+                disabled={enviando}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="cx-vence">Vencimiento (opcional)</Label>
+              <Input
+                id="cx-vence"
+                type="date"
+                value={venceCoop}
+                onChange={(e) => setVenceCoop(e.target.value)}
+                disabled={enviando}
+                aria-invalid={campoErrorCoop === 'vence'}
+                aria-describedby={campoErrorCoop === 'vence' ? 'cx-error' : undefined}
+              />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="cx-nota">Nota (opcional)</Label>
+            <Textarea
+              id="cx-nota"
+              rows={2}
+              value={notaCoop}
+              onChange={(e) => setNotaCoop(e.target.value)}
+              disabled={enviando}
+            />
+          </div>
+          {error && <p id="cx-error" role="alert" className="text-xs font-semibold text-destructive">{error}</p>}
+        </DialogBody>
+        <DialogFooter>
+          <Button
+            key="volver-coop"
+            variant="outline"
+            size="sm"
+            disabled={enviando}
+            onClick={() => {
+              setError(null)
+              setCampoErrorCoop(null)
+              setPaso('destino')
+              // El foco vuelve a la tarjeta de donde salió. Sin esto, Radix lo
+              // rescata al tope del diálogo y hay que re-tabularlo entero.
+              requestAnimationFrame(() => refTarjetaCoop.current.get(coop)?.focus())
+            }}
+          >
+            Volver
+          </Button>
+          <Button size="sm" onClick={confirmarCoop} disabled={enviando}>
+            <BadgeCheck /> {enviando ? 'Registrando…' : `Cerrar en ${infoCoop.corto}`}
+          </Button>
+        </DialogFooter>
       </Dialog>
     )
   }

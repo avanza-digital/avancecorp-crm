@@ -16,6 +16,7 @@ import { toast } from 'sonner'
 import { crmQueryKeys } from '@/data/crm-queries'
 import { queryClient } from './query-client'
 import { useAuth } from './auth-context'
+import { INFO_COOPERATIVA, type Cooperativa } from './cierres-externos'
 import { administraSoloRolesCrm, can, puedeEscribir } from './roles'
 import {
   ETAPA_INFO,
@@ -135,6 +136,9 @@ export type CodigoMut =
   | 'destino_reunion_obligatorio'
   | 'enlace_reunion_invalido'
   | 'sin_permiso_reasignar'
+  // Anulación de un cierre en cooperativa (espejo de los rechazos del servidor).
+  | 'motivo_requerido'
+  | 'ya_anulado'
 
 /**
  * Resultado de una mutación. `error` es el mensaje es-PE listo para mostrar;
@@ -259,6 +263,28 @@ export type { EventoAgenda }
 // empresa se derivan siempre desde las filas individuales versionadas.
 export type { ObjetivoComercial, ObjetivosPorRol, ObjetivosPorVendedor }
 
+/** Foto DEMO de un cierre en cooperativa (espejo mínimo de crm.cierres_externos). */
+export interface CierreExternoDemo {
+  /** Identidad propia: sin ella no se puede corregir ni anular en demo, y las
+   * dos acciones de gerencia quedarían sin ensayar en el mundo de práctica. */
+  cierreId: string
+  leadId: string
+  cooperativa: Cooperativa
+  monto: number
+  /** Siempre 'PEN': en cooperativas solo se invierte en soles. */
+  moneda: Moneda
+  nombre: string
+  telefono: string
+  numeroTransaccion: string
+  creadoEn: string
+  /** Quién cobra el cierre (foto del analista del lead al convertir). */
+  vendedorId: string
+  vendedorNombre: string | null
+  /** Anulado por gerencia: deja de contar, pero la fila se sigue viendo. */
+  anuladoEn: string | null
+  motivoAnulacion: string | null
+}
+
 export interface StoreDataApi {
   leads: Lead[] // todos, activos y terminales (legacy — preferir `ambito`)
   equipo: Miembro[]
@@ -356,6 +382,21 @@ export interface StoreDataApi {
   ): ResultadoMut
   descartar(id: string, motivo: MotivoDescarte, nota?: string): ResultadoMut
   convertir(id: string): ResultadoMut
+  /** Cierre en COOPERATIVA (Qorilazo/Prodelco) — SOLO demo: marca convertido y
+   *  guarda la foto local para que Mi cartera derive su sección. En real este
+   *  camino se veta (la ficha llama a crm.convertir_lead_externo, que deja la
+   *  foto de verdad; marcar la etapa por aquí dejaría un convertido sin cierre
+   *  y la P4 del servidor lo rechazaría). */
+  convertirExterno(
+    id: string,
+    datos: { cooperativa: Cooperativa; monto: number; numeroTransaccion: string },
+  ): ResultadoMut
+  /** Anulación de gerencia — SOLO demo (en real es crm.anular_cierre_externo).
+   *  Deja de contar en cuota y conversión, con motivo; el lead NO se reabre y la
+   *  fila se sigue viendo, marcada. De una sola dirección, igual que el servidor. */
+  anularCierreExterno(cierreId: string, motivo: string): ResultadoMut
+  /** Fotos DEMO de cierres en coops (en real siempre []: la RPC es la fuente). */
+  cierresExternos: CierreExternoDemo[]
   reabrir(id: string): ResultadoMut
   /** `avance` = etapa a la que subió SOLO el lead por este contacto (ver
    *  lib/avance-automatico.ts). La UI lo usa para decirlo en voz alta: un
@@ -625,6 +666,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Tareas de agenda (crm.tareas): pendientes del ámbito. Igual que leads:
   // optimista local + resync tras cada mutación real.
   const [tareas, setTareas] = useState<Tarea[]>([])
+  // Cierres en coops del MODO DEMO (la sección «En cooperativas» de Mi cartera
+  // los deriva). En real ni se llena: esa pantalla bebe de la RPC.
+  const [cierresExternosDemo, setCierresExternosDemo] = useState<CierreExternoDemo[]>([])
   const [demoListo, setDemoListo] = useState(false)
   const [realListo, setRealListo] = useState(false)
   const [errorReal, setErrorReal] = useState(false)
@@ -1864,6 +1908,88 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         return { ok: true }
       },
 
+      convertirExterno: (id, datosCierre) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const actual = buscar(id)
+        if (!actual) return noEncontrado()
+        if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        if (!actual.vendedor_id) {
+          return {
+            ok: false,
+            codigo: 'sin_analista',
+            error: 'Asigna el lead a un analista antes de convertirlo',
+          }
+        }
+        if (realActivo) {
+          // En real la ficha llama a crm.convertir_lead_externo (deja la foto
+          // de verdad); marcar la etapa por aquí dejaría un convertido sin
+          // cierre detrás — y la P4 del servidor lo rechazaría igual.
+          toast.error('Usa "Convertir" en la ficha del lead')
+          return { ok: false, codigo: 'fuente_no_habilitada', error: 'Conversión no disponible por esta vía' }
+        }
+        // Capturada ANTES del setState: el narrowing del guard de arriba no
+        // sobrevive dentro del callback (es propiedad, no constante).
+        const vendedorFoto = actual.vendedor_id
+        aplicar(
+          id,
+          { etapa: 'convertido', motivo_descarte: null },
+          actividadAuto(
+            id,
+            'conversion',
+            `Cerrado en ${INFO_COOPERATIVA[datosCierre.cooperativa].nombre}${yo?.demo ? ' (demo)' : ''}`,
+          ),
+        )
+        setCierresExternosDemo((previos) => [
+          {
+            // En demo no hay servidor que reparta identidades; el lead ya es
+            // único por cierre (un cierre externo por lead), así que basta con
+            // derivarla de él y queda estable entre renders.
+            cierreId: `demo-cx-${id}`,
+            leadId: id,
+            cooperativa: datosCierre.cooperativa,
+            monto: datosCierre.monto,
+            moneda: 'PEN',
+            nombre: actual.nombre_completo,
+            telefono: actual.telefono,
+            numeroTransaccion: datosCierre.numeroTransaccion,
+            creadoEn: new Date().toISOString(),
+            vendedorId: vendedorFoto,
+            vendedorNombre: actual.vendedor_nombre ?? null,
+            anuladoEn: null,
+            motivoAnulacion: null,
+          },
+          ...previos,
+        ])
+        return { ok: true }
+      },
+
+      anularCierreExterno: (cierreId, motivo) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const limpio = motivo.trim()
+        if (!limpio) {
+          return { ok: false, codigo: 'motivo_requerido', error: 'Escribe el motivo de la anulación' }
+        }
+        const cierre = cierresExternosDemo.find((c) => c.cierreId === cierreId)
+        if (!cierre) return noEncontrado()
+        if (cierre.anuladoEn) {
+          return { ok: false, codigo: 'ya_anulado', error: 'Ese cierre ya estaba anulado' }
+        }
+        // El lead NO se reabre, igual que en el servidor: un convertido es
+        // terminal. Lo que se va es el dinero y la conversión.
+        setCierresExternosDemo((previos) =>
+          previos.map((c) =>
+            c.cierreId === cierreId
+              ? { ...c, anuladoEn: new Date().toISOString(), motivoAnulacion: limpio }
+              : c,
+          ),
+        )
+        return { ok: true }
+      },
+
+      cierresExternos: cierresExternosDemo,
+
       reabrir: (id) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
@@ -1989,7 +2115,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // El flujo de conversión (edge) escribe server-side; aquí se trae la verdad.
       recargar: () => (realActivo ? resincronizarReal() : Promise.resolve(true)),
     }
-  }, [datos, tareas, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal])
+  }, [datos, tareas, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal, cierresExternosDemo])
 
   // Estado de la carga remota para la app (splash / error+reintento / workspace).
   const estado = useMemo<StoreEstado>(() => ({

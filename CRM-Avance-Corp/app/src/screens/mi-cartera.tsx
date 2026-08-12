@@ -34,6 +34,7 @@ import { ClienteDetalle } from '@/components/app/cliente-detalle'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
+import { SeccionEnCooperativas } from '@/components/app/cierres-externos-seccion'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { can, puedeEscribir } from '@/lib/roles'
@@ -1073,6 +1074,12 @@ function VistaMiCartera({
         onCambio={setPagina}
         ariaLabel="Paginación de la cartera"
       />
+
+      {/* Cierres en COOPAC Qorilazo/Prodelco: personas SIN cuenta de portal.
+          Sección aparte de la lista (no hay cliente que agrupar) y con sus
+          totales propios — ese dinero no lo administra Avance. Se oculta sola
+          si el ámbito no tiene cierres. */}
+      <SeccionEnCooperativas demo={demo} />
     </div>
   )
 }

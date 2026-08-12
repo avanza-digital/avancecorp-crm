@@ -55,7 +55,13 @@ import {
   normalizarBusquedaCartera,
   textoBuscable,
 } from '@/lib/cartera-keyset'
-import { TIPOS_DOCUMENTO_K } from '@/lib/documento'
+import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
+import {
+  CierresExternosSchema,
+  COOPERATIVAS,
+  type CierresExternos,
+  type Cooperativa,
+} from '@/lib/cierres-externos'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type {
   FilaAltasAnalista,
@@ -2891,4 +2897,331 @@ export async function actualizarCapacidadLeadsObjetivo(
     analistaId: respuesta.output[0].perfil_id,
     capacidad: respuesta.output[0].capacidad_leads_objetivo,
   }
+}
+
+// ─── Cierres externos en cooperativas (Qorilazo / Prodelco) ──────────────────
+// Migración 20260812000259: el lead invirtió en una COOPERATIVA. No hay portal,
+// no hay correo, no hay contrato — hay una foto inmutable y el lead queda
+// convertido por el MISMO cierre de episodio que un cierre Avance.
+
+/** Respuesta de crm.convertir_lead_externo — eco verificado contra lo pedido. */
+const CierreExternoCreadoSchema = v.object({
+  ok: v.literal(true),
+  lead_id: v.pipe(v.string(), v.uuid()),
+  cierre_id: v.pipe(v.string(), v.uuid()),
+  cooperativa: v.picklist(COOPERATIVAS),
+})
+
+export interface ConvertirLeadExternoDatos {
+  leadId: string
+  cooperativa: Cooperativa
+  monto: number
+  /** Siempre 'PEN': en cooperativas solo se invierte en soles. Se manda igual
+   * porque el servidor lo valida (un bundle viejo con USD merece rechazo claro,
+   * no que le cambiemos la moneda por debajo). */
+  moneda: 'PEN'
+  documentoTipo: TipoDocumento
+  documento: string
+  nombre: string
+  /** N.º de operación del depósito: OBLIGATORIO y único por cooperativa. */
+  numeroTransaccion: string
+  /** Certificado de la coop: opcional, para papeleo. */
+  referencia?: string | null
+  /** 'YYYY-MM-DD'; el servidor exige fecha futura. */
+  venceEn?: string | null
+  nota?: string | null
+}
+
+export interface CierreExternoCreado {
+  leadId: string
+  cierreId: string
+  cooperativa: Cooperativa
+}
+
+/**
+ * Convierte un lead cerrándolo en una COOPERATIVA. La validación de aquí es la
+ * del formulario (espejo de la RPC): que un payload inválido muera con mensaje
+ * de negocio ANTES de viajar. El servidor revalida todo — esto no es la
+ * frontera de seguridad, es la UX del error.
+ */
+export async function convertirLeadExterno(
+  datos: ConvertirLeadExternoDatos,
+): Promise<CierreExternoCreado> {
+  const documento = datos.documento.trim().toUpperCase()
+  const nombre = datos.nombre.trim()
+  const numeroTransaccion = datos.numeroTransaccion.trim()
+  // ⚠️ La igualdad EXACTA no sirve para decidir la escala de un decimal: en
+  // coma flotante `10000.03 * 100` da 1000003.0000000001, así que el formulario
+  // acusaba tres decimales a un monto perfectamente válido. Se compara con una
+  // tolerancia mucho menor que un céntimo: 10000.035 sigue cayendo.
+  const montoValido = Number.isFinite(datos.monto)
+    && datos.monto > 0
+    && Math.abs(Math.round(datos.monto * 100) - datos.monto * 100) < 1e-6
+  if (!montoValido) {
+    throw new CrmApiError(
+      'El monto invertido debe ser mayor que cero, con máximo 2 decimales.',
+      'CIERRE_EXTERNO_MONTO_INVALIDO',
+    )
+  }
+  if (numeroTransaccion === '') {
+    throw new CrmApiError(
+      'El número de operación del depósito es obligatorio.',
+      'CIERRE_EXTERNO_TRANSACCION_INVALIDA',
+    )
+  }
+  if (!TIPOS_DOCUMENTO[datos.documentoTipo].regex.test(documento)) {
+    throw new CrmApiError(
+      TIPOS_DOCUMENTO[datos.documentoTipo].error,
+      'CIERRE_EXTERNO_DOCUMENTO_INVALIDO',
+    )
+  }
+  if (nombre === '') {
+    throw new CrmApiError(
+      'El nombre completo es obligatorio.',
+      'CIERRE_EXTERNO_NOMBRE_INVALIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('convertir_lead_externo', {
+    p_lead_id: datos.leadId,
+    p_cooperativa: datos.cooperativa,
+    p_monto: datos.monto,
+    p_moneda: datos.moneda,
+    p_documento_tipo: datos.documentoTipo,
+    p_documento: documento,
+    p_nombre: nombre,
+    p_numero_transaccion: numeroTransaccion,
+    p_referencia: datos.referencia?.trim() || null,
+    p_vence_en: datos.venceEn ?? null,
+    p_nota: datos.nota?.trim() || null,
+  })
+
+  if (error) {
+    let fallo: CrmApiError
+    if (error.code === '42501' || error.code === 'PGRST301') {
+      fallo = new CrmApiError('No tienes permiso para convertir leads.', 'SIN_PERMISO')
+    } else if (error.code === '22023') {
+      // El servidor ya habla el idioma del formulario (monto, moneda, documento,
+      // vencimiento, «asigna el lead»): su mensaje ES el mensaje.
+      fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_INVALIDO')
+    } else if (error.code === 'P0409') {
+      // Depósito ya registrado, o una conversión Avance en vuelo sobre el mismo
+      // lead. Los dos mensajes del servidor ya están en idioma de negocio y
+      // ninguno se puede reformular mejor desde aquí: dicen QUÉ pasó y QUÉ hacer.
+      fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_CONFLICTO')
+    } else if (/ya esta cerrado/i.test(error.message ?? '')) {
+      fallo = new CrmApiError('El lead ya está cerrado.', 'LEAD_YA_CERRADO')
+    } else if (/fuera de tu ambito/i.test(error.message ?? '')) {
+      fallo = new CrmApiError(
+        'El lead no existe o está fuera de tu ámbito.',
+        'LEAD_FUERA_DE_AMBITO',
+      )
+    } else {
+      fallo = new CrmApiError(
+        'No se pudo registrar el cierre en la cooperativa.',
+        error.code || 'POSTGREST_ERROR',
+      )
+    }
+    registrarError('crm.cierres_externos.convertir_fallido', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+
+  const respuesta = v.safeParse(CierreExternoCreadoSchema, data)
+  if (
+    !respuesta.success
+    || respuesta.output.lead_id !== datos.leadId
+    || respuesta.output.cooperativa !== datos.cooperativa
+  ) {
+    const fallo = new CrmApiError(
+      'La respuesta del cierre externo no tiene el formato esperado.',
+      'CIERRE_EXTERNO_CONTRACT',
+    )
+    registrarError('crm.cierres_externos.convertir_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    leadId: respuesta.output.lead_id,
+    cierreId: respuesta.output.cierre_id,
+    cooperativa: respuesta.output.cooperativa,
+  }
+}
+
+export interface CorregirCierreExternoDatos {
+  cierreId: string
+  monto: number
+  /** Siempre 'PEN' (solo soles en cooperativas). */
+  moneda: 'PEN'
+  cooperativa: Cooperativa
+  /** El n.º de operación se corrige AQUÍ y solo aquí: es la prueba del cierre y
+   * quien cobra no reescribe su propia prueba (decisión de Miguel 2026-08-12). */
+  numeroTransaccion: string
+  /** null LIMPIA el campo — el formulario manda el estado completo. */
+  referencia: string | null
+  venceEn: string | null
+  nota: string | null
+}
+
+/** Corrección de gerencia sobre un cierre externo. La identidad del cierre
+ * (documento, nombre, quién cobró) es inmutable y NO viaja. */
+export async function corregirCierreExterno(
+  datos: CorregirCierreExternoDatos,
+): Promise<{ cierreId: string }> {
+  const numeroTransaccion = datos.numeroTransaccion.trim()
+  if (numeroTransaccion === '') {
+    throw new CrmApiError(
+      'El número de operación del depósito es obligatorio.',
+      'CIERRE_EXTERNO_TRANSACCION_INVALIDA',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('corregir_cierre_externo', {
+    p_cierre_id: datos.cierreId,
+    p_monto: datos.monto,
+    p_moneda: datos.moneda,
+    p_cooperativa: datos.cooperativa,
+    p_numero_transaccion: numeroTransaccion,
+    p_referencia: datos.referencia?.trim() || null,
+    p_vence_en: datos.venceEn,
+    p_nota: datos.nota?.trim() || null,
+  })
+
+  if (error) {
+    let fallo: CrmApiError
+    if (error.code === '42501' || error.code === 'PGRST301') {
+      fallo = new CrmApiError('Solo gerencia corrige cierres externos.', 'SIN_PERMISO')
+    } else if (error.code === '22023') {
+      fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_INVALIDO')
+    } else if (error.code === 'P0409') {
+      // Depósito repetido, o el cierre ya está anulado (y un anulado no se
+      // corrige: no cuenta). El servidor ya lo dice en idioma de negocio.
+      fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_CONFLICTO')
+    } else {
+      fallo = new CrmApiError(
+        'No se pudo corregir el cierre externo.',
+        error.code || 'POSTGREST_ERROR',
+      )
+    }
+    registrarError('crm.cierres_externos.corregir_fallido', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+
+  const respuesta = v.safeParse(
+    v.object({ ok: v.literal(true), cierre_id: v.pipe(v.string(), v.uuid()) }),
+    data,
+  )
+  if (!respuesta.success || respuesta.output.cierre_id !== datos.cierreId) {
+    const fallo = new CrmApiError(
+      'La corrección del cierre externo no tiene el formato esperado.',
+      'CIERRE_EXTERNO_CONTRACT',
+    )
+    registrarError('crm.cierres_externos.corregir_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return { cierreId: respuesta.output.cierre_id }
+}
+
+export interface AnularCierreExternoDatos {
+  cierreId: string
+  motivo: string
+}
+
+/**
+ * El freno de emergencia de gerencia contra un cierre falso o mal digitado: el
+ * cierre deja de contar en la cuota Y en la conversión del vendedor.
+ *
+ * NO borra la fila ni reabre el lead —en el CRM un convertido es terminal por
+ * diseño— y es de UNA SOLA DIRECCIÓN: no se des-anula. Por eso el motivo es
+ * obligatorio aquí y en el servidor: esto le quita dinero a una persona.
+ */
+export async function anularCierreExterno(
+  datos: AnularCierreExternoDatos,
+): Promise<{ cierreId: string }> {
+  const motivo = datos.motivo.trim()
+  if (motivo === '') {
+    throw new CrmApiError(
+      'Escribe el motivo de la anulación.',
+      'CIERRE_EXTERNO_MOTIVO_REQUERIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('anular_cierre_externo', {
+    p_cierre_id: datos.cierreId,
+    p_motivo: motivo,
+  })
+
+  if (error) {
+    let fallo: CrmApiError
+    if (error.code === '42501' || error.code === 'PGRST301') {
+      fallo = new CrmApiError('Solo gerencia anula cierres externos.', 'SIN_PERMISO')
+    } else if (error.code === '22023' || error.code === 'P0409') {
+      // «Escribe el motivo», «Ese cierre ya estaba anulado»: mensajes de negocio.
+      fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_INVALIDO')
+    } else {
+      fallo = new CrmApiError(
+        'No se pudo anular el cierre externo.',
+        error.code || 'POSTGREST_ERROR',
+      )
+    }
+    registrarError('crm.cierres_externos.anular_fallido', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+
+  const respuesta = v.safeParse(
+    v.object({
+      ok: v.literal(true),
+      cierre_id: v.pipe(v.string(), v.uuid()),
+      lead_id: v.pipe(v.string(), v.uuid()),
+    }),
+    data,
+  )
+  if (!respuesta.success || respuesta.output.cierre_id !== datos.cierreId) {
+    const fallo = new CrmApiError(
+      'La anulación del cierre externo no tiene el formato esperado.',
+      'CIERRE_EXTERNO_CONTRACT',
+    )
+    registrarError('crm.cierres_externos.anular_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return { cierreId: respuesta.output.cierre_id }
+}
+
+/**
+ * La fotografía de cierres externos (crm.cierres_externos_fn): filas para la
+ * sección «En cooperativas» de Mi cartera (histórico del ámbito, tope 200),
+ * mini-totales por cooperativa×moneda, el desglose «Por empresa» del mes y las
+ * filas DEL MES para la revisión de supervisor y gerencia.
+ * MENSUAL POR CONTRATO, como la conversión: `periodo` es el primer día del mes.
+ */
+export async function obtenerCierresExternos(
+  periodo: string,
+  signal?: AbortSignal,
+): Promise<CierresExternos> {
+  if (!PERIODO_MENSUAL_RE.test(periodo)) {
+    const fallo = new CrmApiError(
+      'El período de los cierres externos no es válido.',
+      'PERIODO_METRICAS_INVALIDO',
+    )
+    registrarError('crm.cierres_externos.periodo_invalido', fallo)
+    throw fallo
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('cierres_externos_fn', {
+    p_periodo: periodo,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.cierres_externos.consulta_fallida')
+
+  const resultado = v.safeParse(CierresExternosSchema, data)
+  if (!resultado.success || resultado.output.periodo !== periodo) {
+    const fallo = new CrmApiError(
+      'Los cierres externos no tienen el formato esperado.',
+      'CIERRES_EXTERNOS_CONTRACT',
+    )
+    registrarError('crm.cierres_externos.fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
 }

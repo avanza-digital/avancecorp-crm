@@ -102,6 +102,14 @@ vi.mock('@/data/crm-queries', () => ({
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
   },
   useActualizarCapacidadLeadsObjetivo: () => ({ mutateAsync: async () => {} }),
+  // Sin cierres en coops: el bloque «Por empresa» se oculta y no toca la suite.
+  useCierresExternos: () => ({
+    data: undefined,
+    isError: false,
+    isPending: false,
+    isFetching: false,
+    refetch: () => {},
+  }),
 }))
 // crm-api arrastra el cliente de Supabase al importarse.
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_e: unknown, f: string) => f }))

@@ -24,6 +24,7 @@ import { Select } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
+import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { AccionesContacto } from '@/components/app/contacto'
 import { AgendaEquipoPanel } from './agenda-equipo'
 import {
@@ -660,6 +661,13 @@ export function HoySupervisor(): JSX.Element {
               )}
             </CardContent>
           </Card>
+
+          {/* ── Por empresa: de dónde vino cada sol (Avance vs. COOPAC). Se
+               oculta solo si el mes no tiene cierres en cooperativas. ── */}
+          <DesglosePorEmpresa
+            demo={yo?.demo === true}
+            porVendedor={cumplimientoMetas?.porVendedor ?? null}
+          />
 
           {/* ── Alertas SLA (≥5 días sin actividad) — bloque estancados del RPC.
                El tope de 50 es señal, no listado: con 50 justos el badge dice 50+. ── */}

@@ -69,6 +69,14 @@ vi.mock('@/data/crm-queries', () => ({
     data: CONVERSION_MENSUAL ?? undefined,
     isError: CONVERSION_MENSUAL_ERROR,
   }),
+  // Sin cierres en coops: el bloque «Por empresa» se oculta y no toca la suite.
+  useCierresExternos: () => ({
+    data: undefined,
+    isError: false,
+    isPending: false,
+    isFetching: false,
+    refetch: () => {},
+  }),
 }))
 // crm-api arrastra el cliente de Supabase al importarse; solo se usa su
 // formateador de errores.

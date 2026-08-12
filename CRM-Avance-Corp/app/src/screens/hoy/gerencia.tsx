@@ -49,6 +49,7 @@ import { MetasEditor } from './metas-editor'
 import { RankingVendedoresPanel } from './ranking-vendedores'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
+import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 
 interface ConsultaCargable {
   isPending: boolean
@@ -275,6 +276,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
       <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={conversionMensualPaneles} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
+
+      {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por vendedor.
+          Se oculta solo si el mes no tiene cierres en cooperativas. */}
+      {esResumen && (
+        <DesglosePorEmpresa demo={modoDemo} porVendedor={cumplimientoMetas?.porVendedor ?? null} />
+      )}
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 

@@ -88,6 +88,9 @@ vi.mock('@/data/crm-queries', async (importActual) => {
   return {
     ...actual, // conserva crmQueryKeys real
     useClientes: () => q(CLIENTES, ERROR_CLIENTES, REFETCH_CLIENTES),
+    // Sin QueryClient en este harness: el hook real de cierres reventaría al
+    // montarse. Sin datos, la sección «En cooperativas» se oculta sola.
+    useCierresExternos: () => q(undefined),
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
     useClienteDetalle: vi.fn(() => q(DETALLE)),
     // La ficha lee las cuentas del ledger vía la RPC; aquí se sirven desde

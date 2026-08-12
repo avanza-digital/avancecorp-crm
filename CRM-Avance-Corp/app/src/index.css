@@ -40,6 +40,10 @@
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
+  --destructive-text: #991b1b;   /* rojo OSCURO para TEXTO pequeño sobre fondos
+                                    claros, gemelo de --warning-text: 8.3:1 sobre
+                                    blanco, 7.1:1 sobre bg-destructive/10
+                                    (--destructive puro da 4.1:1 ahí y falla). */
   --warning: #d97706;            /* ámbar (no hay verde: "positivo" = azul) */
   --warning-text: #92400e;       /* ámbar OSCURO para TEXTO pequeño sobre fondos claros:
                                     7.1:1 sobre blanco, 6.4:1 sobre bg-warning/10
@@ -106,6 +110,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);
   --color-warning-text: var(--warning-text);
+  --color-destructive-text: var(--destructive-text);
   --color-exito: var(--exito);
   --color-border: var(--border);
   --color-border-strong: var(--border-strong);

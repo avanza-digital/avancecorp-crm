@@ -839,6 +839,43 @@ export interface Database {
         Args: { p_periodo: string }
         Returns: Json
       }
+      cierres_externos_fn: {
+        Args: { p_periodo: string }
+        Returns: Json
+      }
+      convertir_lead_externo: {
+        Args: {
+          p_lead_id: string
+          p_cooperativa: string
+          p_monto: number
+          p_moneda: string
+          p_documento_tipo: string
+          p_documento: string
+          p_nombre: string
+          p_numero_transaccion: string
+          p_referencia?: string | null
+          p_vence_en?: string | null
+          p_nota?: string | null
+        }
+        Returns: Json
+      }
+      corregir_cierre_externo: {
+        Args: {
+          p_cierre_id: string
+          p_monto: number
+          p_moneda: string
+          p_cooperativa: string
+          p_numero_transaccion: string
+          p_referencia: string | null
+          p_vence_en: string | null
+          p_nota: string | null
+        }
+        Returns: Json
+      }
+      anular_cierre_externo: {
+        Args: { p_cierre_id: string; p_motivo: string }
+        Returns: Json
+      }
       configuracion_sla_fn: {
         Args: Record<string, never>
         Returns: Json

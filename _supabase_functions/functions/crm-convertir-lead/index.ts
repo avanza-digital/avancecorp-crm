@@ -159,6 +159,41 @@ Deno.serve(async (req: Request) => {
     if (!valBancarios.ok) return json(cors, { error: valBancarios.error }, 400);
     const columnasBancarias = valBancarios.columnas;
 
+    // RESERVA DURABLE — la última frontera antes de los efectos irreversibles.
+    //
+    // Esta función NO es una transacción: crea el usuario de Auth, inserta el
+    // perfil y MANDA EL CORREO DE BIENVENIDA, y recién al final llama a
+    // `crm.convertir_lead`, que es la única que toma el `FOR UPDATE` del lead.
+    // En esa ventana —segundos, con Resend de por medio— alguien puede confirmar
+    // un cierre en cooperativa sobre el mismo lead: `convertir_lead` moriría con
+    // «El lead ya está cerrado», pero el inversionista de la coop ya tendría
+    // cuenta de portal, contraseña y correo enviado. Un lock de fila no puede
+    // cubrir eso porque no sobrevive entre llamadas HTTP.
+    //
+    // La reserva sí: es durable, la respeta `crm.convertir_lead_externo` y
+    // caduca sola a los pocos minutos (una edge que muera a medias no deja el
+    // lead incerrable). Va AQUÍ, después de todas las validaciones y ANTES del
+    // dedup, porque éste es el último punto del flujo sin efectos secundarios.
+    //
+    // Se toma con la sesión del que llama: la reserva no puede ser una puerta
+    // más ancha que la conversión (mismos gates de rol y de ámbito).
+    const { error: reservaErr } = await userClient
+      .schema("crm").rpc("reservar_conversion_lead", { p_lead_id: lead_id });
+    if (reservaErr) {
+      // PGRST202 = la función no existe todavía: la migración aún no se mergeó.
+      // Es la ventana de despliegue (servidor primero, edge después) y NO puede
+      // matar la conversión Avance de todo el mundo con un error de PostgREST
+      // en crudo. Se degrada: sin reserva no hay protección de carrera, que es
+      // exactamente como funcionaba hasta hoy.
+      if (reservaErr.code === "PGRST202") {
+        console.warn("crm-convertir-lead: reservar_conversion_lead no desplegada aún; se continúa sin reserva");
+      } else {
+        // 409: o el lead se cerró mientras tanto, o hay otra conversión en
+        // vuelo. El mensaje del servidor ya está en idioma de negocio.
+        return json(cors, { error: reservaErr.message }, 409);
+      }
+    }
+
     // Asesor del nuevo cliente = el ANALISTA que ya era dueño del lead. El guard
     // anterior elimina el fallback al caller y conserva la atribución comercial.
     const asesorId = lead.vendedor_id;
@@ -173,6 +208,11 @@ Deno.serve(async (req: Request) => {
     let yaExistia = false;
     let emailEnviado = false;
     let emailError: string | undefined;
+    // Los datos del correo se preparan al crear la cuenta pero se USAN al final,
+    // cuando el lead ya está cerrado (ver el bloque tras convertir_lead).
+    let passwordParaBienvenida: string | null = null;
+    let nombreParaBienvenida = "";
+    let nombreCortoBienvenida = "";
 
     if (existente) {
       if (!existente.activo) return json(cors, { error: "Ese cliente existe pero está inactivo en el portal" }, 409);
@@ -191,6 +231,21 @@ Deno.serve(async (req: Request) => {
 
       // Clave temporal = documento (regla del portal). Cambio obligatorio al ingresar.
       const passwordFinal = claveTemporalDesdeDocumento(dniLimpio);
+      passwordParaBienvenida = passwordFinal;
+      nombreParaBienvenida = nombreNormalizado;
+      nombreCortoBienvenida = nombresNorm || nombreNormalizado;
+
+      // ── EL PUNTO DE NO RETORNO ────────────────────────────────────────────
+      // A partir de la línea siguiente existe una cuenta de portal a nombre de
+      // esta persona. Se sella la reserva para que DEJE DE CADUCAR: si caducara,
+      // una muerte de esta función a mitad devolvería el lead al cierre en
+      // cooperativa cinco minutos después y quedaría un inversionista de coop
+      // con acceso al portal — el agujero exacto que la reserva vino a tapar.
+      const { error: sellarErr } = await userClient
+        .schema("crm").rpc("marcar_efectos_conversion", { p_lead_id: lead_id });
+      if (sellarErr && sellarErr.code !== "PGRST202") {
+        return json(cors, { error: sellarErr.message }, 409);
+      }
 
       const { data: created, error: createErr } = await adminClient.auth.admin.createUser({
         email: emailNormalizado,
@@ -235,7 +290,36 @@ Deno.serve(async (req: Request) => {
         return json(cors, { error: `Error al crear el cliente: ${perfilErr.message}` }, 400);
       }
 
-      // Correo de bienvenida (background-tolerante: si Resend falla NO rompe la conversión).
+      // EL CORREO YA NO SE MANDA AQUÍ. Ver el bloque de abajo, tras cerrar el
+      // lead: es el único efecto de toda esta función que NO se puede deshacer,
+      // y mandarlo antes de saber si el lead se cierra es lo que dejaba a un
+      // inversionista de cooperativa con una bienvenida al portal en la bandeja.
+    }
+
+    // ENLACE + cierre del lead como ganado (RPC privilegiada, autoriza por ámbito).
+    const { error: convErr } = await userClient
+      .schema("crm").rpc("convertir_lead", { p_lead_id: lead_id, p_perfil_id: perfilId });
+    if (convErr) {
+      // El cliente pudo haberse creado; NO se borra (el documento ya quedó registrado
+      // y un reintento lo detecta por dedup y solo enlaza). Se reporta el fallo del enlace.
+      // Y NO se manda el correo: si el lead no se cerró, esta persona todavía
+      // podría acabar cerrándose en una cooperativa, y una bienvenida al portal
+      // en su bandeja no se puede retirar.
+      return json(cors, {
+        error: `El cliente quedó creado, pero no se pudo cerrar el lead: ${convErr.message}. Reintenta la conversión.`,
+        perfil_id: perfilId, cliente_creado: !yaExistia,
+      }, 409);
+    }
+
+    // ── CORREO DE BIENVENIDA — el último paso, y a propósito ─────────────────
+    // Es el único efecto irreversible de toda esta función: una cuenta de Auth
+    // se puede borrar y un perfil se puede desactivar, pero un correo enviado no
+    // vuelve. Por eso sale AQUÍ, cuando el lead ya está cerrado como cliente de
+    // Avance y ya no existe ningún camino por el que esta persona termine
+    // registrada en una cooperativa.
+    // Sigue siendo background-tolerante: si Resend falla, la conversión ya está
+    // hecha y el fallo se reporta sin deshacer nada.
+    if (passwordParaBienvenida !== null) {
       const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
       if (!RESEND_API_KEY) {
         emailError = "RESEND_API_KEY no configurada";
@@ -249,9 +333,9 @@ Deno.serve(async (req: Request) => {
               to: [emailNormalizado],
               subject: "Bienvenido(a) a tu portal de inversiones Avance Corp",
               html: plantillaBienvenida({
-                nombre: nombresNorm || nombreNormalizado,
+                nombre: nombreCortoBienvenida || nombreParaBienvenida,
                 correo: emailNormalizado,
-                passwordInicial: passwordFinal,
+                passwordInicial: passwordParaBienvenida,
                 claveTemporal: true,
               }),
             }),
@@ -262,18 +346,6 @@ Deno.serve(async (req: Request) => {
           emailError = (e as Error)?.message || "Error al enviar el correo";
         }
       }
-    }
-
-    // ENLACE + cierre del lead como ganado (RPC privilegiada, autoriza por ámbito).
-    const { error: convErr } = await userClient
-      .schema("crm").rpc("convertir_lead", { p_lead_id: lead_id, p_perfil_id: perfilId });
-    if (convErr) {
-      // El cliente pudo haberse creado; NO se borra (el documento ya quedó registrado
-      // y un reintento lo detecta por dedup y solo enlaza). Se reporta el fallo del enlace.
-      return json(cors, {
-        error: `El cliente quedó creado, pero no se pudo cerrar el lead: ${convErr.message}. Reintenta la conversión.`,
-        perfil_id: perfilId, cliente_creado: !yaExistia,
-      }, 409);
     }
 
     return json(cors, {

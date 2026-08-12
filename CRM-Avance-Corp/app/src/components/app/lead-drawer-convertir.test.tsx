@@ -7,7 +7,7 @@
 // SKIPPED por el gate FUNCIONES_LEADS_APROBADAS — esta suite es hoy la única
 // que ejercita el flujo real con bancarios de punta a punta (backend mockeado).
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
@@ -33,6 +33,12 @@ vi.mock('@/data/crm-api', async (importActual) => {
 // Este archivo prueba la conversión; el transporte de cuentas tiene su suite
 // propia (queries + MSW + E2E). Aislamos aquí el hook para que ContratoNuevo
 // pueda montarse sin convertir este test en otro harness de QueryClient.
+// `mutarCierreExterno` es el mutateAsync del cierre en cooperativa: hoisted
+// porque el mock de módulo se evalúa antes que el cuerpo del archivo.
+const { mutarCierreExterno } = vi.hoisted(() => ({
+  mutarCierreExterno: vi.fn(),
+}))
+
 vi.mock('@/data/crm-queries', () => ({
   useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
     data: moneda === 'PEN'
@@ -56,6 +62,7 @@ vi.mock('@/data/crm-queries', () => ({
     isFetching: false,
     refetch: vi.fn(),
   })),
+  useConvertirLeadExterno: vi.fn(() => ({ mutateAsync: mutarCierreExterno })),
 }))
 
 // El catálogo versionado tiene sus pruebas propias. Este diálogo solo necesita
@@ -120,8 +127,14 @@ function montar({
 }: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {}) {
   const onClose = vi.fn()
   const recargar = vi.fn().mockResolvedValue(true)
-  // Stub mínimo del store: DialogConvertir solo usa convertir (demo) y recargar.
-  const api = { convertir: vi.fn(() => ({ ok: true })), recargar } as unknown as StoreDataApi
+  const convertirExterno = vi.fn(() => ({ ok: true }))
+  // Stub mínimo del store: DialogConvertir solo usa convertir/convertirExterno
+  // (demo) y recargar.
+  const api = {
+    convertir: vi.fn(() => ({ ok: true })),
+    convertirExterno,
+    recargar,
+  } as unknown as StoreDataApi
   render(
     <AuthContext.Provider value={sesion(demo, rol)}>
       <StoreDataContext.Provider value={api}>
@@ -129,7 +142,27 @@ function montar({
       </StoreDataContext.Provider>
     </AuthContext.Provider>,
   )
-  return { onClose, recargar }
+  return { onClose, recargar, convertirExterno }
+}
+
+/** El flujo arranca en «¿Dónde invirtió?»: esta variante lo pasa eligiendo
+ *  Avance Corp, que es donde vive todo el flujo histórico de esta suite. */
+async function montarEnAvance(
+  opts: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {},
+) {
+  const res = montar(opts)
+  await userEvent.setup().click(screen.getByRole('button', { name: /Avance Corp/ }))
+  return res
+}
+
+/** La variante COOPERATIVA del mismo arranque. */
+async function montarEnCoop(
+  opts: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {},
+  coop: 'Qorilazo' | 'Prodelco' = 'Qorilazo',
+) {
+  const res = montar(opts)
+  await userEvent.setup().click(screen.getByRole('button', { name: new RegExp(`COOPAC ${coop}`) }))
+  return res
 }
 
 /** Identidad mínima válida del paso convertir (correo + DNI de 8). */
@@ -152,7 +185,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('un lead sin analista se bloquea antes de tocar Edge, Auth o portal', async () => {
     const user = userEvent.setup()
-    montar({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
+    await montarEnAvance({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
 
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
@@ -163,8 +196,8 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(actualizarCliente).not.toHaveBeenCalled()
   })
 
-  it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', () => {
-    montar()
+  it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', async () => {
+    await montarEnAvance()
     expect(screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Cuenta bancaria en Dólares (USD)' })).toBeInTheDocument()
     expect(document.getElementById('cv-pen-banco')).not.toBeNull()
@@ -173,7 +206,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('regla "al menos una cuenta" AL CONVERTIR: sin bancarios NO toca el servidor', async () => {
     const user = userEvent.setup()
-    montar()
+    await montarEnAvance()
     await llenarIdentidad(user)
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
@@ -186,7 +219,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('sección a medias: el error sube con su moneda y tampoco toca el servidor', async () => {
     const user = userEvent.setup()
-    montar()
+    await montarEnAvance()
     await llenarIdentidad(user)
     const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
     await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
@@ -199,7 +232,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
   it('feliz: UNA sola llamada con identidad + bancarios, y encadena el contrato', async () => {
     const user = userEvent.setup()
     convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
-    const { recargar } = montar()
+    const { recargar } = await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
@@ -238,7 +271,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     convertirEdge.mockResolvedValue({ perfil_id: 'perfil-7', ya_existia: true, email_enviado: false })
     // El caso legítimo y frecuente (renovación): el DNI ya era cliente… mío.
     enMiCartera.mockResolvedValue(true)
-    montar()
+    await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user) // el vendedor no puede saber que ya existía
@@ -278,7 +311,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     // La edge NO le cambia el asesor_perfil_id al cliente existente: sigue
     // siendo de quien lo tenía, y `public.crear_contrato` exige cartera propia.
     enMiCartera.mockResolvedValue(false)
-    montar()
+    await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
@@ -300,7 +333,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     const user = userEvent.setup()
     convertirEdge.mockResolvedValue({ perfil_id: 'perfil-8', ya_existia: true, email_enviado: false })
     enMiCartera.mockResolvedValue(null) // red caída / RLS: NO es un "false"
-    montar()
+    await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
@@ -323,7 +356,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
         'CONVERTIR_FALLIDO',
       ),
     )
-    const { recargar } = montar()
+    const { recargar } = await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
@@ -343,7 +376,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
   it('la edge rechaza: muestra su mensaje es-PE, sin PATCH y sin estado terminal', async () => {
     const user = userEvent.setup()
     convertirEdge.mockRejectedValue(new CrmApiError('Este correo ya está registrado.', 'CONVERTIR_FALLIDO'))
-    montar()
+    await montarEnAvance()
 
     await llenarIdentidad(user)
     await llenarPenCompleta(user)
@@ -356,9 +389,234 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(screen.queryByRole('button', { name: 'Entendido' })).not.toBeInTheDocument()
   })
 
-  it('demo: el diálogo simulado NO pide bancarios (nada real que guardar)', () => {
-    montar({ demo: true })
+  it('demo: el diálogo simulado NO pide bancarios (nada real que guardar)', async () => {
+    await montarEnAvance({ demo: true })
     expect(screen.queryByRole('group', { name: /Cuenta bancaria/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Convertir (demo)' })).toBeInTheDocument()
+  })
+})
+
+describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('el flujo arranca preguntando el destino, con las TRES empresas a la vista', () => {
+    montar()
+    expect(screen.getByRole('dialog', { name: '¿Dónde invirtió?' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Avance Corp/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /COOPAC Qorilazo/ })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /COOPAC Prodelco/ })).toBeInTheDocument()
+    // Ni una llamada por mirar el menú.
+    expect(convertirEdge).not.toHaveBeenCalled()
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
+  it('el formulario coop NO pide correo ni bancarios: no hay portal que crear', async () => {
+    await montarEnCoop()
+    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
+    expect(screen.queryByLabelText('Correo del cliente')).not.toBeInTheDocument()
+    expect(screen.queryByRole('group', { name: /Cuenta bancaria/ })).not.toBeInTheDocument()
+    // El nombre llega precargado del lead.
+    expect(screen.getByLabelText('Nombre completo')).toHaveValue('JUAN PEREZ ROJAS')
+  })
+
+  it('NO se pregunta la moneda: en cooperativas solo se invierte en soles', async () => {
+    await montarEnCoop()
+    // Ofrecer una decisión que no existe (y que el servidor rechazaría) es peor
+    // que no ofrecerla: el rótulo del monto dice la moneda.
+    expect(screen.queryByLabelText('Moneda')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
+  })
+
+  it('sin N.° de operación no viaja nada: es la prueba del cierre', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop()
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/N.° de operación del depósito/)
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
+  it('un monto de 2 decimales como 10000.03 SÍ se acepta (coma flotante)', async () => {
+    // `10000.03 * 100` da 1000003.0000000001 en JavaScript, así que la
+    // comparación exacta acusaba tres decimales a un monto perfectamente
+    // válido y el vendedor no podía registrar su cierre.
+    const user = userEvent.setup()
+    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'c-1', cooperativa: 'qorilazo' })
+    await montarEnCoop()
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000.03')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(mutarCierreExterno).toHaveBeenCalledWith(
+      expect.objectContaining({ monto: 10000.03 }),
+    )
+  })
+
+  it('tres decimales de verdad siguen rechazándose', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop()
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000.035')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC3')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('máximo 2 decimales')
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
+  it('si el depósito ya estaba registrado, se muestra el mensaje del servidor', async () => {
+    const user = userEvent.setup()
+    mutarCierreExterno.mockRejectedValue(
+      new CrmApiError(
+        'Ese numero de operacion ya esta registrado en esa cooperativa',
+        'CIERRE_EXTERNO_CONFLICTO',
+      ),
+    )
+    const { onClose } = await montarEnCoop()
+
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-REPETIDA')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/ya esta registrado/)
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('sin monto REAL no viaja nada: es lo que suma a la cuota', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop()
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/monto REAL invertido/)
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
+  it('documento inválido para el tipo: el error habla el idioma del formulario', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop()
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
+    await user.type(screen.getByLabelText('N° de documento'), '123')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El DNI debe tener 8 dígitos')
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
+  it('un lead sin analista tampoco se cierra en coop (misma regla que Avance)', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Asigna el lead a un analista antes de convertirlo',
+    )
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+  })
+
+  it('feliz: la RPC recibe la foto completa, se recarga el pipeline y se cierra', async () => {
+    const user = userEvent.setup()
+    mutarCierreExterno.mockResolvedValue({ leadId: 'lead-1', cierreId: 'cierre-1', cooperativa: 'prodelco' })
+    const { onClose, recargar } = await montarEnCoop({}, 'Prodelco')
+
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '12500.50')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-2026-9')
+    await user.type(screen.getByLabelText('Certificado de la coop (opcional)'), 'PRO-2026-9')
+    await user.click(screen.getByRole('button', { name: /Cerrar en PRODELCO/ }))
+
+    expect(mutarCierreExterno).toHaveBeenCalledWith({
+      leadId: 'lead-1',
+      cooperativa: 'prodelco',
+      monto: 12500.5,
+      moneda: 'PEN',
+      documentoTipo: 'DNI',
+      documento: '45781234',
+      nombre: 'JUAN PEREZ ROJAS',
+      numeroTransaccion: 'OP-2026-9',
+      referencia: 'PRO-2026-9',
+      venceEn: null,
+      nota: null,
+    })
+    // El lead quedó convertido en el servidor: el pipeline se refresca y NO
+    // se encadena contrato alguno (no hay portal detrás).
+    expect(recargar).toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+    expect(toast.success).toHaveBeenCalledWith(
+      'JUAN PEREZ ROJAS cerrado en COOPAC Prodelco — ya cuenta en tu cuota y conversión',
+    )
+    expect(screen.queryByRole('dialog', { name: /Crear contrato/ })).not.toBeInTheDocument()
+  })
+
+  it('el servidor rechaza (p. ej. doble cierre): su mensaje se muestra y nada se cierra', async () => {
+    const user = userEvent.setup()
+    mutarCierreExterno.mockRejectedValue(new CrmApiError('El lead ya está cerrado.', 'LEAD_YA_CERRADO'))
+    const { onClose, recargar } = await montarEnCoop()
+
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '1000')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-1')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('El lead ya está cerrado.')
+    expect(recargar).not.toHaveBeenCalled()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('demo: el cierre coop va al store (convertirExterno), jamás a la RPC', async () => {
+    const user = userEvent.setup()
+    const { onClose, convertirExterno } = await montarEnCoop({ demo: true })
+
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '8000')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEMO')
+    await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
+
+    expect(convertirExterno).toHaveBeenCalledWith('lead-1', {
+      cooperativa: 'qorilazo',
+      monto: 8000,
+      numeroTransaccion: 'OP-DEMO',
+    })
+    expect(mutarCierreExterno).not.toHaveBeenCalled()
+    expect(onClose).toHaveBeenCalled()
+  })
+
+  it('«Volver» regresa al destino sin perder el diálogo', async () => {
+    const user = userEvent.setup()
+    await montarEnCoop()
+    await user.click(screen.getByRole('button', { name: 'Volver' }))
+    expect(screen.getByRole('dialog', { name: '¿Dónde invirtió?' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Avance Corp/ })).toBeInTheDocument()
+  })
+
+  it('tras «Volver», el foco NO se queda sobre el botón que ahora dice «Cancelar»', async () => {
+    // Los dos pasos tienen un <Button> en la misma posición del footer: sin
+    // `key` distintas React reutiliza el MISMO nodo del DOM, el foco no se
+    // mueve, y el botón bajo el dedo pasa a llamarse «Cancelar» y a cerrar el
+    // diálogo entero. Un segundo Enter —el de quien no oyó nada— se llevaba el
+    // monto, el documento y el N.° de operación ya escritos. Mismo bug que
+    // cerrar-tarea.tsx ya documentó (WCAG 4.1.2).
+    const user = userEvent.setup()
+    const { onClose } = await montarEnCoop()
+    await user.type(screen.getByLabelText('Monto REAL invertido (S/)'), '10000')
+    await user.click(screen.getByRole('button', { name: 'Volver' }))
+
+    const cancelar = screen.getByRole('button', { name: 'Cancelar' })
+    expect(document.activeElement).not.toBe(cancelar)
+    // Y el foco vuelve a la tarjeta de la cooperativa de donde se salió (el
+    // rescate va en un requestAnimationFrame, de ahí el waitFor).
+    await waitFor(() => {
+      expect(document.activeElement).toBe(
+        screen.getByRole('button', { name: /COOPAC Qorilazo/ }),
+      )
+    })
+    // El segundo Enter ya no cierra nada: reabre el formulario.
+    await user.keyboard('{Enter}')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Monto REAL invertido (S/)')).toBeInTheDocument()
   })
 })

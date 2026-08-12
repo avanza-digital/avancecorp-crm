@@ -6,8 +6,17 @@ import {
   type QueryKey,
 } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
+import type {
+  AnularCierreExternoDatos,
+  ConvertirLeadExternoDatos,
+  CorregirCierreExternoDatos,
+} from './crm-api'
 import {
   actualizarCapacidadLeadsObjetivo,
+  anularCierreExterno,
+  convertirLeadExterno,
+  corregirCierreExterno,
+  obtenerCierresExternos,
   listarCarteraPagina,
   listarClientes,
   listarColaAccion,
@@ -83,6 +92,12 @@ export const crmQueryKeys = {
   // por el mismo motivo: el ámbito lo recorta el servidor según quién pregunta.
   conversionMensual: (periodo: string) =>
     [...crmQueryKeys.metricas(), 'conversion-mensual', periodo] as const,
+  // Cierres en cooperativas (Qorilazo/Prodelco). Clave propia bajo metricas():
+  // el ámbito lo recorta el servidor. El builder SIN periodo existe para que la
+  // mutación de convertir invalide todos los meses cacheados de una pasada.
+  cierresExternosPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-externos'] as const,
+  cierresExternos: (periodo: string) =>
+    [...crmQueryKeys.cierresExternosPrefijo(), periodo] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
@@ -459,6 +474,82 @@ export function useActualizarCapacidadLeadsObjetivo() {
       actualizarCapacidadLeadsObjetivo(analistaId, capacidad),
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+    },
+  })
+}
+
+// ── Cierres externos en cooperativas (Qorilazo / Prodelco) ────────────────────
+
+/**
+ * La fotografía de cierres externos (crm.cierres_externos_fn): la sección
+ * «En cooperativas» de Mi cartera y el desglose «Por empresa» de supervisor y
+ * gerencia. MENSUAL por contrato, como la conversión: un solo argumento, el
+ * primer día del mes (las filas y los totales son históricos del ámbito; lo
+ * mensual es el bloque por_empresa).
+ */
+export function useCierresExternos(habilitada: boolean, periodo: string) {
+  return useQuery({
+    queryKey: crmQueryKeys.cierresExternos(periodo),
+    queryFn: ({ signal }) => obtenerCierresExternos(periodo, signal),
+    enabled: habilitada && Boolean(periodo),
+  })
+}
+
+/**
+ * Convertir cerrando en una COOPERATIVA. Invalida las cuatro fotografías que
+ * el cierre mueve: los cierres externos (todos los meses cacheados), la
+ * conversión mensual, la cartera paginada (el lead cambió de etapa) y los
+ * tiles del ámbito. El cumplimiento de metas NO vive en TanStack (lo carga el
+ * store): el llamador debe refrescarlo por su vía, igual que el flujo Avance.
+ */
+export function useConvertirLeadExterno() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: ConvertirLeadExternoDatos) => convertirLeadExterno(datos),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresExternosPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
+        }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+      ])
+    },
+  })
+}
+
+/** Corrección de gerencia sobre un cierre externo (monto/cooperativa/n.º de
+ * operación/certificado/vencimiento/nota). El prefijo métrico cubre cierres y
+ * cuota; la conversión NO se mueve (corregir no cambia si hubo cierre o no). */
+export function useCorregirCierreExterno() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: CorregirCierreExternoDatos) => corregirCierreExterno(datos),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+    },
+  })
+}
+
+/**
+ * Anulación de gerencia. A diferencia de corregir, esto SÍ mueve la conversión
+ * del vendedor —un cierre anulado deja de contar como ganado—, así que invalida
+ * lo mismo que convertir: cierres, conversión mensual y los tiles del ámbito.
+ * La cartera no hace falta (el lead sigue convertido: no se reabre).
+ */
+export function useAnularCierreExterno() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: AnularCierreExternoDatos) => anularCierreExterno(datos),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresExternosPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
+        }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+      ])
     },
   })
 }

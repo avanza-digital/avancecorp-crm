@@ -6773,6 +6773,339 @@ async function testConversionMensual(sessions, seed) {
   );
 }
 
+const IDS_CIERRES_EXTERNOS = Object.freeze({
+  leadAjeno: randomUUID(),
+  leadCoop: randomUUID(),
+});
+
+async function testCierresExternos(sessions, seed) {
+  console.log('\n— Cierres externos en cooperativas (Qorilazo/Prodelco) —');
+
+  // Mismo calculo de periodo EN LIMA que el bloque de conversion: la RPC
+  // rechaza el mes futuro con el reloj de Lima, no el de la maquina.
+  const enLima = (fecha) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(fecha);
+  const PERIODO = `${enLima(new Date()).slice(0, 7)}-01`;
+  const ids = seed.profileIdByKey;
+
+  const pedirFn = (clave) => sessions[clave].client
+    .schema('crm').rpc('cierres_externos_fn', { p_periodo: PERIODO });
+  const convertir = (clave, args) => sessions[clave].client
+    .schema('crm').rpc('convertir_lead_externo', args);
+  const corregir = (clave, args) => sessions[clave].client
+    .schema('crm').rpc('corregir_cierre_externo', args);
+
+  // ── 1 · La tabla es deny-by-default ABSOLUTO: nadie la toca directo ───────
+  for (const clave of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `cierres_externos: select directo denegado para ${clave}`,
+      sessions[clave].client.schema('crm').from('cierres_externos').select('id').limit(1),
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'cierres_externos: insert directo denegado incluso para gerencia',
+    sessions.gerencia.client.schema('crm').from('cierres_externos').insert({
+      cooperativa: 'qorilazo',
+      creado_por: ids.gerencia,
+      documento: '99887799',
+      documento_tipo: 'DNI',
+      lead_id: IDS_CIERRES_EXTERNOS.leadCoop,
+      moneda: 'PEN',
+      monto: 1,
+      nombre_completo: 'X',
+      vendedor_id: ids.vend1,
+    }),
+  );
+
+  // ── 2 · La RPC de lectura: allowlist y ambito por rol ─────────────────────
+  const lecturaVend = await positive('vend1 lee cierres_externos_fn', pedirFn('vend1'));
+  if (lecturaVend) {
+    check(lecturaVend.data?.alcance === 'propio',
+      'el alcance de vend1 es propio', JSON.stringify(lecturaVend.data?.alcance));
+  }
+  const lecturaSup = await positive('sup1 lee cierres_externos_fn', pedirFn('sup1'));
+  if (lecturaSup) {
+    check(lecturaSup.data?.alcance === 'equipo',
+      'el alcance de sup1 es equipo', JSON.stringify(lecturaSup.data?.alcance));
+  }
+  const lecturaGer = await positive('gerencia lee cierres_externos_fn', pedirFn('gerencia'));
+  if (lecturaGer) {
+    check(lecturaGer.data?.alcance === 'global',
+      'el alcance de gerencia es global', JSON.stringify(lecturaGer.data?.alcance));
+  }
+  const lecturaDir = await positive(
+    'directorio (lector global) lee cierres_externos_fn', pedirFn('directorio'),
+  );
+  if (lecturaDir) {
+    check(lecturaDir.data?.alcance === 'global',
+      'el alcance del lector global es global', JSON.stringify(lecturaDir.data?.alcance));
+    check(Array.isArray(lecturaDir.data?.cierres) && lecturaDir.data.cierres.length === 0,
+      'el lector global recibe agregados SIN filas (la PII es de los operadores)',
+      JSON.stringify(lecturaDir.data?.cierres));
+  }
+  await expectExplicitAuthorizationDenied(
+    'coordinador denegado en cierres_externos_fn', pedirFn('coordinador'),
+  );
+  await expectExplicitAuthorizationDenied(
+    'cliente denegado en cierres_externos_fn', pedirFn('clientBank'),
+  );
+
+  // Linea base para la delta global (el fixture del branch puede traer lo suyo).
+  const totalAntes = Number(lecturaGer?.data?.cierres_total ?? 0);
+
+  try {
+    // ── 3 · El ciclo real: convertir a cooperativa por la VIA REAL ──────────
+    await requireAdmin(
+      'sembrar los dos leads transitorios de cierres externos',
+      admin.schema('crm').from('leads').insert([
+        {
+          activo: true,
+          asignado_supervisor_id: null,
+          creado_por: ids.vend1,
+          etapa: 'nuevo',
+          id: IDS_CIERRES_EXTERNOS.leadCoop,
+          moneda: 'PEN',
+          monto_estimado: 4000,
+          no_contactar: false,
+          nombre_completo: 'CIERRE EXTERNO TRANSIENT',
+          origen: 'otro',
+          telefono: '999000141',
+          vendedor_id: ids.vend1,
+        },
+        {
+          activo: true,
+          asignado_supervisor_id: null,
+          creado_por: ids.vend3,
+          etapa: 'nuevo',
+          id: IDS_CIERRES_EXTERNOS.leadAjeno,
+          moneda: 'PEN',
+          monto_estimado: 4000,
+          no_contactar: false,
+          nombre_completo: 'CIERRE EXTERNO AJENO TRANSIENT',
+          origen: 'otro',
+          telefono: '999000142',
+          vendedor_id: ids.vend3,
+        },
+      ]),
+    );
+
+    // El numero de operacion se DERIVA del UUID aleatorio de la corrida y no es
+    // una constante: el indice unico `(cooperativa, numero_transaccion)` lo
+    // vigila, el bloque deja la fila viva a proposito (un cierre no se borra) y
+    // con un literal fijo una segunda corrida sobre la misma base chocaria
+    // contra su propio rastro en vez de probar nada.
+    const OPERACION = `OP-GATE-${IDS_CIERRES_EXTERNOS.leadCoop.slice(0, 8)}`;
+    const argsCoop = {
+      p_cooperativa: 'qorilazo',
+      p_documento: '99887761',
+      p_documento_tipo: 'DNI',
+      p_lead_id: IDS_CIERRES_EXTERNOS.leadCoop,
+      p_moneda: 'PEN',
+      p_monto: 1234.56,
+      p_nombre: 'CIERRE EXTERNO TRANSIENT',
+      p_numero_transaccion: OPERACION,
+      p_referencia: 'QOR-GATE-1',
+    };
+
+    const ajeno = await convertir('vend1', {
+      ...argsCoop, p_lead_id: IDS_CIERRES_EXTERNOS.leadAjeno,
+    });
+    check(ajeno.error != null && /fuera de tu ambito/i.test(ajeno.error?.message ?? ''),
+      'vend1 no convierte a coop un lead del equipo ajeno', errorText(ajeno.error));
+
+    await expectExplicitAuthorizationDenied(
+      'coordinador no convierte a cooperativa', convertir('coordinador', argsCoop),
+    );
+    await expectExplicitAuthorizationDenied(
+      'cliente no convierte a cooperativa', convertir('clientBank', argsCoop),
+    );
+    await expectExplicitAuthorizationDenied(
+      'directorio (lector global) no convierte a cooperativa',
+      convertir('directorio', argsCoop),
+    );
+
+    const cierre = await positive(
+      'vend1 convierte su lead a COOPAC Qorilazo (sin portal, sin correo)',
+      convertir('vend1', argsCoop),
+    );
+    if (cierre) {
+      check(cierre.data?.ok === true,
+        'la conversion externa respondio ok', JSON.stringify(cierre.data));
+    }
+
+    const leadTras = await requireAdmin(
+      'leer el lead convertido (admin)',
+      admin.schema('crm').from('leads')
+        .select('etapa, perfil_id, convertido_en')
+        .eq('id', IDS_CIERRES_EXTERNOS.leadCoop).single(),
+    );
+    check(leadTras.data.etapa === 'convertido'
+      && leadTras.data.perfil_id === null
+      && leadTras.data.convertido_en !== null,
+      'el lead quedo convertido SIN perfil de portal (el invariante relajado)',
+      JSON.stringify(leadTras.data));
+
+    const doble = await convertir('vend1', argsCoop);
+    check(doble.error != null && /ya esta cerrado/i.test(doble.error?.message ?? ''),
+      'el doble cierre externo se rechaza', errorText(doble.error));
+
+    const lecturaTras = await positive(
+      'vend1 relee cierres_externos_fn tras el cierre', pedirFn('vend1'),
+    );
+    const fila = (lecturaTras?.data?.cierres ?? [])
+      .find((c) => c.lead_id === IDS_CIERRES_EXTERNOS.leadCoop) ?? null;
+    check(fila !== null,
+      'el cierre de vend1 aparece en sus filas con su distintivo',
+      JSON.stringify(lecturaTras?.data?.cierres));
+    if (fila) {
+      check(fila.cooperativa === 'qorilazo' && Number(fila.monto) === 1234.56,
+        'la fila trae cooperativa y monto reales', JSON.stringify(fila));
+    }
+
+    const gerTras = await positive(
+      'gerencia relee cierres_externos_fn (delta global)', pedirFn('gerencia'),
+    );
+    check(Number(gerTras?.data?.cierres_total ?? 0) === totalAntes + 1,
+      'cierres_total global subio exactamente en 1',
+      JSON.stringify({ antes: totalAntes, despues: gerTras?.data?.cierres_total }));
+
+    // ── 4 · La correccion es de gerencia ────────────────────────────────────
+    const cierreId = fila?.cierre_id ?? null;
+    if (cierreId) {
+      const argsCorreccion = {
+        p_cierre_id: cierreId,
+        p_cooperativa: 'prodelco',
+        p_moneda: 'PEN',
+        p_monto: 1500,
+        p_nota: null,
+        p_numero_transaccion: OPERACION,
+        p_referencia: 'QOR-GATE-1',
+        p_vence_en: null,
+      };
+      await expectExplicitAuthorizationDenied(
+        'vend1 no corrige un cierre externo', corregir('vend1', argsCorreccion),
+      );
+      await expectExplicitAuthorizationDenied(
+        'sup1 no corrige un cierre externo', corregir('sup1', argsCorreccion),
+      );
+      await expectExplicitAuthorizationDenied(
+        'directorio no corrige un cierre externo', corregir('directorio', argsCorreccion),
+      );
+      const correccion = await positive(
+        'gerencia corrige el cierre (monto y cooperativa)',
+        corregir('gerencia', argsCorreccion),
+      );
+      if (correccion) {
+        const relectura = await positive('vend1 ve el cierre corregido', pedirFn('vend1'));
+        const filaTras = (relectura?.data?.cierres ?? [])
+          .find((c) => c.lead_id === IDS_CIERRES_EXTERNOS.leadCoop) ?? null;
+        check(filaTras?.cooperativa === 'prodelco' && Number(filaTras?.monto) === 1500,
+          'la correccion quedo en la foto', JSON.stringify(filaTras));
+      }
+
+      // ── 5 · La ANULACION es de gerencia, y deja de contar ────────────────
+      // Es el freno de emergencia contra un cierre falso. Aqui se vigila QUIEN
+      // puede tirar de el (solo gerencia) y que el cierre salga de los totales
+      // sin desaparecer de las filas.
+      const anular = (clave, args) => sessions[clave].client
+        .schema('crm').rpc('anular_cierre_externo', args);
+      const argsAnular = { p_cierre_id: cierreId, p_motivo: 'GATE: cierre de prueba' };
+      await expectExplicitAuthorizationDenied(
+        'vend1 no anula un cierre externo', anular('vend1', argsAnular),
+      );
+      await expectExplicitAuthorizationDenied(
+        'sup1 no anula un cierre externo', anular('sup1', argsAnular),
+      );
+      await expectExplicitAuthorizationDenied(
+        'directorio no anula un cierre externo', anular('directorio', argsAnular),
+      );
+      const sinMotivo = await anular('gerencia', { p_cierre_id: cierreId, p_motivo: '   ' });
+      check(sinMotivo.error != null && /motivo/i.test(sinMotivo.error?.message ?? ''),
+        'gerencia tampoco anula SIN motivo', errorText(sinMotivo.error));
+
+      const anulacion = await positive('gerencia anula el cierre', anular('gerencia', argsAnular));
+      if (anulacion) {
+        const traAnular = await positive('vend1 relee tras la anulacion', pedirFn('vend1'));
+        const filaAnulada = (traAnular?.data?.cierres ?? [])
+          .find((c) => c.lead_id === IDS_CIERRES_EXTERNOS.leadCoop) ?? null;
+        check(filaAnulada != null && filaAnulada.anulado_en != null,
+          'el cierre anulado SIGUE en las filas, marcado',
+          JSON.stringify(filaAnulada));
+        const enTotales = (traAnular?.data?.totales ?? [])
+          .some((t) => t.cooperativa === 'prodelco' && Number(t.capital) >= 1500);
+        check(!enTotales,
+          'el cierre anulado salio de los totales (no es dinero)',
+          JSON.stringify(traAnular?.data?.totales));
+        const doble = await anular('gerencia', argsAnular);
+        check(doble.error != null && /ya estaba anulado/i.test(doble.error?.message ?? ''),
+          'un cierre anulado no se anula dos veces', errorText(doble.error));
+      }
+    }
+
+    // ── 6 · La RESERVA: quien puede apartar un lead para convertirlo ────────
+    // La toma la edge de Avance ANTES de crear el usuario y el correo; aqui se
+    // vigila que no sea una puerta mas ancha que la conversion misma.
+    const reservar = (clave, leadId) => sessions[clave].client
+      .schema('crm').rpc('reservar_conversion_lead', { p_lead_id: leadId });
+    await expectExplicitAuthorizationDenied(
+      'coordinador no reserva una conversion',
+      reservar('coordinador', IDS_CIERRES_EXTERNOS.leadAjeno),
+    );
+    await expectExplicitAuthorizationDenied(
+      'cliente no reserva una conversion',
+      reservar('clientBank', IDS_CIERRES_EXTERNOS.leadAjeno),
+    );
+    const reservaAjena = await reservar('vend1', IDS_CIERRES_EXTERNOS.leadAjeno);
+    check(reservaAjena.error != null && /fuera de tu ambito/i.test(reservaAjena.error?.message ?? ''),
+      'vend1 no reserva un lead del equipo ajeno', errorText(reservaAjena.error));
+    const reservaCerrado = await reservar('vend1', IDS_CIERRES_EXTERNOS.leadCoop);
+    check(reservaCerrado.error != null && /ya esta cerrado/i.test(reservaCerrado.error?.message ?? ''),
+      'no se reserva un lead ya convertido (asi la edge se entera ANTES de crear nada)',
+      errorText(reservaCerrado.error));
+    // Sonda FUERTE (42501), no `expectHidden`: en una tabla sensible «0 filas»
+    // no demuestra nada —lo dice el propio docstring del helper— y una reserva
+    // forjada bloquea el cierre en cooperativa de un lead ajeno.
+    for (const clave of ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio', 'clientBank']) {
+      await expectExplicitAuthorizationDenied(
+        `conversion_reservas: select directo denegado para ${clave}`,
+        sessions[clave].client.schema('crm').from('conversion_reservas').select('lead_id'),
+      );
+      await expectExplicitAuthorizationDenied(
+        `conversion_reservas: insert directo denegado para ${clave}`,
+        sessions[clave].client.schema('crm').from('conversion_reservas').insert({
+          lead_id: IDS_CIERRES_EXTERNOS.leadAjeno,
+          reservado_por: ids.vend1,
+          expira_en: new Date(Date.now() + 60000).toISOString(),
+          vence_absoluto_en: new Date(Date.now() + 600000).toISOString(),
+        }),
+      );
+    }
+
+    // El NaN por la API REAL: es la ruta por la que llegaría de verdad
+    // (PostgREST convierte la cadena JSON con el input del tipo numeric), y en
+    // Postgres `NaN > 0` es TRUE, así que se colaba por todas las guardas y
+    // envenenaba la suma de la cuota del mes entera.
+    // Se asevera el MOTIVO y no solo «hubo error»: sobre este lead ya cerrado
+    // cualquier payload falla, así que un `error != null` a secas sería una
+    // aserción vacua. La validación del monto corre ANTES del gate de etapa, y
+    // ese es justo el mensaje que tiene que salir.
+    const nan = await convertir('vend1', { ...argsCoop, p_monto: 'NaN' });
+    check(nan.error != null && /mayor que cero/i.test(nan.error?.message ?? ''),
+      'un monto NaN por la Data API se rechaza (envenenaba la cuota del equipo)',
+      errorText(nan.error));
+  } finally {
+    // Soft-delete, nunca DELETE: la regla de la casa. El cierre externo se
+    // queda (es inmutable por diseño y el DELETE esta vetado con P0409); el
+    // gate no es re-ejecutable sobre la misma base de todos modos.
+    await requireAdmin(
+      'limpieza: desactivar los leads transitorios de cierres externos',
+      admin.schema('crm').from('leads').update({ activo: false })
+        .in('id', [IDS_CIERRES_EXTERNOS.leadCoop, IDS_CIERRES_EXTERNOS.leadAjeno]),
+    );
+  }
+}
+
 async function testAnon(seed) {
   console.log('\n— Acceso anonimo —');
   const anon = createClient(
@@ -6952,6 +7285,9 @@ async function main() {
       await testBankingBoundary(sessions, verifiedSeed);
       await testContractBankAccounts(sessions, verifiedSeed);
       await testAnon(verifiedSeed);
+      // Cierres externos ANTES de la conversion: convierte un lead de vend1 que
+      // la conversion absorbe en su LINEA BASE (sus aserciones son deltas).
+      await testCierresExternos(sessions, verifiedSeed);
       // Va el ÚLTIMO a propósito: siembra dos leads que sobreviven visibles para
       // `directorio` (la rama del lector global de `leads_select` no lleva
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese
