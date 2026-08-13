@@ -45,14 +45,62 @@ export interface DerivarAlertasGerenciaInput {
   objetivosError?: boolean | undefined
   cumplimientoError?: boolean | undefined
   diaDelMes: number
+  /** Días que tiene el mes en curso: febrero mueve el último corte. */
+  diasDelMes: number
 }
 
 const EQUIPO_NO_DISPONIBLE = 'Equipo no disponible'
 
-/** El avance individual todavía es demasiado volátil durante los primeros días. */
-export const DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL = 10
-/** Casos resueltos mínimos en el cumplimiento confirmado para juzgar conversión. */
-export const CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR = 10
+/**
+ * Cortes de revisión del mes (decisión de Miguel, 2026-08-13). El avance
+ * individual se juzga por SEMANAS CUMPLIDAS, no cualquier día: antes del 7 no
+ * hay nada que juzgar, y a partir de ahí cada corte vuelve a evaluar.
+ *
+ * El aviso aparece en su corte y SIGUE VISIBLE hasta el siguiente, para que
+ * gerencia no se pierda un corte por no haber entrado ese día exacto.
+ *
+ * ⚠️ Esto gobierna solo los AVISOS. Consultar la conversión no depende del día:
+ * si gerencia mira el día 2 y todos van 0 %, la pantalla enseña 0 %. Ninguna
+ * pantalla lee el día del mes — verificado — y así debe seguir.
+ */
+export const CORTES_ALERTA_CONVERSION_INDIVIDUAL = [7, 15, 21, 30] as const
+
+/**
+ * Los cortes REALES de un mes concreto. En febrero (28/29 días) el corte del 30
+ * no existe: se corre al último día, y si eso lo hace coincidir con otro, se
+ * funden en uno. Sin esto, febrero se quedaría sin su última revisión.
+ */
+export function cortesDelMes(diasDelMes: number): number[] {
+  if (!Number.isInteger(diasDelMes) || diasDelMes < 1) return []
+  const cortes = new Set(
+    CORTES_ALERTA_CONVERSION_INDIVIDUAL.map((corte) => Math.min(corte, diasDelMes)),
+  )
+  return [...cortes].sort((a, b) => a - b)
+}
+
+/**
+ * El último corte YA CUMPLIDO para un día dado, o `null` si todavía no llegó el
+ * primero (días 1-6). Es lo que decide si el aviso individual se muestra.
+ */
+export function corteVigente(diaDelMes: number, diasDelMes: number): number | null {
+  if (!Number.isInteger(diaDelMes) || diaDelMes < 1) return null
+  const cumplidos = cortesDelMes(diasDelMes).filter((corte) => diaDelMes >= corte)
+  return cumplidos.length === 0 ? null : cumplidos[cumplidos.length - 1]!
+}
+
+/**
+ * Muestra mínima para juzgar la conversión de un vendedor.
+ *
+ * ⚠️ La CLAVE del payload se llama `resueltos` y no cambia de nombre, pero lo
+ * que cuenta sí cambia con la migración B: hoy son leads TERMINADOS (cerrados o
+ * descartados) y tras B son leads RECIBIDOS. Por eso el nombre de esta
+ * constante es neutro.
+ *
+ * Valor 10 por decisión de Miguel (2026-08-13). El plan recomendaba 20, pero con
+ * los CORTES ese filtro ya no carga solo: antes del día 7 no hay aviso, así que
+ * la muestra no tiene que hacer también de freno por «demasiado pronto».
+ */
+export const MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR = 10
 /** Brecha material contra la meta individual, expresada en puntos porcentuales. */
 export const BRECHA_MINIMA_ALERTA_CONVERSION_PP = 5
 export const BRECHA_CRITICA_ALERTA_CONVERSION_PP = 10
@@ -165,12 +213,15 @@ export function derivarAlertasGerencia({
   objetivosError = false,
   cumplimientoError = false,
   diaDelMes,
+  diasDelMes,
 }: DerivarAlertasGerenciaInput): AlertaGerencia[] {
   const alertas: AlertaGerencia[] = []
 
-  const diaIndividualValido = Number.isInteger(diaDelMes)
-    && diaDelMes >= DIA_MINIMO_ALERTA_CONVERSION_INDIVIDUAL
-    && diaDelMes <= 31
+  // El aviso individual vive por CORTES (7 · 15 · 21 · 30): aparece en el suyo
+  // y sigue visible hasta el siguiente. Antes del primero no hay nada que
+  // juzgar, por muchos leads que se hayan repartido.
+  const diaIndividualValido = diaDelMes <= diasDelMes
+    && corteVigente(diaDelMes, diasDelMes) != null
   const cumplimientoCompleto = !objetivosError
     && !cumplimientoError
     && Object.keys(metasVendedores).length > 0
@@ -179,7 +230,7 @@ export function derivarAlertasGerencia({
     for (const vendedor of Object.values(cumplimientosVendedores)) {
       if (
         !conteoValido(vendedor.resueltos)
-        || vendedor.resueltos < CASOS_RESUELTOS_MINIMOS_ALERTA_CONVERSION_VENDEDOR
+        || vendedor.resueltos < MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR
         || !porcentajeConversionValido(vendedor.conversionReal)
       ) continue
 

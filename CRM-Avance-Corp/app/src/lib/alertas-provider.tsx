@@ -162,6 +162,14 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       objetivosError,
       cumplimientoError: cumplimientoMetasError,
       diaDelMes: Number(diaLima.slice(8, 10)),
+      // Los días del mes salen de la fecha de LIMA, no del reloj de la máquina:
+      // el día 0 del mes siguiente es el último del actual, y en UTC eso puede
+      // caer en otro mes. Febrero corre el último corte a su día 28 o 29.
+      diasDelMes: new Date(
+        Number(diaLima.slice(0, 4)),
+        Number(diaLima.slice(5, 7)),
+        0,
+      ).getDate(),
     }).map(adaptarAlertaGerencial)
   }, [
     actividadesDelAmbito,
