@@ -124,6 +124,12 @@ test('convertir (demo): abre el diálogo y marca el lead como convertido', async
   const drawer = await abrirLead(page, /JUAN PÉREZ ROJAS/)
 
   await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
+  // Paso 0 (cierres en cooperativas): elegir la empresa donde cerró. Este caso
+  // es el de Avance Corp — el único que crea cuenta de portal y manda correo.
+  // Nombre accesible = el DialogTitle (manda sobre el ariaLabel del componente).
+  const destino = page.getByRole('dialog', { name: '¿Dónde invirtió?' })
+  await expect(destino).toBeVisible()
+  await destino.getByRole('button', { name: /Avance Corp/i }).click()
   const dialogo = page.getByRole('dialog', { name: 'Convertir a cliente' })
   await expect(dialogo).toBeVisible()
   await dialogo.getByRole('button', { name: /^Convertir/i }).click()

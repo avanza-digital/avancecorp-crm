@@ -15,6 +15,13 @@ test('Gerencia abre un lead asignado a otro analista y puede iniciar su conversi
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
   await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
+  // Desde los cierres en cooperativas el flujo arranca preguntando DÓNDE cerró:
+  // Avance sigue su camino de siempre (portal + correo); Qorilazo/Prodelco solo
+  // registran el cierre. Gerencia debe poder recorrer el camino de Avance.
+  // Nombre accesible = el DialogTitle (manda sobre el ariaLabel del componente).
+  const destino = page.getByRole('dialog', { name: '¿Dónde invirtió?' })
+  await expect(destino).toBeVisible()
+  await destino.getByRole('button', { name: /Avance Corp/i }).click()
   await expect(page.getByRole('dialog', { name: 'Convertir a cliente' })).toBeVisible()
 })
 
