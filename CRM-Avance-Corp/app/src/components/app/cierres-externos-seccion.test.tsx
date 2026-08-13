@@ -9,7 +9,7 @@ import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { StoreDataContext } from '@/lib/store-context'
 import type { CierreExternoDemo, StoreDataApi } from '@/lib/store'
-import type { CumplimientoVendedor } from '@/lib/objetivos'
+import { periodoLima, type CumplimientoVendedor } from '@/lib/objetivos'
 
 const { consultaCierres, anularMut } = vi.hoisted(() => ({
   consultaCierres: vi.fn(),
@@ -57,6 +57,15 @@ function montar(
   return { ...utils, recargar }
 }
 
+/**
+ * El mes de HOY, del mismo reloj que usa el componente para filtrar las filas
+ * demo (`periodoLima(Date.now())`). Con una fecha fija («2026-08-12») este
+ * fichero estaba verde solo durante agosto de 2026: el 1 de septiembre el
+ * cierre demo caía fuera del mes y los casos se ponían rojos por CALENDARIO,
+ * no por una regresión del producto.
+ */
+const MES_ACTUAL = periodoLima(Date.now()).slice(0, 7)
+
 /** Foto demo completa: el default sano al que cada caso le cambia lo suyo. */
 function cierreDemo(extra: Partial<CierreExternoDemo> = {}): CierreExternoDemo {
   return {
@@ -68,7 +77,7 @@ function cierreDemo(extra: Partial<CierreExternoDemo> = {}): CierreExternoDemo {
     nombre: 'Demo Prodelco',
     telefono: '999111222',
     numeroTransaccion: 'OP-DEMO-1',
-    creadoEn: '2026-08-12T00:00:00.000Z',
+    creadoEn: `${MES_ACTUAL}-12T00:00:00.000Z`,
     vendedorId: 'v-demo',
     vendedorNombre: 'Vendedor Demo',
     anuladoEn: null,
@@ -177,7 +186,7 @@ describe('SeccionEnCooperativas', () => {
         leadId: 'l-anulado',
         nombre: 'Cierre Falso',
         monto: 9000,
-        anuladoEn: '2026-08-12T10:00:00.000Z',
+        anuladoEn: `${MES_ACTUAL}-12T10:00:00.000Z`,
         motivoAnulacion: 'El depósito no existe',
       }),
     ])
@@ -196,7 +205,7 @@ describe('SeccionEnCooperativas', () => {
       cierreDemo({
         nombre: 'Cierre Falso',
         numeroTransaccion: 'OP-INVENTADA',
-        anuladoEn: '2026-08-12T10:00:00.000Z',
+        anuladoEn: `${MES_ACTUAL}-12T10:00:00.000Z`,
         motivoAnulacion: 'El depósito no existe en el estado de cuenta',
       }),
     ])

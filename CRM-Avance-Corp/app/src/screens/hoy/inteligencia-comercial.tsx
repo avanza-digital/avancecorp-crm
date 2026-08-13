@@ -215,17 +215,20 @@ function DetalleVendedor({
   const metaCapitalUsd = meta ? capitalObjetivo(meta, 'USD') : 0
   const capitalConfirmadoPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalConfirmadoUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-  const conversionConfirmada = cumplimiento?.conversionReal ?? null
   const progresoCapitalPen = metaMensual.comparable ? progreso(capitalConfirmadoPen, metaCapitalPen) : null
   const progresoCapitalUsd = metaMensual.comparable ? progreso(capitalConfirmadoUsd, metaCapitalUsd) : null
-  const progresoConversion = metaMensual.comparable ? progreso(conversionConfirmada, metaConversion) : null
+  // El progreso de conversión se mide con EL MISMO número grande de la ficha, no
+  // con `cumplimiento.conversionReal`: son dos fórmulas distintas (recibidos
+  // ponderados vs. resueltos crudos) y la ficha las pintaba juntas bajo el mismo
+  // nombre, justo lo que el comentario de arriba prohíbe.
+  const progresoConversion = metaMensual.comparable ? progreso(conversionMes, metaConversion) : null
   const tendencia = useMemo(
     () => detalle?.tendencia_semanal ?? null,
     [detalle?.tendencia_semanal],
   )
   const puntosTendencia = useMemo(() => tendencia ?? [], [tendencia])
   const enMeta = metaMensual.comparable && metaConversion > 0
-    && conversionConfirmada != null && conversionConfirmada >= metaConversion
+    && conversionMes != null && conversionMes >= metaConversion
   // La cadena arranca por los estados de la conversión MENSUAL (fuente del
   // número grande) y solo si el vendedor es medible baja a los estados de meta.
   const estado = mensual != null && !mensual.cobertura.medible
@@ -244,11 +247,9 @@ function DetalleVendedor({
                 ? 'No comparable'
                 : metaConversion <= 0
                   ? 'Sin meta'
-                  : cumplimiento == null
-                    ? 'Cumplimiento no disponible'
-                    : enMeta
-                      ? 'En meta'
-                      : 'Por alcanzar'
+                  : enMeta
+                    ? 'En meta'
+                    : 'Por alcanzar'
   const opcionTendencia = useMemo<EChartsOption>(() => {
     const valores = puntosTendencia.flatMap((punto) => (
       punto.conversion_pct == null ? [] : [punto.conversion_pct]
@@ -412,7 +413,7 @@ function DetalleVendedor({
                 <div className="px-4 py-3">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-0.5">
                     <span className="text-xs font-bold">Meta de conversión</span>
-                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{metaConversion > 0 ? `${pct(conversionConfirmada)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}</span>
+                    <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{metaConversion > 0 ? `${pct(conversionMes)} de ${numero(metaConversion, 1)}%` : 'Meta por definir'}</span>
                   </div>
                   <div
                     className="mt-2 h-2 overflow-hidden rounded-full bg-[#e6e1d8]"

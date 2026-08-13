@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   conversionEquipoDemo,
@@ -380,5 +380,74 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
     expect(screen.getAllByText('No pudimos cargar las metas mensuales de agosto 2026.').length).toBeGreaterThan(0)
     const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
     expect(JSON.parse(evolucion.getAttribute('data-meta-series') ?? '[]')).toEqual([])
+  })
+})
+
+describe('un solo número bajo un solo nombre (conversión del mes)', () => {
+  // Las dos fuentes traen A PROPÓSITO números distintos: la conversión mensual
+  // servida dice 20 % y el cumplimiento de metas dice 40 % (otra fórmula:
+  // convertidos/RESUELTOS, sin ponderar referidos ni arrastre). Con meta 40 %,
+  // el avance es 50 % si la barra mide el número que la pantalla ENSEÑA, y
+  // 100 % si vuelve a medir el del cumplimiento. Esa diferencia es el test.
+  function panelConFuentesDiscrepantes(): void {
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={{
+          ...mensual,
+          cobertura: { ...mensual.cobertura, medible: true },
+          total: { ...mensual.total, conversion_pct: 20 },
+        }}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={{ ...META_EQUIPO, conversionObjetivo: 40 }}
+        cumplimiento={CUMPLIMIENTO_EQUIPO && { ...CUMPLIMIENTO_EQUIPO, conversionReal: 40 }}
+        tc={TC_TEST}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+  }
+
+  it('la barra de meta avanza con la conversión servida, no con la del cumplimiento', () => {
+    panelConFuentesDiscrepantes()
+
+    const barra = screen.getByText('Conversión').closest('div')
+    expect(barra).not.toBeNull()
+    expect(within(barra as HTMLElement).getByText('50%')).toBeInTheDocument()
+    expect(within(barra as HTMLElement).queryByText('100%')).not.toBeInTheDocument()
+  })
+
+  it('mes no medible: la barra se calla en vez de avanzar con el otro número', () => {
+    // El caso que de verdad separaba las dos fórmulas: el servidor declara que
+    // el mes NO es medible (el titular degrada a «—»), pero el cumplimiento
+    // sigue trayendo su 40 %. La barra debe callarse; si avanza, está midiendo
+    // una conversión que la pantalla no está dispuesta a enseñar.
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={{ ...mensual, cobertura: { ...mensual.cobertura, medible: false } }}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={{ ...META_EQUIPO, conversionObjetivo: 40 }}
+        cumplimiento={CUMPLIMIENTO_EQUIPO && { ...CUMPLIMIENTO_EQUIPO, conversionReal: 40 }}
+        tc={TC_TEST}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    const barra = screen.getByText('Conversión').closest('div')
+    expect(barra).not.toBeNull()
+    expect(within(barra as HTMLElement).getByText('Sin meta')).toBeInTheDocument()
+    expect(within(barra as HTMLElement).queryByText('100%')).not.toBeInTheDocument()
   })
 })

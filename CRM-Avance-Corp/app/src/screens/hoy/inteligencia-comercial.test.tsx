@@ -103,6 +103,45 @@ describe('detalle de conversión por vendedor', () => {
     expect(screen.queryByRole('dialog', { name: 'Ana Torres' })).not.toBeInTheDocument()
   })
 
+  it('mide la meta con la conversión del mes, no con la del cumplimiento', () => {
+    // Las dos fuentes discrepan A PROPÓSITO: la conversión del mes de Ana es
+    // 34.6 % (la que enseña su número grande) y el cumplimiento de metas dice
+    // 40 %, que es otra fórmula. Con meta 40 %, la leyenda de la barra delata
+    // cuál de las dos se está midiendo.
+    const metas = metasConversionEquipoDemo()
+    const cumplimientos = cumplimientoMetasConversionEquipoDemo().porVendedor
+    const metaAna = metas['demo-v1']
+    const cumplimientoAna = cumplimientos['demo-v1']
+    if (!metaAna || !cumplimientoAna) throw new Error('El demo dejó de traer a Ana Torres')
+    render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        equipo={conversionEquipoDemo()}
+        metaConversion={40}
+        metasVendedores={{ ...metas, 'demo-v1': { ...metaAna, conversionObjetivo: 40 } }}
+        cumplimientoVendedores={{
+          ...cumplimientos,
+          'demo-v1': { ...cumplimientoAna, conversionReal: 40 },
+        }}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    expect(detalle.getByText('34.6% de 40%')).toBeInTheDocument()
+    expect(detalle.queryByText('40% de 40%')).not.toBeInTheDocument()
+    // Y el veredicto de estado sale del mismo número: 34.6 < 40.
+    expect(detalle.getByText('Por alcanzar')).toBeInTheDocument()
+  })
+
   it('no presenta avance contra la meta mensual para un rango histórico', () => {
     render(
       <InteligenciaComercialPanel

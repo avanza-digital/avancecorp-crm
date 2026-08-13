@@ -156,7 +156,6 @@ export function ResumenGerenciaPanel({
   const metaCapitalUsd = capitalObjetivo(meta, 'USD')
   const cumplimientoCapitalPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const cumplimientoCapitalUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
-  const conversionCumplida = cumplimiento?.conversionReal ?? null
   // Capital CONSOLIDADO, no dos barras: la meta se pacta en soles, así que la
   // barra de dólares no podía tener meta y decía «Sin meta» para siempre
   // mientras el capital real en USD no contaba para nada.
@@ -168,8 +167,14 @@ export function ResumenGerenciaPanel({
     && (metaTotalCapital.total ?? 0) > 0 && capitalTotal.total != null
     ? limitar((capitalTotal.total / (metaTotalCapital.total ?? 1)) * 100)
     : null
-  const avanceConversion = metasComparables && metaConversion != null && conversionCumplida != null
-    ? limitar((conversionCumplida / metaConversion) * 100)
+  // La barra avanza con EL MISMO número que el titular: la conversión del mes
+  // servida. Hasta 2026-08-13 medía `cumplimiento.conversionReal`, que es otra
+  // fórmula (convertidos/RESUELTOS, sin ponderar referidos ni arrastre): la
+  // pantalla enseñaba un porcentaje arriba y avanzaba la meta con otro, y los
+  // dos se llamaban «conversión». Un solo número bajo un solo nombre. Si el mes
+  // no es medible no hay barra, que es más honesto que una barra de mentira.
+  const avanceConversion = metasComparables && metaConversion != null && conversionMes != null
+    ? limitar((conversionMes / metaConversion) * 100)
     : null
 
   const vendedoresAdaptados = useMemo(
