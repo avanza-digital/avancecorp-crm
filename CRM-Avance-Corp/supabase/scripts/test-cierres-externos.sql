@@ -781,9 +781,28 @@ begin
   perform pg_temp.cext_num('CEXT-12', 'capital_real de A (10000+2000+1500)', 13500, (d ->> 'capital_real')::numeric);
   perform pg_temp.cext_num('CEXT-12', 'contratos_real de A (3 cierres)', 3, (d ->> 'contratos_real')::numeric);
   perform pg_temp.cext_num('CEXT-12', 'capital_cumplimiento_pct de A (13500/50000)', 27.00, (d ->> 'capital_cumplimiento_pct')::numeric);
-  -- La conversión histórica del payload de metas también los ve (convertido_en).
-  perform pg_temp.cext_num('CEXT-12', 'convertidos de A', 3, (f ->> 'convertidos')::numeric);
-  perform pg_temp.cext_num('CEXT-12', 'resueltos de A (3 conv + 1 descarte)', 4, (f ->> 'resueltos')::numeric);
+  -- La conversión del payload de METAS. Se bifurca por la fuente que el propio
+  -- payload declara, para que este oráculo siga en verde ANTES y DESPUÉS de la
+  -- migración B (que es justo la que cambia esa fuente):
+  --
+  --   · 'leads_resueltos'            → fórmula histórica: convertidos ÷ RESUELTOS
+  --     (3 convertidos + 1 descarte = 4). El referido L1102 SÍ entraba.
+  --   · 'leads_recibidos_ponderado'  → tras B consume el mismo núcleo que la
+  --     pantalla, así que estos números tienen que ser EXACTAMENTE los que
+  --     CEXT-11 acaba de exigirle a `conversion_mensual_fn`. Si alguna vez
+  --     divergen, es que volvimos a tener dos fórmulas.
+  if (v_pay #>> '{fuentes_reales,conversion}') = 'leads_recibidos_ponderado' then
+    perform pg_temp.cext_num('CEXT-12', 'convertidos de A = cierres de CEXT-11 (2+1)', 3, (f ->> 'convertidos')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'resueltos de A = DIVISOR de CEXT-11 (el referido L1102 NO entra)', 3, (f ->> 'resueltos')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'conversion_real de A = la de CEXT-11', 71.67, (f ->> 'conversion_real')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'numerador de A (2 + 0,150)', 2.150, (f ->> 'numerador')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'cierres no referidos de A', 2, (f ->> 'cierres_no_referidos')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'cierres referidos de A', 1, (f ->> 'cierres_referidos')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'ponderacion_referido en el payload', 0.150, (v_pay ->> 'ponderacion_referido')::numeric);
+  else
+    perform pg_temp.cext_num('CEXT-12', 'convertidos de A', 3, (f ->> 'convertidos')::numeric);
+    perform pg_temp.cext_num('CEXT-12', 'resueltos de A (3 conv + 1 descarte)', 4, (f ->> 'resueltos')::numeric);
+  end if;
 
   f := pg_temp.cext_fila_meta('CEXT-12', v_pay, pg_temp.cext_uid(3));
   d := pg_temp.cext_detalle(f, 'nuevo', 'PEN');

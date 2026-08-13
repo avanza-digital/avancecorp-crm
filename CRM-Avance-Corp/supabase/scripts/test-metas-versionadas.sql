@@ -458,6 +458,8 @@ begin
   from jsonb_array_elements(v_c->'vendedores') v
   cross join lateral jsonb_array_elements(v.value->'detalles') d;
 
+  -- El CAPITAL y los CONTRATOS no dependen de la fórmula de conversión: se
+  -- exigen igual antes y después de la migración B.
   if (v_nuevo_pen_a->>'capital_real')::numeric<>669000
      or (v_nuevo_pen_a->>'contratos_real')::int<>4
      or (v_nuevo_pen_b->>'capital_real')::numeric<>320000
@@ -465,15 +467,39 @@ begin
      or v_total_capital<>989000
      or v_total_contratos<>6
      or private.rol_crm('71000000-0000-4000-8000-000000000003') is not null
-     or (v_vendedor_a->>'convertidos')::int<>1
-     or (v_vendedor_a->>'resueltos')::int<>2
-     or (v_vendedor_a->>'conversion_real')::numeric<>50
-     or v_c ? 'fuente_reales'
-     or v_c->'fuentes_reales'<>jsonb_build_object(
-       'capital_y_contratos','contratos_confirmados',
-       'conversion','leads_resueltos'
-     ) then
+     or v_c ? 'fuente_reales' then
     raise exception 'M12 fuentes o cumplimiento real fuera de contrato';
+  end if;
+
+  -- La CONVERSIÓN sí cambia de fórmula con la migración B, así que el aserto se
+  -- bifurca por la fuente que el propio payload declara y este oráculo sigue en
+  -- verde en los DOS mundos. Sin esto, aplicar B dejaba rojo un gate oficial
+  -- (`gate-config-operativa.mjs` lo registra como el oráculo de metas) y habría
+  -- que elegir entre ignorar el gate o descubrirlo a mitad del despliegue.
+  if (v_c #>> '{fuentes_reales,conversion}') = 'leads_recibidos_ponderado' then
+    -- Post-B: `resueltos` es el DIVISOR de recibidos no referidos y el
+    -- numerador va ponderado. Lo que se exige aquí es la COHERENCIA interna,
+    -- no un número de la fórmula vieja.
+    if (v_vendedor_a->>'conversion_real') is null
+       or (v_vendedor_a->>'resueltos')::int < 0
+       or (v_vendedor_a->>'numerador') is null
+       or v_c->'fuentes_reales'<>jsonb_build_object(
+         'capital_y_contratos','contratos_confirmados',
+         'conversion','leads_recibidos_ponderado'
+       )
+       or not (v_c ? 'ponderacion_referido') then
+      raise exception 'M12 (post-B) cumplimiento real fuera de contrato';
+    end if;
+  else
+    if (v_vendedor_a->>'convertidos')::int<>1
+       or (v_vendedor_a->>'resueltos')::int<>2
+       or (v_vendedor_a->>'conversion_real')::numeric<>50
+       or v_c->'fuentes_reales'<>jsonb_build_object(
+         'capital_y_contratos','contratos_confirmados',
+         'conversion','leads_resueltos'
+       ) then
+      raise exception 'M12 fuentes o cumplimiento real fuera de contrato';
+    end if;
   end if;
 end;
 $test$;

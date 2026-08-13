@@ -6778,6 +6778,91 @@ const IDS_CIERRES_EXTERNOS = Object.freeze({
   leadCoop: randomUUID(),
 });
 
+// ── Migracion B: la CUOTA y su conversion (crm.cumplimiento_metas_fn) ───────
+// Esta funcion no tenia NI UN caso en la matriz, y desde la migracion B su
+// unica defensa de ambito es el recorte posterior de la CTE `visibles`: pasa
+// `p_global => true` al nucleo de conversion y confia en que el join con
+// `metas_vendedor ∩ vendedor_ids_visibles` acote. Eso hay que probarlo, no
+// razonarlo.
+//
+// El reparto del fixture (el mismo que usa testMetasVersionadas):
+//   sup1 → vend1, vend2, vendNested   · NO vend3, vend4
+//   sup2 → vend3, vend4
+async function testCumplimientoMetas(sessions, seed) {
+  console.log('\n— Cuota y conversion de metas (migracion B) —');
+
+  const ids = seed.profileIdByKey;
+  const pedir = (clave) => sessions[clave].client
+    .schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: PERIODO_METAS_GATE });
+  const filas = (payload) => payload?.vendedores ?? [];
+  const idsDe = (payload) => new Set(filas(payload).map((f) => f.vendedor_id));
+
+  // ── A · GERENCIA ve el snapshot completo ─────────────────────────────────
+  const ger = await positive('gerencia lee el cumplimiento de metas', pedir('gerencia'));
+  const payGer = ger?.data;
+  // Guarda anti-vacuidad: con el snapshot vacio TODAS las aserciones de ambito
+  // de abajo pasarian sin probar nada (la leccion cara del 2026-08-10).
+  check(filas(payGer).length > 0,
+    'el snapshot de metas del gate NO esta vacio (si no, el resto pasa por vacuidad)',
+    JSON.stringify({ vendedores: filas(payGer).length }));
+
+  // ── B · FORMA del payload, valga el servidor viejo o el nuevo ────────────
+  const fuente = payGer?.fuentes_reales?.conversion;
+  check(fuente === 'leads_resueltos' || fuente === 'leads_recibidos_ponderado',
+    'fuentes_reales.conversion declara una de las dos fuentes conocidas', String(fuente));
+  if (fuente === 'leads_recibidos_ponderado') {
+    // Post-B las cuatro claves nuevas tienen que venir, o el strictObject del
+    // front deja SIN METAS a los tres roles a la vez.
+    const fila = filas(payGer)[0];
+    check(['numerador', 'cierres_no_referidos', 'cierres_referidos']
+      .every((k) => fila?.[k] !== undefined),
+      'post-B cada vendedor trae numerador y sus dos sumandos', JSON.stringify(fila));
+    check(payGer?.ponderacion_referido !== undefined,
+      'post-B el payload declara la ponderacion aplicada');
+    check(filas(payGer).every((f) => Number(f.resueltos) >= 0),
+      'ningun divisor negativo');
+  }
+
+  // ── C · SUPERVISOR: su subarbol y NADIE mas ─────────────────────────────
+  const sup = await positive('sup1 lee el cumplimiento de su equipo', pedir('sup1'));
+  const idsSup = idsDe(sup?.data);
+  check(idsSup.size > 0, 'sup1 recibe al menos un vendedor de su equipo');
+  check(!idsSup.has(ids.vend3),
+    'sup1 NO ve a vend3, que cuelga de sup2', JSON.stringify([...idsSup]));
+  check([...idsSup].every((id) => idsDe(payGer).has(id)),
+    'todo lo que ve sup1 esta dentro de lo que ve gerencia');
+
+  // ── D · VENDEDOR: solo su propia fila ───────────────────────────────────
+  const vend = await positive('vend1 lee su cumplimiento', pedir('vend1'));
+  const idsVend = idsDe(vend?.data);
+  check([...idsVend].every((id) => id === ids.vend1),
+    'vend1 solo se ve a si mismo', JSON.stringify([...idsVend]));
+  check(!idsVend.has(ids.vend2), 'vend1 NO ve a un companero de su propio equipo');
+
+  // ── E · COORDINADOR: pasa el gate pero no ve a nadie ────────────────────
+  // Es 200 con lista vacia, NO 42501: el gate inicial es permisivo por contrato
+  // (`rol_crm is not null`) y quien acota es `vendedor_ids_visibles`.
+  const coord = await positive('coordinador pasa el gate de cumplimiento', pedir('coordinador'));
+  check(filas(coord?.data).length === 0,
+    'el coordinador recibe la lista de vendedores VACIA',
+    JSON.stringify(filas(coord?.data).length));
+
+  // ── F · LECTOR GLOBAL: la rama que `p_global => true` existe para servir ─
+  const dir = await positive('directorio (lector global) lee el cumplimiento', pedir('directorio'));
+  check(idsDe(dir?.data).size === idsDe(payGer).size,
+    'el lector global ve el mismo snapshot que gerencia (no vacio)',
+    JSON.stringify({ dir: idsDe(dir?.data).size, ger: idsDe(payGer).size }));
+
+  // ── G · REVOCADOS y ajenos ──────────────────────────────────────────────
+  for (const clave of ['vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `${clave} recibe 42501 en cumplimiento_metas_fn`,
+      pedir(clave),
+      ['42501'],
+    );
+  }
+}
+
 async function testCierresExternos(sessions, seed) {
   console.log('\n— Cierres externos en cooperativas (Qorilazo/Prodelco) —');
 
@@ -7293,6 +7378,7 @@ async function main() {
       // predicado de `activo`), así que cualquier bloque posterior heredaría ese
       // estado. Limpia lo suyo en su propio `finally`.
       await testConversionMensual(sessions, verifiedSeed);
+      await testCumplimientoMetas(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;
