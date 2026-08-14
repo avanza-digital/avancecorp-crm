@@ -874,32 +874,64 @@ function VistaMiCartera({
     onCorregirContrato,
   })
 
+  // ── Las tarjetas de dinero ─────────────────────────────────────────────────
   // PEN y USD JAMÁS se suman: van en DOS tarjetas separadas para verlos al mismo
   // tiempo. Solo se muestra la tarjeta de la(s) moneda(s) CON capital, y en su
   // orden natural → si el capital es solo en dólares, la tarjeta de Dólares va
-  // PRIMERO (nunca un "S/ 0" líder). El hueco que deje una moneda ausente lo
-  // ocupa "Contratos activos" para mantener 4 tarjetas.
-  const hayPen = resumen.capitalActivoPen > 0
-  const hayUsd = resumen.capitalActivoUsd > 0
+  // PRIMERO (nunca un "S/ 0" líder).
+  //
+  // CON UN MES ELEGIDO cambian de pregunta y de rótulo (decisión de Miguel,
+  // 2026-08-14): dejan de medir el saldo VIVO de la cartera y miden lo que se
+  // CERRÓ en ese mes — cualquier estado, porque un contrato que ya venció se
+  // cerró igual. El rótulo cambia con ellas: una tarjeta que cambia de
+  // significado sin cambiar de nombre es una mentira.
+  //
+  // ⚠️ Salen de `bloque`, que es EL MISMO objeto que alimenta la lista de abajo.
+  // Nada de `resumenCartera(bloque.grupos)` —la alarma de renovación vive dentro
+  // de esa función y se recortaría por mes gratis y sin avisar— ni de
+  // `meses.flatMap(m => m.grupos)`, que contaría tres veces a quien cerró en
+  // tres meses.
+  const modoMes = fMes !== MES_TODOS
+  const mesCorto = etiquetaDeMes(fMes).split(' ')[0]?.toLowerCase() ?? ''
+  // Los otros filtros siguen vivos y recortan también el mes: se DICE, o la
+  // tarjeta parecería el total del mes cuando es el total de lo buscado.
+  const hayOtroFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos'
+  const subMes = hayOtroFiltro ? 'de lo que estás filtrando' : `cerrado en ${mesCorto}`
+  const capPen = modoMes ? (bloque?.capitalPen ?? 0) : resumen.capitalActivoPen
+  const capUsd = modoMes ? (bloque?.capitalUsd ?? 0) : resumen.capitalActivoUsd
+  const etiquetaCapital = (moneda: 'Soles' | 'Dólares') =>
+    modoMes ? `Cerrado en ${mesCorto} · ${moneda}` : `Capital invertido · ${moneda}`
+  const subCapital = modoMes ? subMes : 'en contratos activos'
   const chipsCapital: StatChipData[] = []
-  if (hayPen) {
-    chipsCapital.push({ icon: Wallet, label: 'Capital invertido · Soles', value: moneyK(resumen.capitalActivoPen), tone: 'primary', sub: 'en contratos activos' })
+  if (capPen > 0) {
+    chipsCapital.push({ icon: Wallet, label: etiquetaCapital('Soles'), value: moneyK(capPen), tone: 'primary', sub: subCapital })
   }
-  if (hayUsd) {
-    chipsCapital.push({ icon: Coins, label: 'Capital invertido · Dólares', value: moneyK(resumen.capitalActivoUsd, 'USD'), tone: 'primary', sub: 'en contratos activos' })
+  if (capUsd > 0) {
+    chipsCapital.push({ icon: Coins, label: etiquetaCapital('Dólares'), value: moneyK(capUsd, 'USD'), tone: 'primary', sub: subCapital })
   }
   if (chipsCapital.length === 0) {
-    chipsCapital.push({ icon: Wallet, label: 'Capital invertido', value: money(0, 'PEN'), tone: 'default', sub: 'sin capital vigente aún' })
+    chipsCapital.push(
+      modoMes
+        ? { icon: Wallet, label: `Cerrado en ${mesCorto}`, value: money(0, 'PEN'), tone: 'default', sub: hayOtroFiltro ? 'nada con esos filtros' : 'sin cierres este mes' }
+        : { icon: Wallet, label: 'Capital invertido', value: money(0, 'PEN'), tone: 'default', sub: 'sin capital vigente aún' },
+    )
   }
   // La alarma cuenta TODA la cartera (incl. clientes dados de baja) — es un
   // aviso, no un total. Cuando parte del conteo viene de bajas se DICE en el
   // sub-texto: mezclarlos en silencio le haría dudar de la cifra al asesor.
+  //
+  // ⚠️ NO se recorta por mes, aunque el resto de la barra sí (decisión de Miguel,
+  // 2026-08-14). Es el ÚNICO radar de renovación del CRM, y el propio botón la
+  // saca del mes al encenderla: si la tarjeta contara solo agosto diría 1, la
+  // pulsas y aparecerían 3. Con un mes puesto, el sub-texto declara el alcance.
   const deBaja = resumen.porVencer30DeBaja
   const subPorVencer =
     resumen.porVencer30 === 0
       ? 'nada por vencer'
       : deBaja === 0
-        ? 'renovación = ingreso próximo'
+        ? modoMes
+          ? 'en toda tu cartera, no solo el mes'
+          : 'renovación = ingreso próximo'
         : deBaja === 1
           ? '1 es de un cliente dado de baja'
           : `${deBaja} son de clientes dados de baja`
@@ -912,12 +944,21 @@ function VistaMiCartera({
       tone: resumen.porVencer30 > 0 ? 'warn' : 'default',
       sub: subPorVencer,
     },
-    {
-      icon: Users2,
-      label: 'Clientes con capital',
-      value: `${resumen.clientesConCapital}`,
-      sub: `de ${resumen.totalClientes}`,
-    },
+    // Con un mes puesto cuenta a QUIÉNES les cerró ese mes, del mismo objeto que
+    // la lista. Sin mes, sigue siendo el conteo de siempre.
+    modoMes
+      ? {
+          icon: Users2,
+          label: 'Clientes que cerraron',
+          value: `${bloque?.grupos.length ?? 0}`,
+          sub: `en ${mesCorto}`,
+        }
+      : {
+          icon: Users2,
+          label: 'Clientes con capital',
+          value: `${resumen.clientesConCapital}`,
+          sub: `de ${resumen.totalClientes}`,
+        },
   ]
   if (verEquipo) {
     // Supervisión: el conteo de clientes SIN asesor (dueño null O fuera del
@@ -939,7 +980,17 @@ function VistaMiCartera({
       sub: sinAsesor > 0 ? 'Repártelos: filtro “Sin asesor”' : 'Toda la cartera tiene dueño',
     })
   } else if (stats.length < 4) {
-    stats.push({ icon: FileStack, label: 'Contratos activos', value: String(contratosActivosTotal), sub: 'en toda tu cartera' })
+    // El hueco que deja una moneda ausente. Sigue siendo un número GLOBAL, y con
+    // un mes puesto es además el testigo de que la cartera sigue de pie cuando
+    // las tarjetas de dinero se han ido al mes. No se pone aquí el capital vivo
+    // porque en una sola tarjeta habría que elegir moneda —y PEN y USD no se
+    // mezclan—: un conteo no tiene ese problema.
+    stats.push({
+      icon: FileStack,
+      label: 'Contratos activos',
+      value: String(contratosActivosTotal),
+      sub: 'en toda tu cartera',
+    })
   }
 
   return (
@@ -1114,14 +1165,11 @@ function VistaMiCartera({
                   {bloque.contratos} contrato{bloque.contratos === 1 ? '' : 's'} cerrado
                   {bloque.contratos === 1 ? '' : 's'} en {bloque.etiqueta.toLowerCase()}
                 </span>
-                {/* PEN y USD JAMÁS se suman: dos importes separados, y solo se
-                    pinta la moneda que tiene algo. */}
-                {bloque.capitalPen > 0 && (
-                  <span className="font-semibold text-foreground">{money(bloque.capitalPen)}</span>
-                )}
-                {bloque.capitalUsd > 0 && (
-                  <span className="font-semibold text-foreground">{money(bloque.capitalUsd, 'USD')}</span>
-                )}
+                {/* Los IMPORTES ya no se repiten aquí: viven en las tarjetas de
+                    arriba desde que siguen al mes (decisión de Miguel,
+                    2026-08-14). Esta línea se queda solo con lo que las tarjetas
+                    no dicen — cuántos contratos son y el aviso de los ajenos —,
+                    que es lo que impedía borrarla del todo. */}
                 {bloque.registradosPorOtro > 0 && (
                   <span className="text-warning-text">
                     incluye {bloque.registradosPorOtro} registrado

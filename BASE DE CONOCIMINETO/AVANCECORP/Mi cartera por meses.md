@@ -1,8 +1,13 @@
 # Mi cartera por meses
 
-**Estado: construido y verde 2026-08-14, pendiente de publicar.** Sin migración: no toca el
-servidor. Sustituye al diseño de bloques plegables que sí llegó a producción esa misma tarde
-(release `crm-20260814T202404Z-d63f3a18a57d`) y que Miguel cambió al verlo — ver
+**Estado: ✅ EN PRODUCCIÓN 2026-08-14.** Release `crm-20260814T205720Z-42a51c1c906e`
+(commit `42a51c1`, 26.º release), con hash local↔vivo idéntico en los tres ficheros clave y las
+llaves de Supabase verificadas dentro del fichero VIVO. 1.769 unitarias y **86 de navegador sin un
+solo fallo ni inestable**. **Sin migración**: no toca el servidor. Rollback inmediato:
+`crm-20260814T202404Z-d63f3a18a57d`.
+
+Sustituye al diseño de bloques plegables que estuvo en producción unos 30 minutos esa misma tarde
+(ese mismo release de rollback) y que Miguel cambió al verlo — ver
 «[[#Por qué dejó de ser bloques]]».
 
 ## Qué problema resuelve
@@ -66,6 +71,45 @@ valor por defecto, y un `value` que no existe entre las opciones deja el `<selec
 cualquier cosa. Cuando está vacío, el panel lo dice («Sin cierres en agosto») y **lleva la salida
 puesta** («Ver toda la cartera»): es el primer estado que ve un asesor que aún no ha cerrado, y no
 puede quedarse mirando un vacío.
+
+## Los contadores de arriba también siguen al mes
+
+Miguel, al ver el filtro funcionando: *«las demás ventanas, por ejemplo capital invertido soles y
+dólares, también me gustaría que se actualicen conforme al mes»*. Y eligió que midan **lo que se
+CERRÓ** en el mes, no lo que sigue vivo de él —una sola cifra en pantalla, no dos.
+
+| Tarjeta | Sin mes («Todos los meses») | Con un mes |
+|---|---|---|
+| Dinero | «Capital invertido · Soles» — capital **vivo** | «**Cerrado en agosto** · Soles» — lo cerrado, cualquier estado |
+| Alarma | «Por vencer ≤30 d» — toda la cartera | **igual**, y el sub lo declara: «en toda tu cartera, no solo el mes» |
+| Personas | «Clientes con capital» | «Clientes que cerraron» — en el mes |
+| Relleno | «Contratos activos» | **igual** — el testigo de que la cartera sigue viva |
+
+**El rótulo se mueve con la cifra.** Una tarjeta que cambia de significado sin cambiar de nombre
+es una mentira, y aquí el significado cambia de verdad: de saldo vivo a producción del mes.
+
+**La alarma NO se recorta**, aunque lo pedido incluía «las demás ventanas». Es el único radar de
+renovación del CRM y el propio botón saca del mes al encenderse: si la tarjeta contara solo
+agosto diría 1, la pulsas y aparecerían 3. Se lo planteé y lo confirmó.
+
+### Tres trampas que un análisis previo evitó
+
+1. **Prohibido `resumenCartera(bloque.grupos)`.** La alarma de renovación se calcula DENTRO de esa
+   misma función, así que pasarle el conjunto del mes la habría recortado por mes **gratis y sin
+   avisar** — justo lo contrario de la decisión.
+2. **Prohibido `meses.flatMap(m => m.grupos)`.** Un cliente que cerró en tres meses se contaría
+   tres veces.
+3. **Los otros filtros siguen vivos y recortan también el mes.** Si no se dijera, la tarjeta
+   parecería el total del mes cuando es el total de lo buscado. Por eso el sub cambia a «de lo que
+   estás filtrando».
+
+### El borde que hubo que decidir
+
+**Un cliente dado de baja SÍ cuenta en «Cerrado en agosto»**, aunque la regla de la casa diga que
+las bajas no suman al dinero. No es una excepción caprichosa: esa regla protege el capital que se
+puede TRABAJAR, y lo cerrado en un mes es un hecho histórico que no se deshace. Además ese cliente
+está listado justo debajo (marcado «inactivo»), así que la tarjeta cuadra con lo que se ve. En
+«Capital invertido» —el saldo vivo— sigue sin contar. Hay prueba para las dos mitades.
 
 ## ⚠️ El precio del arranque filtrado
 

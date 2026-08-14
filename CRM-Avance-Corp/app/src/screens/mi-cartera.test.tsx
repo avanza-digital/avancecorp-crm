@@ -4,7 +4,7 @@
 // (MiCartera pide useQueryClient para las invalidaciones). Ruta REAL (demo=false):
 // no hay import() dinámico de fixtures.
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { act, render, screen, within } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { ClienteBasico, ClienteDetalle, ContratoRow, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
@@ -243,11 +243,15 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
   })
 
-  it('USD-only: muestra la tarjeta de Dólares y NO la de Soles (dólares principal)', () => {
+  it('USD-only: muestra la tarjeta de Dólares y NO la de Soles (dólares principal)', async () => {
+    const user = userEvent.setup()
     montar({
       clientes: [cliente({ id: 'c-usd' })],
       contratos: [contrato({ id: 'k-usd', cliente_id: 'c-usd', moneda: 'USD', capital: 50000 })],
     })
+    // Las tarjetas de dinero solo miden capital VIVO en la vista global; con un
+    // mes puesto miden lo CERRADO y cambian de rótulo.
+    await verTodosLosMeses(user)
     expect(screen.getByText('Capital invertido · Dólares')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
   })
@@ -370,13 +374,16 @@ describe('MiCartera (pantalla)', () => {
     expect(within(subFilaDe('2026-01-000001')).queryByRole('button', { name: /Corregir/ })).not.toBeInTheDocument()
   })
 
-  it('tarjetas de moneda — solo PEN: Soles presente, Dólares ausente', () => {
+  it('tarjetas de moneda — solo PEN: Soles presente, Dólares ausente', async () => {
+    const user = userEvent.setup()
     montar() // contrato en PEN
+    await verTodosLosMeses(user)
     expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Dólares')).not.toBeInTheDocument()
   })
 
-  it('tarjetas de moneda — PEN y USD: ambas presentes', () => {
+  it('tarjetas de moneda — PEN y USD: ambas presentes', async () => {
+    const user = userEvent.setup()
     montar({
       clientes: [cliente({ id: 'a' }), cliente({ id: 'b' })],
       contratos: [
@@ -384,12 +391,17 @@ describe('MiCartera (pantalla)', () => {
         contrato({ id: 'ku', cliente_id: 'b', moneda: 'USD', capital: 5000 }),
       ],
     })
+    await verTodosLosMeses(user)
     expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
     expect(screen.getByText('Capital invertido · Dólares')).toBeInTheDocument()
   })
 
-  it('tarjetas de moneda — sin capital activo: tarjeta neutra, sin desglose por moneda', () => {
+  it('tarjetas de moneda — sin capital activo: tarjeta neutra, sin desglose por moneda', async () => {
+    const user = userEvent.setup()
     montar({ contratos: [contrato({ estado: 'vencido' })] }) // ningún contrato activo
+    // Global: el vencido no es capital vivo. (Con un mes puesto SÍ contaría: ahí
+    // la pregunta es qué se cerró, y un contrato vencido se cerró igual.)
+    await verTodosLosMeses(user)
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Dólares')).not.toBeInTheDocument()
@@ -487,11 +499,14 @@ describe('MiCartera — cliente desactivado en el portal', () => {
     expect(screen.getByText(/no suman a los totales/)).toBeInTheDocument()
   })
 
-  it('su capital NO cuenta en los KPIs', () => {
+  it('su capital NO cuenta en los KPIs', async () => {
+    const user = userEvent.setup()
     montar({
       clientes: [clienteBaja()],
       contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, estado: 'activo' })],
     })
+    // La regla de las bajas rige el capital VIVO, que es la vista global.
+    await verTodosLosMeses(user)
     // Sin cartera en gestión: tarjeta neutra, no "S/ 40,000".
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
@@ -502,7 +517,8 @@ describe('MiCartera — cliente desactivado en el portal', () => {
     expect(within(fila).getByText('S/ 40,000')).toBeInTheDocument()
   })
 
-  it('el capital del cliente activo queda intacto y el conteo separa a los de baja', () => {
+  it('el capital del cliente activo queda intacto y el conteo separa a los de baja', async () => {
+    const user = userEvent.setup()
     montar({
       clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
       contratos: [
@@ -510,9 +526,13 @@ describe('MiCartera — cliente desactivado en el portal', () => {
         contrato({ id: 'k-baja', cliente_id: 'c-baja', capital: 40000 }),
       ],
     })
+    await verTodosLosMeses(user)
     // Solo el capital en gestión (10k), nunca 50k.
     expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
-    expect(screen.getByText('S/ 10k')).toBeInTheDocument()
+    // `waitFor`: el número lo pinta AnimatedValue, que tras un cambio de valor
+    // cuenta hasta el nuevo con requestAnimationFrame. Leerlo al vuelo lo pilla
+    // a medio camino (por eso las demás pruebas solo aseveran el valor INICIAL).
+    await waitFor(() => expect(screen.getByText('S/ 10k')).toBeInTheDocument())
     expect(screen.queryByText('S/ 50k')).not.toBeInTheDocument()
     // El encabezado cuadra con las filas: 1 en gestión + 1 inactivo (2 filas).
     expect(screen.getByText('1 cliente · 1 inactivo')).toBeInTheDocument()
@@ -571,14 +591,17 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
     expect(within(chip).getByText('1 es de un cliente dado de baja')).toBeInTheDocument()
   })
 
-  it('el dinero NO cambia: su capital sigue fuera de los totales aunque la alarma avise', () => {
+  it('el dinero NO cambia: su capital sigue fuera de los totales aunque la alarma avise', async () => {
+    const user = userEvent.setup()
     montar({
       clientes: [clienteBaja()],
       contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, fecha_vencimiento: enDias(10) })],
     })
+    await verTodosLosMeses(user)
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
     expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
-    expect(within(chipDe('Por vencer ≤30 d')).getByText('1')).toBeInTheDocument()
+    // `waitFor` por AnimatedValue (ver la nota de la prueba de los 10k).
+    await waitFor(() => expect(within(chipDe('Por vencer ≤30 d')).getByText('1')).toBeInTheDocument())
   })
 
   it('con clientes en gestión y de baja, el conteo los suma y desglosa los de baja', () => {
@@ -710,7 +733,8 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     expect(screen.queryByText(/Repártelos/)).not.toBeInTheDocument()
   })
 
-  it('con capital en PEN Y USD, "Sin asesor" reemplaza una métrica → 4 tarjetas, no 5', () => {
+  it('con capital en PEN Y USD, "Sin asesor" reemplaza una métrica → 4 tarjetas, no 5', async () => {
+    const user = userEvent.setup()
     // Dos chips de capital + Por vencer + Clientes con capital = 4; sin el fix,
     // "Sin asesor" sería el 5º y rompería el grid de 4. El fix descarta la última
     // métrica NO monetaria (Clientes con capital), nunca los chips de capital.
@@ -723,6 +747,7 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
         contrato({ cliente_id: 'c-a', numero_contrato: '2026-01-000002', moneda: 'USD', capital: 5000, estado: 'activo' }),
       ],
     })
+    await verTodosLosMeses(user)
     // Chips de capital intactos + Sin asesor presente; Clientes con capital cede el sitio.
     expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
     expect(screen.getByText('Capital invertido · Dólares')).toBeInTheDocument()
@@ -939,6 +964,16 @@ describe('MiCartera — filtro por mes de cierre', () => {
     const hoy = new Date()
     return new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), 10, 16, 0, 0)).toISOString()
   }
+  /** Nombre corto del mes en curso, tal y como lo rotula la pantalla. */
+  const mesEnCurso = () =>
+    ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
+     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][new Date().getMonth()]!
+  /** La tarjeta del StatStrip que lleva ese rótulo. */
+  const tarjeta = (label: string): HTMLElement => {
+    const card = screen.getByText(label).closest('.ac-lift')
+    if (!card) throw new Error(`tarjeta “${label}” no encontrada`)
+    return card as HTMLElement
+  }
   /** ISO de hace ~3 meses, seguro fuera del mes en curso. */
   const haceMeses = (n: number) => {
     const hoy = new Date()
@@ -983,7 +1018,7 @@ describe('MiCartera — filtro por mes de cierre', () => {
     expect(opciones).not.toContain('Clientes sin contrato')
   })
 
-  it('resume lo cerrado en el mes elegido, con PEN y USD por separado', () => {
+  it('las tarjetas de dinero pasan a decir lo CERRADO en el mes, y lo dicen en el rótulo', () => {
     montar({
       clientes: [cliente({ id: 'c-1' })],
       contratos: [
@@ -991,11 +1026,16 @@ describe('MiCartera — filtro por mes de cierre', () => {
         contrato({ id: 'k-usd', capital: 7000, moneda: 'USD', creado_en: esteMes() }),
       ],
     })
-    // Acotado al resumen: la fila del cliente repite los mismos importes, y son
-    // dos cifras distintas por definición (lo CERRADO vs lo que sigue VIVO).
-    const resumen = within(screen.getByText(/2 contratos cerrados en/).closest('p')!)
-    expect(resumen.getByText('S/ 20,000')).toBeInTheDocument()
-    expect(resumen.getByText('US$ 7,000')).toBeInTheDocument()
+    // Una tarjeta que cambia de significado sin cambiar de nombre es una mentira:
+    // el rótulo se mueve con la cifra.
+    const mes = mesEnCurso()
+    expect(screen.getByText(`Cerrado en ${mes} · Soles`)).toBeInTheDocument()
+    expect(screen.getByText(`Cerrado en ${mes} · Dólares`)).toBeInTheDocument()
+    expect(screen.queryByText('Capital invertido · Soles')).not.toBeInTheDocument()
+    expect(within(tarjeta(`Cerrado en ${mes} · Soles`)).getByText('S/ 20k')).toBeInTheDocument()
+    expect(within(tarjeta(`Cerrado en ${mes} · Dólares`)).getByText('US$ 7k')).toBeInTheDocument()
+    // Y la línea se queda con el conteo, sin repetir los importes.
+    expect(screen.getByText(/2 contratos cerrados en/)).toBeInTheDocument()
   })
 
   // El total cuenta TODO contrato de sus clientes (decisión de Miguel), pero la
@@ -1046,6 +1086,84 @@ describe('MiCartera — filtro por mes de cierre', () => {
     expect(screen.getByText('CLIENTA DE AHORA')).toBeInTheDocument()
     expect(screen.getByText('RECIEN CAPTADO')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /\+ Primer contrato/ })).toBeInTheDocument()
+  })
+
+  it('con «Todos los meses» los rótulos vuelven a los de siempre', async () => {
+    const user = userEvent.setup()
+    montar({ contratos: [contrato({ creado_en: esteMes() })] })
+    expect(screen.getByText(`Cerrado en ${mesEnCurso()} · Soles`)).toBeInTheDocument()
+    await verTodosLosMeses(user)
+    expect(screen.getByText('Capital invertido · Soles')).toBeInTheDocument()
+    expect(screen.queryByText(`Cerrado en ${mesEnCurso()} · Soles`)).not.toBeInTheDocument()
+  })
+
+  // «Cerrado» cuenta CUALQUIER estado: un contrato que ya venció se cerró igual.
+  // Es justo lo contrario de «Capital invertido», que solo cuenta lo vivo — y por
+  // eso las dos tarjetas no pueden llamarse igual.
+  it('lo cerrado incluye contratos ya vencidos; el capital vivo no', async () => {
+    const user = userEvent.setup()
+    montar({ contratos: [contrato({ capital: 30000, estado: 'vencido', creado_en: esteMes() })] })
+    expect(within(tarjeta(`Cerrado en ${mesEnCurso()} · Soles`)).getByText('S/ 30k')).toBeInTheDocument()
+    await verTodosLosMeses(user)
+    expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
+  })
+
+  // BORDE que destapó el análisis: la regla «los clientes dados de baja no suman
+  // al dinero» protege el capital que se puede TRABAJAR. Lo cerrado en un mes es
+  // un hecho histórico y sí los cuenta — además, ese cliente está listado debajo
+  // (marcado «inactivo»), así que la tarjeta cuadra con lo que se ve.
+  it('lo cerrado SÍ cuenta a un cliente dado de baja; el capital vivo NO', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [cliente({ id: 'c-baja', nombre_completo: 'CLIENTE DE BAJA', activo: false })],
+      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, creado_en: esteMes() })],
+    })
+    expect(within(tarjeta(`Cerrado en ${mesEnCurso()} · Soles`)).getByText('S/ 40k')).toBeInTheDocument()
+    await verTodosLosMeses(user)
+    expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
+  })
+
+  it('cuenta a cuántos clientes les cerró ese mes', () => {
+    montar({
+      clientes: [cliente({ id: 'c-a', nombre_completo: 'CLIENTA A' }), cliente({ id: 'c-b', nombre_completo: 'CLIENTE B' })],
+      contratos: [
+        contrato({ id: 'k-a', cliente_id: 'c-a', creado_en: esteMes() }),
+        contrato({ id: 'k-b', cliente_id: 'c-b', creado_en: esteMes() }),
+      ],
+    })
+    expect(within(tarjeta('Clientes que cerraron')).getByText('2')).toBeInTheDocument()
+  })
+
+  // Los otros filtros siguen vivos y recortan también el mes. Si no se dijera, la
+  // tarjeta parecería el total del mes cuando es el total de lo buscado.
+  it('la tarjeta declara cuando hay otro filtro recortándola', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [cliente({ id: 'c-a', nombre_completo: 'CLIENTA ALFA' }), cliente({ id: 'c-b', nombre_completo: 'CLIENTE BETA' })],
+      contratos: [
+        contrato({ id: 'k-a', cliente_id: 'c-a', capital: 20000, creado_en: esteMes() }),
+        contrato({ id: 'k-b', cliente_id: 'c-b', capital: 5000, creado_en: esteMes() }),
+      ],
+    })
+    expect(screen.getByText(`cerrado en ${mesEnCurso()}`)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Buscar en la cartera'), 'ALFA')
+    expect(screen.getByText('de lo que estás filtrando')).toBeInTheDocument()
+    // El VALOR no se asevera tras interactuar: lo pinta AnimatedValue, cuyo rAF
+    // no avanza en jsdom (se queda en el useState inicial). Lo que se prueba es
+    // que la tarjeta DECLARA el recorte, que es lo que evita leerla como el
+    // total del mes.
+  })
+
+  // ESTADO DE PRODUCCIÓN: un asesor sin cierres este mes. La tarjeta lo dice sin
+  // rodeos, y «Contratos activos» sigue de testigo de que la cartera está viva.
+  it('sin cierres este mes, la tarjeta lo dice y queda un testigo global', () => {
+    montar({
+      clientes: [cliente({ id: 'c-v', nombre_completo: 'CLIENTE DE ANTES' })],
+      contratos: [contrato({ id: 'k-v', cliente_id: 'c-v', creado_en: haceMeses(3) })],
+    })
+    expect(screen.getByText(`Cerrado en ${mesEnCurso()}`)).toBeInTheDocument()
+    expect(screen.getByText('sin cierres este mes')).toBeInTheDocument()
+    expect(within(tarjeta('Contratos activos')).getByText('1')).toBeInTheDocument()
   })
 
   // El aviso de renovación es el ÚNICO radar del CRM: con un mes puesto, un

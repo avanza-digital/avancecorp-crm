@@ -84,11 +84,11 @@ test('el resumen avisa cuando el mes incluye un contrato que registró otra pers
 
   // El total cuenta los DOS (son contratos de un cliente suyo), y el aviso
   // explica por qué ese número puede no cuadrar con su cuota.
-  // Acotado al resumen: la fila del cliente repite el importe, y son dos cifras
-  // distintas por definición (lo CERRADO en el mes vs lo que sigue VIVO).
+  // El IMPORTE vive ahora en la tarjeta de arriba, que sigue al mes; la línea se
+  // queda con el conteo y con el aviso, que es lo que la tarjeta no dice.
+  await expect(page.getByText(/^Cerrado en \w+ · Soles$/)).toBeVisible()
   const resumen = page.locator('p', { hasText: /2 contratos cerrados en/ })
   await expect(resumen).toBeVisible()
-  await expect(resumen.getByText('S/ 25,000')).toBeVisible()
   await expect(resumen.getByText('incluye 1 registrado por otra persona')).toBeVisible()
 })
 
