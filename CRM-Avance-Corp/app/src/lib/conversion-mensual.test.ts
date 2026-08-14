@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import {
   ConversionMensualSchema,
+  lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
 } from './conversion-mensual'
@@ -216,5 +217,56 @@ describe('lineaReferidos — el bloque de referidos', () => {
     expect(
       lineaReferidos({ recibidos: 8, cerrados: 2, dados_de_alta: 8, aporta_pct: null }),
     ).toBe('8 registrados · 2 cerrados')
+  })
+})
+
+describe('lecturaCobertura — un mes incompleto SE VE', () => {
+  const cob = (over: Record<string, unknown> = {}) => ({
+    medible: false,
+    suelo_historico: '2026-08-05T18:19:55+00:00',
+    motivo_no_medible: 'mes_parcial',
+    divisor_aproximado: 0,
+    divisor_por_motivo: {},
+    cierres_sin_episodio: 0,
+    fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
+    ...over,
+  }) as unknown as Parameters<typeof lecturaCobertura>[0]
+
+  it('un mes medible se enseña sin aviso', () => {
+    expect(lecturaCobertura(cob({ medible: true, motivo_no_medible: null })))
+      .toEqual({ mostrar: true, aviso: null })
+  })
+
+  // EL CASO. Decisión de Miguel 2026-08-14: agosto tiene 3 recibidos y un
+  // cierre; decir «sin datos» es falso. Se enseña, marcado como provisional.
+  it('mes_parcial SE MUESTRA y dice desde cuándo hay registro', () => {
+    const r = lecturaCobertura(cob())
+    expect(r.mostrar).toBe(true)
+    expect(r.aviso).toMatch(/Provisional/)
+    // La fecha del suelo, con el formato de la casa («05 ago 2026»).
+    expect(r.aviso).toMatch(/05 ago\.? 2026/i)
+  })
+
+  it('sin el suelo, mes_parcial sigue mostrándose y no inventa una fecha', () => {
+    const r = lecturaCobertura(cob({ suelo_historico: null }))
+    expect(r.mostrar).toBe(true)
+    expect(r.aviso).toBe('Provisional: al mes le faltan días de registro')
+  })
+
+  // Estos dos SÍ significan «no hay nada»: ahí la frase vieja era correcta y la
+  // cifra se sigue ocultando.
+  it('sin_ledger y anterior_al_ledger se ocultan', () => {
+    expect(lecturaCobertura(cob({ motivo_no_medible: 'sin_ledger' })).mostrar).toBe(false)
+    expect(lecturaCobertura(cob({ motivo_no_medible: 'anterior_al_ledger' })).mostrar).toBe(false)
+  })
+
+  it('un motivo de roster se comporta como antes (oculto), sin frase inventada', () => {
+    const r = lecturaCobertura(cob({ motivo_no_medible: 'sin_supervisor' }))
+    expect(r.mostrar).toBe(false)
+    expect(r.aviso).toBe('Sin datos de asignación para este mes')
+  })
+
+  it('sin cobertura no se muestra nada', () => {
+    expect(lecturaCobertura(null)).toEqual({ mostrar: false, aviso: null })
   })
 })

@@ -37,6 +37,7 @@ import {
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
+import { lecturaCobertura } from '@/lib/conversion-mensual'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
@@ -137,7 +138,10 @@ export function ResumenGerenciaPanel({
   const leads = conversiones?.cohorte.leads ?? null
   // El número grande del resumen es LA conversión del MES (servida, jamás
   // dividida aquí); «medible: false» del servidor degrada a «—» con rótulo.
-  const totalMes = conversionMensual != null && conversionMensual.cobertura.medible
+  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
+  // 2026-08-14). La regla es compartida: cuatro pantallas pintan esta cifra.
+  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
+  const totalMes = conversionMensual != null && lecturaConversion.mostrar
     ? conversionMensual.total
     : null
   const conversionMes = totalMes?.conversion_pct ?? null
@@ -323,11 +327,13 @@ export function ResumenGerenciaPanel({
           <p className="gi-label text-white/65">Conversión del mes</p>
           <p className="mt-2 text-5xl font-bold tracking-[-0.045em] tabular-nums text-white sm:text-6xl">{pct(conversionMes)}</p>
           <p className="mt-2 text-xs text-white/65">
-            {conversionMensual != null && !conversionMensual.cobertura.medible
-              ? 'Sin datos de asignación para este mes'
+            {conversionMensual != null && !lecturaConversion.mostrar
+              ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
               : totalMes == null
                 ? 'Conversión del mes no disponible'
-                : `${numero(cierresMes ?? 0)} cierres de ${numero(recibidosMes ?? 0)} recibidos este mes`}
+                : `${numero(cierresMes ?? 0)} cierres de ${numero(recibidosMes ?? 0)} recibidos este mes`
+                  // El porqué acompaña a la cifra en vez de sustituirla.
+                  + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-3">

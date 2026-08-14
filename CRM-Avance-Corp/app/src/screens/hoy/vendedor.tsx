@@ -65,7 +65,7 @@ import {
 } from '@/lib/objetivos'
 import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
-import { lineaProcedencia } from '@/lib/conversion-mensual'
+import { lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
@@ -600,8 +600,11 @@ export function HoyVendedor(): JSX.Element {
     : (qConversionMensual.data ?? null)
   const conversionMensualError = !esDemo && qConversionMensual.isError
   const miConversion = conversionMensual?.responsables[0] ?? null
-  const conversionMedible = conversionMensual?.cobertura.medible ?? false
-  const conversion = conversionMedible ? (miConversion?.conversion_pct ?? null) : null
+  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
+  // 2026-08-14). La regla vive en `lecturaCobertura`, no aquí: cuatro pantallas
+  // pintan esta misma cifra y escrita cuatro veces acabarían discrepando.
+  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
+  const conversion = lecturaConversion.mostrar ? (miConversion?.conversion_pct ?? null) : null
   // CAPITAL CONSOLIDADO (decisión de Miguel 2026-08-10, extendiendo la #10 al
   // asesor): lo que manda es UN solo número —cuánto ha metido en total, en
   // soles— y el desglose por moneda vive debajo como sub-línea. Si cierra en
@@ -1017,7 +1020,7 @@ export function HoyVendedor(): JSX.Element {
               metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
               pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
               delay={180}
-              nota={miConversion && conversionMedible
+              nota={miConversion && lecturaConversion.mostrar
                 ? (
                   <span className="text-[11px] text-[var(--gi-muted)]">
                     {/* El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
@@ -1027,13 +1030,22 @@ export function HoyVendedor(): JSX.Element {
                     {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
                     {miConversion.cierres_de_arrastre > 0
                       && ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
+                    {/* Y por qué la cifra no es definitiva, si no lo es. Va
+                        PEGADO al número, no en lugar de él: ocultarlo era lo
+                        que hacía que un mes con datos dijera «sin datos». */}
+                    {lecturaConversion.aviso != null && (
+                      <>
+                        <br />
+                        {lecturaConversion.aviso}
+                      </>
+                    )}
                   </span>
                 )
                 : undefined}
               neutro={conversionMensualError
                 ? 'Conversión del mes no disponible'
-                : !conversionMedible
-                  ? 'Sin datos de asignación para este mes'
+                : !lecturaConversion.mostrar
+                  ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
                   : miConversion?.estado === 'solo_referidos'
                     ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
                     : miConversion?.estado === 'solo_arrastre'

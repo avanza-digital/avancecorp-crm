@@ -33,7 +33,7 @@ import {
   NumeroRpcSchema,
   UuidSchema,
 } from './esquemas-rpc'
-import { numero } from './format'
+import { fmtFecha, numero } from './format'
 
 /** Porcentaje sin techo: la definición supera el 100 % por diseño. */
 const PorcentajeSinTechoSchema = v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))
@@ -207,4 +207,58 @@ export function lineaReferidos(
     maximumFractionDigits: 1,
   })
   return `${base} · aporta ${aporta} %`
+}
+
+/** Qué hacer con la cifra del mes cuando el servidor dice que no es medible. */
+export interface LecturaCobertura {
+  /** ¿Se ENSEÑA el porcentaje? */
+  mostrar: boolean
+  /** Por qué no es definitivo, en la voz del usuario. `null` si lo es. */
+  aviso: string | null
+}
+
+/**
+ * Traduce `cobertura` a una decisión de pantalla.
+ *
+ * Decisión de Miguel (2026-08-14): **un mes incompleto SE VE**. «No importa que
+ * no se tome en cuenta para los pagos, pero necesito verla para verificar que
+ * todo esté ok». Es la misma regla que ya fijó para las alertas: la cadencia
+ * gobierna los avisos, no lo que se puede consultar.
+ *
+ * Lo que esto arregla: los cuatro sitios que pintan la conversión colapsaban
+ * TRES situaciones distintas en «Sin datos de asignación para este mes», y con
+ * `mes_parcial` esa frase es sencillamente falsa — hay recibidos y hay cierres,
+ * lo único que pasa es que al mes le faltan los días anteriores al ledger. Un
+ * aviso que niega datos que existen es lo que hace desconfiar del sistema
+ * entero. Los motivos que SÍ significan «no hay nada» se siguen ocultando: ahí
+ * la frase era correcta.
+ *
+ * ⚠️ Esto decide qué se MUESTRA, no qué se JUZGA. El veredicto «en meta» de
+ * Inteligencia Comercial sigue exigiendo un mes medible a propósito: enseñar una
+ * cifra provisional es honesto, dictaminar sobre ella no lo sería.
+ */
+export function lecturaCobertura(
+  cobertura: ConversionMensual['cobertura'] | null | undefined,
+): LecturaCobertura {
+  if (cobertura == null) return { mostrar: false, aviso: null }
+  if (cobertura.medible) return { mostrar: true, aviso: null }
+
+  switch (cobertura.motivo_no_medible) {
+    case 'mes_parcial':
+      return {
+        mostrar: true,
+        aviso: cobertura.suelo_historico != null
+          ? `Provisional: el registro empieza el ${fmtFecha(cobertura.suelo_historico)}`
+          : 'Provisional: al mes le faltan días de registro',
+      }
+    case 'sin_ledger':
+      return { mostrar: false, aviso: 'Todavía no hay registro de asignaciones' }
+    case 'anterior_al_ledger':
+      return { mostrar: false, aviso: 'Mes anterior al registro de asignaciones' }
+    // Los motivos de roster (sin supervisor, supervisor inactivo…) no hablan de
+    // la ventana sino de quién la mira, y hoy no tienen texto propio. Se quedan
+    // como estaban —ocultos— en vez de estrenar una frase inventada aquí.
+    default:
+      return { mostrar: false, aviso: 'Sin datos de asignación para este mes' }
+  }
 }

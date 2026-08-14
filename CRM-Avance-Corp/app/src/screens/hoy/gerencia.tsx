@@ -13,6 +13,7 @@ import {
   type PeriodoGerencia,
 } from '@/components/gerencia/periodo'
 import { useCRMData } from '@/lib/store-context'
+import { lecturaCobertura } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, numero } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
@@ -210,7 +211,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const conversionMensual = modoDemo
     ? conversionMensualDemoIntel
     : (qConversionMensual.data ?? null)
-  const conversionMensualMedible = conversionMensual?.cobertura.medible ?? false
+  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
+  // 2026-08-14): la regla compartida decide, no cada pantalla por su cuenta.
+  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
+  const conversionMensualMedible = lecturaConversion.mostrar
   // Para los paneles: tri-estado como el TC — `undefined` mientras consulta
   // (skeleton), `null` cuando no está (fail-closed: jamás ceros ni fórmulas
   // viejas bajo el rótulo nuevo).
@@ -361,14 +365,20 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                   objetivo={metaMensual.errorCarga
                     ? 'meta no disponible'
                     : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
-                  nota={recibidosEmpresa == null
-                    ? 'El detalle por analista está en Conversiones.'
-                    : `${numero(recibidosEmpresa)} leads recibidos este mes · detalle por analista en Conversiones.`}
+                  nota={[
+                    recibidosEmpresa == null
+                      ? 'El detalle por analista está en Conversiones.'
+                      : `${numero(recibidosEmpresa)} leads recibidos este mes · detalle por analista en Conversiones.`,
+                    // Por qué la cifra no es definitiva, PEGADO a ella y no en
+                    // su lugar: sustituirla era lo que hacía que un mes con
+                    // recibidos y cierres dijera «sin datos».
+                    lecturaConversion.mostrar ? lecturaConversion.aviso : null,
+                  ].filter(Boolean).join(' · ')}
                   progreso={meta.conversionObjetivo > 0 && conversionActual != null
                     ? pctMeta(conversionActual, meta.conversionObjetivo)
                     : null}
                   mensajeSinProgreso={!conversionMensualMedible && conversionMensual != null
-                    ? 'Sin datos de asignación para este mes'
+                    ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
                     : metaMensual.errorCarga
                         ? 'No pudimos cargar la meta mensual'
                         : meta.conversionObjetivo <= 0

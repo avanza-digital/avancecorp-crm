@@ -51,6 +51,7 @@ import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
+import { lecturaCobertura } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
@@ -172,8 +173,11 @@ export function HoySupervisor(): JSX.Element {
     ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
     : (qConversionMensual.data ?? null)
   const conversionMensualError = !esDemoConversion && qConversionMensual.isError
-  const conversionMedible = conversionMensual?.cobertura.medible ?? false
-  const conversionConfirmada = conversionMedible
+  // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
+  // 2026-08-14). La regla vive en `lecturaCobertura`, compartida con las otras
+  // tres pantallas que pintan esta misma cifra.
+  const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
+  const conversionConfirmada = lecturaConversion.mostrar
     ? (conversionMensual?.total.conversion_pct ?? null)
     : null
   const recibidosEquipo = conversionMensual?.total.divisor ?? null
@@ -227,11 +231,14 @@ export function HoySupervisor(): JSX.Element {
           : metaConversion != null
             ? `${numero(conversionConfirmada, 1)}% de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
             : `${numero(conversionConfirmada, 1)}% · ${numero(recibidosEquipo)} recibidos`,
+      // El porqué de que la cifra no sea definitiva viaja PEGADO a ella. Antes
+      // esto la sustituía, y un mes con recibidos y cierres decía «sin datos».
+      nota: lecturaConversion.aviso,
       pct: pctMeta(conversionConfirmada ?? 0, metaConversion ?? 0),
       sinDato: conversionMensualError
         ? 'Conversión del mes no disponible'
-        : !conversionMedible
-          ? 'Sin datos de asignación para este mes'
+        : !lecturaConversion.mostrar
+          ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
           : conversionConfirmada == null
             ? 'Sin leads recibidos este mes'
             : objetivosError
