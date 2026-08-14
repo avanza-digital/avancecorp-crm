@@ -1,10 +1,10 @@
 # Mi cartera por meses
 
-**Estado: ✅ EN PRODUCCIÓN 2026-08-14.** Release `crm-20260814T205720Z-42a51c1c906e`
-(commit `42a51c1`, 26.º release), con hash local↔vivo idéntico en los tres ficheros clave y las
-llaves de Supabase verificadas dentro del fichero VIVO. 1.769 unitarias y **86 de navegador sin un
-solo fallo ni inestable**. **Sin migración**: no toca el servidor. Rollback inmediato:
-`crm-20260814T202404Z-d63f3a18a57d`.
+**Estado: ✅ EN PRODUCCIÓN 2026-08-14.** Release `crm-20260814T215933Z-e1995d5d5eab`
+(commit `e1995d5`, 27.º release) — filtro de mes **y** contadores siguiéndolo. Hash local↔vivo
+idéntico en los tres ficheros clave y llaves de Supabase verificadas dentro del fichero VIVO.
+1.775 unitarias (verdes tres corridas seguidas) y 83 de navegador. **Sin migración**: no toca el
+servidor. Rollback inmediato: `crm-20260814T205720Z-42a51c1c906e`.
 
 Sustituye al diseño de bloques plegables que estuvo en producción unos 30 minutos esa misma tarde
 (ese mismo release de rollback) y que Miguel cambió al verlo — ver
