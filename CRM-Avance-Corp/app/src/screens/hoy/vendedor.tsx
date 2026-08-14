@@ -1030,15 +1030,11 @@ export function HoyVendedor(): JSX.Element {
                     {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
                     {miConversion.cierres_de_arrastre > 0
                       && ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
-                    {/* Y por qué la cifra no es definitiva, si no lo es. Va
-                        PEGADO al número, no en lugar de él: ocultarlo era lo
-                        que hacía que un mes con datos dijera «sin datos». */}
-                    {lecturaConversion.aviso != null && (
-                      <>
-                        <br />
-                        {lecturaConversion.aviso}
-                      </>
-                    )}
+                    {/* ⚠️ El aviso de «provisional» NO se le pone al vendedor
+                        (decisión de Miguel, 2026-08-14): él necesita ver su
+                        número, no la contabilidad de por qué el mes va corto.
+                        Ese matiz sí viaja a supervisor y gerencia, que son
+                        quienes comparan y deciden. */}
                   </span>
                 )
                 : undefined}

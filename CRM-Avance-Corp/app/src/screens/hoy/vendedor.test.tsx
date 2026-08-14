@@ -593,6 +593,35 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.getByText(/Recibidos 10/)).toBeInTheDocument()
   })
 
+  // Decisión de Miguel (2026-08-14): un mes INCOMPLETO se ve. El caso real fue
+  // agosto —3 recibidos, 1 cierre, 38,33 %— y la pantalla decía «Sin datos de
+  // asignación para este mes», que era sencillamente falso: el ledger nace el
+  // día 5 y al mes le faltan días, pero los datos existen.
+  it('un mes incompleto SE VE, y al vendedor no se le cuenta por qué', () => {
+    const base = conversionMensualPropia(38.33, 3, {
+      cierres_no_referidos: 1,
+      numerador: 1,
+    })
+    CONVERSION_MENSUAL = {
+      ...base,
+      cobertura: {
+        ...base.cobertura,
+        medible: false,
+        motivo_no_medible: 'mes_parcial',
+        suelo_historico: '2026-07-05T18:19:55Z',
+      },
+    }
+    montar({ objetivos: { conversionObjetivo: 15 } })
+
+    // Ve su número y su divisor…
+    expect(screen.getByText('38.3%')).toBeInTheDocument()
+    expect(screen.getByText(/Recibidos 3/)).toBeInTheDocument()
+    // …y NO la frase que negaba los datos.
+    expect(screen.queryByText(/Sin datos de asignación/i)).not.toBeInTheDocument()
+    // El matiz de «provisional» es para supervisor y gerencia, no para él.
+    expect(screen.queryByText(/Provisional/i)).not.toBeInTheDocument()
+  })
+
   it('sin leads RECIBIDOS en el mes la conversión es SIN DATO, no un 0 % en rojo', () => {
     // Divisor 0 con actividad ninguna: el estado sin_actividad de la RPC.
     CONVERSION_MENSUAL = conversionMensualPropia(null, 0, {
