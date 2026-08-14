@@ -13,6 +13,12 @@
     // - prefer-tag-over-role: cards ricas con role=button + tabIndex +
     //   onKeyDown (ya operables por teclado), svg con role=img y el combobox
     //   WAI-ARIA del buscador no pueden ser <button>/<img>/<select> reales.
+    //   CUARTA puerta, registrada 2026-08-14 al auditarla (llevaba abierta sin
+    //   apuntar): los card-stack de móvil usan role=list/listitem sobre <div>.
+    //   Aquí el rol explícito es MÁS robusto que un <ul> real — el preflight de
+    //   Tailwind pone list-style:none y Safari+VoiceOver borra la semántica de
+    //   lista en ese caso. Se apunta para que la próxima revisión no cuente mal
+    //   las puertas, no para abrir ninguna nueva.
     "jsx-a11y/prefer-tag-over-role": "allow",
     // - wrappers genéricos (DialogTitle, Label) reciben children vía
     //   {...props}; el contenido existe en cada punto de uso.

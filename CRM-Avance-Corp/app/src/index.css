@@ -37,6 +37,14 @@
 
   --muted: #eef2f8;
   --muted-foreground: #64748b;
+  --muted-foreground-strong: #475569; /* gris OSCURO para TEXTO pequeño sobre un
+                                    fondo que NO es el blanco de la tarjeta.
+                                    --muted-foreground da 4.55:1 sobre bg-muted/40
+                                    (pasa por 0.05) pero 4.44:1 en hover sobre
+                                    bg-muted/60 — y en una barra que ENTERA es un
+                                    botón, el hover es el estado normal de uso.
+                                    Este da 7.2:1 / 7.1:1. Mismo criterio que
+                                    --destructive-text y --warning-text. */
 
   --destructive: #dc2626;
   --destructive-foreground: #ffffff;
@@ -106,6 +114,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-muted-foreground-strong: var(--muted-foreground-strong);
   --color-destructive: var(--destructive);
   --color-destructive-foreground: var(--destructive-foreground);
   --color-warning: var(--warning);

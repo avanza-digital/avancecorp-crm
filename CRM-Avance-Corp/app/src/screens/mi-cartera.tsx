@@ -42,6 +42,7 @@ import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
 import { DIAS_ALARMA_RENOVACION, agruparCartera, idsPorVencer, resumenCartera, type GrupoCartera } from '@/lib/cartera-vista'
+import { CLAVE_SIN_CONTRATOS, CLAVE_SIN_FECHA, agruparPorMes, mesLima, type MesCartera } from '@/lib/cartera-meses'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
 import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
@@ -614,11 +615,94 @@ function TarjetaGrupoCliente({
   )
 }
 
+/**
+ * Cabecera plegable de un BLOQUE DE MES: el rótulo y lo que se cerró en él.
+ *
+ * Es la respuesta a «qué cerré cada mes» (pedido de Miguel, 2026-08-14): el
+ * resumen vive en la propia barra que separa los meses, no en una pantalla
+ * nueva, para que la lista y su total no puedan contarse cosas distintas.
+ *
+ * ⚠️ Dice «cerrados» y NO es la cuota: cuenta todo contrato de un cliente del
+ * asesor, mientras que la cuota le paga por los que registró él. Cuando el mes
+ * incluye alguno ajeno se DICE aquí — si no, el asesor vería un capital aquí y
+ * otro en Hoy sin ninguna explicación.
+ */
+function CabeceraMes({
+  mes,
+  abierto,
+  onToggle,
+}: {
+  mes: MesCartera
+  abierto: boolean
+  onToggle: () => void
+}) {
+  const esCubo = mes.clave === CLAVE_SIN_CONTRATOS
+  const nClientes = mes.grupos.length
+  const plural = (n: number) => (n === 1 ? '' : 's')
+
+  // UNA sola fuente para lo que se PINTA y para lo que se ANUNCIA.
+  //
+  // Hace falta un `aria-label` porque el nombre calculado concatena los <span>
+  // hermanos sin espacio y salía «Agosto 20261 contrato cerradoS/ 20,000», que
+  // se lee como otro número. Y los separadores `sr-only` no sirven: el cómputo
+  // recorta cada nodo, así que « · » llegaba como «·» pegado igual.
+  //
+  // El riesgo conocido de un `aria-label` es que GANA sobre el contenido: un
+  // dato visible añadido después quedaría mudo para un lector de pantalla, en
+  // silencio. Por eso el rótulo NO se escribe a mano — se deriva de este mismo
+  // array, así que no hay forma de pintar algo que no se anuncie.
+  const partes: Array<{ texto: string; clase?: string }> = esCubo
+    ? [{ texto: `${nClientes} cliente${plural(nClientes)}` }]
+    : [
+        { texto: `${mes.contratos} contrato${plural(mes.contratos)} cerrado${plural(mes.contratos)}` },
+        // PEN y USD JAMÁS se suman: dos importes separados, y solo se pinta la
+        // moneda que tiene algo (nunca un «S/ 0» de relleno).
+        ...(mes.capitalPen > 0
+          ? [{ texto: money(mes.capitalPen), clase: 'font-semibold text-foreground' }]
+          : []),
+        ...(mes.capitalUsd > 0
+          ? [{ texto: money(mes.capitalUsd, 'USD'), clase: 'font-semibold text-foreground' }]
+          : []),
+        ...(mes.registradosPorOtro > 0
+          ? [{
+              texto: `incluye ${mes.registradosPorOtro} registrado${plural(mes.registradosPorOtro)} por otra persona`,
+              clase: 'text-warning-text',
+            }]
+          : []),
+      ]
+
+  return (
+    <button
+      type="button"
+      onClick={onToggle}
+      aria-expanded={abierto}
+      aria-label={[mes.etiqueta, ...partes.map((p) => p.texto)].join(' · ')}
+      className="flex w-full items-center gap-2 border-b border-border/60 bg-muted/40 px-5 py-2.5 text-left transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent"
+    >
+      <ChevronRight
+        className={`size-4 shrink-0 text-muted-foreground transition-transform ${abierto ? 'rotate-90' : ''}`}
+        aria-hidden
+      />
+      <span className="text-sm font-semibold uppercase tracking-wide">{mes.etiqueta}</span>
+      {/* `muted-foreground-strong` y no `muted-foreground`: la barra ENTERA es un
+          botón, así que su hover es el estado normal de uso, y ahí el gris de
+          siempre da 4.44:1 — por debajo de AA. */}
+      <span className="ml-auto flex flex-wrap items-center justify-end gap-x-3 gap-y-1 text-xs tabular-nums text-muted-foreground-strong">
+        {partes.map((p) => (
+          <span key={p.texto} className={p.clase}>
+            {p.texto}
+          </span>
+        ))}
+      </span>
+    </button>
+  )
+}
+
 /** Vista compartida por la ruta REAL y la DEMO: rótulo por rol, StatStrip de
  *  capital en juego, buscador (cliente o N° de contrato), filtro por estado y la
- *  cartera jerárquica con expandir/colapsar + paginación por cliente. En móvil
- *  (< 768 px) la tabla se vuelve un card-stack. Los datos y las acciones vienen
- *  del caller — esta capa solo decide QUÉ se ve y ofrece. */
+ *  cartera partida EN BLOQUES POR MES de cierre, cada uno plegable y con su
+ *  propia paginación. En móvil (< 768 px) la tabla se vuelve un card-stack. Los
+ *  datos y las acciones vienen del caller — esta capa solo decide QUÉ se ve. */
 function VistaMiCartera({
   grupos,
   demo,
@@ -670,7 +754,15 @@ function VistaMiCartera({
   // ninguna fila (el Select filtra por estado de CONTRATO, no por vencimiento).
   const [soloPorVencer, setSoloPorVencer] = useState(false)
   const [expandidos, setExpandidos] = useState<ReadonlySet<string>>(new Set())
-  const [pagina, setPagina] = useState(0)
+  // Plegado de los BLOQUES DE MES. `null` = «el usuario no ha tocado nada, manda
+  // el criterio por defecto»; en cuanto pliega o despliega uno, se materializa el
+  // conjunto y manda él. Sin esa distinción no hay forma de tener un default que
+  // dependa de la lista (el primer bloque abierto, todos abiertos al filtrar) y a
+  // la vez respetar lo que el usuario decida.
+  const [mesesAbiertos, setMesesAbiertos] = useState<ReadonlySet<string> | null>(null)
+  // Una página por bloque: la cartera de un supervisor puede tener 250 clientes
+  // en un solo mes, y una página global rompería las cabeceras a la mitad.
+  const [paginaPorMes, setPaginaPorMes] = useState<ReadonlyMap<string, number>>(new Map())
 
   const nombres = useMemo(() => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])), [equipo])
   // Roster visible para el filtro 'Sin asesor': un dueño fuera de este Set (o null)
@@ -750,6 +842,11 @@ function VistaMiCartera({
   // la sub-fila que hizo match), SIN un override global: el usuario puede
   // colapsarlos y el botón "Colapsar" sigue siendo real (aria-expanded refleja el
   // estado verdadero). Solo AÑADE, al cambiar el filtro.
+  //
+  // Se recorre CONTRATO a CONTRATO —y no grupo a grupo— porque desde que la
+  // cartera se parte en bloques de mes hay que expandir al cliente EN EL MES del
+  // contrato que hizo match: con la clave del cliente a secas se expandía un
+  // bloque cualquiera y la sub-fila buscada seguía escondida.
   useEffect(() => {
     const nq = normalizar(q.trim())
     if (nq === '' && fEstado === 'todos' && !soloPorVencer) return
@@ -757,15 +854,19 @@ function VistaMiCartera({
       let cambio = false
       const sig = new Set(prev)
       for (const g of bases) {
-        const matchContrato =
-          (fEstado !== 'todos' && g.contratos.some((c) => c.estado === fEstado)) ||
-          // Con el filtro de renovación, el contrato que vence se ve SIN un clic
-          // más: la fecha es el dato que el asesor viene a buscar.
-          (soloPorVencer && g.contratos.some((c) => porVencer.has(c.id))) ||
-          (nq !== '' && g.contratos.some((c) => normalizar(c.numero_contrato).includes(nq)))
-        if (matchContrato && !sig.has(g.cliente.id)) {
-          sig.add(g.cliente.id)
-          cambio = true
+        for (const c of g.contratos) {
+          const match =
+            (fEstado !== 'todos' && c.estado === fEstado) ||
+            // Con el filtro de renovación, el contrato que vence se ve SIN un
+            // clic más: la fecha es el dato que el asesor viene a buscar.
+            (soloPorVencer && porVencer.has(c.id)) ||
+            (nq !== '' && normalizar(c.numero_contrato).includes(nq))
+          if (!match) continue
+          const clave = `${mesLima(c.creado_en) ?? CLAVE_SIN_FECHA}:${g.cliente.id}`
+          if (!sig.has(clave)) {
+            sig.add(clave)
+            cambio = true
+          }
         }
       }
       return cambio ? sig : prev
@@ -773,18 +874,72 @@ function VistaMiCartera({
   }, [bases, q, fEstado, soloPorVencer, porVencer])
 
   const hayFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos' || soloPorVencer
-  const { visibles, paginas, paginaActual } = paginar(filtrados, pagina)
+
+  // ── La cartera partida por MES DE CIERRE ───────────────────────────────────
+  // Los grupos entran con sus contratos YA recortados a los que pasan los
+  // filtros vivos, para que el total de la cabecera cuente exactamente lo que se
+  // ve debajo. Un grupo sobrevive al filtro solo si alguno de sus contratos
+  // pasa (o si el match fue por el cliente, y entonces se ven todos), así que
+  // ningún cliente CON contratos acaba por error en «Clientes sin contrato».
+  const meses = useMemo(
+    () =>
+      agruparPorMes(
+        filtrados.map((g) => ({
+          ...g,
+          contratos: g.contratos.filter(
+            (c) =>
+              (fEstado === 'todos' || c.estado === fEstado) &&
+              (!soloPorVencer || porVencer.has(c.id)),
+          ),
+        })),
+      ),
+    [filtrados, fEstado, soloPorVencer, porVencer],
+  )
+
+  // Por defecto se abre SOLO el bloque más reciente (el resto son historia); con
+  // un filtro puesto se abren todos, porque esconder un resultado detrás de un
+  // plegado es exactamente lo contrario de lo que el usuario vino a hacer.
+  const mesesAbiertosPorDefecto = useMemo(
+    () => new Set(hayFiltro ? meses.map((m) => m.clave) : meses.slice(0, 1).map((m) => m.clave)),
+    [hayFiltro, meses],
+  )
+  const abiertos = mesesAbiertos ?? mesesAbiertosPorDefecto
+  const alternarMes = (clave: string) =>
+    setMesesAbiertos(() => {
+      const sig = new Set(abiertos)
+      if (sig.has(clave)) sig.delete(clave)
+      else sig.add(clave)
+      return sig
+    })
+  const irAPaginaDeMes = (clave: string, pagina: number) =>
+    setPaginaPorMes((prev) => new Map(prev).set(clave, pagina))
+  // Columnas de la tabla: la cabecera de mes las abarca todas con un colSpan, y
+  // si se desalinea la fila se parte en dos. Se calcula del mismo gating que
+  // decide pintar cada <Th>, no a ojo.
+  const columnas = 3 + (verEquipo ? 1 : 0) + (accionesHabilitadas ? 1 : 0)
+
+  // Al cambiar los filtros, el plegado y las páginas vuelven a su criterio por
+  // defecto: la lista de bloques es otra y una página 3 heredada apuntaría a un
+  // mes que ya no está.
+  useEffect(() => {
+    setMesesAbiertos(null)
+    setPaginaPorMes(new Map())
+  }, [q, fEstado, fAsesor, soloPorVencer])
 
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
   // el gating vive AQUÍ (una sola fuente), la presentación decide cómo pintarlo.
-  const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => ({
+  // `claveMes` entra en la clave del plegado porque un cliente que cerró en
+  // varios meses aparece en varios bloques: con la clave del cliente a secas,
+  // expandirlo en agosto lo expandía también en julio.
+  const propsDeGrupo = (g: GrupoCartera, claveMes: string): PropsFilaGrupo => ({
     grupo: g,
-    expandido: expandidos.has(g.cliente.id),
+    expandido: expandidos.has(`${claveMes}:${g.cliente.id}`),
     onToggle: () =>
       setExpandidos((prev) => {
         const sig = new Set(prev)
-        if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
-        else sig.add(g.cliente.id)
+        const clave = `${claveMes}:${g.cliente.id}`
+        if (sig.has(clave)) sig.delete(clave)
+        else sig.add(clave)
         return sig
       }),
     colAsesor: verEquipo,
@@ -913,8 +1068,12 @@ function VistaMiCartera({
         <p className="px-5 pb-3 text-xs text-muted-foreground">
           {demo ? 'Datos de demostración. ' : ''}
           {verEquipo
-            ? 'Clientes de la empresa con el capital que tienen invertido. Cada cliente agrupa sus contratos; expándelo para verlos.'
-            : 'Tus clientes y el capital que tienen invertido contigo. Cada cliente agrupa sus contratos; expándelo para verlos.'}
+            ? 'Clientes de la empresa con el capital que tienen invertido, separados por el mes en que se cerró cada contrato. Cada cliente agrupa sus contratos; expándelo para verlos.'
+            : 'Tus clientes y el capital que tienen invertido contigo, separados por el mes en que cerraste cada contrato. Cada cliente agrupa sus contratos; expándelo para verlos.'}
+          {/* El conteo de arriba cuenta PERSONAS y los bloques cuentan cierres:
+              quien cerró en tres meses aparece tres veces. Se dice, porque si
+              no, contar filas y leer el total da dos números distintos. */}
+          {' Un cliente que cerró en varios meses aparece en cada uno de ellos, con lo de ese mes.'}
           {/* La marca «inactivo» se explica en texto, no solo con un tooltip:
               el `title` del Badge no existe en táctil ni con lector de pantalla. */}
           {inactivos > 0 &&
@@ -939,20 +1098,14 @@ function VistaMiCartera({
                   placeholder="Buscar cliente, documento o N° de contrato…"
                   className="pl-9"
                   value={q}
-                  onChange={(e) => {
-                    setQ(e.target.value)
-                    setPagina(0)
-                  }}
+                  onChange={(e) => setQ(e.target.value)}
                 />
               </div>
               <div className="w-[190px]">
                 <Select
                   aria-label="Filtrar por estado de contrato"
                   value={fEstado}
-                  onChange={(e) => {
-                    setFEstado(e.target.value as FiltroEstado)
-                    setPagina(0)
-                  }}
+                  onChange={(e) => setFEstado(e.target.value as FiltroEstado)}
                 >
                   <option value="todos">Todos los estados</option>
                   <option value="activo">Activos</option>
@@ -968,10 +1121,7 @@ function VistaMiCartera({
                   <Select
                     aria-label="Filtrar por asesor"
                     value={fAsesor}
-                    onChange={(e) => {
-                      setFAsesor(e.target.value)
-                      setPagina(0)
-                    }}
+                    onChange={(e) => setFAsesor(e.target.value)}
                   >
                     <option value="todos">Todos los asesores</option>
                     {equipo
@@ -995,10 +1145,7 @@ function VistaMiCartera({
                 <button
                   type="button"
                   aria-pressed={soloPorVencer}
-                  onClick={() => {
-                    setSoloPorVencer((v) => !v)
-                    setPagina(0)
-                  }}
+                  onClick={() => setSoloPorVencer((v) => !v)}
                   className={`inline-flex h-8 shrink-0 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold transition-colors ${
                     soloPorVencer
                       ? 'border-warning bg-warning/15 text-warning-text'
@@ -1037,13 +1184,47 @@ function VistaMiCartera({
                 }
               />
             ) : esMovil ? (
-              // Card-stack táctil (< 768 px): una tarjeta por cliente.
-              <div role="list" aria-label={titulo} className="space-y-3 px-3 pb-4">
-                {visibles.map((g) => (
-                  <div role="listitem" key={g.cliente.id}>
-                    <TarjetaGrupoCliente {...propsDeGrupo(g)} />
-                  </div>
-                ))}
+              // Card-stack táctil (< 768 px): un bloque de mes tras otro, cada
+              // uno con su cabecera plegable y sus tarjetas de cliente.
+              <div className="space-y-4 px-3 pb-4">
+                {meses.map((m) => {
+                  const abierto = abiertos.has(m.clave)
+                  const pag = paginar(m.grupos, paginaPorMes.get(m.clave) ?? 0)
+                  return (
+                    <div key={m.clave}>
+                      {/* Encabezado de verdad (<h4>, bajo el <h3> que emite
+                          SectionHead) y NO un <section aria-label>: aquel creaba
+                          un LANDMARK por mes —dos años de cartera son 24
+                          landmarks compitiendo con Navegación y Principal— y
+                          hacía que el lector dijera «Agosto 2026» tres veces al
+                          entrar. El encabezado da el salto de mes a mes que la
+                          región prometía, sin ensuciar el rotor. */}
+                      <h4 className="-mx-3 mb-3 font-normal">
+                        <CabeceraMes mes={m} abierto={abierto} onToggle={() => alternarMes(m.clave)} />
+                      </h4>
+                      {abierto && (
+                        <>
+                          <div role="list" aria-label={`${titulo} · ${m.etiqueta}`} className="space-y-3">
+                            {pag.visibles.map((g) => (
+                              <div role="listitem" key={g.cliente.id}>
+                                <TarjetaGrupoCliente {...propsDeGrupo(g, m.clave)} />
+                              </div>
+                            ))}
+                          </div>
+                          {pag.paginas > 1 && (
+                            <Paginacion
+                              paginaActual={pag.paginaActual}
+                              paginas={pag.paginas}
+                              total={m.grupos.length}
+                              onCambio={(p) => irAPaginaDeMes(m.clave, p)}
+                              ariaLabel={`Paginación de ${m.etiqueta}`}
+                            />
+                          )}
+                        </>
+                      )}
+                    </div>
+                  )
+                })}
               </div>
             ) : (
               <TablaEnvoltura ariaLabel={titulo}>
@@ -1056,24 +1237,54 @@ function VistaMiCartera({
                   </Th>
                   {accionesHabilitadas && <Th className="text-right">Acciones</Th>}
                 </TheadCrm>
-                <tbody>
-                  {visibles.map((g) => (
-                    <FilaGrupoCliente key={g.cliente.id} {...propsDeGrupo(g)} />
-                  ))}
-                </tbody>
+                {/* Un <tbody> por bloque de mes (HTML válido y semántico): la
+                    cabecera va en una fila que abarca todas las columnas, así
+                    las columnas siguen alineadas de un mes a otro — que es lo
+                    que se perdería con una tabla por mes. */}
+                {meses.map((m) => {
+                  const abierto = abiertos.has(m.clave)
+                  const pag = paginar(m.grupos, paginaPorMes.get(m.clave) ?? 0)
+                  return (
+                    <tbody key={m.clave}>
+                      <tr>
+                        {/* <th scope="rowgroup"> y no <td>: es la cabecera del
+                            grupo de filas, y sin eso ninguna ayuda técnica podía
+                            decir a qué mes pertenece una fila que se está
+                            leyendo — la relación existía solo en lo visual.
+                            NO lleva un <h4> dentro aunque ayudaría a saltar de
+                            mes con la tecla H: el HTML prohíbe encabezados
+                            dentro de <th>. En una tabla el salto se hace con la
+                            navegación de tablas; en móvil (que no es tabla) sí
+                            va el encabezado de verdad. */}
+                        <th colSpan={columnas} scope="rowgroup" className="p-0 font-normal">
+                          <CabeceraMes mes={m} abierto={abierto} onToggle={() => alternarMes(m.clave)} />
+                        </th>
+                      </tr>
+                      {abierto &&
+                        pag.visibles.map((g) => (
+                          <FilaGrupoCliente key={g.cliente.id} {...propsDeGrupo(g, m.clave)} />
+                        ))}
+                      {abierto && pag.paginas > 1 && (
+                        <tr>
+                          <td colSpan={columnas} className="px-2 pb-2">
+                            <Paginacion
+                              paginaActual={pag.paginaActual}
+                              paginas={pag.paginas}
+                              total={m.grupos.length}
+                              onCambio={(p) => irAPaginaDeMes(m.clave, p)}
+                              ariaLabel={`Paginación de ${m.etiqueta}`}
+                            />
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  )
+                })}
               </TablaEnvoltura>
             )}
           </>
         )}
       </Card>
-
-      <Paginacion
-        paginaActual={paginaActual}
-        paginas={paginas}
-        total={filtrados.length}
-        onCambio={setPagina}
-        ariaLabel="Paginación de la cartera"
-      />
 
       {/* Cierres en COOPAC Qorilazo/Prodelco: personas SIN cuenta de portal.
           Sección aparte de la lista (no hay cliente que agrupar) y con sus

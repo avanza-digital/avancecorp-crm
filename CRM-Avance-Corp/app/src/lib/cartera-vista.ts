@@ -52,40 +52,51 @@ export function agruparCartera(clientes: ClienteBasico[], contratos: ContratoRow
     if (arr) arr.push(c) // huérfano (sin cliente cargado en el ámbito) → descartado
   }
 
-  const grupos = clientes.map((cliente): GrupoCartera => {
-    const cs = porCliente.get(cliente.id) ?? []
-    let pen = 0
-    let usd = 0
-    let activos = 0
-    let proximo: string | null = null
-    for (const c of cs) {
-      if (c.estado !== 'activo') continue
-      activos += 1
-      const cap = Number(c.capital) || 0 // defensa: numeric-como-string de PostgREST
-      if (c.moneda === 'USD') usd += cap
-      else pen += cap
-      if (c.fecha_vencimiento && (proximo === null || c.fecha_vencimiento < proximo)) {
-        proximo = c.fecha_vencimiento
-      }
-    }
-    return {
-      cliente,
-      contratos: cs,
-      capitalActivoPen: redondear2(pen),
-      capitalActivoUsd: redondear2(usd),
-      contratosActivos: activos,
-      tieneCapital: activos > 0,
-      proximoVencimiento: proximo,
-    }
-  })
-
-  grupos.sort(
-    (a, b) =>
-      b.capitalActivoPen - a.capitalActivoPen ||
-      b.capitalActivoUsd - a.capitalActivoUsd ||
-      compararFechaDesc(a.cliente.creado_en, b.cliente.creado_en),
-  )
+  const grupos = clientes.map((cliente) => resumirCliente(cliente, porCliente.get(cliente.id) ?? []))
+  grupos.sort(ordenDeCartera)
   return grupos
+}
+
+/**
+ * Resumen de UN cliente sobre EL CONJUNTO DE CONTRATOS QUE SE LE PASE. Se
+ * extrajo de `agruparCartera` (2026-08-14) para que la vista por meses
+ * (lib/cartera-meses.ts) pueda recalcularlo sobre los contratos DE ESE MES: si
+ * reutilizara el resumen global, la fila de julio enseñaría el capital de toda
+ * la vida del cliente y el mismo importe se repetiría en cada bloque.
+ */
+export function resumirCliente(cliente: ClienteBasico, contratos: ContratoRow[]): GrupoCartera {
+  let pen = 0
+  let usd = 0
+  let activos = 0
+  let proximo: string | null = null
+  for (const c of contratos) {
+    if (c.estado !== 'activo') continue
+    activos += 1
+    const cap = Number(c.capital) || 0 // defensa: numeric-como-string de PostgREST
+    if (c.moneda === 'USD') usd += cap
+    else pen += cap
+    if (c.fecha_vencimiento && (proximo === null || c.fecha_vencimiento < proximo)) {
+      proximo = c.fecha_vencimiento
+    }
+  }
+  return {
+    cliente,
+    contratos,
+    capitalActivoPen: redondear2(pen),
+    capitalActivoUsd: redondear2(usd),
+    contratosActivos: activos,
+    tieneCapital: activos > 0,
+    proximoVencimiento: proximo,
+  }
+}
+
+/** Orden de la cartera: mayor capital activo PEN, luego USD, luego el más reciente. */
+export function ordenDeCartera(a: GrupoCartera, b: GrupoCartera): number {
+  return (
+    b.capitalActivoPen - a.capitalActivoPen ||
+    b.capitalActivoUsd - a.capitalActivoUsd ||
+    compararFechaDesc(a.cliente.creado_en, b.cliente.creado_en)
+  )
 }
 
 /**

@@ -1,7 +1,13 @@
 # Anulación de cierres de Avance
 
-**Estado: ✅ Fase 1 (servidor) EN PRODUCCIÓN 2026-08-14. 🟡 Fase 2 (el botón) CONSTRUIDA Y EN
-VERDE, pendiente de aplicar su migración de lectura y de publicar el front.**
+**Estado: ✅ COMPLETA EN PRODUCCIÓN 2026-08-14 — servidor y front.** Release
+`crm-20260814T160439Z-bbc98299d44e` (commit `bbc9829`), con hash local↔vivo idéntico en los tres
+ficheros clave, las llaves verificadas dentro del fichero VIVO y las dos RPC nuevas presentes en
+el bundle publicado. Falta solo la prueba visual de Miguel.
+
+✅ **Probada en vivo por Miguel el 2026-08-14**, con tres anulaciones reales hechas por Carlos
+(gerencia). La conversión de MIGUEL BRICEÑO bajó de **38,33 % a 5,00 %** en el mismo acto. Lo que
+esa prueba enseñó está en «[[#Lo que la primera prueba real destapó]]».
 
 Migración `20260813235119_crm_anulacion_cierre_avance`, aplicada directo con
 `supabase/scripts/aplicar-anulacion-avance-prod.sh` (el merge de branches de Supabase sigue roto;
@@ -82,8 +88,10 @@ abrir la fila), y la marca se ve **en la ficha y en la lista de leads**.
 tabla es deny-by-default y el gate comprueba que no se lee desde la Data API, así que gerencia
 habría anulado, recargado y visto el lead exactamente igual — con el segundo intento muriendo
 en «ese cierre ya estaba anulado». Por eso la Fase 2 no es solo front: lleva
-`crm.cierres_estado_fn(uuid[])` (migración `20260814100746`, **pendiente de aplicar**), que
-responde por lote qué leads tienen cierre en cooperativa o anulación, con canal, fecha y motivo.
+`crm.cierres_estado_fn(uuid[])` (migración `20260814100746`, **aplicada a producción el
+2026-08-14**: DEFINER 169 → 170, cero policies, no legible por la Data API, ejecutable por
+`authenticated`), que responde por lote qué leads tienen cierre en cooperativa o anulación, con
+canal, fecha y motivo.
 
 Tres cosas que conviene tener escritas:
 
@@ -121,5 +129,61 @@ el congelado de meses liquidados, que sigue diferido.
 **Vuelta atrás**: `supabase/scripts/rollback-anulacion-avance.sql`. Devuelve la cuota al cuerpo
 post-B y el delegado a mirar solo cooperativas. **No borra la tabla ni la RPC a propósito**: si
 gerencia ya anuló algo, esa fila es la razón escrita que se le dio a una persona.
+
+## Lo que la primera prueba real destapó
+
+Carlos anuló tres cierres de MIGUEL BRICEÑO el 2026-08-14. La conversión bajó como debía
+(38,33 % → 5,00 %), pero Miguel hizo dos preguntas que valen más que la prueba.
+
+### 1. «El monto no bajó»
+
+Correcto, y no era un fallo de la anulación: **ese dinero nunca fue del vendedor**. La cuota
+acredita cada contrato a **quien lo registra** (`public.contratos.creado_por`), porque el enlace
+lead↔contrato está vacío en los **373 contratos** de producción, sin una sola excepción. El
+contrato de la prueba lo creó Carlos, que no está en el cuadro de metas → quedó **sin atribuir a
+nadie**. Anular no puede bajar un cero.
+
+De ahí sale un efecto que conviene tener escrito: **un contrato registrado por alguien fuera del
+cuadro de metas no le cuenta a nadie** (ni al asesor ni a quien lo teclea). Es el diseño, y es
+deliberado: impide que un administrativo o un supervisor se apropien de producción ajena.
+
+En agosto de 2026 eso afectaba a 7 contratos registrados por Administrador Avance Corp, Jorge
+Marzano, Carmen Jaramillo y Carlos. **Miguel lo revisó el 2026-08-14 y cerró el tema: son demos
+de prueba, no se tocan.** Queda anotado para que la próxima vez que aparezca este hueco en un
+recuento no se levante como incidencia — pero también para no olvidar que, si algún día un asesor
+vende y otro teclea, esa venta se pierde de su cuota en silencio.
+
+Para probar la mitad del dinero hay que crear el contrato **desde la sesión del vendedor**.
+
+### 2. «Si se anuló, ¿por qué el cliente sigue en la cartera del asesor?»
+
+Porque la cartera de clientes **no la decide el cierre**: la decide la casilla `asesor_perfil_id`
+del cliente, que escribe la conversión y que la anulación no toca (la RLS de `public.perfiles`
+para un analista es exactamente `asesor_perfil_id = auth.uid()`).
+
+**Decisión de Miguel, 2026-08-14 — se queda como está.** Con dos casos y su desenlace:
+
+| El caso | Qué se hace |
+|---|---|
+| **Mala práctica, pero el cliente es REAL** | Se anula el cierre y **el cliente se queda con su asesor**. Le quitas el mérito, no la relación: si le quitaras el cliente, no quedaría en la cartera de nadie y se perdería el seguimiento y la renovación. |
+| **Cuenta mal hecha — el cliente NO existe** | El administrador **borra al usuario**. |
+
+⚠️ **El borrado tiene un orden obligatorio: anular PRIMERO, borrar DESPUÉS.** Borrar al cliente
+se lleva el dinero pero **no** el cierre —que vive sellado en el ledger— y el porcentaje del
+asesor se queda inflado para siempre: es literalmente la avería que esta migración vino a cerrar
+(ver «Qué arregla», arriba). Anular después de borrar todavía funciona; el riesgo real es
+olvidarse.
+
+Dos comprobaciones hechas contra producción el 2026-08-14, para que nadie las repita:
+
+- `public.contratos.cliente_id` es **RESTRICT**: la base **no deja borrar un cliente con
+  contratos**. Hay que retirar el contrato antes.
+- `crm.leads.perfil_id` es **SET NULL**: al borrar el cliente, el lead se queda sin apuntar a
+  nadie. No rompe nada —ya no hay contratos que correlacionar— pero explica por qué después el
+  lead se ve huérfano.
+- Y la puerta de atrás está cerrada: **un contrato FUTURO del mismo cliente hecho por el mismo
+  vendedor tampoco le cuenta**. Medido con la sonda de [[probar-en-prod-sin-escribir]]
+  (`contrato_futuro_neutralizado=1`, cero rastros después). El techo solo se levanta si ese
+  cliente vuelve a cerrarse por un lead nuevo.
 
 Ver también [[Conversion mensual - definicion cerrada]] · [[Conversion mensual - plan de implementacion]].
