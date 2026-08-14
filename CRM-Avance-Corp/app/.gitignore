@@ -32,3 +32,7 @@ blob-report/
 # credenciales locales (la anon key es pública, pero higiene)
 .env
 !.env.example
+
+# Estado local del CLI de Supabase: lo crea `gen:types` al correr desde app/.
+# Es basura de herramienta, se regenera sola y no describe el proyecto.
+supabase/.temp/

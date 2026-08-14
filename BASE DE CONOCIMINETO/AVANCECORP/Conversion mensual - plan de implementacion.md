@@ -18,8 +18,8 @@ Plan para llevar a producción la fórmula de [[Conversion mensual - definicion 
 | **§3.4** · migración D (sellar `origen`) | ✅ **EN PRODUCCIÓN** 2026-08-11 — la variante D-simple (sin ventana de corrección; esa quedó APARCADA) |
 | **E** · candados del ledger (CHECK trivaluado + índice único de conversión) | ✅ **EN PRODUCCIÓN** 2026-08-11 |
 | **F** · regla del alta D8 (Referido/Wallking/Otro; referido = solo vendedor, a su nombre) | ✅ **EN PRODUCCIÓN** 2026-08-11 |
-| **§4/§4bis** · front (release completo) | ✅ **TERMINADO Y EN VERDE** 2026-08-11 18:10 — 1.648 unitarias (46 nuevas sobre la línea base) + 81 e2e + lint/tipos limpios; contrato, 3 tiles, ranking (gerencia Y supervisor con la RPC nueva — `metricas_conversiones_equipo_fn` jubilada del tab), equipo-gerencia sin divisiones en cliente, ficha con procedencia/referidos, resumen, Equipo con «—» vs «0 %» y ventana 45 d rotulada, demo DERIVADA en los dos mundos, harness e2e con `conversion_mensual_fn`. **Falta solo `/release-crm` (lo lanza Miguel)** |
-| **§3.2–3.3** · migraciones B y C | ⏳ sin empezar — D1 la deja para septiembre; C se escribe ANTES que B; re-pactar metas antes de B |
+| **§4/§4bis** · front (release completo) | ✅ **EN PRODUCCIÓN** 2026-08-11 18:45 — release `crm-20260811T234026Z-c43036ef20f3` (18.º), hash local↔prod idéntico byte a byte, llaves verificadas dentro del ZIP. 1.648 unitarias + 81 e2e + lint/tipos limpios. Commits `4473fd5`·`3f8275a`·`c43036e` **pusheados** 19:06 (`91688a5..c43036e`) |
+| **§3.2–3.3** · migraciones B y C | ⏳ sin empezar — D1 las deja para septiembre; C se escribe ANTES que B. **Bloqueadas además por orden 2026-08-11 noche: esperan a que aterrice [[Cierres en cooperativas Qorilazo y Prodelco - plan\|Fase 1 de cooperativas]]**, que reescribe la misma función; el front YA está listo para B (verificado, ver §3.2), falta el test del payload nuevo |
 
 **Cero código escrito de los pasos 1–3.** Producción re-verificada el 2026-08-11, **sin
 movimiento desde el día 10**: 1 lead · 1 episodio en agosto · 0 cierres · 0 referidos ·
@@ -588,6 +588,33 @@ Cambios de payload, elegidos para minimizar destrozo:
 
 El resto de la función se copia **byte a byte** de `20260808183527`.
 
+> **Actualización 2026-08-11 noche.** Dos hallazgos tras el release del front:
+> 1. **La condición de §7 ya se cumple.** El front publicado hoy (18:45) no solo
+>    «ya está en producción» — se construyó a propósito tolerante a los dos mundos:
+>    `objetivos.ts` acepta el picklist `'leads_resueltos' | 'leads_recibidos_ponderado'`
+>    sin redeploy, `numerador`/`cierres_referidos`/`cierres_no_referidos`/
+>    `ponderacion_referido` son `v.optional` con fallback `numerador ?? convertidos`
+>    (agregados de hoy idénticos hasta que B exista), `conversion_real` ya perdió su
+>    `maxValue(100)`, y `alertas-gerencia.ts` ya separa `porcentajeMetaValido` (con
+>    techo) de `porcentajeConversionValido` (sin techo — comentario cita este mismo
+>    plan, §4bis-C8). B puede aplicarse sin un segundo release de front. Lo que
+>    **falta** es real pero distinto: ningún test unitario ejercita hoy el payload
+>    post-B de punta a punta (ni el picklist nuevo, ni una `conversion_real` > 100
+>    corriendo por `resumen-gerencia`/`inteligencia-comercial`/`alertas-gerencia`) —
+>    hay que añadirlo antes de aplicar B, no solo confiar en el diseño.
+> 2. **El ancla «byte a byte de `20260808183527`» quedó obsoleta.** Apareció en el
+>    árbol (sin commitear) `20260812000259_crm_cierres_externos.sql` — Fase 1 de
+>    [[Cierres en cooperativas Qorilazo y Prodelco - plan]], con OK de Miguel el
+>    mismo 2026-08-11 — que **también** hace `create or replace` de
+>    `crm.cumplimiento_metas_fn` (UNION ALL de cierres externos en la CTE `reales`).
+>    Evidencia de que sigue viva: `MIGRACIONES.md` y `test-rls.mjs` modificados sin
+>    commitear, `test-cierres-externos.sql` sin trackear — no es trabajo de esta
+>    sesión. **Decisión de Miguel: cooperativas va primero.** Cuando aterrice, B se
+>    escribe copiando byte a byte el cuerpo que ESA migración deje en producción
+>    (no `20260808183527`), y su preflight necesita su propia ancla md5 fresca.
+>    Escribir B en paralelo, contra el cuerpo de hoy, arriesga que una de las dos
+>    pise a la otra al aplicarse.
+
 ### 3.3 Migración C — la vuelta atrás, escrita ANTES de aplicar B
 
 `AAAAMMDDHHMMSS_crm_cumplimiento_conversion_rollback.sql`: `create or replace` de
@@ -1063,7 +1090,7 @@ columna que olvidar.
 | **D2** | ¿El **supervisor con cartera propia** aparece como fila del ranking? | **No** (queda en `fuera_de_roster`), por paridad con las demás pantallas. Revisar a los 30 días: si `fuera_de_roster.cierres` no es cero, cambiar. |
 | **D3** | «**Registrados**» en el bloque de referidos: ¿recibidos o dados de alta? | **Los recibidos.** Con la regla nueva ya no están en el divisor, así que el número es informativo por los dos lados; se elige «recibidos» porque es la población de la que salen los cierres que sí ponderan (y con la que el «aporta 2,0 %» se explica). Los dados de alta viajan al lado: cambiar el rótulo cuesta una línea de front y cero SQL. |
 | **D4** | **Reapertura** de un descartado en otro mes: ¿vuelve al divisor? | **Sí**: es una oportunidad de trabajo nueva en un mes nuevo. |
-| **D5** | Umbral de alerta de conversión baja | **20 leads recibidos**, y a partir del **día 10** del mes. Con 10 no filtra nada. |
+| ~~**D5**~~ | Umbral de alerta de conversión baja | ✅ **DECIDIDO por Miguel, 2026-08-13, y MEJOR que la recomendación**: en vez de un solo día mínimo, el avance individual se juzga por **CORTES SEMANALES — días 7, 15, 21 y 30**. El aviso aparece en su corte y **sigue visible hasta el siguiente** (decisión explícita: si solo saliera el día exacto, gerencia perdería el corte por no entrar ese día). Febrero corre su último corte al día 28/29 para no quedarse sin revisión final. Muestra mínima: **10** (decisión suya del mismo día; el plan recomendaba 20, pero con los cortes ese filtro ya no carga solo — el corte impide juzgar demasiado pronto y la muestra solo tiene que impedir juzgar con pocos datos). ⚠️ **Y la mitad que de verdad importa**: la cadencia gobierna SOLO los avisos. *«si gerencia quiere ver conversión al día 2, pues si todos van 0 % ok, pero necesito que el sistema muestre la verdad»*. Verificado que ninguna pantalla lee el día del mes, y así debe seguir: **consultar no depende del calendario**. Implementado en `alertas-gerencia.ts` (`CORTES_ALERTA_CONVERSION_INDIVIDUAL`, `cortesDelMes`, `corteVigente`, `MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR`) con 5 casos nuevos, incluido el que separa esta decisión de la alternativa: el aviso del día 7 SIGUE ahí el día 8. |
 | ~~**D6**~~ | ~~Ventana operativa para las cargas desde la hoja~~ | ✅ **DECIDIDO por Miguel, 2026-08-10: `FECHA_CORTE = "2026-08-15"`.** Nada entra al CRM hasta el 15 de agosto; lo anterior se queda fuera. ⚠️ **El corte por sí solo no basta**: las filas sin fecha legible lo esquivan por diseño (regla del 2026-07-27), así que hay que **pausar el temporizador del puente** hasta el 15 y reactivarlo ese día. Consecuencia: **agosto cuenta desde el día 15** — medio mes de ingreso, y por eso el primer mes completo de verdad es **septiembre**, que es justo donde D1 puso la meta. |
 | **D7** | La corrección de origen de gerencia, ¿restaura en silencio o avisa? | ⚠️ **SUPERADA el 2026-08-11**: la corrección de gerencia quedó **aparcada** (0 cambios de origen en todo el historial; la D se redujo a sellar el origen sin ventana, con la válvula privilegiada como único escape). |
 | ~~**D8**~~ | ¿Quién puede crear leads a mano y con qué origen? | ✅ **DECIDIDO por Miguel, 2026-08-11**: *«referido, Wallking y OTRO esto puede registrar el vendedor; landing y formulario se carga solo»* + *«[los referidos] solo los vendedores a su propio nombre»*. Regla a codificar en `crm.crear_lead_si_disponible` (hoy acepta los 8 orígenes con cualquier rol — verificado en `20260804165440_crm_creacion_lead_atomica.sql:442`): el alta manual solo admite `referido`/`oficina`/`otro`; `landing`/`formulario` (y los heredados) entran SOLO por el puente; `referido` exige rol **vendedor** y **auto-asignación** (a su propio nombre — gerencia no registra referidos por otro). Espejo en el front: `ORIGENES` filtrado por rol en `lead-nuevo.tsx`. Con esto, el escenario de Codex (re-etiquetar leads entrantes) queda **doblemente** cerrado: los automáticos traen su origen del puente y el manual del vendedor no puede suplantarlos. |
@@ -1083,6 +1110,95 @@ numerador)** · **D8 (alta manual = referido/oficina/otro; landing y formulario 
 automáticos; referido = solo vendedor a su propio nombre)** · la corrección de origen de
 gerencia queda **aparcada** (D simple: origen sellado, válvula privilegiada como único
 escape). El plan quedó **aprobado el 2026-08-11** («vamos haz todo») y está en ejecución.
+
+---
+
+## 10. La migración B, aplicada — la conversión ya tiene UNA sola definición (2026-08-13)
+
+La revisión de deuda técnica de Codex sobre los cierres en cooperativas destapó que
+**«conversión» seguía valiendo dos cosas a la vez en la misma pantalla**:
+
+- el **titular** y el KPI «Conversión del mes» salen de `conversion_mensual_fn`: divisor
+  = leads NO referidos **recibidos** en el mes, numerador **ponderado** (referidos a
+  0,15) y con arrastre;
+- la **barra de avance contra la meta** salía de `cumplimiento_metas_fn.conversion_real`,
+  que conserva su definición histórica: convertidos ÷ **resueltos**, sin ponderar. La
+  propia función lo declara en su payload (`fuentes_reales.conversion = 'leads_resueltos'`).
+
+O sea: gerencia podía leer «conversión del mes: 18 %» arriba y, debajo, una barra que
+medía su avance contra la meta con otro 18 % que no era el mismo. La ficha del vendedor
+en Inteligencia Comercial tenía el defecto calcado (barra, leyenda y el veredicto
+«En meta» / «Por alcanzar»).
+
+**Arreglado en el front el 2026-08-13**: la barra, su leyenda y el veredicto se miden ya
+con el MISMO número que la pantalla enseña. Si el mes no es medible, la barra se calla
+(«Sin meta») en vez de avanzar con un número que la pantalla no está dispuesta a mostrar.
+Dos pruebas de regresión lo fijan en `resumen-gerencia.test.tsx` y una en
+`inteligencia-comercial.test.tsx`; las tres se verificaron **en rojo contra el código
+anterior** antes de darlas por buenas.
+
+✅ **CERRADO EL 2026-08-13**: la migración B está EN PRODUCCIÓN. `cumplimiento_metas_fn` ya no
+recalcula la conversión por su cuenta: consume `private.conversion_mensual_por_vendedor`, la
+misma que pinta la pantalla. Con eso las alertas de gerencia quedan alineadas solas, sin
+cañería nueva. Lo que sigue abierto es otra cosa (ver §11).
+
+~~**Lo que NO cierra esto**: en el servidor siguen existiendo las dos fórmulas. Cerrarlo es
+exactamente la **migración B (cumplimiento)** de este plan, que quedó fuera del lote
+aplicado (entraron A, E, D y F). Mientras B no entre:
+
+- las **alertas de gerencia** (`alertas-gerencia.ts`) siguen bebiendo de
+  `conversionReal`, así que un vendedor puede ver «En meta» en su ficha y generar aviso
+  de «bajo meta». Reconectarlas exige llevar la conversión mensual al proveedor de
+  alertas **y** decidir el umbral de muestra (hoy es «casos resueltos mínimos», que con
+  la fórmula nueva pasaría a ser «recibidos mínimos») — decisión de Miguel, no técnica;
+- `objetivos.ts` ya tiene montada la transición (campo `numerador` con *fallback* a
+  `convertidos`, y el picklist `leads_resueltos | leads_recibidos_ponderado`), así que B
+  es sobre todo cambiar la CTE `conversiones` y el literal de `fuentes_reales`.
+
+---
+
+## 11. La regla de Miguel: una sola puerta puede mover la conversión (2026-08-13)
+
+Al cerrar la B, Miguel puso una regla de negocio que no estaba escrita:
+
+> *«si gerencia anula algo no me va a importar que baje un numerador, porque ese numerador
+> era falso, era producto de una mala gestión. Después de eso no debe haber nada que pueda
+> modificar la conversión»*
+
+Es más simple y más fuerte que «congelar el mes al liquidar», que era la propuesta previa:
+**la anulación de gerencia es la ÚNICA puerta legítima**; todas las demás deben estar
+cerradas. Corregir una mentira no es reescribir la historia; cualquier otra cosa, sí.
+
+El motivo comercial lo dio él mismo: sin eso **no hay comparativos** que se sostengan.
+
+### Estado real hoy
+
+- ✅ **Congelado**: lo que se PROMETIÓ. `meta_periodos` y `metas_vendedor` son
+  publicaciones inmutables.
+- ❌ **NO congelado**: lo que se LOGRÓ. No existe ninguna tabla con el resultado del mes;
+  cada consulta lo recalcula desde los datos vivos. Abrir agosto en diciembre lo recalcula
+  en diciembre.
+- 🔴 **Puerta abierta verificada**: `crm.conversion_pesos` (el 0,15 del referido) solo
+  tiene disparador de AUDITORÍA — anota quién la cambia, no lo impide. Un `update` del peso
+  o un `insert` con fecha hacia atrás movería la conversión de TODOS los meses pasados en
+  silencio, sin que nadie anule nada. No es alcanzable por usuarios (RLS cerrada, cero
+  grants): solo desde una migración o el dueño de la base. **La migración B amplía su radio**:
+  antes la pantalla de metas no dependía del peso, ahora sí.
+
+### Pendiente de auditar (candidatas, NO verificadas)
+
+Atribución de un contrato si el lead se reasigna · cierre o anulación de contrato por el
+lado de Avance · reparto de leads. A cada una hay que hacerle la misma pregunta: *¿puedes
+cambiar hacia atrás?*
+
+### Orden acordado
+
+1. ✅ Migración B (hecha).
+2. 🟡 Auditar todas las puertas y cerrarlas, con la regla de arriba como criterio.
+3. 🟡 Congelar al liquidar, ya con la garantía de que nada más se mueve.
+
+⏰ El primer mes que tendrá que quedarse quieto es **septiembre** (cierra el 30/09), que es
+el primero con metas de verdad.
 
 Relacionado: [[Conversion mensual - definicion cerrada]],
 [[Como se mide la conversion del asesor]], [[Por que el CRM nunca tuvo metas publicadas]],

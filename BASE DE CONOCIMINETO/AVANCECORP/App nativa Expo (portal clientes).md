@@ -63,6 +63,21 @@ donde Miguel agrupará también guías de desarrollo y material del app.
 - La app ya consume `@/core` (el viejo `src/utils/formato.ts` fue absorbido); el tipo
   `Contrato` ganó `tipo_interes` y `cerrado_en` y el select de contratos los trae.
 
+## Barrera de pruebas unitarias (2026-07-31)
+
+- Infraestructura Jest compatible con Expo SDK 57 (`jest-expo` + React Native Testing
+  Library), separada de la suite Node de paridad del portal.
+- **52/52 pruebas en verde, 12 suites**: cálculos/fechas/formato, autenticación completa,
+  cliente Supabase móvil, servicios, redirecciones, tabs, login, Inicio, Perfil y
+  placeholders.
+- Cobertura sobre TODO `src/`: **100% líneas, 100% funciones, 99.16% sentencias y
+  96.87% ramas**. Gate mínimo global: 85% líneas/sentencias, 85% funciones y 80% ramas;
+  umbrales más estrictos para `core/`, `lib/` y `services/`.
+- Comando único: `npm run verify` (typecheck app + typecheck tests + paridad del portal +
+  cobertura). GitHub Actions replica el gate con `npm ci --legacy-peer-deps`.
+- Alcance deliberado: solo pruebas, configuración de desarrollo, documentación y CI;
+  **ningún cambio funcional**, de Supabase, diseño o despliegue.
+
 ## Cómo probarla
 
 ```

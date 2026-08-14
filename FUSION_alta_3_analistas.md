@@ -22,9 +22,9 @@ Todo está pre-llenado **salvo lo marcado 【TÚ】** (DNI / tu correo / contras
 
 ## Después de crearlos
 1. En **Clientes**, reasigna estos **5 clientes** a "MIGUEL BRICEÑO" con el botón "Asignar analista" (⇆):
-   - CARLOS CARO DIAZ
-   - CLARISA MANRIQUE CAMPOS
-   - ELIANA NELLY BARRIGA PALOMINO
-   - GIANINA BERNUY MONTES
-   - SARA LUZ LIMACHE CORTEZ
+   - [REDACTADO-C1]
+   - [REDACTADO-C2]
+   - [REDACTADO-C3]
+   - [REDACTADO-C4]
+   - [REDACTADO-C5]
 2. Avísame y corremos juntos el **SQL de limpieza final** (`FUSION_asesor_analista_LIMPIEZA_FINAL.sql`).
