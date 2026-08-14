@@ -876,6 +876,19 @@ export interface Database {
         Args: { p_cierre_id: string; p_motivo: string }
         Returns: Json
       }
+      // Anular un cierre de AVANCE (20260813235119). Va por lead y no por
+      // cierre: en Avance no hay fila de cierre — el cierre ES el lead
+      // convertido y su contrato vive en `public.contratos`.
+      anular_cierre_avance: {
+        Args: { p_lead_id: string; p_motivo: string }
+        Returns: Json
+      }
+      // El estado del cierre de unos leads (20260814100746): la ventana que
+      // permite VER una anulación, porque su tabla es deny-by-default.
+      cierres_estado_fn: {
+        Args: { p_lead_ids: string[] }
+        Returns: Json
+      }
       configuracion_sla_fn: {
         Args: Record<string, never>
         Returns: Json

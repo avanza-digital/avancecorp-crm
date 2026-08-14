@@ -3,6 +3,20 @@
 // tiene aprobadas las vistas de leads y debe poder operar un lead ajeno.
 import { expect, test } from '@playwright/test'
 import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal } from './_helpers'
+import type { Page } from '@playwright/test'
+
+/** La tabla de LEADS. Ojo: su botón de nav se llama «Leads»; «Cartera» es la
+ *  pantalla de clientes y contratos, que es otra cosa. Un lead CONVERTIDO solo
+ *  se alcanza por aquí: en el Pipeline los terminales son un contador, no
+ *  tarjetas que se puedan abrir. */
+async function abrirFichaDesdeLeads(page: Page, nombre: RegExp) {
+  // `exact`: sin él también casa «Repartir leads», que es otra pantalla.
+  await page.getByRole('button', { name: 'Leads', exact: true }).click()
+  await page.getByRole('row', { name: new RegExp(`Abrir ficha de ${nombre.source}`, 'i') }).click()
+  const drawer = page.getByRole('dialog', { name: nombre })
+  await expect(drawer).toBeVisible()
+  return drawer
+}
 
 test('Gerencia abre un lead asignado a otro analista y puede iniciar su conversión', async ({ page }) => {
   await montarBackendReal(page, {
@@ -93,4 +107,61 @@ test('métricas de equipo caídas: Equipo degrada a «—» con aviso y reintent
   await expect(
     page.locator('[data-slot="card"]').filter({ hasText: 'Equipos' }).first(),
   ).toContainText('—')
+})
+
+// La Fase 2 de la anulación de cierres de Avance: gerencia le quita el mérito a
+// un cierre mal registrado y la marca queda a la vista. Lo que este caso vigila
+// es que la marca venga de la RELECTURA del servidor y no de un optimismo del
+// front — si el servidor no guardara, la pantalla no debe decir que sí.
+test('Gerencia anula el cierre de un lead convertido y la marca queda a la vista', async ({ page }) => {
+  const backend = await montarBackendReal(page, {
+    rolCrm: 'gerencia',
+    rolPortal: 'directorio',
+    leads: [leadReal({ vendedor_id: 'vend-1', etapa: 'convertido' })],
+  })
+  await loginReal(page)
+  const drawer = await abrirFichaDesdeLeads(page, /CLIENTE REAL UNO/)
+
+  // «Anular el cierre», no «Anular»: esta ficha ya tiene botones «Anular» que
+  // quitan una TAREA, y el rótulo es lo único que los distingue.
+  await drawer.getByRole('button', { name: /Anular el cierre de/i }).click()
+  const dialogo = page.getByRole('dialog', { name: /Anular el cierre de/i })
+  await expect(dialogo).toBeVisible()
+
+  // Sin motivo no se envía nada: quitar mérito sin razón escrita es justo lo que
+  // el servidor no permite, y el front no debe llegar a intentarlo.
+  await dialogo.getByRole('button', { name: 'Anular cierre' }).click()
+  expect(backend.anulacionesAvance).toHaveLength(0)
+  await expect(dialogo.getByRole('alert')).toContainText(/motivo/i)
+
+  await dialogo.getByLabel(/Motivo de la anulación/i).fill('Mala práctica del asesor')
+  await dialogo.getByRole('button', { name: 'Anular cierre' }).click()
+
+  await expect.poll(() => backend.anulacionesAvance).toEqual([
+    { lead_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa', motivo: 'Mala práctica del asesor' },
+  ])
+  await expect(drawer.getByText('CIERRE ANULADO')).toBeVisible()
+  await expect(drawer.getByText('Mala práctica del asesor')).toBeVisible()
+})
+
+// El caso que apaga el botón, y el único lead convertido que hay HOY en
+// producción: un cierre en cooperativa se anula con su propia acción, que guarda
+// la foto del depósito. La RPC de Avance lo rechaza, así que el botón no puede
+// llegar a ofrecerse.
+test('un cierre en cooperativa NO ofrece el botón de anular de Avance', async ({ page }) => {
+  await montarBackendReal(page, {
+    rolCrm: 'gerencia',
+    rolPortal: 'directorio',
+    leads: [leadReal({ vendedor_id: 'vend-1', etapa: 'convertido' })],
+    cierresEstado: [{
+      lead_id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
+      canal: 'cooperativa',
+      anulado_en: null,
+      motivo: null,
+    }],
+  })
+  await loginReal(page)
+  const drawer = await abrirFichaDesdeLeads(page, /CLIENTE REAL UNO/)
+  await expect(drawer.getByText(/Convertido a cliente/i)).toBeVisible()
+  await expect(drawer.getByRole('button', { name: /Anular el cierre de/i })).toHaveCount(0)
 })

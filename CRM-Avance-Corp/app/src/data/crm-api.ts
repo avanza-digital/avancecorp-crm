@@ -62,6 +62,11 @@ import {
   type CierresExternos,
   type Cooperativa,
 } from '@/lib/cierres-externos'
+import {
+  CierresEstadoSchema,
+  MAX_LEADS_ESTADO,
+  type CierreEstado,
+} from '@/lib/cierre-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type {
   FilaAltasAnalista,
@@ -3183,6 +3188,145 @@ export async function anularCierreExterno(
     throw fallo
   }
   return { cierreId: respuesta.output.cierre_id }
+}
+
+export interface AnularCierreAvanceDatos {
+  leadId: string
+  motivo: string
+}
+
+export interface CierreAvanceAnulado {
+  leadId: string
+  /** Los contratos que dejan de acreditarle al vendedor. Puede venir VACÍO y
+   *  seguir siendo correcto: la conversión baja igual (sale del ledger), pero
+   *  no había contrato que descontar. */
+  contratosAfectados: string[]
+  afectaCuota: boolean
+}
+
+/**
+ * El freno de gerencia contra un cierre de AVANCE por error de gestión o mala
+ * práctica: ese cierre deja de acreditarle al vendedor en la cuota Y en la
+ * conversión.
+ *
+ * Va por LEAD y no por cierre porque en Avance no hay fila de cierre — el cierre
+ * ES el lead convertido, y su capital vive en `public.contratos`.
+ *
+ * NO mueve dinero real: el contrato y el cliente siguen intactos. NO reabre el
+ * lead (un convertido es terminal por diseño) y es de UNA SOLA DIRECCIÓN.
+ */
+export async function anularCierreAvance(
+  datos: AnularCierreAvanceDatos,
+): Promise<CierreAvanceAnulado> {
+  const motivo = datos.motivo.trim()
+  if (motivo === '') {
+    throw new CrmApiError(
+      'Escribe el motivo de la anulación.',
+      'CIERRE_AVANCE_MOTIVO_REQUERIDO',
+    )
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('anular_cierre_avance', {
+    p_lead_id: datos.leadId,
+    p_motivo: motivo,
+  })
+
+  if (error) {
+    let fallo: CrmApiError
+    if (error.code === '42501' || error.code === 'PGRST301') {
+      fallo = new CrmApiError('Solo gerencia anula cierres.', 'SIN_PERMISO')
+    } else if (error.code === '22023' || error.code === 'P0409') {
+      // Mensajes de negocio que el servidor ya redacta bien y conviene NO
+      // traducir: «Ese lead cerró en cooperativa: usa crm.anular_cierre_externo»,
+      // «Ese cierre ya estaba anulado», «Ese lead no tiene ningún cierre que
+      // anular». Reescribirlos aquí los dejaría desincronizados del servidor.
+      fallo = new CrmApiError(error.message, 'CIERRE_AVANCE_INVALIDO')
+    } else {
+      fallo = new CrmApiError(
+        'No se pudo anular el cierre.',
+        error.code || 'POSTGREST_ERROR',
+      )
+    }
+    registrarError('crm.cierres_avance.anular_fallido', fallo, { pg: error.code ?? '' })
+    throw fallo
+  }
+
+  const respuesta = v.safeParse(
+    v.object({
+      ok: v.literal(true),
+      lead_id: v.pipe(v.string(), v.uuid()),
+      contratos_afectados: v.array(v.pipe(v.string(), v.uuid())),
+      afecta_cuota: v.boolean(),
+    }),
+    data,
+  )
+  if (!respuesta.success || respuesta.output.lead_id !== datos.leadId) {
+    const fallo = new CrmApiError(
+      'La anulación del cierre no tiene el formato esperado.',
+      'CIERRE_AVANCE_CONTRACT',
+    )
+    registrarError('crm.cierres_avance.anular_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    leadId: respuesta.output.lead_id,
+    contratosAfectados: respuesta.output.contratos_afectados,
+    afectaCuota: respuesta.output.afecta_cuota,
+  }
+}
+
+/**
+ * El estado del cierre de unos leads (`crm.cierres_estado_fn`): qué canal y si
+ * está anulado. Es la ÚNICA vía por la que el front puede enterarse de una
+ * anulación — su tabla es deny-by-default a propósito.
+ *
+ * Devuelve solo los leads con algo que decir; la ausencia significa «cerró en
+ * Avance y no está anulado» (ver `estadoDelCierre`, donde ese default se escribe
+ * una vez).
+ */
+export async function obtenerCierresEstado(
+  leadIds: readonly string[],
+  signal?: AbortSignal,
+): Promise<CierreEstado[]> {
+  // Sin ids no hay pregunta: se ahorra un viaje por cada pantalla que todavía
+  // no ha cargado sus filas.
+  if (leadIds.length === 0) return []
+
+  // El servidor topa cada llamada en 200 (sirve a una página, no a un volcado),
+  // y la cartera ACUMULA páginas: con «cargar más» se pasa de 200 sin esfuerzo.
+  // Se parte en lotes en vez de recortar porque recortar sería una mentira
+  // silenciosa: la fila 201 se pintaría como cierre vigente sin serlo, y nadie
+  // tendría forma de notarlo.
+  if (leadIds.length > MAX_LEADS_ESTADO) {
+    const lotes: string[][] = []
+    for (let i = 0; i < leadIds.length; i += MAX_LEADS_ESTADO) {
+      lotes.push(leadIds.slice(i, i + MAX_LEADS_ESTADO) as string[])
+    }
+    const respuestas = await Promise.all(
+      lotes.map((lote) => obtenerCierresEstado(lote, signal)),
+    )
+    return respuestas.flat()
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('cierres_estado_fn', {
+    p_lead_ids: leadIds as string[],
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.cierres_estado.consulta_fallida')
+
+  const resultado = v.safeParse(CierresEstadoSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El estado de los cierres no tiene el formato esperado.',
+      'CIERRE_ESTADO_CONTRACT',
+    )
+    registrarError('crm.cierres_estado.fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
 }
 
 /**

@@ -32,6 +32,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
 import { CrmApiError } from '@/data/crm-api'
 import { useAnularCierreExterno, useCierresExternos } from '@/data/crm-queries'
+import { ChipAnulado } from './chip-anulado'
 import {
   capitalAvance,
   INFO_COOPERATIVA,
@@ -69,20 +70,6 @@ function ChipCoop({ cooperativa }: { cooperativa: Cooperativa }) {
       )}
     >
       {info.corto}
-    </span>
-  )
-}
-
-/** Distintivo del cierre anulado. Se lee igual en la lista y en la mini-ficha:
- *  el asesor tiene que poder explicarse por qué su total bajó.
- *
- *  Es TEXTO y no solo un color o un tachado, y va en `destructive-text` (rojo
- *  oscuro): a 10px es el único portador NO cromático del estado, y el rojo puro
- *  sobre este fondo se queda en 4,1:1 — por debajo del mínimo legible. */
-function ChipAnulado() {
-  return (
-    <span className="inline-flex shrink-0 items-center rounded-full border border-destructive/40 bg-destructive/10 px-2 py-0.5 text-[10px] font-bold tracking-wide text-destructive-text">
-      ANULADO
     </span>
   )
 }

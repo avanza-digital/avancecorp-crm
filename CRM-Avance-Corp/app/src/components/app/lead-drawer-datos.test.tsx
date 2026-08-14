@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import {
@@ -100,6 +101,9 @@ function montar({
     cambiarEtapa: vi.fn(() => ({ ok: true })),
     reabrir: vi.fn(() => ({ ok: true })),
     registrarActividad,
+    // Sin anulaciones: el banner terminal lo consulta para decidir si marca el
+    // cierre y si ofrece anularlo.
+    cierresEstado: [],
   } as unknown as StoreDataApi
   const actions: PanelesActions = {
     abrirLead: vi.fn(),
@@ -107,18 +111,29 @@ function montar({
     cerrarPaneles: vi.fn(),
   }
 
+  // El banner de un lead terminal consulta el estado de su cierre con TanStack.
+  // La sesión de este archivo es DEMO, así que la consulta nace deshabilitada y
+  // no sale ni una petición — pero el hook necesita cliente igual. Se monta uno
+  // desechable en vez de mockear el módulo entero: así el árbol que se prueba
+  // sigue siendo el de verdad.
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  })
+
   render(
-    <AuthContext.Provider value={SESION}>
-      <StoreDataContext.Provider value={api}>
-        <PanelStateContext.Provider
-          value={{ leadAbiertoId: l.id, nuevoLeadAbierto: false, etapaInicial: 'nuevo' }}
-        >
-          <PanelActionsContext.Provider value={actions}>
-            <LeadDrawer />
-          </PanelActionsContext.Provider>
-        </PanelStateContext.Provider>
-      </StoreDataContext.Provider>
-    </AuthContext.Provider>,
+    <QueryClientProvider client={queryClient}>
+      <AuthContext.Provider value={SESION}>
+        <StoreDataContext.Provider value={api}>
+          <PanelStateContext.Provider
+            value={{ leadAbiertoId: l.id, nuevoLeadAbierto: false, etapaInicial: 'nuevo' }}
+          >
+            <PanelActionsContext.Provider value={actions}>
+              <LeadDrawer />
+            </PanelActionsContext.Provider>
+          </PanelStateContext.Provider>
+        </StoreDataContext.Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   )
 
   return { editarLead, registrarActividad, crearTarea, anularTarea }

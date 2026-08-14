@@ -12,17 +12,28 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen, within } from '@testing-library/react'
 import type { FiltrosCarteraLocal } from '@/lib/cartera-keyset'
 import type { Lead } from '@/lib/tipos'
+import type { CierreEstado } from '@/lib/cierre-estado'
 
 let YO: { id: string; rol: string; demo: boolean } | null = null
 let LEADS: Lead[] = []
+let ESTADO_CIERRES: CierreEstado[] = []
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     ambito: { leads: LEADS, vendedores: [], esGlobal: false },
     actividadesDelAmbito: [],
+    // Espejo demo del estado de los cierres, leído en cada render igual que
+    // LEADS: los dos mundos sirven la MISMA forma.
+    cierresEstado: ESTADO_CIERRES,
   }),
   usePanelesActions: () => ({ abrirLead: vi.fn() }),
+}))
+// La marca «CIERRE ANULADO» sale de `crm.cierres_estado_fn`. Se sustituye por lo
+// mismo que la tabla y el resumen: este archivo prueba lo que se PINTA, no el
+// transporte, y montar un QueryClientProvider para eso sería ruido.
+vi.mock('@/data/crm-queries', () => ({
+  useCierresEstado: () => ({ data: ESTADO_CIERRES }),
 }))
 // F1: el hook operativo se sustituye por el espejo puro sobre los MISMOS leads
 // del mock — los chips se prueban con números derivados de verdad, sin red ni
@@ -77,9 +88,10 @@ function lead(over: Partial<Lead> = {}): Lead {
   }
 }
 
-function montar(leads: Lead[]) {
+function montar(leads: Lead[], estadoCierres: CierreEstado[] = []) {
   YO = { id: 'v-1', rol: 'vendedor', demo: false }
   LEADS = leads
+  ESTADO_CIERRES = estadoCierres
   render(<Cartera />)
 }
 
@@ -141,5 +153,54 @@ describe('Cartera · chip de capital', () => {
     const chip = chipDe('Capital en juego')
     expect(within(chip).getByText('S/ 12,000')).toBeInTheDocument()
     expect(within(chip).queryByText('S/ 111,000')).not.toBeInTheDocument()
+  })
+})
+
+describe('Cartera · marca de cierre anulado', () => {
+  const CONVERTIDO = () => lead({
+    id: 'l-conv', nombre_completo: 'PEDRO CONVERTIDO', etapa: 'convertido',
+  })
+
+  /** La fila del lead: los asertos van AHÍ y no en la pantalla entera, que
+   *  repite «Convertido» en el filtro de etapas y en los mini-KPI. */
+  const filaDe = (nombre: string): HTMLElement => {
+    const fila = screen.getByText(nombre).closest('tr')
+    if (!(fila instanceof HTMLElement)) throw new Error(`Sin fila "${nombre}"`)
+    return fila
+  }
+
+  it('un convertido con el cierre anulado lo lleva a la vista', () => {
+    montar([CONVERTIDO()], [{
+      lead_id: 'l-conv', canal: 'avance',
+      anulado_en: '2026-08-14T15:00:00.000Z', motivo: 'Mala práctica',
+    }])
+
+    const fila = filaDe('PEDRO CONVERTIDO')
+    // «CIERRE ANULADO», no «ANULADO»: aquí lo que se lista son LEADS, y el lead
+    // no está anulado — sigue convertido y el cliente sigue siendo cliente. Las
+    // dos marcas conviven a propósito.
+    expect(within(fila).getByText('CIERRE ANULADO')).toBeInTheDocument()
+    expect(within(fila).getByText('Convertido')).toBeInTheDocument()
+  })
+
+  // ⚠️ GATE DE REALIDAD. Al 2026-08-14 producción no tiene NI UNA anulación, así
+  // que este es el estado en el que la pantalla se ve de verdad hoy. Si el chip
+  // apareciera por defecto, todas las carteras del país dirían que sus cierres
+  // están anulados — y el caso de arriba, con el fixture lleno, pasaría igual.
+  it('sin ninguna anulación, la cartera se ve exactamente como antes', () => {
+    montar([CONVERTIDO()])
+
+    const fila = filaDe('PEDRO CONVERTIDO')
+    expect(within(fila).getByText('Convertido')).toBeInTheDocument()
+    expect(within(fila).queryByText('CIERRE ANULADO')).not.toBeInTheDocument()
+  })
+
+  it('un cierre en cooperativa SIN anular tampoco se marca', () => {
+    montar([CONVERTIDO()], [{
+      lead_id: 'l-conv', canal: 'cooperativa', anulado_en: null, motivo: null,
+    }])
+
+    expect(within(filaDe('PEDRO CONVERTIDO')).queryByText('CIERRE ANULADO'))
+      .not.toBeInTheDocument()
   })
 })

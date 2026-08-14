@@ -1193,8 +1193,22 @@ function actualizarCapacidadMock(
 }
 
 /** Estado mutable del backend simulado — cada test ajusta los "modos de fallo". */
+/** Fila de `crm.cierres_estado_fn`: el estado del cierre de un lead. */
+export interface CierreEstadoReal {
+  lead_id: string
+  canal: 'avance' | 'cooperativa'
+  anulado_en: string | null
+  motivo: string | null
+}
+
 export interface BackendReal {
   leads: LeadReal[]
+  /** Estado del cierre por lead. VACÍO por defecto, que es el estado real de
+   *  producción hoy: ningún lead tiene anulación. Un test que quiera la marca
+   *  tiene que ponerla a mano. */
+  cierresEstado: CierreEstadoReal[]
+  /** Lo que gerencia anuló durante la prueba, para aseverar la llamada. */
+  anulacionesAvance: { lead_id: string; motivo: string }[]
   rolCrm: string
   /**
    * Rol del PORTAL del usuario (`perfiles.rol`). Define las capacidades nativas
@@ -1366,6 +1380,8 @@ export async function montarBackendReal(
 ): Promise<BackendReal> {
   const estado: BackendReal = {
     leads: init.leads ?? [leadReal()],
+    cierresEstado: init.cierresEstado ?? [],
+    anulacionesAvance: init.anulacionesAvance ?? [],
     rolCrm: init.rolCrm ?? 'gerencia',
     rolPortal: init.rolPortal ?? 'analista',
     fallarProximaCargaLeads: init.fallarProximaCargaLeads ?? false,
@@ -1999,6 +2015,38 @@ export async function montarBackendReal(
     }
     if (p === '/rest/v1/rpc/estado_sla_leads_fn') {
       return json(route, [])
+    }
+
+    // ── estado del cierre y anulación de gerencia (Avance) ──────────────────
+    if (p === '/rest/v1/rpc/cierres_estado_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_lead_ids?: string[] }
+      const pedidos = new Set(body.p_lead_ids ?? [])
+      // Se filtra por los ids PEDIDOS igual que el servidor: si el stub
+      // devolviera todo, la pantalla parecería funcionar aunque preguntara mal.
+      return json(route, estado.cierresEstado.filter((f) => pedidos.has(f.lead_id)))
+    }
+    if (p === '/rest/v1/rpc/anular_cierre_avance' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_lead_id?: string; p_motivo?: string }
+      const leadId = body.p_lead_id ?? ''
+      estado.anulacionesAvance.push({ lead_id: leadId, motivo: body.p_motivo ?? '' })
+      // El servidor deja el cierre anulado, así que la RELECTURA tiene que
+      // reflejarlo. Sin esto el e2e bendeciría un optimismo del front que
+      // producción no tiene: el chip aparecería aunque el servidor no guardara.
+      estado.cierresEstado = [
+        ...estado.cierresEstado.filter((f) => f.lead_id !== leadId),
+        {
+          lead_id: leadId,
+          canal: 'avance',
+          anulado_en: '2026-08-14T15:00:00.000Z',
+          motivo: body.p_motivo ?? '',
+        },
+      ]
+      return json(route, {
+        ok: true,
+        lead_id: leadId,
+        contratos_afectados: [],
+        afecta_cuota: false,
+      })
     }
 
     // ── suscripción ICS (solo se toca si el test abre el diálogo del calendario) ──

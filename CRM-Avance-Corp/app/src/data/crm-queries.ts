@@ -7,15 +7,19 @@ import {
 } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
+  AnularCierreAvanceDatos,
   AnularCierreExternoDatos,
   ConvertirLeadExternoDatos,
   CorregirCierreExternoDatos,
 } from './crm-api'
+import { normalizarLeadIds } from '@/lib/cierre-estado'
 import {
   actualizarCapacidadLeadsObjetivo,
+  anularCierreAvance,
   anularCierreExterno,
   convertirLeadExterno,
   corregirCierreExterno,
+  obtenerCierresEstado,
   obtenerCierresExternos,
   listarCarteraPagina,
   listarClientes,
@@ -98,6 +102,12 @@ export const crmQueryKeys = {
   cierresExternosPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-externos'] as const,
   cierresExternos: (periodo: string) =>
     [...crmQueryKeys.cierresExternosPrefijo(), periodo] as const,
+  // El estado del cierre (canal + anulación) de un LOTE de leads. Cuelga del
+  // prefijo métrico —anular mueve cuota y conversión— y la clave incluye los ids
+  // YA normalizados: sin eso cada render pediría lo mismo con una clave nueva.
+  cierresEstadoPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-estado'] as const,
+  cierresEstado: (leadIds: readonly string[]) =>
+    [...crmQueryKeys.cierresEstadoPrefijo(), leadIds.join(',')] as const,
   metricasReuniones: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
@@ -545,6 +555,54 @@ export function useAnularCierreExterno() {
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresExternosPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
+        }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        // El chip «CIERRE ANULADO» de la cartera sale de cierres_estado_fn, que
+        // responde por los DOS canales: anular en cooperativa también lo mueve.
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresEstadoPrefijo() }),
+      ])
+    },
+  })
+}
+
+/**
+ * El estado del cierre de los leads que hay EN PANTALLA (canal y anulación).
+ *
+ * Se pide por lote y no por período a propósito: así sirve igual a la ficha de
+ * un lead viejo que a una página de cartera, y no crece con el histórico.
+ */
+export function useCierresEstado(habilitada: boolean, leadIds: readonly string[]) {
+  // Normalizado ANTES de la clave: dos renders con los mismos leads en otro
+  // orden —o con uno repetido— tienen que compartir caché, no pelearse por ella.
+  const ids = normalizarLeadIds(leadIds)
+  return useQuery({
+    queryKey: crmQueryKeys.cierresEstado(ids),
+    queryFn: ({ signal }) => obtenerCierresEstado(ids, signal),
+    enabled: habilitada && ids.length > 0,
+  })
+}
+
+/**
+ * Anulación de gerencia sobre un cierre de AVANCE. Mueve las mismas fotografías
+ * que su gemela de cooperativas —conversión mensual y tiles del ámbito— más el
+ * estado del cierre, que es de donde sale la marca en pantalla.
+ *
+ * ⚠️ El CUMPLIMIENTO DE METAS no vive en TanStack (lo carga el store), así que
+ * esta invalidación no lo alcanza: quien llame debe hacer además `recargar()`.
+ * Sin eso, el desglose resta cifras frescas de un cumplimiento viejo — es el bug
+ * que ya se midió en cooperativas.
+ *
+ * La cartera tampoco hace falta: el lead sigue convertido, no se reabre.
+ */
+export function useAnularCierreAvance() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (datos: AnularCierreAvanceDatos) => anularCierreAvance(datos),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresEstadoPrefijo() }),
         queryClient.invalidateQueries({
           queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
         }),

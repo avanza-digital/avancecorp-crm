@@ -17,6 +17,7 @@ import { crmQueryKeys } from '@/data/crm-queries'
 import { queryClient } from './query-client'
 import { useAuth } from './auth-context'
 import { INFO_COOPERATIVA, type Cooperativa } from './cierres-externos'
+import type { CierreEstado } from './cierre-estado'
 import { administraSoloRolesCrm, can, puedeEscribir } from './roles'
 import {
   ETAPA_INFO,
@@ -139,6 +140,9 @@ export type CodigoMut =
   // Anulación de un cierre en cooperativa (espejo de los rechazos del servidor).
   | 'motivo_requerido'
   | 'ya_anulado'
+  // Anulación de un cierre de AVANCE (espejo de `crm.anular_cierre_avance`).
+  | 'cierre_en_cooperativa'
+  | 'sin_cierre'
 
 /**
  * Resultado de una mutación. `error` es el mensaje es-PE listo para mostrar;
@@ -395,8 +399,19 @@ export interface StoreDataApi {
    *  Deja de contar en cuota y conversión, con motivo; el lead NO se reabre y la
    *  fila se sigue viendo, marcada. De una sola dirección, igual que el servidor. */
   anularCierreExterno(cierreId: string, motivo: string): ResultadoMut
+  /** Anulación de gerencia sobre un cierre de AVANCE — SOLO demo (en real es
+   *  `crm.anular_cierre_avance`). Va por LEAD y no por cierre porque en Avance no
+   *  hay fila de cierre: el cierre ES el lead convertido. Mismas negativas que el
+   *  servidor, incluida la del cierre en cooperativa, que tiene su propia RPC. */
+  anularCierreAvance(leadId: string, motivo: string): ResultadoMut
   /** Fotos DEMO de cierres en coops (en real siempre []: la RPC es la fuente). */
   cierresExternos: CierreExternoDemo[]
+  /** El estado del cierre por lead, DERIVADO del mundo demo y en la MISMA forma
+   *  que devuelve `crm.cierres_estado_fn`. Que las dos fuentes tengan una sola
+   *  forma es lo que permite que la ficha y la cartera no sepan en qué mundo
+   *  están: si el demo tuviera forma propia, cada pantalla tendría dos caminos y
+   *  uno de los dos envejecería sin que nadie lo notara. */
+  cierresEstado: CierreEstado[]
   reabrir(id: string): ResultadoMut
   /** `avance` = etapa a la que subió SOLO el lead por este contacto (ver
    *  lib/avance-automatico.ts). La UI lo usa para decirlo en voz alta: un
@@ -669,6 +684,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   // Cierres en coops del MODO DEMO (la sección «En cooperativas» de Mi cartera
   // los deriva). En real ni se llena: esa pantalla bebe de la RPC.
   const [cierresExternosDemo, setCierresExternosDemo] = useState<CierreExternoDemo[]>([])
+  // Anulaciones de cierres de AVANCE del MODO DEMO. Van por lead porque en
+  // Avance no hay fila de cierre que anular: el cierre es el lead convertido.
+  const [anuladosAvanceDemo, setAnuladosAvanceDemo] = useState<
+    { leadId: string; anuladoEn: string; motivo: string }[]
+  >([])
   const [demoListo, setDemoListo] = useState(false)
   const [realListo, setRealListo] = useState(false)
   const [errorReal, setErrorReal] = useState(false)
@@ -1988,7 +2008,62 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         return { ok: true }
       },
 
+      anularCierreAvance: (leadId, motivo) => {
+        const bloqueo = bloqueoEscritura()
+        if (bloqueo) return bloqueo
+        const limpio = motivo.trim()
+        if (!limpio) {
+          return { ok: false, codigo: 'motivo_requerido', error: 'Escribe el motivo de la anulación' }
+        }
+        const lead = buscar(leadId)
+        if (!lead) return noEncontrado()
+        // Un cierre en cooperativa se anula con su propia acción, que guarda la
+        // foto de lo anulado (monto, depósito). Mandarlo por aquí perdería ese
+        // rastro — el servidor lo rechaza por lo mismo.
+        if (cierresExternosDemo.some((c) => c.leadId === leadId)) {
+          return {
+            ok: false,
+            codigo: 'cierre_en_cooperativa',
+            error: 'Ese lead cerró en cooperativa: anúlalo desde la revisión de cierres',
+          }
+        }
+        if (lead.etapa !== 'convertido') {
+          return {
+            ok: false,
+            codigo: 'sin_cierre',
+            error: 'Ese lead no tiene ningún cierre que anular',
+          }
+        }
+        if (anuladosAvanceDemo.some((a) => a.leadId === leadId)) {
+          return { ok: false, codigo: 'ya_anulado', error: 'Ese cierre ya estaba anulado' }
+        }
+        // El lead NO se reabre, igual que en el servidor: un convertido es
+        // terminal. Lo que se va es el mérito, no el cliente.
+        setAnuladosAvanceDemo((previos) => [
+          ...previos,
+          { leadId, anuladoEn: new Date().toISOString(), motivo: limpio },
+        ])
+        return { ok: true }
+      },
+
       cierresExternos: cierresExternosDemo,
+
+      // DERIVADO, no un segundo almacén: la misma forma que `crm.cierres_estado_fn`
+      // para que la ficha y la cartera no tengan que saber en qué mundo están.
+      cierresEstado: [
+        ...cierresExternosDemo.map((c) => ({
+          lead_id: c.leadId,
+          canal: 'cooperativa' as const,
+          anulado_en: c.anuladoEn,
+          motivo: c.motivoAnulacion,
+        })),
+        ...anuladosAvanceDemo.map((a) => ({
+          lead_id: a.leadId,
+          canal: 'avance' as const,
+          anulado_en: a.anuladoEn,
+          motivo: a.motivo,
+        })),
+      ],
 
       reabrir: (id) => {
         const bloqueo = bloqueoEscritura()
@@ -2115,7 +2190,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // El flujo de conversión (edge) escribe server-side; aquí se trae la verdad.
       recargar: () => (realActivo ? resincronizarReal() : Promise.resolve(true)),
     }
-  }, [datos, tareas, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal, cierresExternosDemo])
+  }, [datos, tareas, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal, cierresExternosDemo, anuladosAvanceDemo])
 
   // Estado de la carga remota para la app (splash / error+reintento / workspace).
   const estado = useMemo<StoreEstado>(() => ({

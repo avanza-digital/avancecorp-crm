@@ -18,6 +18,9 @@ import { capitalPrincipal } from '@/lib/inteligencia'
 import { money, fmtFecha } from '@/lib/format'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { useCarteraPaginada } from '@/data/use-cartera-paginada'
+import { useCierresEstado } from '@/data/crm-queries'
+import { estadoDelCierre, indexarCierresEstado } from '@/lib/cierre-estado'
+import { ChipAnulado } from '@/components/app/chip-anulado'
 import { useValorDiferido } from '@/lib/use-valor-diferido'
 import { can } from '@/lib/roles'
 import { useAuth } from '@/lib/auth-context'
@@ -30,7 +33,7 @@ type FiltroVendedor = string
 
 export function Cartera() {
   const { yo } = useAuth()
-  const { ambito, actividadesDelAmbito } = useCRMData()
+  const { ambito, actividadesDelAmbito, cierresEstado } = useCRMData()
   const { abrirLead } = usePanelesActions()
   // Cartera consciente del rol (F1c): SIEMPRE el ámbito, nunca el global.
   const leads = ambito.leads
@@ -116,6 +119,21 @@ export function Cartera() {
         ?? (l.vendedor_id ? nombrePorId.get(l.vendedor_id) ?? null : null),
     })),
     [cartera.leads, nombrePorId],
+  )
+
+  // La marca de «cierre anulado». Se pregunta SOLO por los convertidos: son los
+  // únicos que pueden tener un cierre que anular, y así el lote no crece con
+  // filas que nunca van a responder nada.
+  // En real es la ÚNICA vía posible (la tabla de anulaciones no se lee desde la
+  // Data API, a propósito); en demo sale derivada del store con la misma forma.
+  const idsConvertidos = useMemo(
+    () => visibles.filter((l) => l.etapa === 'convertido').map((l) => l.id),
+    [visibles],
+  )
+  const consultaEstado = useCierresEstado(!yo?.demo, idsConvertidos)
+  const estadoPorLead = useMemo(
+    () => indexarCierresEstado(yo?.demo ? cierresEstado : (consultaEstado.data ?? [])),
+    [yo?.demo, cierresEstado, consultaEstado.data],
   )
 
   return (
@@ -289,6 +307,14 @@ export function Cartera() {
                             <Badge color="var(--muted-foreground)">
                               {MOTIVO_LABEL[l.motivo_descarte] ?? l.motivo_descarte}
                             </Badge>
+                          )}
+                          {/* «CIERRE ANULADO» y no «ANULADO» a secas: aquí lo que
+                              se lista son leads, y el lead NO está anulado —
+                              sigue convertido y el cliente sigue siendo cliente.
+                              Lo que dejó de contar es el mérito. */}
+                          {l.etapa === 'convertido'
+                            && estadoDelCierre(estadoPorLead.get(l.id)).anulado && (
+                            <ChipAnulado etiqueta="CIERRE ANULADO" />
                           )}
                         </div>
                       </Td>

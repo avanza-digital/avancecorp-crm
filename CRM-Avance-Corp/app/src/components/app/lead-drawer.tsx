@@ -8,6 +8,7 @@ import { toast } from 'sonner'
 import {
   ArrowRightLeft,
   BadgeCheck,
+  Ban,
   CalendarCheck,
   CalendarPlus,
   CalendarX2,
@@ -76,7 +77,10 @@ import { agruparTimeline } from '@/lib/timeline-lead'
 import { MONTO_ESTIMADO_MAX, type CampoLead } from '@/lib/validacion'
 import { esMoneda, fmtFecha, money, primerNombre, SIMBOLO, type Moneda } from '@/lib/format'
 import { INFO_COOPERATIVA, type Cooperativa } from '@/lib/cierres-externos'
-import { useConvertirLeadExterno } from '@/data/crm-queries'
+import { estadoDelCierre, puedeAnularCierreAvance } from '@/lib/cierre-estado'
+import { useCierresEstado, useConvertirLeadExterno } from '@/data/crm-queries'
+import { AnularCierreAvanceDialog } from '@/components/app/anular-cierre-avance'
+import { ChipAnulado } from '@/components/app/chip-anulado'
 import {
   CATEGORIAS_INTERES,
   CAT_LABEL,
@@ -351,11 +355,25 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
 // ── Banner de estado terminal ─────────────────────────────────────────────────
 
 function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
-  const { reabrir } = useCRMData()
+  const { reabrir, cierresEstado } = useCRMData()
   const { yo } = useAuth()
+  const demo = Boolean(yo?.demo)
   const convertido = l.etapa === 'convertido'
   const info = ETAPA_INFO[l.etapa]
   const motivo = MOTIVOS_DESCARTE.find((m) => m.k === l.motivo_descarte)?.label
+  const [anulando, setAnulando] = useState(false)
+  /** El botón que abrió el diálogo, para devolverle el foco al cerrarlo. */
+  const refAnular = useRef<HTMLButtonElement>(null)
+
+  // El estado del cierre. En real solo puede venir de la RPC: la tabla donde se
+  // escribe la anulación es deny-by-default y no se lee desde la Data API. En
+  // demo viene DERIVADO del store, con la misma forma — así esta ficha no tiene
+  // dos caminos que envejezcan por separado.
+  const consultaEstado = useCierresEstado(!demo && convertido, [l.id])
+  const filasEstado = demo ? cierresEstado : (consultaEstado.data ?? [])
+  const estado = filasEstado.find((f) => f.lead_id === l.id)
+  const { anulado, motivo: motivoAnulacion } = estadoDelCierre(estado)
+  const puedeAnular = puedeAnularCierreAvance({ rol: yo?.rol, etapa: l.etapa, estado })
 
   const onReabrir = () => {
     const res = reabrir(l.id)
@@ -364,6 +382,13 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
       return
     }
     toast.success(`Lead reabierto${yo?.demo ? ' (demo)' : ''} — vuelve a Nuevo`)
+  }
+
+  const cerrarAnulacion = () => {
+    setAnulando(false)
+    // De vuelta al botón de donde salió: sin esto el foco cae al principio de la
+    // ficha y hay que recorrerla entera para volver al sitio.
+    requestAnimationFrame(() => refAnular.current?.focus())
   }
 
   return (
@@ -390,11 +415,39 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
               : 'Cliente creado en el portal y lead cerrado como ganado.'
             : `Motivo: ${motivo ?? '—'}`}
         </p>
+        {/* La anulación se ve AQUÍ, junto al «Convertido a cliente» que
+            contradice, y con la razón escrita: quien mire esta ficha tiene que
+            poder explicarse por qué el número del asesor bajó. */}
+        {convertido && anulado && (
+          <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-[11px] text-destructive-text">
+            <ChipAnulado etiqueta="CIERRE ANULADO" />
+            <span className="min-w-0">{motivoAnulacion ?? 'Sin motivo registrado'}</span>
+          </p>
+        )}
       </div>
       {!convertido && escribe && (
         <Button size="xs" variant="outline" onClick={onReabrir}>
           <RotateCcw /> Reabrir{yo?.demo ? ' (demo)' : ''}
         </Button>
+      )}
+      {/* ⚠️ «Anular el cierre», no «Anular» a secas: esta misma ficha ya tiene
+          botones «Anular» que quitan una TAREA, y dos acciones con el mismo
+          rótulo son indistinguibles en el rotor de un lector de pantalla —
+          además de invitar a confundir quitar un recordatorio con quitarle el
+          mérito a una persona. */}
+      {puedeAnular && (
+        <Button
+          ref={refAnular}
+          size="xs"
+          variant="outline"
+          aria-label={`Anular el cierre de ${l.nombre_completo}`}
+          onClick={() => setAnulando(true)}
+        >
+          <Ban /> Anular el cierre
+        </Button>
+      )}
+      {anulando && (
+        <AnularCierreAvanceDialog lead={l} demo={demo} onCerrar={cerrarAnulacion} />
       )}
     </div>
   )
