@@ -13,6 +13,8 @@ import type { ContratoRow } from './clientes-tipos'
 export const CLAVE_SIN_CONTRATOS = 'sin-contratos'
 /** Cubo defensivo: contrato cuya fecha de registro no se puede leer. */
 export const CLAVE_SIN_FECHA = 'sin-fecha'
+/** Valor del filtro que apaga el recorte por mes: la cartera entera. */
+export const MES_TODOS = 'todos'
 
 /**
  * Nombres LARGOS y en mayúscula inicial, para la cabecera del bloque. No se
@@ -76,8 +78,9 @@ export function registradoPorOtro(contrato: ContratoRow, grupo: GrupoCartera): b
   return contrato.creado_por !== dueno
 }
 
-/** Rótulo del bloque a partir de su clave. */
-function etiquetaDe(clave: string): string {
+/** Rótulo del bloque (o de la opción del filtro) a partir de su clave. */
+export function etiquetaDeMes(clave: string): string {
+  if (clave === MES_TODOS) return 'Todos los meses'
   if (clave === CLAVE_SIN_CONTRATOS) return 'Clientes sin contrato'
   if (clave === CLAVE_SIN_FECHA) return 'Sin fecha de registro'
   const anio = clave.slice(0, 4)
@@ -88,8 +91,11 @@ function etiquetaDe(clave: string): string {
 /**
  * Los cubos van SIEMPRE al final, y entre meses manda el más reciente. Se
  * comparan como texto porque 'YYYY-MM' ya ordena bien: no hace falta parsear.
+ * Es el mismo orden para los bloques y para las opciones del filtro, a
+ * propósito: dos criterios distintos harían que el desplegable y la lista
+ * contaran historias diferentes.
  */
-function ordenDeBloque(a: string, b: string): number {
+export function ordenDeBloque(a: string, b: string): number {
   const peso = (c: string) => (c === CLAVE_SIN_CONTRATOS ? 2 : c === CLAVE_SIN_FECHA ? 1 : 0)
   return peso(a) - peso(b) || (a > b ? -1 : a < b ? 1 : 0)
 }
@@ -160,7 +166,7 @@ export function agruparPorMes(grupos: GrupoCartera[]): MesCartera[] {
   return [...porClave.entries()]
     .map(([clave, b]) => ({
       clave,
-      etiqueta: etiquetaDe(clave),
+      etiqueta: etiquetaDeMes(clave),
       grupos: [...b.grupos].sort(ordenDeCartera),
       contratos: b.contratos,
       capitalPen: redondear2(b.pen),

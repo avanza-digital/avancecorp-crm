@@ -15,6 +15,7 @@ import {
   montarBackendReal,
   PRODUCTO_CONDICION_PEN_ID,
   PRODUCTO_CONDICION_USD_ID,
+  verTodaLaCartera,
 } from './_helpers'
 
 // Fase 6.1 (2026-07-21): la entrada migró a la cartera unificada (#/mi-cartera,
@@ -64,6 +65,9 @@ async function traducirRpcContratoLibre(page: Page): Promise<void> {
 /** La cuenta real cae en #/mi-cartera (cartera unificada). Los contratos cuelgan
  *  del cliente: se expande CLIENTE PORTAL UNO para revelar la sub-fila del contrato. */
 async function irAContratos(page: Page): Promise<void> {
+  // La cartera arranca en el mes en curso y el contrato del fixture es de otro:
+  // sin esto, su fila no está en la lista.
+  await verTodaLaCartera(page)
   await page.getByRole('button', { name: /Expandir los contratos de CLIENTE PORTAL UNO/ }).click()
   await expect(page.getByText('2026-01-000123').first()).toBeVisible()
 }

@@ -1,7 +1,9 @@
 # Mi cartera por meses
 
 **Estado: construido y verde 2026-08-14, pendiente de publicar.** Sin migración: no toca el
-servidor.
+servidor. Sustituye al diseño de bloques plegables que sí llegó a producción esa misma tarde
+(release `crm-20260814T202404Z-d63f3a18a57d`) y que Miguel cambió al verlo — ver
+«[[#Por qué dejó de ser bloques]]».
 
 ## Qué problema resuelve
 
@@ -10,27 +12,29 @@ responden a eso —Conversiones, Metas, Ranking, Rendimiento— son **exclusivas
 (`VISTAS_GERENCIA` en `app/src/lib/router.ts`). Al asesor solo le quedaban **Hoy**, que habla del
 mes en curso, y **Mi cartera**, una lista única con todos sus clientes y contratos mezclados.
 
-Pedido de Miguel, 2026-08-14: *«necesito que el vendedor pueda saber qué cerró por mes, y que la
-cartera no salga todo junto»*.
-
 ## Cómo queda
 
-Mi cartera es ahora una sucesión de bloques por mes, del más reciente al más antiguo. Cada bloque
-lleva en su cabecera lo que se cerró (contratos y capital, con PEN y USD **separados**) y debajo
-sus clientes. El más reciente arranca abierto; los demás, plegados. Con un filtro puesto se abren
-todos —esconder un resultado tras un plegado es lo contrario de lo que el usuario vino a hacer.
-
-Un cliente que cerró en varios meses **aparece en cada uno**, con los contratos de ese mes y su
-resumen recalculado. Los clientes sin ningún contrato van a un cubo propio al final: siguen
-siendo operables (mantienen su «+ Primer contrato»).
+Un **filtro de mes de cierre** junto a los de estado y asesor. La pantalla **arranca en el mes en
+curso**: el asesor abre y ve lo que lleva cerrado, sin listas que recorrer. Encima de la lista, una
+línea con el resumen de ese mes: contratos cerrados y capital, con PEN y USD **separados**.
 
 ## Las decisiones de Miguel
 
 | Pregunta | Su respuesta |
 |---|---|
-| ¿Cómo se separa? | Por **mes de cierre**. |
+| ¿Cómo se separa? | Con un **filtro**, no con bloques: «para no tener que ver el listado de meses». |
+| ¿Qué muestra al abrir? | **El mes en curso.** |
 | ¿Qué cuenta como «lo que cerró»? | **Todo contrato de un cliente que él atiende**, aunque lo haya registrado otra persona. |
-| ¿Dónde va el resumen? | **En la cabecera de cada mes**, sin pantalla nueva. |
+| ¿Y el aviso de renovación? | **Manda sobre el mes**: al encenderlo, el filtro vuelve a «todos». |
+
+## Por qué dejó de ser bloques
+
+La primera versión partía la cartera en bloques plegables, uno por mes, con el resumen en la
+cabecera. Se construyó, se revisó y **se publicó**. Miguel la vio y pidió el filtro: el resumen le
+servía, la lista de meses le sobraba. El trabajo no se perdió —la lógica de agrupación
+(`lib/cartera-meses.ts`) es la misma y alimenta ahora las opciones del desplegable y el resumen—,
+pero conviene tenerlo escrito: **un plegable con N secciones y un filtro con N opciones responden
+a la misma pregunta y no cuestan lo mismo de leer**.
 
 ## Las trampas que costaron trabajo
 
@@ -39,56 +43,40 @@ mide la cuota del mes, y `fecha_inicio` sí puede retro-datarse: con ella, dos c
 acabarían en meses distintos según quién los mire.
 
 **2. El mes se decide en hora de LIMA.** Un contrato registrado el 31 de julio a las 20:00 es el
-1 de agosto en UTC y saltaría de bloque él solo, inflando un mes que no le toca. Se reutiliza
+1 de agosto en UTC y saltaría de mes él solo, inflando uno que no le toca. Se reutiliza
 `fechaLima` (`lib/agenda-derivada.ts`). Hay test dedicado: `mesLima('2026-08-01T01:00:00Z')` es
 **julio**.
 
 **3. El total del mes NO es la cuota.** Miguel eligió contar todo contrato de sus clientes; la
 cuota, en cambio, paga por **quien registra** el contrato (`public.contratos.creado_por`), porque
 el enlace lead↔contrato está vacío en los 373 contratos de producción. Medido: coinciden en
-**353 de 372** y difieren en **18**. Cuando un mes incluye alguno ajeno, la cabecera lo dice
+**353 de 372** y difieren en **18**. Cuando el mes incluye alguno ajeno, el resumen lo dice
 —«incluye 1 registrado por otra persona»— para que la diferencia con Hoy no sea invisible. Es la
 misma trampa de «dos números a 300 px» que costó una migración en
 [[Conversion mensual - definicion cerrada]].
 
-**4. El plegado del cliente se guarda por (mes, cliente).** Con la clave del cliente a secas,
-expandirlo en agosto lo expandía también en julio, y el auto-desplegado al filtrar abría un
-bloque cualquiera dejando escondida la fila buscada. Hay regresión para las dos cosas.
+**4. Los clientes SIN NINGÚN contrato acompañan siempre al mes elegido.** No son historia de otro
+mes: son trabajo pendiente, y esta es la pantalla desde la que se les crea el contrato. Dejarlos
+fuera los volvía inalcanzables salvo por una opción del desplegable que nadie iba a buscar, y se
+llevaba por delante el reparto de «Sin asesor» —donde esos clientes son justo los que hay que
+repartir—. Lo destapó la suite: dos tests de supervisión se cayeron a la primera.
 
-**5. El nombre accesible salía pegado.** Los trozos de la cabecera son `<span>` hermanos sin
-espacios, así que el nombre calculado era «Agosto 20261 contrato cerradoS/ 20,000» —un lector de
-pantalla lo lee como otro número—. Y los separadores `sr-only` **no lo arreglan**: el cómputo
-recorta cada nodo, así que « · » llega igual de pegado. La salida: un `aria-label`, pero
-**derivado del mismo array que se pinta**. Un `aria-label` escrito a mano gana sobre el contenido
-y deja mudo cualquier dato visible que se añada después; derivándolo, no hay forma de pintar algo
-que no se anuncie.
+**5. El mes en curso va SIEMPRE en el desplegable**, aunque todavía no tenga ni un cierre: es el
+valor por defecto, y un `value` que no existe entre las opciones deja el `<select>` mostrando
+cualquier cosa. Cuando está vacío, el panel lo dice («Sin cierres en agosto») y **lleva la salida
+puesta** («Ver toda la cartera»): es el primer estado que ve un asesor que aún no ha cerrado, y no
+puede quedarse mirando un vacío.
 
-## Lo que dijo la revisión de accesibilidad
+## ⚠️ El precio del arranque filtrado
 
-Nada bloqueante, y cuatro cosas que se corrigieron antes de commitear:
+**Para tocar un contrato de otro mes hay que cambiar el filtro primero.** Corregir, ver el detalle
+o consultar el cronograma de algo cerrado en julio exige un clic más. Lo destapó la suite de
+navegador: **cuatro specs** de corrección y detalle se cayeron porque su contrato de fixture era de
+otro mes. No se relajaron las aserciones — se les añadió el paso que haría una persona
+(`verTodaLaCartera`, en `e2e/_helpers.ts`).
 
-- **Contraste medido, no estimado.** `text-muted-foreground` sobre la barra da 4,55:1 en reposo
-  —pasa por 0,05— pero **4,44:1 en hover**, y como la barra ENTERA es el botón, el hover es el
-  estado normal de uso. Nació el token `--muted-foreground-strong` (#475569, 7,2:1), gemelo de
-  `--destructive-text` y `--warning-text`.
-- **La cabecera es `<th scope="rowgroup">`, no `<td>`.** Sin eso, la relación mes↔fila existía
-  solo en lo visual y ninguna ayuda técnica podía decir a qué mes pertenece la fila que está
-  leyendo. ⚠️ No lleva un `<h4>` dentro aunque ayudaría a saltar de mes con la tecla H: **el HTML
-  prohíbe encabezados dentro de `<th>`**.
-- **En móvil, `<h4>` y no `<section aria-label>`.** La `<section>` con nombre es un LANDMARK: dos
-  años de cartera son 24 landmarks compitiendo con Navegación y Principal, y el lector decía
-  «Agosto 2026» tres veces al entrar (región → botón → lista).
-- **`aria-controls` se queda fuera a propósito**: es opcional en el patrón *disclosure*, y aquí lo
-  controlado son N `<tr>` hermanos que **no existen en el DOM** cuando está plegado — un IDREF
-  colgante es peor que no tenerlo.
-
-Verificado además: el botón **no se desmonta** al plegar, así que el foco no se pierde; el
-chevron es `aria-hidden` y el estado va solo en `aria-expanded` (nada por color).
-
-⚠️ **Deuda anotada, no corregida**: `components/common/paginacion.tsx` deja el foco en el aire al
-llegar a la última página (el botón pulsado pasa a `disabled` y el foco salta a `<body>`). Es
-preexistente, pero antes había UN paginador y ahora hay uno por mes. El arreglo —`aria-disabled`
-con handler no-op— toca un componente compartido por muchas pantallas y merece su propio ciclo.
+Es la consecuencia directa de «arranca en el mes en curso», y está aceptada. Pero si algún día
+alguien reporta que «no encuentra un contrato viejo», la causa es esta.
 
 ## Por qué no hizo falta servidor
 
@@ -98,13 +86,23 @@ la moneda y quién lo registró. Y los tamaños sobran: el asesor con más carte
 
 ## Dónde vive
 
-- `app/src/lib/cartera-meses.ts` (+ su test) — la lógica pura: partir por mes, totales por moneda,
-  los dos cubos y el conteo de ajenos.
+- `app/src/lib/cartera-meses.ts` (+ su test) — la lógica pura: partir por mes en hora de Lima,
+  totales por moneda, los dos cubos y el conteo de ajenos. Alimenta las opciones del desplegable,
+  la lista y el resumen: **una sola fuente**.
 - `app/src/lib/cartera-vista.ts` — se extrajo `resumirCliente` para poder recalcular el resumen
   del cliente **por mes**; si se reutilizara el global, julio enseñaría el capital de toda su vida.
-- `app/src/screens/mi-cartera.tsx` — `CabeceraMes` y el render por bloques (un `<tbody>` por mes,
-  paginación por mes).
+- `app/src/screens/mi-cartera.tsx` — el filtro, el resumen y el vacío con salida.
 - `app/e2e/mi-cartera-meses.spec.ts` — va por la ruta REAL a propósito: con los datos de demo, que
-  se anclan a «hoy», los bloques cambiarían de nombre cada día.
+  se anclan a «hoy», el mes viejo cambiaría de nombre cada día.
+
+## De la revisión de accesibilidad (sobre la versión de bloques)
+
+Sobrevive al rediseño **el token `--muted-foreground-strong`** (#475569): el gris de siempre daba
+**4,44:1** sobre el fondo de la barra en hover —por debajo de AA— y se midió, no se estimó. Ahora
+lo usa la línea de resumen. Gemelo de `--destructive-text` y `--warning-text`.
+
+Lo demás (la cabecera como `<th scope="rowgroup">`, el `<h4>` en móvil en vez de un `<section>`
+que creaba un landmark por mes, y el rótulo accesible derivado del mismo array que se pinta) murió
+con los bloques, pero queda escrito por si vuelve un plegable a esta pantalla.
 
 Ver también [[Anulación de cierres de Avance]] · [[Como se mide la conversion del asesor]].

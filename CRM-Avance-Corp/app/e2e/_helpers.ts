@@ -27,6 +27,16 @@ export async function irACartera(page: Page): Promise<void> {
   await expect(page.getByRole('table', { name: 'Cartera de leads' })).toBeVisible()
 }
 
+/**
+ * Mi cartera ARRANCA filtrada por el mes en curso (decisión de Miguel,
+ * 2026-08-14). Los fixtures cuyos contratos son de otros meses tienen que pedir
+ * la cartera entera antes de buscar su fila — que es exactamente lo que hace una
+ * persona, y por eso se hace aquí en vez de relajar las aserciones.
+ */
+export async function verTodaLaCartera(page: Page): Promise<void> {
+  await page.getByRole('combobox', { name: /Filtrar por mes/ }).selectOption('todos')
+}
+
 /** Abre la ficha (drawer) de un lead por su nombre desde el Pipeline.
  * El Sheet (Radix) queda etiquetado por el SheetTitle (aria-labelledby gana a
  * aria-label), así que el nombre accesible del dialog ES el nombre del lead. */

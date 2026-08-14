@@ -218,6 +218,16 @@ function montar(
   )
 }
 
+/**
+ * La pantalla arranca filtrada por el MES EN CURSO, así que un contrato de otro
+ * mes no está en la lista hasta pedir la cartera entera. Es exactamente lo que
+ * tiene que hacer una persona, y por eso los tests de contratos viejos pasan
+ * por aquí en vez de relajar la aserción.
+ */
+async function verTodosLosMeses(user: ReturnType<typeof userEvent.setup>) {
+  await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por mes/ }), 'todos')
+}
+
 describe('MiCartera (pantalla)', () => {
   it('pinta la fila del cliente y arranca COLAPSADA (sin sub-filas de contrato)', () => {
     montar()
@@ -279,6 +289,7 @@ describe('MiCartera (pantalla)', () => {
       ],
       equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ASESOR UNO', activo: true }],
     })
+    await verTodosLosMeses(user) // el contrato es de 2020
 
     expect(screen.getByRole('button', { name: 'Nuevo cliente' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
@@ -347,6 +358,7 @@ describe('MiCartera (pantalla)', () => {
   it('Corregir del contrato: AUSENTE si la ventana de 5 h ya venció', async () => {
     const user = userEvent.setup()
     montar({ contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })] })
+    await verTodosLosMeses(user) // el contrato es de 2020
     await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
     expect(within(subFilaDe('2026-01-000001')).queryByRole('button', { name: /Corregir/ })).not.toBeInTheDocument()
   })
@@ -756,7 +768,7 @@ describe('MiCartera (móvil, card-stack)', () => {
   it('pinta un card-stack (role=list) y NO la tabla', () => {
     activarMovil()
     montar()
-    expect(screen.getByRole('list', { name: /^Mi cartera · / })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Mi cartera' })).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
   })
@@ -830,6 +842,7 @@ describe('MiCartera (móvil, card-stack)', () => {
     const user = userEvent.setup()
     activarMovil()
     montar({ contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })] })
+    await verTodosLosMeses(user) // el contrato es de 2020
     await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
   })
@@ -872,14 +885,14 @@ describe('MiCartera (móvil, card-stack)', () => {
     montar()
     // Desktop: hay tabla, no hay card-stack.
     expect(screen.getByRole('table')).toBeInTheDocument()
-    expect(screen.queryByRole('list', { name: /^Mi cartera · / })).not.toBeInTheDocument()
+    expect(screen.queryByRole('list', { name: 'Mi cartera' })).not.toBeInTheDocument()
     // Cruza a móvil → los listeners del hook re-renderizan.
     act(() => {
       coincide = true
       for (const cb of listeners) cb()
     })
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
-    expect(screen.getByRole('list', { name: /^Mi cartera · / })).toBeInTheDocument()
+    expect(screen.getByRole('list', { name: 'Mi cartera' })).toBeInTheDocument()
   })
 
   it('teclado: Enter en la sub-tarjeta de detalle abre el diálogo del contrato', async () => {
@@ -915,142 +928,141 @@ describe('MiCartera (móvil, card-stack)', () => {
 })
 
 // ————————————————————————————————————————————————————————————————————————
-// La cartera partida por MES DE CIERRE (pedido de Miguel, 2026-08-14): el
-// asesor tiene que poder ver qué cerró en cada mes, y la lista deja de salir
-// «todo junto». La agrupación pura se prueba en lib/cartera-meses.test.ts;
-// aquí se prueba lo que la PANTALLA hace con ella.
+// FILTRO DE MES DE CIERRE (pedido de Miguel, 2026-08-14): el asesor abre y ve
+// lo que lleva cerrado ESTE mes, sin listas de meses que recorrer. La
+// agrupación pura se prueba en lib/cartera-meses.test.ts; aquí se prueba lo que
+// la PANTALLA hace con ella.
 // ————————————————————————————————————————————————————————————————————————
-describe('MiCartera — bloques por mes', () => {
-  /** Cliente + contrato en un mes concreto (hora de Lima: 11:00 = 16:00Z). */
-  const enMes = (
-    id: string,
-    nombre: string,
-    mesIso: string,
-    over: Partial<ContratoRow> = {},
-  ) => ({
-    cliente: cliente({ id, nombre_completo: nombre }),
-    contrato: contrato({ id: `k-${id}`, cliente_id: id, creado_en: `${mesIso}T16:00:00.000Z`, ...over }),
-  })
+describe('MiCartera — filtro por mes de cierre', () => {
+  /** ISO de un contrato del mes en curso (11:00 de Lima del día 10). */
+  const esteMes = () => {
+    const hoy = new Date()
+    return new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth(), 10, 16, 0, 0)).toISOString()
+  }
+  /** ISO de hace ~3 meses, seguro fuera del mes en curso. */
+  const haceMeses = (n: number) => {
+    const hoy = new Date()
+    return new Date(Date.UTC(hoy.getFullYear(), hoy.getMonth() - n, 10, 16, 0, 0)).toISOString()
+  }
 
-  it('pinta una cabecera por mes con lo que se cerró en él', () => {
-    const a = enMes('c-a', 'CLIENTA AGOSTO', '2026-08-10', { capital: 20000 })
-    const j = enMes('c-j', 'CLIENTE JULIO', '2026-07-10', { capital: 5000 })
-    montar({ clientes: [a.cliente, j.cliente], contratos: [a.contrato, j.contrato] })
-
-    expect(screen.getByRole('button', { name: /^Agosto 2026 · 1 contrato cerrado · S\/ 20,000/ })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /^Julio 2026 · 1 contrato cerrado · S\/ 5,000/ })).toBeInTheDocument()
-  })
-
-  it('solo el bloque más reciente arranca abierto; los viejos son historia plegada', async () => {
-    const user = userEvent.setup()
-    const a = enMes('c-a', 'CLIENTA AGOSTO', '2026-08-10')
-    const j = enMes('c-j', 'CLIENTE JULIO', '2026-07-10')
-    montar({ clientes: [a.cliente, j.cliente], contratos: [a.contrato, j.contrato] })
-
-    expect(screen.getByText('CLIENTA AGOSTO')).toBeInTheDocument()
-    expect(screen.queryByText('CLIENTE JULIO')).not.toBeInTheDocument()
-
-    await user.click(screen.getByRole('button', { name: /^Julio 2026/ }))
-    expect(screen.getByText('CLIENTE JULIO')).toBeInTheDocument()
-    // …y el de agosto sigue abierto: plegar uno no toca a los demás.
-    expect(screen.getByText('CLIENTA AGOSTO')).toBeInTheDocument()
-  })
-
-  it('PEN y USD van por separado en la cabecera, jamás sumados', () => {
-    const c = cliente({ id: 'c-1' })
+  const conDosMeses = () =>
     montar({
-      clientes: [c],
+      clientes: [
+        cliente({ id: 'c-a', nombre_completo: 'CLIENTA DE AHORA' }),
+        cliente({ id: 'c-v', nombre_completo: 'CLIENTE DE ANTES' }),
+      ],
       contratos: [
-        contrato({ id: 'k-pen', capital: 20000, moneda: 'PEN', creado_en: '2026-08-10T16:00:00.000Z' }),
-        contrato({ id: 'k-usd', capital: 7000, moneda: 'USD', creado_en: '2026-08-11T16:00:00.000Z' }),
+        contrato({ id: 'k-a', cliente_id: 'c-a', capital: 20000, creado_en: esteMes() }),
+        contrato({ id: 'k-v', cliente_id: 'c-v', capital: 5000, creado_en: haceMeses(3) }),
       ],
     })
-    expect(
-      screen.getByRole('button', { name: /^Agosto 2026 · 2 contratos cerrados · S\/ 20,000 · US\$ 7,000/ }),
-    ).toBeInTheDocument()
+
+  it('arranca en el mes en curso: solo se ve lo cerrado este mes', () => {
+    conDosMeses()
+    expect(screen.getByText('CLIENTA DE AHORA')).toBeInTheDocument()
+    expect(screen.queryByText('CLIENTE DE ANTES')).not.toBeInTheDocument()
+  })
+
+  it('«Todos los meses» devuelve la cartera entera', async () => {
+    const user = userEvent.setup()
+    conDosMeses()
+    await verTodosLosMeses(user)
+    expect(screen.getByText('CLIENTA DE AHORA')).toBeInTheDocument()
+    expect(screen.getByText('CLIENTE DE ANTES')).toBeInTheDocument()
+  })
+
+  it('el desplegable ofrece los meses con cierres, del más reciente al más viejo', () => {
+    conDosMeses()
+    const opciones = within(screen.getByRole('combobox', { name: /Filtrar por mes/ }))
+      .getAllByRole('option')
+      .map((o) => o.textContent)
+    expect(opciones[0]).toBe('Todos los meses')
+    // El mes en curso manda sobre el viejo, y el cubo de sin-contrato no está
+    // (aquí todos los clientes tienen contrato).
+    expect(opciones).toHaveLength(3)
+    expect(opciones).not.toContain('Clientes sin contrato')
+  })
+
+  it('resume lo cerrado en el mes elegido, con PEN y USD por separado', () => {
+    montar({
+      clientes: [cliente({ id: 'c-1' })],
+      contratos: [
+        contrato({ id: 'k-pen', capital: 20000, moneda: 'PEN', creado_en: esteMes() }),
+        contrato({ id: 'k-usd', capital: 7000, moneda: 'USD', creado_en: esteMes() }),
+      ],
+    })
+    // Acotado al resumen: la fila del cliente repite los mismos importes, y son
+    // dos cifras distintas por definición (lo CERRADO vs lo que sigue VIVO).
+    const resumen = within(screen.getByText(/2 contratos cerrados en/).closest('p')!)
+    expect(resumen.getByText('S/ 20,000')).toBeInTheDocument()
+    expect(resumen.getByText('US$ 7,000')).toBeInTheDocument()
   })
 
   // El total cuenta TODO contrato de sus clientes (decisión de Miguel), pero la
-  // cuota le paga por los que registró ÉL. Cuando el mes mezcla ambos se dice,
-  // o el asesor vería un capital aquí y otro en Hoy sin explicación.
+  // cuota le paga por los que registró ÉL. Cuando el mes mezcla ambos se dice, o
+  // el asesor vería un capital aquí y otro en Hoy sin explicación.
   it('avisa cuando el mes incluye un contrato registrado por otra persona', () => {
     montar({
       clientes: [cliente({ id: 'c-1', asesor_perfil_id: 'yo', creado_por: 'yo' })],
       contratos: [
-        contrato({ id: 'k-mio', creado_por: 'yo', creado_en: '2026-08-10T16:00:00.000Z' }),
-        contrato({ id: 'k-ajeno', creado_por: 'carlos', creado_en: '2026-08-11T16:00:00.000Z' }),
+        contrato({ id: 'k-mio', creado_por: 'yo', creado_en: esteMes() }),
+        contrato({ id: 'k-ajeno', creado_por: 'carlos', creado_en: esteMes() }),
       ],
     })
     expect(screen.getByText('incluye 1 registrado por otra persona')).toBeInTheDocument()
   })
 
   it('no avisa de nada cuando todo el mes lo registró el propio asesor', () => {
-    montar()
+    montar({ contratos: [contrato({ creado_en: esteMes() })] })
     expect(screen.queryByText(/registrado.? por otra persona/)).not.toBeInTheDocument()
   })
 
-  // REGRESIÓN: el plegado del cliente se guarda por (mes, cliente). Con la clave
-  // del cliente a secas, expandirlo en agosto lo expandía también en julio.
-  it('un cliente que cerró en dos meses se expande en uno sin abrirse en el otro', async () => {
+  // ESTADO DE PRODUCCIÓN (gate de realidad): un asesor que aún no ha cerrado
+  // nada este mes es lo PRIMERO que ve al abrir. No puede quedarse mirando un
+  // vacío sin salida.
+  it('sin cierres este mes lo dice y ofrece ver toda la cartera', async () => {
     const user = userEvent.setup()
     montar({
-      clientes: [cliente({ id: 'c-1' })],
-      contratos: [
-        contrato({ id: 'k-ago', numero_contrato: '2026-08-000111', creado_en: '2026-08-10T16:00:00.000Z' }),
-        contrato({ id: 'k-jul', numero_contrato: '2026-07-000222', creado_en: '2026-07-10T16:00:00.000Z' }),
-      ],
+      clientes: [cliente({ id: 'c-v', nombre_completo: 'CLIENTE DE ANTES' })],
+      contratos: [contrato({ id: 'k-v', cliente_id: 'c-v', creado_en: haceMeses(3) })],
     })
-    // Julio arranca plegado: se abre el bloque y luego el cliente DE JULIO.
-    await user.click(screen.getByRole('button', { name: /^Julio 2026/ }))
-    const botones = screen.getAllByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ })
-    expect(botones).toHaveLength(2) // el mismo cliente, un botón por bloque
-    await user.click(botones[1]!) // el de julio
-    expect(screen.getByText('2026-07-000222')).toBeInTheDocument()
-    expect(screen.queryByText('2026-08-000111')).not.toBeInTheDocument()
+    expect(screen.getByText(/Sin cierres en/)).toBeInTheDocument()
+    expect(screen.getByText(/Tus clientes siguen ahí/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ver toda la cartera' }))
+    expect(screen.getByText('CLIENTE DE ANTES')).toBeInTheDocument()
   })
 
-  it('con un filtro puesto se abren TODOS los bloques (nada se esconde tras un plegado)', async () => {
-    const user = userEvent.setup()
-    const a = enMes('c-a', 'PEREZ AGOSTO', '2026-08-10')
-    const j = enMes('c-j', 'PEREZ JULIO', '2026-07-10')
-    montar({ clientes: [a.cliente, j.cliente], contratos: [a.contrato, j.contrato] })
-    expect(screen.queryByText('PEREZ JULIO')).not.toBeInTheDocument()
-
-    await user.type(screen.getByLabelText('Buscar en la cartera'), 'PEREZ')
-    expect(screen.getByText('PEREZ AGOSTO')).toBeInTheDocument()
-    expect(screen.getByText('PEREZ JULIO')).toBeInTheDocument()
-  })
-
-  it('un mes que se queda sin nada al filtrar deja de pintarse', async () => {
-    const user = userEvent.setup()
-    const a = enMes('c-a', 'CLIENTA AGOSTO', '2026-08-10')
-    const j = enMes('c-j', 'CLIENTE JULIO', '2026-07-10')
-    montar({ clientes: [a.cliente, j.cliente], contratos: [a.contrato, j.contrato] })
-
-    await user.type(screen.getByLabelText('Buscar en la cartera'), 'CLIENTA')
-    expect(screen.getByRole('button', { name: /^Agosto 2026/ })).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /^Julio 2026/ })).not.toBeInTheDocument()
-  })
-
-  // ESTADO DE PRODUCCIÓN (gate de realidad): un asesor recién llegado tiene
-  // clientes y ningún contrato. La pantalla no puede quedarse en blanco.
-  it('sin ningún contrato, los clientes van a su bloque y siguen siendo operables', () => {
-    montar({ clientes: [cliente({ id: 'c-1' })], contratos: [] })
-    expect(screen.getByRole('button', { name: /^Clientes sin contrato · 1 cliente/ })).toBeInTheDocument()
-    expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
-    // Sigue ofreciendo su acción de siempre: el cubo no es un cementerio.
+  // Los clientes sin contrato NO son historia de otro mes: son trabajo
+  // pendiente, y esta es la pantalla desde la que se les crea el contrato.
+  it('los clientes sin ningún contrato acompañan al mes elegido', () => {
+    montar({
+      clientes: [
+        cliente({ id: 'c-a', nombre_completo: 'CLIENTA DE AHORA' }),
+        cliente({ id: 'c-n', nombre_completo: 'RECIEN CAPTADO' }),
+      ],
+      contratos: [contrato({ id: 'k-a', cliente_id: 'c-a', creado_en: esteMes() })],
+    })
+    expect(screen.getByText('CLIENTA DE AHORA')).toBeInTheDocument()
+    expect(screen.getByText('RECIEN CAPTADO')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /\+ Primer contrato/ })).toBeInTheDocument()
   })
 
-  it('el cubo «Clientes sin contrato» va SIEMPRE al final, después de los meses', () => {
-    const a = enMes('c-a', 'CLIENTA AGOSTO', '2026-08-10')
-    montar({ clientes: [a.cliente, cliente({ id: 'c-nuevo', nombre_completo: 'RECIEN CAPTADO' })], contratos: [a.contrato] })
-    const cabeceras = screen
-      .getAllByRole('button')
-      .map((b) => b.textContent ?? '')
-      .filter((t) => t.startsWith('Agosto 2026') || t.startsWith('Clientes sin contrato'))
-    expect(cabeceras).toHaveLength(2)
-    expect(cabeceras[0]!.startsWith('Agosto 2026')).toBe(true)
-    expect(cabeceras[1]!.startsWith('Clientes sin contrato')).toBe(true)
+  // El aviso de renovación es el ÚNICO radar del CRM: con un mes puesto, un
+  // contrato que vence pero se cerró en otro mes no lo vería nadie.
+  it('activar «Por vencer» quita el filtro de mes', async () => {
+    const user = userEvent.setup()
+    const dentro = new Date(Date.now() + 10 * 86_400_000).toISOString().slice(0, 10)
+    montar({
+      clientes: [cliente({ id: 'c-v', nombre_completo: 'CLIENTE DE ANTES' })],
+      contratos: [
+        contrato({ id: 'k-v', cliente_id: 'c-v', creado_en: haceMeses(3), fecha_vencimiento: dentro }),
+      ],
+    })
+    expect(screen.queryByText('CLIENTE DE ANTES')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: /Por vencer/ }))
+    expect(screen.getByRole('combobox', { name: /Filtrar por mes/ })).toHaveValue('todos')
+    expect(screen.getByText('CLIENTE DE ANTES')).toBeInTheDocument()
   })
 })
