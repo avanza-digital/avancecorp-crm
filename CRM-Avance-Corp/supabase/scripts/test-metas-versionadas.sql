@@ -693,5 +693,372 @@ end;
 $test$;
 reset role;
 
+-- ── M19 · gerencia anula un cierre de AVANCE: deja de acreditar, y a NADIE ──
+-- La regla (Miguel, 2026-08-13): «si gerencia anula un cierre tiene que afectar
+-- en la conversion si o si». Y el alcance: lo que baja «no significa dinero
+-- real, solo baja para el vendedor» — el contrato sigue intacto en public.
+--
+-- Se asevera contra el TOTAL de la empresa a proposito. Un aserto por vendedor
+-- diria «a A le bajo 25.000» y pasaria igual aunque esos 25.000 hubieran
+-- aterrizado en OTRO: excluir el lead dentro del lateral `enlaces` hace que el
+-- contrato pierda su vendedor explicito y caiga al AUTOR por el
+-- `else meta_autor.vendedor_id`. Medido: con esa version el contrato se REGALA.
+-- Si el total no baja, es que se movio de sitio en vez de desaparecer.
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $test$
+declare
+  v_c jsonb;
+  v_total_capital numeric;
+  v_total_contratos integer;
+  v_a jsonb;
+  v_a_pen jsonb;
+begin
+  perform crm.anular_cierre_avance(
+    '71000000-0000-4000-8000-000000000201',
+    'M19: cierre mal gestionado por el asesor');
+
+  v_c := crm.cumplimiento_metas_fn(date '2099-07-01');
+
+  select
+    coalesce(sum((d.value->>'contratos_real')::integer),0),
+    coalesce(sum((d.value->>'capital_real')::numeric),0)
+    into v_total_contratos, v_total_capital
+  from jsonb_array_elements(v_c->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d;
+
+  -- 989.000 y 6 contratos era la foto de M12, antes de anular.
+  if v_total_capital <> 964000 or v_total_contratos <> 5 then
+    raise exception 'M19 la anulacion no quito el cierre del TOTAL (capital % contratos %): si el total no baja, el cierre se le regalo a otro',
+      v_total_capital, v_total_contratos;
+  end if;
+
+  select v.value into v_a
+  from jsonb_array_elements(v_c->'vendedores') v
+  where v.value->>'vendedor_id' = '71000000-0000-4000-8000-000000000003';
+  select d.value into v_a_pen
+  from jsonb_array_elements(v_a->'detalles') d
+  where d.value->>'categoria' = 'nuevo' and d.value->>'moneda' = 'PEN';
+
+  -- A tenia 669.000 y 4 contratos en nuevo/PEN (M12). Pierde este cierre.
+  if (v_a_pen->>'capital_real')::numeric <> 644000
+     or (v_a_pen->>'contratos_real')::integer <> 3 then
+    raise exception 'M19 al vendedor no se le descontaron capital y contratos a la vez: %', v_a_pen;
+  end if;
+
+  -- Una sola direccion y una sola vez.
+  begin
+    perform crm.anular_cierre_avance(
+      '71000000-0000-4000-8000-000000000201', 'M19 otra vez');
+    raise exception 'M19 se pudo anular dos veces el mismo cierre';
+  exception when sqlstate 'P0409' then null;
+  end;
+end;
+$test$;
+reset role;
+
+-- ── M19b · la FORMA REAL: contrato ligado al CLIENTE, no al lead ───────────
+-- Este caso existe por un error que casi se publica. El predicado de la cuota
+-- correlacionaba el contrato por `crm.leads.contrato_id`, y M19 lo bendecía
+-- porque el fixture rellena esa columna. Producción NO: verificado el
+-- 2026-08-13, 371 contratos y CERO con lead enlazado, 0 leads con perfil
+-- enlazado. `crm.convertir_lead` escribe `perfil_id` y nunca `contrato_id`, y
+-- el contrato se crea después sin enterarse del lead.
+--
+-- O sea que la anulación habría bajado la conversión y dejado el dinero intacto
+-- —el defecto exacto que esta migración viene a cerrar— y el gate lo habría
+-- dado por bueno. Un test que monta un mundo que producción no crea no prueba
+-- el arreglo: prueba el fixture.
+--
+-- Aquí el lead va como sale del flujo real: `perfil_id` puesto, `contrato_id`
+-- NULL, y el contrato del cliente creado DESPUÉS de convertir. Al no haber
+-- enlace, el contrato se acredita por AUTOR — que es como se acredita hoy toda
+-- la cartera de Avance.
+set local session_replication_role = replica;
+insert into public.perfiles(id,nombre_completo,correo,rol,activo)
+values ('71000000-0000-4000-8000-0000000000c9','Cliente Real M19b','m19b-cli@test.invalid','cliente',true);
+insert into crm.leads(
+  id,nombre_completo,telefono,origen,etapa,monto_estimado,moneda,categoria_interes,
+  vendedor_id,perfil_id,contrato_id,convertido_en,creado_por,creado_en
+) values (
+  '71000000-0000-4000-8000-000000000209','Lead M19b Forma Real','51999007209',
+  'otro','convertido',12000,'PEN','nuevo','71000000-0000-4000-8000-000000000003',
+  '71000000-0000-4000-8000-0000000000c9', NULL,
+  timestamptz '2099-07-18 12:00:00-05','71000000-0000-4000-8000-000000000003',
+  timestamptz '2099-07-10 12:00:00-05'
+);
+insert into public.contratos(
+  id,cliente_id,numero_contrato,capital,moneda,tasa_anual,modalidad,tipo_interes,
+  categoria,estado,fecha_inicio,fecha_vencimiento,creado_por,creado_en
+) values (
+  '71000000-0000-4000-8000-000000000111','71000000-0000-4000-8000-0000000000c9',
+  'TEST-META-7111',12000,'PEN',10,'mensual','simple','nuevo','activo',
+  date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+  timestamptz '2099-07-19 12:00:00-05'
+),
+-- El MISMO cliente RENUEVA con OTRO vendedor, despues. Es el caso que decide:
+-- anular el cierre de A no puede tocar la venta legitima de B. Con la primera
+-- version del predicado (correlacion por cliente a secas) este contrato
+-- desaparecia y B perdia capital en un mes cerrado sin haber hecho nada.
+(
+  '71000000-0000-4000-8000-000000000112','71000000-0000-4000-8000-0000000000c9',
+  'TEST-META-7112',9000,'PEN',10,'mensual','simple','renovacion','activo',
+  date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000008',
+  timestamptz '2099-07-25 12:00:00-05'
+);
+set local session_replication_role = origin;
+
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $test$
+declare
+  v_antes     numeric;
+  v_despues   numeric;
+  v_b_antes   numeric;
+  v_b_despues numeric;
+begin
+  select coalesce(sum((d.value->>'capital_real')::numeric),0) into v_antes
+  from jsonb_array_elements(crm.cumplimiento_metas_fn(date '2099-07-01')->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d;
+
+  -- Control POSITIVO: sin él, un total que no baja podría significar que el
+  -- contrato nunca contó, no que la anulación funcionó.
+  if v_antes <> 985000 then
+    raise exception 'M19b los contratos de la forma real no estaban contando (total %): el caso no probaria nada', v_antes;
+  end if;
+
+  -- Foto de B ANTES: su renovacion del mismo cliente.
+  select coalesce(sum((d.value->>'capital_real')::numeric),0) into v_b_antes
+  from jsonb_array_elements(crm.cumplimiento_metas_fn(date '2099-07-01')->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d
+  where v.value->>'vendedor_id' = '71000000-0000-4000-8000-000000000008';
+  if v_b_antes <> 9000 then
+    raise exception 'M19b la renovacion de B no estaba contando (%): el negativo no probaria nada', v_b_antes;
+  end if;
+
+  perform crm.anular_cierre_avance(
+    '71000000-0000-4000-8000-000000000209',
+    'M19b: cierre mal gestionado, contrato ligado solo por cliente');
+
+  select coalesce(sum((d.value->>'capital_real')::numeric),0) into v_despues
+  from jsonb_array_elements(crm.cumplimiento_metas_fn(date '2099-07-01')->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d;
+
+  if v_despues <> 973000 then
+    raise exception 'M19b la anulacion NO quito el capital de un contrato ligado por CLIENTE (total % , esperado 973000): el predicado vuelve a mirar solo contrato_id',
+      v_despues;
+  end if;
+
+  -- EL NEGATIVO QUE DECIDE: solo se le puede quitar el merito a quien lo tiene.
+  select coalesce(sum((d.value->>'capital_real')::numeric),0) into v_b_despues
+  from jsonb_array_elements(crm.cumplimiento_metas_fn(date '2099-07-01')->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d
+  where v.value->>'vendedor_id' = '71000000-0000-4000-8000-000000000008';
+  if v_b_despues <> 9000 then
+    raise exception 'M19b anular el cierre de A le quito capital a B (% -> %): la anulacion esta repartiendo castigo en vez de corregir el merito',
+      v_b_antes, v_b_despues;
+  end if;
+end;
+$test$;
+reset role;
+
+create function pg_temp.m19c_capital(p_vendedor uuid) returns numeric
+language sql stable as $$
+  select coalesce(sum((d.value->>'capital_real')::numeric),0)
+  from jsonb_array_elements(crm.cumplimiento_metas_fn(date '2099-07-01')->'vendedores') v
+  cross join lateral jsonb_array_elements(v.value->'detalles') d
+  where v.value->>'vendedor_id' = p_vendedor::text
+$$;
+
+-- ── M19c · los CINCO límites de la anulación, en un solo mundo ─────────────
+-- Cada uno costó una ronda de revisión, así que cada uno tiene su aserto:
+--   SUELO   · un contrato ANTERIOR a la conversión no lo trajo ese cierre.
+--   TECHO   · si el cliente vuelve a cerrarse, el cierre viejo deja de reclamar.
+--   TERCERO · la venta de OTRO vendedor al mismo cliente no se toca.
+--   FOTO    · reasignar un lead YA anulado no recalcula a quién se castigó.
+--   PAYLOAD · `afecta_cuota` y `contratos_afectados` dicen la verdad.
+--
+-- Los cuatro primeros nacieron de bloqueantes reales: sin techo, un cierre
+-- anulado se quedaba con todo el futuro del cliente; sin la comparación por
+-- acreditado, anular a uno le borraba la venta a otro; sin foto, una
+-- reasignación posterior devolvía los contratos al primero.
+set local session_replication_role = replica;
+insert into public.perfiles(id,nombre_completo,correo,rol,activo)
+values ('71000000-0000-4000-8000-0000000000ca','Cliente M19c','m19c-cli@test.invalid','cliente',true);
+insert into crm.leads(
+  id,nombre_completo,telefono,origen,etapa,monto_estimado,moneda,categoria_interes,
+  vendedor_id,perfil_id,contrato_id,convertido_en,creado_por,creado_en
+) values
+  -- El cierre que se va a anular (vendedor A = …003)
+  ('71000000-0000-4000-8000-000000000211','M19c Cierre A','51999007211',
+   'otro','convertido',5000,'PEN','nuevo','71000000-0000-4000-8000-000000000003',
+   '71000000-0000-4000-8000-0000000000ca', NULL,
+   timestamptz '2099-07-10 12:00:00-05','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-05 12:00:00-05'),
+  -- El MISMO cliente se vuelve a cerrar más tarde: aquí nace el TECHO
+  ('71000000-0000-4000-8000-000000000212','M19c Recierre A','51999007212',
+   'otro','convertido',4000,'PEN','nuevo','71000000-0000-4000-8000-000000000003',
+   '71000000-0000-4000-8000-0000000000ca', NULL,
+   timestamptz '2099-07-20 12:00:00-05','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-18 12:00:00-05');
+insert into public.contratos(
+  id,cliente_id,numero_contrato,capital,moneda,tasa_anual,modalidad,tipo_interes,
+  categoria,estado,fecha_inicio,fecha_vencimiento,creado_por,creado_en
+) values
+  -- SUELO: anterior a la conversión → sobrevive
+  ('71000000-0000-4000-8000-000000000113','71000000-0000-4000-8000-0000000000ca',
+   'TEST-META-7113',3000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-08 12:00:00-05'),
+  -- El que SÍ trajo ese cierre → cae
+  ('71000000-0000-4000-8000-000000000114','71000000-0000-4000-8000-0000000000ca',
+   'TEST-META-7114',5000,'PEN',10,'mensual','simple','nuevo','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-12 12:00:00-05'),
+  -- TECHO: posterior al recierre → sobrevive
+  ('71000000-0000-4000-8000-000000000115','71000000-0000-4000-8000-0000000000ca',
+   'TEST-META-7115',4000,'PEN',10,'mensual','simple','renovacion','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000003',
+   timestamptz '2099-07-22 12:00:00-05'),
+  -- TERCERO: mismo cliente, OTRO vendedor → sobrevive
+  ('71000000-0000-4000-8000-000000000116','71000000-0000-4000-8000-0000000000ca',
+   'TEST-META-7116',2000,'PEN',10,'mensual','simple','upgrade','activo',
+   date '2099-07-01',date '2100-07-01','71000000-0000-4000-8000-000000000008',
+   timestamptz '2099-07-24 12:00:00-05');
+set local session_replication_role = origin;
+
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $test$
+declare
+  v_a_antes    numeric;
+  v_a_despues  numeric;
+  v_b_antes    numeric;
+  v_b_despues  numeric;
+  v_a_final    numeric;
+  v_res        jsonb;
+  v_estado     jsonb;
+begin
+  v_a_antes := pg_temp.m19c_capital('71000000-0000-4000-8000-000000000003');
+  v_b_antes := pg_temp.m19c_capital('71000000-0000-4000-8000-000000000008');
+
+  -- Control POSITIVO: los cuatro contratos cuentan antes de anular. Sin esto, un
+  -- «no bajó» podría significar «nunca contó».
+  if v_a_antes < 12000 or v_b_antes < 2000 then
+    raise exception 'M19c el mundo no esta montado (A=% B=%): el caso no probaria nada', v_a_antes, v_b_antes;
+  end if;
+
+  v_res := crm.anular_cierre_avance(
+    '71000000-0000-4000-8000-000000000211','M19c: mala gestion del asesor');
+
+  -- PAYLOAD: dice la verdad sobre lo que movio.
+  if (v_res->>'afecta_cuota')::boolean is not true then
+    raise exception 'M19c afecta_cuota deberia ser true: %', v_res;
+  end if;
+  if not (v_res->'contratos_afectados' @> '["71000000-0000-4000-8000-000000000114"]'::jsonb) then
+    raise exception 'M19c contratos_afectados no nombra el contrato que cae: %', v_res;
+  end if;
+  if jsonb_array_length(v_res->'contratos_afectados') <> 1 then
+    raise exception 'M19c contratos_afectados reclama de mas (%): el suelo, el techo o el de otro vendedor se colaron', v_res;
+  end if;
+
+  v_a_despues := pg_temp.m19c_capital('71000000-0000-4000-8000-000000000003');
+  v_b_despues := pg_temp.m19c_capital('71000000-0000-4000-8000-000000000008');
+
+  -- SUELO + TECHO: A pierde 5.000 y SOLO 5.000.
+  if v_a_antes - v_a_despues <> 5000 then
+    raise exception 'M19c A perdio % en vez de 5000: el suelo o el techo no estan sujetando', v_a_antes - v_a_despues;
+  end if;
+  -- TERCERO: B no se entera.
+  if v_b_despues <> v_b_antes then
+    raise exception 'M19c anular el cierre de A le movio el capital a B (% -> %)', v_b_antes, v_b_despues;
+  end if;
+
+  -- FOTO: reasignar el lead YA anulado no puede recalcular a quien se castigo.
+  set local session_replication_role = replica;
+  update crm.leads set vendedor_id='71000000-0000-4000-8000-000000000008'
+   where id='71000000-0000-4000-8000-000000000211';
+  set local session_replication_role = origin;
+
+  v_a_final := pg_temp.m19c_capital('71000000-0000-4000-8000-000000000003');
+  if v_a_final <> v_a_despues
+     or pg_temp.m19c_capital('71000000-0000-4000-8000-000000000008') <> v_b_despues then
+    raise exception 'M19c reasignar un lead ya anulado movio las cuentas (A % -> %): falta la foto del acreditado',
+      v_a_despues, v_a_final;
+  end if;
+
+  -- LA VENTANA: la anulacion tiene que poder VERSE desde la aplicacion. Es lo
+  -- unico que separa «anular» de «anular en secreto»: sin lectura, gerencia
+  -- anula, recarga y ve el lead igual que antes.
+  -- Este caso vive AQUI y no en el gate de RLS por una razon concreta: alli el
+  -- unico mundo montado es un cierre en COOPERATIVA, asi que `cierres_estado_fn`
+  -- podria devolver vacio para TODO el canal Avance y el gate entero seguiria en
+  -- verde. Es el mismo defecto vacuo que ya hubo que corregir dos veces en esta
+  -- familia: un guard que pasa igual sobre el cuerpo que dice vigilar.
+  v_estado := crm.cierres_estado_fn(array['71000000-0000-4000-8000-000000000211']::uuid[]);
+  if jsonb_array_length(v_estado) <> 1 then
+    raise exception 'M19c la anulacion de Avance no se VE en cierres_estado_fn: %', v_estado;
+  end if;
+  if v_estado->0->>'canal' <> 'avance' then
+    raise exception 'M19c el canal deberia ser avance (si dice cooperativa, la ficha ofreceria la RPC equivocada): %', v_estado;
+  end if;
+  if v_estado->0->>'anulado_en' is null then
+    raise exception 'M19c cierres_estado_fn no marca la fecha de anulacion: %', v_estado;
+  end if;
+  -- El motivo viaja ENTERO: a quien se le quita el merito se le debe la razon
+  -- escrita, no un numero que baja sin explicacion.
+  if v_estado->0->>'motivo' <> 'M19c: mala gestion del asesor' then
+    raise exception 'M19c cierres_estado_fn no devuelve el motivo escrito: %', v_estado;
+  end if;
+end;
+$test$;
+reset role;
+
+-- Las guardas de la RPC, por SQL y no solo por la matriz de roles.
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000001',true);
+set local role authenticated;
+do $test$
+begin
+  -- Un lead que no esta convertido no tiene cierre que anular.
+  begin
+    perform crm.anular_cierre_avance('71000000-0000-4000-8000-000000000203','M19c no convertido');
+    raise exception 'M19c se anulo un lead que no esta convertido';
+  exception when sqlstate '22023' then null;
+  end;
+
+  -- Un cierre en cooperativa va por su propia RPC (que guarda la foto del cierre).
+  begin
+    perform crm.anular_cierre_avance('71000000-0000-4000-8000-000000000212','M19c doble via');
+    -- (212 SI es de Avance: este bloque solo comprueba que la via correcta funciona)
+  exception when others then
+    raise exception 'M19c no se pudo anular el recierre legitimo: %', sqlerrm;
+  end;
+
+  -- Y append-only: ni gerencia edita ni borra una anulacion.
+  begin
+    delete from crm.cierres_avance_anulados;
+    raise exception 'M19c se pudo BORRAR una anulacion';
+  exception when sqlstate 'P0409' then null;
+       when insufficient_privilege then null;
+  end;
+end;
+$test$;
+reset role;
+
+-- Y quien NO es gerencia no anula: el vendedor dueno del cierre, el primero.
+select set_config('request.jwt.claim.sub','71000000-0000-4000-8000-000000000003',true);
+set local role authenticated;
+do $test$
+begin
+  begin
+    perform crm.anular_cierre_avance(
+      '71000000-0000-4000-8000-000000000202', 'M19 no deberia poder');
+    raise exception 'M19 un vendedor pudo anular un cierre';
+  exception when sqlstate '42501' then null;
+  end;
+end;
+$test$;
+reset role;
+
 select 'METAS_VERSIONADAS_TX_OK' as resultado;
 rollback;

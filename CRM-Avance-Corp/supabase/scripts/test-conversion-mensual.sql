@@ -267,6 +267,7 @@ $$ select array[
   'CONV-21a', 'CONV-21b',
   'CONV-22a', 'CONV-22b', 'CONV-22c', 'CONV-22d',
   'CONV-23a', 'CONV-23b', 'CONV-23c', 'CONV-23d',
+  'CONV-24a', 'CONV-24b', 'CONV-24c',
   'CONV-99'
 ]::text[] $$;
 
@@ -2617,6 +2618,75 @@ begin
     '0', v_episodios::text);
 
   -- La identidad vuelve a donde la dejó la sección 8 (el SUPERVISOR).
+  perform set_config('request.jwt.claim.sub', pg_temp.conv_lead(1)::text, true);
+end;
+$test$;
+
+-- ---------------------------------------------------------------------------
+-- 8bis. CONV-24 · gerencia anula un cierre de AVANCE y la CONVERSIÓN se entera
+-- ---------------------------------------------------------------------------
+-- La regla de Miguel (2026-08-13): «si gerencia anula un cierre tiene que
+-- afectar en la conversión sí o sí, porque gerencia hará eso cuando haya
+-- errores de gestión o malas prácticas».
+--
+-- Va el ÚLTIMO de los casos de negocio a propósito: anula un cierre que los
+-- casos anteriores ya midieron, así que ejecutarlo antes movería sus números.
+--
+-- Lo que de verdad prueba: que la anulación llega a la conversión por el
+-- DELEGADO. `private.conversion_mensual_por_vendedor` llama a
+-- `private.cierre_externo_anulado`, que desde la migración de anulación de
+-- Avance delega en `private.cierre_anulado` — la pregunta única que responde
+-- por los dos canales. Si alguien deshiciera esa delegación, la cuota seguiría
+-- bajando y la conversión NO, y volveríamos a tener dos números para lo mismo.
+-- Sin este caso, ese mecanismo no lo probaba nada.
+do $test$
+declare
+  v_pay        jsonb;
+  v_fila       jsonb;
+  v_divisor    integer;
+  v_cierres    integer;
+  v_numerador  numeric;
+begin
+  -- Foto ANTES, del vendedor B (analista 3), que cerró el lead 1001 en el mes.
+  perform set_config('request.jwt.claim.sub', pg_temp.conv_lead(20)::text, true);
+  v_pay  := crm.conversion_mensual_fn(pg_temp.conv_mes());
+  v_fila := pg_temp.conv_fila('CONV-24a', v_pay, pg_temp.conv_lead(3));
+  v_divisor   := (v_fila ->> 'divisor')::integer;
+  v_cierres   := (v_fila ->> 'cierres_no_referidos')::integer;
+  v_numerador := (v_fila ->> 'numerador')::numeric;
+
+  if v_cierres < 1 then
+    raise exception 'CONV-24a · el vendedor B no tiene ningun cierre que anular: el caso no probaria nada';
+  end if;
+
+  -- Gerencia anula.
+  perform crm.anular_cierre_avance(
+    pg_temp.conv_lead(1001),
+    'CONV-24: el asesor registro un cierre que nunca se concreto');
+
+  v_pay  := crm.conversion_mensual_fn(pg_temp.conv_mes());
+  v_fila := pg_temp.conv_fila('CONV-24b', v_pay, pg_temp.conv_lead(3));
+
+  -- El NUMERADOR baja: ese cierre deja de contar.
+  perform pg_temp.conv_num('CONV-24b', 'cierres no referidos tras anular',
+    v_cierres - 1, (v_fila ->> 'cierres_no_referidos')::numeric);
+  perform pg_temp.conv_num('CONV-24b', 'numerador tras anular',
+    v_numerador - 1, (v_fila ->> 'numerador')::numeric);
+
+  -- Y el DIVISOR no se mueve: el lead se trabajó igual. Sin este aserto el caso
+  -- no distingue «dejó de contar como ganado» de «desapareció del mes», que es
+  -- justo la diferencia entre corregir el mérito y falsear la muestra.
+  perform pg_temp.conv_num('CONV-24b', 'el divisor NO se mueve al anular',
+    v_divisor, (v_fila ->> 'divisor')::numeric);
+
+  -- Una sola dirección: no se des-anula.
+  begin
+    perform crm.anular_cierre_avance(pg_temp.conv_lead(1001), 'CONV-24 otra vez');
+    raise exception 'CONV-24c · se pudo anular dos veces el mismo cierre';
+  exception when sqlstate 'P0409' then
+    perform pg_temp.conv_caso('CONV-24c');
+  end;
+
   perform set_config('request.jwt.claim.sub', pg_temp.conv_lead(1)::text, true);
 end;
 $test$;

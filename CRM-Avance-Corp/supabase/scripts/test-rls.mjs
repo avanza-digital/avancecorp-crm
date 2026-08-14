@@ -6861,6 +6861,52 @@ async function testCumplimientoMetas(sessions, seed) {
       ['42501'],
     );
   }
+
+  // ── H · anular un cierre de AVANCE es SOLO de gerencia ──────────────────
+  // El gate de rol corre ANTES de mirar el lead, asi que estos rechazos no
+  // dependen de que exista un cierre: es exactamente lo que se quiere probar.
+  // El caso POSITIVO (que anular baja cuota y conversion a la vez, y no le
+  // regala el cierre a nadie) vive en el oraculo `test-metas-versionadas.sql`,
+  // caso M19, que es donde esta montado el mundo de contratos.
+  const anular = (clave) => sessions[clave].client
+    .schema('crm').rpc('anular_cierre_avance', {
+      p_lead_id: '00000000-0000-0000-0000-000000000000',
+      p_motivo: 'intento del gate de RLS',
+    });
+  for (const clave of ['vend1', 'sup1', 'coordinador', 'vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `${clave} NO puede anular un cierre de Avance (42501)`,
+      anular(clave),
+      ['42501'],
+    );
+  }
+  // Gerencia SI pasa el gate de rol: falla mas adelante, por el lead inventado.
+  // Distinguir «no puedes» de «ese lead no existe» es el punto del caso.
+  await expectExpectedFailure(
+    'gerencia pasa el gate de rol y muere en el lead inexistente, no en 42501',
+    anular('gerencia'),
+    ['P0002', '22023', 'P0001'],
+    /Lead no encontrado/i,
+  );
+
+  // El motivo es obligatorio, y su guarda corre ANTES de mirar el lead: por eso
+  // este caso vale con un lead inventado. Quitar merito a alguien sin dejar la
+  // razon escrita es justo lo que la RPC no permite.
+  await expectExpectedFailure(
+    'gerencia no puede anular sin motivo (22023)',
+    sessions.gerencia.client.schema('crm').rpc('anular_cierre_avance', {
+      p_lead_id: '00000000-0000-0000-0000-000000000000',
+      p_motivo: '   ',
+    }),
+    ['22023', 'P0001'],
+    /Escribe el motivo/i,
+  );
+
+  // La tabla es deny-by-default: nadie la lee ni la escribe por la Data API.
+  await expectHidden(
+    'crm.cierres_avance_anulados no se lee desde la Data API',
+    sessions.gerencia.client.schema('crm').from('cierres_avance_anulados').select('id'),
+  );
 }
 
 async function testCierresExternos(sessions, seed) {
@@ -7054,6 +7100,89 @@ async function testCierresExternos(sessions, seed) {
     check(Number(gerTras?.data?.cierres_total ?? 0) === totalAntes + 1,
       'cierres_total global subio exactamente en 1',
       JSON.stringify({ antes: totalAntes, despues: gerTras?.data?.cierres_total }));
+
+    // ── 3bis · crm.cierres_estado_fn: la VENTANA a la anulacion, y su ambito ─
+    // Existe porque `crm.cierres_avance_anulados` es deny-by-default: sin ella
+    // la anulacion de gerencia seria INVISIBLE en la aplicacion (se anularia y
+    // al recargar el lead se veria igual que antes). Como las dos tablas de
+    // anulacion no tienen ni una policy, la funcion es DEFINER y su ambito es un
+    // predicado COPIADO de `leads_select`. Un predicado copiado se desincroniza
+    // en silencio, asi que lo que se asevera aqui no es un ejemplo suelto sino
+    // la FRONTERA: el MISMO lead, pedido por dos llamadores distintos.
+    const estado = (clave, leadIds) => sessions[clave].client
+      .schema('crm').rpc('cierres_estado_fn', { p_lead_ids: leadIds });
+
+    const estadoVend = await positive(
+      'vend1 lee el estado del cierre de SU lead',
+      estado('vend1', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+    const filaEstado = (estadoVend?.data ?? [])
+      .find((f) => f.lead_id === IDS_CIERRES_EXTERNOS.leadCoop) ?? null;
+    check(filaEstado?.canal === 'cooperativa' && filaEstado?.anulado_en === null,
+      'el lead de coop se declara canal cooperativa y sin anular (es lo que apaga el boton de Avance)',
+      JSON.stringify(estadoVend?.data));
+
+    // LA FRONTERA. Si esto devolviera algo, el predicado copiado ya no seria el
+    // de la policy y estariamos sirviendo el motivo de una anulacion ajena.
+    const estadoAjeno = await positive(
+      'vend3 pide el estado de un lead que NO es suyo',
+      estado('vend3', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+    check(Array.isArray(estadoAjeno?.data) && estadoAjeno.data.length === 0,
+      'vend3 no recibe NADA del lead ajeno (el ambito no se recorta en el cliente)',
+      JSON.stringify(estadoAjeno?.data));
+
+    const estadoGer = await positive(
+      'gerencia lee el estado del mismo cierre',
+      estado('gerencia', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+    check((estadoGer?.data ?? []).length === 1,
+      'gerencia recibe exactamente la fila del lead pedido', JSON.stringify(estadoGer?.data));
+
+    const estadoDir = await positive(
+      'directorio (lector global) lee el estado del cierre',
+      estado('directorio', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+    check((estadoDir?.data ?? []).length === 1,
+      'el lector global ve el estado igual que gerencia (la policy se lo permite)',
+      JSON.stringify(estadoDir?.data));
+
+    // El coordinador PASA el gate y recibe vacio: su ambito de leads es ∅, igual
+    // que en cumplimiento_metas_fn. Es 200 con [], no 42501 — quien acota es
+    // `vendedor_ids_visibles`, no la admision.
+    const estadoCoord = await positive(
+      'coordinador pasa el gate de cierres_estado_fn',
+      estado('coordinador', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+    check((estadoCoord?.data ?? []).length === 0,
+      'el coordinador recibe la lista VACIA (ambito ∅)', JSON.stringify(estadoCoord?.data));
+
+    await expectExplicitAuthorizationDenied(
+      'cliente denegado en cierres_estado_fn',
+      estado('clientBank', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+    await expectExplicitAuthorizationDenied(
+      'usuario revocado denegado en cierres_estado_fn',
+      estado('vendInactive', [IDS_CIERRES_EXTERNOS.leadCoop]),
+    );
+
+    // Un lead SIN nada que decir no viaja, y se pregunta desde SU DUENO para que
+    // el vacio signifique «no hay nada» y no «no lo ves»: preguntado por un
+    // ajeno, este caso pasaria por vacuidad sin probar nada.
+    const estadoMudo = await positive(
+      'un lead propio sin cierre en coop ni anulacion no aparece',
+      estado('vend3', [IDS_CIERRES_EXTERNOS.leadAjeno]),
+    );
+    check((estadoMudo?.data ?? []).length === 0,
+      'el payload solo trae leads con algo que decir', JSON.stringify(estadoMudo?.data));
+
+    // El tope, que es lo que separa una pagina de un volcado.
+    await expectExpectedFailure(
+      'cierres_estado_fn rechaza mas de 200 ids',
+      estado('gerencia', Array.from({ length: 201 }, () => IDS_CIERRES_EXTERNOS.leadCoop)),
+      ['22023', 'P0001'],
+      /maximo 200/i,
+    );
 
     // ── 4 · La correccion es de gerencia ────────────────────────────────────
     const cierreId = fila?.cierre_id ?? null;
