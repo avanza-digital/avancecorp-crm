@@ -1865,7 +1865,7 @@ lo que decide pago, y un mes cerrado **no se reescribe nunca** — lo que haya q
 corregir se descuenta en el mes vivo y, si no cabe, se arrastra.
 
 **Verificacion hecha.** Banco local (`supabase/scripts/banco-local-cierre-mes.sql`)
-+ oraculo (`supabase/scripts/test-cierre-mes.sql`): **18/18**, reproducible desde
++ oraculo (`supabase/scripts/test-cierre-mes.sql`): **20/20**, reproducible desde
 una base recien creada. Recorre sellar, la inmutabilidad frente a cambios de
 roster, los tres rechazos del gate, la deuda al anular un mes cerrado, el mes
 vivo descontado sin bajar de cero, el arrastre cuando no cabe, que anular un
@@ -1921,18 +1921,29 @@ diario deja de mirarse, y con el se deja de ver el fallo que si importa.
 
 **Comprobado con mutantes** (15/08). Una prueba que solo puede ejercitar una de
 sus dos ramas segun el dia del mes no demuestra nada por si sola, asi que cada
-arreglo se rompio a proposito para verlo caer. Las **seis** mutaciones salen en
-rojo: neutralizar el candado, quitarle el freno al ciclo, quitar el suelo de
-`cierre_mes_pendiente`, quitar el guardia del orden, quitar la subtransaccion por
-mes, y quitar el cerrojo del periodo.
+arreglo se rompio a proposito para verlo caer. **DIEZ mutantes, los diez en
+rojo**, con corrida de control sin mutar en verde: candado del dia 10, freno del
+ciclo, suelo de `cierre_mes_pendiente`, guardia del orden, subtransaccion por mes,
+cerrojo del periodo, candado de metas, trigger de metas, el ambito del mes cerrado
+y un `grant` de mas sobre una tabla del cierre.
 
-⚠️ **Y dos cosas que solo aparecieron mutando**, no escribiendo:
+⚠️ **Tres cosas que solo aparecieron mutando**, no escribiendo ni auditando:
 1. Al quitarle el freno al ciclo, la prueba **seguia en verde**. La subtransaccion
    por mes —arreglo del punto 3— se comia la excepcion, asi que el ciclo devolvia
    `cerrados: 0` tanto si no lo intento como si lo intento y fallo. El contador no
    distingue esos dos mundos y el segundo deja el cron en rojo del 1 al 9 de cada
-   mes. La asercion ahora exige ademas `ok` y `fallo` vacio.
-2. El **cerrojo** no lo caza ningun test, y no puede: una carrera necesita dos
+   mes. La asercion ahora exige ademas `ok` y `fallo` vacio. **Un arreglo puede
+   tapar el test de otro.**
+2. **El banco MENTIA POR OMISION.** No concedia `usage` de los esquemas `crm` y
+   `private` a `authenticated`, cuando produccion SI lo hace (medido el 15/08 con
+   `has_schema_privilege`). Consecuencia: toda prueba de «esta tabla no se puede
+   leer» moria en el candado del ESQUEMA y tapaba por completo los grants de la
+   TABLA — un mutante que CONCEDIA `select` sobre `periodos_cerrados` pasaba en
+   verde. Corregido en el banco, y la asercion pasa a preguntar por
+   `has_table_privilege` de las cuatro operaciones, que es lo que discrimina.
+   Es [[ejecutar-contra-la-forma-real]] otra vez, y esta vez por lo que el calco
+   NO tenia en vez de por lo que tenia mal.
+3. El **cerrojo** no lo caza ningun test, y no puede: una carrera necesita dos
    sesiones a la vez y el oraculo corre en una. Se cierra por estructura, en el
    postflight (`strpos` sobre las dos funciones), para que no se pueda borrar en
    silencio. Se deja dicho en vez de aparentar cobertura que no existe.
@@ -2019,15 +2030,25 @@ segunda copia de su cuerpo en el repo.
 acaba de terminar todavia no esta sellado, asi que sus metas se pueden corregir.
 El oraculo lo asevera explicitamente (bloque 13, apartado 0bis).
 
-**Estado del gate de RLS.** El bloque `testCierreDeMes` **ya esta escrito** en
-`supabase/scripts/test-rls.mjs` y enganchado en `main()`: las tres tablas
-deny-by-default probadas por los 7 roles y por anon (lectura y escritura), el
-ciclo denegado a todo el mundo —tambien a gerencia—, el sello denegado a los seis
-roles que no son gerencia, y el aviso leido por los cuatro roles con pantalla
-comprobando que **ven exactamente el mismo payload**. Pasa `check:scripts` y el
-`--preflight`. ⚠️ **Todavia no se ha EJECUTADO contra una base**: necesita una
-branch de Supabase con las siete migraciones aplicadas, y hoy no hay branch. Se
-dice asi de claro para que nadie lea «escrito» como «verde».
+**Estado del gate de RLS — y que cubre ya el oraculo.** El bloque
+`testCierreDeMes` esta escrito y enganchado en `main()`, y pasa `check:scripts` y
+el `--preflight`. Lo que prueba —permisos por rol— **ya no depende solo de el**:
+los bloques 14 y 15 del oraculo cubren en el banco local, y EJECUTANDO, las dos
+cosas que faltaban:
+
+- **14 · el ambito del mes cerrado** sale del `supervisor_id` SELLADO y no del
+  equipo de hoy. El calco lo discrimina a proposito: `vendedor_ids_visibles`
+  devuelve el mismo vendedor para cualquier supervisor, asi que si la lectura se
+  apoyara en el equipo vivo, el supervisor AJENO lo veria. Mutante confirmado.
+- **15 · deny-by-default con PRIVILEGIOS de verdad** (`set role`, no `auth.uid()`
+  conmutado): las tres tablas sin un solo grant y sin una sola policy para
+  `authenticated`, `anon` y `service_role`. Mutante confirmado.
+
+⚠️ Lo que el gate añade y el oraculo NO puede dar es **la capa de la API**:
+sesiones reales con JWT a traves de PostgREST. Eso exige una branch de Supabase
+con las siete migraciones aplicadas — o sea, entrar en el ciclo de despliegue, que
+cuesta dinero y necesita el OK de Miguel. No es deuda pendiente de escribir: es un
+paso del despliegue que no me corresponde arrancar solo.
 
 ⚠️ **El gate NO sella ningun mes, a proposito.** El camino positivo de
 `crm.cerrar_periodo` es irreversible por diseño (append-only, sin DELETE, con

@@ -33,6 +33,12 @@
 --       se CALLA en vez de reventar (un cron en rojo a diario deja de mirarse).
 --   13. Un mes que aparece POR DETRAS de lo ya sellado —metas publicadas hacia
 --       atras— no lo sella nadie: ni el cron ni gerencia.
+--   14. El ambito de un mes CERRADO sale del `supervisor_id` SELLADO, no del
+--       equipo de HOY. Es la mejor idea del conjunto y era la unica sin una sola
+--       asercion: sin ella, un cambio de equipo en noviembre moveria agosto.
+--   15. Deny-by-default medido con PRIVILEGIOS de verdad (`set role`), no solo
+--       con `auth.uid()` conmutado: las tres tablas del cierre sin un solo grant
+--       y sin una sola policy, para los tres roles de la Data API.
 --
 -- ⚠️ SOBRE EL RELOJ. Varias reglas solo se pueden observar ciertos dias del mes
 -- (la ventana del mes pasado solo esta cerrada del 1 al 9), asi que esos bloques
@@ -44,11 +50,20 @@
 --
 -- ⚠️ COMPROBADO CON MUTANTES (15/08). Una prueba que solo puede ejercitar una de
 -- sus dos ramas segun el dia no demuestra nada por si sola, asi que cada arreglo
--- se rompio a proposito para ver el oraculo en rojo: neutralizar el candado,
--- quitarle el freno al ciclo, quitar el suelo de `cierre_mes_pendiente`, quitar
--- el guardia del orden, quitar la subtransaccion por mes y quitar el cerrojo del
--- periodo. Las seis caen — la ultima por el postflight de la migracion, porque una
--- carrera necesita dos sesiones a la vez y este oraculo corre en una sola.
+-- se rompio a proposito para ver el oraculo en rojo. **DIEZ mutantes, los diez
+-- caen**, con corrida de control sin mutar en verde: candado del dia 10, freno
+-- del ciclo, suelo de `cierre_mes_pendiente`, guardia del orden, subtransaccion
+-- por mes, cerrojo del periodo, candado de metas, trigger de metas, el ambito del
+-- mes cerrado, y un `grant` de mas sobre una tabla del cierre.
+--
+-- Dos de ellos cazaron cosas que ni escribiendo ni auditando aparecieron:
+--   · un arreglo TAPABA el test de otro (la subtransaccion se comia la excepcion
+--     que otra prueba usaba de señal, y seguia verde con el freno quitado);
+--   · el banco MENTIA por omision: no daba `usage` de los esquemas a
+--     `authenticated`, asi que toda prueba de «esta tabla no se lee» moria en el
+--     ESQUEMA y tapaba por completo los grants de la TABLA.
+-- El cerrojo es el unico que no cae por el oraculo sino por el postflight de su
+-- migracion: una carrera necesita dos sesiones a la vez y esto corre en una.
 --
 -- USO (banco local con calcos, o branch de Supabase):
 --   psql -v ON_ERROR_STOP=1 -d <base> -f supabase/scripts/test-cierre-mes.sql
@@ -64,6 +79,7 @@ do $oraculo$
 declare
   v_g uuid := '11111111-1111-4111-8111-111111111111'; -- gerencia
   v_s uuid := '22222222-2222-4222-8222-222222222222'; -- supervisor
+  v_s2 uuid := 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'; -- supervisor AJENO (bloque 14)
   v_v uuid := '33333333-3333-4333-8333-333333333333'; -- vendedor
   v_cli uuid := '44444444-4444-4444-8444-444444444444'; -- cliente
   v_coord uuid := '88888888-8888-4888-8888-888888888888'; -- coordinador
@@ -92,6 +108,7 @@ declare
   v_def text;
   v_def2 text;
   v_quien uuid;
+  v_rol text;
   v_auto boolean;
   v_por uuid;
   v_m1 date;  -- el mes pasado: el unico cuya ventana puede seguir cerrada
@@ -110,7 +127,8 @@ begin
     (v_v, 'VENDEDOR DE PRUEBA', 'comercial', true),
     (v_cli, 'CLIENTE DE PRUEBA', 'cliente', true),
     (v_coord, 'COORDINADOR DE PRUEBA', 'comercial', true),
-    (v_dir, 'DIRECTORIO DE PRUEBA', 'admin', true);
+    (v_dir, 'DIRECTORIO DE PRUEBA', 'admin', true),
+    (v_s2, 'SUPERVISOR AJENO DE PRUEBA', 'comercial', true);
 
   insert into crm.conversion_pesos (vigente_desde, peso_referido, nota)
   values (v_jun, 0.150, 'oraculo') on conflict do nothing;
@@ -847,7 +865,120 @@ begin
   end;
 
 
-  raise notice 'ORACULO DEL CIERRE DE MES: 18/18 OK';
+  -- ── 14. El ambito de un mes CERRADO sale del sello, no del equipo de HOY ──
+  -- ⚠️ Es la mejor idea de todo el conjunto y era la unica sin una sola
+  -- asercion. En un mes ABIERTO, un supervisor ve a quien `vendedor_ids_visibles`
+  -- dice que es suyo HOY. Si un mes CERRADO usara ese mismo criterio, bastaria
+  -- un cambio de equipo en noviembre para que el agosto de ese supervisor
+  -- cambiara de numero — la enfermedad exacta que el sello viene a curar, por la
+  -- puerta de al lado.
+  --
+  -- El calco lo discrimina a proposito: `private.vendedor_ids_visibles` del banco
+  -- devuelve el mismo vendedor para CUALQUIER 'supervisor', asi que si la lectura
+  -- del mes cerrado se apoyara en el equipo vivo, el supervisor AJENO veria al
+  -- vendedor. Solo el `supervisor_id` SELLADO lo deja fuera.
+  --
+  -- Se mide sobre v_jun, sellado en el bloque 1 con el vendedor bajo v_s — y a
+  -- cuyo roster el bloque 2 ya le quito la fila, asi que la foto es lo unico que
+  -- queda diciendo de quien era.
+  if (select f.supervisor_id from crm.cierre_mes_vendedor f
+      where f.periodo = v_jun and f.vendedor_id = v_v) is distinct from v_s then
+    raise exception 'FALLO 14: la foto no sello el supervisor del vendedor';
+  end if;
+
+  -- (a) El supervisor QUE ERA sigue viendolo.
+  perform set_config('test.uid', v_s::text, true);
+  v_r := crm.conversion_mensual_fn(v_jun);
+  if (v_r->'total'->>'analistas')::int < 1 then
+    raise exception 'FALLO 14: el supervisor sellado no ve a su gente en el mes cerrado — %', v_r->'total';
+  end if;
+  if not exists (
+    select 1 from jsonb_array_elements(coalesce(v_r->'responsables','[]'::jsonb)) e
+    where (e->>'vendedor_id')::uuid = v_v
+  ) then
+    raise exception 'FALLO 14: el vendedor no aparece bajo su supervisor sellado — %', v_r->'responsables';
+  end if;
+
+  -- (b) Y un supervisor AJENO no, aunque el equipo de hoy diga que si.
+  perform set_config('test.uid', v_s2::text, true);
+  v_r := crm.conversion_mensual_fn(v_jun);
+  if (v_r->'total'->>'analistas')::int <> 0 then
+    raise exception 'FALLO 14: un supervisor ajeno ve el mes cerrado de otro (el recorte sale del equipo de HOY, no del sello) — %', v_r->'total';
+  end if;
+
+  -- ── 15. Deny-by-default, medido con PRIVILEGIOS de verdad ────────────────
+  -- Hasta aqui todos los gates se han probado con `auth.uid()` conmutado, que es
+  -- la capa de la APLICACION. Esto es la otra: ponerse en la piel del rol de
+  -- Postgres y comprobar que las tres tablas del cierre no se dejan tocar. Es lo
+  -- que hace que «no tiene policies» pase de ser una afirmacion sobre el catalogo
+  -- a una sobre una sesion.
+  for v_rec in
+    select unnest(array['crm.periodos_cerrados','crm.cierre_mes_vendedor','crm.ajustes_mes_cerrado']) as t
+  loop
+    for v_rol in select unnest(array['authenticated','anon','service_role']) loop
+      -- (i) EL PRIVILEGIO, exacto. Es la asercion que de verdad discrimina: la
+      --     de abajo, por comportamiento, se contenta con que la lectura falle
+      --     —y podria estar fallando en el ESQUEMA en vez de en la tabla—.
+      --     Aqui se pregunta por la tabla y por las cuatro operaciones.
+      if has_table_privilege(v_rol, v_rec.t, 'SELECT')
+         or has_table_privilege(v_rol, v_rec.t, 'INSERT')
+         or has_table_privilege(v_rol, v_rec.t, 'UPDATE')
+         or has_table_privilege(v_rol, v_rec.t, 'DELETE') then
+        raise exception 'FALLO 15: % tiene algun privilegio sobre % (deberia ser deny-by-default sin grants)', v_rol, v_rec.t;
+      end if;
+      -- Y cero policies: las tablas del cierre se leen SOLO via funciones.
+      if (select count(*) from pg_policy p
+          where p.polrelid = v_rec.t::regclass) <> 0 then
+        raise exception 'FALLO 15: % tiene policies, y no deberia tener ninguna', v_rec.t;
+      end if;
+
+      -- (ii) Y el comportamiento, poniendose en la piel del rol.
+      begin
+        execute format('set local role %I', v_rol);
+        execute format('select 1 from %s limit 1', v_rec.t);
+        execute 'reset role';
+        raise exception 'FALLO 15: % pudo LEER % directamente', v_rol, v_rec.t;
+      exception
+        when insufficient_privilege then execute 'reset role';
+        when others then
+          execute 'reset role';
+          if sqlstate <> '42501' then
+            raise exception 'FALLO 15: % fallo leyendo % por otra causa (%) — %', v_rol, v_rec.t, sqlstate, sqlerrm;
+          end if;
+      end;
+
+      begin
+        execute format('set local role %I', v_rol);
+        execute format('delete from %s', v_rec.t);
+        execute 'reset role';
+        raise exception 'FALLO 15: % pudo BORRAR de %', v_rol, v_rec.t;
+      exception
+        when insufficient_privilege then execute 'reset role';
+        when others then
+          execute 'reset role';
+          if sqlstate not in ('42501', 'P0409') then
+            raise exception 'FALLO 15: % fallo borrando % por otra causa (%) — %', v_rol, v_rec.t, sqlstate, sqlerrm;
+          end if;
+      end;
+    end loop;
+  end loop;
+
+  -- Y los helpers de `private` no son ejecutables desde la Data API, pese a que
+  -- `authenticated` SI tiene `usage` sobre ese esquema: el revoke del grant de
+  -- PUBLIC es la unica barrera, asi que se mide.
+  if has_function_privilege('authenticated', 'private.cierre_mes_ventana_desde(date)', 'EXECUTE')
+     or has_function_privilege('authenticated', 'private.cierre_mes_pendiente(date)', 'EXECUTE')
+     or has_function_privilege('anon', 'private.cierre_mes_ventana_desde(date)', 'EXECUTE')
+     or has_function_privilege('anon', 'private.cierre_mes_pendiente(date)', 'EXECUTE') then
+    raise exception 'FALLO 15: un helper de private es alcanzable desde la Data API';
+  end if;
+  -- El ciclo lo dispara el reloj: `authenticated` no lo tiene ni concedido.
+  if has_function_privilege('authenticated', 'crm.ciclo_cierre_mes()', 'EXECUTE')
+     or has_function_privilege('anon', 'crm.ciclo_cierre_mes()', 'EXECUTE') then
+    raise exception 'FALLO 15: crm.ciclo_cierre_mes quedo concedida a un rol de la Data API';
+  end if;
+
+  raise notice 'ORACULO DEL CIERRE DE MES: 20/20 OK';
 end;
 $oraculo$;
 

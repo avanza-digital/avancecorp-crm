@@ -29,6 +29,19 @@ do $$ begin
   if not exists (select 1 from pg_roles where rolname='service_role') then create role service_role; end if;
 end $$;
 
+-- ⚠️ EL `usage` DE LOS ESQUEMAS, TAL CUAL PRODUCCION (medido el 15/08 con
+-- `has_schema_privilege`): `authenticated` y `service_role` SI lo tienen sobre
+-- `crm` y sobre `private`; `anon` NO.
+--
+-- Sin esto el banco es MAS restrictivo que produccion, y esa diferencia no es
+-- inocua: cualquier prueba de «esta tabla no se puede leer» pasaria por el
+-- candado del ESQUEMA, tapando por completo los grants de la TABLA. Se descubrio
+-- exactamente asi — un mutante que CONCEDIA `select` sobre `periodos_cerrados`
+-- seguia en verde, porque la lectura moria antes, en el esquema. El calco tiene
+-- que dejar llegar hasta donde llega produccion, o no prueba la puerta que dice.
+grant usage on schema crm to authenticated, service_role;
+grant usage on schema private to authenticated, service_role;
+
 -- Identidad conmutable: cada bloque del oraculo se pone en la piel de quien toca.
 create or replace function auth.uid() returns uuid language sql stable as $$
   select nullif(current_setting('test.uid', true), '')::uuid $$;
@@ -157,6 +170,9 @@ language sql stable as $$
     when '33333333-3333-4333-8333-333333333333'::uuid then 'vendedor'
     when '88888888-8888-4888-8888-888888888888'::uuid then 'coordinador'
     when '99999999-9999-4999-8999-999999999999'::uuid then 'directorio'
+    -- SEGUNDO supervisor. Existe para una sola pregunta, la del mes cerrado:
+    -- ¿el recorte sale del `supervisor_id` SELLADO o del equipo de HOY?
+    when 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'::uuid then 'supervisor'
   end $$;
 
 -- En produccion el lector global es EXACTAMENTE el rol `directorio`

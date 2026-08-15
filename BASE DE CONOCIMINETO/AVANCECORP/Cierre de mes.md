@@ -5,7 +5,7 @@ actualizado: 2026-08-15
 
 # Cierre de mes
 
-**Estado: 🟡 escrito, auditado y verde en banco local (18/18), SIN aplicar a producción.**
+**Estado: 🟡 escrito, auditado y verde en banco local (20/20), SIN aplicar a producción.**
 Siete migraciones `20260815*` en `CRM-Avance-Corp/supabase/migrations/`. Ni un objeto de
 producción tocado todavía.
 
@@ -98,14 +98,22 @@ no despistes — los tres nacen de mirar una pieza sin mirar con qué convive:
 ⚠️ **Una prueba que solo puede correr ciertos días no prueba nada.** La ventana del mes
 pasado solo está cerrada del 1 al 9, así que la rama que importa —la que **rechaza**— no se
 ejercita el resto del mes. Se resolvió separando la aritmética (probada exhaustivamente, sin
-reloj) del reloj, y empujando la ventana dentro de la propia prueba. Comprobado con **ocho
-mutantes**: cada arreglo se rompió a propósito para verlo caer.
+reloj) del reloj, y empujando la ventana dentro de la propia prueba. Comprobado con **diez
+mutantes** —los diez caen, con corrida de control sin mutar en verde—: cada arreglo se rompió a
+propósito para verlo caer.
 
-Y mutar destapó dos cosas que ni escribiendo ni auditando aparecieron: **un arreglo tapaba el
-test de otro** (la subtransacción nueva se comía la excepción que otra prueba usaba de señal, y
-la prueba seguía verde con el freno quitado), y **hay fallos que ningún test puede cazar** — una
-carrera necesita dos sesiones a la vez y el oráculo corre en una, así que el cerrojo se cierra
-por estructura y se dice, en vez de aparentar cobertura.
+Y mutar destapó **tres** cosas que ni escribiendo ni auditando aparecieron:
+
+- **Un arreglo tapaba el test de otro.** La subtransacción nueva se comía la excepción que otra
+  prueba usaba de señal, y esa prueba seguía verde con el freno quitado.
+- **El banco mentía por omisión.** No daba a `authenticated` el permiso de *entrar* a los
+  esquemas, cosa que producción sí hace. Resultado: toda prueba de «esta tabla no se puede leer»
+  moría en la puerta de la calle y no llegaba nunca a la de la tabla — un mutante que abría la
+  tabla de par en par pasaba en verde. Es [[Ejecutar contra la forma real]] otra vez, pero por
+  lo que al calco le **faltaba**, no por lo que tenía mal.
+- **Hay fallos que ningún test puede cazar.** Una carrera necesita dos sesiones a la vez y el
+  oráculo corre en una, así que el cerrojo se cierra por estructura y se dice, en vez de
+  aparentar una cobertura que no existe.
 
 **Quién ve el aviso.** Vendedor, supervisor, gerencia, directorio (por la vía del «lector
 global») **y también el coordinador**. Lo del coordinador es deliberado y va al revés que en la
@@ -132,22 +140,18 @@ así que el 10 de septiembre no es una fecha comprometida con nadie.
 
 ## Falta
 
-Del lado del **servidor, nada por escribir**. Queda ejecutarlo:
+Del lado del **servidor no queda nada por escribir, ni ningún hueco de cobertura conocido**.
+Los dos que quedaban se cerraron: el **ámbito del supervisor en un mes cerrado** (que salga de
+quién era su equipo *entonces*, no de quién lo es hoy) y los **permisos por rol** de las tres
+tablas nuevas, ambos probados ejecutando, y ambos con mutante que lo demuestra.
 
-- **Correr el gate de RLS de verdad.** El bloque `testCierreDeMes` ya está escrito y
-  enganchado (las tres tablas por los 7 roles y anon, el ciclo denegado a todos —también a
-  gerencia—, y el aviso leído por los cuatro roles con pantalla comprobando que ven el mismo
-  payload). Pasa la comprobación de sintaxis y el preflight, pero **no se ha ejecutado contra
-  ninguna base**: necesita una branch de Supabase con las siete migraciones aplicadas, y hoy no
-  hay branch. Escrito ≠ verde.
-- **Ciclo branch → gate → advisors → merge.**
+Queda **desplegar**, que es decisión tuya:
+
+- **Ciclo branch → gate → advisors → merge.** Ahí corre el gate de permisos con sesiones reales
+  a través de la API — la única capa que el banco local no puede imitar. Crear esa copia de la
+  base cuesta dinero de tu cuenta y arranca el despliegue, así que no lo hago por mi cuenta.
 - **Fase 2, el front**: leer `cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn` para
   el aviso y la alarma.
-
-Y un hueco de cobertura que conviene tener presente: el **ámbito del supervisor al leer un mes
-cerrado** —que salga del `supervisor_id` *sellado* y no del equipo de hoy— es la mejor idea de
-todo el conjunto y no está probado en ningún sitio, porque exige un mes ya sellado y el gate no
-sella (sellar es irreversible: dejaría la branch en otro mundo para la siguiente corrida).
 
 Ver [[Conversion mensual - definicion cerrada]] · [[Anulación de cierres de Avance]] ·
 [[Como se mide la conversion del asesor]] · [[Inicio]]
