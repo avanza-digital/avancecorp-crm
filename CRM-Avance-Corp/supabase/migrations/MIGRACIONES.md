@@ -1845,8 +1845,8 @@ dos invariantes nuevas.
 
 ## 2026-08-15 · El cierre de mes: que lo pagado deje de moverse
 
-**Estado: escritas y verdes en banco local. PENDIENTES de aplicar.** Cinco
-migraciones, en este orden y sin saltarse ninguno:
+**Estado: escritas y verdes en banco local. PENDIENTES de aplicar.** Seis
+migraciones, en este orden y sin saltarse ninguna:
 
 | Version | Que hace |
 |---|---|
@@ -1855,6 +1855,7 @@ migraciones, en este orden y sin saltarse ninguno:
 | `20260815002914_crm_cierre_mes_sello` | `crm.periodos_cerrados` + `crm.cierre_mes_vendedor` (la foto) + `crm.cerrar_periodo`, que ademas salda deudas viejas al sellar. |
 | `20260815003742_crm_cierre_mes_lectura` | Las dos funciones de lectura sirven la foto si el mes esta cerrado, y el mes vivo enseña lo que se le va a descontar. |
 | `20260815005530_crm_anulacion_con_ajuste` | Los dos canales de anulacion registran la deuda cuando el mes ya estaba cerrado. |
+| `20260815102000_crm_cierre_mes_candado` | El candado del dia 10 dentro de `crm.cerrar_periodo`, el ciclo automatico `crm.ciclo_cierre_mes` con su cron diario, y el aviso `crm.cierre_mes_estado_fn`. |
 
 **Por que.** El CRM no guardaba el resultado de un mes: lo recalculaba en cada
 consulta. Medido el 14/08, el agosto de un vendedor paso de 38,33 % a 5,00 % en
@@ -1863,11 +1864,12 @@ lo que decide pago, y un mes cerrado **no se reescribe nunca** — lo que haya q
 corregir se descuenta en el mes vivo y, si no cabe, se arrastra.
 
 **Verificacion hecha.** Banco local (`supabase/scripts/banco-local-cierre-mes.sql`)
-+ oraculo (`supabase/scripts/test-cierre-mes.sql`): **8/8**, reproducible desde
++ oraculo (`supabase/scripts/test-cierre-mes.sql`): **17/17**, reproducible desde
 una base recien creada. Recorre sellar, la inmutabilidad frente a cambios de
 roster, los tres rechazos del gate, la deuda al anular un mes cerrado, el mes
-vivo descontado sin bajar de cero, el arrastre cuando no cabe, y que anular un
-mes ABIERTO siga reescribiendolo.
+vivo descontado sin bajar de cero, el arrastre cuando no cabe, que anular un
+mes ABIERTO siga reescribiendolo, y —desde el candado— la ventana del dia 10, el
+ciclo automatico y el aviso de pantalla.
 
 ⚠️ **Dos fallos que solo aparecieron EJECUTANDO**, no leyendo:
 1. Dos filas de meta del mismo vendedor en el mismo periodo hacian reventar el
@@ -1878,6 +1880,126 @@ mes ABIERTO siga reescribiendolo.
    buenas cosas que no lo eran. Las correcciones estan dentro del fichero del
    banco, comentadas.
 
-**Falta antes de aplicar**: subagente `auditor-rls` sobre las cinco, bloque nuevo
+### El candado del dia 10 (`20260815102000`)
+
+**Por que.** Las cuatro guardias de `crm.cerrar_periodo` decian QUIEN y QUE, y
+ninguna decia CUANDO. Con el momento de cerrar libre, quien cierra elige de que
+mes sale el dinero de una correccion: si el mes esta ABIERTO la anulacion lo
+recalcula ahi mismo, y si esta CERRADO nace una deuda contra el MES VIVO. Es la
+misma «segunda puerta» que la regla de una sola puerta para la conversion viene a
+cerrar, abierta desde el otro lado. Ademas, cerrar el dia 2 se come la ventana de
+ajuste del 1 al 10.
+
+**Decisiones de Miguel (15/08).** El candado es un **suelo, no una fecha exacta**:
+nunca antes del dia 10, despues si — para que un fallo del ciclo no deje el mes
+atascado bloqueando a los siguientes. El sistema **no calcula comisiones** (sera
+otro apartado); aqui solo se sella y se muestra bien lo que lleva el asesor en
+capital y en conversion. Un cierre que llega tarde a un mes ya sellado **no se
+construye**: no ha pasado nunca y se maneja de forma interna.
+
+**Dos decisiones de diseño que conviene no deshacer.**
+1. **La ventana es aritmetica pura** (`private.cierre_mes_ventana_desde`), sin
+   reloj: el que la llama pone el instante. Es lo que permite probar la regla
+   exhaustivamente sin depender del dia en que se corra la prueba, y sin hacer
+   mentir al banco local.
+2. **Una sola definicion de «mes que debe un cierre»**
+   (`private.cierre_mes_pendiente`), compartida por la regla de «sin huecos», el
+   ciclo y el aviso. Con copias, el ciclo elegiria meses que `cerrar_periodo`
+   despues rechaza y el cron fallaria todos los dias, para siempre.
+
+**El cron va DENTRO de la migracion** (`crm-cierre-mes-diario`, 14:20 UTC = 09:20
+de Lima, justo detras del ciclo de contratos). Un cron creado a mano en el editor
+no esta versionado: no se sabe cuando cambio ni viaja a una branch. Corre a
+DIARIO y no «el dia 10» porque el candado ya impide adelantarse, y asi un dia 10
+fallido se repara solo el 11. Si no hay `pg_cron`, la migracion lo dice y sigue.
+
+⚠️ **El ciclo se CALLA cuando la ventana esta cerrada, no revienta.** Sin ese
+freno propio, `cerrar_periodo` rechazaria igual pero como excepcion, y el cron
+acabaria en rojo todos los dias del 1 al 9 de cada mes. Un cron que falla a
+diario deja de mirarse, y con el se deja de ver el fallo que si importa.
+
+**Comprobado con mutantes** (15/08). Una prueba que solo puede ejercitar una de
+sus dos ramas segun el dia del mes no demuestra nada por si sola, asi que cada
+arreglo se rompio a proposito para verlo caer. Las **seis** mutaciones salen en
+rojo: neutralizar el candado, quitarle el freno al ciclo, quitar el suelo de
+`cierre_mes_pendiente`, quitar el guardia del orden, quitar la subtransaccion por
+mes, y quitar el cerrojo del periodo.
+
+⚠️ **Y dos cosas que solo aparecieron mutando**, no escribiendo:
+1. Al quitarle el freno al ciclo, la prueba **seguia en verde**. La subtransaccion
+   por mes —arreglo del punto 3— se comia la excepcion, asi que el ciclo devolvia
+   `cerrados: 0` tanto si no lo intento como si lo intento y fallo. El contador no
+   distingue esos dos mundos y el segundo deja el cron en rojo del 1 al 9 de cada
+   mes. La asercion ahora exige ademas `ok` y `fallo` vacio.
+2. El **cerrojo** no lo caza ningun test, y no puede: una carrera necesita dos
+   sesiones a la vez y el oraculo corre en una. Se cierra por estructura, en el
+   postflight (`strpos` sobre las dos funciones), para que no se pueda borrar en
+   silencio. Se deja dicho en vez de aparentar cobertura que no existe.
+
+### Lo que corrigio la auditoria (`auditor-rls`, 15/08)
+
+El subagente encontro **un bloqueante y tres importantes** que estaban en la
+primera version de esta migracion. Se anotan porque los tres primeros son fallos
+de razonamiento, no despistes, y volveran a tentar a quien toque esto:
+
+1. 🔴 **La puerta lateral de las metas retroactivas.** «Mes que debe un cierre»
+   se definia solo como «tiene fila en `crm.meta_periodos`», y
+   `crm.publicar_metas_vendedores` acepta CUALQUIER mes (solo exige dia 1; no
+   mira `periodos_cerrados` — no podia, no existia). Con eso, publicar en
+   noviembre las metas de un julio que nunca las tuvo lo convertia en pendiente
+   con la ventana abierta hace meses, y **el cron lo sellaba solo**, por detras
+   de agosto y septiembre, cobrandole deudas que tocaban al mes vivo. Corregido
+   por los dos lados: `private.cierre_mes_pendiente` no mira por debajo del
+   ultimo mes sellado (para que el ciclo lo IGNORE en vez de fallar a diario), y
+   `crm.cerrar_periodo` gana el guardia 2quater (para que a mano tampoco).
+   **Pendiente, como defensa en profundidad:** que `crm.publicar_metas_vendedores`
+   rechace periodos por debajo del ultimo sellado. Migracion aparte.
+2. 🔴 **La carrera cierre ↔ anulacion, que pierde dinero en silencio.** Ninguna
+   de las dos operaciones tomaba lock sobre el periodo, asi que una anulacion
+   concurrente con el sellado leia el mes todavia ABIERTO —el sello sin
+   commitear—, decidia que no habia deuda, y la foto ya habia contado ese cierre:
+   un cierre anulado que queda pagado para siempre. Antes era teorica; el ciclo
+   automatico la convierte en una **cita fija y mensual**. Corregido con
+   `pg_advisory_xact_lock` sobre el periodo en las DOS puertas (por eso esta
+   migracion reemplaza tambien `private.registrar_ajuste_si_mes_cerrado`, con un
+   diff de una linea).
+3. 🔴 **El ciclo no paraba: RETROCEDIA.** El bucle es plpgsql, o sea una sola
+   transaccion: un fallo en el mes M+1 tiraba tambien el sellado de M, que habia
+   ido bien. Y como esos fallos son deterministas, el sistema se habria quedado
+   atascado para siempre rehaciendo y descartando el mismo trabajo bueno cada
+   dia — lo contrario de la auto-reparacion que el ciclo presume. Corregido con
+   una subtransaccion por mes; el fallo viaja en el payload.
+4. **El gate del aviso no cuadraba con el de la pantalla que acompaña.**
+   `crm.cumplimiento_metas_fn` usa el idioma laxo y por tanto el COORDINADOR ve
+   un mes cerrado; negarle el aviso le habria dejado el banner en error. Se le
+   incluye — la funcion no devuelve cifras ni PII, solo etiquetas de mes.
+
+Y tres decisiones menores que vinieron de ahi: el ancla del preflight pasa de
+`pg_get_functiondef` a **`prosrc`** (el primero es el catalogo RENDERIZADO por el
+servidor y su formato puede cambiar entre versiones mayores; el hash se calculo
+en un PG16 local y produccion corre otra); `crm.ciclo_cierre_mes` deja de estar
+concedida a `authenticated` (la dispara el reloj, y gerencia ya tiene su puerta
+manual en `cerrar_periodo`); y el aviso publica un **`estado`** de tres valores
+en vez de un booleano, para que el front no tenga que deducir el estado del medio.
+
+**Concurrencia, razonada y sin candado extra** (para no volver a derivarlo): si
+el ciclo y una gerencia cerraran el MISMO mes a la vez, el segundo se bloquea en
+el `insert` de `crm.periodos_cerrados` —que va ANTES del grueso del trabajo y de
+`private.saldar_ajustes`— y aborta con `23505` sin haber tocado ninguna deuda. La
+clave primaria del periodo es la garantia real; lo unico que se pierde es el
+mensaje amable (`P0409`). No se añade un lock por eso: hoy el unico llamante es
+el cron, y meter un lock en el codigo del dinero sin necesidad demostrada tiene
+su propio riesgo. Si la Fase 2 pone un boton de «cerrar ahora» en la pantalla de
+gerencia, revisar esta decision.
+
+**Foto de produccion al escribir esto (15/08):** el unico mes con metas
+publicadas es **agosto 2026**, que es el mes en curso, y el suelo del ledger es
+el 05/08. Consecuencia comprobada, no supuesta: **al aplicar esto no se cierra
+nada de golpe**; el primer cierre real sera el de agosto, el 10 de septiembre, y
+nacera marcado `mes_parcial` porque el ledger empieza a mitad de mes.
+
+**Falta antes de aplicar**: subagente `auditor-rls` sobre las seis, bloque nuevo
 en `test-rls.mjs` (las tres tablas nuevas son deny-by-default y hay que probarlo
-por rol), y el ciclo de branch → gate → advisors → merge.
+por rol), y el ciclo de branch → gate → advisors → merge. Del lado del front
+queda la Fase 2: leer `cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn`
+para el aviso del 1 al 10 y para la alarma de ciclo atascado (`vencido`).

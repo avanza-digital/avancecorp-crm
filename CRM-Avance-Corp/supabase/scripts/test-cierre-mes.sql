@@ -18,6 +18,37 @@
 --        como saldado (fallo de dinero corregido el 15/08; ver el bloque).
 --   7. Anular un cierre de un mes ABIERTO sigue reescribiendo ese mes, sin deuda.
 --   8. La foto es de una sola direccion: no se edita ni se borra.
+--   9. La ventana de cierre abre el dia 10 del mes siguiente — a medianoche de
+--      LIMA, no de UTC (aritmetica pura: se prueba corra el dia que corra).
+--   10. El candado: nadie sella un mes antes de que su ventana abra.
+--   10bis. Y GERENCIA SI puede sellar a mano cuando toca, con su autoria escrita
+--        (el unico caso POSITIVO de la accion principal; sin el, todo lo demas
+--        puede estar verde sobre algo que no funciona).
+--   11. El ciclo cierra solo, en orden y sin repetir.
+--   11bis. Y si un mes falla, lo ya sellado SOBREVIVE: cada mes va en su propia
+--        subtransaccion. Sin eso, un mes torcido tiraba el trabajo bueno del
+--        anterior y el sistema se atascaba para siempre rehaciendolo.
+--   12. El aviso: sus TRES estados (en_ventana / hoy / atascado), que todos los
+--       roles con pantalla ven lo mismo, y que con la ventana cerrada el ciclo
+--       se CALLA en vez de reventar (un cron en rojo a diario deja de mirarse).
+--   13. Un mes que aparece POR DETRAS de lo ya sellado —metas publicadas hacia
+--       atras— no lo sella nadie: ni el cron ni gerencia.
+--
+-- ⚠️ SOBRE EL RELOJ. Varias reglas solo se pueden observar ciertos dias del mes
+-- (la ventana del mes pasado solo esta cerrada del 1 al 9), asi que esos bloques
+-- empujan la ventana sustituyendo `private.cierre_mes_ventana_desde` y la
+-- restauran desde `pg_get_functiondef` — nunca con una copia del cuerpo escrita
+-- aqui, que se quedaria vieja. La ARITMETICA real se prueba entera en el 9. Los
+-- cierres de prueba se deshacen con un `raise` dentro de una subtransaccion: el
+-- oraculo no deja meses sellados a medias para los bloques siguientes.
+--
+-- ⚠️ COMPROBADO CON MUTANTES (15/08). Una prueba que solo puede ejercitar una de
+-- sus dos ramas segun el dia no demuestra nada por si sola, asi que cada arreglo
+-- se rompio a proposito para ver el oraculo en rojo: neutralizar el candado,
+-- quitarle el freno al ciclo, quitar el suelo de `cierre_mes_pendiente`, quitar
+-- el guardia del orden, quitar la subtransaccion por mes y quitar el cerrojo del
+-- periodo. Las seis caen — la ultima por el postflight de la migracion, porque una
+-- carrera necesita dos sesiones a la vez y este oraculo corre en una sola.
 --
 -- USO (banco local con calcos, o branch de Supabase):
 --   psql -v ON_ERROR_STOP=1 -d <base> -f supabase/scripts/test-cierre-mes.sql
@@ -35,6 +66,8 @@ declare
   v_s uuid := '22222222-2222-4222-8222-222222222222'; -- supervisor
   v_v uuid := '33333333-3333-4333-8333-333333333333'; -- vendedor
   v_cli uuid := '44444444-4444-4444-8444-444444444444'; -- cliente
+  v_coord uuid := '88888888-8888-4888-8888-888888888888'; -- coordinador
+  v_dir uuid := '99999999-9999-4999-8999-999999999999';   -- directorio (lector global)
   v_mp_jun uuid := '55555555-5555-4555-8555-555555555551';
   v_mp_jul uuid := '55555555-5555-4555-8555-555555555552';
   v_mvj uuid := '66666666-6666-4666-8666-666666666661';
@@ -45,19 +78,39 @@ declare
   -- Los tres meses son RELATIVOS al mes en curso: un oraculo con fechas fijas
   -- caduca solo (este empezo intentando cerrar el mes que estaba corriendo).
   v_m0 date := date_trunc('month', now() at time zone 'America/Lima')::date;
-  v_jun date := (date_trunc('month', now() at time zone 'America/Lima') - interval '4 months')::date;
-  v_jul date := (date_trunc('month', now() at time zone 'America/Lima') - interval '3 months')::date;
+  v_jun date := (date_trunc('month', now() at time zone 'America/Lima') - interval '8 months')::date;
+  v_jul date := (date_trunc('month', now() at time zone 'America/Lima') - interval '7 months')::date;
   v_r jsonb;
   v_n integer;
   v_num numeric;
   v_pend numeric;
+  -- Bloques 9-12 (candado del dia 10, ciclo automatico y aviso).
+  v_rec record;
+  v_e jsonb;
+  v_dia integer;
+  v_esperados integer;
+  v_def text;
+  v_def2 text;
+  v_quien uuid;
+  v_auto boolean;
+  v_por uuid;
+  v_m1 date;  -- el mes pasado: el unico cuya ventana puede seguir cerrada
+  v_m4 date;
+  v_m5 date;
+  v_m9 date;
+  v_mp_m1 uuid := '55555555-5555-4555-8555-555555555561';
+  v_mp_m4 uuid := '55555555-5555-4555-8555-555555555564';
+  v_mp_m5 uuid := '55555555-5555-4555-8555-555555555565';
+  v_mp_m9 uuid := '55555555-5555-4555-8555-555555555569';
 begin
   -- ── Siembra ───────────────────────────────────────────────────────────────
   insert into public.perfiles (id, nombre_completo, rol, activo) values
     (v_g, 'GERENTE DE PRUEBA', 'admin', true),
     (v_s, 'SUPERVISOR DE PRUEBA', 'comercial', true),
     (v_v, 'VENDEDOR DE PRUEBA', 'comercial', true),
-    (v_cli, 'CLIENTE DE PRUEBA', 'cliente', true);
+    (v_cli, 'CLIENTE DE PRUEBA', 'cliente', true),
+    (v_coord, 'COORDINADOR DE PRUEBA', 'comercial', true),
+    (v_dir, 'DIRECTORIO DE PRUEBA', 'admin', true);
 
   insert into crm.conversion_pesos (vigente_desde, peso_referido, nota)
   values (v_jun, 0.150, 'oraculo') on conflict do nothing;
@@ -220,7 +273,7 @@ begin
   -- El asesor cobraba igual y la deuda desaparecia. Aqui se comprueba con un mes
   -- que SI puede absorberla.
   declare
-    v_ago date := (date_trunc('month', now() at time zone 'America/Lima') - interval '2 months')::date;
+    v_ago date := (date_trunc('month', now() at time zone 'America/Lima') - interval '6 months')::date;
     v_mp_ago uuid := '55555555-5555-4555-8555-555555555553';
     v_mv_ago uuid := '66666666-6666-4666-8666-666666666664';
     v_lead_e uuid := '77777777-7777-4777-8777-777777777777';
@@ -304,7 +357,461 @@ begin
   exception when sqlstate 'P0409' then null;
   end;
 
-  raise notice 'ORACULO DEL CIERRE DE MES: 9/9 OK';
+  -- ── 9. La ventana abre el dia 10 del mes siguiente ────────────────────────
+  -- DETERMINISTA: aritmetica pura, sin reloj. Corra el dia que corra da lo
+  -- mismo. Es a proposito el bloque mas exhaustivo, porque la regla del candado
+  -- se puede torcer de tres formas —longitud del mes, salto de año y ZONA— y las
+  -- tres se ven aqui y en ningun otro sitio.
+  for v_rec in
+    select * from (values
+      ('2026-01-01'::date, '2026-02-10'::date),  -- mes de 31
+      ('2026-04-01'::date, '2026-05-10'::date),  -- mes de 30
+      ('2026-02-01'::date, '2026-03-10'::date),  -- febrero de 28
+      ('2024-02-01'::date, '2024-03-10'::date),  -- febrero bisiesto
+      ('2026-12-01'::date, '2027-01-10'::date)   -- salto de año
+    ) t(mes, esperado)
+  loop
+    if (private.cierre_mes_ventana_desde(v_rec.mes)
+        at time zone 'America/Lima')::date is distinct from v_rec.esperado then
+      raise exception 'FALLO 9: la ventana de % abrio el %, no el %',
+        v_rec.mes,
+        (private.cierre_mes_ventana_desde(v_rec.mes) at time zone 'America/Lima')::date,
+        v_rec.esperado;
+    end if;
+  end loop;
+
+  -- El borde exacto, al segundo.
+  if not ('2026-08-09 23:59:59'::timestamp at time zone 'America/Lima'
+          < private.cierre_mes_ventana_desde('2026-07-01'::date)) then
+    raise exception 'FALLO 9: la ventana ya estaba abierta el 9 a las 23:59:59 de Lima';
+  end if;
+  if not ('2026-08-10 00:00:00'::timestamp at time zone 'America/Lima'
+          >= private.cierre_mes_ventana_desde('2026-07-01'::date)) then
+    raise exception 'FALLO 9: la ventana no abrio el 10 a las 00:00 de Lima';
+  end if;
+
+  -- ⚠️ Y NO abre a medianoche UTC, que es cinco horas antes que en Lima. Este
+  -- proyecto ya pago una vez el bug de las fechas en UTC; aqui costaria que un
+  -- mes se sellara la tarde del dia 9, con la ventana de ajuste todavia abierta.
+  if '2026-08-10 00:00:00+00'::timestamptz
+     >= private.cierre_mes_ventana_desde('2026-07-01'::date) then
+    raise exception 'FALLO 9: la ventana abre a medianoche UTC, no a medianoche de Lima';
+  end if;
+
+  -- ── 10. EL CANDADO: nadie sella un mes antes del dia 10 ───────────────────
+  -- Este estado SOLO existe los dias 1..9: un mes que termino hace mas de diez
+  -- dias siempre es cerrable, asi que los dias 10..31 no hay nada que rechazar.
+  -- La prueba mira el calendario y asevera la cara que hoy es cierta; las dos
+  -- caras juntas son «se cierra si y solo si la ventana abrio».
+  -- El cierre de prueba se DESHACE con un raise: el bloque no deja rastro.
+  v_dia := extract(day from (now() at time zone 'America/Lima'))::int;
+  v_m1  := (date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date;
+  perform set_config('test.uid', '', true);
+  begin
+    perform crm.cerrar_periodo(v_m1);
+    raise exception using errcode = 'PT001', message = 'se dejo cerrar';
+  exception
+    when sqlstate '22023' then
+      if position('antes del' in sqlerrm) = 0 then
+        raise exception 'FALLO 10: % no se cerro, pero por otra razon — %', v_m1, sqlerrm;
+      end if;
+      if v_dia >= 10 then
+        raise exception 'FALLO 10: el candado mordio el dia % del mes, con la ventana ya abierta', v_dia;
+      end if;
+      raise notice '  (bloque 10: hoy es dia % — probada la cara que RECHAZA)', v_dia;
+    when sqlstate 'PT001' then
+      if v_dia < 10 then
+        raise exception 'FALLO 10: % se dejo cerrar el dia % del mes, dentro de la ventana de ajuste', v_m1, v_dia;
+      end if;
+      raise notice '  (bloque 10: hoy es dia % — probada la cara que ACEPTA)', v_dia;
+  end;
+
+  -- Y AHORA LA OTRA CARA, EL DIA QUE SEA. Lo de arriba solo puede ejercitar una
+  -- de las dos ramas segun el calendario, y la que de verdad importa —la que
+  -- RECHAZA— solo existe los dias 1..9. Asi que se empuja la ventana al futuro y
+  -- se mira si `cerrar_periodo` obedece.
+  --
+  -- ⚠️ Esto NO es un calco que miente. La ARITMETICA real ya quedo probada
+  -- exhaustivamente en el bloque 9; lo unico que se comprueba aqui es que
+  -- `cerrar_periodo` de verdad consulta la ventana y compara en el sentido
+  -- correcto. El original se guarda con `pg_get_functiondef` y se restaura al
+  -- salir, para que no haya una copia del cuerpo aqui que se quede vieja.
+  select pg_get_functiondef(p.oid) into v_def
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname = 'cierre_mes_ventana_desde';
+  if v_def is null then
+    raise exception 'FALLO 10: no existe private.cierre_mes_ventana_desde';
+  end if;
+
+  execute $stub$
+    create or replace function private.cierre_mes_ventana_desde(p_periodo date)
+    returns timestamptz language sql stable set search_path = ''
+    as $x$ select pg_catalog.now() + interval '1 year' $x$
+  $stub$;
+
+  begin
+    perform set_config('test.uid', '', true);
+    perform crm.cerrar_periodo(v_m1);
+    execute v_def;
+    raise exception 'FALLO 10: con la ventana en el futuro, el mes se dejo cerrar igual';
+  exception
+    when sqlstate '22023' then
+      if position('antes del' in sqlerrm) = 0 then
+        execute v_def;
+        raise exception 'FALLO 10: rechazo, pero no por el candado — %', sqlerrm;
+      end if;
+  end;
+
+  -- ── 10bis. GERENCIA CIERRA A MANO, y la foto lo dice ──────────────────────
+  -- ⚠️ Hasta aqui el oraculo solo habia ejercido el camino AUTOMATICO (sin uid).
+  -- Una suite sin un caso POSITIVO de la accion principal no prueba que la
+  -- accion funcione — es la leccion que costo descubrir que guardar metas era
+  -- imposible desde que existia la pantalla, con 732 pruebas en verde encima.
+  -- Aqui gerencia cierra de verdad, y se comprueba que la autoria queda escrita.
+  -- Se empuja la ventana al PASADO para que el caso exista cualquier dia, y todo
+  -- va dentro de una subtransaccion que se deshace: el mes no queda sellado.
+  execute $stub$
+    create or replace function private.cierre_mes_ventana_desde(p_periodo date)
+    returns timestamptz language sql stable set search_path = ''
+    as $x$ select pg_catalog.now() - interval '1 year' $x$
+  $stub$;
+  begin
+    perform set_config('test.uid', v_g::text, true);
+    v_r := crm.cerrar_periodo(v_m1);
+    if (v_r->>'ok')::boolean is not true then
+      raise exception 'FALLO 10bis: gerencia no pudo cerrar un mes a mano — %', v_r;
+    end if;
+    if (v_r->>'automatico')::boolean is not false then
+      raise exception 'FALLO 10bis: un cierre hecho por gerencia se declaro automatico — %', v_r;
+    end if;
+    select pc.automatico, pc.cerrado_por into v_auto, v_por
+    from crm.periodos_cerrados pc where pc.periodo = v_m1;
+    if v_auto is not false or v_por is distinct from v_g then
+      raise exception 'FALLO 10bis: la foto no guardo la autoria (automatico=%, cerrado_por=%)', v_auto, v_por;
+    end if;
+    raise exception using errcode = 'PT002', message = 'deshacer el cierre de prueba';
+  exception when sqlstate 'PT002' then null;
+  end;
+
+  -- Restaurar SIEMPRE: el resto del oraculo mide contra la ventana de verdad.
+  execute v_def;
+  if (private.cierre_mes_ventana_desde('2026-07-01'::date)
+      at time zone 'America/Lima')::date is distinct from '2026-08-10'::date then
+    raise exception 'FALLO 10: la ventana no quedo restaurada tras la prueba';
+  end if;
+  -- Y el cierre de prueba se deshizo de verdad.
+  if exists (select 1 from crm.periodos_cerrados where periodo = v_m1) then
+    raise exception 'FALLO 10bis: el cierre de prueba de gerencia no se deshizo';
+  end if;
+
+  -- ── Siembra del backlog ───────────────────────────────────────────────────
+  -- Tres meses que deben cierre, TODOS posteriores al ultimo sellado (que a
+  -- estas alturas es el mes -6): dos viejos, cuya ventana abrio hace mucho, y el
+  -- mes pasado, cuya ventana depende del calendario. Que esten por encima del
+  -- sello no es casualidad del fixture: desde el guardia 2quater, un mes por
+  -- DEBAJO no es candidato a nada — y eso lo prueba el bloque 13.
+  v_m1 := (date_trunc('month', now() at time zone 'America/Lima') - interval '1 month')::date;
+  v_m4 := (date_trunc('month', now() at time zone 'America/Lima') - interval '4 months')::date;
+  v_m5 := (date_trunc('month', now() at time zone 'America/Lima') - interval '5 months')::date;
+  insert into crm.meta_periodos (id, periodo, revision, publicada_en) values
+    (v_mp_m5, v_m5, 1, now()),
+    (v_mp_m4, v_m4, 1, now()),
+    (v_mp_m1, v_m1, 1, now());
+
+  -- ── 12a. Los TRES estados del aviso, sin depender del calendario ──────────
+  -- El pendiente mas antiguo es el mes -5, con metas y sin sellar. Empujando su
+  -- ventana se recorren los tres estados el dia que sea. Van ANTES del ciclo
+  -- porque despues no queda ningun pendiente que mirar.
+  select pg_get_functiondef(p.oid) into v_def
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname = 'cierre_mes_ventana_desde';
+
+  perform set_config('test.uid', v_g::text, true);
+  if (crm.cierre_mes_estado_fn()->'pendiente'->>'mes') is distinct from to_char(v_m5, 'YYYY-MM') then
+    raise exception 'FALLO 12a: el pendiente deberia ser el mes mas antiguo sin sellar (%) y es %',
+      to_char(v_m5, 'YYYY-MM'), crm.cierre_mes_estado_fn()->'pendiente';
+  end if;
+
+  -- (1) Ventana aun cerrada → todavia se puede corregir.
+  execute $stub$
+    create or replace function private.cierre_mes_ventana_desde(p_periodo date)
+    returns timestamptz language sql stable set search_path = ''
+    as $x$ select pg_catalog.now() + interval '3 days' $x$
+  $stub$;
+  if (crm.cierre_mes_estado_fn()->'pendiente'->>'estado') is distinct from 'en_ventana' then
+    raise exception 'FALLO 12a: con la ventana sin abrir el estado deberia ser «en_ventana» y es %',
+      crm.cierre_mes_estado_fn()->'pendiente'->>'estado';
+  end if;
+
+  -- (2) ⚠️ EL DIA DE GRACIA. La ventana abre a las 00:00 y el ciclo corre a las
+  -- 09:20: sin este estado intermedio, la lectura literal («ya paso la fecha y
+  -- sigue abierto») gritaria «atascado» nueve horas cada dia 10, un mes tras
+  -- otro, con todo funcionando. Una alarma que suena cuando no pasa nada deja de
+  -- mirarse, y entonces tampoco se ve la vez que si pasa.
+  execute $stub$
+    create or replace function private.cierre_mes_ventana_desde(p_periodo date)
+    returns timestamptz language sql stable set search_path = ''
+    as $x$ select pg_catalog.now() - interval '2 hours' $x$
+  $stub$;
+  if (crm.cierre_mes_estado_fn()->'pendiente'->>'estado') is distinct from 'hoy' then
+    raise exception 'FALLO 12a: con la ventana abierta hace 2 horas el estado deberia ser «hoy» y es %',
+      crm.cierre_mes_estado_fn()->'pendiente'->>'estado';
+  end if;
+
+  -- (3) LA ALARMA. Paso un dia entero: al menos un ciclo tuvo su turno y no lo
+  -- hizo. Sin esto, un cron roto es invisible — nadie mira los logs.
+  execute $stub$
+    create or replace function private.cierre_mes_ventana_desde(p_periodo date)
+    returns timestamptz language sql stable set search_path = ''
+    as $x$ select pg_catalog.now() - interval '2 days' $x$
+  $stub$;
+  if (crm.cierre_mes_estado_fn()->'pendiente'->>'estado') is distinct from 'atascado' then
+    raise exception 'FALLO 12a: con dos dias de retraso la alarma no sono — un ciclo atascado quedaria invisible';
+  end if;
+
+  -- (4) Y con la ventana cerrada el CICLO se calla, no revienta. Es una prueba
+  -- propia del ciclo, no la misma de arriba: `cerrar_periodo` tambien rechazaria,
+  -- pero como EXCEPCION, y el cron acabaria en rojo todos los dias del 1 al 9 de
+  -- cada mes. Un cron que falla a diario deja de mirarse.
+  execute $stub$
+    create or replace function private.cierre_mes_ventana_desde(p_periodo date)
+    returns timestamptz language sql stable set search_path = ''
+    as $x$ select pg_catalog.now() + interval '1 year' $x$
+  $stub$;
+  perform set_config('test.uid', '', true);
+  v_r := crm.ciclo_cierre_mes();
+  if (v_r->>'cerrados')::int <> 0 then
+    raise exception 'FALLO 12a: con la ventana cerrada el ciclo cerro % meses', v_r->>'cerrados';
+  end if;
+  -- ⚠️ Y SIN FALLO. Mirar solo el contador no basta: desde que cada mes va en su
+  -- subtransaccion, un ciclo SIN freno intentaria cerrar, `cerrar_periodo` lo
+  -- rechazaria, y el ciclo se comeria la excepcion devolviendo igualmente
+  -- `cerrados: 0`. El contador no distingue «no lo intento» de «lo intento y
+  -- fallo», y son dos mundos: el segundo deja el cron en rojo del 1 al 9 de cada
+  -- mes. (Lo cazo un mutante: al quitar el freno, esta prueba seguia en verde.)
+  if (v_r->>'ok')::boolean is not true or v_r->'fallo' <> 'null'::jsonb then
+    raise exception 'FALLO 12a: con la ventana cerrada el ciclo lo INTENTO y fallo, en vez de callarse — %', v_r;
+  end if;
+
+  execute v_def;
+  if (private.cierre_mes_ventana_desde('2026-07-01'::date)
+      at time zone 'America/Lima')::date is distinct from '2026-08-10'::date then
+    raise exception 'FALLO 12a: la ventana no quedo restaurada tras las pruebas';
+  end if;
+
+  -- ── 11bis. Si un mes falla, lo ya sellado SOBREVIVE ───────────────────────
+  -- ⚠️ El fallo mas silencioso de los tres que encontro la auditoria. El bucle
+  -- del ciclo es plpgsql, o sea UNA transaccion: si el mes M+1 revienta, sin
+  -- subtransaccion se tira TAMBIEN el sellado de M, que habia ido bien. Y como
+  -- estos fallos son deterministas (un dato torcido no se arregla solo), el
+  -- sistema se quedaria atascado para siempre rehaciendo y descartando el mismo
+  -- trabajo bueno cada dia — lo contrario exacto de la auto-reparacion que el
+  -- ciclo presume.
+  --
+  -- Se fabrica un mes que revienta (el -4) dejando sano el anterior (el -5), y
+  -- se comprueba que el -5 queda sellado. Todo dentro de una subtransaccion que
+  -- se deshace: el bloque 11 mide despues contra el mundo intacto.
+  select pg_get_functiondef(p.oid) into v_def2
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'private' and p.proname = 'peso_referido_conversion';
+
+  execute format($fmt$
+    create or replace function private.peso_referido_conversion(p_mes date)
+    returns numeric language plpgsql stable set search_path = ''
+    as $x$ begin
+      if p_mes = %L::date then
+        raise exception 'dato torcido de prueba en %%', p_mes;
+      end if;
+      return 0.15;
+    end $x$
+  $fmt$, v_m4);
+
+  begin
+    perform set_config('test.uid', '', true);
+    v_r := crm.ciclo_cierre_mes();
+
+    if (v_r->>'cerrados')::int <> 1 then
+      raise exception 'FALLO 11bis: se esperaba 1 mes sellado antes del fallo y hubo % — %',
+        v_r->>'cerrados', v_r;
+    end if;
+    if (v_r->>'ok')::boolean is not false
+       or (v_r->'fallo'->>'periodo') is distinct from to_char(v_m4, 'YYYY-MM') then
+      raise exception 'FALLO 11bis: el ciclo no reporto el mes que fallo — %', v_r;
+    end if;
+    -- LA ASERCION QUE IMPORTA: el mes bueno sigue sellado.
+    if not exists (select 1 from crm.periodos_cerrados where periodo = v_m5) then
+      raise exception 'FALLO 11bis: el fallo de un mes se llevo por delante el sellado del anterior';
+    end if;
+    -- Y el que fallo no dejo nada a medias.
+    if exists (select 1 from crm.periodos_cerrados where periodo = v_m4)
+       or exists (select 1 from crm.cierre_mes_vendedor where periodo = v_m4) then
+      raise exception 'FALLO 11bis: el mes que fallo dejo rastro';
+    end if;
+
+    raise exception using errcode = 'PT003', message = 'deshacer la prueba del fallo';
+  exception when sqlstate 'PT003' then null;
+  end;
+
+  execute v_def2;
+  if exists (select 1 from crm.periodos_cerrados where periodo in (v_m5, v_m4)) then
+    raise exception 'FALLO 11bis: la prueba del fallo no se deshizo';
+  end if;
+
+  -- ── 11. El ciclo cierra solo, en orden y sin repetir ──────────────────────
+  -- El mes pasado solo entra si su ventana (el dia 10 de ESTE mes) ya abrio.
+  v_esperados := 2 + case when v_dia >= 10 then 1 else 0 end;
+
+  perform set_config('test.uid', '', true);
+  v_r := crm.ciclo_cierre_mes();
+  if (v_r->>'cerrados')::int is distinct from v_esperados then
+    raise exception 'FALLO 11: el ciclo cerro % meses, se esperaban % (hoy es dia %) — %',
+      v_r->>'cerrados', v_esperados, v_dia, v_r;
+  end if;
+  if (v_r->>'ok')::boolean is not true or v_r->'fallo' <> 'null'::jsonb then
+    raise exception 'FALLO 11: el ciclo reporto un fallo que no existio — %', v_r;
+  end if;
+
+  -- Los dos viejos quedaron sellados, y sellados COMO AUTOMATICOS (sin autor):
+  -- si el ciclo firmara con un uid, la foto diria que lo cerro una persona.
+  select count(*) into v_n
+  from crm.periodos_cerrados
+  where periodo in (v_m5, v_m4) and automatico and cerrado_por is null;
+  if v_n <> 2 then
+    raise exception 'FALLO 11: los meses viejos no quedaron cerrados por el ciclo (n=%)', v_n;
+  end if;
+
+  -- Y EN ORDEN: el mes -5 antes que el -4. Que los dos acaben sellados no
+  -- demuestra el orden; el instante del sello, si.
+  if (select pc.cerrado_en from crm.periodos_cerrados pc where pc.periodo = v_m5)
+     > (select pc.cerrado_en from crm.periodos_cerrados pc where pc.periodo = v_m4) then
+    raise exception 'FALLO 11: el ciclo sello el mes -4 antes que el -5';
+  end if;
+
+  -- Y el mes pasado, exactamente segun su ventana.
+  select count(*) into v_n from crm.periodos_cerrados where periodo = v_m1;
+  if v_n <> (case when v_dia >= 10 then 1 else 0 end) then
+    raise exception 'FALLO 11: el mes pasado quedo % el dia % del mes',
+      case when v_n = 1 then 'cerrado' else 'abierto' end, v_dia;
+  end if;
+
+  -- Idempotente: correrlo otra vez el mismo dia no cierra nada mas. Es lo que
+  -- permite engancharlo a un cron DIARIO en vez de a una fecha, y que un fallo
+  -- del dia 10 se repare solo el 11.
+  v_r := crm.ciclo_cierre_mes();
+  if (v_r->>'cerrados')::int <> 0 then
+    raise exception 'FALLO 11: el ciclo volvio a cerrar meses en la segunda vuelta — %', v_r;
+  end if;
+
+  -- Y no lo dispara NINGUNA persona — tampoco gerencia. El ciclo es del reloj;
+  -- la puerta manual de gerencia es `crm.cerrar_periodo`, mes a mes. Se prueban
+  -- los cinco roles: probar solo el vendedor deja sin cubrir justo a los que
+  -- estan cerca del permiso.
+  foreach v_quien in array array[v_v, v_s, v_g, v_coord, v_dir] loop
+    begin
+      perform set_config('test.uid', v_quien::text, true);
+      perform crm.ciclo_cierre_mes();
+      raise exception 'FALLO 11: % pudo disparar el ciclo de cierre a mano', v_quien;
+    exception when sqlstate '42501' then null;
+    end;
+  end loop;
+
+  -- ── 12b. El aviso, ya con el ciclo pasado ─────────────────────────────────
+  perform set_config('test.uid', v_g::text, true);
+  v_e := crm.cierre_mes_estado_fn();
+
+  -- El mes en curso siempre dice cuando se sellara: es el aviso normal.
+  if (v_e->'mes_en_curso'->>'cierra_el')::date
+     is distinct from (v_m0 + interval '1 month' + interval '9 days')::date then
+    raise exception 'FALLO 12b: el mes en curso dice que cierra el % — %',
+      v_e->'mes_en_curso'->>'cierra_el', v_e;
+  end if;
+  if v_e->'ultimo_cerrado'->>'mes' is null then
+    raise exception 'FALLO 12b: no reporta ningun mes cerrado y acaban de cerrarse varios — %', v_e;
+  end if;
+
+  -- Tras el ciclo no queda pendiente ninguno cuya ventana haya abierto: si el
+  -- dia es >= 10 no queda nada; si es < 10, queda el mes pasado y en ventana.
+  if v_dia >= 10 then
+    if v_e->'pendiente' <> 'null'::jsonb then
+      raise exception 'FALLO 12b: queda un mes pendiente despues del ciclo — %', v_e->'pendiente';
+    end if;
+  else
+    if (v_e->'pendiente'->>'mes') is distinct from to_char(v_m1, 'YYYY-MM')
+       or (v_e->'pendiente'->>'estado') is distinct from 'en_ventana' then
+      raise exception 'FALLO 12b: el mes pasado deberia estar pendiente y en ventana el dia % — %', v_dia, v_e->'pendiente';
+    end if;
+    if (v_e->'pendiente'->>'dias_para_cierre')::int <> 10 - v_dia then
+      raise exception 'FALLO 12b: faltan % dias segun la funcion y % segun el calendario',
+        v_e->'pendiente'->>'dias_para_cierre', 10 - v_dia;
+    end if;
+  end if;
+
+  -- El aviso es del reloj, pero no es publico.
+  begin
+    perform set_config('test.uid', '', true);
+    perform crm.cierre_mes_estado_fn();
+    raise exception 'FALLO 12b: el estado del cierre se leyo sin identidad';
+  exception when sqlstate '42501' then null;
+  end;
+
+  -- Lo ven los CUATRO roles que tienen pantalla, y ven LO MISMO: es estado de
+  -- reloj, no datos de nadie. Si difiriera por rol, algo se habria colado.
+  -- El coordinador entra a proposito: `crm.cumplimiento_metas_fn` le deja ver un
+  -- mes cerrado, asi que negarle el aviso le dejaria un banner roto.
+  foreach v_quien in array array[v_v, v_s, v_g, v_coord, v_dir] loop
+    perform set_config('test.uid', v_quien::text, true);
+    v_r := crm.cierre_mes_estado_fn();
+    if v_r->'mes_en_curso' is distinct from v_e->'mes_en_curso'
+       or v_r->'pendiente' is distinct from v_e->'pendiente'
+       or v_r->'ultimo_cerrado' is distinct from v_e->'ultimo_cerrado' then
+      raise exception 'FALLO 12b: el aviso le dice otra cosa a % — % vs %',
+        v_quien, v_r, v_e;
+    end if;
+  end loop;
+
+  -- ── 13. Un mes que aparece POR DETRAS de lo ya sellado no se sella ────────
+  -- ⚠️ La puerta que el candado del dia 10 no cerraba, y que el auditor encontro:
+  -- `crm.publicar_metas_vendedores` acepta CUALQUIER mes (solo exige dia 1; no
+  -- mira `crm.periodos_cerrados`). Asi que gerencia puede publicar hoy las metas
+  -- de un mes viejo que nunca las tuvo, y ese mes pasaria a «deber un cierre»
+  -- con su ventana abierta desde hace meses. Sin este guardia, el CRON lo
+  -- sellaria solo, por detras de meses ya pagados, y `private.saldar_ajustes` le
+  -- cobraria deudas que tocaban al mes vivo. Nadie tendria que apretar nada.
+  v_m9 := (date_trunc('month', now() at time zone 'America/Lima') - interval '9 months')::date;
+  insert into crm.meta_periodos (id, periodo, revision, publicada_en)
+  values (v_mp_m9, v_m9, 1, now());
+
+  -- (a) No es candidato: el aviso no lo nombra.
+  perform set_config('test.uid', v_g::text, true);
+  if (crm.cierre_mes_estado_fn()->'pendiente'->>'mes') is not distinct from to_char(v_m9, 'YYYY-MM') then
+    raise exception 'FALLO 13: un mes por detras del sello se ofrecio como pendiente';
+  end if;
+
+  -- (b) El ciclo lo IGNORA, y no falla por su culpa. Que ignore en vez de
+  --     reventar importa: si fallara, el cron quedaria en rojo cada dia para
+  --     siempre por unas metas retroactivas.
+  perform set_config('test.uid', '', true);
+  v_r := crm.ciclo_cierre_mes();
+  if (v_r->>'cerrados')::int <> 0 or (v_r->>'ok')::boolean is not true then
+    raise exception 'FALLO 13: el ciclo reacciono a unas metas retroactivas — %', v_r;
+  end if;
+  if exists (select 1 from crm.periodos_cerrados where periodo = v_m9) then
+    raise exception 'FALLO 13: el ciclo sello un mes por detras de lo ya pagado';
+  end if;
+
+  -- (c) Y a mano tampoco. Ni gerencia ni el ciclo.
+  begin
+    perform set_config('test.uid', v_g::text, true);
+    perform crm.cerrar_periodo(v_m9);
+    raise exception 'FALLO 13: gerencia pudo sellar un mes por detras de lo ya pagado';
+  exception when sqlstate '22023' then
+    if position('ya esta cerrado y es posterior' in sqlerrm) = 0 then
+      raise exception 'FALLO 13: rechazo, pero no por el guardia del orden — %', sqlerrm;
+    end if;
+  end;
+
+
+  raise notice 'ORACULO DEL CIERRE DE MES: 17/17 OK';
 end;
 $oraculo$;
 

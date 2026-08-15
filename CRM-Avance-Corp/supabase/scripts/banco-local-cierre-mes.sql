@@ -144,16 +144,27 @@ begin return coalesce(new, old); end $$;
 -- ⚠️ Devolver siempre 'gerencia' hacia inutil la mitad de las pruebas de gate:
 -- un vendedor podia cerrar meses y nadie se enteraba. El calco tiene que
 -- distinguir a las personas, como el original.
+-- ⚠️ Y tiene que conocer a los CINCO roles, no a tres. Con solo gerencia,
+-- supervisor y vendedor, los gates de coordinador y directorio no se pueden
+-- probar en ningun sitio — y el directorio es el rol raro del proyecto: un
+-- lector global que NO es gerencia. Un calco que no tiene un rol no lo prueba,
+-- y no probarlo se parece mucho a que este bien.
 create or replace function private.rol_crm(p_perfil_id uuid) returns text
 language sql stable as $$
   select case p_perfil_id
     when '11111111-1111-4111-8111-111111111111'::uuid then 'gerencia'
     when '22222222-2222-4222-8222-222222222222'::uuid then 'supervisor'
     when '33333333-3333-4333-8333-333333333333'::uuid then 'vendedor'
+    when '88888888-8888-4888-8888-888888888888'::uuid then 'coordinador'
+    when '99999999-9999-4999-8999-999999999999'::uuid then 'directorio'
   end $$;
 
+-- En produccion el lector global es EXACTAMENTE el rol `directorio`
+-- (`private.es_lector_global`, verificado contra el catalogo el 15/08). El calco
+-- que devolvia `false` siempre dejaba esa rama sin ejecutar nunca.
 create or replace function private.es_lector_global() returns boolean
-  language sql stable as $$ select false $$;
+  language sql stable as $$
+    select (select auth.uid()) = '99999999-9999-4999-8999-999999999999'::uuid $$;
 
 create or replace function private.vendedor_ids_visibles(p_perfil_id uuid) returns setof uuid
 language sql stable as $$
@@ -218,3 +229,40 @@ create or replace function private.conversion_mensual_por_vendedor(
     from crm.lead_asignaciones la
     group by la.analista_id
   $$;
+
+-- ── pg_cron ─────────────────────────────────────────────────────────────────
+-- Calco del reloj. La migracion del candado programa el ciclo diario con
+-- `cron.schedule` y despues COMPRUEBA en `cron.job` que quedo puesto; sin este
+-- calco esa rama entera se saltaria en silencio y el banco daria verde sobre un
+-- «el mes se cierra solo» que nadie habria ejecutado.
+--
+-- Forma tomada de produccion el 2026-08-15 (`information_schema.columns`), y
+-- semantica de UPSERT POR NOMBRE, que es la que hace idempotente reaplicar la
+-- migracion.
+create schema if not exists cron;
+create table if not exists cron.job (
+  jobid    bigserial primary key,
+  schedule text not null,
+  command  text not null,
+  nodename text not null default 'localhost',
+  nodeport integer not null default 5432,
+  database text not null default current_database(),
+  username text not null default current_user,
+  active   boolean not null default true,
+  jobname  text
+);
+create unique index if not exists cron_job_jobname_username_key
+  on cron.job (jobname, username);
+
+create or replace function cron.schedule(p_job_name text, p_schedule text, p_command text)
+returns bigint language plpgsql as $$
+declare v_id bigint;
+begin
+  insert into cron.job (jobname, schedule, command)
+  values (p_job_name, p_schedule, p_command)
+  on conflict (jobname, username) do update
+    set schedule = excluded.schedule, command = excluded.command, active = true
+  returning jobid into v_id;
+  return v_id;
+end;
+$$;
