@@ -42,9 +42,28 @@ set local lock_timeout = '10s';
 
 do $preflight$
 begin
-  if to_regclass('crm.periodos_cerrados') is null then
-    raise exception 'Falta crm.periodos_cerrados: aplicar antes 20260815002914.';
-  end if;
+  -- ⚠️ ENMIENDA 2026-08-15, con OK EXPRESO de Miguel para tocar una migracion ya
+  -- commiteada (regla que normalmente NO se rompe; aqui no habia alternativa y
+  -- el lote no estaba aplicado en NINGUNA base, asi que no hay descuadre posible).
+  --
+  -- Aqui se exigia `crm.periodos_cerrados`, y eso creaba una DEPENDENCIA CIRCULAR
+  -- que hacia INAPLICABLE el lote entero, en cualquier orden:
+  --   · esta migracion pedia la tabla que crea 20260815002914;
+  --   · 20260815002914 pide `private.saldar_ajustes`, que crea esta.
+  --
+  -- La dependencia real es de EJECUCION, no de creacion: las funciones de aqui
+  -- leen `crm.periodos_cerrados` dentro de su cuerpo, y plpgsql no resuelve eso
+  -- al crearlas. El orden correcto —esta ANTES que 20260815002914— lo garantiza
+  -- el numero de version, no un preflight.
+  --
+  -- 🔴 Y LA LECCION, que es lo caro: lo cazo la BRANCH, no el banco local. El
+  -- banco aplica estas migraciones SIN sus bloques de preflight (anclan md5 de
+  -- funciones de produccion que los calcos no replican), asi que el circulo
+  -- (⚠️ y ojo: ese nombre de delimitador NO se puede escribir aqui dentro; el
+  -- dolar-quoting es lexico y cerraria el bloque a mitad del comentario)
+  -- era invisible ahi y el oraculo daba 20/20 sobre un lote que no se podia
+  -- aplicar. Un preflight que nunca se ejecuta no es una defensa: es un
+  -- comentario caro.
   if to_regprocedure('private.contratos_afectados_por_anulacion(uuid)') is null then
     raise exception 'Falta private.contratos_afectados_por_anulacion.';
   end if;

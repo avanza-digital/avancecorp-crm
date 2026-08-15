@@ -978,7 +978,41 @@ begin
     raise exception 'FALLO 15: crm.ciclo_cierre_mes quedo concedida a un rol de la Data API';
   end if;
 
-  raise notice 'ORACULO DEL CIERRE DE MES: 20/20 OK';
+  -- ── 16. La OTRA pantalla tambien se LLAMA ────────────────────────────────
+  -- 🔴 EL AGUJERO MAS CARO DE ESTE CICLO. `20260815003742` reescribe DOS
+  -- funciones de lectura, y este oraculo solo ejercitaba una. La otra
+  -- —`crm.cumplimiento_metas_fn`, la pantalla de metas— tenia un `pd.pendiente`
+  -- donde debia decir `pd.numerador`, y como plpgsql no valida el SQL de un
+  -- cuerpo al crearlo, se creaba sin protestar y reventaba con 42703 en la
+  -- PRIMERA llamada, para TODOS los roles. El oraculo daba 20/20 y la pantalla
+  -- estaba muerta. Lo cazo el gate de RLS en una branch, no esto.
+  --
+  -- La leccion no es «faltaba un caso»: es que una funcion que se REEMPLAZA y no
+  -- se LLAMA no esta probada, por muchos verdes que haya alrededor. Aqui se
+  -- llama en sus dos mundos —mes abierto y mes cerrado— y por varios roles.
+  foreach v_quien in array array[v_g, v_s, v_v] loop
+    perform set_config('test.uid', v_quien::text, true);
+
+    -- Mes CERRADO: sirve la foto.
+    v_r := crm.cumplimiento_metas_fn(v_jun);
+    if v_r is null then
+      raise exception 'FALLO 16: cumplimiento_metas_fn devolvio NULL para un mes cerrado (rol %)', v_quien;
+    end if;
+    if (v_r->'cierre'->>'cerrado')::boolean is not true then
+      raise exception 'FALLO 16: la pantalla de metas no declara cerrado un mes sellado — %', v_r->'cierre';
+    end if;
+
+    -- Mes ABIERTO: el camino vivo, que es donde estaba el error.
+    v_r := crm.cumplimiento_metas_fn(v_m0);
+    if v_r is null then
+      raise exception 'FALLO 16: cumplimiento_metas_fn devolvio NULL para el mes vivo (rol %)', v_quien;
+    end if;
+    if (v_r->'cierre'->>'cerrado')::boolean is not false then
+      raise exception 'FALLO 16: el mes vivo se declara cerrado en la pantalla de metas — %', v_r->'cierre';
+    end if;
+  end loop;
+
+  raise notice 'ORACULO DEL CIERRE DE MES: 21/21 OK';
 end;
 $oraculo$;
 

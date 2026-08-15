@@ -215,18 +215,70 @@ async function ensureProfile(user) {
 
 async function ensureTeam({ activateForSeed = false } = {}) {
   for (const user of USERS.filter((candidate) => candidate.crmRole)) {
-    await requireResponse(
-      `upsert crm.equipo (${user.key})`,
-      admin.schema('crm').from('equipo').upsert({
-        // 0C impide asignar responsabilidad NUEVA a un miembro inactivo. Para
-        // construir el fixture historico "inactiveOwned" en un branch limpio,
-        // se provisiona activo y se desactiva inmediatamente al terminar.
-        activo: activateForSeed ? true : user.crmActive,
-        perfil_id: ids[user.key],
-        rol_crm: user.crmRole,
-        supervisor_id: user.supervisorKey ? ids[user.supervisorKey] : null,
-      }, { onConflict: 'perfil_id' }),
+    const deseado = {
+      // 0C impide asignar responsabilidad NUEVA a un miembro inactivo. Para
+      // construir el fixture historico "inactiveOwned" en un branch limpio,
+      // se provisiona activo y se desactiva inmediatamente al terminar.
+      activo: activateForSeed ? true : user.crmActive,
+      perfil_id: ids[user.key],
+      rol_crm: user.crmRole,
+      supervisor_id: user.supervisorKey ? ids[user.supervisorKey] : null,
+    };
+
+    // ⚠️ SI YA ESTA COMO SE QUIERE, NO SE REESCRIBE. No es solo higiene de
+    // idempotencia: sin esto el seed NO PUEDE TERMINAR contra el esquema actual.
+    //
+    // El fixture `inactiveOwned` describe a alguien que YA tenia leads abiertos
+    // cuando se fue del equipo — un estado HEREDADO, de los que existen de
+    // verdad en una base con historia. Desde `20260807203740` el esquema cierra
+    // las dos vias para CREARLO: dar de baja a quien conserva leads abiertos
+    // esta prohibido, y asignar leads a un inactivo tambien (0C). Las dos reglas
+    // son correctas —en la vida real se reasigna antes de dar de baja— pero
+    // juntas hacen inalcanzable el estado que este fixture necesita, y el
+    // `upsert` final moria aqui aunque la fila ya estuviera bien: el trigger
+    // valida en CUALQUIER update, tambien en uno que no cambia nada.
+    //
+    // Ese estado se siembra fuera de banda (ver `supabase/scripts/LEEME-seed.md`).
+    // Aqui basta con no volver a tocarlo.
+    const { data: actual } = await requireResponse(
+      `leer crm.equipo (${user.key})`,
+      admin.schema('crm').from('equipo')
+        .select('perfil_id, rol_crm, supervisor_id, activo')
+        .eq('perfil_id', ids[user.key])
+        .maybeSingle(),
     );
+    const yaEsta = actual
+      && actual.activo === deseado.activo
+      && actual.rol_crm === deseado.rol_crm
+      && (actual.supervisor_id ?? null) === deseado.supervisor_id;
+    if (yaEsta) continue;
+
+    try {
+      await requireResponse(
+        `upsert crm.equipo (${user.key})`,
+        admin.schema('crm').from('equipo').upsert(deseado, { onConflict: 'perfil_id' }),
+      );
+    } catch (error) {
+      // ⚠️ LA BAJA DE UN MIEMBRO CON LEADS ABIERTOS NO SE PUEDE HACER DESDE AQUI,
+      // y no es un fallo del seed: es el esquema haciendo su trabajo. Desde
+      // `20260807203740` dar de baja a quien conserva leads abiertos esta
+      // prohibido (hay que reasignar antes), y `0C` prohibe lo contrario —
+      // asignar leads a un inactivo—. Las dos reglas son correctas y juntas
+      // hacen INALCANZABLE, por escritura normal, el estado que el fixture
+      // `inactiveOwned` describe: alguien que YA tenia leads cuando se fue.
+      //
+      // Ese estado es HEREDADO —existe de verdad en una base con historia— y se
+      // siembra fuera de banda, con el guardia apagado solo para esa linea (ver
+      // `supabase/scripts/LEEME-seed.md`). Aqui se avisa y se sigue: morirse
+      // dejaria sin crear los contratos y el cliente bancario, que vienen
+      // despues, y el gate se quedaria sin la mitad de su mundo.
+      const esLaBajaHistorica = !deseado.activo
+        && /dependencias activas/i.test(error?.message ?? '');
+      if (!esLaBajaHistorica) throw error;
+      console.warn(`⚠ ${user.key}: la baja no se puede aplicar desde el seed (tiene leads abiertos).`);
+      console.warn('  Es el estado HEREDADO del fixture inactiveOwned; sembrarlo fuera de banda:');
+      console.warn('  supabase/scripts/LEEME-seed.md → «Baja historica de vendInactive»');
+    }
   }
 }
 

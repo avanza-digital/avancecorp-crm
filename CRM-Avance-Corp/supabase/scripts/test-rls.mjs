@@ -5923,7 +5923,10 @@ async function testCarteraKeyset(sessions, seed) {
 // ver con la conversion. Es tambien el motivo REAL —junto con la inmutabilidad
 // del ledger— por el que el gate no es re-ejecutable sobre la misma base: en
 // una segunda corrida esos leads siguen VISIBLES para el lector global.
-const CLAVES_PAYLOAD_CONVERSION = ['alcance', 'cobertura', 'fuentes', 'generado_en',
+// `cierre` entra con 20260815003742: dice si el mes esta sellado. El contrato se
+// asevera CERRADO a proposito —una clave de mas rompe la pantalla en silencio—,
+// asi que ampliarlo aqui es parte de la migracion, no un ajuste del test.
+const CLAVES_PAYLOAD_CONVERSION = ['alcance', 'cierre', 'cobertura', 'fuentes', 'generado_en',
   'periodo', 'ponderacion', 'responsables', 'total', 'version'];
 const CLAVES_PERIODO_CONVERSION = ['anio', 'desde', 'hasta', 'mes', 'mes_nombre', 'zona'];
 const CLAVES_PONDERACION_CONVERSION = ['fuente', 'referido'];
@@ -5936,7 +5939,7 @@ const CLAVES_COBERTURA_CONVERSION = ['cierres_sin_episodio', 'divisor_aproximado
 const CLAVES_TOTAL_CONVERSION = ['analistas', 'cierres_de_arrastre',
   'cierres_no_referidos', 'cierres_referidos', 'conversion_pct', 'divisor',
   'numerador', 'referidos_aporta_pct', 'referidos_recibidos'];
-const CLAVES_RESPONSABLE_CONVERSION = ['cierres_de_arrastre',
+const CLAVES_RESPONSABLE_CONVERSION = ['ajuste', 'cierres_de_arrastre',
   'cierres_no_referidos', 'cierres_referidos', 'conversion_pct', 'divisor',
   'estado', 'numerador', 'procedencia', 'referidos',
   'supervisor_id', 'vendedor_id'];
@@ -7518,10 +7521,15 @@ async function testCierreDeMes(sessions, seed) {
   // Y tampoco se escriben. Se prueba con GERENCIA, que es quien mas permisos
   // tiene: si el candado aguanta con ella, aguanta con todos.
   for (const tabla of TABLAS_CIERRE_MES) {
+    // Cada tabla con una columna SUYA: con una inexistente el rechazo llega como
+    // PGRST204 (cache de esquema) y eso no prueba nada sobre permisos.
+    const filaMinima = tabla === 'ajustes_mes_cerrado'
+      ? { periodo_origen: '2020-01-01' }
+      : { periodo: '2020-01-01' };
     await expectBlockedMutation(
       `gerencia no inserta en crm.${tabla}`,
-      sessions.gerencia.client.schema('crm').from(tabla).insert({ periodo: '2020-01-01' }).select(),
-      ['42501', 'PGRST205', 'PGRST202', '42703'],
+      sessions.gerencia.client.schema('crm').from(tabla).insert(filaMinima).select(),
+      ['42501', 'PGRST205', 'PGRST202'],
     );
     await expectBlockedMutation(
       `gerencia no borra de crm.${tabla}`,

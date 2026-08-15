@@ -633,13 +633,25 @@ begin
     select cm.analista_id as vendedor_id,
       (cm.cierres_no_referidos+cm.cierres_referidos)::integer as convertidos,
       cm.divisor::integer as resueltos,
-      private.conversion_con_ajuste(cm.numerador, pd.pendiente) as numerador,
+      -- ⚠️ `pd.numerador`, NO `pd.pendiente`. Aqui `pd` es la FUNCION
+      -- `private.ajuste_pendiente_por_vendedor()`, que devuelve
+      -- (vendedor_id, numerador, capital_pen, capital_usd, origenes) — no tiene
+      -- ninguna columna `pendiente`. El bloque de la conversion, mas arriba, si
+      -- usa `pd.pendiente`, pero alli `pd` es una CTE que renombra
+      -- `ap.numerador as pendiente`: mismo alias, dos cosas distintas.
+      --
+      -- 🔴 ESTO ESTUVO ROTO Y EN VERDE. plpgsql no valida el SQL de un cuerpo al
+      -- crearlo, asi que la funcion se creaba sin protestar y reventaba con
+      -- 42703 en la PRIMERA llamada, para TODOS los roles: la pantalla de metas
+      -- entera. El oraculo daba 20/20 porque nunca la llamaba — solo la
+      -- nombraba en un comentario. Lo cazo el gate de RLS en la branch.
+      private.conversion_con_ajuste(cm.numerador, pd.numerador) as numerador,
       cm.cierres_no_referidos,
       cm.cierres_referidos,
       case when cm.divisor > 0
-        then round(100.0 * private.conversion_con_ajuste(cm.numerador, pd.pendiente)
+        then round(100.0 * private.conversion_con_ajuste(cm.numerador, pd.numerador)
                    / cm.divisor, 2) end as conversion_real,
-      coalesce(pd.pendiente, 0::numeric) as ajuste_pendiente
+      coalesce(pd.numerador, 0::numeric) as ajuste_pendiente
     from private.conversion_mensual_por_vendedor(
       v_ini,v_fin,true,'{}'::uuid[],v_factor) cm
     left join private.ajuste_pendiente_por_vendedor() pd
