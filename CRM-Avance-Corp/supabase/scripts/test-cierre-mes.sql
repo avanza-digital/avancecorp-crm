@@ -778,8 +778,44 @@ begin
   -- sellaria solo, por detras de meses ya pagados, y `private.saldar_ajustes` le
   -- cobraria deudas que tocaban al mes vivo. Nadie tendria que apretar nada.
   v_m9 := (date_trunc('month', now() at time zone 'America/Lima') - interval '9 months')::date;
+
+  -- (0) EL ORIGEN. Publicar esas metas ya no se puede: el candado esta en la
+  --     propia tabla, asi que cubre a cualquier escritor y no solo a la RPC.
+  begin
+    insert into crm.meta_periodos (id, periodo, revision, publicada_en)
+    values (v_mp_m9, v_m9, 1, now());
+    raise exception 'FALLO 13: se publicaron metas de un mes por debajo del ultimo sellado';
+  exception when sqlstate '22023' then
+    if position('ya esta cerrado' in sqlerrm) = 0 then
+      raise exception 'FALLO 13: rechazo, pero no por el candado de metas — %', sqlerrm;
+    end if;
+  end;
+
+  -- Ni moviendo una fila existente hacia atras, que es la misma jugada por otro
+  -- camino.
+  begin
+    update crm.meta_periodos set periodo = v_m9 where id = v_mp_m1;
+    raise exception 'FALLO 13: se movio una fila de metas por debajo del ultimo sellado';
+  exception when sqlstate '22023' then null;
+  end;
+
+  -- (0bis) Pero la VENTANA DE AJUSTE sigue abierta: el mes que acaba de terminar
+  --     y aun no esta sellado admite metas nuevas. Si esto se rompiera, del 1 al
+  --     10 no se podrian corregir las metas del mes que se va a pagar — que es
+  --     justo para lo que existe la ventana.
+  if v_dia < 10 then
+    insert into crm.meta_periodos (id, periodo, revision, publicada_en)
+    values ('55555555-5555-4555-8555-55555555556a', v_m1, 2, now());
+    delete from crm.meta_periodos where id = '55555555-5555-4555-8555-55555555556a';
+  end if;
+
+  -- (1) Y para una fila que YA EXISTIERA —una anterior al candado—, las dos
+  --     puertas del cierre siguen siendo las que impiden el daño. Se siembra con
+  --     el trigger apagado, que es la forma exacta de modelar «esto ya estaba».
+  alter table crm.meta_periodos disable trigger trg_meta_periodos_00_no_bajo_sellado;
   insert into crm.meta_periodos (id, periodo, revision, publicada_en)
   values (v_mp_m9, v_m9, 1, now());
+  alter table crm.meta_periodos enable trigger trg_meta_periodos_00_no_bajo_sellado;
 
   -- (a) No es candidato: el aviso no lo nombra.
   perform set_config('test.uid', v_g::text, true);
@@ -811,7 +847,7 @@ begin
   end;
 
 
-  raise notice 'ORACULO DEL CIERRE DE MES: 17/17 OK';
+  raise notice 'ORACULO DEL CIERRE DE MES: 18/18 OK';
 end;
 $oraculo$;
 

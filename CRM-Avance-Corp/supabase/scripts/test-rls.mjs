@@ -7455,6 +7455,190 @@ async function testAnon(seed) {
   );
 }
 
+// ── Cierre de mes: el sello, el ciclo y el aviso (migraciones 20260815*) ─────
+// El conjunto del cierre de mes trae TRES TABLAS deny-by-default
+// (`periodos_cerrados`, `cierre_mes_vendedor`, `ajustes_mes_cerrado`) y tres RPC
+// nuevas. Las tablas nacen con RLS ON, CERO policies y los privilegios revocados
+// de los cuatro roles: se leen SOLO a traves de funciones. Eso es exactamente lo
+// que esta matriz existe para comprobar, porque «no tiene policies» es una
+// afirmacion sobre el catalogo y «nadie la puede leer» es una afirmacion sobre
+// una sesion real, y no son la misma cosa.
+//
+// ⚠️ AQUI NO SE CIERRA NINGUN MES. El camino positivo de `crm.cerrar_periodo`
+// —gerencia sellando de verdad— NO se ejerce en el gate a proposito: sellar es
+// IRREVERSIBLE por diseño (append-only, sin policy DELETE y con trigger que veta
+// UPDATE/DELETE), asi que dejaria la branch con un mes cerrado que ni este gate
+// ni el bloque de conversion pueden deshacer, y la segunda corrida mediria otro
+// mundo. Ese caso positivo vive en el oraculo `test-cierre-mes.sql` (bloque
+// 10bis), que corre sobre un banco desechable y lo deshace con un rollback.
+// Aqui se prueba lo que el oraculo NO puede: las denegaciones con SESIONES
+// REALES y la alcanzabilidad por la Data API.
+const TABLAS_CIERRE_MES = ['periodos_cerrados', 'cierre_mes_vendedor', 'ajustes_mes_cerrado'];
+// Los cuatro roles que tienen pantalla, mas los dos que no deben tener nada que
+// hacer aqui. `vendInactive` y `clientBank` son la frontera: uno salio del CRM,
+// el otro nunca estuvo.
+const ROLES_CON_AVISO = ['vend1', 'sup1', 'gerencia', 'coordinador', 'directorio'];
+const ROLES_SIN_AVISO = ['vendInactive', 'clientBank'];
+
+async function testCierreDeMes(sessions, seed) {
+  console.log('\n— Cierre de mes: tablas selladas, ciclo y aviso —');
+  void seed;
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-cierre'));
+
+  // ¿Estan aplicadas las migraciones del cierre? Si no, se dice claro y se sale
+  // sin contar fallos: un gate corrido sobre una base sin la migracion no esta
+  // roto, esta midiendo otra cosa. Lo que NO puede pasar es que se salte en
+  // silencio y alguien lea el verde como cobertura.
+  const sonda = await sessions.gerencia.client.schema('crm').rpc('cierre_mes_estado_fn');
+  if (sonda.error && String(sonda.error.code ?? '') === 'PGRST202') {
+    console.log('  ⚠ OMITIDO: las migraciones del cierre de mes no estan aplicadas en esta base.');
+    console.log('    (crm.cierre_mes_estado_fn no existe — aplicar 20260815* antes del gate)');
+    return;
+  }
+
+  // ── (A) Las tres tablas no se leen NUNCA por la Data API ──────────────────
+  // Ni siquiera gerencia. La foto de lo que se pago se sirve por funcion, que es
+  // donde vive el recorte por ambito; una lectura directa lo saltaria entero.
+  for (const tabla of TABLAS_CIERRE_MES) {
+    for (const key of [...ROLES_CON_AVISO, ...ROLES_SIN_AVISO]) {
+      if (!sessions[key]) continue;
+      await expectExplicitAuthorizationDenied(
+        `${key} no lee crm.${tabla} directamente`,
+        sessions[key].client.schema('crm').from(tabla).select('*').limit(1),
+        ['42501', 'PGRST205', 'PGRST202'],
+      );
+    }
+    await expectExplicitAuthorizationDenied(
+      `anon no lee crm.${tabla}`,
+      anon.schema('crm').from(tabla).select('*').limit(1),
+      ['42501', 'PGRST205', 'PGRST202'],
+    );
+  }
+
+  // Y tampoco se escriben. Se prueba con GERENCIA, que es quien mas permisos
+  // tiene: si el candado aguanta con ella, aguanta con todos.
+  for (const tabla of TABLAS_CIERRE_MES) {
+    await expectBlockedMutation(
+      `gerencia no inserta en crm.${tabla}`,
+      sessions.gerencia.client.schema('crm').from(tabla).insert({ periodo: '2020-01-01' }).select(),
+      ['42501', 'PGRST205', 'PGRST202', '42703'],
+    );
+    await expectBlockedMutation(
+      `gerencia no borra de crm.${tabla}`,
+      sessions.gerencia.client.schema('crm').from(tabla).delete().eq('periodo', '2020-01-01').select(),
+      ['42501', 'PGRST205', 'PGRST202', '42703'],
+    );
+  }
+
+  // ── (B) El ciclo lo dispara el RELOJ, no una persona ──────────────────────
+  // Tampoco gerencia: su puerta manual es `cerrar_periodo`, mes a mes. Con una
+  // sesion real `auth.uid()` nunca es nulo, asi que el gate interno cierra a
+  // todo el mundo — y eso es justo lo que hay que comprobar con sesiones y no
+  // leyendo el cuerpo de la funcion.
+  for (const key of [...ROLES_CON_AVISO, ...ROLES_SIN_AVISO]) {
+    if (!sessions[key]) continue;
+    await expectExplicitAuthorizationDenied(
+      `${key} no dispara crm.ciclo_cierre_mes`,
+      sessions[key].client.schema('crm').rpc('ciclo_cierre_mes'),
+      ['42501', 'PGRST202'],
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no dispara crm.ciclo_cierre_mes',
+    anon.schema('crm').rpc('ciclo_cierre_mes'),
+    ['42501', 'PGRST202'],
+  );
+
+  // ── (C) Sellar un mes: solo gerencia (y aqui solo se prueba el NO) ────────
+  // El mes que se pide es el pasado. Para los roles de abajo la funcion corta en
+  // el gate ANTES de mirar el periodo, asi que la llamada no escribe nada.
+  const hoy = new Date();
+  const mesPasado = new Date(Date.UTC(hoy.getUTCFullYear(), hoy.getUTCMonth() - 1, 1))
+    .toISOString().slice(0, 10);
+  for (const key of ['vend1', 'sup1', 'coordinador', 'directorio', 'vendInactive', 'clientBank']) {
+    if (!sessions[key]) continue;
+    await expectExplicitAuthorizationDenied(
+      `${key} no sella un mes con crm.cerrar_periodo`,
+      sessions[key].client.schema('crm').rpc('cerrar_periodo', { p_periodo: mesPasado }),
+      ['42501', 'PGRST202'],
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no sella un mes',
+    anon.schema('crm').rpc('cerrar_periodo', { p_periodo: mesPasado }),
+    ['42501', 'PGRST202'],
+  );
+
+  // ── (D) El aviso: quien lo ve, y que TODOS ven lo mismo ──────────────────
+  // Es estado del reloj, no datos de nadie: si el payload cambiara segun el rol,
+  // algo se habria colado por la puerta de atras. El coordinador entra a
+  // proposito — `crm.cumplimiento_metas_fn` le deja ver un mes cerrado, asi que
+  // negarle el aviso le dejaria el banner de la pantalla en error.
+  let referencia = null;
+  for (const key of ROLES_CON_AVISO) {
+    if (!sessions[key]) continue;
+    const { data, error } = await sessions[key].client.schema('crm').rpc('cierre_mes_estado_fn');
+    if (!check(!error, `${key} lee crm.cierre_mes_estado_fn`, errorText(error))) continue;
+    check(
+      typeof data?.mes_en_curso?.cierra_el === 'string' && typeof data?.mes_en_curso?.mes === 'string',
+      `${key} recibe el aviso del mes en curso con su fecha de cierre`,
+      JSON.stringify(data?.mes_en_curso),
+    );
+    // El estado del pendiente, cuando lo hay, es vocabulario CERRADO: el front
+    // lo declara como picklist y un valor de mas rompe la pantalla en silencio.
+    if (data?.pendiente) {
+      check(
+        ['en_ventana', 'hoy', 'atascado'].includes(data.pendiente.estado),
+        `${key}: el estado del mes pendiente esta en el vocabulario`,
+        String(data.pendiente.estado),
+      );
+    }
+    if (referencia === null) referencia = JSON.stringify([data?.mes_en_curso, data?.pendiente, data?.ultimo_cerrado]);
+    else {
+      check(
+        JSON.stringify([data?.mes_en_curso, data?.pendiente, data?.ultimo_cerrado]) === referencia,
+        `${key} ve el MISMO aviso que el primer rol (es estado de reloj, no datos)`,
+      );
+    }
+  }
+
+  for (const key of ROLES_SIN_AVISO) {
+    if (!sessions[key]) continue;
+    await expectExplicitAuthorizationDenied(
+      `${key} no lee el estado del cierre de mes`,
+      sessions[key].client.schema('crm').rpc('cierre_mes_estado_fn'),
+      ['42501', 'PGRST202'],
+    );
+  }
+  await expectExplicitAuthorizationDenied(
+    'anon no lee el estado del cierre de mes',
+    anon.schema('crm').rpc('cierre_mes_estado_fn'),
+    ['42501', 'PGRST202'],
+  );
+
+  // ── (E) Publicar metas por debajo de un mes sellado ──────────────────────
+  // Solo se puede aseverar si ya hay algun mes cerrado en esta base; si no, no
+  // hay nada por debajo de lo que hablar y forzarlo exigiria sellar un mes, que
+  // es justo lo que este gate no hace. Se dice en voz alta en vez de dar por
+  // cubierto lo que no se midio.
+  const estado = await sessions.gerencia.client.schema('crm').rpc('cierre_mes_estado_fn');
+  const ultimoCerrado = estado.data?.ultimo_cerrado?.mes ?? null;
+  if (!ultimoCerrado) {
+    console.log('  ⚠ sin meses cerrados en esta base: no se puede medir el candado de metas retroactivas');
+    console.log('    (cubierto en el oraculo test-cierre-mes.sql, bloque 13)');
+  } else {
+    await expectBlockedMutation(
+      `gerencia no publica metas de un mes <= ${ultimoCerrado} (ya sellado)`,
+      sessions.gerencia.client.schema('crm').rpc('publicar_metas_vendedores', {
+        p_periodo: `${ultimoCerrado}-01`,
+        p_expected_revision: 0,
+        p_metas: {},
+      }),
+      ['22023', '42501', 'PGRST202'],
+    );
+  }
+}
+
 let verifiedSeed = null;
 
 async function main() {
@@ -7508,6 +7692,7 @@ async function main() {
       // estado. Limpia lo suyo en su propio `finally`.
       await testConversionMensual(sessions, verifiedSeed);
       await testCumplimientoMetas(sessions, verifiedSeed);
+      await testCierreDeMes(sessions, verifiedSeed);
     }
   } catch (error) {
     primaryError = error;

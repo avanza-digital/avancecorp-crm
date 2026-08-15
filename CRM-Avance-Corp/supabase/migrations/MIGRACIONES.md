@@ -1845,7 +1845,7 @@ dos invariantes nuevas.
 
 ## 2026-08-15 · El cierre de mes: que lo pagado deje de moverse
 
-**Estado: escritas y verdes en banco local. PENDIENTES de aplicar.** Seis
+**Estado: escritas, auditadas y verdes en banco local. PENDIENTES de aplicar.** Siete
 migraciones, en este orden y sin saltarse ninguna:
 
 | Version | Que hace |
@@ -1856,6 +1856,7 @@ migraciones, en este orden y sin saltarse ninguna:
 | `20260815003742_crm_cierre_mes_lectura` | Las dos funciones de lectura sirven la foto si el mes esta cerrado, y el mes vivo enseña lo que se le va a descontar. |
 | `20260815005530_crm_anulacion_con_ajuste` | Los dos canales de anulacion registran la deuda cuando el mes ya estaba cerrado. |
 | `20260815102000_crm_cierre_mes_candado` | El candado del dia 10 dentro de `crm.cerrar_periodo`, el ciclo automatico `crm.ciclo_cierre_mes` con su cron diario, y el aviso `crm.cierre_mes_estado_fn`. |
+| `20260815150000_crm_metas_no_bajo_mes_sellado` | Trigger en `crm.meta_periodos`: no se publican metas de un mes igual o anterior al ultimo sellado. Cierra el ORIGEN del bloqueante. |
 
 **Por que.** El CRM no guardaba el resultado de un mes: lo recalculaba en cada
 consulta. Medido el 14/08, el agosto de un vendedor paso de 38,33 % a 5,00 % en
@@ -1864,7 +1865,7 @@ lo que decide pago, y un mes cerrado **no se reescribe nunca** — lo que haya q
 corregir se descuenta en el mes vivo y, si no cabe, se arrastra.
 
 **Verificacion hecha.** Banco local (`supabase/scripts/banco-local-cierre-mes.sql`)
-+ oraculo (`supabase/scripts/test-cierre-mes.sql`): **17/17**, reproducible desde
++ oraculo (`supabase/scripts/test-cierre-mes.sql`): **18/18**, reproducible desde
 una base recien creada. Recorre sellar, la inmutabilidad frente a cambios de
 roster, los tres rechazos del gate, la deuda al anular un mes cerrado, el mes
 vivo descontado sin bajar de cero, el arrastre cuando no cabe, que anular un
@@ -1998,8 +1999,44 @@ el 05/08. Consecuencia comprobada, no supuesta: **al aplicar esto no se cierra
 nada de golpe**; el primer cierre real sera el de agosto, el 10 de septiembre, y
 nacera marcado `mes_parcial` porque el ledger empieza a mitad de mes.
 
-**Falta antes de aplicar**: subagente `auditor-rls` sobre las seis, bloque nuevo
-en `test-rls.mjs` (las tres tablas nuevas son deny-by-default y hay que probarlo
-por rol), y el ciclo de branch → gate → advisors → merge. Del lado del front
-queda la Fase 2: leer `cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn`
-para el aviso del 1 al 10 y para la alarma de ciclo atascado (`vencido`).
+### El origen del bloqueante (`20260815150000`)
+
+Defensa en profundidad del punto 1 de la auditoria. Alli se cerro el DAÑO (las
+dos puertas del cierre); esto cierra el ORIGEN: `crm.meta_periodos` aceptaba una
+fila de cualquier mes, y publicar metas es lo que convierte a un mes en «mes que
+debe un cierre». Con el origen abierto se podian seguir fabricando pendientes que
+el sistema nunca iba a sellar, mudos, con pinta de olvido.
+
+**Va como TRIGGER en la tabla, no como `if` dentro de
+`crm.publicar_metas_vendedores`** —que es lo que sugirio la auditoria—. Tres
+razones y la primera basta: cubre a CUALQUIER escritor y no solo a esa RPC; la
+regla es de la tabla y no del formulario; y sustituir entera una funcion de 7,5 KB
+ajena a esto para colar dos lineas obliga a anclar su md5 y a arrastrar una
+segunda copia de su cuerpo en el repo.
+
+⚠️ **La ventana de ajuste sigue abierta.** La regla se mide contra el SELLO
+(`<= max(periodos_cerrados)`), no contra el calendario: del 1 al 10 el mes que
+acaba de terminar todavia no esta sellado, asi que sus metas se pueden corregir.
+El oraculo lo asevera explicitamente (bloque 13, apartado 0bis).
+
+**Estado del gate de RLS.** El bloque `testCierreDeMes` **ya esta escrito** en
+`supabase/scripts/test-rls.mjs` y enganchado en `main()`: las tres tablas
+deny-by-default probadas por los 7 roles y por anon (lectura y escritura), el
+ciclo denegado a todo el mundo —tambien a gerencia—, el sello denegado a los seis
+roles que no son gerencia, y el aviso leido por los cuatro roles con pantalla
+comprobando que **ven exactamente el mismo payload**. Pasa `check:scripts` y el
+`--preflight`. ⚠️ **Todavia no se ha EJECUTADO contra una base**: necesita una
+branch de Supabase con las siete migraciones aplicadas, y hoy no hay branch. Se
+dice asi de claro para que nadie lea «escrito» como «verde».
+
+⚠️ **El gate NO sella ningun mes, a proposito.** El camino positivo de
+`crm.cerrar_periodo` es irreversible por diseño (append-only, sin DELETE, con
+trigger que veta UPDATE/DELETE): ejercerlo dejaria la branch con un mes cerrado
+que ni el propio gate ni el bloque de conversion pueden deshacer, y la segunda
+corrida mediria otro mundo. Ese caso positivo vive en el oraculo (bloque 10bis),
+sobre un banco desechable y con rollback.
+
+**Falta antes de aplicar**: el ciclo de branch → gate → advisors → merge, con el
+bloque nuevo corriendo de verdad. Del lado del front queda la Fase 2: leer
+`cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn` para el aviso del 1 al
+10 y para la alarma de ciclo atascado (`estado: 'atascado'`).

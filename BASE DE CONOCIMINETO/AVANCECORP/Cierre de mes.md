@@ -5,8 +5,8 @@ actualizado: 2026-08-15
 
 # Cierre de mes
 
-**Estado: 🟡 escrito, auditado y verde en banco local (17/17), SIN aplicar a producción.**
-Seis migraciones `20260815*` en `CRM-Avance-Corp/supabase/migrations/`. Ni un objeto de
+**Estado: 🟡 escrito, auditado y verde en banco local (18/18), SIN aplicar a producción.**
+Siete migraciones `20260815*` en `CRM-Avance-Corp/supabase/migrations/`. Ni un objeto de
 producción tocado todavía.
 
 Sella el resultado de un mes para que deje de moverse. Es la pieza que faltaba desde que
@@ -60,9 +60,12 @@ detrás del ciclo de contratos) y cierra los meses que ya deben cierre y cuya ve
 **del más antiguo al más nuevo**. Correr a diario —y no «el día 10»— es lo que lo hace
 auto-reparable: si el 10 falla, el 11 cierra igual y el mes no queda atascado.
 
-Y el servidor publica el estado (`crm.cierre_mes_estado_fn`) para dos cosas: el aviso del 1 al
-10 («julio se cierra el 10/08, quedan 3 días») y la **alarma** de que el ciclo se atascó
-(`vencido: true`). Sin esa alarma, un cron roto es invisible: nadie mira los logs.
+Y el servidor publica el estado (`crm.cierre_mes_estado_fn`) con **tres** situaciones, no dos:
+`en_ventana` (del 1 al 10, todavía se puede corregir), `hoy` (le toca sellarse y el ciclo aún no
+ha pasado) y `atascado` (pasó un día entero y sigue abierto → **la alarma**). El estado del medio
+no es un detalle: la ventana abre a medianoche y el ciclo corre a las 09:20, así que sin él la
+alarma sonaría nueve horas cada día 10 con todo funcionando — y una alarma que suena cuando no
+pasa nada deja de mirarse. Sin la alarma, un cron roto es invisible: nadie mira los logs.
 
 ## Lo que hay que saber antes de tocarlo
 
@@ -95,12 +98,21 @@ no despistes — los tres nacen de mirar una pieza sin mirar con qué convive:
 ⚠️ **Una prueba que solo puede correr ciertos días no prueba nada.** La ventana del mes
 pasado solo está cerrada del 1 al 9, así que la rama que importa —la que **rechaza**— no se
 ejercita el resto del mes. Se resolvió separando la aritmética (probada exhaustivamente, sin
-reloj) del reloj, y empujando la ventana al futuro dentro de la propia prueba. Comprobado con
-**mutantes**: neutralizar el candado, o quitarle el freno al ciclo, pone el oráculo en rojo.
+reloj) del reloj, y empujando la ventana dentro de la propia prueba. Comprobado con **ocho
+mutantes**: cada arreglo se rompió a propósito para verlo caer.
 
-**Quién ve el aviso.** Vendedor, supervisor, gerencia y directorio (este último por la vía del
-«lector global»). **El coordinador NO** — mismo criterio que la conversión: el coordinador
-reparte la cola de leads, no mira cifras de pago. Ver [[Acceso y roles del CRM]].
+Y mutar destapó dos cosas que ni escribiendo ni auditando aparecieron: **un arreglo tapaba el
+test de otro** (la subtransacción nueva se comía la excepción que otra prueba usaba de señal, y
+la prueba seguía verde con el freno quitado), y **hay fallos que ningún test puede cazar** — una
+carrera necesita dos sesiones a la vez y el oráculo corre en una, así que el cerrojo se cierra
+por estructura y se dice, en vez de aparentar cobertura.
+
+**Quién ve el aviso.** Vendedor, supervisor, gerencia, directorio (por la vía del «lector
+global») **y también el coordinador**. Lo del coordinador es deliberado y va al revés que en la
+conversión: la pantalla de metas (`cumplimiento_metas_fn`) sí le deja ver un mes cerrado, así que
+negarle el aviso le dejaría el banner en error. Y no hay nada que proteger — el aviso no devuelve
+cifras, ni PII, ni quién cerró: solo etiquetas de mes, fechas y un estado.
+Ver [[Acceso y roles del CRM]].
 
 🔴 **Dos nombres que se parecen demasiado.** `crm.cierres_estado_fn` (existente, en producción)
 es de los **cierres de venta** — es la que pinta el chip «CIERRE ANULADO» en la cartera, y en el
@@ -120,17 +132,22 @@ así que el 10 de septiembre no es una fecha comprometida con nadie.
 
 ## Falta
 
-- **Bloque nuevo en `test-rls.mjs`** — el único trabajo de servidor que queda, y necesita una
-  base que no sea producción (hoy no hay branch). Las tres tablas nuevas (`periodos_cerrados`,
-  `cierre_mes_vendedor`, `ajustes_mes_cerrado`) son deny-by-default y hay que probarlo por rol,
-  con sesiones reales; y el ámbito del supervisor al leer un mes cerrado (que salga del
-  `supervisor_id` **sellado**, no del equipo de hoy) tampoco está probado en ningún sitio.
-- **Defensa en profundidad, migración aparte**: que `crm.publicar_metas_vendedores` rechace
-  publicar metas de un mes por debajo del último sellado. Hoy el daño ya está bloqueado en las
-  dos puertas del cierre; esto lo cortaría en el origen.
-- Ciclo branch → gate → advisors → merge.
+Del lado del **servidor, nada por escribir**. Queda ejecutarlo:
+
+- **Correr el gate de RLS de verdad.** El bloque `testCierreDeMes` ya está escrito y
+  enganchado (las tres tablas por los 7 roles y anon, el ciclo denegado a todos —también a
+  gerencia—, y el aviso leído por los cuatro roles con pantalla comprobando que ven el mismo
+  payload). Pasa la comprobación de sintaxis y el preflight, pero **no se ha ejecutado contra
+  ninguna base**: necesita una branch de Supabase con las siete migraciones aplicadas, y hoy no
+  hay branch. Escrito ≠ verde.
+- **Ciclo branch → gate → advisors → merge.**
 - **Fase 2, el front**: leer `cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn` para
   el aviso y la alarma.
+
+Y un hueco de cobertura que conviene tener presente: el **ámbito del supervisor al leer un mes
+cerrado** —que salga del `supervisor_id` *sellado* y no del equipo de hoy— es la mejor idea de
+todo el conjunto y no está probado en ningún sitio, porque exige un mes ya sellado y el gate no
+sella (sellar es irreversible: dejaría la branch en otro mundo para la siguiente corrida).
 
 Ver [[Conversion mensual - definicion cerrada]] · [[Anulación de cierres de Avance]] ·
 [[Como se mide la conversion del asesor]] · [[Inicio]]
