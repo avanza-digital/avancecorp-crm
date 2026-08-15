@@ -1845,8 +1845,10 @@ dos invariantes nuevas.
 
 ## 2026-08-15 · El cierre de mes: que lo pagado deje de moverse
 
-**Estado: escritas, auditadas y verdes en banco local. PENDIENTES de aplicar.** Siete
-migraciones, en este orden y sin saltarse ninguna:
+**Estado: ✅ LAS SIETE EN PRODUCCION 2026-08-15**, aplicadas en orden con todos sus
+preflights y postflights activos (ver «El despliegue» al final de esta seccion).
+Huella de funciones produccion == branch: `b32dec06f4e5e97e7735bb01c60660e2` / 203.
+Siete migraciones, en este orden y sin saltarse ninguna:
 
 | Version | Que hace |
 |---|---|
@@ -2045,10 +2047,8 @@ cosas que faltaban:
   `authenticated`, `anon` y `service_role`. Mutante confirmado.
 
 ⚠️ Lo que el gate añade y el oraculo NO puede dar es **la capa de la API**:
-sesiones reales con JWT a traves de PostgREST. Eso exige una branch de Supabase
-con las siete migraciones aplicadas — o sea, entrar en el ciclo de despliegue, que
-cuesta dinero y necesita el OK de Miguel. No es deuda pendiente de escribir: es un
-paso del despliegue que no me corresponde arrancar solo.
+sesiones reales con JWT a traves de PostgREST. ✅ **Corrido el 15/08** sobre la
+branch `cierre-mes` con las siete aplicadas: **1007 aserciones, 0 fallos**.
 
 ⚠️ **El gate NO sella ningun mes, a proposito.** El camino positivo de
 `crm.cerrar_periodo` es irreversible por diseño (append-only, sin DELETE, con
@@ -2057,7 +2057,90 @@ que ni el propio gate ni el bloque de conversion pueden deshacer, y la segunda
 corrida mediria otro mundo. Ese caso positivo vive en el oraculo (bloque 10bis),
 sobre un banco desechable y con rollback.
 
-**Falta antes de aplicar**: el ciclo de branch → gate → advisors → merge, con el
-bloque nuevo corriendo de verdad. Del lado del front queda la Fase 2: leer
-`cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn` para el aviso del 1 al
-10 y para la alarma de ciclo atascado (`estado: 'atascado'`).
+**Queda la Fase 2, en el front**: leer `cierre` y `ajuste` en el payload, y
+`cierre_mes_estado_fn` para el aviso del 1 al 10 y para la alarma de ciclo
+atascado (`estado: 'atascado'`).
+
+---
+
+### El despliegue (2026-08-15)
+
+**Ciclo completo, en este orden**, sobre la branch `cierre-mes`
+(`adiuadljotrdrzmpdyag`, borrada al terminar):
+
+1. **Fidelidad de la copia antes de tocar nada.** La branch nace con la replica a
+   medias (`MIGRATIONS_FAILED` en la 87 de 90, cuyo postflight necesita datos que
+   una branch vacia no tiene). Se aplicaron las 4 que faltaban sin sus postflights
+   y se comprobo la huella: `be33cf5296e008c5b948f7d598d1dab1` / **189 funciones,
+   identica a produccion**. Receta en `supabase/scripts/LEEME-seed.md`.
+2. **Las 7 aplicadas** con todos sus preflights y postflights activos.
+3. **Gate de RLS**: 1007 aserciones, 0 fallos.
+4. **Advisors**: 0 ERROR a los dos lados; **exactamente 5 avisos nuevos**, los 5
+   por diseño (3 × `rls_enabled_no_policy` por las tres tablas nuevas —que es como
+   se construyen aqui: RLS ON y cero policies— y 2 × `authenticated_security_-
+   definer_function_executable`, que se suman a las 101 que ya habia).
+5. **Produccion**: las 7 aplicadas en orden. Huella posterior
+   `b32dec06f4e5e97e7735bb01c60660e2` / **203 funciones, identica a la branch**.
+   Advisors de produccion: 122 = 117 + los 5 previstos, **0 ERROR**.
+
+🔴 **`merge_branch` devolvio `{"success": true}` y no aplico NADA.** Peor que el
+404 de la 20260814100746: aquel fallaba a la vista, este **escribio las 7 filas en
+`supabase_migrations.schema_migrations` sin crear un solo objeto**, o sea que dejo
+el indice de produccion mintiendo — 97 migraciones registradas, 0 tablas nuevas,
+0 funciones nuevas. Se detecto contando objetos (no leyendo el `success`) y se
+revirtio borrando las 7 filas falsas antes de seguir. **Regla: despues de un
+merge, la respuesta no es evidencia; contar objetos si.**
+
+**La via que funciono** (tercer intento; psql por pooler no autentica y el host
+directo no resuelve por DNS):
+
+```bash
+for f in supabase/migrations/20260815*.sql; do
+  npx supabase db query --linked --file "$f" || break
+done
+```
+
+El CLI se autentica solo y lee el fichero tal cual — sin transcribir 172 KB de DDL
+a mano, que era el riesgo real. **Ojo: `db query` EJECUTA pero no REGISTRA**; las
+7 filas del indice se insertan despues a mano (`version` + `name`, sin el
+prefijo de fecha en el nombre).
+
+⛔ **`supabase db push` NO se usa en este repo, nunca.** `supabase migration list
+--linked` muestra ~40 migraciones locales ausentes del indice remoto (la deuda
+documentada de «reconciliar el historial remoto»): un push intentaria reproducir
+todas esas, que ya estan vivas con otro numero.
+
+🔴 **Y EL DESPLIEGUE APAGO LA PANTALLA DE METAS.** El servidor entro primero y
+`crm.cumplimiento_metas_fn` empezo a devolver **CUATRO claves nuevas**;
+`CumplimientoMetasSchema` (front) es un `v.strictObject` fail-closed, asi que
+rechazo el payload ENTERO y gerencia, supervisores y vendedores se quedaron sin
+cumplimiento a la vez, con un «Reintentar» que no podia funcionar. Ni el gate de
+RLS (1007) ni las 1.648 unitarias lo vieron: todas montan payloads que ya encajan.
+
+La regla que lo habria evitado **ya estaba escrita**: clave nueva en la RESPUESTA
+de una RPC → **el FRONT se despliega primero**. Aqui fuimos al reves.
+
+| Clave | Donde | Ramas |
+|---|---|---|
+| `cierre` | raiz | las dos |
+| `ajuste` | por vendedor | las dos |
+| `capital_ajuste` | dentro de cada `detalle` | **solo la foto sellada** |
+| `contratos_ajuste` | dentro de cada `detalle` | **solo la foto sellada** |
+
+⚠️ **Leyendo la migracion encontre 2 de las 4.** Las otras dos solo viajan en una
+rama que ningun usuario ejerce hasta el **10/09/2026**, y aparecieron al GENERAR
+el fixture ejecutando: `supabase/scripts/fixture-cumplimiento-cierre.sql` siembra,
+sella un mes de verdad y escupe los dos payloads. Sin eso, el mismo apagon volvia
+ese dia. Es [[ejecutar-contra-la-forma-real]] una vez mas, del lado del contrato.
+
+Reparado en `app/src/lib/objetivos.ts` **añadiendo** las cuatro (`v.optional`, que
+la vuelta atras las quita y un `strictObject` falla tambien por clave de MENOS),
+**sin aflojar el fail-closed** — hay un test que lo comprueba a proposito. Cubierto
+por `app/src/lib/cumplimiento-cierre-de-mes.test.ts` (6 casos, fixtures generados,
+**4 mutantes y los 4 caen**, control negativo verde).
+
+**Lo que hara el automatismo.** El cron `crm-cierre-mes-diario` (`20 14 * * *` UTC
+= 09:20 Lima) esta vivo, pero **hoy no tiene nada que sellar**: `crm.meta_periodos`
+solo tiene 7 filas y todas de **2026-08**, el mes vivo (antes del 10/08 guardar
+metas era imposible — ver `20260810…`). El primer sellado automatico real sera el
+**10 de septiembre de 2026**, sobre agosto.

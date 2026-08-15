@@ -5,9 +5,15 @@ actualizado: 2026-08-15
 
 # Cierre de mes
 
-**Estado: 🟡 escrito, auditado y verde en banco local (20/20), SIN aplicar a producción.**
-Siete migraciones `20260815*` en `CRM-Avance-Corp/supabase/migrations/`. Ni un objeto de
-producción tocado todavía.
+**Estado: ✅ EL SERVIDOR, EN PRODUCCIÓN desde el 2026-08-15.** Las siete migraciones
+`20260815*` aplicadas en orden, con todas sus autopruebas activas. Falta la **Fase 2**,
+que es el front.
+
+Verificado después de aplicar, no supuesto: producción queda **byte a byte igual** a la
+copia que aprobó el gate (misma huella de las 203 funciones,
+`b32dec06f4e5e97e7735bb01c60660e2`), el gate de permisos dio **1007 aserciones y 0
+fallos**, y los advisors dan **0 ERROR** con exactamente los 5 avisos nuevos previstos.
+El cron `crm-cierre-mes-diario` corre a las **09:20 de Lima**, todos los días.
 
 Sella el resultado de un mes para que deje de moverse. Es la pieza que faltaba desde que
 existe [[Conversion mensual - definicion cerrada]]: el CRM **no guardaba** el resultado de un
@@ -128,7 +134,7 @@ front vive en `app/src/lib/cierre-estado.ts`. `crm.cierre_mes_estado_fn` (nueva)
 de mes**. Cuando la Fase 2 toque el front, su módulo NO debe llamarse `cierre-estado`: los
 nombres parecidos en un esquema en español ya costaron un despliegue una vez.
 
-## Qué pasará al aplicarlo
+## Qué pasa ahora que está aplicado
 
 Comprobado contra producción el 15/08, no supuesto: el único mes con metas publicadas es
 **agosto 2026**, que es el mes en curso, y el ledger arranca el 05/08. Así que **al aplicar
@@ -145,13 +151,39 @@ Los dos que quedaban se cerraron: el **ámbito del supervisor en un mes cerrado*
 quién era su equipo *entonces*, no de quién lo es hoy) y los **permisos por rol** de las tres
 tablas nuevas, ambos probados ejecutando, y ambos con mutante que lo demuestra.
 
-Queda **desplegar**, que es decisión tuya:
+✅ **Desplegado el 15/08.** Ciclo completo: copia de la base → las 7 aplicadas → gate
+(1007/0) → advisors (0 ERROR) → producción. La copia se borró al terminar.
 
-- **Ciclo branch → gate → advisors → merge.** Ahí corre el gate de permisos con sesiones reales
-  a través de la API — la única capa que el banco local no puede imitar. Crear esa copia de la
-  base cuesta dinero de tu cuenta y arranca el despliegue, así que no lo hago por mi cuenta.
-- **Fase 2, el front**: leer `cierre` y `ajuste` en el payload, y `cierre_mes_estado_fn` para
-  el aviso y la alarma.
+Queda la **Fase 2, el front**: enseñar la marca de mes cerrado, el descuento del asesor
+con su motivo, y el aviso del 1 al 10 con su alarma de ciclo atascado.
+
+🔴 **El despliegue apagó la pantalla de metas, y hay que saber por qué.** El servidor
+entró primero y empezó a mandar **cuatro datos nuevos**; el front tiene esa pantalla
+configurada para rechazar el paquete entero si trae algo que no reconoce —una defensa
+deliberada, para no pintar cifras de una fórmula que no entiende—, así que gerencia,
+supervisores y vendedores se quedaron sin cumplimiento a la vez. Nadie llegó a verlo:
+se reparó antes de que ningún usuario abriera el CRM.
+
+La regla que lo habría evitado ya estaba escrita: **cuando una consulta gana un dato
+nuevo en su respuesta, el front se publica primero**. Fuimos al revés.
+
+⚠️ **Y leyendo el código solo encontré 2 de los 4.** Los otros dos solo viajan en la foto
+de un mes ya sellado —una situación que nadie vive hasta el **10 de septiembre**— y
+aparecieron al *generar* la prueba ejecutando el cierre de verdad contra una base local.
+De ahí sale `supabase/scripts/fixture-cumplimiento-cierre.sql`: siembra un mes, lo sella
+y escupe los dos paquetes reales. Sin eso, el mismo apagón habría vuelto ese día.
+
+La reparación **añade** los cuatro datos; no afloja la defensa. Hay una prueba puesta a
+propósito para que nadie la afloje «para que no vuelva a pasar».
+
+🔴 **Una trampa del despliegue que hay que recordar.** La fusión automática de Supabase
+respondió **«éxito» y no aplicó nada**: escribió las siete migraciones en el índice de
+producción sin crear un solo objeto, dejando el índice mintiendo. Se cazó **contando
+objetos**, no leyendo la respuesta, y se revirtió. Después de una fusión, la respuesta no
+es prueba de nada. La vía que sí funcionó fue el CLI ejecutando cada fichero
+(`supabase db query --linked --file`), y ⛔ **`supabase db push` no se usa jamás en este
+repo**: el historial local y el remoto divergieron hace tiempo y un push intentaría
+reproducir ~40 migraciones que ya están vivas con otro número.
 
 Ver [[Conversion mensual - definicion cerrada]] · [[Anulación de cierres de Avance]] ·
 [[Como se mide la conversion del asesor]] · [[Inicio]]

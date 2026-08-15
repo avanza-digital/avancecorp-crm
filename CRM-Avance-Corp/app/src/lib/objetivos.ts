@@ -196,6 +196,16 @@ const DetalleCumplimientoSchema = v.strictObject({
   contratos_objetivo: EnteroNoNegativoRpcSchema,
   contratos_real: EnteroNoNegativoRpcSchema,
   contratos_cumplimiento_pct: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  // Lo descontado en ESTA casilla (categoría × moneda) al sellar el mes. Solo
+  // viaja en la FOTO de un mes cerrado, y existe para que la foto pueda explicar
+  // por qué `capital_real` no es el bruto: sumando las dos se recupera.
+  //
+  // ⚠️ Estas dos son las que NO encontré leyendo la migración —las encontró el
+  // fixture generado ejecutando (`cumplimiento-cierre-de-mes.test.ts`)—, y solo
+  // aparecen en una rama que ningún usuario ejercerá hasta el 10/09/2026. Sin
+  // ellas, la pantalla de metas se habría vuelto a apagar ese día.
+  capital_ajuste: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  contratos_ajuste: v.optional(EnteroNoNegativoRpcSchema),
 })
 
 const DetallesCumplimientoSchema = v.pipe(
@@ -207,6 +217,49 @@ const DetallesCumplimientoSchema = v.pipe(
       && CLAVES_DIMENSION.every((clave) => claves.has(clave))
   }, 'El cumplimiento debe contener exactamente categoría × moneda'),
 )
+
+// ── El cierre de mes (migración 20260815003742) ───────────────────────────────
+//
+// 🔴 ESTAS DOS CLAVES APAGARON LA PANTALLA DE METAS EN PRODUCCIÓN (2026-08-15).
+// El servidor se desplegó primero y empezó a mandar `cierre` (arriba) y `ajuste`
+// (por vendedor); `CumplimientoMetasSchema` es fail-closed, así que rechazó el
+// payload ENTERO y los tres roles se quedaron sin cumplimiento a la vez, con un
+// «Reintentar» que no podía funcionar. La regla que lo habría evitado ya estaba
+// escrita: **clave nueva en la RESPUESTA de una RPC → el FRONT va primero**.
+// Aquí fuimos al revés. La lección no es «faltaba una clave»: es que nada
+// comparaba este contrato contra lo que la función devuelve de verdad, y por eso
+// los fixtures de `cumplimiento-post-migracion-b.test.ts` salen ahora de EJECUTAR
+// la función, nunca de escribirlos a mano.
+
+/**
+ * ¿El mes ya está sellado? Viaja en las DOS ramas del servidor: `{cerrado:false}`
+ * en el mes vivo y, en la foto de un mes sellado, con la fecha y si lo cerró el
+ * reloj o una persona.
+ *
+ * `cerrado_en`/`automatico` van `optional` y NO se exige que aparezcan cuando
+ * `cerrado` es true, a propósito: un invariante de más aquí vuelve a ser una
+ * pantalla apagada, y lo único que se pierde si faltaran es la fecha del rótulo.
+ */
+const CierreDelMesSchema = v.strictObject({
+  cerrado: v.boolean(),
+  cerrado_en: v.optional(FechaHoraSchema),
+  automatico: v.optional(v.boolean()),
+})
+
+/**
+ * Lo que se le descuenta al asesor por anulaciones de meses ya pagados.
+ *
+ * En el mes VIVO solo viaja `pendiente` (lo que se le va a descontar). En la
+ * FOTO de un mes sellado, `pendiente` es siempre 0 —lo que cabía se descontó al
+ * sellar— y llegan además los tres `aplicado*`, que son lo que hace auditable la
+ * foto: sumándolos al numerador se recupera el bruto.
+ */
+const AjusteVendedorSchema = v.strictObject({
+  pendiente: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  aplicado: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  aplicado_pen: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
+  aplicado_usd: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
+})
 
 const CumplimientoVendedorSchema = v.strictObject({
   vendedor_id: UuidSchema,
@@ -230,6 +283,11 @@ const CumplimientoVendedorSchema = v.strictObject({
   numerador: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
   cierres_no_referidos: v.optional(EnteroNoNegativoRpcSchema),
   cierres_referidos: v.optional(EnteroNoNegativoRpcSchema),
+  // Llega con el cierre de mes. `optional` por la misma razón que las tres de
+  // arriba —y por la VUELTA ATRÁS de la migración: si el servidor volviera a la
+  // versión anterior, la clave desaparece y un strictObject falla también por
+  // clave de MENOS.
+  ajuste: v.optional(AjusteVendedorSchema),
   detalles: DetallesCumplimientoSchema,
 })
 
@@ -247,6 +305,8 @@ export const CumplimientoMetasSchema = v.strictObject({
   }),
   // Llega con la migración B; optional por la misma ventana que arriba.
   ponderacion_referido: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1))),
+  // Llega con el cierre de mes (20260815003742), en las dos ramas.
+  cierre: v.optional(CierreDelMesSchema),
   vendedores: v.array(CumplimientoVendedorSchema),
 })
 
