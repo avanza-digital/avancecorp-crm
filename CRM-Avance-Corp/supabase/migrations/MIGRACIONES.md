@@ -1840,3 +1840,44 @@ de la `20260811190310` deja de ser decorativo. Contra un branch vacío no hay
 ninguna fila que pueda violar nada y el preflight pasa por vacuidad; contra el
 seed, comprueba de verdad que el mundo que el CRM sabe fabricar **ya cumple** las
 dos invariantes nuevas.
+
+---
+
+## 2026-08-15 · El cierre de mes: que lo pagado deje de moverse
+
+**Estado: escritas y verdes en banco local. PENDIENTES de aplicar.** Cinco
+migraciones, en este orden y sin saltarse ninguno:
+
+| Version | Que hace |
+|---|---|
+| `20260815001957_crm_produccion_mes_extraida` | Saca de `crm.cumplimiento_metas_fn` el calculo del capital y los contratos a `private.produccion_mes_por_vendedor`. Refactor puro: ni una regla cambia. |
+| `20260815002100_crm_ajuste_mes_cerrado` | La deuda que nace al anular un cierre de un mes ya pagado, y las piezas para saldarla y arrastrarla. |
+| `20260815002914_crm_cierre_mes_sello` | `crm.periodos_cerrados` + `crm.cierre_mes_vendedor` (la foto) + `crm.cerrar_periodo`, que ademas salda deudas viejas al sellar. |
+| `20260815003742_crm_cierre_mes_lectura` | Las dos funciones de lectura sirven la foto si el mes esta cerrado, y el mes vivo enseña lo que se le va a descontar. |
+| `20260815005530_crm_anulacion_con_ajuste` | Los dos canales de anulacion registran la deuda cuando el mes ya estaba cerrado. |
+
+**Por que.** El CRM no guardaba el resultado de un mes: lo recalculaba en cada
+consulta. Medido el 14/08, el agosto de un vendedor paso de 38,33 % a 5,00 % en
+dos horas. Decision de Miguel (14/08): el mes se cierra el dia 10, se sella todo
+lo que decide pago, y un mes cerrado **no se reescribe nunca** — lo que haya que
+corregir se descuenta en el mes vivo y, si no cabe, se arrastra.
+
+**Verificacion hecha.** Banco local (`supabase/scripts/banco-local-cierre-mes.sql`)
++ oraculo (`supabase/scripts/test-cierre-mes.sql`): **8/8**, reproducible desde
+una base recien creada. Recorre sellar, la inmutabilidad frente a cambios de
+roster, los tres rechazos del gate, la deuda al anular un mes cerrado, el mes
+vivo descontado sin bajar de cero, el arrastre cuando no cabe, y que anular un
+mes ABIERTO siga reescribiendolo.
+
+⚠️ **Dos fallos que solo aparecieron EJECUTANDO**, no leyendo:
+1. Dos filas de meta del mismo vendedor en el mismo periodo hacian reventar el
+   cierre entero con un duplicado de clave. Se blindo con `distinct on`: un mes
+   que no se puede cerrar por una fila repetida es peor que la fila repetida.
+2. Los dos primeros calcos del banco MENTIAN —uno devolvia siempre 'gerencia' y
+   otro ignoraba la ventana del numerador—, y con ellos el oraculo daba por
+   buenas cosas que no lo eran. Las correcciones estan dentro del fichero del
+   banco, comentadas.
+
+**Falta antes de aplicar**: subagente `auditor-rls` sobre las cinco, bloque nuevo
+en `test-rls.mjs` (las tres tablas nuevas son deny-by-default y hay que probarlo
+por rol), y el ciclo de branch → gate → advisors → merge.
