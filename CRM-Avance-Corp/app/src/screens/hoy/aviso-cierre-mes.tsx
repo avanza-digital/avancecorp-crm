@@ -22,6 +22,11 @@ export function AvisoCierreMesPanel(): JSX.Element | null {
   const Icono = alarma ? TriangleAlert : CalendarClock
   return (
     <Card
+      // El anuncio de un alert lo dispara la INSERCIÓN del nodo: si el estado
+      // cambia de 'hoy' a 'atascado' con la pestaña abierta (refetch al
+      // reenfocar), mutar el atributo sobre el mismo div no anuncia nada. El
+      // key remonta la Card al cambiar el tono y la alarma sí suena.
+      key={aviso.tono}
       role={alarma ? 'alert' : undefined}
       className={alarma
         ? 'border-destructive/40 bg-destructive/[0.06]'

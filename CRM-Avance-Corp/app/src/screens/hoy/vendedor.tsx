@@ -1022,8 +1022,12 @@ export function HoyVendedor(): JSX.Element {
               delay={180}
               nota={miConversion && lecturaConversion.mostrar
                 ? (
-                  <span className="text-[11px] text-[var(--gi-muted)]">
-                    {/* El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
+                  <span className="text-[11px] text-muted-foreground">
+                    {/* `text-muted-foreground` y NO var(--gi-muted): ese token
+                        solo resuelve dentro de `.gerencia-inteligencia`, y esta
+                        pantalla no está en él — el color salía de la herencia
+                        por accidente (revisor a11y, F2.3). Mismo hex.
+                        El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
                         lo llena el reparto, no el asesor, y el número solo
                         miente por omisión. */}
                     Recibidos {numero(miConversion.divisor)} · cierres{' '}

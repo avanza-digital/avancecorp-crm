@@ -511,7 +511,9 @@ export function ConfigMetas() {
       </Card>
 
       {mesCerrado && ultimoSellado && (
-        <Card className="border-primary/25 bg-primary/[0.05]">
+        // role="status": al navegar de mes hacia uno sellado, el banner entra
+        // y los botones se apagan en silencio; esto lo anuncia sin interrumpir.
+        <Card role="status" className="border-primary/25 bg-primary/[0.05]">
           <CardContent className="flex items-start gap-3 py-4">
             <Lock className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
             <div>
