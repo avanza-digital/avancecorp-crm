@@ -349,6 +349,16 @@ describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
       .toBe('arrastra 0.001 conversiones de anulaciones')
   })
 
+  it('la unidad concuerda con lo MOSTRADO, no con el número crudo (observación #8)', () => {
+    // 1.004 y 0.995 se PINTAN «1»: jamás «1 conversiones».
+    expect(descuentoArrastre({ pendiente: 1.004, origenes: [] })?.etiqueta)
+      .toBe('arrastra 1 conversión de anulaciones')
+    expect(descuentoArrastre({ pendiente: 0.995, origenes: [] })?.etiqueta)
+      .toBe('arrastra 1 conversión de anulaciones')
+    expect(descuentoArrastre({ pendiente: 0, aplicado: 1.004, origenes: [] })?.etiqueta)
+      .toBe('−1 conversión descontada al cierre')
+  })
+
   it('julio 2025 y julio 2026 son DOS meses, no uno', () => {
     const chip = descuentoArrastre({
       pendiente: 2,

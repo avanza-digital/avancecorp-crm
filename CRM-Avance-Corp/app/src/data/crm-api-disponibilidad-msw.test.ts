@@ -226,6 +226,8 @@ describe('insertarLead: RPC atómica', () => {
     server.use(
       http.post(RUTA_CREACION, async ({ request }) => {
         expect(request.headers.get('content-profile')).toBe('crm')
+        // Los opcionales vacíos se OMITEN (tipos generados + sinIndefinidos):
+        // todos tienen DEFAULT NULL en el catálogo — clave ausente ≡ null.
         expect(await request.json()).toEqual({
           p_nombre_completo: ALTA.nombre_completo,
           p_telefono: ALTA.telefono,
@@ -233,15 +235,7 @@ describe('insertarLead: RPC atómica', () => {
           p_monto_estimado: 10_000,
           p_moneda: 'PEN',
           p_id: ALTA.id,
-          p_correo: null,
-          p_dni: null,
-          p_genero: null,
-          p_fecha_nacimiento: null,
-          p_distrito: null,
           p_etapa: 'nuevo',
-          p_categoria_interes: null,
-          p_vendedor_id: null,
-          p_nota: null,
         })
         return HttpResponse.json({ estado: 'creado', lead_id: ALTA.id })
       }),

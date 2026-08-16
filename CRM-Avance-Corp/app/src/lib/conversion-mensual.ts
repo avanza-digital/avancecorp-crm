@@ -339,9 +339,12 @@ export function descuentoArrastre(ajuste: AjusteConversion | undefined): Descuen
     // nombran una vez; julio 2025 y julio 2026 se nombran las dos.
     const meses = [...new Map(origenes.map((origen) => [origen.periodo, nombreMes(origen.periodo)])).values()]
     const de = meses.length > 0 ? ` · ${meses.join(' y ')}` : ''
-    const unidad = ajuste.pendiente === 1 ? 'conversión' : 'conversiones'
+    // La unidad concuerda con el TEXTO mostrado, no con el número crudo:
+    // 1.004 se pinta «1» y decía «1 conversiones» (observación #8).
+    const texto = numeroDeuda(ajuste.pendiente)
+    const unidad = texto === '1' ? 'conversión' : 'conversiones'
     return {
-      etiqueta: `arrastra ${numeroDeuda(ajuste.pendiente)} ${unidad} de anulaciones${de}`,
+      etiqueta: `arrastra ${texto} ${unidad} de anulaciones${de}`,
       detalle: origenes.length > 0
         ? origenes
           .map((origen) => `${nombreMes(origen.periodo)}: ${origen.motivo} (−${numeroDeuda(origen.numerador)})`)
@@ -351,9 +354,10 @@ export function descuentoArrastre(ajuste: AjusteConversion | undefined): Descuen
   }
   const aplicado = ajuste.aplicado ?? 0
   if (aplicado > 0) {
-    const unidad = aplicado === 1 ? 'conversión descontada' : 'conversiones descontadas'
+    const texto = numeroDeuda(aplicado)
+    const unidad = texto === '1' ? 'conversión descontada' : 'conversiones descontadas'
     return {
-      etiqueta: `−${numeroDeuda(aplicado)} ${unidad} al cierre`,
+      etiqueta: `−${texto} ${unidad} al cierre`,
       detalle: 'Anulaciones de meses cerrados, descontadas al sellar este mes.',
     }
   }

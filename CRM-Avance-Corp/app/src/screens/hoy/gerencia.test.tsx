@@ -54,7 +54,11 @@ vi.mock('@/lib/store-context', () => ({
 // Paneles que viven de RPCs (TanStack) o de Recharts: fuera, no son lo que se
 // prueba aquí y montarlos exigiría un QueryClient y el bundle de gráficas.
 vi.mock('./distribucion-leads-gerencia', () => ({ DistribucionLeadsGerencia: () => null }))
-vi.mock('./inteligencia-comercial', () => ({ InteligenciaComercialPanel: () => null }))
+vi.mock('./inteligencia-comercial', () => ({
+  InteligenciaComercialPanel: ({ error }: { error: string | null }) => (
+    <h1>Inteligencia comercial{error ? ` · ERROR: ${error}` : ''}</h1>
+  ),
+}))
 vi.mock('./ranking-vendedores', () => ({
   RankingVendedoresPanel: ({ error }: { error: string | null }) => (
     <h1>Ranking de vendedores{error ? ` · ERROR: ${error}` : ''}</h1>
@@ -442,5 +446,14 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
   it('con la mensual sana no se inventa ningún error', () => {
     montar({}, 'ranking-vendedores')
     expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
+  })
+
+  it('Inteligencia Comercial también recibe el fallo de la MENSUAL (no lo oculta)', () => {
+    // Observación #3 de la revisión externa: su héroe y su ficha beben de la
+    // mensual, pero el error que recibía era solo el del payload de rango.
+    CONVERSION_MENSUAL_FALLA = true
+    montar({}, 'conversiones')
+
+    expect(screen.getByText(/ERROR: No se pudo calcular la conversión mensual\./)).toBeInTheDocument()
   })
 })

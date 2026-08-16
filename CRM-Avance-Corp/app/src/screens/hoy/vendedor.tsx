@@ -66,6 +66,7 @@ import {
 import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
+import { ChipArrastre } from '@/components/common/chip-arrastre'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
@@ -1044,12 +1045,7 @@ export function HoyVendedor(): JSX.Element {
                         ? (
                           <>
                             {' · '}
-                            <span className="font-semibold" title={descuento.detalle}>
-                              {descuento.etiqueta}
-                              {/* El title es solo-ratón: el detalle (mes,
-                                  motivo, cuánto) también viaja a lectores. */}
-                              <span className="sr-only">. {descuento.detalle}</span>
-                            </span>
+                            <ChipArrastre descuento={descuento} />
                           </>
                         )
                         : null
@@ -1079,10 +1075,22 @@ export function HoyVendedor(): JSX.Element {
                             : undefined}
             />
           </div>
-          {(objetivosError || cumplimientoMetasError) && (
+          {(objetivosError || cumplimientoMetasError || conversionMensualError) && (
             <div className="mt-4 flex flex-wrap items-center gap-2">
               <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
-              <Button variant="ghost" size="sm" onClick={() => void recargar()}>Reintentar</Button>
+              {/* El reintento cubre TAMBIÉN la conversión mensual (observación
+                  #4 de la revisión externa: el tile decía «no disponible» sin
+                  salida — recargar() solo repone el store, no esta query). */}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  if (objetivosError || cumplimientoMetasError) void recargar()
+                  if (conversionMensualError) void qConversionMensual.refetch()
+                }}
+              >
+                Reintentar
+              </Button>
             </div>
           )}
         </CardContent>

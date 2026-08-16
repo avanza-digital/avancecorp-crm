@@ -34,6 +34,7 @@ import {
   lineaReferidos,
   type ConversionMensual,
 } from '@/lib/conversion-mensual'
+import { ChipArrastre } from '@/components/common/chip-arrastre'
 import {
   adaptarConversionMensual,
   adaptarConversionVendedores,
@@ -361,13 +362,10 @@ function DetalleVendedor({
                   const descuento = descuentoArrastre(detalleMes?.ajuste)
                   return descuento
                     ? (
-                      <span
-                        className="w-full text-[11px] font-semibold text-[var(--gi-muted)]"
-                        title={descuento.detalle}
-                      >
-                        {descuento.etiqueta}
-                        <span className="sr-only">. {descuento.detalle}</span>
-                      </span>
+                      <ChipArrastre
+                        descuento={descuento}
+                        className="w-full text-[11px] font-semibold text-[var(--muted-foreground-strong)]"
+                      />
                     )
                     : null
                 })()}

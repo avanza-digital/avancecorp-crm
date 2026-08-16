@@ -1,4 +1,4 @@
-import { useMemo, useState, type JSX } from 'react'
+import { useMemo, useState, type JSX, type ReactNode } from 'react'
 import { AlertTriangle, RefreshCw, Target, Trophy } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -11,6 +11,7 @@ import {
 import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mensual'
+import { ChipArrastre } from '@/components/common/chip-arrastre'
 import {
   adaptarConversionMensual,
   adaptarConversionVendedores,
@@ -120,6 +121,25 @@ function CargandoTabpanel({ tab, mensaje }: { tab: TipoRanking; mensaje: string 
   )
 }
 
+/**
+ * Mantiene VIVO el nodo `tabpanel` que los tabs prometen por `aria-controls`
+ * también en ERROR y VACÍO (observación #6): sin él, el tab activo apuntaba a
+ * un id inexistente en esas dos ramas (carga y «meta no comparable» ya lo
+ * hacían bien).
+ */
+function TabpanelMarco({ tab, children }: { tab: TipoRanking; children: ReactNode }): JSX.Element {
+  const esConversion = tab === 'conversion'
+  return (
+    <div
+      role="tabpanel"
+      id={esConversion ? 'panel-ranking-conversion' : 'panel-ranking-capital'}
+      aria-labelledby={esConversion ? 'tab-ranking-conversion' : 'tab-ranking-capital-total'}
+    >
+      {children}
+    </div>
+  )
+}
+
 function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: () => void }): JSX.Element {
   return (
     <div className="m-4 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3 sm:m-5" role="alert">
@@ -168,10 +188,7 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                   <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-navy)]">
                     {pct(conversion)}
                     {descuento && (
-                      <span className="block text-[10px] font-semibold text-[var(--gi-muted)]" title={descuento.detalle}>
-                        {descuento.etiqueta}
-                        <span className="sr-only">. {descuento.detalle}</span>
-                      </span>
+                      <ChipArrastre descuento={descuento} className="block text-left text-[10px] font-semibold text-[var(--muted-foreground-strong)]" />
                     )}
                   </td>
                   <td
@@ -205,10 +222,7 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
               </div>
               <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} recibidos</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
               {descuento && (
-                <p className="ml-12 mt-1 text-[11px] font-semibold text-[var(--gi-muted)]" title={descuento.detalle}>
-                  {descuento.etiqueta}
-                  <span className="sr-only">. {descuento.detalle}</span>
-                </p>
+                <ChipArrastre descuento={descuento} className="ml-12 mt-1 block text-[11px] font-semibold text-[var(--muted-foreground-strong)]" />
               )}
               {fila.estadoConversion === 'solo_arrastre'
                 ? <span className="ml-12 mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
@@ -403,8 +417,12 @@ export function RankingVendedoresPanel({
         </p>
       </div>
 
-      {cargando && !datos ? <CargandoTabpanel tab={tipo} mensaje="Cargando el ranking…" /> : error ? <ErrorRanking error={error} onReintentar={onReintentar} /> : totalVendedores === 0 ? (
-        <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay vendedores para mostrar</p></div></div>
+      {cargando && !datos ? <CargandoTabpanel tab={tipo} mensaje="Cargando el ranking…" /> : error ? (
+        <TabpanelMarco tab={tipo}><ErrorRanking error={error} onReintentar={onReintentar} /></TabpanelMarco>
+      ) : totalVendedores === 0 ? (
+        <TabpanelMarco tab={tipo}>
+          <div className="grid min-h-64 place-items-center px-5 text-center"><div><Target className="mx-auto size-8 text-[var(--gi-muted)]" aria-hidden /><p className="mt-3 text-sm font-semibold">Aún no hay vendedores para mostrar</p></div></div>
+        </TabpanelMarco>
       ) : tipo === 'conversion' ? (
         conversionMensual === undefined
           ? <CargandoTabpanel tab="conversion" mensaje="Consultando la conversión del mes…" />

@@ -275,3 +275,35 @@ describe('ranking general de vendedores', () => {
     expect(screen.queryByRole('region', { name: 'Vendedores sin posición en conversión' })).not.toBeInTheDocument()
   })
 })
+
+describe('la relación pestaña↔panel sobrevive a error y a vacío (observación #6)', () => {
+  const base = {
+    datos: null,
+    conversionMensual: null,
+    equipo: [],
+    metasVendedores: {},
+    cumplimientoVendedores: {},
+    metaMensual: { etiqueta: 'agosto 2026', comparable: true as const },
+    tc: null,
+    cargando: false,
+    onReintentar: vi.fn(),
+  }
+
+  it('en ERROR, el tabpanel que los tabs prometen sigue existiendo', () => {
+    render(<RankingVendedoresPanel {...base} error="No se pudo calcular la conversión mensual." />)
+
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('id', 'panel-ranking-conversion')
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-ranking-conversion')
+    expect(within(panel).getByRole('alert')).toHaveTextContent('No se pudo calcular la conversión mensual.')
+  })
+
+  it('en VACÍO también — y con el id de la pestaña ACTIVA', () => {
+    render(<RankingVendedoresPanel {...base} error={null} tabInicial="capital-total" />)
+
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('id', 'panel-ranking-capital')
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-ranking-capital-total')
+    expect(within(panel).getByText('Aún no hay vendedores para mostrar')).toBeInTheDocument()
+  })
+})

@@ -336,9 +336,11 @@ describe('listarCatalogoUsuariosAdministrables: paginación completa', () => {
     ])
     expect(usuarios.every((usuario) => usuario.total === 5)).toBe(true)
     expect(cuerpos).toEqual([
-      { p_busqueda: null, p_limite: 100, p_desde: 0 },
-      { p_busqueda: null, p_limite: 100, p_desde: 2 },
-      { p_busqueda: null, p_limite: 100, p_desde: 4 },
+      // Sin búsqueda, la clave se OMITE (tipos generados + sinIndefinidos):
+      // p_busqueda tiene DEFAULT NULL en el catálogo — ausente ≡ null.
+      { p_limite: 100, p_desde: 0 },
+      { p_limite: 100, p_desde: 2 },
+      { p_limite: 100, p_desde: 4 },
     ])
   })
 })

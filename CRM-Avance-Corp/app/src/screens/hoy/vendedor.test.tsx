@@ -38,6 +38,7 @@ import type { ConversionMensual } from '@/lib/conversion-mensual'
 // En demo la pantalla ni lo consulta (deriva de demo-conversion-mensual).
 let CONVERSION_MENSUAL: ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
+const REFETCH_MENSUAL = vi.fn()
 vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
   return {
@@ -45,6 +46,7 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useConversionMensual: () => ({
       data: CONVERSION_MENSUAL ?? undefined,
       isError: CONVERSION_MENSUAL_ERROR,
+      refetch: REFETCH_MENSUAL,
     }),
   }
 })
@@ -628,6 +630,19 @@ describe('Hoy · vendedor — meta del mes', () => {
     })
 
     expect(screen.queryByText(/de anulaciones|descontad/)).not.toBeInTheDocument()
+  })
+
+  it('la conversión mensual caída SE PUEDE reintentar (y reintenta LA query, no solo el store)', () => {
+    CONVERSION_MENSUAL_ERROR = true
+    REFETCH_MENSUAL.mockClear()
+    montar({
+      objetivos: { conversionObjetivo: 50 },
+      cumplimiento: cumplimientoVendedor(25, 1, 'con-metas', 50),
+    })
+
+    expect(screen.getByText('Conversión del mes no disponible')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Reintentar' }))
+    expect(REFETCH_MENSUAL).toHaveBeenCalledOnce()
   })
 
   // Decisión de Miguel (2026-08-14): un mes INCOMPLETO se ve. El caso real fue
