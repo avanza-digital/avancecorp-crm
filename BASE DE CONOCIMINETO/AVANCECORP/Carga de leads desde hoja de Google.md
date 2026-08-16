@@ -331,5 +331,115 @@ Codificado en `CONSENTIMIENTO_SI_NO_HAY_COLUMNA` + `FUENTE_POR_PESTANA` /
 `FUENTE_POR_DEFECTO` (esta última aplica a toda pestaña sin entrada propia y su texto
 nombra a Facebook: si el origen gana una pestaña nueva, añadirla al mapa).
 
+## 2026-08-16 — La cadena, auditada de punta a punta (y la puerta de atrás, cerrada)
+
+Miguel pidió arreglar los dos scripts. Antes de tocar nada, los hechos:
+
+| Hecho | Cómo se comprobó |
+|---|---|
+| **El origen está CONGELADO desde el 24-jul** | `modifiedTime` del fichero de Drive. No hay nada nuevo que traer: la cadena está seca **en la fuente**, no en el puente |
+| El origen **no es nuestro** | dueño `consultas@creaemprendedor.com`. Quién lo alimenta es pregunta para ellos; nosotros solo leemos |
+| La pestaña LEADS está **vacía** | export de Drive: solo la cabecera |
+| `_puente_huellas` conserva **~230 huellas** | esos leads NO vuelven a entrar — correcto, la limpieza del dataset fue deliberada |
+| `crm.leads` = **5**, ninguno de importación | SQL: `creado_por is null` → 0 |
+| La suite del puente llevaba **rota desde el 11-ago** | 5 de 15 en rojo; `4473fd5` movió el corte y no tocó los fixtures |
+| Nadie la corría | `test:puente` no estaba en ningún gate ni en CI |
+
+### La puerta de atrás del corte (lo que de verdad había que arreglar)
+
+`FECHA_CORTE` **solo frena las filas CON fecha legible**. Las que vienen sin fecha lo
+esquivan por diseño (regla de Miguel del 27-jul) — y en este origen **las filas sin
+fecha son backlog viejo disperso**: las huellas lo enseñan (`landing` 671-872 y
+2508-5288 sin fecha, mientras lo fechado del 23-24 de julio está al final, 6122-6158).
+La única defensa era **acordarse de apagar el temporizador a mano**, y con el corte ya
+vencido la puerta estaba abierta de par en par: encender el puente habría metido leads
+de julio con etiqueta de agosto, falseando el divisor de la conversión del mes.
+
+**El arreglo — MARCA DE AGUA** (`_puente_marcas`, oculta y protegida, **por sheetId**
+para que renombrar una pestaña no borre la memoria):
+
+- una fila **sin fecha que ya estaba** la vez anterior es historia → no entra;
+- una fila **sin fecha que aparece después** es un lead nuevo → entra, como pidió Miguel.
+
+**La frontera se pone A MANO, una vez**: menú → *Inicializar marca de agua*. Importa
+**cero** leads, deja reporte y **no mueve una marca ya puesta** (si se volviera a correr
+por costumbre, empujaría la frontera y los leads llegados entretanto desaparecerían sin
+rastro). **Si no hay marcas, el puente se detiene y lo dice** — una primera pasada que
+la adoptara en silencio sería la misma trampa con otra cara.
+
+**Y la marca por número de fila solo vale mientras el origen crezca por abajo, que es un
+supuesto y no una ley.** `revisarPestana()` lo comprueba en CADA pasada y **detiene la
+pestaña entera** si: desaparecen filas · cambian los encabezados · la pestaña es nueva ·
+las **tres últimas filas ancladas por contenido** ya no dicen lo mismo (= se ordenó o se
+insertó en medio). La pestaña detenida sale arriba del reporte y su marca queda intacta.
+
+### Otras trampas cerradas el mismo día
+
+- **`insertSheet(nombre)` coloca la pestaña junto a la ACTIVA**, no al final — y el
+  conector importa de `getSheets()[0]`. Una pestaña de memoria delante lo pondría a leer
+  huellas como si fueran leads. Las tres creaciones van ahora con índice fijado al final.
+- **La huella lleva una "h" delante**: sin ella, `"00123456"` viaja a la celda, Sheets la
+  lee como el número `123456` y la comparación **falla en cada corrida** (falsa alarma
+  perpetua).
+- **Candado en toda pasada que escribe**: la corrida de las 9 y un *Traer* a mano se
+  solapaban y, como las huellas se guardan al final, escribían los mismos leads dos veces.
+- La marca **avanza solo después** de escribir los leads y guardar sus huellas.
+
+### Gate nuevo: `npm run gate:apps-script`
+
+Falla si un `.gs` **invoca una función que no existe** — exactamente el fallo que se
+cometió ese día (`leerMarcas`/`guardarMarcas` llamadas antes de escribirlas) — y si dos
+archivos del mismo proyecto de Apps Script **chocan de nombre** (dos `const` iguales en
+el ámbito global es un SyntaxError que tumba el proyecto entero, menú incluido).
+`node --check` no ve nada de esto: es JavaScript válido y revienta **en caliente**, a las
+9 de la mañana, tras leer 12.000 filas.
+
+⚠️ **A prueba de comentarios, textos y expresiones regulares.** La versión ingenua leía
+la prosa de los comentarios y las regex como llamadas: **60 falsos positivos**, tanto
+ruido que se acabaría ignorando. Misma lección que el oráculo del cierre de mes.
+
+`check:scripts` ahora corre el gate **y** `test:puente`.
+
+### Estado de las pruebas
+
+**15 (5 en rojo) → 30 en verde.** Las fechas **se derivan del corte**, que es justo lo
+que las pudrió en silencio: las tres que hablan de fechas prueban la frontera (víspera,
+día del corte, día siguiente) y las que no hablan de fechas ya no pueden romperse al
+moverla. **Los 8 mutantes** que neutralizan cada arreglo **mueren**.
+
+### Fecha de arranque: LUNES 17 DE AGOSTO
+
+Orden de Miguel (2026-08-16): «los leads quiero que desde el lunes que viene comiencen a
+llegar al sistema desde el 17 de agosto». `FECHA_CORTE = "2026-08-17"`. El 15 y el 16
+cayeron en sábado y domingo con la cadena apagada. **El 17 marca desde cuándo cuentan los
+leads, no obligatoriamente el día en que se enciende.**
+
+### ⛔ NO DESPLEGADO — qué falta
+
+Nada de esto está pegado en Apps Script todavía. Por fases:
+
+- **Fase 0 (de Miguel, manda sobre todo):** confirmar quién alimenta el origen, probar
+  con una respuesta controlada que la campaña escribe fila, y decidir la vía si esa hoja
+  ya no es la fuente oficial. **Sin agua, el resto es fontanería.**
+- **Fase 2 — capacidad:** el conector prepara solo las primeras 2.000 filas (pasado eso
+  Sheets vuelve a estropear teléfono/DNI/capital); calcular capacidad e insertar filas
+  antes de escribir; `getSheetByName("LEADS")` estricto ⚠️ **verificar antes cómo se
+  llama la primera pestaña** — hoy hay un respaldo `getSheets()[0]` que disimula; separar
+  `prepararHoja()` de `activarConector()` (hoy `configurar()` hace formato + disparador +
+  importación en un botón).
+- **Fase 3 — simulador de Hojas** (~80 líneas) para poder probar `procesar` entero:
+  corridas simultáneas, fallo parcial de escritura, avance de marca al tope, pestaña
+  renombrada, más de 2.000 filas. Es el trozo más grande.
+- **Fase 4 — cadencia y observabilidad:** las 9 a. m. dejan un lead de las 9:05 esperando
+  casi un día. Cada 15 min **con pre-chequeo barato** (mirar solo cuántas filas tiene cada
+  pestaña y salir si no creció; si no, 96 lecturas de 12.000 filas se comen la cuota
+  diaria de Apps Script). Panel de estado y alertas — la de «fuente seca» **apagada de
+  fábrica** hasta que el origen reviva, o manda un correo diario para siempre.
+- **Fase 5 — activación controlada:** exportar `_puente_huellas` **antes** de pegar nada
+  (memoria irrecuperable) · pegar · `prepararHoja()` · `inicializarMarcas()` y comprobar
+  que importa cero · vista previa sin nada anterior al 17 · lead controlado extremo a
+  extremo · y solo entonces encender. Rollback = apagar disparadores y restaurar scripts,
+  **sin borrar** `_puente_huellas` ni `_puente_marcas`.
+
 ## Relacionadas
 [[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]
