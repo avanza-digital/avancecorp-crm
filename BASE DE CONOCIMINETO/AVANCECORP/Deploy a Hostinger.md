@@ -179,3 +179,16 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
   el deploy; purga → 404 y el nuevo siguió idéntico) — comprobado, no asumido. Suites:
   1833 unitarias + e2e 86/86 EXIT 0 · advisors 122/0 ERROR. Rollback inmediato:
   `releases/crm-20260816T042501Z-8dcf6379415b.zip` (el 24.º).
+
+- **Deploy 2026-08-16 (~00:35 hora de Lima) — CRM: el Resumen de Gerencia deja de ocultar
+  el fallo de la conversión mensual (26.º release):** publica `bda84ee`, artefacto
+  `crm-20260816T053245Z-bda84ee8c8de` (SHA-256 `1f22bc9d…`). Tercera pasada del revisor
+  externo: el Resumen era la TERCERA pantalla del mismo hueco (su error y su reintento no
+  cubrían la mensual que consume) — cableado con test. En el mismo commit, del lado
+  repo-solo: el bloque 17 del oráculo pasó a exigir la LLAMADA COMPLETA al candado (no
+  las claves sueltas — una función sin lock pasaba en verde, demostrado) con dos mutantes
+  fieles muriendo en su FALLO 17. **Verificación en vivo:** portada 200 ·
+  `index-Cn2TxHDK.js` referenciado, **sha256 local↔vivo idéntico** (`28e56355…`) · anon
+  key dentro del ZIP · el bundle del 25.º en 404 **sin necesitar purga** (comprobado).
+  Suites: 1834 unitarias + e2e 86/86 EXIT 0. Rollback:
+  `releases/crm-20260816T051033Z-eb75b28a0106.zip` (el 25.º).
