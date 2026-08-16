@@ -1,6 +1,6 @@
 import * as v from 'valibot'
 import { sb, type ClienteCrm } from '@/lib/supabase'
-import type { Database } from '@/lib/database.types'
+import type { Database, Json } from '@/lib/database.types'
 import { idCorrelacion, registrarError } from '@/lib/observabilidad'
 import {
   CATEGORIAS_INTERES,
@@ -292,6 +292,21 @@ export function mensajeDeError(e: unknown, porDefecto: string): string {
  */
 export function nuloExplicito<T>(valor: T | null): T {
   return valor as T
+}
+
+/**
+ * Quita las claves cuyo valor es `undefined`. Los args opcionales del tipado
+ * generado exigen OMITIR la clave bajo `exactOptionalPropertyTypes` (ni null
+ * ni undefined explícitos) — y omitirla es EXACTAMENTE lo que JSON.stringify
+ * ya hacía en el cable con los undefined: cero cambio de payload; PostgREST
+ * resuelve el DEFAULT del parámetro ausente (DEFAULT NULL en los catalogados).
+ */
+export function sinIndefinidos<T extends Record<string, unknown>>(
+  args: T,
+): { [K in keyof T]: Exclude<T[K], undefined> } {
+  return Object.fromEntries(
+    Object.entries(args).filter(([, valor]) => valor !== undefined),
+  ) as { [K in keyof T]: Exclude<T[K], undefined> }
 }
 
 function cliente(): ClienteCrm {
@@ -932,10 +947,10 @@ export async function verificarDisponibilidadLead(
   signal?: AbortSignal,
 ): Promise<DisponibilidadLead> {
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('verificar_disponibilidad_lead', {
+  let consulta = cliente().schema('crm').rpc('verificar_disponibilidad_lead', sinIndefinidos({
     p_telefono: telefono,
-    p_dni: dni ?? null,
-  })
+    p_dni: dni ?? undefined,
+  }))
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error, status } = await consulta
@@ -1118,23 +1133,24 @@ function aErrorInsertarLead(
 }
 
 export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<ResultadoCreacionLeadAtomica> {
-  const { data, error } = await cliente().schema('crm').rpc('crear_lead_si_disponible', {
+  const { data, error } = await cliente().schema('crm').rpc('crear_lead_si_disponible', sinIndefinidos({
     p_nombre_completo: fila.nombre_completo,
     p_telefono: fila.telefono,
     p_origen: fila.origen,
     p_monto_estimado: fila.monto_estimado,
     p_moneda: fila.moneda,
-    p_id: fila.id ?? null,
-    p_correo: fila.correo ?? null,
-    p_dni: fila.dni ?? null,
-    p_genero: fila.genero ?? null,
-    p_fecha_nacimiento: fila.fecha_nacimiento ?? null,
-    p_distrito: fila.distrito ?? null,
+    // Todos con DEFAULT NULL en el catálogo (16/08): omitir la clave ≡ null.
+    p_id: fila.id ?? undefined,
+    p_correo: fila.correo ?? undefined,
+    p_dni: fila.dni ?? undefined,
+    p_genero: fila.genero ?? undefined,
+    p_fecha_nacimiento: fila.fecha_nacimiento ?? undefined,
+    p_distrito: fila.distrito ?? undefined,
     p_etapa: fila.etapa ?? 'nuevo',
-    p_categoria_interes: fila.categoria_interes ?? null,
-    p_vendedor_id: fila.vendedor_id ?? null,
-    p_nota: fila.nota ?? null,
-  })
+    p_categoria_interes: fila.categoria_interes ?? undefined,
+    p_vendedor_id: fila.vendedor_id ?? undefined,
+    p_nota: fila.nota ?? undefined,
+  }))
   if (error) throw aErrorInsertarLead(error)
 
   const resultado = v.safeParse(ResultadoCreacionLeadAtomicaSchema, data)
@@ -1364,13 +1380,13 @@ export interface CerrarTareaInput {
  * siguiente en UNA transacción. El UPDATE directo no puede completar (trigger).
  */
 export async function cerrarTarea(input: CerrarTareaInput): Promise<{ siguiente_id: string | null }> {
-  const { data, error } = await cliente().schema('crm').rpc('cerrar_tarea', {
+  const { data, error } = await cliente().schema('crm').rpc('cerrar_tarea', sinIndefinidos({
     p_tarea_id: input.tarea_id,
     p_estado: input.estado,
-    p_resultado_tipo: input.resultado_tipo ?? null,
-    p_resultado_detalle: input.resultado_detalle ?? null,
-    p_siguiente: input.siguiente ?? null,
-  })
+    p_resultado_tipo: input.resultado_tipo ?? undefined,
+    p_resultado_detalle: input.resultado_detalle ?? undefined,
+    p_siguiente: (input.siguiente ?? null) as Json,
+  }))
   if (error) throw aErrorApi(error, 'crm.tareas.cierre_fallido')
   const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
   return { siguiente_id: siguiente }
@@ -1388,14 +1404,14 @@ export interface CerrarReunionInput {
 export async function cerrarReunion(
   input: CerrarReunionInput,
 ): Promise<{ siguiente_id: string | null }> {
-  const { data, error } = await cliente().schema('crm').rpc('cerrar_reunion', {
+  const { data, error } = await cliente().schema('crm').rpc('cerrar_reunion', sinIndefinidos({
     p_tarea_id: input.tarea_id,
     p_estado: input.estado,
-    p_resultado_reunion: input.resultado_reunion ?? null,
-    p_motivo_no_realizada: input.motivo_no_realizada ?? null,
-    p_detalle: input.detalle ?? null,
-    p_siguiente: input.siguiente ?? null,
-  })
+    p_resultado_reunion: input.resultado_reunion ?? undefined,
+    p_motivo_no_realizada: input.motivo_no_realizada ?? undefined,
+    p_detalle: input.detalle ?? undefined,
+    p_siguiente: (input.siguiente ?? null) as Json,
+  }))
   if (error) throw aErrorApi(error, 'crm.reuniones.cierre_fallido')
   const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
   return { siguiente_id: siguiente }
@@ -1658,11 +1674,11 @@ export async function crearContrato(
   }
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
-  const p_cronograma = cronograma as unknown as Record<string, unknown>[]
+  const p_cronograma = cronograma as unknown as Json[]
   const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta', {
-    p_contrato,
+    p_contrato: p_contrato as unknown as Json,
     p_cronograma,
-    p_cuenta: input.cuenta_pago as unknown as Record<string, unknown>,
+    p_cuenta: input.cuenta_pago as unknown as Json,
   })
   if (error) throw aErrorApi(error, 'crm.contrato.crear_fallido')
   const r = v.safeParse(CrearContratoResultadoSchema, data)
@@ -2270,8 +2286,8 @@ export async function actualizarContrato(
   if (contrato.titulares) p_contrato.titulares = contrato.titulares
   const { error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta', {
     p_id: id,
-    p_contrato,
-    p_cronograma: cronograma as unknown as Record<string, unknown>[],
+    p_contrato: p_contrato as unknown as Json,
+    p_cronograma: cronograma as unknown as Json[],
   })
   // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
   // a diferencia del UPDATE a perfiles que se queda callado.
@@ -3030,7 +3046,7 @@ export async function convertirLeadExterno(
     )
   }
 
-  const { data, error } = await cliente().schema('crm').rpc('convertir_lead_externo', {
+  const { data, error } = await cliente().schema('crm').rpc('convertir_lead_externo', sinIndefinidos({
     p_lead_id: datos.leadId,
     p_cooperativa: datos.cooperativa,
     p_monto: datos.monto,
@@ -3039,10 +3055,10 @@ export async function convertirLeadExterno(
     p_documento: documento,
     p_nombre: nombre,
     p_numero_transaccion: numeroTransaccion,
-    p_referencia: datos.referencia?.trim() || null,
-    p_vence_en: datos.venceEn ?? null,
-    p_nota: datos.nota?.trim() || null,
-  })
+    p_referencia: datos.referencia?.trim() || undefined,
+    p_vence_en: datos.venceEn ?? undefined,
+    p_nota: datos.nota?.trim() || undefined,
+  }))
 
   if (error) {
     let fallo: CrmApiError
@@ -3131,7 +3147,7 @@ export async function corregirCierreExterno(
     // SIN default en el catálogo: la clave es obligatoria y el null explícito
     // significa «limpiar el campo» — debe seguir viajando tal cual.
     p_referencia: nuloExplicito(datos.referencia?.trim() || null),
-    p_vence_en: datos.venceEn,
+    p_vence_en: nuloExplicito(datos.venceEn),
     p_nota: nuloExplicito(datos.nota?.trim() || null),
   })
 

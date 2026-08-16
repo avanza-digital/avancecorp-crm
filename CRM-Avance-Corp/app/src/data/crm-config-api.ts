@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { CrmApiError, nuloExplicito } from './crm-api'
+import { CrmApiError, nuloExplicito, sinIndefinidos } from './crm-api'
 import { sb, type ClienteCrm } from '@/lib/supabase'
 import { registrarError } from '@/lib/observabilidad'
 import {
@@ -137,11 +137,11 @@ export async function listarUsuariosAdministrables(
   signal?: AbortSignal,
 ): Promise<UsuarioAdministrable[]> {
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('usuarios_administrables_fn', {
-    p_busqueda: busqueda.trim() || null,
+  let consulta = cliente().schema('crm').rpc('usuarios_administrables_fn', sinIndefinidos({
+    p_busqueda: busqueda.trim() || undefined,
     p_limite: limite,
     p_desde: desde,
-  })
+  }))
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
