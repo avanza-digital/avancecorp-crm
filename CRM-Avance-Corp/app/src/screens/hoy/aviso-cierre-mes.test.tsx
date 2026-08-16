@@ -3,10 +3,20 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const dobles = vi.hoisted(() => ({
   cierreEstado: {} as Record<string, unknown>,
+  cierreHabilitada: undefined as boolean | undefined,
+  yo: { id: '11111111-1111-4111-8111-111111111111', demo: false } as { id: string; demo: boolean },
 }))
 
 vi.mock('@/data/crm-queries', () => ({
-  useCierreMesEstado: () => dobles.cierreEstado,
+  useCierreMesEstado: (habilitada: boolean) => {
+    dobles.cierreHabilitada = habilitada
+    return dobles.cierreEstado
+  },
+}))
+
+// Sesión real por defecto: el panel se apaga solo en demo, desde dentro.
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({ yo: dobles.yo }),
 }))
 
 const { AvisoCierreMesPanel } = await import('./aviso-cierre-mes')
@@ -29,6 +39,8 @@ function estado(pendiente: Record<string, unknown> | null) {
 
 beforeEach(() => {
   dobles.cierreEstado = estado(null)
+  dobles.cierreHabilitada = undefined
+  dobles.yo = { id: '11111111-1111-4111-8111-111111111111', demo: false }
 })
 
 describe('AvisoCierreMesPanel', () => {
@@ -65,6 +77,14 @@ describe('AvisoCierreMesPanel', () => {
     const alarma = screen.getByRole('alert')
     expect(alarma).toHaveTextContent('El cierre de junio está atascado')
     expect(alarma).toHaveTextContent(/Debió sellarse el 10 jul\. 2026/)
+  })
+
+  it('en DEMO no consulta ni pinta: el demo es hermético y esta maquinaria es real', () => {
+    dobles.yo = { id: '11111111-1111-4111-8111-111111111111', demo: true }
+    const { container } = render(<AvisoCierreMesPanel />)
+
+    expect(dobles.cierreHabilitada).toBe(false)
+    expect(container).toBeEmptyDOMElement()
   })
 
   it('si el estado no responde, no hay banner (advisory, fail-open)', () => {

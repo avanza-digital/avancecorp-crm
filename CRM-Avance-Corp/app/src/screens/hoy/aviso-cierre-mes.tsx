@@ -2,6 +2,7 @@ import type { JSX } from 'react'
 import { CalendarClock, TriangleAlert } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { useCierreMesEstado } from '@/data/crm-queries'
+import { useAuth } from '@/lib/auth-context'
 import { avisoDelCiclo } from '@/lib/cierre-de-mes'
 
 /**
@@ -15,7 +16,11 @@ import { avisoDelCiclo } from '@/lib/cierre-de-mes'
  * NOMBRA el servidor; aquí solo se pinta.
  */
 export function AvisoCierreMesPanel(): JSX.Element | null {
-  const estado = useCierreMesEstado(true)
+  // Apagado en demo DESDE DENTRO (no solo por el gate de la pantalla): el demo
+  // es hermético y esta consulta habla de la maquinaria real. Si alguien monta
+  // el panel en otra pantalla mañana, no hereda el olvido.
+  const { yo } = useAuth()
+  const estado = useCierreMesEstado(Boolean(yo) && yo?.demo !== true)
   const aviso = estado.data ? avisoDelCiclo(estado.data) : null
   if (!aviso) return null
   const alarma = aviso.tono === 'alarma'

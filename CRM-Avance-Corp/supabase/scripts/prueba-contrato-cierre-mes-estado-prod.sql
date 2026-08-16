@@ -18,22 +18,33 @@
 -- generador local `fixture-cierre-mes-estado.sql`.
 -- Si algún *_ok sale false: enumerar con jsonb_object_keys y actualizar
 -- contrato + este fichero EN EL MISMO cambio.
+--
+-- ⚠️ El set_config de claims de abajo solo tiene sentido bajo la sesión
+-- postgres del operador (quien puede correrlo ya puede leerlo todo, no eleva
+-- nada). PROHIBIDO copiar el patrón a funciones SECURITY DEFINER o edges:
+-- ahí sí sería una puerta.
 -- ---------------------------------------------------------------------------
-begin;
+-- READ ONLY: que el «solo lectura» del encabezado lo haga cumplir el servidor,
+-- no la disciplina de quien edite este fichero mañana.
+begin transaction read only;
 
--- Un perfil con rol CRM (cualquiera: el payload no varía por rol).
-select set_config(
-  'request.jwt.claims',
-  json_build_object(
-    'sub', (
-      select p.id from public.perfiles p
-      where private.rol_crm(p.id) in ('gerencia', 'coordinador', 'supervisor', 'vendedor')
-      limit 1
-    ),
-    'role', 'authenticated'
-  )::text,
-  true
-);
+-- Un perfil con rol CRM (cualquiera: el payload no varía por rol). En un DO y
+-- no en un SELECT: set_config devuelve el valor asignado y el uuid real del
+-- perfil no tiene por qué salir por la terminal ni quedar en logs de CI.
+do $impersonar$ begin
+  perform set_config(
+    'request.jwt.claims',
+    json_build_object(
+      'sub', (
+        select p.id from public.perfiles p
+        where private.rol_crm(p.id) in ('gerencia', 'coordinador', 'supervisor', 'vendedor')
+        limit 1
+      ),
+      'role', 'authenticated'
+    )::text,
+    true
+  );
+end $impersonar$;
 
 -- 1) El payload entero, para el registro.
 select jsonb_pretty(crm.cierre_mes_estado_fn()) as payload_prod;

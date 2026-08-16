@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useConfiguracionMetas, usePublicarMetas } from '@/data/crm-config-queries'
 import { useCierreMesEstado } from '@/data/crm-queries'
+import { useAuth } from '@/lib/auth-context'
 import { obtenerConfiguracionMetas, publicacionDesdeConfiguracion } from '@/data/crm-config-api'
 import { mensajeDeError } from '@/data/crm-api'
 import { useCRMData } from '@/lib/store-context'
@@ -289,7 +290,11 @@ export function ConfigMetas() {
   // es comparar fechas. Consulta ADVISORY y fail-open: si cae, el banner no
   // sale y publica quien quiera — el candado real es el trigger del servidor,
   // cuyo rechazo llega al toast como mensaje de negocio (REGLA_SERVIDOR).
-  const estadoCierre = useCierreMesEstado(true)
+  // Apagada en DEMO (hallazgo de la auditoría F2): el demo es hermético y esta
+  // era la única consulta de la pantalla que salía a la red igual — fallaba en
+  // silencio y ensuciaba registrarError en cada montaje.
+  const { yo } = useAuth()
+  const estadoCierre = useCierreMesEstado(yo?.demo !== true)
   const ultimoSellado = estadoCierre.data?.ultimo_cerrado ?? null
   const mesCerrado = ultimoSellado !== null && periodo.slice(0, 7) <= ultimoSellado.mes
   // Publicar invalida la consulta del EDITOR, pero los paneles («Hoy», el

@@ -28,6 +28,10 @@
 --     -v sellado=/tmp/estado-sellado.json \
 --     -f supabase/scripts/fixture-cierre-mes-estado.sql
 --
+-- ⛔ NUNCA contra producción ni una branch: SOLO la base desechable del banco.
+-- El guard de la primera línea lo hace cumplir — detecta el banco por su
+-- SEMÁNTICA (su auth.uid() lee test.uid), no por el nombre de la base.
+--
 -- Termina en ROLLBACK: no deja nada sembrado (la copia con costura tampoco:
 -- el CREATE FUNCTION es transaccional).
 --
@@ -43,6 +47,18 @@
 -- ---------------------------------------------------------------------------
 \set ON_ERROR_STOP on
 begin;
+
+-- 0) GUARD DE ENTORNO (hallazgo de la auditoría F2): hasta ahora la
+--    no-ejecución contra prod era un accidente feliz (el 42501 de rebote).
+--    Ahora es un diseño: si auth.uid() no responde al GUC del banco, se aborta
+--    aquí, antes de la costura y de cualquier siembra.
+select set_config('test.uid', '00000000-0000-4000-8000-00000000c0da', true);
+do $guard$ begin
+  if (select auth.uid()) is distinct from '00000000-0000-4000-8000-00000000c0da'::uuid then
+    raise exception 'auth.uid() no responde a test.uid: esto NO es el banco local. Abortando antes de tocar nada.';
+  end if;
+end $guard$;
+select set_config('test.uid', '', true);
 
 -- 1) La costura del reloj, a maquina desde la fuente viva.
 do $costura$

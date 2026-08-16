@@ -6,6 +6,8 @@ import type { ConfiguracionMetas, DetalleMeta } from '@/lib/metas-versionadas'
 const dobles = vi.hoisted(() => ({
   consulta: {} as Record<string, unknown>,
   cierreEstado: {} as Record<string, unknown>,
+  cierreHabilitada: undefined as boolean | undefined,
+  yo: { id: '30000000-0000-4000-8000-000000000001', demo: false } as { id: string; demo: boolean },
   publicar: vi.fn(),
   recargar: vi.fn(),
   obtenerAnterior: vi.fn(),
@@ -33,7 +35,15 @@ vi.mock('@/data/crm-config-queries', () => ({
 
 // El estado del cierre de mes es advisory: el editor solo lee `data.ultimo_cerrado`.
 vi.mock('@/data/crm-queries', () => ({
-  useCierreMesEstado: () => dobles.cierreEstado,
+  useCierreMesEstado: (habilitada: boolean) => {
+    dobles.cierreHabilitada = habilitada
+    return dobles.cierreEstado
+  },
+}))
+
+// Sesión real por defecto: la consulta del estado solo se apaga en demo.
+vi.mock('@/lib/auth-context', () => ({
+  useAuth: () => ({ yo: dobles.yo }),
 }))
 
 vi.mock('@/data/crm-config-api', async (importActual) => {
@@ -111,6 +121,8 @@ beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 7, 18))
   dobles.consulta = consultaCon(configuracion())
   dobles.cierreEstado = cierreEstadoCon(null)
+  dobles.cierreHabilitada = undefined
+  dobles.yo = { id: '30000000-0000-4000-8000-000000000001', demo: false }
   dobles.publicar.mockReset().mockResolvedValue({})
   dobles.recargar.mockReset().mockResolvedValue(undefined)
   dobles.obtenerAnterior.mockReset().mockResolvedValue(configuracion({
@@ -510,6 +522,21 @@ describe('ConfigMetas', () => {
     expect(await screen.findByText('agosto de 2026 ya está cerrado')).toBeInTheDocument()
     expect(screen.queryByText(/Se cerró el/)).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Copiar mes anterior' })).toBeDisabled()
+  })
+
+  it('en DEMO la consulta del estado se apaga: el demo es hermético', () => {
+    // Hallazgo de la auditoría F2: era la única consulta de la pantalla que
+    // salía a la red en demo (fallaba en silencio y ensuciaba registrarError).
+    dobles.yo = { id: '30000000-0000-4000-8000-000000000001', demo: true }
+    render(<ConfigMetas />)
+
+    expect(dobles.cierreHabilitada).toBe(false)
+    expect(screen.queryByText(/ya está cerrado/)).not.toBeInTheDocument()
+  })
+
+  it('en sesión real la consulta del estado va encendida', () => {
+    render(<ConfigMetas />)
+    expect(dobles.cierreHabilitada).toBe(true)
   })
 
   it('si el estado del cierre no responde, el editor NO se cierra solo (fail-open)', async () => {

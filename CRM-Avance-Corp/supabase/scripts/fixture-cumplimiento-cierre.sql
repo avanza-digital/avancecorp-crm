@@ -22,12 +22,28 @@
 --
 -- Termina en ROLLBACK: no deja nada sembrado.
 --
+-- ⛔ NUNCA contra producción ni una branch: SOLO la base desechable del banco.
+-- El guard de la primera línea lo hace cumplir (detecta el banco por su
+-- semántica: su auth.uid() lee test.uid).
+--
 -- ⚠️ Se impersona al DIRECTORIO (lector global). Con gerencia el calco local de
 -- `private.vendedor_ids_visibles` devuelve vacio —solo modela vendedor y
 -- supervisor— y el payload saldria con `vendedores: []`, que no prueba nada.
 -- ---------------------------------------------------------------------------
 \set ON_ERROR_STOP on
 begin;
+
+-- 0) GUARD DE ENTORNO (auditoría F2, mismo agujero que su hermano): si
+--    auth.uid() no responde al GUC del banco, esto NO es el banco — abortar
+--    antes de sembrar o sellar nada.
+select set_config('test.uid', '00000000-0000-4000-8000-00000000c0da', true);
+do $guard$ begin
+  if (select auth.uid()) is distinct from '00000000-0000-4000-8000-00000000c0da'::uuid then
+    raise exception 'auth.uid() no responde a test.uid: esto NO es el banco local. Abortando antes de tocar nada.';
+  end if;
+end $guard$;
+select set_config('test.uid', '', true);
+
 do $siembra$
 declare
   v_g   uuid := '11111111-1111-4111-8111-111111111111';
