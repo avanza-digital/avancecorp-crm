@@ -2181,3 +2181,30 @@ con lo que ese gate no da: la carrera real de dos sesiones + banco + oraculo
 Verificado contando: huella del trigger `4038c5a02f63742856bb247c630392cf`
 (la que el auditor precomputo), candado antes de la lectura = true, 203
 funciones, advisors 122 con 0 ERROR (misma linea base).
+
+### El candado GLOBAL publicar↔cerrar (`20260815235500`) — ✅ EN PRODUCCION 2026-08-16
+
+Cierra AL 100 % la carrera entre PERIODOS DISTINTOS — el residuo que `20260815223000`
+dejo documentado como inerte (**queda CERRADO por esta**). Miguel lo exigio en la ronda
+de observaciones externas (#2). Un candado GLOBAL (familia 1-arg, locktag disjunto del
+por-mes por `classid` — demostrado con pg_locks) que toman AMBAS puertas antes de su
+por-mes: el trigger del candado de metas y `crm.cerrar_periodo` (parche QUIRURGICO
+desde su fuente viva anclada por md5; el postflight verifica que quitando la insercion
+exacta el md5 vuelve al original, y ademas header SECURITY DEFINER + search_path + ACL
+de anon tras el render — M2 del auditor).
+
+**Probado con dos sesiones reales en el banco, TRES carreras:** publicar P mientras se
+sella M>P → espera ~2 s y muere con «No se publican metas de 2026-04: 2026-05 ya esta
+cerrado», CERO metas muertas (antes entraba en 0 s); mismo mes en orden inverso → el
+cierre espera y sella la revision NUEVA; publicar tras el sello → 22023. Oraculo
+**22/22** con el bloque 17 endurecido A PRUEBA DE COMENTARIOS (observacion #7: un
+`-- perform pg_advisory…` comentado dejaba los strpos en verde — demostrado; ahora todo
+strpos corre sobre prosrc sin comentarios y el mutante muere con FALLO 17).
+
+**Asumido y dicho (auditor, sin bloqueantes):** M1 — la publicacion encolada tras el
+GLOBAL espera sosteniendo equipo SHARE y FOR SHARE sobre ~21 filas de perfiles: los
+segundos del ciclo de las 09:20 tambien frenan a la jerarquia y a UPDATEs del portal
+sobre esas filas. N1 — el por-mes del trigger queda redundante (lo que protege es
+GLOBAL-antes-del-SELECT, exigido por los checks). N2 — deadlock teorico PREEXISTENTE
+ciclo×anulacion via ajustes_mes_cerrado (40P01 + reintento al dia siguiente; el GLOBAL
+no participa). Aplicada FUERA de la ventana de las 09:20 (N3).
