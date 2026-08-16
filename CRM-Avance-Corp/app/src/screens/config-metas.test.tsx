@@ -5,6 +5,7 @@ import type { ConfiguracionMetas, DetalleMeta } from '@/lib/metas-versionadas'
 
 const dobles = vi.hoisted(() => ({
   consulta: {} as Record<string, unknown>,
+  cierreEstado: {} as Record<string, unknown>,
   publicar: vi.fn(),
   recargar: vi.fn(),
   obtenerAnterior: vi.fn(),
@@ -28,6 +29,11 @@ vi.mock('@/data/crm-config-queries', () => ({
     return dobles.consulta
   },
   usePublicarMetas: () => ({ mutateAsync: dobles.publicar, isPending: false }),
+}))
+
+// El estado del cierre de mes es advisory: el editor solo lee `data.ultimo_cerrado`.
+vi.mock('@/data/crm-queries', () => ({
+  useCierreMesEstado: () => dobles.cierreEstado,
 }))
 
 vi.mock('@/data/crm-config-api', async (importActual) => {
@@ -91,9 +97,20 @@ function consultaCon(
   }
 }
 
+/** El payload de `useCierreMesEstado` reducido a lo que el editor consume. */
+function cierreEstadoCon(ultimoCerrado: {
+  mes: string
+  mes_nombre: string
+  cerrado_en: string
+  automatico: boolean
+} | null) {
+  return { data: { ultimo_cerrado: ultimoCerrado }, isError: false }
+}
+
 beforeEach(() => {
   vi.spyOn(Date, 'now').mockReturnValue(Date.UTC(2026, 7, 7, 18))
   dobles.consulta = consultaCon(configuracion())
+  dobles.cierreEstado = cierreEstadoCon(null)
   dobles.publicar.mockReset().mockResolvedValue({})
   dobles.recargar.mockReset().mockResolvedValue(undefined)
   dobles.obtenerAnterior.mockReset().mockResolvedValue(configuracion({
@@ -454,5 +471,54 @@ describe('ConfigMetas', () => {
       .toHaveValue('17,000')
     expect(dobles.publicar).not.toHaveBeenCalled()
     expect(dobles.toastSuccess).toHaveBeenCalledWith('Se copiaron las metas de julio de 2026.')
+  })
+
+  it('un mes sellado se marca cerrado y no deja publicar ni copiar', async () => {
+    // El propio agosto quedó sellado (cierre tardío, el candado es suelo).
+    dobles.cierreEstado = cierreEstadoCon({
+      mes: '2026-08',
+      mes_nombre: 'agosto',
+      cerrado_en: '2026-09-10T14:25:00.000Z',
+      automatico: true,
+    })
+    render(<ConfigMetas />)
+
+    expect(await screen.findByText('agosto de 2026 ya está cerrado')).toBeInTheDocument()
+    expect(screen.getByText(/por el ciclo automático/)).toBeInTheDocument()
+    expect(screen.getByText(/se descuenta en el mes vivo/)).toBeInTheDocument()
+    // «Copiar» no depende de `dirty`: si está deshabilitado, es por el sello.
+    expect(screen.getByRole('button', { name: 'Copiar mes anterior' })).toBeDisabled()
+    // Con el borrador SUCIO: si «Publicar» sigue apagado, lo apagó el sello,
+    // no el `!dirty` — sin esto, quitar `mesCerrado` del botón pasaba en verde.
+    fireEvent.change(screen.getByLabelText(/Meta de conversión de la empresa/), {
+      target: { value: '33' },
+    })
+    expect(screen.getByRole('button', { name: 'Publicar revisión' })).toBeDisabled()
+  })
+
+  it('un mes ANTERIOR al último sellado también queda cerrado, sin fecha propia', async () => {
+    // Mirando agosto con septiembre ya sellado: cerrado por arrastre — la fecha
+    // del banner es del ÚLTIMO sello, no la suya, así que no se inventa.
+    dobles.cierreEstado = cierreEstadoCon({
+      mes: '2026-09',
+      mes_nombre: 'septiembre',
+      cerrado_en: '2026-10-10T14:25:00.000Z',
+      automatico: true,
+    })
+    render(<ConfigMetas />)
+
+    expect(await screen.findByText('agosto de 2026 ya está cerrado')).toBeInTheDocument()
+    expect(screen.queryByText(/Se cerró el/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Copiar mes anterior' })).toBeDisabled()
+  })
+
+  it('si el estado del cierre no responde, el editor NO se cierra solo (fail-open)', async () => {
+    // La consulta es advisory: sin ella no hay banner y los botones siguen —
+    // el candado real es el trigger del servidor, que rechaza con su mensaje.
+    dobles.cierreEstado = { data: undefined, isError: true }
+    render(<ConfigMetas />)
+
+    expect(await screen.findByRole('button', { name: 'Copiar mes anterior' })).toBeEnabled()
+    expect(screen.queryByText(/ya está cerrado/)).not.toBeInTheDocument()
   })
 })

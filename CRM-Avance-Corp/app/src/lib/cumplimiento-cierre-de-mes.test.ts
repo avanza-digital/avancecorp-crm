@@ -479,4 +479,22 @@ describe('payload de cumplimiento tras el cierre de mes', () => {
     expect(jerarquico.porVendedor[VENDEDOR]?.conversionReal).toBe(28.75)
     expect(jerarquico.porVendedor[VENDEDOR]?.conversionObjetivo).toBe(15)
   })
+
+  it('el sello viaja hasta la pantalla: cumplimientoDesdeRpc expone `cierre`', () => {
+    // Parsear no basta si el transformador lo tira al suelo: la marca de «mes
+    // cerrado · cifras definitivas» lee del jerárquico, no del payload crudo.
+    const sellado = cumplimientoDesdeRpc(v.parse(CumplimientoMetasSchema, PAGO_MES_SELLADO), VENDEDOR)
+    expect(sellado.cierre?.cerrado).toBe(true)
+
+    const vivo = cumplimientoDesdeRpc(v.parse(CumplimientoMetasSchema, PAGO_MES_VIVO), VENDEDOR)
+    expect(vivo.cierre?.cerrado).toBe(false)
+
+    // Con un servidor anterior al cierre de mes la clave no viaja: null, no crash.
+    const { cierre: _c, ...raiz } = PAGO_MES_VIVO
+    const viejo = {
+      ...raiz,
+      vendedores: PAGO_MES_VIVO.vendedores.map(({ ajuste: _a, ...resto }) => resto),
+    }
+    expect(cumplimientoDesdeRpc(v.parse(CumplimientoMetasSchema, viejo), VENDEDOR).cierre).toBeNull()
+  })
 })

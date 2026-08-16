@@ -99,6 +99,7 @@ import {
   type MetricasReuniones,
 } from '@/lib/metricas-reuniones'
 import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
+import { CierreMesEstadoSchema, type CierreMesEstadoRpc } from '@/lib/cierre-de-mes'
 import {
   CumplimientoMetasSchema,
   type CumplimientoMetasRpc,
@@ -693,6 +694,34 @@ export async function obtenerCumplimientoMetas(
   }
   const resultado = v.safeParse(CumplimientoMetasSchema, data)
   if (!resultado.success) throw contratoMetasInvalido('crm.metas.cumplimiento_contrato_invalido')
+  return resultado.output
+}
+
+/**
+ * El estado de la MAQUINARIA del cierre de mes (`crm.cierre_mes_estado_fn`):
+ * qué mes pendiente hay y en qué estado (`en_ventana`/`hoy`/`atascado`), y
+ * hasta dónde quedó sellado. Sin cifras ni PII: es el reloj, no un período.
+ * ⚠️ No confundir con `cierres_estado_fn`, que es de los cierres de VENTA.
+ */
+export async function obtenerCierreMesEstado(signal?: AbortSignal): Promise<CierreMesEstadoRpc> {
+  let consulta = cliente().schema('crm').rpc('cierre_mes_estado_fn')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError('No se pudo leer el estado del cierre de mes.', error.code || 'POSTGREST_ERROR')
+    registrarError('crm.cierre_mes.estado_fallido', fallo)
+    throw fallo
+  }
+  const resultado = v.safeParse(CierreMesEstadoSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El servidor devolvió un estado del cierre de mes no reconocido.',
+      'ROW_CONTRACT',
+    )
+    registrarError('crm.cierre_mes.estado_contrato_invalido', fallo)
+    throw fallo
+  }
   return resultado.output
 }
 

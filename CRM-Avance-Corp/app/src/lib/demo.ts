@@ -244,6 +244,8 @@ export const CUMPLIMIENTO_METAS_DEMO: CumplimientoMetasJerarquico = {
   periodo: METAS_DEMO.periodo,
   revision: 1,
   publicadaEn: METAS_DEMO.publicadaEn,
+  // El demo enseña el mes VIVO: la clave viaja y dice «sin sellar».
+  cierre: { cerrado: false },
   fuentesReales: {
     capitalYContratos: 'contratos_confirmados',
     conversion: 'leads_resueltos',

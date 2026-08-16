@@ -246,6 +246,8 @@ const CierreDelMesSchema = v.strictObject({
   automatico: v.optional(v.boolean()),
 })
 
+export type CierreDelMes = v.InferOutput<typeof CierreDelMesSchema>
+
 /**
  * Lo que se le descuenta al asesor por anulaciones de meses ya pagados.
  *
@@ -352,6 +354,11 @@ export interface CumplimientoMetasJerarquico {
   revision: number
   publicadaEn: string | null
   fuentesReales: FuentesRealesCumplimientoMetas
+  /**
+   * El sello del mes mirado: si `cerrado`, estas cifras son la FOTO definitiva
+   * y ya no cambian. `null` solo con un servidor anterior al cierre de mes.
+   */
+  cierre: CierreDelMes | null
   vendedor: CumplimientoComercial | null
   supervisor: CumplimientoComercial | null
   gerencia: CumplimientoComercial | null
@@ -482,6 +489,7 @@ export function cumplimientoDesdeRpc(
       capitalYContratos: respuesta.fuentes_reales.capital_y_contratos,
       conversion: respuesta.fuentes_reales.conversion,
     },
+    cierre: respuesta.cierre ?? null,
     vendedor: actorId ? (porVendedor[actorId] ?? null) : null,
     supervisor: agregarCumplimientos(filas.filter((fila) => fila.supervisorId === actorId)),
     gerencia: agregarCumplimientos(filas),

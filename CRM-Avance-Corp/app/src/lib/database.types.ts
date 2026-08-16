@@ -835,6 +835,10 @@ export interface Database {
         Args: { p_periodo: string }
         Returns: Json
       }
+      cierre_mes_estado_fn: {
+        Args: Record<string, never>
+        Returns: Json
+      }
       conversion_mensual_fn: {
         Args: { p_periodo: string }
         Returns: Json

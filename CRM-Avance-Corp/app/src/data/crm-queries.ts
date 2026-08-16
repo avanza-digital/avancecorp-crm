@@ -19,6 +19,7 @@ import {
   anularCierreExterno,
   convertirLeadExterno,
   corregirCierreExterno,
+  obtenerCierreMesEstado,
   obtenerCierresEstado,
   obtenerCierresExternos,
   listarCarteraPagina,
@@ -96,6 +97,9 @@ export const crmQueryKeys = {
   // por el mismo motivo: el ámbito lo recorta el servidor según quién pregunta.
   conversionMensual: (periodo: string) =>
     [...crmQueryKeys.metricas(), 'conversion-mensual', periodo] as const,
+  // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
+  // Sin parámetros: habla del reloj, no del período que se esté mirando.
+  cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
   // Cierres en cooperativas (Qorilazo/Prodelco). Clave propia bajo metricas():
   // el ámbito lo recorta el servidor. El builder SIN periodo existe para que la
   // mutación de convertir invalide todos los meses cacheados de una pasada.
@@ -439,6 +443,20 @@ export function useConversionMensual(habilitada: boolean, periodo: string) {
     queryKey: crmQueryKeys.conversionMensual(periodo),
     queryFn: ({ signal }) => obtenerConversionMensual(periodo, signal),
     enabled: habilitada && Boolean(periodo),
+  })
+}
+
+/**
+ * El estado de la maquinaria del cierre de mes (`crm.cierre_mes_estado_fn`).
+ * Es ADVISORY para las pantallas: si esta consulta cae, ninguna acción se
+ * habilita de más — el candado real vive en el servidor (trigger 22023 y
+ * guardias de `cerrar_periodo`), y el fallo solo apaga avisos.
+ */
+export function useCierreMesEstado(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.cierreMesEstado(),
+    queryFn: ({ signal }) => obtenerCierreMesEstado(signal),
+    enabled: habilitada,
   })
 }
 

@@ -302,6 +302,8 @@ export function cumplimientoMetasConversionEquipoDemo(): CumplimientoMetasJerarq
     periodo: '2026-08-01',
     revision: 1,
     publicadaEn: '2026-08-01T14:00:00.000Z',
+    // El demo enseña el mes VIVO: la clave viaja y dice «sin sellar».
+    cierre: { cerrado: false },
     fuentesReales: {
       capitalYContratos: 'contratos_confirmados',
       conversion: 'leads_resueltos',

@@ -1,5 +1,5 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
-import { ArrowRight, ChevronLeft, ChevronRight, Copy, RefreshCw, Save, Target, TriangleAlert } from 'lucide-react'
+import { ArrowRight, ChevronLeft, ChevronRight, Copy, Lock, RefreshCw, Save, Target, TriangleAlert } from 'lucide-react'
 import { toast } from 'sonner'
 import { ConfiguracionShell } from '@/components/config/configuracion-shell'
 import { Button } from '@/components/ui/button'
@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { useConfiguracionMetas, usePublicarMetas } from '@/data/crm-config-queries'
+import { useCierreMesEstado } from '@/data/crm-queries'
 import { obtenerConfiguracionMetas, publicacionDesdeConfiguracion } from '@/data/crm-config-api'
 import { mensajeDeError } from '@/data/crm-api'
 import { useCRMData } from '@/lib/store-context'
@@ -283,6 +284,14 @@ export function ConfigMetas() {
   const [periodo, setPeriodo] = useState(() => periodoLima(Date.now()))
   const consulta = useConfiguracionMetas(periodo)
   const publicar = usePublicarMetas(periodo)
+  // Los meses solo se sellan hacia adelante (guardia 2quater del servidor), así
+  // que «≤ al último sellado» = «ya no se toca»; comparar 'YYYY-MM' como texto
+  // es comparar fechas. Consulta ADVISORY y fail-open: si cae, el banner no
+  // sale y publica quien quiera — el candado real es el trigger del servidor,
+  // cuyo rechazo llega al toast como mensaje de negocio (REGLA_SERVIDOR).
+  const estadoCierre = useCierreMesEstado(true)
+  const ultimoSellado = estadoCierre.data?.ultimo_cerrado ?? null
+  const mesCerrado = ultimoSellado !== null && periodo.slice(0, 7) <= ultimoSellado.mes
   // Publicar invalida la consulta del EDITOR, pero los paneles («Hoy», el
   // resumen de gerencia) leen del store, que solo se puebla en el arranque:
   // sin esto, gerencia publicaba y sus propias pantallas seguían diciendo «Sin
@@ -372,6 +381,12 @@ export function ConfigMetas() {
 
   const guardar = async () => {
     if (!borrador) return
+    // Cinturón por si el botón quedó habilitado en una carrera (el mes se sella
+    // entre la carga y el clic): mismo mensaje que daría el servidor.
+    if (mesCerrado) {
+      toast.error(`${nombrePeriodo(periodo)} ya está cerrado: las metas de un mes cerrado no se tocan.`)
+      return
+    }
     const normalizado = clonar(borrador)
     for (const vendedor of normalizado.vendedores) fijarMetaTotal(vendedor, metaTotal(vendedor))
     // Sin esto, quien entró al roster después de la última publicación viaja con
@@ -410,10 +425,10 @@ export function ConfigMetas() {
       } : undefined}
       acciones={editable ? (
         <>
-          <Button variant="outline" size="sm" onClick={copiarAnterior} disabled={copiando || publicar.isPending}>
+          <Button variant="outline" size="sm" onClick={copiarAnterior} disabled={copiando || publicar.isPending || mesCerrado}>
             <Copy aria-hidden /> {copiando ? 'Copiando…' : 'Copiar mes anterior'}
           </Button>
-          <Button size="sm" onClick={guardar} disabled={!dirty || publicar.isPending}>
+          <Button size="sm" onClick={guardar} disabled={!dirty || publicar.isPending || mesCerrado}>
             <Save aria-hidden /> {publicar.isPending ? 'Publicando…' : 'Publicar revisión'}
           </Button>
         </>
@@ -494,6 +509,26 @@ export function ConfigMetas() {
           )}
         </CardContent>
       </Card>
+
+      {mesCerrado && ultimoSellado && (
+        <Card className="border-primary/25 bg-primary/[0.05]">
+          <CardContent className="flex items-start gap-3 py-4">
+            <Lock className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
+            <div>
+              <h3 className="text-sm font-extrabold capitalize text-foreground">
+                {nombrePeriodo(periodo)} ya está cerrado
+              </h3>
+              <p className="mt-1 text-xs text-foreground/70">
+                {periodo.slice(0, 7) === ultimoSellado.mes && ultimoSellado.cerrado_en
+                  ? `Se cerró el ${fechaPublicacion(ultimoSellado.cerrado_en)}${ultimoSellado.automatico ? ' por el ciclo automático' : ''}. `
+                  : ''}
+                Sus metas y sus cifras son definitivas: un mes cerrado no se reescribe.
+                Lo que haya que corregir se descuenta en el mes vivo.
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {borrador && <AnalistasFueraDeMetas analistas={borrador.sin_supervisor} />}
 
