@@ -108,7 +108,7 @@ export interface LeadReal {
 }
 
 export function leadReal(over: Partial<LeadReal> = {}): LeadReal {
-  return {
+  const lead: LeadReal = {
     id: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa',
     nombre_completo: 'CLIENTE REAL UNO',
     telefono: '+51999000111',
@@ -129,6 +129,20 @@ export function leadReal(over: Partial<LeadReal> = {}): LeadReal {
     nota: null,
     ...over,
   }
+  // Un convertido REAL siempre lleva su sello: la operación de conversión lo
+  // estampa, así que un fixture convertido sin `convertido_en` no es un caso
+  // raro — es un caso que producción no puede fabricar. Y además era una BOMBA
+  // DE CALENDARIO: la cartera oculta convertidos de más de 45 días (regla real
+  // de `cartera_pagina_fn`, calcada más abajo), y con las fechas fijas del
+  // 2026-07-01 las dos pruebas de anulación pasaron 44 días en verde y
+  // murieron solas el 15/08 — día 45 — sin que nadie tocara nada. El sello va
+  // relativo al reloj, como las fechas del oráculo SQL, para que no caduque.
+  // Quien quiera un convertido VIEJO (p. ej. para probar la ventana de 45
+  // días) lo pide explícito: `convertido_en: '2026-05-01T...'`.
+  if (lead.etapa === 'convertido' && lead.convertido_en === undefined) {
+    lead.convertido_en = new Date().toISOString()
+  }
+  return lead
 }
 
 // ── Clientes del portal (public.perfiles + vista crm.clientes_basicos) ────────
