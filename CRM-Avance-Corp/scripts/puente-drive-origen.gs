@@ -47,7 +47,8 @@ const CONSENTIMIENTO_SI_NO_HAY_COLUMNA = "SI";
 const FUENTE_POR_PESTANA = { landing: "Landing COOPAC MÁSCAPITAL" };
 const FUENTE_POR_DEFECTO = "Formulario de campaña de ahorro (Facebook)";
 
-const HOJA_DESTINO = "LEADS";
+// El nombre de la pestaña de leads vive en el CONECTOR (`HOJA_LEADS`), que es quien
+// define la forma de esa hoja. Tenerlo dos veces era pedir que un día divergieran.
 const HOJA_REVISAR = "REVISAR (no importados)";
 const HOJA_HUELLAS = "_puente_huellas"; // oculta: evita traer dos veces lo mismo
 const HOJA_MARCAS = "_puente_marcas";   // oculta: hasta qué fila ya miró el puente
@@ -170,13 +171,19 @@ function onOpen() {
 function crearMenu() {
   SpreadsheetApp.getUi()
     .createMenu("AVANCE CORP")
-    .addItem("Inicializar marca de agua (no importa nada)", "inicializarMarcas")
-    .addItem("Vista previa (no escribe nada)", "vistaPreviaOrigen")
-    .addItem("Traer leads del origen", "traerLeadsDelOrigen")
+    // El orden es el del arranque controlado: preparar → mirar → encender.
+    .addItem("1 · Preparar la hoja (formatos y menús)", "prepararHoja")
+    .addItem("2 · Inicializar marca de agua (no importa nada)", "inicializarMarcas")
+    .addItem("3 · Vista previa (no escribe nada)", "vistaPreviaOrigen")
     .addSeparator()
-    .addItem("Activar horario automático (lun–sáb 9 a. m.)", "instalarHorario")
-    .addItem("Ver horario", "verHorario")
-    .addItem("Apagar horario automático", "quitarHorario")
+    .addItem("Traer leads del origen (ahora)", "traerLeadsDelOrigen")
+    .addSeparator()
+    .addItem("Encender el conector (sube al CRM cada 5 min)", "activarConector")
+    .addItem("Apagar el conector", "apagarConector")
+    .addSeparator()
+    .addItem("Activar horario del puente (lun–sáb 9 a. m.)", "instalarHorario")
+    .addItem("Ver horario del puente", "verHorario")
+    .addItem("Apagar horario del puente", "quitarHorario")
     .addToUi();
 }
 
@@ -422,7 +429,10 @@ function procesarNucleo(escribir) {
       "no como proyecto suelto de script.google.com."
     );
   }
-  const hojaLeads = destino.getSheetByName(HOJA_DESTINO) || destino.getSheets()[0];
+  // Por NOMBRE, sin respaldo por posición: verificado el 2026-08-16 que la pestaña se
+  // llama exactamente "LEADS". El respaldo `getSheets()[0]` no tapaba ninguna
+  // diferencia y sí abría la puerta a escribir leads en la pestaña equivocada.
+  const hojaLeads = hojaDeLeads(destino);
   console.log("Destino: " + destino.getName() + " → pestaña \"" + hojaLeads.getName() + "\"");
 
   const huellas = leerHuellas(destino);          // lo ya traído en pasadas previas
@@ -1007,6 +1017,13 @@ function esFilaDeEncabezado(fila, cabeceras) {
 
 function escribirLeads(hoja, leads) {
   if (!leads.length) return;
+  const primera = hoja.getLastRow() + 1;
+  // La hoja crece ANTES de escribir, con formato incluido. Escribir más allá de la
+  // rejilla lanza "out of bounds" y mata la pasada DESPUÉS de haber leído las 12.000
+  // filas del origen (y antes de guardar la marca). `asegurarCapacidadLeads` vive en
+  // el conector, que es quien define la forma de esta hoja: los dos archivos son un
+  // solo proyecto de Apps Script y comparten ámbito global.
+  asegurarCapacidadLeads(hoja, primera + leads.length - 1);
   const filas = leads.map(function (l) {
     return [
       l.nombre,               // A Nombre completo *
@@ -1027,7 +1044,7 @@ function escribirLeads(hoja, leads) {
       "",                     // P Estado: vacío = el conector la toma en el próximo ciclo
     ];
   });
-  hoja.getRange(hoja.getLastRow() + 1, 1, filas.length, 16).setValues(filas);
+  hoja.getRange(primera, 1, filas.length, 16).setValues(filas);
 }
 
 /**
@@ -1081,6 +1098,7 @@ function escribirRechazos(libro, rechazados) {
   const filas = rechazados.map(function (r) {
     return [r.motivo, r.pestana, r.fila, r.nombre || "", r.telefono || "", r.crudo];
   });
+  asegurarFilas(hoja, 1 + filas.length); // REVISAR también puede desbordar la rejilla
   hoja.getRange(2, 1, filas.length, 6).setValues(filas);
   hoja.getRange(2, 6, filas.length, 1).setWrap(true).setVerticalAlignment("top");
 }
@@ -1112,7 +1130,9 @@ function guardarHuellas(libro, leads) {
   protegerHuellas(hoja);
   if (!leads.length) return;
   const traidoEl = Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
-  hoja.getRange(hoja.getLastRow() + 1, 1, leads.length, 5)
+  const primera = hoja.getLastRow() + 1;
+  asegurarFilas(hoja, primera + leads.length - 1); // la memoria también se queda sin rejilla
+  hoja.getRange(primera, 1, leads.length, 5)
     .setValues(leads.map(function (l) {
       return [
         l.huella,

@@ -340,3 +340,80 @@ test("fusionar: lo nuevo pisa, lo que no se tocó sobrevive", () => {
   const r = gs.fusionar({ a: 1, b: 2 }, { b: 3, c: 4 });
   assert.deepEqual(r, { a: 1, b: 3, c: 4 });
 });
+
+// ── Fase 2: reglas de forma, comprobadas sobre el CÓDIGO ─────────────────────
+//
+// Estas reglas no se pueden ejercitar sin un simulador de Hojas de Google (eso es
+// la fase siguiente), pero sí se pueden EXIGIR estructuralmente. Se hace sobre el
+// código con los comentarios QUITADOS: varios de esos comentarios nombran justo lo
+// que estas pruebas prohíben ("Nunca getSheets()[0]"), así que una comprobación
+// ingenua sobre el texto crudo fallaría por leer la prosa. Misma lección que el
+// oráculo del cierre de mes.
+
+const conector = readFileSync(join(aqui, "hoja-leads-apps-script.gs"), "utf8");
+const sinComentarios = (s) =>
+  s.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/[^\n]*/g, "");
+const CODIGO_PUENTE = sinComentarios(fuente);
+const CODIGO_CONECTOR = sinComentarios(conector);
+
+test("la pestaña de leads se resuelve por NOMBRE, nunca por posición", () => {
+  for (const [donde, codigo] of [["puente", CODIGO_PUENTE], ["conector", CODIGO_CONECTOR]]) {
+    assert.ok(!/getSheets\(\)\s*\[\s*0\s*\]/.test(codigo),
+      `${donde}: sigue resolviendo la hoja por getSheets()[0]`);
+    assert.ok(!/getIndex\(\)\s*!==?\s*1/.test(codigo),
+      `${donde}: sigue identificando la pestaña por su índice`);
+  }
+  assert.match(CODIGO_CONECTOR, /getSheetByName\(HOJA_LEADS\)/);
+});
+
+test("la capacidad de la hoja se calcula, no se fija en un número", () => {
+  assert.ok(!/FILAS_CONFIG/.test(CODIGO_CONECTOR),
+    "el techo fijo de filas (FILAS_CONFIG) sigue vivo");
+  assert.match(CODIGO_CONECTOR, /function asegurarCapacidadLeads/);
+  assert.match(CODIGO_CONECTOR, /insertRowsAfter/);
+  // Y lo nuevo se prepara: una fila insertada sin formato es donde Sheets vuelve a
+  // reinterpretar el DNI como número.
+  assert.match(CODIGO_CONECTOR, /prepararTramo\(hoja,\s*antes \+ 1/);
+});
+
+test("escribirLeads asegura capacidad ANTES de escribir", () => {
+  const cuerpo = CODIGO_PUENTE.slice(CODIGO_PUENTE.indexOf("function escribirLeads"));
+  const iAsegura = cuerpo.indexOf("asegurarCapacidadLeads");
+  const iEscribe = cuerpo.indexOf("setValues");
+  assert.ok(iAsegura > 0, "escribirLeads no asegura capacidad");
+  assert.ok(iAsegura < iEscribe, "asegura la capacidad DESPUÉS de escribir: no sirve");
+});
+
+test("preparar la hoja NO enciende nada", () => {
+  const i = CODIGO_CONECTOR.indexOf("function prepararHoja");
+  const fin = CODIGO_CONECTOR.indexOf("\nfunction ", i + 1);
+  const cuerpo = CODIGO_CONECTOR.slice(i, fin);
+  assert.ok(!/newTrigger/.test(cuerpo), "prepararHoja crea un disparador");
+  assert.ok(!/importarLeads\(\)/.test(cuerpo), "prepararHoja lanza una importación");
+});
+
+test("el secreto se lee DENTRO de la función, no al cargar el proyecto", () => {
+  // Un PropertiesService en el nivel superior corre en CADA ejecución del proyecto,
+  // incluidos los disparadores simples que van sin autorización (el menú del puente,
+  // onEdit), y además congela el secreto al cargar: rotarlo obligaría a reiniciar.
+  //
+  // ⚠️ La primera versión de esta prueba miraba solo el texto ANTERIOR a la primera
+  // función, y un mutante que declaraba la constante más abajo la sobrevivía: las
+  // declaraciones de nivel superior pueden ir intercaladas entre funciones. Se
+  // comprueba por indentación (nivel superior = columna 0) y por ubicación única.
+  assert.ok(!/^(?:const|let|var)\s+[^\n]*PropertiesService/m.test(CODIGO_CONECTOR),
+    "hay una declaración de nivel superior que lee PropertiesService");
+
+  const usos = [...CODIGO_CONECTOR.matchAll(/PropertiesService/g)];
+  assert.equal(usos.length, 1, "PropertiesService debería usarse en un solo sitio");
+  const i = CODIGO_CONECTOR.indexOf("function secretoDeImportacion");
+  const fin = CODIGO_CONECTOR.indexOf("\nfunction ", i + 1);
+  assert.ok(i >= 0 && usos[0].index > i && usos[0].index < fin,
+    "el único uso de PropertiesService no está dentro de secretoDeImportacion");
+});
+
+test("el origen del Drive sigue siendo SOLO LECTURA", () => {
+  // La regla más dura del proyecto: el documento es de la empresa y no se toca.
+  const escrituras = /\borigen\.(setValue|setValues|insertSheet|setName|deleteRow|appendRow|clear|getRange)/;
+  assert.ok(!escrituras.test(CODIGO_PUENTE), "hay una escritura sobre el origen");
+});

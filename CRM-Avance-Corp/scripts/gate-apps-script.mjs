@@ -136,24 +136,35 @@ function invocadas(codigo) {
 const archivos = readdirSync(AQUI).filter((f) => f.endsWith(".gs")).sort();
 let fallos = 0;
 
-for (const archivo of archivos) {
-  const bruto = readFileSync(join(AQUI, archivo), "utf8");
-  const codigo = soloCodigo(bruto);
-  const def = definidas(codigo);
+// UN SOLO ÁMBITO GLOBAL. Los .gs de un proyecto de Apps Script no se importan entre
+// sí: comparten espacio de nombres, así que el puente puede llamar a una función que
+// vive en el conector y es correcto. Por eso las llamadas se contrastan contra la
+// UNIÓN de lo definido en todos los archivos — comprobarlo archivo por archivo daría
+// un falso positivo justo en el reparto de responsabilidades que sí queremos.
+const codigos = new Map(
+  archivos.map((a) => [a, soloCodigo(readFileSync(join(AQUI, a), "utf8"))])
+);
+const definidasEnElProyecto = new Set();
+for (const codigo of codigos.values()) {
+  for (const n of definidas(codigo)) definidasEnElProyecto.add(n);
+}
+
+for (const [archivo, codigo] of codigos) {
   const huerfanas = [...invocadas(codigo)].filter(
-    ([nombre]) => !def.has(nombre) && !GLOBALES.has(nombre)
+    ([nombre]) => !definidasEnElProyecto.has(nombre) && !GLOBALES.has(nombre)
   );
 
   if (huerfanas.length) {
     fallos += huerfanas.length;
-    console.error(`\n✖ ${archivo} — ${huerfanas.length} función(es) invocada(s) y NO definida(s):`);
+    console.error(`\n✖ ${archivo} — ${huerfanas.length} función(es) invocada(s) y NO definida(s) en NINGÚN archivo del proyecto:`);
     for (const [nombre, linea] of huerfanas) {
       console.error(`    ${nombre}()  ·  línea ${linea}`);
     }
   } else {
-    console.log(`✔ ${archivo} — ${def.size} funciones definidas, todas las llamadas resuelven`);
+    console.log(`✔ ${archivo} — todas las llamadas resuelven en el proyecto`);
   }
 }
+console.log(`  (${definidasEnElProyecto.size} nombres definidos entre los ${archivos.length} archivos)`);
 
 // Los dos .gs conviven en UN solo proyecto de Apps Script: dos `const` con el mismo
 // nombre en el ámbito global es un SyntaxError que tumba el proyecto entero, menú
