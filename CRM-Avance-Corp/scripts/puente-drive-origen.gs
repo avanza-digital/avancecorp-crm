@@ -192,6 +192,11 @@ function crearMenu() {
     .addItem("Ver horario del puente", "verHorario")
     .addItem("Apagar horario del puente", "quitarHorario")
     .addToUi();
+
+  // El menú primero, SIEMPRE, y el aviso después: sin correo, abrir la hoja es el
+  // único momento en que algo puede salir a buscarte. Si el aviso fallara, ya se ha
+  // dibujado el menú (y avisarEnPantalla se traga lo suyo por dentro).
+  avisarEnPantalla();
 }
 
 /**
@@ -447,9 +452,9 @@ function medirOrigen() {
  *
  * NO LANZA. Con esta cadencia, una excepción no controlada son 96 correos de fallo de
  * Google al día: el aviso se vuelve ruido y el ruido se ignora, que es la única forma
- * de que un puente parado pase desapercibido. Aquí se atrapa, se anota en el estado y
- * se avisa UNA vez al día. Las ejecuciones a mano (menú, editor) sí lanzan: ahí hay
- * alguien mirando la pantalla.
+ * de que un puente parado pase desapercibido. Aquí se atrapa y se anota un AVISO —
+ * con la fecha desde la que dura— que sale en el panel y al abrir la hoja. Las
+ * ejecuciones a mano (menú, editor) sí lanzan: ahí hay alguien mirando la pantalla.
  */
 function corridaProgramada() {
   const reloj = relojDeLima();
@@ -474,11 +479,11 @@ function corridaProgramada() {
         "Abre la hoja y ejecuta una vez: AVANCE CORP → \"2 · Inicializar marca de " +
         "agua\". No importa ningún lead; solo anota dónde está hoy el final de cada " +
         "pestaña.";
-      console.error(aviso);
-      avisar("sin-marcas", "El puente está parado: falta la marca de agua", aviso, reloj);
+      anotarAviso("sin-marcas", "El puente está PARADO: falta la marca de agua", aviso, reloj);
       anotarEstado({ ultimaCorrida: reloj.texto, ultimoVeredicto: "PARADO: sin marca de agua" });
       return { omitida: "sin marca de agua" };
     }
+    limpiarAviso("sin-marcas"); // ya hay frontera: el aviso deja de tener sentido
 
     const pestanas = medirOrigen();
     const decision = decidirPasada(pestanas, marcas, estado, reloj);
@@ -512,10 +517,12 @@ function corridaProgramada() {
       }
     ));
 
+    // La pasada salió: si algo había fallado antes, ya no falla.
+    limpiarAviso("error");
     if (r.incidencias.length) {
-      avisar(
+      anotarAviso(
         "pestana-detenida",
-        "Pestañas detenidas en el origen: el puente no trajo lo que había ahí",
+        r.incidencias.length + " pestaña(s) detenida(s): el puente NO trajo lo que había ahí",
         "El puente detuvo estas pestañas porque su marca de agua dejó de ser fiable:\n\n" +
         r.incidencias.map(function (x) { return "   · " + x.pestana + ": " + x.motivo; }).join("\n") +
         "\n\nSu marca quedó INTACTA y no se importó nada de ellas. Revisa el origen y, " +
@@ -523,13 +530,16 @@ function corridaProgramada() {
         "\" y vuelve a ejecutar \"Inicializar marca de agua\".",
         reloj
       );
+    } else {
+      limpiarAviso("pestana-detenida");
     }
     return r;
   } catch (e) {
     const detalle = (e && e.message) ? e.message : String(e);
     // Una corrida que se topa con otra en marcha NO es un fallo: es el candado
     // haciendo su trabajo (una pasada lenta sobre 12.000 filas puede pisar a la
-    // siguiente). Tratarlo como error mandaría alertas por lo que funciona bien.
+    // siguiente). Anotarlo como avería sería poner el panel en rojo por lo que
+    // funciona bien, y un panel en rojo permanente no lo mira nadie.
     if (/Ya hay una corrida/.test(detalle)) {
       console.log("Corrida " + reloj.texto + " omitida: ya había otra en marcha.");
       anotarEstado({ ultimaCorrida: reloj.texto, ultimoVeredicto: "omitida: otra corrida en marcha" });
@@ -541,9 +551,9 @@ function corridaProgramada() {
       ultimoVeredicto: "FALLÓ",
       ultimoError: reloj.texto + " — " + detalle,
     });
-    avisar(
+    anotarAviso(
       "error",
-      "El puente falló al traer leads",
+      "La última corrida FALLÓ",
       "La corrida automática de las " + reloj.texto + " terminó con un error:\n\n" +
       detalle + "\n\nLa marca de agua NO avanza cuando una corrida falla, así que no " +
       "se pierde ningún lead: la próxima corrida vuelve a mirar esas filas. Si el " +
@@ -555,7 +565,7 @@ function corridaProgramada() {
   }
 }
 
-// ── Estado y alertas ─────────────────────────────────────────────────────────
+// ── Estado y avisos ──────────────────────────────────────────────────────────
 
 /**
  * DIARIO DE A BORDO. Vive en las Propiedades del script, no en una pestaña: no hay
@@ -570,19 +580,20 @@ function corridaProgramada() {
  */
 const PROP_ESTADO = "PUENTE_ESTADO";
 
-/** A quién van las alertas. Vacío = al dueño del script (lo normal). */
-const PROP_ALERTAS_A = "PUENTE_ALERTAS_A";
-
 /**
- * La alerta de «el origen no recibe nada» NACE APAGADA, a propósito: el origen lleva
- * seco desde el 24-jul-2026 y es una hoja ajena. Encenderla hoy sería un correo
- * diario para siempre — la forma más rápida de que las alertas se vuelvan ruido y
- * nadie mire la que sí importa. Se enciende el día que el origen reviva, poniendo
- * esta propiedad del script en "SI".
+ * SIN CORREO (decisión de Miguel, 2026-08-16). Los avisos no se envían a ningún
+ * lado: se ANOTAN en el diario, salen en el Registro de ejecución y aparecen en dos
+ * sitios donde alguien los va a ver — el panel («Ver estado del puente») y un
+ * mensaje al ABRIR la hoja, que es lo que de verdad se abre todos los días.
+ *
+ * Ventaja que no es menor: sin `MailApp` el proyecto no pide ningún permiso nuevo,
+ * así que pegar los scripts no obliga a re-autorizar nada.
+ *
+ * Lo que se pierde, dicho claro: nadie recibe un empujón fuera de la hoja. Un puente
+ * parado se descubre al abrirla, no en el momento. A cambio, cada aviso lleva DESDE
+ * CUÁNDO está activo y **se borra solo** cuando el problema deja de existir — un
+ * aviso que no se apaga miente igual que uno que nunca suena.
  */
-const PROP_ALERTA_FUENTE_SECA = "PUENTE_ALERTA_FUENTE_SECA";
-const DIAS_FUENTE_SECA = 3;
-
 function leerEstado() {
   try {
     const s = PropertiesService.getScriptProperties().getProperty(PROP_ESTADO);
@@ -612,7 +623,12 @@ function anotarEstado(parcial) {
 /**
  * ¿Está entrando algo en el origen? Es una pregunta distinta de «¿hay leads nuevos
  * para el CRM?»: mide el tamaño CRUDO de las pestañas, sin marca de agua ni corte de
- * por medio. Devuelve lo que hay que anotar en el diario y, si procede, avisa.
+ * por medio. Devuelve lo que hay que anotar en el diario.
+ *
+ * Que el origen lleve semanas seco NO es un aviso: es un HECHO conocido desde el
+ * 24-jul-2026 y una hoja que no es nuestra. Convertirlo en alarma sería tener el
+ * puente en rojo permanente, que es la forma más rápida de dejar de mirar el rojo.
+ * Va como un dato más del panel, con los días contados.
  */
 function vigilarFuente(estado, pestanas, reloj) {
   const previo = (estado || {}).filasOrigen || {};
@@ -628,86 +644,75 @@ function vigilarFuente(estado, pestanas, reloj) {
   // cuándo lo estamos mirando. Inventar aquí una fecha de crecimiento sería mentir
   // en el panel justo el día en que el panel se estrena.
   if (!(estado || {}).vigilaDesde) parcial.vigilaDesde = reloj.fecha;
-  if (crecio) {
-    parcial.crecioEl = reloj.fecha;
-    return parcial;
-  }
-
-  const desde = (estado || {}).crecioEl || (estado || {}).vigilaDesde || reloj.fecha;
-  const dias = diasEntre(desde, reloj.fecha);
-  if (alertaFuenteSecaActiva() && dias !== null && dias >= DIAS_FUENTE_SECA) {
-    avisar(
-      "fuente-seca",
-      "El origen lleva " + dias + " días sin recibir un lead",
-      "El puente está vivo y mirando, pero el documento de origen no gana una sola " +
-      "fila desde hace " + dias + " días.\n\nNo es un fallo del puente: es que la " +
-      "fuente no recibe. El origen es de otra empresa (consultas@creaemprendedor.com), " +
-      "así que la pregunta va para ellos: ¿quién alimenta esa hoja y sigue apuntando " +
-      "ahí la campaña?",
-      reloj
-    );
-  }
+  if (crecio) parcial.crecioEl = reloj.fecha;
   return parcial;
 }
 
-function alertaFuenteSecaActiva() {
-  try {
-    const v = PropertiesService.getScriptProperties().getProperty(PROP_ALERTA_FUENTE_SECA);
-    return /^(si|s[ií]|1|on|true)$/i.test(String(v == null ? "" : v).trim());
-  } catch (e) {
-    return false;
-  }
-}
-
-function destinatarioDeAlertas() {
-  let elegido = "";
-  try {
-    elegido = PropertiesService.getScriptProperties().getProperty(PROP_ALERTAS_A) || "";
-  } catch (e) {
-    elegido = "";
-  }
-  return elegido.trim() || Session.getEffectiveUser().getEmail();
+/**
+ * Anota un aviso en el diario. NO manda correo (ver la nota de PROP_ESTADO): queda
+ * en el Registro de ejecución, sale en el panel y salta al abrir la hoja.
+ *
+ * Guarda DESDE CUÁNDO está activo, no cuántas veces se repitió: «parado desde el
+ * lunes a las 9:15» dice algo; «se avisó 96 veces» no dice nada.
+ */
+function anotarAviso(clave, titulo, detalle, reloj) {
+  const avisos = leerEstado().avisos || {};
+  const previo = avisos[clave];
+  avisos[clave] = {
+    desde: (previo && previo.desde) || reloj.texto,
+    ultimo: reloj.texto,
+    titulo: titulo,
+    detalle: detalle,
+  };
+  if (previo) console.log("(sigue activo desde " + avisos[clave].desde + ") " + titulo);
+  else console.error("AVISO — " + titulo + "\n" + detalle);
+  anotarEstado({ avisos: avisos });
+  return avisos[clave];
 }
 
 /**
- * ⚠️ AL PEGAR ESTE ARCHIVO, APPS SCRIPT PEDIRÁ UN PERMISO NUEVO (enviar correo en tu
- * nombre): `MailApp` no se usaba hasta ahora. Los disparadores ya instalados siguen
- * con la autorización VIEJA y fallarían con "Authorization is required", así que tras
- * pegar hay que ejecutar UNA función a mano desde el editor (por ejemplo `verEstado`)
- * y aceptar los permisos. Va en el guion de la Fase 5.
- *
- * Manda UN correo por clave y día. Las dos reglas son igual de importantes:
- *
- *  · UNA VEZ AL DÍA — con una corrida cada 15 minutos, avisar en cada una son 96
- *    correos: el aviso se vuelve ruido y el ruido se ignora.
- *  · NUNCA LANZA — quedarse sin cuota de correo no puede ser el motivo por el que un
- *    lead no entra al CRM. Si el correo no sale, queda dicho en el Registro.
- *
- * Devuelve true solo si de verdad se envió.
+ * Apaga un aviso porque el problema dejó de existir. Es la mitad que se olvida: un
+ * aviso que no se apaga solo miente igual que uno que nunca suena, y encima enseña a
+ * ignorar el panel.
  */
-function avisar(clave, asunto, cuerpo, reloj) {
-  const estado = leerEstado();
-  const alertas = estado.alertas || {};
-  if (alertas[clave] === reloj.fecha) {
-    console.log("(la alerta \"" + clave + "\" ya se envió hoy: no se repite)");
-    return false;
-  }
-  const para = destinatarioDeAlertas();
-  try {
-    MailApp.sendEmail(
-      para,
-      "[Puente de leads] " + asunto,
-      cuerpo + "\n\n— Puente de leads AVANCE CORP · " + reloj.texto + " (hora de Lima)\n" +
-      "Panel: abre la hoja → menú AVANCE CORP → \"Ver estado del puente\"."
-    );
-  } catch (e) {
-    console.error("No se pudo enviar la alerta \"" + clave + "\" a " + para + ": " + e.message);
-    return false;
-  }
-  alertas[clave] = reloj.fecha;
-  anotarEstado({ alertas: alertas });
-  console.log("Alerta \"" + clave + "\" enviada a " + para);
+function limpiarAviso(clave) {
+  const avisos = leerEstado().avisos || {};
+  if (!avisos[clave]) return false;
+  console.log("Resuelto: " + (avisos[clave].titulo || clave));
+  delete avisos[clave];
+  anotarEstado({ avisos: avisos });
   return true;
+}
+
+/**
+ * Lo que se ve al ABRIR la hoja si hay algo que mirar. Es el sustituto del correo:
+ * la hoja se abre casi todos los días, y esto no cuesta ningún permiso nuevo.
+ *
+ * Se llama desde el menú, que puede venir del `onOpen` SIMPLE (corre sin
+ * autorización). Por eso va entero dentro de un try: si ahí no se pudieran leer las
+ * propiedades, el menú tiene que aparecer igual. Nunca al revés — el aviso no puede
+ * costar el menú.
+ *
+ * ⚠️ Con el disparador simple no está garantizado que salga. Donde SÍ está es con el
+ * disparador INSTALABLE que crea `instalarMenu()` (corre con autorización completa):
+ * ejecutarlo una vez es lo que hace del banner un canal fiable. Va en la Fase 5.
+ */
+function avisarEnPantalla() {
+  try {
+    const avisos = leerEstado().avisos || {};
+    const claves = Object.keys(avisos);
+    if (!claves.length) return 0;
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      claves.map(function (k) {
+        return "• " + avisos[k].titulo + " (desde " + avisos[k].desde + ")";
+      }).join("\n") + "\n\nMenú AVANCE CORP → \"Ver estado del puente\".",
+      "⚠️ El puente tiene " + claves.length + " aviso(s)",
+      30
+    );
+    return claves.length;
+  } catch (e) {
+    return 0;
+  }
 }
 
 // ── El panel: ¿esto está vivo? ───────────────────────────────────────────────
@@ -733,8 +738,6 @@ function verEstado() {
     estado: leerEstado(),
     pestanas: medirOrigen(),
     hoja: contarEstadosDeLeads(hojaDeLeads(destino)),
-    alertaFuenteSeca: alertaFuenteSecaActiva(),
-    correoAlertas: destinatarioDeAlertas(),
   };
   informar(textoDelPanel(datos));
   return datos;
@@ -745,6 +748,21 @@ function textoDelPanel(d) {
   const est = d.estado || {};
   const marcas = d.marcas || {};
   let t = "ESTADO DEL PUENTE — " + d.reloj.texto + " (hora de Lima)\n";
+
+  // Los avisos van ARRIBA DEL TODO y con su antigüedad: lo primero que hay que saber
+  // es si algo está roto, y desde cuándo. Si no hay ninguno, se dice también — el
+  // silencio no se distingue de que el panel no funcione.
+  const avisos = est.avisos || {};
+  const claves = Object.keys(avisos);
+  if (claves.length) {
+    t += "\n⛔ AVISOS ACTIVOS (" + claves.length + ")\n";
+    claves.forEach(function (k) {
+      t += "   · " + avisos[k].titulo + " — desde " + avisos[k].desde + "\n";
+      t += "     " + String(avisos[k].detalle || "").split("\n")[0] + "\n";
+    });
+  } else {
+    t += "\n✓ Sin avisos activos.\n";
+  }
 
   t += "\nMÁQUINA\n";
   t += "   · Puente: " + (d.puente
@@ -786,15 +804,12 @@ function textoDelPanel(d) {
     t += "   · " + (est.crecioEl ? "Sin recibir una fila nueva desde hace " : "Sin recibir nada en los ") +
       dias + " días" + (est.crecioEl ? "" : " que lleva vigilado") + "\n";
   }
-  t += "   · Alerta de origen seco: " + (d.alertaFuenteSeca ? "ENCENDIDA" : "apagada") + "\n";
 
   t += "\nNUESTRA HOJA\n";
   const h = d.hoja || {};
   t += "   · " + (h.total || 0) + " filas con datos · " + (h.pendientes || 0) +
     " esperando subir al CRM · " + (h.importados || 0) + " subidas · " +
     (h.rechazados || 0) + " rechazadas" + (h.errores ? " · " + h.errores + " con error temporal" : "") + "\n";
-
-  t += "\nLas alertas van a: " + d.correoAlertas + "\n";
   return t;
 }
 

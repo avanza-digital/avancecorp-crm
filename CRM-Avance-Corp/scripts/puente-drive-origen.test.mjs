@@ -504,8 +504,6 @@ const PANEL_BASE = {
   },
   pestanas: [{ id: "111", nombre: "landing", filas: 6158 }],
   hoja: { total: 279, pendientes: 0, importados: 279, rechazados: 0, errores: 0 },
-  alertaFuenteSeca: false,
-  correoAlertas: "avancecorp26@gmail.com",
 };
 
 test("el panel dice lo que hay que saber en cinco segundos", () => {
@@ -515,9 +513,28 @@ test("el panel dice lo que hay que saber en cinco segundos", () => {
   assert.match(t, /Ahora mismo: toca correr/);
   assert.match(t, /landing: 6158 filas · frontera en la 6158/);
   assert.match(t, /24 días/, "no dice hace cuánto que el origen no recibe nada");
-  assert.match(t, /Alerta de origen seco: apagada/);
   assert.match(t, /279 filas con datos · 0 esperando subir/);
-  assert.match(t, /avancecorp26@gmail\.com/);
+  assert.match(t, /✓ Sin avisos activos/, "el silencio no se distingue de un panel roto");
+});
+
+test("los AVISOS van arriba del todo, con desde cuándo duran", () => {
+  const t = gs.textoDelPanel({
+    ...PANEL_BASE,
+    estado: {
+      ...PANEL_BASE.estado,
+      avisos: {
+        "pestana-detenida": {
+          desde: "17/08/2026 09:15",
+          ultimo: "17/08/2026 12:00",
+          titulo: "1 pestaña(s) detenida(s)",
+          detalle: "El puente detuvo estas pestañas...\nlanding: el origen PERDIÓ filas",
+        },
+      },
+    },
+  });
+  assert.match(t, /AVISOS ACTIVOS \(1\)/);
+  assert.ok(t.indexOf("AVISOS ACTIVOS") < t.indexOf("MÁQUINA"), "los avisos no van los primeros");
+  assert.match(t, /desde 17\/08\/2026 09:15/);
 });
 
 test("el panel canta lo APAGADO y lo que está sin frontera", () => {
@@ -612,6 +629,17 @@ test("el secreto se lee DENTRO de la función, no al cargar el proyecto", () => 
   const fin = CODIGO_CONECTOR.indexOf("\nfunction ", i + 1);
   assert.ok(i >= 0 && usos[0].index > i && usos[0].index < fin,
     "el único uso de PropertiesService no está dentro de secretoDeImportacion");
+});
+
+test("los scripts NO piden permisos nuevos: nada de correo", () => {
+  // Decisión de Miguel (2026-08-16): sin envío de correo. No es solo una función de
+  // menos — `MailApp`/`GmailApp` obligan a re-autorizar el proyecto al pegarlo, y los
+  // disparadores ya instalados fallan con "Authorization is required" hasta que
+  // alguien ejecuta algo a mano. Los avisos van al panel y al abrir la hoja.
+  for (const [donde, codigo] of [["puente", CODIGO_PUENTE], ["conector", CODIGO_CONECTOR]]) {
+    assert.ok(!/\b(MailApp|GmailApp)\b/.test(codigo),
+      `${donde}: volvió a usar el servicio de correo (permiso nuevo al pegar)`);
+  }
 });
 
 test("el origen del Drive sigue siendo SOLO LECTURA", () => {

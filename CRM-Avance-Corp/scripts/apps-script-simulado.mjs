@@ -244,7 +244,7 @@ export function crearEntorno({
   propiedades = {},
   respuestaHttp,
   ahora = "2026-08-17 09:20", // lunes 17 de agosto, dentro de la ventana
-  fallarCorreo = false,
+  sinInterfaz = false,
 } = {}) {
   const espia = {
     disparadores: [],
@@ -252,13 +252,14 @@ export function crearEntorno({
     candadoPedido: 0,
     candadoSoltado: 0,
     avisos: [],
-    correos: [],
+    ventanas: [],   // lo que `informar()` habría enseñado en pantalla
+    menu: [],       // los ítems del menú AVANCE CORP, en orden
+    menuNombre: "",
     propiedades: { ...propiedades },
     // Se puede cambiar A MITAD de una prueba: hay escenarios que necesitan preparar
     // el mundo con el candado libre y solo DESPUÉS simular la corrida solapada.
     candadoLibre: candadoLibre,
     reloj: ahora,
-    fallarCorreo: fallarCorreo,
     /** Mueve el reloj simulado: "AAAA-MM-DD HH:MM". */
     ponerReloj(cuando) { espia.reloj = cuando; },
   };
@@ -289,9 +290,23 @@ export function crearEntorno({
       };
       return r;
     },
+    /**
+     * Con `sinInterfaz: true` LANZA, como en el editor con la hoja cerrada (ahí es
+     * `informar()` quien lo captura y deja el reporte en el Registro). Por defecto
+     * hay interfaz: es el caso normal —alguien con la hoja abierta— y es el único en
+     * el que se puede comprobar que abrir la hoja saca los avisos a la cara.
+     */
     getUi() {
-      // Como en el editor sin la hoja abierta: `informar()` lo captura y sigue.
-      throw new Error("No hay interfaz de usuario disponible");
+      if (sinInterfaz) throw new Error("No hay interfaz de usuario disponible");
+      const menu = {
+        addItem: (titulo, fn) => { espia.menu.push({ titulo, fn }); return menu; },
+        addSeparator: () => menu,
+        addToUi: () => menu,
+      };
+      return {
+        createMenu: (nombre) => { espia.menu = []; espia.menuNombre = nombre; return menu; },
+        alert: (texto) => { espia.ventanas.push(texto); },
+      };
     },
   };
 
@@ -354,13 +369,6 @@ export function crearEntorno({
     }),
   };
 
-  const MailApp = {
-    sendEmail(para, asunto, cuerpo) {
-      if (espia.fallarCorreo) throw new Error("Service invoked too many times: email");
-      espia.correos.push({ para, asunto, cuerpo });
-    },
-  };
-
   const UrlFetchApp = {
     fetch(url, opciones) {
       espia.peticiones.push({ url, opciones });
@@ -378,7 +386,7 @@ export function crearEntorno({
   return {
     globales: {
       SpreadsheetApp, LockService, Utilities, Session, ScriptApp,
-      PropertiesService, UrlFetchApp, MailApp, console: consola,
+      PropertiesService, UrlFetchApp, console: consola,
     },
     espia,
   };
