@@ -17,6 +17,12 @@
  *  · `getLastRow` mira contenido, no rejilla.
  *  · Los disparadores se cuentan de verdad, para poder exigir que preparar la hoja
  *    NO encienda nada.
+ *  · Cada hoja CUENTA sus lecturas de datos. Es lo que permite exigir que el
+ *    pre-chequeo de la cadencia no descargue ni una celda del origen: sin ese
+ *    contador, "es barato" sería una afirmación de comentario, no una prueba.
+ *  · El RELOJ se pone a mano y el código solo puede leerlo por `Utilities.formatDate`
+ *    en la zona de Lima — pedir otra zona LANZA, porque leer la hora en la zona del
+ *    proyecto de Apps Script es justo el fallo que se quiere hacer imposible.
  *
  * Lo que no se usa, no está. Si un día el código llama a algo que falta, el error
  * será "no es una función", que es un fallo honesto y fácil de leer.
@@ -33,6 +39,8 @@ class Rango {
     this.numColumnas = numColumnas;
   }
   getValues() {
+    this.hoja.lecturas++;
+    this.hoja.celdasLeidas += this.numFilas * this.numColumnas;
     const out = [];
     for (let f = 0; f < this.numFilas; f++) {
       const fila = [];
@@ -108,6 +116,8 @@ class Hoja {
     this.reglasCondicionales = [];
     this.filaCongelada = 0;
     this.fallarAlEscribir = null; // gancho para probar el fallo parcial
+    this.lecturas = 0;            // cuántas veces se descargaron datos de esta hoja
+    this.celdasLeidas = 0;        // y cuántas celdas: el coste que el pre-chequeo evita
     filas.forEach((fila, f) =>
       fila.forEach((v, c) => {
         if (texto(v) !== "") this.celdas.set(`${f + 1},${c + 1}`, v);
@@ -227,13 +237,30 @@ class Libro {
  * los cabos para espiar desde las pruebas (disparadores creados, peticiones HTTP,
  * si se pidió el candado…).
  */
-export function crearEntorno({ destino, origen, candadoLibre = true, propiedades = {}, respuestaHttp } = {}) {
+export function crearEntorno({
+  destino,
+  origen,
+  candadoLibre = true,
+  propiedades = {},
+  respuestaHttp,
+  ahora = "2026-08-17 09:20", // lunes 17 de agosto, dentro de la ventana
+  fallarCorreo = false,
+} = {}) {
   const espia = {
     disparadores: [],
     peticiones: [],
     candadoPedido: 0,
     candadoSoltado: 0,
     avisos: [],
+    correos: [],
+    propiedades: { ...propiedades },
+    // Se puede cambiar A MITAD de una prueba: hay escenarios que necesitan preparar
+    // el mundo con el candado libre y solo DESPUÉS simular la corrida solapada.
+    candadoLibre: candadoLibre,
+    reloj: ahora,
+    fallarCorreo: fallarCorreo,
+    /** Mueve el reloj simulado: "AAAA-MM-DD HH:MM". */
+    ponerReloj(cuando) { espia.reloj = cuando; },
   };
 
   const SpreadsheetApp = {
@@ -270,13 +297,24 @@ export function crearEntorno({ destino, origen, candadoLibre = true, propiedades
 
   const LockService = {
     getScriptLock: () => ({
-      tryLock: () => { espia.candadoPedido++; return candadoLibre; },
+      tryLock: () => { espia.candadoPedido++; return espia.candadoLibre; },
       releaseLock: () => { espia.candadoSoltado++; },
     }),
   };
 
   const Utilities = {
-    formatDate: () => "16/08/2026 09:20", // fija: las pruebas no dependen del reloj
+    /**
+     * El reloj simulado ya es hora de pared de LIMA. Pedir otra zona lanza a
+     * propósito: el .gs solo puede saber la hora por aquí y solo en esta zona —
+     * heredar la zona del proyecto de Apps Script (que puede estar en el Pacífico)
+     * es el fallo que hace correr al puente de madrugada sin que nadie lo note.
+     */
+    formatDate: (fecha, zona, patron) => {
+      if (zona !== "America/Lima") {
+        throw new Error(`formatDate simulado: solo se admite "America/Lima", llegó "${zona}"`);
+      }
+      return formatearMomento(espia.reloj, patron);
+    },
   };
 
   const Session = { getEffectiveUser: () => ({ getEmail: () => "duenio@avancecorp.pe" }) };
@@ -310,8 +348,17 @@ export function crearEntorno({ destino, origen, candadoLibre = true, propiedades
 
   const PropertiesService = {
     getScriptProperties: () => ({
-      getProperty: (k) => (k in propiedades ? propiedades[k] : null),
+      getProperty: (k) => (k in espia.propiedades ? espia.propiedades[k] : null),
+      setProperty: (k, v) => { espia.propiedades[k] = String(v); },
+      deleteProperty: (k) => { delete espia.propiedades[k]; },
     }),
+  };
+
+  const MailApp = {
+    sendEmail(para, asunto, cuerpo) {
+      if (espia.fallarCorreo) throw new Error("Service invoked too many times: email");
+      espia.correos.push({ para, asunto, cuerpo });
+    },
   };
 
   const UrlFetchApp = {
@@ -329,9 +376,29 @@ export function crearEntorno({ destino, origen, candadoLibre = true, propiedades
   };
 
   return {
-    globales: { SpreadsheetApp, LockService, Utilities, Session, ScriptApp, PropertiesService, UrlFetchApp, console: consola },
+    globales: {
+      SpreadsheetApp, LockService, Utilities, Session, ScriptApp,
+      PropertiesService, UrlFetchApp, MailApp, console: consola,
+    },
     espia,
   };
+}
+
+/**
+ * Formatea el instante simulado según el patrón que pida el .gs. Solo entiende los
+ * trozos que el código usa de verdad; cualquier otro se queda tal cual, que es un
+ * fallo visible en la aserción y no un valor plausible pero falso.
+ */
+function formatearMomento(cuando, patron) {
+  const m = String(cuando).match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (!m) throw new Error(`Reloj simulado inválido: "${cuando}" (formato "AAAA-MM-DD HH:MM")`);
+  return String(patron)
+    .replace(/yyyy/g, m[1])
+    .replace(/MM/g, m[2])
+    .replace(/dd/g, m[3])
+    .replace(/HH/g, m[4])
+    .replace(/mm/g, m[5])
+    .replace(/ss/g, m[6] || "00");
 }
 
 export { Hoja, Libro, Rango };

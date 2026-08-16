@@ -17,6 +17,11 @@
  *
  * CÓMO SE USA: menú "AVANCE CORP" → "Vista previa" (no escribe nada, solo dice qué
  * entraría y qué no) y "Traer leads del origen".
+ *
+ * SOLO: cada 15 minutos, de lunes a sábado entre las 7 y las 22 (hora de Lima). Casi
+ * todas esas corridas no cuestan nada —solo preguntan si el origen creció—; la lectura
+ * completa se paga cuando hay algo nuevo, y una vez al día pase lo que pase. "Ver
+ * estado del puente" responde en cinco segundos si esto está vivo.
  */
 
 // ── Configuración ────────────────────────────────────────────────────────────
@@ -178,10 +183,12 @@ function crearMenu() {
     .addSeparator()
     .addItem("Traer leads del origen (ahora)", "traerLeadsDelOrigen")
     .addSeparator()
+    .addItem("Ver estado del puente", "verEstado")
+    .addSeparator()
     .addItem("Encender el conector (sube al CRM cada 5 min)", "activarConector")
     .addItem("Apagar el conector", "apagarConector")
     .addSeparator()
-    .addItem("Activar horario del puente (lun–sáb 9 a. m.)", "instalarHorario")
+    .addItem("Activar horario del puente (cada 15 min, lun–sáb)", "instalarHorario")
     .addItem("Ver horario del puente", "verHorario")
     .addItem("Apagar horario del puente", "quitarHorario")
     .addToUi();
@@ -202,42 +209,68 @@ function instalarMenu() {
   console.log("Menú instalado. Recarga la hoja: aparece \"AVANCE CORP\" a la derecha de Ayuda.");
 }
 
-// ── Horario automático ───────────────────────────────────────────────────────
+// ── Cadencia: cada 15 minutos, con pre-chequeo barato ────────────────────────
 
-const HORA_DE_CORRIDA = 9;                  // 9 a. m.
 const ZONA_DE_CORRIDA = "America/Lima";     // fijada aquí: NO depende de la zona del proyecto
 const FUNCION_PROGRAMADA = "corridaProgramada";
 
-/** Lunes a sábado. El domingo queda fuera por decisión de Miguel (2026-07-22). */
-function diasDeCorrida() {
-  const D = ScriptApp.WeekDay;
-  return [D.MONDAY, D.TUESDAY, D.WEDNESDAY, D.THURSDAY, D.FRIDAY, D.SATURDAY];
-}
+/**
+ * POR QUÉ CADA 15 MINUTOS Y NO UNA VEZ AL DÍA.
+ *
+ * El horario anterior eran seis disparadores semanales a las 9 a. m. Un lead que
+ * llegaba a las 9:05 esperaba casi un día entero a que alguien lo llamara, y en
+ * captación de ahorro ese día lo es todo.
+ *
+ * Lo que impedía subir la frecuencia es el COSTE: una pasada completa se descarga las
+ * ~12.000 filas × 11 columnas de cada pestaña del origen. Repetir eso 96 veces al día
+ * se come la cuota de la cuenta (las cuentas gratuitas tienen un tope diario de tiempo
+ * total de disparadores —del orden de hora y media— y encima se comparte con el
+ * conector, que ya corre cada 5 minutos).
+ *
+ * De ahí el PRE-CHEQUEO: cada corrida pregunta primero cuántas filas tiene cada
+ * pestaña —metadato, no se descarga ni una celda— y si nada cambió, termina ahí. La
+ * pasada completa se paga solo cuando el origen creció.
+ *
+ * Y como «el número de filas no cambió» NO es lo mismo que «no hay nada que hacer»
+ * (alguien pudo borrar una fila e insertar otra en el mismo cuarto de hora), hay un
+ * SUELO: al menos UNA pasada completa al día, la primera de la ventana. En el peor
+ * caso el coste es el del horario viejo; en el mejor, un lead entra en 15 minutos.
+ */
+const CADENCIA_MINUTOS = 15;
 
 /**
- * Deja el puente corriendo solo: lunes a sábado, 9 a. m. de Lima. Un disparador semanal
- * por día (Apps Script no tiene "todos los días menos domingo").
+ * Ventana de corridas, en HORA DE LIMA. El disparador de Apps Script no sabe de días
+ * ni de zonas —dispara cada 15 minutos, siempre—, así que es la propia función la que
+ * decide si toca. Domingos NO corre (decisión de Miguel, 2026-07-22).
+ * `VENTANA_HASTA` es inclusiva: la última corrida del día arranca a las 21:45.
+ */
+const VENTANA_DESDE = 7;
+const VENTANA_HASTA = 21;
+const DIA_SIN_CORRIDA = 0; // 0 = domingo
+
+/**
+ * Enciende la cadencia: UN disparador cada 15 minutos. Los días y las horas los pone
+ * la propia corrida (ver VENTANA_DESDE), no el disparador.
  *
- * Idempotente: borra los horarios anteriores antes de crear los nuevos, así que se puede
- * ejecutar las veces que haga falta sin duplicar corridas.
+ * Idempotente, y además MIGRA: borra todo disparador que apunte a `corridaProgramada`,
+ * incluidos los seis semanales de las 9 a. m. del horario anterior.
  */
 function instalarHorario() {
   const borrados = quitarHorario(true);
-  diasDeCorrida().forEach(function (dia) {
-    ScriptApp.newTrigger(FUNCION_PROGRAMADA)
-      .timeBased()
-      .onWeekDay(dia)
-      .atHour(HORA_DE_CORRIDA)
-      .inTimezone(ZONA_DE_CORRIDA)
-      .create();
-  });
+  ScriptApp.newTrigger(FUNCION_PROGRAMADA)
+    .timeBased()
+    .everyMinutes(CADENCIA_MINUTOS)
+    .create();
   informar(
     "Horario automático ACTIVADO\n\n" +
-    "El puente traerá los leads nuevos de lunes a sábado, entre las " + HORA_DE_CORRIDA +
-    " y las " + (HORA_DE_CORRIDA + 1) + " a. m. (hora de Lima). Domingos no corre.\n\n" +
-    "Google no garantiza el minuto exacto: dispara dentro de esa hora.\n" +
+    "El puente mirará el origen cada " + CADENCIA_MINUTOS + " minutos, de lunes a " +
+    "sábado entre las " + VENTANA_DESDE + " y las " + (VENTANA_HASTA + 1) +
+    " (hora de Lima). Domingos no corre.\n\n" +
+    "Casi todas esas corridas no cuestan nada: solo preguntan cuántas filas tiene el " +
+    "origen y, si no creció, terminan ahí. La lectura completa se paga cuando hay " +
+    "leads nuevos, y una vez al día pase lo que pase.\n\n" +
     "De ahí, el conector sube los leads al CRM en su ciclo de 5 min.\n\n" +
-    (borrados ? "(Se reemplazaron " + borrados + " horarios anteriores.)" : "")
+    (borrados ? "(Se reemplazaron " + borrados + " disparadores anteriores.)" : "")
   );
 }
 
@@ -249,7 +282,7 @@ function quitarHorario(silencioso) {
   });
   if (!silencioso) {
     informar(n
-      ? "Horario automático APAGADO (" + n + " disparadores quitados).\n\n" +
+      ? "Horario automático APAGADO (" + n + " disparador(es) quitado(s)).\n\n" +
         "El puente ya solo corre cuando lo pides desde el menú."
       : "No había horario automático activo.");
   }
@@ -262,24 +295,528 @@ function verHorario() {
     return t.getHandlerFunction() === FUNCION_PROGRAMADA;
   });
   informar(propios.length
-    ? "Horario automático ACTIVO: " + propios.length + " corridas por semana, " +
-      "lunes a sábado entre las " + HORA_DE_CORRIDA + " y las " + (HORA_DE_CORRIDA + 1) +
-      " a. m. (hora de Lima)."
-    : "Horario automático APAGADO. Actívalo con \"Activar horario automático\".");
+    ? "Horario automático ACTIVO: el puente mira el origen cada " + CADENCIA_MINUTOS +
+      " minutos, de lunes a sábado entre las " + VENTANA_DESDE + " y las " +
+      (VENTANA_HASTA + 1) + " (hora de Lima)." +
+      (propios.length > 1
+        ? "\n\n⚠️ Hay " + propios.length + " disparadores donde debería haber UNO. " +
+          "Vuelve a ejecutar \"Activar horario del puente\": deja solo el que toca."
+        : "")
+    : "Horario automático APAGADO. Actívalo con \"Activar horario del puente\".");
   return propios.length;
 }
 
 /**
- * Lo que corre el disparador. Sin ventanas: nadie está mirando la hoja a esa hora.
- * Si algo falla, Google avisa por correo al dueño del script; el detalle queda en el
- * Registro de ejecución del proyecto.
+ * LA HORA DE LIMA, por el único camino que no depende de la zona del proyecto de Apps
+ * Script (que puede estar en hora del Pacífico sin que nadie se entere hasta que el
+ * puente corre de madrugada). Todo lo que este archivo sabe del reloj sale de aquí.
+ */
+function relojDeLima(fecha) {
+  return momentoDe(Utilities.formatDate(fecha || new Date(), ZONA_DE_CORRIDA, "yyyy-MM-dd HH:mm"));
+}
+
+/** "AAAA-MM-DD HH:MM" → sus piezas + el día de la semana (0 = domingo). Pura. */
+function momentoDe(texto) {
+  const m = String(texto || "").match(/^(\d{4})-(\d{2})-(\d{2})[ T](\d{2}):(\d{2})/);
+  if (!m) throw new Error("No pude leer la hora de Lima: \"" + texto + "\"");
+  return {
+    fecha: m[1] + "-" + m[2] + "-" + m[3],
+    hora: +m[4],
+    minuto: +m[5],
+    // UTC a propósito: sobre una fecha SIN hora, es aritmética de calendario pura y
+    // no puede desplazarse un día por la zona en que corra el intérprete.
+    dia: new Date(Date.UTC(+m[1], +m[2] - 1, +m[3])).getUTCDay(),
+    texto: m[3] + "/" + m[2] + "/" + m[1] + " " + m[4] + ":" + m[5],
+  };
+}
+
+/** Días enteros entre dos fechas "AAAA-MM-DD". Pura. `null` si alguna no es fecha. */
+function diasEntre(desde, hasta) {
+  const a = String(desde || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const b = String(hasta || "").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!a || !b) return null;
+  return Math.round(
+    (Date.UTC(+b[1], +b[2] - 1, +b[3]) - Date.UTC(+a[1], +a[2] - 1, +a[3])) / 86400000
+  );
+}
+
+/** ¿Toca correr a esta hora de Lima? Pura: es una decisión de calendario, nada más. */
+function dentroDeVentana(reloj) {
+  if (!reloj) return { ok: false, motivo: "sin reloj" };
+  if (reloj.dia === DIA_SIN_CORRIDA) {
+    return { ok: false, motivo: "es domingo y el puente no corre los domingos" };
+  }
+  if (reloj.hora < VENTANA_DESDE || reloj.hora > VENTANA_HASTA) {
+    return {
+      ok: false,
+      motivo: "son las " + reloj.hora + " h y la ventana es de " + VENTANA_DESDE +
+        " a " + (VENTANA_HASTA + 1) + " h (hora de Lima)",
+    };
+  }
+  return { ok: true, motivo: "" };
+}
+
+/**
+ * EL PRE-CHEQUEO, en su parte decidible sin tocar Hojas de Google. Recibe el tamaño
+ * de cada pestaña del origen y la memoria del puente, y responde si hay que pagar la
+ * lectura completa.
+ *
+ * Está escrito para EQUIVOCARSE HACIA MIRAR: cualquier cosa rara —pestaña sin marca,
+ * filas que desaparecen, trabajo que quedó a medias por el tope, memoria de estado
+ * ilegible— manda hacer la pasada completa, que es la que sabe detener pestañas y
+ * avisar. Ahorrar una lectura nunca puede costar un lead.
+ */
+function decidirPasada(pestanas, marcas, estado, reloj) {
+  const motivos = [];
+  const detenidas = (estado || {}).detenidas || {};
+  (pestanas || []).forEach(function (p) {
+    // LO QUE YA SE SABE ROTO NO SE VUELVE A DESCUBRIR CADA CUARTO DE HORA. Una
+    // pestaña detenida sigue chocando con su marca en cada pre-chequeo: sin esto,
+    // desde el momento en que se detiene una y hasta que un humano la arregla, el
+    // puente descargaría las 12.000 filas del origen 96 veces al día — exactamente la
+    // cuota que esta cadencia vino a salvar. Solo se salta mientras el origen siga
+    // EXACTAMENTE igual que cuando se detuvo; y la pasada del suelo diario vuelve a
+    // mirarla (y a avisar) una vez al día.
+    if (Number(detenidas[p.id]) === p.filas) return;
+
+    const m = (marcas || {})[p.id];
+    if (!m) {
+      motivos.push(p.nombre + ": sin marca de agua (pestaña nueva o sin inicializar)");
+      return;
+    }
+    if (p.filas > m.filas) {
+      motivos.push(p.nombre + ": creció (" + m.filas + " → " + p.filas + " filas)");
+      return;
+    }
+    if (p.filas < m.filas) {
+      motivos.push(p.nombre + ": PERDIÓ filas (" + m.filas + " → " + p.filas + ")");
+      return;
+    }
+    // Mismo tamaño, pero la pasada anterior se quedó a medias por el tope: lo que
+    // falta por mirar sigue ahí y no lo va a anunciar ningún crecimiento.
+    if (Number(m.ultimaFila) < Number(m.filas)) {
+      motivos.push(p.nombre + ": quedó trabajo pendiente de la pasada anterior");
+    }
+  });
+
+  // EL SUELO DIARIO. "Mismo número de filas" no prueba que el contenido sea el mismo:
+  // borrar una fila e insertar otra deja el contador igual. Una pasada completa al día
+  // cierra ese hueco y cuesta exactamente lo que costaba el horario viejo.
+  const forzada = String((estado || {}).pasadaCompletaEl || "") !== String((reloj || {}).fecha || "");
+  if (forzada) motivos.push("suelo diario: hoy todavía no hubo una pasada completa");
+
+  return { mirar: motivos.length > 0, forzada: forzada, motivos: motivos };
+}
+
+/**
+ * Qué pestañas quedaron detenidas y con qué tamaño, para que el pre-chequeo no
+ * vuelva a pagar la lectura completa mientras el origen no cambie.
+ */
+function mapaDetenidas(incidencias, pestanas) {
+  const tam = {};
+  (pestanas || []).forEach(function (p) { tam[p.id] = p.filas; });
+  const r = {};
+  (incidencias || []).forEach(function (x) {
+    if (tam[x.id] !== undefined) r[x.id] = tam[x.id];
+  });
+  return r;
+}
+
+/**
+ * EL PRE-CHEQUEO BARATO, la mitad que sí toca Hojas. Pregunta solo cuántas filas
+ * tiene cada pestaña: es metadato, no descarga celdas.
+ *
+ * ⚠️ Mide con `Math.max(getLastRow(), 1)` porque es EXACTAMENTE como lo mide la pasada
+ * completa (`getDataRange()` devuelve una fila para una pestaña vacía). Comparar dos
+ * varas distintas dejaría el pre-chequeo gritando "creció" en cada corrida — o, peor,
+ * callado cuando sí creció.
+ */
+function medirOrigen() {
+  const origen = SpreadsheetApp.openById(ORIGEN_ID); // ← solo lectura, ver cabecera
+  return origen.getSheets().map(function (p) {
+    return {
+      id: String(p.getSheetId()),
+      nombre: p.getName(),
+      filas: Math.max(p.getLastRow(), 1),
+    };
+  });
+}
+
+/**
+ * Lo que corre el disparador, cada 15 minutos.
+ *
+ * NO LANZA. Con esta cadencia, una excepción no controlada son 96 correos de fallo de
+ * Google al día: el aviso se vuelve ruido y el ruido se ignora, que es la única forma
+ * de que un puente parado pase desapercibido. Aquí se atrapa, se anota en el estado y
+ * se avisa UNA vez al día. Las ejecuciones a mano (menú, editor) sí lanzan: ahí hay
+ * alguien mirando la pantalla.
  */
 function corridaProgramada() {
-  console.log("Corrida programada — " +
-    Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "EEE dd/MM/yyyy HH:mm"));
-  const r = procesar(true);
-  console.log(resumen(r));
-  return r;
+  const reloj = relojDeLima();
+  const ventana = dentroDeVentana(reloj);
+  if (!ventana.ok) {
+    console.log("Corrida " + reloj.texto + " — no toca: " + ventana.motivo);
+    return { omitida: ventana.motivo };
+  }
+  console.log("Corrida programada — " + reloj.texto);
+
+  try {
+    const destino = SpreadsheetApp.getActiveSpreadsheet();
+    // Se lee SIN candado a propósito: son lecturas, y lo único que puede pasar es
+    // decidir mirar cuando no hacía falta. La pasada completa sí toma el candado.
+    const marcas = leerMarcas(destino);
+    const estado = leerEstado();
+
+    if (!Object.keys(marcas).length) {
+      const aviso =
+        "El puente está PARADO: todavía no tiene marca de agua, así que no puede " +
+        "distinguir un lead nuevo de una fila vieja del origen y no trae nada.\n\n" +
+        "Abre la hoja y ejecuta una vez: AVANCE CORP → \"2 · Inicializar marca de " +
+        "agua\". No importa ningún lead; solo anota dónde está hoy el final de cada " +
+        "pestaña.";
+      console.error(aviso);
+      avisar("sin-marcas", "El puente está parado: falta la marca de agua", aviso, reloj);
+      anotarEstado({ ultimaCorrida: reloj.texto, ultimoVeredicto: "PARADO: sin marca de agua" });
+      return { omitida: "sin marca de agua" };
+    }
+
+    const pestanas = medirOrigen();
+    const decision = decidirPasada(pestanas, marcas, estado, reloj);
+    const tamanos = pestanas.map(function (p) { return p.nombre + "=" + p.filas; }).join(" · ");
+
+    if (!decision.mirar) {
+      console.log("   ↳ sin novedad en el origen (" + tamanos + "): no se lee ni una celda.");
+      anotarEstado(fusionar(
+        vigilarFuente(estado, pestanas, reloj),
+        { ultimaCorrida: reloj.texto, ultimoVeredicto: "sin novedad en el origen" }
+      ));
+      return { omitida: "sin novedad", pestanas: pestanas };
+    }
+
+    console.log("   ↳ toca leer: " + decision.motivos.join(" · "));
+    const r = procesar(true);
+    console.log(resumen(r));
+
+    anotarEstado(fusionar(
+      vigilarFuente(estado, pestanas, reloj),
+      {
+        ultimaCorrida: reloj.texto,
+        ultimoVeredicto: r.aceptados.length + " leads traídos, " +
+          r.rechazados.length + " descartados",
+        pasadaCompletaEl: reloj.fecha,
+        ultimaPasadaCompleta: reloj.texto,
+        traidosUltimaPasada: r.aceptados.length,
+        incidencias: r.incidencias.map(function (x) { return x.pestana + ": " + x.motivo; }),
+        detenidas: mapaDetenidas(r.incidencias, pestanas),
+        ultimoError: "",
+      }
+    ));
+
+    if (r.incidencias.length) {
+      avisar(
+        "pestana-detenida",
+        "Pestañas detenidas en el origen: el puente no trajo lo que había ahí",
+        "El puente detuvo estas pestañas porque su marca de agua dejó de ser fiable:\n\n" +
+        r.incidencias.map(function (x) { return "   · " + x.pestana + ": " + x.motivo; }).join("\n") +
+        "\n\nSu marca quedó INTACTA y no se importó nada de ellas. Revisa el origen y, " +
+        "si el cambio es legítimo, borra la fila de esa pestaña en \"" + HOJA_MARCAS +
+        "\" y vuelve a ejecutar \"Inicializar marca de agua\".",
+        reloj
+      );
+    }
+    return r;
+  } catch (e) {
+    const detalle = (e && e.message) ? e.message : String(e);
+    // Una corrida que se topa con otra en marcha NO es un fallo: es el candado
+    // haciendo su trabajo (una pasada lenta sobre 12.000 filas puede pisar a la
+    // siguiente). Tratarlo como error mandaría alertas por lo que funciona bien.
+    if (/Ya hay una corrida/.test(detalle)) {
+      console.log("Corrida " + reloj.texto + " omitida: ya había otra en marcha.");
+      anotarEstado({ ultimaCorrida: reloj.texto, ultimoVeredicto: "omitida: otra corrida en marcha" });
+      return { omitida: "solapada" };
+    }
+    console.error("Corrida " + reloj.texto + " FALLIDA: " + detalle);
+    anotarEstado({
+      ultimaCorrida: reloj.texto,
+      ultimoVeredicto: "FALLÓ",
+      ultimoError: reloj.texto + " — " + detalle,
+    });
+    avisar(
+      "error",
+      "El puente falló al traer leads",
+      "La corrida automática de las " + reloj.texto + " terminó con un error:\n\n" +
+      detalle + "\n\nLa marca de agua NO avanza cuando una corrida falla, así que no " +
+      "se pierde ningún lead: la próxima corrida vuelve a mirar esas filas. Si el " +
+      "error se repite, el detalle completo está en el Registro de ejecución del " +
+      "proyecto de Apps Script.",
+      reloj
+    );
+    return { omitida: "error", error: detalle };
+  }
+}
+
+// ── Estado y alertas ─────────────────────────────────────────────────────────
+
+/**
+ * DIARIO DE A BORDO. Vive en las Propiedades del script, no en una pestaña: no hay
+ * que crearla, ni protegerla, ni cuidar en qué posición queda (una pestaña de más
+ * delante de LEADS pone al conector a importar cualquier cosa — ya pasó).
+ *
+ * ⚠️ ES OBSERVABILIDAD, NO MEMORIA. Quién entra y quién no lo deciden la marca de
+ * agua y las huellas, que viven en la hoja. Si esto se pierde o se corrompe, el
+ * puente sigue trayendo exactamente los mismos leads: lo único que pasa es que el
+ * panel queda en blanco y hoy se hace una lectura completa de más. Por eso todas las
+ * funciones de aquí abajo tragan sus errores en vez de tumbar la corrida.
+ */
+const PROP_ESTADO = "PUENTE_ESTADO";
+
+/** A quién van las alertas. Vacío = al dueño del script (lo normal). */
+const PROP_ALERTAS_A = "PUENTE_ALERTAS_A";
+
+/**
+ * La alerta de «el origen no recibe nada» NACE APAGADA, a propósito: el origen lleva
+ * seco desde el 24-jul-2026 y es una hoja ajena. Encenderla hoy sería un correo
+ * diario para siempre — la forma más rápida de que las alertas se vuelvan ruido y
+ * nadie mire la que sí importa. Se enciende el día que el origen reviva, poniendo
+ * esta propiedad del script en "SI".
+ */
+const PROP_ALERTA_FUENTE_SECA = "PUENTE_ALERTA_FUENTE_SECA";
+const DIAS_FUENTE_SECA = 3;
+
+function leerEstado() {
+  try {
+    const s = PropertiesService.getScriptProperties().getProperty(PROP_ESTADO);
+    return s ? JSON.parse(s) : {};
+  } catch (e) {
+    console.error("No pude leer el estado del puente (" + e.message + "). Sigo igual: " +
+      "el estado es un diario, no la memoria.");
+    return {};
+  }
+}
+
+/** Escribe el estado entero. Nunca lanza: ver la nota de PROP_ESTADO. */
+function guardarEstado(estado) {
+  try {
+    PropertiesService.getScriptProperties().setProperty(PROP_ESTADO, JSON.stringify(estado || {}));
+  } catch (e) {
+    console.error("No pude guardar el estado del puente: " + e.message);
+  }
+  return estado;
+}
+
+/** Anota unos pocos campos sobre lo ya guardado (releyendo, para no pisar alertas). */
+function anotarEstado(parcial) {
+  return guardarEstado(fusionar(leerEstado(), parcial || {}));
+}
+
+/**
+ * ¿Está entrando algo en el origen? Es una pregunta distinta de «¿hay leads nuevos
+ * para el CRM?»: mide el tamaño CRUDO de las pestañas, sin marca de agua ni corte de
+ * por medio. Devuelve lo que hay que anotar en el diario y, si procede, avisa.
+ */
+function vigilarFuente(estado, pestanas, reloj) {
+  const previo = (estado || {}).filasOrigen || {};
+  const ahora = {};
+  let crecio = false;
+  (pestanas || []).forEach(function (p) {
+    ahora[p.id] = p.filas;
+    if (previo[p.id] !== undefined && p.filas > Number(previo[p.id])) crecio = true;
+  });
+
+  const parcial = { filasOrigen: ahora };
+  // La primera vez no se puede afirmar que creció ni que está seco: solo desde
+  // cuándo lo estamos mirando. Inventar aquí una fecha de crecimiento sería mentir
+  // en el panel justo el día en que el panel se estrena.
+  if (!(estado || {}).vigilaDesde) parcial.vigilaDesde = reloj.fecha;
+  if (crecio) {
+    parcial.crecioEl = reloj.fecha;
+    return parcial;
+  }
+
+  const desde = (estado || {}).crecioEl || (estado || {}).vigilaDesde || reloj.fecha;
+  const dias = diasEntre(desde, reloj.fecha);
+  if (alertaFuenteSecaActiva() && dias !== null && dias >= DIAS_FUENTE_SECA) {
+    avisar(
+      "fuente-seca",
+      "El origen lleva " + dias + " días sin recibir un lead",
+      "El puente está vivo y mirando, pero el documento de origen no gana una sola " +
+      "fila desde hace " + dias + " días.\n\nNo es un fallo del puente: es que la " +
+      "fuente no recibe. El origen es de otra empresa (consultas@creaemprendedor.com), " +
+      "así que la pregunta va para ellos: ¿quién alimenta esa hoja y sigue apuntando " +
+      "ahí la campaña?",
+      reloj
+    );
+  }
+  return parcial;
+}
+
+function alertaFuenteSecaActiva() {
+  try {
+    const v = PropertiesService.getScriptProperties().getProperty(PROP_ALERTA_FUENTE_SECA);
+    return /^(si|s[ií]|1|on|true)$/i.test(String(v == null ? "" : v).trim());
+  } catch (e) {
+    return false;
+  }
+}
+
+function destinatarioDeAlertas() {
+  let elegido = "";
+  try {
+    elegido = PropertiesService.getScriptProperties().getProperty(PROP_ALERTAS_A) || "";
+  } catch (e) {
+    elegido = "";
+  }
+  return elegido.trim() || Session.getEffectiveUser().getEmail();
+}
+
+/**
+ * ⚠️ AL PEGAR ESTE ARCHIVO, APPS SCRIPT PEDIRÁ UN PERMISO NUEVO (enviar correo en tu
+ * nombre): `MailApp` no se usaba hasta ahora. Los disparadores ya instalados siguen
+ * con la autorización VIEJA y fallarían con "Authorization is required", así que tras
+ * pegar hay que ejecutar UNA función a mano desde el editor (por ejemplo `verEstado`)
+ * y aceptar los permisos. Va en el guion de la Fase 5.
+ *
+ * Manda UN correo por clave y día. Las dos reglas son igual de importantes:
+ *
+ *  · UNA VEZ AL DÍA — con una corrida cada 15 minutos, avisar en cada una son 96
+ *    correos: el aviso se vuelve ruido y el ruido se ignora.
+ *  · NUNCA LANZA — quedarse sin cuota de correo no puede ser el motivo por el que un
+ *    lead no entra al CRM. Si el correo no sale, queda dicho en el Registro.
+ *
+ * Devuelve true solo si de verdad se envió.
+ */
+function avisar(clave, asunto, cuerpo, reloj) {
+  const estado = leerEstado();
+  const alertas = estado.alertas || {};
+  if (alertas[clave] === reloj.fecha) {
+    console.log("(la alerta \"" + clave + "\" ya se envió hoy: no se repite)");
+    return false;
+  }
+  const para = destinatarioDeAlertas();
+  try {
+    MailApp.sendEmail(
+      para,
+      "[Puente de leads] " + asunto,
+      cuerpo + "\n\n— Puente de leads AVANCE CORP · " + reloj.texto + " (hora de Lima)\n" +
+      "Panel: abre la hoja → menú AVANCE CORP → \"Ver estado del puente\"."
+    );
+  } catch (e) {
+    console.error("No se pudo enviar la alerta \"" + clave + "\" a " + para + ": " + e.message);
+    return false;
+  }
+  alertas[clave] = reloj.fecha;
+  anotarEstado({ alertas: alertas });
+  console.log("Alerta \"" + clave + "\" enviada a " + para);
+  return true;
+}
+
+// ── El panel: ¿esto está vivo? ───────────────────────────────────────────────
+
+/**
+ * Lo que antes había que reconstruir a mano abriendo tres pestañas y el Registro de
+ * ejecución. Solo LEE. Es la respuesta a la pregunta que de verdad se hace uno:
+ * «¿el puente está funcionando, o lleva semanas parado y nadie se ha dado cuenta?».
+ */
+function verEstado() {
+  const destino = SpreadsheetApp.getActiveSpreadsheet();
+  const reloj = relojDeLima();
+  const disparadores = ScriptApp.getProjectTriggers();
+  const cuantos = function (nombre) {
+    return disparadores.filter(function (t) { return t.getHandlerFunction() === nombre; }).length;
+  };
+  const datos = {
+    reloj: reloj,
+    ventana: dentroDeVentana(reloj),
+    puente: cuantos(FUNCION_PROGRAMADA),
+    conector: cuantos("importarLeads"),
+    marcas: leerMarcas(destino),
+    estado: leerEstado(),
+    pestanas: medirOrigen(),
+    hoja: contarEstadosDeLeads(hojaDeLeads(destino)),
+    alertaFuenteSeca: alertaFuenteSecaActiva(),
+    correoAlertas: destinatarioDeAlertas(),
+  };
+  informar(textoDelPanel(datos));
+  return datos;
+}
+
+/** El panel, como texto. PURA: recibe los datos ya leídos, así se puede probar. */
+function textoDelPanel(d) {
+  const est = d.estado || {};
+  const marcas = d.marcas || {};
+  let t = "ESTADO DEL PUENTE — " + d.reloj.texto + " (hora de Lima)\n";
+
+  t += "\nMÁQUINA\n";
+  t += "   · Puente: " + (d.puente
+    ? "ENCENDIDO, mira cada " + CADENCIA_MINUTOS + " min · lun–sáb de " + VENTANA_DESDE +
+      " a " + (VENTANA_HASTA + 1) + " h" + (d.puente > 1 ? " ⚠️ (" + d.puente + " disparadores donde debería haber 1)" : "")
+    : "APAGADO — no trae nada solo") + "\n";
+  t += "   · Ahora mismo: " + (d.ventana.ok ? "toca correr" : "no toca (" + d.ventana.motivo + ")") + "\n";
+  t += "   · Conector al CRM: " + (d.conector ? "ENCENDIDO, cada 5 min" : "APAGADO — los leads se quedan en la hoja") + "\n";
+  t += "   · Corte de fecha: " + (FECHA_CORTE || "sin corte ⚠️") + "\n";
+
+  t += "\nÚLTIMA CORRIDA\n";
+  t += est.ultimaCorrida
+    ? "   · " + est.ultimaCorrida + " — " + (est.ultimoVeredicto || "sin detalle") + "\n"
+    : "   · Todavía no ha corrido ninguna (o el diario se borró)\n";
+  if (est.ultimaPasadaCompleta) {
+    t += "   · Última lectura completa del origen: " + est.ultimaPasadaCompleta +
+      " (" + (est.traidosUltimaPasada || 0) + " leads traídos)\n";
+  }
+  if (est.ultimoError) t += "   · ⛔ Último error: " + est.ultimoError + "\n";
+  if (est.incidencias && est.incidencias.length) {
+    t += "   · ⛔ PESTAÑAS DETENIDAS en la última lectura:\n";
+    est.incidencias.forEach(function (x) { t += "        " + x + "\n"; });
+  }
+
+  t += "\nEL ORIGEN\n";
+  (d.pestanas || []).forEach(function (p) {
+    const m = marcas[p.id];
+    t += "   · " + p.nombre + ": " + p.filas + " filas · " +
+      (m ? "frontera en la " + m.ultimaFila + " (puesta el " + (m.actualizado || "?") + ")"
+         : "⛔ SIN marca de agua — el puente no puede traer de aquí") + "\n";
+  });
+  const desde = est.crecioEl || est.vigilaDesde || "";
+  const dias = desde ? diasEntre(desde, d.reloj.fecha) : null;
+  if (dias === null) {
+    t += "   · Sin datos todavía de cuándo creció por última vez\n";
+  } else if (dias === 0) {
+    t += "   · Recibió filas HOY\n";
+  } else {
+    t += "   · " + (est.crecioEl ? "Sin recibir una fila nueva desde hace " : "Sin recibir nada en los ") +
+      dias + " días" + (est.crecioEl ? "" : " que lleva vigilado") + "\n";
+  }
+  t += "   · Alerta de origen seco: " + (d.alertaFuenteSeca ? "ENCENDIDA" : "apagada") + "\n";
+
+  t += "\nNUESTRA HOJA\n";
+  const h = d.hoja || {};
+  t += "   · " + (h.total || 0) + " filas con datos · " + (h.pendientes || 0) +
+    " esperando subir al CRM · " + (h.importados || 0) + " subidas · " +
+    (h.rechazados || 0) + " rechazadas" + (h.errores ? " · " + h.errores + " con error temporal" : "") + "\n";
+
+  t += "\nLas alertas van a: " + d.correoAlertas + "\n";
+  return t;
+}
+
+/** Cuenta la columna de estado de nuestra hoja. Dos columnas, no la hoja entera. */
+function contarEstadosDeLeads(hoja) {
+  const cuenta = { total: 0, pendientes: 0, importados: 0, rechazados: 0, errores: 0, otros: 0 };
+  const ultima = hoja.getLastRow();
+  if (ultima < 2) return cuenta;
+  const telefonos = hoja.getRange(2, 2, ultima - 1, 1).getDisplayValues();
+  const estados = hoja.getRange(2, COL_ESTADO, ultima - 1, 1).getDisplayValues();
+  for (let i = 0; i < estados.length; i++) {
+    if (!String(telefonos[i][0]).trim()) continue; // fila vacía de la rejilla
+    cuenta.total++;
+    const e = String(estados[i][0]).trim();
+    if (!e) cuenta.pendientes++;
+    else if (e.indexOf("IMPORTADO") === 0) cuenta.importados++;
+    else if (e.indexOf("RECHAZADO") === 0) cuenta.rechazados++;
+    else if (e.indexOf("ERROR") === 0) cuenta.errores++;
+    else if (e.indexOf("DUPLICADO") === 0) cuenta.rechazados++;
+    else cuenta.otros++;
+  }
+  return cuenta;
 }
 
 // ── Ejecución manual ─────────────────────────────────────────────────────────
@@ -299,7 +836,21 @@ function vistaPreviaOrigen() {
 }
 
 function traerLeadsDelOrigen() {
+  const reloj = relojDeLima();
   const r = procesar(true);
+  // Una corrida a mano cuenta como lectura completa del día: el suelo diario ya está
+  // pagado y el panel no puede decir que hoy nadie miró el origen.
+  anotarEstado({
+    ultimaCorrida: reloj.texto,
+    ultimoVeredicto: "a mano: " + r.aceptados.length + " leads traídos, " +
+      r.rechazados.length + " descartados",
+    pasadaCompletaEl: reloj.fecha,
+    ultimaPasadaCompleta: reloj.texto,
+    traidosUltimaPasada: r.aceptados.length,
+    incidencias: r.incidencias.map(function (x) { return x.pestana + ": " + x.motivo; }),
+    detenidas: r.incidencias.length ? mapaDetenidas(r.incidencias, medirOrigen()) : {},
+    ultimoError: "",
+  });
   informar(
     "Listo\n\n" + resumen(r) +
     "\n\nLas filas nuevas se importan solas al CRM en el próximo ciclo de 5 min." +

@@ -23,7 +23,9 @@ const gs = new Function(
     "\nreturn { ubicarColumnas, normalizarFila, telefonoPeru, telefonoEnOtraCelda," +
     " pidePrestamo, filaLegible, legible, montoDe, monedaDe, siNo, ordenRevision," +
     " revisarPestana, huellaTexto, huellaCabeceras, anclaDeFilas, esDescartePorDiseno," +
-    " fusionar, FECHA_CORTE, MOTIVO_BACKLOG, MOTIVO_CORTE };"
+    " fusionar, momentoDe, diasEntre, dentroDeVentana, decidirPasada, textoDelPanel," +
+    " FECHA_CORTE, MOTIVO_BACKLOG, MOTIVO_CORTE, CADENCIA_MINUTOS," +
+    " VENTANA_DESDE, VENTANA_HASTA };"
 )();
 
 /**
@@ -339,6 +341,206 @@ test("esDescartePorDiseno: solo corte y backlog; lo accionable NO", () => {
 test("fusionar: lo nuevo pisa, lo que no se tocó sobrevive", () => {
   const r = gs.fusionar({ a: 1, b: 2 }, { b: 3, c: 4 });
   assert.deepEqual(r, { a: 1, b: 3, c: 4 });
+});
+
+// ── Fase 4: el calendario y el pre-chequeo, sin Hojas de por medio ───────────
+//
+// Las fechas ancla son reales y verificadas contra el calendario del negocio: el
+// 15 y el 16 de agosto de 2026 cayeron en sábado y domingo (por eso el arranque se
+// fijó en el lunes 17). Si `momentoDe` se equivocara de día de la semana, el puente
+// correría los domingos o dejaría de correr los lunes, en silencio.
+
+const DOMINGO = "2026-08-16 09:20";
+const LUNES = "2026-08-17 09:20";
+const SABADO = "2026-08-15 09:20";
+
+test("momentoDe: parte la hora de Lima y acierta el día de la semana", () => {
+  const lunes = gs.momentoDe(LUNES);
+  assert.equal(lunes.fecha, "2026-08-17");
+  assert.equal(lunes.hora, 9);
+  assert.equal(lunes.minuto, 20);
+  assert.equal(lunes.dia, 1, "el 17 de agosto de 2026 es LUNES");
+  assert.equal(lunes.texto, "17/08/2026 09:20");
+  assert.equal(gs.momentoDe(DOMINGO).dia, 0, "el 16 de agosto de 2026 es DOMINGO");
+  assert.equal(gs.momentoDe(SABADO).dia, 6, "el 15 de agosto de 2026 es SÁBADO");
+});
+
+test("momentoDe: una hora ilegible LANZA, no devuelve un día plausible", () => {
+  // Devolver algo razonable ante basura es cómo se acaba corriendo el domingo.
+  for (const basura of ["", "ayer", "17/08/2026 09:20", null]) {
+    assert.throws(() => gs.momentoDe(basura), /hora de Lima/, JSON.stringify(basura));
+  }
+});
+
+test("dentroDeVentana: domingo NUNCA, y la ventana es de 7 a 22 h", () => {
+  const en = (cuando) => gs.dentroDeVentana(gs.momentoDe(cuando));
+  assert.equal(en("2026-08-16 09:20").ok, false, "corrió un domingo");
+  assert.match(en("2026-08-16 09:20").motivo, /domingo/);
+  assert.equal(en("2026-08-16 23:00").ok, false);
+
+  assert.equal(en("2026-08-17 06:59").ok, false, "corrió antes de abrir la ventana");
+  assert.equal(en("2026-08-17 07:00").ok, true);
+  assert.equal(en("2026-08-17 21:45").ok, true, "la última corrida del día debe entrar");
+  assert.equal(en("2026-08-17 22:00").ok, false, "corrió después de cerrar la ventana");
+  assert.equal(en("2026-08-15 10:00").ok, true, "el sábado SÍ se trabaja");
+  assert.equal(gs.dentroDeVentana(null).ok, false);
+});
+
+test("diasEntre: cuenta días de calendario y se niega con basura", () => {
+  assert.equal(gs.diasEntre("2026-08-17", "2026-08-17"), 0);
+  assert.equal(gs.diasEntre("2026-07-24", "2026-08-16"), 23); // el origen seco, de verdad
+  assert.equal(gs.diasEntre("2026-08-17", "2026-08-16"), -1);
+  assert.equal(gs.diasEntre("", "2026-08-17"), null);
+  assert.equal(gs.diasEntre("hoy", "2026-08-17"), null);
+});
+
+// ── El pre-chequeo: cuándo vale la pena pagar la lectura de 12.000 filas ──────
+
+const RELOJ = () => gs.momentoDe(LUNES);
+/** Una pestaña ya mirada hasta el final, con su marca al día. */
+const marcaAlDia = (filas) => ({ ultimaFila: filas, filas: filas, cabeceras: "h1", ancla: "h2" });
+/** El estado de quien ya hizo su lectura completa HOY: el suelo no fuerza nada. */
+const sueloPagado = { pasadaCompletaEl: "2026-08-17" };
+
+test("pre-chequeo: si nada cambió y hoy ya se leyó entero, NO se lee nada", () => {
+  const d = gs.decidirPasada(
+    [{ id: "111", nombre: "landing", filas: 6158 }],
+    { 111: marcaAlDia(6158) },
+    sueloPagado,
+    RELOJ()
+  );
+  assert.equal(d.mirar, false, "iba a descargar 12.000 filas para nada");
+  assert.equal(d.forzada, false);
+  assert.deepEqual(d.motivos, []);
+});
+
+test("pre-chequeo: el origen CRECIÓ → hay que leer", () => {
+  const d = gs.decidirPasada(
+    [{ id: "111", nombre: "landing", filas: 6160 }],
+    { 111: marcaAlDia(6158) },
+    sueloPagado,
+    RELOJ()
+  );
+  assert.equal(d.mirar, true);
+  assert.match(d.motivos[0], /creció/);
+});
+
+test("pre-chequeo: filas que DESAPARECEN no se ignoran, se van a mirar", () => {
+  // Es el caso que detiene la pestaña entera. Si el pre-chequeo lo tapara, la
+  // incidencia no se descubriría nunca y nadie recibiría la alerta.
+  const d = gs.decidirPasada(
+    [{ id: "111", nombre: "landing", filas: 6000 }],
+    { 111: marcaAlDia(6158) },
+    sueloPagado,
+    RELOJ()
+  );
+  assert.equal(d.mirar, true);
+  assert.match(d.motivos[0], /PERDIÓ filas/);
+});
+
+test("pre-chequeo: una pestaña SIN marca manda leer (para que la pasada la detenga)", () => {
+  const d = gs.decidirPasada(
+    [{ id: "999", nombre: "tiktok", filas: 12 }],
+    { 111: marcaAlDia(6158) },
+    sueloPagado,
+    RELOJ()
+  );
+  assert.equal(d.mirar, true);
+  assert.match(d.motivos[0], /sin marca de agua/);
+});
+
+test("pre-chequeo: si el TOPE dejó trabajo a medias, se sigue aunque no crezca", () => {
+  const d = gs.decidirPasada(
+    [{ id: "111", nombre: "landing", filas: 6158 }],
+    { 111: { ultimaFila: 5000, filas: 6158 } }, // la pasada anterior se cortó en la 5000
+    sueloPagado,
+    RELOJ()
+  );
+  assert.equal(d.mirar, true);
+  assert.match(d.motivos[0], /trabajo pendiente/);
+});
+
+test("pre-chequeo: el SUELO DIARIO obliga a una lectura completa al día", () => {
+  // Sin este suelo, borrar una fila e insertar otra en el mismo cuarto de hora deja
+  // el contador igual y el lead nuevo no entraría jamás.
+  const d = gs.decidirPasada(
+    [{ id: "111", nombre: "landing", filas: 6158 }],
+    { 111: marcaAlDia(6158) },
+    { pasadaCompletaEl: "2026-08-16" }, // la última completa fue ayer
+    RELOJ()
+  );
+  assert.equal(d.mirar, true);
+  assert.equal(d.forzada, true);
+  assert.match(d.motivos[0], /suelo diario/);
+});
+
+test("pre-chequeo: sin diario de estado, se lee (equivocarse hacia MIRAR)", () => {
+  for (const estado of [null, {}, { pasadaCompletaEl: "" }]) {
+    const d = gs.decidirPasada(
+      [{ id: "111", nombre: "landing", filas: 6158 }],
+      { 111: marcaAlDia(6158) },
+      estado,
+      RELOJ()
+    );
+    assert.equal(d.mirar, true, JSON.stringify(estado));
+    assert.equal(d.forzada, true);
+  }
+});
+
+// ── El panel ─────────────────────────────────────────────────────────────────
+
+const PANEL_BASE = {
+  reloj: gs.momentoDe(LUNES),
+  ventana: { ok: true, motivo: "" },
+  puente: 1,
+  conector: 1,
+  marcas: { 111: { ultimaFila: 6158, actualizado: "17/08/2026 07:00" } },
+  estado: {
+    ultimaCorrida: "17/08/2026 09:15",
+    ultimoVeredicto: "sin novedad en el origen",
+    ultimaPasadaCompleta: "17/08/2026 07:00",
+    traidosUltimaPasada: 3,
+    crecioEl: "2026-07-24",
+  },
+  pestanas: [{ id: "111", nombre: "landing", filas: 6158 }],
+  hoja: { total: 279, pendientes: 0, importados: 279, rechazados: 0, errores: 0 },
+  alertaFuenteSeca: false,
+  correoAlertas: "avancecorp26@gmail.com",
+};
+
+test("el panel dice lo que hay que saber en cinco segundos", () => {
+  const t = gs.textoDelPanel(PANEL_BASE);
+  assert.match(t, /Puente: ENCENDIDO/);
+  assert.match(t, /Conector al CRM: ENCENDIDO/);
+  assert.match(t, /Ahora mismo: toca correr/);
+  assert.match(t, /landing: 6158 filas · frontera en la 6158/);
+  assert.match(t, /24 días/, "no dice hace cuánto que el origen no recibe nada");
+  assert.match(t, /Alerta de origen seco: apagada/);
+  assert.match(t, /279 filas con datos · 0 esperando subir/);
+  assert.match(t, /avancecorp26@gmail\.com/);
+});
+
+test("el panel canta lo APAGADO y lo que está sin frontera", () => {
+  const t = gs.textoDelPanel({
+    ...PANEL_BASE,
+    puente: 0,
+    conector: 0,
+    marcas: {},
+    ventana: { ok: false, motivo: "es domingo y el puente no corre los domingos" },
+    estado: { ultimoError: "17/08/2026 09:15 — cuota agotada", incidencias: ["landing: el origen PERDIÓ filas"] },
+  });
+  assert.match(t, /Puente: APAGADO/);
+  assert.match(t, /Conector al CRM: APAGADO/);
+  assert.match(t, /no toca \(es domingo/);
+  assert.match(t, /SIN marca de agua/);
+  assert.match(t, /Último error: .*cuota agotada/);
+  assert.match(t, /PESTAÑAS DETENIDAS/);
+});
+
+test("el panel avisa si hay MÁS de un disparador del puente", () => {
+  // Dos disparadores son dos corridas simultáneas cada cuarto de hora: el candado
+  // las salva, pero es cuota tirada y hay que verlo.
+  assert.match(gs.textoDelPanel({ ...PANEL_BASE, puente: 3 }), /3 disparadores donde debería haber 1/);
 });
 
 // ── Fase 2: reglas de forma, comprobadas sobre el CÓDIGO ─────────────────────

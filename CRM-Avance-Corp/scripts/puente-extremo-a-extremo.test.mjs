@@ -26,19 +26,21 @@ const PUENTE = readFileSync(join(aqui, "puente-drive-origen.gs"), "utf8");
 const EXPUESTO =
   "return { procesar, inicializarMarcas, leerMarcas, traerLeadsDelOrigen," +
   " vistaPreviaOrigen, prepararHoja, activarConector, apagarConector, importarLeads, configurar," +
+  " corridaProgramada, instalarHorario, quitarHorario, verHorario, verEstado," +
+  " leerEstado, medirOrigen, relojDeLima, contarEstadosDeLeads," +
   " TOPE_POR_PASADA, FECHA_CORTE, HOJA_MARCAS, HOJA_HUELLAS, HOJA_LEADS," +
-  " HOJA_REVISAR, MOTIVO_BACKLOG };";
+  " HOJA_REVISAR, MOTIVO_BACKLOG, CADENCIA_MINUTOS };";
 
 function cargar(entorno) {
   const g = entorno.globales;
   const fabrica = new Function(
     "SpreadsheetApp", "LockService", "Utilities", "Session",
-    "ScriptApp", "PropertiesService", "UrlFetchApp", "console",
+    "ScriptApp", "PropertiesService", "UrlFetchApp", "MailApp", "console",
     CONECTOR + "\n" + PUENTE + "\n" + EXPUESTO
   );
   return fabrica(
     g.SpreadsheetApp, g.LockService, g.Utilities, g.Session,
-    g.ScriptApp, g.PropertiesService, g.UrlFetchApp, g.console
+    g.ScriptApp, g.PropertiesService, g.UrlFetchApp, g.MailApp, g.console
   );
 }
 
@@ -447,6 +449,295 @@ test("importarLeads sin secreto falla con un mensaje que dice qué hacer", () =>
   const mundo = montar({ filasLeads: [["Ana", "+51918000021", "1000", "PEN", "LANDING", "", "", "", "", "", "", "", "", "SI", "", ""]] });
   assert.throws(() => mundo.gs.importarLeads(), /Propiedades del script/);
   assert.equal(mundo.espia.peticiones.length, 0);
+});
+
+// ── 8. Fase 4: la cadencia de 15 minutos, ejecutada ──────────────────────────
+//
+// Lo que aquí se prueba no es "que funcione": es que el pre-chequeo AHORRE de verdad
+// (el simulador cuenta las celdas descargadas) y que no ahorre de más — cualquier
+// duda tiene que acabar en lectura completa. Un pre-chequeo que se equivoque hacia
+// callar no se nota en producción: simplemente los leads dejan de llegar.
+
+/** Cuántas celdas del origen se han descargado, sumando sus dos pestañas. */
+const celdasLeidasDelOrigen = (m) => m.hojaLanding.celdasLeidas + m.hojaFb.celdasLeidas;
+const reiniciarContadores = (m) => {
+  m.hojaLanding.celdasLeidas = 0;
+  m.hojaFb.celdasLeidas = 0;
+};
+
+test("fuera de la ventana (domingo) la corrida no toca NI UNA celda del origen", () => {
+  const mundo = montar({ landing: [filaLanding(1)], ahora: "2026-08-16 09:20" }); // domingo
+  mundo.gs.inicializarMarcas();
+  reiniciarContadores(mundo);
+
+  const r = mundo.gs.corridaProgramada();
+
+  assert.match(r.omitida, /domingo/);
+  assert.equal(celdasLeidasDelOrigen(mundo), 0, "leyó el origen un domingo");
+  assert.equal(leadsEscritos(mundo.hojaLeads).length, 0);
+});
+
+test("de madrugada tampoco corre", () => {
+  const mundo = montar({ landing: [filaLanding(1)], ahora: "2026-08-17 03:00" });
+  mundo.gs.inicializarMarcas();
+  assert.match(mundo.gs.corridaProgramada().omitida, /ventana/);
+});
+
+test("sin novedad en el origen: se decide sin descargar ni una celda", () => {
+  const mundo = montar({ landing: [filaLanding(1)], fb: [filaFb(1)] });
+  mundo.gs.inicializarMarcas();
+  mundo.gs.corridaProgramada();          // la 1.ª del día paga el suelo diario
+  reiniciarContadores(mundo);
+
+  const r = mundo.gs.corridaProgramada(); // la de 15 minutos después
+
+  assert.equal(r.omitida, "sin novedad");
+  assert.equal(celdasLeidasDelOrigen(mundo), 0,
+    "descargó el origen entero para descubrir que no había nada nuevo");
+  assert.equal(mundo.gs.leerEstado().ultimoVeredicto, "sin novedad en el origen");
+});
+
+test("el origen crece: la misma corrida SÍ paga la lectura y trae el lead", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  mundo.gs.corridaProgramada();
+  reiniciarContadores(mundo);
+
+  mundo.hojaLanding.appendRow(filaLanding(31));
+  const r = mundo.gs.corridaProgramada();
+
+  assert.equal(r.aceptados.length, 1);
+  assert.ok(celdasLeidasDelOrigen(mundo) > 0, "trajo un lead sin leer el origen (?)");
+  assert.equal(leadsEscritos(mundo.hojaLeads)[0][1], "+51918000031");
+  assert.equal(mundo.gs.leerEstado().pasadaCompletaEl, "2026-08-17");
+});
+
+test("el SUELO DIARIO: al día siguiente se lee entero aunque nada haya crecido", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  mundo.gs.corridaProgramada();
+  reiniciarContadores(mundo);
+
+  mundo.espia.ponerReloj("2026-08-18 07:00"); // martes
+  const r = mundo.gs.corridaProgramada();
+
+  assert.ok(!r.omitida, "el suelo diario no disparó la lectura completa");
+  assert.ok(celdasLeidasDelOrigen(mundo) > 0);
+  assert.equal(mundo.gs.leerEstado().pasadaCompletaEl, "2026-08-18");
+});
+
+test("una pestaña detenida se avisa por correo UNA vez al día", () => {
+  const mundo = montar({ landing: [filaLanding(1), filaLanding(2), filaLanding(3)] });
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.getRange(4, 1, 1, 11).clearContent(); // el origen pierde una fila
+
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 1);
+  assert.match(mundo.espia.correos[0].asunto, /Pestañas detenidas/);
+  assert.match(mundo.espia.correos[0].cuerpo, /PERDIÓ filas/);
+  assert.equal(mundo.espia.correos[0].para, "duenio@avancecorp.pe");
+
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 1, "repitió el mismo aviso el mismo día");
+
+  mundo.espia.ponerReloj("2026-08-18 09:20");
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 2, "al día siguiente sí hay que volver a avisar");
+});
+
+test("una pestaña detenida NO se re-descubre cada cuarto de hora", () => {
+  // Mientras un humano no la arregle, esa pestaña choca con su marca en CADA
+  // pre-chequeo. Sin memoria de lo ya detenido serían 96 lecturas de 12.000 filas
+  // al día por algo que ya se sabe — la cuota entera, tirada, mientras el puente
+  // "funciona".
+  const mundo = montar({ landing: [filaLanding(1), filaLanding(2), filaLanding(3)] });
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.getRange(4, 1, 1, 11).clearContent(); // el origen pierde una fila
+
+  const primera = mundo.gs.corridaProgramada(); // la descubre, avisa y la anota
+  assert.equal(primera.incidencias.length, 1);
+  reiniciarContadores(mundo);
+
+  const segunda = mundo.gs.corridaProgramada(); // 15 min después, todo igual de roto
+  assert.equal(segunda.omitida, "sin novedad",
+    "vuelve a descargar el origen entero por una avería que ya conocía");
+  assert.equal(celdasLeidasDelOrigen(mundo), 0);
+  assert.equal(mundo.espia.correos.length, 1, "y tampoco repite el correo");
+
+  // Pero si el origen vuelve a moverse, hay que mirar otra vez.
+  mundo.hojaLanding.appendRow(filaLanding(41));
+  mundo.hojaLanding.appendRow(filaLanding(42));
+  assert.ok(!mundo.gs.corridaProgramada().omitida, "dejó de mirar una pestaña que cambió");
+});
+
+test("recordar lo detenido no puede tapar el trabajo pendiente de una pestaña SANA", () => {
+  // La memoria de averías es solo eso: averías. Si se convirtiera en un "ya miré
+  // esto" general, una pestaña sana a la que el tope dejó leads a medias se quedaría
+  // esperando al suelo diario — hasta 24 h de retraso, otra vez, y sin que se note.
+  const mundo = montar({ landing: [filaLanding(1), filaLanding(2), filaLanding(3)] });
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.getRange(4, 1, 1, 11).clearContent(); // landing se avería
+  for (let i = 0; i < mundo.gs.TOPE_POR_PASADA + 20; i++) mundo.hojaFb.appendRow(filaFb(2000 + i));
+
+  const primera = mundo.gs.corridaProgramada();
+  assert.equal(primera.incidencias.length, 1, "landing debía quedar detenida");
+  assert.equal(primera.aceptados.length, mundo.gs.TOPE_POR_PASADA, "el tope debía cortar a fb");
+
+  const segunda = mundo.gs.corridaProgramada();
+  assert.ok(!segunda.omitida, "dejó los 20 leads de fb esperando al día siguiente");
+  assert.equal(segunda.aceptados.length, 20);
+});
+
+test("sin marca de agua la corrida automática NO revienta: avisa y sigue viva", () => {
+  // Lanzar aquí serían 96 correos de fallo de Google al día, hasta que nadie los mire.
+  const mundo = montar({ landing: [filaLanding(1)] }); // sin inicializarMarcas
+
+  const r = mundo.gs.corridaProgramada();
+
+  assert.equal(r.omitida, "sin marca de agua");
+  assert.equal(mundo.espia.correos.length, 1);
+  assert.match(mundo.espia.correos[0].asunto, /falta la marca de agua/);
+  assert.match(mundo.espia.correos[0].cuerpo, /Inicializar marca de agua/);
+
+  // Y las 3 corridas siguientes de la misma hora NO repiten el correo. Esta es la
+  // prueba que de verdad pincha la guardia de "una vez al día": aquí no hay atajo
+  // que valga —cada corrida vuelve a entrar por la misma rama— así que si la guardia
+  // desaparece, se ven los cuatro correos.
+  mundo.gs.corridaProgramada();
+  mundo.gs.corridaProgramada();
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 1, "un puente parado manda 96 correos al día");
+
+  mundo.espia.ponerReloj("2026-08-18 07:00");
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 2, "al día siguiente hay que volver a insistir");
+  assert.equal(leadsEscritos(mundo.hojaLeads).length, 0);
+  assert.match(mundo.gs.leerEstado().ultimoVeredicto, /PARADO/);
+  // Un puente parado NO puede dejar el día por leído. Esto no salva ningún lead —
+  // cuando por fin se ponga la frontera, lo que llegue después entra igual porque el
+  // origen habrá crecido— pero sí evita que el panel diga "hoy se leyó el origen
+  // entero" el día en que no se leyó nada. El panel existe para eso.
+  assert.ok(!mundo.gs.leerEstado().pasadaCompletaEl,
+    "el diario dio el día por leído sin haber leído nada");
+});
+
+test("una pestaña VACÍA en el origen no obliga a leerlo entero cada cuarto de hora", () => {
+  // El pre-chequeo y la pasada completa tienen que medir con la MISMA vara: una
+  // pestaña sin nada mide 1 fila para getDataRange y 0 para getLastRow. Con dos varas
+  // distintas, el pre-chequeo lee "perdió filas" en cada corrida y manda descargar las
+  // 12.000 filas del origen 96 veces al día — justo la cuota que esta fase vino a salvar.
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.origen.hojas.push(new Hoja("borradores", 444, []));
+  mundo.gs.inicializarMarcas();
+  mundo.gs.corridaProgramada(); // la 1.ª del día paga el suelo
+  reiniciarContadores(mundo);
+
+  const r = mundo.gs.corridaProgramada();
+
+  assert.equal(r.omitida, "sin novedad",
+    "una pestaña vacía dispara una lectura completa en cada corrida");
+  assert.equal(celdasLeidasDelOrigen(mundo), 0);
+});
+
+test("si la pasada falla, la corrida lo anota y avisa — y la marca NO avanza", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  const antes = marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila;
+
+  mundo.hojaLanding.appendRow(filaLanding(32));
+  mundo.hojaLeads.fallarAlEscribir = () => { throw new Error("cuota agotada a mitad"); };
+
+  const r = mundo.gs.corridaProgramada(); // no lanza
+
+  assert.equal(r.omitida, "error");
+  assert.match(r.error, /cuota agotada/);
+  assert.equal(mundo.espia.correos.length, 1);
+  assert.match(mundo.espia.correos[0].asunto, /falló al traer leads/);
+  assert.match(mundo.gs.leerEstado().ultimoError, /cuota agotada/);
+  assert.equal(marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila, antes,
+    "la marca avanzó pese al fallo");
+});
+
+test("dos corridas solapadas NO son un error: ni alerta ni escándalo", () => {
+  // A 15 minutos, una pasada lenta sobre 12.000 filas puede pisar a la siguiente (o
+  // pisarla un "Traer" a mano). El candado ya lo resuelve; avisar por correo de eso
+  // sería alertar de que las defensas funcionan, y a los tres días nadie las mira.
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.appendRow(filaLanding(34)); // hay trabajo de verdad que hacer
+  mundo.espia.candadoLibre = false;             // …pero otra corrida va por delante
+
+  const r = mundo.gs.corridaProgramada();
+
+  assert.equal(r.omitida, "solapada");
+  assert.equal(leadsEscritos(mundo.hojaLeads).length, 0, "escribió con otra corrida en marcha");
+  assert.equal(mundo.espia.correos.length, 0, "mandó una alerta porque el candado hizo su trabajo");
+  assert.match(mundo.gs.leerEstado().ultimoVeredicto, /otra corrida en marcha/);
+});
+
+test("un correo que no sale no puede tumbar la corrida", () => {
+  const mundo = montar({ landing: [filaLanding(1)], fallarCorreo: true });
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.getRange(2, 1, 1, 11).clearContent(); // provoca incidencia
+
+  const r = mundo.gs.corridaProgramada();
+
+  assert.ok(!r.omitida || r.omitida !== "error", "el fallo del correo se llevó por delante la corrida");
+  assert.equal(mundo.espia.correos.length, 0);
+});
+
+test("la alerta de ORIGEN SECO nace apagada y solo suena si se enciende", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  mundo.gs.corridaProgramada();                 // deja constancia de desde cuándo vigila
+
+  mundo.espia.ponerReloj("2026-08-21 09:20");   // viernes, 4 días después, origen igual
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 0,
+    "mandó la alerta de fuente seca con el origen muerto desde julio: un correo diario para siempre");
+
+  // Y encendida a mano, sí avisa (el día que el origen reviva se apaga de nuevo).
+  mundo.espia.propiedades.PUENTE_ALERTA_FUENTE_SECA = "SI";
+  mundo.espia.ponerReloj("2026-08-22 09:20");
+  mundo.gs.corridaProgramada();
+  assert.equal(mundo.espia.correos.length, 1);
+  assert.match(mundo.espia.correos[0].asunto, /días sin recibir un lead/);
+});
+
+test("instalarHorario deja UN disparador de 15 min y se lleva los seis viejos", () => {
+  const mundo = montar({});
+  // El horario anterior: seis semanales a las 9 a. m., todos con el mismo manejador.
+  for (let i = 0; i < 6; i++) {
+    mundo.espia.disparadores.push({ getHandlerFunction: () => "corridaProgramada", hora: 9 });
+  }
+
+  mundo.gs.instalarHorario();
+
+  assert.equal(mundo.espia.disparadores.length, 1, "sumó el nuevo a los viejos");
+  assert.equal(mundo.espia.disparadores[0].getHandlerFunction(), "corridaProgramada");
+  assert.equal(mundo.espia.disparadores[0].cada, mundo.gs.CADENCIA_MINUTOS);
+  assert.equal(mundo.gs.verHorario(), 1);
+
+  mundo.gs.quitarHorario();
+  assert.equal(mundo.espia.disparadores.length, 0);
+});
+
+test("el panel de estado se puede pedir en cualquier momento y solo LEE", () => {
+  const mundo = montar({ landing: [filaLanding(1)], propiedades: { IMPORTAR_SECRET: "s3cr3t0" } });
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.appendRow(filaLanding(33));
+  mundo.gs.corridaProgramada();
+  mundo.gs.activarConector();
+
+  const antes = leadsEscritos(mundo.hojaLeads).length;
+  const d = mundo.gs.verEstado();
+
+  assert.equal(d.puente, 0, "no debería haber horario del puente encendido en esta prueba");
+  assert.equal(d.conector, 1);
+  assert.equal(d.hoja.total, 1);
+  assert.equal(d.hoja.pendientes, 1, "el lead recién traído está esperando al conector");
+  assert.equal(d.pestanas.length, 2);
+  assert.equal(leadsEscritos(mundo.hojaLeads).length, antes, "el panel escribió algo");
 });
 
 test("el conector NO se lleva por delante la pestaña equivocada", () => {
