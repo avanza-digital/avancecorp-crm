@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { CrmApiError } from './crm-api'
+import { CrmApiError, nuloExplicito } from './crm-api'
 import { sb, type ClienteCrm } from '@/lib/supabase'
 import { registrarError } from '@/lib/observabilidad'
 import {
@@ -230,9 +230,10 @@ export async function actualizarUsuarioAdministrable(input: ActualizarUsuarioInp
     p_nombre_completo: input.nombre_completo,
     p_tipo_documento: input.tipo_documento,
     p_documento: input.documento,
-    p_telefono: input.telefono,
-    p_whatsapp: input.whatsapp,
-    p_cargo: input.cargo,
+    // SIN default en el catálogo: el null explícito («borrar el dato») viaja.
+    p_telefono: nuloExplicito(input.telefono),
+    p_whatsapp: nuloExplicito(input.whatsapp),
+    p_cargo: nuloExplicito(input.cargo),
     p_version_perfil: input.version_perfil,
     p_idempotencia: requestId(),
   })
@@ -248,7 +249,7 @@ export async function asignarRolUsuario(input: {
   const { data, error } = await cliente().schema('crm').rpc('asignar_rol_usuario_fn', {
     p_perfil_id: input.perfilId,
     p_rol_crm: input.rol,
-    p_version_equipo: input.versionEquipo,
+    p_version_equipo: nuloExplicito(input.versionEquipo),
     p_idempotencia: requestId(),
   })
   if (error) throw errorConfiguracion(error, 'crm.config.usuarios.rol_fallido')
@@ -262,7 +263,7 @@ export async function actualizarJerarquiaUsuario(input: {
 }) {
   const { data, error } = await cliente().schema('crm').rpc('actualizar_jerarquia_usuario_fn', {
     p_perfil_id: input.perfilId,
-    p_supervisor_id: input.supervisorId,
+    p_supervisor_id: nuloExplicito(input.supervisorId),
     p_version_equipo: input.versionEquipo,
     p_idempotencia: requestId(),
   })
@@ -289,7 +290,7 @@ export async function fijarMembresiaUsuario(input: {
   const { data, error } = await cliente().schema('crm').rpc('fijar_membresia_activa_fn', {
     p_perfil_id: input.perfilId,
     p_activo: input.activo,
-    p_reemplazo_id: input.reemplazoId,
+    p_reemplazo_id: nuloExplicito(input.reemplazoId),
     p_version_equipo: input.versionEquipo,
     p_idempotencia: requestId(),
   })
@@ -350,9 +351,9 @@ export async function crearProductoInversion(
   const { data, error } = await cliente().schema('crm').rpc('crear_producto_inversion', {
     p_codigo: input.codigo,
     p_nombre: input.nombre,
-    p_descripcion: input.descripcion,
+    p_descripcion: nuloExplicito(input.descripcion),
     p_vigente_desde: input.vigenteDesde,
-    p_vigente_hasta: input.vigenteHasta,
+    p_vigente_hasta: nuloExplicito(input.vigenteHasta),
     p_condiciones: condicionesJson(input.condiciones),
   })
   if (error) throw errorConfiguracion(error, 'crm.config.productos.alta_fallida')
@@ -366,9 +367,9 @@ export async function crearVersionProducto(
     p_producto_id: input.productoId,
     p_expected_revision: input.expectedRevision,
     p_nombre: input.nombre,
-    p_descripcion: input.descripcion,
+    p_descripcion: nuloExplicito(input.descripcion),
     p_vigente_desde: input.vigenteDesde,
-    p_vigente_hasta: input.vigenteHasta,
+    p_vigente_hasta: nuloExplicito(input.vigenteHasta),
     p_condiciones: condicionesJson(input.condiciones),
   })
   if (error) throw errorConfiguracion(error, 'crm.config.productos.version_fallida')
@@ -382,9 +383,9 @@ export async function actualizarBorradorProducto(
     p_version_id: input.versionId,
     p_expected_revision: input.expectedRevision,
     p_nombre: input.nombre,
-    p_descripcion: input.descripcion,
+    p_descripcion: nuloExplicito(input.descripcion),
     p_vigente_desde: input.vigenteDesde,
-    p_vigente_hasta: input.vigenteHasta,
+    p_vigente_hasta: nuloExplicito(input.vigenteHasta),
     p_condiciones: condicionesJson(input.condiciones),
   })
   if (error) throw errorConfiguracion(error, 'crm.config.productos.borrador_fallido')
@@ -494,7 +495,7 @@ export async function publicarPoliticaSla(input: {
   }
   const { data, error } = await cliente().schema('crm').rpc('publicar_politica_sla', {
     p_expected_version: input.expectedVersion,
-    p_vigente_desde: input.vigenteDesde,
+    p_vigente_desde: nuloExplicito(input.vigenteDesde),
     p_config: config,
   })
   if (error) throw errorConfiguracion(error, 'crm.config.sla.publicacion_fallida')

@@ -281,6 +281,19 @@ export function mensajeDeError(e: unknown, porDefecto: string): string {
   return e instanceof CrmApiError ? e.message : porDefecto
 }
 
+/**
+ * PostgREST acepta NULL explícito en CUALQUIER parámetro; los tipos que genera
+ * el CLI no lo modelan (un parámetro SIN default se tipa sin `| null`). Este
+ * cast documenta esa brecha SIN cambiar el payload: el null SÍ viaja, igual
+ * que siempre. Solo para parámetros SIN DEFAULT (verificados contra el
+ * catálogo de producción el 16/08, `pg_get_function_arguments`); si el
+ * parámetro tiene DEFAULT NULL, lo correcto es `?? undefined` — omitir la
+ * clave y dejar que el default haga su trabajo, que es lo mismo que mandarla.
+ */
+export function nuloExplicito<T>(valor: T | null): T {
+  return valor as T
+}
+
 function cliente(): ClienteCrm {
   if (!sb) {
     const error = new CrmApiError('Supabase no está configurado.', 'SUPABASE_NOT_CONFIGURED')
@@ -977,18 +990,18 @@ export interface CrearLeadAtomicoInput {
   id?: NonNullable<CrearLeadArgs['p_id']>
   nombre_completo: CrearLeadArgs['p_nombre_completo']
   telefono: CrearLeadArgs['p_telefono']
-  correo?: CrearLeadArgs['p_correo']
-  dni?: CrearLeadArgs['p_dni']
-  genero?: CrearLeadArgs['p_genero']
-  fecha_nacimiento?: CrearLeadArgs['p_fecha_nacimiento']
-  distrito?: CrearLeadArgs['p_distrito']
+  correo?: CrearLeadArgs['p_correo'] | null
+  dni?: CrearLeadArgs['p_dni'] | null
+  genero?: CrearLeadArgs['p_genero'] | null
+  fecha_nacimiento?: CrearLeadArgs['p_fecha_nacimiento'] | null
+  distrito?: CrearLeadArgs['p_distrito'] | null
   origen: CrearLeadArgs['p_origen']
   etapa?: CrearLeadArgs['p_etapa']
   monto_estimado: CrearLeadArgs['p_monto_estimado']
   moneda: CrearLeadArgs['p_moneda']
-  categoria_interes?: CrearLeadArgs['p_categoria_interes']
-  vendedor_id?: CrearLeadArgs['p_vendedor_id']
-  nota?: CrearLeadArgs['p_nota']
+  categoria_interes?: CrearLeadArgs['p_categoria_interes'] | null
+  vendedor_id?: CrearLeadArgs['p_vendedor_id'] | null
+  nota?: CrearLeadArgs['p_nota'] | null
 }
 type ActividadInsert = Database['crm']['Tables']['actividades']['Insert']
 
@@ -2888,7 +2901,8 @@ export async function actualizarCapacidadLeadsObjetivo(
     'actualizar_capacidad_leads_objetivo',
     {
       p_analista_id: analistaId,
-      p_capacidad_leads_objetivo: capacidad,
+      // SIN default: el null explícito ES el mensaje («quedar sin configurar»).
+      p_capacidad_leads_objetivo: nuloExplicito(capacidad),
     },
   )
 
@@ -3114,9 +3128,11 @@ export async function corregirCierreExterno(
     p_moneda: datos.moneda,
     p_cooperativa: datos.cooperativa,
     p_numero_transaccion: numeroTransaccion,
-    p_referencia: datos.referencia?.trim() || null,
+    // SIN default en el catálogo: la clave es obligatoria y el null explícito
+    // significa «limpiar el campo» — debe seguir viajando tal cual.
+    p_referencia: nuloExplicito(datos.referencia?.trim() || null),
     p_vence_en: datos.venceEn,
-    p_nota: datos.nota?.trim() || null,
+    p_nota: nuloExplicito(datos.nota?.trim() || null),
   })
 
   if (error) {

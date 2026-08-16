@@ -205,6 +205,41 @@ const SUPUESTOS = [
     divergeSi: (n) => n < 2,
     esperado: '≥ 2 entre vendedores y supervisores activos',
   },
+  {
+    clave: 'metas_bajo_el_sello',
+    titulo: 'Ninguna revisión de metas vive por debajo del último mes sellado',
+    asume: 'El candado del cierre (20260815150000 + 20260815223000) rechaza publicar '
+      + 'metas de un mes ≤ al último sellado, serializado con el sellado del MISMO mes.',
+    afecta: [
+      'Cierre de mes: un mes con metas bajo el suelo jamás se sellará (metas muertas)',
+      'Configuración · Metas: el editor las mostraría como si contaran',
+    ],
+    consecuencia:
+      'Es el CANARIO del residuo documentado en 20260815223000: publicar un mes P '
+      + 'mientras se sella OTRO mes M > P no queda serializado. Si esta cuenta deja '
+      + 'de ser 0, esa carrera ocurrió de verdad: las filas son inertes (el suelo '
+      + 'las ignora), pero hay que saberlo y decidir si se limpian.',
+    async medir() {
+      // Las metas del propio mes sellado son legítimas (se selló CON ellas).
+      // Lo anómalo: una revisión MAYOR que la fotografiada por su sello, o un
+      // mes bajo el suelo que ni siquiera tiene sello propio.
+      const { data: sellos, error: errorSellos } = await admin.from('periodos_cerrados')
+        .select('periodo, meta_revision');
+      if (errorSellos) throw errorSellos;
+      if (!sellos || sellos.length === 0) return 0;
+      const porPeriodo = new Map(sellos.map((s) => [s.periodo, s.meta_revision]));
+      const ultimo = sellos.map((s) => s.periodo).sort().at(-1);
+      const { data: metas, error } = await admin.from('meta_periodos')
+        .select('periodo, revision').lte('periodo', ultimo);
+      if (error) throw error;
+      return (metas ?? []).filter((m) => {
+        const sellada = porPeriodo.get(m.periodo);
+        return sellada === undefined || m.revision > sellada;
+      }).length;
+    },
+    divergeSi: (n) => n > 0,
+    esperado: '0 revisiones bajo el sello sin fotografiar (residuo de 20260815223000)',
+  },
 ];
 
 function pintar(resultados) {

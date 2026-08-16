@@ -1,5 +1,4 @@
 import * as v from 'valibot'
-import type { Database } from './database.types'
 import { MOTIVOS_DESCARTE, type MotivoDescarte } from './tipos'
 
 const MOTIVOS_DISPONIBILIDAD = MOTIVOS_DESCARTE.map((motivo) => motivo.k)
@@ -25,8 +24,9 @@ export const DisponibilidadLeadSchema = v.variant('estado', [
   v.strictObject({ estado: v.literal('error'), detalle: v.literal('telefono_invalido') }),
 ])
 
-export type DisponibilidadLead =
-  Database['crm']['Functions']['verificar_disponibilidad_lead']['Returns']
+// Del CONTRATO, no de los tipos generados: el generador typea el retorno de
+// una RPC jsonb como `Json` y el variant de arriba es la verdad de runtime.
+export type DisponibilidadLead = v.InferOutput<typeof DisponibilidadLeadSchema>
 
 /** Respuesta de la mutación: o confirma la identidad creada, o devuelve el
  * mismo veredicto bloqueante de P-047. Nunca existe «libre sin insertar». */
@@ -39,7 +39,7 @@ export const ResultadoCreacionLeadAtomicaSchema = v.union([
 ])
 
 export type ResultadoCreacionLeadAtomica =
-  Database['crm']['Functions']['crear_lead_si_disponible']['Returns']
+  v.InferOutput<typeof ResultadoCreacionLeadAtomicaSchema>
 
 /**
  * Único estado que la UI necesita conservar después del precheck P-047.

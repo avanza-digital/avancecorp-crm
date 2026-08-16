@@ -366,6 +366,7 @@ function DetalleVendedor({
                         title={descuento.detalle}
                       >
                         {descuento.etiqueta}
+                        <span className="sr-only">. {descuento.detalle}</span>
                       </span>
                     )
                     : null

@@ -170,6 +170,7 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                     {descuento && (
                       <span className="block text-[10px] font-semibold text-[var(--gi-muted)]" title={descuento.detalle}>
                         {descuento.etiqueta}
+                        <span className="sr-only">. {descuento.detalle}</span>
                       </span>
                     )}
                   </td>
@@ -206,6 +207,7 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
               {descuento && (
                 <p className="ml-12 mt-1 text-[11px] font-semibold text-[var(--gi-muted)]" title={descuento.detalle}>
                   {descuento.etiqueta}
+                  <span className="sr-only">. {descuento.detalle}</span>
                 </p>
               )}
               {fila.estadoConversion === 'solo_arrastre'

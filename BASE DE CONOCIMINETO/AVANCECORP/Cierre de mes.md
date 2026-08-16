@@ -193,11 +193,26 @@ cuatro niveles (6/6 verificaciones, por consulta, sin transcribir un byte). 9 mu
 por las tres fases, los 9 en rojo. En demo no hay arrastre a propósito: las cifras demo
 están narradas una a una en sus tests.
 
-⚠️ **`database.types.ts` se mantiene A MANO** (su cabecera lo dice) y así entró
-`cierre_mes_estado_fn`. Regenerarlo con el CLI de hoy produce un formato que destapa 67
-usos con `null` vs `undefined` en ARGUMENTOS de RPC — y «arreglarlos» mecánicamente
-cambiaría los payloads que salen a producción (omitir una clave dispara el default de
-SQL; mandar null, no). Esa adopción es una pieza propia, no un contrabando.
+✅ **`database.types.ts` YA ES EL GENERADO** (adoptado el 16/08, antes del release, por
+exigencia de Miguel de no dejar nada abierto). Los 67 errores se clasificaron contra el
+CATÁLOGO real de producción (`pg_get_function_arguments`): 19 parámetros con `DEFAULT
+NULL`, 16 sin default. El arreglo final fue mínimo y SIN tocar un solo payload: dos
+alias que colgaban de `Returns` (ahora `Json`) vuelven a inferirse del contrato
+Valibot, el DTO del alta recupera su `| null`, y los 16 sin-default llevan
+`nuloExplicito()` — un cast documentado de la brecha del generador (PostgREST acepta
+null en cualquier parámetro; el tipo no lo modela). Probado con las 1826 unitarias
+(los MSW afirman cuerpos HTTP reales) y e2e 86/86. De paso, `npm run gen:types` ya no
+puede VACIAR el fichero si el CLI falta (escribe a un temporal y luego mueve).
+
+⚠️ **Los branches de Supabase NO pueden replicar este historial — veredicto final,
+diagnosticado al byte (16/08):** las 8 filas manuales del ledger ya llevan sus
+`statements` (backfill hecho: el ledger quedó COMPLETO, mejora permanente), y un
+branch de prueba replicó FIEL las primeras 86 migraciones (las tres huellas ancladas
+del 12/08 coinciden byte a byte). Lo que mata al runner es la EJECUCIÓN de
+`20260812000259` en un contexto ajeno: esas migraciones se defienden con guards y
+autopruebas pensados para la aplicación por psql del operador. El ciclo oficial de
+validación es: banco local + oráculo + auditor-rls + (cuando aplique) carrera real de
+dos sesiones — que este mismo día demostró cazar lo que el gate de branch jamás vio.
 
 ## La revisión adversaria (Codex, 15/08) y sus ocho hallazgos
 

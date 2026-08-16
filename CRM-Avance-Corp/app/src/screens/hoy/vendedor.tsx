@@ -1046,6 +1046,9 @@ export function HoyVendedor(): JSX.Element {
                             {' · '}
                             <span className="font-semibold" title={descuento.detalle}>
                               {descuento.etiqueta}
+                              {/* El title es solo-ratón: el detalle (mes,
+                                  motivo, cuánto) también viaja a lectores. */}
+                              <span className="sr-only">. {descuento.detalle}</span>
                             </span>
                           </>
                         )
