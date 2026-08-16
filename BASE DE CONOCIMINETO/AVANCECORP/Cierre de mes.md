@@ -6,8 +6,9 @@ actualizado: 2026-08-15
 # Cierre de mes
 
 **Estado: ✅ EL SERVIDOR, EN PRODUCCIÓN desde el 2026-08-15.** Las siete migraciones
-`20260815*` aplicadas en orden, con todas sus autopruebas activas. Falta la **Fase 2**,
-que es el front.
+`20260815*` aplicadas en orden, con todas sus autopruebas activas. La **Fase 2 (el
+front) está CONSTRUIDA y en verde ese mismo día** — queda solo publicarla con
+`/release-crm` (ver «Falta»).
 
 Verificado después de aplicar, no supuesto: producción queda **byte a byte igual** a la
 copia que aprobó el gate (misma huella de las 203 funciones,
@@ -154,8 +155,41 @@ tablas nuevas, ambos probados ejecutando, y ambos con mutante que lo demuestra.
 ✅ **Desplegado el 15/08.** Ciclo completo: copia de la base → las 7 aplicadas → gate
 (1007/0) → advisors (0 ERROR) → producción. La copia se borró al terminar.
 
-Queda la **Fase 2, el front**: enseñar la marca de mes cerrado, el descuento del asesor
-con su motivo, y el aviso del 1 al 10 con su alarma de ciclo atascado.
+✅ **Fase 2, el front — CONSTRUIDA el 15/08** (commits `CRM F2.0`–`F2.3`; falta solo
+publicarla con `/release-crm`, que invoca Miguel). Lo que se ve:
+
+- **El editor de metas sabe de meses cerrados.** Al elegir un mes ≤ al último sellado
+  aparece el banner «{mes} ya está cerrado» con la fecha del sello, y Publicar/Copiar se
+  apagan. La regla es LA MISMA del candado del servidor (todo mes hasta el último sellado),
+  así que banner y rechazo no pueden discrepar; y si la consulta del estado cayera, el
+  editor NO se cierra solo (fail-open): el candado real sigue siendo el trigger, cuyo
+  rechazo ya llega al toast como mensaje de negocio («No se publican metas de X: X ya
+  está cerrado») — probado contra un Supabase simulado.
+- **El descuento del asesor se dice al lado del número que rebaja.** Su conversión ya
+  llega NETA de anulaciones de meses cerrados; ahora el tile del vendedor y el ranking
+  (tabla y móvil) enseñan «−1 conversión · arrastre de julio», con el detalle (mes,
+  motivo, cuánto) en el tooltip. El dato viajaba desde el 15/08 y el front lo TIRABA:
+  el contrato laxo de la conversión descarta claves no declaradas — había que declararla.
+- **El aviso del ciclo, en la pantalla Hoy de gerencia** (todas las secciones): del 1 al
+  10 «julio se cierra el 10 ago. — quedan N días de ajuste»; el día 10 «se cierra hoy»
+  (SIN alarma: el ciclo pasa a las 09:20 y gritar 9 horas en falso mata la alarma); y
+  pasado el día sin sellar, la ALARMA «el cierre está atascado» — sin ella, un cron roto
+  es invisible. Los tres estados los nombra el SERVIDOR (`cierre_mes_estado_fn`); el
+  front no deduce fechas.
+
+El contrato del estado nació **ejecutando** la función (5 fixtures del generador
+`supabase/scripts/fixture-cierre-mes-estado.sql`, con costura de reloj verificada por
+fidelidad para las ramas que solo existen del 1 al 10), y quedó **probado contra
+producción** el mismo día: el juego de claves real coincide con el del bundle en los
+cuatro niveles (6/6 verificaciones, por consulta, sin transcribir un byte). 9 mutantes
+por las tres fases, los 9 en rojo. En demo no hay arrastre a propósito: las cifras demo
+están narradas una a una en sus tests.
+
+⚠️ **`database.types.ts` se mantiene A MANO** (su cabecera lo dice) y así entró
+`cierre_mes_estado_fn`. Regenerarlo con el CLI de hoy produce un formato que destapa 67
+usos con `null` vs `undefined` en ARGUMENTOS de RPC — y «arreglarlos» mecánicamente
+cambiaría los payloads que salen a producción (omitir una clave dispara el default de
+SQL; mandar null, no). Esa adopción es una pieza propia, no un contrabando.
 
 🔴 **El despliegue apagó la pantalla de metas, y hay que saber por qué.** El servidor
 entró primero y empezó a mandar **cuatro datos nuevos**; el front tiene esa pantalla
