@@ -572,10 +572,16 @@ function procesarNucleo(escribir) {
     // huella" — pasó el 2026-07-27 y la corrida siguiente re-listó TODO como
     // "ya presente". REVISAR es cosmético: va al final.
     guardarHuellas(destino, aceptados.concat(duplicados));
-    // INVARIANTE: la marca avanza SOLO si lo de arriba salió bien. Si escribirLeads o
-    // guardarHuellas lanzan (timeout, hoja sin filas, permisos), no se llega aquí: la
-    // próxima corrida vuelve a ver esas filas como nuevas y repite trabajo, que es
-    // infinitamente mejor que darlas por traídas sin haberlas escrito.
+    // INVARIANTE: la marca es lo ÚLTIMO que se mueve. Si escribirLeads o guardarHuellas
+    // lanzan (timeout, hoja sin filas, permisos), no se llega aquí y la próxima corrida
+    // vuelve a ver esas filas como nuevas: repite trabajo, que es infinitamente mejor
+    // que anotar un avance del que no estamos seguros.
+    //
+    // Que las huellas vayan ANTES que la marca es conservadurismo, no una necesidad
+    // demostrada: si fallaran las huellas con la marca ya movida, los leads ya estarían
+    // escritos en la hoja y el conector los subiría igual. Se deja en este orden porque
+    // no cuesta nada y porque «lo que recuerda que ya lo hice» debe escribirse después
+    // de haberlo hecho — pero conviene no contarlo como una defensa que no es.
     // Se fusiona sobre lo previo para no perder la marca de una pestaña que esta
     // pasada no llegó a mirar (tope alcanzado, detenida por incidencia, sin teléfono).
     guardarMarcas(destino, fusionar(marcasPrevias, marcasNuevas));
