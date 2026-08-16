@@ -735,7 +735,9 @@ test("el ORIGEN SECO es un dato del panel, NO una avería que ponga el puente en
   assert.equal(d.estado.vigilaDesde, "2026-08-17");
   const panel = mundo.espia.ventanas[mundo.espia.ventanas.length - 1];
   assert.match(panel, /ESTADO DEL PUENTE/, "el panel debería salir en pantalla");
-  assert.match(panel, /4 días/);
+  assert.match(panel, /Vigilado desde hace 4 día\(s\); todavía sin verlo crecer/);
+  assert.ok(!/Recibió filas HOY/.test(panel),
+    "el panel afirma que el origen recibió hoy sin haberlo visto crecer NUNCA");
   assert.match(panel, /Sin avisos activos/);
 });
 
@@ -773,6 +775,101 @@ test("el panel de estado se puede pedir en cualquier momento y solo LEE", () => 
   assert.equal(d.hoja.pendientes, 1, "el lead recién traído está esperando al conector");
   assert.equal(d.pestanas.length, 2);
   assert.equal(leadsEscritos(mundo.hojaLeads).length, antes, "el panel escribió algo");
+});
+
+// ── 8 bis. Los seis agujeros que encontró Codex el 2026-08-16 ───────────────
+
+test("renombrar las columnas de TELÉFONO detiene la pestaña — no la salta en silencio", () => {
+  // El peor de todos: la comprobación de "¿hay columna de teléfono?" iba ANTES de la
+  // de "¿sigue siendo la misma pestaña?". Renombrar esas dos columnas en el origen
+  // hacía que el puente se saltara la pestaña sin incidencia, sin aviso, y encima
+  // apagando el aviso anterior. Los leads dejaban de llegar y el panel decía
+  // "sin avisos activos".
+  const mundo = montar({ landing: [filaLanding(1)], fb: [filaFb(1)] });
+  mundo.gs.inicializarMarcas();
+
+  mundo.hojaLanding.getRange(1, 3, 1, 2).setValues([["Contacto principal", "Contacto alterno"]]);
+  mundo.hojaLanding.appendRow(filaLanding(70));
+  const r = mundo.gs.corridaProgramada();
+
+  assert.equal(r.incidencias.length, 1, "se saltó la pestaña en silencio");
+  assert.match(r.incidencias[0].motivo, /encabezados/i);
+  assert.ok(mundo.gs.leerEstado().avisos["pestana-detenida"], "no dejó aviso de la avería");
+});
+
+test("una pestaña que NUNCA tuvo teléfonos se salta sin dar guerra", () => {
+  // La otra cara: el arreglo no puede convertir en avería permanente una pestaña de
+  // resumen que jamás fue de leads.
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.origen.hojas.push(new Hoja("resumen", 555, [["Mes", "Total"], ["julio", "12"]]));
+  mundo.gs.inicializarMarcas();
+  mundo.hojaLanding.appendRow(filaLanding(71));
+
+  const r = mundo.gs.procesar(true);
+
+  assert.equal(r.incidencias.length, 0, "convirtió una pestaña de resumen en avería");
+  assert.equal(r.aceptados.length, 1);
+});
+
+test("si falla la escritura de REVISAR, la marca NO avanza (el lead no se evapora)", () => {
+  // La marca se guardaba ANTES que REVISAR. Si esa escritura fallaba, la fila que iba
+  // a revisión quedaba por debajo de la frontera y en la pasada siguiente pasaba a ser
+  // "historia": ni en LEADS, ni en REVISAR, ni en ningún sitio.
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+  const antes = marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila;
+
+  // Llega una fila nueva SIN teléfono válido: su destino es REVISAR.
+  const sinTelefono = filaLanding(72);
+  sinTelefono[2] = "no tengo";
+  mundo.hojaLanding.appendRow(sinTelefono);
+  const revisar = mundo.destino.insertSheet(mundo.gs.HOJA_REVISAR, mundo.destino.getNumSheets());
+  revisar.fallarAlEscribir = () => { throw new Error("cuota agotada escribiendo REVISAR"); };
+
+  assert.throws(() => mundo.gs.procesar(true), /REVISAR/);
+  assert.equal(marcasDe(mundo.gs, mundo.destino)["111"].ultimaFila, antes,
+    "la frontera avanzó y ese lead ya no aparecerá en ninguna parte");
+});
+
+test("si falla la escritura de la marca, las fronteras anteriores SIGUEN ahí", () => {
+  // Se borraba primero y se escribía después. Si lo segundo fallaba, la memoria
+  // quedaba vacía: el puente se planta, y al re-inicializar, todo lo llegado
+  // entretanto se convierte en historia. Ahora es una sola escritura.
+  const mundo = montar({ landing: [filaLanding(1)], fb: [filaFb(1)] });
+  mundo.gs.inicializarMarcas();
+  const antes = marcasDe(mundo.gs, mundo.destino);
+  assert.equal(Object.keys(antes).length, 2);
+
+  mundo.hojaLanding.appendRow(filaLanding(73));
+  mundo.destino.getSheetByName(mundo.gs.HOJA_MARCAS).fallarAlEscribir = () => {
+    throw new Error("se cayó guardando la marca");
+  };
+
+  assert.throws(() => mundo.gs.procesar(true), /guardando la marca/);
+  const despues = marcasDe(mundo.gs, mundo.destino);
+  assert.equal(Object.keys(despues).length, 2, "se quedó SIN memoria: se perderían leads al re-inicializar");
+  assert.equal(despues["111"].ultimaFila, antes["111"].ultimaFila);
+});
+
+test("un nombre que empieza por = llega como texto, no como fórmula", () => {
+  // El origen es de otra empresa: lo que venga de ahí puede ser cualquier cosa. Un
+  // lead llamado "=1+1" acababa en la hoja como "2", y el conector subía "2" al CRM
+  // como nombre del cliente.
+  const mundo = montar({ landing: [] });
+  mundo.gs.inicializarMarcas();
+  const traviesa = filaLanding(74);
+  traviesa[1] = "";
+  mundo.hojaLanding.appendRow(traviesa);
+  // El texto se inyecta CRUDO en la celda del origen: así es como llega de verdad —
+  // por una respuesta de formulario—, no escribiéndolo con setValues (que lo
+  // convertiría en fórmula ya en el propio origen).
+  mundo.hojaLanding.celdas.set(mundo.hojaLanding.getLastRow() + ",1", "=1+1");
+
+  mundo.gs.procesar(true);
+
+  const escrito = leadsEscritos(mundo.hojaLeads)[0][0];
+  assert.equal(escrito, "1+1", "el nombre se guardó como fórmula: " + escrito);
+  assert.ok(!/FÓRMULA/.test(escrito));
 });
 
 // ── 9. La ida y vuelta por Sheets: lo que se escribe es lo que se lee ────────

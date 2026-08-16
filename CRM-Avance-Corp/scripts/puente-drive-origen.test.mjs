@@ -329,6 +329,27 @@ test("ancla: mira SOLO el final, y distingue dónde cae el corte entre celdas", 
   );
 });
 
+test("una fecha IMPOSIBLE no es un salvoconducto", () => {
+  // `Date.UTC` no valida: 99/99/2026 se normaliza a una fecha FUTURA, con lo que
+  // supera el corte y, al "tener fecha", tampoco lo frena la marca de agua por
+  // posición. Una fila de basura se convertía en lead nuevo. Lo encontró Codex.
+  const conFecha = (f) => {
+    const fila = ["Ana", "Perez", "918000001", "", "Lima", "Surco",
+      "Soles", "1,000", "No", "Si", f, "", ""];
+    return gs.normalizarFila(fila, colLanding, "landing", 1000, CAB_LANDING, 6158);
+  };
+  for (const basura of ["99/99/2026", "31/02/2026", "00/00/2026", "45/13/2025"]) {
+    const l = conFecha(basura);
+    assert.equal(l.sinFecha, true, basura + " se leyó como fecha válida");
+    // Sin fecha y por debajo de la frontera: manda la posición, que es lo correcto.
+    assert.equal(l.motivo, gs.MOTIVO_BACKLOG, basura);
+  }
+  // Y una fecha que SÍ existe sigue funcionando igual.
+  const buena = conFecha(latina(DESPUES));
+  assert.equal(buena.sinFecha, false);
+  assert.equal(buena.motivo, "");
+});
+
 test("esDescartePorDiseno: solo corte y backlog; lo accionable NO", () => {
   assert.equal(gs.esDescartePorDiseno(gs.MOTIVO_CORTE + " (2026-08-17)"), true);
   assert.equal(gs.esDescartePorDiseno(gs.MOTIVO_BACKLOG), true);
@@ -644,6 +665,27 @@ test("los scripts NO piden permisos nuevos: nada de correo", () => {
 
 test("el origen del Drive sigue siendo SOLO LECTURA", () => {
   // La regla más dura del proyecto: el documento es de la empresa y no se toca.
-  const escrituras = /\borigen\.(setValue|setValues|insertSheet|setName|deleteRow|appendRow|clear|getRange)/;
-  assert.ok(!escrituras.test(CODIGO_PUENTE), "hay una escritura sobre el origen");
+  //
+  // ⚠️ La versión anterior solo buscaba llamadas que empezaran por `origen.` — y el
+  // código recorre las pestañas en una variable llamada `pestana`, así que un
+  // `pestana.getRange(...).setValue(...)` habría pasado la prueba tan campante.
+  // Lo encontró Codex el 2026-08-16. Ahora se comprueba al revés: se localiza la
+  // función que abre el origen y se prohíbe TODA escritura dentro de ella.
+  const escrituras = /\.(setValue|setValues|insertSheet|setName|deleteRow|appendRow|clearContent|insertRowsAfter|setNumberFormat|setDataValidation|protect|hideSheet)\s*\(/;
+
+  for (const nombre of ["procesarNucleo", "inicializarMarcas", "medirOrigen"]) {
+    const i = CODIGO_PUENTE.indexOf("function " + nombre);
+    assert.ok(i >= 0, "no encuentro " + nombre);
+    const fin = CODIGO_PUENTE.indexOf("\nfunction ", i + 1);
+    const cuerpo = CODIGO_PUENTE.slice(i, fin < 0 ? undefined : fin);
+    // Dentro de esas funciones, toda variable que salga de `origen` es intocable.
+    const lineas = cuerpo.split("\n");
+    lineas.forEach((linea, n) => {
+      if (!/\b(pestana|origen)\b/.test(linea)) return;
+      assert.ok(!escrituras.test(linea),
+        `${nombre}, línea ${n + 1}: escritura sobre una pestaña del origen → ${linea.trim()}`);
+    });
+  }
+  assert.ok(!/\borigen\.(setValue|setValues|insertSheet|setName|deleteRow|appendRow|clear)/.test(CODIGO_PUENTE),
+    "hay una escritura directa sobre el libro de origen");
 });

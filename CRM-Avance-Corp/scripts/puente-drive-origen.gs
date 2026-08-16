@@ -798,6 +798,11 @@ function textoDelPanel(d) {
   const dias = desde ? diasEntre(desde, d.reloj.fecha) : null;
   if (dias === null) {
     t += "   · Sin datos todavía de cuándo creció por última vez\n";
+  } else if (!est.crecioEl) {
+    // El primer día NO se puede afirmar nada del origen: solo que empezamos a mirar.
+    // Decir "Recibió filas HOY" —lo que salía antes— es la mentira más cara posible
+    // en este panel, porque es justo la pregunta que trajo aquí a todo el mundo.
+    t += "   · Vigilado desde hace " + dias + " día(s); todavía sin verlo crecer ni una vez\n";
   } else if (dias === 0) {
     t += "   · Recibió filas HOY\n";
   } else {
@@ -1049,16 +1054,18 @@ function procesarNucleo(escribir) {
     console.log("   ↳ autorizó contacto: " + (col.consent >= 0
       ? "dato real de cada fila"
       : "sin columna → \"" + CONSENTIMIENTO_SI_NO_HAY_COLUMNA + "\""));
-    if (col.telefono < 0 && col.whatsapp < 0) {
-      console.log("   ↳ omitida: no encontré columna de teléfono.");
-      return; // pestaña sin teléfonos: no es de leads
-    }
-
     // ¿SIGUE SIENDO VERDAD LO QUE LA MARCA SUPONE? Si el origen perdió filas, le
     // cambiaron los encabezados, la pestaña es nueva o las filas ancladas ya no dicen
     // lo mismo (se ordenó o se insertó en medio), la marca dejó de significar nada:
     // esta pestaña se detiene entera y se avisa. No se trae ni un lead de ella y su
     // marca queda intacta, para que nadie tenga que adivinar dónde estaba.
+    //
+    // ⚠️ VA ANTES QUE EL CHEQUEO DE TELÉFONO, Y ESE ORDEN ES LA DEFENSA. Al revés
+    // —como estuvo hasta el 2026-08-16— renombrar en el origen las dos columnas de
+    // teléfono hacía que la pestaña se saltara AQUÍ, en silencio: sin incidencia, sin
+    // aviso, y encima apagando el aviso anterior porque la pasada terminaba "sin
+    // incidencias". Dejarían de llegar leads y el panel diría que todo está bien, que
+    // es exactamente el fallo que el panel existe para hacer imposible.
     const marca = marcasPrevias[idPestana];
     const veredicto = revisarPestana(
       marca,
@@ -1069,6 +1076,14 @@ function procesarNucleo(escribir) {
     if (!veredicto.ok) {
       incidencias.push({ pestana: nombrePestana, id: idPestana, motivo: veredicto.motivo });
       console.log("   ↳ ⛔ PESTAÑA DETENIDA: " + veredicto.motivo);
+      return;
+    }
+
+    // Ya sabemos que la pestaña es la MISMA de siempre. Si aun así no tiene columna de
+    // teléfono, es que nunca fue una pestaña de leads (un resumen, una hoja de
+    // trabajo): se salta en silencio y con razón, porque no ha cambiado nada.
+    if (col.telefono < 0 && col.whatsapp < 0) {
+      console.log("   ↳ omitida: no encontré columna de teléfono.");
       return;
     }
 
@@ -1132,26 +1147,25 @@ function procesarNucleo(escribir) {
   });
 
   if (escribir) {
+    // EL ORDEN ES LA DEFENSA, y la regla no tiene excepciones: LA MARCA ES LO ÚLTIMO
+    // QUE SE MUEVE. Si cualquiera de las tres escrituras de arriba lanza (timeout de
+    // Apps Script sobre las ~12k filas, hoja sin rejilla, permisos), no se llega a la
+    // marca y la próxima corrida vuelve a ver esas filas como nuevas: repite trabajo,
+    // que es infinitamente mejor que anotar un avance del que no estamos seguros.
     escribirLeads(hojaLeads, aceptados);
-    // Huellas ANTES que REVISAR: si la corrida muere a mitad (timeout de Apps
-    // Script sobre las ~12k filas del origen), lo grave es "leads escritos sin
-    // huella" — pasó el 2026-07-27 y la corrida siguiente re-listó TODO como
-    // "ya presente". REVISAR es cosmético: va al final.
+    // Las huellas, antes de REVISAR: si la corrida muere a mitad, lo grave es "leads
+    // escritos sin huella" — pasó el 2026-07-27 y la corrida siguiente re-listó TODO
+    // como "ya presente".
     guardarHuellas(destino, aceptados.concat(duplicados));
-    // INVARIANTE: la marca es lo ÚLTIMO que se mueve. Si escribirLeads o guardarHuellas
-    // lanzan (timeout, hoja sin filas, permisos), no se llega aquí y la próxima corrida
-    // vuelve a ver esas filas como nuevas: repite trabajo, que es infinitamente mejor
-    // que anotar un avance del que no estamos seguros.
-    //
-    // Que las huellas vayan ANTES que la marca es conservadurismo, no una necesidad
-    // demostrada: si fallaran las huellas con la marca ya movida, los leads ya estarían
-    // escritos en la hoja y el conector los subiría igual. Se deja en este orden porque
-    // no cuesta nada y porque «lo que recuerda que ya lo hice» debe escribirse después
-    // de haberlo hecho — pero conviene no contarlo como una defensa que no es.
+    // ⚠️ REVISAR VA ANTES QUE LA MARCA, y hasta el 2026-08-16 iba después con el
+    // comentario «REVISAR es cosmético». Era falso: si esta escritura falla con la
+    // marca ya movida, la fila que iba a REVISAR queda por DEBAJO de la frontera y
+    // en la siguiente pasada se clasifica como historia. Ese lead no está en LEADS,
+    // no está en REVISAR y nadie sabe que existió. Lo encontró Codex.
+    escribirRechazos(destino, rechazados);
     // Se fusiona sobre lo previo para no perder la marca de una pestaña que esta
     // pasada no llegó a mirar (tope alcanzado, detenida por incidencia, sin teléfono).
     guardarMarcas(destino, fusionar(marcasPrevias, marcasNuevas));
-    escribirRechazos(destino, rechazados);
   }
   return {
     leidas: leidas,
@@ -1533,6 +1547,21 @@ function legible(s) {
     .trim();
 }
 
+/**
+ * Un valor que empieza por "=" lo escribe Sheets como FÓRMULA, no como texto — y eso
+ * NO lo evita el formato de texto de la celda: es la semántica de `setValues`. Un lead
+ * llamado "=1+1" acabaría en la hoja como "2", y el conector subiría "2" al CRM como
+ * nombre del cliente. El origen es de otra empresa, así que esto es una vía de entrada
+ * real, no una hipótesis. Lo encontró Codex el 2026-08-16.
+ *
+ * ⚠️ A PROPÓSITO NO TOCA EL "+": todos los teléfonos empiezan por "+51", y en julio
+ * entraron 158 leads con ese formato sin un solo problema. Blindar contra una hipótesis
+ * rompiendo lo que se sabe que funciona es un mal negocio.
+ */
+function sinFormula(v) {
+  return String(v == null ? "" : v).replace(/^=+/, "");
+}
+
 /** Descarta lugares que en realidad son códigos o números sueltos ("15"). */
 function limpiarLugar(v) {
   const t = String(v).trim();
@@ -1556,7 +1585,14 @@ function fechaMasAntigua(fila, indices) {
       if (lat) d = { a: +lat[3], m: +lat[2], dd: +lat[1] };
     }
     if (!d) return;
+    // LA FECHA TIENE QUE EXISTIR EN EL CALENDARIO. `Date.UTC` no valida: "99/99/2026"
+    // lo normaliza a una fecha FUTURA, con lo que supera el corte y, al tener fecha,
+    // tampoco lo frena la marca de agua por posición. Una fecha basura se convertía
+    // así en salvoconducto. Se comprueba con la vuelta: si el día o el mes cambiaron
+    // al construirla, no era una fecha (cubre también el 31 de febrero).
     const ms = Date.UTC(d.a, d.m - 1, d.dd);
+    const vuelta = new Date(ms);
+    if (vuelta.getUTCMonth() !== d.m - 1 || vuelta.getUTCDate() !== d.dd) return;
     if (mejor === null || ms < mejor.ms) {
       mejor = {
         ms: ms,
@@ -1598,18 +1634,18 @@ function escribirLeads(hoja, leads) {
   asegurarCapacidadLeads(hoja, primera + leads.length - 1);
   const filas = leads.map(function (l) {
     return [
-      l.nombre,               // A Nombre completo *
+      sinFormula(l.nombre),   // A Nombre completo *
       l.telefono,             // B Teléfono *
       l.capital,              // C Capital estimado *
       l.moneda,               // D Moneda *
       l.canal,                // E Canal de origen *
-      l.correo,               // F Correo
+      sinFormula(l.correo),   // F Correo
       l.dni,                  // G DNI
       "",                     // H Género          — el origen no lo trae
       "",                     // I Fecha nacimiento— el origen no lo trae
-      l.distrito,             // J Distrito
+      sinFormula(l.distrito), // J Distrito
       l.interes,              // K Interés
-      l.nota,                 // L Nota
+      sinFormula(l.nota),     // L Nota
       "",                     // M Vendedor asignado — se reparte DENTRO del CRM
       l.autorizo,             // N ¿Autorizó contacto?
       l.fuenteConsentimiento, // O Fuente del consentimiento
@@ -1668,7 +1704,8 @@ function escribirRechazos(libro, rechazados) {
   }
   if (!rechazados.length) return;
   const filas = rechazados.map(function (r) {
-    return [r.motivo, r.pestana, r.fila, r.nombre || "", r.telefono || "", r.crudo];
+    return [r.motivo, r.pestana, r.fila, sinFormula(r.nombre || ""),
+      sinFormula(r.telefono || ""), sinFormula(r.crudo)];
   });
   asegurarFilas(hoja, 1 + filas.length); // REVISAR también puede desbordar la rejilla
   hoja.getRange(2, 1, filas.length, 6).setValues(filas);
@@ -1829,24 +1866,34 @@ function forzarTexto(hoja, columnas) {
 function guardarMarcas(libro, marcas) {
   const hoja = hojaDeMarcas(libro);
   const claves = Object.keys(marcas || {});
-  if (hoja.getLastRow() > 1) {
-    hoja.getRange(2, 1, hoja.getLastRow() - 1, CABECERA_MARCAS.length).clearContent();
-  }
+  // Sin marcas que escribir NO se toca nada. Vaciar la pestaña aquí sería borrar la
+  // memoria del puente para no escribir nada a cambio.
   if (!claves.length) return;
-  asegurarFilas(hoja, 1 + claves.length);
+
+  // UNA SOLA ESCRITURA. Antes se borraba primero y se escribía después: si la segunda
+  // fallaba habiendo funcionado la primera, la memoria quedaba VACÍA — el puente se
+  // planta (bien) pero al re-inicializar la frontera se pone al final de hoy, y todo
+  // lo llegado entretanto se convierte en historia. Ahí sí se pierden leads. Con un
+  // único setValues que cubre lo nuevo Y lo que sobra, o se hace entero o no se hace.
+  const filasPrevias = Math.max(hoja.getLastRow() - 1, 0);
+  const alto = Math.max(claves.length, filasPrevias);
+  asegurarFilas(hoja, 1 + alto);
   const cuando = Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
-  hoja.getRange(2, 1, claves.length, CABECERA_MARCAS.length).setValues(
-    claves.map(function (k) {
-      const m = marcas[k];
-      // `cuando` SOLO para las marcas que esta pasada tocó de verdad. Las que vienen
-      // de fusionar() —pestañas detenidas, o que el tope no llegó a mirar— conservan
-      // su sello anterior: poner la hora de hoy en una frontera que no se movió es
-      // una mentira pequeña, pero en la única columna que sirve para diagnosticar
-      // "esta pestaña lleva días sin mirarse".
-      return [m.sheetId, m.nombre, m.ultimaFila, m.filas, m.cabeceras, m.ancla,
-        m.actualizado || cuando];
-    })
-  );
+  const bloque = claves.map(function (k) {
+    const m = marcas[k];
+    // `cuando` SOLO para las marcas que esta pasada tocó de verdad. Las que vienen
+    // de fusionar() —pestañas detenidas, o que el tope no llegó a mirar— conservan
+    // su sello anterior: poner la hora de hoy en una frontera que no se movió es
+    // una mentira pequeña, pero en la única columna que sirve para diagnosticar
+    // "esta pestaña lleva días sin mirarse".
+    return [m.sheetId, m.nombre, m.ultimaFila, m.filas, m.cabeceras, m.ancla,
+      m.actualizado || cuando];
+  });
+  // Las filas sobrantes de una pasada anterior se limpian en la MISMA escritura.
+  while (bloque.length < alto) {
+    bloque.push(CABECERA_MARCAS.map(function () { return ""; }));
+  }
+  hoja.getRange(2, 1, alto, CABECERA_MARCAS.length).setValues(bloque);
 }
 
 function hojaDeMarcas(libro) {

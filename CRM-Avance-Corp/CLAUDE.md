@@ -30,6 +30,9 @@ proyecto Supabase del portal (`dctqcbznekcyxhjujuci`) con esquema **`crm`** dedi
 - En raíz CRM: `npm run test:rls:preflight` · `npm run seed:preflight` · `npm run release:crm`
 - Gates ya montados (no duplicar): Lefthook pre-commit (lint+typecheck) y pre-push (tests);
   CI GitHub Actions `crm-app-quality` y `crm-rls-preflight`.
+- Los Apps Script (`scripts/*.gs`) van dentro de `npm run check:scripts`: gate de llamadas
+  huérfanas, las dos suites del puente y **`npm run test:mutantes`** — por cada defensa, un
+  mutante que la neutraliza; si sobrevive, esa defensa NO está probada y el gate falla.
 
 ## ⚠️ El gate de REALIDAD (`npm run gate:realidad`) — correr ANTES de arreglar una pantalla
 

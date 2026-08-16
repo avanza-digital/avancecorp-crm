@@ -158,6 +158,15 @@ class Hoja {
       this.formatoFecha.delete(clave);
       return;
     }
+    // Una cadena que empieza por "=" se guarda como FÓRMULA, y esto NO lo evita el
+    // formato de texto: es la semántica de setValues. Lo que vuelve al leer es el
+    // RESULTADO, nunca el texto escrito. No sabemos calcular fórmulas —ni falta—:
+    // basta con devolver algo que no sea lo que se escribió, que es justo el fallo.
+    if (typeof v === "string" && v.charAt(0) === "=") {
+      this.formatoFecha.delete(clave);
+      this.celdas.set(clave, "#FÓRMULA");
+      return;
+    }
     if (typeof v === "string" && this.formatos.get(clave) !== "@") {
       const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: (\d{1,2}):(\d{2}))?$/);
       if (m) {
