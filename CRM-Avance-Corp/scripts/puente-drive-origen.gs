@@ -1699,6 +1699,10 @@ function guardarHuellas(libro, leads) {
     hoja.appendRow(["Huella (no tocar)", "Teléfono", "Origen", "Registrado el", "Traído el"]);
     hoja.hideSheet();
   }
+  // Aquí la trampa está LATENTE, no viva: hoy `leerHuellas` solo mira la columna A,
+  // así que las dos columnas de fecha no muerden a nadie. Se blinda igual, porque el
+  // día que alguien lea "Traído el" para un informe, la trampa ya estaría puesta.
+  forzarTexto(hoja, 5);
   protegerHuellas(hoja);
   if (!leads.length) return;
   const traidoEl = Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
@@ -1775,10 +1779,47 @@ function leerMarcas(libro) {
         filas: Number(f[3]) || 0,
         cabeceras: String(f[4]),
         ancla: String(f[5]),
-        actualizado: String(f[6]),
+        actualizado: momentoDeCelda(f[6]),
       };
     });
   return mapa;
+}
+
+/**
+ * Una celda que Sheets convirtió en fecha, de vuelta al texto de LIMA.
+ *
+ * ⚠️ NO usar `String(fecha)`: eso re-renderiza en la zona horaria del PROYECTO de
+ * Apps Script y reintroduce exactamente la dependencia que `relojDeLima` vino a
+ * matar — con el proyecto en hora del Pacífico, una frontera puesta a las 00:30 de
+ * Lima se mostraría con la fecha del DÍA ANTERIOR. Además devuelve un texto en
+ * inglés ("Sun Aug 16 2026 16:48:00 GMT-0500") dentro de un panel en español.
+ *
+ * Visto en producción el 2026-08-16, la primera vez que se leyó el panel de verdad:
+ * escribimos el texto "16/08/2026 16:48", Sheets lo reconoció como fecha y lo guardó
+ * como fecha. `forzarTexto()` impide que vuelva a pasar; esto cura lo ya guardado.
+ */
+function momentoDeCelda(v) {
+  if (Object.prototype.toString.call(v) === "[object Date]") {
+    return Utilities.formatDate(v, ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
+  }
+  return String(v == null ? "" : v);
+}
+
+/**
+ * Toda la rejilla de una pestaña de memoria, en formato TEXTO.
+ *
+ * Es el mismo blindaje que `prepararTramo()` le da a LEADS, y por el mismo motivo:
+ * lo que escribimos aquí son huellas, identificadores y sellos de hora, y Sheets
+ * interpreta lo que le escriben — una fecha vuelve como fecha, y un "00123456"
+ * volvería como el número 123456.
+ *
+ * Cubre `getMaxRows()`, no solo las filas escritas: `insertRowsAfter` (ver
+ * `asegurarFilas`) hereda el formato de la fila de arriba, así que sin esto las filas
+ * nuevas nacerían otra vez con formato de fecha. Y va FUERA del `if` que crea la
+ * pestaña, para que también desintoxique la que ya existe en la hoja de producción.
+ */
+function forzarTexto(hoja, columnas) {
+  hoja.getRange(1, 1, hoja.getMaxRows(), columnas).setNumberFormat("@");
 }
 
 /**
@@ -1797,7 +1838,13 @@ function guardarMarcas(libro, marcas) {
   hoja.getRange(2, 1, claves.length, CABECERA_MARCAS.length).setValues(
     claves.map(function (k) {
       const m = marcas[k];
-      return [m.sheetId, m.nombre, m.ultimaFila, m.filas, m.cabeceras, m.ancla, cuando];
+      // `cuando` SOLO para las marcas que esta pasada tocó de verdad. Las que vienen
+      // de fusionar() —pestañas detenidas, o que el tope no llegó a mirar— conservan
+      // su sello anterior: poner la hora de hoy en una frontera que no se movió es
+      // una mentira pequeña, pero en la única columna que sirve para diagnosticar
+      // "esta pestaña lleva días sin mirarse".
+      return [m.sheetId, m.nombre, m.ultimaFila, m.filas, m.cabeceras, m.ancla,
+        m.actualizado || cuando];
     })
   );
 }
@@ -1815,6 +1862,7 @@ function hojaDeMarcas(libro) {
     hoja.setFrozenRows(1);
     hoja.hideSheet();
   }
+  forzarTexto(hoja, CABECERA_MARCAS.length);
   protegerMemoria(hoja, "Marca de agua del puente — solo el dueño");
   return hoja;
 }

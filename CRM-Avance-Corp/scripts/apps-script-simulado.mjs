@@ -52,7 +52,17 @@ class Rango {
     return out;
   }
   getDisplayValues() {
-    return this.getValues().map((f) => f.map(texto));
+    this.hoja.lecturas++;
+    this.hoja.celdasLeidas += this.numFilas * this.numColumnas;
+    const out = [];
+    for (let f = 0; f < this.numFilas; f++) {
+      const fila = [];
+      for (let c = 0; c < this.numColumnas; c++) {
+        fila.push(this.hoja._mostrar(this.fila + f, this.columna + c));
+      }
+      out.push(fila);
+    }
+    return out;
   }
   setValues(valores) {
     if (valores.length !== this.numFilas) {
@@ -108,6 +118,7 @@ class Hoja {
     this.id = id;
     this.celdas = new Map(); // "fila,col" → valor
     this.formatos = new Map();
+    this.formatoFecha = new Map(); // celdas que Sheets convirtió en fecha, y cómo se ven
     this.validaciones = new Map();
     this.maxFilas = Math.max(filas.length, 1000); // como una hoja nueva de Google
     this.maxColumnas = 26;
@@ -129,9 +140,53 @@ class Hoja {
     const v = this.celdas.get(`${f},${c}`);
     return v === undefined ? "" : v;
   }
+  /**
+   * SHEETS INTERPRETA LO QUE LE ESCRIBES. Esta es la parte que faltaba y por la que
+   * un fallo real de producción salía verde en las pruebas: el simulador guardaba el
+   * texto tal cual y lo devolvía idéntico, así que la ida y vuelta nunca deformaba
+   * nada. En la hoja de verdad, escribir el texto "16/08/2026 16:48" en una celda sin
+   * formato de texto guarda una FECHA — y `getValues` la devuelve como objeto Date.
+   *
+   * Se modela solo lo que este proyecto escribe (fechas dd/MM/yyyy con y sin hora).
+   * El blindaje real es `setNumberFormat("@")`: con la celda en formato texto, Sheets
+   * guarda la cadena intacta, y aquí igual.
+   */
   _escribir(f, c, v) {
-    if (texto(v) === "") this.celdas.delete(`${f},${c}`);
-    else this.celdas.set(`${f},${c}`, v);
+    const clave = `${f},${c}`;
+    if (texto(v) === "") {
+      this.celdas.delete(clave);
+      this.formatoFecha.delete(clave);
+      return;
+    }
+    if (typeof v === "string" && this.formatos.get(clave) !== "@") {
+      const m = v.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})(?: (\d{1,2}):(\d{2}))?$/);
+      if (m) {
+        this.celdas.set(clave, new Date(+m[3], +m[2] - 1, +m[1], +(m[4] || 0), +(m[5] || 0)));
+        // La celda se queda con formato de fecha: es lo que decide cómo se MUESTRA.
+        this.formatoFecha.set(clave, m[4] === undefined ? "dd/MM/yyyy" : "dd/MM/yyyy HH:mm");
+        return;
+      }
+    }
+    this.formatoFecha.delete(clave);
+    this.celdas.set(clave, v);
+  }
+
+  /** Lo que se VE en la celda: una fecha se muestra con el formato de la celda. */
+  _mostrar(f, c) {
+    const clave = `${f},${c}`;
+    const v = this.celdas.get(clave);
+    if (v === undefined) return "";
+    const patron = this.formatoFecha.get(clave);
+    if (patron && Object.prototype.toString.call(v) === "[object Date]") {
+      const dd = String(v.getDate()).padStart(2, "0");
+      const MM = String(v.getMonth() + 1).padStart(2, "0");
+      const hh = String(v.getHours()).padStart(2, "0");
+      const mi = String(v.getMinutes()).padStart(2, "0");
+      return patron === "dd/MM/yyyy"
+        ? `${dd}/${MM}/${v.getFullYear()}`
+        : `${dd}/${MM}/${v.getFullYear()} ${hh}:${mi}`;
+    }
+    return texto(v);
   }
   _alEscribir(rango) {
     if (this.fallarAlEscribir) this.fallarAlEscribir(rango);
@@ -328,7 +383,18 @@ export function crearEntorno({
       if (zona !== "America/Lima") {
         throw new Error(`formatDate simulado: solo se admite "America/Lima", llegó "${zona}"`);
       }
-      return formatearMomento(espia.reloj, patron);
+      // Una fecha CONCRETA (la que salió de una celda) se formatea tal cual; solo
+      // `new Date()` —el "ahora" del código— se sustituye por el reloj simulado. Sin
+      // esta distinción, formatear una fecha guardada devolvería la hora actual y una
+      // prueba de ida y vuelta pasaría aunque el arreglo estuviera mal.
+      const esAhora = !fecha || Math.abs(fecha.getTime() - Date.now()) < 5000;
+      if (esAhora) return formatearMomento(espia.reloj, patron);
+      const p = (n) => String(n).padStart(2, "0");
+      return formatearMomento(
+        `${fecha.getFullYear()}-${p(fecha.getMonth() + 1)}-${p(fecha.getDate())} ` +
+        `${p(fecha.getHours())}:${p(fecha.getMinutes())}`,
+        patron
+      );
     },
   };
 

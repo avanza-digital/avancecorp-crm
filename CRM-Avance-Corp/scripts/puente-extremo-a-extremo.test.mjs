@@ -775,6 +775,117 @@ test("el panel de estado se puede pedir en cualquier momento y solo LEE", () => 
   assert.equal(leadsEscritos(mundo.hojaLeads).length, antes, "el panel escribió algo");
 });
 
+// ── 9. La ida y vuelta por Sheets: lo que se escribe es lo que se lee ────────
+//
+// Descubierto EN PRODUCCIÓN el 2026-08-16, la primera vez que se abrió el panel de
+// verdad: la fecha de la frontera salía como "Sun Aug 16 2026 16:48:00 GMT-0500".
+// El texto "16/08/2026 16:48" se escribía bien, pero Sheets lo reconocía como FECHA,
+// lo guardaba como fecha, y `getValues` devolvía un objeto Date.
+//
+// Ninguna prueba lo cazó porque el simulador guardaba el texto tal cual. Ahora imita
+// la interpretación de Sheets, y estas pruebas ejercitan el viaje completo.
+
+test("la fecha de la frontera vuelve tal como se escribió, no como objeto de fecha", () => {
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+
+  const m = marcasDe(mundo.gs, mundo.destino)["111"];
+  assert.equal(m.actualizado, "17/08/2026 09:20");
+  assert.ok(!/Aug|GMT|\(/.test(m.actualizado), "volvió deformada: " + m.actualizado);
+});
+
+test("el panel enseña la fecha de la frontera en castellano y en hora de Lima", () => {
+  // A propósito NO usa un fixture: sale de la hoja simulada, que es donde ocurre la
+  // deformación. Un fixture escrito a mano habría pasado esta prueba con el bug vivo.
+  const mundo = montar({ landing: [filaLanding(1)], propiedades: { IMPORTAR_SECRET: "s3cr3t0" } });
+  mundo.gs.inicializarMarcas();
+  mundo.gs.verEstado();
+
+  const panel = mundo.espia.ventanas[mundo.espia.ventanas.length - 1];
+  assert.match(panel, /\(puesta el 17\/08\/2026 09:20\)/);
+  assert.ok(!/GMT|Aug|hora estándar/.test(panel), "el panel trae una fecha en inglés");
+});
+
+test("EL BLINDAJE: lo que se guarda en las marcas es TEXTO, no una fecha", () => {
+  // Pincha `forzarTexto`. Se mira el valor CRUDO de la celda, no lo que devuelve
+  // leerMarcas: si se mirara lo segundo, la cura de abajo taparía este agujero y el
+  // mutante que quita el blindaje sobreviviría. (Pasó: los dos arreglos se cubrían
+  // mutuamente y ninguno quedaba probado.)
+  const mundo = montar({ landing: [filaLanding(1)] });
+  mundo.gs.inicializarMarcas();
+
+  const hoja = mundo.destino.getSheetByName(mundo.gs.HOJA_MARCAS);
+  const celda = hoja.getRange(2, 7, 1, 1).getValues()[0][0];
+  assert.equal(typeof celda, "string", "Sheets convirtió el sello de hora en fecha");
+  assert.equal(celda, "17/08/2026 09:20");
+});
+
+test("LA CURA: una marca vieja, ya guardada como fecha, se lee en hora de Lima", () => {
+  // El estado REAL de la hoja de Miguel al descubrir esto: la pestaña ya existe y su
+  // columna de fecha ya está envenenada. El blindaje evita que vuelva a pasar, pero
+  // no arregla lo ya guardado — de eso se encarga `momentoDeCelda`.
+  const mundo = montar({ landing: [filaLanding(1)] });
+  const marcas = mundo.destino.insertSheet(mundo.gs.HOJA_MARCAS, mundo.destino.getNumSheets());
+  marcas.appendRow(["sheetId (no tocar)", "Pestaña", "Última fila vista", "Filas al cerrar",
+    "Huella de encabezados", "Ancla de contenido", "Actualizado"]);
+  // Sin formato de texto: exactamente como quedó en producción.
+  marcas.getRange(2, 1, 1, 7).setValues([["111", "landing", 3, 3, "h1", "h2", "05/08/2026 10:30"]]);
+  assert.equal(Object.prototype.toString.call(marcas.getRange(2, 7, 1, 1).getValues()[0][0]),
+    "[object Date]", "el fixture debería estar envenenado, si no la prueba no prueba nada");
+
+  const leida = mundo.gs.leerMarcas(mundo.destino)["111"];
+
+  assert.equal(leida.actualizado, "05/08/2026 10:30");
+  assert.ok(!/GMT|Aug/.test(leida.actualizado));
+});
+
+test("una pestaña con identificador CERO no se toma por nueva", () => {
+  // El caso real: en la hoja de Miguel, `landing` tiene sheetId 0 — el que Google le
+  // da a la primera pestaña de un libro. Todas las pruebas usaban identificadores
+  // normales, y el 0 sobrevive por una casualidad afortunada (el texto "0" es
+  // "verdadero" en JavaScript, el número 0 no). Si alguien cambiara ese String por un
+  // Number, la pestaña principal del origen se detendría entera y en silencio.
+  const hojaCero = new Hoja("landing", 0, [CAB_LANDING, filaLanding(1)]);
+  const hojaFb = new Hoja("formulario", 222, [CAB_FB]);
+  const origen = new Libro("02PLAZOFIJOMAS LANDING", [hojaCero, hojaFb]);
+  const destino = new Libro("Leads AVANCE CORP — captura para CRM", [new Hoja("LEADS", 7, [CAB_LEADS])]);
+  const entorno = crearEntorno({ destino, origen });
+  const gs = cargar(entorno);
+
+  gs.inicializarMarcas();
+  assert.ok(gs.leerMarcas(destino)["0"], "no guardó la marca de la pestaña con id 0");
+
+  hojaCero.appendRow(filaLanding(60));
+  const r = gs.procesar(true);
+
+  assert.equal(r.incidencias.length, 0, "detuvo la pestaña principal: " + JSON.stringify(r.incidencias));
+  assert.equal(r.aceptados.length, 1);
+});
+
+test("la fecha de una frontera que NO se tocó no se rejuvenece", () => {
+  // La columna "Actualizado" es la que responde "¿cuánto lleva esta pestaña sin
+  // mirarse?". Sellar todas las filas con la hora de hoy —incluidas las detenidas—
+  // convierte esa columna en ruido justo cuando hace falta para diagnosticar.
+  const mundo = montar({
+    landing: [filaLanding(1), filaLanding(2), filaLanding(3)],
+    fb: [filaFb(1)],
+  });
+  mundo.gs.inicializarMarcas();
+  const antes = marcasDe(mundo.gs, mundo.destino)["111"].actualizado;
+
+  mundo.hojaLanding.getRange(4, 1, 1, 11).clearContent(); // landing se avería
+  mundo.espia.ponerReloj("2026-08-18 11:30");             // martes, dos días después
+  mundo.hojaFb.appendRow(filaFb(2));                      // y en fb sí llega uno
+  const r = mundo.gs.procesar(true);
+
+  assert.equal(r.incidencias.length, 1, "landing debía quedar detenida");
+  const marcas = marcasDe(mundo.gs, mundo.destino);
+  assert.equal(marcas["111"].actualizado, antes,
+    "la pestaña detenida figura como recién mirada, y lleva dos días sin traerse nada");
+  assert.equal(marcas["222"].actualizado, "18/08/2026 11:30",
+    "la pestaña que sí se miró debería llevar la hora de esta pasada");
+});
+
 test("el conector NO se lleva por delante la pestaña equivocada", () => {
   // El puente crea sus pestañas de memoria; el conector debe seguir mirando LEADS.
   const mundo = montar({ landing: [filaLanding(1)], propiedades: { IMPORTAR_SECRET: "s3cr3t0" } });
