@@ -432,6 +432,39 @@ Miguel dio acceso y se comprobó en vivo lo que el export de Drive no puede deci
   **trunca** (la trampa que esta misma nota ya advertía). Es el número exacto que hay que
   volver a ver después de pegar los scripts.
 
+### Fase 2 — la hoja crece sola y preparar deja de encender (2026-08-16, `99d088d`)
+
+- **El techo de 2001 filas era una pared, no holgura.** Con 500 leads por pasada, la
+  **quinta pasada llena reventaba** con «out of bounds» al escribir en la 2002 — tras
+  leer las 12.000 filas del origen y sin llegar a guardar la marca, o sea repitiendo el
+  mismo trabajo para siempre. Ahora `asegurarCapacidadLeads()` inserta las filas que
+  falten (de 500 en 500) y `prepararTramo()` les da **formato de texto y menús**: las
+  filas recién insertadas nacen crudas y son justo donde Sheets vuelve a «arreglar» el
+  teléfono y el DNI. Las otras tres escrituras que podían desbordar la rejilla (huellas,
+  marcas, REVISAR) también crecen antes de escribir.
+- **`configurar()` partido en dos.** Hacía formato + disparador + importación inmediata
+  en un botón: no había forma de dejar la hoja lista y **mirarla** antes de encender.
+  Ahora `prepararHoja()` y `activarConector()`, más **`apagarConector()`** para la vuelta
+  atrás de la Fase 5. La vieja queda como aviso con instrucciones.
+- **La pestaña se resuelve por NOMBRE** en los dos archivos (y `onEdit` deja de ir por
+  índice): bastaba arrastrar una pestaña — o que el puente creara una de memoria en el
+  sitio equivocado — para poner al conector a importar **huellas creyendo que eran leads**.
+- **El secreto se lee dentro de la función**, no en el nivel superior: ahí corría en cada
+  ejecución del proyecto, **incluidos los disparadores simples que van sin autorización**
+  (el menú, `onEdit`), y congelaba el valor al cargar (rotarlo obligaba a reiniciar).
+- **El menú ahora es el guion del arranque**: 1 · Preparar la hoja · 2 · Inicializar marca
+  de agua · 3 · Vista previa · luego traer / encender / apagar.
+- **El gate modela bien Apps Script**: los `.gs` de un proyecto comparten **un solo ámbito
+  global**, así que las llamadas se contrastan contra la **unión** de los archivos. Sin
+  eso, que el puente llame a `asegurarCapacidadLeads` del conector daba un falso positivo.
+
+**Pruebas 30 → 36.** Las seis nuevas son **estructurales sobre el código con los
+comentarios quitados** (varios comentarios nombran justo lo que prohíben). ⚠️ **Un mutante
+sobrevivió y tenía razón**: la comprobación del secreto solo miraba el texto anterior a la
+*primera* función, y las declaraciones de nivel superior van **intercaladas** entre
+funciones. Corregida por indentación (columna 0) y ubicación única; ahora muere en las
+tres posiciones probadas. Los otros 6 mutantes mueren, incluido uno que escribe en el origen.
+
 ### ⛔ NO DESPLEGADO — qué falta
 
 Nada de esto está pegado en Apps Script todavía. Por fases:
@@ -439,13 +472,7 @@ Nada de esto está pegado en Apps Script todavía. Por fases:
 - **Fase 0 (de Miguel, manda sobre todo):** confirmar quién alimenta el origen, probar
   con una respuesta controlada que la campaña escribe fila, y decidir la vía si esa hoja
   ya no es la fuente oficial. **Sin agua, el resto es fontanería.**
-- **Fase 2 — capacidad:** la hoja está **exactamente** en su techo de 2001 filas (ver
-  arriba): calcular capacidad e insertar filas ANTES de escribir, y aplicar formato de
-  texto y menús a cada rango nuevo (pasado el techo, Sheets vuelve a estropear
-  teléfono/DNI/capital). `getSheetByName("LEADS")` estricto ✅ **verificado: la pestaña se
-  llama así**, se puede quitar el respaldo sin riesgo; separar
-  `prepararHoja()` de `activarConector()` (hoy `configurar()` hace formato + disparador +
-  importación en un botón).
+- ~~**Fase 2 — capacidad**~~ ✅ **HECHA** (2026-08-16, commit `99d088d`) — ver abajo.
 - **Fase 3 — simulador de Hojas** (~80 líneas) para poder probar `procesar` entero:
   corridas simultáneas, fallo parcial de escritura, avance de marca al tope, pestaña
   renombrada, más de 2.000 filas. Es el trozo más grande.
