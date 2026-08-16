@@ -158,3 +158,24 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
   asumido: el HTML vivo ya referenciaba el build nuevo al primer intento. Suites al
   publicar: 1826 unitarias + e2e 86/86 EXIT 0. Rollback inmediato si hiciera falta:
   `releases/crm-20260816T002539Z-050a5966461b.zip` (el 23.º).
+
+- **Deploy 2026-08-16 (~00:15 hora de Lima) — CRM: las ocho observaciones externas,
+  cerradas al 100 % (25.º release):** publica `eb75b28`, artefacto
+  `crm-20260816T051033Z-eb75b28a0106` (SHA-256 `2c05bdbe…`). **Lo que estrena en el
+  front:** Inteligencia Comercial ya no oculta el fallo de la conversión mensual (y su
+  reintento refetchea ambas fuentes); el vendedor puede reintentar la conversión del mes
+  (reintenta LA query, no solo el store); el detalle del descuento es un disclosure real
+  (`ChipArrastre`: teclado, táctil, aria-expanded, con la revisión a11y completa —
+  contraste 6.96:1 sobre la crema del drawer, target ≥24px); el error y el vacío del
+  ranking conservan la relación pestaña↔panel; «1.004» dice «1 conversión», nunca
+  «1 conversiones»; y `database.types.ts` es el GENERADO (pin `supabase@2.114.0`,
+  verificado DENTRO del commit — la adopción anterior nunca llegó al repo). Del lado
+  servidor esta ronda ya había entrado directa: el candado GLOBAL (`20260815235500`)
+  que cierra la carrera entre períodos distintos, probada con dos sesiones reales.
+  **Verificación en vivo:** portada 200 · `index-BgnS1TQK.js` referenciado y
+  **sha256 local↔vivo idéntico** (`33ab3189…`), igual que los chunks de la ronda
+  (agenda, crm-queries, dialog — todos idénticos) · anon key dentro del ZIP ·
+  ⚠️ **esta vez SÍ hizo falta purga de LiteSpeed** (el chunk viejo respondía 200 tras
+  el deploy; purga → 404 y el nuevo siguió idéntico) — comprobado, no asumido. Suites:
+  1833 unitarias + e2e 86/86 EXIT 0 · advisors 122/0 ERROR. Rollback inmediato:
+  `releases/crm-20260816T042501Z-8dcf6379415b.zip` (el 24.º).
