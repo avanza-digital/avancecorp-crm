@@ -499,6 +499,81 @@ dos corridas a la vez · fallo de escritura · el tope · el crecimiento de la h
 **Total: 36 puras + 26 de extremo a extremo**, todas dentro de `npm run check:scripts`
 junto al gate.
 
+### Fase 4 — cada 15 minutos sin gastar cuota, y un panel que diga si esto vive (2026-08-16, `2fe375c`)
+
+**El problema de negocio:** con la corrida única de las 9 a. m., un lead que entraba a
+las 9:05 esperaba casi 24 horas a que alguien lo llamara.
+
+**Lo que impedía subir la frecuencia era el coste**, no el código: cada pasada se
+descarga las ~12.000 filas × 11 columnas de cada pestaña del origen, y 96 de esas al
+día se comen el tope diario de tiempo de disparadores de la cuenta — que además
+comparte con el conector, que ya corre cada 5 minutos.
+
+**El pre-chequeo.** Cada corrida pregunta primero cuántas filas tiene cada pestaña
+(`getLastRow`: metadato, no descarga ni una celda) y termina ahí si nada creció. La
+lectura completa se paga solo cuando hay algo nuevo. En las pruebas esto no es una
+promesa de comentario: **el simulador cuenta las celdas descargadas** y la prueba
+exige **cero**.
+
+**El suelo diario.** «El mismo número de filas» NO prueba que nadie borrara una y
+metiera otra en el mismo cuarto de hora, así que hay al menos **una lectura completa
+al día**. Peor caso: lo que costaba el horario viejo. Mejor caso: un lead entra en 15
+minutos. `decidirPasada` está escrita para **equivocarse hacia MIRAR** — pestaña sin
+marca, filas que desaparecen, trabajo que dejó el tope a medias o diario ilegible
+mandan leer entero, porque ahorrar una lectura nunca puede costar un lead.
+
+**La ventana** (decisión de Miguel, 2026-08-16): **lunes a sábado, 7 a. m. – 10 p. m.
+de Lima**; domingos no. El disparador de Apps Script no sabe de días ni de zonas, así
+que decide la función; y **la hora se lee SOLO por `Utilities.formatDate` en la zona de
+Lima** (heredar la zona del proyecto es correr de madrugada sin enterarse). El
+simulador **lanza** si alguien pide otra zona. `instalarHorario` **migra**: se lleva los
+seis disparadores semanales viejos y deja uno.
+
+**La corrida automática ya NO lanza.** Con 96 corridas al día, una excepción no
+controlada son 96 correos de fallo de Google: el aviso se vuelve ruido y el ruido se
+ignora, que es la única forma de que un puente parado pase inadvertido semanas.
+Ahora atrapa, anota y avisa **una vez al día**. A mano sigue lanzando en pantalla:
+ahí hay alguien mirando.
+
+**El panel** (menú → *Ver estado del puente*): qué está encendido, si a esta hora toca
+correr, última corrida y última lectura completa, frontera de cada pestaña, **cuánto
+lleva el origen sin recibir una fila** y cuántas filas de la hoja esperan al CRM.
+
+**Las alertas**, una por clave y día, al dueño del script: puente sin frontera ·
+pestaña detenida · corrida fallida. La de **fuente seca nace APAGADA**
+(`PUENTE_ALERTA_FUENTE_SECA`): el origen no recibe nada desde el 24-jul y encenderla
+hoy sería un correo diario para siempre.
+
+**El diario de a bordo vive en las Propiedades del script**, no en una pestaña (una
+pestaña de más delante de LEADS pone al conector a importar cualquier cosa — ya pasó).
+Y es **observabilidad, no memoria**: quién entra lo deciden la marca y las huellas, que
+están en la hoja. Si el diario se pierde, se lee de más, nunca de menos.
+
+**Dos cosas que salieron de mirar el propio diseño, no de las pruebas:**
+- **Dos corridas solapadas no son un error**, es el candado trabajando: alertar de eso
+  sería avisar de que las defensas funcionan, y a los tres días nadie mira las alertas.
+- **Una pestaña detenida chocaría con su marca en CADA pre-chequeo** → 96 lecturas
+  completas al día por una avería ya conocida. Se recuerda lo detenido… pero esa
+  memoria es **de averías, no un «ya miré»**: una pestaña sana con trabajo a medias
+  por el tope sigue disparando la lectura (hay prueba y mutante para ese matiz).
+
+**Pruebas 62 → 92** (50 puras + 42 de extremo a extremo) y **18 mutantes muertos**.
+Tres enseñaron algo:
+1. Una pestaña **vacía** medía 1 fila con una vara y 0 con la otra → el pre-chequeo
+   habría gritado «perdió filas» en cada corrida, para siempre.
+2. Un puente parado **daba el día por leído** sin haber leído nada: no pierde leads,
+   pero el panel mentía justo en lo único que el panel existe para decir.
+3. ⚠️ La memoria de averías **debilitó una prueba que ya existía** (la de «una alerta
+   al día» dejó de ejercitarse porque el atajo evitaba el segundo intento). Repinchada
+   por una vía sin atajo. Misma lección que [[Cierre de mes]]: un arreglo puede tapar
+   el test de otro.
+
+⚠️ **`MailApp` es un permiso NUEVO.** Al pegar el archivo, Apps Script pedirá
+autorización para enviar correo; **los disparadores ya instalados siguen con la
+autorización vieja y fallarían** con "Authorization is required". Tras pegar hay que
+ejecutar UNA función a mano desde el editor (p. ej. `verEstado`) y aceptar los
+permisos. Va en el guion de la Fase 5.
+
 ### Documento para revisión externa (2026-08-16)
 
 Miguel pidió el detalle técnico de las Fases 2 y 3 para un auditor suyo. Publicado como
@@ -517,16 +592,15 @@ Nada de esto está pegado en Apps Script todavía. Por fases:
   ya no es la fuente oficial. **Sin agua, el resto es fontanería.**
 - ~~**Fase 2 — capacidad**~~ ✅ **HECHA** (2026-08-16, commit `99d088d`) — ver abajo.
 - ~~**Fase 3 — simulador de Hojas**~~ ✅ **HECHA** (2026-08-16, commit `52415ae`) — ver abajo.
-- **Fase 4 — cadencia y observabilidad:** las 9 a. m. dejan un lead de las 9:05 esperando
-  casi un día. Cada 15 min **con pre-chequeo barato** (mirar solo cuántas filas tiene cada
-  pestaña y salir si no creció; si no, 96 lecturas de 12.000 filas se comen la cuota
-  diaria de Apps Script). Panel de estado y alertas — la de «fuente seca» **apagada de
-  fábrica** hasta que el origen reviva, o manda un correo diario para siempre.
+- ~~**Fase 4 — cadencia y observabilidad**~~ ✅ **HECHA** (2026-08-16, commit `2fe375c`) — ver arriba.
 - **Fase 5 — activación controlada:** exportar `_puente_huellas` **antes** de pegar nada
-  (memoria irrecuperable) · pegar · `prepararHoja()` · `inicializarMarcas()` y comprobar
+  (memoria irrecuperable) · pegar los dos archivos · **ejecutar `verEstado()` a mano y
+  aceptar el permiso nuevo de correo** (si no, los disparadores fallan con
+  "Authorization is required") · `prepararHoja()` · `inicializarMarcas()` y comprobar
   que importa cero · vista previa sin nada anterior al 17 · lead controlado extremo a
-  extremo · y solo entonces encender. Rollback = apagar disparadores y restaurar scripts,
-  **sin borrar** `_puente_huellas` ni `_puente_marcas`.
+  extremo · encender el conector · y solo entonces *Activar horario del puente* (que de
+  paso se lleva los seis disparadores viejos si quedara alguno). Rollback = apagar
+  disparadores y restaurar scripts, **sin borrar** `_puente_huellas` ni `_puente_marcas`.
 
 ## Relacionadas
 [[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]
