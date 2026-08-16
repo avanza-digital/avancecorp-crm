@@ -539,10 +539,24 @@ ahí hay alguien mirando.
 correr, última corrida y última lectura completa, frontera de cada pestaña, **cuánto
 lleva el origen sin recibir una fila** y cuántas filas de la hoja esperan al CRM.
 
-**Las alertas**, una por clave y día, al dueño del script: puente sin frontera ·
-pestaña detenida · corrida fallida. La de **fuente seca nace APAGADA**
-(`PUENTE_ALERTA_FUENTE_SECA`): el origen no recibe nada desde el 24-jul y encenderla
-hoy sería un correo diario para siempre.
+**Los avisos, SIN CORREO** (decisión de Miguel el mismo día, revisando la fase): se
+anotan en el diario y salen por dos vías que alguien mira — el panel, con los avisos
+**arriba del todo**, y un **banner al ABRIR la hoja**, que es lo que se abre todos los
+días. Tres: puente sin frontera · pestaña detenida · corrida fallida.
+
+- Cada aviso guarda **desde cuándo** está activo, no cuántas veces se repitió:
+  «parado desde el lunes a las 9:15» dice algo, «se avisó 96 veces» no dice nada.
+- Y **se apaga solo** cuando el problema deja de existir. Un aviso que no se apaga
+  miente igual que uno que nunca suena, y encima enseña a ignorar el panel.
+- **El origen seco dejó de ser alerta**: es un dato del panel con los días contados.
+  Como alarma sería un rojo permanente —lleva seco desde el 24-jul y es hoja ajena—,
+  y a un rojo permanente no lo mira nadie.
+- ⚠️ Con el `onOpen` **simple** el banner no está garantizado (corre sin
+  autorización). Donde sí lo está es con el disparador **instalable** que crea
+  `instalarMenu()`: ejecutarlo una vez es lo que lo convierte en canal fiable.
+- ✅ **Sin `MailApp` el proyecto no pide NINGÚN permiso nuevo**, así que pegar los
+  scripts ya no obliga a re-autorizar nada. Hay **prueba estructural** que falla si
+  alguien vuelve a meter `MailApp`/`GmailApp`.
 
 **El diario de a bordo vive en las Propiedades del script**, no en una pestaña (una
 pestaña de más delante de LEADS pone al conector a importar cualquier cosa — ya pasó).
@@ -557,7 +571,7 @@ están en la hoja. Si el diario se pierde, se lee de más, nunca de menos.
   memoria es **de averías, no un «ya miré»**: una pestaña sana con trabajo a medias
   por el tope sigue disparando la lectura (hay prueba y mutante para ese matiz).
 
-**Pruebas 62 → 92** (50 puras + 42 de extremo a extremo) y **18 mutantes muertos**.
+**Pruebas 62 → 95** (52 puras + 43 de extremo a extremo) y **21 mutantes muertos**.
 Tres enseñaron algo:
 1. Una pestaña **vacía** medía 1 fila con una vara y 0 con la otra → el pre-chequeo
    habría gritado «perdió filas» en cada corrida, para siempre.
@@ -567,12 +581,6 @@ Tres enseñaron algo:
    al día» dejó de ejercitarse porque el atajo evitaba el segundo intento). Repinchada
    por una vía sin atajo. Misma lección que [[Cierre de mes]]: un arreglo puede tapar
    el test de otro.
-
-⚠️ **`MailApp` es un permiso NUEVO.** Al pegar el archivo, Apps Script pedirá
-autorización para enviar correo; **los disparadores ya instalados siguen con la
-autorización vieja y fallarían** con "Authorization is required". Tras pegar hay que
-ejecutar UNA función a mano desde el editor (p. ej. `verEstado`) y aceptar los
-permisos. Va en el guion de la Fase 5.
 
 ### Documento para revisión externa (2026-08-16)
 
