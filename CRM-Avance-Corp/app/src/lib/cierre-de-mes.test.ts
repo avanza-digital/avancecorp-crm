@@ -1,0 +1,163 @@
+import { describe, expect, it } from 'vitest'
+import * as v from 'valibot'
+import { CierreMesEstadoSchema } from './cierre-de-mes'
+
+/**
+ * Los cinco payloads son la salida VERBATIM de ejecutar
+ * `crm.cierre_mes_estado_fn` en el banco local con las migraciones reales
+ * (generador: `supabase/scripts/fixture-cierre-mes-estado.sql`, corrido el
+ * 2026-08-15). `en_ventana` y `hoy` salen de la copia con costura de reloj,
+ * cuya fidelidad a la función real se comprueba dentro del propio generador.
+ *
+ * `mes_nombre` llega en inglés («June») porque el calco local de
+ * `private.etiqueta_mes_es` usa el locale C; el contrato solo exige texto no
+ * vacío, así que prueba lo mismo que con el nombre en español.
+ */
+
+const QUIETO = {
+  hoy: '2026-08-15',
+  zona: 'America/Lima',
+  version: 1,
+  pendiente: null,
+  generado_en: '2026-08-15T20:34:50.843856-05:00',
+  mes_en_curso: {
+    mes: '2026-08',
+    cierra_el: '2026-09-10',
+    mes_nombre: 'August',
+  },
+  ultimo_cerrado: null,
+}
+
+const ATASCADO = {
+  hoy: '2026-08-15',
+  zona: 'America/Lima',
+  version: 1,
+  pendiente: {
+    mes: '2026-06',
+    estado: 'atascado',
+    cierra_el: '2026-07-10',
+    mes_nombre: 'June',
+    dias_para_cierre: 0,
+  },
+  generado_en: '2026-08-15T20:34:50.843856-05:00',
+  mes_en_curso: {
+    mes: '2026-08',
+    cierra_el: '2026-09-10',
+    mes_nombre: 'August',
+  },
+  ultimo_cerrado: null,
+}
+
+const EN_VENTANA = {
+  hoy: '2026-07-05',
+  zona: 'America/Lima',
+  version: 1,
+  pendiente: {
+    mes: '2026-06',
+    estado: 'en_ventana',
+    cierra_el: '2026-07-10',
+    mes_nombre: 'June',
+    dias_para_cierre: 5,
+  },
+  generado_en: '2026-07-05T12:00:00-05:00',
+  mes_en_curso: {
+    mes: '2026-07',
+    cierra_el: '2026-08-10',
+    mes_nombre: 'July',
+  },
+  ultimo_cerrado: null,
+}
+
+const HOY = {
+  hoy: '2026-07-10',
+  zona: 'America/Lima',
+  version: 1,
+  pendiente: {
+    mes: '2026-06',
+    estado: 'hoy',
+    cierra_el: '2026-07-10',
+    mes_nombre: 'June',
+    dias_para_cierre: 0,
+  },
+  generado_en: '2026-07-10T09:20:00-05:00',
+  mes_en_curso: {
+    mes: '2026-07',
+    cierra_el: '2026-08-10',
+    mes_nombre: 'July',
+  },
+  ultimo_cerrado: null,
+}
+
+const SELLADO = {
+  hoy: '2026-08-15',
+  zona: 'America/Lima',
+  version: 1,
+  pendiente: null,
+  generado_en: '2026-08-15T20:34:50.843856-05:00',
+  mes_en_curso: {
+    mes: '2026-08',
+    cierra_el: '2026-09-10',
+    mes_nombre: 'August',
+  },
+  ultimo_cerrado: {
+    mes: '2026-06',
+    automatico: true,
+    cerrado_en: '2026-08-15T20:34:50.843856-05:00',
+    mes_nombre: 'June',
+  },
+}
+
+describe('el contrato del estado del ciclo acepta los cinco payloads reales', () => {
+  it('quieto: nada pendiente y nada sellado — el día del estreno en producción', () => {
+    const estado = v.parse(CierreMesEstadoSchema, QUIETO)
+    expect(estado.pendiente).toBeNull()
+    expect(estado.ultimo_cerrado).toBeNull()
+    expect(estado.mes_en_curso.cierra_el).toBe('2026-09-10')
+  })
+
+  it('atascado: la ventana pasó hace más de un día y nadie selló — LA ALARMA', () => {
+    const estado = v.parse(CierreMesEstadoSchema, ATASCADO)
+    expect(estado.pendiente?.estado).toBe('atascado')
+    expect(estado.pendiente?.dias_para_cierre).toBe(0)
+  })
+
+  it('en_ventana: del 1 al 10 todavía se corrige — el aviso normal', () => {
+    const estado = v.parse(CierreMesEstadoSchema, EN_VENTANA)
+    expect(estado.pendiente?.estado).toBe('en_ventana')
+    expect(estado.pendiente?.dias_para_cierre).toBe(5)
+  })
+
+  it('hoy: la ventana abrió a medianoche y el ciclo corre a las 09:20 — NO es alarma', () => {
+    const estado = v.parse(CierreMesEstadoSchema, HOY)
+    expect(estado.pendiente?.estado).toBe('hoy')
+    expect(estado.pendiente?.dias_para_cierre).toBe(0)
+  })
+
+  it('sellado: nada pendiente y el último mes cerrado con autoría automática', () => {
+    const estado = v.parse(CierreMesEstadoSchema, SELLADO)
+    expect(estado.pendiente).toBeNull()
+    expect(estado.ultimo_cerrado?.automatico).toBe(true)
+    expect(estado.ultimo_cerrado?.mes).toBe('2026-06')
+  })
+})
+
+describe('el contrato sigue fail-closed', () => {
+  it('rechaza una clave que nadie declaró', () => {
+    expect(() =>
+      v.parse(CierreMesEstadoSchema, { ...QUIETO, algo_que_nadie_declaro: 1 }),
+    ).toThrow()
+  })
+
+  it('rechaza una versión de payload que este front no entiende', () => {
+    expect(() => v.parse(CierreMesEstadoSchema, { ...QUIETO, version: 2 })).toThrow()
+  })
+
+  it('rechaza un estado del pendiente fuera de los tres nombrados', () => {
+    expect(() =>
+      v.parse(CierreMesEstadoSchema, {
+        ...ATASCADO,
+        pendiente: { ...ATASCADO.pendiente, estado: 'manana' },
+      }),
+    ).toThrow()
+  })
+})
