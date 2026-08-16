@@ -133,3 +133,28 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 - El primer deploy por esta vía fue el **2026-06-10** (SW v89: mejoras de contratos/analista/pagos/dashboard/inversión + crono-timeline). Funcionó completo: 107 archivos, verificado en vivo.
 - El flujo manual viejo (File Manager / FTP) sigue documentado en `public_html/CLAUDE.md` §14 como respaldo.
 - Siempre **bumpear `CACHE_VERSION`** en `service-worker.js` antes de desplegar para que el SW limpie el caché de los clientes (ver [[Arquitectura del portal]]).
+
+- **Deploy 2026-08-15 (~23:30 hora de Lima / 04:30 UTC del 16) — CRM: la Fase 2 del cierre
+  de mes, entera y tres veces auditada (24.º release):** publica `8dcf637`, artefacto
+  `crm-20260816T042501Z-8dcf6379415b` (SHA-256 `113f8944…`). **Lo que estrena:** el editor
+  de metas sabe de meses cerrados (banner + Publicar/Copiar apagados con la MISMA regla del
+  trigger); el descuento del asesor se dice al lado del número que rebaja («arrastra N
+  conversiones de anulaciones» en el mes vivo — la deuda, no un −N que mentiría — y
+  «−N descontadas al cierre» en la foto sellada, donde sí es exacto), en el tile del
+  vendedor, el ranking (2 vistas) y el drawer de Inteligencia; y el aviso del ciclo en la
+  pantalla Hoy de gerencia (solo gerencia, decisión explícita): del 1 al 10, «se cierra
+  hoy» sin alarma, y ALARMA si atascado, refrescándose sola cada 5 minutos. **El camino
+  hasta aquí:** 4 rondas — auditoría propia + auditor-rls + a11y + Codex (2 bloqueantes
+  reales: la carrera publicar↔cerrar, cerrada en servidor con `20260815223000` y
+  REPRODUCIDA con dos sesiones; y el chip muerto en meses sellados) + las 5 exigencias de
+  Miguel (demo hermético, alarma periódica, fallo mensual como error del ranking, e2e
+  EXIT 0, roles decididos) + la adopción de `database.types.ts` clasificando 67 usos contra
+  el catálogo real. **Verificación en vivo:** portada 200 · `index-CII_dU-x.js` referenciado
+  y sirviendo con **sha256 local↔vivo idéntico** (`e0b712d7…`) · las señales de la Fase 2
+  («ya está cerrado», «atascado», `cierre_mes_estado_fn`, «arrastra») presentes en los
+  chunks vivos `crm-queries-3v2Q7c-w.js` y principal, ambos **idénticos al local** · anon
+  key embebida verificada DENTRO del ZIP antes de publicar (la trampa del 47) · el bundle
+  viejo (`index-DXjJUqP0.js`) da 404 · **sin purga de LiteSpeed esta vez** — comprobado, no
+  asumido: el HTML vivo ya referenciaba el build nuevo al primer intento. Suites al
+  publicar: 1826 unitarias + e2e 86/86 EXIT 0. Rollback inmediato si hiciera falta:
+  `releases/crm-20260816T002539Z-050a5966461b.zip` (el 23.º).
