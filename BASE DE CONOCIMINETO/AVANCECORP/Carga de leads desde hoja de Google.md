@@ -499,6 +499,15 @@ dos corridas a la vez · fallo de escritura · el tope · el crecimiento de la h
 **Total: 36 puras + 26 de extremo a extremo**, todas dentro de `npm run check:scripts`
 junto al gate.
 
+### Documento para revisión externa (2026-08-16)
+
+Miguel pidió el detalle técnico de las Fases 2 y 3 para un auditor suyo. Publicado como
+artefacto privado (él decide si lo comparte): defectos corregidos uno a uno con su modo de
+fallo, tabla de invariantes con dónde se imponen y cómo se comprueban, la tabla de los 15
+mutantes **incluido el que sobrevivió**, y una sección explícita de lo que NO está cubierto.
+
+https://claude.ai/code/artifact/3b3ed2d5-970d-4820-bd0a-59b9c5b54848
+
 ### ⛔ NO DESPLEGADO — qué falta
 
 Nada de esto está pegado en Apps Script todavía. Por fases:
