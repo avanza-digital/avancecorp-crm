@@ -1015,50 +1015,69 @@ begin
   -- ── 17. LA ESTRUCTURA QUE SERIALIZA publicar↔cerrar (20260815223000 +
   -- 20260815235500) ──
   -- La carrera necesita DOS sesiones y ningun test de una sesion la ve: lo que
-  -- SI se vigila en cada ciclo es la ESTRUCTURA. ⚠️ SOBRE EL PROSRC SIN
-  -- COMENTARIOS: un `-- perform pg_advisory…` comentado dejaba estos strpos en
-  -- verde con la carrera abierta (falso positivo demostrado el 15/08).
+  -- SI se vigila en cada ciclo es la ESTRUCTURA. Dos lecciones encima:
+  --   · SIN COMENTARIOS: un `-- perform pg_advisory…` comentado pasaba en
+  --     verde (falso positivo demostrado el 15/08);
+  --   · LA LLAMADA COMPLETA, no las claves sueltas: una funcion con
+  --     hashtext('crm.periodos_cerrados') en una expresion cualquiera y SIN
+  --     pg_advisory_xact_lock tambien pasaba (demostrado el 16/08 — el check
+  --     de orden ademas era VACUO con strpos=0). Se normaliza el prosrc
+  --     (comentarios fuera, whitespace colapsado) y se exige el texto EXACTO
+  --     de cada llamada.
   declare
     v_fuente text;
     v_quien2 text;
+    v_var    text;
+    v_llamada_pm text;
+    v_llamada_g constant text :=
+      $q$pg_advisory_xact_lock( pg_catalog.hashtext('crm.periodos_cerrados')::bigint );$q$;
   begin
-    -- a) Los TRES tenedores conservan el candado POR-MES (clave y aritmetica).
-    foreach v_quien2 in array array[
-      'private.trg_metas_no_bajo_mes_sellado()',
-      'crm.cerrar_periodo(date)',
-      'private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)'
-    ] loop
+    -- a) Los TRES tenedores hacen la LLAMADA por-mes completa (cada uno con
+    --    su variable de mes: new.periodo / p_periodo / v_periodo).
+    for v_quien2, v_var in select * from (values
+      ('private.trg_metas_no_bajo_mes_sellado()', 'new.periodo'),
+      ('crm.cerrar_periodo(date)', 'p_periodo'),
+      ('private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)', 'v_periodo')
+    ) as t(quien, var) loop
       begin
-        select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') into strict v_fuente
+        select regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'), '\s+', ' ', 'g')
+          into strict v_fuente
         from pg_catalog.pg_proc p where p.oid = v_quien2::regprocedure;
       exception when undefined_function or no_data_found then
         raise exception 'FALLO 17: no existe % — si cambio de firma, actualizar este bloque', v_quien2;
       end;
-      if strpos(v_fuente, $q$hashtext('crm.periodos_cerrados')$q$) = 0
-         or strpos(v_fuente, $q$date '2000-01-01')::integer$q$) = 0 then
-        raise exception 'FALLO 17: % perdio la clave o la aritmetica del candado por-mes (o quedo COMENTADO)', v_quien2;
+      v_llamada_pm := format(
+        $q$pg_advisory_xact_lock( pg_catalog.hashtext('crm.periodos_cerrados'), (%s - date '2000-01-01')::integer );$q$,
+        v_var);
+      if strpos(v_fuente, v_llamada_pm) = 0 then
+        raise exception 'FALLO 17: % no hace la LLAMADA por-mes completa al candado (comentada, mutada o con otras claves)', v_quien2;
       end if;
     end loop;
-    -- b) Las DOS puertas toman ademas el candado GLOBAL, ANTES del por-mes.
+    -- b) Las DOS puertas hacen ademas la LLAMADA GLOBAL, ANTES de la por-mes.
     foreach v_quien2 in array array[
       'private.trg_metas_no_bajo_mes_sellado()',
       'crm.cerrar_periodo(date)'
     ] loop
-      select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') into v_fuente
+      select regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'), '\s+', ' ', 'g')
+        into v_fuente
       from pg_catalog.pg_proc p where p.oid = v_quien2::regprocedure;
-      if strpos(v_fuente, $q$hashtext('crm.periodos_cerrados')::bigint$q$) = 0 then
-        raise exception 'FALLO 17: % perdio el candado GLOBAL (o quedo comentado) — la carrera entre periodos distintos se reabre', v_quien2;
+      if strpos(v_fuente, v_llamada_g) = 0 then
+        raise exception 'FALLO 17: % no hace la LLAMADA GLOBAL completa — la carrera entre periodos distintos se reabre', v_quien2;
       end if;
-      if strpos(v_fuente, $q$hashtext('crm.periodos_cerrados')::bigint$q$)
-         > strpos(v_fuente, $q$date '2000-01-01')::integer$q$) then
-        raise exception 'FALLO 17: en %, el candado GLOBAL quedo DESPUES del por-mes', v_quien2;
+      if strpos(v_fuente, v_llamada_g) > strpos(v_fuente, $q$hashtext('crm.periodos_cerrados'),$q$) then
+        raise exception 'FALLO 17: en %, la llamada GLOBAL quedo DESPUES de la por-mes', v_quien2;
       end if;
     end loop;
-    -- c) Y en el trigger, el candado ANTES de la lectura (el mutante barato).
-    select regexp_replace(p.prosrc, '--[^\n]*', '', 'g') into v_fuente
+    -- c) Y en el trigger, el candado GLOBAL antes de la lectura — NO vacuo:
+    --    la presencia de ambos textos ya quedo exigida arriba.
+    select regexp_replace(regexp_replace(p.prosrc, '--[^\n]*', '', 'g'), '\s+', ' ', 'g')
+      into v_fuente
     from pg_catalog.pg_proc p
     where p.oid = 'private.trg_metas_no_bajo_mes_sellado()'::regprocedure;
-    if strpos(v_fuente, 'pg_advisory_xact_lock') > strpos(v_fuente, 'select max(pc.periodo)') then
+    if strpos(v_fuente, 'select max(pc.periodo)') = 0 then
+      raise exception 'FALLO 17: el trigger perdio su lectura del ultimo sellado';
+    end if;
+    if strpos(v_fuente, v_llamada_g) > strpos(v_fuente, 'select max(pc.periodo)') then
       raise exception 'FALLO 17: el candado del trigger quedo DESPUES de la lectura';
     end if;
   end;

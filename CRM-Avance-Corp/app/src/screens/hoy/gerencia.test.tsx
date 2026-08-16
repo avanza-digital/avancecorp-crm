@@ -80,7 +80,11 @@ vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   useTipoCambio: () => ({ tc: TIPO_CAMBIO.tc, recargar: () => {} }),
 }))
 vi.mock('./reuniones-gerencia', () => ({ ReunionesGerenciaPanel: () => null }))
-vi.mock('./resumen-gerencia', () => ({ ResumenGerenciaPanel: () => <h1>Resumen comercial</h1> }))
+vi.mock('./resumen-gerencia', () => ({
+  ResumenGerenciaPanel: ({ error }: { error: string | null }) => (
+    <h1>Resumen comercial{error ? ` · ERROR: ${error}` : ''}</h1>
+  ),
+}))
 vi.mock('./equipo-gerencia', () => ({ EquipoGerenciaPanel: () => null }))
 vi.mock('./graficas-gerencia', () => ({ GraficasGerencia: () => null }))
 vi.mock('./metas-editor', () => ({ MetasEditor: () => <div>Editor de metas</div> }))
@@ -446,6 +450,13 @@ describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
   it('con la mensual sana no se inventa ningún error', () => {
     montar({}, 'ranking-vendedores')
     expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
+  })
+
+  it('el RESUMEN también recibe el fallo de la MENSUAL (la tercera pantalla del hueco)', () => {
+    CONVERSION_MENSUAL_FALLA = true
+    montar({}, 'resumen')
+
+    expect(screen.getByText(/ERROR: .*No se pudo calcular la conversión mensual\./)).toBeInTheDocument()
   })
 
   it('Inteligencia Comercial también recibe el fallo de la MENSUAL (no lo oculta)', () => {

@@ -256,7 +256,10 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     ? null
     : errorConsulta(sesionReal, qConversionMensual.error, 'No se pudo calcular la conversión mensual.')
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de reuniones.')
-  const errorResumen = [errorConversiones, errorReuniones].filter(Boolean).join(' ') || null
+  // La MENSUAL también alimenta al Resumen (su bloque de conversión): su fallo
+  // es un error del panel, con reintento — la tercera pantalla del mismo hueco
+  // (inteligencia y ranking ya lo tenían cerrado).
+  const errorResumen = [errorConversiones, errorConversionMensual, errorReuniones].filter(Boolean).join(' ') || null
   const capitalActualPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
   const capitalActualUsd = cumplimiento ? capitalReal(cumplimiento, 'USD') : null
   const metaCapitalPen = capitalObjetivo(meta, 'PEN')
@@ -291,7 +294,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Solo en sesión real — el estado habla de la maquinaria de verdad. */}
       {sesionReal && <AvisoCierreMesPanel />}
 
-      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={conversionMensualPaneles} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
+      {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={conversionMensualPaneles} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); reintentarReuniones() }} />}
 
       {/* Por empresa: de dónde vino cada sol (Avance vs. COOPAC), por vendedor.
           Se oculta solo si el mes no tiene cierres en cooperativas. */}

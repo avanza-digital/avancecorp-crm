@@ -2208,3 +2208,10 @@ sobre esas filas. N1 — el por-mes del trigger queda redundante (lo que protege
 GLOBAL-antes-del-SELECT, exigido por los checks). N2 — deadlock teorico PREEXISTENTE
 ciclo×anulacion via ajustes_mes_cerrado (40P01 + reintento al dia siguiente; el GLOBAL
 no participa). Aplicada FUERA de la ventana de las 09:20 (N3).
+
+**Adenda 16/08 (segunda pasada del revisor externo):** el bloque 17 del oráculo pasó de
+buscar las CLAVES del candado a exigir la **LLAMADA COMPLETA** normalizada (comentarios
+fuera + whitespace colapsado + texto exacto de cada `pg_advisory_xact_lock(...)` con su
+variable de mes) — una función con las claves en una expresión cualquiera y SIN candado
+pasaba en verde, y el check de orden era VACUO con strpos=0 (demostrado). Dos mutantes
+fieles al mensaje de negocio mueren ahora con su FALLO 17 específico; control sano 22/22.
