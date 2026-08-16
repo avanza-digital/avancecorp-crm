@@ -515,7 +515,8 @@ export function ConfigMetas() {
           <CardContent className="flex items-start gap-3 py-4">
             <Lock className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
             <div>
-              <h3 className="text-sm font-extrabold capitalize text-foreground">
+              {/* Solo la PRIMERA letra: `capitalize` pondría Mayúscula En Cada Palabra. */}
+              <h3 className="text-sm font-extrabold text-foreground first-letter:uppercase">
                 {nombrePeriodo(periodo)} ya está cerrado
               </h3>
               <p className="mt-1 text-xs text-foreground/70">

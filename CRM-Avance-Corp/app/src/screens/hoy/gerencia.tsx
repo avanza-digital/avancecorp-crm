@@ -49,6 +49,7 @@ import { InteligenciaComercialPanel } from './inteligencia-comercial'
 import { MetasEditor } from './metas-editor'
 import { RankingVendedoresPanel } from './ranking-vendedores'
 import { ReunionesGerenciaPanel } from './reuniones-gerencia'
+import { AvisoCierreMesPanel } from './aviso-cierre-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 
@@ -278,6 +279,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   return (
     <GerenciaMotion clave={claveMotion} className="mx-auto max-w-[1640px] space-y-4">
       <CabeceraGerencia periodo={periodo} borrador={borrador} onCambiarBorrador={(campo, valor) => setBorrador((actual) => ({ ...actual, [campo]: valor }))} onAplicar={() => setPeriodo(borrador)} />
+
+      {/* El aviso del ciclo del cierre de mes, en TODAS las secciones: la
+          alarma de un ciclo atascado no puede depender de qué pestaña se mire.
+          Solo en sesión real — el estado habla de la maquinaria de verdad. */}
+      {sesionReal && <AvisoCierreMesPanel />}
 
       {esResumen && <ResumenGerenciaPanel conversiones={datosConversion} conversionMensual={conversionMensualPaneles} reuniones={datosReuniones} equipo={datosEquipoConversion} meta={meta} cumplimiento={cumplimiento} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={estaCargando(sesionReal, conversiones) || estaCargando(sesionReal, reuniones)} error={errorResumen} modoDemo={modoDemo} onReintentar={() => { reintentarConversiones(); reintentarReuniones() }} />}
 

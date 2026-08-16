@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
-import { CierreMesEstadoSchema } from './cierre-de-mes'
+import { CierreMesEstadoSchema, avisoDelCiclo } from './cierre-de-mes'
 
 /**
  * Los cinco payloads son la salida VERBATIM de ejecutar
@@ -159,5 +159,43 @@ describe('el contrato sigue fail-closed', () => {
         pendiente: { ...ATASCADO.pendiente, estado: 'manana' },
       }),
     ).toThrow()
+  })
+})
+
+describe('avisoDelCiclo — el texto del banner desde el estado que nombra el servidor', () => {
+  const parsear = (payload: unknown) => v.parse(CierreMesEstadoSchema, payload)
+
+  it('sin mes pendiente no hay banner: la cadencia gobierna los avisos', () => {
+    expect(avisoDelCiclo(parsear(QUIETO))).toBeNull()
+    expect(avisoDelCiclo(parsear(SELLADO))).toBeNull()
+  })
+
+  it('en_ventana: aviso con la fecha del sello y los días que quedan', () => {
+    const aviso = avisoDelCiclo(parsear(EN_VENTANA))
+    expect(aviso?.tono).toBe('aviso')
+    expect(aviso?.titulo).toBe('June se cierra el 10 jul. 2026')
+    expect(aviso?.detalle).toContain('Quedan 5 días de ajuste')
+  })
+
+  it('con 1 día habla en singular', () => {
+    const unDia = {
+      ...EN_VENTANA,
+      pendiente: { ...EN_VENTANA.pendiente, dias_para_cierre: 1 },
+    }
+    expect(avisoDelCiclo(parsear(unDia))?.detalle).toContain('Queda 1 día de ajuste')
+  })
+
+  it('hoy: aviso con la hora del ciclo — NO es alarma', () => {
+    const aviso = avisoDelCiclo(parsear(HOY))
+    expect(aviso?.tono).toBe('aviso')
+    expect(aviso?.titulo).toBe('June se cierra hoy')
+    expect(aviso?.detalle).toContain('09:20')
+  })
+
+  it('atascado: LA ALARMA, con la fecha en que debió sellarse', () => {
+    const aviso = avisoDelCiclo(parsear(ATASCADO))
+    expect(aviso?.tono).toBe('alarma')
+    expect(aviso?.titulo).toBe('El cierre de June está atascado')
+    expect(aviso?.detalle).toContain('Debió sellarse el 10 jul. 2026')
   })
 })

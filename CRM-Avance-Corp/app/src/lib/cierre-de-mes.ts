@@ -1,5 +1,6 @@
 import * as v from 'valibot'
 import { EnteroNoNegativoRpcSchema, FechaHoraSchema, FechaSchema, TextoNoVacioSchema } from './esquemas-rpc'
+import { fmtFecha } from './format'
 
 /**
  * El estado de la MAQUINARIA del cierre de mes (`crm.cierre_mes_estado_fn`):
@@ -61,3 +62,45 @@ export const CierreMesEstadoSchema = v.strictObject({
 export type CierreMesEstadoRpc = v.InferOutput<typeof CierreMesEstadoSchema>
 export type PendienteCierre = NonNullable<CierreMesEstadoRpc['pendiente']>
 export type EstadoPendiente = PendienteCierre['estado']
+
+export interface AvisoCierreMes {
+  tono: 'aviso' | 'alarma'
+  titulo: string
+  detalle: string
+}
+
+/**
+ * El texto del banner del ciclo, decidido desde el estado que NOMBRA el
+ * servidor — el front no deduce fechas ni compara relojes. `null` = nada que
+ * decir: sin mes pendiente no hay banner («la cadencia gobierna los avisos»,
+ * regla de Miguel). Los tres estados son tres frases distintas a propósito:
+ * `hoy` NO es alarma — la ventana abre a las 00:00 y el ciclo corre a las
+ * 09:20, y una alarma que suena nueve horas en falso cada día 10 deja de
+ * mirarse justo la vez que sí importa.
+ */
+export function avisoDelCiclo(estado: CierreMesEstadoRpc): AvisoCierreMes | null {
+  const pendiente = estado.pendiente
+  if (!pendiente) return null
+  switch (pendiente.estado) {
+    case 'en_ventana':
+      return {
+        tono: 'aviso',
+        titulo: `${pendiente.mes_nombre} se cierra el ${fmtFecha(pendiente.cierra_el)}`,
+        detalle: pendiente.dias_para_cierre === 1
+          ? 'Queda 1 día de ajuste: anulaciones y correcciones, antes de que sus cifras queden selladas.'
+          : `Quedan ${pendiente.dias_para_cierre} días de ajuste: anulaciones y correcciones, antes de que sus cifras queden selladas.`,
+      }
+    case 'hoy':
+      return {
+        tono: 'aviso',
+        titulo: `${pendiente.mes_nombre} se cierra hoy`,
+        detalle: 'El ciclo automático pasa a las 09:20; desde ese momento sus cifras quedan selladas.',
+      }
+    case 'atascado':
+      return {
+        tono: 'alarma',
+        titulo: `El cierre de ${pendiente.mes_nombre} está atascado`,
+        detalle: `Debió sellarse el ${fmtFecha(pendiente.cierra_el)} y sigue abierto: el ciclo automático no lo consiguió. Hay que revisar el motivo — el candado impide sellar meses posteriores mientras tanto.`,
+      }
+  }
+}

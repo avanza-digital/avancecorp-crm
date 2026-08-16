@@ -82,6 +82,9 @@ vi.mock('@/components/gerencia/motion', () => ({
 // La conversión mensual (la definición), controlable por test.
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 vi.mock('@/data/crm-queries', () => ({
+  // El aviso del ciclo no se prueba aquí (tiene su propio test): sin datos,
+  // el banner simplemente no existe.
+  useCierreMesEstado: () => ({ data: undefined, isError: false }),
   useConversionMensual: () => ({
     data: CONVERSION_MENSUAL ?? undefined,
     isError: false,
