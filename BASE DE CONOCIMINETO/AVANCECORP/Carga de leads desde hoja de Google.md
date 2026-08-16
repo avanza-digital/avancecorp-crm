@@ -673,5 +673,69 @@ ejemplo real del negocio). **42 candidatos juzgados, 1 defecto confirmado** — 
 Los otros 41 tenían defensa: el formato texto de LEADS, la «h» de las huellas, o que nadie
 vuelve a leer el valor.
 
+
+### Codex contra seis afirmaciones: rompió cinco (2026-08-16, `8dcdf8e`)
+
+Regla de Miguel reafirmada ese día: *«apóyate en Codex para avanzar siempre»*. En vez de
+pedirle «revisa esto», se le dieron **seis afirmaciones concretas para REFUTAR**, con los
+archivos y el estado real de producción. **Rompió cinco.** El método vale más que el
+resultado: pedir refutación de afirmaciones nombradas encuentra lo que «¿ves algún
+problema?» no encuentra.
+
+| Lo que afirmé | Lo que encontró |
+|---|---|
+| Ningún lead se pierde | Límites conocidos confirmados (fila editada bajo la frontera) |
+| La marca no avanza si algo falla | 🔴 **FALSO**: `guardarMarcas` iba ANTES de `escribirRechazos` |
+| El puente no puede quedarse callado | 🔴 **FALSO**: renombrar las columnas de teléfono lo silencia |
+| Los leads viejos no se cuelan | 🟠 una fecha imposible (`99/99/2026`) era salvoconducto |
+| Nada se deforma al pasar por Sheets | 🟡 un nombre con `=` inicial se vuelve fórmula |
+| Las pruebas prueban lo que dicen | 🟠 cuatro agujeros, uno en la regla más dura del proyecto |
+
+**El peor: la pestaña muda.** El chequeo «¿hay columna de teléfono?» iba ANTES de
+«¿sigue siendo la misma pestaña?». Si en el origen renombran esas dos columnas, el
+puente se salta la pestaña **sin incidencia, sin aviso y apagando el aviso anterior**
+—porque la pasada termina «sin incidencias»—. Los leads dejarían de llegar y el panel
+diría que todo está bien: exactamente el fallo que el panel existe para hacer imposible.
+Invertido el orden; una pestaña que *nunca* tuvo teléfonos se sigue saltando en silencio,
+que es correcto porque no ha cambiado nada.
+
+**El segundo: el lead que se evapora.** La marca se guardaba antes que REVISAR, bajo un
+comentario mío que decía «REVISAR es cosmético». Era falso: si esa escritura falla con la
+marca ya movida, la fila queda por debajo de la frontera y en la pasada siguiente es
+historia. Ni en LEADS, ni en REVISAR, ni en ningún sitio. Ahora **la marca es lo último,
+sin excepciones**.
+
+**Y la memoria podía perderse entera:** `guardarMarcas` borraba y luego escribía. Si lo
+segundo fallaba, quedaba vacía → el puente se planta (bien), pero al re-inicializar la
+frontera se pone al final de hoy y **todo lo llegado entretanto se convierte en historia**.
+Ahora es UNA sola escritura que cubre lo nuevo y lo sobrante.
+
+**Lo que más duele, y también de Codex:** el arnés de mutantes vivía en una carpeta
+temporal — el **mismo error que en julio** costó perder el arnés de 33 aserciones. Ahora
+es **`npm run test:mutantes`**, dentro de `check:scripts`: **32 mutantes en 15 segundos**.
+Sin poder re-ejecutarlo desde el repo, «N mutantes muertos» no era evidencia, era palabra.
+
+⚠️ Y una prueba que no probaba lo que decía: **«el origen sigue siendo SOLO LECTURA»**
+—la regla más dura del proyecto— solo buscaba llamadas que empezaran por `origen.`, y el
+código recorre las pestañas en una variable llamada `pestana`. Un mutante que escribiera
+en el documento ajeno **habría pasado**. Ahora prohíbe toda escritura dentro de las tres
+funciones que abren el origen.
+
+**Pruebas 62 → 107 · mutantes 32, todos muertos.**
+
+### ✅ VIVO desde el 2026-08-16 (primera corrida: lunes 17 a las 7:00)
+
+- Los dos `.gs` pegados, `instalarMenu()` ejecutado, hoja preparada.
+- Fronteras puestas a mano: `landing` 6158 · `formulario` 5973.
+- Vista previa **0 utilizables**, repetida después de todos los arreglos: idéntica.
+- Lead canario probado de extremo a extremo (hoja → conector → CRM, teléfono normalizado
+  solo, sin dueño; lo asignó una persona 14 min después desde el CRM) y **borrado**.
+- `crm.leads` = **0**. Portal intacto: 385 contratos, 350 perfiles. **22 candados del CRM,
+  ninguno caído.**
+- **Horario ACTIVADO**: cada 15 min, lun–sáb 7–22 h de Lima.
+
+⛔ **Lo único que falta no es técnico:** el origen no recibe una fila desde el 24-jul. El
+puente funcionará perfectamente y traerá cero hasta que la campaña vuelva a escribir ahí.
+
 ## Relacionadas
 [[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]
