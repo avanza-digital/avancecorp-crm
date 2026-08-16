@@ -465,6 +465,40 @@ sobrevivió y tenía razón**: la comprobación del secreto solo miraba el texto
 funciones. Corregida por indentación (columna 0) y ubicación única; ahora muere en las
 tres posiciones probadas. Los otros 6 mutantes mueren, incluido uno que escribe en el origen.
 
+### Fase 3 — el puente se ejecuta de verdad en las pruebas (2026-08-16, `52415ae`)
+
+`scripts/apps-script-simulado.mjs` monta los dobles de Hojas de Google, y
+`puente-extremo-a-extremo.test.mjs` ejecuta `procesar()` entero. **Los dos `.gs` se
+cargan JUNTOS en un mismo ámbito**, que es como los corre Apps Script — si dos
+constantes chocaran, la prueba revienta igual que reventaría la hoja.
+
+**El simulador es fiel donde el código se rompe, no en general:**
+- `getRange` **LANZA** si se sale de la rejilla — el fallo exacto que mataba la quinta
+  pasada llena. Un simulador permisivo lo habría escondido para siempre.
+- `getDisplayValues` devuelve **siempre texto** (la diferencia entre leer `"00123456"` y
+  leer el número `123456`).
+- `getLastRow` mira contenido, no rejilla; los disparadores se cuentan de verdad.
+
+**26 pruebas nuevas** — los 12 escenarios que faltaban y los del conector: inicialización
+que importa cero y **no pisa una frontera ya puesta** · parada en seco sin marcas · camino
+feliz entero (hoja + huella + marca) · **pestaña renombrada** (sigue, la memoria va por
+sheetId) · pestaña nueva · encabezados cambiados · filas perdidas · filas reordenadas ·
+dos corridas a la vez · fallo de escritura · el tope · el crecimiento de la hoja ·
+`prepararHoja` / `activarConector` / `apagarConector` / `importarLeads` con y sin secreto.
+
+**Dos correcciones que salieron de los mutantes:**
+1. Una prueba mía **no probaba nada**: `gs.configurar && gs.configurar()` cortocircuitaba
+   porque no había expuesto la función.
+2. ⚠️ Un mutante que adelantaba la marca a antes de las huellas **SOBREVIVÍA, y tenía
+   razón**: ese orden **no era load-bearing** como afirmaba mi comentario — si fallaran
+   las huellas con la marca ya movida, los leads ya estarían escritos y el conector los
+   subiría igual. Comentario corregido para no vender una defensa que no existe, y el
+   orden pinchado con la prueba que sí dice algo cierto: **la marca es lo último que se
+   mueve**, y si falla cualquiera de las escrituras de memoria, no avanza.
+
+**Total: 36 puras + 26 de extremo a extremo**, todas dentro de `npm run check:scripts`
+junto al gate.
+
 ### ⛔ NO DESPLEGADO — qué falta
 
 Nada de esto está pegado en Apps Script todavía. Por fases:
@@ -473,9 +507,7 @@ Nada de esto está pegado en Apps Script todavía. Por fases:
   con una respuesta controlada que la campaña escribe fila, y decidir la vía si esa hoja
   ya no es la fuente oficial. **Sin agua, el resto es fontanería.**
 - ~~**Fase 2 — capacidad**~~ ✅ **HECHA** (2026-08-16, commit `99d088d`) — ver abajo.
-- **Fase 3 — simulador de Hojas** (~80 líneas) para poder probar `procesar` entero:
-  corridas simultáneas, fallo parcial de escritura, avance de marca al tope, pestaña
-  renombrada, más de 2.000 filas. Es el trozo más grande.
+- ~~**Fase 3 — simulador de Hojas**~~ ✅ **HECHA** (2026-08-16, commit `52415ae`) — ver abajo.
 - **Fase 4 — cadencia y observabilidad:** las 9 a. m. dejan un lead de las 9:05 esperando
   casi un día. Cada 15 min **con pre-chequeo barato** (mirar solo cuántas filas tiene cada
   pestaña y salir si no creció; si no, 96 lecturas de 12.000 filas se comen la cuota
