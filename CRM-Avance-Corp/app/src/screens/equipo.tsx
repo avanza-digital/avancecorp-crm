@@ -642,7 +642,11 @@ function EquipoSupervisor(): JSX.Element {
           metaMensual={metaMensual}
           tc={tc}
           cargando={false}
-          error={null}
+          // El fallo de la MENSUAL es un error del ranking, no una degradación
+          // muda a «indisponible» (exigencia pre-release de Miguel, 2026-08-15).
+          error={!yo?.demo && qConversionMensual.isError
+            ? 'No se pudo calcular la conversión mensual del equipo.'
+            : null}
           onReintentar={() => { void recargar(); if (!yo?.demo) void qConversionMensual.refetch() }}
           titulo="Ranking de mi equipo"
           etiquetaAlcance="Mi equipo"

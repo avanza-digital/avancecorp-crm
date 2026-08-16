@@ -16,12 +16,18 @@ import { avisoDelCiclo } from '@/lib/cierre-de-mes'
  * NOMBRA el servidor; aquí solo se pinta.
  */
 export function AvisoCierreMesPanel(): JSX.Element | null {
-  // Apagado en demo DESDE DENTRO (no solo por el gate de la pantalla): el demo
-  // es hermético y esta consulta habla de la maquinaria real. Si alguien monta
-  // el panel en otra pantalla mañana, no hereda el olvido.
+  // DECISIÓN DE ROLES (fijada antes del release, 2026-08-15): el banner lo ve
+  // SOLO GERENCIA — es quien puede actuar sobre el ciclo (anular, ajustar,
+  // sellar a mano). Vendedor y supervisor no operan el cierre; el permiso del
+  // coordinador en el SERVIDOR existe únicamente para que sus pantallas de
+  // metas no fallen al leer `cierre`, no para este aviso. Y apagado en demo
+  // DESDE DENTRO: el demo es hermético y esta consulta habla de la maquinaria
+  // real. El gate vive aquí y no solo en la pantalla que lo monta: si alguien
+  // lo monta en otra mañana, no hereda el olvido.
   const { yo } = useAuth()
-  const estado = useCierreMesEstado(Boolean(yo) && yo?.demo !== true)
-  const aviso = estado.data ? avisoDelCiclo(estado.data) : null
+  const puedeVerlo = Boolean(yo) && yo?.demo !== true && yo?.rol === 'gerencia'
+  const estado = useCierreMesEstado(puedeVerlo)
+  const aviso = puedeVerlo && estado.data ? avisoDelCiclo(estado.data) : null
   if (!aviso) return null
   const alarma = aviso.tono === 'alarma'
   const Icono = alarma ? TriangleAlert : CalendarClock

@@ -55,7 +55,11 @@ vi.mock('@/lib/store-context', () => ({
 // prueba aquí y montarlos exigiría un QueryClient y el bundle de gráficas.
 vi.mock('./distribucion-leads-gerencia', () => ({ DistribucionLeadsGerencia: () => null }))
 vi.mock('./inteligencia-comercial', () => ({ InteligenciaComercialPanel: () => null }))
-vi.mock('./ranking-vendedores', () => ({ RankingVendedoresPanel: () => <h1>Ranking de vendedores</h1> }))
+vi.mock('./ranking-vendedores', () => ({
+  RankingVendedoresPanel: ({ error }: { error: string | null }) => (
+    <h1>Ranking de vendedores{error ? ` · ERROR: ${error}` : ''}</h1>
+  ),
+}))
 // El TC real invocaría la edge crm-tipo-cambio desde el hook; en tests queda
 // hermético en null (la pantalla solo lo reenvía al panel, que aquí está
 // mockeado). importOriginal conserva usdAPen/promedioSemanal: la lib pura
@@ -81,13 +85,15 @@ vi.mock('@/components/gerencia/motion', () => ({
 }))
 // La conversión mensual (la definición), controlable por test.
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
+let CONVERSION_MENSUAL_FALLA = false
 vi.mock('@/data/crm-queries', () => ({
   // El aviso del ciclo no se prueba aquí (tiene su propio test): sin datos,
   // el banner simplemente no existe.
   useCierreMesEstado: () => ({ data: undefined, isError: false }),
   useConversionMensual: () => ({
-    data: CONVERSION_MENSUAL ?? undefined,
-    isError: false,
+    data: CONVERSION_MENSUAL_FALLA ? undefined : (CONVERSION_MENSUAL ?? undefined),
+    error: CONVERSION_MENSUAL_FALLA ? new Error('500 simulado') : null,
+    isError: CONVERSION_MENSUAL_FALLA,
     isPending: false,
     isFetching: false,
     refetch: () => {},
@@ -177,6 +183,7 @@ beforeEach(() => {
   OBJETIVOS_ERROR = false
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
+  CONVERSION_MENSUAL_FALLA = false
   ESTADO_CONVERSIONES.data = undefined
   ESTADO_CONVERSIONES.error = null
   ESTADO_CONVERSIONES.isPending = false
@@ -419,5 +426,21 @@ describe('Hoy · gerencia — período del tablero', () => {
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-06-30')
     expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30')
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
+  })
+})
+
+describe('Hoy · gerencia — el ranking y la conversión mensual', () => {
+  it('si la MENSUAL falla, el ranking lo dice como error con su Reintentar (no degrada mudo)', () => {
+    // Exigencia pre-release de Miguel (2026-08-15): antes, el fallo dejaba el
+    // panel en «indisponible» sin decir por qué ni ofrecer reintento.
+    CONVERSION_MENSUAL_FALLA = true
+    montar({}, 'ranking-vendedores')
+
+    expect(screen.getByText(/ERROR: No se pudo calcular la conversión mensual\./)).toBeInTheDocument()
+  })
+
+  it('con la mensual sana no se inventa ningún error', () => {
+    montar({}, 'ranking-vendedores')
+    expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
   })
 })

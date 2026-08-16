@@ -85,7 +85,10 @@ test('Equipo (gerencia real): comparativa y chips cargan desde metricas_vendedor
 
   // El payload parsea y la pantalla pinta: chips con números (no «—») y la
   // tabla en su estado honesto (el ROSTER del mock no tiene supervisores).
-  await expect(page.getByText('Comparativa de equipos')).toBeVisible()
+  // Por ROL, no por texto: «Cargando la comparativa de equipos…» contiene el
+  // mismo texto y, si el assert llega durante la carga, el matcher ambiguo
+  // revienta por modo estricto (solo pasaba cuando la carga ganaba la carrera).
+  await expect(page.getByRole('heading', { name: 'Comparativa de equipos' })).toBeVisible()
   await expect(page.getByText(/Aún no hay supervisores activos/)).toBeVisible()
   const chipEquipos = page.locator('[data-slot="card"]').filter({ hasText: 'Equipos' }).first()
   await expect(chipEquipos).toContainText('0')

@@ -249,6 +249,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const datosReuniones = reunionesDeEjemplo ? metricasReunionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : reuniones.data
   const datosDistribucion = modoDemo ? metricasDistribucionDemo(periodo.desde, periodo.hasta) : distribucion.data
   const errorConversiones = conversionesDeEjemplo ? null : errorConsulta(sesionReal, conversiones.error, 'No se pudieron cargar las conversiones.')
+  // La MENSUAL es LA fuente del tab de conversión del ranking: si falla, el
+  // panel lo dice con Reintentar — no degrada mudo a «indisponible» (exigencia
+  // pre-release de Miguel, 2026-08-15).
+  const errorConversionMensual = conversionesDeEjemplo
+    ? null
+    : errorConsulta(sesionReal, qConversionMensual.error, 'No se pudo calcular la conversión mensual.')
   const errorReuniones = reunionesDeEjemplo ? null : errorConsulta(sesionReal, reuniones.error, 'No se pudieron cargar las métricas de reuniones.')
   const errorResumen = [errorConversiones, errorReuniones].filter(Boolean).join(' ') || null
   const capitalActualPen = cumplimiento ? capitalReal(cumplimiento, 'PEN') : null
@@ -295,7 +301,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={reintentarConversiones} />}
 
-      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); tipoCambio.recargar() }} />}
+      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); tipoCambio.recargar() }} />}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 

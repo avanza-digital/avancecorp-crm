@@ -9,6 +9,13 @@ export type RolDemo = (typeof ROLES_DEMO)[number]
 
 /** Entra a la demo con el rol dado y espera el workspace (nav lateral visible). */
 export async function entrarDemo(page: Page, rol: RolDemo): Promise<void> {
+  // Los contadores (AnimatedValue) y las intros GSAP respetan reduced-motion;
+  // con los workers en paralelo la CPU los deja a media animación y los
+  // asserts de tiles pillan valores de tránsito («2» camino de «6»). El
+  // `use.reducedMotion` del config NO llega a la página en Playwright 1.61
+  // (sondeado con matchMedia): se emula por página, aquí y en loginReal — los
+  // dos únicos puntos de entrada de todos los specs.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
   await page.getByRole('button', { name: /explorar en modo demo/i }).click()
   await page.getByRole('button', { name: new RegExp(`^${rol}`) }).click()
@@ -2030,6 +2037,22 @@ export async function montarBackendReal(
         periodo: body.p_periodo ?? estado.configuracionMetas.periodo,
       })
     }
+    if (p === '/rest/v1/rpc/cierre_mes_estado_fn' && method === 'POST') {
+      // El estado QUIETO del ciclo (forma del fixture generado ejecutando):
+      // nada pendiente, nada sellado — el banner del aviso no aparece y los
+      // specs quedan deterministas. Sin esta ruta, el fail-closed de abajo le
+      // daba 500 + reintentos a CADA pantalla de gerencia: latencia y ruido
+      // que llegaron a tumbar por timeout el spec de Equipo en la suite llena.
+      return json(route, {
+        version: 1,
+        generado_en: '2026-07-17T17:00:00.000Z',
+        hoy: '2026-07-17',
+        zona: 'America/Lima',
+        mes_en_curso: { mes: '2026-07', mes_nombre: 'julio', cierra_el: '2026-08-10' },
+        pendiente: null,
+        ultimo_cerrado: null,
+      })
+    }
     if (p === '/rest/v1/rpc/cumplimiento_metas_fn' && method === 'POST') {
       const body = (req.postDataJSON() ?? {}) as { p_periodo?: string }
       return json(route, {
@@ -2274,6 +2297,9 @@ export async function montarBackendReal(
 
 /** Inicia sesión REAL vía el formulario (supabase-js guarda la sesión solo). */
 export async function loginReal(page: Page): Promise<void> {
+  // Mismo motivo que en entrarDemo: animaciones instantáneas o los asserts
+  // de tiles/paneles pillan estados de tránsito bajo carga.
+  await page.emulateMedia({ reducedMotion: 'reduce' })
   await page.goto('/')
   await page.locator('#correo').fill('qa-real@avancecorp.pe')
   await page.locator('#clave').fill('cualquier-cosa')

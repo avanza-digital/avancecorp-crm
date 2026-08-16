@@ -175,7 +175,15 @@ publicarla con `/release-crm`, que invoca Miguel). Lo que se ve:
   (SIN alarma: el ciclo pasa a las 09:20 y gritar 9 horas en falso mata la alarma); y
   pasado el día sin sellar, la ALARMA «el cierre está atascado» — sin ella, un cron roto
   es invisible. Los tres estados los nombra el SERVIDOR (`cierre_mes_estado_fn`); el
-  front no deduce fechas.
+  front no deduce fechas. Con la pestaña abierta se re-pregunta solo, cada 5 minutos:
+  la alarma no depende de que alguien reenfoque.
+
+  **Decisión de roles (fijada antes del release, 15/08):** el banner lo ve **SOLO
+  gerencia** — es quien puede actuar sobre el ciclo (anular, ajustar, sellar a mano).
+  Vendedor y supervisor no operan el cierre. El permiso del **coordinador en el
+  servidor** existe únicamente para que sus pantallas de metas no fallen al leer
+  `cierre` del cumplimiento — NO le pinta este aviso. El gate por rol vive DENTRO del
+  panel (no solo en la pantalla que lo monta) y tiene su test.
 
 El contrato del estado nació **ejecutando** la función (5 fixtures del generador
 `supabase/scripts/fixture-cierre-mes-estado.sql`, con costura de reloj verificada por

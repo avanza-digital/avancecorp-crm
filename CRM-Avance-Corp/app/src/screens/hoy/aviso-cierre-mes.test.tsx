@@ -4,7 +4,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 const dobles = vi.hoisted(() => ({
   cierreEstado: {} as Record<string, unknown>,
   cierreHabilitada: undefined as boolean | undefined,
-  yo: { id: '11111111-1111-4111-8111-111111111111', demo: false } as { id: string; demo: boolean },
+  yo: { id: '11111111-1111-4111-8111-111111111111', rol: 'gerencia', demo: false } as {
+    id: string
+    rol: string
+    demo: boolean
+  },
 }))
 
 vi.mock('@/data/crm-queries', () => ({
@@ -40,7 +44,7 @@ function estado(pendiente: Record<string, unknown> | null) {
 beforeEach(() => {
   dobles.cierreEstado = estado(null)
   dobles.cierreHabilitada = undefined
-  dobles.yo = { id: '11111111-1111-4111-8111-111111111111', demo: false }
+  dobles.yo = { id: '11111111-1111-4111-8111-111111111111', rol: 'gerencia', demo: false }
 })
 
 describe('AvisoCierreMesPanel', () => {
@@ -80,7 +84,24 @@ describe('AvisoCierreMesPanel', () => {
   })
 
   it('en DEMO no consulta ni pinta: el demo es hermético y esta maquinaria es real', () => {
-    dobles.yo = { id: '11111111-1111-4111-8111-111111111111', demo: true }
+    dobles.yo = { id: '11111111-1111-4111-8111-111111111111', rol: 'gerencia', demo: true }
+    const { container } = render(<AvisoCierreMesPanel />)
+
+    expect(dobles.cierreHabilitada).toBe(false)
+    expect(container).toBeEmptyDOMElement()
+  })
+
+  it('el banner es SOLO de gerencia: otro rol ni consulta ni pinta (decisión pre-release)', () => {
+    // Quien no puede actuar sobre el ciclo no recibe su aviso; el permiso del
+    // coordinador en el servidor es para sus pantallas de metas, no para esto.
+    dobles.yo = { id: '22222222-2222-4222-8222-222222222222', rol: 'supervisor', demo: false }
+    dobles.cierreEstado = estado({
+      mes: '2026-06',
+      estado: 'atascado',
+      cierra_el: '2026-07-10',
+      mes_nombre: 'junio',
+      dias_para_cierre: 0,
+    })
     const { container } = render(<AvisoCierreMesPanel />)
 
     expect(dobles.cierreHabilitada).toBe(false)

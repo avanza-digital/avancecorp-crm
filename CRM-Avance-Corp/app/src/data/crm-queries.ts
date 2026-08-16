@@ -447,17 +447,32 @@ export function useConversionMensual(habilitada: boolean, periodo: string) {
 }
 
 /**
+ * Cada cuánto se re-pregunta el estado del ciclo con la pestaña abierta. El
+ * estado cambia por CALENDARIO (medianoche de Lima) y por el cron (09:20):
+ * sin intervalo, una pantalla dejada en un monitor jamás vería aparecer la
+ * ALARMA de atascado — justo la que existe para no depender de que alguien
+ * vuelva a mirar. Cinco minutos: 288 llamadas/día de una función trivial.
+ */
+export const INTERVALO_CIERRE_MES_ESTADO_MS = 5 * 60_000
+
+/** Opciones de la consulta, puras para poder probarlas sin montar nada. */
+export function opcionesCierreMesEstado(habilitada: boolean) {
+  return {
+    queryKey: crmQueryKeys.cierreMesEstado(),
+    queryFn: ({ signal }: { signal?: AbortSignal }) => obtenerCierreMesEstado(signal),
+    enabled: habilitada,
+    refetchInterval: INTERVALO_CIERRE_MES_ESTADO_MS,
+  }
+}
+
+/**
  * El estado de la maquinaria del cierre de mes (`crm.cierre_mes_estado_fn`).
  * Es ADVISORY para las pantallas: si esta consulta cae, ninguna acción se
  * habilita de más — el candado real vive en el servidor (trigger 22023 y
  * guardias de `cerrar_periodo`), y el fallo solo apaga avisos.
  */
 export function useCierreMesEstado(habilitada: boolean) {
-  return useQuery({
-    queryKey: crmQueryKeys.cierreMesEstado(),
-    queryFn: ({ signal }) => obtenerCierreMesEstado(signal),
-    enabled: habilitada,
-  })
+  return useQuery(opcionesCierreMesEstado(habilitada))
 }
 
 /** Ranking de conversión del equipo del actor (decisión #10, parte b2). */
