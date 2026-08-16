@@ -610,5 +610,68 @@ Nada de esto está pegado en Apps Script todavía. Por fases:
   paso se lleva los seis disparadores viejos si quedara alguno). Rollback = apagar
   disparadores y restaurar scripts, **sin borrar** `_puente_huellas` ni `_puente_marcas`.
 
+
+## 2026-08-16 — ENCENDIDO (Fase 5): lo medido en producción
+
+Los scripts se pegaron por fin en Apps Script. Cifras reales de la hoja, no estimaciones:
+
+| | |
+|---|---|
+| Filas del origen | `landing` **6.158** · `formulario` **5.973** (id de `landing` = **0**) |
+| Fronteras puestas a mano | en esas mismas filas, el 16/08 a las 16:48 |
+| Vista previa, filas leídas | **12.127** |
+| **Leads utilizables** | **0** ✅ — la prueba de fuego |
+| Frenados por el corte del 17-ago | **11.968** |
+| Frenados por la marca de agua | **159** |
+
+**Los 159 son la demostración de que la Fase 1 valía.** Es exactamente el número de leads
+que el 27 de julio estaban presos en REVISAR por venir SIN fecha. Sin marca de agua habrían
+entrado hoy al CRM con fecha de agosto, contando como leads del mes y falseando el divisor
+de la conversión. Es el agujero que abrimos y cerramos, medido.
+
+`landing` **no salió detenida**, lo que confirma que el `sheetId 0` funciona — un caso que
+ninguna prueba ejercitaba y que sobrevivía **por casualidad** (el texto `"0"` es verdadero
+en JavaScript; el número `0` no). Ahora tiene prueba y mutante.
+
+### El fallo que solo apareció al abrir el panel de verdad
+
+La primera lectura real del panel mostró:
+`frontera en la 6158 (puesta el Sun Aug 16 2026 16:48:00 GMT-0500 (hora estándar de Perú))`.
+
+Se escribe el texto `"16/08/2026 16:48"`, **Sheets lo reconoce como FECHA** y lo guarda como
+fecha; `getValues` devuelve un objeto `Date`. Misma familia que la huella `"00123456"` que
+volvía como el número `123456`. Y con una vuelta de tuerca que encontró la revisión:
+**`String(fecha)` re-renderiza en la zona horaria del PROYECTO** de Apps Script — justo la
+dependencia que `relojDeLima` existe para matar; con el proyecto en hora del Pacífico, una
+frontera puesta a las 00:30 de Lima aparecería con la fecha del **día anterior**.
+
+Arreglado con `forzarTexto()` (blindaje: toda la rejilla de las dos pestañas de memoria en
+formato texto, cubriendo `getMaxRows()` porque `insertRowsAfter` hereda el formato de arriba)
+y `momentoDeCelda()` (cura de lo ya guardado). De paso, la columna «Actualizado» deja de
+sellarse con la hora de hoy en TODAS las filas: una pestaña detenida conserva su sello, que
+es lo único que permite ver «esta pestaña lleva días sin mirarse».
+
+⚠️ **El culpable de que ninguna prueba lo cazara era el SIMULADOR**: guardaba el texto tal
+cual y lo devolvía idéntico, así que la ida y vuelta que rompe en producción salía verde.
+Ahora imita a Sheets — interpreta lo que se le escribe y `getDisplayValues` lo MUESTRA con
+el formato de la celda, que es justo lo que lo diferencia de `getValues`.
+
+⚠️ **Y los dos arreglos se tapaban mutuamente**: con el blindaje puesto, la cura nunca se
+ejercita; con la cura puesta, quitar el blindaje no se nota. **Los dos mutantes sobrevivían.**
+Separados en dos pruebas: una mira el valor CRUDO de la celda, la otra parte de una pestaña
+ya envenenada como la de producción. Tercera vez que aparece esta trampa en este proyecto
+(ver [[Cierre de mes]]): **un arreglo puede tapar el test de otro**.
+
+**Pruebas 95 → 101 · mutantes 21 → 25**, todos muertos.
+
+### El barrido que lo encontró
+
+Se lanzó un barrido multiagente sobre TODA la clase de fallo «un valor va a una celda y
+vuelve deformado»: cuatro inventarios (uno por pestaña) y **tres escépticos independientes
+por cada sospechoso**, cada uno con una lente distinta (tipos · configuración regional ·
+ejemplo real del negocio). **42 candidatos juzgados, 1 defecto confirmado** — el de la fecha.
+Los otros 41 tenían defensa: el formato texto de LEADS, la «h» de las huellas, o que nadie
+vuelve a leer el valor.
+
 ## Relacionadas
 [[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]
