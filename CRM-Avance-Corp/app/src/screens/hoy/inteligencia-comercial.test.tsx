@@ -103,6 +103,41 @@ describe('detalle de conversión por vendedor', () => {
     expect(screen.queryByRole('dialog', { name: 'Ana Torres' })).not.toBeInTheDocument()
   })
 
+  it('la ficha explica el arrastre igual que el ranking: el porqué no desaparece al abrir el detalle', () => {
+    // Hallazgo #6 de la revisión adversaria: gerencia veía el chip en el
+    // ranking, abría al MISMO vendedor y el % neto quedaba sin explicación.
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    const ana = mensual.responsables.find((fila) => fila.vendedor_id === 'demo-v1')
+    if (ana) {
+      ana.ajuste = {
+        pendiente: 1,
+        origenes: [{ periodo: '2026-07', motivo: 'Cierre anulado por gerencia', numerador: 1 }],
+      }
+    }
+    render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={mensual}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const contenido = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    const chip = contenido.getByText('arrastra 1 conversión de anulaciones · julio 2026')
+    expect(chip).toHaveAttribute('title', 'julio 2026: Cierre anulado por gerencia (−1)')
+  })
+
   it('mide la meta con la conversión del mes, no con la del cumplimiento', () => {
     // Las dos fuentes discrepan A PROPÓSITO: la conversión del mes de Ana es
     // 34.6 % (la que enseña su número grande) y el cumplimiento de metas dice

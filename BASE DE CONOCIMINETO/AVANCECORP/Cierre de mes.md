@@ -199,6 +199,36 @@ usos con `null` vs `undefined` en ARGUMENTOS de RPC — y «arreglarlos» mecán
 cambiaría los payloads que salen a producción (omitir una clave dispara el default de
 SQL; mandar null, no). Esa adopción es una pieza propia, no un contrabando.
 
+## La revisión adversaria (Codex, 15/08) y sus ocho hallazgos
+
+Antes del release, Codex refutó la Fase 2 y encontró **2 bloqueantes reales** que
+ninguna de las otras tres revisiones vio. Los ocho quedaron cerrados el mismo día:
+
+1. **Publicar y cerrar el mismo mes no estaban serializados** (candados con claves
+   distintas): una publicación concurrente al sellado fabricaba DOS verdades para un
+   mes inmutable. Cerrado con la migración `20260815223000` — el trigger del candado
+   toma el MISMO advisory lock que `cerrar_periodo` — y **la carrera se reprodujo con
+   dos sesiones psql reales en ambos órdenes** antes y después del arreglo. En
+   producción; el oráculo ganó un bloque estructural que vigila a los TRES tenedores
+   de la clave en cada ciclo. ⚠️ De paso quedó dicho: **los branches de Supabase ya no
+   replican este ledger** (los registros manuales no llevan statements) — el gate de
+   branch es impracticable y se compensa con banco + carrera real + auditor.
+2. **El chip del descuento desaparecía en los meses sellados**: la foto emite
+   `ajuste{aplicado, pendiente: 0}` y el contrato tiraba `aplicado` — la conversión
+   histórica quedaba rebajada sin explicación. Declarado y con su frase propia:
+   «−N conversiones descontadas al cierre» (ahí el −N sí es exacto).
+3. **El chip afirmaba la DEUDA como si fuera el descuento**: con bruto 1 y deuda 3 el
+   servidor resta 1 y arrastra 2, pero el chip decía «−3». Ahora dice «arrastra N
+   conversiones de anulaciones» — lo único afirmable con lo que viaja.
+4. El drawer de Inteligencia Comercial enseña el mismo porqué que el ranking (el chip
+   no desaparece al abrir el detalle del vendedor).
+5. El texto del día del sello es un HORARIO, no un hecho consumado («si mañana no se
+   ha sellado, se marcará atascado») — a las 15:00 con el cron caído ya no miente.
+6. Formato: deudas de 0.001 ya no se pintan «0» (ganan decimales) y julio 2025 ≠
+   julio 2026 (el mes siempre lleva año).
+7. La red en demo y el refresco periódico de la alarma ya estaban cerrados por las
+   exigencias previas de Miguel; Codex los confirmó sobre el snapshot viejo.
+
 🔴 **El despliegue apagó la pantalla de metas, y hay que saber por qué.** El servidor
 entró primero y empezó a mandar **cuatro datos nuevos**; el front tiene esa pantalla
 configurada para rechazar el paquete entero si trae algo que no reconoce —una defensa

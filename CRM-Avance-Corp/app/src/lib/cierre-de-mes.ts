@@ -94,7 +94,11 @@ export function avisoDelCiclo(estado: CierreMesEstadoRpc): AvisoCierreMes | null
       return {
         tono: 'aviso',
         titulo: `${pendiente.mes_nombre} se cierra hoy`,
-        detalle: 'El ciclo automático pasa a las 09:20; desde ese momento sus cifras quedan selladas.',
+        // HORARIO, no hecho consumado: el servidor mantiene `hoy` las 24 horas
+        // del día del sello, así que a las 15:00 con el cron caído un «desde
+        // ese momento quedan selladas» sería falso (hallazgo #7). Si mañana
+        // sigue abierto, el estado pasa a `atascado` y ahí sí suena la alarma.
+        detalle: 'El ciclo automático pasa a las 09:20 de Lima. Mientras el mes siga abierto se puede ajustar; si mañana no se ha sellado, se marcará atascado.',
       }
     case 'atascado':
       return {

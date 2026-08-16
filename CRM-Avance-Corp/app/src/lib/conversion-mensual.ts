@@ -93,9 +93,17 @@ const OrigenAjusteSchema = v.object({
  * «un número que baja sin explicación es una llamada a soporte». `optional`
  * porque un `v.object` laxo también falla por clave AUSENTE, y la vuelta
  * atrás de la migración la haría desaparecer.
+ *
+ * DOS formas, comprobadas EJECUTANDO la función en el banco (2026-08-15):
+ *   · mes VIVO:    { pendiente > 0, origenes: [...] }        — deuda por saldar
+ *   · mes SELLADO: { aplicado, pendiente: 0, origenes: [] }  — lo ya restado
+ * Sin declarar `aplicado`, Valibot lo DESCARTA y la foto de un mes cerrado
+ * mostraba la conversión rebajada sin explicación alguna (hallazgo #2 de la
+ * revisión adversaria).
  */
 const AjusteConversionSchema = v.object({
   pendiente: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  aplicado: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0))),
   origenes: v.optional(v.array(OrigenAjusteSchema)),
 })
 
@@ -287,7 +295,7 @@ export function lecturaCobertura(
 }
 
 export interface DescuentoArrastre {
-  /** Para el chip: «−1,15 conversiones · arrastre de julio». */
+  /** Para el chip: «arrastra 1,15 conversiones de anulaciones · julio 2026». */
   etiqueta: string
   /** Para el `title`: cada origen con su mes, su motivo y su cuánto. */
   detalle: string
@@ -296,31 +304,58 @@ export interface DescuentoArrastre {
 function nombreMes(periodo: string): string {
   const [anio, mes] = periodo.split('-').map(Number)
   if (!anio || !mes || mes < 1 || mes > 12) return periodo
-  // En minúscula como el resto de la casa («julio»): este ICU capitaliza.
-  return new Intl.DateTimeFormat('es-PE', { month: 'long', timeZone: 'UTC' })
+  // En minúscula como el resto de la casa («julio»). CON el año: deudas de
+  // julio 2025 y julio 2026 colapsaban en un solo «julio» (hallazgo #8).
+  const nombre = new Intl.DateTimeFormat('es-PE', { month: 'long', timeZone: 'UTC' })
     .format(new Date(Date.UTC(anio, mes - 1, 1)))
     .toLocaleLowerCase('es-PE')
+  return `${nombre} ${anio}`
+}
+
+/** Decimales suficientes para que una deuda real no se pinte como «0»: el
+ * servidor admite pesos de 3 decimales y 0.001 con 2 decimales era «−0». */
+function numeroDeuda(n: number): string {
+  return numero(n, n < 0.01 ? 3 : 2)
 }
 
 /**
  * El descuento por anulaciones de meses ya cerrados, listo para pintarse al
- * lado del número que rebaja. `null` = nada que decir (sin ajuste o en cero):
- * el chip no existe, no es que diga «−0». La regla del servidor al lado del
- * dato: el numerador que la fila enseña YA es el neto.
+ * lado del número que rebaja. `null` = nada que decir: el chip no existe, no
+ * es que diga «0». Dos situaciones, dos frases (comprobadas ejecutando):
+ *
+ * · Mes VIVO (`pendiente > 0`): se afirma la DEUDA («arrastra N…»), no un
+ *   «−N». El descuento efectivo del mes es min(deuda, bruto) y el bruto no
+ *   viaja: con numerador bruto 1 y deuda 3, el servidor resta 1 y arrastra 2 —
+ *   un chip «−3» mentiría sobre el número contiguo (hallazgo #4).
+ * · FOTO SELLADA (`aplicado > 0`, pendiente 0): esto SÍ se restó al sellar —
+ *   aquí el «−N» es exacto. El servidor vacía `origenes` en la foto: no se
+ *   inventan meses.
  */
 export function descuentoArrastre(ajuste: AjusteConversion | undefined): DescuentoArrastre | null {
-  if (!ajuste || ajuste.pendiente <= 0) return null
-  const origenes = ajuste.origenes ?? []
-  // Un mismo mes puede aportar varias anulaciones: para el chip se nombra una vez.
-  const meses = [...new Set(origenes.map((origen) => nombreMes(origen.periodo)))]
-  const de = meses.length > 0 ? `arrastre de ${meses.join(' y ')}` : 'arrastre de meses cerrados'
-  const unidad = ajuste.pendiente === 1 ? 'conversión' : 'conversiones'
-  return {
-    etiqueta: `−${numero(ajuste.pendiente, 2)} ${unidad} · ${de}`,
-    detalle: origenes.length > 0
-      ? origenes
-        .map((origen) => `${nombreMes(origen.periodo)}: ${origen.motivo} (−${numero(origen.numerador, 2)})`)
-        .join('\n')
-      : 'Anulaciones de meses ya cerrados pendientes de saldar.',
+  if (!ajuste) return null
+  if (ajuste.pendiente > 0) {
+    const origenes = ajuste.origenes ?? []
+    // Dedupe por PERIODO (no por nombre): dos anulaciones del mismo mes se
+    // nombran una vez; julio 2025 y julio 2026 se nombran las dos.
+    const meses = [...new Map(origenes.map((origen) => [origen.periodo, nombreMes(origen.periodo)])).values()]
+    const de = meses.length > 0 ? ` · ${meses.join(' y ')}` : ''
+    const unidad = ajuste.pendiente === 1 ? 'conversión' : 'conversiones'
+    return {
+      etiqueta: `arrastra ${numeroDeuda(ajuste.pendiente)} ${unidad} de anulaciones${de}`,
+      detalle: origenes.length > 0
+        ? origenes
+          .map((origen) => `${nombreMes(origen.periodo)}: ${origen.motivo} (−${numeroDeuda(origen.numerador)})`)
+          .join('\n')
+        : 'Anulaciones de meses ya cerrados pendientes de saldar.',
+    }
   }
+  const aplicado = ajuste.aplicado ?? 0
+  if (aplicado > 0) {
+    const unidad = aplicado === 1 ? 'conversión descontada' : 'conversiones descontadas'
+    return {
+      etiqueta: `−${numeroDeuda(aplicado)} ${unidad} al cierre`,
+      detalle: 'Anulaciones de meses cerrados, descontadas al sellar este mes.',
+    }
+  }
+  return null
 }

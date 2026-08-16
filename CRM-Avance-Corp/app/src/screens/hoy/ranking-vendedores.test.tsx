@@ -115,8 +115,8 @@ describe('ranking general de vendedores', () => {
     // 4.15 ÷ 12 — el numerador pondera el referido al 15 %, no cuenta 5/12.
     expect(within(filaAna).getByText('34.6%')).toBeInTheDocument()
     // El descuento con su porqué, debajo del % que rebaja.
-    expect(within(filaAna).getByText('−1 conversión · arrastre de julio')).toBeInTheDocument()
-    expect(within(filaAna).getByTitle('julio: Cierre anulado por gerencia (−1)')).toBeInTheDocument()
+    expect(within(filaAna).getByText('arrastra 1 conversión de anulaciones · julio 2026')).toBeInTheDocument()
+    expect(within(filaAna).getByTitle('julio 2026: Cierre anulado por gerencia (−1)')).toBeInTheDocument()
     const filaFabio = filas[5]!
     expect(within(filaFabio).getByText('Fabio León')).toBeInTheDocument()
     expect(within(filaFabio).getByText('—')).toBeInTheDocument()

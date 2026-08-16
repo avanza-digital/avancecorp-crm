@@ -610,8 +610,10 @@ describe('Hoy · vendedor — meta del mes', () => {
       cumplimiento: cumplimientoVendedor(25, 1, 'con-metas', 50),
     })
 
-    const chip = screen.getByText('−1 conversión · arrastre de junio')
-    expect(chip).toHaveAttribute('title', 'junio: Pago no confirmado (−1)')
+    // «arrastra», no «−N»: lo afirmable con lo que viaja es la DEUDA — el
+    // descuento efectivo del mes es min(deuda, bruto) y el bruto no viaja.
+    const chip = screen.getByText('arrastra 1 conversión de anulaciones · junio 2026')
+    expect(chip).toHaveAttribute('title', 'junio 2026: Pago no confirmado (−1)')
   })
 
   it('sin arrastre no hay chip: −0 no existe', () => {
@@ -625,7 +627,7 @@ describe('Hoy · vendedor — meta del mes', () => {
       cumplimiento: cumplimientoVendedor(50, 2, 'con-metas', 50),
     })
 
-    expect(screen.queryByText(/arrastre de/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/de anulaciones|descontad/)).not.toBeInTheDocument()
   })
 
   // Decisión de Miguel (2026-08-14): un mes INCOMPLETO se ve. El caso real fue

@@ -273,7 +273,7 @@ describe('lecturaCobertura — un mes incompleto SE VE', () => {
 })
 
 describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
-  it('el contrato acepta la clave nueva con su forma real, y su ausencia (vuelta atrás)', () => {
+  it('el contrato acepta las DOS formas reales (viva y sellada) y su ausencia (vuelta atrás)', () => {
     const base = payloadCanonico()
     const p = {
       ...base,
@@ -293,15 +293,34 @@ describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
       // numeric de Postgres puede viajar como string: el pipe lo normaliza.
       expect(conAjuste.output.responsables[0]!.ajuste?.pendiente).toBe(1.15)
     }
+
+    // La forma SELLADA, VERBATIM de ejecutar la función en el banco (16/08):
+    // {aplicado, pendiente: 0, origenes: []}. Sin declarar `aplicado`, Valibot
+    // lo descartaba y la foto de un mes cerrado quedaba rebajada sin porqué.
+    const sellado = {
+      ...base,
+      responsables: base.responsables.map((fila, indice) => (indice === 0
+        ? { ...fila, ajuste: { aplicado: '1.15', pendiente: 0, origenes: [] } }
+        : fila)),
+    }
+    const conSellado = v.safeParse(ConversionMensualSchema, sellado)
+    expect(conSellado.success).toBe(true)
+    if (conSellado.success) {
+      expect(conSellado.output.responsables[0]!.ajuste?.aplicado).toBe(1.15)
+    }
+
     expect(v.safeParse(ConversionMensualSchema, payloadCanonico()).success).toBe(true)
   })
 
-  it('sin ajuste o en cero no hay chip: −0 no existe', () => {
+  it('sin ajuste o con todo en cero no hay chip: «0» no existe', () => {
     expect(descuentoArrastre(undefined)).toBeNull()
     expect(descuentoArrastre({ pendiente: 0, origenes: [] })).toBeNull()
+    expect(descuentoArrastre({ pendiente: 0, aplicado: 0, origenes: [] })).toBeNull()
   })
 
-  it('nombra el descuento y sus meses, sin repetirlos', () => {
+  it('mes VIVO: afirma la DEUDA («arrastra»), no un descuento que quizá no cupo entero', () => {
+    // Con bruto 1 y deuda 3 el servidor resta 1 y arrastra 2: un «−3» junto al
+    // número mentiría. Lo afirmable con lo que viaja es la deuda (#4).
     const chip = descuentoArrastre({
       pendiente: 2.15,
       origenes: [
@@ -310,15 +329,40 @@ describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
         { periodo: '2026-07', motivo: 'Cierre duplicado', numerador: 1 },
       ],
     })
-    expect(chip?.etiqueta).toBe('−2.15 conversiones · arrastre de junio y julio')
+    expect(chip?.etiqueta).toBe('arrastra 2.15 conversiones de anulaciones · junio 2026 y julio 2026')
     expect(chip?.detalle).toBe(
-      'junio: Pago no confirmado (−1)\njunio: Contrato anulado (−0.15)\njulio: Cierre duplicado (−1)',
+      'junio 2026: Pago no confirmado (−1)\njunio 2026: Contrato anulado (−0.15)\njulio 2026: Cierre duplicado (−1)',
     )
+  })
+
+  it('FOTO SELLADA: el «−N» sí es exacto (se restó al sellar) y no inventa meses', () => {
+    expect(descuentoArrastre({ pendiente: 0, aplicado: 1.15, origenes: [] })?.etiqueta)
+      .toBe('−1.15 conversiones descontadas al cierre')
+    expect(descuentoArrastre({ pendiente: 0, aplicado: 1, origenes: [] })?.etiqueta)
+      .toBe('−1 conversión descontada al cierre')
+    expect(descuentoArrastre({ pendiente: 0, aplicado: 1, origenes: [] })?.detalle)
+      .toBe('Anulaciones de meses cerrados, descontadas al sellar este mes.')
+  })
+
+  it('una deuda de 0.001 no se pinta como «0»: gana decimales', () => {
+    expect(descuentoArrastre({ pendiente: 0.001, origenes: [] })?.etiqueta)
+      .toBe('arrastra 0.001 conversiones de anulaciones')
+  })
+
+  it('julio 2025 y julio 2026 son DOS meses, no uno', () => {
+    const chip = descuentoArrastre({
+      pendiente: 2,
+      origenes: [
+        { periodo: '2025-07', motivo: 'a', numerador: 1 },
+        { periodo: '2026-07', motivo: 'b', numerador: 1 },
+      ],
+    })
+    expect(chip?.etiqueta).toBe('arrastra 2 conversiones de anulaciones · julio 2025 y julio 2026')
   })
 
   it('con una sola conversión habla en singular, y sin orígenes no inventa meses', () => {
     expect(descuentoArrastre({ pendiente: 1, origenes: [] })?.etiqueta)
-      .toBe('−1 conversión · arrastre de meses cerrados')
+      .toBe('arrastra 1 conversión de anulaciones')
     expect(descuentoArrastre({ pendiente: 1 })?.detalle)
       .toBe('Anulaciones de meses ya cerrados pendientes de saldar.')
   })

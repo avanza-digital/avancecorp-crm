@@ -29,6 +29,7 @@ import {
 import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
+  descuentoArrastre,
   lineaProcedencia,
   lineaReferidos,
   type ConversionMensual,
@@ -352,6 +353,23 @@ function DetalleVendedor({
                     Recibidos {numero(detalleMes.divisor)} · cierres {numero(detalleMes.clientes)}
                   </span>
                 )}
+                {(() => {
+                  // El MISMO porqué que el ranking: este % ya llega NETO de
+                  // anulaciones de meses cerrados. Sin esto, gerencia veía el
+                  // chip en el ranking, abría al mismo vendedor y la
+                  // explicación desaparecía (hallazgo #6 de la revisión).
+                  const descuento = descuentoArrastre(detalleMes?.ajuste)
+                  return descuento
+                    ? (
+                      <span
+                        className="w-full text-[11px] font-semibold text-[var(--gi-muted)]"
+                        title={descuento.detalle}
+                      >
+                        {descuento.etiqueta}
+                      </span>
+                    )
+                    : null
+                })()}
               </div>
               <span className={`w-fit rounded-full px-2.5 py-1 text-[11px] font-bold ${enMeta ? 'bg-emerald-100 text-emerald-700' : !metaMensual.comparable || (mensual != null && !mensual.cobertura.medible) || filaMensual?.estadoConversion !== 'comparable' ? 'bg-slate-200 text-slate-600' : 'bg-amber-100 text-amber-700'}`}>{estado}</span>
             </section>
