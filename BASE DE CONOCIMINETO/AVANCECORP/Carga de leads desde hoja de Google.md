@@ -339,8 +339,8 @@ Miguel pidió arreglar los dos scripts. Antes de tocar nada, los hechos:
 |---|---|
 | **El origen está CONGELADO desde el 24-jul** | `modifiedTime` del fichero de Drive. No hay nada nuevo que traer: la cadena está seca **en la fuente**, no en el puente |
 | El origen **no es nuestro** | dueño `consultas@creaemprendedor.com`. Quién lo alimenta es pregunta para ellos; nosotros solo leemos |
-| La pestaña LEADS está **vacía** | export de Drive: solo la cabecera |
-| `_puente_huellas` conserva **~230 huellas** | esos leads NO vuelven a entrar — correcto, la limpieza del dataset fue deliberada |
+| La pestaña LEADS está **vacía** | mirada en el navegador: solo la cabecera |
+| `_puente_huellas` conserva **279 huellas** (280 filas con cabecera) | contadas en la hoja. Coinciden **exactamente** con los 279 leads del 27-jul. Esos NO vuelven a entrar — correcto, la limpieza del dataset fue deliberada |
 | `crm.leads` = **5**, ninguno de importación | SQL: `creado_por is null` → 0 |
 | La suite del puente llevaba **rota desde el 11-ago** | 5 de 15 en rojo; `4473fd5` movió el corte y no tocó los fixtures |
 | Nadie la corría | `test:puente` no estaba en ningún gate ni en CI |
@@ -414,6 +414,24 @@ llegar al sistema desde el 17 de agosto». `FECHA_CORTE = "2026-08-17"`. El 15 y
 cayeron en sábado y domingo con la cadena apagada. **El 17 marca desde cuándo cuentan los
 leads, no obligatoriamente el día en que se enciende.**
 
+### La hoja, mirada por dentro (2026-08-16, navegador)
+
+Miguel dio acceso y se comprobó en vivo lo que el export de Drive no puede decir:
+
+- **Tres pestañas exactas, ninguna oculta de más:** `LEADS` · `REVISAR (no importados)` ·
+  `_puente_huellas` (con **candado**: la protección funciona). `_puente_marcas` aún no
+  existe, como debe ser: la crea `inicializarMarcas()`.
+- ✅ **La primera pestaña se llama literalmente `LEADS`** → `getSheetByName("LEADS")`
+  estricto es SEGURO. El respaldo `getSheets()[0]` no estaba tapando nada; se puede
+  quitar en la Fase 2 sin romper la cadena.
+- ⚠️ **`LEADS` tiene exactamente 2001 filas** (cabecera + las 2.000 que preparó
+  `configurar()`). El techo **no es teórico**: el puente escribe hasta 500 por pasada, así
+  que **la quinta pasada llena revienta** con "out of bounds" al escribir en la 2002 —
+  después de haber leído las 12.000 filas del origen, y sin llegar a guardar la marca.
+- **279 huellas** — no las ~230 que yo había estimado leyendo el export de Drive, que
+  **trunca** (la trampa que esta misma nota ya advertía). Es el número exacto que hay que
+  volver a ver después de pegar los scripts.
+
 ### ⛔ NO DESPLEGADO — qué falta
 
 Nada de esto está pegado en Apps Script todavía. Por fases:
@@ -421,10 +439,11 @@ Nada de esto está pegado en Apps Script todavía. Por fases:
 - **Fase 0 (de Miguel, manda sobre todo):** confirmar quién alimenta el origen, probar
   con una respuesta controlada que la campaña escribe fila, y decidir la vía si esa hoja
   ya no es la fuente oficial. **Sin agua, el resto es fontanería.**
-- **Fase 2 — capacidad:** el conector prepara solo las primeras 2.000 filas (pasado eso
-  Sheets vuelve a estropear teléfono/DNI/capital); calcular capacidad e insertar filas
-  antes de escribir; `getSheetByName("LEADS")` estricto ⚠️ **verificar antes cómo se
-  llama la primera pestaña** — hoy hay un respaldo `getSheets()[0]` que disimula; separar
+- **Fase 2 — capacidad:** la hoja está **exactamente** en su techo de 2001 filas (ver
+  arriba): calcular capacidad e insertar filas ANTES de escribir, y aplicar formato de
+  texto y menús a cada rango nuevo (pasado el techo, Sheets vuelve a estropear
+  teléfono/DNI/capital). `getSheetByName("LEADS")` estricto ✅ **verificado: la pestaña se
+  llama así**, se puede quitar el respaldo sin riesgo; separar
   `prepararHoja()` de `activarConector()` (hoy `configurar()` hace formato + disparador +
   importación en un botón).
 - **Fase 3 — simulador de Hojas** (~80 líneas) para poder probar `procesar` entero:
