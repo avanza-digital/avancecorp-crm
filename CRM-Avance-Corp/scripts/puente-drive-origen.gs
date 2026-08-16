@@ -50,6 +50,7 @@ const FUENTE_POR_DEFECTO = "Formulario de campaña de ahorro (Facebook)";
 const HOJA_DESTINO = "LEADS";
 const HOJA_REVISAR = "REVISAR (no importados)";
 const HOJA_HUELLAS = "_puente_huellas"; // oculta: evita traer dos veces lo mismo
+const HOJA_MARCAS = "_puente_marcas";   // oculta: hasta qué fila ya miró el puente
 const TOPE_POR_PASADA = 500;
 
 /**
@@ -70,16 +71,59 @@ const TOPE_POR_PASADA = 500;
  *
  * 2026-08-11 — corte movido al 2026-08-15 (decisión D6 de Miguel, 2026-08-10). Es la
  * fecha desde la que la conversión mensual empieza a contar de verdad: el dataset se
- * limpió y `crm.leads` quedó en 1 fila, así que lo que entre antes del 15 falsearía el
+ * limpió y `crm.leads` quedó en 1 fila, así que lo que entre antes falsearía el
  * divisor del mes de estreno de la métrica.
  *
- * ⚠️ EL CORTE POR SÍ SOLO NO BASTA. Solo frena las filas CON fecha legible; las que
- * vienen sin fecha lo esquivan por diseño (regla del 2026-07-27, arriba). Para que
- * agosto empiece limpio hay que ADEMÁS **pausar el temporizador del puente** en Apps
- * Script hasta el 15 y reactivarlo ese día. Cambiar solo esta constante deja la puerta
- * medio abierta.
+ * 2026-08-16 — corte movido al LUNES 17 DE AGOSTO (orden de Miguel): «los leads quiero
+ * que desde el lunes que viene comiencen a llegar al sistema desde el 17 de agosto».
+ * El 15 y el 16 cayeron en sábado y domingo y pasaron sin que la cadena estuviera
+ * encendida, así que el arranque real es el lunes. Desde esa fecha, todo lead nuevo
+ * entra; nada anterior.
+ *
+ * 2026-08-16 — LA PUERTA DE ATRÁS, CERRADA. Hasta hoy este corte solo frenaba las filas
+ * CON fecha legible: las que vienen sin fecha lo esquivaban por diseño, y la única
+ * defensa era acordarse de PAUSAR el temporizador a mano. Eso ya no hace falta — ver
+ * la MARCA DE AGUA, abajo. La regla de Miguel del 2026-07-27 («sin fecha → entra»)
+ * sigue viva para los leads NUEVOS, que es a los que se refería.
  */
-const FECHA_CORTE = "2026-08-15";
+const FECHA_CORTE = "2026-08-17";
+
+/**
+ * MARCA DE AGUA — la mitad que le faltaba al corte de fecha.
+ *
+ * El corte no puede juzgar una fila sin fecha, y el origen tiene cientos de filas
+ * viejas a las que nunca les llenaron "Fecha de Registro" (las huellas del 27-jul lo
+ * enseñan: las sin fecha están DISPERSAS en medio de la pestaña —landing 671-872,
+ * 2508-5288— mientras las fechadas del 23-24 de julio están al final, 6122-6158). Sin
+ * más defensa, encender el puente cualquier día metía ese backlog al CRM con la fecha
+ * del día, falseando el divisor de la conversión del mes.
+ *
+ * La señal que sí existe es la POSICIÓN: en este origen las filas nuevas se añaden al
+ * final. Así que el puente recuerda hasta qué fila miró cada pestaña y aplica la única
+ * regla honesta que se puede aplicar sin fecha:
+ *
+ *   una fila SIN fecha que ya estaba ahí la vez anterior es BACKLOG (no entra);
+ *   una fila SIN fecha que apareció DESPUÉS es un lead nuevo (entra, como pidió Miguel).
+ *
+ * LA FRONTERA SE PONE A MANO, UNA VEZ: `inicializarMarcas()`. Importa CERO leads, deja
+ * el reporte de dónde quedó cada pestaña y no vuelve a mover una marca ya puesta. Una
+ * decisión que define qué leads existen y cuáles no, no se toma sola en una corrida
+ * automática: una primera pasada que "adoptara" la frontera en silencio sería la misma
+ * trampa de antes con otra cara. Por eso, si no hay marcas, el puente SE DETIENE.
+ *
+ * Y LA MARCA POR NÚMERO DE FILA SOLO VALE SI EL ORIGEN SIGUE CRECIENDO POR ABAJO. Eso
+ * es un supuesto, no una ley, así que se comprueba en cada pasada (`revisarPestana`):
+ * si desaparecen filas, si cambian los encabezados, si la pestaña es nueva o si las
+ * filas ancladas ya no dicen lo mismo, esa pestaña se DETIENE y avisa, en vez de
+ * seguir clasificando con una marca que ya miente.
+ *
+ * Se guarda por sheetId (no por nombre: renombrar la pestaña no puede borrar la
+ * memoria) en la pestaña oculta y protegida `_puente_marcas`.
+ */
+const MOTIVO_BACKLOG = "Sin fecha y ya estaba en el origen";
+
+/** Cuántas filas del final se anclan por contenido para detectar reordenamientos. */
+const ANCLA_FILAS = 3;
 
 /**
  * Motivo de los descartes POR DISEÑO (el backlog anterior al corte). Se cuentan en
@@ -87,6 +131,12 @@ const FECHA_CORTE = "2026-08-15";
  * los descartes que sí hay que mirar (teléfono malo, sin monto, sin moneda…).
  */
 const MOTIVO_CORTE = "Anterior al corte";
+
+/** Los dos descartes que son POLÍTICA, no incidencias: no van a REVISAR. */
+function esDescartePorDiseno(motivo) {
+  const m = String(motivo || "");
+  return m.indexOf(MOTIVO_CORTE) === 0 || m.indexOf(MOTIVO_BACKLOG) === 0;
+}
 
 /**
  * UN LEAD NO SE PIERDE POR UN DATO QUE FALTA (decisión de Miguel, 2026-07-23).
@@ -120,6 +170,7 @@ function onOpen() {
 function crearMenu() {
   SpreadsheetApp.getUi()
     .createMenu("AVANCE CORP")
+    .addItem("Inicializar marca de agua (no importa nada)", "inicializarMarcas")
     .addItem("Vista previa (no escribe nada)", "vistaPreviaOrigen")
     .addItem("Traer leads del origen", "traerLeadsDelOrigen")
     .addSeparator()
@@ -280,10 +331,23 @@ function resumen(r) {
     if (l.telefonoRescatado) telRescatado++;
   });
 
-  let t = FECHA_CORTE
-    ? "CORTE ACTIVO: se frena solo lo fechado ANTES del " + FECHA_CORTE +
-      " (sin fecha legible = entra igual).\n\n"
-    : "⚠️ SIN CORTE: entraría TODO el origen, incluido el backlog viejo.\n\n";
+  // Las incidencias van ARRIBA del todo: una pestaña detenida significa que el puente
+  // NO trajo lo que había ahí, y eso no puede leerse como "hoy no hubo leads".
+  let t = "";
+  if (r.incidencias && r.incidencias.length) {
+    t += "⛔ PESTAÑAS DETENIDAS — no se trajo nada de ellas:\n";
+    r.incidencias.forEach(function (x) {
+      t += "   · " + x.pestana + ": " + x.motivo + "\n";
+    });
+    t += "\nSu marca de agua quedó intacta. Revisa el origen y, si el cambio es " +
+      "legítimo, borra la fila de esa pestaña en \"_puente_marcas\" y vuelve a " +
+      "ejecutar \"Inicializar marca de agua\".\n\n";
+  }
+
+  t += FECHA_CORTE
+    ? "CORTE ACTIVO: se frena lo fechado ANTES del " + FECHA_CORTE +
+      ", y lo que no trae fecha se frena por la marca de agua.\n\n"
+    : "⚠️ SIN CORTE: entraría TODO lo fechado del origen, incluido el backlog viejo.\n\n";
 
   t += "Filas leídas del origen: " + r.leidas +
     "\nLeads utilizables: " + r.aceptados.length +
@@ -294,6 +358,10 @@ function resumen(r) {
     (sinFecha ? "\n   · " + sinFecha + " sin fecha en el origen → entran contando desde hoy" : "") +
     (telRescatado ? "\n   · " + telRescatado + " con el teléfono fuera de su columna → número rescatado" : "") +
     "\nYa traídos antes (se omiten): " + r.repetidosPasadas +
+    (r.backlogSinFecha
+      ? "\nBacklog sin fecha frenado por la marca de agua: " + r.backlogSinFecha +
+        " (no van a REVISAR: son historia, no incidencias)"
+      : "") +
     "\nDescartados: " + r.rechazados.length;
   Object.keys(porMotivo).forEach(function (m) {
     t += "\n   · " + m + ": " + porMotivo[m];
@@ -316,7 +384,36 @@ function resumen(r) {
 
 // ── Núcleo ───────────────────────────────────────────────────────────────────
 
+/**
+ * TODA pasada que ESCRIBE va con candado. No es paranoia: la corrida de las 9 y un
+ * "Traer leads del origen" pulsado a mano se solapan sin esfuerzo, y como las huellas
+ * se guardan al FINAL, las dos leerían la misma memoria vieja y escribirían los mismos
+ * leads dos veces. El candado se toma aquí, en la puerta, y no en cada llamador: así
+ * ningún camino de escritura puede olvidarse de pedirlo.
+ */
 function procesar(escribir) {
+  if (!escribir) return procesarNucleo(false); // la vista previa no escribe: no estorba
+  return conCandado(function () { return procesarNucleo(true); });
+}
+
+/** Ejecuta `fn` con el candado del proyecto tomado, o se niega a correr. */
+function conCandado(fn) {
+  const lock = LockService.getScriptLock();
+  if (!lock.tryLock(30000)) {
+    throw new Error(
+      "Ya hay una corrida del puente en marcha (la automática o una manual). No se " +
+      "lanza una segunda: se pisarían y escribirían los mismos leads dos veces. " +
+      "Espera a que termine y vuelve a intentarlo."
+    );
+  }
+  try {
+    return fn();
+  } finally {
+    lock.releaseLock();
+  }
+}
+
+function procesarNucleo(escribir) {
   const destino = SpreadsheetApp.getActiveSpreadsheet();
   if (!destino) {
     throw new Error(
@@ -329,15 +426,32 @@ function procesar(escribir) {
   console.log("Destino: " + destino.getName() + " → pestaña \"" + hojaLeads.getName() + "\"");
 
   const huellas = leerHuellas(destino);          // lo ya traído en pasadas previas
+  const marcasPrevias = leerMarcas(destino);     // hasta qué fila ya miró cada pestaña
   const telefonosEnHoja = telefonosYaEnLaHoja(hojaLeads); // y lo ya escrito a mano
   const vistosAhora = {};
+  const marcasNuevas = {};
+
+  // SE DETIENE SI NO HAY FRONTERA. Sin marcas no se puede distinguir un lead nuevo sin
+  // fecha de una fila vieja sin fecha, y adoptar la frontera aquí, en silencio, sería
+  // exactamente la trampa que esta defensa vino a cerrar. Se pone a mano, una vez.
+  if (!Object.keys(marcasPrevias).length) {
+    throw new Error(
+      "El puente NO tiene marca de agua todavía, así que no puede saber qué fila del " +
+      "origen es un lead nuevo y cuál es historia.\n\n" +
+      "Ejecuta UNA VEZ \"AVANCE CORP → Inicializar marca de agua\": no importa ningún " +
+      "lead, solo anota dónde está hoy el final de cada pestaña. Después de eso, el " +
+      "puente ya puede correr."
+    );
+  }
 
   const origen = SpreadsheetApp.openById(ORIGEN_ID); // ← solo lectura, ver cabecera
   const aceptados = [];
   const rechazados = [];
   const duplicados = []; // rechazados por duplicado: se huellán para no re-listarlos
+  const incidencias = []; // pestañas detenidas porque su marca dejó de ser fiable
   let leidas = 0;
   let repetidosPasadas = 0;
+  let backlogSinFecha = 0;
 
   origen.getSheets().forEach(function (pestana) {
     // El tope es de la PASADA entera, no de cada pestaña: sin esto, el `break` de
@@ -346,6 +460,8 @@ function procesar(escribir) {
     if (aceptados.length >= TOPE_POR_PASADA) return;
 
     const nombrePestana = pestana.getName();
+    // La memoria va por sheetId: renombrar la pestaña no puede borrarla.
+    const idPestana = String(pestana.getSheetId());
     const datos = pestana.getDataRange().getDisplayValues();
     if (datos.length < 2) return;
 
@@ -362,15 +478,42 @@ function procesar(escribir) {
       return; // pestaña sin teléfonos: no es de leads
     }
 
+    // ¿SIGUE SIENDO VERDAD LO QUE LA MARCA SUPONE? Si el origen perdió filas, le
+    // cambiaron los encabezados, la pestaña es nueva o las filas ancladas ya no dicen
+    // lo mismo (se ordenó o se insertó en medio), la marca dejó de significar nada:
+    // esta pestaña se detiene entera y se avisa. No se trae ni un lead de ella y su
+    // marca queda intacta, para que nadie tenga que adivinar dónde estaba.
+    const marca = marcasPrevias[idPestana];
+    const veredicto = revisarPestana(
+      marca,
+      datos.length,
+      huellaCabeceras(datos[0]),
+      marca ? anclaDeFilas(datos, marca.ultimaFila) : ""
+    );
+    if (!veredicto.ok) {
+      incidencias.push({ pestana: nombrePestana, id: idPestana, motivo: veredicto.motivo });
+      console.log("   ↳ ⛔ PESTAÑA DETENIDA: " + veredicto.motivo);
+      return;
+    }
+
+    const frontera = marca.ultimaFila;
+    let ultimaFilaVista = frontera;
+    console.log("   ↳ marca de agua: fila " + frontera + " (de ahí para abajo, leads nuevos)");
+
     for (let i = 1; i < datos.length; i++) {
       const fila = datos[i];
+      if (i + 1 > ultimaFilaVista) ultimaFilaVista = i + 1;
       if (fila.every(function (c) { return String(c).trim() === ""; })) continue;
       if (esFilaDeEncabezado(fila, datos[0])) continue;
       leidas++;
 
-      const lead = normalizarFila(fila, col, nombrePestana, i + 1, datos[0]);
+      const lead = normalizarFila(fila, col, nombrePestana, i + 1, datos[0], frontera);
 
-      if (lead.motivo) { rechazados.push(lead); continue; }
+      if (lead.motivo) {
+        if (lead.motivo === MOTIVO_BACKLOG) backlogSinFecha++;
+        rechazados.push(lead);
+        continue;
+      }
 
       const huella = nombrePestana + "|" + lead.telefono;
       if (huellas[huella]) { repetidosPasadas++; continue; }
@@ -398,6 +541,18 @@ function procesar(escribir) {
       aceptados.push(lead);
       if (aceptados.length >= TOPE_POR_PASADA) break;
     }
+
+    // La marca avanza SOLO hasta donde de verdad se miró: si el tope cortó la pasada a
+    // mitad de la pestaña, las filas de más abajo siguen contando como nuevas mañana.
+    // El ancla se recalcula en la fila nueva: es lo que la próxima pasada comprobará.
+    marcasNuevas[idPestana] = {
+      sheetId: idPestana,
+      nombre: nombrePestana,
+      ultimaFila: ultimaFilaVista,
+      filas: datos.length,
+      cabeceras: huellaCabeceras(datos[0]),
+      ancla: anclaDeFilas(datos, ultimaFilaVista),
+    };
   });
 
   if (escribir) {
@@ -407,9 +562,98 @@ function procesar(escribir) {
     // huella" — pasó el 2026-07-27 y la corrida siguiente re-listó TODO como
     // "ya presente". REVISAR es cosmético: va al final.
     guardarHuellas(destino, aceptados.concat(duplicados));
+    // INVARIANTE: la marca avanza SOLO si lo de arriba salió bien. Si escribirLeads o
+    // guardarHuellas lanzan (timeout, hoja sin filas, permisos), no se llega aquí: la
+    // próxima corrida vuelve a ver esas filas como nuevas y repite trabajo, que es
+    // infinitamente mejor que darlas por traídas sin haberlas escrito.
+    // Se fusiona sobre lo previo para no perder la marca de una pestaña que esta
+    // pasada no llegó a mirar (tope alcanzado, detenida por incidencia, sin teléfono).
+    guardarMarcas(destino, fusionar(marcasPrevias, marcasNuevas));
     escribirRechazos(destino, rechazados);
   }
-  return { leidas: leidas, aceptados: aceptados, rechazados: rechazados, repetidosPasadas: repetidosPasadas };
+  return {
+    leidas: leidas,
+    aceptados: aceptados,
+    rechazados: rechazados,
+    repetidosPasadas: repetidosPasadas,
+    backlogSinFecha: backlogSinFecha,
+    incidencias: incidencias,
+  };
+}
+
+/** Copia de `base` con lo de `encima` pisando. (Apps Script no trae Object.assign.) */
+function fusionar(base, encima) {
+  const r = {};
+  Object.keys(base || {}).forEach(function (k) { r[k] = base[k]; });
+  Object.keys(encima || {}).forEach(function (k) { r[k] = encima[k]; });
+  return r;
+}
+
+// ── La marca de agua: sus cuatro comprobaciones ──────────────────────────────
+
+/**
+ * ¿Se puede confiar HOY en la marca de esta pestaña? Función pura: es el corazón de
+ * la defensa y por eso se prueba sola, sin Hojas de Google de por medio.
+ *
+ * Devuelve `{ok:false, motivo}` en los cuatro casos en que la marca dejó de
+ * significar lo que dice significar. Ante cualquiera de ellos la pestaña se detiene
+ * ENTERA: es preferible no traer nada y avisar, a traer con una regla que ya miente.
+ */
+function revisarPestana(marca, filasAhora, huellaCabAhora, anclaAhora) {
+  if (!marca) {
+    return { ok: false, motivo: "Pestaña nueva o sin inicializar — ejecuta \"Inicializar marca de agua\"" };
+  }
+  if (Number(filasAhora) < Number(marca.filas)) {
+    return { ok: false, motivo: "El origen PERDIÓ filas (" + marca.filas + " → " + filasAhora + "): los números de fila ya no significan lo mismo" };
+  }
+  if (String(huellaCabAhora) !== String(marca.cabeceras)) {
+    return { ok: false, motivo: "Cambiaron los encabezados del origen: el mapeo de columnas puede haberse movido" };
+  }
+  if (String(anclaAhora) !== String(marca.ancla)) {
+    return { ok: false, motivo: "Las filas ancladas ya no son las mismas: el origen se ordenó o le insertaron filas en medio" };
+  }
+  return { ok: true, motivo: "" };
+}
+
+/**
+ * Huella corta y estable de un texto (djb2). A propósito NO usa Utilities.computeDigest:
+ * así la misma función corre en Apps Script y en las pruebas de Node sin simular nada.
+ * No es criptografía — es detección de cambios, y para eso sobra.
+ */
+function huellaTexto(s) {
+  const t = String(s == null ? "" : s);
+  let h = 5381;
+  for (let i = 0; i < t.length; i++) h = (((h * 33) ^ t.charCodeAt(i)) >>> 0);
+  // La "h" del principio NO es decorativa: sin ella una huella como "00123456" viaja a
+  // la celda, Sheets la lee como el número 123456 y al comparar no coincide nunca —
+  // una falsa alarma en cada corrida. Con la letra delante, la celda es texto siempre.
+  return "h" + ("0000000" + h.toString(16)).slice(-8);
+}
+
+/**
+ * Huella de los encabezados, sobre el texto NORMALIZADO: cambia exactamente cuando
+ * podría cambiar el mapeo de columnas (`ubicarColumnas` compara así), y no salta por
+ * un espacio de más o una mayúscula.
+ */
+function huellaCabeceras(cabeceras) {
+  return huellaTexto((cabeceras || []).map(normalizar).join("|"));
+}
+
+/**
+ * ANCLA: huella del contenido de las últimas filas miradas. Es lo que convierte «la
+ * fila 6158 era la última» en algo verificable — si mañana la fila 6158 dice otra
+ * cosa, el origen no creció por abajo como suponemos, y hay que mirar antes de seguir.
+ */
+function anclaDeFilas(datos, hastaFila, cuantas) {
+  const n = cuantas || ANCLA_FILAS;
+  const trozos = [];
+  const fin = Math.min(Number(hastaFila) || 0, (datos || []).length);
+  for (let r = Math.max(2, fin - n + 1); r <= fin; r++) {
+    const f = datos[r - 1];
+    if (!f) continue;
+    trozos.push(r + ":" + f.join("\u0001"));
+  }
+  return huellaTexto(trozos.join("\u0002"));
 }
 
 /**
@@ -472,8 +716,14 @@ function describirColumnas(col, cabeceras) {
   return partes.join(" · ") + (faltan.length ? "  |  sin columna: " + faltan.join(", ") : "");
 }
 
-/** Convierte una fila del origen en una fila de nuestra hoja, o la rechaza con motivo. */
-function normalizarFila(fila, col, pestana, numeroFila, cabeceras) {
+/**
+ * Convierte una fila del origen en una fila de nuestra hoja, o la rechaza con motivo.
+ *
+ * `marca` es la MARCA DE AGUA de la pestaña (última fila que el puente ya había mirado
+ * en pasadas anteriores). Se pasa como último argumento y es opcional: sin ella el
+ * guardia de backlog no actúa, que es el comportamiento de siempre.
+ */
+function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
   const val = function (i) { return i >= 0 && i < fila.length ? String(fila[i]).trim() : ""; };
 
   const lead = {
@@ -491,6 +741,12 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras) {
   const corte = corteEnMs();
   if (corte !== null && fecha && fecha.ms < corte) {
     lead.motivo = MOTIVO_CORTE + " (" + FECHA_CORTE + ")";
+    return lead;
+  }
+  // Y la otra mitad: sin fecha que juzgar, manda la POSICIÓN. Una fila sin fecha que
+  // ya estaba cuando el puente miró la vez pasada es backlog, no un lead nuevo.
+  if (lead.sinFecha && marca > 0 && numeroFila <= marca) {
+    lead.motivo = MOTIVO_BACKLOG;
     return lead;
   }
 
@@ -798,7 +1054,7 @@ function ordenRevision(motivo) {
  */
 function escribirRechazos(libro, rechazados) {
   rechazados = rechazados.filter(function (r) {
-    return String(r.motivo).indexOf(MOTIVO_CORTE) !== 0;
+    return !esDescartePorDiseno(r.motivo);
   });
   // Lo accionable arriba (préstamo, sin teléfono, sin nombre); los duplicados al
   // final — solo aparecen la pasada en que se descubren (quedan huellados).
@@ -806,7 +1062,7 @@ function escribirRechazos(libro, rechazados) {
     return ordenRevision(a.motivo) - ordenRevision(b.motivo);
   });
   let hoja = libro.getSheetByName(HOJA_REVISAR);
-  if (!hoja) hoja = libro.insertSheet(HOJA_REVISAR);
+  if (!hoja) hoja = libro.insertSheet(HOJA_REVISAR, libro.getNumSheets()); // al final: ver hojaDeMarcas
 
   // El encabezado se reescribe SIEMPRE, exista la pestaña o no: si alguien la creó
   // a mano (o quedó de una corrida vieja sin encabezado), esto la deja arreglada
@@ -849,7 +1105,7 @@ function leerHuellas(libro) {
 function guardarHuellas(libro, leads) {
   let hoja = libro.getSheetByName(HOJA_HUELLAS);
   if (!hoja) {
-    hoja = libro.insertSheet(HOJA_HUELLAS);
+    hoja = libro.insertSheet(HOJA_HUELLAS, libro.getNumSheets()); // al final: ver hojaDeMarcas
     hoja.appendRow(["Huella (no tocar)", "Teléfono", "Origen", "Registrado el", "Traído el"]);
     hoja.hideSheet();
   }
@@ -880,14 +1136,158 @@ function guardarHuellas(libro, leads) {
  * protegidos) — si no, su corrida fallaría justo al guardar las huellas.
  */
 function protegerHuellas(hoja) {
+  protegerMemoria(hoja, "Memoria del puente — solo el dueño");
+}
+
+function protegerMemoria(hoja, descripcion) {
   if (hoja.getProtections(SpreadsheetApp.ProtectionType.SHEET).length) return;
-  const p = hoja.protect().setDescription("Memoria del puente — solo el dueño");
+  const p = hoja.protect().setDescription(descripcion);
   const yo = Session.getEffectiveUser();
   p.addEditor(yo);
   p.removeEditors(p.getEditors().filter(function (u) {
     return u.getEmail() !== yo.getEmail();
   }));
   if (p.canDomainEdit()) p.setDomainEdit(false);
+}
+
+/** Crece la hoja lo justo para que quepan `filasNecesarias` sin salirse de la rejilla. */
+function asegurarFilas(hoja, filasNecesarias) {
+  const faltan = Number(filasNecesarias) - hoja.getMaxRows();
+  if (faltan > 0) hoja.insertRowsAfter(hoja.getMaxRows(), faltan);
+}
+
+// ── La marca de agua: memoria en disco ───────────────────────────────────────
+
+const CABECERA_MARCAS = [
+  "sheetId (no tocar)", "Pestaña", "Última fila vista", "Filas al cerrar",
+  "Huella de encabezados", "Ancla de contenido", "Actualizado",
+];
+
+/**
+ * Lee las marcas. NO crea la pestaña: si no existe, devuelve vacío y el puente se
+ * detiene solo (ver § MOTIVO_BACKLOG). Leer nunca debe tener efectos.
+ */
+function leerMarcas(libro) {
+  const hoja = libro.getSheetByName(HOJA_MARCAS);
+  const mapa = {};
+  if (!hoja || hoja.getLastRow() < 2) return mapa;
+  hoja.getRange(2, 1, hoja.getLastRow() - 1, CABECERA_MARCAS.length)
+    .getValues()
+    .forEach(function (f) {
+      const id = String(f[0]).trim();
+      if (!id) return;
+      mapa[id] = {
+        sheetId: id,
+        nombre: String(f[1]),
+        ultimaFila: Number(f[2]) || 0,
+        filas: Number(f[3]) || 0,
+        cabeceras: String(f[4]),
+        ancla: String(f[5]),
+        actualizado: String(f[6]),
+      };
+    });
+  return mapa;
+}
+
+/**
+ * Guarda las marcas. Se reescribe entera: es UNA fila por pestaña, la foto de dónde
+ * quedó el puente, no un histórico. Pestaña oculta y protegida como las huellas.
+ */
+function guardarMarcas(libro, marcas) {
+  const hoja = hojaDeMarcas(libro);
+  const claves = Object.keys(marcas || {});
+  if (hoja.getLastRow() > 1) {
+    hoja.getRange(2, 1, hoja.getLastRow() - 1, CABECERA_MARCAS.length).clearContent();
+  }
+  if (!claves.length) return;
+  asegurarFilas(hoja, 1 + claves.length);
+  const cuando = Utilities.formatDate(new Date(), ZONA_DE_CORRIDA, "dd/MM/yyyy HH:mm");
+  hoja.getRange(2, 1, claves.length, CABECERA_MARCAS.length).setValues(
+    claves.map(function (k) {
+      const m = marcas[k];
+      return [m.sheetId, m.nombre, m.ultimaFila, m.filas, m.cabeceras, m.ancla, cuando];
+    })
+  );
+}
+
+function hojaDeMarcas(libro) {
+  let hoja = libro.getSheetByName(HOJA_MARCAS);
+  if (!hoja) {
+    // AL FINAL, SIEMPRE. `insertSheet(nombre)` a secas la mete junto a la pestaña
+    // activa, que puede ser la primera — y el conector importa de getSheets()[0]:
+    // una pestaña de memoria colocada delante lo pondría a leer huellas como si
+    // fueran leads. Fijar el índice cuesta un argumento y cierra el caso.
+    hoja = libro.insertSheet(HOJA_MARCAS, libro.getNumSheets());
+    hoja.getRange(1, 1, 1, CABECERA_MARCAS.length)
+      .setValues([CABECERA_MARCAS]).setFontWeight("bold");
+    hoja.setFrozenRows(1);
+    hoja.hideSheet();
+  }
+  protegerMemoria(hoja, "Marca de agua del puente — solo el dueño");
+  return hoja;
+}
+
+/**
+ * PONER LA FRONTERA. Se ejecuta A MANO, una vez, ANTES de encender el horario.
+ *
+ * No importa NI UN LEAD: solo anota dónde termina hoy cada pestaña del origen. A
+ * partir de ahí, lo que aparezca por debajo es un lead nuevo y entra; lo que ya
+ * estaba, sin fecha que lo defienda, es historia y se queda fuera.
+ *
+ * NO mueve una marca que ya existe. Es deliberado: si volviera a correrla alguien por
+ * costumbre, empujaría la frontera hacia abajo y los leads llegados entretanto
+ * desaparecerían sin dejar rastro. Para rehacer la marca de una pestaña hay que borrar
+ * su fila de `_puente_marcas` a conciencia. Sí añade las pestañas que aún no tienen.
+ */
+function inicializarMarcas() {
+  return conCandado(function () {
+    const destino = SpreadsheetApp.getActiveSpreadsheet();
+    if (!destino) {
+      throw new Error(
+        "No hay hoja activa. Este script tiene que vivir DENTRO de la hoja " +
+        "\"Leads AVANCE CORP — captura para CRM\" (Extensiones → Apps Script)."
+      );
+    }
+    const previas = leerMarcas(destino);
+    const marcas = fusionar(previas, {});
+    const origen = SpreadsheetApp.openById(ORIGEN_ID); // solo lectura
+    const puestas = [];
+    const respetadas = [];
+
+    origen.getSheets().forEach(function (pestana) {
+      const id = String(pestana.getSheetId());
+      const nombre = pestana.getName();
+      const datos = pestana.getDataRange().getDisplayValues();
+      if (previas[id]) {
+        respetadas.push("   · " + nombre + ": se respeta la frontera en la fila " +
+          previas[id].ultimaFila + " (puesta el " + previas[id].actualizado + ")");
+        return;
+      }
+      marcas[id] = {
+        sheetId: id,
+        nombre: nombre,
+        ultimaFila: datos.length,
+        filas: datos.length,
+        cabeceras: huellaCabeceras(datos[0] || []),
+        ancla: anclaDeFilas(datos, datos.length),
+      };
+      puestas.push("   · " + nombre + " (id " + id + "): " + datos.length +
+        " filas → frontera en la " + datos.length + "; nuevo = de la " +
+        (datos.length + 1) + " hacia abajo");
+    });
+
+    guardarMarcas(destino, marcas);
+
+    const texto =
+      "Marca de agua puesta — NO se importó ningún lead\n\n" +
+      (puestas.length ? "Fronteras nuevas:\n" + puestas.join("\n") + "\n" : "") +
+      (respetadas.length ? "\nYa tenían frontera (no se tocan):\n" + respetadas.join("\n") + "\n" : "") +
+      "\nDesde ahora el puente ya puede correr: traerá lo que aparezca por debajo de " +
+      "esas filas, y lo fechado desde el " + FECHA_CORTE + ".\n\n" +
+      "Comprueba con \"Vista previa\" que no entra nada antes de encender el horario.";
+    informar(texto);
+    return { puestas: puestas.length, respetadas: respetadas.length };
+  });
 }
 
 function telefonosYaEnLaHoja(hoja) {
