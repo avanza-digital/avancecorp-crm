@@ -79,6 +79,28 @@ const ReferidosResponsableSchema = v.object({
   aporta_pct: PorcentajeSinTechoSchema,
 })
 
+/** Un descuento que viene de un mes YA CERRADO: cuándo y por qué. `motivo` es
+ * el texto libre de la anulación de gerencia (≤300), no un vocabulario. */
+const OrigenAjusteSchema = v.object({
+  periodo: v.string(),
+  motivo: v.string(),
+  numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
+})
+
+/**
+ * Lo que se le está descontando al asesor por cierres anulados de meses ya
+ * pagados (20260815003742). Su `numerador` YA llega neto — esto es el PORQUÉ:
+ * «un número que baja sin explicación es una llamada a soporte». `optional`
+ * porque un `v.object` laxo también falla por clave AUSENTE, y la vuelta
+ * atrás de la migración la haría desaparecer.
+ */
+const AjusteConversionSchema = v.object({
+  pendiente: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  origenes: v.optional(v.array(OrigenAjusteSchema)),
+})
+
+export type AjusteConversion = v.InferOutput<typeof AjusteConversionSchema>
+
 const ResponsableConversionSchema = v.object({
   vendedor_id: UuidSchema,
   supervisor_id: v.nullable(UuidSchema),
@@ -93,6 +115,7 @@ const ResponsableConversionSchema = v.object({
   estado: EstadoResponsableSchema,
   procedencia: v.array(TramoProcedenciaSchema),
   referidos: ReferidosResponsableSchema,
+  ajuste: v.optional(AjusteConversionSchema),
 })
 
 const TotalConversionSchema = v.object({
@@ -260,5 +283,44 @@ export function lecturaCobertura(
     // como estaban —ocultos— en vez de estrenar una frase inventada aquí.
     default:
       return { mostrar: false, aviso: 'Sin datos de asignación para este mes' }
+  }
+}
+
+export interface DescuentoArrastre {
+  /** Para el chip: «−1,15 conversiones · arrastre de julio». */
+  etiqueta: string
+  /** Para el `title`: cada origen con su mes, su motivo y su cuánto. */
+  detalle: string
+}
+
+function nombreMes(periodo: string): string {
+  const [anio, mes] = periodo.split('-').map(Number)
+  if (!anio || !mes || mes < 1 || mes > 12) return periodo
+  // En minúscula como el resto de la casa («julio»): este ICU capitaliza.
+  return new Intl.DateTimeFormat('es-PE', { month: 'long', timeZone: 'UTC' })
+    .format(new Date(Date.UTC(anio, mes - 1, 1)))
+    .toLocaleLowerCase('es-PE')
+}
+
+/**
+ * El descuento por anulaciones de meses ya cerrados, listo para pintarse al
+ * lado del número que rebaja. `null` = nada que decir (sin ajuste o en cero):
+ * el chip no existe, no es que diga «−0». La regla del servidor al lado del
+ * dato: el numerador que la fila enseña YA es el neto.
+ */
+export function descuentoArrastre(ajuste: AjusteConversion | undefined): DescuentoArrastre | null {
+  if (!ajuste || ajuste.pendiente <= 0) return null
+  const origenes = ajuste.origenes ?? []
+  // Un mismo mes puede aportar varias anulaciones: para el chip se nombra una vez.
+  const meses = [...new Set(origenes.map((origen) => nombreMes(origen.periodo)))]
+  const de = meses.length > 0 ? `arrastre de ${meses.join(' y ')}` : 'arrastre de meses cerrados'
+  const unidad = ajuste.pendiente === 1 ? 'conversión' : 'conversiones'
+  return {
+    etiqueta: `−${numero(ajuste.pendiente, 2)} ${unidad} · ${de}`,
+    detalle: origenes.length > 0
+      ? origenes
+        .map((origen) => `${nombreMes(origen.periodo)}: ${origen.motivo} (−${numero(origen.numerador, 2)})`)
+        .join('\n')
+      : 'Anulaciones de meses ya cerrados pendientes de saldar.',
   }
 }

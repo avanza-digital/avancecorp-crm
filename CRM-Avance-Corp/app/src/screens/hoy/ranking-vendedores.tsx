@@ -10,7 +10,7 @@ import {
 } from '@/components/gerencia/periodo'
 import { money, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
-import type { ConversionMensual } from '@/lib/conversion-mensual'
+import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mensual'
 import {
   adaptarConversionMensual,
   adaptarConversionVendedores,
@@ -155,6 +155,9 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
             {vendedores.map((fila, indice) => {
               const conversion = fila.detalle.conversion_pct
               const ancho = conversion == null ? 0 : (conversion / maximo) * 100
+              // Su % ya llega NETO de anulaciones de meses cerrados: el
+              // descuento se dice al lado, o el ranking «baja solo».
+              const descuento = descuentoArrastre(fila.detalle.ajuste)
               return (
                 <tr key={fila.vendedorId} className="transition-colors hover:bg-[#f7f5f1]/70">
                   <td className="px-5 py-3"><Puesto indice={indice} /></td>
@@ -162,7 +165,14 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                   <td className="max-w-48 px-3 py-3 text-xs font-medium text-[var(--gi-muted)]"><span className="block truncate">{fila.supervisorNombre}</span></td>
                   <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.leads)}</td>
                   <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.clientes)}</td>
-                  <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</td>
+                  <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-navy)]">
+                    {pct(conversion)}
+                    {descuento && (
+                      <span className="block text-[10px] font-semibold text-[var(--gi-muted)]" title={descuento.detalle}>
+                        {descuento.etiqueta}
+                      </span>
+                    )}
+                  </td>
                   <td
                     className="px-5 py-3"
                     aria-label={fila.estadoConversion === 'solo_arrastre'
@@ -184,6 +194,7 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
         {vendedores.map((fila, indice) => {
           const conversion = fila.detalle.conversion_pct
           const ancho = conversion == null ? 0 : (conversion / maximo) * 100
+          const descuento = descuentoArrastre(fila.detalle.ajuste)
           return (
             <li key={fila.vendedorId} className="px-4 py-4">
               <div className="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-start gap-3">
@@ -192,6 +203,11 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
               <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} recibidos</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
+              {descuento && (
+                <p className="ml-12 mt-1 text-[11px] font-semibold text-[var(--gi-muted)]" title={descuento.detalle}>
+                  {descuento.etiqueta}
+                </p>
+              )}
               {fila.estadoConversion === 'solo_arrastre'
                 ? <span className="ml-12 mt-2 inline-block rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-600">Solo cierres de arrastre</span>
                 : <div className="gi-track ml-12 mt-2 h-2" aria-hidden><div className="gi-fill motion-reduce:transition-none" style={{ width: `${ancho}%`, background: colorPosicion(indice) }} /></div>}

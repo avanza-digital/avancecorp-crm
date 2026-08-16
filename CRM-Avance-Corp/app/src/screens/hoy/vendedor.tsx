@@ -65,7 +65,7 @@ import {
 } from '@/lib/objetivos'
 import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
-import { lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
+import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
@@ -1030,6 +1030,23 @@ export function HoyVendedor(): JSX.Element {
                     {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
                     {miConversion.cierres_de_arrastre > 0
                       && ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
+                    {(() => {
+                      // El porqué al lado del número que baja: su conversión ya
+                      // llega NETA de anulaciones de meses cerrados, y un
+                      // número que baja sin explicación es una llamada a
+                      // soporte. El detalle (mes, motivo, cuánto) va en title.
+                      const descuento = descuentoArrastre(miConversion.ajuste)
+                      return descuento
+                        ? (
+                          <>
+                            {' · '}
+                            <span className="font-semibold" title={descuento.detalle}>
+                              {descuento.etiqueta}
+                            </span>
+                          </>
+                        )
+                        : null
+                    })()}
                     {/* ⚠️ El aviso de «provisional» NO se le pone al vendedor
                         (decisión de Miguel, 2026-08-14): él necesita ver su
                         número, no la contabilidad de por qué el mes va corto.

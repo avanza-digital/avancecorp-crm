@@ -51,6 +51,9 @@ export interface EpisodioConversionDemo {
 export interface RosterConversionDemo {
   analistaId: string
   supervisorId: string | null
+  /** Arrastre de un mes cerrado (demo): rebaja el numerador y estrena el chip
+   * del descuento. El origen siempre es el mes anterior. */
+  arrastre?: { pendiente: number; motivo: string }
 }
 
 /** Redondeo half-up a 2 decimales, una sola vez — igual que la RPC. */
@@ -96,7 +99,11 @@ function filaDe(
   const cierresNoReferidos = cierres.filter((episodio) => episodio.origen !== 'referido').length
   const cierresReferidos = cierres.filter((episodio) => episodio.origen === 'referido').length
   const cierresDeArrastre = cierres.filter((episodio) => episodio.asignadoHaceMeses !== 0).length
-  const numerador = round2(cierresNoReferidos + PESO_REFERIDO_DEMO * cierresReferidos)
+  const brutoNumerador = round2(cierresNoReferidos + PESO_REFERIDO_DEMO * cierresReferidos)
+  // El arrastre rebaja el numerador con suelo en cero — la MISMA regla
+  // (`private.conversion_con_ajuste`) que la lectura real aplica al servir.
+  const pendienteArrastre = analista.arrastre?.pendiente ?? 0
+  const numerador = round2(Math.max(0, brutoNumerador - pendienteArrastre))
   const conversionPct = divisor > 0 ? round2((100 * numerador) / divisor) : null
 
   const estado: ResponsableConversionMensual['estado'] = divisor > 0
@@ -146,6 +153,16 @@ function filaDe(
         ? round2((100 * PESO_REFERIDO_DEMO * cierresReferidos) / divisor)
         : null,
     },
+    ajuste: analista.arrastre
+      ? {
+        pendiente: analista.arrastre.pendiente,
+        origenes: [{
+          periodo: mesRelativo(periodo, 1).mes,
+          motivo: analista.arrastre.motivo,
+          numerador: analista.arrastre.pendiente,
+        }],
+      }
+      : undefined,
   }
 }
 
@@ -242,6 +259,11 @@ export function conversionMensualDemo(
   ahoraMs: number,
   ambito: AmbitoConversionDemo,
 ): ConversionMensual {
+  // ⚠️ Ningún analista demo lleva `arrastre`: los números de los dos mundos
+  // curados están narrados cifra a cifra en sus tests (2.15÷8, 4.15÷12…) y un
+  // descuento los movería todos. El chip se prueba en los tests de pantalla
+  // con filas sintéticas; en producción se estrena con la primera anulación
+  // posterior a un sellado.
   const roster: RosterConversionDemo[] = EQUIPO_DEMO
     .filter((miembro) => miembro.rol_crm === 'vendedor')
     .map((miembro) => ({ analistaId: miembro.perfil_id, supervisorId: miembro.supervisor_id ?? null }))

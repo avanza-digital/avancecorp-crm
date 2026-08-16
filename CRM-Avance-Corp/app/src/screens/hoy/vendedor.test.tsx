@@ -593,6 +593,41 @@ describe('Hoy · vendedor — meta del mes', () => {
     expect(screen.getByText(/Recibidos 10/)).toBeInTheDocument()
   })
 
+  it('el descuento por anulaciones de un mes cerrado se dice al lado, con su porqué', () => {
+    // El servidor ya sirve el numerador NETO (2 cierres − 1 anulado = 1): sin
+    // el chip, su conversión «baja sola» — la llamada a soporte que el
+    // servidor comenta. El detalle (mes, motivo, cuánto) viaja en el title.
+    CONVERSION_MENSUAL = conversionMensualPropia(25, 4, {
+      cierres_no_referidos: 2,
+      numerador: 1,
+      ajuste: {
+        pendiente: 1,
+        origenes: [{ periodo: '2026-06', motivo: 'Pago no confirmado', numerador: 1 }],
+      },
+    })
+    montar({
+      objetivos: { conversionObjetivo: 50 },
+      cumplimiento: cumplimientoVendedor(25, 1, 'con-metas', 50),
+    })
+
+    const chip = screen.getByText('−1 conversión · arrastre de junio')
+    expect(chip).toHaveAttribute('title', 'junio: Pago no confirmado (−1)')
+  })
+
+  it('sin arrastre no hay chip: −0 no existe', () => {
+    CONVERSION_MENSUAL = conversionMensualPropia(50, 4, {
+      cierres_no_referidos: 2,
+      numerador: 2,
+      ajuste: { pendiente: 0, origenes: [] },
+    })
+    montar({
+      objetivos: { conversionObjetivo: 50 },
+      cumplimiento: cumplimientoVendedor(50, 2, 'con-metas', 50),
+    })
+
+    expect(screen.queryByText(/arrastre de/)).not.toBeInTheDocument()
+  })
+
   // Decisión de Miguel (2026-08-14): un mes INCOMPLETO se ve. El caso real fue
   // agosto —3 recibidos, 1 cierre, 38,33 %— y la pantalla decía «Sin datos de
   // asignación para este mes», que era sencillamente falso: el ledger nace el

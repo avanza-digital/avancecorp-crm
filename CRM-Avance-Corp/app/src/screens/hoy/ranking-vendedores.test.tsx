@@ -73,6 +73,15 @@ describe('ranking general de vendedores', () => {
     // fail-closed exige una fila por identidad visible, como la RPC real).
     const mensual = conversionMensualInteligenciaDemo(Date.now())
     mensual.responsables.push(filaSinActividad('demo-v7'))
+    // Ana arrastra una anulación de julio: su % ya llega NETO del servidor y
+    // el descuento se dice al lado — un ranking que «baja solo» no se cree.
+    const ana = mensual.responsables.find((fila) => fila.vendedor_id === 'demo-v1')
+    if (ana) {
+      ana.ajuste = {
+        pendiente: 1,
+        origenes: [{ periodo: '2026-07', motivo: 'Cierre anulado por gerencia', numerador: 1 }],
+      }
+    }
 
     const { rerender } = render(
       <RankingVendedoresPanel
@@ -105,6 +114,9 @@ describe('ranking general de vendedores', () => {
     expect(within(filaAna).getByText('5')).toBeInTheDocument()
     // 4.15 ÷ 12 — el numerador pondera el referido al 15 %, no cuenta 5/12.
     expect(within(filaAna).getByText('34.6%')).toBeInTheDocument()
+    // El descuento con su porqué, debajo del % que rebaja.
+    expect(within(filaAna).getByText('−1 conversión · arrastre de julio')).toBeInTheDocument()
+    expect(within(filaAna).getByTitle('julio: Cierre anulado por gerencia (−1)')).toBeInTheDocument()
     const filaFabio = filas[5]!
     expect(within(filaFabio).getByText('Fabio León')).toBeInTheDocument()
     expect(within(filaFabio).getByText('—')).toBeInTheDocument()

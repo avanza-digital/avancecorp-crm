@@ -235,6 +235,8 @@ export interface DetalleConversionMensual extends DetalleRankeable {
   cierres_de_arrastre: number
   procedencia: ResponsableConversionMensual['procedencia']
   referidos: ResponsableConversionMensual['referidos']
+  /** El descuento por anulaciones de meses cerrados que su numerador ya trae restado. */
+  ajuste: ResponsableConversionMensual['ajuste']
   supervisorId: string | null
 }
 
@@ -285,6 +287,7 @@ export function adaptarConversionMensual(
       cierres_de_arrastre: fila.cierres_de_arrastre,
       procedencia: fila.procedencia,
       referidos: fila.referidos,
+      ajuste: fila.ajuste,
       supervisorId: fila.supervisor_id,
     }
     return {

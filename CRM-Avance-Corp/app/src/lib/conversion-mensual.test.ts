@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import {
   ConversionMensualSchema,
+  descuentoArrastre,
   lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
@@ -268,5 +269,57 @@ describe('lecturaCobertura — un mes incompleto SE VE', () => {
 
   it('sin cobertura no se muestra nada', () => {
     expect(lecturaCobertura(null)).toEqual({ mostrar: false, aviso: null })
+  })
+})
+
+describe('el ajuste por meses cerrados y su chip (descuentoArrastre)', () => {
+  it('el contrato acepta la clave nueva con su forma real, y su ausencia (vuelta atrás)', () => {
+    const base = payloadCanonico()
+    const p = {
+      ...base,
+      responsables: base.responsables.map((fila, indice) => (indice === 0
+        ? {
+          ...fila,
+          ajuste: {
+            pendiente: '1.15',
+            origenes: [{ periodo: '2026-07', motivo: 'Cierre anulado por gerencia', numerador: '1.15' }],
+          },
+        }
+        : fila)),
+    }
+    const conAjuste = v.safeParse(ConversionMensualSchema, p)
+    expect(conAjuste.success).toBe(true)
+    if (conAjuste.success) {
+      // numeric de Postgres puede viajar como string: el pipe lo normaliza.
+      expect(conAjuste.output.responsables[0]!.ajuste?.pendiente).toBe(1.15)
+    }
+    expect(v.safeParse(ConversionMensualSchema, payloadCanonico()).success).toBe(true)
+  })
+
+  it('sin ajuste o en cero no hay chip: −0 no existe', () => {
+    expect(descuentoArrastre(undefined)).toBeNull()
+    expect(descuentoArrastre({ pendiente: 0, origenes: [] })).toBeNull()
+  })
+
+  it('nombra el descuento y sus meses, sin repetirlos', () => {
+    const chip = descuentoArrastre({
+      pendiente: 2.15,
+      origenes: [
+        { periodo: '2026-06', motivo: 'Pago no confirmado', numerador: 1 },
+        { periodo: '2026-06', motivo: 'Contrato anulado', numerador: 0.15 },
+        { periodo: '2026-07', motivo: 'Cierre duplicado', numerador: 1 },
+      ],
+    })
+    expect(chip?.etiqueta).toBe('−2.15 conversiones · arrastre de junio y julio')
+    expect(chip?.detalle).toBe(
+      'junio: Pago no confirmado (−1)\njunio: Contrato anulado (−0.15)\njulio: Cierre duplicado (−1)',
+    )
+  })
+
+  it('con una sola conversión habla en singular, y sin orígenes no inventa meses', () => {
+    expect(descuentoArrastre({ pendiente: 1, origenes: [] })?.etiqueta)
+      .toBe('−1 conversión · arrastre de meses cerrados')
+    expect(descuentoArrastre({ pendiente: 1 })?.detalle)
+      .toBe('Anulaciones de meses ya cerrados pendientes de saldar.')
   })
 })
