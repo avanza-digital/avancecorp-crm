@@ -1012,7 +1012,40 @@ begin
     end if;
   end loop;
 
-  raise notice 'ORACULO DEL CIERRE DE MES: 21/21 OK';
+  -- ── 17. LA ESTRUCTURA QUE SERIALIZA publicar↔cerrar (20260815223000) ──
+  -- La carrera necesita DOS sesiones y ningun test de una sesion la ve: lo que
+  -- SI se puede vigilar en cada ciclo es la ESTRUCTURA que la mantiene cerrada.
+  -- Un create-or-replace futuro que pierda la clave en CUALQUIERA de los TRES
+  -- tenedores pasaria el gate en verde — este bloque lo caza (strpos, no LIKE).
+  declare
+    v_fuente text;
+    v_quien2 text;
+  begin
+    foreach v_quien2 in array array[
+      'private.trg_metas_no_bajo_mes_sellado()',
+      'crm.cerrar_periodo(date)',
+      'private.registrar_ajuste_si_mes_cerrado(uuid,text,uuid)'
+    ] loop
+      begin
+        select p.prosrc into strict v_fuente
+        from pg_catalog.pg_proc p where p.oid = v_quien2::regprocedure;
+      exception when undefined_function or no_data_found then
+        raise exception 'FALLO 17: no existe % — si cambio de firma, actualizar este bloque', v_quien2;
+      end;
+      if strpos(v_fuente, $q$hashtext('crm.periodos_cerrados')$q$) = 0
+         or strpos(v_fuente, $q$date '2000-01-01')::integer$q$) = 0 then
+        raise exception 'FALLO 17: % perdio la clave o la aritmetica del candado del cierre — la carrera publicar↔cerrar queda abierta', v_quien2;
+      end if;
+    end loop;
+    -- Y en el trigger, el candado ANTES de la lectura (el mutante barato).
+    select p.prosrc into v_fuente from pg_catalog.pg_proc p
+    where p.oid = 'private.trg_metas_no_bajo_mes_sellado()'::regprocedure;
+    if strpos(v_fuente, 'pg_advisory_xact_lock') > strpos(v_fuente, 'select max(pc.periodo)') then
+      raise exception 'FALLO 17: el candado del trigger quedo DESPUES de la lectura';
+    end if;
+  end;
+
+  raise notice 'ORACULO DEL CIERRE DE MES: 22/22 OK';
 end;
 $oraculo$;
 

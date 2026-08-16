@@ -2144,3 +2144,40 @@ por `app/src/lib/cumplimiento-cierre-de-mes.test.ts` (6 casos, fixtures generado
 solo tiene 7 filas y todas de **2026-08**, el mes vivo (antes del 10/08 guardar
 metas era imposible — ver `20260810…`). El primer sellado automatico real sera el
 **10 de septiembre de 2026**, sobre agosto.
+
+### El candado serializado (`20260815223000`) — ✅ EN PRODUCCION 2026-08-15
+
+**Hallazgo BLOQUEANTE de la revision adversaria (Codex) previa al release de la
+Fase 2:** publicar metas y cerrar un mes usaban advisory locks con CLAVES
+DISTINTAS (`meta_periodos` vs `periodos_cerrados`) → una publicacion concurrente
+al sellado no veia el sello sin commit (READ COMMITTED), aceptaba una revision
+nueva, y el mes quedaba con DOS verdades: la foto sellada contra R1 y el editor
+sirviendo R2 como vigente. El autor de `20260815102000` cerro esta misma carrera
+para las ANULACIONES («misma clave que en cerrar_periodo», dice su comentario) —
+la pareja que se le escapo fue publicar.
+
+**El arreglo:** `private.trg_metas_no_bajo_mes_sellado` toma el MISMO candado
+que `crm.cerrar_periodo` (misma clave, misma aritmetica) ANTES de mirar.
+**La carrera se reprodujo con DOS SESIONES psql reales** en el banco local, en
+ambos ordenes: antes, la publicacion entraba en 0 s con el sello en vuelo;
+despues, espera ~2 s y muere con el 22023 de negocio — y al reves, el cierre
+espera ~3 s y sella la revision NUEVA. El oraculo gana el **bloque 17**
+(estructural, corre en cada ciclo): los TRES tenedores de la clave conservan
+literal y aritmetica, y el candado del trigger va ANTES de la lectura — probado
+en mutante (banco sin esta migracion → FALLO 17).
+
+**Residuo conocido e inerte (dicho a proposito):** publicar un mes P mientras se
+sella OTRO mes M > P no queda serializado; esas metas nacen bajo el suelo del
+ultimo sello y `cierre_mes_pendiente` las ignora — sin verdad doble ni pendiente
+fabricado.
+
+**El despliegue:** auditor-rls sin bloqueantes (2 altos corregidos antes de
+aplicar: envoltura begin/lock_timeout/commit y esta fila; grafo de candados
+completo verificado ACICLICO). ⚠️ **El branch de Supabase ya no puede replicar
+este ledger** (`MIGRATIONS_FAILED`: los registros manuales del 15/08 no llevan
+statements almacenados) → el gate de branch quedo impracticable y se compenso
+con lo que ese gate no da: la carrera real de dos sesiones + banco + oraculo
+22/22. Aplicada con `db query --linked --file` y registrada a mano (ledger 98).
+Verificado contando: huella del trigger `4038c5a02f63742856bb247c630392cf`
+(la que el auditor precomputo), candado antes de la lectura = true, 203
+funciones, advisors 122 con 0 ERROR (misma linea base).
