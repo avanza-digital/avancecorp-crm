@@ -2279,3 +2279,22 @@ TELÉFONO manda** (es la persona al teléfono) — la RPC de tomar resolverá po
 teléfono primero y solo caerá al DNI sin coincidencia telefónica, con `ORDER BY`
 determinista. La ambigüedad se documenta aquí para que F2 no la herede en
 silencio.
+
+**Adenda 16/08-c (el ciclo del branch, corrido y cerrado — branch `lead-libre-f1`,
+borrado tras el veredicto):** el replay automático del branch FALLA por diseño
+(el postflight de `20260812000259` exige datos y el branch nace virgen) → replay
+manual por pooler 5432 desde el REGISTRO remoto (99/99 con SQL tras el backfill
+del 15-ago), con siembra intercalada (cadena supervisor→vendedor: el guard de
+tenencia no acepta gerencia como destino, y la jerarquía exige jefe activo) y la
+baja histórica de `vendInactive` por la receta oficial de `LEEME-seed.md`.
+**La F1 aplicó con sus guardas md5 EN VERDE = el banco era producción al byte.**
+Gate RLS: **293 ✓, los 12 casos F1 todos ✓**. Advisors: 121 = línea base
+conocida, cero clases nuevas. 🔴 **Hallazgo del ciclo (deuda del ARNÉS, no de
+F1):** `testOffboardingMatrix` quedó ROTO contra el esquema post-20260808160113
+— su `setState(crmActive:false)` pisa «la membresía conserva dependencias
+activas» porque su sujeto posee el lead del fixture; latente desde que los
+ciclos migraron al banco local (11-ago). Arreglo pendiente como pieza propia
+del arnés (misma válvula documentada de LEEME-seed, invocada entre etapas).
+Queda: release 28.º del front → aplicar F1 a PROD por psql + registro manual
+(patrón RETOMAR-46; merge_branch NO — el branch ya no existe y su respuesta
+no es evidencia) → `gen:types` → prueba visual.
