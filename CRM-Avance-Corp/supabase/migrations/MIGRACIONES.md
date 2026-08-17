@@ -2334,12 +2334,11 @@ verificar disponibilidad con última conversación real) → F2 «Tomar».
 
 ## 20260817164745_crm_lead_libre_f2_tomar.sql
 
-**Estado: CICLO DE BRANCH COMPLETO 2026-08-17 (branch `lead-libre-f2`,
-borrado tras el veredicto) — gate 304✓ con el único rojo en el fatal
-DOCUMENTADO del arnés (mismo punto que F1), advisors 122/0 ERROR con el único
-lint nuevo esperado (la RPC), banco = prod AL BYTE (huella 204 funciones md5
-idéntica + guardas F1/F2 en verde en TRES corridas). Pendiente: aplicar a
-PROD (db query + registro manual, SERVIDOR primero) → front F2.** ('reutilizable' viaja en la RESPUESTA del verificar
+**Estado: ✅ EN PROD 2026-08-17 (adenda 17/08-e) tras el ciclo de branch
+completo (17/08-d): gate 304✓ (único rojo = el fatal documentado del arnés),
+advisors de branch 122/0 y de PROD 123/0 con el único lint nuevo esperado (la
+RPC), banco = prod AL BYTE por triplicado. Pendiente: front F2 (botón «Tomar»
++ api) cuando el árbol quede libre del PDF.** ('reutilizable' viaja en la RESPUESTA del verificar
 y el front vivo del 28.º release ya la tolera con `looseObject` puesto a
 propósito en F1; la RPC nueva no tiene consumidor hasta el release F2 del
 front — las dos direcciones en paz).
@@ -2514,3 +2513,18 @@ con causa, 1 corrección factual):**
   columna `clasificacion_auto` que el sello escribe. La siembra desarma SOLO
   esos dos porteros (precedente LEEME-seed) porque fabrica historia; guard y
   tenencia quedan armados. 16 verdes de nuevo con los porteros vivos.
+
+**Adenda 17/08-e (aplicación a PRODUCCIÓN — F2 viva en el servidor):**
+`npx supabase db query --linked --file` con las guardas md5 pasando EN
+SILENCIO (prod no derivó desde la mañana), y los objetos CONTADOS: la RPC
+`crm.tomar_lead_libre` + `private.toma_asienta_y_devuelve` (revocado), impl
+re-anclado en `0423f024…`, veto con válvula en `d3986ac5…`, funciones
+crm+private **204→206 (+2 exactas)**, comment de `verificaciones_lead`
+actualizado. **Registro manual al byte PROBADO**: 101 migraciones, 27.462
+caracteres exactos y md5 del contenido registrado `06374459a3bbe25a42152800b9
+4d5f71` = el md5 del FICHERO certificado tras el último mutante. Advisors de
+prod: **123 = 122 + exactamente el lint previsto** (la RPC definer-ejecutable
+por authenticated, por diseño), 0 ERROR, cero clases nuevas. La RPC queda SIN
+consumidor hasta el release F2 del front (dirección de deploy en paz); el
+veredicto 'reutilizable' ya es visible para el front vivo, que lo presenta
+con su mensaje honesto de F1 («la toma directa aún no está habilitada»).
