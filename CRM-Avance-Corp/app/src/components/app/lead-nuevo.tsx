@@ -84,6 +84,18 @@ const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
   tarjeta: null,
 }
 
+/** Lo tecleado no alcanza para verificar (la RPC exige un celular) y se DICE.
+ *  Callar aquí engañaba: con un DNI en el campo el precheck no corría y el
+ *  vendedor leía el silencio como «libre» (hallazgo de Miguel, 2026-08-17).
+ *  `degradado` = mismo ámbar de «no verificado, puedes continuar». */
+const DISPONIBILIDAD_SIN_CELULAR: EstadoDisponibilidadFormulario = {
+  comprobando: false,
+  mensaje: 'Sin verificar: la disponibilidad se comprueba con el CELULAR (9 dígitos, ej. 987 654 321). Un DNI por sí solo no dice si el contacto está libre u ocupado.',
+  bloquea: false,
+  degradado: true,
+  tarjeta: null,
+}
+
 function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFormulario {
   return {
     comprobando: false,
@@ -297,7 +309,16 @@ function FormularioNuevoLead({
 
   const programarDisponibilidad = useCallback((telefonoConsulta: string, dniConsulta: string) => {
     invalidarDisponibilidad()
-    if (yo?.demo || !normalizarTelefono(telefonoConsulta)) return
+    if (yo?.demo) return
+    if (!normalizarTelefono(telefonoConsulta)) {
+      // Honestidad del precheck: sin celular válido NO hay verificación posible
+      // (el servidor la exige por teléfono). Si el vendedor ya tecleó algo —
+      // un número a medias o un DNI en el campo equivocado — callar es mentir.
+      if (telefonoConsulta.trim() !== '' || dniConsulta.trim() !== '') {
+        setDisponibilidad(DISPONIBILIDAD_SIN_CELULAR)
+      }
+      return
+    }
 
     const secuenciaProgramada = secuenciaDisponibilidadRef.current
     setDisponibilidad(DISPONIBILIDAD_COMPROBANDO)
@@ -515,7 +536,10 @@ function FormularioNuevoLead({
               className={cn(
                 'rounded-lg border px-3 py-2 text-xs font-medium',
                 disponibilidad.bloquea && 'border-destructive/40 bg-destructive/10 text-destructive',
-                disponibilidad.degradado && 'border-amber-500/40 bg-amber-500/10 text-amber-800 dark:text-amber-300',
+                // text-warning-text (#92400e): la app NO tiene tema oscuro — un
+                // dark: aquí seguiría al SO del usuario y dejaría este aviso
+                // en ~1.3:1 justo para quien tiene el sistema en oscuro.
+                disponibilidad.degradado && 'border-amber-500/40 bg-amber-500/10 text-warning-text',
                 disponibilidad.comprobando && 'border-border bg-muted/50 text-muted-foreground',
               )}
             >

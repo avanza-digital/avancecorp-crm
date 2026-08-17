@@ -248,4 +248,26 @@ describe('Topbar — atajo «Verificar disponibilidad»', () => {
     await user.type(campoBusqueda(), '987654321')
     expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
   })
+
+  // Honestidad 2026-08-17 (hallazgo de Miguel): un DNI pasa el «parece teléfono»
+  // (≥6 dígitos), el atajo abría el alta con el DNI en el campo TELÉFONO y el
+  // precheck jamás corría — ese silencio se leía como «libre». Mutante que debe
+  // morir aquí: quitar el gate normalizarTelefono y ofrecer el botón siempre.
+  it('un DNI (8 dígitos) NO ofrece verificar: dice que la verificación es por celular', async () => {
+    const user = userEvent.setup()
+    montar({ leads: [] })
+    await user.type(campoBusqueda(), '46736918')
+
+    expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
+    expect(screen.getByText(/se verifica con el celular/i)).toBeInTheDocument()
+  })
+
+  it('el directorio no ve ni el atajo ni la explicación: no verifica', async () => {
+    const user = userEvent.setup()
+    montar({ leads: [], rol: 'directorio' })
+    await user.type(campoBusqueda(), '46736918')
+
+    expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
+    expect(screen.queryByText(/se verifica con el celular/i)).not.toBeInTheDocument()
+  })
 })

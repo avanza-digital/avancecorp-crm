@@ -553,3 +553,65 @@ describe('LeadNuevo — tarjeta de disponibilidad', () => {
     expect(screen.getByText('Seguimiento activo')).toBeInTheDocument()
   })
 })
+
+// ── Honestidad sin celular (2026-08-17, hallazgo de Miguel en la prueba visual):
+// con un DNI tecleado el precheck no corría y CALLABA — el vendedor leía ese
+// silencio como «libre». Mutante que debe morir aquí: restaurar el return mudo
+// de programarDisponibilidad cuando el teléfono no normaliza. ─────────────────
+describe('LeadNuevo — honestidad sin celular', () => {
+  it('un DNI precargado como teléfono (atajo del buscador) avisa y NO consulta', async () => {
+    vi.useFakeTimers()
+    montar({ demo: false, telefonoInicial: '46736918' })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent(/se comprueba con el CELULAR/i)
+  })
+
+  it('DNI completo con teléfono vacío: avisa en vez de callar, sin llamar a la RPC', async () => {
+    vi.useFakeTimers()
+    montar({ demo: false })
+
+    fireEvent.change(screen.getByLabelText('DNI'), { target: { value: '46736918' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+    expect(screen.getByRole('status')).toHaveTextContent(/se comprueba con el CELULAR/i)
+  })
+
+  it('sin teléfono y sin DNI el silencio es legítimo: no hay nada que verificar', async () => {
+    vi.useFakeTimers()
+    montar({ demo: false })
+
+    fireEvent.blur(screen.getByLabelText('Teléfono *'))
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('al corregir a un celular válido, el aviso da paso a la verificación real', async () => {
+    vi.useFakeTimers()
+    montar({ demo: false, telefonoInicial: '46736918' })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    expect(screen.getByRole('status')).toHaveTextContent(/se comprueba con el CELULAR/i)
+
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(verificarDisponibilidad).toHaveBeenCalledWith('987654321', null, expect.anything())
+  })
+
+  it('en demo no avisa ni consulta: el mundo demo no verifica', async () => {
+    vi.useFakeTimers()
+    montar({ telefonoInicial: '46736918' })
+
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})

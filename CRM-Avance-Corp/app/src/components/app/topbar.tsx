@@ -32,6 +32,7 @@ import { ETAPA_INFO, type Lead } from '@/lib/tipos'
 import { moneyK } from '@/lib/format'
 import { hashDe, type Vista } from '@/lib/router'
 import { useAlertasCRM } from '@/lib/alertas-context'
+import { normalizarTelefono } from '@/lib/validacion'
 
 /** ¿Lo tecleado parece un TELÉFONO? (dígitos y separadores, ≥6 dígitos).
  *  Habilita el atajo «Verificar disponibilidad» del vacío del buscador. */
@@ -249,21 +250,32 @@ export function Topbar({ vista }: { vista: Vista }) {
                       F1): si lo tecleado parece un teléfono, se ofrece verificar
                       contra TODO el CRM — este buscador solo mira tus leads y el
                       que atiende otro asesor jamás va a aparecer aquí. Solo
-                      roles de escritura: directorio mira, no verifica. */}
+                      roles de escritura: directorio mira, no verifica. Y solo
+                      con un CELULAR normalizable: para otros dígitos (un DNI)
+                      el atajo prometía una verificación que el alta no puede
+                      hacer y su silencio se leía como «libre» (hallazgo de
+                      Miguel, 2026-08-17) — a esos se les dice la verdad. */}
                   {puedeEscribir(yo?.rol) && esPosibleTelefono(q) && (
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onMouseDown={(e) => e.preventDefault() /* no robar el foco al input */}
-                      onClick={() => {
-                        abrirNuevoLead(undefined, q.trim())
-                        setQ('')
-                        setAbierto(false)
-                      }}
-                      className="mt-1.5 cursor-pointer text-[11px] font-semibold text-primary hover:underline"
-                    >
-                      Verificar disponibilidad de este contacto →
-                    </button>
+                    normalizarTelefono(q) ? (
+                      <button
+                        type="button"
+                        tabIndex={-1}
+                        onMouseDown={(e) => e.preventDefault() /* no robar el foco al input */}
+                        onClick={() => {
+                          abrirNuevoLead(undefined, q.trim())
+                          setQ('')
+                          setAbierto(false)
+                        }}
+                        className="mt-1.5 cursor-pointer text-[11px] font-semibold text-primary hover:underline"
+                      >
+                        Verificar disponibilidad de este contacto →
+                      </button>
+                    ) : (
+                      <p className="mt-1.5 text-[11px] font-medium text-muted-foreground">
+                        La disponibilidad se verifica con el celular (9 dígitos).
+                        Un DNI no dice si el contacto está libre u ocupado.
+                      </p>
+                    )
                   )}
                 </div>
               ) : (
