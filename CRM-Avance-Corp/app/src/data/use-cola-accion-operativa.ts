@@ -55,9 +55,15 @@ export function useColaAccionOperativa(
       // refetch falla, y servir esa foto vieja mientras el banner promete
       // «—» sería mentir dos veces (hallazgo ALTA de la revisión Codex).
       if (consulta.error) return null
-      return consulta.data ? mapearColaAccion(consulta.data, (id) => porId.get(id)) : null
+      if (!consulta.data) return null
+      // La foto envejece contra el reloj LOCAL: dataUpdatedAt es el instante
+      // (de este navegador) en que llegó el payload, así el desfase con el
+      // reloj del servidor no infla los números. El clamp cubre el tick de
+      // useAhora que aún no corrió tras un refetch recién aterrizado.
+      const derivaDias = Math.max(0, (ahora - consulta.dataUpdatedAt) / 86_400_000)
+      return mapearColaAccion(consulta.data, (id) => porId.get(id), derivaDias)
     },
-    [actividades, ahora, consulta.data, consulta.error, habilitado, indiceSla, leads, limite, porId, tareas, yo],
+    [actividades, ahora, consulta.data, consulta.dataUpdatedAt, consulta.error, habilitado, indiceSla, leads, limite, porId, tareas, yo],
   )
 
   return {

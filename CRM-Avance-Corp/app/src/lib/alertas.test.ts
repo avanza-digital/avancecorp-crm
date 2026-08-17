@@ -123,6 +123,27 @@ describe('derivarAlertasVendedor', () => {
     expect(alertas[0]?.detalle).toContain('hace 1 día')
   })
 
+  it('la tarea vencida dice los minutos (antes: «hace menos de una hora» plano)', () => {
+    const fresca = lead({ id: 'fresca' })
+    const alertas = derivarAlertasVendedor({
+      vendedorId: 'v1',
+      leads: [fresca],
+      actividades: [],
+      tareas: [tarea({ lead_id: fresca.id, vence_en: haceHoras(0.5) })],
+      ahora: AHORA,
+    })
+    expect(alertas[0]?.detalle).toBe('«Llamar al cliente» venció hace 30 minutos.')
+
+    const recien = derivarAlertasVendedor({
+      vendedorId: 'v1',
+      leads: [fresca],
+      actividades: [],
+      tareas: [tarea({ lead_id: fresca.id, vence_en: haceHoras(30 / 3600) })],
+      ahora: AHORA,
+    })
+    expect(recien[0]?.detalle).toBe('«Llamar al cliente» venció hace un momento.')
+  })
+
   it('cambia la tarea de atención a crítica al cumplir 24 horas', () => {
     const antes = derivarAlertasVendedor({
       vendedorId: 'v1',

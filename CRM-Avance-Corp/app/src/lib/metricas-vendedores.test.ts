@@ -77,6 +77,28 @@ describe('mapearMetricasVendedores', () => {
     expect(filas[1]?.m.nombre_completo).toBe('JUAN PEREZ') // el nombre sale del roster, no del payload
   })
 
+  it('la deriva local envejece el reloj de actividad — y el centinela del sin-abiertos NO', () => {
+    // «Última actividad hace X» sale de esta cifra congelada en la foto del
+    // RPC; sin deriva se queda clavada entre refetches (y en segundo plano el
+    // intervalo ni corre). Mutantes que deben morir aquí: quitar `+ deriva`,
+    // y envejecer también al que no tiene abiertos (su 0 significa «sin reloj
+    // que mirar» — la UI dice 'Sin leads abiertos', no un instante).
+    const conFilas = payload({
+      vendedores: [
+        fila({ vendedor_id: 'v-1', activos: 3, dias_sin_actividad_max: 2 / 1440 }),
+        fila({ vendedor_id: 'v-2', capital_pen: 0, activos: 0, dias_sin_actividad_max: 0 }),
+      ],
+    })
+    const { filas } = mapearMetricasVendedores(conFilas, [VEND1, VEND2], EQUIPO, 40 / 1440)
+    expect(filas[0]?.diasSinActividadMax).toBeCloseTo(42 / 1440)
+    expect(filas[1]?.diasSinActividadMax).toBe(0)
+
+    const sinDeriva = mapearMetricasVendedores(conFilas, [VEND1], EQUIPO)
+    expect(sinDeriva.filas[0]?.diasSinActividadMax).toBeCloseTo(2 / 1440)
+    const negativa = mapearMetricasVendedores(conFilas, [VEND1], EQUIPO, -1)
+    expect(negativa.filas[0]?.diasSinActividadMax).toBeCloseTo(2 / 1440)
+  })
+
   it('la comparativa une supervisores con el roster completo y descarta filas sin miembro', () => {
     const conEquipos = payload({
       equipos: [

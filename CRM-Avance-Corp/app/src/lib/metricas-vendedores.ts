@@ -76,7 +76,13 @@ export function mapearMetricasVendedores(
   payload: MetricasVendedoresPayload,
   roster: readonly Miembro[],
   equipo: readonly Miembro[],
+  derivaDias = 0,
 ): MetricasVendedoresOperativas {
+  // Mismo trato que mapearColaAccion: la foto del RPC congela el único RELOJ
+  // del payload (`dias_sin_actividad_max`, el «Última actividad hace X» del
+  // supervisor) y sin deriva se queda clavado entre refetches. El llamador la
+  // calcula contra su reloj LOCAL. Los contadores no envejecen: son conteos.
+  const deriva = Number.isFinite(derivaDias) ? Math.max(0, derivaDias) : 0
   const porId = new Map(payload.vendedores.map((f) => [f.vendedor_id, f]))
   const filas: MetricasVendedor[] = roster
     .map((m) => {
@@ -89,7 +95,10 @@ export function mapearMetricasVendedores(
         convertidos: f?.convertidos ?? 0,
         conversion: f?.conversion_pct ?? 0,
         sinTocar: f?.sin_tocar ?? 0,
-        diasSinActividadMax: f?.dias_sin_actividad_max ?? 0,
+        // El 0 de quien no tiene abiertos es un CENTINELA («sin reloj que
+        // mirar» — la UI dice 'Sin leads abiertos'), no un instante:
+        // envejecerlo inventaría una última actividad que no existe.
+        diasSinActividadMax: f != null && f.activos > 0 ? f.dias_sin_actividad_max + deriva : 0,
       }
     })
     .sort((a, b) => b.capitalPEN - a.capitalPEN || a.m.perfil_id.localeCompare(b.m.perfil_id))

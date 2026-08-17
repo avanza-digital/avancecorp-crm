@@ -196,3 +196,92 @@ describe('colaAccionDesdeAmbito — espejo demo', () => {
     expect(espejo.estancados).toHaveLength(0)
   })
 })
+
+// La foto del RPC congela TODOS los relojes en su generado_en; la deriva la
+// pone el llamador contra su reloj LOCAL (use-cola-accion-operativa) para que
+// el desfase servidor↔navegador no infle los números. Mutantes que deben morir
+// aquí: quitar `+ deriva` de los items, y quitar el clamp de la negativa.
+describe('mapearColaAccion — la foto envejece con la deriva local', () => {
+  const fotoConDosMinutos = () => payload({
+    resumen: { total: 1, por_bucket: { sin_responder: 1 }, por_sev: { media: 1 } },
+    items: [itemPayload({
+      dias: 2 / 1440, // el servidor midió 2 minutos al tomar la foto
+      datos_motivo: { espera_cliente_dias: 2 / 1440, gestion_vencida: false, contacto_vencido: false },
+    })],
+    estancados: {
+      umbral_dias: 5,
+      tope: 50,
+      items: [{ lead_id: 'l-9', nombre_completo: 'PEDRO QUISPE', vendedor_id: null, dias: 6 }],
+    },
+  })
+
+  it('40 minutos después sin refetch, el motivo y los días avanzaron juntos', () => {
+    const mapeada = mapearColaAccion(fotoConDosMinutos(), () => undefined, 40 / 1440)
+    expect(mapeada.items[0]?.motivo).toContain('hace 42 minutos')
+    expect(mapeada.items[0]?.dias).toBeCloseTo(42 / 1440)
+    expect(mapeada.estancados[0]?.dias).toBeCloseTo(6 + 40 / 1440)
+  })
+
+  it('sin deriva (u omitida) es la foto tal cual llegó', () => {
+    const mapeada = mapearColaAccion(fotoConDosMinutos(), () => undefined)
+    expect(mapeada.items[0]?.motivo).toContain('hace 2 minutos')
+    expect(mapeada.estancados[0]?.dias).toBe(6)
+  })
+
+  it('una deriva negativa o NaN cuenta como 0: jamás rejuvenece ni envenena', () => {
+    const atras = mapearColaAccion(fotoConDosMinutos(), () => undefined, -5 / 1440)
+    expect(atras.items[0]?.motivo).toContain('hace 2 minutos')
+    const rota = mapearColaAccion(fotoConDosMinutos(), () => undefined, Number.NaN)
+    expect(rota.items[0]?.motivo).toContain('hace 2 minutos')
+    expect(Number.isFinite(rota.items[0]?.dias)).toBe(true)
+  })
+
+  it('los TRES relojes de datos_motivo envejecen (espera del cliente, etapa, último intento)', () => {
+    // espera_cliente 6.99 d + deriva 0.02 cruza a «hace 7 días»: si la deriva
+    // solo moviera `dias`, aquí seguiría diciendo 6 (mutante por reloj).
+    const cruzaElDia = payload({
+      resumen: { total: 1, por_bucket: { sin_responder: 1 }, por_sev: { media: 1 } },
+      items: [itemPayload({
+        dias: 2,
+        datos_motivo: { espera_cliente_dias: 6.99, gestion_vencida: false, contacto_vencido: false },
+      }, { tenencia_desde: iso(AHORA - DIA * 2) })],
+    })
+    expect(mapearColaAccion(cruzaElDia, () => undefined, 0.02).items[0]?.motivo)
+      .toContain('el cliente escribió hace 7 días')
+
+    const enEtapa = payload({
+      resumen: { total: 1, por_bucket: { sin_avance: 1 }, por_sev: { media: 1 } },
+      items: [itemPayload({
+        bucket: 'sin_avance',
+        dias: 2 / 1440,
+        datos_motivo: { dias_en_etapa: 2 / 1440, etapa_politica_version: 3 },
+      }, { etapa: 'contactado' })],
+    })
+    expect(mapearColaAccion(enEtapa, () => undefined, 40 / 1440).items[0]?.motivo)
+      .toContain('Lleva 42 minutos en')
+
+    const intento = payload({
+      resumen: { total: 1, por_bucket: { insistir: 1 }, por_sev: { media: 1 } },
+      items: [itemPayload({
+        bucket: 'insistir',
+        dias: 1,
+        datos_motivo: { ultimo_intento_dias: 2 / 1440, hablo: false, dos_relojes: true },
+      })],
+    })
+    expect(mapearColaAccion(intento, () => undefined, 40 / 1440).items[0]?.motivo)
+      .toContain('último intento hace 42 minutos')
+  })
+
+  it('los dos relojes envejecen JUNTOS: la frase de dos relojes no se descuadra', () => {
+    const conDosRelojes = payload({
+      resumen: { total: 1, por_bucket: { sin_responder: 1 }, por_sev: { media: 1 } },
+      items: [itemPayload({
+        dias: 2,
+        datos_motivo: { espera_cliente_dias: 6, gestion_vencida: false, contacto_vencido: false },
+      }, { tenencia_desde: iso(AHORA - DIA * 2) })],
+    })
+    const mapeada = mapearColaAccion(conDosRelojes, () => undefined, 40 / 1440)
+    expect(mapeada.items[0]?.motivo).toContain('Asignado hace 2 días')
+    expect(mapeada.items[0]?.motivo).toContain('el cliente escribió hace 6 días')
+  })
+})

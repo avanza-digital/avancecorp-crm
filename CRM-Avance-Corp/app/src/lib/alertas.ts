@@ -1,6 +1,7 @@
 import {
   colaDe,
   esAbierto,
+  haceTexto,
   sinProximaAccion,
   type ItemCola,
 } from './inteligencia'
@@ -105,14 +106,12 @@ function horasVencida(tarea: Tarea, ahora: number): number | null {
   return (ahora - vence) / HORA_MS
 }
 
+// Deja de ser una segunda escala: la misma pregunta («¿hace cuánto?») con una
+// sola respuesta — su mitad ≥ 24 h era copia byte a byte de haceTexto, y su
+// suelo «hace menos de una hora» convivía en la MISMA lista con motivos que ya
+// dicen los minutos. Recibe HORAS porque así la llama `horasVencida`.
 function textoRetraso(horas: number): string {
-  if (horas < 1) return 'hace menos de una hora'
-  if (horas < 24) {
-    const n = Math.floor(horas)
-    return n === 1 ? 'hace 1 hora' : `hace ${n} horas`
-  }
-  const dias = Math.floor(horas / 24)
-  return dias === 1 ? 'hace 1 día' : `hace ${dias} días`
+  return haceTexto(horas / 24)
 }
 
 interface TareaVencidaElegida {

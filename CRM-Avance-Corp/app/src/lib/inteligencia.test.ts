@@ -7,8 +7,13 @@ import {
   conversionGlobal,
   conversionPorOrigen,
   diasSinActividad,
+  diasTxt,
+  duracionTexto,
+  redactarMotivoCola,
   embudo,
   estancados,
+  haceCortoTexto,
+  haceTexto,
   indexarUltimaActividad,
   metricasPorVendedor,
   sinProximaAccion,
@@ -156,10 +161,75 @@ describe('señales comerciales', () => {
     expect(cola[1]?.motivo).toContain('hace 1 día')
   })
 
-  it('usa “hace horas” antes de completar el primer día', () => {
-    const cola = colaDe([lead({ id: 'horas', creado_en: haceDias(0.25) })], [], AHORA)
-    expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
-    expect(cola[0]?.motivo).toContain('hace horas')
+  it('dice minutos y horas antes de completar el primer día (antes: «hace horas» plano)', () => {
+    const seisHoras = colaDe([lead({ id: 'horas', creado_en: haceDias(0.25) })], [], AHORA)
+    expect(seisHoras[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
+    expect(seisHoras[0]?.motivo).toContain('hace 6 horas')
+
+    // El caso del bug de Miguel (2026-08-16): un lead repartido hace MINUTOS
+    // decía «Entró hace horas y nadie lo ha contactado».
+    const minutos = colaDe([lead({ id: 'min', creado_en: haceDias(6 / 1440) })], [], AHORA)
+    expect(minutos[0]?.motivo).toContain('hace 6 minutos')
+
+    const recien = colaDe([lead({ id: 'recien', creado_en: haceDias(0.0005) })], [], AHORA)
+    expect(recien[0]?.motivo).toContain('hace un momento')
+  })
+
+  // La escala única del tiempo relativo (2026-08-16). Antes TODO lo sub-diario
+  // colapsaba en la cadena literal «hace horas» — y el colapso estaba copiado
+  // en cuatro pantallas más ('hoy', 'hace minutos'…). Mutante que debe morir
+  // aquí: restaurar `if (dias < 1) return 'hace horas'` en haceTexto.
+  describe('haceTexto / duracionTexto — la escala única', () => {
+    it('bordes: momento → minutos → horas → días', () => {
+      expect(haceTexto(0)).toBe('hace un momento')
+      expect(haceTexto(59 / 86_400)).toBe('hace un momento')
+      expect(haceTexto(60 / 86_400)).toBe('hace 1 minuto')
+      expect(haceTexto(59.4 / 1440)).toBe('hace 59 minutos')
+      expect(haceTexto(1 / 24)).toBe('hace 1 hora')
+      expect(haceTexto(23.9 / 24)).toBe('hace 23 horas')
+      // El tramo ≥ 1 día es EL de siempre, byte a byte.
+      expect(haceTexto(1)).toBe('hace 1 día')
+      expect(haceTexto(2.5)).toBe('hace 2 días')
+    })
+
+    it('13 minutos exactos NO pierden un minuto por coma flotante', () => {
+      // 780000 ms / DIA_MS × 1440 = 12.999999999999998: sin redondear a
+      // SEGUNDO antes de trocear, el floor diría «hace 12 minutos». Pasa en
+      // 83 de los 1440 minutos exactos (13, 26, 49, 52…). Mutante que debe
+      // morir: `Math.floor(dias * 1440)` directo en vez de pasar por segundos.
+      expect(haceTexto(780_000 / DIA_MS)).toBe('hace 13 minutos')
+    })
+
+    it('lo raro cae al suelo, nunca a un número inventado', () => {
+      expect(haceTexto(-0.5)).toBe('hace un momento')
+      expect(haceTexto(Number.NaN)).toBe('hace un momento')
+      expect(duracionTexto(0)).toBe('menos de un minuto')
+      expect(duracionTexto(45 / 1440)).toBe('45 minutos')
+    })
+
+    it('la redacción aprobada por Miguel (2026-08-16), palabra por palabra', () => {
+      // Con vencimiento el estado del contacto ya está dicho — no se repite.
+      expect(redactarMotivoCola('sin_responder', 2 / 1440, 'nuevo', { gestion_vencida: true }))
+        .toBe('Venció la primera gestión · entró hace 2 minutos')
+      expect(redactarMotivoCola('sin_responder', 25 / 1440, 'nuevo', { contacto_vencido: true }))
+        .toBe('Venció el primer contacto · entró hace 25 minutos')
+      // La de dos relojes conserva los dos aunque haya vencimiento.
+      expect(redactarMotivoCola('sin_responder', 2, 'nuevo', { espera_cliente_dias: 6, contacto_vencido: true }))
+        .toBe('Venció el primer contacto · Asignado hace 2 días · el cliente escribió hace 6 días')
+      expect(redactarMotivoCola('insistir', 1, 'nuevo', { ultimo_intento_dias: 40 / 1440 }))
+        .toBe('Último intento hace 40 minutos, sin respuesta — cambia de canal')
+      expect(redactarMotivoCola('propuesta_sin_respuesta', 5, 'propuesta_enviada', {}))
+        .toBe('Propuesta enviada hace 5 días y sin respuesta')
+    })
+
+    it('diasTxt/haceCortoTexto: misma escala, abreviada («hoy» ya no tapa 24 horas)', () => {
+      expect(diasTxt(0.5 / 1440)).toBe('recién')
+      expect(diasTxt(40 / 1440)).toBe('40 min')
+      expect(diasTxt(5 / 24)).toBe('5 h')
+      expect(diasTxt(3.7)).toBe('3 d') // el tramo ≥ 1 día, idéntico al de siempre
+      expect(haceCortoTexto(40 / 1440)).toBe('hace 40 min')
+      expect(haceCortoTexto(0)).toBe('recién')
+    })
   })
 
   // El reloj del asesor (pedido de Miguel, 2026-07-24): con el circuito vivo un
@@ -175,7 +245,8 @@ describe('señales comerciales', () => {
       )
       expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
       // …pero la espera del CLIENTE no se esconde: va en el mismo motivo.
-      expect(cola[0]?.motivo).toContain('Asignado hace horas')
+      // (0.02 días = 1728 s = 28.8 min; floor por tramo → 28.)
+      expect(cola[0]?.motivo).toContain('Asignado hace 28 minutos')
       expect(cola[0]?.motivo).toContain('el cliente escribió hace 3 días')
     })
 
@@ -215,7 +286,7 @@ describe('señales comerciales', () => {
     it('sin fotografía SLA conserva la cola pero no inventa severidad crítica', () => {
       const cola = colaDe([lead({ id: 'legacy', creado_en: haceDias(2) })], [], AHORA)
       expect(cola[0]).toMatchObject({ bucket: 'sin_responder', sev: 'media' })
-      expect(cola[0]?.motivo).toBe('Entró hace 2 días y nadie lo ha contactado')
+      expect(cola[0]?.motivo).toBe('Entró hace 2 días · primer contacto pendiente')
     })
 
     it('un ISO corrupto degrada a la referencia de siempre en vez de romper la cola', () => {
@@ -659,7 +730,7 @@ describe('`sin_avance` usa el episodio sellado, no constantes del navegador', ()
   it('pasado el doble del plazo sellado dispara con días y versión del episodio', () => {
     const cola = clavado(fotografia)
     expect(cola[0]).toMatchObject({ bucket: 'sin_avance', sev: 'media', dias: 20 })
-    expect(cola[0]?.motivo).toContain('hace 20 días en Contactado')
+    expect(cola[0]?.motivo).toContain('Lleva 20 días en Contactado')
     expect(cola[0]?.motivo).toContain('SLA v4 vencido')
   })
 

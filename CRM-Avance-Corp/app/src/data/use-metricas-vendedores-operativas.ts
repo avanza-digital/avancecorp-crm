@@ -44,9 +44,14 @@ export function useMetricasVendedoresOperativas(
       }
       // Fail-closed TAMBIÉN en refetch (hallazgo ALTA de la revisión Codex).
       if (consulta.error) return null
-      return consulta.data ? mapearMetricasVendedores(consulta.data, roster, equipo) : null
+      if (!consulta.data) return null
+      // La foto envejece contra el reloj LOCAL (ver use-cola-accion-operativa):
+      // sin deriva, el «Última actividad hace X» del supervisor se congela
+      // entre refetches — y en segundo plano el intervalo ni siquiera corre.
+      const derivaDias = Math.max(0, (ahora - consulta.dataUpdatedAt) / 86_400_000)
+      return mapearMetricasVendedores(consulta.data, roster, equipo, derivaDias)
     },
-    [actividades, ahora, consulta.data, consulta.error, equipo, habilitado, leads, roster, yo],
+    [actividades, ahora, consulta.data, consulta.dataUpdatedAt, consulta.error, equipo, habilitado, leads, roster, yo],
   )
 
   return {

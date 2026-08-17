@@ -172,24 +172,45 @@ function contar<K extends string>(claves: readonly K[], crudo: Record<string, nu
  * Payload del RPC → shape operativo. El ORDEN de los items se respeta tal cual
  * llega (el servidor ya ordenó por severidad y días con desempate por id);
  * re-ordenar aquí desharía el desempate determinista.
+ *
+ * `derivaDias`: la foto del RPC trae TODOS los relojes congelados en su
+ * `generado_en`; sin envejecerla, «hace 2 minutos» se queda clavado hasta el
+ * próximo refetch (60 s con la pestaña enfocada, NUNCA en segundo plano) y
+ * luego salta de golpe — con días no se notaba, con minutos es un número
+ * visiblemente falso. La deriva la calcula el LLAMADOR contra su propio reloj
+ * (ahora − instante local en que llegó el payload): anclarla en `generado_en`
+ * metería el desfase servidor↔navegador en los números, y un navegador 3 min
+ * adelantado envejecería toda la cola 3 min. Solo mueve los RELOJES que se
+ * redactan: bucket, severidad y orden siguen siendo del servidor.
  */
 export function mapearColaAccion(
   payload: ColaAccion,
   buscarLead: (id: string) => Lead | undefined,
+  derivaDias = 0,
 ): ColaAccionOperativa {
+  const deriva = Number.isFinite(derivaDias) ? Math.max(0, derivaDias) : 0
   return {
-    items: payload.items.map((item) => ({
-      lead: buscarLead(item.lead_id) ?? leadDesdeItem(item),
-      bucket: item.bucket,
-      sev: item.sev,
-      dias: item.dias,
-      motivo: redactarMotivoCola(
-        item.bucket,
-        item.dias,
-        item.lead.etapa,
-        item.datos_motivo as DatosMotivoCola,
-      ),
-    })),
+    items: payload.items.map((item) => {
+      const datos = item.datos_motivo as DatosMotivoCola
+      const dias = item.dias + deriva
+      return {
+        lead: buscarLead(item.lead_id) ?? leadDesdeItem(item),
+        bucket: item.bucket,
+        sev: item.sev,
+        dias,
+        // Los tres relojes de datos_motivo se midieron desde el MISMO
+        // generado_en, así que la deriva es una sola y `dos_relojes` (una
+        // DIFERENCIA) no se altera. Los booleanos de vencimiento son
+        // veredictos del servidor. Spread condicional: una clave ausente
+        // sigue ausente (exactOptionalPropertyTypes).
+        motivo: redactarMotivoCola(item.bucket, dias, item.lead.etapa, {
+          ...datos,
+          ...(datos.espera_cliente_dias != null && { espera_cliente_dias: datos.espera_cliente_dias + deriva }),
+          ...(datos.dias_en_etapa != null && { dias_en_etapa: datos.dias_en_etapa + deriva }),
+          ...(datos.ultimo_intento_dias != null && { ultimo_intento_dias: datos.ultimo_intento_dias + deriva }),
+        }),
+      }
+    }),
     total: payload.resumen.total,
     porBucket: contar(BUCKETS, payload.resumen.por_bucket),
     porSev: contar(SEVERIDADES, payload.resumen.por_sev),
@@ -197,7 +218,7 @@ export function mapearColaAccion(
       leadId: e.lead_id,
       nombre: e.nombre_completo,
       vendedorId: e.vendedor_id,
-      dias: e.dias,
+      dias: e.dias + deriva,
     })),
     generadoEn: payload.generado_en,
   }

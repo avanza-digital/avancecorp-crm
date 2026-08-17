@@ -44,6 +44,7 @@ import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
 import {
   diasDesdeReferencia,
   esAbierto,
+  haceCortoTexto,
   type ItemCola,
   type MetricasVendedor,
 } from '@/lib/inteligencia'
@@ -71,9 +72,11 @@ function semaforoActividad(dias: number): { color: string; label: string } {
   return { color: SEMAFORO.critico, label }
 }
 
-// OJO: wording propio de esta pantalla ('hace N d' compacto) — NO es el
-// haceTexto central ('hace N días'), no sustituir sin cambiar el texto visible.
-const haceDiasTxt = (d: number) => (d < 1 ? 'hace horas' : `hace ${Math.floor(d)} d`)
+// OJO: wording propio de esta pantalla ('hace N d' compacto) — la ABREVIATURA
+// es suya; la RESOLUCIÓN es la escala única. Antes 'hace horas' tapaba las
+// primeras 24 h y un lead de 4 minutos en la bandeja decía lo mismo que uno
+// de 23 horas (el mismo colapso del bug de #/alertas, copiado aquí).
+const haceDiasTxt = haceCortoTexto
 
 const TOOLTIP_SIN_TOCAR = 'Leads abiertos sin ninguna actividad registrada'
 const TOOLTIP_ULT_ACT = 'Última actividad del lead abierto más abandonado'

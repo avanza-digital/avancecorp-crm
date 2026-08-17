@@ -19,7 +19,7 @@ import {
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { CAT_LABEL, ETAPA_INFO, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
-import { capitalPorMoneda, capitalPrincipal, indexarUltimoContacto } from '@/lib/inteligencia'
+import { capitalPorMoneda, capitalPrincipal, duracionCorta, haceCortoTexto, indexarUltimoContacto } from '@/lib/inteligencia'
 import { semaforoEstancamiento, type SemaforoEtapa } from '@/lib/estancamiento'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { moneyK } from '@/lib/format'
@@ -33,9 +33,11 @@ import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo
 
 // "hace X" compacto a partir de DÍAS ya calculados (el reloj lo decide
 // `semaforoEstancamiento`, para que color y número no puedan divergir).
+// 'ayer' y las semanas son wording propio de esta pantalla; lo sub-diario
+// delega en la escala única — antes 'hoy' tapaba las primeras 24 h enteras.
 function haceDias(dias: number): string {
   const d = Math.floor(dias)
-  if (d <= 0) return 'hoy'
+  if (d <= 0) return haceCortoTexto(dias)
   if (d === 1) return 'ayer'
   if (d < 7) return `hace ${d} d`
   return `hace ${Math.floor(d / 7)} sem`
@@ -127,7 +129,9 @@ function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragS
             title={
               semaforo.objetivoMinutos == null
                 ? `Sin fotografía SLA disponible · referencia operativa ${haceDias(semaforo.dias)}`
-                : `Lleva ${haceDias(semaforo.dias)} en ${ETAPA_INFO[l.etapa].label} · plazo sellado ${minutosLegibles(semaforo.objetivoMinutos)} · SLA v${semaforo.politicaVersion ?? '—'}${semaforo.aproximado ? ' (aproximado)' : ''}`
+                // Duración desnuda: «Lleva ayer en Nuevo» / «Lleva hace 40 min
+                // en…» era español roto — el chip de al lado sí lleva el «hace».
+                : `Lleva ${duracionCorta(semaforo.dias)} en ${ETAPA_INFO[l.etapa].label} · plazo sellado ${minutosLegibles(semaforo.objetivoMinutos)} · SLA v${semaforo.politicaVersion ?? '—'}${semaforo.aproximado ? ' (aproximado)' : ''}`
             }
           >
             {haceDias(semaforo.dias)}

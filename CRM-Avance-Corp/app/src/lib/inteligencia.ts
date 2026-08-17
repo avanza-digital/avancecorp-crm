@@ -151,11 +151,73 @@ export const BUCKET_LABEL: Record<BucketCola, string> = {
   por_repartir: 'Por repartir',
 }
 
-/** "hace horas" / "hace N días" para motivos y timestamps es-PE — fuente única. */
+const SEGUNDOS_POR_DIA = 86_400
+
+/**
+ * Segundos ENTEROS de una duración en días-con-fracción — la base de TODA la
+ * escala de tiempo relativo. El redondeo a segundo va ANTES de trocear en
+ * minutos/horas para absorber el ruido de coma flotante: sin él, 13 minutos
+ * exactos llegan como 12.999999999999998 y el floor roba un minuto entero
+ * (pasa en 83 de los 1440 minutos exactos). Redondear medio segundo jamás
+ * adelanta lo dicho: el tramo más fino que se redacta es el minuto.
+ * No-finitos y negativos caen a 0, el sumidero de todo lo raro — ISO corrupto
+ * (diasDesdeReferencia devuelve 0) y reloj del navegador adelantado (clamp) —
+ * para que jamás se imprima «hace NaN días» ni «hace -2 minutos».
+ */
+function segundosDe(dias: number): number {
+  if (!Number.isFinite(dias)) return 0
+  return Math.max(0, Math.round(dias * SEGUNDOS_POR_DIA))
+}
+
+/**
+ * Duración DESNUDA es-PE («40 minutos» / «3 horas» / «2 días»), sin el «hace».
+ * Recibe DÍAS CON FRACCIÓN: en cliente los produce diasDesdeReferencia (ms);
+ * del RPC llegan con round(…, 4) = 8,6 s de resolución — sostiene el minuto,
+ * no el segundo. floor en cada tramo: una duración nunca se exagera.
+ */
+export function duracionTexto(dias: number): string {
+  const s = segundosDe(dias)
+  if (s < 60) return 'menos de un minuto'
+  const minutos = Math.floor(s / 60)
+  if (minutos < 60) return minutos === 1 ? '1 minuto' : `${minutos} minutos`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 24) return horas === 1 ? '1 hora' : `${horas} horas`
+  const d = Math.floor(horas / 24)
+  return d === 1 ? '1 día' : `${d} días`
+}
+
+/**
+ * «hace un momento» / «hace 40 minutos» / «hace 3 horas» / «hace 2 días» —
+ * fuente única de la ANTIGÜEDAD para motivos y timestamps es-PE.
+ * ANTES colapsaba todo lo sub-diario en la cadena literal «hace horas»: un
+ * lead repartido hace 3 minutos decía exactamente lo mismo que uno de 23
+ * horas. La precisión siempre estuvo en el dato; lo que faltaba era decirla.
+ * El tramo ≥ 1 día queda idéntico al de siempre, byte a byte.
+ */
 export function haceTexto(dias: number): string {
-  if (dias < 1) return 'hace horas'
-  const d = Math.floor(dias)
-  return d === 1 ? 'hace 1 día' : `hace ${d} días`
+  if (segundosDe(dias) < 60) return 'hace un momento'
+  return `hace ${duracionTexto(dias)}`
+}
+
+/**
+ * Compacto de COLUMNA, sin «hace»: «recién» / «12 min» / «3 h» / «5 d».
+ * Misma escala que duracionTexto — lo propio de cada pantalla es la
+ * ABREVIATURA, nunca la resolución.
+ */
+export function duracionCorta(dias: number): string {
+  const s = segundosDe(dias)
+  if (s < 60) return 'recién'
+  const minutos = Math.floor(s / 60)
+  if (minutos < 60) return `${minutos} min`
+  const horas = Math.floor(minutos / 60)
+  if (horas < 24) return `${horas} h`
+  return `${Math.floor(horas / 24)} d`
+}
+
+/** Compacto CON «hace»: «recién» / «hace 12 min» / «hace 3 h» / «hace 5 d». */
+export function haceCortoTexto(dias: number): string {
+  if (segundosDe(dias) < 60) return 'recién'
+  return `hace ${duracionCorta(dias)}`
 }
 
 /**
@@ -200,21 +262,28 @@ export function redactarMotivoCola(
       return `Sin vendedor asignado ${haceTexto(dias)} — hay que repartirlo`
     case 'sin_responder': {
       const esperaCliente = datos.espera_cliente_dias ?? dias
-      // El motivo lleva LOS DOS relojes cuando difieren de verdad (≥1 día): el
-      // del asesor —que es el que lo juzga— y el del cliente, que no puede
-      // desaparecer. Redacción neutra: también la leen supervisor y gerencia.
-      const contexto = esperaCliente - dias >= 1
-        ? `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
-        : `Entró ${haceTexto(dias)} y nadie lo ha contactado`
       const vencimiento = datos.gestion_vencida
         ? 'Venció la primera gestión'
         : datos.contacto_vencido
           ? 'Venció el primer contacto'
           : null
-      return vencimiento ? `${vencimiento} · ${contexto}` : contexto
+      // El motivo lleva LOS DOS relojes cuando difieren de verdad (≥1 día): el
+      // del asesor —que es el que lo juzga— y el del cliente, que no puede
+      // desaparecer. Redacción neutra: también la leen supervisor y gerencia,
+      // y con la escala en minutos «nadie lo ha contactado» acusaba a quien
+      // recibió el lead hace un momento (decisión de Miguel, 2026-08-16).
+      if (esperaCliente - dias >= 1) {
+        const contexto = `Asignado ${haceTexto(dias)} · el cliente escribió ${haceTexto(esperaCliente)}`
+        return vencimiento ? `${vencimiento} · ${contexto}` : contexto
+      }
+      // Con vencimiento, el estado del contacto ya está dicho — no se repite.
+      return vencimiento
+        ? `${vencimiento} · entró ${haceTexto(dias)}`
+        : `Entró ${haceTexto(dias)} · primer contacto pendiente`
     }
     case 'sin_avance':
-      return `Lleva ${haceTexto(datos.dias_en_etapa ?? dias)} en ${ETAPA_INFO[etapa].label} · SLA v${datos.etapa_politica_version ?? '—'} vencido — o avanza o se cierra`
+      // Duración desnuda: «Lleva hace 2 días en…» era español roto de nacimiento.
+      return `Lleva ${duracionTexto(datos.dias_en_etapa ?? dias)} en ${ETAPA_INFO[etapa].label} · SLA v${datos.etapa_politica_version ?? '—'} vencido — o avanza o se cierra`
     case 'insistir': {
       const diasIntento = datos.ultimo_intento_dias ?? dias
       // Dos motivos porque hay dos historias distintas, y ninguna puede mentir.
@@ -222,10 +291,10 @@ export function redactarMotivoCola(
         ? `Ya hablaron ${haceTexto(diasIntento)} pero sigue en Nuevo — muévelo de etapa`
         : datos.dos_relojes
           ? `En tus manos ${haceTexto(dias)} · último intento ${haceTexto(diasIntento)} — cambia de canal`
-          : `Intentado ${haceTexto(diasIntento)} y aún no responde — cambia de canal`
+          : `Último intento ${haceTexto(diasIntento)}, sin respuesta — cambia de canal`
     }
     case 'propuesta_sin_respuesta':
-      return `Propuesta enviada sin movimiento ${haceTexto(dias)}`
+      return `Propuesta enviada ${haceTexto(dias)} y sin respuesta`
     case 'seguimiento':
       return `Sin actividad ${haceTexto(dias)} — toca retomar el seguimiento`
     case 'plan_vencido':
@@ -233,8 +302,12 @@ export function redactarMotivoCola(
   }
 }
 
-/** "hoy" / "N d" compacto para columnas de días (dias viene con fracción). */
-export const diasTxt = (d: number): string => (d < 1 ? 'hoy' : `${Math.floor(d)} d`)
+/**
+ * «recién» / «12 min» / «3 h» / «5 d» compacto para columnas (dias viene con
+ * fracción). Antes «hoy» tapaba las primeras 24 horas enteras — el mismo
+ * colapso que haceTexto, en versión columna.
+ */
+export const diasTxt = duracionCorta
 
 export type IndiceUltimaActividad = ReadonlyMap<string, Actividad>
 

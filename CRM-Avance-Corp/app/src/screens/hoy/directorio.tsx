@@ -33,7 +33,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { SegmentBar } from '@/components/common/stat-strip'
 import { Donut } from '@/components/common/donut'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
-import { diasDesdeReferencia } from '@/lib/inteligencia'
+import { diasDesdeReferencia, haceCortoTexto } from '@/lib/inteligencia'
 import { SEMAFORO } from '@/lib/semaforo'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
@@ -97,10 +97,10 @@ function CapitalEquipo({
 function haceCorto(iso: string, ahora: number): string {
   const ms = ahora - new Date(iso).getTime()
   if (!Number.isFinite(ms) || ms < 0) return fmtFecha(iso)
-  const h = Math.floor(diasDesdeReferencia(iso, ahora) * 24)
-  if (h < 1) return 'hace minutos'
-  if (h < 24) return `hace ${h} h`
-  return `hace ${Math.floor(h / 24)} d`
+  // La caída a fecha absoluta ante ISO corrupto/futuro es propia de esta
+  // pantalla y se queda; la escala delega en la única — antes 'hace minutos'
+  // era un colapso plano de 0 a 60 min, sin el número.
+  return haceCortoTexto(diasDesdeReferencia(iso, ahora))
 }
 
 // ── Pantalla ──────────────────────────────────────────────────────────────────
