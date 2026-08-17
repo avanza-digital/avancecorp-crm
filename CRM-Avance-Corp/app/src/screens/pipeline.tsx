@@ -19,7 +19,7 @@ import {
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { CAT_LABEL, ETAPA_INFO, ETAPAS, TERMINALES, origenLabel, type EtapaActiva, type Lead } from '@/lib/tipos'
-import { capitalPorMoneda, capitalPrincipal, duracionCorta, haceCortoTexto, indexarUltimoContacto } from '@/lib/inteligencia'
+import { capitalPorMoneda, capitalPrincipal, duracionTexto, haceCortoTexto, indexarUltimoContacto } from '@/lib/inteligencia'
 import { semaforoEstancamiento, type SemaforoEtapa } from '@/lib/estancamiento'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
 import { moneyK } from '@/lib/format'
@@ -129,9 +129,10 @@ function LeadCard({ l, semaforo, escribe, arrastrando, onAbrir, onMover, onDragS
             title={
               semaforo.objetivoMinutos == null
                 ? `Sin fotografía SLA disponible · referencia operativa ${haceDias(semaforo.dias)}`
-                // Duración desnuda: «Lleva ayer en Nuevo» / «Lleva hace 40 min
-                // en…» era español roto — el chip de al lado sí lleva el «hace».
-                : `Lleva ${duracionCorta(semaforo.dias)} en ${ETAPA_INFO[l.etapa].label} · plazo sellado ${minutosLegibles(semaforo.objetivoMinutos)} · SLA v${semaforo.politicaVersion ?? '—'}${semaforo.aproximado ? ' (aproximado)' : ''}`
+                // Duración desnuda LARGA: «Lleva ayer en Nuevo» / «Lleva hace
+                // 40 min en…» era español roto, y la corta decía «Lleva recién
+                // en Nuevo» (Codex). El chip de al lado sí lleva el «hace».
+                : `Lleva ${duracionTexto(semaforo.dias)} en ${ETAPA_INFO[l.etapa].label} · plazo sellado ${minutosLegibles(semaforo.objetivoMinutos)} · SLA v${semaforo.politicaVersion ?? '—'}${semaforo.aproximado ? ' (aproximado)' : ''}`
             }
           >
             {haceDias(semaforo.dias)}

@@ -158,8 +158,10 @@ const SEGUNDOS_POR_DIA = 86_400
  * escala de tiempo relativo. El redondeo a segundo va ANTES de trocear en
  * minutos/horas para absorber el ruido de coma flotante: sin él, 13 minutos
  * exactos llegan como 12.999999999999998 y el floor roba un minuto entero
- * (pasa en 83 de los 1440 minutos exactos). Redondear medio segundo jamás
- * adelanta lo dicho: el tramo más fino que se redacta es el minuto.
+ * (pasa en 83 de los 1440 minutos exactos). El precio, dicho entero (Codex):
+ * el redondeo puede adelantar un borde a lo sumo medio segundo — 23:59:59.6
+ * ya dice «hace 1 día». Invisible con tick de 60 s y RPC a 8,6 s; no
+ * redondear costaría minutos enteros de verdad.
  * No-finitos y negativos caen a 0, el sumidero de todo lo raro — ISO corrupto
  * (diasDesdeReferencia devuelve 0) y reloj del navegador adelantado (clamp) —
  * para que jamás se imprima «hace NaN días» ni «hace -2 minutos».
