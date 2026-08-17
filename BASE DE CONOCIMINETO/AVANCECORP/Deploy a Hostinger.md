@@ -192,3 +192,23 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
   key dentro del ZIP · el bundle del 25.º en 404 **sin necesitar purga** (comprobado).
   Suites: 1834 unitarias + e2e 86/86 EXIT 0. Rollback:
   `releases/crm-20260816T051033Z-eb75b28a0106.zip` (el 25.º).
+
+- **Deploy 2026-08-16 (~19:20 hora de Lima) — CRM: el tiempo relativo dice minutos y las
+  fotos del RPC envejecen (27.º release):** publica `b575e33` (con `87fa9c5`), artefacto
+  `crm-20260817T001547Z-b575e333f72d` (SHA-256 `6a03729a…`). **Lo que estrena:** muere
+  «Entró hace horas» — la escala única dice «hace un momento / N minutos / N horas» y el
+  colapso estaba COPIADO en cinco sitios (Alertas, Equipo, Pipeline, Directorio y el
+  compacto de columnas); las dos fotos del RPC que redactan texto (cola de acción y
+  ranking del supervisor) envejecen contra el reloj LOCAL (`dataUpdatedAt` — anclarlas en
+  `generado_en` habría metido el desfase servidor↔navegador en los números); y la
+  redacción que aprobó Miguel: «Entró hace X · primer contacto pendiente» (neutra — la
+  vieja acusaba a quien recibió el lead hace un momento), sin eco tras «Venció el primer
+  contacto», y fuera el «Lleva hace X en Etapa», español roto de nacimiento. Codex refutó
+  3 de mis 6 afirmaciones: cazó mi «Lleva recién en Nuevo» (la MISMA familia del bug,
+  reintroducida por mí en el arreglo) y un comentario que negaba el medio segundo que el
+  redondeo puede adelantar un borde. 15 mutantes probados a mano, los 15 mueren.
+  **Verificación en vivo:** portada 200 · `index--bSQsKDj.js` referenciado, **sha256
+  local↔vivo idéntico** (`7b15307a…`), ídem inteligencia, crm-queries (llaves) e
+  index.html · «primer contacto pendiente» servido en vivo · el bundle del 26.º en 404
+  **sin purga** (comprobado). Suites: 1846 unitarias. Rollback:
+  `releases/crm-20260816T053245Z-bda84ee8c8de.zip` (el 26.º).
