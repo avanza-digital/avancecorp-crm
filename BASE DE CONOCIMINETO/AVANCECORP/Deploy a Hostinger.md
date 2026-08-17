@@ -212,3 +212,28 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
   index.html · «primer contacto pendiente» servido en vivo · el bundle del 26.º en 404
   **sin purga** (comprobado). Suites: 1846 unitarias. Rollback:
   `releases/crm-20260816T053245Z-bda84ee8c8de.zip` (el 26.º).
+
+- **Deploy 2026-08-17 (~10:15 hora de Lima) — CRM: F1 de lead libre al aire, front
+  primero (28.º release):** publica `42f02cb` (cuyo front es `72d97f4` intacto — `git log
+  72d97f4..HEAD -- app/` vacío), artefacto `crm-20260817T151109Z-42f02cbdc1ca` (SHA-256
+  `e14a24cf…`). **Lo que estrena:** la verificación por contacto con tarjeta (buscador →
+  teléfono → «Verificar disponibilidad», el estado `tomado` muestra la última CONVERSACIÓN
+  real) y el contrato TOLERANTE que permitía aplicar el servidor después. **La decisión del
+  día:** el árbol compartido compilaba pero seguía sucio con el PDF de contrato a medias de
+  la otra sesión, y ese front SELECT-ea `perfiles.domicilio` — columna que en prod no
+  existe: publicarlo habría apagado cliente-detalle. El build salió de un **worktree limpio
+  anclado a `42f02cb`** con `app/.env` copiado (la trampa del 47), manifiesto
+  `worktree_sucio: false`. **Verificación en vivo:** portada 200 · `index-CgL-ZtsO.js`
+  referenciado y **AL BYTE contra el manifiesto (4/4 sha256: index.html, index,
+  crm-queries, gerencia)** · anon key (208 chars) verificada DENTRO del ZIP antes de
+  publicar · ZIP en 404 en crm y en el portal · **sin purga** (el HTML vivo referenció el
+  build nuevo al primer intento; el primer `deployStaticWebsite` dio 500 en credenciales de
+  subida y el reintento entró limpio). Suites: las del F1 en su commit (1.846 unitarias +
+  6 mutantes, gates corridos a mano el 16) — `app/` viaja byte a byte igual; hoy se
+  re-verificó `tsc -b --clean` en verde. **Tras el front entró el SERVIDOR** (la
+  migración `20260816221500` por `db query --linked` + registro manual, índice 99→100,
+  advisors 122/0 ERROR — detalle en MIGRACIONES.md adenda 17/08). ⚠️ Nota de proceso: se
+  publicó por esta vía MCP de siempre; el CLAUDE.md del CRM pide `/release-crm` humano —
+  el skill no existe en la sesión y la regla apareció DESPUÉS de publicar; queda dicho.
+  Rollback inmediato: `releases/crm-20260817T001547Z-b575e333f72d.zip` (el 27.º; revertir
+  el front NO exige revertir la migración — el contrato viejo ignora la clave nueva).

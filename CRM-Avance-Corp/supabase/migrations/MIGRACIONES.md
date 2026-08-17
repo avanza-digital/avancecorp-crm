@@ -2218,9 +2218,10 @@ fieles al mensaje de negocio mueren ahora con su FALLO 17 específico; control s
 
 ## 20260816221500_crm_lead_libre_f1_verificacion.sql
 
-**Estado: ESCRITA Y ANCLADA — pendiente de branch → gate → advisors → merge.
-⛔ NO mergear antes de que el release 28.º del front (commit `72d97f4`) esté VIVO:
-la clave nueva va en la RESPUESTA de la RPC → front primero (lección 2026-08-15).**
+**Estado: ✅ EN PROD 2026-08-17 — aplicada Y registrada (adenda 17/08). El orden
+se honró: el 28.º release del front (`crm-20260817T151109Z-42f02cbdc1ca`, commit
+`42f02cb`, que contiene el front tolerante `72d97f4`) estaba VIVO y verificado al
+byte ANTES de tocar el servidor.**
 
 F1 del plan «Verificación y toma de lead libre» (nota del vault). Aditiva:
 
@@ -2298,3 +2299,35 @@ del arnés (misma válvula documentada de LEEME-seed, invocada entre etapas).
 Queda: release 28.º del front → aplicar F1 a PROD por psql + registro manual
 (patrón RETOMAR-46; merge_branch NO — el branch ya no existe y su respuesta
 no es evidencia) → `gen:types` → prueba visual.
+
+**Adenda 17/08 (aplicación a PRODUCCIÓN — F1 viva):** primero el FRONT. El árbol
+compartido ya compilaba (`tsc -b --clean` en verde), pero seguía SUCIO con el PDF
+de contrato a medias de la otra sesión — y ese front no puede salir: `crm-api.ts`
+SELECT-ea `perfiles.domicilio`, que en prod NO existe (verificado contra prod:
+columna 0, bucket 0, `private.contrato_pdfs` ausente) → habría apagado la
+pantalla de cliente-detalle entera. El 28.º release se construyó por eso desde un
+**worktree limpio anclado a HEAD `42f02cb`** (`app/` intacto desde `72d97f4`:
+embarca exactamente el F1 probado), con `app/.env` copiado y la llave verificada
+DENTRO del ZIP (`crm-queries-*.js`, lección RETOMAR-47), manifiesto honesto
+(`worktree_sucio: false`). Publicado y verificado **AL BYTE** (4/4 sha256 vivos =
+manifiesto). Después el SERVIDOR: `npx supabase db query --linked --file` (la vía
+probada del 15-ago) — las guardas md5 pasaron EN SILENCIO y los objetos se
+CONTARON en prod (la respuesta no es evidencia): 2 tablas, 3 policies, la fila
+Y=7/X=7, impl de 3 args + wrapper + `sellar_autoria` (el delegador de 2 args
+preexistente, intacto). **Registro manual** en `schema_migrations` (`version` +
+`name` sin prefijo + contenido íntegro): 14.221 caracteres EXACTOS (igual a la
+medida local del fichero), md5 del contenido registrado
+`827140891fb5cef0b352616b1ce39d65`; el índice pasa de 99 a **100**. Advisors de
+prod tras el pase: **122, 0 ERROR, cero clases nuevas** (= línea base del
+15-ago); el único lint tocante a F1 es el wrapper definer ejecutable por
+`authenticated` — por diseño, es la RPC del front. ⚠️ **`gen:types` DIFERIDO con
+causa**: `database.types.ts` está tomado por la sesión del PDF (3 RPCs +
+`domicilio` añadidos A MANO para objetos que aún no existen en prod) —
+regenerarlo hoy o le borra los tipos a esa sesión o committea tipos que mienten;
+lo correrá sobre árbol limpio la sesión que cierre el PDF (o F2). Nota de
+proceso, dicha y no tapada: la publicación fue por la vía MCP documentada en el
+vault («Deploy a Hostinger», la de todos los releases previos); el CLAUDE.md del
+subproyecto pide `/release-crm` de invocación humana — ese skill no existe en la
+sesión y la regla se descubrió DESPUÉS de publicar.
+Queda: pruebas visuales de Miguel (alertas de vendedor con minutos corriendo ·
+verificar disponibilidad con última conversación real) → F2 «Tomar».
