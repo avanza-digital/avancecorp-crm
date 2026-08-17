@@ -237,3 +237,27 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
   el skill no existe en la sesión y la regla apareció DESPUÉS de publicar; queda dicho.
   Rollback inmediato: `releases/crm-20260817T001547Z-b575e333f72d.zip` (el 27.º; revertir
   el front NO exige revertir la migración — el contrato viejo ignora la clave nueva).
+
+- **Deploy 2026-08-17 (~11:05 hora de Lima) — CRM: el silencio del precheck ya no se lee
+  como «libre» (29.º release):** publica `cbc9590`, artefacto
+  `crm-20260817T160102Z-cbc95900091f` (SHA-256 `9152eef1…`). **El hallazgo fue de Miguel
+  en la prueba visual de F1:** tecleó un DNI en el buscador, el atajo (≥6 dígitos «parece
+  teléfono») abrió el alta con el DNI en el campo TELÉFONO, el precheck jamás corrió y ese
+  silencio se leía como «ese DNI está libre» — el registro anti-pesca lo probó (la
+  búsqueda nunca llegó al servidor). **Lo que estrena:** el atajo del buscador solo se
+  ofrece con celular normalizable y a los demás dígitos les dice «la disponibilidad se
+  verifica con el celular»; el alta avisa en ámbar no bloqueante («sin verificar: se
+  comprueba con el CELULAR…») cuando hay algo tecleado sin celular válido. Publicación
+  **autorizada por Miguel en la sesión** (AskUserQuestion) — la regla `/release-crm`
+  humano quedó honrada esta vez. **Auditoría del ciclo:** 7 tests nuevos (58/58 en los 2
+  archivos), 2 mutantes probados a mano (el return mudo mata 3 tests; el botón sin gate
+  mata 1), revisor-a11y GO con un ALTO arreglado en el mismo commit (`text-warning-text`:
+  la app NO tiene tema oscuro y `dark:text-amber-300` seguía al SO dejando el aviso en
+  ~1.3:1) y deuda MEDIA preexistente anotada (combobox del topbar sin
+  `aria-activedescendant`; el atajo es solo-ratón; el «¿Ya es cliente?» usa
+  `/80` bajo el umbral). Los 3 tests rojos de la suite completa son del PDF a
+  medias de la OTRA sesión (cliente-*/crm-api), no de esta pieza. **Verificación en
+  vivo:** `index-ajhFvDSs.js` referenciado y **AL BYTE contra el manifiesto (3/3
+  sha256)** · ZIP en 404 · el bundle del 28.º en 404 **sin purga** (comprobado al primer
+  intento). Rollback inmediato: `releases/crm-20260817T151109Z-42f02cbdc1ca.zip` (el
+  28.º).
