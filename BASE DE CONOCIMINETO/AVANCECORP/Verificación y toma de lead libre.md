@@ -7,6 +7,26 @@ original y un agujero que ya existe hoy: tomar un descartado-vencido crearía un
 El documento `docs/propuesta-implementacion-anti-duplicado-alta-manual.md` queda **subsumido**
 aquí (su umbral hardcodeado de 15 días se descarta: contradecía el modelo).
 
+## Estado de ejecución (2026-08-17)
+
+- ✅ **F1 «Verificar» EN PRODUCCIÓN COMPLETA** — front (28.º release
+  `crm-20260817T151109Z-42f02cbdc1ca` + 29.º `crm-20260817T160102Z-cbc95900091f`,
+  la honestidad del precheck que pidió Miguel) y servidor (migración
+  `20260816221500`, aplicada y registrada, índice 100).
+- ✅ **F2 «Tomar» SERVIDOR EN PRODUCCIÓN** — migración `20260817164745`:
+  RPC `crm.tomar_lead_libre` por contacto + split libre/`reutilizable` +
+  válvula `crm.toma_directa`. Doble auditoría (auditor-rls y Codex), oráculo
+  16✓ con carreras dblink, 6 mutantes, gate del branch 304✓, registro al byte,
+  advisors 123/0. Ciclo completo en `supabase/migrations/MIGRACIONES.md`
+  (adendas 17/08 a 17/08-e).
+- ⏳ **F2 front**: botón «Tomar» sobre `en_bolsa`/`reutilizable` + api
+  `tomarLeadLibre` + formalizar la variante `reutilizable` del contrato
+  (bloqueado mientras `crm-api.ts` y `database.types.ts` sigan tomados por la
+  sesión del PDF). Hoy el vendedor ve el veredicto pero la toma responde
+  «aún no habilitada» desde el front.
+- ⏳ Pruebas visuales de Miguel (⚠️ `crm.leads` está VACÍA en prod).
+- ⏳ F3 «Recordar» → F4 «Alerta» → F5 «Perilla».
+
 ## El modelo («C+ · híbrida con toma directa»)
 
 1. **La inactividad NO libera sola** — dispara alerta al supervisor «reencola o confirma».
