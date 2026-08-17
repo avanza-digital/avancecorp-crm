@@ -120,7 +120,12 @@ Verificación local:
 - Playwright: 68 escenarios aprobados y 38 omitidos por gates intencionales;
 - scripts Node y `git diff --check`, en verde.
 
-Estado: migración, oráculo y adaptación frontend están **solo en local**. No se
-han aplicado a Supabase ni desplegado en producción. Los gates siguientes son
-branch/staging con sesiones reales, advisors y smoke PostgREST. Un despliegue
-futuro seguirá requiriendo la invocación humana de `/release-crm`.
+Estado (corregido 2026-08-16 — la nota quedó RANCIA desde el deploy y Codex lo
+cazó): P-048 está **EN PRODUCCIÓN**, registrada en Supabase como
+`20260804213726` (timestamp remoto ≠ archivo local, mismo patrón que P04), con
+el impl de 3 argumentos vivo (md5 `7063fc89…`) y el alta manual restringida
+(`20260811210049`) también registrada. Verificado contra
+`supabase_migrations.schema_migrations` y `pg_proc` en vivo. Desde F1 del plan
+[[Verificación y toma de lead libre]] (2026-08-16), el estado `tomado` gana
+`ultima_conversacion_en` (solo conversaciones reales) y el wrapper asienta el
+registro anti-pesca `crm.verificaciones_lead`.
