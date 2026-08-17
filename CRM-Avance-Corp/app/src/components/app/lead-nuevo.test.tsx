@@ -44,11 +44,14 @@ function montar({
   demo = true,
   rol,
   crearLeadImpl,
+  telefonoInicial = null,
 }: {
   demo?: boolean
   /** Rol del actor; por defecto el vendedor de SESION. Para la regla D8. */
   rol?: 'vendedor' | 'supervisor' | 'gerencia'
   crearLeadImpl?: StoreDataApi['crearLead']
+  /** El atajo del buscador (plan «lead libre», F1) llega con teléfono. */
+  telefonoInicial?: string | null
 } = {}) {
   const implementacionPorDefecto: StoreDataApi['crearLead'] = (input) => {
     const validacion = validarCamposLead({
@@ -77,7 +80,7 @@ function montar({
     }}>
       <StoreDataContext.Provider value={api}>
         <PanelStateContext.Provider
-          value={{ leadAbiertoId: null, nuevoLeadAbierto: true, etapaInicial: 'nuevo' }}
+          value={{ leadAbiertoId: null, nuevoLeadAbierto: true, etapaInicial: 'nuevo', telefonoInicial }}
         >
           <PanelActionsContext.Provider value={actions}>
             <LeadNuevo />
@@ -484,5 +487,69 @@ describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
       .map((opcion) => opcion.value)
       .filter((valor) => valor !== '')
     expect(opciones).toEqual(['oficina', 'otro'])
+  })
+})
+
+// ── Fase 1 del plan «lead libre» (2026-08-16): la tarjeta §5.2 y el atajo ────
+describe('LeadNuevo — tarjeta de disponibilidad', () => {
+  it('un «tomado» enriquecido pinta la tarjeta: asesor, última conversación y fecha', async () => {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue({
+      estado: 'tomado',
+      vendedor: 'ANA PÉREZ',
+      tenencia_desde: '2026-08-03T16:00:00Z',
+      ultima_conversacion_en: '2026-08-10T05:00:00Z',
+      fecha_estimada: '2026-08-30T05:00:00Z',
+    })
+    montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(screen.getByText('Seguimiento activo')).toBeInTheDocument()
+    expect(screen.getByText('Última conversación')).toBeInTheDocument()
+    expect(screen.getByText('10 de agosto de 2026')).toBeInTheDocument()
+    expect(screen.getByText('Revisable desde (estimado)')).toBeInTheDocument()
+    // El alta sigue bloqueada: la tarjeta informa, no desbloquea.
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
+  })
+
+  it('el «tomado» de HOY (sin claves nuevas) también pinta tarjeta — sin líneas inventadas', async () => {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue({
+      estado: 'tomado',
+      vendedor: 'ANA PÉREZ',
+      tenencia_desde: null,
+    })
+    montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    expect(screen.getByText('Seguimiento activo')).toBeInTheDocument()
+    expect(screen.getByText('Asesor')).toBeInTheDocument()
+    expect(screen.queryByText('Última conversación')).not.toBeInTheDocument()
+    expect(screen.queryByText('Revisable desde (estimado)')).not.toBeInTheDocument()
+  })
+
+  it('con teléfono precargado (atajo del buscador) el precheck se dispara SOLO', async () => {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue({
+      estado: 'tomado',
+      vendedor: 'ANA PÉREZ',
+      tenencia_desde: null,
+    })
+    montar({ demo: false, telefonoInicial: '987 654 321' })
+
+    expect(screen.getByLabelText('Teléfono *')).toHaveValue('987 654 321')
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    // Sin blur ni tecleo: el montaje con teléfono ya verificó.
+    expect(verificarDisponibilidad).toHaveBeenCalledWith('987 654 321', null, expect.anything())
+    expect(screen.getByText('Seguimiento activo')).toBeInTheDocument()
   })
 })

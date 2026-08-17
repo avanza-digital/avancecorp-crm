@@ -24,7 +24,11 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/lib/auth-context'
-import { presentarDisponibilidadLead } from '@/lib/disponibilidad-lead'
+import {
+  presentarDisponibilidadLead,
+  tarjetaDisponibilidadLead,
+  type TarjetaDisponibilidadLead,
+} from '@/lib/disponibilidad-lead'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { EDAD_MINIMA, MONTO_ESTIMADO_MAX, edadCumplida, normalizarTelefono } from '@/lib/validacion'
@@ -51,6 +55,9 @@ interface EstadoDisponibilidadFormulario {
   mensaje: string | null
   bloquea: boolean
   degradado: boolean
+  /** Tarjeta §5.2 del plan «lead libre»: datos mínimos del seguimiento activo
+   *  o del enfriamiento; null en los estados sin seguimiento que mostrar. */
+  tarjeta: TarjetaDisponibilidadLead | null
 }
 
 const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
@@ -58,6 +65,7 @@ const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
   mensaje: null,
   bloquea: false,
   degradado: false,
+  tarjeta: null,
 }
 
 const DISPONIBILIDAD_COMPROBANDO: EstadoDisponibilidadFormulario = {
@@ -65,6 +73,7 @@ const DISPONIBILIDAD_COMPROBANDO: EstadoDisponibilidadFormulario = {
   mensaje: 'Comprobando disponibilidad…',
   bloquea: false,
   degradado: false,
+  tarjeta: null,
 }
 
 const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
@@ -72,6 +81,7 @@ const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
   mensaje: 'No pudimos comprobar la disponibilidad. Puedes continuar; un contacto duplicado vivo será rechazado al guardar.',
   bloquea: false,
   degradado: true,
+  tarjeta: null,
 }
 
 function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFormulario {
@@ -82,6 +92,7 @@ function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFor
       : 'La verificación de disponibilidad no está habilitada. Contacta al administrador antes de continuar.',
     bloquea: true,
     degradado: false,
+    tarjeta: null,
   }
 }
 
@@ -154,7 +165,7 @@ function FormularioNuevoLead({
 }: {
   onEnviandoChange: (enviando: boolean) => void
 }) {
-  const { etapaInicial } = usePanelesState()
+  const { etapaInicial, telefonoInicial } = usePanelesState()
   const { ambito, crearLead } = useCRMData()
   const { abrirLead, cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
@@ -166,7 +177,10 @@ function FormularioNuevoLead({
   const etapa = ETAPA_INFO[etapaInicial]
 
   const [nombre, setNombre] = useState('')
-  const [telefono, setTelefono] = useState('')
+  // El atajo «Verificar disponibilidad» del buscador llega con el teléfono ya
+  // tecleado (el formulario se monta al abrir el Dialog, así que el inicial
+  // de ESTA apertura es el correcto).
+  const [telefono, setTelefono] = useState(telefonoInicial ?? '')
   const [correo, setCorreo] = useState('')
   const [dni, setDni] = useState('')
   // '' = sin dato. Sin género el avatar cae a iniciales (nunca una silueta
@@ -255,6 +269,7 @@ function FormularioNuevoLead({
         mensaje: presentacion.mensaje,
         bloquea: presentacion.bloquea,
         degradado: false,
+        tarjeta: tarjetaDisponibilidadLead(resultado),
       }
       setDisponibilidad(siguiente)
       return siguiente
@@ -292,6 +307,16 @@ function FormularioNuevoLead({
       void consultarDisponibilidad(telefonoConsulta, dniConsulta)
     }, ESPERA_DISPONIBILIDAD_MS)
   }, [consultarDisponibilidad, invalidarDisponibilidad, yo?.demo])
+
+  // Con teléfono precargado (atajo del buscador) el precheck se dispara solo:
+  // el blur que normalmente lo lanza nunca va a ocurrir. Una sola vez por
+  // montaje — el ref evita re-disparos si el panel re-renderiza.
+  const prefillDisparadoRef = useRef(false)
+  useEffect(() => {
+    if (prefillDisparadoRef.current || !telefonoInicial) return
+    prefillDisparadoRef.current = true
+    programarDisponibilidad(telefonoInicial, '')
+  }, [telefonoInicial, programarDisponibilidad])
 
   /** Al corregir un campo, su error inline (y el general) desaparecen. */
   const limpiarError = (campo: string) => {
@@ -495,6 +520,25 @@ function FormularioNuevoLead({
               )}
             >
               {disponibilidad.mensaje}
+            </div>
+          )}
+          {disponibilidad.tarjeta && (
+            // Tarjeta §5.2 (solo lectura): lo mínimo para decidir — estado,
+            // asesor y fechas. Sin notas ni montos ajenos (privacidad §8).
+            <div className="rounded-lg border border-border bg-muted/40 px-3 py-2">
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
+                {disponibilidad.tarjeta.titulo}
+              </p>
+              {disponibilidad.tarjeta.lineas.length > 0 && (
+                <dl className="mt-1 space-y-0.5">
+                  {disponibilidad.tarjeta.lineas.map((linea) => (
+                    <div key={linea.etiqueta} className="flex justify-between gap-3 text-xs">
+                      <dt className="text-muted-foreground">{linea.etiqueta}</dt>
+                      <dd className="font-semibold tabular-nums text-foreground">{linea.valor}</dd>
+                    </div>
+                  ))}
+                </dl>
+              )}
             </div>
           )}
           <div className="grid grid-cols-2 gap-3">

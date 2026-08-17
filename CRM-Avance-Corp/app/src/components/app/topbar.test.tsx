@@ -219,3 +219,33 @@ describe('Topbar — pendientes por responsabilidad', () => {
     expect(enlace).toHaveTextContent('99+')
   })
 })
+
+// ── Fase 1 del plan «lead libre»: la puerta de la verificación por contacto ──
+// Mutante que debe morir aquí: quitar el gate puedeEscribir del atajo (el
+// directorio podría abrir el alta) o aflojar esPosibleTelefono a «cualquier
+// texto» (el atajo saldría al buscar un nombre).
+describe('Topbar — atajo «Verificar disponibilidad»', () => {
+  it('con un teléfono tecleado y sin resultados, ofrece verificar y abre el alta precargada', async () => {
+    const user = userEvent.setup()
+    montar({ leads: [] })
+    await user.type(campoBusqueda(), '987 654 321')
+
+    const atajo = screen.getByRole('button', { name: /Verificar disponibilidad/ })
+    await user.click(atajo)
+    expect(abrirNuevoLead).toHaveBeenCalledWith(undefined, '987 654 321')
+  })
+
+  it('no aparece para texto que no parece teléfono', async () => {
+    const user = userEvent.setup()
+    montar({ leads: [] })
+    await user.type(campoBusqueda(), 'juan perez')
+    expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
+  })
+
+  it('el directorio mira pero no verifica: sin atajo aunque teclee un teléfono', async () => {
+    const user = userEvent.setup()
+    montar({ leads: [], rol: 'directorio' })
+    await user.type(campoBusqueda(), '987654321')
+    expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
+  })
+})

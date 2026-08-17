@@ -1,6 +1,11 @@
 import { describe, expect, it } from 'vitest'
+import * as v from 'valibot'
 import type { DisponibilidadLead } from '@/data/crm-api'
-import { presentarDisponibilidadLead } from './disponibilidad-lead'
+import {
+  DisponibilidadLeadSchema,
+  presentarDisponibilidadLead,
+  tarjetaDisponibilidadLead,
+} from './disponibilidad-lead'
 
 describe('presentarDisponibilidadLead', () => {
   it('libre habilita el alta y no muestra mensaje', () => {
@@ -112,5 +117,99 @@ describe('presentarDisponibilidadLead', () => {
       bloquea: true,
     })
     expect(presentacion.mensaje).not.toContain('telefono_invalido')
+  })
+})
+
+// ── Fase 1 del plan «lead libre» (2026-08-16) ────────────────────────────────
+// El contrato debe tolerar al servidor de MAÑANA sin aflojarse hoy. Mutantes
+// que deben morir aquí: quitar las claves opcionales del schema (el payload
+// enriquecido dejaría de parsear) y aflojar 'tomado' a looseObject (la clave
+// desconocida pasaría). Lección del 2026-08-15: front primero, siempre.
+describe('contrato tolerante — las claves de las fases siguientes', () => {
+  it('acepta las claves nuevas de «tomado» y la presentación no cambia ni un byte', () => {
+    const enriquecido = v.parse(DisponibilidadLeadSchema, {
+      estado: 'tomado',
+      vendedor: 'ANA PÉREZ',
+      tenencia_desde: '2026-08-03T16:00:00Z',
+      ultima_conversacion_en: '2026-08-10T05:00:00Z',
+      fecha_estimada: '2026-08-30T05:00:00Z',
+    })
+    expect(presentarDisponibilidadLead(enriquecido)).toEqual({
+      mensaje: 'Este contacto ya está asignado a ANA PÉREZ.',
+      bloquea: true,
+    })
+  })
+
+  it('una clave NO declarada sigue siendo error: el strict no se aflojó', () => {
+    const resultado = v.safeParse(DisponibilidadLeadSchema, {
+      estado: 'tomado',
+      vendedor: null,
+      tenencia_desde: null,
+      sorpresa: 1,
+    })
+    expect(resultado.success).toBe(false)
+  })
+
+  it('el estado futuro «reutilizable» se tolera con cualquier forma y bloquea seguro', () => {
+    const r = v.parse(DisponibilidadLeadSchema, {
+      estado: 'reutilizable',
+      forma_que_decidira_la_fase_2: true,
+    })
+    const p = presentarDisponibilidadLead(r)
+    expect(p.bloquea).toBe(true)
+    expect(p.mensaje).toEqual(expect.any(String))
+    expect(tarjetaDisponibilidadLead(r)).toBeNull()
+  })
+})
+
+describe('tarjetaDisponibilidadLead — la tarjeta §5.2', () => {
+  it('tomado de HOY (sin claves nuevas): asesor limpio y desde cuándo, en fecha de Lima', () => {
+    expect(tarjetaDisponibilidadLead({
+      estado: 'tomado',
+      vendedor: '  ANA    PÉREZ  ',
+      tenencia_desde: '2026-08-03T16:00:00Z',
+    })).toEqual({
+      titulo: 'Seguimiento activo',
+      lineas: [
+        { etiqueta: 'Asesor', valor: 'ANA PÉREZ' },
+        { etiqueta: 'En seguimiento desde', valor: '3 de agosto de 2026' },
+      ],
+    })
+  })
+
+  it('enriquecido añade última conversación y fecha estimada — zona Lima, no la del equipo', () => {
+    const tarjeta = tarjetaDisponibilidadLead({
+      estado: 'tomado',
+      vendedor: null,
+      tenencia_desde: null,
+      // En UTC ya es 10/08; en Lima todavía es 9/08.
+      ultima_conversacion_en: '2026-08-10T03:00:00Z',
+      fecha_estimada: '2026-08-30T05:00:00Z',
+    })
+    expect(tarjeta?.lineas).toEqual([
+      { etiqueta: 'Última conversación', valor: '9 de agosto de 2026' },
+      { etiqueta: 'Revisable desde (estimado)', valor: '30 de agosto de 2026' },
+    ])
+  })
+
+  it('enfriamiento: motivo y fecha, sin quién lo descartó (minimización §8)', () => {
+    const tarjeta = tarjetaDisponibilidadLead({
+      estado: 'enfriamiento',
+      motivo_descarte: 'no_responde',
+      disponible_desde: '2026-08-11T04:30:00Z',
+      descartado_por: 'SUPERVISOR UNO',
+    })
+    expect(tarjeta?.titulo).toBe('En enfriamiento')
+    expect(JSON.stringify(tarjeta)).not.toContain('SUPERVISOR UNO')
+    expect(tarjeta?.lineas).toEqual([
+      { etiqueta: 'Motivo del descarte', valor: 'No responde' },
+      { etiqueta: 'Disponible desde', valor: '10 de agosto de 2026' },
+    ])
+  })
+
+  it('los estados sin seguimiento no tienen tarjeta', () => {
+    expect(tarjetaDisponibilidadLead({ estado: 'libre' })).toBeNull()
+    expect(tarjetaDisponibilidadLead({ estado: 'en_bolsa' })).toBeNull()
+    expect(tarjetaDisponibilidadLead({ estado: 'no_contactar' })).toBeNull()
   })
 })

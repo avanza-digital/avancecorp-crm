@@ -12,6 +12,15 @@ export const DisponibilidadLeadSchema = v.variant('estado', [
     estado: v.literal('tomado'),
     vendedor: v.nullable(v.string()),
     tenencia_desde: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+    // Claves que el servidor estrena en fases posteriores del plan «lead
+    // libre» (F1: última conversación real; F4: fecha estimada de revisión).
+    // OPCIONALES a propósito: el front tolera ambas versiones del servidor
+    // — la lección del 2026-08-15: una clave nueva en la RESPUESTA de una
+    // RPC con contrato estricto apaga la pantalla entera si el front no
+    // salió primero. strictObject se conserva: una clave NO declarada sigue
+    // siendo error (caza typos y respuestas inesperadas).
+    ultima_conversacion_en: v.optional(v.nullable(v.pipe(v.string(), v.isoTimestamp()))),
+    fecha_estimada: v.optional(v.nullable(v.pipe(v.string(), v.isoTimestamp()))),
   }),
   v.strictObject({
     estado: v.literal('enfriamiento'),
@@ -19,6 +28,11 @@ export const DisponibilidadLeadSchema = v.variant('estado', [
     disponible_desde: v.pipe(v.string(), v.isoTimestamp()),
     descartado_por: v.nullable(v.string()),
   }),
+  // Estado FUTURO (F2 del plan «lead libre»: contacto con un lead anterior
+  // que puede RETOMARSE en vez de duplicarse). looseObject a propósito: hasta
+  // que exista quien sepa manejarlo solo importa el discriminante, y su forma
+  // final la decide la Fase 2 — tolerar hoy evita el apagón del 15-ago.
+  v.looseObject({ estado: v.literal('reutilizable') }),
   v.strictObject({ estado: v.literal('ya_es_cliente'), asesor: v.string() }),
   v.strictObject({ estado: v.literal('no_contactar') }),
   v.strictObject({ estado: v.literal('error'), detalle: v.literal('telefono_invalido') }),
@@ -34,6 +48,13 @@ export const ResultadoCreacionLeadAtomicaSchema = v.union([
   v.strictObject({
     estado: v.literal('creado'),
     lead_id: v.pipe(v.string(), v.uuid()),
+  }),
+  // Resultado FUTURO (F2): el alta sobre un contacto reutilizable REABRE el
+  // mismo lead en vez de insertar. Tolerado desde ya por la misma razón que
+  // 'reutilizable' — quien lo maneja nace en la Fase 2.
+  v.looseObject({
+    estado: v.literal('reutilizado'),
+    lead_id: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   DisponibilidadLeadSchema,
 ])
@@ -146,10 +167,67 @@ export function presentarDisponibilidadLead(
     case 'no_contactar':
       return bloquear('Este contacto está marcado como «No contactar» y no se puede registrar nuevamente.')
 
+    case 'reutilizable':
+      // Estado futuro (F2): mientras no exista el botón «Tomar», el alta se
+      // bloquea con un mensaje honesto — dejarla pasar duplicaría el lead,
+      // exactamente lo que la spec §5.6 prohíbe.
+      return bloquear('Este contacto tiene un seguimiento anterior que puede retomarse. La toma directa aún no está habilitada.')
+
     case 'error':
       return bloquear('Ingresa un teléfono válido para verificar su disponibilidad.')
 
     default:
       return estadoNoSoportado(resultado)
+  }
+}
+
+// ── Tarjeta de la spec §5.2 ──────────────────────────────────────────────────
+
+/**
+ * Tarjeta informativa de SOLO LECTURA para el vendedor que verifica: los datos
+ * mínimos del seguimiento, nada más (spec §8: sin notas, sin montos, sin
+ * detalle ajeno). Función hermana de presentarDisponibilidadLead — NO amplía
+ * su contrato {mensaje, bloquea}, que está fijado por prueba — y consume el
+ * JSON una sola vez, igual que él.
+ *
+ * «Revisable desde (estimado)» solo aparece cuando el servidor manda una fecha
+ * con motor real detrás (enfriamiento hoy; leads tomados recién en la F4 del
+ * plan): la tarjeta no inventa promesas.
+ */
+export type TarjetaDisponibilidadLead = Readonly<{
+  titulo: string
+  lineas: ReadonlyArray<Readonly<{ etiqueta: string; valor: string }>>
+}>
+
+export function tarjetaDisponibilidadLead(
+  resultado: DisponibilidadLead,
+): TarjetaDisponibilidadLead | null {
+  switch (resultado.estado) {
+    case 'tomado': {
+      const lineas: Array<{ etiqueta: string; valor: string }> = []
+      const asesor = textoPresentable(resultado.vendedor)
+      if (asesor) lineas.push({ etiqueta: 'Asesor', valor: asesor })
+      const desde = resultado.tenencia_desde != null ? fechaEnLima(resultado.tenencia_desde) : null
+      if (desde) lineas.push({ etiqueta: 'En seguimiento desde', valor: desde })
+      const conversacion = resultado.ultima_conversacion_en != null
+        ? fechaEnLima(resultado.ultima_conversacion_en)
+        : null
+      if (conversacion) lineas.push({ etiqueta: 'Última conversación', valor: conversacion })
+      const estimada = resultado.fecha_estimada != null ? fechaEnLima(resultado.fecha_estimada) : null
+      if (estimada) lineas.push({ etiqueta: 'Revisable desde (estimado)', valor: estimada })
+      return { titulo: 'Seguimiento activo', lineas }
+    }
+    case 'enfriamiento': {
+      const lineas: Array<{ etiqueta: string; valor: string }> = [
+        { etiqueta: 'Motivo del descarte', valor: ETIQUETA_MOTIVO[resultado.motivo_descarte] },
+      ]
+      // Quién lo descartó NO va en la tarjeta (minimización §8); la fecha sí:
+      // es la única «disponible desde» con regla real detrás hoy.
+      const fecha = fechaEnLima(resultado.disponible_desde)
+      if (fecha) lineas.push({ etiqueta: 'Disponible desde', valor: fecha })
+      return { titulo: 'En enfriamiento', lineas }
+    }
+    default:
+      return null
   }
 }

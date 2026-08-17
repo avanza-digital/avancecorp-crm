@@ -113,7 +113,7 @@ function montar({
     <AuthContext.Provider value={sesion(rol)}>
       <StoreDataContext.Provider value={api}>
         <PanelStateContext.Provider
-          value={{ leadAbiertoId: l.id, nuevoLeadAbierto: false, etapaInicial: 'nuevo' }}
+          value={{ leadAbiertoId: l.id, nuevoLeadAbierto: false, etapaInicial: 'nuevo', telefonoInicial: null }}
         >
           <PanelActionsContext.Provider value={actions}>
             <LeadDrawer />

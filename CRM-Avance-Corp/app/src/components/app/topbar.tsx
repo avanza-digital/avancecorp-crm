@@ -33,6 +33,13 @@ import { moneyK } from '@/lib/format'
 import { hashDe, type Vista } from '@/lib/router'
 import { useAlertasCRM } from '@/lib/alertas-context'
 
+/** ¿Lo tecleado parece un TELÉFONO? (dígitos y separadores, ≥6 dígitos).
+ *  Habilita el atajo «Verificar disponibilidad» del vacío del buscador. */
+const esPosibleTelefono = (q: string): boolean => {
+  const t = q.trim()
+  return /^[+\d][\d\s().-]*$/.test(t) && (t.match(/\d/g)?.length ?? 0) >= 6
+}
+
 const TITULOS: Record<Vista, { t: string; s: string }> = {
   hoy: { t: 'Hoy', s: 'Tu siguiente acción y el pulso del día' },
   alertas: { t: 'Pendientes', s: 'Acciones y señales que requieren tu atención' },
@@ -237,6 +244,26 @@ export function Topbar({ vista }: { vista: Vista }) {
                     <p className="mt-1 text-[11px] text-muted-foreground/80">
                       ¿Ya es cliente? Búscalo en «{rotuloCartera(yo?.rol)}», en el menú lateral.
                     </p>
+                  )}
+                  {/* Puerta de la verificación por contacto (plan «lead libre»,
+                      F1): si lo tecleado parece un teléfono, se ofrece verificar
+                      contra TODO el CRM — este buscador solo mira tus leads y el
+                      que atiende otro asesor jamás va a aparecer aquí. Solo
+                      roles de escritura: directorio mira, no verifica. */}
+                  {puedeEscribir(yo?.rol) && esPosibleTelefono(q) && (
+                    <button
+                      type="button"
+                      tabIndex={-1}
+                      onMouseDown={(e) => e.preventDefault() /* no robar el foco al input */}
+                      onClick={() => {
+                        abrirNuevoLead(undefined, q.trim())
+                        setQ('')
+                        setAbierto(false)
+                      }}
+                      className="mt-1.5 cursor-pointer text-[11px] font-semibold text-primary hover:underline"
+                    >
+                      Verificar disponibilidad de este contacto →
+                    </button>
                   )}
                 </div>
               ) : (

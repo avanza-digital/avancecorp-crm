@@ -427,11 +427,14 @@ export interface PanelesState {
   leadAbiertoId: string | null
   nuevoLeadAbierto: boolean
   etapaInicial: EtapaActiva
+  /** Teléfono precargado en el alta por el atajo «Verificar disponibilidad»
+   *  del buscador (plan «lead libre», F1); null = alta en blanco. */
+  telefonoInicial: string | null
 }
 
 export interface PanelesActions {
   abrirLead(id: string): void
-  abrirNuevoLead(etapa?: EtapaActiva): void
+  abrirNuevoLead(etapa?: EtapaActiva, telefonoInicial?: string): void
   cerrarPaneles(): void
 }
 
@@ -710,14 +713,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const [leadAbiertoId, setLeadAbiertoId] = useState<string | null>(null)
   const [nuevoLeadAbierto, setNuevoLeadAbierto] = useState(false)
   const [etapaInicial, setEtapaInicial] = useState<EtapaActiva>('nuevo')
+  const [telefonoInicial, setTelefonoInicial] = useState<string | null>(null)
 
   const abrirLead = useCallback((id: string) => {
     setNuevoLeadAbierto(false)
     setLeadAbiertoId(id)
   }, [])
-  const abrirNuevoLead = useCallback((etapa?: EtapaActiva) => {
+  const abrirNuevoLead = useCallback((etapa?: EtapaActiva, telefono?: string) => {
     setLeadAbiertoId(null)
     setEtapaInicial(etapa ?? 'nuevo')
+    // El atajo del buscador llega con el teléfono ya tecleado; el alta normal
+    // abre en blanco — el valor se fija en CADA apertura para que un atajo no
+    // herede el teléfono del anterior.
+    setTelefonoInicial(telefono ?? null)
     setNuevoLeadAbierto(true)
   }, [])
   const cerrarPaneles = useCallback(() => {
@@ -729,7 +737,8 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     leadAbiertoId,
     nuevoLeadAbierto,
     etapaInicial,
-  }), [leadAbiertoId, nuevoLeadAbierto, etapaInicial])
+    telefonoInicial,
+  }), [leadAbiertoId, nuevoLeadAbierto, etapaInicial, telefonoInicial])
 
   const panelActions = useMemo<PanelesActions>(() => ({
     abrirLead,
@@ -1731,6 +1740,17 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             vendedor_id,
             nota: lead.nota ?? null,
           })
+          if (resultado.estado === 'reutilizado') {
+            // Resultado FUTURO (F2 del plan «lead libre»): el alta reabrió un
+            // lead existente. El servidor de hoy no lo emite; cuando nazca, el
+            // manejo real (refrescar ámbito, abrir la ficha reabierta) llega
+            // con su fase. Hasta entonces: fail-closed con recarga, jamás
+            // fingir que se creó otro lead.
+            throw new CrmApiError(
+              'El contacto tenía un lead anterior y fue retomado. Recarga para verlo.',
+              'CREACION_LEAD_CONTRACT',
+            )
+          }
           if (resultado.estado !== 'creado') {
             const presentacion = presentarDisponibilidadLead(resultado)
             throw new CrmApiError(
