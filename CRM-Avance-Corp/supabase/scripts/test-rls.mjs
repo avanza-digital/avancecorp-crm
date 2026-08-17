@@ -2942,92 +2942,30 @@ async function testOffboardingMatrix(sessions, seed) {
         && notaToma.data?.[0]?.metadata?.modo === 'bolsa',
         'F2 lead libre: la traza lleva evento toma_directa y modo bolsa',
         `metadata=${JSON.stringify(notaToma.data?.[0]?.metadata)}`);
-    }
-    // El revive de un descartado con enfriamiento vencido (TRANSIENT).
-    const reviveTransientId = randomUUID();
-    const reviveTransientPhone = '+51996600312';
-    await requireAdmin(
-      'F2 lead libre: siembra de descartado vencido TRANSIENT',
-      admin.schema('crm').from('leads').insert({
-        id: reviveTransientId,
-        nombre_completo: 'F2 TOMA REVIVE TRANSIENT',
-        telefono: reviveTransientPhone,
-        origen: 'otro',
-        etapa: 'descartado',
-        motivo_descarte: 'no_responde',
-        descartado_en: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
-        monto_estimado: 1000,
-        moneda: 'PEN',
-      }).select('id'),
-    );
-    const verdictoReutilizable = await positive(
-      'F2 lead libre: verificar dice reutilizable para el vencido',
-      member.client.schema('crm').rpc('verificar_disponibilidad_lead', {
-        p_telefono: reviveTransientPhone,
-        p_dni: null,
-      }),
-    );
-    if (verdictoReutilizable) {
-      check(verdictoReutilizable.data?.estado === 'reutilizable'
-        && typeof verdictoReutilizable.data?.quedo_libre_en === 'string'
-        && verdictoReutilizable.data?.motivo_descarte === 'no_responde',
-        'F2 lead libre: el veredicto reutilizable trae motivo y quedo_libre_en',
-        `respuesta=${JSON.stringify(verdictoReutilizable.data)}`);
-    }
-    const tomaRevive = await positive(
-      'F2 lead libre: el vendedor REVIVE el descartado vencido',
-      member.client.schema('crm').rpc('tomar_lead_libre', {
-        p_telefono: reviveTransientPhone,
-        p_dni: null,
-      }),
-    );
-    if (tomaRevive) {
-      check(tomaRevive.data?.estado === 'tomado_ok'
-        && tomaRevive.data?.modo === 'reutilizable'
-        && tomaRevive.data?.etapa === 'nuevo'
-        && tomaRevive.data?.ciclo_actual === 2,
-        'F2 lead libre: revive en nuevo con ciclo 2',
-        `respuesta=${JSON.stringify(tomaRevive.data)}`);
-    }
-    // La carencia de Miguel: un descarte de 0 días recién hecho ni se ve
-    // reutilizable ni se deja tomar — y el alta manual no cambia (libre).
-    const carenciaTransientId = randomUUID();
-    const carenciaTransientPhone = '+51996600313';
-    await requireAdmin(
-      'F2 lead libre: siembra del descarte de 0 días TRANSIENT',
-      admin.schema('crm').from('leads').insert({
-        id: carenciaTransientId,
-        nombre_completo: 'F2 TOMA CARENCIA TRANSIENT',
-        telefono: carenciaTransientPhone,
-        origen: 'otro',
-        etapa: 'descartado',
-        motivo_descarte: 'pide_credito',
-        descartado_en: new Date().toISOString(),
-        monto_estimado: 1000,
-        moneda: 'PEN',
-      }).select('id'),
-    );
-    const tomaCarencia = await positive(
-      'F2 lead libre: la carencia de 24 h rebota la toma con veredicto libre',
-      member.client.schema('crm').rpc('tomar_lead_libre', {
-        p_telefono: carenciaTransientPhone,
-        p_dni: null,
-      }),
-    );
-    if (tomaCarencia) {
-      check(tomaCarencia.data?.estado === 'libre',
-        'F2 lead libre: en carencia el veredicto es libre (alta sí, toma no)',
-        `respuesta=${JSON.stringify(tomaCarencia.data)}`);
-      const filaCarencia = await requireAdmin(
-        'F2 lead libre: la carencia dejó el descarte intacto',
-        admin.schema('crm').from('leads')
-          .select('etapa')
-          .eq('id', carenciaTransientId)
+      // El TRANSIENT vuelve a la cola por la puerta de gerencia: el sujeto
+      // conserva su cartera de fixture EXACTA (el caso «ve exactamente su
+      // cartera» corre después y esta toma lo contaminaba) y de paso queda
+      // probada la liberación gerencial del recién tomado.
+      const liberada = await positive(
+        'F2 lead libre: gerencia devuelve la bolsa tomada a la cola global',
+        sessions.gerencia.client.schema('crm').from('leads')
+          .update({ vendedor_id: null })
+          .eq('id', bolsaTransientId)
+          .select('vendedor_id')
           .single(),
       );
-      check(filaCarencia.data?.etapa === 'descartado',
-        'F2 lead libre: el descarte de 0 días sigue descartado durante la carencia');
+      if (liberada) {
+        check(liberada.data?.vendedor_id === null,
+          'F2 lead libre: la bolsa liberada queda sin dueño');
+      }
     }
+    // Revive, veredicto 'reutilizable' y carencia NO se prueban aquí: un
+    // descarte VENCIDO no se puede fabricar por la API — el sello
+    // (trg_leads_zz_sello_descarte) re-estampa descartado_en con el reloj del
+    // servidor y leads_before_insert veta nacer terminal (comprobado contra
+    // el banco 2026-08-17). Solo el paso real del tiempo los produce; esas
+    // verdades viven en el oráculo test-toma-lead-libre.sql (16 casos, 4
+    // carreras dblink) que fabrica el tiempo en un banco desechable.
 
     const ownAgenda = await positive(
       'P04 true/true: busca su fila ICS',

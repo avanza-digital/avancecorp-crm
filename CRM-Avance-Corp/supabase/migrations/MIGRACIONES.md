@@ -2334,10 +2334,12 @@ verificar disponibilidad con última conversación real) → F2 «Tomar».
 
 ## 20260817164745_crm_lead_libre_f2_tomar.sql
 
-**Estado: ESCRITA Y AUDITADA POR DOS FRENTES (auditor-rls NO-GO→GO con
-A1/M1/M2 resueltos; Codex 3/6 refutadas → 2 ARREGLADAS + 2 residuos
-documentados con causa), ORÁCULO 16 VERDES Y 6 MUTANTES MUERTOS — pendiente
-de branch → gate → advisors → prod. Orden de deploy: SERVIDOR primero** ('reutilizable' viaja en la RESPUESTA del verificar
+**Estado: CICLO DE BRANCH COMPLETO 2026-08-17 (branch `lead-libre-f2`,
+borrado tras el veredicto) — gate 304✓ con el único rojo en el fatal
+DOCUMENTADO del arnés (mismo punto que F1), advisors 122/0 ERROR con el único
+lint nuevo esperado (la RPC), banco = prod AL BYTE (huella 204 funciones md5
+idéntica + guardas F1/F2 en verde en TRES corridas). Pendiente: aplicar a
+PROD (db query + registro manual, SERVIDOR primero) → front F2.** ('reutilizable' viaja en la RESPUESTA del verificar
 y el front vivo del 28.º release ya la tolera con `looseObject` puesto a
 propósito en F1; la RPC nueva no tiene consumidor hasta el release F2 del
 front — las dos direcciones en paz).
@@ -2471,3 +2473,44 @@ con causa, 1 corrección factual):**
   front vivo a 'reutilizable' (release 28 verificado por él contra
   crm-api/store), y la contabilidad del guard (ciclo+1 y tenencia renacida
   infalsificables desde la RPC).
+
+**Adenda 17/08-d (el ciclo del branch F2, corrido y cerrado — branch
+`lead-libre-f2` ref wqxpkakysooeicsyadox, borrado tras el veredicto):**
+- **Replay**: el intento automático aplicó 86/100 y cayó en el
+  MIGRATIONS_FAILED de diseño (postflight de 20260812000259: «crm.equipo está
+  vacía»). Receta que FUNCIONÓ y queda reutilizable: `reset_branch` a
+  20260811210049 (banco limpio verificado: 86 registradas, cero objetos del
+  intento sucio) → semilla intercalada mínima (auth.users con *_token en ''
+  → perfiles rol 'analista' — el CHECK del portal NO acepta 'supervisor';
+  en prod los supervisores portan 'analista'/'comercial' — → cadena
+  equipo supervisor→vendedor) → replay 86–99 DESDE EL REGISTRO REMOTO
+  exportado a artefactos por-migración (con `-1` SOLO para las que no se
+  auto-envuelven con begin/commit; el postflight de la 086 cantó su OK
+  completo) → F2 del fichero local en tx única → registro (101). **Fidelidad
+  probada tres veces**: guardas md5 de F1 y de F2 en verde en cada corrida, y
+  huella global 204 funciones con md5 agregado IDÉNTICO a prod.
+- **Gate**: 304 ✓ y un solo ✗ = el fatal documentado del arnés
+  (`testOffboardingMatrix`, «fijar equipo activo=false» → dependencias
+  activas; deuda post-8-ago, el MISMO punto donde cortó el ciclo de F1). La
+  matemática cierra exacta: 293 de F1 + 9 casos F2 + 2 de liberación
+  gerencial = 304. Dos lecciones del ciclo, pagadas en el propio gate:
+  (1) un descarte VENCIDO no se puede fabricar por la API — `leads_before_
+  insert` veta nacer terminal y el sello re-estampa `descartado_en` con el
+  reloj del servidor; los casos de revive/carencia se RECORTARON de la matriz
+  con la causa escrita (viven en el oráculo, que fabrica el tiempo); (2) una
+  toma dentro del gate contamina la aserción de cartera EXACTA posterior → el
+  TRANSIENT tomado se devuelve a la cola por la puerta de GERENCIA (dos casos
+  nuevos que además prueban la liberación gerencial del recién tomado).
+- **Advisors**: 122 total, 0 ERROR, cero clases nuevas; el único lint
+  incremental es `crm.tomar_lead_libre` definer-ejecutable por authenticated
+  (por diseño, la RPC del front; `toma_asienta_y_devuelve` revocado no
+  aparece). `extension_in_public` 1 vs 2 de prod: diferencia de infra del
+  branch, previa a F2.
+- **El oráculo pagó su punto ciego**: su frontera ganó los TRES porteros que
+  no tenía (`leads_before_insert` md5 `23c0004c…`, `leads_before_update`
+  `006fbbae…`, `trg_leads_zz_sello_descarte` `02e57868…` — prod al byte,
+  anclados como los demás) + el stub de `crm.cierres_externos` (el AND de SQL
+  no cortocircuita: el P4 consulta la tabla aunque su rama no aplique) + la
+  columna `clasificacion_auto` que el sello escribe. La siembra desarma SOLO
+  esos dos porteros (precedente LEEME-seed) porque fabrica historia; guard y
+  tenencia quedan armados. 16 verdes de nuevo con los porteros vivos.
