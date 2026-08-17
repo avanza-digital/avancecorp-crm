@@ -2331,3 +2331,143 @@ subproyecto pide `/release-crm` de invocación humana — ese skill no existe en
 sesión y la regla se descubrió DESPUÉS de publicar.
 Queda: pruebas visuales de Miguel (alertas de vendedor con minutos corriendo ·
 verificar disponibilidad con última conversación real) → F2 «Tomar».
+
+## 20260817164745_crm_lead_libre_f2_tomar.sql
+
+**Estado: ESCRITA Y AUDITADA POR DOS FRENTES (auditor-rls NO-GO→GO con
+A1/M1/M2 resueltos; Codex 3/6 refutadas → 2 ARREGLADAS + 2 residuos
+documentados con causa), ORÁCULO 16 VERDES Y 6 MUTANTES MUERTOS — pendiente
+de branch → gate → advisors → prod. Orden de deploy: SERVIDOR primero** ('reutilizable' viaja en la RESPUESTA del verificar
+y el front vivo del 28.º release ya la tolera con `looseObject` puesto a
+propósito en F1; la RPC nueva no tiene consumidor hasta el release F2 del
+front — las dos direcciones en paz).
+
+F2 del plan «Verificación y toma de lead libre» (spec §5.6/§5.7/§9). Tres
+piezas: (1) el impl parte 'libre' en 'libre'/'reutilizable' — descartado con
+enfriamiento VENCIDO ya no cae al libre genérico (el alta duplicaba, §5.6);
+activo=false jamás es reutilizable; motivos de 0 días con **carencia de 24 h
+SOLO para tomar** (decisión de Miguel — protege el «Deshacer descarte 24h»;
+durante la ventana el veredicto sigue 'libre' y el alta no cambia). (2)
+**`crm.tomar_lead_libre(p_telefono, p_dni)`** — POR CONTACTO, jamás lead_id;
+solo rol vendedor y para sí mismo; FILA `for update` primero y advisory
+después (los toman los triggers del UPDATE — el orden inverso se abraza con
+«Deshacer descarte»); el teléfono manda y el DNI solo entra sin coincidencia
+telefónica (la regla decidida en la adenda 16/08-b); bolsa = CAS sin dueño;
+revive = CAS descartado→'nuevo' con vendedor en el MISMO update (el guard sube
+ciclo solo, la tenencia renace sola); perdedor de carrera y toda anomalía →
+**veredicto fresco del impl, jamás robo** (el handler de unique_violation
+consulta con el DNI del BLANCO para no invitar a un bucle); traza §9 como
+actividad 'nota' con metadata (propietario_anterior, ultima_conversacion,
+quedo_libre_en, motivo) además de la cascada (reasignacion + ledger). (3) la
+válvula **`crm.toma_directa`** en `trg_leads_bloquear_reasignacion`: excepción
+ANGOSTA (flag transacción-local Y new.vendedor_id = auth.uid()), patrón
+op_privilegiada/cancela_sistema. Guardas md5 al frente: impl `0ace18e3…` y
+veto `1ba780d9…` (prod 2026-08-17); preflight además exige que
+trg_leads_00_disponibilidad_update siga cubriendo `etapa` (las llaves advisory
+del revive dependen de eso). **Residuo DICHO:** el INSERT legacy (grant de
+compatibilidad P-048) no distingue 'reutilizable' — se cierra cuando caiga ese
+grant, en su migración propia.
+
+**Oráculo `test-toma-lead-libre.sql`** (banco desechable local PG16, patrón
+P-048): frontera mínima + cuerpos VIGENTES de prod de guard_tenencia /
+bloquear_reasignacion / tenencia_desde **anclados por md5 dentro del propio
+oráculo** (si prod deriva, se detiene: nada de mundos inventados) + las TRES
+migraciones reales en cadena (P-048 → F1 → F2, cada una pasando sus guardas —
+el wrapper pre-F1 se re-crea del texto de 20260803164348 y su md5 `a1de9063…`
+se verifica antes de F1). 15 verdes: TOMA-01..11 (bolsa, revive ciclo+1,
+enfriamiento vigente, carencia 24 h + toma posterior con la FORMA del
+veredicto reutilizable, solo-vendedores, membresía inactiva, no_contactar,
+ya_es_cliente, el teléfono manda con la bolsa del DNI intacta, convertido
+intocable, la red del índice único respondiendo 'en_bolsa', válvula angosta
+con flag a mano y destino ajeno) + G1/G2/G3 con dblink (carrera de bolsa,
+carrera de revive con UN solo ciclo+1, y el camino fila-primero estilo
+deshacer conviviendo sin deadlock). **4 mutantes muertos a mano**: sin
+fila+CAS → G1 caza el ROBO; sin válvula → TOMA-01 muere con el veto; sin
+carencia → TOMA-04a; sin handler → TOMA-10 revienta con uq_leads_dni_vivo.
+Trampa del arnés que quedó dicha: el marcador advisory del worker se adquiere
+DESPUÉS de la operación — antes, el poll daba luz verde con la fila aún libre
+y el «perdedor» ganaba limpio (falso rojo del primer G1).
+
+Matriz `test-rls.mjs`: bloque «F2 lead libre» (gerencia Y supervisor denegados,
+veredictos libre/tomado sin robo ni lead_id filtrado, PATCH directo de
+auto-asignación de bolsa denegado ANTES de que la RPC tome esa misma bolsa,
+toma real TRANSIENT con fila+nota §9 verificadas por admin, revive con ciclo 2,
+carencia intacta, y el asiento anti-pesca de la toma fallida legible por
+gerencia) + `tomar_lead_libre` denegada en el bloque del miembro
+degradado/revocado.
+
+**Adenda 17/08-b (auditoría pre-branch — auditor-rls): NO-GO → GO directo; los
+tres hallazgos RESUELTOS en el mismo archivo (aún sin commitear):**
+- **A1 (ALTO)** → la toma devolvía los 12 veredictos SIN asentar en
+  `crm.verificaciones_lead`: el sondeo adversarial usaría exactamente el
+  endpoint sin log y el control anti-pesca de F1 quedaba vivo solo para los
+  honestos. Resuelto con `private.toma_asienta_y_devuelve` (definer interno,
+  revoke total) envolviendo TODOS los retornos — éxito y teléfono inválido
+  incluidos —, comment de la tabla actualizado («lo escriben SOLO esas RPCs»),
+  aserciones nuevas en el oráculo (éxito y fallo dejan fila) y en la matriz
+  (gerencia ve el asiento del sondeo), y el **5.º mutante** (sin asiento →
+  TOMA-01 muere).
+- **M1 (MEDIO)** → el brazo DNI de la selección de blanco no filtraba el
+  descarte-anomalía sin `descartado_en`: revive inmediato saltándose
+  enfriamiento y carencia, y divergiendo del impl. Resuelto con el espejo
+  exacto del brazo telefónico.
+- **M2 (MEDIO)** → matriz: supervisor denegado vía API y el PATCH directo de
+  auto-asignación de bolsa (la válvula solo vive dentro de la RPC) — añadidos.
+- Sus NOTAS quedan asentadas: la válvula NO tiene escape por PostgREST (los
+  GUC `request.*` son los únicos materializables; set_config no es alcanzable
+  como /rpc; el flag muere con la transacción y el trigger exige además
+  destino = auth.uid()); los md5 anclados se verificaron contra la cadena del
+  repo; y ANTES del release F2 del front conviene confirmar que ningún
+  import/puente use la RPC de alta sobre vencidos (ahora rebotan con
+  'reutilizable', deliberado §5.6).
+
+**Adenda 17/08-c (Codex adversarial: 3/6 refutadas — 2 ARREGLADAS, 2 residuos
+con causa, 1 corrección factual):**
+- **R4 (no_contactar en vuelo) — REAL y ARREGLADA**: el veto se chequeaba solo
+  ANTES del lock; un flip concurrente de gerencia sobrevivía a EvalPlanQual
+  (el predicado no lo contenía) y el UPDATE de solo `vendedor_id` ni dispara
+  el trigger de disponibilidad. Fix: `no_contactar = false` DENTRO del
+  predicado de blanco (los 2 brazos) y de los 2 CAS. Carrera **G4** nueva en
+  el oráculo (dblink: el flip retenido sin commitear → la toma espera, EPQ
+  excluye, veredicto fresco 'no_contactar') y **6.º mutante** (sin las 4
+  menciones, G4 caza el tomado_ok del vetado — el contraejemplo EXACTO).
+- **Offboarding concurrente — REAL y ARREGLADA**: la revalidación post-lock
+  leía `crm.equipo` sin anclarla; una desactivación en vuelo (FOR UPDATE OF e
+  + commit posterior) dejaba el lead recién tomado en manos de una membresía
+  inactiva y el chequeo de dependencias del offboarding no veía el lead
+  nuevo. Fix: `FOR SHARE` sobre la fila de equipo en el re-chequeo — o el
+  offboarding terminó (y aquí se ve inactivo → 42501) o espera a la toma (y
+  su chequeo de dependencias ve el lead). Sin ciclo: la desactivación no
+  bloquea `crm.leads`. ⚠️ La MISMA carrera existe en el alta P-048
+  (preexistente) — pieza propia futura, dicha aquí.
+- **R1 (deadlock con UPDATE multifila) — residuo ACEPTADO con causa**: dos
+  descartados del mismo contacto + un PATCH multifila de gerencia que toca
+  columnas con advisory (p. ej. no_contactar) puede abrazarse con una toma
+  (A: fila R2 + advisory C, quiere R1; B: fila R1, quiere advisory C). La
+  clase es PREEXISTENTE desde P-048 —deshacer_descarte vs el mismo PATCH se
+  abrazan idéntico hoy— porque el ecosistema tiene AMBOS órdenes por diseño
+  (alta advisory-primero sin filas; todo trigger fila-primero). Cualquier
+  orden de la toma choca con un camino vivo distinto; se eligió el que
+  colisiona con el caso RARO (PATCH multifila admin) y no con el frecuente
+  (deshacer). Postgres lo DETECTA (40P01): error reintentable, jamás
+  corrupción.
+- **R3 (borde de las 24 h con `now()` congelado) — residuo ACEPTADO con
+  causa**: `now()` es transaction_timestamp y una transacción que cruza el
+  límite esperando un candado evalúa la carencia con la hora de entrada. Es
+  la semántica de TODO el sistema de veredictos desde P-047 (el borde del
+  enfriamiento es idéntico); la ventana la acota lock_timeout (≤5 s) y el
+  alta-en-carencia es comportamiento SANCIONADO (decisión de Miguel). Cambiar
+  solo este borde a clock_timestamp rompería la coherencia temporal del
+  sistema.
+- **Corrección factual (atribución del residuo legacy)**: el INSERT HUMANO
+  legacy queda CERRADO gratis por F2 (su trigger exige 'libre' y el vencido
+  ya no lo es); el bypass real es el escritor SIN sesión (service-role:
+  `crm-importar-leads` INSERT directo, por diseño del importador). Cabecera
+  de la migración corregida.
+- **55P03 del lock_timeout**: si el ganador retiene la fila >5 s el perdedor
+  recibe error, no veredicto — fail-safe (jamás robo), el front lo presenta
+  como fallo operativo reintentable. Dicho.
+- Confirmadas por Codex: la válvula (sin escape PostgREST), la tolerancia del
+  front vivo a 'reutilizable' (release 28 verificado por él contra
+  crm-api/store), y la contabilidad del guard (ciclo+1 y tenencia renacida
+  infalsificables desde la RPC).

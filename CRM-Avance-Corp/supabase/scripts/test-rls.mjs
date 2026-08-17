@@ -2618,6 +2618,13 @@ async function testOffboardingMatrix(sessions, seed) {
       `${label}: crear_lead_si_disponible queda denegada`,
       crearLeadSobreContactoBloqueado(member.client),
     );
+    await expectExplicitAuthorizationDenied(
+      `${label}: tomar_lead_libre queda denegada (F2 lead libre)`,
+      member.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: freePhone,
+        p_dni: null,
+      }),
+    );
     await expectBlockedMutation(
       `${label}: no actualiza su lead histórico`,
       member.client.schema('crm').from('leads')
@@ -2814,6 +2821,212 @@ async function testOffboardingMatrix(sessions, seed) {
           .select('dias_abandono')
           .single(),
       );
+    }
+
+    // ── F2 lead libre (20260817164745): la toma directa ──────────────────────
+    // Solo vendedores toman, y para sí mismos; supervisión asigna por reparto.
+    await expectExplicitAuthorizationDenied(
+      'F2 lead libre: gerencia NO toma (su puerta es el reparto)',
+      sessions.gerencia.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: freePhone,
+        p_dni: null,
+      }),
+    );
+    await expectExplicitAuthorizationDenied(
+      'F2 lead libre: supervisor tampoco toma (auditor M2)',
+      sessions.sup1.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: freePhone,
+        p_dni: null,
+      }),
+    );
+    // Sin blanco tomable la RPC responde el veredicto y no inventa filas.
+    const tomaLibre = await positive(
+      'F2 lead libre: tomar sobre contacto libre responde el veredicto',
+      member.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: freePhone,
+        p_dni: null,
+      }),
+    );
+    if (tomaLibre) {
+      check(tomaLibre.data?.estado === 'libre',
+        'F2 lead libre: sin blanco tomable el veredicto es libre',
+        `respuesta=${JSON.stringify(tomaLibre.data)}`);
+    }
+    // Contacto con dueño vigente: nadie roba y el UUID no se filtra.
+    const tomaAjena = await positive(
+      'F2 lead libre: tomar sobre contacto con dueño responde tomado',
+      member.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: ownedLead.telefono,
+        p_dni: null,
+      }),
+    );
+    if (tomaAjena) {
+      check(tomaAjena.data?.estado === 'tomado'
+        && !Object.hasOwn(tomaAjena.data ?? {}, 'lead_id'),
+        'F2 lead libre: el dueño vigente queda intacto y sin lead_id filtrado',
+        `respuesta=${JSON.stringify(tomaAjena.data)}`);
+      // Auditor A1: el SONDEO por la toma también deja rastro anti-pesca
+      // legible por gerencia — sin esto, pescar identidades vía tomar sería
+      // el único camino sin log.
+      const pescaToma = await positive(
+        'F2 lead libre: gerencia ve el asiento de la toma fallida',
+        sessions.gerencia.client.schema('crm').from('verificaciones_lead')
+          .select('veredicto', { count: 'exact' })
+          .eq('verificado_por', memberId)
+          .eq('veredicto', 'tomado'),
+      );
+      if (pescaToma) {
+        check((pescaToma.count ?? 0) >= 1,
+          'F2 lead libre: la toma fallida quedó asentada (quién y veredicto)',
+          `filas=${pescaToma.count}`);
+      }
+    }
+    // La toma real de una bolsa sembrada (queda como lead TRANSIENT del gate).
+    const bolsaTransientId = randomUUID();
+    const bolsaTransientPhone = '+51996600311';
+    await requireAdmin(
+      'F2 lead libre: siembra de bolsa TRANSIENT',
+      admin.schema('crm').from('leads').insert({
+        id: bolsaTransientId,
+        nombre_completo: 'F2 TOMA BOLSA TRANSIENT',
+        telefono: bolsaTransientPhone,
+        origen: 'otro',
+        etapa: 'nuevo',
+        monto_estimado: 1000,
+        moneda: 'PEN',
+      }).select('id'),
+    );
+    // Auditor M2: la MISMA bolsa prueba las dos puertas — el PATCH directo del
+    // vendedor rebota (RLS + veto sin flag: la válvula solo vive dentro de la
+    // RPC) y acto seguido la RPC sí la toma.
+    await expectBlockedMutation(
+      'F2 lead libre: el vendedor NO se auto-asigna la bolsa por PATCH directo',
+      member.client.schema('crm').from('leads')
+        .update({ vendedor_id: memberId })
+        .eq('id', bolsaTransientId)
+        .select('id'),
+    );
+    const tomaBolsa = await positive(
+      'F2 lead libre: el vendedor TOMA la bolsa',
+      member.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: bolsaTransientPhone,
+        p_dni: null,
+      }),
+    );
+    if (tomaBolsa) {
+      check(tomaBolsa.data?.estado === 'tomado_ok'
+        && tomaBolsa.data?.modo === 'bolsa'
+        && tomaBolsa.data?.lead_id === bolsaTransientId,
+        'F2 lead libre: tomado_ok de bolsa con el lead esperado',
+        `respuesta=${JSON.stringify(tomaBolsa.data)}`);
+      const filaTomada = await requireAdmin(
+        'F2 lead libre: la fila tomada quedó del vendedor',
+        admin.schema('crm').from('leads')
+          .select('vendedor_id, tenencia_desde')
+          .eq('id', bolsaTransientId)
+          .single(),
+      );
+      check(filaTomada.data?.vendedor_id === memberId
+        && filaTomada.data?.tenencia_desde !== null,
+        'F2 lead libre: dueño nuevo y tenencia renacida',
+        `fila=${JSON.stringify(filaTomada.data)}`);
+      const notaToma = await requireAdmin(
+        'F2 lead libre: la nota §9 quedó asentada',
+        admin.schema('crm').from('actividades')
+          .select('metadata')
+          .eq('lead_id', bolsaTransientId)
+          .eq('tipo', 'nota')
+          .limit(1),
+      );
+      check(notaToma.data?.[0]?.metadata?.evento === 'toma_directa'
+        && notaToma.data?.[0]?.metadata?.modo === 'bolsa',
+        'F2 lead libre: la traza lleva evento toma_directa y modo bolsa',
+        `metadata=${JSON.stringify(notaToma.data?.[0]?.metadata)}`);
+    }
+    // El revive de un descartado con enfriamiento vencido (TRANSIENT).
+    const reviveTransientId = randomUUID();
+    const reviveTransientPhone = '+51996600312';
+    await requireAdmin(
+      'F2 lead libre: siembra de descartado vencido TRANSIENT',
+      admin.schema('crm').from('leads').insert({
+        id: reviveTransientId,
+        nombre_completo: 'F2 TOMA REVIVE TRANSIENT',
+        telefono: reviveTransientPhone,
+        origen: 'otro',
+        etapa: 'descartado',
+        motivo_descarte: 'no_responde',
+        descartado_en: new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString(),
+        monto_estimado: 1000,
+        moneda: 'PEN',
+      }).select('id'),
+    );
+    const verdictoReutilizable = await positive(
+      'F2 lead libre: verificar dice reutilizable para el vencido',
+      member.client.schema('crm').rpc('verificar_disponibilidad_lead', {
+        p_telefono: reviveTransientPhone,
+        p_dni: null,
+      }),
+    );
+    if (verdictoReutilizable) {
+      check(verdictoReutilizable.data?.estado === 'reutilizable'
+        && typeof verdictoReutilizable.data?.quedo_libre_en === 'string'
+        && verdictoReutilizable.data?.motivo_descarte === 'no_responde',
+        'F2 lead libre: el veredicto reutilizable trae motivo y quedo_libre_en',
+        `respuesta=${JSON.stringify(verdictoReutilizable.data)}`);
+    }
+    const tomaRevive = await positive(
+      'F2 lead libre: el vendedor REVIVE el descartado vencido',
+      member.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: reviveTransientPhone,
+        p_dni: null,
+      }),
+    );
+    if (tomaRevive) {
+      check(tomaRevive.data?.estado === 'tomado_ok'
+        && tomaRevive.data?.modo === 'reutilizable'
+        && tomaRevive.data?.etapa === 'nuevo'
+        && tomaRevive.data?.ciclo_actual === 2,
+        'F2 lead libre: revive en nuevo con ciclo 2',
+        `respuesta=${JSON.stringify(tomaRevive.data)}`);
+    }
+    // La carencia de Miguel: un descarte de 0 días recién hecho ni se ve
+    // reutilizable ni se deja tomar — y el alta manual no cambia (libre).
+    const carenciaTransientId = randomUUID();
+    const carenciaTransientPhone = '+51996600313';
+    await requireAdmin(
+      'F2 lead libre: siembra del descarte de 0 días TRANSIENT',
+      admin.schema('crm').from('leads').insert({
+        id: carenciaTransientId,
+        nombre_completo: 'F2 TOMA CARENCIA TRANSIENT',
+        telefono: carenciaTransientPhone,
+        origen: 'otro',
+        etapa: 'descartado',
+        motivo_descarte: 'pide_credito',
+        descartado_en: new Date().toISOString(),
+        monto_estimado: 1000,
+        moneda: 'PEN',
+      }).select('id'),
+    );
+    const tomaCarencia = await positive(
+      'F2 lead libre: la carencia de 24 h rebota la toma con veredicto libre',
+      member.client.schema('crm').rpc('tomar_lead_libre', {
+        p_telefono: carenciaTransientPhone,
+        p_dni: null,
+      }),
+    );
+    if (tomaCarencia) {
+      check(tomaCarencia.data?.estado === 'libre',
+        'F2 lead libre: en carencia el veredicto es libre (alta sí, toma no)',
+        `respuesta=${JSON.stringify(tomaCarencia.data)}`);
+      const filaCarencia = await requireAdmin(
+        'F2 lead libre: la carencia dejó el descarte intacto',
+        admin.schema('crm').from('leads')
+          .select('etapa')
+          .eq('id', carenciaTransientId)
+          .single(),
+      );
+      check(filaCarencia.data?.etapa === 'descartado',
+        'F2 lead libre: el descarte de 0 días sigue descartado durante la carencia');
     }
 
     const ownAgenda = await positive(
