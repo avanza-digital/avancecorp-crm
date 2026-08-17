@@ -2578,6 +2578,18 @@ async function testOffboardingMatrix(sessions, seed) {
         .select('motivo')
         .limit(1),
     );
+    await expectHidden(
+      `${label}: no lee las perillas de abandono (F1 lead libre)`,
+      member.client.schema('crm').from('politica_abandono')
+        .select('dias_abandono')
+        .limit(1),
+    );
+    await expectHidden(
+      `${label}: no lee el log anti-pesca (F1 lead libre)`,
+      member.client.schema('crm').from('verificaciones_lead')
+        .select('id')
+        .limit(1),
+    );
     await expectBlockedMutation(
       `${label}: no lee la configuracion versionada de metas`,
       member.client.schema('crm').rpc('configuracion_metas_fn', {
@@ -2697,6 +2709,27 @@ async function testOffboardingMatrix(sessions, seed) {
         && !Object.hasOwn(atomicCreation.data ?? {}, 'lead_id'),
         'P04 true/true: contacto existente queda tomado y no se crea otro lead',
         `respuesta=${JSON.stringify(atomicCreation.data)}`);
+      // F1 lead libre: 'tomado' trae ultima_conversacion_en y su valor es el
+      // max(creado_en) de las CONVERSACIONES reales del lead — los intentos
+      // (llamada_no_contestada, whatsapp_enviado) quedan fuera. El esperado se
+      // ancla contra la base, no contra un supuesto del fixture.
+      const conversaciones = await requireAdmin(
+        'F1 lead libre: conversaciones reales del lead tomado',
+        admin.schema('crm').from('actividades')
+          .select('creado_en')
+          .eq('lead_id', ownedLead.id)
+          .in('tipo', ['llamada_realizada', 'whatsapp_recibido', 'reunion_realizada'])
+          .order('creado_en', { ascending: false })
+          .limit(1),
+      );
+      const esperada = conversaciones.data?.[0]?.creado_en ?? null;
+      const recibida = atomicCreation.data?.ultima_conversacion_en ?? null;
+      check(Object.hasOwn(atomicCreation.data ?? {}, 'ultima_conversacion_en')
+        && ((esperada === null && recibida === null)
+          || (esperada !== null && recibida !== null
+            && new Date(recibida).getTime() === new Date(esperada).getTime())),
+        'F1 lead libre: ultima_conversacion_en = max(conversaciones reales), intentos fuera',
+        `esperada=${esperada} recibida=${recibida}`);
     }
     const cooling = await positive(
       'P04 true/true: lee política de enfriamiento',
@@ -2706,6 +2739,81 @@ async function testOffboardingMatrix(sessions, seed) {
     if (cooling) {
       check(cooling.count === 7 && cooling.data.length === 7,
         'P04 true/true: conserva los siete motivos de enfriamiento');
+    }
+
+    // ── F1 lead libre (20260816221500): perillas, log anti-pesca, clave nueva ──
+    const perillas = await positive(
+      'F1 lead libre: el miembro activo lee las perillas de abandono',
+      member.client.schema('crm').from('politica_abandono')
+        .select('dias_abandono, dias_auto_bolsa', { count: 'exact' }),
+    );
+    if (perillas) {
+      check(perillas.count === 1
+        && perillas.data[0]?.dias_abandono === 7
+        && perillas.data[0]?.dias_auto_bolsa === 7,
+        'F1 lead libre: la fila única trae Y=7 y X=7',
+        `filas=${JSON.stringify(perillas.data)}`);
+    }
+    await expectBlockedMutation(
+      'F1 lead libre: el vendedor NO edita las perillas',
+      member.client.schema('crm').from('politica_abandono')
+        .update({ dias_abandono: 99 })
+        .eq('singleton', true)
+        .select('dias_abandono'),
+    );
+    await expectBlockedMutation(
+      'F1 lead libre: nadie inserta una segunda fila de perillas (ni con singleton=true)',
+      member.client.schema('crm').from('politica_abandono')
+        .insert({ singleton: true, dias_abandono: 1, dias_auto_bolsa: 1 })
+        .select('singleton'),
+    );
+    // RLS de SELECT no da error: se asevera el CONTEO, no la ausencia de fallo.
+    await expectHidden(
+      'F1 lead libre: el log anti-pesca es invisible para el vendedor (aunque él generó filas)',
+      member.client.schema('crm').from('verificaciones_lead')
+        .select('id')
+        .limit(1),
+    );
+    const pescaGerencia = await positive(
+      'F1 lead libre: gerencia SÍ lee el log anti-pesca',
+      sessions.gerencia.client.schema('crm').from('verificaciones_lead')
+        .select('veredicto', { count: 'exact' })
+        .eq('verificado_por', memberId),
+    );
+    if (pescaGerencia) {
+      check((pescaGerencia.count ?? 0) >= 1,
+        'F1 lead libre: la RPC del vendedor dejó su rastro (quién y veredicto)',
+        `filas=${pescaGerencia.count}`);
+    }
+    await expectBlockedMutation(
+      'F1 lead libre: ni gerencia escribe el log a mano — solo la RPC',
+      sessions.gerencia.client.schema('crm').from('verificaciones_lead')
+        .insert({ verificado_por: memberId, telefono_consultado: 'x', veredicto: 'x' })
+        .select('id'),
+    );
+    const perillaEditada = await positive(
+      'F1 lead libre: gerencia SÍ edita las perillas',
+      sessions.gerencia.client.schema('crm').from('politica_abandono')
+        .update({ dias_abandono: 8 })
+        .eq('singleton', true)
+        .select('dias_abandono, actualizado_por')
+        .single(),
+    );
+    if (perillaEditada) {
+      check(perillaEditada.data?.dias_abandono === 8,
+        'F1 lead libre: la edición de gerencia aplica');
+      // Autoría SELLADA por trigger (auditor M2): firma quien edita, no lo enviado.
+      check(perillaEditada.data?.actualizado_por === seed.profileIdByKey.gerencia,
+        'F1 lead libre: actualizado_por lo sella el servidor con el editor real',
+        `actualizado_por=${perillaEditada.data?.actualizado_por}`);
+      await positive(
+        'F1 lead libre: gerencia revierte la perilla a 7',
+        sessions.gerencia.client.schema('crm').from('politica_abandono')
+          .update({ dias_abandono: 7 })
+          .eq('singleton', true)
+          .select('dias_abandono')
+          .single(),
+      );
     }
 
     const ownAgenda = await positive(

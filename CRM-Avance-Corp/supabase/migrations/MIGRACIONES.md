@@ -2215,3 +2215,55 @@ fuera + whitespace colapsado + texto exacto de cada `pg_advisory_xact_lock(...)`
 variable de mes) — una función con las claves en una expresión cualquiera y SIN candado
 pasaba en verde, y el check de orden era VACUO con strpos=0 (demostrado). Dos mutantes
 fieles al mensaje de negocio mueren ahora con su FALLO 17 específico; control sano 22/22.
+
+## 20260816221500_crm_lead_libre_f1_verificacion.sql
+
+**Estado: ESCRITA Y ANCLADA — pendiente de branch → gate → advisors → merge.
+⛔ NO mergear antes de que el release 28.º del front (commit `72d97f4`) esté VIVO:
+la clave nueva va en la RESPUESTA de la RPC → front primero (lección 2026-08-15).**
+
+F1 del plan «Verificación y toma de lead libre» (nota del vault). Aditiva:
+
+1. **`crm.politica_abandono`** — singleton con las perillas de gerencia: Y
+   (`dias_abandono` = 7) y X (`dias_auto_bolsa` = 7). Sin efectos hasta F4/F5;
+   nace antes para fuente única (hoy conviven un 5 servidor y un 7 cliente).
+   RLS: SELECT authenticated, UPDATE solo gerencia; sin INSERT/DELETE (la fila
+   única nace en la migración). Audit trigger estándar.
+2. **`crm.verificaciones_lead`** — registro anti-pesca de la verificación por
+   contacto. Lo escribe SOLO la RPC (security definer, sin policies de
+   escritura); SELECT solo gerencia. Asienta TODO intento, también teléfonos
+   inválidos. Los prechecks internos del alta atómica (impl directo) NO dejan
+   fila.
+3. **Impl canónico (3 args)**: `tomado` gana `ultima_conversacion_en` = max
+   creado_en de actividades en `('llamada_realizada','whatsapp_recibido',
+   'reunion_realizada')` — espejo de TIPOS_CONVERSACION; los intentos NO
+   cuentan (decisión dura de Miguel 2026-08-16). El delegador de 2 args no se
+   toca. **Guardas de fidelidad md5** al frente: impl `7063fc89…`, wrapper
+   `a1de9063…` — si prod cambió, la migración se detiene sin pisar.
+   **Copia verificada FIEL AL BYTE**: el cuerpo de la migración menos las dos
+   ediciones reproduce el md5 de producción exacto.
+4. **Wrapper**: pasa a VOLATILE (asienta el registro) conservando gate P04 y
+   contrato; `fecha_estimada` de los tomados NO se emite (llega en F4 con su
+   motor — la tarjeta no promete fechas sin regla real).
+
+**Adenda 16/08 (auditoría pre-branch — auditor-rls): GO con condiciones, cero
+bloqueantes; las tres condiciones RESUELTAS en el mismo texto antes de commitear:**
+- **A1** → matriz `test-rls.mjs` ampliada: perillas legibles por miembro activo
+  (Y=7/X=7) e INVISIBLES para revocado; UPDATE denegado a vendedor y PERMITIDO a
+  gerencia (con autoría sellada verificada y reversión a 7); INSERT de segunda fila
+  denegado a todos; log anti-pesca invisible al vendedor que lo generó, legible por
+  gerencia (rastro de la RPC del propio gate), inescribible a mano incluso por
+  gerencia; `ultima_conversacion_en` presente en 'tomado' y ANCLADA contra la base
+  (max de conversaciones reales; intentos fuera).
+- **M1** → verificado en prod (md5 `ff1bd19f…`): `bandeja_actividad` filtra
+  `tabla IN ('perfiles','contratos')` — las verificaciones del CRM NO salen en la
+  bandeja del portal. La vía residual (admin/superadmin del portal leyendo
+  `audit_log` directo) es la preexistente de todo `crm.*`; el comment de la tabla
+  ahora dice la verdad completa.
+- **M2** → autoría sellada: `trg_politica_abandono_00_autoria` (BEFORE UPDATE)
+  pisa `actualizado_por/actualizado_en` con el editor y el reloj del servidor.
+- **Extra (del propio cierre de A1)**: el `using (true)` del SELECT de perillas era
+  el patrón de la era PRE-endurecimiento (las tablas nuevas no heredan
+  `crm_actor_activo_gate`): reemplazado por el predicado moderno de
+  sla_politicas/meta_periodos (lector global o rol CRM no nulo) — sin él, clientes
+  del portal y revocados leían las perillas.
