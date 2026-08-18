@@ -51,6 +51,48 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 > 28.º `crm-20260817T151109Z-42f02cbdc1ca` y 29.º `crm-20260817T160102Z-cbc95900091f`):
 > viven en `MIGRACIONES.md` (adendas 16-17/08), sus notas de tema y `releases/`.
 
+- **Deploy 2026-08-18 (~15:36 UTC / ~10:36 hora de Lima) — CRM: «Recordarme revisar este
+  contacto» (TRIGÉSIMO PRIMER release; F3 del plan «lead libre» COMPLETA — servidor en la
+  madrugada, front ahora):** publica `1a8a51f` y con él DOS commits: `3d5b686` (registra
+  el front del **Centro de ayuda** que la sesión paralela ya tenía VIVO en prod pero sin
+  commitear) y `1a8a51f` (el F3 entero). **Lo que estrena:** sobre un ocupado SIN puerta
+  (tomado/enfriamiento) el alta ofrece el mini-form «¿Quieres que te lo recuerde?» — nota
+  personal con fecha sugerida (enfriamiento → día real de liberación; tomado → +7d
+  editable), guardar = reprogramar (upsert del servidor); los vencidos suenan en la
+  campana como «Revisar contacto» con **Verificar disponibilidad** (reabre el alta con el
+  teléfono precargado: el MISMO circuito F1/F2) y **Quitar**. **Doble dictamen aplicado
+  en el retomo:** a11y A1/M1–M4/N1–N3 (rescate de foco del mini-form — hallazgo: el foco
+  huérfano de un botón desmontado NO cae a body, el FocusScope de Radix lo recoge en el
+  panel del Dialog; grupo nombrado, error inline anclado, fechas/teléfonos legibles con
+  «setiembre» de es-PE, foco al contador tras Quitar solo si la fila desaparece) y Codex
+  R2–R6 (la campana respeta el gate `funcionesLeadsVisibles`; `max` = hoy+**364** en Lima
+  porque el instante viaja a las 09:00 y el CHECK usa clock_timestamp+365d; invalidación
+  ANTES del guard de montaje; secuencia anclada contra la respuesta tardía de otro
+  contacto; el test de Quitar espía el queryClient real). **9/9 mutantes nuevos muertos**
+  (una mutación a la vez, revert garantizado). Gate: **2.023/2.023** (158 ficheros) ·
+  `tsc -b` limpio **SIN el filtro `ayuda_vendedor`** (el types del árbol ya trae esos RPC
+  y su migración está en prod — el precedente del grep filtrado del 16/08 quedó obsoleto)
+  · oxlint limpio. **El punto crítico del árbol compartido:** lo vivo era el bundle del
+  Centro de ayuda y su front estaba untracked — publicar un worktree solo de mi commit lo
+  habría BORRADO de producción; por eso el commit `3d5b686` primero, y se verificó por
+  grep DENTRO del ZIP que el bundle conserva «Centro de ayuda» ANTES de publicar.
+  Artefacto **`crm-20260818T153614Z-1a8a51fb3c03`**, ZIP SHA-256 **`197d2e0b…86e1`**,
+  worktree git limpio (lo único sucio: el symlink de node_modules — `--allow-dirty`
+  explícito, precedente RETOMAR-48) con `.env` copiado y llaves verificadas DENTRO
+  (`crm-queries-vOeM8rl_.js`). **Publicado por la tool MCP de Hostinger DIRECTA**
+  (`deployStaticWebsite`, cuenta `u318796122` verificada antes): el script casero exige
+  `HOSTINGER_API_TOKEN` y el acceso al token quedó bloqueado en esta sesión — misma vía,
+  un envoltorio menos. Autorización de Miguel en sesión (AskUserQuestion). **En vivo:**
+  `index-B6VWJWhY.js` + `crm-queries-vOeM8rl_.js` + `index-a7hXt_lB.css` **sha256
+  idéntico local↔prod (3/3)**, index.html al byte, y el cambio verificado por grep DENTRO
+  del asset servido («Recordarme revisar» ✓ y «Centro de ayuda» ✓ — ambas funciones
+  conviven); purga de caché vía MCP tras el deploy. Rollback inmediato:
+  `releases/crm-ayuda-vendedor_20260818_012100.zip` (lo vivo hasta hoy — ⚠️ el 30.º
+  `crm-20260818T044028Z-2bbedf6314f3` NO trae el Centro de ayuda: volver a él lo
+  borraría). ⚠️ Para el vendedor real siguen faltando metas publicadas y el gate
+  `FUNCIONES_LEADS_APROBADAS`; `crm.leads` sigue vacía en prod para la prueba visual.
+  Detalle del ciclo en [[Verificación y toma de lead libre]].
+
 - **Deploy 2026-08-18 (~04:45 UTC / ~23:45 del 17 hora de Lima) — CRM: el botón «Tomar
   lead e iniciar seguimiento» (TRIGÉSIMO release; F2 del plan «lead libre» COMPLETA —
   servidor 17/08, front hoy):** publica `2bbedf6` y con él DOS commits: `ed15fa6` (el

@@ -32,11 +32,22 @@ aquí (su umbral hardcodeado de 15 días se descarta: contradecía el modelo).
   toma; resincronización fallida se dice sin ficha vacía). 7 mutantes (6
   muertos, 1 enmascarado por estructura, documentado). Gate 1.988/1.988.
   Registro del deploy en [[Deploy a Hostinger]].
-- ⏳ Pruebas visuales de Miguel (F1+F2 juntas; prod ya tiene **1 lead real**).
-- ⏳ F3 «Recordar» → F4 «Alerta» → F5 «Perilla». Deudas anotadas para F3:
-  CHECK de finitud en timestamptz escribibles (el veneno `infinity`, hermano
-  del anti-NaN) · valorar quitar `descartado_por` de los payloads de
-  verificación si ninguna fase lo pintará.
+- ✅ **F3 «Recordar» COMPLETA en producción, servidor y front (18/08).**
+  Servidor (madrugada): `crm.recordatorios_disponibilidad` (UNIQUE
+  perfil+teléfono, sellado con auth.uid, futuro ≤365d, RLS dueño-only solo
+  vendedor con la excepción DELETE documentada), caducidad `>7 días vencido`
+  con cron 17:06 UTC, y el CHECK `isfinite` en `crm.actividades` — la deuda
+  de finitud SALDADA. Registro 103, advisors 129/0, ciclo en MIGRACIONES.md
+  (adendas 18/08). Front (**31.º release**
+  `crm-20260818T153614Z-1a8a51fb3c03`, commit `1a8a51f`, vivo AL BYTE):
+  mini-form «¿Quieres que te lo recuerde?» sobre ocupados sin puerta, campana
+  «Revisar contacto» solo-vencidos con Verificar (el circuito F1/F2 entero) y
+  Quitar. Doble dictamen aplicado: a11y A1/M1–M4/N1–N3 y Codex R2–R6, 9/9
+  mutantes muertos, gate 2.023/2.023. Registro en [[Deploy a Hostinger]].
+- ⏳ Pruebas visuales de Miguel (F1+F2+F3 juntas; ⚠️ `crm.leads` está VACÍA
+  en prod — sembrar o esperar lead real; local: `npm run dev` en app/).
+- ⏳ F4 «Alerta» → F5 «Perilla». Deuda viva para F4+: valorar quitar
+  `descartado_por` de los payloads de verificación si ninguna fase lo pintará.
 
 ## El modelo («C+ · híbrida con toma directa»)
 
