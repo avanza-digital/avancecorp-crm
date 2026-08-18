@@ -2297,6 +2297,7 @@ export type Database = {
         Args: { p_perfil_id: string }
         Returns: Json
       }
+      ingresos_reparto_mes_fn: { Args: { p_mes: string }; Returns: Json }
       leads_descartados: {
         Args: never
         Returns: {
