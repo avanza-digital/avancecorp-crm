@@ -20,7 +20,7 @@ import {
   useState,
   type KeyboardEvent as TeclaReact,
 } from 'react'
-import { Plus, Bell, Search } from 'lucide-react'
+import { Plus, Bell, HelpCircle, Search } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { cn } from '@/lib/utils'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -98,7 +98,15 @@ function buscarLeads(leads: Lead[], q: string): Lead[] {
     .slice(0, 8)
 }
 
-export function Topbar({ vista }: { vista: Vista }) {
+export function Topbar({
+  vista,
+  ayudaAbierta = false,
+  onAlternarAyuda,
+}: {
+  vista: Vista
+  ayudaAbierta?: boolean
+  onAlternarAyuda?: () => void
+}) {
   const { yo } = useAuth()
   const soloRoles = administraSoloRolesCrm(yo)
   const { ambito } = useCRMData()
@@ -319,6 +327,19 @@ export function Topbar({ vista }: { vista: Vista }) {
             </div>
           )}
         </div>
+        )}
+
+        {onAlternarAyuda && !soloRoles && (
+          <button
+            type="button"
+            onClick={onAlternarAyuda}
+            aria-label={ayudaAbierta ? 'Minimizar ayuda del vendedor' : 'Abrir ayuda del vendedor'}
+            aria-pressed={ayudaAbierta}
+            className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-lg border border-border bg-card px-2.5 text-xs font-semibold text-primary transition-colors hover:border-border-strong hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+          >
+            <HelpCircle className="size-4 text-accent" aria-hidden />
+            <span className="hidden lg:inline">Ayuda</span>
+          </button>
         )}
 
         {/* La campana se pinta con la MISMA función que decide si la vista se

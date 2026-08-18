@@ -19,6 +19,7 @@ import { ErrorBoundary } from '@/components/app/error-boundary'
 import { Sidebar } from '@/components/app/sidebar'
 import { SplashCrm, type FaseSplashCrm } from '@/components/app/splash-crm'
 import { Topbar } from '@/components/app/topbar'
+import { AyudaVendedorPanel } from '@/components/app/ayuda-vendedor-panel'
 import { LeadDrawer } from '@/components/app/lead-drawer'
 import { LeadNuevo } from '@/components/app/lead-nuevo'
 import { PeriodoGerenciaProvider } from '@/components/gerencia/periodo-context'
@@ -301,8 +302,8 @@ function ErrorCargaReal({ onReintentar }: { onReintentar: () => void }) {
 function Workspace() {
   const { yo } = useAuth()
   const { ambito } = useCRMData()
-  const { leadAbiertoId } = usePanelesState()
-  const { abrirLead, cerrarPaneles } = usePanelesActions()
+  const { leadAbiertoId, nuevoLeadAbierto } = usePanelesState()
+  const { abrirLead, abrirNuevoLead, cerrarPaneles } = usePanelesActions()
   const rol = yo?.rol
   // La ruta excepcional de Usuarios se abre por la capacidad viva del
   // servidor; el string del Portal por sí solo no concede nada.
@@ -321,6 +322,19 @@ function Workspace() {
       rolPortal,
     ),
   )
+  const [ayudaAbierta, setAyudaAbierta] = useState(false)
+  const panelTrabajoAbierto = leadAbiertoId != null || nuevoLeadAbierto
+  const panelTrabajoAnteriorRef = useRef(panelTrabajoAbierto)
+
+  // Al abrir una ficha o el alta, la guía se aparta una vez para no competir
+  // con el formulario. Su contenido sigue montado y queda en “Continuar guía”.
+  // Si el vendedor decide reabrirla mientras trabaja, se respeta esa intención.
+  useEffect(() => {
+    if (panelTrabajoAbierto && !panelTrabajoAnteriorRef.current) {
+      setAyudaAbierta(false)
+    }
+    panelTrabajoAnteriorRef.current = panelTrabajoAbierto
+  }, [panelTrabajoAbierto])
 
   // Contexto vivo para el listener de hashchange (registrado una sola vez).
   const ctxRef = useRef({ rol, rolPortal, vista, leadAbiertoId, leads: ambito.leads, abrirLead, cerrarPaneles, leadsVisibles })
@@ -408,7 +422,11 @@ function Workspace() {
         <Sidebar vista={vista} onNavegar={navegarDesdeUI} />
         <main className="ac-scroll flex min-w-0 flex-1 flex-col" tabIndex={-1}>
           <PeriodoGerenciaProvider>
-            <Topbar vista={vista} />
+            <Topbar
+              vista={vista}
+              ayudaAbierta={ayudaAbierta}
+              onAlternarAyuda={() => setAyudaAbierta((actual) => !actual)}
+            />
             <div className="ac-scroll flex-1 overflow-auto p-3 sm:p-6" key={vista}>
               {/* Boundary POR pantalla (key la remonta al cambiar de vista) */}
               <ErrorBoundary>
@@ -419,6 +437,13 @@ function Workspace() {
             </div>
           </PeriodoGerenciaProvider>
         </main>
+        <AyudaVendedorPanel
+          abierto={ayudaAbierta}
+          onAbiertoChange={setAyudaAbierta}
+          vista={vista}
+          onNavegar={navegarDesdeUI}
+          onAbrirNuevoLead={() => abrirNuevoLead()}
+        />
         {/* Paneles globales: cualquier pantalla los abre vía usePanelesActions(). */}
         <ErrorBoundary>
           <LeadDrawer />
