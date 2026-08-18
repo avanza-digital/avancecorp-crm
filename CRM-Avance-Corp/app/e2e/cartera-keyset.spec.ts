@@ -7,13 +7,8 @@
 import { expect, test } from '@playwright/test'
 import { irACartera, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
 
-// GATE DE LEADS CERRADO (config.ts FUNCIONES_LEADS_APROBADAS=false, decisión de
-// Miguel 2026-07-16): las vistas de leads no existen para cuentas reales, así
-// que esta suite —que entra a Cartera con sesión REAL— no puede correr todavía.
-// Se escribe YA y contra el contrato NUEVO a propósito: el día que se abra el
-// gate debe resucitar probando la cartera que existe, no la que existía.
-// Reactivar al aprobar leads: borrar este test.skip.
-test.skip(true, 'Gate FUNCIONES_LEADS_APROBADAS cerrado: sin vistas de leads para cuentas reales — reactivar al aprobar leads')
+// RESUCITADA el 2026-08-18: la llave de leads se abrió para la fuerza de ventas
+// y esta suite —escrita en su día contra el contrato NUEVO— vuelve a correr.
 
 /** 60 leads con sellos decrecientes: 2 páginas de 50 + resto. */
 function carteraGrande(n = 60) {
@@ -77,7 +72,7 @@ test('RPC caída: la tabla degrada con aviso y NO ofrece más páginas', async (
   await montarBackendReal(page, { leads: carteraGrande(), fallarCarteraPagina: true })
   await loginReal(page)
 
-  await page.getByRole('button', { name: 'Cartera' }).click()
+  await page.getByRole('button', { name: 'Leads', exact: true }).click()
 
   await expect(page.getByText(/No se pudo cargar la lista de leads/i)).toBeVisible()
   await expect(page.getByRole('button', { name: /reintentar/i })).toBeVisible()

@@ -107,7 +107,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   // invisible y una insignia que el vendedor no puede ni abrir.
   const sesionVendedorReal = Boolean(
     yo && !yo.demo && rol === 'vendedor' && !soloRoles
-    && funcionesLeadsVisibles(yo.demo, rol, yo.id),
+    && funcionesLeadsVisibles(yo.demo, rol),
   )
   const recordatorios = useRecordatoriosDisponibilidad(sesionVendedorReal)
 

@@ -6,14 +6,18 @@
 // ofrece convertir (rol de portal + cartera) y pantalla de error de carga con
 // reintento.
 import { expect, test } from '@playwright/test'
-import { abrirLead, irAPipeline, leadReal, loginReal, montarBackendReal, UID } from './_helpers'
+import {
+  abrirConversionAvance,
+  abrirLead,
+  irAPipeline,
+  leadReal,
+  loginReal,
+  montarBackendReal,
+  UID,
+} from './_helpers'
 
-// GATE DE LEADS CERRADO (config.ts FUNCIONES_LEADS_APROBADAS=false, decisión de
-// Miguel 2026-07-16): las vistas de leads NO existen para cuentas reales, así
-// que toda esta suite (que entra al Pipeline con sesión REAL) no puede correr.
-// Reactivar al aprobar leads: borrar este test.skip — la suite queda intacta.
-// (La cobertura demo de leads sigue viva en acciones-demo/demo-roles.)
-test.skip(true, 'Gate FUNCIONES_LEADS_APROBADAS cerrado: sin vistas de leads para cuentas reales — reactivar al aprobar leads')
+// RESUCITADA el 2026-08-18: con la llave de leads abierta, la sesión REAL sí
+// entra al Pipeline. (La cobertura demo sigue viva en acciones-demo/demo-roles.)
 
 test('sesión real: entra al workspace y la UI NO muestra ninguna marca "(demo)"', async ({ page }) => {
   // El lead es SUYO: así el botón de convertir está (el gate exige que el
@@ -41,7 +45,9 @@ test('gate abierto: crear lead persiste por RPC atómica y el toast NO dice "(de
   await modal.locator('#nl-nombre').fill('LEAD REAL NUEVO')
   await modal.locator('#nl-telefono').fill('987222333')
   await modal.locator('#nl-monto').fill('5000')
-  await modal.locator('#nl-origen').selectOption('landing')
+  // Regla D8 (2026-08-11): el alta manual solo ofrece lo que declara un humano
+  // (Referido/Wallking/Otro). LANDING y FORMULARIO entran solos por el puente.
+  await modal.locator('#nl-origen').selectOption('oficina')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   await expect(page.getByText(/Lead creado —/i)).toBeVisible()
@@ -82,7 +88,7 @@ test('creación rechazada: rollback honesto y la RPC sí se intentó', async ({ 
   await modal.locator('#nl-nombre').fill('LEAD RECHAZADO')
   await modal.locator('#nl-telefono').fill('987333444')
   await modal.locator('#nl-monto').fill('5000')
-  await modal.locator('#nl-origen').selectOption('formulario')
+  await modal.locator('#nl-origen').selectOption('otro')
   await modal.getByRole('button', { name: /crear lead/i }).click()
 
   // La última defensa única ganó una carrera externa: no hay falso éxito.
@@ -157,9 +163,7 @@ test('convertir en real: pide los datos de la cuenta y valida antes de tocar el 
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
-  const dialogo = page.getByRole('dialog', { name: 'Convertir a cliente' })
-  await expect(dialogo).toBeVisible()
+  const dialogo = await abrirConversionAvance(page, drawer)
 
   // Un correo inválido se rechaza EN EL CLIENTE: si saliera a la edge, el
   // backend fail-closed daría 500 y no veríamos este mensaje.
@@ -177,9 +181,10 @@ test('gerencia (rol de portal directorio) puede convertir un lead asignado', asy
   await irAPipeline(page)
   const drawer = await abrirLead(page, /CLIENTE REAL UNO/)
 
-  await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
-  await expect(page.getByRole('dialog', { name: 'Convertir a cliente' })).toBeVisible()
+  // La ficha le ofrece las dos salidas; se comprueba ANTES de abrir el diálogo
+  // porque el modal deja la ficha inerte mientras está encima.
   await expect(drawer.getByRole('button', { name: /Descartar/i })).toBeVisible()
+  await abrirConversionAvance(page, drawer)
 })
 
 // El supervisor ES analista en el portal, así que pasa el chequeo de ROL de
@@ -221,7 +226,7 @@ test('supervisor sobre un lead de su bandeja: debe asignarlo antes de convertir'
 
 test('carga inicial caída: pantalla de error con Reintentar (no pinta el CRM vacío)', async ({ page }) => {
   const estado = await montarBackendReal(page, { leadsSiempreCaido: true })
-  await loginReal(page)
+  await loginReal(page, { esperarWorkspace: false })
 
   // No se pinta "no hay leads": se muestra el error con reintento.
   await expect(page.getByText(/No pudimos cargar tu información/i)).toBeVisible()

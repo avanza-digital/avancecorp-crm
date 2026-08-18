@@ -83,7 +83,11 @@ export function vistaPermitida(
     return rol === 'gerencia' || rol === 'directorio'
   }
   if (esVistaGerencia(vista)) return rol === 'gerencia'
-  if (!leadsVisibles && esVistaLeads(vista)) return false
+  // El mundo leads se cierra por la llave general y, SIEMPRE, para el
+  // coordinador: su ámbito de leads es ∅ y su único destino es «Repartir».
+  // «hoy» no exige capacidad, así que sin este corte la llave abierta se la
+  // regalaría. Defensa en profundidad: config.ts tampoco la enciende para él.
+  if (esVistaLeads(vista) && (!leadsVisibles || rol === 'coordinador')) return false
 
   const capacidad = CAPACIDAD_POR_VISTA[vista]
   return capacidad === null || can(rol, capacidad)

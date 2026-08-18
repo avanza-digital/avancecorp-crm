@@ -9,14 +9,7 @@
 // Depende de la pantalla Contratos: fila CLICABLE por contrato (abre el
 // detalle) + botón "Corregir" solo en lo propio y vivo, paneles en <Dialog>.
 import { expect, test, type Page } from '@playwright/test'
-import {
-  contratoReal,
-  loginReal,
-  montarBackendReal,
-  PRODUCTO_CONDICION_PEN_ID,
-  PRODUCTO_CONDICION_USD_ID,
-  verTodaLaCartera,
-} from './_helpers'
+import { contratoReal, irAMiCartera, loginReal, montarBackendReal, PRODUCTO_CONDICION_PEN_ID, PRODUCTO_CONDICION_USD_ID, verTodaLaCartera } from './_helpers'
 
 // Fase 6.1 (2026-07-21): la entrada migró a la cartera unificada (#/mi-cartera,
 // la vista por defecto). Los contratos cuelgan del cliente como sub-filas; se
@@ -79,6 +72,7 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
     titulares: { [CONTRATO_ID]: TITULARES },
   })
   await loginReal(page)
+  await irAMiCartera(page)
   await irAContratos(page)
 
   // El detalle vive en la FILA clicable (ya no hay botón "Ver detalle"); se
@@ -132,6 +126,7 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
   })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
   await irAContratos(page)
 
   await page.getByRole('button', { name: /corregir/i }).first().click()
@@ -170,6 +165,7 @@ test('ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual', a
   })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
   await irAContratos(page)
 
   await page.getByRole('button', { name: /corregir/i }).first().click()

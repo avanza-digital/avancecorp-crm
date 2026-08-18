@@ -2,7 +2,7 @@
 //  - DEMO: login demo por rol (sin backend, datos de lib/demo.ts).
 //  - REAL: sesión autenticada (yo.demo=false) con TODO el backend Supabase
 //    interceptado (fail-closed) → prueba la ruta real sin tocar prod.
-import { expect, type Page, type Route } from '@playwright/test'
+import { expect, type Locator, type Page, type Route } from '@playwright/test'
 
 export const ROLES_DEMO = ['Vendedor', 'Supervisor', 'Gerencia', 'Directorio'] as const
 export type RolDemo = (typeof ROLES_DEMO)[number]
@@ -28,9 +28,29 @@ export async function irAPipeline(page: Page): Promise<void> {
   await expect(page.getByText('Nuevo', { exact: true }).first()).toBeVisible()
 }
 
-/** Navega a la Cartera (la tabla paginada por cursor keyset desde F2). */
+/** Navega a «Mi cartera» (clientes + contratos). Su botón se llama «Mi cartera»
+ * para el vendedor y «Cartera» para quien supervisa. Desde que la llave de leads
+ * se abrió (2026-08-18) dejó de ser la pantalla de aterrizaje de la fuerza de
+ * ventas —ahora aterrizan en «Hoy»—, así que hay que ir a propósito. Es
+ * idempotente: si ya estamos ahí, no hace nada. */
+export async function irAMiCartera(page: Page): Promise<void> {
+  const titulo = page.getByRole('heading', { level: 1, name: /^(Mi cartera|Cartera)$/ })
+  if (await titulo.count() > 0) return
+  const propio = page.getByRole('button', { name: 'Mi cartera', exact: true })
+  const boton = await propio.count() > 0
+    ? propio
+    : page.getByRole('button', { name: 'Cartera', exact: true })
+  await boton.click()
+  await expect(titulo).toBeVisible()
+}
+
+/** Navega a la Cartera de LEADS (la tabla paginada por cursor keyset desde F2).
+ * Su botón se llama «Leads» desde la Fase 6 (2026-07-21): «Cartera» pasó a ser
+ * el rótulo de mi-cartera (clientes+contratos) para quien supervisa, así que
+ * pedir «Cartera» aquí aterrizaba en la pantalla equivocada. */
 export async function irACartera(page: Page): Promise<void> {
-  await page.getByRole('button', { name: 'Cartera' }).click()
+  // exact: gerencia ve además «Repartir leads», que contiene esta palabra.
+  await page.getByRole('button', { name: 'Leads', exact: true }).click()
   await expect(page.getByRole('table', { name: 'Cartera de leads' })).toBeVisible()
 }
 
@@ -2362,8 +2382,14 @@ export async function montarBackendReal(
   return estado
 }
 
-/** Inicia sesión REAL vía el formulario (supabase-js guarda la sesión solo). */
-export async function loginReal(page: Page): Promise<void> {
+/** Inicia sesión REAL vía el formulario (supabase-js guarda la sesión solo).
+ * `esperarWorkspace: false` para los escenarios en los que la carga inicial cae
+ * A PROPÓSITO: ahí el CRM pinta su pantalla de error en vez del workspace, así
+ * que esperar el menú lateral sería esperar algo que no debe existir. */
+export async function loginReal(
+  page: Page,
+  { esperarWorkspace = true }: { esperarWorkspace?: boolean } = {},
+): Promise<void> {
   // Mismo motivo que en entrarDemo: animaciones instantáneas o los asserts
   // de tiles/paneles pillan estados de tránsito bajo carga.
   await page.emulateMedia({ reducedMotion: 'reduce' })
@@ -2371,5 +2397,19 @@ export async function loginReal(page: Page): Promise<void> {
   await page.locator('#correo').fill('qa-real@avancecorp.pe')
   await page.locator('#clave').fill('cualquier-cosa')
   await page.getByRole('button', { name: /^Entrar$/ }).click()
+  if (!esperarWorkspace) return
   await expect(page.getByRole('button', { name: 'Ocultar menú' })).toBeVisible({ timeout: 10_000 })
+}
+
+/** Abre el diálogo de conversión desde la ficha del lead.
+ * Desde los cierres en cooperativas (2026-08-13) el botón abre PRIMERO
+ * «¿Dónde invirtió?»: solo Avance Corp sigue al alta del cliente del portal. */
+export async function abrirConversionAvance(page: Page, drawer: Locator): Promise<Locator> {
+  await drawer.getByRole('button', { name: /Convertir a cliente/i }).click()
+  await page.getByRole('dialog', { name: '¿Dónde invirtió?' })
+    .getByRole('button', { name: /^Avance Corp/ })
+    .click()
+  const dialogo = page.getByRole('dialog', { name: 'Convertir a cliente' })
+  await expect(dialogo).toBeVisible()
+  return dialogo
 }

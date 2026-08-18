@@ -76,13 +76,13 @@ const consultasConversion = vi.fn((habilitada: boolean, desde: string) => ({
 // se CAPTURAN los argumentos: un mock que los traga no prueba que el provider
 // consulte con la identidad real (hallazgo T4 de la auditoría).
 let LEADS_VISIBLES = true
-const llamadasVisibilidad: Array<[boolean, string | null | undefined, string | null | undefined]> = []
+const llamadasVisibilidad: Array<[boolean, string | null | undefined]> = []
 vi.mock('@/lib/config', async (importActual) => {
   const actual = await importActual<typeof import('@/lib/config')>()
   return {
     ...actual,
-    funcionesLeadsVisibles: (esDemo: boolean, rol?: string | null, perfilId?: string | null) => {
-      llamadasVisibilidad.push([esDemo, rol, perfilId])
+    funcionesLeadsVisibles: (esDemo: boolean, rol?: string | null) => {
+      llamadasVisibilidad.push([esDemo, rol])
       return LEADS_VISIBLES
     },
   }
@@ -196,7 +196,7 @@ describe('AlertasCRMProvider', () => {
     expect(consultaRecordatorios).toHaveBeenCalledWith(true)
     expect(screen.getByRole('status')).toHaveTextContent('revisar-contacto-5c073c2a-f22a-4979-8ea4-8921f746ef22')
     // T4: el gate se consulta con la IDENTIDAD real del actor, no al aire.
-    expect(llamadasVisibilidad).toContainEqual([false, 'vendedor', 'v1'])
+    expect(llamadasVisibilidad).toContainEqual([false, 'vendedor'])
   })
 
   it('F3.1: un fallo al listar recordatorios se DICE y Reintentar lo reintenta', () => {

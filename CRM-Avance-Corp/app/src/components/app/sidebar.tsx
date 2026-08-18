@@ -197,7 +197,7 @@ export function Sidebar({ vista, onNavegar }: { vista: Vista; onNavegar: (destin
   }
   useEffect(() => cancelarTemporizadores, [cancelarTemporizadores])
 
-  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol, yo?.id)
+  const leadsVisibles = funcionesLeadsVisibles(yo?.demo === true, yo?.rol)
   const rolPortalAutorizado = puedeAdministrarRolesCrm(yo) ? 'superadmin' : null
   const soloRoles = administraSoloRolesCrm(yo)
   const candidatos = soloRoles ? NAV_GOBIERNO_ROLES : NAV

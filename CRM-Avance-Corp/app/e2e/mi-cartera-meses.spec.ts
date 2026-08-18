@@ -4,7 +4,7 @@
 // FECHAS de los contratos las pone el fixture; con los datos de demo, anclados
 // a "hoy", el mes viejo cambiaría de nombre cada día.
 import { expect, test } from '@playwright/test'
-import { clienteReal, contratoReal, loginReal, montarBackendReal, UID } from './_helpers'
+import { clienteReal, contratoReal, irAMiCartera, loginReal, montarBackendReal, UID } from './_helpers'
 
 const CLIENTE_B = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2'
 
@@ -44,6 +44,7 @@ test('la cartera arranca en el mes en curso y el desplegable trae el resto', asy
     ],
   })
   await loginReal(page)
+  await irAMiCartera(page)
 
   // Solo el mes en curso, con su resumen.
   await expect(page.getByText('CLIENTE PORTAL UNO')).toBeVisible()
@@ -81,6 +82,7 @@ test('el resumen avisa cuando el mes incluye un contrato que registró otra pers
     ],
   })
   await loginReal(page)
+  await irAMiCartera(page)
 
   // El total cuenta los DOS (son contratos de un cliente suyo), y el aviso
   // explica por qué ese número puede no cuadrar con su cuota.
@@ -106,6 +108,7 @@ test('sin cierres este mes, la pantalla lo dice y ofrece la salida', async ({ pa
     ],
   })
   await loginReal(page)
+  await irAMiCartera(page)
 
   await expect(page.getByText(/Sin cierres en/)).toBeVisible()
   await expect(page.getByText('CLIENTE PORTAL UNO')).toHaveCount(0)

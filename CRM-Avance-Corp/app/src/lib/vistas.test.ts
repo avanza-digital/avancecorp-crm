@@ -13,7 +13,10 @@ const VISTAS_POR_GATE = {
     supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
-    coordinador: ['hoy', 'repartir'],
+    // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
+    // «hoy» es la única vista de leads sin capacidad exigida y se la habría
+    // regalado. Su ámbito de leads es ∅ y su destino único es «Repartir».
+    coordinador: ['repartir'],
   },
   cerrado: {
     vendedor: ['mi-cartera', 'config'],

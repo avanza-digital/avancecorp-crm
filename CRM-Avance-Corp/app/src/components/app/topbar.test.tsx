@@ -9,7 +9,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AlertaCRM } from '@/lib/alertas'
+import { funcionesLeadsVisibles } from '@/lib/config'
 import type { Rol } from '@/lib/roles'
+import { vistaPermitida } from '@/lib/vistas'
 import type { Lead } from '@/lib/tipos'
 import type { Vista } from '@/lib/router'
 
@@ -180,17 +182,23 @@ describe('Topbar — pendientes por responsabilidad', () => {
   // ── El bug de la campana muerta (2026-08-09) ──────────────────────────────
   // La campana se PINTABA con `can(rol,'verAlertas')` —que vendedor y supervisor
   // tienen— mientras el router exige ADEMÁS el gate de leads. En producción, con
-  // `FUNCIONES_LEADS_APROBADAS = false`, el clic intentaba ir a #/alertas,
-  // `sanearVista` devolvía al usuario a su landing con `replaceState` (que no
-  // redispara hashchange) y no ocurría NADA: ni error, ni cambio de pantalla.
-  // Un enlace muerto, encima con burbuja roja. Estas dos pruebas son las que
-  // faltaban: las demás corren en demo, un mundo donde el gate está abierto.
+  // la llave cerrada, el clic intentaba ir a #/alertas, `sanearVista` devolvía al
+  // usuario a su landing con `replaceState` (que no redispara hashchange) y no
+  // ocurría NADA: ni error, ni cambio de pantalla. Un enlace muerto con burbuja
+  // roja. Al abrirse la llave (2026-08-18) la campana de la fuerza de ventas ya
+  // lleva a algún sitio, así que lo que se fija aquí es el ACOPLE —lo que faltaba
+  // entonces y sobrevive a cualquier futuro giro de la llave—: se pinta si y solo
+  // si el router deja abrir #/alertas para ese rol.
   it.each(['vendedor', 'supervisor'] as const)(
-    'sesión REAL con el gate de leads cerrado: %s NO ve la campana (no la vería funcionar)',
+    'sesión REAL: la campana de %s se pinta Y el router le abre #/alertas (nunca un enlace muerto)',
     (rol) => {
       montar({ rol, vista: 'mi-cartera', leads: [], demo: false })
 
-      expect(screen.queryByRole('link', { name: /Abrir pendientes/ })).not.toBeInTheDocument()
+      const campana = screen.queryByRole('link', { name: /Abrir pendientes/ })
+      const alcanzable = vistaPermitida('alertas', rol, funcionesLeadsVisibles(false, rol))
+      expect(campana != null).toBe(alcanzable)
+      // Y cuando se pinta, apunta a la bandeja de verdad (no a un ancla muerta).
+      if (campana != null) expect(campana).toHaveAttribute('href', '#/alertas')
     },
   )
 

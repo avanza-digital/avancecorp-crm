@@ -8,15 +8,7 @@
 // → la sub-fila nueva aparece SIN reload (la única alarma posible para una
 // invalidación con la clave equivocada, heredada del viejo flujo cruzado).
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import {
-  clienteReal,
-  cuentaBancariaReal,
-  loginReal,
-  montarBackendReal,
-  PRODUCTO_CONDICION_PEN_ID,
-  PRODUCTO_CONDICION_USD_ID,
-  type ContratoReal,
-} from './_helpers'
+import { clienteReal, cuentaBancariaReal, irAMiCartera, loginReal, montarBackendReal, PRODUCTO_CONDICION_PEN_ID, PRODUCTO_CONDICION_USD_ID, type ContratoReal } from './_helpers'
 
 const CUENTA_GUARDADA_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
@@ -77,7 +69,8 @@ async function llenarBase(form: Locator): Promise<void> {
 test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
-  await loginReal(page) // cuenta real → aterriza en #/mi-cartera
+  await loginReal(page) // cuenta real → aterriza en #/hoy desde que hay leads
+  await irAMiCartera(page)
 
   // Centinela de "sin reload": una marca en window que NO sobrevive a un
   // location.reload(). Si el runtime recargara la página tras crear, se perdería
@@ -143,6 +136,7 @@ test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', 
   })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
@@ -164,6 +158,7 @@ test('puede registrar una cuenta nueva inline y la envía normalizada en la mism
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
@@ -207,6 +202,7 @@ test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la n
   })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form) // deja elegida la cuenta PEN del perfil
@@ -248,6 +244,7 @@ test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page })
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
@@ -262,6 +259,7 @@ test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados',
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
@@ -288,6 +286,7 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
+  await irAMiCartera(page)
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)

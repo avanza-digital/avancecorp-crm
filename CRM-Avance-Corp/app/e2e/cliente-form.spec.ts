@@ -10,7 +10,7 @@
 // ('Nuevo cliente' / 'Corregir cliente'), así que los selectores del modal son
 // estables aunque la pantalla cambie.
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { clienteReal, loginReal, montarBackendReal, verTodaLaCartera } from './_helpers'
+import { clienteReal, irAMiCartera, loginReal, montarBackendReal, verTodaLaCartera } from './_helpers'
 
 // Fase 6.1 (2026-07-21): la entrada al ClienteForm migró a la cartera unificada
 // (#/mi-cartera, la vista por defecto de una cuenta real). El MISMO modal se abre
@@ -19,6 +19,7 @@ import { clienteReal, loginReal, montarBackendReal, verTodaLaCartera } from './_
 /** Entra con sesión real y abre el modal de alta desde la pantalla Clientes. */
 async function abrirNuevoCliente(page: Page): Promise<Locator> {
   await loginReal(page)
+  await irAMiCartera(page)
   await page.getByRole('button', { name: /nuevo cliente/i }).click()
   const modal = page.getByRole('dialog', { name: /nuevo cliente/i })
   await expect(modal).toBeVisible()
@@ -28,6 +29,7 @@ async function abrirNuevoCliente(page: Page): Promise<Locator> {
 /** Abre "Corregir" del primer cliente de la cartera. */
 async function abrirCorregirCliente(page: Page): Promise<Locator> {
   await loginReal(page)
+  await irAMiCartera(page)
   // La cartera arranca en el mes en curso y estos fixtures traen contratos de
   // meses anteriores: sin esto, la fila del cliente no está en la lista.
   await verTodaLaCartera(page)
@@ -146,6 +148,7 @@ test('Gerencia corrige un cliente ajeno y antiguo mediante la RPC acotada', asyn
     ],
   })
   await loginReal(page)
+  await irAMiCartera(page)
   // Gerencia aterriza en Resumen; su cartera operativa se abre desde el menú.
   await page.getByRole('button', { name: 'Cartera', exact: true }).click()
   // La cartera arranca en el mes en curso y este contrato es de otro mes.

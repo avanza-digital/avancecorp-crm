@@ -2,7 +2,7 @@
 // el backend Supabase interceptado (fail-closed) y la DEMO bloquea por completo
 // ese host: ambas prueban el flujo de navegador sin tocar producción.
 import { expect, test } from '@playwright/test'
-import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal } from './_helpers'
+import { bloquearSupabase, clienteReal, entrarDemo, irAMiCartera, loginReal, montarBackendReal } from './_helpers'
 
 test('real: un analista abre todos los datos de su cliente aunque la ventana de 5 h venció', async ({ page }) => {
   const cliente = clienteReal({
@@ -21,6 +21,7 @@ test('real: un analista abre todos los datos de su cliente aunque la ventana de 
     contratos: [],
   })
   await loginReal(page)
+  await irAMiCartera(page)
 
   const fila = page.getByRole('row', { name: /CLIENTE PORTAL UNO/ })
   await expect(fila).toBeVisible()

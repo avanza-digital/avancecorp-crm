@@ -91,59 +91,36 @@ export const HAY_SUPABASE = Boolean(
 // El demo requiere opt-in literal y jamás entra en un build de producción.
 export const DEMO_HABILITADO = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true'
 
-// ── Gate de funciones NO aprobadas (decisión de Miguel, 2026-07-16) ────────────
-// El pipeline de leads y los paneles Hoy/Agenda/Cartera quedan OCULTOS para las
-// cuentas reales hasta que Miguel los apruebe: el CRM sale a producción solo con
-// Clientes y Contratos (el panel del analista traspasado del portal).
-// Revertir = poner true (no hay más interruptores que este).
-export const FUNCIONES_LEADS_APROBADAS: boolean = false
-
-// VISTA PREVIA local de las funciones no aprobadas (pedido de Miguel 2026-07-16:
-// verlas junto a Clientes/Contratos SIN abrirlas en producción). Solo actúa si
-// el dev server se arranca con VITE_LEADS_PREVIEW=true; el build de prod y los
-// tests (que no definen la variable) no la ven jamás.
-const LEADS_PREVIEW_LOCAL = import.meta.env.DEV && import.meta.env.VITE_LEADS_PREVIEW === 'true'
-
-/**
- * PILOTO EN PRODUCCIÓN — cuentas concretas que ven las funciones de leads ANTES
- * de la aprobación general (pedido de Miguel, 2026-07-25: quiere probar el
- * circuito completo como vendedor real, y textual: "solo para la cuenta
- * miguel@cacmascapital.com").
- *
- * Es una lista de `perfil_id` y no de correos porque la identidad que llega al
- * navegador (`Yo`) trae `id`/`nombre`/`rol` pero NO el correo; añadirlo obligaría
- * a tocar la máquina de auth entera por una llave temporal. El UUID no es
- * secreto: es la misma clave que ya viaja en cada fila de lead.
- *
- * ⚠️ Esto NO es un permiso: es solo qué PINTA el navegador. El ámbito de datos
- * lo sigue decidiendo la RLS (`private.vendedor_ids_visibles`), que para un
- * vendedor devuelve únicamente su propio perfil. Abrirle la vista no le enseña
- * un solo lead que no fuera ya suyo.
- *
- * Cuando Miguel apruebe el pipeline para toda la fuerza de ventas, esto se
- * BORRA y se pone `FUNCIONES_LEADS_APROBADAS = true` — no se deja creciendo.
- */
-export const CUENTAS_PILOTO_LEADS: ReadonlySet<string> = new Set([
-  'd731f284-eeaa-4c27-b71f-ac4f1d8e96c2', // MIGUEL BRICEÑO · miguel@cacmascapital.com
-])
+// ── Gate del mundo leads (Miguel: cerrado el 2026-07-16, ABIERTO el 2026-08-18) ─
+// El pipeline de leads y los paneles Hoy/Agenda/Cartera salieron a producción
+// OCULTOS para las cuentas reales: el CRM arrancó solo con Clientes y Contratos
+// (el panel del analista traspasado del portal). Miguel aprobó abrirlos a toda
+// la fuerza de ventas el 2026-08-18, con el circuito de lead libre ya vivo en
+// producción (verificar → tomar → recordar) y probado durante un mes en el
+// piloto de su propia cuenta, que por eso desaparece de aquí.
+// Cerrarlo otra vez = poner false (no hay más interruptores que este).
+export const FUNCIONES_LEADS_APROBADAS: boolean = true
 
 /**
  * ¿Se muestran las vistas de leads (Hoy/Pipeline/Cartera/Agenda)?
  * En modo DEMO siempre — el demo es el escaparate del CRM completo.
- * En sesiones reales: GERENCIA y DIRECTORIO sí (aprobación parcial de Miguel,
- * 2026-07-16: "desplegar solo las funciones de gerencia" — su Hoy con las
- * gráficas y la supervisión de solo lectura; con 0 leads pintan estados vacíos
- * honestos). La FUERZA DE VENTAS (vendedor/supervisor) espera la aprobación
- * del pipeline (FUNCIONES_LEADS_APROBADAS) — su mundo es Clientes/Contratos,
- * SALVO las cuentas del piloto (CUENTAS_PILOTO_LEADS).
+ * En sesiones reales: gerencia y directorio siempre (aprobación parcial del
+ * 2026-07-16) y la FUERZA DE VENTAS (vendedor/supervisor) según la llave.
+ * La lista es cerrada a propósito — quien no está, no ve:
+ *  · el COORDINADOR nunca entra al mundo leads, ni con la llave abierta: su
+ *    ámbito de leads es ∅ (espejo exacto de la RLS
+ *    `private.vendedor_ids_visibles`) y su único destino es «Repartir leads».
+ *    Sin este corte, abrir la llave le pintaría «Hoy» —la única vista de leads
+ *    que no exige capacidad— y un buscador de leads que nunca encuentra nada.
+ *  · un rol ausente o desconocido tampoco: mínimo privilegio.
+ *
+ * ⚠️ Esto NO es un permiso: es solo qué PINTA el navegador. El ámbito de datos
+ * lo sigue decidiendo la RLS, que para cada rol devuelve lo mismo que ayer.
  */
-export function funcionesLeadsVisibles(
-  esDemo: boolean,
-  rol?: string | null,
-  perfilId?: string | null,
-): boolean {
+export function funcionesLeadsVisibles(esDemo: boolean, rol?: string | null): boolean {
   if (esDemo) return true
   if (rol === 'gerencia' || rol === 'directorio') return true
-  if (perfilId != null && CUENTAS_PILOTO_LEADS.has(perfilId)) return true
-  return FUNCIONES_LEADS_APROBADAS || LEADS_PREVIEW_LOCAL
+  if (rol === 'vendedor' || rol === 'supervisor') return FUNCIONES_LEADS_APROBADAS
+  // Coordinador, rol ausente o desconocido: mínimo privilegio, la llave no les toca.
+  return false
 }
