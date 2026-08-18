@@ -51,6 +51,40 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 > 28.º `crm-20260817T151109Z-42f02cbdc1ca` y 29.º `crm-20260817T160102Z-cbc95900091f`):
 > viven en `MIGRACIONES.md` (adendas 16-17/08), sus notas de tema y `releases/`.
 
+- **Deploy 2026-08-18 (~18:10 UTC / ~13:10 hora de Lima) — CRM: F3.1, la auditoría doble
+  del F3 aplicada entera (TRIGÉSIMO SEGUNDO release):** publica `7fb3118` y con él TRES
+  commits: `75156a6` (F3.1 entero), `7fb3118` (soporte de compilación del reparto — ver
+  abajo) y el vault `d2d2437`. **Lo que cambia:** la campana DICE sus fallos (mensaje +
+  Reintentar real); la fecha vaciada avisa junto al campo; el estado del recordatorio
+  queda ANCLADO al teléfono (ni un blur sin editar ni el DNI borran la fecha o la
+  confirmación — muere la reprogramación silenciosa); candado por contacto a nivel de
+  módulo (cerrar y reabrir no permite dos guardados); el «Guardando…» no disfraza a otro
+  contacto; el foco tras Quitar se decide por la REALIDAD del dato con fallback al
+  encabezado y el rescate en error va vía efecto (focus() sobre un disabled es no-op
+  también en navegador real — bug destapado por su propio mutante); el dni viaja
+  EXPLÍCITO en el upsert (sin DNI = limpiar el anterior, probado en frontera HTTP con
+  MSW); la sugerida se acota al máximo; min/max con `useAhora`; la campana ya no pide el
+  dni (§8). **14/14 mutantes muertos** — la caza destapó además que `blur()` y
+  `body.focus()` son NO-OP en jsdom (dos aserciones de rescate pasaban con el rescate
+  borrado; la simulación correcta del foco huérfano es `body.tabIndex=-1` + focus).
+  Gate **2.053/2.053** (161 ficheros). **La trampa del ciclo — TERCERA sesión paralela
+  (cola de reparto) activa sobre el árbol:** sus cambios a `crm-api.ts` (compartido)
+  viajaron dentro de los commits F3/F3.1 y el worktree limpio del 32.º NO COMPILABA
+  (import de `lib/ingresos-reparto` untracked + RPC fuera de types) → commit `7fb3118`
+  registra las TRES piezas mínimas (lib + test + 1 línea de types); su pantalla,
+  migración `20260818174456` (sin aplicar) y resto siguen EN CURSO sin commitear — y su
+  trabajo NO está en este bundle (nunca estuvo vivo: nada se borra). Artefacto
+  **`crm-20260818T181041Z-7fb31185d9f3`**, ZIP SHA-256 **`faf553c0…4978`**, llaves
+  verificadas DENTRO (`crm-queries-FCvlSIZs.js`; el hit de «sb_secret/service_role» del
+  barrido es el REGEX del guard de config.ts compilado, no una llave), vivo verificado
+  ANTES de publicar (seguía el 31.º — nadie deployó en medio). Publicado por la tool MCP
+  directa + purge. **En vivo:** `index-DSC-mTPn.js` + `crm-queries-FCvlSIZs.js` +
+  index.html **AL BYTE (3/3)**, «Elige la fecha del recordatorio» (F3.1) y «Centro de
+  ayuda» presentes en el asset servido, ZIP en 404. Decisiones de Miguel del ciclo:
+  PII de la caducidad en audit_log → **deuda F4**; campana a las 09:00 y teléfono en el
+  toast → **aceptados y documentados** en [[Verificación y toma de lead libre]].
+  Rollback inmediato: `releases/crm-20260818T153614Z-1a8a51fb3c03.zip` (el 31.º).
+
 - **Deploy 2026-08-18 (~15:36 UTC / ~10:36 hora de Lima) — CRM: «Recordarme revisar este
   contacto» (TRIGÉSIMO PRIMER release; F3 del plan «lead libre» COMPLETA — servidor en la
   madrugada, front ahora):** publica `1a8a51f` y con él DOS commits: `3d5b686` (registra
