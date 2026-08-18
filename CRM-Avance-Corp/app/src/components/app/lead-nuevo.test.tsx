@@ -1,8 +1,8 @@
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
-import { CrmApiError, verificarDisponibilidadLead } from '@/data/crm-api'
+import { CrmApiError, tomarLeadLibre, verificarDisponibilidadLead } from '@/data/crm-api'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import {
   PanelActionsContext,
@@ -19,10 +19,11 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
-  return { ...actual, verificarDisponibilidadLead: vi.fn() }
+  return { ...actual, verificarDisponibilidadLead: vi.fn(), tomarLeadLibre: vi.fn() }
 })
 
 const verificarDisponibilidad = vi.mocked(verificarDisponibilidadLead)
+const tomarLead = vi.mocked(tomarLeadLibre)
 
 const SESION: AuthContextValue = {
   fase: 'listo',
@@ -63,9 +64,12 @@ function montar({
       : validacion
   }
   const crearLead = vi.fn<StoreDataApi['crearLead']>(crearLeadImpl ?? implementacionPorDefecto)
+  // F2 «Tomar»: el flujo ganador resincroniza el ámbito ANTES de abrir la ficha.
+  const recargar = vi.fn<StoreDataApi['recargar']>().mockResolvedValue(true)
   const api = {
     ambito: { leads: [], vendedores: [], esGlobal: false },
     crearLead,
+    recargar,
   } as unknown as StoreDataApi
   const actions: PanelesActions = {
     abrirLead: vi.fn(),
@@ -90,7 +94,7 @@ function montar({
     </AuthContext.Provider>,
   )
 
-  return { crearLead, actions }
+  return { crearLead, recargar, actions }
 }
 
 function completarBaseReal() {
@@ -613,5 +617,239 @@ describe('LeadNuevo — honestidad sin celular', () => {
 
     expect(verificarDisponibilidad).not.toHaveBeenCalled()
     expect(screen.queryByRole('status')).not.toBeInTheDocument()
+  })
+})
+
+// ── F2 «Tomar lead e iniciar seguimiento» (spec §5.6/§5.7) ───────────────────
+// Mutantes que deben morir aquí: quitar can('tomarLeadDirecto') del botón
+// (aparecería a supervisión), abrir la ficha SIN resincronizar antes (la ficha
+// leería un store que aún no ve el lead) y presentar la carrera como error.
+describe('LeadNuevo — Tomar lead (F2)', () => {
+  const REUTILIZABLE = {
+    estado: 'reutilizable',
+    motivo_descarte: 'no_responde',
+    descartado_en: '2026-08-01T15:00:00+00:00',
+    quedo_libre_en: '2026-08-08T15:00:00+00:00',
+    descartado_por: null,
+    ultima_conversacion_en: null,
+  } as const
+
+  async function precheckCon(
+    veredicto: Awaited<ReturnType<typeof verificarDisponibilidadLead>>,
+    opciones: Parameters<typeof montar>[0] & { dni?: string } = {},
+  ) {
+    const { dni, ...montaje } = opciones
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue(veredicto)
+    const arnes = montar({ demo: false, ...montaje })
+    // El DNI se teclea ANTES del precheck (flujo real): editarlo DESPUÉS
+    // invalida el veredicto a propósito y retira el botón.
+    if (dni) fireEvent.change(screen.getByLabelText('DNI'), { target: { value: dni } })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+    return arnes
+  }
+
+  it('vendedor + en_bolsa: el botón existe y el alta sigue bloqueada', async () => {
+    await precheckCon({ estado: 'en_bolsa' })
+
+    expect(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeDisabled()
+  })
+
+  it('vendedor + reutilizable: el botón existe junto a la tarjeta de la historia', async () => {
+    await precheckCon(REUTILIZABLE)
+
+    expect(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ })).toBeEnabled()
+    expect(screen.getByText('Seguimiento anterior disponible')).toBeInTheDocument()
+    // El mensaje de F1 murió: ya no se promete una toma «no habilitada».
+    expect(screen.getByRole('alert')).not.toHaveTextContent(/no está habilitada/i)
+  })
+
+  it('supervisor y gerencia NO ven el botón: su puerta es el reparto', async () => {
+    await precheckCon({ estado: 'en_bolsa' }, { rol: 'supervisor' })
+    expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
+
+    cleanup()
+    await precheckCon({ estado: 'en_bolsa' }, { rol: 'gerencia' })
+    expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
+  })
+
+  it('un seguimiento activo ajeno jamás ofrece el botón', async () => {
+    await precheckCon({ estado: 'tomado', vendedor: 'ANA PÉREZ', tenencia_desde: null })
+    expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
+  })
+
+  it('GANADOR: toma por contacto, resincroniza ANTES de abrir la ficha y confirma', async () => {
+    const { recargar, actions } = await precheckCon(REUTILIZABLE, { dni: '12345678' })
+    // La resincronización se difiere DE VERDAD (lección RETOMAR-41: un mock
+    // que resuelve síncrono no distingue «invocado antes» de «ESPERADO
+    // antes»): mientras recargar no resuelva, la ficha NO puede abrirse.
+    const resync = diferida<boolean>()
+    recargar.mockReturnValue(resync.promesa)
+    tomarLead.mockResolvedValue({
+      estado: 'tomado_ok',
+      lead_id: 'e5b8f1c0-4d3a-4f6b-9c2d-8a7e6f5d4c3b',
+      modo: 'reutilizable',
+      etapa: 'nuevo',
+      ciclo_actual: 2,
+      tenencia_desde: '2026-08-17T21:10:00+00:00',
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
+
+    await waitFor(() => expect(recargar).toHaveBeenCalledTimes(1))
+    expect(tomarLead).toHaveBeenCalledWith('987654321', '12345678')
+    // El ámbito aún no ve el lead: abrir la ficha aquí sería abrirla vacía.
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+
+    await act(async () => { resync.resolver(true) })
+
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalledWith('e5b8f1c0-4d3a-4f6b-9c2d-8a7e6f5d4c3b'))
+    expect(toast.success).toHaveBeenCalled()
+  })
+
+  it('PERDEDOR (§5.7): el veredicto fresco avisa del cambio y el botón se retira', async () => {
+    const { actions } = await precheckCon({ estado: 'en_bolsa' })
+    tomarLead.mockResolvedValue({ estado: 'tomado', vendedor: 'ANA PÉREZ', tenencia_desde: null })
+
+    fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'La disponibilidad acaba de cambiar. Este contacto ya está asignado a ANA PÉREZ.',
+    )
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
+    // a11y F2-M2: el foco no queda huérfano en body al retirarse el botón.
+    await waitFor(() => expect(screen.getByLabelText('Teléfono *')).toHaveFocus())
+  })
+
+  it('si el blanco desapareció y volvió «libre», el alta se DESBLOQUEA y se ANUNCIA', async () => {
+    await precheckCon(REUTILIZABLE)
+    tomarLead.mockResolvedValue({ estado: 'libre' })
+
+    fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument(),
+    )
+    expect(screen.getByRole('button', { name: 'Crear lead' })).toBeEnabled()
+    // a11y F2-M1: era el único desenlace mudo (todo se desvanecía en
+    // silencio) — sonner tiene aria-live, el cambio se anuncia.
+    expect(toast.info).toHaveBeenCalled()
+    // a11y F2-M2: el botón retirado tenía el foco — se rescata al teléfono.
+    await waitFor(() => expect(screen.getByLabelText('Teléfono *')).toHaveFocus())
+  })
+
+  it('un error real se DICE bajo el botón sin pisar el veredicto, y se puede reintentar', async () => {
+    const { actions } = await precheckCon(REUTILIZABLE)
+    tomarLead.mockRejectedValueOnce(new CrmApiError('Sin conexión con el servidor.', 'RED'))
+
+    fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
+
+    expect(await screen.findByText('Sin conexión con el servidor.')).toBeInTheDocument()
+    // El veredicto (tarjeta) sigue en pantalla y el botón sigue vivo.
+    expect(screen.getByText('Seguimiento anterior disponible')).toBeInTheDocument()
+    const boton = screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ })
+    expect(boton).toBeEnabled()
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+
+    tomarLead.mockResolvedValue({
+      estado: 'tomado_ok',
+      lead_id: 'e5b8f1c0-4d3a-4f6b-9c2d-8a7e6f5d4c3b',
+      modo: 'reutilizable',
+      etapa: 'nuevo',
+      ciclo_actual: 2,
+      tenencia_desde: '2026-08-17T21:10:00+00:00',
+    })
+    fireEvent.click(boton)
+    await waitFor(() => expect(actions.abrirLead).toHaveBeenCalled())
+  })
+
+  it('en DEMO el botón no existe: la toma es del mundo real', async () => {
+    // En demo el precheck ni corre — el estado tomable jamás se alcanza.
+    vi.useFakeTimers()
+    montar({ demo: true })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+
+    expect(verificarDisponibilidad).not.toHaveBeenCalled()
+    expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
+  })
+})
+
+// Las 3 refutaciones de Codex sobre el flujo (auditoría F2, 2026-08-17).
+// Mutantes que deben morir: quitar `|| tomando` del fieldset o de Cancelar;
+// ignorar el booleano de recargar() y abrir la ficha igual.
+describe('LeadNuevo — la toma en vuelo se blinda (Codex R2/R3/R5)', () => {
+  const REUTILIZABLE = {
+    estado: 'reutilizable',
+    motivo_descarte: 'no_responde',
+    descartado_en: '2026-08-01T15:00:00+00:00',
+    quedo_libre_en: '2026-08-08T15:00:00+00:00',
+    descartado_por: null,
+    ultima_conversacion_en: null,
+  } as const
+
+  const TOMADO_OK = {
+    estado: 'tomado_ok',
+    lead_id: 'e5b8f1c0-4d3a-4f6b-9c2d-8a7e6f5d4c3b',
+    modo: 'reutilizable',
+    etapa: 'nuevo',
+    ciclo_actual: 2,
+    tenencia_desde: '2026-08-17T21:10:00+00:00',
+  } as const
+
+  async function precheckReutilizable() {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue(REUTILIZABLE)
+    const arnes = montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+    return arnes
+  }
+
+  it('R2+R3: con la RPC viajando, el contacto NO se puede editar ni cancelar el modal', async () => {
+    await precheckReutilizable()
+    const respuesta = diferida<typeof TOMADO_OK>()
+    tomarLead.mockReturnValue(respuesta.promesa as never)
+
+    fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
+
+    // Editar teléfono/DNI aquí presentaría el veredicto de A como si fuera
+    // de B; cancelar descartaría en silencio una toma que el servidor puede
+    // COMPROMETER. Ambos mueren mientras la toma viaja.
+    expect(screen.getByLabelText('Teléfono *')).toBeDisabled()
+    expect(screen.getByLabelText('DNI')).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled()
+
+    await act(async () => { respuesta.resolver(TOMADO_OK) })
+    // Resuelta la toma, el formulario vuelve a la vida (aquí ganó y se abre).
+    await waitFor(() => expect(screen.getByLabelText('Teléfono *')).toBeEnabled())
+  })
+
+  it('R5: si la resincronización falla, la toma real se DICE y jamás se abre una ficha vacía', async () => {
+    const { recargar, actions } = await precheckReutilizable()
+    recargar.mockResolvedValue(false)
+    tomarLead.mockResolvedValue(TOMADO_OK)
+
+    fireEvent.click(screen.getByRole('button', { name: /Tomar lead e iniciar seguimiento/ }))
+
+    await waitFor(() => expect(toast.warning).toHaveBeenCalled())
+    // La toma ES real: el éxito se confirma…
+    expect(toast.success).toHaveBeenCalled()
+    // …pero la ficha no se abre sobre un store que no ve el lead; el modal
+    // se cierra para que el flujo termine limpio.
+    expect(actions.abrirLead).not.toHaveBeenCalled()
+    expect(actions.cerrarPaneles).toHaveBeenCalled()
   })
 })

@@ -1,5 +1,5 @@
 import * as v from 'valibot'
-import { MOTIVOS_DESCARTE, type MotivoDescarte } from './tipos'
+import { ETAPAS, MOTIVOS_DESCARTE, type MotivoDescarte } from './tipos'
 
 const MOTIVOS_DISPONIBILIDAD = MOTIVOS_DESCARTE.map((motivo) => motivo.k)
 
@@ -28,11 +28,26 @@ export const DisponibilidadLeadSchema = v.variant('estado', [
     disponible_desde: v.pipe(v.string(), v.isoTimestamp()),
     descartado_por: v.nullable(v.string()),
   }),
-  // Estado FUTURO (F2 del plan «lead libre»: contacto con un lead anterior
-  // que puede RETOMARSE en vez de duplicarse). looseObject a propósito: hasta
-  // que exista quien sepa manejarlo solo importa el discriminante, y su forma
-  // final la decide la Fase 2 — tolerar hoy evita el apagón del 15-ago.
-  v.looseObject({ estado: v.literal('reutilizable') }),
+  // F2 lead libre (§5.6): contacto con un lead descartado y enfriamiento
+  // VENCIDO — se RETOMA en vez de duplicarse. Forma fijada contra el emisor
+  // vivo (migración 20260817164745, en prod): las claves llegan SIEMPRE
+  // (jsonb_build_object no omite nulos), por eso nullable sin optional.
+  // Nulabilidad con evidencia: motivo_descarte jamás es null en un descartado
+  // (CHECK de cimientos) y el catálogo es espejo 7/7 del constraint;
+  // descartado_en lo exige el WHERE del impl; quedo_libre_en siempre se
+  // calcula; descartado_por sale de un LEFT JOIN y ultima_conversacion_en de
+  // un max() — esos dos sí pueden ser null. Veneno conocido (auditoría
+  // 2026-08-17): un 'infinity' de PG17 en un timestamptz NO pasa isoTimestamp
+  // — a propósito: fail-closed antes que pintar basura (CHECK de finitud en
+  // el servidor = deuda anotada para F3).
+  v.strictObject({
+    estado: v.literal('reutilizable'),
+    motivo_descarte: v.picklist(MOTIVOS_DISPONIBILIDAD),
+    descartado_en: v.pipe(v.string(), v.isoTimestamp()),
+    quedo_libre_en: v.pipe(v.string(), v.isoTimestamp()),
+    descartado_por: v.nullable(v.string()),
+    ultima_conversacion_en: v.nullable(v.pipe(v.string(), v.isoTimestamp())),
+  }),
   v.strictObject({ estado: v.literal('ya_es_cliente'), asesor: v.string() }),
   v.strictObject({ estado: v.literal('no_contactar') }),
   v.strictObject({ estado: v.literal('error'), detalle: v.literal('telefono_invalido') }),
@@ -61,6 +76,48 @@ export const ResultadoCreacionLeadAtomicaSchema = v.union([
 
 export type ResultadoCreacionLeadAtomica =
   v.InferOutput<typeof ResultadoCreacionLeadAtomicaSchema>
+
+// ── La toma directa (F2 «Tomar», spec §5.6/§5.7) ─────────────────────────────
+
+const ETAPAS_ACTIVAS = ETAPAS.map((etapa) => etapa.k)
+
+/** Los dos únicos veredictos con puerta de toma. El nombre del modo es el del
+ *  servidor ('bolsa' para en_bolsa): así la traza y el front hablan igual. */
+export type ModoToma = 'bolsa' | 'reutilizable'
+
+/** ¿El veredicto habilita el botón «Tomar lead e iniciar seguimiento»?
+ *  SOLO en_bolsa y reutilizable (espejo exacto de los dos CAS de
+ *  crm.tomar_lead_libre) — jamás sobre tomado/enfriamiento/cliente, y sobre
+ *  'libre' tampoco: ahí no hay nada que tomar, el camino es CREAR. */
+export function contactoTomable(resultado: DisponibilidadLead): ModoToma | null {
+  switch (resultado.estado) {
+    case 'en_bolsa': return 'bolsa'
+    case 'reutilizable': return 'reutilizable'
+    default: return null
+  }
+}
+
+/** Respuesta autoritativa de crm.tomar_lead_libre: o la toma confirmada, o el
+ *  veredicto FRESCO de disponibilidad (el perdedor de la carrera jamás roba —
+ *  recibe la verdad del momento). Forma fijada contra el emisor vivo
+ *  (migración 20260817164745): jsonb_build_object con 6 claves, todas
+ *  siempre presentes; etapa espejo del CHECK (bolsa conserva la suya,
+ *  reutilizable renace en 'nuevo' — nunca terminal tras una toma). */
+export const TomaLeadOkSchema = v.strictObject({
+  estado: v.literal('tomado_ok'),
+  lead_id: v.pipe(v.string(), v.uuid()),
+  modo: v.picklist(['bolsa', 'reutilizable']),
+  etapa: v.picklist(ETAPAS_ACTIVAS),
+  ciclo_actual: v.pipe(v.number(), v.integer()),
+  tenencia_desde: v.pipe(v.string(), v.isoTimestamp()),
+})
+
+export const ResultadoTomaLeadSchema = v.union([
+  TomaLeadOkSchema,
+  DisponibilidadLeadSchema,
+])
+
+export type ResultadoTomaLead = v.InferOutput<typeof ResultadoTomaLeadSchema>
 
 /**
  * Único estado que la UI necesita conservar después del precheck P-047.
@@ -168,10 +225,10 @@ export function presentarDisponibilidadLead(
       return bloquear('Este contacto está marcado como «No contactar» y no se puede registrar nuevamente.')
 
     case 'reutilizable':
-      // Estado futuro (F2): mientras no exista el botón «Tomar», el alta se
-      // bloquea con un mensaje honesto — dejarla pasar duplicaría el lead,
-      // exactamente lo que la spec §5.6 prohíbe.
-      return bloquear('Este contacto tiene un seguimiento anterior que puede retomarse. La toma directa aún no está habilitada.')
+      // El alta sigue bloqueada (crear duplicaría, §5.6) — el camino es el
+      // botón «Tomar lead e iniciar seguimiento», que el formulario ofrece al
+      // vendedor junto a este aviso (contactoTomable decide cuándo).
+      return bloquear('Este contacto tiene un seguimiento anterior que puede retomarse en lugar de crear un duplicado.')
 
     case 'error':
       return bloquear('Ingresa un teléfono válido para verificar su disponibilidad.')
@@ -179,6 +236,21 @@ export function presentarDisponibilidadLead(
     default:
       return estadoNoSoportado(resultado)
   }
+}
+
+/**
+ * Presenta el veredicto fresco que devuelve una toma SIN éxito (§5.7): el
+ * estado cambió entre el precheck y la escritura — otro se adelantó, un
+ * enfriamiento renació, el lead desapareció. El prefijo avisa del cambio solo
+ * cuando el veredicto bloquea; un 'libre' fresco no lleva aviso: el alta se
+ * habilita y crear es el camino.
+ */
+export function presentarResultadoToma(
+  resultado: DisponibilidadLead,
+): PresentacionDisponibilidadLead {
+  const base = presentarDisponibilidadLead(resultado)
+  if (!base.bloquea || base.mensaje == null) return base
+  return { mensaje: `La disponibilidad acaba de cambiar. ${base.mensaje}`, bloquea: true }
 }
 
 // ── Tarjeta de la spec §5.2 ──────────────────────────────────────────────────
@@ -226,6 +298,24 @@ export function tarjetaDisponibilidadLead(
       const fecha = fechaEnLima(resultado.disponible_desde)
       if (fecha) lineas.push({ etiqueta: 'Disponible desde', valor: fecha })
       return { titulo: 'En enfriamiento', lineas }
+    }
+    case 'reutilizable': {
+      // La historia mínima del seguimiento anterior ya recuperable (§5.6):
+      // motivo, cuándo se descartó, desde cuándo está libre y la última
+      // conversación real. `descartado_por` llega del servidor pero NO se
+      // pinta — misma minimización §8 que la tarjeta de enfriamiento.
+      const lineas: Array<{ etiqueta: string; valor: string }> = [
+        { etiqueta: 'Motivo del descarte', valor: ETIQUETA_MOTIVO[resultado.motivo_descarte] },
+      ]
+      const descartado = fechaEnLima(resultado.descartado_en)
+      if (descartado) lineas.push({ etiqueta: 'Descartado el', valor: descartado })
+      const libre = fechaEnLima(resultado.quedo_libre_en)
+      if (libre) lineas.push({ etiqueta: 'Libre desde', valor: libre })
+      const conversacion = resultado.ultima_conversacion_en != null
+        ? fechaEnLima(resultado.ultima_conversacion_en)
+        : null
+      if (conversacion) lineas.push({ etiqueta: 'Última conversación', valor: conversacion })
+      return { titulo: 'Seguimiento anterior disponible', lineas }
     }
     default:
       return null

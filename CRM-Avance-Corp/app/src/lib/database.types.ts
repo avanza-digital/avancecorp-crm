@@ -1247,6 +1247,30 @@ export type Database = {
         }
         Relationships: []
       }
+      politica_abandono: {
+        Row: {
+          actualizado_en: string
+          actualizado_por: string | null
+          dias_abandono: number
+          dias_auto_bolsa: number
+          singleton: boolean
+        }
+        Insert: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          dias_abandono: number
+          dias_auto_bolsa: number
+          singleton?: boolean
+        }
+        Update: {
+          actualizado_en?: string
+          actualizado_por?: string | null
+          dias_abandono?: number
+          dias_auto_bolsa?: number
+          singleton?: boolean
+        }
+        Relationships: []
+      }
       producto_condiciones: {
         Row: {
           activa: boolean
@@ -1675,6 +1699,33 @@ export type Database = {
         }
         Relationships: []
       }
+      verificaciones_lead: {
+        Row: {
+          creado_en: string
+          dni_consultado: string | null
+          id: string
+          telefono_consultado: string
+          veredicto: string
+          verificado_por: string
+        }
+        Insert: {
+          creado_en?: string
+          dni_consultado?: string | null
+          id?: string
+          telefono_consultado: string
+          veredicto: string
+          verificado_por: string
+        }
+        Update: {
+          creado_en?: string
+          dni_consultado?: string | null
+          id?: string
+          telefono_consultado?: string
+          veredicto?: string
+          verificado_por?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       clientes_basicos: {
@@ -1925,6 +1976,50 @@ export type Database = {
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
       configuracion_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       configuracion_sla_fn: { Args: never; Returns: Json }
+      contrato_pdf_archivo_fn: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
+      contrato_pdf_estado_fn: { Args: { p_contrato_id: string }; Returns: Json }
+      contrato_pdf_finalizar: {
+        Args: { p_actor_id: string; p_job_id: string; p_lease_token: string }
+        Returns: Json
+      }
+      contrato_pdf_marcar_error: {
+        Args: {
+          p_actor_id: string
+          p_error_codigo: string
+          p_job_id: string
+          p_lease_token: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_marcar_subido: {
+        Args: {
+          p_actor_id: string
+          p_bytes: number
+          p_job_id: string
+          p_lease_token: string
+          p_sha256: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_reclamar: {
+        Args: {
+          p_actor_id: string
+          p_contrato_id: string
+          p_lease_segundos?: number
+        }
+        Returns: Json
+      }
+      contrato_pdf_reservar: {
+        Args: { p_actor_id: string; p_contrato_id: string }
+        Returns: Json
+      }
+      contrato_pdf_snapshot_v2: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
       contratos_cartera_fn: {
         Args: never
         Returns: {
@@ -1989,70 +2084,6 @@ export type Database = {
           p_numero_transaccion: string
           p_referencia: string
           p_vence_en: string
-        }
-        Returns: Json
-      }
-      contrato_pdf_archivo_fn: {
-        Args: { p_contrato_id: string }
-        Returns: Json
-      }
-      contrato_pdf_estado_fn: {
-        Args: { p_contrato_id: string }
-        Returns: Json
-      }
-      contrato_pdf_finalizar: {
-        Args: {
-          p_actor_id: string
-          p_job_id: string
-          p_lease_token: string
-        }
-        Returns: Json
-      }
-      contrato_pdf_marcar_error: {
-        Args: {
-          p_actor_id: string
-          p_error_codigo: string
-          p_job_id: string
-          p_lease_token: string
-        }
-        Returns: Json
-      }
-      contrato_pdf_marcar_subido: {
-        Args: {
-          p_actor_id: string
-          p_bytes: number
-          p_job_id: string
-          p_lease_token: string
-          p_sha256: string
-        }
-        Returns: Json
-      }
-      contrato_pdf_reclamar: {
-        Args: {
-          p_actor_id: string
-          p_contrato_id: string
-          p_lease_segundos?: number
-        }
-        Returns: Json
-      }
-      contrato_pdf_reservar: {
-        Args: { p_actor_id: string; p_contrato_id: string }
-        Returns: Json
-      }
-      contrato_pdf_snapshot: {
-        Args: { p_contrato_id: string }
-        Returns: Json
-      }
-      registrar_contrato_pdf: {
-        Args: {
-          p_bytes: number
-          p_contrato_id: string
-          p_generado_por: string
-          p_nombre_archivo: string
-          p_sha256: string
-          p_snapshot: Json
-          p_storage_path: string
-          p_template_version: string
         }
         Returns: Json
       }
@@ -2462,6 +2493,10 @@ export type Database = {
           orden: number
           tipo_documento: string
         }[]
+      }
+      tomar_lead_libre: {
+        Args: { p_dni?: string; p_telefono: string }
+        Returns: Json
       }
       usuarios_administrables_fn: {
         Args: { p_busqueda?: string; p_desde?: number; p_limite?: number }

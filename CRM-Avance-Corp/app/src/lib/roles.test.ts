@@ -10,6 +10,7 @@ import {
   puedeOrganizarJerarquiaCrm,
   puedeVerDirectorioUsuariosCrm,
   ROL_LABEL,
+  ROLES,
   type Rol,
 } from './roles'
 
@@ -110,6 +111,11 @@ describe('capacidades por rol', () => {
       verAgenda: true,
       verGestionEquipo: true,
       verAlertas: true,
+      // La ÚNICA excepción del operador total, y es deliberada (F2 lead
+      // libre): la toma directa es del VENDEDOR para sí mismo — espejo del
+      // guard de crm.tomar_lead_libre, que rechaza a gerencia con 42501.
+      // Su puerta para asignar sigue siendo el reparto.
+      tomarLeadDirecto: false,
       verCartera: true,
       verConfiguracion: true,
       editarConfiguracion: true,
@@ -118,6 +124,10 @@ describe('capacidades por rol', () => {
       editarCapacidad: true,
       soloLecturaTotal: false,
     })
+  })
+
+  it('la toma directa es SOLO del vendedor (espejo del guard del servidor)', () => {
+    expect(ROLES.filter((rol) => CAPS[rol].tomarLeadDirecto)).toEqual(['vendedor'])
   })
 })
 

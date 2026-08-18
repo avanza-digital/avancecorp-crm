@@ -7,8 +7,8 @@
 // Dialog (que desmonta al cerrar), así que se resetea solo al reabrirse.
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
-import { UserRoundPlus } from 'lucide-react'
-import { CrmApiError, verificarDisponibilidadLead } from '@/data/crm-api'
+import { Handshake, UserRoundPlus } from 'lucide-react'
+import { CrmApiError, tomarLeadLibre, verificarDisponibilidadLead } from '@/data/crm-api'
 import {
   Dialog,
   DialogBody,
@@ -25,8 +25,11 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { useAuth } from '@/lib/auth-context'
 import {
+  contactoTomable,
   presentarDisponibilidadLead,
+  presentarResultadoToma,
   tarjetaDisponibilidadLead,
+  type ModoToma,
   type TarjetaDisponibilidadLead,
 } from '@/lib/disponibilidad-lead'
 import { can, puedeEscribir } from '@/lib/roles'
@@ -58,6 +61,9 @@ interface EstadoDisponibilidadFormulario {
   /** Tarjeta §5.2 del plan «lead libre»: datos mínimos del seguimiento activo
    *  o del enfriamiento; null en los estados sin seguimiento que mostrar. */
   tarjeta: TarjetaDisponibilidadLead | null
+  /** F2 «Tomar»: veredicto con puerta de toma (en_bolsa/reutilizable) — el
+   *  botón solo existe con esto no-nulo Y rol con tomarLeadDirecto. */
+  tomable: ModoToma | null
 }
 
 const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
@@ -66,6 +72,7 @@ const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
   bloquea: false,
   degradado: false,
   tarjeta: null,
+  tomable: null,
 }
 
 const DISPONIBILIDAD_COMPROBANDO: EstadoDisponibilidadFormulario = {
@@ -74,6 +81,7 @@ const DISPONIBILIDAD_COMPROBANDO: EstadoDisponibilidadFormulario = {
   bloquea: false,
   degradado: false,
   tarjeta: null,
+  tomable: null,
 }
 
 const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
@@ -82,6 +90,7 @@ const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
   bloquea: false,
   degradado: true,
   tarjeta: null,
+  tomable: null,
 }
 
 /** Lo tecleado no alcanza para verificar (la RPC exige un celular) y se DICE.
@@ -94,6 +103,7 @@ const DISPONIBILIDAD_SIN_CELULAR: EstadoDisponibilidadFormulario = {
   bloquea: false,
   degradado: true,
   tarjeta: null,
+  tomable: null,
 }
 
 function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFormulario {
@@ -105,6 +115,7 @@ function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFor
     bloquea: true,
     degradado: false,
     tarjeta: null,
+    tomable: null,
   }
 }
 
@@ -178,7 +189,7 @@ function FormularioNuevoLead({
   onEnviandoChange: (enviando: boolean) => void
 }) {
   const { etapaInicial, telefonoInicial } = usePanelesState()
-  const { ambito, crearLead } = useCRMData()
+  const { ambito, crearLead, recargar } = useCRMData()
   const { abrirLead, cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
 
@@ -212,6 +223,26 @@ function FormularioNuevoLead({
   const [disponibilidad, setDisponibilidad] =
     useState<EstadoDisponibilidadFormulario>(DISPONIBILIDAD_INICIAL)
   const [enviando, setEnviando] = useState(false)
+  // F2 «Tomar»: la toma directa tiene su propio en-curso y su propio error —
+  // un fallo al tomar NO pisa el veredicto de disponibilidad ya presentado.
+  const [tomando, setTomando] = useState(false)
+  const [errorToma, setErrorToma] = useState<string | null>(null)
+  const tomaEnCursoRef = useRef(false)
+  // Rescate de foco (revisor a11y F2-M2): cuando el veredicto fresco retira el
+  // botón deshabilitado que tenía el foco, este iría a parar a body — se lleva
+  // explícitamente al teléfono, lo próximo que el usuario editaría. Vía efecto
+  // y no en línea: en la rama del veredicto el fieldset AÚN está congelado por
+  // la toma (Codex R2) y focus() sobre un control disabled es un no-op.
+  const telefonoRef = useRef<HTMLInputElement | null>(null)
+  const rescatarFocoRef = useRef(false)
+  // Deps con `disponibilidad` además de `tomando`: con una RPC instantánea
+  // React batchea el true→false de tomando en UN commit y el efecto no
+  // re-correría; el veredicto siempre produce un objeto nuevo y lo dispara.
+  useEffect(() => {
+    if (tomando || !rescatarFocoRef.current) return
+    rescatarFocoRef.current = false
+    telefonoRef.current?.focus()
+  }, [tomando, disponibilidad])
   const envioEnCursoRef = useRef(false)
   const secuenciaDisponibilidadRef = useRef(0)
   const controlDisponibilidadRef = useRef<AbortController | null>(null)
@@ -227,6 +258,9 @@ function FormularioNuevoLead({
     }
     controlDisponibilidadRef.current?.abort()
     controlDisponibilidadRef.current = null
+    // Un contacto editado es OTRO contacto: el error de la toma anterior
+    // ya no habla de lo que hay en pantalla.
+    if (montadoRef.current) setErrorToma(null)
     if (montadoRef.current) setDisponibilidad(DISPONIBILIDAD_INICIAL)
   }, [])
 
@@ -282,6 +316,7 @@ function FormularioNuevoLead({
         bloquea: presentacion.bloquea,
         degradado: false,
         tarjeta: tarjetaDisponibilidadLead(resultado),
+        tomable: contactoTomable(resultado),
       }
       setDisponibilidad(siguiente)
       return siguiente
@@ -338,6 +373,84 @@ function FormularioNuevoLead({
     prefillDisparadoRef.current = true
     programarDisponibilidad(telefonoInicial, '')
   }, [telefonoInicial, programarDisponibilidad])
+
+  /**
+   * F2 «Tomar lead e iniciar seguimiento» (spec §5.6/§5.7). Mutación real:
+   * sin cortesía fail-open. Tres caminos y los tres se DICEN:
+   *  · tomado_ok → resincronizar el ámbito (el lead ya es del vendedor),
+   *    confirmar y abrir la ficha (abrirLead cierra este modal solo);
+   *  · veredicto fresco → perdió la carrera o el estado cambió: se re-presenta
+   *    con la misma maquinaria del precheck (mensaje+tarjeta+tomable) y el
+   *    aviso «la disponibilidad acaba de cambiar»;
+   *  · error → se muestra bajo el botón SIN tocar el veredicto vigente.
+   */
+  const manejarTomar = async () => {
+    if (tomaEnCursoRef.current) return
+    tomaEnCursoRef.current = true
+    setTomando(true)
+    setErrorToma(null)
+    onEnviandoChange(true) // el Dialog no se cierra con una toma en vuelo
+    try {
+      const dniLimpio = dni.trim()
+      const resultado = await tomarLeadLibre(
+        telefono,
+        /^\d{8}$/.test(dniLimpio) ? dniLimpio : null,
+      )
+      if (!montadoRef.current) return
+
+      if (resultado.estado === 'tomado_ok') {
+        // El orden importa: la ficha lee del store — primero el ámbito ve el
+        // lead, después se abre. abrirLead también cierra el panel del alta.
+        const resincronizado = await recargar()
+        if (!montadoRef.current) return
+        toast.success('Lead tomado: ya está en tu cartera con todo su historial')
+        if (resincronizado) {
+          abrirLead(resultado.lead_id)
+        } else {
+          // Codex R5: la toma ES real (el servidor confirmó) pero el store
+          // conserva la foto vieja — abrir la ficha aquí sería abrir el vacío.
+          // Se dice y se cierra: el precheck ya lo mostraría como suyo.
+          toast.warning('Tu cartera no se pudo refrescar: recarga la página para abrir el lead.')
+          cerrarPaneles()
+        }
+        return
+      }
+
+      const presentacion = presentarResultadoToma(resultado)
+      const tomableFresco = contactoTomable(resultado)
+      setDisponibilidad({
+        comprobando: false,
+        mensaje: presentacion.mensaje,
+        bloquea: presentacion.bloquea,
+        degradado: false,
+        tarjeta: tarjetaDisponibilidadLead(resultado),
+        tomable: tomableFresco,
+      })
+      // El único desenlace sin aviso vivo era el «libre» fresco (todo se
+      // desvanece a la vez y el alta se habilita en silencio): sonner tiene
+      // aria-live, con esto los TRES desenlaces de la toma se anuncian.
+      if (!presentacion.mensaje) {
+        toast.info('La disponibilidad acaba de cambiar: el contacto está libre y puedes crear el lead.')
+      }
+      // Si el veredicto retiró el botón (que estaba deshabilitado y con el
+      // foco), el foco caería a body — el efecto lo lleva al teléfono cuando
+      // el fieldset se deshiele (tomando=false, en el finally).
+      if (!tomableFresco) rescatarFocoRef.current = true
+    } catch (error: unknown) {
+      if (!montadoRef.current) return
+      setErrorToma(
+        error instanceof CrmApiError
+          ? error.message
+          : 'No se pudo tomar el lead. Inténtalo de nuevo.',
+      )
+    } finally {
+      tomaEnCursoRef.current = false
+      if (montadoRef.current) {
+        setTomando(false)
+        onEnviandoChange(false)
+      }
+    }
+  }
 
   /** Al corregir un campo, su error inline (y el general) desaparecen. */
   const limpiarError = (campo: string) => {
@@ -450,12 +563,18 @@ function FormularioNuevoLead({
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={enviar} noValidate className="flex min-h-0 flex-1 flex-col">
-        <fieldset disabled={enviando} className="contents">
+        {/* La toma en vuelo también congela el formulario (Codex R2): editar
+            el contacto con la RPC viajando dejaría presentar el veredicto de
+            A como si hablara del B recién tecleado. */}
+        <fieldset disabled={enviando || tomando} className="contents">
           <DialogBody className="space-y-3.5">
           {errorGeneral && (
             <div
               role="alert"
-              className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive"
+              // text-destructive-text (#991b1b): 7.1:1 sobre bg-destructive/10
+              // (el --destructive puro da 4.1:1 ahí y falla WCAG — el token
+              // nació exactamente para esta superficie; revisor a11y F2).
+              className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-medium text-destructive-text"
             >
               {errorGeneral}
             </div>
@@ -482,6 +601,7 @@ function FormularioNuevoLead({
             <Campo label="Teléfono" htmlFor="nl-telefono" requerido error={errores.telefono}>
               <Input
                 id="nl-telefono"
+                ref={telefonoRef}
                 type="tel"
                 inputMode="tel"
                 autoComplete="off"
@@ -535,7 +655,9 @@ function FormularioNuevoLead({
               role={disponibilidad.bloquea ? 'alert' : 'status'}
               className={cn(
                 'rounded-lg border px-3 py-2 text-xs font-medium',
-                disponibilidad.bloquea && 'border-destructive/40 bg-destructive/10 text-destructive',
+                // text-destructive-text: 7.1:1 sobre bg-destructive/10 (el
+                // puro daba 4.1:1 y fallaba WCAG en el canal principal de F2).
+                disponibilidad.bloquea && 'border-destructive/40 bg-destructive/10 text-destructive-text',
                 // text-warning-text (#92400e): la app NO tiene tema oscuro — un
                 // dark: aquí seguiría al SO del usuario y dejaría este aviso
                 // en ~1.3:1 justo para quien tiene el sistema en oscuro.
@@ -562,6 +684,30 @@ function FormularioNuevoLead({
                     </div>
                   ))}
                 </dl>
+              )}
+            </div>
+          )}
+          {disponibilidad.tomable && can(yo?.rol, 'tomarLeadDirecto') && !yo?.demo && (
+            // F2 «Tomar» (spec §5.6): la puerta vive SOLO tras la verificación
+            // por contacto y SOLO para el vendedor (espejo del guard de la
+            // RPC — supervisión asigna por el reparto). En demo el precheck ni
+            // corre, el !demo es cinturón.
+            <div className="space-y-1.5">
+              <Button
+                type="button"
+                variant="accent"
+                className="w-full"
+                onClick={manejarTomar}
+                disabled={tomando || enviando}
+                aria-busy={tomando}
+                aria-describedby={errorToma ? 'nl-error-toma' : undefined}
+              >
+                <Handshake /> {tomando ? 'Tomando lead…' : 'Tomar lead e iniciar seguimiento'}
+              </Button>
+              {errorToma && (
+                <p id="nl-error-toma" role="alert" className="text-xs font-medium text-destructive">
+                  {errorToma}
+                </p>
               )}
             </div>
           )}
@@ -770,7 +916,14 @@ function FormularioNuevoLead({
           </Campo>
           </DialogBody>
           <DialogFooter>
-            <Button type="button" variant="ghost" onClick={cerrarPaneles} disabled={enviando}>
+            {/* Cancelar muere durante la toma (Codex R3): el servidor puede
+                COMPROMETER la toma y un desmontaje descartaría el tomado_ok en
+                silencio — lead asignado sin que el vendedor se entere. El
+                cierre por Escape/overlay ya lo bloquea onEnviandoChange.
+                ⚠️ `|| tomando` aquí es REDUNDANTE a propósito (el fieldset de
+                arriba ya congela el Footer): su mutante sobrevive enmascarado
+                y se acepta — es defensa por si el Footer saliera del fieldset. */}
+            <Button type="button" variant="ghost" onClick={cerrarPaneles} disabled={enviando || tomando}>
               Cancelar
             </Button>
             <Button

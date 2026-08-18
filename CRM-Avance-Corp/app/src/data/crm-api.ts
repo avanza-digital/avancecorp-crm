@@ -107,9 +107,11 @@ import {
 import {
   DisponibilidadLeadSchema,
   ResultadoCreacionLeadAtomicaSchema,
+  ResultadoTomaLeadSchema,
   presentarDisponibilidadLead,
   type DisponibilidadLead,
   type ResultadoCreacionLeadAtomica,
+  type ResultadoTomaLead,
 } from '@/lib/disponibilidad-lead'
 import {
   ResumenCarteraSchema,
@@ -132,7 +134,7 @@ import {
   type ResumenReparto,
 } from '@/lib/resumen-reparto'
 
-export type { DisponibilidadLead, ResultadoCreacionLeadAtomica } from '@/lib/disponibilidad-lead'
+export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -993,6 +995,36 @@ export async function verificarDisponibilidadLead(
     throw fallo
   }
 
+  return resultado.output
+}
+
+/**
+ * F2 «Tomar» (spec §5.6/§5.7): toma directa POR CONTACTO contra
+ * crm.tomar_lead_libre. Es una MUTACIÓN — a diferencia del precheck
+ * consultivo, aquí no existe cortesía fail-open: cualquier fallo se lanza y
+ * el formulario lo dice sin fingir nada. La respuesta es o `tomado_ok` o el
+ * veredicto fresco de disponibilidad (el servidor jamás roba al perdedor de
+ * la carrera; devuelve la verdad del momento para re-presentarla).
+ */
+export async function tomarLeadLibre(
+  telefono: string,
+  dni?: string | null,
+): Promise<ResultadoTomaLead> {
+  const { data, error } = await cliente().schema('crm').rpc('tomar_lead_libre', sinIndefinidos({
+    p_telefono: telefono,
+    p_dni: dni ?? undefined,
+  }))
+  if (error) throw aErrorApi(error, 'crm.leads.toma_fallida')
+
+  const resultado = v.safeParse(ResultadoTomaLeadSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El servidor no confirmó la toma del lead.',
+      'TOMA_LEAD_CONTRACT',
+    )
+    registrarError('crm.leads.toma_fuera_de_contrato', fallo)
+    throw fallo
+  }
   return resultado.output
 }
 
