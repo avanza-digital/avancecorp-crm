@@ -28,5 +28,7 @@ actualizado: 2026-06-01
 ## Edge Functions (`_supabase_functions/functions/`)
 `crear-cliente` · `crear-admin` · `resetear-password` · `eliminar-cliente` · `importar-clientes` ([[Importador de clientes]]) · `enviar-comunicado` · `enviar-push` · `notificar-pagos` ([[Notificaciones de pagos]]).
 
+**Quién puede ELIMINAR un cliente (2026-08-17):** `admin` **y** `superadmin` activos (antes solo `superadmin`). El cambio se pidió para que Gloria — administradora del portal y única `admin` en producción — pueda depurar altas erróneas sin depender de AdminCorp. El blindaje que hace seguro el permiso no se tocó: el objetivo debe ser rol `cliente` (un admin **no** puede borrar a otro admin ni al superadmin), nadie puede borrarse a sí mismo, y **un cliente con contratos NO se elimina** (409 `HAS_CONTRACTS` → «desactívalo»). Tampoco se auto-propaga: crear un `admin` sigue siendo potestad exclusiva del superadmin (`crear-admin` lo revalida en el servidor). Ver [[Offboarding seguro del CRM (P04)]] para el resto del perímetro de Gloria.
+
 ## Notas relacionadas
 [[Rol Analista]] · [[Fusión asesor-analista]] · [[Clave temporal = DNI]] · [[Bug de fechas UTC]] · [[Auditorías del portal]] · [[Inicio]]

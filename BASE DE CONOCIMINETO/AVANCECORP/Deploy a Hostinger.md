@@ -12,6 +12,8 @@ Desde el **2026-06-10** el deploy del portal ya **no es manual**: Claude puede d
    - `curl https://miavance.com/service-worker.js` → `CACHE_VERSION` debe ser la versión nueva.
    - Spot-check de los archivos cambiados (HTTP 200).
    - Confirmar que el ZIP **no** quedó accesible públicamente (debe dar 404).
+   - **Verificación fuerte (recomendada):** contrastar el md5 de CADA archivo del ZIP contra `https://miavance.com/<ruta>`. Solo deberían "diferir" los archivos que cambiaste.
+   - ⚠️ **Dos falsos positivos permanentes de ese método** (2026-08-17): (1) `.htaccess` responde **403** —usar `-w %{http_code}`, porque `curl -f | md5` devuelve el md5 del vacío y parece una diferencia real—; (2) las **15 imágenes de `img/`** siempre difieren: Hostinger las **sirve optimizadas** (más pequeñas que el original en disco). Ninguna de las dos es drift.
 
 ## ⚠️ Regla del `?v=` — OBLIGATORIA al cambiar cualquier JS del portal
 

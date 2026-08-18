@@ -2,9 +2,14 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 
 // Elimina PERMANENTEMENTE a un cliente: borra su perfil y su usuario de auth.
-// Solo un superadmin activo puede invocarla (verificación server-side, no se
-// confía en el frontend). Bloquea el borrado si el cliente tiene contratos —
-// los registros financieros/legales no se destruyen desde un botón.
+// Solo personal administrativo ACTIVO (rol 'admin' o 'superadmin') puede
+// invocarla (verificación server-side, no se confía en el frontend). Bloquea el
+// borrado si el cliente tiene contratos — los registros financieros/legales no
+// se destruyen desde un botón.
+
+// Quién puede eliminar. El objetivo SIEMPRE debe ser rol 'cliente' (paso 4),
+// así que un admin nunca puede borrar a otro admin ni al superadmin.
+const ROLES_QUE_ELIMINAN = new Set(["admin", "superadmin"]);
 
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
@@ -44,15 +49,18 @@ Deno.serve(async (req: Request) => {
     if (userErr || !userRes?.user) return json(cors, { error: "Sesión inválida" }, 401);
     const callerId = userRes.user.id;
 
-    // 2) Solo superadmin activo
+    // 2) Solo personal administrativo activo (admin o superadmin).
+    //    El rol 'admin' solo lo otorga un superadmin desde el panel de equipo
+    //    (`crear-admin` lo revalida server-side), así que este permiso no se
+    //    auto-propaga: un admin no puede fabricarse otro admin.
     const { data: perfilCaller } = await adminClient
       .from("perfiles")
       .select("rol, activo")
       .eq("id", callerId)
       .single();
 
-    if (!perfilCaller || !perfilCaller.activo || perfilCaller.rol !== "superadmin") {
-      return json(cors, { error: "Solo un superadmin puede eliminar clientes" }, 403);
+    if (!perfilCaller || !perfilCaller.activo || !ROLES_QUE_ELIMINAN.has(perfilCaller.rol)) {
+      return json(cors, { error: "Solo un administrador puede eliminar clientes" }, 403);
     }
 
     // 3) Body
