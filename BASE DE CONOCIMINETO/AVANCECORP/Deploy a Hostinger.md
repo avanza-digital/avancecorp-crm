@@ -47,6 +47,47 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 > anulación de cierres del 14/08 —`bbc9829`, ZIP `crm-20260814T215933Z-e1995d5d5eab`—) que
 > **no se anotaron aquí**. Están en sus notas de tema y en `releases/`. Se deja dicho en vez
 > de dejar el hueco mudo: un ledger con lagunas silenciosas es peor que uno que las declara.
+> El hueco alcanza también los del **16-17 de agosto** (26.º-29.º: PDF v2, F1 lead libre
+> 28.º `crm-20260817T151109Z-42f02cbdc1ca` y 29.º `crm-20260817T160102Z-cbc95900091f`):
+> viven en `MIGRACIONES.md` (adendas 16-17/08), sus notas de tema y `releases/`.
+
+- **Deploy 2026-08-18 (~04:45 UTC / ~23:45 del 17 hora de Lima) — CRM: el botón «Tomar
+  lead e iniciar seguimiento» (TRIGÉSIMO release; F2 del plan «lead libre» COMPLETA —
+  servidor 17/08, front hoy):** publica `2bbedf6` y con él DOS commits: `ed15fa6` (el
+  front F2 entero, doble-auditado) y `2bbedf6` (limpieza post-PDF). **Lo que cambia para
+  el vendedor:** al verificar un contacto que está **en la bolsa** o **libre por
+  enfriamiento vencido** ya no lee «la toma directa aún no está habilitada» — ve la
+  tarjeta «Seguimiento anterior disponible» (motivo, descartado el, libre desde, última
+  conversación; sin quién lo descartó, minimización §8) y el botón que lo toma con TODO
+  su historial: ganar resincroniza el ámbito ANTES de abrir la ficha; perder la carrera
+  recibe el veredicto fresco con «La disponibilidad acaba de cambiar…» (nadie roba,
+  §5.7); el error se dice bajo el botón y se reintenta. SOLO vendedor (capacidad
+  `tomarLeadDirecto` — la única excepción documentada del operador total de gerencia,
+  espejo del guard 42501 de la RPC). **Sin migraciones** (la RPC `crm.tomar_lead_libre`
+  vivía en prod desde `20260817164745`; orden de deploy correcto: request nuevo →
+  servidor primero). **Doble auditoría aplicada al front:** revisor-a11y (contraste
+  7,1:1 con `text-destructive-text` en el canal de veredictos — deuda heredada saldada
+  —, el desenlace «libre» dejó de ser mudo, rescate de foco vía efecto, aria-describedby)
+  y Codex refutador **3/6 reales corregidas**: el formulario se CONGELA con la toma en
+  vuelo (editar mezclaba veredictos de contactos distintos), **Cancelar muere mientras
+  la RPC viaja** (el servidor puede COMPROMETER la toma y el front la descartaría en
+  silencio — la grave), y una resincronización fallida se dice sin abrir jamás una ficha
+  vacía. 7 mutantes: 6 muertos, 1 enmascarado por estructura y documentado en el JSX.
+  `database.types.ts` regenerado (trae también las funciones del PDF v2: estado real del
+  esquema). Release **`crm-20260818T044028Z-2bbedf6314f3`**, ZIP SHA-256
+  **`808bdc38…47b0`**, construido desde **worktree git limpio** con `.env` copiado y
+  llaves verificadas DENTRO del ZIP (`crm-queries-DWk6MF5P.js`) ANTES de publicar — el
+  ritual anti-RETOMAR-47. Gate: check **1.988/1.988** (156 ficheros) · typecheck
+  `--force` limpio · lefthook verde. En vivo: **`index-C3Ako1sq.js`** y
+  **`crm-queries-DWk6MF5P.js`** con **sha256 idéntico local↔prod**, y el cambio
+  verificado por grep DENTRO del asset servido («Tomar lead e iniciar seguimiento» en el
+  index, `tomar_lead_libre` en queries); raíz 200; license.md 404; ZIP 404 en ambos
+  dominios; **purga de LiteSpeed necesaria** → `index-5jYqy8nk.js` pasó de 200 a 404
+  (la purga por MCP necesita `username` explícito `u318796122` — el deploy lo resuelve
+  solo, la purga NO; script en el ritual). Rollback: `crm-20260817T160102Z-cbc95900091f`
+  en `releases/`. ⚠️ Para que un vendedor real lo use siguen faltando las mismas dos
+  decisiones de siempre: metas publicadas y el gate `FUNCIONES_LEADS_APROBADAS`. Detalle
+  del ciclo en [[Verificación y toma de lead libre]].
 
 - **Deploy 2026-08-15 (~19:26 hora de Lima / 00:26 UTC del 16) — CRM: las metas vuelven a
   encenderse tras el cierre de mes (reparación de un apagón que causó el propio despliegue
