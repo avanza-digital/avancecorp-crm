@@ -37,18 +37,20 @@ import { ContratoCorregir } from '@/components/app/contrato-corregir'
 import { SeccionEnCooperativas } from '@/components/app/cierres-externos-seccion'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData } from '@/lib/store-context'
-import { can, puedeEscribir } from '@/lib/roles'
+import { can, puedeEliminarContratos, puedeEscribir } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
-import { DIAS_ALARMA_RENOVACION, agruparCartera, idsPorVencer, resumenCartera, type GrupoCartera } from '@/lib/cartera-vista'
-import { CLAVE_SIN_CONTRATOS, MES_TODOS, agruparPorMes, etiquetaDeMes, mesLima, ordenDeBloque } from '@/lib/cartera-meses'
+import { DIAS_ALARMA_RENOVACION, agruparCartera, idsPorVencer, resumenCartera, type GrupoCartera,
+} from '@/lib/cartera-vista'
+import { CLAVE_SIN_CONTRATOS, MES_TODOS, agruparPorMes, etiquetaDeMes, mesLima, ordenDeBloque,
+} from '@/lib/cartera-meses'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
 import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
-import { consultarEstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
+import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
 import { crmQueryKeys, useClientes, useContratos } from '@/data/crm-queries'
 import type {
@@ -106,7 +108,8 @@ function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
         )}
       </span>
       <span className="block text-[11px] tabular-nums text-muted-foreground">
-        {cliente.dni ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}` : 'sin documento'}
+        {cliente.dni ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}`
+          : 'sin documento'}
         {cliente.telefono ? ` · ${cliente.telefono}` : ''}
       </span>
     </span>
@@ -119,20 +122,28 @@ function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
  * un "S/ 0" grande con el capital real escondido). Regla congelada de Miguel,
  * en un solo lugar para que la tabla y la tarjeta no puedan divergir.
  */
-function CapitalInvertido({ grupo, sinContratos, alinear = 'end' }: {
+function CapitalInvertido({
+  grupo,
+  sinContratos,
+  alinear = 'end',
+}: {
   grupo: GrupoCartera
   sinContratos: boolean
   alinear?: 'end' | 'start'
 }) {
   if (!grupo.tieneCapital) {
     return (
-      <span className="text-xs text-muted-foreground">{sinContratos ? 'aún no genera ingreso' : 'sin capital vigente'}</span>
+      <span className="text-xs text-muted-foreground">
+        {sinContratos ? 'aún no genera ingreso' : 'sin capital vigente'}
+      </span>
     )
   }
   return (
     <div className={`flex flex-col leading-tight ${alinear === 'end' ? 'items-end' : 'items-start'}`}>
       {grupo.capitalActivoPen > 0 && (
-        <span className="text-sm font-extrabold tabular-nums text-foreground">{money(grupo.capitalActivoPen, 'PEN')}</span>
+        <span className="text-sm font-extrabold tabular-nums text-foreground">
+          {money(grupo.capitalActivoPen, 'PEN')}
+        </span>
       )}
       {grupo.capitalActivoUsd > 0 && (
         <span
@@ -232,14 +243,18 @@ function FilaContratoSub({
         </div>
       </Td>
       <Td className="text-center">
-        <Badge color={ESTADO_COLOR[k.estado]} dot>{k.estado}</Badge>
+        <Badge color={ESTADO_COLOR[k.estado]} dot>
+          {k.estado}
+        </Badge>
       </Td>
       {colAsesor && <Td className="hidden md:table-cell" />}
       <Td className="text-right tabular-nums">
         <span className="text-[13px] font-semibold text-foreground">{money(k.capital, k.moneda)}</span>
         {/* `text-warning-text` (ámbar oscuro), NO `text-warning`: a 11 px esto es
             texto pequeño y el ámbar puro da ~3:1 → falla WCAG 4.5:1 (ver index.css). */}
-        <span className={`block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}>
+        <span
+          className={`block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}
+        >
           vence {fechaCorta(k.fecha_vencimiento)}
           {porVencer && ' · renovar'}
         </span>
@@ -333,10 +348,14 @@ function FilaGrupoCliente({
         </Td>
         <Td className="text-center">
           {sinContratos ? (
-            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">Sin contratos</span>
+            <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+              Sin contratos
+            </span>
           ) : (
             <span className="text-xs text-muted-foreground">
-              {grupo.contratosActivos > 0 ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}` : 'sin activos'}
+              {grupo.contratosActivos > 0
+                ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}`
+                : 'sin activos'}
             </span>
           )}
         </Td>
@@ -375,11 +394,7 @@ function FilaGrupoCliente({
                     type="button"
                     size="xs"
                     variant="outline"
-                    className={
-                      !edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS
-                        ? 'text-warning'
-                        : undefined
-                    }
+                    className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
                     title={
                       edicionGlobal
                         ? 'Corregir datos del cliente · autorización global de Gerencia'
@@ -473,28 +488,37 @@ function TarjetaContratoSub({
         <span className="min-w-0">
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-mono text-xs font-semibold text-foreground">{k.numero_contrato}</span>
-            <Badge color={ESTADO_COLOR[k.estado]} dot>{k.estado}</Badge>
+            <Badge color={ESTADO_COLOR[k.estado]} dot>
+              {k.estado}
+            </Badge>
           </span>
           {/* Mismo ámbar OSCURO que en la tabla: a 11 px el `--warning` puro no
               llega a 4.5:1 de contraste. */}
-          <span className={`mt-0.5 block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}>
+          <span
+            className={`mt-0.5 block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}
+          >
             {k.categoria ? `${CATEGORIA_LABEL[k.categoria]} · ` : ''}vence {fechaCorta(k.fecha_vencimiento)}
             {porVencer && ' · renovar'}
           </span>
         </span>
-        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">{money(k.capital, k.moneda)}</span>
+        <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
+          {money(k.capital, k.moneda)}
+        </span>
       </button>
-      {conAcciones && corregible && (
-        sinLimiteVentana || ventana.vigente ? (
+      {conAcciones &&
+        corregible &&
+        (sinLimiteVentana || ventana.vigente ? (
           <Button type="button" size="xs" variant="outline" className="shrink-0" onClick={onCorregir}>
             Corregir
           </Button>
         ) : (
-          <span className="shrink-0 text-[11px] text-muted-foreground" title="La ventana de corrección de 5 horas ya venció">
+          <span
+            className="shrink-0 text-[11px] text-muted-foreground"
+            title="La ventana de corrección de 5 horas ya venció"
+          >
             {ventana.texto}
           </span>
-        )
-      )}
+        ))}
     </div>
   )
 }
@@ -554,7 +578,9 @@ function TarjetaGrupoCliente({
           <span className="rounded-full bg-muted px-2 py-0.5 font-medium">Sin contratos</span>
         ) : (
           <span>
-            {grupo.contratosActivos > 0 ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}` : 'sin activos'}
+            {grupo.contratosActivos > 0
+              ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}`
+              : 'sin activos'}
           </span>
         )}
         {colAsesor && asesorNombre && (
@@ -576,11 +602,7 @@ function TarjetaGrupoCliente({
               type="button"
               size="xs"
               variant="outline"
-              className={
-                !edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS
-                  ? 'text-warning'
-                  : undefined
-              }
+              className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
               title={
                 edicionGlobal
                   ? 'Corregir datos del cliente · autorización global de Gerencia'
@@ -640,7 +662,11 @@ function VistaMiCartera({
   /** null = cargando. */
   grupos: GrupoCartera[] | null
   demo: boolean
-  error: { mensaje: string; reintentando: boolean; reintentar: () => void } | null
+  error: {
+    mensaje: string
+    reintentando: boolean
+    reintentar: () => void
+  } | null
   /**
    * Recarga fallida CON datos ya en pantalla. Es un estado distinto de `error`
    * (que solo cubre «no hay nada que mostrar»): TanStack conserva la data previa
@@ -782,8 +808,7 @@ function VistaMiCartera({
     })
   }, [bases, q, fEstado, soloPorVencer, porVencer])
 
-  const hayFiltro =
-    q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos' || soloPorVencer || fMes !== MES_TODOS
+  const hayFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos' || soloPorVencer || fMes !== MES_TODOS
 
   // ── La cartera repartida por MES DE CIERRE ─────────────────────────────────
   // Los grupos entran con sus contratos YA recortados a los que pasan los otros
@@ -797,9 +822,7 @@ function VistaMiCartera({
         filtrados.map((g) => ({
           ...g,
           contratos: g.contratos.filter(
-            (c) =>
-              (fEstado === 'todos' || c.estado === fEstado) &&
-              (!soloPorVencer || porVencer.has(c.id)),
+            (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
           ),
         })),
       ),
@@ -830,9 +853,9 @@ function VistaMiCartera({
   // Dejarlos fuera los volvía inalcanzables salvo por una opción del
   // desplegable que nadie va a buscar — y se llevaba por delante el reparto de
   // «Sin asesor», donde esos clientes son justo los que hay que repartir.
-  const sinContratos = fMes === CLAVE_SIN_CONTRATOS ? [] : (meses.find((m) => m.clave === CLAVE_SIN_CONTRATOS)?.grupos ?? [])
-  const visiblesDelFiltro =
-    fMes === MES_TODOS ? filtrados : [...(bloque?.grupos ?? []), ...sinContratos]
+  const sinContratos =
+    fMes === CLAVE_SIN_CONTRATOS ? [] : (meses.find((m) => m.clave === CLAVE_SIN_CONTRATOS)?.grupos ?? [])
+  const visiblesDelFiltro = fMes === MES_TODOS ? filtrados : [...(bloque?.grupos ?? []), ...sinContratos]
   // El mes es el ÚNICO filtro puesto: entonces un vacío no es «sin resultados»
   // sino «ese mes no tuvo cierres», que es otra cosa y se explica distinto.
   const mesEsElUnicoFiltro =
@@ -907,16 +930,40 @@ function VistaMiCartera({
   const subCapital = modoMes ? subMes : 'en contratos activos'
   const chipsCapital: StatChipData[] = []
   if (capPen > 0) {
-    chipsCapital.push({ icon: Wallet, label: etiquetaCapital('Soles'), value: moneyK(capPen), tone: 'primary', sub: subCapital })
+    chipsCapital.push({
+      icon: Wallet,
+      label: etiquetaCapital('Soles'),
+      value: moneyK(capPen),
+      tone: 'primary',
+      sub: subCapital,
+    })
   }
   if (capUsd > 0) {
-    chipsCapital.push({ icon: Coins, label: etiquetaCapital('Dólares'), value: moneyK(capUsd, 'USD'), tone: 'primary', sub: subCapital })
+    chipsCapital.push({
+      icon: Coins,
+      label: etiquetaCapital('Dólares'),
+      value: moneyK(capUsd, 'USD'),
+      tone: 'primary',
+      sub: subCapital,
+    })
   }
   if (chipsCapital.length === 0) {
     chipsCapital.push(
       modoMes
-        ? { icon: Wallet, label: `Cerrado en ${mesCorto}`, value: money(0, 'PEN'), tone: 'default', sub: hayOtroFiltro ? 'nada con esos filtros' : 'sin cierres este mes' }
-        : { icon: Wallet, label: 'Capital invertido', value: money(0, 'PEN'), tone: 'default', sub: 'sin capital vigente aún' },
+        ? {
+            icon: Wallet,
+            label: `Cerrado en ${mesCorto}`,
+            value: money(0, 'PEN'),
+            tone: 'default',
+            sub: hayOtroFiltro ? 'nada con esos filtros' : 'sin cierres este mes',
+          }
+        : {
+            icon: Wallet,
+            label: 'Capital invertido',
+            value: money(0, 'PEN'),
+            tone: 'default',
+            sub: 'sin capital vigente aún',
+          },
     )
   }
   // La alarma cuenta TODA la cartera (incl. clientes dados de baja) — es un
@@ -1003,8 +1050,7 @@ function VistaMiCartera({
         queReintenta="de tu cartera"
         onReintentar={() => recargaFallida?.reintentar()}
       >
-        No se pudo actualizar la cartera. Se muestran los últimos datos cargados, que
-        pueden estar desactualizados.
+        No se pudo actualizar la cartera. Se muestran los últimos datos cargados, que pueden estar desactualizados.
       </AvisoDegradacion>
       {bases.length > 0 && <StatStrip stats={stats} />}
       <Card className="overflow-hidden">
@@ -1198,8 +1244,8 @@ function VistaMiCartera({
                       ? `Ningún cliente ni contrato coincide con “${q.trim()}”.`
                       : // Con DOS o más filtros el vacío puede deberse a cualquiera
                         // de ellos, así que un mensaje neutral no afirma de más.
-                        [fAsesor !== 'todos', fEstado !== 'todos', soloPorVencer, fMes !== MES_TODOS]
-                          .filter(Boolean).length > 1
+                        [fAsesor !== 'todos', fEstado !== 'todos', soloPorVencer, fMes !== MES_TODOS].filter(Boolean)
+                            .length > 1
                         ? 'Ningún cliente coincide con los filtros aplicados.'
                         : soloPorVencer
                           ? `Ningún contrato vence en los próximos ${DIAS_ALARMA_RENOVACION} días.`
@@ -1285,8 +1331,7 @@ export function MiCartera() {
   const queryClient = useQueryClient()
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [envioEnCurso, setEnvioEnCurso] = useState(false)
-  const [contratoConfirmado, setContratoConfirmado] =
-    useState<ContratoConfirmadoParaCierre | null>(null)
+  const [contratoConfirmado, setContratoConfirmado] = useState<ContratoConfirmadoParaCierre | null>(null)
   const contratosFinalizadosRef = useRef(new Set<string>())
 
   const clientesQ = useClientes(!esDemo)
@@ -1323,14 +1368,13 @@ export function MiCartera() {
 
   // Finalizar, Esc y click en overlay convergen aqui. La llave impide que dos
   // eventos de cierre del mismo tick dupliquen la invalidacion.
-  const finalizarContratoCreado = (
-    numero: string,
-    creadoLocal?: ContratoCreadoLocal,
-  ) => {
+  const finalizarContratoCreado = (numero: string, creadoLocal?: ContratoCreadoLocal) => {
     const llave = creadoLocal?.id ?? numero
     if (!contratosFinalizadosRef.current.has(llave)) {
       contratosFinalizadosRef.current.add(llave)
-      void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.contratos(),
+      })
     }
     setContratoConfirmado(null)
     setEnvioEnCurso(false)
@@ -1340,10 +1384,7 @@ export function MiCartera() {
   const cerrarContratoNuevo = () => {
     if (envioEnCurso) return
     if (contratoConfirmado) {
-      finalizarContratoCreado(
-        contratoConfirmado.numero,
-        contratoConfirmado.creadoLocal,
-      )
+      finalizarContratoCreado(contratoConfirmado.numero, contratoConfirmado.creadoLocal)
       return
     }
     setOverlay(null)
@@ -1364,7 +1405,9 @@ export function MiCartera() {
   const alClienteCorregido = (id: string) => {
     setOverlay(null)
     void clientesQ.refetch()
-    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.clienteDetalle(id) })
+    void queryClient.invalidateQueries({
+      queryKey: crmQueryKeys.clienteDetalle(id),
+    })
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
@@ -1374,20 +1417,11 @@ export function MiCartera() {
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
-  // El snapshot contractual queda congelado desde que existe la reserva PDF,
-  // incluso si el render todavia esta pendiente. La base es la autoridad, pero
-  // este gate evita abrir un formulario que necesariamente terminaria en 409.
-  const abrirCorreccionContrato = async (contrato: ContratoRow) => {
-    try {
-      const pdf = await consultarEstadoContratoPdf(contrato.id)
-      if (pdf.estado !== 'sin_reserva') {
-        toast.info('Los terminos contractuales quedaron congelados al reservar el PDF legal.')
-        return
-      }
-      setOverlay({ tipo: 'contrato-corregir', contrato })
-    } catch (error) {
-      toast.error(mensajeDeError(error, 'No se pudo confirmar si el contrato admite correcciones.'))
-    }
+  // El servidor decide si la corrección sigue dentro de las 5 horas y, cuando
+  // la acepta, reserva una nueva revisión PDF. La UI no intenta anticipar esa
+  // decisión con el estado de la revisión anterior.
+  const abrirCorreccionContrato = (contrato: ContratoRow) => {
+    setOverlay({ tipo: 'contrato-corregir', contrato })
   }
 
   const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError)
@@ -1419,27 +1453,48 @@ export function MiCartera() {
         yoId={yo?.id ?? null}
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
-        onNuevoContrato={(c) =>
-          abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente')}
-        onDetalleCliente={(c) => setOverlay({ tipo: 'cliente-detalle', clienteId: c.id, clienteNombre: c.nombre_completo })}
+        onNuevoContrato={(c) => abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente')}
+        onDetalleCliente={(c) =>
+          setOverlay({
+            tipo: 'cliente-detalle',
+            clienteId: c.id,
+            clienteNombre: c.nombre_completo,
+          })
+        }
         onCorregirCliente={(c) => setOverlay({ tipo: 'cliente-corregir', clienteId: c.id })}
         onDetalleContrato={(k) => setOverlay({ tipo: 'contrato-detalle', contrato: k })}
-        onCorregirContrato={(k) => void abrirCorreccionContrato(k)}
+        onCorregirContrato={abrirCorreccionContrato}
       />
 
       {overlay?.tipo === 'cliente-crear' && (
         <Dialog open onClose={cerrarAlta} ariaLabel="Nuevo cliente">
-          <ClienteForm modo="crear" onListo={(id) => void alClienteCreado(id)} onCerrar={cerrarAlta} onEnviandoCambio={setEnvioEnCurso} />
+          <ClienteForm
+            modo="crear"
+            onListo={(id) => void alClienteCreado(id)}
+            onCerrar={cerrarAlta}
+            onEnviandoCambio={setEnvioEnCurso}
+          />
         </Dialog>
       )}
       {overlay?.tipo === 'cliente-detalle' && (
-        <Dialog open onClose={cerrar} ariaLabel={`Detalle de ${overlay.clienteNombre || 'cliente'}`} className="w-[640px]">
+        <Dialog
+          open
+          onClose={cerrar}
+          ariaLabel={`Detalle de ${overlay.clienteNombre || 'cliente'}`}
+          className="w-[640px]"
+        >
           <ClienteDetalle clienteId={overlay.clienteId} onCerrar={cerrar} />
         </Dialog>
       )}
       {overlay?.tipo === 'cliente-corregir' && (
         <Dialog open onClose={cerrarSeguro} ariaLabel="Corregir datos del cliente">
-          <ClienteForm modo="corregir" clienteId={overlay.clienteId} onListo={alClienteCorregido} onCerrar={cerrarSeguro} onEnviandoCambio={setEnvioEnCurso} />
+          <ClienteForm
+            modo="corregir"
+            clienteId={overlay.clienteId}
+            onListo={alClienteCorregido}
+            onCerrar={cerrarSeguro}
+            onEnviandoCambio={setEnvioEnCurso}
+          />
         </Dialog>
       )}
       {overlay?.tipo === 'contrato-crear' && (
@@ -1447,9 +1502,9 @@ export function MiCartera() {
           <ContratoNuevo
             clienteId={overlay.clienteId}
             clienteNombre={overlay.clienteNombre}
-            onConfirmado={(numero, creadoLocal) => setContratoConfirmado(
-              creadoLocal ? { numero, creadoLocal } : { numero },
-            )}
+            onConfirmado={(numero, creadoLocal) =>
+              setContratoConfirmado(creadoLocal ? { numero, creadoLocal } : { numero })
+            }
             onEnviandoCambio={setEnvioEnCurso}
             onCreado={finalizarContratoCreado}
             onOmitir={cerrarContratoNuevo}
@@ -1457,12 +1512,36 @@ export function MiCartera() {
         </Dialog>
       )}
       {overlay?.tipo === 'contrato-detalle' && (
-        <Dialog open onClose={cerrar} ariaLabel={`Detalle del contrato ${overlay.contrato.numero_contrato}`} className="w-[560px]">
-          <ContratoDetalle contratoId={overlay.contrato.id} onCerrar={cerrar} />
+        <Dialog
+          open
+          onClose={cerrar}
+          ariaLabel={`Detalle del contrato ${overlay.contrato.numero_contrato}`}
+          className="w-[560px]"
+        >
+          <ContratoDetalle
+            contratoId={overlay.contrato.id}
+            puedeEliminar={puedeEliminarContratos(yo)}
+            onEliminar={async () => {
+              const { archivosEliminados } = await eliminarContratoConPdf(overlay.contrato.id)
+              setOverlay(null)
+              await queryClient.invalidateQueries({
+                queryKey: crmQueryKeys.contratos(),
+              })
+              toast.success(
+                `Contrato ${overlay.contrato.numero_contrato} eliminado con ${archivosEliminados} archivo${archivosEliminados === 1 ? '' : 's'}.`,
+              )
+            }}
+            onCerrar={cerrar}
+          />
         </Dialog>
       )}
       {overlay?.tipo === 'contrato-corregir' && (
-        <Dialog open onClose={cerrar} ariaLabel={`Corregir contrato ${overlay.contrato.numero_contrato}`} className="w-[560px]">
+        <Dialog
+          open
+          onClose={cerrar}
+          ariaLabel={`Corregir contrato ${overlay.contrato.numero_contrato}`}
+          className="w-[560px]"
+        >
           <ContratoCorregir contrato={overlay.contrato} onGuardado={recargarContratos} onCerrar={cerrar} />
         </Dialog>
       )}
@@ -1503,8 +1582,7 @@ function MiCarteraDemo() {
   const [nuevoContrato, setNuevoContrato] = useState<ClienteBasico | null>(null)
   const [contratosLocales, setContratosLocales] = useState<Record<string, ContratoDemoLocal>>({})
   const [envioContratoEnCurso, setEnvioContratoEnCurso] = useState(false)
-  const [contratoConfirmado, setContratoConfirmado] =
-    useState<ContratoConfirmadoParaCierre | null>(null)
+  const [contratoConfirmado, setContratoConfirmado] = useState<ContratoConfirmadoParaCierre | null>(null)
   const contratosFinalizadosRef = useRef(new Set<string>())
 
   useEffect(() => {
@@ -1561,20 +1639,11 @@ function MiCarteraDemo() {
     setNuevoContrato(cliente)
   }
   const validarNumeroContratoDemo = (numero: string): string | null => {
-    const existeEnFixture = fixtures?.contratos.some(
-      (contrato) => contrato.numero_contrato === numero,
-    ) ?? false
-    const existeLocal = Object.values(contratosLocales).some(
-      (local) => local.contrato.numero_contrato === numero,
-    )
-    return existeEnFixture || existeLocal
-      ? `Ya existe el contrato demo ${numero}. Escribe un número distinto.`
-      : null
+    const existeEnFixture = fixtures?.contratos.some((contrato) => contrato.numero_contrato === numero) ?? false
+    const existeLocal = Object.values(contratosLocales).some((local) => local.contrato.numero_contrato === numero)
+    return existeEnFixture || existeLocal ? `Ya existe el contrato demo ${numero}. Escribe un número distinto.` : null
   }
-  const finalizarContratoDemo = (
-    _numero: string,
-    creadoLocal?: ContratoCreadoLocal,
-  ) => {
+  const finalizarContratoDemo = (_numero: string, creadoLocal?: ContratoCreadoLocal) => {
     if (!creadoLocal || !fixtures) {
       toast.error('No se pudo incorporar el contrato ficticio a Mi cartera.')
       return
@@ -1590,8 +1659,7 @@ function MiCarteraDemo() {
       setNuevoContrato(null)
       return
     }
-    const numeroContrato = creadoLocal.input.numero_contrato
-      ?? creadoLocal.pdfDatos.contrato.numero
+    const numeroContrato = creadoLocal.input.numero_contrato ?? creadoLocal.pdfDatos.contrato.numero
     if (validarNumeroContratoDemo(numeroContrato)) {
       toast.error(`No se incorporó ${numeroContrato}: ese número demo ya existe.`)
       return
@@ -1650,10 +1718,7 @@ function MiCarteraDemo() {
   const cerrarContratoDemo = () => {
     if (envioContratoEnCurso) return
     if (contratoConfirmado) {
-      finalizarContratoDemo(
-        contratoConfirmado.numero,
-        contratoConfirmado.creadoLocal,
-      )
+      finalizarContratoDemo(contratoConfirmado.numero, contratoConfirmado.creadoLocal)
       return
     }
     setNuevoContrato(null)
@@ -1692,20 +1757,16 @@ function MiCarteraDemo() {
       )}
 
       {nuevoContrato && fixtures?.identidadesPdf[nuevoContrato.id] && (
-        <Dialog
-          open
-          onClose={cerrarContratoDemo}
-          ariaLabel={`Crear contrato de ${nuevoContrato.nombre_completo}`}
-        >
+        <Dialog open onClose={cerrarContratoDemo} ariaLabel={`Crear contrato de ${nuevoContrato.nombre_completo}`}>
           <ContratoNuevo
             clienteId={nuevoContrato.id}
             clienteNombre={nuevoContrato.nombre_completo}
             pdfDatosDemo={fixtures.identidadesPdf[nuevoContrato.id]}
             cuentasDemo={fixtures.cuentasClientes[nuevoContrato.id]}
             validarNumero={validarNumeroContratoDemo}
-            onConfirmado={(numero, creadoLocal) => setContratoConfirmado(
-              creadoLocal ? { numero, creadoLocal } : { numero },
-            )}
+            onConfirmado={(numero, creadoLocal) =>
+              setContratoConfirmado(creadoLocal ? { numero, creadoLocal } : { numero })
+            }
             onEnviandoCambio={setEnvioContratoEnCurso}
             onCreado={finalizarContratoDemo}
             onOmitir={cerrarContratoDemo}
@@ -1714,19 +1775,20 @@ function MiCarteraDemo() {
       )}
 
       {detalleContrato && (
-        <Dialog open onClose={() => setDetalleContrato(null)} ariaLabel={`Detalle del contrato ${detalleContrato.numero_contrato}`} className="w-[560px]">
+        <Dialog
+          open
+          onClose={() => setDetalleContrato(null)}
+          ariaLabel={`Detalle del contrato ${detalleContrato.numero_contrato}`}
+          className="w-[560px]"
+        >
           <ContratoDetalle
             contratoId={detalleContrato.id}
             datos={{
               contrato: detalleContrato,
-              cuotas: contratosLocales[detalleContrato.id]?.cuotas
-                ?? fixtures?.cronogramas[detalleContrato.id]
-                ?? [],
-              titulares: contratosLocales[detalleContrato.id]?.titulares
-                ?? fixtures?.titulares[detalleContrato.id]
-                ?? [],
-              pdfDatos: contratosLocales[detalleContrato.id]?.pdfDatos
-                ?? fixtures?.pdfDatos[detalleContrato.id],
+              cuotas: contratosLocales[detalleContrato.id]?.cuotas ?? fixtures?.cronogramas[detalleContrato.id] ?? [],
+              titulares:
+                contratosLocales[detalleContrato.id]?.titulares ?? fixtures?.titulares[detalleContrato.id] ?? [],
+              pdfDatos: contratosLocales[detalleContrato.id]?.pdfDatos ?? fixtures?.pdfDatos[detalleContrato.id],
             }}
             onCerrar={() => setDetalleContrato(null)}
           />

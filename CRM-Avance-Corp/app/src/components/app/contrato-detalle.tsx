@@ -6,7 +6,7 @@
 // cartera (contrato ajeno = 0 filas, fail-closed). Se monta DENTRO de <Dialog>
 // (mismo patrón que ContratoNuevo: el caller pone el Dialog, aquí va el panel).
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { Download, ExternalLink, FileText, LoaderCircle, RotateCcw, WifiOff } from 'lucide-react'
+import { Download, ExternalLink, FileText, LoaderCircle, RotateCcw, Trash2, WifiOff } from 'lucide-react'
 import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -80,6 +80,8 @@ export interface ContratoDetalleProps {
   contratoId: string
   onCerrar: () => void
   datos?: ContratoDetalleDatos
+  puedeEliminar?: boolean
+  onEliminar?: () => Promise<void> | void
 }
 
 interface EstadoPdfUi {
@@ -90,7 +92,10 @@ interface EstadoPdfUi {
   error: boolean
 }
 
-export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalleProps) {
+export function ContratoDetalle({ contratoId, onCerrar, datos,
+  puedeEliminar = false,
+  onEliminar,
+}: ContratoDetalleProps) {
   // DEMO: con datos precargados los hooks quedan DESHABILITADOS — cero red
   // (una sesión demo no tiene Supabase, ver ContratoDetalleDatos).
   const precargado = datos != null
@@ -113,8 +118,8 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
     : qContrato.isError && qContrato.data == null
       ? mensajeDeError(qContrato.error, 'No se pudo cargar el contrato.')
       : qContrato.isSuccess && qContrato.data == null
-        // Fuera de la cartera o inexistente: mismo mensaje, sin revelar existencia.
-        ? 'No se encontró el contrato en tu cartera.'
+        ? // Fuera de la cartera o inexistente: mismo mensaje, sin revelar existencia.
+          'No se encontró el contrato en tu cartera.'
         : null
   const cuotas = datos?.cuotas ?? qCronograma.data ?? null
   const errorCrono = !precargado && qCronograma.isError && qCronograma.data == null
@@ -145,6 +150,8 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
     cargando: !pdfDatos,
     error: false,
   }))
+  const [confirmandoEliminar, setConfirmandoEliminar] = useState(false)
+  const [eliminando, setEliminando] = useState(false)
   // Etiquetar el estado con su contrato evita pintar, incluso durante un frame,
   // el estado o spinner de A después de que el mismo diálogo ya recibió B.
   const estadoPdfEsActual = estadoPdfUi.contratoId === contratoId
@@ -176,11 +183,13 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
     // todavía esté esperando bytes del contexto anterior.
     ++secuenciaAccionPdfRef.current
     if (pdfDatos) {
-      setEstadoPdfUi({ contratoId, secuencia, estado: 'pendiente', cargando: false, error: false })
+      setEstadoPdfUi({ contratoId, secuencia, estado: 'pendiente', cargando: false, error: false,
+      })
       return
     }
     let vigente = true
-    setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: true, error: false })
+    setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: true, error: false,
+    })
     void consultarEstadoContratoPdf(contratoId)
       .then((estado) => {
         if (
@@ -188,7 +197,8 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
           && secuenciaEstadoPdfRef.current === secuencia
           && contratoIdActualRef.current === contratoId
         ) {
-          setEstadoPdfUi({ contratoId, secuencia, estado: estado.estado, cargando: false, error: false })
+          setEstadoPdfUi({ contratoId, secuencia, estado: estado.estado, cargando: false, error: false,
+          })
         }
       })
       .catch(() => {
@@ -197,11 +207,28 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
           && secuenciaEstadoPdfRef.current === secuencia
           && contratoIdActualRef.current === contratoId
         ) {
-          setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: false, error: true })
+          setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: false, error: true,
+          })
         }
       })
     return () => { vigente = false }
   }, [contratoId, pdfDatos])
+
+  useEffect(() => {
+    setConfirmandoEliminar(false)
+    setEliminando(false)
+  }, [contratoId])
+
+  const confirmarEliminacion = async () => {
+    if (!onEliminar || eliminando) return
+    setEliminando(true)
+    try {
+      await onEliminar()
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo eliminar el contrato y sus PDF.'))
+      setEliminando(false)
+    }
+  }
 
   const ejecutarPdf = async (accion: 'ver' | 'descargar') => {
     if (!contrato || accionPdf) return
@@ -215,7 +242,8 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
       // La pestaña debe reservarse dentro del gesto del usuario. Esperar a la
       // Edge, descargar y calcular SHA antes de window.open activa el bloqueador.
       if (accion === 'ver') ventanaPdf = abrirVentanaContratoPdf()
-      setAccionPdfUi({ contratoId: contratoIdAccion, secuencia: secuenciaAccion, accion })
+      setAccionPdfUi({ contratoId: contratoIdAccion, secuencia: secuenciaAccion, accion,
+      })
       // El resultado de una consulta de estado iniciada antes del ensure ya no
       // puede sobrescribir el estado sellado que confirme esta acción.
       const secuenciaEstado = ++secuenciaEstadoPdfRef.current
@@ -231,10 +259,10 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
       // permite repararlo desde la fotografía contractual privada del servidor.
       const archivo = pdfDatos
         ? await archivarContratoPdfDemoHabilitado(contratoId, pdfDatos)
-        : await obtenerContratoPdfArchivado(contratoId)
+        : ((await obtenerContratoPdfArchivado(contratoId)) ??
           // Recuperación post-commit: genera únicamente desde la fotografía
           // contractual privada e inmutable de la RPC, nunca desde perfiles.
-          ?? await archivarContratoPdfConfirmado(contratoId)
+          (await archivarContratoPdfConfirmado(contratoId)))
       if (!accionSigueVigente()) {
         ventanaPdf?.close()
         return
@@ -267,7 +295,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
           : 'No se pudo recuperar el contrato PDF. Inténtalo nuevamente.',
       )
     } finally {
-      setAccionPdfUi((actual) => actual?.secuencia === secuenciaAccion ? null : actual)
+      setAccionPdfUi((actual) => (actual?.secuencia === secuenciaAccion ? null : actual))
     }
   }
 
@@ -324,14 +352,27 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
         ) : (
           <>
             <div className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
-              {cargandoEstadoPdf
-                ? 'Consultando el estado documental…'
-                : errorEstadoPdf
-                  ? 'No se pudo consultar el estado documental. Puedes reintentar desde los botones de PDF.'
-                  : estadoPdf
-                    ? <>Estado documental: <b className="text-foreground">{etiquetaEstadoContratoPdf(estadoPdf)}</b>.</>
-                    : 'Estado documental no disponible.'}
+              {cargandoEstadoPdf ? (
+                'Consultando el estado documental…'
+              ) : errorEstadoPdf ? (
+                'No se pudo consultar el estado documental. Puedes reintentar desde los botones de PDF.'
+              ) : estadoPdf ? (
+                <>
+                  Estado documental: <b className="text-foreground">{etiquetaEstadoContratoPdf(estadoPdf)}</b>.
+                </>
+              ) : (
+                'Estado documental no disponible.'
+              )}
             </div>
+            {confirmandoEliminar && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+              >
+                Esta acción es permanente: se eliminarán el contrato, su cronograma, sus documentos y todas las
+                revisiones del PDF. Confirma una segunda vez.
+              </div>
+            )}
             {/* ── Términos del contrato (espejo de renderDetalleMeta) ─────────── */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Termino label="Cliente">{contrato.cliente_nombre ?? '—'}</Termino>
@@ -355,11 +396,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
                 {contrato.tipo_interes === 'compuesto' ? '—' : MODALIDAD_LABEL[contrato.modalidad]}
               </Termino>
               <Termino label="Categoría">
-                {contrato.categoria ? (
-                  <Badge color="var(--warning)">{CATEGORIA_LABEL[contrato.categoria]}</Badge>
-                ) : (
-                  '—'
-                )}
+                {contrato.categoria ? <Badge color="var(--warning)">{CATEGORIA_LABEL[contrato.categoria]}</Badge> : '—'}
               </Termino>
               <Termino label="Inicio">{fmtFecha(contrato.fecha_inicio)}</Termino>
               <Termino label="Vencimiento">{fmtFecha(contrato.fecha_vencimiento)}</Termino>
@@ -421,9 +458,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
 
             {/* ── Cronograma COMPLETO (reglas finas del portal) ───────────────── */}
             <div>
-              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-                {tituloCronograma}
-              </p>
+              <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">{tituloCronograma}</p>
               {errorCrono ? (
                 <div className="mt-2 space-y-2 rounded-xl border border-destructive/30 bg-destructive/5 p-3">
                   <p className="text-xs font-semibold text-destructive">{errorCrono}</p>
@@ -504,9 +539,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
                         {totales.pagadasInteres} de {totales.cuotasInteres}
                       </b>{' '}
                       cuotas de interés pagadas · Pagado{' '}
-                      <b className="tabular-nums text-foreground">{money(totales.pagado, contrato.moneda)}</b>{' '}
-                      · Por pagar{' '}
-                      <b className="tabular-nums text-foreground">{money(totales.porPagar, contrato.moneda)}</b>
+                      <b className="tabular-nums text-foreground">{money(totales.pagado, contrato.moneda)}</b> · Por pagar <b className="tabular-nums text-foreground">{money(totales.porPagar, contrato.moneda)}</b>
                     </p>
                   )}
                 </>
@@ -516,32 +549,64 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
         )}
       </DialogBody>
       <DialogFooter>
+        {contrato &&
+          puedeEliminar &&
+          onEliminar &&
+          (confirmandoEliminar ? (
+            <>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={eliminando} onClick={() => setConfirmandoEliminar(false)}>
+                Cancelar eliminación
+              </Button>
+              <Button variant="destructive" size="sm" disabled={eliminando} onClick={() => void confirmarEliminacion()}>
+                {eliminando ? <LoaderCircle className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
+                Sí, eliminar contrato y PDF
+              </Button>
+            </>
+          ) : (
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={accionPdf != null}
+              onClick={() => setConfirmandoEliminar(true)}
+            >
+              <Trash2 aria-hidden /> Eliminar contrato
+            </Button>
+          ))}
         {contrato && (
           <>
             <Button
               variant="outline"
               size="sm"
-              disabled={accionPdf != null || estadoPdf === 'integridad_bloqueada'}
+              disabled={eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada'}
               onClick={() => void ejecutarPdf('ver')}
             >
               {accionPdf === 'ver'
-                ? <LoaderCircle className="animate-spin" aria-hidden />
-                : <ExternalLink aria-hidden />}
+                ? (
+                <LoaderCircle className="animate-spin" aria-hidden />
+              ) : (
+                <ExternalLink aria-hidden />
+              )}
               Ver contrato PDF
             </Button>
             <Button
               size="sm"
-              disabled={accionPdf != null || estadoPdf === 'integridad_bloqueada'}
+              disabled={eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada'}
               onClick={() => void ejecutarPdf('descargar')}
             >
               {accionPdf === 'descargar'
-                ? <LoaderCircle className="animate-spin" aria-hidden />
-                : <Download aria-hidden />}
+                ? (
+                <LoaderCircle className="animate-spin" aria-hidden />
+              ) : (
+                <Download aria-hidden />
+              )}
               Descargar contrato PDF
             </Button>
           </>
         )}
-        <Button variant="outline" size="sm" onClick={onCerrar}>
+        <Button variant="outline" size="sm" disabled={eliminando} onClick={onCerrar}>
           Cerrar
         </Button>
       </DialogFooter>

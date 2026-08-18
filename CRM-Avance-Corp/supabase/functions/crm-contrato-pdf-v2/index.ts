@@ -179,6 +179,10 @@ const handler = crearHandlerContratoPdfV2({
           (url ? null : { code: "SIGNED_URL_INVALID" }),
       };
     },
+    async eliminar(bucket, paths) {
+      const { error } = await admin.storage.from(bucket).remove([...paths]);
+      return { error: errorBackend(error) };
+    },
   },
 });
 

@@ -2774,3 +2774,47 @@ ejecuta `034822...`; una comparación contra el índice remoto busca `054949...`
 Son la MISMA pieza — no duplicar, no «reconciliar» aplicándola dos veces. Si esa
 sesión retoma, la resolución limpia es renombrar el fichero al timestamp del
 registro en un commit propio.
+
+## 20260818200741_crm_contratos_correccion_pdf_eliminacion.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Mantiene la regla autoritativa de
+corrección del vendedor (autor + cartera + máximo 5 horas), pero una corrección
+válida ya no queda bloqueada por el primer PDF: en la misma transacción crea una
+revisión documental nueva y conserva las anteriores como historial inmutable.
+La Edge genera, verifica y sella el PDF vigente íntegramente en el servidor.
+
+El hard-delete queda reservado a Admin/Superadmin por RPC privada: Admin solo
+sin pagos y Superadmin también con pagos. La Edge recibe un manifiesto exacto,
+borra por Storage API tanto `contratos-generados` como `documentos` y recién
+después confirma el borrado de contrato, cronograma y metadata. El DELETE
+PostgREST directo queda cerrado para evitar PDFs huérfanos. Un mutex durable y
+triggers sobre contrato, pagos, titulares, documentos y jobs mantienen estable
+la autorización y el manifiesto durante las dos fases; el finalizador exige el
+token y el mismo actor que obtuvo la autorización original.
+
+Verificación local: oráculo PostgreSQL aislado
+`CONTRATO_PDF_V2_SQL_OK`/`CONTRATO_PDF_V2_RUNNER_OK` (incluye ventana vencida,
+revisiones, roles, pagos, actor/token, RLS y carreras de manifiesto); Edge
+23/23 pruebas Deno + `deno check`; frontend 2.060/2.060 pruebas, typecheck, lint
+y build en verde; portal legacy validado con `node --check`.
+
+## 20260818200743_crm_contrato_pdf_plantilla_v3.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Versiona como `contrato-aep-17-v3` la
+plantilla contractual aprobada el 18/08/2026. Mantiene inmutables y legibles
+los PDFs v1/v2 ya sellados, admite v2/v3 en el ledger y migra a v3 únicamente
+reservas sin bytes ni lease activo. Las reservas nuevas nacen en v3 y conservan
+la ruta server-side content-addressed `/v2/<job>/contrato.pdf`; `v2` en la ruta
+identifica el protocolo del generador, no la revisión del contenido legal.
+
+La Edge `crm-contrato-pdf-v2` sigue generando el archivo íntegramente en el
+servidor. La revisión sustituye el cuerpo contractual, usa el porcentaje y los
+datos del snapshot, incorpora liquidaciones parciales y las reglas actualizadas
+de retiro/liquidación, y elimina la imagen de firma del ASOCIANTE. El renderer
+con fecha fija produce un PDF determinista de 843.744 bytes y SHA-256
+`74f134a8b2cd04723cca0c36e237a9863dd782d75e07fc95eb5709dc6b3e0219`
+para el fixture canónico. Verificación local de la Edge: 23/23 pruebas Deno y
+formato en verde; oráculo aislado `CONTRATO_PDF_V2_SQL_OK` y runner con limpieza
+verificada; contrato MSW 33/33, typecheck y lint del frontend en verde. En
+producción se aplicó después de confirmar 0 leases activos y 5 PDF v2 sellados;
+la Edge conserva compatibilidad de lectura verificada para esas revisiones.

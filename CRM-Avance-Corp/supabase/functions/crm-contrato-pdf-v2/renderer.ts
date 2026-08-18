@@ -4,8 +4,6 @@ import pdfmakeBundle from "./pdfmake-0.2.20-pdfprinter.js";
 import robotoVfs from "./vfs-fonts-0.2.20.js";
 import {
   CONTRATO_PDF_ASSETS_VERSION,
-  FIRMA_DATA_URL,
-  FIRMA_SHA256,
   FONDO_DATA_URL,
   FONDO_SHA256,
 } from "./assets-v2.ts";
@@ -396,11 +394,9 @@ let recursosVerificados: Promise<void> | null = null;
 async function verificarRecursos(): Promise<void> {
   recursosVerificados ??= (async () => {
     const fondo = dataUrlBytes(FONDO_DATA_URL);
-    const firma = dataUrlBytes(FIRMA_DATA_URL);
-    if (
-      await sha256Bytes(fondo) !== FONDO_SHA256 ||
-      await sha256Bytes(firma) !== FIRMA_SHA256
-    ) throw new TypeError("Assets PDF v2 no corresponden a su versión");
+    if (await sha256Bytes(fondo) !== FONDO_SHA256) {
+      throw new TypeError("Assets PDF v2 no corresponden a su versión");
+    }
     for (const [nombre, hash] of Object.entries(VFS_HASHES)) {
       const base64 = (robotoVfs as unknown as Record<string, string>)[nombre];
       if (!base64 || !SHA_RE.test(hash)) {
@@ -420,13 +416,11 @@ async function verificarRecursos(): Promise<void> {
 export async function verificarAssetsContratoPdfV2(): Promise<{
   ok: true;
   fondoBytes: number;
-  firmaBytes: number;
 }> {
   await verificarRecursos();
   return {
     ok: true,
     fondoBytes: dataUrlBytes(FONDO_DATA_URL).byteLength,
-    firmaBytes: dataUrlBytes(FIRMA_DATA_URL).byteLength,
   };
 }
 
@@ -527,7 +521,6 @@ export async function renderizarContratoPdfV2(
   await verificarRecursos();
   const definicion = construirContratoPdf(datosDocumento(snapshot), {
     fondo: FONDO_DATA_URL,
-    firmaAsociante: FIRMA_DATA_URL,
   });
   definicion.info = {
     ...definicion.info,

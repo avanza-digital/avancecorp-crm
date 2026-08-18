@@ -18,6 +18,8 @@ readonly qa_supabase_dir
 readonly QA_CONFIG="$qa_supabase_dir/config.toml"
 readonly QA_TEST_V2="$qa_script_dir/test-contrato-pdf-v2.sql"
 readonly QA_MIGRATION_V2="$qa_supabase_dir/migrations/20260818014534_crm_contrato_pdf_v2_reserva.sql"
+readonly QA_MIGRATION_REVISIONES="$qa_supabase_dir/migrations/20260818200741_crm_contratos_correccion_pdf_eliminacion.sql"
+readonly QA_MIGRATION_V3="$qa_supabase_dir/migrations/20260818200743_crm_contrato_pdf_plantilla_v3.sql"
 
 qa_created=0
 qa_created_oid=''
@@ -89,6 +91,8 @@ verify_sql_sources() {
   qa_sources=(
     "$QA_TEST_V2"
     "$QA_MIGRATION_V2"
+    "$QA_MIGRATION_REVISIONES"
+    "$QA_MIGRATION_V3"
   )
 
   for qa_file in "${qa_sources[@]}"; do
@@ -108,6 +112,10 @@ verify_sql_sources() {
 
   grep -Fqx '\ir ../migrations/20260818014534_crm_contrato_pdf_v2_reserva.sql' "$QA_TEST_V2" || \
     fail "El oráculo v2 ya no incluye exactamente la migración v2"
+  grep -Fqx '\ir ../migrations/20260818200741_crm_contratos_correccion_pdf_eliminacion.sql' "$QA_TEST_V2" || \
+    fail "El oráculo v2 ya no incluye la migración de revisiones y eliminación"
+  grep -Fqx '\ir ../migrations/20260818200743_crm_contrato_pdf_plantilla_v3.sql' "$QA_TEST_V2" || \
+    fail "El oráculo v2 ya no incluye exactamente la migración de plantilla v3"
   grep -Fq "current_database() <> '$QA_TEST_DB'" "$QA_TEST_V2" || \
     fail "El oráculo SQL perdió su guardia de nombre de base"
   grep -Fqx '\echo CONTRATO_PDF_V2_SQL_OK' "$QA_TEST_V2" || \

@@ -39,7 +39,6 @@ export interface ContratoPdfDatos {
 
 export interface ContratoPdfAssets {
   fondo: string;
-  firmaAsociante: string;
 }
 
 const UNIDADES = [
@@ -210,14 +209,14 @@ const CLAUSULAS_ESTATICAS: Record<
     parrafos: [
       "EL ASOCIANTE es una persona jurídica dedicada, conforme a su objeto social, a realizar operaciones e inversiones en diferentes campos de la actividad económica, prestación de servicios de consultoría, asesoría, asistencia técnica, operación, puesta en marcha, administración, management y/o servicios vinculados al sector de inversiones a nivel nacional e internacional; así como a realizar inversiones, constituir, adquirir y/o integrar sociedades, instituciones, fundaciones, corporaciones o asociaciones, y efectuar inversiones de capital en bienes muebles incorporales, acciones, bonos, debentures, participaciones sociales, cuotas, derechos en sociedades y otros títulos valores mobiliarios, así como administrar dichas inversiones propias.",
       "EL ASOCIADO declara que, de forma libre y voluntaria, desea participar en los resultados económicos de las actividades, unidades de negocio y/o proyectos empresariales desarrollados por EL ASOCIANTE, mediante una contribución económica, sin adquirir derechos societarios sobre la empresa ni intervenir en su administración.",
-      "El presente contrato se celebra en el marco de la Ley N.° 26887, Ley General de Sociedades, bajo la modalidad de asociación en participación. En virtud de este contrato, EL ASOCIANTE concede a EL ASOCIADO el derecho a participar en los resultados o utilidades que generen las actividades, unidades de negocio o proyectos empresariales materia del presente contrato, a cambio de la contribución económica que este último se obliga a efectuar.",
+      "El presente contrato se celebra en el marco de la Ley N° 26887, Ley General de Sociedades, bajo la modalidad de asociación en participación. En virtud de este contrato, EL ASOCIANTE concede a EL ASOCIADO el derecho a participar en los resultados o utilidades que generen las actividades, unidades de negocio o proyectos empresariales materia del presente contrato, a cambio de la contribución económica que este último se obliga a efectuar.",
       "La contribución de EL ASOCIADO será destinada exclusivamente a las actividades, unidades de negocio o proyectos empresariales materia del presente contrato, los cuales deberán encontrarse debidamente identificados o ser determinables conforme a la información y documentación proporcionada por EL ASOCIANTE.",
     ],
   },
   2: {
     titulo: "SEGUNDA: NATURALEZA, OBJETO Y ACTIVIDAD EMPRESARIAL",
     parrafos: [
-      "Por el presente contrato, EL ASOCIANTE concede a EL ASOCIADO una participación en las utilidades netas distribuibles que se generen como resultado de las actividades empresariales de EL ASOCIANTE, a cambio de la contribución descrita en la cláusula tercera. Las partes dejan constancia de que la finalidad del presente contrato es permitir que EL ASOCIADO participe en los resultados económicos derivados de la gestión empresarial desarrollada por EL ASOCIANTE, quien asume de manera exclusiva la responsabilidad, dirección, administración, ejecución y gestión de las actividades empresariales materia del presente contrato.",
+      "Por el presente contrato, EL ASOCIADO participa, mediante la contribución prevista en la cláusula tercera, en los resultados económicos que generen las actividades empresariales desarrolladas por EL ASOCIANTE, quien asume de manera exclusiva la responsabilidad, dirección, administración, ejecución y gestión de las actividades empresariales materia del presente contrato.",
       "Las actividades empresariales materia del presente contrato deberán ser reales, lícitas, determinadas o determinables, verificables y desarrolladas directamente por EL ASOCIANTE o a través de sociedades, proyectos o unidades de negocio en las que este participe legítimamente.",
       "EL ASOCIANTE conserva la dirección, gestión, administración, representación y responsabilidad frente a terceros respecto de las actividades empresariales materia del presente contrato. EL ASOCIADO no interviene frente a terceros ni participa en la administración o representación de dichas actividades, y tampoco adquiere la condición de socio, accionista, gerente, administrador ni representante de EL ASOCIANTE.",
       "Toda referencia económica contenida en este contrato deberá interpretarse como participación contractual en resultados o utilidades de las actividades empresariales desarrolladas por EL ASOCIANTE, y no como una obligación propia de un producto o servicio financiero.",
@@ -227,16 +226,17 @@ const CLAUSULAS_ESTATICAS: Record<
     titulo:
       "CUARTA: GESTIÓN DE LAS ACTIVIDADES EMPRESARIALES, REPRESENTACIÓN FRENTE A TERCEROS Y CONTROL DOCUMENTARIO",
     parrafos: [
-      "La gestión de las actividades empresariales corresponde única y exclusivamente a EL ASOCIANTE, quien actúa en nombre propio frente a terceros, conserva su administración y asume la responsabilidad que corresponda por sus actos de gestión. En el desarrollo de dichas actividades, EL ASOCIANTE actuará con la diligencia ordinaria exigible a un operador empresarial, procurando una gestión profesional, diligente, eficiente y prudente, orientada a minimizar riesgos y procurar la generación y optimización de los resultados económicos de las actividades empresariales materia del presente contrato. Las decisiones de gestión serán adoptadas considerando amplios criterios técnicos, económicos y de mercado.",
-      "EL ASOCIADO no participa en la administración, representación, dirección, contratación ni negociación con terceros. Su derecho se limita a recibir información razonable sobre el desarrollo de las actividades empresariales y a participar en las utilidades netas distribuibles conforme a la liquidación prevista en el presente contrato.",
+      "La gestión de las actividades empresariales corresponde única y exclusivamente a EL ASOCIANTE, quien actúa en nombre propio frente a terceros, conserva su administración y asume la responsabilidad que corresponda por sus actos de gestión. En el desarrollo de dichas actividades, EL ASOCIANTE actuará con la diligencia ordinaria exigible a un operador empresarial, procurando una gestión profesional, diligente, eficiente y prudente, orientada a la adecuada administración de los recursos, la identificación de oportunidades empresariales, a la gestión razonable de riesgos y la generación y optimización de los resultados económicos. Las decisiones de gestión serán adoptadas considerando amplios criterios técnicos, económicos y de mercado.",
+      "La administración, representación, dirección, contratación y negociación con terceros corresponde a EL ASOCIANTE. EL ASOCIADO, sin intervenir en dichas funciones de gestión, tendrá derecho a recibir información razonable sobre el desarrollo de las actividades empresariales y a participar en las utilidades netas distribuibles conforme al presente contrato.",
       "Todos los actos, contratos, declaraciones, obligaciones y relaciones jurídicas que EL ASOCIANTE celebre con terceros serán exigibles únicamente frente a EL ASOCIANTE, sin comprometer a EL ASOCIADO frente a dichos terceros.",
       "EL ASOCIANTE deberá conservar la documentación que permita identificar la aplicación de la contribución a las actividades empresariales materia del presente contrato, así como los ingresos, costos, gastos, tributos y resultados derivados de dichas actividades.",
+      "En el desarrollo de las actividades empresariales, EL ASOCIANTE aplicará criterios de diversificación, prudencia y sostenibilidad empresarial, evaluando las oportunidades y riesgos propios de las distintas actividades, unidades de negocio o proyectos comprendidos en su gestión. La aplicación de estos criterios constituye una obligación de gestión.",
     ],
   },
   6: {
     titulo: "SEXTA: PROTECCIÓN DE DATOS PERSONALES",
     parrafos: [
-      "En cumplimiento de la Ley N.° 29733, Ley de Protección de Datos Personales, EL ASOCIANTE y EL ASOCIADO declaran que se someten a las disposiciones previstas en esta ley, su reglamento, directivas y demás normas conexas, complementarias, modificatorias y/o sustitutorias.",
+      "En cumplimiento de la Ley N° 29733, Ley de Protección de Datos Personales, EL ASOCIANTE y EL ASOCIADO declaran que se someten a las disposiciones previstas en esta ley, su reglamento, directivas y demás normas conexas, complementarias, modificatorias y/o sustitutorias.",
       "EL ASOCIANTE y EL ASOCIADO declaran que los datos personales que se proporcionen entre sí, así como los generados o recopilados en el marco del presente contrato, son reales y serán tratados en forma confidencial y sujetos a estrictas medidas de seguridad.",
       "EL ASOCIANTE, en caso corresponda, reconoce la responsabilidad de sus trabajadores y cualquier persona a su cargo de mantener permanente reserva y confidencialidad respecto de los datos personales a los que tengan acceso en el marco del presente contrato, obligación que subsistirá incluso después de concluido el contrato.",
     ],
@@ -254,18 +254,17 @@ const CLAUSULAS_ESTATICAS: Record<
     parrafos: [
       "Si EL ASOCIADO desea retirarse antes del vencimiento del plazo contractual, deberá comunicarlo a EL ASOCIANTE mediante una solicitud escrita y debidamente firmada, remitida al correo electrónico: atencionalcliente@mascapitalgroup.com. En dicha comunicación deberá consignar el nombre del Analista Comercial encargado de su atención, identificado en el numeral 14.2 del presente contrato, a fin de facilitar la correcta identificación y tramitación de la solicitud.",
       "La solicitud de retiro anticipado no genera derecho a exigir utilidades futuras. La liquidación anticipada se efectuará sobre los resultados reales generados por las actividades empresariales hasta la fecha de corte que EL ASOCIANTE comunique razonablemente.",
-      "Si EL ASOCIADO solicita el retiro anticipado antes de cumplidos seis (6) meses desde la suscripción del presente contrato, la participación prevista en el numeral 3.4 se reducirá excepcionalmente al trece por ciento (13.00 %) de las utilidades netas distribuibles que correspondan al período efectivamente transcurrido hasta la fecha de corte. En ningún caso EL ASOCIADO tendrá derecho a participar en utilidades que se generen con posterioridad a dicha fecha.",
-      "Si el retiro se solicita después de cumplidos seis (6) meses, EL ASOCIADO tendrá derecho a que se liquide su participación sobre las utilidades netas efectivamente generadas hasta la fecha de corte, descontándose los gastos administrativos directos, necesarios, documentados y razonables vinculados a la liquidación anticipada.",
-      "La reducción del porcentaje de participación prevista en el numeral 8.3 anterior constituye una condición especial aplicable al retiro anticipado y responde a la necesidad de preservar la estabilidad y planificación de las actividades empresariales materia del presente contrato.",
-      "En consecuencia, no constituye una penalidad, cláusula penal, interés, cargo financiero ni sanción económica de ninguna naturaleza.",
-      "Comunicada la solicitud de retiro anticipado, EL ASOCIANTE practicará la liquidación anticipada dentro de los siete (7) días hábiles siguientes. De existir utilidades netas distribuibles, la participación que corresponda a EL ASOCIADO será determinada y puesta a su disposición dentro de dicho plazo. Asimismo, el saldo de la contribución cuya restitución resulte procedente conforme a la liquidación anticipada será pagado dentro de los cinco (5) días hábiles siguientes.",
+      "Si EL ASOCIADO solicita el retiro anticipado antes de cumplidos seis (6) meses desde la suscripción del presente contrato, no tendrá derecho a percibir participación alguna en las utilidades netas distribuibles. En consecuencia, la liquidación anticipada tendrá por finalidad determinar únicamente la restitución de la contribución efectuada.",
+      "Si el retiro se solicita después de cumplidos seis (6) meses, la participación de EL ASOCIADO se reducirá excepcionalmente al diez por ciento (10.00 %) de las utilidades netas distribuibles generadas hasta la fecha de corte. En ningún caso EL ASOCIADO tendrá derecho a participar en utilidades que se generen con posterioridad a dicha fecha.",
+      "Las condiciones especiales de participación previstas en los numerales 8.3 y 8.4 anteriores son aplicables exclusivamente a los supuestos de retiro anticipado y responden a la necesidad de preservar la estabilidad y planificación de las actividades empresariales materia del presente contrato. Estas condiciones forman parte de las reglas económicas del retiro anticipado acordadas por las partes desde la celebración del presente contrato.",
+      "Comunicada la solicitud de retiro anticipado, EL ASOCIANTE practicará la liquidación anticipada y, de corresponder, determinará la participación en utilidades conforme a las reglas previstas en la presente cláusula. Asimismo, EL ASOCIANTE restituirá a EL ASOCIADO el saldo de la contribución que resulte procedente conforme a dicha liquidación, todo ello dentro de un plazo máximo de treinta (30) días hábiles contados desde la fecha de comunicación de la solicitud de retiro anticipado, independientemente de que el retiro se produzca antes o después de cumplidos seis (6) meses desde la suscripción del presente contrato.",
     ],
   },
   9: {
     titulo: "NOVENA: RESOLUCIÓN DEL CONTRATO",
     parrafos: [
       "Cualquiera de las partes podrá resolver el contrato conforme a las causales y procedimiento establecidos en la cláusula octava, previa comunicación formal con una anticipación no menor de siete (7) días hábiles, salvo supuesto de incumplimiento grave que habilite resolución inmediata conforme a ley.",
-      "La resolución del contrato obligará a practicar la liquidación de los resultados de las actividades empresariales hasta la fecha de corte correspondiente. Ninguna resolución generará, por sí misma, obligación de pago fijo, interés, rendimiento o devolución automática de la contribución que no se encuentre sustentada en la liquidación correspondiente.",
+      "La resolución del contrato dará lugar a la liquidación de los resultados de las actividades empresariales hasta la fecha de corte correspondiente. Los derechos económicos de las partes y la restitución de la contribución serán determinados conforme a dicha liquidación y a las disposiciones del presente contrato.",
     ],
   },
   10: {
@@ -273,10 +272,10 @@ const CLAUSULAS_ESTATICAS: Record<
       "DÉCIMA: DECLARACIÓN DE CUMPLIMIENTO NORMATIVO Y EXCLUSIÓN REGULATORIA",
     parrafos: [
       "EL ASOCIANTE declara y garantiza que, en el rol que desempeña, ni sus socios, administradores, funcionarios, agentes o empleados con funciones directivas se encuentran orientados a la comisión de ilícitos o infracciones de naturaleza económica, administrativa, penal, de lavado de activos, financiamiento del terrorismo, corrupción de funcionarios, soborno, delitos financieros o delitos conexos.",
-      "EL ASOCIANTE declara que el presente contrato no será utilizado para realizar ninguna de las operaciones previstas en el artículo 11 de la Ley N.° 26702.",
+      "EL ASOCIANTE declara que el presente contrato no será utilizado para realizar ninguna de las operaciones previstas en el artículo 11 de la Ley N° 26702.",
       "EL ASOCIANTE manifiesta que ha implementado o implementará durante la vigencia del presente contrato medidas de integridad, verificación, auditoría, prevención del lavado de activos, prevención del financiamiento del terrorismo y control documentario razonable sobre la contribución recibida y su aplicación a las actividades empresariales materia del presente contrato.",
       "EL ASOCIANTE se compromete a comunicar a las autoridades competentes, de manera directa y oportuna, cualquier acto o conducta ilícita o corrupta de la que tuviera conocimiento, así como a adoptar medidas técnicas, organizativas y/o de personal apropiadas para evitar dichos actos o prácticas.",
-      "Las partes reconocen que el artículo 11 de la Ley N.° 26702 prohíbe realizar, sin autorización de la Superintendencia, actividades propias de empresas del sistema financiero o de seguros. En consecuencia, acuerdan que ninguna cláusula del presente contrato podrá interpretarse como habilitación para realizar tales actividades.",
+      "Las partes reconocen que el artículo 11 de la Ley N° 26702 prohíbe realizar, sin autorización de la Superintendencia, actividades propias de empresas del sistema financiero o de seguros. En consecuencia, acuerdan que ninguna cláusula del presente contrato podrá interpretarse como habilitación para realizar tales actividades.",
     ],
   },
   11: {
@@ -301,7 +300,7 @@ const CLAUSULAS_ESTATICAS: Record<
   13: {
     titulo: "DÉCIMA TERCERA: MANDATO EXPRESO, LIMITADO Y ACCESORIO",
     parrafos: [
-      "Por el presente instrumento, EL ASOCIADO otorga mandato sin representación, de conformidad con los artículos 1790 y siguientes del Código Civil, a favor de AVANCE CORP S.A.C., con RUC N.° 20611392088, para los fines establecidos en la presente cláusula. EL ASOCIANTE ejercerá el mandato en nombre propio, pero por cuenta e interés de EL ASOCIADO, y únicamente dentro de las facultades expresamente otorgadas. El mandato tiene carácter accesorio y limitado, y comprende exclusivamente las gestiones instrumentales, documentarias, administrativas y de liquidación necesarias para la ejecución del presente contrato y la determinación de los resultados derivados de las actividades empresariales.",
+      "Con la finalidad de facilitar las gestiones instrumentales, documentarias, administrativas y de liquidación necesarias para la adecuada ejecución del presente contrato, EL ASOCIADO otorga mandato sin representación, de conformidad con los artículos 1790 y siguientes del Código Civil, a favor de AVANCE CORP S.A.C., con RUC N° 20611392088, para los fines establecidos en la presente cláusula. EL ASOCIANTE ejercerá el mandato en nombre propio, pero por cuenta e interés de EL ASOCIADO, y únicamente dentro de las facultades expresamente otorgadas. El mandato tiene carácter accesorio y limitado, y comprende exclusivamente las gestiones instrumentales, documentarias, administrativas y de liquidación necesarias para la ejecución del presente contrato y la determinación de los resultados derivados de las actividades empresariales",
       "El mandatario queda expresamente facultado, dentro de los límites del presente contrato, para:",
       "• Recibir y revisar comunicaciones, reportes y liquidaciones vinculadas con las actividades empresariales materia del presente contrato.",
       "• Suscribir cargos, constancias de recepción, actas de liquidación y documentos de conformidad, siempre que correspondan a resultados efectivamente liquidados.",
@@ -356,19 +355,19 @@ function tablaLiquidacion(): ContentTable {
       "Liquidación ordinaria",
       "Al vencimiento del contrato",
       "Determinación final del resultado",
-      "Permite determinar las utilidades netas distribuibles.",
+      "Permite determinar las utilidades netas distribuibles",
     ],
     [
       "Liquidaciones parciales",
       "Cuando EL ASOCIANTE las practique durante la vigencia del contrato",
       "Determinación parcial de resultados",
-      "Permite distribución parcial de utilidades, de ser el caso.",
+      "Permite distribución parcial de utilidades, de ser el caso",
     ],
     [
       "Pago de participación",
       "Luego de la liquidación aprobada o comunicada",
       "Distribución de utilidades",
-      "Procede respecto de las utilidades netas distribuibles.",
+      "Procede respecto de las utilidades netas distribuibles",
     ],
     [
       "Restitución de la contribución",
@@ -424,7 +423,7 @@ export function construirContratoPdf(
   const { contrato, titular, analista } = datos;
   const documento = `${
     etiquetaDocumento(titular.tipoDocumento)
-  } N.° ${titular.documento}`;
+  } N° ${titular.documento}`;
   const porcentajeLetras = enteroEnLetras(contrato.porcentaje).toLowerCase();
   const fechaFirma = fechaPartes(contrato.fechaInicio);
 
@@ -438,7 +437,7 @@ export function construirContratoPdf(
       "Conste por el presente documento, el Contrato de Asociación en Participación que celebran:",
     ),
     parrafo(
-      "De una parte, AVANCE CORP S.A.C. con RUC N.° 20611392088, debidamente representada por su Gerente General, Sr. Kirk Edilberto Sánchez Ríos, con DNI N.° 44232474, según poderes inscritos en la partida electrónica N.° 15370250 del Registro de Personas Jurídicas de Lima, con domicilio en Av. República de Panamá N.° 3635, Urb. El Palomar, distrito de San Isidro, provincia y departamento de Lima, a quien se le denominará EL ASOCIANTE y, de la otra parte;",
+      "De una parte, AVANCE CORP S.A.C. con RUC N° 20611392088, debidamente representada por su Gerente General, Sr. Kirk Edilberto Sánchez Ríos, con DNI N° 44232474, según poderes inscritos en la partida electrónica N° 15370250 del Registro de Personas Jurídicas de Lima, con domicilio en Av. República de Panamá N° 3635, Urb. El Palomar, distrito de San Isidro, provincia y departamento de Lima, a quien se le denominará EL ASOCIANTE y, de la otra parte;",
     ),
     parrafo(
       `${titular.nombreCompleto}, con ${documento} y con domicilio en ${titular.domicilio}, a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:`,
@@ -464,7 +463,7 @@ export function construirContratoPdf(
       "La contribución será entregada a EL ASOCIANTE mediante transferencia o depósito en la cuenta bancaria que este señale para fines operativos internos.",
     ),
     parrafo(
-      "La contribución será aplicada al desarrollo de las actividades empresariales materia del presente contrato. EL ASOCIADO reconoce expresamente que participa en actividades sujetas a riesgo empresarial.",
+      "La contribución será aplicada al desarrollo de las actividades empresariales materia del presente contrato, cuya gestión corresponde a EL ASOCIANTE conforme a los criterios establecidos en la cláusula cuarta. EL ASOCIADO reconoce que los resultados de su participación se encuentran vinculados al desarrollo y resultados de dichas actividades empresariales.",
     ),
     parrafo(
       `EL ASOCIADO tendrá derecho a participar en el ${porcentajeLetras} por ciento (${
@@ -472,19 +471,19 @@ export function construirContratoPdf(
       } %) de las utilidades netas distribuibles que generen las actividades empresariales materia del presente contrato, siempre que existan utilidades netas suficientes y liquidadas conforme al presente contrato.`,
     ),
     parrafo(
-      "En caso corresponda, las pérdidas, gastos, tributos, cargas y contingencias directamente vinculadas con las actividades empresariales deberán ser consideradas en la liquidación. La contribución de EL ASOCIADO quedará expuesta a los resultados económicos de dichas actividades y su restitución solo procederá respecto del saldo que resulte luego de la liquidación. La participación de EL ASOCIADO en las pérdidas se encuentra limitada al monto de su contribución económica; en consecuencia, no quedará obligado a efectuar contribuciones adicionales ni a responder con su propio patrimonio por obligaciones vinculadas con las actividades empresariales o asumidas por EL ASOCIANTE frente a terceros.",
+      "Para determinar los resultados económicos de las actividades empresariales se considerarán los ingresos obtenidos y, cuando corresponda, los gastos, tributos, cargas, contingencias y demás conceptos directamente vinculados con su desarrollo. La contribución de EL ASOCIADO participa de dichos resultados, encontrándose cualquier eventual pérdida limitada exclusivamente al monto de su contribución, sin que EL ASOCIADO se encuentre obligado a realizar contribuciones adicionales ni a responder con su patrimonio por obligaciones asumidas por EL ASOCIANTE frente a terceros.",
     ),
     parrafo(
       "La utilidad neta distribuible se determinará deduciendo de los ingresos efectivamente percibidos por las actividades empresariales los costos directos, gastos directos, tributos, cargas, provisiones razonables, pérdidas y obligaciones documentadas vinculadas con dichas actividades.",
     ),
     parrafo(
-      "EL ASOCIANTE podrá proporcionar a EL ASOCIADO información razonable sobre el desarrollo de las actividades empresariales materia del presente contrato cuando resulte pertinente, sin que ello genere obligación de efectuar reportes periódicos ni implique determinación de utilidades o derecho a pago alguno.",
+      "EL ASOCIADO podrá recibir información razonable sobre el desarrollo de las actividades empresariales materia del presente contrato, de acuerdo con su naturaleza y cuando resulte pertinente, sin que ello implique la obligación de emitir reportes con una periodicidad determinada ni suponga por sí mismo la determinación de utilidades.",
     ),
     parrafo(
       "La liquidación ordinaria se realizará al vencimiento del plazo contractual, conforme a lo previsto en la cláusula quinta.",
     ),
     parrafo(
-      "Sin perjuicio de la liquidación final prevista en el numeral anterior, EL ASOCIANTE podrá practicar durante la vigencia del presente contrato una o más liquidaciones parciales de resultados cuando existan utilidades netas distribuibles efectivamente generadas. Las participaciones que se distribuyan con ocasión de dichas liquidaciones tendrán el carácter de pagos parciales a cuenta de la liquidación final y no constituirán pagos fijos, rendimientos garantizados ni generarán obligación de efectuar distribuciones periódicas. Dichas liquidaciones parciales podrán realizarse con la periodicidad que EL ASOCIANTE determine, atendiendo a la naturaleza y resultados de las actividades empresariales.",
+      "Durante la vigencia del contrato podrán efectuarse una o más liquidaciones parciales cuando existan utilidades netas distribuibles efectivamente generadas. EL ASOCIANTE determinará la oportunidad y periodicidad de dichas liquidaciones atendiendo a la naturaleza y resultados de las actividades empresariales. Las participaciones distribuidas mediante estas liquidaciones serán consideradas pagos parciales a cuenta de la liquidación final, sin constituir pagos fijos ni generar una obligación de distribución periódica.",
     ),
     parrafo(
       "La participación en utilidades que corresponda a EL ASOCIADO será determinada en la liquidación ordinaria prevista en la cláusula quinta o, de ser el caso, en las liquidaciones parciales. De existir utilidades netas distribuibles, la participación correspondiente será puesta a disposición de EL ASOCIADO dentro de los plazos previstos en el presente contrato. Si el vencimiento coincide con día inhábil, el pago se efectuará el primer día hábil siguiente, sin que ello configure mora.",
@@ -504,10 +503,7 @@ export function construirContratoPdf(
       "El contrato podrá renovarse únicamente por acuerdo expreso y escrito de las partes. No habrá renovación automática.",
     ),
     parrafo(
-      "Vencido el plazo contractual, EL ASOCIANTE practicará la liquidación final de los resultados correspondientes a las actividades empresariales dentro de los siete (7) días hábiles siguientes. Dicha liquidación determinará los derechos económicos que correspondan a cada una de las partes conforme a lo previsto en el presente contrato.",
-    ),
-    parrafo(
-      "Practicada la liquidación final y efectuado el pago de la participación en utilidades que corresponda, EL ASOCIANTE restituirá a EL ASOCIADO, de ser el caso, el saldo de la contribución que resulte procedente conforme a la liquidación practicada, dentro de los cinco (5) días hábiles siguientes.",
+      "Vencido el plazo contractual, EL ASOCIANTE practicará la liquidación final correspondiente y efectuará el pago de la participación en utilidades pendiente de distribución, considerando las participaciones que hubieran sido pagadas durante la vigencia del contrato. Asimismo, dentro de un plazo máximo de siete (7) días hábiles contados desde dicho vencimiento, EL ASOCIANTE restituirá a EL ASOCIADO el saldo de la contribución determinado conforme a la liquidación final.",
     ),
     ...clausulaEstatica(6),
     ...clausulaEstatica(7),
@@ -524,7 +520,7 @@ export function construirContratoPdf(
       "Las partes señalan como sus domicilios para efectos de todas las comunicaciones y notificaciones relacionadas con el presente contrato los indicados en la parte introductoria del presente documento.",
     ),
     parrafo(
-      `Para comunicaciones operativas y coordinaciones vinculadas con la ejecución del presente contrato, EL ASOCIADO señala el correo electrónico ${titular.correo} y EL ASOCIANTE señala el correo electrónico atencionalcliente@mascapitalgroup.com. Asimismo, se deja constancia que el Analista Comercial encargado de la atención de EL ASOCIADO es ${analista.nombreCompleto}, identificado con DNI N.° ${analista.documento}, con número de celular ${analista.celular} y correo electrónico ${analista.correo}. La designación del referido Analista Comercial tiene únicamente fines de atención, orientación y coordinación operativa, y no le otorga facultades de representación, disposición de fondos ni asunción de obligaciones en nombre de EL ASOCIANTE, salvo que cuente con poder expreso y suficiente para ello.`,
+      `Para comunicaciones operativas y coordinaciones vinculadas con la ejecución del presente contrato, EL ASOCIADO señala el correo electrónico ${titular.correo} y EL ASOCIANTE señala el correo electrónico atencionalcliente@mascapitalgroup.com. Asimismo, EL ASOCIADO contará con un Analista Comercial encargado de brindarle atención, orientación y acompañamiento durante la vigencia del contrato, cuyos datos son los siguientes: ${analista.nombreCompleto}, con número de celular ${analista.celular} y correo electrónico ${analista.correo}. La designación del referido Analista Comercial tiene únicamente fines de atención, orientación y coordinación operativa, y no le otorga facultades de representación, disposición de fondos ni asunción de obligaciones en nombre de EL ASOCIANTE.`,
     ),
     parrafo(
       "Cualquier variación de domicilio, correo electrónico, número telefónico o funcionario encargado deberá ser comunicada por escrito a la otra parte. Mientras no se comunique la variación, serán válidas las notificaciones cursadas a los domicilios, correos electrónicos y datos consignados en este contrato.",
@@ -536,7 +532,10 @@ export function construirContratoPdf(
       pageBreak: "before",
     },
     parrafo(
-      "Las partes declaran haber leído íntegramente el presente contrato, comprender su naturaleza asociativa, aceptar el riesgo empresarial inherente a las actividades empresariales materia del presente contrato y reconocer que no existe rendimiento fijo, utilidad garantizada ni devolución automática de la contribución.",
+      "Las partes declaran haber leído íntegramente el presente contrato, comprender su naturaleza asociativa y conocer los derechos y obligaciones que asumen. Asimismo, reconocen que la finalidad de la relación contractual es permitir que EL ASOCIADO participe en los resultados económicos derivados de las actividades empresariales gestionadas por EL ASOCIANTE, bajo los criterios de diligencia, transparencia y gestión empresarial previstos en el presente contrato.",
+    ),
+    parrafo(
+      "Las partes reconocen que los resultados económicos del presente contrato se encuentran vinculados al desarrollo efectivo de las actividades empresariales gestionadas por EL ASOCIANTE y serán determinados conforme a las reglas de liquidación previstas en este contrato, reconociendo ambas partes la naturaleza empresarial y asociativa de su participación.",
     ),
     parrafo(
       `Las partes suscriben el presente documento en señal de conformidad a los ${fechaFirma.dia} días del mes de ${fechaFirma.mes} del ${fechaFirma.anio}.`,
@@ -565,13 +564,14 @@ export function construirContratoPdf(
         {
           width: "48%",
           stack: [
+            { text: "\n____________________________", alignment: "center" },
             {
-              image: assets.firmaAsociante,
-              width: 92,
-              height: 85,
+              text: "AVANCE CORP SAC",
+              bold: true,
               alignment: "center",
-              margin: [0, 0, 0, -14],
+              fontSize: 8,
             },
+            { text: "RUC N° 20611392088", alignment: "center", fontSize: 8 },
             {
               text: "EL ASOCIANTE",
               bold: true,

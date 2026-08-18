@@ -1845,6 +1845,10 @@ export type Database = {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
         Returns: undefined
       }
+      actualizar_contrato_con_cuenta_pdf_v3: {
+        Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
+        Returns: Json
+      }
       actualizar_contrato_con_cuenta_producto: {
         Args: {
           p_contrato: Json

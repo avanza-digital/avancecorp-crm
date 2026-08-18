@@ -1945,7 +1945,7 @@ const CrearContratoResultadoSchema = v.object({
     storage_bucket: v.literal('contratos-generados'),
     storage_path: v.pipe(v.string(), v.minLength(1)),
     nombre_archivo: v.pipe(v.string(), v.minLength(5)),
-    template_version: v.literal('contrato-aep-17-v2'),
+    template_version: v.literal('contrato-aep-17-v3'),
     intentos: v.pipe(v.number(), v.integer(), v.minValue(0)),
     lease_expira_en: v.nullable(v.string()),
     reintentable: v.boolean(),
@@ -2604,11 +2604,15 @@ export async function actualizarContrato(
   }
   // `titulares` solo viaja si el caller lo decidió (ver ActualizarContratoInput).
   if (contrato.titulares) p_contrato.titulares = contrato.titulares
-  const { error } = await cliente().schema('crm').rpc('actualizar_contrato_con_cuenta', {
-    p_id: id,
-    p_contrato: p_contrato as unknown as Json,
-    p_cronograma: cronograma as unknown as Json[],
-  })
+  // La variante PDF abre la congelación únicamente dentro de esta transacción,
+  // conserva el gate autoritativo de 5 h y reserva la revisión actualizada.
+  const { error } = await cliente()
+    .schema('crm')
+    .rpc('actualizar_contrato_con_cuenta_pdf_v3', {
+      p_id: id,
+      p_contrato: p_contrato as unknown as Json,
+      p_cronograma: cronograma as unknown as Json[],
+    })
   // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
   // a diferencia del UPDATE a perfiles que se queda callado.
   if (error) throw aErrorApi(error, 'crm.contrato.actualizar_fallido')
