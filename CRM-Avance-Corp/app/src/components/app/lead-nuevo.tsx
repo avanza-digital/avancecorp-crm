@@ -6,9 +6,16 @@
 // store re-valida cada mutación por su cuenta. El formulario vive DENTRO del
 // Dialog (que desmonta al cerrar), así que se resetea solo al reabrirse.
 import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { Handshake, UserRoundPlus } from 'lucide-react'
-import { CrmApiError, tomarLeadLibre, verificarDisponibilidadLead } from '@/data/crm-api'
+import { BellPlus, Handshake, UserRoundPlus } from 'lucide-react'
+import {
+  CrmApiError,
+  guardarRecordatorioDisponibilidad,
+  tomarLeadLibre,
+  verificarDisponibilidadLead,
+} from '@/data/crm-api'
+import { crmQueryKeys } from '@/data/crm-queries'
 import {
   Dialog,
   DialogBody,
@@ -32,6 +39,15 @@ import {
   type ModoToma,
   type TarjetaDisponibilidadLead,
 } from '@/lib/disponibilidad-lead'
+import {
+  aInstanteRevision,
+  contactoRecordable,
+  fechaCortaLima,
+  fechaMaximaRevision,
+  fechaMinimaRevision,
+  sugerirFechaRevision,
+  telefonoLegible,
+} from '@/lib/recordatorios-disponibilidad'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { EDAD_MINIMA, MONTO_ESTIMADO_MAX, edadCumplida, normalizarTelefono } from '@/lib/validacion'
@@ -64,6 +80,11 @@ interface EstadoDisponibilidadFormulario {
   /** F2 «Tomar»: veredicto con puerta de toma (en_bolsa/reutilizable) — el
    *  botón solo existe con esto no-nulo Y rol con tomarLeadDirecto. */
   tomable: ModoToma | null
+  /** F3 «Recordar»: veredicto ocupado SIN puerta (tomado/enfriamiento) — la
+   *  única acción es el recordatorio personal (§5.3). Con la fecha sugerida
+   *  del veredicto (regla real solo en enfriamiento). */
+  recordable: boolean
+  fechaSugerida: string | null
 }
 
 const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
@@ -73,6 +94,8 @@ const DISPONIBILIDAD_INICIAL: EstadoDisponibilidadFormulario = {
   degradado: false,
   tarjeta: null,
   tomable: null,
+  recordable: false,
+  fechaSugerida: null,
 }
 
 const DISPONIBILIDAD_COMPROBANDO: EstadoDisponibilidadFormulario = {
@@ -82,6 +105,8 @@ const DISPONIBILIDAD_COMPROBANDO: EstadoDisponibilidadFormulario = {
   degradado: false,
   tarjeta: null,
   tomable: null,
+  recordable: false,
+  fechaSugerida: null,
 }
 
 const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
@@ -91,6 +116,8 @@ const DISPONIBILIDAD_DEGRADADA: EstadoDisponibilidadFormulario = {
   degradado: true,
   tarjeta: null,
   tomable: null,
+  recordable: false,
+  fechaSugerida: null,
 }
 
 /** Lo tecleado no alcanza para verificar (la RPC exige un celular) y se DICE.
@@ -104,6 +131,8 @@ const DISPONIBILIDAD_SIN_CELULAR: EstadoDisponibilidadFormulario = {
   degradado: true,
   tarjeta: null,
   tomable: null,
+  recordable: false,
+  fechaSugerida: null,
 }
 
 function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFormulario {
@@ -116,6 +145,8 @@ function disponibilidadTecnicaBloqueada(error: unknown): EstadoDisponibilidadFor
     degradado: false,
     tarjeta: null,
     tomable: null,
+    recordable: false,
+    fechaSugerida: null,
   }
 }
 
@@ -228,6 +259,37 @@ function FormularioNuevoLead({
   const [tomando, setTomando] = useState(false)
   const [errorToma, setErrorToma] = useState<string | null>(null)
   const tomaEnCursoRef = useRef(false)
+  // F3 «Recordar»: la única acción sobre un ocupado sin puerta (§5.3).
+  // fechaRevision null = el vendedor no la tocó (manda la sugerida).
+  const queryClient = useQueryClient()
+  const [fechaRevision, setFechaRevision] = useState<string | null>(null)
+  const [recordando, setRecordando] = useState(false)
+  const [recordadoPara, setRecordadoPara] = useState<string | null>(null)
+  const [errorRecordatorio, setErrorRecordatorio] = useState<string | null>(null)
+  const recordandoRef = useRef(false)
+  // Rescate de foco del mini-form (a11y F3-A1 — la MISMA regresión que ya se
+  // pagó en F2-M2): al pulsar, el botón enfocado se deshabilita y el foco cae
+  // a body; al resolver, o se lo lleva la confirmación (éxito) o vuelve al
+  // botón (error). Vía efecto: en línea el DOM aún no conmutó.
+  const botonRecordarRef = useRef<HTMLButtonElement | null>(null)
+  const confirmacionRecordatorioRef = useRef<HTMLParagraphElement | null>(null)
+  const rescatarFocoRecordarRef = useRef(false)
+  useEffect(() => {
+    if (recordando || !rescatarFocoRecordarRef.current) return
+    rescatarFocoRecordarRef.current = false
+    // El fieldset NO se congela durante el guardado (a diferencia de la toma):
+    // si el usuario ya movió el foco a otro CONTROL, robárselo sería peor que
+    // no rescatarlo. Un foco huérfano acaba en body o —vía el FocusScope de
+    // Radix, que recoge el foco de un botón desmontado— en el panel del Dialog
+    // (tabindex -1); ninguno de los dos es «el usuario está trabajando ahí».
+    const activo = document.activeElement
+    const usuarioEnOtroControl = activo instanceof HTMLElement
+      && activo !== botonRecordarRef.current
+      && activo.matches('input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])')
+    if (usuarioEnOtroControl) return
+    if (recordadoPara) confirmacionRecordatorioRef.current?.focus()
+    else botonRecordarRef.current?.focus()
+  }, [recordando, recordadoPara])
   // Rescate de foco (revisor a11y F2-M2): cuando el veredicto fresco retira el
   // botón deshabilitado que tenía el foco, este iría a parar a body — se lleva
   // explícitamente al teléfono, lo próximo que el usuario editaría. Vía efecto
@@ -259,8 +321,13 @@ function FormularioNuevoLead({
     controlDisponibilidadRef.current?.abort()
     controlDisponibilidadRef.current = null
     // Un contacto editado es OTRO contacto: el error de la toma anterior
-    // ya no habla de lo que hay en pantalla.
-    if (montadoRef.current) setErrorToma(null)
+    // ya no habla de lo que hay en pantalla — y el recordatorio tampoco.
+    if (montadoRef.current) {
+      setErrorToma(null)
+      setFechaRevision(null)
+      setRecordadoPara(null)
+      setErrorRecordatorio(null)
+    }
     if (montadoRef.current) setDisponibilidad(DISPONIBILIDAD_INICIAL)
   }, [])
 
@@ -317,6 +384,10 @@ function FormularioNuevoLead({
         degradado: false,
         tarjeta: tarjetaDisponibilidadLead(resultado),
         tomable: contactoTomable(resultado),
+        recordable: contactoRecordable(resultado),
+        fechaSugerida: contactoRecordable(resultado)
+          ? sugerirFechaRevision(resultado, Date.now())
+          : null,
       }
       setDisponibilidad(siguiente)
       return siguiente
@@ -425,6 +496,10 @@ function FormularioNuevoLead({
         degradado: false,
         tarjeta: tarjetaDisponibilidadLead(resultado),
         tomable: tomableFresco,
+        recordable: contactoRecordable(resultado),
+        fechaSugerida: contactoRecordable(resultado)
+          ? sugerirFechaRevision(resultado, Date.now())
+          : null,
       })
       // El único desenlace sin aviso vivo era el «libre» fresco (todo se
       // desvanece a la vez y el alta se habilita en silencio): sonner tiene
@@ -449,6 +524,62 @@ function FormularioNuevoLead({
         setTomando(false)
         onEnviandoChange(false)
       }
+    }
+  }
+
+  /**
+   * F3 «Recordarme revisar este contacto» (§5.3): guarda (o reprograma — la
+   * llave UNIQUE del servidor hace del guardado un upsert) el recordatorio
+   * personal. No toca el lead, no reserva nada: solo la campana del vendedor.
+   */
+  const manejarRecordar = async () => {
+    if (recordandoRef.current) return
+    const fecha = fechaRevision ?? disponibilidad.fechaSugerida
+    if (!fecha) return
+    recordandoRef.current = true
+    // Codex R5: si el vendedor edita el contacto con el guardado en vuelo, la
+    // respuesta tardía hablaría del contacto ANTERIOR — se ancla la secuencia
+    // y el teléfono de ESTA petición y la UI solo se toca si siguen vigentes.
+    const secuencia = secuenciaDisponibilidadRef.current
+    const telefonoPedido = telefono
+    const legible = telefonoLegible(normalizarTelefono(telefonoPedido) ?? telefonoPedido)
+    rescatarFocoRecordarRef.current = true
+    setRecordando(true)
+    setErrorRecordatorio(null)
+    try {
+      const dniLimpio = dni.trim()
+      await guardarRecordatorioDisponibilidad(
+        yo?.id ?? '',
+        telefonoPedido,
+        /^\d{8}$/.test(dniLimpio) ? dniLimpio : null,
+        aInstanteRevision(fecha),
+      )
+      // El guardado ES real aunque el modal ya se haya cerrado o el contacto
+      // haya cambiado (Codex R4c): la campana se refresca SIEMPRE, y el toast
+      // nombra teléfono y fecha para ser honesto incluso con otro contacto en
+      // pantalla (R5 / a11y M1).
+      void queryClient.invalidateQueries({ queryKey: crmQueryKeys.recordatoriosDisponibilidad() })
+      toast.success(
+        `Recordatorio guardado para ${legible}: la campana te avisará el ${
+          fechaCortaLima(aInstanteRevision(fecha)) ?? fecha
+        }`,
+      )
+      if (!montadoRef.current || secuenciaDisponibilidadRef.current !== secuencia) return
+      setRecordadoPara(fecha)
+    } catch (error: unknown) {
+      const mensaje = error instanceof CrmApiError
+        ? error.message
+        : 'No se pudo guardar el recordatorio. Inténtalo de nuevo.'
+      if (montadoRef.current && secuenciaDisponibilidadRef.current === secuencia) {
+        // a11y M3: el rechazo se ancla al mini-form (inline), no a un toast.
+        setErrorRecordatorio(mensaje)
+      } else {
+        // Fuera de pantalla o contacto cambiado: el toast nombra al afectado.
+        toast.error(`${mensaje} (contacto ${legible})`)
+      }
+    } finally {
+      recordandoRef.current = false
+      if (montadoRef.current) setRecordando(false)
     }
   }
 
@@ -710,6 +841,84 @@ function FormularioNuevoLead({
                 </p>
               )}
             </div>
+          )}
+          {disponibilidad.recordable && can(yo?.rol, 'tomarLeadDirecto') && !yo?.demo && (
+            // F3 «Recordar» (§5.3): la ÚNICA acción sobre un ocupado sin
+            // puerta. No reserva, no prioriza, no toca el lead — solo la
+            // campana personal. Guardar de nuevo = reprogramar (upsert).
+            // Misma capacidad que Tomar: es la antesala de esa puerta y la
+            // RLS del servidor ya la restringe a vendedor.
+            recordadoPara ? (
+              <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
+                {/* a11y A1: el botón que tenía el foco desapareció con este
+                    intercambio — la confirmación lo recibe (tabIndex -1). */}
+                <p
+                  ref={confirmacionRecordatorioRef}
+                  tabIndex={-1}
+                  role="status"
+                  className="text-xs font-medium text-foreground outline-none"
+                >
+                  Recordatorio guardado: la campana te avisará el{' '}
+                  <span className="font-bold">
+                    {fechaCortaLima(aInstanteRevision(recordadoPara)) ?? recordadoPara}
+                  </span>{' '}
+                  para volver a verificar.
+                </p>
+              </div>
+            ) : (
+              <div
+                role="group"
+                aria-labelledby="nl-recordar-titulo"
+                aria-describedby="nl-recordar-ayuda"
+                className="rounded-lg border border-border bg-muted/40 px-3 py-2.5"
+              >
+                <p id="nl-recordar-titulo" className="text-xs font-bold text-foreground">
+                  ¿Quieres que te lo recuerde?
+                </p>
+                <p id="nl-recordar-ayuda" className="mt-0.5 text-[11px] text-muted-foreground-strong">
+                  Sin reservar nada: solo una nota personal para volver a verificar ese día.
+                </p>
+                <div className="mt-1.5 flex items-center gap-2">
+                  <Label htmlFor="nl-recordar-fecha" className="sr-only">
+                    Fecha del recordatorio
+                  </Label>
+                  <Input
+                    id="nl-recordar-fecha"
+                    type="date"
+                    className={cn('w-40', errorRecordatorio && claseError)}
+                    min={fechaMinimaRevision(Date.now())}
+                    max={fechaMaximaRevision(Date.now())}
+                    value={fechaRevision ?? disponibilidad.fechaSugerida ?? ''}
+                    aria-invalid={!!errorRecordatorio}
+                    aria-describedby={errorRecordatorio ? 'nl-recordar-error' : undefined}
+                    onChange={(e) => {
+                      setFechaRevision(e.target.value)
+                      setErrorRecordatorio(null)
+                    }}
+                  />
+                  <Button
+                    ref={botonRecordarRef}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { void manejarRecordar() }}
+                    disabled={recordando || enviando}
+                    aria-busy={recordando}
+                  >
+                    <BellPlus /> {recordando ? 'Guardando…' : 'Recordarme revisar'}
+                  </Button>
+                </div>
+                {errorRecordatorio && (
+                  <p
+                    id="nl-recordar-error"
+                    role="alert"
+                    className="mt-1 text-[11px] font-medium text-destructive"
+                  >
+                    {errorRecordatorio}
+                  </p>
+                )}
+              </div>
+            )
           )}
           <div className="grid grid-cols-2 gap-3">
             <Campo label="Género" htmlFor="nl-genero" error={errores.genero}>

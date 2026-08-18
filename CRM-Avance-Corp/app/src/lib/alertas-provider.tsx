@@ -6,7 +6,8 @@ import {
   type ReactNode,
 } from 'react'
 import { mensajeDeError } from '@/data/crm-api'
-import { useMetricasConversiones } from '@/data/crm-queries'
+import { useMetricasConversiones, useRecordatoriosDisponibilidad } from '@/data/crm-queries'
+import { derivarAlertasRecordatorios } from '@/lib/recordatorios-disponibilidad'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
   derivarAlertasSupervisor,
@@ -20,6 +21,7 @@ import {
 } from '@/lib/alertas-gerencia'
 import { AlertasCRMContext, type EstadoAlertasCRM } from '@/lib/alertas-context'
 import { useAuth } from '@/lib/auth-context'
+import { funcionesLeadsVisibles } from '@/lib/config'
 import {
   cumplimientoMetasConversionEquipoDemo,
   metasConversionEquipoDemo,
@@ -98,6 +100,16 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   )
   const periodoAnterior = useMemo(() => periodoAnteriorComparable(diaLima), [diaLima])
   const sesionGerenciaReal = Boolean(yo && !yo.demo && rol === 'gerencia')
+  // F3 «Recordar»: SOLO el vendedor real tiene recordatorios (la RLS es
+  // owner-only y el rol es la antesala de la toma). En demo no existen. Y solo
+  // con las funciones de leads VISIBLES (Codex F3-R2, espejo de vistas.ts): la
+  // campana vive tras ese gate — consultar con el gate cerrado sería trabajo
+  // invisible y una insignia que el vendedor no puede ni abrir.
+  const sesionVendedorReal = Boolean(
+    yo && !yo.demo && rol === 'vendedor' && !soloRoles
+    && funcionesLeadsVisibles(yo.demo, rol, yo.id),
+  )
+  const recordatorios = useRecordatoriosDisponibilidad(sesionVendedorReal)
 
   // Solo Gerencia consulta conversiones globales. Vendedor y supervisor derivan
   // sus pendientes de los datos ya recortados por RLS que carga el store.
@@ -132,14 +144,19 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   const alertas = useMemo<AlertaCRM[]>(() => {
     if (!yo || soloRoles) return []
     if (rol === 'vendedor') {
-      return derivarAlertasVendedor({
-        vendedorId: yo.id,
-        leads: ambito.leads,
-        actividades: actividadesDelAmbito,
-        tareas,
-        ahora,
-        estadosSla: estadoSla.indice,
-      })
+      return [
+        // F3: los recordatorios VENCIDOS primero — son acción inmediata y
+        // barata («verifica si ya está libre»); los vigentes no suenan.
+        ...derivarAlertasRecordatorios(recordatorios.data ?? [], ahora),
+        ...derivarAlertasVendedor({
+          vendedorId: yo.id,
+          leads: ambito.leads,
+          actividades: actividadesDelAmbito,
+          tareas,
+          ahora,
+          estadosSla: estadoSla.indice,
+        }),
+      ]
     }
     if (rol === 'supervisor') {
       return derivarAlertasSupervisor({
@@ -184,6 +201,7 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     cumplimientoMetasError,
     metasGerencia,
     objetivosError,
+    recordatorios.data,
     rol,
     tareas,
     yo,

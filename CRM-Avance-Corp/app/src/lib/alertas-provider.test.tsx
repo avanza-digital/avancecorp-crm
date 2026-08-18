@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import type { Rol } from './roles'
 
@@ -41,6 +41,16 @@ const derivarGerencia = vi.fn((_input: unknown) => [{
 }])
 
 let YO: { id: string; rol: Rol; demo: boolean } | null = null
+// F3: un recordatorio YA VENCIDO respecto del reloj congelado del arnés
+// (2026-08-06T17:00Z) — la derivación real del provider debe hacerlo sonar.
+const RECORDATORIOS = [{
+  id: '5c073c2a-f22a-4979-8ea4-8921f746ef22',
+  perfil_id: 'v1',
+  telefono: '+51987654321',
+  dni: null,
+  recordar_en: '2026-08-05T14:00:00+00:00',
+  creado_en: '2026-08-01T14:00:00+00:00',
+}]
 const LEADS = [{ id: 'lead-store' }]
 const ACTIVIDADES = [{ id: 'actividad-store' }]
 const TAREAS = [{ id: 'tarea-store' }]
@@ -60,6 +70,14 @@ const consultasConversion = vi.fn((habilitada: boolean, desde: string) => ({
   refetch: desde === '2026-08-01' ? refetchActual : refetchAnterior,
   enabled: habilitada,
 }))
+
+// Codex F3-R2: la campana vive tras el gate de funciones de leads (espejo de
+// vistas.ts). El gate se controla desde aquí para probar los DOS estados.
+let LEADS_VISIBLES = true
+vi.mock('@/lib/config', async (importActual) => {
+  const actual = await importActual<typeof import('@/lib/config')>()
+  return { ...actual, funcionesLeadsVisibles: () => LEADS_VISIBLES }
+})
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/data/use-estado-sla-operativo', () => ({
@@ -83,9 +101,15 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.UTC(2026, 7, 6, 17) }))
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_: unknown, fallback: string) => fallback }))
+const consultaRecordatorios = vi.fn((habilitada: boolean) => ({
+  data: habilitada ? RECORDATORIOS : [],
+  error: null,
+  isPending: false,
+}))
 vi.mock('@/data/crm-queries', () => ({
   useMetricasConversiones: (...argumentos: Parameters<typeof consultasConversion>) =>
     consultasConversion(...argumentos),
+  useRecordatoriosDisponibilidad: (habilitada: boolean) => consultaRecordatorios(habilitada),
 }))
 vi.mock('@/lib/conversion-equipo', () => ({
   identidadesEquipoConversion: () => [{ vendedorId: 'v1', nombre: 'Ana' }],
@@ -118,12 +142,15 @@ function montar(rol: Extract<Rol, 'vendedor' | 'supervisor' | 'gerencia'>) {
   derivarSupervisor.mockClear()
   derivarGerencia.mockClear()
   consultasConversion.mockClear()
+  consultaRecordatorios.mockClear()
   return render(
     <AlertasCRMProvider>
       <Lector />
     </AlertasCRMProvider>,
   )
 }
+
+beforeEach(() => { LEADS_VISIBLES = true })
 
 describe('AlertasCRMProvider', () => {
   it('deriva al vendedor solo desde su ámbito local y no habilita métricas globales', () => {
@@ -140,6 +167,21 @@ describe('AlertasCRMProvider', () => {
     expect(derivarSupervisor).not.toHaveBeenCalled()
     expect(derivarGerencia).not.toHaveBeenCalled()
     expect(consultasConversion.mock.calls.every(([habilitada]) => habilitada === false)).toBe(true)
+    expect(screen.getByRole('status')).toHaveTextContent('personal-1')
+    // F3: con el gate abierto la campana SÍ consulta, y el recordatorio ya
+    // vencido del arnés suena mediante la derivación real del provider.
+    expect(consultaRecordatorios).toHaveBeenCalledWith(true)
+    expect(screen.getByRole('status')).toHaveTextContent('revisar-contacto-5c073c2a-f22a-4979-8ea4-8921f746ef22')
+  })
+
+  it('R2 (Codex F3): con el gate de leads CERRADO la campana ni consulta ni suena', () => {
+    LEADS_VISIBLES = false
+    montar('vendedor')
+
+    // El espejo de vistas.ts: si el vendedor no puede ABRIR la bandeja, el
+    // provider no debe pedir recordatorios ni derivar alertas invisibles.
+    expect(consultaRecordatorios).toHaveBeenCalledWith(false)
+    expect(screen.getByRole('status')).not.toHaveTextContent('revisar-contacto')
     expect(screen.getByRole('status')).toHaveTextContent('personal-1')
   })
 
@@ -159,6 +201,8 @@ describe('AlertasCRMProvider', () => {
     expect(derivarGerencia).not.toHaveBeenCalled()
     expect(consultasConversion.mock.calls.every(([habilitada]) => habilitada === false)).toBe(true)
     expect(screen.getByRole('status')).toHaveTextContent('equipo-1')
+    // Los recordatorios son EXCLUSIVOS del vendedor: supervisión ni consulta.
+    expect(consultaRecordatorios).toHaveBeenCalledWith(false)
   })
 
   it('habilita para Gerencia los dos cortes comparables y adapta la señal estratégica', () => {

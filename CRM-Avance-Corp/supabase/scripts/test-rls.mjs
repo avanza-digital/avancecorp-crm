@@ -2967,6 +2967,171 @@ async function testOffboardingMatrix(sessions, seed) {
     // verdades viven en el oráculo test-toma-lead-libre.sql (16 casos, 4
     // carreras dblink) que fabrica el tiempo en un banco desechable.
 
+    // ── F3 lead libre (20260818045032): recordatorios de disponibilidad ──────
+    // Owner-only DE VERDAD (ni gerencia lee notas personales ajenas), autoría
+    // y teléfono SELLADOS por trigger, DELETE propio como excepción
+    // documentada, y el veneno 'infinity' muerto en la puerta de actividades.
+    const recordatorioTelTecleado = '996 600 322';
+    const recordatorioTelNormal = '+51996600322';
+    const recordatorioCreado = await positive(
+      'F3 lead libre: el vendedor crea su recordatorio (teléfono tecleado a lo humano)',
+      member.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({
+          // Autoría AJENA a propósito: el trigger debe re-firmar con el actor.
+          perfil_id: seed.profileIdByKey.gerencia,
+          telefono: recordatorioTelTecleado,
+          recordar_en: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+        })
+        .select('id, perfil_id, telefono')
+        .single(),
+    );
+    if (recordatorioCreado) {
+      check(recordatorioCreado.data?.perfil_id === memberId,
+        'F3 lead libre: la autoría la SELLA el servidor con el actor real',
+        `perfil_id=${recordatorioCreado.data?.perfil_id}`);
+      check(recordatorioCreado.data?.telefono === recordatorioTelNormal,
+        'F3 lead libre: el teléfono queda normalizado a +519########',
+        `telefono=${recordatorioCreado.data?.telefono}`);
+    }
+    await expectBlockedMutation(
+      'F3 lead libre: una fecha de revisión en el pasado no entra',
+      member.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({
+          telefono: '+51996600323',
+          recordar_en: new Date(Date.now() - 3600 * 1000).toISOString(),
+        })
+        .select('id'),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'F3 lead libre: el veneno infinity no entra en recordar_en',
+      member.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({ telefono: '+51996600323', recordar_en: 'infinity' })
+        .select('id'),
+    );
+    await expectBlockedMutation(
+      'F3 lead libre: el tope de 365 días también gobierna (auditor m5)',
+      member.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({
+          telefono: '+51996600323',
+          recordar_en: new Date(Date.now() + 400 * 24 * 3600 * 1000).toISOString(),
+        })
+        .select('id'),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'F3 lead libre: un teléfono no-celular rebota con el 22023 amable del trigger',
+      member.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({
+          telefono: '014567890',
+          recordar_en: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+        })
+        .select('id'),
+      ['22023'],
+    );
+    await expectBlockedMutation(
+      'F3 lead libre: segundo recordatorio del MISMO contacto rebota (la llave es upsert)',
+      member.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({
+          telefono: recordatorioTelNormal,
+          recordar_en: new Date(Date.now() + 9 * 24 * 3600 * 1000).toISOString(),
+        })
+        .select('id'),
+      ['23505'],
+    );
+    await expectHidden(
+      'F3 lead libre: ni GERENCIA lee recordatorios ajenos (nota personal)',
+      sessions.gerencia.client.schema('crm').from('recordatorios_disponibilidad')
+        .select('id')
+        .limit(1),
+    );
+    await expectBlockedMutation(
+      'F3 lead libre: el supervisor no crea recordatorios (la antesala de tomar es del vendedor)',
+      sessions.sup1.client.schema('crm').from('recordatorios_disponibilidad')
+        .insert({
+          telefono: '+51996600324',
+          recordar_en: new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString(),
+        })
+        .select('id'),
+    );
+    if (recordatorioCreado?.data?.id) {
+      // El ARQUETIPO del owner-only (auditor M1): otro VENDEDOR — mismo rol,
+      // pasa el gate de rol y debe morir por el predicado perfil_id. Gerencia
+      // y supervisor caen por rol; sin este par, mutar el predicado owner
+      // dejando el gate de rol pasaría la matriz en verde.
+      await expectHidden(
+        'F3 lead libre: OTRO vendedor no ve el recordatorio ajeno (predicado owner)',
+        sessions.vend1.client.schema('crm').from('recordatorios_disponibilidad')
+          .select('id')
+          .eq('id', recordatorioCreado.data.id),
+      );
+      await expectBlockedMutation(
+        'F3 lead libre: otro vendedor no reprograma el ajeno',
+        sessions.vend1.client.schema('crm').from('recordatorios_disponibilidad')
+          .update({ recordar_en: new Date(Date.now() + 20 * 24 * 3600 * 1000).toISOString() })
+          .eq('id', recordatorioCreado.data.id)
+          .select('id'),
+      );
+      await expectBlockedMutation(
+        'F3 lead libre: otro vendedor no borra el ajeno',
+        sessions.vend1.client.schema('crm').from('recordatorios_disponibilidad')
+          .delete()
+          .eq('id', recordatorioCreado.data.id)
+          .select('id'),
+      );
+      // El lector global (el «rol raro» de RETOMAR-43): la exclusión es
+      // intencional y se consagra en verde.
+      await expectHidden(
+        'F3 lead libre: directorio (lector global) tampoco ve notas personales',
+        sessions.directorio.client.schema('crm').from('recordatorios_disponibilidad')
+          .select('id')
+          .limit(1),
+      );
+      await expectBlockedMutation(
+        'F3 lead libre: gerencia tampoco borra el recordatorio ajeno',
+        sessions.gerencia.client.schema('crm').from('recordatorios_disponibilidad')
+          .delete()
+          .eq('id', recordatorioCreado.data.id)
+          .select('id'),
+      );
+      const reprogramado = await positive(
+        'F3 lead libre: el dueño reprograma su recordatorio',
+        member.client.schema('crm').from('recordatorios_disponibilidad')
+          .update({ recordar_en: new Date(Date.now() + 14 * 24 * 3600 * 1000).toISOString() })
+          .eq('id', recordatorioCreado.data.id)
+          .select('id')
+          .single(),
+      );
+      if (reprogramado) {
+        check(reprogramado.data?.id === recordatorioCreado.data.id,
+          'F3 lead libre: reprogramar conserva la identidad de la fila');
+      }
+      const borrado = await positive(
+        'F3 lead libre: el dueño SÍ elimina su recordatorio (excepción DELETE documentada)',
+        member.client.schema('crm').from('recordatorios_disponibilidad')
+          .delete()
+          .eq('id', recordatorioCreado.data.id)
+          .select('id'),
+      );
+      if (borrado) {
+        check((borrado.data?.length ?? 0) === 1,
+          'F3 lead libre: el borrado propio afecta exactamente su fila');
+      }
+    }
+    // La deuda F2 saldada: 'infinity' tampoco entra ya en actividades.
+    await expectBlockedMutation(
+      'F3 lead libre: el veneno infinity muere en crm.actividades (CHECK de finitud)',
+      member.client.schema('crm').from('actividades')
+        .insert({
+          lead_id: ownedLead.id,
+          tipo: 'nota',
+          detalle: 'veneno',
+          creado_en: 'infinity',
+        })
+        .select('id'),
+      ['23514'],
+    );
+
     const ownAgenda = await positive(
       'P04 true/true: busca su fila ICS',
       member.client.schema('crm').from('agenda_ics')

@@ -1467,6 +1467,33 @@ export type Database = {
         }
         Relationships: []
       }
+      recordatorios_disponibilidad: {
+        Row: {
+          creado_en: string
+          dni: string | null
+          id: string
+          perfil_id: string
+          recordar_en: string
+          telefono: string
+        }
+        Insert: {
+          creado_en?: string
+          dni?: string | null
+          id?: string
+          perfil_id: string
+          recordar_en: string
+          telefono: string
+        }
+        Update: {
+          creado_en?: string
+          dni?: string | null
+          id?: string
+          perfil_id?: string
+          recordar_en?: string
+          telefono?: string
+        }
+        Relationships: []
+      }
       sla_politica_etapas: {
         Row: {
           etapa: string
@@ -1884,6 +1911,7 @@ export type Database = {
         }
         Returns: Json
       }
+      ayuda_vendedor_inicio: { Args: { p_vista: string }; Returns: Json }
       buscar_candidato_por_correo_fn: {
         Args: { p_correo: string }
         Returns: string
@@ -1976,6 +2004,10 @@ export type Database = {
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
       configuracion_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       configuracion_sla_fn: { Args: never; Returns: Json }
+      consultar_ayuda_vendedor: {
+        Args: { p_consulta: string; p_vista: string }
+        Returns: Json
+      }
       contrato_pdf_archivo_fn: {
         Args: { p_contrato_id: string }
         Returns: Json

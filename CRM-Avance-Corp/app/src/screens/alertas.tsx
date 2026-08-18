@@ -6,14 +6,22 @@ import {
   CheckCircle2,
   CircleAlert,
   Gauge,
+  PhoneOutgoing,
   RefreshCw,
   Search,
   SearchX,
   Split,
+  Trash2,
   TrendingDown,
   UserRoundX,
   type LucideIcon,
 } from 'lucide-react'
+import { useQueryClient } from '@tanstack/react-query'
+import { toast } from 'sonner'
+import { CrmApiError, eliminarRecordatorioDisponibilidad } from '@/data/crm-api'
+import { crmQueryKeys } from '@/data/crm-queries'
+import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
+import { usePanelesActions } from '@/lib/store-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -36,6 +44,7 @@ const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
   por_repartir: 'Lead por repartir',
   bajo_meta_conversion: 'Conversión bajo meta',
   caida_conversion: 'Caída de conversión',
+  revisar_contacto: 'Revisar contacto',
 }
 
 const ICONO_TIPO: Record<TipoAlerta, LucideIcon> = {
@@ -45,6 +54,7 @@ const ICONO_TIPO: Record<TipoAlerta, LucideIcon> = {
   por_repartir: Split,
   bajo_meta_conversion: Gauge,
   caida_conversion: TrendingDown,
+  revisar_contacto: PhoneOutgoing,
 }
 
 const COPY_ROL: Record<'vendedor' | 'supervisor' | 'gerencia', {
@@ -150,6 +160,67 @@ function FiltrosPrioridad({
   )
 }
 
+/** F3 «Recordar» (§5.4): la alerta de contacto no navega — VERIFICA bajo
+ *  demanda abriendo el alta con el teléfono precargado (el circuito completo
+ *  de F1/F2: veredicto fresco, y si está libre, el botón «Tomar» ahí mismo).
+ *  «Quitar» elimina el recordatorio (§5.3: puede eliminarse sin afectar nada). */
+function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element {
+  const { abrirNuevoLead } = usePanelesActions()
+  const queryClient = useQueryClient()
+  const [quitando, setQuitando] = useState(false)
+  const contacto = alerta.contacto
+  if (!contacto) return <></>
+
+  const quitar = async () => {
+    if (quitando) return
+    setQuitando(true)
+    // La fila solo desaparece si el recordatorio dejó de existir (borrado aquí
+    // o caducado en otra parte); con un fallo real la fila SIGUE y el foco no
+    // debe moverse a ninguna parte.
+    let desaparece = true
+    try {
+      await eliminarRecordatorioDisponibilidad(contacto.recordatorioId)
+      toast.success('Recordatorio quitado')
+    } catch (error: unknown) {
+      // «Ya no existe» = caducó solo o se quitó en otra pestaña: el refetch
+      // de abajo lo hace desaparecer igual — no es un fallo que gritar.
+      if (!(error instanceof CrmApiError && error.code === 'NO_ENCONTRADO')) {
+        desaparece = false
+        toast.error(error instanceof CrmApiError ? error.message : 'No se pudo quitar el recordatorio.')
+      }
+    } finally {
+      await queryClient.invalidateQueries({ queryKey: crmQueryKeys.recordatoriosDisponibilidad() })
+      setQuitando(false)
+      // a11y M4: el botón que tenía el foco se va con la fila — el foco cae al
+      // contador de pendientes, que además anuncia el nuevo total (aria-live).
+      if (desaparece) document.getElementById('alertas-contador')?.focus()
+    }
+  }
+
+  return (
+    <div className="ml-12 flex items-center gap-2 sm:ml-0">
+      <Button
+        variant="accent"
+        size="sm"
+        onClick={() => abrirNuevoLead(undefined, contacto.telefono)}
+        aria-label={`Verificar disponibilidad de ${telefonoLegible(contacto.telefono)}`}
+      >
+        <PhoneOutgoing /> Verificar disponibilidad
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        onClick={() => { void quitar() }}
+        disabled={quitando}
+        aria-busy={quitando}
+        aria-label={`Quitar recordatorio de ${telefonoLegible(contacto.telefono)}`}
+      >
+        <Trash2 /> Quitar
+      </Button>
+    </div>
+  )
+}
+
 function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string }): JSX.Element {
   const Icono = ICONO_TIPO[alerta.tipo]
   const color = colorSeveridad(alerta.severidad)
@@ -182,13 +253,17 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
           )}
         </div>
       </div>
-      <a
-        href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
-        aria-label={`${alerta.destino.etiqueta}: ${alerta.titulo}`}
-        className="ml-12 inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary outline-none transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35 motion-reduce:transition-none sm:ml-0"
-      >
-        {alerta.destino.etiqueta}
-      </a>
+      {alerta.contacto ? (
+        <AccionesRevisarContacto alerta={alerta} />
+      ) : (
+        <a
+          href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
+          aria-label={`${alerta.destino.etiqueta}: ${alerta.titulo}`}
+          className="ml-12 inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary outline-none transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35 motion-reduce:transition-none sm:ml-0"
+        >
+          {alerta.destino.etiqueta}
+        </a>
+      )}
     </li>
   )
 }
@@ -300,7 +375,13 @@ export function Alertas(): JSX.Element {
             </div>
           </div>
 
-          <p className="px-1 text-xs font-semibold tabular-nums text-muted-foreground" role="status" aria-live="polite">
+          <p
+            id="alertas-contador"
+            tabIndex={-1}
+            className="px-1 text-xs font-semibold tabular-nums text-muted-foreground outline-none"
+            role="status"
+            aria-live="polite"
+          >
             {filtradas.length} {filtradas.length === 1 ? 'pendiente activo' : 'pendientes activos'}
             {hayFiltros ? ` de ${alertas.length}` : ''}
           </p>

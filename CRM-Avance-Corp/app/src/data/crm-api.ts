@@ -114,6 +114,11 @@ import {
   type ResultadoTomaLead,
 } from '@/lib/disponibilidad-lead'
 import {
+  RecordatorioDisponibilidadSchema,
+  RecordatoriosDisponibilidadSchema,
+  type RecordatorioDisponibilidad,
+} from '@/lib/recordatorios-disponibilidad'
+import {
   ResumenCarteraSchema,
   VENTANA_CONVERTIDOS_MS,
   VENTANA_CONVERTIDOS_DIAS,
@@ -133,8 +138,16 @@ import {
   ResumenRepartoSchema,
   type ResumenReparto,
 } from '@/lib/resumen-reparto'
+import {
+  InicioAyudaVendedorSchema,
+  ResultadoConsultaAyudaVendedorSchema,
+  type InicioAyudaVendedor,
+  type ResultadoConsultaAyudaVendedor,
+} from '@/lib/ayuda-vendedor'
+import type { Vista } from '@/lib/router'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
+export type { RecordatorioDisponibilidad } from '@/lib/recordatorios-disponibilidad'
 
 export const TAMANO_PAGINA_LEADS = 50
 const MAX_TAMANO_PAGINA = 100
@@ -319,6 +332,85 @@ function cliente(): ClienteCrm {
     throw error
   }
   return sb
+}
+
+// ── Centro de ayuda del vendedor — contenido y decisión solo en servidor ────
+
+function falloContratoAyuda(evento: string): CrmApiError {
+  const fallo = new CrmApiError(
+    'El servidor devolvió una respuesta de ayuda no reconocida.',
+    'ROW_CONTRACT',
+  )
+  registrarError(evento, fallo)
+  return fallo
+}
+
+/** Preguntas publicadas y ordenadas por la pantalla actual. */
+export async function obtenerInicioAyudaVendedor(
+  vista: Vista,
+  signal?: AbortSignal,
+): Promise<InicioAyudaVendedor> {
+  let peticion = cliente().schema('crm').rpc('ayuda_vendedor_inicio', {
+    p_vista: vista,
+  })
+  if (signal) peticion = peticion.abortSignal(signal)
+  const { data, error } = await peticion
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudieron cargar las consultas frecuentes.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.ayuda.inicio_fallido', fallo, { vista })
+    throw fallo
+  }
+  const resultado = v.safeParse(InicioAyudaVendedorSchema, data)
+  if (!resultado.success) {
+    throw falloContratoAyuda('crm.ayuda.inicio_contrato_invalido')
+  }
+  return resultado.output
+}
+
+/**
+ * Consulta el manual aprobado. El texto solo viaja a la RPC; nunca se adjunta
+ * a observabilidad del navegador, donde podría contener datos de un cliente.
+ */
+export async function consultarAyudaVendedor(
+  consulta: string,
+  vista: Vista,
+  signal?: AbortSignal,
+): Promise<ResultadoConsultaAyudaVendedor> {
+  const limpia = consulta.trim()
+  if (limpia.length < 2 || limpia.length > 240) {
+    throw new CrmApiError(
+      'Escribe una consulta de 2 a 240 caracteres.',
+      'AYUDA_CONSULTA_INVALIDA',
+    )
+  }
+
+  let peticion = cliente().schema('crm').rpc('consultar_ayuda_vendedor', {
+    p_consulta: limpia,
+    p_vista: vista,
+  })
+  if (signal) peticion = peticion.abortSignal(signal)
+  const { data, error } = await peticion
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudo consultar el manual. Intenta nuevamente.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.ayuda.consulta_fallida', fallo, {
+      vista,
+      longitud: limpia.length,
+    })
+    throw fallo
+  }
+  const resultado = v.safeParse(ResultadoConsultaAyudaVendedorSchema, data)
+  if (!resultado.success) {
+    throw falloContratoAyuda('crm.ayuda.consulta_contrato_invalido')
+  }
+  return resultado.output
 }
 
 function enteroSeguro(valor: number, minimo: number, maximo: number): number {
@@ -996,6 +1088,81 @@ export async function verificarDisponibilidadLead(
   }
 
   return resultado.output
+}
+
+// ── F3 «Recordar»: crm.recordatorios_disponibilidad ──────────────────────────
+// Acceso directo a la tabla: la RLS es owner-only real y el trigger de
+// sellado firma autoría, normaliza el teléfono y acota la fecha — el front
+// no re-implementa nada de eso, solo valida la FORMA de lo que vuelve.
+
+export async function listarRecordatoriosDisponibilidad(
+  signal?: AbortSignal,
+): Promise<RecordatorioDisponibilidad[]> {
+  let consulta = cliente().schema('crm')
+    .from('recordatorios_disponibilidad')
+    .select('id, perfil_id, telefono, dni, recordar_en, creado_en')
+    .order('recordar_en', { ascending: true })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw aErrorApi(error, 'crm.recordatorios.listar_fallido')
+  const resultado = v.safeParse(RecordatoriosDisponibilidadSchema, data ?? [])
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'Los recordatorios no tienen el formato esperado.',
+      'RECORDATORIOS_CONTRACT',
+    )
+    registrarError('crm.recordatorios.fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Crea O reprograma (upsert por la llave UNIQUE perfil_id+telefono — el
+ * trigger BEFORE sella la autoría ANTES de evaluar el conflicto, así que la
+ * llave siempre es la del actor). `perfilId` viaja solo porque el tipo
+ * generado lo exige (NOT NULL sin default): el servidor lo RE-SELLA con
+ * auth.uid() igual — mandar el ajeno no cuela nada. `recordarEn` es ISO;
+ * el servidor exige futuro con tope 365 días (22023 si no).
+ */
+export async function guardarRecordatorioDisponibilidad(
+  perfilId: string,
+  telefono: string,
+  dni: string | null,
+  recordarEn: string,
+): Promise<RecordatorioDisponibilidad> {
+  const { data, error } = await cliente().schema('crm')
+    .from('recordatorios_disponibilidad')
+    .upsert(
+      sinIndefinidos({ perfil_id: perfilId, telefono, dni: dni ?? undefined, recordar_en: recordarEn }),
+      { onConflict: 'perfil_id,telefono' },
+    )
+    .select('id, perfil_id, telefono, dni, recordar_en, creado_en')
+    .single()
+  if (error) throw aErrorApi(error, 'crm.recordatorios.guardar_fallido')
+  const resultado = v.safeParse(RecordatorioDisponibilidadSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El recordatorio guardado no tiene el formato esperado.',
+      'RECORDATORIOS_CONTRACT',
+    )
+    registrarError('crm.recordatorios.guardado_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+export async function eliminarRecordatorioDisponibilidad(id: string): Promise<void> {
+  const { data, error } = await cliente().schema('crm')
+    .from('recordatorios_disponibilidad')
+    .delete()
+    .eq('id', id)
+    .select('id')
+  if (error) throw aErrorApi(error, 'crm.recordatorios.eliminar_fallido')
+  if (!data || data.length === 0) {
+    // La RLS lo ocultó (no es suyo) o ya caducó solo: mismo mensaje neutro.
+    throw new CrmApiError('El recordatorio ya no existe.', 'NO_ENCONTRADO')
+  }
 }
 
 /**

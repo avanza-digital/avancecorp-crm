@@ -2622,3 +2622,139 @@ usuario; el despliegue no inventó clientes ni contratos para forzarla.
 Esta implementación no modificó `public_html`; durante la validación se
 detectaron cambios concurrentes de otra sesión en ese submódulo y se preservaron
 sin intervenir.
+
+## 20260818045032_crm_lead_libre_f3_recordar.sql
+
+**Estado: ✅ EN PROD 2026-08-18 (~06:20 UTC) tras el ciclo completo de branch
+(adenda 18/08-c). Registro 103 AL BYTE certificado (md5 `55e6bdb9…ed0b` =
+`\n`+fichero, 13.937 bytes contabilizados), huella de funciones 235 idéntica
+branch↔prod (`9f4ab182…1a32`), advisors 129/0 SIN un solo lint nuevo.** El
+front F3 (botón «Recordarme revisar» + campana) llega en su release (request
+nuevo → servidor primero: cumplido).
+
+F3 del plan «Verificación y toma de lead libre» (spec §5.3-§5.5). Tres
+piezas: (1) **`crm.recordatorios_disponibilidad`** — la nota personal del
+vendedor para volver a verificar un contacto ocupado. Anclada AL CONTACTO
+(teléfono normalizado + DNI), SIN FK a leads a propósito (jamás será el 8.º
+candado de la limpieza; no reserva ni prioriza — spec §5.3). UNIQUE
+(perfil_id, telefono): reprogramar es la misma fila. Trigger de sellado
+(autoría = actor SIEMPRE; teléfono normalizado o 22023; fecha futura con
+tope 365 días; creado_en inmutable en UPDATE). RLS **owner-only de verdad**:
+ni gerencia lee notas personales ajenas (lo auditable ya vive en audit_log y
+verificaciones_lead); solo rol vendedor (la antesala de la toma, que es
+suya). **CON policy DELETE — excepción documentada** a la convención
+(LEEME.md): la spec exige eliminar, es efímera y el soft-delete acumularía
+PII sin propósito; el audit trigger deja el rastro. (2) **Caducidad sola**:
+`private.caducar_recordatorios_disponibilidad()` + pg_cron
+`crm-recordatorios-caducidad` (06:17 UTC diario) borra vencidos >7 días —
+minimización; guard de pg_cron ausente para el banco local (patrón cierre de
+mes). (3) **Deuda F2 saldada**: CHECK `isfinite(creado_en)` en
+`crm.actividades` (NOT VALID + VALIDATE — vector confirmado por Codex en la
+auditoría del front F2: authenticated insertaba 'infinity' y envenenaba el
+max() de los payloads de verificación) + la tabla nueva nace con sus propios
+CHECK de finitud. Matriz test-rls: bloque F3 nuevo (sellado de autoría y
+normalización, fecha pasada 22023, infinity bloqueado en ambas tablas,
+duplicado 23505, owner-only contra gerencia y supervisor, reprogramar,
+DELETE propio exacto).
+
+### Adenda 18/08 — dictamen del auditor-rls sobre F3 (pre-branch)
+
+**GO con 2 condiciones, ambas CUMPLIDAS antes del branch:** (M1) la matriz
+gana el ARQUETIPO del owner-only — otro VENDEDOR (vend1: select/update/delete
+sobre la fila ajena, muere por el predicado owner, no por el gate de rol) y
+directorio, el lector global, consagrado fuera; (M2) el barrido de caducidad
+tiene ORÁCULO propio (`scripts/test-recordatorios-caducidad.sql`): banco PG17
+efímero, log_audit_crm REAL anclado por md5 (`46184632…`), audit_log espejo
+al byte de prod (fila_id text NULL, usuario_id uuid NULL), la migración real
+aplicada con sus guardas — borra EXACTAMENTE 1 de 3, sobreviven vigente y
+en-gracia, el audit del cron firma usuario_id NULL con data_antes completa,
+segunda pasada 0. `RECORDATORIOS_CADUCIDAD_TX_OK` ✓ y 2 mutantes muertos
+(gracia 7→0 borró 2; sin WHERE borró 3 — el oráculo gritó exacto en ambos).
+
+Menores aplicados al SQL (aún sin aplicar a entorno alguno, editable):
+creado_en SELLADO también en INSERT (m1) · el regex del teléfono en el
+trigger para que el 22023 amable sea alcanzable (m5 — normalizar_telefono
+casi nunca devuelve NULL) · comentario honesto del NOT VALID (m2: en una
+transacción única el lock se retiene igual — no comprar lo que no existe) ·
+vuelta atrás del job documentada con cron.unschedule (m3, convención del
+cierre de mes) · LEEME.md declara la excepción única de DELETE (m4) · matriz:
+tope 365 y teléfono no-celular con su 22023 (m5).
+
+Deudas anotadas SIN frenar el branch: clean-crm-data.mjs no conoce las tablas
+del plan lead libre (recordatorios + politica_abandono + verificaciones_lead
+— entra cuando el script WIP reviva; los recordatorios llevan PII de contacto
+y su ventana la acota la auto-caducidad ≤365d+7) · el caso «vendedor
+inactivo no lee sus recordatorios» vive en la fase true/false de la matriz
+P04, rota post-8-ago (deuda del arnés ya documentada; rol_crm exige
+activo AND activo por construcción) · ⚠️ ubicación: el bloque F3 corre en la
+fase true/true ANTES de los setState que matan el arnés — casos F3 futuros
+añadidos después de esa zona caerían en tierra muerta sin que el conteo lo
+delate.
+
+### Adenda 18/08-b — dictamen de Codex sobre F3 (pre-branch): 1✓/5 refutadas, 2 aplicadas
+
+Codex confirmó la caducidad (predicado exacto, guard de pg_cron, nombre de job
+único en las 82 migraciones) y refutó 5 afirmaciones. Triage con criterio:
+
+**Aplicadas al SQL (aún sin aplicar a entorno):** (R2) el trigger validaba
+«fecha futura» con `now()` = tiempo de TRANSACCIÓN — un statement que esperó
+un lock validaría contra reloj viejo y colaría una fecha ya pasada (impacto
+ínfimo: su propio recordatorio nace vencido; el arreglo, total) →
+`clock_timestamp()` en las dos comparaciones. (R6a) la guarda de dependencias
+no exigía `crm.actividades` ni `public.perfiles` que la migración SÍ usa →
+fallo tardío con objetos a medio crear; añadidas (espejo de F2). Oráculo
+re-ejecutado en verde tras ambas.
+
+**Documentadas SIN cambio de diseño (refutan la frase, no el modelo):**
+(R1) la FK a perfiles hace que `eliminar-cliente` del portal responda 409 si
+el perfil tiene recordatorios — PROPIEDAD DE FAMILIA: idéntico con
+verificaciones_lead, equipo, agenda_ics y toda tabla CRM con FK a perfiles
+desde siempre; el 409 es fail-closed correcto (jamás borrar un perfil con
+datos colgando) y el caso exige la mutación rara vendedor→cliente-portal.
+(R3a) un vendedor CRM con rol PORTAL degradado sigue siendo vendedor CRM —
+diseño consagrado del modelo (el rol CRM manda; el propio gate lo aseveraba
+ya con directorio-portal); aplica a TODO el esquema, no a esta tabla.
+(R3b) audit_log legible por portal admin/superadmin reconstruye filas — la
+vía preexistente que F1 declara con las mismas palabras; el comment de la
+tabla nueva ahora la declara igual. (R5) refutó el comentario VIEJO del NOT
+VALID — ya corregido por el m2 del auditor antes del dictamen. (R6b) «el
+gate no es re-ejecutable» es verdad documentada del proyecto desde
+RETOMAR-43 (LEEME de scripts:209), no hallazgo de F3.
+
+### Adenda 18/08-c — el ciclo del branch F3, corrido y cerrado (branch `lead-libre-f3` ref qgmgpbbdfjarinmpvime, borrado tras el veredicto)
+
+- **Replay**: el intento automático aplicó 86/102 y cayó en el
+  MIGRATIONS_FAILED de diseño (mismo punto que F2). Novedad buena: el banco
+  quedó LIMPIO sin reset (la tx de la 087 hizo rollback completo — cero
+  objetos sucios verificados antes de decidir; un paso menos que la receta).
+  Semilla intercalada → replay manual 087-102 (16/16 con las guardas md5 de
+  F1/F2 pasando en silencio) + registro por migración → F3 en tx única →
+  registro 103. **Hallazgo del ciclo**: las NUEVE del cierre de mes (15/08)
+  difieren fichero↔registro remoto — el backfill del ledger (RETOMAR-49)
+  normalizó el registro; los ficheros locales eran LO APLICADO, y la huella
+  global de funciones lo DEMOSTRÓ: **233 fn con md5 agregado IDÉNTICO
+  branch↔prod** (`2c31ad50…ca64`) pre-F3, y **235 idéntico** (`9f4ab182…1a32`)
+  post-F3. Trampas de la pasada: el host directo del branch es IPv6-only
+  (pooler 5432 con user `postgres.<ref>`, como manda la receta) · zsh no
+  divide variables (función shell) · `-c` de psql no interpola `:'var'` (el
+  registro va por stdin con dollar-quote de tag raro).
+- **Gate**: seed + baja histórica de vendInactive (LEEME-seed — el primer
+  intento del gate murió en su validación de arranque por saltármela: el
+  fatal fue ANTES de crear transitorios, re-corrida limpia). Corrida completa
+  hasta el fatal documentado del arnés (offboarding post-8-ago, mismo punto
+  que F1/F2); el reporte final lista SOLO los 2 ítems conocidos — cero fallos
+  F3. El bloque F3 corrido queda PROBADO por su rastro de audit en el banco
+  (INSERT teléfono normalizado → UPDATE reprogramación → DELETE propio, tabla
+  en 0). ⚠️ Deuda del arnés de captura: el conteo granular de la corrida se
+  perdió por un `tail` en el pipe del runner — el próximo ciclo captura el
+  log ENTERO a fichero y el conteo se saca de ahí.
+- **Advisors**: branch 128/0 y prod 129/0 (única diferencia
+  `extension_in_public` 1 vs 2 — la misma infra documentada en F2), clase por
+  clase idéntico, y **cero menciones** a recordatorios/caducar: F3 no añade
+  NI UN lint (mejor que F2, que estrenó 1 previsto).
+- **Producción**: `db query --linked --file` con wrapper begin/commit
+  (atomicidad — F3 no se auto-envuelve), objetos CONTADOS (tabla + RLS + 4
+  policies + 2 triggers + CHECK VALIDADO + job `crm-recordatorios-caducidad`
+  en cron.job), funciones **233→235 (+2 exactas)**, huella al byte contra el
+  branch que pasó el gate, registro 103 certificado, advisors 129/0 sin
+  clases nuevas.

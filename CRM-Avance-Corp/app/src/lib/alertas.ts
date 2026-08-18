@@ -20,6 +20,9 @@ export type TipoAlerta =
   | 'por_repartir'
   | 'bajo_meta_conversion'
   | 'caida_conversion'
+  // F3 lead libre (§5.4): recordatorio personal vencido — «verifica si ya
+  // está libre». Lo deriva lib/recordatorios-disponibilidad, no este módulo.
+  | 'revisar_contacto'
 
 export interface DestinoAlerta {
   vista: Vista
@@ -38,6 +41,12 @@ export interface AlertaCRM {
   responsable: string | null
   valor: number | null
   destino: DestinoAlerta
+  /** SOLO tipo 'revisar_contacto' (F3): la pantalla verifica BAJO DEMANDA
+   *  abriendo el alta con este teléfono, y puede quitar el recordatorio. */
+  contacto?: {
+    telefono: string
+    recordatorioId: string
+  }
 }
 
 export interface DerivarAlertasVendedorInput {
@@ -67,12 +76,15 @@ const PESO_SEVERIDAD: Record<SeveridadAlerta, number> = {
 }
 
 const PESO_TIPO: Record<TipoAlerta, number> = {
-  por_repartir: 0,
-  tarea_vencida: 1,
-  lead_sin_responder: 2,
-  sin_proxima_accion: 3,
-  bajo_meta_conversion: 4,
-  caida_conversion: 5,
+  // El recordatorio vencido va PRIMERO: es la acción más barata y con
+  // ventana (otro vendedor puede tomar el contacto mientras tanto).
+  revisar_contacto: 0,
+  por_repartir: 1,
+  tarea_vencida: 2,
+  lead_sin_responder: 3,
+  sin_proxima_accion: 4,
+  bajo_meta_conversion: 5,
+  caida_conversion: 6,
 }
 
 function instanteConfiable(valor: string | null | undefined, ahora: number): boolean {

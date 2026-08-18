@@ -40,6 +40,7 @@ import {
   listarMetricasPagosMes,
   listarMetricasVencimientos,
   listarMisContratos,
+  listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
   obtenerCronograma,
   obtenerTitulares,
@@ -62,6 +63,8 @@ export const crmQueryKeys = {
   metricasSla: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'sla', desde, hasta] as const,
   estadoSlaLeads: () => [...crmQueryKeys.raiz, 'sla', 'estado-leads'] as const,
+  recordatoriosDisponibilidad: () =>
+    [...crmQueryKeys.raiz, 'recordatorios-disponibilidad'] as const,
   // Cartera del portal (panel del analista): bajo la misma raíz para que el
   // logout (queryClient.clear) y las invalidaciones jerárquicas la cubran.
   clientes: () => [...crmQueryKeys.raiz, 'clientes'] as const,
@@ -642,5 +645,20 @@ export function useAnularCierreAvance() {
         queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
       ])
     },
+  })
+}
+
+/**
+ * F3 «Recordar»: los recordatorios personales del vendedor, para la campana
+ * y para saber en el alta si un contacto ya tiene el suyo. Trae SOLO
+ * contacto+fecha (jamás veredictos: la re-verificación es BAJO DEMANDA al
+ * clic — regla del plan). El servidor caduca los vencidos >7 días solo.
+ */
+export function useRecordatoriosDisponibilidad(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.recordatoriosDisponibilidad(),
+    queryFn: ({ signal }) => listarRecordatoriosDisponibilidad(signal),
+    enabled: habilitada,
+    staleTime: 60_000,
   })
 }

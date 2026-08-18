@@ -1,8 +1,14 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import userEvent from '@testing-library/user-event'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { CrmApiError, tomarLeadLibre, verificarDisponibilidadLead } from '@/data/crm-api'
+import {
+  CrmApiError,
+  guardarRecordatorioDisponibilidad,
+  tomarLeadLibre,
+  verificarDisponibilidadLead,
+} from '@/data/crm-api'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
 import {
   PanelActionsContext,
@@ -19,11 +25,17 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
-  return { ...actual, verificarDisponibilidadLead: vi.fn(), tomarLeadLibre: vi.fn() }
+  return {
+    ...actual,
+    verificarDisponibilidadLead: vi.fn(),
+    tomarLeadLibre: vi.fn(),
+    guardarRecordatorioDisponibilidad: vi.fn(),
+  }
 })
 
 const verificarDisponibilidad = vi.mocked(verificarDisponibilidadLead)
 const tomarLead = vi.mocked(tomarLeadLibre)
+const guardarRecordatorio = vi.mocked(guardarRecordatorioDisponibilidad)
 
 const SESION: AuthContextValue = {
   fase: 'listo',
@@ -76,25 +88,31 @@ function montar({
     abrirNuevoLead: vi.fn(),
     cerrarPaneles: vi.fn(),
   }
+  // F3 (Codex R4c/R6): el refresco de la campana se asevera sobre el MISMO
+  // cliente que ve el componente — un mutante sin invalidateQueries muere aquí.
+  const clienteConsultas = new QueryClient()
+  const invalidar = vi.spyOn(clienteConsultas, 'invalidateQueries')
 
-  render(
-    <AuthContext.Provider value={{
-      ...SESION,
-      yo: SESION.yo ? { ...SESION.yo, demo, ...(rol ? { rol } : {}) } : null,
-    }}>
-      <StoreDataContext.Provider value={api}>
-        <PanelStateContext.Provider
-          value={{ leadAbiertoId: null, nuevoLeadAbierto: true, etapaInicial: 'nuevo', telefonoInicial }}
-        >
-          <PanelActionsContext.Provider value={actions}>
-            <LeadNuevo />
-          </PanelActionsContext.Provider>
-        </PanelStateContext.Provider>
-      </StoreDataContext.Provider>
-    </AuthContext.Provider>,
+  const resultado = render(
+    <QueryClientProvider client={clienteConsultas}>
+      <AuthContext.Provider value={{
+        ...SESION,
+        yo: SESION.yo ? { ...SESION.yo, demo, ...(rol ? { rol } : {}) } : null,
+      }}>
+        <StoreDataContext.Provider value={api}>
+          <PanelStateContext.Provider
+            value={{ leadAbiertoId: null, nuevoLeadAbierto: true, etapaInicial: 'nuevo', telefonoInicial }}
+          >
+            <PanelActionsContext.Provider value={actions}>
+              <LeadNuevo />
+            </PanelActionsContext.Provider>
+          </PanelStateContext.Provider>
+        </StoreDataContext.Provider>
+      </AuthContext.Provider>
+    </QueryClientProvider>,
   )
 
-  return { crearLead, recargar, actions }
+  return { crearLead, recargar, actions, invalidar, desmontar: resultado.unmount }
 }
 
 function completarBaseReal() {
@@ -851,5 +869,201 @@ describe('LeadNuevo — la toma en vuelo se blinda (Codex R2/R3/R5)', () => {
     // se cierra para que el flujo termine limpio.
     expect(actions.abrirLead).not.toHaveBeenCalled()
     expect(actions.cerrarPaneles).toHaveBeenCalled()
+  })
+})
+
+// ── F3 «Recordarme revisar» (§5.3): la única acción sobre un ocupado ─────────
+// Mutantes que deben morir: ofrecer el form en un tomable (Tomar y Recordar
+// son disjuntos), guardar sin las 09:00 de Lima, y mostrarlo a supervisión.
+describe('LeadNuevo — Recordarme revisar (F3)', () => {
+  const TOMADO = { estado: 'tomado', vendedor: 'ANA PÉREZ', tenencia_desde: null } as const
+  const ENFRIAMIENTO = {
+    estado: 'enfriamiento',
+    motivo_descarte: 'no_responde',
+    disponible_desde: '2026-09-10T05:00:00Z',
+    descartado_por: null,
+  } as const
+
+  async function precheckR(veredicto: Awaited<ReturnType<typeof verificarDisponibilidadLead>>, opciones: Parameters<typeof montar>[0] = {}) {
+    vi.useFakeTimers()
+    verificarDisponibilidad.mockResolvedValue(veredicto)
+    const arnes = montar({ demo: false, ...opciones })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+    return arnes
+  }
+
+  it('un seguimiento activo ajeno ofrece SOLO el recordatorio (sin botón Tomar)', async () => {
+    await precheckR(TOMADO)
+    expect(screen.getByRole('button', { name: /Recordarme revisar/ })).toBeEnabled()
+    expect(screen.queryByRole('button', { name: /Tomar lead/ })).not.toBeInTheDocument()
+  })
+
+  it('enfriamiento sugiere el día real de liberación (la única regla con motor)', async () => {
+    await precheckR(ENFRIAMIENTO)
+    expect(screen.getByLabelText('Fecha del recordatorio')).toHaveValue('2026-09-10')
+  })
+
+  it('a11y M2: el mini-form es un grupo con título, ayuda y fecha nombrada', async () => {
+    await precheckR(ENFRIAMIENTO)
+    const grupo = screen.getByRole('group', { name: '¿Quieres que te lo recuerde?' })
+    expect(grupo).toHaveAccessibleDescription(/Sin reservar nada/)
+    expect(screen.getByLabelText('Fecha del recordatorio')).toBeInTheDocument()
+  })
+
+  it('R3 (Codex): la fecha se acota a mañana…hoy+364 en Lima — espejo del tope del servidor', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.parse('2026-08-18T17:00:00Z'))
+    verificarDisponibilidad.mockResolvedValue(TOMADO)
+    montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+
+    const fecha = screen.getByLabelText('Fecha del recordatorio')
+    expect(fecha).toHaveAttribute('min', '2026-08-19')
+    expect(fecha).toHaveAttribute('max', '2027-08-17')
+  })
+
+  it('un tomable ofrece Tomar, JAMÁS el recordatorio (disjuntos a propósito)', async () => {
+    await precheckR({ estado: 'en_bolsa' })
+    expect(screen.getByRole('button', { name: /Tomar lead/ })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Recordarme revisar/ })).not.toBeInTheDocument()
+  })
+
+  it('supervisión no ve el recordatorio (es la antesala de la toma, del vendedor)', async () => {
+    await precheckR(TOMADO, { rol: 'supervisor' })
+    expect(screen.queryByRole('button', { name: /Recordarme revisar/ })).not.toBeInTheDocument()
+  })
+
+  it('GUARDA con autoría, teléfono, y las 09:00 de Lima; confirma y permite seguir', async () => {
+    guardarRecordatorio.mockResolvedValue({
+      id: 'r-nuevo',
+      perfil_id: 'vendedor-1',
+      telefono: '+51987654321',
+      dni: null,
+      recordar_en: '2026-09-10T14:00:00+00:00',
+      creado_en: '2026-08-18T06:00:00+00:00',
+    })
+    await precheckR(ENFRIAMIENTO)
+
+    const boton = screen.getByRole('button', { name: /Recordarme revisar/ })
+    boton.focus()
+    fireEvent.click(boton)
+
+    await waitFor(() => expect(guardarRecordatorio).toHaveBeenCalledWith(
+      'vendedor-1',
+      '987654321',
+      null,
+      '2026-09-10T09:00:00-05:00',
+    ))
+    // a11y N2: la confirmación dicta la fecha LEGIBLE, no el YYYY-MM-DD crudo
+    // (es-PE escribe «setiembre»).
+    const confirmacion = await screen.findByText(/la campana te avisará el/)
+    expect(confirmacion).toHaveTextContent('10 de setiembre')
+    // a11y M1 + Codex R5: el toast nombra teléfono y fecha legibles — honesto
+    // incluso si el formulario ya muestra OTRO contacto.
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('987 654 321'))
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('10 de setiembre'))
+    // a11y A1: el botón pulsado desapareció con el intercambio — la
+    // confirmación recibe el foco (la MISMA regresión pagada en F2).
+    await waitFor(() => expect(confirmacion).toHaveFocus())
+  })
+
+  it('un rechazo del servidor se DICE anclado al mini-form y el foco vuelve al botón', async () => {
+    guardarRecordatorio.mockRejectedValueOnce(
+      new CrmApiError('La fecha de revisión debe ser futura', 'ERROR'),
+    )
+    await precheckR(TOMADO)
+
+    const boton = screen.getByRole('button', { name: /Recordarme revisar/ })
+    boton.focus()
+    fireEvent.click(boton)
+
+    // a11y M3: inline junto al campo, no un toast fugaz.
+    expect(await screen.findByText('La fecha de revisión debe ser futura')).toBeInTheDocument()
+    expect(toast.error).not.toHaveBeenCalled()
+    expect(screen.getByLabelText('Fecha del recordatorio')).toHaveAttribute('aria-invalid', 'true')
+    expect(boton).toBeEnabled()
+    // a11y A1 (rama de error): el foco no queda huérfano en body.
+    await waitFor(() => expect(boton).toHaveFocus())
+    // Editar la fecha retira el error: ya no habla de lo que hay en pantalla.
+    fireEvent.change(screen.getByLabelText('Fecha del recordatorio'), {
+      target: { value: '2026-12-01' },
+    })
+    expect(screen.queryByText('La fecha de revisión debe ser futura')).not.toBeInTheDocument()
+  })
+
+  it('R4c (Codex): cerrar el modal con el guardado en vuelo NO deja la campana rancia', async () => {
+    const respuesta = diferida<Awaited<ReturnType<typeof guardarRecordatorioDisponibilidad>>>()
+    guardarRecordatorio.mockReturnValue(respuesta.promesa)
+    const { invalidar, desmontar } = await precheckR(TOMADO)
+
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+    desmontar()
+
+    await act(async () => {
+      respuesta.resolver({
+        id: 'r-nuevo',
+        perfil_id: 'vendedor-1',
+        telefono: '+51987654321',
+        dni: null,
+        recordar_en: '2026-08-25T14:00:00+00:00',
+        creado_en: '2026-08-18T06:00:00+00:00',
+      })
+    })
+
+    // El guardado FUE real aunque nadie lo mire: la campana se refresca y el
+    // éxito se anuncia igual (sonner vive fuera del modal).
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: ['crm', 'recordatorios-disponibilidad'],
+    })
+    expect(toast.success).toHaveBeenCalled()
+  })
+
+  it('R5 (Codex): la respuesta tardía del contacto A jamás pinta confirmación bajo el B', async () => {
+    const respuesta = diferida<Awaited<ReturnType<typeof guardarRecordatorioDisponibilidad>>>()
+    guardarRecordatorio.mockReturnValue(respuesta.promesa)
+    const { invalidar } = await precheckR(TOMADO)
+
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+
+    // Con el guardado del A en vuelo, el vendedor cambia al contacto B y su
+    // precheck llega a recordable: el mini-form vuelve FRESCO para B.
+    vi.useFakeTimers()
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '911111111' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+    // El mini-form está FRESCO para B (el botón aún dice «Guardando…» por el
+    // vuelo del A — se localiza por su campo de fecha).
+    expect(screen.getByLabelText('Fecha del recordatorio')).toBeInTheDocument()
+
+    await act(async () => {
+      respuesta.resolver({
+        id: 'r-nuevo',
+        perfil_id: 'vendedor-1',
+        telefono: '+51987654321',
+        dni: null,
+        recordar_en: '2026-08-25T14:00:00+00:00',
+        creado_en: '2026-08-18T06:00:00+00:00',
+      })
+    })
+
+    // Nada de «guardado» bajo el contacto B…
+    expect(screen.queryByText(/la campana te avisará el/)).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /Recordarme revisar/ })).toBeInTheDocument()
+    // …pero el guardado del A FUE real: campana refrescada y toast honesto
+    // que NOMBRA al contacto A.
+    expect(invalidar).toHaveBeenCalledWith({
+      queryKey: ['crm', 'recordatorios-disponibilidad'],
+    })
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('987 654 321'))
   })
 })
