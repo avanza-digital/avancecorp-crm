@@ -43,6 +43,7 @@ async function llenarAltaMinima(modal: Locator): Promise<void> {
   await modal.locator('#cf-nombres').fill('MARIA JOSE')
   await modal.locator('#cf-documento').fill('45781299')
   await modal.locator('#cf-correo').fill('qa-cliente@correo.pe')
+  await modal.locator('#cf-domicilio').fill('Av. Los Eucaliptos 456, Miraflores, Lima')
   await modal.locator('#cf-pen-banco').selectOption('BCP')
   await modal.locator('#cf-pen-tipo').selectOption('ahorros')
   await modal.locator('#cf-pen-numero').fill('19112345678901')
@@ -81,6 +82,7 @@ test('sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente', asy
   await modal.locator('#cf-nombres').fill('MARIA JOSE')
   await modal.locator('#cf-documento').fill('45781299')
   await modal.locator('#cf-correo').fill('qa-cliente@correo.pe')
+  await modal.locator('#cf-domicilio').fill('Av. Los Eucaliptos 456, Miraflores, Lima')
   // …sin tocar ninguna sección bancaria.
   await modal.getByRole('button', { name: /crear cliente/i }).click()
 
@@ -117,6 +119,7 @@ test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servid
   // Precarga del detalle (obtenerClienteDetalle) + correo = cuenta de acceso.
   await expect(modal.locator('#cf-apellidos')).toHaveValue('PORTAL UNO')
   await expect(modal.locator('#cf-correo')).toBeDisabled()
+  await expect(modal.locator('#cf-domicilio')).toHaveValue('Av. Javier Prado Este 123, San Isidro, Lima')
   await expect(modal.locator('#cf-pen-banco')).toHaveValue('BCP')
   await expect(modal.getByText(/Ventana de corrección: Quedan/)).toBeVisible()
 

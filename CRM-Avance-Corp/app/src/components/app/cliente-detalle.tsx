@@ -306,6 +306,7 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
                 <Dato etiqueta={TIPOS_DOCUMENTO[detalle.tipo_documento].etiqueta}>{valor(detalle.dni)}</Dato>
                 <Dato etiqueta="Correo">{valor(detalle.correo)}</Dato>
                 <Dato etiqueta="Teléfono">{valor(detalle.telefono)}</Dato>
+                <Dato etiqueta="Domicilio legal">{valor(detalle.domicilio)}</Dato>
                 <Dato etiqueta="Registrado el">{fechaHora(detalle.creado_en)}</Dato>
               </div>
             </section>

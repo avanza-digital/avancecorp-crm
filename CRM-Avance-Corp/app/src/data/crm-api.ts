@@ -126,6 +126,7 @@ import {
   MetricasVendedoresSchema,
   type MetricasVendedoresPayload,
 } from '@/lib/metricas-vendedores'
+import type { EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import {
   ResumenRepartoSchema,
   type ResumenReparto,
@@ -1480,6 +1481,7 @@ export interface ConvertirLeadInput {
   documento: string
   nombre_completo: string
   telefono?: string | null
+  domicilio: string
   apellidos?: string | null
   nombres?: string | null
   /**
@@ -1506,8 +1508,25 @@ export interface BancariosInput {
 export interface ConvertirLeadResultado {
   perfil_id: string
   ya_existia: boolean
+  domicilio_accion: 'completado' | 'conservado'
   email_enviado: boolean
 }
+
+const UUID_CANONICO_CONVERSION_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+
+// La respuesta de una Edge sigue siendo JSON no confiable aunque el transporte
+// haya terminado en 2xx. No se coercionan strings/números a booleanos ni se
+// acepta un UUID equivalente con otra escritura: el front solo confirma la
+// conversión cuando recibió exactamente el contrato publicado por la Edge.
+const ConvertirLeadRespuestaSchema = v.strictObject({
+  ok: v.literal(true),
+  perfil_id: v.pipe(v.string(), v.regex(UUID_CANONICO_CONVERSION_RE)),
+  ya_existia: v.boolean(),
+  domicilio_accion: v.picklist(['completado', 'conservado']),
+  email_enviado: v.boolean(),
+  email_error: v.optional(v.pipe(v.string(), v.minLength(1))),
+})
 
 export async function convertirLead(input: ConvertirLeadInput): Promise<ConvertirLeadResultado> {
   const { data, error } = await cliente().functions.invoke('crm-convertir-lead', { body: input })
@@ -1526,11 +1545,21 @@ export async function convertirLead(input: ConvertirLeadInput): Promise<Converti
     registrarError('crm.convertir.fallido', fallo)
     throw fallo
   }
-  const cuerpo = (data ?? {}) as Partial<ConvertirLeadResultado>
+  const respuesta = v.safeParse(ConvertirLeadRespuestaSchema, data)
+  if (!respuesta.success) {
+    const fallo = new CrmApiError(
+      'La conversión respondió fuera del contrato esperado.',
+      'RESPUESTA_INVALIDA',
+    )
+    registrarError('crm.convertir.respuesta_invalida', fallo)
+    throw fallo
+  }
+  const cuerpo = respuesta.output
   return {
-    perfil_id: String(cuerpo.perfil_id ?? ''),
-    ya_existia: Boolean(cuerpo.ya_existia),
-    email_enviado: Boolean(cuerpo.email_enviado),
+    perfil_id: cuerpo.perfil_id,
+    ya_existia: cuerpo.ya_existia,
+    domicilio_accion: cuerpo.domicilio_accion,
+    email_enviado: cuerpo.email_enviado,
   }
 }
 
@@ -1631,6 +1660,12 @@ export interface CrearContratoResultado {
   id: string
   numero_contrato: string
   cuenta_bancaria_id: string
+  pdf: {
+    contrato_id: string
+    job_id: string
+    estado: EstadoContratoPdf
+    reintentable: boolean
+  }
   /** Los wrappers catalogados antiguos podían devolver esta fotografía. */
   producto_condicion_id?: string
   producto_id?: string
@@ -1653,6 +1688,21 @@ const CrearContratoResultadoSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
   numero_contrato: v.pipe(v.string(), v.minLength(1)),
   cuenta_bancaria_id: v.pipe(v.string(), v.uuid()),
+  pdf: v.strictObject({
+    contrato_id: v.pipe(v.string(), v.uuid()),
+    job_id: v.pipe(v.string(), v.uuid()),
+    estado: v.literal('pendiente'),
+    storage_bucket: v.literal('contratos-generados'),
+    storage_path: v.pipe(v.string(), v.minLength(1)),
+    nombre_archivo: v.pipe(v.string(), v.minLength(5)),
+    template_version: v.literal('contrato-aep-17-v2'),
+    intentos: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    lease_expira_en: v.nullable(v.string()),
+    reintentable: v.boolean(),
+    sha256: v.nullable(v.pipe(v.string(), v.regex(/^[a-f0-9]{64}$/))),
+    bytes: v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1))),
+    archivo: v.nullable(v.unknown()),
+  }),
 })
 
 export async function crearContrato(
@@ -1675,7 +1725,7 @@ export async function crearContrato(
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
   const p_cronograma = cronograma as unknown as Json[]
-  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta', {
+  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
     p_contrato: p_contrato as unknown as Json,
     p_cronograma,
     p_cuenta: input.cuenta_pago as unknown as Json,
@@ -1688,6 +1738,22 @@ export async function crearContrato(
       'ROW_CONTRACT',
     )
     registrarError('crm.contrato.respuesta_invalida', fallo)
+    throw fallo
+  }
+  if (
+    r.output.pdf.contrato_id !== r.output.id ||
+    r.output.pdf.estado !== 'pendiente' ||
+    r.output.pdf.intentos !== 0 ||
+    r.output.pdf.sha256 !== null ||
+    r.output.pdf.bytes !== null ||
+    r.output.pdf.archivo !== null ||
+    r.output.pdf.storage_path !== `${r.output.id}/v2/${r.output.pdf.job_id}/contrato.pdf`
+  ) {
+    const fallo = new CrmApiError(
+      'El servidor no reservó correctamente el PDF contractual.',
+      'ROW_CONTRACT',
+    )
+    registrarError('crm.contrato.pdf_reserva_invalida', fallo)
     throw fallo
   }
   return r.output
@@ -1795,6 +1861,7 @@ const COLUMNAS_CLIENTE_DETALLE = [
   'dni',
   'correo',
   'telefono',
+  'domicilio',
   'asesor_perfil_id',
   'creado_por',
   'creado_en',
@@ -1823,6 +1890,7 @@ const ClienteDetalleRowSchema = v.object({
   dni: v.nullable(v.string()),
   correo: v.nullable(v.string()),
   telefono: v.nullable(v.string()),
+  domicilio: v.nullable(v.string()),
   asesor_perfil_id: v.nullable(v.string()),
   creado_por: v.nullable(v.string()),
   creado_en: v.string(),
@@ -1934,6 +2002,7 @@ export interface CrearClientePortalInput {
   nombres: string
   dni: string
   telefono?: string | null
+  domicilio: string
   tipo_documento: TipoDocumentoCliente
   /** Cuentas de depósito. La edge exige al menos una cuando el bloque viaja. */
   bancarios: BancariosInput
@@ -1961,6 +2030,7 @@ export async function crearClientePortal(payload: CrearClientePortalInput): Prom
     nombres: payload.nombres,
     dni: payload.dni,
     telefono: payload.telefono ?? null,
+    domicilio: payload.domicilio,
     tipo_documento: payload.tipo_documento,
     bancarios: payload.bancarios,
   }
@@ -2015,9 +2085,9 @@ export async function actualizarClientePortal(
   if (comoGerencia) {
     const { data, error } = await cliente()
       .schema('crm')
-      .rpc('actualizar_cliente_gerencia', {
+      .rpc('actualizar_cliente_gerencia_con_domicilio', {
         p_cliente_id: id,
-        p_patch: patch as Database['crm']['Functions']['actualizar_cliente_gerencia']['Args']['p_patch'],
+        p_patch: patch as Database['crm']['Functions']['actualizar_cliente_gerencia_con_domicilio']['Args']['p_patch'],
       })
     if (error) throw aErrorApi(error, 'crm.clientes.update_gerencia_fallido')
     return data === true

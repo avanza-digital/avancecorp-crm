@@ -58,7 +58,7 @@ export async function abrirLead(page: Page, nombre: string | RegExp) {
 
 // ── Backend Supabase simulado para la RUTA REAL ───────────────────────────────
 
-const SUPABASE_HOST = 'dctqcbznekcyxhjujuci.supabase.co'
+const SUPABASE_ORIGIN = 'http://127.0.0.1:59999'
 export const UID = '00000000-0000-4000-8000-000000000abc'
 
 /** JWT decodable (firma inválida a propósito: el servidor está mockeado). */
@@ -163,6 +163,7 @@ export interface PerfilReal {
   dni: string | null
   correo: string | null
   telefono: string | null
+  domicilio: string | null
   activo: boolean
   asesor_perfil_id: string | null
   creado_por: string | null
@@ -194,6 +195,7 @@ export function clienteReal(over: Partial<PerfilReal> = {}): PerfilReal {
     dni: '45781234',
     correo: 'cliente1@correo.pe',
     telefono: '+51999888777',
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     activo: true,
     asesor_perfil_id: UID, // el creador queda como asesor → cae en su cartera
     creado_por: UID,
@@ -1389,7 +1391,7 @@ type BackendRealInit = Omit<Partial<BackendReal>, 'metricas'> & {
  */
 export async function bloquearSupabase(page: Page): Promise<() => number> {
   let intentos = 0
-  await page.route(`**://${SUPABASE_HOST}/**`, async (route) => {
+  await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
     intentos += 1
     await route.abort()
   })
@@ -1508,7 +1510,7 @@ export async function montarBackendReal(
   const json = (route: Route, obj: unknown, status = 200) =>
     route.fulfill({ status, headers: cors, contentType: 'application/json', body: JSON.stringify(obj) })
 
-  await page.route(`**://${SUPABASE_HOST}/**`, async (route) => {
+  await page.route(`${SUPABASE_ORIGIN}/**`, async (route) => {
     const req = route.request()
     const method = req.method()
     const url = new URL(req.url())
@@ -1553,7 +1555,11 @@ export async function montarBackendReal(
     if (p === '/rest/v1/rpc/usuarios_administrables_fn') {
       return json(route, [])
     }
-    if (p === '/rest/v1/rpc/actualizar_cliente_gerencia' && method === 'POST') {
+    if (
+      (p === '/rest/v1/rpc/actualizar_cliente_gerencia'
+        || p === '/rest/v1/rpc/actualizar_cliente_gerencia_con_domicilio')
+      && method === 'POST'
+    ) {
       estado.llamadas.rpcActualizarClienteGerencia += 1
       const cuerpo = (req.postDataJSON() ?? {}) as Record<string, unknown>
       const clienteId = String(cuerpo.p_cliente_id ?? '')
@@ -1657,7 +1663,11 @@ export async function montarBackendReal(
     }
 
     // ── RPC CRM: cuenta + contrato + cronograma en una transacción ──
-    if (p === '/rest/v1/rpc/crear_contrato_con_cuenta_producto' && method === 'POST') {
+    if (
+      (p === '/rest/v1/rpc/crear_contrato_con_cuenta_producto'
+        || p === '/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2')
+      && method === 'POST'
+    ) {
       estado.llamadas.rpcCrearContrato += 1
       const body = (req.postDataJSON() ?? {}) as {
         p_producto_condicion_id?: string
@@ -1665,8 +1675,10 @@ export async function montarBackendReal(
         p_cuenta?: Record<string, unknown>
       }
       const pc = body.p_contrato ?? {}
+      const condicionId = body.p_producto_condicion_id
+        ?? (pc.moneda === 'USD' ? PRODUCTO_CONDICION_USD_ID : PRODUCTO_CONDICION_PEN_ID)
       const condicion = estado.productosSeleccionables.find(
-        (fila) => fila.condicion_id === body.p_producto_condicion_id,
+        (fila) => fila.condicion_id === condicionId,
       )
       const cuentaElegida = body.p_cuenta
       estado.ultimaCuentaPagoContrato = cuentaElegida
@@ -1775,7 +1787,7 @@ export async function montarBackendReal(
       })
       estado.contratos = [nuevo, ...estado.contratos]
       estado.cuentasPorContrato[nuevo.id] = cuentaId
-      return json(route, {
+      const respuesta: Record<string, unknown> = {
         id: nuevo.id,
         numero_contrato: numero,
         cuenta_bancaria_id: cuentaId,
@@ -1787,7 +1799,26 @@ export async function montarBackendReal(
         numero_version: condicion.numero_version,
         version_estado: 'publicada',
         version_nombre: condicion.version_nombre,
-      })
+      }
+      if (p.endsWith('_pdf_v2')) {
+        const jobId = `a0000000-0000-4000-8000-${String(estado.contratos.length).padStart(12, '0')}`
+        respuesta.pdf = {
+          contrato_id: nuevo.id,
+          job_id: jobId,
+          estado: 'pendiente',
+          storage_bucket: 'contratos-generados',
+          storage_path: `${nuevo.id}/v2/${jobId}/contrato.pdf`,
+          nombre_archivo: `Contrato-${numero}.pdf`,
+          template_version: 'contrato-aep-17-v2',
+          intentos: 0,
+          lease_expira_en: null,
+          reintentable: true,
+          sha256: null,
+          bytes: null,
+          archivo: null,
+        }
+      }
+      return json(route, respuesta)
     }
 
     // ── RPC CRM de corrección: preserva la coherencia de la cuenta fijada ──
@@ -1876,6 +1907,7 @@ export async function montarBackendReal(
         dni: (b.dni as string | undefined) ?? null,
         correo: (b.email as string | undefined) ?? null,
         telefono: (b.telefono as string | undefined) ?? null,
+        domicilio: (b.domicilio as string | undefined) ?? null,
         creado_en: new Date().toISOString(), // recién creado → ventana de 5 h viva
         // El cliente NACE con su cuenta: mismo INSERT, sin segundo paso.
         banco: (banc.pen?.banco as string | undefined) || null,
@@ -1885,6 +1917,35 @@ export async function montarBackendReal(
       })
       estado.clientes = [nuevo, ...estado.clientes]
       return json(route, { ok: true, user_id: nuevo.id, email: nuevo.correo, email_enviado: true })
+    }
+
+    // ── Edge PDF v2: jamás sale de loopback en E2E. Los contratos fixture son
+    // legacy (sin reserva) para ejercitar la corrección histórica; el alta v2
+    // ya fue confirmada atómicamente y aquí queda pendiente de worker.
+    if (p === '/functions/v1/crm-contrato-pdf-v2' && method === 'POST') {
+      const b = (req.postDataJSON() ?? {}) as { action?: string; contratoId?: string }
+      const contratoId = String(b.contratoId ?? '')
+      const esAltaV2 = contratoId.startsWith('e0000000-0000-4000-8000-')
+      const jobId = esAltaV2
+        ? `a0000000-0000-4000-8000-${contratoId.slice(-12)}`
+        : null
+      return json(route, {
+        pdf: {
+          contrato_id: contratoId,
+          job_id: jobId,
+          estado: esAltaV2 ? 'pendiente' : 'sin_reserva',
+          storage_bucket: 'contratos-generados',
+          storage_path: jobId ? `${contratoId}/v2/${jobId}/contrato.pdf` : null,
+          nombre_archivo: jobId ? 'Contrato-archivo-pendiente.pdf' : null,
+          template_version: jobId ? 'contrato-aep-17-v2' : null,
+          intentos: 0,
+          lease_expira_en: null,
+          reintentable: true,
+          sha256: null,
+          bytes: null,
+          archivo: null,
+        },
+      }, esAltaV2 && b.action === 'ensure' ? 202 : 200)
     }
 
     // ── cargarReal ──
@@ -2110,7 +2171,13 @@ export async function montarBackendReal(
       return json(route, { promedio: 3.53, fuente: 'SBS · prom. 7d' })
     }
     if (p === '/functions/v1/crm-convertir-lead' && method === 'POST') {
-      return json(route, { perfil_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc', ya_existia: false, email_enviado: true })
+      return json(route, {
+        ok: true,
+        perfil_id: 'cccccccc-cccc-4ccc-8ccc-cccccccccccc',
+        ya_existia: false,
+        domicilio_accion: 'completado',
+        email_enviado: true,
+      })
     }
 
     // ── métricas del ámbito operativo (F1: tiles, cola y ranking) ──

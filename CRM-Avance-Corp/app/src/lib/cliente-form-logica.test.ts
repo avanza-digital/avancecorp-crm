@@ -13,6 +13,7 @@ import {
   seccionUsdDesdeDetalle,
   validarBancariosForm,
   validarClienteForm,
+  validarDomicilioLegal,
   validarSeccionBancaria,
   type SeccionBancariaForm,
   type ValoresClienteForm,
@@ -40,6 +41,7 @@ function valores(over: Partial<ValoresClienteForm> = {}): ValoresClienteForm {
     documento: '45781234',
     telefono: ' 999 111 222 ',
     correo: 'hugo@correo.pe',
+    domicilio: '  Av. Javier Prado Este 123, San Isidro, Lima  ',
     pen: seccionPenCompleta(),
     usd: seccion(),
     ...over,
@@ -55,7 +57,8 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
     tipo_documento: 'DNI',
     dni: '45781234',
     correo: 'cliente1@correo.pe',
-    telefono: '+51999888777',
+    telefono: '999111222',
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: '2026-07-16T10:00:00.000Z',
@@ -224,6 +227,7 @@ describe('validarClienteForm — identidad (espejo de guardarCliente)', () => {
     expect(r.cliente.dni).toBe('45781234')
     expect(r.cliente.telefono).toBe('999 111 222')
     expect(r.cliente.correo).toBe('hugo@correo.pe')
+    expect(r.cliente.domicilio).toBe('Av. Javier Prado Este 123, San Isidro, Lima')
     expect(r.cliente.bancarios.banco).toBe('BCP')
     expect(r.cliente.bancarios.banco_usd).toBeNull()
   })
@@ -258,6 +262,36 @@ describe('validarClienteForm — identidad (espejo de guardarCliente)', () => {
       .toEqual({ ok: false, error: 'Completa apellidos, nombres, documento y correo.' })
     expect(validarClienteForm(valores({ documento: '' })))
       .toEqual({ ok: false, error: 'Completa apellidos, nombres, documento y correo.' })
+  })
+
+  it('rechaza un domicilio vacío porque el PDF legal no puede inventarlo', () => {
+    expect(validarClienteForm(valores({ domicilio: '   ' })))
+      .toEqual({ ok: false, error: 'Completa el domicilio legal del cliente.' })
+  })
+
+  it('rechaza domicilio corto, largo o con caracteres de control', () => {
+    expect(validarClienteForm(valores({ domicilio: 'Lima' })))
+      .toEqual({ ok: false, error: 'El domicilio legal debe tener entre 5 y 240 caracteres.' })
+    expect(validarClienteForm(valores({ domicilio: 'x'.repeat(241) })))
+      .toEqual({ ok: false, error: 'El domicilio legal debe tener entre 5 y 240 caracteres.' })
+    expect(validarClienteForm(valores({ domicilio: 'Av. Lima 123\u0085Lima' })))
+      .toEqual({ ok: false, error: 'El domicilio legal contiene caracteres no permitidos.' })
+  })
+
+  it('acepta exactamente 5 y 240 puntos Unicode, incluidos caracteres astrales', () => {
+    expect(validarDomicilioLegal('A😀BCD')).toEqual({ ok: true, valor: 'A😀BCD' })
+    const limite = `${'x'.repeat(238)}😀y`
+    expect(Array.from(limite)).toHaveLength(240)
+    expect(validarDomicilioLegal(limite)).toEqual({ ok: true, valor: limite })
+  })
+
+  it('rechaza 241 puntos Unicode sin confundirlos con unidades UTF-16', () => {
+    const demasiadoLargo = `${'x'.repeat(239)}😀y`
+    expect(Array.from(demasiadoLargo)).toHaveLength(241)
+    expect(validarDomicilioLegal(demasiadoLargo)).toEqual({
+      ok: false,
+      error: 'El domicilio legal debe tener entre 5 y 240 caracteres.',
+    })
   })
 })
 

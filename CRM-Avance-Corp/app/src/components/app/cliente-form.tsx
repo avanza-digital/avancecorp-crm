@@ -78,6 +78,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
   const [documento, setDocumento] = useState('')
   const [telefono, setTelefono] = useState('')
   const [correo, setCorreo] = useState('')
+  const [domicilio, setDomicilio] = useState('')
   // Bancarios (PEN = columnas base, USD = sufijo _usd; independientes)
   const [pen, setPen] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
   const [usd, setUsd] = useState<SeccionBancariaForm>(SECCION_BANCARIA_VACIA)
@@ -124,6 +125,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     setDocumento(d.dni ?? '')
     setTelefono(d.telefono ?? '')
     setCorreo(d.correo ?? '')
+    setDomicilio(d.domicilio ?? '')
     setPen(seccionPenDesdeDetalle(d))
     setUsd(seccionUsdDesdeDetalle(d))
     setDetalle(d)
@@ -162,7 +164,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     if (enviando) return // guard anti doble-submit (además del disabled del botón)
     setError(null)
     const r = validarClienteForm(
-      { apellidos, nombres, tipo_documento: tipoDoc, documento, telefono, correo, pen, usd },
+      { apellidos, nombres, tipo_documento: tipoDoc, documento, telefono, correo, domicilio, pen, usd },
       esCorregir ? detalle : null,
       // El ledger perdona la regla «al menos una cuenta» SOLO en corregir: el
       // cliente ya tiene dónde cobrar (cuenta activa vinculada a contrato) y
@@ -187,6 +189,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
             tipo_documento: c.tipo_documento,
             dni: c.dni,
             telefono: c.telefono,
+            domicilio: c.domicilio,
             // En un legacy sin separar (ambos vacíos) van null y se conserva su
             // nombre_completo original (rama esLegacySinSeparar de la validación).
             apellidos: c.apellidos,
@@ -213,6 +216,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           nombres: c.nombres ?? '',
           dni: c.dni,
           telefono: c.telefono,
+          domicilio: c.domicilio,
           tipo_documento: c.tipo_documento,
           bancarios: { pen, usd },
         })
@@ -405,6 +409,22 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
               disabled={enviando || esCorregir}
             />
           </div>
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="cf-domicilio">Domicilio legal completo *</Label>
+          <Input
+            id="cf-domicilio"
+            value={domicilio}
+            onChange={(e) => setDomicilio(e.target.value)}
+            placeholder="Av./Jr./Calle, número, distrito, provincia y departamento"
+            autoComplete="street-address"
+            disabled={enviando}
+          />
+          <p className="text-[10px] text-muted-foreground">
+            {esCorregir
+              ? 'Se aplicará solo a contratos futuros; no modifica PDFs ya reservados o sellados.'
+              : 'Se copiará literalmente en el contrato legal.'}
+          </p>
         </div>
         {esCorregir ? (
           // El correo va con el login del cliente: no se edita (espejo portal).

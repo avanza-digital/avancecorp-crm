@@ -23,6 +23,13 @@ export default defineConfig({
     command: 'npm run dev -- --port 5199 --host 127.0.0.1',
     url: 'http://127.0.0.1:5199',
     reuseExistingServer: false,
-    env: { VITE_ENABLE_DEMO: 'true' },
+    // El bundle E2E nunca recibe un proyecto hosted. Las suites que simulan el
+    // backend interceptan este origen loopback; cualquier ruta olvidada falla
+    // por conexión rechazada, sin posibilidad de tocar producción.
+    env: {
+      VITE_ENABLE_DEMO: 'true',
+      VITE_SUPABASE_URL: 'http://127.0.0.1:59999',
+      VITE_SUPABASE_ANON_KEY: 'e2e-anon-key-not-a-real-secret-000000',
+    },
   },
 })

@@ -58,6 +58,7 @@ import { useAuth } from '@/lib/auth-context'
 import {
   SECCION_BANCARIA_VACIA,
   validarBancariosForm,
+  validarDomicilioLegal,
   type SeccionBancariaForm,
 } from '@/lib/cliente-form-logica'
 import { can, puedeEscribir } from '@/lib/roles'
@@ -1501,6 +1502,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const [correo, setCorreo] = useState(l.correo ?? '')
   const [tipoDoc, setTipoDoc] = useState<TipoDocumentoCliente>('DNI')
   const [documento, setDocumento] = useState(l.dni ?? '')
+  const [domicilio, setDomicilio] = useState('')
   // Bancarios (PEN = columnas base, USD = sufijo _usd) — el cliente convertido
   // los necesita IGUAL que el del alta directa: sin cuenta no hay dónde
   // depositarle los intereses (hallazgo de Miguel 2026-07-16).
@@ -1540,6 +1542,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   /** El documento YA era cliente: se enlazó y sus bancarios NO se tocaron → hay
    *  que decírselo al asesor ANTES de seguir (acaba de llenar unos que no van). */
   const [avisoYaExistia, setAvisoYaExistia] = useState(false)
+  const [domicilioAccion, setDomicilioAccion] = useState<'completado' | 'conservado'>('conservado')
   /**
    * ¿El cliente enlazado quedó en MI cartera? (`null` = no se pudo comprobar).
    *
@@ -1588,6 +1591,11 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       setError(RE_DOCUMENTO[tipoDoc].err)
       return
     }
+    const domicilioValidado = validarDomicilioLegal(domicilio)
+    if (!domicilioValidado.ok) {
+      setError(domicilioValidado.error)
+      return
+    }
     // Bancarios ANTES de tocar el servidor (regla "al menos una cuenta", igual
     // que el alta del portal): si no validan, NO se crea la cuenta ni sale el
     // correo de bienvenida — no se empieza algo que quedaría a medias. Este
@@ -1612,15 +1620,19 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         documento: docLimpio,
         nombre_completo: l.nombre_completo,
         telefono: l.telefono,
+        domicilio: domicilioValidado.valor,
         bancarios: { pen, usd },
       })
       // El lead ya quedó convertido en el servidor: el pipeline debe reflejarlo.
-      await recargar()
+      const recargaConfirmada = await recargar()
+      if (!recargaConfirmada) {
+        toast.warning('La conversión quedó confirmada, pero la cartera no pudo actualizarse. Recarga la pantalla antes de continuar.')
+      }
       setPerfilId(r.perfil_id)
-      // El asesor acaba de llenar unos bancarios OBLIGATORIOS que, por el dedup,
-      // no se guardaron en ningún sitio. Un toast de éxito ahí lo deja creyendo
-      // que registró la cuenta donde se depositan los intereses: se para el
-      // flujo y se le dice, con qué hacer después. Sigue al contrato con un tap.
+      setDomicilioAccion(r.domicilio_accion)
+      // El asesor acaba de llenar datos legales y bancarios que, por el dedup,
+      // pueden no reemplazar lo que el cliente ya tenía. Un toast de éxito ahí
+      // le haría creer que modificó esas fuentes: se para el flujo y se explica.
       if (r.ya_existia) {
         // Antes de hablar, PREGUNTAR: el aviso cambia por completo según si el
         // cliente enlazado es de este asesor o de otro, y eso solo lo sabe el
@@ -1780,15 +1792,19 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold text-warning-text outline-none"
           >
             Ese documento ya tenía cuenta en el portal: el lead quedó enlazado a ella y cerrado
-            como ganado, y se conservaron las cuentas bancarias que el cliente ya tenía
-            registradas{noEsMio ? ', y el cliente NO pasó a tu cartera' : ''}.
+            como ganado, y se conservaron las cuentas bancarias que el cliente ya tenía registradas.
+            {' '}{domicilioAccion === 'completado'
+              ? 'Su domicilio estaba vacío y se completó con el que ingresaste.'
+              : 'También se conservó el domicilio legal que ya estaba registrado.'}
+            {noEsMio ? ' El cliente NO pasó a tu cartera.' : ''}
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
-            Lo que escribiste en el formulario no las reemplaza — sobreescribirlas a ciegas desde
-            aquí podría desviarle sus intereses. Si esas cuentas ya no son las correctas,
-            verifícalo antes del próximo pago: desde “{rotuloCartera} → Corregir” solo se pueden
-            cambiar las de un cliente que registraste tú hace menos de 5 horas; si no, pídeselo a
-            Gerencia.
+            Lo que escribiste en el formulario no reemplaza las cuentas bancarias
+            {domicilioAccion === 'conservado' ? ' ni el domicilio existente' : ''} — sobreescribirlos a ciegas
+            podría alterar su identidad legal o desviarle sus intereses. Si ya no son correctos,
+            verifícalos antes del contrato o próximo pago: desde “{rotuloCartera} → Corregir” solo
+            se pueden cambiar para un cliente que registraste tú hace menos de 5 horas; si no,
+            pídeselo a Gerencia.
           </p>
           {noEsMio && (
             <p className="text-xs leading-relaxed text-muted-foreground">
@@ -2144,6 +2160,21 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             <p className="text-[11px] text-muted-foreground">
               Su contraseña temporal será su documento; el cliente la cambia en su primer ingreso.
             </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="cv-domicilio">Domicilio legal completo</Label>
+              <Input
+                id="cv-domicilio"
+                value={domicilio}
+                onChange={(e) => setDomicilio(e.target.value)}
+                placeholder="Av./Jr./Calle, número, distrito, provincia y departamento"
+                autoComplete="street-address"
+                disabled={enviando}
+              />
+              <p className="text-[11px] text-muted-foreground">
+                Se copiará literalmente en el contrato legal. Si ya era cliente, se conserva el
+                domicilio registrado en el portal.
+              </p>
+            </div>
             {/* Bloque compartido con el alta directa (cliente-form): el cliente
                 convertido necesita dónde cobrar sus intereses desde el día uno.
                 Si el documento ya era cliente del portal, sus cuentas actuales

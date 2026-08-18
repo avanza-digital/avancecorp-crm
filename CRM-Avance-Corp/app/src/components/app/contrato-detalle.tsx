@@ -5,8 +5,9 @@
 // Siempre disponible: NO depende de la ventana de 5 h — la RLS ya limita a la
 // cartera (contrato ajeno = 0 filas, fail-closed). Se monta DENTRO de <Dialog>
 // (mismo patrón que ContratoNuevo: el caller pone el Dialog, aquí va el panel).
-import { useMemo, type ReactNode } from 'react'
-import { FileText, RotateCcw, WifiOff } from 'lucide-react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
+import { Download, ExternalLink, FileText, LoaderCircle, RotateCcw, WifiOff } from 'lucide-react'
+import { toast } from 'sonner'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -18,6 +19,19 @@ import { CATEGORIA_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import { etiquetaDocumento } from '@/lib/titulares'
 import type { ContratoRow, Cuota, EstadoContrato, EstadoCuota, Titular } from '@/lib/clientes-tipos'
 import { CODIGO_PRODUCTO_HISTORICO } from '@/components/app/producto-contrato-selector'
+import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
+import {
+  abrirVentanaContratoPdf,
+  archivarContratoPdfConfirmado,
+  consultarEstadoContratoPdf,
+  ContratoPdfNoSelladoError,
+  descargarArchivoContratoPdf,
+  etiquetaEstadoContratoPdf,
+  obtenerContratoPdfArchivado,
+  verArchivoContratoPdf,
+  type EstadoContratoPdf,
+} from '@/lib/contrato-pdf-archivo'
+import { archivarContratoPdfDemoHabilitado } from '@/lib/contrato-pdf-demo-loader'
 
 // Sin verde en el sistema ("positivo" = azul): activo/pagado en accent,
 // vencido en destructive, renovado/trasladado en ámbar, retirado neutro.
@@ -58,12 +72,22 @@ export interface ContratoDetalleDatos {
   contrato: ContratoRow
   cuotas: Cuota[]
   titulares: Titular[]
+  /** Fotografía legal completa. Presente en demo y, luego, desde la RPC privada. */
+  pdfDatos?: ContratoPdfDatos | undefined
 }
 
 export interface ContratoDetalleProps {
   contratoId: string
   onCerrar: () => void
   datos?: ContratoDetalleDatos
+}
+
+interface EstadoPdfUi {
+  contratoId: string
+  secuencia: number
+  estado: EstadoContratoPdf | null
+  cargando: boolean
+  error: boolean
 }
 
 export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalleProps) {
@@ -104,6 +128,36 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
   // que alguien abre el detalle para verificar. Tres estados distintos:
   // null = cargando · error = no se sabe · [] = de verdad no tiene.
   const titulares = datos?.titulares ?? qTitulares.data ?? null
+  const pdfDatos = datos?.pdfDatos
+  const contratoIdActualRef = useRef(contratoId)
+  contratoIdActualRef.current = contratoId
+  const secuenciaEstadoPdfRef = useRef(0)
+  const secuenciaAccionPdfRef = useRef(0)
+  const [accionPdfUi, setAccionPdfUi] = useState<{
+    contratoId: string
+    secuencia: number
+    accion: 'ver' | 'descargar'
+  } | null>(null)
+  const [estadoPdfUi, setEstadoPdfUi] = useState<EstadoPdfUi>(() => ({
+    contratoId,
+    secuencia: 0,
+    estado: pdfDatos ? 'pendiente' : null,
+    cargando: !pdfDatos,
+    error: false,
+  }))
+  // Etiquetar el estado con su contrato evita pintar, incluso durante un frame,
+  // el estado o spinner de A después de que el mismo diálogo ya recibió B.
+  const estadoPdfEsActual = estadoPdfUi.contratoId === contratoId
+    && estadoPdfUi.secuencia === secuenciaEstadoPdfRef.current
+  const estadoPdf = estadoPdfEsActual
+    ? estadoPdfUi.estado
+    : pdfDatos ? 'pendiente' : null
+  const cargandoEstadoPdf = estadoPdfEsActual ? estadoPdfUi.cargando : !pdfDatos
+  const errorEstadoPdf = estadoPdfEsActual ? estadoPdfUi.error : false
+  const accionPdf = accionPdfUi?.contratoId === contratoId
+    && accionPdfUi.secuencia === secuenciaAccionPdfRef.current
+    ? accionPdfUi.accion
+    : null
   const errorTitulares = !precargado && qTitulares.isError && qTitulares.data == null
     ? mensajeDeError(qTitulares.error, 'No se pudieron cargar los co-titulares.')
     : null
@@ -114,6 +168,107 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
     void qContrato.refetch()
     void qCronograma.refetch()
     void qTitulares.refetch()
+  }
+
+  useEffect(() => {
+    const secuencia = ++secuenciaEstadoPdfRef.current
+    // Un cambio de contrato o de fotografía demo invalida cualquier acción que
+    // todavía esté esperando bytes del contexto anterior.
+    ++secuenciaAccionPdfRef.current
+    if (pdfDatos) {
+      setEstadoPdfUi({ contratoId, secuencia, estado: 'pendiente', cargando: false, error: false })
+      return
+    }
+    let vigente = true
+    setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: true, error: false })
+    void consultarEstadoContratoPdf(contratoId)
+      .then((estado) => {
+        if (
+          vigente
+          && secuenciaEstadoPdfRef.current === secuencia
+          && contratoIdActualRef.current === contratoId
+        ) {
+          setEstadoPdfUi({ contratoId, secuencia, estado: estado.estado, cargando: false, error: false })
+        }
+      })
+      .catch(() => {
+        if (
+          vigente
+          && secuenciaEstadoPdfRef.current === secuencia
+          && contratoIdActualRef.current === contratoId
+        ) {
+          setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: false, error: true })
+        }
+      })
+    return () => { vigente = false }
+  }, [contratoId, pdfDatos])
+
+  const ejecutarPdf = async (accion: 'ver' | 'descargar') => {
+    if (!contrato || accionPdf) return
+    const contratoIdAccion = contratoId
+    const secuenciaAccion = ++secuenciaAccionPdfRef.current
+    const accionSigueVigente = () =>
+      contratoIdActualRef.current === contratoIdAccion
+      && secuenciaAccionPdfRef.current === secuenciaAccion
+    let ventanaPdf: Window | null = null
+    try {
+      // La pestaña debe reservarse dentro del gesto del usuario. Esperar a la
+      // Edge, descargar y calcular SHA antes de window.open activa el bloqueador.
+      if (accion === 'ver') ventanaPdf = abrirVentanaContratoPdf()
+      setAccionPdfUi({ contratoId: contratoIdAccion, secuencia: secuenciaAccion, accion })
+      // El resultado de una consulta de estado iniciada antes del ensure ya no
+      // puede sobrescribir el estado sellado que confirme esta acción.
+      const secuenciaEstado = ++secuenciaEstadoPdfRef.current
+      setEstadoPdfUi((anterior) => ({
+        contratoId: contratoIdAccion,
+        secuencia: secuenciaEstado,
+        estado: anterior.contratoId === contratoIdAccion ? anterior.estado : null,
+        cargando: false,
+        error: false,
+      }))
+      // Demo: la primera generación gana en el archivo local inmutable. Real:
+      // primero recupera el objeto archivado por Edge; si el alta quedó sin PDF,
+      // permite repararlo desde la fotografía contractual privada del servidor.
+      const archivo = pdfDatos
+        ? await archivarContratoPdfDemoHabilitado(contratoId, pdfDatos)
+        : await obtenerContratoPdfArchivado(contratoId)
+          // Recuperación post-commit: genera únicamente desde la fotografía
+          // contractual privada e inmutable de la RPC, nunca desde perfiles.
+          ?? await archivarContratoPdfConfirmado(contratoId)
+      if (!accionSigueVigente()) {
+        ventanaPdf?.close()
+        return
+      }
+      setEstadoPdfUi({
+        contratoId: contratoIdAccion,
+        secuencia: secuenciaEstado,
+        estado: 'sellado',
+        cargando: false,
+        error: false,
+      })
+      if (accion === 'ver') verArchivoContratoPdf(archivo, ventanaPdf!)
+      else descargarArchivoContratoPdf(archivo)
+    } catch (error) {
+      ventanaPdf?.close()
+      if (!accionSigueVigente()) return
+      if (error instanceof ContratoPdfNoSelladoError) {
+        setEstadoPdfUi({
+          contratoId: contratoIdAccion,
+          secuencia: secuenciaEstadoPdfRef.current,
+          estado: error.estado,
+          cargando: false,
+          error: false,
+        })
+      }
+      console.error('[contrato-pdf] No se pudo recuperar el documento archivado', error)
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'No se pudo recuperar el contrato PDF. Inténtalo nuevamente.',
+      )
+    } finally {
+      setAccionPdfUi((actual) => actual?.secuencia === secuenciaAccion ? null : actual)
+    }
   }
 
   // Totales con las mismas reglas del portal: las cuotas de interés excluyen el
@@ -168,6 +323,15 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
           </div>
         ) : (
           <>
+            <div className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
+              {cargandoEstadoPdf
+                ? 'Consultando el estado documental…'
+                : errorEstadoPdf
+                  ? 'No se pudo consultar el estado documental. Puedes reintentar desde los botones de PDF.'
+                  : estadoPdf
+                    ? <>Estado documental: <b className="text-foreground">{etiquetaEstadoContratoPdf(estadoPdf)}</b>.</>
+                    : 'Estado documental no disponible.'}
+            </div>
             {/* ── Términos del contrato (espejo de renderDetalleMeta) ─────────── */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Termino label="Cliente">{contrato.cliente_nombre ?? '—'}</Termino>
@@ -352,6 +516,31 @@ export function ContratoDetalle({ contratoId, onCerrar, datos }: ContratoDetalle
         )}
       </DialogBody>
       <DialogFooter>
+        {contrato && (
+          <>
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={accionPdf != null || estadoPdf === 'integridad_bloqueada'}
+              onClick={() => void ejecutarPdf('ver')}
+            >
+              {accionPdf === 'ver'
+                ? <LoaderCircle className="animate-spin" aria-hidden />
+                : <ExternalLink aria-hidden />}
+              Ver contrato PDF
+            </Button>
+            <Button
+              size="sm"
+              disabled={accionPdf != null || estadoPdf === 'integridad_bloqueada'}
+              onClick={() => void ejecutarPdf('descargar')}
+            >
+              {accionPdf === 'descargar'
+                ? <LoaderCircle className="animate-spin" aria-hidden />
+                : <Download aria-hidden />}
+              Descargar contrato PDF
+            </Button>
+          </>
+        )}
         <Button variant="outline" size="sm" onClick={onCerrar}>
           Cerrar
         </Button>

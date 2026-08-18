@@ -69,6 +69,32 @@ let ERROR_CONTRATOS: Error | null = null
 let REFETCH_CLIENTES = vi.fn()
 let REFETCH_CONTRATOS = vi.fn()
 
+const cuentasHook = vi.hoisted(() => ({ llamadas: vi.fn() }))
+const archivoPdf = vi.hoisted(() => ({
+  abrir: vi.fn(() => ({ close: vi.fn() })),
+  archivar: vi.fn(),
+  archivarDemo: vi.fn(),
+  consultar: vi.fn(),
+  obtener: vi.fn(),
+  descargar: vi.fn(),
+  ver: vi.fn(),
+}))
+
+vi.mock('@/lib/contrato-pdf-archivo', () => ({
+  abrirVentanaContratoPdf: archivoPdf.abrir,
+  archivarContratoPdfConfirmado: archivoPdf.archivar,
+  consultarEstadoContratoPdf: archivoPdf.consultar,
+  ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {},
+  obtenerContratoPdfArchivado: archivoPdf.obtener,
+  descargarArchivoContratoPdf: archivoPdf.descargar,
+  etiquetaEstadoContratoPdf: (estado: string) => estado,
+  verArchivoContratoPdf: archivoPdf.ver,
+}))
+
+vi.mock('@/lib/contrato-pdf-demo-loader', () => ({
+  archivarContratoPdfDemoHabilitado: archivoPdf.archivarDemo,
+}))
+
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({ equipo: EQUIPO, ambito: { vendedores: [], esGlobal: false, leads: [] } }),
@@ -97,11 +123,18 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     // CUENTAS (calculado en montar() a partir del fixture DETALLE). La
     // referencia debe ser ESTABLE entre renders: el efecto de confirmación de
     // la ficha depende de `data`, y un array nuevo por render lo vuelve bucle.
-    useCuentasBancariasCliente: (_clienteId: string, moneda: 'PEN' | 'USD') => q(CUENTAS[moneda]),
+    useCuentasBancariasCliente: (
+      clienteId: string,
+      moneda: 'PEN' | 'USD',
+      habilitada = true,
+    ) => {
+      cuentasHook.llamadas(clienteId, moneda, habilitada)
+      return q(CUENTAS[moneda])
+    },
     // ContratoDetalle usa estos tres; con data null pinta skeletons (no red, no crash).
     useContrato: () => q(null),
     useCronograma: () => q(null),
-    useTitulares: () => q(null),
+    useTitulares: () => q([]),
   }
 })
 
@@ -165,7 +198,8 @@ function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
     tipo_documento: 'DNI',
     dni: '45781234',
     correo: 'cliente@avance.pe',
-    telefono: '+51999888777',
+    telefono: '999111222',
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: '2026-07-15T12:00:00.000Z',
@@ -226,6 +260,32 @@ function montar(
  */
 async function verTodosLosMeses(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByRole('combobox', { name: /Filtrar por mes/ }), 'todos')
+}
+
+function diferida<T>() {
+  let resolver!: (valor: T) => void
+  const promesa = new Promise<T>((resolve) => {
+    resolver = resolve
+  })
+  return { promesa, resolver }
+}
+
+async function abrirAltaContratoDemo(user: ReturnType<typeof userEvent.setup>) {
+  const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
+  const filaCliente = nombre.closest('tr')
+  if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
+  await user.click(within(filaCliente).getByRole('button', { name: /\+ Contrato/ }))
+  expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
+}
+
+async function completarAltaContratoDemo(
+  user: ReturnType<typeof userEvent.setup>,
+  sufijo: string,
+) {
+  await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
+  await user.type(screen.getByLabelText('Capital'), '10000')
+  await user.type(screen.getByLabelText('N° de contrato'), sufijo)
+  await user.click(screen.getByRole('radio', { name: /BCP/ }))
 }
 
 describe('MiCartera (pantalla)', () => {
@@ -359,6 +419,27 @@ describe('MiCartera (pantalla)', () => {
     expect(within(subFilaDe('2026-01-000001')).getByRole('button', { name: /Corregir/ })).toBeInTheDocument()
   })
 
+  it('no abre la corrección cuando ya existe una reserva PDF durable', async () => {
+    const user = userEvent.setup()
+    archivoPdf.consultar.mockResolvedValueOnce({ estado: 'pendiente' })
+    montar()
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(within(subFilaDe('2026-01-000001')).getByRole('button', { name: /Corregir/ }))
+
+    await vi.waitFor(() => expect(archivoPdf.consultar).toHaveBeenCalledWith('k-1'))
+    expect(screen.queryByRole('dialog', { name: /Corregir contrato/ })).not.toBeInTheDocument()
+  })
+
+  it('mantiene la corrección legacy solo cuando el servidor confirma que no hay reserva', async () => {
+    const user = userEvent.setup()
+    archivoPdf.consultar.mockResolvedValueOnce({ estado: 'sin_reserva' })
+    montar()
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(within(subFilaDe('2026-01-000001')).getByRole('button', { name: /Corregir/ }))
+
+    expect(await screen.findByRole('dialog', { name: 'Corregir contrato 2026-01-000001' })).toBeInTheDocument()
+  })
+
   it('Corregir del contrato: AUSENTE si la ventana de 5 h ya venció', async () => {
     const user = userEvent.setup()
     montar({ contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })] })
@@ -478,6 +559,194 @@ describe('MiCartera (demo aislada)', () => {
     // El hook conserva su orden estable, pero recibe enabled=false: el fixture
     // es la única fuente y obtenerClienteDetalle nunca puede ejecutarse.
     expect(useClienteDetalleMock).toHaveBeenCalledWith('dc-cli-1', false)
+  })
+
+  it('crea desde Mi cartera y vuelve a descargar exactamente el archivo demo congelado', async () => {
+    const user = userEvent.setup()
+    vi.stubEnv('VITE_ENABLE_DEMO', 'true')
+    cuentasHook.llamadas.mockClear()
+    archivoPdf.archivar.mockReset()
+    archivoPdf.archivarDemo.mockReset()
+    archivoPdf.consultar.mockReset().mockResolvedValue({ estado: 'sellado' })
+    archivoPdf.obtener.mockReset()
+    archivoPdf.descargar.mockReset()
+    archivoPdf.ver.mockReset()
+    const archivo = {
+      contratoId: 'demo-2026-01-000777',
+      storagePath: 'demo-2026-01-000777/contrato.pdf',
+      nombreArchivo: 'Contrato-2026-01-000777-ROSA-MERCEDES-AGUILAR-VENTURA.pdf',
+      sha256: 'a'.repeat(64),
+      bytes: 24,
+      blob: new Blob(['%PDF-1.7\narchivo demo'], { type: 'application/pdf' }),
+    }
+    archivoPdf.archivarDemo.mockImplementation(async (contratoId: string) => ({
+      ...archivo,
+      contratoId,
+      storagePath: `${contratoId}/contrato.pdf`,
+    }))
+    montar({
+      yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
+      clientes: [],
+      contratos: [],
+    })
+
+    const nombre = await screen.findByText('ROSA MERCEDES AGUILAR VENTURA')
+    const filaCliente = nombre.closest('tr')
+    if (!filaCliente) throw new Error('fila del cliente demo no encontrada')
+    await user.click(within(filaCliente).getByRole('button', { name: /\+ Contrato/ }))
+
+    expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
+    await user.type(screen.getByLabelText('Capital'), '10000')
+    await user.type(screen.getByLabelText('N° de contrato'), '000777')
+    await user.click(screen.getByRole('radio', { name: /BCP/ }))
+    await user.click(screen.getByRole('button', { name: 'Crear contrato' }))
+
+    expect(await screen.findByText('Contrato 2026-01-000777 creado')).toBeInTheDocument()
+    expect(cuentasHook.llamadas).toHaveBeenCalledWith('dc-cli-1', 'PEN', false)
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
+    const idConfirmado = archivoPdf.archivarDemo.mock.calls[0]?.[0]
+    expect(idConfirmado).toMatch(/^demo-/)
+    const fotoConfirmada = archivoPdf.archivarDemo.mock.calls[0]?.[1]
+    expect(fotoConfirmada).toEqual(expect.objectContaining({
+      contrato: expect.objectContaining({ numero: '2026-01-000777', capital: 10_000 }),
+      titular: expect.objectContaining({ domicilio: expect.stringContaining('Lima') }),
+    }))
+
+    // Hasta Finalizar el callback no materializa una segunda fila en Mi cartera.
+    expect(screen.queryByLabelText('Abrir detalle del contrato 2026-01-000777')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Finalizar' }))
+
+    await user.click(await screen.findByRole('button', {
+      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+    }))
+    const filaContrato = await screen.findByLabelText('Abrir detalle del contrato 2026-01-000777')
+    await user.click(filaContrato)
+    await user.click(screen.getByRole('button', { name: 'Descargar contrato PDF' }))
+
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(2)
+    expect(archivoPdf.archivarDemo.mock.calls[1]?.[0]).toBe(idConfirmado)
+    expect(archivoPdf.archivarDemo.mock.calls[1]?.[1]).toBe(fotoConfirmada)
+    expect(archivoPdf.descargar).toHaveBeenCalledWith(expect.objectContaining({
+      contratoId: idConfirmado,
+      storagePath: `${idConfirmado}/contrato.pdf`,
+    }))
+    expect(archivoPdf.obtener).not.toHaveBeenCalled()
+  })
+
+  it('rechaza un número demo existente antes de archivar y conserva la fila original', async () => {
+    const user = userEvent.setup()
+    vi.stubEnv('VITE_ENABLE_DEMO', 'true')
+    archivoPdf.archivarDemo.mockReset()
+    montar({
+      yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
+      clientes: [],
+      contratos: [],
+    })
+    await abrirAltaContratoDemo(user)
+    await completarAltaContratoDemo(user, '000901')
+
+    await user.click(screen.getByRole('button', { name: 'Crear contrato' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /ya existe el contrato demo 2026-01-000901/i,
+    )
+    expect(archivoPdf.archivarDemo).not.toHaveBeenCalled()
+    await user.keyboard('{Escape}')
+    expect(screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', {
+      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+    }))
+    expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000901')).toHaveLength(1)
+  })
+
+  it('bloquea Escape y overlay mientras archiva; al terminar Escape materializa una sola vez', async () => {
+    const user = userEvent.setup()
+    vi.stubEnv('VITE_ENABLE_DEMO', 'true')
+    archivoPdf.archivarDemo.mockReset()
+    const pendiente = diferida<{
+      contratoId: string
+      storagePath: string
+      nombreArchivo: string
+      sha256: string
+      bytes: number
+      blob: Blob
+    }>()
+    archivoPdf.archivarDemo.mockReturnValueOnce(pendiente.promesa)
+    montar({
+      yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
+      clientes: [],
+      contratos: [],
+    })
+    await abrirAltaContratoDemo(user)
+    await completarAltaContratoDemo(user, '000778')
+    await user.click(screen.getByRole('button', { name: 'Crear contrato' }))
+    await vi.waitFor(() => expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1))
+
+    await user.keyboard('{Escape}')
+    expect(screen.getByRole('dialog', { name: /Contrato 2026-01-000778 creado/ })).toBeInTheDocument()
+    const overlay = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')
+    if (!overlay) throw new Error('overlay del contrato demo no encontrado')
+    await user.click(overlay)
+    expect(screen.getByRole('dialog', { name: /Contrato 2026-01-000778 creado/ })).toBeInTheDocument()
+
+    const contratoId = archivoPdf.archivarDemo.mock.calls[0]?.[0] as string
+    pendiente.resolver({
+      contratoId,
+      storagePath: `${contratoId}/contrato.pdf`,
+      nombreArchivo: 'Contrato-2026-01-000778-ROSA.pdf',
+      sha256: 'c'.repeat(64),
+      bytes: 24,
+      blob: new Blob(['%PDF-1.7\narchivo demo'], { type: 'application/pdf' }),
+    })
+    expect(await screen.findByText(/PDF privado archivado correctamente/)).toBeInTheDocument()
+
+    await user.keyboard('{Escape}')
+    await vi.waitFor(() => expect(
+      screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ }),
+    ).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', {
+      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+    }))
+    expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000778')).toHaveLength(1)
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
+  })
+
+  it('el click en overlay después de confirmar equivale a Finalizar', async () => {
+    const user = userEvent.setup()
+    vi.stubEnv('VITE_ENABLE_DEMO', 'true')
+    archivoPdf.archivarDemo.mockReset().mockImplementation(async (contratoId: string) => ({
+      contratoId,
+      storagePath: `${contratoId}/contrato.pdf`,
+      nombreArchivo: 'Contrato-2026-01-000779-ROSA.pdf',
+      sha256: 'd'.repeat(64),
+      bytes: 24,
+      blob: new Blob(['%PDF-1.7\narchivo demo'], { type: 'application/pdf' }),
+    }))
+    montar({
+      yo: { id: 'd-v1', rol: 'vendedor', puede_contratar: true, demo: true },
+      clientes: [],
+      contratos: [],
+    })
+    await abrirAltaContratoDemo(user)
+    await completarAltaContratoDemo(user, '000779')
+    await user.click(screen.getByRole('button', { name: 'Crear contrato' }))
+    expect(await screen.findByText(/PDF privado archivado correctamente/)).toBeInTheDocument()
+
+    const overlay = document.querySelector<HTMLElement>('[data-slot="dialog-overlay"]')
+    if (!overlay) throw new Error('overlay del contrato demo no encontrado')
+    await user.click(overlay)
+
+    await vi.waitFor(() => expect(
+      screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ }),
+    ).not.toBeInTheDocument())
+    await user.click(screen.getByRole('button', {
+      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+    }))
+    expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000779')).toHaveLength(1)
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
   })
 })
 

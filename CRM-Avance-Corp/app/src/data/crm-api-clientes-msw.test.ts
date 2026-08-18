@@ -69,6 +69,7 @@ function filaDetalle(sobre: Record<string, unknown> = {}): Record<string, unknow
     dni: '45781234',
     correo: 'qa@correo.pe',
     telefono: '+51999888777',
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     asesor_perfil_id: 'analista-1',
     creado_por: 'analista-1',
     creado_en: '2026-07-15T12:00:00.000Z',
@@ -203,6 +204,7 @@ describe('obtenerClienteDetalle (public.perfiles)', () => {
       tipo_documento: 'DNI',
       creado_en: '2026-07-15T12:00:00.000Z',
       creado_por: 'analista-1',
+      domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
       banco: 'BCP',
       cci: '00219112345678901234',
       titular_distinto: false,
@@ -231,18 +233,28 @@ describe('actualizarClientePortal (la TRAMPA de la ventana de 5 h)', () => {
         patchCrudo += 1
         return HttpResponse.json([{ id: 'cli-1' }])
       }),
-      http.post(`${BASE}/rest/v1/rpc/actualizar_cliente_gerencia`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_cliente_gerencia_con_domicilio`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return HttpResponse.json(true)
       }),
     )
 
     await expect(
-      actualizarClientePortal('cli-1', { telefono: '+51911111111' }, true),
+      actualizarClientePortal(
+        'cli-1',
+        {
+          telefono: '+51911111111',
+          domicilio: 'Av. Los Inversionistas 245, San Isidro, Lima',
+        },
+        true,
+      ),
     ).resolves.toBe(true)
     expect(body).toEqual({
       p_cliente_id: 'cli-1',
-      p_patch: { telefono: '+51911111111' },
+      p_patch: {
+        telefono: '+51911111111',
+        domicilio: 'Av. Los Inversionistas 245, San Isidro, Lima',
+      },
     })
     expect(patchCrudo).toBe(0)
   })
@@ -319,13 +331,19 @@ describe('crearClientePortal (edge crear-cliente)', () => {
       apellidos: 'QA PRUEBA',
       nombres: 'MARIA JOSE',
       dni: '45781234',
-      telefono: '+51999888777',
+      telefono: '999111222',
+      domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
       tipo_documento: 'DNI',
       bancarios: { pen: PEN_OK, usd: USD_VACIA },
     })
 
     expect(r).toEqual({ userId: 'u-nuevo', emailEnviado: true })
-    expect(body).toMatchObject({ email: 'qa@correo.pe', dni: '45781234', tipo_documento: 'DNI' })
+    expect(body).toMatchObject({
+      email: 'qa@correo.pe',
+      dni: '45781234',
+      domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
+      tipo_documento: 'DNI',
+    })
     // Sin password el body NO lleva la clave (la edge pone la temporal = documento).
     expect('password' in body).toBe(false)
   })
@@ -347,6 +365,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
       apellidos: 'QA',
       nombres: 'PRUEBA',
       dni: '45781234',
+      domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
       tipo_documento: 'DNI',
       bancarios: { pen: PEN_OK, usd: USD_VACIA },
     })
@@ -367,7 +386,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
     await expect(
       crearClientePortal({
         email: 'qa@correo.pe', nombre_completo: 'X', apellidos: 'X', nombres: 'X',
-        dni: '45781234', tipo_documento: 'DNI',
+        dni: '45781234', domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima', tipo_documento: 'DNI',
         bancarios: { pen: USD_VACIA, usd: USD_VACIA },
       }),
     ).rejects.toMatchObject({
@@ -389,6 +408,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
       apellidos: 'X',
       nombres: 'X',
       dni: '45781234',
+      domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
       tipo_documento: 'DNI',
       bancarios: { pen: PEN_OK, usd: USD_VACIA },
     })
@@ -410,7 +430,7 @@ describe('crearClientePortal (edge crear-cliente)', () => {
     await expect(
       crearClientePortal({
         email: 'qa@correo.pe', nombre_completo: 'X', apellidos: 'X', nombres: 'X',
-        dni: '45781234', tipo_documento: 'DNI',
+        dni: '45781234', domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima', tipo_documento: 'DNI',
         bancarios: { pen: PEN_OK, usd: USD_VACIA },
       }),
     ).rejects.toMatchObject({ code: 'ALTA_SIN_ID' })
@@ -604,15 +624,30 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
     })
   })
 
-  it('crearContrato manda la fotografía bancaria a la RPC crm y valida su respuesta', async () => {
+  it('crearContrato confirma cuenta y reserva PDF durable en la misma RPC', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return HttpResponse.json({
           id: '10000000-0000-4000-8000-000000000001',
           numero_contrato: '2026-01-000123',
           cuenta_bancaria_id: '20000000-0000-4000-8000-000000000001',
+          pdf: {
+            contrato_id: '10000000-0000-4000-8000-000000000001',
+            job_id: '30000000-0000-4000-8000-000000000001',
+            estado: 'pendiente',
+            storage_bucket: 'contratos-generados',
+            storage_path: '10000000-0000-4000-8000-000000000001/v2/30000000-0000-4000-8000-000000000001/contrato.pdf',
+            nombre_archivo: 'Contrato-2026-01-000123.pdf',
+            template_version: 'contrato-aep-17-v2',
+            intentos: 0,
+            lease_expira_en: null,
+            reintentable: true,
+            sha256: null,
+            bytes: null,
+            archivo: null,
+          },
         })
       }),
     )
@@ -650,16 +685,35 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
     }])
 
     expect(resultado.cuenta_bancaria_id).toBe('20000000-0000-4000-8000-000000000001')
+    expect(resultado.pdf).toMatchObject({ estado: 'pendiente', reintentable: true })
     expect(body.p_cuenta).toMatchObject({ tipo: 'perfil', cuenta_esperada: { cci: cuenta.cci } })
   })
 
   it('no confirma éxito si la RPC omite el id de la cuenta', async () => {
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta`, () =>
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
         HttpResponse.json({
           id: '10000000-0000-4000-8000-000000000001',
           numero_contrato: '2026-01-000123',
           ...META_PRODUCTO,
+        }),
+      ),
+    )
+    await expect(crearContrato({
+      cliente_id: 'cli-1', capital: 10000, moneda: 'PEN', tasa_anual: 15,
+      modalidad: 'mensual', tipo_interes: 'simple', categoria: 'nuevo',
+      fecha_inicio: '2026-08-01', fecha_vencimiento: '2027-08-01',
+      numero_contrato: '2026-01-000123', cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
+    }, [])).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+
+  it('no confirma el contrato si la respuesta omite la reserva PDF', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
+        HttpResponse.json({
+          id: '10000000-0000-4000-8000-000000000001',
+          numero_contrato: '2026-01-000123',
+          cuenta_bancaria_id: '20000000-0000-4000-8000-000000000001',
         }),
       ),
     )

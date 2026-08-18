@@ -8,6 +8,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Dialog } from '@/components/ui/dialog'
 import * as crmApi from '@/data/crm-api'
+import { CUENTAS_CLIENTES_DEMO, DATOS_PDF_DEMO } from '@/lib/demo-clientes'
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -17,6 +18,25 @@ vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
   return { ...actual, crearContrato: vi.fn() }
 })
+
+const archivoPdf = vi.hoisted(() => ({
+  archivar: vi.fn(),
+  archivarDemo: vi.fn(),
+  descargar: vi.fn(),
+  ver: vi.fn(),
+}))
+
+vi.mock('@/lib/contrato-pdf-archivo', () => ({
+  archivarContratoPdfConfirmado: archivoPdf.archivar,
+  ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {},
+  descargarArchivoContratoPdf: archivoPdf.descargar,
+  etiquetaEstadoContratoPdf: (estado: string) => estado,
+  verArchivoContratoPdf: archivoPdf.ver,
+}))
+
+vi.mock('@/lib/contrato-pdf-demo-loader', () => ({
+  archivarContratoPdfDemoHabilitado: archivoPdf.archivarDemo,
+}))
 
 const cuentasEstado = vi.hoisted(() => ({
   error: false,
@@ -54,20 +74,32 @@ vi.mock('@/data/crm-queries', () => ({
 const { ContratoNuevo } = await import('./contrato-nuevo')
 const crearContrato = vi.mocked(crmApi.crearContrato)
 
-function montar() {
+function montar(
+  pdfDatosDemo = undefined as (typeof DATOS_PDF_DEMO)[string] | undefined,
+  opciones: {
+    validarNumero?: (numero: string) => string | null
+  } = {},
+) {
   const onCreado = vi.fn()
   const onOmitir = vi.fn()
-  render(
+  const onConfirmado = vi.fn()
+  const onEnviandoCambio = vi.fn()
+  const vista = render(
     <Dialog open onClose={() => undefined}>
       <ContratoNuevo
         clienteId="cli-1"
         clienteNombre="CLIENTE PORTAL UNO"
+        pdfDatosDemo={pdfDatosDemo}
+        cuentasDemo={pdfDatosDemo ? CUENTAS_CLIENTES_DEMO['dc-cli-1'] : undefined}
+        {...(opciones.validarNumero ? { validarNumero: opciones.validarNumero } : {})}
+        onConfirmado={onConfirmado}
+        onEnviandoCambio={onEnviandoCambio}
         onCreado={onCreado}
         onOmitir={onOmitir}
       />
     </Dialog>,
   )
-  return { onCreado, onOmitir }
+  return { ...vista, onCreado, onOmitir, onConfirmado, onEnviandoCambio }
 }
 
 /** Mínimo válido: categoría manual + capital + N° de 6 dígitos (tasa ya viene 15). */
@@ -88,6 +120,26 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     cuentasEstado.ocultarPen = false
     cuentasEstado.refetch.mockReset()
     crearContrato.mockReset()
+    archivoPdf.archivar.mockReset()
+    archivoPdf.archivarDemo.mockReset()
+    archivoPdf.descargar.mockReset()
+    archivoPdf.ver.mockReset()
+    archivoPdf.archivar.mockResolvedValue({
+      contratoId: 'ctr-1',
+      storagePath: 'ctr-1/contrato.pdf',
+      nombreArchivo: 'Contrato-2026-01-000777-CLIENTE-PORTAL-UNO.pdf',
+      sha256: 'a'.repeat(64),
+      bytes: 123,
+      blob: new Blob(['%PDF']),
+    })
+    archivoPdf.archivarDemo.mockImplementation(async (contratoId: string) => ({
+      contratoId,
+      storagePath: `${contratoId}/contrato.pdf`,
+      nombreArchivo: 'Contrato-2026-01-000777-CLIENTE-PORTAL-UNO.pdf',
+      sha256: 'b'.repeat(64),
+      bytes: 123,
+      blob: new Blob(['%PDF']),
+    }))
   })
 
   it('6 meses con modalidad anual: el cronograma NO está vacío (trae el retorno) y aun así se bloquea', async () => {
@@ -114,6 +166,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       id: 'ctr-1',
       numero_contrato: '2026-01-000777',
       cuenta_bancaria_id: 'cb-1',
+      pdf: { contrato_id: 'ctr-1', job_id: 'job-1', estado: 'pendiente', reintentable: true },
     })
     const { onCreado } = montar()
     await llenarBase(user)
@@ -139,7 +192,131 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     })
     expect(cronograma.filter((c) => c.tipo === 'cuota')).toHaveLength(6)
     expect(cronograma.filter((c) => c.tipo === 'retorno')).toHaveLength(1)
+    expect(archivoPdf.archivar).toHaveBeenCalledWith('ctr-1')
+    expect(await screen.findByText('Contrato 2026-01-000777 creado')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver contrato PDF' })).toBeEnabled()
+    expect(screen.getByRole('button', { name: 'Descargar contrato PDF' })).toBeEnabled()
+    expect(onCreado).not.toHaveBeenCalled()
+
+    await user.click(screen.getByRole('button', { name: 'Finalizar' }))
     expect(onCreado).toHaveBeenCalledWith('2026-01-000777')
+  })
+
+  it('en demo archiva una sola versión con el número escrito por el vendedor', async () => {
+    const user = userEvent.setup()
+    const { onConfirmado, onEnviandoCambio } = montar(DATOS_PDF_DEMO['dc-ct-a'])
+    await llenarBase(user)
+    await user.selectOptions(screen.getByLabelText('Plazo'), '12')
+
+    await user.click(boton())
+
+    expect(crearContrato).not.toHaveBeenCalled()
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledWith(
+      expect.stringMatching(/^demo-/),
+      expect.objectContaining({
+        contrato: expect.objectContaining({ numero: '2026-01-000777', capital: 10_000 }),
+      }),
+    )
+    expect(await screen.findByText('Contrato 2026-01-000777 creado')).toBeInTheDocument()
+    const idCreado = archivoPdf.archivarDemo.mock.calls[0]?.[0]
+    expect(onConfirmado).toHaveBeenCalledTimes(1)
+    expect(onConfirmado).toHaveBeenCalledWith(
+      '2026-01-000777',
+      expect.objectContaining({ id: idCreado }),
+    )
+    expect(onEnviandoCambio.mock.calls.map(([estado]) => estado)).toEqual([true, false])
+  })
+
+  it('genera identidades demo distintas aunque cliente y número se repitan', async () => {
+    const user = userEvent.setup()
+    const primera = montar(DATOS_PDF_DEMO['dc-ct-a'])
+    await llenarBase(user)
+    await user.click(boton())
+    await screen.findByText('Contrato 2026-01-000777 creado')
+    const primerId = archivoPdf.archivarDemo.mock.calls[0]?.[0]
+    primera.unmount()
+
+    montar(DATOS_PDF_DEMO['dc-ct-a'])
+    await llenarBase(user)
+    await user.click(boton())
+    await screen.findByText('Contrato 2026-01-000777 creado')
+    const segundoId = archivoPdf.archivarDemo.mock.calls[1]?.[0]
+
+    expect(primerId).toMatch(/^demo-/)
+    expect(segundoId).toMatch(/^demo-/)
+    expect(segundoId).not.toBe(primerId)
+  })
+
+  it('rechaza un número duplicado antes de crear identidad o tocar la caché PDF', async () => {
+    const user = userEvent.setup()
+    const validarNumero = vi.fn(() => 'Ya existe el contrato demo 2026-01-000777.')
+    const { onConfirmado, onEnviandoCambio } = montar(
+      DATOS_PDF_DEMO['dc-ct-a'],
+      { validarNumero },
+    )
+    await llenarBase(user)
+
+    await user.click(boton())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(/ya existe el contrato demo/i)
+    expect(validarNumero).toHaveBeenCalledWith('2026-01-000777')
+    expect(archivoPdf.archivarDemo).not.toHaveBeenCalled()
+    expect(onConfirmado).not.toHaveBeenCalled()
+    expect(onEnviandoCambio).not.toHaveBeenCalled()
+  })
+
+  it('si el archivo demo falla, reintenta la misma foto sin crear otro contrato', async () => {
+    const user = userEvent.setup()
+    archivoPdf.archivarDemo.mockRejectedValueOnce(new Error('fallo temporal'))
+    const { onCreado } = montar(DATOS_PDF_DEMO['dc-ct-a'])
+    await llenarBase(user)
+
+    await user.click(boton())
+
+    await vi.waitFor(() => expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/quedó creado.*PDF local no pudo generarse/i)
+    expect(crearContrato).not.toHaveBeenCalled()
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
+    const [idInicial, fotoInicial] = archivoPdf.archivarDemo.mock.calls[0]!
+
+    await user.click(screen.getByRole('button', { name: 'Reintentar PDF' }))
+
+    expect(await screen.findByText(/PDF privado archivado correctamente/)).toBeInTheDocument()
+    expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(2)
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    expect(archivoPdf.archivarDemo.mock.calls[1]?.[0]).toBe(idInicial)
+    expect(archivoPdf.archivarDemo.mock.calls[1]?.[1]).toBe(fotoInicial)
+
+    expect(onCreado).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Finalizar' }))
+    expect(onCreado).toHaveBeenCalledWith(
+      '2026-01-000777',
+      expect.objectContaining({
+        id: idInicial,
+        pdfDatos: fotoInicial,
+      }),
+    )
+  })
+
+  it('permite finalizar un contrato confirmado aunque el PDF siga pendiente', async () => {
+    const user = userEvent.setup()
+    archivoPdf.archivarDemo.mockRejectedValue(new Error('fallo persistente'))
+    const { onCreado } = montar(DATOS_PDF_DEMO['dc-ct-a'])
+    await llenarBase(user)
+
+    await user.click(boton())
+
+    await vi.waitFor(() => expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1))
+    expect(await screen.findByRole('alert')).toHaveTextContent(/quedó creado.*PDF local no pudo generarse/i)
+    const finalizar = screen.getByRole('button', { name: 'Finalizar' })
+    expect(finalizar).toBeEnabled()
+    await user.click(finalizar)
+
+    expect(onCreado).toHaveBeenCalledWith(
+      '2026-01-000777',
+      expect.objectContaining({ id: expect.stringMatching(/^demo-/) }),
+    )
+    expect(crearContrato).not.toHaveBeenCalled()
   })
 
   it('anuncia y enfoca el resumen cuando una validación bloquea el envío', async () => {
@@ -186,6 +363,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       id: 'ctr-enter',
       numero_contrato: '2026-01-000777',
       cuenta_bancaria_id: 'cb-enter',
+      pdf: { contrato_id: 'ctr-enter', job_id: 'job-enter', estado: 'pendiente', reintentable: true },
     })
     montar()
     await llenarBase(user)
@@ -235,6 +413,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       id: 'ctr-2',
       numero_contrato: '2026-01-000777',
       cuenta_bancaria_id: 'cb-2',
+      pdf: { contrato_id: 'ctr-2', job_id: 'job-2', estado: 'pendiente', reintentable: true },
     })
     montar()
     await llenarBase(user)

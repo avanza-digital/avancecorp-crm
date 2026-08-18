@@ -2,7 +2,7 @@
 // Usa el wrapper atómico de `crm` sobre la RPC del portal + el generador de
 // cronograma portado: contrato, cuenta y vínculo se confirman o revierten juntos.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BadgeCheck, FileSignature } from 'lucide-react'
+import { BadgeCheck, Download, ExternalLink, FileSignature, LoaderCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -22,6 +22,7 @@ import {
   generarCronograma,
   vencimientoDesdePlazo,
   type CategoriaContrato,
+  type CuotaCronograma,
   type ModalidadContrato,
   type TipoInteres,
 } from '@/lib/cronograma'
@@ -46,8 +47,51 @@ import {
   PREFIJO_CONTRATO,
   RE_SEIS_DIGITOS,
 } from '@/lib/contratos-catalogo'
+import {
+  archivarContratoPdfConfirmado,
+  ContratoPdfNoSelladoError,
+  descargarArchivoContratoPdf,
+  etiquetaEstadoContratoPdf,
+  verArchivoContratoPdf,
+  type ArchivoContratoPdf,
+  type EstadoContratoPdf,
+} from '@/lib/contrato-pdf-archivo'
+import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
+import { archivarContratoPdfDemoHabilitado } from '@/lib/contrato-pdf-demo-loader'
+import type { CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
 
 const PLAZO_PERSONALIZADO = 'personalizado'
+const CUENTAS_VACIAS: CuentaBancariaSeleccionable[] = []
+let secuenciaContratoDemo = 0
+
+/**
+ * La identidad del demo representa una CREACION, no el numero escrito. El
+ * numero puede repetirse durante una prueba (y Mi cartera lo rechazara), pero
+ * nunca debe apuntar a la misma entrada de cache mientras se valida el flujo.
+ */
+function crearIdContratoDemo(): string {
+  secuenciaContratoDemo += 1
+  const semilla = globalThis.crypto?.randomUUID?.() ?? Date.now().toString(36)
+  return `demo-${semilla}-${secuenciaContratoDemo.toString(36)}`
+}
+
+/** Resumen confirmado que Mi cartera usa únicamente para materializar el demo local. */
+export interface ContratoCreadoLocal {
+  id: string
+  input: CrearContratoInput
+  cronograma: CuotaCronograma[]
+  pdfDatos: ContratoPdfDatos
+}
+
+interface ContratoCreado {
+  id: string
+  numero: string
+  archivo: ArchivoContratoPdf | null
+  estadoPdf: EstadoContratoPdf
+  archivando: boolean
+  errorArchivo: string | null
+  local: ContratoCreadoLocal | null
+}
 
 const PLAZOS: { v: string; label: string; anioExacto: boolean }[] = [
   ...PLAZOS_BASE.map((p) => ({ v: String(p.meses), label: p.label, anioExacto: p.anioExacto })),
@@ -72,7 +116,17 @@ export interface ContratoNuevoProps {
   clienteNombre: string
   montoSugerido?: number | null
   monedaSugerida?: Moneda
-  onCreado: (numero: string) => void
+  /** Solo para el recorrido local sin backend: identidad legal ficticia ya conocida. */
+  pdfDatosDemo?: Omit<ContratoPdfDatos, 'contrato'> | undefined
+  /** Cuentas precargadas: obligatorias para un demo útil y, sobre todo, sin red. */
+  cuentasDemo?: Partial<Record<Moneda, CuentaBancariaSeleccionable[]>> | undefined
+  /** Validacion sin efectos (el demo la usa para reflejar el UNIQUE del servidor). */
+  validarNumero?: (numero: string) => string | null
+  /** Foto confirmada para que el contenedor pueda tratar Esc/overlay como Finalizar. */
+  onConfirmado?: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
+  /** Bloquea el cierre externo durante create + archivo y durante cada reintento. */
+  onEnviandoCambio?: (enCurso: boolean) => void
+  onCreado: (numero: string, creadoLocal?: ContratoCreadoLocal) => void
   onOmitir: () => void
 }
 
@@ -81,6 +135,11 @@ export function ContratoNuevo({
   clienteNombre,
   montoSugerido,
   monedaSugerida,
+  pdfDatosDemo,
+  cuentasDemo,
+  validarNumero,
+  onConfirmado,
+  onEnviandoCambio,
   onCreado,
   onOmitir,
 }: ContratoNuevoProps) {
@@ -106,23 +165,31 @@ export function ContratoNuevo({
   // Co-titulares (cuentas mancomunadas, máx 5) — filas crudas del editor.
   const [titulares, setTitulares] = useState<TitularBorrador[]>([])
   const [enviando, setEnviando] = useState(false)
+  const [creado, setCreado] = useState<ContratoCreado | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [campoCuentaInvalido, setCampoCuentaInvalido] =
     useState<CampoSeccionBancaria | null>(null)
   const [avisoCuenta, setAvisoCuenta] = useState<string | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
-  const cuentasQ = useCuentasBancariasCliente(clienteId, moneda)
+  const esDemo = pdfDatosDemo != null
+  const cuentasQ = useCuentasBancariasCliente(clienteId, moneda, !esDemo)
+  const cuentasDisponibles = esDemo
+    ? cuentasDemo?.[moneda] ?? CUENTAS_VACIAS
+    : cuentasQ.data ?? CUENTAS_VACIAS
+  const cuentasPendientes = esDemo ? false : cuentasQ.isPending
+  const cuentasReintentando = esDemo ? false : cuentasQ.isFetching
+  const cuentasConError = esDemo ? false : cuentasQ.isError
 
   // Una revalidación puede retirar/versionar la cuenta elegida desde otra
   // sesión. Se limpia de inmediato; prepararCuentaPago lo vuelve a comprobar al
   // enviar como segunda defensa.
   useEffect(() => {
-    if (!cuentaSeleccionada || cuentaSeleccionada === CUENTA_NUEVA || !cuentasQ.data) return
-    if (!cuentasQ.data.some((cuenta) => claveCuenta(cuenta) === cuentaSeleccionada)) {
+    if (!cuentaSeleccionada || cuentaSeleccionada === CUENTA_NUEVA) return
+    if (!cuentasDisponibles.some((cuenta) => claveCuenta(cuenta) === cuentaSeleccionada)) {
       setCuentaSeleccionada('')
       setAvisoCuenta('La cuenta que habías elegido cambió o ya no está disponible. Revísala y selecciona nuevamente el destino del contrato.')
     }
-  }, [cuentaSeleccionada, cuentasQ.data])
+  }, [cuentaSeleccionada, cuentasDisponibles])
 
   // Un error describe la fotografía del formulario en el instante del submit.
   // En cuanto cambia cualquier dato deja de ser vigente: retirarlo evita que un
@@ -237,6 +304,12 @@ export function ContratoNuevo({
       reportarError(`El N° de contrato debe tener exactamente 6 dígitos (después de ${PREFIJO_CONTRATO}).`)
       return
     }
+    const numeroContrato = `${PREFIJO_CONTRATO}${numero}`
+    const errorNumero = validarNumero?.(numeroContrato)
+    if (errorNumero) {
+      reportarError(errorNumero)
+      return
+    }
     if (capital.trim() && parseMonto(capital) == null) {
       reportarError(ERROR_MONTO)
       return
@@ -262,14 +335,14 @@ export function ContratoNuevo({
       reportarError(motivoCronograma)
       return
     }
-    if (cuentasQ.isPending || cuentasQ.isFetching || cuentasQ.isError) {
+    if (cuentasPendientes || cuentasReintentando || cuentasConError) {
       reportarError('No se pudo confirmar la cuenta de pago del contrato. Espera o reintenta la carga antes de crearlo.')
       return
     }
     const cuentaPago = prepararCuentaPago({
       seleccion: cuentaSeleccionada,
       moneda,
-      cuentas: cuentasQ.data ?? [],
+      cuentas: cuentasDisponibles,
       nueva: cuentaNueva,
     })
     if (!cuentaPago.ok) {
@@ -293,22 +366,211 @@ export function ContratoNuevo({
       categoria,
       fecha_inicio: fechaInicio,
       fecha_vencimiento: fechaVencimiento,
-      numero_contrato: PREFIJO_CONTRATO + numero,
+      numero_contrato: numeroContrato,
       notas_internas: notas.trim() || null,
       // Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas).
       titulares: tit.titulares,
       cuenta_pago: cuentaPago.cuenta,
     }
+    const pdfDatosConfirmados: ContratoPdfDatos | null = pdfDatosDemo
+      ? {
+          ...pdfDatosDemo,
+          contrato: {
+            numero: input.numero_contrato ?? `${PREFIJO_CONTRATO}${numero}`,
+            capital: input.capital,
+            moneda: input.moneda,
+            porcentaje: input.tasa_anual,
+            fechaInicio: input.fecha_inicio,
+            fechaVencimiento: input.fecha_vencimiento,
+          },
+          cotitulares: tit.titulares.map((titular) => ({
+            nombreCompleto: titular.nombre_completo,
+            tipoDocumento: titular.tipo_documento,
+            documento: titular.documento,
+          })),
+        }
+      : null
     setEnviando(true)
+    onEnviandoCambio?.(true)
     try {
-      const r = await crearContrato(input, cronograma)
+      const r = pdfDatosDemo
+        ? {
+            id: crearIdContratoDemo(),
+            numero_contrato: numeroContrato,
+            cuenta_bancaria_id: null,
+            pdf: { estado: 'pendiente' as const },
+          }
+        : await crearContrato(input, cronograma)
       toast.success(`Contrato ${r.numero_contrato} creado para ${clienteNombre}`)
-      onCreado(r.numero_contrato)
+      const local: ContratoCreadoLocal | null = pdfDatosConfirmados
+        ? {
+            id: r.id,
+            input: {
+              ...input,
+              numero_contrato: r.numero_contrato,
+              titulares: (input.titulares ?? []).map((titular) => ({ ...titular })),
+              cuenta_pago: { ...input.cuenta_pago },
+            },
+            cronograma: cronograma.map((cuota) => ({ ...cuota })),
+            pdfDatos: {
+              ...pdfDatosConfirmados,
+              contrato: { ...pdfDatosConfirmados.contrato, numero: r.numero_contrato },
+              titular: { ...pdfDatosConfirmados.titular },
+              analista: { ...pdfDatosConfirmados.analista },
+              cotitulares: pdfDatosConfirmados.cotitulares?.map((titular) => ({ ...titular })) ?? [],
+            },
+          }
+        : null
+      setCreado({
+        id: r.id,
+        numero: r.numero_contrato,
+        archivo: null,
+        estadoPdf: r.pdf.estado,
+        archivando: true,
+        errorArchivo: null,
+        local,
+      })
+      if (local) onConfirmado?.(r.numero_contrato, local)
+      else onConfirmado?.(r.numero_contrato)
+      try {
+        const archivo = local
+          ? await archivarContratoPdfDemoHabilitado(r.id, local.pdfDatos)
+          : await archivarContratoPdfConfirmado(r.id)
+        setCreado((actual) => actual?.id === r.id
+          ? { ...actual, archivo, estadoPdf: 'sellado', archivando: false, errorArchivo: null }
+          : actual)
+      } catch (errorPdf) {
+        const estadoPdf = errorPdf instanceof ContratoPdfNoSelladoError
+          ? errorPdf.estado
+          : 'pendiente'
+        setCreado((actual) => actual?.id === r.id
+          ? {
+              ...actual,
+              estadoPdf,
+              archivando: false,
+              errorArchivo: local
+                ? 'El contrato demo quedó creado, pero el PDF local no pudo generarse. Puedes reintentar sin crear otro contrato.'
+                : estadoPdf === 'integridad_bloqueada'
+                ? 'El contrato quedó creado con reserva durable, pero el PDF requiere revisión por integridad.'
+                : 'El contrato quedó creado con una reserva PDF durable. Puedes reintentar el sellado sin crear otro contrato.',
+            }
+          : actual)
+      }
     } catch (e) {
       reportarError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
     } finally {
       setEnviando(false)
+      onEnviandoCambio?.(false)
     }
+  }
+
+  const reintentarArchivo = async () => {
+    if (!creado || creado.archivando) return
+    setCreado({ ...creado, archivando: true, errorArchivo: null })
+    onEnviandoCambio?.(true)
+    try {
+      const archivo = creado.local
+        ? await archivarContratoPdfDemoHabilitado(creado.id, creado.local.pdfDatos)
+        : await archivarContratoPdfConfirmado(creado.id)
+      setCreado((actual) => actual?.id === creado.id
+        ? { ...actual, archivo, estadoPdf: 'sellado', archivando: false, errorArchivo: null }
+        : actual)
+    } catch (errorPdf) {
+      const estadoPdf = errorPdf instanceof ContratoPdfNoSelladoError
+        ? errorPdf.estado
+        : creado.estadoPdf
+      setCreado((actual) => actual?.id === creado.id
+        ? {
+            ...actual,
+            estadoPdf,
+            archivando: false,
+            errorArchivo: creado.local
+              ? 'El PDF demo sigue pendiente. Puedes reintentar o finalizar la simulación.'
+              : estadoPdf === 'integridad_bloqueada'
+              ? 'El PDF está bloqueado por integridad y requiere revisión administrativa.'
+              : 'El job PDF sigue pendiente. Puedes reintentar o finalizar; la reserva permanece visible desde Mi cartera.',
+          }
+        : actual)
+    } finally {
+      onEnviandoCambio?.(false)
+    }
+  }
+
+  if (creado) {
+    return (
+      <>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <BadgeCheck className="size-5 text-primary" aria-hidden />
+            Contrato {creado.numero} creado
+          </DialogTitle>
+        </DialogHeader>
+        <DialogBody className="space-y-4">
+          <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
+            <p className="font-semibold text-foreground">
+              El servidor confirmó el contrato de {clienteNombre}.
+            </p>
+            {creado.archivando && (
+              <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
+                <LoaderCircle className="size-4 animate-spin" aria-hidden />
+                Generando y archivando la versión legal…
+              </p>
+            )}
+            {!creado.archivando && !creado.archivo && (
+              <p role="status" className="mt-2 text-sm text-muted-foreground">
+                Estado documental: <b>{etiquetaEstadoContratoPdf(creado.estadoPdf)}</b>.
+              </p>
+            )}
+            {creado.archivo && (
+              <p role="status" className="mt-2 text-sm font-semibold text-primary">
+                PDF privado archivado correctamente. Las próximas descargas devolverán este mismo archivo.
+              </p>
+            )}
+            {creado.errorArchivo && (
+              <p role="alert" className="mt-2 text-sm font-semibold text-destructive">
+                {creado.errorArchivo}
+              </p>
+            )}
+          </div>
+        </DialogBody>
+        <DialogFooter className="flex-wrap">
+          {creado.errorArchivo && creado.estadoPdf !== 'integridad_bloqueada' && (
+            <Button type="button" variant="outline" onClick={() => void reintentarArchivo()}>
+              <RefreshCw aria-hidden />
+              Reintentar PDF
+            </Button>
+          )}
+          <Button
+            type="button"
+            variant="outline"
+            disabled={!creado.archivo || creado.archivando}
+            onClick={() => { if (creado.archivo) verArchivoContratoPdf(creado.archivo) }}
+          >
+            <ExternalLink aria-hidden />
+            Ver contrato PDF
+          </Button>
+          <Button
+            type="button"
+            disabled={!creado.archivo || creado.archivando}
+            onClick={() => { if (creado.archivo) descargarArchivoContratoPdf(creado.archivo) }}
+          >
+            <Download aria-hidden />
+            Descargar contrato PDF
+          </Button>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={() => {
+              if (creado.local) onCreado(creado.numero, creado.local)
+              else onCreado(creado.numero)
+            }}
+            disabled={creado.archivando}
+          >
+            Finalizar
+          </Button>
+        </DialogFooter>
+      </>
+    )
   }
 
   return (
@@ -436,12 +698,12 @@ export function ContratoNuevo({
 
         <CuentaPagoContrato
           moneda={moneda}
-          cuentas={cuentasQ.data ?? []}
+          cuentas={cuentasDisponibles}
           seleccion={cuentaSeleccionada}
           nueva={cuentaNueva}
-          cargando={cuentasQ.isPending}
-          error={cuentasQ.isError}
-          reintentando={cuentasQ.isFetching}
+          cargando={cuentasPendientes}
+          error={cuentasConError}
+          reintentando={cuentasReintentando}
           deshabilitado={enviando}
           campoNuevaInvalido={campoCuentaInvalido}
           {...(error ? { errorId: 'ct-error-resumen' } : {})}
@@ -451,7 +713,7 @@ export function ContratoNuevo({
             setError(null)
           }}
           onNueva={setCuentaNueva}
-          onReintentar={() => void cuentasQ.refetch()}
+          onReintentar={() => { if (!esDemo) void cuentasQ.refetch() }}
         />
 
         {avisoCuenta && (
@@ -519,9 +781,9 @@ export function ContratoNuevo({
           disabled={
             enviando
             || motivoCronograma !== null
-            || cuentasQ.isPending
-            || cuentasQ.isFetching
-            || cuentasQ.isError
+            || cuentasPendientes
+            || cuentasReintentando
+            || cuentasConError
             || !cuentaSeleccionada
           }
         >

@@ -35,7 +35,8 @@ function detalleBase(over: Partial<ClienteDetalleDatos> = {}): ClienteDetalleDat
     tipo_documento: 'DNI',
     dni: '45781234',
     correo: 'cliente1@correo.pe',
-    telefono: '+51999888777',
+    telefono: '999111222',
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: '2026-07-15T12:00:00.000Z',
@@ -141,7 +142,9 @@ describe('ClienteDetalle — frescura y presentación', () => {
 
     expect(await screen.findByText('CLIENTE PORTAL UNO')).toBeInTheDocument()
     expect(screen.getByText('cliente1@correo.pe')).toBeInTheDocument()
-    expect(screen.getByText('+51999888777')).toBeInTheDocument()
+    expect(screen.getByText('999111222')).toBeInTheDocument()
+    expect(screen.getByText('Domicilio legal')).toBeInTheDocument()
+    expect(screen.getByText('Av. Javier Prado Este 123, San Isidro, Lima')).toBeInTheDocument()
 
     const pen = await screen.findByRole('region', { name: 'Cuenta para depósitos en soles' })
     expect(within(pen).getByText('BCP')).toBeInTheDocument()

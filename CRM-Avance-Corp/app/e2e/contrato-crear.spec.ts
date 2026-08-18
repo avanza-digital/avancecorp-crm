@@ -94,7 +94,7 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   await form.locator('#ct-numero').fill('000777')
   await form.getByRole('button', { name: /Crear contrato/ }).click()
 
-  await expect(page.getByText(/Contrato 2026-01-000777 creado/)).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Contrato 2026-01-000777 creado' })).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   // El servidor recibió el número COMPLETO (prefijo fijo + 6 dígitos), no vacío.
   expect(estado.contratos[0]?.numero_contrato).toBe('2026-01-000777')
@@ -115,6 +115,12 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toMatch(
     /^f0000000-0000-4000-8000-/,
   )
+
+  // El alta ya terminó y el resultado es durable. Cerrar por el CTA oficial
+  // dispara la misma finalización idempotente que Escape/overlay post-commit
+  // e invalida Mi cartera antes de volver a operar la tabla.
+  await page.getByRole('button', { name: 'Finalizar' }).click()
+  await expect(page.getByRole('heading', { name: 'Contrato 2026-01-000777 creado' })).not.toBeVisible()
 
   // La cartera se recarga SOLA (invalidación de contratos()): expandir al
   // cliente revela la sub-fila nueva sin reload, con su ventana recién nacida

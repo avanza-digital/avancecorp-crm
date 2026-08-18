@@ -1759,6 +1759,10 @@ export type Database = {
         Args: { p_cliente_id: string; p_patch: Json }
         Returns: boolean
       }
+      actualizar_cliente_gerencia_con_domicilio: {
+        Args: { p_cliente_id: string; p_patch: Json }
+        Returns: boolean
+      }
       actualizar_contrato_con_cuenta: {
         Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
         Returns: undefined
@@ -1955,6 +1959,10 @@ export type Database = {
         Args: { p_lead_id: string; p_perfil_id: string }
         Returns: Json
       }
+      convertir_lead_con_domicilio: {
+        Args: { p_domicilio: string; p_lead_id: string; p_perfil_id: string }
+        Returns: Json
+      }
       convertir_lead_externo: {
         Args: {
           p_cooperativa: string
@@ -1984,7 +1992,75 @@ export type Database = {
         }
         Returns: Json
       }
+      contrato_pdf_archivo_fn: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
+      contrato_pdf_estado_fn: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
+      contrato_pdf_finalizar: {
+        Args: {
+          p_actor_id: string
+          p_job_id: string
+          p_lease_token: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_marcar_error: {
+        Args: {
+          p_actor_id: string
+          p_error_codigo: string
+          p_job_id: string
+          p_lease_token: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_marcar_subido: {
+        Args: {
+          p_actor_id: string
+          p_bytes: number
+          p_job_id: string
+          p_lease_token: string
+          p_sha256: string
+        }
+        Returns: Json
+      }
+      contrato_pdf_reclamar: {
+        Args: {
+          p_actor_id: string
+          p_contrato_id: string
+          p_lease_segundos?: number
+        }
+        Returns: Json
+      }
+      contrato_pdf_reservar: {
+        Args: { p_actor_id: string; p_contrato_id: string }
+        Returns: Json
+      }
+      contrato_pdf_snapshot: {
+        Args: { p_contrato_id: string }
+        Returns: Json
+      }
+      registrar_contrato_pdf: {
+        Args: {
+          p_bytes: number
+          p_contrato_id: string
+          p_generado_por: string
+          p_nombre_archivo: string
+          p_sha256: string
+          p_snapshot: Json
+          p_storage_path: string
+          p_template_version: string
+        }
+        Returns: Json
+      }
       crear_contrato_con_cuenta: {
+        Args: { p_contrato: Json; p_cronograma: Json; p_cuenta: Json }
+        Returns: Json
+      }
+      crear_contrato_con_cuenta_pdf_v2: {
         Args: { p_contrato: Json; p_cronograma: Json; p_cuenta: Json }
         Returns: Json
       }
@@ -2865,6 +2941,7 @@ export type Database = {
           creado_por: string | null
           debe_cambiar_password: boolean
           dni: string | null
+          domicilio: string | null
           id: string
           nombre_completo: string
           nombres: string | null
@@ -2900,6 +2977,7 @@ export type Database = {
           creado_por?: string | null
           debe_cambiar_password?: boolean
           dni?: string | null
+          domicilio?: string | null
           id: string
           nombre_completo: string
           nombres?: string | null
@@ -2935,6 +3013,7 @@ export type Database = {
           creado_por?: string | null
           debe_cambiar_password?: boolean
           dni?: string | null
+          domicilio?: string | null
           id?: string
           nombre_completo?: string
           nombres?: string | null

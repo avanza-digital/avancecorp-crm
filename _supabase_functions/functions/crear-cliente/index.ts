@@ -12,6 +12,7 @@ import {
 // Datos bancarios: misma frontera que usa crm-convertir-lead, para que las dos
 // puertas de alta de clientes no puedan divergir.
 import { validarBancarios } from "../_shared/bancarios.mjs";
+import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
 
 const ALLOWED_ORIGINS = new Set([
   "https://miavance.com",
@@ -84,11 +85,23 @@ Deno.serve(async (req: Request) => {
     }
 
     const body = await req.json();
-    const { email, password, nombre_completo, apellidos, nombres, dni, telefono, tipo_documento, bancarios } = body || {};
+    const {
+      email, password, nombre_completo, apellidos, nombres, dni, telefono,
+      domicilio, tipo_documento, bancarios,
+    } = body || {};
 
     if (!email || !nombre_completo) {
       return json(cors, { error: "email y nombre_completo son obligatorios" }, 400);
     }
+
+    // El portal legacy aún no captura domicilio y no se rompe por esta entrega.
+    // El CRM moderno se distingue por su bloque bancario atómico: para él el
+    // domicilio es obligatorio y queda validado ANTES de Auth o del perfil.
+    const valDomicilio = validarDomicilioLegal(domicilio, {
+      requerido: bancarios !== undefined && bancarios !== null,
+    });
+    if (!valDomicilio.ok) return json(cors, { error: valDomicilio.error }, 400);
+    const domicilioLegal = valDomicilio.valor;
 
     // DATOS BANCARIOS (2026-07-27) — ADITIVO Y RETROCOMPATIBLE. El portal
     // (js/admin/clientes.js) NO manda este bloque y sigue con su flujo de
@@ -175,6 +188,7 @@ Deno.serve(async (req: Request) => {
         tipo_documento: tipoDoc,
         dni: dniLimpio || null,
         telefono: telefono?.trim() || null,
+        domicilio: domicilioLegal,
         correo: emailNormalizado,
         rol: "cliente",
         activo: true,

@@ -2528,3 +2528,71 @@ por authenticated, por diseño), 0 ERROR, cero clases nuevas. La RPC queda SIN
 consumidor hasta el release F2 del front (dirección de deploy en paz); el
 veredicto 'reutilizable' ya es visible para el front vivo, que lo presenta
 con su mensaje honesto de F1 («la toma directa aún no está habilitada»).
+
+## 20260818014534 — PDF contractual v2 con reserva durable
+
+**Estado al 17/08/2026: VALIDADA EN PREVIEW; todavía no aplicada en
+producción.** Supabase la registró en la rama
+`contrato-pdf-v2-release-20260817` con versión `20260818014534`. Esta es la
+única migración desplegable del flujo PDF. La
+candidata v1 con timestamp anterior a la historia remota fue retirada; v2 es
+autocontenida y conserva compatibilidad de lectura para ledgers legacy.
+
+La migración añade el domicilio legal compatible con perfiles legacy, crea y
+verifica el bucket privado `contratos-generados` (PDF, máximo 10 MiB), amplía
+`private.contrato_pdfs` para rutas v1/v2 y crea
+`private.contrato_pdf_jobs`. Ambas tablas tienen RLS habilitada y forzada,
+cero acceso directo para roles API y mutación exclusivamente mediante RPC
+`SECURITY DEFINER` con `search_path = ''`.
+
+El alta moderna `crm.crear_contrato_con_cuenta_pdf_v2` confirma contrato,
+cronograma, cuenta, vínculo, snapshot completo y job en una transacción. La
+ruta v2 se deriva solo de UUID tipados:
+`<contrato_id>/v2/<job_id>/contrato.pdf`. El worker usa leases cortos y los
+estados `pendiente`, `procesando`, `subido_verificado`, `sellado`,
+`error_reintentable` e `integridad_bloqueada`; render y Storage ocurren fuera
+de cualquier transacción SQL. Hash/tamaño divergentes persisten el bloqueo de
+integridad y nunca reemplazan el primer fingerprint.
+
+`solicitado_por` conserva la procedencia inmutable de la reserva, no la propiedad
+perpetua del job. Cada RPC del worker reautoriza al actor actual contra la
+cartera; por ello otro actor autorizado puede recuperar un pendiente o lease
+vencido si el creador fue revocado, mientras el mutex y el token impiden robar
+un intento vigente. Las transiciones de subida, error y sello rechazan también
+un token cuyo lease ya venció, aunque todavía no haya ocurrido el takeover.
+
+La fila de `public.contratos` es el mutex documental. Desde que existe job o
+ledger se congelan número, cliente, capital, moneda, tasa, modalidad, tipo de
+interés, fechas, categoría, condición de producto, cronograma estructural y
+cotitulares. Los campos de cobranza del cronograma continúan operables. La
+conversión de lead y el completado first-writer-wins del domicilio se ejecutan
+en la única RPC transaccional `crm.convertir_lead_con_domicilio`.
+
+No se instala ningún trigger en `storage.objects`. La vía v1 que aceptaba
+bytes/snapshot del navegador queda sin `EXECUTE`; la garantía v2 combina ruta
+content-addressed por job, `upsert: false`, ledger inmutable y verificación de
+SHA-256/tamaño en subida y descarga por la Edge. Un estado incoherente no
+entrega metadata de descarga.
+
+Auditoría reproducible: `supabase/scripts/run-test-contrato-pdf-v2-local.sh`
+crea exclusivamente la base efímera `crm_contrato_pdf_test`, ejecuta
+`supabase/scripts/test-contrato-pdf-v2.sql` y verifica su eliminación. El
+oráculo cubre fixture v1, ACL/RLS/grants, alta y rollback atómicos, freeze
+post-reserva, pagos operativos, reserva/claim idempotentes, carrera real de dos
+sesiones, takeover de lease vencido, relevo tras revocar al creador, rechazo de
+un actor revocado en cada frontera, rechazo de un worker tardío antes del
+takeover, error/retry, fingerprint divergente, finalización única e idempotente
+y domicilio transaccional. Marcador esperado: `CONTRATO_PDF_V2_SQL_OK`.
+
+La Preview reprodujo las 101 migraciones vigentes con huella `crm/private`
+idéntica a producción antes de v2. El postflight SQL, ACL/RLS, 17 pruebas Edge,
+el gate RLS y los advisors quedaron verdes salvo el único fatal histórico
+documentado de offboarding. Un `ensure` hosted selló un PDF ficticio de
+867.519 bytes (SHA-256
+`6fb9de740c6a66c4cf08d7882ed79c3e8f04ae8d12d167fca3e6d83725db4980`)
+y tres descargas resultaron iguales byte a byte; las rutas directas de Storage
+quedaron bloqueadas.
+
+Esta implementación no modificó `public_html`; durante la validación se
+detectaron cambios concurrentes de otra sesión en ese submódulo y se preservaron
+sin intervenir. Todavía no hubo cambios en producción.

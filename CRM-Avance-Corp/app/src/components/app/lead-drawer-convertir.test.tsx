@@ -1,5 +1,5 @@
-// Tests del DialogConvertir REAL (conversión lead → cliente del portal en 2
-// pasos: edge crm-convertir-lead + bancarios por RLS, encadenando el contrato).
+// Tests del DialogConvertir REAL (conversión lead → cliente del portal en una
+// operación atómica, encadenando después el contrato).
 // La capa @/data/crm-api se mockea (sin red); CrmApiError se conserva real para
 // el instanceof del catch. Los contextos se proveen a mano: el diálogo solo
 // consume { convertir, recargar } del store y `yo` del auth.
@@ -7,7 +7,7 @@
 // SKIPPED por el gate FUNCIONES_LEADS_APROBADAS — esta suite es hoy la única
 // que ejercita el flujo real con bancarios de punta a punta (backend mockeado).
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
@@ -124,9 +124,10 @@ function montar({
   demo = false,
   lead = {},
   rol = 'vendedor',
-}: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {}) {
+  recargaOk = true,
+}: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor'; recargaOk?: boolean } = {}) {
   const onClose = vi.fn()
-  const recargar = vi.fn().mockResolvedValue(true)
+  const recargar = vi.fn().mockResolvedValue(recargaOk)
   const convertirExterno = vi.fn(() => ({ ok: true }))
   // Stub mínimo del store: DialogConvertir solo usa convertir/convertirExterno
   // (demo) y recargar.
@@ -148,7 +149,7 @@ function montar({
 /** El flujo arranca en «¿Dónde invirtió?»: esta variante lo pasa eligiendo
  *  Avance Corp, que es donde vive todo el flujo histórico de esta suite. */
 async function montarEnAvance(
-  opts: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor' } = {},
+  opts: { demo?: boolean; lead?: Partial<Lead>; rol?: 'vendedor' | 'supervisor'; recargaOk?: boolean } = {},
 ) {
   const res = montar(opts)
   await userEvent.setup().click(screen.getByRole('button', { name: /Avance Corp/ }))
@@ -165,10 +166,14 @@ async function montarEnCoop(
   return res
 }
 
-/** Identidad mínima válida del paso convertir (correo + DNI de 8). */
+/** Identidad legal mínima válida del paso convertir. */
 async function llenarIdentidad(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
   await user.type(screen.getByLabelText('N° de documento'), '45781234')
+  await user.type(
+    screen.getByLabelText('Domicilio legal completo'),
+    'Av. Los Inversionistas 245, San Isidro, Lima',
+  )
 }
 
 /** Cuenta PEN completa (el mínimo que exige la regla "al menos una"). */
@@ -180,7 +185,7 @@ async function llenarPenCompleta(user: ReturnType<typeof userEvent.setup>) {
   await user.type(within(pen).getByLabelText(/CCI/), '00219112345678901234')
 }
 
-describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato)', () => {
+describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('un lead sin analista se bloquea antes de tocar Edge, Auth o portal', async () => {
@@ -198,10 +203,62 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', async () => {
     await montarEnAvance()
+    expect(screen.getByLabelText('Domicilio legal completo')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Cuenta bancaria en Dólares (USD)' })).toBeInTheDocument()
     expect(document.getElementById('cv-pen-banco')).not.toBeNull()
     expect(document.getElementById('cf-pen-banco')).toBeNull()
+  })
+
+  it('sin domicilio legal no toca Edge, Auth ni portal', async () => {
+    const user = userEvent.setup()
+    await montarEnAvance()
+    await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    await llenarPenCompleta(user)
+
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Completa el domicilio legal del cliente.',
+    )
+    expect(convertirEdge).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['cuatro puntos Unicode', 'A😀BC', 'El domicilio legal debe tener entre 5 y 240 caracteres.'],
+    ['241 puntos Unicode', `${'x'.repeat(239)}😀y`, 'El domicilio legal debe tener entre 5 y 240 caracteres.'],
+    ['un control C1', 'Av. Lima 123\u0085Lima', 'El domicilio legal contiene caracteres no permitidos.'],
+  ])('rechaza %s antes de tocar la Edge', async (_caso, valor, mensaje) => {
+    const user = userEvent.setup()
+    await montarEnAvance()
+    await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
+    await user.type(screen.getByLabelText('N° de documento'), '45781234')
+    fireEvent.change(screen.getByLabelText('Domicilio legal completo'), { target: { value: valor } })
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(mensaje)
+    expect(convertirEdge).not.toHaveBeenCalled()
+  })
+
+  it.each([
+    ['cinco puntos Unicode', 'A😀BCD'],
+    ['240 puntos Unicode', `${'x'.repeat(238)}😀y`],
+  ])('acepta exactamente %s y conserva los caracteres astrales', async (_caso, valor) => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-9',
+      ya_existia: false,
+      domicilio_accion: 'completado',
+      email_enviado: false,
+    })
+    await montarEnAvance()
+    await llenarIdentidad(user)
+    fireEvent.change(screen.getByLabelText('Domicilio legal completo'), { target: { value: valor } })
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    await waitFor(() => expect(convertirEdge).toHaveBeenCalledWith(expect.objectContaining({ domicilio: valor })))
   })
 
   it('regla "al menos una cuenta" AL CONVERTIR: sin bancarios NO toca el servidor', async () => {
@@ -231,7 +288,12 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('feliz: UNA sola llamada con identidad + bancarios, y encadena el contrato', async () => {
     const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-9', ya_existia: false, email_enviado: true })
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-9',
+      ya_existia: false,
+      domicilio_accion: 'completado',
+      email_enviado: true,
+    })
     const { recargar } = await montarEnAvance()
 
     await llenarIdentidad(user)
@@ -249,6 +311,7 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
       documento: '45781234',
       nombre_completo: 'JUAN PEREZ ROJAS',
       telefono: '+51999888777',
+      domicilio: 'Av. Los Inversionistas 245, San Isidro, Lima',
       bancarios: {
         pen: expect.objectContaining({
           banco: 'BCP',
@@ -266,9 +329,32 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
   })
 
+  it('si la recarga falla después del commit, informa que la conversión sí quedó confirmada', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-9',
+      ya_existia: false,
+      domicilio_accion: 'completado',
+      email_enviado: false,
+    })
+    await montarEnAvance({ recargaOk: false })
+
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+    expect(toast.warning).toHaveBeenCalledWith(expect.stringMatching(/conversión quedó confirmada/))
+  })
+
   it('dedup ya_existia CON el cliente en mi cartera: no pisa bancarios, LO DICE y el contrato sigue vivo', async () => {
     const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-7', ya_existia: true, email_enviado: false })
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-7',
+      ya_existia: true,
+      domicilio_accion: 'conservado',
+      email_enviado: false,
+    })
     // El caso legítimo y frecuente (renovación): el DNI ya era cliente… mío.
     enMiCartera.mockResolvedValue(true)
     await montarEnAvance()
@@ -285,7 +371,10 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     // creer que acaba de registrar dónde se le depositan los intereses.
     const aviso = await screen.findByRole('alert')
     expect(aviso).toHaveTextContent(/ya tenía cuenta en el portal/)
-    expect(aviso).toHaveTextContent(/se conservaron las cuentas bancarias que el cliente ya tenía/)
+    expect(aviso).toHaveTextContent(
+      /se conservaron las cuentas bancarias que el cliente ya tenía registradas/,
+    )
+    expect(aviso).toHaveTextContent(/También se conservó el domicilio legal/)
     // Siendo suyo, NO se le acusa de haber perdido la cartera.
     expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
     // La ruta de corrección se enuncia CONDICIONADA a la ventana de 5 h, no como
@@ -307,7 +396,12 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('dedup ya_existia con el cliente de OTRO asesor: no se ofrece un contrato que la RPC rechazaría', async () => {
     const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-8', ya_existia: true, email_enviado: false })
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-8',
+      ya_existia: true,
+      domicilio_accion: 'conservado',
+      email_enviado: false,
+    })
     // La edge NO le cambia el asesor_perfil_id al cliente existente: sigue
     // siendo de quien lo tenía, y `public.crear_contrato` exige cartera propia.
     enMiCartera.mockResolvedValue(false)
@@ -331,7 +425,12 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
 
   it('dedup ya_existia sin poder comprobar la cartera: se dice que no se sabe, no se afirma', async () => {
     const user = userEvent.setup()
-    convertirEdge.mockResolvedValue({ perfil_id: 'perfil-8', ya_existia: true, email_enviado: false })
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-8',
+      ya_existia: true,
+      domicilio_accion: 'completado',
+      email_enviado: false,
+    })
     enMiCartera.mockResolvedValue(null) // red caída / RLS: NO es un "false"
     await montarEnAvance()
 
@@ -339,7 +438,9 @@ describe('DialogConvertir — conversión real con bancarios (2 pasos + contrato
     await llenarPenCompleta(user)
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    expect(await screen.findByRole('alert')).not.toHaveTextContent(/NO pasó a tu cartera/)
+    const aviso = await screen.findByRole('alert')
+    expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
+    expect(aviso).toHaveTextContent(/domicilio estaba vacío y se completó con el que ingresaste/)
     expect(screen.getByText(/No pudimos comprobar si el cliente quedó en tu cartera/)).toBeInTheDocument()
     // Se ofrece el intento (puede ser suyo), rotulado como intento y no como promesa.
     expect(screen.getByRole('button', { name: 'Intentar el contrato' })).toBeInTheDocument()

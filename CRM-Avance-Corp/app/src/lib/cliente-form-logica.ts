@@ -56,6 +56,40 @@ export function normNombrePersona(s: string): string {
   return s.trim().replace(/\s+/g, ' ').toUpperCase()
 }
 
+export const DOMICILIO_LEGAL_MIN = 5
+export const DOMICILIO_LEGAL_MAX = 240
+
+/** Rechaza controles Unicode C0/C1 sin depender de una regex con bytes invisibles. */
+function contieneCaracterControl(s: string): boolean {
+  for (const caracter of s) {
+    const codigo = caracter.codePointAt(0) ?? 0
+    if (codigo <= 0x1f || (codigo >= 0x7f && codigo <= 0x9f)) return true
+  }
+  return false
+}
+
+/**
+ * Fuente unica de validacion del domicilio en el navegador. Cuenta puntos de
+ * codigo (no unidades UTF-16), igual que la Edge y PostgreSQL.
+ */
+export function validarDomicilioLegal(valor: string):
+  | { ok: true; valor: string }
+  | { ok: false; error: string } {
+  const domicilio = valor.trim()
+  if (!domicilio) return { ok: false, error: 'Completa el domicilio legal del cliente.' }
+  const longitud = Array.from(domicilio).length
+  if (longitud < DOMICILIO_LEGAL_MIN || longitud > DOMICILIO_LEGAL_MAX) {
+    return {
+      ok: false,
+      error: `El domicilio legal debe tener entre ${DOMICILIO_LEGAL_MIN} y ${DOMICILIO_LEGAL_MAX} caracteres.`,
+    }
+  }
+  if (contieneCaracterControl(domicilio)) {
+    return { ok: false, error: 'El domicilio legal contiene caracteres no permitidos.' }
+  }
+  return { ok: true, valor: domicilio }
+}
+
 // ── Sección bancaria (una por moneda: PEN = columnas base, USD = sufijo _usd) ──
 
 /** Estado crudo de los inputs de UNA sección bancaria del formulario. */
@@ -364,6 +398,7 @@ export interface ValoresClienteForm {
   documento: string
   telefono: string
   correo: string
+  domicilio: string
   pen: SeccionBancariaForm
   usd: SeccionBancariaForm
 }
@@ -379,6 +414,7 @@ export interface ClienteValidado {
   dni: string
   telefono: string | null
   correo: string
+  domicilio: string
   bancarios: PatchBancarios
 }
 
@@ -407,6 +443,7 @@ export function validarClienteForm(
   const documentoCrudo = valores.documento.trim()
   const telefono = valores.telefono.trim()
   const correo = valores.correo.trim()
+  const domicilioValidado = validarDomicilioLegal(valores.domicilio)
 
   const esLegacySinSeparar = actual !== null
     && !actual.apellidos && !actual.nombres && !!actual.nombre_completo
@@ -424,6 +461,7 @@ export function validarClienteForm(
   if (!correo || !documentoCrudo) {
     return { ok: false, error: 'Completa apellidos, nombres, documento y correo.' }
   }
+  if (!domicilioValidado.ok) return domicilioValidado
   // El portal validaba el formato con el <input type="email"> nativo del <form>;
   // aquí el guardado es onClick, así que el espejo va explícito (sin él, un
   // correo malformado viajaba hasta Auth y volvía un error crudo en inglés).
@@ -460,6 +498,7 @@ export function validarClienteForm(
       dni,
       telefono: telefono || null,
       correo,
+      domicilio: domicilioValidado.valor,
       bancarios: valBanc.bancarios,
     },
   }

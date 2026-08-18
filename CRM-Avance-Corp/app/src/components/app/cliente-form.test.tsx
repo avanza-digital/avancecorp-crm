@@ -1,4 +1,4 @@
-// Tests del componente ClienteForm (alta en 2 pasos + corregir con ventana de
+// Tests del componente ClienteForm (alta atómica + corregir con ventana de
 // 5 h). La capa @/data/crm-api se mockea (sin red); CrmApiError se conserva
 // real para el instanceof del catch. Se monta dentro de <Dialog> porque el
 // DialogTitle (Radix) exige el contexto del dialog — igual que en la pantalla —
@@ -72,7 +72,8 @@ function detalleBase(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
     tipo_documento: 'DNI',
     dni: '45781234',
     correo: 'cliente1@correo.pe',
-    telefono: '+51999888777',
+    telefono: '999111222',
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     asesor_perfil_id: 'yo',
     creado_por: 'yo',
     creado_en: new Date().toISOString(), // recién creado → ventana viva
@@ -150,6 +151,7 @@ async function llenarAltaMinima(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Nombres *'), 'hugo gualberto')
   await user.type(screen.getByLabelText('Documento *'), '45781234')
   await user.type(screen.getByLabelText('Correo electrónico *'), 'hugo@correo.pe')
+  await user.type(screen.getByLabelText('Domicilio legal completo *'), 'Av. Javier Prado Este 123, San Isidro, Lima')
   const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
   await user.selectOptions(within(pen).getByLabelText('Banco'), 'BCP')
   await user.selectOptions(within(pen).getByLabelText('Tipo de cuenta'), 'ahorros')
@@ -157,7 +159,7 @@ async function llenarAltaMinima(user: ReturnType<typeof userEvent.setup>) {
   await user.type(within(pen).getByLabelText(/CCI/), '00219112345678901234')
 }
 
-describe('ClienteForm — modo crear (alta en 2 pasos)', () => {
+describe('ClienteForm — modo crear (alta atómica)', () => {
   it('muestra el aviso de la clave temporal (espejo del portal)', () => {
     montar()
     expect(screen.getByText(/La clave temporal será el/)).toBeInTheDocument()
@@ -182,6 +184,7 @@ describe('ClienteForm — modo crear (alta en 2 pasos)', () => {
       nombres: 'HUGO GUALBERTO',
       dni: '45781234',
       telefono: null,
+      domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
       tipo_documento: 'DNI',
       bancarios: {
         pen: expect.objectContaining({
@@ -214,6 +217,7 @@ describe('ClienteForm — modo crear (alta en 2 pasos)', () => {
     await user.type(screen.getByLabelText('Nombres *'), 'uno')
     await user.type(screen.getByLabelText('Documento *'), '45781234')
     await user.type(screen.getByLabelText('Correo electrónico *'), 'qa@correo.pe')
+    await user.type(screen.getByLabelText('Domicilio legal completo *'), 'Av. Javier Prado Este 123, San Isidro, Lima')
     await user.click(screen.getByRole('button', { name: /Crear cliente/ }))
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
@@ -276,6 +280,9 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
     expect(correo).toBeDisabled()
     expect(screen.getByText(/cuenta de acceso/)).toBeInTheDocument()
     expect(screen.getByLabelText('Apellidos *')).toHaveValue('PORTAL UNO')
+    const domicilio = screen.getByLabelText('Domicilio legal completo *')
+    expect(domicilio).toHaveValue('Av. Javier Prado Este 123, San Isidro, Lima')
+    expect(screen.getByText(/solo a contratos futuros/)).toBeInTheDocument()
     // Bancarios precargados (PEN del detalle).
     const pen = screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })
     expect(within(pen).getByLabelText('Banco')).toHaveValue('BCP')
@@ -284,7 +291,9 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
 
     const tel = screen.getByLabelText('Teléfono')
     await user.clear(tel)
-    await user.type(tel, '999111222')
+    await user.type(tel, '988777666')
+    await user.clear(domicilio)
+    await user.type(domicilio, 'Jr. Los Cedros 456, Miraflores, Lima')
     await user.click(screen.getByRole('button', { name: /Guardar corrección/ }))
 
     await waitFor(() => expect(onListo).toHaveBeenCalledWith('cli-1'))
@@ -295,7 +304,8 @@ describe('ClienteForm — modo corregir (ventana de 5 h)', () => {
       nombre_completo: 'PORTAL UNO CLIENTE',
       tipo_documento: 'DNI',
       dni: '45781234', // sin tocar → grandfathering (pasa tal cual)
-      telefono: '999111222',
+      telefono: '988777666',
+      domicilio: 'Jr. Los Cedros 456, Miraflores, Lima',
       banco: 'BCP',
       cci: '00219112345678901234',
       banco_usd: null,

@@ -13,7 +13,7 @@
 // de 5 h (la RLS del servidor es la autoridad; aquí el reloj es cortesía) y ver
 // el detalle con cronograma. Fuerza de ventas conserva el gate por fila y la
 // ventana de 5 h; Gerencia opera el ámbito completo, como revalida el servidor.
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AlarmClock, ChevronRight, Coins, FileStack, Inbox, Search, UserX, Users2, Wallet } from 'lucide-react'
@@ -31,7 +31,7 @@ import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ClienteForm } from '@/components/app/cliente-form'
 import { ClienteDetalle } from '@/components/app/cliente-detalle'
-import { ContratoNuevo } from '@/components/app/contrato-nuevo'
+import { ContratoNuevo, type ContratoCreadoLocal } from '@/components/app/contrato-nuevo'
 import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
 import { SeccionEnCooperativas } from '@/components/app/cierres-externos-seccion'
@@ -47,12 +47,15 @@ import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroA
 import { type FiltroEstado } from '@/lib/contratos-vista'
 import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
+import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
+import { consultarEstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
 import { crmQueryKeys, useClientes, useContratos } from '@/data/crm-queries'
 import type {
   ClienteBasico,
   ClienteDetalle as ClienteDetalleDatos,
   ContratoRow,
+  CuentaBancariaSeleccionable,
   Cuota,
   Titular,
 } from '@/lib/clientes-tipos'
@@ -1271,12 +1274,20 @@ type Overlay =
   | { tipo: 'contrato-corregir'; contrato: ContratoRow }
   | null
 
+interface ContratoConfirmadoParaCierre {
+  numero: string
+  creadoLocal?: ContratoCreadoLocal
+}
+
 export function MiCartera() {
   const { yo } = useAuth()
   const esDemo = yo?.demo === true
   const queryClient = useQueryClient()
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [envioEnCurso, setEnvioEnCurso] = useState(false)
+  const [contratoConfirmado, setContratoConfirmado] =
+    useState<ContratoConfirmadoParaCierre | null>(null)
+  const contratosFinalizadosRef = useRef(new Set<string>())
 
   const clientesQ = useClientes(!esDemo)
   const contratosQ = useContratos(!esDemo)
@@ -1304,13 +1315,47 @@ export function MiCartera() {
     void contratosQ.refetch()
   }
 
+  const abrirNuevoContrato = (clienteId: string, clienteNombre: string) => {
+    setContratoConfirmado(null)
+    setEnvioEnCurso(false)
+    setOverlay({ tipo: 'contrato-crear', clienteId, clienteNombre })
+  }
+
+  // Finalizar, Esc y click en overlay convergen aqui. La llave impide que dos
+  // eventos de cierre del mismo tick dupliquen la invalidacion.
+  const finalizarContratoCreado = (
+    numero: string,
+    creadoLocal?: ContratoCreadoLocal,
+  ) => {
+    const llave = creadoLocal?.id ?? numero
+    if (!contratosFinalizadosRef.current.has(llave)) {
+      contratosFinalizadosRef.current.add(llave)
+      void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
+    }
+    setContratoConfirmado(null)
+    setEnvioEnCurso(false)
+    setOverlay(null)
+  }
+
+  const cerrarContratoNuevo = () => {
+    if (envioEnCurso) return
+    if (contratoConfirmado) {
+      finalizarContratoCreado(
+        contratoConfirmado.numero,
+        contratoConfirmado.creadoLocal,
+      )
+      return
+    }
+    setOverlay(null)
+  }
+
   // Alta exitosa → refrescar cartera y encadenar el contrato (flujo del portal).
   const alClienteCreado = async (id: string) => {
     setOverlay(null)
     const r = await clientesQ.refetch()
     void contratosQ.refetch()
     const nuevo = r.data?.find((c) => c.id === id)
-    setOverlay({ tipo: 'contrato-crear', clienteId: id, clienteNombre: nuevo?.nombre_completo ?? 'el cliente' })
+    abrirNuevoContrato(id, nuevo?.nombre_completo ?? 'el cliente')
   }
 
   // Corregir cliente → refetch + invalidar clienteDetalle(id) y contratos()
@@ -1327,6 +1372,22 @@ export function MiCartera() {
   const recargarContratos = () => {
     setOverlay(null)
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
+  }
+
+  // El snapshot contractual queda congelado desde que existe la reserva PDF,
+  // incluso si el render todavia esta pendiente. La base es la autoridad, pero
+  // este gate evita abrir un formulario que necesariamente terminaria en 409.
+  const abrirCorreccionContrato = async (contrato: ContratoRow) => {
+    try {
+      const pdf = await consultarEstadoContratoPdf(contrato.id)
+      if (pdf.estado !== 'sin_reserva') {
+        toast.info('Los terminos contractuales quedaron congelados al reservar el PDF legal.')
+        return
+      }
+      setOverlay({ tipo: 'contrato-corregir', contrato })
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo confirmar si el contrato admite correcciones.'))
+    }
   }
 
   const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError)
@@ -1359,11 +1420,11 @@ export function MiCartera() {
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
         onNuevoContrato={(c) =>
-          setOverlay({ tipo: 'contrato-crear', clienteId: c.id, clienteNombre: c.nombre_completo || c.correo || 'el cliente' })}
+          abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente')}
         onDetalleCliente={(c) => setOverlay({ tipo: 'cliente-detalle', clienteId: c.id, clienteNombre: c.nombre_completo })}
         onCorregirCliente={(c) => setOverlay({ tipo: 'cliente-corregir', clienteId: c.id })}
         onDetalleContrato={(k) => setOverlay({ tipo: 'contrato-detalle', contrato: k })}
-        onCorregirContrato={(k) => setOverlay({ tipo: 'contrato-corregir', contrato: k })}
+        onCorregirContrato={(k) => void abrirCorreccionContrato(k)}
       />
 
       {overlay?.tipo === 'cliente-crear' && (
@@ -1382,8 +1443,17 @@ export function MiCartera() {
         </Dialog>
       )}
       {overlay?.tipo === 'contrato-crear' && (
-        <Dialog open onClose={cerrar} ariaLabel="Crear contrato del cliente">
-          <ContratoNuevo clienteId={overlay.clienteId} clienteNombre={overlay.clienteNombre} onCreado={recargarContratos} onOmitir={cerrar} />
+        <Dialog open onClose={cerrarContratoNuevo} ariaLabel="Crear contrato del cliente">
+          <ContratoNuevo
+            clienteId={overlay.clienteId}
+            clienteNombre={overlay.clienteNombre}
+            onConfirmado={(numero, creadoLocal) => setContratoConfirmado(
+              creadoLocal ? { numero, creadoLocal } : { numero },
+            )}
+            onEnviandoCambio={setEnvioEnCurso}
+            onCreado={finalizarContratoCreado}
+            onOmitir={cerrarContratoNuevo}
+          />
         </Dialog>
       )}
       {overlay?.tipo === 'contrato-detalle' && (
@@ -1404,10 +1474,17 @@ export function MiCartera() {
  * Modo DEMO: reusa VistaMiCartera con fixtures ficticios (lib/demo-clientes)
  * cargados por import() dinámico gated → NUNCA toca la API real. El recorte de
  * ámbito que en real hace el servidor lo espeja carteraDelAmbito; los contratos
- * se limitan a los de los clientes visibles. Las acciones de ESCRITURA solo
- * emiten un toast "(demo)"; los DETALLES sí se abren con fichas, cronogramas y
- * co-titulares PRECARGADOS (ClienteDetalle/ContratoDetalle.datos → cero fetch).
+ * se limitan a los de los clientes visibles. El alta de contrato usa el MISMO
+ * formulario, pero materializa contrato, cronograma, titulares y foto legal solo
+ * en memoria. Los demás writes siguen bloqueados y todo detalle va precargado.
  */
+interface ContratoDemoLocal {
+  contrato: ContratoRow
+  cuotas: Cuota[]
+  titulares: Titular[]
+  pdfDatos: ContratoPdfDatos
+}
+
 function MiCarteraDemo() {
   const { yo } = useAuth()
   const { ambito } = useCRMData()
@@ -1417,9 +1494,18 @@ function MiCarteraDemo() {
     detallesClientes: Record<string, ClienteDetalleDatos>
     cronogramas: Record<string, Cuota[]>
     titulares: Record<string, Titular[]>
+    pdfDatos: Record<string, ContratoPdfDatos>
+    identidadesPdf: Record<string, Omit<ContratoPdfDatos, 'contrato'>>
+    cuentasClientes: Record<string, Record<'PEN' | 'USD', CuentaBancariaSeleccionable[]>>
   } | null>(null)
   const [detalleCliente, setDetalleCliente] = useState<ClienteDetalleDatos | null>(null)
   const [detalleContrato, setDetalleContrato] = useState<ContratoRow | null>(null)
+  const [nuevoContrato, setNuevoContrato] = useState<ClienteBasico | null>(null)
+  const [contratosLocales, setContratosLocales] = useState<Record<string, ContratoDemoLocal>>({})
+  const [envioContratoEnCurso, setEnvioContratoEnCurso] = useState(false)
+  const [contratoConfirmado, setContratoConfirmado] =
+    useState<ContratoConfirmadoParaCierre | null>(null)
+  const contratosFinalizadosRef = useRef(new Set<string>())
 
   useEffect(() => {
     let vivo = true
@@ -1432,6 +1518,9 @@ function MiCarteraDemo() {
             detallesClientes: m.DETALLES_CLIENTES_DEMO,
             cronogramas: m.CRONOGRAMAS_DEMO,
             titulares: m.TITULARES_DEMO,
+            pdfDatos: m.DATOS_PDF_DEMO,
+            identidadesPdf: m.IDENTIDADES_PDF_DEMO,
+            cuentasClientes: m.CUENTAS_CLIENTES_DEMO,
           })
         }
       })
@@ -1446,9 +1535,12 @@ function MiCarteraDemo() {
     const idsVisibles = new Set([yo.id, ...ambito.vendedores.map((m) => m.perfil_id)])
     const clientesVis = carteraDelAmbito(fixtures.clientes, idsVisibles, ambito.esGlobal)
     const idsClientes = new Set(clientesVis.map((c) => c.id))
-    const contratosVis = fixtures.contratos.filter((k) => idsClientes.has(k.cliente_id))
+    const contratosVis = [
+      ...fixtures.contratos,
+      ...Object.values(contratosLocales).map((local) => local.contrato),
+    ].filter((k) => idsClientes.has(k.cliente_id))
     return agruparCartera(clientesVis, contratosVis)
-  }, [fixtures, yo, ambito])
+  }, [fixtures, yo, ambito, contratosLocales])
 
   const tocaReal = () => toast.info('Disponible solo con tu cuenta real (demo)')
   const abrirDetalleCliente = (cliente: ClienteBasico) => {
@@ -1458,6 +1550,113 @@ function MiCarteraDemo() {
       return
     }
     setDetalleCliente(detalle)
+  }
+  const abrirNuevoContrato = (cliente: ClienteBasico) => {
+    if (!fixtures?.identidadesPdf[cliente.id]) {
+      toast.error('No se encontró la identidad legal ficticia de este cliente.')
+      return
+    }
+    setContratoConfirmado(null)
+    setEnvioContratoEnCurso(false)
+    setNuevoContrato(cliente)
+  }
+  const validarNumeroContratoDemo = (numero: string): string | null => {
+    const existeEnFixture = fixtures?.contratos.some(
+      (contrato) => contrato.numero_contrato === numero,
+    ) ?? false
+    const existeLocal = Object.values(contratosLocales).some(
+      (local) => local.contrato.numero_contrato === numero,
+    )
+    return existeEnFixture || existeLocal
+      ? `Ya existe el contrato demo ${numero}. Escribe un número distinto.`
+      : null
+  }
+  const finalizarContratoDemo = (
+    _numero: string,
+    creadoLocal?: ContratoCreadoLocal,
+  ) => {
+    if (!creadoLocal || !fixtures) {
+      toast.error('No se pudo incorporar el contrato ficticio a Mi cartera.')
+      return
+    }
+    const cliente = fixtures.clientes.find((fila) => fila.id === creadoLocal.input.cliente_id)
+    if (!cliente) {
+      toast.error('No se encontró el cliente ficticio del contrato.')
+      return
+    }
+    if (contratosFinalizadosRef.current.has(creadoLocal.id)) {
+      setContratoConfirmado(null)
+      setEnvioContratoEnCurso(false)
+      setNuevoContrato(null)
+      return
+    }
+    const numeroContrato = creadoLocal.input.numero_contrato
+      ?? creadoLocal.pdfDatos.contrato.numero
+    if (validarNumeroContratoDemo(numeroContrato)) {
+      toast.error(`No se incorporó ${numeroContrato}: ese número demo ya existe.`)
+      return
+    }
+    contratosFinalizadosRef.current.add(creadoLocal.id)
+    const creadoEn = new Date().toISOString()
+    const contrato: ContratoRow = {
+      id: creadoLocal.id,
+      numero_contrato: numeroContrato,
+      cliente_id: creadoLocal.input.cliente_id,
+      cliente_nombre: cliente.nombre_completo,
+      capital: creadoLocal.input.capital,
+      moneda: creadoLocal.input.moneda,
+      tasa_anual: creadoLocal.input.tasa_anual,
+      modalidad: creadoLocal.input.modalidad,
+      tipo_interes: creadoLocal.input.tipo_interes,
+      categoria: creadoLocal.input.categoria,
+      estado: 'activo',
+      fecha_inicio: creadoLocal.input.fecha_inicio,
+      fecha_vencimiento: creadoLocal.input.fecha_vencimiento,
+      notas_internas: creadoLocal.input.notas_internas ?? null,
+      creado_por: yo?.id ?? null,
+      creado_en: creadoEn,
+      producto_condicion_id: 'demo-condicion-contrato-local',
+      producto_id: 'demo-producto-contrato-local',
+      producto_codigo: 'DEMO-CONTRATO',
+      producto_version_id: 'demo-version-contrato-local',
+      producto_version: 1,
+      producto_nombre: 'Contrato Demo',
+      producto_version_estado: 'publicada',
+    }
+    const cuotas: Cuota[] = creadoLocal.cronograma.map((cuota) => ({
+      ...cuota,
+      id: `${creadoLocal.id}-cuota-${cuota.numero_cuota}`,
+      fecha_pago_real: null,
+      monto_pagado: null,
+    }))
+    const titulares: Titular[] = (creadoLocal.input.titulares ?? []).map((titular, indice) => ({
+      ...titular,
+      orden: indice + 1,
+    }))
+    setContratosLocales((actuales) => ({
+      ...actuales,
+      [creadoLocal.id]: {
+        contrato,
+        cuotas,
+        titulares,
+        pdfDatos: creadoLocal.pdfDatos,
+      },
+    }))
+    setContratoConfirmado(null)
+    setEnvioContratoEnCurso(false)
+    setNuevoContrato(null)
+  }
+
+  const cerrarContratoDemo = () => {
+    if (envioContratoEnCurso) return
+    if (contratoConfirmado) {
+      finalizarContratoDemo(
+        contratoConfirmado.numero,
+        contratoConfirmado.creadoLocal,
+      )
+      return
+    }
+    setNuevoContrato(null)
   }
 
   return (
@@ -1470,7 +1669,7 @@ function MiCarteraDemo() {
         yoId={yo?.id ?? null}
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={tocaReal}
-        onNuevoContrato={tocaReal}
+        onNuevoContrato={abrirNuevoContrato}
         onDetalleCliente={abrirDetalleCliente}
         onCorregirCliente={tocaReal}
         onDetalleContrato={setDetalleContrato}
@@ -1492,14 +1691,42 @@ function MiCarteraDemo() {
         </Dialog>
       )}
 
+      {nuevoContrato && fixtures?.identidadesPdf[nuevoContrato.id] && (
+        <Dialog
+          open
+          onClose={cerrarContratoDemo}
+          ariaLabel={`Crear contrato de ${nuevoContrato.nombre_completo}`}
+        >
+          <ContratoNuevo
+            clienteId={nuevoContrato.id}
+            clienteNombre={nuevoContrato.nombre_completo}
+            pdfDatosDemo={fixtures.identidadesPdf[nuevoContrato.id]}
+            cuentasDemo={fixtures.cuentasClientes[nuevoContrato.id]}
+            validarNumero={validarNumeroContratoDemo}
+            onConfirmado={(numero, creadoLocal) => setContratoConfirmado(
+              creadoLocal ? { numero, creadoLocal } : { numero },
+            )}
+            onEnviandoCambio={setEnvioContratoEnCurso}
+            onCreado={finalizarContratoDemo}
+            onOmitir={cerrarContratoDemo}
+          />
+        </Dialog>
+      )}
+
       {detalleContrato && (
         <Dialog open onClose={() => setDetalleContrato(null)} ariaLabel={`Detalle del contrato ${detalleContrato.numero_contrato}`} className="w-[560px]">
           <ContratoDetalle
             contratoId={detalleContrato.id}
             datos={{
               contrato: detalleContrato,
-              cuotas: fixtures?.cronogramas[detalleContrato.id] ?? [],
-              titulares: fixtures?.titulares[detalleContrato.id] ?? [],
+              cuotas: contratosLocales[detalleContrato.id]?.cuotas
+                ?? fixtures?.cronogramas[detalleContrato.id]
+                ?? [],
+              titulares: contratosLocales[detalleContrato.id]?.titulares
+                ?? fixtures?.titulares[detalleContrato.id]
+                ?? [],
+              pdfDatos: contratosLocales[detalleContrato.id]?.pdfDatos
+                ?? fixtures?.pdfDatos[detalleContrato.id],
             }}
             onCerrar={() => setDetalleContrato(null)}
           />

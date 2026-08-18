@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2";
 import { errorResponsabilidadConversion } from "./preflight.mjs";
 import { validarBancarios } from "../_shared/bancarios.mjs";
+import { validarDomicilioLegal } from "../_shared/domicilio.mjs";
 
 // Reglas de documento (DNI/CE/Pasaporte) — ESPEJO de ../_shared/documento.ts y del
 // frontend documento-core.js. Inlineado a propósito (edge autocontenido): si se
@@ -98,7 +99,7 @@ Deno.serve(async (req: Request) => {
     const body = await req.json().catch(() => ({}));
     const {
       lead_id, correo, tipo_documento, documento,
-      nombre_completo, apellidos, nombres, telefono, bancarios,
+      nombre_completo, apellidos, nombres, telefono, domicilio, bancarios,
     } = body || {};
 
     if (!lead_id) return json(cors, { error: "Falta lead_id" }, 400);
@@ -106,6 +107,9 @@ Deno.serve(async (req: Request) => {
       return json(cors, { error: "Correo y nombre del cliente son obligatorios" }, 400);
     }
     const emailNormalizado = String(correo).trim().toLowerCase();
+    const valDomicilio = validarDomicilioLegal(domicilio);
+    if (!valDomicilio.ok) return json(cors, { error: valDomicilio.error }, 400);
+    const domicilioLegal = valDomicilio.valor;
 
     // AUTORIZACIÓN DE ÁMBITO: leemos el lead con la sesión del que llama → la RLS
     // garantiza que solo pasa si el lead está en su ámbito (fail-closed).
@@ -216,6 +220,9 @@ Deno.serve(async (req: Request) => {
 
     if (existente) {
       if (!existente.activo) return json(cors, { error: "Ese cliente existe pero está inactivo en el portal" }, 409);
+      // El domicilio NO se escribe aquí con service_role. La RPC transaccional
+      // de abajo primero autoriza/cierra el lead y recién después completa un
+      // NULL legacy; si la conversión falla, PostgreSQL revierte ambos efectos.
       perfilId = existente.id;
       yaExistia = true;
     } else {
@@ -270,6 +277,7 @@ Deno.serve(async (req: Request) => {
         tipo_documento: tipoDoc,
         dni: dniLimpio,
         telefono: (telefono ?? lead.telefono ?? "").toString().trim() || null,
+        domicilio: domicilioLegal,
         correo: emailNormalizado,
         rol: "cliente",
         activo: true,
@@ -296,9 +304,15 @@ Deno.serve(async (req: Request) => {
       // inversionista de cooperativa con una bienvenida al portal en la bandeja.
     }
 
-    // ENLACE + cierre del lead como ganado (RPC privilegiada, autoriza por ámbito).
-    const { error: convErr } = await userClient
-      .schema("crm").rpc("convertir_lead", { p_lead_id: lead_id, p_perfil_id: perfilId });
+    // ENLACE + cierre + eventual domicilio legacy, dentro de UNA transacción.
+    // La RPC llama primero a convertir_lead (misma autorización/locks) y solo
+    // después completa perfiles.domicilio cuando sigue NULL.
+    const { data: conversion, error: convErr } = await userClient
+      .schema("crm").rpc("convertir_lead_con_domicilio", {
+        p_lead_id: lead_id,
+        p_perfil_id: perfilId,
+        p_domicilio: domicilioLegal,
+      });
     if (convErr) {
       // El cliente pudo haberse creado; NO se borra (el documento ya quedó registrado
       // y un reintento lo detecta por dedup y solo enlaza). Se reporta el fallo del enlace.
@@ -352,6 +366,9 @@ Deno.serve(async (req: Request) => {
       ok: true,
       perfil_id: perfilId,
       ya_existia: yaExistia,
+      domicilio_accion: conversion && typeof conversion === "object" && "domicilio_accion" in conversion
+        ? conversion.domicilio_accion
+        : yaExistia ? "conservado" : "completado",
       email_enviado: emailEnviado,
       ...(emailError ? { email_error: emailError } : {}),
     }, 200);

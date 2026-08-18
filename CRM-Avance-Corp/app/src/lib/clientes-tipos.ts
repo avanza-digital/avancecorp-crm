@@ -41,6 +41,7 @@ export interface ClienteDetalle {
   dni: string | null
   correo: string | null
   telefono: string | null
+  domicilio: string | null
   asesor_perfil_id: string | null
   creado_por: string | null
   creado_en: string // ISO — de aquí sale la cuenta regresiva de lib/ventana

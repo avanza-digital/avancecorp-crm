@@ -20,7 +20,16 @@
 // Nombres/documentos: inconfundiblemente PERUANOS y DE MENTIRA (mismo estilo
 // que demo.ts). El documento del CE/pasaporte viaja en la columna `dni`
 // (grandfathering del portal: `dni` guarda el documento sea cual sea su tipo).
-import type { ClienteBasico, ClienteDetalle, ContratoRow, Cuota, EstadoCuota, Titular } from './clientes-tipos'
+import type {
+  ClienteBasico,
+  ClienteDetalle,
+  ContratoRow,
+  CuentaBancariaSeleccionable,
+  Cuota,
+  EstadoCuota,
+  Titular,
+} from './clientes-tipos'
+import type { ContratoPdfDatos } from './contrato-pdf'
 import {
   formatDateLocal,
   generarCronograma,
@@ -204,6 +213,7 @@ function detalleClienteDemo(id: string, bancarios: Partial<DatosBancariosDemo>):
     dni: cliente.dni,
     correo: cliente.correo,
     telefono: cliente.telefono,
+    domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
     asesor_perfil_id: cliente.asesor_perfil_id,
     creado_por: cliente.creado_por,
     creado_en: cliente.creado_en,
@@ -261,6 +271,52 @@ export const DETALLES_CLIENTES_DEMO: Record<string, ClienteDetalle> = {
     cci_usd: '00219300000000123456',
   }),
 }
+
+type CuentasClienteDemo = Record<'PEN' | 'USD', CuentaBancariaSeleccionable[]>
+
+function cuentaPerfilDemo(
+  cliente: ClienteDetalle,
+  moneda: 'PEN' | 'USD',
+): CuentaBancariaSeleccionable[] {
+  const usd = moneda === 'USD'
+  const banco = usd ? cliente.banco_usd : cliente.banco
+  const tipoCuenta = usd ? cliente.tipo_cuenta_usd : cliente.tipo_cuenta
+  const numeroCuenta = usd ? cliente.numero_cuenta_usd : cliente.numero_cuenta
+  const cci = usd ? cliente.cci_usd : cliente.cci
+  if (
+    !banco ||
+    (tipoCuenta !== 'ahorros' && tipoCuenta !== 'corriente') ||
+    !numeroCuenta ||
+    !cci
+  ) {
+    return []
+  }
+  return [{
+    cuenta_id: null,
+    moneda,
+    banco,
+    tipo_cuenta: tipoCuenta,
+    numero_cuenta: numeroCuenta,
+    cci,
+    titular_distinto: usd ? cliente.titular_distinto_usd : cliente.titular_distinto,
+    beneficiario_nombre: usd ? cliente.beneficiario_nombre_usd : cliente.beneficiario_nombre,
+    beneficiario_dni: usd ? cliente.beneficiario_dni_usd : cliente.beneficiario_dni,
+    origen: 'perfil',
+    es_cuenta_perfil: true,
+    creada_en: cliente.creado_en,
+  }]
+}
+
+/** Cuentas ya precargadas para que ContratoNuevo demo jamás consulte Supabase. */
+export const CUENTAS_CLIENTES_DEMO: Record<string, CuentasClienteDemo> = Object.fromEntries(
+  Object.entries(DETALLES_CLIENTES_DEMO).map(([clienteId, cliente]) => [
+    clienteId,
+    {
+      PEN: cuentaPerfilDemo(cliente, 'PEN'),
+      USD: cuentaPerfilDemo(cliente, 'USD'),
+    },
+  ]),
+)
 
 // ── Contratos: numeración estilo '2026-01-0009xx'. Solo el A tiene la ventana
 //    de 5 h VIVA (para que 'Corregir' se vea habilitado); B y C, vencida. ────────
@@ -404,3 +460,73 @@ export const TITULARES_DEMO: Record<string, Titular[]> = {
     { nombre_completo: 'CÉSAR AUGUSTO ROMERO DELGADO', tipo_documento: 'DNI', documento: '41563209', orden: 2 },
   ],
 }
+
+// ── Fotografía legal para el PDF demo ────────────────────────────────────────
+// Domicilios y datos del analista son deliberadamente ficticios. Esta foto se
+// entrega al generador; los co-titulares viajan para demostrar que el sistema
+// conserva la mancomunación, aunque el PDF imprime y firma SOLO el principal.
+const DOMICILIOS_PDF_DEMO: Record<string, string> = {
+  'dc-cli-1': 'Av. Los Laureles 456, San Isidro, Lima',
+  'dc-cli-2': 'Jr. Las Begonias 789, Santiago de Surco, Lima',
+  'dc-cli-3': 'Av. Tahuantinsuyo 245, Independencia, Lima',
+  'dc-cli-4': 'Calle Los Nogales 118, San Borja, Lima',
+  'dc-cli-5': 'Calle Los Cedros 321, Miraflores, Lima',
+  'dc-cli-6': 'Jr. Huallaga 640, Cercado de Lima, Lima',
+}
+
+const ANALISTA_PDF_DEMO: ContratoPdfDatos['analista'] = {
+  nombreCompleto: 'VENDEDOR UNO',
+  documento: '10000001',
+  celular: '+51 987 654 321',
+  correo: 'vendedor.uno@avancecorp.pe',
+}
+
+export type IdentidadPdfDemo = Omit<ContratoPdfDatos, 'contrato'>
+
+/** Identidad legal estable por cliente; los términos nacen recién del formulario confirmado. */
+export const IDENTIDADES_PDF_DEMO: Record<string, IdentidadPdfDemo> = Object.fromEntries(
+  Object.entries(DETALLES_CLIENTES_DEMO).map(([clienteId, cliente]) => {
+    if (!cliente.dni || !cliente.correo) {
+      throw new Error(`Fixture legal incompleto para ${clienteId}`)
+    }
+    return [clienteId, {
+      titular: {
+        nombreCompleto: cliente.nombre_completo,
+        tipoDocumento: cliente.tipo_documento,
+        documento: cliente.dni,
+        domicilio: DOMICILIOS_PDF_DEMO[clienteId] ?? 'Domicilio ficticio, Lima, Perú',
+        correo: cliente.correo,
+      },
+      analista: ANALISTA_PDF_DEMO,
+      cotitulares: [],
+    } satisfies IdentidadPdfDemo]
+  }),
+)
+
+function crearDatosPdfDemo(contrato: ContratoRow): ContratoPdfDatos {
+  const identidad = IDENTIDADES_PDF_DEMO[contrato.cliente_id]
+  if (!identidad) {
+    throw new Error(`Fixture legal incompleto para ${contrato.numero_contrato}`)
+  }
+  return {
+    contrato: {
+      numero: contrato.numero_contrato,
+      capital: contrato.capital,
+      moneda: contrato.moneda,
+      porcentaje: contrato.tasa_anual,
+      fechaInicio: contrato.fecha_inicio,
+      fechaVencimiento: contrato.fecha_vencimiento,
+    },
+    titular: identidad.titular,
+    analista: identidad.analista,
+    cotitulares: (TITULARES_DEMO[contrato.id] ?? []).map((titular) => ({
+      nombreCompleto: titular.nombre_completo,
+      tipoDocumento: titular.tipo_documento,
+      documento: titular.documento,
+    })),
+  }
+}
+
+export const DATOS_PDF_DEMO: Record<string, ContratoPdfDatos> = Object.fromEntries(
+  CONTRATOS_DEMO.map((contrato) => [contrato.id, crearDatosPdfDemo(contrato)]),
+)
