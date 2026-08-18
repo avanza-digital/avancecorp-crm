@@ -229,6 +229,15 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
             'No se pudo verificar el reloj SLA; se ocultaron las escalaciones temporales.',
           )
         : null,
+      // F3.1: un fallo al listar recordatorios NO puede ser mudo — la campana
+      // omitiría los «Revisar contacto» y el vendedor leería «sin pendientes»
+      // como verdad (hallazgo convergente de la auditoría del 18/08).
+      sesionVendedorReal && recordatorios.error
+        ? mensajeDeError(
+            recordatorios.error,
+            'No se pudieron cargar tus recordatorios de contacto.',
+          )
+        : null,
     ]
     return mensajes.filter((mensaje): mensaje is string => Boolean(mensaje))
   }, [
@@ -237,7 +246,9 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     objetivosError,
     cumplimientoMetasError,
     estadoSla.error,
+    recordatorios.error,
     rol,
+    sesionVendedorReal,
     soloRoles,
     yo?.demo,
   ])
@@ -262,6 +273,10 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       void Promise.all([
         recargar(),
         estadoSla.error ? estadoSla.recargar() : Promise.resolve(),
+        // F3.1: Reintentar también reintenta los recordatorios caídos.
+        sesionVendedorReal && recordatorios.error
+          ? recordatorios.refetch()
+          : Promise.resolve(),
       ]).finally(() => setActualizandoOperativo(false))
     }
   }, [
@@ -269,7 +284,9 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     conversionAnterior,
     objetivosError,
     recargar,
+    recordatorios,
     rol,
+    sesionVendedorReal,
     soloRoles,
     estadoSla,
     yo?.demo,
@@ -278,6 +295,9 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   const cargando = cargandoGerencia
     || actualizandoOperativo
     || (!soloRoles && esRolOperativo(rol) && estadoSla.cargando)
+    // isPending sería true PERPETUO con la query deshabilitada — el AND con
+    // sesionVendedorReal (la misma condición de enabled) lo impide.
+    || (sesionVendedorReal && (recordatorios.isPending || recordatorios.isFetching))
   const valor = useMemo<EstadoAlertasCRM>(() => ({
     alertas,
     rol,

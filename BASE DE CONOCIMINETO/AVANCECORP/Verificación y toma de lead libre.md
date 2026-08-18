@@ -44,6 +44,25 @@ aquí (su umbral hardcodeado de 15 días se descarta: contradecía el modelo).
   «Revisar contacto» solo-vencidos con Verificar (el circuito F1/F2 entero) y
   Quitar. Doble dictamen aplicado: a11y A1/M1–M4/N1–N3 y Codex R2–R6, 9/9
   mutantes muertos, gate 2.023/2.023. Registro en [[Deploy a Hostinger]].
+- ✅ **F3.1 (18/08 tarde): la auditoría doble del F3 aplicada entera** — 7
+  lentes propios + Codex refutador sobre el commit `1a8a51f`; 6 medios + 4
+  huecos de test + menores corregidos (campana con error visible y Reintentar
+  real; fecha vaciada avisa; estado del recordatorio ANCLADO al teléfono —
+  ni blur sin editar ni el DNI lo borran; candado por contacto a nivel de
+  módulo; foco decidido por la REALIDAD del dato con fallback al encabezado;
+  dni explícito en el upsert — sin DNI = limpiar; sugerida acotada al máximo;
+  min/max con reloj vivo; la campana ya no pide el dni). 14/14 mutantes,
+  gate 2.053/2.053. La caza destapó 2 trampas de jsdom (blur y body.focus
+  son no-op) y un bug real (focus sobre disabled — rescate vía efecto).
+- 📌 **Decisiones selladas de F3.1 (Miguel, 18/08):** (1) la campana suena a
+  las 09:00 del día aunque la liberación real sea por la tarde — ACEPTADO: el
+  botón «Verificar» siempre da el veredicto real; (2) el toast de éxito
+  muestra el teléfono completo unos segundos en la pantalla del propio
+  dueño — ACEPTADO (dato del dueño de la sesión).
+- 🔴 **Deuda F4 (decisión pospuesta por Miguel):** al caducar un recordatorio,
+  `private.caducar_recordatorios_disponibilidad()` copia teléfono+DNI a
+  `public.audit_log` (lado portal, sin retención). Decidir en F4: auditar sin
+  PII (migración corta) o documentar la retención.
 - ⏳ Pruebas visuales de Miguel (F1+F2+F3 juntas; ⚠️ `crm.leads` está VACÍA
   en prod — sembrar o esperar lead real; local: `npm run dev` en app/).
 - ⏳ F4 «Alerta» → F5 «Perilla». Deuda viva para F4+: valorar quitar

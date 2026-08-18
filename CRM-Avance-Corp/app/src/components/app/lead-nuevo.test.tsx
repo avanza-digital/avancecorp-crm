@@ -130,8 +130,12 @@ function completarBaseReal() {
 
 function diferida<T>() {
   let resolver!: (valor: T) => void
-  const promesa = new Promise<T>((resolve) => { resolver = resolve })
-  return { promesa, resolver }
+  let rechazar!: (motivo: unknown) => void
+  const promesa = new Promise<T>((resolve, reject) => {
+    resolver = resolve
+    rechazar = reject
+  })
+  return { promesa, resolver, rechazar }
 }
 
 beforeEach(() => {
@@ -984,6 +988,14 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     const boton = screen.getByRole('button', { name: /Recordarme revisar/ })
     boton.focus()
     fireEvent.click(boton)
+    // El navegador REAL suelta el foco de un botón deshabilitado. En jsdom
+    // blur() sobre un disabled es NO-OP y body.focus() también (body no es
+    // focusable sin tabindex) — el foco huérfano se simula así; si no, la
+    // aserción del rescate pasaba con el rescate borrado (auditoría 18/08).
+    act(() => {
+      document.body.tabIndex = -1
+      document.body.focus()
+    })
 
     // a11y M3: inline junto al campo, no un toast fugaz.
     expect(await screen.findByText('La fecha de revisión debe ser futura')).toBeInTheDocument()
@@ -997,6 +1009,159 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
       target: { value: '2026-12-01' },
     })
     expect(screen.queryByText('La fecha de revisión debe ser futura')).not.toBeInTheDocument()
+  })
+
+  it('F3.1: un blur del teléfono SIN editar conserva la confirmación y NO re-guarda', async () => {
+    guardarRecordatorio.mockResolvedValue({
+      id: 'r-nuevo',
+      perfil_id: 'vendedor-1',
+      telefono: '+51987654321',
+      dni: null,
+      recordar_en: '2026-09-10T14:00:00+00:00',
+      creado_en: '2026-08-18T06:00:00+00:00',
+    })
+    await precheckR(ENFRIAMIENTO)
+
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+    await screen.findByText(/la campana te avisará el/)
+
+    // El vendedor clica el teléfono para compararlo y sale SIN cambiar nada:
+    // antes esto borraba la confirmación y el mini-form renacía «virgen»,
+    // invitando a re-guardar (= reprogramar en silencio).
+    vi.useFakeTimers()
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+
+    expect(await screen.findByText(/la campana te avisará el/)).toHaveTextContent('10 de setiembre')
+    expect(guardarRecordatorio).toHaveBeenCalledTimes(1)
+  })
+
+  it('F3.1: teclear el DNI no borra la fecha elegida (el recordatorio es del teléfono)', async () => {
+    await precheckR(TOMADO)
+    const fecha = screen.getByLabelText('Fecha del recordatorio')
+    fireEvent.change(fecha, { target: { value: '2026-12-01' } })
+
+    // Teclear el DNI invalida el veredicto (el mini-form se OCULTA hasta el
+    // re-precheck del 8.º dígito) pero la fecha elegida debe SOBREVIVIR.
+    vi.useFakeTimers()
+    fireEvent.change(screen.getByLabelText('DNI'), { target: { value: '1234567' } })
+    fireEvent.change(screen.getByLabelText('DNI'), { target: { value: '12345678' } })
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+
+    expect(screen.getByLabelText('Fecha del recordatorio')).toHaveValue('2026-12-01')
+  })
+
+  it('F3.1: cambiar el TELÉFONO sí resetea la fecha a la sugerida del contacto nuevo', async () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(Date.parse('2026-08-18T17:00:00Z'))
+    verificarDisponibilidad.mockResolvedValue(TOMADO)
+    montar({ demo: false })
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '987654321' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+
+    fireEvent.change(screen.getByLabelText('Fecha del recordatorio'), {
+      target: { value: '2026-12-01' },
+    })
+    fireEvent.change(telefono, { target: { value: '911111111' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+
+    // Otro contacto = otro recordatorio: manda la sugerida (+7d de un tomado).
+    expect(screen.getByLabelText('Fecha del recordatorio')).toHaveValue('2026-08-25')
+  })
+
+  it('F3.1: cerrar y reabrir el modal NO permite un segundo guardado del mismo contacto', async () => {
+    const respuesta = diferida<Awaited<ReturnType<typeof guardarRecordatorioDisponibilidad>>>()
+    guardarRecordatorio.mockReturnValue(respuesta.promesa)
+    const { desmontar } = await precheckR(TOMADO)
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+    desmontar()
+
+    // Segundo montaje con el guardado del primero AÚN en vuelo.
+    await precheckR(TOMADO)
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+
+    expect(guardarRecordatorio).toHaveBeenCalledTimes(1)
+    expect(await screen.findByText(/ya tiene un guardado en curso/)).toBeInTheDocument()
+
+    // Aterrizado el primero, el contacto queda libre y se puede guardar.
+    await act(async () => {
+      respuesta.resolver({
+        id: 'r-nuevo',
+        perfil_id: 'vendedor-1',
+        telefono: '+51987654321',
+        dni: null,
+        recordar_en: '2026-08-25T14:00:00+00:00',
+        creado_en: '2026-08-18T06:00:00+00:00',
+      })
+    })
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+    await waitFor(() => expect(guardarRecordatorio).toHaveBeenCalledTimes(2))
+  })
+
+  it('F3.1: vaciar la fecha y pulsar NO guarda y lo DICE junto al campo', async () => {
+    await precheckR(TOMADO)
+
+    fireEvent.change(screen.getByLabelText('Fecha del recordatorio'), { target: { value: '' } })
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+
+    // El botón muerto en silencio era el hallazgo triple de la auditoría:
+    // '' esquiva el ?? y el return temprano callaba.
+    expect(await screen.findByText('Elige la fecha del recordatorio.')).toBeInTheDocument()
+    expect(guardarRecordatorio).not.toHaveBeenCalled()
+
+    // Teclear una fecha retira el aviso.
+    fireEvent.change(screen.getByLabelText('Fecha del recordatorio'), {
+      target: { value: '2026-12-01' },
+    })
+    expect(screen.queryByText('Elige la fecha del recordatorio.')).not.toBeInTheDocument()
+  })
+
+  it('F3.1: un ERROR con el modal ya cerrado se anuncia por toast nombrando al contacto', async () => {
+    const respuesta = diferida<Awaited<ReturnType<typeof guardarRecordatorioDisponibilidad>>>()
+    guardarRecordatorio.mockReturnValue(respuesta.promesa)
+    const { desmontar } = await precheckR(TOMADO)
+
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+    desmontar()
+
+    await act(async () => {
+      respuesta.rechazar(new CrmApiError('La fecha de revisión debe ser futura', 'ERROR'))
+    })
+
+    // El fallo de un guardado real no puede evaporarse con el modal: el toast
+    // vive fuera y NOMBRA al contacto afectado.
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('987 654 321'))
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('debe ser futura'))
+  })
+
+  it('F3.1: un ERROR tardío del contacto A no pinta error inline bajo el B', async () => {
+    const respuesta = diferida<Awaited<ReturnType<typeof guardarRecordatorioDisponibilidad>>>()
+    guardarRecordatorio.mockReturnValue(respuesta.promesa)
+    await precheckR(TOMADO)
+
+    fireEvent.click(screen.getByRole('button', { name: /Recordarme revisar/ }))
+    // El vendedor cambia al contacto B con el guardado del A en vuelo.
+    vi.useFakeTimers()
+    const telefono = screen.getByLabelText('Teléfono *')
+    fireEvent.change(telefono, { target: { value: '911111111' } })
+    fireEvent.blur(telefono)
+    await act(async () => { await vi.advanceTimersByTimeAsync(400) })
+    vi.useRealTimers()
+
+    await act(async () => {
+      respuesta.rechazar(new CrmApiError('La fecha de revisión debe ser futura', 'ERROR'))
+    })
+
+    // Nada inline bajo B; el toast (global) nombra al A.
+    expect(screen.queryByText(/debe ser futura/)).not.toBeInTheDocument()
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('987 654 321'))
   })
 
   it('R4c (Codex): cerrar el modal con el guardado en vuelo NO deja la campana rancia', async () => {
@@ -1041,9 +1206,10 @@ describe('LeadNuevo — Recordarme revisar (F3)', () => {
     fireEvent.blur(telefono)
     await act(async () => { await vi.advanceTimersByTimeAsync(400) })
     vi.useRealTimers()
-    // El mini-form está FRESCO para B (el botón aún dice «Guardando…» por el
-    // vuelo del A — se localiza por su campo de fecha).
-    expect(screen.getByLabelText('Fecha del recordatorio')).toBeInTheDocument()
+    // El mini-form está FRESCO para B: deshabilitado mientras viaja el A,
+    // pero SIN disfrazarse de su operación (label anclado al contacto, F3.1).
+    const botonB = screen.getByRole('button', { name: /Recordarme revisar/ })
+    expect(botonB).toBeDisabled()
 
     await act(async () => {
       respuesta.resolver({

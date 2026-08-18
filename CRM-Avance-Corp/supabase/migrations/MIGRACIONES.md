@@ -2758,3 +2758,19 @@ RETOMAR-43 (LEEME de scripts:209), no hallazgo de F3.
   en cron.job), funciones **233→235 (+2 exactas)**, huella al byte contra el
   branch que pasó el gate, registro 103 certificado, advisors 129/0 sin
   clases nuevas.
+
+## Adenda 18/08-d — el Centro de ayuda vive con DOS nombres (mapeo)
+
+La migración del Centro de ayuda del vendedor (sesión paralela) existe con dos
+identidades y este ledger es ahora la fuente del mapeo:
+
+- **Fichero del repo**: `20260818034822_crm_ayuda_vendedor_servidor.sql`
+  (commiteado en `3d5b686` tal como esa sesión lo dejó).
+- **Registro remoto de producción**: `20260818054949_crm_ayuda_vendedor_servidor`
+  (la sesión re-timestampeó al aplicar; el contenido es el que corrió).
+
+⚠️ Consecuencia operativa: un replay desde ficheros (branch nuevo, banco local)
+ejecuta `034822...`; una comparación contra el índice remoto busca `054949...`.
+Son la MISMA pieza — no duplicar, no «reconciliar» aplicándola dos veces. Si esa
+sesión retoma, la resolución limpia es renombrar el fichero al timestamp del
+registro en un commit propio.

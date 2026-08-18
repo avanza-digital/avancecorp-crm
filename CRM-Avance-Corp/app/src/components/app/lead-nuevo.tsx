@@ -30,6 +30,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
+import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
 import {
   contactoTomable,
@@ -48,6 +49,7 @@ import {
   sugerirFechaRevision,
   telefonoLegible,
 } from '@/lib/recordatorios-disponibilidad'
+import { esFocoHuerfano } from '@/lib/foco'
 import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { EDAD_MINIMA, MONTO_ESTIMADO_MAX, edadCumplida, normalizarTelefono } from '@/lib/validacion'
@@ -68,6 +70,13 @@ import { cn } from '@/lib/utils'
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const ESPERA_DISPONIBILIDAD_MS = 400
 const LIMITE_DISPONIBILIDAD_MS = 5_000
+
+/** F3.1: guardados de recordatorio EN VUELO, por teléfono normalizado y a
+ *  nivel de MÓDULO — la operación sobrevive al desmontaje del modal (R4c),
+ *  así que un candado de instancia no impide que cerrar y reabrir dispare un
+ *  segundo upsert del mismo contacto (ganaría el que aterrice último, no el
+ *  último que el vendedor confirmó). El finally SIEMPRE libera la llave. */
+const recordatoriosEnVuelo = new Set<string>()
 
 interface EstadoDisponibilidadFormulario {
   comprobando: boolean
@@ -223,6 +232,10 @@ function FormularioNuevoLead({
   const { ambito, crearLead, recargar } = useCRMData()
   const { abrirLead, cerrarPaneles } = usePanelesActions()
   const { yo } = useAuth()
+  // F3.1: reloj VIVO para min/max del recordatorio — un modal abierto a las
+  // 23:59 no puede seguir ofreciendo el «mañana» de ayer (Date.now() en el
+  // render se congelaba hasta el siguiente re-render casual).
+  const ahora = useAhora()
 
   const puedeElegirVendedor = can(yo?.rol, 'reasignar')
   // SOLO vendedores del ámbito del rol (espejo del WITH CHECK de leads_insert):
@@ -267,6 +280,10 @@ function FormularioNuevoLead({
   const [recordadoPara, setRecordadoPara] = useState<string | null>(null)
   const [errorRecordatorio, setErrorRecordatorio] = useState<string | null>(null)
   const recordandoRef = useRef(false)
+  // F3.1: el teléfono (normalizado) del guardado en vuelo de ESTE montaje —
+  // el «Guardando…» del botón se ancla a él para no disfrazar al contacto B
+  // mientras viaja el guardado del A (refutación parcial de Codex a R5).
+  const recordandoTelefonoRef = useRef<string | null>(null)
   // Rescate de foco del mini-form (a11y F3-A1 — la MISMA regresión que ya se
   // pagó en F2-M2): al pulsar, el botón enfocado se deshabilita y el foco cae
   // a body; al resolver, o se lo lleva la confirmación (éxito) o vuelve al
@@ -279,14 +296,8 @@ function FormularioNuevoLead({
     rescatarFocoRecordarRef.current = false
     // El fieldset NO se congela durante el guardado (a diferencia de la toma):
     // si el usuario ya movió el foco a otro CONTROL, robárselo sería peor que
-    // no rescatarlo. Un foco huérfano acaba en body o —vía el FocusScope de
-    // Radix, que recoge el foco de un botón desmontado— en el panel del Dialog
-    // (tabindex -1); ninguno de los dos es «el usuario está trabajando ahí».
-    const activo = document.activeElement
-    const usuarioEnOtroControl = activo instanceof HTMLElement
-      && activo !== botonRecordarRef.current
-      && activo.matches('input, select, textarea, button, [href], [tabindex]:not([tabindex="-1"])')
-    if (usuarioEnOtroControl) return
+    // no rescatarlo — solo se rescata un foco huérfano (lib/foco.ts).
+    if (!esFocoHuerfano(botonRecordarRef.current)) return
     if (recordadoPara) confirmacionRecordatorioRef.current?.focus()
     else botonRecordarRef.current?.focus()
   }, [recordando, recordadoPara])
@@ -306,13 +317,19 @@ function FormularioNuevoLead({
     telefonoRef.current?.focus()
   }, [tomando, disponibilidad])
   const envioEnCursoRef = useRef(false)
+  // F3.1 (auditoría 18/08): el estado del recordatorio pertenece al TELÉFONO,
+  // no a la consulta. Este ref guarda el teléfono normalizado del veredicto
+  // recordable vigente; solo un teléfono DISTINTO borra fecha/confirmación.
+  const contactoRecordableRef = useRef<string | null>(null)
   const secuenciaDisponibilidadRef = useRef(0)
   const controlDisponibilidadRef = useRef<AbortController | null>(null)
   const esperaDisponibilidadRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const montadoRef = useRef(true)
 
-  /** Cancela tanto el debounce como la petición en vuelo e invalida su respuesta. */
-  const invalidarDisponibilidad = useCallback(() => {
+  /** Cancela tanto el debounce como la petición en vuelo e invalida su
+   *  respuesta. `telefonoCandidato` es lo que HAY (o va a haber) en el campo:
+   *  decide si el estado del recordatorio sobrevive a esta invalidación. */
+  const invalidarDisponibilidad = useCallback((telefonoCandidato: string) => {
     secuenciaDisponibilidadRef.current += 1
     if (esperaDisponibilidadRef.current) {
       clearTimeout(esperaDisponibilidadRef.current)
@@ -320,13 +337,21 @@ function FormularioNuevoLead({
     }
     controlDisponibilidadRef.current?.abort()
     controlDisponibilidadRef.current = null
-    // Un contacto editado es OTRO contacto: el error de la toma anterior
-    // ya no habla de lo que hay en pantalla — y el recordatorio tampoco.
     if (montadoRef.current) {
+      // Un contacto editado es OTRO contacto: el error de la toma anterior
+      // ya no habla de lo que hay en pantalla.
       setErrorToma(null)
-      setFechaRevision(null)
-      setRecordadoPara(null)
-      setErrorRecordatorio(null)
+      // F3.1: pero la fecha elegida y la confirmación de un guardado REAL
+      // pertenecen al teléfono, no a la consulta — un blur sin editar o
+      // teclear el DNI no pueden borrarlas (y borrarlas invitaba a re-guardar
+      // «por si acaso», reprogramando en silencio el recordatorio).
+      const candidato = normalizarTelefono(telefonoCandidato)
+      if (!candidato || candidato !== contactoRecordableRef.current) {
+        contactoRecordableRef.current = null
+        setFechaRevision(null)
+        setRecordadoPara(null)
+        setErrorRecordatorio(null)
+      }
     }
     if (montadoRef.current) setDisponibilidad(DISPONIBILIDAD_INICIAL)
   }, [])
@@ -389,6 +414,11 @@ function FormularioNuevoLead({
           ? sugerirFechaRevision(resultado, Date.now())
           : null,
       }
+      // F3.1: el veredicto recordable ancla el estado del recordatorio a SU
+      // teléfono; deja de serlo (u otro contacto) → el ancla cae.
+      contactoRecordableRef.current = siguiente.recordable
+        ? normalizarTelefono(telefonoConsulta)
+        : null
       setDisponibilidad(siguiente)
       return siguiente
     } catch (error: unknown) {
@@ -414,7 +444,7 @@ function FormularioNuevoLead({
   }, [yo?.demo])
 
   const programarDisponibilidad = useCallback((telefonoConsulta: string, dniConsulta: string) => {
-    invalidarDisponibilidad()
+    invalidarDisponibilidad(telefonoConsulta)
     if (yo?.demo) return
     if (!normalizarTelefono(telefonoConsulta)) {
       // Honestidad del precheck: sin celular válido NO hay verificación posible
@@ -489,6 +519,11 @@ function FormularioNuevoLead({
 
       const presentacion = presentarResultadoToma(resultado)
       const tomableFresco = contactoTomable(resultado)
+      // F3.1: mismo anclado que el precheck — el veredicto fresco de la toma
+      // también puede abrir (o cerrar) el mini-form del recordatorio.
+      contactoRecordableRef.current = contactoRecordable(resultado)
+        ? normalizarTelefono(telefono)
+        : null
       setDisponibilidad({
         comprobando: false,
         mensaje: presentacion.mensaje,
@@ -534,14 +569,28 @@ function FormularioNuevoLead({
    */
   const manejarRecordar = async () => {
     if (recordandoRef.current) return
+    // `??` a propósito: '' significa que el vendedor VACIÓ la fecha — rellenar
+    // con la sugerida en silencio sería guardar algo que él no ve. Se le dice.
     const fecha = fechaRevision ?? disponibilidad.fechaSugerida
-    if (!fecha) return
-    recordandoRef.current = true
+    if (!fecha) {
+      setErrorRecordatorio('Elige la fecha del recordatorio.')
+      return
+    }
     // Codex R5: si el vendedor edita el contacto con el guardado en vuelo, la
     // respuesta tardía hablaría del contacto ANTERIOR — se ancla la secuencia
     // y el teléfono de ESTA petición y la UI solo se toca si siguen vigentes.
     const secuencia = secuenciaDisponibilidadRef.current
     const telefonoPedido = telefono
+    const llave = normalizarTelefono(telefonoPedido) ?? telefonoPedido
+    if (recordatoriosEnVuelo.has(llave)) {
+      // Otro montaje (modal cerrado y reabierto) todavía tiene este contacto
+      // viajando: un segundo upsert dejaría ganar al que aterrice último.
+      setErrorRecordatorio('Ese contacto ya tiene un guardado en curso. Espera un momento y verifica de nuevo.')
+      return
+    }
+    recordandoRef.current = true
+    recordatoriosEnVuelo.add(llave)
+    recordandoTelefonoRef.current = llave
     const legible = telefonoLegible(normalizarTelefono(telefonoPedido) ?? telefonoPedido)
     rescatarFocoRecordarRef.current = true
     setRecordando(true)
@@ -578,6 +627,8 @@ function FormularioNuevoLead({
         toast.error(`${mensaje} (contacto ${legible})`)
       }
     } finally {
+      recordatoriosEnVuelo.delete(llave)
+      recordandoTelefonoRef.current = null
       recordandoRef.current = false
       if (montadoRef.current) setRecordando(false)
     }
@@ -682,6 +733,10 @@ function FormularioNuevoLead({
     }
   }
 
+  const guardandoEsteContacto = recordando
+    && recordandoTelefonoRef.current !== null
+    && recordandoTelefonoRef.current === normalizarTelefono(telefono)
+
   return (
     <>
       <DialogHeader>
@@ -749,7 +804,8 @@ function FormularioNuevoLead({
                 onChange={(e) => {
                   setTelefono(e.target.value)
                   limpiarError('telefono')
-                  invalidarDisponibilidad()
+                  // El candidato es lo RECIÉN tecleado (el estado aún no conmutó).
+                  invalidarDisponibilidad(e.target.value)
                 }}
                 onBlur={() => programarDisponibilidad(telefono, dni)}
               />
@@ -772,7 +828,9 @@ function FormularioNuevoLead({
                   const siguienteDni = e.target.value.replace(/\D/g, '')
                   setDni(siguienteDni)
                   limpiarError('dni')
-                  invalidarDisponibilidad()
+                  // El teléfono NO cambió: la fecha/confirmación del
+                  // recordatorio sobreviven a teclear el DNI (F3.1).
+                  invalidarDisponibilidad(telefono)
                   if (siguienteDni.length === 8) {
                     programarDisponibilidad(telefono, siguienteDni)
                   }
@@ -851,11 +909,12 @@ function FormularioNuevoLead({
             recordadoPara ? (
               <div className="rounded-lg border border-border bg-muted/40 px-3 py-2.5">
                 {/* a11y A1: el botón que tenía el foco desapareció con este
-                    intercambio — la confirmación lo recibe (tabIndex -1). */}
+                    intercambio — la confirmación lo recibe (tabIndex -1).
+                    SIN role=status a propósito (F3.1): el foco ya la anuncia y
+                    el toast también — tres anuncios eran ruido, no acceso. */}
                 <p
                   ref={confirmacionRecordatorioRef}
                   tabIndex={-1}
-                  role="status"
                   className="text-xs font-medium text-foreground outline-none"
                 >
                   Recordatorio guardado: la campana te avisará el{' '}
@@ -886,8 +945,8 @@ function FormularioNuevoLead({
                     id="nl-recordar-fecha"
                     type="date"
                     className={cn('w-40', errorRecordatorio && claseError)}
-                    min={fechaMinimaRevision(Date.now())}
-                    max={fechaMaximaRevision(Date.now())}
+                    min={fechaMinimaRevision(ahora)}
+                    max={fechaMaximaRevision(ahora)}
                     value={fechaRevision ?? disponibilidad.fechaSugerida ?? ''}
                     aria-invalid={!!errorRecordatorio}
                     aria-describedby={errorRecordatorio ? 'nl-recordar-error' : undefined}
@@ -903,9 +962,12 @@ function FormularioNuevoLead({
                     size="sm"
                     onClick={() => { void manejarRecordar() }}
                     disabled={recordando || enviando}
-                    aria-busy={recordando}
+                    aria-busy={guardandoEsteContacto}
                   >
-                    <BellPlus /> {recordando ? 'Guardando…' : 'Recordarme revisar'}
+                    {/* «Guardando…» SOLO si lo que viaja es ESTE contacto: con
+                        el guardado del A en vuelo, el mini-form del B queda
+                        deshabilitado pero sin disfrazarse de su operación. */}
+                    <BellPlus /> {guardandoEsteContacto ? 'Guardando…' : 'Recordarme revisar'}
                   </Button>
                 </div>
                 {errorRecordatorio && (

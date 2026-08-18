@@ -30,6 +30,21 @@ export const RecordatoriosDisponibilidadSchema = v.array(RecordatorioDisponibili
 
 export type RecordatorioDisponibilidad = v.InferOutput<typeof RecordatorioDisponibilidadSchema>
 
+/** Fila de la CAMPANA: SIN dni a propósito (minimización §8, F3.1 — ningún
+ *  consumidor de la bandeja lo usa; solo el guardado devuelve la fila entera).
+ *  Estricta: si el select trajera el dni de vuelta, esto lo delataría. */
+export const RecordatorioCampanaSchema = v.strictObject({
+  id: v.pipe(v.string(), v.uuid()),
+  perfil_id: v.pipe(v.string(), v.uuid()),
+  telefono: v.string(),
+  recordar_en: v.pipe(v.string(), v.isoTimestamp()),
+  creado_en: v.pipe(v.string(), v.isoTimestamp()),
+})
+
+export const RecordatoriosCampanaSchema = v.array(RecordatorioCampanaSchema)
+
+export type RecordatorioCampana = v.InferOutput<typeof RecordatorioCampanaSchema>
+
 /** Teléfono +519######## → «987 654 321» para leerse como se dicta. */
 export function telefonoLegible(telefono: string): string {
   const nueve = telefono.startsWith('+51') ? telefono.slice(3) : telefono
@@ -56,7 +71,7 @@ export function fechaCortaLima(iso: string): string | null {
  * precargado: el MISMO circuito de F1/F2, cero código nuevo de verificación.
  */
 export function derivarAlertasRecordatorios(
-  recordatorios: readonly RecordatorioDisponibilidad[],
+  recordatorios: readonly RecordatorioCampana[],
   ahora: number,
 ): AlertaCRM[] {
   return recordatorios
@@ -114,7 +129,12 @@ export function sugerirFechaRevision(
     month: '2-digit',
     day: '2-digit',
   })
-  return fmt.format(objetivo)
+  const sugerida = fmt.format(objetivo)
+  // F3.1: nunca sugerir lo que el formulario y el servidor van a rechazar —
+  // un enfriamiento más largo que el tope se acota al último día válido (el
+  // vendedor puede reprogramar cuando llegue). YYYY-MM-DD compara lexicográfico.
+  const maxima = fechaMaximaRevision(ahora)
+  return sugerida > maxima ? maxima : sugerida
 }
 
 /** ¿El veredicto admite «Recordarme revisar»? Solo los ocupados SIN puerta

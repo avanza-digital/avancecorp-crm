@@ -1,4 +1,4 @@
-import { useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   AlarmClock,
   BellRing,
@@ -20,6 +20,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { CrmApiError, eliminarRecordatorioDisponibilidad } from '@/data/crm-api'
 import { crmQueryKeys } from '@/data/crm-queries'
+import { esFocoHuerfano } from '@/lib/foco'
 import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
 import { usePanelesActions } from '@/lib/store-context'
 import { Badge } from '@/components/ui/badge'
@@ -168,16 +169,22 @@ function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element
   const { abrirNuevoLead } = usePanelesActions()
   const queryClient = useQueryClient()
   const [quitando, setQuitando] = useState(false)
+  const botonQuitarRef = useRef<HTMLButtonElement | null>(null)
+  // Rescate del foco tras un fallo vía EFECTO, no en línea: en el finally el
+  // botón AÚN está disabled (el re-render de setQuitando(false) no conmutó) y
+  // focus() sobre un control disabled es un no-op — la misma lección de F2.
+  const rescatarFocoQuitarRef = useRef(false)
+  useEffect(() => {
+    if (quitando || !rescatarFocoQuitarRef.current) return
+    rescatarFocoQuitarRef.current = false
+    if (esFocoHuerfano(botonQuitarRef.current)) botonQuitarRef.current?.focus()
+  }, [quitando])
   const contacto = alerta.contacto
   if (!contacto) return <></>
 
   const quitar = async () => {
     if (quitando) return
     setQuitando(true)
-    // La fila solo desaparece si el recordatorio dejó de existir (borrado aquí
-    // o caducado en otra parte); con un fallo real la fila SIGUE y el foco no
-    // debe moverse a ninguna parte.
-    let desaparece = true
     try {
       await eliminarRecordatorioDisponibilidad(contacto.recordatorioId)
       toast.success('Recordatorio quitado')
@@ -185,15 +192,30 @@ function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element
       // «Ya no existe» = caducó solo o se quitó en otra pestaña: el refetch
       // de abajo lo hace desaparecer igual — no es un fallo que gritar.
       if (!(error instanceof CrmApiError && error.code === 'NO_ENCONTRADO')) {
-        desaparece = false
         toast.error(error instanceof CrmApiError ? error.message : 'No se pudo quitar el recordatorio.')
       }
     } finally {
       await queryClient.invalidateQueries({ queryKey: crmQueryKeys.recordatoriosDisponibilidad() })
       setQuitando(false)
-      // a11y M4: el botón que tenía el foco se va con la fila — el foco cae al
-      // contador de pendientes, que además anuncia el nuevo total (aria-live).
-      if (desaparece) document.getElementById('alertas-contador')?.focus()
+      // a11y M4 (F3.1, refutación de Codex al diseño anterior): el destino del
+      // foco se decide por la REALIDAD del dato, no por la intención — la fila
+      // pinta exactamente lo que hay en el cache de esta query. Si el
+      // recordatorio ya no está, la fila se va y el foco aterriza en el
+      // contador (o el encabezado, si era la última alerta); si sigue —fallo
+      // real o refetch caído que conservó el dato viejo—, el botón sigue
+      // siendo el lugar y se rescata solo un foco huérfano.
+      const filas = queryClient.getQueryData<ReadonlyArray<{ id: string }>>(
+        crmQueryKeys.recordatoriosDisponibilidad(),
+      )
+      const sigueVivo = Array.isArray(filas)
+        && filas.some((fila) => fila.id === contacto.recordatorioId)
+      if (!sigueVivo) {
+        const destino = document.getElementById('alertas-contador')
+          ?? document.getElementById('alertas-encabezado')
+        destino?.focus()
+      } else {
+        rescatarFocoQuitarRef.current = true
+      }
     }
   }
 
@@ -208,6 +230,7 @@ function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element
         <PhoneOutgoing /> Verificar disponibilidad
       </Button>
       <Button
+        ref={botonQuitarRef}
         variant="ghost"
         size="sm"
         onClick={() => { void quitar() }}
@@ -311,7 +334,15 @@ export function Alertas(): JSX.Element {
             </span>
             <div className="min-w-0">
               <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-accent">{copy.alcance}</p>
-              <h1 className="mt-0.5 text-lg font-extrabold tracking-tight text-primary">{copy.titulo}</h1>
+              {/* id + tabIndex -1: destino de RESERVA del foco tras Quitar la
+                  última alerta (el contador desaparece con la lista, F3.1). */}
+              <h1
+                id="alertas-encabezado"
+                tabIndex={-1}
+                className="mt-0.5 text-lg font-extrabold tracking-tight text-primary outline-none"
+              >
+                {copy.titulo}
+              </h1>
               <p className="mt-1 max-w-2xl text-xs leading-relaxed text-muted-foreground">{copy.detalle}</p>
               <p className="mt-1 text-[11px] tabular-nums text-muted-foreground">{textoActualizacion(generadoEn)}</p>
             </div>

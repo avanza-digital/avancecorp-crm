@@ -115,7 +115,8 @@ import {
 } from '@/lib/disponibilidad-lead'
 import {
   RecordatorioDisponibilidadSchema,
-  RecordatoriosDisponibilidadSchema,
+  RecordatoriosCampanaSchema,
+  type RecordatorioCampana,
   type RecordatorioDisponibilidad,
 } from '@/lib/recordatorios-disponibilidad'
 import {
@@ -138,6 +139,11 @@ import {
   ResumenRepartoSchema,
   type ResumenReparto,
 } from '@/lib/resumen-reparto'
+import {
+  IngresosRepartoMesSchema,
+  inicioDeMes,
+  type IngresosRepartoMes,
+} from '@/lib/ingresos-reparto'
 import {
   InicioAyudaVendedorSchema,
   ResultadoConsultaAyudaVendedorSchema,
@@ -917,6 +923,45 @@ export async function supervisoresParaReparto(signal?: AbortSignal): Promise<Sup
   return items
 }
 
+/**
+ * Cuantos leads INGRESARON al CRM durante el mes de Lima, aunque hoy ya esten
+ * repartidos o descartados. Es una lectura agregada sin PII exclusiva de la
+ * mesa de Coordinacion; no debe confundirse con el tamano actual de la cola.
+ */
+export async function listarIngresosRepartoMes(
+  mes: string,
+  signal?: AbortSignal,
+): Promise<IngresosRepartoMes> {
+  const pMes = inicioDeMes(mes)
+  if (pMes == null) {
+    throw new CrmApiError('El mes seleccionado no es valido.', 'MES_INVALIDO')
+  }
+
+  let consulta = cliente().schema('crm').rpc('ingresos_reparto_mes_fn', { p_mes: pMes })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudieron cargar los ingresos del mes.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.ingresos_mes_fallido', fallo)
+    throw fallo
+  }
+
+  const resultado = v.safeParse(IngresosRepartoMesSchema, data)
+  if (!resultado.success || resultado.output.mes !== pMes) {
+    const fallo = new CrmApiError(
+      'El resumen de ingresos no tiene el formato esperado.',
+      'INGRESOS_REPARTO_CONTRACT',
+    )
+    registrarError('crm.reparto.ingresos_mes_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
 /** Mueve un lead de la cola global a la bandeja de un supervisor (atómico en el
  *  servidor: re-valida no_contactar y usa un UPDATE con predicado anti-carrera). */
 export async function repartirLead(leadId: string, supervisorId: string): Promise<void> {
@@ -1097,15 +1142,17 @@ export async function verificarDisponibilidadLead(
 
 export async function listarRecordatoriosDisponibilidad(
   signal?: AbortSignal,
-): Promise<RecordatorioDisponibilidad[]> {
+): Promise<RecordatorioCampana[]> {
+  // SIN dni a propósito (minimización §8, F3.1): la campana no lo usa y cada
+  // refetch lo paseaba por la red sin ningún consumidor.
   let consulta = cliente().schema('crm')
     .from('recordatorios_disponibilidad')
-    .select('id, perfil_id, telefono, dni, recordar_en, creado_en')
+    .select('id, perfil_id, telefono, recordar_en, creado_en')
     .order('recordar_en', { ascending: true })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   if (error) throw aErrorApi(error, 'crm.recordatorios.listar_fallido')
-  const resultado = v.safeParse(RecordatoriosDisponibilidadSchema, data ?? [])
+  const resultado = v.safeParse(RecordatoriosCampanaSchema, data ?? [])
   if (!resultado.success) {
     const fallo = new CrmApiError(
       'Los recordatorios no tienen el formato esperado.',
@@ -1134,7 +1181,11 @@ export async function guardarRecordatorioDisponibilidad(
   const { data, error } = await cliente().schema('crm')
     .from('recordatorios_disponibilidad')
     .upsert(
-      sinIndefinidos({ perfil_id: perfilId, telefono, dni: dni ?? undefined, recordar_en: recordarEn }),
+      // `dni` viaja SIEMPRE, null incluido (F3.1): omitirlo hacía que un
+      // re-guardado sin DNI CONSERVARA el DNI anterior en el servidor — un
+      // vínculo teléfono↔DNI que el vendedor ya no está afirmando. El dato
+      // fresco manda: sin DNI = limpiar el anterior.
+      { perfil_id: perfilId, telefono, dni, recordar_en: recordarEn },
       { onConflict: 'perfil_id,telefono' },
     )
     .select('id, perfil_id, telefono, dni, recordar_en, creado_en')

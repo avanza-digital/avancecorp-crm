@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import type { Rol } from './roles'
 
 const derivarVendedor = vi.fn((_input: unknown) => [{
@@ -72,11 +72,20 @@ const consultasConversion = vi.fn((habilitada: boolean, desde: string) => ({
 }))
 
 // Codex F3-R2: la campana vive tras el gate de funciones de leads (espejo de
-// vistas.ts). El gate se controla desde aquí para probar los DOS estados.
+// vistas.ts). El gate se controla desde aquí para probar los DOS estados, y
+// se CAPTURAN los argumentos: un mock que los traga no prueba que el provider
+// consulte con la identidad real (hallazgo T4 de la auditoría).
 let LEADS_VISIBLES = true
+const llamadasVisibilidad: Array<[boolean, string | null | undefined, string | null | undefined]> = []
 vi.mock('@/lib/config', async (importActual) => {
   const actual = await importActual<typeof import('@/lib/config')>()
-  return { ...actual, funcionesLeadsVisibles: () => LEADS_VISIBLES }
+  return {
+    ...actual,
+    funcionesLeadsVisibles: (esDemo: boolean, rol?: string | null, perfilId?: string | null) => {
+      llamadasVisibilidad.push([esDemo, rol, perfilId])
+      return LEADS_VISIBLES
+    },
+  }
 })
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
@@ -101,10 +110,14 @@ vi.mock('@/lib/store-context', () => ({
 }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.UTC(2026, 7, 6, 17) }))
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_: unknown, fallback: string) => fallback }))
+let RECORDATORIOS_ERROR: Error | null = null
+const refetchRecordatorios = vi.fn(() => Promise.resolve())
 const consultaRecordatorios = vi.fn((habilitada: boolean) => ({
-  data: habilitada ? RECORDATORIOS : [],
-  error: null,
+  data: habilitada && !RECORDATORIOS_ERROR ? RECORDATORIOS : [],
+  error: RECORDATORIOS_ERROR,
   isPending: false,
+  isFetching: false,
+  refetch: refetchRecordatorios,
 }))
 vi.mock('@/data/crm-queries', () => ({
   useMetricasConversiones: (...argumentos: Parameters<typeof consultasConversion>) =>
@@ -133,7 +146,12 @@ const { useAlertasCRM } = await import('./alertas-context')
 
 function Lector() {
   const estado = useAlertasCRM()
-  return <output>{JSON.stringify(estado)}</output>
+  return (
+    <>
+      <output>{JSON.stringify(estado)}</output>
+      <button type="button" onClick={estado.reintentar}>reintentar</button>
+    </>
+  )
 }
 
 function montar(rol: Extract<Rol, 'vendedor' | 'supervisor' | 'gerencia'>) {
@@ -150,7 +168,12 @@ function montar(rol: Extract<Rol, 'vendedor' | 'supervisor' | 'gerencia'>) {
   )
 }
 
-beforeEach(() => { LEADS_VISIBLES = true })
+beforeEach(() => {
+  LEADS_VISIBLES = true
+  RECORDATORIOS_ERROR = null
+  refetchRecordatorios.mockClear()
+  llamadasVisibilidad.length = 0
+})
 
 describe('AlertasCRMProvider', () => {
   it('deriva al vendedor solo desde su ámbito local y no habilita métricas globales', () => {
@@ -172,6 +195,30 @@ describe('AlertasCRMProvider', () => {
     // vencido del arnés suena mediante la derivación real del provider.
     expect(consultaRecordatorios).toHaveBeenCalledWith(true)
     expect(screen.getByRole('status')).toHaveTextContent('revisar-contacto-5c073c2a-f22a-4979-8ea4-8921f746ef22')
+    // T4: el gate se consulta con la IDENTIDAD real del actor, no al aire.
+    expect(llamadasVisibilidad).toContainEqual([false, 'vendedor', 'v1'])
+  })
+
+  it('F3.1: un fallo al listar recordatorios se DICE y Reintentar lo reintenta', () => {
+    RECORDATORIOS_ERROR = new Error('red caída')
+    montar('vendedor')
+
+    // El fallo deja de ser mudo: viaja en los errores del contexto…
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No se pudieron cargar tus recordatorios de contacto.',
+    )
+    // …y Reintentar reintenta ESA consulta, no solo el store.
+    fireEvent.click(screen.getByRole('button', { name: 'reintentar' }))
+    expect(refetchRecordatorios).toHaveBeenCalledTimes(1)
+    expect(recargar).toHaveBeenCalled()
+  })
+
+  it('F3.1: sin fallo de recordatorios no hay mensaje ni refetch de más', () => {
+    montar('vendedor')
+
+    expect(screen.getByRole('status')).not.toHaveTextContent('recordatorios de contacto')
+    fireEvent.click(screen.getByRole('button', { name: 'reintentar' }))
+    expect(refetchRecordatorios).not.toHaveBeenCalled()
   })
 
   it('R2 (Codex F3): con el gate de leads CERRADO la campana ni consulta ni suena', () => {

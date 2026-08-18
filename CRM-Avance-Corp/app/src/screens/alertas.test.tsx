@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
-import { render, screen, waitFor, within } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { AlertaCRM } from '@/lib/alertas'
 import type { EstadoAlertasCRM } from '@/lib/alertas-context'
@@ -17,6 +17,10 @@ let ESTADO: EstadoAlertasCRM = {
 
 vi.mock('@/lib/alertas-context', () => ({
   useAlertasCRM: () => ESTADO,
+}))
+
+vi.mock('sonner', () => ({
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }))
 
 const { Alertas } = await import('./alertas')
@@ -174,7 +178,7 @@ describe('Alertas — revisar contacto (F3)', () => {
         </PanelActionsContext.Provider>
       </QueryClientProvider>,
     )
-    return { abrirNuevoLead, invalidar }
+    return { abrirNuevoLead, invalidar, clienteConsultas }
   }
 
   it('Verificar abre el alta con el TELÉFONO precargado — el circuito F1/F2 entero', async () => {
@@ -186,12 +190,14 @@ describe('Alertas — revisar contacto (F3)', () => {
     expect(abrirNuevoLead).toHaveBeenCalledWith(undefined, '+51987654321')
   })
 
-  it('Quitar elimina el recordatorio, refresca la campana y el foco cae al contador', async () => {
+  it('Quitar elimina el recordatorio, refresca la campana y el foco sigue al DATO desaparecido', async () => {
     const api = await import('@/data/crm-api')
     const { crmQueryKeys } = await import('@/data/crm-queries')
     const eliminar = vi.spyOn(api, 'eliminarRecordatorioDisponibilidad').mockResolvedValue()
     const user = userEvent.setup()
-    const { invalidar } = await montarConProviders([alertaContacto()])
+    const { invalidar, clienteConsultas } = await montarConProviders([alertaContacto()])
+    // El cache post-refetch ya no trae la fila: es la realidad que decide.
+    clienteConsultas.setQueryData(crmQueryKeys.recordatoriosDisponibilidad(), [])
 
     await user.click(screen.getByRole('button', { name: /Quitar recordatorio/ }))
 
@@ -200,26 +206,96 @@ describe('Alertas — revisar contacto (F3)', () => {
     await waitFor(() => expect(invalidar).toHaveBeenCalledWith({
       queryKey: crmQueryKeys.recordatoriosDisponibilidad(),
     }))
-    // a11y M4: el botón se va con la fila — el foco aterriza en el contador,
-    // que además anuncia el nuevo total.
+    // a11y M4: el dato ya no existe → la fila se va → el foco aterriza en el
+    // contador, que además anuncia el nuevo total.
     await waitFor(() => expect(document.getElementById('alertas-contador')).toHaveFocus())
     eliminar.mockRestore()
   })
 
-  it('si Quitar falla DE VERDAD la fila sigue viva y el foco no salta a ninguna parte', async () => {
+  it('M4 (Codex): borrado OK pero refetch caído — el dato SIGUE y el foco no salta', async () => {
     const api = await import('@/data/crm-api')
-    const eliminar = vi.spyOn(api, 'eliminarRecordatorioDisponibilidad')
-      .mockRejectedValue(new api.CrmApiError('Sin conexión con el servidor.', 'RED'))
+    const { crmQueryKeys } = await import('@/data/crm-queries')
+    const eliminar = vi.spyOn(api, 'eliminarRecordatorioDisponibilidad').mockResolvedValue()
     const user = userEvent.setup()
-    await montarConProviders([alertaContacto()])
+    const { clienteConsultas } = await montarConProviders([alertaContacto()])
+    // Un refetch caído CONSERVA el dato viejo en cache: la fila sigue pintada.
+    clienteConsultas.setQueryData(crmQueryKeys.recordatoriosDisponibilidad(), [
+      { id: 'r1', perfil_id: 'v1', telefono: '+51987654321', dni: null, recordar_en: '2026-08-05T14:00:00+00:00', creado_en: '2026-08-01T14:00:00+00:00' },
+    ])
 
     const boton = screen.getByRole('button', { name: /Quitar recordatorio/ })
     await user.click(boton)
 
-    // La fila NO desaparece (el borrado no ocurrió): el botón sigue siendo
-    // el lugar del usuario y el contador no debe robarle el foco.
+    // El foco NO va al contador (la fila sigue siendo el lugar del usuario):
+    // este era exactamente el mutante que el diseño «por intención» no mataba.
     await waitFor(() => expect(boton).toBeEnabled())
     expect(document.getElementById('alertas-contador')).not.toHaveFocus()
+    expect(boton).toHaveFocus()
+    eliminar.mockRestore()
+  })
+
+  it('si Quitar falla DE VERDAD la fila sigue viva y el foco vuelve al botón', async () => {
+    const api = await import('@/data/crm-api')
+    const { crmQueryKeys } = await import('@/data/crm-queries')
+    const { toast } = await import('sonner')
+    const eliminar = vi.spyOn(api, 'eliminarRecordatorioDisponibilidad')
+      .mockRejectedValue(new api.CrmApiError('Sin conexión con el servidor.', 'RED'))
+    const { clienteConsultas } = await montarConProviders([alertaContacto()])
+    clienteConsultas.setQueryData(crmQueryKeys.recordatoriosDisponibilidad(), [
+      { id: 'r1', perfil_id: 'v1', telefono: '+51987654321', dni: null, recordar_en: '2026-08-05T14:00:00+00:00', creado_en: '2026-08-01T14:00:00+00:00' },
+    ])
+
+    const boton = screen.getByRole('button', { name: /Quitar recordatorio/ })
+    boton.focus()
+    fireEvent.click(boton)
+    // El navegador REAL suelta el foco de un botón deshabilitado. En jsdom
+    // blur() sobre un disabled es NO-OP y body.focus() también (body no es
+    // focusable sin tabindex) — el foco huérfano se simula así. Sin esto, la
+    // aserción pasaba aunque el rescate se borrara (mutante superviviente).
+    document.body.tabIndex = -1
+    document.body.focus()
+
+    await waitFor(() => expect(vi.mocked(toast.error)).toHaveBeenCalled())
+    // Al re-habilitarse, el rescate devuelve el foco huérfano — nunca al contador.
+    await waitFor(() => expect(boton).toBeEnabled())
+    await waitFor(() => expect(boton).toHaveFocus())
+    expect(document.getElementById('alertas-contador')).not.toHaveFocus()
+    eliminar.mockRestore()
+  })
+
+  it('T2: «ya no existía» (caducó/otra pestaña) NO grita, refresca y mueve el foco', async () => {
+    const api = await import('@/data/crm-api')
+    const { crmQueryKeys } = await import('@/data/crm-queries')
+    const { toast } = await import('sonner')
+    vi.mocked(toast.error).mockClear()
+    const eliminar = vi.spyOn(api, 'eliminarRecordatorioDisponibilidad')
+      .mockRejectedValue(new api.CrmApiError('El recordatorio ya no existe.', 'NO_ENCONTRADO'))
+    const user = userEvent.setup()
+    const { invalidar, clienteConsultas } = await montarConProviders([alertaContacto()])
+    clienteConsultas.setQueryData(crmQueryKeys.recordatoriosDisponibilidad(), [])
+
+    await user.click(screen.getByRole('button', { name: /Quitar recordatorio/ }))
+
+    expect(vi.mocked(toast.error)).not.toHaveBeenCalled()
+    await waitFor(() => expect(invalidar).toHaveBeenCalled())
+    await waitFor(() => expect(document.getElementById('alertas-contador')).toHaveFocus())
+    eliminar.mockRestore()
+  })
+
+  it('si era la ÚLTIMA alerta y el contador se fue, el foco cae al encabezado', async () => {
+    const api = await import('@/data/crm-api')
+    const { crmQueryKeys } = await import('@/data/crm-queries')
+    const eliminar = vi.spyOn(api, 'eliminarRecordatorioDisponibilidad').mockResolvedValue()
+    const user = userEvent.setup()
+    const { clienteConsultas } = await montarConProviders([alertaContacto()])
+    clienteConsultas.setQueryData(crmQueryKeys.recordatoriosDisponibilidad(), [])
+    // El arnés pinta con ESTADO estático: se simula la retirada del contador
+    // (en producción desaparece junto con la lista vacía).
+    document.getElementById('alertas-contador')?.remove()
+
+    await user.click(screen.getByRole('button', { name: /Quitar recordatorio/ }))
+
+    await waitFor(() => expect(document.getElementById('alertas-encabezado')).toHaveFocus())
     eliminar.mockRestore()
   })
 

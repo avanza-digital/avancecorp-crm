@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import {
+  RecordatorioCampanaSchema,
   RecordatorioDisponibilidadSchema,
   RecordatoriosDisponibilidadSchema,
   aInstanteRevision,
@@ -34,6 +35,13 @@ describe('el contrato de la fila', () => {
   it('la lista valida en bloque', () => {
     expect(v.parse(RecordatoriosDisponibilidadSchema, [FILA])).toHaveLength(1)
     expect(v.safeParse(RecordatoriosDisponibilidadSchema, [{ id: 'x' }]).success).toBe(false)
+  })
+
+  it('la fila de la CAMPANA es sin dni (§8): si el select lo trajera, es error', () => {
+    const { dni: _sinDni, ...filaCampana } = FILA
+    expect(v.parse(RecordatorioCampanaSchema, filaCampana).id).toBe(FILA.id)
+    // strict: el dni de vuelta delataría un select que dejó de ser mínimo.
+    expect(v.safeParse(RecordatorioCampanaSchema, FILA).success).toBe(false)
   })
 })
 
@@ -109,6 +117,17 @@ describe('sugerirFechaRevision — fecha SOLO donde hay regla real', () => {
       disponible_desde: '2026-08-01T05:00:00Z',
       descartado_por: null,
     }, ahora)).toBe('2026-08-19')
+  })
+
+  it('una liberación MÁS ALLÁ del tope se acota al último día válido (F3.1)', () => {
+    // Sugerir más de hoy+364 sería precargar exactamente lo que el propio
+    // formulario (max) y el servidor (22023) van a rechazar.
+    expect(sugerirFechaRevision({
+      estado: 'enfriamiento',
+      motivo_descarte: 'no_responde',
+      disponible_desde: '2027-09-22T05:00:00Z',
+      descartado_por: null,
+    }, ahora)).toBe('2027-08-17')
   })
 })
 
