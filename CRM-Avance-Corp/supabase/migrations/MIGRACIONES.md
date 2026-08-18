@@ -2531,10 +2531,10 @@ con su mensaje honesto de F1 («la toma directa aún no está habilitada»).
 
 ## 20260818014534 — PDF contractual v2 con reserva durable
 
-**Estado al 17/08/2026: VALIDADA EN PREVIEW; todavía no aplicada en
-producción.** Supabase la registró en la rama
-`contrato-pdf-v2-release-20260817` con versión `20260818014534`. Esta es la
-única migración desplegable del flujo PDF. La
+**Estado al 17/08/2026: EN PRODUCCIÓN.** Supabase la promovió desde la rama
+validada `contrato-pdf-v2-release-20260817` y la registró con versión
+`20260818014534`. La rama Preview fue eliminada después del postflight para
+detener su coste. Esta es la única migración desplegable del flujo PDF. La
 candidata v1 con timestamp anterior a la historia remota fue retirada; v2 es
 autocontenida y conserva compatibilidad de lectura para ledgers legacy.
 
@@ -2593,6 +2593,32 @@ documentado de offboarding. Un `ensure` hosted selló un PDF ficticio de
 y tres descargas resultaron iguales byte a byte; las rutas directas de Storage
 quedaron bloqueadas.
 
+El merge productivo se hizo desde esa Preview. El postflight confirmó la
+migración como última, proyecto `ACTIVE_HEALTHY`, 16/16 archivos Edge idénticos
+al commit `15774fd55748a8325143018a3d74dafdd09c19db`, y las versiones
+`crear-cliente` v28, `crm-convertir-lead` v11 y `crm-contrato-pdf-v2` v1,
+todas `ACTIVE` y con JWT. Bucket, RLS forzada, ACL, triggers, RPC y ausencia del
+trigger v1 en `storage.objects` dieron el valor esperado. Advisors posteriores:
+seguridad 18 INFO / 111 WARN / 0 ERROR; rendimiento 50 INFO / 5 WARN / 0 ERROR.
+Las deltas son exactamente las RPC/tablas privadas e índices nuevos; no nació
+ningún WARN de rendimiento ni ERROR. Los logs posteriores no contienen 5xx ni
+señales de CPU, memoria u OOM.
+
+El frontend productivo es la release
+`crm-20260818T020259Z-15774fd55748`, ZIP de 1.105.705 bytes y SHA-256
+`9ce985041520c10f19ced653834cf8666302f9552ff472b72585eee129ecb512`.
+HTML, JS, CSS, fuentes y 68/73 archivos públicos coinciden byte a byte con el
+manifest. HCDN reencodifica los cinco PNG públicos conservando tipo y
+dimensiones; esto no altera el PDF legal, cuyos assets están versionados y
+embebidos en la Edge. El ZIP, `.vite/license.md` y `firma-kirk.png` no son
+públicos. El login cargó sin errores de consola.
+
+No se sembraron datos sintéticos en producción: jobs, ledger y objetos del
+bucket quedaron en cero. Por eso la igualdad de tres descargas está probada en
+el runtime hosted de Preview, mientras que la primera verificación autenticada
+con un contrato real de producción queda ligada a la prueba operativa del
+usuario; el despliegue no inventó clientes ni contratos para forzarla.
+
 Esta implementación no modificó `public_html`; durante la validación se
 detectaron cambios concurrentes de otra sesión en ese submódulo y se preservaron
-sin intervenir. Todavía no hubo cambios en producción.
+sin intervenir.
