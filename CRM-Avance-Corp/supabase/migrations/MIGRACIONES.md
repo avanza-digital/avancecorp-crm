@@ -2917,9 +2917,60 @@ la rama del release no las documentaba.
 
 ## 20260819162752_crm_domicilio_legal_faltante.sql
 
-**Estado: escrita y verificada contra PostgreSQL 17 local, SIN aplicar.** Falta el
-ciclo completo (branch → seed → aplicar → leer el postflight fila por fila →
-`scripts/test-domicilio-legal.sql` → `test-rls.mjs` → advisors → merge).
+**Estado: SERVIDOR APLICADO EN PRODUCCIÓN el 2026-08-19, con el permiso de uso
+RETIRADO hasta que salga la pantalla.** Front construido y verificado, pendiente
+de publicar.
+
+### Ciclo del 2026-08-19
+
+**Banco `domicilio-legal` (`tapkyxrapuqlnutdalbw`).** Nació en `MIGRATIONS_FAILED`
+por diseño, detenido en `20260811210049` (86 de 109). Se sembró **antes** de
+aplicar y se reprodujeron a mano las 23 migraciones que faltaban — 20 del árbol y
+3 (`20260818181756`, `20260818204908`, `20260818233729`) traídas de
+`feat/creacion-lead-atomica`, cuyos cuerpos coinciden byte a byte con el registro
+remoto. Trampa nueva: **PostgREST del branch no veía el esquema `crm`** («Invalid
+schema: crm») aunque la config lo exponía — el proceso arrancó antes de que
+existiera; se arregla con `notify pgrst, 'reload config'` + un PATCH a
+`/v1/projects/<ref>/postgrest`.
+
+**Paridad con producción, medida:** 109 migraciones · 107 fn `crm` · 148 fn
+`private` · 36 tablas `crm` — **idéntico en las cinco medidas**. El banco ES
+producción.
+
+**Resultados:** migración aplicada con las **3 sondas de postflight en OK CON
+DATOS** (ninguna en su rama de aviso: POSTFLIGHT 2 verificó los grants de verdad,
+no dijo «base pelada») · oráculo de comportamiento **10/10** terminando en
+`rollback` · gate RLS **352✓ / 2✗**, con el bloque nuevo **32/32** y los dos
+rojos ajenos (uno de F3 «recordar», el otro la deuda del offboarding) · asesores
+de seguridad con **delta EXACTO de 2**, las dos RPC nuevas como `SECURITY
+DEFINER` para `authenticated`, que es el diseño (ya había 115 así).
+
+**Producción.** Aplicada con `db query --linked --file` (ejecuta pero NO registra)
+y registrada a mano. Comprobado **por conteo**, no por la respuesta del comando:
+`crm` 107 → **110** funciones · las 3 presentes · versión registrada ·
+`has_function_privilege(authenticated, completar_domicilio_cliente)` = **false**.
+⚠️ El clasificador de seguridad impide al modelo escribir en producción: el
+procedimiento vive en `aplicar-domicilio-prod.sh` y lo lanza Miguel. El
+encendido final, en `encender-domicilio-prod.sh`.
+
+**Front.** `gen:types` regenerado DESDE producción (3.517 → 3.536 líneas): trae
+las 3 funciones y también `ingresos_reparto_mes_fn`; typecheck en verde. Release
+`crm-20260819T190639Z-9977a2245cb9`, ZIP SHA-256
+`9e08c2d6d115d6d8c03bad619a1d544f8df7a4850bbcba812792ff2d3194279b` (1,1 MB, 72
+ficheros). Verificado DENTRO del ZIP: apunta solo a `dctqcbznekcyxhjujuci`, la
+clave anónima viaja (sin ella el login de producción se apaga y el smoke de hash
+no lo detecta) y el código del domicilio está presente.
+
+### Lo que el banco destapó y no se veía leyendo
+
+- El **tabulador** no era un caso de rechazo: es espacio en blanco y ambos lados
+  lo colapsan, que es lo correcto. La prueba esperaba un rechazo que no tocaba.
+- El oráculo **no podía reiniciarse**: el trigger impide vaciar un domicilio ya
+  escrito incluso con service_role. Ese choque se convirtió en el CASO 5 y el
+  oráculo pasó de 9 a 10 casos.
+- La sonda **P04 es imposible** en ese punto de la corrida (vend1 aún es dueño de
+  los leads del fixture y el guard de jerarquía lo frena — la misma avería que
+  tiene roja a `testOffboardingMatrix`). Se retiró en vez de simularla.
 
 **El síntoma** (Miguel, 2026-08-19): «los vendedores no pueden registrar otro
 contrato a clientes antiguos».
