@@ -51,6 +51,72 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 > 28.º `crm-20260817T151109Z-42f02cbdc1ca` y 29.º `crm-20260817T160102Z-cbc95900091f`):
 > viven en `MIGRACIONES.md` (adendas 16-17/08), sus notas de tema y `releases/`.
 
+- **Deploy 2026-08-18 (~23:33 UTC / ~18:33 hora de Lima) — CRM: contrato AEP v5,
+  firma de Kirk y numeración completa:** el frontend se construyó en un worktree
+  aislado sobre el release vivo `e979b4907029` y añadió únicamente la tolerancia
+  de respuesta `contrato-aep-17-v3/v4/v5`, evitando publicar los cambios abiertos
+  de otras sesiones. Artefacto `crm-20260818T233315Z-e979b4907029`, ZIP de
+  1.114.205 bytes y SHA-256
+  `8f69abea7caaa840239969467a9538cc8bfaf553460217843f3702c9d64a9b0c`.
+  HTML, JS principal, consultas y CSS quedaron al byte; ZIP y chunk anterior en
+  404; smoke autenticado en `#/hoy` sin errores ni warnings. Después se desplegó
+  `crm-contrato-pdf-v2` versión 5 (`ACTIVE`, JWT, SHA-256
+  `12f54993d95bae42427e0cace8135ee04b72b5b03f98a585ab988379737abcf4`)
+  y la migración remota `20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk`.
+  Las tres reservas v4 elegibles avanzaron a v5; los siete PDF ya sellados no se
+  modificaron. Los asesores quedaron sin delta. Rollback inmediato del frontend:
+  `releases/crm-20260818T225705Z-e979b4907029.zip`; la migración no requiere
+  rollback para leer PDFs históricos.
+
+- **Deploy 2026-08-18 (~22:57 UTC / ~17:57 hora de Lima) — CRM: se ABRE LA LLAVE del
+  mundo leads a toda la fuerza de ventas (TRIGÉSIMO TERCER release):** publica `e979b49`
+  sobre `80942d8`. `FUNCIONES_LEADS_APROBADAS` pasa a **true** y el piloto
+  (`CUENTAS_PILOTO_LEADS`, la cuenta de Miguel) se BORRA con ella, junto al parámetro
+  `perfilId` de `funcionesLeadsVisibles` (4 llamadas). Vendedores y supervisores ven
+  Hoy/Pipeline/Leads/Agenda; **su aterrizaje cambia de «Mi cartera» a «Hoy»**
+  (`VISTA_BASE_POR_ROL`, comportamiento de diseño).
+  **El agujero que solo aparece al abrirla:** `hoy` es la ÚNICA vista de leads sin
+  capacidad exigida → la llave abierta se la regalaba al COORDINADOR (ámbito de leads ∅,
+  destino único «Repartir leads»). Cerrado en DOS capas: lista de roles CERRADA en
+  `config.ts` (gerencia/directorio siempre · vendedor/supervisor por la llave · el resto
+  no, así el rol ausente conserva el mínimo privilegio) + corte del router en `vistas.ts`.
+  **Suites resucitadas** tras un mes dormidas esperando este día (`acciones-real`,
+  `cartera-keyset`): 9/16 rojas al despertar, NINGUNA por un defecto — el menú de la
+  cartera de leads se llama «Leads» desde Fase 6 (y para gerencia choca con «Repartir
+  leads» → `exact`), el alta manual ya no ofrece LANDING/FORMULARIO (D8), convertir
+  pregunta primero «¿Dónde invirtió?» (cooperativas) y con la carga caída no hay menú que
+  esperar. Reparadas + 19 pruebas que daban por hecho el aterrizaje viejo (helper
+  `irAMiCartera`). Gate: **2.051/2.051** unitarias · **99 e2e verdes** · 3 mutantes
+  muertos (cerrar la llave · colar al coordinador en config.ts · quitar el corte del
+  router).
+  ⚠️ **LA TRAMPA DEL CICLO — el ledger mintió y casi cuesta un rollback:** el artefacto se
+  construyó primero sobre `704d25e` (lo último ANOTADO aquí), pero lo VIVO era
+  `crm-20260818T201312Z-80942d8c7b50` — un release de la sesión paralela de contratos
+  (PDF v3 + corrección + borrado seguro) publicado a las ~20:13 UTC y **nunca anotado en
+  este ledger**. Publicar mi ZIP lo habría BORRADO de producción. Se detectó comparando el
+  sha256 del `index.html` VIVO contra los manifiestos locales ANTES de subir nada, se
+  rebasó `e979b49` sobre `80942d8`, se repitió el gate entero y se verificó DENTRO del
+  bundle nuevo que su cadena «Contrato corregido y PDF actualizado» seguía ahí. Regla
+  reforzada: **antes de desplegar, identificar lo vivo por hash contra los manifiestos —
+  el ledger es una ayuda, el hash es la prueba** (precedente del 31.º con el Centro de
+  ayuda).
+  🔴 **Rojo heredado que se deja DICHO:** 3 pruebas de navegador de la corrección de
+  contratos (`contrato-crear:69`, `contrato-detalle:118` y `:157`) fallan **también en
+  `80942d8`**, el commit que ya estaba vivo antes de este deploy — no las rompió esta
+  llave; se verificó ejecutándolas en un worktree limpio de ese commit. La más clara: el
+  toast «Contrato corregido y cronograma regenerado.» no aparece. Es de la sesión de
+  contratos.
+  Artefacto **`crm-20260818T225705Z-e979b4907029`**, ZIP SHA-256 **`fddc2136…6e23`**,
+  worktree git limpio, `.env` copiado y llaves verificadas DENTRO
+  (`crm-queries-T1qlONRu.js`). Publicado por la tool MCP directa + purga de caché.
+  **En vivo, AL BYTE (4/4):** `index.html`, `assets/index-Da0--tjI.js`,
+  `assets/crm-queries-T1qlONRu.js`, `assets/index-a7hXt_lB.css` y además
+  `assets/mi-cartera-D8rCXQsi.js` (el chunk que lleva el trabajo de la otra sesión).
+  En el fichero SERVIDO se leyó la llave compilada: abre para
+  gerencia/directorio/vendedor/supervisor y para NADIE más. ZIP en 404 en ambos dominios.
+  Rollback inmediato: `releases/crm-20260818T201312Z-80942d8c7b50.zip` (el de contratos).
+  Detalle en [[Apertura del mundo leads a la fuerza de ventas 2026-08-18]].
+
 - **Deploy 2026-08-18 (~18:10 UTC / ~13:10 hora de Lima) — CRM: F3.1, la auditoría doble
   del F3 aplicada entera (TRIGÉSIMO SEGUNDO release):** publica `7fb3118` y con él TRES
   commits: `75156a6` (F3.1 entero), `7fb3118` (soporte de compilación del reparto — ver

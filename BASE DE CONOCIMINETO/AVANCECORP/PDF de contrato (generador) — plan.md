@@ -58,3 +58,25 @@ Sello estampado sí/no · redacción compuesto y mancomunado (comparecencia sin 
 ## Estado
 
 - [x] Muestra para revisión legal (2026-07-21) · [ ] Fase 1 · [ ] Fase 2 · [ ] Fase 3 · [ ] Fase 4 · [ ] Fase 5
+
+## Estado productivo 2026-08-18
+
+El diseño inicial del navegador fue reemplazado por el generador autoritativo
+server-side `crm-contrato-pdf-v2`; la plantilla legal vigente es
+`contrato-aep-17-v4`. Una corrección válida crea una revisión documental nueva:
+para vendedor/analista exige autor, cartera propia y máximo 5 horas; el carril
+administrativo no tiene esa ventana. El hard-delete usa la misma Edge y está
+reservado a Admin/Superadmin; Admin solo puede borrar contratos sin pagos y
+Superadmin también los que tienen pagos. Ver [[Ciclo de vida de contratos]].
+
+La v4 se genera exclusivamente en el servidor y restaura la firma original
+autorizada de Kirk E. Sanchez Rios; además muestra en negrita los datos
+personales y de contacto, y deja más separación antes de las firmas. Las
+revisiones ya selladas no se reescriben. Quedó desplegada como Edge versión 4,
+`ACTIVE`, con JWT obligatorio, 25/25 pruebas Deno, oráculo SQL completo y
+revisión visual de las siete páginas.
+
+El portal administrativo legacy también invoca esa Edge. La lista CORS cerrada
+mantiene CRM, `https://miavance.com` y `https://www.miavance.com`; el preflight
+productivo responde 204 y refleja exactamente cada origen permitido. No fue
+necesario modificar ni desplegar frontend para la v4. Ver [[Deploy a Hostinger]].
