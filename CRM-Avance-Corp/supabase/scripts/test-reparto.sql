@@ -339,6 +339,26 @@ begin
     raise exception 'R24 el historial expuso una columna de contacto o nota';
   end if;
 
+  -- La derivación de Landing ocurrió antes de que Rosa alcanzara a registrar
+  -- el turno. El primer guardado de hoy debe ser posible para dejarlo asentado.
+  perform crm.guardar_agenda_reparto_diaria(
+    v_hoy,
+    '17000000-0000-4000-8000-000000000002',
+    '17000000-0000-4000-8000-000000000006'
+  );
+
+  -- Después de guardado, ese carril sí queda congelado por la evidencia real.
+  begin
+    perform crm.guardar_agenda_reparto_diaria(
+      v_hoy,
+      '17000000-0000-4000-8000-000000000006',
+      '17000000-0000-4000-8000-000000000002'
+    );
+    raise exception 'R24a la agenda permitió cambiar Landing después de repartir';
+  exception
+    when sqlstate '22023' then null;
+  end;
+
   v_agenda := crm.agenda_reparto_diaria(v_hoy, 1);
   if not exists (
     select 1
@@ -351,7 +371,7 @@ begin
       and a.supervisor_id = '17000000-0000-4000-8000-000000000002'
       and a.derivados = 1
   ) then
-    raise exception 'R24a la agenda no reflejo la derivacion real de Landing';
+    raise exception 'R24b la agenda no reflejo la derivacion real de Landing';
   end if;
 end;
 $test$;

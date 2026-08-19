@@ -290,6 +290,23 @@ describe('agendaRepartoDiaria (msw)', () => {
     await expect(guardarAgendaRepartoDiaria('2026-08-19', 'sup-carmen', 'sup-jor'))
       .rejects.toMatchObject({ code: 'AGENDA_REPARTO_GUARDADO_CONTRACT' })
   })
+
+  it('muestra una regla operativa del servidor en vez de un aviso genérico', async () => {
+    server.use(
+      http.post(RPC('guardar_agenda_reparto_diaria'), () =>
+        HttpResponse.json(
+          { code: '22023', message: 'Landing ya tiene derivaciones hoy; su plan quedó registrado' },
+          { status: 400 },
+        ),
+      ),
+    )
+
+    await expect(guardarAgendaRepartoDiaria('2026-08-19', 'sup-carmen', 'sup-jor'))
+      .rejects.toMatchObject({
+        code: '22023',
+        message: 'Landing ya tiene derivaciones hoy; su plan quedó registrado',
+      })
+  })
 })
 
 describe('supervisoresParaReparto (msw)', () => {

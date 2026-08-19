@@ -1082,8 +1082,14 @@ export async function guardarAgendaRepartoDiaria(
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) {
+    // `22023` se reserva en esta RPC para reglas operativas redactadas para
+    // Coordinación. Es seguro mostrarla: ayuda a Rosa a corregir el turno sin
+    // revelar datos del lead ni detalles internos de permisos/infraestructura.
+    const mensaje = error.code === '22023' && error.message.trim().length > 0
+      ? error.message
+      : 'No se pudo guardar la agenda de reparto.'
     const fallo = new CrmApiError(
-      'No se pudo guardar la agenda de reparto.',
+      mensaje,
       error.code || 'POSTGREST_ERROR',
     )
     registrarError('crm.reparto.agenda_guardado_fallido', fallo)
