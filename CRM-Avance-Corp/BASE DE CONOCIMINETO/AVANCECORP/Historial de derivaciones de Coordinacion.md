@@ -24,6 +24,8 @@ Desde 2026-08-19, la cabecera de **Historial** incluye una agenda diaria para qu
 
 La vista muestra la semana, permite elegir una fecha actual o futura, invertir el turno y guardar ambos carriles juntos. Cada carril presenta el número real de entradas a bandeja de ese origen durante el día; el listado inferior continúa siendo el historial granular y autoritativo de los movimientos.
 
-La configuración vive en tablas privadas y solo se expone a Coordinación/Gerencia mediante `crm.agenda_reparto_diaria` y `crm.guardar_agenda_reparto_diaria`. No devuelve leads ni PII. La agenda anterior es inmutable, y el carril de hoy ya no puede cambiarse si registra derivaciones: el plan no se reescribe sobre la evidencia real. La migración de producción es `20260819220501_crm_agenda_reparto_diaria`.
+La configuración vive en tablas privadas y solo se expone a Coordinación/Gerencia mediante `crm.agenda_reparto_diaria` y `crm.guardar_agenda_reparto_diaria`. No devuelve leads ni PII. La agenda anterior es inmutable, y el carril de hoy ya no puede cambiarse si registra derivaciones: el plan no se reescribe sobre la evidencia real.
+
+La migración de producción es `20260819220501_crm_agenda_reparto_diaria`. Se verificó con una sesión simulada de Coordinación (dos destinos, una semana y cero PII de leads), con ejecución denegada a `anon` y `public`. El frontend fue publicado en `https://crm.miavance.com` con el release `crm-20260819T221546Z-4880d95d12d4`; tras limpiar la caché, la página y el bundle de reparto respondieron `HTTP 200`.
 
 Relacionado: [[Reparto de Leads]] y [[Seguridad RLS]].
