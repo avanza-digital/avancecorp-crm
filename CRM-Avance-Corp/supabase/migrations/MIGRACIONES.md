@@ -2979,6 +2979,42 @@ ficheros). Verificado DENTRO del ZIP: apunta solo a `dctqcbznekcyxhjujuci`, la
 clave anónima viaja (sin ella el login de producción se apaga y el smoke de hash
 no lo detecta) y el código del domicilio está presente.
 
+### 🔴 INCIDENTE del 34.º release — y el 35.º que lo arregló
+
+Minutos después de publicar, TODA alta de contrato moría con «El servidor no
+confirmó completamente el contrato y su cuenta de pago» **aunque el contrato SÍ
+quedaba creado**. Miguel, creyendo que fallaba, hizo dos altas para el mismo
+cliente.
+
+**Causa:** el front exigía `template_version: v.literal('contrato-aep-17-v3')` y
+producción emite `contrato-aep-17-v5` desde el 18-ago. El servidor respondía
+bien; fallaba el parse de Valibot, fail-closed, DESPUÉS del commit de la RPC.
+
+**Por qué se perdió:** la tolerancia v3-v5 vivía **SOLO en el bundle** del 33.º
+release, aplicada sobre el commit sin commitear — este mismo ledger lo decía
+(«con solo la tolerancia contractual v3-v5»). Al reconstruir desde ese commit,
+desapareció. **Un parche que solo vive en el artefacto no existe.** La auditoría
+adversaria lo había señalado explícitamente y no se aplicó.
+
+**Por qué ninguna prueba lo cazó:** el simulador de `crm-api-clientes-msw.test.ts`
+devolvía `contrato-aep-17-v3` fijo — afirmaba contra lo que el front PIDE, no
+contra lo que el servidor MANDA. Y el e2e SÍ lo cazaba: se descartó como «avería
+previa del arnés». **Estaba diciendo la verdad.**
+
+**Arreglo (35.º release `crm-20260819T193907Z-5d69653eb91a`):** vuelve el
+picklist v3/v4/v5 + prueba clavada con la respuesta REAL de producción (contrato
+`acc0eccf…`, plantilla v5), con mutante comprobado. Verificado en el bundle vivo:
+las tres versiones presentes, ficheros idénticos byte a byte.
+
+**Confirmación en producción, sin ayuda de nadie:** LINDA CONDORI escribió a las
+14:49:29 el domicilio de un cliente que no lo tenía y a las 14:51:05 emitió su
+contrato. 96 segundos. El circuito completo funciona con un vendedor real.
+
+⚠️ **Rastro del incidente:** ORMESINDA JULCA quedó con `Av. República de Panamá
+3635` como domicilio legal — **la dirección de la propia Avance Corp**, tecleada
+en una prueba. Es el riesgo exacto que la lente legal había nombrado, y **no se
+puede vaciar**: solo Gerencia puede sobrescribirlo.
+
 ### Lo que el banco destapó y no se veía leyendo
 
 - El **tabulador** no era un caso de rechazo: es espacio en blanco y ambos lados
