@@ -213,6 +213,10 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
 
   it('pinta las DOS secciones bancarias del portal (ids cv-*, sin chocar con cf-*)', async () => {
     await montarEnAvance()
+    expect(screen.getByLabelText('Nombres')).toHaveValue('JUAN')
+    expect(screen.getByLabelText('Apellido paterno')).toHaveValue('PEREZ')
+    expect(screen.getByLabelText('Apellido materno')).toHaveValue('ROJAS')
+    expect(screen.getByText('Registrado en el lead')).toBeInTheDocument()
     expect(screen.getByLabelText('Domicilio legal completo')).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Cuenta bancaria en Soles (PEN)' })).toBeInTheDocument()
     expect(screen.getByRole('group', { name: 'Cuenta bancaria en Dólares (USD)' })).toBeInTheDocument()
@@ -318,14 +322,17 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
 
     // Encadena el paso contrato sin salir del CRM.
     expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
-    // La edge recibe la identidad confirmada del lead Y las cuentas de depósito
-    // en el MISMO envío: el cliente nace con su cuenta o no nace.
+    // La edge recibe la identidad YA separada y confirmada por el vendedor,
+    // junto con las cuentas de depósito, en el MISMO envío: el cliente nace
+    // listo para pagos o no nace.
     expect(convertirEdge).toHaveBeenCalledWith({
       lead_id: 'lead-1',
       correo: 'juan@correo.pe',
       tipo_documento: 'DNI',
       documento: '45781234',
-      nombre_completo: 'JUAN PEREZ ROJAS',
+      nombre_completo: 'PEREZ ROJAS JUAN',
+      apellidos: 'PEREZ ROJAS',
+      nombres: 'JUAN',
       telefono: '+51999888777',
       domicilio: 'Av. Los Inversionistas 245, San Isidro, Lima',
       bancarios: {
@@ -343,6 +350,51 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     expect(actualizarCliente).not.toHaveBeenCalled()
     expect(recargar).toHaveBeenCalled()
     expect(toast.success).toHaveBeenCalledWith('JUAN PEREZ ROJAS ahora es cliente — correo de bienvenida enviado')
+  })
+
+  it('permite corregir la sugerencia antes de crear el cliente para pagos', async () => {
+    const user = userEvent.setup()
+    convertirEdge.mockResolvedValue({
+      perfil_id: 'perfil-9',
+      ya_existia: false,
+      domicilio_accion: 'completado',
+      email_enviado: false,
+    })
+    await montarEnAvance({ lead: { nombre_completo: 'MARIA JOSE PEREZ RUIZ' } })
+
+    expect(screen.getByLabelText('Nombres')).toHaveValue('MARIA JOSE')
+    expect(screen.getByLabelText('Apellido paterno')).toHaveValue('PEREZ')
+    expect(screen.getByLabelText('Apellido materno')).toHaveValue('RUIZ')
+
+    await user.clear(screen.getByLabelText('Nombres'))
+    await user.type(screen.getByLabelText('Nombres'), 'ANA LUCIA')
+    await user.clear(screen.getByLabelText('Apellido paterno'))
+    await user.type(screen.getByLabelText('Apellido paterno'), 'GARCIA')
+    await user.clear(screen.getByLabelText('Apellido materno'))
+    await user.type(screen.getByLabelText('Apellido materno'), 'MENDOZA')
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    await waitFor(() => expect(convertirEdge).toHaveBeenCalledWith(expect.objectContaining({
+      nombre_completo: 'GARCIA MENDOZA ANA LUCIA',
+      apellidos: 'GARCIA MENDOZA',
+      nombres: 'ANA LUCIA',
+    })))
+  })
+
+  it('exige los tres campos de identidad antes de crear el cliente', async () => {
+    const user = userEvent.setup()
+    await montarEnAvance()
+    await user.clear(screen.getByLabelText('Apellido materno'))
+    await llenarIdentidad(user)
+    await llenarPenCompleta(user)
+    await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'Completa los nombres y los dos apellidos del cliente antes de crear su cuenta.',
+    )
+    expect(convertirEdge).not.toHaveBeenCalled()
   })
 
   it('si la recarga falla después del commit, informa que la conversión sí quedó confirmada', async () => {

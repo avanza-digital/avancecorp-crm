@@ -85,6 +85,12 @@
 - El flujo real ya no importa el generador del navegador. El alta muestra el
   estado durable y “Mi cartera” permite consultar, reintentar y descargar desde
   la Edge sin regenerar bytes localmente.
+- Al convertir un lead en cliente, el diálogo ahora precarga una **sugerencia**
+  de Nombres, Apellido paterno y Apellido materno a partir del nombre libre del
+  lead. El vendedor debe confirmar o corregir los tres campos antes del alta;
+  el nombre original se conserva visible como referencia. La Edge existente
+  recibe `nombres`, `apellidos` (paterno + materno) y el nombre canónico en
+  orden de portal, sin cambios de esquema ni de la ruta de pagos.
 - Cerrar por Finalizar, Escape u overlay después del commit invalida la cartera
   una sola vez; durante alta, archivo o reintento el cierre queda bloqueado. Una
   respuesta tardía de otro contrato no puede reemplazar el estado visible.

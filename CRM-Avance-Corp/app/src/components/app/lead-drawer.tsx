@@ -57,6 +57,7 @@ import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
 import { useAuth } from '@/lib/auth-context'
 import {
   SECCION_BANCARIA_VACIA,
+  normNombrePersona,
   validarBancariosForm,
   validarDomicilioLegal,
   type SeccionBancariaForm,
@@ -1477,6 +1478,32 @@ const RE_DOCUMENTO: Record<TipoDocumentoCliente, { re: RegExp; err: string }> = 
   PASAPORTE: { re: /^[A-Z0-9]{6,12}$/, err: 'El pasaporte debe tener entre 6 y 12 caracteres' },
 }
 
+interface IdentidadSugerida {
+  nombres: string
+  apellidoPaterno: string
+  apellidoMaterno: string
+}
+
+/**
+ * El lead todavía conserva un único nombre libre. La conversión propone una
+ * separación útil para no obligar a reescribirlo, pero NO la toma como verdad:
+ * el vendedor confirma los tres campos antes de crear el cliente de pagos.
+ */
+function sugerirIdentidadDelLead(nombreCompleto: string): IdentidadSugerida {
+  const partes = normNombrePersona(nombreCompleto).split(' ').filter(Boolean)
+  if (partes.length < 2) {
+    return { nombres: partes[0] ?? '', apellidoPaterno: '', apellidoMaterno: '' }
+  }
+  if (partes.length === 2) {
+    return { nombres: partes[0]!, apellidoPaterno: partes[1]!, apellidoMaterno: '' }
+  }
+  return {
+    nombres: partes.slice(0, -2).join(' '),
+    apellidoPaterno: partes.at(-2)!,
+    apellidoMaterno: partes.at(-1)!,
+  }
+}
+
 /** Exportado SOLO para los tests del componente (se monta solo, con la API mockeada). */
 export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }) {
   const { convertir, convertirExterno, recargar } = useCRMData()
@@ -1503,6 +1530,13 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const [tipoDoc, setTipoDoc] = useState<TipoDocumentoCliente>('DNI')
   const [documento, setDocumento] = useState(l.dni ?? '')
   const [domicilio, setDomicilio] = useState('')
+  const [nombres, setNombres] = useState(() => sugerirIdentidadDelLead(l.nombre_completo).nombres)
+  const [apellidoPaterno, setApellidoPaterno] = useState(
+    () => sugerirIdentidadDelLead(l.nombre_completo).apellidoPaterno,
+  )
+  const [apellidoMaterno, setApellidoMaterno] = useState(
+    () => sugerirIdentidadDelLead(l.nombre_completo).apellidoMaterno,
+  )
   // Bancarios (PEN = columnas base, USD = sufijo _usd) — el cliente convertido
   // los necesita IGUAL que el del alta directa: sin cuenta no hay dónde
   // depositarle los intereses (hallazgo de Miguel 2026-07-16).
@@ -1555,6 +1589,15 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   const [clienteEnMiCartera, setClienteEnMiCartera] = useState<boolean | null>(null)
   const refAviso = useRef<HTMLDivElement>(null)
 
+  // El drawer normalmente se desmonta al cerrar, pero si navegan directo a otro
+  // lead sin desmontarlo, la identidad sugerida debe pertenecer al lead nuevo.
+  useEffect(() => {
+    const identidad = sugerirIdentidadDelLead(l.nombre_completo)
+    setNombres(identidad.nombres)
+    setApellidoPaterno(identidad.apellidoPaterno)
+    setApellidoMaterno(identidad.apellidoMaterno)
+  }, [l.id, l.nombre_completo])
+
   // Al enviar, el botón se deshabilita y el foco cae a <body>; que vuelva a
   // entrar al diálogo NO puede quedar en manos del rescate implícito de Radix
   // cuando lo que se pinta es una advertencia que hay que leer.
@@ -1582,6 +1625,14 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       setError('Ingresa un correo válido — es la cuenta de acceso del cliente')
       return
     }
+    const nombresLimpios = normNombrePersona(nombres)
+    const apellidoPaternoLimpio = normNombrePersona(apellidoPaterno)
+    const apellidoMaternoLimpio = normNombrePersona(apellidoMaterno)
+    if (!nombresLimpios || !apellidoPaternoLimpio || !apellidoMaternoLimpio) {
+      setError('Completa los nombres y los dos apellidos del cliente antes de crear su cuenta.')
+      return
+    }
+    const apellidos = `${apellidoPaternoLimpio} ${apellidoMaternoLimpio}`
     const docLimpio = documento.trim().toUpperCase()
     if (!docLimpio) {
       setError('El documento del cliente es obligatorio')
@@ -1618,7 +1669,9 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         correo: correoLimpio,
         tipo_documento: tipoDoc,
         documento: docLimpio,
-        nombre_completo: l.nombre_completo,
+        nombre_completo: `${apellidos} ${nombresLimpios}`,
+        apellidos,
+        nombres: nombresLimpios,
         telefono: l.telefono,
         domicilio: domicilioValidado.valor,
         bancarios: { pen, usd },
@@ -2119,8 +2172,61 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
           <DialogBody className="space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">
               Se creará la <b className="text-foreground">cuenta del cliente en el portal</b> y se le
-              enviará su correo de bienvenida con el acceso. Confirma sus datos:
+              enviará su correo de bienvenida con el acceso. Revisa y completa sus datos:
             </p>
+            <section className="rounded-xl border border-primary/20 bg-primary/[0.035] p-3" aria-label="Identidad para pagos">
+              <div className="flex items-start gap-2.5">
+                <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary [&_svg]:size-3.5">
+                  <ArrowRightLeft aria-hidden />
+                </span>
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-foreground">Revisión de identidad para pagos</p>
+                  <p className="mt-0.5 text-[11px] leading-relaxed text-muted-foreground">
+                    Se cargó una sugerencia desde el lead. Confirma que cada parte esté en el campo correcto.
+                  </p>
+                </div>
+              </div>
+              <div className="mt-2 border-l-2 border-primary/25 pl-2.5">
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Registrado en el lead</p>
+                <p className="mt-0.5 truncate text-xs font-semibold text-foreground" title={l.nombre_completo}>
+                  {l.nombre_completo}
+                </p>
+              </div>
+            </section>
+            <div className="grid grid-cols-2 gap-2.5">
+              <div className="col-span-2 space-y-1.5">
+                <Label htmlFor="cv-nombres">Nombres</Label>
+                <Input
+                  id="cv-nombres"
+                  value={nombres}
+                  onChange={(e) => setNombres(e.target.value)}
+                  placeholder="Ej. MARÍA JOSÉ"
+                  autoComplete="given-name"
+                  disabled={enviando}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-apellido-paterno">Apellido paterno</Label>
+                <Input
+                  id="cv-apellido-paterno"
+                  value={apellidoPaterno}
+                  onChange={(e) => setApellidoPaterno(e.target.value)}
+                  placeholder="Ej. PÉREZ"
+                  autoComplete="family-name"
+                  disabled={enviando}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="cv-apellido-materno">Apellido materno</Label>
+                <Input
+                  id="cv-apellido-materno"
+                  value={apellidoMaterno}
+                  onChange={(e) => setApellidoMaterno(e.target.value)}
+                  placeholder="Ej. ROJAS"
+                  disabled={enviando}
+                />
+              </div>
+            </div>
             <div className="space-y-1.5">
               <Label htmlFor="cv-correo">Correo del cliente</Label>
               <Input
