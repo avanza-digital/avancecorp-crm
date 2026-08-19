@@ -671,6 +671,67 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
     })
   })
 
+  // REGRESIÓN 2026-08-19 — el incidente del 34.º release.
+  //
+  // El front exigía `template_version: 'contrato-aep-17-v3'` mientras producción
+  // ya emitía v5. Resultado: TODA creación de contrato moría con «El servidor no
+  // confirmó completamente el contrato y su cuenta de pago» aunque el contrato SÍ
+  // se había creado — y el vendedor, creyendo que había fallado, lo creaba dos
+  // veces. Pasó porque la tolerancia v3-v5 vivía SOLO en el bundle publicado, sin
+  // commitear, y al reconstruir desde el commit se perdió.
+  //
+  // Ninguna prueba lo cazó porque el simulador de abajo devuelve v3 fijo: afirma
+  // contra lo que el front PIDE, no contra lo que el servidor MANDA. Esta prueba
+  // usa la respuesta REAL copiada de producción (contrato acc0eccf…, 19-ago).
+  it('acepta la reserva de PDF tal como la emite producción HOY (plantilla v5)', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, () =>
+        HttpResponse.json({
+          id: 'acc0eccf-7965-4cc4-b7d7-f28b2f5a2b20',
+          numero_contrato: '2026-01-007654',
+          cuenta_bancaria_id: '20000000-0000-4000-8000-000000000001',
+          pdf: {
+            contrato_id: 'acc0eccf-7965-4cc4-b7d7-f28b2f5a2b20',
+            job_id: '189670d0-a5a6-4334-97ed-5395572811a9',
+            estado: 'pendiente',
+            storage_bucket: 'contratos-generados',
+            storage_path: 'acc0eccf-7965-4cc4-b7d7-f28b2f5a2b20/v2/189670d0-a5a6-4334-97ed-5395572811a9/contrato.pdf',
+            nombre_archivo: 'Contrato-2026-01-007654.pdf',
+            template_version: 'contrato-aep-17-v5',
+            intentos: 0,
+            lease_expira_en: null,
+            reintentable: true,
+            sha256: null,
+            bytes: null,
+            archivo: null,
+          },
+        }),
+      ),
+    )
+    const r = await crearContrato(
+      {
+        cliente_id: '00000000-0000-4000-8000-0000000000c1',
+        capital: 10000,
+        moneda: 'PEN',
+        tasa_anual: 15,
+        modalidad: 'mensual',
+        tipo_interes: 'simple',
+        categoria: 'nuevo',
+        fecha_inicio: '2026-08-19',
+        fecha_vencimiento: '2027-08-19',
+        numero_contrato: '2026-01-007654',
+        notas_internas: null,
+        cuenta_pago: { tipo: 'perfil' },
+      } as never,
+      [{ numero_cuota: 1, fecha_programada: '2026-09-19', monto_programado: 125, tipo: 'cuota' }] as never,
+    )
+    // Que NO lance ya es la prueba: con la plantilla exigida a v3, el parse de
+    // Valibot rechaza esta respuesta y crearContrato revienta con ROW_CONTRACT.
+    expect(r.numero_contrato).toBe('2026-01-007654')
+    expect(r.id).toBe('acc0eccf-7965-4cc4-b7d7-f28b2f5a2b20')
+    expect(r.pdf.estado).toBe('pendiente')
+  })
+
   it('crearContrato confirma cuenta y reserva PDF durable en la misma RPC', async () => {
     let body: Record<string, unknown> = {}
     server.use(

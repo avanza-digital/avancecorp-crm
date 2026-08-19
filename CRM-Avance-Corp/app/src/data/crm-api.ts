@@ -1960,7 +1960,21 @@ const CrearContratoResultadoSchema = v.object({
     storage_bucket: v.literal('contratos-generados'),
     storage_path: v.pipe(v.string(), v.minLength(1)),
     nombre_archivo: v.pipe(v.string(), v.minLength(5)),
-    template_version: v.literal('contrato-aep-17-v3'),
+    // Durante un despliegue escalonado el frontend puede convivir unos minutos
+    // con reservas v3/v4 o con la v5 vigente. Todas representan jobs durables;
+    // cualquier otra versión sigue fallando cerrado.
+    //
+    // ⚠️ Esta tolerancia YA existía en el bundle vivo del 33.º release, aplicada
+    // sobre el commit SIN commitear. Al reconstruir desde ese commit se perdió,
+    // y el front volvió a exigir v3 mientras producción emite v5: TODA creación
+    // de contrato moría con «El servidor no confirmó completamente el contrato»
+    // aunque el contrato SÍ se había creado. Un parche que solo vive en el
+    // artefacto no existe: si no está en un commit, el siguiente release lo pisa.
+    template_version: v.picklist([
+      'contrato-aep-17-v3',
+      'contrato-aep-17-v4',
+      'contrato-aep-17-v5',
+    ]),
     intentos: v.pipe(v.number(), v.integer(), v.minValue(0)),
     lease_expira_en: v.nullable(v.string()),
     reintentable: v.boolean(),
