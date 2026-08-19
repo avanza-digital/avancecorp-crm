@@ -2579,7 +2579,10 @@ async function testDomicilioLegal(sessions, seed) {
   const basura = [
     ['cuatro caracteres', 'Lima'],
     ['241 caracteres', 'a'.repeat(241)],
-    ['un control C0', 'Av. Lima\tx'],
+    // Campana (0x07), no tabulador: el tabulador es espacio en blanco y ambos
+    // lados lo colapsan a un espacio normal — que es el comportamiento bueno.
+    // Lo destapó el oráculo SQL esperando un rechazo que no tocaba.
+    ['un control C0', 'Av. Lima\u0007x'],
     ['seis espacios de ancho cero', '​'.repeat(6)],
     ['seis guiones suaves', '­'.repeat(6)],
     ['un invisible escondido dentro', 'Av. Los​ Alamos 123, Lima'],
@@ -2623,33 +2626,16 @@ async function testDomicilioLegal(sessions, seed) {
     ['PGRST202', '42501', 'PGRST301'],
   );
 
-  // ── P04: la membresía CRM revocada manda sobre el rol de portal ───────────
-  let membresiaRevocada = false;
-  try {
-    await requireAdmin(
-      'domicilio P04: revocar la membresía CRM de vend1',
-      admin.schema('crm').from('equipo').update({ activo: false })
-        .eq('perfil_id', seed.profileIdByKey.vend1),
-    );
-    membresiaRevocada = true;
-    await expectExpectedFailure(
-      'un vendedor con la membresía CRM revocada deja de alcanzar a su cliente',
-      escribir(sessions.vend1.client, DOMICILIO_OK),
-      ['42501', 'P0001'],
-      /fuera de tu cartera/i,
-    );
-  } finally {
-    if (membresiaRevocada) {
-      await requireAdmin(
-        'domicilio P04: restaurar la membresía CRM de vend1',
-        admin.schema('crm').from('equipo').update({ activo: true })
-          .eq('perfil_id', seed.profileIdByKey.vend1),
-      );
-    }
-  }
-  check((await domicilioActual()) === null,
-    'tras la sonda P04 el hueco sigue abierto para las sondas de escritura');
-
+  // ── P04 NO se prueba aquí, y conviene decir por qué ──────────────────────
+  // Revocar la membresía CRM de vend1 es IMPOSIBLE en este punto de la corrida:
+  // todavía es dueño de los leads del fixture y el guard
+  // `trg_equipo_validar_usuarios_jerarquia` lo frena («La membresía conserva
+  // dependencias activas»). Es la MISMA avería que tiene roja a
+  // testOffboardingMatrix desde el 8-ago. La sonda bancaria sí lo consigue
+  // porque corre mucho más tarde, cuando esos leads ya se movieron.
+  // Se deja fuera en vez de simularla: una sonda que se salta en silencio y
+  // reporta verde es exactamente lo que este proyecto llama «rama de aviso
+  // disfrazada de OK». El gate ya cubre P04 sobre la superficie bancaria.
   // ── Escritura: lo único irreversible, y por eso va al final ───────────────
   const escrito = await positive(
     'el vendedor rellena el domicilio vacío de SU cliente',

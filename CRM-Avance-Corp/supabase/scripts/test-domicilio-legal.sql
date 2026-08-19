@@ -15,7 +15,7 @@
 -- arreglo funciona. Aquí sí puede vivir, porque este script se corre cuando se
 -- quiere y contra el mundo que se quiera.
 --
--- CÓMO SE CORRE. Contra un branch de Supabase ya sembrado:
+-- 10 casos. CÓMO SE CORRE. Contra un branch de Supabase ya sembrado:
 --     psql "$URL_BRANCH" -f supabase/scripts/test-domicilio-legal.sql
 --
 -- TODO ocurre dentro de UNA transacción que termina en ROLLBACK: no deja
@@ -115,69 +115,93 @@ begin
   end if;
   v_ok := v_ok + 1;
 
-  -- ── 5. Normalización: espacios exóticos y dobles ──────────────────────────
+  -- ── 5. El domicilio escrito NO se puede vaciar ────────────────────────────
+  -- Es la otra mitad de «nunca se pisa»: una vez puesto, ni el dueño de la base
+  -- puede dejarlo en blanco. Lo descubrió este mismo oráculo al intentar
+  -- reiniciarse entre casos, así que se afirma en vez de esquivarse.
+  begin
+    update public.perfiles set domicilio = null where id = v_cliente_vacio;
+    raise exception 'CASO 5: se pudo VACIAR un domicilio ya registrado';
+  exception when sqlstate '23514' then
+    null; -- correcto: private.bloquear_borrado_domicilio_legal
+  end;
+  v_ok := v_ok + 1;
+
+  -- ── 6. Normalización: espacios exóticos y dobles ──────────────────────────
+  -- Para volver al punto de partida hay que bajar ESE candado, por su NOMBRE
+  -- (nunca `disable trigger user`: así la auditoría sigue copiando). Todo el
+  -- script termina en rollback, de modo que no sobrevive nada.
+  alter table public.perfiles disable trigger perfiles_domicilio_legal_no_borrar;
   update public.perfiles set domicilio = null where id = v_cliente_vacio;
+  alter table public.perfiles enable trigger perfiles_domicilio_legal_no_borrar;
   v_r := crm.completar_domicilio_cliente(
     v_cliente_vacio, '  Av.' || U&'\00A0' || U&'\00A0' || 'Grau   456,' || U&'\3000' || 'Lima  '
   );
   select p.domicilio into v_leido from public.perfiles p where p.id = v_cliente_vacio;
   if v_leido <> 'Av. Grau 456, Lima' then
-    raise exception 'CASO 5: la normalización no coincide con la del navegador; quedó «%»', v_leido;
+    raise exception 'CASO 6: la normalización no coincide con la del navegador; quedó «%»', v_leido;
   end if;
   v_ok := v_ok + 1;
 
-  -- ── 6. Lo que NO puede entrar ─────────────────────────────────────────────
+  -- ── 7. Lo que NO puede entrar ─────────────────────────────────────────────
+  alter table public.perfiles disable trigger perfiles_domicilio_legal_no_borrar;
   update public.perfiles set domicilio = null where id = v_cliente_vacio;
+  alter table public.perfiles enable trigger perfiles_domicilio_legal_no_borrar;
   foreach v_candidato in array array[
     'Lima',                                   -- 4 caracteres
     repeat('a', 241),                         -- 241
-    'Av. Lima' || chr(9) || 'x',              -- control (tabulador)
+    -- Un control de VERDAD (campana, 0x07). El tabulador NO vale como caso: es
+    -- espacio en blanco y ambos lados lo colapsan a un espacio normal — que es
+    -- lo correcto. Lo destapó este oráculo esperando un rechazo que no toca.
+    'Av. Lima' || chr(7) || 'x',
     repeat(U&'\200B', 6),                     -- seis espacios de ancho CERO
     repeat(U&'\00AD', 6),                     -- seis guiones suaves
     'Av. Los' || U&'\200B' || ' Alamos 123, Lima'  -- invisible escondido dentro
   ] loop
     begin
       perform crm.completar_domicilio_cliente(v_cliente_vacio, v_candidato);
-      raise exception 'CASO 6: se aceptó un domicilio que debía rechazarse (%)', quote_literal(v_candidato);
+      raise exception 'CASO 7: se aceptó un domicilio que debía rechazarse (%)', quote_literal(v_candidato);
     exception when sqlstate '22023' then
       null; -- correcto
     end;
   end loop;
   select p.domicilio into v_leido from public.perfiles p where p.id = v_cliente_vacio;
   if v_leido is not null then
-    raise exception 'CASO 6: un rechazo dejó rastro; la columna vale %', v_leido;
+    raise exception 'CASO 7: un rechazo dejó rastro; la columna vale %', v_leido;
   end if;
   v_ok := v_ok + 1;
 
-  -- ── 7. Cliente ajeno: 42501, y SIN oráculo de existencia ──────────────────
-  if v_cliente_ajeno is not null then
+  -- ──── 8. Ajeno: el que cambia es el ACTOR, no el cliente ───────────────────
+  -- El seed solo tiene UN cliente, así que «ajeno» se prueba desde el otro lado:
+  -- otro vendedor (vend3, de otro subárbol) contra el mismo cliente.
+  begin
+    perform set_config('request.jwt.claim.sub', v_otro_vendedor::text, true);
     begin
-      perform crm.completar_domicilio_cliente(v_cliente_ajeno, 'Av. Ajena 123, Lima, Lima');
-      raise exception 'CASO 7: un vendedor escribió el domicilio de un cliente AJENO';
+      perform crm.completar_domicilio_cliente(v_cliente_vacio, 'Av. Ajena 123, Lima');
+      raise exception 'CASO 8: un vendedor de OTRO subárbol escribió el domicilio';
     exception when sqlstate '42501' then
       get stacked diagnostics v_msg_ajeno = message_text;
     end;
-    -- El mismo texto para «no existe» que para «ajeno»: si difirieran, esta
-    -- función sería un buscador de clientes de la competencia interna.
+    -- El mismo texto para «no existe» que para «ajeno»: si difirieran, la
+    -- función sería un buscador de clientes de otras carteras.
     begin
       perform crm.completar_domicilio_cliente(
-        '00000000-0000-4000-8000-000000000000'::uuid, 'Av. Fantasma 1, Lima, Lima'
+        '00000000-0000-4000-8000-000000000000'::uuid, 'Av. Fantasma 1, Lima'
       );
-      raise exception 'CASO 7: un cliente inexistente no fue rechazado';
+      raise exception 'CASO 8: un cliente inexistente no fue rechazado';
     exception when sqlstate '42501' then
       get stacked diagnostics v_msg_inexistente = message_text;
     end;
-    if v_msg_ajeno is distinct from v_msg_inexistente then
-      raise exception
-        'CASO 7: el mensaje distingue ajeno («%») de inexistente («%») → oráculo de existencia',
-        v_msg_ajeno, v_msg_inexistente;
-    end if;
-    v_ok := v_ok + 1;
-  else
-    raise exception 'CASO 7: no hay cliente de otro vendedor para probar el caso ajeno';
+    perform set_config('request.jwt.claim.sub', v_vendedor::text, true);
+  end;
+  if v_msg_ajeno is distinct from v_msg_inexistente then
+    raise exception
+      'CASO 8: el mensaje distingue ajeno («%») de inexistente («%») → oráculo de existencia',
+      v_msg_ajeno, v_msg_inexistente;
   end if;
+  v_ok := v_ok + 1;
 
-  -- ── 8. faltan_analista habla de QUIEN LLAMA, no del asesor del cliente ────
+  -- ── 9. faltan_analista habla de QUIEN LLAMA, no del asesor del cliente ────
   -- Se le vacía el teléfono al PROPIO llamante: si la función mirase al asesor
   -- del cliente (que aquí es el mismo) esto no probaría nada, así que se cambia
   -- de llamante a otro vendedor con permiso... y como no lo tiene sobre este
@@ -186,24 +210,24 @@ begin
   update public.perfiles set telefono = null where id = v_vendedor;
   v_r := crm.datos_legales_contrato_fn(v_cliente_vacio);
   if not (v_r->'faltan_analista' ? 'telefono') then
-    raise exception 'CASO 8: faltan_analista no refleja el teléfono vacío del llamante (%)', v_r;
+    raise exception 'CASO 9: faltan_analista no refleja el teléfono vacío del llamante (%)', v_r;
   end if;
   v_ok := v_ok + 1;
 
-  -- ── 9. Sin sesión no se pasa ──────────────────────────────────────────────
+  --  ── 10. Sin sesión no se pasa ──────────────────────────────────────────────
   perform set_config('request.jwt.claim.sub', '', true);
   begin
     perform crm.completar_domicilio_cliente(v_cliente_vacio, 'Av. Anonima 1, Lima, Lima');
-    raise exception 'CASO 9: se escribió sin sesión';
+    raise exception 'CASO 10: se escribió sin sesión';
   exception when insufficient_privilege then
     null; -- correcto
   end;
   v_ok := v_ok + 1;
 
   perform set_config('request.jwt.claim.sub', coalesce(v_sub_previo, ''), true);
-  raise notice 'ORÁCULO DEL DOMICILIO LEGAL: % / 9 casos OK.', v_ok;
-  if v_ok <> 9 then
-    raise exception 'ORÁCULO: solo % de 9 casos se ejecutaron', v_ok;
+  raise notice 'ORÁCULO DEL DOMICILIO LEGAL: % / 10 casos OK.', v_ok;
+  if v_ok <> 10 then
+    raise exception 'ORÁCULO: solo % de 10 casos se ejecutaron', v_ok;
   end if;
 end;
 $oraculo$;
