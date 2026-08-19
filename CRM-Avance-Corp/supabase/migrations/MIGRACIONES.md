@@ -2915,6 +2915,60 @@ Las secciones de `20260818204908` y `20260818233729` se trajeron a esta rama
 desde `feat/creacion-lead-atomica`, donde se habían escrito: ambas están vivas y
 la rama del release no las documentaba.
 
+## 20260819211815_crm_domicilio_una_sola_puerta.sql
+
+**Estado: COMPLETO EN PRODUCCIÓN el 2026-08-19** — pantalla y servidor.
+Verificado EJECUTANDO contra producción: los 6 rellenos (`LIMA.`, `PENDIENTE`,
+`no tiene`, `Su casa`, `....................`, la dirección de la propia Avance
+Corp) se rechazan **0 de 6 colados**, una dirección real pasa intacta, y de los
+**25 domicilios** registrados **0 quedan por debajo del listón**. Prueba visual
+de Miguel: OK.
+
+**El problema.** El mismo campo tenía CUATRO puertas y cada una su propia copia
+de la validación (`5..240` + `[[:cntrl:]]`). Tres copias de una regla son tres
+reglas: al cerrar los invisibles en la ventana de «+ Contrato», las otras tres
+seguían aceptándolos — comprobado EJECUTÁNDOLAS, no leyéndolas.
+
+**La solución.** `crm.normalizar_domicilio_legal` es la fuente ÚNICA y la usan
+`convertir_lead_con_domicilio`, `actualizar_cliente_gerencia_con_domicilio` y
+`completar_domicilio_cliente`. La edge (`_shared/domicilio.mjs`) y el navegador
+la espejan. Una sonda del postflight falla si alguna vuelve a validar por su
+cuenta.
+
+**El listón lo decidieron los datos**, no el criterio: de los 19 domicilios
+reales de entonces, el 100 % llevaba número y el más corto tenía 28 caracteres.
+Por eso mínimo 15 (antes 5) y al menos un dígito — no molesta a nadie y mata
+todos los rellenos. Más: ni un solo carácter repetido, ni la dirección de la
+propia Avance Corp (ya se había tecleado como domicilio de una clienta).
+
+**Divergencia encontrada y cerrada:** PostgreSQL trata **U+0085** (NEL) como
+espacio y lo colapsa; el navegador y la edge lo rechazaban como control C1.
+Medido contra producción. Ahora los tres lo normalizan igual.
+
+🔴 **Y el banco pilló un defecto de la propia sonda de esta migración:**
+POSTFLIGHT 2 («ningún domicilio vivo queda por debajo del listón») pasaba en
+VERDE sobre un branch donde no hay ni un domicilio escrito — la «rama de aviso
+disfrazada de OK» que este mismo ledger prohíbe, escrita el mismo día que se
+criticó. Corregida: si no hay nada que medir, **grita** en vez de aprobar.
+
+**Ciclo:** banco `domicilio-una-puerta`, paridad con producción (112 migraciones,
+111 fn crm, 148 fn private, 36 tablas crm) · oráculo 10/10 · gate RLS **352✓ / 2✗**
+con el bloque del domicilio **32/32** y los dos rojos ajenos de siempre ·
+asesores con **delta CERO**. Mutantes del front 5/5 (el de U+0085 sobrevivió al
+primer intento y destapó que nada lo probaba).
+
+⚠️ **El orden fue el CONTRARIO** al de la mañana: **pantalla primero**. Aquí no
+hay funciones nuevas que el front necesite, sino una validación que se aprieta:
+pantalla nueva + servidor viejo no rompe nada; al revés, el vendedor teclearía
+algo que su pantalla admite y el servidor le rechazaría al guardar.
+
+⚠️ **Efecto buscado:** si Gerencia abre la ficha de un cliente cuyo domicilio
+guardado es la dirección de Avance Corp y pulsa guardar SIN cambiarla, el sistema
+la rechaza. No es un fallo: obliga a corregirla, y el mensaje lo explica.
+
+**Marcador del día:** 332 clientes activos sin domicilio por la mañana → **327**
+al cierre. 19 → 25 domicilios escritos. El arreglo está llegando a la gente.
+
 ## 20260819162752_crm_domicilio_legal_faltante.sql
 
 **Estado: COMPLETO EN PRODUCCIÓN el 2026-08-19 — servidor Y front, verificado al
