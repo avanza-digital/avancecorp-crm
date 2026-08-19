@@ -491,7 +491,7 @@ describe('LeadNuevo — la regla D8 del origen (2026-08-11)', () => {
   // cargan solos por el puente; el alta manual no puede suplantarlos, y el
   // referido lo declara SOLO el vendedor. Si estas opciones reaparecieran en el
   // selector, el usuario elegiría algo que el servidor va a rechazar.
-  it('el vendedor ve exactamente Referido, Wallking y Otro', () => {
+  it('el vendedor ve exactamente Referido, Walking y Otro', () => {
     montar()
     const opciones = [...screen.getByLabelText('Origen *').querySelectorAll('option')]
       .map((opcion) => opcion.value)

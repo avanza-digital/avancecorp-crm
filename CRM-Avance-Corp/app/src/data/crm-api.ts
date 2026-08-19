@@ -16,8 +16,14 @@ import {
   TIPOS_ACTIVIDAD,
   TIPOS_TAREA,
   type Actividad,
+  type AgendaRepartoDiaria,
+  type AsignacionAgendaReparto,
   type CategoriaInteres,
   type ColaLead,
+  type DestinoAgendaReparto,
+  type DiaAgendaReparto,
+  type DistribucionAnalista,
+  type DistribucionSupervisor,
   type HistorialDerivacion,
   type Etapa,
   type Lead,
@@ -25,6 +31,7 @@ import {
   type Miembro,
   type MotivoDescarte,
   type Origen,
+  type PanelDistribucionReparto,
   type SupervisorReparto,
   type Tarea,
   type TipoActividad,
@@ -901,6 +908,70 @@ const HistorialDerivacionSchema = v.object({
   derivado_por_nombre: v.string(),
 })
 
+const DistribucionSupervisorSchema = v.object({
+  perfil_id: v.string(),
+  nombre: v.string(),
+  total_leads: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+})
+
+const DistribucionAnalistaSchema = v.object({
+  perfil_id: v.string(),
+  nombre: v.string(),
+  supervisor_id: v.nullable(v.string()),
+  supervisor_nombre: v.string(),
+  total_leads: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+})
+
+const PanelDistribucionRepartoSchema = v.object({
+  version: v.literal(1),
+  generado_en: v.string(),
+  total_leads: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  supervisores: v.array(DistribucionSupervisorSchema),
+  analistas: v.array(DistribucionAnalistaSchema),
+})
+
+const OrigenAgendaRepartoSchema = v.picklist(['landing', 'formulario'] as const)
+
+const DestinoAgendaRepartoSchema = v.object({
+  perfil_id: v.string(),
+  nombre: v.string(),
+  alias: v.string(),
+})
+
+const AsignacionAgendaRepartoSchema = v.object({
+  origen: OrigenAgendaRepartoSchema,
+  supervisor_id: v.nullable(v.string()),
+  supervisor_nombre: v.nullable(v.string()),
+  supervisor_alias: v.nullable(v.string()),
+  derivados: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+})
+
+const DiaAgendaRepartoSchema = v.object({
+  fecha: v.string(),
+  asignaciones: v.array(AsignacionAgendaRepartoSchema),
+})
+
+const AgendaRepartoDiariaSchema = v.object({
+  version: v.literal(1),
+  fecha_desde: v.string(),
+  destinos: v.array(DestinoAgendaRepartoSchema),
+  dias: v.array(DiaAgendaRepartoSchema),
+})
+
+const AgendaRepartoGuardadaSchema = v.object({
+  version: v.literal(1),
+  fecha: v.string(),
+  guardado_en: v.string(),
+})
+
+/** La lista queda intencionalmente corta: el historial se navega, no crece. */
+export const TAMANO_PAGINA_HISTORIAL_REPARTO = 25
+
+export interface FiltrosAgendaRepartoDiaria {
+  desde?: string
+  dias?: number
+}
+
 export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]> {
   let consulta = cliente().schema('crm').rpc('leads_por_repartir')
   if (signal) consulta = consulta.abortSignal(signal)
@@ -929,7 +1000,7 @@ export async function historialDerivaciones(
   signal?: AbortSignal,
 ): Promise<HistorialDerivacion[]> {
   let consulta = cliente().schema('crm').rpc('historial_derivaciones', {
-    p_limite: 100,
+    p_limite: TAMANO_PAGINA_HISTORIAL_REPARTO,
     ...(cursor
       ? { p_derivado_antes: cursor.derivado_en, p_actividad_antes: cursor.actividad_id }
       : {}),
@@ -951,6 +1022,131 @@ export async function historialDerivaciones(
     if (r.success) items.push(r.output)
   }
   return items
+}
+
+/**
+ * Agenda semanal de Rosa: únicamente Landing y Formulario, sus dos destinos
+ * habilitados y los conteos reales de entradas a bandeja. No devuelve leads.
+ */
+export async function agendaRepartoDiaria(
+  filtros: FiltrosAgendaRepartoDiaria = {},
+  signal?: AbortSignal,
+): Promise<AgendaRepartoDiaria> {
+  let consulta = cliente().schema('crm').rpc('agenda_reparto_diaria', {
+    ...(filtros.desde ? { p_desde: filtros.desde } : {}),
+    ...(filtros.dias ? { p_dias: filtros.dias } : {}),
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudo cargar la agenda de reparto.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.agenda_fallida', fallo)
+    throw fallo
+  }
+  const resultado = v.safeParse(AgendaRepartoDiariaSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'La agenda de reparto no tiene el formato esperado.',
+      'AGENDA_REPARTO_CONTRACT',
+    )
+    registrarError('crm.reparto.agenda_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    ...resultado.output,
+    destinos: resultado.output.destinos as DestinoAgendaReparto[],
+    dias: resultado.output.dias.map((dia) => ({
+      ...dia,
+      asignaciones: dia.asignaciones as AsignacionAgendaReparto[],
+    })) as DiaAgendaReparto[],
+  }
+}
+
+/** Guarda juntos los dos carriles del día para que nunca quede media agenda. */
+export async function guardarAgendaRepartoDiaria(
+  fecha: string,
+  landingSupervisorId: string,
+  formularioSupervisorId: string,
+  signal?: AbortSignal,
+): Promise<void> {
+  let consulta = cliente().schema('crm').rpc('guardar_agenda_reparto_diaria', {
+    p_fecha: fecha,
+    p_landing: landingSupervisorId,
+    p_formulario: formularioSupervisorId,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudo guardar la agenda de reparto.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.agenda_guardado_fallido', fallo)
+    throw fallo
+  }
+  if (!v.safeParse(AgendaRepartoGuardadaSchema, data).success) {
+    const fallo = new CrmApiError(
+      'La confirmación de la agenda de reparto no tiene el formato esperado.',
+      'AGENDA_REPARTO_GUARDADO_CONTRACT',
+    )
+    registrarError('crm.reparto.agenda_guardado_fuera_de_contrato', fallo)
+    throw fallo
+  }
+}
+
+export interface FiltrosPanelDistribucionReparto {
+  supervisorId?: string
+  analistaId?: string
+  origen?: Origen
+}
+
+/**
+ * Foto actual de la cartera distribuida, agrupada por supervisor y analista.
+ * El RPC no entrega PII ni embudo: solo los conteos que necesita Coordinación.
+ * Sin filtros de origen incluye referido, Walking (`oficina`) y el resto de
+ * orígenes actuales e históricos.
+ */
+export async function panelDistribucionReparto(
+  filtros: FiltrosPanelDistribucionReparto = {},
+  signal?: AbortSignal,
+): Promise<PanelDistribucionReparto> {
+  const argumentos = {
+    p_solo_activos: true,
+    ...(filtros.supervisorId ? { p_supervisor: filtros.supervisorId } : {}),
+    ...(filtros.analistaId ? { p_analista: filtros.analistaId } : {}),
+    ...(filtros.origen ? { p_origen: filtros.origen } : {}),
+  }
+  let consulta = cliente().schema('crm').rpc('panel_distribucion_reparto', argumentos)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudo cargar el panel de distribución.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.panel_distribucion_fallido', fallo)
+    throw fallo
+  }
+  const resultado = v.safeParse(PanelDistribucionRepartoSchema, data)
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'El panel de distribución no tiene el formato esperado.',
+      'PANEL_DISTRIBUCION_CONTRACT',
+    )
+    registrarError('crm.reparto.panel_distribucion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return {
+    ...resultado.output,
+    supervisores: resultado.output.supervisores as DistribucionSupervisor[],
+    analistas: resultado.output.analistas as DistribucionAnalista[],
+  }
 }
 
 export async function supervisoresParaReparto(signal?: AbortSignal): Promise<SupervisorReparto[]> {

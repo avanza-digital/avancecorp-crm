@@ -57,8 +57,11 @@ import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { HistorialDerivaciones } from '@/components/app/historial-derivaciones'
+import { PanelDistribucionReparto } from '@/components/app/panel-distribucion-reparto'
+import { Paginacion } from '@/components/common/paginacion'
+import { paginar } from '@/lib/paginacion'
 
-/** Cuántas filas se muestran por página local ("Mostrar 20 más"). */
+/** Cuántas filas se muestran por página local. Nunca se acumulan al navegar. */
 const PAGINA = 20
 
 /**
@@ -252,7 +255,7 @@ function PanelCola() {
   const [expandidos, setExpandidos] = useState<Record<string, boolean>>({})
   // Filtros/orden de PRESENTACIÓN (la RPC no cambia) + paginación local.
   const [filtros, setFiltros] = useState<FiltrosCola>(FILTROS_INICIALES)
-  const [visibles, setVisibles] = useState(PAGINA)
+  const [pagina, setPagina] = useState(0)
   // El conmutador de modo DESTRUYE el control enfocado: sin foco programático,
   // el teclado cae a <body> y hay que retabular toda la página (revisor a11y).
   // NO autoFocus: fuera de un modal es hallazgo (excepción 3 de .oxlintrc.json).
@@ -264,16 +267,17 @@ function PanelCola() {
   // tile diría «hace 2 días» mientras la fila sigue clavada en «hace 1 día».
   const ahora = useAhora()
 
-  /** Cambia un filtro y vuelve a la primera página (evita "Mostrando 40 de 3"). */
+  /** Cambia un filtro y vuelve a la primera página. */
   const setFiltro = useCallback((patch: Partial<FiltrosCola>) => {
     setFiltros((f) => ({ ...f, ...patch }))
-    setVisibles(PAGINA)
+    setPagina(0)
   }, [])
 
   const marcados = useMemo(() => contarMarcados(cola), [cola])
   const origenes = useMemo(() => origenesDeCola(cola), [cola])
   const colaFiltrada = useMemo(() => filtrarYOrdenarCola(cola, filtros), [cola, filtros])
-  const colaVisible = colaFiltrada.slice(0, visibles)
+  const paginaCola = paginar(colaFiltrada, pagina, PAGINA)
+  const colaVisible = paginaCola.visibles
   const hayFiltrosActivos = filtros.busqueda.trim() !== ''
     || filtros.soloMarcados || filtros.origen !== ''
 
@@ -431,7 +435,7 @@ function PanelCola() {
                 <Button
                   size="sm"
                   variant="outline"
-                  onClick={() => { setFiltros(FILTROS_INICIALES); setVisibles(PAGINA) }}
+                  onClick={() => { setFiltros(FILTROS_INICIALES); setPagina(0) }}
                 >
                   Limpiar filtros
                 </Button>
@@ -598,20 +602,15 @@ function PanelCola() {
                     </div>
                   )
                 })}
-                {colaFiltrada.length > colaVisible.length ? (
-                  <div className="flex items-center justify-center gap-3 border-t border-border pt-3">
-                    <span className="text-[11px] font-semibold text-muted-foreground">
-                      Mostrando {colaVisible.length} de {colaFiltrada.length}
-                    </span>
-                    <Button size="sm" variant="outline" onClick={() => setVisibles((v) => v + PAGINA)}>
-                      Mostrar {PAGINA} más
-                    </Button>
-                  </div>
-                ) : colaFiltrada.length > PAGINA ? (
-                  <p className="border-t border-border pt-3 text-center text-[11px] text-muted-foreground">
-                    Fin de la cola · {colaFiltrada.length} leads
-                  </p>
-                ) : null}
+                <div className="border-t border-border pt-3">
+                  <Paginacion
+                    paginaActual={paginaCola.paginaActual}
+                    paginas={paginaCola.paginas}
+                    total={colaFiltrada.length}
+                    onCambio={setPagina}
+                    ariaLabel="Paginación de la cola de leads"
+                  />
+                </div>
               </div>
             )}
           </>
@@ -626,6 +625,7 @@ function PanelCola() {
  *  vive aquí toda la ventana de 24 h — no solo en el toast de 15 s de la cola. */
 function PanelDescartados({ onCambio }: { onCambio: () => void }) {
   const [lista, setLista] = useState<LeadDescartado[]>([])
+  const [pagina, setPagina] = useState(0)
   const [cargando, setCargando] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [deshaciendo, setDeshaciendo] = useState<string | null>(null)
@@ -642,6 +642,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
       const filas = await leadsDescartados(ctrl.signal)
       if (ctrl.signal.aborted) return
       setLista(filas)
+      setPagina(0)
     } catch (e) {
       if (ctrl.signal.aborted) return
       setError(e instanceof Error ? e.message : 'No se pudo cargar la lista de descartados.')
@@ -675,6 +676,8 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
     }
   }, [cargar, onCambio])
 
+  const paginaDescartados = paginar(lista, pagina, PAGINA)
+
   return (
     <Card className="overflow-hidden">
       <SectionHead
@@ -698,7 +701,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
         />
       ) : (
         <div className="space-y-2 px-5 pb-5">
-          {lista.map((lead) => {
+          {paginaDescartados.visibles.map((lead) => {
             const marcado = lead.clasificacion_auto === 'posible_credito'
             const expandido = expandidos[lead.id] === true
             const comentarioLargo = (lead.comentario ?? '').length > 160
@@ -774,6 +777,15 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
               </div>
             )
           })}
+          <div className="border-t border-border pt-3">
+            <Paginacion
+              paginaActual={paginaDescartados.paginaActual}
+              paginas={paginaDescartados.paginas}
+              total={lista.length}
+              onCambio={setPagina}
+              ariaLabel="Paginación de leads descartados"
+            />
+          </div>
         </div>
       )}
     </Card>
@@ -781,35 +793,37 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
 }
 
 export function Repartir() {
-  const [tab, setTab] = useState<'cola' | 'descartados' | 'historial'>('cola')
+  const [tab, setTab] = useState<'panel' | 'cola' | 'descartados' | 'historial'>('panel')
   // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
   // de la pestaña Cola (key) para que la relea al volver a ella.
   const [colaKey, setColaKey] = useState(0)
 
   return (
-    <div className="space-y-4">
-      <div
-        role="tablist"
-        aria-label="Vistas de la cola de leads"
-        className="inline-flex gap-1 rounded-lg border border-border bg-muted/50 p-1"
-      >
-        {([['cola', 'Cola de nuevos'], ['historial', 'Historial'], ['descartados', 'Descartados']] as const).map(([k, label]) => (
-          <button
-            key={k}
-            type="button"
-            role="tab"
-            aria-selected={tab === k}
-            onClick={() => setTab(k)}
-            className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
-              tab === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
-            }`}
-          >
-            {label}
-          </button>
-        ))}
+    <div className="mx-auto max-w-[1240px] space-y-4">
+      <div className="overflow-x-auto pb-1">
+        <div
+          role="tablist"
+          aria-label="Vistas de distribución de leads"
+          className="inline-flex min-w-max gap-1 rounded-lg border border-border bg-muted/50 p-1"
+        >
+          {([['panel', 'Distribución'], ['cola', 'Cola de nuevos'], ['historial', 'Historial'], ['descartados', 'Descartados']] as const).map(([k, label]) => (
+            <button
+              key={k}
+              type="button"
+              role="tab"
+              aria-selected={tab === k}
+              onClick={() => setTab(k)}
+              className={`rounded-md px-3 py-1.5 text-xs font-semibold transition-colors ${
+                tab === k ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
       </div>
 
-      {tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
+      {tab === 'panel' ? <PanelDistribucionReparto /> : tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
         <PanelDescartados
           onCambio={() => { setColaKey((n) => n + 1); refrescarResumenReparto() }}
         />

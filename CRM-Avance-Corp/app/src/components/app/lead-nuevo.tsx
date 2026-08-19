@@ -1070,7 +1070,7 @@ function FormularioNuevoLead({
                 </option>
                 {/* Regla D8 (Miguel, 2026-08-11), espejo del 42501 del servidor
                     (20260811210049): el alta MANUAL solo admite lo que un
-                    humano declara — Referido, Wallking y Otro. LANDING y
+                    humano declara — Referido, Walking y Otro. LANDING y
                     FORMULARIO se cargan solos por el puente y ofrecerlos aquí
                     sería invitar a suplantar al canal. Y el referido lo
                     registra SOLO el vendedor, a su propio nombre: con el 15 %

@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ColaLead, HistorialDerivacion, SupervisorReparto } from '@/lib/tipos'
+import type { AgendaRepartoDiaria, ColaLead, HistorialDerivacion, PanelDistribucionReparto, SupervisorReparto } from '@/lib/tipos'
 
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
@@ -15,10 +15,42 @@ vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }
 let COLA: ColaLead[] = []
 let SUPERVISORES: SupervisorReparto[] = []
 let HISTORIAL: HistorialDerivacion[] = []
+let PANEL: PanelDistribucionReparto = {
+  version: 1,
+  generado_en: '2026-08-19T10:00:00Z',
+  total_leads: 3,
+  supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: 3 }],
+  analistas: [{ perfil_id: 'vend-1', nombre: 'VENDEDOR UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
+}
 const repartirMock = vi.fn<(lead: string, sup: string) => Promise<void>>()
 const colaMock = vi.fn(async () => COLA)
 const supervisoresMock = vi.fn(async () => SUPERVISORES)
 const historialMock = vi.fn(async () => HISTORIAL)
+const panelMock = vi.fn(async () => PANEL)
+const partesHoyLima = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+}).formatToParts(new Date())
+const parteHoyLima = (tipo: Intl.DateTimeFormatPartTypes) => (
+  partesHoyLima.find((parte) => parte.type === tipo)?.value ?? ''
+)
+const fechaHoyLima = `${parteHoyLima('year')}-${parteHoyLima('month')}-${parteHoyLima('day')}`
+let AGENDA: AgendaRepartoDiaria = {
+  version: 1,
+  fecha_desde: fechaHoyLima,
+  destinos: [
+    { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
+    { perfil_id: 'sup-jor', nombre: 'JORGE MARZANO', alias: 'Jor' },
+  ],
+  dias: [{
+    fecha: fechaHoyLima,
+    asignaciones: [
+      { origen: 'landing', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
+      { origen: 'formulario', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
+    ],
+  }],
+}
+const agendaMock = vi.fn(async () => AGENDA)
+const guardarAgendaMock = vi.fn<(fecha: string, landing: string, formulario: string) => Promise<void>>(async () => {})
 
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
@@ -28,6 +60,9 @@ vi.mock('@/data/crm-api', async (importActual) => {
     supervisoresParaReparto: () => supervisoresMock(),
     repartirLead: (lead: string, sup: string) => repartirMock(lead, sup),
     historialDerivaciones: () => historialMock(),
+    panelDistribucionReparto: () => panelMock(),
+    agendaRepartoDiaria: () => agendaMock(),
+    guardarAgendaRepartoDiaria: (fecha: string, landing: string, formulario: string) => guardarAgendaMock(fecha, landing, formulario),
   }
 })
 
@@ -76,12 +111,37 @@ beforeEach(() => {
   COLA = []
   SUPERVISORES = SUP
   HISTORIAL = []
+  AGENDA = {
+    version: 1,
+    fecha_desde: fechaHoyLima,
+    destinos: [
+      { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
+      { perfil_id: 'sup-jor', nombre: 'JORGE MARZANO', alias: 'Jor' },
+    ],
+    dias: [{
+      fecha: fechaHoyLima,
+      asignaciones: [
+        { origen: 'landing', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
+        { origen: 'formulario', supervisor_id: null, supervisor_nombre: null, supervisor_alias: null, derivados: 0 },
+      ],
+    }],
+  }
+  PANEL = {
+    version: 1,
+    generado_en: '2026-08-19T10:00:00Z',
+    total_leads: 3,
+    supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: 3 }],
+    analistas: [{ perfil_id: 'vend-1', nombre: 'VENDEDOR UNO', supervisor_id: 'sup-1', supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2 }],
+  }
   RESUMEN_CAIDO = false
   recargarResumenMock.mockClear()
   repartirMock.mockReset().mockResolvedValue(undefined)
   colaMock.mockClear()
   supervisoresMock.mockClear()
   historialMock.mockClear()
+  panelMock.mockClear()
+  agendaMock.mockClear()
+  guardarAgendaMock.mockReset().mockResolvedValue(undefined)
   toastSuccess.mockClear()
   toastError.mockClear()
 })
@@ -108,7 +168,20 @@ async function valorDelTile(etiqueta: string, esperado: string): Promise<void> {
   )
 }
 
+async function abrirCola(usuario = userEvent.setup()): Promise<void> {
+  await usuario.click(screen.getByRole('tab', { name: 'Cola de nuevos' }))
+}
+
 describe('pantalla Repartir leads', () => {
+  it('abre con el panel compacto de distribución, sin etapas ni capacidad', async () => {
+    render(<Repartir />)
+
+    expect(await screen.findByText('Leads por supervisor')).toBeInTheDocument()
+    expect(screen.getByText('Leads por analista')).toBeInTheDocument()
+    expect(screen.getByText(/Solo conteos · sin etapas ni capacidad/)).toBeInTheDocument()
+    expect(panelMock).toHaveBeenCalledTimes(1)
+  })
+
   it('da a Coordinación el historial de distribución sin abrir la ficha del lead', async () => {
     HISTORIAL = [{
       actividad_id: 'hist-1', lead_id: 'lead-1', nombre_completo: 'MARÍA PÉREZ', distrito: 'Piura',
@@ -127,8 +200,70 @@ describe('pantalla Repartir leads', () => {
     expect(screen.getByText(/No incluye teléfono, correo ni DNI/)).toBeInTheDocument()
   })
 
+  it('agenda Landing y Formulario para Carmen y Jor desde Historial', async () => {
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+
+    await usuario.click(screen.getByRole('tab', { name: 'Historial' }))
+    expect(await screen.findByText('Agenda de reparto')).toBeInTheDocument()
+    await usuario.selectOptions(screen.getByLabelText('Asignar Landing a una supervisora'), 'sup-carmen')
+    await usuario.selectOptions(screen.getByLabelText('Asignar Formulario a una supervisora'), 'sup-jor')
+    await usuario.click(screen.getByRole('button', { name: 'Guardar turno' }))
+
+    await waitFor(() => expect(guardarAgendaMock).toHaveBeenCalledWith(fechaHoyLima, 'sup-carmen', 'sup-jor'))
+    expect(agendaMock).toHaveBeenCalled()
+    expect(toastSuccess).toHaveBeenCalledWith(expect.stringContaining('Turno del'))
+  })
+
+  it('pagina la cola en vez de acumular filas en una pantalla interminable', async () => {
+    COLA = Array.from({ length: 21 }, (_, indice) => lead({
+      id: `lead-${indice + 1}`,
+      nombre_completo: `LEAD ${indice + 1}`,
+    }))
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await abrirCola(usuario)
+
+    expect(await screen.findByText('LEAD 1')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD 21')).not.toBeInTheDocument()
+    expect(screen.getByText('Página 1 de 2 · 21 registros')).toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(await screen.findByText('LEAD 21')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD 1')).not.toBeInTheDocument()
+  })
+
+  it('navega el historial por páginas de 25 sin anexar tarjetas previas', async () => {
+    HISTORIAL = Array.from({ length: 25 }, (_, indice) => ({
+      actividad_id: `hist-${indice + 1}`,
+      lead_id: `lead-${indice + 1}`,
+      nombre_completo: `HISTORIAL ${indice + 1}`,
+      distrito: null,
+      origen: 'referido' as const,
+      monto_estimado: 5000,
+      moneda: 'PEN' as const,
+      etapa_actual: 'contactado' as const,
+      movimiento: 'asignado',
+      derivado_en: '2026-08-19T10:00:00Z',
+      responsable_anterior: 'Bandeja de SUPERVISOR UNO',
+      responsable_nuevo: 'VENDEDOR UNO',
+      derivado_por_nombre: 'SUPERVISOR UNO',
+    }))
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+    await usuario.click(screen.getByRole('tab', { name: 'Historial' }))
+
+    expect(await screen.findByText('HISTORIAL 1')).toBeInTheDocument()
+    expect(screen.getByText('Página 1 · hasta 25 movimientos')).toBeInTheDocument()
+    await usuario.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(await screen.findByText('Página 2 · hasta 25 movimientos')).toBeInTheDocument()
+    expect(screen.getAllByText('HISTORIAL 1')).toHaveLength(1)
+    expect(historialMock).toHaveBeenCalledTimes(2)
+  })
+
   it('pinta un vacío honesto cuando no hay nada por repartir', async () => {
     render(<Repartir />)
+    await abrirCola()
     expect(await screen.findByText('No hay leads por repartir')).toBeInTheDocument()
   })
 
@@ -138,6 +273,7 @@ describe('pantalla Repartir leads', () => {
       lead({ id: 'l-usd', monto_estimado: 30000, moneda: 'USD', nombre_completo: 'JUAN PEREZ' }),
     ]
     render(<Repartir />)
+    await abrirCola()
 
     await screen.findByText('ROSA QUISPE')
     // Cada cifra acotada a SU tile: "S/ 12k" también aparece —con razón— en la
@@ -154,6 +290,7 @@ describe('pantalla Repartir leads', () => {
       lead({ id: 'l-2', monto_estimado: 30000, moneda: 'USD', nombre_completo: 'JUAN PEREZ' }),
     ]
     render(<Repartir />)
+    await abrirCola()
 
     await screen.findByText('ROSA QUISPE')
     await valorDelTile('Por repartir', '2')
@@ -161,6 +298,7 @@ describe('pantalla Repartir leads', () => {
 
   it('sin cola, la espera más larga se muestra como «—» (no como "hoy")', async () => {
     render(<Repartir />)
+    await abrirCola()
 
     await screen.findByText('No hay leads por repartir')
     expect(within(tile('Espera más larga')).getByText('—')).toBeInTheDocument()
@@ -170,6 +308,7 @@ describe('pantalla Repartir leads', () => {
     RESUMEN_CAIDO = true
     COLA = [lead({ monto_estimado: 12000, moneda: 'PEN' })]
     render(<Repartir />)
+    await abrirCola()
 
     // La lista tiene su propia fuente: no se cae con el resumen.
     await screen.findByText('ROSA QUISPE')
@@ -197,6 +336,7 @@ describe('pantalla Repartir leads', () => {
     COLA = [lead()]
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await abrirCola(usuario)
 
     await screen.findByText('ROSA QUISPE')
     await usuario.selectOptions(
@@ -220,6 +360,7 @@ describe('pantalla Repartir leads', () => {
     )
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await abrirCola(usuario)
 
     await screen.findByText('ROSA QUISPE')
     await usuario.selectOptions(
@@ -245,6 +386,7 @@ describe('pantalla Repartir leads', () => {
     )
     const usuario = userEvent.setup()
     render(<Repartir />)
+    await abrirCola(usuario)
 
     await screen.findByText('ROSA QUISPE')
     await usuario.selectOptions(
@@ -261,6 +403,7 @@ describe('pantalla Repartir leads', () => {
     COLA = [lead()]
     SUPERVISORES = []
     render(<Repartir />)
+    await abrirCola()
 
     expect(await screen.findByText('No hay supervisores activos')).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Repartir a / })).not.toBeInTheDocument()
@@ -269,6 +412,7 @@ describe('pantalla Repartir leads', () => {
   it('el destino muestra la carga de cada bandeja (para repartir con criterio)', async () => {
     COLA = [lead()]
     render(<Repartir />)
+    await abrirCola()
 
     const select = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
     expect(within(select).getByText('SUPERVISOR UNO (2 en bandeja)')).toBeInTheDocument()

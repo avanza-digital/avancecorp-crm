@@ -13,12 +13,15 @@ vi.mock('@/lib/supabase', async () => {
 })
 
 import {
+  agendaRepartoDiaria,
   CrmApiError,
   descartarLead,
   deshacerDescarte,
+  guardarAgendaRepartoDiaria,
   historialDerivaciones,
   leadsPorRepartir,
   listarResumenReparto,
+  panelDistribucionReparto,
   repartirLead,
   supervisoresParaReparto,
 } from './crm-api'
@@ -61,6 +64,33 @@ const FILA_HISTORIAL = {
   responsable_anterior: 'Bandeja de SUPERVISOR UNO',
   responsable_nuevo: 'VENDEDOR UNO',
   derivado_por_nombre: 'SUPERVISOR UNO',
+}
+
+const PANEL_DISTRIBUCION = {
+  version: 1,
+  generado_en: '2026-08-19T20:33:33Z',
+  total_leads: '7',
+  supervisores: [{ perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', total_leads: '5' }],
+  analistas: [{
+    perfil_id: 'vend-1', nombre: 'VENDEDOR UNO', supervisor_id: 'sup-1',
+    supervisor_nombre: 'SUPERVISOR UNO', total_leads: 2,
+  }],
+}
+
+const AGENDA_REPARTO = {
+  version: 1,
+  fecha_desde: '2026-08-17',
+  destinos: [
+    { perfil_id: 'sup-carmen', nombre: 'CARMEN JARAMILLO', alias: 'Carmen' },
+    { perfil_id: 'sup-jor', nombre: 'JORGE MARZANO', alias: 'Jor' },
+  ],
+  dias: [{
+    fecha: '2026-08-19',
+    asignaciones: [
+      { origen: 'landing', supervisor_id: 'sup-carmen', supervisor_nombre: 'CARMEN JARAMILLO', supervisor_alias: 'Carmen', derivados: '12' },
+      { origen: 'formulario', supervisor_id: 'sup-jor', supervisor_nombre: 'JORGE MARZANO', supervisor_alias: 'Jor', derivados: 8 },
+    ],
+  }],
 }
 
 describe('leadsPorRepartir (msw)', () => {
@@ -152,7 +182,7 @@ describe('historialDerivaciones (msw)', () => {
     await expect(historialDerivaciones()).resolves.toEqual([
       expect.objectContaining({ actividad_id: 'actividad-1', monto_estimado: 30000, etapa_actual: 'contactado' }),
     ])
-    expect(cuerpo).toEqual({ p_limite: 100 })
+    expect(cuerpo).toEqual({ p_limite: 25 })
   })
 
   it('envía el cursor compuesto al pedir la página siguiente', async () => {
@@ -166,10 +196,99 @@ describe('historialDerivaciones (msw)', () => {
 
     await historialDerivaciones({ actividad_id: 'actividad-9', derivado_en: '2026-08-18T10:00:00Z' })
     expect(cuerpo).toEqual({
-      p_limite: 100,
+      p_limite: 25,
       p_derivado_antes: '2026-08-18T10:00:00Z',
       p_actividad_antes: 'actividad-9',
     })
+  })
+})
+
+describe('panelDistribucionReparto (msw)', () => {
+  it('pide una foto agregada, transforma conteos y no solicita filas de leads', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('panel_distribucion_reparto'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json(PANEL_DISTRIBUCION)
+      }),
+    )
+
+    await expect(panelDistribucionReparto()).resolves.toMatchObject({
+      version: 1,
+      total_leads: 7,
+      supervisores: [{ perfil_id: 'sup-1', total_leads: 5 }],
+      analistas: [{ perfil_id: 'vend-1', total_leads: 2 }],
+    })
+    expect(cuerpo).toEqual({ p_solo_activos: true })
+  })
+
+  it('envía los filtros elegidos al servidor', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('panel_distribucion_reparto'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json(PANEL_DISTRIBUCION)
+      }),
+    )
+
+    await panelDistribucionReparto({ supervisorId: 'sup-1', analistaId: 'vend-1', origen: 'referido' })
+    expect(cuerpo).toEqual({
+      p_solo_activos: true,
+      p_supervisor: 'sup-1',
+      p_analista: 'vend-1',
+      p_origen: 'referido',
+    })
+  })
+
+  it('rechaza una respuesta de panel fuera de contrato', async () => {
+    server.use(
+      http.post(RPC('panel_distribucion_reparto'), () =>
+        HttpResponse.json({ ...PANEL_DISTRIBUCION, version: 2 }),
+      ),
+    )
+
+    await expect(panelDistribucionReparto()).rejects.toMatchObject({ code: 'PANEL_DISTRIBUCION_CONTRACT' })
+  })
+})
+
+describe('agendaRepartoDiaria (msw)', () => {
+  it('carga solo los turnos Landing/Formulario, sus destinos y conteos', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('agenda_reparto_diaria'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json(AGENDA_REPARTO)
+      }),
+    )
+
+    await expect(agendaRepartoDiaria({ desde: '2026-08-17', dias: 7 })).resolves.toMatchObject({
+      version: 1,
+      destinos: [{ alias: 'Carmen' }, { alias: 'Jor' }],
+      dias: [{
+        fecha: '2026-08-19',
+        asignaciones: [{ origen: 'landing', derivados: 12 }, { origen: 'formulario', derivados: 8 }],
+      }],
+    })
+    expect(cuerpo).toEqual({ p_desde: '2026-08-17', p_dias: 7 })
+  })
+
+  it('guarda ambos carriles juntos y rechaza una confirmación fuera de contrato', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('guardar_agenda_reparto_diaria'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json({ version: 1, fecha: '2026-08-19', guardado_en: '2026-08-19T10:00:00Z' })
+      }),
+    )
+
+    await expect(guardarAgendaRepartoDiaria('2026-08-19', 'sup-carmen', 'sup-jor')).resolves.toBeUndefined()
+    expect(cuerpo).toEqual({ p_fecha: '2026-08-19', p_landing: 'sup-carmen', p_formulario: 'sup-jor' })
+
+    server.use(
+      http.post(RPC('guardar_agenda_reparto_diaria'), () => HttpResponse.json({ version: 2 })),
+    )
+    await expect(guardarAgendaRepartoDiaria('2026-08-19', 'sup-carmen', 'sup-jor'))
+      .rejects.toMatchObject({ code: 'AGENDA_REPARTO_GUARDADO_CONTRACT' })
   })
 })
 

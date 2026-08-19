@@ -7,7 +7,7 @@ describe('catálogo de orígenes de lead', () => {
       { k: 'referido', label: 'Referido' },
       { k: 'landing', label: 'LANDING' },
       { k: 'formulario', label: 'FORMULARIO' },
-      { k: 'oficina', label: 'Wallking' },
+      { k: 'oficina', label: 'Walking' },
       { k: 'otro', label: 'Otro' },
     ])
   })

@@ -2385,6 +2385,23 @@ export type Database = {
           responsable_nuevo: string
         }[]
       }
+      agenda_reparto_diaria: {
+        Args: { p_desde?: string; p_dias?: number }
+        Returns: Json
+      }
+      guardar_agenda_reparto_diaria: {
+        Args: { p_fecha: string; p_formulario: string; p_landing: string }
+        Returns: Json
+      }
+      panel_distribucion_reparto: {
+        Args: {
+          p_analista?: string
+          p_origen?: string
+          p_solo_activos?: boolean
+          p_supervisor?: string
+        }
+        Returns: Json
+      }
       marcar_efectos_conversion: { Args: { p_lead_id: string }; Returns: Json }
       metricas_agenda_fn: {
         Args: { p_desde: string; p_hasta: string }

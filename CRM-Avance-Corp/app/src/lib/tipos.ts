@@ -119,7 +119,7 @@ export const ORIGENES = [
   { k: 'referido', label: 'Referido' },
   { k: 'landing', label: 'LANDING' },
   { k: 'formulario', label: 'FORMULARIO' },
-  { k: 'oficina', label: 'Wallking' },
+  { k: 'oficina', label: 'Walking' },
   { k: 'otro', label: 'Otro' },
 ] as const
 
@@ -443,6 +443,65 @@ export interface HistorialDerivacion {
   responsable_anterior: string
   responsable_nuevo: string
   derivado_por_nombre: string
+}
+
+/**
+ * Foto agregada de la distribución actual para Coordinación. No incluye
+ * etapas, capacidad ni datos de contacto: Rosa solo necesita saber cuántos
+ * leads tiene cada responsable.
+ */
+export interface DistribucionSupervisor {
+  perfil_id: string
+  nombre: string
+  total_leads: number
+}
+
+export interface DistribucionAnalista {
+  perfil_id: string
+  nombre: string
+  supervisor_id?: string | null
+  supervisor_nombre: string
+  total_leads: number
+}
+
+export interface PanelDistribucionReparto {
+  version: 1
+  generado_en: string
+  total_leads: number
+  supervisores: DistribucionSupervisor[]
+  analistas: DistribucionAnalista[]
+}
+
+/** Los dos carriles que Rosa planifica en su agenda de reparto diaria. */
+export type OrigenAgendaReparto = 'landing' | 'formulario'
+
+/** Supervisora habilitada de forma explícita para el turno Landing/Formulario. */
+export interface DestinoAgendaReparto {
+  perfil_id: string
+  nombre: string
+  alias: string
+}
+
+/** Una fila de la agenda: el plan y su evidencia real, sin exponer leads. */
+export interface AsignacionAgendaReparto {
+  origen: OrigenAgendaReparto
+  supervisor_id: string | null
+  supervisor_nombre: string | null
+  supervisor_alias: string | null
+  derivados: number
+}
+
+export interface DiaAgendaReparto {
+  fecha: string
+  asignaciones: AsignacionAgendaReparto[]
+}
+
+/** Semana de turnos para Coordinación; solo fecha, origen, destino y conteos. */
+export interface AgendaRepartoDiaria {
+  version: 1
+  fecha_desde: string
+  destinos: DestinoAgendaReparto[]
+  dias: DiaAgendaReparto[]
 }
 
 /**
