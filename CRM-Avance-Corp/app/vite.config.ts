@@ -7,6 +7,15 @@ import tailwindcss from '@tailwindcss/vite'
 export default defineConfig({
   base: './',
   plugins: [react(), tailwindcss()],
+  server: {
+    // El modo presentación apunta Supabase al mismo origen de Vite. Solo en
+    // desarrollo, estas rutas se desvían al servidor local de ayuda aprobado;
+    // no entran en el build estático ni permiten alcanzar producción.
+    proxy: {
+      '/auth/v1': 'http://127.0.0.1:55431',
+      '/rest/v1/rpc': 'http://127.0.0.1:55431',
+    },
+  },
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },
