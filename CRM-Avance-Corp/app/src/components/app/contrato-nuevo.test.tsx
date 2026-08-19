@@ -586,7 +586,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
 
     expect(completarDomicilio).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent(/entre 5 y 240 caracteres/)
+    expect(screen.getByRole('alert')).toHaveTextContent(/entre 15 y 240 caracteres/)
     expect(boton()).toBeDisabled()
   })
 

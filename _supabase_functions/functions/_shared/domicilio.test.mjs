@@ -32,8 +32,27 @@ test("rechaza tipos no textuales, tamaños inválidos y controles C0/C1", () => 
     validarDomicilioLegal("x".repeat(DOMICILIO_LEGAL_MAX + 1)).ok,
     false,
   );
-  assert.equal(validarDomicilioLegal("Av. Lima 123\nLima").ok, false);
-  assert.equal(validarDomicilioLegal("Av. Lima 123\u0085Lima").ok, false);
+  // El salto de línea y el NEL (U+0085) son ESPACIO EN BLANCO: los tres lados
+  // (navegador, edge y PostgreSQL) los colapsan a un espacio normal en vez de
+  // rechazarlos, que es lo correcto — el texto resultante es una dirección
+  // limpia. Comprobado contra producción el 2026-08-19: PG los colapsa, así que
+  // rechazarlos aquí rompía el espejo.
+  assert.deepEqual(validarDomicilioLegal("Av. Lima 123\nLima"), {
+    ok: true,
+    valor: "Av. Lima 123 Lima",
+  });
+  assert.deepEqual(validarDomicilioLegal("Av. Lima 123\u0085Lima"), {
+    ok: true,
+    valor: "Av. Lima 123 Lima",
+  });
+  // Un control de VERDAD (campana) sí se rechaza.
+  assert.equal(validarDomicilioLegal("Av. Lima 123\u0007Lima").ok, false);
+  // Y el listón nuevo: sin número no hay dirección.
+  assert.equal(validarDomicilioLegal("Avenida sin numero Lima").ok, false);
+  assert.equal(
+    validarDomicilioLegal("Av. República de Panamá 3635, San Isidro").ok,
+    false,
+  );
 });
 
 test("las dos edges validan antes de efectos y persisten el valor normalizado", async () => {

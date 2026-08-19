@@ -428,6 +428,23 @@ export interface ColaLead {
   comentario?: string | null
 }
 
+/** Movimiento de distribución sin datos de contacto del prospecto. */
+export interface HistorialDerivacion {
+  actividad_id: string
+  lead_id: string
+  nombre_completo: string
+  distrito?: string | null
+  origen: Origen
+  monto_estimado: number
+  moneda: Moneda
+  etapa_actual: Etapa
+  movimiento: string
+  derivado_en: string
+  responsable_anterior: string
+  responsable_nuevo: string
+  derivado_por_nombre: string
+}
+
 /**
  * Fila de la vista de DESCARTADOS (C1-ter) — proyección de
  * `crm.leads_descartados()`. Como la cola, SIN PII de contacto. `comentario`

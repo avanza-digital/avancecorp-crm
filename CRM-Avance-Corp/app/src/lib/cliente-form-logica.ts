@@ -56,7 +56,10 @@ export function normNombrePersona(s: string): string {
   return s.trim().replace(/\s+/g, ' ').toUpperCase()
 }
 
-export const DOMICILIO_LEGAL_MIN = 5
+// 15, no 5. Decidido con los 19 domicilios reales de producción: el más corto
+// tiene 28 caracteres y el 100% lleva número. Con 5 pasaban «LIMA.», «no tiene»
+// y «PENDIENTE», que se imprimen tal cual en el contrato.
+export const DOMICILIO_LEGAL_MIN = 15
 export const DOMICILIO_LEGAL_MAX = 240
 
 /** Rechaza controles Unicode C0/C1 sin depender de una regex con bytes invisibles. */
@@ -79,8 +82,13 @@ function contieneCaracterControl(s: string): boolean {
  */
 const INVISIBLES = /[\u00AD\u180E\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF]/
 
-/** Espacios Unicode que SÍ ocupan sitio: se normalizan a espacio simple. */
-const ESPACIOS_EXOTICOS = /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g
+/**
+ * Espacios Unicode que SÍ ocupan sitio: se normalizan a espacio simple.
+ * U+0085 (NEL) va aquí y no entre los controles: PostgreSQL lo trata como
+ * espacio y lo colapsa, así que rechazarlo solo en el navegador rompía el
+ * espejo — medido contra producción el 2026-08-19.
+ */
+const ESPACIOS_EXOTICOS = /[\u0085\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g
 
 /**
  * Normaliza igual que `crm.normalizar_domicilio_legal` en el servidor. Sin
@@ -91,6 +99,21 @@ const ESPACIOS_EXOTICOS = /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g
  */
 function normalizarDomicilio(valor: string): string {
   return valor.replace(ESPACIOS_EXOTICOS, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
+ * La dirección de la PROPIA Avance Corp, la que ya sale en la cabecera del
+ * contrato. Se comparó en plano (sin tildes ni puntuación) porque un acento o un
+ * «N.°» no puede ser lo que la salve. No es hipotético: el 2026-08-19 se tecleó
+ * como domicilio de una clienta, y el PDF habría dejado a las dos partes
+ * domiciliadas en el mismo sitio — con la cláusula 14.ª mandando ahí TODAS las
+ * notificaciones.
+ */
+function esDomicilioDeLaEmpresa(valor: string): boolean {
+  const plano = valor
+    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ')
+  return plano.includes('republica de panama') && plano.includes('3635')
 }
 
 /**
@@ -117,6 +140,24 @@ export function validarDomicilioLegal(valor: string):
   }
   if (contieneCaracterControl(domicilio)) {
     return { ok: false, error: 'El domicilio legal contiene caracteres no permitidos.' }
+  }
+  // Al menos un dígito: es lo que separa una dirección de un relleno, y lo
+  // cumplen los 19 domicilios reales de producción sin excepción.
+  if (!/[0-9]/.test(domicilio)) {
+    return {
+      ok: false,
+      error: 'El domicilio legal necesita el número de la calle, el lote o la manzana.',
+    }
+  }
+  const soloAlfanum = domicilio.replace(/[^0-9a-zA-ZÁÉÍÓÚÜÑáéíóúüñ]/g, '').toLowerCase()
+  if (soloAlfanum.length > 0 && new Set(soloAlfanum).size === 1) {
+    return { ok: false, error: 'El domicilio legal no puede ser un solo carácter repetido.' }
+  }
+  if (esDomicilioDeLaEmpresa(domicilio)) {
+    return {
+      ok: false,
+      error: 'Esa es la dirección de Avance Corp, no la del cliente: el contrato dejaría a las dos partes domiciliadas en el mismo sitio.',
+    }
   }
   return { ok: true, valor: domicilio }
 }

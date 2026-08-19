@@ -2363,6 +2363,28 @@ export type Database = {
           origen: string
         }[]
       }
+      historial_derivaciones: {
+        Args: {
+          p_actividad_antes?: string
+          p_derivado_antes?: string
+          p_limite?: number
+        }
+        Returns: {
+          actividad_id: string
+          derivado_en: string
+          derivado_por_nombre: string
+          distrito: string | null
+          etapa_actual: string
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          movimiento: string
+          nombre_completo: string
+          origen: string
+          responsable_anterior: string
+          responsable_nuevo: string
+        }[]
+      }
       marcar_efectos_conversion: { Args: { p_lead_id: string }; Returns: Json }
       metricas_agenda_fn: {
         Args: { p_desde: string; p_hasta: string }

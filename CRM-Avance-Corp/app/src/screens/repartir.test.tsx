@@ -6,7 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import type { ColaLead, SupervisorReparto } from '@/lib/tipos'
+import type { ColaLead, HistorialDerivacion, SupervisorReparto } from '@/lib/tipos'
 
 const toastSuccess = vi.fn()
 const toastError = vi.fn()
@@ -14,9 +14,11 @@ vi.mock('sonner', () => ({ toast: { success: toastSuccess, error: toastError } }
 
 let COLA: ColaLead[] = []
 let SUPERVISORES: SupervisorReparto[] = []
+let HISTORIAL: HistorialDerivacion[] = []
 const repartirMock = vi.fn<(lead: string, sup: string) => Promise<void>>()
 const colaMock = vi.fn(async () => COLA)
 const supervisoresMock = vi.fn(async () => SUPERVISORES)
+const historialMock = vi.fn(async () => HISTORIAL)
 
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
@@ -25,6 +27,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     leadsPorRepartir: () => colaMock(),
     supervisoresParaReparto: () => supervisoresMock(),
     repartirLead: (lead: string, sup: string) => repartirMock(lead, sup),
+    historialDerivaciones: () => historialMock(),
   }
 })
 
@@ -72,11 +75,13 @@ const SUP: SupervisorReparto[] = [
 beforeEach(() => {
   COLA = []
   SUPERVISORES = SUP
+  HISTORIAL = []
   RESUMEN_CAIDO = false
   recargarResumenMock.mockClear()
   repartirMock.mockReset().mockResolvedValue(undefined)
   colaMock.mockClear()
   supervisoresMock.mockClear()
+  historialMock.mockClear()
   toastSuccess.mockClear()
   toastError.mockClear()
 })
@@ -104,6 +109,24 @@ async function valorDelTile(etiqueta: string, esperado: string): Promise<void> {
 }
 
 describe('pantalla Repartir leads', () => {
+  it('da a Coordinación el historial de distribución sin abrir la ficha del lead', async () => {
+    HISTORIAL = [{
+      actividad_id: 'hist-1', lead_id: 'lead-1', nombre_completo: 'MARÍA PÉREZ', distrito: 'Piura',
+      origen: 'referido', monto_estimado: 5000, moneda: 'PEN', etapa_actual: 'contactado',
+      movimiento: 'asignado', derivado_en: '2026-08-19T10:00:00Z',
+      responsable_anterior: 'Bandeja de SUPERVISOR UNO', responsable_nuevo: 'VENDEDOR UNO',
+      derivado_por_nombre: 'SUPERVISOR UNO',
+    }]
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+
+    await usuario.click(screen.getByRole('tab', { name: 'Historial' }))
+    expect(await screen.findByText('MARÍA PÉREZ')).toBeInTheDocument()
+    expect(screen.getByText('Bandeja de SUPERVISOR UNO')).toBeInTheDocument()
+    expect(historialMock).toHaveBeenCalledTimes(1)
+    expect(screen.getByText(/No incluye teléfono, correo ni DNI/)).toBeInTheDocument()
+  })
+
   it('pinta un vacío honesto cuando no hay nada por repartir', async () => {
     render(<Repartir />)
     expect(await screen.findByText('No hay leads por repartir')).toBeInTheDocument()

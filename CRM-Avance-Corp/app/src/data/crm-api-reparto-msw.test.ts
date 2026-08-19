@@ -16,6 +16,7 @@ import {
   CrmApiError,
   descartarLead,
   deshacerDescarte,
+  historialDerivaciones,
   leadsPorRepartir,
   listarResumenReparto,
   repartirLead,
@@ -44,6 +45,22 @@ const FILA_COLA = {
   monto_estimado: '30000.00',
   moneda: 'USD',
   creado_en: '2026-07-21T20:33:33Z',
+}
+
+const FILA_HISTORIAL = {
+  actividad_id: 'actividad-1',
+  lead_id: 'lead-1',
+  nombre_completo: 'ROSA QUISPE',
+  distrito: 'Miraflores',
+  origen: 'landing',
+  monto_estimado: '30000.00',
+  moneda: 'USD',
+  etapa_actual: 'contactado',
+  movimiento: 'asignado',
+  derivado_en: '2026-08-19T20:33:33Z',
+  responsable_anterior: 'Bandeja de SUPERVISOR UNO',
+  responsable_nuevo: 'VENDEDOR UNO',
+  derivado_por_nombre: 'SUPERVISOR UNO',
 }
 
 describe('leadsPorRepartir (msw)', () => {
@@ -116,6 +133,43 @@ describe('leadsPorRepartir (msw)', () => {
     )
 
     await expect(leadsPorRepartir()).rejects.toBeInstanceOf(CrmApiError)
+  })
+})
+
+describe('historialDerivaciones (msw)', () => {
+  it('pide la primera página, valida las etapas y transforma montos numeric', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('historial_derivaciones'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json([
+          FILA_HISTORIAL,
+          { ...FILA_HISTORIAL, actividad_id: 'corrupta', etapa_actual: 'desconocida' },
+        ])
+      }),
+    )
+
+    await expect(historialDerivaciones()).resolves.toEqual([
+      expect.objectContaining({ actividad_id: 'actividad-1', monto_estimado: 30000, etapa_actual: 'contactado' }),
+    ])
+    expect(cuerpo).toEqual({ p_limite: 100 })
+  })
+
+  it('envía el cursor compuesto al pedir la página siguiente', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('historial_derivaciones'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json([])
+      }),
+    )
+
+    await historialDerivaciones({ actividad_id: 'actividad-9', derivado_en: '2026-08-18T10:00:00Z' })
+    expect(cuerpo).toEqual({
+      p_limite: 100,
+      p_derivado_antes: '2026-08-18T10:00:00Z',
+      p_actividad_antes: 'actividad-9',
+    })
   })
 })
 

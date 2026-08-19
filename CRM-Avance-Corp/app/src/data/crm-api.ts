@@ -18,6 +18,7 @@ import {
   type Actividad,
   type CategoriaInteres,
   type ColaLead,
+  type HistorialDerivacion,
   type Etapa,
   type Lead,
   type LeadDescartado,
@@ -859,6 +860,7 @@ export async function obtenerCierreMesEstado(signal?: AbortSignal): Promise<Cier
 
 const ORIGENES_K = ORIGENES_TODOS.map((o) => o.k) as [Origen, ...Origen[]]
 const CATEGORIAS_K = CATEGORIAS_INTERES.map((c) => c.k) as [CategoriaInteres, ...CategoriaInteres[]]
+const ETAPAS_TODAS_K = [...ETAPAS.map((e) => e.k), ...TERMINALES.map((e) => e.k)] as [Etapa, ...Etapa[]]
 
 const ColaLeadSchema = v.object({
   id: v.string(),
@@ -883,6 +885,22 @@ const SupervisorRepartoSchema = v.object({
   bandeja_pendiente: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
 })
 
+const HistorialDerivacionSchema = v.object({
+  actividad_id: v.string(),
+  lead_id: v.string(),
+  nombre_completo: v.string(),
+  distrito: v.nullable(v.string()),
+  origen: v.picklist(ORIGENES_K),
+  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  moneda: v.picklist(['PEN', 'USD'] as const),
+  etapa_actual: v.picklist(ETAPAS_TODAS_K),
+  movimiento: v.string(),
+  derivado_en: v.string(),
+  responsable_anterior: v.string(),
+  responsable_nuevo: v.string(),
+  derivado_por_nombre: v.string(),
+})
+
 export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]> {
   let consulta = cliente().schema('crm').rpc('leads_por_repartir')
   if (signal) consulta = consulta.abortSignal(signal)
@@ -900,6 +918,36 @@ export async function leadsPorRepartir(signal?: AbortSignal): Promise<ColaLead[]
   const items: ColaLead[] = []
   for (const cruda of data ?? []) {
     const r = v.safeParse(ColaLeadSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+/** Página del historial íntegro, entregada por una RPC que no abre RLS directa. */
+export async function historialDerivaciones(
+  cursor?: Pick<HistorialDerivacion, 'derivado_en' | 'actividad_id'>,
+  signal?: AbortSignal,
+): Promise<HistorialDerivacion[]> {
+  let consulta = cliente().schema('crm').rpc('historial_derivaciones', {
+    p_limite: 100,
+    ...(cursor
+      ? { p_derivado_antes: cursor.derivado_en, p_actividad_antes: cursor.actividad_id }
+      : {}),
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudo cargar el historial de derivaciones.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.reparto.historial_fallido', fallo)
+    throw fallo
+  }
+  const items: HistorialDerivacion[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(HistorialDerivacionSchema, cruda)
     if (r.success) items.push(r.output)
   }
   return items

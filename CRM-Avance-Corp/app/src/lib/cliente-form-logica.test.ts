@@ -270,27 +270,58 @@ describe('validarClienteForm — identidad (espejo de guardarCliente)', () => {
   })
 
   it('rechaza domicilio corto, largo o con caracteres de control', () => {
+    // El mínimo pasó de 5 a 15 (2026-08-19): decidido con los 19 domicilios
+    // reales de producción, cuyo más corto tiene 28 caracteres. Con 5 pasaban
+    // «LIMA.», «no tiene» y «PENDIENTE».
     expect(validarClienteForm(valores({ domicilio: 'Lima' })))
-      .toEqual({ ok: false, error: 'El domicilio legal debe tener entre 5 y 240 caracteres.' })
-    expect(validarClienteForm(valores({ domicilio: 'x'.repeat(241) })))
-      .toEqual({ ok: false, error: 'El domicilio legal debe tener entre 5 y 240 caracteres.' })
-    expect(validarClienteForm(valores({ domicilio: 'Av. Lima 123\u0085Lima' })))
+      .toEqual({ ok: false, error: 'El domicilio legal debe tener entre 15 y 240 caracteres.' })
+    expect(validarClienteForm(valores({ domicilio: `Av. Lima 1 ${'x'.repeat(231)}` })))
+      .toEqual({ ok: false, error: 'El domicilio legal debe tener entre 15 y 240 caracteres.' })
+    // U+0085 (NEL) NO es un control a estos efectos: los tres lados lo tratan
+    // como espacio y lo colapsan. Un control de verdad (campana) sí cae.
+    expect(validarClienteForm(valores({ domicilio: 'Av. Lima 123\u0007 San Isidro' })))
       .toEqual({ ok: false, error: 'El domicilio legal contiene caracteres no permitidos.' })
   })
 
-  it('acepta exactamente 5 y 240 puntos Unicode, incluidos caracteres astrales', () => {
-    expect(validarDomicilioLegal('A😀BCD')).toEqual({ ok: true, valor: 'A😀BCD' })
-    const limite = `${'x'.repeat(238)}😀y`
-    expect(Array.from(limite)).toHaveLength(240)
-    expect(validarDomicilioLegal(limite)).toEqual({ ok: true, valor: limite })
+  it('el listón nuevo: exige número, y rechaza el relleno y la dirección de la empresa', () => {
+    expect(validarDomicilioLegal('Avenida sin numero, San Isidro, Lima')).toEqual({
+      ok: false,
+      error: 'El domicilio legal necesita el número de la calle, el lote o la manzana.',
+    })
+    expect(validarDomicilioLegal('xxxxxxxxxxxxxxxxxxxx')).toEqual({
+      ok: false,
+      error: 'El domicilio legal necesita el número de la calle, el lote o la manzana.',
+    })
+    expect(validarDomicilioLegal('11111111111111111111')).toEqual({
+      ok: false,
+      error: 'El domicilio legal no puede ser un solo carácter repetido.',
+    })
+    // Ya ocurrió de verdad: se tecleó como domicilio de una clienta y el PDF
+    // habría dejado a las dos partes domiciliadas en la misma oficina.
+    for (const variante of [
+      'Av. República de Panamá 3635',
+      'AV REPUBLICA DE PANAMA N.° 3635, Urb. El Palomar, San Isidro',
+      'av republica de panama 3635 lima',
+    ]) {
+      const r = validarDomicilioLegal(variante)
+      expect(r.ok).toBe(false)
+      if (r.ok) return
+      expect(r.error).toMatch(/dirección de Avance Corp/)
+    }
   })
 
-  it('rechaza 241 puntos Unicode sin confundirlos con unidades UTF-16', () => {
-    const demasiadoLargo = `${'x'.repeat(239)}😀y`
-    expect(Array.from(demasiadoLargo)).toHaveLength(241)
-    expect(validarDomicilioLegal(demasiadoLargo)).toEqual({
+  it('cuenta puntos de código, no unidades UTF-16, en los dos límites', () => {
+    // Un emoji ocupa 2 unidades UTF-16 y 1 punto de código: si se midiera mal,
+    // estas dos aserciones caerían del lado contrario.
+    const justo = `Av. Lima 123 ${'x'.repeat(226)}😀`
+    expect(Array.from(justo)).toHaveLength(240)
+    expect(validarDomicilioLegal(justo)).toEqual({ ok: true, valor: justo })
+
+    const pasado = `Av. Lima 123 ${'x'.repeat(227)}😀`
+    expect(Array.from(pasado)).toHaveLength(241)
+    expect(validarDomicilioLegal(pasado)).toEqual({
       ok: false,
-      error: 'El domicilio legal debe tener entre 5 y 240 caracteres.',
+      error: 'El domicilio legal debe tener entre 15 y 240 caracteres.',
     })
   })
 })
@@ -511,6 +542,18 @@ describe('validarDomicilioLegal — lo que se imprimiría como nada', () => {
     expect(r.ok).toBe(true)
     if (!r.ok) return
     expect(r.valor).toBe('Av. Grau 456, Lima')
+  })
+
+  // U+0085 (NEL) es un salto de línea, no un control a estos efectos:
+  // PostgreSQL lo trata como espacio y lo colapsa (medido contra producción el
+  // 2026-08-19), así que rechazarlo solo aquí rompía el espejo entre los tres
+  // lados. Se normaliza igual que \n.
+  it('normaliza U+0085 como espacio, igual que PostgreSQL', () => {
+    const r = validarDomicilioLegal('Av. Lima 123\u0085San Isidro')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.valor).toBe('Av. Lima 123 San Isidro')
+    expect(r.valor).not.toMatch(/\u0085/)
   })
 
   it('no toca las direcciones reales con tildes, guiones largos u ordinales', () => {

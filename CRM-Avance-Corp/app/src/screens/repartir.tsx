@@ -56,6 +56,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
+import { HistorialDerivaciones } from '@/components/app/historial-derivaciones'
 
 /** Cuántas filas se muestran por página local ("Mostrar 20 más"). */
 const PAGINA = 20
@@ -780,7 +781,7 @@ function PanelDescartados({ onCambio }: { onCambio: () => void }) {
 }
 
 export function Repartir() {
-  const [tab, setTab] = useState<'cola' | 'descartados'>('cola')
+  const [tab, setTab] = useState<'cola' | 'descartados' | 'historial'>('cola')
   // Al deshacer desde Descartados el lead vuelve a la cola: forzamos un remonte
   // de la pestaña Cola (key) para que la relea al volver a ella.
   const [colaKey, setColaKey] = useState(0)
@@ -792,7 +793,7 @@ export function Repartir() {
         aria-label="Vistas de la cola de leads"
         className="inline-flex gap-1 rounded-lg border border-border bg-muted/50 p-1"
       >
-        {([['cola', 'Cola de nuevos'], ['descartados', 'Descartados']] as const).map(([k, label]) => (
+        {([['cola', 'Cola de nuevos'], ['historial', 'Historial'], ['descartados', 'Descartados']] as const).map(([k, label]) => (
           <button
             key={k}
             type="button"
@@ -808,9 +809,7 @@ export function Repartir() {
         ))}
       </div>
 
-      {tab === 'cola' ? (
-        <PanelCola key={colaKey} />
-      ) : (
+      {tab === 'cola' ? <PanelCola key={colaKey} /> : tab === 'historial' ? <HistorialDerivaciones /> : (
         <PanelDescartados
           onCambio={() => { setColaKey((n) => n + 1); refrescarResumenReparto() }}
         />

@@ -236,9 +236,15 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
   })
 
   it.each([
-    ['cuatro puntos Unicode', 'A😀BC', 'El domicilio legal debe tener entre 5 y 240 caracteres.'],
-    ['241 puntos Unicode', `${'x'.repeat(239)}😀y`, 'El domicilio legal debe tener entre 5 y 240 caracteres.'],
-    ['un control C1', 'Av. Lima 123\u0085Lima', 'El domicilio legal contiene caracteres no permitidos.'],
+    // El listón subió de 5 a 15 caracteres + al menos un número (2026-08-19),
+    // decidido con los 19 domicilios reales de producción. U+0085 salió de la
+    // lista de controles: los tres lados lo tratan como espacio y lo colapsan.
+    ['catorce puntos Unicode', 'Av. Lima 123 😀', 'El domicilio legal debe tener entre 15 y 240 caracteres.'],
+    ['241 puntos Unicode', `Av. Lima 123 ${'x'.repeat(227)}😀`, 'El domicilio legal debe tener entre 15 y 240 caracteres.'],
+    ['un control C0 de verdad', 'Av. Lima 123\u0007 San Isidro', 'El domicilio legal contiene caracteres no permitidos.'],
+    ['un invisible de ancho cero', 'Av. Lima\u200B 123, San Isidro', 'El domicilio legal contiene caracteres invisibles que no se imprimirían en el contrato.'],
+    ['una dirección sin número', 'Avenida sin numero, San Isidro', 'El domicilio legal necesita el número de la calle, el lote o la manzana.'],
+    ['la dirección de la propia empresa', 'Av. República de Panamá 3635, San Isidro', 'Esa es la dirección de Avance Corp, no la del cliente: el contrato dejaría a las dos partes domiciliadas en el mismo sitio.'],
   ])('rechaza %s antes de tocar la Edge', async (_caso, valor, mensaje) => {
     const user = userEvent.setup()
     await montarEnAvance()
@@ -252,8 +258,8 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
   })
 
   it.each([
-    ['cinco puntos Unicode', 'A😀BCD'],
-    ['240 puntos Unicode', `${'x'.repeat(238)}😀y`],
+    ['quince puntos Unicode', 'Av. Lima 123 A😀'],
+    ['240 puntos Unicode', `Av. Lima 123 ${'x'.repeat(226)}😀`],
   ])('acepta exactamente %s y conserva los caracteres astrales', async (_caso, valor) => {
     const user = userEvent.setup()
     convertirEdge.mockResolvedValue({
