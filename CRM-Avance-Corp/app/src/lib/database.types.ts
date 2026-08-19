@@ -1876,6 +1876,15 @@ export type Database = {
         }
         Returns: Json
       }
+      actualizar_numero_contrato_pdf_v3: {
+        Args: {
+          p_categoria?: string
+          p_id: string
+          p_notas?: string
+          p_numero: string
+        }
+        Returns: Json
+      }
       actualizar_usuario_administrable_fn: {
         Args: {
           p_cargo: string
@@ -2014,6 +2023,14 @@ export type Database = {
       configuracion_sla_fn: { Args: never; Returns: Json }
       consultar_ayuda_vendedor: {
         Args: { p_consulta: string; p_vista: string }
+        Returns: Json
+      }
+      contrato_eliminacion_finalizar: {
+        Args: { p_actor_id: string; p_contrato_id: string; p_token: string }
+        Returns: Json
+      }
+      contrato_eliminacion_preparar: {
+        Args: { p_actor_id: string; p_contrato_id: string }
         Returns: Json
       }
       contrato_pdf_archivo_fn: {
@@ -2417,6 +2434,10 @@ export type Database = {
       }
       metricas_vendedores_fn: { Args: never; Returns: Json }
       mi_acceso_fn: { Args: never; Returns: Json }
+      normalizar_domicilio_legal: {
+        Args: { p_domicilio: string }
+        Returns: string
+      }
       preparar_recuperacion_usuario_fn: {
         Args: { p_idempotencia: string; p_perfil_id: string }
         Returns: Json
@@ -3377,8 +3398,6 @@ export type Database = {
         }[]
       }
       puede_ver_contrato: { Args: { p_contrato_id: string }; Returns: boolean }
-      show_limit: { Args: never; Returns: number }
-      show_trgm: { Args: { "": string }; Returns: string[] }
       verificar_cron_secret: { Args: { p_secret: string }; Returns: boolean }
     }
     Enums: {
