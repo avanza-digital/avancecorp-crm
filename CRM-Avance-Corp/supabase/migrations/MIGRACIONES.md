@@ -22,6 +22,8 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 | 20260807123000 | funciones `public.*` de gerencia operativa | sí, 2026-08-07 |
 | 20260807235933 | `public.crear_contrato`, `public.actualizar_contrato`, wrappers catalogados, `public.contratos.producto_condicion_id` | sí, 2026-08-07 |
 | 20260809003923 | `public.actualizar_contrato`, `public.actualizar_numero_contrato` (gate P04) | sí, 2026-08-09 |
+| 20260818014534 | `public.perfiles.domicilio` (columna), `perfiles_domicilio_legal_valido` (CHECK), `perfiles_domicilio_legal_no_borrar` (trigger) — **fila añadida a posteriori el 2026-08-19**: la migración alteró `public` y no se registró | pendiente de confirmar |
+| 20260819162752 | sin DDL, pero **cambia quién escribe** `public.perfiles.domicilio` saltándose la RLS del portal: antes solo Gerencia, ahora toda la cartera CRM | sí, 2026-08-19 |
 
 ## ⚠️ El orden del ciclo estaba mal: el seed va ANTES de aplicar (2026-08-11)
 
@@ -765,6 +767,8 @@ mencionaba y que no sale en ninguna búsqueda por el nombre del guard:
 | Versión local | Versión remota | Nombre | Estado |
 |---------------|----------------|--------|--------|
 | 20260809003923 | 20260809010408 | crm_p04_correccion_contratos_admin | ✅ **EN PROD 2026-08-09** (branch `crm-p04-correccion` → réplica verificada idéntica por hash → gate RLS **530/530** → advisors **sin ERROR** (95 avisos, mismo total que el branch anterior: ninguna clase nueva) → trigger reactivado antes del merge → merge → verificado en prod → branch borrado). Añade `if private.membresia_crm_revocada() then raise insufficient_privilege` a ambas. Cuerpos VERBATIM de `pg_get_functiondef` en prod (hashes auditados `2a55ddea…` y `c9184d97…`), asertados en el preflight. |
+| 20260818014534 | `public.perfiles.domicilio` (columna), `perfiles_domicilio_legal_valido` (CHECK), `perfiles_domicilio_legal_no_borrar` (trigger) — **fila añadida a posteriori el 2026-08-19**: la migración alteró `public` y no se registró | pendiente de confirmar |
+| 20260819162752 | sin DDL, pero **cambia quién escribe** `public.perfiles.domicilio` saltándose la RLS del portal: antes solo Gerencia, ahora toda la cartera CRM | sí, 2026-08-19 |
 
 **Fidelidad probada mecánicamente, no afirmada.** Antes y después del merge se
 comprobó que al revertir el bloque insertado por `regexp_replace` el cuerpo
@@ -2818,3 +2822,225 @@ formato en verde; oráculo aislado `CONTRATO_PDF_V2_SQL_OK` y runner con limpiez
 verificada; contrato MSW 33/33, typecheck y lint del frontend en verde. En
 producción se aplicó después de confirmar 0 leases activos y 5 PDF v2 sellados;
 la Edge conserva compatibilidad de lectura verificada para esas revisiones.
+
+## 20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Versiona la plantilla legal
+como `contrato-aep-17-v4`, sin mover ninguna responsabilidad al navegador. El
+PDF continúa armándose, verificándose y sellándose íntegramente en
+`crm-contrato-pdf-v2`. La revisión restaura la firma original autorizada de
+Kirk E. Sanchez Rios como activo PNG inmutable (SHA-256
+`a969159c00d5595a422f6751ac4514cc4b15bc2ba874ea98877cae1f1d8391eb`),
+resalta en negrita los datos personales y de contacto interpolados, y amplía el
+espacio entre el último párrafo y el bloque de firmas. Los PDFs v1-v3 ya
+sellados permanecen inmutables y descargables.
+
+La aplicación se hizo después de verificar cero leases activos y cero reservas
+v3 elegibles; los cinco PDFs v2 sellados quedaron intactos. La columna y el
+creador privado de jobs usan v4, las restricciones admiten el historial
+v1-v4, y `private.crear_job_contrato_pdf_base` continúa revocada a
+`public`, `anon`, `authenticated` y `service_role`.
+
+Verificación local: 25/25 pruebas Deno, `deno check`, lint y formato en verde;
+oráculo PostgreSQL aislado
+`CONTRATO_PDF_V2_SQL_OK`/`CONTRATO_PDF_V2_RUNNER_OK`; y revisión visual de
+las siete páginas renderizadas. El fixture determinista produce 870.455 bytes
+y SHA-256
+`69e97099416f9286a21c8b48784ead071bcb2017c58c2e93230ddebc31f32f33`.
+La Edge quedó `ACTIVE`, versión 4, JWT obligatorio y SHA-256
+`08785e035f124d21ed63628d95e43c4442dcd0ee87b005bc39bc0aa19ff659a1`.
+Los preflights vivos de CRM y portal respondieron 204 y reflejaron exactamente
+el origen permitido. No hubo cambio ni despliegue de frontend.
+
+## 20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Supabase lo registró con la
+versión `20260818233729` después de confirmar cero leases activos. Las tres
+reservas v4 elegibles avanzaron a v5; cinco PDFs v2 y dos PDF v4 ya sellados
+permanecieron inmutables y descargables.
+Versiona la plantilla como `contrato-aep-17-v5` sin modificar los PDFs v1-v4
+ya sellados. Reproduce el bloque de firma de Kirk del modelo Word usando el
+mismo PNG inmutable (SHA-256
+`a969159c00d5595a422f6751ac4514cc4b15bc2ba874ea98877cae1f1d8391eb`),
+con recorte proporcional y las líneas `AVANCE CORP SAC`,
+`RUC N° 20611392088` y `EL ASOCIANTE`. También restaura los numerales de cada
+apartado (`1.1` a `17.2`) y los incisos alfabéticos de las cláusulas undécima
+y décima tercera tal como figuran en el documento fuente.
+
+Las reservas v4 pendientes o con error reintentable solo avanzan a v5 cuando
+no tienen lease, hash, bytes ni subida; el creador privado genera las nuevas
+reservas directamente en v5. El cliente admite v3-v5 para conservar la lectura
+compatible mientras el servidor pasa a la versión vigente.
+
+Verificación local: 25/25 pruebas Deno, `deno check` y formato en verde;
+oráculo PostgreSQL aislado
+`CONTRATO_PDF_V2_SQL_OK`/`CONTRATO_PDF_V2_RUNNER_OK` con limpieza verificada;
+prueba MSW de contratos 33/33, typecheck, lint y build del frontend en verde.
+Las siete páginas del PDF se revisaron visualmente después de retirar el salto
+forzado previo a la cláusula 17. El fixture determinista produce 871.280 bytes
+y SHA-256
+`b7346c169ced31bba8aad966d97e4c1a6ded85b4f22466587b6bc5dcb8377995`.
+
+La Edge quedó `ACTIVE`, versión 5, JWT obligatorio y SHA-256
+`12f54993d95bae42427e0cace8135ee04b72b5b03f98a585ab988379737abcf4`;
+los dos archivos modificados en remoto coinciden exactamente con el local. Los
+preflights de `crm.miavance.com` y `miavance.com` respondieron 204 reflejando
+cada origen, una solicitud sin sesión respondió 401 y no hubo eventos 5xx.
+
+El frontend productivo es el release
+`crm-20260818T233315Z-e979b4907029`, construido de forma aislada sobre el mismo
+commit que estaba vivo (`e979b4907029f7e7933b2b943d2f2bab60ced6ad`) y con
+solo la tolerancia contractual v3-v5. El ZIP tiene 1.114.205 bytes y SHA-256
+`8f69abea7caaa840239969467a9538cc8bfaf553460217843f3702c9d64a9b0c`;
+HTML, JS principal, consultas y CSS coinciden byte a byte con producción. El
+ZIP y el chunk anterior responden 404. El smoke autenticado abrió `#/hoy` sin
+errores ni advertencias de consola.
+
+Los asesores quedaron sin delta: seguridad 138 avisos (23 INFO, 115 WARN) y
+rendimiento 58 (53 INFO, 5 WARN), sin claves nuevas ni eliminadas. El default,
+las dos restricciones validadas, el creador v5 y sus revocaciones se
+comprobaron mediante consulta postflight; solo `postgres` conserva EXECUTE
+sobre `private.crear_job_contrato_pdf_base`.
+
+## Deuda detectada el 2026-08-19 — migraciones vivas sin fila de ledger
+
+`20260818181756_crm_ingresos_reparto_mes.sql` está **aplicada y registrada en
+producción** (comprobado por conteo: la función `crm.ingresos_reparto_mes_fn`
+existe y la versión figura en `supabase_migrations.schema_migrations`), pero no
+tenía entrada aquí. Se anota para que el índice deje de mentir por omisión: el
+ledger no es prueba de lo que está vivo —ya mintió el 2026-08-18— pero tampoco
+puede callar lo que sí lo está.
+
+Las secciones de `20260818204908` y `20260818233729` se trajeron a esta rama
+desde `feat/creacion-lead-atomica`, donde se habían escrito: ambas están vivas y
+la rama del release no las documentaba.
+
+## 20260819162752_crm_domicilio_legal_faltante.sql
+
+**Estado: escrita y verificada contra PostgreSQL 17 local, SIN aplicar.** Falta el
+ciclo completo (branch → seed → aplicar → leer el postflight fila por fila →
+`scripts/test-domicilio-legal.sql` → `test-rls.mjs` → advisors → merge).
+
+**El síntoma** (Miguel, 2026-08-19): «los vendedores no pueden registrar otro
+contrato a clientes antiguos».
+
+**La causa, medida en producción.** `crm.crear_contrato_con_cuenta_pdf_v2` reserva
+el PDF en la MISMA transacción del alta, y `private.contrato_pdf_snapshot_v2_base`
+exige los nueve datos de perfil que van escritos en el documento. Si falta uno, el
+`raise` (23514) revierte el contrato ENTERO. Reproducido en producción sin escribir
+nada (bloque `DO` que termina en `raise`) sobre `d2625108-3081-46e5-a016-6bdc7b19a984`.
+
+Censo del 2026-08-19 sobre los **319 clientes con contrato**, campo por campo:
+**313 sin domicilio (98%)** y **CERO** sin `nombre_completo`, `tipo_documento`,
+`dni` o `correo`. Los 17 vendedores y 2 supervisores activos son `analista` del
+portal, así que todos pueden contratar. **El domicilio es el único culpable.**
+
+⚠️ **Y el vendedor no veía ni siquiera ese mensaje.** `aErrorApi` no reconocía el
+23514 y lo convertía en **«No se pudo guardar el cambio.»** — sin nombrar el dato
+ni al culpable. Por eso el fallo llevaba meses sin diagnosticarse. Corregido aquí
+(nueva rama `DATOS_LEGALES_INCOMPLETOS`, y otra para `55P03`).
+
+**Por qué no podían arreglarlo ellos.** `perfiles_analista_update` exige
+`creado_en > now() - '05:00:00'`. Un cliente de hace meses cae fuera de esa ventana:
+el vendedor no podía emitir **ni** escribir el dato. `perfiles_analista_select` no
+tiene ventana, así que podía LEER el hueco sin poder cerrarlo.
+
+**Qué abre** (decisiones de Miguel, 2026-08-19): el **vendedor** rellena el domicilio
+de sus clientes sin depender de nadie, y **solo se rellena el vacío**.
+
+**El gate es PRESTADO, no copiado:** `private.puede_gestionar_cuentas_cliente()`,
+el mismo de `crm.crear_contrato_con_cuenta`. Es condición NECESARIA para emitir pero
+**no suficiente** (`public.crear_contrato` exige además rol), así que el conjunto que
+podrá escribir el domicilio es un **superconjunto** del que emite — no se afirma
+equivalencia. Medido **ejecutando el predicado real** suplantando a cada actor: de
+los 313, **312 los resuelve su propio asesor**, **1** (sin asesor asignado) necesita
+a Gerencia, **0 inalcanzables**.
+
+| Objeto | Qué hace |
+|--------|----------|
+| `crm.normalizar_domicilio_legal(text)` | Normaliza (16 espacios Unicode → espacio simple, colapsa, recorta) y valida: 5..240, sin controles, **sin invisibles**. Fuente única del servidor. Sin `grant`: solo la usan las otras dos. |
+| `crm.datos_legales_contrato_fn(uuid)` | STABLE. Qué campos legales faltan — **nombres, nunca valores**. Mira al LLAMANTE como analista (correcto para el ALTA, que es su único consumidor). |
+| `crm.completar_domicilio_cliente(uuid, text)` | Rellena `domicilio` solo si está vacío. `for no key update`, permiso reevaluado tras el lock, `get diagnostics` sobre el UPDATE. Devuelve `completado`\|`conservado` **sin el valor**. |
+
+### La auditoría adversaria (4 lentes) y lo que cambió
+
+Codex + `auditor-rls` + una lente de carreras/transacciones + una de consecuencias
+legales del dato. **Encontraron un bloqueante fatal y siete defectos reales.**
+
+🔴 **`search_path=""`, no `search_path=`.** La sonda de hardening comprobaba
+`'search_path=' = any(proconfig)`, pero `set search_path to ''` deja en el catálogo
+el literal **con comillas**. La condición era **siempre falsa** → `raise` → como todo
+va en `begin;…commit;`, **rollback de la migración entera, en el 100% de las
+ejecuciones**. Reproducido en PG16 y PG17; el resto del repo ya usaba
+`proconfig @> array['search_path=""']` en 8 sitios. Corregido y **verificado
+ejecutando el postflight real en un PostgreSQL 17 local**.
+
+🔴 **`text[] || 'literal'` es ambiguo** y revienta en RUNTIME («malformed array
+literal»), no al crear la función: `datos_legales_contrato_fn` **compilaba y fallaba
+con el vendedor delante**. Solo salió al EJECUTARLA. Los nueve `append` llevan ahora
+`::text`. Es, otra vez, la lección de «crear no basta».
+
+Lo demás aplicado: permiso **reevaluado tras el lock** · **no se devuelve el
+domicilio** (era lectura de PII para el supervisor, que por RLS no puede leer esa
+columna) · **`for no key update`** en vez de `for update` (medido por la lente:
+`FOR UPDATE` bloqueaba un `insert` concurrente en `contratos` **2,00 s**; con
+`FOR NO KEY UPDATE`, **2,5 ms**, conservando la exclusión mutua) · **`get
+diagnostics`** sobre el UPDATE · `lock_timeout` · preflight de dependencias ·
+`to_regrole`/`to_regclass` en las sondas · grants comprobados **en los dos sentidos**.
+
+🟠 **Los caracteres invisibles.** Seis U+200B pasaban el CHECK **vivo de producción**
+(comprobado), se imprimirían en el contrato como **nada** («con domicilio en , a
+quien…») y —al no ser vacíos para `btrim`— **cerraban el hueco para siempre**: el
+trigger `perfiles_domicilio_legal_no_borrar` impide volver a NULL y esta función
+nunca pisa lo existente. Ahora se rechazan en el servidor **y** en el navegador.
+
+🟠 **Dos varas para el mismo dato.** `btrim` solo quita U+0020; `.trim()` de JS quita
+todo el espacio Unicode. Ambos lados normalizan igual ahora. **Verificado
+ejecutando los dos**: las mismas 7 entradas producen salida idéntica en PostgreSQL 17
+y en el navegador.
+
+🟠 **El muro fantasma.** `refetch()` de TanStack **resuelve aunque falle** y deja
+`data` con el valor viejo: un fallo de red dejaba al vendedor bloqueado por un hueco
+que él acababa de cerrar, y al reintentar el servidor le decía «conservado / no se
+guardó» **sobre su propio domicilio**. Cerrado con una marca local `domicilioConfirmado`.
+Y el `try` de `guardarDomicilio` se partió: **después de un 2xx nada puede decir que
+no se guardó**.
+
+**Descartado con datos:** que 1 de los 313 quedara inalcanzable (0 tras ejecutar el
+predicado), que faltaran `tipo_documento`/`nombre_completo` (0), que el botón
+«+ Contrato» no apareciera para clientes antiguos (aparece: `mi-cartera.tsx:616`
+pinta «+ Contrato» justo cuando ya hay contratos) y que hubiera **deadlock** con el
+`for share` del alta (no hay ciclo: esta RPC toma un solo lock y termina).
+
+**Pruebas.** Front: 2.082 en verde, **8 mutantes cazados 8/8** (dos sobrevivieron al
+primer intento y destaparon código sin probar). Servidor: `scripts/test-domicilio-legal.sql`,
+9 casos de comportamiento que **ejecutan** las RPC —el hueco que señalaron dos
+auditorías: ninguna sonda las llamaba— dentro de una transacción que termina en
+`rollback`.
+
+**Decisión de diseño que conviene no perder:** un fallo de la consulta de pre-vuelo
+**NO bloquea el alta**. Solo se frena cuando el servidor DIJO que falta algo; el
+servidor sigue siendo la única puerta. Hay un test que lo fija.
+
+### Deuda abierta que esto NO resuelve (decisiones de negocio)
+
+1. **Los contratos viejos sin PDF se pueden emitir con el domicilio de hoy**, fechados
+   meses atrás. El domicilio es el de **notificaciones** (cláusula 14.ª), así que se
+   fijaría retroactivamente. Los PDF **ya sellados no se tocan** (comprobado).
+2. **`LIMA.`, `no tiene`, `PENDIENTE` pasan la validación.** Subir el listón (exigir
+   estructura, lista negra de rellenos) es decisión de negocio.
+3. **No se registra la PROCEDENCIA** del dato (el sistema ya tiene ese vocabulario en
+   `consentimiento_fuente`). Queda quién lo escribió, no de dónde salió.
+4. **`crm.leads.distrito` está al 98,5%** y podría pre-rellenar como *sugerencia*.
+5. **`no_contactar` vive en `crm.leads`, no en `perfiles`**: para 336 de 338 clientes
+   no existe lista «No Insista» antes de una campaña de 313 llamadas.
+6. **El mismo muro sigue en tres puertas más**: `contrato-corregir`, «Ver PDF» de un
+   contrato viejo, y el panel analista del portal.
+7. `datos_legales_contrato_fn` mira al llamante: correcto para el alta, **no** para
+   regenerar el PDF de un contrato creado por otra persona.
+
+**Registro de excepciones a `public`:** sin DDL, pero **cambia quién escribe**
+`public.perfiles.domicilio` saltándose la RLS del portal (antes solo Gerencia; ahora
+toda la cartera CRM). Anotado porque ese registro es el índice donde se busca «quién
+le escribe a mis tablas». Deuda adyacente detectada: `20260818014534` **sí** altera
+`public.perfiles` (columna + constraint + trigger) y no tiene fila.

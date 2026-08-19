@@ -2006,6 +2006,10 @@ export type Database = {
         }[]
       }
       cola_accion_fn: { Args: { p_limite?: number }; Returns: Json }
+      completar_domicilio_cliente: {
+        Args: { p_cliente_id: string; p_domicilio: string }
+        Returns: Json
+      }
       configuracion_metas_fn: { Args: { p_periodo: string }; Returns: Json }
       configuracion_sla_fn: { Args: never; Returns: Json }
       consultar_ayuda_vendedor: {
@@ -2237,6 +2241,10 @@ export type Database = {
         }[]
       }
       cumplimiento_metas_fn: { Args: { p_periodo: string }; Returns: Json }
+      datos_legales_contrato_fn: {
+        Args: { p_cliente_id: string }
+        Returns: Json
+      }
       descartar_lead: {
         Args: { p_lead: string; p_motivo: string; p_nota?: string }
         Returns: Json

@@ -4,7 +4,7 @@
 // la fila del RETORNO del capital → la longitud nunca es 0 y el guard no podía
 // dispararse jamás. Se mockea @/data/crm-api (sin red) conservando CrmApiError.
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { Dialog } from '@/components/ui/dialog'
 import * as crmApi from '@/data/crm-api'
@@ -16,7 +16,7 @@ vi.mock('sonner', () => ({
 
 vi.mock('@/data/crm-api', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-api')>()
-  return { ...actual, crearContrato: vi.fn() }
+  return { ...actual, crearContrato: vi.fn(), completarDomicilioCliente: vi.fn() }
 })
 
 const archivoPdf = vi.hoisted(() => ({
@@ -46,7 +46,30 @@ const cuentasEstado = vi.hoisted(() => ({
   refetch: vi.fn(),
 }))
 
+// Pre-vuelo legal: qué le falta al cliente (o al propio analista) para emitir.
+const legalesEstado = vi.hoisted(() => ({
+  faltaDomicilio: false,
+  faltanCliente: [] as string[],
+  faltanAnalista: [] as string[],
+  error: false,
+  refetch: vi.fn(),
+}))
+
 vi.mock('@/data/crm-queries', () => ({
+  useDatosLegalesContrato: vi.fn((clienteId: string) => ({
+    data: legalesEstado.error
+      ? undefined
+      : {
+          clienteId,
+          faltaDomicilio: legalesEstado.faltaDomicilio,
+          faltanCliente: legalesEstado.faltanCliente,
+          faltanAnalista: legalesEstado.faltanAnalista,
+        },
+    isPending: false,
+    isError: legalesEstado.error,
+    isFetching: false,
+    refetch: legalesEstado.refetch,
+  })),
   useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
     data: moneda === 'PEN' && !cuentasEstado.ocultarPen
       ? [{
@@ -73,6 +96,7 @@ vi.mock('@/data/crm-queries', () => ({
 
 const { ContratoNuevo } = await import('./contrato-nuevo')
 const crearContrato = vi.mocked(crmApi.crearContrato)
+const completarDomicilio = vi.mocked(crmApi.completarDomicilioCliente)
 
 function montar(
   pdfDatosDemo = undefined as (typeof DATOS_PDF_DEMO)[string] | undefined,
@@ -119,6 +143,12 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     cuentasEstado.fetching = false
     cuentasEstado.ocultarPen = false
     cuentasEstado.refetch.mockReset()
+    legalesEstado.faltaDomicilio = false
+    legalesEstado.faltanCliente = []
+    legalesEstado.faltanAnalista = []
+    legalesEstado.error = false
+    legalesEstado.refetch.mockReset()
+    completarDomicilio.mockReset()
     crearContrato.mockReset()
     archivoPdf.archivar.mockReset()
     archivoPdf.archivarDemo.mockReset()
@@ -441,5 +471,197 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
       beneficiario_nombre: null,
       beneficiario_dni: null,
     })
+  })
+})
+
+// ── El domicilio legal faltante (2026-08-19) ─────────────────────────────────
+// El bug real: crear_contrato_con_cuenta_pdf_v2 reserva el PDF en la MISMA
+// transacción y private.contrato_pdf_snapshot_v2_base exige el domicilio del
+// titular. Sin él, el raise revertía el contrato ENTERO con un mensaje que no
+// decía cuál era el dato ausente. 313 de los 319 clientes con contrato de
+// producción estaban así, y el vendedor tampoco podía escribirlo: la policy
+// perfiles_analista_update solo le abre 5 h desde que él creó al cliente.
+describe('ContratoNuevo — el domicilio legal que falta', () => {
+  beforeEach(() => {
+    cuentasEstado.error = false
+    cuentasEstado.pending = false
+    cuentasEstado.fetching = false
+    cuentasEstado.ocultarPen = false
+    legalesEstado.faltaDomicilio = false
+    legalesEstado.faltanCliente = []
+    legalesEstado.faltanAnalista = []
+    legalesEstado.error = false
+    legalesEstado.refetch.mockReset()
+    completarDomicilio.mockReset()
+    crearContrato.mockReset()
+    crearContrato.mockResolvedValue({
+      id: 'ctr-1',
+      numero_contrato: '2026-01-000777',
+      cuenta_bancaria_id: null,
+      pdf: { estado: 'pendiente' },
+    } as never)
+    archivoPdf.archivar.mockResolvedValue({
+      contratoId: 'ctr-1',
+      storagePath: 'ctr-1/contrato.pdf',
+      nombreArchivo: 'Contrato.pdf',
+      sha256: 'a'.repeat(64),
+      bytes: 123,
+      blob: new Blob(['%PDF']),
+    })
+  })
+
+  it('sin domicilio: sale la ventana, el alta queda frenada y NO se intenta crear el contrato', async () => {
+    const user = userEvent.setup()
+    legalesEstado.faltaDomicilio = true
+    legalesEstado.faltanCliente = ['domicilio']
+    montar()
+    await llenarBase(user)
+
+    expect(screen.getByText(/Falta el domicilio legal de CLIENTE PORTAL UNO/)).toBeInTheDocument()
+    expect(boton()).toBeDisabled()
+
+    await user.click(boton())
+    expect(crearContrato).not.toHaveBeenCalled()
+  })
+
+  // El disabled del botón y el guard de guardar() son DOS defensas: si solo se
+  // probara el botón, quitar el guard dejaría el test en verde. Este submit
+  // directo al <form> se salta el botón y solo puede pararlo el guard.
+  it('el guard de guardar() para el alta aunque el botón no estuviera bloqueado', async () => {
+    legalesEstado.faltaDomicilio = true
+    legalesEstado.faltanCliente = ['domicilio']
+    montar()
+    // El Dialog vive en un portal: el <form> no cuelga del container de render.
+    const formulario = boton().closest('form')!
+
+    fireEvent.submit(formulario)
+    await waitFor(() => {
+      expect(screen.getByRole('alert')).toHaveTextContent(/Falta el domicilio legal del cliente/)
+    })
+    expect(crearContrato).not.toHaveBeenCalled()
+  })
+
+  it('al guardarlo se desbloquea el alta y el contrato ya se crea', async () => {
+    const user = userEvent.setup()
+    legalesEstado.faltaDomicilio = true
+    legalesEstado.faltanCliente = ['domicilio']
+    completarDomicilio.mockImplementation(async () => {
+      legalesEstado.faltaDomicilio = false
+      legalesEstado.faltanCliente = []
+      return { accion: 'completado' as const }
+    })
+    montar()
+    await llenarBase(user)
+
+    await user.type(
+      screen.getByLabelText('Domicilio legal completo'),
+      'Av. Los Alamos 123, San Isidro, Lima, Lima',
+    )
+    await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
+
+    expect(completarDomicilio).toHaveBeenCalledWith(
+      'cli-1',
+      'Av. Los Alamos 123, San Isidro, Lima, Lima',
+    )
+    expect(screen.queryByText(/Falta el domicilio legal/)).not.toBeInTheDocument()
+    expect(boton()).toBeEnabled()
+
+    // El bloque solo puede cerrarse porque se volvió a PREGUNTAR al servidor.
+    // Sin este refresco, la caché seguiría diciendo "falta domicilio" y el
+    // vendedor quedaría atrapado justo después de haberlo rellenado — un fallo
+    // que el mock no puede reproducir por sí solo (no es una caché de verdad).
+    expect(legalesEstado.refetch).toHaveBeenCalledTimes(1)
+
+    await user.click(boton())
+    expect(crearContrato).toHaveBeenCalledTimes(1)
+  })
+
+  it('un domicilio demasiado corto se rechaza en el navegador, sin llamar al servidor', async () => {
+    const user = userEvent.setup()
+    legalesEstado.faltaDomicilio = true
+    legalesEstado.faltanCliente = ['domicilio']
+    montar()
+
+    await user.type(screen.getByLabelText('Domicilio legal completo'), 'Av.')
+    await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
+
+    expect(completarDomicilio).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/entre 5 y 240 caracteres/)
+    expect(boton()).toBeDisabled()
+  })
+
+  it('"conservado": muestra el domicilio que GANÓ, no el que se tecleó', async () => {
+    const user = userEvent.setup()
+    legalesEstado.faltaDomicilio = true
+    legalesEstado.faltanCliente = ['domicilio']
+    completarDomicilio.mockImplementation(async () => {
+      legalesEstado.faltaDomicilio = false
+      legalesEstado.faltanCliente = []
+      return { accion: 'conservado' as const }
+    })
+    montar()
+
+    await user.type(
+      screen.getByLabelText('Domicilio legal completo'),
+      'Av. Los Alamos 123, San Isidro, Lima, Lima',
+    )
+    await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
+
+    // Se dice sin rodeos que lo tecleado NO se guardó, y el aviso sobrevive al
+    // cierre del bloque. El domicilio ganador NO viaja: el servidor no lo manda.
+    expect(screen.getByText(/lo que escribiste aquí NO se guardó/)).toBeInTheDocument()
+    expect(screen.queryByText(/Av. Los Alamos 123/)).not.toBeInTheDocument()
+  })
+
+  it('si la relectura falla tras guardar, NO deja bloqueado al vendedor', async () => {
+    const user = userEvent.setup()
+    legalesEstado.faltaDomicilio = true
+    legalesEstado.faltanCliente = ['domicilio']
+    // El servidor confirma la escritura, pero la caché se queda como estaba.
+    completarDomicilio.mockResolvedValue({ accion: 'completado' })
+    legalesEstado.refetch.mockRejectedValue(new Error('sin red'))
+    montar()
+    await llenarBase(user)
+
+    await user.type(
+      screen.getByLabelText('Domicilio legal completo'),
+      'Av. Los Alamos 123, San Isidro, Lima, Lima',
+    )
+    await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
+
+    expect(screen.queryByText(/Falta el domicilio legal/)).not.toBeInTheDocument()
+    expect(boton()).toBeEnabled()
+    await user.click(boton())
+    expect(crearContrato).toHaveBeenCalledTimes(1)
+  })
+
+  it('si el pre-vuelo FALLA no se bloquea nada: el servidor sigue siendo la puerta', async () => {
+    const user = userEvent.setup()
+    legalesEstado.error = true
+    montar()
+    await llenarBase(user)
+
+    expect(screen.queryByText(/Falta el domicilio legal/)).not.toBeInTheDocument()
+    expect(boton()).toBeEnabled()
+    await user.click(boton())
+    expect(crearContrato).toHaveBeenCalledTimes(1)
+  })
+
+  it('lo que el vendedor NO puede arreglar se frena nombrando el dato y a quién acudir', async () => {
+    const user = userEvent.setup()
+    legalesEstado.faltanCliente = ['correo']
+    legalesEstado.faltanAnalista = ['telefono']
+    montar()
+    await llenarBase(user)
+
+    const aviso = screen.getByRole('alert')
+    expect(aviso).toHaveTextContent(/Al cliente le falta correo/)
+    expect(aviso).toHaveTextContent(/A tu propio perfil le falta celular/)
+    expect(aviso).toHaveTextContent(/Gerencia/)
+    expect(screen.queryByLabelText('Domicilio legal completo')).not.toBeInTheDocument()
+    expect(boton()).toBeDisabled()
+
+    await user.click(boton())
+    expect(crearContrato).not.toHaveBeenCalled()
   })
 })

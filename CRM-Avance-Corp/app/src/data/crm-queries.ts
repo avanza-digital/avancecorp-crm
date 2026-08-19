@@ -43,6 +43,7 @@ import {
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
   obtenerCronograma,
+  obtenerDatosLegalesContrato,
   obtenerTitulares,
 } from './crm-api'
 
@@ -77,6 +78,8 @@ export const crmQueryKeys = {
   cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
   titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
+  datosLegalesContrato: (clienteId: string) =>
+    [...crmQueryKeys.clientes(), clienteId, 'datos-legales-contrato'] as const,
   cuentasBancarias: (clienteId: string, moneda: 'PEN' | 'USD') =>
     [...crmQueryKeys.clientes(), clienteId, 'cuentas-bancarias', moneda] as const,
   // Métricas de gerencia (RPCs crm.metricas_*_fn): misma raíz por lo mismo.
@@ -226,6 +229,21 @@ export function useClienteDetalle(clienteId: string, habilitada = true) {
   return useQuery({
     queryKey: crmQueryKeys.clienteDetalle(clienteId),
     queryFn: ({ signal }) => obtenerClienteDetalle(clienteId, signal),
+    enabled: habilitada,
+    staleTime: 0,
+  })
+}
+
+/**
+ * Qué dato legal le falta al cliente (o al propio analista) para poder emitir
+ * el contrato. `staleTime: 0` OBLIGATORIO: entre abrir el formulario y pulsar
+ * "Crear contrato" otra sesión puede haber rellenado el domicilio, y bloquear
+ * el alta contra una caché vieja sería inventarse un muro que ya no existe.
+ */
+export function useDatosLegalesContrato(clienteId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.datosLegalesContrato(clienteId),
+    queryFn: ({ signal }) => obtenerDatosLegalesContrato(clienteId, signal),
     enabled: habilitada,
     staleTime: 0,
   })

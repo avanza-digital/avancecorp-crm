@@ -2,7 +2,7 @@
 // Usa el wrapper atómico de `crm` sobre la RPC del portal + el generador de
 // cronograma portado: contrato, cuenta y vínculo se confirman o revierten juntos.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BadgeCheck, Download, ExternalLink, FileSignature, LoaderCircle, RefreshCw } from 'lucide-react'
+import { BadgeCheck, Download, ExternalLink, FileSignature, Home, LoaderCircle, RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -12,6 +12,7 @@ import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/component
 import { money, fmtFecha, type Moneda } from '@/lib/format'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
 import {
+  completarDomicilioCliente,
   crearContrato,
   CrmApiError,
   type CrearContratoInput,
@@ -29,9 +30,10 @@ import {
 import { normalizarTitulares, type TitularBorrador } from '@/lib/titulares'
 import { TitularesEditor } from '@/components/app/titulares'
 import { CuentaPagoContrato } from '@/components/app/cuenta-pago-contrato'
-import { useCuentasBancariasCliente } from '@/data/crm-queries'
+import { useCuentasBancariasCliente, useDatosLegalesContrato } from '@/data/crm-queries'
 import {
   SECCION_BANCARIA_VACIA,
+  validarDomicilioLegal,
   type CampoSeccionBancaria,
   type SeccionBancariaForm,
 } from '@/lib/cliente-form-logica'
@@ -111,6 +113,26 @@ function hoyLocal(): string {
   return formatDateLocal(new Date())
 }
 
+/**
+ * Nombres de campo del servidor en idioma del vendedor. El pre-vuelo legal
+ * devuelve claves (nunca valores), y un mensaje que dijera "falta dni" obligaría
+ * a traducir mentalmente justo cuando el alta ya se frenó.
+ */
+const ETIQUETA_CAMPO_LEGAL: Record<string, string> = {
+  nombre_completo: 'nombre completo',
+  tipo_documento: 'tipo de documento',
+  documento: 'número de documento',
+  domicilio: 'domicilio legal',
+  correo: 'correo',
+  telefono: 'celular',
+}
+
+function listarCampos(campos: readonly string[]): string {
+  const nombres = campos.map((campo) => ETIQUETA_CAMPO_LEGAL[campo] ?? campo)
+  if (nombres.length <= 1) return nombres[0] ?? ''
+  return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`
+}
+
 export interface ContratoNuevoProps {
   clienteId: string
   clienteNombre: string
@@ -171,7 +193,23 @@ export function ContratoNuevo({
     useState<CampoSeccionBancaria | null>(null)
   const [avisoCuenta, setAvisoCuenta] = useState<string | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
+  // Domicilio legal faltante: el PDF se reserva DENTRO de la transacción del
+  // alta y lo exige literalmente, así que sin él el contrato entero se revierte.
+  // Se pregunta ANTES para convertir ese muro sin nombre en un campo.
+  const [domicilio, setDomicilio] = useState('')
+  const [guardandoDomicilio, setGuardandoDomicilio] = useState(false)
+  const [errorDomicilio, setErrorDomicilio] = useState<string | null>(null)
+  const [avisoDomicilio, setAvisoDomicilio] = useState<string | null>(null)
+  // El servidor ya confirmó el domicilio en ESTA sesión: manda sobre la
+  // consulta, que puede quedarse con una foto vieja si la relectura falla.
+  const [domicilioConfirmado, setDomicilioConfirmado] = useState(false)
   const esDemo = pdfDatosDemo != null
+  // Sin useQueryClient a propósito. En la app real el provider existe (main.tsx
+  // envuelve todo), pero varios arneses de prueba montan este componente suelto
+  // y exigirlo los rompía. No hace falta: la ficha del cliente se refresca sola
+  // porque useClienteDetalle tiene staleTime: 0 y vuelve a pedir el dato al
+  // abrirse, y el pre-vuelo se recarga con su propio refetch.
+  const legalesQ = useDatosLegalesContrato(clienteId, !esDemo)
   const cuentasQ = useCuentasBancariasCliente(clienteId, moneda, !esDemo)
   const cuentasDisponibles = esDemo
     ? cuentasDemo?.[moneda] ?? CUENTAS_VACIAS
@@ -179,6 +217,81 @@ export function ContratoNuevo({
   const cuentasPendientes = esDemo ? false : cuentasQ.isPending
   const cuentasReintentando = esDemo ? false : cuentasQ.isFetching
   const cuentasConError = esDemo ? false : cuentasQ.isError
+
+  // Pre-vuelo legal. Deliberadamente NO bloquea cuando la consulta falla: es un
+  // aviso, no la puerta. El servidor sigue siendo el único que decide, y
+  // convertir un fallo de red en un contrato imposible sería inventar un muro
+  // donde no lo hay. Solo se bloquea cuando el servidor DIJO que falta algo.
+  const legales = esDemo ? undefined : legalesQ.data
+  const faltaDomicilio = legales?.faltaDomicilio === true && !domicilioConfirmado
+  // Huecos que el vendedor NO puede cerrar desde aquí: el alta fallaría seguro,
+  // así que se frena con el nombre del dato en vez de dejarle llenar el formulario.
+  const otrosFaltantesCliente = (legales?.faltanCliente ?? []).filter((campo) => campo !== 'domicilio')
+  const faltantesAnalista = legales?.faltanAnalista ?? []
+  const bloqueoLegalAjeno = otrosFaltantesCliente.length > 0 || faltantesAnalista.length > 0
+  const textoBloqueoLegalAjeno = [
+    otrosFaltantesCliente.length > 0
+      ? `Al cliente le falta ${listarCampos(otrosFaltantesCliente)}.`
+      : '',
+    faltantesAnalista.length > 0
+      ? `A tu propio perfil le falta ${listarCampos(faltantesAnalista)}.`
+      : '',
+  ].filter(Boolean).join(' ')
+
+  const guardarDomicilio = async () => {
+    if (guardandoDomicilio) return
+    setAvisoDomicilio(null)
+    const validado = validarDomicilioLegal(domicilio)
+    if (!validado.ok) {
+      setErrorDomicilio(validado.error)
+      return
+    }
+    setErrorDomicilio(null)
+    setGuardandoDomicilio(true)
+    let r: Awaited<ReturnType<typeof completarDomicilioCliente>>
+    try {
+      r = await completarDomicilioCliente(clienteId, validado.valor)
+    } catch (fallo) {
+      setErrorDomicilio(
+        fallo instanceof CrmApiError
+          ? fallo.message
+          : 'No se pudo guardar el domicilio legal. Reintenta.',
+      )
+      setGuardandoDomicilio(false)
+      return
+    }
+    // A partir de aquí el servidor YA confirmó: nada de lo que siga puede
+    // decirle al vendedor que no se guardó. Antes vivía dentro del mismo try, y
+    // una deriva del contrato de respuesta (subir a version 2, una clave nueva)
+    // habría pintado toda escritura correcta como un fallo.
+    try {
+      // 'conservado' = otra sesión lo escribió primero y el servidor lo respetó.
+      // Lo tecleado NO se guardó: se borra del campo para que nadie crea que sí,
+      // y se dice con todas las letras. El servidor no devuelve el domicilio
+      // ganador (sería una vía de lectura de PII para el supervisor), así que se
+      // remite a la ficha del cliente, que ya lo enseña a quien puede verlo.
+      if (r.accion === 'conservado') {
+        setAvisoDomicilio(
+          'Otra sesión ya había registrado el domicilio de este cliente y se conservó ese; '
+          + 'lo que escribiste aquí NO se guardó. Puedes verlo en la ficha del cliente.',
+        )
+      } else {
+        toast.success('Domicilio legal registrado')
+      }
+      // El servidor YA confirmó la escritura, así que el hueco está cerrado
+      // pase lo que pase con la relectura. Se recuerda aquí porque
+      // `refetch()` de TanStack RESUELVE aunque falle y deja `data` con el
+      // valor viejo: sin esta marca, un fallo de red dejaría al vendedor
+      // bloqueado por un muro que ya no existe, justo después de haberlo
+      // derribado. Hallazgo de la auditoría adversaria del 2026-08-19.
+      setDomicilioConfirmado(true)
+      await legalesQ.refetch()
+    } catch {
+      /* la relectura es cortesía: el dato ya está guardado y confirmado */
+    } finally {
+      setGuardandoDomicilio(false)
+    }
+  }
 
   // Una revalidación puede retirar/versionar la cuenta elegida desde otra
   // sesión. Se limpia de inmediato; prepararCuentaPago lo vuelve a comprobar al
@@ -298,6 +411,16 @@ export function ContratoNuevo({
     if (enviando) return // guard anti doble-submit (además del disabled del botón)
     setError(null)
     setCampoCuentaInvalido(null)
+    // Segunda defensa del pre-vuelo legal: el disabled del botón es la primera,
+    // pero un submit por Enter con el foco en otro campo no lo atraviesa.
+    if (faltaDomicilio) {
+      reportarError('Falta el domicilio legal del cliente. Complétalo arriba: va escrito en el contrato.')
+      return
+    }
+    if (bloqueoLegalAjeno) {
+      reportarError(`${textoBloqueoLegalAjeno} Pídele a Gerencia que lo complete antes de emitir.`)
+      return
+    }
     // El N° debe ser EXACTAMENTE 6 dígitos (espejo de analista.js:800-805): sin
     // ellos el servidor inventaría la numeración vieja 'AC-2026-XXXX'.
     if (!RE_SEIS_DIGITOS.test(numero)) {
@@ -588,6 +711,73 @@ export function ContratoNuevo({
         </DialogTitle>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
+        {faltaDomicilio && (
+          <section
+            aria-labelledby="ct-domicilio-titulo"
+            className="space-y-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-3"
+          >
+            <h3 id="ct-domicilio-titulo" className="flex items-center gap-2 text-xs font-semibold">
+              <Home className="size-4" aria-hidden="true" />
+              Falta el domicilio legal de {clienteNombre}
+            </h3>
+            <p className="text-[11px] leading-relaxed text-muted-foreground">
+              Va escrito literalmente en el contrato, así que sin él no se puede emitir.
+              Complétalo aquí y sigue con el alta.
+            </p>
+            <div className="space-y-1.5">
+              <Label htmlFor="ct-domicilio">Domicilio legal completo</Label>
+              <Input
+                id="ct-domicilio"
+                value={domicilio}
+                onChange={(e) => {
+                  setDomicilio(e.target.value)
+                  setErrorDomicilio(null)
+                }}
+                placeholder="Av./Jr./Calle, número, distrito, provincia y departamento"
+                autoComplete="street-address"
+                aria-invalid={errorDomicilio ? true : undefined}
+                aria-describedby={errorDomicilio ? 'ct-domicilio-error' : undefined}
+                disabled={guardandoDomicilio || enviando}
+              />
+            </div>
+            {errorDomicilio && (
+              <p id="ct-domicilio-error" role="alert" className="text-xs font-semibold text-destructive">
+                {errorDomicilio}
+              </p>
+            )}
+            {/* type="button": dentro del <form> del contrato, un submit aquí
+                intentaría crear el contrato que este bloque está frenando. */}
+            <Button
+              type="button"
+              size="sm"
+              onClick={() => void guardarDomicilio()}
+              disabled={guardandoDomicilio || enviando}
+            >
+              {guardandoDomicilio ? 'Guardando…' : 'Guardar domicilio'}
+            </Button>
+          </section>
+        )}
+        {/* FUERA del bloque de arriba a propósito: cuando el servidor responde
+            "conservado" el hueco queda cerrado y la sección se desmonta — si el
+            aviso viviera dentro, el vendedor nunca llegaría a leer QUÉ domicilio
+            ganó, que es justo el que va a salir impreso en el contrato. */}
+        {avisoDomicilio && (
+          <p
+            role="status"
+            className="rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-[11px] font-semibold"
+          >
+            {avisoDomicilio}
+          </p>
+        )}
+        {bloqueoLegalAjeno && (
+          <p
+            role="alert"
+            className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive"
+          >
+            {textoBloqueoLegalAjeno} Sin eso el contrato no se puede emitir, y no se corrige
+            desde aquí: pídeselo a Gerencia.
+          </p>
+        )}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-categoria">Categoría</Label>
@@ -785,6 +975,10 @@ export function ContratoNuevo({
             || cuentasReintentando
             || cuentasConError
             || !cuentaSeleccionada
+            // Faltas legales CONFIRMADAS por el servidor. Un fallo de la consulta
+            // NO entra aquí a propósito: dejaría sin emitir a quien lo tiene todo.
+            || faltaDomicilio
+            || bloqueoLegalAjeno
           }
         >
           <BadgeCheck /> {enviando ? 'Creando…' : 'Crear contrato'}

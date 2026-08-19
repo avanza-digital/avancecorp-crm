@@ -1301,6 +1301,8 @@ export interface BackendReal {
   resumenRepartoOverride: Record<string, unknown> | null
   /** Clientes del portal (alimentan clientes_basicos + el detalle de perfiles). */
   clientes: PerfilReal[]
+  /** El pre-vuelo legal declara el domicilio ausente, sin tocar la fila del cliente. */
+  domicilioLegalAusente: boolean
   /** Contratos del portal (con el embed cliente ya resuelto). */
   contratos: ContratoReal[]
   /** Condiciones publicadas y vigentes ofrecidas por el catálogo versionado. */
@@ -1372,6 +1374,7 @@ export interface BackendReal {
     patchPerfil: number
     rpcActualizarClienteGerencia: number
     rpcListarCuentasBancarias: number
+    rpcCompletarDomicilio: number
     rpcCrearContrato: number
     rpcActualizarContrato: number
     rpcMetricasDistribucion: number
@@ -1451,6 +1454,7 @@ export async function montarBackendReal(
     fallarCarteraPagina: init.fallarCarteraPagina ?? false,
     resumenRepartoOverride: init.resumenRepartoOverride ?? null,
     clientes: init.clientes ?? [clienteReal()],
+    domicilioLegalAusente: init.domicilioLegalAusente ?? false,
     contratos: init.contratos ?? [contratoReal()],
     productosSeleccionables: init.productosSeleccionables
       ?? PRODUCTOS_SELECCIONABLES_REAL.map((fila) => ({ ...fila })),
@@ -1506,6 +1510,7 @@ export async function montarBackendReal(
       patchLead: 0, insertActividad: 0, getLeads: 0,
       altaCliente: 0, patchPerfil: 0, rpcActualizarClienteGerencia: 0,
       rpcListarCuentasBancarias: 0,
+      rpcCompletarDomicilio: 0,
       rpcCrearContrato: 0, rpcActualizarContrato: 0,
       rpcMetricasDistribucion: 0, rpcActualizarCapacidad: 0,
       rpcRepartirLead: 0, rpcLeadsPorRepartir: 0,
@@ -1680,6 +1685,47 @@ export async function montarBackendReal(
         && cuenta.beneficiario_dni === perfil.beneficiario_dni,
       )
       return json(route, perfil && !perfilYaVersionado ? [...guardadas, perfil] : guardadas)
+    }
+
+    // ── RPC CRM: pre-vuelo legal del contrato + relleno del domicilio ──
+    // Sin estas dos rutas, cada apertura de "Crear contrato" disparaba una
+    // petición contra un backend inexistente: los e2e pasaban en verde SOLO
+    // porque el pre-vuelo está diseñado para no bloquear cuando falla. Es
+    // decir, no probaban nada del camino nuevo (gate de REALIDAD).
+    if (p === '/rest/v1/rpc/datos_legales_contrato_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string }
+      const clienteId = String(body.p_cliente_id ?? '')
+      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
+      const faltanCliente: string[] = []
+      if (!cliente?.nombre_completo?.trim()) faltanCliente.push('nombre_completo')
+      if (!cliente?.tipo_documento?.trim()) faltanCliente.push('tipo_documento')
+      if (!cliente?.dni?.trim()) faltanCliente.push('documento')
+      if (estado.domicilioLegalAusente || !cliente?.domicilio?.trim()) faltanCliente.push('domicilio')
+      if (!cliente?.correo?.trim()) faltanCliente.push('correo')
+      return json(route, {
+        version: 1,
+        cliente_id: clienteId,
+        falta_domicilio: faltanCliente.includes('domicilio'),
+        faltan_cliente: faltanCliente,
+        faltan_analista: [],
+      })
+    }
+
+    if (p === '/rest/v1/rpc/completar_domicilio_cliente' && method === 'POST') {
+      estado.llamadas.rpcCompletarDomicilio += 1
+      const body = (req.postDataJSON() ?? {}) as {
+        p_cliente_id?: string
+        p_domicilio?: string
+      }
+      const cliente = estado.clientes.find((fila) => fila.id === String(body.p_cliente_id ?? ''))
+      if (!cliente) return json(route, { version: 1, accion: 'conservado' })
+      // Espeja la regla del servidor: NUNCA pisa un domicilio existente.
+      if (!estado.domicilioLegalAusente && cliente.domicilio?.trim()) {
+        return json(route, { version: 1, accion: 'conservado' })
+      }
+      cliente.domicilio = String(body.p_domicilio ?? '').trim()
+      estado.domicilioLegalAusente = false
+      return json(route, { version: 1, accion: 'completado' })
     }
 
     // ── RPC CRM: cuenta + contrato + cronograma en una transacción ──

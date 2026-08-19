@@ -69,14 +69,45 @@ function contieneCaracterControl(s: string): boolean {
 }
 
 /**
+ * Caracteres de ancho CERO y controles de dirección bidi. No se normalizan: se
+ * rechazan. Un domicilio hecho solo de estos pasa cualquier control de longitud,
+ * se imprime en el contrato como NADA («con domicilio en , a quien…») y además
+ * cierra el hueco PARA SIEMPRE: el trigger `perfiles_domicilio_legal_no_borrar`
+ * impide volver a NULL y la RPC nunca pisa un domicilio existente.
+ * Hallazgo de la auditoría adversaria del 2026-08-19, comprobado contra el CHECK
+ * vivo de producción — seis U+200B lo pasaban.
+ */
+const INVISIBLES = /[\u00AD\u180E\u200B-\u200F\u2028\u2029\u202A-\u202E\u2060-\u2064\uFEFF]/
+
+/** Espacios Unicode que SÍ ocupan sitio: se normalizan a espacio simple. */
+const ESPACIOS_EXOTICOS = /[\u00A0\u1680\u2000-\u200A\u202F\u205F\u3000]/g
+
+/**
+ * Normaliza igual que `crm.normalizar_domicilio_legal` en el servidor. Sin
+ * esto había dos varas para el mismo dato: `btrim` de Postgres solo quita
+ * U+0020 mientras que `.trim()` de JS quita todo el espacio Unicode, así que
+ * «Lima» rodeado de U+00A0 lo rechazaba el navegador (4 caracteres) y lo aceptaba el
+ * servidor (7).
+ */
+function normalizarDomicilio(valor: string): string {
+  return valor.replace(ESPACIOS_EXOTICOS, ' ').replace(/\s+/g, ' ').trim()
+}
+
+/**
  * Fuente unica de validacion del domicilio en el navegador. Cuenta puntos de
  * codigo (no unidades UTF-16), igual que la Edge y PostgreSQL.
  */
 export function validarDomicilioLegal(valor: string):
   | { ok: true; valor: string }
   | { ok: false; error: string } {
-  const domicilio = valor.trim()
+  const domicilio = normalizarDomicilio(valor)
   if (!domicilio) return { ok: false, error: 'Completa el domicilio legal del cliente.' }
+  if (INVISIBLES.test(domicilio)) {
+    return {
+      ok: false,
+      error: 'El domicilio legal contiene caracteres invisibles que no se imprimirían en el contrato.',
+    }
+  }
   const longitud = Array.from(domicilio).length
   if (longitud < DOMICILIO_LEGAL_MIN || longitud > DOMICILIO_LEGAL_MAX) {
     return {

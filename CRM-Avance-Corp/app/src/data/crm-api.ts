@@ -1307,6 +1307,15 @@ function aErrorApi(
   ) {
     code = 'MONTO_INVALIDO'
     mensaje = 'El capital estimado es obligatorio y debe ser mayor que 0'
+  } else if (codigoPg === '23514' && texto.includes('datos legales obligatorios')) {
+    // El RAISE de private.contrato_pdf_snapshot_v2_base. Caía en el genérico
+    // "No se pudo guardar el cambio.", que es lo que de verdad veían los
+    // vendedores cuando un cliente antiguo no tenía domicilio: un mensaje que
+    // no nombra ni el dato ni al culpable, imposible de diagnosticar desde la
+    // pantalla. El texto del servidor no lleva PII, pero tampoco dice QUÉ falta.
+    code = 'DATOS_LEGALES_INCOMPLETOS'
+    mensaje = 'Faltan datos legales para emitir el contrato: revisa el domicilio, '
+      + 'el documento y el correo del cliente, y tu propio celular y correo.'
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
     code = 'SIN_PERMISO'
     mensaje = 'No tienes permiso para esa acción'
@@ -1319,6 +1328,12 @@ function aErrorApi(
     // El lead salió de la cola (ya tiene dueño, se cerró) o se perdió la carrera.
     code = 'FUERA_DE_COLA'
     mensaje = error.message ?? 'El lead ya no está en la cola por repartir'
+  } else if (codigoPg === '55P03') {
+    // lock_not_available: otra sesión tiene la fila del cliente y venció el
+    // lock_timeout. Sin esta rama caía en el genérico «No se pudo guardar el
+    // cambio.», que aquí es directamente falso: no falló, no llegó a intentarlo.
+    code = 'REINTENTAR'
+    mensaje = 'Otro usuario está editando a este cliente ahora mismo. Vuelve a intentarlo.'
   } else if (codigoPg === '40001') {
     // Carrera bajo aislamiento serializable (defensivo: el default es READ COMMITTED).
     code = 'REINTENTAR'
@@ -2350,6 +2365,117 @@ export async function actualizarClientePortal(
     .select('id')
   if (error) throw aErrorApi(error, 'crm.clientes.update_fallido')
   return (data?.length ?? 0) > 0
+}
+
+// ── Datos legales que el contrato exige ANTES de intentar emitirlo ────────────
+// El PDF se reserva dentro de la MISMA transacción del alta, así que un dato
+// legal ausente revierte el contrato entero con 'Faltan datos legales
+// obligatorios del titular o del analista' — un mensaje que no dice CUÁL falta.
+// Preguntarlo antes convierte ese muro en un campo que el vendedor rellena.
+
+/** Campos del titular que el PDF exige (nombres, nunca valores: no es una vía a la PII). */
+export const CAMPOS_LEGALES_CLIENTE = [
+  'nombre_completo',
+  'tipo_documento',
+  'documento',
+  'domicilio',
+  'correo',
+] as const
+export type CampoLegalCliente = (typeof CAMPOS_LEGALES_CLIENTE)[number]
+
+/** Campos del propio analista que firma el alta (contratos.creado_por = auth.uid()). */
+export const CAMPOS_LEGALES_ANALISTA = [
+  'nombre_completo',
+  'documento',
+  'telefono',
+  'correo',
+] as const
+export type CampoLegalAnalista = (typeof CAMPOS_LEGALES_ANALISTA)[number]
+
+export interface DatosLegalesContrato {
+  clienteId: string
+  /** El único hueco que el vendedor puede cerrar por su cuenta. */
+  faltaDomicilio: boolean
+  faltanCliente: CampoLegalCliente[]
+  faltanAnalista: CampoLegalAnalista[]
+}
+
+const DatosLegalesContratoSchema = v.strictObject({
+  version: v.literal(1),
+  cliente_id: v.pipe(v.string(), v.uuid()),
+  falta_domicilio: v.boolean(),
+  faltan_cliente: v.array(v.picklist(CAMPOS_LEGALES_CLIENTE)),
+  faltan_analista: v.array(v.picklist(CAMPOS_LEGALES_ANALISTA)),
+})
+
+export async function obtenerDatosLegalesContrato(
+  clienteId: string,
+  signal?: AbortSignal,
+): Promise<DatosLegalesContrato> {
+  let consulta = cliente().schema('crm').rpc('datos_legales_contrato_fn', {
+    p_cliente_id: clienteId,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw aErrorApi(error, 'crm.contrato.datos_legales_fallido')
+  const r = v.safeParse(DatosLegalesContratoSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError(
+      'No se pudo comprobar qué datos legales exige el contrato.',
+      'RESPUESTA_INVALIDA',
+    )
+    registrarError('crm.contrato.datos_legales_respuesta_invalida', fallo)
+    throw fallo
+  }
+  return {
+    clienteId: r.output.cliente_id,
+    faltaDomicilio: r.output.falta_domicilio,
+    faltanCliente: [...r.output.faltan_cliente],
+    faltanAnalista: [...r.output.faltan_analista],
+  }
+}
+
+/**
+ * `conservado` NO es un fallo: significa que el domicilio ya estaba escrito
+ * (otra sesión ganó la carrera) y el servidor lo respetó. Lo que el vendedor
+ * tecleó NO se guardó, y el front no puede darlo por bueno.
+ *
+ * El servidor NO devuelve el domicilio vigente, a propósito: el alcance de la
+ * RPC incluye al supervisor del árbol, que por RLS no puede leer esa columna
+ * (`perfiles_analista_select` exige `asesor_perfil_id = auth.uid()`). Devolverlo
+ * convertiría una escritura en una vía de lectura de PII. Hallazgo de la
+ * auditoría adversaria del 2026-08-19.
+ */
+export type AccionDomicilio = 'completado' | 'conservado'
+
+export interface DomicilioCompletado {
+  accion: AccionDomicilio
+}
+
+const DomicilioCompletadoSchema = v.strictObject({
+  version: v.literal(1),
+  accion: v.picklist(['completado', 'conservado']),
+})
+
+export async function completarDomicilioCliente(
+  clienteId: string,
+  domicilio: string,
+): Promise<DomicilioCompletado> {
+  const { data, error } = await cliente().schema('crm').rpc('completar_domicilio_cliente', {
+    p_cliente_id: clienteId,
+    p_domicilio: domicilio,
+  })
+  if (error) throw aErrorApi(error, 'crm.clientes.domicilio_fallido')
+  const r = v.safeParse(DomicilioCompletadoSchema, data)
+  if (!r.success) {
+    const fallo = new CrmApiError(
+      'El servidor no confirmó el domicilio legal del cliente.',
+      'RESPUESTA_INVALIDA',
+    )
+    registrarError('crm.clientes.domicilio_respuesta_invalida', fallo)
+    throw fallo
+  }
+  return { accion: r.output.accion }
 }
 
 // ── Contratos de mi cartera (public.contratos + nombre del cliente embebido) ───

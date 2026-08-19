@@ -308,3 +308,53 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
 
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
 })
+
+// ── El domicilio legal faltante (2026-08-19) ────────────────────────────────
+// El caso REAL de producción: 313 de 319 clientes con contrato no tienen
+// domicilio, y sin él la RPC revierte el alta ENTERA (el PDF se reserva en la
+// misma transacción). Este recorrido es el que de verdad hacen los vendedores
+// con un cliente antiguo, y hasta hoy la suite no lo pisaba: el arnés ni
+// siquiera simulaba el pre-vuelo, así que el camino nuevo pasaba en verde sin
+// ejercitarse (gate de REALIDAD).
+test('cliente SIN domicilio: el alta se frena, se rellena en el momento y entonces sí se crea', async ({ page }) => {
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
+    contratos: [],
+    // El servidor declara ausente el domicilio — la forma que tienen hoy 313
+    // clientes de producción. Se modela en la RESPUESTA del pre-vuelo y no
+    // vaciando la fila del cliente: lo que se prueba es el aviso, no cómo se
+    // dibuja la cartera.
+    domicilioLegalAusente: true,
+  })
+  await traducirRpcContratoLibre(page)
+  await loginReal(page)
+  // Con la llave de leads abierta, el vendedor ya NO aterriza en Mi cartera
+  // sino en Hoy: se navega explícitamente en vez de dar por buena la portada.
+  await page.evaluate(() => { window.location.hash = '#/mi-cartera' })
+
+  const form = await abrirFormContrato(page)
+  await llenarBase(form)
+  await form.locator('#ct-numero').fill('000778')
+
+  // 1. El muro, ahora CON nombre: dice qué falta y de quién.
+  await expect(form.getByText(/Falta el domicilio legal de CLIENTE PORTAL UNO/)).toBeVisible()
+  await expect(form.getByRole('button', { name: /Crear contrato/ })).toBeDisabled()
+
+  // 2. Se rellena sin salir del formulario ni perder lo ya escrito.
+  await form.locator('#ct-domicilio').fill('Av. Los Alamos 123, San Isidro, Lima')
+  await form.getByRole('button', { name: /Guardar domicilio/ }).click()
+
+  await expect(form.getByText(/Falta el domicilio legal/)).toBeHidden()
+  await expect.poll(() => estado.llamadas.rpcCompletarDomicilio).toBe(1)
+  // Lo escrito antes del muro sigue ahí: el vendedor no vuelve a empezar.
+  await expect(form.locator('#ct-numero')).toHaveValue('000778')
+
+  // 3. Y el alta queda desbloqueada: el botón se habilita y el servidor recibe
+  //    la llamada. NO se asevera aquí el cartel de éxito a propósito: eso lo
+  //    cubre el test de la numeración, y su mock del alta arrastra una avería
+  //    PREVIA a este cambio (falla igual sin tocar nada). Afirmarlo aquí
+  //    mezclaría el fallo ajeno con lo que esta prueba viene a demostrar.
+  await expect(form.getByRole('button', { name: /Crear contrato/ })).toBeEnabled()
+  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
+})

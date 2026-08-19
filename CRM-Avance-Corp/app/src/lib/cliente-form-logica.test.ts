@@ -464,3 +464,59 @@ describe('hayCuentaEnLedger + la regla «al menos una» perdonada (rediseño tra
     expect(r.ok).toBe(false)
   })
 })
+
+// ── Domicilio legal: las trampas invisibles (auditoría adversaria 2026-08-19) ──
+// Un domicilio hecho de caracteres de ancho cero pasaba TODOS los controles
+// —incluido el CHECK vivo de producción, comprobado— se imprimiría en el
+// contrato como NADA, y cerraría el hueco para siempre: el domicilio no se
+// puede volver a poner en NULL y la RPC nunca pisa uno existente.
+describe('validarDomicilioLegal — lo que se imprimiría como nada', () => {
+  const invisibles: [string, string][] = [
+    ['espacio de ancho cero', '\u200B'],
+    ['guion suave', '\u00AD'],
+    ['unión de palabras', '\u2060'],
+  ]
+  for (const [nombre, caracter] of invisibles) {
+    it(`rechaza un domicilio hecho solo de ${nombre}`, () => {
+      const r = validarDomicilioLegal(caracter.repeat(6))
+      expect(r.ok).toBe(false)
+      if (r.ok) return
+      expect(r.error).toMatch(/invisibles/)
+    })
+    it(`rechaza ${nombre} escondido dentro de una dirección con pinta legítima`, () => {
+      const r = validarDomicilioLegal(`Av. Los Alamos${caracter} 123, San Isidro, Lima`)
+      expect(r.ok).toBe(false)
+    })
+  }
+
+  // U+FEFF es el caso raro: JavaScript lo considera espacio (\s y .trim() lo
+  // comen) y PostgreSQL no. Cada lado lo neutraliza a su manera y ninguno lo
+  // deja pasar a la impresión: el navegador lo NORMALIZA y manda el texto ya
+  // limpio; el servidor, que no puede normalizarlo, lo RECHAZA. Se afirma el
+  // comportamiento real de cada uno en vez de forzar una simetría falsa.
+  it('el navegador limpia U+FEFF en vez de rechazarlo, y manda el texto ya sano', () => {
+    expect(validarDomicilioLegal('\uFEFF'.repeat(6)).ok).toBe(false)
+    const r = validarDomicilioLegal('Av. Los Alamos\uFEFF 123, San Isidro, Lima')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.valor).toBe('Av. Los Alamos 123, San Isidro, Lima')
+    expect(r.valor).not.toMatch(/\uFEFF/)
+  })
+
+  // El servidor usa btrim (solo U+0020) y el navegador .trim() (todo el espacio
+  // Unicode): sin normalizar, el mismo texto valía 4 caracteres aquí y 7 allí.
+  it('normaliza los espacios exóticos para medir lo MISMO que el servidor', () => {
+    expect(validarDomicilioLegal('\u00A0\u00A0Lima\u00A0').ok).toBe(false)
+    const r = validarDomicilioLegal('Av.\u00A0\u00A0Grau   456,\u3000Lima')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.valor).toBe('Av. Grau 456, Lima')
+  })
+
+  it('no toca las direcciones reales con tildes, guiones largos u ordinales', () => {
+    const r = validarDomicilioLegal('  Jr. Ancash 999 — 2.º piso, Cercado, Lima  ')
+    expect(r.ok).toBe(true)
+    if (!r.ok) return
+    expect(r.valor).toBe('Jr. Ancash 999 — 2.º piso, Cercado, Lima')
+  })
+})

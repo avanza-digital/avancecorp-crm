@@ -63,6 +63,16 @@ vi.mock('@/data/crm-queries', () => ({
     refetch: vi.fn(),
   })),
   useConvertirLeadExterno: vi.fn(() => ({ mutateAsync: mutarCierreExterno })),
+  // Pre-vuelo legal del contrato. Aquí el cliente ACABA de nacer con su
+  // domicilio (la conversión lo captura), así que no falta nada: este camino no
+  // debe ver nunca el bloque que pide el domicilio.
+  useDatosLegalesContrato: vi.fn((clienteId: string) => ({
+    data: { clienteId, faltaDomicilio: false, faltanCliente: [], faltanAnalista: [] },
+    isPending: false,
+    isError: false,
+    isFetching: false,
+    refetch: vi.fn(),
+  })),
 }))
 
 // El catálogo versionado tiene sus pruebas propias. Este diálogo solo necesita
