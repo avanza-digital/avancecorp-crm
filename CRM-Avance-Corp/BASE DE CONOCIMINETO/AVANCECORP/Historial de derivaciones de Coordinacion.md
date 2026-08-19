@@ -28,4 +28,6 @@ La configuración vive en tablas privadas y solo se expone a Coordinación/Geren
 
 La migración de producción es `20260819220501_crm_agenda_reparto_diaria`. Se verificó con una sesión simulada de Coordinación (dos destinos, una semana y cero PII de leads), con ejecución denegada a `anon` y `public`. El frontend fue publicado en `https://crm.miavance.com` con el release `crm-20260819T221546Z-4880d95d12d4`; tras limpiar la caché, la página y el bundle de reparto respondieron `HTTP 200`.
 
+El mismo día se corrigió el registro del turno vigente con la migración `20260819222704_crm_agenda_reparto_registro_inicial_del_dia`: si Landing o Formulario ya recibió leads antes de que Rosa registrara la agenda, puede guardar el **primer** turno del día. Una vez que ese turno existe, la evidencia real conserva el candado y ya no permite cambiar ese carril. La interfaz ahora muestra las validaciones operativas `22023` en vez de ocultarlas detrás de un aviso genérico. Se desplegó con el release `crm-20260819T222942Z-c0e4e4e0ff67` y se limpió la caché de `crm.miavance.com`.
+
 Relacionado: [[Reparto de Leads]] y [[Seguridad RLS]].
