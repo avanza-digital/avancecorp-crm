@@ -17,6 +17,7 @@ import {
   descartarLead,
   deshacerDescarte,
   leadsPorRepartir,
+  listarIngresosRepartoMes,
   listarResumenReparto,
   repartirLead,
   supervisoresParaReparto,
@@ -136,6 +137,49 @@ describe('supervisoresParaReparto (msw)', () => {
       { perfil_id: 'sup-1', nombre: 'SUPERVISOR UNO', activo: true, bandeja_pendiente: 3 },
       { perfil_id: 'sup-2', nombre: 'SUPERVISOR DOS', activo: true, bandeja_pendiente: 0 },
     ])
+  })
+})
+
+describe('listarIngresosRepartoMes (msw)', () => {
+  it('envía el primer día del mes y conserva el total histórico por semanas', async () => {
+    let cuerpo: unknown = null
+    server.use(
+      http.post(RPC('ingresos_reparto_mes_fn'), async ({ request }) => {
+        cuerpo = await request.json()
+        return HttpResponse.json({
+          version: 1,
+          generado_en: '2026-08-18T15:00:00Z',
+          mes: '2026-08-01',
+          total: 12,
+          semanas: [
+            { numero: 1, desde: '2026-08-01', hasta: '2026-08-02', total: 3 },
+            { numero: 2, desde: '2026-08-03', hasta: '2026-08-09', total: 9 },
+          ],
+        })
+      }),
+    )
+
+    const resumen = await listarIngresosRepartoMes('2026-08')
+
+    expect(cuerpo).toEqual({ p_mes: '2026-08-01' })
+    expect(resumen.total).toBe(12)
+    expect(resumen.semanas.map((semana) => semana.total)).toEqual([3, 9])
+  })
+
+  it('rechaza un payload de otro mes para no rotular cifras equivocadas', async () => {
+    server.use(
+      http.post(RPC('ingresos_reparto_mes_fn'), () => HttpResponse.json({
+        version: 1,
+        generado_en: '2026-08-18T15:00:00Z',
+        mes: '2026-07-01',
+        total: 0,
+        semanas: [],
+      })),
+    )
+
+    await expect(listarIngresosRepartoMes('2026-08')).rejects.toMatchObject({
+      code: 'INGRESOS_REPARTO_CONTRACT',
+    })
   })
 })
 

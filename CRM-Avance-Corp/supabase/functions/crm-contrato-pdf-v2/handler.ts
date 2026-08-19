@@ -1,5 +1,6 @@
 export const CONTRATO_PDF_BUCKET = "contratos-generados";
-export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v2";
+export const CONTRATO_DOCUMENTOS_BUCKET = "documentos";
+export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v5";
 export const CONTRATO_PDF_MAX_BYTES = 10 * 1024 * 1024;
 export const CONTRATO_PDF_MAX_REQUEST_BYTES = 2 * 1024;
 
@@ -28,6 +29,10 @@ export interface StorageContratoPdfV2 {
     segundos: number,
     solicitud: Request,
   ): Promise<{ url: string | null; error: BackendError | null }>;
+  eliminar(
+    bucket: typeof CONTRATO_PDF_BUCKET | typeof CONTRATO_DOCUMENTOS_BUCKET,
+    paths: readonly string[],
+  ): Promise<{ error: BackendError | null }>;
 }
 
 export type RenderResult = {
@@ -93,11 +98,24 @@ type ReclamoPdf = EstadoPdf & {
   renderizado_en?: string;
 };
 
+type ObjetoEliminacion = {
+  bucket: typeof CONTRATO_PDF_BUCKET | typeof CONTRATO_DOCUMENTOS_BUCKET;
+  path: string;
+};
+
+type PreparacionEliminacion = {
+  contratoId: string;
+  token: string;
+  objetos: ObjetoEliminacion[];
+};
+
 type EstadoPdfPublico = Omit<EstadoPdf, "ok" | "codigo">;
 
 const ORIGENES_PRODUCCION = new Set([
   "https://crm.miavance.com",
   "https://www.crm.miavance.com",
+  "https://miavance.com",
+  "https://www.miavance.com",
 ]);
 const UUID_CANONICO_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -195,6 +213,11 @@ function tieneControl(valor: string): boolean {
   return false;
 }
 
+function versionJobLegible(valor: unknown): valor is string {
+  return valor === "contrato-aep-17-v2" ||
+    valor === CONTRATO_PDF_TEMPLATE_VERSION;
+}
+
 function rutaValida(
   contratoId: string,
   jobId: string | null,
@@ -202,11 +225,93 @@ function rutaValida(
   ruta: unknown,
 ): ruta is string {
   if (typeof ruta !== "string") return false;
-  if (templateVersion === CONTRATO_PDF_TEMPLATE_VERSION && jobId) {
-    return ruta === `${contratoId}/v2/${jobId}/contrato.pdf`;
+  if (jobId) {
+    return versionJobLegible(templateVersion) &&
+      ruta === `${contratoId}/v2/${jobId}/contrato.pdf`;
   }
   // Compatibilidad de lectura con el ledger v1 durante el despliegue aditivo.
   return ruta === `${contratoId}/contrato.pdf`;
+}
+
+function rutaObjetoEliminable(
+  contratoId: string,
+  bucket: unknown,
+  path: unknown,
+): path is string {
+  if (
+    (bucket !== CONTRATO_PDF_BUCKET &&
+      bucket !== CONTRATO_DOCUMENTOS_BUCKET) ||
+    typeof path !== "string" || path.length < 5 || path.length > 1024 ||
+    path !== path.trim() || path.includes("\\") || path.includes("//") ||
+    path.split("/").includes("..") || tieneControl(path)
+  ) return false;
+  if (bucket === CONTRATO_DOCUMENTOS_BUCKET) {
+    return path.startsWith(`${contratoId}/`) &&
+      path.length > contratoId.length + 1;
+  }
+  if (path === `${contratoId}/contrato.pdf`) return true;
+  const partes = path.split("/");
+  return partes.length === 4 && partes[0] === contratoId &&
+    partes[1] === "v2" &&
+    uuidCanonico(partes[2]) && partes[3] === "contrato.pdf";
+}
+
+function parsePreparacionEliminacion(
+  valor: unknown,
+  contratoId: string,
+): PreparacionEliminacion | null {
+  if (
+    !esObjeto(valor) ||
+    !clavesExactas(valor, ["contrato_id", "token", "objetos"]) ||
+    valor.contrato_id !== contratoId || !uuidCanonico(valor.token) ||
+    !Array.isArray(valor.objetos) || valor.objetos.length > 1000
+  ) return null;
+
+  const objetos: ObjetoEliminacion[] = [];
+  const vistos = new Set<string>();
+  for (const objeto of valor.objetos) {
+    if (
+      !esObjeto(objeto) || !clavesExactas(objeto, ["bucket", "path"]) ||
+      !rutaObjetoEliminable(contratoId, objeto.bucket, objeto.path)
+    ) return null;
+    const bucket = objeto.bucket as ObjetoEliminacion["bucket"];
+    const path = objeto.path as string;
+    const llave = `${bucket}\u0000${path}`;
+    if (vistos.has(llave)) return null;
+    vistos.add(llave);
+    objetos.push({ bucket, path });
+  }
+  return { contratoId, token: valor.token, objetos };
+}
+
+function statusErrorBackend(error: BackendError | null): number {
+  if (!error) return 502;
+  if (error.code === "42501") return 403;
+  if (error.code === "P0002" || error.code === "PGRST116") return 404;
+  if (
+    error.code === "22023" || error.code === "23514" ||
+    error.code === "55000" || error.code === "54000"
+  ) return 409;
+  return 503;
+}
+
+const MENSAJES_ELIMINACION_PUBLICOS = new Set([
+  "Solo Admin o Superadmin puede eliminar contratos",
+  "Este contrato tiene pagos; solo Superadmin puede eliminarlo",
+  "Contrato no encontrado",
+  "El PDF se está generando; reintenta la eliminación en unos minutos",
+  "Un documento del contrato tiene una ruta Storage inválida",
+  "El contrato supera el límite seguro de archivos para borrar",
+  "La preparación de eliminación no existe o venció",
+]);
+
+/** Solo expone diagnósticos contractuales deliberadamente públicos. */
+function mensajeErrorEliminacion(
+  error: BackendError,
+  fallback: string,
+): string {
+  const mensaje = error.message?.trim() ?? "";
+  return MENSAJES_ELIMINACION_PUBLICOS.has(mensaje) ? mensaje : fallback;
 }
 
 export function normalizarUrlFirmadaV2(
@@ -338,7 +443,7 @@ function parseEstado(valor: unknown, contratoId: string): EstadoPdf | null {
   }
   if (
     jobId !== null &&
-    (templateVersion !== CONTRATO_PDF_TEMPLATE_VERSION || path === null ||
+    (!versionJobLegible(templateVersion) || path === null ||
       valor.nombre_archivo === null)
   ) return null;
   if (
@@ -530,7 +635,8 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
     }
     if (
       !esObjeto(cuerpo) || !clavesExactas(cuerpo, ["action", "contratoId"]) ||
-      (cuerpo.action !== "ensure" && cuerpo.action !== "status") ||
+      (cuerpo.action !== "ensure" && cuerpo.action !== "status" &&
+        cuerpo.action !== "delete") ||
       !uuidCanonico(cuerpo.contratoId)
     ) {
       return json(
@@ -557,6 +663,117 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
       }, 401);
     }
     const contratoId = cuerpo.contratoId;
+
+    if (cuerpo.action === "delete") {
+      const preparacionRaw = await deps.rpcAdmin(
+        "contrato_eliminacion_preparar",
+        { p_contrato_id: contratoId, p_actor_id: sesion.id },
+      );
+      if (preparacionRaw.error) {
+        return json(
+          origin,
+          origenes,
+          {
+            error: mensajeErrorEliminacion(
+              preparacionRaw.error,
+              "No se pudo autorizar la eliminación del contrato",
+            ),
+            codigo: "CONTRATO_ELIMINACION_PREPARAR",
+          },
+          statusErrorBackend(preparacionRaw.error),
+        );
+      }
+      const preparacion = parsePreparacionEliminacion(
+        preparacionRaw.data,
+        contratoId,
+      );
+      if (!preparacion) {
+        return json(
+          origin,
+          origenes,
+          {
+            error: "El manifiesto de eliminación es incoherente",
+            codigo: "INTEGRIDAD_ELIMINACION",
+          },
+          409,
+        );
+      }
+
+      for (
+        const bucket of [
+          CONTRATO_PDF_BUCKET,
+          CONTRATO_DOCUMENTOS_BUCKET,
+        ] as const
+      ) {
+        const paths = preparacion.objetos
+          .filter((objeto) => objeto.bucket === bucket)
+          .map((objeto) => objeto.path);
+        if (paths.length === 0) continue;
+        const eliminacion = await deps.storage.eliminar(bucket, paths);
+        if (eliminacion.error) {
+          return json(
+            origin,
+            origenes,
+            {
+              error: "No se pudieron eliminar todos los archivos del contrato",
+              codigo: "STORAGE_ELIMINACION",
+            },
+            503,
+          );
+        }
+      }
+
+      const finalRaw = await deps.rpcAdmin(
+        "contrato_eliminacion_finalizar",
+        {
+          p_contrato_id: contratoId,
+          p_token: preparacion.token,
+          p_actor_id: sesion.id,
+        },
+      );
+      if (finalRaw.error) {
+        return json(
+          origin,
+          origenes,
+          {
+            error: mensajeErrorEliminacion(
+              finalRaw.error,
+              "Los archivos se retiraron, pero falta finalizar la eliminación",
+            ),
+            codigo: "CONTRATO_ELIMINACION_FINALIZAR",
+          },
+          statusErrorBackend(finalRaw.error),
+        );
+      }
+      if (
+        !esObjeto(finalRaw.data) ||
+        !clavesExactas(finalRaw.data, [
+          "contrato_id",
+          "objetos_eliminados",
+          "ok",
+        ]) ||
+        finalRaw.data.ok !== true ||
+        finalRaw.data.contrato_id !== contratoId ||
+        !Number.isInteger(finalRaw.data.objetos_eliminados) ||
+        (finalRaw.data.objetos_eliminados as number) !==
+          preparacion.objetos.length
+      ) {
+        return json(
+          origin,
+          origenes,
+          {
+            error: "La confirmación de eliminación es incoherente",
+            codigo: "INTEGRIDAD_ELIMINACION",
+          },
+          409,
+        );
+      }
+      return json(origin, origenes, {
+        ok: true,
+        contratoId,
+        archivosEliminados: preparacion.objetos.length,
+      });
+    }
 
     const firmar = async (
       estado: EstadoPdf,

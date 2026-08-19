@@ -6,6 +6,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { IngresosRepartoMes } from '@/lib/ingresos-reparto'
 import type { ColaLead, SupervisorReparto } from '@/lib/tipos'
 
 const toastSuccess = vi.fn()
@@ -47,6 +48,28 @@ vi.mock('@/data/use-resumen-reparto-operativo', async () => {
   }
 })
 
+let INGRESOS_MES: IngresosRepartoMes = {
+  version: 1,
+  generado_en: new Date().toISOString(),
+  mes: '2026-08-01',
+  total: 18,
+  semanas: [
+    { numero: 1, desde: '2026-08-01', hasta: '2026-08-02', total: 3 },
+    { numero: 2, desde: '2026-08-03', hasta: '2026-08-09', total: 7 },
+    { numero: 3, desde: '2026-08-10', hasta: '2026-08-16', total: 8 },
+  ],
+}
+const recargarIngresosMock = vi.fn(async () => {})
+
+vi.mock('@/data/use-ingresos-reparto-mes', () => ({
+  useIngresosRepartoMes: () => ({
+    datos: INGRESOS_MES,
+    cargando: false,
+    error: null,
+    recargar: recargarIngresosMock,
+  }),
+}))
+
 const { Repartir } = await import('./repartir')
 const { CrmApiError } = await import('@/data/crm-api')
 
@@ -74,6 +97,7 @@ beforeEach(() => {
   SUPERVISORES = SUP
   RESUMEN_CAIDO = false
   recargarResumenMock.mockClear()
+  recargarIngresosMock.mockClear()
   repartirMock.mockReset().mockResolvedValue(undefined)
   colaMock.mockClear()
   supervisoresMock.mockClear()
@@ -107,6 +131,17 @@ describe('pantalla Repartir leads', () => {
   it('pinta un vacío honesto cuando no hay nada por repartir', async () => {
     render(<Repartir />)
     expect(await screen.findByText('No hay leads por repartir')).toBeInTheDocument()
+  })
+
+  it('muestra los leads ingresados del mes y su reparto semanal', async () => {
+    render(<Repartir />)
+
+    const panel = screen.getByLabelText('Ingresos por semana')
+    expect(within(panel).getByText('18')).toBeInTheDocument()
+    expect(within(panel).getByText('leads ingresados')).toBeInTheDocument()
+    expect(within(panel).getByText('Semana 1')).toBeInTheDocument()
+    expect(within(panel).getByText('Semana 3')).toBeInTheDocument()
+    expect(within(panel).getByLabelText('Mes de ingresos')).toHaveAttribute('type', 'month')
   })
 
   it('NUNCA suma PEN y USD: muestra el capital en juego por separado', async () => {
@@ -160,7 +195,12 @@ describe('pantalla Repartir leads', () => {
 
     // `status` y no `alert`: la pantalla queda operable con «—» y no hay nada
     // urgente que justifique interrumpir la lectura en curso.
-    const aviso = screen.getByRole('status')
+    // Se elige por contenido: la pantalla tiene DOS regiones `status` —esta y
+    // la de «entraron leads nuevos»—, así que un getByRole a secas es ambiguo.
+    const aviso = screen
+      .getAllByRole('status')
+      .find((n) => n.textContent?.includes('No se pudieron cargar los indicadores'))
+    if (!aviso) throw new Error('Sin aviso de degradación de los indicadores')
     expect(aviso).toHaveTextContent(/No se pudieron cargar los indicadores de la cola/)
     // Nombre accesible distinguible del OTRO «Reintentar» (el del PanelError).
     const reintentar = within(aviso).getByRole('button', {
@@ -168,6 +208,118 @@ describe('pantalla Repartir leads', () => {
     })
     await userEvent.setup().click(reintentar)
     expect(recargarResumenMock).toHaveBeenCalledTimes(1)
+  })
+
+  // ── Leads que entran mientras la pantalla está abierta ────────────────────
+  //
+  // La cadena que llena esta cola es lenta y a saltos (puente cada 15 min +
+  // conector cada 5), así que Rosa puede estar mirando una lista que ya no es
+  // la del servidor. El sondeo lo detecta; lo que NO hace es recargar solo.
+  describe('avisa de los leads nuevos sin pisar la lista', () => {
+    it('no dice nada mientras el servidor no tenga nada que esta pantalla no tenga', async () => {
+      COLA = [lead()]
+      render(<Repartir />)
+
+      await screen.findByText('ROSA QUISPE')
+      expect(screen.getByRole('status', { name: 'Leads nuevos en la cola' })).toBeEmptyDOMElement()
+    })
+
+    it('cuenta los que entraron y los muestra SOLO cuando Rosa lo pide', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        COLA = [lead()]
+        const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        render(<Repartir />)
+        await screen.findByText('ROSA QUISPE')
+
+        // Entran dos por la hoja mientras ella mira la pantalla.
+        COLA = [
+          lead(),
+          lead({ id: 'l-nuevo-1', nombre_completo: 'CARLA NUEVA' }),
+          lead({ id: 'l-nuevo-2', nombre_completo: 'JUAN NUEVO' }),
+        ]
+
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        const aviso = await screen.findByRole('status', { name: 'Leads nuevos en la cola' })
+        expect(aviso).toHaveTextContent('Entraron 2 leads nuevos a la cola')
+        // La lista NO se movió sola: reordenarla bajo el cursor haría que el
+        // siguiente clic cayera en otro lead.
+        expect(screen.queryByText('CARLA NUEVA')).not.toBeInTheDocument()
+
+        await usuario.click(within(aviso).getByRole('button'))
+
+        expect(await screen.findByText('CARLA NUEVA')).toBeInTheDocument()
+        expect(screen.getByText('JUAN NUEVO')).toBeInTheDocument()
+        // Atendido el aviso, se apaga.
+        await waitFor(() => expect(
+          screen.getByRole('status', { name: 'Leads nuevos en la cola' }),
+        ).toBeEmptyDOMElement())
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('en singular lo dice en singular', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        COLA = [lead()]
+        render(<Repartir />)
+        await screen.findByText('ROSA QUISPE')
+
+        COLA = [lead(), lead({ id: 'l-nuevo-1', nombre_completo: 'CARLA NUEVA' })]
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        expect(await screen.findByRole('status', { name: 'Leads nuevos en la cola' }))
+          .toHaveTextContent('Entró 1 lead nuevo a la cola')
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('un sondeo caído no molesta: la pantalla sigue igual y sin avisos falsos', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        COLA = [lead()]
+        render(<Repartir />)
+        await screen.findByText('ROSA QUISPE')
+
+        colaMock.mockRejectedValueOnce(new Error('red caída'))
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        expect(screen.getByText('ROSA QUISPE')).toBeInTheDocument()
+        expect(screen.getByRole('status', { name: 'Leads nuevos en la cola' })).toBeEmptyDOMElement()
+        expect(toastError).not.toHaveBeenCalled()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
+
+    it('un reparto en vuelo NO se cuenta como lead nuevo', async () => {
+      vi.useFakeTimers({ shouldAdvanceTime: true })
+      try {
+        COLA = [lead(), lead({ id: 'l-2', nombre_completo: 'JUAN PEREZ' })]
+        const usuario = userEvent.setup({ advanceTimers: vi.advanceTimersByTime })
+        render(<Repartir />)
+        await screen.findByText('ROSA QUISPE')
+
+        await usuario.selectOptions(
+          screen.getByLabelText('Asignar ROSA QUISPE a un supervisor'),
+          'sup-1',
+        )
+        await usuario.click(screen.getByRole('button', { name: 'Repartir a ROSA QUISPE' }))
+        await waitFor(() => expect(repartirMock).toHaveBeenCalled())
+
+        // El servidor ya no lo tiene; la pantalla tampoco. Restar totales aquí
+        // habría anunciado un lead nuevo inexistente.
+        COLA = [lead({ id: 'l-2', nombre_completo: 'JUAN PEREZ' })]
+        await vi.advanceTimersByTimeAsync(60_000)
+
+        expect(screen.getByRole('status', { name: 'Leads nuevos en la cola' })).toBeEmptyDOMElement()
+      } finally {
+        vi.useRealTimers()
+      }
+    })
   })
 
   it('reparte a un supervisor, saca la fila de la cola y sube su bandeja', async () => {
@@ -250,5 +402,48 @@ describe('pantalla Repartir leads', () => {
     const select = await screen.findByLabelText('Asignar ROSA QUISPE a un supervisor')
     expect(within(select).getByText('SUPERVISOR UNO (2 en bandeja)')).toBeInTheDocument()
     expect(within(select).getByText('SUPERVISOR DOS (0 en bandeja)')).toBeInTheDocument()
+  })
+
+  it('amplía la ficha y combina filtros de interés, moneda, distrito y comentario', async () => {
+    COLA = [
+      lead({ id: 'pen-nuevo', nombre_completo: 'ALICIA NUEVA', comentario: null }),
+      lead({
+        id: 'usd-renovacion',
+        nombre_completo: 'BRUNO RENUEVA',
+        categoria_interes: 'renovacion',
+        moneda: 'USD',
+        monto_estimado: 15_000,
+        distrito: 'San Isidro',
+        comentario: 'Desea renovar su inversión.',
+      }),
+      lead({
+        id: 'pen-upgrade',
+        nombre_completo: 'CARLA SUBE',
+        categoria_interes: 'upgrade',
+        distrito: 'Surco',
+        comentario: 'Quiere aumentar capital.',
+      }),
+    ]
+    const usuario = userEvent.setup()
+    render(<Repartir />)
+
+    const alicia = await screen.findByText('ALICIA NUEVA')
+    const fichaAlicia = alicia.closest('[data-lead-id]')
+    expect(fichaAlicia).toBeInstanceOf(HTMLElement)
+    expect(within(fichaAlicia as HTMLElement).getByText('Nuevo')).toBeInTheDocument()
+    expect(within(fichaAlicia as HTMLElement).getByText('LANDING')).toBeInTheDocument()
+    expect(within(fichaAlicia as HTMLElement).getByText('Miraflores')).toBeInTheDocument()
+    expect(within(fichaAlicia as HTMLElement).getByText('Sin comentario del cliente.')).toBeInTheDocument()
+
+    await usuario.click(screen.getByRole('button', { name: 'Más filtros' }))
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por categoría de interés'), 'renovacion')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por moneda'), 'USD')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por distrito'), 'San Isidro')
+    await usuario.selectOptions(screen.getByLabelText('Filtrar por comentario'), 'con')
+
+    expect(screen.getByText('BRUNO RENUEVA')).toBeInTheDocument()
+    expect(screen.queryByText('ALICIA NUEVA')).not.toBeInTheDocument()
+    expect(screen.queryByText('CARLA SUBE')).not.toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Más filtros (4)' })).toBeInTheDocument()
   })
 })

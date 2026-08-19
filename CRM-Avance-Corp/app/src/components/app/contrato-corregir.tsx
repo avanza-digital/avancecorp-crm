@@ -21,16 +21,14 @@ import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import {
   CODIGO_PRODUCTO_HISTORICO,
-  ProductoContratoSelector,
-} from '@/components/app/producto-contrato-selector'
+  ProductoContratoSelector } from '@/components/app/producto-contrato-selector'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
 import { fmtFecha, money, type Moneda } from '@/lib/format'
 import {
   actualizarContrato,
   CrmApiError,
-  type ActualizarContratoInput,
-} from '@/data/crm-api'
+  type ActualizarContratoInput } from '@/data/crm-api'
 import { useTitulares } from '@/data/crm-queries'
 import { useProductosSeleccionables } from '@/data/crm-config-queries'
 import { validarRangosProducto } from '@/lib/contrato-producto'
@@ -48,6 +46,7 @@ import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/do
 import { normalizarTitulares } from '@/lib/titulares'
 import { useVentana } from '@/lib/ventana'
 import { MAX_TITULARES, type ContratoRow } from '@/lib/clientes-tipos'
+import { asegurarContratoPdfActualizado } from '@/lib/contrato-pdf-archivo'
 import {
   CATEGORIAS_CONTRATO_UI,
   MODALIDADES_UI,
@@ -103,8 +102,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     [contrato.moneda, qProductos.data],
   )
   const condicionProducto = condicionesCompatibles.find(
-    (item) => item.condicion_id === productoCondicionId,
-  ) ?? null
+    (item) => item.condicion_id === productoCondicionId) ?? null
   const esCondicionOriginal = productoCondicionId === contrato.producto_condicion_id
   const esSnapshotHistorico =
     esCondicionOriginal && contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
@@ -188,15 +186,18 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   useEffect(() => {
     if (sembrado || !qTitulares.isSuccess || qTitulares.isFetching || !qTitulares.isFetchedAfterMount) return
     setTitulares(
-      qTitulares.data.map((t) => ({ nombre: t.nombre_completo, tipo: t.tipo_documento, documento: t.documento })),
+      qTitulares.data.map((t) => ({
+        nombre: t.nombre_completo,
+        tipo: t.tipo_documento,
+        documento: t.documento,
+      })),
     )
     setSembrado(true)
   }, [sembrado, qTitulares.isSuccess, qTitulares.isFetching, qTitulares.isFetchedAfterMount, qTitulares.data])
 
   // Una vez sembrado, el editor manda: un fallo de refetch posterior no lo
   // apaga (apagarlo omitiría la clave y descartaría en silencio la edición).
-  const estadoTitulares: 'cargando' | 'ok' | 'error' =
-    sembrado ? 'ok' : qTitulares.isError ? 'error' : 'cargando'
+  const estadoTitulares: 'cargando' | 'ok' | 'error' = sembrado ? 'ok' : qTitulares.isError ? 'error' : 'cargando'
 
   const esCompuesto = tipoInteres === 'compuesto'
   // parseMonto rechaza separadores de miles ('125,000' NO es 125) — ver lib/numero.
@@ -241,10 +242,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     setPlazo(preset ? String(preset.meses) : PLAZO_PERSONALIZADO)
   }
 
-  const seleccionarProducto = (
-    id: string,
-    condicion: ProductoCondicionSeleccion | null,
-  ) => {
+  const seleccionarProducto = (id: string, condicion: ProductoCondicionSeleccion | null) => {
     setProductoCondicionId(id)
     setAvisoProducto(null)
     if (!condicion) {
@@ -258,11 +256,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     setPlazo(String(condicion.plazo_meses))
     setVenc(fechaInicio ? vencimientoDesdePlazo(fechaInicio, condicion.plazo_meses) : '')
     const capitalActual = parseMonto(capital)
-    if (
-      capitalActual == null
-      || capitalActual < condicion.capital_minimo
-      || capitalActual > condicion.capital_maximo
-    ) {
+    if (capitalActual == null || capitalActual < condicion.capital_minimo || capitalActual > condicion.capital_maximo) {
       setCapital(String(condicion.capital_minimo))
     }
     setTasa(String(condicion.tasa_referencia))
@@ -271,9 +265,13 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
   // Mismo generador del preview de ContratoNuevo: lo que se ve es lo que viaja.
   const cronograma = useMemo(() => {
     if (
-      !Number.isFinite(capitalNum) || capitalNum <= 0 ||
-      !Number.isFinite(tasaNum) || tasaNum <= 0 || tasaNum > 50 ||
-      !fechaInicio || !venc
+      !Number.isFinite(capitalNum) ||
+      capitalNum <= 0 ||
+      !Number.isFinite(tasaNum) ||
+      tasaNum <= 0 ||
+      tasaNum > 50 ||
+      !fechaInicio ||
+      !venc
     ) {
       return []
     }
@@ -317,12 +315,10 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
       setError('El contrato no tiene una condición de producto confirmada.')
       return
     }
-    if (!esCondicionOriginal && (
-      qProductos.isPending
-      || qProductos.isFetching
-      || qProductos.isError
-      || !condicionProducto
-    )) {
+    if (
+      !esCondicionOriginal &&
+      (qProductos.isPending || qProductos.isFetching || qProductos.isError || !condicionProducto)
+    ) {
       setError('La nueva condición debe seguir publicada y vigente antes de guardar.')
       return
     }
@@ -369,13 +365,16 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     // Co-titulares: solo si sus valores ACTUALES cargaron (presente = reemplazar).
     // La normalización es la de lib/titulares (misma fuente que ContratoNuevo:
     // filas vacías se ignoran, error con posición, duplicados rechazados, máx 5).
-    const tit = estadoTitulares === 'ok'
-      ? normalizarTitulares(titulares.map((t) => ({
-          nombre_completo: t.nombre,
-          tipo_documento: t.tipo,
-          documento: t.documento,
-        })))
-      : null
+    const tit =
+      estadoTitulares === 'ok'
+        ? normalizarTitulares(
+            titulares.map((t) => ({
+              nombre_completo: t.nombre,
+              tipo_documento: t.tipo,
+              documento: t.documento,
+            })),
+          )
+        : null
     if (tit && !tit.ok) {
       setError(tit.error)
       return
@@ -401,8 +400,18 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     setEnviando(true)
     try {
       await actualizarContrato(contrato.id, input, cronograma)
-      // Toast honesto: mismo copy del portal (el servidor conservó las pagadas).
-      toast.success('Contrato corregido y cronograma regenerado.')
+      // La corrección y la reserva de la revisión son atómicas. El render puede
+      // reintentarse aparte sin fingir que la corrección falló después de guardar.
+      try {
+        const pdf = await asegurarContratoPdfActualizado(contrato.id)
+        if (pdf.estado === 'sellado') {
+          toast.success('Contrato corregido y PDF actualizado.')
+        } else {
+          toast.warning('Contrato corregido. El PDF actualizado quedó pendiente de generación.')
+        }
+      } catch {
+        toast.warning('Contrato corregido. El servidor reintentará el PDF actualizado al abrirlo.')
+      }
       onGuardado()
     } catch (e) {
       // Los mensajes del servidor (RPC) ya vienen en español y claros — ventana
@@ -481,15 +490,17 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
             >
               <option value="">— Seleccionar —</option>
               {CATEGORIAS_CONTRATO_UI.map((c) => (
-                <option key={c.k} value={c.k}>{c.label}</option>
+                <option key={c.k} value={c.k}>
+                  {c.label}
+                </option>
               ))}
             </Select>
           </div>
         </div>
         {esNumeracionVieja && (
           <p className="text-[11px] text-warning">
-            Este contrato tiene la numeración antigua ({contrato.numero_contrato}): asígnale los 6
-            dígitos del formato actual al guardar.
+            Este contrato tiene la numeración antigua ({contrato.numero_contrato}): asígnale los 6 dígitos del formato
+            actual al guardar.
           </p>
         )}
 
@@ -516,7 +527,9 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                 disabled={enviando || terminosFijosPorCatalogo || esVersionCatalogadaNoVigente}
               >
                 {MODALIDADES_UI.map((m) => (
-                  <option key={m.k} value={m.k}>{m.label}</option>
+                  <option key={m.k} value={m.k}>
+                    {m.label}
+                  </option>
                 ))}
               </Select>
             </div>
@@ -536,11 +549,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="cc-moneda">Moneda</Label>
-            <Select
-              id="cc-moneda"
-              value={moneda}
-              disabled
-            >
+            <Select id="cc-moneda" value={moneda} disabled>
               <option value="PEN">Soles (PEN)</option>
               <option value="USD">Dólares (USD)</option>
             </Select>
@@ -574,18 +583,9 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           <div className="space-y-1.5">
             <Label htmlFor="cc-plazo">Plazo</Label>
             {terminosFijosPorCatalogo || esVersionCatalogadaNoVigente ? (
-              <Input
-                id="cc-plazo"
-                value={`${condicionProducto?.plazo_meses ?? mesesReales} meses`}
-                disabled
-              />
+              <Input id="cc-plazo" value={`${condicionProducto?.plazo_meses ?? mesesReales} meses`} disabled />
             ) : (
-              <Select
-                id="cc-plazo"
-                value={plazo}
-                onChange={(e) => cambiarPlazo(e.target.value)}
-                disabled={enviando}
-              >
+              <Select id="cc-plazo" value={plazo} onChange={(e) => cambiarPlazo(e.target.value)} disabled={enviando}>
                 {PLAZOS_BASE.map((p) => (
                   <option key={p.meses} value={String(p.meses)} disabled={esCompuesto && !p.anioExacto}>
                     {p.label}
@@ -618,9 +618,8 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
         </div>
         {esPersonalizado && !terminosFijosPorCatalogo && !esVersionCatalogadaNoVigente && (
           <p className="text-[11px] text-muted-foreground">
-            Plazo <b className="text-foreground">personalizado</b>: el vencimiento pactado se
-            conserva y NO se recalcula al cambiar la fecha de inicio. Si también debe moverse,
-            edítalo aquí arriba.
+            Plazo <b className="text-foreground">personalizado</b>: el vencimiento pactado se conserva y NO se recalcula
+            al cambiar la fecha de inicio. Si también debe moverse, edítalo aquí arriba.
           </p>
         )}
 
@@ -662,8 +661,8 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           {estadoTitulares === 'error' && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-destructive">
-                No se pudieron cargar los co-titulares actuales. Se conservarán tal cual están en el
-                servidor; para editarlos, reintenta la carga.
+                No se pudieron cargar los co-titulares actuales. Se conservarán tal cual están en el servidor; para
+                editarlos, reintenta la carga.
               </p>
               <Button variant="outline" size="xs" onClick={() => void qTitulares.refetch()}>
                 <RotateCcw aria-hidden /> Reintentar
@@ -692,7 +691,9 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                   disabled={enviando}
                 >
                   {TIPOS_DOCUMENTO_K.map((k) => (
-                    <option key={k} value={k}>{TIPOS_DOCUMENTO[k].etiqueta}</option>
+                    <option key={k} value={k}>
+                      {TIPOS_DOCUMENTO[k].etiqueta}
+                    </option>
                   ))}
                 </Select>
                 <Input
@@ -749,9 +750,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
               </p>
               {/* Sin role=alert: se recalcula en CADA tecla (sería ruido para el
                   lector de pantalla); el mensaje del guard sí lo lleva. */}
-              {motivoCronograma && (
-                <p className="font-semibold text-destructive">{motivoCronograma}</p>
-              )}
+              {motivoCronograma && <p className="font-semibold text-destructive">{motivoCronograma}</p>}
             </div>
           )}
         </div>
@@ -773,15 +772,11 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           // (P0001). Mientras cargan los co-titulares NO se puede guardar — un
           // guardado muy rápido con el editor vacío los borraría (lección del portal).
           disabled={
-            enviando
-            || estadoTitulares === 'cargando'
-            || !ventana.vigente
-            || (!esCondicionOriginal && (
-              qProductos.isPending
-              || qProductos.isFetching
-              || qProductos.isError
-              || !condicionProducto
-            ))
+            enviando ||
+            estadoTitulares === 'cargando' ||
+            !ventana.vigente ||
+            (!esCondicionOriginal &&
+              (qProductos.isPending || qProductos.isFetching || qProductos.isError || !condicionProducto))
           }
           title={ventana.vigente ? undefined : 'La ventana de corrección de 5 horas ya venció'}
         >

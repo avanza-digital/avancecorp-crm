@@ -15,6 +15,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { Dialog } from '@/components/ui/dialog'
 import type { ContratoRow } from '@/lib/clientes-tipos'
 import * as crmApi from '@/data/crm-api'
+import * as contratoPdf from '@/lib/contrato-pdf-archivo'
 
 vi.mock('sonner', () => ({
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
@@ -25,9 +26,15 @@ vi.mock('@/data/crm-api', async (importActual) => {
   return { ...actual, actualizarContrato: vi.fn(), obtenerTitulares: vi.fn() }
 })
 
+vi.mock('@/lib/contrato-pdf-archivo', () => ({
+  asegurarContratoPdfActualizado: vi.fn(),
+}))
+
 const { ContratoCorregir } = await import('./contrato-corregir')
 const actualizarContrato = vi.mocked(crmApi.actualizarContrato)
 const obtenerTitulares = vi.mocked(crmApi.obtenerTitulares)
+
+const asegurarContratoPdfActualizado = vi.mocked(contratoPdf.asegurarContratoPdfActualizado)
 
 const productosEstado = vi.hoisted(() => ({
   data: [] as import('@/lib/productos-inversion').ProductoCondicionSeleccion[],
@@ -103,7 +110,8 @@ async function montar(over: Partial<ContratoRow> = {}) {
   obtenerTitulares.mockResolvedValue([])
   const onGuardado = vi.fn()
   const onCerrar = vi.fn()
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } },
+  })
   render(
     <QueryClientProvider client={queryClient}>
       <Dialog open onClose={() => undefined}>
@@ -122,7 +130,8 @@ const plazoSelect = () => screen.getByLabelText('Plazo')
 /** Los <input type="date"> ya vienen con valor: fireEvent.change es la vía fiable
  *  (user.type teclea SOBRE sistema de segmentos del date input). */
 function escribirFecha(etiqueta: string, valor: string) {
-  fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } })
+  fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor },
+  })
 }
 
 beforeEach(() => {
@@ -133,6 +142,18 @@ beforeEach(() => {
   productosEstado.refetch.mockReset()
   actualizarContrato.mockReset()
   obtenerTitulares.mockReset()
+  asegurarContratoPdfActualizado.mockReset()
+  asegurarContratoPdfActualizado.mockResolvedValue({
+    contratoId: 'ctr-1',
+    jobId: 'job-2',
+    estado: 'sellado',
+    intentos: 1,
+    leaseExpiraEn: null,
+    reintentable: false,
+    sha256: 'a'.repeat(64),
+    bytes: 1024,
+    archivo: null,
+  })
 })
 
 describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => {
@@ -158,9 +179,24 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
 
     await user.click(guardar())
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
+    expect(asegurarContratoPdfActualizado).toHaveBeenCalledWith('ctr-1')
     const [id, input] = actualizarContrato.mock.calls[0]!
     expect(id).toBe('ctr-1')
-    expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15' })
+    expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15',
+    })
+  })
+
+  it('si el render PDF falla después del commit, conserva la corrección y permite reintentar al abrirlo', async () => {
+    const user = userEvent.setup()
+    actualizarContrato.mockResolvedValue()
+    asegurarContratoPdfActualizado.mockRejectedValue(new Error('Storage temporalmente no disponible'))
+    const { onGuardado } = await montar()
+
+    await user.click(guardar())
+
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledOnce())
+    expect(actualizarContrato).toHaveBeenCalledOnce()
+    expect(asegurarContratoPdfActualizado).toHaveBeenCalledWith('ctr-1')
   })
 
   it('con plazo personalizado se puede mover el vencimiento a mano (y es lo que viaja)', async () => {
@@ -172,7 +208,8 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     await user.click(guardar())
 
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
-    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-10-15' })
+    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-10-15',
+    })
   })
 
   it('plazo que SÍ es preset: se muestra el preset y cambiar el inicio lo recalcula (explícito)', async () => {
@@ -189,7 +226,8 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
 
     await user.click(guardar())
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
-    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-02-15' })
+    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-02-15',
+    })
   })
 })
 
@@ -201,7 +239,9 @@ describe('ContratoCorregir — producto versionado', () => {
   it('sin catálogo publicado no explica nada del origen y la opción está en idioma de vendedor', async () => {
     await montar() // beforeEach deja productosEstado.data = []
 
-    expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó' }))
+    expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó',
+      }),
+    )
       .toBeInTheDocument()
     expect(screen.queryByText(/snapshot/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/catálogo/i)).not.toBeInTheDocument()

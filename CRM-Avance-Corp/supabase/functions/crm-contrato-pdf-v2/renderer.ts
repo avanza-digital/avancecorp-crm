@@ -397,10 +397,12 @@ async function verificarRecursos(): Promise<void> {
   recursosVerificados ??= (async () => {
     const fondo = dataUrlBytes(FONDO_DATA_URL);
     const firma = dataUrlBytes(FIRMA_DATA_URL);
-    if (
-      await sha256Bytes(fondo) !== FONDO_SHA256 ||
-      await sha256Bytes(firma) !== FIRMA_SHA256
-    ) throw new TypeError("Assets PDF v2 no corresponden a su versión");
+    if (await sha256Bytes(fondo) !== FONDO_SHA256) {
+      throw new TypeError("Assets PDF v2 no corresponden a su versión");
+    }
+    if (await sha256Bytes(firma) !== FIRMA_SHA256) {
+      throw new TypeError("Firma PDF v2 no corresponde a su versión");
+    }
     for (const [nombre, hash] of Object.entries(VFS_HASHES)) {
       const base64 = (robotoVfs as unknown as Record<string, string>)[nombre];
       if (!base64 || !SHA_RE.test(hash)) {

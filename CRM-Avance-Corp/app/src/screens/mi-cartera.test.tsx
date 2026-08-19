@@ -11,16 +11,23 @@ import type { ClienteBasico, ClienteDetalle, ContratoRow, CuentaBancariaSeleccio
 
 // `yo`, clientes y contratos se pisan antes de cada montaje; los mocks los leen
 // en cada llamada (no capturan el valor al definirse).
-let YO: { id: string; rol: string; puede_contratar: boolean; demo: boolean } | null = null
+let YO: { id: string
+  rol: string
+  rol_portal?: string | null
+  puede_contratar: boolean
+  demo: boolean } | null = null
 // `null` = la lectura nunca trajo datos (primera carga). Es distinto de `[]`
 // (cartera vacía) y distingue el PanelError del aviso de datos rancios.
 let CLIENTES: ClienteBasico[] | null = []
 let CONTRATOS: ContratoRow[] | null = []
-let EQUIPO: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }> = []
+let EQUIPO: Array<{ perfil_id: string
+  nombre_completo: string
+  activo: boolean }> = []
 let DETALLE: ClienteDetalle | null = null
 // Cuentas que "devuelve la RPC" en la ficha, derivadas del fixture DETALLE en
 // montar(): una por moneda desde las casillas embebidas (como el perfil real).
-let CUENTAS: { PEN: CuentaBancariaSeleccionable[]; USD: CuentaBancariaSeleccionable[] } = { PEN: [], USD: [] }
+let CUENTAS: { PEN: CuentaBancariaSeleccionable[]
+  USD: CuentaBancariaSeleccionable[] } = { PEN: [], USD: [] }
 
 function cuentasDesdeDetalle(d: ClienteDetalle | null): typeof CUENTAS {
   if (d == null) return { PEN: [], USD: [] }
@@ -58,7 +65,8 @@ function cuentasDesdeDetalle(d: ClienteDetalle | null): typeof CUENTAS {
       titular_distinto: c.titular_distinto,
       beneficiario_nombre: c.beneficiario_nombre,
       beneficiario_dni: c.beneficiario_dni,
-    }]
+    },
+    ]
   }
   return { PEN: porMoneda('PEN'), USD: porMoneda('USD') }
 }
@@ -74,7 +82,9 @@ const archivoPdf = vi.hoisted(() => ({
   abrir: vi.fn(() => ({ close: vi.fn() })),
   archivar: vi.fn(),
   archivarDemo: vi.fn(),
+  asegurar: vi.fn(),
   consultar: vi.fn(),
+  eliminar: vi.fn(),
   obtener: vi.fn(),
   descargar: vi.fn(),
   ver: vi.fn(),
@@ -83,8 +93,10 @@ const archivoPdf = vi.hoisted(() => ({
 vi.mock('@/lib/contrato-pdf-archivo', () => ({
   abrirVentanaContratoPdf: archivoPdf.abrir,
   archivarContratoPdfConfirmado: archivoPdf.archivar,
+  asegurarContratoPdfActualizado: archivoPdf.asegurar,
   consultarEstadoContratoPdf: archivoPdf.consultar,
   ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {},
+  eliminarContratoConPdf: archivoPdf.eliminar,
   obtenerContratoPdfArchivado: archivoPdf.obtener,
   descargarArchivoContratoPdf: archivoPdf.descargar,
   etiquetaEstadoContratoPdf: (estado: string) => estado,
@@ -97,7 +109,8 @@ vi.mock('@/lib/contrato-pdf-demo-loader', () => ({
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ equipo: EQUIPO, ambito: { vendedores: [], esGlobal: false, leads: [] } }),
+  useCRMData: () => ({ equipo: EQUIPO, ambito: { vendedores: [], esGlobal: false, leads: [] },
+  }),
 }))
 vi.mock('@/data/crm-queries', async (importActual) => {
   const actual = await importActual<typeof import('@/data/crm-queries')>()
@@ -126,13 +139,12 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     useCuentasBancariasCliente: (
       clienteId: string,
       moneda: 'PEN' | 'USD',
-      habilitada = true,
-    ) => {
+      habilitada = true) => {
       cuentasHook.llamadas(clienteId, moneda, habilitada)
       return q(CUENTAS[moneda])
     },
-    // ContratoDetalle usa estos tres; con data null pinta skeletons (no red, no crash).
-    useContrato: () => q(null),
+    // ContratoDetalle recibe la misma fila ya visible; no hay red en el harness.
+    useContrato: (id: string) => q(CONTRATOS?.find((item) => item.id === id) ?? null),
     useCronograma: () => q(null),
     useTitulares: () => q([]),
   }
@@ -227,12 +239,15 @@ function montar(
     clientes?: ClienteBasico[] | null
     contratos?: ContratoRow[] | null
     detalle?: ClienteDetalle | null
-    equipo?: Array<{ perfil_id: string; nombre_completo: string; activo: boolean }>
+    equipo?: Array<{ perfil_id: string
+      nombre_completo: string
+      activo: boolean }>
     errorClientes?: Error | null
     errorContratos?: Error | null
   } = {},
 ) {
-  YO = over.yo ?? { id: 'yo', rol: 'vendedor', puede_contratar: true, demo: false }
+  YO = over.yo ?? { id: 'yo', rol: 'vendedor', puede_contratar: true, demo: false,
+  }
   CLIENTES = over.clientes === undefined ? [cliente()] : over.clientes
   CONTRATOS = over.contratos === undefined ? [contrato()] : over.contratos
   ERROR_CLIENTES = over.errorClientes ?? null
@@ -244,6 +259,12 @@ function montar(
   // significa "usa la ficha por defecto".
   DETALLE = over.detalle === undefined ? detalle() : over.detalle
   CUENTAS = cuentasDesdeDetalle(DETALLE)
+  archivoPdf.consultar.mockReset().mockResolvedValue({ estado: 'sellado' })
+  archivoPdf.asegurar.mockReset().mockResolvedValue({ estado: 'sellado' })
+  archivoPdf.eliminar.mockReset().mockResolvedValue({
+    contratoId: CONTRATOS?.[0]?.id ?? 'k-1',
+    archivosEliminados: 2,
+  })
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   return render(
     <QueryClientProvider client={qc}>
@@ -280,8 +301,7 @@ async function abrirAltaContratoDemo(user: ReturnType<typeof userEvent.setup>) {
 
 async function completarAltaContratoDemo(
   user: ReturnType<typeof userEvent.setup>,
-  sufijo: string,
-) {
+  sufijo: string) {
   await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
   await user.type(screen.getByLabelText('Capital'), '10000')
   await user.type(screen.getByLabelText('N° de contrato'), sufijo)
@@ -299,7 +319,9 @@ describe('MiCartera (pantalla)', () => {
   it('expandir el cliente monta su sub-fila de contrato', async () => {
     const user = userEvent.setup()
     montar()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
   })
 
@@ -307,7 +329,9 @@ describe('MiCartera (pantalla)', () => {
     const user = userEvent.setup()
     montar({
       clientes: [cliente({ id: 'c-usd' })],
-      contratos: [contrato({ id: 'k-usd', cliente_id: 'c-usd', moneda: 'USD', capital: 50000 })],
+      contratos: [contrato({ id: 'k-usd', cliente_id: 'c-usd', moneda: 'USD', capital: 50000,
+        }),
+      ],
     })
     // Las tarjetas de dinero solo miden capital VIVO en la vista global; con un
     // mes puesto miden lo CERRADO y cambian de rótulo.
@@ -323,7 +347,9 @@ describe('MiCartera (pantalla)', () => {
 
   it('gating: una fila AJENA no ofrece acciones', () => {
     montar({
-      clientes: [cliente({ id: 'c-ajeno', asesor_perfil_id: 'otro', creado_por: 'otro' })],
+      clientes: [cliente({ id: 'c-ajeno', asesor_perfil_id: 'otro', creado_por: 'otro',
+        }),
+      ],
       contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'otro' })],
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
@@ -334,7 +360,8 @@ describe('MiCartera (pantalla)', () => {
   it('Gerencia opera clientes y contratos ajenos aunque su ventana haya vencido', async () => {
     const user = userEvent.setup()
     montar({
-      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false },
+      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false,
+      },
       clientes: [
         cliente({
           id: 'c-ajeno',
@@ -363,14 +390,19 @@ describe('MiCartera (pantalla)', () => {
     )
     expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    expect(within(subFilaDe('2026-01-000001')).getByRole('button', { name: 'Corregir' })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    expect(within(subFilaDe('2026-01-000001')).getByRole('button', { name: 'Corregir',
+      }),
+    ).toBeInTheDocument()
     expect(screen.queryByText('Bloqueado')).not.toBeInTheDocument()
   })
 
   it('Directorio sigue sin acciones aunque un dato externo diga que puede contratar', () => {
     montar({
-      yo: { id: 'directorio', rol: 'directorio', puede_contratar: true, demo: false },
+      yo: { id: 'directorio', rol: 'directorio', puede_contratar: true, demo: false,
+      },
       clientes: [cliente({ asesor_perfil_id: 'otro', creado_por: 'otro' })],
     })
 
@@ -401,7 +433,9 @@ describe('MiCartera (pantalla)', () => {
     // Auto-expandido por coincidencia de N° de contrato → la sub-fila es visible.
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
     // El botón dice "Colapsar" y de verdad colapsa (no es un override que mienta).
-    await user.click(screen.getByRole('button', { name: /Colapsar los contratos de\s*CLIENTE UNO/ }))
+    await user.click(screen.getByRole('button', { name: /Colapsar los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     expect(screen.queryByText('2026-01-000001')).not.toBeInTheDocument()
   })
 
@@ -415,44 +449,96 @@ describe('MiCartera (pantalla)', () => {
   it('Corregir del contrato: PRESENTE si es mío y con ventana viva', async () => {
     const user = userEvent.setup()
     montar() // contrato creado_por 'yo', creado_en reciente → ventana viva
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    expect(within(subFilaDe('2026-01-000001')).getByRole('button', { name: /Corregir/ })).toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    expect(
+      within(subFilaDe('2026-01-000001')).getByRole('button', {
+        name: /Corregir/,
+      }),
+    ).toBeInTheDocument()
   })
 
-  it('no abre la corrección cuando ya existe una reserva PDF durable', async () => {
+  it('abre la corrección aunque ya exista PDF: el servidor creará una nueva revisión', async () => {
     const user = userEvent.setup()
-    archivoPdf.consultar.mockResolvedValueOnce({ estado: 'pendiente' })
     montar()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    await user.click(within(subFilaDe('2026-01-000001')).getByRole('button', { name: /Corregir/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    await user.click(
+      within(subFilaDe('2026-01-000001')).getByRole('button', {
+        name: /Corregir/,
+      }),
+    )
 
-    await vi.waitFor(() => expect(archivoPdf.consultar).toHaveBeenCalledWith('k-1'))
-    expect(screen.queryByRole('dialog', { name: /Corregir contrato/ })).not.toBeInTheDocument()
+    expect(
+      await screen.findByRole('dialog', {
+        name: 'Corregir contrato 2026-01-000001',
+      }),
+    ).toBeInTheDocument()
+    expect(archivoPdf.consultar).not.toHaveBeenCalled()
   })
 
-  it('mantiene la corrección legacy solo cuando el servidor confirma que no hay reserva', async () => {
+  it('Admin elimina desde el detalle solo tras doble confirmación y por la Edge', async () => {
     const user = userEvent.setup()
-    archivoPdf.consultar.mockResolvedValueOnce({ estado: 'sin_reserva' })
-    montar()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    await user.click(within(subFilaDe('2026-01-000001')).getByRole('button', { name: /Corregir/ }))
+    montar({
+      yo: {
+        id: 'admin',
+        rol: 'gerencia',
+        rol_portal: 'admin',
+        puede_contratar: true,
+        demo: false,
+      },
+    })
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    await user.click(screen.getByText('2026-01-000001'))
+    await user.click(await screen.findByRole('button', { name: 'Eliminar contrato' }))
 
-    expect(await screen.findByRole('dialog', { name: 'Corregir contrato 2026-01-000001' })).toBeInTheDocument()
+    expect(archivoPdf.eliminar).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
+
+    await vi.waitFor(() => expect(archivoPdf.eliminar).toHaveBeenCalledWith('k-1'))
   })
 
   it('Corregir del contrato: AUSENTE si la ventana de 5 h ya venció', async () => {
     const user = userEvent.setup()
-    montar({ contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })] })
+    montar({
+      contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })],
+    })
     await verTodosLosMeses(user) // el contrato es de 2020
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    expect(within(subFilaDe('2026-01-000001')).queryByRole('button', { name: /Corregir/ })).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    expect(
+      within(subFilaDe('2026-01-000001')).queryByRole('button', {
+        name: /Corregir/,
+      }),
+    ).not.toBeInTheDocument()
   })
 
   it('Corregir del contrato: AUSENTE si es de otro asesor (creado_por ≠ yo)', async () => {
     const user = userEvent.setup()
     montar({ contratos: [contrato({ creado_por: 'otro' })] })
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    expect(within(subFilaDe('2026-01-000001')).queryByRole('button', { name: /Corregir/ })).not.toBeInTheDocument()
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    expect(
+      within(subFilaDe('2026-01-000001')).queryByRole('button', {
+        name: /Corregir/,
+      }),
+    ).not.toBeInTheDocument()
   })
 
   it('tarjetas de moneda — solo PEN: Soles presente, Dólares ausente', async () => {
@@ -513,7 +599,11 @@ describe('MiCartera — recarga fallida CON datos en pantalla', () => {
   it('«Reintentar» del aviso recarga clientes Y contratos', async () => {
     const user = userEvent.setup()
     montar({ errorClientes: new Error('red caída') })
-    await user.click(screen.getByRole('button', { name: /Reintentar la carga de tu cartera/i }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Reintentar la carga de tu cartera/i,
+      }),
+    )
     expect(REFETCH_CLIENTES).toHaveBeenCalledTimes(1)
     expect(REFETCH_CONTRATOS).toHaveBeenCalledTimes(1)
   })
@@ -609,18 +699,27 @@ describe('MiCartera (demo aislada)', () => {
     const idConfirmado = archivoPdf.archivarDemo.mock.calls[0]?.[0]
     expect(idConfirmado).toMatch(/^demo-/)
     const fotoConfirmada = archivoPdf.archivarDemo.mock.calls[0]?.[1]
-    expect(fotoConfirmada).toEqual(expect.objectContaining({
-      contrato: expect.objectContaining({ numero: '2026-01-000777', capital: 10_000 }),
-      titular: expect.objectContaining({ domicilio: expect.stringContaining('Lima') }),
-    }))
+    expect(fotoConfirmada).toEqual(
+      expect.objectContaining({
+        contrato: expect.objectContaining({
+          numero: '2026-01-000777',
+          capital: 10_000,
+        }),
+        titular: expect.objectContaining({
+          domicilio: expect.stringContaining('Lima'),
+        }),
+      }),
+    )
 
     // Hasta Finalizar el callback no materializa una segunda fila en Mi cartera.
     expect(screen.queryByLabelText('Abrir detalle del contrato 2026-01-000777')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Finalizar' }))
 
-    await user.click(await screen.findByRole('button', {
-      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
-    }))
+    await user.click(
+      await screen.findByRole('button', {
+        name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+      }),
+    )
     const filaContrato = await screen.findByLabelText('Abrir detalle del contrato 2026-01-000777')
     await user.click(filaContrato)
     await user.click(screen.getByRole('button', { name: 'Descargar contrato PDF' }))
@@ -628,10 +727,12 @@ describe('MiCartera (demo aislada)', () => {
     expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(2)
     expect(archivoPdf.archivarDemo.mock.calls[1]?.[0]).toBe(idConfirmado)
     expect(archivoPdf.archivarDemo.mock.calls[1]?.[1]).toBe(fotoConfirmada)
-    expect(archivoPdf.descargar).toHaveBeenCalledWith(expect.objectContaining({
-      contratoId: idConfirmado,
-      storagePath: `${idConfirmado}/contrato.pdf`,
-    }))
+    expect(archivoPdf.descargar).toHaveBeenCalledWith(
+      expect.objectContaining({
+        contratoId: idConfirmado,
+        storagePath: `${idConfirmado}/contrato.pdf`,
+      }),
+    )
     expect(archivoPdf.obtener).not.toHaveBeenCalled()
   })
 
@@ -649,16 +750,16 @@ describe('MiCartera (demo aislada)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Crear contrato' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      /ya existe el contrato demo 2026-01-000901/i,
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent(/ya existe el contrato demo 2026-01-000901/i)
     expect(archivoPdf.archivarDemo).not.toHaveBeenCalled()
     await user.keyboard('{Escape}')
     expect(screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ })).not.toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', {
-      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
-    }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+      }),
+    )
     expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000901')).toHaveLength(1)
   })
 
@@ -704,12 +805,14 @@ describe('MiCartera (demo aislada)', () => {
     expect(await screen.findByText(/PDF privado archivado correctamente/)).toBeInTheDocument()
 
     await user.keyboard('{Escape}')
-    await vi.waitFor(() => expect(
-      screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ }),
-    ).not.toBeInTheDocument())
-    await user.click(screen.getByRole('button', {
-      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
-    }))
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ })).not.toBeInTheDocument(),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+      }),
+    )
     expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000778')).toHaveLength(1)
     expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
   })
@@ -739,12 +842,14 @@ describe('MiCartera (demo aislada)', () => {
     if (!overlay) throw new Error('overlay del contrato demo no encontrado')
     await user.click(overlay)
 
-    await vi.waitFor(() => expect(
-      screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ }),
-    ).not.toBeInTheDocument())
-    await user.click(screen.getByRole('button', {
-      name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
-    }))
+    await vi.waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: /Crear contrato de ROSA/ })).not.toBeInTheDocument(),
+    )
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*ROSA MERCEDES AGUILAR VENTURA/,
+      }),
+    )
     expect(screen.getAllByLabelText('Abrir detalle del contrato 2026-01-000779')).toHaveLength(1)
     expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
   })
@@ -756,10 +861,18 @@ describe('MiCartera (demo aislada)', () => {
 // asesor ya no gestiona.
 describe('MiCartera — cliente desactivado en el portal', () => {
   const clienteBaja = (over: Partial<ClienteBasico> = {}) =>
-    cliente({ id: 'c-baja', nombre_completo: 'CLIENTE DE BAJA', activo: false, ...over })
+    cliente({
+      id: 'c-baja',
+      nombre_completo: 'CLIENTE DE BAJA',
+      activo: false,
+      ...over,
+    })
 
   it('sigue en la lista pero MARCADO como inactivo (visible y anunciado)', () => {
-    montar({ clientes: [clienteBaja()], contratos: [contrato({ cliente_id: 'c-baja' })] })
+    montar({
+      clientes: [clienteBaja()],
+      contratos: [contrato({ cliente_id: 'c-baja' })],
+    })
     expect(screen.getByText('CLIENTE DE BAJA')).toBeInTheDocument()
     expect(screen.getByText('inactivo')).toBeInTheDocument()
     // La marca entra en el nombre accesible del toggle (no es solo un color).
@@ -815,7 +928,12 @@ describe('MiCartera — cliente desactivado en el portal', () => {
       yo: { id: 'sup', rol: 'supervisor', puede_contratar: true, demo: false },
       equipo: [{ perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true }],
       clientes: [
-        cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' }),
+        cliente({
+          id: 'c-a',
+          nombre_completo: 'CLIENTE ALFA',
+          asesor_perfil_id: 'ase-1',
+          creado_por: 'ase-1',
+        }),
         clienteBaja({ asesor_perfil_id: null, creado_por: null }),
       ],
       contratos: [],
@@ -849,12 +967,23 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
   }
 
   const clienteBaja = (over: Partial<ClienteBasico> = {}) =>
-    cliente({ id: 'c-baja', nombre_completo: 'CLIENTE DE BAJA', activo: false, ...over })
+    cliente({
+      id: 'c-baja',
+      nombre_completo: 'CLIENTE DE BAJA',
+      activo: false,
+      ...over,
+    })
 
   it('cuenta el contrato por vencer de un cliente DADO DE BAJA (no dice “nada por vencer”)', () => {
     montar({
       clientes: [clienteBaja()],
-      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, fecha_vencimiento: enDias(10) })],
+      contratos: [
+        contrato({
+          cliente_id: 'c-baja',
+          capital: 40000,
+          fecha_vencimiento: enDias(10),
+        }),
+      ],
     })
     const chip = chipDe('Por vencer ≤30 d')
     expect(within(chip).getByText('1')).toBeInTheDocument()
@@ -867,7 +996,13 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
     const user = userEvent.setup()
     montar({
       clientes: [clienteBaja()],
-      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, fecha_vencimiento: enDias(10) })],
+      contratos: [
+        contrato({
+          cliente_id: 'c-baja',
+          capital: 40000,
+          fecha_vencimiento: enDias(10),
+        }),
+      ],
     })
     await verTodosLosMeses(user)
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
@@ -885,8 +1020,16 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
     montar({
       clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
       contratos: [
-        contrato({ id: 'k-viva', cliente_id: 'c-viva', fecha_vencimiento: enDias(20) }),
-        contrato({ id: 'k-baja', cliente_id: 'c-baja', fecha_vencimiento: enDias(5) }),
+        contrato({
+          id: 'k-viva',
+          cliente_id: 'c-viva',
+          fecha_vencimiento: enDias(20),
+        }),
+        contrato({
+          id: 'k-baja',
+          cliente_id: 'c-baja',
+          fecha_vencimiento: enDias(5),
+        }),
       ],
     })
     const chip = chipDe('Por vencer ≤30 d')
@@ -907,8 +1050,17 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
     montar({
       clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
       contratos: [
-        contrato({ id: 'k-viva', cliente_id: 'c-viva', fecha_vencimiento: enDias(200) }), // fuera de ventana
-        contrato({ id: 'k-baja', cliente_id: 'c-baja', numero_contrato: '2026-07-000099', fecha_vencimiento: enDias(10) }),
+        contrato({
+          id: 'k-viva',
+          cliente_id: 'c-viva',
+          fecha_vencimiento: enDias(200),
+        }), // fuera de ventana
+        contrato({
+          id: 'k-baja',
+          cliente_id: 'c-baja',
+          numero_contrato: '2026-07-000099',
+          fecha_vencimiento: enDias(10),
+        }),
       ],
     })
     const boton = screen.getByRole('button', { name: /Por vencer/ })
@@ -928,8 +1080,16 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
     montar({
       clientes: [cliente({ id: 'c-viva', nombre_completo: 'CLIENTE VIVA' }), clienteBaja()],
       contratos: [
-        contrato({ id: 'k-viva', cliente_id: 'c-viva', fecha_vencimiento: enDias(200) }),
-        contrato({ id: 'k-baja', cliente_id: 'c-baja', fecha_vencimiento: enDias(10) }),
+        contrato({
+          id: 'k-viva',
+          cliente_id: 'c-viva',
+          fecha_vencimiento: enDias(200),
+        }),
+        contrato({
+          id: 'k-baja',
+          cliente_id: 'c-baja',
+          fecha_vencimiento: enDias(10),
+        }),
       ],
     })
     await user.click(screen.getByRole('button', { name: /Por vencer/ }))
@@ -954,7 +1114,12 @@ describe('MiCartera — alarma de renovación (por vencer ≤30 d)', () => {
 // —— Supervisión (verEquipo): filtro por asesor + indicador "Sin asesor",
 // portados de la pantalla Clientes retirada en Fase 6 (parity de supervisión).
 describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
-  const YO_SUP = { id: 'sup', rol: 'supervisor', puede_contratar: true, demo: false }
+  const YO_SUP = {
+    id: 'sup',
+    rol: 'supervisor',
+    puede_contratar: true,
+    demo: false,
+  }
   const EQUIPO_SUP = [
     { perfil_id: 'ase-1', nombre_completo: 'ASESOR UNO', activo: true },
     { perfil_id: 'ase-2', nombre_completo: 'ASESOR DOS', activo: true },
@@ -963,12 +1128,38 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
   // FUERA del roster visible ('ase-fantasma', p.ej. alta de un admin del portal).
   // Ambas cuentan como sin asesor — la columna Asesor pinta '—' para las dos.
   const CLIENTES_SUP = [
-    cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' }),
-    cliente({ id: 'c-b', nombre_completo: 'CLIENTE BETA', asesor_perfil_id: 'ase-2', creado_por: 'ase-2' }),
-    cliente({ id: 'c-c', nombre_completo: 'CLIENTE SIN DUENO', asesor_perfil_id: null, creado_por: null }),
-    cliente({ id: 'c-d', nombre_completo: 'CLIENTE FANTASMA', asesor_perfil_id: 'ase-fantasma', creado_por: 'ase-fantasma' }),
+    cliente({
+      id: 'c-a',
+      nombre_completo: 'CLIENTE ALFA',
+      asesor_perfil_id: 'ase-1',
+      creado_por: 'ase-1',
+    }),
+    cliente({
+      id: 'c-b',
+      nombre_completo: 'CLIENTE BETA',
+      asesor_perfil_id: 'ase-2',
+      creado_por: 'ase-2',
+    }),
+    cliente({
+      id: 'c-c',
+      nombre_completo: 'CLIENTE SIN DUENO',
+      asesor_perfil_id: null,
+      creado_por: null,
+    }),
+    cliente({
+      id: 'c-d',
+      nombre_completo: 'CLIENTE FANTASMA',
+      asesor_perfil_id: 'ase-fantasma',
+      creado_por: 'ase-fantasma',
+    }),
   ]
-  const montarSup = () => montar({ yo: YO_SUP, equipo: EQUIPO_SUP, clientes: CLIENTES_SUP, contratos: [] })
+  const montarSup = () =>
+    montar({
+      yo: YO_SUP,
+      equipo: EQUIPO_SUP,
+      clientes: CLIENTES_SUP,
+      contratos: [],
+    })
 
   it('el chip "Sin asesor" cuenta dueño null Y dueño fuera del roster (2)', () => {
     montarSup()
@@ -1018,10 +1209,28 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
     montar({
       yo: YO_SUP,
       equipo: EQUIPO_SUP,
-      clientes: [cliente({ id: 'c-a', nombre_completo: 'CLIENTE ALFA', asesor_perfil_id: 'ase-1', creado_por: 'ase-1' })],
+      clientes: [
+        cliente({
+          id: 'c-a',
+          nombre_completo: 'CLIENTE ALFA',
+          asesor_perfil_id: 'ase-1',
+          creado_por: 'ase-1',
+        }),
+      ],
       contratos: [
-        contrato({ cliente_id: 'c-a', moneda: 'PEN', capital: 10000, estado: 'activo' }),
-        contrato({ cliente_id: 'c-a', numero_contrato: '2026-01-000002', moneda: 'USD', capital: 5000, estado: 'activo' }),
+        contrato({
+          cliente_id: 'c-a',
+          moneda: 'PEN',
+          capital: 10000,
+          estado: 'activo',
+        }),
+        contrato({
+          cliente_id: 'c-a',
+          numero_contrato: '2026-01-000002',
+          moneda: 'USD',
+          capital: 5000,
+          estado: 'activo',
+        }),
       ],
     })
     await verTodosLosMeses(user)
@@ -1080,14 +1289,24 @@ describe('MiCartera (móvil, card-stack)', () => {
     activarMovil()
     montar()
     expect(screen.queryByText('2026-01-000001')).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
   })
 
   it('gating: una fila AJENA no ofrece "+ Contrato"', () => {
     activarMovil()
     montar({
-      clientes: [cliente({ id: 'c-ajeno', asesor_perfil_id: 'otro', creado_por: 'otro' })],
+      clientes: [
+        cliente({
+          id: 'c-ajeno',
+          asesor_perfil_id: 'otro',
+          creado_por: 'otro',
+        }),
+      ],
       contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'otro' })],
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
@@ -1128,7 +1347,11 @@ describe('MiCartera (móvil, card-stack)', () => {
     const user = userEvent.setup()
     activarMovil()
     montar() // contrato creado_por 'yo', reciente → ventana viva
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     expect(screen.getByRole('button', { name: 'Corregir' })).toBeInTheDocument()
   })
 
@@ -1136,16 +1359,26 @@ describe('MiCartera (móvil, card-stack)', () => {
     const user = userEvent.setup()
     activarMovil()
     montar({ contratos: [contrato({ creado_por: 'otro' })] })
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
   })
 
   it('Corregir del contrato: AUSENTE si la ventana de 5 h ya venció', async () => {
     const user = userEvent.setup()
     activarMovil()
-    montar({ contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })] })
+    montar({
+      contratos: [contrato({ creado_en: '2020-01-01T00:00:00.000Z' })],
+    })
     await verTodosLosMeses(user) // el contrato es de 2020
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     expect(screen.queryByRole('button', { name: 'Corregir' })).not.toBeInTheDocument()
   })
 
@@ -1153,16 +1386,31 @@ describe('MiCartera (móvil, card-stack)', () => {
     const user = userEvent.setup()
     activarMovil()
     montar()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
     // Control de detalle = button real (no un div con role); el gating a11y del Medium.
-    expect(screen.getByRole('button', { name: /Abrir detalle del contrato\s*2026-01-000001/ })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', {
+        name: /Abrir detalle del contrato\s*2026-01-000001/,
+      }),
+    ).toBeInTheDocument()
   })
 
   it('USD-only: el capital principal del cliente es en dólares, sin "S/ 0" líder', () => {
     activarMovil()
     montar({
       clientes: [cliente({ id: 'c-usd' })],
-      contratos: [contrato({ id: 'k-usd', cliente_id: 'c-usd', moneda: 'USD', capital: 50000 })],
+      contratos: [
+        contrato({
+          id: 'k-usd',
+          cliente_id: 'c-usd',
+          moneda: 'USD',
+          capital: 50000,
+        }),
+      ],
     })
     expect(within(screen.getByRole('listitem')).getByText('US$ 50,000')).toBeInTheDocument()
     expect(screen.queryByText('S/ 0')).not.toBeInTheDocument()
@@ -1201,8 +1449,14 @@ describe('MiCartera (móvil, card-stack)', () => {
     const user = userEvent.setup()
     activarMovil()
     montar()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/ }))
-    const detalle = screen.getByRole('button', { name: /Abrir detalle del contrato\s*2026-01-000001/ })
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    const detalle = screen.getByRole('button', {
+      name: /Abrir detalle del contrato\s*2026-01-000001/,
+    })
     detalle.focus()
     await user.keyboard('{Enter}') // botón NATIVO → Enter dispara el clic
     expect(screen.getByRole('dialog')).toBeInTheDocument()
@@ -1224,7 +1478,9 @@ describe('MiCartera (móvil, card-stack)', () => {
 
   it('Corregir cliente: AUSENTE si el cliente es de otro asesor', () => {
     activarMovil()
-    montar({ clientes: [cliente({ asesor_perfil_id: 'otro', creado_por: 'otro' })] })
+    montar({
+      clientes: [cliente({ asesor_perfil_id: 'otro', creado_por: 'otro' })],
+    })
     expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
   })
 })
@@ -1243,8 +1499,20 @@ describe('MiCartera — filtro por mes de cierre', () => {
   }
   /** Nombre corto del mes en curso, tal y como lo rotula la pantalla. */
   const mesEnCurso = () =>
-    ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio',
-     'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'][new Date().getMonth()]!
+    [
+      'enero',
+      'febrero',
+      'marzo',
+      'abril',
+      'mayo',
+      'junio',
+      'julio',
+      'agosto',
+      'septiembre',
+      'octubre',
+      'noviembre',
+      'diciembre',
+    ][new Date().getMonth()]!
   /** La tarjeta del StatStrip que lleva ese rótulo. */
   const tarjeta = (label: string): HTMLElement => {
     const card = screen.getByText(label).closest('.ac-lift')
@@ -1264,8 +1532,18 @@ describe('MiCartera — filtro por mes de cierre', () => {
         cliente({ id: 'c-v', nombre_completo: 'CLIENTE DE ANTES' }),
       ],
       contratos: [
-        contrato({ id: 'k-a', cliente_id: 'c-a', capital: 20000, creado_en: esteMes() }),
-        contrato({ id: 'k-v', cliente_id: 'c-v', capital: 5000, creado_en: haceMeses(3) }),
+        contrato({
+          id: 'k-a',
+          cliente_id: 'c-a',
+          capital: 20000,
+          creado_en: esteMes(),
+        }),
+        contrato({
+          id: 'k-v',
+          cliente_id: 'c-v',
+          capital: 5000,
+          creado_en: haceMeses(3),
+        }),
       ],
     })
 
@@ -1299,8 +1577,18 @@ describe('MiCartera — filtro por mes de cierre', () => {
     montar({
       clientes: [cliente({ id: 'c-1' })],
       contratos: [
-        contrato({ id: 'k-pen', capital: 20000, moneda: 'PEN', creado_en: esteMes() }),
-        contrato({ id: 'k-usd', capital: 7000, moneda: 'USD', creado_en: esteMes() }),
+        contrato({
+          id: 'k-pen',
+          capital: 20000,
+          moneda: 'PEN',
+          creado_en: esteMes(),
+        }),
+        contrato({
+          id: 'k-usd',
+          capital: 7000,
+          moneda: 'USD',
+          creado_en: esteMes(),
+        }),
       ],
     })
     // Una tarjeta que cambia de significado sin cambiar de nombre es una mentira:
@@ -1379,7 +1667,9 @@ describe('MiCartera — filtro por mes de cierre', () => {
   // eso las dos tarjetas no pueden llamarse igual.
   it('lo cerrado incluye contratos ya vencidos; el capital vivo no', async () => {
     const user = userEvent.setup()
-    montar({ contratos: [contrato({ capital: 30000, estado: 'vencido', creado_en: esteMes() })] })
+    montar({
+      contratos: [contrato({ capital: 30000, estado: 'vencido', creado_en: esteMes() })],
+    })
     expect(within(tarjeta(`Cerrado en ${mesEnCurso()} · Soles`)).getByText('S/ 30k')).toBeInTheDocument()
     await verTodosLosMeses(user)
     expect(screen.getByText('sin capital vigente aún')).toBeInTheDocument()
@@ -1392,8 +1682,20 @@ describe('MiCartera — filtro por mes de cierre', () => {
   it('lo cerrado SÍ cuenta a un cliente dado de baja; el capital vivo NO', async () => {
     const user = userEvent.setup()
     montar({
-      clientes: [cliente({ id: 'c-baja', nombre_completo: 'CLIENTE DE BAJA', activo: false })],
-      contratos: [contrato({ cliente_id: 'c-baja', capital: 40000, creado_en: esteMes() })],
+      clientes: [
+        cliente({
+          id: 'c-baja',
+          nombre_completo: 'CLIENTE DE BAJA',
+          activo: false,
+        }),
+      ],
+      contratos: [
+        contrato({
+          cliente_id: 'c-baja',
+          capital: 40000,
+          creado_en: esteMes(),
+        }),
+      ],
     })
     expect(within(tarjeta(`Cerrado en ${mesEnCurso()} · Soles`)).getByText('S/ 40k')).toBeInTheDocument()
     await verTodosLosMeses(user)
@@ -1402,7 +1704,10 @@ describe('MiCartera — filtro por mes de cierre', () => {
 
   it('cuenta a cuántos clientes les cerró ese mes', () => {
     montar({
-      clientes: [cliente({ id: 'c-a', nombre_completo: 'CLIENTA A' }), cliente({ id: 'c-b', nombre_completo: 'CLIENTE B' })],
+      clientes: [
+        cliente({ id: 'c-a', nombre_completo: 'CLIENTA A' }),
+        cliente({ id: 'c-b', nombre_completo: 'CLIENTE B' }),
+      ],
       contratos: [
         contrato({ id: 'k-a', cliente_id: 'c-a', creado_en: esteMes() }),
         contrato({ id: 'k-b', cliente_id: 'c-b', creado_en: esteMes() }),
@@ -1416,10 +1721,23 @@ describe('MiCartera — filtro por mes de cierre', () => {
   it('la tarjeta declara cuando hay otro filtro recortándola', async () => {
     const user = userEvent.setup()
     montar({
-      clientes: [cliente({ id: 'c-a', nombre_completo: 'CLIENTA ALFA' }), cliente({ id: 'c-b', nombre_completo: 'CLIENTE BETA' })],
+      clientes: [
+        cliente({ id: 'c-a', nombre_completo: 'CLIENTA ALFA' }),
+        cliente({ id: 'c-b', nombre_completo: 'CLIENTE BETA' }),
+      ],
       contratos: [
-        contrato({ id: 'k-a', cliente_id: 'c-a', capital: 20000, creado_en: esteMes() }),
-        contrato({ id: 'k-b', cliente_id: 'c-b', capital: 5000, creado_en: esteMes() }),
+        contrato({
+          id: 'k-a',
+          cliente_id: 'c-a',
+          capital: 20000,
+          creado_en: esteMes(),
+        }),
+        contrato({
+          id: 'k-b',
+          cliente_id: 'c-b',
+          capital: 5000,
+          creado_en: esteMes(),
+        }),
       ],
     })
     expect(screen.getByText(`cerrado en ${mesEnCurso()}`)).toBeInTheDocument()
@@ -1451,7 +1769,12 @@ describe('MiCartera — filtro por mes de cierre', () => {
     montar({
       clientes: [cliente({ id: 'c-v', nombre_completo: 'CLIENTE DE ANTES' })],
       contratos: [
-        contrato({ id: 'k-v', cliente_id: 'c-v', creado_en: haceMeses(3), fecha_vencimiento: dentro }),
+        contrato({
+          id: 'k-v',
+          cliente_id: 'c-v',
+          creado_en: haceMeses(3),
+          fecha_vencimiento: dentro,
+        }),
       ],
     })
     expect(screen.queryByText('CLIENTE DE ANTES')).not.toBeInTheDocument()

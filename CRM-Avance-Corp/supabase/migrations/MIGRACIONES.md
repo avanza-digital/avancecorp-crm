@@ -2774,3 +2774,149 @@ ejecuta `034822...`; una comparación contra el índice remoto busca `054949...`
 Son la MISMA pieza — no duplicar, no «reconciliar» aplicándola dos veces. Si esa
 sesión retoma, la resolución limpia es renombrar el fichero al timestamp del
 registro en un commit propio.
+
+## 20260818200741_crm_contratos_correccion_pdf_eliminacion.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Mantiene la regla autoritativa de
+corrección del vendedor (autor + cartera + máximo 5 horas), pero una corrección
+válida ya no queda bloqueada por el primer PDF: en la misma transacción crea una
+revisión documental nueva y conserva las anteriores como historial inmutable.
+La Edge genera, verifica y sella el PDF vigente íntegramente en el servidor.
+
+El hard-delete queda reservado a Admin/Superadmin por RPC privada: Admin solo
+sin pagos y Superadmin también con pagos. La Edge recibe un manifiesto exacto,
+borra por Storage API tanto `contratos-generados` como `documentos` y recién
+después confirma el borrado de contrato, cronograma y metadata. El DELETE
+PostgREST directo queda cerrado para evitar PDFs huérfanos. Un mutex durable y
+triggers sobre contrato, pagos, titulares, documentos y jobs mantienen estable
+la autorización y el manifiesto durante las dos fases; el finalizador exige el
+token y el mismo actor que obtuvo la autorización original.
+
+Verificación local: oráculo PostgreSQL aislado
+`CONTRATO_PDF_V2_SQL_OK`/`CONTRATO_PDF_V2_RUNNER_OK` (incluye ventana vencida,
+revisiones, roles, pagos, actor/token, RLS y carreras de manifiesto); Edge
+24/24 pruebas Deno + `deno check`; frontend 2.053/2.053 pruebas en 161 archivos,
+typecheck, lint y build en verde; portal legacy validado con `node --check`.
+
+## 20260818200743_crm_contrato_pdf_plantilla_v3.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Versiona como `contrato-aep-17-v3` la
+plantilla contractual aprobada el 18/08/2026. Mantiene inmutables y legibles
+los PDFs v1/v2 ya sellados, admite v2/v3 en el ledger y migra a v3 únicamente
+reservas sin bytes ni lease activo. Las reservas nuevas nacen en v3 y conservan
+la ruta server-side content-addressed `/v2/<job>/contrato.pdf`; `v2` en la ruta
+identifica el protocolo del generador, no la revisión del contenido legal.
+
+La Edge `crm-contrato-pdf-v2` sigue generando el archivo íntegramente en el
+servidor. La revisión sustituye el cuerpo contractual, usa el porcentaje y los
+datos del snapshot, incorpora liquidaciones parciales y las reglas actualizadas
+de retiro/liquidación, y elimina la imagen de firma del ASOCIANTE. El renderer
+con fecha fija produce un PDF determinista de 843.744 bytes y SHA-256
+`74f134a8b2cd04723cca0c36e237a9863dd782d75e07fc95eb5709dc6b3e0219`
+para el fixture canónico. Verificación local de la Edge: 24/24 pruebas Deno y
+formato en verde; oráculo aislado `CONTRATO_PDF_V2_SQL_OK` y runner con limpieza
+verificada; contrato MSW 33/33 y suite completa 2.053/2.053, typecheck, lint y
+build del frontend en verde. En
+producción se aplicó después de confirmar 0 leases activos y 5 PDF v2 sellados;
+la Edge conserva compatibilidad de lectura verificada para esas revisiones.
+
+Despliegue productivo cerrado el 2026-08-18: la Edge quedó `ACTIVE`, versión 2,
+JWT obligatorio y SHA-256
+`6ce31f5d99d2ef90332173f52f4ca9959a2b59232340ae61ef35f3b503ec1374`.
+Hostinger sirve el release `crm-20260818T201312Z-80942d8c7b50` del commit
+`80942d8c7b504fcd43fdf85935c55e2152a1a531`, ZIP SHA-256
+`99da72077fcb40619cff19a5f12f8e03b2a3ea1335da7f5776f5e2e6b23ac61d`.
+El `index.html` y los 66 recursos no transformados coinciden byte a byte; los 5
+PNG recomprimidos por Hostinger coinciden píxel por píxel. El ZIP responde 404
+en `crm.miavance.com` y `miavance.com`; el smoke autenticado cargó sin errores
+ni warnings de consola. El linter post-DDL agregó solo las 3 advertencias
+previstas: la tabla privada sin policies (RLS forzado, sin grants) y las 2 RPC
+`SECURITY DEFINER` autenticadas cuyos cuerpos conservan los gates de autor,
+cartera, ventana y rol.
+
+Hotfix productivo del mismo 2026-08-18: el portal administrativo de
+`miavance.com` pasó a invocar esta Edge para el borrado seguro y expuso que la
+lista CORS solo contenía el subdominio del CRM. Se añadieron exclusivamente
+`https://miavance.com` y `https://www.miavance.com`, con prueba de preflight para
+ambos orígenes. La Edge quedó `ACTIVE`, versión 3, JWT obligatorio y SHA-256
+`26ffd3b215be0e783f2825ef8cc6039f8a01b8d8ccd4c873a46a3be3f27b7ba2`;
+la verificación viva respondió 204 y reflejó exactamente cada origen permitido.
+
+## 20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Versiona la plantilla legal
+como `contrato-aep-17-v4`, sin mover ninguna responsabilidad al navegador. El
+PDF continúa armándose, verificándose y sellándose íntegramente en
+`crm-contrato-pdf-v2`. La revisión restaura la firma original autorizada de
+Kirk E. Sanchez Rios como activo PNG inmutable (SHA-256
+`a969159c00d5595a422f6751ac4514cc4b15bc2ba874ea98877cae1f1d8391eb`),
+resalta en negrita los datos personales y de contacto interpolados, y amplía el
+espacio entre el último párrafo y el bloque de firmas. Los PDFs v1-v3 ya
+sellados permanecen inmutables y descargables.
+
+La aplicación se hizo después de verificar cero leases activos y cero reservas
+v3 elegibles; los cinco PDFs v2 sellados quedaron intactos. La columna y el
+creador privado de jobs usan v4, las restricciones admiten el historial
+v1-v4, y `private.crear_job_contrato_pdf_base` continúa revocada a
+`public`, `anon`, `authenticated` y `service_role`.
+
+Verificación local: 25/25 pruebas Deno, `deno check`, lint y formato en verde;
+oráculo PostgreSQL aislado
+`CONTRATO_PDF_V2_SQL_OK`/`CONTRATO_PDF_V2_RUNNER_OK`; y revisión visual de
+las siete páginas renderizadas. El fixture determinista produce 870.455 bytes
+y SHA-256
+`69e97099416f9286a21c8b48784ead071bcb2017c58c2e93230ddebc31f32f33`.
+La Edge quedó `ACTIVE`, versión 4, JWT obligatorio y SHA-256
+`08785e035f124d21ed63628d95e43c4442dcd0ee87b005bc39bc0aa19ff659a1`.
+Los preflights vivos de CRM y portal respondieron 204 y reflejaron exactamente
+el origen permitido. No hubo cambio ni despliegue de frontend.
+
+## 20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql
+
+**Estado: aplicado en producción el 2026-08-18.** Supabase lo registró con la
+versión `20260818233729` después de confirmar cero leases activos. Las tres
+reservas v4 elegibles avanzaron a v5; cinco PDFs v2 y dos PDF v4 ya sellados
+permanecieron inmutables y descargables.
+Versiona la plantilla como `contrato-aep-17-v5` sin modificar los PDFs v1-v4
+ya sellados. Reproduce el bloque de firma de Kirk del modelo Word usando el
+mismo PNG inmutable (SHA-256
+`a969159c00d5595a422f6751ac4514cc4b15bc2ba874ea98877cae1f1d8391eb`),
+con recorte proporcional y las líneas `AVANCE CORP SAC`,
+`RUC N° 20611392088` y `EL ASOCIANTE`. También restaura los numerales de cada
+apartado (`1.1` a `17.2`) y los incisos alfabéticos de las cláusulas undécima
+y décima tercera tal como figuran en el documento fuente.
+
+Las reservas v4 pendientes o con error reintentable solo avanzan a v5 cuando
+no tienen lease, hash, bytes ni subida; el creador privado genera las nuevas
+reservas directamente en v5. El cliente admite v3-v5 para conservar la lectura
+compatible mientras el servidor pasa a la versión vigente.
+
+Verificación local: 25/25 pruebas Deno, `deno check` y formato en verde;
+oráculo PostgreSQL aislado
+`CONTRATO_PDF_V2_SQL_OK`/`CONTRATO_PDF_V2_RUNNER_OK` con limpieza verificada;
+prueba MSW de contratos 33/33, typecheck, lint y build del frontend en verde.
+Las siete páginas del PDF se revisaron visualmente después de retirar el salto
+forzado previo a la cláusula 17. El fixture determinista produce 871.280 bytes
+y SHA-256
+`b7346c169ced31bba8aad966d97e4c1a6ded85b4f22466587b6bc5dcb8377995`.
+
+La Edge quedó `ACTIVE`, versión 5, JWT obligatorio y SHA-256
+`12f54993d95bae42427e0cace8135ee04b72b5b03f98a585ab988379737abcf4`;
+los dos archivos modificados en remoto coinciden exactamente con el local. Los
+preflights de `crm.miavance.com` y `miavance.com` respondieron 204 reflejando
+cada origen, una solicitud sin sesión respondió 401 y no hubo eventos 5xx.
+
+El frontend productivo es el release
+`crm-20260818T233315Z-e979b4907029`, construido de forma aislada sobre el mismo
+commit que estaba vivo (`e979b4907029f7e7933b2b943d2f2bab60ced6ad`) y con
+solo la tolerancia contractual v3-v5. El ZIP tiene 1.114.205 bytes y SHA-256
+`8f69abea7caaa840239969467a9538cc8bfaf553460217843f3702c9d64a9b0c`;
+HTML, JS principal, consultas y CSS coinciden byte a byte con producción. El
+ZIP y el chunk anterior responden 404. El smoke autenticado abrió `#/hoy` sin
+errores ni advertencias de consola.
+
+Los asesores quedaron sin delta: seguridad 138 avisos (23 INFO, 115 WARN) y
+rendimiento 58 (53 INFO, 5 WARN), sin claves nuevas ni eliminadas. El default,
+las dos restricciones validadas, el creador v5 y sus revocaciones se
+comprobaron mediante consulta postflight; solo `postgres` conserva EXECUTE
+sobre `private.crear_job_contrato_pdf_base`.

@@ -117,6 +117,7 @@ type FakeOptions = {
   actor?: BackendResult[];
   admin?: BackendResult[];
   uploadError?: { code?: string; message?: string; statusCode?: number } | null;
+  deleteError?: { code?: string; message?: string; statusCode?: number } | null;
   downloads?: Array<Blob | null>;
   render?: RenderResult | Error;
 };
@@ -181,6 +182,10 @@ function fake(opciones: FakeOptions = {}) {
           error: null,
         });
       },
+      eliminar: (bucket, paths) => {
+        calls.push(`remove:${bucket}:${paths.length}`);
+        return Promise.resolve({ error: opciones.deleteError ?? null });
+      },
     },
   };
   return { deps, calls };
@@ -204,6 +209,42 @@ function request(
     },
   );
 }
+
+Deno.test("CORS permite que el portal invoque la Edge", async () => {
+  const { deps, calls } = fake();
+  const handler = crearHandlerContratoPdfV2(deps);
+
+  for (const origin of ["https://miavance.com", "https://www.miavance.com"]) {
+    const res = await handler(
+      new Request(
+        "https://project.supabase.co/functions/v1/crm-contrato-pdf-v2",
+        {
+          method: "OPTIONS",
+          headers: {
+            Origin: origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers":
+              "authorization,apikey,content-type,x-client-info",
+          },
+        },
+      ),
+    );
+
+    igual(res.status, 204, `preflight permitido para ${origin}`);
+    igual(
+      res.headers.get("Access-Control-Allow-Origin"),
+      origin,
+      `CORS responde con el origen exacto para ${origin}`,
+    );
+    igual(
+      res.headers.get("Access-Control-Allow-Methods"),
+      "POST, OPTIONS",
+      "autoriza la invocación POST",
+    );
+  }
+
+  igual(calls.length, 0, "el preflight no autentica ni toca backend");
+});
 
 Deno.test("v2 rechaza multipart y no autentica ni toca backend", async () => {
   const { deps, calls } = fake();
@@ -256,6 +297,139 @@ Deno.test("v2 acepta solo las dos claves JSON y UUID canónico", async () => {
   }
 });
 
+Deno.test("delete exige Admin/Superadmin antes de tocar Storage", async () => {
+  const { deps, calls } = fake({
+    admin: [{
+      data: null,
+      error: { code: "42501", message: "Solo Admin o Superadmin" },
+    }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 403, "rol insuficiente");
+  igual(
+    calls.join("|"),
+    "auth|admin:contrato_eliminacion_preparar",
+    "no elimina objetos sin autorización",
+  );
+});
+
+Deno.test("delete no filtra diagnósticos internos inesperados del backend", async () => {
+  const { deps } = fake({
+    admin: [{
+      data: null,
+      error: {
+        code: "XX000",
+        message: "relation private.secreta columna token_interno falló",
+      },
+    }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 503, "error inesperado es transitorio y opaco");
+  const json = await res.json();
+  igual(
+    json.error,
+    "No se pudo autorizar la eliminación del contrato",
+    "usa diagnóstico público estable",
+  );
+  igual(
+    JSON.stringify(json).includes("token_interno"),
+    false,
+    "no expone detalle privado",
+  );
+});
+
+Deno.test("delete rechaza un manifiesto que apunte fuera del contrato", async () => {
+  const { deps, calls } = fake({
+    admin: [{
+      data: {
+        contrato_id: CONTRATO_ID,
+        token: LEASE_TOKEN,
+        objetos: [{
+          bucket: "documentos",
+          path: "otro-contrato/anexo.pdf",
+        }],
+      },
+      error: null,
+    }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 409, "manifiesto incoherente");
+  igual(calls.some((call) => call.startsWith("remove:")), false, "no borra");
+  igual(
+    calls.includes("admin:contrato_eliminacion_finalizar"),
+    false,
+    "no finaliza",
+  );
+});
+
+Deno.test("delete elimina ambos buckets y después confirma la fila", async () => {
+  const documento = `${CONTRATO_ID}/1700000000000_anexo.pdf`;
+  const { deps, calls } = fake({
+    admin: [
+      {
+        data: {
+          contrato_id: CONTRATO_ID,
+          token: LEASE_TOKEN,
+          objetos: [
+            { bucket: "contratos-generados", path: PATH },
+            { bucket: "documentos", path: documento },
+          ],
+        },
+        error: null,
+      },
+      {
+        data: {
+          ok: true,
+          contrato_id: CONTRATO_ID,
+          objetos_eliminados: 2,
+        },
+        error: null,
+      },
+    ],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 200, "borrado completo");
+  igual(
+    calls.join("|"),
+    "auth|admin:contrato_eliminacion_preparar|remove:contratos-generados:1|remove:documentos:1|admin:contrato_eliminacion_finalizar",
+    "Storage precede al hard-delete",
+  );
+  const json = await res.json();
+  igual(json.ok, true, "respuesta confirma");
+  igual(json.archivosEliminados, 2, "reporta objetos");
+});
+
+Deno.test("delete no finaliza la base si Storage falla", async () => {
+  const { deps, calls } = fake({
+    admin: [{
+      data: {
+        contrato_id: CONTRATO_ID,
+        token: LEASE_TOKEN,
+        objetos: [{ bucket: "contratos-generados", path: PATH }],
+      },
+      error: null,
+    }],
+    deleteError: { code: "STORAGE_DOWN", message: "caído" },
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "delete", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 503, "Storage es requisito");
+  igual(
+    calls.includes("admin:contrato_eliminacion_finalizar"),
+    false,
+    "contrato queda para reintento",
+  );
+});
+
 Deno.test("status sellado verifica bytes y hash antes de firmar", async () => {
   const blob = new Blob(["%PDF-1.7\nlegal"], { type: "application/pdf" });
   const hash = await sha256(blob);
@@ -287,6 +461,45 @@ Deno.test("status sellado verifica bytes y hash antes de firmar", async () => {
   );
   const json = await res.json();
   igual(json.url, "https://storage.example.test/firma", "entrega URL firmada");
+});
+
+Deno.test("status conserva descarga de PDFs v2 históricos ya sellados", async () => {
+  const blob = new Blob(["%PDF-1.7\nhistorico-v2"], {
+    type: "application/pdf",
+  });
+  const hash = await sha256(blob);
+  const templateVersion = "contrato-aep-17-v2";
+  const archivo = {
+    contrato_id: CONTRATO_ID,
+    job_id: JOB_ID,
+    storage_bucket: "contratos-generados",
+    storage_path: PATH,
+    nombre_archivo: "Contrato-2026-01-000777.pdf",
+    sha256: hash,
+    bytes: blob.size,
+    template_version: templateVersion,
+    generado_en: "2026-08-17T20:00:00Z",
+  };
+  const { deps, calls } = fake({
+    actor: [{
+      data: estado("sellado", {
+        template_version: templateVersion,
+        sha256: hash,
+        bytes: blob.size,
+        archivo,
+      }),
+      error: null,
+    }],
+    downloads: [blob],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "status", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 200, "histórico v2 legible");
+  assert(
+    calls.indexOf("download") < calls.indexOf("sign"),
+    "también verifica el histórico antes de firmar",
+  );
 });
 
 Deno.test("status jamás firma un objeto cuyo fingerprint diverge", async () => {

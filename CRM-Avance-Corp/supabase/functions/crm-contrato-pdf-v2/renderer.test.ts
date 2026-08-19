@@ -7,6 +7,7 @@ import {
   VFS_VENDOR_SHA256,
 } from "./renderer.ts";
 import { CONTRATO_PDF_TEMPLATE_VERSION } from "./handler.ts";
+import { construirContratoPdf } from "./template-v2.ts";
 
 function assert(condicion: unknown, mensaje: string): asserts condicion {
   if (!condicion) throw new Error(mensaje);
@@ -117,7 +118,137 @@ Deno.test("assets legales v2 conservan los SHA versionados", async () => {
   const resultado = await verificarAssetsContratoPdfV2();
   igual(resultado.ok, true, "assets íntegros");
   igual(resultado.fondoBytes, 108685, "tamaño fondo");
-  igual(resultado.firmaBytes, 26588, "tamaño firma");
+  igual(resultado.firmaBytes, 26588, "tamaño firma del ASOCIANTE");
+});
+
+Deno.test("template v5 reproduce la firma y numeración del modelo", () => {
+  const definicion = construirContratoPdf({
+    contrato: {
+      numero: SNAPSHOT.contrato.numero,
+      capital: SNAPSHOT.contrato.capital,
+      moneda: "PEN",
+      porcentaje: SNAPSHOT.contrato.porcentaje,
+      fechaInicio: SNAPSHOT.contrato.fechaInicio,
+      fechaVencimiento: SNAPSHOT.contrato.fechaVencimiento,
+    },
+    titular: {
+      nombreCompleto: SNAPSHOT.titular.nombreCompleto,
+      tipoDocumento: "DNI",
+      documento: SNAPSHOT.titular.documento,
+      domicilio: SNAPSHOT.titular.domicilio,
+      correo: SNAPSHOT.titular.correo,
+    },
+    analista: SNAPSHOT.analista,
+  }, {
+    fondo: "data:image/png;base64,fondo",
+    firmaAsociante: "data:image/png;base64,firma-kirk",
+  });
+  const contenido = JSON.stringify(definicion.content);
+
+  for (
+    const fragmento of [
+      "EL ASOCIADO participa, mediante la contribución prevista en la cláusula tercera",
+      "no tendrá derecho a percibir participación alguna",
+      "se reducirá excepcionalmente al diez por ciento (10.00 %)",
+      "plazo máximo de treinta (30) días hábiles",
+      "dentro de un plazo máximo de siete (7) días hábiles contados desde dicho vencimiento",
+      "EL ASOCIADO contará con un Analista Comercial encargado de brindarle atención",
+      "resultados económicos del presente contrato se encuentran vinculados",
+      "dieciocho por ciento (18.00 %)",
+    ]
+  ) {
+    assert(contenido.includes(fragmento), `contenido v3 ausente: ${fragmento}`);
+  }
+
+  assert(!contenido.includes("trece por ciento"), "retira la regla anterior");
+  assert(
+    !contenido.includes("identificado con DNI N.°"),
+    "el contrato actualizado no publica el DNI del analista",
+  );
+  assert(
+    contenido.includes('"image":"data:image/png;base64,firma-kirk"'),
+    "incrusta la firma original de Kirk en el cuerpo",
+  );
+  assert(
+    contenido.includes(
+      '"cover":{"width":93,"height":65,"align":"center","valign":"center"}',
+    ),
+    "recorta proporcionalmente la firma como el modelo Word",
+  );
+  for (
+    const linea of [
+      "AVANCE CORP SAC",
+      "RUC N° 20611392088",
+      "EL ASOCIANTE",
+    ]
+  ) {
+    assert(
+      contenido.includes(
+        `"text":${
+          JSON.stringify(linea)
+        },"bold":true,"alignment":"center","fontSize":10.5`,
+      ),
+      `línea corporativa ausente en la firma de Kirk: ${linea}`,
+    );
+  }
+  for (
+    const [clausula, cantidad] of [
+      [1, 4],
+      [2, 4],
+      [3, 11],
+      [4, 5],
+      [5, 3],
+      [6, 3],
+      [7, 2],
+      [8, 6],
+      [9, 2],
+      [10, 5],
+      [12, 3],
+      [13, 3],
+      [14, 3],
+      [15, 3],
+      [16, 3],
+      [17, 2],
+    ] as const
+  ) {
+    for (let numeral = 1; numeral <= cantidad; numeral += 1) {
+      assert(
+        contenido.includes(
+          `"text":"${clausula}.${numeral}","noWrap":true`,
+        ),
+        `numeral contractual ausente: ${clausula}.${numeral}`,
+      );
+    }
+  }
+  for (const inciso of ["a)", "b)", "c)", "d)", "e)"]) {
+    igual(
+      contenido.split(`"text":"${inciso}","noWrap":true`).length - 1,
+      2,
+      `los incisos ${inciso} aparecen en las cláusulas 11 y 13`,
+    );
+  }
+  for (
+    const dato of [
+      "Kirk Edilberto Sánchez Ríos",
+      "DNI N° 44232474",
+      SNAPSHOT.titular.nombreCompleto,
+      "DNI N° 45781234",
+      SNAPSHOT.titular.domicilio,
+      SNAPSHOT.titular.correo,
+      SNAPSHOT.analista.nombreCompleto,
+      SNAPSHOT.analista.celular,
+      SNAPSHOT.analista.correo,
+    ]
+  ) {
+    assert(
+      contenido.includes(`\"text\":${JSON.stringify(dato)},\"bold\":true`),
+      `dato personal sin negrita: ${dato}`,
+    );
+  }
+  assert(
+    contenido.includes('"margin":[0,24,0,5]'),
+    "separa el último párrafo del bloque de firmas",
+  );
 });
 
 Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => {
@@ -131,7 +262,7 @@ Deno.test("PdfPrinter y VFS vendorizados conservan su fingerprint", async () => 
   igual(await sha256Bytes(vfs), VFS_VENDOR_SHA256, "vendor VFS");
 });
 
-Deno.test("PdfPrinter produce dos PDFs byte-idénticos con fecha fija", async () => {
+Deno.test("PdfPrinter produce dos PDFs v5 byte-idénticos con fecha fija", async () => {
   igual(
     CONTRATO_PDF_RENDERER_VERSION,
     CONTRATO_PDF_TEMPLATE_VERSION,
@@ -147,10 +278,10 @@ Deno.test("PdfPrinter produce dos PDFs byte-idénticos con fecha fija", async ()
   igual(primero.bytes, primero.blob.size, "tamaño medido");
   igual(
     primero.sha256,
-    "d605f4de85fcff084df2fe549298e3eade63439dbfe350ff9790496b7aa9000a",
-    "golden byte a byte del template v2",
+    "b7346c169ced31bba8aad966d97e4c1a6ded85b4f22466587b6bc5dcb8377995",
+    "golden byte a byte del template v5",
   );
-  igual(primero.bytes, 867322, "tamaño golden del template v2");
+  igual(primero.bytes, 871280, "tamaño golden del template v5");
   igual(primero.sha256, segundo.sha256, "hash determinista");
   igual(
     primero.sha256,

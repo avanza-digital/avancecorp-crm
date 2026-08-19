@@ -5187,6 +5187,23 @@ async function testReparto(sessions, seed) {
     'coordinador lista los supervisores destino',
     coordinador.schema('crm').rpc('supervisores_para_reparto'),
   );
+  const hoyLima = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(new Date());
+  const mesLima = `${hoyLima.slice(0, 7)}-01`;
+  for (const [nombre, client] of [['coordinador', coordinador], ['gerencia', gerencia]]) {
+    const ingresos = await positive(
+      `${nombre} ve los ingresos del mes para la mesa de reparto`,
+      client.schema('crm').rpc('ingresos_reparto_mes_fn', { p_mes: mesLima }),
+    );
+    if (ingresos) {
+      const semanas = ingresos.data?.semanas ?? [];
+      check(ingresos.data?.version === 1
+        && ingresos.data?.mes === mesLima
+        && semanas.reduce((total, semana) => total + semana.total, 0) === ingresos.data?.total,
+        `${nombre}: las semanas de ingresos cuadran con el total mensual`);
+    }
+  }
   for (const key of ['vend1', 'sup1', 'directorio']) {
     await expectBlockedMutation(
       `${key} no puede ver la cola por repartir`,
@@ -5196,6 +5213,11 @@ async function testReparto(sessions, seed) {
     await expectBlockedMutation(
       `${key} no puede listar los supervisores de reparto`,
       sessions[key].client.schema('crm').rpc('supervisores_para_reparto'),
+      ['42501'],
+    );
+    await expectBlockedMutation(
+      `${key} no puede ver los ingresos mensuales de reparto`,
+      sessions[key].client.schema('crm').rpc('ingresos_reparto_mes_fn', { p_mes: mesLima }),
       ['42501'],
     );
     await expectBlockedMutation(

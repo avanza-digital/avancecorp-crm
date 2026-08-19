@@ -88,6 +88,12 @@ const EdgeRespuestaSchema = v.strictObject({
   url: v.optional(v.pipe(v.string(), v.url())),
 })
 
+const EliminacionRespuestaSchema = v.strictObject({
+  ok: v.literal(true),
+  contratoId: v.pipe(v.string(), v.regex(UUID_CANONICO_RE)),
+  archivosEliminados: v.pipe(v.number(), v.integer(), v.minValue(0)),
+})
+
 type PdfEstadoWire = v.InferOutput<typeof PdfEstadoSchema>
 type EdgeRespuesta = v.InferOutput<typeof EdgeRespuestaSchema>
 
@@ -155,8 +161,7 @@ export function etiquetaEstadoContratoPdf(estado: EstadoContratoPdf): string {
 
 async function invocarEdge(
   action: 'ensure' | 'status',
-  contratoId: string,
-): Promise<EdgeRespuesta> {
+  contratoId: string): Promise<EdgeRespuesta> {
   exigirContratoIdCanonico(contratoId)
   const { data, error } = await clienteSupabase().functions.invoke(CONTRATO_PDF_EDGE, {
     body: { action, contratoId },
@@ -165,7 +170,7 @@ async function invocarEdge(
     let mensaje = error.message || 'No se pudo acceder al archivo contractual privado.'
     if (error instanceof FunctionsHttpError) {
       try {
-        const cuerpo = await error.context.clone().json() as unknown
+        const cuerpo = (await error.context.clone().json()) as unknown
         const durable = v.safeParse(EdgeRespuestaSchema, cuerpo)
         if (durable.success && durable.output.pdf.contrato_id === contratoId) {
           return durable.output
@@ -210,7 +215,8 @@ function estadoPublico(pdf: PdfEstadoWire): EstadoContratoPdfServidor {
 }
 
 async function descargarUrlFirmada(url: string): Promise<Blob> {
-  const respuesta = await fetch(url, { credentials: 'omit', cache: 'no-store' })
+  const respuesta = await fetch(url, { credentials: 'omit', cache: 'no-store',
+  })
   if (!respuesta.ok) throw new Error('No se pudo descargar el contrato PDF privado.')
   return respuesta.blob()
 }
@@ -218,8 +224,7 @@ async function descargarUrlFirmada(url: string): Promise<Blob> {
 function rutaMetadataValida(
   contratoId: string,
   jobId: string | null,
-  storagePath: string,
-): boolean {
+  storagePath: string): boolean {
   if (jobId) return storagePath === `${contratoId}/v2/${jobId}/contrato.pdf`
   // Compatibilidad de solo lectura para ledgers v1 ya sellados.
   return storagePath === `${contratoId}/contrato.pdf`
@@ -255,7 +260,7 @@ async function archivoValidado(
   if (blob.size !== metadata.bytes) {
     throw new Error('El tamaño del PDF descargado no coincide con el archivo legal registrado.')
   }
-  if (await sha256PdfHex(blob) !== metadata.sha256) {
+  if ((await sha256PdfHex(blob)) !== metadata.sha256) {
     throw new Error('Los bytes del PDF descargado no coinciden con el archivo legal registrado.')
   }
   return {
@@ -270,27 +275,67 @@ async function archivoValidado(
   }
 }
 
-export async function consultarEstadoContratoPdf(
-  contratoId: string,
-): Promise<EstadoContratoPdfServidor> {
+export async function consultarEstadoContratoPdf(contratoId: string): Promise<EstadoContratoPdfServidor> {
   const respuesta = await invocarEdge('status', contratoId)
   return estadoPublico(respuesta.pdf)
 }
 
-export async function obtenerContratoPdfArchivado(
-  contratoId: string,
-): Promise<ArchivoContratoPdf | null> {
+export async function obtenerContratoPdfArchivado(contratoId: string): Promise<ArchivoContratoPdf | null> {
   const respuesta = await invocarEdge('status', contratoId)
   if (respuesta.pdf.estado !== 'sellado') return null
   return archivoValidado(contratoId, respuesta.pdf, respuesta.url)
 }
 
 /** Solicita al servidor asegurar el job; el navegador nunca genera ni aporta bytes. */
-export async function archivarContratoPdfConfirmado(
-  contratoId: string,
-): Promise<ArchivoContratoPdf> {
+export async function archivarContratoPdfConfirmado(contratoId: string): Promise<ArchivoContratoPdf> {
   const respuesta = await invocarEdge('ensure', contratoId)
   return archivoValidado(contratoId, respuesta.pdf, respuesta.url)
+}
+
+/** Dispara la generación server-side de la revisión vigente sin descargarla. */
+export async function asegurarContratoPdfActualizado(contratoId: string): Promise<EstadoContratoPdfServidor> {
+  const respuesta = await invocarEdge('ensure', contratoId)
+  return estadoPublico(respuesta.pdf)
+}
+
+/**
+ * Hard-delete administrado: la Edge revalida Admin/Superadmin, elimina primero
+ * los objetos privados y recién entonces confirma el borrado en la base.
+ */
+export async function eliminarContratoConPdf(
+  contratoId: string,
+): Promise<{ contratoId: string; archivosEliminados: number }> {
+  exigirContratoIdCanonico(contratoId)
+  const { data, error } = await clienteSupabase().functions.invoke(CONTRATO_PDF_EDGE, {
+    body: { action: 'delete', contratoId },
+  })
+  if (error) {
+    let mensaje = error.message || 'No se pudo eliminar el contrato y sus archivos.'
+    if (error instanceof FunctionsHttpError) {
+      try {
+        const cuerpo = (await error.context.clone().json()) as unknown
+        if (
+          cuerpo != null &&
+          typeof cuerpo === 'object' &&
+          'error' in cuerpo &&
+          typeof cuerpo.error === 'string' &&
+          cuerpo.error.trim()
+        )
+          mensaje = cuerpo.error
+      } catch {
+        // Conservamos el diagnóstico del SDK si el cuerpo no es JSON.
+      }
+    }
+    throw new Error(mensaje)
+  }
+  const resultado = v.safeParse(EliminacionRespuestaSchema, data)
+  if (!resultado.success || resultado.output.contratoId !== contratoId) {
+    throw new Error('La confirmación de eliminación no tiene el formato esperado.')
+  }
+  return {
+    contratoId: resultado.output.contratoId,
+    archivosEliminados: resultado.output.archivosEliminados,
+  }
 }
 
 export function descargarArchivoContratoPdf(archivo: ArchivoContratoPdf): void {
@@ -315,10 +360,7 @@ export function abrirVentanaContratoPdf(): Window {
   return ventana
 }
 
-export function verArchivoContratoPdf(
-  archivo: ArchivoContratoPdf,
-  ventana: Window = abrirVentanaContratoPdf(),
-): void {
+export function verArchivoContratoPdf(archivo: ArchivoContratoPdf, ventana: Window = abrirVentanaContratoPdf()): void {
   const url = URL.createObjectURL(archivo.blob)
   ventana.opener = null
   ventana.location.replace(url)

@@ -6,6 +6,7 @@ import {
   can,
   puedeAdministrarRolesCrm,
   puedeAdministrarUsuariosCrm,
+  puedeEliminarContratos,
   puedeEscribir,
   puedeOrganizarJerarquiaCrm,
   puedeVerDirectorioUsuariosCrm,
@@ -132,6 +133,14 @@ describe('capacidades por rol', () => {
 })
 
 describe('capacidades administrativas Portal ↔ CRM', () => {
+  it('reserva la eliminación contractual para Admin y Superadmin del Portal', () => {
+    expect(puedeEliminarContratos({ rol: 'vendedor', rol_portal: 'analista' })).toBe(false)
+    expect(puedeEliminarContratos({ rol: 'gerencia', rol_portal: 'directorio' })).toBe(false)
+    expect(puedeEliminarContratos({ rol: 'directorio', rol_portal: 'admin' })).toBe(true)
+    expect(puedeEliminarContratos({ rol: 'vendedor', rol_portal: 'superadmin' })).toBe(true)
+    expect(puedeEliminarContratos(null)).toBe(false)
+  })
+
   it('Gerencia administra personas y jerarquía, pero no roles', () => {
     const yo = { rol: 'gerencia' as const, rol_portal: 'directorio' }
     expect(puedeAdministrarUsuariosCrm(yo)).toBe(true)

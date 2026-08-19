@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   FILTROS_INICIALES,
+  contarFiltrosAvanzados,
   contarMarcados,
+  distritosDeCola,
   filtrarYOrdenarCola,
   origenesDeCola,
 } from './cola-reparto'
@@ -24,10 +26,13 @@ function lead(parcial: Partial<ColaLead> & { id: string; creado_en: string }): C
 const VIEJO = lead({ id: 'viejo', creado_en: '2026-07-20T10:00:00.000Z', origen: 'landing' })
 const MEDIO = lead({
   id: 'medio', creado_en: '2026-07-22T15:30:00.000Z', origen: 'formulario',
-  clasificacion_auto: 'posible_credito', comentario: 'Necesito un préstamo urgente',
+  categoria_interes: 'renovacion', monto_estimado: 15_000, moneda: 'USD',
+  distrito: 'Miraflores', clasificacion_auto: 'posible_credito',
+  comentario: 'Necesito un préstamo urgente',
 })
 const NUEVO = lead({
   id: 'nuevo', creado_en: '2026-07-24T09:15:00.000Z', origen: 'landing',
+  categoria_interes: 'nuevo', monto_estimado: 50_000,
   distrito: 'San Juan de Lurigancho', comentario: 'Quiero invertir en el plazo fijo',
 })
 const COLA = [VIEJO, MEDIO, NUEVO] // llega en FIFO (asc), como la RPC
@@ -72,12 +77,48 @@ describe('filtrarYOrdenarCola', () => {
       ...FILTROS_INICIALES, soloMarcados: true, busqueda: 'invertir',
     })).toEqual([])
   })
+
+  it('filtra por categoría, moneda, distrito y capital sin mezclar monedas', () => {
+    expect(filtrarYOrdenarCola(COLA, {
+      ...FILTROS_INICIALES,
+      categoria: 'renovacion',
+      moneda: 'USD',
+      distrito: 'Miraflores',
+      montoMin: '10000',
+      montoMax: '20000',
+    }).map((l) => l.id)).toEqual(['medio'])
+  })
+
+  it('filtra antigüedad con reloj inyectado y presencia de comentario', () => {
+    const ahora = Date.parse('2026-07-24T12:00:00.000Z')
+    expect(filtrarYOrdenarCola(COLA, {
+      ...FILTROS_INICIALES,
+      antiguedad: 'tres_mas',
+      comentario: 'sin',
+    }, ahora).map((l) => l.id)).toEqual(['viejo'])
+    expect(filtrarYOrdenarCola(COLA, {
+      ...FILTROS_INICIALES,
+      antiguedad: 'hoy',
+      comentario: 'con',
+    }, ahora).map((l) => l.id)).toEqual(['nuevo'])
+  })
 })
 
-describe('origenesDeCola / contarMarcados', () => {
+describe('catálogos y conteos de filtros', () => {
   it('origenes únicos presentes y conteo de marcados', () => {
     expect(origenesDeCola(COLA).sort()).toEqual(['formulario', 'landing'].sort())
     expect(contarMarcados(COLA)).toBe(1)
     expect(contarMarcados([])).toBe(0)
+  })
+
+  it('lista distritos reales y cuenta solo filtros avanzados activos', () => {
+    expect(distritosDeCola(COLA)).toEqual(['Miraflores', 'San Juan de Lurigancho'])
+    expect(contarFiltrosAvanzados(FILTROS_INICIALES)).toBe(0)
+    expect(contarFiltrosAvanzados({
+      ...FILTROS_INICIALES,
+      moneda: 'PEN',
+      montoMin: '10000',
+      comentario: 'con',
+    })).toBe(3)
   })
 })

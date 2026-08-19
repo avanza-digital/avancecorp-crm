@@ -137,26 +137,28 @@ export interface IdentidadAdministrativa {
 
 /** Gerencia administra las personas y el estado de su membresía CRM. */
 export function puedeAdministrarUsuariosCrm(
-  identidad: IdentidadAdministrativa | null | undefined,
-): boolean {
+  identidad: IdentidadAdministrativa | null | undefined): boolean {
   return identidad?.capacidades_config?.puede_administrar_usuarios
     ?? identidad?.rol === 'gerencia'
 }
 
 /** La jerarquía pertenece exclusivamente a Gerencia. */
 export function puedeOrganizarJerarquiaCrm(
-  identidad: IdentidadAdministrativa | null | undefined,
-): boolean {
+  identidad: IdentidadAdministrativa | null | undefined): boolean {
   return identidad?.capacidades_config?.puede_organizar_jerarquia
     ?? identidad?.rol === 'gerencia'
 }
 
 /** Superadmin Portal solo asigna o cambia roles CRM. */
 export function puedeAdministrarRolesCrm(
-  identidad: IdentidadAdministrativa | null | undefined,
-): boolean {
+  identidad: IdentidadAdministrativa | null | undefined): boolean {
   return identidad?.capacidades_config?.puede_administrar_roles
     ?? identidad?.rol_portal === 'superadmin'
+}
+
+/** El hard-delete contractual pertenece solo a Admin/Superadmin del Portal. */
+export function puedeEliminarContratos(identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return identidad?.rol_portal === 'admin' || identidad?.rol_portal === 'superadmin'
 }
 
 /**
@@ -164,19 +166,19 @@ export function puedeAdministrarRolesCrm(
  * Gerencia + Superadmin sí suma ambas autoridades de forma explícita.
  */
 export function administraSoloRolesCrm(
-  identidad: IdentidadAdministrativa | null | undefined,
-): boolean {
+  identidad: IdentidadAdministrativa | null | undefined): boolean {
   return identidad?.rol !== 'gerencia' && puedeAdministrarRolesCrm(identidad)
 }
 
 /** Directorio audita; Gerencia administra; Superadmin ve el mínimo para roles. */
 export function puedeVerDirectorioUsuariosCrm(
-  identidad: IdentidadAdministrativa | null | undefined,
-): boolean {
-  return identidad?.capacidades_config?.puede_listar_usuarios
+  identidad: IdentidadAdministrativa | null | undefined): boolean {
+  return (
+    identidad?.capacidades_config?.puede_listar_usuarios
     ?? (
       identidad?.rol === 'gerencia'
       || identidad?.rol === 'directorio'
       || identidad?.rol_portal === 'superadmin'
     )
+  )
 }

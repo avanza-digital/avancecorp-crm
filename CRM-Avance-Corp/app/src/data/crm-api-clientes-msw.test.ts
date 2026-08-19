@@ -169,7 +169,11 @@ describe('listarClientes (vista crm.clientes_basicos)', () => {
           // Si el portal estrena un tipo (o llega null), la LISTA no pierde al
           // cliente — cae al default histórico DNI (el detalle sí es estricto).
           filaBasica({ id: 'cli-nuevo-tipo', tipo_documento: 'RUC' }),
-          filaBasica({ id: 'cli-sin-tipo', tipo_documento: null, creado_por: null }),
+          filaBasica({
+            id: 'cli-sin-tipo',
+            tipo_documento: null,
+            creado_por: null,
+          }),
         ]),
       ),
     )
@@ -261,8 +265,9 @@ describe('actualizarClientePortal (la TRAMPA de la ventana de 5 h)', () => {
 
   it('ventana vencida: el PATCH responde 200 con [] y la función devuelve false', async () => {
     server.use(
-      http.patch(`${BASE}/rest/v1/perfiles`, () =>
-        HttpResponse.json([], { status: 200 }), // 0 filas, SIN error: así calla el servidor
+      http.patch(
+        `${BASE}/rest/v1/perfiles`,
+        () => HttpResponse.json([], { status: 200 }), // 0 filas, SIN error: así calla el servidor
       ),
     )
 
@@ -287,7 +292,11 @@ describe('actualizarClientePortal (la TRAMPA de la ventana de 5 h)', () => {
     server.use(
       http.patch(`${BASE}/rest/v1/perfiles`, () =>
         HttpResponse.json(
-          { code: '23505', message: 'duplicate key', details: 'perfiles_dni_cliente_key' },
+          {
+            code: '23505',
+            message: 'duplicate key',
+            details: 'perfiles_dni_cliente_key',
+          },
           { status: 409 },
         ),
       ),
@@ -311,8 +320,13 @@ const PEN_OK = {
   beneficiario_dni: '',
 }
 const USD_VACIA = {
-  banco: '', tipo_cuenta: '', numero_cuenta: '', cci: '',
-  titular_distinto: false, beneficiario_nombre: '', beneficiario_dni: '',
+  banco: '',
+  tipo_cuenta: '',
+  numero_cuenta: '',
+  cci: '',
+  titular_distinto: false,
+  beneficiario_nombre: '',
+  beneficiario_dni: '',
 }
 
 describe('crearClientePortal (edge crear-cliente)', () => {
@@ -321,7 +335,12 @@ describe('crearClientePortal (edge crear-cliente)', () => {
     server.use(
       http.post(`${BASE}/functions/v1/crear-cliente`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
-        return HttpResponse.json({ ok: true, user_id: 'u-nuevo', email: 'qa@correo.pe', email_enviado: true })
+        return HttpResponse.json({
+          ok: true,
+          user_id: 'u-nuevo',
+          email: 'qa@correo.pe',
+          email_enviado: true,
+        })
       }),
     )
 
@@ -355,7 +374,11 @@ describe('crearClientePortal (edge crear-cliente)', () => {
     server.use(
       http.post(`${BASE}/functions/v1/crear-cliente`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
-        return HttpResponse.json({ ok: true, user_id: 'u-nuevo', email_enviado: true })
+        return HttpResponse.json({
+          ok: true,
+          user_id: 'u-nuevo',
+          email_enviado: true,
+        })
       }),
     )
 
@@ -377,7 +400,9 @@ describe('crearClientePortal (edge crear-cliente)', () => {
     server.use(
       http.post(`${BASE}/functions/v1/crear-cliente`, () =>
         HttpResponse.json(
-          { error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.' },
+          {
+            error: 'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
+          },
           { status: 400 },
         ),
       ),
@@ -385,8 +410,13 @@ describe('crearClientePortal (edge crear-cliente)', () => {
 
     await expect(
       crearClientePortal({
-        email: 'qa@correo.pe', nombre_completo: 'X', apellidos: 'X', nombres: 'X',
-        dni: '45781234', domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima', tipo_documento: 'DNI',
+        email: 'qa@correo.pe',
+        nombre_completo: 'X',
+        apellidos: 'X',
+        nombres: 'X',
+        dni: '45781234',
+        domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
+        tipo_documento: 'DNI',
         bancarios: { pen: USD_VACIA, usd: USD_VACIA },
       }),
     ).rejects.toMatchObject({
@@ -422,15 +452,18 @@ describe('crearClientePortal (edge crear-cliente)', () => {
 
   it('respuesta sin user_id = fallo explícito (nunca éxito sin id para encadenar el contrato)', async () => {
     server.use(
-      http.post(`${BASE}/functions/v1/crear-cliente`, () =>
-        HttpResponse.json({ ok: true, email_enviado: true }),
-      ),
+      http.post(`${BASE}/functions/v1/crear-cliente`, () => HttpResponse.json({ ok: true, email_enviado: true })),
     )
 
     await expect(
       crearClientePortal({
-        email: 'qa@correo.pe', nombre_completo: 'X', apellidos: 'X', nombres: 'X',
-        dni: '45781234', domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima', tipo_documento: 'DNI',
+        email: 'qa@correo.pe',
+        nombre_completo: 'X',
+        apellidos: 'X',
+        nombres: 'X',
+        dni: '45781234',
+        domicilio: 'Av. Javier Prado Este 123, San Isidro, Lima',
+        tipo_documento: 'DNI',
         bancarios: { pen: PEN_OK, usd: USD_VACIA },
       }),
     ).rejects.toMatchObject({ code: 'ALTA_SIN_ID' })
@@ -449,7 +482,10 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
         return HttpResponse.json([
           filaContrato({ capital: '10000.50', tasa_anual: '15.5' }),
           filaContrato({ id: 'ct-2', estado: 'zombie' }), // fuera de contrato → se descarta
-          filaContrato({ id: 'ct-3', producto_condicion_id: 'snapshot-sin-uuid' }),
+          filaContrato({
+            id: 'ct-3',
+            producto_condicion_id: 'snapshot-sin-uuid',
+          }),
         ])
       }),
     )
@@ -478,9 +514,14 @@ describe('obtenerCronograma / obtenerTitulares', () => {
         capturadas.push((await request.json()) as Record<string, unknown>)
         return HttpResponse.json([
           {
-            id: 'cu-1', numero_cuota: 1, fecha_programada: '2026-08-01',
-            monto_programado: '125.00', estado: 'pendiente', tipo: 'cuota',
-            fecha_pago_real: null, monto_pagado: null,
+            id: 'cu-1',
+            numero_cuota: 1,
+            fecha_programada: '2026-08-01',
+            monto_programado: '125.00',
+            estado: 'pendiente',
+            tipo: 'cuota',
+            fecha_pago_real: null,
+            monto_pagado: null,
           },
         ])
       }),
@@ -489,7 +530,11 @@ describe('obtenerCronograma / obtenerTitulares', () => {
     const cuotas = await obtenerCronograma('ct-1')
 
     expect(capturadas[0]?.p_contrato_id).toBe('ct-1') // el orden lo garantiza la fn
-    expect(cuotas[0]).toMatchObject({ numero_cuota: 1, monto_programado: 125, monto_pagado: null })
+    expect(cuotas[0]).toMatchObject({
+      numero_cuota: 1,
+      monto_programado: 125,
+      monto_pagado: null,
+    })
   })
 
   it('los co-titulares llegan ordenados por orden', async () => {
@@ -497,7 +542,12 @@ describe('obtenerCronograma / obtenerTitulares', () => {
       http.post(`${BASE}/rest/v1/rpc/titulares_contrato_fn`, async ({ request }) => {
         expect(((await request.json()) as Record<string, unknown>).p_contrato_id).toBe('ct-1')
         return HttpResponse.json([
-          { nombre_completo: 'JUANA PEREZ', tipo_documento: 'PASAPORTE', documento: 'AB1234', orden: 1 },
+          {
+            nombre_completo: 'JUANA PEREZ',
+            tipo_documento: 'PASAPORTE',
+            documento: 'AB1234',
+            orden: 1,
+          },
         ])
       }),
     )
@@ -505,7 +555,12 @@ describe('obtenerCronograma / obtenerTitulares', () => {
     const titulares = await obtenerTitulares('ct-1')
 
     expect(titulares).toEqual([
-      { nombre_completo: 'JUANA PEREZ', tipo_documento: 'PASAPORTE', documento: 'AB1234', orden: 1 },
+      {
+        nombre_completo: 'JUANA PEREZ',
+        tipo_documento: 'PASAPORTE',
+        documento: 'AB1234',
+        orden: 1,
+      },
     ])
   })
 })
@@ -561,11 +616,7 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
       es_cuenta_perfil: false,
       creada_en: '2026-08-03T20:02:53.000Z',
     }
-    server.use(
-      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () =>
-        HttpResponse.json([historica]),
-      ),
-    )
+    server.use(http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () => HttpResponse.json([historica])))
 
     await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).resolves.toEqual([historica])
   })
@@ -578,14 +629,10 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
       creada_en: '2026-08-03T20:02:53.000Z',
     }
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () =>
-        HttpResponse.json([versionadaDesdePerfil]),
-      ),
+      http.post(`${BASE}/rest/v1/rpc/cuentas_bancarias_cliente_fn`, () => HttpResponse.json([versionadaDesdePerfil])),
     )
 
-    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).resolves.toEqual([
-      versionadaDesdePerfil,
-    ])
+    await expect(listarCuentasBancariasCliente('cli-1', 'PEN')).resolves.toEqual([versionadaDesdePerfil])
   })
 
   it.each([
@@ -640,7 +687,9 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
             storage_bucket: 'contratos-generados',
             storage_path: '10000000-0000-4000-8000-000000000001/v2/30000000-0000-4000-8000-000000000001/contrato.pdf',
             nombre_archivo: 'Contrato-2026-01-000123.pdf',
-            template_version: 'contrato-aep-17-v2',
+            // Regresión: el servidor reserva con la versión vigente. El contrato
+            // ya quedaba persistido, pero el cliente mostraba un falso error al validar.
+            template_version: 'contrato-aep-17-v5',
             intentos: 0,
             lease_expira_en: null,
             reintentable: true,
@@ -652,41 +701,52 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
       }),
     )
 
-    const resultado = await crearContrato({
-      cliente_id: 'cli-1',
-      capital: 10000,
-      moneda: 'PEN',
-      tasa_anual: 15,
-      modalidad: 'mensual',
-      tipo_interes: 'simple',
-      categoria: 'nuevo',
-      fecha_inicio: '2026-08-01',
-      fecha_vencimiento: '2027-08-01',
-      numero_contrato: '2026-01-000123',
-      notas_internas: null,
-      cuenta_pago: {
-        tipo: 'perfil',
-        cuenta_esperada: {
-          banco: cuenta.banco,
-          tipo_cuenta: cuenta.tipo_cuenta as 'ahorros',
-          numero_cuenta: cuenta.numero_cuenta,
-          cci: cuenta.cci,
-          titular_distinto: false,
-          beneficiario_nombre: null,
-          beneficiario_dni: null,
+    const resultado = await crearContrato(
+      {
+        cliente_id: 'cli-1',
+        capital: 10000,
+        moneda: 'PEN',
+        tasa_anual: 15,
+        modalidad: 'mensual',
+        tipo_interes: 'simple',
+        categoria: 'nuevo',
+        fecha_inicio: '2026-08-01',
+        fecha_vencimiento: '2027-08-01',
+        numero_contrato: '2026-01-000123',
+        notas_internas: null,
+        cuenta_pago: {
+          tipo: 'perfil',
+          cuenta_esperada: {
+            banco: cuenta.banco,
+            tipo_cuenta: cuenta.tipo_cuenta as 'ahorros',
+            numero_cuenta: cuenta.numero_cuenta,
+            cci: cuenta.cci,
+            titular_distinto: false,
+            beneficiario_nombre: null,
+            beneficiario_dni: null,
+          },
         },
       },
-    }, [{
-      numero_cuota: 1,
-      fecha_programada: '2026-09-01',
-      monto_programado: 125,
-      estado: 'pendiente',
-      tipo: 'cuota',
-    }])
+      [
+        {
+          numero_cuota: 1,
+          fecha_programada: '2026-09-01',
+          monto_programado: 125,
+          estado: 'pendiente',
+          tipo: 'cuota',
+        },
+      ],
+    )
 
     expect(resultado.cuenta_bancaria_id).toBe('20000000-0000-4000-8000-000000000001')
-    expect(resultado.pdf).toMatchObject({ estado: 'pendiente', reintentable: true })
-    expect(body.p_cuenta).toMatchObject({ tipo: 'perfil', cuenta_esperada: { cci: cuenta.cci } })
+    expect(resultado.pdf).toMatchObject({
+      estado: 'pendiente',
+      reintentable: true,
+    })
+    expect(body.p_cuenta).toMatchObject({
+      tipo: 'perfil',
+      cuenta_esperada: { cci: cuenta.cci },
+    })
   })
 
   it('no confirma éxito si la RPC omite el id de la cuenta', async () => {
@@ -699,12 +759,24 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
         }),
       ),
     )
-    await expect(crearContrato({
-      cliente_id: 'cli-1', capital: 10000, moneda: 'PEN', tasa_anual: 15,
-      modalidad: 'mensual', tipo_interes: 'simple', categoria: 'nuevo',
-      fecha_inicio: '2026-08-01', fecha_vencimiento: '2027-08-01',
-      numero_contrato: '2026-01-000123', cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
-    }, [])).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    await expect(
+      crearContrato(
+        {
+          cliente_id: 'cli-1',
+          capital: 10000,
+          moneda: 'PEN',
+          tasa_anual: 15,
+          modalidad: 'mensual',
+          tipo_interes: 'simple',
+          categoria: 'nuevo',
+          fecha_inicio: '2026-08-01',
+          fecha_vencimiento: '2027-08-01',
+          numero_contrato: '2026-01-000123',
+          cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
+        },
+        [],
+      ),
+    ).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 
   it('no confirma el contrato si la respuesta omite la reserva PDF', async () => {
@@ -717,16 +789,28 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
         }),
       ),
     )
-    await expect(crearContrato({
-      cliente_id: 'cli-1', capital: 10000, moneda: 'PEN', tasa_anual: 15,
-      modalidad: 'mensual', tipo_interes: 'simple', categoria: 'nuevo',
-      fecha_inicio: '2026-08-01', fecha_vencimiento: '2027-08-01',
-      numero_contrato: '2026-01-000123', cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
-    }, [])).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+    await expect(
+      crearContrato(
+        {
+          cliente_id: 'cli-1',
+          capital: 10000,
+          moneda: 'PEN',
+          tasa_anual: 15,
+          modalidad: 'mensual',
+          tipo_interes: 'simple',
+          categoria: 'nuevo',
+          fecha_inicio: '2026-08-01',
+          fecha_vencimiento: '2027-08-01',
+          numero_contrato: '2026-01-000123',
+          cuenta_pago: { tipo: 'existente', cuenta_id: 'cb-1' },
+        },
+        [],
+      ),
+    ).rejects.toMatchObject({ code: 'ROW_CONTRACT' })
   })
 })
 
-describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta)', () => {
+describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)', () => {
   const contratoBase = {
     capital: 12000,
     moneda: 'PEN' as const,
@@ -743,7 +827,7 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta)', () =
   it('p_contrato SIEMPRE lleva notas_internas (aunque null) y titulares solo si el caller lo mandó', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return new HttpResponse(null, { status: 204 })
       }),
@@ -763,7 +847,7 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta)', () =
   it('titulares presente (incluso []) SÍ viaja — semántica de reemplazo total', async () => {
     let body: Record<string, unknown> = {}
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, async ({ request }) => {
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3`, async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>
         return new HttpResponse(null, { status: 204 })
       }),
@@ -776,9 +860,13 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta)', () =
 
   it('ventana vencida: el RAISE P0001 del servidor llega con su mensaje es-PE', async () => {
     server.use(
-      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta`, () =>
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3`, () =>
         HttpResponse.json(
-          { code: 'P0001', message: 'Solo puedes corregir un contrato dentro de las 5 horas de creado', details: null },
+          {
+            code: 'P0001',
+            message: 'Solo puedes corregir un contrato dentro de las 5 horas de creado',
+            details: null,
+          },
           { status: 400 },
         ),
       ),

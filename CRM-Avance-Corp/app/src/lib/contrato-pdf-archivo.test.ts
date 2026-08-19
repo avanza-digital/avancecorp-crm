@@ -8,9 +8,11 @@ vi.mock('./supabase', () => ({
 }))
 
 import {
+  asegurarContratoPdfActualizado,
   archivarContratoPdfConfirmado,
   consultarEstadoContratoPdf,
   ContratoPdfNoSelladoError,
+  eliminarContratoConPdf,
   obtenerContratoPdfArchivado,
 } from './contrato-pdf-archivo'
 
@@ -26,8 +28,7 @@ async function sha256(blob: Blob): Promise<string> {
 
 async function sellado(
   blob: Blob,
-  overrides: Record<string, unknown> = {},
-) {
+  overrides: Record<string, unknown> = {}) {
   const hash = await sha256(blob)
   const storagePath = `${CONTRATO_ID}/v2/${JOB_ID}/contrato.pdf`
   const metadata = {
@@ -61,9 +62,7 @@ async function sellado(
   }
 }
 
-function pendiente(
-  estado: 'pendiente' | 'procesando' | 'error_reintentable' | 'integridad_bloqueada' = 'pendiente',
-) {
+function pendiente(estado: 'pendiente' | 'procesando' | 'error_reintentable' | 'integridad_bloqueada' = 'pendiente') {
   return {
     pdf: {
       contrato_id: CONTRATO_ID,
@@ -93,33 +92,94 @@ describe('cliente del archivo contractual server-side', () => {
   })
 
   it('ensure envía únicamente JSON pequeño y nunca FormData, snapshot, hash o bytes', async () => {
-    const blob = new Blob(['%PDF-1.7\nbytes legales'], { type: 'application/pdf' })
-    supabase.invoke.mockResolvedValue({ data: await sellado(blob), error: null })
+    const blob = new Blob(['%PDF-1.7\nbytes legales'], {
+      type: 'application/pdf',
+    })
+    supabase.invoke.mockResolvedValue({
+      data: await sellado(blob),
+      error: null,
+    })
     const bytes = await blob.arrayBuffer()
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(bytes.slice(0), {
-      status: 200,
-      headers: { 'Content-Type': 'application/pdf' },
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(bytes.slice(0), {
+            status: 200,
+            headers: { 'Content-Type': 'application/pdf' },
+          }),
+      ),
+    )
 
     await archivarContratoPdfConfirmado(CONTRATO_ID)
 
     expect(supabase.invoke).toHaveBeenCalledOnce()
     const [nombre, opciones] = supabase.invoke.mock.calls[0]!
     expect(nombre).toBe('crm-contrato-pdf-v2')
-    expect(opciones.body).toEqual({ action: 'ensure', contratoId: CONTRATO_ID })
+    expect(opciones.body).toEqual({
+      action: 'ensure',
+      contratoId: CONTRATO_ID,
+    })
     expect(opciones.body).not.toBeInstanceOf(FormData)
     expect(JSON.stringify(opciones.body)).not.toMatch(/snapshot|sha256|pdf|nombreArchivo|template/i)
   })
 
+  it('la corrección puede sellar la revisión vigente sin descargar sus bytes', async () => {
+    const blob = new Blob(['%PDF-1.7\nrevisión corregida'], {
+      type: 'application/pdf',
+    })
+    supabase.invoke.mockResolvedValue({
+      data: await sellado(blob),
+      error: null,
+    })
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+
+    const estado = await asegurarContratoPdfActualizado(CONTRATO_ID)
+
+    expect(estado.estado).toBe('sellado')
+    expect(estado.jobId).toBe(JOB_ID)
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
+
+  it('el hard-delete usa exclusivamente la Edge y valida su confirmación', async () => {
+    supabase.invoke.mockResolvedValue({
+      data: { ok: true, contratoId: CONTRATO_ID, archivosEliminados: 3 },
+      error: null,
+    })
+
+    await expect(eliminarContratoConPdf(CONTRATO_ID)).resolves.toEqual({
+      contratoId: CONTRATO_ID,
+      archivosEliminados: 3,
+    })
+    expect(supabase.invoke).toHaveBeenCalledWith('crm-contrato-pdf-v2', {
+      body: { action: 'delete', contratoId: CONTRATO_ID },
+    })
+  })
+
+  it('rechaza una confirmación de borrado correspondiente a otro contrato', async () => {
+    supabase.invoke.mockResolvedValue({
+      data: {
+        ok: true,
+        contratoId: '99999999-9999-4999-8999-999999999999',
+        archivosEliminados: 1,
+      },
+      error: null,
+    })
+
+    await expect(eliminarContratoConPdf(CONTRATO_ID)).rejects.toThrow(/confirmación.*formato/i)
+  })
+
   it('rechaza UUID con mayúsculas antes de invocar la Edge', async () => {
-    await expect(
-      archivarContratoPdfConfirmado(CONTRATO_ID.toUpperCase()),
-    ).rejects.toThrow(/canónico/i)
+    await expect(archivarContratoPdfConfirmado(CONTRATO_ID.toUpperCase())).rejects.toThrow(/canónico/i)
     expect(supabase.invoke).not.toHaveBeenCalled()
   })
 
   it('expone el estado durable sin intentar descargar mientras no esté sellado', async () => {
-    supabase.invoke.mockResolvedValue({ data: pendiente('procesando'), error: null })
+    supabase.invoke.mockResolvedValue({
+      data: pendiente('procesando'),
+      error: null,
+    })
     const fetchMock = vi.fn()
     vi.stubGlobal('fetch', fetchMock)
 
@@ -133,7 +193,10 @@ describe('cliente del archivo contractual server-side', () => {
   })
 
   it('ensure no presenta un pendiente como éxito y conserva si es reintentable', async () => {
-    supabase.invoke.mockResolvedValue({ data: pendiente('error_reintentable'), error: null })
+    supabase.invoke.mockResolvedValue({
+      data: pendiente('error_reintentable'),
+      error: null,
+    })
 
     const intento = archivarContratoPdfConfirmado(CONTRATO_ID)
     await expect(intento).rejects.toBeInstanceOf(ContratoPdfNoSelladoError)
@@ -144,20 +207,27 @@ describe('cliente del archivo contractual server-side', () => {
   })
 
   it('recupera por URL firmada y comprueba ruta, tamaño y hash antes de entregar bytes', async () => {
-    const blob = new Blob(['%PDF-1.7\nbytes legales'], { type: 'application/pdf' })
-    supabase.invoke.mockResolvedValue({ data: await sellado(blob), error: null })
-    const fetchMock = vi.fn().mockResolvedValue(new Response(await blob.arrayBuffer(), {
-      status: 200,
-      headers: { 'Content-Type': 'application/pdf' },
-    }))
+    const blob = new Blob(['%PDF-1.7\nbytes legales'], {
+      type: 'application/pdf',
+    })
+    supabase.invoke.mockResolvedValue({
+      data: await sellado(blob),
+      error: null,
+    })
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(await blob.arrayBuffer(), {
+        status: 200,
+        headers: { 'Content-Type': 'application/pdf' },
+      }),
+    )
     vi.stubGlobal('fetch', fetchMock)
 
     const archivo = await obtenerContratoPdfArchivado(CONTRATO_ID)
 
-    expect(fetchMock).toHaveBeenCalledWith(
-      'https://local.invalid/storage/sign/contrato.pdf',
-      { credentials: 'omit', cache: 'no-store' },
-    )
+    expect(fetchMock).toHaveBeenCalledWith('https://local.invalid/storage/sign/contrato.pdf', {
+      credentials: 'omit',
+      cache: 'no-store',
+    })
     expect(archivo).toMatchObject({
       contratoId: CONTRATO_ID,
       jobId: JOB_ID,
@@ -178,29 +248,46 @@ describe('cliente del archivo contractual server-side', () => {
   })
 
   it('rechaza una descarga cuyos bytes no coinciden con el ledger legal', async () => {
-    const esperado = new Blob(['%PDF-1.7\noriginal'], { type: 'application/pdf' })
-    const alterado = new Blob(['%PDF-1.7\nalterado'], { type: 'application/pdf' })
+    const esperado = new Blob(['%PDF-1.7\noriginal'], {
+      type: 'application/pdf',
+    })
+    const alterado = new Blob(['%PDF-1.7\nalterado'], {
+      type: 'application/pdf',
+    })
     const respuesta = await sellado(esperado)
     // Mismo tamaño para demostrar que también se verifica SHA-256.
     expect(alterado.size).toBe(esperado.size)
     supabase.invoke.mockResolvedValue({ data: respuesta, error: null })
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(new Response(await alterado.arrayBuffer(), {
-      status: 200,
-      headers: { 'Content-Type': 'application/pdf' },
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockResolvedValue(
+        new Response(await alterado.arrayBuffer(), {
+          status: 200,
+          headers: { 'Content-Type': 'application/pdf' },
+        }),
+      ),
+    )
 
     await expect(obtenerContratoPdfArchivado(CONTRATO_ID)).rejects.toThrow(/bytes.*no coinciden/i)
   })
 
   it('la descarga inmediata y la posterior son idénticas byte a byte', async () => {
-    const blob = new Blob(['%PDF-1.7\nmisma versión legal'], { type: 'application/pdf' })
+    const blob = new Blob(['%PDF-1.7\nmisma versión legal'], {
+      type: 'application/pdf',
+    })
     const respuesta = await sellado(blob)
     supabase.invoke.mockResolvedValue({ data: respuesta, error: null })
     const bytes = await blob.arrayBuffer()
-    vi.stubGlobal('fetch', vi.fn().mockImplementation(async () => new Response(bytes.slice(0), {
-      status: 200,
-      headers: { 'Content-Type': 'application/pdf' },
-    })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn().mockImplementation(
+        async () =>
+          new Response(bytes.slice(0), {
+            status: 200,
+            headers: { 'Content-Type': 'application/pdf' },
+          }),
+      ),
+    )
 
     const inmediato = await archivarContratoPdfConfirmado(CONTRATO_ID)
     const posterior = await obtenerContratoPdfArchivado(CONTRATO_ID)
@@ -216,7 +303,10 @@ describe('cliente del archivo contractual server-side', () => {
       status: 403,
       headers: { 'Content-Type': 'application/json' },
     })
-    supabase.invoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(respuesta) })
+    supabase.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError(respuesta),
+    })
 
     await expect(obtenerContratoPdfArchivado(CONTRATO_ID)).rejects.toThrow('Actor fuera de cartera')
   })
@@ -228,7 +318,10 @@ describe('cliente del archivo contractual server-side', () => {
       status: 409,
       headers: { 'Content-Type': 'application/json' },
     })
-    supabase.invoke.mockResolvedValue({ data: null, error: new FunctionsHttpError(respuesta) })
+    supabase.invoke.mockResolvedValue({
+      data: null,
+      error: new FunctionsHttpError(respuesta),
+    })
 
     const intento = archivarContratoPdfConfirmado(CONTRATO_ID)
     await expect(intento).rejects.toBeInstanceOf(ContratoPdfNoSelladoError)

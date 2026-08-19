@@ -71,15 +71,41 @@ vi.mock('@/data/crm-queries', async (importActual) => {
 
 const { ContratoDetalle } = await import('./contrato-detalle')
 
-function montar() {
+function montar(
+  opciones: {
+    puedeEliminar?: boolean
+    onEliminar?: () => Promise<void> | void
+  } = {},
+) {
   return render(
     <Dialog open onClose={vi.fn()} ariaLabel="Detalle del contrato">
-      <ContratoDetalle contratoId="k-1" onCerrar={vi.fn()} />
+      <ContratoDetalle contratoId="k-1" onCerrar={vi.fn()} {...opciones} />
     </Dialog>,
   )
 }
 
 describe('ContratoDetalle · co-titulares', () => {
+  it('no ofrece hard-delete a quien no recibió la capacidad administrativa', () => {
+    TITULARES = consulta([])
+    montar()
+    expect(screen.queryByRole('button', { name: 'Eliminar contrato' })).not.toBeInTheDocument()
+  })
+
+  it('exige una segunda confirmación antes de ejecutar el hard-delete', async () => {
+    TITULARES = consulta([])
+    const onEliminar = vi.fn().mockResolvedValue(undefined)
+    const { default: userEvent } = await import('@testing-library/user-event')
+    const user = userEvent.setup()
+    montar({ puedeEliminar: true, onEliminar })
+
+    await user.click(screen.getByRole('button', { name: 'Eliminar contrato' }))
+    expect(onEliminar).not.toHaveBeenCalled()
+    expect(screen.getByRole('alert')).toHaveTextContent(/todas las revisiones del PDF/i)
+
+    await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
+    expect(onEliminar).toHaveBeenCalledOnce()
+  })
+
   it('muestra el producto y la versión contractual de origen', () => {
     TITULARES = consulta([])
     montar()
@@ -89,7 +115,9 @@ describe('ContratoDetalle · co-titulares', () => {
   })
 
   it('con co-titulares los lista', () => {
-    TITULARES = consulta([{ nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 }])
+    TITULARES = consulta([{ nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1,
+      },
+    ])
     montar()
     expect(screen.getByText('Co-titulares')).toBeInTheDocument()
     expect(screen.getByText('MARIA CO TITULAR')).toBeInTheDocument()

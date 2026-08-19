@@ -211,6 +211,12 @@ create table public.contrato_titulares (
   unique (contrato_id, orden)
 );
 
+create table public.documentos (
+  id uuid primary key default gen_random_uuid(),
+  contrato_id uuid not null references public.contratos(id) on delete cascade,
+  storage_path text not null
+);
+
 create table crm.cuentas_bancarias (
   id uuid primary key default gen_random_uuid(),
   cliente_id uuid not null references public.perfiles(id),
@@ -377,7 +383,177 @@ revoke all on function crm.convertir_lead(uuid,uuid)
   from public, anon, service_role;
 grant execute on function crm.convertir_lead(uuid,uuid) to authenticated;
 
+-- Superficie Portal mínima que la migración de revisiones reusa. El oráculo
+-- prueba la misma frontera: vendedor con autoría+5 h, Admin y Superadmin.
+create function public.es_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select exists (
+    select 1 from public.perfiles p
+    where p.id = (select auth.uid())
+      and p.rol in ('admin', 'superadmin')
+  );
+$function$;
+
+create function public.es_superadmin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select exists (
+    select 1 from public.perfiles p
+    where p.id = (select auth.uid())
+      and p.rol = 'superadmin'
+  );
+$function$;
+
+create function public.contrato_tiene_pagos(p_contrato_id uuid)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $function$
+  select exists (
+    select 1 from public.cronograma_pagos cp
+    where cp.contrato_id = p_contrato_id
+      and (cp.estado = 'pagado' or cp.monto_pagado is not null)
+  );
+$function$;
+
+create function public.actualizar_contrato(
+  p_id uuid,
+  p_contrato jsonb,
+  p_cronograma jsonb
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+declare
+  v_actor uuid := (select auth.uid());
+  v_contrato public.contratos%rowtype;
+  v_cuota jsonb;
+begin
+  select * into v_contrato
+  from public.contratos c
+  where c.id = p_id;
+  if not found then
+    raise exception 'Contrato no encontrado' using errcode = 'P0002';
+  end if;
+  if not public.es_admin() then
+    if v_contrato.creado_por is distinct from v_actor then
+      raise insufficient_privilege using
+        message = 'Solo puedes corregir contratos que tu creaste';
+    end if;
+    if v_contrato.creado_en <= now() - interval '5 hours' then
+      raise insufficient_privilege using
+        message = 'La ventana de correccion de 5 horas ya vencio para este contrato';
+    end if;
+    if not private.puede_gestionar_cuentas_cliente(v_contrato.cliente_id) then
+      raise insufficient_privilege using message = 'Cliente fuera de cartera';
+    end if;
+  end if;
+
+  update public.contratos
+     set numero_contrato = coalesce(p_contrato->>'numero_contrato', numero_contrato),
+         capital = coalesce((p_contrato->>'capital')::numeric, capital),
+         moneda = coalesce(p_contrato->>'moneda', moneda),
+         tasa_anual = coalesce((p_contrato->>'tasa_anual')::numeric, tasa_anual),
+         modalidad = coalesce(p_contrato->>'modalidad', modalidad),
+         tipo_interes = coalesce(p_contrato->>'tipo_interes', tipo_interes),
+         categoria = coalesce(p_contrato->>'categoria', categoria),
+         fecha_inicio = coalesce((p_contrato->>'fecha_inicio')::date, fecha_inicio),
+         fecha_vencimiento = coalesce((p_contrato->>'fecha_vencimiento')::date, fecha_vencimiento),
+         notas_internas = case
+           when p_contrato ? 'notas_internas' then p_contrato->>'notas_internas'
+           else notas_internas
+         end
+   where id = p_id;
+
+  if p_cronograma is not null and jsonb_array_length(p_cronograma) > 0 then
+    delete from public.cronograma_pagos where contrato_id = p_id;
+    for v_cuota in select value from jsonb_array_elements(p_cronograma)
+    loop
+      insert into public.cronograma_pagos (
+        contrato_id, numero_cuota, fecha_programada, monto_programado, tipo
+      ) values (
+        p_id, (v_cuota->>'numero_cuota')::integer,
+        (v_cuota->>'fecha_programada')::date,
+        (v_cuota->>'monto_programado')::numeric,
+        coalesce(v_cuota->>'tipo', 'cuota')
+      );
+    end loop;
+  end if;
+  return jsonb_build_object('id', p_id, 'ok', true);
+end;
+$function$;
+
+create function crm.actualizar_contrato_con_cuenta(
+  p_id uuid,
+  p_contrato jsonb,
+  p_cronograma jsonb
+)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  perform public.actualizar_contrato(p_id, p_contrato, p_cronograma);
+end;
+$function$;
+
+create function public.actualizar_numero_contrato(
+  p_id uuid,
+  p_numero text,
+  p_notas text default null,
+  p_categoria text default null
+)
+returns jsonb
+language plpgsql
+security definer
+set search_path = ''
+as $function$
+begin
+  if not public.es_admin() then
+    raise insufficient_privilege using message = 'No autorizado';
+  end if;
+  update public.contratos
+     set numero_contrato = p_numero,
+         notas_internas = p_notas,
+         categoria = coalesce(p_categoria, categoria)
+   where id = p_id;
+  if not found then
+    raise exception 'Contrato no encontrado' using errcode = 'P0002';
+  end if;
+  return jsonb_build_object('id', p_id, 'ok', true);
+end;
+$function$;
+
+revoke all on function public.es_admin(), public.es_superadmin(),
+  public.contrato_tiene_pagos(uuid),
+  public.actualizar_contrato(uuid,jsonb,jsonb),
+  public.actualizar_numero_contrato(uuid,text,text,text),
+  crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb)
+  from public, anon, service_role;
+grant execute on function public.actualizar_contrato(uuid,jsonb,jsonb),
+  public.actualizar_numero_contrato(uuid,text,text,text),
+  crm.actualizar_contrato_con_cuenta(uuid,jsonb,jsonb)
+  to authenticated;
+
 \ir ../migrations/20260818014534_crm_contrato_pdf_v2_reserva.sql
+\ir ../migrations/20260818200741_crm_contratos_correccion_pdf_eliminacion.sql
+\ir ../migrations/20260818200743_crm_contrato_pdf_plantilla_v3.sql
+\ir ../migrations/20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql
+\ir ../migrations/20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql
 
 create schema test_support;
 
@@ -464,6 +640,16 @@ insert into public.perfiles (
   (
     '66666666-6666-4666-8666-666666666666', 'analista',
     'Gina Gerencia', 'dni', '70000006', 'gerencia@example.test', '999777888',
+    true, null
+  ),
+  (
+    '77777777-7777-4777-8777-777777777777', 'admin',
+    'Adriana Admin', 'dni', '70000007', 'admin@example.test', '999777001',
+    true, null
+  ),
+  (
+    '88888888-8888-4888-8888-888888888888', 'superadmin',
+    'Samuel Superadmin', 'dni', '70000008', 'superadmin@example.test', '999888001',
     true, null
   );
 
@@ -640,6 +826,8 @@ select test_support.assert_true(
       'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1/v2/'
       || (:'alta_v2_uno'::jsonb->'pdf'->>'job_id')
       || '/contrato.pdf'
+    and :'alta_v2_uno'::jsonb->'pdf'->>'template_version' =
+      'contrato-aep-17-v5'
     and :'alta_v2_uno'::jsonb->'pdf'->'archivo' = 'null'::jsonb,
   'alta conserva campos previos y anida el estado PDF inicial'
 );
@@ -648,6 +836,7 @@ reset role;
 select test_support.assert_true(
   (
     select estado = 'pendiente'
+      and template_version = 'contrato-aep-17-v5'
       and snapshot->>'snapshotVersion' = '2'
       and jsonb_array_length(snapshot->'cronograma') = 2
       and jsonb_array_length(snapshot->'cotitulares') = 1
@@ -1505,6 +1694,322 @@ select test_support.assert_true(
       where id = 'ffffffff-ffff-4fff-8fff-fffffffffff3'
     ),
   'fallo de autorizacion/conversion deja lead y domicilio intactos'
+);
+
+-- Revisiones: la RPC mantiene el gate de 5 h, abre la congelación solo dentro
+-- de esa llamada y deja un snapshot nuevo como única revisión visible.
+insert into private.cartera_acl (actor_id, cliente_id)
+values (
+  '11111111-1111-4111-8111-111111111111',
+  '33333333-3333-4333-8333-333333333333'
+) on conflict do nothing;
+
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+select test_support.alta_pdf_v2(
+  '12121212-1212-4121-8121-121212121212',
+  'AEP-2026-REV-0001'
+)::text as alta_revision \gset
+select crm.actualizar_contrato_con_cuenta_pdf_v3(
+  '12121212-1212-4121-8121-121212121212',
+  jsonb_build_object(
+    'numero_contrato', 'AEP-2026-REV-0001',
+    'capital', 12000,
+    'moneda', 'PEN',
+    'tasa_anual', 16,
+    'modalidad', 'mensual',
+    'tipo_interes', 'simple',
+    'categoria', 'upgrade',
+    'fecha_inicio', '2026-08-18',
+    'fecha_vencimiento', '2027-08-18',
+    'notas_internas', 'Corrección validada'
+  ),
+  jsonb_build_array(jsonb_build_object(
+    'numero_cuota', 1,
+    'fecha_programada', '2026-09-18',
+    'monto_programado', 12160,
+    'tipo', 'capital_interes'
+  ))
+)::text as correccion_revision \gset
+reset role;
+
+select test_support.assert_true(
+  (:'correccion_revision'::jsonb->>'ok')::boolean
+    and :'correccion_revision'::jsonb->'pdf'->>'estado' = 'pendiente'
+    and :'correccion_revision'::jsonb->'pdf'->>'job_id'
+      is distinct from :'alta_revision'::jsonb->'pdf'->>'job_id'
+    and (
+      select count(*) = 2 and min(revision) = 1 and max(revision) = 2
+      from private.contrato_pdf_jobs
+      where contrato_id = '12121212-1212-4121-8121-121212121212'
+    )
+    and (
+      select revision = 2
+        and snapshot->'contrato'->>'capital' = '12000'
+        and snapshot->'contrato'->>'porcentaje' = '16'
+      from private.contrato_pdf_jobs
+      where contrato_id = '12121212-1212-4121-8121-121212121212'
+      order by revision desc
+      limit 1
+    ),
+  'correccion valida crea revision 2 con snapshot actualizado'
+);
+
+select test_support.assert_raises(
+  $$update public.contratos
+       set capital = capital + 1
+     where id = '12121212-1212-4121-8121-121212121212'$$,
+  'congelados',
+  'la excepcion de correccion no queda abierta despues de la RPC'
+);
+
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+select test_support.alta_pdf_v2(
+  '13131313-1313-4131-8131-131313131313',
+  'AEP-2026-REV-VENCIDA'
+);
+reset role;
+update public.contratos
+set creado_en = now() - interval '6 hours'
+where id = '13131313-1313-4131-8131-131313131313';
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+select test_support.assert_raises(
+  $$select crm.actualizar_contrato_con_cuenta_pdf_v3(
+    '13131313-1313-4131-8131-131313131313',
+    jsonb_build_object(
+      'numero_contrato', 'AEP-2026-REV-VENCIDA',
+      'capital', 13000,
+      'moneda', 'PEN',
+      'tasa_anual', 15,
+      'modalidad', 'mensual',
+      'tipo_interes', 'simple',
+      'categoria', 'nuevo',
+      'fecha_inicio', '2026-08-18',
+      'fecha_vencimiento', '2027-08-18',
+      'notas_internas', null
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1,
+      'fecha_programada', '2026-09-18',
+      'monto_programado', 13125,
+      'tipo', 'capital_interes'
+    ))
+  )$$,
+  '5 horas',
+  'vendedor no corrige ni crea revision despues de 5 horas',
+  '42501'
+);
+reset role;
+select test_support.assert_true(
+  (
+    select count(*) = 1 and max(revision) = 1
+    from private.contrato_pdf_jobs
+    where contrato_id = '13131313-1313-4131-8131-131313131313'
+  ),
+  'correccion rechazada no deja job parcial'
+);
+
+-- Eliminación: el navegador directo no puede borrar; la Edge obtiene un
+-- manifiesto estable de ambos buckets y el finalizador exige token+actor de la
+-- autorización Admin/Superadmin original.
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+select test_support.alta_pdf_v2(
+  '14141414-1414-4141-8141-141414141414',
+  'AEP-2026-DEL-ADMIN'
+);
+reset role;
+insert into public.documentos (contrato_id, storage_path)
+values (
+  '14141414-1414-4141-8141-141414141414',
+  '14141414-1414-4141-8141-141414141414/anexo.pdf'
+);
+
+set role service_role;
+select test_support.assert_raises(
+  $$select crm.contrato_eliminacion_preparar(
+    '14141414-1414-4141-8141-141414141414',
+    '11111111-1111-4111-8111-111111111111'
+  )$$,
+  'Admin o Superadmin',
+  'vendedor no prepara eliminación',
+  '42501'
+);
+select crm.contrato_eliminacion_preparar(
+  '14141414-1414-4141-8141-141414141414',
+  '77777777-7777-4777-8777-777777777777'
+)::text as preparar_admin \gset
+select test_support.assert_raises(
+  $$select crm.contrato_eliminacion_finalizar(
+    '14141414-1414-4141-8141-141414141414',
+    '99999999-9999-4999-8999-999999999999',
+    '77777777-7777-4777-8777-777777777777'
+  )$$,
+  'preparación',
+  'token incorrecto no borra',
+  'P0002'
+);
+select test_support.assert_raises(
+  format(
+    $$select crm.contrato_eliminacion_finalizar(
+      '14141414-1414-4141-8141-141414141414',
+      %L::uuid,
+      '88888888-8888-4888-8888-888888888888'
+    )$$,
+    :'preparar_admin'::jsonb->>'token'
+  ),
+  'preparación',
+  'otro actor no puede consumir el token de eliminación',
+  'P0002'
+);
+reset role;
+
+select test_support.assert_raises(
+  $$update public.cronograma_pagos
+       set estado = 'pagado', monto_pagado = monto_programado
+     where contrato_id = '14141414-1414-4141-8141-141414141414'$$,
+  'proceso de eliminación',
+  'un pago no puede aparecer después de autorizar el borrado Admin',
+  '55000'
+);
+select test_support.assert_raises(
+  $$insert into public.documentos (contrato_id, storage_path)
+    values (
+      '14141414-1414-4141-8141-141414141414',
+      '14141414-1414-4141-8141-141414141414/tardio.pdf'
+    )$$,
+  'proceso de eliminación',
+  'el manifiesto Storage no admite documentos tardíos',
+  '55000'
+);
+
+select test_support.assert_true(
+  jsonb_array_length(:'preparar_admin'::jsonb->'objetos') = 2
+    and :'preparar_admin'::jsonb->'objetos' @> jsonb_build_array(
+      jsonb_build_object(
+        'bucket', 'documentos',
+        'path', '14141414-1414-4141-8141-141414141414/anexo.pdf'
+      )
+    )
+    and :'preparar_admin'::jsonb->'objetos' @> jsonb_build_array(
+      jsonb_build_object(
+        'bucket', 'contratos-generados',
+        'path', (
+          select storage_path
+          from private.contrato_pdf_jobs
+          where contrato_id = '14141414-1414-4141-8141-141414141414'
+          order by revision desc
+          limit 1
+        )
+      )
+    ),
+  'manifiesto de borrado lista documentos y el PDF del contrato exacto'
+);
+
+grant select, delete on public.contratos to authenticated;
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '77777777-7777-4777-8777-777777777777',
+  false
+);
+delete from public.contratos
+where id = '14141414-1414-4141-8141-141414141414';
+reset role;
+select test_support.assert_true(
+  exists (
+    select 1 from public.contratos
+    where id = '14141414-1414-4141-8141-141414141414'
+  ),
+  'RLS cierra el hard-delete directo incluso para Admin'
+);
+
+set role service_role;
+select crm.contrato_eliminacion_finalizar(
+  '14141414-1414-4141-8141-141414141414',
+  (:'preparar_admin'::jsonb->>'token')::uuid,
+  '77777777-7777-4777-8777-777777777777'
+)::text as finalizar_admin \gset
+reset role;
+select test_support.assert_true(
+  (:'finalizar_admin'::jsonb->>'ok')::boolean
+    and not exists (
+      select 1 from public.contratos
+      where id = '14141414-1414-4141-8141-141414141414'
+    )
+    and not exists (
+      select 1 from private.contrato_pdf_jobs
+      where contrato_id = '14141414-1414-4141-8141-141414141414'
+    )
+    and not exists (
+      select 1 from public.documentos
+      where contrato_id = '14141414-1414-4141-8141-141414141414'
+    )
+    and not exists (
+      select 1 from private.contrato_eliminaciones
+      where contrato_id = '14141414-1414-4141-8141-141414141414'
+    ),
+  'finalizador borra contrato y toda metadata tras Storage'
+);
+
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+select test_support.alta_pdf_v2(
+  '15151515-1515-4151-8151-151515151515',
+  'AEP-2026-DEL-PAGADO'
+);
+reset role;
+update public.cronograma_pagos
+set estado = 'pagado', monto_pagado = monto_programado
+where contrato_id = '15151515-1515-4151-8151-151515151515';
+set role service_role;
+select test_support.assert_raises(
+  $$select crm.contrato_eliminacion_preparar(
+    '15151515-1515-4151-8151-151515151515',
+    '77777777-7777-4777-8777-777777777777'
+  )$$,
+  'solo Superadmin',
+  'Admin no borra contrato con pagos',
+  '42501'
+);
+select crm.contrato_eliminacion_preparar(
+  '15151515-1515-4151-8151-151515151515',
+  '88888888-8888-4888-8888-888888888888'
+)::text as preparar_super \gset
+select crm.contrato_eliminacion_finalizar(
+  '15151515-1515-4151-8151-151515151515',
+  (:'preparar_super'::jsonb->>'token')::uuid,
+  '88888888-8888-4888-8888-888888888888'
+);
+reset role;
+select test_support.assert_true(
+  not exists (
+    select 1 from public.contratos
+    where id = '15151515-1515-4151-8151-151515151515'
+  ),
+  'Superadmin sí elimina contrato con pagos'
 );
 
 \echo CONTRATO_PDF_V2_SQL_OK
