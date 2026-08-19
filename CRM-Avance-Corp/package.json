@@ -13,7 +13,7 @@
     "seed:preflight": "node supabase/scripts/seed-demo.mjs --preflight",
     "clean:crm": "node supabase/scripts/clean-crm-data.mjs",
     "test:clean:crm": "node --test supabase/scripts/clean-crm-data.test.mjs",
-    "test:edge-preflight": "node --test ../_supabase_functions/functions/_shared/bancarios.test.mjs ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs",
+    "test:edge-preflight": "node --test ../_supabase_functions/functions/_shared/bancarios.test.mjs ../_supabase_functions/functions/_shared/domicilio.test.mjs ../_supabase_functions/functions/crm-convertir-lead/preflight.test.mjs ../_supabase_functions/functions/crm-convertir-lead/domicilio-atomico.test.mjs",
     "test:puente": "node --test scripts/puente-drive-origen.test.mjs",
     "test:puente:e2e": "node --test scripts/puente-extremo-a-extremo.test.mjs",
     "test:mutantes": "node scripts/mutantes-puente.mjs",

@@ -206,6 +206,35 @@ const SUPUESTOS = [
     esperado: '≥ 2 entre vendedores y supervisores activos',
   },
   {
+    clave: 'clientes_con_domicilio_legal',
+    titulo: 'Los clientes tienen domicilio legal',
+    asume: 'Los fixtures dan por hecho que un cliente se puede contratar sin más.',
+    afecta: [
+      'Mi cartera · «+ Contrato» → el alta se REVIERTE entera sin domicilio',
+      'Convertir lead → contrato (el domicilio se captura ahí y por eso ese camino sí funciona)',
+      'Ver / descargar el PDF de un contrato viejo que aún no lo tenga sellado',
+    ],
+    consecuencia:
+      'El PDF se reserva en la MISMA transacción del alta y '
+      + 'private.contrato_pdf_snapshot_v2_base exige el domicilio: sin él, el raise '
+      + '23514 revierte el contrato ENTERO. El 2026-08-19 se midieron 332 de 339 '
+      + 'clientes activos sin domicilio (98%) y CERO contratos creados en todo el día. '
+      + 'Ningún fixture reproduce ese mundo: todos nacen con domicilio.',
+    async medir() {
+      const { count, error } = await admin.from('perfiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('rol', 'cliente')
+        .eq('activo', true)
+        .is('domicilio', null);
+      if (error) throw error;
+      return count ?? 0;
+    },
+    // Diverge mientras QUEDE alguno: este número bajando es la única prueba de
+    // que el arreglo está llegando a la gente, no de que se desplegó.
+    divergeSi: (n) => n > 0,
+    esperado: '0 clientes activos sin domicilio legal',
+  },
+  {
     clave: 'metas_bajo_el_sello',
     titulo: 'Ninguna revisión de metas vive por debajo del último mes sellado',
     asume: 'El candado del cierre (20260815150000 + 20260815223000) rechaza publicar '

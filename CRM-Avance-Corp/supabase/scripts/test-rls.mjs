@@ -2446,6 +2446,249 @@ async function testAgendaIcs(sessions, seed) {
   );
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Domicilio legal faltante (migración 20260819162752)
+//
+// Por qué existe este bloque: la migración abre por primera vez la escritura de
+// `public.perfiles.domicilio` a toda la cartera del CRM —hasta hoy solo Gerencia
+// podía— y ese dato se imprime LITERAL en el contrato. Sin sondas aquí, el
+// alcance del gate prestado sería una afirmación del comentario, no un hecho.
+//
+// ⚠️ Va ANTES de testOffboardingMatrix a propósito: ese bloque puede abortar la
+// corrida y llevarse por delante todo lo posterior (testAnon incluido). Por eso
+// las sondas anon del domicilio viven AQUÍ dentro y no en testAnon.
+//
+// ⚠️ Este bloque DEJA ESCRITO el domicilio de clientBank y no puede deshacerlo:
+// el trigger `perfiles_domicilio_legal_no_borrar` prohíbe volver a NULL incluso
+// con service_role. Es coherente con que el gate ya no sea re-ejecutable sobre
+// la misma base (relanzar = reset_branch + seed), pero se dice en voz alta.
+// Por eso las sondas de LECTURA y de RECHAZO corren primero, con el hueco aún
+// abierto, y las de escritura al final.
+async function testDomicilioLegal(sessions, seed) {
+  console.log('\n— Domicilio legal faltante —');
+  const clienteId = seed.profileIdByKey[BANK_CLIENT.key];
+  const noCliente = seed.profileIdByKey.vend2;
+  const inexistente = '00000000-0000-4000-8000-000000000000';
+  const DOMICILIO_OK = 'Av. Los Alamos 123, San Isidro, Lima';
+  assertSeed(typeof clienteId === 'string', 'falta el cliente bancario para la sonda de domicilio');
+  assertSeed(typeof noCliente === 'string', 'falta vend2 para la sonda de sujeto no-cliente');
+
+  const leer = (sesion, id = clienteId) =>
+    sesion.schema('crm').rpc('datos_legales_contrato_fn', { p_cliente_id: id });
+  const escribir = (sesion, texto, id = clienteId) =>
+    sesion.schema('crm').rpc('completar_domicilio_cliente', {
+      p_cliente_id: id,
+      p_domicilio: texto,
+    });
+
+  const domicilioActual = async () => {
+    const { data } = await admin.from('perfiles').select('domicilio').eq('id', clienteId).single();
+    return data?.domicilio ?? null;
+  };
+
+  check(
+    (await domicilioActual()) === null,
+    'el cliente de la sonda arranca SIN domicilio (si no, este bloque no prueba nada)',
+  );
+
+  // ── Lectura autorizada, con el hueco abierto ──────────────────────────────
+  // vend1 pasa SIN tocar su rol de portal: el ámbito CRM
+  // (private.vendedor_ids_visibles) basta por sí solo. Es distinto de la sonda
+  // bancaria, que sí necesita `analista` porque public.crear_contrato lo exige.
+  const lectura = await positive(
+    'el vendedor de la cartera ve que falta el domicilio',
+    leer(sessions.vend1.client),
+  );
+  if (lectura) {
+    const r = lectura.data ?? {};
+    check(r.falta_domicilio === true, 'la lectura declara el domicilio ausente');
+    check(Array.isArray(r.faltan_cliente) && r.faltan_cliente.includes('domicilio'),
+      'el domicilio aparece nombrado en faltan_cliente');
+    check(Array.isArray(r.faltan_analista),
+      'faltan_analista viaja siempre, aunque esté vacío');
+    check(!Object.prototype.hasOwnProperty.call(r, 'domicilio'),
+      'la lectura NO devuelve el valor del domicilio, solo nombres de campo');
+  }
+
+  await positive(
+    'el supervisor del árbol del vendedor también alcanza al cliente',
+    leer(sessions.sup1.client),
+  );
+  await positive(
+    'gerencia alcanza a cualquier cliente activo',
+    leer(sessions.gerencia.client),
+  );
+
+  // ── Quién NO alcanza ──────────────────────────────────────────────────────
+  const ajeno = await expectExpectedFailure(
+    'un vendedor de OTRO subárbol no lee los datos legales',
+    leer(sessions.vend3.client),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'un vendedor de OTRO subárbol tampoco escribe el domicilio',
+    escribir(sessions.vend3.client, DOMICILIO_OK),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'el supervisor de OTRO subárbol tampoco alcanza',
+    escribir(sessions.sup2.client, DOMICILIO_OK),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'coordinación no tiene ámbito de cartera y queda fuera',
+    escribir(sessions.coordinador.client, DOMICILIO_OK),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'el lector global sin membresía CRM queda fuera',
+    escribir(sessions.directorio.client, DOMICILIO_OK),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'el propio cliente no puede escribirse el domicilio legal',
+    escribir(sessions.clientBank.client, DOMICILIO_OK),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  await expectExpectedFailure(
+    'un sujeto que NO es cliente se rechaza igual',
+    escribir(sessions.vend1.client, DOMICILIO_OK, noCliente),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+
+  // Mismo MENSAJE para «ajeno» que para «no existe»: si difirieran, la función
+  // sería un buscador de clientes de otras carteras.
+  const fantasma = await expectExpectedFailure(
+    'un cliente inexistente da el MISMO rechazo que uno ajeno (sin oráculo de existencia)',
+    leer(sessions.vend1.client, inexistente),
+    ['42501', 'P0001'],
+    /fuera de tu cartera/i,
+  );
+  check(ajeno === fantasma,
+    'ajeno e inexistente se rechazan por la misma vía');
+
+  // ── Lo que no puede entrar como domicilio ─────────────────────────────────
+  // Con el hueco AÚN abierto: cada rechazo tiene que dejar la columna intacta.
+  const basura = [
+    ['cuatro caracteres', 'Lima'],
+    ['241 caracteres', 'a'.repeat(241)],
+    ['un control C0', 'Av. Lima\tx'],
+    ['seis espacios de ancho cero', '​'.repeat(6)],
+    ['seis guiones suaves', '­'.repeat(6)],
+    ['un invisible escondido dentro', 'Av. Los​ Alamos 123, Lima'],
+  ];
+  for (const [nombre, texto] of basura) {
+    await expectExpectedFailure(
+      `se rechaza un domicilio con ${nombre}`,
+      escribir(sessions.vend1.client, texto),
+      ['22023', 'P0001'],
+      /domicilio legal/i,
+    );
+  }
+  check((await domicilioActual()) === null,
+    'ningún rechazo dejó rastro: la columna sigue vacía');
+
+  // ── Superficie pública ────────────────────────────────────────────────────
+  // Aceptar PGRST202 ("no existe esa función") como rechazo es tautológico si la
+  // migración no se aplicó: la sonda pasaría en verde precisamente cuando NO hay
+  // nada que proteger. El ancla es la sonda de lectura de más arriba: si las dos
+  // RPC concedidas no respondieran, este bloque ya habría fallado mucho antes.
+  // Por eso se exige haber leído bien ANTES de aceptar aquí un «no existe».
+  check(lectura !== false,
+    'las RPC del domicilio responden: el «no existe» de la sonda siguiente es real, no la migración ausente');
+  await expectExplicitAuthorizationDenied(
+    'el normalizador NO es superficie pública ni para un vendedor autorizado',
+    sessions.vend1.client.schema('crm').rpc('normalizar_domicilio_legal', {
+      p_domicilio: DOMICILIO_OK,
+    }),
+    ['PGRST202', '42501'],
+  );
+
+  const anon = createClient(SUPABASE_URL, ANON_KEY, clientOptions('crm-rls-anon-domicilio'));
+  await expectExplicitAuthorizationDenied(
+    'anon no lee los datos legales del contrato',
+    leer(anon),
+    ['PGRST202', '42501', 'PGRST301'],
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no escribe el domicilio legal',
+    escribir(anon, DOMICILIO_OK),
+    ['PGRST202', '42501', 'PGRST301'],
+  );
+
+  // ── P04: la membresía CRM revocada manda sobre el rol de portal ───────────
+  let membresiaRevocada = false;
+  try {
+    await requireAdmin(
+      'domicilio P04: revocar la membresía CRM de vend1',
+      admin.schema('crm').from('equipo').update({ activo: false })
+        .eq('perfil_id', seed.profileIdByKey.vend1),
+    );
+    membresiaRevocada = true;
+    await expectExpectedFailure(
+      'un vendedor con la membresía CRM revocada deja de alcanzar a su cliente',
+      escribir(sessions.vend1.client, DOMICILIO_OK),
+      ['42501', 'P0001'],
+      /fuera de tu cartera/i,
+    );
+  } finally {
+    if (membresiaRevocada) {
+      await requireAdmin(
+        'domicilio P04: restaurar la membresía CRM de vend1',
+        admin.schema('crm').from('equipo').update({ activo: true })
+          .eq('perfil_id', seed.profileIdByKey.vend1),
+      );
+    }
+  }
+  check((await domicilioActual()) === null,
+    'tras la sonda P04 el hueco sigue abierto para las sondas de escritura');
+
+  // ── Escritura: lo único irreversible, y por eso va al final ───────────────
+  const escrito = await positive(
+    'el vendedor rellena el domicilio vacío de SU cliente',
+    // Espacios exóticos a propósito: el servidor tiene que normalizarlos igual
+    // que el navegador, o el mismo texto valdría dos cosas distintas.
+    escribir(sessions.vend1.client, '  Av.  Grau   456,　Lima  '),
+  );
+  if (escrito) {
+    const r = escrito.data ?? {};
+    check(r.accion === 'completado', 'la primera escritura responde completado');
+    check(!Object.prototype.hasOwnProperty.call(r, 'domicilio'),
+      'la respuesta NO devuelve el domicilio (sería lectura de PII para el supervisor)');
+  }
+  check((await domicilioActual()) === 'Av. Grau 456, Lima',
+    'la columna quedó escrita Y normalizada igual que en el navegador');
+
+  const segundo = await positive(
+    'una segunda escritura no pisa el domicilio ya registrado',
+    escribir(sessions.vend1.client, 'Jr. Otro 999, Cercado, Lima'),
+  );
+  if (segundo) {
+    check((segundo.data ?? {}).accion === 'conservado',
+      'la segunda escritura responde conservado');
+  }
+  check((await domicilioActual()) === 'Av. Grau 456, Lima',
+    'el domicilio existente NO fue sobrescrito');
+
+  const cerrada = await positive(
+    'tras rellenarlo, la lectura ya no declara el hueco',
+    leer(sessions.vend1.client),
+  );
+  if (cerrada) {
+    const r = cerrada.data ?? {};
+    check(r.falta_domicilio === false, 'falta_domicilio vuelve a false');
+    check(Array.isArray(r.faltan_cliente) && !r.faltan_cliente.includes('domicilio'),
+      'el domicilio desaparece de faltan_cliente');
+  }
+}
+
 async function testOffboardingMatrix(sessions, seed) {
   console.log('\n— P04: matriz completa de offboarding —');
   const key = 'vendInactive';
@@ -8104,6 +8347,10 @@ async function main() {
       await testAnularAutoriaYRetroceso(sessions, verifiedSeed);
       await testTareaFollowsLead(sessions, verifiedSeed);
       await testAgendaIcs(sessions, verifiedSeed);
+      // Antes de la matriz de offboarding a propósito: ese bloque arrastra una
+      // avería conocida post-8-ago y puede llevarse por delante lo que venga
+      // detrás. El domicilio legal no puede depender de eso.
+      await testDomicilioLegal(sessions, verifiedSeed);
       await testOffboardingMatrix(sessions, verifiedSeed);
       await testVentanaActividades(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);

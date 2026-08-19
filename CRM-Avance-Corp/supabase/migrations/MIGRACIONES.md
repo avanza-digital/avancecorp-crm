@@ -3022,6 +3022,38 @@ auditorías: ninguna sonda las llamaba— dentro de una transacción que termina
 **NO bloquea el alta**. Solo se frena cuando el servidor DIJO que falta algo; el
 servidor sigue siendo la única puerta. Hay un test que lo fija.
 
+### Arnés de la fase 1 (2026-08-19, tras el commit del arreglo)
+
+- **`testDomicilioLegal` en `supabase/scripts/test-rls.mjs`**: 19 sondas + 16
+  aserciones de contenido sobre 8 roles. Va **ANTES de `testOffboardingMatrix`**
+  a propósito: ese bloque arrastra una avería conocida post-8-ago y puede
+  llevarse por delante todo lo posterior (`testAnon` incluido), así que las
+  sondas anon del domicilio viven dentro del bloque nuevo.
+  Cubre: que el ámbito CRM basta (sin flip a `analista`, a diferencia de la
+  sonda bancaria) · que el supervisor del árbol SÍ alcanza y el de otro árbol NO
+  · coordinación, directorio y el propio cliente fuera · mismo mensaje para
+  «ajeno» que para «inexistente» (sin oráculo de existencia) · los 6 candidatos
+  basura, con la comprobación de que ningún rechazo dejó rastro · el normalizador
+  fuera de la superficie pública · anon · y P04 (membresía CRM revocada), con
+  restauración en `finally`.
+  ⚠️ **Deja escrito** el domicilio de `clientBank` y no puede deshacerlo (el
+  trigger prohíbe volver a NULL incluso con service_role). Coherente con que el
+  gate ya no sea re-ejecutable sobre la misma base; dicho en voz alta en el
+  bloque.
+  ⚠️ Se aceptó `PGRST202` como rechazo del normalizador, que sería **tautológico**
+  con la migración ausente: se ancla exigiendo que la lectura autorizada haya
+  respondido antes.
+- **`gate:realidad`**: supuesto nuevo `clientes_con_domicilio_legal`. Diverge
+  mientras quede un solo cliente activo sin domicilio. Es la instrumentación
+  permanente: ese número bajando es la única prueba de que el arreglo llega a la
+  gente, no de que se desplegó. Medido el 2026-08-19: **332 de 339**.
+- **`test:edge-preflight` pasó de 24 a 30 pruebas**: `_shared/domicilio.test.mjs`
+  y `crm-convertir-lead/domicilio-atomico.test.mjs` **existían en el repo y no
+  los ejecutaba nadie**. Enganchados y en verde.
+- **Censo corregido**: el universo real es **332 clientes activos sin domicilio**,
+  no 313. Los 19 de diferencia no tienen contrato todavía — son justo a los que
+  se emitiría el PRIMERO y chocarían igual.
+
 ### Deuda abierta que esto NO resuelve (decisiones de negocio)
 
 1. **Los contratos viejos sin PDF se pueden emitir con el domicilio de hoy**, fechados
