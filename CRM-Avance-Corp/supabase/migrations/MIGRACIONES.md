@@ -2917,9 +2917,27 @@ la rama del release no las documentaba.
 
 ## 20260819162752_crm_domicilio_legal_faltante.sql
 
-**Estado: SERVIDOR APLICADO EN PRODUCCIÓN el 2026-08-19, con el permiso de uso
-RETIRADO hasta que salga la pantalla.** Front construido y verificado, pendiente
-de publicar.
+**Estado: COMPLETO EN PRODUCCIÓN el 2026-08-19 — servidor Y front, verificado al
+byte.** 34.º release `crm-20260819T191402Z-e39b02bdc2ad`.
+
+**Publicación.** ZIP SHA-256
+`e8dabcd036bb6fba93e8c8ba232a970670c6deb84c7a16bdb36cd2c6f9f856eb`, commit
+`e39b02b`. Smoke: portada 200 · el `index` que referencia la web viva es el
+construido (`index-BBunU-jG.js`) · los dos ficheros nuevos responden 200 y su
+SHA-256 coincide **byte a byte** con `app/dist` · el ZIP responde 404 · el aviso
+«Falta el domicilio legal de …» viaja en el bundle y los nombres de las dos RPC
+están en `crm-queries`.
+
+**El orden se respetó:** servidor primero con el permiso RETIRADO, pantalla
+después, y el permiso encendido al final. La ventana en la que la escritura
+irreversible estuvo abierta sin interfaz duró minutos, no horas. Estado final
+comprobado: lectura `true` · escritura `true` · anon `false` · normalizador
+`false`.
+
+**Marcador de partida (2026-08-19, 14:15 Lima):** 332 clientes activos sin
+domicilio y **0 contratos creados en todo el día**. Si ese primer número baja en
+los próximos días, el arreglo está llegando a la gente; si no baja, se desplegó
+pero no sirvió. Es la única medida que distingue las dos cosas.
 
 ### Ciclo del 2026-08-19
 
