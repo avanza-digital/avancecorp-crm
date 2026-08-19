@@ -90,7 +90,10 @@
   lead. El vendedor debe confirmar o corregir los tres campos antes del alta;
   el nombre original se conserva visible como referencia. La Edge existente
   recibe `nombres`, `apellidos` (paterno + materno) y el nombre canónico en
-  orden de portal, sin cambios de esquema ni de la ruta de pagos.
+  orden de portal, sin cambios de esquema ni de la ruta de pagos. Se publicó
+  en producción el 2026-08-19 con el release
+  `crm-20260819T230042Z-78c2ea5aa3cc`; Hostinger aceptó el despliegue y se
+  limpió la caché de `crm.miavance.com`.
 - Cerrar por Finalizar, Escape u overlay después del commit invalida la cartera
   una sola vez; durante alta, archivo o reintento el cierre queda bloqueado. Una
   respuesta tardía de otro contrato no puede reemplazar el estado visible.
