@@ -234,6 +234,7 @@ declare
   v_src text;
   v_huerfanas text[] := '{}';
   v_bajo_liston int;
+  v_medibles int;
 begin
   -- 1. Las TRES puertas prestan la fuente unica. Si alguna vuelve a llevar su
   --    copia de la regla, esto lo dice por su nombre.
@@ -258,17 +259,35 @@ begin
 
   -- 2. El liston nuevo no deja fuera a ningun domicilio YA registrado: si lo
   --    hiciera, Gerencia no podria volver a guardar la ficha de ese cliente.
-  select count(*) into v_bajo_liston
+  --
+  --    ⚠️ Esta sonda tiene HAMBRE DE DATOS y lo DICE. En un branch recien
+  --    sembrado no hay ni un domicilio escrito, asi que pasaria en verde sin
+  --    haber medido nada — la «rama de aviso disfrazada de OK» que este
+  --    proyecto prohibe. Si no hay nada que medir, se grita en vez de aprobar:
+  --    el numero real hay que mirarlo en PRODUCCION antes de aplicar alli.
+  --    (Medido el 2026-08-19 contra produccion: 22 domicilios, 0 por debajo de
+  --    15 caracteres, 0 sin numero, el mas corto de 28.)
+  select count(*) into v_medibles
   from public.perfiles
   where rol = 'cliente'
-    and nullif(btrim(coalesce(domicilio, '')), '') is not null
-    and (length(btrim(domicilio)) < 15 or btrim(domicilio) !~ '[0-9]');
-  if v_bajo_liston > 0 then
-    raise exception
-      'POSTFLIGHT 2: % domicilios YA registrados quedan por debajo del liston nuevo; Gerencia no podria reguardarlos',
-      v_bajo_liston;
+    and nullif(btrim(coalesce(domicilio, '')), '') is not null;
+
+  if v_medibles = 0 then
+    raise warning
+      'POSTFLIGHT 2 NO SE EJERCITO: esta base no tiene ni un domicilio escrito. NO cuenta como aprobado — comprueba el liston contra PRODUCCION antes de aplicarlo alli.';
+  else
+    select count(*) into v_bajo_liston
+    from public.perfiles
+    where rol = 'cliente'
+      and nullif(btrim(coalesce(domicilio, '')), '') is not null
+      and (length(btrim(domicilio)) < 15 or btrim(domicilio) !~ '[0-9]');
+    if v_bajo_liston > 0 then
+      raise exception
+        'POSTFLIGHT 2: % de % domicilios YA registrados quedan por debajo del liston nuevo; Gerencia no podria reguardarlos',
+        v_bajo_liston, v_medibles;
+    end if;
+    raise notice 'POSTFLIGHT 2 OK: los % domicilios vivos pasan el liston.', v_medibles;
   end if;
-  raise notice 'POSTFLIGHT 2 OK: ningun domicilio vivo queda por debajo del liston.';
 
   -- 3. Y el liston hace lo que dice: se EJECUTA la funcion contra la basura y
   --    contra una direccion real. Mirar el catalogo no prueba nada.
