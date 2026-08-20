@@ -1,12 +1,40 @@
 import path from 'node:path'
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import tailwindcss from '@tailwindcss/vite'
+
+const ID_BUILD_CONFIGURADO = process.env.CRM_BUILD_ID?.trim()
+if (ID_BUILD_CONFIGURADO && !/^[A-Za-z0-9._:-]{1,128}$/.test(ID_BUILD_CONFIGURADO)) {
+  throw new Error('CRM_BUILD_ID solo admite letras, numeros, punto, guion, guion bajo y dos puntos')
+}
+
+// Cada compilacion recibe una identidad propia, incluso si se publica desde el
+// mismo commit. El deploy puede fijarla con CRM_BUILD_ID; el fallback temporal
+// evita que dos builds con cambios sin commit parezcan la misma version.
+const ID_BUILD = ID_BUILD_CONFIGURADO
+  ?? `build-${new Date().toISOString().replace(/[-:.]/g, '')}`
+
+function publicarVersion(buildId: string): Plugin {
+  return {
+    name: 'crm-version-publicada',
+    apply: 'build',
+    generateBundle() {
+      this.emitFile({
+        type: 'asset',
+        fileName: 'version.json',
+        source: `${JSON.stringify({ schema: 1, buildId })}\n`,
+      })
+    },
+  }
+}
 
 // Deploy estático a Hostinger → base relativa './' (mismo patrón que el portal).
 export default defineConfig({
   base: './',
-  plugins: [react(), tailwindcss()],
+  define: {
+    __CRM_BUILD_ID__: JSON.stringify(ID_BUILD),
+  },
+  plugins: [publicarVersion(ID_BUILD), react(), tailwindcss()],
   resolve: {
     alias: { '@': path.resolve(__dirname, './src') },
   },

@@ -8,6 +8,7 @@ import { AuthProvider } from '@/lib/auth.tsx'
 import { StoreProvider } from '@/lib/store.tsx'
 import { instalarLimpiezaCacheAutenticacion, queryClient } from '@/lib/query-client'
 import { instalarSentry } from '@/lib/sentry'
+import { VersionPublicadaAviso } from '@/components/app/version-publicada'
 
 instalarLimpiezaCacheAutenticacion()
 instalarSentry() // no-op sin VITE_SENTRY_DSN (y el chunk ni se descarga)
@@ -35,5 +36,6 @@ createRoot(document.getElementById('root')!).render(
         },
       }}
     />
+    <VersionPublicadaAviso />
   </StrictMode>,
 )
