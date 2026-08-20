@@ -1,18 +1,19 @@
 // E2E de la pantalla EQUIPO en modo DEMO (sin backend) — la red de seguridad
 // del refactor de presentación: supervisor ve cards de SUS vendedores + su
-// bandeja accionable; gerencia ve un bloque por supervisor con la TABLA
+// cola, mientras el reparto vive en un módulo aparte; gerencia ve un bloque
+// por supervisor con la TABLA
 // comparativa y la bandeja global; directorio ve la misma radiografía SIN
 // ningún botón de acción (espejo del write-gating de demo-roles.spec.ts).
 // En todos: cero requests al host de Supabase (gate fail-closed).
 import { expect, test } from '@playwright/test'
 import { bloquearSupabase, entrarDemo } from './_helpers'
 
-test('demo supervisor: cards de SUS vendedores, bandeja "Por repartir" y asignar con toast "(demo)"', async ({ page }) => {
+test('demo supervisor: Gestión de equipo conserva seguimiento y separa el reparto', async ({ page }) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase.
   const requestsSupabase = await bloquearSupabase(page)
 
   await entrarDemo(page, 'Supervisor')
-  await page.getByRole('button', { name: 'Equipo' }).click()
+  await page.getByRole('button', { name: 'Gestión de equipo' }).click()
 
   // Cards SOLO de sus vendedores directos (d-sup1 → d-v1 y d-v2); el equipo
   // de d-sup2 queda fuera del ámbito (anti-fuga, espejo de store-ambito).
@@ -21,19 +22,12 @@ test('demo supervisor: cards de SUS vendedores, bandeja "Por repartir" y asignar
   await expect(cards.getByText('VENDEDOR DOS')).toBeVisible()
   await expect(cards.getByText('VENDEDOR TRES')).toHaveCount(0)
 
-  // La bandeja trae SOLO los parkeados de SU bandeja (l5 y l11); el parkeado
-  // de la bandeja de d-sup2 (l14) no existe para él. Se ancla en el select
-  // accesible de cada fila (el nombre a secas también vive en la mini-cola).
-  await expect(page.getByRole('heading', { name: 'Por repartir', exact: true })).toBeVisible()
-  await expect(page.getByLabel('Asignar vendedor a LUIS GARCÍA FLORES')).toBeVisible()
-  await expect(page.getByLabel('Asignar vendedor a RICARDO MAMANI CONDORI')).toBeVisible()
-  await expect(page.getByText('SOFÍA HERRERA LUNA')).toHaveCount(0)
-
-  // Asignar un parkeado: elegir vendedor + botón → el toast lleva "(demo)"
-  // (mismo sufijo que el resto de mutaciones demo, guard yo?.demo).
-  await page.getByLabel('Asignar vendedor a LUIS GARCÍA FLORES').selectOption({ label: 'VENDEDOR UNO' })
-  await page.getByRole('button', { name: 'Asignar', disabled: false }).click()
-  await expect(page.getByText('LUIS GARCÍA FLORES asignado a VENDEDOR UNO (demo)')).toBeVisible()
+  // No duplica controles: el botón del módulo existe en el menú, pero esta
+  // pantalla conserva solo la cola y el desempeño del equipo.
+  await expect(page.getByRole('button', { name: 'Derivar leads' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Cola del equipo' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Por repartir', exact: true })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Asignar' })).toHaveCount(0)
 
   expect(requestsSupabase()).toBe(0)
 })

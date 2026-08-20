@@ -24,6 +24,7 @@ export const VISTAS = [
   'repartir',
   'rescate',
   'rescate-carpeta',
+  'derivaciones',
   'equipo',
   'config',
   'config-usuarios',

@@ -2267,6 +2267,10 @@ export type Database = {
         Returns: Json
       }
       deshacer_descarte: { Args: { p_lead: string }; Returns: Json }
+      derivar_leads_equipo_fn: {
+        Args: { p_asesor_ids: string[]; p_lead_ids: string[] }
+        Returns: Json
+      }
       destinos_importacion_por_correo_fn: {
         Args: { p_correos: string[] }
         Returns: {
@@ -2396,6 +2400,14 @@ export type Database = {
           p_episodios: string[]
           p_evitar_asesor_origen?: boolean
         }
+        Returns: Json
+      }
+      reporte_derivaciones_equipo_fn: {
+        Args: { p_desde?: string; p_hasta?: string }
+        Returns: Json
+      }
+      revertir_derivacion_equipo_fn: {
+        Args: { p_lead_id: string }
         Returns: Json
       }
       historial_derivaciones: {

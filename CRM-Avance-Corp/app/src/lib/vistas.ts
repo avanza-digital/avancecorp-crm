@@ -34,6 +34,7 @@ const CAPACIDAD_POR_VISTA = {
   repartir: 'repartirCola',
   rescate: 'repartirLeads',
   'rescate-carpeta': 'repartirLeads',
+  derivaciones: 'verDerivacionesEquipo',
   equipo: 'verGestionEquipo',
   config: 'verConfiguracion',
   'config-usuarios': null,

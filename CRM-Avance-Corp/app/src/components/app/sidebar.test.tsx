@@ -140,6 +140,21 @@ describe('Sidebar — temporizadores del asomo', () => {
     expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
     expect(within(navegacion).queryByRole('button', { name: 'Capital' })).not.toBeInTheDocument()
     expect(within(navegacion).queryByRole('button', { name: 'Carpeta de rescate' })).not.toBeInTheDocument()
+    expect(within(navegacion).queryByRole('button', { name: 'Derivar leads' })).not.toBeInTheDocument()
+  })
+
+  it('Supervisión abre Derivar leads como módulo separado de Gestión de equipo', () => {
+    const { onNavegar } = montar({ movil: false, rol: 'supervisor', vista: 'equipo' })
+    const navegacion = screen.getByRole('navigation')
+
+    const derivaciones = within(navegacion).getByRole('button', { name: 'Derivar leads' })
+    expect(derivaciones).toBeVisible()
+    expect(
+      within(navegacion).getByRole('button', { name: 'Gestión de equipo' }),
+    ).toBeVisible()
+
+    fireEvent.click(derivaciones)
+    expect(onNavegar).toHaveBeenCalledWith('derivaciones')
   })
 
   it('Superadmin sin Gerencia ve y navega únicamente a Usuarios y roles', () => {

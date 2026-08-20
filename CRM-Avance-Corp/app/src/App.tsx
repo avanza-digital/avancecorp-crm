@@ -54,6 +54,7 @@ const RescateDescartados = lazy(() =>
 const RescateCarpeta = lazy(() =>
   import('@/screens/rescate-carpeta').then((m) => ({ default: m.RescateCarpeta })),
 )
+const Derivaciones = lazy(() => import('@/screens/derivaciones').then((m) => ({ default: m.Derivaciones })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 const ConfigUsuarios = lazy(() => import('@/screens/config-usuarios').then((m) => ({ default: m.ConfigUsuarios })))
@@ -78,6 +79,7 @@ const PANTALLA_POR_VISTA = {
   repartir: Repartir,
   rescate: RescateDescartados,
   'rescate-carpeta': RescateCarpeta,
+  derivaciones: Derivaciones,
   equipo: Equipo,
   config: Config,
   'config-usuarios': ConfigUsuarios,

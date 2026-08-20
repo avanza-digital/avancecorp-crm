@@ -144,6 +144,14 @@ import {
   MetricasVendedoresSchema,
   type MetricasVendedoresPayload,
 } from '@/lib/metricas-vendedores'
+import {
+  ReporteDerivacionesEquipoSchema,
+  ResultadoDerivarLeadsEquipoSchema,
+  ResultadoRevertirDerivacionEquipoSchema,
+  type ReporteDerivacionesEquipo,
+  type ResultadoDerivarLeadsEquipo,
+  type ResultadoRevertirDerivacionEquipo,
+} from '@/lib/reporte-derivaciones-equipo'
 import type { EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
 import {
   ResumenRepartoSchema,
@@ -161,7 +169,7 @@ import {
   type ResultadoConsultaAyudaVendedor,
 } from '@/lib/ayuda-vendedor'
 import type { Vista } from '@/lib/router'
-import { EnteroNoNegativoRpcSchema } from '@/lib/esquemas-rpc'
+import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
 export type { RecordatorioDisponibilidad } from '@/lib/recordatorios-disponibilidad'
@@ -3668,6 +3676,141 @@ export async function listarMetricasVendedores(
       'METRICAS_VENDEDORES_CONTRACT',
     )
     registrarError('crm.metricas.vendedores_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+// ── Reporte de derivaciones de supervisión ───────────────────────────────────
+
+function falloReporteDerivaciones(
+  error: { code?: string | null },
+  evento: string,
+  porDefecto: string,
+): CrmApiError {
+  const fallo = new CrmApiError(
+    error.code === '22023'
+      ? 'El rango de fechas de derivaciones no es válido.'
+      : error.code === '42501' || error.code === 'PGRST301'
+        ? 'No tienes permiso para gestionar las derivaciones de este equipo.'
+        : error.code === 'P0429'
+          ? 'El lead está marcado No Insista y no se puede derivar.'
+        : porDefecto,
+    error.code || 'POSTGREST_ERROR',
+  )
+  registrarError(evento, fallo, { pg: error.code ?? '' })
+  return fallo
+}
+
+/**
+ * Foto histórica de las derivaciones hechas desde la bandeja del supervisor.
+ * La API certifica que el servidor devuelve el MISMO periodo pedido: una caché
+ * cruzada entre fechas haría que los cards parezcan correctos con capitales de
+ * otro día.
+ */
+export async function listarReporteDerivacionesEquipo(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<ReporteDerivacionesEquipo> {
+  if (!v.safeParse(FechaSchema, desde).success || !v.safeParse(FechaSchema, hasta).success) {
+    throw new CrmApiError('El rango de fechas de derivaciones no es válido.', 'RANGO_INVALIDO')
+  }
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('reporte_derivaciones_equipo_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    throw falloReporteDerivaciones(
+      error,
+      'crm.derivaciones.reporte_fallido',
+      'No se pudo cargar el reporte de derivaciones.',
+    )
+  }
+  const resultado = v.safeParse(ReporteDerivacionesEquipoSchema, data)
+  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+    const fallo = new CrmApiError(
+      'El reporte de derivaciones no tiene el formato esperado.',
+      'REPORTE_DERIVACIONES_CONTRACT',
+    )
+    registrarError('crm.derivaciones.reporte_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+export interface DerivacionEquipoPendiente {
+  leadId: string
+  asesorId: string
+}
+
+/** Guarda el borrador completo; el servidor valida y aplica todo o nada. */
+export async function derivarLeadsEquipo(
+  derivaciones: readonly DerivacionEquipoPendiente[],
+): Promise<ResultadoDerivarLeadsEquipo> {
+  if (
+    derivaciones.length < 1
+    || derivaciones.length > 100
+    || derivaciones.some((d) => !v.safeParse(UuidSchema, d.leadId).success || !v.safeParse(UuidSchema, d.asesorId).success)
+    || new Set(derivaciones.map((d) => d.leadId)).size !== derivaciones.length
+  ) {
+    throw new CrmApiError('El borrador de derivaciones no es válido.', 'BORRADOR_DERIVACIONES_INVALIDO')
+  }
+
+  const { data, error } = await cliente().schema('crm').rpc('derivar_leads_equipo_fn', {
+    p_lead_ids: derivaciones.map((d) => d.leadId),
+    p_asesor_ids: derivaciones.map((d) => d.asesorId),
+  })
+  if (error) {
+    throw falloReporteDerivaciones(
+      error,
+      'crm.derivaciones.guardar_fallido',
+      'No se pudieron guardar las derivaciones. Revisa si algún lead cambió de estado.',
+    )
+  }
+  const resultado = v.safeParse(ResultadoDerivarLeadsEquipoSchema, data)
+  if (!resultado.success || resultado.output.derivados !== derivaciones.length) {
+    const fallo = new CrmApiError(
+      'La confirmación de las derivaciones no tiene el formato esperado.',
+      'DERIVACIONES_GUARDAR_CONTRACT',
+    )
+    registrarError('crm.derivaciones.guardar_fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Devuelve a la bandeja propia una derivación de hoy sin actividad posterior.
+ * El servidor conserva el episodio cerrado y la actividad de reasignación.
+ */
+export async function revertirDerivacionEquipo(
+  leadId: string,
+): Promise<ResultadoRevertirDerivacionEquipo> {
+  if (!v.safeParse(UuidSchema, leadId).success) {
+    throw new CrmApiError('El lead que deseas devolver no es válido.', 'LEAD_INVALIDO')
+  }
+  const { data, error } = await cliente().schema('crm').rpc('revertir_derivacion_equipo_fn', {
+    p_lead_id: leadId,
+  })
+  if (error) {
+    throw falloReporteDerivaciones(
+      error,
+      'crm.derivaciones.revertir_fallido',
+      'No se pudo devolver el lead. Puede que ya haya sido gestionado o cambiado de estado.',
+    )
+  }
+  const resultado = v.safeParse(ResultadoRevertirDerivacionEquipoSchema, data)
+  if (!resultado.success || resultado.output.lead_id !== leadId) {
+    const fallo = new CrmApiError(
+      'La confirmación de la devolución no tiene el formato esperado.',
+      'DERIVACIONES_REVERTIR_CONTRACT',
+    )
+    registrarError('crm.derivaciones.revertir_fuera_de_contrato', fallo)
     throw fallo
   }
   return resultado.output

@@ -60,6 +60,7 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
     t: 'Carpeta de rescate',
     s: 'Revisa, selecciona y redistribuye este bloque de leads',
   },
+  derivaciones: { t: 'Derivar leads', s: 'Reparte hoy con la carga de cada asesor a la vista' },
   equipo: { t: 'Equipo', s: 'Jerarquía comercial y reparto' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },
   'config-usuarios': { t: 'Usuarios y jerarquía', s: 'Personas, acceso y estructura comercial' },

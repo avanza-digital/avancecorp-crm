@@ -32,6 +32,7 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   repartir: 'Repartir leads',
   rescate: 'Base para gestión',
   'rescate-carpeta': 'Carpeta de rescate',
+  derivaciones: 'Derivar leads',
   equipo: 'Equipo',
   config: 'Configuración',
   'config-usuarios': 'Usuarios y jerarquía',
@@ -55,6 +56,9 @@ export function AyudaVendedorPanel({
   onNavegar,
   onAbrirNuevoLead,
 }: AyudaVendedorPanelProps) {
+  // La ayuda del servidor todavía agrupa este flujo dentro del contexto
+  // histórico de equipo. La interfaz lo presenta como módulo independiente.
+  const contextoAyuda: Vista = vista === 'derivaciones' ? 'equipo' : vista
   const tituloId = useId()
   const inputRef = useRef<HTMLInputElement>(null)
   const resultadoRef = useRef<HTMLHeadingElement>(null)
@@ -77,7 +81,7 @@ export function AyudaVendedorPanel({
     const controlador = new AbortController()
     setCargandoPreguntas(true)
     setErrorPreguntas(null)
-    void obtenerInicioAyudaVendedor(vista, controlador.signal)
+    void obtenerInicioAyudaVendedor(contextoAyuda, controlador.signal)
       .then((inicio) => {
         if (controlador.signal.aborted) return
         setPreguntas(inicio.preguntas)
@@ -91,7 +95,7 @@ export function AyudaVendedorPanel({
         if (!controlador.signal.aborted) setCargandoPreguntas(false)
       })
     return () => controlador.abort()
-  }, [abierto, revisionInicio, vista])
+  }, [abierto, contextoAyuda, revisionInicio])
 
   useEffect(() => {
     if (!abierto || respuesta || aclaracion || buscando) return
@@ -137,7 +141,7 @@ export function AyudaVendedorPanel({
     setErrorConsulta(null)
     setResultado(null)
     try {
-      const hallada = await consultarAyudaVendedor(limpio, vista, controlador.signal)
+      const hallada = await consultarAyudaVendedor(limpio, contextoAyuda, controlador.signal)
       if (secuencia !== secuenciaRef.current) return
       setResultado(hallada)
     } catch (error: unknown) {

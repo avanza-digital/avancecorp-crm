@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, BadgeDollarSign, Trophy, ArchiveRestore,
+  Gauge, BadgeDollarSign, Trophy, ArchiveRestore, SendHorizontal,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -47,6 +47,7 @@ const NAV_META = {
   // Reparto de la cola global (C1): solo coordinador.
   repartir: { label: 'Repartir leads', icon: Split, seccion: 'principal' },
   rescate: { label: 'Base para gestión', icon: ArchiveRestore, seccion: 'principal' },
+  derivaciones: { label: 'Derivar leads', icon: SendHorizontal, seccion: 'principal' },
   equipo: { label: 'Gestión de equipo', icon: UsersRound, seccion: 'principal' },
   config: { label: 'Configuración', icon: Settings, seccion: 'administracion' },
 } as const satisfies Record<VistaSidebar, NavMeta>

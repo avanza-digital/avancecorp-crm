@@ -27,6 +27,7 @@ export const ACCIONES = [
   'verLeads',
   'verAgenda',
   'verGestionEquipo',
+  'verDerivacionesEquipo', // módulo de reparto propio del supervisor
   'verAlertas',         // bandeja por destinatario (propia, equipo o ejecutiva)
   'tomarLeadDirecto',   // F2 lead libre: tomar para SÍ un contacto en bolsa o
                         // reutilizable tras verificar — SOLO vendedor (espejo
@@ -58,6 +59,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: false,
+    verDerivacionesEquipo: false,
     verAlertas: true, tomarLeadDirecto: true,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
@@ -66,6 +68,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: false, verEquipo: true, filtrarPorVendedor: true,
     reasignar: true, repartirLeads: true, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
+    verDerivacionesEquipo: true,
     verAlertas: true, tomarLeadDirecto: false,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,
@@ -74,6 +77,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     reasignar: true, repartirLeads: true, repartirCola: true, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
+    verDerivacionesEquipo: false,
     verAlertas: true, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: true,
     verReportes: true, editarMetas: true, editarCapacidad: true, soloLecturaTotal: false,
@@ -82,6 +86,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: true, verEquipo: true, filtrarPorVendedor: true,
     reasignar: false, repartirLeads: false, repartirCola: false, verCartera: true,
     verPipeline: true, verLeads: true, verAgenda: true, verGestionEquipo: true,
+    verDerivacionesEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: true, editarConfiguracion: false,
     verReportes: true, editarMetas: false, editarCapacidad: false, soloLecturaTotal: true,
@@ -94,6 +99,7 @@ export const CAPS: Record<Rol, Caps> = {
     verTodo: false, verEquipo: false, filtrarPorVendedor: false,
     reasignar: false, repartirLeads: false, repartirCola: true, verCartera: false,
     verPipeline: false, verLeads: false, verAgenda: false, verGestionEquipo: false,
+    verDerivacionesEquipo: false,
     verAlertas: false, tomarLeadDirecto: false,
     verConfiguracion: false, editarConfiguracion: false,
     verReportes: false, editarMetas: false, editarCapacidad: false, soloLecturaTotal: false,

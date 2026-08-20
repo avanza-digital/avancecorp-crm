@@ -10,7 +10,7 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 const VISTAS_POR_GATE = {
   abierto: {
     vendedor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
-    supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'equipo'],
+    supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
@@ -20,7 +20,7 @@ const VISTAS_POR_GATE = {
   },
   cerrado: {
     vendedor: ['mi-cartera', 'config'],
-    supervisor: ['mi-cartera', 'equipo'],
+    supervisor: ['mi-cartera', 'derivaciones', 'equipo'],
     gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     directorio: ['mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     coordinador: ['repartir'],
@@ -75,6 +75,16 @@ describe('vistaPermitida — fuente única de acceso', () => {
 })
 
 describe('sanearVista — expulsión por URL', () => {
+  it('reserva #/derivaciones al supervisor incluso con el gate de leads cerrado', () => {
+    expect(sanearVista('derivaciones', 'supervisor', true)).toBe('derivaciones')
+    expect(sanearVista('derivaciones', 'supervisor', false)).toBe('derivaciones')
+
+    expect(sanearVista('derivaciones', 'vendedor', false)).toBe('mi-cartera')
+    expect(sanearVista('derivaciones', 'gerencia', false)).toBe('hoy')
+    expect(sanearVista('derivaciones', 'directorio', false)).toBe('mi-cartera')
+    expect(sanearVista('derivaciones', 'coordinador', false)).toBe('repartir')
+  })
+
   it('deja al coordinador en repartir y lo expulsa de todo lo demás', () => {
     expect(sanearVista('repartir', 'coordinador', false)).toBe('repartir')
     // Bookmarks o URLs a mano: ninguna vista ajena es alcanzable.
@@ -167,6 +177,10 @@ describe('dónde puede vivir una función nueva del supervisor (decisión #10)',
 
   it('un supervisor SÍ puede abrir «equipo»: por eso vive ahí su ranking', () => {
     expect(vistaPermitida('equipo', 'supervisor', LEADS_CERRADOS)).toBe(true)
+  })
+
+  it('un supervisor SÍ puede abrir el módulo independiente de derivaciones', () => {
+    expect(vistaPermitida('derivaciones', 'supervisor', LEADS_CERRADOS)).toBe(true)
   })
 
   it('y «mi-cartera», su otra pantalla viva en producción', () => {

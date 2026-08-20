@@ -90,6 +90,15 @@ describe('router por hash', () => {
     expect(hashDe('rescate-carpeta')).toBe('#/rescate-carpeta')
   })
 
+  it('registra Derivaciones como módulo independiente y fuera del gate de leads', () => {
+    window.location.hash = '#/derivaciones'
+
+    expect(leerHash()).toEqual({ vista: 'derivaciones', leadId: null })
+    expect(VISTAS).toContain('derivaciones')
+    expect(esVistaLeads('derivaciones')).toBe(false)
+    expect(hashDe('derivaciones')).toBe('#/derivaciones')
+  })
+
   it('registra los cuatro módulos como rutas internas de Configuración', () => {
     for (const vista of [
       'config-usuarios',
