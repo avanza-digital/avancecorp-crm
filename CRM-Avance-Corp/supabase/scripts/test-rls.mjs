@@ -5290,6 +5290,124 @@ async function testMetricasConversionEquipo(sessions, seed) {
   }
 }
 
+// ── Supervisión: reporte + borrador + devolución de derivaciones ─────────────
+async function testReporteDerivacionesEquipo(sessions, seed) {
+  console.log('\n— Reporte y reparto de derivaciones del equipo —');
+
+  const reporteSup1 = await sessions.sup1.client.schema('crm')
+    .rpc('reporte_derivaciones_equipo_fn');
+  if (check(!reporteSup1.error, 'supervisor consulta el reporte con el rango Ayer por defecto', errorText(reporteSup1.error))) {
+    const payload = reporteSup1.data;
+    check(payload?.version === 1, 'reporte de derivaciones conserva contrato V1');
+    check(
+      payload?.periodo?.desde === payload?.periodo?.hasta && payload?.periodo?.dias === 1,
+      'el rango por defecto es exactamente un día',
+      JSON.stringify(payload?.periodo),
+    );
+
+    const ids = (payload?.asesores ?? []).map((fila) => fila.asesor_id).sort();
+    const directos = [seed.profileIdByKey.vend1, seed.profileIdByKey.vend2].sort();
+    check(
+      JSON.stringify(ids) === JSON.stringify(directos),
+      'SUPERVISOR UNO recibe solo sus asesores directos activos',
+      JSON.stringify(ids),
+    );
+    check(
+      !(payload?.asesores ?? []).some((fila) => fila.asesor_id === seed.profileIdByKey.vendNested),
+      'el vendedor del supervisor anidado no se mezcla en las cards directas',
+    );
+
+    const prohibidas = new Set(['telefono', 'correo', 'dni', 'notas', 'detalle', 'metadata']);
+    const movimientoConPii = (payload?.movimientos_hoy ?? []).find((movimiento) =>
+      Object.keys(movimiento).some((clave) => prohibidas.has(clave)));
+    check(!movimientoConPii, 'los movimientos de hoy no exponen contacto, notas ni metadata');
+  }
+
+  const reporteSup2 = await sessions.sup2.client.schema('crm')
+    .rpc('reporte_derivaciones_equipo_fn');
+  if (check(!reporteSup2.error, 'el segundo supervisor consulta su propio reporte', errorText(reporteSup2.error))) {
+    const ids = (reporteSup2.data?.asesores ?? []).map((fila) => fila.asesor_id).sort();
+    const directos = [seed.profileIdByKey.vend3, seed.profileIdByKey.vend4].sort();
+    check(
+      JSON.stringify(ids) === JSON.stringify(directos),
+      'el segundo supervisor no recibe asesores del primero',
+      JSON.stringify(ids),
+    );
+  }
+
+  const reporteAnidado = await sessions.sup1Nested.client.schema('crm')
+    .rpc('reporte_derivaciones_equipo_fn');
+  if (check(!reporteAnidado.error, 'el supervisor anidado consulta su equipo directo', errorText(reporteAnidado.error))) {
+    check(
+      JSON.stringify((reporteAnidado.data?.asesores ?? []).map((fila) => fila.asesor_id))
+        === JSON.stringify([seed.profileIdByKey.vendNested]),
+      'el supervisor anidado recibe únicamente a su vendedor directo',
+    );
+  }
+
+  for (const key of ['vend1', 'coordinador', 'gerencia', 'directorio', 'vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `${key} no consulta el reporte exclusivo de Supervisión`,
+      sessions[key].client.schema('crm').rpc('reporte_derivaciones_equipo_fn'),
+      ['42501'],
+    );
+  }
+
+  const anon = createClient(
+    SUPABASE_URL,
+    ANON_KEY,
+    clientOptions(`crm-derivaciones-anon-${randomUUID()}`),
+  );
+  await expectExplicitAuthorizationDenied(
+    'anon no consulta el reporte de derivaciones',
+    anon.schema('crm').rpc('reporte_derivaciones_equipo_fn'),
+    ['401', '42501', 'PGRST301'],
+  );
+
+  await expectBlockedMutation(
+    'el supervisor no deriva un lead a un asesor de otro equipo',
+    sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', {
+      p_lead_ids: [seed.leadByName.get(LEAD_BY_KEY.luis.name).id],
+      p_asesor_ids: [seed.profileIdByKey.vend3],
+    }),
+    ['42501'],
+  );
+  await expectBlockedMutation(
+    'un borrador no puede repetir el mismo lead',
+    sessions.sup1.client.schema('crm').rpc('derivar_leads_equipo_fn', {
+      p_lead_ids: [
+        seed.leadByName.get(LEAD_BY_KEY.luis.name).id,
+        seed.leadByName.get(LEAD_BY_KEY.luis.name).id,
+      ],
+      p_asesor_ids: [seed.profileIdByKey.vend2, seed.profileIdByKey.vend2],
+    }),
+    ['22023'],
+  );
+  await expectBlockedMutation(
+    'no se devuelve un lead que no es una derivación vigente de hoy',
+    sessions.sup1.client.schema('crm').rpc('revertir_derivacion_equipo_fn', {
+      p_lead_id: seed.leadByName.get(LEAD_BY_KEY.luis.name).id,
+    }),
+    ['P0001'],
+  );
+  await expectBlockedMutation(
+    'el reporte rechaza rangos invertidos',
+    sessions.sup1.client.schema('crm').rpc('reporte_derivaciones_equipo_fn', {
+      p_desde: '2026-08-20',
+      p_hasta: '2026-08-19',
+    }),
+    ['22023'],
+  );
+  await expectBlockedMutation(
+    'el reporte rechaza fechas futuras',
+    sessions.sup1.client.schema('crm').rpc('reporte_derivaciones_equipo_fn', {
+      p_desde: '2100-01-01',
+      p_hasta: '2100-01-01',
+    }),
+    ['22023'],
+  );
+}
+
 // ── C1: reparto de la cola global por el rol `coordinador` ────────────────────
 // Tres capas: (A) aislamiento del rol nuevo — incluidas las superficies que se
 // abren al dejar de ser rol_crm NULL; (B) control de acceso de las 3 RPC;
@@ -8337,6 +8455,10 @@ async function main() {
       // avería conocida post-8-ago y puede llevarse por delante lo que venga
       // detrás. El domicilio legal no puede depender de eso.
       await testDomicilioLegal(sessions, verifiedSeed);
+      // Este gate nuevo también debe correr antes de la matriz de offboarding:
+      // valida una superficie de escritura y no puede quedar oculto tras una
+      // avería heredada de fixtures/configuración ajena a derivaciones.
+      await testReporteDerivacionesEquipo(sessions, verifiedSeed);
       await testOffboardingMatrix(sessions, verifiedSeed);
       await testVentanaActividades(sessions, verifiedSeed);
       await testMetasVersionadas(sessions, verifiedSeed);
