@@ -3237,6 +3237,7 @@ async function testOffboardingMatrix(sessions, seed) {
       member.client.schema('crm').from('recordatorios_disponibilidad')
         .insert({ telefono: '+51996600323', recordar_en: 'infinity' })
         .select('id'),
+      ['22023'],
     );
     await expectBlockedMutation(
       'F3 lead libre: el tope de 365 días también gobierna (auditor m5)',
