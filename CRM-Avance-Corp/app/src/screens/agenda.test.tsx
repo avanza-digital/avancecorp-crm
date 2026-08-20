@@ -212,3 +212,27 @@ describe('Agenda — reprogramar en el celular', () => {
     expect(boton.className).toContain('pointer-coarse:min-h-8')
   })
 })
+
+describe('Agenda — bandeja compacta', () => {
+  it('pagina las tareas de Hoy en lugar de alargar la pantalla completa', async () => {
+    const user = userEvent.setup()
+    const muchas = Array.from({ length: 13 }, (_, i) => tarea({
+      id: `t-${i + 1}`,
+      titulo: `Seguimiento ${String(i + 1).padStart(2, '0')}`,
+      // Mismo día, segundos distintos: el orden cronológico queda deliberado
+      // para comprobar qué tarea cruza la frontera 12/13 de la página.
+      vence_en: iso(`2026-07-22T15:00:${String(i + 1).padStart(2, '0')}-05:00`),
+    }))
+    montar(muchas)
+
+    expect(screen.getByText('1–12 de 13 tareas')).toBeInTheDocument()
+    expect(screen.getByText('Seguimiento 01')).toBeInTheDocument()
+    expect(screen.queryByText('Seguimiento 13')).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Ver página siguiente de tareas' }))
+
+    expect(screen.getByText('13–13 de 13 tareas')).toBeInTheDocument()
+    expect(screen.getByText('Seguimiento 13')).toBeInTheDocument()
+    expect(screen.queryByText('Seguimiento 01')).not.toBeInTheDocument()
+  })
+})

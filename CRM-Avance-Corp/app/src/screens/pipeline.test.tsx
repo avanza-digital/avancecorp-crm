@@ -183,3 +183,25 @@ describe('tablero Pipeline · chip de capital', () => {
     expect(screen.queryByText(/42/)).not.toBeInTheDocument()
   })
 })
+
+describe('tablero Pipeline · bandeja compacta', () => {
+  it('pagina una etapa sin acumular todas las cards en la columna', () => {
+    montar(
+      Array.from({ length: 21 }, (_, i) => lead({
+        id: `lead-${i + 1}`,
+        nombre_completo: `LEAD ${String(i + 1).padStart(2, '0')}`,
+      })),
+    )
+
+    expect(screen.getByText('1–20 de 21')).toBeInTheDocument()
+    expect(cardDe('LEAD 01')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD 21')).not.toBeInTheDocument()
+    expect(zonaDe('Nuevo').className).toContain('overflow-y-auto')
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver página siguiente de Nuevo' }))
+
+    expect(screen.getByText('21–21 de 21')).toBeInTheDocument()
+    expect(cardDe('LEAD 21')).toBeInTheDocument()
+    expect(screen.queryByText('LEAD 01')).not.toBeInTheDocument()
+  })
+})

@@ -48,6 +48,19 @@ function haceDias(dias: number): string {
 // dispara pegado al drop; cualquier click humano llega muchísimo después.
 const MS_CLICK_FANTASMA = 60
 
+/**
+ * Una columna no crece al ritmo de la cartera. El asesor trabaja una página
+ * corta dentro de la bandeja de esa etapa; los totales del encabezado siguen
+ * siendo el panorama completo y los filtros no se pierden al avanzar.
+ */
+const LEADS_POR_PAGINA = 20
+const PAGINA_INICIAL_POR_ETAPA: Record<EtapaActiva, number> = {
+  nuevo: 0,
+  contactado: 0,
+  reunion_agendada: 0,
+  propuesta_enviada: 0,
+}
+
 // Pills del filtro por vendedor (sin verde: activo = azul primario; bandeja = ámbar)
 const PILL_BASE =
   'flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-semibold transition-colors'
@@ -191,12 +204,9 @@ export function Pipeline() {
 
   // ── Filtro por vendedor (pills) — solo roles con la capacidad y >1 vendedor ──
   const [fVend, setFVend] = useState<string>('todos') // 'todos' | 'por_repartir' | perfil_id
-  const [limites, setLimites] = useState<Record<EtapaActiva, number>>({
-    nuevo: 60,
-    contactado: 60,
-    reunion_agendada: 60,
-    propuesta_enviada: 60,
-  })
+  const [paginaPorEtapa, setPaginaPorEtapa] = useState<Record<EtapaActiva, number>>(
+    PAGINA_INICIAL_POR_ETAPA,
+  )
   const mostrarFiltro = can(yo?.rol, 'filtrarPorVendedor') && ambito.vendedores.length > 1
   // Bandeja "por repartir": sin vendedor asignado y aún en etapa de trabajo.
   const porRepartir = leads.filter(
@@ -321,7 +331,7 @@ export function Pipeline() {
   ]
 
   return (
-    <div className="mx-auto max-w-[1440px] space-y-5 ac-rise">
+    <div className="mx-auto flex min-h-0 max-w-[1440px] flex-col gap-5 ac-rise md:h-full">
       <StatStrip stats={stats} />
 
       <AvisoDegradacion
@@ -389,10 +399,13 @@ export function Pipeline() {
       )}
 
       {/* Kanban */}
-      <div className="ac-scroll -mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
+      <div className="ac-scroll -mx-1 flex min-h-[28rem] flex-1 gap-3 overflow-x-auto px-1 pb-3 md:min-h-0">
         {ETAPAS.map((col) => {
           const enCol = enTablero.filter((l) => l.etapa === col.k)
-          const visibles = enCol.slice(0, limites[col.k])
+          const totalPaginas = Math.max(1, Math.ceil(enCol.length / LEADS_POR_PAGINA))
+          const pagina = Math.min(paginaPorEtapa[col.k], totalPaginas - 1)
+          const inicio = pagina * LEADS_POR_PAGINA
+          const visibles = enCol.slice(inicio, inicio + LEADS_POR_PAGINA)
           const { pen: totalPEN, usd: totalUSD } = capitalPorMoneda(enCol)
           const totalTxt = [
             totalPEN > 0 ? moneyK(totalPEN) : '',
@@ -402,7 +415,7 @@ export function Pipeline() {
             .join(' · ')
           const destino = colDestino === col.k
           return (
-            <div key={col.k} className="flex w-[290px] shrink-0 flex-col">
+            <div key={col.k} className="flex min-h-0 w-[290px] shrink-0 flex-col">
               {/* Cabecera de columna */}
               <div className="mb-2.5 flex items-center gap-2 px-1">
                 <span
@@ -420,7 +433,7 @@ export function Pipeline() {
 
               {/* Cards (la columna entera es zona de drop) */}
               <div
-                className={`flex-1 space-y-2.5 rounded-2xl p-2 transition-colors ${
+                className={`ac-scroll min-h-0 flex-1 space-y-2.5 overflow-y-auto rounded-2xl p-2 transition-colors ${
                   destino ? 'bg-primary/[0.08] ring-2 ring-primary/50' : 'bg-primary/[0.03] ring-1 ring-border/60'
                 }`}
                 onDragOver={
@@ -469,34 +482,52 @@ export function Pipeline() {
                     {destino ? 'Suelta aquí para mover el lead' : 'Sin leads en esta etapa'}
                   </div>
                 )}
-                {visibles.length < enCol.length && (
-                  <button
-                    type="button"
-                    className="w-full rounded-lg border border-border bg-card px-3 py-2 text-[11px] font-semibold text-muted-foreground hover:text-foreground"
-                    onClick={() => setLimites((actual) => ({
-                      ...actual,
-                      [col.k]: actual[col.k] + 60,
-                    }))}
-                  >
-                    Mostrar 60 más · faltan {enCol.length - visibles.length}
-                  </button>
-                )}
-                {escribe && (
-                  <button
-                    onClick={() => abrirNuevoLead(col.k)}
-                    className="ac-nav-item flex w-full items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
-                  >
-                    <Plus className="size-3.5" /> Agregar lead
-                  </button>
+              </div>
+              <div className="flex shrink-0 items-center gap-1.5 px-1 pt-2">
+                <span className="mr-auto text-[10px] font-semibold tabular-nums text-muted-foreground" aria-live="polite">
+                  {enCol.length === 0 ? 'Sin leads' : `${inicio + 1}–${inicio + visibles.length} de ${enCol.length}`}
+                </span>
+                {totalPaginas > 1 && (
+                  <>
+                    <button
+                      type="button"
+                      aria-label={`Ver página anterior de ${col.label}`}
+                      disabled={pagina === 0}
+                      onClick={() => setPaginaPorEtapa((actual) => ({ ...actual, [col.k]: pagina - 1 }))}
+                      className="grid size-7 cursor-pointer place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-40"
+                    >
+                      <span aria-hidden>←</span>
+                    </button>
+                    <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {pagina + 1}/{totalPaginas}
+                    </span>
+                    <button
+                      type="button"
+                      aria-label={`Ver página siguiente de ${col.label}`}
+                      disabled={pagina + 1 >= totalPaginas}
+                      onClick={() => setPaginaPorEtapa((actual) => ({ ...actual, [col.k]: pagina + 1 }))}
+                      className="grid size-7 cursor-pointer place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-40"
+                    >
+                      <span aria-hidden>→</span>
+                    </button>
+                  </>
                 )}
               </div>
+              {escribe && (
+                <button
+                  onClick={() => abrirNuevoLead(col.k)}
+                  className="ac-nav-item mt-1.5 flex w-full shrink-0 items-center justify-center gap-1.5 rounded-lg py-2 text-[11px] font-semibold text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
+                >
+                  <Plus className="size-3.5" /> Agregar lead
+                </button>
+              )}
             </div>
           )
         })}
       </div>
 
       {/* Terminales */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex shrink-0 flex-wrap items-center gap-3">
         {TERMINALES.map((t) => {
           const n = leads.filter((l) => l.etapa === t.k).length
           return (

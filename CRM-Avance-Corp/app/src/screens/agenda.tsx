@@ -438,6 +438,11 @@ function VistaSemana({
   ahora: number
   abrirLead: (id: string) => void
 }) {
+  // Una semana cargada no convierte cada día en una columna interminable.
+  // El límite es deliberadamente pequeño: la vista semanal sirve para decidir
+  // el ritmo, mientras que Hoy/Mes abren la bandeja detallada y operable.
+  const TAREAS_SEMANA_POR_DIA = 4
+  const [paginaPorDia, setPaginaPorDia] = useState<Record<string, number>>({})
   // Hora actual en Lima: el hint de ritmo se apaga en el propio día cuando
   // ambos picos (10–11:30 y 16–18) ya quedaron atrás.
   const horaLima = new Date(ahora - LIMA_OFFSET_MS).getUTCHours()
@@ -463,15 +468,19 @@ function VistaSemana({
           laptops medianas / iPad, que era todo el punto de esta vista. */}
       <div className="space-y-1.5 lg:hidden">
         {celdas.map(({ d, tareas, domingo, hint }) => (
-          <div
-            key={d.fecha}
-            title={domingo ? tooltipDomingo : undefined}
-            className={cn(
-              'rounded-lg p-2',
-              d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
-              domingo && 'opacity-55',
-            )}
-          >
+          (() => {
+            const paginas = Math.max(1, Math.ceil(tareas.length / TAREAS_SEMANA_POR_DIA))
+            const pagina = Math.min(paginaPorDia[d.fecha] ?? 0, paginas - 1)
+            const tareasPagina = tareas.slice(pagina * TAREAS_SEMANA_POR_DIA, (pagina + 1) * TAREAS_SEMANA_POR_DIA)
+            return <div
+              key={d.fecha}
+              title={domingo ? tooltipDomingo : undefined}
+              className={cn(
+                'rounded-lg p-2',
+                d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
+                domingo && 'opacity-55',
+              )}
+            >
             <div className="flex items-center gap-2">
               <span className={cn('text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
                 {d.label}
@@ -491,12 +500,36 @@ function VistaSemana({
             </div>
             {tareas.length > 0 && (
               <div className="mt-1 grid gap-1 sm:grid-cols-2">
-                {tareas.map((t) => (
+                {tareasPagina.map((t) => (
                   <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
                 ))}
               </div>
             )}
-          </div>
+            {paginas > 1 && (
+              <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px] font-bold tabular-nums text-muted-foreground">
+                <button
+                  type="button"
+                  aria-label={`Ver tareas anteriores de ${d.label}`}
+                  disabled={pagina === 0}
+                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina - 1 }))}
+                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                >
+                  <ChevronLeft className="size-3" aria-hidden />
+                </button>
+                {pagina + 1}/{paginas}
+                <button
+                  type="button"
+                  aria-label={`Ver tareas siguientes de ${d.label}`}
+                  disabled={pagina + 1 >= paginas}
+                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina + 1 }))}
+                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                >
+                  <ChevronRight className="size-3" aria-hidden />
+                </button>
+              </div>
+            )}
+            </div>
+          })()
         ))}
       </div>
 
@@ -506,15 +539,19 @@ function VistaSemana({
           ancho a los 6 días operables. */}
       <div className="hidden min-w-[700px] gap-1.5 lg:grid lg:grid-cols-[repeat(6,minmax(0,1fr))_minmax(3rem,0.45fr)]">
         {celdas.map(({ d, tareas, domingo, hint }) => (
-          <div
-            key={d.fecha}
-            title={domingo ? tooltipDomingo : undefined}
-            className={cn(
-              'flex min-h-44 flex-col gap-1 rounded-lg p-1.5',
-              d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
-              domingo && 'opacity-55',
-            )}
-          >
+          (() => {
+            const paginas = Math.max(1, Math.ceil(tareas.length / TAREAS_SEMANA_POR_DIA))
+            const pagina = Math.min(paginaPorDia[d.fecha] ?? 0, paginas - 1)
+            const tareasPagina = tareas.slice(pagina * TAREAS_SEMANA_POR_DIA, (pagina + 1) * TAREAS_SEMANA_POR_DIA)
+            return <div
+              key={d.fecha}
+              title={domingo ? tooltipDomingo : undefined}
+              className={cn(
+                'flex min-h-44 flex-col gap-1 rounded-lg p-1.5',
+                d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
+                domingo && 'opacity-55',
+              )}
+            >
             <div className="flex items-center justify-between gap-1 px-0.5">
               <span className={cn('truncate text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
                 {domingo ? `D ${d.num}` : d.label}
@@ -526,7 +563,7 @@ function VistaSemana({
                 </span>
               )}
             </div>
-            {tareas.map((t) => (
+            {tareasPagina.map((t) => (
               <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
             ))}
             {hint && (
@@ -536,7 +573,31 @@ function VistaSemana({
                 <p className="text-[10px] tabular-nums text-muted-foreground/80">10–11:30 · 16–18</p>
               </div>
             )}
-          </div>
+            {paginas > 1 && (
+              <div className="mt-auto flex items-center justify-end gap-1 px-0.5 pt-1 text-[10px] font-bold tabular-nums text-muted-foreground">
+                <button
+                  type="button"
+                  aria-label={`Ver tareas anteriores de ${d.label}`}
+                  disabled={pagina === 0}
+                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina - 1 }))}
+                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                >
+                  <ChevronLeft className="size-3" aria-hidden />
+                </button>
+                {pagina + 1}/{paginas}
+                <button
+                  type="button"
+                  aria-label={`Ver tareas siguientes de ${d.label}`}
+                  disabled={pagina + 1 >= paginas}
+                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina + 1 }))}
+                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                >
+                  <ChevronRight className="size-3" aria-hidden />
+                </button>
+              </div>
+            )}
+            </div>
+          })()
         ))}
       </div>
     </Card>
@@ -641,8 +702,60 @@ function agruparPorDiaLabel(tareas: Tarea[], ahora: number): { dia: string; item
   return out
 }
 
-/** En [Todo], cuántos días arrancan expandidos; el resto colapsa a resumen. */
-const DIAS_EXPANDIDOS_TODO = 4
+/** La cola operable no crece junto con la página. */
+const TAREAS_POR_PAGINA = 12
+const PERSONAS_POR_PAGINA = 8
+
+function NavegacionPagina({
+  pagina,
+  total,
+  porPagina,
+  etiqueta,
+  onCambiar,
+}: {
+  pagina: number
+  total: number
+  porPagina: number
+  etiqueta: string
+  onCambiar: (pagina: number) => void
+}) {
+  const paginas = Math.max(1, Math.ceil(total / porPagina))
+  if (total === 0) return null
+  const inicio = pagina * porPagina + 1
+  const fin = Math.min(total, inicio + porPagina - 1)
+  return (
+    <nav className="flex shrink-0 items-center justify-between gap-2 border-t border-border/70 pt-2" aria-label={`Paginación de ${etiqueta}`}>
+      <p className="text-[11px] font-semibold tabular-nums text-muted-foreground" aria-live="polite">
+        {inicio}–{fin} de {total} {etiqueta}
+      </p>
+      {paginas > 1 && (
+        <span className="flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label={`Ver página anterior de ${etiqueta}`}
+            disabled={pagina === 0}
+            onClick={() => onCambiar(pagina - 1)}
+            className="grid size-7 cursor-pointer place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-40"
+          >
+            <ChevronLeft className="size-3.5" aria-hidden />
+          </button>
+          <span className="text-[10px] font-bold tabular-nums text-muted-foreground">
+            {pagina + 1}/{paginas}
+          </span>
+          <button
+            type="button"
+            aria-label={`Ver página siguiente de ${etiqueta}`}
+            disabled={pagina + 1 >= paginas}
+            onClick={() => onCambiar(pagina + 1)}
+            className="grid size-7 cursor-pointer place-items-center rounded-lg border border-border bg-card text-muted-foreground transition-colors hover:text-foreground disabled:cursor-default disabled:opacity-40"
+          >
+            <ChevronRight className="size-3.5" aria-hidden />
+          </button>
+        </span>
+      )}
+    </nav>
+  )
+}
 
 export function Agenda() {
   const { ambito, tareas, equipo } = useCRMData()
@@ -663,10 +776,13 @@ export function Agenda() {
   const [offsetSemana, setOffsetSemana] = useState(0)
   const [offsetMes, setOffsetMes] = useState(0)
   const [diaSel, setDiaSel] = useState<string | null>(null)
-  // Colapsables de Hoy/Todo: personas abiertas (supervisión) y días extra
-  // abiertos en [Todo] (más allá de los primeros DIAS_EXPANDIDOS_TODO).
+  // La página es por tarea para vendedor y por persona para supervisión: ambos
+  // conservan el mismo tope visual sin disfrazar una cola enorme como pantalla.
+  const [paginaBandeja, setPaginaBandeja] = useState(0)
+  const [paginaMes, setPaginaMes] = useState(0)
+  // Supervisión abre el detalle cuando lo necesita; ese detalle desplaza dentro
+  // de su propia tarjeta para no estirar la agenda completa.
   const [personasAbiertas, setPersonasAbiertas] = useState<ReadonlySet<string>>(new Set())
-  const [diasAbiertos, setDiasAbiertos] = useState<ReadonlySet<string>>(new Set())
 
   // Ámbito (espejo RLS): solo tareas de leads que el rol puede ver.
   const idsAmbito = useMemo(() => new Set(ambito.leads.map((l) => l.id)), [ambito.leads])
@@ -716,6 +832,16 @@ export function Agenda() {
     () => (verEquipo ? agruparPorPersona(visibles, leadPorId, equipo, ahora) : []),
     [verEquipo, visibles, leadPorId, equipo, ahora],
   )
+  const porPaginaBandeja = verEquipo ? PERSONAS_POR_PAGINA : TAREAS_POR_PAGINA
+  const totalBandeja = verEquipo ? gruposPersona.length : visibles.length
+  const paginasBandeja = Math.max(1, Math.ceil(totalBandeja / porPaginaBandeja))
+  const paginaBandejaActual = Math.min(paginaBandeja, paginasBandeja - 1)
+  const inicioBandeja = paginaBandejaActual * porPaginaBandeja
+  const gruposPagina = useMemo(
+    () => agruparPorDiaLabel(visibles.slice(inicioBandeja, inicioBandeja + TAREAS_POR_PAGINA), ahora),
+    [visibles, inicioBandeja, ahora],
+  )
+  const gruposPersonaPagina = gruposPersona.slice(inicioBandeja, inicioBandeja + PERSONAS_POR_PAGINA)
   // Distribución por tipo del rango visible en [Todo] — el resumen del muro.
   const distTipos = useMemo(
     () =>
@@ -761,6 +887,12 @@ export function Agenda() {
   // Día operable del Mes: el elegido, o hoy cuando se mira el mes en curso.
   const diaMes = diaSel ?? (offsetMes === 0 ? fechaLima(ahora) : null)
   const tareasDiaMes = diaMes ? porDia.get(diaMes) ?? [] : []
+  const paginasMes = Math.max(1, Math.ceil(tareasDiaMes.length / TAREAS_POR_PAGINA))
+  const paginaMesActual = Math.min(paginaMes, paginasMes - 1)
+  const tareasDiaMesPagina = tareasDiaMes.slice(
+    paginaMesActual * TAREAS_POR_PAGINA,
+    (paginaMesActual + 1) * TAREAS_POR_PAGINA,
+  )
   const celdaDiaMes = diaMes ? mes.semanas.flat().find((c) => c.fecha === diaMes) : undefined
 
   // Atajos desktop: 1–4 cambian de vista · ←/→ navegan semana/mes · H vuelve a
@@ -804,10 +936,13 @@ export function Agenda() {
     return () => window.removeEventListener('keydown', alTecla)
   }, [vista])
 
-  const patch = (p: Partial<FiltrosAgenda>) => setFiltros((f) => ({ ...f, ...p }))
+  const patch = (p: Partial<FiltrosAgenda>) => {
+    setPaginaBandeja(0)
+    setFiltros((f) => ({ ...f, ...p }))
+  }
 
   return (
-    <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
+    <div className="mx-auto flex min-h-0 max-w-[1240px] flex-col gap-5 ac-rise md:h-full">
       <StatStrip stats={stats} />
 
       {/* Tira de la semana en curso (Lima, reloj vivo) — toca un día y saltas
@@ -824,6 +959,7 @@ export function Agenda() {
                 onClick={() => {
                   setOffsetSemana(0)
                   setVista('semana')
+                  setPaginaBandeja(0)
                 }}
                 className={cn(
                   'flex flex-1 cursor-pointer flex-col items-center gap-0.5 rounded-lg py-2 transition-colors',
@@ -856,7 +992,10 @@ export function Agenda() {
             key={v.k}
             type="button"
             aria-pressed={vista === v.k}
-            onClick={() => setVista(v.k)}
+            onClick={() => {
+              setVista(v.k)
+              setPaginaBandeja(0)
+            }}
             className={cn(
               'cursor-pointer rounded-full px-3 py-1.5 text-xs font-bold transition-colors',
               vista === v.k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground',
@@ -886,7 +1025,10 @@ export function Agenda() {
         {conFiltros && (
           <button
             type="button"
-            onClick={() => setFiltros(FILTROS_APAGADOS)}
+            onClick={() => {
+              setPaginaBandeja(0)
+              setFiltros(FILTROS_APAGADOS)
+            }}
             className="flex cursor-pointer items-center gap-1 rounded-full bg-muted px-2.5 py-1.5 text-[11px] font-bold text-muted-foreground transition-colors hover:text-foreground"
           >
             <X className="size-3" aria-hidden /> Limpiar · {filtrados.length} de {pendientes.length}
@@ -949,6 +1091,10 @@ export function Agenda() {
       </div>
       )}
 
+      {/* El encabezado queda estable. Solo la bandeja cambia de contenido y,
+          en escritorio, se desplaza dentro de este espacio en vez de alargar
+          toda la pantalla. */}
+      <div className="ac-scroll min-h-0 space-y-5 md:flex-1 md:overflow-y-auto md:pr-1">
       {/* ── SEMANA ── */}
       {vista === 'semana' && (
         <>
@@ -983,14 +1129,17 @@ export function Agenda() {
             onPrev={() => {
               setOffsetMes((o) => o - 1)
               setDiaSel(null)
+              setPaginaMes(0)
             }}
             onNext={() => {
               setOffsetMes((o) => o + 1)
               setDiaSel(null)
+              setPaginaMes(0)
             }}
             onHoy={() => {
               setOffsetMes(0)
               setDiaSel(null)
+              setPaginaMes(0)
             }}
             right={
               <Badge color={resumenMes.v > 0 ? '#d97706' : resumenMes.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'}>
@@ -1002,9 +1151,18 @@ export function Agenda() {
               </Badge>
             }
           />
-          <VistaMes semanas={mes.semanas} porDia={porDia} ahora={ahora} diaSel={diaMes} onDia={setDiaSel} />
+          <VistaMes
+            semanas={mes.semanas}
+            porDia={porDia}
+            ahora={ahora}
+            diaSel={diaMes}
+            onDia={(fecha) => {
+              setDiaSel(fecha)
+              setPaginaMes(0)
+            }}
+          />
           {diaMes ? (
-            <Card>
+            <Card className="flex min-h-0 flex-col">
               {/* Mes/año salen de la FECHA elegida, no de la rejilla: una
                   celda de relleno (1 de agosto en julio) titula su mes real. */}
               <SectionHead
@@ -1022,7 +1180,7 @@ export function Agenda() {
                   ) : undefined
                 }
               />
-              <CardContent className="space-y-1 pt-0">
+              <CardContent className="ac-scroll min-h-0 space-y-1 overflow-y-auto pt-0 md:max-h-[min(27rem,calc(100svh-29rem))]">
                 {tareasDiaMes.length === 0 ? (
                   <PanelVacio
                     icono={CalendarDays}
@@ -1030,7 +1188,7 @@ export function Agenda() {
                     detalle="Agenda la próxima acción desde la ficha de un lead — ningún lead activo debería quedarse sin una."
                   />
                 ) : (
-                  tareasDiaMes.map((t) => (
+                  tareasDiaMesPagina.map((t) => (
                     <TarjetaTarea
                       key={t.id}
                       t={t}
@@ -1044,6 +1202,15 @@ export function Agenda() {
                   ))
                 )}
               </CardContent>
+              <div className="px-5 pb-4">
+                <NavegacionPagina
+                  pagina={paginaMesActual}
+                  total={tareasDiaMes.length}
+                  porPagina={TAREAS_POR_PAGINA}
+                  etiqueta="tareas del día"
+                  onCambiar={setPaginaMes}
+                />
+              </div>
             </Card>
           ) : (
             <Card>
@@ -1101,7 +1268,7 @@ export function Agenda() {
               colapsado a resumen — el detalle se abre solo cuando hace falta,
               igual que la tabla por rangos de Distribución de leads. */}
           {verEquipo &&
-            gruposPersona.map((g) => {
+            gruposPersonaPagina.map((g) => {
               const abierto = personasAbiertas.has(g.id)
               return (
                 <Card key={g.id}>
@@ -1143,7 +1310,7 @@ export function Agenda() {
                     </span>
                   </button>
                   {abierto && (
-                    <CardContent className="space-y-2 pt-0">
+                    <CardContent className="ac-scroll max-h-80 space-y-2 overflow-y-auto pt-0">
                       {agruparPorDiaLabel(g.items, ahora).map((sub) => (
                         <div key={sub.dia} className="space-y-1">
                           <p
@@ -1174,33 +1341,11 @@ export function Agenda() {
               )
             })}
 
-          {/* Vendedor: timeline agrupado por día — tarjetas OPERABLES. En
-              [Todo], solo los primeros días van expandidos; el resto colapsa
-              a una fila de resumen (nada de muro de cards idénticas). */}
+          {/* Vendedor: timeline operable agrupado por día. La paginación es
+              por tarea, así que la cola conserva su orden sin crear un muro
+              de cards iguales al abrir Todo. */}
           {!verEquipo &&
-            grupos.map((g, i) => {
-              const abierto = vista === 'hoy' || i < DIAS_EXPANDIDOS_TODO || diasAbiertos.has(g.dia)
-              if (!abierto) {
-                return (
-                  <Card key={g.dia}>
-                    <button
-                      type="button"
-                      aria-expanded={false}
-                      onClick={() => setDiasAbiertos((prev) => new Set(prev).add(g.dia))}
-                      className="flex w-full cursor-pointer items-center gap-2 rounded-[inherit] px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-                    >
-                      <CalendarDays className="size-4 text-muted-foreground" aria-hidden />
-                      <span className="text-[15px] font-bold tracking-tight">{g.dia}</span>
-                      <span className="ml-auto flex shrink-0 items-center gap-1.5">
-                        <Badge color="var(--muted-foreground)">
-                          {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
-                        </Badge>
-                        <ChevronDown className="size-4 text-muted-foreground" aria-hidden />
-                      </span>
-                    </button>
-                  </Card>
-                )
-              }
+            gruposPagina.map((g) => {
               return (
                 <Card key={g.dia}>
                   <SectionHead
@@ -1229,10 +1374,21 @@ export function Agenda() {
                 </Card>
               )
             })}
+          {grupos.length > 0 && (
+            <NavegacionPagina
+              pagina={paginaBandejaActual}
+              total={totalBandeja}
+              porPagina={porPaginaBandeja}
+              etiqueta={verEquipo ? 'personas' : 'tareas'}
+              onCambiar={setPaginaBandeja}
+            />
+          )}
         </>
       )}
 
-      <p className="text-[11px] text-muted-foreground">
+      </div>
+
+      <p className="shrink-0 text-[11px] text-muted-foreground">
         La agenda es real: cerrar una tarea registra el resultado en el timeline y te propone la siguiente;
         “Recordar” manda un WhatsApp que pide confirmación de la cita.
         <span className="hidden md:inline"> Atajos: 1–4 cambian de vista · ←/→ navegan semana y mes · H vuelve a hoy.</span>
