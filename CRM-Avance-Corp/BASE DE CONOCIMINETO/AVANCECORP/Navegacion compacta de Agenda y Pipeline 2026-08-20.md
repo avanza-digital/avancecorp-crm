@@ -28,3 +28,12 @@ natural del dispositivo, pero los datos se entregan paginados.
   un lead desde su columna.
 - Agenda mantiene abrir ficha, contacto, cierre y reprogramación de cada
   tarea. La paginación no cambia la fuente de verdad ni los filtros.
+
+## Producción
+
+- Commit funcional: `1c6c111` (`feat(operacion): compacta agenda y pipeline`).
+- Frontend publicado en `crm.miavance.com` con el release
+  `crm-20260820T173040Z-1c6c11156f0c`.
+- Hostinger aceptó el despliegue y la limpieza de caché. Los bundles publicados
+  `agenda-CBIZucgC.js` y `pipeline-BgXswEXg.js` coinciden por SHA-256 y tamaño
+  con el manifiesto del release.
