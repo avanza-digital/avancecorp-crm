@@ -472,8 +472,6 @@ function EquipoSupervisor(): JSX.Element {
   // F1b: el reloj SLA solo alimenta el ESPEJO demo de la cola (en real esos
   // vencimientos llegan resueltos dentro de cola_accion_fn).
   const estadoSla = useEstadoSlaOperativo(ambito.leads, actividadesDelAmbito, yo?.demo === true)
-  const ahora = useAhora() // reloj vivo: los "d sin act." refrescan solos
-
   // ── F1b: agregados del servidor (o espejo demo vivo) ──
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividadesDelAmbito)
   const resumen = resumenOp.resumen
@@ -509,13 +507,6 @@ function EquipoSupervisor(): JSX.Element {
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
   const filas = vendedoresOp.metricas?.filas ?? null
-
-  // La BANDEJA es una lista operable: sigue en cliente hasta F2/F3, y su badge
-  // cuenta las filas que de verdad pinta (el chip agregado sale del RPC).
-  const parkeados = useMemo(
-    () => ambito.leads.filter((l) => esAbierto(l) && l.vendedor_id == null),
-    [ambito.leads],
-  )
 
   const errorIndicadores = !yo?.demo
     && Boolean(resumenOp.error || colaOp.error || vendedoresOp.error)
@@ -592,39 +583,23 @@ function EquipoSupervisor(): JSX.Element {
         </CardContent>
       </Card>
 
-      {/* Bandeja de parkeados + mini-cola del equipo */}
-      <div className="grid gap-5 lg:grid-cols-2">
-        <Card>
-          <SectionHead
-            icon={Inbox}
-            title="Por repartir"
-            right={
-              parkeados.length > 0 ? (
-                <Badge color={SEMAFORO.atencion} variant="outline" dot>
-                  {parkeados.length} en bandeja
-                </Badge>
-              ) : undefined
-            }
-          />
-          <Bandeja parkeados={parkeados} vendedores={ambito.vendedores} ahora={ahora} />
-        </Card>
-        <Card>
-          <SectionHead
-            icon={ListTodo}
-            title="Cola del equipo"
-            right={<span className="text-xs text-muted-foreground">Top 5 por urgencia</span>}
-          />
-          {cola == null ? (
-            <p className="px-5 pb-4 text-sm text-muted-foreground">
-              {colaOp.error
-                ? 'La cola del equipo no está disponible en este momento.'
-                : 'Cargando la cola del equipo…'}
-            </p>
-          ) : (
-            <MiniCola items={cola.items} total={cola.total} />
-          )}
-        </Card>
-      </div>
+      {/* El reparto vive en el módulo independiente «Derivar leads». */}
+      <Card>
+        <SectionHead
+          icon={ListTodo}
+          title="Cola del equipo"
+          right={<span className="text-xs text-muted-foreground">Top 5 por urgencia</span>}
+        />
+        {cola == null ? (
+          <p className="px-5 pb-4 text-sm text-muted-foreground">
+            {colaOp.error
+              ? 'La cola del equipo no está disponible en este momento.'
+              : 'Cargando la cola del equipo…'}
+          </p>
+        ) : (
+          <MiniCola items={cola.items} total={cola.total} />
+        )}
+      </Card>
 
       <p className="text-[11px] text-muted-foreground">
         Los números corresponden solo a tu equipo — cada rol ve únicamente lo que le corresponde.

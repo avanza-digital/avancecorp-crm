@@ -142,6 +142,26 @@ beforeEach(() => {
 })
 
 describe('AyudaVendedorPanel — manual resuelto por el servidor', () => {
+  it('muestra Derivar leads pero reutiliza el contexto de ayuda de equipo', async () => {
+    const user = userEvent.setup()
+    render(<AyudaControlada vista="derivaciones" />)
+
+    expect(await screen.findByText('Derivar leads')).toBeVisible()
+    expect(api.inicio).toHaveBeenCalledWith('equipo', expect.any(AbortSignal))
+
+    await user.type(
+      screen.getByRole('textbox', { name: '¿Qué necesitas resolver?' }),
+      'Quiero revisar el reparto',
+    )
+    await user.click(screen.getByRole('button', { name: 'Buscar en el manual' }))
+
+    expect(api.consultar).toHaveBeenCalledWith(
+      'Quiero revisar el reparto',
+      'equipo',
+      expect.any(AbortSignal),
+    )
+  })
+
   it('consulta una pregunta del servidor, navega y conserva la guía al minimizar', async () => {
     const user = userEvent.setup()
     const onNavegar = vi.fn()

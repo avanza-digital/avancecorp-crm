@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, BadgeDollarSign, Trophy,
+  Gauge, BadgeDollarSign, Trophy, SendHorizontal,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -45,6 +45,7 @@ const NAV_META = {
   'mi-cartera': { label: 'Mi cartera', icon: Wallet, seccion: 'principal' },
   // Reparto de la cola global (C1): solo coordinador.
   repartir: { label: 'Repartir leads', icon: Split, seccion: 'principal' },
+  derivaciones: { label: 'Derivar leads', icon: SendHorizontal, seccion: 'principal' },
   equipo: { label: 'Gestión de equipo', icon: UsersRound, seccion: 'principal' },
   config: { label: 'Configuración', icon: Settings, seccion: 'administracion' },
 } as const satisfies Record<VistaSidebar, NavMeta>

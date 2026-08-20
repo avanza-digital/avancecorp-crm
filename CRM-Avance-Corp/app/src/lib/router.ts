@@ -22,6 +22,7 @@ export const VISTAS = [
   'agenda',
   'mi-cartera',
   'repartir',
+  'derivaciones',
   'equipo',
   'config',
   'config-usuarios',

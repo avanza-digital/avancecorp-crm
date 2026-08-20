@@ -85,6 +85,16 @@ beforeEach(() => {
 })
 
 describe('Equipo — el ranking y la conversión mensual', () => {
+  it('mantiene el reparto fuera de Gestión de equipo', () => {
+    montar()
+
+    expect(
+      screen.queryByRole('heading', { name: 'Por repartir' }),
+    ).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Asignar' })).not.toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: 'Cola del equipo' })).toBeInTheDocument()
+  })
+
   it('si la MENSUAL falla, el ranking lo recibe como error (no degrada mudo)', () => {
     MENSUAL_FALLA = true
     montar()

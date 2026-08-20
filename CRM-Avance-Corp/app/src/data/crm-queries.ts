@@ -19,6 +19,7 @@ import {
   anularCierreExterno,
   convertirLeadExterno,
   corregirCierreExterno,
+  derivarLeadsEquipo,
   obtenerCierreMesEstado,
   obtenerCierresEstado,
   obtenerCierresExternos,
@@ -28,6 +29,7 @@ import {
   listarCuentasBancariasCliente,
   listarMetricasAgenda,
   listarMetricasVendedores,
+  listarReporteDerivacionesEquipo,
   listarResumenCartera,
   listarResumenReparto,
   listarMetricasConversiones,
@@ -45,6 +47,8 @@ import {
   obtenerCronograma,
   obtenerDatosLegalesContrato,
   obtenerTitulares,
+  revertirDerivacionEquipo,
+  type DerivacionEquipoPendiente,
 } from './crm-api'
 
 // El store sigue cargando el ámbito completo (listarLeadsDelAmbito) para las
@@ -129,6 +133,10 @@ export const crmQueryKeys = {
   resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   metricasVendedores: () => [...crmQueryKeys.metricasAmbito(), 'metricas-vendedores'] as const,
+  reporteDerivacionesEquipoPrefijo: () =>
+    [...crmQueryKeys.metricasAmbito(), 'reporte-derivaciones-equipo'] as const,
+  reporteDerivacionesEquipo: (desde: string, hasta: string) =>
+    [...crmQueryKeys.reporteDerivacionesEquipoPrefijo(), desde, hasta] as const,
   // Cuelga del MISMO prefijo aunque su ámbito sea la cola GLOBAL (no el del
   // usuario): es lo que la hace caducar con el logout (queryClient.clear) y lo
   // que permite invalidarla por prefijo desde la pantalla de reparto.
@@ -402,6 +410,24 @@ function useMetricaPorPeriodo<TData>({
 }
 
 /**
+ * Foto histórica de derivaciones del equipo directo del supervisor. La clave
+ * contiene ambas fechas y el payload se valida de nuevo en crm-api.
+ */
+export function useReporteDerivacionesEquipo(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+) {
+  return useMetricaPorPeriodo({
+    queryKey: crmQueryKeys.reporteDerivacionesEquipo(desde, hasta),
+    cargar: (signal) => listarReporteDerivacionesEquipo(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
+  })
+}
+
+/**
  * Fotografía V1 de distribución/capacidad/SLA para un periodo inclusivo en
  * America/Lima. Las fechas forman parte de la clave: cambiar el periodo nunca
  * reutiliza silenciosamente la fotografía anterior.
@@ -522,6 +548,37 @@ export function useMetricasReuniones(
     habilitada,
     desde,
     hasta,
+  })
+}
+
+/** El guardado invalida la foto histórica y los indicadores operativos. */
+export function useDerivarLeadsEquipo() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (derivaciones: readonly DerivacionEquipoPendiente[]) =>
+      derivarLeadsEquipo(derivaciones),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.reporteDerivacionesEquipoPrefijo() }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
+      ])
+    },
+  })
+}
+
+/** Devolver un lead también refresca la misma foto y la bandeja local. */
+export function useRevertirDerivacionEquipo() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (leadId: string) => revertirDerivacionEquipo(leadId),
+    onSuccess: async () => {
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.reporteDerivacionesEquipoPrefijo() }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
+      ])
+    },
   })
 }
 

@@ -111,6 +111,9 @@ describe('capacidades por rol', () => {
       verLeads: true,
       verAgenda: true,
       verGestionEquipo: true,
+      // El reparto diario por asesor es un espacio operativo propio de
+      // Supervisión, aunque Gerencia conserve otras puertas de reparto.
+      verDerivacionesEquipo: false,
       verAlertas: true,
       // La ÚNICA excepción del operador total, y es deliberada (F2 lead
       // libre): la toma directa es del VENDEDOR para sí mismo — espejo del

@@ -48,6 +48,7 @@ const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
 const MiCartera = lazy(() => import('@/screens/mi-cartera').then((m) => ({ default: m.MiCartera })))
 const Repartir = lazy(() => import('@/screens/repartir').then((m) => ({ default: m.Repartir })))
+const Derivaciones = lazy(() => import('@/screens/derivaciones').then((m) => ({ default: m.Derivaciones })))
 const Equipo = lazy(() => import('@/screens/equipo').then((m) => ({ default: m.Equipo })))
 const Config = lazy(() => import('@/screens/config').then((m) => ({ default: m.Config })))
 const ConfigUsuarios = lazy(() => import('@/screens/config-usuarios').then((m) => ({ default: m.ConfigUsuarios })))
@@ -70,6 +71,7 @@ const PANTALLA_POR_VISTA = {
   agenda: Agenda,
   'mi-cartera': MiCartera,
   repartir: Repartir,
+  derivaciones: Derivaciones,
   equipo: Equipo,
   config: Config,
   'config-usuarios': ConfigUsuarios,
