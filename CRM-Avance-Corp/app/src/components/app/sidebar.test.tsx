@@ -128,6 +128,7 @@ describe('Sidebar — temporizadores del asomo', () => {
       'Agenda',
       'Cartera',
       'Repartir leads',
+      'Base para gestión',
       'Gestión de equipo',
       'Configuración',
     ]
@@ -138,6 +139,7 @@ describe('Sidebar — temporizadores del asomo', () => {
     }
     expect(within(navegacion).queryByRole('button', { name: 'Alertas' })).not.toBeInTheDocument()
     expect(within(navegacion).queryByRole('button', { name: 'Capital' })).not.toBeInTheDocument()
+    expect(within(navegacion).queryByRole('button', { name: 'Carpeta de rescate' })).not.toBeInTheDocument()
   })
 
   it('Superadmin sin Gerencia ve y navega únicamente a Usuarios y roles', () => {

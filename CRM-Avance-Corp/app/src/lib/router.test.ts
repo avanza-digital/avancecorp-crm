@@ -3,6 +3,7 @@ import {
   escribirHash,
   esVistaGerencia,
   esVistaConfiguracion,
+  esVistaInterna,
   esVistaLeads,
   hashDe,
   leerHash,
@@ -31,6 +32,8 @@ describe('router por hash', () => {
     ['#/config-productos', 'config-productos'],
     ['#/config-metas', 'config-metas'],
     ['#/config-sla', 'config-sla'],
+    ['#/rescate', 'rescate'],
+    ['#/rescate-carpeta', 'rescate-carpeta'],
   ] as const)('acepta variantes compatibles de %s', (hash, vista) => {
     window.location.hash = hash
     expect(leerHash()).toEqual({ vista, leadId: null })
@@ -77,6 +80,14 @@ describe('router por hash', () => {
     expect(VISTAS).toContain('repartir')
     expect(esVistaLeads('repartir')).toBe(false)
     expect(hashDe('repartir')).toBe('#/repartir')
+  })
+
+  it('registra Base para gestión y mantiene su carpeta como ruta interna', () => {
+    expect(esVistaLeads('rescate')).toBe(true)
+    expect(esVistaLeads('rescate-carpeta')).toBe(true)
+    expect(esVistaInterna('rescate')).toBe(false)
+    expect(esVistaInterna('rescate-carpeta')).toBe(true)
+    expect(hashDe('rescate-carpeta')).toBe('#/rescate-carpeta')
   })
 
   it('registra los cuatro módulos como rutas internas de Configuración', () => {

@@ -30,6 +30,8 @@ const ETIQUETA_VISTA: Record<Vista, string> = {
   agenda: 'Agenda',
   'mi-cartera': 'Mi cartera',
   repartir: 'Repartir leads',
+  rescate: 'Base para gestión',
+  'rescate-carpeta': 'Carpeta de rescate',
   equipo: 'Equipo',
   config: 'Configuración',
   'config-usuarios': 'Usuarios y jerarquía',

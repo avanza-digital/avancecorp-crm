@@ -22,6 +22,8 @@ export const VISTAS = [
   'agenda',
   'mi-cartera',
   'repartir',
+  'rescate',
+  'rescate-carpeta',
   'equipo',
   'config',
   'config-usuarios',
@@ -44,6 +46,14 @@ export function esVistaConfiguracion(vista: Vista): vista is VistaConfiguracion 
   return (VISTAS_CONFIGURACION as readonly Vista[]).includes(vista)
 }
 
+/** Rutas operativas secundarias que no deben duplicarse en el menú lateral. */
+export const VISTAS_INTERNAS = ['rescate-carpeta'] as const satisfies readonly Vista[]
+export type VistaInterna = (typeof VISTAS_INTERNAS)[number]
+
+export function esVistaInterna(vista: Vista): vista is VistaInterna {
+  return (VISTAS_INTERNAS as readonly Vista[]).includes(vista)
+}
+
 /** Vistas de inteligencia exclusivas de Gerencia; no son operación de leads. */
 export const VISTAS_GERENCIA = [
   'conversiones',
@@ -62,7 +72,14 @@ export function esVistaGerencia(vista: Vista): boolean {
  * mientras Miguel no las apruebe, no aparecen en NAV ni son alcanzables por URL
  * para cuentas reales (el demo sí las muestra). Fuente única para sidebar y App.
  */
-export const VISTAS_LEADS = ['hoy', 'pipeline', 'cartera', 'agenda'] as const satisfies readonly Vista[]
+export const VISTAS_LEADS = [
+  'hoy',
+  'pipeline',
+  'cartera',
+  'agenda',
+  'rescate',
+  'rescate-carpeta',
+] as const satisfies readonly Vista[]
 
 export function esVistaLeads(vista: Vista): boolean {
   return (VISTAS_LEADS as readonly Vista[]).includes(vista)
