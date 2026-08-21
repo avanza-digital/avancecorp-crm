@@ -66,6 +66,12 @@ async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init
   })
   await loginReal(page)
   await expect(page.getByRole('heading', { name: 'Repartir leads' })).toBeVisible()
+  // La pantalla abre legítimamente en el dashboard de Distribución. Estos
+  // escenarios ejercitan la cola, así que seleccionan su pestaña de forma
+  // explícita en vez de depender del tab inicial de la interfaz.
+  const tabCola = page.getByRole('tab', { name: 'Cola de nuevos' })
+  await tabCola.click()
+  await expect(tabCola).toHaveAttribute('aria-selected', 'true')
   return backend
 }
 
@@ -377,7 +383,7 @@ test('el toggle "Posible crédito" deja solo los marcados por el clasificador', 
   await expect(page.locator('[data-lead-id]').first()).toHaveAttribute('data-lead-id', 'lead-credito')
 })
 
-test('la cola pagina de a 20 con "Mostrar 20 más" (adiós scroll infinito)', async ({ page }) => {
+test('la cola pagina de a 20 sin acumular filas (adiós scroll infinito)', async ({ page }) => {
   const colaLarga = Array.from({ length: 25 }, (_, i) => ({
     id: `lead-lote-${i}`,
     nombre_completo: `LEAD LOTE ${i}`,
@@ -393,11 +399,12 @@ test('la cola pagina de a 20 con "Mostrar 20 más" (adiós scroll infinito)', as
   await entrarComoCoordinador(page, { colaReparto: colaLarga })
 
   await expect(page.locator('[data-lead-id]')).toHaveCount(20)
-  await expect(page.getByText('Mostrando 20 de 25')).toBeVisible()
+  const paginacion = page.getByRole('navigation', { name: 'Paginación de la cola de leads' })
+  await expect(paginacion).toContainText('Página 1 de 2 · 25 registros')
 
-  await page.getByRole('button', { name: 'Mostrar 20 más' }).click()
-  await expect(page.locator('[data-lead-id]')).toHaveCount(25)
-  await expect(page.getByText('Fin de la cola · 25 leads')).toBeVisible()
+  await paginacion.getByRole('button', { name: 'Siguiente' }).click()
+  await expect(page.locator('[data-lead-id]')).toHaveCount(5)
+  await expect(paginacion).toContainText('Página 2 de 2 · 25 registros')
 })
 
 test('un comentario largo se expande con "Ver todo" y se vuelve a plegar', async ({ page }) => {

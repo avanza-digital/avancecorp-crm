@@ -1875,7 +1875,9 @@ export async function montarBackendReal(
           storage_bucket: 'contratos-generados',
           storage_path: `${nuevo.id}/v2/${jobId}/contrato.pdf`,
           nombre_archivo: `Contrato-${numero}.pdf`,
-          template_version: 'contrato-aep-17-v2',
+          // La frontera del frontend admite las reservas contractuales
+          // desplegadas (v3-v5); producción emite actualmente v5.
+          template_version: 'contrato-aep-17-v5',
           intentos: 0,
           lease_expira_en: null,
           reintentable: true,
@@ -1888,7 +1890,11 @@ export async function montarBackendReal(
     }
 
     // ── RPC CRM de corrección: preserva la coherencia de la cuenta fijada ──
-    if (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto' && method === 'POST') {
+    if (
+      (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto'
+        || p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3')
+      && method === 'POST'
+    ) {
       estado.llamadas.rpcActualizarContrato += 1
       if (estado.ventanaVencida) {
         // A diferencia del PATCH a perfiles, la RPC SÍ es ruidosa: RAISE → P0001.
@@ -1907,8 +1913,10 @@ export async function montarBackendReal(
         Record<string, unknown> & { titulares?: unknown[] }
       const pId = String(body.p_id ?? '')
       const contratoActual = estado.contratos.find((contrato) => contrato.id === pId)
+      const condicionId = body.p_producto_condicion_id
+        ?? contratoActual?.producto_condicion_id
       const condicion = estado.productosSeleccionables.find(
-        (fila) => fila.condicion_id === body.p_producto_condicion_id,
+        (fila) => fila.condicion_id === condicionId,
       )
       if (!contratoActual || !condicion) {
         return json(route, { code: 'P0001', message: 'Contrato o producto inválido' }, 400)
