@@ -2363,6 +2363,41 @@ export type Database = {
           origen: string
         }[]
       }
+      rescate_descartes_mes: {
+        Args: { p_mes: string }
+        Returns: {
+          asesor_id: string
+          asesor_nombre: string
+          categoria_interes: string | null
+          descartado_en: string
+          distrito: string | null
+          episodio_id: string
+          estado: string
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          motivo_descarte: string
+          nombre_completo: string
+          origen: string
+          puede_rescatar: boolean
+        }[]
+      }
+      rescate_descartes_meses: {
+        Args: never
+        Returns: {
+          mes: string
+          pendientes: number
+          total: number
+        }[]
+      }
+      rescatar_descartes: {
+        Args: {
+          p_analistas_destino: string[]
+          p_episodios: string[]
+          p_evitar_asesor_origen?: boolean
+        }
+        Returns: Json
+      }
       historial_derivaciones: {
         Args: {
           p_actividad_antes?: string
