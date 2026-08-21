@@ -81,9 +81,17 @@ sin confundir ese hecho con la nueva gestión.
   ejecución; `authenticated` con ejecución. Las RPC mantienen
   `security definer` y `search_path` vacío.
 - El frontend publicado es
-  `crm-20260821T002429Z-2ed459dbc42b`, ZIP SHA-256
-  `03f300f37679f77d1ce221c130697dcecec610bf9ed16c6c488584cc9d112836`.
+  `crm-20260821T004017Z-7233200dc115`, ZIP SHA-256
+  `38f05b0816cd1168b254635143956410550814185c0d006a424274d951c87d7d`.
   `index.html`, el bundle principal y el chunk de Base para gestión se
   comprobaron en `crm.miavance.com` con HTTP 200 e igualdad byte a byte.
+- El primer paquete `crm-20260821T002429Z-2ed459dbc42b` se construyó desde un
+  worktree aislado sin el `.env` ignorado por Git. El login falló cerrado con
+  «El acceso con cuenta aún no está disponible aquí»; no se afectaron cuentas
+  ni datos. Se reemplazó por el release anterior, se comprobó Supabase Auth con
+  HTTP 200 y un navegador real confirmó `Entrar` habilitado y el aviso ausente.
+  `scripts/crear-artefacto-release.mjs` ahora rechaza antes de empaquetar tanto
+  una configuración ausente como un bundle que no contenga los valores públicos
+  de producción.
 - Validación previa: `npm run check`, 2.104 pruebas unitarias y 104 pruebas E2E
   aprobadas; 26 E2E omitidas por diseño y cero fallos.
