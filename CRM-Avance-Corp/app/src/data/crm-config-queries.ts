@@ -10,7 +10,6 @@ import {
   crearCandidatoUsuario,
   crearProductoInversion,
   crearVersionProducto,
-  enviarRecuperacionUsuario,
   fijarMembresiaUsuario,
   listarProductosSeleccionables,
   listarCatalogoUsuariosAdministrables,
@@ -207,11 +206,6 @@ export function useFijarMembresiaUsuario() {
   const { demo } = useFuenteConfiguracion()
   const invalidar = useInvalidarUsuarios()
   return useMutation({ mutationFn: mutacionSoloReal(demo, fijarMembresiaUsuario), onSuccess: invalidar })
-}
-
-export function useEnviarRecuperacionUsuario() {
-  const { demo } = useFuenteConfiguracion()
-  return useMutation({ mutationFn: mutacionSoloReal(demo, enviarRecuperacionUsuario) })
 }
 
 export function useCrearProductoInversion() {

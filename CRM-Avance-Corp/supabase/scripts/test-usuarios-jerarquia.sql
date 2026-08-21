@@ -38,11 +38,18 @@ create function private.test_esperar_sqlstate(
 )
 returns void language plpgsql security invoker set search_path = ''
 as $$
+declare
+  v_fallo boolean := false;
 begin
-  execute p_sql;
-  raise exception using message = p_mensaje;
-exception when others then
-  if sqlstate <> p_estado then raise; end if;
+  begin
+    execute p_sql;
+  exception when others then
+    if sqlstate <> p_estado then raise; end if;
+    v_fallo := true;
+  end;
+  if not v_fallo then
+    raise exception using message = p_mensaje;
+  end if;
 end;
 $$;
 
@@ -51,7 +58,8 @@ revoke all on function private.test_esperar_sqlstate(text, text, text) from publ
 
 create table auth.users (
   id uuid primary key,
-  email text unique
+  email text unique,
+  raw_app_meta_data jsonb not null default '{}'::jsonb
 );
 
 create table public.perfiles (
@@ -297,7 +305,13 @@ insert into auth.users (id, email) values
   ('10000000-0000-4000-8000-000000000014','superadmin-vendedor@test.invalid'),
   ('10000000-0000-4000-8000-000000000015','superadmin-coordinador@test.invalid'),
   ('10000000-0000-4000-8000-000000000016','coordinador@test.invalid'),
-  ('10000000-0000-4000-8000-000000000017','superadmin-supervisor@test.invalid');
+  ('10000000-0000-4000-8000-000000000017','superadmin-supervisor@test.invalid'),
+  ('10000000-0000-4000-8000-000000000018','analista-pendiente@test.invalid');
+
+insert into auth.users (id, email, raw_app_meta_data) values
+  ('10000000-0000-4000-8000-000000000019','alta-directa@test.invalid','{"origen_app":"crm"}'::jsonb),
+  ('10000000-0000-4000-8000-000000000020','supervisor-invalido@test.invalid','{"origen_app":"crm"}'::jsonb),
+  ('10000000-0000-4000-8000-000000000021','alan-pendiente@test.invalid','{"origen_app":"crm"}'::jsonb);
 
 insert into public.perfiles (
   id, nombre_completo, dni, correo, rol, activo, telefono, banco, numero_cuenta
@@ -317,7 +331,15 @@ insert into public.perfiles (
   ('10000000-0000-4000-8000-000000000014','Superadmin Vendedor','10000014','superadmin-vendedor@test.invalid','superadmin',true,'+51900000014','SECRETO','1414'),
   ('10000000-0000-4000-8000-000000000015','Superadmin Coordinador','10000015','superadmin-coordinador@test.invalid','superadmin',true,'+51900000015','SECRETO','1515'),
   ('10000000-0000-4000-8000-000000000016','Coordinador','10000016','coordinador@test.invalid','comercial',true,'+51900000016','SECRETO','1616'),
-  ('10000000-0000-4000-8000-000000000017','Superadmin Supervisor','10000017','superadmin-supervisor@test.invalid','superadmin',true,'+51900000017','SECRETO','1717');
+  ('10000000-0000-4000-8000-000000000017','Superadmin Supervisor','10000017','superadmin-supervisor@test.invalid','superadmin',true,'+51900000017','SECRETO','1717'),
+  ('10000000-0000-4000-8000-000000000018','Analista Portal Pendiente','10000018','analista-pendiente@test.invalid','analista',true,'+51900000018','SECRETO','1818');
+
+insert into public.perfiles (
+  id, nombre_completo, tipo_documento, dni, correo, rol, activo, telefono
+) values (
+  '10000000-0000-4000-8000-000000000021','Alan Pendiente','CE','001237707',
+  'alan-pendiente@test.invalid','comercial',true,'+51900000021'
+);
 
 update public.perfiles set asesor_perfil_id =
   '10000000-0000-4000-8000-000000000006'
@@ -350,6 +372,10 @@ insert into crm.agenda_ics (perfil_id, token) values
   ('10000000-0000-4000-8000-000000000015','50000000-0000-4000-8000-000000000003');
 
 \ir ../migrations/20260807203740_crm_usuarios_jerarquia_autoservicio.sql
+\ir ../migrations/20260821212628_crm_admision_analista_portal_como_candidato.sql
+\ir ../migrations/20260821214502_crm_corregir_validacion_correo_candidato.sql
+\ir ../migrations/20260821223019_crm_eliminar_recuperacion_credenciales.sql
+\ir ../migrations/20260821233241_crm_alta_vendedor_completa_gerencia.sql
 
 -- Estructura/ACL: Directorio entra al dominio, eventos quedan cerrados y no
 -- reaparece escritura directa sobre crm.equipo.
@@ -371,6 +397,30 @@ begin
     has_table_privilege('authenticated','crm.usuario_eventos','SELECT')
       or has_table_privilege('authenticated','crm.usuario_eventos','INSERT'),
     'authenticated obtuvo acceso directo al audit de usuarios'
+  );
+  perform private.test_fallar_si(
+    pg_catalog.to_regprocedure(
+      'crm.preparar_recuperacion_usuario_fn(uuid,uuid)'
+    ) is not null,
+    'La RPC retirada de recuperacion sigue disponible'
+  );
+  perform private.test_fallar_si(
+    not has_function_privilege(
+      'authenticated',
+      'crm.registrar_vendedor_usuario_fn(uuid,text,text,text,text,text,text,text,uuid,uuid)',
+      'EXECUTE'
+    )
+      or has_function_privilege(
+        'anon',
+        'crm.registrar_vendedor_usuario_fn(uuid,text,text,text,text,text,text,text,uuid,uuid)',
+        'EXECUTE'
+      )
+      or has_function_privilege(
+        'service_role',
+        'crm.registrar_vendedor_usuario_fn(uuid,text,text,text,text,text,text,text,uuid,uuid)',
+        'EXECUTE'
+      ),
+    'La ACL del alta atomica de Vendedor no es la esperada'
   );
   perform private.test_fallar_si(
     has_function_privilege(
@@ -985,35 +1035,6 @@ select private.test_esperar_sqlstate(
   'P0001','Gerencia activo un perfil suspendido en Portal'
 );
 
--- Recuperacion: solo Gerencia, respuesta exacta y rate limit por objetivo.
-do $$
-declare v jsonb; v_retry jsonb;
-begin
-  v := crm.preparar_recuperacion_usuario_fn(
-    '10000000-0000-4000-8000-000000000009',
-    'a0000000-0000-4000-8000-000000000017'
-  );
-  perform private.test_fallar_si(
-    v->>'correo' <> 'nuevo@test.invalid',
-    'Preparacion de recovery no resolvio el correo exacto'
-  );
-  v_retry := crm.preparar_recuperacion_usuario_fn(
-    '10000000-0000-4000-8000-000000000009',
-    'a0000000-0000-4000-8000-000000000017'
-  );
-  perform private.test_fallar_si(
-    (v_retry->>'idempotente')::boolean is not true,
-    'El retry de recovery no fue idempotente'
-  );
-end;
-$$;
-select private.test_esperar_sqlstate(
-  $$select crm.preparar_recuperacion_usuario_fn(
-    '10000000-0000-4000-8000-000000000009',
-    'a0000000-0000-4000-8000-000000000018')$$,
-  'P0001','El rate limit de recovery no se aplico'
-);
-
 -- Superadmin no puede cambiar a Directorio mientras queden hijos activos.
 reset role;
 set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000002';
@@ -1031,13 +1052,6 @@ select crm.asignar_rol_usuario_fn(
   '10000000-0000-4000-8000-000000000010','directorio',null,
   'a0000000-0000-4000-8000-000000000020'
 );
-select private.test_esperar_sqlstate(
-  $$select crm.preparar_recuperacion_usuario_fn(
-    '10000000-0000-4000-8000-000000000009',
-    'a0000000-0000-4000-8000-000000000021')$$,
-  '42501','Superadmin pudo preparar recovery'
-);
-
 reset role;
 set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
 set role authenticated;
@@ -1155,12 +1169,6 @@ select private.test_esperar_sqlstate(
   '42501','Directorio pudo cambiar membresia'
 );
 select private.test_esperar_sqlstate(
-  $$select crm.preparar_recuperacion_usuario_fn(
-    '10000000-0000-4000-8000-000000000007',
-    'b0000000-0000-4000-8000-000000000006')$$,
-  '42501','Directorio pudo preparar recovery'
-);
-select private.test_esperar_sqlstate(
   $$update crm.equipo set activo=false
     where perfil_id='10000000-0000-4000-8000-000000000007'$$,
   '42501','Directorio obtuvo UPDATE directo sobre equipo'
@@ -1241,12 +1249,160 @@ select private.test_esperar_sqlstate(
     'b0000000-0000-4000-8000-000000000007')$$,
   '42501','Directorio Portal pudo cambiar roles'
 );
+-- Un Analista ya creado por el Portal reutiliza su identidad Auth en CRM. La
+-- secuencia preserva las tres autoridades: Gerencia prepara/organiza,
+-- Superadmin asigna el rol y Gerencia activa la membresia.
+reset role;
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+set role authenticated;
+
+do $$
+declare
+  v_candidato uuid;
+  v_fila record;
+begin
+  v_candidato := crm.buscar_candidato_por_correo_fn(
+    'analista-pendiente@test.invalid'
+  );
+  perform private.test_fallar_si(
+    v_candidato is distinct from '10000000-0000-4000-8000-000000000018'::uuid,
+    'Gerencia no encontro al Analista Portal existente como candidato CRM'
+  );
+
+  select * into v_fila
+  from crm.usuarios_administrables_fn('Analista Portal Pendiente',50,0)
+  where perfil_id='10000000-0000-4000-8000-000000000018';
+  perform private.test_fallar_si(
+    v_fila.perfil_id is distinct from '10000000-0000-4000-8000-000000000018'::uuid
+      or v_fila.tipo_cuenta <> 'compartida_portal'
+      or v_fila.estado <> 'pendiente_rol'
+      or v_fila.rol_crm is not null
+      or v_fila.correo <> 'analista-pendiente@test.invalid'
+      or v_fila.documento <> '10000018'
+      or v_fila.version_perfil is null,
+    'El Analista Portal pendiente no tuvo la proyeccion CRM esperada'
+  );
+end;
+$$;
+
 select private.test_esperar_sqlstate(
-  $$select crm.preparar_recuperacion_usuario_fn(
-    '10000000-0000-4000-8000-000000000007',
-    'b0000000-0000-4000-8000-000000000008')$$,
-  '42501','Directorio Portal pudo preparar recovery'
+  $$select crm.buscar_candidato_por_correo_fn('correo-sin-dominio')$$,
+  'P0001','El buscador acepto un correo invalido'
 );
+
+select crm.actualizar_usuario_administrable_fn(
+  '10000000-0000-4000-8000-000000000018',
+  'Analista Portal Pendiente Actualizado','DNI','10000018',
+  '+51900000018','+51900000018','Asesora Portal',
+  (select actualizado_en from public.perfiles
+   where id='10000000-0000-4000-8000-000000000018'),
+  'c0000000-0000-4000-8000-000000000001'
+);
+
+do $$
+declare
+  v jsonb;
+begin
+  v := crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000018',
+    'analista-pendiente@test.invalid',
+    'Analista Portal Pendiente Actualizado','DNI','10000018',
+    '+51900000018','+51900000018','Asesora Portal',
+    '10000000-0000-4000-8000-000000000005',
+    'c0000000-0000-4000-8000-000000000006'
+  );
+  perform private.test_fallar_si(
+    v->>'estado' <> 'candidato_existente'
+      or exists (
+        select 1 from crm.equipo
+        where perfil_id='10000000-0000-4000-8000-000000000018'
+      ),
+    'El alta directa modifico una identidad pendiente compartida con el Portal'
+  );
+end;
+$$;
+
+reset role;
+do $$
+begin
+  perform private.test_fallar_si(
+    not exists (
+      select 1 from public.perfiles p
+      where p.id='10000000-0000-4000-8000-000000000018'
+        and p.rol='analista'
+        and p.nombre_completo='Analista Portal Pendiente Actualizado'
+        and p.cargo='Asesora Portal'
+    ) or exists (
+      select 1 from crm.equipo e
+      where e.perfil_id='10000000-0000-4000-8000-000000000018'
+    ) or exists (
+      select 1 from crm.usuario_eventos ue
+      where ue.actor_id='10000000-0000-4000-8000-000000000001'
+        and ue.idempotencia='c0000000-0000-4000-8000-000000000006'
+    ),
+    'La edicion CRM cambio el rol Portal o creo membresia antes de tiempo'
+  );
+end;
+$$;
+
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000002';
+set role authenticated;
+select private.test_esperar_sqlstate(
+  $$select crm.asignar_rol_usuario_fn(
+    '10000000-0000-4000-8000-000000000008','vendedor',null,
+    'c0000000-0000-4000-8000-000000000002')$$,
+  'P0001','Superadmin admitio a un Cliente Portal como candidato CRM'
+);
+select crm.asignar_rol_usuario_fn(
+  '10000000-0000-4000-8000-000000000018','vendedor',null,
+  'c0000000-0000-4000-8000-000000000003'
+);
+
+reset role;
+do $$
+begin
+  perform private.test_fallar_si(
+    not exists (
+      select 1 from crm.equipo e
+      where e.perfil_id='10000000-0000-4000-8000-000000000018'
+        and e.rol_crm='vendedor' and e.activo=false and e.supervisor_id is null
+    ),
+    'Superadmin no asigno al Analista Portal una membresia CRM neutra'
+  );
+end;
+$$;
+
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+set role authenticated;
+select crm.actualizar_jerarquia_usuario_fn(
+  '10000000-0000-4000-8000-000000000018',
+  '10000000-0000-4000-8000-000000000005',
+  (select actualizado_en from crm.equipo
+   where perfil_id='10000000-0000-4000-8000-000000000018'),
+  'c0000000-0000-4000-8000-000000000004'
+);
+select crm.fijar_membresia_activa_fn(
+  '10000000-0000-4000-8000-000000000018',true,null,
+  (select actualizado_en from crm.equipo
+   where perfil_id='10000000-0000-4000-8000-000000000018'),
+  'c0000000-0000-4000-8000-000000000005'
+);
+
+reset role;
+do $$
+begin
+  perform private.test_fallar_si(
+    not exists (
+      select 1 from crm.equipo e
+      where e.perfil_id='10000000-0000-4000-8000-000000000018'
+        and e.rol_crm='vendedor'
+        and e.supervisor_id='10000000-0000-4000-8000-000000000005'
+        and e.activo
+    ),
+    'El flujo Analista Portal a Vendedor CRM no termino activo y jerarquizado'
+  );
+end;
+$$;
 
 reset role;
 set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000012';
@@ -1266,6 +1422,182 @@ begin
       or not (v->>'puede_organizar_jerarquia')::boolean
       or not (v->>'puede_administrar_roles')::boolean,
     'La identidad que es Gerencia y Superadmin no sumo capacidades'
+  );
+end;
+$$;
+
+-- Gerencia puede completar de una vez SOLO un Vendedor exclusivo del CRM.
+-- El rol no viaja como parametro y el Supervisor activo es obligatorio.
+reset role;
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+set role authenticated;
+
+-- Caso real de Alan: Auth y perfil exclusivo CRM ya existen, pero todavia no
+-- hay fila en crm.equipo. Una discrepancia documental aborta; el documento
+-- exacto completa rol, Supervisor y activacion sin recrear la identidad.
+select private.test_esperar_sqlstate(
+  $$select crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000021',
+    'alan-pendiente@test.invalid','Alan Pendiente','CE','009999999',
+    '+51900000021',null,null,
+    '10000000-0000-4000-8000-000000000005',
+    'd0000000-0000-4000-8000-000000000004')$$,
+  'P0001','El alta pendiente acepto un documento distinto al de Auth/perfil'
+);
+
+do $$
+declare v jsonb;
+begin
+  perform private.test_fallar_si(
+    exists (
+      select 1 from crm.equipo
+      where perfil_id='10000000-0000-4000-8000-000000000021'
+    ),
+    'El documento divergente dejo una membresia parcial'
+  );
+  v := crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000021',
+    'alan-pendiente@test.invalid','Alan Pendiente','CE','001237707',
+    '+51900000021',null,null,
+    '10000000-0000-4000-8000-000000000005',
+    'd0000000-0000-4000-8000-000000000005'
+  );
+  perform private.test_fallar_si(
+    v->>'estado' <> 'activo'
+      or v->>'rol_crm' <> 'vendedor'
+      or v->>'supervisor_id' <> '10000000-0000-4000-8000-000000000005'
+      or not (v->>'activo_crm')::boolean,
+    'El caso Alan no termino activo y jerarquizado'
+  );
+end;
+$$;
+
+do $$
+declare v jsonb;
+begin
+  v := crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000019',
+    'alta-directa@test.invalid','Alta Directa','DNI','10000019',
+    null,null,'Vendedora',
+    '10000000-0000-4000-8000-000000000005',
+    'd0000000-0000-4000-8000-000000000001'
+  );
+  perform private.test_fallar_si(
+    v->>'estado' <> 'activo'
+      or v->>'rol_crm' <> 'vendedor'
+      or (v->>'activo_crm')::boolean is not true
+      or v->>'supervisor_id' <> '10000000-0000-4000-8000-000000000005',
+    'El alta directa no devolvio un Vendedor activo y jerarquizado'
+  );
+
+  v := crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000019',
+    'alta-directa@test.invalid','Alta Directa','DNI','10000019',
+    null,null,'Vendedora',
+    '10000000-0000-4000-8000-000000000005',
+    'd0000000-0000-4000-8000-000000000001'
+  );
+  perform private.test_fallar_si(
+    (v->>'idempotente')::boolean is not true,
+    'El retry del alta directa no fue idempotente'
+  );
+end;
+$$;
+
+reset role;
+do $$
+begin
+  perform private.test_fallar_si(
+    not exists (
+      select 1 from public.perfiles p
+      join crm.equipo e on e.perfil_id=p.id
+      where p.id='10000000-0000-4000-8000-000000000019'
+        and p.rol='comercial' and p.activo
+        and e.rol_crm='vendedor' and e.activo
+        and e.supervisor_id='10000000-0000-4000-8000-000000000005'
+    ) or (select count(*) from crm.usuario_eventos
+          where objetivo_id='10000000-0000-4000-8000-000000000019') <> 4
+      or (select count(distinct accion) from crm.usuario_eventos
+          where objetivo_id='10000000-0000-4000-8000-000000000019') <> 4,
+    'El alta directa no persistio perfil y membresia correctos'
+  );
+  perform private.test_fallar_si(
+    (select count(*) from crm.usuario_eventos
+     where objetivo_id='10000000-0000-4000-8000-000000000021') <> 3,
+    'El caso Alan no produjo la auditoria esperada'
+  );
+  perform private.test_fallar_si(
+    exists (
+      select 1 from crm.usuario_eventos ue
+      where ue.objetivo_id='10000000-0000-4000-8000-000000000019'
+        and lower(ue.detalle::text) ~
+          '(alta-directa@test|10000019|password|contrase|token|secret|clave)'
+    ),
+    'La auditoria del alta directa contiene PII o secretos'
+  );
+end;
+$$;
+
+update public.perfiles set activo=false
+where id='10000000-0000-4000-8000-000000000019';
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+set role authenticated;
+select private.test_esperar_sqlstate(
+  $$select crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000019',
+    'alta-directa@test.invalid','Alta Directa','DNI','10000019',
+    null,null,'Vendedora','10000000-0000-4000-8000-000000000005',
+    'd0000000-0000-4000-8000-000000000001')$$,
+  'P0001','El retry devolvio activo para un perfil ya suspendido'
+);
+reset role;
+update public.perfiles set activo=true
+where id='10000000-0000-4000-8000-000000000019';
+
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000019';
+set role authenticated;
+do $$
+declare v jsonb;
+begin
+  v := crm.mi_acceso_fn();
+  perform private.test_fallar_si(
+    v->>'estado' <> 'miembro' or v->>'rol_crm' <> 'vendedor',
+    'El Vendedor de alta directa no obtuvo acceso CRM'
+  );
+end;
+$$;
+
+reset role;
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000002';
+set role authenticated;
+select private.test_esperar_sqlstate(
+  $$select crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000019',
+    'alta-directa@test.invalid','Alta Directa','DNI','10000019',
+    null,null,'Vendedora','10000000-0000-4000-8000-000000000005',
+    'd0000000-0000-4000-8000-000000000002')$$,
+  '42501','Superadmin sin Gerencia pudo usar el alta directa'
+);
+
+reset role;
+set request.jwt.claim.sub = '10000000-0000-4000-8000-000000000001';
+set role authenticated;
+select private.test_esperar_sqlstate(
+  $$select crm.registrar_vendedor_usuario_fn(
+    '10000000-0000-4000-8000-000000000020',
+    'supervisor-invalido@test.invalid','Supervisor Invalido','DNI','10000020',
+    null,null,'Vendedora','10000000-0000-4000-8000-000000000001',
+    'd0000000-0000-4000-8000-000000000003')$$,
+  'P0001','Gerencia fue aceptada como Supervisor de un Vendedor'
+);
+
+reset role;
+do $$
+begin
+  perform private.test_fallar_si(
+    exists (select 1 from public.perfiles where id='10000000-0000-4000-8000-000000000020')
+      or exists (select 1 from crm.equipo where perfil_id='10000000-0000-4000-8000-000000000020'),
+    'El alta invalida dejo estado parcial'
   );
 end;
 $$;

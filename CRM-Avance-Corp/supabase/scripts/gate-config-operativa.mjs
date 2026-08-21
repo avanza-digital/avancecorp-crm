@@ -17,7 +17,7 @@ Uso:
   CRM_CONFIG_GATE_TEMPLATE_DATABASE_URL='postgresql://postgres:postgres@127.0.0.1:5432/prod_schema_chain' npm run gate:config
 
 Modos:
-  --preflight  Valida contratos de los oráculos, espejo Edge y ejecuta 13 pruebas
+  --preflight  Valida contratos de los oráculos, espejo Edge y ejecuta 19 pruebas
                Deno puras. No abre PostgreSQL.
   --help       Muestra esta ayuda.
 
@@ -52,6 +52,10 @@ const MIGRATIONS = [
   'supabase/migrations/20260807203757_crm_metas_sla_versionados.sql',
   'supabase/migrations/20260807235933_crm_portal_catalogo_productos.sql',
   'supabase/migrations/20260808183527_crm_metas_contratos_libres_atribuidos.sql',
+  'supabase/migrations/20260821212628_crm_admision_analista_portal_como_candidato.sql',
+  'supabase/migrations/20260821214502_crm_corregir_validacion_correo_candidato.sql',
+  'supabase/migrations/20260821223019_crm_eliminar_recuperacion_credenciales.sql',
+  'supabase/migrations/20260821233241_crm_alta_vendedor_completa_gerencia.sql',
 ];
 
 const ORACLES = Object.freeze({
@@ -146,12 +150,13 @@ function runEdgeTests() {
   const output = run('Pruebas Edge puras', DENO, [
     'test',
     'supabase/functions/crm-usuarios/handler.test.ts',
+    'supabase/functions/crm-usuarios/auth-attributes.test.ts',
     'supabase/functions/crm-importar-leads/destinos.test.ts',
   ]);
-  if (!/13 passed/.test(output)) {
-    throw new Error('Deno terminó sin acreditar las 13 pruebas Edge esperadas');
+  if (!/20 passed/.test(output)) {
+    throw new Error('Deno terminó sin acreditar las 20 pruebas Edge esperadas');
   }
-  console.log('✓ EDGE_CONFIG_TESTS_OK (13/13)');
+  console.log('✓ EDGE_CONFIG_TESTS_OK (20/20)');
 }
 
 function parseTemplateUrl(raw) {

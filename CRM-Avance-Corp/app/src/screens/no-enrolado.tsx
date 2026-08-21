@@ -12,8 +12,8 @@ export function NoEnrolado() {
         </span>
         <h1 className="text-xl font-extrabold tracking-tight text-primary">Sin acceso al CRM</h1>
         <p className="text-sm text-muted-foreground">
-          Tu cuenta existe pero aún no está enrolada en el equipo comercial. Pide a gerencia que
-          te agregue al CRM (o, si la base del CRM todavía no se aplicó, es lo esperado por ahora).
+          Tu identidad fue validada, pero el alta operativa aún no está completa. Pide a Gerencia
+          que seleccione tu Supervisor y complete tu activación en el CRM.
         </p>
         <Button variant="outline" onClick={() => void salir()}>Volver al inicio de sesión</Button>
       </div>

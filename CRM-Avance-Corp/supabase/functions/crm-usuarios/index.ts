@@ -1,9 +1,11 @@
+// deno-lint-ignore no-import-prefix -- Edge Supabase fija la version JSR desplegada.
 import { createClient } from "jsr:@supabase/supabase-js@2.110.8";
 import {
   type ActorBackend,
   crearHandlerUsuarios,
   type RpcResult,
 } from "./handler.ts";
+import { atributosCreacionAuthCrm } from "./auth-attributes.ts";
 
 // Desplegar SIEMPRE con verify_jwt=true. Aun asi se valida getUser() dentro de
 // la funcion: defensa en profundidad y contrato verificable en tests.
@@ -14,8 +16,6 @@ const PUBLIC_KEY = Deno.env.get("SUPABASE_PUBLISHABLE_KEY") ??
 const SECRET_KEY = Deno.env.get("SUPABASE_SECRET_KEY") ??
   Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ??
   "";
-const REDIRECT_RECUPERACION = Deno.env.get("CRM_PASSWORD_RESET_REDIRECT_URL") ??
-  "https://miavance.com/reset-password.html";
 const ORIGENES_ADICIONALES = (Deno.env.get("CRM_ALLOWED_ORIGINS") ?? "")
   .split(",")
   .map((origen) => origen.trim())
@@ -76,16 +76,10 @@ const handler = crearHandlerUsuarios({
   crearActor,
   origenesAdicionales: ORIGENES_ADICIONALES,
 
-  async crearUsuarioAuth({ correo, nombreCompleto, passwordAleatoria }) {
-    const { data, error } = await authAdmin.auth.admin.createUser({
-      email: correo,
-      password: passwordAleatoria,
-      email_confirm: false,
-      user_metadata: {
-        nombre_completo: nombreCompleto,
-        origen: "crm",
-      },
-    });
+  async crearUsuarioAuth({ correo, nombreCompleto, documento }) {
+    const { data, error } = await authAdmin.auth.admin.createUser(
+      atributosCreacionAuthCrm({ correo, nombreCompleto, documento }),
+    );
     return {
       id: error ? null : data.user?.id ?? null,
       error: error ? "auth_create_failed" : null,
@@ -109,25 +103,6 @@ const handler = crearHandlerUsuarios({
       if (data.users.length < 100) return null;
     }
     return null;
-  },
-
-  async eliminarUsuarioAuth(id) {
-    // Compensacion best-effort solo para una identidad creada en ESTA llamada.
-    // La respuesta nunca incluye el error ni el identificador Auth interno.
-    await authAdmin.auth.admin.deleteUser(id);
-  },
-
-  async enviarRecuperacion(correo) {
-    const { error } = await authAdmin.auth.resetPasswordForEmail(correo, {
-      redirectTo: REDIRECT_RECUPERACION,
-    });
-    return { error: error ? "recovery_send_failed" : null };
-  },
-
-  passwordAleatoria() {
-    // Secreto efimero de 244 bits aproximados. Nunca sale de este isolate, no
-    // se registra y el usuario define su propia clave mediante recuperacion.
-    return `${crypto.randomUUID()}${crypto.randomUUID()}`;
   },
 });
 

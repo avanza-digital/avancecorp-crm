@@ -16,7 +16,6 @@ import {
   actualizarUsuarioAdministrable,
   asignarRolUsuario,
   crearCandidatoUsuario,
-  enviarRecuperacionUsuario,
   fijarMembresiaUsuario,
   listarCatalogoUsuariosAdministrables,
   listarEstadoSlaLeads,
@@ -459,20 +458,16 @@ describe('mutaciones de usuario: parámetros e idempotencia exactos', () => {
     })
   })
 
-  it('usa request_id en las dos acciones de la Edge y preserva nulls explícitos', async () => {
+  it('usa request_id en el alta Edge y preserva nulls explícitos', async () => {
     const cuerpos: unknown[] = []
     server.use(
       http.post(EDGE_USUARIOS, async ({ request }) => {
-        const cuerpo = (await request.json()) as { accion: string }
+        const cuerpo = await request.json()
         cuerpos.push(cuerpo)
-        if (cuerpo.accion === 'crear_candidato') {
-          return HttpResponse.json({
-            estado: 'pendiente_rol',
-            perfil_id: PERFIL_ID,
-            recuperacion_enviada: true,
-          })
-        }
-        return HttpResponse.json({ estado: 'recuperacion_enviada', perfil_id: PERFIL_ID })
+        return HttpResponse.json({
+          estado: 'activo',
+          perfil_id: PERFIL_ID,
+        })
       }),
     )
 
@@ -481,8 +476,8 @@ describe('mutaciones de usuario: parámetros e idempotencia exactos', () => {
       nombre_completo: 'USUARIO QA',
       tipo_documento: 'DNI',
       documento: '70000001',
+      supervisor_id: SUPERVISOR_ID,
     })
-    await enviarRecuperacionUsuario(PERFIL_ID)
 
     expect(cuerpos).toEqual([
       {
@@ -492,14 +487,10 @@ describe('mutaciones de usuario: parámetros e idempotencia exactos', () => {
         nombre_completo: 'USUARIO QA',
         tipo_documento: 'DNI',
         documento: '70000001',
+        supervisor_id: SUPERVISOR_ID,
         telefono: null,
         whatsapp: null,
         cargo: null,
-      },
-      {
-        accion: 'enviar_recuperacion',
-        request_id: IDEMPOTENCIA,
-        perfil_id: PERFIL_ID,
       },
     ])
   })

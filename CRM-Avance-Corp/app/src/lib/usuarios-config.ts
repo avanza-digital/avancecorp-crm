@@ -75,17 +75,11 @@ export const ResultadoRolUsuarioSchema = v.strictObject({
 
 export const ResultadoEdgeUsuariosSchema = v.variant('estado', [
   v.strictObject({
-    estado: v.literal('pendiente_rol'),
+    estado: v.literal('activo'),
     perfil_id: UuidSchema,
-    recuperacion_enviada: v.boolean(),
   }),
   v.strictObject({
     estado: v.literal('candidato_existente'),
-    perfil_id: UuidSchema,
-    recuperacion_enviada: v.boolean(),
-  }),
-  v.strictObject({
-    estado: v.literal('recuperacion_enviada'),
     perfil_id: UuidSchema,
   }),
 ])
@@ -94,11 +88,7 @@ export type ImpactoDesactivacionUsuario = v.InferOutput<typeof ImpactoDesactivac
 export type ResultadoEdgeUsuarios = v.InferOutput<typeof ResultadoEdgeUsuariosSchema>
 export type ResultadoAltaUsuario = Extract<
   ResultadoEdgeUsuarios,
-  { estado: 'pendiente_rol' | 'candidato_existente' }
->
-export type ResultadoRecuperacionUsuario = Extract<
-  ResultadoEdgeUsuarios,
-  { estado: 'recuperacion_enviada' }
+  { estado: 'activo' | 'candidato_existente' }
 >
 
 export interface CrearCandidatoUsuarioInput {
@@ -106,6 +96,7 @@ export interface CrearCandidatoUsuarioInput {
   nombre_completo: string
   tipo_documento: string
   documento: string
+  supervisor_id: string
   telefono?: string | undefined
   whatsapp?: string | undefined
   cargo?: string | undefined

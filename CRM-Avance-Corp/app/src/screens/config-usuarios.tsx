@@ -1,6 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react'
 import {
-  KeyRound,
   Pencil,
   Plus,
   RefreshCw,
@@ -32,7 +31,6 @@ import {
   useAsignarRolUsuario,
   useCatalogoUsuariosAdministrables,
   useCrearCandidatoUsuario,
-  useEnviarRecuperacionUsuario,
   useFijarMembresiaUsuario,
   useImpactoDesactivacionUsuario,
   useUsuariosAdministrables,
@@ -66,7 +64,7 @@ function identificadorAuditoria(perfilId: string): string {
 }
 
 const ESTADO_USUARIO = {
-  pendiente_rol: { label: 'Pendiente de rol', color: 'var(--warning)' },
+  pendiente_rol: { label: 'Alta pendiente', color: 'var(--warning)' },
   inactivo_crm: { label: 'Inactivo en CRM', color: 'var(--muted-foreground)' },
   activo: { label: 'Activo', color: 'var(--success)' },
   suspendido_portal: { label: 'Suspendido en Portal', color: 'var(--destructive)' },
@@ -94,11 +92,11 @@ const PERSONA_VACIA: FormularioPersona = {
 
 type Modal =
   | { tipo: 'crear' }
+  | { tipo: 'completar'; usuario: UsuarioAdministrable }
   | { tipo: 'editar'; usuario: UsuarioAdministrable }
   | { tipo: 'rol'; usuario: UsuarioAdministrable }
   | { tipo: 'jerarquia'; usuario: UsuarioAdministrable }
   | { tipo: 'membresia'; usuario: UsuarioAdministrable; impacto: ImpactoDesactivacionUsuario | null }
-  | { tipo: 'recuperacion'; usuario: UsuarioAdministrable }
   | null
 
 function formularioDe(usuario: UsuarioAdministrable): FormularioPersona {
@@ -161,14 +159,16 @@ function CamposPersona({
       </div>
       <div>
         <Label htmlFor="usuario-tipo-documento">Tipo de documento</Label>
-        <Select id="usuario-tipo-documento" value={valor.tipoDocumento} disabled={disabled} onChange={(e) => cambiar('tipoDocumento', e.target.value as TipoDocumento)} className="mt-1">
+        <Select id="usuario-tipo-documento" value={valor.tipoDocumento} disabled={disabled || !correoEditable} onChange={(e) => cambiar('tipoDocumento', e.target.value as TipoDocumento)} className="mt-1">
           {TIPOS_DOCUMENTO_K.map((tipo) => <option key={tipo} value={tipo}>{TIPOS_DOCUMENTO[tipo].etiqueta}</option>)}
         </Select>
       </div>
       <div>
         <Label htmlFor="usuario-documento">Documento</Label>
-        <Input id="usuario-documento" value={valor.documento} maxLength={12} inputMode={regla.inputmode} placeholder={regla.placeholder} disabled={disabled} onChange={(e) => cambiar('documento', regla.mayusculas ? e.target.value.toUpperCase() : e.target.value)} className="mt-1" />
+        <Input id="usuario-documento" value={valor.documento} maxLength={12} inputMode={regla.inputmode} placeholder={regla.placeholder} disabled={disabled || !correoEditable} onChange={(e) => cambiar('documento', regla.mayusculas ? e.target.value.toUpperCase() : e.target.value)} className="mt-1" />
         <p className="mt-1 text-[10px] text-muted-foreground">{regla.regla}</p>
+        {correoEditable && <p className="mt-1 text-[10px] font-semibold text-muted-foreground">En una identidad nueva exclusiva del CRM, este documento será la clave de acceso.</p>}
+        {!correoEditable && <p className="mt-1 text-[10px] text-muted-foreground">El documento pertenece a la identidad de acceso y no se cambia desde el CRM.</p>}
       </div>
       <div>
         <Label htmlFor="usuario-telefono">Teléfono</Label>
@@ -242,7 +242,6 @@ export function ConfigUsuarios() {
   const jerarquia = useActualizarJerarquiaUsuario()
   const impacto = useImpactoDesactivacionUsuario()
   const membresia = useFijarMembresiaUsuario()
-  const recuperacion = useEnviarRecuperacionUsuario()
   const [modal, setModal] = useState<Modal>(null)
   const [persona, setPersona] = useState<FormularioPersona>(PERSONA_VACIA)
   const [rol, setRol] = useState<Rol>('vendedor')
@@ -253,7 +252,12 @@ export function ConfigUsuarios() {
   const total = filas[0]?.total ?? (pagina === 0 ? filas.length : 0)
   const paginas = Math.max(1, Math.ceil(total / TAMANO_PAGINA))
   const ocupada = crear.isPending || editar.isPending || asignarRol.isPending
-    || jerarquia.isPending || membresia.isPending || recuperacion.isPending
+    || jerarquia.isPending || membresia.isPending
+
+  const supervisoresActivos = useMemo(() => (catalogo.data ?? []).filter((usuario) =>
+    usuario.activo_crm === true
+      && usuario.activo_portal
+      && usuario.rol_crm === 'supervisor'), [catalogo.data])
 
   const opcionesJerarquia = useMemo(() => {
     if (modal?.tipo !== 'jerarquia') return []
@@ -272,7 +276,12 @@ export function ConfigUsuarios() {
 
   const abrirCrear = () => {
     setPersona(PERSONA_VACIA)
+    setSupervisorId('')
     setModal({ tipo: 'crear' })
+  }
+  const abrirCompletar = (usuario: UsuarioAdministrable) => {
+    setSupervisorId('')
+    setModal({ tipo: 'completar', usuario })
   }
   const abrirEditar = (usuario: UsuarioAdministrable) => {
     setPersona(formularioDe(usuario))
@@ -319,6 +328,10 @@ export function ConfigUsuarios() {
     }
     const documento = validarDocumento(persona.tipoDocumento, persona.documento)
     if (!documento.ok) return
+    if (esAlta && !supervisoresActivos.some((usuario) => usuario.perfil_id === supervisorId)) {
+      toast.error('Selecciona el Supervisor activo del nuevo vendedor.')
+      return
+    }
     try {
       if (esAlta) {
         const resultado = await crear.mutateAsync({
@@ -326,15 +339,16 @@ export function ConfigUsuarios() {
           nombre_completo: persona.nombre.trim(),
           tipo_documento: persona.tipoDocumento,
           documento: documento.valor,
+          supervisor_id: supervisorId,
           telefono: persona.telefono.trim() || undefined,
           whatsapp: persona.whatsapp.trim() || undefined,
           cargo: persona.cargo.trim() || undefined,
         })
-        toast.success(resultado.estado === 'candidato_existente'
-          ? 'La identidad ya existía y quedó disponible en el directorio.'
-          : resultado.recuperacion_enviada
-            ? 'Usuario creado. Se envió el correo para definir su acceso.'
-            : 'Usuario creado pendiente de rol; el correo de acceso deberá reenviarse.')
+        if (resultado.estado === 'candidato_existente') {
+          toast.warning('Identidad del Portal detectada: no se cambió su acceso. Superadmin debe asignarle el rol CRM.')
+        } else {
+          toast.success('Vendedor CRM creado y activado. Ya puede ingresar con su documento.')
+        }
       } else {
         if (!modal.usuario.version_perfil) {
           toast.error('Recarga el directorio antes de editar este usuario.')
@@ -355,6 +369,40 @@ export function ConfigUsuarios() {
       setModal(null)
     } catch (fallo) {
       toast.error(mensajeDeError(fallo, esAlta ? 'No se pudo crear el usuario.' : 'No se pudo actualizar el usuario.'))
+    }
+  }
+
+  const guardarAltaPendiente = async () => {
+    if (modal?.tipo !== 'completar') return
+    if (!supervisoresActivos.some((usuario) => usuario.perfil_id === supervisorId)) {
+      toast.error('Selecciona el Supervisor activo del vendedor.')
+      return
+    }
+    const usuario = modal.usuario
+    if (!usuario.correo || !usuario.documento
+      || !TIPOS_DOCUMENTO_K.includes(usuario.tipo_documento as TipoDocumento)) {
+      toast.error('El candidato no tiene datos completos para finalizar el alta.')
+      return
+    }
+    try {
+      const resultado = await crear.mutateAsync({
+        correo: usuario.correo,
+        nombre_completo: usuario.nombre_completo,
+        tipo_documento: usuario.tipo_documento as TipoDocumento,
+        documento: usuario.documento,
+        supervisor_id: supervisorId,
+        telefono: usuario.telefono ?? undefined,
+        whatsapp: usuario.whatsapp ?? undefined,
+        cargo: usuario.cargo ?? undefined,
+      })
+      if (resultado.estado === 'activo') {
+        toast.success('Alta completada. El vendedor ya puede ingresar al CRM.')
+      } else {
+        toast.warning('No se cambió el acceso: la identidad pertenece a otro flujo. Recarga el directorio.')
+      }
+      setModal(null)
+    } catch (error) {
+      toast.error(mensajeDeError(error, 'No se pudo completar el alta del vendedor.'))
     }
   }
 
@@ -418,17 +466,6 @@ export function ConfigUsuarios() {
     }
   }
 
-  const enviarRecuperacion = async () => {
-    if (modal?.tipo !== 'recuperacion') return
-    try {
-      await recuperacion.mutateAsync(modal.usuario.perfil_id)
-      toast.success('Correo de recuperación enviado.')
-      setModal(null)
-    } catch (error) {
-      toast.error(mensajeDeError(error, 'No se pudo enviar la recuperación.'))
-    }
-  }
-
   const reemplazos = modal?.tipo === 'membresia'
     ? (catalogo.data ?? []).filter((usuario) =>
       usuario.perfil_id !== modal.usuario.perfil_id
@@ -444,7 +481,7 @@ export function ConfigUsuarios() {
     <ConfiguracionShell
       icono={Users}
       titulo="Usuarios y jerarquía"
-      descripcion="Gerencia administra personas, membresías y estructura. Superadmin asigna roles; Directorio audita una vista redactada."
+      descripcion="Gerencia crea Vendedores con Supervisor y acceso activo, y administra personas, membresías y estructura. Superadmin gobierna promociones y los demás roles; Directorio audita una vista redactada."
       soloLectura={!administraPersonas && !administraRoles}
       estado={{
         etiqueta: `${total} usuarios`,
@@ -508,10 +545,10 @@ export function ConfigUsuarios() {
                       <td className="px-4 py-3">
                         <div className="flex flex-wrap justify-end gap-1.5">
                           {administraPersonas && usuario.version_perfil && <Button size="xs" variant="outline" onClick={() => abrirEditar(usuario)}><Pencil aria-hidden /> Datos</Button>}
+                          {administraPersonas && usuario.estado === 'pendiente_rol' && usuario.tipo_cuenta === 'solo_crm' && <Button size="xs" aria-label={`Completar alta de ${usuario.nombre_completo}`} onClick={() => abrirCompletar(usuario)}><UserRoundCog aria-hidden /> Completar alta</Button>}
                           {administraRoles && <Button size="xs" variant="outline" onClick={() => abrirRol(usuario)}><Shield aria-hidden /> Rol</Button>}
                           {administraJerarquia && usuario.version_equipo && <Button size="xs" variant="outline" onClick={() => abrirJerarquia(usuario)}><UserRoundCog aria-hidden /> Jerarquía</Button>}
                           {administraPersonas && usuario.version_equipo && <Button size="xs" variant="outline" disabled={impacto.isPending} onClick={() => void abrirMembresia(usuario)}><ToggleLeft aria-hidden /> {usuario.activo_crm ? 'Desactivar' : 'Activar'}</Button>}
-                          {administraPersonas && <Button size="xs" variant="ghost" onClick={() => setModal({ tipo: 'recuperacion', usuario })}><KeyRound aria-hidden /> Acceso</Button>}
                           {auditaDirectorio && <span className="text-[10px] font-semibold text-muted-foreground">Solo lectura</span>}
                         </div>
                       </td>
@@ -531,10 +568,19 @@ export function ConfigUsuarios() {
         </Card>
       )}
 
-      <Dialog open={modal?.tipo === 'crear' || modal?.tipo === 'editar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'crear' ? 'Crear usuario CRM' : 'Editar usuario CRM'} className="w-[680px]">
-        <DialogHeader><DialogTitle>{modal?.tipo === 'crear' ? 'Nuevo usuario CRM' : 'Editar datos del usuario'}</DialogTitle><DialogDescription>{modal?.tipo === 'crear' ? 'La persona nace pendiente de rol. Superadmin asigna el rol y Gerencia completa su activación.' : 'Solo se modifican los datos operativos; el correo, rol y estado se gobiernan por sus flujos propios.'}</DialogDescription></DialogHeader>
-        <DialogBody><CamposPersona valor={persona} onChange={setPersona} correoEditable={modal?.tipo === 'crear'} disabled={ocupada} /></DialogBody>
-        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarPersona()} disabled={ocupada}>{ocupada ? 'Guardando…' : 'Guardar'}</Button></DialogFooter>
+      <Dialog open={modal?.tipo === 'crear' || modal?.tipo === 'editar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'crear' ? 'Nuevo vendedor CRM' : 'Editar usuario CRM'} className="w-[680px]">
+        <DialogHeader><DialogTitle>{modal?.tipo === 'crear' ? 'Nuevo vendedor CRM' : 'Editar datos del usuario'}</DialogTitle><DialogDescription>{modal?.tipo === 'crear' ? 'Selecciona su Supervisor. El vendedor quedará activo y podrá ingresar con su documento; no se enviará ningún correo.' : 'Solo se modifican nombre y datos operativos. Correo, documento, rol y acceso conservan sus flujos propios.'}</DialogDescription></DialogHeader>
+        <DialogBody className="space-y-4">
+          <CamposPersona valor={persona} onChange={setPersona} correoEditable={modal?.tipo === 'crear'} disabled={ocupada} />
+          {modal?.tipo === 'crear' && <div><Label htmlFor="supervisor-alta">Supervisor</Label><Select id="supervisor-alta" value={supervisorId} disabled={ocupada || catalogo.isPending || catalogo.isError} onChange={(e) => setSupervisorId(e.target.value)} className="mt-1"><option value="">Selecciona un Supervisor</option>{supervisoresActivos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select>{catalogo.isError ? <div className="mt-2 flex items-center gap-2" role="alert"><span className="text-xs font-semibold text-destructive">No se pudieron cargar los Supervisores.</span><Button type="button" size="xs" variant="outline" onClick={() => void catalogo.refetch()}>Reintentar supervisores</Button></div> : supervisoresActivos.length === 0 && !catalogo.isPending ? <p className="mt-2 text-xs font-semibold text-warning">No hay Supervisores activos disponibles.</p> : null}</div>}
+        </DialogBody>
+        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarPersona()} disabled={ocupada || (modal?.tipo === 'crear' && (catalogo.isPending || catalogo.isError || !supervisorId))}>{ocupada ? 'Guardando…' : modal?.tipo === 'crear' ? 'Crear y activar' : 'Guardar'}</Button></DialogFooter>
+      </Dialog>
+
+      <Dialog open={modal?.tipo === 'completar'} onClose={() => !ocupada && setModal(null)} ariaLabel={modal?.tipo === 'completar' ? `Completar alta de ${modal.usuario.nombre_completo}` : 'Completar alta de vendedor'}>
+        <DialogHeader><DialogTitle>Completar alta de {modal?.tipo === 'completar' ? modal.usuario.nombre_completo : ''}</DialogTitle><DialogDescription>Se asignará el rol fijo Vendedor, el Supervisor elegido y la membresía activa en una sola operación. La contraseña no cambia.</DialogDescription></DialogHeader>
+        <DialogBody><Label htmlFor="supervisor-completar">Supervisor</Label><Select id="supervisor-completar" value={supervisorId} disabled={ocupada || catalogo.isPending || catalogo.isError} onChange={(e) => setSupervisorId(e.target.value)} className="mt-1"><option value="">Selecciona un Supervisor</option>{supervisoresActivos.map((item) => <option key={item.perfil_id} value={item.perfil_id}>{item.nombre_completo}</option>)}</Select>{catalogo.isError ? <div className="mt-2 flex items-center gap-2" role="alert"><span className="text-xs font-semibold text-destructive">No se pudieron cargar los Supervisores.</span><Button type="button" size="xs" variant="outline" onClick={() => void catalogo.refetch()}>Reintentar supervisores</Button></div> : supervisoresActivos.length === 0 && !catalogo.isPending ? <p className="mt-2 text-xs font-semibold text-warning">No hay Supervisores activos disponibles.</p> : null}</DialogBody>
+        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void guardarAltaPendiente()} disabled={ocupada || catalogo.isPending || catalogo.isError || !supervisorId}>{ocupada ? 'Completando…' : 'Activar vendedor'}</Button></DialogFooter>
       </Dialog>
 
       <Dialog open={modal?.tipo === 'rol'} onClose={() => !ocupada && setModal(null)} ariaLabel="Asignar rol CRM">
@@ -570,11 +616,6 @@ export function ConfigUsuarios() {
         <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button variant={modal?.tipo === 'membresia' && modal.usuario.activo_crm ? 'destructive' : 'default'} onClick={() => void guardarMembresia()} disabled={ocupada || Boolean(bloqueoActivacion) || (modal?.tipo === 'membresia' && Boolean(modal.impacto?.requiere_reemplazo) && !reemplazoId)}>{ocupada ? 'Procesando…' : modal?.tipo === 'membresia' && modal.usuario.activo_crm ? 'Desactivar y transferir' : 'Activar membresía'}</Button></DialogFooter>
       </Dialog>
 
-      <Dialog open={modal?.tipo === 'recuperacion'} onClose={() => !ocupada && setModal(null)} ariaLabel="Enviar recuperación de acceso">
-        <DialogHeader><DialogTitle>Enviar recuperación de acceso</DialogTitle><DialogDescription>Se enviará un enlace al correo registrado de {modal?.tipo === 'recuperacion' ? modal.usuario.nombre_completo : 'la persona'}.</DialogDescription></DialogHeader>
-        <DialogBody><p className="text-sm text-muted-foreground">El CRM no genera, muestra ni almacena contraseñas. El usuario definirá una nueva mediante el enlace seguro.</p></DialogBody>
-        <DialogFooter><Button variant="outline" onClick={() => setModal(null)} disabled={ocupada}>Cancelar</Button><Button onClick={() => void enviarRecuperacion()} disabled={ocupada}><KeyRound aria-hidden /> {ocupada ? 'Enviando…' : 'Enviar correo'}</Button></DialogFooter>
-      </Dialog>
     </ConfiguracionShell>
   )
 }

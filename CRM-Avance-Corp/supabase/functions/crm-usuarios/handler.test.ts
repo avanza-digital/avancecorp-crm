@@ -17,15 +17,16 @@ function igual(actual: unknown, esperado: unknown, mensaje: string) {
 }
 
 const ID = "10000000-0000-4000-8000-000000000009";
+const SUPERVISOR_ID = "10000000-0000-4000-8000-000000000004";
 const REQUEST_ID = "90000000-0000-4000-8000-000000000001";
 const ORIGIN = "https://crm.miavance.com";
 
 type EstadoFake = {
   rpcs: string[];
+  argumentosRpc: Record<string, unknown>[];
   altasAuth: number;
+  documentosAuth: string[];
   busquedasAuth: number;
-  borrados: string[];
-  recuperaciones: number;
 };
 
 function fake(opciones: {
@@ -33,42 +34,39 @@ function fake(opciones: {
   respuestas?: RpcResult[];
   altaAuth?: { id: string | null; error: string | null };
   authExistente?: string | null;
-  errorRecuperacion?: string | null;
 } = {}): { deps: DependenciasUsuarios; estado: EstadoFake } {
   const respuestas = [...(opciones.respuestas ?? [])];
   const estado: EstadoFake = {
     rpcs: [],
+    argumentosRpc: [],
     altasAuth: 0,
+    documentosAuth: [],
     busquedasAuth: 0,
-    borrados: [],
-    recuperaciones: 0,
   };
   return {
     estado,
     deps: {
       crearActor: () => ({
-        verificarSesion: async () => opciones.sesion ?? true,
-        rpc: async (nombre) => {
+        verificarSesion: () => Promise.resolve(opciones.sesion ?? true),
+        rpc: (nombre, argumentos) => {
           estado.rpcs.push(nombre);
-          return respuestas.shift() ?? { data: null, error: null };
+          estado.argumentosRpc.push(argumentos);
+          return Promise.resolve(
+            respuestas.shift() ?? { data: null, error: null },
+          );
         },
       }),
-      crearUsuarioAuth: async () => {
+      crearUsuarioAuth: (input) => {
         estado.altasAuth++;
-        return opciones.altaAuth ?? { id: ID, error: null };
+        estado.documentosAuth.push(input.documento);
+        return Promise.resolve(
+          opciones.altaAuth ?? { id: ID, error: null },
+        );
       },
-      buscarUsuarioAuthPorCorreo: async () => {
+      buscarUsuarioAuthPorCorreo: () => {
         estado.busquedasAuth++;
-        return opciones.authExistente ?? null;
+        return Promise.resolve(opciones.authExistente ?? null);
       },
-      eliminarUsuarioAuth: async (id) => {
-        estado.borrados.push(id);
-      },
-      enviarRecuperacion: async () => {
-        estado.recuperaciones++;
-        return { error: opciones.errorRecuperacion ?? null };
-      },
-      passwordAleatoria: () => "NO_SE_EXPONE_012345678901234567890123456789",
     },
   };
 }
@@ -99,6 +97,7 @@ function alta(
     nombre_completo: "Persona de Prueba",
     tipo_documento: "DNI",
     documento: "12345678",
+    supervisor_id: SUPERVISOR_ID,
     telefono: "+51911111111",
     whatsapp: "+51911111111",
     cargo: "Asesor",
@@ -181,28 +180,107 @@ Deno.test("payload con rol, activo o password se rechaza por esquema estricto", 
   }
 });
 
-Deno.test("alta feliz autoriza en DB, crea Auth, registra candidato y envia recuperacion", async () => {
+Deno.test("supervisor es obligatorio y debe ser UUID", async () => {
+  for (const supervisor_id of [undefined, null, "", "no-es-uuid"]) {
+    const f = fake();
+    const payload = alta();
+    if (supervisor_id === undefined) delete payload.supervisor_id;
+    else payload.supervisor_id = supervisor_id;
+    const res = await crearHandlerUsuarios(f.deps)(request(payload));
+    igual(res.status, 400, `rechazo supervisor ${String(supervisor_id)}`);
+    igual(f.estado.rpcs.length, 0, "sin DB ante supervisor invalido");
+    igual(f.estado.altasAuth, 0, "sin Auth ante supervisor invalido");
+  }
+});
+
+Deno.test("alta feliz crea Auth con documento exacto y no inicia recuperacion", async () => {
   const f = fake({
     respuestas: [
       { data: null, error: null },
-      { data: { perfil_id: ID, estado: "pendiente_rol" }, error: null },
-      { data: { perfil_id: ID, correo: "persona@avance.test" }, error: null },
+      { data: { perfil_id: ID, estado: "activo" }, error: null },
     ],
   });
   const res = await crearHandlerUsuarios(f.deps)(request(alta()));
   igual(res.status, 201, "status alta");
   igual(f.estado.altasAuth, 1, "una alta Auth");
-  igual(f.estado.recuperaciones, 1, "una recuperacion");
+  igual(f.estado.documentosAuth.join(","), "12345678", "clave documento");
   igual(
     f.estado.rpcs.join(","),
-    "buscar_candidato_por_correo_fn,registrar_candidato_usuario_fn,preparar_recuperacion_usuario_fn",
+    "buscar_candidato_por_correo_fn,registrar_vendedor_usuario_fn",
     "orden de fronteras",
+  );
+  igual(
+    f.estado.argumentosRpc[1]?.p_supervisor_id,
+    SUPERVISOR_ID,
+    "supervisor llega a la frontera DB",
   );
   const texto = await res.text();
   assert(
-    !/password|contrase|token|secret|correo@/i.test(texto),
+    !/password|contrase|token|secret|correo@|12345678/i.test(texto),
     "respuesta sin secretos",
   );
+});
+
+Deno.test("CE conserva ceros y pasaporte se normaliza sin relleno", async () => {
+  for (
+    const [tipo, documento, esperado] of [
+      ["CE", "001237707", "001237707"],
+      ["PASAPORTE", "ab1234", "AB1234"],
+    ] as const
+  ) {
+    const f = fake({
+      respuestas: [
+        { data: null, error: null },
+        { data: { perfil_id: ID, estado: "activo" }, error: null },
+      ],
+    });
+    const res = await crearHandlerUsuarios(f.deps)(
+      request(alta({ tipo_documento: tipo, documento })),
+    );
+    igual(res.status, 201, `status ${tipo}`);
+    igual(f.estado.documentosAuth.join(","), esperado, `documento ${tipo}`);
+  }
+});
+
+Deno.test("candidato Portal existente conserva su identidad Auth", async () => {
+  const f = fake({
+    respuestas: [
+      { data: ID, error: null },
+      { data: { perfil_id: ID, estado: "candidato_existente" }, error: null },
+    ],
+  });
+  const res = await crearHandlerUsuarios(f.deps)(request(alta()));
+  igual(res.status, 200, "status candidato existente");
+  igual(f.estado.altasAuth, 0, "no recrea Auth");
+  igual(f.estado.busquedasAuth, 0, "no busca ni muta Auth Admin");
+  igual(
+    f.estado.rpcs.join(","),
+    "buscar_candidato_por_correo_fn,registrar_vendedor_usuario_fn",
+    "DB decide sin mutar la identidad Portal",
+  );
+  igual(
+    (await res.json()).estado,
+    "candidato_existente",
+    "estado existente",
+  );
+});
+
+Deno.test("candidato CRM pendiente como Alan se activa sin recrear ni borrar Auth", async () => {
+  const f = fake({
+    respuestas: [
+      { data: ID, error: null },
+      { data: { perfil_id: ID, estado: "activo" }, error: null },
+    ],
+  });
+  const res = await crearHandlerUsuarios(f.deps)(request(alta({
+    nombre_completo: "ALAN YUTRONIC",
+    tipo_documento: "CE",
+    documento: "001237707",
+  })));
+  igual(res.status, 200, "status candidato CRM pendiente");
+  igual(f.estado.altasAuth, 0, "no recrea Auth existente");
+  igual(f.estado.busquedasAuth, 0, "no recorre Auth Admin");
+  igual((await res.json()).estado, "activo", "estado activo");
 });
 
 Deno.test("Gerencia no autorizada falla antes de Auth Admin", async () => {
@@ -216,7 +294,23 @@ Deno.test("Gerencia no autorizada falla antes de Auth Admin", async () => {
   igual(f.estado.altasAuth, 0, "no crea identidad antes de autorizar");
 });
 
-Deno.test("fallo al registrar compensa solo la identidad creada en esta llamada", async () => {
+Deno.test("un error de validacion DB no se presenta como falta de autorizacion", async () => {
+  const f = fake({
+    respuestas: [
+      { data: null, error: { code: "P0001", message: "correo invalido" } },
+    ],
+  });
+  const res = await crearHandlerUsuarios(f.deps)(request(alta()));
+  igual(res.status, 400, "status validacion");
+  igual(
+    (await res.json()).error,
+    "No se pudo validar el candidato CRM",
+    "mensaje no confunde validacion con autorizacion",
+  );
+  igual(f.estado.altasAuth, 0, "no crea Auth ante error DB");
+});
+
+Deno.test("fallo DB conserva la identidad CRM para retry concurrente seguro", async () => {
   const f = fake({
     respuestas: [
       { data: null, error: null },
@@ -225,10 +319,10 @@ Deno.test("fallo al registrar compensa solo la identidad creada en esta llamada"
   });
   const res = await crearHandlerUsuarios(f.deps)(request(alta()));
   igual(res.status, 409, "status conflicto");
-  igual(f.estado.borrados.join(","), ID, "compensacion Auth");
+  igual(f.estado.altasAuth, 1, "la identidad fue creada una sola vez");
 });
 
-Deno.test("retry con Auth preexistente no borra la identidad ajena si DB rechaza", async () => {
+Deno.test("retry con Auth preexistente conserva la identidad ajena si DB rechaza", async () => {
   const f = fake({
     altaAuth: { id: null, error: "duplicate" },
     authExistente: ID,
@@ -240,24 +334,16 @@ Deno.test("retry con Auth preexistente no borra la identidad ajena si DB rechaza
   const res = await crearHandlerUsuarios(f.deps)(request(alta()));
   igual(res.status, 400, "status perfil ajeno");
   igual(f.estado.busquedasAuth, 1, "busca Auth para retry");
-  igual(f.estado.borrados.length, 0, "no borra Auth preexistente");
 });
 
-Deno.test("recuperacion usa objetivo autorizado por RPC y no expone correo", async () => {
-  const f = fake({
-    respuestas: [
-      { data: { perfil_id: ID, correo: "persona@avance.test" }, error: null },
-    ],
-  });
+Deno.test("la antigua accion de recuperacion deja de existir", async () => {
+  const f = fake();
   const res = await crearHandlerUsuarios(f.deps)(request({
     accion: "enviar_recuperacion",
     request_id: REQUEST_ID,
     perfil_id: ID,
   }));
-  igual(res.status, 200, "status recuperacion");
-  igual(f.estado.recuperaciones, 1, "envio recovery");
-  assert(
-    !(await res.text()).includes("persona@avance.test"),
-    "correo no vuelve al cliente",
-  );
+  igual(res.status, 400, "status accion retirada");
+  igual(f.estado.rpcs.length, 0, "sin RPC de recuperacion");
+  igual(f.estado.altasAuth, 0, "sin Auth Admin");
 });

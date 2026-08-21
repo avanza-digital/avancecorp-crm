@@ -130,6 +130,7 @@ describe('crm-config-queries en modo demo', () => {
         nombre_completo: 'PERSONA DEMO',
         tipo_documento: 'DNI',
         documento: '70000010',
+        supervisor_id: '20000000-0000-4000-8000-000000000001',
       })).rejects.toMatchObject({ code: 'DEMO_SOLO_LECTURA' })
     })
     expect(dobles.crearUsuario).not.toHaveBeenCalled()

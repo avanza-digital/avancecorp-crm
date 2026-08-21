@@ -44,7 +44,6 @@ import {
   type ImpactoDesactivacionUsuario,
   type ResultadoEdgeUsuarios,
   type ResultadoAltaUsuario,
-  type ResultadoRecuperacionUsuario,
   type UsuarioAdministrable,
 } from '@/lib/usuarios-config'
 import type { Rol } from '@/lib/roles'
@@ -179,6 +178,7 @@ export async function crearCandidatoUsuario(
       nombre_completo: input.nombre_completo,
       tipo_documento: input.tipo_documento,
       documento: input.documento,
+      supervisor_id: input.supervisor_id,
       telefono: input.telefono ?? null,
       whatsapp: input.whatsapp ?? null,
       cargo: input.cargo ?? null,
@@ -195,32 +195,6 @@ export async function crearCandidatoUsuario(
     data,
     'crm.config.usuarios.alta_contrato_invalido',
   )
-  if (resultado.estado === 'recuperacion_enviada') {
-    throw errorContrato('crm.config.usuarios.alta_estado_invalido')
-  }
-  return resultado
-}
-
-export async function enviarRecuperacionUsuario(
-  perfilId: string,
-): Promise<ResultadoRecuperacionUsuario> {
-  const { data, error } = await cliente().functions.invoke('crm-usuarios', {
-    body: { accion: 'enviar_recuperacion', request_id: requestId(), perfil_id: perfilId },
-  })
-  if (error) {
-    const mensaje = await mensajeEdge(error)
-    const fallo = new CrmApiError(mensaje ?? 'No se pudo enviar la recuperación.', 'USUARIO_EDGE_ERROR')
-    registrarError('crm.config.usuarios.recuperacion_fallida', fallo)
-    throw fallo
-  }
-  const resultado: ResultadoEdgeUsuarios = parsear(
-    ResultadoEdgeUsuariosSchema,
-    data,
-    'crm.config.usuarios.recuperacion_contrato_invalido',
-  )
-  if (resultado.estado !== 'recuperacion_enviada') {
-    throw errorContrato('crm.config.usuarios.recuperacion_estado_invalido')
-  }
   return resultado
 }
 
