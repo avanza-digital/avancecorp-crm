@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto'
 import { execFileSync } from 'node:child_process'
+import { loadEnvFile } from 'node:process'
 import {
   existsSync,
   mkdirSync,
@@ -15,6 +16,7 @@ const RAIZ = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..')
 const APP = path.join(RAIZ, 'app')
 const DIST = path.join(APP, 'dist')
 const MIGRACIONES = path.join(RAIZ, 'supabase', 'migrations')
+const SUPABASE_PRODUCCION = 'https://dctqcbznekcyxhjujuci.supabase.co'
 
 function sha256Archivo(ruta) {
   return createHash('sha256').update(readFileSync(ruta)).digest('hex')
@@ -44,6 +46,37 @@ function valorArgumento(argumentos, nombre) {
   const valor = argumentos[indice + 1]
   if (!valor || valor.startsWith('--')) throw new Error(`Falta valor para ${nombre}`)
   return valor
+}
+
+function verificarConfiguracionProduccion() {
+  const rutaEnv = path.join(APP, '.env')
+  if ((!process.env.VITE_SUPABASE_URL || !process.env.VITE_SUPABASE_ANON_KEY)
+      && existsSync(rutaEnv)) {
+    loadEnvFile(rutaEnv)
+  }
+
+  const url = process.env.VITE_SUPABASE_URL?.trim()
+  const clave = process.env.VITE_SUPABASE_ANON_KEY?.trim()
+  if (url !== SUPABASE_PRODUCCION) {
+    throw new Error(`El release exige VITE_SUPABASE_URL=${SUPABASE_PRODUCCION}`)
+  }
+  if (!clave || clave.length < 20 || /\s|^sb_secret_|service[_-]?role/i.test(clave)) {
+    throw new Error('Falta una VITE_SUPABASE_ANON_KEY pública válida para producción')
+  }
+
+  let contieneUrl = false
+  let contieneClave = false
+  for (const archivo of archivosRecursivos(DIST).filter((ruta) => ruta.endsWith('.js'))) {
+    const contenido = readFileSync(archivo, 'utf8')
+    contieneUrl ||= contenido.includes(url)
+    contieneClave ||= contenido.includes(clave)
+    if (contieneUrl && contieneClave) break
+  }
+  if (!contieneUrl || !contieneClave) {
+    throw new Error(
+      'El bundle no contiene la configuración pública de Supabase; reconstruye con las variables de producción',
+    )
+  }
 }
 
 function verificar(manifiestoEntrada) {
@@ -82,6 +115,7 @@ function crear(argumentos) {
       throw new Error(`Falta app/dist/${requerida}; ejecuta el build antes de empaquetar`)
     }
   }
+  verificarConfiguracionProduccion()
 
   const commit = ejecutar('git', ['rev-parse', '--verify', 'HEAD'])
   const cambios = ejecutar('git', ['status', '--porcelain', '--untracked-files=normal'])
