@@ -80,11 +80,11 @@ sin confundir ese hecho con la nueva gestión.
   las tres RPC, sus dos índices parciales y las ACL: `public` y `anon` sin
   ejecución; `authenticated` con ejecución. Las RPC mantienen
   `security definer` y `search_path` vacío.
-- El frontend publicado es
-  `crm-20260821T004017Z-7233200dc115`, ZIP SHA-256
-  `38f05b0816cd1168b254635143956410550814185c0d006a424274d951c87d7d`.
-  `index.html`, el bundle principal y el chunk de Base para gestión se
-  comprobaron en `crm.miavance.com` con HTTP 200 e igualdad byte a byte.
+- El frontend vigente es `crm-20260821T005842Z-863a9db7e2c4`, ZIP SHA-256
+  `fcdf71aec35d4067011e7e5291d67ba0cba3003c7c1c4b40a9b9c159cad9a6e5`.
+  `index.html`, el bundle principal, la capa API y los chunks de **Base para
+  gestión** y **Derivar leads** se comprobaron en `crm.miavance.com` con HTTP
+  200 e igualdad byte a byte.
 - El primer paquete `crm-20260821T002429Z-2ed459dbc42b` se construyó desde un
   worktree aislado sin el `.env` ignorado por Git. El login falló cerrado con
   «El acceso con cuenta aún no está disponible aquí»; no se afectaron cuentas
@@ -93,5 +93,12 @@ sin confundir ese hecho con la nueva gestión.
   `scripts/crear-artefacto-release.mjs` ahora rechaza antes de empaquetar tanto
   una configuración ausente como un bundle que no contenga los valores públicos
   de producción.
-- Validación previa: `npm run check`, 2.104 pruebas unitarias y 104 pruebas E2E
-  aprobadas; 26 E2E omitidas por diseño y cero fallos.
+- Una primera rama de publicación partió antes de los tres commits del módulo
+  independiente de derivaciones y por eso omitió **Derivar leads** del menú del
+  Supervisor. No se eliminó la migración ni se alteraron datos. La corrección
+  reincorporó la cadena completa de derivaciones y mantuvo **Base para gestión**
+  como módulo separado; ambos conviven en el release vigente.
+- Validación previa: `npm run check`, 2.117 pruebas unitarias y 105 pruebas E2E
+  aprobadas; 26 E2E omitidas por diseño y cero fallos. Las tres RPC de
+  derivaciones y las tres RPC de rescate se verificaron además contra el
+  catálogo productivo con sus ACL y `search_path` endurecido.
