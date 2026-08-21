@@ -4,7 +4,7 @@
 // histórica de cada asesor visible. Gestión de equipo conserva su radiografía
 // operativa; esta pantalla concentra filtros, borrador, guardado y devolución.
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
-import { Activity, Inbox, SendHorizontal, Users } from 'lucide-react'
+import { Activity, Check, CheckCircle2, ChevronDown, Inbox, Search, SendHorizontal, Users, X } from 'lucide-react'
 import { toast } from 'sonner'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
@@ -38,10 +38,101 @@ import type {
 import { SEMAFORO } from '@/lib/semaforo'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
 import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
+import { cn } from '@/lib/utils'
 
 type ModoPeriodo = 'ayer' | 'semana' | 'rango'
 
 const GUARDADAS_POR_PAGINA = 5
+const LEADS_POR_PAGINA = 20
+
+/**
+ * Identidad estable de cada asesor dentro de esta pantalla. No expresa estado ni
+ * rendimiento: conecta visualmente tarjeta, borrador y cierre sin depender solo
+ * del nombre. La paleta es la misma del CRM y conserva contraste texto/fondo.
+ */
+const COLORES_ASESOR = [
+  'var(--chart-1)',
+  'var(--chart-2)',
+  'var(--chart-4)',
+  'var(--chart-3)',
+  'var(--chart-5)',
+] as const
+
+function colorDeAsesor(asesorId: string): string {
+  const indice = [...asesorId].reduce((total, caracter) => total + caracter.charCodeAt(0), 0)
+  return COLORES_ASESOR[indice % COLORES_ASESOR.length] ?? 'var(--accent)'
+}
+
+function colorTextoDeAsesor(asesorId: string): string {
+  const color = colorDeAsesor(asesorId)
+  if (color === 'var(--chart-3)') return 'var(--warning-text)'
+  if (color === 'var(--chart-4)') return '#155e75'
+  return color
+}
+
+function textoPlano(valor: string): string {
+  return valor
+    .toLocaleLowerCase('es-PE')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+interface GrupoUltimoReparto {
+  asesorId: string
+  asesorNombre: string
+  cantidad: number
+  pen: number
+  usd: number
+}
+
+interface UltimoReparto {
+  cantidad: number
+  pen: number
+  usd: number
+  grupos: GrupoUltimoReparto[]
+}
+
+function resumirReparto(
+  borrador: Readonly<Record<string, string>>,
+  leads: readonly Lead[],
+  asesores: readonly Miembro[],
+): UltimoReparto {
+  const leadPorId = new Map(leads.map((lead) => [lead.id, lead]))
+  const asesorPorId = new Map(asesores.map((asesor) => [asesor.perfil_id, asesor]))
+  const grupos = new Map<string, GrupoUltimoReparto>()
+  let pen = 0
+  let usd = 0
+
+  for (const [leadId, asesorId] of Object.entries(borrador)) {
+    const lead = leadPorId.get(leadId)
+    const asesor = asesorPorId.get(asesorId)
+    const grupo = grupos.get(asesorId) ?? {
+      asesorId,
+      asesorNombre: asesor?.nombre_completo ?? 'Asesor',
+      cantidad: 0,
+      pen: 0,
+      usd: 0,
+    }
+    const monto = lead?.monto_estimado ?? 0
+    grupo.cantidad += 1
+    if (lead?.moneda === 'USD') {
+      grupo.usd += monto
+      usd += monto
+    } else {
+      grupo.pen += monto
+      pen += monto
+    }
+    grupos.set(asesorId, grupo)
+  }
+
+  return {
+    cantidad: Object.keys(borrador).length,
+    pen,
+    usd,
+    grupos: [...grupos.values()].sort((a, b) =>
+      a.asesorNombre.localeCompare(b.asesorNombre, 'es-PE')),
+  }
+}
 
 function fechaDesplazada(fecha: string, dias: number): string {
   return fechaLima(Date.parse(`${fecha}T12:00:00-05:00`) + dias * DIA_MS)
@@ -92,13 +183,23 @@ function TarjetaAsesor({
   const contactabilidad = Math.round(asesor.contactabilidad_pct)
   const capital = totalEnSoles(asesor.capital_pen, asesor.capital_usd, tc?.promedio)
   const capitalUnificado = capital.estado === 'convertido' && capital.total != null
+  const color = colorDeAsesor(asesor.asesor_id)
+  const colorTexto = colorTextoDeAsesor(asesor.asesor_id)
 
   return (
-    <Card className="ac-lift ac-pop h-full p-3" style={{ animationDelay: `${delay}ms` }}>
+    <Card
+      className="ac-lift ac-pop relative h-full overflow-hidden p-3 pl-4"
+      style={{ animationDelay: `${delay}ms` }}
+    >
+      <span
+        aria-hidden
+        className="absolute inset-y-0 left-0 w-1"
+        style={{ background: color }}
+      />
       <div className="flex items-center gap-2.5">
         <Avatar
           nombre={asesor.asesor_nombre}
-          color={SEMAFORO.ok}
+          color={colorTexto}
           className="size-7 text-[10px]"
         />
         <div className="min-w-0 flex-1">
@@ -108,13 +209,30 @@ function TarjetaAsesor({
           </p>
         </div>
         <Badge
-          color={borradorHoy > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
+          color={colorTexto}
           variant="outline"
           dot
         >
-          Hoy {repartidoHoy}{borradorHoy > 0 ? ' · borrador' : ''}
+          Hoy {repartidoHoy}
         </Badge>
       </div>
+
+      {borradorHoy > 0 && (
+        <div
+          className="mt-2 flex items-center justify-between rounded-lg border px-2.5 py-1.5"
+          style={{
+            borderColor: `color-mix(in srgb, ${color} 28%, var(--border))`,
+            background: `color-mix(in srgb, ${color} 7%, var(--card))`,
+          }}
+        >
+          <span className="text-[11px] font-semibold" style={{ color: colorTexto }}>
+            Recibirá del borrador
+          </span>
+          <span className="text-xs font-extrabold tabular-nums" style={{ color: colorTexto }}>
+            +{borradorHoy}
+          </span>
+        </div>
+      )}
 
       <div className="mt-2 grid grid-cols-3 gap-1.5">
         <MiniDato label="Derivados" valor={String(asesor.derivados)} />
@@ -240,6 +358,157 @@ function ControlesPeriodo({
   )
 }
 
+function RutaReparto({
+  reporteListo,
+  asesores,
+  porRepartir,
+  enBorrador,
+  guardadasHoy,
+  ultimoReparto,
+}: {
+  reporteListo: boolean
+  asesores: number
+  porRepartir: number
+  enBorrador: number
+  guardadasHoy: number
+  ultimoReparto: UltimoReparto | null
+}): JSX.Element {
+  const pasos = [
+    {
+      numero: 1,
+      titulo: 'Comparar carga',
+      detalle: reporteListo
+        ? `${asesores} ${asesores === 1 ? 'asesor disponible' : 'asesores disponibles'}`
+        : 'Esperando el reporte del equipo',
+      estado: reporteListo ? 'completo' : 'actual',
+    },
+    {
+      numero: 2,
+      titulo: 'Preparar reparto',
+      detalle: enBorrador > 0
+        ? `${enBorrador} ${enBorrador === 1 ? 'lead elegido' : 'leads elegidos'} uno por uno`
+        : `${porRepartir} ${porRepartir === 1 ? 'lead pendiente' : 'leads pendientes'}`,
+      estado: reporteListo
+        ? enBorrador > 0 || ultimoReparto != null ? 'completo' : 'actual'
+        : 'pendiente',
+    },
+    {
+      numero: 3,
+      titulo: 'Confirmar',
+      detalle: ultimoReparto
+        ? `${ultimoReparto.cantidad} ${ultimoReparto.cantidad === 1 ? 'lead guardado' : 'leads guardados'} en el último cierre`
+        : enBorrador > 0
+          ? 'Revisa y guarda el borrador'
+          : `${guardadasHoy} ${guardadasHoy === 1 ? 'derivación guardada hoy' : 'derivaciones guardadas hoy'}`,
+      estado: ultimoReparto ? 'completo' : enBorrador > 0 ? 'actual' : 'pendiente',
+    },
+  ] as const
+
+  return (
+    <Card className="overflow-hidden" role="region" aria-label="Flujo para derivar leads">
+      <div className="border-b border-border bg-muted/20 px-4 py-2.5 sm:px-5">
+        <p className="text-[10px] font-bold uppercase tracking-[0.14em] text-muted-foreground">
+          Ruta de reparto
+        </p>
+      </div>
+      <ol className="grid divide-y divide-border sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+        {pasos.map((paso) => {
+          const actual = paso.estado === 'actual'
+          const completo = paso.estado === 'completo'
+          return (
+            <li
+              key={paso.numero}
+              aria-current={actual ? 'step' : undefined}
+              className={cn(
+                'flex min-w-0 items-center gap-3 px-4 py-3.5 sm:px-5',
+                actual && 'bg-accent/[0.045]',
+                completo && 'bg-primary/[0.025]',
+              )}
+            >
+              <span
+                aria-hidden
+                className={cn(
+                  'grid size-8 shrink-0 place-items-center rounded-full border text-xs font-extrabold tabular-nums',
+                  actual && 'border-accent bg-accent text-accent-foreground shadow-sm',
+                  completo && 'border-primary bg-primary text-primary-foreground',
+                  !actual && !completo && 'border-border bg-card text-muted-foreground',
+                )}
+              >
+                {completo ? <Check className="size-4" /> : paso.numero}
+              </span>
+              <div className="min-w-0">
+                <p className={cn('text-xs font-extrabold', actual && 'text-accent')}>
+                  {paso.numero}. {paso.titulo}
+                </p>
+                <p className="mt-0.5 truncate text-[11px] text-muted-foreground" title={paso.detalle}>
+                  {paso.detalle}
+                </p>
+              </div>
+            </li>
+          )
+        })}
+      </ol>
+    </Card>
+  )
+}
+
+function ResumenUltimoReparto({
+  resumen,
+  onCerrar,
+}: {
+  resumen: UltimoReparto
+  onCerrar: () => void
+}): JSX.Element {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="mx-5 mb-4 overflow-hidden rounded-xl border border-accent/25 bg-accent/[0.045] shadow-sm"
+    >
+      <div className="flex items-start gap-3 px-3.5 py-3">
+        <span className="grid size-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
+          <CheckCircle2 className="size-4.5" aria-hidden />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-extrabold text-primary">Reparto guardado</p>
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
+            {resumen.cantidad} {resumen.cantidad === 1 ? 'lead enviado' : 'leads enviados'}
+            {' · '}{moneyK(resumen.pen)}
+            {resumen.usd > 0 ? ` + ${moneyK(resumen.usd, 'USD')}` : ''}
+          </p>
+          <ul aria-label="Resumen del último reparto por asesor" className="mt-2 flex flex-wrap gap-1.5">
+            {resumen.grupos.map((grupo) => {
+              const color = colorDeAsesor(grupo.asesorId)
+              const colorTexto = colorTextoDeAsesor(grupo.asesorId)
+              return (
+                <li
+                  key={grupo.asesorId}
+                  className="rounded-full border px-2.5 py-1 text-[11px] font-bold"
+                  style={{
+                    color: colorTexto,
+                    borderColor: `color-mix(in srgb, ${color} 30%, var(--border))`,
+                    background: `color-mix(in srgb, ${color} 7%, var(--card))`,
+                  }}
+                >
+                  {grupo.asesorNombre} · {grupo.cantidad} {grupo.cantidad === 1 ? 'lead' : 'leads'}
+                </li>
+              )
+            })}
+          </ul>
+        </div>
+        <button
+          type="button"
+          aria-label="Cerrar resumen del último reparto"
+          onClick={onCerrar}
+          className="grid size-8 shrink-0 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-accent/10 hover:text-foreground focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
+        >
+          <X className="size-4" aria-hidden />
+        </button>
+      </div>
+    </div>
+  )
+}
+
 function BandejaDerivacion({
   leads,
   asesores,
@@ -261,6 +530,12 @@ function BandejaDerivacion({
   onDescartar: () => void
   onGuardar: () => void
 }): JSX.Element {
+  const [busqueda, setBusqueda] = useState('')
+  const [pagina, setPagina] = useState(0)
+  const asesorPorId = useMemo(
+    () => new Map(asesores.map((asesor) => [asesor.perfil_id, asesor])),
+    [asesores],
+  )
   const resumen = useMemo(() => {
     let pen = 0
     let usd = 0
@@ -273,6 +548,20 @@ function BandejaDerivacion({
     }
     return { cantidad, pen, usd }
   }, [borrador, leads])
+  const leadsFiltrados = useMemo(() => {
+    const consulta = textoPlano(busqueda.trim())
+    if (!consulta) return leads
+    return leads.filter((lead) => {
+      const asesor = asesorPorId.get(borrador[lead.id] ?? '')
+      return textoPlano([
+        lead.nombre_completo,
+        origenLabel(lead.origen),
+        lead.distrito ?? '',
+        asesor?.nombre_completo ?? '',
+      ].join(' ')).includes(consulta)
+    })
+  }, [asesorPorId, borrador, busqueda, leads])
+  const paginaLeads = paginar(leadsFiltrados, pagina, LEADS_POR_PAGINA)
 
   if (leads.length === 0) {
     return (
@@ -283,75 +572,168 @@ function BandejaDerivacion({
   }
 
   return (
-    <div className="space-y-2 px-5 pb-4">
-      <p className="text-[11px] text-muted-foreground">
-        Elige el asesor de cada lead. Puedes cambiarlo o quitarlo antes de guardar el lote.
-      </p>
+    <div className="px-5 pb-4">
+      <div className="mb-3 flex flex-col gap-2.5 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[11px] text-muted-foreground">
+            Elige el asesor de cada lead. Puedes cambiarlo o quitarlo antes de guardar el lote.
+          </p>
+          <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">
+            La asignación se realiza siempre uno por uno.
+          </p>
+        </div>
+        <div className="flex items-center gap-2 sm:w-[310px]">
+          <div className="relative min-w-0 flex-1">
+            <Search
+              aria-hidden
+              className="pointer-events-none absolute left-3 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+            />
+            <input
+              type="search"
+              value={busqueda}
+              aria-label="Buscar leads por repartir"
+              placeholder="Buscar lead, origen o distrito"
+              onChange={(event) => {
+                setBusqueda(event.target.value)
+                setPagina(0)
+              }}
+              className="h-9 w-full rounded-lg border border-input bg-background pl-9 pr-3 text-xs shadow-sm outline-none transition focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/30"
+            />
+          </div>
+          <span className="shrink-0 text-[11px] font-bold tabular-nums text-muted-foreground">
+            {leadsFiltrados.length}/{leads.length}
+          </span>
+        </div>
+      </div>
       {bloqueado && (
-        <p role="status" className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
+        <p role="status" className="mb-3 rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
           Para derivar, primero carga un reporte válido del equipo.
         </p>
       )}
-      {leads.map((lead) => {
-        const dias = diasDesdeReferencia(lead.creado_en, ahora)
-        const asesorId = borrador[lead.id] ?? ''
-        const elegido = asesorId !== ''
-        return (
-          <div
-            key={lead.id}
-            className={`flex flex-col gap-2.5 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center ${
-              elegido ? 'border-accent/35 bg-accent/[0.04]' : 'border-border'
-            }`}
+      {leadsFiltrados.length === 0 ? (
+        <div className="rounded-xl border border-dashed border-border bg-muted/15 px-4 py-8 text-center">
+          <Search className="mx-auto size-5 text-muted-foreground" aria-hidden />
+          <p className="mt-2 text-sm font-bold">No hay leads que coincidan</p>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Cambia la búsqueda para volver a la bandeja completa.
+          </p>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            className="mt-3"
+            onClick={() => {
+              setBusqueda('')
+              setPagina(0)
+            }}
           >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{lead.nombre_completo}</p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {origenLabel(lead.origen)}
-                {' · '}
-                {lead.monto_estimado != null
-                  ? moneyK(lead.monto_estimado, lead.moneda)
-                  : 'Sin monto'}
-                {' · entró '}
-                <span
-                  style={dias >= 1
-                    ? { color: SEMAFORO.critico, fontWeight: 700 }
-                    : undefined}
-                >
-                  {haceCortoTexto(dias)}
-                </span>
-              </p>
-            </div>
-            <div className="flex items-center gap-2 sm:w-[300px] sm:shrink-0">
-              <Select
-                value={asesorId}
-                disabled={guardando || bloqueado}
-                onChange={(event) => onCambiar(lead.id, event.target.value || null)}
-                aria-label={`Derivar ${lead.nombre_completo} a un asesor`}
+            Limpiar búsqueda
+          </Button>
+        </div>
+      ) : (
+        <div className="space-y-2">
+          {paginaLeads.visibles.map((lead) => {
+            const dias = diasDesdeReferencia(lead.creado_en, ahora)
+            const asesorId = borrador[lead.id] ?? ''
+            const elegido = asesorId !== ''
+            const asesorElegido = asesorPorId.get(asesorId)
+            const color = elegido ? colorDeAsesor(asesorId) : null
+            const colorTexto = elegido ? colorTextoDeAsesor(asesorId) : null
+            return (
+              <div
+                key={lead.id}
+                className="relative flex flex-col gap-2.5 overflow-hidden rounded-xl border border-border p-3 transition-colors sm:flex-row sm:items-center"
+                style={color ? {
+                  borderColor: `color-mix(in srgb, ${color} 34%, var(--border))`,
+                  background: `color-mix(in srgb, ${color} 4.5%, var(--card))`,
+                } : undefined}
               >
-                <option value="">Derivar a…</option>
-                {asesores.map((asesor) => (
-                  <option key={asesor.perfil_id} value={asesor.perfil_id}>
-                    {asesor.nombre_completo}
-                  </option>
-                ))}
-              </Select>
-              {elegido && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={guardando}
-                  onClick={() => onCambiar(lead.id, null)}
-                >
-                  Quitar
-                </Button>
-              )}
+                {color && (
+                  <span
+                    aria-hidden
+                    className="absolute inset-y-0 left-0 w-1"
+                    style={{ background: color }}
+                  />
+                )}
+                <div className={cn('min-w-0 flex-1', elegido && 'pl-1')}>
+                  <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                    <p className="min-w-0 truncate text-sm font-semibold">{lead.nombre_completo}</p>
+                    {asesorElegido && color && colorTexto && (
+                      <span
+                        className="inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-bold"
+                        style={{
+                          color: colorTexto,
+                          borderColor: `color-mix(in srgb, ${color} 30%, var(--border))`,
+                          background: `color-mix(in srgb, ${color} 8%, var(--card))`,
+                        }}
+                      >
+                        <span className="size-1.5 rounded-full" style={{ background: color }} aria-hidden />
+                        → {asesorElegido.nombre_completo}
+                      </span>
+                    )}
+                  </div>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {origenLabel(lead.origen)}
+                    {' · '}
+                    {lead.monto_estimado != null
+                      ? moneyK(lead.monto_estimado, lead.moneda)
+                      : 'Sin monto'}
+                    {' · entró '}
+                    <span
+                      style={dias >= 1
+                        ? { color: SEMAFORO.critico, fontWeight: 700 }
+                        : undefined}
+                    >
+                      {haceCortoTexto(dias)}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex min-w-0 items-center gap-2 sm:w-[300px] sm:shrink-0">
+                  <div className="min-w-0 flex-1">
+                    <Select
+                      value={asesorId}
+                      disabled={guardando || bloqueado}
+                      onChange={(event) => onCambiar(lead.id, event.target.value || null)}
+                      aria-label={`Derivar ${lead.nombre_completo} a un asesor`}
+                    >
+                      <option value="">Derivar a…</option>
+                      {asesores.map((asesor) => (
+                        <option key={asesor.perfil_id} value={asesor.perfil_id}>
+                          {asesor.nombre_completo}
+                        </option>
+                      ))}
+                    </Select>
+                  </div>
+                  {elegido && (
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      disabled={guardando}
+                      onClick={() => onCambiar(lead.id, null)}
+                    >
+                      Quitar
+                    </Button>
+                  )}
+                </div>
+              </div>
+            )
+          })}
+          {paginaLeads.paginas > 1 && (
+            <div className="border-t border-border pt-3">
+              <Paginacion
+                paginaActual={paginaLeads.paginaActual}
+                paginas={paginaLeads.paginas}
+                total={leadsFiltrados.length}
+                onCambio={setPagina}
+                ariaLabel="Paginación de leads por repartir"
+              />
             </div>
-          </div>
-        )
-      })}
+          )}
+        </div>
+      )}
 
-      <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/[0.04] px-3 py-2.5">
+      <div className="sticky bottom-3 z-20 mt-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/25 bg-card/95 px-3 py-2.5 shadow-[var(--shadow-pop)] backdrop-blur">
         <div>
           <p className="text-xs font-bold">
             {resumen.cantidad === 0
@@ -366,11 +748,12 @@ function BandejaDerivacion({
             </p>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="grid w-full grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
           <Button
             type="button"
             size="sm"
             variant="ghost"
+            className="w-full sm:w-auto"
             disabled={guardando || resumen.cantidad === 0}
             onClick={onDescartar}
           >
@@ -379,6 +762,7 @@ function BandejaDerivacion({
           <Button
             type="button"
             size="sm"
+            className="w-full sm:w-auto"
             disabled={guardando || bloqueado || resumen.cantidad === 0}
             onClick={onGuardar}
           >
@@ -403,8 +787,45 @@ function GuardadasHoy({
   devolviendoId: string | null
   onDevolver: (movimiento: MovimientoDerivacionHoy) => void
 }): JSX.Element {
-  const [pagina, setPagina] = useState(0)
-  const paginaGuardadas = paginar(movimientos, pagina, GUARDADAS_POR_PAGINA)
+  const grupos = useMemo(() => {
+    const porAsesor = new Map<string, {
+      asesorId: string
+      asesorNombre: string
+      movimientos: MovimientoDerivacionHoy[]
+      pen: number
+      usd: number
+      reversibles: number
+    }>()
+    for (const movimiento of movimientos) {
+      const grupo = porAsesor.get(movimiento.asesor_id) ?? {
+        asesorId: movimiento.asesor_id,
+        asesorNombre: movimiento.asesor_nombre,
+        movimientos: [],
+        pen: 0,
+        usd: 0,
+        reversibles: 0,
+      }
+      grupo.movimientos.push(movimiento)
+      if (movimiento.moneda === 'USD') grupo.usd += movimiento.monto_estimado ?? 0
+      else grupo.pen += movimiento.monto_estimado ?? 0
+      if (movimiento.reversible) grupo.reversibles += 1
+      porAsesor.set(movimiento.asesor_id, grupo)
+    }
+    return [...porAsesor.values()].sort((a, b) =>
+      a.asesorNombre.localeCompare(b.asesorNombre, 'es-PE'))
+  }, [movimientos])
+  const [abiertoId, setAbiertoId] = useState<string | null>(movimientos[0]?.asesor_id ?? null)
+  const [paginas, setPaginas] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    if (grupos.length === 0) {
+      setAbiertoId(null)
+      return
+    }
+    if (abiertoId != null && !grupos.some((grupo) => grupo.asesorId === abiertoId)) {
+      setAbiertoId(grupos[0]?.asesorId ?? null)
+    }
+  }, [abiertoId, grupos])
 
   if (movimientos.length === 0) {
     return (
@@ -417,55 +838,122 @@ function GuardadasHoy({
   return (
     <div className="px-5 pb-4">
       <p className="text-[11px] text-muted-foreground">
-        Puedes devolver un lead mientras el asesor no haya registrado gestión.
+        Abre un asesor para revisar sus leads. Puedes devolverlos mientras no tengan gestión.
       </p>
       <ul
         aria-label="Derivaciones guardadas hoy"
-        className="mt-3 space-y-2"
+        className="mt-3 space-y-2.5"
       >
-        {paginaGuardadas.visibles.map((movimiento) => (
-          <li
-            key={`${movimiento.lead_id}-${movimiento.derivado_en}`}
-            className="flex flex-col gap-2 rounded-xl border border-border p-3 sm:flex-row sm:items-center"
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{movimiento.nombre_completo}</p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {movimiento.monto_estimado != null
-                  ? moneyK(movimiento.monto_estimado, movimiento.moneda)
-                  : 'Sin monto'}
-                {' · '}
-                {movimiento.asesor_nombre}
-              </p>
-            </div>
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={!movimiento.reversible || devolviendoId != null}
-              title={movimiento.reversible
-                ? 'Devolver a mi bandeja'
-                : 'El asesor ya registró gestión'}
-              onClick={() => onDevolver(movimiento)}
+        {grupos.map((grupo) => {
+          const abierto = abiertoId === grupo.asesorId
+          const color = colorDeAsesor(grupo.asesorId)
+          const colorTexto = colorTextoDeAsesor(grupo.asesorId)
+          const paginaGrupo = paginar(
+            grupo.movimientos,
+            paginas[grupo.asesorId] ?? 0,
+            GUARDADAS_POR_PAGINA,
+          )
+          const contenidoId = `derivaciones-asesor-${grupo.asesorId}`
+          return (
+            <li
+              key={grupo.asesorId}
+              className="overflow-hidden rounded-xl border border-border bg-card"
+              style={abierto ? {
+                borderColor: `color-mix(in srgb, ${color} 28%, var(--border))`,
+              } : undefined}
             >
-              {devolviendoId === movimiento.lead_id
-                ? 'Devolviendo…'
-                : movimiento.reversible ? 'Devolver' : 'Ya gestionado'}
-            </Button>
-          </li>
-        ))}
+              <button
+                type="button"
+                aria-expanded={abierto}
+                aria-controls={contenidoId}
+                onClick={() => setAbiertoId((actual) => actual === grupo.asesorId ? null : grupo.asesorId)}
+                className="flex w-full items-center gap-2.5 px-3 py-3 text-left transition-colors hover:bg-muted/35 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/30"
+              >
+                <Avatar
+                  nombre={grupo.asesorNombre}
+                  color={colorTexto}
+                  className="size-8 text-[10px]"
+                />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-sm font-bold">{grupo.asesorNombre}</p>
+                  <p className="truncate text-[11px] text-muted-foreground">
+                    {grupo.movimientos.length} {grupo.movimientos.length === 1 ? 'lead' : 'leads'}
+                    {' · '}{moneyK(grupo.pen)}
+                    {grupo.usd > 0 ? ` + ${moneyK(grupo.usd, 'USD')}` : ''}
+                  </p>
+                </div>
+                <Badge
+                  color={grupo.reversibles > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
+                  variant="outline"
+                >
+                  {grupo.reversibles > 0
+                    ? `${grupo.reversibles} ${grupo.reversibles === 1 ? 'reversible' : 'reversibles'}`
+                    : 'Gestionados'}
+                </Badge>
+                <ChevronDown
+                  aria-hidden
+                  className={cn('size-4 shrink-0 text-muted-foreground transition-transform', abierto && 'rotate-180')}
+                />
+              </button>
+
+              {abierto && (
+                <div id={contenidoId} className="border-t border-border bg-muted/[0.12] px-3 py-3">
+                  <ul
+                    aria-label={`Leads derivados a ${grupo.asesorNombre}`}
+                    className="space-y-2"
+                  >
+                    {paginaGrupo.visibles.map((movimiento) => (
+                      <li
+                        key={`${movimiento.lead_id}-${movimiento.derivado_en}`}
+                        className="flex flex-col gap-2 rounded-lg border border-border bg-card p-2.5 sm:flex-row sm:items-center"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-xs font-semibold">{movimiento.nombre_completo}</p>
+                          <p className="truncate text-[10.5px] text-muted-foreground">
+                            {movimiento.monto_estimado != null
+                              ? moneyK(movimiento.monto_estimado, movimiento.moneda)
+                              : 'Sin monto'}
+                            {' · '}
+                            {movimiento.reversible ? 'Aún puede volver a la bandeja' : 'El asesor ya registró gestión'}
+                          </p>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={!movimiento.reversible || devolviendoId != null}
+                          title={movimiento.reversible
+                            ? 'Devolver a mi bandeja'
+                            : 'El asesor ya registró gestión'}
+                          onClick={() => onDevolver(movimiento)}
+                        >
+                          {devolviendoId === movimiento.lead_id
+                            ? 'Devolviendo…'
+                            : movimiento.reversible ? 'Devolver' : 'Ya gestionado'}
+                        </Button>
+                      </li>
+                    ))}
+                  </ul>
+                  {paginaGrupo.paginas > 1 && (
+                    <div className="mt-3 border-t border-border pt-3">
+                      <Paginacion
+                        paginaActual={paginaGrupo.paginaActual}
+                        paginas={paginaGrupo.paginas}
+                        total={grupo.movimientos.length}
+                        onCambio={(pagina) => setPaginas((actual) => ({
+                          ...actual,
+                          [grupo.asesorId]: pagina,
+                        }))}
+                        ariaLabel={`Paginación de derivaciones de ${grupo.asesorNombre}`}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </li>
+          )
+        })}
       </ul>
-      {paginaGuardadas.paginas > 1 && (
-        <div className="mt-3 border-t border-border pt-3">
-          <Paginacion
-            paginaActual={paginaGuardadas.paginaActual}
-            paginas={paginaGuardadas.paginas}
-            total={movimientos.length}
-            onCambio={setPagina}
-            ariaLabel="Paginación de derivaciones guardadas hoy"
-          />
-        </div>
-      )}
     </div>
   )
 }
@@ -510,6 +998,7 @@ export function Derivaciones(): JSX.Element {
   )
 
   const [borrador, setBorrador] = useState<Record<string, string>>({})
+  const [ultimoReparto, setUltimoReparto] = useState<UltimoReparto | null>(null)
   const derivar = useDerivarLeadsEquipo()
   const revertir = useRevertirDerivacionEquipo()
   const [devolviendoId, setDevolviendoId] = useState<string | null>(null)
@@ -539,6 +1028,7 @@ export function Derivaciones(): JSX.Element {
   const totalBorrador = Object.keys(borrador).length
 
   const cambiarBorrador = (leadId: string, asesorId: string | null) => {
+    setUltimoReparto(null)
     setBorrador((actual) => {
       if (asesorId == null) {
         const siguiente = { ...actual }
@@ -555,13 +1045,19 @@ export function Derivaciones(): JSX.Element {
       asesorId,
     }))
     if (derivaciones.length === 0) return
+    const resumenGuardado = resumirReparto(borrador, leadsPorRepartir, ambito.vendedores)
     try {
       const resultado = await derivar.mutateAsync(derivaciones)
       setBorrador({})
-      await recargar()
+      setUltimoReparto(resumenGuardado)
       toast.success(
         `${resultado.derivados} ${resultado.derivados === 1 ? 'lead derivado' : 'leads derivados'} a tu equipo`,
       )
+      try {
+        await recargar()
+      } catch {
+        toast.warning('El reparto fue guardado, pero la pantalla no pudo actualizarse. Recarga para ver los cambios.')
+      }
     } catch (error) {
       toast.error(mensajeDeError(error, 'No se pudieron guardar las derivaciones.'))
     }
@@ -584,6 +1080,8 @@ export function Derivaciones(): JSX.Element {
     (total, asesor) => total + asesor.derivados,
     0,
   )
+  const reporteListo = yo?.demo !== true && rangoValido && reporte.data != null && !reporte.error
+  const reversiblesHoy = reporte.data?.movimientos_hoy.filter((movimiento) => movimiento.reversible).length ?? 0
   const stats: StatChipData[] = [
     {
       icon: Users,
@@ -615,6 +1113,15 @@ export function Derivaciones(): JSX.Element {
   return (
     <div className="mx-auto max-w-[1280px] space-y-5 ac-rise">
       <StatStrip stats={stats} />
+
+      <RutaReparto
+        reporteListo={reporteListo}
+        asesores={reporte.data?.asesores.length ?? 0}
+        porRepartir={leadsPorRepartir.length}
+        enBorrador={totalBorrador}
+        guardadasHoy={reporte.data?.movimientos_hoy.length ?? 0}
+        ultimoReparto={ultimoReparto}
+      />
 
       <AvisoDegradacion
         activo={!yo?.demo && Boolean(reporte.error)}
@@ -699,7 +1206,7 @@ export function Derivaciones(): JSX.Element {
         </CardContent>
       </Card>
 
-      <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
+      <div className="grid grid-cols-1 items-start gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(360px,0.85fr)]">
         <Card>
           <SectionHead
             icon={SendHorizontal}
@@ -727,12 +1234,18 @@ export function Derivaciones(): JSX.Element {
           <SectionHead
             icon={Activity}
             title="Guardadas hoy"
-            right={reporte.data && reporte.data.movimientos_hoy.length > 0 ? (
+            right={reversiblesHoy > 0 ? (
               <Badge color={SEMAFORO.atencion} variant="outline" dot>
-                {reporte.data.movimientos_hoy.length} por revisar
+                {reversiblesHoy} {reversiblesHoy === 1 ? 'puede volver' : 'pueden volver'}
               </Badge>
             ) : undefined}
           />
+          {ultimoReparto && (
+            <ResumenUltimoReparto
+              resumen={ultimoReparto}
+              onCerrar={() => setUltimoReparto(null)}
+            />
+          )}
           {yo?.demo ? (
             <p className="px-5 pb-4 text-sm text-muted-foreground">
               Las derivaciones guardadas se muestran solo con datos reales.

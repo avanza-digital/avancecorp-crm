@@ -100,6 +100,8 @@ const LEAD_EN_BANDEJA = {
   asignado_supervisor_id: SUPERVISOR,
 } as Lead
 
+let LEADS_ACTUALES: Lead[] = [LEAD_EN_BANDEJA]
+
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({
     yo: {
@@ -113,7 +115,7 @@ vi.mock('@/lib/auth-context', () => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: [LEAD_EN_BANDEJA], vendedores: ASESORES, esGlobal: false },
+    ambito: { leads: LEADS_ACTUALES, vendedores: ASESORES, esGlobal: false },
     recargar: RECARGAR,
   }),
 }))
@@ -152,9 +154,21 @@ beforeEach(() => {
   CONSULTAR_REPORTE.mockClear()
   GUARDAR.mockClear()
   DEVOLVER.mockClear()
+  LEADS_ACTUALES = [LEAD_EN_BANDEJA]
 })
 
 describe('Derivaciones — módulo independiente de Supervisión', () => {
+  it('ordena la tarea en tres pasos visibles sin convertirla en un reparto masivo', () => {
+    render(<Derivaciones />)
+
+    const flujo = screen.getByLabelText('Flujo para derivar leads')
+    expect(within(flujo).getByText('1. Comparar carga')).toBeVisible()
+    expect(within(flujo).getByText('2. Preparar reparto')).toBeVisible()
+    expect(within(flujo).getByText('3. Confirmar')).toBeVisible()
+    expect(screen.getByText('La asignación se realiza siempre uno por uno.')).toBeVisible()
+    expect(screen.queryByRole('checkbox')).not.toBeInTheDocument()
+  })
+
   it('actualiza Hoy como borrador y guarda el lote completo', async () => {
     render(<Derivaciones />)
 
@@ -162,13 +176,16 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
       target: { value: ANA },
     })
 
-    expect(screen.getByText('Hoy 1 · borrador')).toBeInTheDocument()
+    expect(screen.getByText('Recibirá del borrador')).toBeInTheDocument()
+    expect(screen.getByText('→ Ana Paredes')).toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Guardar 1 derivación' }))
 
     await waitFor(() => {
       expect(GUARDAR).toHaveBeenCalledWith([{ leadId: LEAD_BANDEJA, asesorId: ANA }])
     })
     expect(RECARGAR).toHaveBeenCalled()
+    expect(screen.getByText('Reparto guardado')).toBeInTheDocument()
+    expect(screen.getByText('Ana Paredes · 1 lead')).toBeInTheDocument()
   })
 
   it('permite cambiar o quitar el asesor antes de guardar', () => {
@@ -183,14 +200,17 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
     fireEvent.change(selector, { target: { value: ANA } })
     let tarjetaAna = within(tarjetas).getByText('Ana Paredes').closest('li')
     if (!tarjetaAna) throw new Error('No se encontró la tarjeta de Ana')
-    expect(within(tarjetaAna).getByText('Hoy 1 · borrador')).toBeInTheDocument()
+    expect(within(tarjetaAna).getByText('Hoy 1')).toBeInTheDocument()
+    expect(within(tarjetaAna).getByText('Recibirá del borrador')).toBeInTheDocument()
 
     fireEvent.change(selector, { target: { value: BRUNO } })
     tarjetaAna = within(tarjetas).getByText('Ana Paredes').closest('li')
     const tarjetaBruno = within(tarjetas).getByText('Bruno Ríos').closest('li')
     if (!tarjetaAna || !tarjetaBruno) throw new Error('No se encontraron las tarjetas del equipo')
     expect(within(tarjetaAna).getByText('Hoy 0')).toBeInTheDocument()
-    expect(within(tarjetaBruno).getByText('Hoy 1 · borrador')).toBeInTheDocument()
+    expect(within(tarjetaAna).queryByText('Recibirá del borrador')).not.toBeInTheDocument()
+    expect(within(tarjetaBruno).getByText('Hoy 1')).toBeInTheDocument()
+    expect(within(tarjetaBruno).getByText('Recibirá del borrador')).toBeInTheDocument()
 
     fireEvent.click(screen.getByRole('button', { name: 'Quitar' }))
     expect(screen.getByText('Aún no hay leads en el borrador')).toBeInTheDocument()
@@ -222,6 +242,34 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
     })
   })
 
+  it('busca y pagina la bandeja de veinte en veinte sin perder la asignación individual', () => {
+    LEADS_ACTUALES = Array.from({ length: 21 }, (_, indice) => ({
+      ...LEAD_EN_BANDEJA,
+      id: `lead-bandeja-${indice + 1}`,
+      nombre_completo: `Lead de prueba ${String(indice + 1).padStart(2, '0')}`,
+    }))
+
+    render(<Derivaciones />)
+
+    expect(screen.getAllByRole('combobox', { name: /Derivar Lead de prueba/i })).toHaveLength(20)
+    expect(screen.getByText('Página 1 de 2 · 21 registros')).toBeVisible()
+    expect(screen.queryByText('Lead de prueba 21')).not.toBeInTheDocument()
+    fireEvent.change(screen.getByRole('combobox', { name: /Derivar Lead de prueba 01/i }), {
+      target: { value: ANA },
+    })
+
+    fireEvent.click(screen.getByRole('button', { name: 'Siguiente' }))
+    expect(screen.getByText('Lead de prueba 21')).toBeVisible()
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }))
+    expect(screen.getByRole('combobox', { name: /Derivar Lead de prueba 01/i })).toHaveValue(ANA)
+
+    fireEvent.change(screen.getByRole('searchbox', { name: 'Buscar leads por repartir' }), {
+      target: { value: 'prueba 03' },
+    })
+    expect(screen.getByText('Lead de prueba 03')).toBeVisible()
+    expect(screen.queryByText('Página 1 de 2 · 21 registros')).not.toBeInTheDocument()
+  })
+
   it('permite devolver una derivación guardada mientras siga reversible', async () => {
     render(<Derivaciones />)
 
@@ -245,7 +293,7 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
     try {
       render(<Derivaciones />)
 
-      const lista = screen.getByRole('list', { name: 'Derivaciones guardadas hoy' })
+      const lista = screen.getByRole('list', { name: 'Leads derivados a Ana Paredes' })
       expect(within(lista).getAllByRole('listitem')).toHaveLength(5)
       expect(screen.getByText('Página 1 de 2 · 6 registros')).toBeInTheDocument()
       expect(within(lista).queryByText('Lead guardado 6')).not.toBeInTheDocument()
@@ -257,6 +305,39 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
       expect(within(lista).getByText('Lead guardado 6')).toBeInTheDocument()
       fireEvent.click(within(lista).getByRole('button', { name: 'Devolver' }))
       await waitFor(() => expect(DEVOLVER).toHaveBeenCalledWith('lead-guardado-6'))
+    } finally {
+      REPORTE.movimientos_hoy = movimientosOriginales
+    }
+  })
+
+  it('agrupa Guardadas hoy por asesor y mantiene un solo bloque abierto', () => {
+    const movimientosOriginales = REPORTE.movimientos_hoy
+    const movimientoAna = movimientosOriginales[0]
+    if (!movimientoAna) throw new Error('Falta el movimiento base de la prueba')
+    REPORTE.movimientos_hoy = [
+      movimientoAna,
+      {
+        ...movimientoAna,
+        lead_id: 'lead-bruno-hoy',
+        asesor_id: BRUNO,
+        asesor_nombre: 'Bruno Ríos',
+        nombre_completo: 'Lead de Bruno',
+      },
+    ]
+
+    try {
+      render(<Derivaciones />)
+
+      expect(screen.getByRole('list', { name: 'Leads derivados a Ana Paredes' })).toBeVisible()
+      expect(screen.queryByRole('list', { name: 'Leads derivados a Bruno Ríos' })).not.toBeInTheDocument()
+
+      const abrirBruno = screen.getByRole('button', { name: /Bruno Ríos.*1 lead/i })
+      expect(abrirBruno).toHaveAttribute('aria-expanded', 'false')
+      fireEvent.click(abrirBruno)
+
+      expect(abrirBruno).toHaveAttribute('aria-expanded', 'true')
+      expect(screen.getByRole('list', { name: 'Leads derivados a Bruno Ríos' })).toBeVisible()
+      expect(screen.queryByRole('list', { name: 'Leads derivados a Ana Paredes' })).not.toBeInTheDocument()
     } finally {
       REPORTE.movimientos_hoy = movimientosOriginales
     }
