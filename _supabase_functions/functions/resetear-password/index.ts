@@ -75,7 +75,18 @@ Deno.serve(async (req: Request) => {
       password: new_password,
     });
 
-    if (updErr) return json(cors, { error: updErr.message || "No se pudo actualizar la contraseña" }, 400);
+    if (updErr) {
+      const raw = updErr.message || "No se pudo actualizar la contraseña";
+      // Supabase rechaza contraseñas débiles/filtradas (HaveIBeenPwned) con un
+      // mensaje en inglés. Lo traducimos para que el admin entienda qué hacer.
+      const esDebil = /weak|pwned|leaked|breach|easy to guess|known to be|compromis/i.test(raw);
+      if (esDebil) {
+        return json(cors, {
+          error: "Supabase rechazó esta contraseña por ser muy común o aparecer en filtraciones conocidas. Usa una con mayúsculas, minúsculas, números y un símbolo (ej: NuevaClave2026!).",
+        }, 422);
+      }
+      return json(cors, { error: raw }, 400);
+    }
 
     return json(cors, { ok: true }, 200);
 

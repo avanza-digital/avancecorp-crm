@@ -51,15 +51,19 @@ Deno.serve(async (req: Request) => {
     const { email, password, nombre_completo, dni, telefono, rol } = body || {};
 
     // Quién puede crear qué (se decide en el SERVIDOR, no se confía en el front):
-    //  - superadmin: 'admin' (default), 'analista' o 'directorio' (panel ejecutivo solo lectura).
-    //  - admin normal: SOLO 'analista' (NO puede crear otros admins ni directorio → sin escalada).
+    //  - superadmin: 'admin' (default), 'analista', 'directorio' (panel ejecutivo
+    //    solo lectura) u 'operaciones' (asiento de cartera: clientes, contratos,
+    //    pagos y documentos, sin equipo, sin comunicados y sin borrar).
+    //  - admin normal: SOLO 'analista' (NO puede crear otros admins, directorio ni
+    //    operaciones → sin escalada).
     const esSuperadmin = perfilCaller.rol === "superadmin";
-    if (!esSuperadmin && (rol === "admin" || rol === "directorio")) {
-      return json(cors, { error: "Solo el superadmin puede crear administradores o directorio" }, 403);
+    if (!esSuperadmin && (rol === "admin" || rol === "directorio" || rol === "operaciones")) {
+      return json(cors, { error: "Solo el superadmin puede crear administradores, directorio u operaciones" }, 403);
     }
     const rolFinal = esSuperadmin
       ? (rol === "analista" ? "analista"
          : rol === "directorio" ? "directorio"
+         : rol === "operaciones" ? "operaciones"
          : "admin")
       : "analista";
 

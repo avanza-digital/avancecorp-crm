@@ -3241,3 +3241,213 @@ le escribe a mis tablas». Deuda adyacente detectada: `20260818014534` **sí** a
 | Versión | Nombre | Qué hace | Estado |
 |---------|--------|----------|--------|
 | 20260820174320 | crm_reporte_derivaciones_equipo_supervisor | Añade dos índices, tres RPC gateadas y dos guardas privadas para que cada supervisor vea, por rango inclusivo en `America/Lima`, cuántos leads y cuánto capital derivó a cada asesor directo; prepare un borrador atómico de hasta 100 leads; y devuelva a su propia bandeja una derivación de hoy mientras el asesor no haya registrado ninguna actividad o tarea. El reporte no expone teléfono, correo, DNI ni notas. El ledger conserva cada apertura/cierre, pero un episodio devuelto como `parqueado` al supervisor de origen deja de pesar en `derivados`, capital y `repartido_hoy`: deshacer debe reducir la carga visible del asesor, no solo mover el lead. Las RPC son `SECURITY DEFINER`, `search_path=''`, revocadas a `PUBLIC`/`anon`/`service_role`, ejecutables por `authenticated` y con gate interno de supervisor activo/equipo directo. Guardado y devolución toman primero el advisory lock compartido de jerarquía y luego bloquean `lead → supervisor → asesor`, evitando deadlock con bajas/traslados. La guarda de `actividades`/`tareas` toma el mismo lock del lead, revalida dueño y sella `creado_en` con `clock_timestamp()` después del lock; la guarda de `leads` impide eludir la devolución con un `PATCH` directo. Oráculos: `supabase/scripts/test-reporte-derivaciones-equipo.sql` (atomicidad, aislamiento, PII, snapshot de capital, hora atrasada, bypass por `PATCH`, arrays no canónicos y contador/capital netos) y, al final de la branch, `test-reporte-derivaciones-concurrencia.mjs` (COMMIT intercalado, orden causal del sello y devolución bloqueada). Postflight, oráculo transaccional y sonda concurrente: ✅ PostgreSQL 17 local tras el ajuste causal. | ✅ Aplicada y registrada en producción el 2026-08-20 después de branch poblada, oráculo, gate RLS de 1.109 aserciones, advisors y sonda concurrente. Verificación directa: 116 migraciones, 3 RPC, 2 guardas, 3 triggers activos, 2 índices válidos, ACL y `search_path` correctos; frontend aislado publicado en Hostinger y verificado por HTTP 200 + SHA-256. La branch temporal fue eliminada. |
+
+## 20260820190500_crm_documento_regimen_por_fecha_de_firma.sql
+
+**Estado: pendiente de aplicar.** Fija el **régimen documental por FECHA DE FIRMA**:
+un contrato firmado el **2026-08-19 o después** lleva el PDF que emite el sistema —y
+ese PDF *es* el contrato—; uno firmado antes ya tiene el suyo en el formato anterior
+y el sistema **no le emite ninguno**, aunque se cargue hoy. Regla de negocio de
+Miguel del 2026-08-20.
+
+**Qué estaba pasando (medido en producción, no supuesto).** De los 31 contratos
+cargados desde el 18-ago, **26 se firmaron antes del 19** y a **21 de ellos ya se les
+había emitido documento nuevo**; el más antiguo, del 17 de febrero. El mecanismo no
+era el alta: era el botón **«Ver contrato PDF»** del detalle, que cuando no hay
+documento no muestra —**fabrica**—, encadenando front → edge `ensure` →
+`crm.contrato_pdf_reservar`. Cualquiera que abriese un contrato viejo acuñaba un
+contrato en el formato nuevo, fechado meses atrás y con el domicilio de hoy, que es
+el de notificaciones (cláusula 14.ª). Efecto colateral del mismo agujero: como el
+documento exige los nueve datos legales, la **carga del histórico** —el 97 % del
+trabajo real del equipo: 214 contratos en 30 días, solo 6 firmados del 19-ago en
+adelante— chocaba contra un muro que ese contrato no necesita.
+
+**Qué hace.** `private.contrato_documental_regimen(uuid)` como **fuente única** de la
+frontera (misma forma que `crm.normalizar_domicilio_legal` en el bloque 1: una sola
+puerta, un solo listón), consultada por las **cuatro** funciones que pueden acuñar o
+mover un documento: `private.crear_job_contrato_pdf_base` (alta y botón),
+`private.crear_revision_contrato_pdf_base` (corrección de contrato y de número),
+`crm.contrato_pdf_reclamar` (entrega del turno a la Edge) y
+`private.contrato_pdf_estado_base` (lo que ve la pantalla). Los ACL quedan idénticos
+a los vivos (`postgres=X/postgres`, y `service_role` además en `reclamar`).
+
+**Lo que NO toca, por decisión de Miguel:** los 21 documentos ya emitidos para
+operaciones antiguas **se quedan como están**: sellados, íntegros y descargables. La
+migración impide que nazcan más, no borra los que hay. Tampoco muta ni borra ninguna
+fila: los dos trabajos huérfanos de producción (contratos `2026-01-000319` y
+`2026-01-000602`, firmados en marzo y mayo, en `pendiente` desde el 19-ago con **cero
+intentos**) quedan **inertes** —nadie puede reclamarlos— e **invisibles** —el estado
+responde `sin_reserva`—, que es la verdad: ese contrato no lleva documento nuevo.
+
+**Orden de despliegue — la Edge va PRIMERO.** `parseEstado` de `crm-contrato-pdf-v2`
+exigía `reintentable === true` cuando el estado es `sin_reserva`; devolver `false`
+sin actualizarla antes haría que la Edge descartase la respuesta entera (502) y
+rompería el detalle de **todo** contrato antiguo. La Edge tolerante viaja en el mismo
+commit y se despliega antes. El frontend puede ir después: no depende de claves
+nuevas, solo deja de ofrecer un botón.
+
+**Son DOS fechas, y la segunda no sobra.** `fecha_inicio` es el inicio del PLAZO, que
+no siempre coincide con la firma: medido en producción, los contratos
+`2026-01-000891` y `2026-01-000892` (REATEGUI PEREZ PEDRO IVAN, S/ 170.000 y
+S/ 250.000) se **cargaron el 1 de julio** con `fecha_inicio` = **2027-07-01**. Con la
+fecha de plazo sola caerían en el régimen nuevo y el sistema ofrecería emitir un
+contrato del formato nuevo a dos operaciones firmadas en julio, cuando este documento
+ni existía. El suelo `creado_en >= 2026-08-19` (en hora de Lima) lo impide sin
+contradecir la regla: una operación registrada **antes** de la frontera no pudo
+firmarse en ella o después. Con las dos fechas, producción clasifica **5 nuevos y 410
+anteriores** sobre 415 contratos.
+
+**Verificación local.** Oráculo aislado `CONTRATO_PDF_V2_SQL_OK` /
+`CONTRATO_PDF_V2_RUNNER_OK` con seis escenarios nuevos que **ejecutan** la regla:
+alta del 18-ago sin domicilio (nace el contrato, no nace trabajo), el mismo cliente
+firmado el 19-ago (23514: sin domicilio no hay documento y por tanto no hay
+contrato), reservar sobre un contrato antiguo (no acuña nada), el huérfano sembrado
+tal como está en producción (inerte e invisible, sin perder la fila), el contrato con
+el plazo empezando en 2027 pero registrado en julio (régimen anterior, no se le
+ofrece nada) y el documento antiguo ya emitido (sigue `sellado` y descargable). **Dos mutantes:** neutralizar la
+frontera pone el oráculo en rojo (salida 3, cero marcadores OK), y quitar el suelo de
+`creado_en` lo pone rojo en el caso REATEGUI. Front: 2.108/2.108
+unitarias, lint y typecheck en verde; Edge: 20/20 pruebas Deno.
+
+**Deuda saldada en el camino.** Este branch **no contenía** los archivos de
+`20260818204908` (plantilla v4) ni `20260818233729` (plantilla v5), ambos **vivos en
+producción** y presentes solo en `feat/creacion-lead-atomica`: el repo no podía
+reproducir producción para toda la cadena del PDF. Se incorporan aquí junto con el
+oráculo y el runner que los acompañan. Sigue faltando en este branch
+`20260818181756_crm_ingresos_reparto_mes.sql`, también vivo, que pertenece a otra
+sesión. Además, el stub `public.contratos` del oráculo declaraba `fecha_inicio`
+**opcional** cuando en producción es `NOT NULL`: era más débil que el mundo real y se
+ha alineado.
+
+**Registro de excepciones a `public`:** ninguna. No crea, altera ni borra objetos de
+`public`; solo lee `public.contratos.fecha_inicio`.
+
+## 20260821222348_portal_asiento_operaciones.sql
+
+**Asiento «Operaciones» del Portal.** Gloria era la única cuenta `admin` del
+Portal, y `admin` es un interruptor de todo o nada: las nueve pantallas del panel
+pasan por el mismo portero (`verificarAdmin`) y, en la base, por la misma llave
+(`public.es_admin`). Su asistente necesita cuatro de esas nueve —Clientes,
+Contratos, Pagos y Documentos— y ninguna de las otras cinco.
+
+**El diseño, en una frase: falla CERRADO.** `public.es_admin()` **no se toca**,
+así que los ~20 objetos que hoy la usan —y todo objeto futuro que la use— siguen
+significando exactamente «admin o superadmin» y niegan el asiento nuevo por
+omisión. Lo que se abre se abre uno a uno, por una llave distinta:
+`public.es_gestor_cartera()` = `es_admin() OR es_operaciones()`.
+
+Se descartó el camino contrario (meter el rol dentro de `es_admin()` y luego
+cerrar a mano lo que sobra) porque es fail-OPEN: el mutante **m2** lo demuestra
+—contaminar `es_admin()` abre de golpe **siete** puertas que nadie pidió
+(comunicados, borrado de documentos, borrado de cuotas, edición de analistas,
+`audit_log`, Actividad y el cockpit del Directorio).
+
+**Qué se abre.** Ocho políticas (`perfiles_select`, `perfiles_update`,
+`contratos_select`, `cronograma_select`, `cronograma_admin_actualiza`,
+`documentos_select`, `documentos_admin_inserta`, y en `storage` las dos del
+bucket `documentos`) y siete funciones (`puede_ver_contrato`, `crear_contrato`,
+`actualizar_contrato`, `actualizar_numero_contrato`, `cerrar_contrato`,
+`private.puede_gestionar_cuentas_cliente` y `crm.cuentas_pago_contratos_fn`, que
+el panel de Pagos consume). Los cuerpos de las siete son **idénticos a los vivos
+en producción**: se descargaron, se cambió sólo la llave y se volvieron a
+publicar.
+
+**Tres puertas cerradas por decisión de Miguel** (no son omisiones). **Cerrar
+ciclo**: `cerrar_contrato` ni aparece en esta migración. **Reasignar asesor**: la
+RLS decide por FILA y esto es por COLUMNA, así que el corte vive en el trigger
+`proteger_campos_inmutables` (bloque 5 bis) y **levanta una excepción** en vez de
+restaurar en silencio —un guardado que dice «listo» sin reasignar es peor que un
+error claro—, y solo salta si el asesor de verdad CAMBIA, para no romper el
+guardado normal del formulario, que reenvía el mismo valor cada vez.
+**Resetear contraseñas**: `resetear-password` sigue en `["admin","superadmin"]`.
+
+**Qué NO se abre, a propósito.** `contratos` INSERT/UPDATE se quedan en
+`es_admin()`: las tablas no hacen falta porque la escritura entra por RPC
+`SECURITY DEFINER` (y sin `FORCE ROW LEVEL SECURITY`, el definidor —`postgres`—
+las salta). Siguen cerradas las tres puertas de borrado, `admin_crea_perfiles`,
+las dos de `novedades`, `audit_log_admin_select`, `bandeja_actividad`, las de
+`comunicados` en storage e `importar-clientes`.
+
+**Ensayo y mutantes.** `supabase/scripts/run-test-portal-asiento-operaciones.sh
+--mutantes` (6 mutantes). El oráculo se aplica **contra el esquema y los datos REALES de
+producción** dentro de una transacción que termina siempre en `rollback`: siembra
+una identidad efímera, y en tres actos ejerce el asiento nuevo (todas las
+aserciones EJECUTADAS, no leídas), comprueba que Gloria no pierde nada y que un
+analista no gana nada. Cuatro mutantes lo ponen rojo: cerrar la subida de
+documentos, contaminar `es_admin()`, abrir el borrado de documentos, dejar
+`actualizar_numero_contrato` en `es_admin()`, **abrir `cerrar_contrato`** al
+asiento nuevo y **quitar el corte del asesor** del trigger. **6/6 cazados.**
+
+⚠️ **Trampa reencontrada** (ya documentada en `RETOMAR-53`): en el oráculo,
+`text[] || 'literal'` **revienta en runtime** («malformed array literal»). El
+oráculo estaba verde porque nunca llegaba a acumular un fallo; en cuanto tenía
+algo que reportar, se caía. Se cerró con `array_append`. Sin esa corrección los
+mutantes se ponían rojos, sí, pero por la razón equivocada y sin decir cuál.
+
+⚠️ **Segunda trampa, en las Edge:** la `resetear-password` **viva** llevaba una
+traducción del rechazo de contraseñas filtradas (HIBP) que **no estaba en el
+repo** (`_supabase_functions/`). Editar la copia del repo y desplegar habría
+borrado ese arreglo de producción. Se descargaron las tres funciones vivas, se
+editaron ésas, y el repo se sincronizó con lo vivo + el cambio (deuda saldada de
+paso). Es exactamente la lección de `parche-solo-en-el-artefacto-no-existe`.
+
+**Registro de excepciones a `public`:** **SÍ**. Esta migración vive en el repo del
+CRM porque es el único índice de migraciones del proyecto, pero su materia es el
+Portal: altera el CHECK `perfiles_rol_check` (añade `'operaciones'`), crea
+`public.es_operaciones()` y `public.es_gestor_cartera()`, y modifica las ocho
+políticas y siete funciones listadas arriba.
+
+## 20260821223019_crm_eliminar_recuperacion_credenciales.sql
+
+**Credencial exclusiva del CRM = documento.** Retira la última superficie SQL
+del flujo anterior de recuperación por correo:
+`crm.preparar_recuperacion_usuario_fn(uuid, uuid)`. La Edge `crm-usuarios` v5
+crea las identidades nuevas confirmadas con el documento normalizado como clave
+exacta y sin iniciar ningún envío de Auth; la pantalla de usuarios ya no ofrece
+acción ni modal de recuperación.
+
+Las identidades Portal reutilizadas por el CRM conservan su contraseña. La
+reconciliación productiva, protegida por marca de servidor, allowlist auditada y
+conteo exacto, actualizó una sola identidad heredada exclusiva del CRM; cuatro
+perfiles comerciales sin esa procedencia no se tocaron.
+
+**Despliegue y verificación:** ✅ aplicada en producción el 2026-08-21; RPC
+ausente, Edge v5 activa con `verify_jwt=true`, CORS del subdominio CRM en 204 y
+POST sin JWT en 401. Build Hostinger `build-20260821T222650651Z`, con
+`index.html` y módulo de usuarios idénticos byte por byte al artefacto aprobado.
+
+**Registro de excepciones a `public`:** ninguna. No modifica `public`, el Portal
+ni la configuración global de Supabase Auth.
+
+## 20260821233241_crm_alta_vendedor_completa_gerencia.sql
+
+**Causa corregida.** El alta anterior creaba Auth y `public.perfiles`, pero
+dejaba al vendedor sin `crm.equipo`. Por eso Gerencia veía «Pendiente de rol»,
+no podía seleccionar Supervisor y, después de autenticar correctamente,
+`crm.mi_acceso_fn()` cerraba el acceso como `no_enrolado`.
+
+**Nueva frontera atómica.** `crm.registrar_vendedor_usuario_fn(...)` permite a
+Gerencia completar exclusivamente un Vendedor CRM con rol fijo `vendedor`,
+Supervisor activo obligatorio y membresía activa en una sola transacción. No
+acepta promociones ni un rol suministrado por el cliente; Superadmin conserva
+el gobierno de los demás roles. Revalida autoridad después del candado global,
+protege la idempotencia completa, exige coincidencia documental para candidatos
+existentes y falla si perfil o Auth dejaron de estar vigentes.
+
+**Frontera Portal.** Solo opera cuando coinciden el perfil `comercial` y la
+marca servidor `app_metadata.origen_app = 'crm'`. Una identidad compartida con
+el Portal devuelve `candidato_existente` sin cambios. No modifica código,
+credenciales, rutas, funciones ni configuración Auth del Portal.
+
+**Despliegue y verificación:** ✅ aplicada en producción el 2026-08-21. Edge
+`crm-usuarios` v6 activa con `verify_jwt=true`; preflight CORS 204 y POST sin JWT
+401. Frontend Hostinger `build-20260821T233409404Z`, con estado **Alta
+pendiente**, selección de Supervisor, acción **Completar alta**, reintento del
+catálogo y documento inmutable después de crear la identidad. Verificación:
+2.129/2.129 pruebas web, 20/20 pruebas Edge del gate, lint, typecheck, build,
+artefacto SHA-256 verificado y oráculo PostgreSQL
+`USUARIOS_JERARQUIA_TX_OK` con el caso de candidato CRM existente.
+
+**Registro de excepciones a `public`:** crea perfiles `comercial` únicamente
+para identidades nuevas marcadas por el servidor como exclusivas del CRM, igual
+que el flujo anterior. No altera objetos ni comportamiento del Portal.

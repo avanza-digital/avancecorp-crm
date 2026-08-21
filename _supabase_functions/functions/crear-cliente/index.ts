@@ -67,9 +67,12 @@ Deno.serve(async (req: Request) => {
       .eq("id", userRes.user.id)
       .single();
 
-    // El portal conserva sus roles. La única ampliación es Gerencia ACTIVA del
-    // CRM: puede dar de alta desde crm.miavance.com sin volverse admin global.
-    const portalPuedeCrear = perfil?.activo && ["admin", "superadmin", "analista"].includes(perfil.rol);
+    // El portal conserva sus roles. Dos ampliaciones: Gerencia ACTIVA del CRM
+    // (da de alta desde crm.miavance.com sin volverse admin global) y el asiento
+    // 'operaciones' (gestiona la cartera del Portal: clientes, contratos, pagos
+    // y documentos; no administra personal ni comunica).
+    const portalPuedeCrear = perfil?.activo
+      && ["admin", "superadmin", "analista", "operaciones"].includes(perfil.rol);
     let gerenciaCrm = false;
     if (perfil?.activo && !portalPuedeCrear) {
       const { data: miembro } = await adminClient
