@@ -3235,3 +3235,9 @@ servidor sigue siendo la única puerta. Hay un test que lo fija.
 toda la cartera CRM). Anotado porque ese registro es el índice donde se busca «quién
 le escribe a mis tablas». Deuda adyacente detectada: `20260818014534` **sí** altera
 `public.perfiles` (columna + constraint + trigger) y no tiene fila.
+
+## Base para gestión de descartes — 2026-08-20
+
+| Archivo | Versión registrada en producción | Cambio | Estado |
+|---------|----------------------------------|--------|--------|
+| `20260820181756_crm_base_gestion_descartes.sql` | `20260821002017` | Historial mensual inmutable desde `crm.lead_asignaciones`, lecturas gateadas por equipo para Supervisor y globales para Gerencia, y reactivación atómica en bloque con reparto circular. Las tres RPC son `SECURITY DEFINER` con `search_path` vacío; `public`/`anon` no ejecutan y `authenticated` sí. No expone teléfono, correo, DNI ni notas libres. | ✅ Producción. Oráculo local `BASE_GESTION_DESCARTES_TX_OK`; postflight productivo con sesión real autorizada; 3 RPC y 2 índices parciales comprobados. SHA-256 `0e3dbad3ed575e1c03ac8fb6233dc8286ea1007eb5e5f474fb9a644857abf071`. Front `crm-20260821T002429Z-2ed459dbc42b`, HTTP 200 e igualdad byte a byte. |

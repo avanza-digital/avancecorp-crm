@@ -71,9 +71,19 @@ Los triggers existentes cierran el episodio descartado y abren el nuevo ciclo
 de asignación. Así, el historial conserva quién descartó, cuándo y por qué,
 sin confundir ese hecho con la nueva gestión.
 
-## Dependencia de despliegue
+## Producción
 
-La funcionalidad requiere aplicar primero la migración
-`20260820181756_crm_centro_rescate_descartes.sql` y luego publicar el frontend.
-Las RPC tienen `security definer`, `search_path` vacío, revocación a `public` y
-`anon`, y ejecución explícita solo para `authenticated`.
+- La migración `20260820181756_crm_base_gestion_descartes.sql` se aplicó el
+  2026-08-20 y Supabase la registró como `20260821002017`. Su SHA-256 es
+  `0e3dbad3ed575e1c03ac8fb6233dc8286ea1007eb5e5f474fb9a644857abf071`.
+- El postflight ejecutó las lecturas con una sesión real autorizada y confirmó
+  las tres RPC, sus dos índices parciales y las ACL: `public` y `anon` sin
+  ejecución; `authenticated` con ejecución. Las RPC mantienen
+  `security definer` y `search_path` vacío.
+- El frontend publicado es
+  `crm-20260821T002429Z-2ed459dbc42b`, ZIP SHA-256
+  `03f300f37679f77d1ce221c130697dcecec610bf9ed16c6c488584cc9d112836`.
+  `index.html`, el bundle principal y el chunk de Base para gestión se
+  comprobaron en `crm.miavance.com` con HTTP 200 e igualdad byte a byte.
+- Validación previa: `npm run check`, 2.104 pruebas unitarias y 104 pruebas E2E
+  aprobadas; 26 E2E omitidas por diseño y cero fallos.
