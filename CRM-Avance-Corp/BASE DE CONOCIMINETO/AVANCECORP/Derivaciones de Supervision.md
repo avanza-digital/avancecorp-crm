@@ -39,4 +39,22 @@ La experiencia mantiene los estados degradados: si el reporte comparativo no
 está disponible, los selectores y el guardado permanecen bloqueados. El
 borrador no cambia ningún dueño hasta que la RPC confirma el lote.
 
-Estado: implementado y validado localmente; pendiente de publicación.
+## Producción — 2026-08-20
+
+Las cuatro mejoras se publicaron en `crm.miavance.com` con el release
+`crm-20260821T013437Z-1d156158a0e3`, construido desde el commit
+`1d156158a0e39489d42c7fed3f0d3335aa6573ed`. El ZIP aprobado tiene SHA-256
+`d334d7efe3a5ce76eda0bb00d61034db279d1f93844c9b730de044064415ca97`.
+
+El `index.html` servido sin parámetro de caché y los seis archivos críticos del
+frontend coincidieron byte a byte con el artefacto aprobado. El chunk
+`assets/derivaciones-DkaDFRmC.js` respondió HTTP 200 y contiene la ruta de
+reparto, la búsqueda, el comprobante y la aclaración de asignación uno por uno.
+La raíz respondió HTTP 200, el ZIP de release no quedó público (HTTP 404) y
+`.env` permanece bloqueado (HTTP 403). Hostinger limitó la solicitud adicional
+de purga de caché, pero el índice público ya coincide con el nuevo release y los
+recursos usan nombres versionados.
+
+Validación previa: `npm run check` con 2.120 pruebas aprobadas, build y guardas
+del bundle; además, el E2E dirigido de Derivaciones pasó en Chromium. Este
+release no agregó migraciones ni modificó datos o permisos de Supabase.

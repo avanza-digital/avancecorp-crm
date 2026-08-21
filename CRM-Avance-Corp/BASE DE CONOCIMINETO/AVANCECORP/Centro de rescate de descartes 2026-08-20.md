@@ -80,11 +80,12 @@ sin confundir ese hecho con la nueva gestión.
   las tres RPC, sus dos índices parciales y las ACL: `public` y `anon` sin
   ejecución; `authenticated` con ejecución. Las RPC mantienen
   `security definer` y `search_path` vacío.
-- El frontend vigente es `crm-20260821T005842Z-863a9db7e2c4`, ZIP SHA-256
-  `fcdf71aec35d4067011e7e5291d67ba0cba3003c7c1c4b40a9b9c159cad9a6e5`.
+- El frontend vigente es `crm-20260821T013437Z-1d156158a0e3`, ZIP SHA-256
+  `d334d7efe3a5ce76eda0bb00d61034db279d1f93844c9b730de044064415ca97`.
   `index.html`, el bundle principal, la capa API y los chunks de **Base para
   gestión** y **Derivar leads** se comprobaron en `crm.miavance.com` con HTTP
-  200 e igualdad byte a byte.
+  200 e igualdad byte a byte. Esta versión conserva el Centro de rescate y suma
+  las mejoras Gestalt de [[Derivaciones de Supervision]] sin cambiar su backend.
 - El primer paquete `crm-20260821T002429Z-2ed459dbc42b` se construyó desde un
   worktree aislado sin el `.env` ignorado por Git. El login falló cerrado con
   «El acceso con cuenta aún no está disponible aquí»; no se afectaron cuentas
@@ -102,3 +103,6 @@ sin confundir ese hecho con la nueva gestión.
   aprobadas; 26 E2E omitidas por diseño y cero fallos. Las tres RPC de
   derivaciones y las tres RPC de rescate se verificaron además contra el
   catálogo productivo con sus ACL y `search_path` endurecido.
+- Para el frontend vigente, `npm run check` aprobó 2.120 pruebas, build y guardas
+  del bundle; el E2E dirigido de Derivaciones también pasó. No hubo migraciones
+  ni cambios de datos en esta publicación.
