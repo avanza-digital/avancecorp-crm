@@ -2,6 +2,7 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 // Versión EXACTA (no `@2`): esta función corre con service_role; un rango podría
 // resolver otra versión en un deploy futuro. Al subir, revisar contra la última 2.x.
 import { createClient } from "jsr:@supabase/supabase-js@2.110.8";
+import { interpretarAutorizacionContacto } from "./autorizacion-contacto.ts";
 import { indexarDestinosImportacion } from "./destinos.ts";
 
 // ============================================================================
@@ -330,29 +331,15 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    // Consentimiento (Ley "No Insista"): SOLO valores explícitos. Un valor no
-    // reconocido (typo tipo "N0", "FALSE") JAMÁS se interpreta como autorización;
-    // se RECHAZA la fila para que un humano la corrija (nunca se fabrica un
-    // consentimiento_en inexistente). Vacío = contactable por defecto (régimen de
-    // opt-out) pero SIN registrar consentimiento.
-    const autorizoRaw = (f.autorizo ?? "").trim().toUpperCase();
-    let noContactar: boolean;
-    let registrarConsentimiento = false;
-    if (autorizoRaw === "") {
-      noContactar = false;
-    } else if (
-      autorizoRaw === "SI" || autorizoRaw === "SÍ" || autorizoRaw === "S"
-    ) {
-      noContactar = false;
-      registrarConsentimiento = true;
-    } else if (autorizoRaw === "NO" || autorizoRaw === "N") {
-      noContactar = true;
-    } else {
-      rechazo(
-        "¿Autorizó contacto? debe ser SI o NO (vacío = sin registrar consentimiento)",
-      );
+    // La hoja solo registra si hubo un SI explícito. Tanto NO como vacío dejan
+    // el lead visible y repartible (`no_contactar = false`); esta integración no
+    // activa ni hereda el bloqueo "No Insista" del CRM.
+    const autorizacion = interpretarAutorizacionContacto(f.autorizo);
+    if (!autorizacion.ok) {
+      rechazo(autorizacion.error);
       continue;
     }
+    const registrarConsentimiento = autorizacion.registrarConsentimiento;
     const fuente = (f.fuente_consentimiento ?? "").trim().slice(0, 80) || null;
 
     const avisos: string[] = [];
@@ -376,7 +363,7 @@ Deno.serve(async (req: Request) => {
         moneda,
         categoria_interes: interes,
         nota: (f.nota ?? "").trim().slice(0, 2000) || null,
-        no_contactar: noContactar,
+        no_contactar: false,
         consentimiento_en: registrarConsentimiento
           ? new Date().toISOString()
           : null,
@@ -402,7 +389,7 @@ Deno.serve(async (req: Request) => {
     // nadie vuelve a entrar). El lote está acotado a MAX_POR_LOTE teléfonos.
     const { data: existentes, error: errDedup } = await admin
       .from("leads")
-      .select("telefono, etapa, activo, no_contactar")
+      .select("telefono, etapa, activo")
       .in("telefono", validas.map((v) => v.telefono));
     if (errDedup) {
       return json({
@@ -414,20 +401,6 @@ Deno.serve(async (req: Request) => {
     const yaEnCrm = new Set(
       (existentes ?? [])
         .filter((r) => r.activo === true && !CERRADAS.has(String(r.etapa)))
-        .map((r) => r.telefono),
-    );
-
-    // ── Pase 2-bis: la negativa a ser contactado SOBREVIVE al reingreso ──────
-    // CANDADO LEGAL, inseparable del cambio de arriba. Al reabrir la puerta a un
-    // teléfono que ya existía, el consentimiento se recalcularía desde la hoja y
-    // podría BORRAR un "no me llamen" anterior. Por eso este set se calcula sobre
-    // el historial completo (sin mirar activo ni etapa, a propósito): si esa persona
-    // alguna vez dijo que no, la fila nueva nace con no_contactar = true.
-    // Ley 29571 (INDECOPI). Ojo: solo cruza por TELÉFONO, que es la misma llave
-    // del reingreso que se reabre aquí; enlazar por DNI es deuda preexistente.
-    const nuncaContactar = new Set(
-      (existentes ?? [])
-        .filter((r) => r.no_contactar === true)
         .map((r) => r.telefono),
     );
 
@@ -469,13 +442,6 @@ Deno.serve(async (req: Request) => {
           estado: "DUPLICADO: ya existe en el CRM",
         });
         continue;
-      }
-      // El "no me llamen" histórico manda sobre lo que diga la hoja hoy.
-      if (nuncaContactar.has(v.telefono) && v.insert.no_contactar !== true) {
-        v.insert.no_contactar = true;
-        v.insert.consentimiento_en = null;
-        v.insert.consentimiento_fuente = null;
-        v.avisos.push("respeta un 'no contactar' anterior de este teléfono");
       }
       if (v.vendedorCorreo) {
         const id = vendedorPorCorreo.get(v.vendedorCorreo);

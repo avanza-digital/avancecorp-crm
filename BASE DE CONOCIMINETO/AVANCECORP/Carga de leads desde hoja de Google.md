@@ -33,7 +33,7 @@ Columnas (espejo de `crm.leads` Insert; las que tienen `*` son obligatorias):
 | Interés | `categoria_interes` | Nuevo/Renovación/Upgrade |
 | Nota | `nota` | libre |
 | Vendedor asignado (correo) | `vendedor_id` | resolver contra `crm.equipo`; vacío = bandeja "por repartir" (`vendedor_id null`) |
-| ¿Autorizó contacto? | `no_contactar` (invertido) + `consentimiento_en` | SI/NO — capa legal "No Insista" |
+| ¿Autorizó contacto? | `consentimiento_en` | SI registra consentimiento; NO o vacío importan igual como lead visible y repartible |
 | Fuente del consentimiento | `consentimiento_fuente` | libre |
 
 `etapa` no va en la hoja: todo lead entra como `nuevo`. `creado_por` lo pone el conector.
@@ -98,9 +98,10 @@ Y la propiedad del script. Nada más.
 Codex auditó el conector (8 hallazgos: 0C/0A/4M/4B). **7 corregidos** en la edge (v4,
 sha `04b1fcc4…`); el #4 quedó como decisión pendiente (ver abajo).
 - **Consentimiento estricto** (Medio): "¿Autorizó contacto?" solo acepta SI/SÍ/S,
-  NO/N, o vacío (contactable sin consentimiento). Un typo tipo `N0`/`FALSE` ahora
-  RECHAZA la fila en vez de fabricar `consentimiento_en`. `consentimiento_fuente`
-  solo se guarda con un SÍ explícito.
+  NO/N, o vacío. Un typo tipo `N0`/`FALSE` RECHAZA la fila en vez de fabricar
+  `consentimiento_en`; `consentimiento_fuente` solo se guarda con un SÍ explícito.
+  **Decisión posterior 2026-08-22:** NO y vacío ya no activan `no_contactar`; todos
+  los leads de la hoja quedan visibles y repartibles.
 - **Errores de resolución de vendedor** (Medio): un fallo consultando `perfiles`/
   `crm.equipo` ahora corta con HTTP 500 ANTES de insertar (el Apps Script reintenta
   como "ERROR temporal") — antes se leía como "sin vendedor" e importaba todo sin dueño.
@@ -324,8 +325,8 @@ Miguel lo zanjó el **2026-07-22**: la pestaña del formulario de Facebook no tr
 columna → sus 164 leads entran con **`SI`**. Punto. **No re-abrir el tema con él.**
 
 Donde la pestaña sí trae el dato (`landing`), manda el dato real: 175 "Si" / 15 "No",
-sin celdas vacías. Es una columna obligatoria de la hoja, como Teléfono o Moneda — el
-conector la necesita para poblar `no_contactar`, no es un añadido.
+sin celdas vacías. La columna se conserva como dato de origen y para registrar un SÍ
+explícito, pero desde el 2026-08-22 ya no controla `no_contactar` ni el reparto.
 
 Codificado en `CONSENTIMIENTO_SI_NO_HAY_COLUMNA` + `FUENTE_POR_PESTANA` /
 `FUENTE_POR_DEFECTO` (esta última aplica a toda pestaña sin entrada propia y su texto
@@ -736,6 +737,21 @@ funciones que abren el origen.
 
 ⛔ **Lo único que falta no es técnico:** el origen no recibe una fila desde el 24-jul. El
 puente funcionará perfectamente y traerá cero hasta que la campaña vuelva a escribir ahí.
+
+## 2026-08-22 — “NO” deja de bloquear leads de la hoja
+
+Decisión de Miguel: la respuesta `NO` en «¿Autorizó contacto?» no debe ocultar ni
+bloquear al lead. El importador ahora siempre crea las filas de la hoja con
+`no_contactar = false`; un `SI` explícito conserva `consentimiento_en` y su fuente,
+mientras que `NO` o vacío simplemente no registran ese sello. También se eliminó la
+herencia automática de un `no_contactar` histórico durante reingresos por la hoja.
+
+- Edge `crm-importar-leads` **v12 desplegada** y activa.
+- La función pura `interpretarAutorizacionContacto()` cubre SI/SÍ/S, NO/N, vacío e
+  inválidos; 7 pruebas Deno y 54 pruebas de extremo a extremo de la hoja quedaron verdes.
+- Los dos leads del 22-ago que tenían el valor anterior fueron corregidos en producción:
+  Renato Constantino (`+51952949862`) y Maria Astocondor Fuertes (`+51962823210`).
+  Verificación final: **29 LANDING de hoy, 29 visibles/repartibles, 0 bloqueados**.
 
 ## Relacionadas
 [[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]
