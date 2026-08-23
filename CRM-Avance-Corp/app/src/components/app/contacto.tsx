@@ -78,6 +78,7 @@ export function AccionesContacto({
   compacto,
   soloIcono,
   conAgendar,
+  destacada,
 }: {
   lead: Lead
   compacto?: boolean
@@ -90,6 +91,8 @@ export function AccionesContacto({
    * abriera la ficha en vez de agendar.
    */
   conAgendar?: boolean
+  /** Targets táctiles de 44 px para la franja primaria «Ahora» (Ley de Fitts). */
+  destacada?: boolean
 }): JSX.Element {
   const { yo } = useAuth()
   const escribe = puedeEscribir(yo?.rol)
@@ -142,7 +145,14 @@ export function AccionesContacto({
 
   return (
     <div
-      className={cn('flex items-center gap-1.5', compacto ? 'shrink-0' : 'flex-wrap')}
+      className={cn(
+        'flex items-center gap-1.5',
+        compacto ? 'shrink-0' : 'flex-wrap',
+        destacada && [
+          '[&_a]:!h-11 [&_a]:!px-3 [&_button]:!h-11 [&_button]:!px-3 sm:[&_a]:!h-9 sm:[&_button]:!h-9',
+          '[&>*:first-child]:!border-accent [&>*:first-child]:!bg-accent [&>*:first-child]:!text-white',
+        ],
+      )}
       // Escudo de propagación: ni el click en los links ni las teclas dentro del
       // dialog (portal — burbujea por el árbol de React) deben abrir la fila.
       // Escape SÍ pasa: el Dialog lo escucha a nivel de document para cerrarse.

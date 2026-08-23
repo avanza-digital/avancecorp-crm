@@ -31,7 +31,6 @@ import { Button } from '@/components/ui/button'
 import { Progress } from '@/components/ui/progress'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelVacio } from '@/components/common/estado-panel'
-import { KpiCard } from '@/components/common/kpi-card'
 import { AnimatedValue } from '@/components/common/animated-value'
 import { AccionesContacto } from '@/components/app/contacto'
 import { LeadHoverCard } from '@/components/app/lead-hover-card'
@@ -77,6 +76,10 @@ import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import {
+  seleccionarPrioridadesVendedor,
+  type PrioridadVendedor,
+} from './prioridades-vendedor'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
@@ -409,6 +412,7 @@ function AgendaHoy({
   nPropuestas,
   vencidasAbajo,
   className,
+  title = 'Tu agenda de hoy',
 }: {
   eventos: EventoAgenda[]
   leadPorId: (id: string) => Lead | undefined
@@ -422,6 +426,7 @@ function AgendaHoy({
    *  dato el pie no puede prometer nada (ver `textoRestoVencidas`). */
   vencidasAbajo: number
   className?: string
+  title?: string
 }): JSX.Element {
   const ordenados = [...eventos].sort((a, b) => a.vence_en.localeCompare(b.vence_en))
   const nHoy = eventos.filter((e) => e.cuando.startsWith('Hoy')).length
@@ -452,7 +457,7 @@ function AgendaHoy({
     <Card className={className}>
       <SectionHead
         icon={CalendarDays}
-        title="Tu agenda de hoy"
+        title={title}
         right={
           nHoy > 0 || nVence > 0 ? (
             <Badge color={nVence > 0 ? '#d97706' : 'var(--accent)'}>
@@ -526,6 +531,247 @@ function AgendaHoy({
           </>
         )}
       </CardContent>
+    </Card>
+  )
+}
+
+// ── Franja «Ahora» ───────────────────────────────────────────────────────────
+// La firma visual del vendedor: una hoja de llamada compacta, ordenada y con
+// máximo tres decisiones. No es otro resumen de alertas: las filas elevadas se
+// retiran de Agenda/Cola para que una persona no aparezca dos veces en la vista.
+
+function TarjetaPrioridad({
+  prioridad,
+  indice,
+  lead,
+  abrirLead,
+  onCompletar,
+}: {
+  prioridad: PrioridadVendedor
+  indice: number
+  lead: Lead | undefined
+  abrirLead: (id: string) => void
+  onCompletar: (id: string) => void
+}): JSX.Element {
+  const esCola = prioridad.fuente === 'cola'
+  const item = esCola ? prioridad.item : null
+  const evento = esCola ? null : prioridad.evento
+  const leadFinal = item?.lead ?? lead
+  const color = item
+    ? SEV_COLOR[item.sev]
+    : evento?.vencida
+      ? SEMAFORO.atencion
+      : SEMAFORO.ok
+  const etiqueta = item
+    ? BUCKET_LABEL[item.bucket]
+    : evento?.vencida
+      ? 'Vencida'
+      : (evento?.cuando ?? 'Agenda')
+  const titulo = leadFinal?.nombre_completo ?? evento?.titulo ?? 'Acción pendiente'
+  const accionAgenda = evento?.titulo.split(' — ')[0]
+  const detalleAgenda = accionAgenda ?? TIPO_EVENTO[evento?.tipo ?? ''] ?? 'Seguimiento'
+  const capitalTxt = leadFinal?.monto_estimado != null
+    ? money(leadFinal.monto_estimado, leadFinal.moneda)
+    : null
+
+  return (
+    <article className="relative flex min-h-52 flex-col overflow-hidden rounded-xl border border-white/15 bg-white p-4 text-foreground shadow-[0_18px_38px_-28px_rgba(2,8,23,0.9)]">
+      <span className="absolute inset-y-0 left-0 w-1" style={{ background: color }} aria-hidden />
+      <div className="flex items-center justify-between gap-3 pl-1">
+        <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+          Prioridad {String(indice + 1).padStart(2, '0')}
+        </span>
+        <Badge color={color} className="text-[10px]">{etiqueta}</Badge>
+      </div>
+      <div className="mt-3 pl-1">
+        <p className="line-clamp-2 text-base font-extrabold leading-tight tracking-tight text-primary">
+          {titulo}
+        </p>
+        <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
+          {item ? (
+            item.motivo
+          ) : (
+            <>
+              <span>{detalleAgenda}</span> · {evento?.cuando ?? ''}
+            </>
+          )}
+        </p>
+        {capitalTxt && (
+          <p className="mt-2 text-[11px] font-bold tabular-nums text-foreground/75">
+            {capitalTxt} en juego
+          </p>
+        )}
+      </div>
+      <div className="mt-auto flex flex-wrap items-center gap-2 pl-1 pt-4">
+        {item && <AccionesContacto lead={item.lead} destacada />}
+        {evento && (
+          <Button variant="accent" size="sm" className="h-11 sm:h-9" onClick={() => onCompletar(evento.id)}>
+            <CircleCheckBig aria-hidden /> Registrar resultado
+          </Button>
+        )}
+        <Button
+          variant="ghost"
+          size="sm"
+          className="ml-auto h-11 px-2 text-muted-foreground hover:text-foreground sm:h-9"
+          onClick={() => abrirLead(prioridad.leadId)}
+        >
+          Ver ficha <ChevronRight aria-hidden />
+        </Button>
+      </div>
+    </article>
+  )
+}
+
+function FranjaAhora({
+  prioridades,
+  totalSenales,
+  estadoCola,
+  leadPorId,
+  abrirLead,
+  onCompletar,
+}: {
+  prioridades: PrioridadVendedor[]
+  totalSenales: number
+  estadoCola: 'lista' | 'cargando' | 'error'
+  leadPorId: (id: string) => Lead | undefined
+  abrirLead: (id: string) => void
+  onCompletar: (id: string) => void
+}): JSX.Element {
+  const prioridadesParciales = estadoCola !== 'lista' && prioridades.length > 0
+  return (
+    <section
+      aria-labelledby="ahora-vendedor"
+      aria-busy={estadoCola === 'cargando'}
+      className="relative isolate overflow-hidden rounded-2xl bg-primary px-4 py-5 text-primary-foreground shadow-[0_24px_54px_-32px_rgba(17,30,61,0.9)] sm:px-5"
+    >
+      <div
+        className="pointer-events-none absolute -right-24 -top-28 -z-10 size-80 rounded-full bg-accent/25 blur-3xl"
+        aria-hidden
+      />
+      <div>
+        <div className="flex items-center gap-2">
+          <span className="rounded-full bg-accent px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.16em] text-white">
+            Ahora
+          </span>
+          <span className="text-[11px] font-semibold text-white/65">
+            {estadoCola === 'lista'
+              ? `${prioridades.length} de ${totalSenales} ${totalSenales === 1 ? 'señal' : 'señales'} priorizadas`
+              : estadoCola === 'cargando'
+                ? 'Completando tus prioridades…'
+                : 'Prioridad parcial · falta la cola'}
+          </span>
+        </div>
+        <h2 id="ahora-vendedor" className="mt-3 text-[clamp(1.35rem,3vw,2rem)] font-extrabold leading-tight tracking-[-0.03em]">
+          Tu siguiente movimiento
+        </h2>
+        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/65">
+          Agenda y pendientes reunidos sin duplicados. Resuelve de izquierda a derecha y vuelve al ritmo del día.
+        </p>
+      </div>
+
+      {prioridades.length === 0 && estadoCola === 'cargando' ? (
+        <div
+          role="status"
+          aria-label="Cargando próximas acciones"
+          className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3"
+        >
+          {[0, 1, 2].map((n) => (
+            <div key={n} className="min-h-40 animate-pulse rounded-xl border border-white/15 bg-white/8 p-4">
+              <div className="h-3 w-24 rounded bg-white/20" />
+              <div className="mt-5 h-5 w-3/4 rounded bg-white/25" />
+              <div className="mt-3 h-3 w-full rounded bg-white/15" />
+              <div className="mt-2 h-3 w-2/3 rounded bg-white/15" />
+              <div className="mt-6 h-10 w-32 rounded-lg bg-white/20" />
+            </div>
+          ))}
+          <span className="sr-only">Estamos reuniendo agenda y pendientes.</span>
+        </div>
+      ) : prioridades.length === 0 && estadoCola === 'error' ? (
+        <div role="status" className="mt-5 flex min-h-40 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/8 px-5 text-center">
+          <AlertTriangle className="size-9 text-warning" aria-hidden />
+          <p className="mt-3 text-base font-bold">No pudimos completar tus prioridades</p>
+          <p className="mt-1 max-w-lg text-xs text-white/65">
+            Tu agenda sigue disponible, pero falta la cola de acción. Reintenta desde el aviso superior para evitar leer un vacío como “al día”.
+          </p>
+        </div>
+      ) : prioridades.length === 0 ? (
+        <div className="mt-5 flex min-h-40 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/8 px-5 text-center">
+          <CircleCheckBig className="size-9 text-white" aria-hidden />
+          <p className="mt-3 text-base font-bold">
+            {totalSenales > 0 ? 'Sin urgencias inmediatas' : 'No tienes una intervención pendiente'}
+          </p>
+          <p className="mt-1 max-w-lg text-xs text-white/65">
+            {totalSenales > 0
+              ? `Tienes ${totalSenales} ${totalSenales === 1 ? 'acción de preparación' : 'acciones de preparación'} en “Después”; no las marcamos como resueltas.`
+              : 'Tu agenda y tu cartera están al día. Puedes preparar el siguiente contacto.'}
+          </p>
+          <a
+            href="#/agenda"
+            className="mt-4 inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-white/25 bg-white/10 px-4 text-xs font-bold text-white transition-colors hover:bg-white/20 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-white/55"
+          >
+            <CalendarDays className="size-4" aria-hidden /> Revisar Agenda
+          </a>
+        </div>
+      ) : (
+        <div className="mt-5 grid gap-3 lg:grid-cols-3">
+          {prioridades.map((prioridad, indice) => (
+            <TarjetaPrioridad
+              key={prioridad.id}
+              prioridad={prioridad}
+              indice={indice}
+              lead={leadPorId(prioridad.leadId)}
+              abrirLead={abrirLead}
+              onCompletar={onCompletar}
+            />
+          ))}
+        </div>
+      )}
+
+      {prioridadesParciales && (
+        <p role="status" className="mt-3 rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-[11px] font-medium text-white/70">
+          Mostramos lo que sí llegó de tu agenda. La cola no está disponible todavía, así que este orden puede estar incompleto.
+        </p>
+      )}
+
+      <p className="mt-3 text-[10px] font-medium text-white/50">
+        Una señal dominante por lead · el detalle completo permanece en Agenda y Cartera.
+      </p>
+    </section>
+  )
+}
+
+function PulsoCartera({
+  items,
+}: {
+  items: Array<{ label: string; value: string; sub: string; icon: LucideIcon }>
+}): JSX.Element {
+  return (
+    <Card className="min-w-0 overflow-hidden">
+      <div className="flex flex-wrap items-center gap-2 border-b border-border/80 px-5 py-3">
+        <span className="grid size-7 place-items-center rounded-lg bg-secondary text-primary">
+          <TrendingUp className="size-4" aria-hidden />
+        </span>
+        <h3 className="text-sm font-bold tracking-tight">Tu cartera en contexto</h3>
+        <span className="ml-auto text-[10px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+          Información · no requiere acción
+        </span>
+      </div>
+      <div className="grid grid-cols-2 divide-x divide-y divide-border/80 lg:grid-cols-4 lg:divide-y-0">
+        {items.map(({ label, value, sub, icon: Icon }) => (
+          <div key={label} className="min-w-0 p-4">
+            <div className="flex items-start justify-between gap-2">
+              <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground">{label}</p>
+              <span className="ac-chip grid size-7 shrink-0 place-items-center rounded-lg" style={{ '--c': 'var(--accent)' } as CSSProperties}>
+                <Icon className="size-3.5" aria-hidden />
+              </span>
+            </div>
+            <p className="mt-2 text-xl font-extrabold leading-none tracking-tight tabular-nums text-primary">
+              <AnimatedValue value={value} />
+            </p>
+            <p className="mt-2 line-clamp-2 text-[11px] leading-relaxed text-muted-foreground">{sub}</p>
+          </div>
+        ))}
+      </div>
     </Card>
   )
 }
@@ -686,9 +932,6 @@ export function HoyVendedor(): JSX.Element {
     () => new Set(listadasEnAgenda.map((ev) => ev.id)),
     [listadasEnAgenda],
   )
-  // Cuántas vencidas hay EN TOTAL: el vacío de la cola las necesita para no
-  // cantar "al día" mientras la tarjeta vecina cuenta N vencidas.
-  const nVencidasAgenda = useMemo(() => agenda.filter((ev) => ev.vencida).length, [agenda])
   // EXCEPCIÓN deliberada — el speed-to-lead: un lead sin primer contacto NUNCA
   // se entierra (regla de la casa), y su fila es la única que trae el cronómetro
   // en minutos, que la agenda no muestra.
@@ -726,41 +969,87 @@ export function HoyVendedor(): JSX.Element {
   // La cola también se capa (mismo patrón que los amarillos): colaDe ya ordena
   // por severidad, así que los primeros N son la plata y el resto va a Cartera.
   const COLA_VISIBLES = 7
-  const colaPintada = colaVisible.slice(0, COLA_VISIBLES)
-  // ¿DÓNDE están de verdad las vencidas que la franja ámbar colapsa en "+N más"?
-  // Se cuenta lo que la mitad de abajo PINTA (cola ya recortada + filas de
-  // higiene), no lo que se supone que debería pintar: el pie de la agenda
-  // prometía la cola de al lado para todas y para las vencidas de HOY era
-  // mentira — su lead sigue con plan vigente y `colaDe` lo salta (el porqué,
-  // largo, en `textoRestoVencidas`). Un lead con varias vencidas cuenta por cada
-  // una: su fila está abajo, que es lo que el pie afirma.
-  const leadsEnCola = new Set(colaPintada.map((i) => i.lead.id))
-  const tareasEnHigiene = new Set(tareasHigiene.map((i) => i.tarea.id))
-  const vencidasAbajo = agenda.filter(
-    (ev) =>
-      ev.vencida &&
-      !tareasListadasEnAgenda.has(ev.id) &&
-      (tareasEnHigiene.has(ev.id) || leadsEnCola.has(ev.lead_id)),
-  ).length
-  // Conteo por severidad para el mini-resumen de la cola (rojo/ámbar/azul).
-  const porSev = { critica: 0, media: 0, baja: 0 }
-  for (const i of colaVisible) porSev[i.sev] += 1
-  const nCola = colaVisible.length + (higiene ? itemsHigiene.length : 0)
   // Lookup de lead por id (capital en juego de cada cita) + señales reales para
   // el vacío honesto de la agenda (mientras no exista calendario real).
   const leadPorId = (id: string): Lead | undefined => mios.find((l) => l.id === id)
 
+  // Contrato perceptual del nuevo «Ahora»: máximo tres decisiones, una por
+  // lead. Lo elevado se retira de las superficies inferiores; no es un resumen
+  // que vuelva a repetir la misma alerta unos píxeles más abajo.
+  const prioridadesAhora = seleccionarPrioridadesVendedor(agenda, colaVisible)
+  const leadsAhora = new Set(prioridadesAhora.map((p) => p.leadId))
+
+  // Tras sacar las tres prioridades, cada señal restante tiene UN dueño visual.
+  // Un speed-to-lead conserva la cola (allí vive su reloj); para el resto manda
+  // lo que Agenda pinta de verdad. Las vencidas bajo su "+N" siguen en la cola o
+  // en la higiene: así no duplicamos trabajo ni escondemos el excedente.
+  const colaBaseDespues = colaVisible.filter((item) => !leadsAhora.has(item.lead.id))
+  const leadsSpeedDespues = new Set(
+    colaBaseDespues
+      .filter((item) => item.bucket === 'sin_responder')
+      .map((item) => item.lead.id),
+  )
+  const agendaDespues = agenda.filter(
+    (ev) => !leadsAhora.has(ev.lead_id) && !leadsSpeedDespues.has(ev.lead_id),
+  )
+  const eventosAgendaPintadosDespues = [
+    ...vencidasListadas(agendaDespues),
+    ...agendaDespues.filter((ev) => !ev.vencida),
+  ]
+  const leadsPintadosAgendaDespues = new Set(
+    eventosAgendaPintadosDespues.map((ev) => ev.lead_id),
+  )
+  const tareasPintadasAgendaDespues = new Set(
+    eventosAgendaPintadosDespues.map((ev) => ev.id),
+  )
+  const colaDespues = colaBaseDespues.filter(
+    (item) => !leadsPintadosAgendaDespues.has(item.lead.id),
+  )
+  const tareasHigieneDespues = tareasHigiene.filter(
+    (item) =>
+      (item.tarea.lead_id == null || !leadsAhora.has(item.tarea.lead_id)) &&
+      !tareasPintadasAgendaDespues.has(item.tarea.id),
+  )
+  const amarillosDespues = amarillos.filter((item) => !leadsAhora.has(item.lead.id))
+  const colaPintadaDespues = colaDespues.slice(0, COLA_VISIBLES)
+  const leadsEnColaDespues = new Set(colaPintadaDespues.map((item) => item.lead.id))
+  const tareasEnHigieneDespues = new Set(
+    tareasHigieneDespues.map((item) => item.tarea.id),
+  )
+  const vencidasAbajoDespues = agendaDespues.filter(
+    (ev) =>
+      ev.vencida &&
+      !tareasPintadasAgendaDespues.has(ev.id) &&
+      (tareasEnHigieneDespues.has(ev.id) || leadsEnColaDespues.has(ev.lead_id)),
+  ).length
+  const nVencidasAgendaDespues = agendaDespues.filter((ev) => ev.vencida).length
+  const nColaDespues = colaDespues.length + (higiene ? tareasHigieneDespues.length + amarillosDespues.length : 0)
+  const porSevDespues = { critica: 0, media: 0, baja: 0 }
+  for (const item of colaDespues) porSevDespues[item.sev] += 1
+  const totalSenales = new Set([
+    ...agenda.map((ev) => ev.lead_id),
+    ...colaVisible.map((item) => item.lead.id),
+    ...tareasHigiene.map((item) => item.tarea.lead_id).filter((id): id is string => id != null),
+    ...amarillos.map((item) => item.lead.id),
+  ]).size
+
   return (
     <div className="mx-auto max-w-[1240px] space-y-5 ac-rise">
-      {/* Saludo del día */}
-      <div>
-        <h2 className="text-lg font-extrabold tracking-tight text-primary">
-          Hola, {primerNombre(yo?.nombre_completo) || 'asesor'}
-        </h2>
-        <p className="text-xs text-muted-foreground">
-          {fechaLarga(ahora)} · Tu cartera y tus pendientes — solo ves lo tuyo
+      {/* Encabezado de jornada: orientación, no otro bloque de métricas. */}
+      <header className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+        <div>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.18em] text-accent">Mi jornada</p>
+          <h2 className="mt-1 text-2xl font-extrabold tracking-[-0.03em] text-primary">
+            Hola, {primerNombre(yo?.nombre_completo) || 'asesor'}.
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            {fechaLarga(ahora)} · primero resolvemos; después revisamos el contexto.
+          </p>
+        </div>
+        <p className="rounded-full border border-border bg-card px-3 py-1.5 text-[10px] font-semibold text-muted-foreground shadow-sm">
+          Vista personal · solo ves tu cartera
         </p>
-      </div>
+      </header>
 
       <AvisoDegradacion
         activo={Boolean(resumenOp.error || colaOp.error) && !yo?.demo}
@@ -773,9 +1062,8 @@ export function HoyVendedor(): JSX.Element {
         No se pudieron cargar algunos indicadores. Se muestran «—» para no inventar cifras; tu agenda sigue completa.
       </AvisoDegradacion>
 
-      {/* KPIs personales — capital PEN con el USD aparte (nunca sumados).
-          Sin cartera NO pintamos una fila de ceros extrabold: vacío honesto que
-          encamina a la acción real (pedir asignación o registrar el primer lead). */}
+      {/* El trabajo gana el primer pantallazo. Sin cartera, el vacío ofrece una
+          salida real; con cartera, «Ahora» reemplaza la antigua fila de KPI. */}
       {mios.length === 0 ? (
         <Card>
           <PanelVacio
@@ -789,71 +1077,24 @@ export function HoyVendedor(): JSX.Element {
           </PanelVacio>
         </Card>
       ) : (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <KpiCard
-            label="Pronóstico de capital abierto"
-            value={capital?.valor ?? '—'}
-            icon={Wallet}
-            color="#2563eb"
-            sub={
-              capital?.otra
-                ? `Pipeline activo (PEN) · +${capital.otra} aparte`
-                : capital?.soloDolares
-                  ? 'Pipeline activo (USD)'
-                  : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
-                    ? 'Sin montos estimados — complétalos en cada ficha'
-                    : 'Pipeline activo (PEN)'
-            }
-            delay={0}
-          />
-          <KpiCard
-            label="Leads activos"
-            value={nAbiertos != null ? String(nAbiertos) : '—'}
-            icon={Users}
-            color="#7c3aed"
-            sub="Abiertos en tu cartera"
-            delay={60}
-          />
-          <KpiCard
-            label="Propuestas enviadas"
-            value={resumen ? String(nPropuestas) : '—'}
-            icon={FileText}
-            color="#d97706"
-            sub={
-              resumen == null
-                ? 'Sin dato por ahora'
-                : nPropuestas > 0
-                  ? 'Esperando respuesta del cliente'
-                  : (nAbiertos ?? 0) > 0
-                    ? 'Ninguna en la calle — revisa tus reuniones'
-                    : 'Sin leads abiertos por ahora'
-            }
-            delay={120}
-          />
-          <KpiCard
-            label="Convertidos"
-            value={nConvertidos != null ? String(nConvertidos) : '—'}
-            icon={Trophy}
-            color="#111e3d"
-            sub={
-              resumen == null
-                ? 'Sin dato por ahora'
-                : (nConvertidos ?? 0) > 0
-                  // Rótulo honesto desde el corte de 45 d (decisión F0§5): el
-                  // convertido viejo ya no es lead — decía "Histórico" y mentía.
-                  ? 'Últimos 45 días · clientes ganados'
-                  : 'Aún sin cierres — tu primera venta sale de la cola'
-            }
-            delay={180}
-          />
-        </div>
+        <FranjaAhora
+          prioridades={prioridadesAhora}
+          totalSenales={totalSenales}
+          estadoCola={colaDisponible ? 'lista' : colaOp.error ? 'error' : 'cargando'}
+          leadPorId={leadPorId}
+          abrirLead={abrirLead}
+          onCompletar={(id) => {
+            const tarea = tareas.find((x) => x.id === id)
+            if (tarea) setTareaACerrar(tarea)
+          }}
+        />
       )}
 
-      {/* Héroe + cola — lógica comercial: la AGENDA (dónde estar / qué vence hoy)
-          manda el día del vendedor; la cola es a quién perseguir en los huecos. */}
+      {/* Después de las tres prioridades: solo el remanente. La proximidad
+          separa lo inmediato de lo que mantiene el ritmo del resto del día. */}
       <div className="grid gap-5 lg:grid-cols-5">
         <AgendaHoy
-          eventos={agenda}
+          eventos={agendaDespues}
           leadPorId={leadPorId}
           abrirLead={abrirLead}
           onCompletar={(id) => {
@@ -863,25 +1104,26 @@ export function HoyVendedor(): JSX.Element {
           demo={yo?.demo ?? false}
           nReuniones={reunionesAgendadas}
           nPropuestas={nPropuestas}
-          vencidasAbajo={vencidasAbajo}
-          className="flex flex-col lg:col-span-3"
+          vencidasAbajo={vencidasAbajoDespues}
+          title="Después en tu agenda"
+          className="min-w-0 flex flex-col lg:col-span-3"
         />
         {/* Cola de acción personal — el viernes desde las 13:00 (Lima) cambia
             a higiene de pipeline: ordenar la próxima semana, no perseguir. */}
-        <Card className="lg:col-span-2">
+        <Card className="min-w-0 lg:col-span-2">
           <SectionHead
             icon={higiene ? Sparkles : Zap}
-            title={higiene ? 'Viernes de higiene' : 'Tu siguiente acción hoy'}
+            title={higiene ? 'Después: viernes de higiene' : 'Después: mantén el ritmo'}
             right={
-              nCola > 0 ? (
+              nColaDespues > 0 ? (
                 <Badge color={higiene ? '#d97706' : 'var(--accent)'}>
-                  {nCola} {nCola === 1 ? 'pendiente' : 'pendientes'}
+                  {nColaDespues} {nColaDespues === 1 ? 'pendiente' : 'pendientes'}
                 </Badge>
               ) : undefined
             }
           />
           <CardContent className="space-y-1.5 pt-0">
-            {higiene && nCola > 0 && (
+            {higiene && nColaDespues > 0 && (
               <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
                 Viernes p.m. rinde poco para citas nuevas — deja la próxima semana ordenada: cierra lo
                 vencido, mueve a mar–jue las citas de quien no asistió y que ningún lead quede sin próxima acción.
@@ -898,8 +1140,8 @@ export function HoyVendedor(): JSX.Element {
                     : 'Un momento — estamos trayendo tus pendientes.'}
                 </p>
               </div>
-            ) : nCola === 0 ? (
-              nVencidasAgenda > 0 ? (
+            ) : nColaDespues === 0 ? (
+              nVencidasAgendaDespues > 0 ? (
                 // Cola vacía NO es "al día": lo vencido está en la agenda de al
                 // lado (donde vive su botón de cerrar). Decir "sin pendientes"
                 // mientras el badge vecino canta N vencidas es la pantalla
@@ -909,20 +1151,28 @@ export function HoyVendedor(): JSX.Element {
                   <AlertTriangle className="size-8 text-warning" />
                   <p className="text-sm font-bold">Lo pendiente está en tu agenda</p>
                   <p className="text-xs text-muted-foreground">
-                    {nVencidasAgenda === 1
+                    {nVencidasAgendaDespues === 1
                       ? 'Tienes 1 seguimiento vencido'
-                      : `Tienes ${nVencidasAgenda} seguimientos vencidos`}{' '}
-                    en «Tu agenda de hoy» — ciérralos o reprográmalos desde ahí.
+                      : `Tienes ${nVencidasAgendaDespues} seguimientos vencidos`}{' '}
+                    en «Después en tu agenda» — ciérralos o reprográmalos desde ahí.
                   </p>
                 </div>
               ) : (
                 <div className="flex flex-col items-center gap-2 py-10 text-center">
                   <CircleCheckBig className="size-8 text-accent" />
-                  <p className="text-sm font-bold">{higiene ? 'Pipeline limpio ✦' : 'Al día ✦ sin pendientes'}</p>
+                  <p className="text-sm font-bold">
+                    {prioridadesAhora.length > 0
+                      ? 'Sin trabajo adicional'
+                      : higiene
+                        ? 'Pipeline limpio ✦'
+                        : 'Al día ✦ sin pendientes'}
+                  </p>
                   <p className="text-xs text-muted-foreground">
                     {higiene
                       ? 'Nada vencido, las citas reagendadas en su día y toda tu cartera con próxima acción. Buen fin de semana.'
-                      : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
+                      : prioridadesAhora.length > 0
+                        ? 'Tus intervenciones están arriba. Aquí no queda trabajo adicional.'
+                        : 'No tienes leads esperando respuesta ni seguimientos vencidos.'}
                   </p>
                 </div>
               )
@@ -930,33 +1180,33 @@ export function HoyVendedor(): JSX.Element {
               <>
                 {/* Mini-resumen por severidad: la respuesta a "¿cómo viene mi
                     cola?" antes de bajar a las filas (rojo/ámbar/azul, sin verde). */}
-                {colaVisible.length > 1 && (
+                {colaDespues.length > 1 && (
                   <div className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg bg-muted/50 px-3 py-2 text-[11px]">
                     {(['critica', 'media', 'baja'] as const).map(
                       (sev) =>
-                        porSev[sev] > 0 && (
+                        porSevDespues[sev] > 0 && (
                           <span key={sev} className="inline-flex items-center gap-1.5 font-semibold text-foreground/80">
                             <span className="size-2 shrink-0 rounded-full" style={{ background: SEV_COLOR[sev] }} aria-hidden />
-                            <span className="tabular-nums">{porSev[sev]}</span>{' '}
+                            <span className="tabular-nums">{porSevDespues[sev]}</span>{' '}
                             {sev === 'critica'
-                              ? porSev.critica === 1 ? 'crítica' : 'críticas'
+                              ? porSevDespues.critica === 1 ? 'crítica' : 'críticas'
                               : sev === 'media'
-                                ? porSev.media === 1 ? 'media' : 'medias'
-                                : porSev.baja === 1 ? 'baja' : 'bajas'}
+                                ? porSevDespues.media === 1 ? 'media' : 'medias'
+                                : porSevDespues.baja === 1 ? 'baja' : 'bajas'}
                           </span>
                         ),
                     )}
                   </div>
                 )}
-                {colaPintada.map((item) => (
+                {colaPintadaDespues.map((item) => (
                   <FilaCola key={item.lead.id} item={item} abrirLead={abrirLead} ahora={ahora} />
                 ))}
-                {Math.max(0, colaVisible.length - COLA_VISIBLES) + restoServidor > 0 && (
+                {Math.max(0, colaDespues.length - COLA_VISIBLES) + restoServidor > 0 && (
                   <p className="px-2 text-[11px] text-muted-foreground">
-                    +{Math.max(0, colaVisible.length - COLA_VISIBLES) + restoServidor} más en cola — trabájalos desde Cartera.
+                    +{Math.max(0, colaDespues.length - COLA_VISIBLES) + restoServidor} más en cola — trabájalos desde Cartera.
                   </p>
                 )}
-                {tareasHigiene.map((item) => (
+                {tareasHigieneDespues.map((item) => (
                   <FilaHigiene
                     key={item.tarea.id}
                     item={item}
@@ -974,12 +1224,12 @@ export function HoyVendedor(): JSX.Element {
                     }}
                   />
                 ))}
-                {amarillos.slice(0, AMARILLOS_VISIBLES).map((item) => (
+                {amarillosDespues.slice(0, AMARILLOS_VISIBLES).map((item) => (
                   <FilaAmarillo key={item.lead.id} lead={item.lead} abrirLead={abrirLead} />
                 ))}
-                {amarillos.length > AMARILLOS_VISIBLES && (
+                {amarillosDespues.length > AMARILLOS_VISIBLES && (
                   <p className="px-2 text-[11px] text-muted-foreground">
-                    +{amarillos.length - AMARILLOS_VISIBLES} más sin próxima acción — trabájalos desde Cartera.
+                    +{amarillosDespues.length - AMARILLOS_VISIBLES} más sin próxima acción — trabájalos desde Cartera.
                   </p>
                 )}
               </>
@@ -989,14 +1239,75 @@ export function HoyVendedor(): JSX.Element {
 
       </div>
 
-      {/* Cumplimiento mensual: solo contratos confirmados; el pipeline queda arriba. */}
-      <Card>
-        <SectionHead
-          icon={Target}
-          title="Tu cumplimiento del mes"
-          right={<span className="text-[11px] text-muted-foreground">{yo?.demo ? 'datos confirmados demo' : 'contratos confirmados'}</span>}
+      {mios.length > 0 && (
+        <PulsoCartera
+          items={[
+            {
+              label: 'Capital abierto',
+              value: capital?.valor ?? '—',
+              icon: Wallet,
+              sub: capital?.otra
+                ? `Pipeline activo (PEN) · +${capital.otra} aparte`
+                : capital?.soloDolares
+                  ? 'Pipeline activo (USD)'
+                  : resumen && resumen.capital.asignado.pen === 0 && resumen.totales.abiertos > 0
+                    ? 'Sin montos estimados — complétalos en cada ficha'
+                    : 'Pronóstico de tu pipeline activo',
+            },
+            {
+              label: 'Leads activos',
+              value: nAbiertos != null ? String(nAbiertos) : '—',
+              icon: Users,
+              sub: 'Abiertos en tu cartera',
+            },
+            {
+              label: 'Propuestas',
+              value: resumen ? String(nPropuestas) : '—',
+              icon: FileText,
+              sub: resumen == null
+                ? 'Sin dato por ahora'
+                : nPropuestas > 0
+                  ? 'Esperando respuesta del cliente'
+                  : (nAbiertos ?? 0) > 0
+                    ? 'Ninguna enviada — revisa tus reuniones'
+                    : 'Sin leads abiertos por ahora',
+            },
+            {
+              label: 'Convertidos',
+              value: nConvertidos != null ? String(nConvertidos) : '—',
+              icon: Trophy,
+              sub: resumen == null
+                ? 'Sin dato por ahora'
+                : (nConvertidos ?? 0) > 0
+                  ? 'Últimos 45 días · clientes ganados'
+                  : 'Aún sin cierres — tu primera venta sale de la cola',
+            },
+          ]}
         />
-        <CardContent className="pt-0">
+      )}
+
+      {/* Progressive disclosure: el avance mensual está disponible, pero no
+          compite con el trabajo del día hasta que el vendedor decide abrirlo. */}
+      <Card className="min-w-0">
+        <details className="group">
+          <summary className="flex min-h-14 cursor-pointer list-none items-center gap-3 rounded-xl px-5 py-3 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 [&::-webkit-details-marker]:hidden">
+            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-secondary text-accent">
+              <Target className="size-4" aria-hidden />
+            </span>
+            <div className="min-w-0">
+              <h3 className="text-sm font-bold tracking-tight">Tu cumplimiento del mes</h3>
+              <p className="text-[11px] text-muted-foreground">
+                {yo?.demo ? 'Datos confirmados demo' : 'Contratos confirmados'} · abre para ver metas y procedencia
+              </p>
+            </div>
+            <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
+              {capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
+              {' · '}
+              {conversion == null ? 'Conversión —' : `Conversión ${numero(conversion, 1)}%`}
+            </span>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
+          </summary>
+          <CardContent className="border-t border-border/80 pt-4">
           <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
             <MetaFila
               icon={Wallet}
@@ -1093,7 +1404,8 @@ export function HoyVendedor(): JSX.Element {
               </Button>
             </div>
           )}
-        </CardContent>
+          </CardContent>
+        </details>
       </Card>
 
       <p className="text-[11px] text-muted-foreground">
