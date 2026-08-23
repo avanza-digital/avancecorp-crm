@@ -31,6 +31,21 @@ for (const rol of ROLES) {
   })
 }
 
+test('Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado', async ({ page }) => {
+  await entrarDemo(page, 'Supervisor')
+
+  const reparto = page.getByRole('link', { name: 'Repartir 2 leads pendientes' })
+  await expect(reparto).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Por repartir — tu bandeja' })).toHaveCount(0)
+
+  await reparto.focus()
+  await expect(reparto).toBeFocused()
+  await page.keyboard.press('Enter')
+
+  await expect(page).toHaveURL(/#\/derivaciones$/)
+  await expect(page.getByRole('heading', { name: 'Derivar hoy' })).toBeVisible()
+})
+
 test('Vendedor: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuelve el foco', async ({ page }) => {
   await entrarDemo(page, 'Vendedor')
   await page.getByRole('button', { name: 'Pipeline' }).click()

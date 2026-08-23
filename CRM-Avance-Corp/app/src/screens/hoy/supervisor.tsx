@@ -3,7 +3,6 @@
 // Fuentes: useCRMData().ambito + lib/inteligencia + objetivos del contexto.
 // Semáforos sin verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626.
 import { useMemo, useState, type JSX } from 'react'
-import { toast } from 'sonner'
 import {
   AlarmClock,
   AlertTriangle,
@@ -11,7 +10,6 @@ import {
   Inbox,
   ListChecks,
   Target,
-  UserPlus,
   Users,
   UsersRound,
   Wallet,
@@ -20,7 +18,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Select } from '@/components/ui/select'
 import { Progress } from '@/components/ui/progress'
 import { KpiCard } from '@/components/common/kpi-card'
 import { SectionHead } from '@/components/common/section-head'
@@ -33,6 +30,7 @@ import {
   capitalPrincipal,
   colorMeta,
   diasSinActividad,
+  haceCortoTexto,
   haceTexto,
   indexarUltimaActividad,
   pctMeta,
@@ -56,9 +54,9 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
 import { useMetricasAgenda } from '@/data/crm-queries'
-import { money, moneyK, numero } from '@/lib/format'
+import { moneyK, numero } from '@/lib/format'
 import { cn } from '@/lib/utils'
-import { ETAPA_INFO, origenLabel, type Lead } from '@/lib/tipos'
+import { hashDe } from '@/lib/router'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
@@ -88,7 +86,6 @@ export function HoySupervisor(): JSX.Element {
     ambito,
     actividades,
     tareas,
-    reasignar,
     objetivos,
     objetivosError,
     cumplimientoMetas,
@@ -105,8 +102,6 @@ export function HoySupervisor(): JSX.Element {
   // Reloj vivo: tick por minuto y al volver a la pestaña — la bandeja y los
   // "hace N" se refrescan solos al pasar el tiempo.
   const ahora = useAhora()
-  // Vendedor elegido en el select de cada lead parkeado (leadId → perfil_id).
-  const [sel, setSel] = useState<Record<string, string>>({})
   // Cola del equipo expandida más allá del tope de COLA_VISIBLES.
   const [colaExpandida, setColaExpandida] = useState(false)
 
@@ -128,15 +123,45 @@ export function HoySupervisor(): JSX.Element {
   const capitalPronostico = resumen
     ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
     : null
-  // La BANDEJA es una lista operable (select + Asignar): sigue en cliente
-  // hasta F2/F3. Su índice de actividad solo recorre lo que se pinta.
-  const d = useMemo(() => {
+  // HOY solo resume la bandeja; la operación completa vive en Derivar leads.
+  // Conservamos el índice local para resumir la espera observable del caso más
+  // rezagado sin añadir otra consulta; si no hubo actividad, parte del ingreso.
+  const bandejaReparto = useMemo(() => {
     const parkeados = ambito.leads.filter(
       (l) => l.activo && l.etapa !== 'convertido' && l.etapa !== 'descartado' && l.vendedor_id == null,
     )
     const indice = indexarUltimaActividad(actividades)
     return { parkeados, indice }
   }, [ambito, actividades])
+
+  const esperaMasLargaReparto = useMemo(() => {
+    if (bandejaReparto.parkeados.length === 0) return null
+    let maxima = 0
+    for (const lead of bandejaReparto.parkeados) {
+      maxima = Math.max(
+        maxima,
+        diasSinActividad(lead, actividades, ahora, bandejaReparto.indice),
+      )
+    }
+    return maxima
+  }, [actividades, ahora, bandejaReparto])
+
+  // El conteo del RPC sigue siendo la autoridad. Si el detalle local aún no
+  // está disponible, el CTA conserva la verdad y omite la antigüedad.
+  const totalPorRepartir = resumen?.totales.parkeados ?? null
+  const hayPorRepartir = (totalPorRepartir ?? 0) > 0
+  const detalleReparto = totalPorRepartir == null
+    ? 'Sin dato por ahora · Ver derivaciones →'
+    : hayPorRepartir
+      ? esperaMasLargaReparto == null
+        ? 'Pendientes en tu bandeja · Repartir →'
+        : `Más rezagado: ${haceCortoTexto(esperaMasLargaReparto)} · Repartir →`
+      : 'Bandeja al día · Ver historial →'
+  const etiquetaAccesoReparto = totalPorRepartir == null
+    ? 'Ver derivaciones; total por repartir no disponible'
+    : hayPorRepartir
+      ? `Repartir ${totalPorRepartir} ${totalPorRepartir === 1 ? 'lead pendiente' : 'leads pendientes'}`
+      : 'Ver derivaciones; bandeja sin pendientes'
 
   // Nombres para los estancados del payload (el servidor no manda nombres de
   // personas): join con el roster completo, una sola vez por render.
@@ -276,20 +301,6 @@ export function HoySupervisor(): JSX.Element {
     [datosAgenda],
   )
 
-  /** Asigna un parkeado al vendedor elegido en su select. */
-  const asignar = (l: Lead) => {
-    const vId = sel[l.id]
-    if (!vId) return
-    const res = reasignar(l.id, vId)
-    if (!res.ok) {
-      // Los errores de permiso ya los toastea el store (doble defensa).
-      if (res.error && !res.error.startsWith('Sin permiso')) toast.error(res.error)
-      return
-    }
-    const v = ambito.vendedores.find((m) => m.perfil_id === vId)
-    toast.success(`${l.nombre_completo} asignado a ${v?.nombre_completo ?? 'vendedor'}${yo?.demo ? ' (demo)' : ''}`)
-  }
-
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
       {/* ── KPIs del equipo — servidos por RPC (o espejo demo); sin dato: «—» ── */}
@@ -337,20 +348,28 @@ export function HoySupervisor(): JSX.Element {
           }
           delay={120}
         />
-        <KpiCard
-          label="Por repartir"
-          value={resumen ? String(resumen.totales.parkeados) : '—'}
-          icon={Inbox}
-          color={(resumen?.totales.parkeados ?? 0) > 0 ? SEMAFORO.atencion : SEMAFORO.ok}
-          sub={
-            resumen == null
-              ? 'Sin dato por ahora'
-              : resumen.totales.parkeados > 0
-                ? 'En tu bandeja sin vendedor'
-                : 'Bandeja de reparto vacía'
-          }
-          delay={180}
-        />
+        <a
+          href={hashDe('derivaciones')}
+          aria-label={etiquetaAccesoReparto}
+          className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
+        >
+          {hayPorRepartir && (
+            <span
+              aria-hidden="true"
+              data-testid="reparto-pendiente-acento"
+              className="pointer-events-none absolute inset-y-3 left-0 z-10 w-[3px] rounded-r-full"
+              style={{ backgroundColor: SEMAFORO.atencion }}
+            />
+          )}
+          <KpiCard
+            label="Por repartir"
+            value={totalPorRepartir == null ? '—' : String(totalPorRepartir)}
+            icon={Inbox}
+            color={hayPorRepartir ? SEMAFORO.atencion : SEMAFORO.ok}
+            sub={detalleReparto}
+            delay={180}
+          />
+        </a>
       </div>
 
       <AvisoDegradacion
@@ -360,69 +379,6 @@ export function HoySupervisor(): JSX.Element {
       >
         No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
-
-      {/* ── Bandeja prioritaria: parkeados por repartir ── */}
-      {d.parkeados.length > 0 && (
-        <Card className="overflow-hidden" style={{ borderColor: `color-mix(in srgb, ${SEMAFORO.atencion} 45%, transparent)` }}>
-          <SectionHead
-            icon={Inbox}
-            title="Por repartir — tu bandeja"
-            right={
-              <Badge color={SEMAFORO.atencion} dot>
-                {d.parkeados.length} {d.parkeados.length === 1 ? 'pendiente' : 'pendientes'}
-              </Badge>
-            }
-          />
-          <div className="divide-y divide-border/60 border-t border-border/60">
-            {d.parkeados.map((l) => {
-              const dias = diasSinActividad(l, actividades, ahora, d.indice)
-              return (
-                <div key={l.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                  <button
-                    type="button"
-                    onClick={() => abrirLead(l.id)}
-                    aria-label={`Abrir ficha de ${l.nombre_completo}`}
-                    className="flex min-w-0 flex-1 basis-56 cursor-pointer items-center gap-2.5 rounded-lg text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/30"
-                  >
-                    <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} />
-                    <div className="min-w-0 leading-tight">
-                      <p className="truncate text-sm font-semibold">{l.nombre_completo}</p>
-                      <p className="truncate text-xs text-muted-foreground">
-                        {origenLabel(l.origen)} · {l.monto_estimado != null ? money(l.monto_estimado, l.moneda) : 'sin monto'} · sin movimiento {haceTexto(dias)}
-                      </p>
-                    </div>
-                  </button>
-                  <Badge color={ETAPA_INFO[l.etapa].color} dot>
-                    {ETAPA_INFO[l.etapa].label}
-                  </Badge>
-                  <div className="flex items-center gap-2">
-                    <div className="w-[180px]">
-                      <Select
-                        aria-label={`Vendedor para ${l.nombre_completo}`}
-                        className="h-8 text-xs"
-                        value={sel[l.id] ?? ''}
-                        onChange={(e) => setSel((s) => ({ ...s, [l.id]: e.target.value }))}
-                      >
-                        <option value="" disabled>
-                          Elegir vendedor…
-                        </option>
-                        {ambito.vendedores.map((v) => (
-                          <option key={v.perfil_id} value={v.perfil_id}>
-                            {v.nombre_completo}
-                          </option>
-                        ))}
-                      </Select>
-                    </div>
-                    <Button size="sm" disabled={!sel[l.id]} onClick={() => asignar(l)}>
-                      <UserPlus /> Asignar
-                    </Button>
-                  </div>
-                </div>
-              )
-            })}
-          </div>
-        </Card>
-      )}
 
       <div className="grid gap-4 lg:grid-cols-5">
         <div className="space-y-4 lg:col-span-3">
