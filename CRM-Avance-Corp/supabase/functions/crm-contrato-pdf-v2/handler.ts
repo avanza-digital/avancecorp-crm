@@ -1,6 +1,6 @@
 export const CONTRATO_PDF_BUCKET = "contratos-generados";
 export const CONTRATO_DOCUMENTOS_BUCKET = "documentos";
-export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v3";
+export const CONTRATO_PDF_TEMPLATE_VERSION = "contrato-aep-17-v5";
 export const CONTRATO_PDF_MAX_BYTES = 10 * 1024 * 1024;
 export const CONTRATO_PDF_MAX_REQUEST_BYTES = 2 * 1024;
 
@@ -114,6 +114,8 @@ type EstadoPdfPublico = Omit<EstadoPdf, "ok" | "codigo">;
 const ORIGENES_PRODUCCION = new Set([
   "https://crm.miavance.com",
   "https://www.crm.miavance.com",
+  "https://miavance.com",
+  "https://www.miavance.com",
 ]);
 const UUID_CANONICO_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
@@ -429,11 +431,16 @@ function parseEstado(valor: unknown, contratoId: string): EstadoPdf | null {
     ? null
     : parseArchivo(valor.archivo, contratoId);
   if (valor.archivo !== null && !archivo) return null;
+  // `reintentable` NO se exige aquí. Desde 2026-08-20 un contrato firmado antes
+  // del 19-ago es del régimen documental anterior —ya tiene su contrato, el
+  // sistema no le emite ninguno— y la RPC responde `sin_reserva` con
+  // `reintentable: false`. Exigir `true`, como se hacía, descartaría la
+  // respuesta entera (502) y rompería el detalle de todo contrato antiguo.
   if (
     estado === "sin_reserva" &&
     (jobId !== null || path !== null || valor.nombre_archivo !== null ||
       templateVersion !== null || valor.intentos !== 0 ||
-      valor.lease_expira_en !== null || valor.reintentable !== true ||
+      valor.lease_expira_en !== null ||
       valor.sha256 !== null || valor.bytes !== null || archivo !== null)
   ) return null;
   if (estado !== "sin_reserva" && estado !== "sellado" && jobId === null) {
@@ -876,6 +883,22 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
     }
     if (reserva.estado.estado === "sellado") {
       return await firmar(reserva.estado);
+    }
+
+    // Régimen documental anterior: la reserva no creó ni creará job, así que
+    // reclamar levantaría P0002 («no tiene una reserva PDF v2») y el vendedor
+    // vería un error de fontanería en vez de la razón. Se devuelve el estado tal
+    // cual: el navegador ya sabe leerlo y decir que ese contrato es del formato
+    // anterior.
+    if (
+      reserva.estado.estado === "sin_reserva" && !reserva.estado.reintentable
+    ) {
+      return json(
+        origin,
+        origenes,
+        { pdf: pdfPublico(reserva.estado) },
+        estadoHttp(reserva.estado),
+      );
     }
 
     const reclamoRaw = await deps.rpcAdmin("contrato_pdf_reclamar", {

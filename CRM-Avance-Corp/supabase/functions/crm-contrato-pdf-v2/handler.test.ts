@@ -210,6 +210,42 @@ function request(
   );
 }
 
+Deno.test("CORS permite que el portal invoque la Edge", async () => {
+  const { deps, calls } = fake();
+  const handler = crearHandlerContratoPdfV2(deps);
+
+  for (const origin of ["https://miavance.com", "https://www.miavance.com"]) {
+    const res = await handler(
+      new Request(
+        "https://project.supabase.co/functions/v1/crm-contrato-pdf-v2",
+        {
+          method: "OPTIONS",
+          headers: {
+            Origin: origin,
+            "Access-Control-Request-Method": "POST",
+            "Access-Control-Request-Headers":
+              "authorization,apikey,content-type,x-client-info",
+          },
+        },
+      ),
+    );
+
+    igual(res.status, 204, `preflight permitido para ${origin}`);
+    igual(
+      res.headers.get("Access-Control-Allow-Origin"),
+      origin,
+      `CORS responde con el origen exacto para ${origin}`,
+    );
+    igual(
+      res.headers.get("Access-Control-Allow-Methods"),
+      "POST, OPTIONS",
+      "autoriza la invocación POST",
+    );
+  }
+
+  igual(calls.length, 0, "el preflight no autentica ni toca backend");
+});
+
 Deno.test("v2 rechaza multipart y no autentica ni toca backend", async () => {
   const { deps, calls } = fake();
   const form = new FormData();
@@ -524,6 +560,50 @@ Deno.test("sin_reserva conserva exactamente sus nulls públicos", async () => {
     JSON.stringify({ pdf: sinReserva }),
     "shape exacto",
   );
+});
+
+// ── Régimen documental anterior (2026-08-20) ────────────────────────────────
+// Un contrato firmado antes del 19/08 ya tiene su contrato, del formato previo:
+// la RPC responde `sin_reserva` con `reintentable: false` y NO crea job. Antes
+// esta forma se descartaba entera (parseEstado exigía `reintentable === true`),
+// lo que habría devuelto 502 y roto el detalle de todo contrato antiguo.
+Deno.test("régimen anterior: sin_reserva no reintentable se acepta y no reclama", async () => {
+  const regimenAnterior = {
+    contrato_id: CONTRATO_ID,
+    job_id: null,
+    estado: "sin_reserva",
+    storage_bucket: "contratos-generados",
+    storage_path: null,
+    nombre_archivo: null,
+    template_version: null,
+    intentos: 0,
+    lease_expira_en: null,
+    reintentable: false,
+    sha256: null,
+    bytes: null,
+    archivo: null,
+  };
+  const { deps, calls } = fake({
+    admin: [{ data: regimenAnterior, error: null }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 202, "no hay documento, y no lo va a haber");
+  const json = await res.json();
+  igual(
+    JSON.stringify(json),
+    JSON.stringify({ pdf: regimenAnterior }),
+    "shape exacto",
+  );
+  // Reclamar levantaría P0002 y el vendedor vería «No se pudo reclamar el job
+  // PDF» en vez de la razón. No debe ni intentarse.
+  igual(
+    calls.includes("admin:contrato_pdf_reclamar"),
+    false,
+    "no se reclama un job que no existe",
+  );
+  igual(calls.includes("render"), false, "no se renderiza nada");
 });
 
 Deno.test("ensure renderiza server-side, sube sin reemplazar, verifica y sella", async () => {

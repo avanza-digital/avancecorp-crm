@@ -39,6 +39,7 @@ export interface ContratoPdfDatos {
 
 export interface ContratoPdfAssets {
   fondo: string;
+  firmaAsociante: string;
 }
 
 const UNIDADES = [
@@ -190,10 +191,32 @@ function plazoVisible(inicioIso: string, finIso: string): string {
 }
 
 function parrafo(
-  text: string,
+  text: ContentText["text"],
   opciones: Record<string, unknown> = {},
 ): Content {
   return { text, style: "parrafo", ...opciones } as Content;
+}
+
+function parrafoConEtiqueta(
+  etiqueta: string,
+  text: ContentText["text"],
+): ContentColumns {
+  return {
+    columns: [
+      { width: 24, text: etiqueta, noWrap: true },
+      { width: "*", text, alignment: "justify" },
+    ],
+    columnGap: 0,
+    margin: [0, 0, 0, 4],
+  };
+}
+
+function parrafoNumerado(
+  clausula: number,
+  numeral: number,
+  text: ContentText["text"],
+): ContentColumns {
+  return parrafoConEtiqueta(`${clausula}.${numeral}`, text);
 }
 
 function tituloClausula(texto: string): ContentText {
@@ -331,9 +354,24 @@ const CLAUSULAS_ESTATICAS: Record<
 function clausulaEstatica(numero: number): Content[] {
   const clausula = CLAUSULAS_ESTATICAS[numero];
   if (!clausula) return [];
+
+  const parrafos = clausula.parrafos.map((texto, indice) => {
+    if (numero === 11) {
+      return parrafoConEtiqueta(`${String.fromCharCode(97 + indice)})`, texto);
+    }
+    if (numero === 13 && indice >= 2 && indice <= 6) {
+      return parrafoConEtiqueta(
+        `${String.fromCharCode(97 + indice - 2)})`,
+        texto.replace(/^•\s*/, ""),
+      );
+    }
+    const numeral = numero === 13 && indice === 7 ? 3 : indice + 1;
+    return parrafoNumerado(numero, numeral, texto);
+  });
+
   return [
     tituloClausula(clausula.titulo),
-    ...clausula.parrafos.map((texto) => parrafo(texto)),
+    ...parrafos,
   ];
 }
 
@@ -436,12 +474,41 @@ export function construirContratoPdf(
     parrafo(
       "Conste por el presente documento, el Contrato de Asociación en Participación que celebran:",
     ),
-    parrafo(
-      "De una parte, AVANCE CORP S.A.C. con RUC N° 20611392088, debidamente representada por su Gerente General, Sr. Kirk Edilberto Sánchez Ríos, con DNI N° 44232474, según poderes inscritos en la partida electrónica N° 15370250 del Registro de Personas Jurídicas de Lima, con domicilio en Av. República de Panamá N° 3635, Urb. El Palomar, distrito de San Isidro, provincia y departamento de Lima, a quien se le denominará EL ASOCIANTE y, de la otra parte;",
-    ),
-    parrafo(
-      `${titular.nombreCompleto}, con ${documento} y con domicilio en ${titular.domicilio}, a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:`,
-    ),
+    parrafo([
+      { text: "De una parte, " },
+      { text: "AVANCE CORP S.A.C.", bold: true },
+      { text: " con RUC N° " },
+      { text: "20611392088", bold: true },
+      {
+        text: ", debidamente representada por su Gerente General, Sr. ",
+      },
+      { text: "Kirk Edilberto Sánchez Ríos", bold: true },
+      { text: ", con " },
+      { text: "DNI N° 44232474", bold: true },
+      {
+        text:
+          ", según poderes inscritos en la partida electrónica N° 15370250 del Registro de Personas Jurídicas de Lima, con domicilio en ",
+      },
+      {
+        text:
+          "Av. República de Panamá N° 3635, Urb. El Palomar, distrito de San Isidro, provincia y departamento de Lima",
+        bold: true,
+      },
+      {
+        text: ", a quien se le denominará EL ASOCIANTE y, de la otra parte;",
+      },
+    ]),
+    parrafo([
+      { text: titular.nombreCompleto, bold: true },
+      { text: ", con " },
+      { text: documento, bold: true },
+      { text: " y con domicilio en " },
+      { text: titular.domicilio, bold: true },
+      {
+        text:
+          ", a quien se le denominará EL ASOCIADO, bajo los términos y condiciones siguientes:",
+      },
+    ]),
     ...clausulaEstatica(1),
     ...clausulaEstatica(2),
     {
@@ -449,7 +516,9 @@ export function construirContratoPdf(
         tituloClausula(
           "TERCERA: CONTRIBUCIÓN DEL ASOCIADO, RIESGO EMPRESARIAL Y PARTICIPACIÓN EN UTILIDADES",
         ),
-        parrafo(
+        parrafoNumerado(
+          3,
+          1,
           `EL ASOCIADO se obliga a efectuar una contribución dineraria ascendente a ${
             montoVisible(contrato.capital, contrato.moneda)
           } (${
@@ -459,50 +528,76 @@ export function construirContratoPdf(
       ],
       unbreakable: true,
     },
-    parrafo(
+    parrafoNumerado(
+      3,
+      2,
       "La contribución será entregada a EL ASOCIANTE mediante transferencia o depósito en la cuenta bancaria que este señale para fines operativos internos.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      3,
       "La contribución será aplicada al desarrollo de las actividades empresariales materia del presente contrato, cuya gestión corresponde a EL ASOCIANTE conforme a los criterios establecidos en la cláusula cuarta. EL ASOCIADO reconoce que los resultados de su participación se encuentran vinculados al desarrollo y resultados de dichas actividades empresariales.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      4,
       `EL ASOCIADO tendrá derecho a participar en el ${porcentajeLetras} por ciento (${
         contrato.porcentaje.toFixed(2)
       } %) de las utilidades netas distribuibles que generen las actividades empresariales materia del presente contrato, siempre que existan utilidades netas suficientes y liquidadas conforme al presente contrato.`,
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      5,
       "Para determinar los resultados económicos de las actividades empresariales se considerarán los ingresos obtenidos y, cuando corresponda, los gastos, tributos, cargas, contingencias y demás conceptos directamente vinculados con su desarrollo. La contribución de EL ASOCIADO participa de dichos resultados, encontrándose cualquier eventual pérdida limitada exclusivamente al monto de su contribución, sin que EL ASOCIADO se encuentre obligado a realizar contribuciones adicionales ni a responder con su patrimonio por obligaciones asumidas por EL ASOCIANTE frente a terceros.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      6,
       "La utilidad neta distribuible se determinará deduciendo de los ingresos efectivamente percibidos por las actividades empresariales los costos directos, gastos directos, tributos, cargas, provisiones razonables, pérdidas y obligaciones documentadas vinculadas con dichas actividades.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      7,
       "EL ASOCIADO podrá recibir información razonable sobre el desarrollo de las actividades empresariales materia del presente contrato, de acuerdo con su naturaleza y cuando resulte pertinente, sin que ello implique la obligación de emitir reportes con una periodicidad determinada ni suponga por sí mismo la determinación de utilidades.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      8,
       "La liquidación ordinaria se realizará al vencimiento del plazo contractual, conforme a lo previsto en la cláusula quinta.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      9,
       "Durante la vigencia del contrato podrán efectuarse una o más liquidaciones parciales cuando existan utilidades netas distribuibles efectivamente generadas. EL ASOCIANTE determinará la oportunidad y periodicidad de dichas liquidaciones atendiendo a la naturaleza y resultados de las actividades empresariales. Las participaciones distribuidas mediante estas liquidaciones serán consideradas pagos parciales a cuenta de la liquidación final, sin constituir pagos fijos ni generar una obligación de distribución periódica.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      10,
       "La participación en utilidades que corresponda a EL ASOCIADO será determinada en la liquidación ordinaria prevista en la cláusula quinta o, de ser el caso, en las liquidaciones parciales. De existir utilidades netas distribuibles, la participación correspondiente será puesta a disposición de EL ASOCIADO dentro de los plazos previstos en el presente contrato. Si el vencimiento coincide con día inhábil, el pago se efectuará el primer día hábil siguiente, sin que ello configure mora.",
     ),
-    parrafo(
+    parrafoNumerado(
+      3,
+      11,
       "Para efectos de ejecución, las partes reemplazan cualquier cronograma de pagos fijos por el siguiente esquema de información y liquidación:",
     ),
     tablaLiquidacion(),
     ...clausulaEstatica(4),
     tituloClausula("QUINTA: PLAZO DE DURACIÓN DEL CONTRATO"),
-    parrafo(
+    parrafoNumerado(
+      5,
+      1,
       `El plazo de duración obligatoria del presente contrato será de ${
         plazoVisible(contrato.fechaInicio, contrato.fechaVencimiento)
       }, contado a partir de la fecha de suscripción del presente documento.`,
     ),
-    parrafo(
+    parrafoNumerado(
+      5,
+      2,
       "El contrato podrá renovarse únicamente por acuerdo expreso y escrito de las partes. No habrá renovación automática.",
     ),
-    parrafo(
+    parrafoNumerado(
+      5,
+      3,
       "Vencido el plazo contractual, EL ASOCIANTE practicará la liquidación final correspondiente y efectuará el pago de la participación en utilidades pendiente de distribución, considerando las participaciones que hubieran sido pagadas durante la vigencia del contrato. Asimismo, dentro de un plazo máximo de siete (7) días hábiles contados desde dicho vencimiento, EL ASOCIANTE restituirá a EL ASOCIADO el saldo de la contribución determinado conforme a la liquidación final.",
     ),
     ...clausulaEstatica(6),
@@ -516,25 +611,51 @@ export function construirContratoPdf(
     tituloClausula(
       "DÉCIMA CUARTA: DOMICILIO, NOTIFICACIONES Y ATENCIÓN COMERCIAL",
     ),
-    parrafo(
+    parrafoNumerado(
+      14,
+      1,
       "Las partes señalan como sus domicilios para efectos de todas las comunicaciones y notificaciones relacionadas con el presente contrato los indicados en la parte introductoria del presente documento.",
     ),
-    parrafo(
-      `Para comunicaciones operativas y coordinaciones vinculadas con la ejecución del presente contrato, EL ASOCIADO señala el correo electrónico ${titular.correo} y EL ASOCIANTE señala el correo electrónico atencionalcliente@mascapitalgroup.com. Asimismo, EL ASOCIADO contará con un Analista Comercial encargado de brindarle atención, orientación y acompañamiento durante la vigencia del contrato, cuyos datos son los siguientes: ${analista.nombreCompleto}, con número de celular ${analista.celular} y correo electrónico ${analista.correo}. La designación del referido Analista Comercial tiene únicamente fines de atención, orientación y coordinación operativa, y no le otorga facultades de representación, disposición de fondos ni asunción de obligaciones en nombre de EL ASOCIANTE.`,
-    ),
-    parrafo(
+    parrafoNumerado(14, 2, [
+      {
+        text:
+          "Para comunicaciones operativas y coordinaciones vinculadas con la ejecución del presente contrato, EL ASOCIADO señala el correo electrónico ",
+      },
+      { text: titular.correo, bold: true },
+      {
+        text: " y EL ASOCIANTE señala el correo electrónico ",
+      },
+      { text: "atencionalcliente@mascapitalgroup.com", bold: true },
+      {
+        text:
+          ". Asimismo, EL ASOCIADO contará con un Analista Comercial encargado de brindarle atención, orientación y acompañamiento durante la vigencia del contrato, cuyos datos son los siguientes: ",
+      },
+      { text: analista.nombreCompleto, bold: true },
+      { text: ", con número de celular " },
+      { text: analista.celular, bold: true },
+      { text: " y correo electrónico " },
+      { text: analista.correo, bold: true },
+      {
+        text:
+          ". La designación del referido Analista Comercial tiene únicamente fines de atención, orientación y coordinación operativa, y no le otorga facultades de representación, disposición de fondos ni asunción de obligaciones en nombre de EL ASOCIANTE.",
+      },
+    ]),
+    parrafoNumerado(
+      14,
+      3,
       "Cualquier variación de domicilio, correo electrónico, número telefónico o funcionario encargado deberá ser comunicada por escrito a la otra parte. Mientras no se comunique la variación, serán válidas las notificaciones cursadas a los domicilios, correos electrónicos y datos consignados en este contrato.",
     ),
     ...clausulaEstatica(15),
     ...clausulaEstatica(16),
-    {
-      ...tituloClausula("DÉCIMA SÉTIMA: DECLARACIÓN FINAL DE LAS PARTES"),
-      pageBreak: "before",
-    },
-    parrafo(
+    tituloClausula("DÉCIMA SÉTIMA: DECLARACIÓN FINAL DE LAS PARTES"),
+    parrafoNumerado(
+      17,
+      1,
       "Las partes declaran haber leído íntegramente el presente contrato, comprender su naturaleza asociativa y conocer los derechos y obligaciones que asumen. Asimismo, reconocen que la finalidad de la relación contractual es permitir que EL ASOCIADO participe en los resultados económicos derivados de las actividades empresariales gestionadas por EL ASOCIANTE, bajo los criterios de diligencia, transparencia y gestión empresarial previstos en el presente contrato.",
     ),
-    parrafo(
+    parrafoNumerado(
+      17,
+      2,
       "Las partes reconocen que los resultados económicos del presente contrato se encuentran vinculados al desarrollo efectivo de las actividades empresariales gestionadas por EL ASOCIANTE y serán determinados conforme a las reglas de liquidación previstas en este contrato, reconociendo ambas partes la naturaleza empresarial y asociativa de su participación.",
     ),
     parrafo(
@@ -545,14 +666,23 @@ export function construirContratoPdf(
         {
           width: "48%",
           stack: [
-            { text: "\n____________________________", alignment: "center" },
+            {
+              text: "____________________________",
+              alignment: "center",
+              margin: [0, 42, 0, 0],
+            },
             {
               text: titular.nombreCompleto,
               bold: true,
               alignment: "center",
               fontSize: 8,
             },
-            { text: documento, alignment: "center", fontSize: 8 },
+            {
+              text: documento,
+              bold: true,
+              alignment: "center",
+              fontSize: 8,
+            },
             {
               text: "EL ASOCIADO",
               bold: true,
@@ -564,26 +694,44 @@ export function construirContratoPdf(
         {
           width: "48%",
           stack: [
-            { text: "\n____________________________", alignment: "center" },
+            {
+              image: assets.firmaAsociante,
+              cover: {
+                width: 93,
+                height: 65,
+                align: "center",
+                valign: "center",
+              },
+              alignment: "center",
+              margin: [0, 0, 0, -3],
+            },
             {
               text: "AVANCE CORP SAC",
               bold: true,
               alignment: "center",
-              fontSize: 8,
+              fontSize: 10.5,
+              lineHeight: 1,
             },
-            { text: "RUC N° 20611392088", alignment: "center", fontSize: 8 },
+            {
+              text: "RUC N° 20611392088",
+              bold: true,
+              alignment: "center",
+              fontSize: 10.5,
+              lineHeight: 1,
+            },
             {
               text: "EL ASOCIANTE",
               bold: true,
               alignment: "center",
-              fontSize: 8,
+              fontSize: 10.5,
+              lineHeight: 1,
             },
           ],
         },
       ],
       columnGap: 18,
       unbreakable: true,
-      margin: [0, 6, 0, 5],
+      margin: [0, 24, 0, 5],
     } as ContentColumns,
   ];
 
