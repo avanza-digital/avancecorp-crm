@@ -3451,3 +3451,73 @@ artefacto SHA-256 verificado y oráculo PostgreSQL
 **Registro de excepciones a `public`:** crea perfiles `comercial` únicamente
 para identidades nuevas marcadas por el servidor como exclusivas del CRM, igual
 que el flujo anterior. No altera objetos ni comportamiento del Portal.
+
+## 20260823204930_crm_alertas_reconocimientos.sql
+
+**Estado: ✅ EN PRODUCCIÓN (2026-08-23, ~17:30 Lima).** Ciclo completo en el
+branch `hoy-sin-ruido-f4` (ref `xoyeqftdfxmshjqswdey`, borrado tras el
+veredicto): replay automático muerto en el MIGRATIONS_FAILED de diseño →
+`reset_branch` a 20260811210049 → semilla intercalada (perfiles 'analista',
+cadena sup→vend) → replay 087–123 DESDE EL REGISTRO remoto (37/37; los 3
+asientos sin cuerpo salieron de los `.sql` locales del domicilio legal y del
+régimen documental — que SÍ está vivo en prod, la nota del 20/08 quedó vieja)
+→ **huella global 271 funciones md5 IDÉNTICA a prod** → F4 aplicada (+3
+funciones exactas) → seed demo + bajas → gate **404✓ con el ÚNICO ✗ = el
+fatal documentado del arnés** (offboarding post-8-ago; primera corrida cazó
+además un bug de la PROPIA sonda de audit: `tabla` va calificada con esquema)
+→ advisors del branch 156/0 ERROR (única diferencia con prod:
+`extension_in_public`, infra de branch). Trampa nueva del ciclo: un branch
+nace SIN `crm` en los esquemas expuestos de PostgREST — copiar la config API
+de prod (Management API `PATCH /postgrest`) antes del seed. Aplicación a
+prod por `merge_branch` con el cuerpo AL BYTE en el registro del branch
+(md5 `6c1c10ab…` = fichero; sin eso el merge habría registrado sin ejecutar)
+y verificada CONTANDO objetos: tabla + 3 triggers + 2 policies + 3 índices +
+job de cron con EXECUTE, funciones **271→274 (+3 exactas)**, registro 124,
+huella `399cd9ff…` = banco al byte. Advisors de prod post-merge: **157 =
+línea base exacta, cero clases nuevas, 0 de F4**.
+
+**F4.1 del plan «Hoy del supervisor, sin ruido»** (decisiones de Miguel
+2026-08-23: reconocida = atenuada · posponer con fecha y tope 7 días ·
+gerencia lee). Crea `crm.alertas_reconocimientos`, el libro INMUTABLE (solo
+INSERT: sin policy ni grant de UPDATE/DELETE) donde el supervisor reconoce o
+pospone las alertas agrupadas de su campana. Guarda la FOTO de miembros del
+grupo — la base del «reaparece si empeora» que calcula el front — y la
+severidad reconocida. Trigger sellador: autoría = actor, `alerta_id` atado al
+uuid del actor (nadie reconoce alertas ajenas), posponer futuro con tope de
+7 días a reloj de pared, miembros sin nulls ni ids venenosos, `creado_en`
+del servidor. RLS: escribe solo el supervisor dueño; lee el dueño y gerencia
+(trazabilidad); vendedor y directorio, nada. Caducidad pg_cron a 90 días
+(la traza permanente queda en `public.audit_log` vía `private.log_audit_crm`).
+Matriz `test-rls.mjs`: bloque «F4 sin ruido» con 28 casos (positivos y
+denegados por rol —coordinador incluido—, predicado owner con OTRO supervisor,
+inmutabilidad del propio dueño, re-sellado de creado_en, topes y venenos).
+Auditoría `auditor-rls` aplicada ANTES del branch: 4 importantes (huecos de
+matriz) + 6 menores (sello con clock_timestamp, guardia de inmutabilidad
+BEFORE UPDATE/DELETE, rol también en el sellador, limitación de la foto
+documentada en el COMMENT).
+
+**Auditoría Codex (refutación) aplicada ANTES del branch:** 1 bloqueante —
+la foto/severidad son falsificables por su dueño vía API — resuelto por
+ESTRUCTURA: ningún reconocimiento vige más de 7 días (contrato de F4.2,
+sellado por el creado_en del servidor; documentado en el COMMENT de la
+tabla). Además: `array_ndims=1` (una foto 2D pasaba cardinality y unnest),
+`secuencia` identity como ORDEN TOTAL del libro (creado_en empata al
+microsegundo), `collate "C"` en los regex con rangos, vuelta atrás con
+unschedule condicional, y la matriz endurecida (helper estricto con código
+Y mensaje, positivo del 4.º tipo, sonda de audit_log, foto 2D, catálogos
+de accion/severidad). Matriz F4: 36 casos. NO observables y DICHOS: la
+caducidad de 90 días y la guardia de inmutabilidad ante el owner.
+
+**Contratos que hereda F4.2 (front):** `AlertaCRM` debe exponer `miembros`
+(hoy los grupos descartan los ids — hallazgo Codex #4) · un reconocimiento
+vige ≤7 días por `creado_en` · «el último asiento manda» se lee por
+`secuencia`, no por `creado_en`.
+
+**Verificación post-merge obligatoria:** `cron.job` tiene UNA fila
+`crm-alertas-reconocimientos-caducidad` y su `username` tiene EXECUTE sobre
+`private.caducar_alertas_reconocimientos()` — el segfault por EXECUTE
+ausente está documentado en esta misma imagen de Supabase
+([[postgres-cae-por-permiso-de-funcion]]).
+
+**Registro de excepciones a `public`:** solo la FK de lectura a
+`public.perfiles` (patrón de la casa); ningún objeto del portal se altera.

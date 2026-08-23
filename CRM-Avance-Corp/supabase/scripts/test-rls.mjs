@@ -3362,6 +3362,403 @@ async function testOffboardingMatrix(sessions, seed) {
       ['23514'],
     );
 
+    // ── F4 «sin ruido» (20260823204930): el libro de reconocimientos ─────────
+    // Ledger INMUTABLE (solo INSERT) owner-only del SUPERVISOR; gerencia LEE
+    // todo (decisión de Miguel 2026-08-23); el alerta_id queda ATADO al actor
+    // por el trigger y el tope de posponer es 7 días.
+    {
+      const f4SupervisorId = seed.profileIdByKey.sup1;
+      const f4AlertaPropia = `grupo:por_repartir:${f4SupervisorId}`;
+      const f4Reconocido = await positive(
+        'F4 sin ruido: el supervisor reconoce una alerta SUYA (autoría re-sellada)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            // Autoría AJENA a propósito: el trigger debe re-firmar con el actor.
+            perfil_id: seed.profileIdByKey.gerencia,
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: ['lead-aaa', 'lead-bbb'],
+            severidad: 'atencion',
+          })
+          .select('id, perfil_id')
+          .single(),
+      );
+      if (f4Reconocido) {
+        check(f4Reconocido.data?.perfil_id === f4SupervisorId,
+          'F4 sin ruido: la autoría la SELLA el servidor con el actor real',
+          `perfil_id=${f4Reconocido.data?.perfil_id}`);
+      }
+      await positive(
+        'F4 sin ruido: posponer con fecha dentro del tope entra',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:tarea_vencida:${f4SupervisorId}`,
+            accion: 'posponer',
+            miembros: ['lead-ccc'],
+            severidad: 'critica',
+            hasta: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
+          })
+          .select('id')
+          .single(),
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: posponer más allá de 7 días rebota (tope de Miguel)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:tarea_vencida:${f4SupervisorId}`,
+            accion: 'posponer',
+            miembros: ['lead-ccc'],
+            severidad: 'critica',
+            hasta: new Date(Date.now() + 9 * 24 * 3600 * 1000).toISOString(),
+          })
+          .select('id'),
+        ['22023'], /tope de 7 días/,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: posponer SIN fecha no existe (CHECK de coherencia)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:tarea_vencida:${f4SupervisorId}`,
+            accion: 'posponer',
+            miembros: ['lead-ccc'],
+            severidad: 'critica',
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: reconocer no lleva fecha (CHECK de coherencia)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+            hasta: new Date(Date.now() + 3600 * 1000).toISOString(),
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: nadie reconoce alertas AJENAS (el id queda atado al actor)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: 'grupo:por_repartir:00000000-0000-4000-8000-000000000000',
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['42501'], /propia campana/,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: un tipo de alerta fuera del catálogo rebota (CHECK de formato)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:invento:${f4SupervisorId}`,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: una foto de miembros con ids venenosos rebota (22023 del trigger)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: ['lead-ok', 'con espacios malos'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['22023'], /ids inválidos/,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: la foto vacía no entra (cardinalidad 1..2000)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: [],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: posponer con fecha PASADA rebota (auditor #1)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:tarea_vencida:${f4SupervisorId}`,
+            accion: 'posponer',
+            miembros: ['lead-ccc'],
+            severidad: 'critica',
+            hasta: new Date(Date.now() - 24 * 3600 * 1000).toISOString(),
+          })
+          .select('id'),
+        ['22023'], /futura/,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: hasta=infinity muere en la puerta (dos candados, auditor #10)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:tarea_vencida:${f4SupervisorId}`,
+            accion: 'posponer',
+            miembros: ['lead-ccc'],
+            severidad: 'critica',
+            hasta: 'infinity',
+          })
+          .select('id'),
+        ['22023', '23514'], /tope|check/i,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: un NULL dentro de la foto rebota (mata el mutante del m is null, auditor #2)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: ['lead-ok', null],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['22023'], /ids inválidos/,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: una foto de 2001 miembros rebota (anti-abuso, auditor #10)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: Array.from({ length: 2001 }, (_, i) => `lead-${i}`),
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      // Codex F4 #8: el catálogo COMPLETO tiene su positivo (el 4.º tipo) y
+      // los CHECK de accion/severidad tienen quien los mate si se mutan.
+      {
+        const f4Primero = await positive(
+          'F4 sin ruido: el 4.º tipo del catálogo (lead_sin_responder) también entra',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+            .insert({
+              alerta_id: `grupo:lead_sin_responder:${f4SupervisorId}`,
+              accion: 'reconocer',
+              miembros: ['lead-eee'],
+              severidad: 'critica',
+            })
+            .select('id, secuencia')
+            .single(),
+        );
+        const f4Segundo = await positive(
+          'F4 sin ruido: un segundo asiento del MISMO grupo entra (supersede, no edita)',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+            .insert({
+              alerta_id: `grupo:lead_sin_responder:${f4SupervisorId}`,
+              accion: 'posponer',
+              miembros: ['lead-eee', 'lead-fff'],
+              severidad: 'critica',
+              hasta: new Date(Date.now() + 2 * 24 * 3600 * 1000).toISOString(),
+            })
+            .select('id, secuencia')
+            .single(),
+        );
+        if (f4Primero && f4Segundo) {
+          // Codex F4 #3: «el último asiento manda» necesita ORDEN TOTAL —
+          // creado_en puede empatar al microsegundo; la secuencia no.
+          check(Number(f4Segundo.data?.secuencia) > Number(f4Primero.data?.secuencia),
+            'F4 sin ruido: la secuencia da el orden total del libro (el 2.º > el 1.º)',
+            `secuencias=${f4Primero.data?.secuencia},${f4Segundo.data?.secuencia}`);
+        }
+      }
+      await expectExpectedFailure(
+        'F4 sin ruido: una acción fuera del catálogo rebota (CHECK de accion)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'silenciar',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      await expectExpectedFailure(
+        'F4 sin ruido: una severidad fuera del catálogo rebota (CHECK de severidad)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'altisima',
+          })
+          .select('id'),
+        ['23514'], /check/i,
+      );
+      await expectBlockedMutation(
+        'F4 sin ruido: una foto 2D no entra (array_ndims=1, Codex #2)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: f4AlertaPropia,
+            accion: 'reconocer',
+            miembros: [['lead-a', 'lead-b']],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['23514', '22P02'],
+      );
+      // NO OBSERVABLES desde PostgREST y por eso DICHOS (regla de mutantes de
+      // la casa): la caducidad de 90 días (pg_cron + guardia BEFORE DELETE
+      // solo dejan pasar asientos viejos — exigiría fabricar tiempo en un
+      // banco desechable, como el oráculo de F2 lead libre) y la guardia de
+      // inmutabilidad frente al OWNER (el gate solo habla PostgREST; ante
+      // authenticated la matriz ya prueba UPDATE/DELETE bloqueados). Los
+      // asientos que esta corrida deja son jóvenes y la guardia impide
+      // limpiarlos: quedan a propósito, el branch del gate es desechable.
+      await expectExpectedFailure(
+        'F4 sin ruido: el uuid en MAYÚSCULAS no entra (auth.uid()::text siempre es minúscula)',
+        sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:por_repartir:${String(f4SupervisorId).toUpperCase()}`,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+        ['23514', '42501'], /check|campana/i,
+      );
+      {
+        // creado_en falso: el servidor RE-SELLA — sin esto un supervisor
+        // fecharía un asiento en 2031 y ganaría la supremacía del libro
+        // para siempre (auditor #4).
+        const f4Fechado = await positive(
+          'F4 sin ruido: un creado_en del cliente se RE-SELLA con el reloj del servidor',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+            .insert({
+              alerta_id: `grupo:sin_proxima_accion:${f4SupervisorId}`,
+              accion: 'reconocer',
+              miembros: ['lead-ddd'],
+              severidad: 'atencion',
+              creado_en: '2031-01-01T00:00:00Z',
+            })
+            .select('id, creado_en')
+            .single(),
+        );
+        if (f4Fechado) {
+          const f4DeltaMs = Math.abs(Date.parse(f4Fechado.data?.creado_en) - Date.now());
+          check(Number.isFinite(f4DeltaMs) && f4DeltaMs < 5 * 60 * 1000,
+            'F4 sin ruido: el creado_en devuelto es de AHORA, no del cliente',
+            `creado_en=${f4Fechado.data?.creado_en}`);
+        }
+      }
+      await expectBlockedMutation(
+        'F4 sin ruido: el COORDINADOR no escribe en el libro (auditor #3)',
+        sessions.coordinador.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:por_repartir:${seed.profileIdByKey.coordinador}`,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+      );
+      await expectBlockedMutation(
+        'F4 sin ruido: el VENDEDOR no escribe en el libro (gate de rol)',
+        member.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:por_repartir:${memberId}`,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+      );
+      await expectBlockedMutation(
+        'F4 sin ruido: GERENCIA tampoco escribe — el compromiso es personal',
+        sessions.gerencia.client.schema('crm').from('alertas_reconocimientos')
+          .insert({
+            alerta_id: `grupo:por_repartir:${seed.profileIdByKey.gerencia}`,
+            accion: 'reconocer',
+            miembros: ['lead-ccc'],
+            severidad: 'atencion',
+          })
+          .select('id'),
+      );
+      if (f4Reconocido?.data?.id) {
+        const f4Gerencia = await positive(
+          'F4 sin ruido: gerencia LEE el reconocimiento del supervisor (trazabilidad)',
+          sessions.gerencia.client.schema('crm').from('alertas_reconocimientos')
+            .select('id, perfil_id')
+            .eq('id', f4Reconocido.data.id)
+            .single(),
+        );
+        if (f4Gerencia) {
+          check(f4Gerencia.data?.perfil_id === f4SupervisorId,
+            'F4 sin ruido: la traza dice QUIÉN reconoció');
+        }
+        // Codex F4 #8: el trigger de auditoría tiene su sonda — sin esto,
+        // quitarlo dejaba la matriz en verde y el libro sin rastro permanente.
+        const f4Rastro = await requireAdmin(
+          'F4 sin ruido: el asiento dejó rastro en audit_log (trigger vivo)',
+          admin.from('audit_log')
+            .select('id, operacion')
+            // log_audit_crm escribe la tabla CALIFICADA (tg_table_schema||'.'||
+            // tg_table_name) — la sonda falló en el primer gate por buscarla
+            // sin esquema.
+            .eq('tabla', 'crm.alertas_reconocimientos')
+            .eq('fila_id', f4Reconocido.data.id)
+            .limit(1),
+        );
+        check((f4Rastro?.data?.length ?? 0) === 1
+          && f4Rastro?.data?.[0]?.operacion === 'INSERT',
+          'F4 sin ruido: el rastro es un INSERT de esta fila',
+          `rastro=${JSON.stringify(f4Rastro?.data)}`);
+        // El arquetipo del owner-only (auditor M1): OTRO supervisor — mismo
+        // rol, pasa el gate y debe morir por el predicado owner.
+        await expectHidden(
+          'F4 sin ruido: OTRO supervisor no lee el libro ajeno (predicado owner)',
+          sessions.sup2.client.schema('crm').from('alertas_reconocimientos')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        await expectHidden(
+          'F4 sin ruido: el vendedor no lee el libro (gate de rol)',
+          member.client.schema('crm').from('alertas_reconocimientos')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        await expectHidden(
+          'F4 sin ruido: el coordinador tampoco lee el libro (auditor #3)',
+          sessions.coordinador.client.schema('crm').from('alertas_reconocimientos')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        await expectHidden(
+          'F4 sin ruido: directorio (lector global) tampoco lee el libro',
+          sessions.directorio.client.schema('crm').from('alertas_reconocimientos')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        // INMUTABLE de verdad: ni el DUEÑO edita o borra su asiento.
+        await expectBlockedMutation(
+          'F4 sin ruido: ni el dueño reescribe el libro (sin UPDATE)',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+            .update({ severidad: 'critica' })
+            .eq('id', f4Reconocido.data.id)
+            .select('id'),
+        );
+        await expectBlockedMutation(
+          'F4 sin ruido: ni el dueño arranca hojas del libro (sin DELETE)',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+            .delete()
+            .eq('id', f4Reconocido.data.id)
+            .select('id'),
+        );
+      }
+    }
+
     const ownAgenda = await positive(
       'P04 true/true: busca su fila ICS',
       member.client.schema('crm').from('agenda_ics')
