@@ -4,7 +4,12 @@
 // por miembro solo cuando registra algo — los miembros todo-en-cero se
 // colapsan en una línea expandible ("no registra nada" sigue siendo señal del
 // manager, pero ya no un muro de ceros). Semáforo sin verde (regla de la
-// casa): ámbar para rezago, rojo solo para no-shows repetidos.
+// casa): rojo solo para no-shows repetidos.
+//
+// Desde 2026-08-23 este panel es SOLO producción (toques y cierres): el
+// rezago de cada miembro —vencidas, sin próxima acción— vive en «Tu equipo
+// hoy», pegado a la persona. Antes salía en las dos tarjetas, una al lado de
+// la otra, y el supervisor juzgaba al mismo vendedor dos veces.
 import type { JSX } from 'react'
 import { CalendarClock, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
@@ -137,16 +142,6 @@ function FranjaResumen({ resumen }: { resumen: ResumenAgenda }): JSX.Element {
         valor={resumen.noAsistio}
         color={resumen.noAsistio >= 2 ? SEMAFORO.critico : undefined}
       />
-      <CifraResumen
-        etiqueta="sin próxima acción"
-        valor={resumen.sinAccion}
-        color={resumen.sinAccion > 0 ? SEMAFORO.atencion : undefined}
-      />
-      <CifraResumen
-        etiqueta="vencidas"
-        valor={resumen.vencidas}
-        color={resumen.vencidas > 0 ? SEMAFORO.atencion : undefined}
-      />
     </div>
   )
 }
@@ -214,7 +209,7 @@ function SinActividadColapsada({
 
 /**
  * Tabla compacta de miembros CON actividad (las filas-cero van colapsadas
- * aparte). 4 columnas para caber SIN scroll horizontal en el slot del
+ * aparte). 3 columnas para caber SIN scroll horizontal en el slot del
  * supervisor: el ratio manda en cada celda y el conteo crudo baja a sub-línea.
  */
 function TablaMiembros({
@@ -230,7 +225,6 @@ function TablaMiembros({
         <Th>Miembro</Th>
         <Th className="text-right">Toques</Th>
         <Th>Cierres</Th>
-        <Th className="text-right">Rezago</Th>
       </TheadCrm>
       <tbody className="divide-y divide-border/60">
         {miembros.map((ven) => {
@@ -316,24 +310,6 @@ function TablaMiembros({
                   <Vacia />
                 )}
               </Td>
-              <Td className="py-2 text-right align-top">
-                {ven.vencidas > 0 || ven.leads_sin_accion > 0 ? (
-                  <span className="flex flex-wrap items-center justify-end gap-1">
-                    {ven.vencidas > 0 && (
-                      <Badge color={SEMAFORO.atencion} className="text-[10px]">
-                        {ven.vencidas} {ven.vencidas === 1 ? 'vencida' : 'vencidas'}
-                      </Badge>
-                    )}
-                    {ven.leads_sin_accion > 0 && (
-                      <Badge color={SEMAFORO.atencion} className="text-[10px]">
-                        {ven.leads_sin_accion} sin acción
-                      </Badge>
-                    )}
-                  </span>
-                ) : (
-                  <Vacia />
-                )}
-              </Td>
             </tr>
           )
         })}
@@ -368,9 +344,6 @@ function CabeceraEquipo({ grupo }: { grupo: GrupoAgendaEquipo }): JSX.Element {
             etiqueta="no asistió"
             color={agregados.noAsistio >= 2 ? SEMAFORO.critico : undefined}
           />
-        )}
-        {agregados.sinAccion > 0 && (
-          <ChipEquipo n={agregados.sinAccion} etiqueta="sin acción" color={SEMAFORO.atencion} />
         )}
       </span>
     </div>

@@ -242,23 +242,28 @@ describe('derivarAlertasVendedor', () => {
   })
 })
 
+// Una alerta por DECISIÓN, no por registro (2026-08-23): el supervisor recibe
+// a lo sumo cuatro grupos — bandeja, nuevos sin responder, plazos vencidos,
+// vendedores sin acción — y cada lead cuenta en uno solo.
 describe('derivarAlertasSupervisor', () => {
-  it('marca individualmente y como crítica solo su propia bandeja por repartir', () => {
-    const propia = lead({
-      id: 'bandeja-propia',
-      vendedor_id: null,
-      vendedor_nombre: null,
-      asignado_supervisor_id: 's1',
-    })
-    const ajena = lead({
-      id: 'bandeja-ajena',
-      vendedor_id: null,
-      vendedor_nombre: null,
-      asignado_supervisor_id: 's2',
-    })
+  const enBandeja = (id: string, cambios: Partial<Lead> = {}): Lead => lead({
+    id,
+    nombre_completo: id,
+    vendedor_id: null,
+    vendedor_nombre: null,
+    asignado_supervisor_id: 's1',
+    ...cambios,
+  })
+
+  it('agrupa su propia bandeja en UNA alerta ámbar con el total y el más rezagado', () => {
+    const ajena = enBandeja('bandeja-ajena', { asignado_supervisor_id: 's2' })
     const alertas = derivarAlertasSupervisor({
       supervisorId: 's1',
-      leads: [ajena, propia],
+      leads: [
+        ajena,
+        enBandeja('reciente'),
+        enBandeja('rezagado', { creado_en: haceHoras(4 * 24), tenencia_desde: haceHoras(4 * 24) }),
+      ],
       actividades: [],
       tareas: [],
       vendedores: [vendedor('v1')],
@@ -267,19 +272,51 @@ describe('derivarAlertasSupervisor', () => {
 
     expect(alertas).toHaveLength(1)
     expect(alertas[0]).toMatchObject({
-      id: 'por_repartir:bandeja-propia',
+      id: 'grupo:por_repartir:s1',
       tipo: 'por_repartir',
-      severidad: 'critica',
+      severidad: 'atencion',
       alcance: 'equipo',
+      titulo: '2 leads esperando reparto',
       responsableId: 's1',
-      destino: { vista: 'hoy', leadId: 'bandeja-propia' },
+      valor: 2,
+      destino: { vista: 'derivaciones', leadId: null, etiqueta: 'Repartir' },
     })
+    // El más rezagado encabeza la lista: es al que hay que repartir primero.
+    expect(alertas[0]?.detalle).toBe('rezagado, reciente. El más rezagado espera hace 4 días.')
   })
 
-  it('escala tareas solo desde 24 horas y mantiene una por lead', () => {
+  it('con un solo lead en bandeja habla en singular y sin lista', () => {
+    const [alerta] = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [enBandeja('solo')],
+      actividades: [],
+      tareas: [],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+    })
+    expect(alerta?.titulo).toBe('1 lead esperando reparto')
+    expect(alerta?.valor).toBe(1)
+  })
+
+  it('resume los nombres a tres y «N más»', () => {
+    const [alerta] = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: ['a', 'b', 'c', 'd', 'e'].map((id) => enBandeja(id)),
+      actividades: [],
+      tareas: [],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+    })
+    expect(alerta?.detalle).toMatch(/^a, b, c y 2 más\./)
+  })
+
+  it('agrupa los plazos vencidos desde 24 horas en una alerta crítica, una vez por lead', () => {
     const alertas = derivarAlertasSupervisor({
       supervisorId: 's1',
-      leads: [lead({ id: 'grave' }), lead({ id: 'reciente' })],
+      leads: [
+        lead({ id: 'grave', nombre_completo: 'Grave' }),
+        lead({ id: 'reciente', nombre_completo: 'Reciente' }),
+      ],
       actividades: [],
       tareas: [
         tarea({ id: 'grave-25', lead_id: 'grave', vence_en: haceHoras(25) }),
@@ -292,21 +329,25 @@ describe('derivarAlertasSupervisor', () => {
 
     expect(alertas).toHaveLength(1)
     expect(alertas[0]).toMatchObject({
-      id: 'tarea_vencida:grave',
+      id: 'grupo:tarea_vencida:s1',
       tipo: 'tarea_vencida',
       severidad: 'critica',
-      responsable: 'Ana',
-      destino: { vista: 'agenda', leadId: 'grave' },
+      titulo: '1 lead con plazo vencido desde ayer',
+      detalle: '1 tarea vencida: Grave.',
+      valor: 1,
+      // A la AGENDA, no a la cola: un lead con la tarea vencida y otra futura
+      // tiene plan vivo y la cola no lo lista — el enlace moriría (Codex).
+      destino: { vista: 'agenda', leadId: null, etiqueta: 'Abrir en Agenda' },
     })
-    expect(alertas[0]?.valor).toBe(48)
   })
 
-  it('escala la cola crítica al completar un día, pero no antes', () => {
+  it('separa los nuevos sin responder del resto de la cola crítica, solo al completar un día', () => {
     const alertas = derivarAlertasSupervisor({
       supervisorId: 's1',
       leads: [
         lead({
           id: 'un-dia',
+          nombre_completo: 'Un Día',
           creado_en: haceHoras(24),
           tenencia_desde: haceHoras(24),
         }),
@@ -323,9 +364,71 @@ describe('derivarAlertasSupervisor', () => {
       estadosSla: new Map([['un-dia', estadoSlaVencido('un-dia')]]),
     })
 
-    expect(alertas.map((alerta) => alerta.id)).toEqual([
-      'lead_sin_responder:un-dia',
-    ])
+    expect(alertas).toHaveLength(1)
+    expect(alertas[0]).toMatchObject({
+      id: 'grupo:lead_sin_responder:s1',
+      tipo: 'lead_sin_responder',
+      severidad: 'critica',
+      titulo: '1 lead nuevo sin responder',
+      valor: 1,
+      destino: { vista: 'hoy', leadId: null },
+    })
+    // Detalle COMPLETO a propósito: con 24 h justas dentro del grupo, decir
+    // «más de un día» sería falso (hallazgo de Codex sobre la redacción).
+    expect(alertas[0]?.detalle).toBe('Un Día. Sin primer contacto desde hace un día o más.')
+  })
+
+  it('un lead cuenta en un solo grupo: la bandeja gana a la tarea vencida, pero HEREDA su criticidad', () => {
+    const alertas = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [enBandeja('parkeado')],
+      actividades: [],
+      tareas: [tarea({ id: 't', lead_id: 'parkeado', vendedor_id: null, vence_en: haceHoras(30) })],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+    })
+    expect(alertas.map((alerta) => alerta.id)).toEqual(['grupo:por_repartir:s1'])
+    // Agrupar nunca rebaja una señal crítica independiente: el parkeado trae
+    // una tarea vencida de 30 h y el grupo entero sube a crítica (Codex #1).
+    expect(alertas[0]?.severidad).toBe('critica')
+  })
+
+  it('con la tarea vencida por DEBAJO de 24 h la bandeja sigue en ámbar', () => {
+    const [alerta] = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [enBandeja('parkeado')],
+      actividades: [],
+      tareas: [tarea({ id: 't', lead_id: 'parkeado', vendedor_id: null, vence_en: haceHoras(23) })],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+    })
+    expect(alerta?.severidad).toBe('atencion')
+  })
+
+  it('nombres Unicode equivalentes no vuelven inestable el grupo de vendedores (desempate por id)', () => {
+    const sinAccion = (vendedorId: string, cantidad: number) => Array.from({ length: cantidad }, (_, i) => lead({
+      id: `${vendedorId}-${i}`,
+      vendedor_id: vendedorId,
+      etapa: 'contactado',
+      creado_en: haceHoras(2),
+      tenencia_desde: haceHoras(2),
+    }))
+    // «Ána» precompuesto (v-b) y descompuesto (v-a): localeCompare da 0.
+    const roster = [
+      vendedor('v-b', { nombre_completo: '\u00c1na' }),
+      vendedor('v-a', { nombre_completo: 'A\u0301na' }),
+    ]
+    const derivar = (entrada: Lead[]) => derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: entrada,
+      actividades: [],
+      tareas: [],
+      vendedores: roster,
+      ahora: AHORA,
+    })[0]?.detalle
+    const a = sinAccion('v-a', 3)
+    const b = sinAccion('v-b', 3)
+    expect(derivar([...a, ...b])).toBe(derivar([...b, ...a]))
   })
 
   it.each([
@@ -350,15 +453,17 @@ describe('derivarAlertasSupervisor', () => {
         ahora: AHORA,
       })
       const agrupada = alertas.find(
-        (alerta) => alerta.id === 'sin_proxima_accion:vendedor:v1',
+        (alerta) => alerta.id === 'grupo:sin_proxima_accion:s1',
       )
 
       if (severidad == null) {
         expect(agrupada).toBeUndefined()
       } else {
+        // Un solo vendedor: conserva su nombre como responsable, como antes.
         expect(agrupada).toMatchObject({
           severidad,
           alcance: 'equipo',
+          titulo: `Ana tiene ${valor} leads sin próxima acción`,
           responsableId: 'v1',
           responsable: 'Ana',
           valor,
@@ -368,10 +473,37 @@ describe('derivarAlertasSupervisor', () => {
     },
   )
 
+  it('varios vendedores sin acción van en un grupo ordenado por carga; la severidad es la más alta', () => {
+    const sinAccion = (vendedorId: string, cantidad: number) => Array.from({ length: cantidad }, (_, i) => lead({
+      id: `${vendedorId}-${i}`,
+      vendedor_id: vendedorId,
+      etapa: 'contactado',
+      creado_en: haceHoras(2),
+      tenencia_desde: haceHoras(2),
+    }))
+    const [alerta] = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [...sinAccion('v1', 3), ...sinAccion('v2', 5)],
+      actividades: [],
+      tareas: [],
+      vendedores: [vendedor('v1'), vendedor('v2', { nombre_completo: 'Bea' })],
+      ahora: AHORA,
+    })
+    expect(alerta).toMatchObject({
+      id: 'grupo:sin_proxima_accion:s1',
+      severidad: 'critica',
+      titulo: '2 vendedores con leads sin próxima acción',
+      detalle: 'Bea 5 · Ana 3',
+      responsableId: null,
+      responsable: null,
+      valor: 8,
+    })
+  })
+
   it('ignora responsables fuera del roster y conserva un orden estable', () => {
     const propios = [
-      lead({ id: 'zeta', vendedor_id: 'v1', vendedor_nombre: 'Ana' }),
-      lead({ id: 'alfa', vendedor_id: 'v1', vendedor_nombre: 'Ana' }),
+      lead({ id: 'zeta', nombre_completo: 'Zeta', vendedor_id: 'v1', vendedor_nombre: 'Ana' }),
+      lead({ id: 'alfa', nombre_completo: 'Alfa', vendedor_id: 'v1', vendedor_nombre: 'Ana' }),
     ]
     const fuera = lead({
       id: 'fuera',
@@ -393,16 +525,43 @@ describe('derivarAlertasSupervisor', () => {
       tareas: [...tareas].reverse(),
       vendedores: [vendedor('v1')],
       ahora: AHORA,
-    }).map((alerta) => alerta.id)
+    })
 
     const propiosInvertidos = [...propios].reverse()
-    expect(derivar([fuera, ...propios])).toEqual(
-      derivar([...propiosInvertidos, fuera]),
-    )
-    expect(derivar([fuera, ...propios])).toEqual([
-      'tarea_vencida:alfa',
-      'tarea_vencida:zeta',
+    expect(derivar([fuera, ...propios])).toEqual(derivar([...propiosInvertidos, fuera]))
+    expect(derivar([fuera, ...propios]).map((alerta) => alerta.id)).toEqual([
+      'grupo:tarea_vencida:s1',
     ])
+    expect(derivar([fuera, ...propios])[0]?.valor).toBe(2)
+  })
+
+  it('nunca emite más de cuatro alertas y el mismo lead no aparece dos veces', () => {
+    const alertas = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [
+        ...['p1', 'p2', 'p3'].map((id) => enBandeja(id)),
+        lead({ id: 'v1-vencida' }),
+        lead({ id: 'nuevo', creado_en: haceHoras(30), tenencia_desde: haceHoras(30) }),
+        ...Array.from({ length: 4 }, (_, i) => lead({
+          id: `sa-${i}`,
+          etapa: 'contactado',
+          creado_en: haceHoras(2),
+          tenencia_desde: haceHoras(2),
+        })),
+      ],
+      actividades: [],
+      tareas: [tarea({ id: 't', lead_id: 'v1-vencida', vence_en: haceHoras(30) })],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+      estadosSla: new Map([['nuevo', estadoSlaVencido('nuevo')]]),
+    })
+    expect(alertas.map((alerta) => alerta.id)).toEqual([
+      'grupo:tarea_vencida:s1',
+      'grupo:lead_sin_responder:s1',
+      'grupo:por_repartir:s1',
+      'grupo:sin_proxima_accion:s1',
+    ])
+    expect(alertas.reduce((suma, alerta) => suma + (alerta.valor ?? 0), 0)).toBe(3 + 1 + 1 + 4)
   })
 
   it('no deriva nada con un reloj inválido', () => {

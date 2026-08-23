@@ -202,27 +202,41 @@ describe('tieneActividad', () => {
     expect(tieneActividad(ven('v1', 'Ana'))).toBe(false)
   })
 
-  it('la carga viva también cuenta: pendientes o leads sin acción sacan al miembro del colapso', () => {
+  it('la planificación viva cuenta (pendientes), pero el rezago ya NO saca del colapso', () => {
     expect(tieneActividad(ven('v1', 'Ana', { pendientes: 1 }))).toBe(true)
-    expect(tieneActividad(ven('v1', 'Ana', { leads_sin_accion: 2 }))).toBe(true)
     expect(tieneActividad(ven('v1', 'Ana', { toques: 1 }))).toBe(true)
+    // 2026-08-23: el rezago vive en «Tu equipo hoy». Sin producción, quien solo
+    // arrastra vencidas o sin acción se queda colapsado — antes salía como una
+    // fila entera de guiones (hallazgo de la auditoría de Codex).
+    expect(tieneActividad(ven('v1', 'Ana', { leads_sin_accion: 2 }))).toBe(false)
+    expect(tieneActividad(ven('v1', 'Ana', { vencidas: 3 }))).toBe(false)
   })
 })
 
 describe('separarPorActividad', () => {
-  it('el rezago (vencidas + sin acción + no asistió) manda: quien acumula va primero, aunque toque menos', () => {
+  it('la producción manda: toques desc → nombre; el rezago ya no ordena esta tabla', () => {
     const { conActividad, sinActividad } = separarPorActividad([
       ven('v1', 'Zoe', { toques: 5 }),
       ven('v2', 'Mia', { toques: 5 }),
       ven('v3', 'Ana', { toques: 9 }),
-      ven('v4', 'Bruno', { toques: 2, vencidas: 1, leads_sin_accion: 1 }), // rezago 2
-      ven('v5', 'Iván', { toques: 4, no_asistio: 2 }), // rezago 2, más toques
+      ven('v4', 'Bruno', { toques: 2, vencidas: 1, leads_sin_accion: 1 }),
+      ven('v5', 'Iván', { toques: 4, no_asistio: 2 }),
       ven('v6', 'Carla'),
       ven('v7', 'Abel'),
     ])
-    // Rezago desc → toques desc → nombre; los todo-en-cero, alfabéticos.
-    expect(conActividad.map((v) => v.nombre)).toEqual(['Iván', 'Bruno', 'Ana', 'Mia', 'Zoe'])
+    // Toques desc → nombre; los todo-en-cero, alfabéticos. Bruno (rezago 2,
+    // 2 toques) ya no adelanta a Ana (9 toques): esta tabla es producción.
+    expect(conActividad.map((v) => v.nombre)).toEqual(['Ana', 'Mia', 'Zoe', 'Iván', 'Bruno'])
     expect(sinActividad.map((v) => v.nombre)).toEqual(['Abel', 'Carla'])
+  })
+
+  it('solo rezago (sin producción) queda colapsado: su señal vive en «Tu equipo hoy»', () => {
+    const { conActividad, sinActividad } = separarPorActividad([
+      ven('v1', 'Ana', { toques: 1 }),
+      ven('v2', 'Bruno', { vencidas: 2, leads_sin_accion: 1 }),
+    ])
+    expect(conActividad.map((v) => v.nombre)).toEqual(['Ana'])
+    expect(sinActividad.map((v) => v.nombre)).toEqual(['Bruno'])
   })
 })
 

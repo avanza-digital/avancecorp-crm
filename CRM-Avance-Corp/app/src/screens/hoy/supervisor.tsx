@@ -2,9 +2,8 @@
 // ya trae: sus leads + los de sus vendedores + parkeados de SU bandeja.
 // Fuentes: useCRMData().ambito + lib/inteligencia + objetivos del contexto.
 // Semáforos sin verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626.
-import { useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useState, type JSX } from 'react'
 import {
-  AlarmClock,
   AlertTriangle,
   ChevronRight,
   Inbox,
@@ -71,6 +70,18 @@ import { useTipoCambio } from '@/lib/tipo-cambio'
 // equipo (montada debajo) no quede varios pantallazos abajo.
 const COLA_VISIBLES = 8
 
+// Pestañas de la cola (2026-08-23, «una cosa se avisa en un solo lugar»):
+// «Leads sin movimiento» era una tercera tarjeta sobre los MISMOS leads
+// abiertos que la cola, así que un lead con 6 días salía dos veces en el mismo
+// pantallazo. Ahora es una pestaña de la misma tarjeta: mismo conteo, mismo
+// tope del RPC, un solo lugar. Urgente = severidad crítica y media.
+type PestanaCola = 'urgente' | 'sin_movimiento' | 'todo'
+const PESTANAS_COLA: ReadonlyArray<{ id: PestanaCola; label: string }> = [
+  { id: 'urgente', label: 'Urgente' },
+  { id: 'sin_movimiento', label: 'Sin movimiento' },
+  { id: 'todo', label: 'Todo' },
+]
+
 // Texto neutro de una meta que gerencia todavía no fijó para el mes.
 const SIN_META = 'Sin meta fijada para este mes'
 
@@ -104,6 +115,9 @@ export function HoySupervisor(): JSX.Element {
   const ahora = useAhora()
   // Cola del equipo expandida más allá del tope de COLA_VISIBLES.
   const [colaExpandida, setColaExpandida] = useState(false)
+  // Pestaña elegida a mano; `null` = automática (la primera con filas), así
+  // un supervisor que entra por la mañana aterriza donde hay trabajo.
+  const [pestanaElegida, setPestanaElegida] = useState<PestanaCola | null>(null)
 
   // ── F1b: los agregados llegan del servidor (o del espejo demo vivo) ──
   // resumen_cartera_fn → tiles de capital/activos/parkeados; cola_accion_fn →
@@ -169,6 +183,44 @@ export function HoySupervisor(): JSX.Element {
     () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
     [equipo],
   )
+
+  // Filas y conteos por pestaña. «Todo» cuenta el universo del RPC (`total`),
+  // no las filas recortadas por p_limite; «Urgente» solo puede contar lo que
+  // llegó. Con estancados al tope, el conteo dice «50+» y no miente.
+  const urgentes = useMemo(
+    () => (cola?.items ?? []).filter((i) => i.sev !== 'baja'),
+    [cola],
+  )
+  // El conteo de «Urgente» sale de porSev (el resumen COMPLETO del RPC), no de
+  // las filas: p_limite recorta items a 100 y con 120 urgentes la pestaña
+  // habría dicho 100 mientras «Todo» decía 120 (hallazgo de Codex).
+  const urgenteTotal = (cola?.porSev.critica ?? 0) + (cola?.porSev.media ?? 0)
+  const conteoPestana: Record<PestanaCola, string> = {
+    urgente: String(urgenteTotal),
+    sin_movimiento: cola && cola.estancados.length >= TOPE_ESTANCADOS
+      ? `${TOPE_ESTANCADOS}+`
+      : String(cola?.estancados.length ?? 0),
+    todo: String(cola?.total ?? 0),
+  }
+  const primeraConFilas: PestanaCola = urgentes.length > 0
+    ? 'urgente'
+    : (cola?.estancados.length ?? 0) > 0
+      ? 'sin_movimiento'
+      : 'todo'
+  const pestana = pestanaElegida ?? primeraConFilas
+  const elegirPestana = (siguiente: PestanaCola) => {
+    setPestanaElegida(siguiente)
+  }
+  // El colapso se reinicia con CUALQUIER cambio de pestaña — también el
+  // automático: la cola se refresca cada minuto y sin esto una pestaña recién
+  // aparecida heredaba la expansión de la anterior (hasta 100 filas de golpe).
+  useEffect(() => {
+    setColaExpandida(false)
+  }, [pestana])
+  const filasCola = pestana === 'urgente' ? urgentes : (cola?.items ?? [])
+  // Total real de la pestaña activa, para que el botón de expandir no prometa
+  // menos de lo que existe cuando el RPC recortó las filas.
+  const totalPestanaActiva = pestana === 'todo' ? (cola?.total ?? 0) : urgenteTotal
 
   const errorIndicadores = !yo?.demo
     && Boolean(resumenOp.error || colaOp.error || vendedoresOp.error)
@@ -388,12 +440,45 @@ export function HoySupervisor(): JSX.Element {
               icon={ListChecks}
               title="Cola del equipo"
               right={
-                cola && cola.total > 0 ? (
-                  <Badge color={SEV_COLOR[cola.items[0]?.sev ?? 'baja']} dot>
-                    {cola.total} {cola.total === 1 ? 'pendiente' : 'pendientes'}
-                  </Badge>
+                cola ? (
+                  // Patrón tablist de la casa (ranking-vendedores): aria-selected
+                  // + aria-controls, tabindex itinerante y flechas. Sin el
+                  // conteo en el nombre accesible el lector de pantalla no
+                  // sabría cuál pestaña tiene trabajo.
+                  <div role="tablist" aria-label="Filtrar la cola" className="inline-flex rounded-lg bg-muted/60 p-0.5">
+                    {PESTANAS_COLA.map((p, indice) => (
+                      <button
+                        key={p.id}
+                        id={`tab-cola-${p.id}`}
+                        type="button"
+                        role="tab"
+                        aria-selected={pestana === p.id}
+                        aria-controls="panel-cola"
+                        aria-label={`${p.label}: ${conteoPestana[p.id]}`}
+                        tabIndex={pestana === p.id ? 0 : -1}
+                        onClick={() => elegirPestana(p.id)}
+                        onKeyDown={(e) => {
+                          const salto = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
+                          if (salto === 0) return
+                          e.preventDefault()
+                          const siguiente = PESTANAS_COLA[(indice + salto + PESTANAS_COLA.length) % PESTANAS_COLA.length]
+                          if (!siguiente) return
+                          elegirPestana(siguiente.id)
+                          document.getElementById(`tab-cola-${siguiente.id}`)?.focus()
+                        }}
+                        className={cn(
+                          'cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                          pestana === p.id
+                            ? 'bg-card text-foreground shadow-sm'
+                            : 'text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {p.label} <span aria-hidden>{conteoPestana[p.id]}</span>
+                      </button>
+                    ))}
+                  </div>
                 ) : (
-                  <span className="text-xs text-muted-foreground">{cola ? 'al día' : '—'}</span>
+                  <span className="text-xs text-muted-foreground">—</span>
                 )
               }
             />
@@ -405,17 +490,66 @@ export function HoySupervisor(): JSX.Element {
                     : 'Cargando la cola del equipo…'}
                 </p>
               </CardContent>
-            ) : cola.items.length === 0 ? (
-              <CardContent className="pb-5 pt-0">
+            ) : pestana === 'sin_movimiento' ? (
+              // ── Sin movimiento (≥5 días) — bloque estancados del RPC. El tope
+              //    de 50 es señal, no listado: con 50 justos la pestaña dice 50+.
+              //    tabIndex 0 SOLO en el panel vacío (patrón WAI-ARIA: el panel
+              //    sin interactivos debe ser enfocable para que Tab no lo salte). ──
+              <div
+                id="panel-cola"
+                role="tabpanel"
+                aria-labelledby="tab-cola-sin_movimiento"
+                tabIndex={cola.estancados.length === 0 ? 0 : undefined}
+              >
+                {cola.estancados.length === 0 ? (
+                  <CardContent className="pb-5 pt-0">
+                    <p className="text-sm text-muted-foreground">
+                      Ningún lead del equipo lleva 5 días o más sin actividad.
+                    </p>
+                  </CardContent>
+                ) : (
+                  <div className="divide-y divide-border/60 border-t border-border/60">
+                    {cola.estancados.map((a) => (
+                      <button
+                        key={a.leadId}
+                        type="button"
+                        onClick={() => abrirLead(a.leadId)}
+                        aria-label={`Abrir ficha de ${a.nombre}`}
+                        className="flex w-full cursor-pointer items-center gap-2.5 px-5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                      >
+                        <div className="min-w-0 flex-1 leading-tight">
+                          <p className="truncate text-sm font-semibold">
+                            {a.nombre}{' '}
+                            <span className="text-xs font-medium text-muted-foreground">
+                              ({(a.vendedorId != null ? nombrePorId.get(a.vendedorId) : null) ?? 'sin asignar'})
+                            </span>
+                          </p>
+                          <p
+                            className="text-[11px] font-semibold"
+                            style={{ color: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
+                          >
+                            Sin actividad {haceTexto(a.dias)}
+                          </p>
+                        </div>
+                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : filasCola.length === 0 ? (
+              <CardContent id="panel-cola" role="tabpanel" aria-labelledby={`tab-cola-${pestana}`} tabIndex={0} className="pb-5 pt-0">
                 <p className="text-sm text-muted-foreground">
-                  Sin pendientes — el equipo está al día con todos sus leads abiertos.
+                  {pestana === 'urgente'
+                    ? 'Nada urgente — ninguna fila crítica ni media en la cola.'
+                    : 'Sin pendientes — el equipo está al día con todos sus leads abiertos.'}
                 </p>
               </CardContent>
             ) : (
-              <div className="divide-y divide-border/60 border-t border-border/60">
+              <div id="panel-cola" role="tabpanel" aria-labelledby={`tab-cola-${pestana}`} className="divide-y divide-border/60 border-t border-border/60">
                 {/* Fila = div role="button" (no <button>: contiene los links de
                     AccionesContacto y un botón no puede anidar interactivos). */}
-                {(colaExpandida ? cola.items : cola.items.slice(0, COLA_VISIBLES)).map((i) => {
+                {(colaExpandida ? filasCola : filasCola.slice(0, COLA_VISIBLES)).map((i) => {
                   const abrir = () => abrirLead(i.lead.id)
                   return (
                     <div
@@ -464,7 +598,7 @@ export function HoySupervisor(): JSX.Element {
                     </div>
                   )
                 })}
-                {cola.items.length > COLA_VISIBLES && (
+                {filasCola.length > COLA_VISIBLES && (
                   <button
                     type="button"
                     onClick={() => setColaExpandida((e) => !e)}
@@ -478,10 +612,10 @@ export function HoySupervisor(): JSX.Element {
                     {colaExpandida
                       ? `Mostrar solo los ${COLA_VISIBLES} más urgentes`
                       // Con más pendientes que el p_limite del RPC, el botón no
-                      // puede prometer el total del badge: dice lo que muestra.
-                      : cola.total > cola.items.length
-                        ? `Ver los ${cola.items.length} más urgentes de ${cola.total}`
-                        : `Ver los ${cola.items.length} pendientes`}
+                      // puede prometer el total de la pestaña: dice lo que muestra.
+                      : totalPestanaActiva > filasCola.length
+                        ? `Ver los ${filasCola.length} más urgentes de ${totalPestanaActiva}`
+                        : `Ver los ${filasCola.length} pendientes`}
                   </button>
                 )}
               </div>
@@ -631,67 +765,6 @@ export function HoySupervisor(): JSX.Element {
             demo={yo?.demo === true}
             porVendedor={cumplimientoMetas?.porVendedor ?? null}
           />
-
-          {/* ── Alertas SLA (≥5 días sin actividad) — bloque estancados del RPC.
-               El tope de 50 es señal, no listado: con 50 justos el badge dice 50+. ── */}
-          <Card className="overflow-hidden">
-            <SectionHead
-              icon={AlarmClock}
-              title="Leads sin movimiento"
-              right={
-                cola && cola.estancados.length > 0 ? (
-                  <Badge color={SEMAFORO.critico} dot>
-                    {cola.estancados.length >= TOPE_ESTANCADOS ? `${TOPE_ESTANCADOS}+` : cola.estancados.length}
-                  </Badge>
-                ) : (
-                  <span className="text-xs text-muted-foreground">{cola ? 'sin alertas' : '—'}</span>
-                )
-              }
-            />
-            {cola == null ? (
-              <CardContent className="pb-5 pt-0">
-                <p className="text-sm text-muted-foreground">
-                  {colaOp.error
-                    ? 'Las alertas de inactividad no están disponibles en este momento.'
-                    : 'Cargando las alertas de inactividad…'}
-                </p>
-              </CardContent>
-            ) : cola.estancados.length === 0 ? (
-              <CardContent className="pb-5 pt-0">
-                <p className="text-sm text-muted-foreground">
-                  Ningún lead del equipo lleva 5 días o más sin actividad.
-                </p>
-              </CardContent>
-            ) : (
-              <div className="divide-y divide-border/60 border-t border-border/60">
-                {cola.estancados.map((a) => (
-                  <button
-                    key={a.leadId}
-                    type="button"
-                    onClick={() => abrirLead(a.leadId)}
-                    aria-label={`Abrir ficha de ${a.nombre}`}
-                    className="flex w-full cursor-pointer items-center gap-2.5 px-5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
-                  >
-                    <div className="min-w-0 flex-1 leading-tight">
-                      <p className="truncate text-sm font-semibold">
-                        {a.nombre}{' '}
-                        <span className="text-xs font-medium text-muted-foreground">
-                          ({(a.vendedorId != null ? nombrePorId.get(a.vendedorId) : null) ?? 'sin asignar'})
-                        </span>
-                      </p>
-                      <p
-                        className="text-[11px] font-semibold"
-                        style={{ color: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
-                      >
-                        Sin actividad {haceTexto(a.dias)}
-                      </p>
-                    </div>
-                    <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                  </button>
-                ))}
-              </div>
-            )}
-          </Card>
         </div>
       </div>
 

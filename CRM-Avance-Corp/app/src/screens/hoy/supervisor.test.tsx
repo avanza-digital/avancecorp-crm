@@ -255,6 +255,98 @@ afterEach(() => {
   vi.useRealTimers()
 })
 
+// 2026-08-23 «una cosa se avisa en un solo lugar»: la tarjeta «Leads sin
+// movimiento» desaparece y pasa a ser una pestaña de la cola. Con el reloj del
+// fixture (mié 15-jul 10:00) un lead «contactado» del 1-jul lleva 14 días sin
+// actividad (seguimiento de severidad baja + estancado) y un «nuevo» del 13-jul
+// es «sin responder» de severidad media.
+describe('Hoy · supervisor — cola con pestañas', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  const nuevo = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+
+  it('una sola tarjeta: pestañas con conteo, aterriza en Urgente y ya no existe «Leads sin movimiento»', () => {
+    montar({ leads: [viejo, nuevo] })
+    expect(screen.queryByRole('heading', { name: 'Leads sin movimiento' })).not.toBeInTheDocument()
+    const tabs = screen.getByRole('tablist', { name: 'Filtrar la cola' })
+    expect(within(tabs).getByRole('tab', { name: 'Urgente: 1' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(tabs).getByRole('tab', { name: 'Sin movimiento: 1' })).toHaveAttribute('aria-selected', 'false')
+    expect(within(tabs).getByRole('tab', { name: 'Todo: 2' })).toHaveAttribute('aria-selected', 'false')
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-cola-urgente')
+    expect(within(panel).getByRole('button', { name: 'Abrir ficha de NUEVO SIN RESPONDER' })).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER' })).not.toBeInTheDocument()
+  })
+
+  it('«Sin movimiento» lista los estancados del RPC con su espera, en el mismo lugar', () => {
+    montar({ leads: [viejo, nuevo] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-cola-sin_movimiento')
+    expect(within(panel).getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER' }))
+      .toHaveTextContent('Sin actividad hace 14 días')
+    expect(within(panel).queryByText('NUEVO SIN RESPONDER')).not.toBeInTheDocument()
+  })
+
+  it('«Todo» muestra la cola completa y el lead viejo sale una sola vez', () => {
+    montar({ leads: [viejo, nuevo] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getAllByRole('button', { name: /^Abrir ficha de/ })).toHaveLength(2)
+  })
+
+  it('las flechas recorren las pestañas y mueven el foco (tabindex itinerante)', () => {
+    montar({ leads: [viejo, nuevo] })
+    const urgente = screen.getByRole('tab', { name: 'Urgente: 1' })
+    expect(urgente).toHaveAttribute('tabindex', '0')
+    urgente.focus()
+    fireEvent.keyDown(urgente, { key: 'ArrowRight' })
+    const sinMovimiento = screen.getByRole('tab', { name: 'Sin movimiento: 1' })
+    expect(sinMovimiento).toHaveAttribute('aria-selected', 'true')
+    expect(sinMovimiento).toHaveAttribute('tabindex', '0')
+    expect(urgente).toHaveAttribute('tabindex', '-1')
+    expect(document.activeElement).toBe(sinMovimiento)
+    fireEvent.keyDown(sinMovimiento, { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: 'Urgente: 1' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('aterriza en la primera pestaña con filas: sin urgentes cae en «Sin movimiento»', () => {
+    montar({ leads: [viejo] })
+    expect(screen.getByRole('tab', { name: 'Urgente: 0' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'Sin movimiento: 1' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('ESTADO DE PRODUCCIÓN (sin leads): tres ceros, aterriza en «Todo» y el vacío es honesto', () => {
+    montar({ leads: [] })
+    expect(screen.getByRole('tab', { name: 'Todo: 0' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Sin pendientes — el equipo está al día con todos sus leads abiertos.')).toBeInTheDocument()
+    // Panel vacío ENFOCABLE (WAI-ARIA): sin interactivos dentro, Tab lo saltaría.
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('tabindex', '0')
+    fireEvent.click(screen.getByRole('tab', { name: 'Urgente: 0' }))
+    expect(screen.getByText('Nada urgente — ninguna fila crítica ni media en la cola.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 0' }))
+    expect(screen.getByText('Ningún lead del equipo lleva 5 días o más sin actividad.')).toBeInTheDocument()
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('tabindex', '0')
+  })
+
+  it('«Urgente» cuenta el TOTAL por severidad del RPC, no las filas recortadas a 100', () => {
+    // 120 nuevos sin responder: el espejo (como el RPC) recorta items a 100,
+    // pero porSev trae el universo completo. Antes la pestaña decía 100
+    // mientras «Todo» decía 120 (hallazgo de Codex).
+    montar({
+      leads: Array.from({ length: 120 }, (_, i) => lead({
+        id: `nuevo-${String(i).padStart(3, '0')}`,
+        nombre_completo: `NUEVO ${i}`,
+        etapa: 'nuevo',
+        creado_en: '2026-07-13T15:00:00Z',
+      })),
+    })
+    expect(screen.getByRole('tab', { name: 'Urgente: 120' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Todo: 120' })).toBeInTheDocument()
+    // El expansor tampoco miente: muestra 100 filas de un total de 120.
+    expect(screen.getByRole('button', { name: /Ver los 100 más urgentes de 120/ })).toBeInTheDocument()
+  })
+})
+
 describe('Hoy · supervisor — reparto compacto', () => {
   it('con pendientes concentra el reparto en un KPI enlazado y retira la bandeja duplicada', () => {
     montar({
