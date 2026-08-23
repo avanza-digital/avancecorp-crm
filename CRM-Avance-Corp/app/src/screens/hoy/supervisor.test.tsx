@@ -354,6 +354,70 @@ describe('Hoy · supervisor — cola con pestañas', () => {
 // de 3 px), el bucket va en texto plano, el monto y el capital dejan el azul,
 // el rezago del vendedor va en texto y solo el no-show repetido conserva un
 // chip rojo, y el punto de semáforo solo aparece cuando hay señal.
+// F3 (2026-08-23) — «Hoy, tres cosas»: la franja navy con las intervenciones
+// del día (máx. 3, rojo primero), alimentada por las mismas fuentes de la
+// pantalla. Con ella, el KPI «Nuevos sin responder» pierde su último rojo.
+describe('Hoy · supervisor — «Hoy, tres cosas» (F3)', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  const nuevoLead = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+
+  it('la franja muestra las cosas del día con su acción, rojo primero', () => {
+    montar({ leads: [viejo, nuevoLead] })
+    const franja = screen.getByRole('region', { name: 'Hoy, tres cosas' })
+    const chips = within(franja).getAllByRole('button')
+    // nuevo → «1 nuevo sin responder» (rojo, pestaña Urgente); viejo → sin movimiento.
+    // Sin fotografía SLA el nuevo es severidad media → «esta semana» (F3 #1).
+    expect(chips[0]).toHaveAccessibleName('esta semana: 1 nuevo sin responder — Ver')
+    expect(within(franja).getByLabelText(/esta semana: 1 sin movimiento · el peor lleva 14 días — Ver/)).toBeInTheDocument()
+  })
+
+  it('«Ver» selecciona la pestaña Urgente y le lleva el foco', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'Date', 'requestAnimationFrame'] })
+    montar({ leads: [viejo, nuevoLead] })
+    // Aterrizó en Urgente; salto primero a otra pestaña para probar el regreso.
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'esta semana: 1 nuevo sin responder — Ver' }))
+    vi.advanceTimersByTime(50)
+    const urgente = screen.getByRole('tab', { name: 'Urgente: 1' })
+    expect(urgente).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(urgente)
+  })
+
+  it('las cosas con destino de vista son enlaces reales', () => {
+    METRICAS_AGENDA = { 
+      version: 1,
+      generado_en: '2026-07-15T15:00:00Z',
+      periodo: { desde: '2026-07-09', hasta: '2026-07-15', dias: 7, zona: 'America/Lima' },
+      vendedores: [{
+        vendedor_id: 'v-1', nombre: 'CARLA DÍAZ', rol: 'vendedor', activo: true,
+        toques: 5, toques_por_dia: 0.7, reuniones_realizadas: 0, completadas: 0,
+        no_asistio: 2, canceladas: 0, pct_completadas: null, tareas_creadas: 0,
+        reuniones_agendadas: 0, reprogramaciones: 0, pendientes: 0, vencidas: 0,
+        leads_sin_accion: 0,
+      }],
+    } as import('@/lib/metricas-agenda').MetricasAgenda
+    montar({ leads: [] })
+    expect(screen.getByRole('link', { name: 'urgente hoy: CARLA DÍAZ: 2 citas sin asistir — Ver equipo' }))
+      .toHaveAttribute('href', '#/equipo')
+  })
+
+  it('ESTADO DE PRODUCCIÓN (sin nada que hacer): la franja NO se pinta', () => {
+    montar({ leads: [] })
+    expect(screen.queryByRole('region', { name: 'Hoy, tres cosas' })).not.toBeInTheDocument()
+  })
+
+  it('con la franja viva, el KPI «Nuevos sin responder» ya no grita: icono neutro y sub sin «urge»', () => {
+    montar({ leads: [nuevoLead] })
+    expect(screen.getByText('Sin primer contacto')).toBeInTheDocument()
+    expect(screen.queryByText(/urge/)).not.toBeInTheDocument()
+    // El tile del icono queda en el gris neutro AUNQUE haya sin responder —
+    // mata el mutante «volver rojo el KPI» que sobrevivía (Codex F3 #5).
+    const chip = screen.getByText('Nuevos sin responder').parentElement
+      ?.parentElement?.querySelector('.ac-chip') as HTMLElement
+    expect(chip.style.getPropertyValue('--c')).toBe('#8b95a7')
+  })
+})
+
 describe('Hoy · supervisor — jerarquía visual (F2)', () => {
   const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
   const nuevoLead = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })

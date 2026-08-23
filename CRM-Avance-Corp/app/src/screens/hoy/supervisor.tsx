@@ -23,6 +23,7 @@ import { SectionHead } from '@/components/common/section-head'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
 import { AccionesContacto } from '@/components/app/contacto'
 import { AgendaEquipoPanel } from './agenda-equipo'
+import { TresCosas } from './tres-cosas'
 import {
   BUCKET_LABEL,
   DIA_MS,
@@ -56,6 +57,7 @@ import { useMetricasAgenda } from '@/data/crm-queries'
 import { moneyK, numero } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { hashDe } from '@/lib/router'
+import { tresCosasDeHoy } from '@/lib/tres-cosas'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
@@ -353,13 +355,36 @@ export function HoySupervisor(): JSX.Element {
     [datosAgenda],
   )
 
+  // ── F3: «Hoy, tres cosas» — el sistema prioriza el día (ley de Tesler). ──
+  // Mismas fuentes que ya están en pantalla; sin dato no hay tarjeta.
+  const cosas = useMemo(
+    () => tresCosasDeHoy({
+      cola,
+      totalPorRepartir,
+      esperaMasLargaReparto,
+      vendedoresAgenda: datosAgenda?.vendedores ?? [],
+    }),
+    [cola, totalPorRepartir, esperaMasLargaReparto, datosAgenda],
+  )
+  // «Ver →» de la franja: selecciona la pestaña y le LLEVA el foco (el
+  // focus() también hace scroll hasta la tarjeta de la cola).
+  const irAPestanaCola = (destino: PestanaCola) => {
+    elegirPestana(destino)
+    requestAnimationFrame(() => {
+      document.getElementById(`tab-cola-${destino}`)?.focus()
+    })
+  }
+
   return (
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
+      {/* ── F3: la franja manda — máximo tres intervenciones, luego consulta ── */}
+      <TresCosas cosas={cosas} onIrAPestana={irAPestanaCola} />
+
       {/* ── KPIs del equipo — servidos por RPC (o espejo demo); sin dato: «—» ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
         {/* F2 (figura-fondo): los KPIs son CONSULTA, no alarma — iconos en
-            neutro. La única excepción hasta F3 es «Nuevos sin responder»:
-            no se quita una señal antes de tener su reemplazo (la franja). */}
+            neutro. Desde F3 TODOS: la urgencia de «Nuevos sin responder»
+            vive en la franja, que es su reemplazo. */}
         <KpiCard
           label="Pronóstico de capital abierto"
           // `capitalPrincipal` y NO `totalEnSoles`: esto es PRONÓSTICO, no
@@ -393,12 +418,12 @@ export function HoySupervisor(): JSX.Element {
           label="Nuevos sin responder"
           value={cola ? String(cola.porBucket.sin_responder ?? 0) : '—'}
           icon={AlertTriangle}
-          color={(cola?.porBucket.sin_responder ?? 0) > 0 ? SEMAFORO.critico : SEMAFORO.neutro}
+          color={SEMAFORO.neutro}
           sub={
             cola == null
               ? 'Sin dato por ahora'
               : (cola.porBucket.sin_responder ?? 0) > 0
-                ? 'Nuevos sin primer contacto — urge'
+                ? 'Sin primer contacto'
                 : 'Todos los nuevos fueron contactados'
           }
           delay={120}

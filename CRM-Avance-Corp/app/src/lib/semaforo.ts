@@ -25,6 +25,15 @@ export const SEMAFORO = {
   neutro: '#8b95a7',
 } as const
 
+/** Semáforo sobre chrome NAVY (la franja «Hoy, tres cosas»): tonos claros.
+ *  Los hex normales fallan el 3:1 de WCAG 1.4.11 sobre #111e3d (el rojo da
+ *  2.53:1) y rojo/ámbar son indistinguibles entre sí para protanopia; estos
+ *  claros dan 6.4:1 y 7.3:1 (revisor a11y F3, hallazgo A1). */
+export const SEMAFORO_SOBRE_NAVY = {
+  critico: '#fca5a5',
+  atencion: '#fbbf24',
+} as const
+
 /** Severidad de la cola de acción → color (rojo crítico · ámbar · azul). */
 export const SEV_COLOR: Record<'critica' | 'media' | 'baja', string> = {
   critica: SEMAFORO.critico,
