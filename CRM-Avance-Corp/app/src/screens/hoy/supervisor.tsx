@@ -357,6 +357,9 @@ export function HoySupervisor(): JSX.Element {
     <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
       {/* ── KPIs del equipo — servidos por RPC (o espejo demo); sin dato: «—» ── */}
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {/* F2 (figura-fondo): los KPIs son CONSULTA, no alarma — iconos en
+            neutro. La única excepción hasta F3 es «Nuevos sin responder»:
+            no se quita una señal antes de tener su reemplazo (la franja). */}
         <KpiCard
           label="Pronóstico de capital abierto"
           // `capitalPrincipal` y NO `totalEnSoles`: esto es PRONÓSTICO, no
@@ -364,7 +367,7 @@ export function HoySupervisor(): JSX.Element {
           // Fijar PEN a mano titulaba «S/ 0» a un equipo que vende en dólares.
           value={capitalPronostico ? capitalPronostico.valor : '—'}
           icon={Wallet}
-          color={SEMAFORO.ok}
+          color={SEMAFORO.neutro}
           sub={
             capitalPronostico?.otra
               ? `Pipeline (PEN) · +${capitalPronostico.otra} aparte`
@@ -380,7 +383,7 @@ export function HoySupervisor(): JSX.Element {
           label="Leads activos del equipo"
           value={resumen ? String(resumen.totales.asignados) : '—'}
           icon={Users}
-          color={SEMAFORO.violeta}
+          color={SEMAFORO.neutro}
           sub={`${ambito.vendedores.length} ${ambito.vendedores.length === 1 ? 'vendedor' : 'vendedores'} a cargo`}
           delay={60}
         />
@@ -390,7 +393,7 @@ export function HoySupervisor(): JSX.Element {
           label="Nuevos sin responder"
           value={cola ? String(cola.porBucket.sin_responder ?? 0) : '—'}
           icon={AlertTriangle}
-          color={(cola?.porBucket.sin_responder ?? 0) > 0 ? SEMAFORO.critico : SEMAFORO.ok}
+          color={(cola?.porBucket.sin_responder ?? 0) > 0 ? SEMAFORO.critico : SEMAFORO.neutro}
           sub={
             cola == null
               ? 'Sin dato por ahora'
@@ -405,19 +408,13 @@ export function HoySupervisor(): JSX.Element {
           aria-label={etiquetaAccesoReparto}
           className="relative block h-full rounded-xl text-inherit no-underline outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40 focus-visible:ring-offset-2 focus-visible:ring-offset-background"
         >
-          {hayPorRepartir && (
-            <span
-              aria-hidden="true"
-              data-testid="reparto-pendiente-acento"
-              className="pointer-events-none absolute inset-y-3 left-0 z-10 w-[3px] rounded-r-full"
-              style={{ backgroundColor: SEMAFORO.atencion }}
-            />
-          )}
+          {/* F2: fuera el acento ámbar — la urgencia del reparto vive en la
+              campana (grupo) y desde F3 en la franja; el KPI es el conteo. */}
           <KpiCard
             label="Por repartir"
             value={totalPorRepartir == null ? '—' : String(totalPorRepartir)}
             icon={Inbox}
-            color={hayPorRepartir ? SEMAFORO.atencion : SEMAFORO.ok}
+            color={SEMAFORO.neutro}
             sub={detalleReparto}
             delay={180}
           />
@@ -458,19 +455,31 @@ export function HoySupervisor(): JSX.Element {
                         tabIndex={pestana === p.id ? 0 : -1}
                         onClick={() => elegirPestana(p.id)}
                         onKeyDown={(e) => {
-                          const salto = e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : 0
-                          if (salto === 0) return
+                          // Flechas con vuelta + Home/End (patrón APG completo).
+                          const destino = e.key === 'ArrowRight'
+                            ? (indice + 1) % PESTANAS_COLA.length
+                            : e.key === 'ArrowLeft'
+                              ? (indice - 1 + PESTANAS_COLA.length) % PESTANAS_COLA.length
+                              : e.key === 'Home'
+                                ? 0
+                                : e.key === 'End'
+                                  ? PESTANAS_COLA.length - 1
+                                  : null
+                          if (destino == null) return
                           e.preventDefault()
-                          const siguiente = PESTANAS_COLA[(indice + salto + PESTANAS_COLA.length) % PESTANAS_COLA.length]
+                          const siguiente = PESTANAS_COLA[destino]
                           if (!siguiente) return
                           elegirPestana(siguiente.id)
                           document.getElementById(`tab-cola-${siguiente.id}`)?.focus()
                         }}
                         className={cn(
-                          'cursor-pointer rounded-md px-2.5 py-1 text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+                          // Fitts: min-h para un objetivo táctil cómodo.
+                          'min-h-7 cursor-pointer rounded-md px-3 py-1.5 text-[11px] font-semibold tabular-nums transition-colors focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
                           pestana === p.id
                             ? 'bg-card text-foreground shadow-sm'
-                            : 'text-muted-foreground hover:text-foreground',
+                            // Gris FUERTE: 11px sobre bg-muted no llega a 4.5:1
+                            // con el muted normal (revisor a11y, M1).
+                            : 'text-muted-foreground-strong hover:text-foreground',
                         )}
                       >
                         {p.label} <span aria-hidden>{conteoPestana[p.id]}</span>
@@ -510,12 +519,15 @@ export function HoySupervisor(): JSX.Element {
                 ) : (
                   <div className="divide-y divide-border/60 border-t border-border/60">
                     {cola.estancados.map((a) => (
+                      // F2: la gravedad va UNA vez, en la tira (rojo desde 7
+                      // días, ámbar 5–6); el texto queda en gris de contexto.
                       <button
                         key={a.leadId}
                         type="button"
                         onClick={() => abrirLead(a.leadId)}
                         aria-label={`Abrir ficha de ${a.nombre}`}
-                        className="flex w-full cursor-pointer items-center gap-2.5 px-5 py-2.5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                        className="flex w-full cursor-pointer items-center gap-2.5 border-l-[3px] py-2.5 pl-[17px] pr-5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40"
+                        style={{ borderLeftColor: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
                       >
                         <div className="min-w-0 flex-1 leading-tight">
                           <p className="truncate text-sm font-semibold">
@@ -524,10 +536,7 @@ export function HoySupervisor(): JSX.Element {
                               ({(a.vendedorId != null ? nombrePorId.get(a.vendedorId) : null) ?? 'sin asignar'})
                             </span>
                           </p>
-                          <p
-                            className="text-[11px] font-semibold"
-                            style={{ color: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
-                          >
+                          <p className="text-[11px] font-medium text-muted-foreground">
                             Sin actividad {haceTexto(a.dias)}
                           </p>
                         </div>
@@ -548,7 +557,12 @@ export function HoySupervisor(): JSX.Element {
             ) : (
               <div id="panel-cola" role="tabpanel" aria-labelledby={`tab-cola-${pestana}`} className="divide-y divide-border/60 border-t border-border/60">
                 {/* Fila = div role="button" (no <button>: contiene los links de
-                    AccionesContacto y un botón no puede anidar interactivos). */}
+                    AccionesContacto y un botón no puede anidar interactivos).
+                    F2 (pregnancia): la severidad se dice UNA vez — la tira de
+                    3 px. Fuera el punto, el badge de etapa y el azul del monto;
+                    la etapa va en texto plano delante del motivo. El pl de
+                    17 px compensa los 3 px de la tira: el contenido queda a
+                    20 px, alineado con la cabecera (Codex F2). */}
                 {(colaExpandida ? filasCola : filasCola.slice(0, COLA_VISIBLES)).map((i) => {
                   const abrir = () => abrirLead(i.lead.id)
                   return (
@@ -556,6 +570,7 @@ export function HoySupervisor(): JSX.Element {
                       key={i.lead.id}
                       role="button"
                       tabIndex={0}
+                      data-sev={i.sev}
                       onClick={abrir}
                       onKeyDown={(e) => {
                         if (e.key === 'Enter' || e.key === ' ') {
@@ -564,22 +579,17 @@ export function HoySupervisor(): JSX.Element {
                         }
                       }}
                       aria-label={`Abrir ficha de ${i.lead.nombre_completo}`}
-                      className="flex w-full cursor-pointer items-center gap-3 px-5 py-3 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none"
+                      className="flex w-full cursor-pointer items-center gap-3 border-l-[3px] py-3 pl-[17px] pr-5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40"
+                      style={{ borderLeftColor: i.sev === 'baja' ? 'transparent' : SEV_COLOR[i.sev] }}
                     >
-                      <span
-                        className="size-2 shrink-0 rounded-full"
-                        style={{ background: SEV_COLOR[i.sev] }}
-                        aria-hidden
-                      />
                       <div className="min-w-0 flex-1 leading-tight">
-                        <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                          <p className="truncate text-sm font-semibold">{i.lead.nombre_completo}</p>
-                          <Badge color={SEV_COLOR[i.sev]}>{BUCKET_LABEL[i.bucket]}</Badge>
-                        </div>
-                        <p className="truncate text-xs text-muted-foreground">{i.motivo}</p>
+                        <p className="truncate text-sm font-semibold">{i.lead.nombre_completo}</p>
+                        <p className="truncate text-xs text-muted-foreground">
+                          {BUCKET_LABEL[i.bucket]} · {i.motivo}
+                        </p>
                       </div>
                       {i.lead.monto_estimado != null && (
-                        <span className="hidden shrink-0 text-xs font-extrabold tabular-nums text-primary sm:inline">
+                        <span className="hidden shrink-0 text-xs font-semibold tabular-nums text-muted-foreground sm:inline">
                           {moneyK(i.lead.monto_estimado, i.lead.moneda)}
                         </span>
                       )}
@@ -591,7 +601,7 @@ export function HoySupervisor(): JSX.Element {
                           </span>
                         </span>
                       ) : (
-                        <Badge color={SEMAFORO.atencion}>sin asignar</Badge>
+                        <span className="shrink-0 text-xs font-medium text-muted-foreground">sin asignar</span>
                       )}
                       <AccionesContacto lead={i.lead} compacto />
                       <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
@@ -603,7 +613,7 @@ export function HoySupervisor(): JSX.Element {
                     type="button"
                     onClick={() => setColaExpandida((e) => !e)}
                     aria-expanded={colaExpandida}
-                    className="flex w-full cursor-pointer items-center justify-center gap-1 px-5 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:outline-none"
+                    className="flex w-full cursor-pointer items-center justify-center gap-1 px-5 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40"
                   >
                     <ChevronRight
                       className={cn('size-3.5 shrink-0 transition-transform', colaExpandida && 'rotate-90')}
@@ -665,8 +675,15 @@ export function HoySupervisor(): JSX.Element {
                   // Rezago de agenda del miembro (mismos umbrales del panel
                   // Agenda del equipo: ámbar por rezago, rojo solo no-shows ≥2).
                   const rez = rezagosAgenda.get(r.m.perfil_id)
-                  const conRezago =
-                    rez != null && (rez.no_asistio >= 2 || rez.vencidas > 0 || rez.leads_sin_accion > 0)
+                  // El rezago de agenda TAMBIÉN es señal: sin esto, quien tocó
+                  // ayer pero arrastra 10 vencidas quedaba sin ninguna marca
+                  // visual (hallazgo IMPORTANTE de Codex sobre F2).
+                  const conRezagoAgenda = rez != null && (rez.vencidas > 0 || rez.leads_sin_accion > 0)
+                  const colorPunto = r.activos === 0
+                    ? SEMAFORO.neutro
+                    : c !== SEMAFORO.ok
+                      ? c
+                      : SEMAFORO.atencion
                   const cap = totalEnSoles(r.capitalPEN, r.capitalUSD, tc?.promedio)
                   return (
                     <div key={r.m.perfil_id} className="px-5 py-3">
@@ -683,39 +700,45 @@ export function HoySupervisor(): JSX.Element {
                             desglose por moneda va debajo. Sin TC degrada al PEN de
                             siempre — el USD no entra al total sin una tasa real. */}
                         <div className="shrink-0 text-right leading-tight">
-                          <p className="text-sm font-extrabold tabular-nums text-primary">
+                          <p className="text-sm font-extrabold tabular-nums text-foreground">
                             {cap.total != null ? moneyK(cap.total) : '—'}
                           </p>
                           <DesgloseMonedas pen={r.capitalPEN} usd={r.capitalUSD} tc={cap.tc} compacto />
                         </div>
                       </div>
                       <div className="mt-1.5 flex flex-wrap items-center gap-x-1.5 gap-y-1 pl-[46px]">
-                        {/* Sin leads abiertos no hay «al día» que celebrar:
+                        {/* F2: el punto solo cuando HAY señal (ámbar 2–5 d,
+                            rojo >5 d, neutro sin cartera). Pintar «al día» de
+                            azul en cada fila gastaba el color en nada. Sin
+                            leads abiertos no hay «al día» que celebrar:
                             `semaforoDias(0)` devolvía azul y un analista sin
                             cartera se pintaba como el que va al corriente. */}
-                        <span
-                          className="size-2 shrink-0 rounded-full"
-                          style={{ background: r.activos === 0 ? SEMAFORO.neutro : c }}
-                          aria-hidden
-                        />
+                        {(r.activos === 0 || c !== SEMAFORO.ok || conRezagoAgenda) && (
+                          <span
+                            data-testid="equipo-semaforo"
+                            className="size-2 shrink-0 rounded-full"
+                            style={{ background: colorPunto }}
+                            aria-hidden
+                          />
+                        )}
                         <span className="text-[11px] text-muted-foreground">
                           {r.activos === 0
                             ? 'Sin leads abiertos'
                             : `Última actividad ${haceTexto(r.diasSinActividadMax)}`}
+                          {/* El rezago va en TEXTO pegado a la persona (aquí se
+                              juzga, decisión 1 del 2026-08-23); el único chip
+                              es el no-show repetido — uno de los dos rojos del
+                              presupuesto de color. */}
+                          {rez != null && rez.vencidas > 0
+                            && ` · ${rez.vencidas} ${rez.vencidas === 1 ? 'vencida' : 'vencidas'}`}
+                          {rez != null && rez.leads_sin_accion > 0
+                            && ` · ${rez.leads_sin_accion} sin acción`}
                         </span>
-                        {conRezago && rez != null && (
-                          <span className="ml-auto flex flex-wrap items-center gap-1">
-                            {rez.no_asistio >= 2 && (
-                              <Badge color={SEMAFORO.critico}>{rez.no_asistio} no asistió</Badge>
-                            )}
-                            {rez.vencidas > 0 && (
-                              <Badge color={SEMAFORO.atencion}>
-                                {rez.vencidas} {rez.vencidas === 1 ? 'vencida' : 'vencidas'}
-                              </Badge>
-                            )}
-                            {rez.leads_sin_accion > 0 && (
-                              <Badge color={SEMAFORO.atencion}>{rez.leads_sin_accion} sin acción</Badge>
-                            )}
+                        {rez != null && rez.no_asistio >= 2 && (
+                          <span className="ml-auto">
+                            {/* solid: el soft (rojo sobre tinte) da 4.01:1 a 11px
+                                y no llega a AA (revisor a11y, M2). */}
+                            <Badge color={SEMAFORO.critico} variant="solid">{rez.no_asistio} no asistió</Badge>
                           </span>
                         )}
                       </div>

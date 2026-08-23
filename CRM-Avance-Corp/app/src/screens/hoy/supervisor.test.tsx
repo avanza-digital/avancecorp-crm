@@ -61,9 +61,10 @@ vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => null }))
 // La conversión mensual del equipo, controlable por test (sin QueryClient).
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
+let METRICAS_AGENDA: import('@/lib/metricas-agenda').MetricasAgenda | undefined
 vi.mock('@/data/crm-queries', () => ({
   useMetricasAgenda: () => ({
-    data: undefined,
+    data: METRICAS_AGENDA,
     error: null,
     isPending: false,
     isFetching: false,
@@ -169,6 +170,7 @@ function lead(over: Partial<Lead> = {}): Lead {
 function montar(
   over: {
     leads?: Lead[]
+    vendedores?: Miembro[]
     objetivos?: Partial<ObjetivosPorRol['supervisor']>
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
@@ -184,7 +186,7 @@ function montar(
     puede_contratar: true,
   }
   LEADS = over.leads ?? [lead()]
-  VENDEDORES = []
+  VENDEDORES = over.vendedores ?? []
   OBJETIVOS_ERROR = over.objetivosError ?? false
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
   OBJETIVOS = { ...METAS_DEMO, supervisor: { ...METAS_DEMO.supervisor, ...over.objetivos } }
@@ -240,6 +242,7 @@ function cumplimientoSupervisor(
 }
 
 beforeEach(() => {
+  METRICAS_AGENDA = undefined
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
   TIPO_CAMBIO.tc = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
@@ -347,6 +350,112 @@ describe('Hoy · supervisor — cola con pestañas', () => {
   })
 })
 
+// F2 (2026-08-23) — presupuesto de color: la severidad se dice UNA vez (tira
+// de 3 px), el bucket va en texto plano, el monto y el capital dejan el azul,
+// el rezago del vendedor va en texto y solo el no-show repetido conserva un
+// chip rojo, y el punto de semáforo solo aparece cuando hay señal.
+describe('Hoy · supervisor — jerarquía visual (F2)', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  const nuevoLead = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+
+  const miembro = (over: Partial<Miembro> = {}): Miembro => ({
+    perfil_id: 'v-1',
+    nombre_completo: 'CARLA DÍAZ',
+    rol_crm: 'vendedor',
+    supervisor_id: 's-1',
+    activo: true,
+    ...over,
+  })
+
+  const metricaAgenda = (
+    over: Partial<import('@/lib/metricas-agenda').MetricaAgendaVendedor> = {},
+  ): import('@/lib/metricas-agenda').MetricasAgenda => ({
+    version: 1,
+    generado_en: '2026-07-15T15:00:00Z',
+    periodo: { desde: '2026-07-09', hasta: '2026-07-15', dias: 7, zona: 'America/Lima' },
+    vendedores: [{
+      vendedor_id: 'v-1',
+      nombre: 'CARLA DÍAZ',
+      rol: 'vendedor',
+      activo: true,
+      toques: 5,
+      toques_por_dia: 0.7,
+      reuniones_realizadas: 1,
+      completadas: 2,
+      no_asistio: 0,
+      canceladas: 0,
+      pct_completadas: 100,
+      tareas_creadas: 2,
+      reuniones_agendadas: 1,
+      reprogramaciones: 0,
+      pendientes: 1,
+      vencidas: 0,
+      leads_sin_accion: 0,
+      ...over,
+    }],
+  } as import('@/lib/metricas-agenda').MetricasAgenda)
+
+  it('la fila de la cola lleva la severidad en la tira y el bucket en texto, sin badge ni monto azul', () => {
+    montar({ leads: [nuevoLead] })
+    const fila = screen.getByRole('button', { name: 'Abrir ficha de NUEVO SIN RESPONDER' })
+    expect(fila).toHaveAttribute('data-sev', 'media')
+    // La tira EXISTE (clase de ancho) y lleva el color de la severidad.
+    expect(fila.className).toContain('border-l-[3px]')
+    expect(fila).toHaveStyle({ borderLeftColor: '#d97706' })
+    // El bucket dejó el badge: va en texto plano, delante del motivo.
+    expect(within(fila).getByText('Sin responder · Entró hace 2 días · primer contacto pendiente')).toBeInTheDocument()
+    // «sin asignar» también es texto, no badge ámbar (ac-chip = Badge soft).
+    expect(within(fila).getByText('sin asignar').className).not.toContain('ac-chip')
+    // El monto perdió el azul.
+    const monto = within(fila).getByText('S/ 10k')
+    expect(monto.className).toContain('text-muted-foreground')
+    expect(monto.className).not.toContain('text-primary')
+  })
+
+  it('una fila de severidad baja no gasta color: tira transparente', () => {
+    montar({ leads: [viejo] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 1' }))
+    const fila = screen.getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER' })
+    expect(fila).toHaveAttribute('data-sev', 'baja')
+    // Estilo inline directo: jsdom normaliza «transparent» y toHaveStyle no compara.
+    expect(fila.style.borderLeftColor).toBe('transparent')
+  })
+
+  it('el rezago del vendedor va en texto pegado a la persona; solo el no-show repetido es chip', () => {
+    METRICAS_AGENDA = metricaAgenda({ no_asistio: 2, vencidas: 3, leads_sin_accion: 1 })
+    montar({ leads: [viejo], vendedores: [miembro()] })
+    const fila = screen.getByText('CARLA DÍAZ').closest('div[class*="px-5"]') as HTMLElement
+    expect(fila).toHaveTextContent('Última actividad hace 14 días · 3 vencidas · 1 sin acción')
+    expect(within(fila).getByText('2 no asistió')).toBeInTheDocument()
+  })
+
+  it('un solo no-show NO es chip rojo: el rojo se reserva al patrón repetido', () => {
+    METRICAS_AGENDA = metricaAgenda({ no_asistio: 1, vencidas: 1, leads_sin_accion: 0 })
+    montar({ leads: [viejo], vendedores: [miembro()] })
+    expect(screen.queryByText('1 no asistió')).not.toBeInTheDocument()
+    expect(screen.getByText(/· 1 vencida/)).toBeInTheDocument()
+  })
+
+  it('actividad fresca PERO rezago de agenda: punto ámbar (el rezago también es señal)', () => {
+    // Hallazgo de Codex sobre F2: quien tocó ayer pero arrastra vencidas
+    // quedaba sin ninguna marca visual. El punto se enciende en ámbar.
+    METRICAS_AGENDA = metricaAgenda({ no_asistio: 0, vencidas: 10, leads_sin_accion: 1 })
+    montar({
+      leads: [lead({ id: 'fresco', creado_en: '2026-07-14T15:00:00Z' })],
+      vendedores: [miembro()],
+    })
+    expect(screen.getByTestId('equipo-semaforo')).toHaveStyle({ background: '#d97706' })
+  })
+
+  it('con actividad reciente y sin rezago el punto desaparece (azul «al día» ya no se pinta)', () => {
+    montar({
+      leads: [lead({ id: 'fresco', creado_en: '2026-07-14T15:00:00Z' })],
+      vendedores: [miembro()],
+    })
+    expect(screen.queryByTestId('equipo-semaforo')).not.toBeInTheDocument()
+  })
+})
+
 describe('Hoy · supervisor — reparto compacto', () => {
   it('con pendientes concentra el reparto en un KPI enlazado y retira la bandeja duplicada', () => {
     montar({
@@ -371,7 +480,6 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
     expect(within(acceso).getByText('2')).toBeInTheDocument()
     expect(within(acceso).getByText('Más rezagado: hace 2 h · Repartir →')).toBeInTheDocument()
-    expect(within(acceso).getByTestId('reparto-pendiente-acento')).toBeInTheDocument()
 
     acceso.focus()
     expect(acceso).toHaveFocus()
@@ -388,7 +496,6 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
     expect(within(acceso).getByText('0')).toBeInTheDocument()
     expect(within(acceso).getByText('Bandeja al día · Ver historial →')).toBeInTheDocument()
-    expect(within(acceso).queryByTestId('reparto-pendiente-acento')).not.toBeInTheDocument()
   })
 
   it('usa el conteo del servidor aunque el cliente solo tenga parte del detalle', () => {
@@ -419,7 +526,6 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(acceso).toHaveAttribute('href', '#/derivaciones')
     expect(within(acceso).getByText('—')).toBeInTheDocument()
     expect(within(acceso).getByText('Sin dato por ahora · Ver derivaciones →')).toBeInTheDocument()
-    expect(within(acceso).queryByTestId('reparto-pendiente-acento')).not.toBeInTheDocument()
   })
 })
 

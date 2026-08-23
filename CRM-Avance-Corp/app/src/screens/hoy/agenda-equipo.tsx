@@ -14,7 +14,6 @@ import type { JSX } from 'react'
 import { CalendarClock, ChevronRight } from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
-import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
 import { PanelCargando, PanelError, PanelVacio } from '@/components/common/estado-panel'
 import { SegmentBar } from '@/components/common/stat-strip'
@@ -387,9 +386,11 @@ export function AgendaEquipoPanel({
         title="Agenda del equipo"
         right={
           datos != null ? (
-            <Badge>
+            // F2 (semejanza): badge = severidad y nada más — el periodo es un
+            // rótulo y va en texto plano.
+            <span className="text-xs text-muted-foreground">
               últimos {datos.periodo.dias} días{modoDemo ? ' · ejemplo' : ''}
-            </Badge>
+            </span>
           ) : undefined
         }
       />
