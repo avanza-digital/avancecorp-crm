@@ -234,6 +234,18 @@ body {
   50%      { transform: scale(1.12); }
 }
 
+/* Sacudida horizontal: el guardado falló (BotonGuardar). Corre una sola vez;
+   el componente quita la clase en onAnimationEnd para poder re-sacudir. */
+.ac-shake { animation: ac-shake 0.45s ease-in-out; }
+@keyframes ac-shake {
+  0%, 100% { transform: translateX(0); }
+  15% { transform: translateX(-7px); }
+  30% { transform: translateX(7px); }
+  45% { transform: translateX(-5px); }
+  60% { transform: translateX(5px); }
+  80% { transform: translateX(-2px); }
+}
+
 /* Tarjetas/filas clicables: leve lift + sombra suave al pasar el mouse. */
 .ac-lift {
   transition:
@@ -359,7 +371,7 @@ body {
   [data-slot='button']:hover,
   [data-slot='button']:active,
   .ac-nav-item:hover { transform: none; }
-  .ac-rise, .ac-pop, .ac-flick { animation: none; }
+  .ac-rise, .ac-pop, .ac-flick, .ac-shake { animation: none; }
 }
 
 /* ============================================================================

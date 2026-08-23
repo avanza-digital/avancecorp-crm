@@ -247,8 +247,9 @@ describe('ClienteForm — modo crear (alta atómica)', () => {
     expect(onListo).not.toHaveBeenCalled() // NO se encadena al contrato
     expect(toast.success).not.toHaveBeenCalled()
     expect(actualizarCliente).not.toHaveBeenCalled()
-    // Reintentable: el botón sigue ahí porque no se creó nada en el servidor.
-    expect(screen.getByRole('button', { name: /Crear cliente/ })).toBeEnabled()
+    // Reintentable: el BotonGuardar queda en su estado de error ofreciendo el
+    // reintento en el mismo botón (no se creó nada en el servidor).
+    expect(screen.getByRole('button', { name: /No se pudo guardar/ })).toBeEnabled()
   })
 
   it('la edge rechaza (409 documento duplicado): muestra su mensaje tal cual', async () => {

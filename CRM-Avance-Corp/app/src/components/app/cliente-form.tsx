@@ -16,7 +16,7 @@
 // La lógica pura (validaciones, catálogo de bancos, patch de 14 bancarias) vive
 // en lib/cliente-form-logica; aquí solo el estado y el pintado.
 import { useEffect, useRef, useState } from 'react'
-import { BadgeCheck, Pencil, RotateCcw, UserRoundPlus } from 'lucide-react'
+import { Pencil, RotateCcw, UserRoundPlus } from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +31,7 @@ import {
 } from '@/data/crm-api'
 import { useClienteDetalle, useCuentasBancariasCliente } from '@/data/crm-queries'
 import { SeccionesBancarias } from '@/components/app/secciones-bancarias'
+import { BotonGuardar } from '@/components/app/boton-guardar'
 import type { ClienteDetalle } from '@/lib/clientes-tipos'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
 import { useVentana } from '@/lib/ventana'
@@ -48,6 +49,10 @@ import {
 // los E2E y el equipo los reconocen tal cual).
 const MSG_VENTANA_VENCIDA =
   'La ventana de corrección venció: los cambios NO se guardaron. Pide el cambio a administración.'
+
+/** Marca «el banner inline ya tiene el mensaje»: el catch no debe pisarlo con
+ *  el genérico; solo re-lanza para el estado de error del BotonGuardar. */
+class ErrorYaMostrado extends Error {}
 
 
 export interface ClienteFormProps {
@@ -173,7 +178,9 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     )
     if (!r.ok) {
       setError(r.error)
-      return
+      // El rechazo alimenta el estado de error del BotonGuardar; el detalle
+      // del motivo ya quedó en el banner inline (setError).
+      throw new Error(r.error)
     }
     const c = r.cliente
     setEnviando(true)
@@ -201,7 +208,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         )
         if (!guardo) {
           setError(MSG_VENTANA_VENCIDA)
-          return
+          throw new ErrorYaMostrado(MSG_VENTANA_VENCIDA)
         }
         toast.success('Datos del cliente corregidos.')
         onListo(clienteId as string)
@@ -226,7 +233,10 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
     } catch (e) {
       // Mensajes de la edge/RPC ya vienen en es-PE vía CrmApiError (409 documento
       // duplicado, 400 documento inválido, correo ya registrado, etc.).
-      setError(e instanceof CrmApiError ? e.message : 'Ocurrió un error. Inténtalo de nuevo.')
+      if (!(e instanceof ErrorYaMostrado)) {
+        setError(e instanceof CrmApiError ? e.message : 'Ocurrió un error. Inténtalo de nuevo.')
+      }
+      throw e // re-lanza para que el BotonGuardar muestre «Reintentar»
     } finally {
       setEnviando(false)
       onEnviandoCambio?.(false)
@@ -488,12 +498,14 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
         <Button variant="ghost" size="sm" onClick={onCerrar} disabled={enviando}>
           Cancelar
         </Button>
-        <Button size="sm" onClick={guardar} disabled={enviando}>
-          <BadgeCheck />
-          {enviando
-            ? (esCorregir ? 'Guardando…' : 'Creando…')
-            : (esCorregir ? 'Guardar corrección' : 'Crear cliente')}
-        </Button>
+        {/* Feedback de guardado completo (Fase 4 del plan UX): Guardando… →
+            Guardado ✓ / error con Reintentar. El detalle del fallo sigue en el
+            banner inline; guardar() rechaza para alimentar el estado del botón. */}
+        <BotonGuardar
+          size="sm"
+          onGuardar={guardar}
+          etiqueta={esCorregir ? 'Guardar corrección' : 'Crear cliente'}
+        />
       </DialogFooter>
     </>
   )
