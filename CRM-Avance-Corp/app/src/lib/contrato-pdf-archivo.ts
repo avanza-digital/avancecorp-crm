@@ -17,6 +17,60 @@ export const ESTADOS_CONTRATO_PDF = [
 
 export type EstadoContratoPdf = (typeof ESTADOS_CONTRATO_PDF)[number]
 
+/**
+ * La frontera del régimen documental, por FECHA DE FIRMA del contrato.
+ *
+ * Un contrato firmado el 2026-08-19 o después lleva el documento que emite el
+ * sistema, y ese documento ES el contrato. Uno firmado antes ya tiene el suyo en
+ * el formato anterior: el sistema no le emite ninguno, aunque se cargue hoy.
+ *
+ * Espejo EXACTO de `private.contrato_documental_regimen` en el servidor, que es
+ * quien manda. Aquí vive solo para no ofrecer un botón que el servidor va a
+ * negar; si las dos fechas divergen, la que decide es la del servidor.
+ */
+export const CONTRATO_DOCUMENTO_DESDE = '2026-08-19'
+
+/** La misma fecha, como la lee una persona. Derivada, nunca tecleada aparte. */
+export const CONTRATO_DOCUMENTO_DESDE_TEXTO = CONTRATO_DOCUMENTO_DESDE
+  .split('-')
+  .reverse()
+  .join('/')
+
+/**
+ * Son DOS fechas, y la segunda no sobra.
+ *
+ * `fechaInicio` es el inicio del PLAZO, que no siempre coincide con la firma:
+ * en producción hay contratos cargados el 1 de julio con el plazo empezando en
+ * julio de 2027. Con la fecha de plazo sola caerían en el régimen nuevo y la
+ * pantalla ofrecería emitir un contrato en el formato nuevo a una operación
+ * firmada en julio, cuando este documento ni existía. `creadoEn` pone el suelo:
+ * lo registrado antes de la frontera no pudo firmarse después de ella.
+ *
+ * `fechaInicio` llega como `YYYY-MM-DD` (columna `date`, sin zona horaria) y se
+ * compara como texto a propósito: convertirla a `Date` metería el huso del
+ * navegador y un contrato firmado justo el 19 podría caer al 18 para quien
+ * trabaje al oeste de Lima. `creadoEn` sí es un instante, así que se lleva a la
+ * fecha de Lima, que es donde se firma.
+ *
+ * Espejo de `private.contrato_documental_regimen`, que es quien manda.
+ */
+export function esContratoRegimenAnterior(
+  fechaInicio: string | null | undefined,
+  creadoEn?: string | null | undefined,
+): boolean {
+  if (!fechaInicio) return false
+  if (fechaInicio < CONTRATO_DOCUMENTO_DESDE) return true
+  if (!creadoEn) return false
+  return fechaEnLima(creadoEn) < CONTRATO_DOCUMENTO_DESDE
+}
+
+/** `YYYY-MM-DD` del instante en hora de Lima. `en-CA` ya da ese formato. */
+function fechaEnLima(instante: string): string {
+  const fecha = new Date(instante)
+  if (Number.isNaN(fecha.getTime())) return CONTRATO_DOCUMENTO_DESDE
+  return fecha.toLocaleDateString('en-CA', { timeZone: 'America/Lima' })
+}
+
 export interface ArchivoContratoPdf {
   contratoId: string
   jobId: string | null
@@ -102,9 +156,15 @@ export class ContratoPdfNoSelladoError extends Error {
   readonly reintentable: boolean
 
   constructor(estado: EstadoContratoPdf, reintentable: boolean) {
+    // `sin_reserva` + no reintentable es la respuesta del servidor para un
+    // contrato del régimen anterior. Decir «sigue pendiente de sellado» ahí sería
+    // mentir: no está pendiente, es que no se emite. El vendedor lo leería como
+    // una avería y volvería a intentarlo.
     const mensaje = estado === 'integridad_bloqueada'
       ? 'El PDF contractual quedó bloqueado por una discrepancia de integridad. Requiere revisión administrativa.'
-      : 'El PDF contractual sigue pendiente de sellado en el servidor.'
+      : estado === 'sin_reserva' && !reintentable
+        ? `Este contrato se firmó antes del ${CONTRATO_DOCUMENTO_DESDE_TEXTO}: su contrato es el del formato anterior y el sistema no emite documento para él.`
+        : 'El PDF contractual sigue pendiente de sellado en el servidor.'
     super(mensaje)
     this.name = 'ContratoPdfNoSelladoError'
     this.estado = estado
@@ -151,7 +211,7 @@ function mensajeEstado(estado: EstadoContratoPdf): string {
     case 'sellado':
       return 'PDF privado e inmutable sellado'
     case 'sin_reserva':
-      return 'Contrato legacy sin reserva PDF'
+      return 'Sin documento emitido en el sistema'
   }
 }
 

@@ -51,8 +51,10 @@ import {
 } from '@/lib/contratos-catalogo'
 import {
   archivarContratoPdfConfirmado,
+  CONTRATO_DOCUMENTO_DESDE_TEXTO,
   ContratoPdfNoSelladoError,
   descargarArchivoContratoPdf,
+  esContratoRegimenAnterior,
   etiquetaEstadoContratoPdf,
   verArchivoContratoPdf,
   type ArchivoContratoPdf,
@@ -223,12 +225,23 @@ export function ContratoNuevo({
   // convertir un fallo de red en un contrato imposible sería inventar un muro
   // donde no lo hay. Solo se bloquea cuando el servidor DIJO que falta algo.
   const legales = esDemo ? undefined : legalesQ.data
-  const faltaDomicilio = legales?.faltaDomicilio === true && !domicilioConfirmado
+  // Los nueve datos legales existen para UNA cosa: la fotografía contractual del
+  // documento que emite el sistema. Un contrato firmado antes del 19/08 no lleva
+  // ese documento —el cliente ya tiene el suyo, del formato anterior—, así que
+  // exigirlos ahí es un muro sin nada detrás. Y no es un caso raro: en 30 días se
+  // cargaron 214 contratos y solo 6 se firmaron del 19-ago en adelante. El
+  // servidor aplica la misma frontera (`private.contrato_documental_regimen`).
+  // Sin `creadoEn`: este contrato se esta creando AHORA, asi que el suelo de
+  // registro lo cumple por definicion y solo decide la fecha de firma.
+  const regimenDocumentalAnterior = esContratoRegimenAnterior(fechaInicio)
+  const faltaDomicilio = !regimenDocumentalAnterior
+    && legales?.faltaDomicilio === true && !domicilioConfirmado
   // Huecos que el vendedor NO puede cerrar desde aquí: el alta fallaría seguro,
   // así que se frena con el nombre del dato en vez de dejarle llenar el formulario.
   const otrosFaltantesCliente = (legales?.faltanCliente ?? []).filter((campo) => campo !== 'domicilio')
   const faltantesAnalista = legales?.faltanAnalista ?? []
-  const bloqueoLegalAjeno = otrosFaltantesCliente.length > 0 || faltantesAnalista.length > 0
+  const bloqueoLegalAjeno = !regimenDocumentalAnterior
+    && (otrosFaltantesCliente.length > 0 || faltantesAnalista.length > 0)
   const textoBloqueoLegalAjeno = [
     otrosFaltantesCliente.length > 0
       ? `Al cliente le falta ${listarCampos(otrosFaltantesCliente)}.`
@@ -549,12 +562,15 @@ export function ContratoNuevo({
         numero: r.numero_contrato,
         archivo: null,
         estadoPdf: r.pdf.estado,
-        archivando: true,
+        archivando: !regimenDocumentalAnterior,
         errorArchivo: null,
         local,
       })
       if (local) onConfirmado?.(r.numero_contrato, local)
       else onConfirmado?.(r.numero_contrato)
+      // Régimen anterior: no hay documento que archivar. Intentarlo devolvería
+      // `sin_reserva` y pintaría un error rojo sobre un alta que salió perfecta.
+      if (regimenDocumentalAnterior) return
       try {
         const archivo = local
           ? await archivarContratoPdfDemoHabilitado(r.id, local.pdfDatos)
@@ -641,7 +657,16 @@ export function ContratoNuevo({
             )}
             {!creado.archivando && !creado.archivo && (
               <p role="status" className="mt-2 text-sm text-muted-foreground">
-                Estado documental: <b>{etiquetaEstadoContratoPdf(creado.estadoPdf)}</b>.
+                {regimenDocumentalAnterior ? (
+                  <>
+                    Contrato firmado antes del <b>{CONTRATO_DOCUMENTO_DESDE_TEXTO}</b>: queda registrado, y su
+                    contrato sigue siendo el del formato anterior. El sistema no emite documento para él.
+                  </>
+                ) : (
+                  <>
+                    Estado documental: <b>{etiquetaEstadoContratoPdf(creado.estadoPdf)}</b>.
+                  </>
+                )}
               </p>
             )}
             {creado.archivo && (

@@ -22,6 +22,8 @@ export const VISTAS = [
   'agenda',
   'mi-cartera',
   'repartir',
+  'rescate',
+  'rescate-carpeta',
   'derivaciones',
   'equipo',
   'config',
@@ -31,6 +33,14 @@ export const VISTAS = [
   'config-sla',
 ] as const
 export type Vista = (typeof VISTAS)[number]
+
+/** Rutas de trabajo alcanzables por enlace, sin duplicarse en el menú lateral. */
+export const VISTAS_INTERNAS = ['rescate-carpeta'] as const satisfies readonly Vista[]
+export type VistaInterna = (typeof VISTAS_INTERNAS)[number]
+
+export function esVistaInterna(vista: Vista): vista is VistaInterna {
+  return (VISTAS_INTERNAS as readonly Vista[]).includes(vista)
+}
 
 /** Rutas internas del panel de gobierno; no se duplican en el menú lateral. */
 export const VISTAS_CONFIGURACION = [
@@ -63,7 +73,7 @@ export function esVistaGerencia(vista: Vista): boolean {
  * mientras Miguel no las apruebe, no aparecen en NAV ni son alcanzables por URL
  * para cuentas reales (el demo sí las muestra). Fuente única para sidebar y App.
  */
-export const VISTAS_LEADS = ['hoy', 'pipeline', 'cartera', 'agenda'] as const satisfies readonly Vista[]
+export const VISTAS_LEADS = ['hoy', 'pipeline', 'cartera', 'agenda', 'rescate', 'rescate-carpeta'] as const satisfies readonly Vista[]
 
 export function esVistaLeads(vista: Vista): boolean {
   return (VISTAS_LEADS as readonly Vista[]).includes(vista)

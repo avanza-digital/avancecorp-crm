@@ -78,8 +78,12 @@ create table public.contratos (
   capital numeric,
   moneda text,
   tasa_anual numeric,
-  fecha_inicio date,
-  fecha_vencimiento date
+  -- NOT NULL como en produccion (verificado el 2026-08-20 contra
+  -- information_schema): el stub las declaraba opcionales y era mas debil que
+  -- el mundo real, asi que cualquier regla apoyada en la fecha de firma se
+  -- probaba contra un mundo que no existe.
+  fecha_inicio date not null,
+  fecha_vencimiento date not null
 );
 
 create table private.cartera_acl (
@@ -552,6 +556,9 @@ grant execute on function public.actualizar_contrato(uuid,jsonb,jsonb),
 \ir ../migrations/20260818014534_crm_contrato_pdf_v2_reserva.sql
 \ir ../migrations/20260818200741_crm_contratos_correccion_pdf_eliminacion.sql
 \ir ../migrations/20260818200743_crm_contrato_pdf_plantilla_v3.sql
+\ir ../migrations/20260818204908_crm_contrato_pdf_plantilla_v4_firma.sql
+\ir ../migrations/20260818233729_crm_contrato_pdf_plantilla_v5_firma_kirk.sql
+\ir ../migrations/20260820190500_crm_documento_regimen_por_fecha_de_firma.sql
 
 create schema test_support;
 
@@ -782,8 +789,8 @@ select crm.crear_contrato_con_cuenta_pdf_v2(
     'modalidad', 'mensual',
     'tipo_interes', 'simple',
     'categoria', 'nuevo',
-    'fecha_inicio', '2026-08-18',
-    'fecha_vencimiento', '2027-08-18',
+    'fecha_inicio', '2026-08-19',
+    'fecha_vencimiento', '2027-08-19',
     'producto_condicion_id', 'dddddddd-dddd-4ddd-8ddd-dddddddddd01',
     'titulares', jsonb_build_array(jsonb_build_object(
       'nombre_completo', 'Coti Titular Uno',
@@ -825,7 +832,7 @@ select test_support.assert_true(
       || (:'alta_v2_uno'::jsonb->'pdf'->>'job_id')
       || '/contrato.pdf'
     and :'alta_v2_uno'::jsonb->'pdf'->>'template_version' =
-      'contrato-aep-17-v3'
+      'contrato-aep-17-v5'
     and :'alta_v2_uno'::jsonb->'pdf'->'archivo' = 'null'::jsonb,
   'alta conserva campos previos y anida el estado PDF inicial'
 );
@@ -834,7 +841,7 @@ reset role;
 select test_support.assert_true(
   (
     select estado = 'pendiente'
-      and template_version = 'contrato-aep-17-v3'
+      and template_version = 'contrato-aep-17-v5'
       and snapshot->>'snapshotVersion' = '2'
       and jsonb_array_length(snapshot->'cronograma') = 2
       and jsonb_array_length(snapshot->'cotitulares') = 1
@@ -1094,8 +1101,8 @@ as $function$
       'modalidad', 'mensual',
       'tipo_interes', 'simple',
       'categoria', 'nuevo',
-      'fecha_inicio', '2026-08-18',
-      'fecha_vencimiento', '2027-08-18',
+      'fecha_inicio', '2026-08-19',
+      'fecha_vencimiento', '2027-08-19',
       'producto_condicion_id', gen_random_uuid(),
       'titulares', '[]'::jsonb
     ),
@@ -1722,8 +1729,8 @@ select crm.actualizar_contrato_con_cuenta_pdf_v3(
     'modalidad', 'mensual',
     'tipo_interes', 'simple',
     'categoria', 'upgrade',
-    'fecha_inicio', '2026-08-18',
-    'fecha_vencimiento', '2027-08-18',
+    'fecha_inicio', '2026-08-19',
+    'fecha_vencimiento', '2027-08-19',
     'notas_internas', 'Corrección validada'
   ),
   jsonb_build_array(jsonb_build_object(
@@ -1796,8 +1803,8 @@ select test_support.assert_raises(
       'modalidad', 'mensual',
       'tipo_interes', 'simple',
       'categoria', 'nuevo',
-      'fecha_inicio', '2026-08-18',
-      'fecha_vencimiento', '2027-08-18',
+      'fecha_inicio', '2026-08-19',
+      'fecha_vencimiento', '2027-08-19',
       'notas_internas', null
     ),
     jsonb_build_array(jsonb_build_object(
@@ -2008,6 +2015,270 @@ select test_support.assert_true(
     where id = '15151515-1515-4151-8151-151515151515'
   ),
   'Superadmin sí elimina contrato con pagos'
+);
+
+-- ══ El regimen documental por FECHA DE FIRMA (2026-08-20) ═══════════════════
+-- Regla de Miguel: el PDF que emite el sistema ES el contrato, pero solo para lo
+-- firmado del 2026-08-19 en adelante. Lo anterior ya tiene su contrato en el
+-- formato previo y el sistema NO le emite ninguno, aunque se cargue hoy.
+-- Estas pruebas EJECUTAN las cuatro puertas; mirar el catalogo no probaria nada.
+
+reset role;
+insert into public.perfiles (
+  id, rol, nombre_completo, tipo_documento, dni, correo, telefono,
+  activo, domicilio
+) values (
+  'cccccccc-cccc-4ccc-8ccc-ccccccccccc1', 'cliente',
+  'Cliente Historico Sin Domicilio', 'dni', '70200001',
+  'historico@example.test', '999200001', true, null
+);
+insert into private.cartera_acl (actor_id, cliente_id)
+values (
+  '11111111-1111-4111-8111-111111111111',
+  'cccccccc-cccc-4ccc-8ccc-ccccccccccc1'
+);
+
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+
+-- (1) Firmado el 18-ago, UN DIA antes de la frontera: el contrato nace y no se
+-- reserva documento. Y nace aunque el cliente no tenga domicilio — que es
+-- exactamente la carga de historial que hace el equipo todos los dias y que
+-- hasta hoy chocaba contra un muro que ese contrato no necesita.
+select crm.crear_contrato_con_cuenta_pdf_v2(
+  jsonb_build_object(
+    'id', 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2',
+    'cliente_id', 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1',
+    'numero_contrato', 'AEP-2026-HISTORICO-0001',
+    'capital', 20000,
+    'moneda', 'PEN',
+    'tasa_anual', 15,
+    'modalidad', 'mensual',
+    'tipo_interes', 'simple',
+    'categoria', 'nuevo',
+    'fecha_inicio', '2026-08-18',
+    'fecha_vencimiento', '2027-08-18',
+    'producto_condicion_id', 'dddddddd-dddd-4ddd-8ddd-dddddddddd01',
+    'titulares', '[]'::jsonb
+  ),
+  jsonb_build_array(jsonb_build_object(
+    'numero_cuota', 1,
+    'fecha_programada', '2027-08-18',
+    'monto_programado', 23000,
+    'tipo', 'capital_interes'
+  )),
+  jsonb_build_object(
+    'banco', 'Banco Test',
+    'tipo_cuenta', 'ahorros',
+    'numero_cuenta', '001-200001',
+    'cci', '12345678901234500001',
+    'titular_distinto', false
+  )
+)::text as alta_regimen_anterior \gset
+
+select test_support.assert_true(
+  (:'alta_regimen_anterior'::jsonb->>'id')::uuid =
+    'cccccccc-cccc-4ccc-8ccc-ccccccccccc2'::uuid
+    and :'alta_regimen_anterior'::jsonb->'pdf'->>'estado' = 'sin_reserva'
+    and (:'alta_regimen_anterior'::jsonb->'pdf'->>'reintentable')::boolean = false
+    and :'alta_regimen_anterior'::jsonb->'pdf'->'job_id' = 'null'::jsonb
+    and :'alta_regimen_anterior'::jsonb->'pdf'->'archivo' = 'null'::jsonb,
+  'alta del regimen anterior: el contrato nace sin reserva y sin prometer documento'
+);
+
+reset role;
+select test_support.assert_true(
+  not exists (
+    select 1 from private.contrato_pdf_jobs
+    where contrato_id = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2'
+  ),
+  'alta del regimen anterior: no nace ningun trabajo de documento'
+);
+
+-- (2) El MISMO cliente sin domicilio, firmado el 19-ago: ahi el documento SI se
+-- emite, la fotografia contractual exige el domicilio y el servidor frena. La
+-- frontera abre y cierra por el mismo sitio.
+set role authenticated;
+select set_config(
+  'request.jwt.claim.sub',
+  '11111111-1111-4111-8111-111111111111',
+  false
+);
+select test_support.assert_raises(
+  $sql$
+  select crm.crear_contrato_con_cuenta_pdf_v2(
+    jsonb_build_object(
+      'id', 'cccccccc-cccc-4ccc-8ccc-ccccccccccc3',
+      'cliente_id', 'cccccccc-cccc-4ccc-8ccc-ccccccccccc1',
+      'numero_contrato', 'AEP-2026-HISTORICO-0002',
+      'capital', 20000,
+      'moneda', 'PEN',
+      'tasa_anual', 15,
+      'modalidad', 'mensual',
+      'tipo_interes', 'simple',
+      'categoria', 'nuevo',
+      'fecha_inicio', '2026-08-19',
+      'fecha_vencimiento', '2027-08-19',
+      'producto_condicion_id', 'dddddddd-dddd-4ddd-8ddd-dddddddddd01',
+      'titulares', '[]'::jsonb
+    ),
+    jsonb_build_array(jsonb_build_object(
+      'numero_cuota', 1,
+      'fecha_programada', '2027-08-19',
+      'monto_programado', 23000,
+      'tipo', 'capital_interes'
+    )),
+    jsonb_build_object(
+      'banco', 'Banco Test',
+      'tipo_cuenta', 'ahorros',
+      'numero_cuenta', '001-200002',
+      'cci', '12345678901234500002',
+      'titular_distinto', false
+    )
+  );
+  $sql$,
+  -- El mundo de este oraculo llega hasta la plantilla v5; la ventana del
+  -- domicilio (20260819162752) nombra el campo que falta, pero aqui el mensaje
+  -- todavia es el generico de la fotografia contractual. Lo que se prueba es la
+  -- FRONTERA, no la redaccion: el 19-ago exige los nueve datos y el 18-ago no.
+  'datos legales obligatorios',
+  'regimen nuevo: sin domicilio no hay documento y por tanto no hay contrato',
+  '23514'
+);
+
+-- (3) «Ver contrato PDF» sobre un contrato antiguo NO fabrica nada. Este es el
+-- camino por el que nacieron los 21 documentos del 18 y 19 de agosto.
+-- Se llama como `service_role` porque es quien la ejecuta de verdad: el
+-- navegador pasa por la edge `crm-contrato-pdf-v2`, que usa la clave de
+-- servicio. `authenticated` NO tiene EXECUTE sobre esta funcion.
+set role service_role;
+select crm.contrato_pdf_reservar(
+  'cccccccc-cccc-4ccc-8ccc-ccccccccccc2',
+  '11111111-1111-4111-8111-111111111111'
+)::text as reserva_regimen_anterior \gset
+
+select test_support.assert_true(
+  :'reserva_regimen_anterior'::jsonb->>'estado' = 'sin_reserva'
+    and (:'reserva_regimen_anterior'::jsonb->>'reintentable')::boolean = false
+    and :'reserva_regimen_anterior'::jsonb->'job_id' = 'null'::jsonb,
+  'reservar sobre un contrato antiguo no acuña documento'
+);
+
+reset role;
+select test_support.assert_true(
+  not exists (
+    select 1 from private.contrato_pdf_jobs
+    where contrato_id = 'cccccccc-cccc-4ccc-8ccc-ccccccccccc2'
+  ),
+  'reservar sobre un contrato antiguo tampoco deja rastro de trabajo'
+);
+
+-- (4) El caso REAL de los dos huerfanos de produccion: dos contratos firmados
+-- en marzo y mayo que el 19-ago reservaron documento —porque esta frontera no
+-- existia todavia— y llevan desde entonces en `pendiente` con CERO intentos.
+-- No se pueden reproducir corrigiendo la fecha (los terminos quedan congelados
+-- por su PDF legal en cuanto hay reserva), asi que se siembra la fila tal cual
+-- quedo. Con la regla nueva el trabajo queda INERTE (nadie lo reclama) e
+-- INVISIBLE (el estado responde `sin_reserva`): la pantalla deja de prometer un
+-- documento que no va a llegar. No se borra ni se muta ninguna fila.
+reset role;
+insert into private.contrato_pdf_jobs (
+  id, contrato_id, revision, estado, storage_path, nombre_archivo,
+  template_version, snapshot, solicitado_por
+) values (
+  'cccccccc-cccc-4ccc-8ccc-cccccccccc44',
+  'cccccccc-cccc-4ccc-8ccc-ccccccccccc2',
+  1,
+  'pendiente',
+  'cccccccc-cccc-4ccc-8ccc-ccccccccccc2/v2/cccccccc-cccc-4ccc-8ccc-cccccccccc44/contrato.pdf',
+  'Contrato-AEP-2026-HISTORICO-0001.pdf',
+  'contrato-aep-17-v5',
+  '{"snapshotVersion": 2}'::jsonb,
+  '11111111-1111-4111-8111-111111111111'
+);
+
+select (
+  private.contrato_pdf_estado_base('cccccccc-cccc-4ccc-8ccc-ccccccccccc2')
+)::text as estado_huerfano \gset
+select test_support.assert_true(
+  :'estado_huerfano'::jsonb->>'estado' = 'sin_reserva'
+    and (:'estado_huerfano'::jsonb->>'reintentable')::boolean = false
+    and :'estado_huerfano'::jsonb->'job_id' = 'null'::jsonb,
+  'el trabajo huerfano deja de prometer documento en la pantalla'
+);
+
+set role service_role;
+select (
+  crm.contrato_pdf_reclamar(
+    'cccccccc-cccc-4ccc-8ccc-ccccccccccc2',
+    '11111111-1111-4111-8111-111111111111',
+    120
+  )
+)::text as reclamo_huerfano \gset
+select test_support.assert_true(
+  (:'reclamo_huerfano'::jsonb->>'adquirido')::boolean = false,
+  'nadie puede reclamar el turno de un documento del regimen anterior'
+);
+reset role;
+select test_support.assert_true(
+  (
+    select intentos = 0 and lease_token is null and estado = 'pendiente'
+    from private.contrato_pdf_jobs
+    where id = 'cccccccc-cccc-4ccc-8ccc-cccccccccc44'
+  ),
+  'el reclamo negado no consume intento, no entrega lease y no borra la fila'
+);
+
+-- (4 bis) `fecha_inicio` es el inicio del PLAZO, no la firma. Caso REAL de
+-- produccion: los contratos 2026-01-000891 y 000892 (REATEGUI PEREZ PEDRO IVAN)
+-- se cargaron el 1 de JULIO con el plazo empezando el 1 de julio de 2027. Con la
+-- fecha de plazo sola caerian en el regimen NUEVO y el sistema les ofreceria un
+-- contrato del formato nuevo a una operacion firmada en julio. El suelo de
+-- `creado_en` lo impide.
+reset role;
+insert into public.contratos (
+  id, cliente_id, creado_por, numero_contrato, capital, moneda, tasa_anual,
+  modalidad, tipo_interes, categoria, fecha_inicio, fecha_vencimiento,
+  producto_condicion_id, creado_en
+) values (
+  'cccccccc-cccc-4ccc-8ccc-ccccccccccc5',
+  '33333333-3333-4333-8333-333333333333',
+  '11111111-1111-4111-8111-111111111111',
+  'AEP-2026-PLAZO-FUTURO', 250000, 'PEN', 15,
+  'mensual', 'simple', 'nuevo', date '2027-07-01', date '2028-07-01',
+  'dddddddd-dddd-4ddd-8ddd-dddddddddd01',
+  timestamptz '2026-07-01 18:04:08+00'
+);
+
+select test_support.assert_true(
+  private.contrato_documental_regimen('cccccccc-cccc-4ccc-8ccc-ccccccccccc5')
+    = 'anterior',
+  'un plazo que empieza en 2027 pero registrado en julio es del regimen anterior'
+);
+
+select (
+  private.contrato_pdf_estado_base('cccccccc-cccc-4ccc-8ccc-ccccccccccc5')
+)::text as estado_plazo_futuro \gset
+select test_support.assert_true(
+  :'estado_plazo_futuro'::jsonb->>'estado' = 'sin_reserva'
+    and (:'estado_plazo_futuro'::jsonb->>'reintentable')::boolean = false,
+  'y por tanto tampoco se le ofrece fabricar documento'
+);
+
+-- (5) Los documentos YA emitidos para operaciones antiguas se quedan como
+-- estan: sellados y descargables. Esta regla impide que nazcan mas, no esconde
+-- los que hay. El contrato legacy esta firmado el 2026-08-17.
+select (
+  private.contrato_pdf_estado_base('44444444-4444-4444-8444-444444444444')
+)::text as estado_legacy_antiguo \gset
+select test_support.assert_true(
+  :'estado_legacy_antiguo'::jsonb->>'estado' = 'sellado'
+    and :'estado_legacy_antiguo'::jsonb->'archivo' <> 'null'::jsonb,
+  'un documento antiguo ya emitido sigue sellado y descargable'
 );
 
 \echo CONTRATO_PDF_V2_SQL_OK

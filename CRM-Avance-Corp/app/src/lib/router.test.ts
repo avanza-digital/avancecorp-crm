@@ -3,6 +3,7 @@ import {
   escribirHash,
   esVistaGerencia,
   esVistaConfiguracion,
+  esVistaInterna,
   esVistaLeads,
   hashDe,
   leerHash,
@@ -86,6 +87,14 @@ describe('router por hash', () => {
     expect(VISTAS).toContain('derivaciones')
     expect(esVistaLeads('derivaciones')).toBe(false)
     expect(hashDe('derivaciones')).toBe('#/derivaciones')
+  })
+
+  it('registra la carpeta de rescate como ruta interna del mundo leads', () => {
+    window.location.hash = '#/rescate-carpeta'
+    expect(leerHash()).toEqual({ vista: 'rescate-carpeta', leadId: null })
+    expect(esVistaInterna('rescate-carpeta')).toBe(true)
+    expect(esVistaLeads('rescate-carpeta')).toBe(true)
+    expect(hashDe('rescate-carpeta')).toBe('#/rescate-carpeta')
   })
 
   it('registra los cuatro módulos como rutas internas de Configuración', () => {

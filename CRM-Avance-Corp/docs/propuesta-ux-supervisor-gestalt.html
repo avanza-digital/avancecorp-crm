@@ -1,0 +1,470 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Propuesta UX para el puesto de mando del supervisor de Avance Corp.">
+  <title>Avance Corp · Centro de intervención del supervisor</title>
+  <style>
+    :root {
+      --canvas: #f6f8fc;
+      --surface: #ffffff;
+      --navy: #111e3d;
+      --navy-deep: #0d1730;
+      --ink: #16233f;
+      --muted: #64748b;
+      --soft: #eef2f8;
+      --line: #e4e9f2;
+      --line-strong: #d5ddec;
+      --blue: #2563eb;
+      --blue-dark: #1d4ed8;
+      --blue-soft: #eff6ff;
+      --amber: #d97706;
+      --amber-text: #92400e;
+      --amber-soft: #fff8eb;
+      --red: #dc2626;
+      --red-text: #991b1b;
+      --red-soft: #fff1f2;
+      --violet: #7c3aed;
+      --cyan: #0891b2;
+      --radius: 14px;
+      --shadow: 0 1px 2px -1px rgb(17 30 61 / .08), 0 8px 24px -12px rgb(17 30 61 / .14);
+      --shadow-pop: 0 16px 38px -18px rgb(17 30 61 / .28), 0 3px 10px -5px rgb(17 30 61 / .12);
+      --ease: cubic-bezier(.22, 1, .36, 1);
+    }
+
+    * { box-sizing: border-box; }
+    html { color-scheme: light; scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      background:
+        radial-gradient(circle at 18% -10%, rgb(17 30 61 / .07), transparent 30rem),
+        radial-gradient(circle at 85% 110%, rgb(37 99 235 / .06), transparent 34rem),
+        var(--canvas);
+      color: var(--ink);
+      font-family: "Plus Jakarta Sans", "Avenir Next", Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; }
+    :focus-visible { outline: 3px solid rgb(37 99 235 / .3); outline-offset: 3px; }
+    .sr-only {
+      position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+      overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0;
+    }
+
+    .shell { min-height: 100svh; display: grid; grid-template-columns: 226px minmax(0, 1fr); }
+    .sidebar {
+      position: sticky; top: 0; height: 100svh; z-index: 30;
+      display: flex; flex-direction: column; padding: 22px 14px 16px;
+      color: #c3cde0;
+      background: linear-gradient(180deg, var(--navy), var(--navy-deep));
+      border-right: 1px solid rgb(255 255 255 / .08);
+    }
+    .brand { display: flex; align-items: center; gap: 10px; padding: 0 9px 23px; color: white; }
+    .brand-mark {
+      display: grid; place-items: center; width: 35px; height: 35px; border-radius: 11px;
+      background: linear-gradient(145deg, #3b82f6, #1d4ed8); font-weight: 900;
+      box-shadow: 0 8px 22px -9px rgb(37 99 235 / .9);
+    }
+    .brand-copy strong { display: block; font-size: 13px; letter-spacing: -.02em; }
+    .brand-copy span { display: block; margin-top: 2px; font-size: 9px; text-transform: uppercase; letter-spacing: .16em; opacity: .68; }
+    .nav-label { margin: 13px 10px 7px; font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: .14em; opacity: .5; }
+    .nav { display: grid; gap: 4px; }
+    .nav a {
+      position: relative; display: flex; align-items: center; gap: 10px; min-height: 40px;
+      padding: 0 11px; border-radius: 10px; color: inherit; text-decoration: none;
+      font-size: 12px; font-weight: 650; transition: .2s var(--ease);
+    }
+    .nav a:hover { color: white; background: rgb(255 255 255 / .06); }
+    .nav a.active { color: white; background: var(--blue); box-shadow: 0 10px 22px -13px rgb(37 99 235 / .95); }
+    .nav a.active::before { content: ""; position: absolute; left: -14px; width: 4px; height: 22px; border-radius: 0 4px 4px 0; background: white; }
+    .nav svg { width: 17px; height: 17px; flex: none; }
+    .profile { margin-top: auto; padding: 13px 10px 0; border-top: 1px solid rgb(255 255 255 / .09); display: flex; align-items: center; gap: 9px; }
+    .avatar { display: grid; place-items: center; width: 31px; height: 31px; border-radius: 50%; background: rgb(255 255 255 / .1); color: white; font-size: 10px; font-weight: 800; }
+    .profile strong { display: block; max-width: 125px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: white; font-size: 11px; }
+    .profile span { font-size: 9px; opacity: .66; }
+
+    .workspace { min-width: 0; }
+    .topbar {
+      position: sticky; top: 0; z-index: 20; height: 66px; padding: 0 clamp(18px, 3vw, 34px);
+      display: flex; align-items: center; justify-content: space-between; gap: 18px;
+      background: rgb(255 255 255 / .84); border-bottom: 1px solid var(--line);
+      backdrop-filter: blur(14px);
+    }
+    .page-title strong { display: block; color: var(--navy); font-size: 16px; letter-spacing: -.03em; }
+    .page-title span { display: block; margin-top: 2px; color: var(--muted); font-size: 10px; }
+    .top-actions { display: flex; align-items: center; gap: 8px; }
+    .search {
+      width: min(28vw, 260px); height: 34px; padding: 0 12px 0 34px; border: 1px solid var(--line);
+      border-radius: 9px; background: var(--surface); color: var(--ink); font-size: 11px;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='15' height='15' fill='none' stroke='%2364748b' stroke-width='1.8'%3E%3Ccircle cx='6.5' cy='6.5' r='4.5'/%3E%3Cpath d='m10 10 4 4'/%3E%3C/svg%3E");
+      background-repeat: no-repeat; background-position: 11px center;
+    }
+    .icon-button {
+      position: relative; display: grid; place-items: center; width: 36px; height: 36px;
+      border: 0; border-radius: 10px; background: transparent; cursor: pointer;
+    }
+    .icon-button:hover { background: var(--soft); }
+    .icon-button svg { width: 18px; height: 18px; }
+    .bell-count {
+      position: absolute; top: -2px; right: -2px; min-width: 17px; height: 17px; padding: 0 4px;
+      display: grid; place-items: center; border-radius: 999px; border: 2px solid white;
+      background: var(--red); color: white; font-size: 8px; font-weight: 900;
+    }
+    .primary-button, .secondary-button, .quiet-button {
+      min-height: 34px; border-radius: 9px; padding: 0 13px; border: 1px solid transparent;
+      font-size: 11px; font-weight: 800; cursor: pointer; transition: .18s var(--ease);
+    }
+    .primary-button { background: var(--blue); color: white; box-shadow: 0 8px 20px -12px rgb(37 99 235 / .9); }
+    .primary-button:hover { background: var(--blue-dark); transform: translateY(-1px); }
+    .secondary-button { background: white; color: var(--navy); border-color: var(--line-strong); }
+    .secondary-button:hover { background: var(--soft); border-color: #bdc8db; }
+    .quiet-button { background: transparent; color: var(--muted); }
+    .quiet-button:hover { background: var(--soft); color: var(--ink); }
+
+    main { width: min(1220px, calc(100% - 38px)); margin: 0 auto; padding: 27px 0 50px; }
+    .welcome { display: flex; justify-content: space-between; align-items: end; gap: 24px; margin-bottom: 19px; }
+    .eyebrow { margin: 0 0 6px; color: var(--blue); font-size: 9px; font-weight: 900; text-transform: uppercase; letter-spacing: .16em; }
+    h1 { margin: 0; color: var(--navy); font-size: clamp(24px, 2.6vw, 34px); line-height: 1.06; letter-spacing: -.045em; }
+    .welcome p:last-child { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.55; }
+    .updated { flex: none; color: var(--muted); font-size: 10px; }
+
+    .mode-tabs {
+      display: flex; gap: 4px; width: fit-content; margin-bottom: 18px; padding: 4px;
+      border: 1px solid var(--line); border-radius: 11px; background: rgb(255 255 255 / .72);
+    }
+    .mode-tabs button { border: 0; border-radius: 8px; padding: 7px 12px; background: transparent; color: var(--muted); font-size: 10px; font-weight: 800; cursor: pointer; }
+    .mode-tabs button[aria-pressed="true"] { background: var(--navy); color: white; box-shadow: 0 5px 12px -7px rgb(17 30 61 / .8); }
+
+    .dashboard { display: grid; grid-template-columns: minmax(0, 1.5fr) minmax(290px, .72fr); gap: 16px; align-items: start; }
+    .column { display: grid; gap: 16px; }
+    .panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden; }
+    .panel-head { min-height: 60px; padding: 14px 17px; display: flex; align-items: center; justify-content: space-between; gap: 14px; border-bottom: 1px solid var(--line); }
+    .panel-title { display: flex; align-items: center; gap: 10px; min-width: 0; }
+    .panel-icon { display: grid; place-items: center; width: 32px; height: 32px; border-radius: 10px; background: var(--soft); color: var(--navy); }
+    .panel-icon svg { width: 16px; height: 16px; }
+    .panel-title h2 { margin: 0; color: var(--navy); font-size: 13px; letter-spacing: -.015em; }
+    .panel-title p { margin: 3px 0 0; color: var(--muted); font-size: 9.5px; }
+    .count { flex: none; padding: 4px 8px; border-radius: 999px; color: var(--muted); background: var(--soft); font-size: 9px; font-weight: 850; }
+
+    .intervention-panel { position: relative; }
+    .intervention-panel::after {
+      content: ""; position: absolute; top: 81px; bottom: 32px; left: 35px; width: 1px;
+      background: linear-gradient(var(--red) 0 30%, var(--amber) 30% 67%, var(--blue) 67%);
+      opacity: .34;
+    }
+    .intervention-list { margin: 0; padding: 7px 0; list-style: none; }
+    .intervention {
+      position: relative; z-index: 1; display: grid; grid-template-columns: 40px minmax(0, 1fr) auto;
+      gap: 11px; align-items: center; min-height: 80px; padding: 13px 17px 13px 15px;
+      border-bottom: 1px solid rgb(228 233 242 / .72); transition: .18s var(--ease);
+    }
+    .intervention:last-child { border-bottom: 0; }
+    .intervention:hover { background: #fbfcff; }
+    .signal {
+      display: grid; place-items: center; width: 40px; height: 40px; border: 6px solid white;
+      border-radius: 50%; box-shadow: 0 0 0 1px var(--line);
+    }
+    .signal svg { width: 16px; height: 16px; }
+    .intervention.critical .signal { background: var(--red-soft); color: var(--red-text); }
+    .intervention.attention .signal { background: var(--amber-soft); color: var(--amber-text); }
+    .intervention.guidance .signal { background: var(--blue-soft); color: var(--blue); }
+    .intervention-copy { min-width: 0; }
+    .intervention-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; margin-bottom: 5px; }
+    .severity { font-size: 8px; font-weight: 900; text-transform: uppercase; letter-spacing: .1em; }
+    .critical .severity { color: var(--red-text); }
+    .attention .severity { color: var(--amber-text); }
+    .guidance .severity { color: var(--blue); }
+    .money { padding-left: 7px; border-left: 1px solid var(--line); color: var(--muted); font-size: 9px; font-weight: 750; }
+    .intervention h3 { margin: 0; color: var(--navy); font-size: 12px; }
+    .intervention p { margin: 4px 0 0; color: var(--muted); font-size: 10px; line-height: 1.45; }
+    .intervention-actions { display: flex; align-items: center; gap: 7px; }
+
+    .team-list { display: grid; }
+    details.team-row { border-bottom: 1px solid var(--line); }
+    details.team-row:last-child { border-bottom: 0; }
+    details.team-row summary { list-style: none; cursor: pointer; }
+    details.team-row summary::-webkit-details-marker { display: none; }
+    .team-summary { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 13px 16px; }
+    .team-summary:hover { background: #fbfcff; }
+    .person-avatar { position: relative; display: grid; place-items: center; width: 34px; height: 34px; border-radius: 50%; background: var(--soft); color: var(--navy); font-size: 9px; font-weight: 900; }
+    .person-avatar::after { content: ""; position: absolute; right: -1px; bottom: 0; width: 8px; height: 8px; border: 2px solid white; border-radius: 50%; background: var(--amber); }
+    .person-avatar.critical::after { background: var(--red); }
+    .person-name { min-width: 0; }
+    .person-name strong { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--navy); font-size: 11px; }
+    .person-name span { display: block; margin-top: 3px; color: var(--muted); font-size: 9px; }
+    .team-score { text-align: right; }
+    .team-score strong { display: block; color: var(--navy); font-size: 12px; }
+    .team-score span { display: block; margin-top: 2px; color: var(--muted); font-size: 8px; }
+    .team-detail { padding: 0 16px 14px 60px; }
+    .team-detail-inner { padding: 11px; border-radius: 10px; background: var(--soft); display: grid; gap: 8px; }
+    .detail-line { display: flex; justify-content: space-between; gap: 12px; color: var(--muted); font-size: 9px; }
+    .detail-line strong { color: var(--ink); }
+    .text-link { width: fit-content; border: 0; padding: 0; background: transparent; color: var(--blue); font-size: 9px; font-weight: 850; cursor: pointer; }
+
+    .pulse { padding: 15px 16px 17px; }
+    .pulse-main { display: flex; align-items: end; justify-content: space-between; gap: 12px; }
+    .pulse-main strong { color: var(--navy); font-size: 27px; letter-spacing: -.05em; }
+    .pulse-main span { color: var(--muted); font-size: 9px; }
+    .sparkline { width: 96px; height: 38px; overflow: visible; }
+    .sparkline path { fill: none; stroke: var(--blue); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; }
+    .sparkline .area { fill: url(#area); stroke: none; }
+    .progress-track { height: 6px; margin-top: 12px; overflow: hidden; border-radius: 99px; background: var(--soft); }
+    .progress-bar { width: 68%; height: 100%; border-radius: inherit; background: var(--blue); }
+    .pulse-grid { display: grid; grid-template-columns: repeat(3, 1fr); margin-top: 15px; border-top: 1px solid var(--line); }
+    .pulse-stat { padding: 12px 8px 0; text-align: center; border-right: 1px solid var(--line); }
+    .pulse-stat:last-child { border-right: 0; }
+    .pulse-stat strong { display: block; color: var(--navy); font-size: 12px; }
+    .pulse-stat span { display: block; margin-top: 3px; color: var(--muted); font-size: 8px; }
+
+    .watch-list { padding: 6px 0; }
+    .watch-item { display: grid; grid-template-columns: 9px minmax(0, 1fr) auto; gap: 10px; align-items: center; padding: 11px 16px; }
+    .watch-item + .watch-item { border-top: 1px solid rgb(228 233 242 / .72); }
+    .watch-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--blue); }
+    .watch-dot.amber { background: var(--amber); }
+    .watch-copy strong { display: block; color: var(--navy); font-size: 10px; }
+    .watch-copy span { display: block; margin-top: 3px; color: var(--muted); font-size: 8.5px; }
+    .watch-value { color: var(--navy); font-size: 10px; font-weight: 850; }
+
+    .principle-tag {
+      display: none; width: fit-content; margin-left: 6px; padding: 3px 6px; border-radius: 6px;
+      background: #f3e8ff; color: #6b21a8; font-size: 7px; font-weight: 900; text-transform: uppercase; letter-spacing: .08em;
+    }
+    body.show-principles .principle-tag { display: inline-block; }
+    .principles {
+      display: none; margin-top: 17px; padding: 18px; border: 1px solid #ddd6fe; border-radius: var(--radius);
+      background: linear-gradient(135deg, #faf5ff, white 65%); box-shadow: var(--shadow);
+    }
+    body.show-principles .principles { display: block; animation: reveal .35s var(--ease) both; }
+    .principles h2 { margin: 0; color: var(--navy); font-size: 14px; }
+    .principles > p { margin: 5px 0 14px; color: var(--muted); font-size: 10px; }
+    .principle-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .principle-card { padding: 12px; border: 1px solid rgb(124 58 237 / .13); border-radius: 10px; background: rgb(255 255 255 / .75); }
+    .principle-card strong { display: block; color: #6b21a8; font-size: 9px; text-transform: uppercase; letter-spacing: .08em; }
+    .principle-card p { margin: 5px 0 0; color: var(--muted); font-size: 9px; line-height: 1.45; }
+
+    .toast {
+      position: fixed; right: 24px; bottom: 24px; z-index: 60; max-width: min(360px, calc(100vw - 32px));
+      padding: 12px 14px; border-radius: 11px; background: var(--navy); color: white;
+      box-shadow: var(--shadow-pop); font-size: 10px; font-weight: 750;
+      opacity: 0; transform: translateY(12px); pointer-events: none; transition: .25s var(--ease);
+    }
+    .toast.visible { opacity: 1; transform: none; }
+    [data-category][hidden] { display: none !important; }
+    @keyframes reveal { from { opacity: 0; transform: translateY(-6px); } to { opacity: 1; transform: none; } }
+
+    @media (max-width: 980px) {
+      .shell { grid-template-columns: 66px minmax(0, 1fr); }
+      .sidebar { padding-inline: 9px; }
+      .brand { justify-content: center; padding-inline: 0; }
+      .brand-copy, .nav-label, .nav a span, .profile > div:last-child { display: none; }
+      .nav a { justify-content: center; padding-inline: 0; }
+      .nav a.active::before { left: -9px; }
+      .profile { justify-content: center; padding-inline: 0; }
+      .dashboard { grid-template-columns: 1fr; }
+      .right-column { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .right-column .panel:first-child { grid-column: 1 / -1; }
+    }
+    @media (max-width: 700px) {
+      .shell { display: block; }
+      .sidebar { position: fixed; top: auto; bottom: 0; width: 100%; height: 61px; padding: 7px 10px; flex-direction: row; z-index: 50; }
+      .brand, .nav-label, .profile, .nav a:nth-child(n+6) { display: none; }
+      .nav { width: 100%; grid-template-columns: repeat(5, 1fr); gap: 3px; }
+      .nav a { min-height: 47px; }
+      .nav a.active::before { top: -7px; left: 50%; width: 22px; height: 3px; transform: translateX(-50%); border-radius: 0 0 4px 4px; }
+      .topbar { height: 58px; padding-inline: 14px; }
+      .page-title span, .search, #principles-toggle .toggle-copy { display: none; }
+      main { width: min(100% - 24px, 620px); padding-top: 20px; padding-bottom: 88px; }
+      .welcome { align-items: start; }
+      .updated { display: none; }
+      .mode-tabs { width: 100%; overflow-x: auto; }
+      .mode-tabs button { white-space: nowrap; flex: 1; }
+      .intervention { grid-template-columns: 38px minmax(0, 1fr); }
+      .intervention-actions { grid-column: 2; justify-content: flex-start; }
+      .right-column { grid-template-columns: 1fr; }
+      .right-column .panel:first-child { grid-column: auto; }
+      .principle-grid { grid-template-columns: 1fr; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; animation-duration: .01ms !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" aria-label="Navegación principal">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true">A</span>
+        <span class="brand-copy"><strong>Avance Corp</strong><span>CRM comercial</span></span>
+      </div>
+      <p class="nav-label">Operación</p>
+      <nav class="nav">
+        <a class="active" href="#inicio" aria-current="page"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="7" rx="2"/><rect x="14" y="3" width="7" height="7" rx="2"/><rect x="3" y="14" width="7" height="7" rx="2"/><rect x="14" y="14" width="7" height="7" rx="2"/></svg><span>Hoy</span></a>
+        <a href="#intervenciones"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 7-3 7-3 9h18c0-2-3-2-3-9a6 6 0 0 0-6-6Z"/><path d="M10 21h4"/></svg><span>Intervenciones</span></a>
+        <a href="#equipo"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-4 2.5-6 6-6s6 2 6 6M15 15c3.5 0 6 1.7 6 5"/></svg><span>Equipo</span></a>
+        <a href="#derivar"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m22 2-7 20-4-9-9-4Z"/><path d="M22 2 11 13"/></svg><span>Derivar leads</span></a>
+        <a href="#agenda"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="5" width="18" height="16" rx="2"/><path d="M16 3v4M8 3v4M3 10h18"/></svg><span>Agenda</span></a>
+        <a href="#cartera"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16v13H4zM8 7V4h8v3"/><path d="M4 12h16"/></svg><span>Cartera</span></a>
+      </nav>
+      <div class="profile"><span class="avatar">JM</span><div><strong>Jorge Marzano</strong><span>Supervisor</span></div></div>
+    </aside>
+
+    <div class="workspace">
+      <header class="topbar">
+        <div class="page-title"><strong>Hoy</strong><span>Decisiones del equipo, sin ruido</span></div>
+        <div class="top-actions">
+          <label><span class="sr-only">Buscar lead</span><input class="search" placeholder="Buscar lead…"></label>
+          <button class="icon-button" id="principles-toggle" type="button" aria-pressed="false" title="Mostrar principios de diseño">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7h.01"/></svg><span class="sr-only toggle-copy">Mostrar principios UX</span>
+          </button>
+          <button class="icon-button" id="bell-button" type="button" aria-label="Abrir 3 intervenciones">
+            <svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3a6 6 0 0 0-6 6c0 7-3 7-3 9h18c0-2-3-2-3-9a6 6 0 0 0-6-6Z"/><path d="M10 21h4"/></svg>
+            <span class="bell-count" aria-hidden="true">3</span>
+          </button>
+          <button class="primary-button" type="button" data-action="Nuevo lead">+ Nuevo lead</button>
+        </div>
+      </header>
+
+      <main id="inicio">
+        <section class="welcome" aria-labelledby="welcome-title">
+          <div>
+            <p class="eyebrow">Puesto de mando · domingo 23 de agosto</p>
+            <h1 id="welcome-title">Buenos días, Jorge.</h1>
+            <p>Tu equipo tiene <strong>3 intervenciones</strong> que merecen atención. El resto sigue visible, sin competir por tu mirada.</p>
+          </div>
+          <span class="updated">Actualizado 9:42 a. m.</span>
+        </section>
+
+        <div class="mode-tabs" role="group" aria-label="Filtrar el centro de intervención">
+          <button type="button" aria-pressed="true" data-filter="all">Todo</button>
+          <button type="button" aria-pressed="false" data-filter="now">Resolver ahora · 2</button>
+          <button type="button" aria-pressed="false" data-filter="support">Acompañar · 1</button>
+          <button type="button" aria-pressed="false" data-filter="watch">Vigilar</button>
+        </div>
+
+        <div class="dashboard">
+          <div class="column">
+            <section class="panel intervention-panel" id="intervenciones" aria-labelledby="intervention-title" data-category="now">
+              <header class="panel-head">
+                <div class="panel-title"><span class="panel-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m12 3 9 17H3Z"/><path d="M12 9v4M12 17h.01"/></svg></span><div><h2 id="intervention-title">Requiere tu intervención <span class="principle-tag">Figura–fondo</span></h2><p>Solo asuntos que dependen de ti o ya superaron la tolerancia</p></div></div>
+                <span class="count">2 decisiones</span>
+              </header>
+              <ol class="intervention-list">
+                <li class="intervention critical">
+                  <span class="signal"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 4h16v16H4zM8 8h8M8 12h8M8 16h5"/></svg></span>
+                  <div class="intervention-copy"><div class="intervention-meta"><span class="severity">Crítico · hoy</span><span class="money">S/ 186 mil en proceso</span></div><h3>3 tareas llevan más de 24 horas vencidas</h3><p>Dos corresponden a Carmen y una a Rosa. El caso más antiguo venció hace 2 días.</p></div>
+                  <div class="intervention-actions"><button class="primary-button" type="button" data-action="Abrir tareas vencidas">Revisar tareas</button></div>
+                </li>
+                <li class="intervention attention">
+                  <span class="signal"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><path d="M4 5h16v14H4zM8 9h8M8 13h5"/><path d="m16 15 2 2 3-4"/></svg></span>
+                  <div class="intervention-copy"><div class="intervention-meta"><span class="severity">Atención · reparto</span><span class="money">12 leads · más antiguo 7 h</span></div><h3>Tu bandeja tiene leads por derivar</h3><p>Un solo paquete de trabajo reemplaza 12 alertas individuales.</p></div>
+                  <div class="intervention-actions"><button class="secondary-button" type="button" data-action="Abrir Derivar leads">Derivar 12 leads</button></div>
+                </li>
+              </ol>
+            </section>
+
+            <section class="panel" id="equipo" aria-labelledby="team-title" data-category="support">
+              <header class="panel-head">
+                <div class="panel-title"><span class="panel-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c0-4 2.5-6 6-6s6 2 6 6M15 15c3.5 0 6 1.7 6 5"/></svg></span><div><h2 id="team-title">Equipo que necesita apoyo <span class="principle-tag">Proximidad + similitud</span></h2><p>Las excepciones se agrupan por persona, no por lead</p></div></div>
+                <span class="count">3 personas</span>
+              </header>
+              <div class="team-list">
+                <details class="team-row" open>
+                  <summary class="team-summary"><span class="person-avatar critical">CJ</span><span class="person-name"><strong>Carmen Jaramillo</strong><span>7 pendientes · 3 críticos · última actividad hace 2 h</span></span><span class="team-score"><strong>S/ 318 mil</strong><span>capital abierto</span></span></summary>
+                  <div class="team-detail"><div class="team-detail-inner"><div class="detail-line"><span>Tareas vencidas +24 h</span><strong>2</strong></div><div class="detail-line"><span>Leads sin próxima acción</span><strong>5</strong></div><button class="text-link" type="button" data-action="Abrir cartera filtrada de Carmen">Ver cartera de Carmen →</button></div></div>
+                </details>
+                <details class="team-row">
+                  <summary class="team-summary"><span class="person-avatar">RM</span><span class="person-name"><strong>Rosa Mendoza</strong><span>4 pendientes · 1 crítico · última actividad hace 48 min</span></span><span class="team-score"><strong>S/ 204 mil</strong><span>capital abierto</span></span></summary>
+                  <div class="team-detail"><div class="team-detail-inner"><div class="detail-line"><span>Tareas vencidas +24 h</span><strong>1</strong></div><div class="detail-line"><span>Leads sin próxima acción</span><strong>3</strong></div><button class="text-link" type="button" data-action="Abrir cartera filtrada de Rosa">Ver cartera de Rosa →</button></div></div>
+                </details>
+                <details class="team-row">
+                  <summary class="team-summary"><span class="person-avatar">AB</span><span class="person-name"><strong>Astrid Benavides</strong><span>3 casos preventivos · sin críticos</span></span><span class="team-score"><strong>S/ 126 mil</strong><span>capital abierto</span></span></summary>
+                  <div class="team-detail"><div class="team-detail-inner"><div class="detail-line"><span>Próximos a vencer</span><strong>2</strong></div><div class="detail-line"><span>Lead nuevo sin contacto</span><strong>1</strong></div><button class="text-link" type="button" data-action="Abrir cartera filtrada de Astrid">Ver cartera de Astrid →</button></div></div>
+                </details>
+              </div>
+            </section>
+          </div>
+
+          <div class="column right-column">
+            <section class="panel" aria-labelledby="pulse-title" data-category="watch">
+              <header class="panel-head"><div class="panel-title"><span class="panel-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 12h4l2-7 4 14 2-7h6"/></svg></span><div><h2 id="pulse-title">Pulso del equipo <span class="principle-tag">Región común</span></h2><p>Contexto sin competir con la acción</p></div></div></header>
+              <div class="pulse">
+                <div class="pulse-main"><div><span>Capital confirmado</span><br><strong>S/ 684K</strong></div><svg class="sparkline" viewBox="0 0 100 40" aria-label="Tendencia ascendente"><defs><linearGradient id="area" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2563eb" stop-opacity=".2"/><stop offset="1" stop-color="#2563eb" stop-opacity="0"/></linearGradient></defs><path class="area" d="M2 34 16 29 29 31 43 20 57 24 72 13 87 16 98 6V40H2Z"/><path d="M2 34 16 29 29 31 43 20 57 24 72 13 87 16 98 6"/></svg></div>
+                <div class="progress-track" aria-label="68 por ciento de la meta"><div class="progress-bar"></div></div>
+                <div class="pulse-grid"><div class="pulse-stat"><strong>68%</strong><span>de la meta</span></div><div class="pulse-stat"><strong>21.4%</strong><span>conversión</span></div><div class="pulse-stat"><strong>17</strong><span>vendedores</span></div></div>
+              </div>
+            </section>
+
+            <section class="panel" aria-labelledby="watch-title" data-category="watch">
+              <header class="panel-head"><div class="panel-title"><span class="panel-icon"><svg aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z"/><circle cx="12" cy="12" r="2.5"/></svg></span><div><h2 id="watch-title">Vigilar <span class="principle-tag">Jerarquía cromática</span></h2><p>Señales preventivas, sin alarma</p></div></div><span class="count">3 señales</span></header>
+              <div class="watch-list">
+                <div class="watch-item"><span class="watch-dot"></span><span class="watch-copy"><strong>Conversión estable</strong><span>+1.8 pp frente al corte anterior</span></span><span class="watch-value">21.4%</span></div>
+                <div class="watch-item"><span class="watch-dot amber"></span><span class="watch-copy"><strong>Reuniones no realizadas</strong><span>Dos esta semana; todavía bajo tolerancia</span></span><span class="watch-value">2</span></div>
+                <div class="watch-item"><span class="watch-dot"></span><span class="watch-copy"><strong>Agenda cubierta</strong><span>14 de 17 vendedores con próxima acción</span></span><span class="watch-value">82%</span></div>
+              </div>
+            </section>
+          </div>
+        </div>
+
+        <aside class="principles" aria-labelledby="principles-title">
+          <h2 id="principles-title">Por qué esta interfaz se siente más tranquila</h2>
+          <p>Las leyes de Gestalt y la psicología del color están incorporadas como reglas operativas, no como decoración.</p>
+          <div class="principle-grid">
+            <div class="principle-card"><strong>Proximidad</strong><p>Los problemas de una misma persona viven juntos. El supervisor reconoce un patrón antes de leer cada caso.</p></div>
+            <div class="principle-card"><strong>Región común</strong><p>Intervención, acompañamiento y vigilancia tienen contenedores distintos; el cerebro entiende su función por ubicación.</p></div>
+            <div class="principle-card"><strong>Similitud</strong><p>La misma forma representa el mismo nivel de decisión. Los colores no cambian arbitrariamente entre módulos.</p></div>
+            <div class="principle-card"><strong>Continuidad</strong><p>El riel vertical guía desde lo crítico hasta la acción preventiva siguiendo una lectura natural.</p></div>
+            <div class="principle-card"><strong>Figura–fondo</strong><p>Solo las intervenciones activas destacan. Los indicadores quedan visualmente atrás hasta que se necesitan.</p></div>
+            <div class="principle-card"><strong>Color con propósito</strong><p>Navy transmite control; azul invita a actuar; ámbar pide atención; rojo queda reservado para crisis reales.</p></div>
+          </div>
+        </aside>
+      </main>
+    </div>
+  </div>
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+  <script>
+    const body = document.body;
+    const principlesToggle = document.getElementById('principles-toggle');
+    const toast = document.getElementById('toast');
+    let toastTimer;
+
+    function notify(message) {
+      window.clearTimeout(toastTimer);
+      toast.textContent = `${message} · Prototipo visual`;
+      toast.classList.add('visible');
+      toastTimer = window.setTimeout(() => toast.classList.remove('visible'), 2300);
+    }
+
+    principlesToggle.addEventListener('click', () => {
+      const visible = body.classList.toggle('show-principles');
+      principlesToggle.setAttribute('aria-pressed', String(visible));
+      principlesToggle.title = visible ? 'Ocultar principios de diseño' : 'Mostrar principios de diseño';
+      if (visible) document.querySelector('.principles').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    });
+
+    document.getElementById('bell-button').addEventListener('click', () => {
+      document.querySelector('[data-filter="now"]').click();
+      document.getElementById('intervenciones').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
+
+    document.querySelectorAll('[data-action]').forEach((button) => {
+      button.addEventListener('click', () => notify(button.dataset.action));
+    });
+
+    document.querySelectorAll('[data-filter]').forEach((button) => {
+      button.addEventListener('click', () => {
+        const filter = button.dataset.filter;
+        document.querySelectorAll('[data-filter]').forEach((item) => item.setAttribute('aria-pressed', String(item === button)));
+        document.querySelectorAll('[data-category]').forEach((panel) => {
+          panel.hidden = filter !== 'all' && panel.dataset.category !== filter;
+        });
+      });
+    });
+  </script>
+</body>
+</html>

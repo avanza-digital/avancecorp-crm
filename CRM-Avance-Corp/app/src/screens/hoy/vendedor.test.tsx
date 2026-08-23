@@ -22,7 +22,7 @@
 // de higiene, mes vigente) se deriva del instante, y sin fijarlo estos tests
 // pasarían o fallarían según la hora en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, fireEvent, render, screen } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
 import {
   objetivosCero,
@@ -66,6 +66,9 @@ let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
 let CUMPLIMIENTO_ERROR = false
 const crearTarea = vi.fn()
 const recargar = vi.fn()
+const abrirLead = vi.fn()
+let COLA_CARGANDO = false
+let COLA_ERROR = false
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -87,7 +90,7 @@ vi.mock('@/lib/store-context', () => ({
     tareasDe: (id: string) =>
       TAREAS.filter((t) => t.lead_id === id && t.estado === 'pendiente' && t.activo),
   }),
-  usePanelesActions: () => ({ abrirLead: () => {}, abrirNuevoLead: () => {} }),
+  usePanelesActions: () => ({ abrirLead, abrirNuevoLead: () => {} }),
 }))
 // El tipo de cambio viene de una edge; aquí se fija para que el CONSOLIDADO sea
 // determinista. `TC = null` prueba el caso honesto: sin tasa, el total no puede
@@ -130,9 +133,11 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
       tareas: never[],
       indice?: ReadonlyMap<string, never>,
     ) => ({
-      cola: colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
-      cargando: false,
-      error: null,
+      cola: COLA_CARGANDO || COLA_ERROR
+        ? null
+        : colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
+      cargando: COLA_CARGANDO,
+      error: COLA_ERROR ? new Error('cola no disponible') : null,
       recargar: vi.fn(),
     }),
   }
@@ -387,11 +392,67 @@ beforeEach(() => {
   // Cada test que quiera un mes medible siembra su propio payload.
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
+  COLA_CARGANDO = false
+  COLA_ERROR = false
   TC = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
 })
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+describe('Hoy · vendedor — contrato perceptual de Ahora', () => {
+  it('muestra como máximo tres decisiones, una por lead, y abre la ficha desde la prioridad', () => {
+    montar({
+      leads: Array.from({ length: 4 }, (_, i) =>
+        lead({
+          id: `l-${i + 1}`,
+          nombre_completo: `LEAD PRIORIDAD ${i + 1}`,
+          etapa: 'nuevo',
+          creado_en: `2026-07-15T14:0${i}:00Z`,
+        }),
+      ),
+    })
+
+    const ahora = screen.getByRole('region', { name: 'Tu siguiente movimiento' })
+    expect(within(ahora).getAllByText(/^Prioridad 0[1-3]$/)).toHaveLength(3)
+    expect(within(ahora).getByText('3 de 4 señales priorizadas')).toBeInTheDocument()
+
+    const primera = within(ahora).getByText('LEAD PRIORIDAD 1').closest('article')
+    expect(primera).not.toBeNull()
+    fireEvent.click(within(primera as HTMLElement).getByRole('button', { name: /ver ficha/i }))
+    expect(abrirLead).toHaveBeenCalledWith('l-1')
+  })
+
+  it('muestra skeleton y no declara la cartera al día mientras la cola está cargando', () => {
+    COLA_CARGANDO = true
+    montar({ leads: [lead({ etapa: 'nuevo' })] })
+
+    expect(screen.getByRole('status', { name: 'Cargando próximas acciones' })).toBeInTheDocument()
+    expect(screen.queryByText('No tienes una intervención pendiente')).not.toBeInTheDocument()
+    expect(screen.queryByText('Al día ✦ sin pendientes')).not.toBeInTheDocument()
+  })
+
+  it('explica el dato parcial y conserva la agenda cuando falla la cola', () => {
+    COLA_ERROR = true
+    montar({ tareas: [tarea({ titulo: 'Seguimiento conservado' })] })
+
+    expect(screen.getByText('Seguimiento conservado')).toBeInTheDocument()
+    expect(screen.getByText(/Mostramos lo que sí llegó de tu agenda/)).toBeInTheDocument()
+    expect(screen.queryByText('Tu agenda y tu cartera están al día')).not.toBeInTheDocument()
+  })
+
+  it('mantiene el cumplimiento mensual colapsado hasta que el vendedor lo pide', () => {
+    montar()
+
+    const resumen = screen.getByText('Tu cumplimiento del mes').closest('summary')
+    const detalle = resumen?.closest('details')
+    expect(detalle).not.toBeNull()
+    expect(detalle).not.toHaveAttribute('open')
+
+    fireEvent.click(resumen as HTMLElement)
+    expect(detalle).toHaveAttribute('open')
+  })
 })
 
 describe('Hoy · vendedor — agenda héroe', () => {
@@ -406,8 +467,10 @@ describe('Hoy · vendedor — agenda héroe', () => {
 
     expect(screen.getByText('Llamar a Ana')).toBeInTheDocument()
     expect(screen.queryByText('Llamar a Bruno')).not.toBeInTheDocument()
-    // El badge decía "1 hoy" mientras abajo se pintaban las dos filas.
-    expect(screen.getByText('1 hoy')).toBeInTheDocument()
+    // La señal operable sube a «Ahora» con su fecha y hora; la futura no
+    // compite por atención ni infla el conteo.
+    expect(screen.getByText('Hoy · 15:00')).toBeInTheDocument()
+    expect(screen.getByText('1 de 1 señal priorizadas')).toBeInTheDocument()
   })
 
   it('un día sin nada operable se lee VACÍO aunque haya agenda futura', () => {
@@ -424,15 +487,15 @@ describe('Hoy · vendedor — agenda héroe', () => {
       tareas: [tarea({ id: 't-hoy', titulo: 'Llamar a Ana', vence_en: '2026-07-15T15:00:30Z' })],
     })
 
-    expect(screen.queryByText('1 vencida')).not.toBeInTheDocument()
+    expect(screen.queryByText('Vencida')).not.toBeInTheDocument()
 
     // Un tick del reloj vivo (useAhora: 60 s) y la tarea ya venció.
     act(() => {
       vi.advanceTimersByTime(60_000)
     })
 
-    expect(screen.getByText('1 vencida')).toBeInTheDocument()
-    expect(screen.getByText('0 hoy · 1 vencida')).toBeInTheDocument()
+    expect(screen.getByText('Vencida')).toBeInTheDocument()
+    expect(screen.getByText('Llamar a Ana')).toBeInTheDocument()
   })
 
   it('la tarea vencida NO se repite en la cola de al lado (una sola vez, un solo conteo)', () => {
@@ -444,15 +507,16 @@ describe('Hoy · vendedor — agenda héroe', () => {
       tareas: [tarea({ id: 't-muerta', titulo: 'Llamar a Ana', vence_en: '2026-07-13T20:00:00Z' })],
     })
 
-    expect(screen.getByText('1 vencida')).toBeInTheDocument()
-    // La fila de la cola pinta el NOMBRE del lead; la de la agenda, el título
-    // de la tarea. Antes salían las dos por el mismo vencimiento.
-    expect(screen.queryByText('ANA TORRES')).not.toBeInTheDocument()
-    // Y la cola vacía NO puede cantar "al día" con una vencida al lado: remite
-    // a la agenda, que es donde está el trabajo (y su botón de cerrar).
+    expect(screen.getByText('Vencida')).toBeInTheDocument()
+    // «Ahora» reúne contexto y acción, pero cada lead y tarea aparecen una
+    // sola vez en toda la pantalla.
+    expect(screen.getAllByText('ANA TORRES')).toHaveLength(1)
+    expect(screen.getAllByText('Llamar a Ana')).toHaveLength(1)
+    // La superficie inferior no puede cantar «al día» mientras arriba queda
+    // una intervención abierta.
     expect(screen.queryByText('Al día ✦ sin pendientes')).not.toBeInTheDocument()
-    expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
-    expect(screen.getByText(/Tienes 1 seguimiento vencido/)).toBeInTheDocument()
+    expect(screen.getByText('Sin trabajo adicional')).toBeInTheDocument()
+    expect(screen.getByText('Tus intervenciones están arriba. Aquí no queda trabajo adicional.')).toBeInTheDocument()
   })
 
   it('el speed-to-lead SÍ se queda en la cola aunque tenga una vencida (nunca se entierra)', () => {
@@ -461,29 +525,21 @@ describe('Hoy · vendedor — agenda héroe', () => {
       tareas: [tarea({ id: 't-muerta', titulo: 'Llamar a Ana', vence_en: '2026-07-13T20:00:00Z' })],
     })
 
-    expect(screen.getByText('ANA TORRES')).toBeInTheDocument()
-    expect(screen.getByText('Sin responder')).toBeInTheDocument()
+    expect(screen.getAllByText('ANA TORRES')).toHaveLength(1)
+    expect(screen.getAllByText('Sin responder')).toHaveLength(1)
   })
 
-  it('las vencidas que la agenda NO alcanza a listar siguen trabajándose desde la cola', () => {
+  it('reparte las vencidas entre Ahora y Agenda sin perderlas ni repetirlas', () => {
     montar({ leads: LEADS_VENCIDOS, actividades: ACTS_VENCIDOS, tareas: TAREAS_VENCIDAS })
 
-    // La franja ámbar cuenta las 5 pero solo pinta las 3 más viejas.
-    expect(screen.getByText('5 vencidas')).toBeInTheDocument()
-    expect(screen.getByText('Tarea 1')).toBeInTheDocument()
-    expect(screen.getByText('Tarea 3')).toBeInTheDocument()
-    expect(screen.queryByText('Tarea 4')).not.toBeInTheDocument()
-    expect(screen.getByText(/\+2 más vencidas/)).toBeInTheDocument()
-    // Las 2 que no caben NO se evaporan: la cola las califica con su motivo.
-    // Antes el anti-duplicado las escondía a ellas también.
-    expect(screen.queryByText('LEAD 1')).not.toBeInTheDocument()
-    expect(screen.getByText('LEAD 4')).toBeInTheDocument()
-    expect(screen.getByText('LEAD 5')).toBeInTheDocument()
-    expect(screen.getByText('2 pendientes')).toBeInTheDocument()
-    // …y el pie puede prometer la cola porque AHÍ están las dos.
-    expect(
-      screen.getByText('+2 más vencidas — las tienes en la cola de al lado y en Agenda.'),
-    ).toBeInTheDocument()
+    expect(screen.getByText('3 de 5 señales priorizadas')).toBeInTheDocument()
+    for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
+      expect(screen.getAllByText(titulo)).toHaveLength(1)
+    }
+    // El remanente cabe en «Después en tu agenda»; la cola cede para no
+    // presentar dos mandatos sobre el mismo lead.
+    expect(screen.queryByText(/\+2 más vencidas/)).not.toBeInTheDocument()
+    expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
   })
 
   // El pie "+N más vencidas" prometía SIEMPRE "las tienes en la cola de al
@@ -508,15 +564,16 @@ describe('Hoy · vendedor — agenda héroe', () => {
       ),
     })
 
-    expect(screen.getByText('5 vencidas')).toBeInTheDocument()
-    // La cola está vacía y remite a la agenda: mandarle el excedente sería
-    // mandarlo a un sitio donde no hay nada.
+    for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
+      expect(screen.getAllByText(titulo)).toHaveLength(1)
+    }
+    // La cola está vacía y remite al remanente visible de la agenda: no
+    // promete una ubicación donde el trabajo no existe.
     expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
-    expect(screen.getByText('+2 más vencidas — ábrelas desde Agenda.')).toBeInTheDocument()
     expect(screen.queryByText(/cola de al lado/)).not.toBeInTheDocument()
   })
 
-  it('cuando solo PARTE del excedente baja a la cola, el pie dice cuántas', () => {
+  it('una cita futura no duplica ni oculta el excedente operable', () => {
     montar({
       leads: LEADS_VENCIDOS,
       actividades: ACTS_VENCIDOS,
@@ -528,11 +585,11 @@ describe('Hoy · vendedor — agenda héroe', () => {
       ],
     })
 
-    expect(screen.getByText('LEAD 4')).toBeInTheDocument()
-    expect(screen.queryByText('LEAD 5')).not.toBeInTheDocument()
-    expect(
-      screen.getByText('+2 más vencidas — 1 en la cola de al lado; todas en Agenda.'),
-    ).toBeInTheDocument()
+    for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
+      expect(screen.getAllByText(titulo)).toHaveLength(1)
+    }
+    expect(screen.queryByText('Reunión con LEAD 5')).not.toBeInTheDocument()
+    expect(screen.queryByText(/cola de al lado/)).not.toBeInTheDocument()
   })
 })
 
@@ -839,7 +896,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     // independiente (RPC propia) y aquí, sin payload, dice su propio vacío.
     expect(screen.getAllByText('Cumplimiento confirmado no disponible')).toHaveLength(1)
     expect(screen.getByText('Sin datos de asignación para este mes')).toBeInTheDocument()
-    expect(screen.getByText('Pronóstico de capital abierto')).toBeInTheDocument()
+    expect(screen.getByText('Capital abierto')).toBeInTheDocument()
   })
 })
 
@@ -852,7 +909,9 @@ describe('Hoy · vendedor — viernes de higiene', () => {
       tareas: [],
     })
 
-    expect(screen.getByText('Viernes de higiene')).toBeInTheDocument()
+    expect(screen.getByText('Después: viernes de higiene')).toBeInTheDocument()
+    expect(screen.getByText('Sin urgencias inmediatas')).toBeInTheDocument()
+    expect(screen.getByText(/Tienes 1 acción de preparación en “Después”/)).toBeInTheDocument()
     expect(screen.getByText('Sin próxima acción')).toBeInTheDocument()
 
     const boton = screen.getByRole('button', { name: 'Agendar el siguiente paso con ANA TORRES' })
@@ -868,7 +927,7 @@ describe('Hoy · vendedor — viernes de higiene', () => {
       tareas: [tarea({ id: 't-muerta', titulo: 'Llamar a Ana', vence_en: '2026-07-16T20:00:00Z' })],
     })
 
-    expect(screen.getByText('Viernes de higiene')).toBeInTheDocument()
+    expect(screen.getByText('Después: viernes de higiene')).toBeInTheDocument()
     // UNA sola vez en toda la pantalla: la pinta la agenda (manda la agenda) y
     // la higiene cede. Antes salía en las dos, con su mismo botón de cerrar.
     expect(screen.getAllByText('Llamar a Ana')).toHaveLength(1)
@@ -876,7 +935,7 @@ describe('Hoy · vendedor — viernes de higiene', () => {
     expect(screen.queryByText(/ciérrala o reprográmala/)).not.toBeInTheDocument()
     // Y el badge de la cola no la vuelve a contar.
     expect(screen.queryByText('1 pendiente')).not.toBeInTheDocument()
-    expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
+    expect(screen.getByText('Sin trabajo adicional')).toBeInTheDocument()
   })
 
   it('las vencidas que no caben en la agenda SÍ bajan a la higiene (ninguna se pierde)', () => {
@@ -887,11 +946,13 @@ describe('Hoy · vendedor — viernes de higiene', () => {
       tareas: TAREAS_VENCIDAS,
     })
 
-    // 3 arriba (agenda) + 2 abajo (higiene) = las 5, cada una en UN solo sitio.
+    // 3 arriba en «Ahora» + 2 en la agenda siguiente = las 5, cada una en
+    // UN solo sitio. Higiene cede porque Agenda ya ofrece la acción directa.
     for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
       expect(screen.getAllByText(titulo)).toHaveLength(1)
     }
-    expect(screen.getAllByText(/ciérrala o reprográmala/)).toHaveLength(2)
-    expect(screen.getByText('2 pendientes')).toBeInTheDocument()
+    expect(screen.queryByText(/ciérrala o reprográmala/)).not.toBeInTheDocument()
+    expect(screen.queryByText('2 pendientes')).not.toBeInTheDocument()
+    expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
   })
 })

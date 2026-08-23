@@ -24,8 +24,10 @@ import {
   abrirVentanaContratoPdf,
   archivarContratoPdfConfirmado,
   consultarEstadoContratoPdf,
+  CONTRATO_DOCUMENTO_DESDE_TEXTO,
   ContratoPdfNoSelladoError,
   descargarArchivoContratoPdf,
+  esContratoRegimenAnterior,
   etiquetaEstadoContratoPdf,
   obtenerContratoPdfArchivado,
   verArchivoContratoPdf,
@@ -165,6 +167,16 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     && accionPdfUi.secuencia === secuenciaAccionPdfRef.current
     ? accionPdfUi.accion
     : null
+  // El régimen documental se decide por la FECHA DE FIRMA del contrato. Importa
+  // aquí porque «Ver contrato PDF» no muestra: si no hay documento, lo FABRICA.
+  // En un contrato del formato anterior eso acuñaría un segundo contrato para
+  // una operación ya firmada —así nacieron los 21 documentos del 18 y 19 de
+  // agosto—, fechado meses atrás y con el domicilio de hoy, que es el de
+  // notificaciones. El servidor ya lo niega; esto evita ofrecerlo.
+  const regimenAnterior = esContratoRegimenAnterior(contrato?.fecha_inicio, contrato?.creado_en)
+  // Los que YA se emitieron siguen siendo descargables: se quedan como están.
+  const documentoEmitido = estadoPdf === 'sellado'
+  const puedeOperarPdf = !regimenAnterior || documentoEmitido
   const errorTitulares = !precargado && qTitulares.isError && qTitulares.data == null
     ? mensajeDeError(qTitulares.error, 'No se pudieron cargar los co-titulares.')
     : null
@@ -352,7 +364,13 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
         ) : (
           <>
             <div className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
-              {cargandoEstadoPdf ? (
+              {regimenAnterior && !documentoEmitido ? (
+                <>
+                  Contrato firmado antes del{' '}
+                  <b className="text-foreground">{CONTRATO_DOCUMENTO_DESDE_TEXTO}</b>: su contrato es el del
+                  formato anterior. El sistema no emite documento para esta operación.
+                </>
+              ) : cargandoEstadoPdf ? (
                 'Consultando el estado documental…'
               ) : errorEstadoPdf ? (
                 'No se pudo consultar el estado documental. Puedes reintentar desde los botones de PDF.'
@@ -364,6 +382,20 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 'Estado documental no disponible.'
               )}
             </div>
+            {/* El documento ES el contrato desde el 19/08: que uno del régimen
+                nuevo se quede sin él no puede ser un detalle en gris. Solo se
+                grita cuando ya se sabe (estado consultado y sin sellar), nunca
+                mientras carga. */}
+            {!regimenAnterior && !cargandoEstadoPdf && !errorEstadoPdf
+              && estadoPdf != null && estadoPdf !== 'sellado' && (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive"
+              >
+                Este contrato aún no tiene su documento, y el documento es el contrato. Genéralo con «Ver
+                contrato PDF» o «Descargar contrato PDF».
+              </div>
+            )}
             {confirmandoEliminar && (
               <div
                 role="alert"
@@ -575,7 +607,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               <Trash2 aria-hidden /> Eliminar contrato
             </Button>
           ))}
-        {contrato && (
+        {contrato && puedeOperarPdf && (
           <>
             <Button
               variant="outline"

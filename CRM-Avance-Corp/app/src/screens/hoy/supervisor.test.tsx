@@ -1,9 +1,10 @@
-// Tests de integración de la tarjeta mensual de monto y conversión del equipo.
+// Tests de integración de HOY del supervisor: reparto compacto y tarjeta
+// mensual de monto/conversión del equipo.
 //
 // El reloj se fija con timers falsos: el mes vigente se deriva del instante y
 // sin fijarlo estos tests pasarían o fallarían según el día en que se ejecuten.
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen } from '@testing-library/react'
+import { fireEvent, render, screen, within } from '@testing-library/react'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
 import {
   objetivosCero,
@@ -22,6 +23,10 @@ let OBJETIVOS: ObjetivosPorRol = objetivosCero()
 let OBJETIVOS_ERROR = false
 let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
 let CUMPLIMIENTO_ERROR = false
+// `undefined`: espejo derivado normal; número: el RPC manda ese total; `null`:
+// el resumen no está disponible. Permite comprobar que HOY no reemplaza la
+// autoridad del servidor con el número de filas que tenga cargadas en cliente.
+let TOTAL_PARKEADOS_RPC: number | null | undefined
 const recargar = vi.fn()
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
@@ -47,7 +52,6 @@ vi.mock('@/lib/store-context', () => ({
     cumplimientoMetasError: CUMPLIMIENTO_ERROR,
     recargar,
     equipo: VENDEDORES,
-    reasignar: () => ({ ok: true }),
   }),
   usePanelesActions: () => ({ abrirLead: () => {} }),
 }))
@@ -92,12 +96,23 @@ vi.mock('@/data/use-estado-sla-operativo', () => ({
 vi.mock('@/data/use-resumen-cartera-operativo', async () => {
   const { resumenCarteraDesdeAmbito } = await import('@/lib/resumen-cartera')
   return {
-    useResumenCarteraOperativo: (leads: Lead[], actividades: Actividad[]) => ({
-      resumen: resumenCarteraDesdeAmbito(leads, actividades ?? [], Date.now()),
-      cargando: false,
-      error: null,
-      recargar: vi.fn(),
-    }),
+    useResumenCarteraOperativo: (leads: Lead[], actividades: Actividad[]) => {
+      const resumenDerivado = resumenCarteraDesdeAmbito(leads, actividades ?? [], Date.now())
+      const resumen = TOTAL_PARKEADOS_RPC === null
+        ? null
+        : TOTAL_PARKEADOS_RPC === undefined
+          ? resumenDerivado
+          : {
+              ...resumenDerivado,
+              totales: { ...resumenDerivado.totales, parkeados: TOTAL_PARKEADOS_RPC },
+            }
+      return {
+        resumen,
+        cargando: false,
+        error: null,
+        recargar: vi.fn(),
+      }
+    },
   }
 })
 vi.mock('@/data/use-cola-accion-operativa', async () => {
@@ -233,10 +248,87 @@ beforeEach(() => {
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
   OBJETIVOS_ERROR = false
+  TOTAL_PARKEADOS_RPC = undefined
 })
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+describe('Hoy · supervisor — reparto compacto', () => {
+  it('con pendientes concentra el reparto en un KPI enlazado y retira la bandeja duplicada', () => {
+    montar({
+      leads: [
+        lead({
+          id: 'l-parkeado-antiguo',
+          nombre_completo: 'LEAD ANTIGUO',
+          vendedor_id: null,
+          creado_en: '2026-07-15T13:00:00Z',
+        }),
+        lead({
+          id: 'l-parkeado-reciente',
+          nombre_completo: 'LEAD RECIENTE',
+          vendedor_id: null,
+          creado_en: '2026-07-15T14:30:00Z',
+        }),
+      ],
+    })
+
+    const acceso = screen.getByRole('link', { name: 'Repartir 2 leads pendientes' })
+    expect(acceso).toHaveAttribute('href', '#/derivaciones')
+    expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
+    expect(within(acceso).getByText('2')).toBeInTheDocument()
+    expect(within(acceso).getByText('Más rezagado: hace 2 h · Repartir →')).toBeInTheDocument()
+    expect(within(acceso).getByTestId('reparto-pendiente-acento')).toBeInTheDocument()
+
+    acceso.focus()
+    expect(acceso).toHaveFocus()
+    expect(screen.queryByRole('heading', { name: 'Por repartir — tu bandeja' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('combobox', { name: /Vendedor para/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Asignar/i })).not.toBeInTheDocument()
+  })
+
+  it('sin pendientes conserva el acceso compacto, neutral y sin afirmar una alerta', () => {
+    montar({ leads: [lead()] })
+
+    const acceso = screen.getByRole('link', { name: 'Ver derivaciones; bandeja sin pendientes' })
+    expect(acceso).toHaveAttribute('href', '#/derivaciones')
+    expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
+    expect(within(acceso).getByText('0')).toBeInTheDocument()
+    expect(within(acceso).getByText('Bandeja al día · Ver historial →')).toBeInTheDocument()
+    expect(within(acceso).queryByTestId('reparto-pendiente-acento')).not.toBeInTheDocument()
+  })
+
+  it('usa el conteo del servidor aunque el cliente solo tenga parte del detalle', () => {
+    TOTAL_PARKEADOS_RPC = 7
+    montar({
+      leads: [
+        lead({
+          vendedor_id: null,
+          creado_en: '2026-07-15T13:00:00Z',
+        }),
+      ],
+    })
+
+    const acceso = screen.getByRole('link', { name: 'Repartir 7 leads pendientes' })
+    expect(within(acceso).getByText('7')).toBeInTheDocument()
+    expect(within(acceso).getByText('Más rezagado: hace 2 h · Repartir →')).toBeInTheDocument()
+  })
+
+  it('sin resumen mantiene el destino y evita inventar un conteo o una alerta', () => {
+    TOTAL_PARKEADOS_RPC = null
+    montar({
+      leads: [lead({ vendedor_id: null })],
+    })
+
+    const acceso = screen.getByRole('link', {
+      name: 'Ver derivaciones; total por repartir no disponible',
+    })
+    expect(acceso).toHaveAttribute('href', '#/derivaciones')
+    expect(within(acceso).getByText('—')).toBeInTheDocument()
+    expect(within(acceso).getByText('Sin dato por ahora · Ver derivaciones →')).toBeInTheDocument()
+    expect(within(acceso).queryByTestId('reparto-pendiente-acento')).not.toBeInTheDocument()
+  })
 })
 
 describe('Hoy · supervisor — meta del equipo', () => {

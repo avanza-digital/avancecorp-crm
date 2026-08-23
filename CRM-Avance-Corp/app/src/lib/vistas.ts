@@ -32,6 +32,8 @@ const CAPACIDAD_POR_VISTA = {
   agenda: 'verAgenda',
   'mi-cartera': 'verCartera',
   repartir: 'repartirCola',
+  rescate: 'repartirLeads',
+  'rescate-carpeta': 'repartirLeads',
   derivaciones: 'verDerivacionesEquipo',
   equipo: 'verGestionEquipo',
   config: 'verConfiguracion',

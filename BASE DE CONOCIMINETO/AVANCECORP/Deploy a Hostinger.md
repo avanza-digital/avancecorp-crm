@@ -33,7 +33,7 @@ mezcladas hasta la purga) y verificar con 3 lecturas consecutivas del sha.
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 1. Desde `CRM-Avance-Corp/`, ejecutar `npm run release:crm`. Construye la app y genera en `releases/` un ZIP del **contenido** de `dist/`, su manifiesto, hashes por archivo y SHA-256 del paquete. Por defecto exige un commit limpio.
-2. Verificar antes de desplegar: `npm run release:crm:verify -- releases/<release>.manifest.json`. Conservar ese release y el anterior fuera del web root.
+2. Verificar antes de desplegar: `npm run release:crm:verify -- releases/<release>.manifest.json`. Conservar ese release y el anterior fuera del web root. Resolver además el build que está vivo a su último manifiesto y exigir `git merge-base --is-ancestor <commit-vivo> <commit-candidato>`: si devuelve distinto de cero, ambas ramas son paralelas y deben integrarse antes de construir. Un artefacto limpio no prueba por sí solo que contenga todo lo que ya estaba publicado.
 3. `HOSTINGER_API_TOKEN="$(cat ~/.hostinger_token)" node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs deploy crm.miavance.com <zip>` — la tool resuelve el usuario del subdominio sola.
 4. Verificar: HTML en vivo referencia los hashes del build nuevo · asset nuevo responde 200 · el ZIP da 404 en `crm.miavance.com/` y en `miavance.com/` · smoke visual (login carga, sin errores de consola). El 404 del ZIP es una protección esperada; la trazabilidad vive en el manifiesto local persistente.
 
@@ -41,6 +41,133 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 - El CRM **no usa service worker**: no hay `CACHE_VERSION` que bumpear; el cache-busting lo hacen los hashes de Vite.
 
 ## Notas
+
+- **Deploy 2026-08-23 (~15:02 hora de Lima) — CRM: «Ahora y Después» del
+  vendedor, integrado con la F3 viva del supervisor:** Miguel autorizó
+  explícitamente publicar `04dc37e`. Ese primer artefacto sí puso en producción
+  la nueva jornada del vendedor, pero el smoke detectó una regresión de línea
+  base: `04dc37e` y `fdcd4d1` eran ramas hermanas nacidas en `71c068f`, por lo
+  que el chunk vivo ya no contenía «Hoy, tres cosas». Se corrigió antes de
+  cerrar: worktree aislado sobre `fdcd4d1`, cherry-pick limpio de `04dc37e` y
+  ajuste del selector E2E ambiguo (`Hoy` vs. «urgente hoy»). El resultado es
+  **`c79d54a`**, que conserva la F3 del supervisor y añade **Ahora / Tu
+  siguiente movimiento**, máximo tres decisiones sin duplicar leads, Después,
+  contexto de cartera y cumplimiento mensual progresivo del vendedor. **Sin
+  tablas, migraciones, RPC ni cambios de RLS.** Gate combinado: **2.166/2.166
+  pruebas**, lint, TypeScript, cobertura, build, bundle y duplicación en verde;
+  pruebas dirigidas supervisor+vendedor **80/80**; E2E por rol **9/9**, incluidos
+  teclado, retorno de foco, móvil 390×844, targets de 44 px y ausencia de
+  desborde. Release **`crm-20260823T195728Z-c79d54acdcd2`**, build
+  **`build-20260823T195727965Z`**, ZIP SHA-256
+  **`e09b335dd4964bcd84b7d7e45ea7fa134b8875f3f91420fc7c54014b484b04af`**,
+  `worktree_sucio:false`, `removeArchive:false`. En vivo: portada/version/nuevo
+  index 200; los dos indexes anteriores 404; ZIP 404; `.htaccess` 403;
+  **58/58 archivos públicos no transformados coinciden byte a byte** con el
+  manifiesto. Los cinco PNG difieren por la optimización automática del CDN,
+  pero el árbol remoto conserva exactamente sus tamaños originales. El chunk
+  vivo `hoy-D-gsKlkB.js` contiene simultáneamente «Hoy, tres cosas» y todas las
+  señales de «Tu siguiente movimiento». El smoke autenticado tuvo dos fallos
+  transitorios de sesión/datos y recuperó al reintentar; al final el supervisor
+  cargó datos reales, la región F3 quedó visible y una ventana estable no
+  registró errores nuevos. No había una sesión real de vendedor disponible: su
+  runtime vivo queda probado por hash+strings del chunk y los E2E; la validación
+  humana con vendedores sigue pendiente. Rollback recomendado:
+  `crm-20260823T192043Z-fdcd4d17abdf` (conserva supervisor F3); el intermedio
+  `crm-20260823T192806Z-04dc37e1c7ac` no debe usarse como rollback porque vuelve
+  a quitar esa F3. **Lección operativa:** antes de desplegar ramas paralelas,
+  probar la ascendencia del commit vivo, no solo la limpieza del candidato.
+
+- **Deploy 2026-08-23 (~14:25 hora de Lima) — CRM: «Hoy, tres cosas» (F3):**
+  Miguel autorizó el deploy al terminar la auditoría («ok cuando termine hace
+  deploy»). **Alcance (solo interfaz):** franja navy sobre los KPIs con ≤3
+  intervenciones del día (`lib/tres-cosas.ts` pura: rojo primero, determinista,
+  sin dato no hay tarjeta; «Ver →» salta a la pestaña de la cola con el foco);
+  el KPI «Nuevos sin responder» pierde su último rojo. **Auditorías
+  aplicadas:** Codex F3 (0 bloqueantes; 5 importantes + 1 menor: severidad
+  alineada con RPC/campana — un nuevo fresco es ámbar, sin acción ≥5 crítico —,
+  la fila del propio supervisor no ocupa cupo, «50+» al tope, coherencia
+  franja↔campana documentada como misma-decisión/lentes-distintas, mutantes
+  muertos) y revisor-a11y (A1: severidad también en texto «urgente hoy / esta
+  semana» + `SEMAFORO_SOBRE_NAVY` con tonos claros — el rojo normal daba
+  2.53:1 sobre navy). Commit **`fdcd4d1`** (worktree
+  `/private/tmp/crm-hoy-sin-ruido`). Gate: **2.160 pruebas**, check exit 0,
+  `ARTEFACTO_OK`. Release **`crm-20260823T192043Z-fdcd4d17abdf`**, build
+  **`build-20260823T192043536Z`**, ZIP SHA-256
+  **`95291fb43dc95bc8973ff30643ab5035130a44fe2fa2111fd04bc0e4efdb6d1b`**
+  (copiado a `releases/` del árbol principal ANTES de desplegar, y
+  `removeArchive:false` — la trampa del deploy anterior). En vivo: portada
+  200, `version.json` correcto, **7/7 archivos byte a byte contra el ZIP**
+  (`index-D8_f07q4.js`, `index-C9Mc0ci3.css`, `hoy-DjzHlIME.js`, alertas,
+  repartir); el chunk de HOY contiene «Hoy, tres cosas», «urgente hoy» y
+  «esta semana»; ZIP 404. Rollback inmediato:
+  `crm-20260823T182815Z-71c068f9b054`. Con esto las FASES 1–3 del rediseño
+  están completas en producción; queda F4 (reconocer, toca servidor) y F5
+  (prueba de usabilidad real).
+
+- **Deploy 2026-08-23 (~13:40 hora de Lima) — CRM: «Hoy del supervisor, sin
+  ruido», Fases 1 y 2:** Miguel aprobó visualmente el rediseño en local
+  (demo de supervisor) y lo publicó con `/release-crm`. **Alcance (solo
+  interfaz, sin SQL/RPC/Supabase/portal):** F1 — la campana del supervisor
+  agrupa POR DECISIÓN (≤4 grupos: bandeja · nuevos sin responder · plazos
+  vencidos · vendedores sin acción; cada lead cuenta una vez y el grupo hereda
+  la severidad más alta), «Leads sin movimiento» deja de ser tarjeta y pasa a
+  pestaña de «Cola del equipo» (Urgente · Sin movimiento · Todo, con teclado),
+  y el rezago de agenda vive solo en «Tu equipo hoy». F2 — presupuesto de
+  color: severidad en tira de 3 px, bucket/«sin asignar»/montos en texto gris,
+  KPIs neutros (solo «Nuevos sin responder» conserva rojo hasta F3), único chip
+  rojo «N no asistió» en solid por contraste AA. **Auditorías:** Codex F1
+  (8 hallazgos, 1 bloqueante: la bandeja hereda la criticidad de una tarea
+  vencida ≥24 h), Codex F2 (1 importante: el rezago de agenda también enciende
+  el punto; 4 menores) y revisor-a11y (anillo de foco en filas, gris fuerte en
+  pestañas, Home/End) — TODO aplicado y sellado con pruebas. Construido en el
+  worktree aislado `/private/tmp/crm-hoy-sin-ruido` (rama
+  `feat/hoy-supervisor-sin-ruido`, commits `d0931db`→`6e3fb0d`→`71c068f`, el
+  primero commitea el reparto compacto que estaba vivo sin commit). Gate:
+  **2.140/2.140**, lint, TS, cobertura, build, bundle y duplicación en verde;
+  `release:crm:verify` OK. Release **`crm-20260823T182815Z-71c068f9b054`**,
+  build **`build-20260823T182815099Z`**, ZIP SHA-256
+  **`935c3e21be389c31d187fc82756581e464a4fc23d7d1817164fc9fe9cbff2858`**.
+  Un 429 de Hostinger en el primer intento; el segundo, tras 75 s, aceptado.
+  En vivo: portada 200 y **8/8 archivos clave byte a byte contra el ZIP**
+  (`index.html`, `version.json`, `index-2vco1tXu.js`, `index-Cawf09wt.css`,
+  `hoy-6dYgfiVx.js`, `alertas-BaOvTJ-K.js`, `data-vendor`, `repartir`); ZIP
+  404, `.htaccess` 403, asset inexistente 404. ⚠️ Dos lecciones operativas:
+  (1) `removeArchive: true` de `hosting_deployStaticWebsite` **borra el ZIP
+  LOCAL de origen** — conservar siempre la copia en `releases/` del árbol
+  principal ANTES de desplegar; (2) el `dist/` local deja de ser comparable
+  tras re-correr `npm run check` (rebuild con hashes nuevos): la comparación
+  válida del vivo es contra el **ZIP del manifiesto**, no contra `dist/`.
+  Rollback inmediato: `crm-20260823T151159Z-94fd5304e5a3`. Queda F3 («Hoy,
+  tres cosas») y F4 (reconocimiento, toca servidor). Ver
+  [[Fundamentos UX del CRM]] y [[Hoy del supervisor - reparto compacto]].
+
+- **Deploy 2026-08-23 (~10:20 hora de Lima) — CRM: reparto compacto en HOY del
+  supervisor:** Miguel aprobó visualmente el cambio local y pidió publicarlo.
+  **Alcance:** la tarjeta `Por repartir` concentra el conteo autoritativo del
+  servidor, el rezago observable y el CTA hacia `#/derivaciones`; con cero queda
+  como acceso neutral y sin resumen muestra `—`; desaparecen de HOY la bandeja
+  grande, los selectores y los botones de asignación. La operación completa
+  sigue en Derivar leads. **Sin SQL, RPC, Supabase ni portal.** Para no arrastrar
+  el trabajo paralelo del árbol compartido, se reconstruyó el último frontend
+  vivo en un worktree aislado: antes del cambio, **67/67 archivos** coincidieron
+  byte por byte con el manifiesto anterior. Solo después se copiaron los tres
+  archivos del cambio. Gate: **2.133/2.133** unitarias, lint, TypeScript,
+  cobertura, build, bundle y duplicación en verde; E2E específico de foco +
+  Enter hacia Derivaciones en verde. Release
+  **`crm-20260823T151159Z-94fd5304e5a3`**, build
+  **`build-20260823T151131Z`**, ZIP SHA-256
+  **`841570a22fea37b55da70ff556f31427e419e8737e3485c49cb392bf43fa652d`**.
+  Hostinger limitó dos intentos de credenciales con 429 antes de recibir bytes;
+  producción siguió en el build anterior hasta que el tercer intento, tras el
+  enfriamiento, fue aceptado. En vivo: `index-CMrftHuS.js`,
+  `index-D2ucvuxc.css`, `hoy-BZ3-HP8m.js`, `index.html` y `version.json`
+  coincidieron con el manifiesto en **tres lecturas consecutivas**; el chunk de
+  HOY contiene `Más rezagado`, `Bandeja al día` y `Ver derivaciones`, y ya no
+  contiene `Por repartir — tu bandeja`. ZIP 404 en CRM y portal,
+  `.vite/license.md` 404, `.htaccess` 403, CSP/HSTS intactos y assets principales
+  anteriores 404; no hizo falta purgar caché. Rollback inmediato:
+  `crm-20260821T233421Z-4335bb5f88e3`. Ver
+  [[Hoy del supervisor - reparto compacto]].
 
 > ⚠️ **Hueco conocido en este ledger.** Entre el 2026-08-10 y el 2026-08-15 hubo releases
 > del CRM (al menos el de la conversión mensual del 11/08 —commit `c43036e`— y el de la

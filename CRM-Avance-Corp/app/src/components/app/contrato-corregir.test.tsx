@@ -26,7 +26,10 @@ vi.mock('@/data/crm-api', async (importActual) => {
   return { ...actual, actualizarContrato: vi.fn(), obtenerTitulares: vi.fn() }
 })
 
-vi.mock('@/lib/contrato-pdf-archivo', () => ({
+// `esContratoRegimenAnterior` se queda REAL: decide si tras corregir hay o no
+// documento que actualizar, y doblarla convertiría estas pruebas en un espejo.
+vi.mock('@/lib/contrato-pdf-archivo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/contrato-pdf-archivo')>()),
   asegurarContratoPdfActualizado: vi.fn(),
 }))
 
@@ -179,7 +182,9 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
 
     await user.click(guardar())
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
-    expect(asegurarContratoPdfActualizado).toHaveBeenCalledWith('ctr-1')
+    // Firma en febrero de 2026: régimen documental ANTERIOR, no hay documento
+    // del sistema que actualizar. La corrección se guarda igual.
+    expect(asegurarContratoPdfActualizado).not.toHaveBeenCalled()
     const [id, input] = actualizarContrato.mock.calls[0]!
     expect(id).toBe('ctr-1')
     expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15',
@@ -190,13 +195,33 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     const user = userEvent.setup()
     actualizarContrato.mockResolvedValue()
     asegurarContratoPdfActualizado.mockRejectedValue(new Error('Storage temporalmente no disponible'))
-    const { onGuardado } = await montar()
+    // Firmado ya en el régimen nuevo: es el único en el que existe documento y,
+    // por tanto, el único en el que este fallo puede ocurrir.
+    const { onGuardado } = await montar({
+      fecha_inicio: '2026-08-19', fecha_vencimiento: '2027-08-19',
+    })
 
     await user.click(guardar())
 
     await waitFor(() => expect(onGuardado).toHaveBeenCalledOnce())
     expect(actualizarContrato).toHaveBeenCalledOnce()
     expect(asegurarContratoPdfActualizado).toHaveBeenCalledWith('ctr-1')
+  })
+
+  it('un contrato del formato anterior se corrige sin tocar documento alguno', async () => {
+    const user = userEvent.setup()
+    actualizarContrato.mockResolvedValue()
+    // 18/08/2026: un solo día antes de la frontera. Si alguien afloja la regla
+    // —un `<=`, otra fecha, mirar la carga en vez de la firma— este caso lo caza.
+    const { onGuardado } = await montar({
+      fecha_inicio: '2026-08-18', fecha_vencimiento: '2027-08-18',
+    })
+
+    await user.click(guardar())
+
+    await waitFor(() => expect(onGuardado).toHaveBeenCalledOnce())
+    expect(actualizarContrato).toHaveBeenCalledOnce()
+    expect(asegurarContratoPdfActualizado).not.toHaveBeenCalled()
   })
 
   it('con plazo personalizado se puede mover el vencimiento a mano (y es lo que viaja)', async () => {

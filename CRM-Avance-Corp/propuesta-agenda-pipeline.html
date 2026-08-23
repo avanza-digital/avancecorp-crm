@@ -1,0 +1,564 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Avance Corp — propuesta Agenda y Pipeline</title>
+    <style>
+      :root {
+        --ink: #13233f;
+        --muted: #65738a;
+        --line: #dce3ed;
+        --canvas: #f5f7fb;
+        --paper: #ffffff;
+        --blue: #196fd3;
+        --blue-pale: #eaf3ff;
+        --teal: #169a92;
+        --amber: #d88917;
+        --rose: #c35167;
+        --shadow: 0 12px 34px rgba(22, 43, 77, 0.08);
+        --radius: 15px;
+      }
+
+      * { box-sizing: border-box; }
+
+      body {
+        min-width: 320px;
+        min-height: 100vh;
+        margin: 0;
+        color: var(--ink);
+        background: var(--canvas);
+        font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+        font-size: 14px;
+      }
+
+      button, input { font: inherit; }
+      button { color: inherit; }
+
+      .app-shell {
+        display: grid;
+        grid-template-columns: 236px minmax(0, 1fr);
+        min-height: 100vh;
+      }
+
+      .sidebar {
+        display: flex;
+        flex-direction: column;
+        padding: 22px 14px;
+        color: #d8e5f7;
+        background: #10213c;
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 0 10px 25px;
+        color: white;
+        font-weight: 800;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 30px;
+        height: 30px;
+        place-items: center;
+        border-radius: 10px;
+        color: #10213c;
+        background: linear-gradient(135deg, #80d3ff, #d9f2ff);
+        box-shadow: 0 0 0 4px rgba(137, 205, 255, 0.09);
+        font-size: 16px;
+      }
+
+      .brand small {
+        display: block;
+        margin-top: 2px;
+        color: #8da2c0;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .nav-label {
+        margin: 12px 10px 7px;
+        color: #7187a7;
+        font-size: 10px;
+        font-weight: 800;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .nav-item {
+        display: flex;
+        width: 100%;
+        align-items: center;
+        gap: 10px;
+        margin: 2px 0;
+        padding: 10px;
+        border: 0;
+        border-radius: 10px;
+        color: #bfcee3;
+        background: transparent;
+        cursor: pointer;
+        text-align: left;
+      }
+
+      .nav-item:hover { background: rgba(255,255,255,0.06); }
+      .nav-item.active { color: white; background: rgba(67, 151, 239, 0.24); }
+      .nav-icon { width: 18px; text-align: center; font-size: 16px; }
+
+      .side-footer {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-top: auto;
+        padding: 13px 10px 0;
+        border-top: 1px solid rgba(202, 222, 248, 0.12);
+        color: #d7e7fa;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .avatar {
+        display: grid;
+        width: 27px;
+        height: 27px;
+        place-items: center;
+        border-radius: 50%;
+        color: #183150;
+        background: #c7e6ff;
+        font-size: 10px;
+      }
+
+      .main { min-width: 0; }
+
+      .topbar {
+        display: flex;
+        min-height: 68px;
+        align-items: center;
+        justify-content: space-between;
+        gap: 20px;
+        padding: 0 30px;
+        border-bottom: 1px solid var(--line);
+        background: rgba(255,255,255,0.88);
+        backdrop-filter: blur(10px);
+      }
+
+      .crumb { color: var(--muted); font-size: 12px; }
+      .topbar-right { display: flex; align-items: center; gap: 12px; }
+      .bell {
+        display: grid;
+        width: 32px;
+        height: 32px;
+        place-items: center;
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        color: var(--muted);
+        background: white;
+      }
+
+      .workspace {
+        height: calc(100vh - 68px);
+        min-height: 650px;
+        padding: 26px 30px 24px;
+      }
+
+      .view { display: none; height: 100%; }
+      .view.active { display: flex; flex-direction: column; min-height: 0; }
+
+      .page-header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 18px;
+        margin-bottom: 18px;
+      }
+
+      h1 { margin: 0; font-size: 25px; line-height: 1.15; letter-spacing: -0.045em; }
+      .subline { margin: 6px 0 0; color: var(--muted); font-size: 13px; }
+
+      .callout {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        max-width: 380px;
+        padding: 9px 11px;
+        border: 1px solid #cce2fb;
+        border-radius: 10px;
+        color: #3c6798;
+        background: var(--blue-pale);
+        font-size: 12px;
+        line-height: 1.35;
+      }
+
+      .callout b { color: var(--blue); }
+      .spark { color: var(--blue); font-size: 16px; }
+
+      .kpis {
+        display: grid;
+        grid-template-columns: repeat(4, minmax(130px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+      }
+
+      .kpi {
+        min-width: 0;
+        padding: 13px 15px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: rgba(255,255,255,0.78);
+      }
+
+      .kpi-label { display: block; color: var(--muted); font-size: 11px; font-weight: 700; }
+      .kpi-value { display: block; margin-top: 3px; font-size: 20px; font-weight: 800; letter-spacing: -0.04em; }
+      .kpi-detail { color: var(--teal); font-size: 10px; font-weight: 800; }
+
+      .toolbar {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 14px;
+      }
+
+      .pill, .icon-button, .pager button, .date-switch button {
+        border: 1px solid var(--line);
+        border-radius: 9px;
+        color: var(--muted);
+        background: white;
+        cursor: pointer;
+        font-size: 12px;
+        font-weight: 700;
+      }
+
+      .pill { padding: 8px 11px; }
+      .pill.active { border-color: #b8d5f6; color: var(--blue); background: var(--blue-pale); }
+      .pill.por-repartir { color: #a96a11; background: #fff7e9; border-color: #f2d299; }
+      .filter-spacer { flex: 1; }
+      .icon-button { display: flex; align-items: center; gap: 7px; padding: 8px 11px; }
+
+      .board-frame, .agenda-frame {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        padding: 11px;
+        border: 1px solid var(--line);
+        border-radius: var(--radius);
+        background: rgba(255,255,255,0.65);
+        box-shadow: var(--shadow);
+      }
+
+      .board {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        gap: 11px;
+        overflow-x: auto;
+        padding-bottom: 2px;
+      }
+
+      .kanban-col {
+        display: flex;
+        width: 278px;
+        min-width: 278px;
+        min-height: 0;
+        flex-direction: column;
+        padding: 8px;
+        border: 1px solid #e1e8f2;
+        border-radius: 12px;
+        background: #f8faff;
+      }
+
+      .col-head { display: flex; align-items: center; gap: 7px; padding: 3px 3px 10px; }
+      .col-dot { width: 9px; height: 9px; border-radius: 50%; }
+      .col-title { font-size: 12px; font-weight: 800; }
+      .count { padding: 2px 6px; border-radius: 99px; color: var(--muted); background: #e7edf5; font-size: 10px; font-weight: 800; }
+      .amount { margin-left: auto; color: var(--blue); font-size: 10px; font-weight: 800; }
+
+      .card-viewport {
+        display: flex;
+        min-height: 0;
+        flex: 1;
+        flex-direction: column;
+        gap: 8px;
+        overflow-y: auto;
+        padding: 2px 3px 4px 1px;
+        scrollbar-color: #b9c7db transparent;
+        scrollbar-width: thin;
+      }
+
+      .lead-card {
+        flex: 0 0 auto;
+        padding: 10px;
+        border: 1px solid #e0e7f0;
+        border-radius: 10px;
+        background: white;
+        box-shadow: 0 2px 5px rgba(22,43,77,0.035);
+      }
+
+      .lead-card:hover { border-color: #b6d3f1; box-shadow: 0 5px 13px rgba(22,43,77,0.08); }
+      .lead-top, .lead-foot { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+      .lead-name { overflow: hidden; font-size: 12px; font-weight: 800; text-overflow: ellipsis; white-space: nowrap; }
+      .lead-money { flex: 0 0 auto; color: var(--blue); font-size: 11px; font-weight: 800; }
+      .tag { display: inline-flex; margin-top: 8px; padding: 3px 6px; border-radius: 5px; color: #59708e; background: #eff4fa; font-size: 9px; font-weight: 800; }
+      .lead-foot { margin-top: 8px; padding-top: 8px; border-top: 1px solid #edf1f6; color: var(--muted); font-size: 10px; }
+      .owner { display: flex; align-items: center; gap: 5px; }
+      .owner-dot { width: 16px; height: 16px; border-radius: 50%; background: #dbebfb; }
+      .sla { color: var(--amber); font-weight: 800; }
+
+      .col-footer {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 5px;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #e6edf5;
+      }
+
+      .page-note { color: var(--muted); font-size: 10px; font-weight: 700; }
+      .pager { display: flex; gap: 3px; }
+      .pager button { padding: 4px 7px; }
+      .pager button:hover, .date-switch button:hover { color: var(--blue); border-color: #b9d7f6; }
+
+      /* Agenda */
+      .agenda-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+      .segments { display: flex; gap: 3px; padding: 3px; border-radius: 10px; background: #e9eef5; }
+      .segments button { padding: 7px 10px; border: 0; border-radius: 7px; color: var(--muted); background: transparent; cursor: pointer; font-size: 12px; font-weight: 800; }
+      .segments button.active { color: var(--ink); background: white; box-shadow: 0 1px 4px rgba(22,43,77,0.12); }
+      .date-switch { display: flex; align-items: center; gap: 5px; }
+      .date-switch button { padding: 7px 9px; }
+      .date-title { min-width: 163px; text-align: center; font-size: 12px; font-weight: 800; }
+
+      .agenda-frame { gap: 12px; }
+      .agenda-list {
+        display: flex;
+        min-width: 0;
+        min-height: 0;
+        flex: 1.4;
+        flex-direction: column;
+        padding: 7px;
+        border: 1px solid #e1e8f2;
+        border-radius: 12px;
+        background: #f9fbfe;
+      }
+
+      .agenda-list-head { display: flex; align-items: center; gap: 8px; padding: 4px 5px 11px; }
+      .agenda-list-head h2 { margin: 0; font-size: 13px; letter-spacing: -0.02em; }
+      .agenda-list-head span { padding: 3px 7px; border-radius: 99px; color: #a86612; background: #fff2dd; font-size: 10px; font-weight: 800; }
+      .agenda-scroll { min-height: 0; flex: 1; overflow-y: auto; padding: 0 2px 2px; scrollbar-color: #b9c7db transparent; scrollbar-width: thin; }
+      .agenda-group { margin-bottom: 14px; }
+      .agenda-group-label { display: flex; align-items: center; justify-content: space-between; margin: 0 3px 7px; color: var(--muted); font-size: 10px; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
+      .agenda-task { display: grid; grid-template-columns: 43px minmax(0,1fr) auto; align-items: center; gap: 10px; margin-bottom: 6px; padding: 10px; border: 1px solid #e1e8f1; border-radius: 10px; background: white; }
+      .agenda-time { color: var(--blue); font-size: 11px; font-weight: 900; }
+      .agenda-task strong { display: block; overflow: hidden; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+      .agenda-task small { display: block; margin-top: 3px; color: var(--muted); font-size: 10px; }
+      .agenda-type { padding: 4px 6px; border-radius: 6px; color: #307068; background: #e6f5f1; font-size: 9px; font-weight: 900; }
+      .agenda-type.call { color: #6a5595; background: #eeeafd; }
+
+      .agenda-aside {
+        display: flex;
+        width: min(330px, 37%);
+        min-width: 270px;
+        flex-direction: column;
+        padding: 15px;
+        border-radius: 12px;
+        color: #e8f3ff;
+        background: #17325a;
+      }
+
+      .aside-kicker { color: #93bce9; font-size: 10px; font-weight: 900; letter-spacing: 0.1em; text-transform: uppercase; }
+      .aside-number { margin: 4px 0 1px; color: white; font-size: 34px; font-weight: 850; letter-spacing: -0.06em; }
+      .aside-desc { margin: 0; color: #b9cfeb; font-size: 12px; line-height: 1.45; }
+      .week-strip { display: grid; grid-template-columns: repeat(7, 1fr); gap: 5px; margin: 18px 0; }
+      .week-day { display: grid; height: 55px; place-items: center; border: 1px solid rgba(200,225,255,.15); border-radius: 9px; color: #a9c4e5; background: rgba(255,255,255,.04); font-size: 10px; font-weight: 800; line-height: 1.25; text-align: center; }
+      .week-day.selected { color: #17325a; background: #e8f4ff; box-shadow: 0 5px 14px rgba(0,0,0,.13); }
+      .aside-rule { height: 1px; margin-top: auto; background: rgba(210,229,250,.17); }
+      .aside-note { margin: 13px 0 0; color: #b4c9e5; font-size: 11px; line-height: 1.45; }
+
+      .agenda-pager { display: flex; justify-content: flex-end; gap: 7px; margin-top: 7px; }
+      .agenda-pager button { border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; color: var(--muted); background: white; cursor: pointer; font-size: 11px; font-weight: 800; }
+
+      .proposal-key { display: flex; align-items: center; gap: 9px; margin-top: 12px; color: var(--muted); font-size: 11px; }
+      .proposal-key strong { color: var(--ink); }
+      .key-line { width: 22px; height: 8px; border: 1px solid #aecce9; border-radius: 4px; background: var(--blue-pale); }
+
+      @media (max-width: 850px) {
+        .app-shell { grid-template-columns: 1fr; }
+        .sidebar { display: none; }
+        .topbar { min-height: 58px; padding: 0 18px; }
+        .workspace { height: auto; min-height: calc(100vh - 58px); padding: 19px 14px; }
+        .view.active { min-height: 760px; }
+        .page-header { flex-direction: column; margin-bottom: 14px; }
+        .callout { max-width: none; }
+        .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+        .board-frame { min-height: 520px; }
+        .agenda-frame { min-height: 550px; }
+        .agenda-aside { display: none; }
+        .agenda-list { flex-basis: 100%; }
+      }
+
+      @media (max-width: 510px) {
+        .topbar-right .bell, .topbar-right span { display: none; }
+        .kpis { gap: 8px; }
+        .kpi { padding: 10px; }
+        .agenda-toolbar { align-items: flex-start; flex-direction: column; }
+        .date-switch { width: 100%; justify-content: space-between; }
+        .date-title { min-width: auto; }
+        .toolbar .filter-spacer { display: none; }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar">
+        <div class="brand">
+          <span class="brand-mark">A</span>
+          <span>Avance Corp<small>CRM comercial</small></span>
+        </div>
+        <p class="nav-label">Trabajo comercial</p>
+        <button class="nav-item"><span class="nav-icon">⌂</span>Hoy</button>
+        <button class="nav-item active" data-nav="pipeline"><span class="nav-icon">▥</span>Pipeline</button>
+        <button class="nav-item" data-nav="agenda"><span class="nav-icon">◫</span>Agenda</button>
+        <button class="nav-item"><span class="nav-icon">◉</span>Mi cartera</button>
+        <p class="nav-label">Equipo</p>
+        <button class="nav-item"><span class="nav-icon">◌</span>Repartir leads</button>
+        <div class="side-footer"><span class="avatar">RC</span> Rosa · Coordinación</div>
+      </aside>
+
+      <main class="main">
+        <header class="topbar">
+          <div class="crumb">Avance Corp &nbsp;/&nbsp; Operación comercial</div>
+          <div class="topbar-right"><span class="bell">♧</span><span class="avatar">RC</span><span>Rosa</span></div>
+        </header>
+
+        <section class="workspace">
+          <section class="view active" id="pipeline">
+            <div class="page-header">
+              <div>
+                <h1>Pipeline comercial</h1>
+                <p class="subline">Un tablero que se mantiene dentro de la pantalla, aunque la cartera crezca.</p>
+              </div>
+              <div class="callout"><span class="spark">✦</span><span><b>Así queda:</b> las columnas se desplazan por dentro y cada una conserva solo una página de leads.</span></div>
+            </div>
+
+            <div class="kpis">
+              <div class="kpi"><span class="kpi-label">Leads activos</span><span class="kpi-value">127</span><span class="kpi-detail">+9 esta semana</span></div>
+              <div class="kpi"><span class="kpi-label">Capital en proceso</span><span class="kpi-value">S/ 486K</span><span class="kpi-detail">PEN principal</span></div>
+              <div class="kpi"><span class="kpi-label">Reuniones</span><span class="kpi-value">24</span><span class="kpi-detail">8 por confirmar</span></div>
+              <div class="kpi"><span class="kpi-label">Por repartir</span><span class="kpi-value">9</span><span class="kpi-detail">requieren responsable</span></div>
+            </div>
+
+            <div class="toolbar">
+              <button class="pill active">Todos</button>
+              <button class="pill">Carmen</button>
+              <button class="pill">Jor</button>
+              <button class="pill por-repartir">● Por repartir · 9</button>
+              <span class="filter-spacer"></span>
+              <button class="icon-button">⌕ Buscar lead</button>
+              <button class="icon-button">☷ Filtros</button>
+            </div>
+
+            <div class="board-frame">
+              <div class="board" id="board"></div>
+            </div>
+            <div class="proposal-key"><span class="key-line"></span><strong>Altura de trabajo fija.</strong> La página no aumenta; solo se desplaza la columna que estás revisando.</div>
+          </section>
+
+          <section class="view" id="agenda">
+            <div class="page-header">
+              <div>
+                <h1>Agenda</h1>
+                <p class="subline">Las tareas se trabajan en una bandeja compacta, no en una lista sin final.</p>
+              </div>
+              <div class="callout"><span class="spark">✦</span><span><b>Así queda:</b> fechas y filtros siempre visibles; el detalle del período se mueve dentro de su propia bandeja.</span></div>
+            </div>
+
+            <div class="kpis">
+              <div class="kpi"><span class="kpi-label">Pendientes</span><span class="kpi-value">36</span><span class="kpi-detail">toda la agenda</span></div>
+              <div class="kpi"><span class="kpi-label">Reuniones</span><span class="kpi-value">18</span><span class="kpi-detail">esta semana</span></div>
+              <div class="kpi"><span class="kpi-label">Llamadas</span><span class="kpi-value">11</span><span class="kpi-detail">acciones de seguimiento</span></div>
+              <div class="kpi"><span class="kpi-label">Vencidas</span><span class="kpi-value">4</span><span class="kpi-detail">atender primero</span></div>
+            </div>
+
+            <div class="agenda-toolbar">
+              <div class="segments" aria-label="Vista de agenda">
+                <button class="active">Hoy</button><button>Semana</button><button>Mes</button><button>Todo</button>
+              </div>
+              <div class="date-switch"><button>‹</button><span class="date-title">Martes, 19 de agosto</span><button>›</button><button>Hoy</button></div>
+              <button class="icon-button">☷ Filtros · 2</button>
+            </div>
+
+            <div class="agenda-frame">
+              <div class="agenda-list">
+                <div class="agenda-list-head"><h2>Tareas del día</h2><span>4 vencidas</span></div>
+                <div class="agenda-scroll" id="agendaTasks"></div>
+                <div class="agenda-pager"><button>← Anterior</button><button>Siguiente →</button></div>
+              </div>
+              <aside class="agenda-aside">
+                <span class="aside-kicker">Semana operativa</span>
+                <div class="aside-number">12</div>
+                <p class="aside-desc">acciones programadas para hoy. Las vencidas se conservan arriba, sin ocultar el resto.</p>
+                <div class="week-strip">
+                  <span class="week-day">L<br>18</span><span class="week-day selected">M<br>19</span><span class="week-day">M<br>20</span><span class="week-day">J<br>21</span><span class="week-day">V<br>22</span><span class="week-day">S<br>23</span><span class="week-day">D<br>24</span>
+                </div>
+                <div class="aside-rule"></div>
+                <p class="aside-note">En Semana y Mes, se elige un día y aquí se abre la misma bandeja compacta. No se apilan todas las tareas debajo del calendario.</p>
+              </aside>
+            </div>
+            <div class="proposal-key"><span class="key-line"></span><strong>Una sola bandeja de trabajo.</strong> Todo sigue accesible con Anterior/Siguiente y filtros persistentes.</div>
+          </section>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const columns = [
+        { title: 'Nuevo', count: 41, money: 'S/ 104K', color: '#7894b7', names: ['Andrea Cáceres', 'José Villanueva', 'Marisol Bravo', 'Luis Cabrera', 'Claudia Flores', 'Rodrigo Soto', 'Paola Espinoza'] },
+        { title: 'Contactado', count: 37, money: 'S/ 156K', color: '#3979cc', names: ['Rosa Torres', 'Martín Delgado', 'Elena Paredes', 'Carlos Ramírez', 'Brenda Lazo', 'Fernando León', 'Karla Ramos'] },
+        { title: 'Reunión agendada', count: 24, money: 'S/ 132K', color: '#1a9b91', names: ['César Valdez', 'Milagros Ruiz', 'Hugo Sánchez', 'Natalia Ríos', 'Óscar Quiroz', 'Valeria Silva', 'Diego Castro'] },
+        { title: 'Propuesta enviada', count: 25, money: 'S/ 94K', color: '#a671c4', names: ['María Coronado', 'Javier Ortiz', 'Lucía Montes', 'Pedro Salas', 'Sandra Quispe', 'Adrián Vega', 'Patricia Mena'] },
+      ];
+
+      const page = Object.fromEntries(columns.map((_, index) => [index, 1]));
+      const board = document.getElementById('board');
+
+      function leadCard(name, index) {
+        const amount = ['S/ 15,000', 'S/ 32,000', 'S/ 8,500', 'S/ 45,000', 'S/ 20,000', 'S/ 13,000', 'S/ 27,000'][index];
+        const owners = ['Carmen', 'Jor', 'Carmen', 'Jor', 'Carmen', 'Jor', 'Carmen'];
+        return `<article class="lead-card"><div class="lead-top"><strong class="lead-name">${name}</strong><span class="lead-money">${amount}</span></div><span class="tag">Formulario</span><div class="lead-foot"><span class="owner"><i class="owner-dot"></i>${owners[index]}</span><span class="sla">● hace ${index + 1} d</span></div></article>`;
+      }
+
+      function renderBoard() {
+        board.innerHTML = columns.map((col, index) => {
+          const current = page[index];
+          const start = (current - 1) * 4;
+          const visible = col.names.slice(start, start + 4);
+          const totalPages = 3;
+          return `<section class="kanban-col"><header class="col-head"><i class="col-dot" style="background:${col.color}"></i><span class="col-title">${col.title}</span><span class="count">${col.count}</span><span class="amount">${col.money}</span></header><div class="card-viewport">${visible.map((name, cardIndex) => leadCard(name, start + cardIndex)).join('')}<div class="lead-card" style="border-style:dashed;color:#65738a;text-align:center;font-size:11px;box-shadow:none">↕ Arrastra un lead a otra etapa</div></div><footer class="col-footer"><span class="page-note">${start + 1}–${start + visible.length} de ${col.count}</span><span class="pager"><button data-col="${index}" data-way="prev" ${current === 1 ? 'disabled' : ''}>‹</button><button data-col="${index}" data-way="next" ${current === totalPages ? 'disabled' : ''}>›</button></span></footer></section>`;
+        }).join('');
+        board.querySelectorAll('[data-col]').forEach((button) => button.addEventListener('click', () => {
+          const column = Number(button.dataset.col);
+          page[column] += button.dataset.way === 'next' ? 1 : -1;
+          renderBoard();
+        }));
+      }
+
+      const taskGroups = [
+        { label: 'Vencidas · atender primero', tasks: [['09:00', 'Reunión con César Valdez', 'Confirmación pendiente', 'Reunión'], ['09:30', 'Llamar a Milagros Ruiz', 'Sin contacto desde ayer', 'Llamada'], ['10:00', 'Revisar propuesta de Hugo Sánchez', 'Solicitud de ajustes', 'Reunión'], ['10:20', 'Llamar a Natalia Ríos', 'Seguimiento a formulario', 'Llamada']] },
+        { label: 'Hoy', tasks: [['11:00', 'Reunión con Óscar Quiroz', 'Videollamada · Carmen', 'Reunión'], ['12:30', 'Llamar a Valeria Silva', 'Interés en inversión', 'Llamada'], ['15:00', 'Reunión con Diego Castro', 'Oficina central · Jor', 'Reunión'], ['16:30', 'Seguimiento a Patricia Mena', 'Propuesta enviada', 'Llamada'], ['17:30', 'Confirmar reunión de mañana', 'Mensaje por WhatsApp', 'Llamada']] }
+      ];
+
+      document.getElementById('agendaTasks').innerHTML = taskGroups.map(group => `<section class="agenda-group"><div class="agenda-group-label"><span>${group.label}</span><span>${group.tasks.length}</span></div>${group.tasks.map(task => `<article class="agenda-task"><span class="agenda-time">${task[0]}</span><span><strong>${task[1]}</strong><small>${task[2]}</small></span><span class="agenda-type ${task[3] === 'Llamada' ? 'call' : ''}">${task[3]}</span></article>`).join('')}</section>`).join('');
+
+      function setView(id) {
+        document.querySelectorAll('.view').forEach((view) => view.classList.toggle('active', view.id === id));
+        document.querySelectorAll('[data-nav]').forEach((item) => item.classList.toggle('active', item.dataset.nav === id));
+      }
+      document.querySelectorAll('[data-nav]').forEach((item) => item.addEventListener('click', () => setView(item.dataset.nav)));
+      renderBoard();
+    </script>
+  </body>
+</html>

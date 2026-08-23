@@ -128,6 +128,7 @@ describe('Sidebar — temporizadores del asomo', () => {
       'Agenda',
       'Cartera',
       'Repartir leads',
+      'Base para gestión',
       'Gestión de equipo',
       'Configuración',
     ]

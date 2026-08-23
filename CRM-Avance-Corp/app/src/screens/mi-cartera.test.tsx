@@ -90,7 +90,10 @@ const archivoPdf = vi.hoisted(() => ({
   ver: vi.fn(),
 }))
 
-vi.mock('@/lib/contrato-pdf-archivo', () => ({
+// La frontera del régimen documental se queda REAL: es lógica pura y decide qué
+// ofrece el detalle del contrato que abre esta pantalla.
+vi.mock('@/lib/contrato-pdf-archivo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/contrato-pdf-archivo')>()),
   abrirVentanaContratoPdf: archivoPdf.abrir,
   archivarContratoPdfConfirmado: archivoPdf.archivar,
   asegurarContratoPdfActualizado: archivoPdf.asegurar,

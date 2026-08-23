@@ -24,10 +24,12 @@ import {
   type DiaAgendaReparto,
   type DistribucionAnalista,
   type DistribucionSupervisor,
+  type EpisodioRescateDescarte,
   type HistorialDerivacion,
   type Etapa,
   type Lead,
   type LeadDescartado,
+  type MesRescateDescartes,
   type Miembro,
   type MotivoDescarte,
   type Origen,
@@ -167,7 +169,7 @@ import {
   type ResultadoConsultaAyudaVendedor,
 } from '@/lib/ayuda-vendedor'
 import type { Vista } from '@/lib/router'
-import { FechaSchema } from '@/lib/esquemas-rpc'
+import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
 export type { RecordatorioDisponibilidad } from '@/lib/recordatorios-disponibilidad'
@@ -1299,6 +1301,81 @@ export async function leadsDescartados(signal?: AbortSignal): Promise<LeadDescar
     if (r.success) items.push(r.output)
   }
   return items
+}
+
+// ── Base para gestión: descartes históricos de supervisión ───────────────────
+const EstadoRescateSchema = v.picklist(['pendiente', 'rescatado', 'historial'] as const)
+const EpisodioRescateDescarteSchema = v.object({
+  episodio_id: v.string(),
+  lead_id: v.string(),
+  nombre_completo: v.string(),
+  distrito: v.nullable(v.string()),
+  origen: v.picklist(ORIGENES_K),
+  categoria_interes: v.nullable(v.picklist(CATEGORIAS_K)),
+  monto_estimado: v.pipe(v.union([v.number(), v.string()]), v.transform(Number)),
+  moneda: v.picklist(['PEN', 'USD'] as const),
+  motivo_descarte: v.picklist(MOTIVOS_K),
+  descartado_en: v.string(),
+  asesor_id: v.string(),
+  asesor_nombre: v.string(),
+  puede_rescatar: v.boolean(),
+  estado: EstadoRescateSchema,
+})
+const MesRescateDescartesSchema = v.object({
+  mes: v.string(),
+  total: EnteroNoNegativoRpcSchema,
+  pendientes: EnteroNoNegativoRpcSchema,
+})
+
+/** Meses disponibles en el historial de descartes del equipo del supervisor. */
+export async function mesesRescateDescartes(signal?: AbortSignal): Promise<MesRescateDescartes[]> {
+  let consulta = cliente().schema('crm').rpc('rescate_descartes_meses')
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rescate.meses_fallido')
+  const items: MesRescateDescartes[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(MesRescateDescartesSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+/** Episodios descartados de un mes. No expone PII de contacto ni notas libres. */
+export async function descartesRescateDelMes(
+  mes: string,
+  signal?: AbortSignal,
+): Promise<EpisodioRescateDescarte[]> {
+  let consulta = cliente().schema('crm').rpc('rescate_descartes_mes', { p_mes: mes })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.rescate.historial_fallido')
+  const items: EpisodioRescateDescarte[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(EpisodioRescateDescarteSchema, cruda)
+    if (r.success) items.push(r.output)
+  }
+  return items
+}
+
+/**
+ * Reactiva los descartes vigentes como leads nuevos y los distribuye en ronda
+ * entre uno o varios asesores. La base conserva el episodio anterior y abre
+ * el nuevo ciclo de gestión; el servidor revalida equipo, estado y No Insista.
+ */
+export async function rescatarDescartes(
+  episodioIds: string[],
+  asesoresDestinoIds: string[],
+  evitarAsesorOrigen = true,
+): Promise<void> {
+  const { error } = await cliente().schema('crm').rpc('rescatar_descartes', {
+    p_episodios: episodioIds,
+    p_analistas_destino: asesoresDestinoIds,
+    p_evitar_asesor_origen: evitarAsesorOrigen,
+  })
+  if (error) throw aErrorApi(error, 'crm.rescate.reparto_fallido')
 }
 
 // ── Timeline del ámbito con AUTOR (RPC SECURITY DEFINER actividades_del_ambito_fn)

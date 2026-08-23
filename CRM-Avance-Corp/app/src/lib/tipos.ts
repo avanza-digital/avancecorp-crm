@@ -530,6 +530,39 @@ export interface LeadDescartado {
   puede_deshacer: boolean
 }
 
+/**
+ * Un episodio histórico de descarte de un asesor. A diferencia de
+ * `LeadDescartado`, permanece aunque el lead ya haya sido reactivado: su fecha
+ * y motivo salen del ledger inmutable de asignaciones, no de la fila viva.
+ * La RPC excluye PII de contacto deliberadamente.
+ */
+export interface EpisodioRescateDescarte {
+  episodio_id: string
+  lead_id: string
+  nombre_completo: string
+  distrito?: string | null
+  origen: Origen
+  categoria_interes?: CategoriaInteres | null
+  monto_estimado: number
+  moneda: Moneda
+  motivo_descarte: MotivoDescarte
+  descartado_en: string
+  asesor_id: string
+  asesor_nombre: string
+  /** Solo el descarte vigente, con datos válidos, puede volver a la operación. */
+  puede_rescatar: boolean
+  /** `pendiente` sigue en bandeja; los demás son evidencia histórica. */
+  estado: 'pendiente' | 'rescatado' | 'historial'
+}
+
+/** Un punto de la franja temporal de Base para gestión, en hora Lima. */
+export interface MesRescateDescartes {
+  /** Primer día del mes (`YYYY-MM-01`). */
+  mes: string
+  total: number
+  pendientes: number
+}
+
 /** Destino de reparto — proyección de `crm.supervisores_para_reparto()`. */
 export interface SupervisorReparto {
   perfil_id: string

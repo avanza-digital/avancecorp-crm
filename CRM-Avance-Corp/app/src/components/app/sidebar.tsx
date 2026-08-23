@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, BadgeDollarSign, Trophy, SendHorizontal,
+  Gauge, BadgeDollarSign, Trophy, ArchiveRestore, SendHorizontal,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -13,6 +13,7 @@ import { cn } from '@/lib/utils'
 import {
   VISTAS,
   esVistaConfiguracion,
+  esVistaInterna,
   type Vista,
   type VistaConfiguracion,
 } from '@/lib/router'
@@ -26,7 +27,7 @@ interface NavMeta {
   seccion: SeccionNav
 }
 
-type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion>
+type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-carpeta'>
 
 /** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
 const NAV_META = {
@@ -45,6 +46,7 @@ const NAV_META = {
   'mi-cartera': { label: 'Mi cartera', icon: Wallet, seccion: 'principal' },
   // Reparto de la cola global (C1): solo coordinador.
   repartir: { label: 'Repartir leads', icon: Split, seccion: 'principal' },
+  rescate: { label: 'Base para gestión', icon: ArchiveRestore, seccion: 'principal' },
   derivaciones: { label: 'Derivar leads', icon: SendHorizontal, seccion: 'principal' },
   equipo: { label: 'Gestión de equipo', icon: UsersRound, seccion: 'principal' },
   config: { label: 'Configuración', icon: Settings, seccion: 'administracion' },
@@ -52,7 +54,7 @@ const NAV_META = {
 
 // Alertas vive en la campana superior: no duplica un módulo en el menú lateral.
 const VISTAS_SIDEBAR = VISTAS.filter(
-  (id): id is VistaSidebar => id !== 'alertas' && !esVistaConfiguracion(id),
+  (id): id is VistaSidebar => id !== 'alertas' && !esVistaConfiguracion(id) && !esVistaInterna(id),
 )
 const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
 const NAV_GOBIERNO_ROLES = [{

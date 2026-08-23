@@ -55,6 +55,8 @@ const TITULOS: Record<Vista, { t: string; s: string }> = {
   agenda: { t: 'Agenda', s: 'Reuniones, llamadas y vencimientos' },
   'mi-cartera': { t: 'Cartera', s: 'Tus clientes y el capital invertido' },
   repartir: { t: 'Repartir leads', s: 'Reparte la cola de leads nuevos a los supervisores' },
+  rescate: { t: 'Base para gestión', s: 'Descartes del equipo para revisar y redistribuir' },
+  'rescate-carpeta': { t: 'Carpeta de rescate', s: 'Revisa, selecciona y redistribuye este bloque de leads' },
   derivaciones: { t: 'Derivar leads', s: 'Reparte hoy con la carga de cada asesor a la vista' },
   equipo: { t: 'Equipo', s: 'Jerarquía y desempeño comercial' },
   config: { t: 'Configuración', s: 'Productos, metas y usuarios' },

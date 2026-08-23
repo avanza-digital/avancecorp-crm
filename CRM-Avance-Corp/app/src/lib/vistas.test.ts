@@ -10,8 +10,8 @@ import { sanearVista, vistaBase, vistaPermitida } from './vistas'
 const VISTAS_POR_GATE = {
   abierto: {
     vendedor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'config'],
-    supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'derivaciones', 'equipo'],
-    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
+    supervisor: ['hoy', 'alertas', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'rescate', 'rescate-carpeta', 'derivaciones', 'equipo'],
+    gerencia: ['hoy', 'alertas', 'conversiones', 'ranking-vendedores', 'reuniones', 'metas', 'rendimiento', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'repartir', 'rescate', 'rescate-carpeta', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     directorio: ['hoy', 'pipeline', 'cartera', 'agenda', 'mi-cartera', 'equipo', 'config', 'config-usuarios', 'config-productos', 'config-metas', 'config-sla'],
     // El coordinador NO entra al mundo leads ni con la llave abierta (2026-08-18):
     // «hoy» es la única vista de leads sin capacidad exigida y se la habría
@@ -117,7 +117,7 @@ describe('sanearVista — expulsión por URL', () => {
   })
 
   it('abre a Gerencia todas las rutas operativas y conserva el gate de leads', () => {
-    for (const vista of ['pipeline', 'cartera', 'agenda'] as const) {
+    for (const vista of ['pipeline', 'cartera', 'agenda', 'rescate', 'rescate-carpeta'] as const) {
       expect(sanearVista(vista, 'gerencia', true)).toBe(vista)
       expect(sanearVista(vista, 'gerencia', false)).toBe('hoy')
     }

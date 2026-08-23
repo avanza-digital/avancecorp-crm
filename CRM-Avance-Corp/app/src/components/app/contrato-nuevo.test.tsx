@@ -26,7 +26,11 @@ const archivoPdf = vi.hoisted(() => ({
   ver: vi.fn(),
 }))
 
-vi.mock('@/lib/contrato-pdf-archivo', () => ({
+// La frontera del régimen documental (`esContratoRegimenAnterior`) NO se dobla:
+// es lógica pura y decide si sale la ventana del domicilio. Mockearla haría que
+// estas pruebas aprobaran una regla inventada por la propia prueba.
+vi.mock('@/lib/contrato-pdf-archivo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/contrato-pdf-archivo')>()),
   archivarContratoPdfConfirmado: archivoPdf.archivar,
   ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {},
   descargarArchivoContratoPdf: archivoPdf.descargar,

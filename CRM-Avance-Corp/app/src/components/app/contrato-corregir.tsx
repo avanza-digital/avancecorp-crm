@@ -46,7 +46,10 @@ import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/do
 import { normalizarTitulares } from '@/lib/titulares'
 import { useVentana } from '@/lib/ventana'
 import { MAX_TITULARES, type ContratoRow } from '@/lib/clientes-tipos'
-import { asegurarContratoPdfActualizado } from '@/lib/contrato-pdf-archivo'
+import {
+  asegurarContratoPdfActualizado,
+  esContratoRegimenAnterior,
+} from '@/lib/contrato-pdf-archivo'
 import {
   CATEGORIAS_CONTRATO_UI,
   MODALIDADES_UI,
@@ -400,6 +403,18 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     setEnviando(true)
     try {
       await actualizarContrato(contrato.id, input, cronograma)
+      // Un contrato firmado antes del 19/08 no lleva documento del sistema, así
+      // que aquí no hay nada que actualizar. Sin este corte el servidor negaría
+      // la revisión y el vendedor leería «el servidor reintentará el PDF» sobre
+      // un PDF que no existe ni va a existir.
+      // Se mira la fecha que ACABA de guardarse, no la que traía el contrato: si
+      // la corrección movió la firma al 19/08 o después, el servidor ya la ve en
+      // el régimen nuevo y sí va a reservar la revisión.
+      if (esContratoRegimenAnterior(fechaInicio, contrato.creado_en)) {
+        toast.success('Contrato corregido.')
+        onGuardado()
+        return
+      }
       // La corrección y la reserva de la revisión son atómicas. El render puede
       // reintentarse aparte sin fingir que la corrección falló después de guardar.
       try {

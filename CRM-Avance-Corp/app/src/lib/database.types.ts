@@ -2367,6 +2367,41 @@ export type Database = {
           origen: string
         }[]
       }
+      rescate_descartes_mes: {
+        Args: { p_mes: string }
+        Returns: {
+          asesor_id: string
+          asesor_nombre: string
+          categoria_interes: string | null
+          descartado_en: string
+          distrito: string | null
+          episodio_id: string
+          estado: string
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          motivo_descarte: string
+          nombre_completo: string
+          origen: string
+          puede_rescatar: boolean
+        }[]
+      }
+      rescate_descartes_meses: {
+        Args: never
+        Returns: {
+          mes: string
+          pendientes: number
+          total: number
+        }[]
+      }
+      rescatar_descartes: {
+        Args: {
+          p_analistas_destino: string[]
+          p_episodios: string[]
+          p_evitar_asesor_origen?: boolean
+        }
+        Returns: Json
+      }
       reporte_derivaciones_equipo_fn: {
         Args: { p_desde?: string; p_hasta?: string }
         Returns: Json
@@ -2489,10 +2524,6 @@ export type Database = {
         Args: { p_domicilio: string }
         Returns: string
       }
-      preparar_recuperacion_usuario_fn: {
-        Args: { p_idempotencia: string; p_perfil_id: string }
-        Returns: Json
-      }
       productos_inversion_gestion_fn: { Args: never; Returns: Json }
       productos_inversion_seleccion_fn: {
         Args: never
@@ -2575,6 +2606,21 @@ export type Database = {
           p_telefono: string
           p_tipo_documento: string
           p_whatsapp: string
+        }
+        Returns: Json
+      }
+      registrar_vendedor_usuario_fn: {
+        Args: {
+          p_cargo: string | null
+          p_correo: string
+          p_documento: string
+          p_idempotencia: string
+          p_nombre_completo: string
+          p_perfil_id: string
+          p_supervisor_id: string
+          p_telefono: string | null
+          p_tipo_documento: string
+          p_whatsapp: string | null
         }
         Returns: Json
       }

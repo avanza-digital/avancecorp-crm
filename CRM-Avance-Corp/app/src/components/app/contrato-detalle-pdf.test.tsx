@@ -20,7 +20,10 @@ const consultas = vi.hoisted(() => ({
 }))
 
 vi.mock('sonner', () => ({ toast }))
-vi.mock('@/lib/contrato-pdf-archivo', () => ({
+// `esContratoRegimenAnterior` y la fecha de la frontera se dejan REALES: son
+// lógica pura y deciden si el detalle ofrece o no fabricar el documento.
+vi.mock('@/lib/contrato-pdf-archivo', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/contrato-pdf-archivo')>()),
   abrirVentanaContratoPdf: archivoPdf.abrir,
   archivarContratoPdfConfirmado: archivoPdf.archivar,
   consultarEstadoContratoPdf: archivoPdf.consultar,
@@ -61,11 +64,14 @@ const contrato: ContratoRow = {
   tipo_interes: 'simple',
   categoria: 'nuevo',
   estado: 'activo',
-  fecha_inicio: '2026-01-15',
-  fecha_vencimiento: '2027-01-15',
+  // Firmado ya en el régimen documental nuevo: solo ahí existe el documento que
+  // esta suite ejercita. Un contrato anterior al 19/08 no ofrece ni genera nada
+  // — eso lo fija la prueba del final del archivo.
+  fecha_inicio: '2026-08-19',
+  fecha_vencimiento: '2027-08-19',
   notas_internas: null,
   creado_por: 'd-v1',
-  creado_en: '2026-01-15T12:00:00.000Z',
+  creado_en: '2026-08-19T12:00:00.000Z',
   producto_condicion_id: 'cond-1',
   producto_id: 'prod-1',
   producto_codigo: 'DEMO-RENTA-PEN',
@@ -295,5 +301,74 @@ describe('ContratoDetalle — PDF archivado', () => {
 
     expect(toast.error).toHaveBeenCalledWith('El navegador bloqueó la ventana del contrato PDF.')
     expect(archivoPdf.obtener).not.toHaveBeenCalled()
+  })
+  // ── El régimen documental anterior (2026-08-20) ────────────────────────────
+  // «Ver contrato PDF» no muestra: si no hay documento, lo FABRICA. En un
+  // contrato firmado antes del 19/08 eso acuñaba un segundo contrato para una
+  // operación ya firmada — así nacieron los 21 documentos del 18 y 19 de agosto.
+  describe('contrato del formato anterior', () => {
+    const antiguo: ContratoRow = {
+      ...contrato,
+      id: 'dc-ct-viejo',
+      // Un solo día antes de la frontera: si alguien afloja la regla, cae aquí.
+      fecha_inicio: '2026-08-18',
+      fecha_vencimiento: '2027-08-18',
+    }
+
+    it('no ofrece generar el documento y explica por qué', async () => {
+      consultas.contrato = antiguo
+      archivoPdf.consultar.mockResolvedValue({ estado: 'sin_reserva' })
+      render(
+        <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+          <ContratoDetalle contratoId={antiguo.id} onCerrar={() => undefined} />
+        </Dialog>,
+      )
+
+      expect(await screen.findByText(/su contrato es el del formato anterior/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Ver contrato PDF' })).not.toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Descargar contrato PDF' })).not.toBeInTheDocument()
+      expect(archivoPdf.obtener).not.toHaveBeenCalled()
+      expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    })
+
+    it('un plazo que empieza en 2027 pero registrado en julio sigue siendo del formato anterior', async () => {
+      // Caso REAL de producción (2026-08-20): los contratos 2026-01-000891 y
+      // 000892 se cargaron el 1 de julio con el plazo empezando el 1 de julio de
+      // 2027. `fecha_inicio` es el inicio del PLAZO, no la firma: mirándola sola,
+      // la pantalla ofrecería fabricar un contrato del formato nuevo a una
+      // operación firmada en julio, cuando ese documento ni existía.
+      consultas.contrato = {
+        ...contrato,
+        id: 'dc-ct-plazo-futuro',
+        fecha_inicio: '2027-07-01',
+        fecha_vencimiento: '2028-07-01',
+        creado_en: '2026-07-01T18:04:08.000Z',
+      }
+      archivoPdf.consultar.mockResolvedValue({ estado: 'sin_reserva' })
+      render(
+        <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+          <ContratoDetalle contratoId="dc-ct-plazo-futuro" onCerrar={() => undefined} />
+        </Dialog>,
+      )
+
+      expect(await screen.findByText(/su contrato es el del formato anterior/)).toBeInTheDocument()
+      expect(screen.queryByRole('button', { name: 'Ver contrato PDF' })).not.toBeInTheDocument()
+      expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    })
+
+    it('si YA se le emitió uno, se sigue pudiendo ver y descargar', async () => {
+      // Los 21 ya emitidos se quedan como están: esta regla impide que nazcan
+      // más, no esconde los que hay.
+      consultas.contrato = antiguo
+      archivoPdf.consultar.mockResolvedValue({ estado: 'sellado' })
+      render(
+        <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+          <ContratoDetalle contratoId={antiguo.id} onCerrar={() => undefined} />
+        </Dialog>,
+      )
+
+      expect(await screen.findByRole('button', { name: 'Descargar contrato PDF' })).toBeInTheDocument()
+      expect(screen.getByRole('button', { name: 'Ver contrato PDF' })).toBeInTheDocument()
+    })
   })
 })
