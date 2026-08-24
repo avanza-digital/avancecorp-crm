@@ -814,13 +814,14 @@ function textoDelPanel(d) {
   const h = d.hoja || {};
   t += "   · " + (h.total || 0) + " filas con datos · " + (h.pendientes || 0) +
     " esperando subir al CRM · " + (h.importados || 0) + " subidas · " +
-    (h.rechazados || 0) + " rechazadas" + (h.errores ? " · " + h.errores + " con error temporal" : "") + "\n";
+    (h.duplicados || 0) + " duplicadas · " + (h.rechazados || 0) + " rechazadas" +
+    (h.errores ? " · " + h.errores + " con error temporal" : "") + "\n";
   return t;
 }
 
 /** Cuenta la columna de estado de nuestra hoja. Dos columnas, no la hoja entera. */
 function contarEstadosDeLeads(hoja) {
-  const cuenta = { total: 0, pendientes: 0, importados: 0, rechazados: 0, errores: 0, otros: 0 };
+  const cuenta = { total: 0, pendientes: 0, importados: 0, duplicados: 0, rechazados: 0, errores: 0, otros: 0 };
   const ultima = hoja.getLastRow();
   if (ultima < 2) return cuenta;
   const telefonos = hoja.getRange(2, 2, ultima - 1, 1).getDisplayValues();
@@ -833,7 +834,7 @@ function contarEstadosDeLeads(hoja) {
     else if (e.indexOf("IMPORTADO") === 0) cuenta.importados++;
     else if (e.indexOf("RECHAZADO") === 0) cuenta.rechazados++;
     else if (e.indexOf("ERROR") === 0) cuenta.errores++;
-    else if (e.indexOf("DUPLICADO") === 0) cuenta.rechazados++;
+    else if (e.indexOf("DUPLICADO") === 0) cuenta.duplicados++;
     else cuenta.otros++;
   }
   return cuenta;
@@ -1351,15 +1352,14 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
   lead.nombre = [val(col.nombre), val(col.apellido)]
     .filter(String).join(" ").replace(/\s+/g, " ").trim();
 
-  // Teléfono: primero sus columnas (celular; respaldo WhatsApp / celular 2). Si no
-  // dan un número usable, RESCATE en el resto de la fila: la pestaña de Facebook
-  // tiene dos columnas "celular" — la primera trae lo que la persona tipeó (a veces
-  // un monto o su propio nombre) y el número real está en la otra, con prefijo "p:".
-  lead.telefono = telefonoPeru(val(col.telefono)) || telefonoPeru(val(col.whatsapp));
-  if (!lead.telefono) {
-    lead.telefono = telefonoEnOtraCelda(fila, col);
-    lead.telefonoRescatado = !!lead.telefono;
-  }
+  // Conserva HASTA DOS celulares distintos. El principal mantiene la prioridad
+  // histórica (Celular → WhatsApp/celular 2 → rescate) porque es la identidad que
+  // usa el dedup. El segundo viaja como contacto alternativo; si WhatsApp repite el
+  // mismo número —el caso normal del origen— queda vacío y no ensucia el CRM.
+  const telefonos = telefonosDeFila(fila, col);
+  lead.telefono = telefonos[0] || "";
+  lead.telefonoAlternativo = telefonos[1] || "";
+  lead.telefonoRescatado = !!lead.telefono && telefonos.rescatadoPrincipal;
 
   // PRÉSTAMO — vino a pedir plata, no a depositarla (regla de Miguel, 2026-07-27).
   // Lo decide un humano en REVISAR. Va antes que los rechazos por dato faltante
@@ -1439,6 +1439,31 @@ function telefonoPeru(v) {
   if (/^9\d{8}$/.test(d)) return "+51" + d;           // celular de 9 dígitos
   if (/^0?51[9]\d{8}$/.test(d)) return "+" + d.slice(-11);
   return "";                                          // fijos, truncados, basura
+}
+
+/**
+ * Hasta dos celulares DISTINTOS de una fila, en orden de confianza:
+ * Celular, WhatsApp/celular 2 y por último cualquier otra celda rescatable.
+ * La propiedad `rescatadoPrincipal` conserva el aviso histórico cuando el único
+ * teléfono usable apareció fuera de las columnas esperadas.
+ */
+function telefonosDeFila(fila, col) {
+  const encontrados = [];
+  const indices = [];
+  if (col.telefono >= 0) indices.push(col.telefono);
+  if (col.whatsapp >= 0 && col.whatsapp !== col.telefono) indices.push(col.whatsapp);
+  for (let i = 0; i < fila.length; i++) {
+    if (i === col.telefono || i === col.whatsapp || i === col.monto || i === col.dni) continue;
+    indices.push(i);
+  }
+  indices.forEach(function (i) {
+    const t = telefonoPeru(String(fila[i] == null ? "" : fila[i]).trim());
+    if (t && encontrados.indexOf(t) < 0 && encontrados.length < 2) encontrados.push(t);
+  });
+  encontrados.rescatadoPrincipal = encontrados.length > 0 &&
+    telefonoPeru(String(fila[col.telefono] == null ? "" : fila[col.telefono]).trim()) === "" &&
+    telefonoPeru(String(fila[col.whatsapp] == null ? "" : fila[col.whatsapp]).trim()) === "";
+  return encontrados;
 }
 
 /**
@@ -1650,9 +1675,10 @@ function escribirLeads(hoja, leads) {
       l.autorizo,             // N ¿Autorizó contacto?
       l.fuenteConsentimiento, // O Fuente del consentimiento
       "",                     // P Estado: vacío = el conector la toma en el próximo ciclo
+      l.telefonoAlternativo,  // Q Teléfono alternativo (P no se mueve: hoja viva)
     ];
   });
-  hoja.getRange(primera, 1, filas.length, 16).setValues(filas);
+  hoja.getRange(primera, 1, filas.length, 17).setValues(filas);
 }
 
 /**

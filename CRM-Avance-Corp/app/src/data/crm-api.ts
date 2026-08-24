@@ -181,6 +181,7 @@ const COLUMNAS_LEAD = [
   'id',
   'nombre_completo',
   'telefono',
+  'telefono_alternativo',
   'correo',
   'dni',
   'genero',
@@ -224,6 +225,7 @@ const LeadRowSchema = v.object({
   id: v.string(),
   nombre_completo: v.string(),
   telefono: v.string(),
+  telefono_alternativo: v.optional(v.nullable(v.string())),
   correo: v.nullable(v.string()),
   dni: v.nullable(v.string()),
   // Mismo catálogo que el CHECK leads_genero_valido y el union Genero.
@@ -463,6 +465,7 @@ function aLead(fila: LeadRow): Lead {
     id: fila.id,
     nombre_completo: fila.nombre_completo,
     telefono: fila.telefono,
+    telefono_alternativo: fila.telefono_alternativo ?? null,
     correo: fila.correo,
     dni: fila.dni,
     genero: fila.genero ?? null,

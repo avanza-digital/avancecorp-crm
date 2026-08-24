@@ -913,6 +913,7 @@ export type Database = {
           sla_global_aproximado: boolean
           sla_global_iniciado_en: string
           telefono: string
+          telefono_alternativo: string | null
           tenencia_desde: string | null
           vendedor_id: string | null
         }
@@ -949,6 +950,7 @@ export type Database = {
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
           telefono: string
+          telefono_alternativo?: string | null
           tenencia_desde?: string | null
           vendedor_id?: string | null
         }
@@ -985,6 +987,7 @@ export type Database = {
           sla_global_aproximado?: boolean
           sla_global_iniciado_en?: string
           telefono?: string
+          telefono_alternativo?: string | null
           tenencia_desde?: string | null
           vendedor_id?: string | null
         }

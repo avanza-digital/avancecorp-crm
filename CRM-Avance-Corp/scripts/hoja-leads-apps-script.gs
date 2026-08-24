@@ -78,6 +78,7 @@ const ENCABEZADOS = [
   "¿Autorizó contacto?",
   "Fuente del consentimiento",
   "Estado importación (automático — no tocar)",
+  "Teléfono alternativo",
 ];
 // Menús desplegables por columna (1-indexado). Evitan typos y celdas cruzadas.
 const MENUS = {
@@ -89,7 +90,7 @@ const MENUS = {
 };
 // Columnas que se fuerzan a TEXTO para que Sheets no las reinterprete como
 // número/fecha (la causa del "DNI inválido"): teléfono, capital, DNI, fecha nac.
-const COLS_TEXTO = [2, 3, 7, 9];
+const COLS_TEXTO = [2, 3, 7, 9, 17];
 
 /**
  * La pestaña de leads, por NOMBRE. Nunca `getSheets()[0]`: basta con que alguien
@@ -146,7 +147,7 @@ function prepararHoja() {
   prepararTramo(hoja, 2, hoja.getMaxRows() - 1);
 
   // 3) Anchos de columna cómodos.
-  const anchos = [190, 130, 130, 90, 150, 210, 110, 80, 140, 130, 120, 240, 220, 140, 200, 260];
+  const anchos = [190, 130, 130, 90, 150, 210, 110, 80, 140, 130, 120, 240, 220, 140, 200, 260, 150];
   anchos.forEach(function (w, i) { hoja.setColumnWidth(i + 1, w); });
 
   // 4) Colores automáticos en la columna de estado (verde/ámbar/rojo/azul). El rango
@@ -262,7 +263,7 @@ function configurar() {
 }
 
 /**
- * Disparador SIMPLE: al editar cualquier campo (A–O) de una fila de datos, borra
+ * Disparador SIMPLE: al editar cualquier campo de datos (A–O o Q), borra
  * su estado (columna P) para que el siguiente ciclo la reintente. Corregir una
  * fila rechazada = simplemente arreglarla; no hay que tocar la columna de estado.
  */
@@ -275,10 +276,89 @@ function onEdit(e) {
   const col = e.range.getColumn();
   const colFin = e.range.getLastColumn();
   if (desde < 2) return;                 // no la cabecera
-  if (col >= COL_ESTADO) return;         // no cuando se edita la propia col. de estado
+  if (col === COL_ESTADO && colFin === COL_ESTADO) return; // solo la propia col. de estado
+  if (col > ENCABEZADOS.length) return;  // fuera de la tabla
   for (let r = Math.max(desde, 2); r <= hasta; r++) {
     hoja.getRange(r, COL_ESTADO).clearContent();
   }
+}
+
+/** Estado único para una fila que el CRM no confirmó; siempre queda reintentable. */
+function estadoErrorTemporalImportacion(detalle) {
+  const d = String(detalle || "").replace(/\s+/g, " ").trim();
+  return d
+    ? "ERROR temporal (" + d.slice(0, 80) + ") — se reintenta solo"
+    : "ERROR temporal: el CRM no confirmó esta fila — se reintenta solo";
+}
+
+/**
+ * Lee el contrato nuevo (`resultado`) y conserva compatibilidad con una versión
+ * anterior del edge que solo enviaba `estado`. Si ambos vienen y se contradicen,
+ * la respuesta es ambigua: esa fila se reintenta en vez de inventar un resultado.
+ */
+function categoriaResultadoImportacion(resultado) {
+  if (!resultado || typeof resultado !== "object") return null;
+  const declarada = String(resultado.resultado || "").trim().toLowerCase();
+  const estado = String(resultado.estado || "").trim();
+  let porEstado = null;
+  if (estado.indexOf("IMPORTADO") === 0) porEstado = "importado";
+  else if (estado.indexOf("DUPLICADO") === 0) porEstado = "duplicado";
+  else if (estado.indexOf("RECHAZADO") === 0) porEstado = "rechazado";
+  else if (estado.indexOf("ERROR temporal") === 0) porEstado = "error_temporal";
+
+  const validas = ["importado", "duplicado", "rechazado", "error_temporal"];
+  if (declarada && validas.indexOf(declarada) < 0) return null;
+  if (!porEstado) return null;
+  if (declarada && porEstado && declarada !== porEstado) return null;
+  return declarada || porEstado;
+}
+
+/**
+ * Concilia EXACTAMENTE las filas enviadas con lo que devolvió el CRM.
+ *
+ * - resultado válido y único → conserva IMPORTADO/DUPLICADO/RECHAZADO/ERROR;
+ * - fila ausente, repetida o respuesta ambigua → ERROR temporal reintentable;
+ * - resultados de filas que no pertenecían a esta corrida → se ignoran.
+ *
+ * Así ninguna corrida deja filas en limbo ni atribuye a una fila el resultado de
+ * otra, incluso ante respuestas parciales o deformadas.
+ */
+function conciliarResultadosImportacion(pendientes, resultadosCrm) {
+  const esperadas = Object.create(null);
+  const confirmadas = Object.create(null);
+  const ambiguas = Object.create(null);
+  pendientes.forEach(function (p) { esperadas[String(p.fila)] = true; });
+
+  if (Array.isArray(resultadosCrm)) {
+    resultadosCrm.forEach(function (r) {
+      const fila = Number(r && r.fila);
+      const clave = String(fila);
+      if (!Number.isInteger(fila) || !esperadas[clave]) return;
+      if (Object.prototype.hasOwnProperty.call(confirmadas, clave)) {
+        ambiguas[clave] = true;
+        return;
+      }
+      const categoria = categoriaResultadoImportacion(r);
+      const estado = String(r && r.estado || "").replace(/\s+/g, " ").trim().slice(0, 300);
+      confirmadas[clave] = categoria && estado
+        ? { fila: fila, estado: estado }
+        : { fila: fila, estado: estadoErrorTemporalImportacion("") };
+    });
+  }
+
+  return pendientes.map(function (p) {
+    const clave = String(p.fila);
+    if (ambiguas[clave] || !confirmadas[clave]) {
+      return { fila: p.fila, estado: estadoErrorTemporalImportacion("") };
+    }
+    return confirmadas[clave];
+  });
+}
+
+function escribirConciliacionImportacion(hoja, conciliados) {
+  conciliados.forEach(function (r) {
+    hoja.getRange(r.fila, COL_ESTADO).setValue(r.estado);
+  });
 }
 
 /** Corre cada 5 minutos por disparador. También se puede ejecutar a mano. */
@@ -294,7 +374,7 @@ function importarLeads() {
 
     // getDisplayValues: texto tal cual se ve (con columnas en formato TEXTO,
     // el DNI/teléfono/capital llegan limpios, sin separadores de miles).
-    const datos = hoja.getRange(2, 1, ultimaFila - 1, COL_ESTADO).getDisplayValues();
+    const datos = hoja.getRange(2, 1, ultimaFila - 1, ENCABEZADOS.length).getDisplayValues();
 
     const pendientes = [];
     for (let i = 0; i < datos.length; i++) {
@@ -323,34 +403,54 @@ function importarLeads() {
         vendedor_correo: fila[12],
         autorizo: fila[13],
         fuente_consentimiento: fila[14],
+        telefono_alternativo: fila[16],
       });
       if (pendientes.length >= MAX_POR_LOTE) break; // el resto, al siguiente ciclo
     }
     if (pendientes.length === 0) return;
 
-    const respuesta = UrlFetchApp.fetch(EDGE_URL, {
-      method: "post",
-      contentType: "application/json",
-      headers: {
-        Authorization: "Bearer " + ANON_KEY,
-        "x-importar-secret": secreto,
-      },
-      payload: JSON.stringify({ filas: pendientes }),
-      muteHttpExceptions: true,
-    });
-
-    if (respuesta.getResponseCode() !== 200) {
-      // Error global (red/servidor): se anota en la primera fila del lote y se
-      // reintentará solo, porque el estado con "ERROR temporal" es reintentable.
-      const aviso = "ERROR temporal (" + respuesta.getResponseCode() + ") — se reintenta solo";
-      hoja.getRange(pendientes[0].fila, COL_ESTADO).setValue(aviso);
+    let respuesta;
+    try {
+      respuesta = UrlFetchApp.fetch(EDGE_URL, {
+        method: "post",
+        contentType: "application/json",
+        headers: {
+          Authorization: "Bearer " + ANON_KEY,
+          "x-importar-secret": secreto,
+        },
+        payload: JSON.stringify({ filas: pendientes }),
+        muteHttpExceptions: true,
+      });
+    } catch (error) {
+      escribirConciliacionImportacion(hoja, pendientes.map(function (p) {
+        return { fila: p.fila, estado: estadoErrorTemporalImportacion("sin respuesta del CRM") };
+      }));
+      console.error("crm-importar-leads no respondió: " + String(error));
       return;
     }
 
-    const resultados = JSON.parse(respuesta.getContentText()).resultados || [];
-    resultados.forEach(function (r) {
-      if (r.fila >= 2) hoja.getRange(r.fila, COL_ESTADO).setValue(r.estado);
-    });
+    if (respuesta.getResponseCode() !== 200) {
+      // Un error global afecta al lote ENTERO. Antes solo se marcaba la primera
+      // fila y las demás quedaban sin explicación; ahora todas quedan identificadas.
+      const aviso = estadoErrorTemporalImportacion(String(respuesta.getResponseCode()));
+      escribirConciliacionImportacion(hoja, pendientes.map(function (p) {
+        return { fila: p.fila, estado: aviso };
+      }));
+      return;
+    }
+
+    let cuerpo;
+    try {
+      cuerpo = JSON.parse(respuesta.getContentText());
+    } catch (error) {
+      cuerpo = null;
+      console.error("crm-importar-leads devolvió JSON inválido: " + String(error));
+    }
+    const conciliados = conciliarResultadosImportacion(
+      pendientes,
+      cuerpo && Array.isArray(cuerpo.resultados) ? cuerpo.resultados : []
+    );
+    escribirConciliacionImportacion(hoja, conciliados);
   } finally {
     lock.releaseLock();
   }

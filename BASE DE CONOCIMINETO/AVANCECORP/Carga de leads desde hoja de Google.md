@@ -753,5 +753,68 @@ herencia automática de un `no_contactar` histórico durante reingresos por la h
   Renato Constantino (`+51952949862`) y Maria Astocondor Fuertes (`+51962823210`).
   Verificación final: **29 LANDING de hoy, 29 visibles/repartibles, 0 bloqueados**.
 
+## 2026-08-24 — Conciliación automática por corrida (DESPLEGADA)
+
+Se cerró el hueco entre «filas enviadas» y «resultados confirmados por el CRM» sin
+cambiar el recorrido puente → LEADS → Edge → `crm.leads` ni la columna P:
+
+- La Edge conserva el texto visible de siempre y añade una categoría estable por fila:
+  `importado`, `duplicado`, `rechazado` o `error_temporal`, más un resumen de la corrida.
+- El Apps Script concilia **exactamente todas las filas del lote** contra la respuesta.
+  Una fila ausente, repetida, contradictoria o una respuesta inválida queda como
+  `ERROR temporal` y se reintenta sola; jamás vuelve a quedar en blanco sin explicación.
+- Un HTTP fallido o un timeout ahora marca **todo el lote afectado**, no solo la primera
+  fila. Los `DUPLICADO` y `RECHAZADO` siguen detenidos hasta que alguien edite A–O;
+  `ERROR temporal` conserva el reintento automático ya existente.
+- Las carreras del índice único (`23505`) se presentan como `DUPLICADO`. Fallos de
+  conexión, concurrencia, capacidad o servidor se presentan como temporales; las
+  restricciones de datos permanecen como rechazo corregible.
+- El panel del puente separa el conteo de duplicadas y rechazadas.
+- Compatibilidad de despliegue: el Apps Script nuevo entiende la respuesta vieja por el
+  prefijo de `estado`, y la Edge nueva conserva `estado`; pueden actualizarse en cualquier
+  orden. Para que opere la conciliación completa deben quedar instaladas ambas versiones.
+
+Verificación local: `check:scripts` completo en verde (12 pruebas puras del importador,
+53 del puente, 59 de extremo a extremo, gate del ámbito global de Apps Script y 32/32
+mutantes); `deno check` de la Edge y `gate:config:preflight` 25/25.
+
+Despliegue de producción del 2026-08-24:
+
+- `crm-importar-leads` quedó activa como versión **14**, con `verify_jwt=true` y SHA
+  `b9636e62fd1e80018501de8d5952f68579d78f7d89ebec63232319ce7e515597`.
+- `CODIGO.gs` fue actualizado y quedó **Guardado en Drive** en el proyecto vinculado
+  `CRM AVANCE CORP`. `PUENTE.gs`, las celdas y las propiedades del script no se tocaron.
+- Los cuatro activadores preexistentes se conservaron. No se creó ni ejecutó ningún
+  activador manualmente; las dos corridas automáticas de `importarLeads` posteriores al
+  guardado, a las 10:33:15 y 10:33:24, terminaron **Completada**.
+- El smoke test con credenciales deliberadamente inválidas devolvió 401 y la consulta de
+  control confirmó 0 inserciones del lead ficticio. No hubo migración de base de datos.
+
+## 2026-08-24 — Segundo teléfono del lead (DESPLEGADO)
+
+El puente ya no descarta el segundo celular válido de una fila. El primer teléfono sigue
+siendo la identidad operativa del lead (deduplicación, reparto y conversión); un segundo
+número peruano distinto viaja como `telefono_alternativo` y se muestra en la ficha del CRM.
+
+- La hoja de captura conserva `Estado importación` en P y añade `Teléfono alternativo` en
+  Q. `prepararHoja()` terminó correctamente en producción y se verificaron ambos
+  encabezados en la hoja real.
+- El puente prioriza celular principal, WhatsApp y rescate de otras celdas; guarda como
+  máximo dos números distintos normalizados a E.164 peruano. Un duplicado del principal
+  no llena el alternativo.
+- La migración `20260824154218_crm_leads_telefono_alternativo.sql` añadió la columna
+  nullable con validación `+519XXXXXXXX`.
+- `crm-importar-leads` quedó activa como versión **15**, con `verify_jwt=true`; rechaza un
+  alternativo inválido y convierte a `null` uno idéntico al principal.
+- `CODIGO.gs` y `PUENTE.gs` quedaron guardados en Drive. El error de sintaxis observado
+  en la fila 459 durante la edición fue corregido antes de guardar; ambos archivos se
+  compararon carácter por carácter con sus fuentes locales y `prepararHoja()` terminó
+  sin errores.
+- La ficha del lead muestra el número alternativo como enlace telefónico cuando existe.
+
+La corrección opera desde las nuevas importaciones. Los leads históricos mantienen
+`telefono_alternativo = null` hasta ejecutar un backfill explícito desde la hoja de origen;
+no se intentó inferir números antiguos para evitar asociarlos al lead equivocado.
+
 ## Relacionadas
 [[CRM conexión a datos reales]] · [[Canales de origen de leads CRM]] · [[Distribución de leads por capital y trazabilidad CRM]] · [[Acceso y roles del CRM]] · [[Distribución de leads y base fría (plan revisado)]]

@@ -41,6 +41,7 @@ import { origenLabel, type Lead, type Miembro } from '@/lib/tipos'
 
 type ModoPeriodo = 'ayer' | 'semana' | 'rango'
 
+const DERIVAR_POR_PAGINA = 5
 const GUARDADAS_POR_PAGINA = 5
 
 function fechaDesplazada(fecha: string, dias: number): string {
@@ -261,6 +262,8 @@ function BandejaDerivacion({
   onDescartar: () => void
   onGuardar: () => void
 }): JSX.Element {
+  const [pagina, setPagina] = useState(0)
+  const paginaDerivar = paginar(leads, pagina, DERIVAR_POR_PAGINA)
   const resumen = useMemo(() => {
     let pen = 0
     let usd = 0
@@ -273,6 +276,12 @@ function BandejaDerivacion({
     }
     return { cantidad, pen, usd }
   }, [borrador, leads])
+
+  useEffect(() => {
+    if (pagina !== paginaDerivar.paginaActual) {
+      setPagina(paginaDerivar.paginaActual)
+    }
+  }, [pagina, paginaDerivar.paginaActual])
 
   if (leads.length === 0) {
     return (
@@ -292,64 +301,79 @@ function BandejaDerivacion({
           Para derivar, primero carga un reporte válido del equipo.
         </p>
       )}
-      {leads.map((lead) => {
-        const dias = diasDesdeReferencia(lead.creado_en, ahora)
-        const asesorId = borrador[lead.id] ?? ''
-        const elegido = asesorId !== ''
-        return (
-          <div
-            key={lead.id}
-            className={`flex flex-col gap-2.5 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center ${
-              elegido ? 'border-accent/35 bg-accent/[0.04]' : 'border-border'
-            }`}
-          >
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold">{lead.nombre_completo}</p>
-              <p className="truncate text-[11px] text-muted-foreground">
-                {origenLabel(lead.origen)}
-                {' · '}
-                {lead.monto_estimado != null
-                  ? moneyK(lead.monto_estimado, lead.moneda)
-                  : 'Sin monto'}
-                {' · entró '}
-                <span
-                  style={dias >= 1
-                    ? { color: SEMAFORO.critico, fontWeight: 700 }
-                    : undefined}
+      <div role="list" aria-label="Leads por derivar hoy" className="space-y-2">
+        {paginaDerivar.visibles.map((lead) => {
+          const dias = diasDesdeReferencia(lead.creado_en, ahora)
+          const asesorId = borrador[lead.id] ?? ''
+          const elegido = asesorId !== ''
+          return (
+            <div
+              key={lead.id}
+              role="listitem"
+              className={`flex flex-col gap-2.5 rounded-xl border p-3 transition-colors sm:flex-row sm:items-center ${
+                elegido ? 'border-accent/35 bg-accent/[0.04]' : 'border-border'
+              }`}
+            >
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-semibold">{lead.nombre_completo}</p>
+                <p className="truncate text-[11px] text-muted-foreground">
+                  {origenLabel(lead.origen)}
+                  {' · '}
+                  {lead.monto_estimado != null
+                    ? moneyK(lead.monto_estimado, lead.moneda)
+                    : 'Sin monto'}
+                  {' · entró '}
+                  <span
+                    style={dias >= 1
+                      ? { color: SEMAFORO.critico, fontWeight: 700 }
+                      : undefined}
+                  >
+                    {haceCortoTexto(dias)}
+                  </span>
+                </p>
+              </div>
+              <div className="flex items-center gap-2 sm:w-[300px] sm:shrink-0">
+                <Select
+                  value={asesorId}
+                  disabled={guardando || bloqueado}
+                  onChange={(event) => onCambiar(lead.id, event.target.value || null)}
+                  aria-label={`Derivar ${lead.nombre_completo} a un asesor`}
                 >
-                  {haceCortoTexto(dias)}
-                </span>
-              </p>
+                  <option value="">Derivar a…</option>
+                  {asesores.map((asesor) => (
+                    <option key={asesor.perfil_id} value={asesor.perfil_id}>
+                      {asesor.nombre_completo}
+                    </option>
+                  ))}
+                </Select>
+                {elegido && (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    disabled={guardando}
+                    onClick={() => onCambiar(lead.id, null)}
+                  >
+                    Quitar
+                  </Button>
+                )}
+              </div>
             </div>
-            <div className="flex items-center gap-2 sm:w-[300px] sm:shrink-0">
-              <Select
-                value={asesorId}
-                disabled={guardando || bloqueado}
-                onChange={(event) => onCambiar(lead.id, event.target.value || null)}
-                aria-label={`Derivar ${lead.nombre_completo} a un asesor`}
-              >
-                <option value="">Derivar a…</option>
-                {asesores.map((asesor) => (
-                  <option key={asesor.perfil_id} value={asesor.perfil_id}>
-                    {asesor.nombre_completo}
-                  </option>
-                ))}
-              </Select>
-              {elegido && (
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  disabled={guardando}
-                  onClick={() => onCambiar(lead.id, null)}
-                >
-                  Quitar
-                </Button>
-              )}
-            </div>
-          </div>
-        )
-      })}
+          )
+        })}
+      </div>
+
+      {paginaDerivar.paginas > 1 && (
+        <div className="border-t border-border pt-3">
+          <Paginacion
+            paginaActual={paginaDerivar.paginaActual}
+            paginas={paginaDerivar.paginas}
+            total={leads.length}
+            onCambio={setPagina}
+            ariaLabel="Paginación de leads por derivar hoy"
+          />
+        </div>
+      )}
 
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-accent/20 bg-accent/[0.04] px-3 py-2.5">
         <div>

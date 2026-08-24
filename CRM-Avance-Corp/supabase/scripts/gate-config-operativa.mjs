@@ -135,7 +135,7 @@ function verifyStaticContracts() {
     }
   }
 
-  const mirrors = ['index.ts', 'destinos.ts'];
+  const mirrors = ['index.ts', 'destinos.ts', 'resultado-importacion.ts'];
   for (const name of mirrors) {
     const canonical = file(`supabase/functions/crm-importar-leads/${name}`);
     const deployed = readFileSync(`${REPO_ROOT}/_supabase_functions/functions/crm-importar-leads/${name}`);
@@ -152,11 +152,12 @@ function runEdgeTests() {
     'supabase/functions/crm-usuarios/handler.test.ts',
     'supabase/functions/crm-usuarios/auth-attributes.test.ts',
     'supabase/functions/crm-importar-leads/destinos.test.ts',
+    'supabase/functions/crm-importar-leads/resultado-importacion.test.ts',
   ]);
-  if (!/20 passed/.test(output)) {
-    throw new Error('Deno terminó sin acreditar las 20 pruebas Edge esperadas');
+  if (!/25 passed/.test(output)) {
+    throw new Error('Deno terminó sin acreditar las 25 pruebas Edge esperadas');
   }
-  console.log('✓ EDGE_CONFIG_TESTS_OK (20/20)');
+  console.log('✓ EDGE_CONFIG_TESTS_OK (25/25)');
 }
 
 function parseTemplateUrl(raw) {

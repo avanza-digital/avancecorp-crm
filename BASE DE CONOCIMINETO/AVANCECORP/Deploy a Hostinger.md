@@ -507,3 +507,64 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
   sha256)** · ZIP en 404 · el bundle del 28.º en 404 **sin purga** (comprobado al primer
   intento). Rollback inmediato: `releases/crm-20260817T151109Z-42f02cbdc1ca.zip` (el
   28.º).
+
+## 2026-08-24 · CRM 35.º release — F4.2 reconocer y posponer (Hoy del supervisor, sin ruido)
+
+- **Artefacto:** `crm-20260824T043053Z-b4060c798368.zip` (commit `b4060c7`, worktree
+  `feat/hoy-supervisor-sin-ruido`), manifiesto verificado antes de publicar y ZIP
+  copiado a `releases/` del árbol principal ANTES del deploy (trampa removeArchive).
+- **Qué entra:** botones Reconocer/Posponer en Pendientes del supervisor, fila
+  reconocida atenuada con traza, campana que descuenta, pospuestas contadas,
+  lectura por la vista `crm.alertas_reconocimientos_vigentes` (ya estaba en prod:
+  servidor primero ✓).
+- **Smoke:** raíz 200 · `index-CqkMvdmD.js` vivo = ZIP · **58/58 archivos de
+  código idénticos por SHA-256 contra el ZIP**. Los 6 restantes no son fallo:
+  `.htaccess` da 403 (dotfile bloqueado por el server) y los 5 PNG de marca los
+  sirve la CDN hcdn RE-COMPRIMIDOS (optimizador de imágenes, p. ej. favicon
+  2097→1415 bytes) — comparar estáticos contra el vivo SIEMPRE dará distinto.
+- **Rollback:** `crm-20260823T192043Z-fdcd4d17abdf.zip` en `releases/`.
+
+Relacionado: [[Hoy del supervisor - reparto compacto]] · [[Fundamentos UX del CRM]]
+
+## 2026-08-24 · CRM 36.º release — paginación de Derivar hoy
+
+- **Artefacto:** `crm-20260824T151110Z-d4a5416a5c0f.zip`, commit `d4a5416`,
+  SHA-256 `1609841a63adf50bb7e57da96f5618439fb07d47a6bad8b21a741497ae88b850`,
+  64 archivos y manifiesto verificado. El commit desciende del release vivo
+  `b4060c7`; se construyó en el worktree aislado
+  `fix/derivar-hoy-paginacion-20260824` para no publicar el trabajo paralelo del
+  árbol compartido.
+- **Qué entra:** la bandeja `Derivar hoy` muestra cinco leads por página, conserva
+  el borrador al navegar y ajusta la página si la lista disminuye. No cambia RPC,
+  RLS, Supabase ni el portal.
+- **Gate:** 2.197 pruebas con cobertura, lint, TypeScript, build, verificación de
+  bundle y duplicación en verde; E2E focalizado de Derivaciones 1/1.
+- **Verificación viva:** `build-20260824T151110293Z`; `index.html`,
+  `version.json`, `index-CfnTcvSO.js`, `index-DFgmQ7NE.css` y
+  `derivaciones-BWZlm1TA.js` coincidieron byte por byte contra el ZIP en tres
+  lecturas consecutivas. Los assets principales del release anterior responden
+  404; ZIP 404 en CRM y portal, `.vite/license.md` 404 y `.htaccess` 403. Smoke
+  autenticado: 66 leads en 14 páginas, cinco filas en las páginas 1 y 2 y cero
+  errores de consola.
+- **Rollback:** `crm-20260824T043053Z-b4060c798368.zip` en `releases/`.
+
+Relacionado: [[Derivar leads del supervisor - paginacion compacta]].
+
+## 2026-08-24 · CRM 37.º release — teléfono alternativo del lead
+
+- **Artefacto:** `crm-20260824T155656Z-908133467744.zip`, commit `9081334`,
+  SHA-256 `9683a560854ac5a5553c46be6a419c480f03e2d6ecc406909c7fb40f568d681b`,
+  64 archivos y manifiesto verificado. Parte del 36.º release vivo (`d4a5416`) y
+  se construyó en el mismo worktree aislado para no publicar cambios paralelos.
+- **Qué entra:** la lectura de `telefono_alternativo` y su visualización como enlace
+  `tel:` en la ficha del lead. La migración, la Edge v15 y los Apps Scripts se
+  desplegaron antes que la interfaz.
+- **Gate focalizado:** 34/34 pruebas del drawer, lint, TypeScript, pre-commit y build
+  en verde. El pipeline completo del puente quedó en 114/114 pruebas combinadas y
+  `deno check` de la Edge en verde.
+- **Verificación viva:** `build-20260824T155655879Z`; `index.html` e
+  `index-IRdFv0H6.js` coincidieron byte por byte con el manifiesto y el ZIP público
+  devolvió 404. Smoke autenticado: el supervisor abrió `#/hoy` con la sesión real.
+- **Rollback:** `crm-20260824T151110Z-d4a5416a5c0f.zip` en `releases/`.
+
+Relacionado: [[Carga de leads desde hoja de Google]].

@@ -8,8 +8,8 @@ Fuentes versionadas actualmente:
 - `crm-importar-leads` — ingreso por lotes desde la hoja comercial. Su copia
   operativa histórica vive también en
   `../../../_supabase_functions/functions/crm-importar-leads/`. Mientras ese
-  espejo exista, `index.ts` y `destinos.ts` deben permanecer byte a byte
-  idénticos (`cmp -s`) en ambas ubicaciones.
+  espejo exista, `index.ts`, `destinos.ts` y `resultado-importacion.ts` deben
+  permanecer byte a byte idénticos (`cmp -s`) en ambas ubicaciones.
 - `crm-tipo-cambio` — consulta del tipo de cambio usado por el CRM.
 - `crm-usuarios` — alta de candidatos CRM y envío de recuperación. Se despliega
   con `verify_jwt=true`: valida la sesión humana antes de usar Auth Admin y

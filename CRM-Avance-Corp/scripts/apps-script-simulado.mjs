@@ -448,6 +448,7 @@ export function crearEntorno({
     fetch(url, opciones) {
       espia.peticiones.push({ url, opciones });
       const r = respuestaHttp || { codigo: 200, cuerpo: JSON.stringify({ resultados: [] }) };
+      if (r.error) throw r.error;
       return { getResponseCode: () => r.codigo, getContentText: () => r.cuerpo };
     },
   };

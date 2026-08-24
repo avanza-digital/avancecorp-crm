@@ -1225,6 +1225,16 @@ function Datos({
             <Fila label="Teléfono">
               <span className="tabular-nums">{l.telefono}</span>
             </Fila>
+            {l.telefono_alternativo && (
+              <Fila label="Teléfono alternativo">
+                <a
+                  href={`tel:${l.telefono_alternativo}`}
+                  className="tabular-nums text-primary underline-offset-2 hover:underline"
+                >
+                  {l.telefono_alternativo}
+                </a>
+              </Fila>
+            )}
             {l.correo && <Fila label="Correo">{l.correo}</Fila>}
             {l.dni && (
               <Fila label="DNI">

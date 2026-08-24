@@ -4,6 +4,10 @@ import "jsr:@supabase/functions-js/edge-runtime.d.ts";
 import { createClient } from "jsr:@supabase/supabase-js@2.110.8";
 import { interpretarAutorizacionContacto } from "./autorizacion-contacto.ts";
 import { indexarDestinosImportacion } from "./destinos.ts";
+import {
+  type CategoriaResultadoImportacion,
+  clasificarErrorInsercion,
+} from "./resultado-importacion.ts";
 
 // ============================================================================
 // crm-importar-leads — conector hoja de Google → crm.leads (2026-07-20).
@@ -33,10 +37,12 @@ import { indexarDestinosImportacion } from "./destinos.ts";
 //    service_role) y el estado lo avisa.
 //  - etapa siempre 'nuevo'; creado_por null = importación de sistema.
 //
-// Body: { filas: [{ fila, nombre, telefono, capital, moneda, canal, correo?,
+// Body: { filas: [{ fila, nombre, telefono, telefono_alternativo?, capital, moneda, canal, correo?,
 //                   dni?, genero?, fecha_nacimiento?, distrito?, interes?,
 //                   nota?, vendedor_correo?, autorizo?, fuente_consentimiento? }] }
-// Resp: { resultados: [{ fila, estado }] }  — estado listo para pintar en la hoja.
+// Resp: { resultados: [{ fila, resultado, estado }], conciliacion: {...} }.
+// `estado` conserva el texto visible de siempre; `resultado` permite que la hoja
+// concilie el lote sin inferir la categoría desde texto libre.
 // ============================================================================
 
 // Secreto compartido con el Apps Script de la hoja — SOLO del entorno.
@@ -177,6 +183,7 @@ type FilaHoja = {
   fila?: number;
   nombre?: string;
   telefono?: string;
+  telefono_alternativo?: string;
   capital?: string;
   moneda?: string;
   canal?: string;
@@ -228,14 +235,23 @@ Deno.serve(async (req: Request) => {
     vendedorCorreo: string | null;
     avisos: string[];
   };
-  const resultados: { fila: number; estado: string }[] = [];
+  type ResultadoFila = {
+    fila: number;
+    resultado: CategoriaResultadoImportacion;
+    estado: string;
+  };
+  const resultados: ResultadoFila[] = [];
   const validas: Valida[] = [];
   const telefonosLote = new Set<string>();
 
   for (const f of filas) {
     const fila = typeof f.fila === "number" ? f.fila : -1;
     const rechazo = (motivo: string) =>
-      resultados.push({ fila, estado: `RECHAZADO: ${motivo}` });
+      resultados.push({
+        fila,
+        resultado: "rechazado",
+        estado: `RECHAZADO: ${motivo}`,
+      });
 
     const nombre = (f.nombre ?? "").trim();
     if (!nombre) {
@@ -256,6 +272,18 @@ Deno.serve(async (req: Request) => {
       rechazo("teléfono repetido en la misma hoja");
       continue;
     }
+    const alternativoRaw = (f.telefono_alternativo ?? "").trim();
+    const telefonoAlternativo = alternativoRaw
+      ? normalizarTelefono(alternativoRaw)
+      : null;
+    if (alternativoRaw && !telefonoAlternativo) {
+      rechazo("teléfono alternativo inválido (celular de 9 dígitos que empiece en 9)");
+      continue;
+    }
+    // WhatsApp suele repetir el principal: se conserva solo si aporta otro contacto.
+    const alternativoDistinto = telefonoAlternativo === telefono
+      ? null
+      : telefonoAlternativo;
 
     const capital = parseCapital((f.capital ?? "").trim());
     if (capital === null) {
@@ -352,6 +380,7 @@ Deno.serve(async (req: Request) => {
       insert: {
         nombre_completo: nombre,
         telefono,
+        telefono_alternativo: alternativoDistinto,
         correo,
         dni,
         genero,
@@ -439,6 +468,7 @@ Deno.serve(async (req: Request) => {
       if (yaEnCrm.has(v.telefono)) {
         resultados.push({
           fila: v.fila,
+          resultado: "duplicado",
           estado: "DUPLICADO: ya existe en el CRM",
         });
         continue;
@@ -448,19 +478,45 @@ Deno.serve(async (req: Request) => {
         if (id) v.insert.vendedor_id = id;
         else v.avisos.push("vendedor no encontrado → quedó por repartir");
       }
-      const { error: errIns } = await admin.from("leads").insert(v.insert);
+      const { error: errIns, status: statusIns } = await admin.from("leads")
+        .insert(v.insert);
       if (errIns) {
+        const clasificacion = clasificarErrorInsercion(errIns, statusIns);
         resultados.push({
           fila: v.fila,
-          estado: `RECHAZADO: ${errIns.message.slice(0, 120)}`,
+          ...clasificacion,
         });
         continue;
       }
       const sufijo = v.avisos.length > 0 ? ` (${v.avisos.join("; ")})` : "";
-      resultados.push({ fila: v.fila, estado: `IMPORTADO ✓${sufijo}` });
+      resultados.push({
+        fila: v.fila,
+        resultado: "importado",
+        estado: `IMPORTADO ✓${sufijo}`,
+      });
     }
   }
 
   resultados.sort((a, b) => a.fila - b.fila);
-  return json({ resultados });
+  const conteo = {
+    importadas: 0,
+    duplicadas: 0,
+    rechazadas: 0,
+    errores_temporales: 0,
+  };
+  for (const r of resultados) {
+    if (r.resultado === "importado") conteo.importadas++;
+    else if (r.resultado === "duplicado") conteo.duplicadas++;
+    else if (r.resultado === "rechazado") conteo.rechazadas++;
+    else conteo.errores_temporales++;
+  }
+  return json({
+    resultados,
+    conciliacion: {
+      solicitadas: filas.length,
+      confirmadas: resultados.length,
+      no_importadas: filas.length - conteo.importadas,
+      ...conteo,
+    },
+  });
 });

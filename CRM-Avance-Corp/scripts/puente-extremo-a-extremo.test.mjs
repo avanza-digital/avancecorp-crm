@@ -76,6 +76,7 @@ const CAB_LEADS = [
   "Canal de origen *", "Correo", "DNI", "Género", "Fecha de nacimiento",
   "Distrito", "Interés", "Nota", "Vendedor asignado (correo)",
   "¿Autorizó contacto?", "Fuente del consentimiento", "Estado importación (automático — no tocar)",
+  "Teléfono alternativo",
 ];
 
 /**
@@ -100,7 +101,7 @@ function montar({ landing = [], fb = [], filasLeads = [], maxFilasLeads, ...rest
 const leadsEscritos = (hojaLeads) => {
   const ultima = hojaLeads.getLastRow();
   if (ultima < 2) return [];
-  return hojaLeads.getRange(2, 1, ultima - 1, 16).getDisplayValues();
+  return hojaLeads.getRange(2, 1, ultima - 1, 17).getDisplayValues();
 };
 const marcasDe = (gs, destino) => gs.leerMarcas(destino);
 
@@ -177,6 +178,7 @@ test("un lead NUEVO sin fecha entra entero: hoja, huella y marca", () => {
   assert.equal(filas[0][3], "PEN");
   assert.equal(filas[0][4], "LANDING");
   assert.equal(filas[0][15], "", "la columna de estado debe quedar vacía: es la señal del conector");
+  assert.equal(filas[0][16], "", "el WhatsApp repetido no debe duplicar el teléfono");
   assert.match(filas[0][11], /Sin fecha en el origen/);
 
   const huellas = mundo.destino.getSheetByName(mundo.gs.HOJA_HUELLAS);
@@ -423,7 +425,7 @@ test("configurar() ya no existe: avisa en vez de importar por sorpresa", () => {
 
 test("importarLeads manda solo lo pendiente y escribe el estado que responde el edge", () => {
   const pendientes = [
-    ["Ana", "+51918000021", "1000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", ""],
+    ["Ana", "+51918000021", "1000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", "", "+51918000999"],
     ["Beto", "+51918000022", "2000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", "IMPORTADO ✓"],
   ];
   const mundo = montar({
@@ -441,8 +443,138 @@ test("importarLeads manda solo lo pendiente y escribe el estado que responde el 
   const cuerpo = JSON.parse(mundo.espia.peticiones[0].opciones.payload);
   assert.equal(cuerpo.filas.length, 1, "reenvió una fila que ya estaba importada");
   assert.equal(cuerpo.filas[0].nombre, "Ana");
+  assert.equal(cuerpo.filas[0].telefono_alternativo, "+51918000999");
   assert.equal(mundo.espia.peticiones[0].opciones.headers["x-importar-secret"], "s3cr3t0");
   assert.equal(mundo.hojaLeads.getRange(2, 16, 1, 1).getDisplayValues()[0][0], "IMPORTADO ✓");
+});
+
+test("cada corrida identifica IMPORTADO, DUPLICADO, RECHAZADO y ERROR temporal por fila", () => {
+  const filas = [
+    ["Ana", "+51918000101", "1000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", ""],
+    ["Beto", "+51918000102", "2000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", ""],
+    ["Carla", "+51918000103", "3000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", ""],
+    ["Diego", "+51918000104", "4000", "PEN", "LANDING", "", "", "", "", "Lima", "Nuevo", "", "", "SI", "landing", "ERROR temporal (503) — se reintenta solo"],
+  ];
+  const mundo = montar({
+    filasLeads: filas,
+    propiedades: { IMPORTAR_SECRET: "s3cr3t0" },
+    respuestaHttp: {
+      codigo: 200,
+      cuerpo: JSON.stringify({
+        resultados: [
+          { fila: 2, resultado: "importado", estado: "IMPORTADO ✓" },
+          { fila: 3, resultado: "duplicado", estado: "DUPLICADO: ya existe en el CRM" },
+          { fila: 4, resultado: "rechazado", estado: "RECHAZADO: capital inválido" },
+          { fila: 5, resultado: "error_temporal", estado: "ERROR temporal: CRM ocupado — se reintenta solo" },
+        ],
+      }),
+    },
+  });
+
+  mundo.gs.importarLeads();
+
+  const estados = mundo.hojaLeads.getRange(2, 16, 4, 1).getDisplayValues().flat();
+  assert.deepEqual(estados, [
+    "IMPORTADO ✓",
+    "DUPLICADO: ya existe en el CRM",
+    "RECHAZADO: capital inválido",
+    "ERROR temporal: CRM ocupado — se reintenta solo",
+  ]);
+  const cuenta = mundo.gs.contarEstadosDeLeads(mundo.hojaLeads);
+  assert.deepEqual(
+    { importados: cuenta.importados, duplicados: cuenta.duplicados, rechazados: cuenta.rechazados, errores: cuenta.errores },
+    { importados: 1, duplicados: 1, rechazados: 1, errores: 1 },
+  );
+});
+
+test("una respuesta parcial del CRM deja cada fila ausente como ERROR temporal", () => {
+  const filas = [
+    ["Ana", "+51918000111", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+    ["Beto", "+51918000112", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+    ["Carla", "+51918000113", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+  ];
+  const mundo = montar({
+    filasLeads: filas,
+    propiedades: { IMPORTAR_SECRET: "s3cr3t0" },
+    respuestaHttp: {
+      codigo: 200,
+      cuerpo: JSON.stringify({
+        resultados: [
+          { fila: 2, resultado: "importado", estado: "IMPORTADO ✓" },
+          { fila: 999, resultado: "rechazado", estado: "RECHAZADO: fila ajena" },
+        ],
+      }),
+    },
+  });
+
+  mundo.gs.importarLeads();
+
+  const estados = mundo.hojaLeads.getRange(2, 16, 3, 1).getDisplayValues().flat();
+  assert.equal(estados[0], "IMPORTADO ✓");
+  assert.match(estados[1], /^ERROR temporal: el CRM no confirmó esta fila/);
+  assert.match(estados[2], /^ERROR temporal: el CRM no confirmó esta fila/);
+});
+
+test("una categoría contradictoria o sin estado reconocible se reintenta, no se adivina", () => {
+  const filas = [
+    ["Ana", "+51918000115", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+    ["Beto", "+51918000116", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+  ];
+  const mundo = montar({
+    filasLeads: filas,
+    propiedades: { IMPORTAR_SECRET: "s3cr3t0" },
+    respuestaHttp: {
+      codigo: 200,
+      cuerpo: JSON.stringify({
+        resultados: [
+          { fila: 2, resultado: "importado", estado: "RECHAZADO: respuesta contradictoria" },
+          { fila: 3, resultado: "importado", estado: "confirmado" },
+        ],
+      }),
+    },
+  });
+
+  mundo.gs.importarLeads();
+
+  const estados = mundo.hojaLeads.getRange(2, 16, 2, 1).getDisplayValues().flat();
+  assert.ok(estados.every((e) => /^ERROR temporal: el CRM no confirmó esta fila/.test(e)));
+});
+
+test("un error HTTP del lote identifica TODAS las filas como temporales", () => {
+  const filas = [
+    ["Ana", "+51918000121", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+    ["Beto", "+51918000122", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+  ];
+  const mundo = montar({
+    filasLeads: filas,
+    propiedades: { IMPORTAR_SECRET: "s3cr3t0" },
+    respuestaHttp: { codigo: 503, cuerpo: "servicio no disponible" },
+  });
+
+  mundo.gs.importarLeads();
+
+  const estados = mundo.hojaLeads.getRange(2, 16, 2, 1).getDisplayValues().flat();
+  assert.deepEqual(estados, [
+    "ERROR temporal (503) — se reintenta solo",
+    "ERROR temporal (503) — se reintenta solo",
+  ]);
+});
+
+test("si UrlFetch falla antes de responder, ninguna fila queda en limbo", () => {
+  const filas = [
+    ["Ana", "+51918000131", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+    ["Beto", "+51918000132", "1000", "PEN", "LANDING", "", "", "", "", "", "Nuevo", "", "", "SI", "landing", ""],
+  ];
+  const mundo = montar({
+    filasLeads: filas,
+    propiedades: { IMPORTAR_SECRET: "s3cr3t0" },
+    respuestaHttp: { error: new Error("timeout") },
+  });
+
+  mundo.gs.importarLeads();
+
+  const estados = mundo.hojaLeads.getRange(2, 16, 2, 1).getDisplayValues().flat();
+  assert.ok(estados.every((e) => /^ERROR temporal \(sin respuesta del CRM\)/.test(e)));
 });
 
 test("importarLeads sin secreto falla con un mensaje que dice qué hacer", () => {

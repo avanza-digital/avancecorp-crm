@@ -100,6 +100,8 @@ const LEAD_EN_BANDEJA = {
   asignado_supervisor_id: SUPERVISOR,
 } as Lead
 
+let LEADS_AMBITO: Lead[] = [LEAD_EN_BANDEJA]
+
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({
     yo: {
@@ -113,7 +115,7 @@ vi.mock('@/lib/auth-context', () => ({
 }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: [LEAD_EN_BANDEJA], vendedores: ASESORES, esGlobal: false },
+    ambito: { leads: LEADS_AMBITO, vendedores: ASESORES, esGlobal: false },
     recargar: RECARGAR,
   }),
 }))
@@ -148,6 +150,7 @@ vi.mock('@/components/common/animated-value', () => ({
 const { Derivaciones } = await import('./derivaciones')
 
 beforeEach(() => {
+  LEADS_AMBITO = [LEAD_EN_BANDEJA]
   RECARGAR.mockClear()
   CONSULTAR_REPORTE.mockClear()
   GUARDAR.mockClear()
@@ -195,6 +198,39 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Quitar' }))
     expect(screen.getByText('Aún no hay leads en el borrador')).toBeInTheDocument()
     expect(GUARDAR).not.toHaveBeenCalled()
+  })
+
+  it('pagina Derivar hoy y conserva el borrador al cambiar de página', () => {
+    LEADS_AMBITO = Array.from({ length: 6 }, (_, indice) => ({
+      ...LEAD_EN_BANDEJA,
+      id: `lead-por-derivar-${indice + 1}`,
+      nombre_completo: `Lead por derivar ${indice + 1}`,
+    }))
+
+    render(<Derivaciones />)
+
+    const lista = screen.getByRole('list', { name: 'Leads por derivar hoy' })
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(5)
+    expect(screen.getByText('Página 1 de 2 · 6 registros')).toBeInTheDocument()
+    expect(within(lista).queryByText('Lead por derivar 6')).not.toBeInTheDocument()
+
+    fireEvent.change(
+      within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un asesor' }),
+      { target: { value: ANA } },
+    )
+    fireEvent.click(
+      screen.getByRole('navigation', { name: 'Paginación de leads por derivar hoy' })
+        .querySelector('button:last-child') as HTMLButtonElement,
+    )
+
+    expect(within(lista).getAllByRole('listitem')).toHaveLength(1)
+    expect(within(lista).getByText('Lead por derivar 6')).toBeInTheDocument()
+    expect(screen.getByText('1 lead listo para derivar')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Anterior' }))
+    expect(
+      within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un asesor' }),
+    ).toHaveValue(ANA)
   })
 
   it('envía al reporte el rango elegido y todas las tarjetas comparten el filtro', async () => {

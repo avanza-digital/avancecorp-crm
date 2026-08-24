@@ -12,7 +12,8 @@ módulo **Derivar leads**; no se duplican allí filas, selectores ni botones de
 asignación.
 
 Relacionadas: [[Distribución de leads por capital y trazabilidad CRM]] ·
-[[CRM conexión a datos reales]] · [[Acceso y roles del CRM]].
+[[CRM conexión a datos reales]] · [[Acceso y roles del CRM]] ·
+[[Derivar leads del supervisor - paginacion compacta]].
 
 ## Comportamiento acordado
 

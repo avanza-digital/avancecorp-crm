@@ -20,7 +20,7 @@ const aqui = dirname(fileURLToPath(import.meta.url));
 const fuente = readFileSync(join(aqui, "puente-drive-origen.gs"), "utf8");
 const gs = new Function(
   fuente +
-    "\nreturn { ubicarColumnas, normalizarFila, telefonoPeru, telefonoEnOtraCelda," +
+    "\nreturn { ubicarColumnas, normalizarFila, telefonoPeru, telefonosDeFila, telefonoEnOtraCelda," +
     " pidePrestamo, filaLegible, legible, montoDe, monedaDe, siNo, ordenRevision," +
     " revisarPestana, huellaTexto, huellaCabeceras, anclaDeFilas, esDescartePorDiseno," +
     " fusionar, momentoDe, diasEntre, dentroDeVentana, decidirPasada, textoDelPanel," +
@@ -97,7 +97,25 @@ test("sin fecha legible → ENTRA igual, marcado y con aviso en la Nota", () => 
   assert.equal(l.motivo, "");
   assert.equal(l.sinFecha, true);
   assert.equal(l.telefono, "+51918620573");
+  assert.equal(l.telefonoAlternativo, "", "WhatsApp repetido no debe duplicarse");
   assert.match(l.nota, /Sin fecha en el origen/);
+});
+
+test("dos celulares distintos conservan principal y alternativo", () => {
+  const fila = ["Rosa", "Diaz", "918620573", "987654321",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 700, CAB_LANDING);
+  assert.equal(l.telefono, "+51918620573");
+  assert.equal(l.telefonoAlternativo, "+51987654321");
+});
+
+test("la segunda columna celular no mapeada también se conserva como alternativo", () => {
+  const fila = ["fb", `${DESPUES}T18:47:09-05:00`, "si", "ahorrar en soles",
+    "50,000", "si", "", "918000001", "Rosa Diaz", "p:+51918000002", "Lima", "", ""];
+  const l = gs.normalizarFila(fila, colFb, "formulario", 6001, CAB_FB);
+  assert.equal(l.telefono, "+51918000001");
+  assert.equal(l.telefonoAlternativo, "+51918000002");
+  assert.equal(l.telefonoRescatado, false);
 });
 
 const filaLanding = (fecha) => ["Carmen rosa", "Joya ormeño", "51918376855", "51918376855",

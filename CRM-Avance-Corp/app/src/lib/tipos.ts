@@ -332,6 +332,8 @@ export interface Lead {
   id: string
   nombre_completo: string
   telefono: string
+  /** Segundo celular de contacto importado desde la fuente, si es distinto. */
+  telefono_alternativo?: string | null
   correo?: string | null
   etapa: Etapa
   origen: Origen
