@@ -6,13 +6,17 @@ import type { EstadoAlertasCRM } from '@/lib/alertas-context'
 import type { Rol } from '@/lib/roles'
 
 const reintentar = vi.fn()
+const reconocer = vi.fn<EstadoAlertasCRM['reconocer']>().mockResolvedValue(undefined)
 let ESTADO: EstadoAlertasCRM = {
   alertas: [],
+  pendientes: 0,
+  pospuestas: 0,
   rol: 'vendedor',
   cargando: false,
   errores: [],
   generadoEn: '2026-08-06T17:35:00.000Z',
   reintentar,
+  reconocer,
 }
 
 vi.mock('@/lib/alertas-context', () => ({
@@ -50,20 +54,27 @@ function montar({
   alertas = [],
   cargando = false,
   errores = [],
+  pospuestas = 0,
 }: {
   rol?: Rol
   alertas?: AlertaCRM[]
   cargando?: boolean
   errores?: string[]
+  pospuestas?: number
 } = {}) {
   reintentar.mockReset()
+  reconocer.mockClear()
   ESTADO = {
     alertas,
+    // Como en el provider real: lo reconocido no cuenta como pendiente.
+    pendientes: alertas.filter((fila) => fila.reconocimiento == null).length,
+    pospuestas,
     rol,
     cargando,
     errores,
     generadoEn: '2026-08-06T17:35:00.000Z',
     reintentar,
+    reconocer,
   }
   return render(<Alertas />)
 }
@@ -163,13 +174,17 @@ describe('Alertas — revisar contacto (F3)', () => {
     const clienteConsultas = new QueryClient()
     const invalidar = vi.spyOn(clienteConsultas, 'invalidateQueries')
     reintentar.mockReset()
+    reconocer.mockClear()
     ESTADO = {
       alertas,
+      pendientes: alertas.length,
+      pospuestas: 0,
       rol: 'vendedor',
       cargando: false,
       errores: [],
       generadoEn: '2026-08-06T17:35:00.000Z',
       reintentar,
+      reconocer,
     }
     render(
       <QueryClientProvider client={clienteConsultas}>
@@ -309,5 +324,165 @@ describe('Alertas — revisar contacto (F3)', () => {
     await montarConProviders([alerta()])
     expect(screen.getByRole('link', { name: /Abrir en Agenda/ })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /Verificar disponibilidad/ })).not.toBeInTheDocument()
+  })
+})
+
+describe('Alertas — reconocer y posponer (F4)', () => {
+  const AHORA = Date.UTC(2026, 7, 23, 15)
+
+  function grupo(over: Partial<AlertaCRM> = {}): AlertaCRM {
+    return alerta({
+      id: 'grupo:por_repartir:s1',
+      tipo: 'por_repartir',
+      severidad: 'atencion',
+      alcance: 'equipo',
+      titulo: '2 leads esperando reparto',
+      detalle: 'A, B. El más rezagado espera hace 4 días.',
+      responsableId: 's1',
+      responsable: null,
+      valor: 2,
+      miembros: ['lead-1', 'lead-2'],
+      destino: { vista: 'derivaciones', leadId: null, etiqueta: 'Repartir' },
+      ...over,
+    })
+  }
+
+  it('solo las alertas AGRUPADAS (con foto de miembros) ofrecen los botones', () => {
+    montar({ rol: 'supervisor', alertas: [grupo(), alerta()] })
+
+    expect(screen.getAllByRole('button', { name: /la estoy atendiendo/ })).toHaveLength(1)
+    expect(screen.getAllByRole('button', { name: /^Posponer/ })).toHaveLength(1)
+    // La no agrupada conserva su enlace y nada más.
+    expect(screen.getByRole('link', { name: /Abrir en Agenda/ })).toBeInTheDocument()
+  })
+
+  it('«Lo estoy atendiendo» asienta reconocer SIN fecha y el foco aterriza en el contador', async () => {
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    await user.click(screen.getByRole('button', { name: 'Reconocer «2 leads esperando reparto»: la estoy atendiendo' }))
+
+    expect(reconocer).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'grupo:por_repartir:s1' }),
+      'reconocer',
+      null,
+    )
+    // El botón desaparece con el asiento: el foco no puede quedar huérfano.
+    await waitFor(() => expect(document.getElementById('alertas-contador')).toHaveFocus())
+  })
+
+  it('Posponer abre los tres plazos y «Mañana» manda un hasta futuro de un día', async () => {
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    await user.click(screen.getByRole('button', { name: 'Posponer «2 leads esperando reparto»' }))
+    const plazos = screen.getByRole('group', { name: 'Posponer «2 leads esperando reparto» hasta' })
+    expect(within(plazos).getByRole('button', { name: 'En 3 días' })).toBeVisible()
+    expect(within(plazos).getByRole('button', { name: 'En 7 días' })).toBeVisible()
+
+    const antes = Date.now()
+    await user.click(within(plazos).getByRole('button', { name: 'Mañana' }))
+    const llamada = reconocer.mock.calls[0]
+    expect(llamada?.[1]).toBe('posponer')
+    const hasta = Date.parse(String(llamada?.[2]))
+    expect(hasta - antes).toBeGreaterThan(23.9 * 3_600_000)
+    expect(hasta - antes).toBeLessThanOrEqual(24 * 3_600_000 + 1_000)
+  })
+
+  it('«En 7 días» va con colchón BAJO el tope del servidor (jamás lo roza)', async () => {
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    await user.click(screen.getByRole('button', { name: /^Posponer/ }))
+    const antes = Date.now()
+    await user.click(screen.getByRole('button', { name: 'En 7 días' }))
+    const hasta = Date.parse(String(reconocer.mock.calls[0]?.[2]))
+    // Estrictamente por debajo de 7 días: el trigger mide con SU reloj.
+    expect(hasta - antes).toBeLessThan(7 * 86_400_000)
+    expect(hasta - antes).toBeGreaterThan(7 * 86_400_000 - 2_100_000)
+  })
+
+  it('Cancelar cierra los plazos sin asentar nada', async () => {
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    await user.click(screen.getByRole('button', { name: /^Posponer/ }))
+    await user.click(screen.getByRole('button', { name: 'Cancelar posposición' }))
+
+    expect(reconocer).not.toHaveBeenCalled()
+    expect(screen.getByRole('button', { name: /la estoy atendiendo/ })).toBeVisible()
+  })
+
+  it('la fila reconocida se ATENÚA: badge gris, traza completa, sin botones — y el contador la separa', () => {
+    montar({
+      rol: 'supervisor',
+      alertas: [
+        grupo({
+          id: 'grupo:tarea_vencida:s1',
+          titulo: '1 lead con plazo vencido desde ayer',
+          severidad: 'critica',
+          reconocimiento: {
+            accion: 'reconocer',
+            creadoEn: new Date(AHORA).toISOString(),
+            venceEn: AHORA + 6 * 86_400_000,
+          },
+        }),
+        grupo(),
+      ],
+    })
+
+    expect(screen.getByText('Reconocida')).toBeVisible()
+    expect(screen.getByText(/La estás atendiendo · reaparece si empeora · se reactiva el/)).toBeVisible()
+    // La reconocida NO vuelve a ofrecer botones; la activa sí.
+    expect(screen.getAllByRole('button', { name: /la estoy atendiendo/ })).toHaveLength(1)
+    // El contador dice la verdad de la campana con palabras.
+    expect(screen.getByRole('status')).toHaveTextContent('1 pendiente activo · 1 reconocida')
+  })
+
+  it('un fallo al asentar SE DICE, los botones se quedan y el foco se RESCATA', async () => {
+    const { toast } = await import('sonner')
+    reconocer.mockRejectedValueOnce(new Error('red caída'))
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    const boton = screen.getByRole('button', { name: /la estoy atendiendo/ })
+    await user.click(boton)
+
+    await waitFor(() => expect(toast.error).toHaveBeenCalledWith('No se pudo asentar el reconocimiento.'))
+    expect(boton).toBeEnabled()
+    // Rescate por efecto (lección F2: en el finally el botón aún está disabled).
+    await waitFor(() => expect(boton).toHaveFocus())
+  })
+
+  it('a11y F4: Posponer es un disclosure REAL — persiste, foco al primer plazo al abrir y de vuelta al cerrar', async () => {
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    const posponer = screen.getByRole('button', { name: 'Posponer «2 leads esperando reparto»' })
+    expect(posponer).toHaveAttribute('aria-expanded', 'false')
+    await user.click(posponer)
+    expect(posponer).toHaveAttribute('aria-expanded', 'true')
+    // El botón NO desaparece al expandirse (bloqueante del revisor a11y) y
+    // el foco entra al grupo que controla.
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mañana' })).toHaveFocus())
+
+    await user.click(screen.getByRole('button', { name: 'Cancelar posposición' }))
+    expect(
+      screen.queryByRole('group', { name: 'Posponer «2 leads esperando reparto» hasta' }),
+    ).not.toBeInTheDocument()
+    await waitFor(() => expect(posponer).toHaveFocus())
+  })
+
+  it('a11y F4: un fallo al posponer deja los plazos ABIERTOS para reintentar donde estaba', async () => {
+    reconocer.mockRejectedValueOnce(new Error('red caída'))
+    const user = userEvent.setup()
+    montar({ rol: 'supervisor', alertas: [grupo()] })
+
+    await user.click(screen.getByRole('button', { name: /^Posponer/ }))
+    await user.click(screen.getByRole('button', { name: 'Mañana' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mañana' })).toBeEnabled())
+    expect(screen.getByRole('group', { name: 'Posponer «2 leads esperando reparto» hasta' })).toBeInTheDocument()
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Mañana' })).toHaveFocus())
   })
 })

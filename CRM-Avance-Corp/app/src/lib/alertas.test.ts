@@ -285,6 +285,54 @@ describe('derivarAlertasSupervisor', () => {
     expect(alertas[0]?.detalle).toBe('rezagado, reciente. El más rezagado espera hace 4 días.')
   })
 
+  it('F4: cada grupo expone su FOTO de miembros — ids de leads, y de VENDEDORES en el grupo por vendedor', () => {
+    // La foto es lo que el libro de reconocimientos guarda y compara para el
+    // «reaparece si empeora»: ids, jamás nombres (contrato del servidor).
+    const bandeja = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [
+        enBandeja('reciente'),
+        enBandeja('rezagado', { creado_en: haceHoras(4 * 24), tenencia_desde: haceHoras(4 * 24) }),
+      ],
+      actividades: [],
+      tareas: [],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+    })
+    // En el orden del detalle (rezago primero): la foto es estable.
+    expect(bandeja[0]?.miembros).toEqual(['rezagado', 'reciente'])
+
+    const vencida = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [lead({ id: 'grave', nombre_completo: 'Grave' })],
+      actividades: [],
+      tareas: [tarea({ id: 'grave-25', lead_id: 'grave', vence_en: haceHoras(25) })],
+      vendedores: [vendedor('v1')],
+      ahora: AHORA,
+    })
+    expect(vencida[0]?.miembros).toEqual(['grave'])
+
+    const sinAccion = (vendedorId: string, cantidad: number) => Array.from({ length: cantidad }, (_, i) => lead({
+      id: `${vendedorId}-${i}`,
+      vendedor_id: vendedorId,
+      etapa: 'contactado',
+      creado_en: haceHoras(2),
+      tenencia_desde: haceHoras(2),
+    }))
+    const porVendedor = derivarAlertasSupervisor({
+      supervisorId: 's1',
+      leads: [...sinAccion('v1', 3), ...sinAccion('v2', 5)],
+      actividades: [],
+      tareas: [],
+      vendedores: [vendedor('v1'), vendedor('v2', { nombre_completo: 'Bea' })],
+      ahora: AHORA,
+    })
+    // Ids de VENDEDORES y en el orden por carga: la decisión es la
+    // conversación con cada uno — un vendedor nuevo en aprietos revive la
+    // alerta; el mismo con un lead más, no (hasta cruzar a crítica).
+    expect(porVendedor[0]?.miembros).toEqual(['v2', 'v1'])
+  })
+
   it('con un solo lead en bandeja habla en singular y sin lista', () => {
     const [alerta] = derivarAlertasSupervisor({
       supervisorId: 's1',
@@ -376,6 +424,8 @@ describe('derivarAlertasSupervisor', () => {
     // Detalle COMPLETO a propósito: con 24 h justas dentro del grupo, decir
     // «más de un día» sería falso (hallazgo de Codex sobre la redacción).
     expect(alertas[0]?.detalle).toBe('Un Día. Sin primer contacto desde hace un día o más.')
+    // F4: la foto de miembros del grupo — solo el que ya cruzó el umbral.
+    expect(alertas[0]?.miembros).toEqual(['un-dia'])
   })
 
   it('un lead cuenta en un solo grupo: la bandeja gana a la tarea vencida, pero HEREDA su criticidad', () => {

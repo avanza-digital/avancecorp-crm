@@ -3756,6 +3756,135 @@ async function testOffboardingMatrix(sessions, seed) {
             .eq('id', f4Reconocido.data.id)
             .select('id'),
         );
+
+        // ── F4.2: la vista de VIGENTES corta con el reloj de POSTGRES ──────
+        // (bloqueante Codex F4.2 #2). NO observables aquí y cerrados por
+        // estructura: el corte de 7 días (nadie fabrica un creado_en viejo —
+        // lo sella el trigger) y el UNIQUE de secuencia (la identity no
+        // empata por la vía normal); ambos DICHOS, regla de la casa.
+        await positive(
+          'F4.2 vigentes: el asiento fresco del dueño aparece en la vista',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id, secuencia')
+            .eq('id', f4Reconocido.data.id)
+            .single(),
+        );
+        await positive(
+          'F4.2 vigentes: gerencia LEE por la vista (misma trazabilidad)',
+          sessions.gerencia.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id')
+            .eq('id', f4Reconocido.data.id)
+            .single(),
+        );
+        await expectHidden(
+          'F4.2 vigentes: OTRO supervisor no ve el libro ajeno por la vista (security_invoker)',
+          sessions.sup2.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        await expectHidden(
+          'F4.2 vigentes: el vendedor tampoco ve nada por la vista',
+          member.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        await expectHidden(
+          'F4.2 vigentes: el coordinador tampoco (la vista no amplía la RLS)',
+          sessions.coordinador.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        // Simetría tabla↔vista (auditor F4.2 #3): el lector global es el rol
+        // donde un fallback descuidado ampliaría sin querer.
+        await expectHidden(
+          'F4.2 vigentes: directorio (lector global) tampoco ve el libro por la vista',
+          sessions.directorio.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id')
+            .eq('id', f4Reconocido.data.id),
+        );
+        // anon: doble candado (sin USAGE de crm + sin grant), pinneado como
+        // en las demás secciones (auditor F4.2 #4).
+        const anonVigentes = createClient(
+          SUPABASE_URL,
+          ANON_KEY,
+          clientOptions('crm-rls-anon-reconocimientos'),
+        );
+        await expectExplicitAuthorizationDenied(
+          'F4.2 vigentes: anon no lee la vista',
+          anonVigentes.schema('crm').from('alertas_reconocimientos_vigentes')
+            .select('id')
+            .limit(1),
+          ['PGRST202', '42501', 'PGRST301', 'PGRST106'],
+        );
+        // La vista es auto-actualizable para Postgres: el DML a través de
+        // ella queda pinneado como DENEGADO (auditor F4.2 #5) — sin grant
+        // de escritura sobre la vista, ni siquiera para el dueño.
+        await expectBlockedMutation(
+          'F4.2 vigentes: ni el dueño INSERTA a través de la vista',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .insert({
+              alerta_id: `grupo:por_repartir:${f4SupervisorId}`,
+              accion: 'reconocer',
+              miembros: ['lead-ccc'],
+              severidad: 'atencion',
+            })
+            .select('id'),
+        );
+        await expectBlockedMutation(
+          'F4.2 vigentes: ni el dueño EDITA a través de la vista',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .update({ severidad: 'atencion' })
+            .eq('id', f4Reconocido.data.id)
+            .select('id'),
+        );
+        await expectBlockedMutation(
+          'F4.2 vigentes: ni el dueño BORRA a través de la vista',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+            .delete()
+            .eq('id', f4Reconocido.data.id)
+            .select('id'),
+        );
+        // La prueba TEMPORAL contra el reloj del servidor: una posposición a
+        // 8 segundos vista está VIGENTE al nacer (colchón ante un reloj local
+        // ligeramente adelantado) y, pasado su `hasta`, la
+        // vista la suelta mientras la tabla base la conserva — el corte es
+        // de Postgres, no del dispositivo que consulta.
+        const f4Pospuesto = await positive(
+          'F4.2 vigentes: nace una posposición de 8 segundos (futura, bajo el tope)',
+          sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+            .insert({
+              alerta_id: `grupo:tarea_vencida:${f4SupervisorId}`,
+              accion: 'posponer',
+              miembros: ['lead-ccc'],
+              severidad: 'atencion',
+              hasta: new Date(Date.now() + 8_000).toISOString(),
+            })
+            .select('id')
+            .single(),
+        );
+        if (f4Pospuesto?.data?.id) {
+          await positive(
+            'F4.2 vigentes: recién nacida, la posposición está en la vista',
+            sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+              .select('id')
+              .eq('id', f4Pospuesto.data.id)
+              .single(),
+          );
+          await new Promise((resolver) => setTimeout(resolver, 9_500));
+          await expectHidden(
+            'F4.2 vigentes: pasado su hasta, la vista la SUELTA (reloj del servidor)',
+            sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+              .select('id')
+              .eq('id', f4Pospuesto.data.id),
+          );
+          await positive(
+            'F4.2 vigentes: la tabla base la CONSERVA — la vista recorta, no borra',
+            sessions.sup1.client.schema('crm').from('alertas_reconocimientos')
+              .select('id')
+              .eq('id', f4Pospuesto.data.id)
+              .single(),
+          );
+        }
       }
     }
 

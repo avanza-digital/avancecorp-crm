@@ -111,7 +111,9 @@ export function Topbar({
   const { yo } = useAuth()
   const soloRoles = administraSoloRolesCrm(yo)
   const { ambito } = useCRMData()
-  const { alertas, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
+  // F4: la campana cuenta `pendientes` (las que piden acción hoy), no todo lo
+  // visible — una alerta reconocida sigue en la lista, atenuada, sin sumar.
+  const { pendientes, cargando: cargandoAlertas, errores: erroresAlertas } = useAlertasCRM()
   const { abrirLead, abrirNuevoLead } = usePanelesActions()
   // Rótulo por rol de la pantalla fusionada: "Mi cartera" para el vendedor, "Cartera" para quien supervisa.
   const info =
@@ -356,22 +358,22 @@ export function Topbar({
           <a
             href={hashDe('alertas')}
             title="Abrir pendientes"
-            aria-label={alertas.length > 0
-              ? `Abrir pendientes: ${alertas.length} ${alertas.length === 1 ? 'activo' : 'activos'}`
+            aria-label={pendientes > 0
+              ? `Abrir pendientes: ${pendientes} ${pendientes === 1 ? 'activo' : 'activos'}`
               : 'Abrir pendientes'}
             aria-current={vista === 'alertas' ? 'page' : undefined}
             className="relative inline-flex size-9 cursor-pointer items-center justify-center rounded-lg transition-colors hover:bg-muted focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
             <Bell className="size-4" aria-hidden />
-            {alertas.length > 0 && (
+            {pendientes > 0 && (
               <span className="absolute -right-1 -top-1 grid min-w-4 place-items-center rounded-full bg-destructive px-1 text-[9px] font-extrabold leading-4 text-destructive-foreground" aria-hidden>
-                {alertas.length > 99 ? '99+' : alertas.length}
+                {pendientes > 99 ? '99+' : pendientes}
               </span>
             )}
-            {alertas.length === 0 && erroresAlertas.length > 0 && (
+            {pendientes === 0 && erroresAlertas.length > 0 && (
               <span className="absolute right-0.5 top-0.5 size-2 rounded-full bg-warning ring-2 ring-card" aria-hidden />
             )}
-            {alertas.length === 0 && erroresAlertas.length === 0 && cargandoAlertas && (
+            {pendientes === 0 && erroresAlertas.length === 0 && cargandoAlertas && (
               <span className="absolute right-0.5 top-0.5 size-2 animate-pulse rounded-full bg-primary ring-2 ring-card motion-reduce:animate-none" aria-hidden />
             )}
           </a>

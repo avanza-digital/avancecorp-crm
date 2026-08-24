@@ -8,6 +8,7 @@ import {
   type ItemCola,
 } from './inteligencia'
 import { planPorLead } from './plan-lead'
+import type { ReconocimientoVigente } from './reconocimientos-alertas'
 import type { Vista } from './router'
 import type { EstadoSlaLead } from './sla-versionado'
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
@@ -49,6 +50,14 @@ export interface AlertaCRM {
     telefono: string
     recordatorioId: string
   }
+  /** SOLO grupos del supervisor (F4): la FOTO de ids —de leads, o de
+   *  vendedores en el grupo por vendedor— que el libro de reconocimientos
+   *  guarda y compara para el «reaparece si empeora». Nunca nombres (sin
+   *  PII, contrato del servidor). Sin miembros no hay botón de reconocer. */
+  miembros?: readonly string[]
+  /** Lo añade el PROVIDER cuando un asiento vigente del libro atenúa esta
+   *  alerta (reconocer deja rastro; posponer directamente la oculta). */
+  reconocimiento?: ReconocimientoVigente
 }
 
 export interface DerivarAlertasVendedorInput {
@@ -427,6 +436,7 @@ export function derivarAlertasSupervisor({
       responsableId: supervisorId,
       responsable: null,
       valor: bandeja.length,
+      miembros: bandeja.map(({ lead }) => lead.id),
       destino: {
         vista: 'derivaciones',
         leadId: null,
@@ -474,6 +484,7 @@ export function derivarAlertasSupervisor({
       responsableId: null,
       responsable: null,
       valor: sinResponder.length,
+      miembros: sinResponder.map((item) => item.lead.id),
       destino: { vista: 'hoy', leadId: null, etiqueta: 'Ver la cola' },
     })
   }
@@ -502,6 +513,10 @@ export function derivarAlertasSupervisor({
       responsableId: null,
       responsable: null,
       valor: plazosVencidos,
+      miembros: [
+        ...conTareaVencida.map((lead) => lead.id),
+        ...relojCumplido.map((item) => item.lead.id),
+      ],
       // Con tareas vencidas dentro, el destino es la AGENDA: un lead con la
       // tarea vencida Y otra futura tiene plan vivo y NO aparece en la cola
       // (hallazgo de Codex — el enlace «Ver la cola» moría en una pantalla
@@ -562,6 +577,12 @@ export function derivarAlertasSupervisor({
       responsableId: unico?.vendedorId ?? null,
       responsable: unico?.nombre ?? null,
       valor: totalLeads,
+      // La foto es de VENDEDORES, no de leads: la decisión del grupo es la
+      // conversación con cada vendedor. Un vendedor NUEVO en aprietos revive
+      // la alerta; el mismo vendedor pasando de 3 a 4 leads no (la
+      // conversación pendiente es la misma) — hasta que cruce a crítica (≥5),
+      // donde revive por severidad.
+      miembros: vendedoresSinAccion.map((vendedor) => vendedor.vendedorId),
       destino: {
         vista: 'equipo',
         leadId: null,

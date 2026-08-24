@@ -146,6 +146,42 @@ export type Database = {
           },
         ]
       }
+      alertas_reconocimientos: {
+        Row: {
+          accion: string
+          alerta_id: string
+          creado_en: string
+          hasta: string | null
+          id: string
+          miembros: string[]
+          perfil_id: string
+          secuencia: number
+          severidad: string
+        }
+        Insert: {
+          accion: string
+          alerta_id: string
+          creado_en?: string
+          hasta?: string | null
+          id?: string
+          miembros: string[]
+          perfil_id: string
+          secuencia?: never
+          severidad: string
+        }
+        Update: {
+          accion?: string
+          alerta_id?: string
+          creado_en?: string
+          hasta?: string | null
+          id?: string
+          miembros?: string[]
+          perfil_id?: string
+          secuencia?: never
+          severidad?: string
+        }
+        Relationships: []
+      }
       cierre_mes_vendedor: {
         Row: {
           ajuste_numerador: number
@@ -1755,6 +1791,39 @@ export type Database = {
       }
     }
     Views: {
+      alertas_reconocimientos_vigentes: {
+        Row: {
+          accion: string | null
+          alerta_id: string | null
+          creado_en: string | null
+          hasta: string | null
+          id: string | null
+          miembros: string[] | null
+          secuencia: number | null
+          severidad: string | null
+        }
+        Insert: {
+          accion?: string | null
+          alerta_id?: string | null
+          creado_en?: string | null
+          hasta?: string | null
+          id?: string | null
+          miembros?: string[] | null
+          secuencia?: number | null
+          severidad?: string | null
+        }
+        Update: {
+          accion?: string | null
+          alerta_id?: string | null
+          creado_en?: string | null
+          hasta?: string | null
+          id?: string | null
+          miembros?: string[] | null
+          secuencia?: number | null
+          severidad?: string | null
+        }
+        Relationships: []
+      }
       clientes_basicos: {
         Row: {
           activo: boolean | null
@@ -1901,6 +1970,10 @@ export type Database = {
       }
       agenda_ics_feed_fn: {
         Args: { p_desde: string; p_token: string }
+        Returns: Json
+      }
+      agenda_reparto_diaria: {
+        Args: { p_desde?: string; p_dias?: number }
         Returns: Json
       }
       anular_cierre_avance: {
@@ -2262,15 +2335,15 @@ export type Database = {
         Args: { p_cliente_id: string }
         Returns: Json
       }
+      derivar_leads_equipo_fn: {
+        Args: { p_asesor_ids: string[]; p_lead_ids: string[] }
+        Returns: Json
+      }
       descartar_lead: {
         Args: { p_lead: string; p_motivo: string; p_nota?: string }
         Returns: Json
       }
       deshacer_descarte: { Args: { p_lead: string }; Returns: Json }
-      derivar_leads_equipo_fn: {
-        Args: { p_asesor_ids: string[]; p_lead_ids: string[] }
-        Returns: Json
-      }
       destinos_importacion_por_correo_fn: {
         Args: { p_correos: string[] }
         Returns: {
@@ -2326,6 +2399,32 @@ export type Database = {
         }
         Returns: Json
       }
+      guardar_agenda_reparto_diaria: {
+        Args: { p_fecha: string; p_formulario: string; p_landing: string }
+        Returns: Json
+      }
+      historial_derivaciones: {
+        Args: {
+          p_actividad_antes?: string
+          p_derivado_antes?: string
+          p_limite?: number
+        }
+        Returns: {
+          actividad_id: string
+          derivado_en: string
+          derivado_por_nombre: string
+          distrito: string
+          etapa_actual: string
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          movimiento: string
+          nombre_completo: string
+          origen: string
+          responsable_anterior: string
+          responsable_nuevo: string
+        }[]
+      }
       impacto_desactivacion_usuario_fn: {
         Args: { p_perfil_id: string }
         Returns: Json
@@ -2366,53 +2465,6 @@ export type Database = {
           nombre_completo: string
           origen: string
         }[]
-      }
-      reporte_derivaciones_equipo_fn: {
-        Args: { p_desde?: string; p_hasta?: string }
-        Returns: Json
-      }
-      revertir_derivacion_equipo_fn: {
-        Args: { p_lead_id: string }
-        Returns: Json
-      }
-      historial_derivaciones: {
-        Args: {
-          p_actividad_antes?: string
-          p_derivado_antes?: string
-          p_limite?: number
-        }
-        Returns: {
-          actividad_id: string
-          derivado_en: string
-          derivado_por_nombre: string
-          distrito: string | null
-          etapa_actual: string
-          lead_id: string
-          moneda: string
-          monto_estimado: number
-          movimiento: string
-          nombre_completo: string
-          origen: string
-          responsable_anterior: string
-          responsable_nuevo: string
-        }[]
-      }
-      agenda_reparto_diaria: {
-        Args: { p_desde?: string; p_dias?: number }
-        Returns: Json
-      }
-      guardar_agenda_reparto_diaria: {
-        Args: { p_fecha: string; p_formulario: string; p_landing: string }
-        Returns: Json
-      }
-      panel_distribucion_reparto: {
-        Args: {
-          p_analista?: string
-          p_origen?: string
-          p_solo_activos?: boolean
-          p_supervisor?: string
-        }
-        Returns: Json
       }
       marcar_efectos_conversion: { Args: { p_lead_id: string }; Returns: Json }
       metricas_agenda_fn: {
@@ -2489,8 +2541,13 @@ export type Database = {
         Args: { p_domicilio: string }
         Returns: string
       }
-      preparar_recuperacion_usuario_fn: {
-        Args: { p_idempotencia: string; p_perfil_id: string }
+      panel_distribucion_reparto: {
+        Args: {
+          p_analista?: string
+          p_origen?: string
+          p_solo_activos?: boolean
+          p_supervisor?: string
+        }
         Returns: Json
       }
       productos_inversion_gestion_fn: { Args: never; Returns: Json }
@@ -2578,19 +2635,77 @@ export type Database = {
         }
         Returns: Json
       }
+      registrar_vendedor_usuario_fn: {
+        Args: {
+          p_cargo: string
+          p_correo: string
+          p_documento: string
+          p_idempotencia: string
+          p_nombre_completo: string
+          p_perfil_id: string
+          p_supervisor_id: string
+          p_telefono: string
+          p_tipo_documento: string
+          p_whatsapp: string
+        }
+        Returns: Json
+      }
       repartir_lead: {
         Args: { p_lead: string; p_supervisor: string }
+        Returns: Json
+      }
+      reporte_derivaciones_equipo_fn: {
+        Args: { p_desde?: string; p_hasta?: string }
         Returns: Json
       }
       reprogramar_reunion: {
         Args: { p_nueva_id?: string; p_tarea_id: string; p_vence_en: string }
         Returns: Json
       }
+      rescatar_descartes: {
+        Args: {
+          p_analistas_destino: string[]
+          p_episodios: string[]
+          p_evitar_asesor_origen?: boolean
+        }
+        Returns: Json
+      }
+      rescate_descartes_mes: {
+        Args: { p_mes: string }
+        Returns: {
+          asesor_id: string
+          asesor_nombre: string
+          categoria_interes: string
+          descartado_en: string
+          distrito: string
+          episodio_id: string
+          estado: string
+          lead_id: string
+          moneda: string
+          monto_estimado: number
+          motivo_descarte: string
+          nombre_completo: string
+          origen: string
+          puede_rescatar: boolean
+        }[]
+      }
+      rescate_descartes_meses: {
+        Args: never
+        Returns: {
+          mes: string
+          pendientes: number
+          total: number
+        }[]
+      }
       reservar_conversion_lead: { Args: { p_lead_id: string }; Returns: Json }
       resumen_cartera_clientes_fn: { Args: never; Returns: Json }
       resumen_cartera_fn: { Args: never; Returns: Json }
       resumen_reparto_fn: { Args: never; Returns: Json }
       resumen_tareas_fn: { Args: never; Returns: Json }
+      revertir_derivacion_equipo_fn: {
+        Args: { p_lead_id: string }
+        Returns: Json
+      }
       series_comerciales_fn: { Args: { p_meses?: number }; Returns: Json }
       supervisores_para_reparto: {
         Args: never
@@ -3368,6 +3483,8 @@ export type Database = {
       es_admin: { Args: never; Returns: boolean }
       es_analista: { Args: never; Returns: boolean }
       es_directorio: { Args: never; Returns: boolean }
+      es_gestor_cartera: { Args: never; Returns: boolean }
+      es_operaciones: { Args: never; Returns: boolean }
       es_superadmin: { Args: never; Returns: boolean }
       marcar_contratos_vencidos: {
         Args: never

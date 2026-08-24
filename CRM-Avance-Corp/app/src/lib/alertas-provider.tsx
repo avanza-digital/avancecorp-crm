@@ -5,9 +5,25 @@ import {
   type JSX,
   type ReactNode,
 } from 'react'
-import { mensajeDeError } from '@/data/crm-api'
-import { useMetricasConversiones, useRecordatoriosDisponibilidad } from '@/data/crm-queries'
+import { useQueryClient } from '@tanstack/react-query'
+import {
+  CrmApiError,
+  MAX_LEADS_AMBITO,
+  mensajeDeError,
+  reconocerAlertaSupervisor,
+} from '@/data/crm-api'
+import {
+  crmQueryKeys,
+  useMetricasConversiones,
+  useReconocimientosAlertas,
+  useRecordatoriosDisponibilidad,
+} from '@/data/crm-queries'
 import { derivarAlertasRecordatorios } from '@/lib/recordatorios-disponibilidad'
+import {
+  aplicarReconocimientos,
+  type AccionReconocimiento,
+  type AsientoReconocimiento,
+} from '@/lib/reconocimientos-alertas'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
   derivarAlertasSupervisor,
@@ -110,6 +126,20 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     && funcionesLeadsVisibles(yo.demo, rol),
   )
   const recordatorios = useRecordatoriosDisponibilidad(sesionVendedorReal)
+  // F4 «sin ruido»: el libro de reconocimientos es del SUPERVISOR real, y
+  // solo con la campana pintada (el mismo gate de leads que usa vistas.ts
+  // para #/alertas): consultar el libro con la campana apagada sería trabajo
+  // invisible — la misma regla que los recordatorios del vendedor.
+  const sesionSupervisorReal = Boolean(
+    yo && !yo.demo && rol === 'supervisor' && !soloRoles
+    && funcionesLeadsVisibles(yo.demo, rol),
+  )
+  const reconocimientos = useReconocimientosAlertas(sesionSupervisorReal)
+  // Espejo LOCAL para la demo: mismo contrato y misma lógica pura, sin
+  // servidor — el supervisor de demo prueba el circuito completo y su libro
+  // muere con la sesión.
+  const [asientosDemo, setAsientosDemo] = useState<AsientoReconocimiento[]>([])
+  const queryClient = useQueryClient()
 
   // Solo Gerencia consulta conversiones globales. Vendedor y supervisor derivan
   // sus pendientes de los datos ya recortados por RLS que carga el store.
@@ -208,6 +238,75 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     soloRoles,
   ])
 
+  // F4 (Codex #5): con el ámbito EN el tope local, la foto de miembros puede
+  // estar incompleta — una foto trunca que el servidor acepta callaría al
+  // lead 2001. Sin foto confiable, reconocer se desactiva Y el libro se
+  // ignora: la comparación de «empeoró» tampoco es de fiar.
+  const fotoConfiable = ambito.leads.length < MAX_LEADS_AMBITO
+
+  // F4: el libro atenúa (reconocer) u oculta (posponer) las alertas AGRUPADAS
+  // del supervisor. Con el libro caído se aplica []: TODO suena — un fallo de
+  // lectura jamás se convierte en silencio (y el error se dice abajo).
+  // `error` manda sobre `data` (bloqueante Codex #1): TanStack CONSERVA los
+  // datos del último fetch bueno cuando un refetch falla, y aplicar esos
+  // asientos viejos con el libro caído sería exactamente el silencio indebido.
+  const { visibles, pendientes, pospuestas } = useMemo(() => {
+    if (!yo || rol !== 'supervisor') {
+      return { visibles: alertas, pendientes: alertas.length, pospuestas: 0 }
+    }
+    if (!fotoConfiable) {
+      return {
+        visibles: alertas.map(({ miembros: _foto, ...resto }) => resto),
+        pendientes: alertas.length,
+        pospuestas: 0,
+      }
+    }
+    const asientos = yo.demo
+      ? asientosDemo
+      : (reconocimientos.error ? [] : (reconocimientos.data ?? []))
+    return aplicarReconocimientos(alertas, asientos, ahora)
+  }, [ahora, alertas, asientosDemo, fotoConfiable, reconocimientos.data, reconocimientos.error, rol, yo])
+
+  // Asienta en el libro y refresca la query; el toast y el foco son de la
+  // pantalla. En demo escribe el espejo local con secuencia monotónica —
+  // el MISMO contrato que la identity del servidor.
+  const reconocer = useCallback(async (
+    alerta: AlertaCRM,
+    accion: AccionReconocimiento,
+    hasta: string | null,
+  ): Promise<void> => {
+    if (!yo || rol !== 'supervisor' || alerta.miembros == null) return
+    const miembros = [...alerta.miembros]
+    if (yo.demo) {
+      setAsientosDemo((previos) => [...previos, {
+        id: crypto.randomUUID(),
+        alerta_id: alerta.id,
+        accion,
+        miembros,
+        severidad: alerta.severidad,
+        hasta,
+        creado_en: new Date().toISOString(),
+        secuencia: (previos[previos.length - 1]?.secuencia ?? 0) + 1,
+      }])
+      return
+    }
+    await reconocerAlertaSupervisor(yo.id, alerta.id, accion, miembros, alerta.severidad, hasta)
+    // throwOnError (Codex #4): sin él, un refetch caído se ABSORBE, la
+    // promesa resuelve y la pantalla cantaría éxito con la fila vieja en
+    // pantalla. El asiento SÍ quedó: el mensaje lo distingue del fallo real.
+    try {
+      await queryClient.invalidateQueries(
+        { queryKey: crmQueryKeys.reconocimientosAlertas() },
+        { throwOnError: true },
+      )
+    } catch {
+      throw new CrmApiError(
+        'Quedó asentado, pero la lista no se pudo refrescar: usa Actualizar.',
+        'RECONOCIMIENTOS_REFRESCO',
+      )
+    }
+  }, [queryClient, rol, yo])
+
   const errores = useMemo(() => {
     if (yo?.demo || soloRoles) return []
     const mensajes = [
@@ -238,6 +337,19 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
             'No se pudieron cargar tus recordatorios de contacto.',
           )
         : null,
+      // F4: un libro ilegible tampoco es mudo — sin él las alertas suenan
+      // COMPLETAS (reconocimientos incluidos) y el supervisor debe saber por
+      // qué su campana volvió a llenarse.
+      sesionSupervisorReal && reconocimientos.error
+        ? mensajeDeError(
+            reconocimientos.error,
+            'No se pudieron leer tus reconocimientos; las alertas se muestran completas.',
+          )
+        : null,
+      // F4 (Codex #5): la foto trunca se DICE, no se disimula quitando botones.
+      rol === 'supervisor' && !soloRoles && !fotoConfiable
+        ? 'Tu cartera alcanzó el tope local de leads: Reconocer y Posponer quedan desactivados porque la foto de los grupos podría estar incompleta.'
+        : null,
     ]
     return mensajes.filter((mensaje): mensaje is string => Boolean(mensaje))
   }, [
@@ -246,8 +358,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     objetivosError,
     cumplimientoMetasError,
     estadoSla.error,
+    fotoConfiable,
+    reconocimientos.error,
     recordatorios.error,
     rol,
+    sesionSupervisorReal,
     sesionVendedorReal,
     soloRoles,
     yo?.demo,
@@ -277,6 +392,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
         sesionVendedorReal && recordatorios.error
           ? recordatorios.refetch()
           : Promise.resolve(),
+        // F4 (Codex #3): Actualizar refresca el libro SIEMPRE (no solo caído)
+        // — es la vía manual de converger con lo asentado en otra pestaña.
+        sesionSupervisorReal
+          ? reconocimientos.refetch()
+          : Promise.resolve(),
       ]).finally(() => setActualizandoOperativo(false))
     }
   }, [
@@ -284,8 +404,10 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     conversionAnterior,
     objetivosError,
     recargar,
+    reconocimientos,
     recordatorios,
     rol,
+    sesionSupervisorReal,
     sesionVendedorReal,
     soloRoles,
     estadoSla,
@@ -298,8 +420,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     // isPending sería true PERPETUO con la query deshabilitada — el AND con
     // sesionVendedorReal (la misma condición de enabled) lo impide.
     || (sesionVendedorReal && (recordatorios.isPending || recordatorios.isFetching))
+    || (sesionSupervisorReal && (reconocimientos.isPending || reconocimientos.isFetching))
   const valor = useMemo<EstadoAlertasCRM>(() => ({
-    alertas,
+    alertas: visibles,
+    pendientes,
+    pospuestas,
     rol,
     cargando,
     errores,
@@ -307,12 +432,16 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
       ? (conversionGerencia?.generado_en ?? null)
       : new Date(ahora).toISOString(),
     reintentar,
+    reconocer,
   }), [
-    alertas,
+    visibles,
+    pendientes,
+    pospuestas,
     ahora,
     cargando,
     conversionGerencia?.generado_en,
     errores,
+    reconocer,
     reintentar,
     rol,
   ])

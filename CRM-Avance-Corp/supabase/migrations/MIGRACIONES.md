@@ -3521,3 +3521,85 @@ ausente está documentado en esta misma imagen de Supabase
 
 **Registro de excepciones a `public`:** solo la FK de lectura a
 `public.perfiles` (patrón de la casa); ningún objeto del portal se altera.
+
+## 20260824034730_crm_alertas_reconocimientos_vigentes.sql
+
+**Qué hace:** F4.2 «Hoy del supervisor, sin ruido» — (1) vista
+`crm.alertas_reconocimientos_vigentes` (`security_invoker = true`) que corta
+la VIGENCIA del libro con el reloj de POSTGRES (≤7 días por `creado_en`;
+posposiciones con `hasta > now()`): el front lee SOLO esta vista, cerrando el
+bloqueante Codex F4.2 #2 (un dispositivo con el reloj atrasado podía alargar
+un silencio — la clase de fallo de «una prueba de fechas en tu propia zona»);
+(2) `UNIQUE (secuencia)` sobre `crm.alertas_reconocimientos` — «el último
+asiento manda» se resuelve por secuencia y el UNIQUE cierra la vía anómala
+(restauración/doble carga) de empates con ganador arbitrario (Codex #6).
+
+**Estado:** ✅ **EN PRODUCCIÓN** (2026-08-24, madrugada). Ciclo completo del
+banco `f42-vigentes` (ref `ggkpqmdvtybeinwulfvk`, borrado al cerrar): replay
+38/38 desde el registro remoto verificado por md5 · gate 413 marcas con TODOS
+los casos F4/F4.2 en verde (29 del libro + 14 nuevos de la vista, incluida la
+prueba TEMPORAL: una posposición de 8 s nace visible y la vista la suelta con
+el reloj del servidor mientras la tabla la conserva) · advisors del banco 0
+sobre estos objetos · merge verificado CONTANDO objetos en prod: vista con
+`reloptions = {security_invoker=true}` y viewdef exacto, constraint presente,
+registro 125 (fila `20260824034730` con 7 statements, md5
+`3fca26e8c4e4fd0fbe16fa47e7767936`), grants de la vista = SELECT a
+authenticated y NADA a anon, funciones 274 SIN cambios y huella filtrada
+`264|f583b7c5…` intacta, cron de caducidad 1 fila · advisors de prod
+post-merge **157 = línea base exacta**, 0 sobre la vista.
+
+⚠️ **Trampa nueva del merge (cazada en este ciclo):** el PRIMER merge falló
+(main → MIGRATIONS_FAILED, prod intacto — verificado antes de reintentar)
+porque la fila del registro llevaba el fichero entero como UN solo elemento
+de `statements`; el ejecutor del merge corre elemento a elemento por
+protocolo extendido y no acepta multi-statement. La fila debe ir con los
+statements PARTIDOS (uno por sentencia, respetando `$$` y comillas; el
+bloque comentado de vuelta atrás del final no va al registro). Con la fila
+partida en 7, el segundo merge ejecutó y registró bien.
+
+**Fallos del gate AJENOS a esta migración (dichos):** los 23 ✗ de la sección
+domicilio legal — esperan funciones que en prod viven FUERA del registro (la
+deriva de arriba), imposibles en un banco fiel al registro — y el fatal
+documentado del arnés (offboarding post-8-ago).
+
+**Auditoría (auditor-rls, 0 bloqueantes):** #2 aplicado — ⚠️ REGLA: todo
+`CREATE OR REPLACE` de una vista invoker DEBE repetir `WITH (security_invoker
+= true)`; en PG17 el replace SUSTITUYE las reloptions y sin el WITH la vista
+se vuelve definer EN SILENCIO (quedó en el COMMENT de la vista). #3/#4/#5
+aplicados a la matriz: denegados de directorio y anon sobre la vista, y DML
+a través de la vista (auto-actualizable para Postgres) pinneado como
+bloqueado. #6 dicho: el `ADD CONSTRAINT` no puede chocar con datos de prod —
+la identity es `GENERATED ALWAYS`, PostgREST no puede mandar `secuencia` y
+`OVERRIDING SYSTEM VALUE` no viaja por la API.
+
+**NO observables y DICHOS:** el corte de 7 días de la vista (nadie fabrica un
+`creado_en` viejo — lo sella el trigger de F4.1) y el empate de `secuencia`
+(inalcanzable por la vía normal); ambos cerrados por estructura. La matriz sí
+prueba el corte de `hasta` EN EL TIEMPO: una posposición de 8 segundos nace
+visible en la vista, y pasada su fecha la vista la suelta mientras la tabla
+la conserva — reloj del servidor, no del que consulta.
+
+**⚠️ Deriva de prod FUERA del registro (hallazgo del ciclo):** al montar el
+banco (replay 38/38 desde el registro remoto, registro 124), la huella global
+dio 270 funciones en el banco contra 274 en prod. Diferencia identificada
+función a función: 10 funciones del dominio **domicilio legal** y
+**contrato-pdf** (4 que solo existen en prod: `completar_domicilio_cliente`,
+`datos_legales_contrato_fn`, `normalizar_domicilio_legal`,
+`contrato_documental_regimen`; 6 con hash distinto:
+`actualizar_cliente_gerencia_con_domicilio`, `contrato_pdf_reclamar`,
+`convertir_lead_con_domicilio`, `contrato_pdf_estado_base`,
+`crear_job_contrato_pdf_base`, `crear_revision_contrato_pdf_base`) — trabajo
+de las sesiones de domicilio legal / PDF aplicado a prod SIN fila en el
+registro. **Excluyendo esas 10, banco y prod son idénticos al byte: 264|`f583b7c578a5bb3ebb0824d6be13f35d`
+en ambos.** Esta migración no toca ese dominio; la deuda de registrar esas
+funciones queda anotada y NO se «arregla» desde este ciclo (sería pisar
+trabajo ajeno a ciegas — la lección de [[sesiones-paralelas-deploy]]).
+
+**Verificación post-merge obligatoria:** contar objetos (vista + constraint),
+`pg_class.reloptions` de la vista contiene `security_invoker=true`, registro
+de prod 125 con md5 `281ac2ea…` en la fila nueva, funciones 274 SIN cambios
+(esta migración no crea ni altera funciones) y huella filtrada
+`264|f583b7c5…` intacta.
+
+**Registro de excepciones a `public`:** ninguna — ningún statement toca
+`public.*`.

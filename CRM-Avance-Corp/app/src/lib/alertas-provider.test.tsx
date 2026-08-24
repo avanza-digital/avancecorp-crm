@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { Rol } from './roles'
 
 const derivarVendedor = vi.fn((_input: unknown) => [{
@@ -24,6 +25,8 @@ const derivarSupervisor = vi.fn((_input: unknown) => [{
   responsableId: 's1',
   responsable: null,
   valor: 1,
+  // F4: la foto de miembros que el libro de reconocimientos compara.
+  miembros: ['lead-2'],
   destino: { vista: 'hoy', leadId: 'lead-2', etiqueta: 'Repartir lead' },
 }])
 const derivarGerencia = vi.fn((_input: unknown) => [{
@@ -51,7 +54,7 @@ const RECORDATORIOS = [{
   recordar_en: '2026-08-05T14:00:00+00:00',
   creado_en: '2026-08-01T14:00:00+00:00',
 }]
-const LEADS = [{ id: 'lead-store' }]
+let LEADS: Array<{ id: string }> = [{ id: 'lead-store' }]
 const ACTIVIDADES = [{ id: 'actividad-store' }]
 const TAREAS = [{ id: 'tarea-store' }]
 const VENDEDORES = [{ perfil_id: 'v1' }]
@@ -109,7 +112,19 @@ vi.mock('@/lib/store-context', () => ({
   }),
 }))
 vi.mock('@/lib/ahora', () => ({ useAhora: () => Date.UTC(2026, 7, 6, 17) }))
-vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_: unknown, fallback: string) => fallback }))
+const reconocerServidor = vi.fn((..._argumentos: unknown[]) => Promise.resolve())
+vi.mock('@/data/crm-api', () => ({
+  CrmApiError: class CrmApiError extends Error {
+    code: string
+    constructor(mensaje: string, code: string) {
+      super(mensaje)
+      this.code = code
+    }
+  },
+  MAX_LEADS_AMBITO: 2000,
+  mensajeDeError: (_: unknown, fallback: string) => fallback,
+  reconocerAlertaSupervisor: (...argumentos: unknown[]) => reconocerServidor(...argumentos),
+}))
 let RECORDATORIOS_ERROR: Error | null = null
 const refetchRecordatorios = vi.fn(() => Promise.resolve())
 const consultaRecordatorios = vi.fn((habilitada: boolean) => ({
@@ -119,16 +134,32 @@ const consultaRecordatorios = vi.fn((habilitada: boolean) => ({
   isFetching: false,
   refetch: refetchRecordatorios,
 }))
+// F4: el libro de reconocimientos del supervisor, con su propio grifo de
+// error. OJO (Codex #1): con error, `data` se CONSERVA — es lo que hace
+// TanStack Query cuando un refetch falla, y el provider debe ignorarla.
+let RECONOCIMIENTOS_ERROR: Error | null = null
+let RECONOCIMIENTOS: unknown[] = []
+const refetchReconocimientos = vi.fn(() => Promise.resolve())
+const consultaReconocimientos = vi.fn((habilitada: boolean) => ({
+  data: habilitada ? RECONOCIMIENTOS : undefined,
+  error: RECONOCIMIENTOS_ERROR,
+  isPending: false,
+  isFetching: false,
+  refetch: refetchReconocimientos,
+}))
 vi.mock('@/data/crm-queries', () => ({
+  crmQueryKeys: { reconocimientosAlertas: () => ['crm', 'reconocimientos-alertas'] },
   useMetricasConversiones: (...argumentos: Parameters<typeof consultasConversion>) =>
     consultasConversion(...argumentos),
   useRecordatoriosDisponibilidad: (habilitada: boolean) => consultaRecordatorios(habilitada),
+  useReconocimientosAlertas: (habilitada: boolean) => consultaReconocimientos(habilitada),
 }))
 vi.mock('@/lib/conversion-equipo', () => ({
   identidadesEquipoConversion: () => [{ vendedorId: 'v1', nombre: 'Ana' }],
 }))
 vi.mock('@/lib/demo-inteligencia-comercial', () => ({
   conversionEquipoDemo: () => [],
+  cumplimientoMetasConversionEquipoDemo: () => ({ porVendedor: {} }),
   metasConversionEquipoDemo: () => ({}),
   metricasConversionesDemo: () => null,
 }))
@@ -150,28 +181,79 @@ function Lector() {
     <>
       <output>{JSON.stringify(estado)}</output>
       <button type="button" onClick={estado.reintentar}>reintentar</button>
+      {/* F4: disparan reconocer/posponer con la MISMA alerta agrupada que
+          derivarSupervisor mockea (equipo-1) — así el asiento resultante es
+          observable en el estado que imprime el <output>. */}
+      <button
+        type="button"
+        onClick={() => { void estado.reconocer(ALERTA_GRUPO, 'reconocer', null) }}
+      >
+        reconocer
+      </button>
+      <button
+        type="button"
+        onClick={() => {
+          void estado.reconocer(
+            ALERTA_GRUPO,
+            'posponer',
+            new Date(Date.now() + 86_400_000).toISOString(),
+          )
+        }}
+      >
+        posponer
+      </button>
     </>
   )
 }
 
-function montar(rol: Extract<Rol, 'vendedor' | 'supervisor' | 'gerencia'>) {
-  YO = { id: rol === 'vendedor' ? 'v1' : rol === 'supervisor' ? 's1' : 'g1', rol, demo: false }
+/** La alerta que derivarSupervisor mockea, con su foto de miembros. */
+const ALERTA_GRUPO = {
+  id: 'equipo-1',
+  tipo: 'por_repartir',
+  severidad: 'critica',
+  alcance: 'equipo',
+  titulo: 'Lead por repartir',
+  detalle: 'Pendiente del equipo',
+  responsableId: 's1',
+  responsable: null,
+  valor: 1,
+  miembros: ['lead-2'],
+  destino: { vista: 'hoy', leadId: 'lead-2', etiqueta: 'Repartir lead' },
+} as Parameters<ReturnType<typeof useAlertasCRM>['reconocer']>[0]
+
+function montar(
+  rol: Extract<Rol, 'vendedor' | 'supervisor' | 'gerencia'>,
+  { demo = false }: { demo?: boolean } = {},
+) {
+  YO = { id: rol === 'vendedor' ? 'v1' : rol === 'supervisor' ? 's1' : 'g1', rol, demo }
   derivarVendedor.mockClear()
   derivarSupervisor.mockClear()
   derivarGerencia.mockClear()
   consultasConversion.mockClear()
   consultaRecordatorios.mockClear()
-  return render(
-    <AlertasCRMProvider>
-      <Lector />
-    </AlertasCRMProvider>,
+  consultaReconocimientos.mockClear()
+  // F4: el provider usa useQueryClient (invalidación del libro) — necesita
+  // el QueryClientProvider real aunque las queries estén mockeadas.
+  const clienteConsultas = new QueryClient()
+  render(
+    <QueryClientProvider client={clienteConsultas}>
+      <AlertasCRMProvider>
+        <Lector />
+      </AlertasCRMProvider>
+    </QueryClientProvider>,
   )
+  return { clienteConsultas }
 }
 
 beforeEach(() => {
   LEADS_VISIBLES = true
+  LEADS = [{ id: 'lead-store' }]
   RECORDATORIOS_ERROR = null
+  RECONOCIMIENTOS_ERROR = null
+  RECONOCIMIENTOS = []
   refetchRecordatorios.mockClear()
+  refetchReconocimientos.mockClear()
+  reconocerServidor.mockClear()
   llamadasVisibilidad.length = 0
 })
 
@@ -266,5 +348,167 @@ describe('AlertasCRMProvider', () => {
     expect(derivarSupervisor).not.toHaveBeenCalled()
     expect(screen.getByRole('status')).toHaveTextContent('bajo_meta_conversion:v1')
     expect(screen.getByRole('status')).toHaveTextContent('ranking-vendedores')
+  })
+
+  it('F4: el libro se consulta SOLO para el supervisor, reconocer firma con su identidad y REFRESCA', async () => {
+    const { clienteConsultas } = montar('supervisor')
+    const invalidar = vi.spyOn(clienteConsultas, 'invalidateQueries')
+
+    expect(consultaReconocimientos).toHaveBeenCalledWith(true)
+    fireEvent.click(screen.getByRole('button', { name: 'reconocer' }))
+    await vi.waitFor(() => {
+      expect(reconocerServidor).toHaveBeenCalledWith(
+        's1',
+        'equipo-1',
+        'reconocer',
+        ['lead-2'],
+        'critica',
+        null,
+      )
+    })
+    // Mutante Codex #9: borrar la invalidación tras el INSERT debe morir aquí.
+    await vi.waitFor(() => {
+      expect(invalidar).toHaveBeenCalledWith(
+        { queryKey: ['crm', 'reconocimientos-alertas'] },
+        { throwOnError: true },
+      )
+    })
+  })
+
+  it('F4 (Codex #1): con el libro en ERROR, los asientos CACHEADOS no se aplican — todo suena', () => {
+    // El asiento pospondría equipo-1… pero el refetch falló: data conservada
+    // por TanStack + error presente ⇒ el provider debe ignorar la caché.
+    RECONOCIMIENTOS = [{
+      id: '4c1f2a10-9f6a-49a4-8f7e-000000000002',
+      alerta_id: 'equipo-1',
+      accion: 'posponer',
+      miembros: ['lead-2'],
+      severidad: 'critica',
+      hasta: '2026-08-07T17:00:00.000Z',
+      creado_en: '2026-08-06T10:00:00.000Z',
+      secuencia: 1,
+    }]
+    RECONOCIMIENTOS_ERROR = new Error('refetch caído')
+    montar('supervisor')
+
+    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
+      pendientes: number
+      pospuestas: number
+      alertas: Array<{ id: string }>
+    }
+    expect(estado.pendientes).toBe(1)
+    expect(estado.pospuestas).toBe(0)
+    expect(estado.alertas[0]?.id).toBe('equipo-1')
+  })
+
+  it('F4 (Codex R2): con el gate de leads CERRADO el supervisor ni consulta el libro', () => {
+    LEADS_VISIBLES = false
+    montar('supervisor')
+
+    expect(consultaReconocimientos).toHaveBeenCalledWith(false)
+  })
+
+  it('F4 demo: el espejo local asienta sin servidor y posponer SUPERSEDE por secuencia', async () => {
+    montar('supervisor', { demo: true })
+
+    // En demo el libro del servidor ni se consulta.
+    expect(consultaReconocimientos).toHaveBeenCalledWith(false)
+
+    fireEvent.click(screen.getByRole('button', { name: 'reconocer' }))
+    await vi.waitFor(() => {
+      const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
+        pendientes: number
+        alertas: Array<{ reconocimiento?: { accion: string } }>
+      }
+      expect(estado.pendientes).toBe(0)
+      expect(estado.alertas[0]?.reconocimiento?.accion).toBe('reconocer')
+    })
+    expect(reconocerServidor).not.toHaveBeenCalled()
+
+    // El segundo asiento (posponer) manda por secuencia monotónica: oculta.
+    fireEvent.click(screen.getByRole('button', { name: 'posponer' }))
+    await vi.waitFor(() => {
+      const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
+        alertas: unknown[]
+        pospuestas: number
+      }
+      expect(estado.alertas).toHaveLength(0)
+      expect(estado.pospuestas).toBe(1)
+    })
+  })
+
+  it('F4 (Codex #5): con el ámbito EN el tope local, reconocer se desactiva y el libro se ignora', () => {
+    LEADS = Array.from({ length: 2000 }, (_, i) => ({ id: `lead-${i}` }))
+    RECONOCIMIENTOS = [{
+      id: '4c1f2a10-9f6a-49a4-8f7e-000000000003',
+      alerta_id: 'equipo-1',
+      accion: 'reconocer',
+      miembros: ['lead-2'],
+      severidad: 'critica',
+      hasta: null,
+      creado_en: '2026-08-06T10:00:00.000Z',
+      secuencia: 1,
+    }]
+    montar('supervisor')
+
+    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
+      pendientes: number
+      errores: string[]
+      alertas: Array<{ miembros?: string[]; reconocimiento?: unknown }>
+    }
+    // Sin foto confiable: nada se atenúa (el asiento NO se aplica)…
+    expect(estado.pendientes).toBe(1)
+    expect(estado.alertas[0]?.reconocimiento).toBeUndefined()
+    // …los botones no existen (sin miembros no hay reconocer)…
+    expect(estado.alertas[0]?.miembros).toBeUndefined()
+    // …y el motivo se DICE.
+    expect(estado.errores.join(' ')).toContain('tope local de leads')
+  })
+
+  it('F4: el vendedor ni consulta el libro ni puede asentar en él', () => {
+    montar('vendedor')
+
+    expect(consultaReconocimientos).toHaveBeenCalledWith(false)
+    fireEvent.click(screen.getByRole('button', { name: 'reconocer' }))
+    expect(reconocerServidor).not.toHaveBeenCalled()
+  })
+
+  it('F4: un asiento vigente ATENÚA en el contexto — pendientes descuenta y la alerta lleva su traza', () => {
+    // Asiento que cubre a `equipo-1` (misma foto, misma severidad), fresco
+    // respecto del reloj congelado del arnés (2026-08-06T17:00Z).
+    RECONOCIMIENTOS = [{
+      id: '4c1f2a10-9f6a-49a4-8f7e-000000000001',
+      alerta_id: 'equipo-1',
+      accion: 'reconocer',
+      miembros: ['lead-2'],
+      severidad: 'critica',
+      hasta: null,
+      creado_en: '2026-08-06T10:00:00.000Z',
+      secuencia: 1,
+    }]
+    montar('supervisor')
+
+    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as {
+      pendientes: number
+      alertas: Array<{ id: string; reconocimiento?: { accion: string } }>
+    }
+    expect(estado.pendientes).toBe(0)
+    // La alerta NO se borra: sigue visible, con su traza de reconocimiento.
+    expect(estado.alertas[0]?.id).toBe('equipo-1')
+    expect(estado.alertas[0]?.reconocimiento?.accion).toBe('reconocer')
+  })
+
+  it('F4: un libro ilegible se DICE, las alertas suenan COMPLETAS y Reintentar lo reintenta', () => {
+    RECONOCIMIENTOS_ERROR = new Error('red caída')
+    montar('supervisor')
+
+    expect(screen.getByRole('status')).toHaveTextContent(
+      'No se pudieron leer tus reconocimientos; las alertas se muestran completas.',
+    )
+    // Degradación honesta: sin libro, nada se atenúa ni se oculta.
+    const estado = JSON.parse(screen.getByRole('status').textContent ?? '{}') as { pendientes: number }
+    expect(estado.pendientes).toBe(1)
+    fireEvent.click(screen.getByRole('button', { name: 'reintentar' }))
+    expect(refetchReconocimientos).toHaveBeenCalledTimes(1)
   })
 })
