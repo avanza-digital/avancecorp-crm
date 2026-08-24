@@ -13,6 +13,7 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions, usePanelesState, useStoreEstado } from '@/lib/store-context'
 import { funcionesLeadsVisibles } from '@/lib/config'
 import { escribirHash, leerHash, type Vista } from '@/lib/router'
+import { ContextoSplashVisible } from '@/lib/splash-visible'
 import { sanearVista, vistaBase } from '@/lib/vistas'
 import { puedeAdministrarRolesCrm } from '@/lib/roles'
 import { ErrorBoundary } from '@/components/app/error-boundary'
@@ -588,14 +589,18 @@ export function EntradaCrm({
   return (
     <>
       {faseCarga === null && (
-        <div
-          ref={workspaceRef}
-          className="h-svh"
-          inert={mostrarSplash ? true : undefined}
-          aria-hidden={mostrarSplash ? true : undefined}
-        >
-          {children ?? <Workspace />}
-        </div>
+        // El contexto publica si la capa aún tapa el workspace: las pantallas
+        // que anotan «visitas» (F4.3) esperan a ser visibles de verdad.
+        <ContextoSplashVisible.Provider value={mostrarSplash}>
+          <div
+            ref={workspaceRef}
+            className="h-svh"
+            inert={mostrarSplash ? true : undefined}
+            aria-hidden={mostrarSplash ? true : undefined}
+          >
+            {children ?? <Workspace />}
+          </div>
+        </ContextoSplashVisible.Provider>
       )}
       {mostrarSplash && (
         <Splash

@@ -2,7 +2,7 @@
 // ya trae: sus leads + los de sus vendedores + parkeados de SU bandeja.
 // Fuentes: useCRMData().ambito + lib/inteligencia + objetivos del contexto.
 // Semáforos sin verde: azul #2563eb ok · ámbar #d97706 atención · rojo #dc2626.
-import { useEffect, useMemo, useState, type JSX } from 'react'
+import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   AlertTriangle,
   ChevronRight,
@@ -36,6 +36,15 @@ import {
   pctMeta,
 } from '@/lib/inteligencia'
 import { TOPE_ESTANCADOS } from '@/lib/cola-accion'
+import {
+  derivarNovedades,
+  fotoDeVisita,
+  guardarFotoVisita,
+  leerFotoVisita,
+  resumenNovedades,
+  type NovedadesVisita,
+} from '@/lib/visita-sin-movimiento'
+import { useSplashVisible } from '@/lib/splash-visible'
 import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { fechaLima } from '@/lib/agenda-derivada'
 import {
@@ -211,6 +220,13 @@ export function HoySupervisor(): JSX.Element {
       : 'todo'
   const pestana = pestanaElegida ?? primeraConFilas
   const elegirPestana = (siguiente: PestanaCola) => {
+    // F4.3: la visita la cierra el USUARIO al irse de la pestaña. Un vaivén
+    // automático de `primeraConFilas` (refetch caído que salta a «Todo» y
+    // vuelve al recuperarse) no borra las marcas ni fabrica otra visita.
+    if (pestana === 'sin_movimiento' && siguiente !== 'sin_movimiento') {
+      visitaAnotadaRef.current = null
+      setVisitaCongelada(null)
+    }
     setPestanaElegida(siguiente)
   }
   // El colapso se reinicia con CUALQUIER cambio de pestaña — también el
@@ -219,6 +235,41 @@ export function HoySupervisor(): JSX.Element {
   useEffect(() => {
     setColaExpandida(false)
   }, [pestana])
+  // F4.3: qué EMPEORÓ en «Sin movimiento» desde la última visita. TODO se
+  // CONGELA en el instante de anotar: la foto anterior Y las marcas derivadas
+  // — una marca que aparece «bajo el cursor» porque la cola se refrescó
+  // debajo sería ruido, no memoria (la severidad de la tira sí sigue viva).
+  // La visita queda anotada en localStorage en ese mismo instante — anotar
+  // «al salir» exigiría un unload handler, y perder una anotación solo marca
+  // DE MÁS la próxima vez, la dirección segura. La anotación ESPERA a que el
+  // payload esté fresco (enVuelo: persistir una cola vieja podría CALLAR una
+  // novedad futura) y a que el workspace sea visible (splash: una «visita»
+  // que nadie vio también calla). El ref la hace idempotente (StrictMode
+  // ejecuta el efecto dos veces) y fiel a la identidad: si `yo` cambiara en
+  // caliente se anota de nuevo para el id nuevo.
+  const splashVisible = useSplashVisible()
+  const [visitaCongelada, setVisitaCongelada] = useState<{
+    novedades: NovedadesVisita | null
+    recortada: boolean
+  } | null>(null)
+  const visitaAnotadaRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (pestana !== 'sin_movimiento' || yo?.id == null || cola == null) return
+    if (colaOp.enVuelo || splashVisible) return
+    if (visitaAnotadaRef.current === yo.id) return
+    visitaAnotadaRef.current = yo.id
+    const fotoAnterior = leerFotoVisita(yo.id)
+    guardarFotoVisita(yo.id, fotoDeVisita(cola.estancados, Date.now()))
+    setVisitaCongelada({
+      novedades: derivarNovedades(cola.estancados, fotoAnterior),
+      recortada: cola.estancados.length >= TOPE_ESTANCADOS,
+    })
+  }, [pestana, cola, colaOp.enVuelo, splashVisible, yo?.id])
+  const novedadesVisita = visitaCongelada?.novedades ?? null
+  const resumenVisita = resumenNovedades(
+    novedadesVisita,
+    visitaCongelada?.recortada === true ? TOPE_ESTANCADOS : undefined,
+  )
   const filasCola = pestana === 'urgente' ? urgentes : (cola?.items ?? [])
   // Total real de la pestaña activa, para que el botón de expandir no prometa
   // menos de lo que existe cuando el RPC recortó las filas.
@@ -542,33 +593,73 @@ export function HoySupervisor(): JSX.Element {
                     </p>
                   </CardContent>
                 ) : (
-                  <div className="divide-y divide-border/60 border-t border-border/60">
-                    {cola.estancados.map((a) => (
-                      // F2: la gravedad va UNA vez, en la tira (rojo desde 7
-                      // días, ámbar 5–6); el texto queda en gris de contexto.
-                      <button
-                        key={a.leadId}
-                        type="button"
-                        onClick={() => abrirLead(a.leadId)}
-                        aria-label={`Abrir ficha de ${a.nombre}`}
-                        className="flex w-full cursor-pointer items-center gap-2.5 border-l-[3px] py-2.5 pl-[17px] pr-5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40"
-                        style={{ borderLeftColor: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
-                      >
-                        <div className="min-w-0 flex-1 leading-tight">
-                          <p className="truncate text-sm font-semibold">
-                            {a.nombre}{' '}
-                            <span className="text-xs font-medium text-muted-foreground">
-                              ({(a.vendedorId != null ? nombrePorId.get(a.vendedorId) : null) ?? 'sin asignar'})
-                            </span>
-                          </p>
-                          <p className="text-[11px] font-medium text-muted-foreground">
-                            Sin actividad {haceTexto(a.dias)}
-                          </p>
-                        </div>
-                        <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
-                      </button>
-                    ))}
-                  </div>
+                  <>
+                    {/* F4.3: el resumen de novedades va ANTES de la lista —
+                        es la razón para escanearla. Solo existe si hay algo
+                        que decir (el silencio también es información). */}
+                    {resumenVisita != null && (
+                      <p className="border-t border-border/60 px-5 py-2 text-[11px] font-semibold text-muted-foreground-strong">
+                        {resumenVisita}
+                      </p>
+                    )}
+                    <div className="divide-y divide-border/60 border-t border-border/60">
+                      {cola.estancados.map((a) => {
+                        // F2: la gravedad va UNA vez, en la tira (rojo desde 7
+                        // días, ámbar 5–6); el texto queda en gris de contexto.
+                        // F4.3: la novedad es CATEGÓRICA, no de severidad —
+                        // chip violeta para el que entró; el que cruzó a
+                        // crítico ya tiene la tira roja y lo dice el texto.
+                        const esNuevo = novedadesVisita?.nuevos.has(a.leadId) === true
+                        const cruzoACritico = novedadesVisita?.agravados.has(a.leadId) === true
+                        const vendedor = (a.vendedorId != null ? nombrePorId.get(a.vendedorId) : null) ?? 'sin asignar'
+                        return (
+                          <button
+                            key={a.leadId}
+                            type="button"
+                            onClick={() => abrirLead(a.leadId)}
+                            // El label DICTA todo lo visible: el aria-label
+                            // pisa el contenido para un SR, así que lleva al
+                            // vendedor (a11y M1: de quién es el lead es parte
+                            // de la decisión), los días (la criticidad no
+                            // puede vivir solo en la tira de color) y el
+                            // literal del chip («nuevo aquí») para que el
+                            // dictado por voz también lo alcance (2.5.3).
+                            aria-label={`Abrir ficha de ${a.nombre} (${vendedor}), sin actividad ${haceTexto(a.dias)}${
+                              esNuevo
+                                ? ', nuevo aquí desde tu última visita'
+                                : cruzoACritico ? ', crítico desde tu última visita' : ''
+                            }`}
+                            className="flex w-full cursor-pointer items-center gap-2.5 border-l-[3px] py-2.5 pl-[17px] pr-5 text-left transition-colors hover:bg-muted/40 focus-visible:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/40"
+                            style={{ borderLeftColor: a.dias >= 7 ? SEMAFORO.critico : SEMAFORO.atencion }}
+                          >
+                            <div className="min-w-0 flex-1 leading-tight">
+                              <p className="truncate text-sm font-semibold">
+                                {a.nombre}{' '}
+                                <span className="text-xs font-medium text-muted-foreground">
+                                  ({vendedor})
+                                </span>
+                              </p>
+                              <p className="text-[11px] font-medium text-muted-foreground">
+                                Sin actividad {haceTexto(a.dias)}
+                                {/* Gris FUERTE (a11y F4.3 #2): es la única
+                                    señal textual del cruce y el gris débil a
+                                    11px roza el 4.5:1 en hover. */}
+                                {cruzoACritico && (
+                                  <span className="text-muted-foreground-strong"> · crítico desde tu última visita</span>
+                                )}
+                              </p>
+                            </div>
+                            {esNuevo && (
+                              <Badge color={SEMAFORO.violeta} variant="outline" className="shrink-0 whitespace-nowrap">
+                                Nuevo aquí
+                              </Badge>
+                            )}
+                            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden />
+                          </button>
+                        )
+                      })}
+                    </div>
+                  </>
                 )}
               </div>
             ) : filasCola.length === 0 ? (

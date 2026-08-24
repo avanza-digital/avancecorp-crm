@@ -3,9 +3,11 @@
 //
 // El reloj se fija con timers falsos: el mes vigente se deriva del instante y
 // sin fijarlo estos tests pasarían o fallarían según el día en que se ejecuten.
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
+import { ContextoSplashVisible } from '@/lib/splash-visible'
 import {
   objetivosCero,
   type CumplimientoMetasJerarquico,
@@ -116,6 +118,10 @@ vi.mock('@/data/use-resumen-cartera-operativo', async () => {
     },
   }
 })
+// Knobs de la consulta real que el espejo no tiene: un refetch EN VUELO
+// (F4.3 espera al payload fresco) y la cola CAÍDA (fail-closed → null).
+let COLA_EN_VUELO = false
+let COLA_CAIDA = false
 vi.mock('@/data/use-cola-accion-operativa', async () => {
   const { colaAccionDesdeAmbito } = await import('@/lib/cola-accion')
   return {
@@ -125,9 +131,12 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
       tareas: never[],
       indice?: ReadonlyMap<string, never>,
     ) => ({
-      cola: colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
+      cola: COLA_CAIDA
+        ? null
+        : colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
       cargando: false,
-      error: null,
+      enVuelo: COLA_EN_VUELO,
+      error: COLA_CAIDA ? new Error('cola caída') : null,
       recargar: vi.fn(),
     }),
   }
@@ -175,8 +184,14 @@ function montar(
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
+    /** F4.3: arrancar con el refetch de la cola EN VUELO. */
+    colaEnVuelo?: boolean
+    /** F4.3: montar detrás del splash (provider explícito). */
+    splashVisible?: boolean
+    /** F4.3: montar bajo StrictMode (doble efecto de desarrollo). */
+    estricto?: boolean
   } = {},
-): void {
+): ReturnType<typeof render> {
   vi.setSystemTime(MIERCOLES_10AM)
   YO = {
     id: 's-1',
@@ -191,7 +206,16 @@ function montar(
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
   OBJETIVOS = { ...METAS_DEMO, supervisor: { ...METAS_DEMO.supervisor, ...over.objetivos } }
   CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
-  render(<HoySupervisor />)
+  COLA_EN_VUELO = over.colaEnVuelo ?? false
+  COLA_CAIDA = false
+  const pantalla = over.splashVisible == null
+    ? <HoySupervisor />
+    : (
+        <ContextoSplashVisible.Provider value={over.splashVisible}>
+          <HoySupervisor />
+        </ContextoSplashVisible.Provider>
+      )
+  return render(over.estricto === true ? <StrictMode>{pantalla}</StrictMode> : pantalla)
 }
 
 /**
@@ -285,7 +309,7 @@ describe('Hoy · supervisor — cola con pestañas', () => {
     fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
     const panel = screen.getByRole('tabpanel')
     expect(panel).toHaveAttribute('aria-labelledby', 'tab-cola-sin_movimiento')
-    expect(within(panel).getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER' }))
+    expect(within(panel).getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días' }))
       .toHaveTextContent('Sin actividad hace 14 días')
     expect(within(panel).queryByText('NUEVO SIN RESPONDER')).not.toBeInTheDocument()
   })
@@ -723,5 +747,204 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+})
+
+// ── F4.3: qué EMPEORÓ en «Sin movimiento» desde la última visita ─────────────
+// La foto vive en localStorage POR supervisor; aquí se instala un almacén de
+// mentira sobre el global para que el test no dependa del entorno.
+describe('Hoy · supervisor — novedades de la visita (F4.3)', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  // 6 días sin actividad: estancado en ÁMBAR (5–6).
+  const recienEstancado = lead({ id: 'recien', nombre_completo: 'RECIEN ESTANCADO', creado_en: '2026-07-09T15:00:00Z' })
+  const sinResponder = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+  const CLAVE = 'crm:sin-movimiento:visita:s-1'
+
+  function instalarAlmacen(inicial: Record<string, string> = {}) {
+    const datos = new Map(Object.entries(inicial))
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => datos.get(k) ?? null,
+        setItem: (k: string, v: string) => { datos.set(k, v) },
+      },
+    })
+    return datos
+  }
+
+  it('la PRIMERA visita no marca nada y deja la foto anotada (ids y días, sin nombres)', () => {
+    const datos = instalarAlmacen()
+    montar({ leads: [viejo] })
+
+    // Sin urgentes aterriza directo en «Sin movimiento»: eso ES una visita.
+    expect(screen.getByRole('tab', { name: 'Sin movimiento: 1' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Nuevo aquí')).not.toBeInTheDocument()
+
+    const foto = JSON.parse(datos.get(CLAVE) ?? 'null') as { dias: Record<string, number> }
+    expect(foto.dias).toEqual({ viejo: 14 })
+    expect(datos.get(CLAVE)).not.toContain('VIEJO SIN MOVER')
+  })
+
+  it('la SEGUNDA visita marca al que ENTRÓ (chip violeta) y al que CRUZÓ a crítico (texto)', () => {
+    // Foto anterior: al viejo se le vio en ÁMBAR (6 días); hoy lleva 14.
+    instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo, recienEstancado] })
+
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByText('Desde tu última visita: 1 nuevo · 1 cruzó a crítico')).toBeInTheDocument()
+    // El que entró: chip CATEGÓRICO (violeta) + aria que lo dicta.
+    const filaNueva = within(panel).getByRole('button', {
+      name: 'Abrir ficha de RECIEN ESTANCADO (sin asignar), sin actividad hace 6 días, nuevo aquí desde tu última visita',
+    })
+    expect(within(filaNueva).getByText('Nuevo aquí')).toBeInTheDocument()
+    // El que cruzó: SIN chip nuevo (la tira roja ya lo grita) — lo dice el texto.
+    const filaCruzada = within(panel).getByRole('button', {
+      name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días, crítico desde tu última visita',
+    })
+    expect(filaCruzada).toHaveTextContent('· crítico desde tu última visita')
+    expect(within(filaCruzada).queryByText('Nuevo aquí')).not.toBeInTheDocument()
+  })
+
+  it('la foto se CONGELA al abrir: reabrir la pestaña en la misma sesión limpia las marcas', () => {
+    instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo, sinResponder] })
+
+    // Aterriza en Urgente (hay un nuevo sin responder); visita Sin movimiento…
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
+    expect(screen.getByText(/cruzó a crítico/)).toBeInTheDocument()
+    // …sale y vuelve: la visita anterior ya es ESTA, sin novedades.
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+  })
+
+  it('con el storage ROTO la pestaña se pinta completa y sin marcas (jamás revienta)', () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: () => { throw new Error('bloqueado') },
+        setItem: () => { throw new Error('bloqueado') },
+      },
+    })
+    montar({ leads: [viejo] })
+
+    expect(screen.getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días' })).toBeInTheDocument()
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+  })
+
+  it('una foto corrupta se ignora: sin marcas y la visita la REPARA', () => {
+    const datos = instalarAlmacen({ [CLAVE]: '{roto' })
+    montar({ leads: [viejo] })
+
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE) ?? 'null') as { dias: Record<string, number> }).dias)
+      .toEqual({ viejo: 14 })
+  })
+
+  it('las marcas se CONGELAN durante la visita: lo que cruza o entra con la cola viva no gana marca', () => {
+    // Visto en ámbar a 30 min de cumplir 7 días: cruzará DURANTE la visita.
+    const casiCritico = lead({ id: 'casi', nombre_completo: 'CASI CRITICO', creado_en: '2026-07-08T15:30:00Z' })
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6, casi: 6 } }),
+    })
+    const leads = [viejo, casiCritico]
+    montar({ leads })
+
+    // Al abrir: solo el viejo cruzó (6 → 14); el casi-crítico sigue en 6.
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    const vistoEn = (JSON.parse(datos.get(CLAVE)!) as { vistoEn: string }).vistoEn
+
+    // La cola sigue VIVA debajo: una hora después el casi-crítico ya está en
+    // 7 días y un lead nuevo ENTRÓ a la lista…
+    leads.push(lead({ id: 'durante', nombre_completo: 'ENTRO DURANTE', creado_en: '2026-07-09T15:00:00Z' }))
+    act(() => { vi.advanceTimersByTime(3_600_000) })
+
+    // …la severidad de la fila sí vive (ya dice 7 días), pero NADIE gana una
+    // marca de novedad bajo el cursor: ni sufijo en el aria del que cruzó…
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir ficha de CASI CRITICO (sin asignar), sin actividad hace 7 días' }))
+      .toBeInTheDocument()
+    // …ni chip para el que entró…
+    const filaDurante = screen.getByRole('button', { name: 'Abrir ficha de ENTRO DURANTE (sin asignar), sin actividad hace 6 días' })
+    expect(within(filaDurante).queryByText('Nuevo aquí')).not.toBeInTheDocument()
+    // …ni re-anotación: la foto guardada es la del instante de apertura.
+    const foto = JSON.parse(datos.get(CLAVE)!) as { vistoEn: string; dias: Record<string, number> }
+    expect(foto.vistoEn).toBe(vistoEn)
+    expect(foto.dias['durante']).toBeUndefined()
+  })
+
+  it('bajo StrictMode (efectos dobles de desarrollo) las novedades NO desaparecen', () => {
+    instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo], estricto: true })
+
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+  })
+
+  it('con el refetch EN VUELO la anotación espera al payload fresco', () => {
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo], colaEnVuelo: true })
+
+    // La lista se ve, pero ni marcas ni anotación con una cola posiblemente vieja.
+    expect(screen.getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días' }))
+      .toBeInTheDocument()
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias).toEqual({ viejo: 6 })
+
+    // Aterriza el payload fresco → visita anotada y marcas contra la foto anterior.
+    COLA_EN_VUELO = false
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    // `dias` viaja fraccional (el minuto avanzado se nota): basta con que la
+    // foto haya pasado de los 6 vistos a los ~14 reales.
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias['viejo'])
+      .toBeCloseTo(14, 1)
+  })
+
+  it('un refetch caído que quita y devuelve la cola NO fabrica otra visita ni borra las marcas', () => {
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo] })
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    const vistoEn = (JSON.parse(datos.get(CLAVE)!) as { vistoEn: string }).vistoEn
+
+    // Se cae el refetch: fail-closed deja la cola en null y el panel se va…
+    COLA_CAIDA = true
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(screen.getByText('La cola del equipo no está disponible en este momento.')).toBeInTheDocument()
+
+    // …y al recuperarse sigue la MISMA visita: marcas intactas, sin re-anotar.
+    COLA_CAIDA = false
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { vistoEn: string }).vistoEn).toBe(vistoEn)
+  })
+
+  it('detrás del splash NO hay visita: se anota recién al quedar visible', () => {
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    const { rerender } = montar({ leads: [viejo], splashVisible: true })
+
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias).toEqual({ viejo: 6 })
+
+    // El splash termina: recién ahí cuenta la visita (nadie vio nada antes).
+    rerender(
+      <ContextoSplashVisible.Provider value={false}>
+        <HoySupervisor />
+      </ContextoSplashVisible.Provider>,
+    )
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias).toEqual({ viejo: 14 })
   })
 })
