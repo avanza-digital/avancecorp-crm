@@ -142,6 +142,16 @@ function montar({
 beforeEach(() => vi.clearAllMocks())
 
 describe('LeadDrawer — edición de clasificación por capital', () => {
+  it('muestra el segundo celular cuando el lead lo trae de la fuente', () => {
+    montar({ lead: { telefono_alternativo: '+51911222333' } })
+
+    expect(screen.getByText('Teléfono alternativo')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '+51911222333' })).toHaveAttribute(
+      'href',
+      'tel:+51911222333',
+    )
+  })
+
   it('guarda capital y moneda juntos', async () => {
     const user = userEvent.setup()
     const { editarLead } = montar()
