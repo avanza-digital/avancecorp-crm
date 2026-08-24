@@ -146,6 +146,42 @@ export type Database = {
           },
         ]
       }
+      alertas_reconocimientos: {
+        Row: {
+          accion: string
+          alerta_id: string
+          creado_en: string
+          hasta: string | null
+          id: string
+          miembros: string[]
+          perfil_id: string
+          secuencia: number
+          severidad: string
+        }
+        Insert: {
+          accion: string
+          alerta_id: string
+          creado_en?: string
+          hasta?: string | null
+          id?: string
+          miembros: string[]
+          perfil_id: string
+          secuencia?: never
+          severidad: string
+        }
+        Update: {
+          accion?: string
+          alerta_id?: string
+          creado_en?: string
+          hasta?: string | null
+          id?: string
+          miembros?: string[]
+          perfil_id?: string
+          secuencia?: never
+          severidad?: string
+        }
+        Relationships: []
+      }
       cierre_mes_vendedor: {
         Row: {
           ajuste_numerador: number
@@ -1758,6 +1794,39 @@ export type Database = {
       }
     }
     Views: {
+      alertas_reconocimientos_vigentes: {
+        Row: {
+          accion: string | null
+          alerta_id: string | null
+          creado_en: string | null
+          hasta: string | null
+          id: string | null
+          miembros: string[] | null
+          secuencia: number | null
+          severidad: string | null
+        }
+        Insert: {
+          accion?: string | null
+          alerta_id?: string | null
+          creado_en?: string | null
+          hasta?: string | null
+          id?: string | null
+          miembros?: string[] | null
+          secuencia?: number | null
+          severidad?: string | null
+        }
+        Update: {
+          accion?: string | null
+          alerta_id?: string | null
+          creado_en?: string | null
+          hasta?: string | null
+          id?: string | null
+          miembros?: string[] | null
+          secuencia?: number | null
+          severidad?: string | null
+        }
+        Relationships: []
+      }
       clientes_basicos: {
         Row: {
           activo: boolean | null

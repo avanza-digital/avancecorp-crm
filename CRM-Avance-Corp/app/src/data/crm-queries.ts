@@ -42,6 +42,7 @@ import {
   listarMetricasPagosMes,
   listarMetricasVencimientos,
   listarMisContratos,
+  listarReconocimientosAlertas,
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
   obtenerCronograma,
@@ -70,6 +71,8 @@ export const crmQueryKeys = {
   estadoSlaLeads: () => [...crmQueryKeys.raiz, 'sla', 'estado-leads'] as const,
   recordatoriosDisponibilidad: () =>
     [...crmQueryKeys.raiz, 'recordatorios-disponibilidad'] as const,
+  reconocimientosAlertas: () =>
+    [...crmQueryKeys.raiz, 'reconocimientos-alertas'] as const,
   // Cartera del portal (panel del analista): bajo la misma raíz para que el
   // logout (queryClient.clear) y las invalidaciones jerárquicas la cubran.
   clientes: () => [...crmQueryKeys.raiz, 'clientes'] as const,
@@ -735,5 +738,26 @@ export function useRecordatoriosDisponibilidad(habilitada: boolean) {
     queryFn: ({ signal }) => listarRecordatoriosDisponibilidad(signal),
     enabled: habilitada,
     staleTime: 60_000,
+  })
+}
+
+/**
+ * F4 «sin ruido»: el libro de reconocimientos del SUPERVISOR real, para
+ * atenuar (reconocer) u ocultar (posponer) las alertas agrupadas de su
+ * campana. El servidor solo caduca asientos a los 90 días; la VIGENCIA de
+ * ≤7 días la aplica la lógica pura de reconocimientos-alertas.ts.
+ */
+export function useReconocimientosAlertas(habilitada: boolean) {
+  return useQuery({
+    queryKey: crmQueryKeys.reconocimientosAlertas(),
+    queryFn: ({ signal }) => listarReconocimientosAlertas(signal),
+    enabled: habilitada,
+    staleTime: 60_000,
+    // Codex F4.2 #3: staleTime no es polling. Sin esto, un asiento hecho en
+    // OTRA pestaña/dispositivo no convergería aquí mientras la pestaña siga
+    // enfocada — y una posposición que la vista del servidor ya venció
+    // seguiría aplicada. La tabla es diminuta (≤4 alertas por supervisor).
+    refetchInterval: 60_000,
+    refetchIntervalInBackground: false,
   })
 }
