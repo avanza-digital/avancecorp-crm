@@ -2,7 +2,7 @@
 // focus-trap real, fondo inerte, scroll lock, Esc por capas — un Dialog
 // montado encima cierra primero — y retorno de foco al cerrar). El aspecto es
 // el mismo de siempre: mismas clases, mismos keyframes. API sin cambios.
-import type { HTMLAttributes, ReactNode } from 'react'
+import { useRef, type HTMLAttributes, type ReactNode } from 'react'
 import * as RadixDialog from '@radix-ui/react-dialog'
 import { cn } from '@/lib/utils'
 
@@ -25,6 +25,11 @@ interface SheetProps {
 }
 
 export function Sheet({ open, onClose, children, ariaLabel, className }: SheetProps) {
+  // Radix solo restaura el foco automáticamente cuando conoce un Dialog.Trigger.
+  // Los drawers del CRM se abren desde filas y acciones globales, así que no
+  // tienen Trigger declarativo: capturamos el origen justo antes del autofocus
+  // y lo recuperamos al cerrar si el nodo sigue en la página.
+  const origenFoco = useRef<HTMLElement | null>(null)
   return (
     <RadixDialog.Root open={open} onOpenChange={(sigueAbierto) => { if (!sigueAbierto) onClose() }}>
       <RadixDialog.Portal>
@@ -34,6 +39,17 @@ export function Sheet({ open, onClose, children, ariaLabel, className }: SheetPr
           style={{ animation: 'ac-sheet-overlay 0.25s ease both' }}
         />
         <RadixDialog.Content
+          onOpenAutoFocus={() => {
+            const activo = document.activeElement
+            origenFoco.current = activo instanceof HTMLElement ? activo : null
+          }}
+          onCloseAutoFocus={(evento) => {
+            const destino = origenFoco.current
+            origenFoco.current = null
+            if (!destino?.isConnected) return
+            evento.preventDefault()
+            requestAnimationFrame(() => destino.focus())
+          }}
           aria-label={ariaLabel}
           aria-describedby={undefined}
           data-slot="sheet"
