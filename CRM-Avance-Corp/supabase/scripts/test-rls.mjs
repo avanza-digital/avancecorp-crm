@@ -3877,6 +3877,27 @@ async function testOffboardingMatrix(sessions, seed) {
               .select('id')
               .eq('id', f4Pospuesto.data.id),
           );
+          // B1 (Codex F4.4): el último asiento manda TAMBIÉN vencido. Este
+          // grupo tiene una posposición ANTERIOR de 3 días aún dentro de su
+          // hasta; con la vista vieja resucitaba al vencer la de 8 s. Ahora
+          // el posponer vencido, siendo el último, bloquea a los anteriores:
+          // la alerta queda SIN gobierno (cero filas), jamás con un asiento
+          // superado al mando.
+          await expectHidden(
+            'F4.4 vigentes: el posponer vencido BLOQUEA a los asientos anteriores (nada resucita)',
+            sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
+              .select('id')
+              .eq('alerta_id', `grupo:tarea_vencida:${f4SupervisorId}`),
+          );
+          // Espejo de GERENCIA (auditor RLS M1): la lectura que F4.4 pinta es
+          // la de gerencia — tampoco debe listar un compromiso que nadie
+          // sostiene.
+          await expectHidden(
+            'F4.4 vigentes: gerencia TAMPOCO lista la alerta cuyo último asiento venció',
+            sessions.gerencia.client.schema('crm').from('alertas_reconocimientos_vigentes')
+              .select('id')
+              .eq('alerta_id', `grupo:tarea_vencida:${f4SupervisorId}`),
+          );
           await positive(
             'F4.2 vigentes: la tabla base la CONSERVA — la vista recorta, no borra',
             sessions.sup1.client.schema('crm').from('alertas_reconocimientos')

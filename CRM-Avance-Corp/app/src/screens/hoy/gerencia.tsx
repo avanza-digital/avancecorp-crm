@@ -52,6 +52,7 @@ import { ReunionesGerenciaPanel } from './reuniones-gerencia'
 import { AvisoCierreMesPanel } from './aviso-cierre-mes'
 import { ResumenGerenciaPanel } from './resumen-gerencia'
 import { DesglosePorEmpresa } from '@/components/app/cierres-externos-seccion'
+import { CompromisosSupervisoresPanel } from './compromisos-supervisores'
 
 interface ConsultaCargable {
   isPending: boolean
@@ -228,6 +229,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     () => identidadesEquipoConversion(ambito.vendedores, equipo),
     [ambito.vendedores, equipo],
   )
+  // Nombres del roster completo para la traza de compromisos (F4.4).
+  const nombresEquipo = useMemo(
+    () => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])),
+    [equipo],
+  )
   const datosConversion = conversionesDeEjemplo ? metricasConversionesDemo(periodoMetricas.desde, periodoMetricas.hasta) : conversiones.data
   const datosEquipoConversion = conversionesDeEjemplo ? conversionEquipoDemo() : equipoConversion
   const metasVendedoresVisuales = useMemo(
@@ -300,6 +306,12 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
           Se oculta solo si el mes no tiene cierres en cooperativas. */}
       {esResumen && (
         <DesglosePorEmpresa demo={modoDemo} porVendedor={cumplimientoMetas?.porVendedor ?? null} />
+      )}
+
+      {/* F4.4: la trazabilidad de los reconocimientos — qué alertas atenuaron
+          o pospusieron los supervisores y hasta cuándo rigen. Lectura pura. */}
+      {esResumen && (
+        <CompromisosSupervisoresPanel demo={modoDemo} nombrePorId={nombresEquipo} />
       )}
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual() }} />}

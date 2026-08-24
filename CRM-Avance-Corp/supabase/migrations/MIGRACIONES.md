@@ -3603,3 +3603,62 @@ de prod 125 con md5 `281ac2ea…` en la fila nueva, funciones 274 SIN cambios
 
 **Registro de excepciones a `public`:** ninguna — ningún statement toca
 `public.*`.
+
+## 20260824170349_crm_reconocimientos_ultimo_manda_vencido.sql
+
+**Qué hace:** F4.4 «Hoy del supervisor, sin ruido» — re-crea la vista
+`crm.alertas_reconocimientos_vigentes` (SIEMPRE con
+`WITH (security_invoker = true)`, regla del auditor RLS #2) para que elija
+PRIMERO el último asiento por alerta (`distinct on (alerta_id)` por
+`secuencia desc`, dentro de la ventana de 7 días del candado) y evalúe la
+vigencia DESPUÉS. Cierra el bloqueante Codex F4.4 B1: con la forma anterior,
+al vencer una posposición la fila desaparecía de la vista y el asiento
+ANTERIOR (aún dentro de sus 7 días) resucitaba como «último» — la campana
+del supervisor volvía a atenuarse por un asiento superado y gerencia listaba
+un compromiso que nadie sostiene. Ahora un posponer vencido, siendo el
+último, bloquea a los anteriores: la alerta queda sin gobierno (cero filas)
+y suena entera. Colateral bueno: la vista sirve a lo sumo UNA fila por
+alerta. Gate nuevo en `test-rls.mjs`: «el posponer vencido BLOQUEA a los
+asientos anteriores (nada resucita)» — ese caso FALLA contra la forma vieja.
+
+**Estado: ✅ EN PRODUCCIÓN (2026-08-24, ~13:15 Lima).** md5 del fichero:
+`31f358a01ce37e10285b37c7a8431e86`. Ciclo completo del banco
+`f44-ultimo-manda` (ref `ertqnahqvqlazvxdgxro`, borrado al cerrar):
+`reset_branch` a 20260811210049 (86 exactas, equipo vacío) → PATCH
+/postgrest copiando la config API de prod → semilla intercalada → replay
+**40/40 DESDE EL REGISTRO remoto** (los 3 asientos sin cuerpo salieron de los
+`.sql` locales; 3 WARNINGs = postflights «sin datos» honestos del dominio
+domicilio/régimen) → registro de las 40 al byte → **huella GLOBAL de
+funciones IDÉNTICA a prod: 274 · md5 `556fe1ae563bfbad35a61b92aefc0481`**
+(esta vez sin huella filtrada: los cuerpos locales cubren el drift) → F4.4
+aplicada (registro 127 del banco, fila con 3 statements, md5 local
+`585fb170…`) → `reloptions {security_invoker=true}` verificado → bajas de
+semilla → seed demo + baja histórica → gate con los DOS oráculos nuevos EN
+VERDE («el posponer vencido BLOQUEA a los asientos anteriores (nada
+resucita)» + espejo de gerencia, hallazgo M1 del auditor; cierre en el único
+✗ documentado del arnés; conteo completo no capturado — tail de 30) →
+advisors del branch 156 = prod menos `extension_in_public_pg_net` (infra de
+branch), cero clases nuevas → `merge_branch` verificado CONTANDO en prod:
+fila `20260824170349` con 3 statements, viewdef con `DISTINCT ON`,
+`security_invoker=true`, vigentes con una-fila-por-alerta, advisors sin
+NINGUNA clase nueva propia. Auditor RLS previo: 0 bloqueantes/importantes —
+verificó EMPÍRICAMENTE en un PG 17.10 local que los grants sobreviven al
+replace, que el invoker se conserva, que el mutante sin `WITH` FUGA (sup2
+vio filas ajenas), y que el oráculo discrimina forma vieja↔nueva.
+
+⚠️ **Trampas nuevas del ciclo:**
+- **El ejecutor del merge re-registra cada statement SIN su `;` terminal**:
+  la fila en prod quedó con statements de [2134,608,1228] bytes vs
+  [2135,609,1229] locales (exactamente el `;` final de cada uno) y md5
+  `720e9b238dd40528a0be72bec5058edb`. Al verificar una fila mergeada,
+  comparar contenido normalizado, no el md5 calculado sobre el fichero.
+- **Una sesión paralela movió prod DURANTE el ciclo**: entre el volcado del
+  registro y el merge aterrizaron `20260824154218_crm_leads_telefono_alternativo`
+  y `20260824174020_crm_periodo_comercial_contratos` (+3 funciones y +2
+  advisors `security_definer_executable` SUYOS: registro 126→128, funciones
+  274→277, advisors 157→159). El merge no chocó (objetos disjuntos), pero
+  toda aserción de conteo absoluto se re-mide al momento y se atribuyen los
+  deltas antes de dar el veredicto.
+
+**Registro de excepciones a `public`:** ninguna — ningún statement toca
+`public.*`.

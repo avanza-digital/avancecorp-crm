@@ -13,7 +13,8 @@ import {
   type ObjetivoComercial,
   type ObjetivosPorRol,
 } from '@/lib/objetivos'
-import type { Lead, Yo } from '@/lib/tipos'
+import type { Lead, Miembro, Yo } from '@/lib/tipos'
+import type { AsientoReconocimiento } from '@/lib/reconocimientos-alertas'
 import type { SeccionGerencia } from './gerencia'
 
 // Miércoles 2026-07-15, 10:00 en Lima (UTC-5).
@@ -21,6 +22,8 @@ const MIERCOLES_10AM = new Date('2026-07-15T15:00:00Z')
 
 let YO: Yo | null = null
 let LEADS: Lead[] = []
+let EQUIPO: Miembro[] = []
+let ASIENTOS_TRAZA: AsientoReconocimiento[] = []
 let OBJETIVOS: ObjetivosPorRol = objetivosCero()
 let OBJETIVOS_ERROR = false
 let CUMPLIMIENTO: CumplimientoMetasJerarquico | null = null
@@ -43,7 +46,7 @@ vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
     ambito: { leads: LEADS, vendedores: [], esGlobal: true },
-    equipo: [],
+    equipo: EQUIPO,
     objetivos: OBJETIVOS,
     objetivosError: OBJETIVOS_ERROR,
     cumplimientoMetas: CUMPLIMIENTO,
@@ -98,6 +101,15 @@ vi.mock('@/data/crm-queries', () => ({
   // El aviso del ciclo no se prueba aquí (tiene su propio test): sin datos,
   // el banner simplemente no existe.
   useCierreMesEstado: () => ({ data: undefined, isError: false }),
+  // La traza de compromisos (F4.4) tiene su test propio; aquí un knob mínimo
+  // para el ORÁCULO del cableado (que el panel está en el Resumen y recibe
+  // el roster de verdad).
+  useReconocimientosAlertas: () => ({
+    data: ASIENTOS_TRAZA,
+    error: null,
+    isPending: false,
+    refetch: vi.fn(),
+  }),
   useConversionMensual: () => ({
     data: CONVERSION_MENSUAL_FALLA ? undefined : (CONVERSION_MENSUAL ?? undefined),
     error: CONVERSION_MENSUAL_FALLA ? new Error('500 simulado') : null,
@@ -192,6 +204,8 @@ beforeEach(() => {
   CUMPLIMIENTO = null
   CUMPLIMIENTO_ERROR = false
   CONVERSION_MENSUAL_FALLA = false
+  EQUIPO = []
+  ASIENTOS_TRAZA = []
   ESTADO_CONVERSIONES.data = undefined
   ESTADO_CONVERSIONES.error = null
   ESTADO_CONVERSIONES.isPending = false
@@ -201,6 +215,40 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+describe('Hoy · gerencia — compromisos de supervisores (F4.4)', () => {
+  const asientoTraza: AsientoReconocimiento = {
+    id: '00000000-0000-4000-8000-0000000000f4',
+    alerta_id: 'grupo:por_repartir:s-77',
+    accion: 'reconocer',
+    miembros: ['l1', 'l2'],
+    severidad: 'critica',
+    hasta: null,
+    creado_en: '2026-07-15T13:00:00Z',
+    secuencia: 1,
+  }
+
+  it('el Resumen monta la tarjeta y le llega el ROSTER (el nombre del supervisor se ve)', () => {
+    EQUIPO = [{
+      perfil_id: 's-77',
+      nombre_completo: 'SUPERVISOR SETENTA',
+      rol_crm: 'supervisor',
+      supervisor_id: null,
+      activo: true,
+    } as unknown as Miembro]
+    ASIENTOS_TRAZA = [asientoTraza]
+    montar({}, 'completo')
+
+    expect(screen.getByRole('heading', { name: 'Compromisos de supervisores' })).toBeInTheDocument()
+    expect(screen.getByRole('listitem')).toHaveTextContent('SUPERVISOR SETENTA reconoció «Leads esperando reparto» (2 leads)')
+  })
+
+  it('fuera del Resumen la tarjeta NO se monta', () => {
+    ASIENTOS_TRAZA = [asientoTraza]
+    montar({}, 'conversiones')
+    expect(screen.queryByRole('heading', { name: 'Compromisos de supervisores' })).not.toBeInTheDocument()
+  })
 })
 
 describe('Hoy · gerencia — meta del mes', () => {
