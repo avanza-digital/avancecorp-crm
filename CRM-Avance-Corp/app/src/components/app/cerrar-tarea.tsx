@@ -11,15 +11,18 @@
 // resultado a toasts honestos.
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { toast } from 'sonner'
-import { CheckCircle2, PhoneCall, PhoneMissed, Send, MessageSquare, Users, UserX, CircleCheckBig, CalendarX2 } from 'lucide-react'
 import {
-  Dialog,
-  DialogBody,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+  CheckCircle2,
+  PhoneCall,
+  PhoneMissed,
+  Send,
+  MessageSquare,
+  Users,
+  UserX,
+  CircleCheckBig,
+  CalendarX2,
+} from 'lucide-react'
+import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -71,33 +74,69 @@ function opcionesDe(tipo: TipoTarea): OpcionCierre[] {
   switch (tipo) {
     case 'llamada':
       return [
-        { k: 'contesto', label: 'Contestó', icono: PhoneCall, estado: 'completada', resultado: 'llamada_realizada' },
-        { k: 'no_contesto', label: 'No contestó', icono: PhoneMissed, estado: 'completada', resultado: 'llamada_no_contestada' },
+        {
+          k: 'contesto',
+          label: 'Contestó',
+          icono: PhoneCall,
+          estado: 'completada',
+          resultado: 'llamada_realizada',
+        },
+        {
+          k: 'no_contesto',
+          label: 'No contestó',
+          icono: PhoneMissed,
+          estado: 'completada',
+          resultado: 'llamada_no_contestada',
+        },
       ]
     case 'whatsapp':
       return [
-        { k: 'enviado', label: 'Enviado', icono: Send, estado: 'completada', resultado: 'whatsapp_enviado' },
-        { k: 'respondio', label: 'Respondió', icono: MessageSquare, estado: 'completada', resultado: 'whatsapp_recibido' },
+        {
+          k: 'enviado',
+          label: 'Enviado',
+          icono: Send,
+          estado: 'completada',
+          resultado: 'whatsapp_enviado',
+        },
+        {
+          k: 'respondio',
+          label: 'Respondió',
+          icono: MessageSquare,
+          estado: 'completada',
+          resultado: 'whatsapp_recibido',
+        },
       ]
     case 'reunion':
       return [
-        { k: 'realizada', label: 'Se realizó', icono: Users, estado: 'completada', resultado: 'reunion_realizada' },
-        { k: 'no_show', label: 'No asistió', icono: UserX, estado: 'no_show', resultado: null },
+        {
+          k: 'realizada',
+          label: 'Se realizó',
+          icono: Users,
+          estado: 'completada',
+          resultado: 'reunion_realizada',
+        },
+        {
+          k: 'no_show',
+          label: 'No asistió',
+          icono: UserX,
+          estado: 'no_show',
+          resultado: null,
+        },
       ]
     case 'tarea':
       return [
-        { k: 'hecha', label: 'Hecha', icono: CircleCheckBig, estado: 'completada', resultado: null },
+        {
+          k: 'hecha',
+          label: 'Hecha',
+          icono: CircleCheckBig,
+          estado: 'completada',
+          resultado: null,
+        },
       ]
   }
 }
 
-export function CerrarTareaDialog({
-  tarea,
-  onCerrar,
-}: {
-  tarea: Tarea | null
-  onCerrar: () => void
-}) {
+export function CerrarTareaDialog({ tarea, onCerrar }: { tarea: Tarea | null; onCerrar: () => void }) {
   return (
     <Dialog open={tarea != null} onClose={onCerrar} ariaLabel="Cerrar tarea">
       {tarea && <FormCierre key={tarea.id} tarea={tarea} onCerrar={onCerrar} />}
@@ -109,6 +148,11 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   const { lead, completarTarea, anularTarea, actividadesDe, descartar, tareasDe } = useCRMData()
   const ahora = useAhora()
   const l = tarea.lead_id ? lead(tarea.lead_id) : undefined
+  const nombreSujeto =
+    l?.nombre_completo ??
+    (tarea.perfil_id
+      ? tarea.titulo.replace(/^(Llamar a|Escribir a|Reunión con|Gestionar a)\s+/i, '').trim() || 'cliente'
+      : '')
   const opciones = opcionesDe(tarea.tipo)
 
   const [eleccion, setEleccion] = useState<OpcionCierre | null>(
@@ -119,8 +163,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   const [resultadoReunion, setResultadoReunion] = useState<ResultadoReunionOperativo | null>(null)
   const [motivoAnulacion, setMotivoAnulacion] = useState<MotivoNoRealizadaManual | ''>('')
   const [detalleAnulacion, setDetalleAnulacion] = useState('')
-  const [camposReunionSiguiente, setCamposReunionSiguiente] =
-    useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
+  const [camposReunionSiguiente, setCamposReunionSiguiente] = useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
   const [saltar, setSaltar] = useState(false)
   // `null` = el vendedor NO ha tocado la siguiente → manda la sugerencia del
   // motor. En cuanto edita un campo, esto pasa a ser la fuente y el motor deja
@@ -138,7 +181,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             tareaTipo: tarea.tipo,
             estado: eleccion.estado,
             resultado: eleccion.resultado,
-            leadNombre: l?.nombre_completo ?? '',
+            leadNombre: nombreSujeto,
             // Ley 29571 "No Insista": el kill-switch de motor-siguiente.ts
             // existía desde el plan v2 pero NINGÚN llamador le pasaba el flag
             // —`Lead` ni siquiera lo traía del servidor—, así que el motor
@@ -147,7 +190,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             ahora: tsEleccion,
           })
         : null,
-    [eleccion, tarea.tipo, l?.nombre_completo, l?.no_contactar, tsEleccion],
+    [eleccion, tarea.tipo, nombreSujeto, l?.no_contactar, tsEleccion],
   )
 
   /**
@@ -160,11 +203,13 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * silencio, y si el asesor escribía el título que faltaba, confirmar lanzaba
    * un `RangeError` que se llevaba el diálogo al error boundary.
    */
-  const campos: CamposSiguiente | null =
-    editados ?? (sugerencia ? camposDeSugerencia(sugerencia) : null)
+  const campos: CamposSiguiente | null = editados ?? (sugerencia ? camposDeSugerencia(sugerencia) : null)
 
   const editar = (parche: Partial<CamposSiguiente>) => {
-    setEditados({ ...(campos ?? { tipo: 'llamada', titulo: '', fecha: '', hora: '10:00' }), ...parche })
+    setEditados({
+      ...(campos ?? { tipo: 'llamada', titulo: '', fecha: '', hora: '10:00' }),
+      ...parche,
+    })
   }
 
   /**
@@ -198,9 +243,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   // del store (que evalúa el timeline del render ANTERIOR) dejaba pasar un
   // descarte con una conversación recién escrita desmintiéndolo.
   const esConversacion = eleccion?.resultado != null && TIPOS_CONVERSACION_K.has(eleccion.resultado)
-  const planton = tarea.lead_id && !esConversacion
-    ? plantonDe(actividadesDe(tarea.lead_id), ahora)
-    : null
+  const planton = tarea.lead_id && !esConversacion ? plantonDe(actividadesDe(tarea.lead_id), ahora) : null
   const [cerrarLead, setCerrarLead] = useState(false)
   // Solo el cierre por plantón espera al servidor (ver `cerrarPorNoResponde`).
   // Mientras espera, el botón se bloquea: un segundo clic mandaría un cierre de
@@ -291,8 +334,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * en esos dos casos sería mentir. Se evalúa en render, o sea ANTES de que la
    * mutación optimista saque la tarea de la lista.
    */
-  const quedaSinPlan =
-    l != null && esAbierto(l) && !l.no_contactar && !tareasDe(l.id).some((t) => t.id !== tarea.id)
+  const quedaSinPlan = l != null && esAbierto(l) && !l.no_contactar && !tareasDe(l.id).some((t) => t.id !== tarea.id)
 
   /**
    * ¿Anular ESTA tarea devuelve el lead a una etapa anterior?
@@ -304,10 +346,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * store —esta copia es solo para el texto— y por eso las dos no pueden
    * divergir en la escritura, solo, como mucho, en el aviso previo.
    */
-  const retrocesoPrevisto =
-    l != null
-      ? retrocesoPorAnularReunion(l, tarea, tareasDe(l.id), actividadesDe(l.id))
-      : null
+  const retrocesoPrevisto = l != null ? retrocesoPorAnularReunion(l, tarea, tareasDe(l.id), actividadesDe(l.id)) : null
 
   /**
    * ANULAR — sale del diálogo SIN afirmar nada del cliente: ni actividad de
@@ -347,13 +386,9 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     // reunión suele dejar al lead sin plan), pero dos toasts encima de otro se
     // pisan; gana el que más sorprende.
     if (res.retroceso && l) {
-      toast.warning(
-        `Tarea anulada — ${primerNombre(l.nombre_completo)} vuelve a «${ETAPA_INFO[res.retroceso].label}»`,
-      )
+      toast.warning(`Tarea anulada — ${primerNombre(l.nombre_completo)} vuelve a «${ETAPA_INFO[res.retroceso].label}»`)
     } else if (quedaSinPlan && l) {
-      toast.warning(
-        `Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción`,
-      )
+      toast.warning(`Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción`)
     } else {
       toast.success('Tarea anulada — fuera de tu agenda')
     }
@@ -382,9 +417,8 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       return
     }
     const conSiguiente = quiereSiguiente && venceEn != null
-    const reunionSiguiente = conSiguiente && campos?.tipo === 'reunion'
-      ? validarReunionOperativa(camposReunionSiguiente)
-      : null
+    const reunionSiguiente =
+      conSiguiente && campos?.tipo === 'reunion' ? validarReunionOperativa(camposReunionSiguiente) : null
     if (reunionSiguiente && !reunionSiguiente.ok) {
       toast.error(reunionSiguiente.error)
       return
@@ -399,10 +433,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       // Una tarea genérica con nota deja rastro igual; sin nota, solo cierra.
       ...rastroDe(eleccion),
       resultado_reunion: tarea.tipo === 'reunion' ? resultadoReunion : null,
-      motivo_no_realizada:
-        tarea.tipo === 'reunion' && eleccion.estado === 'no_show'
-          ? 'cliente_no_asistio'
-          : null,
+      motivo_no_realizada: tarea.tipo === 'reunion' && eleccion.estado === 'no_show' ? 'cliente_no_asistio' : null,
       siguiente:
         conSiguiente && campos && venceEn
           ? {
@@ -426,7 +457,14 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     if (res.avance) partes.push(`pasó a ${ETAPA_INFO[res.avance].label}`)
     if (conSiguiente && campos && venceEn) {
       const cuando = tareaAEvento(
-        { ...tarea, id: 'x', tipo: campos.tipo, titulo: campos.titulo, vence_en: venceEn, estado: 'pendiente' },
+        {
+          ...tarea,
+          id: 'x',
+          tipo: campos.tipo,
+          titulo: campos.titulo,
+          vence_en: venceEn,
+          estado: 'pendiente',
+        },
         ahora,
       ).cuando
       partes.push(`siguiente agendada: ${cuando}`)
@@ -454,15 +492,18 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
           <CheckCircle2 className="size-4 text-[var(--accent)]" aria-hidden /> Cerrar tarea
         </DialogTitle>
         <DialogDescription className="truncate">{tarea.titulo}</DialogDescription>
+        {tarea.perfil_id && !l && (
+          <Badge color="var(--primary)" className="mt-1 w-fit text-[10px]">
+            Gestión de cliente · Mi cartera
+          </Badge>
+        )}
         {/* Contexto del lead: quién es, en qué etapa va y CUÁNTO está en juego —
             la decisión de proponer/saltar la siguiente no se toma a ciegas.
             (Tareas genéricas sin lead: la franja se omite.) */}
         {l && (
           <div className="mt-1 flex items-center gap-2 rounded-lg bg-muted/40 px-2.5 py-1.5">
             <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} className="size-6 text-[9px]" />
-            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">
-              {l.nombre_completo}
-            </span>
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{l.nombre_completo}</span>
             <Badge color={ETAPA_INFO[l.etapa].color} dot className="shrink-0 text-[10px]">
               {ETAPA_INFO[l.etapa].label}
             </Badge>
@@ -477,9 +518,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       <DialogBody className="space-y-3.5">
         {/* Resultado 1-tap */}
         <div>
-          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">
-            ¿Qué pasó?
-          </p>
+          <p className="mb-1.5 text-[11px] font-bold uppercase tracking-wide text-muted-foreground">¿Qué pasó?</p>
           <div className={cn('grid gap-2', opciones.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
             {opciones.map((op) => (
               <button
@@ -537,18 +576,25 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
 
         {!anulando && tarea.tipo === 'reunion' && eleccion?.estado === 'completada' && (
           <div>
-            <label className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground" htmlFor="resultado-reunion">
+            <label
+              className="mb-1.5 block text-[11px] font-bold uppercase tracking-wide text-muted-foreground"
+              htmlFor="resultado-reunion"
+            >
               Resultado comercial
             </label>
             <Select
               id="resultado-reunion"
               value={resultadoReunion ?? ''}
-              onChange={(evento) => setResultadoReunion(
-                (evento.target.value || null) as ResultadoReunionOperativo | null,
-              )}
+              onChange={(evento) =>
+                setResultadoReunion((evento.target.value || null) as ResultadoReunionOperativo | null)
+              }
             >
               <option value="">Selecciona un resultado</option>
-              {RESULTADOS_REUNION.map((opcion) => <option key={opcion.k} value={opcion.k}>{opcion.label}</option>)}
+              {RESULTADOS_REUNION.map((opcion) => (
+                <option key={opcion.k} value={opcion.k}>
+                  {opcion.label}
+                </option>
+              ))}
             </Select>
           </div>
         )}
@@ -574,15 +620,24 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             aria-labelledby="anular-titulo"
             className="rounded-xl border border-[#d97706]/40 bg-[#d97706]/10 p-2.5 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
           >
-            <p id="anular-titulo" className="text-[11px] font-bold text-warning-text">Anular esta tarea</p>
+            <p id="anular-titulo" className="text-[11px] font-bold text-warning-text">
+              Anular esta tarea
+            </p>
             {/* `--warning-text` (#92400e) y no el ámbar de siempre: a 11 px el
                 `#b45309/90` de los otros avisos da 3.84:1 y AA exige 4.5:1 — y
                 este párrafo es justo el que dice que no se puede deshacer. */}
             <p id="anular-que-hace" className="mt-0.5 text-[11px] text-warning-text">
               {tarea.tipo === 'reunion' ? (
-                <>La reunión quedará cancelada con su motivo y autor para el reporte de Gerencia. No se puede deshacer.</>
+                <>
+                  La reunión quedará cancelada con su motivo y autor para el reporte de Gerencia. No se puede deshacer.
+                </>
               ) : (
-                <>Sale de tu agenda. <strong>No</strong> cuenta como gestión y <strong>no</strong> escribe nada en el historial{l ? ` de ${primerNombre(l.nombre_completo)}` : ''} — úsala cuando la tarea dejó de tener sentido. No se puede deshacer.</>
+                <>
+                  Sale de tu agenda. <strong>No</strong> cuenta como gestión y <strong>no</strong> escribe nada en el
+                  historial
+                  {l ? ` de ${primerNombre(l.nombre_completo)}` : ''} — úsala cuando la tarea dejó de tener sentido. No
+                  se puede deshacer.
+                </>
               )}
             </p>
             {/* El retroceso de etapa va PRIMERO y en negrita: es la única
@@ -592,15 +647,14 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 porque suben; este baja, así que se avisa ANTES). */}
             {retrocesoPrevisto && l && (
               <p id="anular-retroceso" className="mt-1.5 text-[11px] font-semibold text-warning-text">
-                Era su única reunión: {primerNombre(l.nombre_completo)} vuelve a la
-                etapa «{ETAPA_INFO[retrocesoPrevisto].label}». Si la vas a mover de
-                fecha, usa <strong>Reprogramar</strong> en vez de anular.
+                Era su única reunión: {primerNombre(l.nombre_completo)} vuelve a la etapa «
+                {ETAPA_INFO[retrocesoPrevisto].label}». Si la vas a mover de fecha, usa <strong>Reprogramar</strong> en
+                vez de anular.
               </p>
             )}
             {quedaSinPlan && l && (
               <p id="anular-sin-plan" className="mt-1.5 text-[11px] font-semibold text-warning-text">
-                Ojo: es su única pendiente. {primerNombre(l.nombre_completo)} quedará
-                sin próxima acción.
+                Ojo: es su única pendiente. {primerNombre(l.nombre_completo)} quedará sin próxima acción.
               </p>
             )}
             {tarea.tipo === 'reunion' && (
@@ -611,11 +665,17 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                   onChange={(evento) => setMotivoAnulacion(evento.target.value as typeof motivoAnulacion)}
                 >
                   <option value="">Selecciona el motivo</option>
-                  {MOTIVOS_NO_REALIZADA.map((opcion) => <option key={opcion.k} value={opcion.k}>{opcion.label}</option>)}
+                  {MOTIVOS_NO_REALIZADA.map((opcion) => (
+                    <option key={opcion.k} value={opcion.k}>
+                      {opcion.label}
+                    </option>
+                  ))}
                 </Select>
                 <Textarea
                   aria-label="Detalle de cancelación de la reunión"
-                  placeholder={motivoAnulacion === 'otro' ? 'Describe el motivo (obligatorio)' : 'Detalle adicional (opcional)'}
+                  placeholder={
+                    motivoAnulacion === 'otro' ? 'Describe el motivo (obligatorio)' : 'Detalle adicional (opcional)'
+                  }
                   rows={2}
                   value={detalleAnulacion}
                   onChange={(evento) => setDetalleAnulacion(evento.target.value)}
@@ -632,7 +692,11 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
         {!anulando && (
           <Textarea
             aria-label="Nota del resultado (opcional)"
-            placeholder="Nota corta (opcional) — va al timeline del lead"
+            placeholder={
+              tarea.perfil_id
+                ? 'Nota corta (opcional) — va al historial del cliente'
+                : 'Nota corta (opcional) — va al timeline del lead'
+            }
             rows={2}
             value={detalle}
             onChange={(e) => setDetalle(e.target.value)}
@@ -648,12 +712,10 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 3.84:1 con AA exigiendo 4.5, y el opaco pasaba por 0.02. Se
                 salda la deuda que este mismo archivo documentaba 40 líneas más
                 abajo en vez de dejarla escrita al lado de su propio parche. */}
-            <p className="text-[11px] font-bold text-warning-text">
-              {primerNombre(l.nombre_completo)} no responde
-            </p>
+            <p className="text-[11px] font-bold text-warning-text">{primerNombre(l.nombre_completo)} no responde</p>
             <p className="mt-0.5 text-[11px] text-warning-text">
-              {planton.intentos} intentos en {Math.floor(planton.dias)} días sin una sola respuesta.
-              Seguir insistiendo le cuesta un toque cada dos días.
+              {planton.intentos} intentos en {Math.floor(planton.dias)} días sin una sola respuesta. Seguir insistiendo
+              le cuesta un toque cada dos días.
             </p>
             <label className="mt-2 flex cursor-pointer items-start gap-2 text-[11px] font-semibold text-foreground/85">
               <input
@@ -695,7 +757,9 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                   }}
                 >
                   {TIPOS_TAREA.map((t) => (
-                    <option key={t.k} value={t.k}>{t.label}</option>
+                    <option key={t.k} value={t.k}>
+                      {t.label}
+                    </option>
                   ))}
                 </Select>
                 <Input
@@ -720,10 +784,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 />
               </div>
               {campos.tipo === 'reunion' && (
-                <CamposReunion
-                  valor={camposReunionSiguiente}
-                  onChange={setCamposReunionSiguiente}
-                />
+                <CamposReunion valor={camposReunionSiguiente} onChange={setCamposReunionSiguiente} />
               )}
             </div>
           </div>
@@ -731,7 +792,9 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
         {!anulando && eleccion && saltar && (
           <div className="flex items-center justify-between rounded-xl border border-[#d97706]/40 bg-[#d97706]/10 px-3 py-2">
             <p className="text-[11px] font-semibold text-warning-text">
-              Sin siguiente — el lead quedará en “sin próxima acción”.
+              {tarea.perfil_id
+                ? 'Sin siguiente — el cliente quedará sin otra gestión agendada.'
+                : 'Sin siguiente — el lead quedará en “sin próxima acción”.'}
             </p>
             <button
               type="button"
@@ -778,7 +841,9 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 'anular-que-hace',
                 retrocesoPrevisto && l ? 'anular-retroceso' : null,
                 quedaSinPlan && l ? 'anular-sin-plan' : null,
-              ].filter((x): x is string => x !== null).join(' ')}
+              ]
+                .filter((x): x is string => x !== null)
+                .join(' ')}
               onClick={anular}
               disabled={tarea.tipo === 'reunion' && !motivoAnulacion}
             >
@@ -787,7 +852,9 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
           </>
         ) : (
           <>
-            <Button key="cancelar" variant="ghost" size="sm" onClick={onCerrar}>Cancelar</Button>
+            <Button key="cancelar" variant="ghost" size="sm" onClick={onCerrar}>
+              Cancelar
+            </Button>
             <Button key="cerrar" size="sm" onClick={confirmar} disabled={requiereEleccion || procesando}>
               <CheckCircle2 /> Cerrar tarea
             </Button>

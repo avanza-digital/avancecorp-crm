@@ -125,6 +125,48 @@ export interface ContratoRow {
   producto_version_estado: 'borrador' | 'publicada' | 'retirada'
 }
 
+/** Operación comercial confirmada sobre un cliente existente. La fila congela
+ * al asesor que administraba la cartera en ese momento y mantiene PEN/USD
+ * separados. Las renovaciones históricas de agosto pueden venir sin desglose:
+ * se muestra como pendiente, nunca como capital adicional 0 inventado. */
+export interface OperacionCartera {
+  id: string
+  cliente_id: string
+  vendedor_id: string
+  tipo: 'renovacion' | 'upgrade'
+  contrato_origen_id: string | null
+  contrato_nuevo_id: string
+  fecha_operacion: string
+  periodo: string
+  moneda: Moneda
+  capital_renovado: number | null
+  capital_adicional: number | null
+  elegible_conversion: boolean
+  desglose_completo: boolean
+  fuente: 'flujo_cartera' | 'backfill_agosto_2026'
+  creado_por: string
+  creado_en: string
+}
+
+/** Rastro postventa generado al cerrar una tarea cuyo sujeto es un cliente. Se
+ * mantiene fuera del timeline de leads para no alterar SLA ni etapas. */
+export interface ActividadCliente {
+  id: string
+  cliente_id: string
+  vendedor_id: string
+  tarea_id: string | null
+  tipo:
+    | 'llamada_realizada'
+    | 'llamada_no_contestada'
+    | 'whatsapp_enviado'
+    | 'whatsapp_recibido'
+    | 'reunion_realizada'
+    | 'nota'
+  detalle: string | null
+  creado_por: string | null
+  creado_en: string
+}
+
 /** Estados de cuota de public.cronograma_pagos ('trasladado' = capital roleado, JAMÁS mora). */
 export const ESTADOS_CUOTA = ['pendiente', 'pagado', 'vencido', 'trasladado'] as const
 export type EstadoCuota = (typeof ESTADOS_CUOTA)[number]

@@ -2,7 +2,17 @@
 // Usa el wrapper atómico de `crm` sobre la RPC del portal + el generador de
 // cronograma portado: contrato, cuenta y vínculo se confirman o revierten juntos.
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BadgeCheck, Download, ExternalLink, FileSignature, Home, LoaderCircle, RefreshCw } from 'lucide-react'
+import {
+  ArrowRight,
+  BadgeCheck,
+  Download,
+  ExternalLink,
+  FileSignature,
+  Home,
+  LoaderCircle,
+  Plus,
+  RefreshCw,
+} from 'lucide-react'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -11,12 +21,7 @@ import { Select } from '@/components/ui/select'
 import { DialogBody, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { money, fmtFecha, type Moneda } from '@/lib/format'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
-import {
-  completarDomicilioCliente,
-  crearContrato,
-  CrmApiError,
-  type CrearContratoInput,
-} from '@/data/crm-api'
+import { completarDomicilioCliente, crearContrato, CrmApiError, type CrearContratoInput } from '@/data/crm-api'
 import {
   esCuotaDeInteres,
   formatDateLocal,
@@ -37,11 +42,7 @@ import {
   type CampoSeccionBancaria,
   type SeccionBancariaForm,
 } from '@/lib/cliente-form-logica'
-import {
-  CUENTA_NUEVA,
-  claveCuenta,
-  prepararCuentaPago,
-} from '@/lib/cuentas-bancarias-contrato'
+import { CUENTA_NUEVA, claveCuenta, prepararCuentaPago } from '@/lib/cuentas-bancarias-contrato'
 import {
   CATEGORIAS_CONTRATO_UI,
   MODALIDADES_UI,
@@ -98,7 +99,11 @@ interface ContratoCreado {
 }
 
 const PLAZOS: { v: string; label: string; anioExacto: boolean }[] = [
-  ...PLAZOS_BASE.map((p) => ({ v: String(p.meses), label: p.label, anioExacto: p.anioExacto })),
+  ...PLAZOS_BASE.map((p) => ({
+    v: String(p.meses),
+    label: p.label,
+    anioExacto: p.anioExacto,
+  })),
   { v: PLAZO_PERSONALIZADO, label: 'Personalizado', anioExacto: false },
 ]
 
@@ -140,6 +145,16 @@ export interface ContratoNuevoProps {
   clienteNombre: string
   montoSugerido?: number | null
   monedaSugerida?: Moneda
+  /** Fija el propósito comercial. Renovación nunca se elige libremente: nace
+   * desde el contrato anterior; upgrade nace desde la ficha del cliente. */
+  categoriaFija?: CategoriaContrato
+  renovacionOrigen?: {
+    id: string
+    numeroContrato: string
+    capital: number
+    moneda: Moneda
+    fechaVencimiento: string
+  }
   /** Solo para el recorrido local sin backend: identidad legal ficticia ya conocida. */
   pdfDatosDemo?: Omit<ContratoPdfDatos, 'contrato'> | undefined
   /** Cuentas precargadas: obligatorias para un demo útil y, sobre todo, sin red. */
@@ -159,6 +174,8 @@ export function ContratoNuevo({
   clienteNombre,
   montoSugerido,
   monedaSugerida,
+  categoriaFija,
+  renovacionOrigen,
   pdfDatosDemo,
   cuentasDemo,
   validarNumero,
@@ -167,12 +184,16 @@ export function ContratoNuevo({
   onCreado,
   onOmitir,
 }: ContratoNuevoProps) {
-  // La categoría y los términos vuelven a ser una decisión libre del analista.
-  const [categoria, setCategoria] = useState<CategoriaContrato | ''>('')
+  const categoriaInicial = renovacionOrigen ? 'renovacion' : (categoriaFija ?? '')
+  const [categoria, setCategoria] = useState<CategoriaContrato | ''>(categoriaInicial)
   const [tipoInteres, setTipoInteres] = useState<TipoInteres>('simple')
   const [modalidad, setModalidad] = useState<ModalidadContrato>('mensual')
-  const [capital, setCapital] = useState(montoSugerido != null ? String(montoSugerido) : '')
-  const [moneda, setMoneda] = useState<Moneda>(monedaSugerida ?? 'PEN')
+  const [capital, setCapital] = useState(
+    renovacionOrigen ? String(renovacionOrigen.capital) : montoSugerido != null ? String(montoSugerido) : '',
+  )
+  const [capitalRenovado, setCapitalRenovado] = useState(renovacionOrigen ? String(renovacionOrigen.capital) : '')
+  const [capitalAdicional, setCapitalAdicional] = useState(renovacionOrigen ? '0' : '')
+  const [moneda, setMoneda] = useState<Moneda>(renovacionOrigen?.moneda ?? monedaSugerida ?? 'PEN')
   const [tasa, setTasa] = useState('15') // default del negocio (espejo del portal)
   const [fechaInicio, setFechaInicio] = useState(hoyLocal())
   const [plazo, setPlazo] = useState<string>('12')
@@ -191,8 +212,7 @@ export function ContratoNuevo({
   const [enviando, setEnviando] = useState(false)
   const [creado, setCreado] = useState<ContratoCreado | null>(null)
   const [error, setError] = useState<string | null>(null)
-  const [campoCuentaInvalido, setCampoCuentaInvalido] =
-    useState<CampoSeccionBancaria | null>(null)
+  const [campoCuentaInvalido, setCampoCuentaInvalido] = useState<CampoSeccionBancaria | null>(null)
   const [avisoCuenta, setAvisoCuenta] = useState<string | null>(null)
   const errorRef = useRef<HTMLParagraphElement>(null)
   // Domicilio legal faltante: el PDF se reserva DENTRO de la transacción del
@@ -213,9 +233,7 @@ export function ContratoNuevo({
   // abrirse, y el pre-vuelo se recarga con su propio refetch.
   const legalesQ = useDatosLegalesContrato(clienteId, !esDemo)
   const cuentasQ = useCuentasBancariasCliente(clienteId, moneda, !esDemo)
-  const cuentasDisponibles = esDemo
-    ? cuentasDemo?.[moneda] ?? CUENTAS_VACIAS
-    : cuentasQ.data ?? CUENTAS_VACIAS
+  const cuentasDisponibles = esDemo ? (cuentasDemo?.[moneda] ?? CUENTAS_VACIAS) : (cuentasQ.data ?? CUENTAS_VACIAS)
   const cuentasPendientes = esDemo ? false : cuentasQ.isPending
   const cuentasReintentando = esDemo ? false : cuentasQ.isFetching
   const cuentasConError = esDemo ? false : cuentasQ.isError
@@ -234,22 +252,19 @@ export function ContratoNuevo({
   // Sin `creadoEn`: este contrato se esta creando AHORA, asi que el suelo de
   // registro lo cumple por definicion y solo decide la fecha de firma.
   const regimenDocumentalAnterior = esContratoRegimenAnterior(fechaInicio)
-  const faltaDomicilio = !regimenDocumentalAnterior
-    && legales?.faltaDomicilio === true && !domicilioConfirmado
+  const faltaDomicilio = !regimenDocumentalAnterior && legales?.faltaDomicilio === true && !domicilioConfirmado
   // Huecos que el vendedor NO puede cerrar desde aquí: el alta fallaría seguro,
   // así que se frena con el nombre del dato en vez de dejarle llenar el formulario.
   const otrosFaltantesCliente = (legales?.faltanCliente ?? []).filter((campo) => campo !== 'domicilio')
   const faltantesAnalista = legales?.faltanAnalista ?? []
-  const bloqueoLegalAjeno = !regimenDocumentalAnterior
-    && (otrosFaltantesCliente.length > 0 || faltantesAnalista.length > 0)
+  const bloqueoLegalAjeno =
+    !regimenDocumentalAnterior && (otrosFaltantesCliente.length > 0 || faltantesAnalista.length > 0)
   const textoBloqueoLegalAjeno = [
-    otrosFaltantesCliente.length > 0
-      ? `Al cliente le falta ${listarCampos(otrosFaltantesCliente)}.`
-      : '',
-    faltantesAnalista.length > 0
-      ? `A tu propio perfil le falta ${listarCampos(faltantesAnalista)}.`
-      : '',
-  ].filter(Boolean).join(' ')
+    otrosFaltantesCliente.length > 0 ? `Al cliente le falta ${listarCampos(otrosFaltantesCliente)}.` : '',
+    faltantesAnalista.length > 0 ? `A tu propio perfil le falta ${listarCampos(faltantesAnalista)}.` : '',
+  ]
+    .filter(Boolean)
+    .join(' ')
 
   const guardarDomicilio = async () => {
     if (guardandoDomicilio) return
@@ -266,9 +281,7 @@ export function ContratoNuevo({
       r = await completarDomicilioCliente(clienteId, validado.valor)
     } catch (fallo) {
       setErrorDomicilio(
-        fallo instanceof CrmApiError
-          ? fallo.message
-          : 'No se pudo guardar el domicilio legal. Reintenta.',
+        fallo instanceof CrmApiError ? fallo.message : 'No se pudo guardar el domicilio legal. Reintenta.',
       )
       setGuardandoDomicilio(false)
       return
@@ -285,8 +298,8 @@ export function ContratoNuevo({
       // remite a la ficha del cliente, que ya lo enseña a quien puede verlo.
       if (r.accion === 'conservado') {
         setAvisoDomicilio(
-          'Otra sesión ya había registrado el domicilio de este cliente y se conservó ese; '
-          + 'lo que escribiste aquí NO se guardó. Puedes verlo en la ficha del cliente.',
+          'Otra sesión ya había registrado el domicilio de este cliente y se conservó ese; ' +
+            'lo que escribiste aquí NO se guardó. Puedes verlo en la ficha del cliente.',
         )
       } else {
         toast.success('Domicilio legal registrado')
@@ -313,7 +326,9 @@ export function ContratoNuevo({
     if (!cuentaSeleccionada || cuentaSeleccionada === CUENTA_NUEVA) return
     if (!cuentasDisponibles.some((cuenta) => claveCuenta(cuenta) === cuentaSeleccionada)) {
       setCuentaSeleccionada('')
-      setAvisoCuenta('La cuenta que habías elegido cambió o ya no está disponible. Revísala y selecciona nuevamente el destino del contrato.')
+      setAvisoCuenta(
+        'La cuenta que habías elegido cambió o ya no está disponible. Revísala y selecciona nuevamente el destino del contrato.',
+      )
     }
   }, [cuentaSeleccionada, cuentasDisponibles])
 
@@ -325,6 +340,8 @@ export function ContratoNuevo({
     setCampoCuentaInvalido(null)
   }, [
     capital,
+    capitalAdicional,
+    capitalRenovado,
     categoria,
     cuentaNueva,
     cuentaSeleccionada,
@@ -342,7 +359,10 @@ export function ContratoNuevo({
 
   const esCompuesto = tipoInteres === 'compuesto'
   // parseMonto rechaza separadores de miles ('125,000' NO es 125) — ver lib/numero.
-  const capitalNum = parseMonto(capital) ?? NaN
+  const renovadoNum = parseMonto(capitalRenovado) ?? NaN
+  const adicionalNum = parseMonto(capitalAdicional) ?? NaN
+  const esRenovacion = categoria === 'renovacion'
+  const capitalNum = esRenovacion ? renovadoNum + adicionalNum : (parseMonto(capital) ?? NaN)
   const tasaNum = parseMonto(tasa) ?? NaN
 
   // Vencimiento libre: preset o fecha escrita por el analista.
@@ -356,9 +376,13 @@ export function ContratoNuevo({
     // Mismo criterio que guardar(): sin tasa válida (>0 y ≤50) no se previsualiza
     // ni se habilita el botón (evita un cronograma de interés 0 que luego se rechaza).
     if (
-      !Number.isFinite(capitalNum) || capitalNum <= 0 ||
-      !Number.isFinite(tasaNum) || tasaNum <= 0 || tasaNum > 50 ||
-      !fechaInicio || !fechaVencimiento
+      !Number.isFinite(capitalNum) ||
+      capitalNum <= 0 ||
+      !Number.isFinite(tasaNum) ||
+      tasaNum <= 0 ||
+      tasaNum > 50 ||
+      !fechaInicio ||
+      !fechaVencimiento
     ) {
       return []
     }
@@ -404,18 +428,13 @@ export function ContratoNuevo({
     setError(null)
   }
 
-  const reportarError = (
-    mensaje: string,
-    campoCuenta: CampoSeccionBancaria | null = null,
-  ) => {
+  const reportarError = (mensaje: string, campoCuenta: CampoSeccionBancaria | null = null) => {
     setError(mensaje)
     setCampoCuentaInvalido(campoCuenta)
     // El mensaje aparece después del evento; el timeout permite que React lo
     // monte antes de enfocar el campo culpable (o el resumen si no hay uno).
     window.setTimeout(() => {
-      const destino = campoCuenta
-        ? document.getElementById(ID_CAMPO_CUENTA[campoCuenta])
-        : errorRef.current
+      const destino = campoCuenta ? document.getElementById(ID_CAMPO_CUENTA[campoCuenta]) : errorRef.current
       destino?.focus()
     }, 0)
   }
@@ -446,12 +465,35 @@ export function ContratoNuevo({
       reportarError(errorNumero)
       return
     }
-    if (capital.trim() && parseMonto(capital) == null) {
-      reportarError(ERROR_MONTO)
-      return
-    }
     if (!categoria) {
       reportarError('Selecciona la categoría de la inversión (Nuevo, Renovación o Upgrade).')
+      return
+    }
+    if (categoria === 'renovacion') {
+      if (!renovacionOrigen) {
+        reportarError('Abre la renovación desde el contrato que llegó a su fecha fin.')
+        return
+      }
+      if (renovacionOrigen.fechaVencimiento > hoyLocal()) {
+        reportarError(`Este contrato aún no llegó a su fecha fin (${fmtFecha(renovacionOrigen.fechaVencimiento)}).`)
+        return
+      }
+      if (parseMonto(capitalRenovado) == null || !Number.isFinite(renovadoNum) || renovadoNum <= 0) {
+        reportarError('El capital renovado debe ser mayor que 0.')
+        return
+      }
+      if (renovadoNum > renovacionOrigen.capital) {
+        reportarError(
+          'El capital renovado no puede superar el capital del contrato anterior; registra la diferencia como adicional.',
+        )
+        return
+      }
+      if (parseMonto(capitalAdicional) == null || !Number.isFinite(adicionalNum) || adicionalNum < 0) {
+        reportarError('El capital adicional debe ser 0 o un monto mayor.')
+        return
+      }
+    } else if (capital.trim() && parseMonto(capital) == null) {
+      reportarError(ERROR_MONTO)
       return
     }
     if (!Number.isFinite(capitalNum) || capitalNum < 100 || capitalNum > 100_000_000) {
@@ -472,7 +514,9 @@ export function ContratoNuevo({
       return
     }
     if (cuentasPendientes || cuentasReintentando || cuentasConError) {
-      reportarError('No se pudo confirmar la cuenta de pago del contrato. Espera o reintenta la carga antes de crearlo.')
+      reportarError(
+        'No se pudo confirmar la cuenta de pago del contrato. Espera o reintenta la carga antes de crearlo.',
+      )
       return
     }
     const cuentaPago = prepararCuentaPago({
@@ -504,6 +548,13 @@ export function ContratoNuevo({
       fecha_vencimiento: fechaVencimiento,
       numero_contrato: numeroContrato,
       notas_internas: notas.trim() || null,
+      ...(categoria === 'renovacion' && renovacionOrigen
+        ? {
+            contrato_origen_id: renovacionOrigen.id,
+            capital_renovado: renovadoNum,
+            capital_adicional: adicionalNum,
+          }
+        : {}),
       // Viajan DENTRO de p_contrato: crear_contrato ya los persiste (mancomunadas).
       titulares: tit.titulares,
       cuenta_pago: cuentaPago.cuenta,
@@ -544,16 +595,24 @@ export function ContratoNuevo({
             input: {
               ...input,
               numero_contrato: r.numero_contrato,
-              titulares: (input.titulares ?? []).map((titular) => ({ ...titular })),
+              titulares: (input.titulares ?? []).map((titular) => ({
+                ...titular,
+              })),
               cuenta_pago: { ...input.cuenta_pago },
             },
             cronograma: cronograma.map((cuota) => ({ ...cuota })),
             pdfDatos: {
               ...pdfDatosConfirmados,
-              contrato: { ...pdfDatosConfirmados.contrato, numero: r.numero_contrato },
+              contrato: {
+                ...pdfDatosConfirmados.contrato,
+                numero: r.numero_contrato,
+              },
               titular: { ...pdfDatosConfirmados.titular },
               analista: { ...pdfDatosConfirmados.analista },
-              cotitulares: pdfDatosConfirmados.cotitulares?.map((titular) => ({ ...titular })) ?? [],
+              cotitulares:
+                pdfDatosConfirmados.cotitulares?.map((titular) => ({
+                  ...titular,
+                })) ?? [],
             },
           }
         : null
@@ -575,25 +634,33 @@ export function ContratoNuevo({
         const archivo = local
           ? await archivarContratoPdfDemoHabilitado(r.id, local.pdfDatos)
           : await archivarContratoPdfConfirmado(r.id)
-        setCreado((actual) => actual?.id === r.id
-          ? { ...actual, archivo, estadoPdf: 'sellado', archivando: false, errorArchivo: null }
-          : actual)
+        setCreado((actual) =>
+          actual?.id === r.id
+            ? {
+                ...actual,
+                archivo,
+                estadoPdf: 'sellado',
+                archivando: false,
+                errorArchivo: null,
+              }
+            : actual,
+        )
       } catch (errorPdf) {
-        const estadoPdf = errorPdf instanceof ContratoPdfNoSelladoError
-          ? errorPdf.estado
-          : 'pendiente'
-        setCreado((actual) => actual?.id === r.id
-          ? {
-              ...actual,
-              estadoPdf,
-              archivando: false,
-              errorArchivo: local
-                ? 'El contrato demo quedó creado, pero el PDF local no pudo generarse. Puedes reintentar sin crear otro contrato.'
-                : estadoPdf === 'integridad_bloqueada'
-                ? 'El contrato quedó creado con reserva durable, pero el PDF requiere revisión por integridad.'
-                : 'El contrato quedó creado con una reserva PDF durable. Puedes reintentar el sellado sin crear otro contrato.',
-            }
-          : actual)
+        const estadoPdf = errorPdf instanceof ContratoPdfNoSelladoError ? errorPdf.estado : 'pendiente'
+        setCreado((actual) =>
+          actual?.id === r.id
+            ? {
+                ...actual,
+                estadoPdf,
+                archivando: false,
+                errorArchivo: local
+                  ? 'El contrato demo quedó creado, pero el PDF local no pudo generarse. Puedes reintentar sin crear otro contrato.'
+                  : estadoPdf === 'integridad_bloqueada'
+                    ? 'El contrato quedó creado con reserva durable, pero el PDF requiere revisión por integridad.'
+                    : 'El contrato quedó creado con una reserva PDF durable. Puedes reintentar el sellado sin crear otro contrato.',
+              }
+            : actual,
+        )
       }
     } catch (e) {
       reportarError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
@@ -611,25 +678,33 @@ export function ContratoNuevo({
       const archivo = creado.local
         ? await archivarContratoPdfDemoHabilitado(creado.id, creado.local.pdfDatos)
         : await archivarContratoPdfConfirmado(creado.id)
-      setCreado((actual) => actual?.id === creado.id
-        ? { ...actual, archivo, estadoPdf: 'sellado', archivando: false, errorArchivo: null }
-        : actual)
+      setCreado((actual) =>
+        actual?.id === creado.id
+          ? {
+              ...actual,
+              archivo,
+              estadoPdf: 'sellado',
+              archivando: false,
+              errorArchivo: null,
+            }
+          : actual,
+      )
     } catch (errorPdf) {
-      const estadoPdf = errorPdf instanceof ContratoPdfNoSelladoError
-        ? errorPdf.estado
-        : creado.estadoPdf
-      setCreado((actual) => actual?.id === creado.id
-        ? {
-            ...actual,
-            estadoPdf,
-            archivando: false,
-            errorArchivo: creado.local
-              ? 'El PDF demo sigue pendiente. Puedes reintentar o finalizar la simulación.'
-              : estadoPdf === 'integridad_bloqueada'
-              ? 'El PDF está bloqueado por integridad y requiere revisión administrativa.'
-              : 'El job PDF sigue pendiente. Puedes reintentar o finalizar; la reserva permanece visible desde Mi cartera.',
-          }
-        : actual)
+      const estadoPdf = errorPdf instanceof ContratoPdfNoSelladoError ? errorPdf.estado : creado.estadoPdf
+      setCreado((actual) =>
+        actual?.id === creado.id
+          ? {
+              ...actual,
+              estadoPdf,
+              archivando: false,
+              errorArchivo: creado.local
+                ? 'El PDF demo sigue pendiente. Puedes reintentar o finalizar la simulación.'
+                : estadoPdf === 'integridad_bloqueada'
+                  ? 'El PDF está bloqueado por integridad y requiere revisión administrativa.'
+                  : 'El job PDF sigue pendiente. Puedes reintentar o finalizar; la reserva permanece visible desde Mi cartera.',
+            }
+          : actual,
+      )
     } finally {
       onEnviandoCambio?.(false)
     }
@@ -646,9 +721,7 @@ export function ContratoNuevo({
         </DialogHeader>
         <DialogBody className="space-y-4">
           <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
-            <p className="font-semibold text-foreground">
-              El servidor confirmó el contrato de {clienteNombre}.
-            </p>
+            <p className="font-semibold text-foreground">El servidor confirmó el contrato de {clienteNombre}.</p>
             {creado.archivando && (
               <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden />
@@ -659,8 +732,8 @@ export function ContratoNuevo({
               <p role="status" className="mt-2 text-sm text-muted-foreground">
                 {regimenDocumentalAnterior ? (
                   <>
-                    Contrato firmado antes del <b>{CONTRATO_DOCUMENTO_DESDE_TEXTO}</b>: queda registrado, y su
-                    contrato sigue siendo el del formato anterior. El sistema no emite documento para él.
+                    Contrato firmado antes del <b>{CONTRATO_DOCUMENTO_DESDE_TEXTO}</b>: queda registrado, y su contrato
+                    sigue siendo el del formato anterior. El sistema no emite documento para él.
                   </>
                 ) : (
                   <>
@@ -692,7 +765,9 @@ export function ContratoNuevo({
             type="button"
             variant="outline"
             disabled={!creado.archivo || creado.archivando}
-            onClick={() => { if (creado.archivo) verArchivoContratoPdf(creado.archivo) }}
+            onClick={() => {
+              if (creado.archivo) verArchivoContratoPdf(creado.archivo)
+            }}
           >
             <ExternalLink aria-hidden />
             Ver contrato PDF
@@ -700,7 +775,9 @@ export function ContratoNuevo({
           <Button
             type="button"
             disabled={!creado.archivo || creado.archivando}
-            onClick={() => { if (creado.archivo) descargarArchivoContratoPdf(creado.archivo) }}
+            onClick={() => {
+              if (creado.archivo) descargarArchivoContratoPdf(creado.archivo)
+            }}
           >
             <Download aria-hidden />
             Descargar contrato PDF
@@ -732,7 +809,12 @@ export function ContratoNuevo({
     >
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
-          <FileSignature className="size-4 text-primary" /> Crear contrato de {clienteNombre}
+          <FileSignature className="size-4 text-primary" />{' '}
+          {categoria === 'renovacion' && renovacionOrigen
+            ? `Renovar ${renovacionOrigen.numeroContrato}`
+            : categoria === 'upgrade'
+              ? `Registrar upgrade de ${clienteNombre}`
+              : `Crear contrato de ${clienteNombre}`}
         </DialogTitle>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
@@ -746,8 +828,8 @@ export function ContratoNuevo({
               Falta el domicilio legal de {clienteNombre}
             </h3>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Va escrito literalmente en el contrato, así que sin él no se puede emitir.
-              Complétalo aquí y sigue con el alta.
+              Va escrito literalmente en el contrato, así que sin él no se puede emitir. Complétalo aquí y sigue con el
+              alta.
             </p>
             <div className="space-y-1.5">
               <Label htmlFor="ct-domicilio">Domicilio legal completo</Label>
@@ -799,51 +881,160 @@ export function ContratoNuevo({
             role="alert"
             className="rounded-lg border border-destructive/40 bg-destructive/10 px-3 py-2 text-xs font-semibold text-destructive"
           >
-            {textoBloqueoLegalAjeno} Sin eso el contrato no se puede emitir, y no se corrige
-            desde aquí: pídeselo a Gerencia.
+            {textoBloqueoLegalAjeno} Sin eso el contrato no se puede emitir, y no se corrige desde aquí: pídeselo a
+            Gerencia.
           </p>
         )}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-categoria">Categoría</Label>
-            <Select id="ct-categoria" value={categoria} onChange={(e) => setCategoria(e.target.value as CategoriaContrato | '')} disabled={enviando}>
-              <option value="" disabled>— Seleccionar —</option>
-              {CATEGORIAS_CONTRATO_UI.map((c) => <option key={c.k} value={c.k}>{c.label}</option>)}
-            </Select>
+            {categoriaFija || renovacionOrigen ? (
+              <div
+                id="ct-categoria"
+                aria-label="Categoría"
+                className="flex h-9 items-center rounded-lg border border-input bg-muted px-3 text-sm font-bold text-foreground"
+              >
+                {CATEGORIAS_CONTRATO_UI.find((opcion) => opcion.k === categoria)?.label ?? '—'}
+              </div>
+            ) : (
+              <Select
+                id="ct-categoria"
+                value={categoria}
+                onChange={(e) => setCategoria(e.target.value as CategoriaContrato | '')}
+                disabled={enviando}
+              >
+                <option value="" disabled>
+                  — Seleccionar —
+                </option>
+                {CATEGORIAS_CONTRATO_UI.filter((c) => c.k !== 'renovacion').map((c) => (
+                  <option key={c.k} value={c.k}>
+                    {c.label}
+                  </option>
+                ))}
+              </Select>
+            )}
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ct-tipo">Tipo de interés</Label>
-            <Select id="ct-tipo" value={tipoInteres} onChange={(e) => cambiarTipo(e.target.value as TipoInteres)} disabled={enviando}>
+            <Select
+              id="ct-tipo"
+              value={tipoInteres}
+              onChange={(e) => cambiarTipo(e.target.value as TipoInteres)}
+              disabled={enviando}
+            >
               <option value="simple">Simple</option>
               <option value="compuesto">Compuesto</option>
             </Select>
           </div>
         </div>
 
-        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
-          <div className="space-y-1.5">
-            <Label htmlFor="ct-capital">Capital</Label>
-            <Input id="ct-capital" inputMode="decimal" value={capital} onChange={(e) => setCapital(e.target.value)} placeholder="10000" disabled={enviando} />
+        {esRenovacion && renovacionOrigen ? (
+          <section
+            aria-label="Puente de capital de la renovación"
+            className="rounded-xl border border-primary/25 bg-primary/5 p-3"
+          >
+            <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">
+              Puente de capital · {renovacionOrigen.moneda}
+            </p>
+            <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
+              <div className="space-y-1">
+                <Label htmlFor="ct-capital-anterior">Contrato anterior</Label>
+                <Input
+                  id="ct-capital-anterior"
+                  value={String(renovacionOrigen.capital)}
+                  readOnly
+                  aria-readonly="true"
+                  className="font-bold tabular-nums"
+                />
+              </div>
+              <ArrowRight className="mb-2 size-4 text-muted-foreground" aria-hidden />
+              <div className="col-span-2 space-y-1 sm:col-span-1">
+                <Label htmlFor="ct-capital-renovado">Capital renovado</Label>
+                <Input
+                  id="ct-capital-renovado"
+                  inputMode="decimal"
+                  value={capitalRenovado}
+                  onChange={(e) => setCapitalRenovado(e.target.value)}
+                  disabled={enviando}
+                />
+              </div>
+              <Plus className="mb-2 hidden size-4 text-muted-foreground sm:block" aria-hidden />
+              <div className="col-span-2 space-y-1 sm:col-span-1">
+                <Label htmlFor="ct-capital-adicional">Capital adicional</Label>
+                <Input
+                  id="ct-capital-adicional"
+                  inputMode="decimal"
+                  value={capitalAdicional}
+                  onChange={(e) => setCapitalAdicional(e.target.value)}
+                  disabled={enviando}
+                />
+              </div>
+            </div>
+            <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card px-3 py-2 ring-1 ring-border">
+              <span className="text-xs font-semibold text-muted-foreground">Nuevo contrato</span>
+              <span className="text-base font-extrabold tabular-nums text-primary">
+                {Number.isFinite(capitalNum) ? money(capitalNum, moneda) : '—'}
+              </span>
+            </div>
+            <p className="mt-2 text-[11px] leading-relaxed text-muted-foreground">
+              La renovación suma una conversión por cliente en el mes. El adicional queda separado para su pago y no
+              crea otra conversión.
+            </p>
+          </section>
+        ) : (
+          <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="ct-capital">Capital</Label>
+              <Input
+                id="ct-capital"
+                inputMode="decimal"
+                value={capital}
+                onChange={(e) => setCapital(e.target.value)}
+                placeholder="10000"
+                disabled={enviando}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ct-moneda">Moneda</Label>
+              <Select
+                id="ct-moneda"
+                value={moneda}
+                onChange={(e) => cambiarMoneda(e.target.value as Moneda)}
+                disabled={enviando}
+              >
+                <option value="PEN">Soles (PEN)</option>
+                <option value="USD">Dólares (USD)</option>
+              </Select>
+            </div>
           </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="ct-moneda">Moneda</Label>
-            <Select id="ct-moneda" value={moneda} onChange={(e) => cambiarMoneda(e.target.value as Moneda)} disabled={enviando}>
-              <option value="PEN">Soles (PEN)</option>
-              <option value="USD">Dólares (USD)</option>
-            </Select>
-          </div>
-        </div>
+        )}
 
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-tasa">Tasa anual (%)</Label>
-            <Input id="ct-tasa" inputMode="decimal" value={tasa} onChange={(e) => setTasa(e.target.value)} placeholder="18" disabled={enviando} />
+            <Input
+              id="ct-tasa"
+              inputMode="decimal"
+              value={tasa}
+              onChange={(e) => setTasa(e.target.value)}
+              placeholder="18"
+              disabled={enviando}
+            />
           </div>
           {!esCompuesto && (
             <div className="space-y-1.5">
               <Label htmlFor="ct-modalidad">Modalidad de pago</Label>
-              <Select id="ct-modalidad" value={modalidad} onChange={(e) => setModalidad(e.target.value as ModalidadContrato)} disabled={enviando}>
-                {MODALIDADES_UI.map((m) => <option key={m.k} value={m.k}>{m.label}</option>)}
+              <Select
+                id="ct-modalidad"
+                value={modalidad}
+                onChange={(e) => setModalidad(e.target.value as ModalidadContrato)}
+                disabled={enviando}
+              >
+                {MODALIDADES_UI.map((m) => (
+                  <option key={m.k} value={m.k}>
+                    {m.label}
+                  </option>
+                ))}
               </Select>
             </div>
           )}
@@ -852,13 +1043,21 @@ export function ContratoNuevo({
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="ct-inicio">Fecha de inicio</Label>
-            <Input id="ct-inicio" type="date" value={fechaInicio} onChange={(e) => setFechaInicio(e.target.value)} disabled={enviando} />
+            <Input
+              id="ct-inicio"
+              type="date"
+              value={fechaInicio}
+              onChange={(e) => setFechaInicio(e.target.value)}
+              disabled={enviando}
+            />
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ct-plazo">Plazo</Label>
             <Select id="ct-plazo" value={plazo} onChange={(e) => setPlazo(e.target.value)} disabled={enviando}>
               {PLAZOS.map((p) => (
-                <option key={p.v} value={p.v} disabled={esCompuesto && !p.anioExacto}>{p.label}</option>
+                <option key={p.v} value={p.v} disabled={esCompuesto && !p.anioExacto}>
+                  {p.label}
+                </option>
               ))}
             </Select>
           </div>
@@ -867,12 +1066,20 @@ export function ContratoNuevo({
         {plazo === PLAZO_PERSONALIZADO ? (
           <div className="space-y-1.5">
             <Label htmlFor="ct-venc">Fecha de vencimiento</Label>
-            <Input id="ct-venc" type="date" value={vencManual} onChange={(e) => setVencManual(e.target.value)} disabled={enviando} />
+            <Input
+              id="ct-venc"
+              type="date"
+              value={vencManual}
+              onChange={(e) => setVencManual(e.target.value)}
+              disabled={enviando}
+            />
           </div>
-        ) : fechaVencimiento && (
-          <p className="text-[11px] text-muted-foreground">
-            Vence el <b className="text-foreground">{fmtFecha(fechaVencimiento)}</b> (calculado del plazo).
-          </p>
+        ) : (
+          fechaVencimiento && (
+            <p className="text-[11px] text-muted-foreground">
+              Vence el <b className="text-foreground">{fmtFecha(fechaVencimiento)}</b> (calculado del plazo).
+            </p>
+          )
         )}
 
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
@@ -902,12 +1109,20 @@ export function ContratoNuevo({
               />
             </div>
             <p className="text-[11px] text-muted-foreground">
-              Escribe los <b className="text-foreground">6 dígitos</b>. El <b className="text-foreground">{PREFIJO_CONTRATO}</b> es fijo.
+              Escribe los <b className="text-foreground">6 dígitos</b>. El{' '}
+              <b className="text-foreground">{PREFIJO_CONTRATO}</b> es fijo.
             </p>
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ct-notas">Notas internas (opcional)</Label>
-            <Input id="ct-notas" value={notas} maxLength={500} onChange={(e) => setNotas(e.target.value)} placeholder="—" disabled={enviando} />
+            <Input
+              id="ct-notas"
+              value={notas}
+              maxLength={500}
+              onChange={(e) => setNotas(e.target.value)}
+              placeholder="—"
+              disabled={enviando}
+            />
           </div>
         </div>
 
@@ -928,7 +1143,9 @@ export function ContratoNuevo({
             setError(null)
           }}
           onNueva={setCuentaNueva}
-          onReintentar={() => { if (!esDemo) void cuentasQ.refetch() }}
+          onReintentar={() => {
+            if (!esDemo) void cuentasQ.refetch()
+          }}
         />
 
         {avisoCuenta && (
@@ -946,7 +1163,9 @@ export function ContratoNuevo({
         <div className="rounded-xl border border-border bg-muted/40 p-3">
           <p className="text-[11px] font-bold uppercase tracking-wide text-muted-foreground">Cronograma</p>
           {cronograma.length === 0 ? (
-            <p className="mt-1 text-xs text-muted-foreground">Completa capital, tasa y fechas para previsualizar el cronograma.</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Completa capital, tasa y fechas para previsualizar el cronograma.
+            </p>
           ) : (
             <div className="mt-1.5 space-y-0.5 text-xs">
               <p className="text-foreground">
@@ -961,13 +1180,12 @@ export function ContratoNuevo({
                 <b className="tabular-nums text-foreground">{money(interesProgramado, moneda)}</b>
               </p>
               <p className="text-muted-foreground">
-                Primera: {fmtFecha(cronograma[0]!.fecha_programada)} · Última: {fmtFecha(cronograma[cronograma.length - 1]!.fecha_programada)}
+                Primera: {fmtFecha(cronograma[0]!.fecha_programada)} · Última:{' '}
+                {fmtFecha(cronograma[cronograma.length - 1]!.fecha_programada)}
               </p>
               {/* Sin role=alert: se recalcula en CADA tecla (sería ruido para el
                   lector de pantalla); el botón deshabilitado es el freno real. */}
-              {motivoCronograma && (
-                <p className="font-semibold text-destructive">{motivoCronograma}</p>
-              )}
+              {motivoCronograma && <p className="font-semibold text-destructive">{motivoCronograma}</p>}
             </div>
           )}
         </div>
@@ -986,7 +1204,7 @@ export function ContratoNuevo({
       </DialogBody>
       <DialogFooter className="justify-between">
         <Button type="button" variant="ghost" size="sm" onClick={onOmitir} disabled={enviando}>
-          Omitir por ahora
+          {categoriaFija || renovacionOrigen ? 'Cancelar' : 'Omitir por ahora'}
         </Button>
         {/* Se bloquea por el MOTIVO (sin cuotas de interés incluido), no por la
             longitud del cronograma — que nunca es 0 (siempre trae el retorno). */}
@@ -994,19 +1212,26 @@ export function ContratoNuevo({
           type="submit"
           size="sm"
           disabled={
-            enviando
-            || motivoCronograma !== null
-            || cuentasPendientes
-            || cuentasReintentando
-            || cuentasConError
-            || !cuentaSeleccionada
+            enviando ||
+            motivoCronograma !== null ||
+            cuentasPendientes ||
+            cuentasReintentando ||
+            cuentasConError ||
+            !cuentaSeleccionada ||
             // Faltas legales CONFIRMADAS por el servidor. Un fallo de la consulta
             // NO entra aquí a propósito: dejaría sin emitir a quien lo tiene todo.
-            || faltaDomicilio
-            || bloqueoLegalAjeno
+            faltaDomicilio ||
+            bloqueoLegalAjeno
           }
         >
-          <BadgeCheck /> {enviando ? 'Creando…' : 'Crear contrato'}
+          <BadgeCheck />{' '}
+          {enviando
+            ? 'Creando…'
+            : categoria === 'renovacion'
+              ? 'Crear renovación'
+              : categoria === 'upgrade'
+                ? 'Crear upgrade'
+                : 'Crear contrato'}
         </Button>
       </DialogFooter>
     </form>

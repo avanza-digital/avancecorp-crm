@@ -32,6 +32,7 @@ Hay **tres capas**, complementarias:
 - [[Clave temporal = DNI]]
 - [[Notificaciones de pagos]]
 - [[Importador de clientes]]
+- [[Gestión comercial de clientes - renovaciones y upgrades]]
 - [[Nombres en mayúscula]]
 - [[Interés compuesto]]
 - [[Realtime de novedades]]

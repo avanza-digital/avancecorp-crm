@@ -7,65 +7,80 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 import { act, render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import type { ClienteBasico, ClienteDetalle, ContratoRow, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
+import type {
+  ClienteBasico,
+  ClienteDetalle,
+  ContratoRow,
+  CuentaBancariaSeleccionable,
+  OperacionCartera,
+} from '@/lib/clientes-tipos'
 
 // `yo`, clientes y contratos se pisan antes de cada montaje; los mocks los leen
 // en cada llamada (no capturan el valor al definirse).
-let YO: { id: string
+let YO: {
+  id: string
   rol: string
   rol_portal?: string | null
   puede_contratar: boolean
-  demo: boolean } | null = null
+  demo: boolean
+} | null = null
 // `null` = la lectura nunca trajo datos (primera carga). Es distinto de `[]`
 // (cartera vacía) y distingue el PanelError del aviso de datos rancios.
 let CLIENTES: ClienteBasico[] | null = []
 let CONTRATOS: ContratoRow[] | null = []
-let EQUIPO: Array<{ perfil_id: string
+let OPERACIONES: OperacionCartera[] = []
+let EQUIPO: Array<{
+  perfil_id: string
   nombre_completo: string
-  activo: boolean }> = []
+  activo: boolean
+}> = []
 let DETALLE: ClienteDetalle | null = null
 // Cuentas que "devuelve la RPC" en la ficha, derivadas del fixture DETALLE en
 // montar(): una por moneda desde las casillas embebidas (como el perfil real).
-let CUENTAS: { PEN: CuentaBancariaSeleccionable[]
-  USD: CuentaBancariaSeleccionable[] } = { PEN: [], USD: [] }
+let CUENTAS: {
+  PEN: CuentaBancariaSeleccionable[]
+  USD: CuentaBancariaSeleccionable[]
+} = { PEN: [], USD: [] }
 
 function cuentasDesdeDetalle(d: ClienteDetalle | null): typeof CUENTAS {
   if (d == null) return { PEN: [], USD: [] }
   const porMoneda = (moneda: 'PEN' | 'USD'): CuentaBancariaSeleccionable[] => {
-    const c = moneda === 'USD'
-      ? {
-          banco: d.banco_usd,
-          tipo_cuenta: d.tipo_cuenta_usd,
-          numero_cuenta: d.numero_cuenta_usd,
-          cci: d.cci_usd,
-          titular_distinto: d.titular_distinto_usd,
-          beneficiario_nombre: d.beneficiario_nombre_usd,
-          beneficiario_dni: d.beneficiario_dni_usd,
-        }
-      : {
-          banco: d.banco,
-          tipo_cuenta: d.tipo_cuenta,
-          numero_cuenta: d.numero_cuenta,
-          cci: d.cci,
-          titular_distinto: d.titular_distinto,
-          beneficiario_nombre: d.beneficiario_nombre,
-          beneficiario_dni: d.beneficiario_dni,
-        }
+    const c =
+      moneda === 'USD'
+        ? {
+            banco: d.banco_usd,
+            tipo_cuenta: d.tipo_cuenta_usd,
+            numero_cuenta: d.numero_cuenta_usd,
+            cci: d.cci_usd,
+            titular_distinto: d.titular_distinto_usd,
+            beneficiario_nombre: d.beneficiario_nombre_usd,
+            beneficiario_dni: d.beneficiario_dni_usd,
+          }
+        : {
+            banco: d.banco,
+            tipo_cuenta: d.tipo_cuenta,
+            numero_cuenta: d.numero_cuenta,
+            cci: d.cci,
+            titular_distinto: d.titular_distinto,
+            beneficiario_nombre: d.beneficiario_nombre,
+            beneficiario_dni: d.beneficiario_dni,
+          }
     if (![c.banco, c.tipo_cuenta, c.numero_cuenta, c.cci].some((dato) => dato?.trim())) return []
-    return [{
-      cuenta_id: null,
-      moneda,
-      origen: 'perfil',
-      es_cuenta_perfil: true,
-      creada_en: null,
-      banco: c.banco ?? '',
-      tipo_cuenta: (c.tipo_cuenta ?? 'ahorros') as CuentaBancariaSeleccionable['tipo_cuenta'],
-      numero_cuenta: c.numero_cuenta ?? '',
-      cci: c.cci ?? '',
-      titular_distinto: c.titular_distinto,
-      beneficiario_nombre: c.beneficiario_nombre,
-      beneficiario_dni: c.beneficiario_dni,
-    },
+    return [
+      {
+        cuenta_id: null,
+        moneda,
+        origen: 'perfil',
+        es_cuenta_perfil: true,
+        creada_en: null,
+        banco: c.banco ?? '',
+        tipo_cuenta: (c.tipo_cuenta ?? 'ahorros') as CuentaBancariaSeleccionable['tipo_cuenta'],
+        numero_cuenta: c.numero_cuenta ?? '',
+        cci: c.cci ?? '',
+        titular_distinto: c.titular_distinto,
+        beneficiario_nombre: c.beneficiario_nombre,
+        beneficiario_dni: c.beneficiario_dni,
+      },
     ]
   }
   return { PEN: porMoneda('PEN'), USD: porMoneda('USD') }
@@ -74,8 +89,10 @@ function cuentasDesdeDetalle(d: ClienteDetalle | null): typeof CUENTAS {
 // (al fallar un refetch mantiene `data`) y el que dejaba la cartera muda.
 let ERROR_CLIENTES: Error | null = null
 let ERROR_CONTRATOS: Error | null = null
+let ERROR_OPERACIONES: Error | null = null
 let REFETCH_CLIENTES = vi.fn()
 let REFETCH_CONTRATOS = vi.fn()
+let REFETCH_OPERACIONES = vi.fn()
 
 const cuentasHook = vi.hoisted(() => ({ llamadas: vi.fn() }))
 const archivoPdf = vi.hoisted(() => ({
@@ -112,7 +129,9 @@ vi.mock('@/lib/contrato-pdf-demo-loader', () => ({
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
-  useCRMData: () => ({ equipo: EQUIPO, ambito: { vendedores: [], esGlobal: false, leads: [] },
+  useCRMData: () => ({
+    equipo: EQUIPO,
+    ambito: { vendedores: [], esGlobal: false, leads: [] },
   }),
 }))
 vi.mock('@/data/crm-queries', async (importActual) => {
@@ -134,15 +153,21 @@ vi.mock('@/data/crm-queries', async (importActual) => {
     // montarse. Sin datos, la sección «En cooperativas» se oculta sola.
     useCierresExternos: () => q(undefined),
     useContratos: () => q(CONTRATOS, ERROR_CONTRATOS, REFETCH_CONTRATOS),
+    useOperacionesCartera: () => q(OPERACIONES, ERROR_OPERACIONES, REFETCH_OPERACIONES),
     useClienteDetalle: vi.fn(() => q(DETALLE)),
+    useActividadesCliente: () => q([]),
+    useDatosLegalesContrato: (clienteId: string) =>
+      q({
+        clienteId,
+        faltaDomicilio: false,
+        faltanCliente: [],
+        faltanAnalista: [],
+      }),
     // La ficha lee las cuentas del ledger vía la RPC; aquí se sirven desde
     // CUENTAS (calculado en montar() a partir del fixture DETALLE). La
     // referencia debe ser ESTABLE entre renders: el efecto de confirmación de
     // la ficha depende de `data`, y un array nuevo por render lo vuelve bucle.
-    useCuentasBancariasCliente: (
-      clienteId: string,
-      moneda: 'PEN' | 'USD',
-      habilitada = true) => {
+    useCuentasBancariasCliente: (clienteId: string, moneda: 'PEN' | 'USD', habilitada = true) => {
       cuentasHook.llamadas(clienteId, moneda, habilitada)
       return q(CUENTAS[moneda])
     },
@@ -204,6 +229,28 @@ function contrato(over: Partial<ContratoRow> = {}): ContratoRow {
   }
 }
 
+function operacion(over: Partial<OperacionCartera> = {}): OperacionCartera {
+  return {
+    id: 'op-1',
+    cliente_id: 'c-1',
+    vendedor_id: 'yo',
+    tipo: 'renovacion',
+    contrato_origen_id: 'k-origen',
+    contrato_nuevo_id: 'k-renovado',
+    fecha_operacion: '2026-08-24',
+    periodo: '2026-08-01',
+    moneda: 'PEN',
+    capital_renovado: 50_000,
+    capital_adicional: 10_000,
+    elegible_conversion: true,
+    desglose_completo: true,
+    fuente: 'flujo_cartera',
+    creado_por: 'yo',
+    creado_en: '2026-08-24T15:00:00.000Z',
+    ...over,
+  }
+}
+
 function detalle(over: Partial<ClienteDetalle> = {}): ClienteDetalle {
   return {
     id: 'c-1',
@@ -241,22 +288,33 @@ function montar(
     yo?: typeof YO
     clientes?: ClienteBasico[] | null
     contratos?: ContratoRow[] | null
+    operaciones?: OperacionCartera[]
     detalle?: ClienteDetalle | null
-    equipo?: Array<{ perfil_id: string
+    equipo?: Array<{
+      perfil_id: string
       nombre_completo: string
-      activo: boolean }>
+      activo: boolean
+    }>
     errorClientes?: Error | null
     errorContratos?: Error | null
+    errorOperaciones?: Error | null
   } = {},
 ) {
-  YO = over.yo ?? { id: 'yo', rol: 'vendedor', puede_contratar: true, demo: false,
+  YO = over.yo ?? {
+    id: 'yo',
+    rol: 'vendedor',
+    puede_contratar: true,
+    demo: false,
   }
   CLIENTES = over.clientes === undefined ? [cliente()] : over.clientes
   CONTRATOS = over.contratos === undefined ? [contrato()] : over.contratos
+  OPERACIONES = over.operaciones ?? []
   ERROR_CLIENTES = over.errorClientes ?? null
   ERROR_CONTRATOS = over.errorContratos ?? null
+  ERROR_OPERACIONES = over.errorOperaciones ?? null
   REFETCH_CLIENTES = vi.fn()
   REFETCH_CONTRATOS = vi.fn()
+  REFETCH_OPERACIONES = vi.fn()
   EQUIPO = over.equipo ?? []
   // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
   // significa "usa la ficha por defecto".
@@ -302,9 +360,7 @@ async function abrirAltaContratoDemo(user: ReturnType<typeof userEvent.setup>) {
   expect(screen.getByRole('dialog', { name: /Crear contrato de ROSA MERCEDES/ })).toBeInTheDocument()
 }
 
-async function completarAltaContratoDemo(
-  user: ReturnType<typeof userEvent.setup>,
-  sufijo: string) {
+async function completarAltaContratoDemo(user: ReturnType<typeof userEvent.setup>, sufijo: string) {
   await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
   await user.type(screen.getByLabelText('Capital'), '10000')
   await user.type(screen.getByLabelText('N° de contrato'), sufijo)
@@ -322,7 +378,9 @@ describe('MiCartera (pantalla)', () => {
   it('expandir el cliente monta su sub-fila de contrato', async () => {
     const user = userEvent.setup()
     montar()
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/,
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
       }),
     )
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
@@ -332,7 +390,12 @@ describe('MiCartera (pantalla)', () => {
     const user = userEvent.setup()
     montar({
       clientes: [cliente({ id: 'c-usd' })],
-      contratos: [contrato({ id: 'k-usd', cliente_id: 'c-usd', moneda: 'USD', capital: 50000,
+      contratos: [
+        contrato({
+          id: 'k-usd',
+          cliente_id: 'c-usd',
+          moneda: 'USD',
+          capital: 50000,
         }),
       ],
     })
@@ -348,9 +411,134 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
   })
 
+  it('permite iniciar una gestión comercial directamente sobre el cliente', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Gestionar' }))
+
+    expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
+    expect(screen.getByText(/llamada, WhatsApp, reunión u otra tarea comercial/i)).toBeInTheDocument()
+  })
+
+  it('abre el alta de upgrade con la categoría fija', async () => {
+    const user = userEvent.setup()
+    montar()
+
+    await user.click(screen.getByRole('button', { name: 'Upgrade' }))
+
+    expect(screen.getByRole('dialog', { name: 'Registrar upgrade de CLIENTE UNO' })).toBeInTheDocument()
+    expect(screen.getAllByText('Upgrade').length).toBeGreaterThan(0)
+    expect(screen.queryByRole('option', { name: 'Renovación' })).not.toBeInTheDocument()
+  })
+
+  it('habilita Renovar solo al llegar la fecha fin y abre el puente de capital', async () => {
+    const user = userEvent.setup()
+    montar({
+      contratos: [
+        contrato({
+          fecha_vencimiento: '2000-01-01',
+          capital: 50_000,
+        }),
+      ],
+    })
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+
+    await user.click(
+      within(subFilaDe('2026-01-000001')).getByRole('button', {
+        name: 'Renovar',
+      }),
+    )
+
+    expect(screen.getByRole('dialog', { name: 'Renovar 2026-01-000001' })).toBeInTheDocument()
+    expect(screen.getByText(/Puente de capital/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Contrato anterior')).toHaveValue('50000')
+    expect(screen.getByLabelText('Capital renovado')).toHaveValue('50000')
+    expect(screen.getByLabelText('Capital adicional')).toHaveValue('0')
+    expect(screen.getByText(/el adicional queda separado/i)).toBeInTheDocument()
+  })
+
+  it('no permite renovar anticipadamente un contrato cuya fecha fin aún no llega', async () => {
+    const user = userEvent.setup()
+    montar({ contratos: [contrato({ fecha_vencimiento: '2099-12-31' })] })
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+
+    expect(
+      within(subFilaDe('2026-01-000001')).queryByRole('button', {
+        name: 'Renovar',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it('muestra renovado + adicional y aclara que la operación suma una sola conversión', async () => {
+    const user = userEvent.setup()
+    montar({
+      contratos: [
+        contrato({
+          id: 'k-origen',
+          numero_contrato: '2025-01-000010',
+          capital: 50_000,
+          estado: 'renovado',
+        }),
+        contrato({
+          id: 'k-renovado',
+          numero_contrato: '2026-01-000011',
+          capital: 60_000,
+          categoria: 'renovacion',
+        }),
+      ],
+      operaciones: [operacion()],
+    })
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+
+    const fila = subFilaDe('2026-01-000011')
+    expect(within(fila).getByText(/renovado/)).toBeInTheDocument()
+    expect(within(fila).getByText(/adicional/)).toBeInTheDocument()
+    expect(within(fila).getByText(/1 conversión/)).toBeInTheDocument()
+  })
+
+  it('no inventa el desglose de una renovación histórica', async () => {
+    const user = userEvent.setup()
+    montar({
+      contratos: [contrato({ id: 'k-renovado', categoria: 'renovacion' })],
+      operaciones: [
+        operacion({
+          contrato_origen_id: null,
+          capital_renovado: null,
+          capital_adicional: null,
+          desglose_completo: false,
+          fuente: 'backfill_agosto_2026',
+        }),
+      ],
+    })
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+
+    expect(screen.getByText('Renovación histórica · desglose pendiente')).toBeInTheDocument()
+  })
+
   it('gating: una fila AJENA no ofrece acciones', () => {
     montar({
-      clientes: [cliente({ id: 'c-ajeno', asesor_perfil_id: 'otro', creado_por: 'otro',
+      clientes: [
+        cliente({
+          id: 'c-ajeno',
+          asesor_perfil_id: 'otro',
+          creado_por: 'otro',
         }),
       ],
       contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'otro' })],
@@ -363,7 +551,11 @@ describe('MiCartera (pantalla)', () => {
   it('Gerencia opera clientes y contratos ajenos aunque su ventana haya vencido', async () => {
     const user = userEvent.setup()
     montar({
-      yo: { id: 'gerencia', rol: 'gerencia', puede_contratar: true, demo: false,
+      yo: {
+        id: 'gerencia',
+        rol: 'gerencia',
+        puede_contratar: true,
+        demo: false,
       },
       clientes: [
         cliente({
@@ -393,10 +585,14 @@ describe('MiCartera (pantalla)', () => {
     )
     expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: /Expandir los contratos de\s*CLIENTE UNO/,
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
       }),
     )
-    expect(within(subFilaDe('2026-01-000001')).getByRole('button', { name: 'Corregir',
+    expect(
+      within(subFilaDe('2026-01-000001')).getByRole('button', {
+        name: 'Corregir',
       }),
     ).toBeInTheDocument()
     expect(screen.queryByText('Bloqueado')).not.toBeInTheDocument()
@@ -404,7 +600,11 @@ describe('MiCartera (pantalla)', () => {
 
   it('Directorio sigue sin acciones aunque un dato externo diga que puede contratar', () => {
     montar({
-      yo: { id: 'directorio', rol: 'directorio', puede_contratar: true, demo: false,
+      yo: {
+        id: 'directorio',
+        rol: 'directorio',
+        puede_contratar: true,
+        demo: false,
       },
       clientes: [cliente({ asesor_perfil_id: 'otro', creado_por: 'otro' })],
     })
@@ -436,7 +636,9 @@ describe('MiCartera (pantalla)', () => {
     // Auto-expandido por coincidencia de N° de contrato → la sub-fila es visible.
     expect(screen.getByText('2026-01-000001')).toBeInTheDocument()
     // El botón dice "Colapsar" y de verdad colapsa (no es un override que mienta).
-    await user.click(screen.getByRole('button', { name: /Colapsar los contratos de\s*CLIENTE UNO/,
+    await user.click(
+      screen.getByRole('button', {
+        name: /Colapsar los contratos de\s*CLIENTE UNO/,
       }),
     )
     expect(screen.queryByText('2026-01-000001')).not.toBeInTheDocument()

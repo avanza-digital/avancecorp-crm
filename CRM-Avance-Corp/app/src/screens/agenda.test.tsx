@@ -28,7 +28,13 @@ vi.mock('sonner', () => ({
 vi.mock('@/lib/ahora', () => ({ useAhora: () => AHORA }))
 vi.mock('@/lib/auth-context', () => ({
   useAuth: () => ({
-    yo: { id: 'v1', nombre_completo: 'ASESOR UNO', rol: 'vendedor', demo: false, puede_contratar: true },
+    yo: {
+      id: 'v1',
+      nombre_completo: 'ASESOR UNO',
+      rol: 'vendedor',
+      demo: false,
+      puede_contratar: true,
+    },
   }),
 }))
 // `usePuedeMarcar` lo consume AccionesContacto, que la tarjeta renderiza.
@@ -71,7 +77,9 @@ function tarea(over: Partial<Tarea> = {}): Tarea {
 }
 
 function montar(tareas: Tarea[]) {
-  const reprogramarTarea = vi.fn<StoreDataApi['reprogramarTarea']>(() => ({ ok: true }))
+  const reprogramarTarea = vi.fn<StoreDataApi['reprogramarTarea']>(() => ({
+    ok: true,
+  }))
   const abrirLead = vi.fn()
   const api = {
     tareas,
@@ -187,6 +195,43 @@ describe('Agenda — teclado sobre la tarjeta', () => {
   })
 })
 
+describe('Agenda — gestiones de clientes', () => {
+  it('incluye una tarea postventa sin lead y la identifica como Cliente', () => {
+    montar([
+      tarea({
+        id: 'tc-1',
+        lead_id: null,
+        perfil_id: 'cliente-1',
+        vendedor_id: 'v1',
+        titulo: 'Reunión con Rosa',
+        tipo: 'reunion',
+      }),
+    ])
+
+    expect(screen.getByText('Reunión con Rosa')).toBeInTheDocument()
+    expect(screen.getByText('Cliente')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Abrir ficha — Reunión con Rosa/ })).not.toBeInTheDocument()
+  })
+
+  it('permite cerrar la gestión del cliente desde la agenda', async () => {
+    const user = userEvent.setup()
+    montar([
+      tarea({
+        id: 'tc-2',
+        lead_id: null,
+        perfil_id: 'cliente-1',
+        vendedor_id: 'v1',
+        titulo: 'Llamar a Rosa',
+      }),
+    ])
+
+    await user.click(screen.getByRole('button', { name: 'Cerrar tarea — Llamar a Rosa' }))
+
+    expect(screen.getByRole('dialog')).toBeInTheDocument()
+    expect(screen.getByText('Gestión de cliente · Mi cartera')).toBeInTheDocument()
+  })
+})
+
 describe('Agenda — reprogramar en el celular', () => {
   // jsdom no aplica Tailwind: la regresión se vigila sobre las CLASES, que es
   // donde vivía el bug (`hidden sm:flex` borraba los saltos < 640 px).
@@ -216,13 +261,15 @@ describe('Agenda — reprogramar en el celular', () => {
 describe('Agenda — bandeja compacta', () => {
   it('pagina las tareas de Hoy en lugar de alargar la pantalla completa', async () => {
     const user = userEvent.setup()
-    const muchas = Array.from({ length: 13 }, (_, i) => tarea({
-      id: `t-${i + 1}`,
-      titulo: `Seguimiento ${String(i + 1).padStart(2, '0')}`,
-      // Mismo día, segundos distintos: el orden cronológico queda deliberado
-      // para comprobar qué tarea cruza la frontera 12/13 de la página.
-      vence_en: iso(`2026-07-22T15:00:${String(i + 1).padStart(2, '0')}-05:00`),
-    }))
+    const muchas = Array.from({ length: 13 }, (_, i) =>
+      tarea({
+        id: `t-${i + 1}`,
+        titulo: `Seguimiento ${String(i + 1).padStart(2, '0')}`,
+        // Mismo día, segundos distintos: el orden cronológico queda deliberado
+        // para comprobar qué tarea cruza la frontera 12/13 de la página.
+        vence_en: iso(`2026-07-22T15:00:${String(i + 1).padStart(2, '0')}-05:00`),
+      }),
+    )
     montar(muchas)
 
     expect(screen.getByText('1–12 de 13 tareas')).toBeInTheDocument()

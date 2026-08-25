@@ -12,7 +12,7 @@
 // con resultado (motor Fase B), reprogramar rápido +1d/+3d/+1sem, y el
 // anti no-show de Fase E: recordatorio wa.me que PIDE confirmación + chip
 // Confirmada/Sin confirmar en reuniones.
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useState, type KeyboardEvent as ReactKeyboardEvent, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import {
   AlertTriangle,
@@ -46,7 +46,15 @@ import { useAhora } from '@/lib/ahora'
 import { useEsMovil } from '@/lib/media'
 import { slotHabil } from '@/lib/motor-siguiente'
 import { can, puedeEscribir } from '@/lib/roles'
-import { COLOR_EVENTO, enlaceGoogleCalendar, esDeHoy, fechaLima, LIMA_OFFSET_MS, MESES, tareaAEvento } from '@/lib/agenda-derivada'
+import {
+  COLOR_EVENTO,
+  enlaceGoogleCalendar,
+  esDeHoy,
+  fechaLima,
+  LIMA_OFFSET_MS,
+  MESES,
+  tareaAEvento,
+} from '@/lib/agenda-derivada'
 import {
   agruparPorPersona,
   aplicarFiltros,
@@ -78,13 +86,40 @@ function statsDe(tareas: Tarea[], ahora: number): StatChipData[] {
     // El alcance va declarado en el chip: estos números son de TODA la agenda,
     // aunque abajo se navegue a otra semana/mes (el resumen del período visible
     // vive pegado al título que cambia, en NavTemporal).
-    { icon: CalendarDays, label: 'Pendientes', value: String(eventos.length), tone: 'primary', sub: 'toda la agenda' },
-    { icon: Users, label: 'Reuniones', value: String(nBy('reunion')), tone: 'accent' },
-    { icon: Phone, label: 'Llamadas', value: String(nBy('llamada')), tone: 'accent' },
+    {
+      icon: CalendarDays,
+      label: 'Pendientes',
+      value: String(eventos.length),
+      tone: 'primary',
+      sub: 'toda la agenda',
+    },
+    {
+      icon: Users,
+      label: 'Reuniones',
+      value: String(nBy('reunion')),
+      tone: 'accent',
+    },
+    {
+      icon: Phone,
+      label: 'Llamadas',
+      value: String(nBy('llamada')),
+      tone: 'accent',
+    },
     // Ámbar SOLO cuando hay algo vencido: un 0 sano no grita.
     nVencidas > 0
-      ? { icon: AlertTriangle, label: 'Vencidas', value: String(nVencidas), tone: 'warn' }
-      : { icon: AlertTriangle, label: 'Vencidas', value: '0', tone: 'default', sub: 'nada vencido' },
+      ? {
+          icon: AlertTriangle,
+          label: 'Vencidas',
+          value: String(nVencidas),
+          tone: 'warn',
+        }
+      : {
+          icon: AlertTriangle,
+          label: 'Vencidas',
+          value: '0',
+          tone: 'default',
+          sub: 'nada vencido',
+        },
   ]
 }
 
@@ -142,17 +177,37 @@ function TarjetaTarea({
   abrirLead: (id: string) => void
   onCerrar: (t: Tarea) => void
 }) {
-  const { reprogramarTarea, confirmarTarea } = useCRMData()
+  const { reprogramarTarea, confirmarTarea, equipo } = useCRMData()
   const { yo } = useAuth()
   // Supervisión: quien ve equipo necesita saber de QUIÉN es cada tarea.
   const verEquipo = can(yo?.rol, 'verEquipo')
   const ev = tareaAEvento(t, ahora)
   const hora = ev.cuando.split(' · ')[1] ?? ''
-  const modalidadReunion = t.tipo === 'reunion'
-    ? etiquetaModalidadReunion(t.modalidad_reunion)
-    : null
+  const modalidadReunion = t.tipo === 'reunion' ? etiquetaModalidadReunion(t.modalidad_reunion) : null
   const gcal = enlaceGoogleCalendar(t)
   const recordatorio = lead && ameritaRecordatorio(t, ahora) ? enlaceRecordatorio(t, lead, ahora) : null
+  const responsableNombre =
+    lead?.vendedor_nombre ??
+    (t.vendedor_id ? equipo.find((miembro) => miembro.perfil_id === t.vendedor_id)?.nombre_completo : null)
+  const abreFichaLead = t.lead_id != null
+  const interaccionFicha = abreFichaLead
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        'aria-label': `Abrir ficha — ${t.titulo}`,
+        onClick: () => abrirLead(t.lead_id!),
+        onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
+          // Solo teclas sobre la TARJETA misma: un Enter/Espacio en un botón
+          // anidado (cerrar, confirmar, +1d…) burbujea hasta aquí, y el
+          // preventDefault le robaría su click nativo.
+          if (e.target !== e.currentTarget) return
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            abrirLead(t.lead_id!)
+          }
+        },
+      }
+    : {}
 
   const posponer = (dias: number) => {
     const destino = destinoSalto(t.vence_en, dias, ahora)
@@ -168,23 +223,12 @@ function TarjetaTarea({
 
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Abrir ficha — ${t.titulo}`}
-      onClick={() => t.lead_id && abrirLead(t.lead_id)}
-      onKeyDown={(e) => {
-        // Solo teclas sobre la TARJETA misma: un Enter/Espacio en un botón
-        // anidado (cerrar, confirmar, +1d…) burbujea hasta aquí, y el
-        // preventDefault le robaría su click nativo — se abría la ficha del
-        // lead en vez de ejecutar el botón que el asesor tenía enfocado.
-        // Mismo guard que FilaHigiene en hoy/vendedor.tsx.
-        if (e.target !== e.currentTarget) return
-        if ((e.key === 'Enter' || e.key === ' ') && t.lead_id) {
-          e.preventDefault()
-          abrirLead(t.lead_id)
-        }
-      }}
-      className="group flex cursor-pointer flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg p-2 transition-colors hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+      {...interaccionFicha}
+      className={cn(
+        'group flex flex-wrap items-center gap-x-3 gap-y-1.5 rounded-lg p-2 transition-colors',
+        abreFichaLead &&
+          'cursor-pointer hover:bg-muted/60 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40',
+      )}
     >
       {/* Riel de HORA a la izquierda: la clave primaria de escaneo de una
           agenda, alineada verticalmente entre filas (ámbar si venció). */}
@@ -207,25 +251,32 @@ function TarjetaTarea({
           ) : (
             <p className="truncate text-sm font-semibold">{t.titulo}</p>
           )}
-          <Badge color={ev.color} className="text-[10px]">{TIPO_EVENTO[t.tipo] ?? t.tipo}</Badge>
+          <Badge color={ev.color} className="text-[10px]">
+            {TIPO_EVENTO[t.tipo] ?? t.tipo}
+          </Badge>
+          {t.perfil_id && (
+            <Badge color="var(--primary)" className="text-[10px]">
+              Cliente
+            </Badge>
+          )}
           {modalidadReunion && (
             <Badge color="var(--accent)" className="text-[10px]">
               {modalidadReunion}
             </Badge>
           )}
-          {t.tipo === 'reunion' && !ev.vencida && (
-            t.confirmada_en ? (
+          {t.tipo === 'reunion' &&
+            !ev.vencida &&
+            (t.confirmada_en ? (
               <Badge color="#16a34a" className="text-[10px]">
                 <ShieldCheck className="size-3" aria-hidden /> Confirmada
               </Badge>
             ) : (
-              <Badge color="#d97706" className="text-[10px]">Sin confirmar</Badge>
-            )
-          )}
+              <Badge color="#d97706" className="text-[10px]">
+                Sin confirmar
+              </Badge>
+            ))}
           {t.reprogramaciones > 0 && (
-            <span className="text-[10px] font-medium text-muted-foreground">
-              movida ×{t.reprogramaciones}
-            </span>
+            <span className="text-[10px] font-medium text-muted-foreground">movida ×{t.reprogramaciones}</span>
           )}
         </div>
         <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5">
@@ -236,10 +287,10 @@ function TarjetaTarea({
           )}
           {/* Dueño de la tarea — solo para quien supervisa (la lista del
               vendedor no necesita decirle que las tareas son suyas). */}
-          {verEquipo && lead && (
+          {verEquipo && responsableNombre && (
             <span className="flex items-center gap-1 text-[11px] font-medium text-muted-foreground">
-              <Avatar nombre={lead.vendedor_nombre} className="size-4 text-[7px]" />
-              <span className="max-w-32 truncate">{lead.vendedor_nombre ?? 'Sin asignar'}</span>
+              <Avatar nombre={responsableNombre} className="size-4 text-[7px]" />
+              <span className="max-w-32 truncate">{responsableNombre}</span>
             </span>
           )}
           {escribe && (
@@ -275,7 +326,8 @@ function TarjetaTarea({
                     posponer(s.dias)
                   }}
                 >
-                  <CalendarClock className="mr-0.5 inline size-3" aria-hidden />{s.label}
+                  <CalendarClock className="mr-0.5 inline size-3" aria-hidden />
+                  {s.label}
                 </button>
               ))}
             </span>
@@ -289,48 +341,48 @@ function TarjetaTarea({
             de teclado; en táctil (sin hover) quedan siempre visibles. Las
             comerciales — contacto y cerrar — nunca se esconden. */}
         <span className="flex items-center gap-1 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100 pointer-coarse:opacity-100">
-        {recordatorio && escribe && (
-          <a
-            href={recordatorio}
-            target="_blank"
-            rel="noreferrer"
-            title="Recordar por WhatsApp (pide confirmación y menciona el capital)"
-            aria-label={`Recordar cita — ${t.titulo}`}
-            onClick={(e) => e.stopPropagation()}
-            className="grid size-8 place-items-center rounded-lg text-[#16a34a] transition-colors hover:bg-[#16a34a]/10"
-          >
-            <BellRing className="size-4" aria-hidden />
-          </a>
-        )}
-        {t.tipo === 'reunion' && !t.confirmada_en && !ev.vencida && escribe && (
-          <button
-            type="button"
-            title="El cliente confirmó la cita"
-            aria-label={`Marcar confirmada — ${t.titulo}`}
-            className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-            onClick={(e) => {
-              e.stopPropagation()
-              const res = confirmarTarea(t.id)
-              if (res.ok) toast.success(`Cita confirmada${yo?.demo ? ' (demo)' : ''}`)
-              else toast.error(res.error ?? 'No se pudo confirmar')
-            }}
-          >
-            <ShieldCheck className="size-4" aria-hidden />
-          </button>
-        )}
-        {gcal && (
-          <a
-            href={gcal}
-            target="_blank"
-            rel="noreferrer"
-            title="Añadir a Google Calendar"
-            aria-label={`Añadir a Google Calendar — ${t.titulo}`}
-            onClick={(e) => e.stopPropagation()}
-            className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <ExternalLink className="size-4" aria-hidden />
-          </a>
-        )}
+          {recordatorio && escribe && (
+            <a
+              href={recordatorio}
+              target="_blank"
+              rel="noreferrer"
+              title="Recordar por WhatsApp (pide confirmación y menciona el capital)"
+              aria-label={`Recordar cita — ${t.titulo}`}
+              onClick={(e) => e.stopPropagation()}
+              className="grid size-8 place-items-center rounded-lg text-[#16a34a] transition-colors hover:bg-[#16a34a]/10"
+            >
+              <BellRing className="size-4" aria-hidden />
+            </a>
+          )}
+          {t.tipo === 'reunion' && !t.confirmada_en && !ev.vencida && escribe && (
+            <button
+              type="button"
+              title="El cliente confirmó la cita"
+              aria-label={`Marcar confirmada — ${t.titulo}`}
+              className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+              onClick={(e) => {
+                e.stopPropagation()
+                const res = confirmarTarea(t.id)
+                if (res.ok) toast.success(`Cita confirmada${yo?.demo ? ' (demo)' : ''}`)
+                else toast.error(res.error ?? 'No se pudo confirmar')
+              }}
+            >
+              <ShieldCheck className="size-4" aria-hidden />
+            </button>
+          )}
+          {gcal && (
+            <a
+              href={gcal}
+              target="_blank"
+              rel="noreferrer"
+              title="Añadir a Google Calendar"
+              aria-label={`Añadir a Google Calendar — ${t.titulo}`}
+              onClick={(e) => e.stopPropagation()}
+              className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            >
+              <ExternalLink className="size-4" aria-hidden />
+            </a>
+          )}
         </span>
         {lead && <AccionesContacto lead={lead} compacto soloIcono />}
         {escribe && (
@@ -386,7 +438,9 @@ function NavTemporal({
         <ChevronRight className="size-4" aria-hidden />
       </button>
       {/* aria-live: al navegar, el lector anuncia el período nuevo solo. */}
-      <p className="text-sm font-bold tracking-tight" aria-live="polite">{titulo}</p>
+      <p className="text-sm font-bold tracking-tight" aria-live="polite">
+        {titulo}
+      </p>
       {/* Siempre montado (disabled en base): si se desmontara al llegar a hoy,
           el foco del teclado se perdería en el body. */}
       <button
@@ -405,9 +459,30 @@ function NavTemporal({
 // ── Vista SEMANA: 7 columnas + hint de ritmo en los huecos ────────────────────
 
 /** Tarjeta mínima de la columna: hora + título, color del tipo (ámbar vencida). */
-function MiniTarea({ t, ahora, abrir }: { t: Tarea; ahora: number; abrir: () => void }) {
+function MiniTarea({ t, ahora, abrir }: { t: Tarea; ahora: number; abrir: (() => void) | null }) {
   const ev = tareaAEvento(t, ahora)
   const hora = ev.cuando.split(' · ')[1] ?? ''
+  const contenido = (
+    <>
+      <span className="w-0.5 shrink-0 rounded" style={{ background: ev.color }} aria-hidden />
+      <span className="min-w-0 leading-tight">
+        <span className="block text-[10px] font-bold tabular-nums" style={{ color: ev.color }}>
+          {ev.vencida ? 'Vencida' : hora}
+        </span>
+        <span className="block truncate text-[11px] font-semibold text-foreground">{t.titulo}</span>
+      </span>
+    </>
+  )
+  if (!abrir) {
+    return (
+      <div
+        title={`${t.titulo} — ${ev.cuando}`}
+        className="flex w-full items-stretch gap-1.5 rounded-md p-1.5 text-left"
+      >
+        {contenido}
+      </div>
+    )
+  }
   return (
     <button
       type="button"
@@ -416,13 +491,7 @@ function MiniTarea({ t, ahora, abrir }: { t: Tarea; ahora: number; abrir: () => 
       onClick={abrir}
       className="flex w-full cursor-pointer items-stretch gap-1.5 rounded-md p-1.5 text-left transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >
-      <span className="w-0.5 shrink-0 rounded" style={{ background: ev.color }} aria-hidden />
-      <span className="min-w-0 leading-tight">
-        <span className="block text-[10px] font-bold tabular-nums" style={{ color: ev.color }}>
-          {ev.vencida ? 'Vencida' : hora}
-        </span>
-        <span className="block truncate text-[11px] font-semibold text-foreground">{t.titulo}</span>
-      </span>
+      {contenido}
     </button>
   )
 }
@@ -452,85 +521,96 @@ function VistaSemana({
     domingo: d.dow === 0,
     // Hueco en mar–jue futuro: el mejor momento para citas (Gong: +30% de
     // asistencia). Sugerencia, jamás candado — hoy se apaga pasadas las 18:00.
-    hint:
-      (porDia.get(d.fecha) ?? []).length === 0 &&
-      d.esMarJue &&
-      !d.esPasado &&
-      !(d.esHoy && horaLima >= 18),
+    hint: (porDia.get(d.fecha) ?? []).length === 0 && d.esMarJue && !d.esPasado && !(d.esHoy && horaLima >= 18),
   }))
   const tooltipDomingo = 'Domingo: fuera de la ventana legal de contacto (L–S 07:00–20:00)'
-  const srDomingo = (
-    <span className="sr-only"> — fuera de la ventana legal de contacto (L–S 07:00–20:00)</span>
-  )
+  const srDomingo = <span className="sr-only"> — fuera de la ventana legal de contacto (L–S 07:00–20:00)</span>
   return (
     <Card className="overflow-x-auto p-2.5">
       {/* < lg: la semana APILADA en 7 filas — cero scroll horizontal en
           laptops medianas / iPad, que era todo el punto de esta vista. */}
       <div className="space-y-1.5 lg:hidden">
-        {celdas.map(({ d, tareas, domingo, hint }) => (
+        {celdas.map(({ d, tareas, domingo, hint }) =>
           (() => {
             const paginas = Math.max(1, Math.ceil(tareas.length / TAREAS_SEMANA_POR_DIA))
             const pagina = Math.min(paginaPorDia[d.fecha] ?? 0, paginas - 1)
             const tareasPagina = tareas.slice(pagina * TAREAS_SEMANA_POR_DIA, (pagina + 1) * TAREAS_SEMANA_POR_DIA)
-            return <div
-              key={d.fecha}
-              title={domingo ? tooltipDomingo : undefined}
-              className={cn(
-                'rounded-lg p-2',
-                d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
-                domingo && 'opacity-55',
-              )}
-            >
-            <div className="flex items-center gap-2">
-              <span className={cn('text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
-                {d.label}
-                {domingo && srDomingo}
-              </span>
-              {tareas.length > 0 && (
-                <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
-                  {tareas.length}
-                </span>
-              )}
-              {hint && (
-                <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
-                  <Sparkles className="size-3 text-accent/60" aria-hidden />
-                  Buen día para citas · 10–11:30 · 16–18
-                </span>
-              )}
-            </div>
-            {tareas.length > 0 && (
-              <div className="mt-1 grid gap-1 sm:grid-cols-2">
-                {tareasPagina.map((t) => (
-                  <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
-                ))}
+            return (
+              <div
+                key={d.fecha}
+                title={domingo ? tooltipDomingo : undefined}
+                className={cn(
+                  'rounded-lg p-2',
+                  d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
+                  domingo && 'opacity-55',
+                )}
+              >
+                <div className="flex items-center gap-2">
+                  <span className={cn('text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
+                    {d.label}
+                    {domingo && srDomingo}
+                  </span>
+                  {tareas.length > 0 && (
+                    <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {tareas.length}
+                    </span>
+                  )}
+                  {hint && (
+                    <span className="ml-auto flex items-center gap-1 text-[10px] font-semibold text-muted-foreground">
+                      <Sparkles className="size-3 text-accent/60" aria-hidden />
+                      Buen día para citas · 10–11:30 · 16–18
+                    </span>
+                  )}
+                </div>
+                {tareas.length > 0 && (
+                  <div className="mt-1 grid gap-1 sm:grid-cols-2">
+                    {tareasPagina.map((t) => (
+                      <MiniTarea
+                        key={t.id}
+                        t={t}
+                        ahora={ahora}
+                        abrir={t.lead_id ? () => abrirLead(t.lead_id!) : null}
+                      />
+                    ))}
+                  </div>
+                )}
+                {paginas > 1 && (
+                  <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px] font-bold tabular-nums text-muted-foreground">
+                    <button
+                      type="button"
+                      aria-label={`Ver tareas anteriores de ${d.label}`}
+                      disabled={pagina === 0}
+                      onClick={() =>
+                        setPaginaPorDia((actual) => ({
+                          ...actual,
+                          [d.fecha]: pagina - 1,
+                        }))
+                      }
+                      className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                    >
+                      <ChevronLeft className="size-3" aria-hidden />
+                    </button>
+                    {pagina + 1}/{paginas}
+                    <button
+                      type="button"
+                      aria-label={`Ver tareas siguientes de ${d.label}`}
+                      disabled={pagina + 1 >= paginas}
+                      onClick={() =>
+                        setPaginaPorDia((actual) => ({
+                          ...actual,
+                          [d.fecha]: pagina + 1,
+                        }))
+                      }
+                      className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                    >
+                      <ChevronRight className="size-3" aria-hidden />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-            {paginas > 1 && (
-              <div className="mt-1.5 flex items-center justify-end gap-1 text-[10px] font-bold tabular-nums text-muted-foreground">
-                <button
-                  type="button"
-                  aria-label={`Ver tareas anteriores de ${d.label}`}
-                  disabled={pagina === 0}
-                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina - 1 }))}
-                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
-                >
-                  <ChevronLeft className="size-3" aria-hidden />
-                </button>
-                {pagina + 1}/{paginas}
-                <button
-                  type="button"
-                  aria-label={`Ver tareas siguientes de ${d.label}`}
-                  disabled={pagina + 1 >= paginas}
-                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina + 1 }))}
-                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
-                >
-                  <ChevronRight className="size-3" aria-hidden />
-                </button>
-              </div>
-            )}
-            </div>
-          })()
-        ))}
+            )
+          })(),
+        )}
       </div>
 
       {/* lg+: rejilla de 7 columnas. El domingo — fuera de la ventana legal,
@@ -538,67 +618,81 @@ function VistaSemana({
           contenido: nada de layout-shift semana a semana), devolviendo su
           ancho a los 6 días operables. */}
       <div className="hidden min-w-[700px] gap-1.5 lg:grid lg:grid-cols-[repeat(6,minmax(0,1fr))_minmax(3rem,0.45fr)]">
-        {celdas.map(({ d, tareas, domingo, hint }) => (
+        {celdas.map(({ d, tareas, domingo, hint }) =>
           (() => {
             const paginas = Math.max(1, Math.ceil(tareas.length / TAREAS_SEMANA_POR_DIA))
             const pagina = Math.min(paginaPorDia[d.fecha] ?? 0, paginas - 1)
             const tareasPagina = tareas.slice(pagina * TAREAS_SEMANA_POR_DIA, (pagina + 1) * TAREAS_SEMANA_POR_DIA)
-            return <div
-              key={d.fecha}
-              title={domingo ? tooltipDomingo : undefined}
-              className={cn(
-                'flex min-h-44 flex-col gap-1 rounded-lg p-1.5',
-                d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
-                domingo && 'opacity-55',
-              )}
-            >
-            <div className="flex items-center justify-between gap-1 px-0.5">
-              <span className={cn('truncate text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}>
-                {domingo ? `D ${d.num}` : d.label}
-                {domingo && srDomingo}
-              </span>
-              {tareas.length > 0 && (
-                <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
-                  {tareas.length}
-                </span>
-              )}
-            </div>
-            {tareasPagina.map((t) => (
-              <MiniTarea key={t.id} t={t} ahora={ahora} abrir={() => t.lead_id && abrirLead(t.lead_id)} />
-            ))}
-            {hint && (
-              <div className="mt-auto rounded-md border border-dashed border-accent/30 p-1.5 text-center">
-                <Sparkles className="mx-auto size-3.5 text-accent/60" aria-hidden />
-                <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Buen día para citas</p>
-                <p className="text-[10px] tabular-nums text-muted-foreground/80">10–11:30 · 16–18</p>
+            return (
+              <div
+                key={d.fecha}
+                title={domingo ? tooltipDomingo : undefined}
+                className={cn(
+                  'flex min-h-44 flex-col gap-1 rounded-lg p-1.5',
+                  d.esHoy ? 'bg-accent/10 ring-1 ring-accent/30' : 'bg-muted/30',
+                  domingo && 'opacity-55',
+                )}
+              >
+                <div className="flex items-center justify-between gap-1 px-0.5">
+                  <span
+                    className={cn('truncate text-[11px] font-bold', d.esHoy ? 'text-accent' : 'text-muted-foreground')}
+                  >
+                    {domingo ? `D ${d.num}` : d.label}
+                    {domingo && srDomingo}
+                  </span>
+                  {tareas.length > 0 && (
+                    <span className="rounded-full bg-muted px-1.5 text-[10px] font-bold tabular-nums text-muted-foreground">
+                      {tareas.length}
+                    </span>
+                  )}
+                </div>
+                {tareasPagina.map((t) => (
+                  <MiniTarea key={t.id} t={t} ahora={ahora} abrir={t.lead_id ? () => abrirLead(t.lead_id!) : null} />
+                ))}
+                {hint && (
+                  <div className="mt-auto rounded-md border border-dashed border-accent/30 p-1.5 text-center">
+                    <Sparkles className="mx-auto size-3.5 text-accent/60" aria-hidden />
+                    <p className="mt-0.5 text-[10px] font-semibold text-muted-foreground">Buen día para citas</p>
+                    <p className="text-[10px] tabular-nums text-muted-foreground/80">10–11:30 · 16–18</p>
+                  </div>
+                )}
+                {paginas > 1 && (
+                  <div className="mt-auto flex items-center justify-end gap-1 px-0.5 pt-1 text-[10px] font-bold tabular-nums text-muted-foreground">
+                    <button
+                      type="button"
+                      aria-label={`Ver tareas anteriores de ${d.label}`}
+                      disabled={pagina === 0}
+                      onClick={() =>
+                        setPaginaPorDia((actual) => ({
+                          ...actual,
+                          [d.fecha]: pagina - 1,
+                        }))
+                      }
+                      className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                    >
+                      <ChevronLeft className="size-3" aria-hidden />
+                    </button>
+                    {pagina + 1}/{paginas}
+                    <button
+                      type="button"
+                      aria-label={`Ver tareas siguientes de ${d.label}`}
+                      disabled={pagina + 1 >= paginas}
+                      onClick={() =>
+                        setPaginaPorDia((actual) => ({
+                          ...actual,
+                          [d.fecha]: pagina + 1,
+                        }))
+                      }
+                      className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
+                    >
+                      <ChevronRight className="size-3" aria-hidden />
+                    </button>
+                  </div>
+                )}
               </div>
-            )}
-            {paginas > 1 && (
-              <div className="mt-auto flex items-center justify-end gap-1 px-0.5 pt-1 text-[10px] font-bold tabular-nums text-muted-foreground">
-                <button
-                  type="button"
-                  aria-label={`Ver tareas anteriores de ${d.label}`}
-                  disabled={pagina === 0}
-                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina - 1 }))}
-                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
-                >
-                  <ChevronLeft className="size-3" aria-hidden />
-                </button>
-                {pagina + 1}/{paginas}
-                <button
-                  type="button"
-                  aria-label={`Ver tareas siguientes de ${d.label}`}
-                  disabled={pagina + 1 >= paginas}
-                  onClick={() => setPaginaPorDia((actual) => ({ ...actual, [d.fecha]: pagina + 1 }))}
-                  className="grid size-6 cursor-pointer place-items-center rounded border border-border bg-card disabled:cursor-default disabled:opacity-40"
-                >
-                  <ChevronRight className="size-3" aria-hidden />
-                </button>
-              </div>
-            )}
-            </div>
-          })()
-        ))}
+            )
+          })(),
+        )}
       </div>
     </Card>
   )
@@ -653,13 +747,20 @@ function VistaMes({
             {nVencidas > 0 && <AlertTriangle className="size-2.5" style={{ color: '#d97706' }} aria-hidden />}
             <span
               className="text-[10px] font-bold tabular-nums"
-              style={{ color: nVencidas > 0 ? '#d97706' : 'var(--muted-foreground)' }}
+              style={{
+                color: nVencidas > 0 ? '#d97706' : 'var(--muted-foreground)',
+              }}
             >
               {tareas.length}
             </span>
             <span className="flex gap-0.5">
               {tipos.map((tipo) => (
-                <span key={tipo} className="size-1.5 rounded-full" style={{ background: COLOR_EVENTO[tipo] }} aria-hidden />
+                <span
+                  key={tipo}
+                  className="size-1.5 rounded-full"
+                  style={{ background: COLOR_EVENTO[tipo] }}
+                  aria-hidden
+                />
               ))}
             </span>
           </span>
@@ -724,7 +825,10 @@ function NavegacionPagina({
   const inicio = pagina * porPagina + 1
   const fin = Math.min(total, inicio + porPagina - 1)
   return (
-    <nav className="flex shrink-0 items-center justify-between gap-2 border-t border-border/70 pt-2" aria-label={`Paginación de ${etiqueta}`}>
+    <nav
+      className="flex shrink-0 items-center justify-between gap-2 border-t border-border/70 pt-2"
+      aria-label={`Paginación de ${etiqueta}`}
+    >
       <p className="text-[11px] font-semibold tabular-nums text-muted-foreground" aria-live="polite">
         {inicio}–{fin} de {total} {etiqueta}
       </p>
@@ -784,7 +888,9 @@ export function Agenda() {
   // de su propia tarjeta para no estirar la agenda completa.
   const [personasAbiertas, setPersonasAbiertas] = useState<ReadonlySet<string>>(new Set())
 
-  // Ámbito (espejo RLS): solo tareas de leads que el rol puede ver.
+  // Ámbito (espejo RLS): leads visibles + tareas postventa de clientes. Estas
+  // últimas ya llegan recortadas por la RLS de cartera y se identifican por
+  // perfil_id; no dependen de que todavía exista un lead abierto.
   const idsAmbito = useMemo(() => new Set(ambito.leads.map((l) => l.id)), [ambito.leads])
   // Lookup O(1): aplicarFiltros lo llama por CADA tarea en cada pulsación del
   // buscador — con la cartera de gerencia un find lineal se vuelve cuadrático.
@@ -796,7 +902,12 @@ export function Agenda() {
   const pendientes = useMemo(
     () =>
       tareas
-        .filter((t) => t.estado === 'pendiente' && t.activo && t.lead_id && idsAmbito.has(t.lead_id))
+        .filter(
+          (t) =>
+            t.estado === 'pendiente' &&
+            t.activo &&
+            ((t.lead_id != null && idsAmbito.has(t.lead_id)) || t.perfil_id != null),
+        )
         .sort((a, b) => a.vence_en.localeCompare(b.vence_en)),
     [tareas, idsAmbito],
   )
@@ -818,10 +929,11 @@ export function Agenda() {
 
   // [Hoy] = vencidas + las de hoy (el día operable); [Todo] = panorama por día.
   const delDia = useMemo(
-    () => filtrados.filter((t) => {
-      const ev = tareaAEvento(t, ahora)
-      return ev.vencida || esDeHoy(ev, ahora)
-    }),
+    () =>
+      filtrados.filter((t) => {
+        const ev = tareaAEvento(t, ahora)
+        return ev.vencida || esDeHoy(ev, ahora)
+      }),
     [filtrados, ahora],
   )
   const visibles = vista === 'hoy' ? delDia : filtrados
@@ -886,7 +998,7 @@ export function Agenda() {
   const tiraSemana = useMemo(() => diasDeSemana(ahora, 0), [ahora])
   // Día operable del Mes: el elegido, o hoy cuando se mira el mes en curso.
   const diaMes = diaSel ?? (offsetMes === 0 ? fechaLima(ahora) : null)
-  const tareasDiaMes = diaMes ? porDia.get(diaMes) ?? [] : []
+  const tareasDiaMes = diaMes ? (porDia.get(diaMes) ?? []) : []
   const paginasMes = Math.max(1, Math.ceil(tareasDiaMes.length / TAREAS_POR_PAGINA))
   const paginaMesActual = Math.min(paginaMes, paginasMes - 1)
   const tareasDiaMesPagina = tareasDiaMes.slice(
@@ -903,7 +1015,8 @@ export function Agenda() {
       if (e.metaKey || e.ctrlKey || e.altKey) return
       if (document.querySelector('[aria-modal="true"]')) return
       const t = e.target as HTMLElement | null
-      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable)) return
+      if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || t.isContentEditable))
+        return
       const idx = ['1', '2', '3', '4'].indexOf(e.key)
       if (idx >= 0) {
         const v = VISTAS[idx]
@@ -969,7 +1082,12 @@ export function Agenda() {
                 )}
               >
                 <span className="text-[10px] font-bold uppercase">{c.label.split(' ')[0]?.charAt(0)}</span>
-                <span className={cn('text-sm font-extrabold tabular-nums', c.esHoy ? 'text-accent-foreground' : 'text-foreground')}>
+                <span
+                  className={cn(
+                    'text-sm font-extrabold tabular-nums',
+                    c.esHoy ? 'text-accent-foreground' : 'text-foreground',
+                  )}
+                >
                   {c.num}
                 </span>
               </button>
@@ -982,7 +1100,10 @@ export function Agenda() {
       <div className="flex flex-wrap items-center gap-1.5">
         {(
           [
-            { k: 'hoy', label: `Hoy${delDia.length > 0 ? ` · ${delDia.length}` : ''}` },
+            {
+              k: 'hoy',
+              label: `Hoy${delDia.length > 0 ? ` · ${delDia.length}` : ''}`,
+            },
             { k: 'semana', label: 'Semana' },
             { k: 'mes', label: 'Mes' },
             { k: 'todo', label: `Todo · ${filtrados.length}` },
@@ -998,7 +1119,9 @@ export function Agenda() {
             }}
             className={cn(
               'cursor-pointer rounded-full px-3 py-1.5 text-xs font-bold transition-colors',
-              vista === v.k ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground hover:text-foreground',
+              vista === v.k
+                ? 'bg-primary text-primary-foreground'
+                : 'bg-muted text-muted-foreground hover:text-foreground',
             )}
           >
             {v.label}
@@ -1038,327 +1161,170 @@ export function Agenda() {
 
       {/* Buscador + filtros tipo/estado/etapa — recortan TODAS las vistas */}
       {mostrarFiltros && (
-      <div id="agenda-filtros" className="flex flex-wrap items-center gap-2">
-        <div className="relative min-w-44 flex-1 basis-52">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground" aria-hidden />
-          <Input
-            value={filtros.q}
-            onChange={(e) => patch({ q: e.target.value })}
-            placeholder="Buscar tarea, nota o lead…"
-            aria-label="Buscar en la agenda"
-            className="h-8 pl-8 text-xs"
-          />
+        <div id="agenda-filtros" className="flex flex-wrap items-center gap-2">
+          <div className="relative min-w-44 flex-1 basis-52">
+            <Search
+              className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              value={filtros.q}
+              onChange={(e) => patch({ q: e.target.value })}
+              placeholder="Buscar tarea, nota, lead o cliente…"
+              aria-label="Buscar en la agenda"
+              className="h-8 pl-8 text-xs"
+            />
+          </div>
+          <div className="w-36 shrink-0">
+            <Select
+              value={filtros.tipo}
+              onChange={(e) => patch({ tipo: e.target.value as FiltrosAgenda['tipo'] })}
+              aria-label="Filtrar por tipo"
+              className="h-8 text-xs"
+            >
+              <option value="todos">Todos los tipos</option>
+              {TIPOS_TAREA.map((t) => (
+                <option key={t.k} value={t.k}>
+                  {t.label}
+                </option>
+              ))}
+            </Select>
+          </div>
+          <div className="w-36 shrink-0">
+            <Select
+              value={filtros.estado}
+              onChange={(e) => patch({ estado: e.target.value as FiltrosAgenda['estado'] })}
+              aria-label="Filtrar por estado"
+              className="h-8 text-xs"
+            >
+              <option value="todas">Todas</option>
+              <option value="vencida">Vencidas</option>
+              <option value="sin_confirmar">Sin confirmar</option>
+              <option value="confirmada">Confirmadas</option>
+            </Select>
+          </div>
+          <div className="w-40 shrink-0">
+            <Select
+              value={filtros.etapa}
+              onChange={(e) => patch({ etapa: e.target.value as FiltrosAgenda['etapa'] })}
+              aria-label="Filtrar por etapa del lead"
+              className="h-8 text-xs"
+            >
+              <option value="todas">Todas las etapas</option>
+              {ETAPAS.map((e) => (
+                <option key={e.k} value={e.k}>
+                  {e.label}
+                </option>
+              ))}
+            </Select>
+          </div>
         </div>
-        <div className="w-36 shrink-0">
-          <Select
-            value={filtros.tipo}
-            onChange={(e) => patch({ tipo: e.target.value as FiltrosAgenda['tipo'] })}
-            aria-label="Filtrar por tipo"
-            className="h-8 text-xs"
-          >
-            <option value="todos">Todos los tipos</option>
-            {TIPOS_TAREA.map((t) => (
-              <option key={t.k} value={t.k}>{t.label}</option>
-            ))}
-          </Select>
-        </div>
-        <div className="w-36 shrink-0">
-          <Select
-            value={filtros.estado}
-            onChange={(e) => patch({ estado: e.target.value as FiltrosAgenda['estado'] })}
-            aria-label="Filtrar por estado"
-            className="h-8 text-xs"
-          >
-            <option value="todas">Todas</option>
-            <option value="vencida">Vencidas</option>
-            <option value="sin_confirmar">Sin confirmar</option>
-            <option value="confirmada">Confirmadas</option>
-          </Select>
-        </div>
-        <div className="w-40 shrink-0">
-          <Select
-            value={filtros.etapa}
-            onChange={(e) => patch({ etapa: e.target.value as FiltrosAgenda['etapa'] })}
-            aria-label="Filtrar por etapa del lead"
-            className="h-8 text-xs"
-          >
-            <option value="todas">Todas las etapas</option>
-            {ETAPAS.map((e) => (
-              <option key={e.k} value={e.k}>{e.label}</option>
-            ))}
-          </Select>
-        </div>
-      </div>
       )}
 
       {/* El encabezado queda estable. Solo la bandeja cambia de contenido y,
           en escritorio, se desplaza dentro de este espacio en vez de alargar
           toda la pantalla. */}
       <div className="ac-scroll min-h-0 space-y-5 md:flex-1 md:overflow-y-auto md:pr-1">
-      {/* ── SEMANA ── */}
-      {vista === 'semana' && (
-        <>
-          <NavTemporal
-            unidad="semana"
-            titulo={tituloSemana(semana)}
-            enBase={offsetSemana === 0}
-            onPrev={() => setOffsetSemana((o) => o - 1)}
-            onNext={() => setOffsetSemana((o) => o + 1)}
-            onHoy={() => setOffsetSemana(0)}
-            right={
-              <Badge color={resumenSemana.v > 0 ? '#d97706' : resumenSemana.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'}>
-                {resumenSemana.n === 0
-                  ? 'Sin tareas esta semana'
-                  : `${resumenSemana.n} ${resumenSemana.n === 1 ? 'tarea' : 'tareas'}${
-                      resumenSemana.v > 0 ? ` · ${resumenSemana.v} vencida${resumenSemana.v === 1 ? '' : 's'}` : ''
-                    }`}
-              </Badge>
-            }
-          />
-          <VistaSemana dias={semana} porDia={porDia} ahora={ahora} abrirLead={abrirLead} />
-        </>
-      )}
+        {/* ── SEMANA ── */}
+        {vista === 'semana' && (
+          <>
+            <NavTemporal
+              unidad="semana"
+              titulo={tituloSemana(semana)}
+              enBase={offsetSemana === 0}
+              onPrev={() => setOffsetSemana((o) => o - 1)}
+              onNext={() => setOffsetSemana((o) => o + 1)}
+              onHoy={() => setOffsetSemana(0)}
+              right={
+                <Badge
+                  color={
+                    resumenSemana.v > 0 ? '#d97706' : resumenSemana.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'
+                  }
+                >
+                  {resumenSemana.n === 0
+                    ? 'Sin tareas esta semana'
+                    : `${resumenSemana.n} ${resumenSemana.n === 1 ? 'tarea' : 'tareas'}${
+                        resumenSemana.v > 0 ? ` · ${resumenSemana.v} vencida${resumenSemana.v === 1 ? '' : 's'}` : ''
+                      }`}
+                </Badge>
+              }
+            />
+            <VistaSemana dias={semana} porDia={porDia} ahora={ahora} abrirLead={abrirLead} />
+          </>
+        )}
 
-      {/* ── MES ── */}
-      {vista === 'mes' && (
-        <>
-          <NavTemporal
-            unidad="mes"
-            titulo={mes.titulo}
-            enBase={offsetMes === 0}
-            onPrev={() => {
-              setOffsetMes((o) => o - 1)
-              setDiaSel(null)
-              setPaginaMes(0)
-            }}
-            onNext={() => {
-              setOffsetMes((o) => o + 1)
-              setDiaSel(null)
-              setPaginaMes(0)
-            }}
-            onHoy={() => {
-              setOffsetMes(0)
-              setDiaSel(null)
-              setPaginaMes(0)
-            }}
-            right={
-              <Badge color={resumenMes.v > 0 ? '#d97706' : resumenMes.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'}>
-                {resumenMes.n === 0
-                  ? 'Sin tareas este mes'
-                  : `${resumenMes.n} ${resumenMes.n === 1 ? 'tarea' : 'tareas'}${
-                      resumenMes.v > 0 ? ` · ${resumenMes.v} vencida${resumenMes.v === 1 ? '' : 's'}` : ''
-                    }`}
-              </Badge>
-            }
-          />
-          <VistaMes
-            semanas={mes.semanas}
-            porDia={porDia}
-            ahora={ahora}
-            diaSel={diaMes}
-            onDia={(fecha) => {
-              setDiaSel(fecha)
-              setPaginaMes(0)
-            }}
-          />
-          {diaMes ? (
-            <Card className="flex min-h-0 flex-col">
-              {/* Mes/año salen de la FECHA elegida, no de la rejilla: una
+        {/* ── MES ── */}
+        {vista === 'mes' && (
+          <>
+            <NavTemporal
+              unidad="mes"
+              titulo={mes.titulo}
+              enBase={offsetMes === 0}
+              onPrev={() => {
+                setOffsetMes((o) => o - 1)
+                setDiaSel(null)
+                setPaginaMes(0)
+              }}
+              onNext={() => {
+                setOffsetMes((o) => o + 1)
+                setDiaSel(null)
+                setPaginaMes(0)
+              }}
+              onHoy={() => {
+                setOffsetMes(0)
+                setDiaSel(null)
+                setPaginaMes(0)
+              }}
+              right={
+                <Badge
+                  color={resumenMes.v > 0 ? '#d97706' : resumenMes.n > 0 ? 'var(--accent)' : 'var(--muted-foreground)'}
+                >
+                  {resumenMes.n === 0
+                    ? 'Sin tareas este mes'
+                    : `${resumenMes.n} ${resumenMes.n === 1 ? 'tarea' : 'tareas'}${
+                        resumenMes.v > 0 ? ` · ${resumenMes.v} vencida${resumenMes.v === 1 ? '' : 's'}` : ''
+                      }`}
+                </Badge>
+              }
+            />
+            <VistaMes
+              semanas={mes.semanas}
+              porDia={porDia}
+              ahora={ahora}
+              diaSel={diaMes}
+              onDia={(fecha) => {
+                setDiaSel(fecha)
+                setPaginaMes(0)
+              }}
+            />
+            {diaMes ? (
+              <Card className="flex min-h-0 flex-col">
+                {/* Mes/año salen de la FECHA elegida, no de la rejilla: una
                   celda de relleno (1 de agosto en julio) titula su mes real. */}
-              <SectionHead
-                icon={CalendarDays}
-                title={
-                  celdaDiaMes
-                    ? `${celdaDiaMes.label} — ${MESES[Number(diaMes.slice(5, 7)) - 1]} ${diaMes.slice(0, 4)}`
-                    : diaMes
-                }
-                right={
-                  tareasDiaMes.length > 0 ? (
-                    <Badge color="var(--accent)">
-                      {tareasDiaMes.length} {tareasDiaMes.length === 1 ? 'tarea' : 'tareas'}
-                    </Badge>
-                  ) : undefined
-                }
-              />
-              <CardContent className="ac-scroll min-h-0 space-y-1 overflow-y-auto pt-0 md:max-h-[min(27rem,calc(100svh-29rem))]">
-                {tareasDiaMes.length === 0 ? (
-                  <PanelVacio
-                    icono={CalendarDays}
-                    titulo="Sin tareas ese día"
-                    detalle="Agenda la próxima acción desde la ficha de un lead — ningún lead activo debería quedarse sin una."
-                  />
-                ) : (
-                  tareasDiaMesPagina.map((t) => (
-                    <TarjetaTarea
-                      key={t.id}
-                      t={t}
-                      lead={leadPorId(t.lead_id)}
-                      ahora={ahora}
-                      escribe={escribe}
-                      esMovil={esMovil}
-                      abrirLead={abrirLead}
-                      onCerrar={setTareaACerrar}
-                    />
-                  ))
-                )}
-              </CardContent>
-              <div className="px-5 pb-4">
-                <NavegacionPagina
-                  pagina={paginaMesActual}
-                  total={tareasDiaMes.length}
-                  porPagina={TAREAS_POR_PAGINA}
-                  etiqueta="tareas del día"
-                  onCambiar={setPaginaMes}
-                />
-              </div>
-            </Card>
-          ) : (
-            <Card>
-              <PanelVacio
-                icono={CalendarDays}
-                titulo="Elige un día del mes"
-                detalle="Toca cualquier día de la rejilla para ver y trabajar sus tareas."
-              />
-            </Card>
-          )}
-        </>
-      )}
-
-      {/* ── HOY / TODO ── */}
-      {(vista === 'hoy' || vista === 'todo') && (
-        <>
-          {/* [Todo] Resumen del rango: de qué se compone el panorama, antes
-              de bajar al muro de días. */}
-          {vista === 'todo' && visibles.length > 0 && (
-            <Card className="ac-pop p-3.5">
-              <SegmentBar segments={distTipos} />
-            </Card>
-          )}
-
-          {/* Vacío accionable */}
-          {grupos.length === 0 && (
-            <Card>
-              <CardContent className="flex flex-col items-center gap-1.5 py-10 text-center">
-                <CalendarDays className="size-8 text-muted-foreground/50" />
-                <p className="text-sm font-semibold text-foreground">
-                  {conFiltros
-                    ? 'Nada coincide con los filtros'
-                    : vista === 'hoy'
-                      ? 'Nada pendiente para hoy'
-                      : 'Sin tareas pendientes en tu agenda'}
-                </p>
-                {conFiltros ? (
-                  <button
-                    type="button"
-                    onClick={() => setFiltros(FILTROS_APAGADOS)}
-                    className="cursor-pointer text-xs font-bold text-accent hover:underline"
-                  >
-                    Limpiar filtros
-                  </button>
-                ) : (
-                  <p className="max-w-md text-xs text-muted-foreground">
-                    Agenda la próxima acción desde la ficha de un lead — ningún lead activo debería quedarse sin una.
-                  </p>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Supervisión: agrupado por PERSONA (vencidas y carga primero),
-              colapsado a resumen — el detalle se abre solo cuando hace falta,
-              igual que la tabla por rangos de Distribución de leads. */}
-          {verEquipo &&
-            gruposPersonaPagina.map((g) => {
-              const abierto = personasAbiertas.has(g.id)
-              return (
-                <Card key={g.id}>
-                  <button
-                    type="button"
-                    aria-expanded={abierto}
-                    onClick={() =>
-                      setPersonasAbiertas((prev) => {
-                        const s = new Set(prev)
-                        if (s.has(g.id)) s.delete(g.id)
-                        else s.add(g.id)
-                        return s
-                      })
-                    }
-                    className="flex w-full cursor-pointer items-center gap-2.5 rounded-t-[inherit] px-5 pt-4 pb-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
-                  >
-                    <Avatar nombre={g.nombre} className="size-7 text-[10px]" />
-                    <span className="min-w-0">
-                      <span className="block truncate text-[15px] font-bold tracking-tight">{g.nombre}</span>
-                      {g.supervisor && (
-                        <span className="block truncate text-[11px] text-muted-foreground">
-                          Equipo de {g.supervisor}
-                        </span>
-                      )}
-                    </span>
-                    <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                <SectionHead
+                  icon={CalendarDays}
+                  title={
+                    celdaDiaMes
+                      ? `${celdaDiaMes.label} — ${MESES[Number(diaMes.slice(5, 7)) - 1]} ${diaMes.slice(0, 4)}`
+                      : diaMes
+                  }
+                  right={
+                    tareasDiaMes.length > 0 ? (
                       <Badge color="var(--accent)">
-                        {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
+                        {tareasDiaMes.length} {tareasDiaMes.length === 1 ? 'tarea' : 'tareas'}
                       </Badge>
-                      {g.nVencidas > 0 && (
-                        <Badge color="#d97706">
-                          {g.nVencidas} vencida{g.nVencidas === 1 ? '' : 's'}
-                        </Badge>
-                      )}
-                      <ChevronDown
-                        className={cn('size-4 text-muted-foreground transition-transform', abierto && 'rotate-180')}
-                        aria-hidden
-                      />
-                    </span>
-                  </button>
-                  {abierto && (
-                    <CardContent className="ac-scroll max-h-80 space-y-2 overflow-y-auto pt-0">
-                      {agruparPorDiaLabel(g.items, ahora).map((sub) => (
-                        <div key={sub.dia} className="space-y-1">
-                          <p
-                            className={cn(
-                              'px-2 text-[11px] font-bold',
-                              sub.dia === 'Vencida' ? 'text-[#d97706]' : 'text-muted-foreground',
-                            )}
-                          >
-                            {sub.dia === 'Vencida' ? 'Vencidas' : sub.dia}
-                          </p>
-                          {sub.items.map((t) => (
-                            <TarjetaTarea
-                              key={t.id}
-                              t={t}
-                              lead={leadPorId(t.lead_id)}
-                              ahora={ahora}
-                              escribe={escribe}
-                              esMovil={esMovil}
-                              abrirLead={abrirLead}
-                              onCerrar={setTareaACerrar}
-                            />
-                          ))}
-                        </div>
-                      ))}
-                    </CardContent>
-                  )}
-                </Card>
-              )
-            })}
-
-          {/* Vendedor: timeline operable agrupado por día. La paginación es
-              por tarea, así que la cola conserva su orden sin crear un muro
-              de cards iguales al abrir Todo. */}
-          {!verEquipo &&
-            gruposPagina.map((g) => {
-              return (
-                <Card key={g.dia}>
-                  <SectionHead
-                    icon={g.dia === 'Vencida' ? AlertTriangle : CalendarDays}
-                    title={g.dia === 'Vencida' ? 'Vencidas' : g.dia}
-                    right={
-                      <Badge color={g.dia === 'Vencida' ? '#d97706' : 'var(--accent)'}>
-                        {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
-                      </Badge>
-                    }
-                  />
-                  <CardContent className="space-y-1 pt-0">
-                    {g.items.map((t) => (
+                    ) : undefined
+                  }
+                />
+                <CardContent className="ac-scroll min-h-0 space-y-1 overflow-y-auto pt-0 md:max-h-[min(27rem,calc(100svh-29rem))]">
+                  {tareasDiaMes.length === 0 ? (
+                    <PanelVacio
+                      icono={CalendarDays}
+                      titulo="Sin tareas ese día"
+                      detalle="Agenda la próxima acción desde la ficha de un lead o desde Mi cartera para un cliente."
+                    />
+                  ) : (
+                    tareasDiaMesPagina.map((t) => (
                       <TarjetaTarea
                         key={t.id}
                         t={t}
@@ -1369,29 +1335,201 @@ export function Agenda() {
                         abrirLead={abrirLead}
                         onCerrar={setTareaACerrar}
                       />
-                    ))}
-                  </CardContent>
-                </Card>
-              )
-            })}
-          {grupos.length > 0 && (
-            <NavegacionPagina
-              pagina={paginaBandejaActual}
-              total={totalBandeja}
-              porPagina={porPaginaBandeja}
-              etiqueta={verEquipo ? 'personas' : 'tareas'}
-              onCambiar={setPaginaBandeja}
-            />
-          )}
-        </>
-      )}
+                    ))
+                  )}
+                </CardContent>
+                <div className="px-5 pb-4">
+                  <NavegacionPagina
+                    pagina={paginaMesActual}
+                    total={tareasDiaMes.length}
+                    porPagina={TAREAS_POR_PAGINA}
+                    etiqueta="tareas del día"
+                    onCambiar={setPaginaMes}
+                  />
+                </div>
+              </Card>
+            ) : (
+              <Card>
+                <PanelVacio
+                  icono={CalendarDays}
+                  titulo="Elige un día del mes"
+                  detalle="Toca cualquier día de la rejilla para ver y trabajar sus tareas."
+                />
+              </Card>
+            )}
+          </>
+        )}
 
+        {/* ── HOY / TODO ── */}
+        {(vista === 'hoy' || vista === 'todo') && (
+          <>
+            {/* [Todo] Resumen del rango: de qué se compone el panorama, antes
+              de bajar al muro de días. */}
+            {vista === 'todo' && visibles.length > 0 && (
+              <Card className="ac-pop p-3.5">
+                <SegmentBar segments={distTipos} />
+              </Card>
+            )}
+
+            {/* Vacío accionable */}
+            {grupos.length === 0 && (
+              <Card>
+                <CardContent className="flex flex-col items-center gap-1.5 py-10 text-center">
+                  <CalendarDays className="size-8 text-muted-foreground/50" />
+                  <p className="text-sm font-semibold text-foreground">
+                    {conFiltros
+                      ? 'Nada coincide con los filtros'
+                      : vista === 'hoy'
+                        ? 'Nada pendiente para hoy'
+                        : 'Sin tareas pendientes en tu agenda'}
+                  </p>
+                  {conFiltros ? (
+                    <button
+                      type="button"
+                      onClick={() => setFiltros(FILTROS_APAGADOS)}
+                      className="cursor-pointer text-xs font-bold text-accent hover:underline"
+                    >
+                      Limpiar filtros
+                    </button>
+                  ) : (
+                    <p className="max-w-md text-xs text-muted-foreground">
+                      Agenda la próxima acción desde la ficha de un lead o desde Mi cartera para un cliente.
+                    </p>
+                  )}
+                </CardContent>
+              </Card>
+            )}
+
+            {/* Supervisión: agrupado por PERSONA (vencidas y carga primero),
+              colapsado a resumen — el detalle se abre solo cuando hace falta,
+              igual que la tabla por rangos de Distribución de leads. */}
+            {verEquipo &&
+              gruposPersonaPagina.map((g) => {
+                const abierto = personasAbiertas.has(g.id)
+                return (
+                  <Card key={g.id}>
+                    <button
+                      type="button"
+                      aria-expanded={abierto}
+                      onClick={() =>
+                        setPersonasAbiertas((prev) => {
+                          const s = new Set(prev)
+                          if (s.has(g.id)) s.delete(g.id)
+                          else s.add(g.id)
+                          return s
+                        })
+                      }
+                      className="flex w-full cursor-pointer items-center gap-2.5 rounded-t-[inherit] px-5 pt-4 pb-3 text-left transition-colors hover:bg-muted/40 focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/40"
+                    >
+                      <Avatar nombre={g.nombre} className="size-7 text-[10px]" />
+                      <span className="min-w-0">
+                        <span className="block truncate text-[15px] font-bold tracking-tight">{g.nombre}</span>
+                        {g.supervisor && (
+                          <span className="block truncate text-[11px] text-muted-foreground">
+                            Equipo de {g.supervisor}
+                          </span>
+                        )}
+                      </span>
+                      <span className="ml-auto flex shrink-0 items-center gap-1.5">
+                        <Badge color="var(--accent)">
+                          {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
+                        </Badge>
+                        {g.nVencidas > 0 && (
+                          <Badge color="#d97706">
+                            {g.nVencidas} vencida{g.nVencidas === 1 ? '' : 's'}
+                          </Badge>
+                        )}
+                        <ChevronDown
+                          className={cn('size-4 text-muted-foreground transition-transform', abierto && 'rotate-180')}
+                          aria-hidden
+                        />
+                      </span>
+                    </button>
+                    {abierto && (
+                      <CardContent className="ac-scroll max-h-80 space-y-2 overflow-y-auto pt-0">
+                        {agruparPorDiaLabel(g.items, ahora).map((sub) => (
+                          <div key={sub.dia} className="space-y-1">
+                            <p
+                              className={cn(
+                                'px-2 text-[11px] font-bold',
+                                sub.dia === 'Vencida' ? 'text-[#d97706]' : 'text-muted-foreground',
+                              )}
+                            >
+                              {sub.dia === 'Vencida' ? 'Vencidas' : sub.dia}
+                            </p>
+                            {sub.items.map((t) => (
+                              <TarjetaTarea
+                                key={t.id}
+                                t={t}
+                                lead={leadPorId(t.lead_id)}
+                                ahora={ahora}
+                                escribe={escribe}
+                                esMovil={esMovil}
+                                abrirLead={abrirLead}
+                                onCerrar={setTareaACerrar}
+                              />
+                            ))}
+                          </div>
+                        ))}
+                      </CardContent>
+                    )}
+                  </Card>
+                )
+              })}
+
+            {/* Vendedor: timeline operable agrupado por día. La paginación es
+              por tarea, así que la cola conserva su orden sin crear un muro
+              de cards iguales al abrir Todo. */}
+            {!verEquipo &&
+              gruposPagina.map((g) => {
+                return (
+                  <Card key={g.dia}>
+                    <SectionHead
+                      icon={g.dia === 'Vencida' ? AlertTriangle : CalendarDays}
+                      title={g.dia === 'Vencida' ? 'Vencidas' : g.dia}
+                      right={
+                        <Badge color={g.dia === 'Vencida' ? '#d97706' : 'var(--accent)'}>
+                          {g.items.length} {g.items.length === 1 ? 'tarea' : 'tareas'}
+                        </Badge>
+                      }
+                    />
+                    <CardContent className="space-y-1 pt-0">
+                      {g.items.map((t) => (
+                        <TarjetaTarea
+                          key={t.id}
+                          t={t}
+                          lead={leadPorId(t.lead_id)}
+                          ahora={ahora}
+                          escribe={escribe}
+                          esMovil={esMovil}
+                          abrirLead={abrirLead}
+                          onCerrar={setTareaACerrar}
+                        />
+                      ))}
+                    </CardContent>
+                  </Card>
+                )
+              })}
+            {grupos.length > 0 && (
+              <NavegacionPagina
+                pagina={paginaBandejaActual}
+                total={totalBandeja}
+                porPagina={porPaginaBandeja}
+                etiqueta={verEquipo ? 'personas' : 'tareas'}
+                onCambiar={setPaginaBandeja}
+              />
+            )}
+          </>
+        )}
       </div>
 
       <p className="shrink-0 text-[11px] text-muted-foreground">
-        La agenda es real: cerrar una tarea registra el resultado en el timeline y te propone la siguiente;
-        “Recordar” manda un WhatsApp que pide confirmación de la cita.
-        <span className="hidden md:inline"> Atajos: 1–4 cambian de vista · ←/→ navegan semana y mes · H vuelve a hoy.</span>
+        La agenda es real: cerrar una tarea registra el resultado en el timeline y te propone la siguiente; “Recordar”
+        manda un WhatsApp que pide confirmación de la cita.
+        <span className="hidden md:inline">
+          {' '}
+          Atajos: 1–4 cambian de vista · ←/→ navegan semana y mes · H vuelve a hoy.
+        </span>
       </p>
 
       <CerrarTareaDialog tarea={tareaACerrar} onCerrar={() => setTareaACerrar(null)} />

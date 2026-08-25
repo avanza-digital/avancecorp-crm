@@ -24,6 +24,7 @@ funcionar como control — mantenerlo al día es parte de la regla, no un extra)
 | 20260809003923 | `public.actualizar_contrato`, `public.actualizar_numero_contrato` (gate P04) | sí, 2026-08-09 |
 | 20260818014534 | `public.perfiles.domicilio` (columna), `perfiles_domicilio_legal_valido` (CHECK), `perfiles_domicilio_legal_no_borrar` (trigger) — **fila añadida a posteriori el 2026-08-19**: la migración alteró `public` y no se registró | pendiente de confirmar |
 | 20260819162752 | sin DDL, pero **cambia quién escribe** `public.perfiles.domicilio` saltándose la RLS del portal: antes solo Gerencia, ahora toda la cartera CRM | sí, 2026-08-19 |
+| 20260824170630 | `public.contratos.fecha_cierre_comercial`, `fuente_cierre_comercial`, índice/trigger de protección y `public.metricas_directorio()` | sí, 2026-08-24 |
 
 ## ⚠️ El orden del ciclo estaba mal: el seed va ANTES de aplicar (2026-08-11)
 
@@ -3451,3 +3452,117 @@ artefacto SHA-256 verificado y oráculo PostgreSQL
 **Registro de excepciones a `public`:** crea perfiles `comercial` únicamente
 para identidades nuevas marcadas por el servidor como exclusivas del CRM, igual
 que el flujo anterior. No altera objetos ni comportamiento del Portal.
+
+## 20260824170630_crm_periodo_comercial_contratos.sql
+
+**Regla comercial corregida.** El mes de un contrato ya no lo decide la fecha
+en que la fila llegó al CRM. `public.contratos.fecha_cierre_comercial` es el
+dato canónico para capital y cantidad de contratos; `creado_en` conserva la
+verdad técnica del registro y `fecha_inicio` conserva el inicio del plazo. El
+histórico se inicializó con la mejor evidencia disponible del sistema nuevo:
+`least(fecha_inicio, día de registro en Lima)`, marcado siempre como
+`migracion_inferida`. En producción 142 contratos cambiaron de mes con esta
+regla y cero filas quedaron inconsistentes.
+
+**Altas y correcciones.** Un alta no puede suministrar la fecha comercial: el
+trigger la calcula como fecha de inicio cuando la carga llegó tarde o como día
+de registro en los demás casos. Una modificación directa se rechaza. Solo
+Gerencia puede corregirla mediante
+`crm.corregir_fecha_cierre_comercial(uuid,date,text)`, con motivo obligatorio,
+auditoría antes/después y rechazo de fechas futuras. Altas y correcciones toman
+el mismo candado mensual de `crm.cerrar_periodo` y no pueden escribir un mes ya
+sellado. La migración toma además el candado global antes del preflight para que
+no pueda competir con un cierre en curso.
+
+**Una sola lectura mensual.** `private.produccion_mes_por_vendedor`,
+`crm.metricas_capital_mes_fn`, las ventanas de contratos de
+`private.metricas_conversiones_implementacion` y `public.metricas_directorio`
+consumen la nueva fecha. La cohorte de leads, la causalidad de anulaciones, los
+cierres externos, el cronograma, el PDF y el ciclo contractual conservan sus
+relojes anteriores. `crm.contratos_por_periodo_comercial_fn(date)` permite a
+Gerencia/Directorio obtener lista y totales de cualquier mes incluso sin metas;
+julio de 2026, que tiene cero `crm.meta_periodos`, devuelve correctamente 182
+contratos por S/ 5,042,473.72 y US$ 390,400.
+
+**Despliegue y verificación:** ✅ aplicada directamente en producción con OK
+explícito de Miguel el 2026-08-24; versión local `20260824170630`, versión
+registrada `20260824174020`. Antes de aplicar, la migración completa y el gate
+se ejecutaron contra el esquema real dentro de una transacción revertida. Ya
+desplegada, `test-periodo-comercial-contratos.sql` devolvió
+`PERIODO_COMERCIAL_CONTRATOS_OK`: prueba límites entre meses, mes sin metas,
+alta tardía, permisos, corrección auditada, fechas/motivos inválidos, escritura
+directa prohibida, insert/corrección contra mes sellado y ejecuta los cuatro
+consumidores recompilados. Advisors: cero `ERROR`; seguridad pasó de 157 a 159
+avisos por las dos RPC `SECURITY DEFINER` expuestas a `authenticated`, ambas con
+gate interno probado y `anon` revocado; rendimiento pasó de 49 a 48 avisos, sin
+hallazgo propio. SHA-256 aplicado:
+`9e4875d4ed12a67e2c4cce7b10be01bbf6a0a04cc04c5061cf0d9d1187b21a5c`.
+
+Durante la ventana de despliegue el total vivo pasó de 439 a 438 por una
+eliminación ordinaria, registrada por `audit_log` a las 17:38:28 UTC: un
+contrato USD 20,000. La migración no contiene borrados y las cifras finales ya
+reflejan esa operación concurrente. El gate histórico de metas no se contó como
+prueba aprobada: se detuvo antes del código afectado porque su fixture espera un
+roster distinto del roster productivo actual (19 esperados por el servidor, 20
+enviados por el fixture).
+
+## 20260824231133_crm_gestion_clientes_renovaciones_conversion.sql
+
+**Mi cartera se vuelve operativa.** Crea el ledger inmutable
+`crm.operaciones_cartera` para renovaciones y upgrades, acreditado al dueño de
+cartera en el instante de la operación. Renovar exige que el contrato haya
+llegado a su fecha fin, crea otro contrato dentro de la misma transacción,
+enlaza y cierra el anterior, y traslada sus cuotas pendientes. El capital queda
+separado en `capital_renovado` y `capital_adicional`; el adicional es una cifra
+económica para pago distinto y nunca agrega otra conversión.
+
+**Conversión sin inflar el divisor.** Cada cliente aporta como máximo una
+conversión por mes aunque renueve varios contratos o combine renovación y
+upgrade. Toda renovación es elegible; el upgrade solo lo es después del mes de
+su primer contrato. La operación se suma exclusivamente al numerador de
+`private.conversion_mensual_por_vendedor`; el divisor conserva como única fuente
+los leads no referidos recibidos desde `crm.lead_asignaciones`.
+
+**Postventa.** `crm.tareas` acepta como sujeto exactamente un `lead_id` o un
+`perfil_id`. Las tareas de cliente heredan el asesor de su cartera y viajan con
+ella al reasignarse. `crm.cerrar_tarea` registra el resultado en el nuevo
+timeline `crm.actividades_cliente`, separado de etapas y SLA de leads, y puede
+crear la siguiente acción conservando el mismo cliente.
+
+**Histórico y seguridad.** Agosto de 2026 se reconstruyó sin inventar cifras:
+48 operaciones (9 renovaciones y 39 upgrades), 29 clientes elegibles y 9
+renovaciones históricas con desglose marcado como pendiente; su adicional
+histórico permanece nulo/0. Ambos ledger tienen RLS, solo lectura directa para
+`authenticated`, cero escritura directa y mutaciones encapsuladas en RPC con
+gate interno.
+
+**Despliegue y verificación:** ✅ aplicada y registrada en producción el
+2026-08-24. La migración completa pasó dos ejecuciones transaccionales con
+`ROLLBACK` antes de aplicarse. El gate
+`test-gestion-clientes-renovaciones.sql` devolvió
+`GESTION_CLIENTES_RENOVACIONES_OK`: comprueba cierre/enlace, suma económica por
+moneda, upgrade por mes inicial, deduplicación cliente/mes, divisor inalterado,
+ledger append-only y el flujo tarea → actividad de cliente → siguiente tarea sin
+escribir en `crm.actividades`.
+
+**Registro de excepciones a `public`:** reemplaza `public.crear_contrato` para
+mantener la creación contractual como una sola transacción y añade el enlace de
+renovación a `public.contratos`; no cambia Auth ni las superficies del Portal.
+
+## 20260824233619_crm_cumplimiento_cartera_compatible.sql
+
+**Compatibilidad de despliegue escalonado.** El bundle productivo validaba
+`crm.cumplimiento_metas_fn` con un objeto estricto. Mantiene la conversión de
+cartera dentro de los campos existentes (`convertidos`, numerador y porcentaje)
+pero retira temporalmente la rama descriptiva adicional `cartera` de esa RPC.
+El desglose completo sigue disponible desde `crm.operaciones_cartera` y
+`crm.metricas_cartera_fn`; así el numerador nuevo llega sin romper la pantalla
+vigente.
+
+**Despliegue y verificación:** ✅ aplicada y registrada en producción el
+2026-08-24 después de detectar la incompatibilidad durante la verificación del
+contrato TypeScript. Su dry-run transaccional y el gate integral de gestión de
+clientes pasaron completos.
+
+**Registro de excepciones a `public`:** ninguna. Solo reemplaza una RPC del
+esquema `crm`.

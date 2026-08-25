@@ -17,6 +17,8 @@ import { derivarReunionOperativa } from './reunion-operativa'
 export interface EventoAgenda {
   id: string
   lead_id: string
+  /** Cliente de cartera cuando el evento es postventa (lead_id queda ''). */
+  perfil_id?: string | null
   titulo: string
   tipo: string
   /** Etiqueta humana "Día · HH:MM" — SOLO display; ordenar usa vence_en. */
@@ -89,6 +91,7 @@ export function tareaAEvento(t: Tarea, ahora: number): EventoAgenda {
   return {
     id: t.id,
     lead_id: t.lead_id ?? '',
+    perfil_id: t.perfil_id ?? null,
     titulo: t.titulo,
     tipo: t.tipo,
     cuando: `${dia} · ${horaLima(ms)}`,
@@ -122,10 +125,8 @@ export function esDeHoy(ev: EventoAgenda, ahora: number): boolean {
  * el bloque dura 30 min (una llamada típica; el vendedor lo ajusta en Google).
  */
 export function enlaceGoogleCalendar(
-  t: Pick<Tarea, 'titulo' | 'vence_en'> & Partial<Pick<
-    Tarea,
-    'duracion_min' | 'nota' | 'modalidad_reunion' | 'ubicacion_reunion' | 'enlace_reunion'
-  >>,
+  t: Pick<Tarea, 'titulo' | 'vence_en'> &
+    Partial<Pick<Tarea, 'duracion_min' | 'nota' | 'modalidad_reunion' | 'ubicacion_reunion' | 'enlace_reunion'>>,
 ): string | null {
   const inicio = Date.parse(t.vence_en)
   if (!Number.isFinite(inicio)) return null
@@ -137,9 +138,7 @@ export function enlaceGoogleCalendar(
     enlace: t.enlace_reunion,
   })
   const detalles = [
-    reunion.modalidad
-      ? `Modalidad: ${reunion.modalidad === 'presencial' ? 'Presencial' : 'Virtual'}`
-      : null,
+    reunion.modalidad ? `Modalidad: ${reunion.modalidad === 'presencial' ? 'Presencial' : 'Virtual'}` : null,
     reunion.enlace ? `Enlace: ${reunion.enlace}` : null,
     t.nota,
     '— CRM Avance Corp',

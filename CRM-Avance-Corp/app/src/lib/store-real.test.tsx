@@ -58,27 +58,71 @@ const obtenerMetasMock = vi.mocked(crmApi.obtenerMetasDelMes)
 const obtenerCumplimientoMock = vi.mocked(crmApi.obtenerCumplimientoMetas)
 
 const ROSTER = [
-  { perfil_id: 'u-ger', nombre_completo: 'Gerente Real', rol_crm: 'gerencia' as const, supervisor_id: null, activo: true },
-  { perfil_id: 'u-s1', nombre_completo: 'Supervisor Real', rol_crm: 'supervisor' as const, supervisor_id: null, activo: true },
-  { perfil_id: 'u-v1', nombre_completo: 'Vendedor Real', rol_crm: 'vendedor' as const, supervisor_id: 'u-s1', activo: true },
+  {
+    perfil_id: 'u-ger',
+    nombre_completo: 'Gerente Real',
+    rol_crm: 'gerencia' as const,
+    supervisor_id: null,
+    activo: true,
+  },
+  {
+    perfil_id: 'u-s1',
+    nombre_completo: 'Supervisor Real',
+    rol_crm: 'supervisor' as const,
+    supervisor_id: null,
+    activo: true,
+  },
+  {
+    perfil_id: 'u-v1',
+    nombre_completo: 'Vendedor Real',
+    rol_crm: 'vendedor' as const,
+    supervisor_id: 'u-s1',
+    activo: true,
+  },
 ]
 
 function detallesMeta(capitalPen = 0, capitalUsd = 0): DetalleMeta[] {
   return [
-    { categoria: 'nuevo', moneda: 'PEN', capital_objetivo: capitalPen, contratos_objetivo: capitalPen > 0 ? 2 : 0 },
-    { categoria: 'nuevo', moneda: 'USD', capital_objetivo: capitalUsd, contratos_objetivo: capitalUsd > 0 ? 1 : 0 },
-    { categoria: 'renovacion', moneda: 'PEN', capital_objetivo: 0, contratos_objetivo: 0 },
-    { categoria: 'renovacion', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
-    { categoria: 'upgrade', moneda: 'PEN', capital_objetivo: 0, contratos_objetivo: 0 },
-    { categoria: 'upgrade', moneda: 'USD', capital_objetivo: 0, contratos_objetivo: 0 },
+    {
+      categoria: 'nuevo',
+      moneda: 'PEN',
+      capital_objetivo: capitalPen,
+      contratos_objetivo: capitalPen > 0 ? 2 : 0,
+    },
+    {
+      categoria: 'nuevo',
+      moneda: 'USD',
+      capital_objetivo: capitalUsd,
+      contratos_objetivo: capitalUsd > 0 ? 1 : 0,
+    },
+    {
+      categoria: 'renovacion',
+      moneda: 'PEN',
+      capital_objetivo: 0,
+      contratos_objetivo: 0,
+    },
+    {
+      categoria: 'renovacion',
+      moneda: 'USD',
+      capital_objetivo: 0,
+      contratos_objetivo: 0,
+    },
+    {
+      categoria: 'upgrade',
+      moneda: 'PEN',
+      capital_objetivo: 0,
+      contratos_objetivo: 0,
+    },
+    {
+      categoria: 'upgrade',
+      moneda: 'USD',
+      capital_objetivo: 0,
+      contratos_objetivo: 0,
+    },
   ]
 }
 
-function configuracionMetas(
-  capitalPen = 0,
-  capitalUsd = 0,
-  conversionObjetivo = 0,
-): ConfiguracionMetas {
+function configuracionMetas(capitalPen = 0, capitalUsd = 0, conversionObjetivo = 0): ConfiguracionMetas {
   return {
     version: 1,
     periodo: '2026-08-01',
@@ -88,14 +132,16 @@ function configuracionMetas(
     publicada_por: null,
     publicada_por_nombre: null,
     puede_editar: true,
-    vendedores: [{
-      vendedor_id: 'u-v1',
-      nombre: 'Vendedor Real',
-      supervisor_id: 'u-s1',
-      supervisor_nombre: 'Supervisor Real',
-      conversion_objetivo: conversionObjetivo,
-      detalles: detallesMeta(capitalPen, capitalUsd),
-    }],
+    vendedores: [
+      {
+        vendedor_id: 'u-v1',
+        nombre: 'Vendedor Real',
+        supervisor_id: 'u-s1',
+        supervisor_nombre: 'Supervisor Real',
+        conversion_objetivo: conversionObjetivo,
+        detalles: detallesMeta(capitalPen, capitalUsd),
+      },
+    ],
   }
 }
 
@@ -125,9 +171,7 @@ function cumplimientoMetas(
       resueltos: conversionReal == null ? 0 : 4,
       detalles: vendedor.detalles.map((detalle) => ({
         ...detalle,
-        capital_real: detalle.categoria === 'nuevo'
-          ? detalle.moneda === 'PEN' ? capitalPen : capitalUsd
-          : 0,
+        capital_real: detalle.categoria === 'nuevo' ? (detalle.moneda === 'PEN' ? capitalPen : capitalUsd) : 0,
         capital_cumplimiento_pct: null,
         contratos_real: 0,
         contratos_cumplimiento_pct: null,
@@ -159,13 +203,14 @@ function leadBase() {
 }
 
 function sesionReal(rol: Rol, overrides: Partial<Yo> = {}): AuthContextValue {
-  const identidad = rol === 'gerencia'
-    ? { id: 'u-ger', nombre_completo: 'Gerente Real' }
-    : rol === 'supervisor'
-      ? { id: 'u-s1', nombre_completo: 'Supervisor Real' }
-      : rol === 'vendedor'
-        ? { id: 'u-v1', nombre_completo: 'Vendedor Real' }
-        : { id: `u-${rol}`, nombre_completo: `Usuario ${rol}` }
+  const identidad =
+    rol === 'gerencia'
+      ? { id: 'u-ger', nombre_completo: 'Gerente Real' }
+      : rol === 'supervisor'
+        ? { id: 'u-s1', nombre_completo: 'Supervisor Real' }
+        : rol === 'vendedor'
+          ? { id: 'u-v1', nombre_completo: 'Vendedor Real' }
+          : { id: `u-${rol}`, nombre_completo: `Usuario ${rol}` }
   return {
     fase: 'listo',
     yo: { ...identidad, rol, demo: false, puede_contratar: true, ...overrides },
@@ -184,7 +229,10 @@ interface Montaje {
 }
 
 function montar(rol: Rol = 'gerencia', overrides: Partial<Yo> = {}): Montaje {
-  const ref: { api: StoreDataApi | null; estado: StoreEstado | null } = { api: null, estado: null }
+  const ref: { api: StoreDataApi | null; estado: StoreEstado | null } = {
+    api: null,
+    estado: null,
+  }
   function Sonda(): null {
     ref.api = useCRMData()
     ref.estado = useStoreEstado()
@@ -277,10 +325,20 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       supervisorId: 'u-s1',
       conversionObjetivo: 18,
     })
-    expect(api().objetivos.gerencia.detalles).toEqual(expect.arrayContaining([
-      expect.objectContaining({ categoria: 'nuevo', moneda: 'PEN', capitalObjetivo: 420_000 }),
-      expect.objectContaining({ categoria: 'nuevo', moneda: 'USD', capitalObjetivo: 42_000 }),
-    ]))
+    expect(api().objetivos.gerencia.detalles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          categoria: 'nuevo',
+          moneda: 'PEN',
+          capitalObjetivo: 420_000,
+        }),
+        expect.objectContaining({
+          categoria: 'nuevo',
+          moneda: 'USD',
+          capitalObjetivo: 42_000,
+        }),
+      ]),
+    )
     expect(api().cumplimientoMetas).toMatchObject({
       fuentesReales: {
         capitalYContratos: 'contratos_confirmados',
@@ -288,10 +346,20 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       },
       gerencia: { conversionReal: 50 },
     })
-    expect(api().cumplimientoMetas?.gerencia?.detalles).toEqual(expect.arrayContaining([
-      expect.objectContaining({ categoria: 'nuevo', moneda: 'PEN', capitalReal: 210_000 }),
-      expect.objectContaining({ categoria: 'nuevo', moneda: 'USD', capitalReal: 10_500 }),
-    ]))
+    expect(api().cumplimientoMetas?.gerencia?.detalles).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          categoria: 'nuevo',
+          moneda: 'PEN',
+          capitalReal: 210_000,
+        }),
+        expect.objectContaining({
+          categoria: 'nuevo',
+          moneda: 'USD',
+          capitalReal: 10_500,
+        }),
+      ]),
+    )
   })
 
   it('recargar Gerencia resincroniza roster, metas y fuentes operativas', async () => {
@@ -359,10 +427,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(res).toMatchObject({ ok: true })
     expect(api().lead(leadBase().id)?.telefono).toBe('+51999111222')
-    expect(actualizarLead).toHaveBeenCalledWith(
-      leadBase().id,
-      expect.objectContaining({ telefono: '+51999111222' }),
-    )
+    expect(actualizarLead).toHaveBeenCalledWith(leadBase().id, expect.objectContaining({ telefono: '+51999111222' }))
   })
 
   it('expone las metas en solo lectura; la escritura vive únicamente en Configuración', async () => {
@@ -392,9 +457,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(res.ok).toBe(true)
     expect(res.codigo).toBeUndefined() // NO 'fuente_no_habilitada'
     expect(insertarLead).toHaveBeenCalledTimes(1)
-    expect(insertarLead).toHaveBeenCalledWith(
-      expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }),
-    )
+    expect(insertarLead).toHaveBeenCalledWith(expect.objectContaining({ monto_estimado: 5000, moneda: 'PEN' }))
     await expect(res.persistido).resolves.toEqual({ ok: true })
     await waitFor(() => expect(listarLeads).toHaveBeenCalled()) // resync
   })
@@ -402,10 +465,9 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
   it('crearLead expone el rechazo sanitizado del INSERT para no anunciar un falso éxito', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
-    insertarLead.mockRejectedValueOnce(new CrmApiError(
-      'Este contacto acaba de ser registrado por otro usuario',
-      'CONTACTO_RECIEN_REGISTRADO',
-    ))
+    insertarLead.mockRejectedValueOnce(
+      new CrmApiError('Este contacto acaba de ser registrado por otro usuario', 'CONTACTO_RECIEN_REGISTRADO'),
+    )
 
     const res = mutar((a) =>
       a.crearLead({
@@ -508,11 +570,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
 
     expect(res.ok).toBe(true)
-    expect(insertarLead).toHaveBeenCalledWith(
-      expect.objectContaining({ genero: 'F', fecha_nacimiento: '1990-05-20' }),
-    )
+    expect(insertarLead).toHaveBeenCalledWith(expect.objectContaining({ genero: 'F', fecha_nacimiento: '1990-05-20' }))
     // Y el optimista los muestra sin esperar al resync.
-    expect(api().leads[0]).toMatchObject({ genero: 'F', fecha_nacimiento: '1990-05-20' })
+    expect(api().leads[0]).toMatchObject({
+      genero: 'F',
+      fecha_nacimiento: '1990-05-20',
+    })
   })
 
   it('un lead menor de edad NO se crea ni se persiste', async () => {
@@ -532,7 +595,11 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       }),
     )
 
-    expect(res).toMatchObject({ ok: false, codigo: 'menor_de_edad', campo: 'fecha_nacimiento' })
+    expect(res).toMatchObject({
+      ok: false,
+      codigo: 'menor_de_edad',
+      campo: 'fecha_nacimiento',
+    })
     expect(insertarLead).not.toHaveBeenCalled()
   })
 
@@ -573,32 +640,73 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     await waitFor(() => expect(listarTareas).toHaveBeenCalled()) // resync
   })
 
+  it('crearTarea permite gestionar un cliente de cartera mediante perfil_id', async () => {
+    const clienteId = '99999999-9999-4999-8999-999999999999'
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+    insertarTarea.mockClear()
+
+    const res = mutar((a) =>
+      a.crearTarea({
+        perfil_id: clienteId,
+        tipo: 'reunion',
+        titulo: 'Reunión con Rosa',
+        vence_en: '2027-01-05T15:00:00.000Z',
+        modalidad_reunion: 'presencial',
+        ubicacion_reunion: 'Oficina Avance',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    expect(insertarTarea).toHaveBeenCalledWith(
+      expect.objectContaining({
+        perfil_id: clienteId,
+        tipo: 'reunion',
+        creado_por: 'u-v1',
+      }),
+    )
+    expect(insertarTarea.mock.calls[0]?.[0]).not.toHaveProperty('lead_id')
+    expect(api().tareas.find((t) => t.id === res.id)).toMatchObject({
+      lead_id: null,
+      perfil_id: clienteId,
+      vendedor_id: 'u-v1',
+    })
+    expect(api().tareasDeCliente?.(clienteId)).toHaveLength(1)
+  })
+
   it('crearTarea valida y normaliza la reunión antes del optimista y del INSERT real', async () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().leads).toHaveLength(1))
     const leadId = api().leads[0]!.id
     insertarTarea.mockClear()
 
-    const invalida = mutar((a) => a.crearTarea({
-      lead_id: leadId,
-      tipo: 'reunion',
-      titulo: 'Enlace manipulado',
-      vence_en: '2027-01-05T15:00:00.000Z',
-      modalidad_reunion: 'virtual',
-      enlace_reunion: 'http://meet.example.com/sala',
-    }))
-    expect(invalida).toMatchObject({ ok: false, codigo: 'enlace_reunion_invalido' })
+    const invalida = mutar((a) =>
+      a.crearTarea({
+        lead_id: leadId,
+        tipo: 'reunion',
+        titulo: 'Enlace manipulado',
+        vence_en: '2027-01-05T15:00:00.000Z',
+        modalidad_reunion: 'virtual',
+        enlace_reunion: 'http://meet.example.com/sala',
+      }),
+    )
+    expect(invalida).toMatchObject({
+      ok: false,
+      codigo: 'enlace_reunion_invalido',
+    })
     expect(insertarTarea).not.toHaveBeenCalled()
 
-    const valida = mutar((a) => a.crearTarea({
-      lead_id: leadId,
-      tipo: 'reunion',
-      titulo: 'Reunión virtual segura',
-      vence_en: '2027-01-05T15:00:00.000Z',
-      modalidad_reunion: 'virtual',
-      ubicacion_reunion: 'Campo incompatible inyectado',
-      enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
-    }))
+    const valida = mutar((a) =>
+      a.crearTarea({
+        lead_id: leadId,
+        tipo: 'reunion',
+        titulo: 'Reunión virtual segura',
+        vence_en: '2027-01-05T15:00:00.000Z',
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: 'Campo incompatible inyectado',
+        enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
+      }),
+    )
 
     expect(valida.ok).toBe(true)
     expect(api().tareas.find((t) => t.id === valida.id)).toMatchObject({
@@ -606,11 +714,13 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       ubicacion_reunion: null,
       enlace_reunion: 'https://meet.google.com/abc-defg-hij',
     })
-    expect(insertarTarea).toHaveBeenCalledWith(expect.objectContaining({
-      modalidad_reunion: 'virtual',
-      ubicacion_reunion: null,
-      enlace_reunion: 'https://meet.google.com/abc-defg-hij',
-    }))
+    expect(insertarTarea).toHaveBeenCalledWith(
+      expect.objectContaining({
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: null,
+        enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+      }),
+    )
   })
 
   it('crearTarea rechaza tipo inválido y lead fuera del ámbito, sin tocar la red', async () => {
@@ -665,7 +775,10 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     // Sin resultado → bloqueada (patrón Outreach) y la RPC no se toca.
     const sinResultado = mutar((a) => a.completarTarea({ tarea_id: tareaBase.id, estado: 'completada' }))
-    expect(sinResultado).toMatchObject({ ok: false, codigo: 'resultado_obligatorio' })
+    expect(sinResultado).toMatchObject({
+      ok: false,
+      codigo: 'resultado_obligatorio',
+    })
     expect(cerrarTareaMock).not.toHaveBeenCalled()
 
     // Con resultado + siguiente: optimista + RPC con el payload completo.
@@ -674,7 +787,11 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
         tarea_id: tareaBase.id,
         estado: 'completada',
         resultado_tipo: 'llamada_no_contestada',
-        siguiente: { tipo: 'whatsapp', titulo: 'WhatsApp a CLIENTE', vence_en: '2026-07-19T15:00:00.000Z' },
+        siguiente: {
+          tipo: 'whatsapp',
+          titulo: 'WhatsApp a CLIENTE',
+          vence_en: '2026-07-19T15:00:00.000Z',
+        },
       }),
     )
     expect(res.ok).toBe(true)
@@ -700,6 +817,69 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     expect(api().actividades.some((a2) => a2.tipo === 'llamada_no_contestada')).toBe(true)
   })
 
+  it('una reunión de cliente se cierra por cerrar_tarea, conserva perfil_id y no altera el timeline de leads', async () => {
+    const clienteId = '99999999-9999-4999-8999-999999999999'
+    const tareaCliente = {
+      id: '88888888-8888-4888-8888-888888888888',
+      lead_id: null,
+      perfil_id: clienteId,
+      vendedor_id: 'u-v1',
+      asignado_supervisor_id: null,
+      tipo: 'reunion' as const,
+      titulo: 'Reunión con Rosa',
+      nota: null,
+      vence_en: '2026-08-24T15:00:00.000Z',
+      duracion_min: 45,
+      modalidad_reunion: 'presencial' as const,
+      ubicacion_reunion: 'Oficina Avance',
+      enlace_reunion: null,
+      estado: 'pendiente' as const,
+      confirmada_en: null,
+      resultado_reunion: null,
+      motivo_no_realizada: null,
+      detalle_cierre_reunion: null,
+      reagendada_de: null,
+      reprogramaciones: 0,
+      activo: true,
+      creado_en: '2026-08-20T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([tareaCliente])
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+
+    const res = mutar((a) =>
+      a.completarTarea({
+        tarea_id: tareaCliente.id,
+        estado: 'completada',
+        resultado_tipo: 'reunion_realizada',
+        resultado_reunion: 'interesado',
+        resultado_detalle: 'Solicitó propuesta de upgrade',
+        siguiente: {
+          tipo: 'whatsapp',
+          titulo: 'Enviar propuesta a Rosa',
+          vence_en: '2026-08-25T15:00:00.000Z',
+        },
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toBe(true)
+    expect(cerrarReunionMock).not.toHaveBeenCalled()
+    expect(cerrarTareaMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tarea_id: tareaCliente.id,
+        resultado_tipo: 'reunion_realizada',
+        resultado_detalle: 'Solicitó propuesta de upgrade',
+      }),
+    )
+    expect(api().tareas.find((t) => t.id === res.siguiente_id)).toMatchObject({
+      lead_id: null,
+      perfil_id: clienteId,
+      tipo: 'whatsapp',
+    })
+    expect(api().actividades).toHaveLength(0)
+  })
+
   it('completarTarea aplica la misma validación y normalización a una reunión encadenada', async () => {
     const tareaBase = {
       id: '44444444-4444-4444-8444-444444444444',
@@ -723,44 +903,53 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().tareas).toHaveLength(1))
 
-    const invalida = mutar((a) => a.completarTarea({
-      tarea_id: tareaBase.id,
-      estado: 'completada',
-      resultado_tipo: 'llamada_no_contestada',
-      siguiente: {
-        tipo: 'reunion',
-        titulo: 'Reunión insegura',
-        vence_en: '2026-07-19T15:00:00.000Z',
-        modalidad_reunion: 'virtual',
-        enlace_reunion: 'http://meet.example.com/sala',
-      },
-    }))
-    expect(invalida).toMatchObject({ ok: false, codigo: 'enlace_reunion_invalido' })
+    const invalida = mutar((a) =>
+      a.completarTarea({
+        tarea_id: tareaBase.id,
+        estado: 'completada',
+        resultado_tipo: 'llamada_no_contestada',
+        siguiente: {
+          tipo: 'reunion',
+          titulo: 'Reunión insegura',
+          vence_en: '2026-07-19T15:00:00.000Z',
+          modalidad_reunion: 'virtual',
+          enlace_reunion: 'http://meet.example.com/sala',
+        },
+      }),
+    )
+    expect(invalida).toMatchObject({
+      ok: false,
+      codigo: 'enlace_reunion_invalido',
+    })
     expect(cerrarTareaMock).not.toHaveBeenCalled()
     expect(api().tareas.find((t) => t.id === tareaBase.id)?.estado).toBe('pendiente')
 
-    const valida = mutar((a) => a.completarTarea({
-      tarea_id: tareaBase.id,
-      estado: 'completada',
-      resultado_tipo: 'llamada_no_contestada',
-      siguiente: {
-        tipo: 'reunion',
-        titulo: 'Reunión segura',
-        vence_en: '2026-07-19T15:00:00.000Z',
-        modalidad_reunion: 'virtual',
-        ubicacion_reunion: 'Campo incompatible inyectado',
-        enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
-      },
-    }))
+    const valida = mutar((a) =>
+      a.completarTarea({
+        tarea_id: tareaBase.id,
+        estado: 'completada',
+        resultado_tipo: 'llamada_no_contestada',
+        siguiente: {
+          tipo: 'reunion',
+          titulo: 'Reunión segura',
+          vence_en: '2026-07-19T15:00:00.000Z',
+          modalidad_reunion: 'virtual',
+          ubicacion_reunion: 'Campo incompatible inyectado',
+          enlace_reunion: '  https://meet.google.com/abc-defg-hij  ',
+        },
+      }),
+    )
 
     expect(valida.ok).toBe(true)
-    expect(cerrarTareaMock).toHaveBeenCalledWith(expect.objectContaining({
-      siguiente: expect.objectContaining({
-        modalidad_reunion: 'virtual',
-        ubicacion_reunion: null,
-        enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+    expect(cerrarTareaMock).toHaveBeenCalledWith(
+      expect.objectContaining({
+        siguiente: expect.objectContaining({
+          modalidad_reunion: 'virtual',
+          ubicacion_reunion: null,
+          enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+        }),
       }),
-    }))
+    )
     expect(api().tareas.find((t) => t.id === valida.siguiente_id)).toMatchObject({
       modalidad_reunion: 'virtual',
       ubicacion_reunion: null,
@@ -793,11 +982,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     const rep = mutar((a) => a.reprogramarTarea(cita.id, '2026-07-19T20:00:00.000Z'))
     expect(rep.ok).toBe(true)
-    expect(reprogramarReunionMock).toHaveBeenCalledWith(
-      cita.id,
-      '2026-07-19T20:00:00.000Z',
-      expect.any(String),
-    )
+    expect(reprogramarReunionMock).toHaveBeenCalledWith(cita.id, '2026-07-19T20:00:00.000Z', expect.any(String))
     expect(api().tareas.find((t) => t.id === cita.id)).toMatchObject({
       estado: 'reprogramada',
       motivo_no_realizada: 'reprogramada',
@@ -837,10 +1022,12 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const { api, mutar } = montar('supervisor')
     await waitFor(() => expect(api().tareas).toHaveLength(1))
 
-    const res = mutar((a) => a.anularTarea(cita.id, {
-      motivo: 'cancelada_cliente',
-      detalle: '  El cliente pidió cancelar  ',
-    }))
+    const res = mutar((a) =>
+      a.anularTarea(cita.id, {
+        motivo: 'cancelada_cliente',
+        detalle: '  El cliente pidió cancelar  ',
+      }),
+    )
 
     expect(res.ok).toBe(true)
     expect(api().tareas.find((t) => t.id === cita.id)).toMatchObject({
@@ -868,7 +1055,10 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
 
     expect(res).toMatchObject({ ok: true })
     await waitFor(() =>
-      expect(actualizarLead).toHaveBeenCalledWith(id, { monto_estimado: 25_000, moneda: 'USD' }),
+      expect(actualizarLead).toHaveBeenCalledWith(id, {
+        monto_estimado: 25_000,
+        moneda: 'USD',
+      }),
     )
   })
 
@@ -893,9 +1083,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     mutar((a) => a.editarLead(id, { correo: 'nuevo@correo.com' }))
 
     await waitFor(() =>
-      expect(toast.error).toHaveBeenCalledWith(
-        expect.stringContaining('se restauró el estado anterior'),
-      ),
+      expect(toast.error).toHaveBeenCalledWith(expect.stringContaining('se restauró el estado anterior')),
     )
   })
 
@@ -923,10 +1111,19 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     const res = mutar((a) => a.descartar(id, 'sin_fondos', 'Retomar en Q4'))
 
     expect(res.ok).toBe(true)
-    await waitFor(() => expect(actualizarLead).toHaveBeenCalledWith(id, { etapa: 'descartado', motivo_descarte: 'sin_fondos' }))
+    await waitFor(() =>
+      expect(actualizarLead).toHaveBeenCalledWith(id, {
+        etapa: 'descartado',
+        motivo_descarte: 'sin_fondos',
+      }),
+    )
     await waitFor(() =>
       expect(insertarActividad).toHaveBeenCalledWith(
-        expect.objectContaining({ lead_id: id, tipo: 'nota', detalle: expect.stringContaining('Retomar en Q4') }),
+        expect.objectContaining({
+          lead_id: id,
+          tipo: 'nota',
+          detalle: expect.stringContaining('Retomar en Q4'),
+        }),
       ),
     )
   })

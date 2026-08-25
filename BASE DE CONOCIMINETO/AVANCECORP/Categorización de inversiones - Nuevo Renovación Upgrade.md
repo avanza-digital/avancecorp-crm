@@ -2,6 +2,12 @@
 
 > Fecha: 2026-06-12 · Estado: **Diseño aprobado por Miguel — pendiente de implementar**
 
+> Actualización 2026-08-24: la operación quedó implementada y su definición
+> vigente está en [[Gestión comercial de clientes - renovaciones y upgrades]].
+> En particular, renovación nace desde un contrato vencido y el aumento de
+> capital se separa como `capital_adicional`; no se deduce la categoría solo por
+> comparar montos.
+
 ## Qué
 Etiquetar cada **contrato de inversión** con una categoría: 🟢 **Nuevo**, 🔵 **Renovación** o 🟣 **Upgrade**, para poder segmentar la cartera y (más adelante) medir la captación por periodo.
 

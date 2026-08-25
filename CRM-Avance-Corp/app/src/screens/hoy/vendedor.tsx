@@ -2,7 +2,15 @@
 // acción y SU meta. ambito.leads YA viene recortado por el store (solo los
 // suyos), así que aquí no hay ni ranking ni datos de otros vendedores — ni en
 // los totales. Semáforos sin verde: azul ok · ámbar atención · rojo crítico.
-import { useEffect, useMemo, useState, type CSSProperties, type JSX, type ReactNode } from 'react'
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type CSSProperties,
+  type JSX,
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+} from 'react'
 import { toast } from 'sonner'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import {
@@ -49,19 +57,8 @@ import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { planPorLead } from '@/lib/plan-lead'
 import { colaHigiene, esViernesDeHigiene, siguienteMarJue, type ItemHigiene } from '@/lib/agenda-vistas'
-import {
-  agendaDeTareas,
-  esDeHoy,
-  tareaAEvento,
-  type EventoAgenda,
-} from '@/lib/agenda-derivada'
-import {
-  capitalObjetivo,
-  metaVigente,
-  capitalReal,
-  metaConversionAplicable,
-  periodoLima,
-} from '@/lib/objetivos'
+import { agendaDeTareas, esDeHoy, tareaAEvento, type EventoAgenda } from '@/lib/agenda-derivada'
+import { capitalObjetivo, metaVigente, capitalReal, metaConversionAplicable, periodoLima } from '@/lib/objetivos'
 import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { descuentoArrastre, lecturaCobertura, lineaProcedencia } from '@/lib/conversion-mensual'
@@ -76,10 +73,7 @@ import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
-import {
-  seleccionarPrioridadesVendedor,
-  type PrioridadVendedor,
-} from './prioridades-vendedor'
+import { seleccionarPrioridadesVendedor, type PrioridadVendedor } from './prioridades-vendedor'
 
 // ── Helpers puros ─────────────────────────────────────────────────────────────
 
@@ -100,8 +94,7 @@ function fechaLarga(ahora: number): string {
 
 // Respeta prefers-reduced-motion: sin animación de barras para quien la desactiva.
 const PREFERS_REDUCED =
-  typeof window !== 'undefined' &&
-  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
+  typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches === true
 
 /** Barra que arranca en 0 y sube a `pct` al montar (aprovecha la transición de
  * ancho de <Progress>). Micro-animación sutil; instantánea con reduced-motion. */
@@ -309,20 +302,28 @@ function FilaAgenda({
 }): JSX.Element {
   const [dia, hora] = ev.cuando.split(' · ')
   const Icono = ICONO_EVENTO[ev.tipo] ?? CalendarDays
-  const abrir = () => abrirLead(ev.lead_id)
+  const abreFichaLead = ev.lead_id !== ''
+  const abrir = () => {
+    if (abreFichaLead) abrirLead(ev.lead_id)
+  }
+  const interaccionFicha = abreFichaLead
+    ? {
+        role: 'button' as const,
+        tabIndex: 0,
+        'aria-label': `Abrir ficha — ${ev.titulo}`,
+        onClick: abrir,
+        onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            abrir()
+          }
+        },
+      }
+    : {}
   return (
     <div
-      role="button"
-      tabIndex={0}
-      aria-label={`Abrir ficha — ${ev.titulo}`}
-      onClick={abrir}
-      onKeyDown={(e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault()
-          abrir()
-        }
-      }}
-      className={FILA_BASE}
+      {...interaccionFicha}
+      className={`${FILA_BASE}${abreFichaLead ? '' : ' cursor-default hover:bg-transparent'}`}
     >
       {/* Hora — el ancla del día */}
       <div className="w-12 shrink-0 text-center leading-none">
@@ -344,6 +345,11 @@ function FilaAgenda({
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[ev.tipo] ?? ev.tipo}
           </Badge>
+          {ev.perfil_id && (
+            <Badge color="var(--primary)" className="text-[10px]">
+              Cliente
+            </Badge>
+          )}
           {lead?.monto_estimado != null && (
             <span className="text-[11px] font-semibold tabular-nums text-muted-foreground">
               {money(lead.monto_estimado, lead.moneda)} en juego
@@ -365,7 +371,9 @@ function FilaAgenda({
           <CircleCheckBig className="size-4" aria-hidden />
         </button>
       )}
-      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      {abreFichaLead && (
+        <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+      )}
     </div>
   )
 }
@@ -387,8 +395,8 @@ function AgendaVacia({
       <p className="text-sm font-bold">Sin citas para hoy</p>
       <p className="max-w-[44ch] text-xs text-muted-foreground">
         {demo
-          ? 'Agenda tareas desde la ficha de un lead y aparecerán aquí.'
-          : 'Agenda la próxima acción desde la ficha de un lead — ningún lead activo debería quedarse sin una.'}
+          ? 'Agenda tareas desde la ficha de un lead o un cliente y aparecerán aquí.'
+          : 'Agenda la próxima acción desde la ficha de un lead o desde Mi cartera para un cliente.'}
       </p>
       {(nReuniones > 0 || nPropuestas > 0) && (
         <p className="text-[11px] font-semibold text-foreground/70">
@@ -446,9 +454,9 @@ function AgendaHoy({
   const { pen: penVenc, usd: usdVenc } = capitalPorMoneda(leadsVencidos)
   // Capital en juego HOY = citas de hoy + vencidas que siguen esperando
   // (dedupe por lead; PEN y USD SIEMPRE por separado).
-  const leadsHoy = Array.from(new Set(
-    eventos.filter((e) => e.cuando.startsWith('Hoy') || e.vencida).map((e) => e.lead_id),
-  ))
+  const leadsHoy = Array.from(
+    new Set(eventos.filter((e) => e.cuando.startsWith('Hoy') || e.vencida).map((e) => e.lead_id)),
+  )
     .map(leadPorId)
     .filter((l): l is Lead => l != null)
   const { pen, usd } = capitalPorMoneda(leadsHoy)
@@ -461,7 +469,8 @@ function AgendaHoy({
         right={
           nHoy > 0 || nVence > 0 ? (
             <Badge color={nVence > 0 ? '#d97706' : 'var(--accent)'}>
-              {nHoy} hoy{nVence > 0 ? ` · ${nVence} vencida${nVence === 1 ? '' : 's'}` : ''}
+              {nHoy} hoy
+              {nVence > 0 ? ` · ${nVence} vencida${nVence === 1 ? '' : 's'}` : ''}
             </Badge>
           ) : undefined
         }
@@ -496,7 +505,13 @@ function AgendaHoy({
                   )}
                 </div>
                 {visibles.map((ev) => (
-                  <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} onCompletar={onCompletar} />
+                  <FilaAgenda
+                    key={ev.id}
+                    ev={ev}
+                    lead={leadPorId(ev.lead_id)}
+                    abrirLead={abrirLead}
+                    onCompletar={onCompletar}
+                  />
                 ))}
                 {vencidas.length > visibles.length && (
                   <p className="px-2.5 pb-1 text-[11px] text-muted-foreground">
@@ -509,17 +524,24 @@ function AgendaHoy({
                 remanente se llena con un pie accionable de bajo peso, no con aire. */}
             <div className="flex flex-1 flex-col justify-start gap-1.5">
               {alDia.map((ev) => (
-                <FilaAgenda key={ev.id} ev={ev} lead={leadPorId(ev.lead_id)} abrirLead={abrirLead} onCompletar={onCompletar} />
+                <FilaAgenda
+                  key={ev.id}
+                  ev={ev}
+                  lead={leadPorId(ev.lead_id)}
+                  abrirLead={abrirLead}
+                  onCompletar={onCompletar}
+                />
               ))}
               {alDia.length <= 2 && (
                 <div className="mt-auto flex flex-col items-center gap-1 pb-2 pt-6 text-center">
                   <p className="text-xs text-muted-foreground">
-                    {alDia.length === 0 ? 'Sin citas para hoy' : 'Día con espacio'} — agenda la
-                    siguiente acción desde la ficha de un lead.
+                    {alDia.length === 0 ? 'Sin citas para hoy' : 'Día con espacio'} — agenda la siguiente acción desde
+                    una ficha de lead o desde Mi cartera.
                   </p>
                   {(nReuniones > 0 || nPropuestas > 0) && (
                     <p className="text-[11px] font-semibold text-foreground/70">
-                      {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'reunión agendada' : 'reuniones agendadas'}`}
+                      {nReuniones > 0 &&
+                        `${nReuniones} ${nReuniones === 1 ? 'reunión agendada' : 'reuniones agendadas'}`}
                       {nReuniones > 0 && nPropuestas > 0 && ' · '}
                       {nPropuestas > 0 &&
                         `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
@@ -530,6 +552,45 @@ function AgendaHoy({
             </div>
           </>
         )}
+      </CardContent>
+    </Card>
+  )
+}
+
+/** Postventa no entra al motor de prioridades de leads: tiene su propia franja
+ * para que una reunión con un cliente nunca se pierda ni altere SLA, etapas o
+ * capital estimado del pipeline. Cerrar aquí escribe el historial del cliente. */
+function AgendaClientesHoy({
+  eventos,
+  abrirLead,
+  onCompletar,
+}: {
+  eventos: EventoAgenda[]
+  abrirLead: (id: string) => void
+  onCompletar: (id: string) => void
+}): JSX.Element | null {
+  if (eventos.length === 0) return null
+  const vencidas = eventos.filter((evento) => evento.vencida).length
+
+  return (
+    <Card className="border-primary/20">
+      <SectionHead
+        icon={CalendarClock}
+        title="Clientes por gestionar hoy"
+        right={
+          <Badge color={vencidas > 0 ? '#d97706' : 'var(--primary)'}>
+            {eventos.length} {eventos.length === 1 ? 'gestión' : 'gestiones'}
+            {vencidas > 0 ? ` · ${vencidas} vencida${vencidas === 1 ? '' : 's'}` : ''}
+          </Badge>
+        }
+      />
+      <CardContent className="ac-scroll max-h-80 space-y-1 overflow-y-auto pt-0">
+        {eventos.map((evento) => (
+          <FilaAgenda key={evento.id} ev={evento} lead={undefined} abrirLead={abrirLead} onCompletar={onCompletar} />
+        ))}
+        <p className="px-2 pt-1 text-[11px] text-muted-foreground">
+          Gestiones creadas desde Mi cartera · también están disponibles en Agenda.
+        </p>
       </CardContent>
     </Card>
   )
@@ -557,22 +618,12 @@ function TarjetaPrioridad({
   const item = esCola ? prioridad.item : null
   const evento = esCola ? null : prioridad.evento
   const leadFinal = item?.lead ?? lead
-  const color = item
-    ? SEV_COLOR[item.sev]
-    : evento?.vencida
-      ? SEMAFORO.atencion
-      : SEMAFORO.ok
-  const etiqueta = item
-    ? BUCKET_LABEL[item.bucket]
-    : evento?.vencida
-      ? 'Vencida'
-      : (evento?.cuando ?? 'Agenda')
+  const color = item ? SEV_COLOR[item.sev] : evento?.vencida ? SEMAFORO.atencion : SEMAFORO.ok
+  const etiqueta = item ? BUCKET_LABEL[item.bucket] : evento?.vencida ? 'Vencida' : (evento?.cuando ?? 'Agenda')
   const titulo = leadFinal?.nombre_completo ?? evento?.titulo ?? 'Acción pendiente'
   const accionAgenda = evento?.titulo.split(' — ')[0]
   const detalleAgenda = accionAgenda ?? TIPO_EVENTO[evento?.tipo ?? ''] ?? 'Seguimiento'
-  const capitalTxt = leadFinal?.monto_estimado != null
-    ? money(leadFinal.monto_estimado, leadFinal.moneda)
-    : null
+  const capitalTxt = leadFinal?.monto_estimado != null ? money(leadFinal.monto_estimado, leadFinal.moneda) : null
 
   return (
     <article className="relative flex min-h-52 flex-col overflow-hidden rounded-xl border border-white/15 bg-white p-4 text-foreground shadow-[0_18px_38px_-28px_rgba(2,8,23,0.9)]">
@@ -581,12 +632,12 @@ function TarjetaPrioridad({
         <span className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
           Prioridad {String(indice + 1).padStart(2, '0')}
         </span>
-        <Badge color={color} className="text-[10px]">{etiqueta}</Badge>
+        <Badge color={color} className="text-[10px]">
+          {etiqueta}
+        </Badge>
       </div>
       <div className="mt-3 pl-1">
-        <p className="line-clamp-2 text-base font-extrabold leading-tight tracking-tight text-primary">
-          {titulo}
-        </p>
+        <p className="line-clamp-2 text-base font-extrabold leading-tight tracking-tight text-primary">{titulo}</p>
         <p className="mt-2 line-clamp-2 text-xs leading-relaxed text-muted-foreground">
           {item ? (
             item.motivo
@@ -597,9 +648,7 @@ function TarjetaPrioridad({
           )}
         </p>
         {capitalTxt && (
-          <p className="mt-2 text-[11px] font-bold tabular-nums text-foreground/75">
-            {capitalTxt} en juego
-          </p>
+          <p className="mt-2 text-[11px] font-bold tabular-nums text-foreground/75">{capitalTxt} en juego</p>
         )}
       </div>
       <div className="mt-auto flex flex-wrap items-center gap-2 pl-1 pt-4">
@@ -661,7 +710,10 @@ function FranjaAhora({
                 : 'Prioridad parcial · falta la cola'}
           </span>
         </div>
-        <h2 id="ahora-vendedor" className="mt-3 text-[clamp(1.35rem,3vw,2rem)] font-extrabold leading-tight tracking-[-0.03em]">
+        <h2
+          id="ahora-vendedor"
+          className="mt-3 text-[clamp(1.35rem,3vw,2rem)] font-extrabold leading-tight tracking-[-0.03em]"
+        >
           Tu siguiente movimiento
         </h2>
         <p className="mt-1 max-w-2xl text-sm leading-relaxed text-white/65">
@@ -687,11 +739,15 @@ function FranjaAhora({
           <span className="sr-only">Estamos reuniendo agenda y pendientes.</span>
         </div>
       ) : prioridades.length === 0 && estadoCola === 'error' ? (
-        <div role="status" className="mt-5 flex min-h-40 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/8 px-5 text-center">
+        <div
+          role="status"
+          className="mt-5 flex min-h-40 flex-col items-center justify-center rounded-xl border border-white/15 bg-white/8 px-5 text-center"
+        >
           <AlertTriangle className="size-9 text-warning" aria-hidden />
           <p className="mt-3 text-base font-bold">No pudimos completar tus prioridades</p>
           <p className="mt-1 max-w-lg text-xs text-white/65">
-            Tu agenda sigue disponible, pero falta la cola de acción. Reintenta desde el aviso superior para evitar leer un vacío como “al día”.
+            Tu agenda sigue disponible, pero falta la cola de acción. Reintenta desde el aviso superior para evitar leer
+            un vacío como “al día”.
           </p>
         </div>
       ) : prioridades.length === 0 ? (
@@ -728,8 +784,12 @@ function FranjaAhora({
       )}
 
       {prioridadesParciales && (
-        <p role="status" className="mt-3 rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-[11px] font-medium text-white/70">
-          Mostramos lo que sí llegó de tu agenda. La cola no está disponible todavía, así que este orden puede estar incompleto.
+        <p
+          role="status"
+          className="mt-3 rounded-lg border border-white/15 bg-white/8 px-3 py-2 text-[11px] font-medium text-white/70"
+        >
+          Mostramos lo que sí llegó de tu agenda. La cola no está disponible todavía, así que este orden puede estar
+          incompleto.
         </p>
       )}
 
@@ -761,7 +821,10 @@ function PulsoCartera({
           <div key={label} className="min-w-0 p-4">
             <div className="flex items-start justify-between gap-2">
               <p className="text-[10px] font-bold uppercase tracking-[0.09em] text-muted-foreground">{label}</p>
-              <span className="ac-chip grid size-7 shrink-0 place-items-center rounded-lg" style={{ '--c': 'var(--accent)' } as CSSProperties}>
+              <span
+                className="ac-chip grid size-7 shrink-0 place-items-center rounded-lg"
+                style={{ '--c': 'var(--accent)' } as CSSProperties}
+              >
                 <Icon className="size-3.5" aria-hidden />
               </span>
             </div>
@@ -814,9 +877,7 @@ export function HoyVendedor(): JSX.Element {
   // compartido con Cartera/Pipeline — jamás un total mixto PEN+USD).
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
   const resumen = resumenOp.resumen
-  const capital = resumen
-    ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd)
-    : null
+  const capital = resumen ? capitalPrincipal(resumen.capital.asignado.pen, resumen.capital.asignado.usd) : null
   const nAbiertos = resumen?.totales.abiertos
   const nConvertidos = resumen?.totales.convertidos
   const nPropuestas = resumen?.embudo.find((p) => p.etapa === 'propuesta_enviada')?.n ?? 0
@@ -843,7 +904,10 @@ export function HoyVendedor(): JSX.Element {
   const esDemo = yo?.demo === true
   const qConversionMensual = useConversionMensual(!esDemo, periodoConversion)
   const conversionMensual = esDemo
-    ? conversionMensualDemo(Date.now(), { alcance: 'propio', actorId: yo?.id ?? 'd-v1' })
+    ? conversionMensualDemo(Date.now(), {
+        alcance: 'propio',
+        actorId: yo?.id ?? 'd-v1',
+      })
     : (qConversionMensual.data ?? null)
   const conversionMensualError = !esDemo && qConversionMensual.isError
   const miConversion = conversionMensual?.responsables[0] ?? null
@@ -909,6 +973,14 @@ export function HoyVendedor(): JSX.Element {
     return agendaDeTareas(mias, ahora).filter((ev) => ev.vencida || esDeHoy(ev, ahora))
   }, [tareas, idsMios, ahora])
 
+  // Postventa: tareas cuyo sujeto es un cliente de Mi cartera. Se mantienen
+  // separadas del motor de leads para no contaminar SLA, etapas ni la cola,
+  // pero comparten el mismo reloj y el mismo diálogo de cierre.
+  const agendaClientes = useMemo(() => {
+    const mias = tareas.filter((t) => t.perfil_id != null && (yo?.id == null || t.vendedor_id === yo.id))
+    return agendaDeTareas(mias, ahora).filter((evento) => evento.vencida || esDeHoy(evento, ahora))
+  }, [tareas, yo?.id, ahora])
+
   // Modo "viernes 13:00" (Fase D): viernes p.m. es el peor momento para citas
   // nuevas → la cola deja de perseguir y ORDENA la próxima semana (vencidas,
   // reagendas de no-show fuera de mar–jue, leads sin próxima acción). El
@@ -922,22 +994,14 @@ export function HoyVendedor(): JSX.Element {
   // 12 d"— mientras la cola, encima, se declaraba al día.
   const listadasEnAgenda = useMemo(() => vencidasListadas(agenda), [agenda])
   // Por LEAD para la cola (sus filas son leads) …
-  const leadsListadosEnAgenda = useMemo(
-    () => new Set(listadasEnAgenda.map((ev) => ev.lead_id)),
-    [listadasEnAgenda],
-  )
+  const leadsListadosEnAgenda = useMemo(() => new Set(listadasEnAgenda.map((ev) => ev.lead_id)), [listadasEnAgenda])
   // … y por TAREA para la higiene del viernes (sus filas son tareas; el id del
   // evento de agenda ES el id de la tarea, ver onCompletar).
-  const tareasListadasEnAgenda = useMemo(
-    () => new Set(listadasEnAgenda.map((ev) => ev.id)),
-    [listadasEnAgenda],
-  )
+  const tareasListadasEnAgenda = useMemo(() => new Set(listadasEnAgenda.map((ev) => ev.id)), [listadasEnAgenda])
   // EXCEPCIÓN deliberada — el speed-to-lead: un lead sin primer contacto NUNCA
   // se entierra (regla de la casa), y su fila es la única que trae el cronómetro
   // en minutos, que la agenda no muestra.
-  const colaSinRepetir = cola.filter(
-    (i) => i.bucket === 'sin_responder' || !leadsListadosEnAgenda.has(i.lead.id),
-  )
+  const colaSinRepetir = cola.filter((i) => i.bucket === 'sin_responder' || !leadsListadosEnAgenda.has(i.lead.id))
   const colaVisible = higiene ? colaSinRepetir.filter((i) => i.bucket === 'sin_responder') : colaSinRepetir
   // Los leads que la cola ya pinta (speed-to-lead) se excluyen de los
   // amarillos — sin esto el mismo lead saldría dos veces y el badge contaría
@@ -985,26 +1049,16 @@ export function HoyVendedor(): JSX.Element {
   // en la higiene: así no duplicamos trabajo ni escondemos el excedente.
   const colaBaseDespues = colaVisible.filter((item) => !leadsAhora.has(item.lead.id))
   const leadsSpeedDespues = new Set(
-    colaBaseDespues
-      .filter((item) => item.bucket === 'sin_responder')
-      .map((item) => item.lead.id),
+    colaBaseDespues.filter((item) => item.bucket === 'sin_responder').map((item) => item.lead.id),
   )
-  const agendaDespues = agenda.filter(
-    (ev) => !leadsAhora.has(ev.lead_id) && !leadsSpeedDespues.has(ev.lead_id),
-  )
+  const agendaDespues = agenda.filter((ev) => !leadsAhora.has(ev.lead_id) && !leadsSpeedDespues.has(ev.lead_id))
   const eventosAgendaPintadosDespues = [
     ...vencidasListadas(agendaDespues),
     ...agendaDespues.filter((ev) => !ev.vencida),
   ]
-  const leadsPintadosAgendaDespues = new Set(
-    eventosAgendaPintadosDespues.map((ev) => ev.lead_id),
-  )
-  const tareasPintadasAgendaDespues = new Set(
-    eventosAgendaPintadosDespues.map((ev) => ev.id),
-  )
-  const colaDespues = colaBaseDespues.filter(
-    (item) => !leadsPintadosAgendaDespues.has(item.lead.id),
-  )
+  const leadsPintadosAgendaDespues = new Set(eventosAgendaPintadosDespues.map((ev) => ev.lead_id))
+  const tareasPintadasAgendaDespues = new Set(eventosAgendaPintadosDespues.map((ev) => ev.id))
+  const colaDespues = colaBaseDespues.filter((item) => !leadsPintadosAgendaDespues.has(item.lead.id))
   const tareasHigieneDespues = tareasHigiene.filter(
     (item) =>
       (item.tarea.lead_id == null || !leadsAhora.has(item.tarea.lead_id)) &&
@@ -1013,9 +1067,7 @@ export function HoyVendedor(): JSX.Element {
   const amarillosDespues = amarillos.filter((item) => !leadsAhora.has(item.lead.id))
   const colaPintadaDespues = colaDespues.slice(0, COLA_VISIBLES)
   const leadsEnColaDespues = new Set(colaPintadaDespues.map((item) => item.lead.id))
-  const tareasEnHigieneDespues = new Set(
-    tareasHigieneDespues.map((item) => item.tarea.id),
-  )
+  const tareasEnHigieneDespues = new Set(tareasHigieneDespues.map((item) => item.tarea.id))
   const vencidasAbajoDespues = agendaDespues.filter(
     (ev) =>
       ev.vencida &&
@@ -1090,6 +1142,15 @@ export function HoyVendedor(): JSX.Element {
         />
       )}
 
+      <AgendaClientesHoy
+        eventos={agendaClientes}
+        abrirLead={abrirLead}
+        onCompletar={(id) => {
+          const tarea = tareas.find((item) => item.id === id)
+          if (tarea) setTareaACerrar(tarea)
+        }}
+      />
+
       {/* Después de las tres prioridades: solo el remanente. La proximidad
           separa lo inmediato de lo que mantiene el ritmo del resto del día. */}
       <div className="grid gap-5 lg:grid-cols-5">
@@ -1125,15 +1186,13 @@ export function HoyVendedor(): JSX.Element {
           <CardContent className="space-y-1.5 pt-0">
             {higiene && nColaDespues > 0 && (
               <p className="rounded-lg bg-muted/50 px-3 py-2 text-[11px] text-muted-foreground">
-                Viernes p.m. rinde poco para citas nuevas — deja la próxima semana ordenada: cierra lo
-                vencido, mueve a mar–jue las citas de quien no asistió y que ningún lead quede sin próxima acción.
+                Viernes p.m. rinde poco para citas nuevas — deja la próxima semana ordenada: cierra lo vencido, mueve a
+                mar–jue las citas de quien no asistió y que ningún lead quede sin próxima acción.
               </p>
             )}
             {!colaDisponible ? (
               <div className="flex flex-col items-center gap-2 py-10 text-center">
-                <p className="text-sm font-bold">
-                  {colaOp.error ? 'Tu cola no está disponible' : 'Cargando tu cola…'}
-                </p>
+                <p className="text-sm font-bold">{colaOp.error ? 'Tu cola no está disponible' : 'Cargando tu cola…'}</p>
                 <p className="text-xs text-muted-foreground">
                   {colaOp.error
                     ? 'No se pudo consultar la cola de acción. Tu agenda de al lado sigue completa.'
@@ -1186,13 +1245,23 @@ export function HoyVendedor(): JSX.Element {
                       (sev) =>
                         porSevDespues[sev] > 0 && (
                           <span key={sev} className="inline-flex items-center gap-1.5 font-semibold text-foreground/80">
-                            <span className="size-2 shrink-0 rounded-full" style={{ background: SEV_COLOR[sev] }} aria-hidden />
+                            <span
+                              className="size-2 shrink-0 rounded-full"
+                              style={{ background: SEV_COLOR[sev] }}
+                              aria-hidden
+                            />
                             <span className="tabular-nums">{porSevDespues[sev]}</span>{' '}
                             {sev === 'critica'
-                              ? porSevDespues.critica === 1 ? 'crítica' : 'críticas'
+                              ? porSevDespues.critica === 1
+                                ? 'crítica'
+                                : 'críticas'
                               : sev === 'media'
-                                ? porSevDespues.media === 1 ? 'media' : 'medias'
-                                : porSevDespues.baja === 1 ? 'baja' : 'bajas'}
+                                ? porSevDespues.media === 1
+                                  ? 'media'
+                                  : 'medias'
+                                : porSevDespues.baja === 1
+                                  ? 'baja'
+                                  : 'bajas'}
                           </span>
                         ),
                     )}
@@ -1203,7 +1272,8 @@ export function HoyVendedor(): JSX.Element {
                 ))}
                 {Math.max(0, colaDespues.length - COLA_VISIBLES) + restoServidor > 0 && (
                   <p className="px-2 text-[11px] text-muted-foreground">
-                    +{Math.max(0, colaDespues.length - COLA_VISIBLES) + restoServidor} más en cola — trabájalos desde Cartera.
+                    +{Math.max(0, colaDespues.length - COLA_VISIBLES) + restoServidor} más en cola — trabájalos desde
+                    Cartera.
                   </p>
                 )}
                 {tareasHigieneDespues.map((item) => (
@@ -1236,7 +1306,6 @@ export function HoyVendedor(): JSX.Element {
             )}
           </CardContent>
         </Card>
-
       </div>
 
       {mios.length > 0 && (
@@ -1264,23 +1333,25 @@ export function HoyVendedor(): JSX.Element {
               label: 'Propuestas',
               value: resumen ? String(nPropuestas) : '—',
               icon: FileText,
-              sub: resumen == null
-                ? 'Sin dato por ahora'
-                : nPropuestas > 0
-                  ? 'Esperando respuesta del cliente'
-                  : (nAbiertos ?? 0) > 0
-                    ? 'Ninguna enviada — revisa tus reuniones'
-                    : 'Sin leads abiertos por ahora',
+              sub:
+                resumen == null
+                  ? 'Sin dato por ahora'
+                  : nPropuestas > 0
+                    ? 'Esperando respuesta del cliente'
+                    : (nAbiertos ?? 0) > 0
+                      ? 'Ninguna enviada — revisa tus reuniones'
+                      : 'Sin leads abiertos por ahora',
             },
             {
               label: 'Convertidos',
               value: nConvertidos != null ? String(nConvertidos) : '—',
               icon: Trophy,
-              sub: resumen == null
-                ? 'Sin dato por ahora'
-                : (nConvertidos ?? 0) > 0
-                  ? 'Últimos 45 días · clientes ganados'
-                  : 'Aún sin cierres — tu primera venta sale de la cola',
+              sub:
+                resumen == null
+                  ? 'Sin dato por ahora'
+                  : (nConvertidos ?? 0) > 0
+                    ? 'Últimos 45 días · clientes ganados'
+                    : 'Aún sin cierres — tu primera venta sale de la cola',
             },
           ]}
         />
@@ -1305,105 +1376,110 @@ export function HoyVendedor(): JSX.Element {
               {' · '}
               {conversion == null ? 'Conversión —' : `Conversión ${numero(conversion, 1)}%`}
             </span>
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90" aria-hidden />
+            <ChevronRight
+              className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
+              aria-hidden
+            />
           </summary>
           <CardContent className="border-t border-border/80 pt-4">
-          <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
-            <MetaFila
-              icon={Wallet}
-              label="Capital confirmado"
-              valorTxt={capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
-              metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
-              pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
-              delay={0}
-              nota={<DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
-              neutro={objetivosError
-                ? 'Meta mensual no disponible'
-                : (metaTotal.total ?? 0) <= 0
-                  ? SIN_META
-                  : cumplimientoMetasError || capitalTotal.total == null
-                    ? 'Cumplimiento confirmado no disponible'
-                    : undefined}
-            />
-            <MetaFila
-              icon={TrendingUp}
-              label="Conversión del mes"
-              valorTxt={conversion == null ? '—' : `${numero(conversion, 1)}%`}
-              metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
-              pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
-              delay={180}
-              nota={miConversion && lecturaConversion.mostrar
-                ? (
-                  <span className="text-[11px] text-muted-foreground">
-                    {/* `text-muted-foreground` y NO var(--gi-muted): ese token
+            <div className="grid gap-x-8 gap-y-4 md:grid-cols-2">
+              <MetaFila
+                icon={Wallet}
+                label="Capital confirmado"
+                valorTxt={capitalTotal.total == null ? '—' : moneyK(capitalTotal.total, 'PEN')}
+                metaTxt={metaTotal.total == null ? '—' : moneyK(metaTotal.total, 'PEN')}
+                pct={pctMeta(capitalTotal.total ?? 0, metaTotal.total ?? 0)}
+                delay={0}
+                nota={<DesgloseCapital capital={capitalTotal} fuenteTc={tipoCambio?.fuente ?? null} />}
+                neutro={
+                  objetivosError
+                    ? 'Meta mensual no disponible'
+                    : (metaTotal.total ?? 0) <= 0
+                      ? SIN_META
+                      : cumplimientoMetasError || capitalTotal.total == null
+                        ? 'Cumplimiento confirmado no disponible'
+                        : undefined
+                }
+              />
+              <MetaFila
+                icon={TrendingUp}
+                label="Conversión del mes"
+                valorTxt={conversion == null ? '—' : `${numero(conversion, 1)}%`}
+                metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
+                pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
+                delay={180}
+                nota={
+                  miConversion && lecturaConversion.mostrar ? (
+                    <span className="text-[11px] text-muted-foreground">
+                      {/* `text-muted-foreground` y NO var(--gi-muted): ese token
                         solo resuelve dentro de `.gerencia-inteligencia`, y esta
                         pantalla no está en él — el color salía de la herencia
                         por accidente (revisor a11y, F2.3). Mismo hex.
                         El divisor SIEMPRE al lado del % (riesgo 3 del plan): se
                         lo llena el reparto, no el asesor, y el número solo
                         miente por omisión. */}
-                    Recibidos {numero(miConversion.divisor)} · cierres{' '}
-                    {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
-                    {miConversion.cierres_de_arrastre > 0
-                      && ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
-                    {(() => {
-                      // El porqué al lado del número que baja: su conversión ya
-                      // llega NETA de anulaciones de meses cerrados, y un
-                      // número que baja sin explicación es una llamada a
-                      // soporte. El detalle (mes, motivo, cuánto) va en title.
-                      const descuento = descuentoArrastre(miConversion.ajuste)
-                      return descuento
-                        ? (
+                      Recibidos {numero(miConversion.divisor)} · cierres{' '}
+                      {numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)}
+                      {miConversion.cierres_de_arrastre > 0 &&
+                        ` · ${lineaProcedencia(miConversion.procedencia, conversionMensual?.periodo.anio ?? 0)}`}
+                      {(() => {
+                        // El porqué al lado del número que baja: su conversión ya
+                        // llega NETA de anulaciones de meses cerrados, y un
+                        // número que baja sin explicación es una llamada a
+                        // soporte. El detalle (mes, motivo, cuánto) va en title.
+                        const descuento = descuentoArrastre(miConversion.ajuste)
+                        return descuento ? (
                           <>
                             {' · '}
                             <ChipArrastre descuento={descuento} />
                           </>
-                        )
-                        : null
-                    })()}
-                    {/* ⚠️ El aviso de «provisional» NO se le pone al vendedor
+                        ) : null
+                      })()}
+                      {/* ⚠️ El aviso de «provisional» NO se le pone al vendedor
                         (decisión de Miguel, 2026-08-14): él necesita ver su
                         número, no la contabilidad de por qué el mes va corto.
                         Ese matiz sí viaja a supervisor y gerencia, que son
                         quienes comparan y deciden. */}
-                  </span>
-                )
-                : undefined}
-              neutro={conversionMensualError
-                ? 'Conversión del mes no disponible'
-                : !lecturaConversion.mostrar
-                  ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
-                  : miConversion?.estado === 'solo_referidos'
-                    ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
-                    : miConversion?.estado === 'solo_arrastre'
-                      ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
-                      : miConversion?.estado === 'sin_actividad' || conversion == null
-                        ? 'Sin leads recibidos este mes'
-                        : objetivosError
-                          ? 'Meta mensual no disponible'
-                          : metaConversion == null
-                            ? SIN_META
-                            : undefined}
-            />
-          </div>
-          {(objetivosError || cumplimientoMetasError || conversionMensualError) && (
-            <div className="mt-4 flex flex-wrap items-center gap-2">
-              <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
-              {/* El reintento cubre TAMBIÉN la conversión mensual (observación
+                    </span>
+                  ) : undefined
+                }
+                neutro={
+                  conversionMensualError
+                    ? 'Conversión del mes no disponible'
+                    : !lecturaConversion.mostrar
+                      ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+                      : miConversion?.estado === 'solo_referidos'
+                        ? 'Solo recibió referidos este mes — al cerrarse suman al 15 %'
+                        : miConversion?.estado === 'solo_arrastre'
+                          ? `${numero(miConversion.cierres_no_referidos + miConversion.cierres_referidos)} cierres arrastrados · sin leads recibidos`
+                          : miConversion?.estado === 'sin_actividad' || conversion == null
+                            ? 'Sin leads recibidos este mes'
+                            : objetivosError
+                              ? 'Meta mensual no disponible'
+                              : metaConversion == null
+                                ? SIN_META
+                                : undefined
+                }
+              />
+            </div>
+            {(objetivosError || cumplimientoMetasError || conversionMensualError) && (
+              <div className="mt-4 flex flex-wrap items-center gap-2">
+                <p className="text-[11px] text-warning-text">No pudimos cargar toda la información mensual.</p>
+                {/* El reintento cubre TAMBIÉN la conversión mensual (observación
                   #4 de la revisión externa: el tile decía «no disponible» sin
                   salida — recargar() solo repone el store, no esta query). */}
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => {
-                  if (objetivosError || cumplimientoMetasError) void recargar()
-                  if (conversionMensualError) void qConversionMensual.refetch()
-                }}
-              >
-                Reintentar
-              </Button>
-            </div>
-          )}
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => {
+                    if (objetivosError || cumplimientoMetasError) void recargar()
+                    if (conversionMensualError) void qConversionMensual.refetch()
+                  }}
+                >
+                  Reintentar
+                </Button>
+              </div>
+            )}
           </CardContent>
         </details>
       </Card>
@@ -1443,17 +1519,19 @@ function FilaCola({
   // supervisor, y esa espera no es suya. Sin el dato (demo, o base sin la
   // migración) degrada a `creado_en`, el comportamiento de siempre.
   const desde = item.lead.tenencia_desde ?? item.lead.creado_en
-  const minutos = item.bucket === 'sin_responder' && ahora != null
-    ? Math.max(0, Math.floor((ahora - Date.parse(desde)) / 60_000))
-    : null
-  const cronometro = minutos != null && minutos < 24 * 60
-    ? {
-        texto: minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)} h ${minutos % 60} m`,
-        // Escala de la casa (semáforo sin verde): "aún a tiempo" = azul ok, no
-        // verde — el verde queda reservado a WhatsApp/éxito.
-        color: minutos <= 5 ? SEMAFORO.ok : minutos <= 15 ? SEMAFORO.atencion : SEMAFORO.critico,
-      }
-    : null
+  const minutos =
+    item.bucket === 'sin_responder' && ahora != null
+      ? Math.max(0, Math.floor((ahora - Date.parse(desde)) / 60_000))
+      : null
+  const cronometro =
+    minutos != null && minutos < 24 * 60
+      ? {
+          texto: minutos < 60 ? `${minutos} min` : `${Math.floor(minutos / 60)} h ${minutos % 60} m`,
+          // Escala de la casa (semáforo sin verde): "aún a tiempo" = azul ok, no
+          // verde — el verde queda reservado a WhatsApp/éxito.
+          color: minutos <= 5 ? SEMAFORO.ok : minutos <= 15 ? SEMAFORO.atencion : SEMAFORO.critico,
+        }
+      : null
   return (
     <div
       role="button"
@@ -1485,7 +1563,10 @@ function FilaCola({
       {cronometro ? (
         <span
           className="hidden shrink-0 rounded-md px-1.5 py-0.5 text-[11px] font-bold tabular-nums sm:block"
-          style={{ color: cronometro.color, background: `color-mix(in srgb, ${cronometro.color} 12%, transparent)` }}
+          style={{
+            color: cronometro.color,
+            background: `color-mix(in srgb, ${cronometro.color} 12%, transparent)`,
+          }}
           title="Tiempo desde que el lead llegó a tus manos — contactar en minutos multiplica el contacto"
         >
           {cronometro.texto}
@@ -1556,7 +1637,9 @@ function FilaHigiene({
           ) : (
             <p className="truncate text-sm font-semibold">{t.titulo}</p>
           )}
-          <Badge color={c} className="text-[10px]">{vencida ? 'Vencida' : 'No asistió'}</Badge>
+          <Badge color={c} className="text-[10px]">
+            {vencida ? 'Vencida' : 'No asistió'}
+          </Badge>
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">{motivo}</p>
       </div>
@@ -1617,7 +1700,9 @@ function FilaAmarillo({ lead, abrirLead }: { lead: Lead; abrirLead: (id: string)
           <LeadHoverCard lead={lead}>
             <p className="truncate text-sm font-semibold">{lead.nombre_completo}</p>
           </LeadHoverCard>
-          <Badge color={SEMAFORO.atencion} className="text-[10px]">Sin próxima acción</Badge>
+          <Badge color={SEMAFORO.atencion} className="text-[10px]">
+            Sin próxima acción
+          </Badge>
         </div>
         <p className="mt-0.5 truncate text-xs text-muted-foreground">
           {money(lead.monto_estimado, lead.moneda)} en juego — agéndale el siguiente paso
