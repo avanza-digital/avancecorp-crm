@@ -3,15 +3,7 @@
 // Supabase. Write-gating con doble defensa: la UI oculta acciones y el store
 // re-valida CADA mutación (toast.error + no-op si el rol no puede escribir).
 // Debe montarse DENTRO de AuthProvider (usa useAuth para el gating y el autor).
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-  type JSX,
-  type ReactNode,
-} from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type JSX, type ReactNode } from 'react'
 import { toast } from 'sonner'
 import { crmQueryKeys } from '@/data/crm-queries'
 import { queryClient } from './query-client'
@@ -46,20 +38,12 @@ import { esAbierto } from './inteligencia'
 import { avancePorContacto, avancePorReunion, retrocesoPorAnularReunion } from './avance-automatico'
 import { MOTIVOS_CON_EVIDENCIA, vetoNoResponde } from './descarte-evidencia'
 import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
-import {
-  validarReunionOperativa,
-  type ReunionOperativaInvalida,
-} from './reunion-operativa'
+import { validarReunionOperativa, type ReunionOperativaInvalida } from './reunion-operativa'
 import type { Moneda } from './format'
 import { DEMO_HABILITADO } from './config'
 import { validarCamposLead, type CampoLead, type CodigoValidacion } from './validacion'
 import { registrarError } from './observabilidad'
-import {
-  PanelActionsContext,
-  PanelStateContext,
-  StoreDataContext,
-  StoreEstadoContext,
-} from './store-context'
+import { PanelActionsContext, PanelStateContext, StoreDataContext, StoreEstadoContext } from './store-context'
 import {
   actualizarLead,
   CrmApiError,
@@ -195,8 +179,7 @@ export interface NuevoLeadInput {
 }
 
 /** Alta de tarea de agenda (quick-add del drawer / futuro + Nueva). */
-export interface NuevaTareaInput {
-  lead_id: string
+interface NuevaTareaBase {
   tipo: string // esTipoTarea hace el narrow
   titulo: string
   vence_en: string // ISO
@@ -206,6 +189,10 @@ export interface NuevaTareaInput {
   ubicacion_reunion?: string | null
   enlace_reunion?: string | null
 }
+
+/** Exactamente un sujeto, igual que CHECK tareas_un_solo_sujeto. */
+export type NuevaTareaInput = NuevaTareaBase &
+  ({ lead_id: string; perfil_id?: never } | { perfil_id: string; lead_id?: never })
 
 /** Cierre de una tarea de agenda (motor Fase B): resultado 1-tap + siguiente. */
 export interface CompletarTareaInput {
@@ -329,6 +316,7 @@ export interface StoreDataApi {
   // vista de display derivada (labels Lima). tareasDe alimenta el drawer.
   tareas: Tarea[]
   tareasDe(leadId: string): Tarea[] // pendientes del lead, orden por vence_en
+  tareasDeCliente?(perfilId: string): Tarea[] // postventa, misma agenda
   /** `avance` = etapa a la que subió el lead SOLO por agendar esta tarea
    *  (espejo de `trg_zz_tareas_avance_etapa`: una reunión futura con quien ya
    *  se trabajó sube a `reunion_agendada`). Se DEVUELVE, como en
@@ -379,11 +367,7 @@ export interface StoreDataApi {
    *  "Propuesta enviada" es el momento de fijar lo que de verdad se propuso, y
    *  partirlo en dos updates dejaría el lead avanzado con la cifra vieja si el
    *  segundo falla. PEN y USD JAMÁS se suman: la moneda viaja con el monto. */
-  cambiarEtapa(
-    id: string,
-    etapa: EtapaActiva,
-    capital?: { monto_estimado: number; moneda: Moneda },
-  ): ResultadoMut
+  cambiarEtapa(id: string, etapa: EtapaActiva, capital?: { monto_estimado: number; moneda: Moneda }): ResultadoMut
   descartar(id: string, motivo: MotivoDescarte, nota?: string): ResultadoMut
   convertir(id: string): ResultadoMut
   /** Cierre en COOPERATIVA (Qorilazo/Prodelco) — SOLO demo: marca convertido y
@@ -393,7 +377,11 @@ export interface StoreDataApi {
    *  y la P4 del servidor lo rechazaría). */
   convertirExterno(
     id: string,
-    datos: { cooperativa: Cooperativa; monto: number; numeroTransaccion: string },
+    datos: {
+      cooperativa: Cooperativa
+      monto: number
+      numeroTransaccion: string
+    },
   ): ResultadoMut
   /** Anulación de gerencia — SOLO demo (en real es crm.anular_cierre_externo).
    *  Deja de contar en cuota y conversión, con motivo; el lead NO se reabre y la
@@ -475,14 +463,9 @@ interface CamposReunionTarea {
   enlace_reunion: string | null
 }
 
-type EntradaReunionTarea = Pick<
-  NuevaTareaInput,
-  'modalidad_reunion' | 'ubicacion_reunion' | 'enlace_reunion'
->
+type EntradaReunionTarea = Pick<NuevaTareaInput, 'modalidad_reunion' | 'ubicacion_reunion' | 'enlace_reunion'>
 
-type ReunionTareaPreparada =
-  | { ok: true; campos: CamposReunionTarea }
-  | { ok: false; resultado: ResultadoMut }
+type ReunionTareaPreparada = { ok: true; campos: CamposReunionTarea } | { ok: false; resultado: ResultadoMut }
 
 const CAMPOS_SIN_REUNION: CamposReunionTarea = {
   modalidad_reunion: null,
@@ -500,10 +483,7 @@ function aResultadoReunionInvalida(error: ReunionOperativaInvalida): ResultadoMu
  * También limpia campos incompatibles para que demo, optimista y servidor
  * reciban exactamente la misma representación.
  */
-function prepararReunionTarea(
-  tipo: string,
-  input: EntradaReunionTarea,
-): ReunionTareaPreparada {
+function prepararReunionTarea(tipo: string, input: EntradaReunionTarea): ReunionTareaPreparada {
   if (tipo !== 'reunion') return { ok: true, campos: CAMPOS_SIN_REUNION }
 
   const reunion = validarReunionOperativa({
@@ -539,9 +519,7 @@ type ResultadoPersistenciaFallida = ResultadoPersistencia & {
 /** Traducción única de rechazos remotos; nunca expone errores crudos. */
 function aResultadoPersistenciaFallida(causa: unknown): ResultadoPersistenciaFallida {
   const esErrorApi = causa instanceof CrmApiError
-  const error = esErrorApi && causa.code !== 'POSTGREST_ERROR'
-    ? causa.message
-    : 'No se pudo guardar el cambio'
+  const error = esErrorApi && causa.code !== 'POSTGREST_ERROR' ? causa.message : 'No se pudo guardar el cambio'
   return {
     ok: false,
     error,
@@ -552,7 +530,7 @@ function aResultadoPersistenciaFallida(causa: unknown): ResultadoPersistenciaFal
 type SiguienteCierre = Exclude<Parameters<typeof cerrarTarea>[0]['siguiente'], undefined>
 
 interface CierreTareaServidor {
-  tarea: Pick<Tarea, 'id' | 'tipo'>
+  tarea: Pick<Tarea, 'id' | 'tipo' | 'lead_id' | 'perfil_id'>
   estado: CompletarTareaInput['estado'] | 'cancelada'
   resultadoTipo: TipoActividadManual | null
   resultadoDetalle: string | null
@@ -564,7 +542,10 @@ interface CierreTareaServidor {
 
 /** Selecciona una sola vez el contrato/RPC de cierre según el tipo de tarea. */
 function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
-  if (input.tarea.tipo === 'reunion') {
+  // cerrar_reunion sigue siendo el motor especializado del mundo LEAD. Para
+  // clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y marca
+  // la reunión como sin_clasificar sin contaminar etapas/SLA.
+  if (input.tarea.tipo === 'reunion' && input.tarea.lead_id) {
     return cerrarReunion({
       tarea_id: input.tarea.id,
       estado: input.estado,
@@ -689,9 +670,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
   const [cierresExternosDemo, setCierresExternosDemo] = useState<CierreExternoDemo[]>([])
   // Anulaciones de cierres de AVANCE del MODO DEMO. Van por lead porque en
   // Avance no hay fila de cierre que anular: el cierre es el lead convertido.
-  const [anuladosAvanceDemo, setAnuladosAvanceDemo] = useState<
-    { leadId: string; anuladoEn: string; motivo: string }[]
-  >([])
+  const [anuladosAvanceDemo, setAnuladosAvanceDemo] = useState<{ leadId: string; anuladoEn: string; motivo: string }[]>(
+    [],
+  )
   const [demoListo, setDemoListo] = useState(false)
   const [realListo, setRealListo] = useState(false)
   const [errorReal, setErrorReal] = useState(false)
@@ -733,105 +714,110 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     setNuevoLeadAbierto(false)
   }, [])
 
-  const panelState = useMemo<PanelesState>(() => ({
-    leadAbiertoId,
-    nuevoLeadAbierto,
-    etapaInicial,
-    telefonoInicial,
-  }), [leadAbiertoId, nuevoLeadAbierto, etapaInicial, telefonoInicial])
+  const panelState = useMemo<PanelesState>(
+    () => ({
+      leadAbiertoId,
+      nuevoLeadAbierto,
+      etapaInicial,
+      telefonoInicial,
+    }),
+    [leadAbiertoId, nuevoLeadAbierto, etapaInicial, telefonoInicial],
+  )
 
-  const panelActions = useMemo<PanelesActions>(() => ({
-    abrirLead,
-    abrirNuevoLead,
-    cerrarPaneles,
-  }), [abrirLead, abrirNuevoLead, cerrarPaneles])
+  const panelActions = useMemo<PanelesActions>(
+    () => ({
+      abrirLead,
+      abrirNuevoLead,
+      cerrarPaneles,
+    }),
+    [abrirLead, abrirNuevoLead, cerrarPaneles],
+  )
 
   // Carga de la sesión REAL. La RLS del esquema crm decide el ámbito; el
   // vendedor_nombre se resuelve con el roster (crm.leads solo guarda el id).
-  const cargarReal = useCallback(async (signal?: AbortSignal) => {
-    const periodoMetas = periodoLima(Date.now())
-    if (soloRoles) {
-      return {
-        miembros: [] as Miembro[],
-        actividades: [] as Actividad[],
-        tareas: [] as Tarea[],
-        objetivos: objetivosCero(periodoMetas),
-        objetivosError: false,
-        cumplimientoMetas: null,
-        cumplimientoMetasError: false,
-        leads: [] as Lead[],
+  const cargarReal = useCallback(
+    async (signal?: AbortSignal) => {
+      const periodoMetas = periodoLima(Date.now())
+      if (soloRoles) {
+        return {
+          miembros: [] as Miembro[],
+          actividades: [] as Actividad[],
+          tareas: [] as Tarea[],
+          objetivos: objetivosCero(periodoMetas),
+          objetivosError: false,
+          cumplimientoMetas: null,
+          cumplimientoMetasError: false,
+          leads: [] as Lead[],
+        }
       }
-    }
-    // El coordinador (C1) es OFF-ROSTER: no tiene cartera ni panel de equipo, y
-    // su pantalla usa supervisores_para_reparto (no `ambito.equipo`). Se omite
-    // listarEquipo porque equipo_visible_fn puede RAISE para su rol y el
-    // Promise.all sin catch tumbaría su boot entero. Los demás fetches son
-    // seguros: leen por RLS con ámbito ∅ → [] (la RLS filtra, no lanza).
-    const esCoordinador = yo?.rol === 'coordinador'
-    // Gerencia también opera la cartera completa: necesita las mismas fuentes
-    // transaccionales que el resto del equipo además de sus RPC de inteligencia.
-    // La RLS conserva el alcance real y excluye los soft-deletes.
-    // Configuración y cumplimiento son auxiliares independientes: una caída
-    // no puede convertirse en «sin meta» ni en resultados confirmados en cero.
-    let objetivosError = false
-    let cumplimientoMetasError = false
-    const [leads, miembros, actividades, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
-      listarLeadsDelAmbito(signal),
-      esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
-      listarActividadesDelAmbito(signal),
-      listarTareasDelAmbito(signal),
-      obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
-        registrarError('crm.metas.configuracion_boot_degradada', error)
-        objetivosError = true
-        return null
-      }),
-      obtenerCumplimientoMetas(periodoMetas, signal).catch((error: unknown) => {
-        registrarError('crm.metas.cumplimiento_boot_degradado', error)
+      // El coordinador (C1) es OFF-ROSTER: no tiene cartera ni panel de equipo, y
+      // su pantalla usa supervisores_para_reparto (no `ambito.equipo`). Se omite
+      // listarEquipo porque equipo_visible_fn puede RAISE para su rol y el
+      // Promise.all sin catch tumbaría su boot entero. Los demás fetches son
+      // seguros: leen por RLS con ámbito ∅ → [] (la RLS filtra, no lanza).
+      const esCoordinador = yo?.rol === 'coordinador'
+      // Gerencia también opera la cartera completa: necesita las mismas fuentes
+      // transaccionales que el resto del equipo además de sus RPC de inteligencia.
+      // La RLS conserva el alcance real y excluye los soft-deletes.
+      // Configuración y cumplimiento son auxiliares independientes: una caída
+      // no puede convertirse en «sin meta» ni en resultados confirmados en cero.
+      let objetivosError = false
+      let cumplimientoMetasError = false
+      const [leads, miembros, actividades, tareasAmbito, configuracionMetas, cumplimientoRpc] = await Promise.all([
+        listarLeadsDelAmbito(signal),
+        esCoordinador ? Promise.resolve<Miembro[]>([]) : listarEquipo(signal),
+        listarActividadesDelAmbito(signal),
+        listarTareasDelAmbito(signal),
+        obtenerMetasDelMes(periodoMetas, signal).catch((error: unknown) => {
+          registrarError('crm.metas.configuracion_boot_degradada', error)
+          objetivosError = true
+          return null
+        }),
+        obtenerCumplimientoMetas(periodoMetas, signal).catch((error: unknown) => {
+          registrarError('crm.metas.cumplimiento_boot_degradado', error)
+          cumplimientoMetasError = true
+          return null
+        }),
+      ])
+      let cumplimientoCoherente = cumplimientoRpc
+      if (cumplimientoCoherente && !configuracionMetas) {
+        // Sin la revisión de objetivos no hay denominador confiable para mostrar
+        // el cumplimiento. Se conserva el error de configuración y se oculta el
+        // numerador para que ningún ranking lo presente como «sin meta».
+        cumplimientoCoherente = null
         cumplimientoMetasError = true
-        return null
-      }),
-    ])
-    let cumplimientoCoherente = cumplimientoRpc
-    if (cumplimientoCoherente && !configuracionMetas) {
-      // Sin la revisión de objetivos no hay denominador confiable para mostrar
-      // el cumplimiento. Se conserva el error de configuración y se oculta el
-      // numerador para que ningún ranking lo presente como «sin meta».
-      cumplimientoCoherente = null
-      cumplimientoMetasError = true
-    } else if (
-      cumplimientoCoherente
-      && configuracionMetas
-      && (
-        cumplimientoCoherente.periodo !== configuracionMetas.periodo
-        || cumplimientoCoherente.revision !== configuracionMetas.revision
-      )
-    ) {
-      registrarError(
-        'crm.metas.revisiones_inconsistentes',
-        new Error('Configuración y cumplimiento pertenecen a revisiones distintas'),
-      )
-      cumplimientoCoherente = null
-      cumplimientoMetasError = true
-    }
-    const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
-    return {
-      miembros,
-      actividades,
-      tareas: tareasAmbito,
-      objetivos: configuracionMetas
-        ? objetivosDesdeConfiguracion(configuracionMetas, yo?.id)
-        : objetivosCero(periodoMetas),
-      objetivosError,
-      cumplimientoMetas: cumplimientoCoherente
-        ? cumplimientoDesdeRpc(cumplimientoCoherente, yo?.id)
-        : null,
-      cumplimientoMetasError,
-      leads: leads.map((l) => ({
-        ...l,
-        vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
-      })),
-    }
-  }, [soloRoles, yo?.id, yo?.rol])
+      } else if (
+        cumplimientoCoherente &&
+        configuracionMetas &&
+        (cumplimientoCoherente.periodo !== configuracionMetas.periodo ||
+          cumplimientoCoherente.revision !== configuracionMetas.revision)
+      ) {
+        registrarError(
+          'crm.metas.revisiones_inconsistentes',
+          new Error('Configuración y cumplimiento pertenecen a revisiones distintas'),
+        )
+        cumplimientoCoherente = null
+        cumplimientoMetasError = true
+      }
+      const nombrePorId = new Map(miembros.map((m) => [m.perfil_id, m.nombre_completo]))
+      return {
+        miembros,
+        actividades,
+        tareas: tareasAmbito,
+        objetivos: configuracionMetas
+          ? objetivosDesdeConfiguracion(configuracionMetas, yo?.id)
+          : objetivosCero(periodoMetas),
+        objetivosError,
+        cumplimientoMetas: cumplimientoCoherente ? cumplimientoDesdeRpc(cumplimientoCoherente, yo?.id) : null,
+        cumplimientoMetasError,
+        leads: leads.map((l) => ({
+          ...l,
+          vendedor_nombre: l.vendedor_id ? (nombrePorId.get(l.vendedor_id) ?? null) : null,
+        })),
+      }
+    },
+    [soloRoles, yo?.id, yo?.rol],
+  )
 
   // Tras cada mutación real (éxito o rechazo) el SERVIDOR es la verdad: se
   // recargan leads/actividades/equipo para reflejar triggers y RLS (y, en un
@@ -846,7 +832,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // dejaría los tiles de Cartera/Pipeline contando el mundo de ANTES de la
     // escritura. Se dispara también en el resync de un rollback (costo: un
     // refetch de más en un caso raro; mentir en un tile sería peor).
-    void queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() })
+    void queryClient.invalidateQueries({
+      queryKey: crmQueryKeys.metricasAmbito(),
+    })
     // F2: la tabla de Cartera ya NO se pinta desde este store — la sirve
     // `cartera_pagina_fn` por cursor. Sin esta segunda invalidación, crear o
     // mover un lead actualizaría los tiles y dejaría las FILAS de abajo en la
@@ -900,7 +888,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         void import('./demo')
           .then((demo) => {
             if (cancelado) return
-            setDatos(cargarDatos({ leads: demo.LEADS_DEMO, actividades: demo.ACTIVIDADES_DEMO }))
+            setDatos(
+              cargarDatos({
+                leads: demo.LEADS_DEMO,
+                actividades: demo.ACTIVIDADES_DEMO,
+              }),
+            )
             setTareas(demo.TAREAS_DEMO)
             setAuxiliares({
               equipo: demo.EQUIPO_DEMO,
@@ -919,7 +912,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             setAuxiliares(AUXILIARES_VACIOS)
           })
       }
-      return () => { cancelado = true; control.abort() }
+      return () => {
+        cancelado = true
+        control.abort()
+      }
     }
 
     // Superadmin Portal sin Gerencia no tiene una sesión operativa: su única
@@ -930,7 +926,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       setTareas([])
       setAuxiliares(AUXILIARES_VACIOS)
       setRealListo(true)
-      return () => { cancelado = true; control.abort() }
+      return () => {
+        cancelado = true
+        control.abort()
+      }
     }
 
     // Sesión REAL: lee del servidor.
@@ -954,31 +953,33 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       }, LIMITE_CARGA_REAL_MS)
 
       void cargarReal(control.signal)
-        .then(({
-          leads,
-          actividades,
-          miembros,
-          tareas: tareasServidor,
-          objetivos,
-          objetivosError,
-          cumplimientoMetas,
-          cumplimientoMetasError,
-        }) => {
-          clearTimeout(relojCarga)
-          // `agotado`: una respuesta que llega DESPUÉS del límite ya no puede
-          // borrar la pantalla de error que el asesor está viendo.
-          if (cancelado || agotado) return
-          setDatos({ leads, actividades })
-          setTareas(tareasServidor)
-          setAuxiliares({
-            equipo: miembros,
+        .then(
+          ({
+            leads,
+            actividades,
+            miembros,
+            tareas: tareasServidor,
             objetivos,
             objetivosError,
             cumplimientoMetas,
             cumplimientoMetasError,
-          })
-          setRealListo(true)
-        })
+          }) => {
+            clearTimeout(relojCarga)
+            // `agotado`: una respuesta que llega DESPUÉS del límite ya no puede
+            // borrar la pantalla de error que el asesor está viendo.
+            if (cancelado || agotado) return
+            setDatos({ leads, actividades })
+            setTareas(tareasServidor)
+            setAuxiliares({
+              equipo: miembros,
+              objetivos,
+              objetivosError,
+              cumplimientoMetas,
+              cumplimientoMetasError,
+            })
+            setRealListo(true)
+          },
+        )
         .catch((error: unknown) => {
           clearTimeout(relojCarga)
           if (cancelado || agotado || control.signal.aborted) return
@@ -990,14 +991,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           setAuxiliares(AUXILIARES_VACIOS)
           setErrorReal(true)
         })
-      return () => { cancelado = true; clearTimeout(relojCarga); control.abort() }
+      return () => {
+        cancelado = true
+        clearTimeout(relojCarga)
+        control.abort()
+      }
     }
 
     // Ni demo ni sesión real: vacío.
     setDatos(datosVacios())
     setTareas([])
     setAuxiliares(AUXILIARES_VACIOS)
-    return () => { cancelado = true; control.abort() }
+    return () => {
+      cancelado = true
+      control.abort()
+    }
   }, [demoSolicitado, sesionReal, soloRoles, yo?.id, intentoReal, cargarReal])
 
   // Persistencia demo (solo sessionStorage — jamás Supabase)
@@ -1060,7 +1068,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
 
     const sinPermiso = (): ResultadoMut => {
       toast.error('Tu rol es de solo lectura — no puedes modificar datos')
-      return { ok: false, codigo: 'sin_permiso', error: 'Sin permiso de escritura' }
+      return {
+        ok: false,
+        codigo: 'sin_permiso',
+        error: 'Sin permiso de escritura',
+      }
     }
 
     const bloqueoEscritura = (): ResultadoMut | null => {
@@ -1070,16 +1082,20 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       // su propio veto en real (necesita la RPC privilegiada del bloque 6).
       if (demoActivo || realActivo) return puedeEscribir(rol) ? null : sinPermiso()
       toast.error('La fuente de datos del CRM aún no está habilitada')
-      return { ok: false, codigo: 'fuente_no_habilitada', error: 'Fuente de datos no habilitada' }
+      return {
+        ok: false,
+        codigo: 'fuente_no_habilitada',
+        error: 'Fuente de datos no habilitada',
+      }
     }
 
-    const noEncontrado = (): ResultadoMut => ({ ok: false, codigo: 'no_encontrado', error: 'Lead no encontrado' })
+    const noEncontrado = (): ResultadoMut => ({
+      ok: false,
+      codigo: 'no_encontrado',
+      error: 'Lead no encontrado',
+    })
 
-    const actividadAuto = (
-      lead_id: string,
-      tipo: TipoActividad,
-      detalle: string | null,
-    ): Actividad => ({
+    const actividadAuto = (lead_id: string, tipo: TipoActividad, detalle: string | null): Actividad => ({
       id: uid(),
       lead_id,
       tipo,
@@ -1155,7 +1171,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         escritura = Promise.reject(causa)
       }
       return escritura.then(
-        () => { void resincronizarReal(); return { ok: true } },
+        () => {
+          void resincronizarReal()
+          return { ok: true }
+        },
         (causa: unknown) => {
           // Variante LOCAL de mensajeDeError (crm-api): además excluye
           // POSTGREST_ERROR — ese mensaje genérico es de LECTURA ("No se pudo
@@ -1200,6 +1219,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               .filter((t) => t.lead_id === leadId && t.estado === 'pendiente' && t.activo)
               .sort((a, b) => a.vence_en.localeCompare(b.vence_en))
           : [],
+      tareasDeCliente: (perfilId) =>
+        tareas
+          .filter((t) => t.perfil_id === perfilId && t.estado === 'pendiente' && t.activo)
+          .sort((a, b) => a.vence_en.localeCompare(b.vence_en)),
       objetivos: auxiliares.objetivos,
       objetivosError: auxiliares.objetivosError,
       cumplimientoMetas: auxiliares.cumplimientoMetas,
@@ -1210,29 +1233,46 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
       actividadesDe: (leadId) =>
         // Espejo de actividades_select: solo el timeline de leads del ámbito.
         idsDelAmbito.has(leadId)
-          ? datos.actividades
-              .filter((a) => a.lead_id === leadId)
-              .sort((a, b) => b.creado_en.localeCompare(a.creado_en))
+          ? datos.actividades.filter((a) => a.lead_id === leadId).sort((a, b) => b.creado_en.localeCompare(a.creado_en))
           : [],
 
       crearTarea: (input) => {
         const bloqueo = bloqueoEscritura()
         if (bloqueo) return bloqueo
-        const lead = buscar(input.lead_id)
-        if (!lead || !idsDelAmbito.has(lead.id)) return noEncontrado()
-        if (!esAbierto(lead)) {
-          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para agendar' }
+        const leadId = input.lead_id ?? null
+        const perfilId = input.perfil_id ?? null
+        if ((leadId == null) === (perfilId == null)) return noEncontrado()
+        const lead = leadId ? buscar(leadId) : undefined
+        if (leadId && (!lead || !idsDelAmbito.has(lead.id))) return noEncontrado()
+        if (lead && !esAbierto(lead)) {
+          return {
+            ok: false,
+            codigo: 'lead_cerrado',
+            error: 'El lead está cerrado — reábrelo para agendar',
+          }
         }
         if (!esTipoTarea(input.tipo)) {
-          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Tipo de tarea inválido' }
+          return {
+            ok: false,
+            codigo: 'tipo_actividad_reservado',
+            error: 'Tipo de tarea inválido',
+          }
         }
         const titulo = input.titulo.trim()
         if (!titulo || titulo.length > 200) {
-          return { ok: false, codigo: 'nombre_obligatorio', error: 'Ponle un título corto a la tarea' }
+          return {
+            ok: false,
+            codigo: 'nombre_obligatorio',
+            error: 'Ponle un título corto a la tarea',
+          }
         }
         const venceEn = normalizarFechaTarea(input.vence_en)
         if (!venceEn) {
-          return { ok: false, codigo: 'fecha_nacimiento_invalida', error: 'La fecha de la tarea no es válida' }
+          return {
+            ok: false,
+            codigo: 'fecha_nacimiento_invalida',
+            error: 'La fecha de la tarea no es válida',
+          }
         }
         const reunion = prepararReunionTarea(input.tipo, input)
         if (!reunion.ok) return reunion.resultado
@@ -1241,9 +1281,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // optimista la copia para que la agenda pinte igual que el servidor).
         const tarea: Tarea = {
           id,
-          lead_id: lead.id,
-          vendedor_id: lead.vendedor_id ?? null,
-          asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+          lead_id: lead?.id ?? null,
+          perfil_id: perfilId,
+          vendedor_id: lead?.vendedor_id ?? (perfilId ? miId : null),
+          asignado_supervisor_id: lead?.asignado_supervisor_id ?? null,
           tipo: input.tipo,
           titulo,
           nota: input.nota?.trim() || null,
@@ -1262,32 +1303,40 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // Espejo optimista de `trg_zz_tareas_avance_etapa`: agendar una reunión
         // con quien ya trabajaste sube el lead a `reunion_agendada`. Ver las
         // guardas (y por qué el no-show NO asciende) en lib/avance-automatico.ts.
-        const avance = avancePorReunion(
-          lead,
-          tarea,
-          datos.actividades.some((a) => a.lead_id === lead.id && TIPOS_CONTACTO_K.has(a.tipo)),
-          Date.now(),
-        )
-        if (avance) {
-          const actEtapa = actividadAuto(lead.id, 'cambio_etapa', `${ETAPA_INFO[lead.etapa].label} → ${ETAPA_INFO[avance].label}`)
+        const avance = lead
+          ? avancePorReunion(
+              lead,
+              tarea,
+              datos.actividades.some((a) => a.lead_id === lead.id && TIPOS_CONTACTO_K.has(a.tipo)),
+              Date.now(),
+            )
+          : null
+        if (avance && lead) {
+          const actEtapa = actividadAuto(
+            lead.id,
+            'cambio_etapa',
+            `${ETAPA_INFO[lead.etapa].label} → ${ETAPA_INFO[avance].label}`,
+          )
           setDatos((d) => ({
             leads: d.leads.map((l) => (l.id === lead.id ? { ...l, etapa: avance } : l)),
             actividades: [actEtapa, ...d.actividades],
           }))
         }
-        persistir(() => insertarTarea({
-          ...(UUID_RE.test(id) ? { id } : {}),
-          lead_id: lead.id,
-          tipo: tarea.tipo,
-          titulo,
-          nota: tarea.nota ?? null,
-          vence_en: tarea.vence_en,
-          duracion_min: tarea.duracion_min ?? null,
-          modalidad_reunion: tarea.modalidad_reunion ?? null,
-          ubicacion_reunion: tarea.ubicacion_reunion ?? null,
-          enlace_reunion: tarea.enlace_reunion ?? null,
-          creado_por: miId,
-        }))
+        persistir(() =>
+          insertarTarea({
+            ...(UUID_RE.test(id) ? { id } : {}),
+            ...(lead ? { lead_id: lead.id } : { perfil_id: perfilId! }),
+            tipo: tarea.tipo,
+            titulo,
+            nota: tarea.nota ?? null,
+            vence_en: tarea.vence_en,
+            duracion_min: tarea.duracion_min ?? null,
+            modalidad_reunion: tarea.modalidad_reunion ?? null,
+            ubicacion_reunion: tarea.ubicacion_reunion ?? null,
+            enlace_reunion: tarea.enlace_reunion ?? null,
+            creado_por: miId,
+          }),
+        )
         // El avance viaja al llamador para que lo ANUNCIE (los otros dos
         // escritores ya lo hacían): mover la etapa sin decirlo asusta más que
         // ayuda. `avance` solo puede ser una etapa activa — avancePorReunion
@@ -1304,41 +1353,63 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const resultado = input.resultado_tipo ?? null
         // Doble defensa runtime (los unions TS se borran al compilar).
         if (resultado && TIPOS_AUTO_K.has(resultado)) {
-          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Ese tipo lo genera el sistema' }
+          return {
+            ok: false,
+            codigo: 'tipo_actividad_reservado',
+            error: 'Ese tipo lo genera el sistema',
+          }
         }
         // Regla comercial (evidencia Outreach): una LLAMADA completada sin
         // resultado no cuenta — contestó o no contestó, un tap.
         if (t.tipo === 'llamada' && input.estado === 'completada' && !resultado) {
-          return { ok: false, codigo: 'resultado_obligatorio', error: 'Registra el resultado de la llamada (contestó / no contestó)' }
+          return {
+            ok: false,
+            codigo: 'resultado_obligatorio',
+            error: 'Registra el resultado de la llamada (contestó / no contestó)',
+          }
         }
         if (t.tipo === 'reunion' && input.estado === 'completada' && !input.resultado_reunion) {
-          return { ok: false, codigo: 'resultado_obligatorio', error: 'Registra el resultado comercial de la reunión' }
-        }
-        if (resultado && !t.lead_id) {
-          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Una tarea de cliente no registra actividad de lead' }
+          return {
+            ok: false,
+            codigo: 'resultado_obligatorio',
+            error: 'Registra el resultado comercial de la reunión',
+          }
         }
         // Tarea SIGUIENTE opcional (la sugerencia del motor, ya editada o no).
         let sigLocal: Tarea | null = null
         if (input.siguiente) {
-          if (!lead) return noEncontrado()
-          if (!esAbierto(lead)) {
-            return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — la siguiente tarea no aplica' }
+          if (!lead && !t.perfil_id) return noEncontrado()
+          if (lead && !esAbierto(lead)) {
+            return {
+              ok: false,
+              codigo: 'lead_cerrado',
+              error: 'El lead está cerrado — la siguiente tarea no aplica',
+            }
           }
           if (!esTipoTarea(input.siguiente.tipo)) {
-            return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Tipo de la siguiente tarea inválido' }
+            return {
+              ok: false,
+              codigo: 'tipo_actividad_reservado',
+              error: 'Tipo de la siguiente tarea inválido',
+            }
           }
           const tituloSig = input.siguiente.titulo.trim()
           const venceEnSig = normalizarFechaTarea(input.siguiente.vence_en)
           if (!tituloSig || tituloSig.length > 200 || !venceEnSig) {
-            return { ok: false, codigo: 'nombre_obligatorio', error: 'La siguiente tarea necesita título y fecha válidos' }
+            return {
+              ok: false,
+              codigo: 'nombre_obligatorio',
+              error: 'La siguiente tarea necesita título y fecha válidos',
+            }
           }
           const reunionSiguiente = prepararReunionTarea(input.siguiente.tipo, input.siguiente)
           if (!reunionSiguiente.ok) return reunionSiguiente.resultado
           sigLocal = {
             id: uid(),
-            lead_id: lead.id,
-            vendedor_id: lead.vendedor_id ?? null,
-            asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
+            lead_id: lead?.id ?? null,
+            perfil_id: t.perfil_id ?? null,
+            vendedor_id: lead?.vendedor_id ?? t.vendedor_id ?? null,
+            asignado_supervisor_id: lead?.asignado_supervisor_id ?? t.asignado_supervisor_id ?? null,
             tipo: input.siguiente.tipo,
             titulo: tituloSig,
             vence_en: venceEnSig,
@@ -1356,17 +1427,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const detalle = input.resultado_detalle?.trim() || null
         // OPTIMISTA: cierre + siguiente + resultado al timeline, todo local ya.
         setTareas((prev) => {
-          const marcadas = prev.map((x) => (x.id === t.id ? {
-            ...x,
-            estado: input.estado,
-            resultado_reunion: t.tipo === 'reunion' && input.estado === 'completada'
-              ? (input.resultado_reunion ?? null)
-              : null,
-            motivo_no_realizada: t.tipo === 'reunion' && input.estado === 'no_show'
-              ? ('cliente_no_asistio' as const)
-              : null,
-            detalle_cierre_reunion: t.tipo === 'reunion' ? detalle : null,
-          } : x))
+          const marcadas = prev.map((x) =>
+            x.id === t.id
+              ? {
+                  ...x,
+                  estado: input.estado,
+                  resultado_reunion:
+                    t.tipo === 'reunion' && input.estado === 'completada' ? (input.resultado_reunion ?? null) : null,
+                  motivo_no_realizada:
+                    t.tipo === 'reunion' && input.estado === 'no_show' ? ('cliente_no_asistio' as const) : null,
+                  detalle_cierre_reunion: t.tipo === 'reunion' ? detalle : null,
+                }
+              : x,
+          )
           return sigLocal ? [sigLocal, ...marcadas] : marcadas
         })
         // Espejo de los DOS avances automáticos de etapa, en el MISMO orden en
@@ -1385,7 +1458,13 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             ? avancePorContacto({ etapa: etapaLocal, activo: lead.activo }, resultado)
             : null
           if (trasContacto) {
-            actos.push(actividadAuto(t.lead_id, 'cambio_etapa', `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasContacto].label}`))
+            actos.push(
+              actividadAuto(
+                t.lead_id,
+                'cambio_etapa',
+                `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasContacto].label}`,
+              ),
+            )
             etapaLocal = trasContacto
           }
           // ¿Hay algún contacto REAL en el timeline? (los 5 tipos, no los 3 de
@@ -1401,13 +1480,19 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
                   asignado_supervisor_id: lead.asignado_supervisor_id ?? null,
                 },
                 sigLocal,
-                (resultado != null && TIPOS_CONTACTO_K.has(resultado))
-                  || datos.actividades.some((a) => a.lead_id === t.lead_id && TIPOS_CONTACTO_K.has(a.tipo)),
+                (resultado != null && TIPOS_CONTACTO_K.has(resultado)) ||
+                  datos.actividades.some((a) => a.lead_id === t.lead_id && TIPOS_CONTACTO_K.has(a.tipo)),
                 Date.now(),
               )
             : null
           if (trasReunion) {
-            actos.push(actividadAuto(t.lead_id, 'cambio_etapa', `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasReunion].label}`))
+            actos.push(
+              actividadAuto(
+                t.lead_id,
+                'cambio_etapa',
+                `${ETAPA_INFO[etapaLocal].label} → ${ETAPA_INFO[trasReunion].label}`,
+              ),
+            )
             etapaLocal = trasReunion
           }
           const etapaFinal = etapaLocal
@@ -1416,9 +1501,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }
           if (actos.length > 0) {
             setDatos((d) => ({
-              leads: etapaFinal !== lead.etapa
-                ? d.leads.map((l) => (l.id === t.lead_id ? { ...l, etapa: etapaFinal } : l))
-                : d.leads,
+              leads:
+                etapaFinal !== lead.etapa
+                  ? d.leads.map((l) => (l.id === t.lead_id ? { ...l, etapa: etapaFinal } : l))
+                  : d.leads,
               // `actos` se construyó en orden cronológico; el timeline pinta el
               // más reciente arriba, así que entra invertido.
               actividades: [...actos.reverse(), ...d.actividades],
@@ -1441,18 +1527,23 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               enlace_reunion: sig.enlace_reunion ?? null,
             }
           : null
-        const persistido = persistir(() => ejecutarCierreTarea({
-          tarea: t,
-          estado: input.estado,
-          resultadoTipo: resultado,
-          resultadoDetalle: detalle,
-          resultadoReunion: input.resultado_reunion ?? null,
-          motivoNoRealizada: input.estado === 'no_show'
-            ? 'cliente_no_asistio'
-            : (input.motivo_no_realizada ?? null),
-          detalleReunion: detalle,
-          siguiente: siguientePayload,
-        }))
+        const persistido = persistir(async () => {
+          await ejecutarCierreTarea({
+            tarea: t,
+            estado: input.estado,
+            resultadoTipo: resultado,
+            resultadoDetalle: detalle,
+            resultadoReunion: input.resultado_reunion ?? null,
+            motivoNoRealizada: input.estado === 'no_show' ? 'cliente_no_asistio' : (input.motivo_no_realizada ?? null),
+            detalleReunion: detalle,
+            siguiente: siguientePayload,
+          })
+          if (t.perfil_id) {
+            await queryClient.invalidateQueries({
+              queryKey: crmQueryKeys.actividadesCliente(t.perfil_id),
+            })
+          }
+        })
         return {
           ok: true,
           persistido,
@@ -1468,7 +1559,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (!t) return noEncontrado()
         const iso = normalizarFechaTarea(venceEn)
         if (!iso) {
-          return { ok: false, codigo: 'fecha_nacimiento_invalida', error: 'La nueva fecha no es válida' }
+          return {
+            ok: false,
+            codigo: 'fecha_nacimiento_invalida',
+            error: 'La nueva fecha no es válida',
+          }
         }
         if (t.tipo === 'reunion') {
           const nuevaId = uid()
@@ -1487,25 +1582,34 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }
           setTareas((prev) => [
             nueva,
-            ...prev.map((x) => x.id === id
-              ? {
-                  ...x,
-                  estado: 'reprogramada' as const,
-                  motivo_no_realizada: 'reprogramada' as const,
-                  detalle_cierre_reunion: `Reprogramada para ${iso}`,
-                }
-              : x),
+            ...prev.map((x) =>
+              x.id === id
+                ? {
+                    ...x,
+                    estado: 'reprogramada' as const,
+                    motivo_no_realizada: 'reprogramada' as const,
+                    detalle_cierre_reunion: `Reprogramada para ${iso}`,
+                  }
+                : x,
+            ),
           ])
           persistir(() => reprogramarReunion(id, iso, nuevaId).then(() => undefined))
           return { ok: true }
         }
         // Optimista espejo del trigger: mover fecha incrementa el contador y
         // una cita reprogramada pierde su confirmación (hay que reconfirmar).
-        setTareas((prev) => prev.map((x) =>
-          x.id === id
-            ? { ...x, vence_en: iso, reprogramaciones: x.reprogramaciones + 1, confirmada_en: null }
-            : x,
-        ))
+        setTareas((prev) =>
+          prev.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  vence_en: iso,
+                  reprogramaciones: x.reprogramaciones + 1,
+                  confirmada_en: null,
+                }
+              : x,
+          ),
+        )
         persistir(() => actualizarTarea(id, { vence_en: iso, confirmada_en: null }))
         return { ok: true }
       },
@@ -1572,14 +1676,24 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // encontrada" DESPUÉS de haberla pintado como anulada.
         if (!t) return noEncontrado()
         if (t.tipo === 'reunion' && !cierreReunion?.motivo) {
-          return { ok: false, codigo: 'resultado_obligatorio', error: 'Selecciona por qué no se realizará la reunión' }
+          return {
+            ok: false,
+            codigo: 'resultado_obligatorio',
+            error: 'Selecciona por qué no se realizará la reunión',
+          }
         }
-        setTareas((prev) => prev.map((x) => (x.id === id ? {
-          ...x,
-          estado: 'cancelada',
-          motivo_no_realizada: t.tipo === 'reunion' ? (cierreReunion?.motivo ?? null) : null,
-          detalle_cierre_reunion: t.tipo === 'reunion' ? (cierreReunion?.detalle?.trim() || null) : null,
-        } : x)))
+        setTareas((prev) =>
+          prev.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  estado: 'cancelada',
+                  motivo_no_realizada: t.tipo === 'reunion' ? (cierreReunion?.motivo ?? null) : null,
+                  detalle_cierre_reunion: t.tipo === 'reunion' ? cierreReunion?.detalle?.trim() || null : null,
+                }
+              : x,
+          ),
+        )
         // Espejo optimista de `private.retroceso_por_anular_reunion` (pedido de Miguel,
         // 2026-07-26: «si se anula la reu y no se reagenda una en ese mismo
         // momento, debería bajar de etapa»). Se calcula con la lista de tareas
@@ -1606,18 +1720,20 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             actividades: [actEtapa, ...d.actividades],
           }))
         }
-        persistir(() => ejecutarCierreTarea({
-          tarea: t,
-          estado: 'cancelada',
-          resultadoTipo: null,
-          resultadoDetalle: null,
-          resultadoReunion: null,
-          motivoNoRealizada: cierreReunion?.motivo ?? null,
-          // El RPC conserva el detalle crudo histórico; el espejo local sigue
-          // mostrando su versión recortada, igual que antes del refactor.
-          detalleReunion: cierreReunion?.detalle ?? null,
-          siguiente: null,
-        }))
+        persistir(() =>
+          ejecutarCierreTarea({
+            tarea: t,
+            estado: 'cancelada',
+            resultadoTipo: null,
+            resultadoDetalle: null,
+            resultadoReunion: null,
+            motivoNoRealizada: cierreReunion?.motivo ?? null,
+            // El RPC conserva el detalle crudo histórico; el espejo local sigue
+            // mostrando su versión recortada, igual que antes del refactor.
+            detalleReunion: cierreReunion?.detalle ?? null,
+            siguiente: null,
+          }),
+        )
         return retroceso ? { ok: true, retroceso } : { ok: true }
       },
 
@@ -1664,13 +1780,21 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const fechaNacimiento = v.valores.fecha_nacimiento ?? null
         const etapa: EtapaActiva = input.etapa ?? 'nuevo'
         if (TERMINALES_K.has(etapa)) {
-          return { ok: false, codigo: 'etapa_terminal_al_nacer', error: 'Un lead no puede nacer en etapa terminal' }
+          return {
+            ok: false,
+            codigo: 'etapa_terminal_al_nacer',
+            error: 'Un lead no puede nacer en etapa terminal',
+          }
         }
         // Espejo de la policy leads_insert: sin can('reasignar') el lead solo
         // puede nacer asignado a uno mismo (parkear es de supervisor/gerencia).
         // El gate de permisos corre ANTES del dedup: sin permiso no hay sondeo.
         if (!can(rol, 'reasignar') && (input.vendedor_id ?? null) !== (yo?.id ?? null)) {
-          return { ok: false, codigo: 'solo_autoasignar', error: 'Solo puedes crear leads asignados a ti mismo' }
+          return {
+            ok: false,
+            codigo: 'solo_autoasignar',
+            error: 'Solo puedes crear leads asignados a ti mismo',
+          }
         }
         const choque = conflictoDedup(datos.leads, telefono, dni, undefined, idsDelAmbito)
         if (choque) return choque
@@ -1687,12 +1811,20 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             vendedor_id = yo.id
             vendedor_nombre = yo.nombre_completo
           } else {
-            return { ok: false, codigo: 'vendedor_no_encontrado', error: 'Vendedor no encontrado' }
+            return {
+              ok: false,
+              codigo: 'vendedor_no_encontrado',
+              error: 'Vendedor no encontrado',
+            }
           }
         }
         // Espejo del WITH CHECK de leads_insert: supervisor solo dentro de su equipo.
         if (vendedorFueraDeAmbito(vendedor_id)) {
-          return { ok: false, codigo: 'vendedor_fuera_ambito', error: 'Ese vendedor no pertenece a tu equipo' }
+          return {
+            ok: false,
+            codigo: 'vendedor_fuera_ambito',
+            error: 'Ese vendedor no pertenece a tu equipo',
+          }
         }
         const id = uid()
         const lead: Lead = {
@@ -1722,54 +1854,57 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         setDatos((d) => ({ ...d, leads: [lead, ...d.leads] }))
         // El id viaja al servidor (si es UUID) para que el optimista y la fila
         // real sean LA MISMA identidad — un drawer abierto sobrevive al resync.
-        const persistido = persistirConDetalle(async () => {
-          const resultado = await insertarLead({
-            ...(UUID_RE.test(id) ? { id } : {}),
-            nombre_completo: nombre,
-            telefono,
-            correo: lead.correo ?? null,
-            dni,
-            genero,
-            fecha_nacimiento: fechaNacimiento,
-            distrito: lead.distrito ?? null,
-            origen: lead.origen,
-            etapa,
-            monto_estimado: lead.monto_estimado,
-            moneda: lead.moneda,
-            categoria_interes: lead.categoria_interes ?? null,
-            vendedor_id,
-            nota: lead.nota ?? null,
-          })
-          if (resultado.estado === 'reutilizado') {
-            // Resultado FUTURO (F2 del plan «lead libre»): el alta reabrió un
-            // lead existente. El servidor de hoy no lo emite; cuando nazca, el
-            // manejo real (refrescar ámbito, abrir la ficha reabierta) llega
-            // con su fase. Hasta entonces: fail-closed con recarga, jamás
-            // fingir que se creó otro lead.
-            throw new CrmApiError(
-              'El contacto tenía un lead anterior y fue retomado. Recarga para verlo.',
-              'CREACION_LEAD_CONTRACT',
-            )
-          }
-          if (resultado.estado !== 'creado') {
-            const presentacion = presentarDisponibilidadLead(resultado)
-            throw new CrmApiError(
-              presentacion.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
-              'CONTACTO_NO_DISPONIBLE',
-            )
-          }
-          if (resultado.lead_id !== id) {
-            throw new CrmApiError(
-              'El servidor confirmó una identidad de lead inesperada.',
-              'CREACION_LEAD_CONTRACT',
-            )
-          }
-        }, {
-          notificarError: false,
-          revertirOptimista: () => {
-            setDatos((d) => ({ ...d, leads: d.leads.filter((item) => item.id !== id) }))
+        const persistido = persistirConDetalle(
+          async () => {
+            const resultado = await insertarLead({
+              ...(UUID_RE.test(id) ? { id } : {}),
+              nombre_completo: nombre,
+              telefono,
+              correo: lead.correo ?? null,
+              dni,
+              genero,
+              fecha_nacimiento: fechaNacimiento,
+              distrito: lead.distrito ?? null,
+              origen: lead.origen,
+              etapa,
+              monto_estimado: lead.monto_estimado,
+              moneda: lead.moneda,
+              categoria_interes: lead.categoria_interes ?? null,
+              vendedor_id,
+              nota: lead.nota ?? null,
+            })
+            if (resultado.estado === 'reutilizado') {
+              // Resultado FUTURO (F2 del plan «lead libre»): el alta reabrió un
+              // lead existente. El servidor de hoy no lo emite; cuando nazca, el
+              // manejo real (refrescar ámbito, abrir la ficha reabierta) llega
+              // con su fase. Hasta entonces: fail-closed con recarga, jamás
+              // fingir que se creó otro lead.
+              throw new CrmApiError(
+                'El contacto tenía un lead anterior y fue retomado. Recarga para verlo.',
+                'CREACION_LEAD_CONTRACT',
+              )
+            }
+            if (resultado.estado !== 'creado') {
+              const presentacion = presentarDisponibilidadLead(resultado)
+              throw new CrmApiError(
+                presentacion.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
+                'CONTACTO_NO_DISPONIBLE',
+              )
+            }
+            if (resultado.lead_id !== id) {
+              throw new CrmApiError('El servidor confirmó una identidad de lead inesperada.', 'CREACION_LEAD_CONTRACT')
+            }
           },
-        })
+          {
+            notificarError: false,
+            revertirOptimista: () => {
+              setDatos((d) => ({
+                ...d,
+                leads: d.leads.filter((item) => item.id !== id),
+              }))
+            },
+          },
+        )
         return { ok: true, id, persistido }
       },
 
@@ -1831,23 +1966,43 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         if (TERMINALES_K.has(actual.etapa)) {
-          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para moverlo de etapa' }
+          return {
+            ok: false,
+            codigo: 'lead_cerrado',
+            error: 'El lead está cerrado — reábrelo para moverlo de etapa',
+          }
         }
         if (TERMINALES_K.has(etapa)) {
-          return { ok: false, codigo: 'cerrar_con_flujo', error: 'Usa convertir o descartar para cerrar un lead' }
+          return {
+            ok: false,
+            codigo: 'cerrar_con_flujo',
+            error: 'Usa convertir o descartar para cerrar un lead',
+          }
         }
         // El CAPITAL REAL de la propuesta viaja EN LA MISMA ESCRITURA que la
         // etapa, no en una segunda. Con dos `actualizarLead` separados, si la
         // del monto fallaba el lead quedaba en "Propuesta enviada" con la cifra
         // vieja — exactamente el bug que esto viene a corregir, ahora invisible
         // y con todo el mundo creyendo que se arregló.
-        let parche: { etapa: EtapaActiva; monto_estimado?: number; moneda?: Moneda } = { etapa }
+        let parche: {
+          etapa: EtapaActiva
+          monto_estimado?: number
+          moneda?: Moneda
+        } = { etapa }
         if (capital) {
-          const v = validarCamposLead({ monto_estimado: capital.monto_estimado, moneda: capital.moneda })
+          const v = validarCamposLead({
+            monto_estimado: capital.monto_estimado,
+            moneda: capital.moneda,
+          })
           if (!v.ok) return v
           const { monto_estimado, moneda } = v.valores
           if (monto_estimado == null || moneda == null) {
-            return { ok: false, codigo: 'monto_invalido', campo: 'monto_estimado', error: 'Capital inválido' }
+            return {
+              ok: false,
+              codigo: 'monto_invalido',
+              campo: 'monto_estimado',
+              error: 'Capital inválido',
+            }
           }
           parche = { etapa, monto_estimado, moneda }
         }
@@ -1869,7 +2024,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return noEncontrado()
-        if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        if (TERMINALES_K.has(actual.etapa))
+          return {
+            ok: false,
+            codigo: 'lead_cerrado',
+            error: 'El lead ya está cerrado',
+          }
         // «No responde» exige intentos registrados: es una afirmación de hecho
         // sobre el cliente, no una opinión. Doble defensa del gate de la ficha
         // (la UI ya deshabilita la opción); aquí se sostiene aunque alguien
@@ -1887,11 +2047,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const detalle = `${ETAPA_INFO[actual.etapa].label} → ${ETAPA_INFO.descartado.label} · Motivo: ${labelMotivo}${notaLimpia ? ` — ${notaLimpia}` : ''}`
         // La nota del descarte queda inmutable en la actividad del timeline;
         // NO pisa la nota original del lead (era destructivo y redundante).
-        aplicar(
-          id,
-          { etapa: 'descartado', motivo_descarte: motivo },
-          actividadAuto(id, 'cambio_etapa', detalle),
-        )
+        aplicar(id, { etapa: 'descartado', motivo_descarte: motivo }, actividadAuto(id, 'cambio_etapa', detalle))
         // En real el trigger escribe el cambio_etapa genérico (sin motivo ni
         // nota); la nota libre del descarte se preserva como actividad 'nota'
         // aparte (el motivo ya viaja en la columna motivo_descarte). Son dos
@@ -1901,7 +2057,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // nota no se guardó (el descarte es correcto). La atomicidad real (un
         // RPC crm.descartar_lead) llega con el bloque 6, que ya toca la BD.
         persistir(async () => {
-          await actualizarLead(id, { etapa: 'descartado', motivo_descarte: motivo })
+          await actualizarLead(id, {
+            etapa: 'descartado',
+            motivo_descarte: motivo,
+          })
           if (notaLimpia) {
             try {
               await insertarActividad({
@@ -1924,7 +2083,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return noEncontrado()
-        if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        if (TERMINALES_K.has(actual.etapa))
+          return {
+            ok: false,
+            codigo: 'lead_cerrado',
+            error: 'El lead ya está cerrado',
+          }
         if (!actual.vendedor_id) {
           return {
             ok: false,
@@ -1938,12 +2102,20 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // `crm-convertir-lead` desde la ficha (DialogConvertir). Marcar la etapa
           // por aquí dejaría un "convertido" sin cliente detrás.
           toast.error('Usa "Convertir a cliente" en la ficha del lead')
-          return { ok: false, codigo: 'fuente_no_habilitada', error: 'Conversión no disponible por esta vía' }
+          return {
+            ok: false,
+            codigo: 'fuente_no_habilitada',
+            error: 'Conversión no disponible por esta vía',
+          }
         }
         aplicar(
           id,
           { etapa: 'convertido', motivo_descarte: null },
-          actividadAuto(id, 'conversion', `Convertido a cliente desde ${ETAPA_INFO[actual.etapa].label}${yo?.demo ? ' (demo)' : ''}`),
+          actividadAuto(
+            id,
+            'conversion',
+            `Convertido a cliente desde ${ETAPA_INFO[actual.etapa].label}${yo?.demo ? ' (demo)' : ''}`,
+          ),
         )
         return { ok: true }
       },
@@ -1953,7 +2125,12 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const actual = buscar(id)
         if (!actual) return noEncontrado()
-        if (TERMINALES_K.has(actual.etapa)) return { ok: false, codigo: 'lead_cerrado', error: 'El lead ya está cerrado' }
+        if (TERMINALES_K.has(actual.etapa))
+          return {
+            ok: false,
+            codigo: 'lead_cerrado',
+            error: 'El lead ya está cerrado',
+          }
         if (!actual.vendedor_id) {
           return {
             ok: false,
@@ -1966,7 +2143,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // de verdad); marcar la etapa por aquí dejaría un convertido sin
           // cierre detrás — y la P4 del servidor lo rechazaría igual.
           toast.error('Usa "Convertir" en la ficha del lead')
-          return { ok: false, codigo: 'fuente_no_habilitada', error: 'Conversión no disponible por esta vía' }
+          return {
+            ok: false,
+            codigo: 'fuente_no_habilitada',
+            error: 'Conversión no disponible por esta vía',
+          }
         }
         // Capturada ANTES del setState: el narrowing del guard de arriba no
         // sobrevive dentro del callback (es propiedad, no constante).
@@ -2009,19 +2190,31 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const limpio = motivo.trim()
         if (!limpio) {
-          return { ok: false, codigo: 'motivo_requerido', error: 'Escribe el motivo de la anulación' }
+          return {
+            ok: false,
+            codigo: 'motivo_requerido',
+            error: 'Escribe el motivo de la anulación',
+          }
         }
         const cierre = cierresExternosDemo.find((c) => c.cierreId === cierreId)
         if (!cierre) return noEncontrado()
         if (cierre.anuladoEn) {
-          return { ok: false, codigo: 'ya_anulado', error: 'Ese cierre ya estaba anulado' }
+          return {
+            ok: false,
+            codigo: 'ya_anulado',
+            error: 'Ese cierre ya estaba anulado',
+          }
         }
         // El lead NO se reabre, igual que en el servidor: un convertido es
         // terminal. Lo que se va es el dinero y la conversión.
         setCierresExternosDemo((previos) =>
           previos.map((c) =>
             c.cierreId === cierreId
-              ? { ...c, anuladoEn: new Date().toISOString(), motivoAnulacion: limpio }
+              ? {
+                  ...c,
+                  anuladoEn: new Date().toISOString(),
+                  motivoAnulacion: limpio,
+                }
               : c,
           ),
         )
@@ -2033,7 +2226,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         const limpio = motivo.trim()
         if (!limpio) {
-          return { ok: false, codigo: 'motivo_requerido', error: 'Escribe el motivo de la anulación' }
+          return {
+            ok: false,
+            codigo: 'motivo_requerido',
+            error: 'Escribe el motivo de la anulación',
+          }
         }
         const lead = buscar(leadId)
         if (!lead) return noEncontrado()
@@ -2055,7 +2252,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           }
         }
         if (anuladosAvanceDemo.some((a) => a.leadId === leadId)) {
-          return { ok: false, codigo: 'ya_anulado', error: 'Ese cierre ya estaba anulado' }
+          return {
+            ok: false,
+            codigo: 'ya_anulado',
+            error: 'Ese cierre ya estaba anulado',
+          }
         }
         // El lead NO se reabre, igual que en el servidor: un convertido es
         // terminal. Lo que se va es el mérito, no el cliente.
@@ -2091,7 +2292,11 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         if (actual.etapa !== 'descartado') {
-          return { ok: false, codigo: 'solo_reabrir_descartado', error: 'Solo se puede reabrir un lead descartado' }
+          return {
+            ok: false,
+            codigo: 'solo_reabrir_descartado',
+            error: 'Solo se puede reabrir un lead descartado',
+          }
         }
         const choque = conflictoDedup(datos.leads, actual.telefono, actual.dni ?? null, id, idsDelAmbito)
         if (choque) return choque
@@ -2112,10 +2317,18 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // Doble defensa (el tipo TS se borra en runtime): los tipos automáticos
         // los emite SOLO el store, y un lead cerrado no recibe actividad manual.
         if (TIPOS_AUTO_K.has(tipo)) {
-          return { ok: false, codigo: 'tipo_actividad_reservado', error: 'Ese tipo de actividad lo genera el sistema — no se registra a mano' }
+          return {
+            ok: false,
+            codigo: 'tipo_actividad_reservado',
+            error: 'Ese tipo de actividad lo genera el sistema — no se registra a mano',
+          }
         }
         if (TERMINALES_K.has(actual.etapa)) {
-          return { ok: false, codigo: 'lead_cerrado', error: 'El lead está cerrado — reábrelo para registrar actividad' }
+          return {
+            ok: false,
+            codigo: 'lead_cerrado',
+            error: 'El lead está cerrado — reábrelo para registrar actividad',
+          }
         }
         const act = actividadAuto(id, tipo, detalle?.trim() || null)
         // AVANCE AUTOMÁTICO DE ETAPA (pedido de Miguel 2026-07-25). La verdad la
@@ -2137,12 +2350,14 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           // El `cambio_etapa` va DELANTE: ocurrió después del contacto.
           actividades: actEtapa ? [actEtapa, act, ...d.actividades] : [act, ...d.actividades],
         }))
-        persistir(() => insertarActividad({
-          lead_id: id,
-          tipo,
-          detalle: act.detalle,
-          creado_por: miId,
-        }))
+        persistir(() =>
+          insertarActividad({
+            lead_id: id,
+            tipo,
+            detalle: act.detalle,
+            creado_por: miId,
+          }),
+        )
         return avance ? { ok: true, avance } : { ok: true }
       },
 
@@ -2151,36 +2366,51 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (bloqueo) return bloqueo
         if (!can(rol, 'reasignar')) {
           toast.error('No tienes permiso para reasignar leads')
-          return { ok: false, codigo: 'sin_permiso_reasignar', error: 'Sin permiso para reasignar' }
+          return {
+            ok: false,
+            codigo: 'sin_permiso_reasignar',
+            error: 'Sin permiso para reasignar',
+          }
         }
         const actual = buscar(id)
         if (!actual) return noEncontrado()
         const nuevo = vendedorId ? equipo.find((m) => m.perfil_id === vendedorId) : undefined
-        if (vendedorId && !nuevo) return { ok: false, codigo: 'vendedor_no_encontrado', error: 'Vendedor no encontrado' }
+        if (vendedorId && !nuevo)
+          return {
+            ok: false,
+            codigo: 'vendedor_no_encontrado',
+            error: 'Vendedor no encontrado',
+          }
         // Espejo del WITH CHECK de leads_update: supervisor solo dentro de su equipo.
         if (vendedorFueraDeAmbito(vendedorId)) {
-          return { ok: false, codigo: 'vendedor_fuera_ambito', error: 'Ese vendedor no pertenece a tu equipo' }
+          return {
+            ok: false,
+            codigo: 'vendedor_fuera_ambito',
+            error: 'Ese vendedor no pertenece a tu equipo',
+          }
         }
         const vendedorDestino = nuevo?.perfil_id ?? null
         const supervisorDestino = nuevo ? null : rol === 'supervisor' ? miId : null
-        if ((actual.vendedor_id ?? null) === vendedorDestino
-            && (actual.asignado_supervisor_id ?? null) === supervisorDestino) {
+        if (
+          (actual.vendedor_id ?? null) === vendedorDestino &&
+          (actual.asignado_supervisor_id ?? null) === supervisorDestino
+        ) {
           return { ok: true }
         }
         const supervisorAnterior = actual.asignado_supervisor_id
           ? equipo.find((m) => m.perfil_id === actual.asignado_supervisor_id)?.nombre_completo
           : null
         const supervisorNuevo = supervisorDestino
-          ? equipo.find((m) => m.perfil_id === supervisorDestino)?.nombre_completo
-            ?? (supervisorDestino === yo?.id ? yo.nombre_completo : null)
+          ? (equipo.find((m) => m.perfil_id === supervisorDestino)?.nombre_completo ??
+            (supervisorDestino === yo?.id ? yo.nombre_completo : null))
           : null
         const tenenciaAnterior = actual.vendedor_id
-          ? actual.vendedor_nombre ?? 'Analista sin nombre'
+          ? (actual.vendedor_nombre ?? 'Analista sin nombre')
           : actual.asignado_supervisor_id
             ? `Bandeja de ${supervisorAnterior ?? 'supervisor'}`
             : 'Sin asignar'
         const tenenciaNueva = vendedorDestino
-          ? nuevo?.nombre_completo ?? 'Analista sin nombre'
+          ? (nuevo?.nombre_completo ?? 'Analista sin nombre')
           : supervisorDestino
             ? `Bandeja de ${supervisorNuevo ?? 'supervisor'}`
             : 'Sin asignar'
@@ -2193,40 +2423,51 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             // supervisor lo retiene en la SUYA (gerencia parkea sin bandeja).
             asignado_supervisor_id: supervisorDestino,
           },
-          actividadAuto(
-            id,
-            'reasignacion',
-            `${tenenciaAnterior} → ${tenenciaNueva}`,
-          ),
+          actividadAuto(id, 'reasignacion', `${tenenciaAnterior} → ${tenenciaNueva}`),
         )
         // La actividad real la emite el trigger trg_leads_reasignacion.
-        persistir(() => actualizarLead(id, {
-          vendedor_id: vendedorDestino,
-          asignado_supervisor_id: supervisorDestino,
-        }))
+        persistir(() =>
+          actualizarLead(id, {
+            vendedor_id: vendedorDestino,
+            asignado_supervisor_id: supervisorDestino,
+          }),
+        )
         return { ok: true }
       },
 
       // El flujo de conversión (edge) escribe server-side; aquí se trae la verdad.
       recargar: () => (realActivo ? resincronizarReal() : Promise.resolve(true)),
     }
-  }, [datos, tareas, yo, ambito, demoActivo, realActivo, equipo, auxiliares, resincronizarReal, cierresExternosDemo, anuladosAvanceDemo])
+  }, [
+    datos,
+    tareas,
+    yo,
+    ambito,
+    demoActivo,
+    realActivo,
+    equipo,
+    auxiliares,
+    resincronizarReal,
+    cierresExternosDemo,
+    anuladosAvanceDemo,
+  ])
 
   // Estado de la carga remota para la app (splash / error+reintento / workspace).
-  const estado = useMemo<StoreEstado>(() => ({
-    // Sesión real que aún no terminó de cargar y no falló: mostrar splash.
-    cargando: sesionReal && !realActivo && !errorReal,
-    error: sesionReal && errorReal,
-    reintentar: () => setIntentoReal((n) => n + 1),
-  }), [sesionReal, realActivo, errorReal])
+  const estado = useMemo<StoreEstado>(
+    () => ({
+      // Sesión real que aún no terminó de cargar y no falló: mostrar splash.
+      cargando: sesionReal && !realActivo && !errorReal,
+      error: sesionReal && errorReal,
+      reintentar: () => setIntentoReal((n) => n + 1),
+    }),
+    [sesionReal, realActivo, errorReal],
+  )
 
   return (
     <StoreDataContext.Provider value={api}>
       <StoreEstadoContext.Provider value={estado}>
         <PanelActionsContext.Provider value={panelActions}>
-          <PanelStateContext.Provider value={panelState}>
-            {children}
-          </PanelStateContext.Provider>
+          <PanelStateContext.Provider value={panelState}>{children}</PanelStateContext.Provider>
         </PanelActionsContext.Provider>
       </StoreEstadoContext.Provider>
     </StoreDataContext.Provider>

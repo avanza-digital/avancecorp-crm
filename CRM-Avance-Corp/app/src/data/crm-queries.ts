@@ -1,10 +1,4 @@
-import {
-  useInfiniteQuery,
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type QueryKey,
-} from '@tanstack/react-query'
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient, type QueryKey } from '@tanstack/react-query'
 import type { CursorCartera, FiltrosCartera, PaginaCartera } from './crm-api'
 import type {
   AnularCierreAvanceDatos,
@@ -24,6 +18,7 @@ import {
   obtenerCierresEstado,
   obtenerCierresExternos,
   listarCarteraPagina,
+  listarActividadesCliente,
   listarClientes,
   listarColaAccion,
   listarCuentasBancariasCliente,
@@ -42,6 +37,7 @@ import {
   listarMetricasPagosMes,
   listarMetricasVencimientos,
   listarMisContratos,
+  listarOperacionesCartera,
   listarReconocimientosAlertas,
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
@@ -66,8 +62,7 @@ export const crmQueryKeys = {
   productosSeleccionables: () => [...crmQueryKeys.raiz, 'productos-seleccionables'] as const,
   configMetas: (periodo: string) => [...crmQueryKeys.config(), 'metas', periodo] as const,
   configSla: () => [...crmQueryKeys.config(), 'sla'] as const,
-  metricasSla: (desde: string, hasta: string) =>
-    [...crmQueryKeys.metricas(), 'sla', desde, hasta] as const,
+  metricasSla: (desde: string, hasta: string) => [...crmQueryKeys.metricas(), 'sla', desde, hasta] as const,
   estadoSlaLeads: () => [...crmQueryKeys.raiz, 'sla', 'estado-leads'] as const,
   recordatoriosDisponibilidad: () =>
     [...crmQueryKeys.raiz, 'recordatorios-disponibilidad'] as const,
@@ -77,6 +72,7 @@ export const crmQueryKeys = {
   // logout (queryClient.clear) y las invalidaciones jerárquicas la cubran.
   clientes: () => [...crmQueryKeys.raiz, 'clientes'] as const,
   contratos: () => [...crmQueryKeys.raiz, 'contratos'] as const,
+  operacionesCartera: () => [...crmQueryKeys.contratos(), 'operaciones-cartera'] as const,
   // Detalle POR REGISTRO colgado del PREFIJO de su lista: invalidar contratos()
   // tras corregir cubre lista + cronograma + titulares de UNA sola pasada
   // (matching jerárquico de TanStack) — actualizar_contrato REGENERA el
@@ -85,6 +81,8 @@ export const crmQueryKeys = {
   cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
   titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
+  actividadesCliente: (clienteId: string) =>
+    [...crmQueryKeys.clientes(), clienteId, 'actividades-comerciales'] as const,
   datosLegalesContrato: (clienteId: string) =>
     [...crmQueryKeys.clientes(), clienteId, 'datos-legales-contrato'] as const,
   cuentasBancarias: (clienteId: string, moneda: 'PEN' | 'USD') =>
@@ -108,8 +106,7 @@ export const crmQueryKeys = {
     [...crmQueryKeys.metricas(), 'conversiones-equipo', desde, hasta] as const,
   // La conversión mensual ponderada (LA definición). También con clave propia y
   // por el mismo motivo: el ámbito lo recorta el servidor según quién pregunta.
-  conversionMensual: (periodo: string) =>
-    [...crmQueryKeys.metricas(), 'conversion-mensual', periodo] as const,
+  conversionMensual: (periodo: string) => [...crmQueryKeys.metricas(), 'conversion-mensual', periodo] as const,
   // El estado de la maquinaria del cierre de MES (no de los cierres de venta).
   // Sin parámetros: habla del reloj, no del período que se esté mirando.
   cierreMesEstado: () => [...crmQueryKeys.raiz, 'cierre-mes-estado'] as const,
@@ -117,16 +114,13 @@ export const crmQueryKeys = {
   // el ámbito lo recorta el servidor. El builder SIN periodo existe para que la
   // mutación de convertir invalide todos los meses cacheados de una pasada.
   cierresExternosPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-externos'] as const,
-  cierresExternos: (periodo: string) =>
-    [...crmQueryKeys.cierresExternosPrefijo(), periodo] as const,
+  cierresExternos: (periodo: string) => [...crmQueryKeys.cierresExternosPrefijo(), periodo] as const,
   // El estado del cierre (canal + anulación) de un LOTE de leads. Cuelga del
   // prefijo métrico —anular mueve cuota y conversión— y la clave incluye los ids
   // YA normalizados: sin eso cada render pediría lo mismo con una clave nueva.
   cierresEstadoPrefijo: () => [...crmQueryKeys.metricas(), 'cierres-estado'] as const,
-  cierresEstado: (leadIds: readonly string[]) =>
-    [...crmQueryKeys.cierresEstadoPrefijo(), leadIds.join(',')] as const,
-  metricasReuniones: (desde: string, hasta: string) =>
-    [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
+  cierresEstado: (leadIds: readonly string[]) => [...crmQueryKeys.cierresEstadoPrefijo(), leadIds.join(',')] as const,
+  metricasReuniones: (desde: string, hasta: string) => [...crmQueryKeys.metricas(), 'reuniones', desde, hasta] as const,
   // Métricas del ÁMBITO OPERATIVO (RPC de F1: los tiles dejan de contar filas).
   // Prefijo PROPIO, separado de metricas(): el puente transitorio del store
   // (persistir/resincronizarReal) las invalida tras CADA mutación de leads, y
@@ -136,8 +130,7 @@ export const crmQueryKeys = {
   resumenCartera: () => [...crmQueryKeys.metricasAmbito(), 'resumen-cartera'] as const,
   colaAccion: (limite: number) => [...crmQueryKeys.metricasAmbito(), 'cola-accion', limite] as const,
   metricasVendedores: () => [...crmQueryKeys.metricasAmbito(), 'metricas-vendedores'] as const,
-  reporteDerivacionesEquipoPrefijo: () =>
-    [...crmQueryKeys.metricasAmbito(), 'reporte-derivaciones-equipo'] as const,
+  reporteDerivacionesEquipoPrefijo: () => [...crmQueryKeys.metricasAmbito(), 'reporte-derivaciones-equipo'] as const,
   reporteDerivacionesEquipo: (desde: string, hasta: string) =>
     [...crmQueryKeys.reporteDerivacionesEquipoPrefijo(), desde, hasta] as const,
   // Cuelga del MISMO prefijo aunque su ámbito sea la cola GLOBAL (no el del
@@ -170,6 +163,15 @@ export function useContratos(habilitada = true) {
   return useQuery({
     queryKey: crmQueryKeys.contratos(),
     queryFn: ({ signal }) => listarMisContratos(signal),
+    enabled: habilitada,
+  })
+}
+
+/** Renovaciones/upgrades del ámbito con su separación económica. */
+export function useOperacionesCartera(habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.operacionesCartera(),
+    queryFn: ({ signal }) => listarOperacionesCartera(signal),
     enabled: habilitada,
   })
 }
@@ -217,11 +219,7 @@ export function useCronograma(contratoId: string, habilitada = true) {
  * SIEMPRE al abrir, jamás fiarse de una copia cacheada por el detalle. El
  * detalle (solo lectura) usa el staleTime por defecto.
  */
-export function useTitulares(
-  contratoId: string,
-  habilitada = true,
-  opciones: { staleTime?: number } = {},
-) {
+export function useTitulares(contratoId: string, habilitada = true, opciones: { staleTime?: number } = {}) {
   return useQuery({
     queryKey: crmQueryKeys.titulares(contratoId),
     queryFn: ({ signal }) => obtenerTitulares(contratoId, signal),
@@ -245,6 +243,15 @@ export function useClienteDetalle(clienteId: string, habilitada = true) {
   })
 }
 
+/** Timeline postventa: no toca el SLA ni las etapas de leads. */
+export function useActividadesCliente(clienteId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.actividadesCliente(clienteId),
+    queryFn: ({ signal }) => listarActividadesCliente(clienteId, signal),
+    enabled: habilitada,
+  })
+}
+
 /**
  * Qué dato legal le falta al cliente (o al propio analista) para poder emitir
  * el contrato. `staleTime: 0` OBLIGATORIO: entre abrir el formulario y pulsar
@@ -265,11 +272,7 @@ export function useDatosLegalesContrato(clienteId: string, habilitada = true) {
  * nuevo y las muestra la ficha "Ver detalle". Siempre obsoletas al desmontar:
  * son datos sensibles y una cuenta puede haberse versionado en otra sesión.
  */
-export function useCuentasBancariasCliente(
-  clienteId: string,
-  moneda: 'PEN' | 'USD',
-  habilitada = true,
-) {
+export function useCuentasBancariasCliente(clienteId: string, moneda: 'PEN' | 'USD', habilitada = true) {
   return useQuery({
     queryKey: crmQueryKeys.cuentasBancarias(clienteId, moneda),
     queryFn: ({ signal }) => listarCuentasBancariasCliente(clienteId, moneda, signal),
@@ -398,13 +401,7 @@ interface ConsultaMetricaPorPeriodo<TData> {
 
 /** Contrato común de las fotografías F2: misma habilitación fail-closed y el
  * periodo siempre forma parte de la clave y del payload del RPC. */
-function useMetricaPorPeriodo<TData>({
-  queryKey,
-  cargar,
-  habilitada,
-  desde,
-  hasta,
-}: ConsultaMetricaPorPeriodo<TData>) {
+function useMetricaPorPeriodo<TData>({ queryKey, cargar, habilitada, desde, hasta }: ConsultaMetricaPorPeriodo<TData>) {
   return useQuery({
     queryKey,
     queryFn: ({ signal }) => cargar(signal),
@@ -416,11 +413,7 @@ function useMetricaPorPeriodo<TData>({
  * Foto histórica de derivaciones del equipo directo del supervisor. La clave
  * contiene ambas fechas y el payload se valida de nuevo en crm-api.
  */
-export function useReporteDerivacionesEquipo(
-  habilitada: boolean,
-  desde: string,
-  hasta: string,
-) {
+export function useReporteDerivacionesEquipo(habilitada: boolean, desde: string, hasta: string) {
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.reporteDerivacionesEquipo(desde, hasta),
     cargar: (signal) => listarReporteDerivacionesEquipo(desde, hasta, signal),
@@ -435,11 +428,7 @@ export function useReporteDerivacionesEquipo(
  * America/Lima. Las fechas forman parte de la clave: cambiar el periodo nunca
  * reutiliza silenciosamente la fotografía anterior.
  */
-export function useMetricasDistribucionLeads(
-  habilitada: boolean,
-  desde: string,
-  hasta: string,
-) {
+export function useMetricasDistribucionLeads(habilitada: boolean, desde: string, hasta: string) {
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasDistribucionLeads(desde, hasta),
     cargar: (signal) => listarMetricasDistribucionLeads(desde, hasta, signal),
@@ -455,11 +444,7 @@ export function useMetricasDistribucionLeads(
  * distribución, las fechas forman parte de la clave: cambiar el periodo nunca
  * reutiliza silenciosamente la fotografía anterior.
  */
-export function useMetricasAgenda(
-  habilitada: boolean,
-  desde: string,
-  hasta: string,
-) {
+export function useMetricasAgenda(habilitada: boolean, desde: string, hasta: string) {
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasAgenda(desde, hasta),
     cargar: (signal) => listarMetricasAgenda(desde, hasta, signal),
@@ -469,11 +454,7 @@ export function useMetricasAgenda(
   })
 }
 
-export function useMetricasConversiones(
-  habilitada: boolean,
-  desde: string,
-  hasta: string,
-) {
+export function useMetricasConversiones(habilitada: boolean, desde: string, hasta: string) {
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasConversiones(desde, hasta),
     cargar: (signal) => listarMetricasConversiones(desde, hasta, signal),
@@ -526,11 +507,7 @@ export function useCierreMesEstado(habilitada: boolean) {
 }
 
 /** Ranking de conversión del equipo del actor (decisión #10, parte b2). */
-export function useMetricasConversionesEquipo(
-  habilitada: boolean,
-  desde: string,
-  hasta: string,
-) {
+export function useMetricasConversionesEquipo(habilitada: boolean, desde: string, hasta: string) {
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasConversionesEquipo(desde, hasta),
     cargar: (signal) => listarMetricasConversionesEquipo(desde, hasta, signal),
@@ -540,11 +517,7 @@ export function useMetricasConversionesEquipo(
   })
 }
 
-export function useMetricasReuniones(
-  habilitada: boolean,
-  desde: string,
-  hasta: string,
-) {
+export function useMetricasReuniones(habilitada: boolean, desde: string, hasta: string) {
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasReuniones(desde, hasta),
     cargar: (signal) => listarMetricasReuniones(desde, hasta, signal),
@@ -558,12 +531,15 @@ export function useMetricasReuniones(
 export function useDerivarLeadsEquipo() {
   const queryClient = useQueryClient()
   return useMutation({
-    mutationFn: (derivaciones: readonly DerivacionEquipoPendiente[]) =>
-      derivarLeadsEquipo(derivaciones),
+    mutationFn: (derivaciones: readonly DerivacionEquipoPendiente[]) => derivarLeadsEquipo(derivaciones),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.reporteDerivacionesEquipoPrefijo() }),
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.reporteDerivacionesEquipoPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasAmbito(),
+        }),
         queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
       ])
     },
@@ -577,8 +553,12 @@ export function useRevertirDerivacionEquipo() {
     mutationFn: (leadId: string) => revertirDerivacionEquipo(leadId),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.reporteDerivacionesEquipoPrefijo() }),
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.reporteDerivacionesEquipoPrefijo(),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasAmbito(),
+        }),
         queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
       ])
     },
@@ -597,7 +577,9 @@ export function useActualizarCapacidadLeadsObjetivo() {
     mutationFn: ({ analistaId, capacidad }: ActualizarCapacidadLeadsObjetivoVariables) =>
       actualizarCapacidadLeadsObjetivo(analistaId, capacidad),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+      await queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricas(),
+      })
     },
   })
 }
@@ -632,12 +614,16 @@ export function useConvertirLeadExterno() {
     mutationFn: (datos: ConvertirLeadExternoDatos) => convertirLeadExterno(datos),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresExternosPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.cierresExternosPrefijo(),
+        }),
         queryClient.invalidateQueries({
           queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
         }),
         queryClient.invalidateQueries({ queryKey: crmQueryKeys.leads() }),
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasAmbito(),
+        }),
       ])
     },
   })
@@ -651,7 +637,9 @@ export function useCorregirCierreExterno() {
   return useMutation({
     mutationFn: (datos: CorregirCierreExternoDatos) => corregirCierreExterno(datos),
     onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+      await queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricas(),
+      })
     },
   })
 }
@@ -668,14 +656,20 @@ export function useAnularCierreExterno() {
     mutationFn: (datos: AnularCierreExternoDatos) => anularCierreExterno(datos),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresExternosPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.cierresExternosPrefijo(),
+        }),
         queryClient.invalidateQueries({
           queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
         }),
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasAmbito(),
+        }),
         // El chip «CIERRE ANULADO» de la cartera sale de cierres_estado_fn, que
         // responde por los DOS canales: anular en cooperativa también lo mueve.
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresEstadoPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.cierresEstadoPrefijo(),
+        }),
       ])
     },
   })
@@ -716,11 +710,15 @@ export function useAnularCierreAvance() {
     mutationFn: (datos: AnularCierreAvanceDatos) => anularCierreAvance(datos),
     onSuccess: async () => {
       await Promise.all([
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.cierresEstadoPrefijo() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.cierresEstadoPrefijo(),
+        }),
         queryClient.invalidateQueries({
           queryKey: [...crmQueryKeys.metricas(), 'conversion-mensual'],
         }),
-        queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricasAmbito() }),
+        queryClient.invalidateQueries({
+          queryKey: crmQueryKeys.metricasAmbito(),
+        }),
       ])
     },
   })

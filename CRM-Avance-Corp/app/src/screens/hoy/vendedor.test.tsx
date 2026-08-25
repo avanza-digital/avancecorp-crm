@@ -24,11 +24,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
-import {
-  objetivosCero,
-  type CumplimientoMetasJerarquico,
-  type ObjetivosPorRol,
-} from '@/lib/objetivos'
+import { objetivosCero, type CumplimientoMetasJerarquico, type ObjetivosPorRol } from '@/lib/objetivos'
 import { money } from '@/lib/format'
 import type { Actividad, Lead, Tarea, Yo } from '@/lib/tipos'
 import type { ConversionMensual } from '@/lib/conversion-mensual'
@@ -87,17 +83,19 @@ vi.mock('@/lib/store-context', () => ({
     agenda: [],
     reprogramarTarea: () => ({ ok: true }),
     crearTarea,
-    tareasDe: (id: string) =>
-      TAREAS.filter((t) => t.lead_id === id && t.estado === 'pendiente' && t.activo),
+    tareasDe: (id: string) => TAREAS.filter((t) => t.lead_id === id && t.estado === 'pendiente' && t.activo),
   }),
   usePanelesActions: () => ({ abrirLead, abrirNuevoLead: () => {} }),
 }))
 // El tipo de cambio viene de una edge; aquí se fija para que el CONSOLIDADO sea
 // determinista. `TC = null` prueba el caso honesto: sin tasa, el total no puede
 // incluir los dólares y la pantalla tiene que decirlo.
-let TC: { promedio: number; fuente: string } | null = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
+let TC: { promedio: number; fuente: string } | null = {
+  promedio: 3.5,
+  fuente: 'BCRP · prom. 7d',
+}
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
-  ...await importOriginal<typeof import('@/lib/tipo-cambio')>(),
+  ...(await importOriginal<typeof import('@/lib/tipo-cambio')>()),
   useTipoCambio: () => ({ tc: TC, recargar: vi.fn() }),
 }))
 // El contador animado cuenta 0→N por requestAnimationFrame: con timers falsos
@@ -106,7 +104,12 @@ vi.mock('@/components/common/animated-value', () => ({
   AnimatedValue: ({ value }: { value: string }) => <>{value}</>,
 }))
 vi.mock('@/data/use-estado-sla-operativo', () => ({
-  useEstadoSlaOperativo: () => ({ indice: new Map(), cargando: false, error: null, recargar: vi.fn() }),
+  useEstadoSlaOperativo: () => ({
+    indice: new Map(),
+    cargando: false,
+    error: null,
+    recargar: vi.fn(),
+  }),
 }))
 
 // F1b: los hooks operativos se sustituyen por los ESPEJOS puros sobre los
@@ -133,9 +136,10 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
       tareas: never[],
       indice?: ReadonlyMap<string, never>,
     ) => ({
-      cola: COLA_CARGANDO || COLA_ERROR
-        ? null
-        : colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
+      cola:
+        COLA_CARGANDO || COLA_ERROR
+          ? null
+          : colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
       cargando: COLA_CARGANDO,
       error: COLA_ERROR ? new Error('cola no disponible') : null,
       recargar: vi.fn(),
@@ -202,7 +206,12 @@ const VENCIDOS = [
 const LEADS_VENCIDOS = VENCIDOS.map((v, i) => lead({ id: v.id, nombre_completo: `LEAD ${i + 1}` }))
 const ACTS_VENCIDOS = VENCIDOS.map((v) => contacto(v.id, '2026-07-05T15:00:00Z'))
 const TAREAS_VENCIDAS = VENCIDOS.map((v, i) =>
-  tarea({ id: `t-${i + 1}`, lead_id: v.id, titulo: `Tarea ${i + 1}`, vence_en: v.vence }),
+  tarea({
+    id: `t-${i + 1}`,
+    lead_id: v.id,
+    titulo: `Tarea ${i + 1}`,
+    vence_en: v.vence,
+  }),
 )
 
 function montar(
@@ -231,7 +240,10 @@ function montar(
   ACTIVIDADES = over.actividades ?? []
   OBJETIVOS_ERROR = over.objetivosError ?? false
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
-  OBJETIVOS = { ...METAS_DEMO, vendedor: { ...METAS_DEMO.vendedor, ...over.objetivos } }
+  OBJETIVOS = {
+    ...METAS_DEMO,
+    vendedor: { ...METAS_DEMO.vendedor, ...over.objetivos },
+  }
   CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
   render(<HoyVendedor />)
 }
@@ -258,7 +270,11 @@ function cumplimientoVendedor(
       ...(metas === 'sin-metas'
         ? {
             conversionObjetivo: 0,
-            detalles: base.detalles.map((d) => ({ ...d, capitalObjetivo: 0, contratosObjetivo: 0 })),
+            detalles: base.detalles.map((d) => ({
+              ...d,
+              capitalObjetivo: 0,
+              contratosObjetivo: 0,
+            })),
           }
         : {}),
       ...(metaConversion == null ? {} : { conversionObjetivo: metaConversion }),
@@ -292,7 +308,12 @@ function conversionMensualPropia(
     conversion_pct: conversionPct,
     estado: divisor > 0 ? 'medible' : cierres > 0 ? 'solo_arrastre' : 'sin_actividad',
     procedencia: [],
-    referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+    referidos: {
+      recibidos: 0,
+      cerrados: 0,
+      dados_de_alta: 0,
+      aporta_pct: null,
+    },
     ...extras,
   }
   return {
@@ -343,11 +364,9 @@ function metaPenUsd(pen: number, usd: number): ObjetivosPorRol['vendedor'] {
   const base = objetivosCero('2026-07-01').vendedor
   return {
     ...base,
-    detalles: base.detalles.map((d) => (
-      d.categoria === 'nuevo'
-        ? { ...d, capitalObjetivo: d.moneda === 'PEN' ? pen : usd }
-        : d
-    )),
+    detalles: base.detalles.map((d) =>
+      d.categoria === 'nuevo' ? { ...d, capitalObjetivo: d.moneda === 'PEN' ? pen : usd } : d,
+    ),
   }
 }
 
@@ -414,13 +433,19 @@ describe('Hoy · vendedor — contrato perceptual de Ahora', () => {
       ),
     })
 
-    const ahora = screen.getByRole('region', { name: 'Tu siguiente movimiento' })
+    const ahora = screen.getByRole('region', {
+      name: 'Tu siguiente movimiento',
+    })
     expect(within(ahora).getAllByText(/^Prioridad 0[1-3]$/)).toHaveLength(3)
     expect(within(ahora).getByText('3 de 4 señales priorizadas')).toBeInTheDocument()
 
     const primera = within(ahora).getByText('LEAD PRIORIDAD 1').closest('article')
     expect(primera).not.toBeNull()
-    fireEvent.click(within(primera as HTMLElement).getByRole('button', { name: /ver ficha/i }))
+    fireEvent.click(
+      within(primera as HTMLElement).getByRole('button', {
+        name: /ver ficha/i,
+      }),
+    )
     expect(abrirLead).toHaveBeenCalledWith('l-1')
   })
 
@@ -460,8 +485,18 @@ describe('Hoy · vendedor — agenda héroe', () => {
     montar({
       leads: [lead({ id: 'l-1' }), lead({ id: 'l-2', nombre_completo: 'BRUNO DÍAZ' })],
       tareas: [
-        tarea({ id: 't-hoy', lead_id: 'l-1', titulo: 'Llamar a Ana', vence_en: '2026-07-15T20:00:00Z' }),
-        tarea({ id: 't-lejos', lead_id: 'l-2', titulo: 'Llamar a Bruno', vence_en: '2026-07-22T20:00:00Z' }),
+        tarea({
+          id: 't-hoy',
+          lead_id: 'l-1',
+          titulo: 'Llamar a Ana',
+          vence_en: '2026-07-15T20:00:00Z',
+        }),
+        tarea({
+          id: 't-lejos',
+          lead_id: 'l-2',
+          titulo: 'Llamar a Bruno',
+          vence_en: '2026-07-22T20:00:00Z',
+        }),
       ],
     })
 
@@ -475,7 +510,13 @@ describe('Hoy · vendedor — agenda héroe', () => {
 
   it('un día sin nada operable se lee VACÍO aunque haya agenda futura', () => {
     montar({
-      tareas: [tarea({ id: 't-lejos', titulo: 'Llamar a Ana', vence_en: '2026-07-30T20:00:00Z' })],
+      tareas: [
+        tarea({
+          id: 't-lejos',
+          titulo: 'Llamar a Ana',
+          vence_en: '2026-07-30T20:00:00Z',
+        }),
+      ],
     })
 
     expect(screen.getByText('Sin citas para hoy')).toBeInTheDocument()
@@ -484,7 +525,13 @@ describe('Hoy · vendedor — agenda héroe', () => {
 
   it('sigue al reloj vivo: la cita de hoy pasa a VENCIDA sola, sin recargar', () => {
     montar({
-      tareas: [tarea({ id: 't-hoy', titulo: 'Llamar a Ana', vence_en: '2026-07-15T15:00:30Z' })],
+      tareas: [
+        tarea({
+          id: 't-hoy',
+          titulo: 'Llamar a Ana',
+          vence_en: '2026-07-15T15:00:30Z',
+        }),
+      ],
     })
 
     expect(screen.queryByText('Vencida')).not.toBeInTheDocument()
@@ -504,7 +551,13 @@ describe('Hoy · vendedor — agenda héroe', () => {
       // Contacto real hace 10 días: sin él el lead caería en speed-to-lead,
       // que es la excepción que SÍ se queda en la cola.
       actividades: [contacto('l-1', '2026-07-05T15:00:00Z')],
-      tareas: [tarea({ id: 't-muerta', titulo: 'Llamar a Ana', vence_en: '2026-07-13T20:00:00Z' })],
+      tareas: [
+        tarea({
+          id: 't-muerta',
+          titulo: 'Llamar a Ana',
+          vence_en: '2026-07-13T20:00:00Z',
+        }),
+      ],
     })
 
     expect(screen.getByText('Vencida')).toBeInTheDocument()
@@ -522,7 +575,13 @@ describe('Hoy · vendedor — agenda héroe', () => {
   it('el speed-to-lead SÍ se queda en la cola aunque tenga una vencida (nunca se entierra)', () => {
     montar({
       leads: [lead({ id: 'l-1', nombre_completo: 'ANA TORRES', etapa: 'nuevo' })],
-      tareas: [tarea({ id: 't-muerta', titulo: 'Llamar a Ana', vence_en: '2026-07-13T20:00:00Z' })],
+      tareas: [
+        tarea({
+          id: 't-muerta',
+          titulo: 'Llamar a Ana',
+          vence_en: '2026-07-13T20:00:00Z',
+        }),
+      ],
     })
 
     expect(screen.getAllByText('ANA TORRES')).toHaveLength(1)
@@ -530,7 +589,11 @@ describe('Hoy · vendedor — agenda héroe', () => {
   })
 
   it('reparte las vencidas entre Ahora y Agenda sin perderlas ni repetirlas', () => {
-    montar({ leads: LEADS_VENCIDOS, actividades: ACTS_VENCIDOS, tareas: TAREAS_VENCIDAS })
+    montar({
+      leads: LEADS_VENCIDOS,
+      actividades: ACTS_VENCIDOS,
+      tareas: TAREAS_VENCIDAS,
+    })
 
     expect(screen.getByText('3 de 5 señales priorizadas')).toBeInTheDocument()
     for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
@@ -581,7 +644,12 @@ describe('Hoy · vendedor — agenda héroe', () => {
       // cola lo salta y su vencida solo se puede trabajar desde Agenda.
       tareas: [
         ...TAREAS_VENCIDAS,
-        tarea({ id: 't-futura', lead_id: 'l-5', titulo: 'Reunión con LEAD 5', vence_en: '2026-07-22T20:00:00Z' }),
+        tarea({
+          id: 't-futura',
+          lead_id: 'l-5',
+          titulo: 'Reunión con LEAD 5',
+          vence_en: '2026-07-22T20:00:00Z',
+        }),
       ],
     })
 
@@ -613,7 +681,12 @@ describe('Hoy · vendedor — capital en proceso', () => {
     montar({
       leads: [
         lead({ id: 'l-pen', moneda: 'PEN', monto_estimado: 120_000 }),
-        lead({ id: 'l-usd', nombre_completo: 'BRUNO DÍAZ', moneda: 'USD', monto_estimado: 40_000 }),
+        lead({
+          id: 'l-usd',
+          nombre_completo: 'BRUNO DÍAZ',
+          moneda: 'USD',
+          monto_estimado: 40_000,
+        }),
       ],
       actividades: [contacto('l-pen', '2026-07-14T15:00:00Z'), contacto('l-usd', '2026-07-14T15:00:00Z')],
     })
@@ -754,7 +827,10 @@ describe('Hoy · vendedor — meta del mes', () => {
   })
 
   it('no inventa una meta inicial de 15 % cuando no existe una revisión publicada', () => {
-    CONVERSION_MENSUAL = conversionMensualPropia(50, 4, { cierres_no_referidos: 2, numerador: 2 })
+    CONVERSION_MENSUAL = conversionMensualPropia(50, 4, {
+      cierres_no_referidos: 2,
+      numerador: 2,
+    })
     montar({
       objetivos: { conversionObjetivo: 0 },
       cumplimiento: cumplimientoVendedor(50, 2, 'sin-metas'),
@@ -767,7 +843,10 @@ describe('Hoy · vendedor — meta del mes', () => {
   })
 
   it('sin ninguna meta publicada mantiene neutrales las dimensiones que se pintan', () => {
-    CONVERSION_MENSUAL = conversionMensualPropia(100, 1, { cierres_no_referidos: 1, numerador: 1 })
+    CONVERSION_MENSUAL = conversionMensualPropia(100, 1, {
+      cierres_no_referidos: 1,
+      numerador: 1,
+    })
     montar({
       objetivos: objetivosCero('2026-07-01').vendedor,
       cumplimiento: cumplimientoVendedor(100, 1, 'sin-metas'),
@@ -822,10 +901,9 @@ describe('Hoy · vendedor — meta del mes', () => {
       cumplimiento: cumplimientoPenUsd(120_000, 20_000),
     })
 
-    const desglose = screen.getByText(
-      (_, el) => (el?.textContent ?? '').startsWith('S/ 120k + US$ 20k'),
-      { selector: 'p' },
-    )
+    const desglose = screen.getByText((_, el) => (el?.textContent ?? '').startsWith('S/ 120k + US$ 20k'), {
+      selector: 'p',
+    })
     // La tasa que se ROTULA es la que de verdad entró en el número.
     expect(desglose.textContent).toContain('TC S/ 3.5')
     expect(desglose.textContent).toContain('BCRP · prom. 7d')
@@ -851,8 +929,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     // El total cae a los soles solos (120k) — jamás se inventa una tasa…
     expect(screen.getByText('S/ 120k')).toBeInTheDocument()
     // …y el asesor tiene que enterarse de que le falta media moneda en el avance.
-    expect(screen.getByText(/sin tipo de cambio: el total NO incluye los dólares/))
-      .toBeInTheDocument()
+    expect(screen.getByText(/sin tipo de cambio: el total NO incluye los dólares/)).toBeInTheDocument()
   })
 
   // ⚠️ ESTE es el test que faltaba, y el que habría evitado un redespliegue: el
@@ -866,7 +943,11 @@ describe('Hoy · vendedor — meta del mes', () => {
     // — responsables vacío. El tile no inventa un 0 %: dice «sin leads
     // recibidos», que es la verdad.
     CONVERSION_MENSUAL = {
-      ...conversionMensualPropia(null, 0, { estado: 'sin_actividad', cierres_no_referidos: 0, numerador: 0 }),
+      ...conversionMensualPropia(null, 0, {
+        estado: 'sin_actividad',
+        cierres_no_referidos: 0,
+        numerador: 0,
+      }),
       responsables: [],
     }
     montar({
@@ -900,6 +981,28 @@ describe('Hoy · vendedor — meta del mes', () => {
   })
 })
 
+describe('Hoy · vendedor — gestiones de clientes', () => {
+  it('muestra en una franja postventa la reunión agendada desde Mi cartera', () => {
+    montar({
+      tareas: [
+        tarea({
+          id: 'tc-1',
+          lead_id: null,
+          perfil_id: 'cliente-1',
+          vendedor_id: 'v-1',
+          tipo: 'reunion',
+          titulo: 'Reunión con Rosa',
+        }),
+      ],
+    })
+
+    expect(screen.getByText('Clientes por gestionar hoy')).toBeInTheDocument()
+    expect(screen.getByText('Reunión con Rosa')).toBeInTheDocument()
+    expect(screen.getByText('Cliente')).toBeInTheDocument()
+    expect(abrirLead).not.toHaveBeenCalled()
+  })
+})
+
 describe('Hoy · vendedor — viernes de higiene', () => {
   it('las filas "Sin próxima acción" traen el botón Agendar', () => {
     montar({
@@ -914,7 +1017,9 @@ describe('Hoy · vendedor — viernes de higiene', () => {
     expect(screen.getByText(/Tienes 1 acción de preparación en “Después”/)).toBeInTheDocument()
     expect(screen.getByText('Sin próxima acción')).toBeInTheDocument()
 
-    const boton = screen.getByRole('button', { name: 'Agendar el siguiente paso con ANA TORRES' })
+    const boton = screen.getByRole('button', {
+      name: 'Agendar el siguiente paso con ANA TORRES',
+    })
     fireEvent.click(boton)
     expect(crearTarea).toHaveBeenCalledWith(expect.objectContaining({ lead_id: 'l-1', tipo: 'llamada' }))
   })
@@ -924,7 +1029,13 @@ describe('Hoy · vendedor — viernes de higiene', () => {
       ahora: VIERNES_2PM,
       leads: [lead({ id: 'l-1', nombre_completo: 'ANA TORRES' })],
       actividades: [contacto('l-1', '2026-07-10T15:00:00Z')],
-      tareas: [tarea({ id: 't-muerta', titulo: 'Llamar a Ana', vence_en: '2026-07-16T20:00:00Z' })],
+      tareas: [
+        tarea({
+          id: 't-muerta',
+          titulo: 'Llamar a Ana',
+          vence_en: '2026-07-16T20:00:00Z',
+        }),
+      ],
     })
 
     expect(screen.getByText('Después: viernes de higiene')).toBeInTheDocument()

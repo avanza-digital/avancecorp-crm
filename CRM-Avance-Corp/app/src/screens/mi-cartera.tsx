@@ -16,7 +16,20 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
-import { AlarmClock, ChevronRight, Coins, FileStack, Inbox, Search, UserX, Users2, Wallet } from 'lucide-react'
+import {
+  AlarmClock,
+  CalendarPlus,
+  ChevronRight,
+  Coins,
+  FileStack,
+  Inbox,
+  RefreshCw,
+  Search,
+  TrendingUp,
+  UserX,
+  Users2,
+  Wallet,
+} from 'lucide-react'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -31,6 +44,7 @@ import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ClienteForm } from '@/components/app/cliente-form'
 import { ClienteDetalle } from '@/components/app/cliente-detalle'
+import { ClienteGestion } from '@/components/app/cliente-gestion'
 import { ContratoNuevo, type ContratoCreadoLocal } from '@/components/app/contrato-nuevo'
 import { ContratoDetalle } from '@/components/app/contrato-detalle'
 import { ContratoCorregir } from '@/components/app/contrato-corregir'
@@ -41,9 +55,20 @@ import { can, puedeEliminarContratos, puedeEscribir } from '@/lib/roles'
 import { money, moneyK, primerNombre } from '@/lib/format'
 import { useVentana } from '@/lib/ventana'
 import { useEsMovil } from '@/lib/media'
-import { DIAS_ALARMA_RENOVACION, agruparCartera, idsPorVencer, resumenCartera, type GrupoCartera,
+import {
+  DIAS_ALARMA_RENOVACION,
+  agruparCartera,
+  idsPorVencer,
+  resumenCartera,
+  type GrupoCartera,
 } from '@/lib/cartera-vista'
-import { CLAVE_SIN_CONTRATOS, MES_TODOS, agruparPorMes, etiquetaDeMes, mesLima, ordenDeBloque,
+import {
+  CLAVE_SIN_CONTRATOS,
+  MES_TODOS,
+  agruparPorMes,
+  etiquetaDeMes,
+  mesLima,
+  ordenDeBloque,
 } from '@/lib/cartera-meses'
 import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
@@ -52,13 +77,15 @@ import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
-import { crmQueryKeys, useClientes, useContratos } from '@/data/crm-queries'
+import { crmQueryKeys, useClientes, useContratos, useOperacionesCartera } from '@/data/crm-queries'
+import { fechaLima } from '@/lib/agenda-derivada'
 import type {
   ClienteBasico,
   ClienteDetalle as ClienteDetalleDatos,
   ContratoRow,
   CuentaBancariaSeleccionable,
   Cuota,
+  OperacionCartera,
   Titular,
 } from '@/lib/clientes-tipos'
 
@@ -89,7 +116,10 @@ function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
   return (
     <span className="block min-w-0">
       <span className="flex items-center gap-1.5">
-        <span className="min-w-0 max-w-[260px] truncate text-[13px] font-semibold text-foreground" title={cliente.nombre_completo}>
+        <span
+          className="min-w-0 max-w-[260px] truncate text-[13px] font-semibold text-foreground"
+          title={cliente.nombre_completo}
+        >
           {cliente.nombre_completo || '—'}
         </span>
         {/* Cliente DADO DE BAJA en el portal (perfiles.activo=false). Se marca
@@ -108,7 +138,8 @@ function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
         )}
       </span>
       <span className="block text-[11px] tabular-nums text-muted-foreground">
-        {cliente.dni ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}`
+        {cliente.dni
+          ? `${cliente.tipo_documento !== 'DNI' ? cliente.tipo_documento + ' ' : ''}${cliente.dni}`
           : 'sin documento'}
         {cliente.telefono ? ` · ${cliente.telefono}` : ''}
       </span>
@@ -160,6 +191,62 @@ function CapitalInvertido({
   )
 }
 
+/** Desglose económico y efecto de conversión de una renovación/upgrade. Es el
+ * mismo bloque en desktop y móvil, por lo que asesor, supervisor y Gerencia ven
+ * exactamente las mismas cifras. El adicional nunca se presenta como otra
+ * conversión. */
+function DetalleOperacionCapital({
+  contrato,
+  operacion,
+  contratoOrigen,
+}: {
+  contrato: ContratoRow
+  operacion: OperacionCartera | null
+  contratoOrigen: ContratoRow | null
+}) {
+  if (!operacion) return null
+
+  if (operacion.tipo === 'upgrade') {
+    return (
+      <span className="mt-1 block text-[10px] font-semibold text-muted-foreground">
+        Upgrade · {operacion.elegible_conversion ? 'suma conversión' : 'mes inicial · no suma conversión'}
+      </span>
+    )
+  }
+
+  if (!operacion.desglose_completo || operacion.capital_renovado == null || operacion.capital_adicional == null) {
+    return (
+      <span className="mt-1 block text-[10px] font-semibold text-warning-text">
+        Renovación histórica · desglose pendiente
+      </span>
+    )
+  }
+
+  return (
+    <span
+      className="mt-1 block text-[10px] leading-snug text-muted-foreground"
+      title="El capital adicional es económico y no genera otra conversión"
+    >
+      {contratoOrigen && (
+        <>
+          <span className="font-semibold text-foreground/80">
+            {money(contratoOrigen.capital, contratoOrigen.moneda)} anterior
+          </span>{' '}
+          →{' '}
+        </>
+      )}
+      <span className="font-semibold text-foreground/80">
+        {money(operacion.capital_renovado, operacion.moneda)} renovado
+      </span>{' '}
+      +{' '}
+      <span className="font-semibold text-primary">
+        {money(operacion.capital_adicional, operacion.moneda)} adicional
+      </span>{' '}
+      = {money(contrato.capital, contrato.moneda)} · 1 conversión
+    </span>
+  )
+}
+
 /** Props del grupo-cliente, idénticas en la fila (tabla) y la tarjeta (móvil). */
 interface PropsFilaGrupo {
   grupo: GrupoCartera
@@ -180,7 +267,12 @@ interface PropsFilaGrupo {
   contratosVisibles: ContratoRow[]
   /** ids de contratos que vencen en ≤30 d: se marcan «renovar» en su sub-fila. */
   porVencer: ReadonlySet<string>
+  operacionesPorContrato: ReadonlyMap<string, OperacionCartera>
+  contratosPorId: ReadonlyMap<string, ContratoRow>
   onNuevoContrato: () => void
+  onGestionarCliente: () => void
+  onUpgradeCliente: () => void
+  onRenovarContrato: (k: ContratoRow) => void
   onDetalleCliente: () => void
   onCorregirCliente: () => void
   onDetalleContrato: (k: ContratoRow) => void
@@ -196,8 +288,12 @@ function FilaContratoSub({
   corregible,
   sinLimiteVentana,
   porVencer,
+  renovable,
+  operacion,
+  contratoOrigen,
   onDetalle,
   onCorregir,
+  onRenovar,
 }: {
   contrato: ContratoRow
   colAsesor: boolean
@@ -208,8 +304,12 @@ function FilaContratoSub({
   /** Vence en ≤30 d: la fecha se marca con PALABRA («renovar») además de color
    *  — el color solo no es información accesible. */
   porVencer: boolean
+  renovable: boolean
+  operacion: OperacionCartera | null
+  contratoOrigen: ContratoRow | null
   onDetalle: () => void
   onCorregir: () => void
+  onRenovar: () => void
 }) {
   const ventana = useVentana(corregible && !sinLimiteVentana ? k.creado_en : null)
   // Ojo con la clase de foco de la <tr>: el outline NATIVO no se quita. El
@@ -258,28 +358,43 @@ function FilaContratoSub({
           vence {fechaCorta(k.fecha_vencimiento)}
           {porVencer && ' · renovar'}
         </span>
+        <DetalleOperacionCapital contrato={k} operacion={operacion} contratoOrigen={contratoOrigen} />
       </Td>
       {conAcciones && (
         <Td className="text-right">
-          {corregible && (sinLimiteVentana || ventana.vigente) ? (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              onClick={(e) => {
-                e.stopPropagation()
-                onCorregir()
-              }}
-            >
-              Corregir
-            </Button>
-          ) : corregible ? (
-            <span className="text-[11px] text-muted-foreground" title="La ventana de corrección de 5 horas ya venció">
-              {ventana.texto}
-            </span>
-          ) : (
-            <span className="text-xs text-muted-foreground">—</span>
-          )}
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            {renovable && (
+              <Button
+                type="button"
+                size="xs"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onRenovar()
+                }}
+              >
+                <RefreshCw aria-hidden /> Renovar
+              </Button>
+            )}
+            {corregible && (sinLimiteVentana || ventana.vigente) ? (
+              <Button
+                type="button"
+                size="xs"
+                variant="outline"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  onCorregir()
+                }}
+              >
+                Corregir
+              </Button>
+            ) : corregible ? (
+              <span className="text-[11px] text-muted-foreground" title="La ventana de corrección de 5 horas ya venció">
+                {ventana.texto}
+              </span>
+            ) : !renovable ? (
+              <span className="text-xs text-muted-foreground">—</span>
+            ) : null}
+          </div>
         </Td>
       )}
     </tr>
@@ -299,7 +414,12 @@ function FilaGrupoCliente({
   asesorNombre,
   contratosVisibles,
   porVencer,
+  operacionesPorContrato,
+  contratosPorId,
   onNuevoContrato,
+  onGestionarCliente,
+  onUpgradeCliente,
+  onRenovarContrato,
   onDetalleCliente,
   onCorregirCliente,
   onDetalleContrato,
@@ -381,6 +501,17 @@ function FilaGrupoCliente({
                 <Button
                   type="button"
                   size="xs"
+                  variant="secondary"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onGestionarCliente()
+                  }}
+                >
+                  <CalendarPlus aria-hidden /> Gestionar
+                </Button>
+                <Button
+                  type="button"
+                  size="xs"
                   variant="outline"
                   onClick={(e) => {
                     e.stopPropagation()
@@ -406,6 +537,19 @@ function FilaGrupoCliente({
                     }}
                   >
                     Corregir
+                  </Button>
+                )}
+                {!sinContratos && (
+                  <Button
+                    type="button"
+                    size="xs"
+                    variant="outline"
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      onUpgradeCliente()
+                    }}
+                  >
+                    <TrendingUp aria-hidden /> Upgrade
                   </Button>
                 )}
                 <Button
@@ -436,8 +580,20 @@ function FilaGrupoCliente({
             corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
             sinLimiteVentana={edicionGlobal}
             porVencer={porVencer.has(c.id)}
+            renovable={
+              accionable &&
+              (c.estado === 'activo' || c.estado === 'vencido') &&
+              c.fecha_vencimiento <= fechaLima(Date.now())
+            }
+            operacion={operacionesPorContrato.get(c.id) ?? null}
+            contratoOrigen={
+              operacionesPorContrato.get(c.id)?.contrato_origen_id
+                ? (contratosPorId.get(operacionesPorContrato.get(c.id)!.contrato_origen_id!) ?? null)
+                : null
+            }
             onDetalle={() => onDetalleContrato(c)}
             onCorregir={() => onCorregirContrato(c)}
+            onRenovar={() => onRenovarContrato(c)}
           />
         ))}
     </>
@@ -460,8 +616,12 @@ function TarjetaContratoSub({
   corregible,
   sinLimiteVentana,
   porVencer,
+  renovable,
+  operacion,
+  contratoOrigen,
   onDetalle,
   onCorregir,
+  onRenovar,
 }: {
   contrato: ContratoRow
   conAcciones: boolean
@@ -469,8 +629,12 @@ function TarjetaContratoSub({
   sinLimiteVentana: boolean
   /** Vence en ≤30 d — misma marca con PALABRA que en la tabla (no solo color). */
   porVencer: boolean
+  renovable: boolean
+  operacion: OperacionCartera | null
+  contratoOrigen: ContratoRow | null
   onDetalle: () => void
   onCorregir: () => void
+  onRenovar: () => void
 }) {
   const ventana = useVentana(corregible && !sinLimiteVentana ? k.creado_en : null)
   return (
@@ -500,25 +664,34 @@ function TarjetaContratoSub({
             {k.categoria ? `${CATEGORIA_LABEL[k.categoria]} · ` : ''}vence {fechaCorta(k.fecha_vencimiento)}
             {porVencer && ' · renovar'}
           </span>
+          <DetalleOperacionCapital contrato={k} operacion={operacion} contratoOrigen={contratoOrigen} />
         </span>
         <span className="shrink-0 text-[13px] font-semibold tabular-nums text-foreground">
           {money(k.capital, k.moneda)}
         </span>
       </button>
-      {conAcciones &&
-        corregible &&
-        (sinLimiteVentana || ventana.vigente ? (
-          <Button type="button" size="xs" variant="outline" className="shrink-0" onClick={onCorregir}>
-            Corregir
-          </Button>
-        ) : (
-          <span
-            className="shrink-0 text-[11px] text-muted-foreground"
-            title="La ventana de corrección de 5 horas ya venció"
-          >
-            {ventana.texto}
-          </span>
-        ))}
+      {conAcciones && (renovable || corregible) && (
+        <div className="flex shrink-0 flex-col gap-1.5">
+          {renovable && (
+            <Button type="button" size="xs" onClick={onRenovar}>
+              <RefreshCw aria-hidden /> Renovar
+            </Button>
+          )}
+          {corregible &&
+            (sinLimiteVentana || ventana.vigente ? (
+              <Button type="button" size="xs" variant="outline" onClick={onCorregir}>
+                Corregir
+              </Button>
+            ) : (
+              <span
+                className="text-center text-[10px] text-muted-foreground"
+                title="La ventana de corrección de 5 horas ya venció"
+              >
+                {ventana.texto}
+              </span>
+            ))}
+        </div>
+      )}
     </div>
   )
 }
@@ -536,7 +709,12 @@ function TarjetaGrupoCliente({
   asesorNombre,
   contratosVisibles,
   porVencer,
+  operacionesPorContrato,
+  contratosPorId,
   onNuevoContrato,
+  onGestionarCliente,
+  onUpgradeCliente,
+  onRenovarContrato,
   onDetalleCliente,
   onCorregirCliente,
   onDetalleContrato,
@@ -594,6 +772,9 @@ function TarjetaGrupoCliente({
       {/* Acciones: cartera propia para analistas; ámbito completo para Gerencia. */}
       {conAcciones && accionable && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+          <Button type="button" size="xs" variant="secondary" onClick={onGestionarCliente}>
+            <CalendarPlus aria-hidden /> Gestionar
+          </Button>
           <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
             Ver detalle
           </Button>
@@ -613,6 +794,11 @@ function TarjetaGrupoCliente({
               Corregir cliente
             </Button>
           )}
+          {!sinContratos && (
+            <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
+              <TrendingUp aria-hidden /> Upgrade
+            </Button>
+          )}
           <Button type="button" size="xs" onClick={onNuevoContrato}>
             {sinContratos ? '+ Primer contrato' : '+ Contrato'}
           </Button>
@@ -630,8 +816,20 @@ function TarjetaGrupoCliente({
               corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
               sinLimiteVentana={edicionGlobal}
               porVencer={porVencer.has(c.id)}
+              renovable={
+                accionable &&
+                (c.estado === 'activo' || c.estado === 'vencido') &&
+                c.fecha_vencimiento <= fechaLima(Date.now())
+              }
+              operacion={operacionesPorContrato.get(c.id) ?? null}
+              contratoOrigen={
+                operacionesPorContrato.get(c.id)?.contrato_origen_id
+                  ? (contratosPorId.get(operacionesPorContrato.get(c.id)!.contrato_origen_id!) ?? null)
+                  : null
+              }
               onDetalle={() => onDetalleContrato(c)}
               onCorregir={() => onCorregirContrato(c)}
+              onRenovar={() => onRenovarContrato(c)}
             />
           ))}
         </div>
@@ -647,6 +845,8 @@ function TarjetaGrupoCliente({
  *  datos y las acciones vienen del caller — esta capa solo decide QUÉ se ve. */
 function VistaMiCartera({
   grupos,
+  operaciones,
+  desgloseNoDisponible,
   demo,
   error,
   recargaFallida,
@@ -654,6 +854,9 @@ function VistaMiCartera({
   puedeContratar,
   onNuevoCliente,
   onNuevoContrato,
+  onGestionarCliente,
+  onUpgradeCliente,
+  onRenovarContrato,
   onDetalleCliente,
   onCorregirCliente,
   onDetalleContrato,
@@ -661,6 +864,8 @@ function VistaMiCartera({
 }: {
   /** null = cargando. */
   grupos: GrupoCartera[] | null
+  operaciones: OperacionCartera[]
+  desgloseNoDisponible: { reintentar: () => void } | null
   demo: boolean
   error: {
     mensaje: string
@@ -678,6 +883,9 @@ function VistaMiCartera({
   puedeContratar: boolean
   onNuevoCliente: () => void
   onNuevoContrato: (cliente: ClienteBasico) => void
+  onGestionarCliente: (cliente: ClienteBasico) => void
+  onUpgradeCliente: (cliente: ClienteBasico) => void
+  onRenovarContrato: (cliente: ClienteBasico, contrato: ContratoRow) => void
   onDetalleCliente: (cliente: ClienteBasico) => void
   onCorregirCliente: (cliente: ClienteBasico) => void
   onDetalleContrato: (k: ContratoRow) => void
@@ -713,6 +921,14 @@ function VistaMiCartera({
   // cuenta como sin asesor — mismo criterio que la columna Asesor pinta '—'.
   const rosterIds = useMemo(() => new Set(equipo.map((m) => m.perfil_id)), [equipo])
   const bases = useMemo(() => grupos ?? [], [grupos])
+  const contratosPorId = useMemo(
+    () => new Map(bases.flatMap((grupo) => grupo.contratos).map((contrato) => [contrato.id, contrato])),
+    [bases],
+  )
+  const operacionesPorContrato = useMemo(
+    () => new Map(operaciones.map((operacion) => [operacion.contrato_nuevo_id, operacion])),
+    [operaciones],
+  )
   // ── Clientes DADOS DE BAJA en el portal (perfiles.activo=false) ────────────
   // Decisión (2026-07-25): se MUESTRAN marcados, pero salen de los TOTALES de
   // dinero. No se excluyen de la lista a propósito: un cliente inactivo puede
@@ -893,7 +1109,12 @@ function VistaMiCartera({
       (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
     ),
     porVencer,
+    operacionesPorContrato,
+    contratosPorId,
     onNuevoContrato: () => onNuevoContrato(g.cliente),
+    onGestionarCliente: () => onGestionarCliente(g.cliente),
+    onUpgradeCliente: () => onUpgradeCliente(g.cliente),
+    onRenovarContrato: (contrato) => onRenovarContrato(g.cliente, contrato),
     onDetalleCliente: () => onDetalleCliente(g.cliente),
     onCorregirCliente: () => onCorregirCliente(g.cliente),
     onDetalleContrato,
@@ -1052,6 +1273,14 @@ function VistaMiCartera({
       >
         No se pudo actualizar la cartera. Se muestran los últimos datos cargados, que pueden estar desactualizados.
       </AvisoDegradacion>
+      <AvisoDegradacion
+        activo={desgloseNoDisponible != null}
+        queReintenta="del desglose de renovaciones y upgrades"
+        onReintentar={() => desgloseNoDisponible?.reintentar()}
+      >
+        La cartera sigue operativa, pero el desglose renovado/adicional y el efecto de los upgrades no están
+        disponibles.
+      </AvisoDegradacion>
       {bases.length > 0 && <StatStrip stats={stats} />}
       <Card className="overflow-hidden">
         <SectionHead
@@ -1097,7 +1326,10 @@ function VistaMiCartera({
         ) : error ? (
           <PanelError mensaje={error.mensaje} onReintentar={error.reintentar} reintentando={error.reintentando} />
         ) : bases.length === 0 ? (
-          <PanelVacio icono={Inbox} titulo={verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no tienes clientes en tu cartera.'}>
+          <PanelVacio
+            icono={Inbox}
+            titulo={verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no tienes clientes en tu cartera.'}
+          >
             {accionesHabilitadas && <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>}
           </PanelVacio>
         ) : (
@@ -1130,11 +1362,7 @@ function VistaMiCartera({
                   abre y ve lo que lleva cerrado ESTE mes, sin listas de meses
                   que recorrer (decisión de Miguel, 2026-08-14). */}
               <div className="w-[190px]">
-                <Select
-                  aria-label="Filtrar por mes de cierre"
-                  value={fMes}
-                  onChange={(e) => setFMes(e.target.value)}
-                >
+                <Select aria-label="Filtrar por mes de cierre" value={fMes} onChange={(e) => setFMes(e.target.value)}>
                   <option value={MES_TODOS}>{etiquetaDeMes(MES_TODOS)}</option>
                   {opcionesMes.map((o) => (
                     <option key={o.clave} value={o.clave}>
@@ -1147,11 +1375,7 @@ function VistaMiCartera({
                   nombre). "Sin asesor" aísla los clientes sin dueño para repartirlos. */}
               {verEquipo && (
                 <div className="w-[230px]">
-                  <Select
-                    aria-label="Filtrar por asesor"
-                    value={fAsesor}
-                    onChange={(e) => setFAsesor(e.target.value)}
-                  >
+                  <Select aria-label="Filtrar por asesor" value={fAsesor} onChange={(e) => setFAsesor(e.target.value)}>
                     <option value="todos">Todos los asesores</option>
                     {equipo
                       .filter((m) => m.activo)
@@ -1314,8 +1538,20 @@ function VistaMiCartera({
 type Overlay =
   | { tipo: 'cliente-crear' }
   | { tipo: 'cliente-detalle'; clienteId: string; clienteNombre: string }
+  | { tipo: 'cliente-gestionar'; clienteId: string; clienteNombre: string }
   | { tipo: 'cliente-corregir'; clienteId: string }
-  | { tipo: 'contrato-crear'; clienteId: string; clienteNombre: string }
+  | {
+      tipo: 'contrato-crear'
+      clienteId: string
+      clienteNombre: string
+      upgrade: boolean
+    }
+  | {
+      tipo: 'contrato-renovar'
+      clienteId: string
+      clienteNombre: string
+      contrato: ContratoRow
+    }
   | { tipo: 'contrato-detalle'; contrato: ContratoRow }
   | { tipo: 'contrato-corregir'; contrato: ContratoRow }
   | null
@@ -1336,6 +1572,7 @@ export function MiCartera() {
 
   const clientesQ = useClientes(!esDemo)
   const contratosQ = useContratos(!esDemo)
+  const operacionesQ = useOperacionesCartera(!esDemo)
 
   const grupos = useMemo(() => {
     if (clientesQ.data == null || contratosQ.data == null) return null
@@ -1360,10 +1597,21 @@ export function MiCartera() {
     void contratosQ.refetch()
   }
 
-  const abrirNuevoContrato = (clienteId: string, clienteNombre: string) => {
+  const abrirNuevoContrato = (clienteId: string, clienteNombre: string, upgrade = false) => {
     setContratoConfirmado(null)
     setEnvioEnCurso(false)
-    setOverlay({ tipo: 'contrato-crear', clienteId, clienteNombre })
+    setOverlay({ tipo: 'contrato-crear', clienteId, clienteNombre, upgrade })
+  }
+
+  const abrirRenovacion = (cliente: ClienteBasico, contrato: ContratoRow) => {
+    setContratoConfirmado(null)
+    setEnvioEnCurso(false)
+    setOverlay({
+      tipo: 'contrato-renovar',
+      clienteId: cliente.id,
+      clienteNombre: cliente.nombre_completo || cliente.correo || 'el cliente',
+      contrato,
+    })
   }
 
   // Finalizar, Esc y click en overlay convergen aqui. La llave impide que dos
@@ -1374,6 +1622,10 @@ export function MiCartera() {
       contratosFinalizadosRef.current.add(llave)
       void queryClient.invalidateQueries({
         queryKey: crmQueryKeys.contratos(),
+      })
+      void queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.metricasAmbito(),
       })
     }
     setContratoConfirmado(null)
@@ -1433,12 +1685,15 @@ export function MiCartera() {
   const reintentarCarga = () => {
     void clientesQ.refetch()
     void contratosQ.refetch()
+    void operacionesQ.refetch()
   }
 
   return (
     <>
       <VistaMiCartera
         grupos={cargando ? null : grupos}
+        operaciones={operacionesQ.data ?? []}
+        desgloseNoDisponible={operacionesQ.isError ? { reintentar: () => void operacionesQ.refetch() } : null}
         demo={false}
         error={
           hayError
@@ -1454,6 +1709,15 @@ export function MiCartera() {
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
         onNuevoContrato={(c) => abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente')}
+        onGestionarCliente={(c) =>
+          setOverlay({
+            tipo: 'cliente-gestionar',
+            clienteId: c.id,
+            clienteNombre: c.nombre_completo || c.correo || 'el cliente',
+          })
+        }
+        onUpgradeCliente={(c) => abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente', true)}
+        onRenovarContrato={abrirRenovacion}
         onDetalleCliente={(c) =>
           setOverlay({
             tipo: 'cliente-detalle',
@@ -1486,6 +1750,16 @@ export function MiCartera() {
           <ClienteDetalle clienteId={overlay.clienteId} onCerrar={cerrar} />
         </Dialog>
       )}
+      {overlay?.tipo === 'cliente-gestionar' && (
+        <Dialog
+          open
+          onClose={cerrar}
+          ariaLabel={`Gestionar a ${overlay.clienteNombre || 'cliente'}`}
+          className="w-[640px]"
+        >
+          <ClienteGestion clienteId={overlay.clienteId} clienteNombre={overlay.clienteNombre} onCerrar={cerrar} />
+        </Dialog>
+      )}
       {overlay?.tipo === 'cliente-corregir' && (
         <Dialog open onClose={cerrarSeguro} ariaLabel="Corregir datos del cliente">
           <ClienteForm
@@ -1498,10 +1772,37 @@ export function MiCartera() {
         </Dialog>
       )}
       {overlay?.tipo === 'contrato-crear' && (
-        <Dialog open onClose={cerrarContratoNuevo} ariaLabel="Crear contrato del cliente">
+        <Dialog
+          open
+          onClose={cerrarContratoNuevo}
+          ariaLabel={overlay.upgrade ? 'Registrar upgrade del cliente' : 'Crear contrato del cliente'}
+        >
           <ContratoNuevo
             clienteId={overlay.clienteId}
             clienteNombre={overlay.clienteNombre}
+            {...(overlay.upgrade ? { categoriaFija: 'upgrade' as const } : {})}
+            onConfirmado={(numero, creadoLocal) =>
+              setContratoConfirmado(creadoLocal ? { numero, creadoLocal } : { numero })
+            }
+            onEnviandoCambio={setEnvioEnCurso}
+            onCreado={finalizarContratoCreado}
+            onOmitir={cerrarContratoNuevo}
+          />
+        </Dialog>
+      )}
+      {overlay?.tipo === 'contrato-renovar' && (
+        <Dialog open onClose={cerrarContratoNuevo} ariaLabel={`Renovar contrato ${overlay.contrato.numero_contrato}`}>
+          <ContratoNuevo
+            clienteId={overlay.clienteId}
+            clienteNombre={overlay.clienteNombre}
+            categoriaFija="renovacion"
+            renovacionOrigen={{
+              id: overlay.contrato.id,
+              numeroContrato: overlay.contrato.numero_contrato,
+              capital: overlay.contrato.capital,
+              moneda: overlay.contrato.moneda,
+              fechaVencimiento: overlay.contrato.fecha_vencimiento,
+            }}
             onConfirmado={(numero, creadoLocal) =>
               setContratoConfirmado(creadoLocal ? { numero, creadoLocal } : { numero })
             }
@@ -1728,6 +2029,8 @@ function MiCarteraDemo() {
     <>
       <VistaMiCartera
         grupos={grupos}
+        operaciones={[]}
+        desgloseNoDisponible={null}
         demo
         error={null}
         recargaFallida={null}
@@ -1735,6 +2038,9 @@ function MiCarteraDemo() {
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={tocaReal}
         onNuevoContrato={abrirNuevoContrato}
+        onGestionarCliente={tocaReal}
+        onUpgradeCliente={tocaReal}
+        onRenovarContrato={tocaReal}
         onDetalleCliente={abrirDetalleCliente}
         onCorregirCliente={tocaReal}
         onDetalleContrato={setDetalleContrato}

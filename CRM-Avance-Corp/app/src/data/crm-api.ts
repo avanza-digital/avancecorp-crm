@@ -40,78 +40,36 @@ import {
   type ResultadoReunion,
   type RespuestaReprogramarReunion,
 } from '@/lib/tipos'
-import type {
-  CategoriaContrato,
-  CuotaCronograma,
-  ModalidadContrato,
-  TipoInteres,
-} from '@/lib/cronograma'
+import type { CategoriaContrato, CuotaCronograma, ModalidadContrato, TipoInteres } from '@/lib/cronograma'
 import {
   ESTADOS_CONTRATO,
   ESTADOS_CUOTA,
+  type ActividadCliente,
   type ClienteBasico,
   type ClienteDetalle,
   type ContratoRow,
   type CuentaBancariaSeleccionable,
   type CuentaPagoContratoInput,
   type Cuota,
+  type OperacionCartera,
   type Titular,
   type TitularInput,
 } from '@/lib/clientes-tipos'
-import {
-  TAMANO_PAGINA_CARTERA,
-  normalizarBusquedaCartera,
-  textoBuscable,
-} from '@/lib/cartera-keyset'
+import { TAMANO_PAGINA_CARTERA, normalizarBusquedaCartera, textoBuscable } from '@/lib/cartera-keyset'
 import { TIPOS_DOCUMENTO, TIPOS_DOCUMENTO_K, type TipoDocumento } from '@/lib/documento'
-import {
-  CierresExternosSchema,
-  COOPERATIVAS,
-  type CierresExternos,
-  type Cooperativa,
-} from '@/lib/cierres-externos'
-import {
-  CierresEstadoSchema,
-  MAX_LEADS_ESTADO,
-  type CierreEstado,
-} from '@/lib/cierre-estado'
+import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Cooperativa } from '@/lib/cierres-externos'
+import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
-import type {
-  FilaAltasAnalista,
-  FilaCapitalMes,
-  FilaPagosMes,
-  FilaVencimientos,
-} from '@/lib/metricas'
-import {
-  MetricasDistribucionLeadsSchema,
-  type MetricasDistribucionLeads,
-} from '@/lib/metricas-distribucion'
-import {
-  MetricasAgendaSchema,
-  type MetricasAgenda,
-} from '@/lib/metricas-agenda'
-import {
-  MetricasConversionesSchema,
-  type MetricasConversiones,
-} from '@/lib/metricas-conversiones'
-import {
-  MetricasConversionesEquipoSchema,
-  type MetricasConversionesEquipo,
-} from '@/lib/metricas-conversiones-equipo'
-import {
-  ConversionMensualSchema,
-  type ConversionMensual,
-} from '@/lib/conversion-mensual'
-import {
-  MetricasReunionesSchema,
-  type MetricasReuniones,
-} from '@/lib/metricas-reuniones'
+import type { FilaAltasAnalista, FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
+import { MetricasDistribucionLeadsSchema, type MetricasDistribucionLeads } from '@/lib/metricas-distribucion'
+import { MetricasAgendaSchema, type MetricasAgenda } from '@/lib/metricas-agenda'
+import { MetricasConversionesSchema, type MetricasConversiones } from '@/lib/metricas-conversiones'
+import { MetricasConversionesEquipoSchema, type MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
+import { ConversionMensualSchema, type ConversionMensual } from '@/lib/conversion-mensual'
+import { MetricasReunionesSchema, type MetricasReuniones } from '@/lib/metricas-reuniones'
 import { ConfiguracionMetasSchema, type ConfiguracionMetas } from '@/lib/metas-versionadas'
 import { CierreMesEstadoSchema, type CierreMesEstadoRpc } from '@/lib/cierre-de-mes'
-import {
-  CumplimientoMetasSchema,
-  type CumplimientoMetasRpc,
-} from '@/lib/objetivos'
+import { CumplimientoMetasSchema, type CumplimientoMetasRpc } from '@/lib/objetivos'
 import {
   DisponibilidadLeadSchema,
   ResultadoCreacionLeadAtomicaSchema,
@@ -139,15 +97,8 @@ import {
   VENTANA_CONVERTIDOS_DIAS,
   type ResumenCartera,
 } from '@/lib/resumen-cartera'
-import {
-  ColaAccionSchema,
-  LIMITE_COLA_ACCION,
-  type ColaAccion,
-} from '@/lib/cola-accion'
-import {
-  MetricasVendedoresSchema,
-  type MetricasVendedoresPayload,
-} from '@/lib/metricas-vendedores'
+import { ColaAccionSchema, LIMITE_COLA_ACCION, type ColaAccion } from '@/lib/cola-accion'
+import { MetricasVendedoresSchema, type MetricasVendedoresPayload } from '@/lib/metricas-vendedores'
 import {
   ReporteDerivacionesEquipoSchema,
   ResultadoDerivarLeadsEquipoSchema,
@@ -157,15 +108,8 @@ import {
   type ResultadoRevertirDerivacionEquipo,
 } from '@/lib/reporte-derivaciones-equipo'
 import type { EstadoContratoPdf } from '@/lib/contrato-pdf-archivo'
-import {
-  ResumenRepartoSchema,
-  type ResumenReparto,
-} from '@/lib/resumen-reparto'
-import {
-  IngresosRepartoMesSchema,
-  inicioDeMes,
-  type IngresosRepartoMes,
-} from '@/lib/ingresos-reparto'
+import { ResumenRepartoSchema, type ResumenReparto } from '@/lib/resumen-reparto'
+import { IngresosRepartoMesSchema, inicioDeMes, type IngresosRepartoMes } from '@/lib/ingresos-reparto'
 import {
   InicioAyudaVendedorSchema,
   ResultadoConsultaAyudaVendedorSchema,
@@ -351,9 +295,9 @@ export function nuloExplicito<T>(valor: T | null): T {
 export function sinIndefinidos<T extends Record<string, unknown>>(
   args: T,
 ): { [K in keyof T]: Exclude<T[K], undefined> } {
-  return Object.fromEntries(
-    Object.entries(args).filter(([, valor]) => valor !== undefined),
-  ) as { [K in keyof T]: Exclude<T[K], undefined> }
+  return Object.fromEntries(Object.entries(args).filter(([, valor]) => valor !== undefined)) as {
+    [K in keyof T]: Exclude<T[K], undefined>
+  }
 }
 
 function cliente(): ClienteCrm {
@@ -368,19 +312,13 @@ function cliente(): ClienteCrm {
 // ── Centro de ayuda del vendedor — contenido y decisión solo en servidor ────
 
 function falloContratoAyuda(evento: string): CrmApiError {
-  const fallo = new CrmApiError(
-    'El servidor devolvió una respuesta de ayuda no reconocida.',
-    'ROW_CONTRACT',
-  )
+  const fallo = new CrmApiError('El servidor devolvió una respuesta de ayuda no reconocida.', 'ROW_CONTRACT')
   registrarError(evento, fallo)
   return fallo
 }
 
 /** Preguntas publicadas y ordenadas por la pantalla actual. */
-export async function obtenerInicioAyudaVendedor(
-  vista: Vista,
-  signal?: AbortSignal,
-): Promise<InicioAyudaVendedor> {
+export async function obtenerInicioAyudaVendedor(vista: Vista, signal?: AbortSignal): Promise<InicioAyudaVendedor> {
   let peticion = cliente().schema('crm').rpc('ayuda_vendedor_inicio', {
     p_vista: vista,
   })
@@ -388,10 +326,7 @@ export async function obtenerInicioAyudaVendedor(
   const { data, error } = await peticion
   lanzarAbortSiCorresponde(signal)
   if (error) {
-    const fallo = new CrmApiError(
-      'No se pudieron cargar las consultas frecuentes.',
-      error.code || 'POSTGREST_ERROR',
-    )
+    const fallo = new CrmApiError('No se pudieron cargar las consultas frecuentes.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.ayuda.inicio_fallido', fallo, { vista })
     throw fallo
   }
@@ -413,10 +348,7 @@ export async function consultarAyudaVendedor(
 ): Promise<ResultadoConsultaAyudaVendedor> {
   const limpia = consulta.trim()
   if (limpia.length < 2 || limpia.length > 240) {
-    throw new CrmApiError(
-      'Escribe una consulta de 2 a 240 caracteres.',
-      'AYUDA_CONSULTA_INVALIDA',
-    )
+    throw new CrmApiError('Escribe una consulta de 2 a 240 caracteres.', 'AYUDA_CONSULTA_INVALIDA')
   }
 
   let peticion = cliente().schema('crm').rpc('consultar_ayuda_vendedor', {
@@ -512,10 +444,7 @@ function aLead(fila: LeadRow): Lead {
  * descarga la cartera global para recortarla después. Sus tests MSW
  * (crm-api-msw.test.ts) la mantienen honesta mientras espera.
  */
-export async function listarLeads(
-  filtros: FiltrosLeads,
-  signal?: AbortSignal,
-): Promise<Pagina<Lead>> {
+export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): Promise<Pagina<Lead>> {
   const pagina = enteroSeguro(filtros.pagina, 0, Number.MAX_SAFE_INTEGER)
   const tamano = enteroSeguro(filtros.tamano ?? TAMANO_PAGINA_LEADS, 1, MAX_TAMANO_PAGINA)
   const desde = pagina * tamano
@@ -579,10 +508,14 @@ export async function listarLeads(
     }
   }
   if (descartadas > 0) {
-    registrarError('crm.leads.filas_invalidas', new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'), {
-      descartadas,
-      pagina,
-    })
+    registrarError(
+      'crm.leads.filas_invalidas',
+      new CrmApiError('Filas fuera de contrato descartadas', 'ROW_CONTRACT'),
+      {
+        descartadas,
+        pagina,
+      },
+    )
   }
 
   const total = count ?? 0
@@ -691,7 +624,9 @@ export async function listarCarteraPagina(
   const texto = textoBuscable(filtros.texto)
   // Se pide UNA fila de más: es lo que distingue "hay más" de "justo cabía",
   // sin gastar una petición extra que vuelva vacía al final de la lista.
-  const argumentos: Record<string, unknown> = { p_limite: TAMANO_PAGINA_CARTERA + 1 }
+  const argumentos: Record<string, unknown> = {
+    p_limite: TAMANO_PAGINA_CARTERA + 1,
+  }
   if (cursor) {
     argumentos.p_antes_de = cursor.actualizadoEn
     argumentos.p_antes_id = cursor.id
@@ -716,9 +651,10 @@ export async function listarCarteraPagina(
     // diciendo que esta cuenta no pertenece al CRM (P04: revocado ≠ ajeno). Con
     // el mensaje genérico, un offboarding vivido como avería mandaría a alguien
     // a reintentar durante horas.
-    const fallo = error.code === '42501'
-      ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
-      : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
+    const fallo =
+      error.code === '42501'
+        ? new CrmApiError('Tu cuenta no tiene acceso a la cartera del CRM.', '42501')
+        : new CrmApiError('No se pudo cargar la cartera.', error.code || 'POSTGREST_ERROR')
     // Sin texto ni IDs del filtro: pueden contener PII.
     registrarError('crm.leads.pagina_fallida', fallo, {
       etapa: filtros.etapa ?? 'todas',
@@ -738,7 +674,10 @@ export async function listarCarteraPagina(
   for (const cruda of ventana) {
     const r = v.safeParse(LeadCarteraRowSchema, cruda)
     if (r.success) {
-      items.push({ ...aLead(r.output), ultimo_contacto_en: r.output.ultimo_contacto_en })
+      items.push({
+        ...aLead(r.output),
+        ultimo_contacto_en: r.output.ultimo_contacto_en,
+      })
     } else {
       descartadas += 1
     }
@@ -759,7 +698,10 @@ export async function listarCarteraPagina(
   if (hayMas) {
     const ultima = v.safeParse(CursorRowSchema, ventana.at(-1))
     if (ultima.success) {
-      siguiente = { actualizadoEn: ultima.output.actualizado_en, id: ultima.output.id }
+      siguiente = {
+        actualizadoEn: ultima.output.actualizado_en,
+        id: ultima.output.id,
+      }
     } else {
       registrarError(
         'crm.leads.pagina_sin_cursor',
@@ -805,19 +747,13 @@ export async function listarEquipo(signal?: AbortSignal): Promise<Miembro[]> {
 // ── Metas versionadas y cumplimiento confirmado ─────────────────────────────
 
 function contratoMetasInvalido(evento: string): CrmApiError {
-  const fallo = new CrmApiError(
-    'El servidor devolvió metas con un formato no reconocido.',
-    'ROW_CONTRACT',
-  )
+  const fallo = new CrmApiError('El servidor devolvió metas con un formato no reconocido.', 'ROW_CONTRACT')
   registrarError(evento, fallo)
   return fallo
 }
 
 /** Fotografía completa del roster y su última revisión mensual publicada. */
-export async function obtenerMetasDelMes(
-  periodo: string,
-  signal?: AbortSignal,
-): Promise<ConfiguracionMetas> {
+export async function obtenerMetasDelMes(periodo: string, signal?: AbortSignal): Promise<ConfiguracionMetas> {
   let consulta = cliente().schema('crm').rpc('configuracion_metas_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -837,10 +773,7 @@ export async function obtenerMetasDelMes(
  * y la conversión de leads resueltos. El RPC declara ambas fuentes y conserva
  * categoría/moneda en cada dimensión contractual.
  */
-export async function obtenerCumplimientoMetas(
-  periodo: string,
-  signal?: AbortSignal,
-): Promise<CumplimientoMetasRpc> {
+export async function obtenerCumplimientoMetas(periodo: string, signal?: AbortSignal): Promise<CumplimientoMetasRpc> {
   let consulta = cliente().schema('crm').rpc('cumplimiento_metas_fn', { p_periodo: periodo })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -873,10 +806,7 @@ export async function obtenerCierreMesEstado(signal?: AbortSignal): Promise<Cier
   }
   const resultado = v.safeParse(CierreMesEstadoSchema, data)
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'El servidor devolvió un estado del cierre de mes no reconocido.',
-      'ROW_CONTRACT',
-    )
+    const fallo = new CrmApiError('El servidor devolvió un estado del cierre de mes no reconocido.', 'ROW_CONTRACT')
     registrarError('crm.cierre_mes.estado_contrato_invalido', fallo)
     throw fallo
   }
@@ -1020,20 +950,22 @@ export async function historialDerivaciones(
   cursor?: Pick<HistorialDerivacion, 'derivado_en' | 'actividad_id'>,
   signal?: AbortSignal,
 ): Promise<HistorialDerivacion[]> {
-  let consulta = cliente().schema('crm').rpc('historial_derivaciones', {
-    p_limite: TAMANO_PAGINA_HISTORIAL_REPARTO,
-    ...(cursor
-      ? { p_derivado_antes: cursor.derivado_en, p_actividad_antes: cursor.actividad_id }
-      : {}),
-  })
+  let consulta = cliente()
+    .schema('crm')
+    .rpc('historial_derivaciones', {
+      p_limite: TAMANO_PAGINA_HISTORIAL_REPARTO,
+      ...(cursor
+        ? {
+            p_derivado_antes: cursor.derivado_en,
+            p_actividad_antes: cursor.actividad_id,
+          }
+        : {}),
+    })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) {
-    const fallo = new CrmApiError(
-      'No se pudo cargar el historial de derivaciones.',
-      error.code || 'POSTGREST_ERROR',
-    )
+    const fallo = new CrmApiError('No se pudo cargar el historial de derivaciones.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.reparto.historial_fallido', fallo)
     throw fallo
   }
@@ -1053,27 +985,23 @@ export async function agendaRepartoDiaria(
   filtros: FiltrosAgendaRepartoDiaria = {},
   signal?: AbortSignal,
 ): Promise<AgendaRepartoDiaria> {
-  let consulta = cliente().schema('crm').rpc('agenda_reparto_diaria', {
-    ...(filtros.desde ? { p_desde: filtros.desde } : {}),
-    ...(filtros.dias ? { p_dias: filtros.dias } : {}),
-  })
+  let consulta = cliente()
+    .schema('crm')
+    .rpc('agenda_reparto_diaria', {
+      ...(filtros.desde ? { p_desde: filtros.desde } : {}),
+      ...(filtros.dias ? { p_dias: filtros.dias } : {}),
+    })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) {
-    const fallo = new CrmApiError(
-      'No se pudo cargar la agenda de reparto.',
-      error.code || 'POSTGREST_ERROR',
-    )
+    const fallo = new CrmApiError('No se pudo cargar la agenda de reparto.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.reparto.agenda_fallida', fallo)
     throw fallo
   }
   const resultado = v.safeParse(AgendaRepartoDiariaSchema, data)
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'La agenda de reparto no tiene el formato esperado.',
-      'AGENDA_REPARTO_CONTRACT',
-    )
+    const fallo = new CrmApiError('La agenda de reparto no tiene el formato esperado.', 'AGENDA_REPARTO_CONTRACT')
     registrarError('crm.reparto.agenda_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1106,13 +1034,11 @@ export async function guardarAgendaRepartoDiaria(
     // `22023` se reserva en esta RPC para reglas operativas redactadas para
     // Coordinación. Es seguro mostrarla: ayuda a Rosa a corregir el turno sin
     // revelar datos del lead ni detalles internos de permisos/infraestructura.
-    const mensaje = error.code === '22023' && error.message.trim().length > 0
-      ? error.message
-      : 'No se pudo guardar la agenda de reparto.'
-    const fallo = new CrmApiError(
-      mensaje,
-      error.code || 'POSTGREST_ERROR',
-    )
+    const mensaje =
+      error.code === '22023' && error.message.trim().length > 0
+        ? error.message
+        : 'No se pudo guardar la agenda de reparto.'
+    const fallo = new CrmApiError(mensaje, error.code || 'POSTGREST_ERROR')
     registrarError('crm.reparto.agenda_guardado_fallido', fallo)
     throw fallo
   }
@@ -1153,10 +1079,7 @@ export async function panelDistribucionReparto(
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) {
-    const fallo = new CrmApiError(
-      'No se pudo cargar el panel de distribución.',
-      error.code || 'POSTGREST_ERROR',
-    )
+    const fallo = new CrmApiError('No se pudo cargar el panel de distribución.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.reparto.panel_distribucion_fallido', fallo)
     throw fallo
   }
@@ -1199,10 +1122,7 @@ export async function supervisoresParaReparto(signal?: AbortSignal): Promise<Sup
  * repartidos o descartados. Es una lectura agregada sin PII exclusiva de la
  * mesa de Coordinacion; no debe confundirse con el tamano actual de la cola.
  */
-export async function listarIngresosRepartoMes(
-  mes: string,
-  signal?: AbortSignal,
-): Promise<IngresosRepartoMes> {
+export async function listarIngresosRepartoMes(mes: string, signal?: AbortSignal): Promise<IngresosRepartoMes> {
   const pMes = inicioDeMes(mes)
   if (pMes == null) {
     throw new CrmApiError('El mes seleccionado no es valido.', 'MES_INVALIDO')
@@ -1213,20 +1133,14 @@ export async function listarIngresosRepartoMes(
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
   if (error) {
-    const fallo = new CrmApiError(
-      'No se pudieron cargar los ingresos del mes.',
-      error.code || 'POSTGREST_ERROR',
-    )
+    const fallo = new CrmApiError('No se pudieron cargar los ingresos del mes.', error.code || 'POSTGREST_ERROR')
     registrarError('crm.reparto.ingresos_mes_fallido', fallo)
     throw fallo
   }
 
   const resultado = v.safeParse(IngresosRepartoMesSchema, data)
   if (!resultado.success || resultado.output.mes !== pMes) {
-    const fallo = new CrmApiError(
-      'El resumen de ingresos no tiene el formato esperado.',
-      'INGRESOS_REPARTO_CONTRACT',
-    )
+    const fallo = new CrmApiError('El resumen de ingresos no tiene el formato esperado.', 'INGRESOS_REPARTO_CONTRACT')
     registrarError('crm.reparto.ingresos_mes_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1249,16 +1163,14 @@ export async function repartirLead(leadId: string, supervisorId: string): Promis
  *  servidor para el mismo actor+motivo (doble clic seguro). La nota se
  *  appendea allá (`· DESCARTE: …`), nunca pisa el comentario del cliente.
  *  Errores: P0002→FUERA_DE_COLA (carrera o ya cerrado), 22023→REGLA_SERVIDOR. */
-export async function descartarLead(
-  leadId: string,
-  motivo: MotivoDescarte,
-  nota?: string,
-): Promise<void> {
-  const { error } = await cliente().schema('crm').rpc('descartar_lead', {
-    p_lead: leadId,
-    p_motivo: motivo,
-    ...(nota?.trim() ? { p_nota: nota.trim() } : {}),
-  })
+export async function descartarLead(leadId: string, motivo: MotivoDescarte, nota?: string): Promise<void> {
+  const { error } = await cliente()
+    .schema('crm')
+    .rpc('descartar_lead', {
+      p_lead: leadId,
+      p_motivo: motivo,
+      ...(nota?.trim() ? { p_nota: nota.trim() } : {}),
+    })
   if (error) throw aErrorApi(error, 'crm.descarte.descartar_fallido')
 }
 
@@ -1358,10 +1270,15 @@ export async function verificarDisponibilidadLead(
   signal?: AbortSignal,
 ): Promise<DisponibilidadLead> {
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('verificar_disponibilidad_lead', sinIndefinidos({
-    p_telefono: telefono,
-    p_dni: dni ?? undefined,
-  }))
+  let consulta = cliente()
+    .schema('crm')
+    .rpc(
+      'verificar_disponibilidad_lead',
+      sinIndefinidos({
+        p_telefono: telefono,
+        p_dni: dni ?? undefined,
+      }),
+    )
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error, status } = await consulta
@@ -1375,7 +1292,9 @@ export async function verificarDisponibilidadLead(
         'La verificación de disponibilidad no está habilitada.',
         'DISPONIBILIDAD_NO_DISPONIBLE',
       )
-      registrarError('crm.leads.disponibilidad_no_disponible', fallo, { postgrest: error.code })
+      registrarError('crm.leads.disponibilidad_no_disponible', fallo, {
+        postgrest: error.code,
+      })
       throw fallo
     }
     // postgrest-js representa un fetch fallido con status=0; PGRST000–003 son
@@ -1383,11 +1302,10 @@ export async function verificarDisponibilidadLead(
     // servidor que P-048 trata como cortesía fail-open. Un HTTP malformado sin
     // code pero con status real NO se confunde con transporte.
     if (status === 0 || ['PGRST000', 'PGRST001', 'PGRST002', 'PGRST003'].includes(error.code)) {
-      const fallo = new CrmApiError(
-        'No se pudo contactar el servicio de disponibilidad.',
-        'DISPONIBILIDAD_RED',
-      )
-      registrarError('crm.leads.disponibilidad_red', fallo, { postgrest: error.code || 'sin_codigo' })
+      const fallo = new CrmApiError('No se pudo contactar el servicio de disponibilidad.', 'DISPONIBILIDAD_RED')
+      registrarError('crm.leads.disponibilidad_red', fallo, {
+        postgrest: error.code || 'sin_codigo',
+      })
       throw fallo
     }
     throw aErrorApi(error, 'crm.leads.disponibilidad_fallida')
@@ -1411,12 +1329,11 @@ export async function verificarDisponibilidadLead(
 // sellado firma autoría, normaliza el teléfono y acota la fecha — el front
 // no re-implementa nada de eso, solo valida la FORMA de lo que vuelve.
 
-export async function listarRecordatoriosDisponibilidad(
-  signal?: AbortSignal,
-): Promise<RecordatorioCampana[]> {
+export async function listarRecordatoriosDisponibilidad(signal?: AbortSignal): Promise<RecordatorioCampana[]> {
   // SIN dni a propósito (minimización §8, F3.1): la campana no lo usa y cada
   // refetch lo paseaba por la red sin ningún consumidor.
-  let consulta = cliente().schema('crm')
+  let consulta = cliente()
+    .schema('crm')
     .from('recordatorios_disponibilidad')
     .select('id, perfil_id, telefono, recordar_en, creado_en')
     .order('recordar_en', { ascending: true })
@@ -1425,10 +1342,7 @@ export async function listarRecordatoriosDisponibilidad(
   if (error) throw aErrorApi(error, 'crm.recordatorios.listar_fallido')
   const resultado = v.safeParse(RecordatoriosCampanaSchema, data ?? [])
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'Los recordatorios no tienen el formato esperado.',
-      'RECORDATORIOS_CONTRACT',
-    )
+    const fallo = new CrmApiError('Los recordatorios no tienen el formato esperado.', 'RECORDATORIOS_CONTRACT')
     registrarError('crm.recordatorios.fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1449,7 +1363,8 @@ export async function guardarRecordatorioDisponibilidad(
   dni: string | null,
   recordarEn: string,
 ): Promise<RecordatorioDisponibilidad> {
-  const { data, error } = await cliente().schema('crm')
+  const { data, error } = await cliente()
+    .schema('crm')
     .from('recordatorios_disponibilidad')
     .upsert(
       // `dni` viaja SIEMPRE, null incluido (F3.1): omitirlo hacía que un
@@ -1464,10 +1379,7 @@ export async function guardarRecordatorioDisponibilidad(
   if (error) throw aErrorApi(error, 'crm.recordatorios.guardar_fallido')
   const resultado = v.safeParse(RecordatorioDisponibilidadSchema, data)
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'El recordatorio guardado no tiene el formato esperado.',
-      'RECORDATORIOS_CONTRACT',
-    )
+    const fallo = new CrmApiError('El recordatorio guardado no tiene el formato esperado.', 'RECORDATORIOS_CONTRACT')
     registrarError('crm.recordatorios.guardado_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1475,7 +1387,8 @@ export async function guardarRecordatorioDisponibilidad(
 }
 
 export async function eliminarRecordatorioDisponibilidad(id: string): Promise<void> {
-  const { data, error } = await cliente().schema('crm')
+  const { data, error } = await cliente()
+    .schema('crm')
     .from('recordatorios_disponibilidad')
     .delete()
     .eq('id', id)
@@ -1558,22 +1471,21 @@ export async function reconocerAlertaSupervisor(
  * veredicto fresco de disponibilidad (el servidor jamás roba al perdedor de
  * la carrera; devuelve la verdad del momento para re-presentarla).
  */
-export async function tomarLeadLibre(
-  telefono: string,
-  dni?: string | null,
-): Promise<ResultadoTomaLead> {
-  const { data, error } = await cliente().schema('crm').rpc('tomar_lead_libre', sinIndefinidos({
-    p_telefono: telefono,
-    p_dni: dni ?? undefined,
-  }))
+export async function tomarLeadLibre(telefono: string, dni?: string | null): Promise<ResultadoTomaLead> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc(
+      'tomar_lead_libre',
+      sinIndefinidos({
+        p_telefono: telefono,
+        p_dni: dni ?? undefined,
+      }),
+    )
   if (error) throw aErrorApi(error, 'crm.leads.toma_fallida')
 
   const resultado = v.safeParse(ResultadoTomaLeadSchema, data)
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'El servidor no confirmó la toma del lead.',
-      'TOMA_LEAD_CONTRACT',
-    )
+    const fallo = new CrmApiError('El servidor no confirmó la toma del lead.', 'TOMA_LEAD_CONTRACT')
     registrarError('crm.leads.toma_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1610,7 +1522,11 @@ type ActividadInsert = Database['crm']['Tables']['actividades']['Insert']
  * es-PE seguro (nunca el texto crudo de Postgres, salvo los RAISE propios).
  */
 function aErrorApi(
-  error: { code?: string | null; message?: string | null; details?: string | null },
+  error: {
+    code?: string | null
+    message?: string | null
+    details?: string | null
+  },
   contexto: string,
 ): CrmApiError {
   const codigoPg = error.code ?? ''
@@ -1636,8 +1552,8 @@ function aErrorApi(
       mensaje = 'Ese correo ya está registrado en el portal'
     }
   } else if (
-    (codigoPg === '23502' && texto.includes('monto_estimado'))
-    || (codigoPg === '23514' && texto.includes('leads_monto_estimado_valido'))
+    (codigoPg === '23502' && texto.includes('monto_estimado')) ||
+    (codigoPg === '23514' && texto.includes('leads_monto_estimado_valido'))
   ) {
     code = 'MONTO_INVALIDO'
     mensaje = 'El capital estimado es obligatorio y debe ser mayor que 0'
@@ -1648,8 +1564,9 @@ function aErrorApi(
     // no nombra ni el dato ni al culpable, imposible de diagnosticar desde la
     // pantalla. El texto del servidor no lleva PII, pero tampoco dice QUÉ falta.
     code = 'DATOS_LEGALES_INCOMPLETOS'
-    mensaje = 'Faltan datos legales para emitir el contrato: revisa el domicilio, '
-      + 'el documento y el correo del cliente, y tu propio celular y correo.'
+    mensaje =
+      'Faltan datos legales para emitir el contrato: revisa el domicilio, ' +
+      'el documento y el correo del cliente, y tu propio celular y correo.'
   } else if (codigoPg === '42501' || codigoPg === 'PGRST301') {
     code = 'SIN_PERMISO'
     mensaje = 'No tienes permiso para esa acción'
@@ -1686,15 +1603,19 @@ function aErrorApi(
   return fallo
 }
 
-function aErrorInsertarLead(
-  error: { code?: string | null; message?: string | null; details?: string | null },
-): CrmApiError {
+function aErrorInsertarLead(error: {
+  code?: string | null
+  message?: string | null
+  details?: string | null
+}): CrmApiError {
   if (error.code === '55P03' || error.code === '40P01') {
     const fallo = new CrmApiError(
       'Otro usuario está procesando este contacto. Inténtalo nuevamente.',
       'CONTACTO_EN_PROCESO',
     )
-    registrarError('crm.leads.creacion_atomica_en_espera', fallo, { pg: error.code })
+    registrarError('crm.leads.creacion_atomica_en_espera', fallo, {
+      pg: error.code,
+    })
     return fallo
   }
 
@@ -1708,7 +1629,9 @@ function aErrorInsertarLead(
           presentacion.mensaje ?? 'Este contacto no está disponible para un nuevo lead',
           'CONTACTO_NO_DISPONIBLE',
         )
-        registrarError('crm.leads.creacion_atomica_bloqueada', fallo, { estado: resultado.output.estado })
+        registrarError('crm.leads.creacion_atomica_bloqueada', fallo, {
+          estado: resultado.output.estado,
+        })
         return fallo
       }
     } catch {
@@ -1717,48 +1640,46 @@ function aErrorInsertarLead(
   }
 
   const texto = `${error.message ?? ''} ${error.details ?? ''}`
-  const esCarreraDelContacto = error.code === '23505' && (
-    texto.includes('uq_leads_telefono_vivo') || texto.includes('uq_leads_dni_vivo')
-  )
+  const esCarreraDelContacto =
+    error.code === '23505' && (texto.includes('uq_leads_telefono_vivo') || texto.includes('uq_leads_dni_vivo'))
   if (!esCarreraDelContacto) return aErrorApi(error, 'crm.leads.insert_fallido')
 
   // La RPC es la autoridad. El índice único queda como última defensa ante un
   // escritor que todavía no comparta el protocolo de candados.
-  const fallo = new CrmApiError(
-    'Este contacto acaba de ser registrado por otro usuario',
-    'CONTACTO_RECIEN_REGISTRADO',
-  )
+  const fallo = new CrmApiError('Este contacto acaba de ser registrado por otro usuario', 'CONTACTO_RECIEN_REGISTRADO')
   registrarError('crm.leads.insert_fallido', fallo, { pg: '23505' })
   return fallo
 }
 
 export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<ResultadoCreacionLeadAtomica> {
-  const { data, error } = await cliente().schema('crm').rpc('crear_lead_si_disponible', sinIndefinidos({
-    p_nombre_completo: fila.nombre_completo,
-    p_telefono: fila.telefono,
-    p_origen: fila.origen,
-    p_monto_estimado: fila.monto_estimado,
-    p_moneda: fila.moneda,
-    // Todos con DEFAULT NULL en el catálogo (16/08): omitir la clave ≡ null.
-    p_id: fila.id ?? undefined,
-    p_correo: fila.correo ?? undefined,
-    p_dni: fila.dni ?? undefined,
-    p_genero: fila.genero ?? undefined,
-    p_fecha_nacimiento: fila.fecha_nacimiento ?? undefined,
-    p_distrito: fila.distrito ?? undefined,
-    p_etapa: fila.etapa ?? 'nuevo',
-    p_categoria_interes: fila.categoria_interes ?? undefined,
-    p_vendedor_id: fila.vendedor_id ?? undefined,
-    p_nota: fila.nota ?? undefined,
-  }))
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc(
+      'crear_lead_si_disponible',
+      sinIndefinidos({
+        p_nombre_completo: fila.nombre_completo,
+        p_telefono: fila.telefono,
+        p_origen: fila.origen,
+        p_monto_estimado: fila.monto_estimado,
+        p_moneda: fila.moneda,
+        // Todos con DEFAULT NULL en el catálogo (16/08): omitir la clave ≡ null.
+        p_id: fila.id ?? undefined,
+        p_correo: fila.correo ?? undefined,
+        p_dni: fila.dni ?? undefined,
+        p_genero: fila.genero ?? undefined,
+        p_fecha_nacimiento: fila.fecha_nacimiento ?? undefined,
+        p_distrito: fila.distrito ?? undefined,
+        p_etapa: fila.etapa ?? 'nuevo',
+        p_categoria_interes: fila.categoria_interes ?? undefined,
+        p_vendedor_id: fila.vendedor_id ?? undefined,
+        p_nota: fila.nota ?? undefined,
+      }),
+    )
   if (error) throw aErrorInsertarLead(error)
 
   const resultado = v.safeParse(ResultadoCreacionLeadAtomicaSchema, data)
   if (!resultado.success || resultado.output.estado === 'libre') {
-    const fallo = new CrmApiError(
-      'El servidor no confirmó la creación del lead.',
-      'CREACION_LEAD_CONTRACT',
-    )
+    const fallo = new CrmApiError('El servidor no confirmó la creación del lead.', 'CREACION_LEAD_CONTRACT')
     registrarError('crm.leads.creacion_atomica_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1766,12 +1687,7 @@ export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<Resulta
 }
 
 export async function actualizarLead(id: string, cambios: LeadUpdate): Promise<void> {
-  const { data, error } = await cliente()
-    .schema('crm')
-    .from('leads')
-    .update(cambios)
-    .eq('id', id)
-    .select('id')
+  const { data, error } = await cliente().schema('crm').from('leads').update(cambios).eq('id', id).select('id')
   if (error) throw aErrorApi(error, 'crm.leads.update_fallido')
   if (!data || data.length === 0) {
     // La RLS ocultó el lead (fuera del ámbito) o no existe: mismo mensaje,
@@ -1791,30 +1707,32 @@ export async function insertarActividad(fila: ActividadInsert): Promise<void> {
 
 type TareaDatabaseRow = Database['crm']['Tables']['tareas']['Row']
 
-const COLUMNAS_TAREA = ([
-  'id',
-  'lead_id',
-  'perfil_id',
-  'vendedor_id',
-  'asignado_supervisor_id',
-  'tipo',
-  'titulo',
-  'nota',
-  'vence_en',
-  'duracion_min',
-  'estado',
-  'modalidad_reunion',
-  'ubicacion_reunion',
-  'enlace_reunion',
-  'resultado_reunion',
-  'motivo_no_realizada',
-  'detalle_cierre_reunion',
-  'confirmada_en',
-  'reagendada_de',
-  'reprogramaciones',
-  'activo',
-  'creado_en',
-] as const satisfies readonly (keyof TareaDatabaseRow)[]).join(',')
+const COLUMNAS_TAREA = (
+  [
+    'id',
+    'lead_id',
+    'perfil_id',
+    'vendedor_id',
+    'asignado_supervisor_id',
+    'tipo',
+    'titulo',
+    'nota',
+    'vence_en',
+    'duracion_min',
+    'estado',
+    'modalidad_reunion',
+    'ubicacion_reunion',
+    'enlace_reunion',
+    'resultado_reunion',
+    'motivo_no_realizada',
+    'detalle_cierre_reunion',
+    'confirmada_en',
+    'reagendada_de',
+    'reprogramaciones',
+    'activo',
+    'creado_en',
+  ] as const satisfies readonly (keyof TareaDatabaseRow)[]
+).join(',')
 
 const TareaRowSchema = v.object({
   id: v.string(),
@@ -1894,12 +1812,7 @@ export async function insertarTarea(fila: TareaInsert): Promise<void> {
 }
 
 export async function actualizarTarea(id: string, cambios: TareaUpdate): Promise<void> {
-  const { data, error } = await cliente()
-    .schema('crm')
-    .from('tareas')
-    .update(cambios)
-    .eq('id', id)
-    .select('id')
+  const { data, error } = await cliente().schema('crm').from('tareas').update(cambios).eq('id', id).select('id')
   if (error) throw aErrorApi(error, 'crm.tareas.update_fallido')
   if (!data || data.length === 0) {
     // RLS la ocultó o no existe: mismo mensaje, sin revelar existencia.
@@ -1980,13 +1893,18 @@ export interface CerrarTareaInput {
  * siguiente en UNA transacción. El UPDATE directo no puede completar (trigger).
  */
 export async function cerrarTarea(input: CerrarTareaInput): Promise<{ siguiente_id: string | null }> {
-  const { data, error } = await cliente().schema('crm').rpc('cerrar_tarea', sinIndefinidos({
-    p_tarea_id: input.tarea_id,
-    p_estado: input.estado,
-    p_resultado_tipo: input.resultado_tipo ?? undefined,
-    p_resultado_detalle: input.resultado_detalle ?? undefined,
-    p_siguiente: (input.siguiente ?? null) as Json,
-  }))
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc(
+      'cerrar_tarea',
+      sinIndefinidos({
+        p_tarea_id: input.tarea_id,
+        p_estado: input.estado,
+        p_resultado_tipo: input.resultado_tipo ?? undefined,
+        p_resultado_detalle: input.resultado_detalle ?? undefined,
+        p_siguiente: (input.siguiente ?? null) as Json,
+      }),
+    )
   if (error) throw aErrorApi(error, 'crm.tareas.cierre_fallido')
   const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
   return { siguiente_id: siguiente }
@@ -2001,17 +1919,20 @@ export interface CerrarReunionInput {
   siguiente?: CerrarTareaInput['siguiente']
 }
 
-export async function cerrarReunion(
-  input: CerrarReunionInput,
-): Promise<{ siguiente_id: string | null }> {
-  const { data, error } = await cliente().schema('crm').rpc('cerrar_reunion', sinIndefinidos({
-    p_tarea_id: input.tarea_id,
-    p_estado: input.estado,
-    p_resultado_reunion: input.resultado_reunion ?? undefined,
-    p_motivo_no_realizada: input.motivo_no_realizada ?? undefined,
-    p_detalle: input.detalle ?? undefined,
-    p_siguiente: (input.siguiente ?? null) as Json,
-  }))
+export async function cerrarReunion(input: CerrarReunionInput): Promise<{ siguiente_id: string | null }> {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc(
+      'cerrar_reunion',
+      sinIndefinidos({
+        p_tarea_id: input.tarea_id,
+        p_estado: input.estado,
+        p_resultado_reunion: input.resultado_reunion ?? undefined,
+        p_motivo_no_realizada: input.motivo_no_realizada ?? undefined,
+        p_detalle: input.detalle ?? undefined,
+        p_siguiente: (input.siguiente ?? null) as Json,
+      }),
+    )
   if (error) throw aErrorApi(error, 'crm.reuniones.cierre_fallido')
   const siguiente = (data as { siguiente_id?: string | null } | null)?.siguiente_id ?? null
   return { siguiente_id: siguiente }
@@ -2032,16 +1953,14 @@ function validarRespuestaReprogramarReunion(
   nuevaId: string,
 ): RespuestaReprogramarReunion {
   const respuesta = v.safeParse(ReprogramarReunionRespuestaSchema, data)
-  const idsCoherentes = respuesta.success
-    && respuesta.output.tarea_anterior_id === tareaId
-    && respuesta.output.tarea_nueva_id === nuevaId
-    && respuesta.output.tarea_anterior_id !== respuesta.output.tarea_nueva_id
+  const idsCoherentes =
+    respuesta.success &&
+    respuesta.output.tarea_anterior_id === tareaId &&
+    respuesta.output.tarea_nueva_id === nuevaId &&
+    respuesta.output.tarea_anterior_id !== respuesta.output.tarea_nueva_id
 
   if (!respuesta.success || !idsCoherentes) {
-    const fallo = new CrmApiError(
-      'La reprogramación respondió fuera del contrato esperado.',
-      'ROW_CONTRACT',
-    )
+    const fallo = new CrmApiError('La reprogramación respondió fuera del contrato esperado.', 'ROW_CONTRACT')
     registrarError('crm.reuniones.reprogramacion_respuesta_invalida', fallo, {
       tareaId,
       nuevaId,
@@ -2111,8 +2030,7 @@ export interface ConvertirLeadResultado {
   email_enviado: boolean
 }
 
-const UUID_CANONICO_CONVERSION_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const UUID_CANONICO_CONVERSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 // La respuesta de una Edge sigue siendo JSON no confiable aunque el transporte
 // haya terminado en 2xx. No se coercionan strings/números a booleanos ni se
@@ -2139,17 +2057,16 @@ export async function convertirLead(input: ConvertirLeadInput): Promise<Converti
         const cuerpo = await ctx.json()
         if (cuerpo?.error) mensaje = traducirErrorAlta(String(cuerpo.error))
       }
-    } catch { /* nos quedamos con el mensaje genérico */ }
+    } catch {
+      /* nos quedamos con el mensaje genérico */
+    }
     const fallo = new CrmApiError(mensaje, 'CONVERTIR_FALLIDO')
     registrarError('crm.convertir.fallido', fallo)
     throw fallo
   }
   const respuesta = v.safeParse(ConvertirLeadRespuestaSchema, data)
   if (!respuesta.success) {
-    const fallo = new CrmApiError(
-      'La conversión respondió fuera del contrato esperado.',
-      'RESPUESTA_INVALIDA',
-    )
+    const fallo = new CrmApiError('La conversión respondió fuera del contrato esperado.', 'RESPUESTA_INVALIDA')
     registrarError('crm.convertir.respuesta_invalida', fallo)
     throw fallo
   }
@@ -2217,10 +2134,7 @@ export async function listarCuentasBancariasCliente(
   for (const cruda of data ?? []) {
     const fila = v.safeParse(CuentaBancariaSeleccionableRowSchema, cruda)
     if (!fila.success) {
-      const fallo = new CrmApiError(
-        'Las cuentas bancarias no tienen el formato esperado.',
-        'ROW_CONTRACT',
-      )
+      const fallo = new CrmApiError('Las cuentas bancarias no tienen el formato esperado.', 'ROW_CONTRACT')
       registrarError('crm.cuentas_bancarias.fila_invalida', fallo)
       // Fail-closed: ocultar una sola fila podría hacer que el asesor elija una
       // cuenta distinta creyendo que la autorizada ya no existe.
@@ -2245,6 +2159,12 @@ export interface CrearContratoInput {
   fecha_vencimiento: string
   numero_contrato?: string | null
   notas_internas?: string | null
+  /** Solo renovación: contrato que llegó a su fecha fin. */
+  contrato_origen_id?: string | null
+  /** Solo renovación: parte del capital anterior que continúa invertida. */
+  capital_renovado?: number | null
+  /** Solo renovación: dinero nuevo. Se reporta aparte y no suma conversión. */
+  capital_adicional?: number | null
   /**
    * Co-titulares (cuentas mancomunadas, máx 5): viajan DENTRO de p_contrato —
    * crear_contrato ya los persiste vía _sync_contrato_titulares. Ausente o []
@@ -2276,12 +2196,7 @@ export interface CrearContratoResultado {
   version_nombre?: string
 }
 
-const EnteroProductoSchema = v.pipe(
-  v.union([v.number(), v.string()]),
-  v.transform(Number),
-  v.integer(),
-  v.minValue(1),
-)
+const EnteroProductoSchema = v.pipe(v.union([v.number(), v.string()]), v.transform(Number), v.integer(), v.minValue(1))
 
 const CrearContratoResultadoSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
@@ -2304,11 +2219,7 @@ const CrearContratoResultadoSchema = v.object({
     // de contrato moría con «El servidor no confirmó completamente el contrato»
     // aunque el contrato SÍ se había creado. Un parche que solo vive en el
     // artefacto no existe: si no está en un commit, el siguiente release lo pisa.
-    template_version: v.picklist([
-      'contrato-aep-17-v3',
-      'contrato-aep-17-v4',
-      'contrato-aep-17-v5',
-    ]),
+    template_version: v.picklist(['contrato-aep-17-v3', 'contrato-aep-17-v4', 'contrato-aep-17-v5']),
     intentos: v.pipe(v.number(), v.integer(), v.minValue(0)),
     lease_expira_en: v.nullable(v.string()),
     reintentable: v.boolean(),
@@ -2335,14 +2246,21 @@ export async function crearContrato(
     numero_contrato: input.numero_contrato?.trim() || null,
     notas_internas: input.notas_internas?.trim() || null,
   }
+  if (input.categoria === 'renovacion') {
+    p_contrato.contrato_origen_id = input.contrato_origen_id ?? null
+    p_contrato.capital_renovado = input.capital_renovado ?? null
+    p_contrato.capital_adicional = input.capital_adicional ?? 0
+  }
   // En el alta, [] equivale a ausente: solo viajan si de verdad hay co-titulares.
   if (input.titulares && input.titulares.length > 0) p_contrato.titulares = input.titulares
   const p_cronograma = cronograma as unknown as Json[]
-  const { data, error } = await cliente().schema('crm').rpc('crear_contrato_con_cuenta_pdf_v2', {
-    p_contrato: p_contrato as unknown as Json,
-    p_cronograma,
-    p_cuenta: input.cuenta_pago as unknown as Json,
-  })
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc('crear_contrato_con_cuenta_pdf_v2', {
+      p_contrato: p_contrato as unknown as Json,
+      p_cronograma,
+      p_cuenta: input.cuenta_pago as unknown as Json,
+    })
   if (error) throw aErrorApi(error, 'crm.contrato.crear_fallido')
   const r = v.safeParse(CrearContratoResultadoSchema, data)
   if (!r.success) {
@@ -2362,10 +2280,7 @@ export async function crearContrato(
     r.output.pdf.archivo !== null ||
     r.output.pdf.storage_path !== `${r.output.id}/v2/${r.output.pdf.job_id}/contrato.pdf`
   ) {
-    const fallo = new CrmApiError(
-      'El servidor no reservó correctamente el PDF contractual.',
-      'ROW_CONTRACT',
-    )
+    const fallo = new CrmApiError('El servidor no reservó correctamente el PDF contractual.', 'ROW_CONTRACT')
     registrarError('crm.contrato.pdf_reserva_invalida', fallo)
     throw fallo
   }
@@ -2449,7 +2364,10 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
   for (const cruda of data ?? []) {
     const r = v.safeParse(ClienteBasicoRowSchema, cruda)
     if (r.success) {
-      items.push({ ...r.output, nombre_completo: r.output.nombre_completo ?? '' })
+      items.push({
+        ...r.output,
+        nombre_completo: r.output.nombre_completo ?? '',
+      })
     } else {
       descartadas += 1
     }
@@ -2529,11 +2447,7 @@ const ClienteDetalleRowSchema = v.object({
  * en msw/Playwright y sin el 406 especial de PostgREST.
  */
 export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): Promise<ClienteDetalle> {
-  let consulta = cliente()
-    .from('perfiles')
-    .select(COLUMNAS_CLIENTE_DETALLE)
-    .eq('id', id)
-    .limit(1)
+  let consulta = cliente().from('perfiles').select(COLUMNAS_CLIENTE_DETALLE).eq('id', id).limit(1)
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
@@ -2576,16 +2490,8 @@ export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): P
  * `null` = NO SE PUDO COMPROBAR (red, RLS, servidor). El llamador no debe
  * afirmar ninguna de las dos cosas: no es un `false` disfrazado.
  */
-export async function esClienteDeMiCartera(
-  perfilId: string,
-  signal?: AbortSignal,
-): Promise<boolean | null> {
-  let consulta = cliente()
-    .from('perfiles')
-    .select('id')
-    .eq('id', perfilId)
-    .eq('rol', 'cliente')
-    .limit(1)
+export async function esClienteDeMiCartera(perfilId: string, signal?: AbortSignal): Promise<boolean | null> {
+  let consulta = cliente().from('perfiles').select('id').eq('id', perfilId).eq('rol', 'cliente').limit(1)
   if (signal) consulta = consulta.abortSignal(signal)
 
   const { data, error } = await consulta
@@ -2649,7 +2555,9 @@ export async function crearClientePortal(payload: CrearClientePortalInput): Prom
   }
   if (payload.password) body.password = payload.password
 
-  const { data, error } = await cliente().functions.invoke('crear-cliente', { body })
+  const { data, error } = await cliente().functions.invoke('crear-cliente', {
+    body,
+  })
   if (error) {
     let mensaje = 'No se pudo crear el cliente.'
     // FunctionsHttpError expone la respuesta del edge en `context`: extraemos
@@ -2660,12 +2568,19 @@ export async function crearClientePortal(payload: CrearClientePortalInput): Prom
         const cuerpo = await ctx.json()
         if (cuerpo?.error) mensaje = traducirErrorAlta(String(cuerpo.error))
       }
-    } catch { /* nos quedamos con el mensaje genérico */ }
+    } catch {
+      /* nos quedamos con el mensaje genérico */
+    }
     const fallo = new CrmApiError(mensaje, 'ALTA_CLIENTE_FALLIDA')
     registrarError('crm.clientes.alta_fallida', fallo)
     throw fallo
   }
-  const cuerpo = (data ?? {}) as { ok?: boolean; user_id?: string; email_enviado?: boolean; error?: string }
+  const cuerpo = (data ?? {}) as {
+    ok?: boolean
+    user_id?: string
+    email_enviado?: boolean
+    error?: string
+  }
   if (cuerpo.error) {
     const fallo = new CrmApiError(String(cuerpo.error), 'ALTA_CLIENTE_FALLIDA')
     registrarError('crm.clientes.alta_fallida', fallo)
@@ -2706,11 +2621,7 @@ export async function actualizarClientePortal(
     return data === true
   }
 
-  const { data, error } = await cliente()
-    .from('perfiles')
-    .update(patch)
-    .eq('id', id)
-    .select('id')
+  const { data, error } = await cliente().from('perfiles').update(patch).eq('id', id).select('id')
   if (error) throw aErrorApi(error, 'crm.clientes.update_fallido')
   return (data?.length ?? 0) > 0
 }
@@ -2722,22 +2633,11 @@ export async function actualizarClientePortal(
 // Preguntarlo antes convierte ese muro en un campo que el vendedor rellena.
 
 /** Campos del titular que el PDF exige (nombres, nunca valores: no es una vía a la PII). */
-export const CAMPOS_LEGALES_CLIENTE = [
-  'nombre_completo',
-  'tipo_documento',
-  'documento',
-  'domicilio',
-  'correo',
-] as const
+export const CAMPOS_LEGALES_CLIENTE = ['nombre_completo', 'tipo_documento', 'documento', 'domicilio', 'correo'] as const
 export type CampoLegalCliente = (typeof CAMPOS_LEGALES_CLIENTE)[number]
 
 /** Campos del propio analista que firma el alta (contratos.creado_por = auth.uid()). */
-export const CAMPOS_LEGALES_ANALISTA = [
-  'nombre_completo',
-  'documento',
-  'telefono',
-  'correo',
-] as const
+export const CAMPOS_LEGALES_ANALISTA = ['nombre_completo', 'documento', 'telefono', 'correo'] as const
 export type CampoLegalAnalista = (typeof CAMPOS_LEGALES_ANALISTA)[number]
 
 export interface DatosLegalesContrato {
@@ -2768,10 +2668,7 @@ export async function obtenerDatosLegalesContrato(
   if (error) throw aErrorApi(error, 'crm.contrato.datos_legales_fallido')
   const r = v.safeParse(DatosLegalesContratoSchema, data)
   if (!r.success) {
-    const fallo = new CrmApiError(
-      'No se pudo comprobar qué datos legales exige el contrato.',
-      'RESPUESTA_INVALIDA',
-    )
+    const fallo = new CrmApiError('No se pudo comprobar qué datos legales exige el contrato.', 'RESPUESTA_INVALIDA')
     registrarError('crm.contrato.datos_legales_respuesta_invalida', fallo)
     throw fallo
   }
@@ -2805,10 +2702,7 @@ const DomicilioCompletadoSchema = v.strictObject({
   accion: v.picklist(['completado', 'conservado']),
 })
 
-export async function completarDomicilioCliente(
-  clienteId: string,
-  domicilio: string,
-): Promise<DomicilioCompletado> {
+export async function completarDomicilioCliente(clienteId: string, domicilio: string): Promise<DomicilioCompletado> {
   const { data, error } = await cliente().schema('crm').rpc('completar_domicilio_cliente', {
     p_cliente_id: clienteId,
     p_domicilio: domicilio,
@@ -2816,10 +2710,7 @@ export async function completarDomicilioCliente(
   if (error) throw aErrorApi(error, 'crm.clientes.domicilio_fallido')
   const r = v.safeParse(DomicilioCompletadoSchema, data)
   if (!r.success) {
-    const fallo = new CrmApiError(
-      'El servidor no confirmó el domicilio legal del cliente.',
-      'RESPUESTA_INVALIDA',
-    )
+    const fallo = new CrmApiError('El servidor no confirmó el domicilio legal del cliente.', 'RESPUESTA_INVALIDA')
     registrarError('crm.clientes.domicilio_respuesta_invalida', fallo)
     throw fallo
   }
@@ -2946,6 +2837,127 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
     )
   }
   return items
+}
+
+// ── Operaciones postventa: renovaciones + upgrades, ledger de solo lectura ───
+const MAX_OPERACIONES_CARTERA = 2000
+const COLUMNAS_OPERACION_CARTERA = [
+  'id',
+  'cliente_id',
+  'vendedor_id',
+  'tipo',
+  'contrato_origen_id',
+  'contrato_nuevo_id',
+  'fecha_operacion',
+  'periodo',
+  'moneda',
+  'capital_renovado',
+  'capital_adicional',
+  'elegible_conversion',
+  'desglose_completo',
+  'fuente',
+  'creado_por',
+  'creado_en',
+].join(',')
+
+const OperacionCarteraRowSchema = v.object({
+  id: v.string(),
+  cliente_id: v.string(),
+  vendedor_id: v.string(),
+  tipo: v.picklist(['renovacion', 'upgrade']),
+  contrato_origen_id: v.nullable(v.string()),
+  contrato_nuevo_id: v.string(),
+  fecha_operacion: v.string(),
+  periodo: v.string(),
+  moneda: v.picklist(['PEN', 'USD']),
+  capital_renovado: v.nullable(v.union([v.number(), v.string()])),
+  capital_adicional: v.nullable(v.union([v.number(), v.string()])),
+  elegible_conversion: v.boolean(),
+  desglose_completo: v.boolean(),
+  fuente: v.picklist(['flujo_cartera', 'backfill_agosto_2026']),
+  creado_por: v.string(),
+  creado_en: v.string(),
+})
+
+export async function listarOperacionesCartera(signal?: AbortSignal): Promise<OperacionCartera[]> {
+  let consulta = cliente()
+    .schema('crm')
+    .from('operaciones_cartera')
+    .select(COLUMNAS_OPERACION_CARTERA)
+    .order('fecha_operacion', { ascending: false })
+    .order('creado_en', { ascending: false })
+    .order('id', { ascending: true })
+    .limit(MAX_OPERACIONES_CARTERA)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No se pudo cargar el desglose de renovaciones y upgrades.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.operaciones_cartera.listado_fallido', fallo)
+    throw fallo
+  }
+  avisarTopeAlcanzado('operaciones_cartera', MAX_OPERACIONES_CARTERA, (data ?? []).length)
+  const items: OperacionCartera[] = []
+  for (const cruda of data ?? []) {
+    const r = v.safeParse(OperacionCarteraRowSchema, cruda)
+    if (!r.success) {
+      const fallo = new CrmApiError('El desglose de renovaciones tiene un formato inesperado.', 'ROW_CONTRACT')
+      registrarError('crm.operaciones_cartera.fila_invalida', fallo)
+      // Fail-closed: omitir una fila haría cuadrar mal renovado + adicional.
+      throw fallo
+    }
+    items.push({
+      ...r.output,
+      capital_renovado: aNumero(r.output.capital_renovado),
+      capital_adicional: aNumero(r.output.capital_adicional),
+    })
+  }
+  return items
+}
+
+// ── Historial comercial postventa de un cliente ─────────────────────────────
+const MAX_ACTIVIDADES_CLIENTE = 100
+const ActividadClienteRowSchema = v.object({
+  id: v.string(),
+  cliente_id: v.string(),
+  vendedor_id: v.string(),
+  tarea_id: v.nullable(v.string()),
+  tipo: v.picklist([
+    'llamada_realizada',
+    'llamada_no_contestada',
+    'whatsapp_enviado',
+    'whatsapp_recibido',
+    'reunion_realizada',
+    'nota',
+  ]),
+  detalle: v.nullable(v.string()),
+  creado_por: v.nullable(v.string()),
+  creado_en: v.string(),
+})
+
+export async function listarActividadesCliente(clienteId: string, signal?: AbortSignal): Promise<ActividadCliente[]> {
+  let consulta = cliente()
+    .schema('crm')
+    .from('actividades_cliente')
+    .select('id,cliente_id,vendedor_id,tarea_id,tipo,detalle,creado_por,creado_en')
+    .eq('cliente_id', clienteId)
+    .order('creado_en', { ascending: false })
+    .order('id', { ascending: true })
+    .limit(MAX_ACTIVIDADES_CLIENTE)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw aErrorApi(error, 'crm.actividades_cliente.listado_fallido')
+  return (data ?? []).map((fila) => {
+    const r = v.safeParse(ActividadClienteRowSchema, fila)
+    if (!r.success) throw new CrmApiError('Actividad de cliente fuera de contrato', 'ROW_CONTRACT')
+    return r.output
+  })
 }
 
 // ── Cronograma del contrato (solo lectura; RLS fail-closed: ajeno = 0 filas) ───
@@ -3139,10 +3151,7 @@ const MetricaVencimientosRowSchema = v.object({
 })
 
 /** Error de RPC de métricas → CrmApiError es-PE + registro (patrón del módulo). */
-function falloMetricas(
-  error: { code?: string | null },
-  contexto: string,
-): CrmApiError {
+function falloMetricas(error: { code?: string | null }, contexto: string): CrmApiError {
   const fallo = new CrmApiError('No se pudieron cargar las métricas.', error.code || 'POSTGREST_ERROR')
   registrarError(contexto, fallo)
   return fallo
@@ -3159,10 +3168,7 @@ function registrarFilasMetricasInvalidas(rpc: string, descartadas: number): void
 }
 
 /** Capital colocado por mes/moneda/categoría (default: últimos 12 meses). */
-export async function listarMetricasCapitalMes(
-  pMeses = 12,
-  signal?: AbortSignal,
-): Promise<FilaCapitalMes[]> {
+export async function listarMetricasCapitalMes(pMeses = 12, signal?: AbortSignal): Promise<FilaCapitalMes[]> {
   let consulta = cliente().schema('crm').rpc('metricas_capital_mes_fn', { p_meses: pMeses })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -3189,10 +3195,7 @@ export async function listarMetricasCapitalMes(
 }
 
 /** Pagos por mes/moneda/tipo/estado (default: últimos 12 meses). */
-export async function listarMetricasPagosMes(
-  pMeses = 12,
-  signal?: AbortSignal,
-): Promise<FilaPagosMes[]> {
+export async function listarMetricasPagosMes(pMeses = 12, signal?: AbortSignal): Promise<FilaPagosMes[]> {
   let consulta = cliente().schema('crm').rpc('metricas_pagos_mes_fn', { p_meses: pMeses })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -3221,10 +3224,7 @@ export async function listarMetricasPagosMes(
 }
 
 /** Altas de clientes por analista y mes (default: últimos 12 meses). */
-export async function listarMetricasAltasAnalista(
-  pMeses = 12,
-  signal?: AbortSignal,
-): Promise<FilaAltasAnalista[]> {
+export async function listarMetricasAltasAnalista(pMeses = 12, signal?: AbortSignal): Promise<FilaAltasAnalista[]> {
   let consulta = cliente().schema('crm').rpc('metricas_altas_analista_fn', { p_meses: pMeses })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -3250,10 +3250,7 @@ export async function listarMetricasAltasAnalista(
 }
 
 /** Contratos/capital por vencer por mes/moneda dentro de p_dias (default 90). */
-export async function listarMetricasVencimientos(
-  pDias = 90,
-  signal?: AbortSignal,
-): Promise<FilaVencimientos[]> {
+export async function listarMetricasVencimientos(pDias = 90, signal?: AbortSignal): Promise<FilaVencimientos[]> {
   let consulta = cliente().schema('crm').rpc('metricas_vencimientos_fn', { p_dias: pDias })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -3303,9 +3300,9 @@ export interface CapacidadLeadsObjetivoActualizada {
 }
 
 function periodoMetricasValido(desde: string, hasta: string): boolean {
-  return v.safeParse(FechaMetricaSchema, desde).success
-    && v.safeParse(FechaMetricaSchema, hasta).success
-    && desde <= hasta
+  return (
+    v.safeParse(FechaMetricaSchema, desde).success && v.safeParse(FechaMetricaSchema, hasta).success && desde <= hasta
+  )
 }
 
 /**
@@ -3322,9 +3319,7 @@ function periodoMetricasValido(desde: string, hasta: string): boolean {
  */
 function lanzarAbortSiCorresponde(signal?: AbortSignal): void {
   if (!signal?.aborted) return
-  throw signal.reason instanceof Error
-    ? signal.reason
-    : new DOMException('La solicitud fue cancelada.', 'AbortError')
+  throw signal.reason instanceof Error ? signal.reason : new DOMException('La solicitud fue cancelada.', 'AbortError')
 }
 
 /**
@@ -3340,10 +3335,7 @@ export async function listarMetricasDistribucionLeads(
   signal?: AbortSignal,
 ): Promise<MetricasDistribucionLeads> {
   if (!periodoMetricasValido(desde, hasta)) {
-    const fallo = new CrmApiError(
-      'El período de métricas no es válido.',
-      'PERIODO_METRICAS_INVALIDO',
-    )
+    const fallo = new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
     registrarError('crm.metricas.distribucion_periodo_invalido', fallo)
     throw fallo
   }
@@ -3360,9 +3352,9 @@ export async function listarMetricasDistribucionLeads(
 
   const resultado = v.safeParse(MetricasDistribucionLeadsSchema, data)
   if (
-    !resultado.success
-    || resultado.output.cohorte.desde_inclusivo !== desde
-    || resultado.output.cohorte.hasta_inclusivo !== hasta
+    !resultado.success ||
+    resultado.output.cohorte.desde_inclusivo !== desde ||
+    resultado.output.cohorte.hasta_inclusivo !== hasta
   ) {
     const fallo = new CrmApiError(
       'Las métricas de distribución no tienen el formato esperado.',
@@ -3388,10 +3380,7 @@ export async function listarMetricasAgenda(
   signal?: AbortSignal,
 ): Promise<MetricasAgenda> {
   if (!periodoMetricasValido(desde, hasta)) {
-    const fallo = new CrmApiError(
-      'El período de métricas no es válido.',
-      'PERIODO_METRICAS_INVALIDO',
-    )
+    const fallo = new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
     registrarError('crm.metricas.agenda_periodo_invalido', fallo)
     throw fallo
   }
@@ -3407,15 +3396,8 @@ export async function listarMetricasAgenda(
   if (error) throw falloMetricas(error, 'crm.metricas.agenda_fallido')
 
   const resultado = v.safeParse(MetricasAgendaSchema, data)
-  if (
-    !resultado.success
-    || resultado.output.periodo.desde !== desde
-    || resultado.output.periodo.hasta !== hasta
-  ) {
-    const fallo = new CrmApiError(
-      'Las métricas de agenda no tienen el formato esperado.',
-      'METRICAS_AGENDA_CONTRACT',
-    )
+  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
+    const fallo = new CrmApiError('Las métricas de agenda no tienen el formato esperado.', 'METRICAS_AGENDA_CONTRACT')
     registrarError('crm.metricas.agenda_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -3469,15 +3451,9 @@ const PERIODO_MENSUAL_RE = /^\d{4}-\d{2}-01$/
  * no trae `desde/hasta` en fecha-plana como sus hermanas, trae el mes nombrado
  * (copiar aquí el patrón desde/hasta rechazaría el 100 % de las respuestas).
  */
-export async function obtenerConversionMensual(
-  periodo: string,
-  signal?: AbortSignal,
-): Promise<ConversionMensual> {
+export async function obtenerConversionMensual(periodo: string, signal?: AbortSignal): Promise<ConversionMensual> {
   if (!PERIODO_MENSUAL_RE.test(periodo)) {
-    const fallo = new CrmApiError(
-      'El período de la conversión mensual no es válido.',
-      'PERIODO_METRICAS_INVALIDO',
-    )
+    const fallo = new CrmApiError('El período de la conversión mensual no es válido.', 'PERIODO_METRICAS_INVALIDO')
     // Con registro (patrón agenda, no el de conversiones): un periodo inválido
     // aquí es un bug del front, no del usuario, y sin evento no se detecta.
     registrarError('crm.metricas.conversion_mensual_periodo_invalido', fallo)
@@ -3495,10 +3471,7 @@ export async function obtenerConversionMensual(
 
   const resultado = v.safeParse(ConversionMensualSchema, data)
   if (!resultado.success || resultado.output.periodo.mes !== periodo.slice(0, 7)) {
-    const fallo = new CrmApiError(
-      'La conversión mensual no tiene el formato esperado.',
-      'CONVERSION_MENSUAL_CONTRACT',
-    )
+    const fallo = new CrmApiError('La conversión mensual no tiene el formato esperado.', 'CONVERSION_MENSUAL_CONTRACT')
     registrarError('crm.metricas.conversion_mensual_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -3534,11 +3507,7 @@ export async function listarMetricasConversionesEquipo(
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.conversiones_equipo_fallido')
   const resultado = v.safeParse(MetricasConversionesEquipoSchema, data)
-  if (
-    !resultado.success
-    || resultado.output.periodo.desde !== desde
-    || resultado.output.periodo.hasta !== hasta
-  ) {
+  if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
     const fallo = new CrmApiError(
       'El ranking de conversión del equipo no tiene el formato esperado.',
       'METRICAS_CONVERSIONES_EQUIPO_CONTRACT',
@@ -3594,14 +3563,8 @@ export async function listarResumenCartera(signal?: AbortSignal): Promise<Resume
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.resumen_cartera_fallido')
   const resultado = v.safeParse(ResumenCarteraSchema, data)
-  if (
-    !resultado.success
-    || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS
-  ) {
-    const fallo = new CrmApiError(
-      'El resumen de cartera no tiene el formato esperado.',
-      'RESUMEN_CARTERA_CONTRACT',
-    )
+  if (!resultado.success || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS) {
+    const fallo = new CrmApiError('El resumen de cartera no tiene el formato esperado.', 'RESUMEN_CARTERA_CONTRACT')
     registrarError('crm.metricas.resumen_cartera_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -3615,10 +3578,7 @@ export async function listarResumenCartera(signal?: AbortSignal): Promise<Resume
  * lo redacta el front desde `datos_motivo` (lib/cola-accion). `resumen.total`
  * viene SIN el recorte de p_limite — es el dato del «+N más en cola».
  */
-export async function listarColaAccion(
-  pLimite = LIMITE_COLA_ACCION,
-  signal?: AbortSignal,
-): Promise<ColaAccion> {
+export async function listarColaAccion(pLimite = LIMITE_COLA_ACCION, signal?: AbortSignal): Promise<ColaAccion> {
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc('cola_accion_fn', { p_limite: pLimite })
   if (signal) consulta = consulta.abortSignal(signal)
@@ -3627,10 +3587,7 @@ export async function listarColaAccion(
   if (error) throw falloMetricas(error, 'crm.metricas.cola_accion_fallido')
   const resultado = v.safeParse(ColaAccionSchema, data)
   if (!resultado.success || resultado.output.p_limite !== pLimite) {
-    const fallo = new CrmApiError(
-      'La cola de acción no tiene el formato esperado.',
-      'COLA_ACCION_CONTRACT',
-    )
+    const fallo = new CrmApiError('La cola de acción no tiene el formato esperado.', 'COLA_ACCION_CONTRACT')
     registrarError('crm.metricas.cola_accion_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -3644,9 +3601,7 @@ export async function listarColaAccion(
  * un ranking y unos tiles con cortes distintos en la misma pantalla serían
  * números que se contradicen.
  */
-export async function listarMetricasVendedores(
-  signal?: AbortSignal,
-): Promise<MetricasVendedoresPayload> {
+export async function listarMetricasVendedores(signal?: AbortSignal): Promise<MetricasVendedoresPayload> {
   lanzarAbortSiCorresponde(signal)
   let consulta = cliente().schema('crm').rpc('metricas_vendedores_fn')
   if (signal) consulta = consulta.abortSignal(signal)
@@ -3654,10 +3609,7 @@ export async function listarMetricasVendedores(
   lanzarAbortSiCorresponde(signal)
   if (error) throw falloMetricas(error, 'crm.metricas.vendedores_fallido')
   const resultado = v.safeParse(MetricasVendedoresSchema, data)
-  if (
-    !resultado.success
-    || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS
-  ) {
+  if (!resultado.success || resultado.output.ventana_convertidos_dias !== VENTANA_CONVERTIDOS_DIAS) {
     const fallo = new CrmApiError(
       'Las métricas por vendedor no tienen el formato esperado.',
       'METRICAS_VENDEDORES_CONTRACT',
@@ -3670,11 +3622,7 @@ export async function listarMetricasVendedores(
 
 // ── Reporte de derivaciones de supervisión ───────────────────────────────────
 
-function falloReporteDerivaciones(
-  error: { code?: string | null },
-  evento: string,
-  porDefecto: string,
-): CrmApiError {
+function falloReporteDerivaciones(error: { code?: string | null }, evento: string, porDefecto: string): CrmApiError {
   const fallo = new CrmApiError(
     error.code === '22023'
       ? 'El rango de fechas de derivaciones no es válido.'
@@ -3682,7 +3630,7 @@ function falloReporteDerivaciones(
         ? 'No tienes permiso para gestionar las derivaciones de este equipo.'
         : error.code === 'P0429'
           ? 'El lead está marcado No Insista y no se puede derivar.'
-        : porDefecto,
+          : porDefecto,
     error.code || 'POSTGREST_ERROR',
   )
   registrarError(evento, fallo, { pg: error.code ?? '' })
@@ -3740,18 +3688,22 @@ export async function derivarLeadsEquipo(
   derivaciones: readonly DerivacionEquipoPendiente[],
 ): Promise<ResultadoDerivarLeadsEquipo> {
   if (
-    derivaciones.length < 1
-    || derivaciones.length > 100
-    || derivaciones.some((d) => !v.safeParse(UuidSchema, d.leadId).success || !v.safeParse(UuidSchema, d.asesorId).success)
-    || new Set(derivaciones.map((d) => d.leadId)).size !== derivaciones.length
+    derivaciones.length < 1 ||
+    derivaciones.length > 100 ||
+    derivaciones.some(
+      (d) => !v.safeParse(UuidSchema, d.leadId).success || !v.safeParse(UuidSchema, d.asesorId).success,
+    ) ||
+    new Set(derivaciones.map((d) => d.leadId)).size !== derivaciones.length
   ) {
     throw new CrmApiError('El borrador de derivaciones no es válido.', 'BORRADOR_DERIVACIONES_INVALIDO')
   }
 
-  const { data, error } = await cliente().schema('crm').rpc('derivar_leads_equipo_fn', {
-    p_lead_ids: derivaciones.map((d) => d.leadId),
-    p_asesor_ids: derivaciones.map((d) => d.asesorId),
-  })
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc('derivar_leads_equipo_fn', {
+      p_lead_ids: derivaciones.map((d) => d.leadId),
+      p_asesor_ids: derivaciones.map((d) => d.asesorId),
+    })
   if (error) {
     throw falloReporteDerivaciones(
       error,
@@ -3775,9 +3727,7 @@ export async function derivarLeadsEquipo(
  * Devuelve a la bandeja propia una derivación de hoy sin actividad posterior.
  * El servidor conserva el episodio cerrado y la actividad de reasignación.
  */
-export async function revertirDerivacionEquipo(
-  leadId: string,
-): Promise<ResultadoRevertirDerivacionEquipo> {
+export async function revertirDerivacionEquipo(leadId: string): Promise<ResultadoRevertirDerivacionEquipo> {
   if (!v.safeParse(UuidSchema, leadId).success) {
     throw new CrmApiError('El lead que deseas devolver no es válido.', 'LEAD_INVALIDO')
   }
@@ -3821,10 +3771,7 @@ export async function listarResumenReparto(signal?: AbortSignal): Promise<Resume
   if (error) throw falloMetricas(error, 'crm.reparto.resumen_fallido')
   const resultado = v.safeParse(ResumenRepartoSchema, data)
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'El resumen de la cola no tiene el formato esperado.',
-      'RESUMEN_REPARTO_CONTRACT',
-    )
+    const fallo = new CrmApiError('El resumen de la cola no tiene el formato esperado.', 'RESUMEN_REPARTO_CONTRACT')
     registrarError('crm.reparto.resumen_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -3837,8 +3784,7 @@ export async function actualizarCapacidadLeadsObjetivo(
   capacidad: number | null,
 ): Promise<CapacidadLeadsObjetivoActualizada> {
   const idValido = v.safeParse(v.pipe(v.string(), v.uuid()), analistaId).success
-  const capacidadValida = capacidad == null
-    || (Number.isInteger(capacidad) && capacidad >= 1 && capacidad <= 1000)
+  const capacidadValida = capacidad == null || (Number.isInteger(capacidad) && capacidad >= 1 && capacidad <= 1000)
   if (!idValido || !capacidadValida) {
     throw new CrmApiError(
       'La capacidad debe estar entre 1 y 1000 leads, o quedar sin configurar.',
@@ -3846,14 +3792,13 @@ export async function actualizarCapacidadLeadsObjetivo(
     )
   }
 
-  const { data, error } = await cliente().schema('crm').rpc(
-    'actualizar_capacidad_leads_objetivo',
-    {
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc('actualizar_capacidad_leads_objetivo', {
       p_analista_id: analistaId,
       // SIN default: el null explícito ES el mensaje («quedar sin configurar»).
       p_capacidad_leads_objetivo: nuloExplicito(capacidad),
-    },
-  )
+    })
 
   if (error) {
     let fallo: CrmApiError
@@ -3867,25 +3812,21 @@ export async function actualizarCapacidadLeadsObjetivo(
     } else if (error.code === '42501' || error.code === 'PGRST301') {
       fallo = new CrmApiError('No tienes permiso para configurar capacidades.', 'SIN_PERMISO')
     } else {
-      fallo = new CrmApiError(
-        'No se pudo actualizar la capacidad del analista.',
-        error.code || 'POSTGREST_ERROR',
-      )
+      fallo = new CrmApiError('No se pudo actualizar la capacidad del analista.', error.code || 'POSTGREST_ERROR')
     }
-    registrarError('crm.equipo.capacidad_actualizar_fallido', fallo, { pg: error.code ?? '' })
+    registrarError('crm.equipo.capacidad_actualizar_fallido', fallo, {
+      pg: error.code ?? '',
+    })
     throw fallo
   }
 
   const respuesta = v.safeParse(v.strictTuple([CapacidadActualizadaSchema]), data)
   if (
-    !respuesta.success
-    || respuesta.output[0].perfil_id !== analistaId
-    || respuesta.output[0].capacidad_leads_objetivo !== capacidad
+    !respuesta.success ||
+    respuesta.output[0].perfil_id !== analistaId ||
+    respuesta.output[0].capacidad_leads_objetivo !== capacidad
   ) {
-    const fallo = new CrmApiError(
-      'La capacidad actualizada no tiene el formato esperado.',
-      'CAPACIDAD_CONTRACT',
-    )
+    const fallo = new CrmApiError('La capacidad actualizada no tiene el formato esperado.', 'CAPACIDAD_CONTRACT')
     registrarError('crm.equipo.capacidad_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -3941,9 +3882,7 @@ export interface CierreExternoCreado {
  * de negocio ANTES de viajar. El servidor revalida todo — esto no es la
  * frontera de seguridad, es la UX del error.
  */
-export async function convertirLeadExterno(
-  datos: ConvertirLeadExternoDatos,
-): Promise<CierreExternoCreado> {
+export async function convertirLeadExterno(datos: ConvertirLeadExternoDatos): Promise<CierreExternoCreado> {
   const documento = datos.documento.trim().toUpperCase()
   const nombre = datos.nombre.trim()
   const numeroTransaccion = datos.numeroTransaccion.trim()
@@ -3951,9 +3890,10 @@ export async function convertirLeadExterno(
   // coma flotante `10000.03 * 100` da 1000003.0000000001, así que el formulario
   // acusaba tres decimales a un monto perfectamente válido. Se compara con una
   // tolerancia mucho menor que un céntimo: 10000.035 sigue cayendo.
-  const montoValido = Number.isFinite(datos.monto)
-    && datos.monto > 0
-    && Math.abs(Math.round(datos.monto * 100) - datos.monto * 100) < 1e-6
+  const montoValido =
+    Number.isFinite(datos.monto) &&
+    datos.monto > 0 &&
+    Math.abs(Math.round(datos.monto * 100) - datos.monto * 100) < 1e-6
   if (!montoValido) {
     throw new CrmApiError(
       'El monto invertido debe ser mayor que cero, con máximo 2 decimales.',
@@ -3961,37 +3901,33 @@ export async function convertirLeadExterno(
     )
   }
   if (numeroTransaccion === '') {
-    throw new CrmApiError(
-      'El número de operación del depósito es obligatorio.',
-      'CIERRE_EXTERNO_TRANSACCION_INVALIDA',
-    )
+    throw new CrmApiError('El número de operación del depósito es obligatorio.', 'CIERRE_EXTERNO_TRANSACCION_INVALIDA')
   }
   if (!TIPOS_DOCUMENTO[datos.documentoTipo].regex.test(documento)) {
-    throw new CrmApiError(
-      TIPOS_DOCUMENTO[datos.documentoTipo].error,
-      'CIERRE_EXTERNO_DOCUMENTO_INVALIDO',
-    )
+    throw new CrmApiError(TIPOS_DOCUMENTO[datos.documentoTipo].error, 'CIERRE_EXTERNO_DOCUMENTO_INVALIDO')
   }
   if (nombre === '') {
-    throw new CrmApiError(
-      'El nombre completo es obligatorio.',
-      'CIERRE_EXTERNO_NOMBRE_INVALIDO',
-    )
+    throw new CrmApiError('El nombre completo es obligatorio.', 'CIERRE_EXTERNO_NOMBRE_INVALIDO')
   }
 
-  const { data, error } = await cliente().schema('crm').rpc('convertir_lead_externo', sinIndefinidos({
-    p_lead_id: datos.leadId,
-    p_cooperativa: datos.cooperativa,
-    p_monto: datos.monto,
-    p_moneda: datos.moneda,
-    p_documento_tipo: datos.documentoTipo,
-    p_documento: documento,
-    p_nombre: nombre,
-    p_numero_transaccion: numeroTransaccion,
-    p_referencia: datos.referencia?.trim() || undefined,
-    p_vence_en: datos.venceEn ?? undefined,
-    p_nota: datos.nota?.trim() || undefined,
-  }))
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc(
+      'convertir_lead_externo',
+      sinIndefinidos({
+        p_lead_id: datos.leadId,
+        p_cooperativa: datos.cooperativa,
+        p_monto: datos.monto,
+        p_moneda: datos.moneda,
+        p_documento_tipo: datos.documentoTipo,
+        p_documento: documento,
+        p_nombre: nombre,
+        p_numero_transaccion: numeroTransaccion,
+        p_referencia: datos.referencia?.trim() || undefined,
+        p_vence_en: datos.venceEn ?? undefined,
+        p_nota: datos.nota?.trim() || undefined,
+      }),
+    )
 
   if (error) {
     let fallo: CrmApiError
@@ -4009,25 +3945,21 @@ export async function convertirLeadExterno(
     } else if (/ya esta cerrado/i.test(error.message ?? '')) {
       fallo = new CrmApiError('El lead ya está cerrado.', 'LEAD_YA_CERRADO')
     } else if (/fuera de tu ambito/i.test(error.message ?? '')) {
-      fallo = new CrmApiError(
-        'El lead no existe o está fuera de tu ámbito.',
-        'LEAD_FUERA_DE_AMBITO',
-      )
+      fallo = new CrmApiError('El lead no existe o está fuera de tu ámbito.', 'LEAD_FUERA_DE_AMBITO')
     } else {
-      fallo = new CrmApiError(
-        'No se pudo registrar el cierre en la cooperativa.',
-        error.code || 'POSTGREST_ERROR',
-      )
+      fallo = new CrmApiError('No se pudo registrar el cierre en la cooperativa.', error.code || 'POSTGREST_ERROR')
     }
-    registrarError('crm.cierres_externos.convertir_fallido', fallo, { pg: error.code ?? '' })
+    registrarError('crm.cierres_externos.convertir_fallido', fallo, {
+      pg: error.code ?? '',
+    })
     throw fallo
   }
 
   const respuesta = v.safeParse(CierreExternoCreadoSchema, data)
   if (
-    !respuesta.success
-    || respuesta.output.lead_id !== datos.leadId
-    || respuesta.output.cooperativa !== datos.cooperativa
+    !respuesta.success ||
+    respuesta.output.lead_id !== datos.leadId ||
+    respuesta.output.cooperativa !== datos.cooperativa
   ) {
     const fallo = new CrmApiError(
       'La respuesta del cierre externo no tiene el formato esperado.',
@@ -4060,29 +3992,26 @@ export interface CorregirCierreExternoDatos {
 
 /** Corrección de gerencia sobre un cierre externo. La identidad del cierre
  * (documento, nombre, quién cobró) es inmutable y NO viaja. */
-export async function corregirCierreExterno(
-  datos: CorregirCierreExternoDatos,
-): Promise<{ cierreId: string }> {
+export async function corregirCierreExterno(datos: CorregirCierreExternoDatos): Promise<{ cierreId: string }> {
   const numeroTransaccion = datos.numeroTransaccion.trim()
   if (numeroTransaccion === '') {
-    throw new CrmApiError(
-      'El número de operación del depósito es obligatorio.',
-      'CIERRE_EXTERNO_TRANSACCION_INVALIDA',
-    )
+    throw new CrmApiError('El número de operación del depósito es obligatorio.', 'CIERRE_EXTERNO_TRANSACCION_INVALIDA')
   }
 
-  const { data, error } = await cliente().schema('crm').rpc('corregir_cierre_externo', {
-    p_cierre_id: datos.cierreId,
-    p_monto: datos.monto,
-    p_moneda: datos.moneda,
-    p_cooperativa: datos.cooperativa,
-    p_numero_transaccion: numeroTransaccion,
-    // SIN default en el catálogo: la clave es obligatoria y el null explícito
-    // significa «limpiar el campo» — debe seguir viajando tal cual.
-    p_referencia: nuloExplicito(datos.referencia?.trim() || null),
-    p_vence_en: nuloExplicito(datos.venceEn),
-    p_nota: nuloExplicito(datos.nota?.trim() || null),
-  })
+  const { data, error } = await cliente()
+    .schema('crm')
+    .rpc('corregir_cierre_externo', {
+      p_cierre_id: datos.cierreId,
+      p_monto: datos.monto,
+      p_moneda: datos.moneda,
+      p_cooperativa: datos.cooperativa,
+      p_numero_transaccion: numeroTransaccion,
+      // SIN default en el catálogo: la clave es obligatoria y el null explícito
+      // significa «limpiar el campo» — debe seguir viajando tal cual.
+      p_referencia: nuloExplicito(datos.referencia?.trim() || null),
+      p_vence_en: nuloExplicito(datos.venceEn),
+      p_nota: nuloExplicito(datos.nota?.trim() || null),
+    })
 
   if (error) {
     let fallo: CrmApiError
@@ -4095,19 +4024,15 @@ export async function corregirCierreExterno(
       // corrige: no cuenta). El servidor ya lo dice en idioma de negocio.
       fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_CONFLICTO')
     } else {
-      fallo = new CrmApiError(
-        'No se pudo corregir el cierre externo.',
-        error.code || 'POSTGREST_ERROR',
-      )
+      fallo = new CrmApiError('No se pudo corregir el cierre externo.', error.code || 'POSTGREST_ERROR')
     }
-    registrarError('crm.cierres_externos.corregir_fallido', fallo, { pg: error.code ?? '' })
+    registrarError('crm.cierres_externos.corregir_fallido', fallo, {
+      pg: error.code ?? '',
+    })
     throw fallo
   }
 
-  const respuesta = v.safeParse(
-    v.object({ ok: v.literal(true), cierre_id: v.pipe(v.string(), v.uuid()) }),
-    data,
-  )
+  const respuesta = v.safeParse(v.object({ ok: v.literal(true), cierre_id: v.pipe(v.string(), v.uuid()) }), data)
   if (!respuesta.success || respuesta.output.cierre_id !== datos.cierreId) {
     const fallo = new CrmApiError(
       'La corrección del cierre externo no tiene el formato esperado.',
@@ -4132,15 +4057,10 @@ export interface AnularCierreExternoDatos {
  * diseño— y es de UNA SOLA DIRECCIÓN: no se des-anula. Por eso el motivo es
  * obligatorio aquí y en el servidor: esto le quita dinero a una persona.
  */
-export async function anularCierreExterno(
-  datos: AnularCierreExternoDatos,
-): Promise<{ cierreId: string }> {
+export async function anularCierreExterno(datos: AnularCierreExternoDatos): Promise<{ cierreId: string }> {
   const motivo = datos.motivo.trim()
   if (motivo === '') {
-    throw new CrmApiError(
-      'Escribe el motivo de la anulación.',
-      'CIERRE_EXTERNO_MOTIVO_REQUERIDO',
-    )
+    throw new CrmApiError('Escribe el motivo de la anulación.', 'CIERRE_EXTERNO_MOTIVO_REQUERIDO')
   }
 
   const { data, error } = await cliente().schema('crm').rpc('anular_cierre_externo', {
@@ -4156,12 +4076,11 @@ export async function anularCierreExterno(
       // «Escribe el motivo», «Ese cierre ya estaba anulado»: mensajes de negocio.
       fallo = new CrmApiError(error.message, 'CIERRE_EXTERNO_INVALIDO')
     } else {
-      fallo = new CrmApiError(
-        'No se pudo anular el cierre externo.',
-        error.code || 'POSTGREST_ERROR',
-      )
+      fallo = new CrmApiError('No se pudo anular el cierre externo.', error.code || 'POSTGREST_ERROR')
     }
-    registrarError('crm.cierres_externos.anular_fallido', fallo, { pg: error.code ?? '' })
+    registrarError('crm.cierres_externos.anular_fallido', fallo, {
+      pg: error.code ?? '',
+    })
     throw fallo
   }
 
@@ -4209,15 +4128,10 @@ export interface CierreAvanceAnulado {
  * NO mueve dinero real: el contrato y el cliente siguen intactos. NO reabre el
  * lead (un convertido es terminal por diseño) y es de UNA SOLA DIRECCIÓN.
  */
-export async function anularCierreAvance(
-  datos: AnularCierreAvanceDatos,
-): Promise<CierreAvanceAnulado> {
+export async function anularCierreAvance(datos: AnularCierreAvanceDatos): Promise<CierreAvanceAnulado> {
   const motivo = datos.motivo.trim()
   if (motivo === '') {
-    throw new CrmApiError(
-      'Escribe el motivo de la anulación.',
-      'CIERRE_AVANCE_MOTIVO_REQUERIDO',
-    )
+    throw new CrmApiError('Escribe el motivo de la anulación.', 'CIERRE_AVANCE_MOTIVO_REQUERIDO')
   }
 
   const { data, error } = await cliente().schema('crm').rpc('anular_cierre_avance', {
@@ -4236,12 +4150,11 @@ export async function anularCierreAvance(
       // anular». Reescribirlos aquí los dejaría desincronizados del servidor.
       fallo = new CrmApiError(error.message, 'CIERRE_AVANCE_INVALIDO')
     } else {
-      fallo = new CrmApiError(
-        'No se pudo anular el cierre.',
-        error.code || 'POSTGREST_ERROR',
-      )
+      fallo = new CrmApiError('No se pudo anular el cierre.', error.code || 'POSTGREST_ERROR')
     }
-    registrarError('crm.cierres_avance.anular_fallido', fallo, { pg: error.code ?? '' })
+    registrarError('crm.cierres_avance.anular_fallido', fallo, {
+      pg: error.code ?? '',
+    })
     throw fallo
   }
 
@@ -4255,10 +4168,7 @@ export async function anularCierreAvance(
     data,
   )
   if (!respuesta.success || respuesta.output.lead_id !== datos.leadId) {
-    const fallo = new CrmApiError(
-      'La anulación del cierre no tiene el formato esperado.',
-      'CIERRE_AVANCE_CONTRACT',
-    )
+    const fallo = new CrmApiError('La anulación del cierre no tiene el formato esperado.', 'CIERRE_AVANCE_CONTRACT')
     registrarError('crm.cierres_avance.anular_fuera_de_contrato', fallo)
     throw fallo
   }
@@ -4278,10 +4188,7 @@ export async function anularCierreAvance(
  * Avance y no está anulado» (ver `estadoDelCierre`, donde ese default se escribe
  * una vez).
  */
-export async function obtenerCierresEstado(
-  leadIds: readonly string[],
-  signal?: AbortSignal,
-): Promise<CierreEstado[]> {
+export async function obtenerCierresEstado(leadIds: readonly string[], signal?: AbortSignal): Promise<CierreEstado[]> {
   // Sin ids no hay pregunta: se ahorra un viaje por cada pantalla que todavía
   // no ha cargado sus filas.
   if (leadIds.length === 0) return []
@@ -4296,16 +4203,16 @@ export async function obtenerCierresEstado(
     for (let i = 0; i < leadIds.length; i += MAX_LEADS_ESTADO) {
       lotes.push(leadIds.slice(i, i + MAX_LEADS_ESTADO) as string[])
     }
-    const respuestas = await Promise.all(
-      lotes.map((lote) => obtenerCierresEstado(lote, signal)),
-    )
+    const respuestas = await Promise.all(lotes.map((lote) => obtenerCierresEstado(lote, signal)))
     return respuestas.flat()
   }
 
   lanzarAbortSiCorresponde(signal)
-  let consulta = cliente().schema('crm').rpc('cierres_estado_fn', {
-    p_lead_ids: leadIds as string[],
-  })
+  let consulta = cliente()
+    .schema('crm')
+    .rpc('cierres_estado_fn', {
+      p_lead_ids: leadIds as string[],
+    })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
   lanzarAbortSiCorresponde(signal)
@@ -4313,10 +4220,7 @@ export async function obtenerCierresEstado(
 
   const resultado = v.safeParse(CierresEstadoSchema, data)
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'El estado de los cierres no tiene el formato esperado.',
-      'CIERRE_ESTADO_CONTRACT',
-    )
+    const fallo = new CrmApiError('El estado de los cierres no tiene el formato esperado.', 'CIERRE_ESTADO_CONTRACT')
     registrarError('crm.cierres_estado.fuera_de_contrato', fallo)
     throw fallo
   }
@@ -4330,15 +4234,9 @@ export async function obtenerCierresEstado(
  * filas DEL MES para la revisión de supervisor y gerencia.
  * MENSUAL POR CONTRATO, como la conversión: `periodo` es el primer día del mes.
  */
-export async function obtenerCierresExternos(
-  periodo: string,
-  signal?: AbortSignal,
-): Promise<CierresExternos> {
+export async function obtenerCierresExternos(periodo: string, signal?: AbortSignal): Promise<CierresExternos> {
   if (!PERIODO_MENSUAL_RE.test(periodo)) {
-    const fallo = new CrmApiError(
-      'El período de los cierres externos no es válido.',
-      'PERIODO_METRICAS_INVALIDO',
-    )
+    const fallo = new CrmApiError('El período de los cierres externos no es válido.', 'PERIODO_METRICAS_INVALIDO')
     registrarError('crm.cierres_externos.periodo_invalido', fallo)
     throw fallo
   }
@@ -4354,10 +4252,7 @@ export async function obtenerCierresExternos(
 
   const resultado = v.safeParse(CierresExternosSchema, data)
   if (!resultado.success || resultado.output.periodo !== periodo) {
-    const fallo = new CrmApiError(
-      'Los cierres externos no tienen el formato esperado.',
-      'CIERRES_EXTERNOS_CONTRACT',
-    )
+    const fallo = new CrmApiError('Los cierres externos no tienen el formato esperado.', 'CIERRES_EXTERNOS_CONTRACT')
     registrarError('crm.cierres_externos.fuera_de_contrato', fallo)
     throw fallo
   }
