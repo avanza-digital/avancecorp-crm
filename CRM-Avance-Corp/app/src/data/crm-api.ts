@@ -1875,6 +1875,8 @@ export interface CerrarTareaInput {
   estado: 'completada' | 'no_show' | 'cancelada'
   resultado_tipo?: TipoActividad | null
   resultado_detalle?: string | null
+  resultado_reunion?: Exclude<ResultadoReunion, 'sin_clasificar'> | null
+  motivo_no_realizada?: MotivoNoRealizada | null
   siguiente?: {
     id?: string
     tipo: string
@@ -1903,6 +1905,8 @@ export async function cerrarTarea(input: CerrarTareaInput): Promise<{ siguiente_
         p_resultado_tipo: input.resultado_tipo ?? undefined,
         p_resultado_detalle: input.resultado_detalle ?? undefined,
         p_siguiente: (input.siguiente ?? null) as Json,
+        p_resultado_reunion: input.resultado_reunion ?? undefined,
+        p_motivo_no_realizada: input.motivo_no_realizada ?? undefined,
       }),
     )
   if (error) throw aErrorApi(error, 'crm.tareas.cierre_fallido')

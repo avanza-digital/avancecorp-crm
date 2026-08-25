@@ -870,13 +870,80 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
         tarea_id: tareaCliente.id,
         resultado_tipo: 'reunion_realizada',
         resultado_detalle: 'Solicitó propuesta de upgrade',
+        resultado_reunion: 'interesado',
+        motivo_no_realizada: null,
       }),
     )
+    expect(api().tareas.find((t) => t.id === tareaCliente.id)).toMatchObject({
+      estado: 'completada',
+      resultado_reunion: 'interesado',
+      motivo_no_realizada: null,
+      detalle_cierre_reunion: 'Solicitó propuesta de upgrade',
+    })
     expect(api().tareas.find((t) => t.id === res.siguiente_id)).toMatchObject({
       lead_id: null,
       perfil_id: clienteId,
       tipo: 'whatsapp',
     })
+    expect(api().actividades).toHaveLength(0)
+  })
+
+  it('una reunión cancelada de cliente conserva motivo y detalle por cerrar_tarea', async () => {
+    const clienteId = '99999999-9999-4999-8999-999999999999'
+    const tareaCliente = {
+      id: '77777777-7777-4777-8777-777777777777',
+      lead_id: null,
+      perfil_id: clienteId,
+      vendedor_id: 'u-v1',
+      asignado_supervisor_id: null,
+      tipo: 'reunion' as const,
+      titulo: 'Reunión por renovar',
+      nota: null,
+      vence_en: '2026-08-25T15:00:00.000Z',
+      duracion_min: 45,
+      modalidad_reunion: 'presencial' as const,
+      ubicacion_reunion: 'Oficina Avance',
+      enlace_reunion: null,
+      estado: 'pendiente' as const,
+      confirmada_en: null,
+      resultado_reunion: null,
+      motivo_no_realizada: null,
+      detalle_cierre_reunion: null,
+      reagendada_de: null,
+      reprogramaciones: 0,
+      activo: true,
+      creado_en: '2026-08-20T15:00:00.000Z',
+    }
+    listarTareas.mockResolvedValue([tareaCliente])
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().tareas).toHaveLength(1))
+
+    const res = mutar((a) =>
+      a.anularTarea(tareaCliente.id, {
+        motivo: 'cancelada_cliente',
+        detalle: '  El cliente pidió mover la conversación al próximo mes  ',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    expect(api().tareas.find((t) => t.id === tareaCliente.id)).toMatchObject({
+      estado: 'cancelada',
+      resultado_reunion: null,
+      motivo_no_realizada: 'cancelada_cliente',
+      detalle_cierre_reunion: 'El cliente pidió mover la conversación al próximo mes',
+    })
+    await waitFor(() =>
+      expect(cerrarTareaMock).toHaveBeenCalledWith({
+        tarea_id: tareaCliente.id,
+        estado: 'cancelada',
+        resultado_tipo: null,
+        resultado_detalle: '  El cliente pidió mover la conversación al próximo mes  ',
+        resultado_reunion: null,
+        motivo_no_realizada: 'cancelada_cliente',
+        siguiente: null,
+      }),
+    )
+    expect(cerrarReunionMock).not.toHaveBeenCalled()
     expect(api().actividades).toHaveLength(0)
   })
 

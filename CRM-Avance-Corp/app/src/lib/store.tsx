@@ -543,8 +543,8 @@ interface CierreTareaServidor {
 /** Selecciona una sola vez el contrato/RPC de cierre según el tipo de tarea. */
 function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
   // cerrar_reunion sigue siendo el motor especializado del mundo LEAD. Para
-  // clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y marca
-  // la reunión como sin_clasificar sin contaminar etapas/SLA.
+  // clientes se usa cerrar_tarea: ese RPC escribe actividades_cliente y
+  // conserva la clasificación sin contaminar etapas/SLA de leads.
   if (input.tarea.tipo === 'reunion' && input.tarea.lead_id) {
     return cerrarReunion({
       tarea_id: input.tarea.id,
@@ -560,7 +560,17 @@ function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
     tarea_id: input.tarea.id,
     estado: input.estado,
     resultado_tipo: input.resultadoTipo,
-    resultado_detalle: input.resultadoDetalle,
+    // En reuniones este mismo campo alimenta tanto el detalle del timeline
+    // como detalle_cierre_reunion. Importa especialmente al cancelar: allí no
+    // hay resultado de actividad, pero sí puede haber explicación comercial.
+    resultado_detalle:
+      input.tarea.tipo === 'reunion' ? input.detalleReunion : input.resultadoDetalle,
+    ...(input.tarea.tipo === 'reunion'
+      ? {
+          resultado_reunion: input.resultadoReunion,
+          motivo_no_realizada: input.motivoNoRealizada,
+        }
+      : {}),
     siguiente: input.siguiente,
   }).then(() => undefined)
 }
