@@ -42,6 +42,34 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-08-25 (~10:04 hora de Lima) — CRM: 38.º release, cierre de la
+  segunda regresión (RETOMAR-55):** publica el merge **`b3f6e98`** =
+  `90b90e2` (supervisor F4.4, el 37.º) + `f924b91` (portada del vendedor
+  «Ahora y Después» + paginación de Derivar + teléfono alternativo), cero
+  archivos solapados y ambos padres ancestros — la regla de ascendencia del
+  ledger, esta vez aplicada. El artefacto es EL MISMO construido y verificado
+  la noche anterior (Miguel paró aquella subida a la mitad; prod nunca se
+  movió): release **`crm-20260825T005045Z-b3f6e98f9f15`**, build
+  **`build-20260825T005045176Z`**, ZIP SHA-256
+  **`402b1d9c7e0c5d0ca8adc86e4b43ae430f3abbb4496e114936a44693b89f47fc`**,
+  gate 2.243/2.243 + E2E 9/9. **Secuencia de hoy:** SHA-256 del ZIP re-
+  verificado; señales y llave re-confirmadas DENTRO del ZIP; `version.json`
+  vivo seguía en `build-20260824T182716934Z` (nadie publicó en paralelo);
+  primer intento 429 de Hostinger, aceptado al reintento tras 90 s
+  (`removeArchive:false`, copia en `releases/` conservada). **En vivo:**
+  `version.json` = build nuevo a la primera lectura; **58/64 archivos al
+  byte** contra el ZIP — las 6 diferencias son exactamente los falsos
+  positivos permanentes (`.htaccess` 403 y 5 PNG optimizados por el CDN);
+  `hoy-DNJIiTvG.js` contiene las 5 señales del vendedor («Tu siguiente
+  movimiento» · «Después en tu agenda» · «Tu cartera en contexto» · «Hoy,
+  tres cosas» · «Nuevo aquí»); `derivaciones-L48j9Z25.js` 200; ZIP 404 en
+  CRM y portal. El `index-BTHZ7kln.js` del build anterior aún responde 200
+  **solo desde el edge del CDN** (`x-hcdn-cache-status: HIT`, age ~14 h):
+  asset inmutable con hash, no es drift y nada lo referencia. Rollback
+  inmediato: `crm-20260824T182717Z-90b90e280479` (37.º — pero vuelve a
+  quitar la portada del vendedor; el rollback SANO completo es este mismo
+  38.º). Ver episodio 2 en [[Hoy del vendedor - Ahora y Después]].
+
 - **Deploy 2026-08-23 (~15:02 hora de Lima) — CRM: «Ahora y Después» del
   vendedor, integrado con la F3 viva del supervisor:** Miguel autorizó
   explícitamente publicar `04dc37e`. Ese primer artefacto sí puso en producción
@@ -568,3 +596,42 @@ Relacionado: [[Derivar leads del supervisor - paginacion compacta]].
 - **Rollback:** `crm-20260824T151110Z-d4a5416a5c0f.zip` en `releases/`.
 
 Relacionado: [[Carga de leads desde hoja de Google]].
+
+## 2026-08-24 · CRM 38.º release — reunificación de vendedor, supervisor y Derivar
+
+- **Causa:** el release paralelo `crm-20260824T155903Z-1dd89bffa9f2` publicó F4.3
+  del supervisor desde `1dd89bf`, pero ese commit no descendía de la portada del
+  vendedor (`c79d54a`) ni de la paginación/teléfono alternativo
+  (`d4a5416`/`9081334`). El artefacto vivo perdió las dos superficies aunque sus
+  releases individuales habían sido correctos.
+- **Integración:** `f924b91` en `release/restaurar-hoy-vendedor-20260824` contiene
+  las tres ramas por ascendencia. La rama quedó respaldada en GitHub. Artefacto
+  limpio `crm-20260824T175707Z-f924b91ad677`, build
+  `build-20260824T175706731Z`, SHA-256
+  `2e6d2f8bdf2593f5c19c0cc84f48d8eb028b72a038ae699055a9d20a029f1b5d`,
+  64 archivos y `worktree_sucio:false`.
+- **Gate:** 135 pruebas focalizadas; gate completo con 170 archivos y
+  2.224/2.224 pruebas, lint, TypeScript, cobertura, build, bundle y duplicación
+  en verde; E2E por rol 9/9. Revisión local: vendedor muestra Ahora/Después,
+  supervisor conserva «Hoy, tres cosas» y F4.3, y Derivar limita a cinco filas
+  por página (los controles aparecen desde el sexto lead).
+- **Publicación:** Miguel invocó `/release-crm`; como el skill no estaba
+  instalado en la sesión, se siguió su fallback documentado mediante el MCP
+  directo `hosting_deployStaticWebsite`, conservando el ZIP local
+  (`removeArchive:false`).
+- **Verificación viva:** `version.json` devuelve el build nuevo; raíz, index,
+  `hoy-Bkte6yuU.js` y `derivaciones-Bmsy6cwi.js` responden 200; 58/58 archivos
+  no transformados coinciden byte por byte con el manifiesto. El chunk Hoy
+  contiene «Tu siguiente movimiento», «Después en tu agenda», «Tu cartera en
+  contexto», «Hoy, tres cosas», «Desde tu última visita» y «Nuevo aquí»; el
+  chunk de Derivar contiene `Paginación de leads por derivar hoy`; el index
+  conserva `telefono_alternativo`. El ZIP responde 404 en CRM y portal,
+  `.vite/license.md` 404 y `.htaccess` 403. Smoke real de Gerencia cargó datos
+  sin errores de consola.
+- **Rollback:** `crm-20260824T155903Z-1dd89bffa9f2.zip` devuelve el estado
+  inmediatamente anterior, pero reintroduce la regresión. Para un rollback que
+  preserve vendedor + F3 sin F4.3 usar `crm-20260823T195728Z-c79d54acdcd2.zip`.
+
+Relacionado: [[Hoy del vendedor - Ahora y Después]] ·
+[[Derivar leads del supervisor - paginacion compacta]] ·
+[[Hoy del supervisor - reparto compacto]].
