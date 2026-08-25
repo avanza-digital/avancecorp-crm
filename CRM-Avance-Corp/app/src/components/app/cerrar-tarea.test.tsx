@@ -1,7 +1,7 @@
 // Tests del diálogo de cierre: resultado 1-tap obligatorio, la sugerencia del
 // motor aparece al elegir, "saltar" a un toque, y el payload que viaja al store.
 import { describe, expect, it, vi } from 'vitest'
-import { act, render, screen } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { toast } from 'sonner'
 import { StoreDataContext } from '@/lib/store-context'
@@ -37,6 +37,26 @@ const TAREA: Tarea = {
   creado_en: '2026-07-17T15:00:00.000Z',
 }
 
+const TAREA_CLIENTE: Tarea = {
+  ...TAREA,
+  id: 't-cliente',
+  lead_id: null,
+  perfil_id: 'c-1',
+  vendedor_id: 'v-1',
+  tipo: 'reunion',
+  titulo: 'Reunión con cliente de cartera',
+  modalidad_reunion: 'presencial',
+  ubicacion_reunion: 'Oficina Avance',
+}
+
+function diferida<T>() {
+  let resolver!: (valor: T) => void
+  const promesa = new Promise<T>((res) => {
+    resolver = res
+  })
+  return { promesa, resolver }
+}
+
 /** Timeline de PLANTÓN: 5 intentos sin una sola respuesta, repartidos en 8 días
  *  (`plantonDe` exige ≥5 intentos y ≥3 días de racha para ofrecer el cierre). */
 function intentosSinRespuesta(): Actividad[] {
@@ -63,12 +83,13 @@ function montar(
   // de la etapa VIVA del lead (solo baja desde `reunion_agendada`).
   leadParche: Partial<Lead> = {},
   retroceso?: EtapaActiva,
+  resultadoAnular?: ReturnType<StoreDataApi['anularTarea']>,
 ) {
   const l = { ...LEAD, ...leadParche } as Lead
   const completarTarea = vi.fn<StoreDataApi['completarTarea']>(() => resultadoCierre)
   const descartar = vi.fn<StoreDataApi['descartar']>(() => ({ ok: true }))
   const anularTarea = vi.fn<StoreDataApi['anularTarea']>(() =>
-    retroceso ? { ok: true, retroceso } : { ok: true },
+    resultadoAnular ?? (retroceso ? { ok: true, retroceso } : { ok: true }),
   )
   const api = {
     lead: (id: string) => (id === l.id ? l : undefined),
@@ -179,6 +200,96 @@ describe('CerrarTareaDialog', () => {
     )
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
     expect(completarTarea.mock.calls[0]?.[0]).toMatchObject({ estado: 'no_show' })
+  })
+
+  it('una reunión de cliente espera el COMMIT clasificado antes de cerrar y avisar éxito', async () => {
+    vi.mocked(toast.success).mockClear()
+    const user = userEvent.setup()
+    const commit = diferida<boolean>()
+    const { completarTarea, onCerrar } = montar(TAREA_CLIENTE, [], {
+      ok: true,
+      persistido: commit.promesa,
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Se realizó' }))
+    await user.selectOptions(screen.getByLabelText('Resultado comercial'), 'interesado')
+    const clic = user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
+    await waitFor(() => expect(completarTarea).toHaveBeenCalledTimes(1))
+
+    expect(completarTarea).toHaveBeenCalledWith(
+      expect.objectContaining({
+        tarea_id: 't-cliente',
+        estado: 'completada',
+        resultado_tipo: 'reunion_realizada',
+        resultado_reunion: 'interesado',
+      }),
+    )
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(onCerrar).not.toHaveBeenCalled()
+
+    await act(async () => commit.resolver(true))
+    await clic
+
+    expect(toast.success).toHaveBeenCalledWith(expect.stringContaining('Tarea cerrada'))
+    expect(onCerrar).toHaveBeenCalledTimes(1)
+  })
+
+  it('si el servidor rechaza el cierre de cliente, no muestra éxito y deja el diálogo abierto', async () => {
+    vi.mocked(toast.success).mockClear()
+    const user = userEvent.setup()
+    const commit = diferida<boolean>()
+    const { completarTarea, onCerrar } = montar(TAREA_CLIENTE, [], {
+      ok: true,
+      persistido: commit.promesa,
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Se realizó' }))
+    await user.selectOptions(screen.getByLabelText('Resultado comercial'), 'seguimiento')
+    const clic = user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
+    await waitFor(() => expect(completarTarea).toHaveBeenCalledTimes(1))
+    await act(async () => commit.resolver(false))
+    await clic
+
+    expect(screen.getByRole('button', { name: /cerrar tarea/i })).toBeEnabled()
+    expect(toast.success).not.toHaveBeenCalled()
+    expect(onCerrar).not.toHaveBeenCalled()
+  })
+
+  it('la cancelación de una reunión de cliente también espera que persista el motivo', async () => {
+    vi.mocked(toast.success).mockClear()
+    const user = userEvent.setup()
+    const commit = diferida<boolean>()
+    const { anularTarea, onCerrar } = montar(
+      TAREA_CLIENTE,
+      [],
+      { ok: true },
+      [],
+      {},
+      undefined,
+      { ok: true, persistido: commit.promesa },
+    )
+
+    await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
+    await user.selectOptions(
+      screen.getByLabelText('Motivo de cancelación de la reunión'),
+      'cancelada_cliente',
+    )
+    const clic = user.click(screen.getByRole('button', { name: /sí, anular/i }))
+    await waitFor(() => expect(anularTarea).toHaveBeenCalledTimes(1))
+
+    expect(anularTarea).toHaveBeenCalledWith('t-cliente', {
+      motivo: 'cancelada_cliente',
+      detalle: null,
+    })
+    expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled()
+    expect(onCerrar).not.toHaveBeenCalled()
+
+    await act(async () => commit.resolver(true))
+    await clic
+
+    expect(toast.success).toHaveBeenCalledWith('Tarea anulada — fuera de tu agenda')
+    expect(onCerrar).toHaveBeenCalledTimes(1)
   })
 
   // ── Cierre por plantón: dos escrituras, un orden NO negociable ─────────────

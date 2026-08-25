@@ -375,7 +375,7 @@ export interface StoreDataApi {
   anularTarea(
     id: string,
     cierreReunion?: { motivo: MotivoNoRealizada; detalle?: string | null },
-  ): ResultadoMut & { retroceso?: EtapaActiva }
+  ): ResultadoMut & { retroceso?: EtapaActiva; persistido?: Promise<boolean> }
   crearLead(input: NuevoLeadInput): ResultadoCrearLead
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
   /** `capital` (opcional) viaja EN LA MISMA escritura que la etapa: pasar a
@@ -1752,7 +1752,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             actividades: [actEtapa, ...d.actividades],
           }))
         }
-        persistir(() =>
+        const persistido = persistir(() =>
           ejecutarCierreTarea({
             tarea: t,
             estado: 'cancelada',
@@ -1766,7 +1766,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             siguiente: null,
           }),
         )
-        return retroceso ? { ok: true, retroceso } : { ok: true }
+        return retroceso ? { ok: true, retroceso, persistido } : { ok: true, persistido }
       },
 
       crearLead: (input) => {

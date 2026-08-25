@@ -442,6 +442,7 @@ describe('MiCartera (pantalla)', () => {
     })
 
     expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
@@ -486,9 +487,9 @@ describe('MiCartera (pantalla)', () => {
     })
 
     expect(screen.getByText('Cliente inactivo: reactívalo antes de gestionar o crear contratos.')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: 'Upgrade' })).toBeDisabled()
-    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeDisabled()
+    expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeEnabled()
 
     await user.click(
@@ -1497,6 +1498,49 @@ describe('MiCartera — supervisión (filtro por asesor + Sin asesor)', () => {
       clientes: CLIENTES_SUP,
       contratos: [],
     })
+
+  it('puede operar clientes de su equipo, igual que vendedor_ids_visibles del servidor', async () => {
+    const user = userEvent.setup()
+    montar({
+      yo: YO_SUP,
+      equipo: EQUIPO_SUP,
+      clientes: [CLIENTES_SUP[0]!],
+      contratos: [
+        contrato({
+          cliente_id: 'c-a',
+          creado_por: 'ase-1',
+          fecha_vencimiento: '2000-01-01',
+        }),
+      ],
+    })
+
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Upgrade' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE ALFA/,
+      }),
+    )
+    const filaContrato = screen.getByLabelText('Abrir detalle del contrato 2026-01-000001').closest('tr')!
+    expect(within(filaContrato).getByRole('button', { name: 'Renovar' })).toBeInTheDocument()
+  })
+
+  it('no amplía acciones a un dueño fuera del roster visible', () => {
+    montar({
+      yo: YO_SUP,
+      equipo: EQUIPO_SUP,
+      clientes: [CLIENTES_SUP[3]!],
+      contratos: [],
+    })
+
+    expect(screen.getByText('CLIENTE FANTASMA')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /\+ Primer contrato/ })).not.toBeInTheDocument()
+  })
 
   it('el chip "Sin asesor" cuenta dueño null Y dueño fuera del roster (2)', () => {
     montarSup()

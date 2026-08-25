@@ -255,6 +255,8 @@ interface PropsFilaGrupo {
   colAsesor: boolean
   /** La vista pinta la columna/zona de acciones porque el rol puede escribir. */
   conAcciones: boolean
+  /** Puede consultar la ficha porque la fila pertenece a su ámbito visible. */
+  consultable: boolean
   /** Puede escribir Y la fila es propia/global: habilita la gestión comercial. */
   gestionable: boolean
   /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
@@ -414,6 +416,7 @@ function FilaGrupoCliente({
   onToggle,
   colAsesor,
   conAcciones,
+  consultable,
   gestionable,
   accionable,
   operable,
@@ -506,13 +509,24 @@ function FilaGrupoCliente({
         </Td>
         {conAcciones && (
           <Td className="text-right">
-            {gestionable || accionable ? (
+            {consultable ? (
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {!operable && motivoNoOperable && (
                   <span id={motivoId} className="max-w-48 text-right text-[11px] leading-tight text-muted-foreground">
                     {motivoNoOperable}
                   </span>
                 )}
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDetalleCliente()
+                  }}
+                >
+                  Ver detalle
+                </Button>
                 {gestionable && (
                   <Button
                     type="button"
@@ -530,17 +544,6 @@ function FilaGrupoCliente({
                 )}
                 {accionable && (
                   <>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDetalleCliente()
-                      }}
-                    >
-                      Ver detalle
-                    </Button>
                     {(edicionGlobal || ventanaCliente.vigente) && (
                       <Button
                         type="button"
@@ -731,6 +734,7 @@ function TarjetaGrupoCliente({
   onToggle,
   colAsesor,
   conAcciones,
+  consultable,
   gestionable,
   accionable,
   operable,
@@ -802,13 +806,16 @@ function TarjetaGrupoCliente({
       </div>
 
       {/* Acciones: cartera propia para analistas; ámbito completo para Gerencia. */}
-      {conAcciones && (gestionable || accionable) && (
+      {conAcciones && consultable && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
           {!operable && motivoNoOperable && (
             <span id={motivoId} className="basis-full text-xs text-muted-foreground">
               {motivoNoOperable}
             </span>
           )}
+          <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
+            Ver detalle
+          </Button>
           {gestionable && (
             <Button
               type="button"
@@ -823,9 +830,6 @@ function TarjetaGrupoCliente({
           )}
           {accionable && (
             <>
-              <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
-                Ver detalle
-              </Button>
               {(edicionGlobal || ventanaCliente.vigente) && (
                 <Button
                   type="button"
@@ -1163,6 +1167,12 @@ function VistaMiCartera({
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
   // el gating vive AQUÍ (una sola fuente), la presentación decide cómo pintarlo.
   const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => {
+    const dueno = duenoDeCartera(g.cliente)
+    const dentroDelAmbito =
+      ambitoGlobal ||
+      esMiCliente(g.cliente, yoId) ||
+      (yo?.rol === 'supervisor' && dueno != null && rosterIds.has(dueno))
+    const consultable = escrituraHabilitada && dentroDelAmbito
     const asesorActivo = g.cliente.asesor_perfil_id != null && asesoresCrmActivos.has(g.cliente.asesor_perfil_id)
     const operable = g.cliente.activo && asesorActivo
     const motivoNoOperable = !g.cliente.activo
@@ -1182,13 +1192,14 @@ function VistaMiCartera({
         }),
       colAsesor: verEquipo,
       conAcciones: escrituraHabilitada,
-      gestionable: escrituraHabilitada && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
-      accionable: accionesContractualesHabilitadas && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
+      consultable,
+      gestionable: consultable && g.cliente.activo,
+      accionable: accionesContractualesHabilitadas && dentroDelAmbito && g.cliente.activo,
       operable,
       motivoNoOperable,
       edicionGlobal,
       yoId,
-      asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
+      asesorNombre: nombres.get(dueno ?? '') ?? null,
       // Los dos filtros de contrato se componen en AND (mismo criterio que la
       // lista): con «por vencer» activo la sub-fila que sobra es ruido.
       contratosVisibles: g.contratos.filter(
@@ -1840,11 +1851,16 @@ export function MiCartera() {
       {overlay?.tipo === 'cliente-gestionar' && (
         <Dialog
           open
-          onClose={cerrar}
+          onClose={cerrarSeguro}
           ariaLabel={`Gestionar a ${overlay.clienteNombre || 'cliente'}`}
           className="w-[640px]"
         >
-          <ClienteGestion clienteId={overlay.clienteId} clienteNombre={overlay.clienteNombre} onCerrar={cerrar} />
+          <ClienteGestion
+            clienteId={overlay.clienteId}
+            clienteNombre={overlay.clienteNombre}
+            onCerrar={cerrarSeguro}
+            onEnviandoCambio={setEnvioEnCurso}
+          />
         </Dialog>
       )}
       {overlay?.tipo === 'cliente-corregir' && (

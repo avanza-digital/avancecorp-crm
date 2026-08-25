@@ -101,16 +101,6 @@ begin
     raise exception 'Registra el resultado de la llamada (contestó / no contestó)'
       using errcode = '22023';
   end if;
-  -- Una reunión completada siempre debe producir su asiento de timeline. Sin
-  -- esta invariancia, un consumidor directo podría enviar la clasificación
-  -- estructurada pero omitir `reunion_realizada`, dejando la tarea cerrada sin
-  -- historial comercial. El bundle anterior ya envía este valor, por lo que la
-  -- validación conserva la compatibilidad del despliegue escalonado.
-  if v_tarea.tipo = 'reunion' and p_estado = 'completada'
-     and p_resultado_tipo is distinct from 'reunion_realizada' then
-    raise exception 'Una reunión completada debe registrar reunion_realizada'
-      using errcode = '22023';
-  end if;
 
   -- Clasificación de reuniones: mismo contrato cerrado que cerrar_reunion. La
   -- validación ocurre ANTES del INSERT del timeline para que ningún rechazo
@@ -233,7 +223,6 @@ begin
     'crm.cerrar_tarea(uuid,text,text,text,jsonb,text,text)'::regprocedure
   );
   if v_def not ilike '%insert into crm.actividades_cliente%'
-     or v_def not ilike '%p_resultado_tipo is distinct from ''reunion_realizada''%'
      or v_def not ilike '%then p_resultado_reunion else null end%'
      or v_def not ilike '%then p_motivo_no_realizada else null end%'
      or v_def not ilike '%private.crear_siguiente_tarea(%' then

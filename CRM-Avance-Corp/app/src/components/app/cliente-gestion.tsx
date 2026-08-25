@@ -39,10 +39,12 @@ export function ClienteGestion({
   clienteId,
   clienteNombre,
   onCerrar,
+  onEnviandoCambio,
 }: {
   clienteId: string
   clienteNombre: string
   onCerrar: () => void
+  onEnviandoCambio?: (enviando: boolean) => void
 }) {
   const { crearTarea, tareasDeCliente } = useCRMData()
   const ahora = useAhora()
@@ -80,35 +82,38 @@ export function ClienteGestion({
       return
     }
     setGuardando(true)
-    const resultado = crearTarea({
-      perfil_id: clienteId,
-      tipo,
-      titulo: titulo.trim(),
-      nota: nota.trim() || null,
-      vence_en: venceEn,
-      ...camposTareaDeReunion(reunion?.ok ? reunion : null),
-    })
-    if (!resultado.ok) {
-      setGuardando(false)
-      toast.error(resultado.error ?? 'No se pudo agendar la gestión')
-      return
-    }
+    onEnviandoCambio?.(true)
+    try {
+      const resultado = crearTarea({
+        perfil_id: clienteId,
+        tipo,
+        titulo: titulo.trim(),
+        nota: nota.trim() || null,
+        vence_en: venceEn,
+        ...camposTareaDeReunion(reunion?.ok ? reunion : null),
+      })
+      if (!resultado.ok) {
+        toast.error(resultado.error ?? 'No se pudo agendar la gestión')
+        return
+      }
 
-    // `crearTarea` aplica primero el espejo optimista. El mensaje definitivo y
-    // el cierre esperan el commit real: RLS o el trigger todavía pueden negar
-    // un cliente que cambió de estado/asesor mientras el diálogo estaba abierto.
-    if (!resultado.persistido) {
-      setGuardando(false)
+      // `crearTarea` aplica primero el espejo optimista. El mensaje definitivo y
+      // el cierre esperan el commit real: RLS o el trigger todavía pueden negar
+      // un cliente que cambió de estado/asesor mientras el diálogo estaba abierto.
+      if (!resultado.persistido) {
+        toast.error('No se pudo confirmar la gestión con el servidor')
+        return
+      }
+      const confirmado = await resultado.persistido
+      if (!confirmado.ok) return
+      toast.success('Gestión agendada · la verás en Hoy y en Agenda')
+      onCerrar()
+    } catch {
       toast.error('No se pudo confirmar la gestión con el servidor')
-      return
-    }
-    const confirmado = await resultado.persistido
-    if (!confirmado.ok) {
+    } finally {
       setGuardando(false)
-      return
+      onEnviandoCambio?.(false)
     }
-    toast.success('Gestión agendada · la verás en Hoy y en Agenda')
-    onCerrar()
   }
 
   return (

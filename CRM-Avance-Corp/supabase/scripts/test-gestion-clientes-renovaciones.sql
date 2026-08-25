@@ -257,7 +257,9 @@ declare
   v_actor uuid;
   v_cliente uuid;
   v_asesor uuid;
+  v_asesor_nuevo constant uuid := '7f100000-0000-4000-8000-000000000003';
   v_actividades_lead_antes integer;
+  v_tareas_pendientes_antes integer;
   v_respuesta jsonb;
   v_tarea constant uuid := '7f200000-0000-4000-8000-000000000001';
   v_siguiente constant uuid := '7f200000-0000-4000-8000-000000000002';
@@ -283,6 +285,30 @@ begin
   if v_actor is null or v_cliente is null or v_asesor is null then
     raise exception 'GCAR-19: el gate necesita Gerencia y un cliente con asesor';
   end if;
+
+  -- Segundo responsable autocontenido para demostrar la reasignación real de
+  -- cartera. El usuario, perfil y membresía viven solo dentro de este BEGIN y
+  -- desaparecen con el ROLLBACK final del gate.
+  insert into auth.users (
+    id, aud, role, email, email_confirmed_at, raw_app_meta_data,
+    raw_user_meta_data, created_at, updated_at
+  ) values (
+    v_asesor_nuevo, 'authenticated', 'authenticated',
+    'gcar-supervisor-destino@test.invalid', now(), '{}', '{}', now(), now()
+  );
+
+  insert into public.perfiles (
+    id, nombre_completo, correo, rol, activo, creado_por
+  ) values (
+    v_asesor_nuevo, 'GCAR SUPERVISOR DESTINO',
+    'gcar-supervisor-destino@test.invalid', 'comercial', true, v_actor
+  );
+
+  insert into crm.equipo (
+    perfil_id, rol_crm, supervisor_id, activo, creado_por
+  ) values (
+    v_asesor_nuevo, 'supervisor', null, true, v_actor
+  );
 
   perform pg_catalog.set_config('request.jwt.claim.sub', v_actor::text, true);
   select count(*) into v_actividades_lead_antes from crm.actividades;
@@ -487,6 +513,54 @@ begin
 
   if (select count(*) from crm.actividades) is distinct from v_actividades_lead_antes then
     raise exception 'GCAR-24: la postventa contaminó actividades de leads';
+  end if;
+
+  -- Reasignar el cliente debe mover TODA su agenda pendiente, sin borrar
+  -- tareas ni reescribir quién atendió las gestiones históricas ya cerradas.
+  select count(*) into v_tareas_pendientes_antes
+  from crm.tareas t
+  where t.perfil_id = v_cliente and t.activo and t.estado = 'pendiente';
+
+  update public.perfiles
+     set asesor_perfil_id = v_asesor_nuevo
+   where id = v_cliente;
+
+  if (select asesor_perfil_id from public.perfiles where id = v_cliente)
+       is distinct from v_asesor_nuevo
+     or (select count(*) from crm.tareas t
+         where t.perfil_id = v_cliente and t.activo and t.estado = 'pendiente')
+       is distinct from v_tareas_pendientes_antes
+     or exists (
+       select 1 from crm.tareas t
+       where t.perfil_id = v_cliente and t.activo and t.estado = 'pendiente'
+         and (
+           t.vendedor_id is distinct from v_asesor_nuevo
+           or t.asignado_supervisor_id is not null
+         )
+     )
+     or not exists (
+       select 1 from crm.tareas t
+       where t.id = v_siguiente and t.perfil_id = v_cliente
+         and t.estado = 'pendiente' and t.vendedor_id = v_asesor_nuevo
+     )
+     or not exists (
+       select 1 from crm.tareas t
+       where t.id = v_atomica and t.perfil_id = v_cliente
+         and t.estado = 'pendiente' and t.vendedor_id = v_asesor_nuevo
+     ) then
+    raise exception 'GCAR-28: la reasignación perdió o dejó atrás tareas pendientes';
+  end if;
+
+  if not exists (
+       select 1 from crm.tareas t
+       where t.id = v_tarea and t.estado = 'completada'
+         and t.vendedor_id = v_asesor
+     ) or not exists (
+       select 1 from crm.actividades_cliente a
+       where a.tarea_id = v_tarea and a.cliente_id = v_cliente
+         and a.vendedor_id = v_asesor
+     ) then
+    raise exception 'GCAR-29: la reasignación reescribió la atribución histórica';
   end if;
 end;
 $postventa$;
