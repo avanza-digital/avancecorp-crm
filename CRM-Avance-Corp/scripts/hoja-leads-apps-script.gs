@@ -266,6 +266,14 @@ function configurar() {
  * Disparador SIMPLE: al editar cualquier campo de datos (A–O o Q), borra
  * su estado (columna P) para que el siguiente ciclo la reintente. Corregir una
  * fila rechazada = simplemente arreglarla; no hay que tocar la columna de estado.
+ *
+ * EXCEPCIÓN — una fila ya IMPORTADA no se limpia. El importador solo INSERTA,
+ * nunca actualiza: reintentar una fila que ya entró no corrige nada en el CRM,
+ * el dedup la encuentra a sí misma y la reetiqueta "DUPLICADO", pisando el
+ * "IMPORTADO ✓" real con una etiqueta que confunde (visto el 2026-08-25: un
+ * lead que sí había entrado parecía, por la hoja, que nunca lo había hecho).
+ * Si de verdad hace falta forzar el reintento, se borra la celda P a mano —
+ * eso lo sigue permitiendo la salvedad de la línea de abajo.
  */
 function onEdit(e) {
   if (!e || !e.range) return;
@@ -279,7 +287,9 @@ function onEdit(e) {
   if (col === COL_ESTADO && colFin === COL_ESTADO) return; // solo la propia col. de estado
   if (col > ENCABEZADOS.length) return;  // fuera de la tabla
   for (let r = Math.max(desde, 2); r <= hasta; r++) {
-    hoja.getRange(r, COL_ESTADO).clearContent();
+    const celda = hoja.getRange(r, COL_ESTADO);
+    if (String(celda.getValue()).trim().indexOf("IMPORTADO") === 0) continue;
+    celda.clearContent();
   }
 }
 

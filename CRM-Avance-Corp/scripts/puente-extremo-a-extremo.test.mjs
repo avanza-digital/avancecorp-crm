@@ -27,9 +27,9 @@ const EXPUESTO =
   "return { procesar, inicializarMarcas, leerMarcas, traerLeadsDelOrigen," +
   " vistaPreviaOrigen, prepararHoja, activarConector, apagarConector, importarLeads, configurar," +
   " corridaProgramada, instalarHorario, quitarHorario, verHorario, verEstado," +
-  " leerEstado, medirOrigen, relojDeLima, contarEstadosDeLeads, crearMenu," +
+  " leerEstado, medirOrigen, relojDeLima, contarEstadosDeLeads, crearMenu, onEdit," +
   " TOPE_POR_PASADA, FECHA_CORTE, HOJA_MARCAS, HOJA_HUELLAS, HOJA_LEADS," +
-  " HOJA_REVISAR, MOTIVO_BACKLOG, CADENCIA_MINUTOS };";
+  " HOJA_REVISAR, MOTIVO_BACKLOG, CADENCIA_MINUTOS, COL_ESTADO };";
 
 function cargar(entorno) {
   const g = entorno.globales;
@@ -1113,6 +1113,73 @@ test("la fecha de una frontera que NO se tocó no se rejuvenece", () => {
     "la pestaña detenida figura como recién mirada, y lleva dos días sin traerse nada");
   assert.equal(marcas["222"].actualizado, "18/08/2026 11:30",
     "la pestaña que sí se miró debería llevar la hora de esta pasada");
+});
+
+// ── onEdit — no reintenta una fila que ya IMPORTÓ ────────────────────────────
+//
+// Antes, cualquier edición de A–O borraba la columna P sin mirar qué decía. Una
+// fila ya "IMPORTADO ✓" se limpiaba igual que una "RECHAZADO", el siguiente ciclo
+// la reenviaba, y como el importador SOLO INSERTA (nunca actualiza), el dedup se
+// encontraba a sí misma y la reetiquetaba "DUPLICADO: ya existe en el CRM" —
+// pisando un estado que era correcto. Visto en producción el 2026-08-25.
+
+/** Fila completa de LEADS (17 columnas, mismo orden que CAB_LEADS) con un estado dado. */
+const filaConEstado = (estado) => [
+  "Cliente Test", "+51999999999", "1000", "PEN", "LANDING", "", "", "", "",
+  "Lima", "Nuevo", "", "", "SI", "Landing COOPAC MÁSCAPITAL — landing", estado, "",
+];
+
+/** El evento `e` que Sheets le pasa a onEdit al editar `[fila, columna]` de `hoja`. */
+const eventoEdicion = (hoja, fila, columna, numFilas = 1, numColumnas = 1) => ({
+  range: hoja.getRange(fila, columna, numFilas, numColumnas),
+});
+
+const estadoDe = (hojaLeads, fila) => hojaLeads.getRange(fila, 16, 1, 1).getDisplayValues()[0][0];
+
+test("onEdit CONSERVA el estado IMPORTADO al editar otra columna de la fila", () => {
+  const { gs, hojaLeads } = montar({ filasLeads: [filaConEstado("IMPORTADO ✓")] });
+
+  gs.onEdit(eventoEdicion(hojaLeads, 2, 1)); // se edita el nombre (columna A)
+
+  assert.equal(estadoDe(hojaLeads, 2), "IMPORTADO ✓",
+    "una fila ya importada no debe volver a quedar pendiente de reintento");
+});
+
+test("onEdit SIGUE limpiando DUPLICADO/RECHAZADO/ERROR — esas sí hay que reintentarlas", () => {
+  const { gs, hojaLeads } = montar({
+    filasLeads: [
+      filaConEstado("DUPLICADO: ya existe en el CRM"),
+      filaConEstado("RECHAZADO: sin monto"),
+      filaConEstado("ERROR temporal: el CRM no confirmó esta fila — se reintenta solo"),
+    ],
+  });
+
+  gs.onEdit(eventoEdicion(hojaLeads, 2, 1, 3, 1)); // se editan las 3 filas a la vez (columna A)
+
+  assert.equal(estadoDe(hojaLeads, 2), "", "DUPLICADO debía quedar reintentable");
+  assert.equal(estadoDe(hojaLeads, 3), "", "RECHAZADO debía quedar reintentable");
+  assert.equal(estadoDe(hojaLeads, 4), "", "ERROR temporal debía quedar reintentable");
+});
+
+test("onEdit trata cada fila por su PROPIO estado, no por el de la primera", () => {
+  // Defensa contra el mutante obvio: leer el estado UNA vez fuera del bucle y
+  // aplicarlo a todas las filas del rango editado.
+  const { gs, hojaLeads } = montar({
+    filasLeads: [filaConEstado("IMPORTADO ✓"), filaConEstado("RECHAZADO: sin monto")],
+  });
+
+  gs.onEdit(eventoEdicion(hojaLeads, 2, 1, 2, 1)); // ambas filas, columna A
+
+  assert.equal(estadoDe(hojaLeads, 2), "IMPORTADO ✓", "la importada no se toca");
+  assert.equal(estadoDe(hojaLeads, 3), "", "la rechazada sí se reintenta");
+});
+
+test("onEdit sigue sin tocar nada si SOLO se edita la propia columna de estado", () => {
+  const { gs, hojaLeads } = montar({ filasLeads: [filaConEstado("IMPORTADO ✓")] });
+
+  gs.onEdit(eventoEdicion(hojaLeads, 2, gs.COL_ESTADO)); // se edita P, no A–O
+
+  assert.equal(estadoDe(hojaLeads, 2), "IMPORTADO ✓", "editar la propia columna no debe limpiarla");
 });
 
 test("el conector NO se lleva por delante la pestaña equivocada", () => {

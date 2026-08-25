@@ -51,6 +51,12 @@ class Rango {
     }
     return out;
   }
+  /** El valor de la celda de arriba a la izquierda del rango, como la de verdad. */
+  getValue() {
+    this.hoja.lecturas++;
+    this.hoja.celdasLeidas++;
+    return this.hoja._leer(this.fila, this.columna);
+  }
   getDisplayValues() {
     this.hoja.lecturas++;
     this.hoja.celdasLeidas += this.numFilas * this.numColumnas;
@@ -110,6 +116,13 @@ class Rango {
   setFontColor() { return this; }
   setWrap() { return this; }
   setVerticalAlignment() { return this; }
+
+  // Lo que necesita `onEdit(e)`: `e.range` es un Range de verdad, con estos getters.
+  getSheet() { return this.hoja; }
+  getRow() { return this.fila; }
+  getColumn() { return this.columna; }
+  getLastRow() { return this.fila + this.numFilas - 1; }
+  getLastColumn() { return this.columna + this.numColumnas - 1; }
 }
 
 class Hoja {
