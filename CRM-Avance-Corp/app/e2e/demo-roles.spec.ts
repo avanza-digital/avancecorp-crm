@@ -20,7 +20,10 @@ for (const rol of ROLES) {
 
     // Gerencia tiene un riel analítico propio; los demás roles conservan Hoy.
     await expect(
-      page.getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy' }),
+      page.getByRole('button', {
+        name: rol === 'Gerencia' ? 'Resumen' : 'Hoy',
+        exact: true,
+      }),
     ).toBeVisible()
 
     // Navegación al pipeline: las 4 etapas activas del embudo están pintadas.
@@ -44,6 +47,63 @@ test('Supervisor: abre Derivar leads desde el KPI compacto de HOY por teclado', 
 
   await expect(page).toHaveURL(/#\/derivaciones$/)
   await expect(page.getByRole('heading', { name: 'Derivar hoy' })).toBeVisible()
+})
+
+test('Vendedor: Hoy prioriza tres movimientos y abre la ficha sin cambiar de superficie', async ({ page }) => {
+  await entrarDemo(page, 'Vendedor')
+
+  const ahora = page.getByRole('region', { name: 'Tu siguiente movimiento' })
+  await expect(ahora).toBeVisible()
+  await expect(ahora.locator('article')).toHaveCount(3)
+  await expect(ahora.getByText(/^Prioridad 01$/)).toBeVisible()
+  await expect(ahora.getByText(/^Prioridad 02$/)).toBeVisible()
+  await expect(ahora.getByText(/^Prioridad 03$/)).toBeVisible()
+  // ANA pertenece a VENDEDOR TRES: ni la nueva franja ni el resto de Hoy
+  // pueden ampliar el ámbito personal que ya recortan store + RLS.
+  await expect(page.getByText('ANA TORRES QUISPE', { exact: true })).toHaveCount(0)
+
+  const origen = ahora.getByRole('button', { name: /ver ficha/i }).first()
+  await origen.focus()
+  await page.keyboard.press('Enter')
+
+  const drawer = page.getByRole('dialog')
+  await expect(drawer).toBeVisible()
+  await expect(page).toHaveURL(/#\/hoy\/lead\/[^/]+$/)
+
+  await page.keyboard.press('Escape')
+  await expect(drawer).not.toBeVisible()
+  await expect(page).toHaveURL(/#\/hoy$/)
+  await expect(origen).toBeFocused()
+
+  const cumplimiento = page.locator('details').filter({ hasText: 'Tu cumplimiento del mes' })
+  await expect(cumplimiento).toHaveJSProperty('open', false)
+})
+
+test('Vendedor móvil: la primera acción cabe a 390 px, conserva targets táctiles y no desborda', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 })
+  await entrarDemo(page, 'Vendedor')
+
+  const ahora = page.getByRole('region', { name: 'Tu siguiente movimiento' })
+  const primera = ahora.locator('article').first()
+  await expect(primera).toBeVisible()
+
+  const caja = await primera.boundingBox()
+  expect(caja).not.toBeNull()
+  expect((caja?.y ?? 900) + (caja?.height ?? 0)).toBeLessThanOrEqual(844)
+
+  const accion = primera.getByRole('button', { name: /ver ficha/i })
+  const cajaAccion = await accion.boundingBox()
+  expect(cajaAccion).not.toBeNull()
+  expect(cajaAccion?.height ?? 0).toBeGreaterThanOrEqual(44)
+
+  const desborda = await page.evaluate(() => {
+    const contenido = document.querySelector('main > .ac-scroll')
+    return (
+      document.documentElement.scrollWidth > window.innerWidth ||
+      (contenido != null && contenido.scrollWidth > contenido.clientWidth + 1)
+    )
+  })
+  expect(desborda).toBe(false)
 })
 
 test('Vendedor: abre la ficha de un lead POR TECLADO y el drawer atrapa y devuelve el foco', async ({ page }) => {
