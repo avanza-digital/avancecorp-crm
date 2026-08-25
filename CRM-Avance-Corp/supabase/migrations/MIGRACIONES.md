@@ -3717,3 +3717,26 @@ de prod 125 con md5 `281ac2ea…` en la fila nueva, funciones 274 SIN cambios
 
 **Registro de excepciones a `public`:** ninguna — ningún statement toca
 `public.*`.
+
+## 20260825005519_crm_cerrar_reunion_cliente_clasificada.sql
+
+**Estado: preparada, todavía no aplicada.** Sustituye la firma inicial de
+`crm.cerrar_tarea` por una compatible con los cinco argumentos anteriores y
+dos argumentos opcionales: `p_resultado_reunion` y
+`p_motivo_no_realizada`. Así una reunión de cliente conserva su resultado y
+una cancelación conserva su motivo real, sin perder el timeline postventa ni
+la siguiente acción atómica.
+
+La validación replica el contrato de `crm.cerrar_reunion`: una reunión
+completada exige resultado; un no-show se sella como `cliente_no_asistio`; una
+cancelación exige motivo y, para `otro`, detalle. Las tareas que no son reunión
+rechazan esos campos. No crea tablas ni modifica datos históricos.
+
+**Verificación previa:** migración y gate integral ejecutados en producción
+dentro de una transacción revertida; devolvieron
+`GESTION_CLIENTES_RENOVACIONES_OK`. Después del rollback se comprobó que la
+firma anterior seguía presente, la firma nueva no existía y la versión no quedó
+registrada. Su aplicación definitiva espera confirmación de Miguel.
+
+**Registro de excepciones a `public`:** ninguna. Solo reemplaza una RPC del
+esquema `crm`.

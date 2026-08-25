@@ -421,6 +421,34 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.getByText(/llamada, WhatsApp, reunión u otra tarea comercial/i)).toBeInTheDocument()
   })
 
+  it('Gestionar depende de escritura y cartera propia, no de puede_contratar', async () => {
+    const user = userEvent.setup()
+    montar({
+      yo: {
+        id: 'yo',
+        rol: 'vendedor',
+        puede_contratar: false,
+        demo: false,
+      },
+      contratos: [contrato({ fecha_vencimiento: '2000-01-01' })],
+    })
+
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    expect(within(subFilaDe('2026-01-000001')).queryByRole('button', { name: 'Renovar' })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Gestionar' }))
+    expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
+  })
+
   it('abre el alta de upgrade con la categoría fija', async () => {
     const user = userEvent.setup()
     montar()
@@ -544,6 +572,7 @@ describe('MiCartera (pantalla)', () => {
       contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'otro' })],
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
   })
@@ -598,6 +627,35 @@ describe('MiCartera (pantalla)', () => {
     expect(screen.queryByText('Bloqueado')).not.toBeInTheDocument()
   })
 
+  it('Gerencia conserva la gestión global sin puede_contratar, pero no las acciones contractuales', async () => {
+    const user = userEvent.setup()
+    montar({
+      yo: {
+        id: 'gerencia',
+        rol: 'gerencia',
+        puede_contratar: false,
+        demo: false,
+      },
+      clientes: [
+        cliente({
+          id: 'c-ajeno',
+          asesor_perfil_id: 'asesor-1',
+          creado_por: 'asesor-1',
+        }),
+      ],
+      contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'asesor-1' })],
+      equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ASESOR UNO', activo: true }],
+    })
+
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Gestionar' }))
+    expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
+  })
+
   it('Directorio sigue sin acciones aunque un dato externo diga que puede contratar', () => {
     montar({
       yo: {
@@ -610,7 +668,9 @@ describe('MiCartera (pantalla)', () => {
     })
 
     expect(screen.queryByRole('button', { name: 'Nuevo cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Corregir cliente' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
   })
 
@@ -1515,6 +1575,23 @@ describe('MiCartera (móvil, card-stack)', () => {
       contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'otro' })],
     })
     expect(screen.getByText('CLIENTE UNO')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Gestionar' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
+  })
+
+  it('en móvil mantiene Gestionar para cartera propia sin permiso contractual', () => {
+    activarMovil()
+    montar({
+      yo: {
+        id: 'yo',
+        rol: 'vendedor',
+        puede_contratar: false,
+        demo: false,
+      },
+    })
+
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Upgrade' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: /\+ Contrato/ })).not.toBeInTheDocument()
   })
 

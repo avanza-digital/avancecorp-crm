@@ -1,6 +1,6 @@
 -- Gate transaccional: gestión postventa, renovaciones/upgrades y conversión.
--- Requiere 20260824231133 + 20260824233619. Crea y cierra una tarea real de
--- cliente, pero TODO se revierte al terminar.
+-- Requiere 20260824231133 + 20260824233619 + 20260825005519. Crea y cierra
+-- tareas reales de cliente, pero TODO se revierte al terminar.
 
 begin;
 
@@ -40,18 +40,18 @@ begin
 
   if to_regprocedure('crm.metricas_cartera_fn(date)') is null
      or to_regprocedure('private.metricas_cartera_por_vendedor(date)') is null
-     or to_regprocedure('crm.cerrar_tarea(uuid,text,text,text,jsonb)') is null then
+     or to_regprocedure('crm.cerrar_tarea(uuid,text,text,text,jsonb,text,text)') is null then
     raise exception 'GCAR-04: faltan funciones de métricas o cierre postventa';
   end if;
 
   if pg_catalog.has_function_privilege(
        'anon', 'crm.metricas_cartera_fn(date)', 'EXECUTE'
      ) or pg_catalog.has_function_privilege(
-       'anon', 'crm.cerrar_tarea(uuid,text,text,text,jsonb)', 'EXECUTE'
+       'anon', 'crm.cerrar_tarea(uuid,text,text,text,jsonb,text,text)', 'EXECUTE'
      ) or not pg_catalog.has_function_privilege(
        'authenticated', 'crm.metricas_cartera_fn(date)', 'EXECUTE'
      ) or not pg_catalog.has_function_privilege(
-       'authenticated', 'crm.cerrar_tarea(uuid,text,text,text,jsonb)', 'EXECUTE'
+       'authenticated', 'crm.cerrar_tarea(uuid,text,text,text,jsonb,text,text)', 'EXECUTE'
      ) then
     raise exception 'GCAR-05: permisos de las RPC no son los esperados';
   end if;
@@ -98,11 +98,13 @@ begin
   end if;
 
   v_def := pg_catalog.pg_get_functiondef(
-    'crm.cerrar_tarea(uuid,text,text,text,jsonb)'::regprocedure
+    'crm.cerrar_tarea(uuid,text,text,text,jsonb,text,text)'::regprocedure
   );
   if v_def not ilike '%insert into crm.actividades_cliente%'
-     or v_def not ilike '%v_tarea.perfil_id%' then
-    raise exception 'GCAR-10: cerrar_tarea no conserva el historial postventa';
+     or v_def not ilike '%v_tarea.perfil_id%'
+     or v_def not ilike '%then p_resultado_reunion else null end%'
+     or v_def not ilike '%then p_motivo_no_realizada else null end%' then
+    raise exception 'GCAR-10: cerrar_tarea no conserva historial o clasificación postventa';
   end if;
 end;
 $estructura$;
@@ -259,6 +261,10 @@ declare
   v_respuesta jsonb;
   v_tarea constant uuid := '7f200000-0000-4000-8000-000000000001';
   v_siguiente constant uuid := '7f200000-0000-4000-8000-000000000002';
+  v_reunion constant uuid := '7f200000-0000-4000-8000-000000000003';
+  v_cancelada constant uuid := '7f200000-0000-4000-8000-000000000004';
+  v_atomica constant uuid := '7f200000-0000-4000-8000-000000000005';
+  v_fallo_esperado boolean := false;
 begin
   select e.perfil_id into v_actor
   from crm.equipo e
@@ -330,6 +336,118 @@ begin
       and t.vendedor_id = v_asesor
   ) then
     raise exception 'GCAR-23: la siguiente gestión perdió cliente o asesor';
+  end if;
+
+  -- Reunión completada: clasificación exacta + timeline de cliente se
+  -- confirman en la misma llamada, sin tocar crm.actividades de leads.
+  insert into crm.tareas (
+    id, perfil_id, tipo, titulo, vence_en, modalidad_reunion, ubicacion_reunion,
+    estado, activo, creado_por
+  ) values (
+    v_reunion, v_cliente, 'reunion', 'TEST reunión clasificada',
+    timestamptz '2090-01-12 10:00:00-05', 'presencial', 'Oficina Avance',
+    'pendiente', true, v_actor
+  );
+
+  v_respuesta := crm.cerrar_tarea(
+    v_reunion,
+    'completada',
+    'reunion_realizada',
+    'Solicitó propuesta de upgrade',
+    null,
+    'interesado',
+    null
+  );
+
+  if (v_respuesta->>'actividad_cliente_id')::uuid is null
+     or not exists (
+       select 1 from crm.actividades_cliente a
+       where a.tarea_id = v_reunion and a.cliente_id = v_cliente
+         and a.tipo = 'reunion_realizada'
+         and a.detalle = 'Solicitó propuesta de upgrade'
+     )
+     or not exists (
+       select 1 from crm.tareas t
+       where t.id = v_reunion and t.estado = 'completada'
+         and t.resultado_reunion = 'interesado'
+         and t.motivo_no_realizada is null
+         and t.detalle_cierre_reunion = 'Solicitó propuesta de upgrade'
+     ) then
+    raise exception 'GCAR-25: la reunión de cliente perdió clasificación o historial';
+  end if;
+
+  -- Cancelación: no inventa actividad, pero conserva motivo y explicación.
+  insert into crm.tareas (
+    id, perfil_id, tipo, titulo, vence_en, modalidad_reunion, ubicacion_reunion,
+    estado, activo, creado_por
+  ) values (
+    v_cancelada, v_cliente, 'reunion', 'TEST reunión cancelada',
+    timestamptz '2090-01-13 10:00:00-05', 'presencial', 'Oficina Avance',
+    'pendiente', true, v_actor
+  );
+
+  v_respuesta := crm.cerrar_tarea(
+    v_cancelada,
+    'cancelada',
+    null,
+    'El cliente pidió cancelar',
+    null,
+    null,
+    'cancelada_cliente'
+  );
+
+  if exists (
+       select 1 from crm.actividades_cliente a where a.tarea_id = v_cancelada
+     ) or not exists (
+       select 1 from crm.tareas t
+       where t.id = v_cancelada and t.estado = 'cancelada'
+         and t.resultado_reunion is null
+         and t.motivo_no_realizada = 'cancelada_cliente'
+         and t.detalle_cierre_reunion = 'El cliente pidió cancelar'
+     ) then
+    raise exception 'GCAR-26: la cancelación perdió motivo o inventó actividad';
+  end if;
+
+  -- Atomicidad real: el helper de siguiente acción falla DESPUÉS del INSERT
+  -- del timeline y del UPDATE de la tarea. La excepción debe revertir ambos.
+  insert into crm.tareas (
+    id, perfil_id, tipo, titulo, vence_en, modalidad_reunion, ubicacion_reunion,
+    estado, activo, creado_por
+  ) values (
+    v_atomica, v_cliente, 'reunion', 'TEST rollback atómico',
+    timestamptz '2090-01-14 10:00:00-05', 'presencial', 'Oficina Avance',
+    'pendiente', true, v_actor
+  );
+
+  begin
+    perform crm.cerrar_tarea(
+      v_atomica,
+      'completada',
+      'reunion_realizada',
+      'Este detalle no debe persistir',
+      jsonb_build_object(
+        'tipo', 'tipo_invalido',
+        'titulo', 'Siguiente inválida',
+        'vence_en', '2090-01-15T15:00:00.000Z'
+      ),
+      'seguimiento',
+      null
+    );
+  exception when others then
+    v_fallo_esperado := true;
+  end;
+
+  if not v_fallo_esperado
+     or exists (
+       select 1 from crm.actividades_cliente a where a.tarea_id = v_atomica
+     ) or not exists (
+       select 1 from crm.tareas t
+       where t.id = v_atomica and t.estado = 'pendiente'
+         and t.resultado_reunion is null
+         and t.motivo_no_realizada is null
+         and t.detalle_cierre_reunion is null
+     ) then
+    raise exception 'GCAR-27: cerrar_tarea dejó una escritura parcial';
   end if;
 
   if (select count(*) from crm.actividades) is distinct from v_actividades_lead_antes then

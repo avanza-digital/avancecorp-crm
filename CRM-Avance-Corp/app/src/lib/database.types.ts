@@ -2141,7 +2141,9 @@ export type Database = {
       cerrar_tarea: {
         Args: {
           p_estado: string
+          p_motivo_no_realizada?: string
           p_resultado_detalle?: string
+          p_resultado_reunion?: string
           p_resultado_tipo?: string
           p_siguiente?: Json
           p_tarea_id: string

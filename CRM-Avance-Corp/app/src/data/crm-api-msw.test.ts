@@ -16,6 +16,7 @@ vi.mock('@/lib/supabase', async () => {
 
 import {
   CrmApiError,
+  cerrarTarea,
   listarActividadesDelAmbito,
   listarClientes,
   listarLeads,
@@ -28,6 +29,7 @@ import {
 import { resumenCarteraDesdeAmbito } from '@/lib/resumen-cartera'
 
 const RUTA_LEADS = 'http://supabase.test/rest/v1/leads'
+const RUTA_CERRAR_TAREA = 'http://supabase.test/rest/v1/rpc/cerrar_tarea'
 const RUTA_REPROGRAMAR = 'http://supabase.test/rest/v1/rpc/reprogramar_reunion'
 const TAREA_ID = '11111111-1111-4111-8111-111111111111'
 const NUEVA_ID = '22222222-2222-4222-8222-222222222222'
@@ -475,5 +477,54 @@ describe('reprogramarReunion (msw)', () => {
 
     await expect(reprogramarReunion(TAREA_ID, '2026-08-06T15:00:00.000Z', TAREA_ID))
       .rejects.toMatchObject({ code: 'ROW_CONTRACT' })
+  })
+})
+
+describe('cerrarTarea (msw)', () => {
+  it('envía la clasificación estructurada de reuniones de cliente sin inventar campos nulos', async () => {
+    const payloads: unknown[] = []
+    server.use(
+      http.post(RUTA_CERRAR_TAREA, async ({ request }) => {
+        payloads.push(await request.json())
+        return HttpResponse.json({ ok: true, siguiente_id: null })
+      }),
+    )
+
+    await cerrarTarea({
+      tarea_id: TAREA_ID,
+      estado: 'completada',
+      resultado_tipo: 'reunion_realizada',
+      resultado_detalle: 'Solicitó una propuesta',
+      resultado_reunion: 'interesado',
+      motivo_no_realizada: null,
+      siguiente: null,
+    })
+    await cerrarTarea({
+      tarea_id: OTRA_ID,
+      estado: 'cancelada',
+      resultado_tipo: null,
+      resultado_detalle: 'El cliente pidió cancelar',
+      resultado_reunion: null,
+      motivo_no_realizada: 'cancelada_cliente',
+      siguiente: null,
+    })
+
+    expect(payloads).toEqual([
+      {
+        p_tarea_id: TAREA_ID,
+        p_estado: 'completada',
+        p_resultado_tipo: 'reunion_realizada',
+        p_resultado_detalle: 'Solicitó una propuesta',
+        p_siguiente: null,
+        p_resultado_reunion: 'interesado',
+      },
+      {
+        p_tarea_id: OTRA_ID,
+        p_estado: 'cancelada',
+        p_resultado_detalle: 'El cliente pidió cancelar',
+        p_siguiente: null,
+        p_motivo_no_realizada: 'cancelada_cliente',
+      },
+    ])
   })
 })

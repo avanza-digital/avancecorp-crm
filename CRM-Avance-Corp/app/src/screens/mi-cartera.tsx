@@ -253,8 +253,10 @@ interface PropsFilaGrupo {
   expandido: boolean
   onToggle: () => void
   colAsesor: boolean
-  /** La vista pinta acciones (el usuario contrata en general). */
+  /** La vista pinta la columna/zona de acciones porque el rol puede escribir. */
   conAcciones: boolean
+  /** Puede escribir Y la fila es propia/global: habilita la gestión comercial. */
+  gestionable: boolean
   /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
   accionable: boolean
   /** Gerencia opera cualquier fila y no hereda la ventana antifraude del analista. */
@@ -408,6 +410,7 @@ function FilaGrupoCliente({
   onToggle,
   colAsesor,
   conAcciones,
+  gestionable,
   accionable,
   edicionGlobal,
   yoId,
@@ -496,72 +499,80 @@ function FilaGrupoCliente({
         </Td>
         {conAcciones && (
           <Td className="text-right">
-            {accionable ? (
+            {gestionable || accionable ? (
               <div className="flex flex-wrap items-center justify-end gap-1.5">
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="secondary"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onGestionarCliente()
-                  }}
-                >
-                  <CalendarPlus aria-hidden /> Gestionar
-                </Button>
-                <Button
-                  type="button"
-                  size="xs"
-                  variant="outline"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onDetalleCliente()
-                  }}
-                >
-                  Ver detalle
-                </Button>
-                {(edicionGlobal || ventanaCliente.vigente) && (
+                {gestionable && (
                   <Button
                     type="button"
                     size="xs"
-                    variant="outline"
-                    className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
-                    title={
-                      edicionGlobal
-                        ? 'Corregir datos del cliente · autorización global de Gerencia'
-                        : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
-                    }
+                    variant="secondary"
                     onClick={(e) => {
                       e.stopPropagation()
-                      onCorregirCliente()
+                      onGestionarCliente()
                     }}
                   >
-                    Corregir
+                    <CalendarPlus aria-hidden /> Gestionar
                   </Button>
                 )}
-                {!sinContratos && (
-                  <Button
-                    type="button"
-                    size="xs"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      onUpgradeCliente()
-                    }}
-                  >
-                    <TrendingUp aria-hidden /> Upgrade
-                  </Button>
+                {accionable && (
+                  <>
+                    <Button
+                      type="button"
+                      size="xs"
+                      variant="outline"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onDetalleCliente()
+                      }}
+                    >
+                      Ver detalle
+                    </Button>
+                    {(edicionGlobal || ventanaCliente.vigente) && (
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        className={
+                          !edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined
+                        }
+                        title={
+                          edicionGlobal
+                            ? 'Corregir datos del cliente · autorización global de Gerencia'
+                            : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
+                        }
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onCorregirCliente()
+                        }}
+                      >
+                        Corregir
+                      </Button>
+                    )}
+                    {!sinContratos && (
+                      <Button
+                        type="button"
+                        size="xs"
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          onUpgradeCliente()
+                        }}
+                      >
+                        <TrendingUp aria-hidden /> Upgrade
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      size="xs"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        onNuevoContrato()
+                      }}
+                    >
+                      {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                    </Button>
+                  </>
                 )}
-                <Button
-                  type="button"
-                  size="xs"
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    onNuevoContrato()
-                  }}
-                >
-                  {sinContratos ? '+ Primer contrato' : '+ Contrato'}
-                </Button>
               </div>
             ) : (
               <span className="text-xs text-muted-foreground">—</span>
@@ -576,7 +587,7 @@ function FilaGrupoCliente({
             key={c.id}
             contrato={c}
             colAsesor={colAsesor}
-            conAcciones={conAcciones}
+            conAcciones={accionable}
             corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
             sinLimiteVentana={edicionGlobal}
             porVencer={porVencer.has(c.id)}
@@ -703,6 +714,7 @@ function TarjetaGrupoCliente({
   onToggle,
   colAsesor,
   conAcciones,
+  gestionable,
   accionable,
   edicionGlobal,
   yoId,
@@ -770,38 +782,44 @@ function TarjetaGrupoCliente({
       </div>
 
       {/* Acciones: cartera propia para analistas; ámbito completo para Gerencia. */}
-      {conAcciones && accionable && (
+      {conAcciones && (gestionable || accionable) && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
-          <Button type="button" size="xs" variant="secondary" onClick={onGestionarCliente}>
-            <CalendarPlus aria-hidden /> Gestionar
-          </Button>
-          <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
-            Ver detalle
-          </Button>
-          {(edicionGlobal || ventanaCliente.vigente) && (
-            <Button
-              type="button"
-              size="xs"
-              variant="outline"
-              className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
-              title={
-                edicionGlobal
-                  ? 'Corregir datos del cliente · autorización global de Gerencia'
-                  : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
-              }
-              onClick={onCorregirCliente}
-            >
-              Corregir cliente
+          {gestionable && (
+            <Button type="button" size="xs" variant="secondary" onClick={onGestionarCliente}>
+              <CalendarPlus aria-hidden /> Gestionar
             </Button>
           )}
-          {!sinContratos && (
-            <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
-              <TrendingUp aria-hidden /> Upgrade
-            </Button>
+          {accionable && (
+            <>
+              <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
+                Ver detalle
+              </Button>
+              {(edicionGlobal || ventanaCliente.vigente) && (
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
+                  title={
+                    edicionGlobal
+                      ? 'Corregir datos del cliente · autorización global de Gerencia'
+                      : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
+                  }
+                  onClick={onCorregirCliente}
+                >
+                  Corregir cliente
+                </Button>
+              )}
+              {!sinContratos && (
+                <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
+                  <TrendingUp aria-hidden /> Upgrade
+                </Button>
+              )}
+              <Button type="button" size="xs" onClick={onNuevoContrato}>
+                {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+              </Button>
+            </>
           )}
-          <Button type="button" size="xs" onClick={onNuevoContrato}>
-            {sinContratos ? '+ Primer contrato' : '+ Contrato'}
-          </Button>
         </div>
       )}
 
@@ -812,7 +830,7 @@ function TarjetaGrupoCliente({
             <TarjetaContratoSub
               key={c.id}
               contrato={c}
-              conAcciones={conAcciones}
+              conAcciones={accionable}
               corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
               sinLimiteVentana={edicionGlobal}
               porVencer={porVencer.has(c.id)}
@@ -894,8 +912,10 @@ function VistaMiCartera({
   const { yo } = useAuth()
   const { equipo } = useCRMData()
   const verEquipo = can(yo?.rol, 'verEquipo')
-  const accionesHabilitadas = puedeContratar && puedeEscribir(yo?.rol)
-  const edicionGlobal = accionesHabilitadas && can(yo?.rol, 'verTodo')
+  const escrituraHabilitada = puedeEscribir(yo?.rol)
+  const accionesContractualesHabilitadas = puedeContratar && escrituraHabilitada
+  const ambitoGlobal = can(yo?.rol, 'verTodo')
+  const edicionGlobal = accionesContractualesHabilitadas && ambitoGlobal
   const titulo = verEquipo ? 'Cartera' : 'Mi cartera'
   const esMovil = useEsMovil()
 
@@ -1098,8 +1118,9 @@ function VistaMiCartera({
         return sig
       }),
     colAsesor: verEquipo,
-    conAcciones: accionesHabilitadas,
-    accionable: accionesHabilitadas && (edicionGlobal || esMiCliente(g.cliente, yoId)),
+    conAcciones: escrituraHabilitada,
+    gestionable: escrituraHabilitada && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
+    accionable: accionesContractualesHabilitadas && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
     edicionGlobal,
     yoId,
     asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
@@ -1299,7 +1320,7 @@ function VistaMiCartera({
                     }`
                   : '—'}
               </span>
-              {accionesHabilitadas && (
+              {accionesContractualesHabilitadas && (
                 <Button size="sm" onClick={onNuevoCliente}>
                   <Users2 aria-hidden /> Nuevo cliente
                 </Button>
@@ -1330,7 +1351,7 @@ function VistaMiCartera({
             icono={Inbox}
             titulo={verEquipo ? 'Aún no hay clientes en la cartera.' : 'Aún no tienes clientes en tu cartera.'}
           >
-            {accionesHabilitadas && <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>}
+            {accionesContractualesHabilitadas && <p className="text-xs text-muted-foreground">Usa “Nuevo cliente”.</p>}
           </PanelVacio>
         ) : (
           <>
@@ -1504,7 +1525,7 @@ function VistaMiCartera({
                   <Th className="text-right" aria-label="Capital invertido">
                     Capital invertido
                   </Th>
-                  {accionesHabilitadas && <Th className="text-right">Acciones</Th>}
+                  {escrituraHabilitada && <Th className="text-right">Acciones</Th>}
                 </TheadCrm>
                 <tbody>
                   {visibles.map((g) => (

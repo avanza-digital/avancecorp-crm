@@ -25,6 +25,9 @@ Las gestiones de cliente viven en la misma agenda operativa que las de leads y
 aparecen en **Hoy** y **Agenda**. Su resultado se guarda en un historial de
 postventa propio. No modifica etapa, SLA ni timeline de leads.
 
+Las reuniones conservan además su clasificación estructurada (resultado
+comercial o motivo de cancelación), sin reducirla a una etiqueta genérica.
+
 ## Renovación
 
 Una renovación:
@@ -61,12 +64,17 @@ capital adicional.
 
 ## Implementación y prueba
 
-- Migraciones: `20260824231133` y compatibilidad `20260824233619`.
+- Migraciones activas: `20260824231133` y compatibilidad `20260824233619`.
+- Seguimiento `20260825005519`: cierre clasificado de reuniones de cliente;
+  dry-run y gate completos con rollback, pendiente de autorización para aplicar.
 - Ledger inmutable: `crm.operaciones_cartera`.
 - Historial postventa: `crm.actividades_cliente`.
 - Gate SQL transaccional: `GESTION_CLIENTES_RENOVACIONES_OK`.
 - La tarea de cliente mantiene `perfil_id` al crear la siguiente acción y al
   reasignarse la cartera viaja al nuevo asesor.
+- Cerrar una reunión de cliente conserva `resultado_reunion` o
+  `motivo_no_realizada` y escribe `actividades_cliente` dentro de la misma RPC;
+  si falla la siguiente acción, todo el cierre se revierte.
 
 ## Relacionado
 
