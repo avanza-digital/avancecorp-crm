@@ -618,6 +618,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
 
     expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toEqual({ ok: true })
     expect(insertarTarea).toHaveBeenCalledTimes(1)
     expect(insertarTarea).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -658,6 +659,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     )
 
     expect(res.ok).toBe(true)
+    await expect(res.persistido).resolves.toEqual({ ok: true })
     expect(insertarTarea).toHaveBeenCalledWith(
       expect.objectContaining({
         perfil_id: clienteId,

@@ -75,6 +75,9 @@ capital adicional.
 - Cerrar una reunión de cliente conserva `resultado_reunion` o
   `motivo_no_realizada` y escribe `actividades_cliente` dentro de la misma RPC;
   si falla la siguiente acción, todo el cierre se revierte.
+- Una reunión marcada como completada debe registrar también
+  `reunion_realizada`; la RPC rechaza el cierre si faltaría ese asiento del
+  historial comercial.
 
 ## Relacionado
 

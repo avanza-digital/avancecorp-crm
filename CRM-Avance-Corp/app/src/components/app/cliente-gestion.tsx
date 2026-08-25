@@ -55,6 +55,7 @@ export function ClienteGestion({
   const [hora, setHora] = useState(() => horaLima(Date.parse(slot)))
   const [nota, setNota] = useState('')
   const [camposReunion, setCamposReunion] = useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
+  const [guardando, setGuardando] = useState(false)
 
   const cambiarTipo = (valor: string) => {
     if (!esTipoTarea(valor)) return
@@ -62,7 +63,8 @@ export function ClienteGestion({
     if (!tituloEditado) setTitulo(tituloSugerido(valor, clienteNombre))
   }
 
-  const guardar = () => {
+  const guardar = async () => {
+    if (guardando) return
     const venceEn = isoDeCampos({ tipo, titulo, fecha, hora })
     if (!titulo.trim()) {
       toast.error('Escribe qué gestión vas a realizar')
@@ -77,6 +79,7 @@ export function ClienteGestion({
       toast.error(reunion.error)
       return
     }
+    setGuardando(true)
     const resultado = crearTarea({
       perfil_id: clienteId,
       tipo,
@@ -86,7 +89,22 @@ export function ClienteGestion({
       ...camposTareaDeReunion(reunion?.ok ? reunion : null),
     })
     if (!resultado.ok) {
+      setGuardando(false)
       toast.error(resultado.error ?? 'No se pudo agendar la gestión')
+      return
+    }
+
+    // `crearTarea` aplica primero el espejo optimista. El mensaje definitivo y
+    // el cierre esperan el commit real: RLS o el trigger todavía pueden negar
+    // un cliente que cambió de estado/asesor mientras el diálogo estaba abierto.
+    if (!resultado.persistido) {
+      setGuardando(false)
+      toast.error('No se pudo confirmar la gestión con el servidor')
+      return
+    }
+    const confirmado = await resultado.persistido
+    if (!confirmado.ok) {
+      setGuardando(false)
       return
     }
     toast.success('Gestión agendada · la verás en Hoy y en Agenda')
@@ -179,11 +197,11 @@ export function ClienteGestion({
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onCerrar}>
+        <Button type="button" variant="ghost" onClick={onCerrar} disabled={guardando}>
           Cancelar
         </Button>
-        <Button type="button" onClick={guardar}>
-          <CalendarPlus aria-hidden /> Agendar gestión
+        <Button type="button" onClick={() => void guardar()} disabled={guardando}>
+          <CalendarPlus aria-hidden /> {guardando ? 'Guardando…' : 'Agendar gestión'}
         </Button>
       </DialogFooter>
     </>

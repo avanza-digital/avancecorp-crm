@@ -154,6 +154,21 @@ export interface ResultadoPersistencia {
 }
 
 /**
+ * Alta optimista de una tarea. El store real entrega `persistido` junto al id:
+ * quien vaya a anunciar un éxito definitivo debe esperar esa confirmación y no
+ * confundir el espejo local con un commit del servidor.
+ *
+ * Los campos quedan opcionales por compatibilidad con consumidores históricos
+ * que solo necesitan validación síncrona; el provider real siempre devuelve los
+ * tres campos de confirmación cuando `ok` es true.
+ */
+export type ResultadoCrearTarea = ResultadoMut & {
+  id?: string
+  avance?: EtapaActiva
+  persistido?: Promise<ResultadoPersistencia>
+}
+
+/**
  * Un id de alta solo puede existir acompañado por la confirmación del commit.
  * El tipo impide que otro provider represente «creado» sin `persistido`.
  */
@@ -323,7 +338,7 @@ export interface StoreDataApi {
    *  `registrarActividad` y `completarTarea`, porque la UI tiene que cantarlo:
    *  agendar desde la ficha movía el lead de etapa EN SILENCIO y el asesor veía
    *  saltar el stepper sin saber quién lo tocó. */
-  crearTarea(input: NuevaTareaInput): ResultadoMut & { id?: string; avance?: EtapaActiva }
+  crearTarea(input: NuevaTareaInput): ResultadoCrearTarea
   /** Cierra por la RPC atómica (resultado→log + siguiente encadenada). En
    *  llamadas COMPLETADAS el resultado es obligatorio (patrón Outreach). */
   /** `avance` = etapa a la que subió SOLO el lead por este cierre (el contacto
@@ -563,8 +578,7 @@ function ejecutarCierreTarea(input: CierreTareaServidor): Promise<void> {
     // En reuniones este mismo campo alimenta tanto el detalle del timeline
     // como detalle_cierre_reunion. Importa especialmente al cancelar: allí no
     // hay resultado de actividad, pero sí puede haber explicación comercial.
-    resultado_detalle:
-      input.tarea.tipo === 'reunion' ? input.detalleReunion : input.resultadoDetalle,
+    resultado_detalle: input.tarea.tipo === 'reunion' ? input.detalleReunion : input.resultadoDetalle,
     ...(input.tarea.tipo === 'reunion'
       ? {
           resultado_reunion: input.resultadoReunion,
@@ -1332,26 +1346,34 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             actividades: [actEtapa, ...d.actividades],
           }))
         }
-        persistir(() =>
-          insertarTarea({
-            ...(UUID_RE.test(id) ? { id } : {}),
-            ...(lead ? { lead_id: lead.id } : { perfil_id: perfilId! }),
-            tipo: tarea.tipo,
-            titulo,
-            nota: tarea.nota ?? null,
-            vence_en: tarea.vence_en,
-            duracion_min: tarea.duracion_min ?? null,
-            modalidad_reunion: tarea.modalidad_reunion ?? null,
-            ubicacion_reunion: tarea.ubicacion_reunion ?? null,
-            enlace_reunion: tarea.enlace_reunion ?? null,
-            creado_por: miId,
-          }),
+        const persistido = persistirConDetalle(
+          () =>
+            insertarTarea({
+              ...(UUID_RE.test(id) ? { id } : {}),
+              ...(lead ? { lead_id: lead.id } : { perfil_id: perfilId! }),
+              tipo: tarea.tipo,
+              titulo,
+              nota: tarea.nota ?? null,
+              vence_en: tarea.vence_en,
+              duracion_min: tarea.duracion_min ?? null,
+              modalidad_reunion: tarea.modalidad_reunion ?? null,
+              ubicacion_reunion: tarea.ubicacion_reunion ?? null,
+              enlace_reunion: tarea.enlace_reunion ?? null,
+              creado_por: miId,
+            }),
+          {
+            // Si RLS o el trigger rechazan el alta, la tarea no puede seguir
+            // aparentando que existe mientras termina la resincronización.
+            revertirOptimista: () => {
+              setTareas((prev) => prev.filter((item) => item.id !== id))
+            },
+          },
         )
         // El avance viaja al llamador para que lo ANUNCIE (los otros dos
         // escritores ya lo hacían): mover la etapa sin decirlo asusta más que
         // ayuda. `avance` solo puede ser una etapa activa — avancePorReunion
         // nunca devuelve terminales.
-        return avance ? { ok: true, id, avance } : { ok: true, id }
+        return avance ? { ok: true, id, avance, persistido } : { ok: true, id, persistido }
       },
 
       completarTarea: (input) => {

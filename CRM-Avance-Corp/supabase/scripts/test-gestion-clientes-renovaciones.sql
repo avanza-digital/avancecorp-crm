@@ -264,6 +264,7 @@ declare
   v_reunion constant uuid := '7f200000-0000-4000-8000-000000000003';
   v_cancelada constant uuid := '7f200000-0000-4000-8000-000000000004';
   v_atomica constant uuid := '7f200000-0000-4000-8000-000000000005';
+  v_sin_timeline constant uuid := '7f200000-0000-4000-8000-000000000006';
   v_fallo_esperado boolean := false;
 begin
   select e.perfil_id into v_actor
@@ -408,6 +409,39 @@ begin
     raise exception 'GCAR-26: la cancelación perdió motivo o inventó actividad';
   end if;
 
+  -- La API no puede cerrar una reunión con clasificación pero sin su asiento
+  -- `reunion_realizada`: ambos datos forman una sola verdad comercial.
+  insert into crm.tareas (
+    id, perfil_id, tipo, titulo, vence_en, modalidad_reunion, ubicacion_reunion,
+    estado, activo, creado_por
+  ) values (
+    v_sin_timeline, v_cliente, 'reunion', 'TEST reunión sin timeline',
+    timestamptz '2090-01-13 12:00:00-05', 'presencial', 'Oficina Avance',
+    'pendiente', true, v_actor
+  );
+
+  v_fallo_esperado := false;
+  begin
+    perform crm.cerrar_tarea(
+      v_sin_timeline, 'completada', null, 'No debe cerrar', null,
+      'interesado', null
+    );
+  exception when sqlstate '22023' then
+    v_fallo_esperado := true;
+  end;
+
+  if not v_fallo_esperado
+     or exists (
+       select 1 from crm.actividades_cliente a where a.tarea_id = v_sin_timeline
+     ) or not exists (
+       select 1 from crm.tareas t
+       where t.id = v_sin_timeline and t.estado = 'pendiente'
+         and t.resultado_reunion is null
+         and t.detalle_cierre_reunion is null
+     ) then
+    raise exception 'GCAR-28: la reunión pudo cerrarse sin timeline';
+  end if;
+
   -- Atomicidad real: el helper de siguiente acción falla DESPUÉS del INSERT
   -- del timeline y del UPDATE de la tarea. La excepción debe revertir ambos.
   insert into crm.tareas (
@@ -419,6 +453,7 @@ begin
     'pendiente', true, v_actor
   );
 
+  v_fallo_esperado := false;
   begin
     perform crm.cerrar_tarea(
       v_atomica,

@@ -66,6 +66,11 @@ async function entrarComoCoordinador(page: Parameters<typeof loginReal>[0], init
   })
   await loginReal(page)
   await expect(page.getByRole('heading', { name: 'Repartir leads' })).toBeVisible()
+  // El módulo ahora abre en la radiografía "Distribución". Los casos de
+  // este archivo (salvo el aterrizaje, que sigue siendo la misma ruta) prueban
+  // la cola operativa, así que entran explícitamente a su pestaña en vez de
+  // depender de un tab inicial antiguo.
+  await page.getByRole('tab', { name: 'Cola de nuevos' }).click()
   return backend
 }
 
@@ -377,7 +382,7 @@ test('el toggle "Posible crédito" deja solo los marcados por el clasificador', 
   await expect(page.locator('[data-lead-id]').first()).toHaveAttribute('data-lead-id', 'lead-credito')
 })
 
-test('la cola pagina de a 20 con "Mostrar 20 más" (adiós scroll infinito)', async ({ page }) => {
+test('la cola pagina de a 20 con navegación explícita (adiós scroll infinito)', async ({ page }) => {
   const colaLarga = Array.from({ length: 25 }, (_, i) => ({
     id: `lead-lote-${i}`,
     nombre_completo: `LEAD LOTE ${i}`,
@@ -393,11 +398,14 @@ test('la cola pagina de a 20 con "Mostrar 20 más" (adiós scroll infinito)', as
   await entrarComoCoordinador(page, { colaReparto: colaLarga })
 
   await expect(page.locator('[data-lead-id]')).toHaveCount(20)
-  await expect(page.getByText('Mostrando 20 de 25')).toBeVisible()
+  const paginacion = page.getByRole('navigation', { name: 'Paginación de la cola de leads' })
+  await expect(paginacion.getByText('Página 1 de 2 · 25 registros')).toBeVisible()
+  await expect(paginacion.getByRole('button', { name: 'Anterior' })).toBeDisabled()
 
-  await page.getByRole('button', { name: 'Mostrar 20 más' }).click()
-  await expect(page.locator('[data-lead-id]')).toHaveCount(25)
-  await expect(page.getByText('Fin de la cola · 25 leads')).toBeVisible()
+  await paginacion.getByRole('button', { name: 'Siguiente' }).click()
+  await expect(page.locator('[data-lead-id]')).toHaveCount(5)
+  await expect(paginacion.getByText('Página 2 de 2 · 25 registros')).toBeVisible()
+  await expect(paginacion.getByRole('button', { name: 'Siguiente' })).toBeDisabled()
 })
 
 test('un comentario largo se expande con "Ver todo" y se vuelve a plegar', async ({ page }) => {

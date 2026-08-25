@@ -1875,7 +1875,9 @@ export async function montarBackendReal(
           storage_bucket: 'contratos-generados',
           storage_path: `${nuevo.id}/v2/${jobId}/contrato.pdf`,
           nombre_archivo: `Contrato-${numero}.pdf`,
-          template_version: 'contrato-aep-17-v2',
+          // Producción reserva actualmente la plantilla v5; el contrato del
+          // frontend acepta v3–v5 durante el despliegue escalonado.
+          template_version: 'contrato-aep-17-v5',
           intentos: 0,
           lease_expira_en: null,
           reintentable: true,
@@ -1888,7 +1890,11 @@ export async function montarBackendReal(
     }
 
     // ── RPC CRM de corrección: preserva la coherencia de la cuenta fijada ──
-    if (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto' && method === 'POST') {
+    if (
+      (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto'
+        || p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3')
+      && method === 'POST'
+    ) {
       estado.llamadas.rpcActualizarContrato += 1
       if (estado.ventanaVencida) {
         // A diferencia del PATCH a perfiles, la RPC SÍ es ruidosa: RAISE → P0001.
@@ -1907,8 +1913,10 @@ export async function montarBackendReal(
         Record<string, unknown> & { titulares?: unknown[] }
       const pId = String(body.p_id ?? '')
       const contratoActual = estado.contratos.find((contrato) => contrato.id === pId)
+      const condicionId = body.p_producto_condicion_id
+        ?? (body.p_contrato?.moneda === 'USD' ? PRODUCTO_CONDICION_USD_ID : PRODUCTO_CONDICION_PEN_ID)
       const condicion = estado.productosSeleccionables.find(
-        (fila) => fila.condicion_id === body.p_producto_condicion_id,
+        (fila) => fila.condicion_id === condicionId,
       )
       if (!contratoActual || !condicion) {
         return json(route, { code: 'P0001', message: 'Contrato o producto inválido' }, 400)
@@ -2003,7 +2011,7 @@ export async function montarBackendReal(
           storage_bucket: 'contratos-generados',
           storage_path: jobId ? `${contratoId}/v2/${jobId}/contrato.pdf` : null,
           nombre_archivo: jobId ? 'Contrato-archivo-pendiente.pdf' : null,
-          template_version: jobId ? 'contrato-aep-17-v2' : null,
+          template_version: jobId ? 'contrato-aep-17-v5' : null,
           intentos: 0,
           lease_expira_en: null,
           reintentable: true,
@@ -2015,7 +2023,18 @@ export async function montarBackendReal(
     }
 
     // ── cargarReal ──
-    if (p === '/rest/v1/rpc/equipo_visible_fn') return json(route, ROSTER)
+    if (p === '/rest/v1/rpc/equipo_visible_fn') {
+      // El usuario de la sesión debe aparecer en el roster con el MISMO rol
+      // que devolvió mi_acceso_fn. Antes el fixture lo dejaba siempre como
+      // gerencia, incluso en escenarios de vendedor/supervisor, una identidad
+      // imposible que ocultaba cualquier precondición basada en asesor activo.
+      return json(
+        route,
+        ROSTER.map((miembro) =>
+          miembro.perfil_id === UID ? { ...miembro, rol_crm: estado.rolCrm } : miembro,
+        ),
+      )
+    }
     if (p === '/rest/v1/rpc/actividades_del_ambito_fn') return json(route, [])
     if (p === '/rest/v1/rpc/verificar_disponibilidad_lead' && method === 'POST') {
       estado.llamadas.rpcDisponibilidadLead += 1

@@ -33,6 +33,7 @@ let EQUIPO: Array<{
   perfil_id: string
   nombre_completo: string
   activo: boolean
+  rol_crm: 'vendedor' | 'supervisor' | 'gerencia'
 }> = []
 let DETALLE: ClienteDetalle | null = null
 // Cuentas que "devuelve la RPC" en la ficha, derivadas del fixture DETALLE en
@@ -291,6 +292,7 @@ function montar(
       perfil_id: string
       nombre_completo: string
       activo: boolean
+      rol_crm?: 'vendedor' | 'supervisor' | 'gerencia'
     }>
     errorClientes?: Error | null
     errorContratos?: Error | null
@@ -312,7 +314,16 @@ function montar(
   REFETCH_CLIENTES = vi.fn()
   REFETCH_CONTRATOS = vi.fn()
   REFETCH_OPERACIONES = vi.fn()
-  EQUIPO = over.equipo ?? []
+  EQUIPO = (
+    over.equipo ?? [
+      {
+        perfil_id: YO.id,
+        nombre_completo: 'ASESOR ACTIVO',
+        activo: true,
+        rol_crm: 'vendedor' as const,
+      },
+    ]
+  ).map((miembro) => ({ ...miembro, rol_crm: miembro.rol_crm ?? 'vendedor' }))
   // `null` es un caso de prueba válido (skeleton/error); solo `undefined`
   // significa "usa la ficha por defecto".
   DETALLE = over.detalle === undefined ? detalle() : over.detalle
@@ -440,10 +451,68 @@ describe('MiCartera (pantalla)', () => {
         name: /Expandir los contratos de\s*CLIENTE UNO/,
       }),
     )
-    expect(within(subFilaDe('2026-01-000001')).queryByRole('button', { name: 'Renovar' })).not.toBeInTheDocument()
+    expect(
+      within(subFilaDe('2026-01-000001')).queryByRole('button', {
+        name: 'Renovar',
+      }),
+    ).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Gestionar' }))
     expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
+  })
+
+  it('cliente sin asesor CRM activo conserva la lectura pero bloquea gestión y contratos con explicación', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [cliente({ asesor_perfil_id: null, creado_por: 'yo' })],
+      contratos: [contrato({ fecha_vencimiento: '2000-01-01' })],
+    })
+
+    expect(screen.getByText('Asigna un asesor CRM activo antes de gestionar o crear contratos.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Upgrade' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeEnabled()
+
+    await user.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    expect(screen.getByRole('dialog', { name: 'CLIENTE UNO' })).toBeInTheDocument()
+  })
+
+  it('cliente inactivo queda solo para consulta: no agenda, crea, mejora ni renueva', async () => {
+    const user = userEvent.setup()
+    montar({
+      clientes: [cliente({ activo: false })],
+      contratos: [contrato({ fecha_vencimiento: '2000-01-01' })],
+    })
+
+    expect(screen.getByText('Cliente inactivo: reactívalo antes de gestionar o crear contratos.')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Upgrade' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Ver detalle' })).toBeEnabled()
+
+    await user.click(
+      screen.getByRole('button', {
+        name: /Expandir los contratos de\s*CLIENTE UNO/,
+      }),
+    )
+    expect(
+      within(subFilaDe('2026-01-000001')).queryByRole('button', {
+        name: 'Renovar',
+      }),
+    ).not.toBeInTheDocument()
+  })
+
+  it.each([
+    { activo: false, rol_crm: 'vendedor' as const },
+    { activo: true, rol_crm: 'gerencia' as const },
+  ])('exige asesor vendedor/supervisor activo: $rol_crm activo=$activo', ({ activo, rol_crm }) => {
+    montar({
+      equipo: [{ perfil_id: 'yo', nombre_completo: 'ASESOR', activo, rol_crm }],
+    })
+
+    expect(screen.getByRole('button', { name: 'Gestionar' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /\+ Contrato/ })).toBeDisabled()
   })
 
   it('abre el alta de upgrade con la categoría fija', async () => {
@@ -640,7 +709,13 @@ describe('MiCartera (pantalla)', () => {
           creado_por: 'asesor-1',
         }),
       ],
-      contratos: [contrato({ id: 'k-ajeno', cliente_id: 'c-ajeno', creado_por: 'asesor-1' })],
+      contratos: [
+        contrato({
+          id: 'k-ajeno',
+          cliente_id: 'c-ajeno',
+          creado_por: 'asesor-1',
+        }),
+      ],
       equipo: [{ perfil_id: 'asesor-1', nombre_completo: 'ASESOR UNO', activo: true }],
     })
 

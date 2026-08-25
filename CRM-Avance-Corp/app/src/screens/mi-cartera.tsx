@@ -259,6 +259,10 @@ interface PropsFilaGrupo {
   gestionable: boolean
   /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
   accionable: boolean
+  /** Cliente activo con asesor vendedor/supervisor activo: precondición del servidor. */
+  operable: boolean
+  /** Explicación visible y accesible cuando las mutaciones comerciales están bloqueadas. */
+  motivoNoOperable: string | null
   /** Gerencia opera cualquier fila y no hereda la ventana antifraude del analista. */
   edicionGlobal: boolean
   yoId: string | null
@@ -412,6 +416,8 @@ function FilaGrupoCliente({
   conAcciones,
   gestionable,
   accionable,
+  operable,
+  motivoNoOperable,
   edicionGlobal,
   yoId,
   asesorNombre,
@@ -432,6 +438,7 @@ function FilaGrupoCliente({
   const sinContratos = grupo.contratos.length === 0
   // El analista conserva su ventana; Gerencia puede corregir cualquier cliente.
   const ventanaCliente = useVentana(accionable && !edicionGlobal ? cliente.creado_en : null)
+  const motivoId = `cartera-no-operable-${cliente.id}`
   const ident = <IdentidadCliente cliente={cliente} />
   return (
     <>
@@ -501,11 +508,18 @@ function FilaGrupoCliente({
           <Td className="text-right">
             {gestionable || accionable ? (
               <div className="flex flex-wrap items-center justify-end gap-1.5">
+                {!operable && motivoNoOperable && (
+                  <span id={motivoId} className="max-w-48 text-right text-[11px] leading-tight text-muted-foreground">
+                    {motivoNoOperable}
+                  </span>
+                )}
                 {gestionable && (
                   <Button
                     type="button"
                     size="xs"
                     variant="secondary"
+                    disabled={!operable}
+                    aria-describedby={!operable ? motivoId : undefined}
                     onClick={(e) => {
                       e.stopPropagation()
                       onGestionarCliente()
@@ -532,9 +546,7 @@ function FilaGrupoCliente({
                         type="button"
                         size="xs"
                         variant="outline"
-                        className={
-                          !edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined
-                        }
+                        className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
                         title={
                           edicionGlobal
                             ? 'Corregir datos del cliente · autorización global de Gerencia'
@@ -553,6 +565,8 @@ function FilaGrupoCliente({
                         type="button"
                         size="xs"
                         variant="outline"
+                        disabled={!operable}
+                        aria-describedby={!operable ? motivoId : undefined}
                         onClick={(e) => {
                           e.stopPropagation()
                           onUpgradeCliente()
@@ -564,6 +578,8 @@ function FilaGrupoCliente({
                     <Button
                       type="button"
                       size="xs"
+                      disabled={!operable}
+                      aria-describedby={!operable ? motivoId : undefined}
                       onClick={(e) => {
                         e.stopPropagation()
                         onNuevoContrato()
@@ -593,6 +609,7 @@ function FilaGrupoCliente({
             porVencer={porVencer.has(c.id)}
             renovable={
               accionable &&
+              operable &&
               (c.estado === 'activo' || c.estado === 'vencido') &&
               c.fecha_vencimiento <= fechaLima(Date.now())
             }
@@ -716,6 +733,8 @@ function TarjetaGrupoCliente({
   conAcciones,
   gestionable,
   accionable,
+  operable,
+  motivoNoOperable,
   edicionGlobal,
   yoId,
   asesorNombre,
@@ -735,6 +754,7 @@ function TarjetaGrupoCliente({
   const { cliente } = grupo
   const sinContratos = grupo.contratos.length === 0
   const ventanaCliente = useVentana(accionable && !edicionGlobal ? cliente.creado_en : null)
+  const motivoId = `cartera-no-operable-${cliente.id}`
   return (
     <div className="overflow-hidden rounded-xl border border-border/60 bg-card">
       {/* Cabecera: identidad (toggle si tiene contratos) + capital invertido. */}
@@ -784,8 +804,20 @@ function TarjetaGrupoCliente({
       {/* Acciones: cartera propia para analistas; ámbito completo para Gerencia. */}
       {conAcciones && (gestionable || accionable) && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
+          {!operable && motivoNoOperable && (
+            <span id={motivoId} className="basis-full text-xs text-muted-foreground">
+              {motivoNoOperable}
+            </span>
+          )}
           {gestionable && (
-            <Button type="button" size="xs" variant="secondary" onClick={onGestionarCliente}>
+            <Button
+              type="button"
+              size="xs"
+              variant="secondary"
+              onClick={onGestionarCliente}
+              disabled={!operable}
+              aria-describedby={!operable ? motivoId : undefined}
+            >
               <CalendarPlus aria-hidden /> Gestionar
             </Button>
           )}
@@ -811,11 +843,24 @@ function TarjetaGrupoCliente({
                 </Button>
               )}
               {!sinContratos && (
-                <Button type="button" size="xs" variant="outline" onClick={onUpgradeCliente}>
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={onUpgradeCliente}
+                  disabled={!operable}
+                  aria-describedby={!operable ? motivoId : undefined}
+                >
                   <TrendingUp aria-hidden /> Upgrade
                 </Button>
               )}
-              <Button type="button" size="xs" onClick={onNuevoContrato}>
+              <Button
+                type="button"
+                size="xs"
+                onClick={onNuevoContrato}
+                disabled={!operable}
+                aria-describedby={!operable ? motivoId : undefined}
+              >
                 {sinContratos ? '+ Primer contrato' : '+ Contrato'}
               </Button>
             </>
@@ -836,6 +881,7 @@ function TarjetaGrupoCliente({
               porVencer={porVencer.has(c.id)}
               renovable={
                 accionable &&
+                operable &&
                 (c.estado === 'activo' || c.estado === 'vencido') &&
                 c.fecha_vencimiento <= fechaLima(Date.now())
               }
@@ -937,6 +983,15 @@ function VistaMiCartera({
   const [fMes, setFMes] = useState<string>(() => mesLima(new Date().toISOString()) ?? MES_TODOS)
 
   const nombres = useMemo(() => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])), [equipo])
+  const asesoresCrmActivos = useMemo(
+    () =>
+      new Set(
+        equipo
+          .filter((m) => m.activo && (m.rol_crm === 'vendedor' || m.rol_crm === 'supervisor'))
+          .map((m) => m.perfil_id),
+      ),
+    [equipo],
+  )
   // Roster visible para el filtro 'Sin asesor': un dueño fuera de este Set (o null)
   // cuenta como sin asesor — mismo criterio que la columna Asesor pinta '—'.
   const rosterIds = useMemo(() => new Set(equipo.map((m) => m.perfil_id)), [equipo])
@@ -959,9 +1014,9 @@ function VistaMiCartera({
   // describen la cartera QUE SE GESTIONA: contar ahí a quien ya no es cliente
   // le inflaba al asesor un capital que no puede trabajar.
   // ⚠️ La ALARMA de vencimiento es la EXCEPCIÓN y se calcula sobre `bases`
-  // (corrección 2026-07-26): un contrato activo que vence en ≤30 d hay que
-  // renovarlo aunque el titular esté dado de baja, y este chip es el único
-  // radar de renovación del CRM — excluirlo lo borraba del negocio en silencio.
+  // (corrección 2026-07-26): un contrato activo que vence en ≤30 d debe seguir
+  // avisando aunque el titular esté dado de baja. La mutación queda bloqueada
+  // hasta reactivarlo, pero ocultar el vencimiento lo borraría del radar.
   const enGestion = useMemo(() => bases.filter((g) => g.cliente.activo), [bases])
   const inactivos = bases.length - enGestion.length
   // resumenCartera separa por dentro los dos conceptos: dinero sobre lo
@@ -1107,40 +1162,51 @@ function VistaMiCartera({
 
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
   // el gating vive AQUÍ (una sola fuente), la presentación decide cómo pintarlo.
-  const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => ({
-    grupo: g,
-    expandido: expandidos.has(g.cliente.id),
-    onToggle: () =>
-      setExpandidos((prev) => {
-        const sig = new Set(prev)
-        if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
-        else sig.add(g.cliente.id)
-        return sig
-      }),
-    colAsesor: verEquipo,
-    conAcciones: escrituraHabilitada,
-    gestionable: escrituraHabilitada && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
-    accionable: accionesContractualesHabilitadas && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
-    edicionGlobal,
-    yoId,
-    asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
-    // Los dos filtros de contrato se componen en AND (mismo criterio que la
-    // lista): con «por vencer» activo la sub-fila que sobra es ruido.
-    contratosVisibles: g.contratos.filter(
-      (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
-    ),
-    porVencer,
-    operacionesPorContrato,
-    contratosPorId,
-    onNuevoContrato: () => onNuevoContrato(g.cliente),
-    onGestionarCliente: () => onGestionarCliente(g.cliente),
-    onUpgradeCliente: () => onUpgradeCliente(g.cliente),
-    onRenovarContrato: (contrato) => onRenovarContrato(g.cliente, contrato),
-    onDetalleCliente: () => onDetalleCliente(g.cliente),
-    onCorregirCliente: () => onCorregirCliente(g.cliente),
-    onDetalleContrato,
-    onCorregirContrato,
-  })
+  const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => {
+    const asesorActivo = g.cliente.asesor_perfil_id != null && asesoresCrmActivos.has(g.cliente.asesor_perfil_id)
+    const operable = g.cliente.activo && asesorActivo
+    const motivoNoOperable = !g.cliente.activo
+      ? 'Cliente inactivo: reactívalo antes de gestionar o crear contratos.'
+      : !asesorActivo
+        ? 'Asigna un asesor CRM activo antes de gestionar o crear contratos.'
+        : null
+    return {
+      grupo: g,
+      expandido: expandidos.has(g.cliente.id),
+      onToggle: () =>
+        setExpandidos((prev) => {
+          const sig = new Set(prev)
+          if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
+          else sig.add(g.cliente.id)
+          return sig
+        }),
+      colAsesor: verEquipo,
+      conAcciones: escrituraHabilitada,
+      gestionable: escrituraHabilitada && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
+      accionable: accionesContractualesHabilitadas && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
+      operable,
+      motivoNoOperable,
+      edicionGlobal,
+      yoId,
+      asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
+      // Los dos filtros de contrato se componen en AND (mismo criterio que la
+      // lista): con «por vencer» activo la sub-fila que sobra es ruido.
+      contratosVisibles: g.contratos.filter(
+        (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
+      ),
+      porVencer,
+      operacionesPorContrato,
+      contratosPorId,
+      onNuevoContrato: () => onNuevoContrato(g.cliente),
+      onGestionarCliente: () => onGestionarCliente(g.cliente),
+      onUpgradeCliente: () => onUpgradeCliente(g.cliente),
+      onRenovarContrato: (contrato) => onRenovarContrato(g.cliente, contrato),
+      onDetalleCliente: () => onDetalleCliente(g.cliente),
+      onCorregirCliente: () => onCorregirCliente(g.cliente),
+      onDetalleContrato,
+      onCorregirContrato,
+    }
+  }
 
   // ── Las tarjetas de dinero ─────────────────────────────────────────────────
   // PEN y USD JAMÁS se suman: van en DOS tarjetas separadas para verlos al mismo
