@@ -31,11 +31,14 @@ vi.mock('@/lib/store-context', () => ({
 vi.mock('@/lib/alertas-context', () => ({
   useAlertasCRM: () => ({
     alertas: ALERTAS,
+    // Como el provider real (F4): la campana cuenta lo que PIDE acción.
+    pendientes: ALERTAS.filter((fila) => fila.reconocimiento == null).length,
     rol: YO?.rol ?? null,
     cargando: CARGANDO_ALERTAS,
     errores: ERRORES_ALERTAS,
     generadoEn: null,
     reintentar: vi.fn(),
+    reconocer: vi.fn(),
   }),
 }))
 

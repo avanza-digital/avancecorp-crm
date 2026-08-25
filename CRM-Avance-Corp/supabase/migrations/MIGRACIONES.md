@@ -3566,3 +3566,154 @@ clientes pasaron completos.
 
 **Registro de excepciones a `public`:** ninguna. Solo reemplaza una RPC del
 esquema `crm`.
+## 20260823204930_crm_alertas_reconocimientos.sql
+
+**Estado: ✅ EN PRODUCCIÓN (2026-08-23, ~17:30 Lima).** Ciclo completo en el
+branch `hoy-sin-ruido-f4` (ref `xoyeqftdfxmshjqswdey`, borrado tras el
+veredicto): replay automático muerto en el MIGRATIONS_FAILED de diseño →
+`reset_branch` a 20260811210049 → semilla intercalada (perfiles 'analista',
+cadena sup→vend) → replay 087–123 DESDE EL REGISTRO remoto (37/37; los 3
+asientos sin cuerpo salieron de los `.sql` locales del domicilio legal y del
+régimen documental — que SÍ está vivo en prod, la nota del 20/08 quedó vieja)
+→ **huella global 271 funciones md5 IDÉNTICA a prod** → F4 aplicada (+3
+funciones exactas) → seed demo + bajas → gate **404✓ con el ÚNICO ✗ = el
+fatal documentado del arnés** (offboarding post-8-ago; primera corrida cazó
+además un bug de la PROPIA sonda de audit: `tabla` va calificada con esquema)
+→ advisors del branch 156/0 ERROR (única diferencia con prod:
+`extension_in_public`, infra de branch). Trampa nueva del ciclo: un branch
+nace SIN `crm` en los esquemas expuestos de PostgREST — copiar la config API
+de prod (Management API `PATCH /postgrest`) antes del seed. Aplicación a
+prod por `merge_branch` con el cuerpo AL BYTE en el registro del branch
+(md5 `6c1c10ab…` = fichero; sin eso el merge habría registrado sin ejecutar)
+y verificada CONTANDO objetos: tabla + 3 triggers + 2 policies + 3 índices +
+job de cron con EXECUTE, funciones **271→274 (+3 exactas)**, registro 124,
+huella `399cd9ff…` = banco al byte. Advisors de prod post-merge: **157 =
+línea base exacta, cero clases nuevas, 0 de F4**.
+
+**F4.1 del plan «Hoy del supervisor, sin ruido»** (decisiones de Miguel
+2026-08-23: reconocida = atenuada · posponer con fecha y tope 7 días ·
+gerencia lee). Crea `crm.alertas_reconocimientos`, el libro INMUTABLE (solo
+INSERT: sin policy ni grant de UPDATE/DELETE) donde el supervisor reconoce o
+pospone las alertas agrupadas de su campana. Guarda la FOTO de miembros del
+grupo — la base del «reaparece si empeora» que calcula el front — y la
+severidad reconocida. Trigger sellador: autoría = actor, `alerta_id` atado al
+uuid del actor (nadie reconoce alertas ajenas), posponer futuro con tope de
+7 días a reloj de pared, miembros sin nulls ni ids venenosos, `creado_en`
+del servidor. RLS: escribe solo el supervisor dueño; lee el dueño y gerencia
+(trazabilidad); vendedor y directorio, nada. Caducidad pg_cron a 90 días
+(la traza permanente queda en `public.audit_log` vía `private.log_audit_crm`).
+Matriz `test-rls.mjs`: bloque «F4 sin ruido» con 28 casos (positivos y
+denegados por rol —coordinador incluido—, predicado owner con OTRO supervisor,
+inmutabilidad del propio dueño, re-sellado de creado_en, topes y venenos).
+Auditoría `auditor-rls` aplicada ANTES del branch: 4 importantes (huecos de
+matriz) + 6 menores (sello con clock_timestamp, guardia de inmutabilidad
+BEFORE UPDATE/DELETE, rol también en el sellador, limitación de la foto
+documentada en el COMMENT).
+
+**Auditoría Codex (refutación) aplicada ANTES del branch:** 1 bloqueante —
+la foto/severidad son falsificables por su dueño vía API — resuelto por
+ESTRUCTURA: ningún reconocimiento vige más de 7 días (contrato de F4.2,
+sellado por el creado_en del servidor; documentado en el COMMENT de la
+tabla). Además: `array_ndims=1` (una foto 2D pasaba cardinality y unnest),
+`secuencia` identity como ORDEN TOTAL del libro (creado_en empata al
+microsegundo), `collate "C"` en los regex con rangos, vuelta atrás con
+unschedule condicional, y la matriz endurecida (helper estricto con código
+Y mensaje, positivo del 4.º tipo, sonda de audit_log, foto 2D, catálogos
+de accion/severidad). Matriz F4: 36 casos. NO observables y DICHOS: la
+caducidad de 90 días y la guardia de inmutabilidad ante el owner.
+
+**Contratos que hereda F4.2 (front):** `AlertaCRM` debe exponer `miembros`
+(hoy los grupos descartan los ids — hallazgo Codex #4) · un reconocimiento
+vige ≤7 días por `creado_en` · «el último asiento manda» se lee por
+`secuencia`, no por `creado_en`.
+
+**Verificación post-merge obligatoria:** `cron.job` tiene UNA fila
+`crm-alertas-reconocimientos-caducidad` y su `username` tiene EXECUTE sobre
+`private.caducar_alertas_reconocimientos()` — el segfault por EXECUTE
+ausente está documentado en esta misma imagen de Supabase
+([[postgres-cae-por-permiso-de-funcion]]).
+
+**Registro de excepciones a `public`:** solo la FK de lectura a
+`public.perfiles` (patrón de la casa); ningún objeto del portal se altera.
+
+## 20260824034730_crm_alertas_reconocimientos_vigentes.sql
+
+**Qué hace:** F4.2 «Hoy del supervisor, sin ruido» — (1) vista
+`crm.alertas_reconocimientos_vigentes` (`security_invoker = true`) que corta
+la VIGENCIA del libro con el reloj de POSTGRES (≤7 días por `creado_en`;
+posposiciones con `hasta > now()`): el front lee SOLO esta vista, cerrando el
+bloqueante Codex F4.2 #2 (un dispositivo con el reloj atrasado podía alargar
+un silencio — la clase de fallo de «una prueba de fechas en tu propia zona»);
+(2) `UNIQUE (secuencia)` sobre `crm.alertas_reconocimientos` — «el último
+asiento manda» se resuelve por secuencia y el UNIQUE cierra la vía anómala
+(restauración/doble carga) de empates con ganador arbitrario (Codex #6).
+
+**Estado:** ✅ **EN PRODUCCIÓN** (2026-08-24, madrugada). Ciclo completo del
+banco `f42-vigentes` (ref `ggkpqmdvtybeinwulfvk`, borrado al cerrar): replay
+38/38 desde el registro remoto verificado por md5 · gate 413 marcas con TODOS
+los casos F4/F4.2 en verde (29 del libro + 14 nuevos de la vista, incluida la
+prueba TEMPORAL: una posposición de 8 s nace visible y la vista la suelta con
+el reloj del servidor mientras la tabla la conserva) · advisors del banco 0
+sobre estos objetos · merge verificado CONTANDO objetos en prod: vista con
+`reloptions = {security_invoker=true}` y viewdef exacto, constraint presente,
+registro 125 (fila `20260824034730` con 7 statements, md5
+`3fca26e8c4e4fd0fbe16fa47e7767936`), grants de la vista = SELECT a
+authenticated y NADA a anon, funciones 274 SIN cambios y huella filtrada
+`264|f583b7c5…` intacta, cron de caducidad 1 fila · advisors de prod
+post-merge **157 = línea base exacta**, 0 sobre la vista.
+
+⚠️ **Trampa nueva del merge (cazada en este ciclo):** el PRIMER merge falló
+(main → MIGRATIONS_FAILED, prod intacto — verificado antes de reintentar)
+porque la fila del registro llevaba el fichero entero como UN solo elemento
+de `statements`; el ejecutor del merge corre elemento a elemento por
+protocolo extendido y no acepta multi-statement. La fila debe ir con los
+statements PARTIDOS (uno por sentencia, respetando `$$` y comillas; el
+bloque comentado de vuelta atrás del final no va al registro). Con la fila
+partida en 7, el segundo merge ejecutó y registró bien.
+
+**Fallos del gate AJENOS a esta migración (dichos):** los 23 ✗ de la sección
+domicilio legal — esperan funciones que en prod viven FUERA del registro (la
+deriva de arriba), imposibles en un banco fiel al registro — y el fatal
+documentado del arnés (offboarding post-8-ago).
+
+**Auditoría (auditor-rls, 0 bloqueantes):** #2 aplicado — ⚠️ REGLA: todo
+`CREATE OR REPLACE` de una vista invoker DEBE repetir `WITH (security_invoker
+= true)`; en PG17 el replace SUSTITUYE las reloptions y sin el WITH la vista
+se vuelve definer EN SILENCIO (quedó en el COMMENT de la vista). #3/#4/#5
+aplicados a la matriz: denegados de directorio y anon sobre la vista, y DML
+a través de la vista (auto-actualizable para Postgres) pinneado como
+bloqueado. #6 dicho: el `ADD CONSTRAINT` no puede chocar con datos de prod —
+la identity es `GENERATED ALWAYS`, PostgREST no puede mandar `secuencia` y
+`OVERRIDING SYSTEM VALUE` no viaja por la API.
+
+**NO observables y DICHOS:** el corte de 7 días de la vista (nadie fabrica un
+`creado_en` viejo — lo sella el trigger de F4.1) y el empate de `secuencia`
+(inalcanzable por la vía normal); ambos cerrados por estructura. La matriz sí
+prueba el corte de `hasta` EN EL TIEMPO: una posposición de 8 segundos nace
+visible en la vista, y pasada su fecha la vista la suelta mientras la tabla
+la conserva — reloj del servidor, no del que consulta.
+
+**⚠️ Deriva de prod FUERA del registro (hallazgo del ciclo):** al montar el
+banco (replay 38/38 desde el registro remoto, registro 124), la huella global
+dio 270 funciones en el banco contra 274 en prod. Diferencia identificada
+función a función: 10 funciones del dominio **domicilio legal** y
+**contrato-pdf** (4 que solo existen en prod: `completar_domicilio_cliente`,
+`datos_legales_contrato_fn`, `normalizar_domicilio_legal`,
+`contrato_documental_regimen`; 6 con hash distinto:
+`actualizar_cliente_gerencia_con_domicilio`, `contrato_pdf_reclamar`,
+`convertir_lead_con_domicilio`, `contrato_pdf_estado_base`,
+`crear_job_contrato_pdf_base`, `crear_revision_contrato_pdf_base`) — trabajo
+de las sesiones de domicilio legal / PDF aplicado a prod SIN fila en el
+registro. **Excluyendo esas 10, banco y prod son idénticos al byte: 264|`f583b7c578a5bb3ebb0824d6be13f35d`
+en ambos.** Esta migración no toca ese dominio; la deuda de registrar esas
+funciones queda anotada y NO se «arregla» desde este ciclo (sería pisar
+trabajo ajeno a ciegas — la lección de [[sesiones-paralelas-deploy]]).
+
+**Verificación post-merge obligatoria:** contar objetos (vista + constraint),
+`pg_class.reloptions` de la vista contiene `security_invoker=true`, registro
+de prod 125 con md5 `281ac2ea…` en la fila nueva, funciones 274 SIN cambios
+(esta migración no crea ni altera funciones) y huella filtrada
+`264|f583b7c5…` intacta.
+
+**Registro de excepciones a `public`:** ninguna — ningún statement toca
+`public.*`.

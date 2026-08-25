@@ -2,7 +2,9 @@ import { useEffect, useMemo, useRef, useState, type JSX } from 'react'
 import {
   AlarmClock,
   BellRing,
+  CalendarClock,
   CalendarPlus,
+  Check,
   CheckCircle2,
   CircleAlert,
   Gauge,
@@ -21,7 +23,8 @@ import { toast } from 'sonner'
 import { CrmApiError, eliminarRecordatorioDisponibilidad } from '@/data/crm-api'
 import { crmQueryKeys } from '@/data/crm-queries'
 import { esFocoHuerfano } from '@/lib/foco'
-import { telefonoLegible } from '@/lib/recordatorios-disponibilidad'
+import { fechaCortaLima, telefonoLegible } from '@/lib/recordatorios-disponibilidad'
+import { textoVencimiento } from '@/lib/reconocimientos-alertas'
 import { usePanelesActions } from '@/lib/store-context'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -244,9 +247,163 @@ function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element
   )
 }
 
+/** F4: los plazos de posponer que se ofrecen (decisión de Miguel: tope 7
+ *  días). El de 7 va con un colchón de 30 minutos BAJO el tope (Codex #2):
+ *  el servidor mide «≤ 7 días» con SU reloj de pared, y un cliente
+ *  adelantado mandaría un hasta que el trigger rechaza (22023). Si aun así
+ *  el reloj local está tan roto que el servidor lo rechaza, el mensaje del
+ *  trigger llega al toast tal cual — el fallo se dice, no se disimula. */
+const PLAZOS_POSPONER: ReadonlyArray<{ dias: number; etiqueta: string; margenMs: number }> = [
+  { dias: 1, etiqueta: 'Mañana', margenMs: 0 },
+  { dias: 3, etiqueta: 'En 3 días', margenMs: 0 },
+  { dias: 7, etiqueta: 'En 7 días', margenMs: 1_800_000 },
+]
+
+/** F4: reconocer («lo estoy atendiendo») atenúa la fila y descuenta la
+ *  campana; posponer la oculta hasta la fecha elegida. Solo existe en las
+ *  alertas AGRUPADAS del supervisor (las que traen `miembros`).
+ *
+ *  Foco (a11y F4, los dos bloqueantes del revisor): «Posponer» es un
+ *  disclosure REAL — persiste al abrirse (aria-expanded/aria-controls
+ *  verdaderos), el foco entra al primer plazo por efecto y vuelve a
+ *  «Posponer» al cerrar. Tras un asiento exitoso el bloque entero desaparece
+ *  (la fila se atenúa o se va) y el foco aterriza en el contador, como en
+ *  F3.1; tras un FALLO, el rescate corre en un efecto cuando `ocupado`
+ *  vuelve a false — en el finally el botón aún está disabled y focus()
+ *  sobre un control disabled es un no-op (lección de F2). */
+function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element {
+  const { reconocer } = useAlertasCRM()
+  const [eligiendoPlazo, setEligiendoPlazo] = useState(false)
+  const [ocupado, setOcupado] = useState(false)
+  const botonReconocerRef = useRef<HTMLButtonElement | null>(null)
+  const botonPosponerRef = useRef<HTMLButtonElement | null>(null)
+  const primerPlazoRef = useRef<HTMLButtonElement | null>(null)
+  const rescatarFocoRef = useRef<'reconocer' | 'posponer' | null>(null)
+  const estuvoAbiertoRef = useRef(false)
+  const idPlazos = `plazos-${alerta.id}`
+
+  useEffect(() => {
+    if (eligiendoPlazo) {
+      estuvoAbiertoRef.current = true
+      primerPlazoRef.current?.focus()
+      return
+    }
+    // Solo al CERRAR un disclosure que estuvo abierto (no en el montaje), y
+    // solo si el foco quedó huérfano (Cancelar/plazo desmontados con el grupo).
+    if (!estuvoAbiertoRef.current) return
+    estuvoAbiertoRef.current = false
+    if (esFocoHuerfano(botonPosponerRef.current)) botonPosponerRef.current?.focus()
+  }, [eligiendoPlazo])
+
+  useEffect(() => {
+    if (ocupado || rescatarFocoRef.current == null) return
+    const destino = rescatarFocoRef.current === 'reconocer'
+      ? botonReconocerRef.current
+      : (eligiendoPlazo ? primerPlazoRef.current : botonPosponerRef.current)
+    rescatarFocoRef.current = null
+    if (esFocoHuerfano(destino)) destino?.focus()
+  }, [ocupado, eligiendoPlazo])
+
+  const asentar = async (accion: 'reconocer' | 'posponer', hasta: string | null) => {
+    if (ocupado) return
+    setOcupado(true)
+    try {
+      await reconocer(alerta, accion, hasta)
+      toast.success(accion === 'reconocer'
+        ? 'Reconocida: queda atenuada y reaparece si empeora.'
+        : `Pospuesta hasta el ${hasta ? fechaCortaLima(hasta) ?? 'día elegido' : 'día elegido'}.`)
+      setEligiendoPlazo(false)
+      // El botón que tenía el foco ya no existe: aterrizar en el contador
+      // (o el encabezado si la lista quedó vacía), como en F3.1.
+      const destino = document.getElementById('alertas-contador')
+        ?? document.getElementById('alertas-encabezado')
+      destino?.focus()
+    } catch (error: unknown) {
+      toast.error(error instanceof CrmApiError
+        ? error.message
+        : 'No se pudo asentar el reconocimiento.')
+      // Los plazos se QUEDAN abiertos: el supervisor reintenta donde estaba.
+      rescatarFocoRef.current = accion
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2">
+      <Button
+        ref={botonReconocerRef}
+        variant="outline"
+        size="sm"
+        className="min-h-9"
+        disabled={ocupado}
+        aria-busy={ocupado}
+        onClick={() => { void asentar('reconocer', null) }}
+        aria-label={`Reconocer «${alerta.titulo}»: la estoy atendiendo`}
+      >
+        <Check aria-hidden /> Lo estoy atendiendo
+      </Button>
+      <Button
+        ref={botonPosponerRef}
+        variant="ghost"
+        size="sm"
+        className="min-h-9"
+        disabled={ocupado}
+        aria-expanded={eligiendoPlazo}
+        aria-controls={eligiendoPlazo ? idPlazos : undefined}
+        onClick={() => setEligiendoPlazo((abierto) => !abierto)}
+        aria-label={`Posponer «${alerta.titulo}»`}
+      >
+        <CalendarClock aria-hidden /> Posponer
+      </Button>
+      {eligiendoPlazo && (
+        <div
+          id={idPlazos}
+          role="group"
+          aria-label={`Posponer «${alerta.titulo}» hasta`}
+          className="flex flex-wrap items-center justify-end gap-2"
+        >
+          {PLAZOS_POSPONER.map((plazo, indice) => (
+            <Button
+              key={plazo.dias}
+              ref={indice === 0 ? primerPlazoRef : undefined}
+              variant="outline"
+              size="sm"
+              className="min-h-9"
+              disabled={ocupado}
+              onClick={() => {
+                void asentar(
+                  'posponer',
+                  new Date(Date.now() + plazo.dias * 86_400_000 - plazo.margenMs).toISOString(),
+                )
+              }}
+            >
+              {plazo.etiqueta}
+            </Button>
+          ))}
+          <Button
+            variant="ghost"
+            size="sm"
+            className="min-h-9"
+            disabled={ocupado}
+            onClick={() => setEligiendoPlazo(false)}
+            aria-label="Cancelar posposición"
+          >
+            Cancelar
+          </Button>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string }): JSX.Element {
   const Icono = ICONO_TIPO[alerta.tipo]
-  const color = colorSeveridad(alerta.severidad)
+  // Una fila reconocida se ATENÚA de verdad: tira y badge en gris neutro (el
+  // rojo dormido no gasta presupuesto de color) y la traza dice el contrato
+  // completo — reaparece si empeora, se reactiva en fecha cierta.
+  const reconocimiento = alerta.reconocimiento
+  const color = reconocimiento ? SEMAFORO.neutro : colorSeveridad(alerta.severidad)
   return (
     <li className="group relative grid gap-3 px-4 py-4 pl-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center sm:px-5 sm:pl-6">
       <span
@@ -254,14 +411,26 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
         style={{ backgroundColor: color }}
         aria-hidden
       />
+      {/* Se atenúa con COLOR (tira/badge/icono en gris), NUNCA con opacidad
+          sobre el texto: opacity-75 tumbaba bajo 4.5:1 cuatro textos que ya
+          iban justos (bloqueante del revisor a11y). El badge gris lleva el
+          texto en --muted-foreground-strong: el neutro del semáforo es para
+          tiras y puntos, no para texto de 11 px. */}
       <div className="flex min-w-0 items-start gap-3">
-        <span className="mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-primary transition-transform group-hover:scale-105 motion-reduce:transition-none">
+        <span className={`mt-0.5 grid size-9 shrink-0 place-items-center rounded-xl bg-muted text-primary transition-transform group-hover:scale-105 motion-reduce:transition-none${reconocimiento ? ' opacity-75' : ''}`}>
           <Icono className="size-4" aria-hidden />
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <Badge color={color} variant="outline">
-              {alerta.severidad === 'critica' ? 'Crítica' : 'Atención'}
+            {/* El outline pinta TEXTO y borde del `color`: el gris del badge
+                reconocido es el strong (7.5:1), no el neutro del semáforo. */}
+            <Badge
+              color={reconocimiento ? 'var(--muted-foreground-strong)' : color}
+              variant="outline"
+            >
+              {reconocimiento
+                ? 'Reconocida'
+                : alerta.severidad === 'critica' ? 'Crítica' : 'Atención'}
             </Badge>
             <span className="text-[10px] font-bold uppercase tracking-[0.1em] text-muted-foreground">
               {alcance}
@@ -274,49 +443,77 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
               Responsable: {alerta.responsable}
             </p>
           )}
+          {reconocimiento && (
+            <p className="mt-1 text-[11px] font-semibold text-muted-foreground-strong">
+              La estás atendiendo · reaparece si empeora · se reactiva el {textoVencimiento(reconocimiento.venceEn)}
+            </p>
+          )}
         </div>
       </div>
       {alerta.contacto ? (
         <AccionesRevisarContacto alerta={alerta} />
       ) : (
-        <a
-          href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
-          aria-label={`${alerta.destino.etiqueta}: ${alerta.titulo}`}
-          className="ml-12 inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary outline-none transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35 motion-reduce:transition-none sm:ml-0"
-        >
-          {alerta.destino.etiqueta}
-        </a>
+        <div className="ml-12 flex flex-col items-start gap-2 sm:ml-0 sm:items-end">
+          <a
+            href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
+            aria-label={`${alerta.destino.etiqueta}: ${alerta.titulo}`}
+            className="inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary outline-none transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35 motion-reduce:transition-none"
+          >
+            {alerta.destino.etiqueta}
+          </a>
+          {!reconocimiento && alerta.miembros != null && (
+            <AccionesReconocerAlerta alerta={alerta} />
+          )}
+        </div>
       )}
     </li>
   )
 }
 
 export function Alertas(): JSX.Element {
-  const { alertas, rol, cargando, errores, generadoEn, reintentar } = useAlertasCRM()
+  const { alertas, pospuestas, rol, cargando, errores, generadoEn, reintentar } = useAlertasCRM()
   const copy = copyRol(rol)
   const [prioridad, setPrioridad] = useState<FiltroPrioridad>('todas')
   const [tipo, setTipo] = useState<FiltroTipo>('todos')
   const [busqueda, setBusqueda] = useState('')
 
-  const tipos = useMemo(
-    () => [...new Set(alertas.map((alerta) => alerta.tipo))]
-      .sort((a, b) => ETIQUETA_TIPO[a].localeCompare(ETIQUETA_TIPO[b], 'es-PE')),
+  // F4 (Codex #8): activas y reconocidas por SEPARADO. Los chips, los filtros
+  // y el buscador operan solo sobre las activas — «Críticas 1» con «0
+  // pendientes activos» era la pantalla contradiciéndose; las reconocidas
+  // viven en su propia sección, siempre al final y sin filtrar.
+  const activas = useMemo(
+    () => alertas.filter((alerta) => alerta.reconocimiento == null),
     [alertas],
   )
-  const criticas = useMemo(
-    () => alertas.filter((alerta) => alerta.severidad === 'critica').length,
+  const reconocidas = useMemo(
+    () => alertas.filter((alerta) => alerta.reconocimiento != null),
     [alertas],
+  )
+  const tipos = useMemo(
+    () => [...new Set(activas.map((alerta) => alerta.tipo))]
+      .sort((a, b) => ETIQUETA_TIPO[a].localeCompare(ETIQUETA_TIPO[b], 'es-PE')),
+    [activas],
+  )
+  const criticas = useMemo(
+    () => activas.filter((alerta) => alerta.severidad === 'critica').length,
+    [activas],
   )
   const filtradas = useMemo(() => {
     const texto = normalizar(busqueda.trim())
-    return alertas.filter((alerta) => {
+    return activas.filter((alerta) => {
       if (prioridad !== 'todas' && alerta.severidad !== prioridad) return false
       if (tipo !== 'todos' && alerta.tipo !== tipo) return false
       if (!texto) return true
       return normalizar(`${alerta.titulo} ${alerta.detalle} ${alerta.responsable ?? ''}`).includes(texto)
     })
-  }, [alertas, busqueda, prioridad, tipo])
+  }, [activas, busqueda, prioridad, tipo])
   const hayFiltros = prioridad !== 'todas' || tipo !== 'todos' || busqueda.trim() !== ''
+  // F4 (Codex #7): las pospuestas están OCULTAS pero no se niegan — el
+  // contador y el vacío las dicen; sin esta línea, «Nada pendiente» afirmaría
+  // algo falso mientras una excepción espera su fecha.
+  const notaPospuestas = pospuestas > 0
+    ? ` · ${pospuestas} ${pospuestas === 1 ? 'pospuesta' : 'pospuestas'} hasta su fecha`
+    : ''
   const limpiar = () => {
     setPrioridad('todas')
     setTipo('todos')
@@ -354,13 +551,13 @@ export function Alertas(): JSX.Element {
         </div>
       </header>
 
-      {cargando && alertas.length === 0 ? (
+      {cargando && alertas.length === 0 && pospuestas === 0 ? (
         <CargaAlertas />
-      ) : errores.length > 0 && alertas.length === 0 ? (
+      ) : errores.length > 0 && alertas.length === 0 && pospuestas === 0 ? (
         <div className="rounded-2xl border border-border bg-card" role="alert">
           <PanelError mensaje={errores.join(' ')} onReintentar={reintentar} reintentando={cargando} />
         </div>
-      ) : alertas.length === 0 ? (
+      ) : alertas.length === 0 && pospuestas === 0 ? (
         <div className="rounded-2xl border border-border bg-card">
           <PanelVacio icono={CheckCircle2} titulo="Nada pendiente" detalle={copy.vacio} />
         </div>
@@ -379,32 +576,34 @@ export function Alertas(): JSX.Element {
             </div>
           )}
 
-          <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <FiltrosPrioridad valor={prioridad} onCambiar={setPrioridad} total={alertas.length} criticas={criticas} />
-            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-              <Select
-                aria-label="Filtrar por tipo"
-                value={tipo}
-                onChange={(evento) => setTipo(evento.target.value as FiltroTipo)}
-                className="sm:w-52"
-              >
-                <option value="todos">Todos los tipos</option>
-                {tipos.map((valor) => <option key={valor} value={valor}>{ETIQUETA_TIPO[valor]}</option>)}
-              </Select>
-              <div className="relative sm:w-72">
-                <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
-                <Input
-                  type="search"
-                  aria-label="Buscar pendiente"
-                  placeholder="Buscar responsable o señal…"
-                  className="pl-9"
-                  value={busqueda}
-                  onChange={(evento) => setBusqueda(evento.target.value)}
-                />
+          {activas.length > 0 && (
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+              <FiltrosPrioridad valor={prioridad} onCambiar={setPrioridad} total={activas.length} criticas={criticas} />
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Select
+                  aria-label="Filtrar por tipo"
+                  value={tipo}
+                  onChange={(evento) => setTipo(evento.target.value as FiltroTipo)}
+                  className="sm:w-52"
+                >
+                  <option value="todos">Todos los tipos</option>
+                  {tipos.map((valor) => <option key={valor} value={valor}>{ETIQUETA_TIPO[valor]}</option>)}
+                </Select>
+                <div className="relative sm:w-72">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" aria-hidden />
+                  <Input
+                    type="search"
+                    aria-label="Buscar pendiente"
+                    placeholder="Buscar responsable o señal…"
+                    className="pl-9"
+                    value={busqueda}
+                    onChange={(evento) => setBusqueda(evento.target.value)}
+                  />
+                </div>
+                {hayFiltros && <Button type="button" variant="ghost" size="sm" onClick={limpiar}>Limpiar</Button>}
               </div>
-              {hayFiltros && <Button type="button" variant="ghost" size="sm" onClick={limpiar}>Limpiar</Button>}
             </div>
-          </div>
+          )}
 
           <p
             id="alertas-contador"
@@ -414,11 +613,21 @@ export function Alertas(): JSX.Element {
             aria-live="polite"
           >
             {filtradas.length} {filtradas.length === 1 ? 'pendiente activo' : 'pendientes activos'}
-            {hayFiltros ? ` de ${alertas.length}` : ''}
+            {hayFiltros ? ` de ${activas.length}` : ''}
+            {reconocidas.length > 0
+              ? ` · ${reconocidas.length} ${reconocidas.length === 1 ? 'reconocida' : 'reconocidas'}`
+              : ''}
+            {notaPospuestas}
           </p>
 
           <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
-            {filtradas.length === 0 ? (
+            {activas.length === 0 ? (
+              <PanelVacio
+                icono={CheckCircle2}
+                titulo="Nada pendiente ahora"
+                detalle={`${copy.vacio}${notaPospuestas ? `${notaPospuestas}; reaparecerán solas.` : ''}`}
+              />
+            ) : filtradas.length === 0 ? (
               <PanelVacio icono={SearchX} titulo="Sin coincidencias" detalle="No hay pendientes con estos filtros.">
                 <Button type="button" variant="outline" size="sm" onClick={limpiar}>Limpiar filtros</Button>
               </PanelVacio>
@@ -430,6 +639,21 @@ export function Alertas(): JSX.Element {
               </ol>
             )}
           </div>
+
+          {reconocidas.length > 0 && (
+            <section aria-label="Reconocidas" className="space-y-2">
+              <h2 className="px-1 text-[11px] font-extrabold uppercase tracking-[0.1em] text-muted-foreground-strong">
+                Reconocidas — siguen vigilándose
+              </h2>
+              <div className="overflow-hidden rounded-2xl border border-border bg-card shadow-[var(--shadow-card)]">
+                <ol className="divide-y divide-border/70" aria-label="Alertas reconocidas">
+                  {reconocidas.map((alerta) => (
+                    <FilaAlerta key={alerta.id} alerta={alerta} alcance={copy.alcance} />
+                  ))}
+                </ol>
+              </div>
+            </section>
+          )}
         </>
       )}
     </section>

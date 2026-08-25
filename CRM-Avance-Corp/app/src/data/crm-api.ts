@@ -88,6 +88,12 @@ import {
   type RecordatorioDisponibilidad,
 } from '@/lib/recordatorios-disponibilidad'
 import {
+  AsientosReconocimientoSchema,
+  type AccionReconocimiento,
+  type AsientoReconocimiento,
+} from '@/lib/reconocimientos-alertas'
+import type { SeveridadAlerta } from '@/lib/alertas'
+import {
   ResumenCarteraSchema,
   VENTANA_CONVERTIDOS_MS,
   VENTANA_CONVERTIDOS_DIAS,
@@ -528,7 +534,10 @@ export async function listarLeads(filtros: FiltrosLeads, signal?: AbortSignal): 
 // El store necesita TODA la cartera del ámbito para los cálculos agregados
 // (métricas, embudo, colas). La RLS ya recorta a lo visible; el tope alto es una
 // salvaguarda de payload, no seguridad. Con volumen bajo (piloto) sobra.
-const MAX_LEADS_AMBITO = 2000
+// Exportado para F4: con el ámbito EN el tope, la foto de miembros de los
+// grupos del supervisor puede estar incompleta y reconocer se desactiva —
+// una foto trunca aceptada por el servidor callaría al lead 2001 (Codex #5).
+export const MAX_LEADS_AMBITO = 2000
 
 export async function listarLeadsDelAmbito(signal?: AbortSignal): Promise<Lead[]> {
   // Ventana de convertidos (decisión de Miguel 2026-08-08, F1): un convertido
@@ -1463,6 +1472,69 @@ export async function eliminarRecordatorioDisponibilidad(id: string): Promise<vo
     // La RLS lo ocultó (no es suyo) o ya caducó solo: mismo mensaje neutro.
     throw new CrmApiError('El recordatorio ya no existe.', 'NO_ENCONTRADO')
   }
+}
+
+// ── F4 «sin ruido»: crm.alertas_reconocimientos ──────────────────────────────
+// El libro INMUTABLE de reconocimientos del supervisor: solo INSERT (el
+// trigger sella autoría y fecha, ata el alerta_id al actor y acota posponer
+// a 7 días). El front no re-implementa nada de eso: valida la FORMA.
+
+export async function listarReconocimientosAlertas(
+  signal?: AbortSignal,
+): Promise<AsientoReconocimiento[]> {
+  // Se lee la VISTA de vigentes, no la tabla: la vigencia (≤7 días, y el
+  // `hasta` de posponer) la corta el reloj de POSTGRES — un dispositivo
+  // atrasado no puede alargar un silencio (bloqueante Codex F4.2 #2; la
+  // lección de [[prueba-de-fechas-en-tu-propia-zona]]). El tope de filas es
+  // holgado para clics humanos sobre ≤4 alertas; si alguna vez se alcanzara,
+  // el fallo va en la dirección segura: un asiento que no llega hace SONAR
+  // la alerta de más, nunca la calla de menos.
+  let consulta = cliente().schema('crm')
+    .from('alertas_reconocimientos_vigentes')
+    .select('id, alerta_id, accion, miembros, severidad, hasta, creado_en, secuencia')
+    .order('secuencia', { ascending: false })
+    .limit(1000)
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  if (error) throw aErrorApi(error, 'crm.reconocimientos.listar_fallido')
+  const resultado = v.safeParse(AsientosReconocimientoSchema, data ?? [])
+  if (!resultado.success) {
+    const fallo = new CrmApiError(
+      'Los reconocimientos no tienen el formato esperado.',
+      'RECONOCIMIENTOS_CONTRACT',
+    )
+    registrarError('crm.reconocimientos.fuera_de_contrato', fallo)
+    throw fallo
+  }
+  return resultado.output
+}
+
+/**
+ * Asienta un reconocimiento («ya lo atiendo») o una posposición con fecha.
+ * `perfilId` viaja solo porque el tipo generado lo exige (NOT NULL sin
+ * default): el trigger lo RE-SELLA con auth.uid() — mandar el ajeno no cuela
+ * nada. El servidor rechaza (42501/22023) alertas ajenas, fotos con ids
+ * inválidos y posposiciones pasadas o de más de 7 días.
+ */
+export async function reconocerAlertaSupervisor(
+  perfilId: string,
+  alertaId: string,
+  accion: AccionReconocimiento,
+  miembros: readonly string[],
+  severidad: SeveridadAlerta,
+  hasta: string | null,
+): Promise<void> {
+  const { error } = await cliente().schema('crm')
+    .from('alertas_reconocimientos')
+    .insert({
+      perfil_id: perfilId,
+      alerta_id: alertaId,
+      accion,
+      miembros: [...miembros],
+      severidad,
+      hasta,
+    })
+  if (error) throw aErrorApi(error, 'crm.reconocimientos.guardar_fallido')
 }
 
 /**

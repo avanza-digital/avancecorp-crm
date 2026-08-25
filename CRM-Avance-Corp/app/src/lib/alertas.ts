@@ -1,11 +1,14 @@
 import {
   colaDe,
+  diasSinActividad,
   esAbierto,
   haceTexto,
+  indexarUltimaActividad,
   sinProximaAccion,
   type ItemCola,
 } from './inteligencia'
 import { planPorLead } from './plan-lead'
+import type { ReconocimientoVigente } from './reconocimientos-alertas'
 import type { Vista } from './router'
 import type { EstadoSlaLead } from './sla-versionado'
 import type { Actividad, Lead, Miembro, Tarea } from './tipos'
@@ -47,6 +50,14 @@ export interface AlertaCRM {
     telefono: string
     recordatorioId: string
   }
+  /** SOLO grupos del supervisor (F4): la FOTO de ids —de leads, o de
+   *  vendedores en el grupo por vendedor— que el libro de reconocimientos
+   *  guarda y compara para el «reaparece si empeora». Nunca nombres (sin
+   *  PII, contrato del servidor). Sin miembros no hay botón de reconocer. */
+  miembros?: readonly string[]
+  /** Lo añade el PROVIDER cuando un asiento vigente del libro atenúa esta
+   *  alerta (reconocer deja rastro; posponer directamente la oculta). */
+  reconocimiento?: ReconocimientoVigente
 }
 
 export interface DerivarAlertasVendedorInput {
@@ -383,51 +394,71 @@ export function derivarAlertasSupervisor({
   const idsConfiables = new Set(confiables.map((lead) => lead.id))
   const plan = planPorLead(tareasAmbito, ahora)
   const vencidas = tareasVencidasPorLead(tareasAmbito, idsConfiables, ahora)
+  const indiceActividad = indexarUltimaActividad(actividadesAmbito)
   const usadas = new Set<string>()
   const alertas: AlertaCRM[] = []
 
+  // UNA ALERTA POR DECISIÓN, NO POR REGISTRO (decisión de Miguel 2026-08-23).
+  // Antes cada lead parkeado, cada tarea vencida y cada lead crítico emitía
+  // su propia alerta: con la bandeja llena la campana marcaba «99+» y la
+  // tarea vencida de verdad quedaba enterrada. Ahora cada bloque de abajo
+  // produce a lo sumo UN grupo; el lead sigue contando una sola vez (`usadas`)
+  // y la severidad del grupo es la MÁS ALTA de sus miembros — agrupar nunca
+  // rebaja lo que ya era crítico.
+
   // La bandeja es responsabilidad directa del supervisor y tiene prioridad
   // sobre cualquier otra señal que accidentalmente comparta el mismo lead.
-  for (const lead of confiables) {
-    if (lead.vendedor_id != null || lead.asignado_supervisor_id !== supervisorId) continue
+  // Miembros ordenados por rezago y luego por id: el detalle del grupo no
+  // puede depender del orden en que llegaron los leads (la prueba de orden
+  // estable lo cazó a la primera).
+  const bandeja = confiables
+    .filter((lead) => lead.vendedor_id == null && lead.asignado_supervisor_id === supervisorId)
+    .map((lead) => ({ lead, dias: diasSinActividad(lead, actividadesAmbito, ahora, indiceActividad) }))
+    .sort((a, b) => b.dias - a.dias || a.lead.id.localeCompare(b.lead.id))
+  if (bandeja.length > 0) {
+    for (const { lead } of bandeja) usadas.add(lead.id)
+    const rezagoMaximo = bandeja[0]?.dias ?? 0
+    // Estar parkeado se redefinió a ámbar (decisión de Miguel 2026-08-23: es
+    // trabajo de la semana, la interrupción es el lead NUEVO sin responder).
+    // Pero una señal crítica INDEPENDIENTE no se traga: si un miembro además
+    // arrastra una tarea vencida de más de un día, el grupo entero sube a
+    // crítica — agrupar nunca rebaja (hallazgo BLOQUEANTE de Codex).
+    const conPlazoVencido = bandeja.some(
+      ({ lead }) => (vencidas.get(lead.id)?.horas ?? 0) >= 24,
+    )
     alertas.push({
-      id: `por_repartir:${lead.id}`,
+      id: `grupo:por_repartir:${supervisorId}`,
       tipo: 'por_repartir',
-      severidad: 'critica',
+      severidad: conPlazoVencido ? 'critica' : 'atencion',
       alcance: 'equipo',
-      titulo: 'Lead por repartir',
-      detalle: `${lead.nombre_completo} sigue en tu bandeja sin vendedor.`,
+      titulo: `${bandeja.length} ${bandeja.length === 1 ? 'lead esperando' : 'leads esperando'} reparto`,
+      detalle: `${nombresResumidos(bandeja.map(({ lead }) => lead.nombre_completo))}. El más rezagado espera ${haceTexto(rezagoMaximo)}.`,
       responsableId: supervisorId,
       responsable: null,
-      valor: 1,
+      valor: bandeja.length,
+      miembros: bandeja.map(({ lead }) => lead.id),
       destino: {
-        vista: 'hoy',
-        leadId: lead.id,
-        etiqueta: 'Repartir lead',
+        vista: 'derivaciones',
+        leadId: null,
+        etiqueta: 'Repartir',
       },
     })
-    usadas.add(lead.id)
   }
 
-  // El supervisor interviene cuando la tarea ya lleva un día completo vencida;
-  // antes sigue siendo una corrección personal del vendedor.
-  for (const lead of confiables) {
-    if (usadas.has(lead.id)) continue
-    const elegida = vencidas.get(lead.id)
-    if (!elegida || elegida.horas < 24) continue
-    alertas.push(
-      alertaTareaVencida(
-        lead,
-        elegida,
-        'equipo',
-        nombreResponsable(lead, nombrePorId),
-      ),
-    )
-    usadas.add(lead.id)
-  }
+  // Plazos vencidos desde ayer: la tarea que ya lleva un día completo vencida
+  // (antes sigue siendo una corrección personal del vendedor) y la cola
+  // crítica que ya cumplió un día. Un solo grupo: la decisión es la misma —
+  // sentarse con el equipo sobre lo que venció — aunque el reloj sea distinto.
+  const conTareaVencida = confiables
+    .filter((lead) => !usadas.has(lead.id) && (vencidas.get(lead.id)?.horas ?? 0) >= 24)
+    .sort((a, b) => (
+      (vencidas.get(b.id)?.horas ?? 0) - (vencidas.get(a.id)?.horas ?? 0)
+      || a.id.localeCompare(b.id)
+    ))
+  for (const lead of conTareaVencida) usadas.add(lead.id)
 
-  // Solo escala la cola crítica que ya cumplió un día. Los recordatorios
-  // normales permanecen en la bandeja personal del vendedor.
+  const sinResponder: ItemCola[] = []
+  const relojCumplido: ItemCola[] = []
   for (const item of colaDe(confiables, actividadesAmbito, ahora, plan, estadosSla)) {
     if (
       usadas.has(item.lead.id)
@@ -435,14 +466,65 @@ export function derivarAlertasSupervisor({
       || item.sev !== 'critica'
       || item.dias < 1
     ) continue
-    alertas.push(
-      alertaDesdeCola(
-        item,
-        'equipo',
-        nombreResponsable(item.lead, nombrePorId),
-      ),
-    )
+    ;(item.bucket === 'sin_responder' ? sinResponder : relojCumplido).push(item)
     usadas.add(item.lead.id)
+  }
+
+  // Nuevos sin responder: es la interrupción del día (un lead nuevo se enfría
+  // por horas), así que va en su propio grupo y no se mezcla con los plazos.
+  if (sinResponder.length > 0) {
+    alertas.push({
+      id: `grupo:lead_sin_responder:${supervisorId}`,
+      tipo: 'lead_sin_responder',
+      severidad: 'critica',
+      alcance: 'equipo',
+      titulo: `${sinResponder.length} ${sinResponder.length === 1 ? 'lead nuevo' : 'leads nuevos'} sin responder`,
+      // «Un día o más», no «más de un día»: el umbral incluye las 24 h justas.
+      detalle: `${nombresResumidos(sinResponder.map((item) => item.lead.nombre_completo))}. Sin primer contacto desde hace un día o más.`,
+      responsableId: null,
+      responsable: null,
+      valor: sinResponder.length,
+      miembros: sinResponder.map((item) => item.lead.id),
+      destino: { vista: 'hoy', leadId: null, etiqueta: 'Ver la cola' },
+    })
+  }
+
+  const plazosVencidos = conTareaVencida.length + relojCumplido.length
+  if (plazosVencidos > 0) {
+    const partes: string[] = []
+    if (conTareaVencida.length > 0) {
+      partes.push(`${conTareaVencida.length} ${conTareaVencida.length === 1 ? 'tarea vencida' : 'tareas vencidas'}`)
+    }
+    if (relojCumplido.length > 0) {
+      partes.push(`${relojCumplido.length} con el reloj de gestión cumplido`)
+    }
+    alertas.push({
+      id: `grupo:tarea_vencida:${supervisorId}`,
+      tipo: 'tarea_vencida',
+      // Todos los miembros ya eran críticos por separado (≥ 24 h): el grupo
+      // hereda esa severidad, no la promedia.
+      severidad: 'critica',
+      alcance: 'equipo',
+      titulo: `${plazosVencidos} ${plazosVencidos === 1 ? 'lead con plazo vencido' : 'leads con plazo vencido'} desde ayer`,
+      detalle: `${partes.join(' · ')}: ${nombresResumidos([
+        ...conTareaVencida.map((lead) => lead.nombre_completo),
+        ...relojCumplido.map((item) => item.lead.nombre_completo),
+      ])}.`,
+      responsableId: null,
+      responsable: null,
+      valor: plazosVencidos,
+      miembros: [
+        ...conTareaVencida.map((lead) => lead.id),
+        ...relojCumplido.map((item) => item.lead.id),
+      ],
+      // Con tareas vencidas dentro, el destino es la AGENDA: un lead con la
+      // tarea vencida Y otra futura tiene plan vivo y NO aparece en la cola
+      // (hallazgo de Codex — el enlace «Ver la cola» moría en una pantalla
+      // sin el caso). La agenda lista toda tarea pendiente, vencida incluida.
+      destino: conTareaVencida.length > 0
+        ? { vista: 'agenda', leadId: null, etiqueta: 'Abrir en Agenda' }
+        : { vista: 'hoy', leadId: null, etiqueta: 'Ver la cola' },
+    })
   }
 
   const sinAccionPorVendedor = new Map<string, Lead[]>()
@@ -459,19 +541,48 @@ export function derivarAlertasSupervisor({
     else sinAccionPorVendedor.set(vendedorId, [lead])
   }
 
-  for (const [vendedorId, leadsSinAccion] of sinAccionPorVendedor) {
-    if (leadsSinAccion.length < 3) continue
-    const responsable = nombrePorId.get(vendedorId) ?? null
+  // Vendedores con 3+ leads sin próxima acción: un solo grupo ordenado por
+  // carga (la conversación es con cada uno, pero la decisión —revisar cómo
+  // planifica el equipo— es una). Con un solo vendedor conserva su nombre
+  // como responsable, igual que antes.
+  const vendedoresSinAccion = [...sinAccionPorVendedor]
+    .filter(([, leadsSinAccion]) => leadsSinAccion.length >= 3)
+    .map(([vendedorId, leadsSinAccion]) => ({
+      vendedorId,
+      nombre: nombrePorId.get(vendedorId) ?? 'El vendedor',
+      cantidad: leadsSinAccion.length,
+    }))
+    // El id remata el desempate: dos nombres canónicamente equivalentes en
+    // Unicode («Ána» precompuesto y descompuesto) comparan 0 en localeCompare
+    // y sin esto el orden dependería del orden de entrada.
+    .sort((a, b) => (
+      b.cantidad - a.cantidad
+      || a.nombre.localeCompare(b.nombre, 'es')
+      || a.vendedorId.localeCompare(b.vendedorId)
+    ))
+  if (vendedoresSinAccion.length > 0) {
+    const unico = vendedoresSinAccion.length === 1 ? vendedoresSinAccion[0] : undefined
+    const totalLeads = vendedoresSinAccion.reduce((suma, v) => suma + v.cantidad, 0)
     alertas.push({
-      id: `sin_proxima_accion:vendedor:${vendedorId}`,
+      id: `grupo:sin_proxima_accion:${supervisorId}`,
       tipo: 'sin_proxima_accion',
-      severidad: leadsSinAccion.length >= 5 ? 'critica' : 'atencion',
+      severidad: vendedoresSinAccion.some((v) => v.cantidad >= 5) ? 'critica' : 'atencion',
       alcance: 'equipo',
-      titulo: 'Vendedor con leads sin próxima acción',
-      detalle: `${responsable ?? 'El vendedor'} tiene ${leadsSinAccion.length} leads sin una próxima acción registrada.`,
-      responsableId: vendedorId,
-      responsable,
-      valor: leadsSinAccion.length,
+      titulo: unico
+        ? `${unico.nombre} tiene ${unico.cantidad} leads sin próxima acción`
+        : `${vendedoresSinAccion.length} vendedores con leads sin próxima acción`,
+      detalle: unico
+        ? `${unico.cantidad} leads sin una próxima acción registrada.`
+        : vendedoresSinAccion.map((v) => `${v.nombre} ${v.cantidad}`).join(' · '),
+      responsableId: unico?.vendedorId ?? null,
+      responsable: unico?.nombre ?? null,
+      valor: totalLeads,
+      // La foto es de VENDEDORES, no de leads: la decisión del grupo es la
+      // conversación con cada vendedor. Un vendedor NUEVO en aprietos revive
+      // la alerta; el mismo vendedor pasando de 3 a 4 leads no (la
+      // conversación pendiente es la misma) — hasta que cruce a crítica (≥5),
+      // donde revive por severidad.
+      miembros: vendedoresSinAccion.map((vendedor) => vendedor.vendedorId),
       destino: {
         vista: 'equipo',
         leadId: null,
@@ -481,4 +592,11 @@ export function derivarAlertasSupervisor({
   }
 
   return ordenarAlertas(alertas)
+}
+
+/** Los tres primeros nombres y «y N más»: el detalle de un grupo cabe en una línea. */
+function nombresResumidos(nombres: string[], tope = 3): string {
+  if (nombres.length <= tope) return nombres.join(', ')
+  const resto = nombres.length - tope
+  return `${nombres.slice(0, tope).join(', ')} y ${resto} más`
 }
