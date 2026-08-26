@@ -3934,3 +3934,49 @@ Miguel lo asumió. La opción B (alinear también el principal) queda descrita e
 vault para cuando haya un caso real que la justifique.
 
 **Registro de excepciones a `public`:** ninguna en las dos.
+
+## 20260826211500 · `crm_f0_anclar_metricas_conversiones`
+
+✅ **APLICADA EN PROD** (2026-08-26 ~22:45 UTC, canal directo, orden «haz la
+F0» de Miguel). Verificación en vivo: md5 intacto `906afdec…`, DEFINER `t`,
+registrada en `schema_migrations`. Advisors tras aplicar: 0 ERROR (134 WARN
+preexistentes). F0 del plan
+[[Conversion unica en todo el CRM - plan de migraciones]] (D5 decidida por
+Miguel; orden «haz la F0» del 26/08).
+
+Ancla en el repo el texto VIVO de
+`private.metricas_conversiones_implementacion(p_desde date, p_hasta date)`:
+la `20260824170630` lo produjo con `replace()` dinámico sobre
+`pg_get_functiondef` y el resultado no existía en ningún fichero (lección del
+19/08: un parche que solo vive fuera del repo no existe). **Cero cambio
+funcional**: preflight md5 `906afdec2bfbd1abcf3931093f09539f` → `CREATE OR
+REPLACE` con el texto capturado byte a byte → postflight con el mismo md5.
+
+Trazabilidad verificada dos veces (sesión y auditor, por hash): deshacer los
+dos `replace()` del parche sobre este texto reproduce el ancla pre-parche
+`561f3a43fd4895eac28f4dbbfb0b5095` — lo vivo = historia del repo + parche
+conocido, sin deriva. Banco local (PG16, base desechable): siembra del vivo da
+el MISMO md5 que prod; la migración aplica sin mover la huella; el mutante
+(función distinta) aborta en preflight dejando todo intacto.
+
+Auditor RLS: APROBADA. `CREATE OR REPLACE` preserva ACL y owner (la función
+sigue revocada a `public,anon,authenticated,service_role` por
+`20260807203757:1833`). ⚠️ Hacia adelante: NUNCA convertir este patrón en
+`DROP`+`CREATE` — re-crearía la ACL con `EXECUTE` a `PUBLIC`. Deuda preexistente
+dicha: `test-rls.mjs` sigue sin un caso para `crm.metricas_conversiones_fn`
+(la admite la fila `20260810024404`). Excepciones a `public`: ninguna.
+
+Codex (revisión adversarial, 5 ángulos): 2 refutaciones condicionales CERRADAS
+antes de aplicar — (1) shadowing de `md5` por `search_path` → cualificado
+`pg_catalog.md5(...)` en pre y postflight (banco re-ensayado verde); (2) posible
+dependencia `DEPENDS ON EXTENSION` que `CREATE OR REPLACE` perdería → verificado
+en prod `pg_depend`: solo dependencias `n` (esquema y lenguaje), cero `x`.
+1 residual documentado: carrera TOCTOU de milisegundos entre preflight y CREATE
+bajo READ COMMITTED (un DDL concurrente sobre ESTA función en esa ventana se
+sobrescribiría sin alarma); la cubre la verificación en vivo post-aplicación del
+guion. No refutado: visibilidad de catálogo en la misma transacción y atomicidad
+del canal Management API (un solo mensaje Simple Query = transacción implícita).
+
+Aplicación: `scripts/aplicar-f0-anclar-conversiones-prod.sh` (canal directo;
+el merge de branches sigue roto). Vuelta atrás: no aplica — preflight/postflight
+fallido = transacción revertida; éxito = objeto byte-idéntico al previo.
