@@ -1,6 +1,6 @@
 ---
 tags: [crm, cartera, postventa, ficha-360, ux, plan]
-actualizado: 2026-08-25
+actualizado: 2026-08-26
 estado: implementado-pendiente-preview-y-aceptacion
 fase: F4.1
 ---
@@ -16,6 +16,11 @@ y parte del cierre documentado en [[Cierre Mi cartera operativa 2026-08-25]].
 La implementación y sus pruebas técnicas están terminadas. Solo faltan publicar
 la preview aislada y recibir la aceptación comercial; producción no cambia sin
 una autorización posterior.
+
+El cierre adversario y arquitectónico R2 está documentado en
+[[Cierre de seguridad Ficha 360 2026-08-26]]. Conserva la compatibilidad de
+correcciones históricas, separa lectura/materialización PDF y serializa
+revocaciones, reasignaciones, mutadores de equipo y hard-delete.
 
 ## Objetivo de producto
 
@@ -138,7 +143,9 @@ inactivos siguen visibles al supervisor, pero deben reasignarse antes de operar.
 Quedaron cubiertos los roles, reintentos, foco, móvil, contratos, capital por
 moneda, historial según asignación actual, retiro de datos al perder acceso y
 actualización periódica de permisos. Los controles automáticos de tipos, calidad,
-compilación y seguridad respaldan la entrega.
+compilación y seguridad respaldan la entrega. El cierre R2 suma 2,347 pruebas de
+aplicación, 27 de Edge/renderer, 43 carreras deterministas y una aserción same-TX en una base local
+desechable; producción permaneció intacta.
 
 ### 9. 🟡 Pendiente — preview y aceptación
 

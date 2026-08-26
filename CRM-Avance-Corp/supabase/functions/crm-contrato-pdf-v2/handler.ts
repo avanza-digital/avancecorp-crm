@@ -815,7 +815,58 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
           );
         }
       }
-      const firma = await deps.storage.firmar(archivo.storage_path, 300, req);
+
+      // La URL firmada es una capacidad nueva. Revalidamos con el JWT del
+      // actor después de todo I/O y justo antes de emitirla: una reasignación,
+      // baja o cambio de rol durante render/upload no puede aprovechar el
+      // service role para obtener una descarga nueva.
+      const vigente = respuestaBackend(
+        await actor.rpc("contrato_pdf_estado_fn", {
+          p_contrato_id: contratoId,
+        }),
+        contratoId,
+      );
+      if (!vigente.estado) {
+        return json(
+          origin,
+          origenes,
+          {
+            error: "No se pudo revalidar el acceso al PDF",
+            codigo: "PDF_REAUTORIZACION",
+          },
+          vigente.status,
+        );
+      }
+      const archivoVigente = vigente.estado.archivo;
+      if (vigente.estado.estado !== "sellado" || !archivoVigente) {
+        return json(
+          origin,
+          origenes,
+          { pdf: pdfPublico(vigente.estado) },
+          estadoHttp(vigente.estado),
+        );
+      }
+      if (
+        archivoVigente.job_id !== archivo.job_id ||
+        archivoVigente.storage_path !== archivo.storage_path ||
+        archivoVigente.nombre_archivo !== archivo.nombre_archivo ||
+        archivoVigente.sha256 !== archivo.sha256 ||
+        archivoVigente.bytes !== archivo.bytes ||
+        archivoVigente.template_version !== archivo.template_version
+      ) {
+        return json(
+          origin,
+          origenes,
+          { error: "Ledger PDF incoherente", codigo: "INTEGRIDAD_LEDGER" },
+          409,
+        );
+      }
+
+      const firma = await deps.storage.firmar(
+        archivoVigente.storage_path,
+        300,
+        req,
+      );
       if (firma.error || !firma.url) {
         return json(
           origin,
@@ -825,7 +876,7 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         );
       }
       return json(origin, origenes, {
-        pdf: pdfPublico(estado),
+        pdf: pdfPublico(vigente.estado),
         url: firma.url,
       });
     };
@@ -853,6 +904,37 @@ export function crearHandlerContratoPdfV2(deps: DependenciasContratoPdfV2) {
         origenes,
         { pdf: pdfPublico(result.estado) },
         result.status,
+      );
+    }
+
+    // `ensure` es una mutacion documental aunque resulte idempotente. Se
+    // autoriza con el JWT del actor antes de usar service role; SQL repite el
+    // mismo gate dentro de cada writer para que esta comprobacion temprana no
+    // sea la frontera de seguridad unica.
+    const materializacion = await actor.rpc(
+      "contrato_pdf_puede_materializar_fn",
+      { p_contrato_id: contratoId },
+    );
+    if (materializacion.error) {
+      return json(
+        origin,
+        origenes,
+        {
+          error: "No se pudo autorizar la materialización del PDF",
+          codigo: "PDF_MATERIALIZACION",
+        },
+        statusErrorBackend(materializacion.error),
+      );
+    }
+    if (materializacion.data !== true) {
+      return json(
+        origin,
+        origenes,
+        {
+          error: "No puedes preparar el PDF de este contrato",
+          codigo: "PDF_MATERIALIZACION",
+        },
+        typeof materializacion.data === "boolean" ? 403 : 502,
       );
     }
 

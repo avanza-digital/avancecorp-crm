@@ -455,6 +455,15 @@ function datosDocumento(snapshot: SnapshotContratoV2): ContratoPdfDatos {
   };
 }
 
+// Frontera estructural entre el snapshot de trabajo y el documento legal.
+// El job conserva la cuenta para validación/sellado, pero el constructor del
+// documento solo recibe esta proyección cerrada, sin datos bancarios.
+export function proyectarDatosContratoPdfV2(
+  snapshotRaw: unknown,
+): ContratoPdfDatos {
+  return datosDocumento(validarSnapshotContratoV2(snapshotRaw));
+}
+
 function fuente(nombre: string): Buffer {
   const base64 = (robotoVfs as unknown as Record<string, string>)[nombre];
   if (!base64) throw new Error(`Fuente PDF v2 ausente: ${nombre}`);
@@ -516,10 +525,10 @@ export async function renderizarContratoPdfV2(
   snapshotRaw: unknown,
   renderizadoEn: string,
 ): Promise<RenderResult> {
-  const snapshot = validarSnapshotContratoV2(snapshotRaw);
+  const datos = proyectarDatosContratoPdfV2(snapshotRaw);
   const fechaFija = fechaRender(renderizadoEn);
   await verificarRecursos();
-  const definicion = construirContratoPdf(datosDocumento(snapshot), {
+  const definicion = construirContratoPdf(datos, {
     fondo: FONDO_DATA_URL,
   });
   definicion.info = {

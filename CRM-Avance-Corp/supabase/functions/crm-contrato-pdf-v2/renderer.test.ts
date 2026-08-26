@@ -1,6 +1,7 @@
 import {
   CONTRATO_PDF_RENDERER_VERSION,
   PDFMAKE_VENDOR_SHA256,
+  proyectarDatosContratoPdfV2,
   renderizarContratoPdfV2,
   validarSnapshotContratoV2,
   verificarAssetsContratoPdfV2,
@@ -112,6 +113,36 @@ Deno.test("renderer v2 valida el snapshot SQL exacto y rechaza deriva", () => {
     rechazo = true;
   }
   assert(rechazo, "rechaza controles en texto legal");
+});
+
+Deno.test("la proyeccion legal excluye toda la cuenta bancaria", () => {
+  const snapshot = structuredClone(validarSnapshotContratoV2(SNAPSHOT));
+  const centinelas = [
+    "BANCO-F41-NO-PUBLICAR",
+    "CTA-F41-NO-PUBLICAR",
+    "98765432109876543210",
+    "BENEFICIARIO-F41-NO-PUBLICAR",
+    "876543210987",
+  ] as const;
+  snapshot.cuentaPago.banco = centinelas[0];
+  snapshot.cuentaPago.numeroCuenta = centinelas[1];
+  snapshot.cuentaPago.cci = centinelas[2];
+  snapshot.cuentaPago.titularDistinto = true;
+  snapshot.cuentaPago.beneficiarioNombre = centinelas[3];
+  snapshot.cuentaPago.beneficiarioDocumento = centinelas[4];
+
+  const documento = proyectarDatosContratoPdfV2(snapshot);
+  const serializado = JSON.stringify(documento);
+  assert(
+    !("cuentaPago" in documento),
+    "la proyeccion legal no expone el nodo cuentaPago",
+  );
+  for (const centinela of centinelas) {
+    assert(
+      !serializado.includes(centinela),
+      `la proyeccion legal filtro ${centinela}`,
+    );
+  }
 });
 
 Deno.test("assets legales v2 conservan los SHA versionados", async () => {

@@ -2438,6 +2438,7 @@ export function MiCartera() {
         >
           <ContratoDetalle
             contratoId={contratoOverlayActual.id}
+            puedeMaterializarPdf={puedeEscribir(yo?.rol)}
             puedeEliminar={puedeEliminarContratos(yo)}
             onEliminar={async () => {
               const volverACliente = overlay.volverACliente

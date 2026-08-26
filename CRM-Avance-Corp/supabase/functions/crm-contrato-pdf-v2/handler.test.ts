@@ -127,6 +127,7 @@ function fake(opciones: FakeOptions = {}) {
   const admin = [...(opciones.admin ?? [])];
   const downloads = [...(opciones.downloads ?? [])];
   const calls: string[] = [];
+  let ultimoEstado: BackendResult | null = null;
   const deps: DependenciasContratoPdfV2 = {
     crearActor: () => ({
       verificarSesion: () => {
@@ -136,14 +137,27 @@ function fake(opciones: FakeOptions = {}) {
       },
       rpc: (nombre) => {
         calls.push(`actor:${nombre}`);
-        return Promise.resolve(
-          actor.shift() ?? { data: null, error: null },
-        );
+        const siguiente = actor.shift();
+        if (siguiente) {
+          if (nombre === "contrato_pdf_estado_fn" && !siguiente.error) {
+            ultimoEstado = siguiente;
+          }
+          return Promise.resolve(siguiente);
+        }
+        if (nombre === "contrato_pdf_puede_materializar_fn") {
+          return Promise.resolve({ data: true, error: null });
+        }
+        if (nombre === "contrato_pdf_estado_fn" && ultimoEstado) {
+          return Promise.resolve(ultimoEstado);
+        }
+        return Promise.resolve({ data: null, error: null });
       },
     }),
     rpcAdmin: (nombre) => {
       calls.push(`admin:${nombre}`);
-      return Promise.resolve(admin.shift() ?? { data: null, error: null });
+      const resultado = admin.shift() ?? { data: null, error: null };
+      if (!resultado.error && resultado.data !== null) ultimoEstado = resultado;
+      return Promise.resolve(resultado);
     },
     renderizar: () => {
       calls.push("render");
@@ -568,8 +582,82 @@ Deno.test("ensure renderiza server-side, sube sin reemplazar, verifica y sella",
   igual(res.status, 200, "sellado exitoso");
   igual(
     calls.join("|"),
-    "auth|admin:contrato_pdf_reservar|admin:contrato_pdf_reclamar|render|upload|download|admin:contrato_pdf_marcar_subido|admin:contrato_pdf_finalizar|sign",
+    "auth|actor:contrato_pdf_puede_materializar_fn|admin:contrato_pdf_reservar|admin:contrato_pdf_reclamar|render|upload|download|admin:contrato_pdf_marcar_subido|admin:contrato_pdf_finalizar|actor:contrato_pdf_estado_fn|sign",
     "protocolo ordenado sin I/O dentro de RPC",
+  );
+});
+
+Deno.test("ensure no firma si el actor pierde alcance después del sellado", async () => {
+  const blob = new Blob(["%PDF-1.7\nserver"], { type: "application/pdf" });
+  const hash = await sha256(blob);
+  const claim = estado("procesando", {
+    adquirido: true,
+    lease_token: LEASE_TOKEN,
+    snapshot: SNAPSHOT,
+    renderizado_en: "2026-08-17T20:00:00Z",
+  });
+  const archivo = {
+    contrato_id: CONTRATO_ID,
+    job_id: JOB_ID,
+    storage_bucket: "contratos-generados",
+    storage_path: PATH,
+    nombre_archivo: "Contrato-2026-01-000777.pdf",
+    sha256: hash,
+    bytes: blob.size,
+    template_version: CONTRATO_PDF_TEMPLATE_VERSION,
+    generado_en: "2026-08-17T20:00:00Z",
+  };
+  const { deps, calls } = fake({
+    actor: [
+      { data: true, error: null },
+      {
+        data: null,
+        error: { code: "42501", message: "fuera de cartera" },
+      },
+    ],
+    admin: [
+      { data: estado("pendiente"), error: null },
+      { data: claim, error: null },
+      {
+        data: estado("subido_verificado", { sha256: hash, bytes: blob.size }),
+        error: null,
+      },
+      {
+        data: estado("sellado", { sha256: hash, bytes: blob.size, archivo }),
+        error: null,
+      },
+    ],
+    render: { blob, sha256: hash, bytes: blob.size },
+    downloads: [blob],
+  });
+
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+
+  igual(res.status, 403, "la reautorización final observa la revocación");
+  igual(
+    calls.includes("admin:contrato_pdf_finalizar"),
+    true,
+    "la revocación simulada ocurre después del sellado",
+  );
+  igual(calls.includes("sign"), false, "no emite una capacidad de descarga");
+  const cuerpo = await res.json();
+  igual(cuerpo.codigo, "PDF_REAUTORIZACION", "error público estable");
+});
+
+Deno.test("ensure denegado termina antes de service role, render y Storage", async () => {
+  const { deps, calls } = fake({
+    actor: [{ data: false, error: null }],
+  });
+  const res = await crearHandlerContratoPdfV2(deps)(
+    request({ action: "ensure", contratoId: CONTRATO_ID }),
+  );
+  igual(res.status, 403, "materialización denegada");
+  igual(
+    calls.join("|"),
+    "auth|actor:contrato_pdf_puede_materializar_fn",
+    "no delega ni produce efectos laterales",
   );
 });
 

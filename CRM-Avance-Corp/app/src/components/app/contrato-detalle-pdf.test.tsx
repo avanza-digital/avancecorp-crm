@@ -24,7 +24,16 @@ vi.mock('@/lib/contrato-pdf-archivo', () => ({
   abrirVentanaContratoPdf: archivoPdf.abrir,
   archivarContratoPdfConfirmado: archivoPdf.archivar,
   consultarEstadoContratoPdf: archivoPdf.consultar,
-  ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {},
+  ContratoPdfNoSelladoError: class ContratoPdfNoSelladoError extends Error {
+    readonly estado: string
+    readonly reintentable: boolean
+
+    constructor(estado: string, reintentable: boolean) {
+      super('El documento sigue en preparación. Intenta nuevamente en unos momentos.')
+      this.estado = estado
+      this.reintentable = reintentable
+    }
+  },
   etiquetaEstadoContratoPdf: (estado: string) => estado,
   obtenerContratoPdfArchivado: archivoPdf.obtener,
   descargarArchivoContratoPdf: archivoPdf.descargar,
@@ -186,6 +195,30 @@ describe('ContratoDetalle — PDF archivado', () => {
     expect(archivoPdf.consultar).toHaveBeenCalledWith(contrato.id)
   })
 
+  it('Directorio puede reintentar un status fallido y recuperar el PDF sellado sin ejecutar ensure', async () => {
+    const user = userEvent.setup()
+    consultas.contrato = contrato
+    archivoPdf.consultar.mockRejectedValueOnce(new Error('red'))
+    archivoPdf.consultar.mockResolvedValueOnce({ estado: 'sellado' })
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+      </Dialog>,
+    )
+
+    const reintentar = await screen.findByRole('button', {
+      name: 'Reintentar estado del documento',
+    })
+    expect(screen.getByRole('button', { name: 'Descargar contrato PDF' })).toBeDisabled()
+
+    await user.click(reintentar)
+
+    expect(await screen.findByText(/Estado del documento:/)).toHaveTextContent('sellado')
+    expect(screen.getByRole('button', { name: 'Descargar contrato PDF' })).toBeEnabled()
+    expect(archivoPdf.consultar).toHaveBeenCalledTimes(2)
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
+  })
+
   it('descarta la respuesta diferida de A después de cambiar el mismo diálogo a B', async () => {
     const contratoB = {
       ...contrato,
@@ -231,7 +264,7 @@ describe('ContratoDetalle — PDF archivado', () => {
     archivoPdf.obtener.mockResolvedValue(null)
     render(
       <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
-        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+        <ContratoDetalle contratoId={contrato.id} puedeMaterializarPdf onCerrar={() => undefined} />
       </Dialog>,
     )
 
@@ -252,7 +285,7 @@ describe('ContratoDetalle — PDF archivado', () => {
     archivoPdf.obtener.mockResolvedValue(null)
     render(
       <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
-        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+        <ContratoDetalle contratoId={contrato.id} puedeMaterializarPdf onCerrar={() => undefined} />
       </Dialog>,
     )
 
@@ -270,7 +303,7 @@ describe('ContratoDetalle — PDF archivado', () => {
     const consoleError = vi.spyOn(console, 'error').mockImplementation(() => undefined)
     render(
       <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
-        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+        <ContratoDetalle contratoId={contrato.id} puedeMaterializarPdf onCerrar={() => undefined} />
       </Dialog>,
     )
 
@@ -280,6 +313,41 @@ describe('ContratoDetalle — PDF archivado', () => {
     expect(toast.error).toHaveBeenCalledWith('No pudimos descargar el documento del contrato. Intenta nuevamente.')
     expect(boton).toBeEnabled()
     consoleError.mockRestore()
+  })
+
+  it('sin capacidad nunca cae en ensure cuando no existe un archivo sellado', async () => {
+    const user = userEvent.setup()
+    consultas.contrato = contrato
+    archivoPdf.consultar.mockResolvedValue({ estado: 'sellado' })
+    archivoPdf.obtener.mockResolvedValue(null)
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+      </Dialog>,
+    )
+
+    const boton = await screen.findByRole('button', { name: 'Descargar contrato PDF' })
+    await waitFor(() => expect(boton).toBeEnabled())
+    await user.click(boton)
+
+    expect(archivoPdf.obtener).toHaveBeenCalledWith(contrato.id)
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    expect(archivoPdf.descargar).not.toHaveBeenCalled()
+  })
+
+  it('sin capacidad deja el documento pendiente visible pero no accionable', async () => {
+    consultas.contrato = contrato
+    archivoPdf.consultar.mockResolvedValue({ estado: 'pendiente' })
+    render(
+      <Dialog open onClose={() => undefined} ariaLabel="Detalle del contrato">
+        <ContratoDetalle contratoId={contrato.id} onCerrar={() => undefined} />
+      </Dialog>,
+    )
+
+    expect(await screen.findByText(/Un rol operativo debe prepararlo/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver contrato PDF' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Descargar contrato PDF' })).toBeDisabled()
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
   })
 
   it('si el navegador bloquea la pestaña, avisa antes de llamar a la Edge', async () => {

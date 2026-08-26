@@ -302,3 +302,38 @@ Cada query comprueba su objeto `error`. En negativas, solo cuentan como bloqueo
 un error de autorizacion/RLS (o cero filas cuando esa es la semantica normal de
 RLS); errores de red, columnas equivocadas o constraints no producen falsos
 positivos.
+
+## F41 — cierre concurrente de Ficha 360 y PDF
+
+El oráculo `test-ficha-cliente-security-hardening.sql` prueba la migración F41
+en una base PostgreSQL desechable. No reutiliza la base local del proyecto, no
+acepta destinos remotos y no consulta datos reales.
+
+```bash
+supabase/scripts/run-test-ficha-cliente-security-local.sh --preflight
+supabase/scripts/run-test-ficha-cliente-security-local.sh --run
+```
+
+El runner:
+
+- exige el contenedor local `supabase_db_crm-avance-corp-local` y verifica su
+  `system_identifier` por loopback;
+- crea únicamente `crm_ficha_security_test` desde `template0`;
+- registra OID y marcador propios antes de ejecutar el oráculo;
+- cubre 43 carreras deterministas de reasignación, rol, jerarquía, bajas,
+  corrección histórica, writers PDF, mutadores exclusivos y hard-delete, más
+  una aserción preparación→finalización dentro de la misma transacción;
+- elimina la base solo si nombre, OID y marcador siguen coincidiendo;
+- rehúsa fuentes con URI PostgreSQL, destinos Supabase remotos, `\connect`,
+  shell o `COPY PROGRAM`.
+
+Marcadores de éxito:
+
+```text
+FICHA_CLIENTE_SECURITY_HARDENING_SQL_OK
+FICHA_CLIENTE_SECURITY_RUNNER_OK
+```
+
+No cambiar el nombre fijo de la base ni convertir este runner en un gate contra
+un proyecto Supabase enlazado. La evidencia y decisiones están en la nota
+`Cierre de seguridad Ficha 360 2026-08-26` del vault.

@@ -80,6 +80,8 @@ export interface ContratoDetalleProps {
   contratoId: string
   onCerrar: () => void
   datos?: ContratoDetalleDatos
+  /** UX fail-closed; SQL vuelve a autorizar cualquier materialización real. */
+  puedeMaterializarPdf?: boolean
   puedeEliminar?: boolean
   onEliminar?: () => Promise<void> | void
 }
@@ -96,6 +98,7 @@ export function ContratoDetalle({
   contratoId,
   onCerrar,
   datos,
+  puedeMaterializarPdf = false,
   puedeEliminar = false,
   onEliminar,
 }: ContratoDetalleProps) {
@@ -142,6 +145,7 @@ export function ContratoDetalle({
   contratoIdActualRef.current = contratoId
   const secuenciaEstadoPdfRef = useRef(0)
   const secuenciaAccionPdfRef = useRef(0)
+  const [intentoEstadoPdf, setIntentoEstadoPdf] = useState(0)
   const [accionPdfUi, setAccionPdfUi] = useState<{
     contratoId: string
     secuencia: number
@@ -163,6 +167,8 @@ export function ContratoDetalle({
   const estadoPdf = estadoPdfEsActual ? estadoPdfUi.estado : pdfDatos ? 'pendiente' : null
   const cargandoEstadoPdf = estadoPdfEsActual ? estadoPdfUi.cargando : !pdfDatos
   const errorEstadoPdf = estadoPdfEsActual ? estadoPdfUi.error : false
+  const pdfDisponibleParaAccion =
+    pdfDatos != null || puedeMaterializarPdf || estadoPdf === 'sellado'
   const accionPdf =
     accionPdfUi?.contratoId === contratoId && accionPdfUi.secuencia === secuenciaAccionPdfRef.current
       ? accionPdfUi.accion
@@ -205,7 +211,7 @@ export function ContratoDetalle({
     return () => {
       vigente = false
     }
-  }, [contratoId, pdfDatos])
+  }, [contratoId, pdfDatos, intentoEstadoPdf])
 
   useEffect(() => {
     setConfirmandoEliminar(false)
@@ -250,10 +256,19 @@ export function ContratoDetalle({
       // permite repararlo desde la fotografía contractual privada del servidor.
       const archivo = pdfDatos
         ? await archivarContratoPdfDemoHabilitado(contratoId, pdfDatos)
-        : ((await obtenerContratoPdfArchivado(contratoId)) ??
-          // Recuperación post-commit: genera únicamente desde la fotografía
-          // contractual privada e inmutable de la RPC, nunca desde perfiles.
-          (await archivarContratoPdfConfirmado(contratoId)))
+        : await (async () => {
+            const archivado = await obtenerContratoPdfArchivado(contratoId)
+            if (archivado) return archivado
+            if (!puedeMaterializarPdf) {
+              throw new ContratoPdfNoSelladoError(
+                estadoPdf && estadoPdf !== 'sellado' ? estadoPdf : 'sin_reserva',
+                false,
+              )
+            }
+            // Recuperación post-commit: genera únicamente desde la fotografía
+            // contractual privada e inmutable de la RPC, nunca desde perfiles.
+            return archivarContratoPdfConfirmado(contratoId)
+          })()
       if (!accionSigueVigente()) {
         ventanaPdf?.close()
         return
@@ -347,10 +362,22 @@ export function ContratoDetalle({
               {cargandoEstadoPdf ? (
                 'Consultando el estado del documento…'
               ) : errorEstadoPdf ? (
-                'No se pudo consultar el estado del documento. Puedes reintentar desde los botones del documento.'
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>No se pudo consultar el estado del documento.</span>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setIntentoEstadoPdf((intento) => intento + 1)}
+                  >
+                    <RotateCcw aria-hidden /> Reintentar estado del documento
+                  </Button>
+                </div>
               ) : estadoPdf ? (
                 <>
                   Estado del documento: <b className="text-foreground">{etiquetaEstadoContratoPdf(estadoPdf)}</b>.
+                  {!puedeMaterializarPdf && estadoPdf !== 'sellado' && (
+                    <> Un rol operativo debe prepararlo antes de que esté disponible.</>
+                  )}
                 </>
               ) : (
                 'Estado del documento no disponible.'
@@ -565,7 +592,9 @@ export function ContratoDetalle({
             <Button
               variant="outline"
               size="sm"
-              disabled={eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada'}
+              disabled={
+                eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada' || !pdfDisponibleParaAccion
+              }
               onClick={() => void ejecutarPdf('ver')}
             >
               {accionPdf === 'ver' ? (
@@ -577,7 +606,9 @@ export function ContratoDetalle({
             </Button>
             <Button
               size="sm"
-              disabled={eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada'}
+              disabled={
+                eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada' || !pdfDisponibleParaAccion
+              }
               onClick={() => void ejecutarPdf('descargar')}
             >
               {accionPdf === 'descargar' ? (

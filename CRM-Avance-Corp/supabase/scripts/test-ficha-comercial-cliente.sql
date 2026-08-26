@@ -12,10 +12,15 @@ declare
   v_privada pg_catalog.pg_proc%rowtype;
   v_alcance pg_catalog.pg_proc%rowtype;
   v_capacidad pg_catalog.pg_proc%rowtype;
+  v_lock pg_catalog.pg_proc%rowtype;
   v_crear pg_catalog.pg_proc%rowtype;
   v_actualizar pg_catalog.pg_proc%rowtype;
+  v_crear_impl pg_catalog.pg_proc%rowtype;
+  v_actualizar_impl pg_catalog.pg_proc%rowtype;
   v_alta_pdf pg_catalog.pg_proc%rowtype;
   v_correccion_pdf pg_catalog.pg_proc%rowtype;
+  v_materializa pg_catalog.pg_proc%rowtype;
+  v_materializa_rpc pg_catalog.pg_proc%rowtype;
 begin
   if to_regprocedure('crm.cliente_ficha_fn(uuid)') is null
      or to_regprocedure('private.cliente_ficha_autorizada_fn(uuid)') is null
@@ -25,13 +30,28 @@ begin
      or to_regprocedure(
        'private.tiene_capacidad_contrato_atomico(text,uuid,uuid)'
      ) is null
+     or to_regprocedure(
+       'private.bloquear_cliente_para_mutacion(uuid)'
+     ) is null
      or to_regprocedure('public.crear_contrato(jsonb,jsonb)') is null
      or to_regprocedure('public.actualizar_contrato(uuid,jsonb,jsonb)') is null
+     or to_regprocedure(
+       'private.crear_contrato_f41_impl(jsonb,jsonb)'
+     ) is null
+     or to_regprocedure(
+       'private.actualizar_contrato_f41_impl(uuid,jsonb,jsonb)'
+     ) is null
      or to_regprocedure(
        'crm.crear_contrato_con_cuenta_pdf_v2(jsonb,jsonb,jsonb)'
      ) is null
      or to_regprocedure(
        'crm.actualizar_contrato_con_cuenta_pdf_v3(uuid,jsonb,jsonb,timestamptz)'
+     ) is null
+     or to_regprocedure(
+       'private.puede_materializar_contrato_pdf(uuid)'
+     ) is null
+     or to_regprocedure(
+       'crm.contrato_pdf_puede_materializar_fn(uuid)'
      ) is null
      or to_regclass(
        'private.contrato_escritura_atomica_capacidades'
@@ -56,6 +76,11 @@ begin
   where p.oid =
     'private.tiene_capacidad_contrato_atomico(text,uuid,uuid)'::regprocedure;
 
+  select p.* into v_lock
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'private.bloquear_cliente_para_mutacion(uuid)'::regprocedure;
+
   select p.* into v_crear
   from pg_catalog.pg_proc p
   where p.oid = 'public.crear_contrato(jsonb,jsonb)'::regprocedure;
@@ -63,6 +88,16 @@ begin
   select p.* into v_actualizar
   from pg_catalog.pg_proc p
   where p.oid = 'public.actualizar_contrato(uuid,jsonb,jsonb)'::regprocedure;
+
+  select p.* into v_crear_impl
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'private.crear_contrato_f41_impl(jsonb,jsonb)'::regprocedure;
+
+  select p.* into v_actualizar_impl
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'private.actualizar_contrato_f41_impl(uuid,jsonb,jsonb)'::regprocedure;
 
   select p.* into v_alta_pdf
   from pg_catalog.pg_proc p
@@ -73,6 +108,16 @@ begin
   from pg_catalog.pg_proc p
   where p.oid =
     'crm.actualizar_contrato_con_cuenta_pdf_v3(uuid,jsonb,jsonb,timestamptz)'::regprocedure;
+
+  select p.* into v_materializa
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'private.puede_materializar_contrato_pdf(uuid)'::regprocedure;
+
+  select p.* into v_materializa_rpc
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'crm.contrato_pdf_puede_materializar_fn(uuid)'::regprocedure;
 
   if v_expuesta.prosecdef
      or v_expuesta.provolatile <> 's'
@@ -108,20 +153,61 @@ begin
     raise exception 'FICHA-03C: la capacidad atómica no quedó privada y transaccional';
   end if;
 
-  if not v_crear.prosecdef
-     or v_crear.prosrc not ilike '%tiene_capacidad_contrato_atomico%'
-     or v_crear.prosrc not ilike '%puede_gestionar_cuentas_cliente%'
+  if not v_lock.prosecdef
+     or v_lock.provolatile <> 'v'
+     or not (v_lock.proconfig @> array['search_path=""'])
+     or v_lock.prosrc not ilike '%pg_advisory_xact_lock_shared%'
+     or v_lock.prosrc not ilike '%public.perfiles actor%'
+     or v_lock.prosrc not ilike '%for share%'
+     or v_lock.prosrc not ilike '%puede_gestionar_cuentas_cliente%'
+     or pg_catalog.has_function_privilege(
+       'authenticated',
+       'private.bloquear_cliente_para_mutacion(uuid)',
+       'EXECUTE'
+     )
+     or not v_crear.prosecdef
+     or v_crear.prosrc not ilike '%bloquear_cliente_para_mutacion%'
+     or v_crear.prosrc not ilike '%private.crear_contrato_f41_impl%'
      or not v_actualizar.prosecdef
-     or v_actualizar.prosrc not ilike '%tiene_capacidad_contrato_atomico%'
-     or v_actualizar.prosrc not ilike '%puede_gestionar_cuentas_cliente%'
+     or v_actualizar.prosrc not ilike '%bloquear_cliente_para_mutacion%'
+     or v_actualizar.prosrc not ilike '%private.actualizar_contrato_f41_impl%'
+     or not v_crear_impl.prosecdef
+     or v_crear_impl.prosrc not ilike '%tiene_capacidad_contrato_atomico%'
+     or v_crear_impl.prosrc not ilike '%puede_gestionar_cuentas_cliente%'
+     or not v_actualizar_impl.prosecdef
+     or v_actualizar_impl.prosrc not ilike '%tiene_capacidad_contrato_atomico%'
+     or v_actualizar_impl.prosrc not ilike '%puede_gestionar_cuentas_cliente%'
      or not v_alta_pdf.prosecdef
      or v_alta_pdf.prosrc not ilike '%contrato_escritura_atomica_capacidades%'
+     or v_alta_pdf.prosrc not ilike '%bloquear_cliente_para_mutacion%'
      or not v_correccion_pdf.prosecdef
      or v_correccion_pdf.prosrc not ilike '%contrato_escritura_atomica_capacidades%'
+     or v_correccion_pdf.prosrc not ilike '%bloquear_cliente_para_mutacion%'
      or v_correccion_pdf.prosrc not ilike '%p_revision_esperada is null%'
      or v_correccion_pdf.prosrc not ilike '%for update%'
      or v_correccion_pdf.pronargdefaults <> 1 then
     raise exception 'FICHA-03D: escritores o wrappers perdieron el gate atómico';
+  end if;
+
+  if not v_materializa.prosecdef
+     or v_materializa.provolatile <> 's'
+     or not (v_materializa.proconfig @> array['search_path=""'])
+     or v_materializa.prosrc not ilike '%puede_leer_contrato_pdf%'
+     or v_materializa.prosrc not ilike '%puede_gestionar_cuentas_cliente%'
+     or v_materializa.prosrc not ilike '%directorio%'
+     or not v_materializa_rpc.prosecdef
+     or v_materializa_rpc.provolatile <> 's'
+     or not pg_catalog.has_function_privilege(
+       'authenticated',
+       'crm.contrato_pdf_puede_materializar_fn(uuid)',
+       'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'anon',
+       'crm.contrato_pdf_puede_materializar_fn(uuid)',
+       'EXECUTE'
+     ) then
+    raise exception 'FICHA-03G: lectura y materialización PDF no quedaron separadas';
   end if;
 
   if to_regprocedure(
@@ -1295,6 +1381,11 @@ begin
        )),
       (select count(*) from crm.operaciones_cartera);
   end if;
+  if not crm.contrato_pdf_puede_materializar_fn(
+       'f4150000-0000-4000-8000-000000000101'
+     ) then
+    raise exception 'FICHA-10D: Gerencia perdió la materialización PDF';
+  end if;
 end;
 $gerencia$;
 reset role;
@@ -1327,9 +1418,47 @@ begin
   exception
     when insufficient_privilege then null;
   end;
+  if crm.contrato_pdf_estado_fn(
+       'f4150000-0000-4000-8000-000000000101'
+     ) is null then
+    raise exception 'FICHA-11E: Directorio perdió la lectura del PDF sellado/estado';
+  end if;
+  if crm.contrato_pdf_puede_materializar_fn(
+       'f4150000-0000-4000-8000-000000000101'
+     ) then
+    raise exception 'FICHA-11F: Directorio recibió materialización PDF';
+  end if;
 end;
 $directorio$;
 reset role;
+
+-- La prohibición de Directorio prevalece incluso si el mismo perfil conserva
+-- poder Portal superadmin. El cambio vive solo dentro de esta transacción.
+update public.perfiles
+set rol = 'superadmin'
+where id = 'f4100000-0000-4000-8000-000000000005';
+
+select set_config('request.jwt.claim.sub', 'f4100000-0000-4000-8000-000000000005', true);
+set local role authenticated;
+do $directorio_hibrido$
+begin
+  if crm.contrato_pdf_estado_fn(
+       'f4150000-0000-4000-8000-000000000101'
+     ) is null then
+    raise exception 'FICHA-11G: Directorio híbrido perdió la lectura PDF';
+  end if;
+  if crm.contrato_pdf_puede_materializar_fn(
+       'f4150000-0000-4000-8000-000000000101'
+     ) then
+    raise exception 'FICHA-11H: Directorio CRM + Superadmin materializó PDF';
+  end if;
+end;
+$directorio_hibrido$;
+reset role;
+
+update public.perfiles
+set rol = 'directorio'
+where id = 'f4100000-0000-4000-8000-000000000005';
 
 -- Una reasignación mueve de inmediato ficha, contratos, cuentas, historial y
 -- movimientos de inversión. El evento queda en el mismo historial para que el
