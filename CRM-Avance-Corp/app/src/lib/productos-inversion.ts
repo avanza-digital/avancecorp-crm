@@ -39,13 +39,11 @@ export const ProductoCondicionSchema = v.pipe(
   }),
   v.check(
     (condicion) =>
-      condicion.capital_minimo <= condicion.capital_maximo
-      && condicion.tasa_minima <= condicion.tasa_referencia
-      && condicion.tasa_referencia <= condicion.tasa_maxima
-      && (condicion.tipo_interes === 'simple'
-        || (condicion.modalidad === 'anual'
-          && condicion.plazo_meses >= 12
-          && condicion.plazo_meses % 12 === 0)),
+      condicion.capital_minimo <= condicion.capital_maximo &&
+      condicion.tasa_minima <= condicion.tasa_referencia &&
+      condicion.tasa_referencia <= condicion.tasa_maxima &&
+      (condicion.tipo_interes === 'simple' ||
+        (condicion.modalidad === 'anual' && condicion.plazo_meses >= 12 && condicion.plazo_meses % 12 === 0)),
     'Rangos o cronograma de la condición incoherentes',
   ),
 )
@@ -118,13 +116,11 @@ export const ProductoCondicionSeleccionSchema = v.pipe(
   }),
   v.check(
     (condicion) =>
-      condicion.capital_minimo <= condicion.capital_maximo
-      && condicion.tasa_minima <= condicion.tasa_referencia
-      && condicion.tasa_referencia <= condicion.tasa_maxima
-      && (condicion.tipo_interes === 'simple'
-        || (condicion.modalidad === 'anual'
-          && condicion.plazo_meses >= 12
-          && condicion.plazo_meses % 12 === 0)),
+      condicion.capital_minimo <= condicion.capital_maximo &&
+      condicion.tasa_minima <= condicion.tasa_referencia &&
+      condicion.tasa_referencia <= condicion.tasa_maxima &&
+      (condicion.tipo_interes === 'simple' ||
+        (condicion.modalidad === 'anual' && condicion.plazo_meses >= 12 && condicion.plazo_meses % 12 === 0)),
     'Rangos o cronograma de la condición seleccionable incoherentes',
   ),
 )
@@ -173,9 +169,9 @@ export interface CondicionProductoInput {
 
 export function etiquetaCondicionProducto(condicion: ProductoCondicionSeleccion): string {
   const categoria = {
-    nuevo: 'Nuevo',
+    nuevo: 'Nueva inversión',
     renovacion: 'Renovación',
-    upgrade: 'Upgrade',
+    upgrade: 'Aumento de inversión',
   }[condicion.categoria]
   return `${condicion.producto_codigo} · ${categoria} · ${condicion.moneda} · ${condicion.plazo_meses} meses`
 }

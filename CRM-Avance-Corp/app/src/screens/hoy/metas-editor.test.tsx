@@ -20,7 +20,7 @@ describe('resumen de metas publicado', () => {
 
     expect(screen.getByText(/datos de ejemplo/)).toBeInTheDocument()
     expect(screen.getByText('S/ 1,000,000')).toBeInTheDocument()
-    expect(screen.getByText(/No se divide por Nuevo, Renovación, Upgrade/)).toBeInTheDocument()
+    expect(screen.getByText(/No se divide por nueva inversión, renovación, aumento de inversión/)).toBeInTheDocument()
     expect(screen.queryByRole('table')).not.toBeInTheDocument()
   })
 })

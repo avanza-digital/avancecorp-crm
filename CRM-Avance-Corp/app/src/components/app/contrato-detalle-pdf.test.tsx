@@ -66,6 +66,7 @@ const contrato: ContratoRow = {
   notas_internas: null,
   creado_por: 'd-v1',
   creado_en: '2026-01-15T12:00:00.000Z',
+  revision_contrato: '2026-08-25T15:00:00.000Z',
   producto_condicion_id: 'cond-1',
   producto_id: 'prod-1',
   producto_codigo: 'DEMO-RENTA-PEN',
@@ -179,7 +180,9 @@ describe('ContratoDetalle — PDF archivado', () => {
       </Dialog>,
     )
 
-    expect(await screen.findByText(/Estado documental:/)).toHaveTextContent('error_reintentable')
+    expect(await screen.findByText(/Estado del documento:/)).toHaveTextContent('error_reintentable')
+    expect(screen.getByText('Vigente')).toBeInTheDocument()
+    expect(screen.getByText('Nueva inversión')).toBeInTheDocument()
     expect(archivoPdf.consultar).toHaveBeenCalledWith(contrato.id)
   })
 
@@ -204,19 +207,19 @@ describe('ContratoDetalle — PDF archivado', () => {
 
     consultas.contrato = contratoB
     rerender(vista(contratoB.id))
-    expect(screen.getByText('Consultando el estado documental…')).toBeInTheDocument()
+    expect(screen.getByText('Consultando el estado del documento…')).toBeInTheDocument()
 
     await act(async () => {
       estadoB.resolver({ estado: 'sellado' })
       await estadoB.promesa
     })
-    expect(screen.getByText(/Estado documental:/)).toHaveTextContent('sellado')
+    expect(screen.getByText(/Estado del documento:/)).toHaveTextContent('sellado')
 
     await act(async () => {
       estadoA.resolver({ estado: 'integridad_bloqueada' })
       await estadoA.promesa
     })
-    expect(screen.getByText(/Estado documental:/)).toHaveTextContent('sellado')
+    expect(screen.getByText(/Estado del documento:/)).toHaveTextContent('sellado')
     expect(screen.queryByText(/integridad_bloqueada/)).not.toBeInTheDocument()
   })
 
@@ -234,13 +237,13 @@ describe('ContratoDetalle — PDF archivado', () => {
 
     await user.click(screen.getByRole('button', { name: 'Descargar contrato PDF' }))
     await waitFor(() => expect(archivoPdf.descargar).toHaveBeenCalledWith(archivo))
-    expect(screen.getByText(/Estado documental:/)).toHaveTextContent('sellado')
+    expect(screen.getByText(/Estado del documento:/)).toHaveTextContent('sellado')
 
     await act(async () => {
       status.resolver({ estado: 'pendiente' })
       await status.promesa
     })
-    expect(screen.getByText(/Estado documental:/)).toHaveTextContent('sellado')
+    expect(screen.getByText(/Estado del documento:/)).toHaveTextContent('sellado')
   })
 
   it('si el alta quedó pendiente, pide al servidor asegurar el mismo job sin crear otro contrato', async () => {
@@ -274,7 +277,7 @@ describe('ContratoDetalle — PDF archivado', () => {
     const boton = screen.getByRole('button', { name: 'Descargar contrato PDF' })
     await user.click(boton)
 
-    expect(toast.error).toHaveBeenCalledWith('No se pudo archivar el PDF confirmado.')
+    expect(toast.error).toHaveBeenCalledWith('No pudimos descargar el documento del contrato. Intenta nuevamente.')
     expect(boton).toBeEnabled()
     consoleError.mockRestore()
   })
@@ -293,7 +296,7 @@ describe('ContratoDetalle — PDF archivado', () => {
 
     await user.click(screen.getByRole('button', { name: 'Ver contrato PDF' }))
 
-    expect(toast.error).toHaveBeenCalledWith('El navegador bloqueó la ventana del contrato PDF.')
+    expect(toast.error).toHaveBeenCalledWith('No pudimos abrir el documento del contrato. Intenta nuevamente.')
     expect(archivoPdf.obtener).not.toHaveBeenCalled()
   })
 })

@@ -7,7 +7,7 @@
 
 ---
 
-## ESTADO MAESTRO VIGENTE — 2026-08-04
+## ESTADO MAESTRO VIGENTE — 2026-08-25
 
 Esta sección es la **guía principal del CRM** y prevalece sobre estados históricos
 posteriores de este documento, el README y notas antiguas del vault. El plan original
@@ -43,8 +43,50 @@ estos valores son una fotografía, no metas ni constantes del producto.
 | **F1 — App y captación** | 🟡 Piloto | Desplegar P-048 y abrir Hoy/Pipeline/Agenda/leads a toda la fuerza comercial después del piloto. |
 | **F2 — Gestión diaria** | 🟡 Construida | Agenda, reparto, tareas y métricas existen; falta aceptación operativa completa de vendedores/supervisores y monitoreo real. |
 | **F3 — Conversión y contratos** | 🟡 En producción sin ciclo observado | Conversión, contratos, cronograma y cuenta bancaria contractual existen en producción; falta una prueba controlada punta a punta, dejar toda la fuente reproducible en el repo canónico y aprobar legalmente el PDF contractual. |
-| **F4 — Postventa y dirección** | 🟡 Parcialmente operativa | Cartera, gerencia, metas y radar de vencimientos están en producción; faltan administración autoservicio de usuarios/jerarquía, flujo de renovación/upgrade, exportaciones y base fría C2 cuando exista muestra suficiente. |
+| **F4 — Postventa y dirección** | 🟡 Parcialmente operativa | Cartera, gerencia, metas y radar de vencimientos están en producción. La ficha comercial 360 ya está implementada en una rama aislada y solo espera preview y aceptación. Aún faltan administración autoservicio de usuarios/jerarquía, cadencias completas, exportaciones y base fría C2 cuando exista muestra suficiente. |
 | **F5 — Integraciones y salida** | 🟡 Parcial | Intake/importador están vivos; faltan el cierre de release general, observabilidad configurada y automatizaciones opcionales (WhatsApp/push/PWA). |
+
+### F4.1 — Ficha comercial 360 de clientes
+
+**Estado al 2026-08-25:** implementación y pruebas técnicas terminadas; pendiente
+únicamente de publicar la preview aislada y recibir la aceptación comercial. Producción
+no cambia sin una autorización posterior.
+
+La mejora convierte «Mi cartera» en una herramienta diaria de seguimiento y nueva
+venta. El vendedor puede abrir una ficha lateral, entender la situación completa del
+cliente y continuar la relación comercial sin saltar entre varias pantallas. La misma
+ficha sirve al supervisor dentro de la cartera de su equipo; Gerencia y Directorio
+pueden consultar toda la cartera de la empresa.
+
+Decisiones comerciales y de protección de datos ya incorporadas:
+
+- la ficha muestra solo identidad y contacto necesarios para atender al cliente; no
+  muestra domicilio ni mezcla información bancaria con los datos personales;
+- las cuentas donde se depositan intereses y se devuelve capital se consultan por
+  separado y únicamente para los roles habilitados; Directorio no ve cuentas ni
+  dispone de botones de acción;
+- el vendedor ve solo los clientes que tiene asignados actualmente. El dato técnico
+  `creado_por` registra quién creó la ficha, pero no concede acceso permanente;
+- el historial acompaña al cliente y queda disponible para su asesor actual, aunque
+  una gestión anterior haya sido registrada por otro vendedor;
+- el supervisor conserva la lectura de clientes asignados a asesores inactivos, pero
+  las acciones quedan bloqueadas hasta que el cliente sea reasignado;
+- mientras la ficha está visible, permisos y datos se vuelven a comprobar cada 60
+  segundos. Al cerrar la ficha o perder acceso, la información consultada se retira;
+- el capital vigente en soles y el capital vigente en dólares se presentan por
+  separado y nunca se suman como si fueran una sola moneda;
+- el lenguaje de venta es uniforme: **nueva inversión**, **renovación**, **aumento de
+  inversión** y **capital vigente**. La categoría técnica histórica `upgrade` se
+  presenta al equipo como «aumento de inversión».
+
+Beneficio esperado: menos tiempo buscando información, seguimientos con mejor
+contexto, renovaciones atendidas antes del vencimiento, oportunidades de aumento de
+inversión más visibles y supervisión sin invadir carteras ajenas.
+
+Detalle y criterios de aceptación: `BASE DE CONOCIMINETO/AVANCECORP/Ficha comercial
+360 de clientes - plan.md` y
+`BASE DE CONOCIMINETO/AVANCECORP/Gestión comercial de clientes - renovaciones y
+upgrades.md`.
 
 ### Ruta crítica para declarar el CRM listo
 
@@ -83,7 +125,7 @@ estos valores son una fotografía, no metas ni constantes del producto.
   motivos repartibles;
 - administración de usuarios y jerarquía desde la interfaz;
 - catálogo configurable de productos y tiempos de atención;
-- flujo completo de postventa, cadencias de renovación/upgrade y exportaciones
+- cadencias completas de renovación y aumento de inversión, además de exportaciones
   CSV/PDF;
 - generador PDF de contratos, sujeto al visto bueno legal del texto;
 - guía comercial, correo semanal y bandeja de notificaciones;

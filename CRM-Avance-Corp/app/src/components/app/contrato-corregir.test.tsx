@@ -94,6 +94,7 @@ function contratoBase(over: Partial<ContratoRow> = {}): ContratoRow {
     notas_internas: null,
     creado_por: 'yo',
     creado_en: new Date().toISOString(), // ventana de 5 h viva
+    revision_contrato: '2026-08-25T15:00:00.000Z',
     producto_condicion_id: '10000000-0000-4000-8000-000000000001',
     producto_id: '20000000-0000-4000-8000-000000000001',
     producto_codigo: 'HISTORICO-SIN-CATALOGO',
@@ -110,12 +111,17 @@ async function montar(over: Partial<ContratoRow> = {}) {
   obtenerTitulares.mockResolvedValue([])
   const onGuardado = vi.fn()
   const onCerrar = vi.fn()
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } },
-  })
+  const contrato = contratoBase(over)
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
   render(
     <QueryClientProvider client={queryClient}>
       <Dialog open onClose={() => undefined}>
-        <ContratoCorregir contrato={contratoBase(over)} onGuardado={onGuardado} onCerrar={onCerrar} />
+        <ContratoCorregir
+          contrato={contrato}
+          revisionEsperada={contrato.revision_contrato}
+          onGuardado={onGuardado}
+          onCerrar={onCerrar}
+        />
       </Dialog>
     </QueryClientProvider>,
   )
@@ -130,8 +136,7 @@ const plazoSelect = () => screen.getByLabelText('Plazo')
 /** Los <input type="date"> ya vienen con valor: fireEvent.change es la vía fiable
  *  (user.type teclea SOBRE sistema de segmentos del date input). */
 function escribirFecha(etiqueta: string, valor: string) {
-  fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor },
-  })
+  fireEvent.change(screen.getByLabelText(etiqueta), { target: { value: valor } })
 }
 
 beforeEach(() => {
@@ -180,10 +185,10 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     await user.click(guardar())
     await waitFor(() => expect(onGuardado).toHaveBeenCalled())
     expect(asegurarContratoPdfActualizado).toHaveBeenCalledWith('ctr-1')
-    const [id, input] = actualizarContrato.mock.calls[0]!
+    const [id, input, , revisionEsperada] = actualizarContrato.mock.calls[0]!
     expect(id).toBe('ctr-1')
-    expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15',
-    })
+    expect(input).toMatchObject({ fecha_inicio: '2026-02-15', fecha_vencimiento: '2027-07-15' })
+    expect(revisionEsperada).toBe('2026-08-25T15:00:00.000Z')
   })
 
   it('si el render PDF falla después del commit, conserva la corrección y permite reintentar al abrirlo', async () => {
@@ -208,8 +213,7 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
     await user.click(guardar())
 
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
-    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-10-15',
-    })
+    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-10-15' })
   })
 
   it('plazo que SÍ es preset: se muestra el preset y cambiar el inicio lo recalcula (explícito)', async () => {
@@ -226,8 +230,28 @@ describe('ContratoCorregir — el plazo REAL no se falsea ni se recorta', () => 
 
     await user.click(guardar())
     await waitFor(() => expect(actualizarContrato).toHaveBeenCalledTimes(1))
-    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-02-15',
-    })
+    expect(actualizarContrato.mock.calls[0]![1]).toMatchObject({ fecha_vencimiento: '2027-02-15' })
+  })
+})
+
+describe('ContratoCorregir — protege la versión más reciente', () => {
+  it('un conflicto no genera PDF ni confirma el guardado y explica al vendedor cómo continuar', async () => {
+    const user = userEvent.setup()
+    actualizarContrato.mockRejectedValue(
+      new crmApi.CrmApiError(
+        'Otra persona actualizó este contrato mientras lo corregías. Para proteger la información más reciente, tus cambios no se guardaron. Cierra y vuelve a abrir el contrato antes de continuar.',
+        'CONTRATO_DESACTUALIZADO',
+      ),
+    )
+    const { onGuardado } = await montar()
+
+    await user.click(guardar())
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /otra persona actualizó este contrato mientras lo corregías/i,
+    )
+    expect(onGuardado).not.toHaveBeenCalled()
+    expect(asegurarContratoPdfActualizado).not.toHaveBeenCalled()
   })
 })
 
@@ -239,10 +263,7 @@ describe('ContratoCorregir — producto versionado', () => {
   it('sin catálogo publicado no explica nada del origen y la opción está en idioma de vendedor', async () => {
     await montar() // beforeEach deja productosEstado.data = []
 
-    expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó',
-      }),
-    )
-      .toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó' })).toBeInTheDocument()
     expect(screen.queryByText(/snapshot/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/catálogo/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/mantiene las condiciones con las que se firmó/i)).not.toBeInTheDocument()
@@ -252,8 +273,12 @@ describe('ContratoCorregir — producto versionado', () => {
     productosEstado.data = [CONDICION_VIGENTE] // el contrato sigue con las suyas
     await montar()
 
-    expect(screen.getByText(/Este contrato mantiene las condiciones con las que se firmó/))
-      .toBeInTheDocument()
+    expect(
+      screen.getByText(
+        /Elige la opción que corresponda a esta venta: tipo de inversión, moneda, plazo y forma de pago/,
+      ),
+    ).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: 'Mantener las condiciones con las que se firmó' })).toBeInTheDocument()
     expect(screen.queryByText(/snapshot/i)).not.toBeInTheDocument()
   })
 
@@ -273,9 +298,9 @@ describe('ContratoCorregir — producto versionado', () => {
       tasa_anual: 16,
     })
 
-    expect(screen.getByLabelText('Categoría')).toBeDisabled()
+    expect(screen.getByLabelText('Tipo de inversión')).toBeDisabled()
     expect(screen.getByLabelText('Tipo de interés')).toBeDisabled()
-    expect(screen.getByLabelText('Modalidad de pago')).toBeDisabled()
+    expect(screen.getByLabelText('Frecuencia de pago de intereses')).toBeDisabled()
     expect(screen.getByLabelText('Moneda')).toBeDisabled()
     expect(screen.getByLabelText('Plazo')).toBeDisabled()
 
@@ -294,8 +319,8 @@ describe('ContratoCorregir — producto versionado', () => {
     await montar()
 
     await user.selectOptions(screen.getByLabelText('Producto de inversión'), CONDICION_VIGENTE.condicion_id)
-    expect(screen.getByLabelText('Categoría')).toHaveValue('renovacion')
-    expect(screen.getByLabelText('Modalidad de pago')).toHaveValue('trimestral')
+    expect(screen.getByLabelText('Tipo de inversión')).toHaveValue('renovacion')
+    expect(screen.getByLabelText('Frecuencia de pago de intereses')).toHaveValue('trimestral')
     expect(screen.getByLabelText('Plazo')).toHaveValue('12 meses')
 
     await user.click(guardar())
@@ -313,7 +338,7 @@ describe('ContratoCorregir — no se guarda una corrección sin cuotas de inter�
     const user = userEvent.setup()
     await montar()
 
-    await user.selectOptions(screen.getByLabelText('Modalidad de pago'), 'anual')
+    await user.selectOptions(screen.getByLabelText('Frecuencia de pago de intereses'), 'anual')
     await user.selectOptions(plazoSelect(), '6')
 
     // El cronograma NO está vacío: trae la fila del retorno del capital (por eso

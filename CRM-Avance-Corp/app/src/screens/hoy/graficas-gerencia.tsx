@@ -17,19 +17,8 @@
 // Paleta apilada validada (dataviz, pares adyacentes, deutan/protan/tritan):
 // azul #2563eb → ámbar #d97706 → violeta #7c3aed → cian #0891b2.
 import { useEffect, useMemo, useState, type JSX, type ReactNode } from 'react'
-import {
-  Bar,
-  BarChart,
-  CartesianGrid,
-  XAxis,
-} from 'recharts'
-import {
-  CalendarClock,
-  ChartColumnStacked,
-  HandCoins,
-  RotateCcw,
-  type LucideIcon,
-} from 'lucide-react'
+import { Bar, BarChart, CartesianGrid, XAxis } from 'recharts'
+import { CalendarClock, ChartColumnStacked, HandCoins, RotateCcw, type LucideIcon } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
@@ -57,11 +46,7 @@ import {
   type FilaPagosMes,
   type FilaVencimientos,
 } from '@/lib/metricas'
-import {
-  useMetricasCapitalMes,
-  useMetricasPagosMes,
-  useMetricasVencimientos,
-} from '@/data/crm-queries'
+import { useMetricasCapitalMes, useMetricasPagosMes, useMetricasVencimientos } from '@/data/crm-queries'
 
 // Horizonte de vencimientos: 12 meses (la RPC acepta p_dias; el default de 90
 // dejaría la gráfica casi siempre vacía con contratos anuales — para planear
@@ -71,9 +56,9 @@ const DIAS_VENCIMIENTOS = 365
 // ── Configs de series (labels + colores de la paleta de AVANCE) ────────────────
 // Apilado por categoría — orden de stack = orden validado de adyacencia.
 const CFG_CAPITAL = {
-  nuevo: { label: 'Nuevo', color: 'var(--chart-1)' }, // azul
+  nuevo: { label: 'Nueva inversión', color: 'var(--chart-1)' }, // azul
   renovacion: { label: 'Renovación', color: 'var(--chart-3)' }, // ámbar
-  upgrade: { label: 'Upgrade', color: 'var(--chart-2)' }, // violeta
+  upgrade: { label: 'Aumento de inversión', color: 'var(--chart-2)' }, // violeta
   sin_categoria: { label: 'Sin categoría', color: 'var(--chart-4)' }, // cian (categoria null → '—')
 } satisfies ChartConfig
 
@@ -113,11 +98,7 @@ function TabsMoneda({
 }): JSX.Element | null {
   if (monedas.length === 0) return null
   if (monedas.length === 1) {
-    return (
-      <span className="text-xs font-bold text-muted-foreground">
-        {monedas[0] === 'PEN' ? 'Soles' : 'Dólares'}
-      </span>
-    )
+    return <span className="text-xs font-bold text-muted-foreground">{monedas[0] === 'PEN' ? 'Soles' : 'Dólares'}</span>
   }
   return (
     <div role="group" aria-label="Moneda" className="flex gap-1">
@@ -189,13 +170,9 @@ function CardGrafica({
         {/* Vacío honesto Y accionable (patrón de la casa): qué alimenta la
             gráfica y qué la hará aparecer; sin alto fijo — tres vacíos a la vez
             no deben consumir una pantalla entera. */}
-        {estado === 'vacio' && (
-          <PanelVacio icono={icon} titulo={vacioTitulo} detalle={vacioDetalle} />
-        )}
+        {estado === 'vacio' && <PanelVacio icono={icon} titulo={vacioTitulo} detalle={vacioDetalle} />}
         {estado === 'ok' && children}
-        {estado === 'ok' && nota && (
-          <p className="mt-2 text-[11px] text-muted-foreground">{nota}</p>
-        )}
+        {estado === 'ok' && nota && <p className="mt-2 text-[11px] text-muted-foreground">{nota}</p>}
       </CardContent>
     </Card>
   )
@@ -213,10 +190,7 @@ function FilaTooltipMoney({
 }): JSX.Element {
   return (
     <>
-      <span
-        className="h-2.5 w-2.5 shrink-0 rounded-[2px]"
-        style={{ background: color ?? 'var(--muted-foreground)' }}
-      />
+      <span className="h-2.5 w-2.5 shrink-0 rounded-[2px]" style={{ background: color ?? 'var(--muted-foreground)' }} />
       <div className="flex flex-1 items-center justify-between gap-3 leading-none">
         <span className="text-muted-foreground">{etiqueta}</span>
         <span className="font-mono font-medium tabular-nums text-foreground">{texto}</span>
@@ -247,7 +221,7 @@ export function GraficasGerencia(): JSX.Element {
     let vivo = true
     // Guard literal (mismo que store.tsx/contratos.tsx): en prod DEV es false →
     // Rolldown elimina el chunk de fixtures/derivación del bundle.
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
+    if (import.meta.env.VITE_ENABLE_DEMO === 'true' && (import.meta.env.DEV || import.meta.env.MODE === 'preview')) {
       void import('@/lib/demo-metricas')
         .then((m) => {
           if (!vivo) return
@@ -320,14 +294,8 @@ export function GraficasGerencia(): JSX.Element {
     ? monedaVencimientos
     : (monedasVencimientos[0] ?? 'PEN')
 
-  const puntosCapital = useMemo(
-    () => pivotCapitalPorMes(filasCapital, monCapital),
-    [filasCapital, monCapital],
-  )
-  const puntosPagos = useMemo(
-    () => pivotPagosPorMes(filasPagos, monPagos),
-    [filasPagos, monPagos],
-  )
+  const puntosCapital = useMemo(() => pivotCapitalPorMes(filasCapital, monCapital), [filasCapital, monCapital])
+  const puntosPagos = useMemo(() => pivotPagosPorMes(filasPagos, monPagos), [filasPagos, monPagos])
   const puntosVencimientos = useMemo(
     () => pivotVencimientosPorMes(filasVencimientos, monVencimientos),
     [filasVencimientos, monVencimientos],
@@ -426,13 +394,7 @@ export function GraficasGerencia(): JSX.Element {
       <CardGrafica
         icon={CalendarClock}
         title="Vencimientos — 12 meses"
-        right={
-          <TabsMoneda
-            monedas={monedasVencimientos}
-            valor={monVencimientos}
-            onCambio={setMonedaVencimientos}
-          />
-        }
+        right={<TabsMoneda monedas={monedasVencimientos} valor={monVencimientos} onCambio={setMonedaVencimientos} />}
         nota="Capital de contratos que vencen, mes a mes, para planear renovaciones."
         vacioTitulo="Aún no hay vencimientos para graficar"
         vacioDetalle="Se llena con las fechas de fin de los contratos vigentes — al registrar contratos verás el capital que vence en los próximos 12 meses."

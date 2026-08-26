@@ -315,7 +315,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="cf-apellidos">Apellidos *</Label>
             <Input
@@ -351,7 +351,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           </p>
         )}
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="cf-tipo-doc">Tipo de documento *</Label>
             {/* Opciones desde la tabla canónica — nunca <option> a mano. */}
@@ -386,7 +386,7 @@ export function ClienteForm({ modo, clienteId, onListo, onCerrar, onEnviandoCamb
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-2.5">
+        <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
             <Label htmlFor="cf-telefono">Teléfono</Label>
             <Input

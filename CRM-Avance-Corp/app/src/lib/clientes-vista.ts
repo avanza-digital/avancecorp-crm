@@ -99,8 +99,9 @@ export function filtrarClientes<T extends ClienteBuscable>(
  * Recorte de ámbito para la cartera DEMO. En la ruta real este recorte lo hace
  * el SERVIDOR (la vista crm.clientes_basicos ya llega scopeada por rol); el
  * demo no tiene servidor y lo espeja aquí: gerencia/directorio (esGlobal) ven
- * todo, el resto ve las filas cuyo dueño de cartera está en su equipo visible
- * (yo + mis vendedores).
+ * todo; el resto ve únicamente filas asignadas a un asesor de su equipo visible
+ * (yo + mis vendedores). Haber registrado un cliente sin asesor no concede
+ * acceso, igual que en crm.clientes_basicos_fn.
  */
 export function carteraDelAmbito<T extends FilaCartera>(
   clientes: T[],
@@ -108,8 +109,5 @@ export function carteraDelAmbito<T extends FilaCartera>(
   esGlobal: boolean,
 ): T[] {
   if (esGlobal) return clientes
-  return clientes.filter((c) => {
-    const dueno = duenoDeCartera(c)
-    return dueno != null && idsVisibles.has(dueno)
-  })
+  return clientes.filter((cliente) => cliente.asesor_perfil_id != null && idsVisibles.has(cliente.asesor_perfil_id))
 }

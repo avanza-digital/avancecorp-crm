@@ -44,6 +44,7 @@ function contrato(sobre: Partial<ContratoRow> = {}): ContratoRow {
     notas_internas: null,
     creado_por: null,
     creado_en: '2026-01-01T00:00:00.000Z',
+    revision_contrato: '2026-01-01T00:00:00.000Z',
     producto_condicion_id: '10000000-0000-4000-8000-000000000001',
     producto_id: '20000000-0000-4000-8000-000000000001',
     producto_codigo: 'RENTA-BASE',
@@ -167,7 +168,7 @@ describe('agruparCartera — orden por ingreso (capital activo desc)', () => {
 })
 
 describe('resumenCartera — números del StatStrip (corte de vencimiento en TZ Lima)', () => {
-  const HOY = new Date(2026, 6, 20) // 20 de julio de 2026, medianoche local (Lima)
+  const HOY = Date.parse('2026-07-20T17:00:00.000Z') // 20 de julio de 2026, mediodía en Lima
 
   const grupos = agruparCartera(
     [cliente({ id: 'a' }), cliente({ id: 'b' }), cliente({ id: 'c' })],
@@ -234,7 +235,7 @@ describe('resumenCartera — números del StatStrip (corte de vencimiento en TZ 
 // es el único radar de renovación del CRM. Estos tests fijan esa separación
 // (la pasada del 2026-07-25 la había roto: porVencer30 decía 0).
 describe('resumenCartera — cliente dado de baja: fuera del dinero, DENTRO de la alarma', () => {
-  const HOY = new Date(2026, 6, 20) // 20 de julio de 2026, medianoche en Lima
+  const HOY = Date.parse('2026-07-20T17:00:00.000Z') // 20 de julio de 2026, mediodía en Lima
 
   it('un contrato por vencer de un cliente de baja SÍ cuenta en la alarma (y se desglosa)', () => {
     const g = agruparCartera(
@@ -293,7 +294,7 @@ describe('resumenCartera — cliente dado de baja: fuera del dinero, DENTRO de l
 })
 
 describe('esPorVencer / idsPorVencer — el radar de renovación', () => {
-  const HOY = new Date(2026, 6, 20)
+  const HOY = Date.parse('2026-07-20T17:00:00.000Z')
 
   it('activo dentro de la ventana sí; vencido/renovado/retirado no', () => {
     expect(esPorVencer(contrato({ fecha_vencimiento: '2026-08-04' }), HOY)).toBe(true)
@@ -306,6 +307,15 @@ describe('esPorVencer / idsPorVencer — el radar de renovación', () => {
     expect(esPorVencer(contrato({ fecha_vencimiento: '2026-07-19' }), HOY)).toBe(false) // ayer
     expect(esPorVencer(contrato({ fecha_vencimiento: 'sin-fecha' }), HOY)).toBe(false)
     expect(esPorVencer(contrato({ fecha_vencimiento: '' }), HOY)).toBe(false)
+  })
+
+  it('corta el día en la medianoche de Lima sin depender de la zona local', () => {
+    const venceEl26 = contrato({ fecha_vencimiento: '2026-08-26' })
+    const unSegundoAntes = Date.parse('2026-08-26T04:59:59.000Z')
+    const medianocheEnLima = Date.parse('2026-08-26T05:00:00.000Z')
+
+    expect(esPorVencer(venceEl26, unSegundoAntes, 0)).toBe(false)
+    expect(esPorVencer(venceEl26, medianocheEnLima, 0)).toBe(true)
   })
 
   it('los ids incluyen los contratos de clientes dados de baja (la fila es alcanzable)', () => {

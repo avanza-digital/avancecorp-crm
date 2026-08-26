@@ -15,7 +15,10 @@ import { bloquearSupabase, clienteReal, entrarDemo, loginReal, montarBackendReal
 // gating POR FILA ya están cubiertos en `screens/mi-cartera.test.tsx` (vitest,
 // incluida la parity de supervisión portada en Fase 6.1). El alta/corrección de
 // cliente en real-browser vive en `cliente-form.spec.ts` (migrado a #/mi-cartera).
-test.skip(true, 'Fase 6: Clientes retirada — cobertura de tabla/búsqueda/filtro-asesor/gating en mi-cartera.test.tsx; alta/corrección en cliente-form.spec.ts')
+test.skip(
+  true,
+  'Fase 6: Clientes retirada — cobertura de tabla/búsqueda/filtro-asesor/gating en mi-cartera.test.tsx; alta/corrección en cliente-form.spec.ts',
+)
 
 // Cartera de dos clientes: uno RECIÉN creado (ventana de 5 h viva) y uno viejo
 // (ventana vencida) — el par exacto que necesita el reloj y el gate de corregir.
@@ -129,7 +132,7 @@ test('"+ Contrato" abre el formulario de contrato del cliente (sin ventana: siem
     .click()
 
   // El título del formulario (ContratoNuevo) nombra al cliente.
-  await expect(page.getByRole('dialog', { name: /Crear contrato de CLIENTE PORTAL UNO/ })).toBeVisible()
+  await expect(page.getByRole('dialog', { name: /Registrar nueva inversión de CLIENTE PORTAL UNO/ })).toBeVisible()
 })
 
 test('búsqueda: filtra por texto normalizado y muestra el contador "X de N"', async ({ page }) => {
@@ -265,7 +268,9 @@ test('cartera vacía: estado vacío con el copy del portal', async ({ page }) =>
 
 // ── DEMO (fixtures gated + recorte de ámbito local; cero red) ──────────────────
 
-test('demo vendedor: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase', async ({ page }) => {
+test('demo vendedor: SU cartera con el reloj vivo y la regla por creado_por — SIN pegarle a Supabase', async ({
+  page,
+}) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase. Si el
   // módulo intentara listar/crear, el route lo abortaría y el contador (== 0 al
   // final) lo delataría.

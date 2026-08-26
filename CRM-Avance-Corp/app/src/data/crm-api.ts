@@ -47,6 +47,7 @@ import {
   type ActividadCliente,
   type ClienteBasico,
   type ClienteDetalle,
+  type ClienteFichaComercial,
   type ContratoRow,
   type CuentaBancariaSeleccionable,
   type CuentaPagoContratoInput,
@@ -1405,9 +1406,7 @@ export async function eliminarRecordatorioDisponibilidad(id: string): Promise<vo
 // trigger sella autoría y fecha, ata el alerta_id al actor y acota posponer
 // a 7 días). El front no re-implementa nada de eso: valida la FORMA.
 
-export async function listarReconocimientosAlertas(
-  signal?: AbortSignal,
-): Promise<AsientoReconocimiento[]> {
+export async function listarReconocimientosAlertas(signal?: AbortSignal): Promise<AsientoReconocimiento[]> {
   // Se lee la VISTA de vigentes, no la tabla: la vigencia (≤7 días, y el
   // `hasta` de posponer) la corta el reloj de POSTGRES — un dispositivo
   // atrasado no puede alargar un silencio (bloqueante Codex F4.2 #2; la
@@ -1415,7 +1414,8 @@ export async function listarReconocimientosAlertas(
   // holgado para clics humanos sobre ≤4 alertas; si alguna vez se alcanzara,
   // el fallo va en la dirección segura: un asiento que no llega hace SONAR
   // la alerta de más, nunca la calla de menos.
-  let consulta = cliente().schema('crm')
+  let consulta = cliente()
+    .schema('crm')
     .from('alertas_reconocimientos_vigentes')
     .select('id, alerta_id, accion, miembros, severidad, hasta, creado_en, secuencia')
     .order('secuencia', { ascending: false })
@@ -1425,10 +1425,7 @@ export async function listarReconocimientosAlertas(
   if (error) throw aErrorApi(error, 'crm.reconocimientos.listar_fallido')
   const resultado = v.safeParse(AsientosReconocimientoSchema, data ?? [])
   if (!resultado.success) {
-    const fallo = new CrmApiError(
-      'Los reconocimientos no tienen el formato esperado.',
-      'RECONOCIMIENTOS_CONTRACT',
-    )
+    const fallo = new CrmApiError('Los reconocimientos no tienen el formato esperado.', 'RECONOCIMIENTOS_CONTRACT')
     registrarError('crm.reconocimientos.fuera_de_contrato', fallo)
     throw fallo
   }
@@ -1450,7 +1447,8 @@ export async function reconocerAlertaSupervisor(
   severidad: SeveridadAlerta,
   hasta: string | null,
 ): Promise<void> {
-  const { error } = await cliente().schema('crm')
+  const { error } = await cliente()
+    .schema('crm')
     .from('alertas_reconocimientos')
     .insert({
       perfil_id: perfilId,
@@ -2163,8 +2161,13 @@ export interface CrearContratoInput {
   fecha_vencimiento: string
   numero_contrato?: string | null
   notas_internas?: string | null
-  /** Solo renovación: contrato que llegó a su fecha fin. */
+  /** Solo renovación: contrato que llegó a su fecha de vencimiento. */
   contrato_origen_id?: string | null
+  /**
+   * Solo renovación: revisión capturada al abrir la acción. El servidor la
+   * compara bajo candado para no renovar sobre datos que otra persona cambió.
+   */
+  contrato_origen_revision?: string | null
   /** Solo renovación: parte del capital anterior que continúa invertida. */
   capital_renovado?: number | null
   /** Solo renovación: dinero nuevo. Se reporta aparte y no suma conversión. */
@@ -2252,6 +2255,7 @@ export async function crearContrato(
   }
   if (input.categoria === 'renovacion') {
     p_contrato.contrato_origen_id = input.contrato_origen_id ?? null
+    p_contrato.contrato_origen_revision = input.contrato_origen_revision ?? null
     p_contrato.capital_renovado = input.capital_renovado ?? null
     p_contrato.capital_adicional = input.capital_adicional ?? 0
   }
@@ -2265,11 +2269,19 @@ export async function crearContrato(
       p_cronograma,
       p_cuenta: input.cuenta_pago as unknown as Json,
     })
+  if (error?.code === '40001') {
+    const fallo = new CrmApiError(
+      'Otra persona actualizó el contrato que ibas a renovar. Para proteger la información más reciente, la renovación no se registró. Cierra y vuelve a abrir el contrato antes de continuar.',
+      'CONTRATO_DESACTUALIZADO',
+    )
+    registrarError('crm.contrato.crear_fallido', fallo, { pg: error.code })
+    throw fallo
+  }
   if (error) throw aErrorApi(error, 'crm.contrato.crear_fallido')
   const r = v.safeParse(CrearContratoResultadoSchema, data)
   if (!r.success) {
     const fallo = new CrmApiError(
-      'El servidor no confirmó completamente el contrato y su cuenta de pago.',
+      'No pudimos confirmar la inversión y su cuenta de pago. Revisa los datos e intenta nuevamente.',
       'ROW_CONTRACT',
     )
     registrarError('crm.contrato.respuesta_invalida', fallo)
@@ -2284,7 +2296,10 @@ export async function crearContrato(
     r.output.pdf.archivo !== null ||
     r.output.pdf.storage_path !== `${r.output.id}/v2/${r.output.pdf.job_id}/contrato.pdf`
   ) {
-    const fallo = new CrmApiError('El servidor no reservó correctamente el PDF contractual.', 'ROW_CONTRACT')
+    const fallo = new CrmApiError(
+      'La inversión quedó registrada, pero no pudimos preparar el documento.',
+      'ROW_CONTRACT',
+    )
     registrarError('crm.contrato.pdf_reserva_invalida', fallo)
     throw fallo
   }
@@ -2386,7 +2401,64 @@ export async function listarClientes(signal?: AbortSignal): Promise<ClienteBasic
   return items
 }
 
-// ── Cliente: detalle con las 14 bancarias (public.perfiles vía RLS de cartera) ─
+// ── Cliente: ficha comercial mínima (RPC con ámbito vivo por rol) ────────────
+// Esta frontera es distinta del detalle para "Corregir": solo acepta identidad
+// y contacto. El objeto estricto evita que domicilio o banca entren por error a
+// la caché de una pantalla comercial aunque el contrato del servidor cambie.
+const ClienteFichaComercialRowSchema = v.strictObject({
+  id: v.string(),
+  nombres: v.nullable(v.string()),
+  apellidos: v.nullable(v.string()),
+  nombre_completo: v.nullable(v.string()),
+  tipo_documento: v.picklist(TIPOS_DOCUMENTO_K),
+  dni: v.nullable(v.string()),
+  correo: v.nullable(v.string()),
+  telefono: v.nullable(v.string()),
+  asesor_perfil_id: v.nullable(v.string()),
+  activo: v.boolean(),
+  creado_en: v.string(),
+})
+
+export async function obtenerClienteFichaComercial(id: string, signal?: AbortSignal): Promise<ClienteFichaComercial> {
+  let consulta = cliente().schema('crm').rpc('cliente_ficha_fn', { p_cliente_id: id })
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    const fallo = new CrmApiError(
+      'No pudimos cargar la ficha del cliente. Intenta nuevamente.',
+      error.code || 'POSTGREST_ERROR',
+    )
+    registrarError('crm.clientes.ficha_comercial_fallida', fallo)
+    throw fallo
+  }
+
+  const resultado = v.safeParse(v.array(ClienteFichaComercialRowSchema), data)
+  if (
+    !resultado.success ||
+    resultado.output.length > 1 ||
+    (resultado.output.length === 1 && resultado.output[0]?.id !== id)
+  ) {
+    const fallo = new CrmApiError(
+      'No pudimos mostrar la ficha porque la información recibida está incompleta.',
+      'ROW_CONTRACT',
+    )
+    registrarError('crm.clientes.ficha_comercial_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
+  const fila = resultado.output[0]
+  if (!fila) {
+    // Un cliente inexistente y uno fuera del ámbito producen la misma respuesta
+    // para no revelar si pertenece a la cartera de otra persona.
+    throw new CrmApiError('No encontramos este cliente en tu cartera.', 'NO_ENCONTRADO')
+  }
+
+  return { ...fila, nombre_completo: fila.nombre_completo ?? '' }
+}
+
+// ── Cliente: detalle con las 14 bancarias (SOLO para "Corregir") ─────────────
 const COLUMNAS_CLIENTE_DETALLE = [
   'id',
   'nombre_completo',
@@ -2748,6 +2820,7 @@ const COLUMNAS_CONTRATO = [
   'producto_version',
   'producto_nombre',
   'producto_version_estado',
+  'revision_contrato',
 ].join(',')
 
 const ContratoRowSchema = v.object({
@@ -2775,6 +2848,7 @@ const ContratoRowSchema = v.object({
   producto_version: EnteroProductoSchema,
   producto_nombre: v.pipe(v.string(), v.minLength(1)),
   producto_version_estado: v.picklist(['borrador', 'publicada', 'retirada']),
+  revision_contrato: v.string(),
 })
 
 export async function listarMisContratos(signal?: AbortSignal): Promise<ContratoRow[]> {
@@ -2831,6 +2905,7 @@ export async function listarMisContratos(signal?: AbortSignal): Promise<Contrato
       producto_version: fila.producto_version,
       producto_nombre: fila.producto_nombre,
       producto_version_estado: fila.producto_version_estado,
+      revision_contrato: fila.revision_contrato,
     })
   }
   if (descartadas > 0) {
@@ -2898,7 +2973,7 @@ export async function listarOperacionesCartera(signal?: AbortSignal): Promise<Op
   lanzarAbortSiCorresponde(signal)
   if (error) {
     const fallo = new CrmApiError(
-      'No se pudo cargar el desglose de renovaciones y upgrades.',
+      'No se pudo cargar el detalle de renovaciones y aumentos de inversión.',
       error.code || 'POSTGREST_ERROR',
     )
     registrarError('crm.operaciones_cartera.listado_fallido', fallo)
@@ -2928,7 +3003,7 @@ const MAX_ACTIVIDADES_CLIENTE = 100
 const ActividadClienteRowSchema = v.object({
   id: v.string(),
   cliente_id: v.string(),
-  vendedor_id: v.string(),
+  vendedor_id: v.nullable(v.string()),
   tarea_id: v.nullable(v.string()),
   tipo: v.picklist([
     'llamada_realizada',
@@ -2937,6 +3012,7 @@ const ActividadClienteRowSchema = v.object({
     'whatsapp_recibido',
     'reunion_realizada',
     'nota',
+    'reasignacion',
   ]),
   detalle: v.nullable(v.string()),
   creado_por: v.nullable(v.string()),
@@ -3079,6 +3155,7 @@ export async function actualizarContrato(
   id: string,
   contrato: ActualizarContratoInput,
   cronograma: CuotaCronograma[],
+  revisionEsperada: string,
 ): Promise<void> {
   const p_contrato: Record<string, unknown> = {
     capital: contrato.capital,
@@ -3102,9 +3179,18 @@ export async function actualizarContrato(
       p_id: id,
       p_contrato: p_contrato as unknown as Json,
       p_cronograma: cronograma as unknown as Json[],
+      p_revision_esperada: revisionEsperada,
     })
   // La ventana vencida AQUÍ sí es un error explícito (RAISE P0001 de la RPC),
   // a diferencia del UPDATE a perfiles que se queda callado.
+  if (error?.code === '40001') {
+    const fallo = new CrmApiError(
+      'Otra persona actualizó este contrato mientras lo corregías. Para proteger la información más reciente, tus cambios no se guardaron. Cierra y vuelve a abrir el contrato antes de continuar.',
+      'CONTRATO_DESACTUALIZADO',
+    )
+    registrarError('crm.contrato.actualizar_fallido', fallo, { pg: error.code })
+    throw fallo
+  }
   if (error) throw aErrorApi(error, 'crm.contrato.actualizar_fallido')
 }
 

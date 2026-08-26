@@ -7,13 +7,7 @@ import { capitalObjetivo, type ObjetivosPorRol } from '@/lib/objetivos'
  * Resumen de solo lectura. La única vía de edición vive en Configuración →
  * Metas, donde se publica una revisión completa con control de concurrencia.
  */
-export function MetasEditor({
-  objetivos,
-  demo,
-}: {
-  objetivos: ObjetivosPorRol
-  demo: boolean
-}): JSX.Element {
+export function MetasEditor({ objetivos, demo }: { objetivos: ObjetivosPorRol; demo: boolean }): JSX.Element {
   const meta = objetivos.gerencia
   return (
     <div className="space-y-4">
@@ -21,7 +15,8 @@ export function MetasEditor({
         <div>
           <p className="text-xs font-bold text-primary">Metas publicadas · solo lectura</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Revisión {objetivos.revision}{demo ? ' · datos de ejemplo' : ''}. La edición está centralizada para evitar dos versiones del mismo mes.
+            Revisión {objetivos.revision}
+            {demo ? ' · datos de ejemplo' : ''}. La edición está centralizada para evitar dos versiones del mismo mes.
           </p>
         </div>
         <a
@@ -33,9 +28,16 @@ export function MetasEditor({
       </div>
 
       <div className="rounded-xl border border-accent/25 bg-accent/[0.06] px-5 py-4">
-        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Meta mensual total del equipo</p>
-        <p className="mt-1 text-2xl font-extrabold tabular-nums text-primary">{money(capitalObjetivo(meta, 'PEN'), 'PEN')}</p>
-        <p className="mt-2 text-xs text-muted-foreground">Una sola meta en soles. No se divide por Nuevo, Renovación, Upgrade, cantidad de contratos ni conversión.</p>
+        <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+          Meta mensual total del equipo
+        </p>
+        <p className="mt-1 text-2xl font-extrabold tabular-nums text-primary">
+          {money(capitalObjetivo(meta, 'PEN'), 'PEN')}
+        </p>
+        <p className="mt-2 text-xs text-muted-foreground">
+          Una sola meta en soles. No se divide por nueva inversión, renovación, aumento de inversión, cantidad de
+          contratos ni conversión.
+        </p>
       </div>
     </div>
   )

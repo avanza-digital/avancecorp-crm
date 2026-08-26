@@ -6,6 +6,7 @@ import type {
   ConvertirLeadExternoDatos,
   CorregirCierreExternoDatos,
 } from './crm-api'
+
 import { normalizarLeadIds } from '@/lib/cierre-estado'
 import {
   actualizarCapacidadLeadsObjetivo,
@@ -41,12 +42,16 @@ import {
   listarReconocimientosAlertas,
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
+  obtenerClienteFichaComercial,
   obtenerCronograma,
   obtenerDatosLegalesContrato,
   obtenerTitulares,
   revertirDerivacionEquipo,
   type DerivacionEquipoPendiente,
 } from './crm-api'
+
+/** Revalida alcance y datos sensibles mientras la aplicación permanece visible. */
+export const INTERVALO_REVALIDACION_CARTERA_MS = 60_000
 
 // El store sigue cargando el ámbito completo (listarLeadsDelAmbito) para las
 // pantallas que aún no migraron; la prohibición general de claves de leads se
@@ -64,10 +69,8 @@ export const crmQueryKeys = {
   configSla: () => [...crmQueryKeys.config(), 'sla'] as const,
   metricasSla: (desde: string, hasta: string) => [...crmQueryKeys.metricas(), 'sla', desde, hasta] as const,
   estadoSlaLeads: () => [...crmQueryKeys.raiz, 'sla', 'estado-leads'] as const,
-  recordatoriosDisponibilidad: () =>
-    [...crmQueryKeys.raiz, 'recordatorios-disponibilidad'] as const,
-  reconocimientosAlertas: () =>
-    [...crmQueryKeys.raiz, 'reconocimientos-alertas'] as const,
+  recordatoriosDisponibilidad: () => [...crmQueryKeys.raiz, 'recordatorios-disponibilidad'] as const,
+  reconocimientosAlertas: () => [...crmQueryKeys.raiz, 'reconocimientos-alertas'] as const,
   // Cartera del portal (panel del analista): bajo la misma raíz para que el
   // logout (queryClient.clear) y las invalidaciones jerárquicas la cubran.
   clientes: () => [...crmQueryKeys.raiz, 'clientes'] as const,
@@ -80,6 +83,7 @@ export const crmQueryKeys = {
   // cachés caducan juntas o el detalle reviviría datos viejos.
   cronograma: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'cronograma'] as const,
   titulares: (contratoId: string) => [...crmQueryKeys.contratos(), contratoId, 'titulares'] as const,
+  clienteFichaComercial: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'ficha-comercial'] as const,
   clienteDetalle: (clienteId: string) => [...crmQueryKeys.clientes(), clienteId, 'detalle'] as const,
   actividadesCliente: (clienteId: string) =>
     [...crmQueryKeys.clientes(), clienteId, 'actividades-comerciales'] as const,
@@ -164,6 +168,8 @@ export function useContratos(habilitada = true) {
     queryKey: crmQueryKeys.contratos(),
     queryFn: ({ signal }) => listarMisContratos(signal),
     enabled: habilitada,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -173,6 +179,8 @@ export function useOperacionesCartera(habilitada = true) {
     queryKey: crmQueryKeys.operacionesCartera(),
     queryFn: ({ signal }) => listarOperacionesCartera(signal),
     enabled: habilitada,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -184,6 +192,8 @@ export function useClientes(habilitada = true) {
     queryKey: crmQueryKeys.clientes(),
     queryFn: ({ signal }) => listarClientes(signal),
     enabled: habilitada,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -200,6 +210,8 @@ export function useContrato(contratoId: string, habilitada = true) {
     queryFn: ({ signal }) => listarMisContratos(signal),
     select: (filas) => filas.find((f) => f.id === contratoId) ?? null,
     enabled: habilitada,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
   })
 }
 
@@ -209,6 +221,7 @@ export function useCronograma(contratoId: string, habilitada = true) {
     queryKey: crmQueryKeys.cronograma(contratoId),
     queryFn: ({ signal }) => obtenerCronograma(contratoId, signal),
     enabled: habilitada,
+    gcTime: 0,
   })
 }
 
@@ -224,12 +237,30 @@ export function useTitulares(contratoId: string, habilitada = true, opciones: { 
     queryKey: crmQueryKeys.titulares(contratoId),
     queryFn: ({ signal }) => obtenerTitulares(contratoId, signal),
     enabled: habilitada,
+    gcTime: 0,
     ...opciones,
   })
 }
 
 /**
- * Detalle completo del cliente — la precarga del form "corregir" (cliente-form).
+ * Identidad y contacto para la ficha comercial 360. Tiene frontera y caché
+ * propias: nunca reutiliza el detalle sensible que precarga "Corregir".
+ */
+export function useClienteFichaComercial(clienteId: string, habilitada = true) {
+  return useQuery({
+    queryKey: crmQueryKeys.clienteFichaComercial(clienteId),
+    queryFn: ({ signal }) => obtenerClienteFichaComercial(clienteId, signal),
+    enabled: habilitada,
+    staleTime: 0,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
+  })
+}
+
+/**
+ * Detalle completo del cliente — SOLO la precarga del form "Corregir"
+ * (cliente-form). La ficha comercial usa useClienteFichaComercial y jamás debe
+ * leer esta caché, que contiene domicilio y banca.
  * `staleTime: 0` OBLIGATORIO y fijo: el UPDATE viaja con el set completo de
  * campos (bancarios incluidos); precargar de una caché vieja pisaría en el
  * servidor lo que otro dispositivo/sesión ya corrigió.
@@ -240,6 +271,7 @@ export function useClienteDetalle(clienteId: string, habilitada = true) {
     queryFn: ({ signal }) => obtenerClienteDetalle(clienteId, signal),
     enabled: habilitada,
     staleTime: 0,
+    gcTime: 0,
   })
 }
 
@@ -249,13 +281,16 @@ export function useActividadesCliente(clienteId: string, habilitada = true) {
     queryKey: crmQueryKeys.actividadesCliente(clienteId),
     queryFn: ({ signal }) => listarActividadesCliente(clienteId, signal),
     enabled: habilitada,
+    staleTime: 0,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
   })
 }
 
 /**
  * Qué dato legal le falta al cliente (o al propio analista) para poder emitir
  * el contrato. `staleTime: 0` OBLIGATORIO: entre abrir el formulario y pulsar
- * "Crear contrato" otra sesión puede haber rellenado el domicilio, y bloquear
+ * "Registrar nueva inversión" otra sesión puede haber rellenado el domicilio, y bloquear
  * el alta contra una caché vieja sería inventarse un muro que ya no existe.
  */
 export function useDatosLegalesContrato(clienteId: string, habilitada = true) {
@@ -281,6 +316,8 @@ export function useCuentasBancariasCliente(clienteId: string, moneda: 'PEN' | 'U
     // No retener números/CCI al cerrar el modal; al reabrir siempre se pide una
     // fotografía autorizada y fresca al servidor.
     gcTime: 0,
+    refetchInterval: INTERVALO_REVALIDACION_CARTERA_MS,
+    refetchIntervalInBackground: false,
   })
 }
 

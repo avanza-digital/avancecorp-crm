@@ -41,22 +41,25 @@ const { mutarCierreExterno } = vi.hoisted(() => ({
 
 vi.mock('@/data/crm-queries', () => ({
   useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
-    data: moneda === 'PEN'
-      ? [{
-          cuenta_id: null,
-          moneda: 'PEN',
-          banco: 'BCP',
-          tipo_cuenta: 'ahorros',
-          numero_cuenta: '191000001234',
-          cci: '00112233445566778899',
-          titular_distinto: false,
-          beneficiario_nombre: null,
-          beneficiario_dni: null,
-          origen: 'perfil',
-          es_cuenta_perfil: true,
-          creada_en: null,
-        }]
-      : [],
+    data:
+      moneda === 'PEN'
+        ? [
+            {
+              cuenta_id: null,
+              moneda: 'PEN',
+              banco: 'BCP',
+              tipo_cuenta: 'ahorros',
+              numero_cuenta: '191000001234',
+              cci: '00112233445566778899',
+              titular_distinto: false,
+              beneficiario_nombre: null,
+              beneficiario_dni: null,
+              origen: 'perfil',
+              es_cuenta_perfil: true,
+              creada_en: null,
+            },
+          ]
+        : [],
     isPending: false,
     isError: false,
     isFetching: false,
@@ -180,10 +183,7 @@ async function montarEnCoop(
 async function llenarIdentidad(user: ReturnType<typeof userEvent.setup>) {
   await user.type(screen.getByLabelText('Correo del cliente'), 'juan@correo.pe')
   await user.type(screen.getByLabelText('N° de documento'), '45781234')
-  await user.type(
-    screen.getByLabelText('Domicilio legal completo'),
-    'Av. Los Inversionistas 245, San Isidro, Lima',
-  )
+  await user.type(screen.getByLabelText('Domicilio legal completo'), 'Av. Los Inversionistas 245, San Isidro, Lima')
 }
 
 /** Cuenta PEN completa (el mínimo que exige la regla "al menos una"). */
@@ -204,9 +204,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
 
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Asigna el lead a un analista antes de convertirlo',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Asigna el lead a un analista antes de convertirlo')
     expect(convertirEdge).not.toHaveBeenCalled()
     expect(actualizarCliente).not.toHaveBeenCalled()
   })
@@ -233,9 +231,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
 
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Completa el domicilio legal del cliente.',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Completa el domicilio legal del cliente.')
     expect(convertirEdge).not.toHaveBeenCalled()
   })
 
@@ -244,11 +240,31 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     // decidido con los 19 domicilios reales de producción. U+0085 salió de la
     // lista de controles: los tres lados lo tratan como espacio y lo colapsan.
     ['catorce puntos Unicode', 'Av. Lima 123 😀', 'El domicilio legal debe tener entre 15 y 240 caracteres.'],
-    ['241 puntos Unicode', `Av. Lima 123 ${'x'.repeat(227)}😀`, 'El domicilio legal debe tener entre 15 y 240 caracteres.'],
-    ['un control C0 de verdad', 'Av. Lima 123\u0007 San Isidro', 'El domicilio legal contiene caracteres no permitidos.'],
-    ['un invisible de ancho cero', 'Av. Lima\u200B 123, San Isidro', 'El domicilio legal contiene caracteres invisibles que no se imprimirían en el contrato.'],
-    ['una dirección sin número', 'Avenida sin numero, San Isidro', 'El domicilio legal necesita el número de la calle, el lote o la manzana.'],
-    ['la dirección de la propia empresa', 'Av. República de Panamá 3635, San Isidro', 'Esa es la dirección de Avance Corp, no la del cliente: el contrato dejaría a las dos partes domiciliadas en el mismo sitio.'],
+    [
+      '241 puntos Unicode',
+      `Av. Lima 123 ${'x'.repeat(227)}😀`,
+      'El domicilio legal debe tener entre 15 y 240 caracteres.',
+    ],
+    [
+      'un control C0 de verdad',
+      'Av. Lima 123\u0007 San Isidro',
+      'El domicilio legal contiene caracteres no permitidos.',
+    ],
+    [
+      'un invisible de ancho cero',
+      'Av. Lima\u200B 123, San Isidro',
+      'El domicilio legal contiene caracteres invisibles que no se imprimirían en el contrato.',
+    ],
+    [
+      'una dirección sin número',
+      'Avenida sin numero, San Isidro',
+      'El domicilio legal necesita el número de la calle, el lote o la manzana.',
+    ],
+    [
+      'la dirección de la propia empresa',
+      'Av. República de Panamá 3635, San Isidro',
+      'Esa es la dirección de Avance Corp, no la del cliente: el contrato dejaría a las dos partes domiciliadas en el mismo sitio.',
+    ],
   ])('rechaza %s antes de tocar la Edge', async (_caso, valor, mensaje) => {
     const user = userEvent.setup()
     await montarEnAvance()
@@ -321,7 +337,9 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
     // Encadena el paso contrato sin salir del CRM.
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('dialog', { name: /Registrar nueva inversión de JUAN PEREZ ROJAS/ }),
+    ).toBeInTheDocument()
     // La edge recibe la identidad YA separada y confirmada por el vendedor,
     // junto con las cuentas de depósito, en el MISMO envío: el cliente nace
     // listo para pagos o no nace.
@@ -376,11 +394,15 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     await llenarPenCompleta(user)
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    await waitFor(() => expect(convertirEdge).toHaveBeenCalledWith(expect.objectContaining({
-      nombre_completo: 'GARCIA MENDOZA ANA LUCIA',
-      apellidos: 'GARCIA MENDOZA',
-      nombres: 'ANA LUCIA',
-    })))
+    await waitFor(() =>
+      expect(convertirEdge).toHaveBeenCalledWith(
+        expect.objectContaining({
+          nombre_completo: 'GARCIA MENDOZA ANA LUCIA',
+          apellidos: 'GARCIA MENDOZA',
+          nombres: 'ANA LUCIA',
+        }),
+      ),
+    )
   })
 
   it('exige los tres campos de identidad antes de crear el cliente', async () => {
@@ -411,7 +433,9 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     await llenarPenCompleta(user)
     await user.click(screen.getByRole('button', { name: 'Convertir a cliente' }))
 
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+    expect(
+      await screen.findByRole('dialog', { name: /Registrar nueva inversión de JUAN PEREZ ROJAS/ }),
+    ).toBeInTheDocument()
     expect(toast.warning).toHaveBeenCalledWith(expect.stringMatching(/conversión quedó confirmada/))
   })
 
@@ -439,9 +463,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     // creer que acaba de registrar dónde se le depositan los intereses.
     const aviso = await screen.findByRole('alert')
     expect(aviso).toHaveTextContent(/ya tenía cuenta en el portal/)
-    expect(aviso).toHaveTextContent(
-      /se conservaron las cuentas bancarias que el cliente ya tenía registradas/,
-    )
+    expect(aviso).toHaveTextContent(/se conservaron las cuentas bancarias que el cliente ya tenía registradas/)
     expect(aviso).toHaveTextContent(/También se conservó el domicilio legal/)
     // Siendo suyo, NO se le acusa de haber perdido la cartera.
     expect(aviso).not.toHaveTextContent(/NO pasó a tu cartera/)
@@ -457,9 +479,13 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     // Un toast de éxito aquí sería justo la mentira que este aviso viene a matar.
     expect(toast.success).not.toHaveBeenCalled()
     // El aviso NO es terminal: el contrato sigue siendo el paso lógico.
-    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
-    await user.click(screen.getByRole('button', { name: 'Continuar al contrato' }))
-    expect(await screen.findByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('dialog', { name: /Registrar nueva inversión de JUAN PEREZ ROJAS/ }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Registrar nueva inversión' }))
+    expect(
+      await screen.findByRole('dialog', { name: /Registrar nueva inversión de JUAN PEREZ ROJAS/ }),
+    ).toBeInTheDocument()
   })
 
   it('dedup ya_existia con el cliente de OTRO asesor: no se ofrece un contrato que la RPC rechazaría', async () => {
@@ -486,7 +512,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     expect(screen.getByText(/te lo reasigne en el portal/)).toBeInTheDocument()
     // Y el callejón sin salida se retira: el botón llevaba a un formulario
     // largo que terminaba en un rechazo del servidor.
-    expect(screen.queryByRole('button', { name: /contrato/i })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /registrar nueva inversión/i })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Entendido' })).toBeInTheDocument()
     expect(toast.success).not.toHaveBeenCalled()
   })
@@ -511,7 +537,7 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     expect(aviso).toHaveTextContent(/domicilio estaba vacío y se completó con el que ingresaste/)
     expect(screen.getByText(/No pudimos comprobar si el cliente quedó en tu cartera/)).toBeInTheDocument()
     // Se ofrece el intento (puede ser suyo), rotulado como intento y no como promesa.
-    expect(screen.getByRole('button', { name: 'Intentar el contrato' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Intentar registrar nueva inversión' })).toBeInTheDocument()
   })
 
   it('si el servidor rechaza los bancarios NO queda lead convertido a medias', async () => {
@@ -534,7 +560,9 @@ describe('DialogConvertir — alta atómica con bancarios + contrato', () => {
     expect(await screen.findByRole('alert')).toHaveTextContent(
       'Registra al menos una cuenta bancaria (en soles o en dólares) para depositar al cliente.',
     )
-    expect(screen.queryByRole('dialog', { name: /Crear contrato de JUAN PEREZ ROJAS/ })).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('dialog', { name: /Registrar nueva inversión de JUAN PEREZ ROJAS/ }),
+    ).not.toBeInTheDocument()
     expect(toast.success).not.toHaveBeenCalled()
     expect(actualizarCliente).not.toHaveBeenCalled()
     expect(recargar).not.toHaveBeenCalled() // el lead no se movió
@@ -619,9 +647,7 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await user.type(screen.getByLabelText('N.° de operación del depósito'), 'OP-DEC')
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
-    expect(mutarCierreExterno).toHaveBeenCalledWith(
-      expect.objectContaining({ monto: 10000.03 }),
-    )
+    expect(mutarCierreExterno).toHaveBeenCalledWith(expect.objectContaining({ monto: 10000.03 }))
   })
 
   it('tres decimales de verdad siguen rechazándose', async () => {
@@ -639,10 +665,7 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
   it('si el depósito ya estaba registrado, se muestra el mensaje del servidor', async () => {
     const user = userEvent.setup()
     mutarCierreExterno.mockRejectedValue(
-      new CrmApiError(
-        'Ese numero de operacion ya esta registrado en esa cooperativa',
-        'CIERRE_EXTERNO_CONFLICTO',
-      ),
+      new CrmApiError('Ese numero de operacion ya esta registrado en esa cooperativa', 'CIERRE_EXTERNO_CONFLICTO'),
     )
     const { onClose } = await montarEnCoop()
 
@@ -681,9 +704,7 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     await montarEnCoop({ lead: { vendedor_id: null, vendedor_nombre: null, asignado_supervisor_id: 'u-v1' } })
     await user.click(screen.getByRole('button', { name: /Cerrar en QORILAZO/ }))
 
-    expect(await screen.findByRole('alert')).toHaveTextContent(
-      'Asigna el lead a un analista antes de convertirlo',
-    )
+    expect(await screen.findByRole('alert')).toHaveTextContent('Asigna el lead a un analista antes de convertirlo')
     expect(mutarCierreExterno).not.toHaveBeenCalled()
   })
 
@@ -718,7 +739,7 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     expect(toast.success).toHaveBeenCalledWith(
       'JUAN PEREZ ROJAS cerrado en COOPAC Prodelco — ya cuenta en tu cuota y conversión',
     )
-    expect(screen.queryByRole('dialog', { name: /Crear contrato/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('dialog', { name: /Registrar nueva inversión/ })).not.toBeInTheDocument()
   })
 
   it('el servidor rechaza (p. ej. doble cierre): su mensaje se muestra y nada se cierra', async () => {
@@ -779,9 +800,7 @@ describe('DialogConvertir — «¿Dónde invirtió?» y el cierre en COOPERATIVA
     // Y el foco vuelve a la tarjeta de la cooperativa de donde se salió (el
     // rescate va en un requestAnimationFrame, de ahí el waitFor).
     await waitFor(() => {
-      expect(document.activeElement).toBe(
-        screen.getByRole('button', { name: /COOPAC Qorilazo/ }),
-      )
+      expect(document.activeElement).toBe(screen.getByRole('button', { name: /COOPAC Qorilazo/ }))
     })
     // El segundo Enter ya no cierra nada: reabre el formulario.
     await user.keyboard('{Enter}')

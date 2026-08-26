@@ -3,10 +3,10 @@ import type { Rol } from './roles'
 
 // Pipeline de inversión (espejo del CHECK de crm.leads.etapa)
 export const ETAPAS = [
-  { k: 'nuevo',              label: 'Nuevo',             color: '#8b95a7' },
-  { k: 'contactado',         label: 'Contactado',        color: '#2563eb' },
-  { k: 'reunion_agendada',   label: 'Reunión agendada',  color: '#7c3aed' },
-  { k: 'propuesta_enviada',  label: 'Propuesta enviada', color: '#d97706' },
+  { k: 'nuevo', label: 'Nuevo', color: '#8b95a7' },
+  { k: 'contactado', label: 'Contactado', color: '#2563eb' },
+  { k: 'reunion_agendada', label: 'Reunión agendada', color: '#7c3aed' },
+  { k: 'propuesta_enviada', label: 'Propuesta enviada', color: '#d97706' },
 ] as const
 
 export const TERMINALES = [
@@ -138,9 +138,9 @@ export const origenLabel = (k: string): string => ORIGENES_TODOS.find((o) => o.k
 
 /** Categorías de interés del CHECK de crm.leads.categoria_interes (F0). */
 export const CATEGORIAS_INTERES = [
-  { k: 'nuevo', label: 'Nuevo' },
+  { k: 'nuevo', label: 'Nueva inversión' },
   { k: 'renovacion', label: 'Renovación' },
-  { k: 'upgrade', label: 'Upgrade' },
+  { k: 'upgrade', label: 'Aumento de inversión' },
 ] as const
 
 export type CategoriaInteres = (typeof CATEGORIAS_INTERES)[number]['k']
@@ -172,21 +172,14 @@ export const TIPOS_TAREA = [
 export type TipoTarea = (typeof TIPOS_TAREA)[number]['k']
 
 /** Narrow derivado del catálogo; no replica sus literales en un segundo sitio. */
-export const esTipoTarea = (valor: string): valor is TipoTarea =>
-  TIPOS_TAREA.some(({ k }) => k === valor)
+export const esTipoTarea = (valor: string): valor is TipoTarea => TIPOS_TAREA.some(({ k }) => k === valor)
 
 /**
  * Máquina mínima (CHECK tareas_estado_valido): `pendiente` es el único estado
  * vivo. "Vencida" NO existe como estado: SE DERIVA (pendiente + vence_en <
  * ahora) — sin cron, sin drift. Reagendar un no_show crea una tarea NUEVA.
  */
-export const ESTADOS_TAREA = [
-  'pendiente',
-  'completada',
-  'cancelada',
-  'no_show',
-  'reprogramada',
-] as const
+export const ESTADOS_TAREA = ['pendiente', 'completada', 'cancelada', 'no_show', 'reprogramada'] as const
 
 export type EstadoTarea = (typeof ESTADOS_TAREA)[number]
 
@@ -198,10 +191,7 @@ export const MODALIDADES_REUNION = [
 export type ModalidadReunionOperativa = (typeof MODALIDADES_REUNION)[number]['k']
 
 /** Contrato completo del CHECK; `sin_clasificar` nunca aparece en el selector. */
-export const MODALIDADES_REUNION_TODAS = [
-  ...MODALIDADES_REUNION.map(({ k }) => k),
-  'sin_clasificar',
-] as const
+export const MODALIDADES_REUNION_TODAS = [...MODALIDADES_REUNION.map(({ k }) => k), 'sin_clasificar'] as const
 
 export type ModalidadReunion = (typeof MODALIDADES_REUNION_TODAS)[number]
 
@@ -216,10 +206,7 @@ export const RESULTADOS_REUNION = [
 export type ResultadoReunionOperativo = (typeof RESULTADOS_REUNION)[number]['k']
 
 /** Contrato completo del CHECK; el valor legacy no es un resultado elegible. */
-export const RESULTADOS_REUNION_TODOS = [
-  ...RESULTADOS_REUNION.map(({ k }) => k),
-  'sin_clasificar',
-] as const
+export const RESULTADOS_REUNION_TODOS = [...RESULTADOS_REUNION.map(({ k }) => k), 'sin_clasificar'] as const
 
 export type ResultadoReunion = (typeof RESULTADOS_REUNION_TODOS)[number]
 
@@ -362,7 +349,7 @@ export interface Lead {
    * privilegiada). Es el ÚNICO dato honesto del "mes de cierre": ver
    * `lib/cierres-del-mes.ts`. Opcional: null mientras el lead no se convirtió,
    * y ausente en modo demo o contra una base sin la columna.
-  */
+   */
   convertido_en?: string | null
   /** Enlace opaco al contrato que acredita una inversión formalizada. */
   contrato_id?: string | null

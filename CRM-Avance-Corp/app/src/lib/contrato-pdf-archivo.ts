@@ -52,8 +52,7 @@ interface ArchivoMetadata {
   generado_en?: string | undefined
 }
 
-const UUID_CANONICO_RE =
-  /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
+const UUID_CANONICO_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/
 
 const ArchivoMetadataSchema = v.strictObject({
   contrato_id: v.pipe(v.string(), v.regex(UUID_CANONICO_RE)),
@@ -102,9 +101,10 @@ export class ContratoPdfNoSelladoError extends Error {
   readonly reintentable: boolean
 
   constructor(estado: EstadoContratoPdf, reintentable: boolean) {
-    const mensaje = estado === 'integridad_bloqueada'
-      ? 'El PDF contractual quedó bloqueado por una discrepancia de integridad. Requiere revisión administrativa.'
-      : 'El PDF contractual sigue pendiente de sellado en el servidor.'
+    const mensaje =
+      estado === 'integridad_bloqueada'
+        ? 'El documento requiere revisión administrativa antes de estar disponible.'
+        : 'El documento sigue en preparación. Intenta nuevamente en unos momentos.'
     super(mensaje)
     this.name = 'ContratoPdfNoSelladoError'
     this.estado = estado
@@ -113,45 +113,43 @@ export class ContratoPdfNoSelladoError extends Error {
 }
 
 function clienteSupabase() {
-  if (!sb) throw new Error('Supabase no está configurado para acceder al contrato PDF.')
+  if (!sb) throw new Error('No se puede acceder al documento del contrato en este momento.')
   return sb
 }
 
 function exigirContratoIdCanonico(contratoId: string): void {
   if (!UUID_CANONICO_RE.test(contratoId)) {
-    throw new Error('El identificador del contrato no tiene el formato canónico esperado.')
+    throw new Error('No pudimos identificar este contrato. Actualiza la vista e inténtalo nuevamente.')
   }
 }
 
 export async function sha256PdfHex(blob: Blob): Promise<string> {
   const digest = await globalThis.crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
 export async function validarPdfBlob(blob: Blob): Promise<void> {
-  if (blob.type !== 'application/pdf') throw new Error('El servidor no devolvió un PDF válido.')
+  if (blob.type !== 'application/pdf') throw new Error('No se recibió un documento válido.')
   const cabecera = new TextDecoder().decode(await blob.slice(0, 5).arrayBuffer())
-  if (cabecera !== '%PDF-') throw new Error('El archivo no contiene una cabecera PDF válida.')
+  if (cabecera !== '%PDF-') throw new Error('El archivo recibido no es un documento válido.')
 }
 
 function mensajeEstado(estado: EstadoContratoPdf): string {
   switch (estado) {
     case 'pendiente':
-      return 'Pendiente de generación server-side'
+      return 'Pendiente'
     case 'procesando':
-      return 'Generación server-side en curso'
+      return 'En preparación'
     case 'subido_verificado':
-      return 'PDF subido y pendiente de sello final'
+      return 'Preparado para validación final'
     case 'error_reintentable':
-      return 'La generación falló y puede reintentarse'
+      return 'No se pudo preparar; puedes reintentar'
     case 'integridad_bloqueada':
-      return 'Bloqueado por una discrepancia de integridad'
+      return 'Requiere revisión administrativa'
     case 'sellado':
-      return 'PDF privado e inmutable sellado'
+      return 'Listo'
     case 'sin_reserva':
-      return 'Contrato legacy sin reserva PDF'
+      return 'Documento anterior sin copia archivada'
   }
 }
 
@@ -159,9 +157,7 @@ export function etiquetaEstadoContratoPdf(estado: EstadoContratoPdf): string {
   return mensajeEstado(estado)
 }
 
-async function invocarEdge(
-  action: 'ensure' | 'status',
-  contratoId: string): Promise<EdgeRespuesta> {
+async function invocarEdge(action: 'ensure' | 'status', contratoId: string): Promise<EdgeRespuesta> {
   exigirContratoIdCanonico(contratoId)
   const { data, error } = await clienteSupabase().functions.invoke(CONTRATO_PDF_EDGE, {
     body: { action, contratoId },
@@ -195,7 +191,7 @@ async function invocarEdge(
     throw new Error('La respuesta del archivo contractual no tiene el formato esperado.')
   }
   if (resultado.output.pdf.contrato_id !== contratoId) {
-    throw new Error('El servidor respondió con el estado de otro contrato.')
+    throw new Error('No pudimos confirmar el documento de este contrato. Intenta nuevamente.')
   }
   return resultado.output
 }
@@ -215,16 +211,12 @@ function estadoPublico(pdf: PdfEstadoWire): EstadoContratoPdfServidor {
 }
 
 async function descargarUrlFirmada(url: string): Promise<Blob> {
-  const respuesta = await fetch(url, { credentials: 'omit', cache: 'no-store',
-  })
-  if (!respuesta.ok) throw new Error('No se pudo descargar el contrato PDF privado.')
+  const respuesta = await fetch(url, { credentials: 'omit', cache: 'no-store' })
+  if (!respuesta.ok) throw new Error('No se pudo descargar el documento del contrato.')
   return respuesta.blob()
 }
 
-function rutaMetadataValida(
-  contratoId: string,
-  jobId: string | null,
-  storagePath: string): boolean {
+function rutaMetadataValida(contratoId: string, jobId: string | null, storagePath: string): boolean {
   if (jobId) return storagePath === `${contratoId}/v2/${jobId}/contrato.pdf`
   // Compatibilidad de solo lectura para ledgers v1 ya sellados.
   return storagePath === `${contratoId}/contrato.pdf`
@@ -252,16 +244,16 @@ async function archivoValidado(
     pdf.sha256 !== metadata.sha256 ||
     pdf.bytes !== metadata.bytes
   ) {
-    throw new Error('El servidor devolvió metadatos contradictorios para el archivo contractual.')
+    throw new Error('No pudimos confirmar el archivo de este contrato. Intenta nuevamente.')
   }
 
   const blob = await descargarUrlFirmada(url)
   await validarPdfBlob(blob)
   if (blob.size !== metadata.bytes) {
-    throw new Error('El tamaño del PDF descargado no coincide con el archivo legal registrado.')
+    throw new Error('No pudimos confirmar el documento descargado. Intenta nuevamente.')
   }
   if ((await sha256PdfHex(blob)) !== metadata.sha256) {
-    throw new Error('Los bytes del PDF descargado no coinciden con el archivo legal registrado.')
+    throw new Error('No pudimos confirmar el documento descargado. Intenta nuevamente.')
   }
   return {
     contratoId,

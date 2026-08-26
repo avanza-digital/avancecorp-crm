@@ -27,7 +27,7 @@ test('real: un analista abre todos los datos de su cliente aunque la ventana de 
   await expect(fila).toBeVisible()
   // Escritura vencida, lectura completa disponible.
   await expect(fila.getByRole('button', { name: 'Corregir' })).toHaveCount(0)
-  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+  await fila.getByRole('button', { name: 'Ver ficha' }).click()
 
   const ficha = page.getByRole('dialog', { name: 'CLIENTE PORTAL UNO' })
   await expect(ficha).toBeVisible()
@@ -46,7 +46,7 @@ test('demo: abre la ficha ficticia completa sin ningún request a Supabase', asy
 
   const fila = page.getByRole('row', { name: /ROSA MERCEDES AGUILAR VENTURA/ })
   await expect(fila).toBeVisible()
-  await fila.getByRole('button', { name: 'Ver detalle' }).click()
+  await fila.getByRole('button', { name: 'Ver ficha' }).click()
 
   const ficha = page.getByRole('dialog', { name: 'ROSA MERCEDES AGUILAR VENTURA' })
   await expect(ficha).toBeVisible()

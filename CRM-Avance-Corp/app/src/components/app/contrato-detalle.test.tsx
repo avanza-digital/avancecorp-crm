@@ -50,6 +50,7 @@ const CONTRATO: ContratoRow = {
   notas_internas: null,
   creado_por: 'yo',
   creado_en: new Date().toISOString(),
+  revision_contrato: '2026-08-25T15:00:00.000Z',
   producto_condicion_id: '10000000-0000-4000-8000-000000000001',
   producto_id: '20000000-0000-4000-8000-000000000001',
   producto_codigo: 'RENTA-BASE',
@@ -100,23 +101,29 @@ describe('ContratoDetalle · co-titulares', () => {
 
     await user.click(screen.getByRole('button', { name: 'Eliminar contrato' }))
     expect(onEliminar).not.toHaveBeenCalled()
-    expect(screen.getByRole('alert')).toHaveTextContent(/todas las revisiones del PDF/i)
+    expect(screen.getByRole('alert')).toHaveTextContent(/todas las versiones archivadas del documento/i)
 
-    await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y PDF/i }))
+    await user.click(screen.getByRole('button', { name: /Sí, eliminar contrato y documentos/i }))
     expect(onEliminar).toHaveBeenCalledOnce()
   })
 
-  it('muestra el producto y la versión contractual de origen', () => {
+  it('muestra solo el nombre comercial del producto, sin identificadores ni versión técnica', () => {
     TITULARES = consulta([])
     montar()
 
-    expect(screen.getByText('RENTA-BASE · Plan Base 2026')).toBeInTheDocument()
-    expect(screen.getByText('v2 · publicada')).toBeInTheDocument()
+    expect(screen.getByText('Plan Base 2026')).toBeInTheDocument()
+    expect(screen.queryByText(/RENTA-BASE/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Versión de producto')).not.toBeInTheDocument()
+    expect(screen.queryByText(/publicada/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(CONTRATO.producto_condicion_id)).not.toBeInTheDocument()
+    expect(document.querySelector(`[title*="${CONTRATO.producto_condicion_id}"]`)).toBeNull()
+    expect(screen.getByText('Tipo de inversión')).toBeInTheDocument()
+    expect(screen.getByText('Frecuencia de pago de intereses')).toBeInTheDocument()
   })
 
   it('con co-titulares los lista', () => {
-    TITULARES = consulta([{ nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1,
-      },
+    TITULARES = consulta([
+      { nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 },
     ])
     montar()
     expect(screen.getByText('Co-titulares')).toBeInTheDocument()

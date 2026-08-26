@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
+    "build:preview": "tsc -b && env CRM_BUILD_ID=f41-preview-20260825 VITE_ENABLE_DEMO=true VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_SENTRY_DSN= vite build --mode preview",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest",

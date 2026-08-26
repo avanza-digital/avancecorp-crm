@@ -33,7 +33,10 @@ async function abrirCorregirCliente(page: Page): Promise<Locator> {
   // La cartera arranca en el mes en curso y estos fixtures traen contratos de
   // meses anteriores: sin esto, la fila del cliente no está en la lista.
   await verTodaLaCartera(page)
-  await page.getByRole('button', { name: /corregir/i }).first().click()
+  await page
+    .getByRole('button', { name: /corregir/i })
+    .first()
+    .click()
   const modal = page.getByRole('dialog', { name: /corregir cliente/i })
   await expect(modal).toBeVisible()
   return modal
@@ -64,9 +67,7 @@ test('alta feliz: UNA llamada y el cliente nace CON su cuenta bancaria', async (
 
   // Una sola llamada a la edge, y NINGÚN PATCH posterior que pueda fallar.
   await expect.poll(() => estado.llamadas.altaCliente).toBe(1)
-  await expect
-    .poll(() => estado.clientes.find((c) => c.correo === 'qa-cliente@correo.pe')?.banco ?? null)
-    .toBe('BCP')
+  await expect.poll(() => estado.clientes.find((c) => c.correo === 'qa-cliente@correo.pe')?.banco ?? null).toBe('BCP')
   expect(estado.llamadas.patchPerfil).toBe(0)
   // .first(): sonner duplica el nodo del texto (copia para el lector de pantalla).
   await expect(page.getByText(/Cliente "QA PRUEBA MARIA JOSE" creado/).first()).toBeVisible()
@@ -95,7 +96,7 @@ test('sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente', asy
   expect(estado.llamadas.patchPerfil).toBe(0)
   // NO se encadenó al contrato y el alta sigue reintentable (no se creó nada).
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
-  await expect(page.getByRole('dialog', { name: /^crear contrato/i })).toHaveCount(0)
+  await expect(page.getByRole('dialog', { name: /^registrar nueva inversión/i })).toHaveCount(0)
   await expect(modal.getByRole('button', { name: /crear cliente/i })).toBeEnabled()
 })
 
@@ -112,7 +113,8 @@ test('alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PAT
 })
 
 test('corregir feliz: precarga todo, correo bloqueado y el PATCH llega al servidor', async ({ page }) => {
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor',
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     // Ventana viva: el botón "Corregir" de la fila no puede estar bloqueado.
     clientes: [clienteReal({ creado_en: new Date().toISOString() })],
   })
@@ -171,7 +173,8 @@ test('Gerencia corrige un cliente ajeno y antiguo mediante la RPC acotada', asyn
 test('corregir con la ventana vencida: 0 filas sin error → mensaje de NO guardado', async ({ page }) => {
   // LA TRAMPA: el reloj local dice "vigente" (creado_en reciente) pero el
   // servidor ya no matchea la fila → 200 con [] y ningún error.
-  await montarBackendReal(page, { rolCrm: 'vendedor',
+  await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     clientes: [clienteReal({ creado_en: new Date().toISOString() })],
     ventanaVencida: true,
   })
@@ -180,9 +183,9 @@ test('corregir con la ventana vencida: 0 filas sin error → mensaje de NO guard
   await modal.locator('#cf-telefono').fill('999111222')
   await modal.getByRole('button', { name: /guardar corrección/i }).click()
 
-  await expect(modal.getByText(
-    'La ventana de corrección venció: los cambios NO se guardaron. Pide el cambio a administración.',
-  )).toBeVisible()
+  await expect(
+    modal.getByText('La ventana de corrección venció: los cambios NO se guardaron. Pide el cambio a administración.'),
+  ).toBeVisible()
   // Jamás se dice "guardado" sin filas confirmadas.
   await expect(page.getByText('Datos del cliente corregidos.')).toHaveCount(0)
 })

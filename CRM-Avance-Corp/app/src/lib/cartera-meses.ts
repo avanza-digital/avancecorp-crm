@@ -22,8 +22,18 @@ export const MES_TODOS = 'todos'
  * celda de calendario ('Ago') y aquí el bloque es un titular ('Agosto 2026').
  */
 const MESES_LARGOS = [
-  'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-  'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+  'Enero',
+  'Febrero',
+  'Marzo',
+  'Abril',
+  'Mayo',
+  'Junio',
+  'Julio',
+  'Agosto',
+  'Septiembre',
+  'Octubre',
+  'Noviembre',
+  'Diciembre',
 ]
 
 /** Un bloque de la cartera: un mes (o uno de los dos cubos) con sus clientes. */
@@ -113,7 +123,7 @@ export function ordenDeBloque(a: string, b: string): number {
  *
  * · **El total del bloque cuenta los contratos de CUALQUIER estado**, porque la
  *   pregunta es «qué cerré en agosto» y un contrato que ya venció se cerró
- *   igual. Ojo: la columna «Capital invertido» de cada fila sigue midiendo lo
+ *   igual. Ojo: la columna «Capital vigente» de cada fila sigue midiendo lo
  *   que está VIVO (contratos activos), así que en un mes viejo el total de la
  *   cabecera puede ser mayor que la suma de las filas. Son dos preguntas
  *   distintas y cada una lleva su rótulo.
@@ -125,7 +135,10 @@ export function ordenDeBloque(a: string, b: string): number {
  * se ve. Un cliente sin ningún contrato visible cae en CLAVE_SIN_CONTRATOS.
  */
 export function agruparPorMes(grupos: GrupoCartera[]): MesCartera[] {
-  const porClave = new Map<string, { grupos: GrupoCartera[]; contratos: number; pen: number; usd: number; otros: number }>()
+  const porClave = new Map<
+    string,
+    { grupos: GrupoCartera[]; contratos: number; pen: number; usd: number; otros: number }
+  >()
 
   const bloque = (clave: string) => {
     let b = porClave.get(clave)

@@ -8,7 +8,7 @@
 //      (ni listar, ni detalle, ni crear). Las fichas y cronogramas llegan por
 //      props precargadas (ClienteDetalle/ContratoDetalle.datos) → cero red.
 //   2. NO ENTRA AL BUNDLE DE PROD: las pantallas hacen `import('@/lib/demo-clientes')`
-//      bajo el guard literal `import.meta.env.DEV && VITE_ENABLE_DEMO==='true'`
+//      bajo `DEMO_HABILITADO` (solo desarrollo o build de preview explícito)
 //      (mismo patrón que store.tsx con demo.ts) → Rolldown elimina el chunk en
 //      cualquier build de producción. Por eso estos nombres ficticios jamás
 //      aparecen en dist/assets.
@@ -30,12 +30,7 @@ import type {
   Titular,
 } from './clientes-tipos'
 import type { ContratoPdfDatos } from './contrato-pdf'
-import {
-  formatDateLocal,
-  generarCronograma,
-  vencimientoDesdePlazo,
-  type CuotaCronograma,
-} from './cronograma'
+import { formatDateLocal, generarCronograma, vencimientoDesdePlazo, type CuotaCronograma } from './cronograma'
 
 // ── Helpers de fecha relativa (Date.now() = app code permitido) ────────────────
 /** ISO de hace N horas — para creado_en dentro/fuera de la ventana de 5 h. */
@@ -274,37 +269,31 @@ export const DETALLES_CLIENTES_DEMO: Record<string, ClienteDetalle> = {
 
 type CuentasClienteDemo = Record<'PEN' | 'USD', CuentaBancariaSeleccionable[]>
 
-function cuentaPerfilDemo(
-  cliente: ClienteDetalle,
-  moneda: 'PEN' | 'USD',
-): CuentaBancariaSeleccionable[] {
+function cuentaPerfilDemo(cliente: ClienteDetalle, moneda: 'PEN' | 'USD'): CuentaBancariaSeleccionable[] {
   const usd = moneda === 'USD'
   const banco = usd ? cliente.banco_usd : cliente.banco
   const tipoCuenta = usd ? cliente.tipo_cuenta_usd : cliente.tipo_cuenta
   const numeroCuenta = usd ? cliente.numero_cuenta_usd : cliente.numero_cuenta
   const cci = usd ? cliente.cci_usd : cliente.cci
-  if (
-    !banco ||
-    (tipoCuenta !== 'ahorros' && tipoCuenta !== 'corriente') ||
-    !numeroCuenta ||
-    !cci
-  ) {
+  if (!banco || (tipoCuenta !== 'ahorros' && tipoCuenta !== 'corriente') || !numeroCuenta || !cci) {
     return []
   }
-  return [{
-    cuenta_id: null,
-    moneda,
-    banco,
-    tipo_cuenta: tipoCuenta,
-    numero_cuenta: numeroCuenta,
-    cci,
-    titular_distinto: usd ? cliente.titular_distinto_usd : cliente.titular_distinto,
-    beneficiario_nombre: usd ? cliente.beneficiario_nombre_usd : cliente.beneficiario_nombre,
-    beneficiario_dni: usd ? cliente.beneficiario_dni_usd : cliente.beneficiario_dni,
-    origen: 'perfil',
-    es_cuenta_perfil: true,
-    creada_en: cliente.creado_en,
-  }]
+  return [
+    {
+      cuenta_id: null,
+      moneda,
+      banco,
+      tipo_cuenta: tipoCuenta,
+      numero_cuenta: numeroCuenta,
+      cci,
+      titular_distinto: usd ? cliente.titular_distinto_usd : cliente.titular_distinto,
+      beneficiario_nombre: usd ? cliente.beneficiario_nombre_usd : cliente.beneficiario_nombre,
+      beneficiario_dni: usd ? cliente.beneficiario_dni_usd : cliente.beneficiario_dni,
+      origen: 'perfil',
+      es_cuenta_perfil: true,
+      creada_en: cliente.creado_en,
+    },
+  ]
 }
 
 /** Cuentas ya precargadas para que ContratoNuevo demo jamás consulte Supabase. */
@@ -340,6 +329,7 @@ const CONTRATO_A: ContratoRow = {
   notas_internas: 'Cliente puntual; domicilia el pago los primeros días del mes.',
   creado_por: ASESOR_DEMO,
   creado_en: haceHoras(2), // ventana VIVA → Corregir habilitado
+  revision_contrato: haceHoras(2),
   producto_condicion_id: '10000000-0000-4000-8000-000000000101',
   producto_id: '20000000-0000-4000-8000-000000000101',
   producto_codigo: 'DEMO-RENTA-PEN',
@@ -367,6 +357,7 @@ const CONTRATO_B: ContratoRow = {
   notas_internas: 'Renovación en dólares; capitaliza al año.',
   creado_por: ASESOR_DEMO,
   creado_en: haceDias(3), // ventana VENCIDA → Corregir bloqueado
+  revision_contrato: haceDias(3),
   producto_condicion_id: '10000000-0000-4000-8000-000000000102',
   producto_id: '20000000-0000-4000-8000-000000000102',
   producto_codigo: 'DEMO-RENTA-USD',
@@ -395,12 +386,13 @@ const CONTRATO_C: ContratoRow = {
   notas_internas: 'Cuenta mancomunada con dos co-titulares (cónyuges).',
   creado_por: ASESOR_DEMO,
   creado_en: haceDias(20), // ventana VENCIDA → Corregir bloqueado
+  revision_contrato: haceDias(20),
   producto_condicion_id: '10000000-0000-4000-8000-000000000103',
   producto_id: '20000000-0000-4000-8000-000000000103',
   producto_codigo: 'DEMO-UPGRADE-PEN',
   producto_version_id: '30000000-0000-4000-8000-000000000103',
   producto_version: 2,
-  producto_nombre: 'Upgrade Demo',
+  producto_nombre: 'Aumento de inversión Demo',
   producto_version_estado: 'publicada',
 }
 
@@ -435,19 +427,40 @@ function materializar(
 export const CRONOGRAMAS_DEMO: Record<string, Cuota[]> = {
   // A: 12 cuotas → #1-3 pagadas, #4 vencida (pasada sin pagar), #5-12 pendientes; retorno pendiente.
   [CONTRATO_A.id]: materializar(
-    generarCronograma(CONTRATO_A.capital, CONTRATO_A.tasa_anual, CONTRATO_A.fecha_inicio, CONTRATO_A.fecha_vencimiento, 'mensual', 'simple'),
+    generarCronograma(
+      CONTRATO_A.capital,
+      CONTRATO_A.tasa_anual,
+      CONTRATO_A.fecha_inicio,
+      CONTRATO_A.fecha_vencimiento,
+      'mensual',
+      'simple',
+    ),
     'dc-ct-a',
     (f, i) => (f.tipo === 'retorno' ? 'pendiente' : i < 3 ? 'pagado' : i === 3 ? 'vencido' : 'pendiente'),
   ),
   // B: compuesto → devolución de intereses + retorno del capital, ambos pendientes (aún no vence).
   [CONTRATO_B.id]: materializar(
-    generarCronograma(CONTRATO_B.capital, CONTRATO_B.tasa_anual, CONTRATO_B.fecha_inicio, CONTRATO_B.fecha_vencimiento, 'anual', 'compuesto'),
+    generarCronograma(
+      CONTRATO_B.capital,
+      CONTRATO_B.tasa_anual,
+      CONTRATO_B.fecha_inicio,
+      CONTRATO_B.fecha_vencimiento,
+      'anual',
+      'compuesto',
+    ),
     'dc-ct-b',
     () => 'pendiente',
   ),
   // C: trimestral → #1 pagada, #2 vencida, #3-4 pendientes; retorno pendiente.
   [CONTRATO_C.id]: materializar(
-    generarCronograma(CONTRATO_C.capital, CONTRATO_C.tasa_anual, CONTRATO_C.fecha_inicio, CONTRATO_C.fecha_vencimiento, 'trimestral', 'simple'),
+    generarCronograma(
+      CONTRATO_C.capital,
+      CONTRATO_C.tasa_anual,
+      CONTRATO_C.fecha_inicio,
+      CONTRATO_C.fecha_vencimiento,
+      'trimestral',
+      'simple',
+    ),
     'dc-ct-c',
     (f, i) => (f.tipo === 'retorno' ? 'pendiente' : i === 0 ? 'pagado' : i === 1 ? 'vencido' : 'pendiente'),
   ),
@@ -489,17 +502,20 @@ export const IDENTIDADES_PDF_DEMO: Record<string, IdentidadPdfDemo> = Object.fro
     if (!cliente.dni || !cliente.correo) {
       throw new Error(`Fixture legal incompleto para ${clienteId}`)
     }
-    return [clienteId, {
-      titular: {
-        nombreCompleto: cliente.nombre_completo,
-        tipoDocumento: cliente.tipo_documento,
-        documento: cliente.dni,
-        domicilio: DOMICILIOS_PDF_DEMO[clienteId] ?? 'Domicilio ficticio, Lima, Perú',
-        correo: cliente.correo,
-      },
-      analista: ANALISTA_PDF_DEMO,
-      cotitulares: [],
-    } satisfies IdentidadPdfDemo]
+    return [
+      clienteId,
+      {
+        titular: {
+          nombreCompleto: cliente.nombre_completo,
+          tipoDocumento: cliente.tipo_documento,
+          documento: cliente.dni,
+          domicilio: DOMICILIOS_PDF_DEMO[clienteId] ?? 'Domicilio ficticio, Lima, Perú',
+          correo: cliente.correo,
+        },
+        analista: ANALISTA_PDF_DEMO,
+        cotitulares: [],
+      } satisfies IdentidadPdfDemo,
+    ]
   }),
 )
 

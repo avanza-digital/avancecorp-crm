@@ -18,10 +18,12 @@ import {
   crearContrato,
   crearClientePortal,
   CrmApiError,
+  listarActividadesCliente,
   listarClientes,
   listarCuentasBancariasCliente,
   listarMisContratos,
   obtenerClienteDetalle,
+  obtenerClienteFichaComercial,
   obtenerCronograma,
   obtenerTitulares,
 } from './crm-api'
@@ -56,6 +58,13 @@ function filaBasica(sobre: Record<string, unknown> = {}): Record<string, unknown
     creado_en: '2026-07-15T12:00:00.000Z',
     ...sobre,
   }
+}
+
+/** Proyección mínima de la RPC de ficha: no debe arrastrar trazabilidad interna. */
+function filaFicha(sobre: Record<string, unknown> = {}): Record<string, unknown> {
+  const fila = filaBasica(sobre)
+  delete fila.creado_por
+  return fila
 }
 
 /** Fila completa de public.perfiles con las 14 bancarias. */
@@ -109,6 +118,7 @@ function filaContrato(sobre: Record<string, unknown> = {}): Record<string, unkno
     notas_internas: null,
     creado_por: 'analista-1',
     creado_en: '2026-07-15T12:00:00.000Z',
+    revision_contrato: '2026-08-25T15:00:00.000Z',
     cliente_nombre: 'QA PRUEBA MARIA JOSE',
     asesor_perfil_id: 'analista-1',
     producto_condicion_id: META_PRODUCTO.producto_condicion_id,
@@ -188,6 +198,103 @@ describe('listarClientes (vista crm.clientes_basicos)', () => {
     // creado_por sí viaja (regla de cartera por fila en la UI).
     expect(clientes[0]?.creado_por).toBe('analista-1')
     expect(clientes[2]?.creado_por).toBeNull()
+  })
+})
+
+describe('obtenerClienteFichaComercial (crm.cliente_ficha_fn)', () => {
+  it('envía el cliente solicitado al esquema crm y devuelve solo identidad/contacto', async () => {
+    let body: Record<string, unknown> = {}
+    let perfil: string | null = null
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        perfil = request.headers.get('content-profile')
+        return HttpResponse.json([filaFicha()])
+      }),
+    )
+
+    const ficha = await obtenerClienteFichaComercial('cli-1')
+
+    expect(body).toEqual({ p_cliente_id: 'cli-1' })
+    expect(perfil).toBe('crm')
+    expect(ficha).toMatchObject({
+      id: 'cli-1',
+      nombre_completo: 'QA PRUEBA MARIA JOSE',
+      correo: 'qa@correo.pe',
+      telefono: '+51999888777',
+      activo: true,
+    })
+    expect(ficha).not.toHaveProperty('domicilio')
+    expect(ficha).not.toHaveProperty('banco')
+    expect(ficha).not.toHaveProperty('cci')
+  })
+
+  it('0 filas para un cliente ajeno o inexistente no revela cuál de los dos casos ocurrió', async () => {
+    server.use(http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, () => HttpResponse.json([])))
+
+    const promesa = obtenerClienteFichaComercial('ajeno')
+
+    await expect(promesa).rejects.toBeInstanceOf(CrmApiError)
+    await expect(promesa).rejects.toMatchObject({
+      code: 'NO_ENCONTRADO',
+      message: 'No encontramos este cliente en tu cartera.',
+    })
+  })
+
+  it('traduce un fallo del servidor a un mensaje útil para el equipo comercial', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, () =>
+        HttpResponse.json({ code: 'XX000', message: 'detalle interno', details: null, hint: null }, { status: 500 }),
+      ),
+    )
+
+    await expect(obtenerClienteFichaComercial('cli-1')).rejects.toMatchObject({
+      code: 'XX000',
+      message: 'No pudimos cargar la ficha del cliente. Intenta nuevamente.',
+    })
+  })
+
+  it.each([
+    ['una respuesta que no es una lista', { inesperada: true }],
+    ['más de una ficha', [filaBasica(), filaBasica({ id: 'cli-2' })]],
+    ['datos sensibles fuera del contrato', [filaBasica({ domicilio: 'Dato legal', banco: 'BCP' })]],
+  ])('falla cerrado ante %s', async (_caso, respuesta) => {
+    server.use(http.post(`${BASE}/rest/v1/rpc/cliente_ficha_fn`, () => HttpResponse.json(respuesta)))
+
+    await expect(obtenerClienteFichaComercial('cli-1')).rejects.toMatchObject({
+      code: 'ROW_CONTRACT',
+      message: 'No pudimos mostrar la ficha porque la información recibida está incompleta.',
+    })
+  })
+})
+
+describe('listarActividadesCliente (historial comercial)', () => {
+  it('acepta una reasignación registrada por el sistema aunque no tenga vendedor', async () => {
+    let perfil: string | null = null
+    server.use(
+      http.get(`${BASE}/rest/v1/actividades_cliente`, ({ request }) => {
+        perfil = request.headers.get('accept-profile')
+        return HttpResponse.json([
+          {
+            id: 'actividad-reasignacion',
+            cliente_id: 'cli-1',
+            vendedor_id: null,
+            tarea_id: null,
+            tipo: 'reasignacion',
+            detalle: 'Cliente reasignado a ASESOR DOS.',
+            creado_por: null,
+            creado_en: '2026-08-25T16:00:00.000Z',
+          },
+        ])
+      }),
+    )
+
+    const actividades = await listarActividadesCliente('cli-1')
+
+    expect(perfil).toBe('crm')
+    expect(actividades).toEqual([
+      expect.objectContaining({ tipo: 'reasignacion', vendedor_id: null, creado_por: null }),
+    ])
   })
 })
 
@@ -479,6 +586,7 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
         expect(select).toContain('cliente_nombre')
         expect(select).toContain('producto_condicion_id')
         expect(select).toContain('producto_version')
+        expect(select).toContain('revision_contrato')
         return HttpResponse.json([
           filaContrato({ capital: '10000.50', tasa_anual: '15.5' }),
           filaContrato({ id: 'ct-2', estado: 'zombie' }), // fuera de contrato → se descarta
@@ -502,6 +610,7 @@ describe('listarMisContratos (vista crm.contratos_cartera)', () => {
       producto_codigo: 'RENTA-BASE',
       producto_version: 2,
       producto_nombre: 'Plan Base 2026',
+      revision_contrato: '2026-08-25T15:00:00.000Z',
     })
   })
 })
@@ -806,6 +915,58 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
       tipo: 'perfil',
       cuenta_esperada: { cci: cuenta.cci },
     })
+    expect(body.p_contrato).not.toHaveProperty('contrato_origen_revision')
+  })
+
+  it('la renovación envía la revisión del contrato origen y traduce el conflicto a una instrucción comercial', async () => {
+    const revisionCapturada = '2026-08-25T15:00:00.000Z'
+    let body: Record<string, unknown> = {}
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/crear_contrato_con_cuenta_pdf_v2`, async ({ request }) => {
+        body = (await request.json()) as Record<string, unknown>
+        return HttpResponse.json(
+          {
+            code: '40001',
+            message: 'detalle interno de revisión',
+            details: null,
+          },
+          { status: 409 },
+        )
+      }),
+    )
+
+    await expect(
+      crearContrato(
+        {
+          cliente_id: 'cli-1',
+          capital: 12_000,
+          moneda: 'PEN',
+          tasa_anual: 15,
+          modalidad: 'mensual',
+          tipo_interes: 'simple',
+          categoria: 'renovacion',
+          fecha_inicio: '2026-08-25',
+          fecha_vencimiento: '2027-08-25',
+          numero_contrato: '2026-01-000124',
+          contrato_origen_id: '10000000-0000-4000-8000-000000000099',
+          contrato_origen_revision: revisionCapturada,
+          capital_renovado: 10_000,
+          capital_adicional: 2_000,
+          cuenta_pago: { tipo: 'existente', cuenta_id: '20000000-0000-4000-8000-000000000001' },
+        },
+        [],
+      ),
+    ).rejects.toMatchObject({
+      code: 'CONTRATO_DESACTUALIZADO',
+      message:
+        'Otra persona actualizó el contrato que ibas a renovar. Para proteger la información más reciente, la renovación no se registró. Cierra y vuelve a abrir el contrato antes de continuar.',
+    })
+    expect(body.p_contrato).toMatchObject({
+      contrato_origen_id: '10000000-0000-4000-8000-000000000099',
+      contrato_origen_revision: revisionCapturada,
+      capital_renovado: 10_000,
+      capital_adicional: 2_000,
+    })
   })
 
   it('no confirma éxito si la RPC omite el id de la cuenta', async () => {
@@ -870,6 +1031,7 @@ describe('cuentas bancarias y alta atómica de contrato', () => {
 })
 
 describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)', () => {
+  const REVISION = '2026-08-25T15:00:00.000Z'
   const contratoBase = {
     capital: 12000,
     moneda: 'PEN' as const,
@@ -892,9 +1054,10 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)
       }),
     )
 
-    await actualizarContrato('ct-1', contratoBase, [])
+    await actualizarContrato('ct-1', contratoBase, [], REVISION)
 
     expect(body.p_id).toBe('ct-1')
+    expect(body.p_revision_esperada).toBe(REVISION)
     const pContrato = body.p_contrato as Record<string, unknown>
     // La clave existe con valor null — si faltara, el servidor BORRA las notas.
     expect('notas_internas' in pContrato).toBe(true)
@@ -912,7 +1075,7 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)
       }),
     )
 
-    await actualizarContrato('ct-1', { ...contratoBase, titulares: [] }, [])
+    await actualizarContrato('ct-1', { ...contratoBase, titulares: [] }, [], REVISION)
 
     expect((body.p_contrato as Record<string, unknown>).titulares).toEqual([])
   })
@@ -931,9 +1094,30 @@ describe('actualizarContrato (wrapper crm.actualizar_contrato_con_cuenta_pdf_v3)
       ),
     )
 
-    await expect(actualizarContrato('ct-1', contratoBase, [])).rejects.toMatchObject({
+    await expect(actualizarContrato('ct-1', contratoBase, [], REVISION)).rejects.toMatchObject({
       code: 'REGLA_SERVIDOR',
       message: 'Solo puedes corregir un contrato dentro de las 5 horas de creado',
+    })
+  })
+
+  it('si otra persona actualizó el contrato, protege la versión reciente y explica cómo continuar', async () => {
+    server.use(
+      http.post(`${BASE}/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3`, () =>
+        HttpResponse.json(
+          {
+            code: '40001',
+            message: 'detalle interno de revisión',
+            details: null,
+          },
+          { status: 409 },
+        ),
+      ),
+    )
+
+    await expect(actualizarContrato('ct-1', contratoBase, [], REVISION)).rejects.toMatchObject({
+      code: 'CONTRATO_DESACTUALIZADO',
+      message:
+        'Otra persona actualizó este contrato mientras lo corregías. Para proteger la información más reciente, tus cambios no se guardaron. Cierra y vuelve a abrir el contrato antes de continuar.',
     })
   })
 })

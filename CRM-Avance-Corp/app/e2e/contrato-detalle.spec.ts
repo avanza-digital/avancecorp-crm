@@ -9,7 +9,15 @@
 // Depende de la pantalla Contratos: fila CLICABLE por contrato (abre el
 // detalle) + botón "Corregir" solo en lo propio y vivo, paneles en <Dialog>.
 import { expect, test, type Page } from '@playwright/test'
-import { contratoReal, irAMiCartera, loginReal, montarBackendReal, PRODUCTO_CONDICION_PEN_ID, PRODUCTO_CONDICION_USD_ID, verTodaLaCartera } from './_helpers'
+import {
+  contratoReal,
+  irAMiCartera,
+  loginReal,
+  montarBackendReal,
+  PRODUCTO_CONDICION_PEN_ID,
+  PRODUCTO_CONDICION_USD_ID,
+  verTodaLaCartera,
+} from './_helpers'
 
 // Fase 6.1 (2026-07-21): la entrada migró a la cartera unificada (#/mi-cartera,
 // la vista por defecto). Los contratos cuelgan del cliente como sub-filas; se
@@ -21,14 +29,39 @@ const CONTRATO_ID = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
 // Una cuota PAGADA (con fecha_pago_real y monto_pagado), una PENDIENTE y el
 // retorno del capital — el trío que exige el dibujo fino del cronograma.
 const CUOTAS = [
-  { id: 'q1', numero_cuota: 1, fecha_programada: '2026-08-01', monto_programado: 125, estado: 'pagado', tipo: 'cuota', fecha_pago_real: '2026-08-02', monto_pagado: 125 },
-  { id: 'q2', numero_cuota: 2, fecha_programada: '2026-09-01', monto_programado: 125, estado: 'pendiente', tipo: 'cuota', fecha_pago_real: null, monto_pagado: null },
-  { id: 'q3', numero_cuota: 3, fecha_programada: '2027-07-08', monto_programado: 10000, estado: 'pendiente', tipo: 'retorno', fecha_pago_real: null, monto_pagado: null },
+  {
+    id: 'q1',
+    numero_cuota: 1,
+    fecha_programada: '2026-08-01',
+    monto_programado: 125,
+    estado: 'pagado',
+    tipo: 'cuota',
+    fecha_pago_real: '2026-08-02',
+    monto_pagado: 125,
+  },
+  {
+    id: 'q2',
+    numero_cuota: 2,
+    fecha_programada: '2026-09-01',
+    monto_programado: 125,
+    estado: 'pendiente',
+    tipo: 'cuota',
+    fecha_pago_real: null,
+    monto_pagado: null,
+  },
+  {
+    id: 'q3',
+    numero_cuota: 3,
+    fecha_programada: '2027-07-08',
+    monto_programado: 10000,
+    estado: 'pendiente',
+    tipo: 'retorno',
+    fecha_pago_real: null,
+    monto_pagado: null,
+  },
 ]
 
-const TITULARES = [
-  { nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 },
-]
+const TITULARES = [{ nombre_completo: 'MARIA CO TITULAR', tipo_documento: 'CE', documento: '001234567', orden: 1 }]
 
 /**
  * 0230929 devolvió la corrección al flujo LIBRE: el front vigente llama a
@@ -46,9 +79,8 @@ async function traducirRpcContratoLibre(page: Page): Promise<void> {
         url: ruta.request().url().replace(`/rpc/${rpc}`, `/rpc/${rpc}_producto`),
         postData: JSON.stringify({
           ...cuerpo,
-          p_producto_condicion_id: cuerpo.p_contrato?.moneda === 'USD'
-            ? PRODUCTO_CONDICION_USD_ID
-            : PRODUCTO_CONDICION_PEN_ID,
+          p_producto_condicion_id:
+            cuerpo.p_contrato?.moneda === 'USD' ? PRODUCTO_CONDICION_USD_ID : PRODUCTO_CONDICION_PEN_ID,
         }),
       })
     })
@@ -66,7 +98,8 @@ async function irAContratos(page: Page): Promise<void> {
 }
 
 test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + totales', async ({ page }) => {
-  await montarBackendReal(page, { rolCrm: 'vendedor', 
+  await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     contratos: [contratoReal({ notas_internas: 'Cliente pidió doble constancia' })],
     cuotas: { [CONTRATO_ID]: CUOTAS },
     titulares: { [CONTRATO_ID]: TITULARES },
@@ -77,18 +110,25 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
 
   // El detalle vive en la FILA clicable (ya no hay botón "Ver detalle"); se
   // clickea la celda del N° para no rozar el botón Corregir de la fila.
-  await page.getByRole('row', { name: /Abrir detalle del contrato 2026-01-000123/ }).getByText('2026-01-000123').click()
+  await page
+    .getByRole('row', { name: /Abrir detalle del contrato 2026-01-000123/ })
+    .getByText('2026-01-000123')
+    .click()
   const dialogo = page.getByRole('dialog', { name: /Contrato 2026-01-000123/ })
   await expect(dialogo).toBeVisible()
 
   // Términos del contrato (número ya está en el título del dialog).
   await expect(dialogo.getByText('CLIENTE PORTAL UNO')).toBeVisible()
+  await expect(dialogo.getByText('Plan base 2026')).toBeVisible()
+  await expect(dialogo.getByText(/publicada/i)).toHaveCount(0)
+  await expect(dialogo.getByText(PRODUCTO_CONDICION_PEN_ID)).toHaveCount(0)
+  await expect(dialogo.locator(`[title*="${PRODUCTO_CONDICION_PEN_ID}"]`)).toHaveCount(0)
   await expect(dialogo.getByText('S/ 10,000').first()).toBeVisible() // capital
   await expect(dialogo.getByText('15%')).toBeVisible() // tasa anual
   await expect(dialogo.getByText('Simple')).toBeVisible()
   await expect(dialogo.getByText('Mensual')).toBeVisible()
-  await expect(dialogo.getByText('activo')).toBeVisible() // estado
-  await expect(dialogo.getByText('Nuevo', { exact: true })).toBeVisible() // categoría
+  await expect(dialogo.getByText('Vigente')).toBeVisible() // estado
+  await expect(dialogo.getByText('Nueva inversión', { exact: true })).toBeVisible() // categoría
   await expect(dialogo.getByText('Cliente pidió doble constancia')).toBeVisible() // notas
 
   // Co-titulares (cuentas mancomunadas) con la sigla del documento.
@@ -103,7 +143,8 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
   // …pagadas vs pendientes…
   await expect(dialogo.getByText('pagado', { exact: true })).toBeVisible()
   await expect(dialogo.getByText('pendiente', { exact: true }).first()).toBeVisible()
-  // …el pago REAL (fecha · monto) solo en la cuota pagada…
+  await expect(dialogo.getByRole('columnheader', { name: 'Pago realizado' })).toBeVisible()
+  // …el pago realizado (fecha · monto) solo en la cuota pagada…
   await expect(dialogo.getByText(/· S\/ 125/)).toBeVisible()
   // …y los totales (1 de 2 de interés; por pagar = 125 + 10,000 del retorno).
   await expect(dialogo.getByText(/1 de 2/)).toBeVisible()
@@ -116,7 +157,8 @@ test('detalle: términos + co-titulares + cronograma (pagada y pendiente) + tota
 })
 
 test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contrato', async ({ page }) => {
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor',
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     contratos: [
       // creado_en FRESCO: la ventana de 5 h está viva y el botón Corregir activo.
       contratoReal({ notas_internas: 'Ajustar tasa el lunes', creado_en: new Date().toISOString() }),
@@ -129,7 +171,10 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
   await irAMiCartera(page)
   await irAContratos(page)
 
-  await page.getByRole('button', { name: /corregir/i }).first().click()
+  await page
+    .getByRole('button', { name: /corregir/i })
+    .first()
+    .click()
   const dialogo = page.getByRole('dialog', { name: /Corregir contrato/ })
   await expect(dialogo).toBeVisible()
 
@@ -145,7 +190,7 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
 
   // Toast honesto del guardado + el RPC viajó una sola vez.
   await expect(
-    page.getByText('Contrato corregido. El PDF actualizado quedó pendiente de generación.'),
+    page.getByText('Contrato corregido. El documento actualizado quedó pendiente de generación.'),
   ).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcActualizarContrato).toBe(1)
   // El mock APLICA p_contrato al estado: si notas o titulares no viajaran
@@ -157,7 +202,8 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
 })
 
 test('ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual', async ({ page }) => {
-  const estado = await montarBackendReal(page, { rolCrm: 'vendedor',
+  const estado = await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     ventanaVencida: true,
     // Viva en el CLIENTE (creado_en fresco): así se prueba que la autoridad es
     // el servidor — el reloj local no basta para proteger la corrección.
@@ -170,15 +216,16 @@ test('ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual', a
   await irAMiCartera(page)
   await irAContratos(page)
 
-  await page.getByRole('button', { name: /corregir/i }).first().click()
+  await page
+    .getByRole('button', { name: /corregir/i })
+    .first()
+    .click()
   const dialogo = page.getByRole('dialog', { name: /Corregir contrato/ })
   await expect(dialogo).toBeVisible()
   await dialogo.getByRole('button', { name: /guardar corrección/i }).click()
 
   // El mensaje del RAISE llega TAL CUAL (aErrorApi conserva el texto en P0001)…
-  await expect(
-    dialogo.getByText('Solo puedes corregir un contrato dentro de las 5 horas de creado'),
-  ).toBeVisible()
+  await expect(dialogo.getByText('Solo puedes corregir un contrato dentro de las 5 horas de creado')).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcActualizarContrato).toBe(1)
   // …y no se mintió éxito.
   await expect(page.getByText(/Contrato corregido/)).toHaveCount(0)

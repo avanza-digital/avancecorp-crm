@@ -27,7 +27,7 @@ const ACCION_POR_TIPO: Record<TipoTarea, string> = {
   llamada: 'Llamar a',
   whatsapp: 'Escribir a',
   reunion: 'Reunión con',
-  tarea: 'Gestionar a',
+  tarea: 'Seguimiento a',
 }
 
 function tituloSugerido(tipo: TipoTarea, nombre: string): string {
@@ -69,7 +69,7 @@ export function ClienteGestion({
     if (guardando) return
     const venceEn = isoDeCampos({ tipo, titulo, fecha, hora })
     if (!titulo.trim()) {
-      toast.error('Escribe qué gestión vas a realizar')
+      toast.error('Describe qué seguimiento vas a realizar')
       return
     }
     if (!venceEn) {
@@ -93,7 +93,7 @@ export function ClienteGestion({
         ...camposTareaDeReunion(reunion?.ok ? reunion : null),
       })
       if (!resultado.ok) {
-        toast.error(resultado.error ?? 'No se pudo agendar la gestión')
+        toast.error(resultado.error ?? 'No se pudo agendar el seguimiento')
         return
       }
 
@@ -101,15 +101,15 @@ export function ClienteGestion({
       // el cierre esperan el commit real: RLS o el trigger todavía pueden negar
       // un cliente que cambió de estado/asesor mientras el diálogo estaba abierto.
       if (!resultado.persistido) {
-        toast.error('No se pudo confirmar la gestión con el servidor')
+        toast.error('No pudimos guardar el seguimiento. Intenta nuevamente.')
         return
       }
       const confirmado = await resultado.persistido
       if (!confirmado.ok) return
-      toast.success('Gestión agendada · la verás en Hoy y en Agenda')
+      toast.success('Seguimiento agendado · lo verás en Hoy y en Agenda')
       onCerrar()
     } catch {
-      toast.error('No se pudo confirmar la gestión con el servidor')
+      toast.error('No pudimos guardar el seguimiento. Intenta nuevamente.')
     } finally {
       setGuardando(false)
       onEnviandoCambio?.(false)
@@ -121,17 +121,17 @@ export function ClienteGestion({
       <DialogHeader>
         <DialogTitle className="flex items-center gap-2">
           <CalendarPlus className="size-4 text-primary" aria-hidden />
-          Gestionar a {clienteNombre}
+          Agendar seguimiento de {clienteNombre}
         </DialogTitle>
         <DialogDescription>
-          Programa una llamada, WhatsApp, reunión u otra tarea comercial sobre este cliente.
+          Programa una llamada, WhatsApp, reunión u otro seguimiento comercial para este cliente.
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-4 overflow-y-auto">
         {pendientes.length > 0 && (
           <section
             className="rounded-xl border border-border bg-muted/30 p-3"
-            aria-label="Gestiones pendientes del cliente"
+            aria-label="Seguimientos pendientes del cliente"
           >
             <div className="flex items-center justify-between gap-2">
               <p className="text-xs font-bold text-foreground">Ya tiene próximas acciones</p>
@@ -164,7 +164,7 @@ export function ClienteGestion({
             </Select>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="gestion-cliente-titulo">Gestión</Label>
+            <Label htmlFor="gestion-cliente-titulo">Seguimiento</Label>
             <Input
               id="gestion-cliente-titulo"
               value={titulo}
@@ -196,7 +196,7 @@ export function ClienteGestion({
             id="gestion-cliente-nota"
             value={nota}
             maxLength={2000}
-            placeholder="Contexto para preparar la gestión"
+            placeholder="Contexto para preparar el seguimiento"
             onChange={(e) => setNota(e.target.value)}
           />
         </div>
@@ -206,7 +206,7 @@ export function ClienteGestion({
           Cancelar
         </Button>
         <Button type="button" onClick={() => void guardar()} disabled={guardando}>
-          <CalendarPlus aria-hidden /> {guardando ? 'Guardando…' : 'Agendar gestión'}
+          <CalendarPlus aria-hidden /> {guardando ? 'Guardando…' : 'Agendar seguimiento'}
         </Button>
       </DialogFooter>
     </>

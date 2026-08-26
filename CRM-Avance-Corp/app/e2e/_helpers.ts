@@ -331,6 +331,7 @@ export interface ContratoReal {
   notas_internas: string | null
   creado_por: string | null
   creado_en: string
+  revision_contrato: string
   /** Plano, como lo devuelve la vista crm.contratos_cartera. */
   cliente_nombre: string | null
   asesor_perfil_id: string | null
@@ -410,6 +411,7 @@ export function contratoReal(over: Partial<ContratoReal> = {}): ContratoReal {
     notas_internas: null,
     creado_por: UID,
     creado_en: '2026-07-01T00:00:00.000Z',
+    revision_contrato: '2026-08-25T15:00:00.000Z',
     cliente_nombre: 'CLIENTE PORTAL UNO',
     asesor_perfil_id: UID,
     producto_condicion_id: PRODUCTO_CONDICION_PEN_ID,
@@ -1634,6 +1636,26 @@ export async function montarBackendReal(
       })))
     }
 
+    if (p === '/rest/v1/rpc/cliente_ficha_fn' && method === 'POST') {
+      const body = (req.postDataJSON() ?? {}) as { p_cliente_id?: string }
+      const clienteId = String(body.p_cliente_id ?? '')
+      const cliente = estado.clientes.find((fila) => fila.id === clienteId)
+      if (!cliente) return json(route, [])
+      return json(route, [{
+        id: cliente.id,
+        nombres: cliente.nombres,
+        apellidos: cliente.apellidos,
+        nombre_completo: cliente.nombre_completo,
+        tipo_documento: cliente.tipo_documento,
+        dni: cliente.dni,
+        correo: cliente.correo,
+        telefono: cliente.telefono,
+        asesor_perfil_id: cliente.asesor_perfil_id,
+        activo: cliente.activo,
+        creado_en: cliente.creado_en,
+      }])
+    }
+
     // ── contratos: vista con ámbito + RPCs de detalle (esquema crm) ──
     // El ámbito real lo decide el servidor; el mock devuelve lo configurado.
     if (p === '/rest/v1/contratos_cartera' && method === 'GET') {
@@ -1760,6 +1782,19 @@ export async function montarBackendReal(
       const moneda = pc.moneda === 'USD' ? 'USD' : 'PEN'
       if (!duenio || !cuentaElegida || !condicion) {
         return json(route, { code: 'P0001', message: 'Cliente, producto o cuenta de pago inválidos' }, 400)
+      }
+      if (pc.categoria === 'renovacion') {
+        const contratoOrigen = estado.contratos.find((contrato) => contrato.id === pc.contrato_origen_id)
+        if (!contratoOrigen) {
+          return json(route, { code: 'P0001', message: 'El contrato anterior no está disponible' }, 400)
+        }
+        if (pc.contrato_origen_revision !== contratoOrigen.revision_contrato) {
+          return json(route, {
+            code: '40001',
+            message: 'Los datos del contrato anterior cambiaron; vuelve a abrirlo antes de renovar',
+            details: '',
+          }, 409)
+        }
       }
 
       let cuentaId: string | null = null
@@ -1908,6 +1943,7 @@ export async function montarBackendReal(
         p_id?: string
         p_producto_condicion_id?: string
         p_contrato?: Record<string, unknown>
+        p_revision_esperada?: string
       }
       const { titulares: titularesNuevos, ...cambios } = (body.p_contrato ?? {}) as
         Record<string, unknown> & { titulares?: unknown[] }
@@ -1921,6 +1957,13 @@ export async function montarBackendReal(
       if (!contratoActual || !condicion) {
         return json(route, { code: 'P0001', message: 'Contrato o producto inválido' }, 400)
       }
+      if (body.p_revision_esperada !== contratoActual.revision_contrato) {
+        return json(route, {
+          code: '40001',
+          message: 'Los datos del contrato cambiaron; vuelve a abrirlo antes de guardar',
+          details: '',
+        }, 409)
+      }
       estado.contratos = estado.contratos.map((contrato) => contrato.id === pId
         ? {
             ...contrato,
@@ -1932,6 +1975,7 @@ export async function montarBackendReal(
             producto_version: Number(condicion.numero_version),
             producto_nombre: String(condicion.version_nombre),
             producto_version_estado: 'publicada',
+            revision_contrato: new Date().toISOString(),
           }
         : contrato)
       // Semántica del servidor: clave ausente = no tocar; presente (incl. []) = reemplazar.

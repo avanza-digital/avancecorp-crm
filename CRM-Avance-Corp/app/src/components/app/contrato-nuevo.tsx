@@ -144,10 +144,12 @@ export interface ContratoNuevoProps {
   montoSugerido?: number | null
   monedaSugerida?: Moneda
   /** Fija el propósito comercial. Renovación nunca se elige libremente: nace
-   * desde el contrato anterior; upgrade nace desde la ficha del cliente. */
+   * desde el contrato anterior; el aumento nace desde la ficha del cliente. */
   categoriaFija?: CategoriaContrato
   renovacionOrigen?: {
     id: string
+    /** Revisión capturada al abrir; nunca se reemplaza por una recarga posterior. */
+    revisionContrato: string
     numeroContrato: string
     capital: number
     moneda: Moneda
@@ -454,16 +456,18 @@ export function ContratoNuevo({
       return
     }
     if (!categoria) {
-      reportarError('Selecciona la categoría de la inversión (Nuevo, Renovación o Upgrade).')
+      reportarError('Selecciona el tipo de inversión: nueva, renovación o aumento de inversión.')
       return
     }
     if (categoria === 'renovacion') {
       if (!renovacionOrigen) {
-        reportarError('Abre la renovación desde el contrato que llegó a su fecha fin.')
+        reportarError('Abre la renovación desde el contrato que llegó a su fecha de vencimiento.')
         return
       }
       if (renovacionOrigen.fechaVencimiento > hoyLocal()) {
-        reportarError(`Este contrato aún no llegó a su fecha fin (${fmtFecha(renovacionOrigen.fechaVencimiento)}).`)
+        reportarError(
+          `Este contrato aún no llegó a su fecha de vencimiento (${fmtFecha(renovacionOrigen.fechaVencimiento)}).`,
+        )
         return
       }
       if (parseMonto(capitalRenovado) == null || !Number.isFinite(renovadoNum) || renovadoNum <= 0) {
@@ -477,7 +481,7 @@ export function ContratoNuevo({
         return
       }
       if (parseMonto(capitalAdicional) == null || !Number.isFinite(adicionalNum) || adicionalNum < 0) {
-        reportarError('El capital adicional debe ser 0 o un monto mayor.')
+        reportarError('El capital adicional debe ser igual o mayor a 0.')
         return
       }
     } else if (capital.trim() && parseMonto(capital) == null) {
@@ -503,7 +507,7 @@ export function ContratoNuevo({
     }
     if (cuentasPendientes || cuentasReintentando || cuentasConError) {
       reportarError(
-        'No se pudo confirmar la cuenta de pago del contrato. Espera o reintenta la carga antes de crearlo.',
+        'No se pudo confirmar la cuenta donde recibirá sus pagos. Espera o reintenta antes de registrar la inversión.',
       )
       return
     }
@@ -539,6 +543,7 @@ export function ContratoNuevo({
       ...(categoria === 'renovacion' && renovacionOrigen
         ? {
             contrato_origen_id: renovacionOrigen.id,
+            contrato_origen_revision: renovacionOrigen.revisionContrato,
             capital_renovado: renovadoNum,
             capital_adicional: adicionalNum,
           }
@@ -576,7 +581,7 @@ export function ContratoNuevo({
             pdf: { estado: 'pendiente' as const },
           }
         : await crearContrato(input, cronograma)
-      toast.success(`Contrato ${r.numero_contrato} creado para ${clienteNombre}`)
+      toast.success(`Inversión registrada para ${clienteNombre} · contrato ${r.numero_contrato}`)
       const local: ContratoCreadoLocal | null = pdfDatosConfirmados
         ? {
             id: r.id,
@@ -639,16 +644,16 @@ export function ContratoNuevo({
                 estadoPdf,
                 archivando: false,
                 errorArchivo: local
-                  ? 'El contrato demo quedó creado, pero el PDF local no pudo generarse. Puedes reintentar sin crear otro contrato.'
+                  ? 'La inversión de demostración quedó registrada, pero el documento no pudo prepararse. Puedes reintentar sin registrar otra inversión.'
                   : estadoPdf === 'integridad_bloqueada'
-                    ? 'El contrato quedó creado con reserva durable, pero el PDF requiere revisión por integridad.'
-                    : 'El contrato quedó creado con una reserva PDF durable. Puedes reintentar el sellado sin crear otro contrato.',
+                    ? 'La inversión quedó registrada, pero el documento requiere revisión administrativa.'
+                    : 'La inversión quedó registrada y el documento sigue en preparación. Puedes reintentar sin registrar otra inversión.',
               }
             : actual,
         )
       }
     } catch (e) {
-      reportarError(e instanceof CrmApiError ? e.message : 'No se pudo crear el contrato')
+      reportarError(e instanceof CrmApiError ? e.message : 'No se pudo registrar la inversión')
     } finally {
       setEnviando(false)
       onEnviandoCambio?.(false)
@@ -683,10 +688,10 @@ export function ContratoNuevo({
               estadoPdf,
               archivando: false,
               errorArchivo: creado.local
-                ? 'El PDF demo sigue pendiente. Puedes reintentar o finalizar la simulación.'
+                ? 'El documento de demostración sigue pendiente. Puedes reintentar o finalizar.'
                 : estadoPdf === 'integridad_bloqueada'
-                  ? 'El PDF está bloqueado por integridad y requiere revisión administrativa.'
-                  : 'El job PDF sigue pendiente. Puedes reintentar o finalizar; la reserva permanece visible desde Mi cartera.',
+                  ? 'El documento requiere revisión administrativa antes de estar disponible.'
+                  : 'El documento sigue en preparación. Puedes reintentar o finalizar; la inversión ya aparece en Mi cartera.',
             }
           : actual,
       )
@@ -701,26 +706,26 @@ export function ContratoNuevo({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <BadgeCheck className="size-5 text-primary" aria-hidden />
-            Contrato {creado.numero} creado
+            Inversión registrada · contrato {creado.numero}
           </DialogTitle>
         </DialogHeader>
         <DialogBody className="space-y-4">
           <div className="rounded-xl border border-primary/25 bg-primary/5 p-4">
-            <p className="font-semibold text-foreground">El servidor confirmó el contrato de {clienteNombre}.</p>
+            <p className="font-semibold text-foreground">La inversión de {clienteNombre} quedó registrada.</p>
             {creado.archivando && (
               <p role="status" className="mt-2 flex items-center gap-2 text-sm text-muted-foreground">
                 <LoaderCircle className="size-4 animate-spin" aria-hidden />
-                Generando y archivando la versión legal…
+                Preparando el documento legal…
               </p>
             )}
             {!creado.archivando && !creado.archivo && (
               <p role="status" className="mt-2 text-sm text-muted-foreground">
-                Estado documental: <b>{etiquetaEstadoContratoPdf(creado.estadoPdf)}</b>.
+                Documento en preparación: <b>{etiquetaEstadoContratoPdf(creado.estadoPdf)}</b>.
               </p>
             )}
             {creado.archivo && (
               <p role="status" className="mt-2 text-sm font-semibold text-primary">
-                PDF privado archivado correctamente. Las próximas descargas devolverán este mismo archivo.
+                Documento listo. Ya puedes abrirlo o descargarlo.
               </p>
             )}
             {creado.errorArchivo && (
@@ -787,10 +792,10 @@ export function ContratoNuevo({
         <DialogTitle className="flex items-center gap-2">
           <FileSignature className="size-4 text-primary" />{' '}
           {categoria === 'renovacion' && renovacionOrigen
-            ? `Renovar ${renovacionOrigen.numeroContrato}`
+            ? `Renovar inversión · contrato ${renovacionOrigen.numeroContrato}`
             : categoria === 'upgrade'
-              ? `Registrar upgrade de ${clienteNombre}`
-              : `Crear contrato de ${clienteNombre}`}
+              ? `Aumentar inversión de ${clienteNombre}`
+              : `Registrar nueva inversión de ${clienteNombre}`}
         </DialogTitle>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-3 overflow-y-auto">
@@ -804,8 +809,8 @@ export function ContratoNuevo({
               Falta el domicilio legal de {clienteNombre}
             </h3>
             <p className="text-[11px] leading-relaxed text-muted-foreground">
-              Va escrito literalmente en el contrato, así que sin él no se puede emitir. Complétalo aquí y sigue con el
-              alta.
+              Va escrito literalmente en el contrato, así que sin él no se puede emitir. Complétalo aquí y continúa con
+              la inversión.
             </p>
             <div className="space-y-1.5">
               <Label htmlFor="ct-domicilio">Domicilio legal completo</Label>
@@ -863,11 +868,11 @@ export function ContratoNuevo({
         )}
         <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="ct-categoria">Categoría</Label>
+            <Label htmlFor="ct-categoria">Tipo de inversión</Label>
             {categoriaFija || renovacionOrigen ? (
               <div
                 id="ct-categoria"
-                aria-label="Categoría"
+                aria-label="Tipo de inversión"
                 className="flex h-9 items-center rounded-lg border border-input bg-muted px-3 text-sm font-bold text-foreground"
               >
                 {CATEGORIAS_CONTRATO_UI.find((opcion) => opcion.k === categoria)?.label ?? '—'}
@@ -906,11 +911,11 @@ export function ContratoNuevo({
 
         {esRenovacion && renovacionOrigen ? (
           <section
-            aria-label="Puente de capital de la renovación"
+            aria-label="Detalle de la renovación"
             className="rounded-xl border border-primary/25 bg-primary/5 p-3"
           >
             <p className="text-[10px] font-extrabold uppercase tracking-[0.16em] text-primary">
-              Puente de capital · {renovacionOrigen.moneda}
+              Detalle de la renovación · {renovacionOrigen.moneda}
             </p>
             <div className="mt-2 grid grid-cols-[minmax(0,1fr)_auto] items-end gap-2 sm:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)_auto_minmax(0,1fr)]">
               <div className="space-y-1">
@@ -947,7 +952,7 @@ export function ContratoNuevo({
               </div>
             </div>
             <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg bg-card px-3 py-2 ring-1 ring-border">
-              <span className="text-xs font-semibold text-muted-foreground">Nuevo contrato</span>
+              <span className="text-xs font-semibold text-muted-foreground">Así queda el capital</span>
               <span className="text-base font-extrabold tabular-nums text-primary">
                 {Number.isFinite(capitalNum) ? money(capitalNum, moneda) : '—'}
               </span>
@@ -999,7 +1004,7 @@ export function ContratoNuevo({
           </div>
           {!esCompuesto && (
             <div className="space-y-1.5">
-              <Label htmlFor="ct-modalidad">Modalidad de pago</Label>
+              <Label htmlFor="ct-modalidad">Frecuencia de pago de intereses</Label>
               <Select
                 id="ct-modalidad"
                 value={modalidad}
@@ -1202,12 +1207,12 @@ export function ContratoNuevo({
         >
           <BadgeCheck />{' '}
           {enviando
-            ? 'Creando…'
+            ? 'Registrando inversión…'
             : categoria === 'renovacion'
-              ? 'Crear renovación'
+              ? 'Renovar inversión'
               : categoria === 'upgrade'
-                ? 'Crear upgrade'
-                : 'Crear contrato'}
+                ? 'Aumentar inversión'
+                : 'Registrar nueva inversión'}
         </Button>
       </DialogFooter>
     </form>

@@ -15,7 +15,7 @@ import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle 
 import { fmtFecha, money } from '@/lib/format'
 import { mensajeDeError } from '@/data/crm-api'
 import { useContrato, useCronograma, useTitulares } from '@/data/crm-queries'
-import { CATEGORIA_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
+import { CATEGORIA_LABEL, ESTADO_CONTRATO_LABEL, MODALIDAD_LABEL } from '@/lib/contratos-catalogo'
 import { etiquetaDocumento } from '@/lib/titulares'
 import type { ContratoRow, Cuota, EstadoContrato, EstadoCuota, Titular } from '@/lib/clientes-tipos'
 import { CODIGO_PRODUCTO_HISTORICO } from '@/components/app/producto-contrato-selector'
@@ -92,7 +92,10 @@ interface EstadoPdfUi {
   error: boolean
 }
 
-export function ContratoDetalle({ contratoId, onCerrar, datos,
+export function ContratoDetalle({
+  contratoId,
+  onCerrar,
+  datos,
   puedeEliminar = false,
   onEliminar,
 }: ContratoDetalleProps) {
@@ -122,9 +125,10 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
           'No se encontró el contrato en tu cartera.'
         : null
   const cuotas = datos?.cuotas ?? qCronograma.data ?? null
-  const errorCrono = !precargado && qCronograma.isError && qCronograma.data == null
-    ? mensajeDeError(qCronograma.error, 'No se pudo cargar el cronograma.')
-    : null
+  const errorCrono =
+    !precargado && qCronograma.isError && qCronograma.data == null
+      ? mensajeDeError(qCronograma.error, 'No se pudo cargar el cronograma.')
+      : null
   // Un fallo aquí NO rompe el detalle (espejo del portal, cargarTitulares), pero
   // tampoco puede silenciarse: `?? []` colapsaba "no se pudo cargar" con "no
   // tiene", y el bloque, condicionado a length > 0, desaparecía. Una caída de
@@ -154,20 +158,19 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
   const [eliminando, setEliminando] = useState(false)
   // Etiquetar el estado con su contrato evita pintar, incluso durante un frame,
   // el estado o spinner de A después de que el mismo diálogo ya recibió B.
-  const estadoPdfEsActual = estadoPdfUi.contratoId === contratoId
-    && estadoPdfUi.secuencia === secuenciaEstadoPdfRef.current
-  const estadoPdf = estadoPdfEsActual
-    ? estadoPdfUi.estado
-    : pdfDatos ? 'pendiente' : null
+  const estadoPdfEsActual =
+    estadoPdfUi.contratoId === contratoId && estadoPdfUi.secuencia === secuenciaEstadoPdfRef.current
+  const estadoPdf = estadoPdfEsActual ? estadoPdfUi.estado : pdfDatos ? 'pendiente' : null
   const cargandoEstadoPdf = estadoPdfEsActual ? estadoPdfUi.cargando : !pdfDatos
   const errorEstadoPdf = estadoPdfEsActual ? estadoPdfUi.error : false
-  const accionPdf = accionPdfUi?.contratoId === contratoId
-    && accionPdfUi.secuencia === secuenciaAccionPdfRef.current
-    ? accionPdfUi.accion
-    : null
-  const errorTitulares = !precargado && qTitulares.isError && qTitulares.data == null
-    ? mensajeDeError(qTitulares.error, 'No se pudieron cargar los co-titulares.')
-    : null
+  const accionPdf =
+    accionPdfUi?.contratoId === contratoId && accionPdfUi.secuencia === secuenciaAccionPdfRef.current
+      ? accionPdfUi.accion
+      : null
+  const errorTitulares =
+    !precargado && qTitulares.isError && qTitulares.data == null
+      ? mensajeDeError(qTitulares.error, 'No se pudieron cargar los co-titulares.')
+      : null
 
   // Reintento AMPLIO (mismo alcance que el intento++ anterior): el fallo suele
   // ser de red y afecta a las tres lecturas a la vez.
@@ -183,35 +186,25 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     // todavía esté esperando bytes del contexto anterior.
     ++secuenciaAccionPdfRef.current
     if (pdfDatos) {
-      setEstadoPdfUi({ contratoId, secuencia, estado: 'pendiente', cargando: false, error: false,
-      })
+      setEstadoPdfUi({ contratoId, secuencia, estado: 'pendiente', cargando: false, error: false })
       return
     }
     let vigente = true
-    setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: true, error: false,
-    })
+    setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: true, error: false })
     void consultarEstadoContratoPdf(contratoId)
       .then((estado) => {
-        if (
-          vigente
-          && secuenciaEstadoPdfRef.current === secuencia
-          && contratoIdActualRef.current === contratoId
-        ) {
-          setEstadoPdfUi({ contratoId, secuencia, estado: estado.estado, cargando: false, error: false,
-          })
+        if (vigente && secuenciaEstadoPdfRef.current === secuencia && contratoIdActualRef.current === contratoId) {
+          setEstadoPdfUi({ contratoId, secuencia, estado: estado.estado, cargando: false, error: false })
         }
       })
       .catch(() => {
-        if (
-          vigente
-          && secuenciaEstadoPdfRef.current === secuencia
-          && contratoIdActualRef.current === contratoId
-        ) {
-          setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: false, error: true,
-          })
+        if (vigente && secuenciaEstadoPdfRef.current === secuencia && contratoIdActualRef.current === contratoId) {
+          setEstadoPdfUi({ contratoId, secuencia, estado: null, cargando: false, error: true })
         }
       })
-    return () => { vigente = false }
+    return () => {
+      vigente = false
+    }
   }, [contratoId, pdfDatos])
 
   useEffect(() => {
@@ -225,7 +218,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     try {
       await onEliminar()
     } catch (error) {
-      toast.error(mensajeDeError(error, 'No se pudo eliminar el contrato y sus PDF.'))
+      toast.error(mensajeDeError(error, 'No se pudo eliminar el contrato y sus documentos asociados.'))
       setEliminando(false)
     }
   }
@@ -235,15 +228,13 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     const contratoIdAccion = contratoId
     const secuenciaAccion = ++secuenciaAccionPdfRef.current
     const accionSigueVigente = () =>
-      contratoIdActualRef.current === contratoIdAccion
-      && secuenciaAccionPdfRef.current === secuenciaAccion
+      contratoIdActualRef.current === contratoIdAccion && secuenciaAccionPdfRef.current === secuenciaAccion
     let ventanaPdf: Window | null = null
     try {
       // La pestaña debe reservarse dentro del gesto del usuario. Esperar a la
       // Edge, descargar y calcular SHA antes de window.open activa el bloqueador.
       if (accion === 'ver') ventanaPdf = abrirVentanaContratoPdf()
-      setAccionPdfUi({ contratoId: contratoIdAccion, secuencia: secuenciaAccion, accion,
-      })
+      setAccionPdfUi({ contratoId: contratoIdAccion, secuencia: secuenciaAccion, accion })
       // El resultado de una consulta de estado iniciada antes del ensure ya no
       // puede sobrescribir el estado sellado que confirme esta acción.
       const secuenciaEstado = ++secuenciaEstadoPdfRef.current
@@ -290,9 +281,11 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
       }
       console.error('[contrato-pdf] No se pudo recuperar el documento archivado', error)
       toast.error(
-        error instanceof Error
+        error instanceof ContratoPdfNoSelladoError
           ? error.message
-          : 'No se pudo recuperar el contrato PDF. Inténtalo nuevamente.',
+          : accion === 'descargar'
+            ? 'No pudimos descargar el documento del contrato. Intenta nuevamente.'
+            : 'No pudimos abrir el documento del contrato. Intenta nuevamente.',
       )
     } finally {
       setAccionPdfUi((actual) => (actual?.secuencia === secuenciaAccion ? null : actual))
@@ -308,18 +301,17 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
     return {
       cuotasInteres: interes.length,
       pagadasInteres: interes.filter((c) => c.estado === 'pagado').length,
-      pagado: cuotas
-        .filter((c) => c.estado === 'pagado')
-        .reduce((a, c) => a + (c.monto_pagado ?? 0), 0),
+      pagado: cuotas.filter((c) => c.estado === 'pagado').reduce((a, c) => a + (c.monto_pagado ?? 0), 0),
       porPagar: cuotas
         .filter((c) => c.estado !== 'pagado' && c.estado !== 'trasladado')
         .reduce((a, c) => a + c.monto_programado, 0),
     }
   }, [cuotas])
 
-  const tituloCronograma = contrato?.tipo_interes === 'compuesto'
-    ? 'Cronograma de pagos (intereses al vencimiento + retorno del capital)'
-    : `Cronograma de pagos (${totales?.cuotasInteres ?? 0} cuotas de interés + retorno del capital)`
+  const tituloCronograma =
+    contrato?.tipo_interes === 'compuesto'
+      ? 'Cronograma de pagos (intereses al vencimiento + retorno del capital)'
+      : `Cronograma de pagos (${totales?.cuotasInteres ?? 0} cuotas de interés + retorno del capital)`
 
   return (
     <>
@@ -329,7 +321,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
           Contrato {contrato?.numero_contrato ?? '…'}
         </DialogTitle>
         <DialogDescription>
-          Detalle de solo lectura — disponible siempre, con o sin ventana de corrección.
+          Consulta la información de esta inversión. Los datos no se modifican desde esta vista.
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-4 overflow-y-auto">
@@ -353,15 +345,15 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
           <>
             <div className="rounded-lg border border-border bg-muted/35 px-3 py-2 text-xs text-muted-foreground">
               {cargandoEstadoPdf ? (
-                'Consultando el estado documental…'
+                'Consultando el estado del documento…'
               ) : errorEstadoPdf ? (
-                'No se pudo consultar el estado documental. Puedes reintentar desde los botones de PDF.'
+                'No se pudo consultar el estado del documento. Puedes reintentar desde los botones del documento.'
               ) : estadoPdf ? (
                 <>
-                  Estado documental: <b className="text-foreground">{etiquetaEstadoContratoPdf(estadoPdf)}</b>.
+                  Estado del documento: <b className="text-foreground">{etiquetaEstadoContratoPdf(estadoPdf)}</b>.
                 </>
               ) : (
-                'Estado documental no disponible.'
+                'Estado del documento no disponible.'
               )}
             </div>
             {confirmandoEliminar && (
@@ -369,22 +361,17 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 role="alert"
                 className="rounded-lg border border-destructive/35 bg-destructive/5 px-3 py-2 text-xs text-destructive"
               >
-                Esta acción es permanente: se eliminarán el contrato, su cronograma, sus documentos y todas las
-                revisiones del PDF. Confirma una segunda vez.
+                Esta acción es permanente: se eliminarán el contrato, su cronograma, sus documentos asociados y todas
+                las versiones archivadas del documento. Confirma una segunda vez.
               </div>
             )}
             {/* ── Términos del contrato (espejo de renderDetalleMeta) ─────────── */}
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               <Termino label="Cliente">{contrato.cliente_nombre ?? '—'}</Termino>
               <Termino label="Producto">
-                <span title={`Condición ${contrato.producto_condicion_id}`}>
-                  {contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
-                    ? 'Snapshot histórico'
-                    : `${contrato.producto_codigo} · ${contrato.producto_nombre}`}
-                </span>
-              </Termino>
-              <Termino label="Versión de producto">
-                v{contrato.producto_version} · {contrato.producto_version_estado}
+                {contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
+                  ? 'Producto histórico'
+                  : contrato.producto_nombre}
               </Termino>
               <Termino label="Capital">{money(contrato.capital, contrato.moneda)}</Termino>
               <Termino label="Tasa anual">{contrato.tasa_anual}%</Termino>
@@ -392,17 +379,17 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                 {contrato.tipo_interes === 'compuesto' ? 'Compuesto' : 'Simple'}
               </Termino>
               {/* En compuesto la modalidad no aplica (capitaliza anual) — regla del portal. */}
-              <Termino label="Modalidad">
+              <Termino label="Frecuencia de pago de intereses">
                 {contrato.tipo_interes === 'compuesto' ? '—' : MODALIDAD_LABEL[contrato.modalidad]}
               </Termino>
-              <Termino label="Categoría">
+              <Termino label="Tipo de inversión">
                 {contrato.categoria ? <Badge color="var(--warning)">{CATEGORIA_LABEL[contrato.categoria]}</Badge> : '—'}
               </Termino>
               <Termino label="Inicio">{fmtFecha(contrato.fecha_inicio)}</Termino>
               <Termino label="Vencimiento">{fmtFecha(contrato.fecha_vencimiento)}</Termino>
               <Termino label="Estado">
                 <Badge color={ESTADO_CONTRATO_COLOR[contrato.estado]} dot>
-                  {contrato.estado}
+                  {ESTADO_CONTRATO_LABEL[contrato.estado]}
                 </Badge>
               </Termino>
             </div>
@@ -483,7 +470,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                           <th className="px-3 py-2">Fecha</th>
                           <th className="px-3 py-2">Monto</th>
                           <th className="px-3 py-2">Estado</th>
-                          <th className="px-3 py-2">Pago real</th>
+                          <th className="px-3 py-2">Pago realizado</th>
                         </tr>
                       </thead>
                       <tbody>
@@ -539,7 +526,8 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
                         {totales.pagadasInteres} de {totales.cuotasInteres}
                       </b>{' '}
                       cuotas de interés pagadas · Pagado{' '}
-                      <b className="tabular-nums text-foreground">{money(totales.pagado, contrato.moneda)}</b> · Por pagar <b className="tabular-nums text-foreground">{money(totales.porPagar, contrato.moneda)}</b>
+                      <b className="tabular-nums text-foreground">{money(totales.pagado, contrato.moneda)}</b> · Por
+                      pagar <b className="tabular-nums text-foreground">{money(totales.porPagar, contrato.moneda)}</b>
                     </p>
                   )}
                 </>
@@ -554,15 +542,12 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
           onEliminar &&
           (confirmandoEliminar ? (
             <>
-            <Button
-              variant="outline"
-              size="sm"
-              disabled={eliminando} onClick={() => setConfirmandoEliminar(false)}>
+              <Button variant="outline" size="sm" disabled={eliminando} onClick={() => setConfirmandoEliminar(false)}>
                 Cancelar eliminación
               </Button>
               <Button variant="destructive" size="sm" disabled={eliminando} onClick={() => void confirmarEliminacion()}>
                 {eliminando ? <LoaderCircle className="animate-spin" aria-hidden /> : <Trash2 aria-hidden />}
-                Sí, eliminar contrato y PDF
+                Sí, eliminar contrato y documentos
               </Button>
             </>
           ) : (
@@ -583,8 +568,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               disabled={eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada'}
               onClick={() => void ejecutarPdf('ver')}
             >
-              {accionPdf === 'ver'
-                ? (
+              {accionPdf === 'ver' ? (
                 <LoaderCircle className="animate-spin" aria-hidden />
               ) : (
                 <ExternalLink aria-hidden />
@@ -596,8 +580,7 @@ export function ContratoDetalle({ contratoId, onCerrar, datos,
               disabled={eliminando || accionPdf != null || estadoPdf === 'integridad_bloqueada'}
               onClick={() => void ejecutarPdf('descargar')}
             >
-              {accionPdf === 'descargar'
-                ? (
+              {accionPdf === 'descargar' ? (
                 <LoaderCircle className="animate-spin" aria-hidden />
               ) : (
                 <Download aria-hidden />

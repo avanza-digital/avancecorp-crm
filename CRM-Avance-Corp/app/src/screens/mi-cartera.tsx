@@ -13,7 +13,7 @@
 // de 5 h (la RLS del servidor es la autoridad; aquí el reloj es cortesía) y ver
 // el detalle con cronograma. Fuerza de ventas conserva el gate por fila y la
 // ventana de 5 h; Gerencia opera el ámbito completo, como revalida el servidor.
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState, type Ref } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import {
@@ -35,6 +35,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Select } from '@/components/ui/select'
 import { Dialog } from '@/components/ui/dialog'
+import { Sheet } from '@/components/ui/sheet'
 import { Badge } from '@/components/ui/badge'
 import { SectionHead } from '@/components/common/section-head'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
@@ -43,7 +44,7 @@ import { Paginacion } from '@/components/common/paginacion'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { ClienteForm } from '@/components/app/cliente-form'
-import { ClienteDetalle } from '@/components/app/cliente-detalle'
+import { ClienteFicha, type FocoInicialClienteFicha } from '@/components/app/cliente-ficha'
 import { ClienteGestion } from '@/components/app/cliente-gestion'
 import { ContratoNuevo, type ContratoCreadoLocal } from '@/components/app/contrato-nuevo'
 import { ContratoDetalle } from '@/components/app/contrato-detalle'
@@ -70,15 +71,23 @@ import {
   mesLima,
   ordenDeBloque,
 } from '@/lib/cartera-meses'
-import { carteraDelAmbito, duenoDeCartera, esMiCliente, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
+import { carteraDelAmbito, normalizar, type FiltroAsesor } from '@/lib/clientes-vista'
 import { type FiltroEstado } from '@/lib/contratos-vista'
-import { CATEGORIA_LABEL, ESTADO_COLOR } from '@/lib/contratos-catalogo'
+import { CATEGORIA_LABEL, ESTADO_COLOR, ESTADO_CONTRATO_LABEL } from '@/lib/contratos-catalogo'
 import { paginar } from '@/lib/paginacion'
 import type { ContratoPdfDatos } from '@/lib/contrato-pdf'
 import { eliminarContratoConPdf } from '@/lib/contrato-pdf-archivo'
 import { mensajeDeError } from '@/data/crm-api'
-import { crmQueryKeys, useClientes, useContratos, useOperacionesCartera } from '@/data/crm-queries'
+import {
+  INTERVALO_REVALIDACION_CARTERA_MS,
+  crmQueryKeys,
+  useClientes,
+  useContratos,
+  useOperacionesCartera,
+} from '@/data/crm-queries'
 import { fechaLima } from '@/lib/agenda-derivada'
+import { useAhora } from '@/lib/ahora'
+import { resolverContextoFichaCliente, type ContextoFichaCliente } from '@/lib/cliente-ficha-modelo'
 import type {
   ClienteBasico,
   ClienteDetalle as ClienteDetalleDatos,
@@ -148,7 +157,7 @@ function IdentidadCliente({ cliente }: { cliente: ClienteBasico }) {
 }
 
 /**
- * Capital invertido por cliente. PEN y USD JAMÁS se suman: van como DOS cifras,
+ * Capital vigente por cliente. PEN y USD JAMÁS se suman: van como DOS cifras,
  * ambas con peso propio. Si SOLO hay dólares, el USD es la cifra principal (nunca
  * un "S/ 0" grande con el capital real escondido). Regla congelada de Miguel,
  * en un solo lugar para que la tabla y la tarjeta no puedan divergir.
@@ -165,7 +174,7 @@ function CapitalInvertido({
   if (!grupo.tieneCapital) {
     return (
       <span className="text-xs text-muted-foreground">
-        {sinContratos ? 'aún no genera ingreso' : 'sin capital vigente'}
+        {sinContratos ? 'Sin inversión registrada' : 'Sin capital vigente'}
       </span>
     )
   }
@@ -191,7 +200,7 @@ function CapitalInvertido({
   )
 }
 
-/** Desglose económico y efecto de conversión de una renovación/upgrade. Es el
+/** Desglose económico y efecto de conversión de una renovación/aumento. Es el
  * mismo bloque en desktop y móvil, por lo que asesor, supervisor y Gerencia ven
  * exactamente las mismas cifras. El adicional nunca se presenta como otra
  * conversión. */
@@ -209,7 +218,10 @@ function DetalleOperacionCapital({
   if (operacion.tipo === 'upgrade') {
     return (
       <span className="mt-1 block text-[10px] font-semibold text-muted-foreground">
-        Upgrade · {operacion.elegible_conversion ? 'suma conversión' : 'mes inicial · no suma conversión'}
+        Aumento de inversión ·{' '}
+        {operacion.elegible_conversion
+          ? 'cuenta como conversión de este mes'
+          : 'ya fue contado en el mes de la inversión inicial'}
       </span>
     )
   }
@@ -217,32 +229,32 @@ function DetalleOperacionCapital({
   if (!operacion.desglose_completo || operacion.capital_renovado == null || operacion.capital_adicional == null) {
     return (
       <span className="mt-1 block text-[10px] font-semibold text-warning-text">
-        Renovación histórica · desglose pendiente
+        Renovación anterior · detalle no disponible
       </span>
     )
   }
 
   return (
-    <span
-      className="mt-1 block text-[10px] leading-snug text-muted-foreground"
-      title="El capital adicional es económico y no genera otra conversión"
-    >
-      {contratoOrigen && (
-        <>
-          <span className="font-semibold text-foreground/80">
-            {money(contratoOrigen.capital, contratoOrigen.moneda)} anterior
-          </span>{' '}
-          →{' '}
-        </>
-      )}
-      <span className="font-semibold text-foreground/80">
-        {money(operacion.capital_renovado, operacion.moneda)} renovado
-      </span>{' '}
-      +{' '}
-      <span className="font-semibold text-primary">
-        {money(operacion.capital_adicional, operacion.moneda)} adicional
-      </span>{' '}
-      = {money(contrato.capital, contrato.moneda)} · 1 conversión
+    <span className="mt-1 block text-[10px] leading-snug text-muted-foreground">
+      <span className="block">
+        {contratoOrigen && (
+          <>
+            <span className="font-semibold text-foreground/80">
+              {money(contratoOrigen.capital, contratoOrigen.moneda)} anterior
+            </span>{' '}
+            →{' '}
+          </>
+        )}
+        <span className="font-semibold text-foreground/80">
+          {money(operacion.capital_renovado, operacion.moneda)} renovado
+        </span>{' '}
+        +{' '}
+        <span className="font-semibold text-primary">
+          {money(operacion.capital_adicional, operacion.moneda)} adicional
+        </span>{' '}
+        = {money(contrato.capital, contrato.moneda)}
+      </span>
+      <span className="block">Cuenta como 1 conversión. El capital adicional no suma otra conversión.</span>
     </span>
   )
 }
@@ -267,8 +279,12 @@ interface PropsFilaGrupo {
   motivoNoOperable: string | null
   /** Gerencia opera cualquier fila y no hereda la ventana antifraude del analista. */
   edicionGlobal: boolean
+  /** Solo el superadmin del Portal puede corregir contratos ya cerrados. */
+  puedeCorregirContratoCerrado: boolean
   yoId: string | null
   asesorNombre: string | null
+  /** Día calendario vigente en Lima; se actualiza con el reloj compartido. */
+  hoyLima: string
   /** Los contratos del grupo que pasan los filtros vivos (estado y/o «por
    *  vencer»); ya recortados por el caller para que la tabla y las tarjetas
    *  pinten EXACTAMENTE lo mismo. */
@@ -296,6 +312,7 @@ function FilaContratoSub({
   corregible,
   sinLimiteVentana,
   porVencer,
+  renovacionDisponible,
   renovable,
   operacion,
   contratoOrigen,
@@ -312,6 +329,8 @@ function FilaContratoSub({
   /** Vence en ≤30 d: la fecha se marca con PALABRA («renovar») además de color
    *  — el color solo no es información accesible. */
   porVencer: boolean
+  /** La fecha de renovación ya llegó: se diferencia de una oportunidad futura. */
+  renovacionDisponible: boolean
   renovable: boolean
   operacion: OperacionCartera | null
   contratoOrigen: ContratoRow | null
@@ -320,6 +339,7 @@ function FilaContratoSub({
   onRenovar: () => void
 }) {
   const ventana = useVentana(corregible && !sinLimiteVentana ? k.creado_en : null)
+  const avisoRenovacion = renovacionDisponible ? 'Disponible para renovar' : porVencer ? 'Renovación próxima' : null
   // Ojo con la clase de foco de la <tr>: el outline NATIVO no se quita. El
   // cambio de fondo que antes lo "reemplazaba" (bg-muted/20 → bg-muted/50) da
   // 1.03:1 de contraste —invisible— y encima es idéntico al hover; y en una fila
@@ -352,7 +372,7 @@ function FilaContratoSub({
       </Td>
       <Td className="text-center">
         <Badge color={ESTADO_COLOR[k.estado]} dot>
-          {k.estado}
+          {ESTADO_CONTRATO_LABEL[k.estado]}
         </Badge>
       </Td>
       {colAsesor && <Td className="hidden md:table-cell" />}
@@ -361,10 +381,10 @@ function FilaContratoSub({
         {/* `text-warning-text` (ámbar oscuro), NO `text-warning`: a 11 px esto es
             texto pequeño y el ámbar puro da ~3:1 → falla WCAG 4.5:1 (ver index.css). */}
         <span
-          className={`block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}
+          className={`block text-[11px] ${avisoRenovacion ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}
         >
-          vence {fechaCorta(k.fecha_vencimiento)}
-          {porVencer && ' · renovar'}
+          Vencimiento: {fechaCorta(k.fecha_vencimiento)}
+          {avisoRenovacion && ` · ${avisoRenovacion}`}
         </span>
         <DetalleOperacionCapital contrato={k} operacion={operacion} contratoOrigen={contratoOrigen} />
       </Td>
@@ -380,7 +400,7 @@ function FilaContratoSub({
                   onRenovar()
                 }}
               >
-                <RefreshCw aria-hidden /> Renovar
+                <RefreshCw aria-hidden /> Renovar inversión
               </Button>
             )}
             {corregible && (sinLimiteVentana || ventana.vigente) ? (
@@ -422,8 +442,10 @@ function FilaGrupoCliente({
   operable,
   motivoNoOperable,
   edicionGlobal,
+  puedeCorregirContratoCerrado,
   yoId,
   asesorNombre,
+  hoyLima,
   contratosVisibles,
   porVencer,
   operacionesPorContrato,
@@ -487,8 +509,8 @@ function FilaGrupoCliente({
           ) : (
             <span className="text-xs text-muted-foreground">
               {grupo.contratosActivos > 0
-                ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}`
-                : 'sin activos'}
+                ? `${grupo.contratosActivos} contrato${grupo.contratosActivos > 1 ? 's' : ''} vigente${grupo.contratosActivos > 1 ? 's' : ''}`
+                : 'Sin contratos vigentes'}
             </span>
           )}
         </Td>
@@ -525,7 +547,7 @@ function FilaGrupoCliente({
                     onDetalleCliente()
                   }}
                 >
-                  Ver detalle
+                  Ver ficha
                 </Button>
                 {gestionable && (
                   <Button
@@ -539,7 +561,7 @@ function FilaGrupoCliente({
                       onGestionarCliente()
                     }}
                   >
-                    <CalendarPlus aria-hidden /> Gestionar
+                    <CalendarPlus aria-hidden /> Ver seguimiento
                   </Button>
                 )}
                 {accionable && (
@@ -552,15 +574,17 @@ function FilaGrupoCliente({
                         className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
                         title={
                           edicionGlobal
-                            ? 'Corregir datos del cliente · autorización global de Gerencia'
-                            : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
+                            ? 'Corregir datos del cliente · Disponible para Gerencia'
+                            : `Corregir datos del cliente · ${ventanaCliente.texto}`
                         }
+                        disabled={!operable}
+                        aria-describedby={!operable ? motivoId : undefined}
                         onClick={(e) => {
                           e.stopPropagation()
                           onCorregirCliente()
                         }}
                       >
-                        Corregir
+                        Corregir datos
                       </Button>
                     )}
                     {!sinContratos && (
@@ -575,7 +599,7 @@ function FilaGrupoCliente({
                           onUpgradeCliente()
                         }}
                       >
-                        <TrendingUp aria-hidden /> Upgrade
+                        <TrendingUp aria-hidden /> Aumentar inversión
                       </Button>
                     )}
                     <Button
@@ -588,7 +612,7 @@ function FilaGrupoCliente({
                         onNuevoContrato()
                       }}
                     >
-                      {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                      {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
                     </Button>
                   </>
                 )}
@@ -607,14 +631,19 @@ function FilaGrupoCliente({
             contrato={c}
             colAsesor={colAsesor}
             conAcciones={accionable}
-            corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
+            corregible={
+              operable &&
+              (puedeCorregirContratoCerrado || (c.estado !== 'renovado' && c.estado !== 'retirado')) &&
+              (edicionGlobal || (c.creado_por != null && c.creado_por === yoId))
+            }
             sinLimiteVentana={edicionGlobal}
             porVencer={porVencer.has(c.id)}
+            renovacionDisponible={(c.estado === 'activo' || c.estado === 'vencido') && c.fecha_vencimiento <= hoyLima}
             renovable={
               accionable &&
               operable &&
               (c.estado === 'activo' || c.estado === 'vencido') &&
-              c.fecha_vencimiento <= fechaLima(Date.now())
+              c.fecha_vencimiento <= hoyLima
             }
             operacion={operacionesPorContrato.get(c.id) ?? null}
             contratoOrigen={
@@ -647,6 +676,7 @@ function TarjetaContratoSub({
   corregible,
   sinLimiteVentana,
   porVencer,
+  renovacionDisponible,
   renovable,
   operacion,
   contratoOrigen,
@@ -660,6 +690,7 @@ function TarjetaContratoSub({
   sinLimiteVentana: boolean
   /** Vence en ≤30 d — misma marca con PALABRA que en la tabla (no solo color). */
   porVencer: boolean
+  renovacionDisponible: boolean
   renovable: boolean
   operacion: OperacionCartera | null
   contratoOrigen: ContratoRow | null
@@ -668,6 +699,7 @@ function TarjetaContratoSub({
   onRenovar: () => void
 }) {
   const ventana = useVentana(corregible && !sinLimiteVentana ? k.creado_en : null)
+  const avisoRenovacion = renovacionDisponible ? 'Disponible para renovar' : porVencer ? 'Renovación próxima' : null
   return (
     <div className="flex items-center justify-between gap-2 rounded-lg border border-border/50 bg-muted/20 pr-3 transition-colors focus-within:bg-muted/40">
       {/* El área de info ES el control que abre el detalle: un <button> NATIVO
@@ -684,16 +716,17 @@ function TarjetaContratoSub({
           <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="font-mono text-xs font-semibold text-foreground">{k.numero_contrato}</span>
             <Badge color={ESTADO_COLOR[k.estado]} dot>
-              {k.estado}
+              {ESTADO_CONTRATO_LABEL[k.estado]}
             </Badge>
           </span>
           {/* Mismo ámbar OSCURO que en la tabla: a 11 px el `--warning` puro no
               llega a 4.5:1 de contraste. */}
           <span
-            className={`mt-0.5 block text-[11px] ${porVencer ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}
+            className={`mt-0.5 block text-[11px] ${avisoRenovacion ? 'font-semibold text-warning-text' : 'text-muted-foreground'}`}
           >
-            {k.categoria ? `${CATEGORIA_LABEL[k.categoria]} · ` : ''}vence {fechaCorta(k.fecha_vencimiento)}
-            {porVencer && ' · renovar'}
+            {k.categoria ? `${CATEGORIA_LABEL[k.categoria]} · ` : ''}
+            Vencimiento: {fechaCorta(k.fecha_vencimiento)}
+            {avisoRenovacion && ` · ${avisoRenovacion}`}
           </span>
           <DetalleOperacionCapital contrato={k} operacion={operacion} contratoOrigen={contratoOrigen} />
         </span>
@@ -705,7 +738,7 @@ function TarjetaContratoSub({
         <div className="flex shrink-0 flex-col gap-1.5">
           {renovable && (
             <Button type="button" size="xs" onClick={onRenovar}>
-              <RefreshCw aria-hidden /> Renovar
+              <RefreshCw aria-hidden /> Renovar inversión
             </Button>
           )}
           {corregible &&
@@ -740,8 +773,10 @@ function TarjetaGrupoCliente({
   operable,
   motivoNoOperable,
   edicionGlobal,
+  puedeCorregirContratoCerrado,
   yoId,
   asesorNombre,
+  hoyLima,
   contratosVisibles,
   porVencer,
   operacionesPorContrato,
@@ -793,8 +828,8 @@ function TarjetaGrupoCliente({
         ) : (
           <span>
             {grupo.contratosActivos > 0
-              ? `${grupo.contratosActivos} activo${grupo.contratosActivos > 1 ? 's' : ''}`
-              : 'sin activos'}
+              ? `${grupo.contratosActivos} contrato${grupo.contratosActivos > 1 ? 's' : ''} vigente${grupo.contratosActivos > 1 ? 's' : ''}`
+              : 'Sin contratos vigentes'}
           </span>
         )}
         {colAsesor && asesorNombre && (
@@ -814,7 +849,7 @@ function TarjetaGrupoCliente({
             </span>
           )}
           <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
-            Ver detalle
+            Ver ficha
           </Button>
           {gestionable && (
             <Button
@@ -825,7 +860,7 @@ function TarjetaGrupoCliente({
               disabled={!operable}
               aria-describedby={!operable ? motivoId : undefined}
             >
-              <CalendarPlus aria-hidden /> Gestionar
+              <CalendarPlus aria-hidden /> Ver seguimiento
             </Button>
           )}
           {accionable && (
@@ -838,12 +873,14 @@ function TarjetaGrupoCliente({
                   className={!edicionGlobal && ventanaCliente.ms <= AVISO_VENTANA_MS ? 'text-warning' : undefined}
                   title={
                     edicionGlobal
-                      ? 'Corregir datos del cliente · autorización global de Gerencia'
-                      : `Corregir datos del cliente · ${ventanaCliente.texto} de ventana`
+                      ? 'Corregir datos del cliente · Disponible para Gerencia'
+                      : `Corregir datos del cliente · ${ventanaCliente.texto}`
                   }
+                  disabled={!operable}
+                  aria-describedby={!operable ? motivoId : undefined}
                   onClick={onCorregirCliente}
                 >
-                  Corregir cliente
+                  Corregir datos
                 </Button>
               )}
               {!sinContratos && (
@@ -855,7 +892,7 @@ function TarjetaGrupoCliente({
                   disabled={!operable}
                   aria-describedby={!operable ? motivoId : undefined}
                 >
-                  <TrendingUp aria-hidden /> Upgrade
+                  <TrendingUp aria-hidden /> Aumentar inversión
                 </Button>
               )}
               <Button
@@ -865,7 +902,7 @@ function TarjetaGrupoCliente({
                 disabled={!operable}
                 aria-describedby={!operable ? motivoId : undefined}
               >
-                {sinContratos ? '+ Primer contrato' : '+ Contrato'}
+                {sinContratos ? 'Registrar primera inversión' : 'Registrar nueva inversión'}
               </Button>
             </>
           )}
@@ -880,14 +917,19 @@ function TarjetaGrupoCliente({
               key={c.id}
               contrato={c}
               conAcciones={accionable}
-              corregible={edicionGlobal || (c.creado_por != null && c.creado_por === yoId)}
+              corregible={
+                operable &&
+                (puedeCorregirContratoCerrado || (c.estado !== 'renovado' && c.estado !== 'retirado')) &&
+                (edicionGlobal || (c.creado_por != null && c.creado_por === yoId))
+              }
               sinLimiteVentana={edicionGlobal}
               porVencer={porVencer.has(c.id)}
+              renovacionDisponible={(c.estado === 'activo' || c.estado === 'vencido') && c.fecha_vencimiento <= hoyLima}
               renovable={
                 accionable &&
                 operable &&
                 (c.estado === 'activo' || c.estado === 'vencido') &&
-                c.fecha_vencimiento <= fechaLima(Date.now())
+                c.fecha_vencimiento <= hoyLima
               }
               operacion={operacionesPorContrato.get(c.id) ?? null}
               contratoOrigen={
@@ -929,6 +971,7 @@ function VistaMiCartera({
   onCorregirCliente,
   onDetalleContrato,
   onCorregirContrato,
+  contenedorRef,
 }: {
   /** null = cargando. */
   grupos: GrupoCartera[] | null
@@ -951,23 +994,27 @@ function VistaMiCartera({
   puedeContratar: boolean
   onNuevoCliente: () => void
   onNuevoContrato: (cliente: ClienteBasico) => void
-  onGestionarCliente: (cliente: ClienteBasico) => void
+  onGestionarCliente: (contexto: ContextoFichaCliente) => void
   onUpgradeCliente: (cliente: ClienteBasico) => void
   onRenovarContrato: (cliente: ClienteBasico, contrato: ContratoRow) => void
-  onDetalleCliente: (cliente: ClienteBasico) => void
+  onDetalleCliente: (contexto: ContextoFichaCliente) => void
   onCorregirCliente: (cliente: ClienteBasico) => void
   onDetalleContrato: (k: ContratoRow) => void
   onCorregirContrato: (k: ContratoRow) => void
+  /** Destino de foco cuando una ficha desaparece porque cambió su asignación. */
+  contenedorRef?: Ref<HTMLDivElement>
 }) {
   const { yo } = useAuth()
   const { equipo } = useCRMData()
   const verEquipo = can(yo?.rol, 'verEquipo')
+  const verTodo = can(yo?.rol, 'verTodo')
   const escrituraHabilitada = puedeEscribir(yo?.rol)
   const accionesContractualesHabilitadas = puedeContratar && escrituraHabilitada
-  const ambitoGlobal = can(yo?.rol, 'verTodo')
-  const edicionGlobal = accionesContractualesHabilitadas && ambitoGlobal
-  const titulo = verEquipo ? 'Cartera' : 'Mi cartera'
+  const fichasHabilitadas = can(yo?.rol, 'verCartera')
+  const titulo = verTodo ? 'Cartera de la empresa' : verEquipo ? 'Cartera de mi equipo' : 'Mi cartera'
   const esMovil = useEsMovil()
+  const ahoraMs = useAhora()
+  const hoyLima = fechaLima(ahoraMs)
 
   const [q, setQ] = useState('')
   const [fEstado, setFEstado] = useState<FiltroEstado>('todos')
@@ -980,24 +1027,20 @@ function VistaMiCartera({
   const [expandidos, setExpandidos] = useState<ReadonlySet<string>>(new Set())
   const [pagina, setPagina] = useState(0)
   // Filtro de MES DE CIERRE. Arranca en el mes en curso (decisión de Miguel,
-  // 2026-08-14): el asesor abre y ve lo que lleva cerrado ESTE mes, sin tener
-  // que leer una lista de meses. `ahora` se congela al montar para que el valor
-  // inicial no cambie a mitad de sesión si cruza la medianoche.
-  const [ahora] = useState(() => new Date().toISOString())
-  const [fMes, setFMes] = useState<string>(() => mesLima(new Date().toISOString()) ?? MES_TODOS)
+  // 2026-08-14). Si la sesión cruza a un mes nuevo, avanza solo cuando la
+  // persona todavía conservaba el mes anterior; una selección manual se respeta.
+  const mesActual = mesLima(new Date(ahoraMs).toISOString()) ?? MES_TODOS
+  const [fMes, setFMes] = useState<string>(() => mesActual)
+  const mesActualAnteriorRef = useRef(mesActual)
+  useEffect(() => {
+    const anterior = mesActualAnteriorRef.current
+    if (anterior === mesActual) return
+    setFMes((actual) => (actual === anterior ? mesActual : actual))
+    mesActualAnteriorRef.current = mesActual
+  }, [mesActual])
 
-  const nombres = useMemo(() => new Map(equipo.map((m) => [m.perfil_id, m.nombre_completo])), [equipo])
-  const asesoresCrmActivos = useMemo(
-    () =>
-      new Set(
-        equipo
-          .filter((m) => m.activo && (m.rol_crm === 'vendedor' || m.rol_crm === 'supervisor'))
-          .map((m) => m.perfil_id),
-      ),
-    [equipo],
-  )
-  // Roster visible para el filtro 'Sin asesor': un dueño fuera de este Set (o null)
-  // cuenta como sin asesor — mismo criterio que la columna Asesor pinta '—'.
+  // Roster visible para el filtro 'Sin asesor': importa la asignación explícita,
+  // no quién creó la ficha. Así filtro, contador, columna y operabilidad coinciden.
   const rosterIds = useMemo(() => new Set(equipo.map((m) => m.perfil_id)), [equipo])
   const bases = useMemo(() => grupos ?? [], [grupos])
   const contratosPorId = useMemo(
@@ -1025,10 +1068,10 @@ function VistaMiCartera({
   const inactivos = bases.length - enGestion.length
   // resumenCartera separa por dentro los dos conceptos: dinero sobre lo
   // gestionable, alarma sobre TODO (+ desglose porVencer30DeBaja).
-  const resumen = useMemo(() => resumenCartera(bases), [bases])
+  const resumen = useMemo(() => resumenCartera(bases, ahoraMs), [bases, ahoraMs])
   // ids de contratos por vencer de TODA la cartera: alimentan el filtro de
   // renovación Y la marca «renovar» de cada sub-fila (una sola fuente).
-  const porVencer = useMemo(() => idsPorVencer(bases), [bases])
+  const porVencer = useMemo(() => idsPorVencer(bases, ahoraMs), [bases, ahoraMs])
   const contratosActivosTotal = useMemo(() => enGestion.reduce((n, g) => n + g.contratosActivos, 0), [enGestion])
   // Pestillo del toggle «Por vencer»: una vez que hubo algo que renovar, el
   // control se queda montado aunque el conteo baje a 0 (dirá «(0)», que es la
@@ -1048,14 +1091,14 @@ function VistaMiCartera({
     const nq = normalizar(q.trim())
     const dq = nq.replace(/\D/g, '')
     return bases.filter((g) => {
-      // Filtro por asesor (solo supervisión): compara contra el DUEÑO de cartera,
-      // espejo EXACTO de filtrarClientes. 'sin_asesor' = dueño null O fuera del roster.
+      // Filtro por asesor (solo supervisión): usa la asignación explícita de la
+      // ficha. 'sin_asesor' = asesor null o fuera del roster visible.
       if (verEquipo && fAsesor !== 'todos') {
-        const dueno = duenoDeCartera(g.cliente)
-        const duenoVisible = dueno != null && rosterIds.has(dueno)
+        const asesorId = g.cliente.asesor_perfil_id
+        const asesorVisible = asesorId != null && rosterIds.has(asesorId)
         if (fAsesor === 'sin_asesor') {
-          if (duenoVisible) return false
-        } else if (dueno !== fAsesor) {
+          if (asesorVisible) return false
+        } else if (asesorId !== fAsesor) {
           return false
         }
       }
@@ -1128,7 +1171,6 @@ function VistaMiCartera({
   // ni un cierre: es el valor por defecto, y un `value` que no existe entre las
   // opciones deja el <select> mostrando cualquier cosa. Cuando está vacío, el
   // panel lo dice con todas las letras y ofrece la salida.
-  const mesActual = mesLima(ahora) ?? MES_TODOS
   const opcionesMes = useMemo(() => {
     const vistos = new Map(meses.map((m) => [m.clave, m.etiqueta]))
     if (!vistos.has(mesActual) && mesActual !== MES_TODOS) {
@@ -1167,19 +1209,13 @@ function VistaMiCartera({
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
   // el gating vive AQUÍ (una sola fuente), la presentación decide cómo pintarlo.
   const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => {
-    const dueno = duenoDeCartera(g.cliente)
-    const dentroDelAmbito =
-      ambitoGlobal ||
-      esMiCliente(g.cliente, yoId) ||
-      (yo?.rol === 'supervisor' && dueno != null && rosterIds.has(dueno))
-    const consultable = escrituraHabilitada && dentroDelAmbito
-    const asesorActivo = g.cliente.asesor_perfil_id != null && asesoresCrmActivos.has(g.cliente.asesor_perfil_id)
-    const operable = g.cliente.activo && asesorActivo
-    const motivoNoOperable = !g.cliente.activo
-      ? 'Cliente inactivo: reactívalo antes de gestionar o crear contratos.'
-      : !asesorActivo
-        ? 'Asigna un asesor CRM activo antes de gestionar o crear contratos.'
-        : null
+    const contexto = resolverContextoFichaCliente({
+      grupo: g,
+      equipo,
+      yoId,
+      rol: yo?.rol,
+      puedeContratar,
+    })
     return {
       grupo: g,
       expandido: expandidos.has(g.cliente.id),
@@ -1191,15 +1227,17 @@ function VistaMiCartera({
           return sig
         }),
       colAsesor: verEquipo,
-      conAcciones: escrituraHabilitada,
-      consultable,
-      gestionable: consultable && g.cliente.activo,
-      accionable: accionesContractualesHabilitadas && dentroDelAmbito && g.cliente.activo,
-      operable,
-      motivoNoOperable,
-      edicionGlobal,
+      conAcciones: fichasHabilitadas,
+      consultable: contexto.consultable,
+      gestionable: contexto.gestionable,
+      accionable: contexto.accionable,
+      operable: contexto.operable,
+      motivoNoOperable: contexto.motivoNoOperable,
+      edicionGlobal: contexto.edicionGlobal,
+      puedeCorregirContratoCerrado: yo?.rol_portal === 'superadmin',
       yoId,
-      asesorNombre: nombres.get(dueno ?? '') ?? null,
+      asesorNombre: contexto.asesorNombre,
+      hoyLima,
       // Los dos filtros de contrato se componen en AND (mismo criterio que la
       // lista): con «por vencer» activo la sub-fila que sobra es ruido.
       contratosVisibles: g.contratos.filter(
@@ -1209,10 +1247,10 @@ function VistaMiCartera({
       operacionesPorContrato,
       contratosPorId,
       onNuevoContrato: () => onNuevoContrato(g.cliente),
-      onGestionarCliente: () => onGestionarCliente(g.cliente),
+      onGestionarCliente: () => onGestionarCliente(contexto),
       onUpgradeCliente: () => onUpgradeCliente(g.cliente),
       onRenovarContrato: (contrato) => onRenovarContrato(g.cliente, contrato),
-      onDetalleCliente: () => onDetalleCliente(g.cliente),
+      onDetalleCliente: () => onDetalleCliente(contexto),
       onCorregirCliente: () => onCorregirCliente(g.cliente),
       onDetalleContrato,
       onCorregirContrato,
@@ -1241,12 +1279,12 @@ function VistaMiCartera({
   // Los otros filtros siguen vivos y recortan también el mes: se DICE, o la
   // tarjeta parecería el total del mes cuando es el total de lo buscado.
   const hayOtroFiltro = q.trim() !== '' || fEstado !== 'todos' || fAsesor !== 'todos'
-  const subMes = hayOtroFiltro ? 'de lo que estás filtrando' : `cerrado en ${mesCorto}`
+  const subMes = hayOtroFiltro ? 'de lo que estás filtrando' : `registrado en ${mesCorto}`
   const capPen = modoMes ? (bloque?.capitalPen ?? 0) : resumen.capitalActivoPen
   const capUsd = modoMes ? (bloque?.capitalUsd ?? 0) : resumen.capitalActivoUsd
   const etiquetaCapital = (moneda: 'Soles' | 'Dólares') =>
-    modoMes ? `Cerrado en ${mesCorto} · ${moneda}` : `Capital invertido · ${moneda}`
-  const subCapital = modoMes ? subMes : 'en contratos activos'
+    modoMes ? `Capital registrado en ${mesCorto} · ${moneda}` : `Capital vigente · ${moneda}`
+  const subCapital = modoMes ? subMes : 'en contratos vigentes'
   const chipsCapital: StatChipData[] = []
   if (capPen > 0) {
     chipsCapital.push({
@@ -1278,7 +1316,7 @@ function VistaMiCartera({
           }
         : {
             icon: Wallet,
-            label: 'Capital invertido',
+            label: 'Capital vigente',
             value: money(0, 'PEN'),
             tone: 'default',
             sub: 'sin capital vigente aún',
@@ -1299,8 +1337,12 @@ function VistaMiCartera({
       ? 'nada por vencer'
       : deBaja === 0
         ? modoMes
-          ? 'en toda tu cartera, no solo el mes'
-          : 'renovación = ingreso próximo'
+          ? verTodo
+            ? 'en toda la empresa, no solo el mes'
+            : verEquipo
+              ? 'en toda la cartera del equipo, no solo el mes'
+              : 'en toda tu cartera, no solo el mes'
+          : 'oportunidad de renovación próxima'
         : deBaja === 1
           ? '1 es de un cliente dado de baja'
           : `${deBaja} son de clientes dados de baja`
@@ -1308,7 +1350,7 @@ function VistaMiCartera({
     ...chipsCapital,
     {
       icon: AlarmClock,
-      label: `Por vencer ≤${DIAS_ALARMA_RENOVACION} d`,
+      label: `Por vencer en ${DIAS_ALARMA_RENOVACION} días o menos`,
       value: String(resumen.porVencer30),
       tone: resumen.porVencer30 > 0 ? 'warn' : 'default',
       sub: subPorVencer,
@@ -1324,21 +1366,21 @@ function VistaMiCartera({
         }
       : {
           icon: Users2,
-          label: 'Clientes con capital',
+          label: 'Clientes con capital vigente',
           value: `${resumen.clientesConCapital}`,
           sub: `de ${resumen.totalClientes}`,
         },
   ]
   if (verEquipo) {
-    // Supervisión: el conteo de clientes SIN asesor (dueño null O fuera del
-    // roster) — espejo EXACTO del filtro 'sin_asesor' — con CTA a repartirlos.
+    // Supervisión: el conteo de clientes SIN asesor asignado (null o fuera del
+    // roster) — espejo exacto del filtro — con CTA a repartirlos.
     // Sobre `enGestion`: repartir a un cliente dado de baja no es una tarea real.
     const sinAsesor = enGestion.reduce((n, g) => {
-      const dueno = duenoDeCartera(g.cliente)
-      return n + (dueno != null && rosterIds.has(dueno) ? 0 : 1)
+      const asesorId = g.cliente.asesor_perfil_id
+      return n + (asesorId != null && rosterIds.has(asesorId) ? 0 : 1)
     }, 0)
     // "Sin asesor" reemplaza la última métrica NO monetaria (Clientes con
-    // capital) cuando ya hay 4 tarjetas — con capital en PEN y USD serían 5 y se
+    // capital vigente) cuando ya hay 4 tarjetas — con capital en PEN y USD serían 5 y se
     // rompería el grid de 4. Los chips de capital (que lideran stats) no se tocan.
     if (stats.length >= 4) stats.pop()
     stats.push({
@@ -1356,14 +1398,20 @@ function VistaMiCartera({
     // mezclan—: un conteo no tiene ese problema.
     stats.push({
       icon: FileStack,
-      label: 'Contratos activos',
+      label: 'Contratos vigentes',
       value: String(contratosActivosTotal),
       sub: 'en toda tu cartera',
     })
   }
 
   return (
-    <div className="mx-auto max-w-[1240px] space-y-4 ac-rise">
+    <div
+      ref={contenedorRef}
+      role="region"
+      aria-label={titulo}
+      tabIndex={-1}
+      className="mx-auto max-w-[1240px] space-y-4 ac-rise focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-ring/35"
+    >
       <AvisoDegradacion
         activo={recargaFallida != null}
         queReintenta="de tu cartera"
@@ -1373,19 +1421,20 @@ function VistaMiCartera({
       </AvisoDegradacion>
       <AvisoDegradacion
         activo={desgloseNoDisponible != null}
-        queReintenta="del desglose de renovaciones y upgrades"
+        queReintenta="del desglose de renovaciones y aumentos de inversión"
         onReintentar={() => desgloseNoDisponible?.reintentar()}
       >
-        La cartera sigue operativa, pero el desglose renovado/adicional y el efecto de los upgrades no están
-        disponibles.
+        La cartera sigue operativa, pero el detalle de renovaciones y aumentos de inversión no está disponible.
       </AvisoDegradacion>
       {bases.length > 0 && <StatStrip stats={stats} />}
       <Card className="overflow-hidden">
         <SectionHead
           icon={Wallet}
           title={titulo}
+          className="flex-wrap"
+          rightClassName="ml-0 w-full sm:ml-auto sm:w-auto"
           right={
-            <div className="flex items-center gap-3">
+            <div className="flex items-center justify-between gap-3 sm:justify-end">
               {/* El conteo dice lo que MIDE: clientes en gestión. Los dados de
                   baja se cuentan aparte para que la cifra cuadre con las filas
                   visibles (si no, el usuario ve N+1 filas y lee N sin
@@ -1398,7 +1447,7 @@ function VistaMiCartera({
                   : '—'}
               </span>
               {accionesContractualesHabilitadas && (
-                <Button size="sm" onClick={onNuevoCliente}>
+                <Button size="sm" className="min-h-10 md:min-h-8" onClick={onNuevoCliente}>
                   <Users2 aria-hidden /> Nuevo cliente
                 </Button>
               )}
@@ -1407,9 +1456,11 @@ function VistaMiCartera({
         />
         <p className="px-5 pb-3 text-xs text-muted-foreground">
           {demo ? 'Datos de demostración. ' : ''}
-          {verEquipo
-            ? 'Clientes de la empresa con el capital que tienen invertido. Cada cliente agrupa sus contratos; expándelo para verlos.'
-            : 'Tus clientes y el capital que tienen invertido contigo. Cada cliente agrupa sus contratos; expándelo para verlos.'}
+          {verTodo
+            ? 'Clientes de la empresa y el capital que tienen invertido. Cada cliente agrupa sus contratos; expándelo para verlos.'
+            : verEquipo
+              ? 'Clientes de tu equipo y el capital que tienen invertido. Cada cliente agrupa sus contratos; expándelo para verlos.'
+              : 'Tus clientes y el capital que tienen invertido en Avance Corp. Cada cliente agrupa sus contratos; expándelo para verlos.'}
           {/* Se dice que la pantalla ARRANCA filtrada: si no, un asesor que no
               haya cerrado nada este mes leería su cartera vacía como un fallo. */}
           {' Empieza mostrando el mes en curso; cambia el mes o elige «Todos los meses» para ver el resto.'}
@@ -1450,7 +1501,7 @@ function VistaMiCartera({
                   onChange={(e) => setFEstado(e.target.value as FiltroEstado)}
                 >
                   <option value="todos">Todos los estados</option>
-                  <option value="activo">Activos</option>
+                  <option value="activo">Contratos vigentes</option>
                   <option value="vencido">Vencidos</option>
                   <option value="renovado">Renovados</option>
                   <option value="retirado">Retirados</option>
@@ -1513,7 +1564,7 @@ function VistaMiCartera({
                   }`}
                 >
                   <AlarmClock className="size-3" aria-hidden />
-                  Por vencer ≤{DIAS_ALARMA_RENOVACION} d ({resumen.porVencer30})
+                  Por vencer en {DIAS_ALARMA_RENOVACION} días o menos ({resumen.porVencer30})
                 </button>
               )}
               {hayFiltro && (
@@ -1543,7 +1594,8 @@ function VistaMiCartera({
                     que es lo que impedía borrarla del todo. */}
                 {bloque.registradosPorOtro > 0 && (
                   <span className="text-warning-text">
-                    incluye {bloque.registradosPorOtro} registrado
+                    incluye {bloque.registradosPorOtro} contrato
+                    {bloque.registradosPorOtro === 1 ? '' : 's'} registrado
                     {bloque.registradosPorOtro === 1 ? '' : 's'} por otra persona
                   </span>
                 )}
@@ -1599,10 +1651,10 @@ function VistaMiCartera({
                   <Th>Cartera / Contrato</Th>
                   <Th className="text-center">Estado</Th>
                   {verEquipo && <Th className="hidden md:table-cell">Asesor</Th>}
-                  <Th className="text-right" aria-label="Capital invertido">
-                    Capital invertido
+                  <Th className="text-right" aria-label="Capital vigente">
+                    Capital vigente
                   </Th>
-                  {escrituraHabilitada && <Th className="text-right">Acciones</Th>}
+                  {fichasHabilitadas && <Th className="text-right">Acciones</Th>}
                 </TheadCrm>
                 <tbody>
                   {visibles.map((g) => (
@@ -1635,7 +1687,11 @@ function VistaMiCartera({
 /** Overlay de acciones — uno solo abierto a la vez (como el portal). */
 type Overlay =
   | { tipo: 'cliente-crear' }
-  | { tipo: 'cliente-detalle'; clienteId: string; clienteNombre: string }
+  | {
+      tipo: 'cliente-ficha'
+      clienteId: string
+      focoInicial?: FocoInicialClienteFicha
+    }
   | { tipo: 'cliente-gestionar'; clienteId: string; clienteNombre: string }
   | { tipo: 'cliente-corregir'; clienteId: string }
   | {
@@ -1649,10 +1705,73 @@ type Overlay =
       clienteId: string
       clienteNombre: string
       contrato: ContratoRow
+      firmaTerminosOriginales: string
     }
-  | { tipo: 'contrato-detalle'; contrato: ContratoRow }
-  | { tipo: 'contrato-corregir'; contrato: ContratoRow }
+  | {
+      tipo: 'contrato-detalle'
+      contrato: ContratoRow
+      volverACliente?: {
+        clienteId: string
+        focoInicial: FocoInicialClienteFicha
+      }
+    }
+  | { tipo: 'contrato-corregir'; contrato: ContratoRow; firmaTerminosOriginales: string }
   | null
+
+function clienteIdDeOverlay(overlay: Overlay): string | null {
+  if (overlay == null || overlay.tipo === 'cliente-crear') return null
+  if (overlay.tipo === 'contrato-detalle' || overlay.tipo === 'contrato-corregir') {
+    return overlay.contrato.cliente_id
+  }
+  return overlay.clienteId
+}
+
+function contratoIdDeOverlay(overlay: Overlay): string | null {
+  if (
+    overlay?.tipo === 'contrato-renovar' ||
+    overlay?.tipo === 'contrato-detalle' ||
+    overlay?.tipo === 'contrato-corregir'
+  ) {
+    return overlay.contrato.id
+  }
+  return null
+}
+
+function contratoSigueRenovable(contrato: ContratoRow, hoyLima: string): boolean {
+  return (
+    (contrato.estado === 'activo' || contrato.estado === 'vencido') &&
+    /^\d{4}-\d{2}-\d{2}$/.test(contrato.fecha_vencimiento) &&
+    contrato.fecha_vencimiento <= hoyLima
+  )
+}
+
+/** Fotografía estable de los términos que una corrección puede cambiar. Se
+ * excluyen etiquetas de presentación y metadatos del catálogo para que una
+ * recarga inocua no cierre el trabajo del asesor. Las notas se comparan como
+ * viajan al servidor: sin espacios exteriores y con vacío equivalente a null. */
+function firmaTerminosContrato(contrato: ContratoRow): string {
+  return JSON.stringify([
+    contrato.numero_contrato.trim(),
+    contrato.capital,
+    contrato.moneda,
+    contrato.tasa_anual,
+    contrato.modalidad,
+    contrato.tipo_interes,
+    contrato.categoria,
+    contrato.fecha_inicio,
+    contrato.fecha_vencimiento,
+    contrato.notas_internas?.trim() || null,
+    contrato.producto_condicion_id,
+  ])
+}
+
+function overlayConservaAcceso(overlay: Overlay, contexto: ContextoFichaCliente | null): boolean {
+  if (overlay == null || overlay.tipo === 'cliente-crear') return true
+  if (contexto == null) return false
+  if (overlay.tipo === 'cliente-ficha' || overlay.tipo === 'contrato-detalle') return contexto.consultable
+  if (overlay.tipo === 'cliente-gestionar') return contexto.gestionable && contexto.operable
+  return contexto.accionable && contexto.operable
+}
 
 interface ContratoConfirmadoParaCierre {
   numero: string
@@ -1661,12 +1780,16 @@ interface ContratoConfirmadoParaCierre {
 
 export function MiCartera() {
   const { yo } = useAuth()
+  const { equipo, recargar } = useCRMData()
   const esDemo = yo?.demo === true
   const queryClient = useQueryClient()
   const [overlay, setOverlay] = useState<Overlay>(null)
   const [envioEnCurso, setEnvioEnCurso] = useState(false)
   const [contratoConfirmado, setContratoConfirmado] = useState<ContratoConfirmadoParaCierre | null>(null)
+  const ahoraOverlay = useAhora()
   const contratosFinalizadosRef = useRef(new Set<string>())
+  const focoCarteraRef = useRef<HTMLDivElement>(null)
+  const recargarStoreRef = useRef(recargar)
 
   const clientesQ = useClientes(!esDemo)
   const contratosQ = useContratos(!esDemo)
@@ -1676,14 +1799,299 @@ export function MiCartera() {
     if (clientesQ.data == null || contratosQ.data == null) return null
     return agruparCartera(clientesQ.data, contratosQ.data)
   }, [clientesQ.data, contratosQ.data])
+  const clienteOverlayId = clienteIdDeOverlay(overlay)
+  const contratoOverlayId = contratoIdDeOverlay(overlay)
+  const grupoOverlay =
+    clienteOverlayId == null ? null : (grupos?.find((grupo) => grupo.cliente.id === clienteOverlayId) ?? null)
+  const contextoOverlay = grupoOverlay
+    ? resolverContextoFichaCliente({
+        grupo: grupoOverlay,
+        equipo,
+        yoId: yo?.id,
+        rol: yo?.rol,
+        puedeContratar: yo?.puede_contratar === true,
+      })
+    : null
+  const grupoFicha = overlay?.tipo === 'cliente-ficha' ? grupoOverlay : null
+  const contextoFicha = overlay?.tipo === 'cliente-ficha' ? contextoOverlay : null
+  const contratoOverlayActual =
+    contratoOverlayId == null
+      ? null
+      : (grupoOverlay?.contratos.find((contrato) => contrato.id === contratoOverlayId) ?? null)
+  const terminosContratoCambiaron =
+    contratoOverlayActual != null &&
+    (overlay?.tipo === 'contrato-renovar' || overlay?.tipo === 'contrato-corregir') &&
+    firmaTerminosContrato(contratoOverlayActual) !== overlay.firmaTerminosOriginales
+  const ventanaCorreccionContrato = useVentana(
+    overlay?.tipo === 'contrato-corregir' && contextoOverlay?.edicionGlobal !== true
+      ? (contratoOverlayActual?.creado_en ?? null)
+      : null,
+  )
+  const correccionContratoBloqueadaPorEstado =
+    contratoOverlayActual != null &&
+    (contratoOverlayActual.estado === 'renovado' || contratoOverlayActual.estado === 'retirado') &&
+    yo?.rol_portal !== 'superadmin'
+  const correccionContratoFueraDeAlcance =
+    contratoOverlayActual != null &&
+    contextoOverlay?.edicionGlobal !== true &&
+    (contratoOverlayActual.creado_por !== yo?.id || !ventanaCorreccionContrato.vigente)
+
+  useEffect(() => {
+    recargarStoreRef.current = recargar
+  }, [recargar])
+
+  // Mientras una ficha o acción del cliente siga abierta, agenda y equipo se
+  // vuelven a confirmar cada minuto. En una pestaña oculta se pausa el trabajo;
+  // al regresar se actualiza de inmediato.
+  useEffect(() => {
+    if (esDemo || clienteOverlayId == null) return
+    const actualizarContexto = () => {
+      if (document.visibilityState !== 'visible') return
+      void recargarStoreRef.current()
+    }
+    const temporizador = window.setInterval(actualizarContexto, INTERVALO_REVALIDACION_CARTERA_MS)
+    const alVolver = () => actualizarContexto()
+    document.addEventListener('visibilitychange', alVolver)
+    return () => {
+      window.clearInterval(temporizador)
+      document.removeEventListener('visibilitychange', alVolver)
+    }
+  }, [clienteOverlayId, esDemo])
+
+  const limpiarDatosFicha = useCallback(
+    (clienteId: string) => {
+      const claves = [
+        crmQueryKeys.clienteFichaComercial(clienteId),
+        crmQueryKeys.clienteDetalle(clienteId),
+        crmQueryKeys.actividadesCliente(clienteId),
+        crmQueryKeys.cuentasBancarias(clienteId, 'PEN'),
+        crmQueryKeys.cuentasBancarias(clienteId, 'USD'),
+      ]
+      for (const queryKey of claves) {
+        void queryClient.cancelQueries({ queryKey, exact: true })
+        queryClient.removeQueries({ queryKey, exact: true })
+      }
+    },
+    [queryClient],
+  )
+
+  const limpiarDatosContrato = useCallback(
+    (contratoId: string) => {
+      void queryClient.cancelQueries({
+        queryKey: crmQueryKeys.cronograma(contratoId),
+        exact: true,
+      })
+      void queryClient.cancelQueries({
+        queryKey: crmQueryKeys.titulares(contratoId),
+        exact: true,
+      })
+      queryClient.removeQueries({
+        queryKey: crmQueryKeys.cronograma(contratoId),
+        exact: true,
+      })
+      queryClient.removeQueries({
+        queryKey: crmQueryKeys.titulares(contratoId),
+        exact: true,
+      })
+    },
+    [queryClient],
+  )
+
+  const limpiarDatosTemporalesCliente = useCallback(
+    (clienteId: string) => {
+      const contratosDelCliente =
+        queryClient
+          .getQueryData<ContratoRow[]>(crmQueryKeys.contratos())
+          ?.filter((contrato) => contrato.cliente_id === clienteId) ?? []
+      for (const contrato of contratosDelCliente) limpiarDatosContrato(contrato.id)
+      limpiarDatosFicha(clienteId)
+    },
+    [limpiarDatosContrato, limpiarDatosFicha, queryClient],
+  )
+
+  const retirarClienteDeSesion = useCallback(
+    (clienteId: string) => {
+      // El cierre visual es inmediato y la copia local se recorta antes de
+      // volver a consultar al servidor. Así una respuesta de "fuera de cartera"
+      // no deja al cliente ni sus inversiones visibles durante la recarga.
+      limpiarDatosTemporalesCliente(clienteId)
+      void queryClient.cancelQueries({
+        queryKey: crmQueryKeys.clientes(),
+        exact: true,
+      })
+      void queryClient.cancelQueries({
+        queryKey: crmQueryKeys.contratos(),
+        exact: true,
+      })
+      void queryClient.cancelQueries({
+        queryKey: crmQueryKeys.operacionesCartera(),
+        exact: true,
+      })
+      queryClient.setQueryData<ClienteBasico[]>(crmQueryKeys.clientes(), (actuales) =>
+        actuales?.filter((cliente) => cliente.id !== clienteId),
+      )
+      queryClient.setQueryData<ContratoRow[]>(crmQueryKeys.contratos(), (actuales) =>
+        actuales?.filter((contrato) => contrato.cliente_id !== clienteId),
+      )
+      queryClient.setQueryData<OperacionCartera[]>(crmQueryKeys.operacionesCartera(), (actuales) =>
+        actuales?.filter((operacion) => operacion.cliente_id !== clienteId),
+      )
+      setEnvioEnCurso(false)
+      setContratoConfirmado(null)
+      setOverlay((actual) => (clienteIdDeOverlay(actual) === clienteId ? null : actual))
+      toast.info('Este cliente ya no está asignado a tu cartera. Actualizamos la información disponible.')
+      window.setTimeout(() => focoCarteraRef.current?.focus(), 0)
+
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.clientes(),
+        exact: true,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.contratos(),
+        exact: true,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.operacionesCartera(),
+        exact: true,
+      })
+    },
+    [limpiarDatosTemporalesCliente, queryClient],
+  )
+
+  const cerrarAccionYaNoDisponible = useCallback(
+    (clienteId: string) => {
+      limpiarDatosTemporalesCliente(clienteId)
+      setEnvioEnCurso(false)
+      setContratoConfirmado(null)
+      setOverlay((actual) => (clienteIdDeOverlay(actual) === clienteId ? null : actual))
+      toast.info('Esta acción ya no está disponible. Actualizamos la ficha del cliente para que puedas consultarla.')
+      window.setTimeout(() => focoCarteraRef.current?.focus(), 0)
+    },
+    [limpiarDatosTemporalesCliente],
+  )
+
+  const cerrarContratoYaNoDisponible = useCallback(
+    (contratoId: string) => {
+      limpiarDatosContrato(contratoId)
+      setEnvioEnCurso(false)
+      setContratoConfirmado(null)
+      setOverlay((actual) => (contratoIdDeOverlay(actual) === contratoId ? null : actual))
+      toast.info('Este contrato ya no está disponible. Actualizamos la información del cliente.')
+      window.setTimeout(() => focoCarteraRef.current?.focus(), 0)
+    },
+    [limpiarDatosContrato],
+  )
+
+  const cerrarPorCambioDeTerminos = useCallback(
+    (contratoId: string) => {
+      limpiarDatosContrato(contratoId)
+      setEnvioEnCurso(false)
+      setContratoConfirmado(null)
+      setOverlay((actual) => (contratoIdDeOverlay(actual) === contratoId ? null : actual))
+      toast.info('Los datos del contrato cambiaron. Vuelve a abrir para continuar.')
+      window.setTimeout(() => focoCarteraRef.current?.focus(), 0)
+    },
+    [limpiarDatosContrato],
+  )
+
+  const actualizarAsignacionCliente = useCallback(
+    (_clienteId: string) => {
+      void recargarStoreRef.current()
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.clientes(),
+        exact: true,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.contratos(),
+        exact: true,
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.operacionesCartera(),
+        exact: true,
+      })
+    },
+    [queryClient],
+  )
+
+  useEffect(() => {
+    if (clienteOverlayId == null || grupos == null) return
+    if (grupoOverlay == null || contextoOverlay?.consultable !== true) {
+      retirarClienteDeSesion(clienteOverlayId)
+      return
+    }
+    if (contratoOverlayId != null && !grupoOverlay.contratos.some((contrato) => contrato.id === contratoOverlayId)) {
+      cerrarContratoYaNoDisponible(contratoOverlayId)
+      return
+    }
+    if (contratoOverlayId != null && terminosContratoCambiaron) {
+      cerrarPorCambioDeTerminos(contratoOverlayId)
+      return
+    }
+    if (
+      overlay?.tipo === 'contrato-renovar' &&
+      contratoOverlayActual != null &&
+      !contratoSigueRenovable(contratoOverlayActual, fechaLima(ahoraOverlay))
+    ) {
+      cerrarAccionYaNoDisponible(clienteOverlayId)
+      return
+    }
+    if (
+      overlay?.tipo === 'contrato-corregir' &&
+      (correccionContratoBloqueadaPorEstado || correccionContratoFueraDeAlcance)
+    ) {
+      cerrarAccionYaNoDisponible(clienteOverlayId)
+      return
+    }
+    if (overlayConservaAcceso(overlay, contextoOverlay)) return
+    cerrarAccionYaNoDisponible(clienteOverlayId)
+  }, [
+    cerrarAccionYaNoDisponible,
+    cerrarContratoYaNoDisponible,
+    cerrarPorCambioDeTerminos,
+    contratoOverlayActual,
+    correccionContratoBloqueadaPorEstado,
+    correccionContratoFueraDeAlcance,
+    clienteOverlayId,
+    contratoOverlayId,
+    contextoOverlay,
+    ahoraOverlay,
+    grupoOverlay,
+    grupos,
+    overlay,
+    retirarClienteDeSesion,
+    terminosContratoCambiaron,
+    ventanaCorreccionContrato.vigente,
+    yo?.id,
+  ])
 
   if (esDemo) return <MiCarteraDemo />
 
   const cerrar = () => setOverlay(null)
+  const cerrarFicha = () => {
+    if (overlay?.tipo === 'cliente-ficha') limpiarDatosFicha(overlay.clienteId)
+    setOverlay(null)
+  }
+  const cerrarDetalleContrato = () => {
+    if (overlay?.tipo !== 'contrato-detalle') {
+      setOverlay(null)
+      return
+    }
+    limpiarDatosContrato(overlay.contrato.id)
+    if (!overlay.volverACliente) {
+      setOverlay(null)
+      return
+    }
+    setOverlay({
+      tipo: 'cliente-ficha',
+      clienteId: overlay.volverACliente.clienteId,
+      focoInicial: overlay.volverACliente.focoInicial,
+    })
+  }
   // Cierre BLINDADO de ClienteForm: no cerrar con un envío en vuelo. Radix cierra
   // con Esc/overlay incondicionalmente y el alta ya está en el servidor.
   const cerrarSeguro = () => {
     if (envioEnCurso) return
+    if (overlay?.tipo === 'cliente-corregir') limpiarDatosFicha(overlay.clienteId)
     cerrar()
   }
   // El alta puede cerrarse sin pasar por onListo (el asesor cancela el contrato
@@ -1709,6 +2117,7 @@ export function MiCartera() {
       clienteId: cliente.id,
       clienteNombre: cliente.nombre_completo || cliente.correo || 'el cliente',
       contrato,
+      firmaTerminosOriginales: firmaTerminosContrato(contrato),
     })
   }
 
@@ -1724,6 +2133,10 @@ export function MiCartera() {
       void queryClient.invalidateQueries({ queryKey: crmQueryKeys.metricas() })
       void queryClient.invalidateQueries({
         queryKey: crmQueryKeys.metricasAmbito(),
+      })
+      void queryClient.invalidateQueries({
+        queryKey: crmQueryKeys.operacionesCartera(),
+        exact: true,
       })
     }
     setContratoConfirmado(null)
@@ -1753,25 +2166,33 @@ export function MiCartera() {
   // (cliente_nombre viaja denormalizado en la vista de contratos: sin invalidarla
   // la sub-fila mostraría el nombre viejo < 30 s).
   const alClienteCorregido = (id: string) => {
+    limpiarDatosFicha(id)
     setOverlay(null)
     void clientesQ.refetch()
-    void queryClient.invalidateQueries({
-      queryKey: crmQueryKeys.clienteDetalle(id),
-    })
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
   }
 
   // Crear/corregir contrato → invalidar contratos() (prefijo: cubre cronograma+titulares).
   const recargarContratos = () => {
+    if (overlay?.tipo === 'contrato-corregir') limpiarDatosContrato(overlay.contrato.id)
     setOverlay(null)
     void queryClient.invalidateQueries({ queryKey: crmQueryKeys.contratos() })
+  }
+
+  const cerrarCorreccionContrato = () => {
+    if (overlay?.tipo === 'contrato-corregir') limpiarDatosContrato(overlay.contrato.id)
+    setOverlay(null)
   }
 
   // El servidor decide si la corrección sigue dentro de las 5 horas y, cuando
   // la acepta, reserva una nueva revisión PDF. La UI no intenta anticipar esa
   // decisión con el estado de la revisión anterior.
   const abrirCorreccionContrato = (contrato: ContratoRow) => {
-    setOverlay({ tipo: 'contrato-corregir', contrato })
+    setOverlay({
+      tipo: 'contrato-corregir',
+      contrato,
+      firmaTerminosOriginales: firmaTerminosContrato(contrato),
+    })
   }
 
   const cargando = grupos == null && !(clientesQ.isError || contratosQ.isError)
@@ -1781,6 +2202,7 @@ export function MiCartera() {
   // estar rancio. Sin esto la cartera se veía idéntica a una recién cargada.
   const recargaFallida = (clientesQ.isError || contratosQ.isError) && grupos != null
   const reintentarCarga = () => {
+    void recargarStoreRef.current()
     void clientesQ.refetch()
     void contratosQ.refetch()
     void operacionesQ.refetch()
@@ -1807,25 +2229,20 @@ export function MiCartera() {
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={() => setOverlay({ tipo: 'cliente-crear' })}
         onNuevoContrato={(c) => abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente')}
-        onGestionarCliente={(c) =>
+        onGestionarCliente={(contexto) =>
           setOverlay({
-            tipo: 'cliente-gestionar',
-            clienteId: c.id,
-            clienteNombre: c.nombre_completo || c.correo || 'el cliente',
+            tipo: 'cliente-ficha',
+            clienteId: contexto.clienteId,
+            focoInicial: 'siguiente-contacto',
           })
         }
         onUpgradeCliente={(c) => abrirNuevoContrato(c.id, c.nombre_completo || c.correo || 'el cliente', true)}
         onRenovarContrato={abrirRenovacion}
-        onDetalleCliente={(c) =>
-          setOverlay({
-            tipo: 'cliente-detalle',
-            clienteId: c.id,
-            clienteNombre: c.nombre_completo,
-          })
-        }
+        onDetalleCliente={(contexto) => setOverlay({ tipo: 'cliente-ficha', clienteId: contexto.clienteId })}
         onCorregirCliente={(c) => setOverlay({ tipo: 'cliente-corregir', clienteId: c.id })}
         onDetalleContrato={(k) => setOverlay({ tipo: 'contrato-detalle', contrato: k })}
         onCorregirContrato={abrirCorreccionContrato}
+        contenedorRef={focoCarteraRef}
       />
 
       {overlay?.tipo === 'cliente-crear' && (
@@ -1838,21 +2255,110 @@ export function MiCartera() {
           />
         </Dialog>
       )}
-      {overlay?.tipo === 'cliente-detalle' && (
-        <Dialog
+      {overlay?.tipo === 'cliente-ficha' && grupoFicha && contextoFicha?.consultable && (
+        <Sheet
           open
-          onClose={cerrar}
-          ariaLabel={`Detalle de ${overlay.clienteNombre || 'cliente'}`}
-          className="w-[640px]"
+          onClose={cerrarFicha}
+          ariaLabel={`Ficha comercial de ${grupoFicha.cliente.nombre_completo || 'cliente'}`}
+          className="w-[620px] max-w-full"
         >
-          <ClienteDetalle clienteId={overlay.clienteId} onCerrar={cerrar} />
-        </Dialog>
+          <ClienteFicha
+            grupo={grupoFicha}
+            asesorNombre={contextoFicha.asesorNombre}
+            operaciones={(operacionesQ.data ?? []).filter(
+              (operacion) => operacion.cliente_id === grupoFicha.cliente.id,
+            )}
+            movimientosInversionPendientes={operacionesQ.isPending}
+            movimientosInversionDesactualizados={
+              operacionesQ.isError
+                ? {
+                    reintentar: () => void operacionesQ.refetch(),
+                    actualizando: operacionesQ.isFetching,
+                  }
+                : null
+            }
+            onAccesoRevocado={retirarClienteDeSesion}
+            onAsignacionDesactualizada={actualizarAsignacionCliente}
+            operable={contextoFicha.operable}
+            motivoNoOperable={contextoFicha.motivoNoOperable}
+            edicionGlobal={contextoFicha.edicionGlobal}
+            focoInicial={overlay.focoInicial}
+            puedeVerCuentas={contextoFicha.puedeVerCuentas}
+            datosCarteraDesactualizados={recargaFallida ? { reintentar: reintentarCarga } : null}
+            onCerrar={cerrarFicha}
+            onGestionar={
+              contextoFicha.gestionable
+                ? () => {
+                    limpiarDatosFicha(grupoFicha.cliente.id)
+                    setOverlay({
+                      tipo: 'cliente-gestionar',
+                      clienteId: grupoFicha.cliente.id,
+                      clienteNombre: grupoFicha.cliente.nombre_completo || grupoFicha.cliente.correo || 'el cliente',
+                    })
+                  }
+                : undefined
+            }
+            onCorregir={
+              contextoFicha.accionable
+                ? () => {
+                    limpiarDatosFicha(grupoFicha.cliente.id)
+                    setOverlay({
+                      tipo: 'cliente-corregir',
+                      clienteId: grupoFicha.cliente.id,
+                    })
+                  }
+                : undefined
+            }
+            onNuevoContrato={
+              contextoFicha.accionable
+                ? () => {
+                    limpiarDatosFicha(grupoFicha.cliente.id)
+                    abrirNuevoContrato(
+                      grupoFicha.cliente.id,
+                      grupoFicha.cliente.nombre_completo || grupoFicha.cliente.correo || 'el cliente',
+                    )
+                  }
+                : undefined
+            }
+            onUpgrade={
+              contextoFicha.accionable
+                ? () => {
+                    limpiarDatosFicha(grupoFicha.cliente.id)
+                    abrirNuevoContrato(
+                      grupoFicha.cliente.id,
+                      grupoFicha.cliente.nombre_completo || grupoFicha.cliente.correo || 'el cliente',
+                      true,
+                    )
+                  }
+                : undefined
+            }
+            onDetalleContrato={(contrato) => {
+              limpiarDatosFicha(grupoFicha.cliente.id)
+              setOverlay({
+                tipo: 'contrato-detalle',
+                contrato,
+                volverACliente: {
+                  clienteId: grupoFicha.cliente.id,
+                  focoInicial: { tipo: 'contrato', contratoId: contrato.id },
+                },
+              })
+            }}
+            onRenovarContrato={
+              contextoFicha.accionable
+                ? (contrato) => {
+                    limpiarDatosFicha(grupoFicha.cliente.id)
+                    abrirRenovacion(grupoFicha.cliente, contrato)
+                  }
+                : undefined
+            }
+          />
+        </Sheet>
       )}
       {overlay?.tipo === 'cliente-gestionar' && (
         <Dialog
           open
           onClose={cerrarSeguro}
-          ariaLabel={`Gestionar a ${overlay.clienteNombre || 'cliente'}`}
+          ariaLabel={`Agendar seguimiento de ${overlay.clienteNombre || 'cliente'}`}
           className="w-[640px]"
         >
           <ClienteGestion
@@ -1878,7 +2384,7 @@ export function MiCartera() {
         <Dialog
           open
           onClose={cerrarContratoNuevo}
-          ariaLabel={overlay.upgrade ? 'Registrar upgrade del cliente' : 'Crear contrato del cliente'}
+          ariaLabel={overlay.upgrade ? 'Aumentar inversión del cliente' : 'Registrar nueva inversión del cliente'}
         >
           <ContratoNuevo
             clienteId={overlay.clienteId}
@@ -1893,14 +2399,22 @@ export function MiCartera() {
           />
         </Dialog>
       )}
-      {overlay?.tipo === 'contrato-renovar' && (
-        <Dialog open onClose={cerrarContratoNuevo} ariaLabel={`Renovar contrato ${overlay.contrato.numero_contrato}`}>
+      {overlay?.tipo === 'contrato-renovar' && contratoOverlayActual && !terminosContratoCambiaron && (
+        <Dialog
+          open
+          onClose={cerrarContratoNuevo}
+          ariaLabel={`Renovar inversión del contrato ${contratoOverlayActual.numero_contrato}`}
+        >
           <ContratoNuevo
             clienteId={overlay.clienteId}
             clienteNombre={overlay.clienteNombre}
             categoriaFija="renovacion"
             renovacionOrigen={{
+              // La renovación completa nace de la foto capturada al abrir. Una
+              // recarga puede actualizar contratoOverlayActual, pero nunca debe
+              // convertir el borrador viejo en una escritura sobre la revisión nueva.
               id: overlay.contrato.id,
+              revisionContrato: overlay.contrato.revision_contrato,
               numeroContrato: overlay.contrato.numero_contrato,
               capital: overlay.contrato.capital,
               moneda: overlay.contrato.moneda,
@@ -1915,38 +2429,51 @@ export function MiCartera() {
           />
         </Dialog>
       )}
-      {overlay?.tipo === 'contrato-detalle' && (
+      {overlay?.tipo === 'contrato-detalle' && contratoOverlayActual && (
         <Dialog
           open
-          onClose={cerrar}
-          ariaLabel={`Detalle del contrato ${overlay.contrato.numero_contrato}`}
+          onClose={cerrarDetalleContrato}
+          ariaLabel={`Detalle del contrato ${contratoOverlayActual.numero_contrato}`}
           className="w-[560px]"
         >
           <ContratoDetalle
-            contratoId={overlay.contrato.id}
+            contratoId={contratoOverlayActual.id}
             puedeEliminar={puedeEliminarContratos(yo)}
             onEliminar={async () => {
-              const { archivosEliminados } = await eliminarContratoConPdf(overlay.contrato.id)
-              setOverlay(null)
+              const volverACliente = overlay.volverACliente
+              await eliminarContratoConPdf(contratoOverlayActual.id)
+              limpiarDatosContrato(contratoOverlayActual.id)
               await queryClient.invalidateQueries({
                 queryKey: crmQueryKeys.contratos(),
               })
-              toast.success(
-                `Contrato ${overlay.contrato.numero_contrato} eliminado con ${archivosEliminados} archivo${archivosEliminados === 1 ? '' : 's'}.`,
+              toast.success(`El contrato ${contratoOverlayActual.numero_contrato} se eliminó correctamente.`)
+              setOverlay(
+                volverACliente
+                  ? {
+                      tipo: 'cliente-ficha',
+                      clienteId: volverACliente.clienteId,
+                      focoInicial: 'inversiones',
+                    }
+                  : null,
               )
             }}
-            onCerrar={cerrar}
+            onCerrar={cerrarDetalleContrato}
           />
         </Dialog>
       )}
-      {overlay?.tipo === 'contrato-corregir' && (
+      {overlay?.tipo === 'contrato-corregir' && contratoOverlayActual && !terminosContratoCambiaron && (
         <Dialog
           open
-          onClose={cerrar}
-          ariaLabel={`Corregir contrato ${overlay.contrato.numero_contrato}`}
+          onClose={cerrarCorreccionContrato}
+          ariaLabel={`Corregir contrato ${contratoOverlayActual.numero_contrato}`}
           className="w-[560px]"
         >
-          <ContratoCorregir contrato={overlay.contrato} onGuardado={recargarContratos} onCerrar={cerrar} />
+          <ContratoCorregir
+            contrato={contratoOverlayActual}
+            revisionEsperada={overlay.contrato.revision_contrato}
+            onGuardado={recargarContratos}
+            onCerrar={cerrarCorreccionContrato}
+          />
         </Dialog>
       )}
     </>
@@ -1970,7 +2497,7 @@ interface ContratoDemoLocal {
 
 function MiCarteraDemo() {
   const { yo } = useAuth()
-  const { ambito } = useCRMData()
+  const { ambito, equipo } = useCRMData()
   const [fixtures, setFixtures] = useState<{
     clientes: ClienteBasico[]
     contratos: ContratoRow[]
@@ -1981,8 +2508,18 @@ function MiCarteraDemo() {
     identidadesPdf: Record<string, Omit<ContratoPdfDatos, 'contrato'>>
     cuentasClientes: Record<string, Record<'PEN' | 'USD', CuentaBancariaSeleccionable[]>>
   } | null>(null)
-  const [detalleCliente, setDetalleCliente] = useState<ClienteDetalleDatos | null>(null)
-  const [detalleContrato, setDetalleContrato] = useState<ContratoRow | null>(null)
+  const [detalleCliente, setDetalleCliente] = useState<{
+    datos: ClienteDetalleDatos
+    clienteId: string
+    focoInicial?: FocoInicialClienteFicha
+  } | null>(null)
+  const [detalleContrato, setDetalleContrato] = useState<{
+    contrato: ContratoRow
+    volverACliente?: {
+      clienteId: string
+      focoInicial: FocoInicialClienteFicha
+    }
+  } | null>(null)
   const [nuevoContrato, setNuevoContrato] = useState<ClienteBasico | null>(null)
   const [contratosLocales, setContratosLocales] = useState<Record<string, ContratoDemoLocal>>({})
   const [envioContratoEnCurso, setEnvioContratoEnCurso] = useState(false)
@@ -1991,7 +2528,7 @@ function MiCarteraDemo() {
 
   useEffect(() => {
     let vivo = true
-    if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
+    if (import.meta.env.VITE_ENABLE_DEMO === 'true' && (import.meta.env.DEV || import.meta.env.MODE === 'preview')) {
       void import('@/lib/demo-clientes').then((m) => {
         if (vivo) {
           setFixtures({
@@ -2024,18 +2561,34 @@ function MiCarteraDemo() {
     return agruparCartera(clientesVis, contratosVis)
   }, [fixtures, yo, ambito, contratosLocales])
 
-  const tocaReal = () => toast.info('Disponible solo con tu cuenta real (demo)')
-  const abrirDetalleCliente = (cliente: ClienteBasico) => {
-    const detalle = fixtures?.detallesClientes[cliente.id]
+  const tocaReal = () => toast.info('Disponible al ingresar con tu cuenta de trabajo.')
+  const abrirDetalleCliente = (contexto: ContextoFichaCliente, focoInicial?: FocoInicialClienteFicha) => {
+    const detalle = fixtures?.detallesClientes[contexto.clienteId]
     if (!detalle) {
-      toast.error('No se encontró el detalle ficticio de este cliente.')
+      toast.error('No se encontraron los datos de demostración de este cliente.')
       return
     }
-    setDetalleCliente(detalle)
+    setDetalleCliente({
+      datos: detalle,
+      clienteId: contexto.clienteId,
+      ...(focoInicial ? { focoInicial } : {}),
+    })
+  }
+  const cerrarDetalleContratoDemo = () => {
+    const volverACliente = detalleContrato?.volverACliente
+    setDetalleContrato(null)
+    if (!volverACliente) return
+    const datos = fixtures?.detallesClientes[volverACliente.clienteId]
+    if (!datos) return
+    setDetalleCliente({
+      datos,
+      clienteId: volverACliente.clienteId,
+      focoInicial: volverACliente.focoInicial,
+    })
   }
   const abrirNuevoContrato = (cliente: ClienteBasico) => {
     if (!fixtures?.identidadesPdf[cliente.id]) {
-      toast.error('No se encontró la identidad legal ficticia de este cliente.')
+      toast.error('No se encontraron los datos de demostración necesarios para registrar la inversión.')
       return
     }
     setContratoConfirmado(null)
@@ -2045,16 +2598,18 @@ function MiCarteraDemo() {
   const validarNumeroContratoDemo = (numero: string): string | null => {
     const existeEnFixture = fixtures?.contratos.some((contrato) => contrato.numero_contrato === numero) ?? false
     const existeLocal = Object.values(contratosLocales).some((local) => local.contrato.numero_contrato === numero)
-    return existeEnFixture || existeLocal ? `Ya existe el contrato demo ${numero}. Escribe un número distinto.` : null
+    return existeEnFixture || existeLocal
+      ? `El contrato ${numero} ya se usó en esta demostración. Escribe un número distinto.`
+      : null
   }
   const finalizarContratoDemo = (_numero: string, creadoLocal?: ContratoCreadoLocal) => {
     if (!creadoLocal || !fixtures) {
-      toast.error('No se pudo incorporar el contrato ficticio a Mi cartera.')
+      toast.error('No se pudo mostrar la inversión en Mi cartera.')
       return
     }
     const cliente = fixtures.clientes.find((fila) => fila.id === creadoLocal.input.cliente_id)
     if (!cliente) {
-      toast.error('No se encontró el cliente ficticio del contrato.')
+      toast.error('No se encontraron los datos de demostración del cliente.')
       return
     }
     if (contratosFinalizadosRef.current.has(creadoLocal.id)) {
@@ -2065,7 +2620,7 @@ function MiCarteraDemo() {
     }
     const numeroContrato = creadoLocal.input.numero_contrato ?? creadoLocal.pdfDatos.contrato.numero
     if (validarNumeroContratoDemo(numeroContrato)) {
-      toast.error(`No se incorporó ${numeroContrato}: ese número demo ya existe.`)
+      toast.error(`No se incorporó ${numeroContrato}: ese número ya se usó en esta demostración.`)
       return
     }
     contratosFinalizadosRef.current.add(creadoLocal.id)
@@ -2087,6 +2642,7 @@ function MiCarteraDemo() {
       notas_internas: creadoLocal.input.notas_internas ?? null,
       creado_por: yo?.id ?? null,
       creado_en: creadoEn,
+      revision_contrato: creadoEn,
       producto_condicion_id: 'demo-condicion-contrato-local',
       producto_id: 'demo-producto-contrato-local',
       producto_codigo: 'DEMO-CONTRATO',
@@ -2127,6 +2683,18 @@ function MiCarteraDemo() {
     }
     setNuevoContrato(null)
   }
+  const grupoFichaDemo = detalleCliente
+    ? (grupos?.find((grupo) => grupo.cliente.id === detalleCliente.clienteId) ?? null)
+    : null
+  const contextoFichaDemo = grupoFichaDemo
+    ? resolverContextoFichaCliente({
+        grupo: grupoFichaDemo,
+        equipo,
+        yoId: yo?.id,
+        rol: yo?.rol,
+        puedeContratar: yo?.puede_contratar === true,
+      })
+    : null
 
   return (
     <>
@@ -2141,32 +2709,64 @@ function MiCarteraDemo() {
         puedeContratar={yo?.puede_contratar === true}
         onNuevoCliente={tocaReal}
         onNuevoContrato={abrirNuevoContrato}
-        onGestionarCliente={tocaReal}
+        onGestionarCliente={(contexto) => abrirDetalleCliente(contexto, 'siguiente-contacto')}
         onUpgradeCliente={tocaReal}
         onRenovarContrato={tocaReal}
         onDetalleCliente={abrirDetalleCliente}
         onCorregirCliente={tocaReal}
-        onDetalleContrato={setDetalleContrato}
+        onDetalleContrato={(contrato) => setDetalleContrato({ contrato })}
         onCorregirContrato={tocaReal}
       />
 
-      {detalleCliente && (
-        <Dialog
+      {detalleCliente && grupoFichaDemo && contextoFichaDemo && (
+        <Sheet
           open
           onClose={() => setDetalleCliente(null)}
-          ariaLabel={`Detalle de ${detalleCliente.nombre_completo || 'cliente'}`}
-          className="w-[640px]"
+          ariaLabel={`Ficha comercial de ${detalleCliente.datos.nombre_completo || 'cliente'}`}
+          className="w-[620px] max-w-full"
         >
-          <ClienteDetalle
-            clienteId={detalleCliente.id}
-            datos={detalleCliente}
+          <ClienteFicha
+            grupo={grupoFichaDemo}
+            asesorNombre={contextoFichaDemo.asesorNombre}
+            datos={detalleCliente.datos}
+            operable={contextoFichaDemo.operable}
+            motivoNoOperable={contextoFichaDemo.motivoNoOperable}
+            edicionGlobal={contextoFichaDemo.edicionGlobal}
+            focoInicial={detalleCliente.focoInicial}
+            puedeVerCuentas={contextoFichaDemo.puedeVerCuentas}
             onCerrar={() => setDetalleCliente(null)}
+            onGestionar={contextoFichaDemo.gestionable ? tocaReal : undefined}
+            onCorregir={contextoFichaDemo.accionable ? tocaReal : undefined}
+            onNuevoContrato={
+              contextoFichaDemo.accionable
+                ? () => {
+                    setDetalleCliente(null)
+                    abrirNuevoContrato(grupoFichaDemo.cliente)
+                  }
+                : undefined
+            }
+            onUpgrade={contextoFichaDemo.accionable ? tocaReal : undefined}
+            onDetalleContrato={(contrato) => {
+              setDetalleCliente(null)
+              setDetalleContrato({
+                contrato,
+                volverACliente: {
+                  clienteId: grupoFichaDemo.cliente.id,
+                  focoInicial: { tipo: 'contrato', contratoId: contrato.id },
+                },
+              })
+            }}
+            onRenovarContrato={contextoFichaDemo.accionable ? tocaReal : undefined}
           />
-        </Dialog>
+        </Sheet>
       )}
 
       {nuevoContrato && fixtures?.identidadesPdf[nuevoContrato.id] && (
-        <Dialog open onClose={cerrarContratoDemo} ariaLabel={`Crear contrato de ${nuevoContrato.nombre_completo}`}>
+        <Dialog
+          open
+          onClose={cerrarContratoDemo}
+          ariaLabel={`Registrar nueva inversión de ${nuevoContrato.nombre_completo}`}
+        >
           <ContratoNuevo
             clienteId={nuevoContrato.id}
             clienteNombre={nuevoContrato.nombre_completo}
@@ -2186,20 +2786,27 @@ function MiCarteraDemo() {
       {detalleContrato && (
         <Dialog
           open
-          onClose={() => setDetalleContrato(null)}
-          ariaLabel={`Detalle del contrato ${detalleContrato.numero_contrato}`}
+          onClose={cerrarDetalleContratoDemo}
+          ariaLabel={`Detalle del contrato ${detalleContrato.contrato.numero_contrato}`}
           className="w-[560px]"
         >
           <ContratoDetalle
-            contratoId={detalleContrato.id}
+            contratoId={detalleContrato.contrato.id}
             datos={{
-              contrato: detalleContrato,
-              cuotas: contratosLocales[detalleContrato.id]?.cuotas ?? fixtures?.cronogramas[detalleContrato.id] ?? [],
+              contrato: detalleContrato.contrato,
+              cuotas:
+                contratosLocales[detalleContrato.contrato.id]?.cuotas ??
+                fixtures?.cronogramas[detalleContrato.contrato.id] ??
+                [],
               titulares:
-                contratosLocales[detalleContrato.id]?.titulares ?? fixtures?.titulares[detalleContrato.id] ?? [],
-              pdfDatos: contratosLocales[detalleContrato.id]?.pdfDatos ?? fixtures?.pdfDatos[detalleContrato.id],
+                contratosLocales[detalleContrato.contrato.id]?.titulares ??
+                fixtures?.titulares[detalleContrato.contrato.id] ??
+                [],
+              pdfDatos:
+                contratosLocales[detalleContrato.contrato.id]?.pdfDatos ??
+                fixtures?.pdfDatos[detalleContrato.contrato.id],
             }}
-            onCerrar={() => setDetalleContrato(null)}
+            onCerrar={cerrarDetalleContratoDemo}
           />
         </Dialog>
       )}

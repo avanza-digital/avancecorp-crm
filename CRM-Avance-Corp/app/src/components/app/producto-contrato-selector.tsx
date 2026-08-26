@@ -3,10 +3,7 @@ import { Button } from '@/components/ui/button'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { money } from '@/lib/format'
-import {
-  etiquetaCondicionProducto,
-  type ProductoCondicionSeleccion,
-} from '@/lib/productos-inversion'
+import { etiquetaCondicionProducto, type ProductoCondicionSeleccion } from '@/lib/productos-inversion'
 
 export const CODIGO_PRODUCTO_HISTORICO = 'HISTORICO-SIN-CATALOGO'
 
@@ -32,9 +29,9 @@ interface ProductoContratoSelectorProps {
 }
 
 const CATEGORIA = {
-  nuevo: 'Nuevo',
+  nuevo: 'Nueva inversión',
   renovacion: 'Renovación',
-  upgrade: 'Upgrade',
+  upgrade: 'Aumento de inversión',
 } as const
 
 const MODALIDAD = {
@@ -79,7 +76,7 @@ export function ProductoContratoSelector({
           <div className="min-w-0">
             <Label htmlFor={id}>Producto de inversión</Label>
             <p className="text-[11px] text-muted-foreground">
-              La condición fija categoría, moneda, plazo, modalidad y tipo de interés.
+              Elige la opción que corresponda a esta venta: tipo de inversión, moneda, plazo y forma de pago.
             </p>
           </div>
         </div>
@@ -101,13 +98,17 @@ export function ProductoContratoSelector({
         aria-invalid={error || undefined}
       >
         <option value="" disabled>
-          {cargando ? 'Cargando productos…' : condiciones.length === 0 ? 'Sin productos vigentes' : '— Seleccionar producto —'}
+          {cargando
+            ? 'Cargando productos…'
+            : condiciones.length === 0
+              ? 'Sin productos vigentes'
+              : '— Seleccionar producto —'}
         </option>
         {actualNoSeleccionable && (
           <option value={actual.condicionId}>
             {esHistorico
               ? 'Mantener las condiciones con las que se firmó'
-              : `${actual.codigo} · ${actual.nombre} · v${actual.version} (no vigente)`}
+              : `${actual.nombre} (ya no disponible para nuevas ventas)`}
           </option>
         )}
         {condiciones.map((item) => (
@@ -120,30 +121,54 @@ export function ProductoContratoSelector({
       {error ? (
         <p className="text-xs font-semibold text-destructive">
           {actual
-            ? 'No se pudo revalidar el catálogo. Puedes conservar el origen actual, pero no cambiarlo hasta reintentar.'
-            : 'No se pudo cargar el catálogo. No se puede confirmar una condición contractual sin revalidarlo.'}
+            ? 'No pudimos actualizar las opciones vigentes. Puedes mantener lo que ya se acordó, pero no cambiarlo hasta volver a intentar.'
+            : 'No pudimos cargar las opciones vigentes. Vuelve a intentar antes de confirmar la inversión.'}
         </p>
       ) : !cargando && condiciones.length === 0 && !actual ? (
         <p className="text-xs font-semibold text-warning-text">
-          No hay condiciones publicadas y vigentes. Gerencia debe publicar al menos una antes de crear contratos.
+          No hay opciones disponibles para vender. Gerencia debe habilitar al menos una antes de registrar inversiones.
         </p>
       ) : condicion ? (
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 border-t border-primary/15 pt-2 text-[11px] sm:grid-cols-4">
-          <p><span className="text-muted-foreground">Versión</span><br /><b>{condicion.version_nombre} · v{condicion.numero_version}</b></p>
-          <p><span className="text-muted-foreground">Condición</span><br /><b>{CATEGORIA[condicion.categoria]} · {condicion.moneda}</b></p>
-          <p><span className="text-muted-foreground">Plazo y pago</span><br /><b>{condicion.plazo_meses} meses · {MODALIDAD[condicion.modalidad]}</b></p>
-          <p><span className="text-muted-foreground">Capital</span><br /><b>{money(condicion.capital_minimo, condicion.moneda)}–{money(condicion.capital_maximo, condicion.moneda)}</b></p>
+          <p>
+            <span className="text-muted-foreground">Opción elegida</span>
+            <br />
+            <b>{condicion.version_nombre}</b>
+          </p>
+          <p>
+            <span className="text-muted-foreground">Tipo de inversión</span>
+            <br />
+            <b>
+              {CATEGORIA[condicion.categoria]} · {condicion.moneda}
+            </b>
+          </p>
+          <p>
+            <span className="text-muted-foreground">Plazo y pago</span>
+            <br />
+            <b>
+              {condicion.plazo_meses} meses · {MODALIDAD[condicion.modalidad]}
+            </b>
+          </p>
+          <p>
+            <span className="text-muted-foreground">Capital</span>
+            <br />
+            <b>
+              {money(condicion.capital_minimo, condicion.moneda)}–{money(condicion.capital_maximo, condicion.moneda)}
+            </b>
+          </p>
           <p className="col-span-2 sm:col-span-4">
-            <span className="text-muted-foreground">Tasa anual permitida</span>{' '}
-            <b>{condicion.tasa_minima}%–{condicion.tasa_maxima}%</b>
-            <span className="text-muted-foreground"> · referencia {condicion.tasa_referencia}%</span>
+            <span className="text-muted-foreground">Rango de tasa anual</span>{' '}
+            <b>
+              {condicion.tasa_minima}%–{condicion.tasa_maxima}%
+            </b>
+            <span className="text-muted-foreground"> · tasa sugerida {condicion.tasa_referencia}%</span>
           </p>
         </div>
       ) : actualNoSeleccionable && (!esHistorico || explicarCondicionesPropias) ? (
         <p className="border-t border-primary/15 pt-2 text-xs text-muted-foreground">
           {esHistorico
-            ? 'Este contrato mantiene las condiciones con las que se firmó. Puedes corregir sus datos sin cambiarlas; para vender con un producto del catálogo, crea un contrato nuevo.'
-            : 'La versión contractual ya no está vigente. Puedes conservar sus términos o elegir una condición vigente para modificarlos.'}
+            ? 'Este contrato mantiene lo que se acordó al firmarlo. Puedes corregir sus datos sin cambiar esas condiciones; para ofrecer una opción actual, registra una inversión nueva.'
+            : 'Esta opción ya no está disponible para nuevas ventas. Puedes conservar lo acordado o elegir una opción vigente.'}
         </p>
       ) : null}
     </section>

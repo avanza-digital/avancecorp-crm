@@ -3,7 +3,16 @@
 // la UI oculta acciones (directorio = solo lectura total) y el store re-valida.
 // Los errores de validación del store ({ok:false, error} SIN toast) se muestran
 // inline en los forms o con toast.error en acciones sueltas.
-import { Fragment, useEffect, useMemo, useRef, useState, type ChangeEvent, type CSSProperties, type ReactNode } from 'react'
+import {
+  Fragment,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ChangeEvent,
+  type CSSProperties,
+  type ReactNode,
+} from 'react'
 import { toast } from 'sonner'
 import {
   ArrowRightLeft,
@@ -23,20 +32,12 @@ import {
   Sparkles,
   StickyNote,
   Users,
-  X,
   XCircle,
   type LucideIcon,
 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { Sheet, SheetBody, SheetFooter, SheetHeader, SheetTitle } from '@/components/ui/sheet'
-import {
-  Dialog,
-  DialogBody,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Sheet, SheetBody, SheetFooter } from '@/components/ui/sheet'
+import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
@@ -45,6 +46,7 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AccionesContacto } from '@/components/app/contacto'
+import { FichaComercialCabecera } from '@/components/app/ficha-comercial'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import {
   CAMPOS_REUNION_VACIOS,
@@ -66,12 +68,7 @@ import { can, puedeEscribir } from '@/lib/roles'
 import { useCRMData, usePanelesActions, usePanelesState } from '@/lib/store-context'
 import { MOTIVOS_CON_EVIDENCIA, VETO_CORTO, vetoNoResponde } from '@/lib/descarte-evidencia'
 import { DialogCapitalPropuesta } from '@/components/app/capital-propuesta'
-import {
-  convertirLead,
-  CrmApiError,
-  esClienteDeMiCartera,
-  type TipoDocumentoCliente,
-} from '@/data/crm-api'
+import { convertirLead, CrmApiError, esClienteDeMiCartera, type TipoDocumentoCliente } from '@/data/crm-api'
 import { ContratoNuevo } from '@/components/app/contrato-nuevo'
 import { useAhora } from '@/lib/ahora'
 import { retrocesoPorAnularReunion } from '@/lib/avance-automatico'
@@ -188,8 +185,7 @@ function Ficha({ l }: { l: Lead }) {
   const tieneAnalista = l.vendedor_id != null
   const seraMiCliente = l.vendedor_id === yo?.id
   const operaGlobal = escribe && can(rol, 'verTodo')
-  const puedeConvertir =
-    escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista))
+  const puedeConvertir = escribe && (yo?.puede_contratar ?? false) && (seraMiCliente || (operaGlobal && tieneAnalista))
   const esTerminal = l.etapa === 'convertido' || l.etapa === 'descartado'
   const [dialogo, setDialogo] = useState<'convertir' | 'descartar' | null>(null)
   // Señal header → Datos: el badge "Sin capital estimado" abre el modo edición
@@ -199,54 +195,40 @@ function Ficha({ l }: { l: Lead }) {
 
   return (
     <>
-      <SheetHeader className="gap-2.5">
-        <div className="flex items-start gap-3">
-          <Avatar nombre={l.nombre_completo} genero={l.genero ?? null} className="size-10" />
-          <div className="min-w-0 flex-1">
-            <SheetTitle className="truncate">{l.nombre_completo}</SheetTitle>
-            <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
-              <Badge color={info.color} dot>{info.label}</Badge>
-              {l.categoria_interes && (
-                <Badge color="var(--chart-4)">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>
-              )}
-              <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
-              {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
-              {l.monto_estimado == null &&
-                (escribe && !esTerminal ? (
-                  <button
-                    type="button"
-                    className="cursor-pointer"
-                    onClick={() => setPedirEditarDatos((n) => n + 1)}
-                  >
-                    <Badge color="#d97706">Sin capital estimado → completar</Badge>
-                  </button>
-                ) : (
-                  <Badge color="#d97706">Sin capital estimado</Badge>
-                ))}
-            </div>
-          </div>
-          {/* Capital en juego arriba, siempre a la vista (mismo patrón del hover-card). */}
-          {l.monto_estimado != null && (
+      <FichaComercialCabecera
+        avatar={<Avatar nombre={l.nombre_completo} genero={l.genero ?? null} className="size-10" />}
+        titulo={l.nombre_completo}
+        badges={
+          <>
+            <Badge color={info.color} dot>
+              {info.label}
+            </Badge>
+            {l.categoria_interes && <Badge color="var(--chart-4)">Inversión · {CAT_LABEL[l.categoria_interes]}</Badge>}
+            <Badge color="var(--muted-foreground)">{origenLabel(l.origen)}</Badge>
+            {/* Capital ausente = vacío accionable: el badge ámbar abre Editar. */}
+            {l.monto_estimado == null &&
+              (escribe && !esTerminal ? (
+                <button type="button" className="cursor-pointer" onClick={() => setPedirEditarDatos((n) => n + 1)}>
+                  <Badge color="#d97706">Sin capital estimado → completar</Badge>
+                </button>
+              ) : (
+                <Badge color="#d97706">Sin capital estimado</Badge>
+              ))}
+          </>
+        }
+        resumen={
+          l.monto_estimado != null ? (
             <div className="shrink-0 text-right leading-tight">
-              <p className="text-sm font-extrabold tabular-nums text-primary">
-                {money(l.monto_estimado, l.moneda)}
-              </p>
+              <p className="text-sm font-extrabold tabular-nums text-primary">{money(l.monto_estimado, l.moneda)}</p>
               <p className="text-[9px] font-semibold uppercase tracking-wide text-muted-foreground">
                 {rotuloCapital(l.etapa)}
               </p>
             </div>
-          )}
-          <button
-            type="button"
-            onClick={cerrarPaneles}
-            aria-label="Cerrar ficha"
-            className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-          >
-            <X className="size-4" />
-          </button>
-        </div>
-        <AccionesContacto lead={l} />
-      </SheetHeader>
+          ) : undefined
+        }
+        acciones={<AccionesContacto lead={l} />}
+        onCerrar={cerrarPaneles}
+      />
 
       <SheetBody className="space-y-5">
         {esTerminal ? <BannerTerminal l={l} escribe={escribe} /> : <Stepper l={l} escribe={escribe} />}
@@ -283,8 +265,8 @@ function Ficha({ l }: { l: Lead }) {
               {!tieneAnalista
                 ? 'Asigna primero el lead a un analista; una conversión necesita responsable comercial.'
                 : yo?.puede_contratar && !operaGlobal
-                ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el vendedor del lead'}. Para hacerla tú, reasígnate el lead.`
-                : 'El alta del cliente la registra el vendedor.'}
+                  ? `La conversión la cierra ${primerNombre(l.vendedor_nombre) || 'el vendedor del lead'}. Para hacerla tú, reasígnate el lead.`
+                  : 'El vendedor debe registrar al cliente.'}
             </p>
           )}
         </SheetFooter>
@@ -318,9 +300,7 @@ function Stepper({ l, escribe }: { l: Lead; escribe: boolean }) {
 
   return (
     <div className="flex items-center gap-1" role="group" aria-label="Etapa del lead">
-      {pidiendoCapital && (
-        <DialogCapitalPropuesta lead={l} onClose={() => setPidiendoCapital(false)} />
-      )}
+      {pidiendoCapital && <DialogCapitalPropuesta lead={l} onClose={() => setPidiendoCapital(false)} />}
       {ETAPAS.map((e, i) => {
         const actual = i === idx
         const pasada = i < idx
@@ -448,9 +428,7 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
           <Ban /> Anular el cierre
         </Button>
       )}
-      {anulando && (
-        <AnularCierreAvanceDialog lead={l} demo={demo} onCerrar={cerrarAnulacion} />
-      )}
+      {anulando && <AnularCierreAvanceDialog lead={l} demo={demo} onCerrar={cerrarAnulacion} />}
     </div>
   )
 }
@@ -504,8 +482,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   // Con pendientes vivas, agendar OTRA es un gesto raro: el quick-add se pliega
   // tras este botón. Solo con 0 pendientes (aviso ámbar) queda abierto siempre.
   const [agendarOtra, setAgendarOtra] = useState(false)
-  const [motivoAnulacionReunion, setMotivoAnulacionReunion] =
-    useState<MotivoNoRealizadaManual | ''>('')
+  const [motivoAnulacionReunion, setMotivoAnulacionReunion] = useState<MotivoNoRealizadaManual | ''>('')
 
   const slot = proximoSlotSugerido(ahora)
   const [tipo, setTipo] = useState<TipoTarea>('llamada')
@@ -513,8 +490,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
   const [tituloEditado, setTituloEditado] = useState(false)
   const [fecha, setFecha] = useState(() => fechaLima(Date.parse(slot)))
   const [hora, setHora] = useState('10:00')
-  const [camposReunion, setCamposReunion] =
-    useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
+  const [camposReunion, setCamposReunion] = useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
 
   if (!escribe && pendientes.length === 0) return null
   // Lead cerrado: sus pendientes ya fueron canceladas por el trigger; nada que agendar.
@@ -570,18 +546,14 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     // honestidad que `quedaSinPlan` en cerrar-tarea.tsx — a un lead cerrado o
     // a un "No Insista" no se le puede prometer esa consecuencia.
     if (pendientes.length === 1 && activa && !l.no_contactar) {
-      toast.warning(
-        `Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción${sufijo}`,
-      )
+      toast.warning(`Tarea anulada — ${primerNombre(l.nombre_completo)} quedó SIN próxima acción${sufijo}`)
     } else {
       toast.success(`Tarea anulada${sufijo}`)
     }
   }
 
   const agendar = () => {
-    const reunion = tipo === 'reunion'
-      ? validarReunionOperativa(camposReunion)
-      : null
+    const reunion = tipo === 'reunion' ? validarReunionOperativa(camposReunion) : null
     if (reunion && !reunion.ok) {
       toast.error(reunion.error)
       return
@@ -771,14 +743,16 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       <Select
                         aria-label={`Motivo de cancelación — ${t.titulo}`}
                         value={motivoAnulacionReunion}
-                        onChange={(evento) => setMotivoAnulacionReunion(
-                          evento.target.value as typeof motivoAnulacionReunion,
-                        )}
+                        onChange={(evento) =>
+                          setMotivoAnulacionReunion(evento.target.value as typeof motivoAnulacionReunion)
+                        }
                         className="h-7 w-44 text-[11px]"
                       >
                         <option value="">Selecciona el motivo</option>
                         {MOTIVOS_NO_REALIZADA.map((opcion) => (
-                          <option key={opcion.k} value={opcion.k}>{opcion.label}</option>
+                          <option key={opcion.k} value={opcion.k}>
+                            {opcion.label}
+                          </option>
                         ))}
                       </Select>
                     )}
@@ -838,13 +812,11 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
               cada campo con el ancho de lo que hay que LEER. */}
           <div className="space-y-2">
             <div className="grid grid-cols-[110px_1fr] gap-2">
-              <Select
-                aria-label="Tipo de tarea"
-                value={tipo}
-                onChange={(e) => cambiarTipo(e.target.value)}
-              >
+              <Select aria-label="Tipo de tarea" value={tipo} onChange={(e) => cambiarTipo(e.target.value)}>
                 {TIPOS_TAREA.map((t) => (
-                  <option key={t.k} value={t.k}>{t.label}</option>
+                  <option key={t.k} value={t.k}>
+                    {t.label}
+                  </option>
                 ))}
               </Select>
               <Input
@@ -858,38 +830,22 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
               />
             </div>
             <div className="grid grid-cols-[1fr_96px] gap-2">
-              <Input
-                aria-label="Fecha"
-                type="date"
-                value={fecha}
-                onChange={(e) => setFecha(e.target.value)}
-              />
-              <Input
-                aria-label="Hora"
-                type="time"
-                value={hora}
-                onChange={(e) => setHora(e.target.value)}
-              />
+              <Input aria-label="Fecha" type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} />
+              <Input aria-label="Hora" type="time" value={hora} onChange={(e) => setHora(e.target.value)} />
             </div>
-            {tipo === 'reunion' && (
-              <CamposReunion
-                valor={camposReunion}
-                onChange={setCamposReunion}
-              />
-            )}
+            {tipo === 'reunion' && <CamposReunion valor={camposReunion} onChange={setCamposReunion} />}
             <Button
               size="sm"
               className="w-full"
               onClick={agendar}
               disabled={
-                !titulo.trim()
-                || !fecha
-                || !hora
-                || (tipo === 'reunion' && (
-                  !camposReunion.modalidad
-                  || (camposReunion.modalidad === 'presencial' && !camposReunion.ubicacion.trim())
-                  || (camposReunion.modalidad === 'virtual' && !camposReunion.enlace.trim())
-                ))
+                !titulo.trim() ||
+                !fecha ||
+                !hora ||
+                (tipo === 'reunion' &&
+                  (!camposReunion.modalidad ||
+                    (camposReunion.modalidad === 'presencial' && !camposReunion.ubicacion.trim()) ||
+                    (camposReunion.modalidad === 'virtual' && !camposReunion.enlace.trim())))
               }
             >
               <CalendarPlus /> Agendar
@@ -1083,7 +1039,22 @@ function Datos({
             <div className="space-y-1.5">
               <Label htmlFor="ld-monto">Capital estimado *</Label>
               <div className="flex gap-2">
-                <Input id="ld-monto" className="min-w-0 flex-1 tabular-nums" type="number" min={0.01} max={MONTO_ESTIMADO_MAX} step="0.01" inputMode="decimal" required aria-required="true" aria-invalid={invalido('monto_estimado')} aria-describedby={invalido('monto_estimado') ? 'ld-datos-error' : undefined} value={form.monto} onChange={campo('monto')} placeholder="Ej. 5000" />
+                <Input
+                  id="ld-monto"
+                  className="min-w-0 flex-1 tabular-nums"
+                  type="number"
+                  min={0.01}
+                  max={MONTO_ESTIMADO_MAX}
+                  step="0.01"
+                  inputMode="decimal"
+                  required
+                  aria-required="true"
+                  aria-invalid={invalido('monto_estimado')}
+                  aria-describedby={invalido('monto_estimado') ? 'ld-datos-error' : undefined}
+                  value={form.monto}
+                  onChange={campo('monto')}
+                  placeholder="Ej. 5000"
+                />
                 <Select
                   aria-label="Moneda del capital estimado"
                   className="w-24 shrink-0"
@@ -1172,9 +1143,19 @@ function Datos({
           </div>
           <div className="space-y-1.5">
             <Label htmlFor="ld-nota">Nota</Label>
-            <Textarea id="ld-nota" value={form.nota} onChange={campo('nota')} placeholder="opcional" className="min-h-[56px]" />
+            <Textarea
+              id="ld-nota"
+              value={form.nota}
+              onChange={campo('nota')}
+              placeholder="opcional"
+              className="min-h-[56px]"
+            />
           </div>
-          {error && <p id="ld-datos-error" role="alert" className="text-xs font-semibold text-destructive">{error.mensaje}</p>}
+          {error && (
+            <p id="ld-datos-error" role="alert" className="text-xs font-semibold text-destructive">
+              {error.mensaje}
+            </p>
+          )}
           <div className="flex justify-end gap-2">
             <Button size="sm" variant="outline" onClick={() => setEditando(false)}>
               Cancelar
@@ -1195,9 +1176,7 @@ function Datos({
                 <span className="font-extrabold tabular-nums text-primary">{money(l.monto_estimado, l.moneda)}</span>
               </Fila>
             )}
-            {l.categoria_interes && (
-              <Fila label="Categoría">Inversión · {CAT_LABEL[l.categoria_interes]}</Fila>
-            )}
+            {l.categoria_interes && <Fila label="Categoría">Inversión · {CAT_LABEL[l.categoria_interes]}</Fila>}
             <Fila label="Vendedor">
               {puedeReasignar ? (
                 <Select
@@ -1334,9 +1313,7 @@ function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
       >
         <p className="text-xs font-bold text-foreground">{items.length} cambios de etapa</p>
         {reciente.detalle && (
-          <p className="mt-0.5 truncate text-xs leading-relaxed text-muted-foreground">
-            Último: {reciente.detalle}
-          </p>
+          <p className="mt-0.5 truncate text-xs leading-relaxed text-muted-foreground">Último: {reciente.detalle}</p>
         )}
         <p className="mt-0.5 text-[11px] text-muted-foreground/80">
           {reciente.autor_nombre} · {haceRelativo(reciente.creado_en, ahora)} · toca para ver todos
@@ -1689,7 +1666,9 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       // El lead ya quedó convertido en el servidor: el pipeline debe reflejarlo.
       const recargaConfirmada = await recargar()
       if (!recargaConfirmada) {
-        toast.warning('La conversión quedó confirmada, pero la cartera no pudo actualizarse. Recarga la pantalla antes de continuar.')
+        toast.warning(
+          'La conversión quedó confirmada, pero la cartera no pudo actualizarse. Recarga la pantalla antes de continuar.',
+        )
       }
       setPerfilId(r.perfil_id)
       setDomicilioAccion(r.domicilio_accion)
@@ -1704,9 +1683,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         setAvisoYaExistia(true)
         return
       }
-      toast.success(
-        `${l.nombre_completo} ahora es cliente${r.email_enviado ? ' — correo de bienvenida enviado' : ''}`,
-      )
+      toast.success(`${l.nombre_completo} ahora es cliente${r.email_enviado ? ' — correo de bienvenida enviado' : ''}`)
       // Seguido: el paso de crear el contrato (sin salir del CRM).
       setPaso('contrato')
     } catch (e) {
@@ -1769,8 +1746,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
     }
     // Hoy EN LIMA (en-CA = YYYY-MM-DD): a las 7 pm de Lima el reloj UTC ya va
     // por mañana y compararía mal — el servidor valida con el reloj de Lima.
-    const hoyLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' })
-      .format(new Date())
+    const hoyLima = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Lima' }).format(new Date())
     if (venceCoop && venceCoop <= hoyLima) {
       setCampoErrorCoop('vence')
       setError('El vencimiento de la inversión debe ser una fecha futura')
@@ -1811,9 +1787,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
       // (mismo patrón que la conversión Avance vía edge).
       await recargar()
       onClose()
-      toast.success(
-        `${nombreLimpio} cerrado en ${INFO_COOPERATIVA[coop].nombre} — ya cuenta en tu cuota y conversión`,
-      )
+      toast.success(`${nombreLimpio} cerrado en ${INFO_COOPERATIVA[coop].nombre} — ya cuenta en tu cuota y conversión`)
     } catch (e) {
       setError(e instanceof CrmApiError ? e.message : 'No se pudo registrar el cierre en la cooperativa')
     } finally {
@@ -1854,34 +1828,31 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             role="alert"
             className="rounded-xl border border-warning/40 bg-warning/10 p-3 text-xs font-semibold text-warning-text outline-none"
           >
-            Ese documento ya tenía cuenta en el portal: el lead quedó enlazado a ella y cerrado
-            como ganado, y se conservaron las cuentas bancarias que el cliente ya tenía registradas.
-            {' '}{domicilioAccion === 'completado'
+            Ese documento ya tenía cuenta en el portal: el lead quedó enlazado a ella y cerrado como ganado, y se
+            conservaron las cuentas bancarias que el cliente ya tenía registradas.{' '}
+            {domicilioAccion === 'completado'
               ? 'Su domicilio estaba vacío y se completó con el que ingresaste.'
               : 'También se conservó el domicilio legal que ya estaba registrado.'}
             {noEsMio ? ' El cliente NO pasó a tu cartera.' : ''}
           </div>
           <p className="text-xs leading-relaxed text-muted-foreground">
             Lo que escribiste en el formulario no reemplaza las cuentas bancarias
-            {domicilioAccion === 'conservado' ? ' ni el domicilio existente' : ''} — sobreescribirlos a ciegas
-            podría alterar su identidad legal o desviarle sus intereses. Si ya no son correctos,
-            verifícalos antes del contrato o próximo pago: desde “{rotuloCartera} → Corregir” solo
-            se pueden cambiar para un cliente que registraste tú hace menos de 5 horas; si no,
-            pídeselo a Gerencia.
+            {domicilioAccion === 'conservado' ? ' ni el domicilio existente' : ''} — sobreescribirlos a ciegas podría
+            alterar su identidad legal o desviarle sus intereses. Si ya no son correctos, verifícalos antes del contrato
+            o próximo pago: desde “{rotuloCartera} → Corregir” solo se pueden cambiar para un cliente que registraste tú
+            hace menos de 5 horas; si no, pídeselo a Gerencia.
           </p>
           {noEsMio && (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              El cliente sigue a nombre del asesor que lo tenía, así que no lo verás en
-              “{rotuloCartera}” ni podrás crearle el contrato desde aquí: el servidor lo
-              rechazaría. Pídele a Gerencia que te lo reasigne en el portal y créale el contrato
-              después.
+              El cliente sigue a nombre del asesor que lo tenía, así que no lo verás en “{rotuloCartera}” ni podrás
+              registrar su inversión desde aquí. Pídele a Gerencia que te lo reasigne en el portal y registra la
+              inversión después.
             </p>
           )}
           {clienteEnMiCartera === null && (
             <p className="text-xs leading-relaxed text-muted-foreground">
-              No pudimos comprobar si el cliente quedó en tu cartera. Puedes intentar el
-              contrato: si el servidor lo rechaza es porque sigue a nombre de otro asesor, y
-              entonces hay que pedirle a Gerencia que te lo reasigne.
+              No pudimos comprobar si el cliente quedó en tu cartera. Puedes intentar registrar la inversión; si no
+              tienes permiso, pídele a Gerencia que te lo reasigne.
             </p>
           )}
         </DialogBody>
@@ -1900,7 +1871,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
                 setPaso('contrato')
               }}
             >
-              {esMio ? 'Continuar al contrato' : 'Intentar el contrato'}
+              {esMio ? 'Registrar nueva inversión' : 'Intentar registrar nueva inversión'}
             </Button>
           )}
         </DialogFooter>
@@ -1911,7 +1882,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
   // Paso 2: contrato del cliente recién creado (reusa la RPC del portal).
   if (paso === 'contrato' && perfilId) {
     return (
-      <Dialog open onClose={onClose} ariaLabel="Crear contrato del cliente">
+      <Dialog open onClose={onClose} ariaLabel="Registrar nueva inversión del cliente">
         <ContratoNuevo
           clienteId={perfilId}
           clienteNombre={l.nombre_completo}
@@ -1934,8 +1905,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         <DialogHeader>
           <DialogTitle>¿Dónde invirtió?</DialogTitle>
           <DialogDescription>
-            {l.nombre_completo} pasará a {ETAPA_INFO.convertido.label}. Elige la empresa donde
-            cerró su inversión:
+            {l.nombre_completo} pasará a {ETAPA_INFO.convertido.label}. Elige la empresa donde cerró su inversión:
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-2">
@@ -1965,7 +1935,12 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             >
               <span className="flex items-center gap-2">
                 <span className="text-sm font-bold text-foreground">{INFO_COOPERATIVA[c].nombre}</span>
-                <span className={cn('rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide', INFO_COOPERATIVA[c].chipClase)}>
+                <span
+                  className={cn(
+                    'rounded-full px-2 py-0.5 text-[10px] font-bold tracking-wide',
+                    INFO_COOPERATIVA[c].chipClase,
+                  )}
+                >
                   {INFO_COOPERATIVA[c].corto}
                 </span>
               </span>
@@ -2004,8 +1979,8 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
             {esDemo ? ' (demo)' : ''}
           </DialogTitle>
           <DialogDescription>
-            Sin portal ni correo: queda el registro del cierre y {primerNombre(l.nombre_completo)}{' '}
-            pasa a {ETAPA_INFO.convertido.label}. El monto suma a tu cuota del mes.
+            Sin portal ni correo: queda el registro del cierre y {primerNombre(l.nombre_completo)} pasa a{' '}
+            {ETAPA_INFO.convertido.label}. El monto suma a tu cuota del mes.
           </DialogDescription>
         </DialogHeader>
         <DialogBody className="space-y-3">
@@ -2082,9 +2057,7 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
               // falta hace. `aria-describedby` admite lista y el error sigue
               // teniendo su único id.
               aria-describedby={
-                campoErrorCoop === 'transaccion'
-                  ? 'cx-error cx-transaccion-ayuda'
-                  : 'cx-transaccion-ayuda'
+                campoErrorCoop === 'transaccion' ? 'cx-error cx-transaccion-ayuda' : 'cx-transaccion-ayuda'
               }
             />
             <p id="cx-transaccion-ayuda" className="text-[11px] text-muted-foreground">
@@ -2125,7 +2098,11 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
               disabled={enviando}
             />
           </div>
-          {error && <p id="cx-error" role="alert" className="text-xs font-semibold text-destructive">{error}</p>}
+          {error && (
+            <p id="cx-error" role="alert" className="text-xs font-semibold text-destructive">
+              {error}
+            </p>
+          )}
         </DialogBody>
         <DialogFooter>
           <Button
@@ -2165,13 +2142,15 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         <>
           <DialogBody className="space-y-2 text-xs leading-relaxed text-muted-foreground">
             <p>
-              En producción, la conversión crea al{' '}
-              <b className="text-foreground">cliente en el portal</b> y cierra el lead como ganado.
+              En producción, la conversión crea al <b className="text-foreground">cliente en el portal</b> y cierra el
+              lead como ganado.
             </p>
             <p>En este modo demo solo se simula el cambio de estado — nada queda guardado de verdad.</p>
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={onClose}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={onClose}>
+              Cancelar
+            </Button>
             <Button size="sm" onClick={confirmarDemo}>
               <BadgeCheck /> Convertir (demo)
             </Button>
@@ -2181,10 +2160,13 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
         <>
           <DialogBody className="space-y-3">
             <p className="text-xs leading-relaxed text-muted-foreground">
-              Se creará la <b className="text-foreground">cuenta del cliente en el portal</b> y se le
-              enviará su correo de bienvenida con el acceso. Revisa y completa sus datos:
+              Se creará la <b className="text-foreground">cuenta del cliente en el portal</b> y se le enviará su correo
+              de bienvenida con el acceso. Revisa y completa sus datos:
             </p>
-            <section className="rounded-xl border border-primary/20 bg-primary/[0.035] p-3" aria-label="Identidad para pagos">
+            <section
+              className="rounded-xl border border-primary/20 bg-primary/[0.035] p-3"
+              aria-label="Identidad para pagos"
+            >
               <div className="flex items-start gap-2.5">
                 <span className="mt-0.5 grid size-7 shrink-0 place-items-center rounded-lg bg-primary/10 text-primary [&_svg]:size-3.5">
                   <ArrowRightLeft aria-hidden />
@@ -2197,7 +2179,9 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
                 </div>
               </div>
               <div className="mt-2 border-l-2 border-primary/25 pl-2.5">
-                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">Registrado en el lead</p>
+                <p className="text-[10px] font-bold uppercase tracking-wide text-muted-foreground">
+                  Registrado en el lead
+                </p>
                 <p className="mt-0.5 truncate text-xs font-semibold text-foreground" title={l.nombre_completo}>
                   {l.nombre_completo}
                 </p>
@@ -2287,8 +2271,8 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
                 disabled={enviando}
               />
               <p className="text-[11px] text-muted-foreground">
-                Se copiará literalmente en el contrato legal. Si ya era cliente, se conserva el
-                domicilio registrado en el portal.
+                Se copiará literalmente en el contrato legal. Si ya era cliente, se conserva el domicilio registrado en
+                el portal.
               </p>
             </div>
             {/* Bloque compartido con el alta directa (cliente-form): el cliente
@@ -2305,10 +2289,16 @@ export function DialogConvertir({ l, onClose }: { l: Lead; onClose: () => void }
               onUsd={setUsd}
               deshabilitado={enviando}
             />
-            {error && <p role="alert" className="text-xs font-semibold text-destructive">{error}</p>}
+            {error && (
+              <p role="alert" className="text-xs font-semibold text-destructive">
+                {error}
+              </p>
+            )}
           </DialogBody>
           <DialogFooter>
-            <Button variant="outline" size="sm" onClick={onClose} disabled={enviando}>Cancelar</Button>
+            <Button variant="outline" size="sm" onClick={onClose} disabled={enviando}>
+              Cancelar
+            </Button>
             <Button size="sm" onClick={confirmarReal} disabled={enviando}>
               <BadgeCheck /> {enviando ? 'Convirtiendo…' : 'Convertir a cliente'}
             </Button>

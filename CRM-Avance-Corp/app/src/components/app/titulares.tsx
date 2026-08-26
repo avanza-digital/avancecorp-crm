@@ -56,7 +56,9 @@ export function TitularesEditor({ value, onChange, disabled, idPrefix = 'tit' }:
                 >
                   {/* Poblado POR CÓDIGO desde el catálogo — nunca <option> a mano. */}
                   {TIPOS_DOCUMENTO_K.map((k) => (
-                    <option key={k} value={k}>{TIPOS_DOCUMENTO[k].etiqueta}</option>
+                    <option key={k} value={k}>
+                      {TIPOS_DOCUMENTO[k].etiqueta}
+                    </option>
                   ))}
                 </Select>
               </div>
@@ -90,7 +92,14 @@ export function TitularesEditor({ value, onChange, disabled, idPrefix = 'tit' }:
               />
             </div>
             <div className="flex justify-end">
-              <Button type="button" variant="ghost" size="sm" onClick={() => quitar(i)} disabled={disabled}>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="min-h-10 md:min-h-8"
+                onClick={() => quitar(i)}
+                disabled={disabled}
+              >
                 <X /> Quitar
               </Button>
             </div>
@@ -102,6 +111,7 @@ export function TitularesEditor({ value, onChange, disabled, idPrefix = 'tit' }:
         type="button"
         variant="outline"
         size="sm"
+        className="min-h-10 md:min-h-8"
         onClick={() => onChange([...value, titularVacio()])}
         disabled={disabled || value.length >= MAX_TITULARES}
       >

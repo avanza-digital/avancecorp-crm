@@ -76,5 +76,13 @@ export function DialogBody({ className, ...props }: HTMLAttributes<HTMLDivElemen
 }
 
 export function DialogFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('flex items-center justify-end gap-2 border-t border-border px-5 py-3', className)} {...props} />
+  return (
+    <div
+      className={cn(
+        'flex flex-col items-stretch justify-end gap-2 border-t border-border px-5 py-3 [&>button]:min-h-10 [&>button]:w-full md:flex-row md:flex-wrap md:items-center md:[&>button]:min-h-8 md:[&>button]:w-auto',
+        className,
+      )}
+      {...props}
+    />
+  )
 }

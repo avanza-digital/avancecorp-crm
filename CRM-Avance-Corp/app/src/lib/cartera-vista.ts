@@ -7,6 +7,7 @@
 // unen. El chip del StatStrip lo arma la pantalla (patrón de equipo.tsx), no este
 // módulo, para no acoplar lib con componentes.
 import type { ClienteBasico, ContratoRow } from './clientes-tipos'
+import { fechaLima } from './agenda-derivada'
 
 /** Un cliente con sus contratos y el capital activo por moneda (separado). */
 export interface GrupoCartera {
@@ -101,14 +102,15 @@ export function ordenDeCartera(a: GrupoCartera, b: GrupoCartera): number {
 
 /**
  * Días de calendario entre `hoy` y una fecha YYYY-MM-DD. Extrae el año/mes/día
- * LOCAL de `hoy` (= Lima en prod y en los tests, TZ fijada en vitest.config) y
- * compara medianoches UTC → conteo de días estable, sin deriva por zona horaria.
+ * de Lima desde el instante recibido y compara medianoches UTC. El resultado es
+ * estable aunque el dispositivo del vendedor tenga otra zona horaria.
  */
-function diasHasta(fecha: string, hoy: Date): number {
-  const [y, m, d] = fecha.split('-').map(Number)
-  if (!y || !m || !d) return Number.NaN
-  const base = Date.UTC(hoy.getFullYear(), hoy.getMonth(), hoy.getDate())
-  const objetivo = Date.UTC(y, m - 1, d)
+function diasHasta(fecha: string, ahora: Date | number): number {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(fecha)) return Number.NaN
+  const objetivo = Date.parse(`${fecha}T00:00:00.000Z`)
+  if (!Number.isFinite(objetivo) || new Date(objetivo).toISOString().slice(0, 10) !== fecha) return Number.NaN
+  const hoyLima = fechaLima(typeof ahora === 'number' ? ahora : ahora.getTime())
+  const base = Date.parse(`${hoyLima}T00:00:00.000Z`)
   return Math.round((objetivo - base) / 86_400_000)
 }
 
@@ -125,13 +127,9 @@ export const DIAS_ALARMA_RENOVACION = 30
  * vencido, no "por vencer") y una malformada tampoco: `diasHasta` devuelve NaN y
  * toda comparación con NaN es false → nunca lanza ni inventa una alarma.
  */
-export function esPorVencer(
-  c: ContratoRow,
-  hoy: Date,
-  dias: number = DIAS_ALARMA_RENOVACION,
-): boolean {
+export function esPorVencer(c: ContratoRow, ahora: Date | number, dias: number = DIAS_ALARMA_RENOVACION): boolean {
   if (c.estado !== 'activo' || !c.fecha_vencimiento) return false
-  const d = diasHasta(c.fecha_vencimiento, hoy)
+  const d = diasHasta(c.fecha_vencimiento, ahora)
   return d >= 0 && d <= dias
 }
 
@@ -144,11 +142,11 @@ export function esPorVencer(
  * Devolver el Set —y no un booleano por grupo— deja que la pantalla filtre las
  * filas Y marque el contrato exacto con un solo recorrido.
  */
-export function idsPorVencer(grupos: GrupoCartera[], hoy: Date = new Date()): Set<string> {
+export function idsPorVencer(grupos: GrupoCartera[], ahora: Date | number = Date.now()): Set<string> {
   const ids = new Set<string>()
   for (const g of grupos) {
     for (const c of g.contratos) {
-      if (esPorVencer(c, hoy)) ids.add(c.id)
+      if (esPorVencer(c, ahora)) ids.add(c.id)
     }
   }
   return ids
@@ -183,7 +181,7 @@ export interface ResumenCartera {
  * cuántos vienen de bajas en vez de mezclarlos en silencio.
  * `hoy` es inyectable para pruebas deterministas.
  */
-export function resumenCartera(grupos: GrupoCartera[], hoy: Date = new Date()): ResumenCartera {
+export function resumenCartera(grupos: GrupoCartera[], ahora: Date | number = Date.now()): ResumenCartera {
   let pen = 0
   let usd = 0
   let conCapital = 0
@@ -199,7 +197,7 @@ export function resumenCartera(grupos: GrupoCartera[], hoy: Date = new Date()): 
       if (g.tieneCapital) conCapital += 1
     }
     for (const c of g.contratos) {
-      if (!esPorVencer(c, hoy)) continue
+      if (!esPorVencer(c, ahora)) continue
       porVencer += 1
       if (!gestionable) porVencerDeBaja += 1
     }

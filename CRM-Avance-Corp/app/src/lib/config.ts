@@ -23,8 +23,7 @@ function urlSupabaseSegura(valor: string | undefined): string | undefined {
   try {
     const url = new URL(valor)
     const hostLocal = ['localhost', '127.0.0.1', '[::1]'].includes(url.hostname)
-    const protocoloSeguro = url.protocol === 'https:'
-      || (import.meta.env.DEV && hostLocal && url.protocol === 'http:')
+    const protocoloSeguro = url.protocol === 'https:' || (import.meta.env.DEV && hostLocal && url.protocol === 'http:')
     if (!protocoloSeguro) {
       problemas.push('supabase_url_insegura')
       return undefined
@@ -45,7 +44,9 @@ function rolDeJwt(valor: string): string | null {
   try {
     const segmento = valor.split('.')[1]
     if (!segmento) return null
-    const base64 = segmento.replace(/-/g, '+').replace(/_/g, '/')
+    const base64 = segmento
+      .replace(/-/g, '+')
+      .replace(/_/g, '/')
       .padEnd(Math.ceil(segmento.length / 4) * 4, '=')
     const payload = JSON.parse(globalThis.atob(base64)) as { role?: unknown }
     return typeof payload.role === 'string' ? payload.role : null
@@ -74,6 +75,12 @@ if (Boolean(urlOriginal) !== Boolean(keyOriginal)) problemas.push('supabase_conf
 const SUPABASE_URL = urlSupabaseSegura(urlOriginal)
 const SUPABASE_ANON_KEY = keyPublicaSegura(keyOriginal)
 
+export function esPreviewDemo(env: { MODE: string; VITE_ENABLE_DEMO?: string }): boolean {
+  return env.MODE === 'preview' && env.VITE_ENABLE_DEMO === 'true'
+}
+
+const ES_PREVIEW_DEMO = import.meta.env.MODE === 'preview' && import.meta.env.VITE_ENABLE_DEMO === 'true'
+
 export const CONFIG = Object.freeze({
   SUPABASE_URL,
   SUPABASE_ANON_KEY,
@@ -82,14 +89,19 @@ export const CONFIG = Object.freeze({
 })
 
 export const PROBLEMAS_CONFIG: readonly ProblemaConfig[] = Object.freeze([...new Set(problemas)])
-export const HAY_SUPABASE = Boolean(
-  CONFIG.SUPABASE_URL
-  && CONFIG.SUPABASE_ANON_KEY
-  && PROBLEMAS_CONFIG.length === 0,
-)
+export const HAY_SUPABASE =
+  !ES_PREVIEW_DEMO && Boolean(CONFIG.SUPABASE_URL && CONFIG.SUPABASE_ANON_KEY && PROBLEMAS_CONFIG.length === 0)
 
-// El demo requiere opt-in literal y jamás entra en un build de producción.
-export const DEMO_HABILITADO = import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true'
+/**
+ * El escaparate ficticio solo puede abrirse en desarrollo o en un build cuyo
+ * modo sea literalmente `preview`. Aunque alguien copie VITE_ENABLE_DEMO=true
+ * a producción, este segundo candado mantiene el acceso demo cerrado.
+ */
+export function resolverDemoHabilitado(env: { DEV: boolean; MODE: string; VITE_ENABLE_DEMO?: string }): boolean {
+  return (env.DEV && env.VITE_ENABLE_DEMO === 'true') || esPreviewDemo(env)
+}
+
+export const DEMO_HABILITADO = import.meta.env.VITE_ENABLE_DEMO === 'true' && (import.meta.env.DEV || ES_PREVIEW_DEMO)
 
 // ── Gate del mundo leads (Miguel: cerrado el 2026-07-16, ABIERTO el 2026-08-18) ─
 // El pipeline de leads y los paneles Hoy/Agenda/Cartera salieron a producción

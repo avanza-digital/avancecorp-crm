@@ -908,7 +908,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
     // Sesión DEMO (solo DEV con flag). La condición usa flags de Vite directos
     // para que Rolldown elimine el chunk de fixtures en cualquier build de prod.
     if (demoSolicitado) {
-      if (import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true') {
+      if (import.meta.env.VITE_ENABLE_DEMO === 'true' && (import.meta.env.DEV || import.meta.env.MODE === 'preview')) {
         void import('./demo')
           .then((demo) => {
             if (cancelado) return

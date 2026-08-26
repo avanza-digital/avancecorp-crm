@@ -19,11 +19,31 @@ export interface ClienteBasico {
   correo: string | null
   telefono: string | null
   asesor_perfil_id: string | null
-  /** Quién registró al cliente — con asesor_perfil_id NULL define el dueño de cartera (regla del servidor). */
+  /** Quién registró al cliente; es trazabilidad y no concede acceso a su ficha. */
   creado_por: string | null
   activo: boolean
   creado_en: string // ISO
 }
+
+/**
+ * Datos de identidad y contacto autorizados para la ficha comercial 360.
+ * Deliberadamente no incluye domicilio legal ni información bancaria: esos
+ * datos continúan reservados para los flujos específicos que los necesitan.
+ */
+export type ClienteFichaComercial = Pick<
+  ClienteBasico,
+  | 'id'
+  | 'nombres'
+  | 'apellidos'
+  | 'nombre_completo'
+  | 'tipo_documento'
+  | 'dni'
+  | 'correo'
+  | 'telefono'
+  | 'asesor_perfil_id'
+  | 'activo'
+  | 'creado_en'
+>
 
 /**
  * Detalle COMPLETO de public.perfiles para corregir a un cliente: identidad +
@@ -115,6 +135,11 @@ export interface ContratoRow {
   notas_internas: string | null
   creado_por: string | null
   creado_en: string // ISO — ventana de 5 h para "Corregir"
+  /**
+   * Revisión autoritativa capturada al abrir la corrección. El servidor la
+   * compara antes de guardar para que dos personas no se pisen los cambios.
+   */
+  revision_contrato: string
   /** Condición/version inmutable que originó los términos del contrato. */
   producto_condicion_id: string
   producto_id: string
@@ -153,7 +178,8 @@ export interface OperacionCartera {
 export interface ActividadCliente {
   id: string
   cliente_id: string
-  vendedor_id: string
+  /** Responsable comercial del hecho; puede ser null en una reasignación iniciada por sistema o Portal. */
+  vendedor_id: string | null
   tarea_id: string | null
   tipo:
     | 'llamada_realizada'
@@ -162,6 +188,7 @@ export interface ActividadCliente {
     | 'whatsapp_recibido'
     | 'reunion_realizada'
     | 'nota'
+    | 'reasignacion'
   detalle: string | null
   creado_por: string | null
   creado_en: string

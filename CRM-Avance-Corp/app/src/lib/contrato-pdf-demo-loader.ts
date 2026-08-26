@@ -6,7 +6,7 @@ export async function archivarContratoPdfDemoHabilitado(
   contratoId: string,
   datos: ContratoPdfDatos,
 ): Promise<ArchivoContratoPdf> {
-  if (!(import.meta.env.DEV && import.meta.env.VITE_ENABLE_DEMO === 'true')) {
+  if (import.meta.env.VITE_ENABLE_DEMO !== 'true' || !(import.meta.env.DEV || import.meta.env.MODE === 'preview')) {
     throw new Error('El archivo PDF demo no está disponible en este build.')
   }
   const { archivarContratoPdfDemo } = await import('./contrato-pdf-demo')

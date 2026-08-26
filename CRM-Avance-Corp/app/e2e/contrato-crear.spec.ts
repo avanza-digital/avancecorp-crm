@@ -1,4 +1,4 @@
-// E2E — CREACIÓN de contrato vía el "+ Contrato" POR-CLIENTE de la cartera
+// E2E — REGISTRO de inversión desde la acción por-cliente de la cartera
 // unificada (#/mi-cartera). Migra los casos que vivían skipeados en
 // contratos.spec.ts (pantalla Contratos retirada en Fase 6, que entraba por un
 // picker de cliente que ya no existe): numeración 2026-01-XXXXXX, gate de los
@@ -8,7 +8,16 @@
 // → la sub-fila nueva aparece SIN reload (la única alarma posible para una
 // invalidación con la clave equivocada, heredada del viejo flujo cruzado).
 import { expect, test, type Locator, type Page } from '@playwright/test'
-import { clienteReal, cuentaBancariaReal, irAMiCartera, loginReal, montarBackendReal, PRODUCTO_CONDICION_PEN_ID, PRODUCTO_CONDICION_USD_ID, type ContratoReal } from './_helpers'
+import {
+  clienteReal,
+  cuentaBancariaReal,
+  irAMiCartera,
+  loginReal,
+  montarBackendReal,
+  PRODUCTO_CONDICION_PEN_ID,
+  PRODUCTO_CONDICION_USD_ID,
+  type ContratoReal,
+} from './_helpers'
 
 const CUENTA_GUARDADA_ID = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
 
@@ -28,9 +37,8 @@ async function traducirRpcContratoLibre(page: Page): Promise<void> {
         url: ruta.request().url().replace(`/rpc/${rpc}`, `/rpc/${rpc}_producto`),
         postData: JSON.stringify({
           ...cuerpo,
-          p_producto_condicion_id: cuerpo.p_contrato?.moneda === 'USD'
-            ? PRODUCTO_CONDICION_USD_ID
-            : PRODUCTO_CONDICION_PEN_ID,
+          p_producto_condicion_id:
+            cuerpo.p_contrato?.moneda === 'USD' ? PRODUCTO_CONDICION_USD_ID : PRODUCTO_CONDICION_PEN_ID,
         }),
       })
     })
@@ -38,16 +46,18 @@ async function traducirRpcContratoLibre(page: Page): Promise<void> {
 }
 
 /** Abre el ContratoNuevo desde la fila de CLIENTE PORTAL UNO (cartera vacía →
- *  el CTA dice "+ Primer contrato"; con contratos previos, "+ Contrato"). */
+ *  el CTA dice "Registrar primera inversión"; con contratos previos,
+ *  "Registrar nueva inversión"). */
 async function abrirFormContrato(page: Page): Promise<Locator> {
   await page
     .getByRole('row', { name: /CLIENTE PORTAL UNO/ })
-    .getByRole('button', { name: /\+ (Primer contrato|Contrato)/ })
+    .getByRole('button', { name: /Registrar primera inversión|Registrar nueva inversión/ })
     .click()
   // El nombre accesible del dialog es su DialogTitle (aria-labelledby de Radix
-  // gana sobre el aria-label del contenedor): "Crear contrato de {cliente}" —
+  // gana sobre el aria-label del contenedor): "Registrar nueva inversión de
+  // {cliente}" —
   // la prueba misma de que el form llega PREFIJADO por fila, sin picker.
-  const form = page.getByRole('dialog', { name: /Crear contrato de CLIENTE PORTAL UNO/ })
+  const form = page.getByRole('dialog', { name: /Registrar nueva inversión de CLIENTE PORTAL UNO/ })
   await expect(form).toBeVisible()
   return form
 }
@@ -66,7 +76,9 @@ async function llenarBase(form: Locator): Promise<void> {
   await form.getByRole('radio', { name: /BCP.*8901/i }).check()
 }
 
-test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({ page }) => {
+test('Registrar nueva inversión por cliente usa la numeración nueva: el POST lleva numero_contrato 2026-01-XXXXXX', async ({
+  page,
+}) => {
   const estado = await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await traducirRpcContratoLibre(page)
   await loginReal(page) // cuenta real → aterriza en #/hoy desde que hay leads
@@ -76,7 +88,9 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   // location.reload(). Si el runtime recargara la página tras crear, se perdería
   // y el assert final fallaría — así el test prueba LITERALMENTE que no hubo reload
   // (el backend mock persiste fuera de la página, así que sin esto un reload pasaría).
-  await page.evaluate(() => { (window as unknown as { __sinReload?: boolean }).__sinReload = true })
+  await page.evaluate(() => {
+    ;(window as unknown as { __sinReload?: boolean }).__sinReload = true
+  })
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
@@ -85,9 +99,9 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
   await form.locator('#ct-numero').fill('A1B2C3')
   await expect(form.locator('#ct-numero')).toHaveValue('123')
   await form.locator('#ct-numero').fill('000777')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
-  await expect(page.getByRole('heading', { name: 'Contrato 2026-01-000777 creado' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Inversión registrada · contrato 2026-01-000777' })).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   // El servidor recibió el número COMPLETO (prefijo fijo + 6 dígitos), no vacío.
   expect(estado.contratos[0]?.numero_contrato).toBe('2026-01-000777')
@@ -105,15 +119,13 @@ test('+ Contrato por-cliente crea con la numeración nueva: el POST lleva numero
       beneficiario_dni: null,
     },
   })
-  expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toMatch(
-    /^f0000000-0000-4000-8000-/,
-  )
+  expect(estado.cuentasPorContrato[estado.contratos[0]!.id]).toMatch(/^f0000000-0000-4000-8000-/)
 
   // El alta ya terminó y el resultado es durable. Cerrar por el CTA oficial
   // dispara la misma finalización idempotente que Escape/overlay post-commit
   // e invalida Mi cartera antes de volver a operar la tabla.
   await page.getByRole('button', { name: 'Finalizar' }).click()
-  await expect(page.getByRole('heading', { name: 'Contrato 2026-01-000777 creado' })).not.toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Inversión registrada · contrato 2026-01-000777' })).not.toBeVisible()
 
   // La cartera se recarga SOLA (invalidación de contratos()): expandir al
   // cliente revela la sub-fila nueva sin reload, con su ventana recién nacida
@@ -144,7 +156,7 @@ test('puede fijar una cuenta guardada distinta a la cuenta vigente del perfil', 
   // `llenarBase` eligió BCP (perfil); el asesor cambia deliberadamente a la
   // versión Interbank ya guardada. El id nunca se deriva del texto visible.
   await form.getByRole('radio', { name: /Interbank.*1234/i }).check()
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   expect(estado.ultimaCuentaPagoContrato).toEqual({
@@ -168,7 +180,7 @@ test('puede registrar una cuenta nueva inline y la envía normalizada en la mism
   await form.locator('#ct-nueva-tipo').selectOption('corriente')
   await form.locator('#ct-nueva-numero').fill('  AB-009900001111  ')
   await form.locator('#ct-nueva-cci').fill('00990000111122223333')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   expect(estado.ultimaCuentaPagoContrato).toEqual({
@@ -193,12 +205,14 @@ test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la n
   const estado = await montarBackendReal(page, {
     rolCrm: 'vendedor',
     contratos: [],
-    clientes: [clienteReal({
-      banco_usd: 'BBVA',
-      tipo_cuenta_usd: 'corriente',
-      numero_cuenta_usd: '001100009876',
-      cci_usd: '01100000987654321098',
-    })],
+    clientes: [
+      clienteReal({
+        banco_usd: 'BBVA',
+        tipo_cuenta_usd: 'corriente',
+        numero_cuenta_usd: '001100009876',
+        cci_usd: '01100000987654321098',
+      }),
+    ],
   })
   await traducirRpcContratoLibre(page)
   await loginReal(page)
@@ -213,7 +227,7 @@ test('cambiar de PEN a USD limpia la selección y exige elegir la cuenta de la n
 
   // La selección PEN NO sobrevive al cambio. Aun cuando USD ya cargó y existe
   // una cuenta completa, el botón sigue cerrado hasta una elección explícita.
-  const crear = form.getByRole('button', { name: /Crear contrato/ })
+  const crear = form.getByRole('button', { name: /Registrar nueva inversión/ })
   const cuentaUsd = form.getByRole('radio', { name: /BBVA.*9876/i })
   await expect(cuentaUsd).toBeVisible()
   await expect(cuentaUsd).not.toBeChecked()
@@ -249,7 +263,7 @@ test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page })
   const form = await abrirFormContrato(page)
   await llenarBase(form)
   await form.locator('#ct-numero').fill('123') // incompleto
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
   await expect(form.getByText(/exactamente 6 dígitos/)).toBeVisible()
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
@@ -270,7 +284,7 @@ test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados',
   await form.getByLabel('Documento', { exact: true }).fill('87654321')
   // Minúsculas y espacios dobles a propósito: el núcleo normaliza como la BD.
   await form.getByLabel('Nombre completo del co-titular').fill('maría  julia pérez')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   const creado = estado.contratos[0] as ContratoReal & { titulares?: unknown }
@@ -295,7 +309,7 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
   // A medio llenar: documento sin nombre → error con la posición de la fila.
   await form.getByRole('button', { name: /Agregar co-titular/ }).click()
   await form.getByLabel('Documento', { exact: true }).fill('87654321')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
   await expect(form.getByText(/Co-titular 1: Escribe el nombre completo/)).toBeVisible()
 
   // Duplicado: dos filas con el MISMO documento → error, nada sale al servidor.
@@ -303,7 +317,7 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
   await form.getByRole('button', { name: /Agregar co-titular/ }).click()
   await form.getByLabel('Documento', { exact: true }).nth(1).fill('87654321')
   await form.getByLabel('Nombre completo del co-titular').nth(1).fill('ANA DOS')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
   await expect(form.getByText(/está repetido/)).toBeVisible()
 
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
@@ -330,7 +344,9 @@ test('cliente SIN domicilio: el alta se frena, se rellena en el momento y entonc
   await loginReal(page)
   // Con la llave de leads abierta, el vendedor ya NO aterriza en Mi cartera
   // sino en Hoy: se navega explícitamente en vez de dar por buena la portada.
-  await page.evaluate(() => { window.location.hash = '#/mi-cartera' })
+  await page.evaluate(() => {
+    window.location.hash = '#/mi-cartera'
+  })
 
   const form = await abrirFormContrato(page)
   await llenarBase(form)
@@ -338,7 +354,7 @@ test('cliente SIN domicilio: el alta se frena, se rellena en el momento y entonc
 
   // 1. El muro, ahora CON nombre: dice qué falta y de quién.
   await expect(form.getByText(/Falta el domicilio legal de CLIENTE PORTAL UNO/)).toBeVisible()
-  await expect(form.getByRole('button', { name: /Crear contrato/ })).toBeDisabled()
+  await expect(form.getByRole('button', { name: /Registrar nueva inversión/ })).toBeDisabled()
 
   // 2. Se rellena sin salir del formulario ni perder lo ya escrito.
   await form.locator('#ct-domicilio').fill('Av. Los Alamos 123, San Isidro, Lima')
@@ -354,7 +370,7 @@ test('cliente SIN domicilio: el alta se frena, se rellena en el momento y entonc
   //    cubre el test de la numeración, y su mock del alta arrastra una avería
   //    PREVIA a este cambio (falla igual sin tocar nada). Afirmarlo aquí
   //    mezclaría el fallo ajeno con lo que esta prueba viene a demostrar.
-  await expect(form.getByRole('button', { name: /Crear contrato/ })).toBeEnabled()
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await expect(form.getByRole('button', { name: /Registrar nueva inversión/ })).toBeEnabled()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
 })

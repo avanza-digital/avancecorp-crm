@@ -71,22 +71,25 @@ vi.mock('@/data/crm-queries', () => ({
     refetch: legalesEstado.refetch,
   })),
   useCuentasBancariasCliente: vi.fn((_clienteId: string, moneda: 'PEN' | 'USD') => ({
-    data: moneda === 'PEN' && !cuentasEstado.ocultarPen
-      ? [{
-          cuenta_id: null,
-          moneda: 'PEN',
-          banco: 'BCP',
-          tipo_cuenta: 'ahorros',
-          numero_cuenta: '191000001234',
-          cci: '00112233445566778899',
-          titular_distinto: false,
-          beneficiario_nombre: null,
-          beneficiario_dni: null,
-          origen: 'perfil',
-          es_cuenta_perfil: true,
-          creada_en: null,
-        }]
-      : [],
+    data:
+      moneda === 'PEN' && !cuentasEstado.ocultarPen
+        ? [
+            {
+              cuenta_id: null,
+              moneda: 'PEN',
+              banco: 'BCP',
+              tipo_cuenta: 'ahorros',
+              numero_cuenta: '191000001234',
+              cci: '00112233445566778899',
+              titular_distinto: false,
+              beneficiario_nombre: null,
+              beneficiario_dni: null,
+              origen: 'perfil',
+              es_cuenta_perfil: true,
+              creada_en: null,
+            },
+          ]
+        : [],
     isPending: cuentasEstado.pending,
     isError: cuentasEstado.error,
     isFetching: cuentasEstado.fetching,
@@ -102,6 +105,14 @@ function montar(
   pdfDatosDemo = undefined as (typeof DATOS_PDF_DEMO)[string] | undefined,
   opciones: {
     validarNumero?: (numero: string) => string | null
+    renovacionOrigen?: {
+      id: string
+      revisionContrato: string
+      numeroContrato: string
+      capital: number
+      moneda: 'PEN' | 'USD'
+      fechaVencimiento: string
+    }
   } = {},
 ) {
   const onCreado = vi.fn()
@@ -116,6 +127,7 @@ function montar(
         pdfDatosDemo={pdfDatosDemo}
         cuentasDemo={pdfDatosDemo ? CUENTAS_CLIENTES_DEMO['dc-cli-1'] : undefined}
         {...(opciones.validarNumero ? { validarNumero: opciones.validarNumero } : {})}
+        {...(opciones.renovacionOrigen ? { renovacionOrigen: opciones.renovacionOrigen } : {})}
         onConfirmado={onConfirmado}
         onEnviandoCambio={onEnviandoCambio}
         onCreado={onCreado}
@@ -128,13 +140,13 @@ function montar(
 
 /** Mínimo válido: categoría manual + capital + N° de 6 dígitos (tasa ya viene 15). */
 async function llenarBase(user: ReturnType<typeof userEvent.setup>) {
-  await user.selectOptions(screen.getByLabelText('Categoría'), 'nuevo')
+  await user.selectOptions(screen.getByLabelText('Tipo de inversión'), 'nuevo')
   await user.type(screen.getByLabelText('Capital'), '10000')
   await user.type(screen.getByLabelText('N° de contrato'), '000777')
   await user.click(screen.getByRole('radio', { name: /BCP/ }))
 }
 
-const boton = () => screen.getByRole('button', { name: /Crear contrato/ })
+const boton = () => screen.getByRole('button', { name: /Registrar nueva inversión/ })
 
 describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () => {
   beforeEach(() => {
@@ -176,7 +188,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     const user = userEvent.setup()
     montar()
     await llenarBase(user)
-    await user.selectOptions(screen.getByLabelText('Modalidad de pago'), 'anual')
+    await user.selectOptions(screen.getByLabelText('Frecuencia de pago de intereses'), 'anual')
     await user.selectOptions(screen.getByLabelText('Plazo'), '6')
     // La 1ª cuota anual caería a los 12 meses, después del vencimiento a los 6:
     // cero cuotas de interés y solo la fila del retorno del capital.
@@ -223,13 +235,49 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     expect(cronograma.filter((c) => c.tipo === 'cuota')).toHaveLength(6)
     expect(cronograma.filter((c) => c.tipo === 'retorno')).toHaveLength(1)
     expect(archivoPdf.archivar).toHaveBeenCalledWith('ctr-1')
-    expect(await screen.findByText('Contrato 2026-01-000777 creado')).toBeInTheDocument()
+    expect(await screen.findByText('Inversión registrada · contrato 2026-01-000777')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ver contrato PDF' })).toBeEnabled()
     expect(screen.getByRole('button', { name: 'Descargar contrato PDF' })).toBeEnabled()
     expect(onCreado).not.toHaveBeenCalled()
 
     await user.click(screen.getByRole('button', { name: 'Finalizar' }))
     expect(onCreado).toHaveBeenCalledWith('2026-01-000777')
+  })
+
+  it('renueva con la revisión capturada y, si cambió, no confirma ni prepara el PDF', async () => {
+    const user = userEvent.setup()
+    const revisionCapturada = '2026-08-25T15:00:00.000Z'
+    const mensaje =
+      'Otra persona actualizó el contrato que ibas a renovar. Para proteger la información más reciente, la renovación no se registró. Cierra y vuelve a abrir el contrato antes de continuar.'
+    crearContrato.mockRejectedValueOnce(new crmApi.CrmApiError(mensaje, 'CONTRATO_DESACTUALIZADO'))
+    const { onCreado, onConfirmado } = montar(undefined, {
+      renovacionOrigen: {
+        id: 'contrato-origen-1',
+        revisionContrato: revisionCapturada,
+        numeroContrato: '2025-01-000111',
+        capital: 10_000,
+        moneda: 'PEN',
+        fechaVencimiento: '2000-01-01',
+      },
+    })
+    await user.type(screen.getByLabelText('N° de contrato'), '000778')
+    await user.click(screen.getByRole('radio', { name: /BCP/ }))
+
+    await user.click(screen.getByRole('button', { name: 'Renovar inversión' }))
+
+    await waitFor(() => expect(crearContrato).toHaveBeenCalledTimes(1))
+    expect(crearContrato.mock.calls[0]![0]).toMatchObject({
+      categoria: 'renovacion',
+      contrato_origen_id: 'contrato-origen-1',
+      contrato_origen_revision: revisionCapturada,
+      capital_renovado: 10_000,
+      capital_adicional: 0,
+    })
+    expect(await screen.findByRole('alert')).toHaveTextContent(mensaje)
+    expect(onConfirmado).not.toHaveBeenCalled()
+    expect(onCreado).not.toHaveBeenCalled()
+    expect(archivoPdf.archivar).not.toHaveBeenCalled()
+    expect(archivoPdf.archivarDemo).not.toHaveBeenCalled()
   })
 
   it('en demo archiva una sola versión con el número escrito por el vendedor', async () => {
@@ -247,13 +295,10 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
         contrato: expect.objectContaining({ numero: '2026-01-000777', capital: 10_000 }),
       }),
     )
-    expect(await screen.findByText('Contrato 2026-01-000777 creado')).toBeInTheDocument()
+    expect(await screen.findByText('Inversión registrada · contrato 2026-01-000777')).toBeInTheDocument()
     const idCreado = archivoPdf.archivarDemo.mock.calls[0]?.[0]
     expect(onConfirmado).toHaveBeenCalledTimes(1)
-    expect(onConfirmado).toHaveBeenCalledWith(
-      '2026-01-000777',
-      expect.objectContaining({ id: idCreado }),
-    )
+    expect(onConfirmado).toHaveBeenCalledWith('2026-01-000777', expect.objectContaining({ id: idCreado }))
     expect(onEnviandoCambio.mock.calls.map(([estado]) => estado)).toEqual([true, false])
   })
 
@@ -262,14 +307,14 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     const primera = montar(DATOS_PDF_DEMO['dc-ct-a'])
     await llenarBase(user)
     await user.click(boton())
-    await screen.findByText('Contrato 2026-01-000777 creado')
+    await screen.findByText('Inversión registrada · contrato 2026-01-000777')
     const primerId = archivoPdf.archivarDemo.mock.calls[0]?.[0]
     primera.unmount()
 
     montar(DATOS_PDF_DEMO['dc-ct-a'])
     await llenarBase(user)
     await user.click(boton())
-    await screen.findByText('Contrato 2026-01-000777 creado')
+    await screen.findByText('Inversión registrada · contrato 2026-01-000777')
     const segundoId = archivoPdf.archivarDemo.mock.calls[1]?.[0]
 
     expect(primerId).toMatch(/^demo-/)
@@ -280,10 +325,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
   it('rechaza un número duplicado antes de crear identidad o tocar la caché PDF', async () => {
     const user = userEvent.setup()
     const validarNumero = vi.fn(() => 'Ya existe el contrato demo 2026-01-000777.')
-    const { onConfirmado, onEnviandoCambio } = montar(
-      DATOS_PDF_DEMO['dc-ct-a'],
-      { validarNumero },
-    )
+    const { onConfirmado, onEnviandoCambio } = montar(DATOS_PDF_DEMO['dc-ct-a'], { validarNumero })
     await llenarBase(user)
 
     await user.click(boton())
@@ -295,7 +337,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     expect(onEnviandoCambio).not.toHaveBeenCalled()
   })
 
-  it('si el archivo demo falla, reintenta la misma foto sin crear otro contrato', async () => {
+  it('si el documento de demostración falla, reintenta la misma foto sin registrar otra inversión', async () => {
     const user = userEvent.setup()
     archivoPdf.archivarDemo.mockRejectedValueOnce(new Error('fallo temporal'))
     const { onCreado } = montar(DATOS_PDF_DEMO['dc-ct-a'])
@@ -304,14 +346,16 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     await user.click(boton())
 
     await vi.waitFor(() => expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/quedó creado.*PDF local no pudo generarse/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /inversión de demostración quedó registrada.*documento no pudo prepararse/i,
+    )
     expect(crearContrato).not.toHaveBeenCalled()
     expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1)
     const [idInicial, fotoInicial] = archivoPdf.archivarDemo.mock.calls[0]!
 
     await user.click(screen.getByRole('button', { name: 'Reintentar PDF' }))
 
-    expect(await screen.findByText(/PDF privado archivado correctamente/)).toBeInTheDocument()
+    expect(await screen.findByText(/Documento listo/)).toBeInTheDocument()
     expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(2)
     expect(archivoPdf.archivar).not.toHaveBeenCalled()
     expect(archivoPdf.archivarDemo.mock.calls[1]?.[0]).toBe(idInicial)
@@ -328,7 +372,7 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     )
   })
 
-  it('permite finalizar un contrato confirmado aunque el PDF siga pendiente', async () => {
+  it('permite finalizar una inversión confirmada aunque el documento siga pendiente', async () => {
     const user = userEvent.setup()
     archivoPdf.archivarDemo.mockRejectedValue(new Error('fallo persistente'))
     const { onCreado } = montar(DATOS_PDF_DEMO['dc-ct-a'])
@@ -337,7 +381,9 @@ describe('ContratoNuevo — un contrato SIN cuotas de interés no se crea', () =
     await user.click(boton())
 
     await vi.waitFor(() => expect(archivoPdf.archivarDemo).toHaveBeenCalledTimes(1))
-    expect(await screen.findByRole('alert')).toHaveTextContent(/quedó creado.*PDF local no pudo generarse/i)
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      /inversión de demostración quedó registrada.*documento no pudo prepararse/i,
+    )
     const finalizar = screen.getByRole('button', { name: 'Finalizar' })
     expect(finalizar).toBeEnabled()
     await user.click(finalizar)
@@ -510,7 +556,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     })
   })
 
-  it('sin domicilio: sale la ventana, el alta queda frenada y NO se intenta crear el contrato', async () => {
+  it('sin domicilio: sale la ventana, el registro queda frenado y NO se intenta registrar la inversión', async () => {
     const user = userEvent.setup()
     legalesEstado.faltaDomicilio = true
     legalesEstado.faltanCliente = ['domicilio']
@@ -553,16 +599,10 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     montar()
     await llenarBase(user)
 
-    await user.type(
-      screen.getByLabelText('Domicilio legal completo'),
-      'Av. Los Alamos 123, San Isidro, Lima, Lima',
-    )
+    await user.type(screen.getByLabelText('Domicilio legal completo'), 'Av. Los Alamos 123, San Isidro, Lima, Lima')
     await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
 
-    expect(completarDomicilio).toHaveBeenCalledWith(
-      'cli-1',
-      'Av. Los Alamos 123, San Isidro, Lima, Lima',
-    )
+    expect(completarDomicilio).toHaveBeenCalledWith('cli-1', 'Av. Los Alamos 123, San Isidro, Lima, Lima')
     expect(screen.queryByText(/Falta el domicilio legal/)).not.toBeInTheDocument()
     expect(boton()).toBeEnabled()
 
@@ -601,10 +641,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     })
     montar()
 
-    await user.type(
-      screen.getByLabelText('Domicilio legal completo'),
-      'Av. Los Alamos 123, San Isidro, Lima, Lima',
-    )
+    await user.type(screen.getByLabelText('Domicilio legal completo'), 'Av. Los Alamos 123, San Isidro, Lima, Lima')
     await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
 
     // Se dice sin rodeos que lo tecleado NO se guardó, y el aviso sobrevive al
@@ -623,10 +660,7 @@ describe('ContratoNuevo — el domicilio legal que falta', () => {
     montar()
     await llenarBase(user)
 
-    await user.type(
-      screen.getByLabelText('Domicilio legal completo'),
-      'Av. Los Alamos 123, San Isidro, Lima, Lima',
-    )
+    await user.type(screen.getByLabelText('Domicilio legal completo'), 'Av. Los Alamos 123, San Isidro, Lima, Lima')
     await user.click(screen.getByRole('button', { name: /Guardar domicilio/ }))
 
     expect(screen.queryByText(/Falta el domicilio legal/)).not.toBeInTheDocument()

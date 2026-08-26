@@ -4,11 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { toast } from 'sonner'
 import { AuthContext, type AuthContextValue } from '@/lib/auth-context'
-import {
-  PanelActionsContext,
-  PanelStateContext,
-  StoreDataContext,
-} from '@/lib/store-context'
+import { PanelActionsContext, PanelStateContext, StoreDataContext } from '@/lib/store-context'
 import type { PanelesActions, ResultadoMut, StoreDataApi } from '@/lib/store'
 import type { EtapaActiva, Lead, Tarea } from '@/lib/tipos'
 import { LeadDrawer } from './lead-drawer'
@@ -86,9 +82,7 @@ function montar({
   const crearTarea = vi.fn<StoreDataApi['crearTarea']>(() =>
     avanceTarea ? { ok: true, id: 't-test', avance: avanceTarea } : { ok: true, id: 't-test' },
   )
-  const anularTarea = vi.fn<StoreDataApi['anularTarea']>(() =>
-    retroceso ? { ok: true, retroceso } : { ok: true },
-  )
+  const anularTarea = vi.fn<StoreDataApi['anularTarea']>(() => (retroceso ? { ok: true, retroceso } : { ok: true }))
   const api = {
     lead: (id: string) => (id === l.id ? l : undefined),
     ambito: { leads: [l], vendedores: [], esGlobal: false },
@@ -146,10 +140,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     montar({ lead: { telefono_alternativo: '+51911222333' } })
 
     expect(screen.getByText('Teléfono alternativo')).toBeInTheDocument()
-    expect(screen.getByRole('link', { name: '+51911222333' })).toHaveAttribute(
-      'href',
-      'tel:+51911222333',
-    )
+    expect(screen.getByRole('link', { name: '+51911222333' })).toHaveAttribute('href', 'tel:+51911222333')
   })
 
   it('guarda capital y moneda juntos', async () => {
@@ -163,10 +154,7 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     await user.selectOptions(screen.getByLabelText('Moneda del capital estimado'), 'USD')
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
-    expect(editarLead).toHaveBeenCalledWith(
-      LEAD.id,
-      expect.objectContaining({ monto_estimado: 25_000, moneda: 'USD' }),
-    )
+    expect(editarLead).toHaveBeenCalledWith(LEAD.id, expect.objectContaining({ monto_estimado: 25_000, moneda: 'USD' }))
   })
 
   it('no permite borrar ni guardar en cero el capital', async () => {
@@ -233,7 +221,7 @@ describe('LeadDrawer — «Completar» resuelve de verdad los datos que faltan',
 
     expect(screen.getByLabelText('DNI')).toHaveValue('12345678')
     expect(screen.getByLabelText('Distrito')).toHaveValue('Surco')
-    expect(screen.getByRole('button', { name: 'Upgrade' })).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByRole('button', { name: 'Aumento de inversión' })).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('la categoría se puede DESELECCIONAR (volver a "sin dato" es legítimo)', async () => {
@@ -241,7 +229,7 @@ describe('LeadDrawer — «Completar» resuelve de verdad los datos que faltan',
     const { editarLead } = montar({ lead: { categoria_interes: 'upgrade' } })
 
     await user.click(screen.getByRole('button', { name: 'Editar' }))
-    await user.click(screen.getByRole('button', { name: 'Upgrade' }))
+    await user.click(screen.getByRole('button', { name: 'Aumento de inversión' }))
     await user.click(screen.getByRole('button', { name: 'Guardar' }))
 
     expect(editarLead).toHaveBeenCalledWith(LEAD.id, expect.objectContaining({ categoria_interes: null }))
@@ -351,10 +339,7 @@ describe('LeadDrawer — «Próxima acción» canta el avance de agendar', () =>
 
     await user.selectOptions(screen.getByLabelText('Tipo de tarea'), 'reunion')
     await user.selectOptions(screen.getByLabelText('Modalidad de la reunión'), 'virtual')
-    await user.type(
-      screen.getByLabelText('Enlace de la reunión'),
-      'https://meet.google.com/abc-defg-hij',
-    )
+    await user.type(screen.getByLabelText('Enlace de la reunión'), 'https://meet.google.com/abc-defg-hij')
     await user.click(screen.getByRole('button', { name: 'Agendar' }))
 
     expect(toast.success).toHaveBeenCalledWith(
@@ -439,9 +424,7 @@ describe('LeadDrawer — anular una pendiente que ya no hace falta', () => {
     await user.click(screen.getByRole('button', { name: 'Sí, anular — Llamar a Ana' }))
 
     expect(anularTarea).toHaveBeenCalledWith('t1')
-    expect(toast.warning).toHaveBeenCalledWith(
-      'Tarea anulada — Ana quedó SIN próxima acción (demo)',
-    )
+    expect(toast.warning).toHaveBeenCalledWith('Tarea anulada — Ana quedó SIN próxima acción (demo)')
   })
 
   it('con OTRA pendiente viva no promete el amarillo (el caso que lo motivó)', async () => {
@@ -573,10 +556,7 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
     const user = userEvent.setup()
     montar({
       lead: enReunion,
-      tareas: [
-        { ...reunion('t1', 'Llamar a Ana'), tipo: 'llamada' as const },
-        reunion('t2', 'Reunión con Ana'),
-      ],
+      tareas: [{ ...reunion('t1', 'Llamar a Ana'), tipo: 'llamada' as const }, reunion('t2', 'Reunión con Ana')],
       actividades: [{ tipo: 'llamada_realizada' }],
     })
 
@@ -597,10 +577,7 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
-    await user.selectOptions(
-      screen.getByLabelText('Motivo de cancelación — Reunión con Ana'),
-      'cancelada_cliente',
-    )
+    await user.selectOptions(screen.getByLabelText('Motivo de cancelación — Reunión con Ana'), 'cancelada_cliente')
     await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
 
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('vuelve a «Contactado»'))
@@ -619,10 +596,7 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
     })
 
     await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
-    await user.selectOptions(
-      screen.getByLabelText('Motivo de cancelación — Reunión con Ana'),
-      'cancelada_cliente',
-    )
+    await user.selectOptions(screen.getByLabelText('Motivo de cancelación — Reunión con Ana'), 'cancelada_cliente')
     await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
 
     expect(toast.warning).toHaveBeenCalledTimes(1)

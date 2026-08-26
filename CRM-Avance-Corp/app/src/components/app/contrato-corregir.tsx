@@ -19,16 +19,11 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
-import {
-  CODIGO_PRODUCTO_HISTORICO,
-  ProductoContratoSelector } from '@/components/app/producto-contrato-selector'
+import { CODIGO_PRODUCTO_HISTORICO, ProductoContratoSelector } from '@/components/app/producto-contrato-selector'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { ERROR_MONTO, parseMonto } from '@/lib/numero'
 import { fmtFecha, money, type Moneda } from '@/lib/format'
-import {
-  actualizarContrato,
-  CrmApiError,
-  type ActualizarContratoInput } from '@/data/crm-api'
+import { actualizarContrato, CrmApiError, type ActualizarContratoInput } from '@/data/crm-api'
 import { useTitulares } from '@/data/crm-queries'
 import { useProductosSeleccionables } from '@/data/crm-config-queries'
 import { validarRangosProducto } from '@/lib/contrato-producto'
@@ -85,11 +80,13 @@ interface FilaTitular {
 
 export interface ContratoCorregirProps {
   contrato: ContratoRow
+  /** Revisión congelada al abrir; nunca se reemplaza por una recarga en segundo plano. */
+  revisionEsperada: string
   onGuardado: () => void
   onCerrar: () => void
 }
 
-export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCorregirProps) {
+export function ContratoCorregir({ contrato, revisionEsperada, onGuardado, onCerrar }: ContratoCorregirProps) {
   const ventana = useVentana(contrato.creado_en)
   const [productoCondicionId, setProductoCondicionId] = useState(contrato.producto_condicion_id)
   const [avisoProducto, setAvisoProducto] = useState<string | null>(null)
@@ -101,13 +98,10 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
     () => (qProductos.data ?? []).filter((item) => item.moneda === contrato.moneda),
     [contrato.moneda, qProductos.data],
   )
-  const condicionProducto = condicionesCompatibles.find(
-    (item) => item.condicion_id === productoCondicionId) ?? null
+  const condicionProducto = condicionesCompatibles.find((item) => item.condicion_id === productoCondicionId) ?? null
   const esCondicionOriginal = productoCondicionId === contrato.producto_condicion_id
-  const esSnapshotHistorico =
-    esCondicionOriginal && contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
-  const esVersionCatalogadaNoVigente =
-    esCondicionOriginal && !esSnapshotHistorico && condicionProducto == null
+  const esSnapshotHistorico = esCondicionOriginal && contrato.producto_codigo === CODIGO_PRODUCTO_HISTORICO
+  const esVersionCatalogadaNoVigente = esCondicionOriginal && !esSnapshotHistorico && condicionProducto == null
   const terminosFijosPorCatalogo = condicionProducto != null
 
   // Solo los 6 dígitos del formato nuevo; una numeración vieja (AC-2026-XXXX)
@@ -354,7 +348,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
       return
     }
     if (!categoria) {
-      setError('Selecciona la categoría de la inversión (Nuevo, Renovación o Upgrade).')
+      setError('Selecciona el tipo de inversión: nueva, renovación o aumento de inversión.')
       return
     }
     // Guard de RENDIMIENTO (no de longitud): sin cuotas de interés no se guarda.
@@ -399,18 +393,18 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
 
     setEnviando(true)
     try {
-      await actualizarContrato(contrato.id, input, cronograma)
+      await actualizarContrato(contrato.id, input, cronograma, revisionEsperada)
       // La corrección y la reserva de la revisión son atómicas. El render puede
       // reintentarse aparte sin fingir que la corrección falló después de guardar.
       try {
         const pdf = await asegurarContratoPdfActualizado(contrato.id)
         if (pdf.estado === 'sellado') {
-          toast.success('Contrato corregido y PDF actualizado.')
+          toast.success('Contrato corregido y documento actualizado.')
         } else {
-          toast.warning('Contrato corregido. El PDF actualizado quedó pendiente de generación.')
+          toast.warning('Contrato corregido. El documento actualizado quedó pendiente de generación.')
         }
       } catch {
-        toast.warning('Contrato corregido. El servidor reintentará el PDF actualizado al abrirlo.')
+        toast.warning('Contrato corregido. El documento actualizado se preparará cuando vuelvas a abrirlo.')
       }
       onGuardado()
     } catch (e) {
@@ -481,7 +475,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
             </div>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="cc-categoria">Categoría</Label>
+            <Label htmlFor="cc-categoria">Tipo de inversión</Label>
             <Select
               id="cc-categoria"
               value={categoria}
@@ -519,7 +513,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           </div>
           {(!esCompuesto || terminosFijosPorCatalogo || esVersionCatalogadaNoVigente) && (
             <div className="space-y-1.5">
-              <Label htmlFor="cc-modalidad">Modalidad de pago</Label>
+              <Label htmlFor="cc-modalidad">Frecuencia de pago de intereses</Label>
               <Select
                 id="cc-modalidad"
                 value={modalidad}
@@ -646,6 +640,7 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
                 type="button"
                 variant="ghost"
                 size="xs"
+                className="min-h-10 md:min-h-6"
                 onClick={agregarFila}
                 disabled={enviando || titulares.length >= MAX_TITULARES}
               >
@@ -661,8 +656,8 @@ export function ContratoCorregir({ contrato, onGuardado, onCerrar }: ContratoCor
           {estadoTitulares === 'error' && (
             <div className="space-y-2">
               <p className="text-xs font-semibold text-destructive">
-                No se pudieron cargar los co-titulares actuales. Se conservarán tal cual están en el servidor; para
-                editarlos, reintenta la carga.
+                No se pudieron cargar los co-titulares actuales. Se conservarán sin cambios; para editarlos, reintenta
+                la carga.
               </p>
               <Button variant="outline" size="xs" onClick={() => void qTitulares.refetch()}>
                 <RotateCcw aria-hidden /> Reintentar

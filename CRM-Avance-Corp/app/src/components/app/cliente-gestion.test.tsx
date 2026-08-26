@@ -55,7 +55,7 @@ describe('ClienteGestion — confirmación persistida', () => {
       </Dialog>,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Agendar gestión' }))
+    await user.click(screen.getByRole('button', { name: 'Agendar seguimiento' }))
 
     expect(screen.getByRole('button', { name: 'Guardando…' })).toBeDisabled()
     expect(screen.getByRole('button', { name: 'Cancelar' })).toBeDisabled()
@@ -66,7 +66,7 @@ describe('ClienteGestion — confirmación persistida', () => {
     act(() => confirmacion.resolver({ ok: true }))
     await waitFor(() => expect(onCerrar).toHaveBeenCalledTimes(1))
     expect(onEnviandoCambio).toHaveBeenLastCalledWith(false)
-    expect(toast.success).toHaveBeenCalledWith('Gestión agendada · la verás en Hoy y en Agenda')
+    expect(toast.success).toHaveBeenCalledWith('Seguimiento agendado · lo verás en Hoy y en Agenda')
   })
 
   it('si el servidor rechaza, no muestra falso éxito ni cierra el diálogo', async () => {
@@ -89,9 +89,9 @@ describe('ClienteGestion — confirmación persistida', () => {
       </Dialog>,
     )
 
-    await user.click(screen.getByRole('button', { name: 'Agendar gestión' }))
+    await user.click(screen.getByRole('button', { name: 'Agendar seguimiento' }))
 
-    await waitFor(() => expect(screen.getByRole('button', { name: 'Agendar gestión' })).toBeEnabled())
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Agendar seguimiento' })).toBeEnabled())
     expect(onEnviandoCambio).toHaveBeenLastCalledWith(false)
     expect(toast.success).not.toHaveBeenCalled()
     expect(onCerrar).not.toHaveBeenCalled()

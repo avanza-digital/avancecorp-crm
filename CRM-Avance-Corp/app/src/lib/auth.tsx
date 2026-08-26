@@ -13,13 +13,7 @@ import { sb, type ClienteCrm } from './supabase'
 import { DEMO_HABILITADO } from './config'
 import { registrarAviso, registrarError } from './observabilidad'
 import { AuthContext, type Fase } from './auth-context'
-import {
-  authMaquina,
-  faseDe,
-  ERROR_ACCESO,
-  ERROR_SESION,
-  type ResultadoVerificacion,
-} from './auth-maquina'
+import { authMaquina, faseDe, ERROR_ACCESO, ERROR_SESION, type ResultadoVerificacion } from './auth-maquina'
 import {
   esSesionAusente,
   guardarSesionDemo,
@@ -36,8 +30,10 @@ import { interpretarMiAccesoParaUsuario } from './acceso-crm'
 import { DEMO_YO } from './auth-demo'
 
 /** El demo refleja la autorización real del CRM, incluida Gerencia operativa. */
-const contrataEnDemo = (rol: Rol): boolean =>
-  rol === 'vendedor' || rol === 'supervisor' || rol === 'gerencia'
+const contrataEnDemo = (rol: Rol): boolean => rol === 'vendedor' || rol === 'supervisor' || rol === 'gerencia'
+
+/** Revoca una sesión abierta sin depender de que la persona cambie de pestaña. */
+export const INTERVALO_REVALIDACION_ACCESO_MS = 60_000
 
 async function resolverRol(
   cliente: ClienteCrm,
@@ -97,8 +93,7 @@ function crearVerificador(cliente: ClienteCrm): () => Promise<ResultadoVerificac
     if (!data.user) return { tipo: 'sin_sesion' }
 
     const userId = data.user.id
-    const { rol, rolPortal, capacidadesConfig, nombre, puedeContratar } =
-      await resolverRol(cliente, userId)
+    const { rol, rolPortal, capacidadesConfig, nombre, puedeContratar } = await resolverRol(cliente, userId)
     if (!rol) {
       registrarAviso('auth.acceso_revocado_o_no_enrolado', { userId })
       return { tipo: 'no_enrolado', userId }
@@ -148,7 +143,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (limpiarSesionDemo()) notificarAuthLimpia()
     }
 
-    if (!sb) { setFase('anon'); return }
+    if (!sb) {
+      setFase('anon')
+      return
+    }
     const cliente = sb
 
     let cancelado = false
@@ -202,12 +200,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('focus', revalidarAlVolver)
     document.addEventListener('visibilitychange', revalidarAlVolver)
+    const intervaloRevalidacion = window.setInterval(revalidarAlVolver, INTERVALO_REVALIDACION_ACCESO_MS)
 
     return () => {
       cancelado = true
       sub.subscription.unsubscribe()
       window.removeEventListener('focus', revalidarAlVolver)
       document.removeEventListener('visibilitychange', revalidarAlVolver)
+      window.clearInterval(intervaloRevalidacion)
       for (const id of temporizadores) clearTimeout(id)
       temporizadores.clear()
       suscripcion.unsubscribe()

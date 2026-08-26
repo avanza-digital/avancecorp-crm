@@ -22,10 +22,7 @@ function haceTresMeses(): string {
 test('la cartera arranca en el mes en curso y el desplegable trae el resto', async ({ page }) => {
   await montarBackendReal(page, {
     rolCrm: 'vendedor',
-    clientes: [
-      clienteReal(),
-      clienteReal({ id: CLIENTE_B, nombre_completo: 'CLIENTE PORTAL DOS', dni: '45781299' }),
-    ],
+    clientes: [clienteReal(), clienteReal({ id: CLIENTE_B, nombre_completo: 'CLIENTE PORTAL DOS', dni: '45781299' })],
     contratos: [
       contratoReal({
         id: 'dddddddd-dddd-4ddd-8ddd-ddddddddddd1',
@@ -88,10 +85,10 @@ test('el resumen avisa cuando el mes incluye un contrato que registró otra pers
   // explica por qué ese número puede no cuadrar con su cuota.
   // El IMPORTE vive ahora en la tarjeta de arriba, que sigue al mes; la línea se
   // queda con el conteo y con el aviso, que es lo que la tarjeta no dice.
-  await expect(page.getByText(/^Cerrado en \w+ · Soles$/)).toBeVisible()
+  await expect(page.getByText(/^Capital registrado en \w+ · Soles$/)).toBeVisible()
   const resumen = page.locator('p', { hasText: /2 contratos cerrados en/ })
   await expect(resumen).toBeVisible()
-  await expect(resumen.getByText('incluye 1 registrado por otra persona')).toBeVisible()
+  await expect(resumen.getByText('incluye 1 contrato registrado por otra persona')).toBeVisible()
 })
 
 test('sin cierres este mes, la pantalla lo dice y ofrece la salida', async ({ page }) => {

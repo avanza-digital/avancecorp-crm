@@ -55,7 +55,7 @@ export type Database = {
           id: string
           tarea_id: string | null
           tipo: string
-          vendedor_id: string
+          vendedor_id: string | null
         }
         Insert: {
           cliente_id: string
@@ -65,7 +65,7 @@ export type Database = {
           id?: string
           tarea_id?: string | null
           tipo: string
-          vendedor_id: string
+          vendedor_id?: string | null
         }
         Update: {
           cliente_id?: string
@@ -75,7 +75,7 @@ export type Database = {
           id?: string
           tarea_id?: string | null
           tipo?: string
-          vendedor_id?: string
+          vendedor_id?: string | null
         }
         Relationships: [
           {
@@ -1967,6 +1967,7 @@ export type Database = {
           producto_version: number | null
           producto_version_estado: string | null
           producto_version_id: string | null
+          revision_contrato: string | null
           tasa_anual: number | null
           tipo_interes: string | null
         }
@@ -2017,7 +2018,12 @@ export type Database = {
         Returns: undefined
       }
       actualizar_contrato_con_cuenta_pdf_v3: {
-        Args: { p_contrato: Json; p_cronograma: Json; p_id: string }
+        Args: {
+          p_contrato: Json
+          p_cronograma: Json
+          p_id: string
+          p_revision_esperada?: string
+        }
         Returns: Json
       }
       actualizar_contrato_con_cuenta_producto: {
@@ -2174,6 +2180,22 @@ export type Database = {
       cierre_mes_estado_fn: { Args: never; Returns: Json }
       cierres_estado_fn: { Args: { p_lead_ids: string[] }; Returns: Json }
       cierres_externos_fn: { Args: { p_periodo: string }; Returns: Json }
+      cliente_ficha_fn: {
+        Args: { p_cliente_id: string }
+        Returns: {
+          activo: boolean
+          apellidos: string
+          asesor_perfil_id: string
+          correo: string
+          creado_en: string
+          dni: string
+          id: string
+          nombre_completo: string
+          nombres: string
+          telefono: string
+          tipo_documento: string
+        }[]
+      }
       clientes_basicos_fn: {
         Args: never
         Returns: {
@@ -2282,6 +2304,7 @@ export type Database = {
           producto_version: number
           producto_version_estado: string
           producto_version_id: string
+          revision_contrato: string
           tasa_anual: number
           tipo_interes: string
         }[]

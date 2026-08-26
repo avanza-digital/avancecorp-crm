@@ -21,14 +21,10 @@ const JOB_ID = '11111111-1111-4111-8111-111111111111'
 
 async function sha256(blob: Blob): Promise<string> {
   const digest = await crypto.subtle.digest('SHA-256', await blob.arrayBuffer())
-  return [...new Uint8Array(digest)]
-    .map((byte) => byte.toString(16).padStart(2, '0'))
-    .join('')
+  return [...new Uint8Array(digest)].map((byte) => byte.toString(16).padStart(2, '0')).join('')
 }
 
-async function sellado(
-  blob: Blob,
-  overrides: Record<string, unknown> = {}) {
+async function sellado(blob: Blob, overrides: Record<string, unknown> = {}) {
   const hash = await sha256(blob)
   const storagePath = `${CONTRATO_ID}/v2/${JOB_ID}/contrato.pdf`
   const metadata = {
@@ -170,8 +166,10 @@ describe('cliente del archivo contractual server-side', () => {
     await expect(eliminarContratoConPdf(CONTRATO_ID)).rejects.toThrow(/confirmación.*formato/i)
   })
 
-  it('rechaza UUID con mayúsculas antes de invocar la Edge', async () => {
-    await expect(archivarContratoPdfConfirmado(CONTRATO_ID.toUpperCase())).rejects.toThrow(/canónico/i)
+  it('rechaza un identificador alterado antes de solicitar el documento', async () => {
+    await expect(archivarContratoPdfConfirmado(CONTRATO_ID.toUpperCase())).rejects.toThrow(
+      /No pudimos identificar este contrato/i,
+    )
     expect(supabase.invoke).not.toHaveBeenCalled()
   })
 
@@ -244,10 +242,12 @@ describe('cliente del archivo contractual server-side', () => {
     respuesta.pdf.storage_path = respuesta.pdf.archivo.storage_path
     supabase.invoke.mockResolvedValue({ data: respuesta, error: null })
 
-    await expect(obtenerContratoPdfArchivado(CONTRATO_ID)).rejects.toThrow(/metadatos contradictorios/i)
+    await expect(obtenerContratoPdfArchivado(CONTRATO_ID)).rejects.toThrow(
+      /No pudimos confirmar el archivo de este contrato/i,
+    )
   })
 
-  it('rechaza una descarga cuyos bytes no coinciden con el ledger legal', async () => {
+  it('rechaza una descarga distinta del documento confirmado', async () => {
     const esperado = new Blob(['%PDF-1.7\noriginal'], {
       type: 'application/pdf',
     })
@@ -268,7 +268,9 @@ describe('cliente del archivo contractual server-side', () => {
       ),
     )
 
-    await expect(obtenerContratoPdfArchivado(CONTRATO_ID)).rejects.toThrow(/bytes.*no coinciden/i)
+    await expect(obtenerContratoPdfArchivado(CONTRATO_ID)).rejects.toThrow(
+      /No pudimos confirmar el documento descargado/i,
+    )
   })
 
   it('la descarga inmediata y la posterior son idénticas byte a byte', async () => {

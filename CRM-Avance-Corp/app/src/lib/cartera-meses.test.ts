@@ -3,13 +3,7 @@
 // meses, PEN y USD jamás sumados, los dos cubos (sin contrato / sin fecha) y el
 // conteo de contratos registrados por otra persona.
 import { describe, expect, it } from 'vitest'
-import {
-  agruparPorMes,
-  mesLima,
-  registradoPorOtro,
-  CLAVE_SIN_CONTRATOS,
-  CLAVE_SIN_FECHA,
-} from './cartera-meses'
+import { agruparPorMes, mesLima, registradoPorOtro, CLAVE_SIN_CONTRATOS, CLAVE_SIN_FECHA } from './cartera-meses'
 import { agruparCartera, resumirCliente } from './cartera-vista'
 import type { ClienteBasico, ContratoRow } from './clientes-tipos'
 
@@ -49,6 +43,7 @@ function contrato(sobre: Partial<ContratoRow> = {}): ContratoRow {
     notas_internas: null,
     creado_por: null,
     creado_en: '2026-08-10T15:00:00.000Z',
+    revision_contrato: '2026-08-10T15:00:00.000Z',
     producto_condicion_id: '10000000-0000-4000-8000-000000000001',
     producto_id: '20000000-0000-4000-8000-000000000001',
     producto_codigo: 'RENTA-BASE',
@@ -106,10 +101,9 @@ describe('registradoPorOtro — el contrato que no cuadra con la cuota', () => {
   })
 
   it('sin asesor, el dueño hereda de quien registró al CLIENTE (regla de la casa)', () => {
-    const grupo = resumirCliente(
-      cliente({ asesor_perfil_id: null, creado_por: 'miguel' }),
-      [contrato({ creado_por: 'carlos' })],
-    )
+    const grupo = resumirCliente(cliente({ asesor_perfil_id: null, creado_por: 'miguel' }), [
+      contrato({ creado_por: 'carlos' }),
+    ])
     expect(registradoPorOtro(contrato({ creado_por: 'carlos' }), grupo)).toBe(true)
   })
 })
@@ -164,7 +158,7 @@ describe('agruparPorMes — la cartera partida por mes de cierre', () => {
   })
 
   // «Qué cerré en agosto» incluye lo que ya venció: se cerró igual. La columna
-  // «Capital invertido» de la fila sigue midiendo lo VIVO, que es otra pregunta.
+  // «Capital vigente» de la fila sigue midiendo lo VIVO, que es otra pregunta.
   it('el total del mes cuenta los contratos de CUALQUIER estado', () => {
     const grupos = agruparCartera(
       [cliente()],
@@ -196,10 +190,7 @@ describe('agruparPorMes — la cartera partida por mes de cierre', () => {
   it('un contrato con fecha ilegible cae en su cubo y no tumba el resto', () => {
     const grupos = agruparCartera(
       [cliente()],
-      [
-        contrato({ id: 'k-ok' }),
-        contrato({ id: 'k-roto', creado_en: 'vaya usted a saber' }),
-      ],
+      [contrato({ id: 'k-ok' }), contrato({ id: 'k-roto', creado_en: 'vaya usted a saber' })],
     )
     const meses = agruparPorMes(grupos)
     expect(meses.map((m) => m.clave)).toEqual(['2026-08', CLAVE_SIN_FECHA])
@@ -234,16 +225,44 @@ describe('agruparPorMes — la cartera partida por mes de cierre', () => {
       cliente({ id: 'c-3', nombre_completo: 'RECIÉN CAPTADO', asesor_perfil_id: 'miguel' }),
     ]
     const contratos = [
-      contrato({ id: 'k1', cliente_id: 'c-1', capital: 20000, creado_por: 'carlos', creado_en: '2026-08-14T16:55:00.000Z' }),
-      contrato({ id: 'k2', cliente_id: 'c-2', capital: 5000, creado_por: 'miguel', creado_en: '2026-08-08T16:00:00.000Z' }),
-      contrato({ id: 'k3', cliente_id: 'c-2', capital: 9000, creado_por: 'miguel', creado_en: '2026-07-02T16:00:00.000Z' }),
-      contrato({ id: 'k4', cliente_id: 'c-1', capital: 4000, creado_por: 'miguel', creado_en: '2026-06-11T16:00:00.000Z' }),
-      contrato({ id: 'k5', cliente_id: 'c-1', capital: 3000, creado_por: 'miguel', creado_en: '2026-05-30T16:00:00.000Z' }),
+      contrato({
+        id: 'k1',
+        cliente_id: 'c-1',
+        capital: 20000,
+        creado_por: 'carlos',
+        creado_en: '2026-08-14T16:55:00.000Z',
+      }),
+      contrato({
+        id: 'k2',
+        cliente_id: 'c-2',
+        capital: 5000,
+        creado_por: 'miguel',
+        creado_en: '2026-08-08T16:00:00.000Z',
+      }),
+      contrato({
+        id: 'k3',
+        cliente_id: 'c-2',
+        capital: 9000,
+        creado_por: 'miguel',
+        creado_en: '2026-07-02T16:00:00.000Z',
+      }),
+      contrato({
+        id: 'k4',
+        cliente_id: 'c-1',
+        capital: 4000,
+        creado_por: 'miguel',
+        creado_en: '2026-06-11T16:00:00.000Z',
+      }),
+      contrato({
+        id: 'k5',
+        cliente_id: 'c-1',
+        capital: 3000,
+        creado_por: 'miguel',
+        creado_en: '2026-05-30T16:00:00.000Z',
+      }),
     ]
     const meses = agruparPorMes(agruparCartera(clientes, contratos))
-    expect(meses.map((m) => m.clave)).toEqual([
-      '2026-08', '2026-07', '2026-06', '2026-05', CLAVE_SIN_CONTRATOS,
-    ])
+    expect(meses.map((m) => m.clave)).toEqual(['2026-08', '2026-07', '2026-06', '2026-05', CLAVE_SIN_CONTRATOS])
     const agosto = meses[0]!
     expect(agosto.contratos).toBe(2)
     expect(agosto.capitalPen).toBe(25000)

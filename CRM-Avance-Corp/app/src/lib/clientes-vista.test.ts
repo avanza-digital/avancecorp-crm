@@ -81,15 +81,29 @@ describe('filtrarClientes — búsqueda', () => {
       fila({ dni: '00000002', asesor_perfil_id: null, creado_por: null }),
       fila({ dni: '00000003', asesor_perfil_id: 'admin-portal' }),
     ]
-    expect(filtrarClientes(filas, '', 'sin_asesor', roster).map((f) => f.dni).sort()).toEqual(['00000002', '00000003'])
+    expect(
+      filtrarClientes(filas, '', 'sin_asesor', roster)
+        .map((f) => f.dni)
+        .sort(),
+    ).toEqual(['00000002', '00000003'])
     expect(filtrarClientes(filas, '', 'v-1', roster).map((f) => f.dni)).toEqual(['00000001'])
     // Sin roster (llamadas viejas): compat — solo el dueño null es 'sin asesor'.
     expect(filtrarClientes(filas, '', 'sin_asesor').map((f) => f.dni)).toEqual(['00000002'])
   })
 
   const cartera = [
-    fila({ nombre_completo: 'ROSA MERCEDES AGUILAR VENTURA', dni: '46801357', correo: 'rosa@correo.pe', telefono: '+51987120345' }),
-    fila({ nombre_completo: 'BRUNO ALEXIS FONSECA IPARRAGUIRRE', dni: 'PE1548792', correo: 'bruno@correo.pe', telefono: '+51944870231' }),
+    fila({
+      nombre_completo: 'ROSA MERCEDES AGUILAR VENTURA',
+      dni: '46801357',
+      correo: 'rosa@correo.pe',
+      telefono: '+51987120345',
+    }),
+    fila({
+      nombre_completo: 'BRUNO ALEXIS FONSECA IPARRAGUIRRE',
+      dni: 'PE1548792',
+      correo: 'bruno@correo.pe',
+      telefono: '+51944870231',
+    }),
     fila({ nombre_completo: 'NADIA SOLEDAD CHOQUE MAMANI', dni: '001987654', correo: null, telefono: null }),
   ]
 
@@ -156,13 +170,9 @@ describe('carteraDelAmbito (recorte DEMO — en real lo hace el servidor)', () =
     expect(carteraDelAmbito(cartera, new Set(), true)).toHaveLength(5)
   })
 
-  it('recorta por dueño de cartera dentro del equipo visible', () => {
+  it('recorta por asesor asignado dentro del equipo visible', () => {
     const visibles = carteraDelAmbito(cartera, new Set(['yo', 'v-1']), false)
-    expect(visibles.map((c) => c.nombre_completo)).toEqual([
-      'MIA',
-      'DE MI VENDEDOR',
-      'HUERFANA DE MI VENDEDOR',
-    ])
+    expect(visibles.map((c) => c.nombre_completo)).toEqual(['MIA', 'DE MI VENDEDOR'])
   })
 })
 
@@ -189,6 +199,11 @@ describe('paginar', () => {
   })
 
   it('múltiplo exacto no inventa una página de más', () => {
-    expect(paginar(Array.from({ length: 100 }, (_, i) => i), 0).paginas).toBe(2)
+    expect(
+      paginar(
+        Array.from({ length: 100 }, (_, i) => i),
+        0,
+      ).paginas,
+    ).toBe(2)
   })
 })

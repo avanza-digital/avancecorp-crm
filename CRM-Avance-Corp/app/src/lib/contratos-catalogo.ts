@@ -8,17 +8,18 @@
 import type { EstadoContrato } from '@/lib/clientes-tipos'
 import type { CategoriaContrato, ModalidadContrato } from '@/lib/cronograma'
 
-// Categoría: valor en BD → etiqueta visible (con tilde) — espejo de analista.js.
+// Tipo de inversión: valor en BD → etiqueta visible — espejo de analista.js.
 // La lista {k,label} alimenta los <Select> de los formularios; el Record
 // derivado pinta tablas y detalle. UNA fuente, dos formas.
 export const CATEGORIAS_CONTRATO_UI: { k: CategoriaContrato; label: string }[] = [
-  { k: 'nuevo', label: 'Nuevo' },
+  { k: 'nuevo', label: 'Nueva inversión' },
   { k: 'renovacion', label: 'Renovación' },
-  { k: 'upgrade', label: 'Upgrade' },
+  { k: 'upgrade', label: 'Aumento de inversión' },
 ]
-export const CATEGORIA_LABEL = Object.fromEntries(
-  CATEGORIAS_CONTRATO_UI.map((c) => [c.k, c.label]),
-) as Record<CategoriaContrato, string>
+export const CATEGORIA_LABEL = Object.fromEntries(CATEGORIAS_CONTRATO_UI.map((c) => [c.k, c.label])) as Record<
+  CategoriaContrato,
+  string
+>
 
 export const MODALIDADES_UI: { k: ModalidadContrato; label: string }[] = [
   { k: 'mensual', label: 'Mensual' },
@@ -26,9 +27,10 @@ export const MODALIDADES_UI: { k: ModalidadContrato; label: string }[] = [
   { k: 'semestral', label: 'Semestral' },
   { k: 'anual', label: 'Anual' },
 ]
-export const MODALIDAD_LABEL = Object.fromEntries(
-  MODALIDADES_UI.map((m) => [m.k, m.label]),
-) as Record<ModalidadContrato, string>
+export const MODALIDAD_LABEL = Object.fromEntries(MODALIDADES_UI.map((m) => [m.k, m.label])) as Record<
+  ModalidadContrato,
+  string
+>
 
 // Prefijo FIJO del N° de contrato: el asesor solo escribe los 6 dígitos (espejo
 // de PREFIJO_CONTRATO de analista.js). Si el número no viaja, el servidor
@@ -45,6 +47,13 @@ export const ESTADO_COLOR: Record<EstadoContrato, string> = {
   vencido: 'var(--warning)',
   renovado: 'var(--chart-4)',
   retirado: 'var(--muted-foreground)',
+}
+
+export const ESTADO_CONTRATO_LABEL: Record<EstadoContrato, string> = {
+  activo: 'Vigente',
+  vencido: 'Vencido',
+  renovado: 'Renovado',
+  retirado: 'Retirado',
 }
 
 /**

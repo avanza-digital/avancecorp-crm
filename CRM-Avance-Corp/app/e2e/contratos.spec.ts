@@ -9,7 +9,16 @@
 //  - sin los 6 dígitos NO se llama al servidor,
 //  - los co-titulares (mancomunadas) viajan DENTRO de p_contrato.
 import { expect, test, type Page } from '@playwright/test'
-import { clienteReal, bloquearSupabase, contratoReal, entrarDemo, loginReal, montarBackendReal, UID, type ContratoReal } from './_helpers'
+import {
+  clienteReal,
+  bloquearSupabase,
+  contratoReal,
+  entrarDemo,
+  loginReal,
+  montarBackendReal,
+  UID,
+  type ContratoReal,
+} from './_helpers'
 
 // Fase 6.1 (2026-07-21): la pantalla Contratos (tabla PLANA de contratos + picker
 // de "+ Contrato") se RETIRÓ. La mayor parte de esta suite prueba ese layout
@@ -21,7 +30,10 @@ import { clienteReal, bloquearSupabase, contratoReal, entrarDemo, loginReal, mon
 // SALDADO 2026-07-21: la CREACIÓN (numeración 2026-01-XXXXXX + co-titulares en
 // p_contrato + "sin 6 dígitos no llama al server" + sub-fila sin reload) vive en
 // `contrato-crear.spec.ts`, entrando por el "+ Contrato" por-cliente (sin picker).
-test.skip(true, 'Fase 6: Contratos (tabla plana + picker) retirada — tabla en mi-cartera.test.tsx, detalle en contrato-detalle.spec.ts, creación en contrato-crear.spec.ts')
+test.skip(
+  true,
+  'Fase 6: Contratos (tabla plana + picker) retirada — tabla en mi-cartera.test.tsx, detalle en contrato-detalle.spec.ts, creación en contrato-crear.spec.ts',
+)
 
 /** Entra a la pantalla Contratos (con el gate de leads cerrado, la cuenta real
  * arranca en Clientes; el nav lateral sí ofrece Contratos). */
@@ -37,7 +49,7 @@ async function abrirFormNuevo(page: Page) {
   await expect(selector).toBeVisible()
   await selector.getByLabel('Cliente').selectOption({ label: 'CLIENTE PORTAL UNO' })
   await selector.getByRole('button', { name: 'Continuar' }).click()
-  const form = page.getByRole('dialog', { name: /Crear contrato de CLIENTE PORTAL UNO/ })
+  const form = page.getByRole('dialog', { name: /Registrar nueva inversión de CLIENTE PORTAL UNO/ })
   await expect(form).toBeVisible()
   return form
 }
@@ -50,8 +62,20 @@ test('picker de "+ Contrato": el supervisor solo ve su cartera PROPIA, no la del
   await montarBackendReal(page, {
     rolCrm: 'supervisor',
     clientes: [
-      clienteReal({ id: 'cli-mio', nombre_completo: 'CLIENTE PROPIO SUP', dni: '40000001', asesor_perfil_id: UID, creado_por: UID }),
-      clienteReal({ id: 'cli-equipo', nombre_completo: 'CLIENTE DEL EQUIPO', dni: '40000002', asesor_perfil_id: 'vend-1', creado_por: 'vend-1' }),
+      clienteReal({
+        id: 'cli-mio',
+        nombre_completo: 'CLIENTE PROPIO SUP',
+        dni: '40000001',
+        asesor_perfil_id: UID,
+        creado_por: UID,
+      }),
+      clienteReal({
+        id: 'cli-equipo',
+        nombre_completo: 'CLIENTE DEL EQUIPO',
+        dni: '40000002',
+        asesor_perfil_id: 'vend-1',
+        creado_por: 'vend-1',
+      }),
     ],
   })
   await loginReal(page)
@@ -63,21 +87,39 @@ test('picker de "+ Contrato": el supervisor solo ve su cartera PROPIA, no la del
   await expect(selector.getByRole('option', { name: 'CLIENTE DEL EQUIPO' })).toHaveCount(0)
 })
 
-test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida; Corregir solo en lo propio y vivo', async ({ page }) => {
-  await montarBackendReal(page, { rolCrm: 'vendedor',
+test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida; Corregir solo en lo propio y vivo', async ({
+  page,
+}) => {
+  await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     contratos: [
       // Viva y MÍA → Corregir habilitado.
-      contratoReal({ id: 'ct-viva', numero_contrato: '2026-01-000111', creado_por: UID, creado_en: new Date().toISOString() }),
+      contratoReal({
+        id: 'ct-viva',
+        numero_contrato: '2026-01-000111',
+        creado_por: UID,
+        creado_en: new Date().toISOString(),
+      }),
       // MÍA pero con la ventana VENCIDA (creada hace semanas) → sin botón Corregir.
-      contratoReal({ id: 'ct-vencida', numero_contrato: '2026-01-000222', creado_por: UID, creado_en: '2026-07-01T00:00:00.000Z' }),
+      contratoReal({
+        id: 'ct-vencida',
+        numero_contrato: '2026-01-000222',
+        creado_por: UID,
+        creado_en: '2026-07-01T00:00:00.000Z',
+      }),
       // Viva pero AJENA (la creó otro del equipo) → sin reloj ni botón Corregir.
-      contratoReal({ id: 'ct-ajena', numero_contrato: '2026-01-000333', creado_por: 'vend-1', creado_en: new Date().toISOString() }),
+      contratoReal({
+        id: 'ct-ajena',
+        numero_contrato: '2026-01-000333',
+        creado_por: 'vend-1',
+        creado_en: new Date().toISOString(),
+      }),
     ],
   })
   await loginReal(page)
   await irAContratos(page)
 
-  // Columnas del espejo del portal. Estado y Categoría van FUSIONADAS en una
+  // Columnas del espejo del portal. Estado y Tipo de inversión van juntos en una
   // celda (fila densa); el nombre accesible completo de la ventana viaja en el
   // aria-label del th (el texto visible es 'Ventana').
   for (const th of ['N° contrato', 'Cliente', 'Capital', 'Estado', 'Registrado', 'Ventana de corrección', 'Acciones']) {
@@ -88,8 +130,8 @@ test('la tabla pinta como el portal y el reloj de 5 h distingue viva de vencida;
   await expect(filaViva.getByText(/Quedan \d+ h \d{2} m/)).toBeVisible()
   await expect(filaViva.getByRole('button', { name: 'Corregir' })).toBeEnabled()
   // La celda fusionada: badge de estado + badge de categoría en la misma fila.
-  await expect(filaViva.getByText('activo')).toBeVisible()
-  await expect(filaViva.getByText('Nuevo', { exact: true })).toBeVisible()
+  await expect(filaViva.getByText('Vigente')).toBeVisible()
+  await expect(filaViva.getByText('Nueva inversión', { exact: true })).toBeVisible()
 
   // Propia pero VENCIDA: el reloj dice Bloqueado y el botón ya NI se ofrece
   // (el servidor lo rechazaría con P0001 — no se ofrece lo que fallaría).
@@ -125,15 +167,24 @@ test('gerencia: sin columnas Ventana/Acciones ni relojes; la fila clicable abre 
   await expect(page.getByRole('button', { name: 'Corregir' })).toHaveCount(0)
 
   // La fila entera es el acceso al detalle (solo lectura, la RLS ya scopea).
-  await page.getByRole('row', { name: /Abrir detalle del contrato 2026-01-000123/ }).getByText('2026-01-000123').click()
+  await page
+    .getByRole('row', { name: /Abrir detalle del contrato 2026-01-000123/ })
+    .getByText('2026-01-000123')
+    .click()
   await expect(page.getByRole('dialog', { name: /Contrato 2026-01-000123/ })).toBeVisible()
 })
 
 test('búsqueda y filtro por estado: contador "X de N", "Sin resultados" honesto y AND', async ({ page }) => {
-  await montarBackendReal(page, { rolCrm: 'vendedor',
+  await montarBackendReal(page, {
+    rolCrm: 'vendedor',
     contratos: [
       contratoReal({ id: 'ct-1', numero_contrato: '2026-01-000111', cliente_nombre: 'ROSA MERCEDES AGUILAR VENTURA' }),
-      contratoReal({ id: 'ct-2', numero_contrato: '2026-01-000222', cliente_nombre: 'JOSÉ ÑAÑEZ GÜISADO', estado: 'renovado' }),
+      contratoReal({
+        id: 'ct-2',
+        numero_contrato: '2026-01-000222',
+        cliente_nombre: 'JOSÉ ÑAÑEZ GÜISADO',
+        estado: 'renovado',
+      }),
     ],
   })
   await loginReal(page)
@@ -229,9 +280,9 @@ test('+ Contrato crea con la numeración nueva: el POST lleva numero_contrato 20
   await form.locator('#ct-numero').fill('A1B2C3')
   await expect(form.locator('#ct-numero')).toHaveValue('123')
   await form.locator('#ct-numero').fill('000777')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
-  await expect(page.getByText(/Contrato 2026-01-000777 creado/)).toBeVisible()
+  await expect(page.getByText(/Inversión registrada · contrato 2026-01-000777/)).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   // El servidor recibió el número COMPLETO (prefijo fijo + 6 dígitos), no vacío.
   expect(estado.contratos[0]?.numero_contrato).toBe('2026-01-000777')
@@ -249,7 +300,7 @@ test('sin los 6 dígitos obligatorios NO se llama al servidor', async ({ page })
   await form.locator('#ct-capital').fill('10000')
   await form.locator('#ct-tasa').fill('15')
   await form.locator('#ct-numero').fill('123') // incompleto
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
   await expect(form.getByText(/exactamente 6 dígitos/)).toBeVisible()
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
@@ -271,7 +322,7 @@ test('los co-titulares (mancomunadas) viajan DENTRO de p_contrato normalizados',
   await form.getByLabel('Documento', { exact: true }).fill('87654321')
   // Minúsculas y espacios dobles a propósito: el núcleo normaliza como la BD.
   await form.getByLabel('Nombre completo del co-titular').fill('maría  julia pérez')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
 
   await expect.poll(() => estado.llamadas.rpcCrearContrato).toBe(1)
   const creado = estado.contratos[0] as ContratoReal & { titulares?: unknown }
@@ -297,7 +348,7 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
   // A medio llenar: documento sin nombre → error con la posición de la fila.
   await form.getByRole('button', { name: /Agregar co-titular/ }).click()
   await form.getByLabel('Documento', { exact: true }).fill('87654321')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
   await expect(form.getByText(/Co-titular 1: Escribe el nombre completo/)).toBeVisible()
 
   // Duplicado: dos filas con el MISMO documento → error, nada sale al servidor.
@@ -305,18 +356,19 @@ test('co-titular a medio llenar o duplicado corta el guardado ANTES del servidor
   await form.getByRole('button', { name: /Agregar co-titular/ }).click()
   await form.getByLabel('Documento', { exact: true }).nth(1).fill('87654321')
   await form.getByLabel('Nombre completo del co-titular').nth(1).fill('ANA DOS')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
   await expect(form.getByText(/está repetido/)).toBeVisible()
 
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
 })
 
-
 // Flujo CRUZADO Clientes → Contratos sobre la caché compartida de TanStack
 // Query: es la ÚNICA alarma posible para una invalidación con la clave
 // equivocada, que no falla ruidosa — solo dejaría la tabla de Contratos con su
 // versión vieja (fresca < 30 s) al volver sin reload.
-test('crear contrato desde la fila de Clientes: la tabla de Contratos lo pinta al volver SIN reload', async ({ page }) => {
+test('crear contrato desde la fila de Clientes: la tabla de Contratos lo pinta al volver SIN reload', async ({
+  page,
+}) => {
   await montarBackendReal(page, { rolCrm: 'vendedor', contratos: [] })
   await loginReal(page)
 
@@ -333,14 +385,14 @@ test('crear contrato desde la fila de Clientes: la tabla de Contratos lo pinta a
     .getByRole('row', { name: /CLIENTE PORTAL UNO/ })
     .getByRole('button', { name: '+ Contrato' })
     .click()
-  const form = page.getByRole('dialog', { name: /Crear contrato de CLIENTE PORTAL UNO/ })
+  const form = page.getByRole('dialog', { name: /Registrar nueva inversión de CLIENTE PORTAL UNO/ })
   await expect(form).toBeVisible()
   await form.locator('#ct-categoria').selectOption('nuevo')
   await form.locator('#ct-capital').fill('10000')
   await form.locator('#ct-tasa').fill('15')
   await form.locator('#ct-numero').fill('000555')
-  await form.getByRole('button', { name: /Crear contrato/ }).click()
-  await expect(page.getByText(/Contrato 2026-01-000555 creado/)).toBeVisible()
+  await form.getByRole('button', { name: /Registrar nueva inversión/ }).click()
+  await expect(page.getByText(/Inversión registrada · contrato 2026-01-000555/)).toBeVisible()
 
   // 3) Volver a Contratos por el nav (sin recargar la página): la invalidación
   //    de crmQueryKeys.contratos() obliga a releer y la fila nueva está ahí.
@@ -348,7 +400,9 @@ test('crear contrato desde la fila de Clientes: la tabla de Contratos lo pinta a
   await expect(page.getByRole('row', { name: /000555/ })).toBeVisible()
 })
 
-test('demo: contratos poblados, detalle por fila clicable con cronograma fixture y SIN pegarle a Supabase', async ({ page }) => {
+test('demo: contratos poblados, detalle por fila clicable con cronograma fixture y SIN pegarle a Supabase', async ({
+  page,
+}) => {
   // Fail-closed: en demo NINGÚN request debe salir al host de Supabase (ni la
   // lista ni el detalle — que en demo va PRECARGADO, sin fetch).
   const requestsSupabase = await bloquearSupabase(page)

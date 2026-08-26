@@ -17,14 +17,7 @@ import { PanelVacio } from '@/components/common/estado-panel'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
-import {
-  Dialog,
-  DialogBody,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog'
+import { Dialog, DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
@@ -50,9 +43,9 @@ import {
 } from '@/lib/productos-inversion'
 
 const ETIQUETA_CATEGORIA = {
-  nuevo: 'Nuevo',
+  nuevo: 'Nueva inversión',
   renovacion: 'Renovación',
-  upgrade: 'Upgrade',
+  upgrade: 'Aumento de inversión',
 } as const
 
 const ETIQUETA_MODALIDAD = {
@@ -166,24 +159,19 @@ function formularioInicial(objetivo: ObjetivoEditor): FormularioProducto {
     }
   }
 
-  const referencia = objetivo.tipo === 'editar-borrador'
-    ? objetivo.version
-    : objetivo.producto.versiones.find((version) => version.estado === 'publicada')
-      ?? objetivo.producto.versiones[0]
-  const condiciones = referencia?.condiciones
-    .filter((condicion) => condicion.activa)
-    .map(condicionDesdeCatalogo) ?? []
+  const referencia =
+    objetivo.tipo === 'editar-borrador'
+      ? objetivo.version
+      : (objetivo.producto.versiones.find((version) => version.estado === 'publicada') ??
+        objetivo.producto.versiones[0])
+  const condiciones = referencia?.condiciones.filter((condicion) => condicion.activa).map(condicionDesdeCatalogo) ?? []
 
   return {
     codigo: objetivo.producto.codigo,
     nombre: referencia?.nombre ?? objetivo.producto.codigo,
     descripcion: referencia?.descripcion ?? '',
-    vigenteDesde: objetivo.tipo === 'editar-borrador'
-      ? objetivo.version.vigente_desde
-      : hoyLima(),
-    vigenteHasta: objetivo.tipo === 'editar-borrador'
-      ? objetivo.version.vigente_hasta ?? ''
-      : '',
+    vigenteDesde: objetivo.tipo === 'editar-borrador' ? objetivo.version.vigente_desde : hoyLima(),
+    vigenteHasta: objetivo.tipo === 'editar-borrador' ? (objetivo.version.vigente_hasta ?? '') : '',
     condiciones: condiciones.length > 0 ? condiciones : [condicionNueva()],
   }
 }
@@ -206,9 +194,7 @@ function validarFormulario(
   const codigo = formulario.codigo.trim().toUpperCase()
   const nombre = formulario.nombre.trim()
 
-  if (requiereCodigo
-    && (!/^[A-Z0-9][A-Z0-9._-]{1,39}$/.test(codigo)
-      || codigo === 'HISTORICO-SIN-CATALOGO')) {
+  if (requiereCodigo && (!/^[A-Z0-9][A-Z0-9._-]{1,39}$/.test(codigo) || codigo === 'HISTORICO-SIN-CATALOGO')) {
     return { error: 'El código debe tener entre 2 y 40 caracteres: letras, números, punto, guion o guion bajo.' }
   }
   if (nombre.length < 3 || nombre.length > 160) {
@@ -250,8 +236,10 @@ function validarFormulario(
     if (!Number.isInteger(plazoMeses) || plazoMeses < 1 || plazoMeses > 600) {
       return { error: `El plazo de la condición ${posicion} debe ser un entero entre 1 y 600 meses.` }
     }
-    if (condicion.tipoInteres === 'compuesto'
-      && (condicion.modalidad !== 'anual' || plazoMeses < 12 || plazoMeses % 12 !== 0)) {
+    if (
+      condicion.tipoInteres === 'compuesto' &&
+      (condicion.modalidad !== 'anual' || plazoMeses < 12 || plazoMeses % 12 !== 0)
+    ) {
       return {
         error: `El interés compuesto de la condición ${posicion} requiere modalidad anual y un plazo en años completos.`,
       }
@@ -259,9 +247,14 @@ function validarFormulario(
 
     const capitalMinimo = numero(condicion.capitalMinimo)
     const capitalMaximo = numero(condicion.capitalMaximo)
-    if (!Number.isFinite(capitalMinimo) || !Number.isFinite(capitalMaximo)
-      || capitalMinimo < 100 || capitalMinimo > 100_000_000
-      || capitalMaximo < 100 || capitalMaximo > 100_000_000) {
+    if (
+      !Number.isFinite(capitalMinimo) ||
+      !Number.isFinite(capitalMaximo) ||
+      capitalMinimo < 100 ||
+      capitalMinimo > 100_000_000 ||
+      capitalMaximo < 100 ||
+      capitalMaximo > 100_000_000
+    ) {
       return { error: `Los capitales de la condición ${posicion} deben estar entre 100 y 100,000,000.` }
     }
     if (capitalMinimo > capitalMaximo) {
@@ -271,9 +264,7 @@ function validarFormulario(
     const tasaMinima = numero(condicion.tasaMinima)
     const tasaReferencia = numero(condicion.tasaReferencia)
     const tasaMaxima = numero(condicion.tasaMaxima)
-    if (![tasaMinima, tasaReferencia, tasaMaxima].every(
-      (tasa) => Number.isFinite(tasa) && tasa > 0 && tasa <= 50,
-    )) {
+    if (![tasaMinima, tasaReferencia, tasaMaxima].every((tasa) => Number.isFinite(tasa) && tasa > 0 && tasa <= 50)) {
       return { error: `Las tasas de la condición ${posicion} deben ser mayores que 0 y no superar 50%.` }
     }
     if (tasaMinima > tasaReferencia || tasaReferencia > tasaMaxima) {
@@ -335,9 +326,11 @@ function tasa(valor: number): string {
 
 function versionPublicable(version: ProductoVersion): boolean {
   const hoy = hoyLima()
-  return version.condiciones.some((condicion) => condicion.activa)
-    && version.vigente_desde <= hoy
-    && (!version.vigente_hasta || version.vigente_hasta >= hoy)
+  return (
+    version.condiciones.some((condicion) => condicion.activa) &&
+    version.vigente_desde <= hoy &&
+    (!version.vigente_hasta || version.vigente_hasta >= hoy)
+  )
 }
 
 function EditorProductoDialog({
@@ -354,35 +347,39 @@ function EditorProductoDialog({
   const [formulario, setFormulario] = useState(() => formularioInicial(objetivo))
   const [error, setError] = useState<string | null>(null)
   const requiereCodigo = objetivo.tipo === 'crear-producto'
-  const titulo = objetivo.tipo === 'crear-producto'
-    ? 'Crear producto'
-    : objetivo.tipo === 'crear-version'
-      ? `Crear versión de ${objetivo.producto.codigo}`
-      : `Editar ${objetivo.producto.codigo} · v${objetivo.version.numero_version}`
+  const titulo =
+    objetivo.tipo === 'crear-producto'
+      ? 'Crear producto'
+      : objetivo.tipo === 'crear-version'
+        ? `Crear versión de ${objetivo.producto.codigo}`
+        : `Editar ${objetivo.producto.codigo} · v${objetivo.version.numero_version}`
 
   const actualizarCondicion = (indice: number, patch: Partial<CondicionFormulario>) => {
     setFormulario((actual) => ({
       ...actual,
       condiciones: actual.condiciones.map((condicion, posicion) =>
-        posicion === indice ? { ...condicion, ...patch } : condicion),
+        posicion === indice ? { ...condicion, ...patch } : condicion,
+      ),
     }))
     setError(null)
   }
 
   const agregarCondicion = () => {
-    setFormulario((actual) => actual.condiciones.length >= 100
-      ? actual
-      : { ...actual, condiciones: [...actual.condiciones, condicionNueva()] })
+    setFormulario((actual) =>
+      actual.condiciones.length >= 100 ? actual : { ...actual, condiciones: [...actual.condiciones, condicionNueva()] },
+    )
     setError(null)
   }
 
   const eliminarCondicion = (indice: number) => {
-    setFormulario((actual) => actual.condiciones.length <= 1
-      ? actual
-      : {
-        ...actual,
-        condiciones: actual.condiciones.filter((_, posicion) => posicion !== indice),
-      })
+    setFormulario((actual) =>
+      actual.condiciones.length <= 1
+        ? actual
+        : {
+            ...actual,
+            condiciones: actual.condiciones.filter((_, posicion) => posicion !== indice),
+          },
+    )
     setError(null)
   }
 
@@ -400,7 +397,9 @@ function EditorProductoDialog({
   return (
     <Dialog
       open
-      onClose={() => { if (!guardando) onCerrar() }}
+      onClose={() => {
+        if (!guardando) onCerrar()
+      }}
       ariaLabel={titulo}
       className="w-[1040px]"
     >
@@ -424,7 +423,9 @@ function EditorProductoDialog({
 
           <section aria-labelledby="datos-version" className="space-y-3">
             <div>
-              <h3 id="datos-version" className="text-sm font-bold text-primary">Identidad y vigencia</h3>
+              <h3 id="datos-version" className="text-sm font-bold text-primary">
+                Identidad y vigencia
+              </h3>
               <p className="mt-0.5 text-[11px] text-muted-foreground">
                 El código identifica al producto; el nombre y las fechas pertenecen a esta versión.
               </p>
@@ -512,7 +513,9 @@ function EditorProductoDialog({
           <section aria-labelledby="condiciones-version" className="space-y-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
               <div>
-                <h3 id="condiciones-version" className="text-sm font-bold text-primary">Condiciones comerciales</h3>
+                <h3 id="condiciones-version" className="text-sm font-bold text-primary">
+                  Condiciones comerciales
+                </h3>
                 <p className="mt-0.5 text-[11px] text-muted-foreground">
                   Cada fila representa una combinación seleccionable al crear un contrato.
                 </p>
@@ -541,7 +544,9 @@ function EditorProductoDialog({
                       <span className="grid size-6 place-items-center rounded-md bg-primary text-[11px] font-extrabold text-primary-foreground">
                         {indice + 1}
                       </span>
-                      <p className="text-xs font-bold">Condición {indice + 1} de {formulario.condiciones.length}</p>
+                      <p className="text-xs font-bold">
+                        Condición {indice + 1} de {formulario.condiciones.length}
+                      </p>
                     </div>
                     <Button
                       type="button"
@@ -563,12 +568,16 @@ function EditorProductoDialog({
                         id={`condicion-${indice}-categoria`}
                         className="mt-1"
                         value={condicion.categoria}
-                        onChange={(evento) => actualizarCondicion(indice, {
-                          categoria: evento.target.value as CondicionFormulario['categoria'],
-                        })}
+                        onChange={(evento) =>
+                          actualizarCondicion(indice, {
+                            categoria: evento.target.value as CondicionFormulario['categoria'],
+                          })
+                        }
                       >
                         {CATEGORIAS_PRODUCTO.map((categoria) => (
-                          <option key={categoria} value={categoria}>{ETIQUETA_CATEGORIA[categoria]}</option>
+                          <option key={categoria} value={categoria}>
+                            {ETIQUETA_CATEGORIA[categoria]}
+                          </option>
                         ))}
                       </Select>
                     </div>
@@ -578,11 +587,15 @@ function EditorProductoDialog({
                         id={`condicion-${indice}-moneda`}
                         className="mt-1"
                         value={condicion.moneda}
-                        onChange={(evento) => actualizarCondicion(indice, {
-                          moneda: evento.target.value as CondicionFormulario['moneda'],
-                        })}
+                        onChange={(evento) =>
+                          actualizarCondicion(indice, {
+                            moneda: evento.target.value as CondicionFormulario['moneda'],
+                          })
+                        }
                       >
-                        {MONEDAS_PRODUCTO.map((moneda) => <option key={moneda}>{moneda}</option>)}
+                        {MONEDAS_PRODUCTO.map((moneda) => (
+                          <option key={moneda}>{moneda}</option>
+                        ))}
                       </Select>
                     </div>
                     <div>
@@ -606,12 +619,16 @@ function EditorProductoDialog({
                         className="mt-1"
                         value={condicion.modalidad}
                         disabled={guardando || condicion.tipoInteres === 'compuesto'}
-                        onChange={(evento) => actualizarCondicion(indice, {
-                          modalidad: evento.target.value as CondicionFormulario['modalidad'],
-                        })}
+                        onChange={(evento) =>
+                          actualizarCondicion(indice, {
+                            modalidad: evento.target.value as CondicionFormulario['modalidad'],
+                          })
+                        }
                       >
                         {MODALIDADES_PRODUCTO.map((modalidad) => (
-                          <option key={modalidad} value={modalidad}>{ETIQUETA_MODALIDAD[modalidad]}</option>
+                          <option key={modalidad} value={modalidad}>
+                            {ETIQUETA_MODALIDAD[modalidad]}
+                          </option>
                         ))}
                       </Select>
                     </div>
@@ -624,19 +641,25 @@ function EditorProductoDialog({
                         onChange={(evento) => {
                           const tipoInteres = evento.target.value as CondicionFormulario['tipoInteres']
                           const plazo = Number(condicion.plazoMeses)
-                          actualizarCondicion(indice, tipoInteres === 'compuesto'
-                            ? {
-                                tipoInteres,
-                                modalidad: 'anual',
-                                plazoMeses: Number.isInteger(plazo) && plazo >= 12 && plazo % 12 === 0
-                                  ? condicion.plazoMeses
-                                  : '12',
-                              }
-                            : { tipoInteres })
+                          actualizarCondicion(
+                            indice,
+                            tipoInteres === 'compuesto'
+                              ? {
+                                  tipoInteres,
+                                  modalidad: 'anual',
+                                  plazoMeses:
+                                    Number.isInteger(plazo) && plazo >= 12 && plazo % 12 === 0
+                                      ? condicion.plazoMeses
+                                      : '12',
+                                }
+                              : { tipoInteres },
+                          )
                         }}
                       >
                         {TIPOS_INTERES_PRODUCTO.map((tipo) => (
-                          <option key={tipo} value={tipo}>{ETIQUETA_INTERES[tipo]}</option>
+                          <option key={tipo} value={tipo}>
+                            {ETIQUETA_INTERES[tipo]}
+                          </option>
                         ))}
                       </Select>
                       {condicion.tipoInteres === 'compuesto' && (
@@ -729,7 +752,8 @@ function EditorProductoDialog({
             Cancelar
           </Button>
           <Button type="submit" disabled={guardando}>
-            <Save aria-hidden /> {guardando ? 'Guardando…' : objetivo.tipo === 'editar-borrador' ? 'Guardar borrador' : 'Crear borrador'}
+            <Save aria-hidden />{' '}
+            {guardando ? 'Guardando…' : objetivo.tipo === 'editar-borrador' ? 'Guardar borrador' : 'Crear borrador'}
           </Button>
         </DialogFooter>
       </form>
@@ -756,7 +780,9 @@ function ConfirmacionDialog({
   return (
     <Dialog
       open
-      onClose={() => { if (!procesando) onCerrar() }}
+      onClose={() => {
+        if (!procesando) onCerrar()
+      }}
       ariaLabel={titulo}
       className="w-[480px]"
     >
@@ -769,7 +795,9 @@ function ConfirmacionDialog({
         </DialogDescription>
       </DialogHeader>
       <DialogBody>
-        <div className={`rounded-lg px-3 py-3 text-xs font-semibold ${publica ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'}`}>
+        <div
+          className={`rounded-lg px-3 py-3 text-xs font-semibold ${publica ? 'bg-accent/10 text-accent' : 'bg-destructive/10 text-destructive'}`}
+        >
           {publica
             ? 'La publicación no edita versiones anteriores.'
             : 'Archivar no elimina el producto ni se puede deshacer desde esta pantalla.'}
@@ -787,7 +815,9 @@ function ConfirmacionDialog({
         >
           {publica ? <Rocket aria-hidden /> : <Archive aria-hidden />}
           {procesando
-            ? publica ? 'Publicando…' : 'Archivando…'
+            ? publica
+              ? 'Publicando…'
+              : 'Archivando…'
             : publica
               ? `Sí, publicar versión ${objetivo.version.numero_version}`
               : `Sí, archivar ${objetivo.producto.codigo}`}
@@ -808,34 +838,49 @@ function TablaCondiciones({ version }: { version: ProductoVersion }) {
         <caption className="sr-only">Condiciones de la versión {version.numero_version}</caption>
         <thead>
           <tr className="text-[10px] font-extrabold uppercase tracking-[0.07em] text-muted-foreground">
-            <th scope="col" className="border-b border-border px-4 py-2.5">Condición</th>
-            <th scope="col" className="border-b border-border px-3 py-2.5">Plazo</th>
-            <th scope="col" className="border-b border-border px-3 py-2.5">Modalidad</th>
-            <th scope="col" className="border-b border-border px-3 py-2.5">Capital</th>
-            <th scope="col" className="border-b border-border px-3 py-2.5">Tasas mín. / ref. / máx.</th>
-            <th scope="col" className="border-b border-border px-3 py-2.5">Estado</th>
+            <th scope="col" className="border-b border-border px-4 py-2.5">
+              Condición
+            </th>
+            <th scope="col" className="border-b border-border px-3 py-2.5">
+              Plazo
+            </th>
+            <th scope="col" className="border-b border-border px-3 py-2.5">
+              Modalidad
+            </th>
+            <th scope="col" className="border-b border-border px-3 py-2.5">
+              Capital
+            </th>
+            <th scope="col" className="border-b border-border px-3 py-2.5">
+              Tasas mín. / ref. / máx.
+            </th>
+            <th scope="col" className="border-b border-border px-3 py-2.5">
+              Estado
+            </th>
           </tr>
         </thead>
         <tbody>
           {version.condiciones.map((condicion) => (
             <tr key={condicion.id} className={condicion.activa ? '' : 'opacity-60'}>
               <td className="border-b border-border/60 px-4 py-3">
-                <p className="font-bold text-primary">{ETIQUETA_CATEGORIA[condicion.categoria]} · {condicion.moneda}</p>
-                <p className="mt-0.5 text-[10px] text-muted-foreground">Interés {ETIQUETA_INTERES[condicion.tipo_interes].toLowerCase()}</p>
+                <p className="font-bold text-primary">
+                  {ETIQUETA_CATEGORIA[condicion.categoria]} · {condicion.moneda}
+                </p>
+                <p className="mt-0.5 text-[10px] text-muted-foreground">
+                  Interés {ETIQUETA_INTERES[condicion.tipo_interes].toLowerCase()}
+                </p>
               </td>
               <td className="border-b border-border/60 px-3 py-3 tabular-nums">{condicion.plazo_meses} meses</td>
               <td className="border-b border-border/60 px-3 py-3">{ETIQUETA_MODALIDAD[condicion.modalidad]}</td>
               <td className="border-b border-border/60 px-3 py-3 tabular-nums">
-                {dinero(condicion.capital_minimo, condicion.moneda)} – {dinero(condicion.capital_maximo, condicion.moneda)}
+                {dinero(condicion.capital_minimo, condicion.moneda)} –{' '}
+                {dinero(condicion.capital_maximo, condicion.moneda)}
               </td>
               <td className="border-b border-border/60 px-3 py-3 tabular-nums">
-                {tasa(condicion.tasa_minima)} / <strong>{tasa(condicion.tasa_referencia)}</strong> / {tasa(condicion.tasa_maxima)}
+                {tasa(condicion.tasa_minima)} / <strong>{tasa(condicion.tasa_referencia)}</strong> /{' '}
+                {tasa(condicion.tasa_maxima)}
               </td>
               <td className="border-b border-border/60 px-3 py-3">
-                <Badge
-                  variant="outline"
-                  color={condicion.activa ? 'var(--exito)' : 'var(--muted-foreground)'}
-                >
+                <Badge variant="outline" color={condicion.activa ? 'var(--exito)' : 'var(--muted-foreground)'}>
                   {condicion.activa ? 'Activa' : 'Reemplazada'}
                 </Badge>
               </td>
@@ -876,8 +921,12 @@ function VersionCatalogo({
         <div className="flex flex-col gap-3 border-b border-border px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-sm font-bold text-primary">v{version.numero_version} · {version.nombre}</h4>
-              <Badge color={estado.color} variant="outline">{estado.etiqueta}</Badge>
+              <h4 className="text-sm font-bold text-primary">
+                v{version.numero_version} · {version.nombre}
+              </h4>
+              <Badge color={estado.color} variant="outline">
+                {estado.etiqueta}
+              </Badge>
               <span className="text-[10px] font-semibold text-muted-foreground">revisión {version.revision}</span>
             </div>
             <p className="mt-1 flex flex-wrap items-center gap-x-1 text-[11px] text-muted-foreground">
@@ -886,10 +935,13 @@ function VersionCatalogo({
               <span aria-hidden>→</span>
               {version.vigente_hasta ? fechaLegible(version.vigente_hasta) : 'sin fecha final'}
             </p>
-            {version.descripcion && <p className="mt-2 max-w-3xl text-xs leading-relaxed text-foreground/75">{version.descripcion}</p>}
+            {version.descripcion && (
+              <p className="mt-2 max-w-3xl text-xs leading-relaxed text-foreground/75">{version.descripcion}</p>
+            )}
             {version.publicada_en && (
               <p className="mt-1 text-[10px] text-muted-foreground">
-                Publicada por {version.publicada_por_nombre ?? 'usuario no disponible'} · {fechaHoraLegible(version.publicada_en)}
+                Publicada por {version.publicada_por_nombre ?? 'usuario no disponible'} ·{' '}
+                {fechaHoraLegible(version.publicada_en)}
               </p>
             )}
           </div>
@@ -904,7 +956,11 @@ function VersionCatalogo({
                 size="sm"
                 onClick={onPublicar}
                 disabled={bloqueado || !publicable}
-                title={publicable ? undefined : 'La versión solo puede publicarse durante su vigencia y con condiciones activas.'}
+                title={
+                  publicable
+                    ? undefined
+                    : 'La versión solo puede publicarse durante su vigencia y con condiciones activas.'
+                }
               >
                 <Rocket aria-hidden /> Publicar
               </Button>
@@ -957,7 +1013,8 @@ function ProductoCatalogo({
               <span className="text-[10px] font-semibold text-muted-foreground">revisión {producto.revision}</span>
             </div>
             <p className="mt-1 text-xs text-muted-foreground">
-              {producto.versiones.length} {producto.versiones.length === 1 ? 'versión registrada' : 'versiones registradas'}
+              {producto.versiones.length}{' '}
+              {producto.versiones.length === 1 ? 'versión registrada' : 'versiones registradas'}
             </p>
           </div>
 
@@ -968,7 +1025,14 @@ function ProductoCatalogo({
                   <Layers3 aria-hidden /> Crear versión
                 </Button>
               )}
-              <Button type="button" variant="ghost" size="sm" onClick={onArchivar} disabled={bloqueado} className="text-destructive hover:text-destructive">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={onArchivar}
+                disabled={bloqueado}
+                className="text-destructive hover:text-destructive"
+              >
                 <Archive aria-hidden /> Archivar
               </Button>
             </div>
@@ -977,18 +1041,22 @@ function ProductoCatalogo({
       </CardHeader>
       <CardContent className="space-y-4 pt-4">
         {producto.versiones.length === 0 ? (
-          <p className="py-5 text-center text-xs text-muted-foreground">No hay versiones visibles para este producto.</p>
-        ) : producto.versiones.map((version) => (
-          <VersionCatalogo
-            key={version.id}
-            producto={producto}
-            version={version}
-            puedeAdministrar={puedeAdministrar}
-            bloqueado={bloqueado}
-            onEditar={() => onEditar(version)}
-            onPublicar={() => onPublicar(version)}
-          />
-        ))}
+          <p className="py-5 text-center text-xs text-muted-foreground">
+            No hay versiones visibles para este producto.
+          </p>
+        ) : (
+          producto.versiones.map((version) => (
+            <VersionCatalogo
+              key={version.id}
+              producto={producto}
+              version={version}
+              puedeAdministrar={puedeAdministrar}
+              bloqueado={bloqueado}
+              onEditar={() => onEditar(version)}
+              onPublicar={() => onPublicar(version)}
+            />
+          ))
+        )}
       </CardContent>
     </Card>
   )
@@ -1005,18 +1073,19 @@ export function ConfigProductos() {
   const [confirmacion, setConfirmacion] = useState<ObjetivoConfirmacion | null>(null)
 
   const puedeAdministrar = Boolean(consulta.data?.puede_administrar)
-  const mutando = crearProducto.isPending
-    || crearVersion.isPending
-    || actualizarBorrador.isPending
-    || publicarVersion.isPending
-    || archivarProducto.isPending
+  const mutando =
+    crearProducto.isPending ||
+    crearVersion.isPending ||
+    actualizarBorrador.isPending ||
+    publicarVersion.isPending ||
+    archivarProducto.isPending
 
   const resumen = useMemo(() => {
     const productos = consulta.data?.productos ?? []
     return {
       activos: productos.filter((producto) => producto.estado === 'activo').length,
-      publicados: productos.filter((producto) =>
-        producto.versiones.some((version) => version.estado === 'publicada')).length,
+      publicados: productos.filter((producto) => producto.versiones.some((version) => version.estado === 'publicada'))
+        .length,
     }
   }, [consulta.data])
 
@@ -1073,9 +1142,12 @@ export function ConfigProductos() {
       }
       setConfirmacion(null)
     } catch (fallo) {
-      toast.error(mensajeDeError(fallo, confirmacion.tipo === 'publicar'
-        ? 'No se pudo publicar la versión.'
-        : 'No se pudo archivar el producto.'))
+      toast.error(
+        mensajeDeError(
+          fallo,
+          confirmacion.tipo === 'publicar' ? 'No se pudo publicar la versión.' : 'No se pudo archivar el producto.',
+        ),
+      )
     }
   }
 
@@ -1085,15 +1157,21 @@ export function ConfigProductos() {
       titulo="Productos de inversión"
       descripcion="Catálogo versionado de condiciones comerciales. Publicar una revisión nueva nunca reescribe los contratos históricos."
       soloLectura={Boolean(consulta.data) && !puedeAdministrar}
-      estado={consulta.data ? {
-        etiqueta: `${resumen.activos} activos · ${resumen.publicados} publicados`,
-        detalle: `Catálogo actualizado ${fechaHoraLegible(consulta.data.generado_en)}.`,
-      } : undefined}
-      acciones={puedeAdministrar ? (
-        <Button type="button" size="sm" onClick={() => setEditor({ tipo: 'crear-producto' })} disabled={mutando}>
-          <CirclePlus aria-hidden /> Nuevo producto
-        </Button>
-      ) : undefined}
+      estado={
+        consulta.data
+          ? {
+              etiqueta: `${resumen.activos} activos · ${resumen.publicados} publicados`,
+              detalle: `Catálogo actualizado ${fechaHoraLegible(consulta.data.generado_en)}.`,
+            }
+          : undefined
+      }
+      acciones={
+        puedeAdministrar ? (
+          <Button type="button" size="sm" onClick={() => setEditor({ tipo: 'crear-producto' })} disabled={mutando}>
+            <CirclePlus aria-hidden /> Nuevo producto
+          </Button>
+        ) : undefined
+      }
     >
       {consulta.isPending && (
         <Card>
@@ -1127,9 +1205,11 @@ export function ConfigProductos() {
           <PanelVacio
             icono={Package}
             titulo="El catálogo todavía está vacío"
-            detalle={puedeAdministrar
-              ? 'Crea el primer producto y guarda sus condiciones como borrador.'
-              : 'Gerencia aún no ha registrado productos de inversión.'}
+            detalle={
+              puedeAdministrar
+                ? 'Crea el primer producto y guarda sus condiciones como borrador.'
+                : 'Gerencia aún no ha registrado productos de inversión.'
+            }
           >
             {puedeAdministrar && (
               <Button type="button" size="sm" className="mt-2" onClick={() => setEditor({ tipo: 'crear-producto' })}>
@@ -1144,7 +1224,10 @@ export function ConfigProductos() {
         <section aria-labelledby="catalogo-productos" className="space-y-4">
           <div className="flex items-center gap-2 px-1">
             <Layers3 className="size-4 text-accent" aria-hidden />
-            <h2 id="catalogo-productos" className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground">
+            <h2
+              id="catalogo-productos"
+              className="text-xs font-extrabold uppercase tracking-[0.08em] text-muted-foreground"
+            >
               Catálogo y revisiones
             </h2>
           </div>
@@ -1165,9 +1248,11 @@ export function ConfigProductos() {
 
       {editor && (
         <EditorProductoDialog
-          key={editor.tipo === 'crear-producto'
-            ? editor.tipo
-            : `${editor.tipo}-${editor.producto.id}-${editor.tipo === 'editar-borrador' ? editor.version.id : ''}`}
+          key={
+            editor.tipo === 'crear-producto'
+              ? editor.tipo
+              : `${editor.tipo}-${editor.producto.id}-${editor.tipo === 'editar-borrador' ? editor.version.id : ''}`
+          }
           objetivo={editor}
           guardando={crearProducto.isPending || crearVersion.isPending || actualizarBorrador.isPending}
           onCerrar={() => setEditor(null)}

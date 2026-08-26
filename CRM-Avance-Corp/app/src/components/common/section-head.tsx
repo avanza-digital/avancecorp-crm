@@ -8,17 +8,19 @@ export function SectionHead({
   title,
   right,
   className,
+  rightClassName,
 }: {
   icon: LucideIcon
   title: string
   right?: ReactNode
   className?: string
+  rightClassName?: string
 }) {
   return (
     <div className={cn('flex items-center gap-2 px-5 pt-4 pb-3', className)}>
       <Icon className="size-4 text-accent" />
       <h3 className="text-[15px] font-bold tracking-tight">{title}</h3>
-      {right != null && <div className="ml-auto">{right}</div>}
+      {right != null && <div className={cn('ml-auto', rightClassName)}>{right}</div>}
     </div>
   )
 }

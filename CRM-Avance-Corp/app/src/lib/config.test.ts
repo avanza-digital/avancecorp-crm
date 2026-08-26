@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { FUNCIONES_LEADS_APROBADAS, funcionesLeadsVisibles } from './config'
+import { esPreviewDemo, FUNCIONES_LEADS_APROBADAS, funcionesLeadsVisibles, resolverDemoHabilitado } from './config'
+
+describe('escaparate demo', () => {
+  it('se habilita únicamente con opt-in en desarrollo o preview', () => {
+    expect(resolverDemoHabilitado({ DEV: true, MODE: 'development', VITE_ENABLE_DEMO: 'true' })).toBe(true)
+    expect(resolverDemoHabilitado({ DEV: false, MODE: 'preview', VITE_ENABLE_DEMO: 'true' })).toBe(true)
+    expect(resolverDemoHabilitado({ DEV: false, MODE: 'production', VITE_ENABLE_DEMO: 'true' })).toBe(false)
+    expect(resolverDemoHabilitado({ DEV: true, MODE: 'development' })).toBe(false)
+    expect(resolverDemoHabilitado({ DEV: false, MODE: 'preview' })).toBe(false)
+    expect(esPreviewDemo({ MODE: 'preview', VITE_ENABLE_DEMO: 'true' })).toBe(true)
+    expect(esPreviewDemo({ MODE: 'production', VITE_ENABLE_DEMO: 'true' })).toBe(false)
+  })
+})
 
 // La llave que decide qué PINTA el navegador para una cuenta real. Nació
 // CERRADA (Miguel, 2026-07-16: el pipeline sale oculto para la fuerza de
@@ -48,8 +60,9 @@ describe('funcionesLeadsVisibles — la llave del pipeline de leads', () => {
   it('la llave manda sobre la fuerza de ventas y sobre NADIE más', () => {
     // Candado de alcance: si alguien vuelve a cerrar la llave, los roles ya
     // aprobados en julio no pueden caerse con ella (ni el demo).
-    const soloLaLlaveDecide = ['vendedor', 'supervisor']
-      .every((rol) => funcionesLeadsVisibles(false, rol) === FUNCIONES_LEADS_APROBADAS)
+    const soloLaLlaveDecide = ['vendedor', 'supervisor'].every(
+      (rol) => funcionesLeadsVisibles(false, rol) === FUNCIONES_LEADS_APROBADAS,
+    )
     expect(soloLaLlaveDecide).toBe(true)
     expect(funcionesLeadsVisibles(false, 'gerencia')).toBe(true)
     expect(funcionesLeadsVisibles(true, 'coordinador')).toBe(true)

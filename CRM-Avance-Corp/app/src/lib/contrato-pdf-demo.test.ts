@@ -9,11 +9,7 @@ vi.mock('./contrato-pdf', async (importActual) => {
   return { ...actual, generarContratoPdfBlob }
 })
 
-import {
-  archivarContratoPdfDemo,
-  limpiarArchivoPdfDemoParaPruebas,
-  obtenerContratoPdfDemo,
-} from './contrato-pdf-demo'
+import { archivarContratoPdfDemo, limpiarArchivoPdfDemoParaPruebas, obtenerContratoPdfDemo } from './contrato-pdf-demo'
 
 describe('archivo PDF aislado del demo', () => {
   beforeEach(() => {
@@ -23,7 +19,11 @@ describe('archivo PDF aislado del demo', () => {
 
   it('coalesce dos generaciones concurrentes y la primera versión gana', async () => {
     let resolver!: (blob: Blob) => void
-    generarContratoPdfBlob.mockReturnValue(new Promise<Blob>((resolve) => { resolver = resolve }))
+    generarContratoPdfBlob.mockReturnValue(
+      new Promise<Blob>((resolve) => {
+        resolver = resolve
+      }),
+    )
     const datos = DATOS_PDF_DEMO['dc-ct-a']!
 
     const primero = archivarContratoPdfDemo('demo-mismo-id', datos)
@@ -38,9 +38,12 @@ describe('archivo PDF aislado del demo', () => {
 
   it('una generación vieja no repuebla la caché después de cambiar de sesión', async () => {
     const resoluciones: Array<(blob: Blob) => void> = []
-    generarContratoPdfBlob.mockImplementation(() => new Promise<Blob>((resolve) => {
-      resoluciones.push(resolve)
-    }))
+    generarContratoPdfBlob.mockImplementation(
+      () =>
+        new Promise<Blob>((resolve) => {
+          resoluciones.push(resolve)
+        }),
+    )
     const datos = DATOS_PDF_DEMO['dc-ct-a']!
 
     const sesionA = archivarContratoPdfDemo('demo-colision', datos)
@@ -59,9 +62,7 @@ describe('archivo PDF aislado del demo', () => {
   })
 
   it('el evento de logout elimina los bytes de la sesión demo terminada', async () => {
-    generarContratoPdfBlob.mockResolvedValue(
-      new Blob(['%PDF-1.7\nsesión terminada'], { type: 'application/pdf' }),
-    )
+    generarContratoPdfBlob.mockResolvedValue(new Blob(['%PDF-1.7\nsesión terminada'], { type: 'application/pdf' }))
     await archivarContratoPdfDemo('demo-logout', DATOS_PDF_DEMO['dc-ct-a']!)
     expect(obtenerContratoPdfDemo('demo-logout')).not.toBeNull()
 
@@ -73,9 +74,9 @@ describe('archivo PDF aislado del demo', () => {
   it('rechaza bytes demo que no sean PDF antes de congelarlos', async () => {
     generarContratoPdfBlob.mockResolvedValue(new Blob(['no es pdf'], { type: 'text/plain' }))
 
-    await expect(
-      archivarContratoPdfDemo('demo-invalido', DATOS_PDF_DEMO['dc-ct-a']!),
-    ).rejects.toThrow(/PDF válido/i)
+    await expect(archivarContratoPdfDemo('demo-invalido', DATOS_PDF_DEMO['dc-ct-a']!)).rejects.toThrow(
+      /documento válido/i,
+    )
     expect(obtenerContratoPdfDemo('demo-invalido')).toBeNull()
   })
 })
