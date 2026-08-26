@@ -110,6 +110,7 @@ const ISO_FECHA_RE = /^\d{4}-\d{2}-\d{2}$/
 export type CampoLead =
   | 'nombre_completo'
   | 'telefono'
+  | 'telefono_alternativo'
   | 'dni'
   | 'correo'
   | 'origen'
@@ -121,6 +122,7 @@ export type CampoLead =
 export type CodigoValidacion =
   | 'nombre_obligatorio'
   | 'telefono_invalido'
+  | 'telefono_alternativo_invalido'
   | 'dni_invalido'
   | 'correo_invalido'
   | 'origen_invalido'
@@ -141,6 +143,7 @@ export interface ErrorValidacion {
 export interface CamposLead {
   nombre_completo?: string
   telefono?: string
+  telefono_alternativo?: string | null
   dni?: string | null
   correo?: string | null
   origen?: string
@@ -154,6 +157,7 @@ export interface CamposLead {
 export interface ValoresLead {
   nombre_completo?: string
   telefono?: string
+  telefono_alternativo?: string | null
   dni?: string | null
   correo?: string | null
   origen?: Origen
@@ -196,6 +200,30 @@ export function validarCamposLead(
       }
     }
     valores.telefono = telefono
+  }
+
+  if (campos.telefono_alternativo !== undefined) {
+    const bruto = (campos.telefono_alternativo ?? '').trim()
+    if (!bruto) {
+      // Vaciarlo es una acción legítima: el vendedor descubre que el segundo
+      // número era del vecino y lo borra. NULL, nunca '' — «no hay dato» se
+      // escribe de UNA sola forma o la ficha acaba comprobando las dos.
+      valores.telefono_alternativo = null
+    } else {
+      const alternativo = normalizarTelefono(bruto)
+      if (!alternativo) {
+        return {
+          ok: false,
+          codigo: 'telefono_alternativo_invalido',
+          campo: 'telefono_alternativo',
+          error: 'Segundo teléfono inválido — celular peruano 9########, fijo peruano (014457890), o internacional con +código de país',
+        }
+      }
+      // A diferencia de lo que llega del origen, aquí NO hay columna cruda: lo
+      // que teclea una persona se corrige en el momento, no se guarda a medias.
+      // El texto sin validar existe para el dato que ya venía escrito así.
+      valores.telefono_alternativo = alternativo
+    }
   }
 
   if (campos.dni !== undefined) {

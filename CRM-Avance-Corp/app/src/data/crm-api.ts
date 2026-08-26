@@ -1581,6 +1581,7 @@ export interface CrearLeadAtomicoInput {
   id?: NonNullable<CrearLeadArgs['p_id']>
   nombre_completo: CrearLeadArgs['p_nombre_completo']
   telefono: CrearLeadArgs['p_telefono']
+  telefono_alternativo?: string | null
   correo?: CrearLeadArgs['p_correo'] | null
   dni?: CrearLeadArgs['p_dni'] | null
   genero?: CrearLeadArgs['p_genero'] | null
@@ -1752,6 +1753,7 @@ export async function insertarLead(fila: CrearLeadAtomicoInput): Promise<Resulta
         p_categoria_interes: fila.categoria_interes ?? undefined,
         p_vendedor_id: fila.vendedor_id ?? undefined,
         p_nota: fila.nota ?? undefined,
+        p_telefono_alternativo: fila.telefono_alternativo ?? undefined,
       }),
     )
   if (error) throw aErrorInsertarLead(error)

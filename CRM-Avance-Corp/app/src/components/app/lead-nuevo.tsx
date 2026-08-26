@@ -248,6 +248,7 @@ function FormularioNuevoLead({
   // tecleado (el formulario se monta al abrir el Dialog, así que el inicial
   // de ESTA apertura es el correcto).
   const [telefono, setTelefono] = useState(telefonoInicial ?? '')
+  const [telefonoAlternativo, setTelefonoAlternativo] = useState('')
   const [correo, setCorreo] = useState('')
   const [dni, setDni] = useState('')
   // '' = sin dato. Sin género el avatar cae a iniciales (nunca una silueta
@@ -696,6 +697,7 @@ function FormularioNuevoLead({
       const res = crearLead({
         nombre_completo: nombre.trim(),
         telefono, // el store normaliza a +519########
+        telefono_alternativo: telefonoAlternativo.trim() || null,
         correo: correo.trim() || null,
         dni: dni.trim() || null,
         genero: genero || null,
@@ -808,6 +810,32 @@ function FormularioNuevoLead({
                   invalidarDisponibilidad(e.target.value)
                 }}
                 onBlur={() => programarDisponibilidad(telefono, dni)}
+              />
+            </Campo>
+            {/*
+              El segundo número NO participa en la disponibilidad ni en el dedup:
+              la identidad del lead es el principal (opción A, 2026-08-26). Por
+              eso no lleva `programarDisponibilidad` — consultarlo sugeriría que
+              reclama al lead, y no lo hace.
+            */}
+            <Campo
+              label="Teléfono alternativo"
+              htmlFor="nl-telefono-alt"
+              error={errores.telefono_alternativo}
+            >
+              <Input
+                id="nl-telefono-alt"
+                inputMode="tel"
+                autoComplete="off"
+                placeholder="Otro celular, un fijo o +código de país (opcional)"
+                value={telefonoAlternativo}
+                aria-invalid={!!errores.telefono_alternativo}
+                aria-describedby={errores.telefono_alternativo ? 'nl-telefono_alternativo-error' : undefined}
+                className={cn(errores.telefono_alternativo && claseError)}
+                onChange={(e) => {
+                  setTelefonoAlternativo(e.target.value)
+                  limpiarError('telefono_alternativo')
+                }}
               />
             </Campo>
             <Campo label="DNI" htmlFor="nl-dni" error={errores.dni}>

@@ -153,6 +153,37 @@ async function completarBase(user: ReturnType<typeof userEvent.setup>) {
   await user.selectOptions(screen.getByLabelText('Origen *'), 'referido')
 }
 
+describe('LeadNuevo — segundo número', () => {
+  it('el segundo número viaja en el alta y admite un FIJO', async () => {
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    await completarBase(user)
+    await user.type(screen.getByLabelText('Teléfono alternativo'), '014457890')
+    await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(crearLead).toHaveBeenCalledWith(
+      expect.objectContaining({ telefono_alternativo: '014457890' }),
+    )
+  })
+
+  it('sin segundo número el alta sigue funcionando (el caso mayoritario)', async () => {
+    // El 84,2 % de las filas del origen no trae segundo número: este es el caso
+    // normal, no la excepción.
+    const user = userEvent.setup()
+    const { crearLead } = montar()
+    await completarBase(user)
+    await user.type(screen.getByLabelText('Capital estimado *'), '5000')
+
+    await user.click(screen.getByRole('button', { name: 'Crear lead' }))
+
+    expect(crearLead).toHaveBeenCalledWith(
+      expect.objectContaining({ telefono_alternativo: null }),
+    )
+  })
+})
+
 describe('LeadNuevo — capital obligatorio', () => {
   it('bloquea capital vacío y cero antes de crear', async () => {
     const user = userEvent.setup()

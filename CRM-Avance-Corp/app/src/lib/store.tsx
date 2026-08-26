@@ -164,6 +164,8 @@ export type ResultadoCrearLead =
 export interface NuevoLeadInput {
   nombre_completo: string
   telefono: string
+  /** Segundo canal de contacto. No participa en el dedup: la identidad es `telefono`. */
+  telefono_alternativo?: string | null
   correo?: string | null
   dni?: string | null
   genero?: Genero | null
@@ -218,6 +220,7 @@ export type CambiosLead = Partial<
     Lead,
     | 'nombre_completo'
     | 'telefono'
+    | 'telefono_alternativo'
     | 'correo'
     | 'monto_estimado'
     | 'moneda'
@@ -323,7 +326,12 @@ export interface StoreDataApi {
    *  `registrarActividad` y `completarTarea`, porque la UI tiene que cantarlo:
    *  agendar desde la ficha movía el lead de etapa EN SILENCIO y el asesor veía
    *  saltar el stepper sin saber quién lo tocó. */
-  crearTarea(input: NuevaTareaInput): ResultadoMut & { id?: string; avance?: EtapaActiva }
+  crearTarea(input: NuevaTareaInput): ResultadoMut & {
+    id?: string
+    avance?: EtapaActiva
+    /** Confirmación del INSERT real; en demo resuelve true de inmediato. */
+    persistido?: Promise<boolean>
+  }
   /** Cierra por la RPC atómica (resultado→log + siguiente encadenada). En
    *  llamadas COMPLETADAS el resultado es obligatorio (patrón Outreach). */
   /** `avance` = etapa a la que subió SOLO el lead por este cierre (el contacto
@@ -360,7 +368,7 @@ export interface StoreDataApi {
   anularTarea(
     id: string,
     cierreReunion?: { motivo: MotivoNoRealizada; detalle?: string | null },
-  ): ResultadoMut & { retroceso?: EtapaActiva }
+  ): ResultadoMut & { retroceso?: EtapaActiva; persistido?: Promise<boolean> }
   crearLead(input: NuevoLeadInput): ResultadoCrearLead
   editarLead(id: string, cambios: CambiosLead): ResultadoMut
   /** `capital` (opcional) viaja EN LA MISMA escritura que la etapa: pasar a
@@ -1332,7 +1340,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             actividades: [actEtapa, ...d.actividades],
           }))
         }
-        persistir(() =>
+        const persistido = persistir(() =>
           insertarTarea({
             ...(UUID_RE.test(id) ? { id } : {}),
             ...(lead ? { lead_id: lead.id } : { perfil_id: perfilId! }),
@@ -1351,7 +1359,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         // escritores ya lo hacían): mover la etapa sin decirlo asusta más que
         // ayuda. `avance` solo puede ser una etapa activa — avancePorReunion
         // nunca devuelve terminales.
-        return avance ? { ok: true, id, avance } : { ok: true, id }
+        return avance ? { ok: true, id, avance, persistido } : { ok: true, id, persistido }
       },
 
       completarTarea: (input) => {
@@ -1730,7 +1738,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             actividades: [actEtapa, ...d.actividades],
           }))
         }
-        persistir(() =>
+        const persistido = persistir(() =>
           ejecutarCierreTarea({
             tarea: t,
             estado: 'cancelada',
@@ -1744,7 +1752,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             siguiente: null,
           }),
         )
-        return retroceso ? { ok: true, retroceso } : { ok: true }
+        return retroceso ? { ok: true, retroceso, persistido } : { ok: true, persistido }
       },
 
       crearLead: (input) => {
@@ -1774,6 +1782,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const v = validarCamposLead({
           nombre_completo: input.nombre_completo,
           telefono: input.telefono,
+          telefono_alternativo: input.telefono_alternativo ?? null,
           dni: input.dni ?? null,
           correo: input.correo ?? null,
           origen: input.origen,
@@ -1785,6 +1794,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         if (!v.ok) return v
         const nombre = v.valores.nombre_completo ?? ''
         const telefono = v.valores.telefono ?? ''
+        const telefonoAlternativo = v.valores.telefono_alternativo ?? null
         const dni = v.valores.dni ?? null
         const genero = v.valores.genero ?? null
         const fechaNacimiento = v.valores.fecha_nacimiento ?? null
@@ -1841,6 +1851,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           id,
           nombre_completo: nombre,
           telefono,
+          telefono_alternativo: telefonoAlternativo,
           correo: v.valores.correo ?? null,
           etapa,
           origen: v.valores.origen ?? input.origen,
@@ -1870,6 +1881,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               ...(UUID_RE.test(id) ? { id } : {}),
               nombre_completo: nombre,
               telefono,
+              telefono_alternativo: telefonoAlternativo,
               correo: lead.correo ?? null,
               dni,
               genero,
@@ -1949,6 +1961,9 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
         const v = validarCamposLead({
           ...(cambios.nombre_completo !== undefined ? { nombre_completo: cambios.nombre_completo } : {}),
           ...(cambios.telefono !== undefined ? { telefono: cambios.telefono } : {}),
+          ...(cambios.telefono_alternativo !== undefined
+            ? { telefono_alternativo: cambios.telefono_alternativo }
+            : {}),
           ...(cambios.dni !== undefined ? { dni: cambios.dni } : {}),
           ...(cambios.correo !== undefined ? { correo: cambios.correo } : {}),
           ...(cambios.origen !== undefined ? { origen: cambios.origen } : {}),

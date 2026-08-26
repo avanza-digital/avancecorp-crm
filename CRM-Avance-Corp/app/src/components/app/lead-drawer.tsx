@@ -1004,6 +1004,7 @@ function Datos({
   const [form, setForm] = useState({
     nombre: '',
     telefono: '',
+    telefonoAlternativo: '',
     correo: '',
     monto: '',
     moneda: 'PEN' as Moneda,
@@ -1021,6 +1022,7 @@ function Datos({
     setForm({
       nombre: l.nombre_completo,
       telefono: l.telefono,
+      telefonoAlternativo: l.telefono_alternativo ?? l.telefono_alternativo_crudo ?? '',
       correo: l.correo ?? '',
       monto: l.monto_estimado != null ? String(l.monto_estimado) : '',
       moneda: l.moneda,
@@ -1046,6 +1048,10 @@ function Datos({
     const res = editarLead(l.id, {
       nombre_completo: form.nombre,
       telefono: form.telefono,
+      // Corregir el segundo número desde la ficha es la ÚNICA vía que tiene hoy
+      // el vendedor: aquí es donde llega el texto que el origen escribió mal y
+      // que la fila muestra como «sin validar». Vaciarlo también es legítimo.
+      telefono_alternativo: form.telefonoAlternativo.trim() || null,
       correo: form.correo.trim() || null,
       monto_estimado: monto,
       moneda: form.moneda,
@@ -1132,6 +1138,17 @@ function Datos({
                 placeholder="9########"
                 aria-invalid={invalido('telefono')}
                 aria-describedby={invalido('telefono') ? 'ld-datos-error' : undefined}
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="ld-telefono-alt">Teléfono alternativo</Label>
+              <Input
+                id="ld-telefono-alt"
+                value={form.telefonoAlternativo}
+                onChange={campo('telefonoAlternativo')}
+                placeholder="Otro celular, un fijo o +código de país"
+                aria-invalid={invalido('telefono_alternativo')}
+                aria-describedby={invalido('telefono_alternativo') ? 'ld-datos-error' : undefined}
               />
             </div>
             <div className="space-y-1.5">

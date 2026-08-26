@@ -189,6 +189,43 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     expect(screen.getByText('— el origen no dio un segundo número')).toBeInTheDocument()
   })
 
+  it('el vendedor puede CORREGIR el segundo número desde la ficha', async () => {
+    // Es la única vía que tiene hoy: el alta manual todavía no lo admite porque
+    // la RPC de creación no tiene el parámetro. Aquí es donde llega el texto que
+    // el origen escribió mal y que la fila muestra como «sin validar».
+    const user = userEvent.setup()
+    const { editarLead } = montar({
+      lead: { telefono_alternativo: null, telefono_alternativo_crudo: '99988 7' },
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Editar' }))
+    const campo = screen.getByLabelText('Teléfono alternativo')
+    // El crudo se precarga para no obligar a teclearlo de cero.
+    expect(campo).toHaveValue('99988 7')
+    await user.clear(campo)
+    await user.type(campo, '999887766')
+    await user.click(screen.getByRole('button', { name: /Guardar/ }))
+
+    expect(editarLead).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ telefono_alternativo: '999887766' }),
+    )
+  })
+
+  it('vaciar el segundo número es legítimo y llega como null', async () => {
+    const user = userEvent.setup()
+    const { editarLead } = montar({ lead: { telefono_alternativo: '+51911222333' } })
+
+    await user.click(screen.getByRole('button', { name: 'Editar' }))
+    await user.clear(screen.getByLabelText('Teléfono alternativo'))
+    await user.click(screen.getByRole('button', { name: /Guardar/ }))
+
+    expect(editarLead).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({ telefono_alternativo: null }),
+    )
+  })
+
   it('guarda capital y moneda juntos', async () => {
     const user = userEvent.setup()
     const { editarLead } = montar()

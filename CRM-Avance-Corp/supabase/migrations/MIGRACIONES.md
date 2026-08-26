@@ -3880,3 +3880,57 @@ el resto del cuerpo no pueda divergir. Preflight anclado al md5 vivo
 lo de la anterior, comprueba que el crudo se declara **y** se selecciona.
 
 **Registro de excepciones a `public`:** ninguna.
+
+---
+
+## 20260826182000 · `crm_canonizar_contacto`
+
+📦 **ESCRITA Y VERDE, SIN APLICAR** (2026-08-26). Local: 19 casos ejecutados,
+6 mutantes muertos.
+
+`private.canonizar_contacto(text)` → `(e164, clase, movil)`. Es el **sexto
+espejo** de la regla del teléfono y el primero que vive en la base como función
+con nombre propio, para que 20260826182500 la **llame** en vez de reescribir el
+criterio dentro de una función de 200 líneas — que es como los espejos empiezan
+a divergir.
+
+⚠️ **NO sustituye a `private.normalizar_telefono`**, que sigue intacta y la
+siguen usando el trigger de `crm.leads` y todo el CRM. Aquella responde «cómo se
+guarda este número»; esta responde «es esto un teléfono, y de qué tipo». Tocar la
+otra movería la huella con la que el CRM decide que dos leads son el mismo.
+
+⚠️ **Un mutante enseñó que una prueba mía era vacua:** ensanchar E.164 a 6..20
+no lo cazaba nadie, porque mi caso de «pasado del máximo» venía **sin `+`** y se
+rechazaba antes, por «no hay país que suponer». Los límites de E.164 hay que
+probarlos con `+`. Se añadieron las cuatro fronteras reales.
+
+## 20260826182500 · `crm_crear_lead_telefono_alternativo`
+
+📦 **ESCRITA Y VERDE, SIN APLICAR** (2026-08-26). **Opción A**, elegida por
+Miguel: el primer número IDENTIFICA al lead y sigue siendo celular peruano; el
+segundo solo lo contacta y admite celular, fijo peruano o cualquier país.
+
+Añade `p_telefono_alternativo` (al final, DEFAULT NULL) a
+`crm.crear_lead_si_disponible`. Es `drop` + `create`: añadir un parámetro crea
+una **sobrecarga**, no un reemplazo, y dos funciones con el mismo nombre harían
+ambigua cada llamada — el postflight comprueba que quede **exactamente una**.
+
+**El cuerpo se verificó por HUELLA, no por lectura.** Se reconstruyó, se le
+quitaron las adiciones intencionadas y el `md5` resultante coincidió con el de
+producción (`3c06a68d…`): prueba de que no se reescribió nada sin querer. El
+laboratorio local instaló la función VIEJA con el prosrc vivo real y la huella
+coincidió también, así que el ancla del preflight morderá de verdad.
+
+**Ejecutada con 9 casos:** segundo celular · fijo · extranjero · repetido (no se
+duplica) · sin segundo · ilegible (rechazado con 22023: lo que se teclea a mano
+se corrige, no se guarda a medias) · principal fijo (rechazado — opción A) ·
+idempotencia con mismo payload · **mismo id con el 2.º número distinto**, que
+avisa en vez de confirmar en falso perdiendo el dato nuevo.
+
+⚠️ **Asimetría consciente:** por la vía automática un lead SÍ puede entrar con un
+fijo de identidad (allí la alternativa era perder el lead). Tecleando a mano se
+exige celular. Un cliente de oficina que solo deje un fijo no se podrá registrar;
+Miguel lo asumió. La opción B (alinear también el principal) queda descrita en el
+vault para cuando haya un caso real que la justifique.
+
+**Registro de excepciones a `public`:** ninguna en las dos.

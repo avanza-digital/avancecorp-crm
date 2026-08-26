@@ -144,18 +144,35 @@ El vendedor nunca se queda con la duda de si el CRM se comió un dato o si nunca
 hubo. Y el campo bueno sigue limpio, que es lo que hace que el botón de llamar
 funcione.
 
-### F5 · Que el vendedor pueda USARLO, no solo verlo *(pedido 5)*
-Hoy el segundo número se ve en la ficha y se puede tocar para llamar. Falta:
-- botón de **WhatsApp** para el segundo número (hoy solo lo tiene el principal);
-- **campo para escribirlo y corregirlo** al crear y al editar un lead — hoy no
-  existe, así que un dato conseguido por teléfono no tiene dónde vivir;
-- mostrarlo en la **tarjeta al pasar el mouse**.
+### F5 · Que el vendedor pueda USARLO, no solo verlo *(pedido 5)* — ✅ HECHA (sin publicar)
+- ✅ botón de **WhatsApp** para el segundo número — y solo si es móvil: sobre un
+  fijo, `numeroWhatsapp` devolvía un enlace perfectamente formado que nadie iba a
+  contestar;
+- ✅ **campo para corregirlo** en la ficha, que precarga el texto «sin validar»
+  para no teclearlo de cero. Es la vía con la que se arreglan las 299 filas;
+- ✅ **campo en el alta manual**, que admite celular, fijo o número de otro país;
+- ⏸️ la **tarjeta al pasar el mouse** — no hecha, cabe poco y el dato está a un clic.
 
-### F6 · Que sobreviva al cierre
+**La sorpresa de F5: la regla del teléfono tenía SEIS espejos, no cuatro.** Los
+dos que faltaban vivían en el servidor (`crm.crear_lead_si_disponible` y
+`private.normalizar_telefono`). Sin ellos, el front habría aceptado un fijo que
+la base rechazaba.
+
+**Decisión (opción A):** el primer número IDENTIFICA al lead y sigue siendo
+celular peruano; el segundo solo lo contacta y admite lo que sea. La alternativa
+—alinear también el principal— obliga a tocar `private.normalizar_telefono`, que
+es con lo que el CRM decide que dos leads son el mismo: movería esa huella hacia
+atrás sobre 544 leads vivos.
+
+⚠️ **Asimetría asumida:** por la vía automática un lead SÍ entra con un fijo de
+identidad (allí la alternativa era perderlo). A mano se exige celular, así que un
+cliente de oficina que solo deje un fijo no se podrá registrar.
+
+### F6 · Que sobreviva al cierre — pendiente
 Al convertir el lead en cliente, el segundo número se pierde: no viaja a la ficha
 del cliente ni al contrato.
 
-### F7 · Rellenar los 530 leads viejos
+### F7 · Rellenar los 530 leads viejos — pendiente (vale ~55 leads)
 Pase único que relee el origen, cruza por el número principal y completa el segundo
 en los leads que ya están en el CRM. No pasa por la hoja: esas filas ya están
 marcadas como importadas y no vuelven a viajar.

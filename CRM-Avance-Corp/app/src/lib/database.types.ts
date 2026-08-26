@@ -2360,6 +2360,7 @@ export type Database = {
           p_nota?: string
           p_origen: string
           p_telefono: string
+          p_telefono_alternativo?: string
           p_vendedor_id?: string
         }
         Returns: Json
