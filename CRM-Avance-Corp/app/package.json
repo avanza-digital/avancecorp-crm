@@ -6,7 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:preview": "tsc -b && env CRM_BUILD_ID=f41-preview-20260825 VITE_ENABLE_DEMO=true VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_SENTRY_DSN= vite build --mode preview",
+    "build:preview": "tsc -b && env CRM_BUILD_ID=f41-preview-20260825 VITE_ENABLE_DEMO=true VITE_SUPABASE_URL= VITE_SUPABASE_ANON_KEY= VITE_SENTRY_DSN= vite build --mode preview && node scripts/preparar-preview-demo.mjs",
     "lint": "oxlint",
     "preview": "vite preview",
     "test": "vitest",
@@ -14,6 +14,9 @@
     "test:coverage": "vitest run --coverage",
     "test:e2e": "playwright test",
     "verify:bundle": "node scripts/verificar-bundle-produccion.mjs",
+    "verify:preview": "node scripts/preparar-preview-demo.mjs --verify-only",
+    "test:preview-package": "node --test scripts/preparar-preview-demo.test.mjs",
+    "check:preview": "npm run test:preview-package && npm run build:preview && npm run verify:preview",
     "dup": "jscpd src --min-tokens 70 --ignore \"**/*.test.*\" --threshold 0.8 --reporters consoleFull",
     "prepare": "lefthook install",
     "typecheck": "tsc -b --pretty false",
