@@ -1,7 +1,7 @@
 ---
 tags: [crm, cartera, postventa, ficha-360, ux, plan]
 actualizado: 2026-08-26
-estado: implementado-pendiente-preview-y-aceptacion
+estado: preview-publicada-pendiente-aceptacion
 fase: F4.1
 ---
 
@@ -13,9 +13,9 @@ con la misma claridad y facilidad de uso que la ficha de Leads, adaptada a la
 relación después de la primera venta. Continúa [[Gestión comercial de clientes - renovaciones y upgrades]]
 y parte del cierre documentado en [[Cierre Mi cartera operativa 2026-08-25]].
 
-La implementación y sus pruebas técnicas están terminadas. Solo faltan publicar
-la preview aislada y recibir la aceptación comercial; producción no cambia sin
-una autorización posterior.
+La implementación, sus pruebas técnicas y la preview aislada están terminadas.
+Falta recibir la aceptación comercial; producción no cambia sin una autorización
+posterior.
 
 El cierre adversario y arquitectónico R2 está documentado en
 [[Cierre de seguridad Ficha 360 2026-08-26]]. Conserva la compatibilidad de
@@ -147,10 +147,14 @@ compilación y seguridad respaldan la entrega. El cierre R2 suma 2,347 pruebas d
 aplicación, 27 de Edge/renderer, 43 carreras deterministas y una aserción same-TX en una base local
 desechable; producción permaneció intacta.
 
-### 9. 🟡 Pendiente — preview y aceptación
+### 9. 🟡 En validación — preview publicada y aceptación pendiente
 
-- Publicar la preview aislada sin cambiar producción.
-- Probar la consulta con vendedor, supervisor, Gerencia y Directorio.
+- Preview publicada en
+  <https://avancecorp-crm-preview-295ehzulp-avancecorp26-1551s-projects.vercel.app>
+  sin cambiar producción.
+- La matriz automatizada cubre Vendedor, Supervisor, Gerencia y Directorio. El
+  smoke test remoto confirmó Vendedor y Directorio, incluida la ausencia de
+  cuentas y acciones para Directorio.
 - Validar con Miguel la comprensión visual y los recorridos comerciales usando
   datos controlados.
 - Resolver hallazgos y repetir los controles necesarios.
@@ -165,9 +169,9 @@ Esta iniciativa se incorpora como **F4.1**, dentro de Postventa y dirección:
 
 `Mi cartera operativa → Ficha comercial 360 → cadencias y exportaciones → cierre de release`
 
-La implementación de F4.1 está terminada y el siguiente paso es la preview aislada.
-La aceptación de esa preview sí es necesaria antes de considerar cerrada la
-experiencia de seguimiento y nueva venta desde la cartera.
+La implementación de F4.1 y su preview aislada están terminadas. El siguiente
+paso es la aceptación comercial de esa URL; sigue siendo necesaria antes de
+considerar cerrada la experiencia de seguimiento y nueva venta desde la cartera.
 
 ## Fuera de alcance
 
@@ -190,8 +194,8 @@ experiencia de seguimiento y nueva venta desde la cartera.
 - Directorio no ve cuentas bancarias ni acciones.
 - Clientes de asesores inactivos, errores parciales, móvil, accesibilidad y cambios
   simultáneos tienen pruebas.
-- Como cierre pendiente: preview autenticada aprobada y evidencia registrada antes
-  de cualquier cambio en producción.
+- Como cierre pendiente: aceptación de la preview y evidencia registrada antes de
+  cualquier cambio en producción.
 
 ## Indicadores comerciales para evaluar la mejora
 

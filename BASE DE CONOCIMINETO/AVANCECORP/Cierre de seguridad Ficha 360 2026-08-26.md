@@ -1,7 +1,7 @@
 ---
 tags: [crm, ficha-360, seguridad, concurrencia, pdf, hard-delete]
 actualizado: 2026-08-26
-estado: validado-localmente-pendiente-preview
+estado: preview-publicada-pendiente-aceptacion
 serial: AVC-F41-360-20260825-R2
 ---
 
@@ -78,6 +78,24 @@ en el repositorio participan en el mismo orden.
 - `git diff --check`, sintaxis del runner y limpieza por OID/marcador de la base
   desechable aprobados.
 - Producción y datos reales no fueron consultados ni modificados.
+
+## Preview aislada
+
+- Commit de implementación: `6702444`.
+- Proyecto: `avancecorp-crm-preview` (`prj_JtZjYFlEmmVdCBL99ctaCBZuPdUw`).
+- Deployment: `dpl_GNBm6cTeWrwWKrKo2UpiDqDjaJMV`, confirmado por Vercel como
+  `target: preview` y `Ready`.
+- URL de aceptación:
+  <https://avancecorp-crm-preview-295ehzulp-avancecorp26-1551s-projects.vercel.app>
+- La URL responde `200`, publica `f41-preview-20260825`, bloquea robots por
+  cabecera, meta y `robots.txt`, y limita `connect-src` a `'self'`.
+- Se compararon los 71 archivos servibles: 69 fueron idénticos byte a byte y los
+  dos HTML solo incorporan el script de feedback esperado de Vercel Preview. No
+  apareció ningún endpoint Supabase/Sentry ni credencial en el contenido remoto.
+- En navegador, Vendedor abrió Mi cartera y una ficha 360; Directorio quedó en
+  solo lectura, sin cuentas bancarias ni acciones comerciales. No hubo errores
+  de consola.
+- No se usó `--prod`, no se promovió el deployment y producción quedó intacta.
 
 ## Riesgos residuales acotados
 

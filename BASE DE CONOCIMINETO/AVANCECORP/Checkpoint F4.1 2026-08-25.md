@@ -1,7 +1,7 @@
 ---
 tags: [crm, ficha-360, checkpoint, continuidad]
 actualizado: 2026-08-26
-estado: validado-listo-para-preview
+estado: preview-publicada-pendiente-aceptacion
 serial: AVC-F41-360-20260825-R2
 ---
 
@@ -38,9 +38,9 @@ segura/adoptable del hard-delete. El detalle y los residuales están en
 6. Renovación, aumento y nueva inversión: completado.
 7. Permisos y protección frente a cambios simultáneos: completado.
 8. Pruebas técnicas, adversarias y paquete de preview: completado.
-9. Preview y aceptación: pendiente.
+9. Preview publicada; aceptación comercial: pendiente.
 
-Avance estimado: **95 %**.
+Avance estimado: **98 %**.
 
 ## Evidencia ya aprobada
 
@@ -56,24 +56,33 @@ Avance estimado: **95 %**.
   `FICHA_CLIENTE_SECURITY_HARDENING_SQL_OK` y deshizo su base completa.
 - El paquete de preview demo aislado se construyó y verificó sin credenciales de
   Supabase, con `noindex` y sin datos reales.
+- La URL publicada responde `200`, declara `target: preview`, sirve el build
+  `f41-preview-20260825` y conserva `connect-src 'self'`.
+- El smoke test interactivo abrió Mi cartera y la ficha 360 como Vendedor; como
+  Directorio confirmó solo lectura, sin cuentas ni acciones comerciales y sin
+  errores de consola.
 - Producción no fue modificada.
 
-## Qué falta al retomar
+## Qué falta para la aceptación
 
-1. Cerrar los veredictos independientes sobre la fuente estable.
-2. Crear el commit y subir la rama.
-3. Publicar únicamente la URL de preview en el proyecto Vercel aislado.
-4. Verificar URL, ausencia de Supabase y `noindex`.
-5. Registrar URL/commit y entregar la explicación comercial.
+1. Revisar con Miguel la comprensión visual y los recorridos comerciales usando
+   los datos demo controlados.
+2. Registrar la aceptación o los hallazgos de esa revisión.
+3. Preparar una publicación controlada únicamente con autorización explícita;
+   este cierre no autoriza cambios en producción.
 
 ## Punto técnico de continuación
 
 - Rama: `feature/ficha-cliente-360-preview-20260825`
+- Commit de implementación: `6702444`
+- Preview:
+  <https://avancecorp-crm-preview-295ehzulp-avancecorp26-1551s-projects.vercel.app>
+- Deployment: `dpl_GNBm6cTeWrwWKrKo2UpiDqDjaJMV`, destino `preview`.
 - Worktree:
   `/private/tmp/crm-ficha-cliente-360-preview-20260825/CRM-Avance-Corp`
-- La preview debe desplegarse desde `app/dist` al proyecto aislado
-  `avancecorp-crm-preview`, con destino `preview`; nunca usar producción,
-  `promote` ni conectar la preview al Supabase productivo.
+- La preview se desplegó desde `app/dist` al proyecto aislado
+  `avancecorp-crm-preview`. No usar `--prod`, `promote` ni conectarla al Supabase
+  productivo durante la aceptación.
 - Los servidores locales de prueba quedaron detenidos.
 
 Relacionado: [[Ficha comercial 360 de clientes - plan]],
