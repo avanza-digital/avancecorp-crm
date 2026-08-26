@@ -1518,6 +1518,9 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
   // Que la ficha lo diga: un vendedor que ve el botón de WhatsApp sobre un fijo
   // escribe a nadie y da el lead por frío.
   lead.telefonoEsFijo = !!lead.telefono && telefonos.principalEsFijo;
+  // Excluyente con el alternativo bueno, igual que en la base: un lead no
+  // puede mostrar dos «segundos números» distintos.
+  lead.telefonoAlternativoCrudo = lead.telefonoAlternativo ? "" : telefonos.crudoIlegible;
 
   // PRÉSTAMO — vino a pedir plata, no a depositarla (regla de Miguel, 2026-07-27).
   // Lo decide un humano en REVISAR. Va antes que los rechazos por dato faltante
@@ -1715,6 +1718,29 @@ function telefonosDeFila(fila, col) {
     telefonoContacto(fila[col.telefono]) === "" &&
     telefonoContacto(fila[col.whatsapp]) === "";
   encontrados.principalEsFijo = hallados.length > 0 && !hallados[iPrincipal < 0 ? 0 : iPrincipal].movil;
+
+  // LO QUE NO SE PUDO LEER TAMPOCO SE TIRA (decisión de Miguel, 2026-08-26).
+  // Son 299 filas de 14.310 del origen (2,1 %) las que traen algo escrito que no
+  // es un teléfono: un número a medias, con un dígito de más, con una anotación
+  // pegada. Viajan crudas para que un humano las mire en el CRM.
+  //
+  // ⚠️ SOLO de las columnas DECLARADAS de teléfono. El rescate de arriba barre
+  // TODAS las celdas de la fila, y hacer lo mismo aquí traería el distrito, el
+  // nombre o la respuesta a una pregunta abierta disfrazados de «segundo número
+  // sin validar». Un dato equivocado presentado como teléfono es peor que
+  // ninguno.
+  encontrados.crudoIlegible = "";
+  if (encontrados.length < 2) {
+    [col.telefono, col.whatsapp].forEach(function (i) {
+      if (encontrados.crudoIlegible || i < 0) return;
+      const bruto = String(fila[i] == null ? "" : fila[i]).trim();
+      // Un correo mal puesto no es un número perdido: es otro dato en el sitio
+      // equivocado, y mostrarlo como teléfono confundiría al vendedor.
+      if (!bruto || bruto.indexOf("@") >= 0) return;
+      if (reconocerTelefono(bruto)) return;
+      encontrados.crudoIlegible = bruto.slice(0, 40);
+    });
+  }
   return encontrados;
 }
 
@@ -1927,7 +1953,11 @@ function escribirLeads(hoja, leads) {
       l.autorizo,             // N ¿Autorizó contacto?
       l.fuenteConsentimiento, // O Fuente del consentimiento
       "",                     // P Estado: vacío = el conector la toma en el próximo ciclo
-      l.telefonoAlternativo,  // Q Teléfono alternativo (P no se mueve: hoja viva)
+      // Q Teléfono alternativo. Si no hubo uno legible viaja el texto CRUDO: el
+      // conector ya distingue por sí mismo si puede leerlo, así que no hace falta
+      // una columna nueva en la hoja —y añadirla obligaría a re-preparar la hoja
+      // viva, que es una operación con mucho más riesgo que este cambio.
+      l.telefonoAlternativo || l.telefonoAlternativoCrudo,
     ];
   });
   hoja.getRange(primera, 1, filas.length, 17).setValues(filas);

@@ -72,31 +72,57 @@ Deno.test("el principal exige MOVIL; el segundo acepta tambien fijo", () => {
   assertEquals(normalizarTelefonoAlternativo("+14155552671"), "+14155552671");
 });
 
+Deno.test("repartir: lo ilegible se conserva CRUDO en vez de tirarse", () => {
+  // 299 filas de 14.310 del origen (2,1 %) traen algo escrito que no es un
+  // telefono. Hasta hoy se tiraban en silencio.
+  assertEquals(repartirNumeros(["987654321", "99988 7"]), {
+    principal: "+51987654321", alternativo: null, alternativoCrudo: "99988 7",
+  });
+  assertEquals(repartirNumeros(["987654321", "llamar al 9 8"]), {
+    principal: "+51987654321", alternativo: null, alternativoCrudo: "llamar al 9 8",
+  });
+  // Excluyentes: si hubo un segundo legible, no hay crudo que mostrar.
+  assertEquals(repartirNumeros(["987654321", "918620573"]).alternativoCrudo, null);
+  // Un correo mal puesto NO es un numero perdido: no se muestra como «sin validar».
+  assertEquals(repartirNumeros(["987654321", "rosa@correo.com"]).alternativoCrudo, null);
+  // Repetir el principal tampoco deja crudo: se entendio, solo no aporta nada.
+  assertEquals(repartirNumeros(["987654321", "+51987654321"]).alternativoCrudo, null);
+  // El tope de cordura, espejo del CHECK de la base.
+  assertEquals(repartirNumeros(["987654321", "9".repeat(60)]).alternativoCrudo?.length, 40);
+  // Si NINGUNO sirve el lead se descarta y no hay nada que guardar.
+  assertEquals(repartirNumeros(["5ooooo", "12345"]), {
+    principal: null, alternativo: null, alternativoCrudo: null,
+  });
+});
+
 Deno.test("repartir: basta UN numero bueno para que el lead entre", () => {
   // El caso que Miguel pidio: el principal esta mal, el segundo esta bien.
   // Antes esto era un lead PERDIDO; ahora entra con el numero que si sirve.
+  // Y el teclazo del principal NO se tira: viaja crudo. `alternativoCrudo` no
+  // distingue de que casilla salio — es «el otro dato que la persona escribio y
+  // no supimos leer», y verlo es lo que permite corregirlo.
   assertEquals(repartirNumeros(["5ooooo", "987654321"]),
-    { principal: "+51987654321", alternativo: null });
+    { principal: "+51987654321", alternativo: null, alternativoCrudo: "5ooooo" });
 
   // Dos buenos: identidad + canal alternativo.
   assertEquals(repartirNumeros(["987654321", "918620573"]),
-    { principal: "+51987654321", alternativo: "+51918620573" });
+    { principal: "+51987654321", alternativo: "+51918620573", alternativoCrudo: null });
 
   // El movil MANDA aunque el fijo venga primero: WhatsApp es como se trabaja.
   assertEquals(repartirNumeros(["014457890", "987654321"]),
-    { principal: "+51987654321", alternativo: "+5114457890" });
+    { principal: "+51987654321", alternativo: "+5114457890", alternativoCrudo: null });
 
   // Solo fijos: el lead entra igual. Antes se descartaba entero.
   assertEquals(repartirNumeros(["014457890", "084234567"]),
-    { principal: "+5114457890", alternativo: "+5184234567" });
+    { principal: "+5114457890", alternativo: "+5184234567", alternativoCrudo: null });
 
   // Repetido: no se duplica (decision D2).
   assertEquals(repartirNumeros(["987654321", "+51987654321"]),
-    { principal: "+51987654321", alternativo: null });
+    { principal: "+51987654321", alternativo: null, alternativoCrudo: null });
 
   // Los DOS mal: ESTE es el unico caso que se descarta.
   assertEquals(repartirNumeros(["5ooooo", "12345"]),
-    { principal: null, alternativo: null });
-  assertEquals(repartirNumeros([]), { principal: null, alternativo: null });
-  assertEquals(repartirNumeros([null, undefined, ""]), { principal: null, alternativo: null });
+    { principal: null, alternativo: null, alternativoCrudo: null });
+  assertEquals(repartirNumeros([]), { principal: null, alternativo: null, alternativoCrudo: null });
+  assertEquals(repartirNumeros([null, undefined, ""]), { principal: null, alternativo: null, alternativoCrudo: null });
 });

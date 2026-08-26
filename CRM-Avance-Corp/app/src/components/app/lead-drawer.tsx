@@ -45,6 +45,8 @@ import { Label } from '@/components/ui/label'
 import { Select } from '@/components/ui/select'
 import { Textarea } from '@/components/ui/textarea'
 import { AccionesContacto } from '@/components/app/contacto'
+import { enlaceTel, numeroWhatsapp } from '@/lib/telefono'
+import { reconocerTelefono } from '@/lib/validacion'
 import { CerrarTareaDialog } from '@/components/app/cerrar-tarea'
 import {
   CAMPOS_REUNION_VACIOS,
@@ -919,6 +921,58 @@ function Fila({ label, children }: { label: string; children: ReactNode }) {
   )
 }
 
+/**
+ * El segundo número del lead en sus tres estados. Vive aparte de `Fila` porque
+ * la lógica de «qué hay que enseñar» no es de presentación: decide entre un
+ * canal de contacto usable, un dato que hay que corregir y una ausencia real.
+ *
+ * El texto crudo NO se ofrece como enlace a propósito. Si no se pudo entender
+ * como teléfono, un `tel:` encima marcaría cualquier cosa; el vendedor lo lee,
+ * deduce el número y lo corrige. Presentarlo como marcable sería mentir sobre
+ * la confianza que merece.
+ */
+function SegundoNumero({ numero, crudo }: { numero: string | null; crudo: string | null }) {
+  if (numero) {
+    const tel = enlaceTel(numero)
+    // ⚠️ `numeroWhatsapp` solo mira que haya dígitos suficientes: sobre un FIJO
+    // devuelve un número perfectamente formado que NADIE va a contestar. Quien
+    // decide si hay WhatsApp es el reconocedor, que sí distingue móvil de fijo.
+    const wa = reconocerTelefono(numero)?.movil ? numeroWhatsapp(numero) : null
+    return (
+      <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        {tel ? (
+          <a href={tel} className="tabular-nums text-primary underline-offset-2 hover:underline">
+            {numero}
+          </a>
+        ) : (
+          <span className="tabular-nums">{numero}</span>
+        )}
+        {wa && (
+          <a
+            href={`https://wa.me/${wa}`}
+            target="_blank"
+            rel="noreferrer"
+            className="text-[11px] font-semibold text-primary underline-offset-2 hover:underline"
+          >
+            WhatsApp
+          </a>
+        )}
+      </span>
+    )
+  }
+  if (crudo) {
+    return (
+      <span className="inline-flex flex-wrap items-baseline gap-x-2 gap-y-1">
+        <span className="tabular-nums">«{crudo}»</span>
+        <Badge color="var(--warning)">sin validar</Badge>
+      </span>
+    )
+  }
+  return (
+    <span className="text-muted-foreground">— el origen no dio un segundo número</span>
+  )
+}
+
 /** Lista es-PE: "a, b y c" (para la línea de datos faltantes). */
 function listarFaltantes(xs: string[]): string {
   if (xs.length <= 1) return xs[0] ?? ''
@@ -1225,16 +1279,22 @@ function Datos({
             <Fila label="Teléfono">
               <span className="tabular-nums">{l.telefono}</span>
             </Fila>
-            {l.telefono_alternativo && (
-              <Fila label="Teléfono alternativo">
-                <a
-                  href={`tel:${l.telefono_alternativo}`}
-                  className="tabular-nums text-primary underline-offset-2 hover:underline"
-                >
-                  {l.telefono_alternativo}
-                </a>
-              </Fila>
-            )}
+            {/*
+              La fila del segundo número se dibuja SIEMPRE, tenga o no dato.
+              Antes solo aparecía cuando había número, y eso dejaba al vendedor
+              sin saber si el CRM se había comido algo o si el origen nunca lo
+              dio — la duda exacta que Miguel quería quitar (2026-08-26). Tres
+              estados, y ninguno es un hueco:
+                · número bueno  → marcable y con WhatsApp si es móvil
+                · texto ilegible → tal como llegó, marcado «sin validar»
+                · nada          → dicho con todas las letras
+            */}
+            <Fila label="Teléfono alternativo">
+              <SegundoNumero
+                numero={l.telefono_alternativo ?? null}
+                crudo={l.telefono_alternativo_crudo ?? null}
+              />
+            </Fila>
             {l.correo && <Fila label="Correo">{l.correo}</Fila>}
             {l.dni && (
               <Fila label="DNI">

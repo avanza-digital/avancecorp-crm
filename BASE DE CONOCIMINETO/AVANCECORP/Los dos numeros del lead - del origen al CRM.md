@@ -39,9 +39,42 @@ guarda tal como llegó y la ficha lo muestra marcado como sin validar.
 **❌ No se puede:** que todos los leads tengan uno si el origen solo dio uno. Ese
 dato no existe, y inventarlo sería peor que no tenerlo.
 
-**Lo que nadie sabe todavía:** cuántas filas del origen traen de verdad un segundo
-dato. Puede ser el 70 % o el 15 %. Lo responde la Fase 0 y decide si todo esto vale
-mucho o poco.
+## MEDIDO — el diagnóstico corrió el 26/08 sobre las 14.310 filas del origen
+
+| Qué pasa en el origen | Filas | % |
+|---|---|---|
+| **Repiten el mismo número** en las dos columnas | 12.043 | **84,2 %** |
+| Segundo celular distinto | 1.501 | 10,5 % |
+| Solo dieron un número | 462 | 3,2 % |
+| Algo escrito que no es número | 299 | 2,1 % |
+| Un fijo como segundo | **5** | **0,03 %** |
+
+**TECHO REAL: 10,5 %. Y ya estábamos ahí.** De los leads que entraron el 25 y 26
+de agosto, 14 de 147 traían dos números = 9,5 %. El puente viejo ya capturaba los
+segundos celulares distintos: lo que se creía roto no lo estaba.
+
+**El trabajo de fijos e internacionales (F2) suma 5 filas de 14.310.** Se queda
+—no hace daño y el CRM es más correcto— pero no era el cuello de botella. Decirlo
+aquí para que nadie vuelva a construir sobre la premisa «F2 convierte 14 en
+muchos», que era falsa.
+
+**Lo único recuperable de verdad: las 299 filas ilegibles (2,1 %)** → es lo que
+hace F4.
+
+### Por qué el 84 % repite el número
+
+| Pestaña | Campos que pide | Repiten |
+|---|---|---|
+| landing (COOPAC MásCapital) | `Celular` \| `WhatsApp` | 89,9 % |
+| formulario (campaña de Facebook) | `celular` \| `celular` | 78,3 % |
+
+Para casi todo el mundo el celular Y el WhatsApp son **el mismo teléfono**. La
+gente no lo hace mal: la pregunta está mal hecha. La única palanca que movería ese
+84 % es cambiar la etiqueta del segundo campo a «Otro número de contacto (familiar
+o trabajo)».
+
+⛔ **Miguel decidió el 26/08 NO tocar los formularios.** Queda escrito como la
+razón por la que el techo se queda en 10,5 %, no como una tarea pendiente.
 
 ---
 
@@ -84,8 +117,9 @@ Hoy, si te llama el número alternativo y lo escribes en el buscador, el CRM dic
 que ese lead no existe. Se arregla.
 
 ### F2 · Que el puente no pierda ninguno
-Conserva fijos y números extranjeros en vez de tirarlos en el origen. **Es el
-cambio que convierte 14 en muchos.**
+Conserva fijos y números extranjeros en vez de tirarlos en el origen. ⚠️ **Medido
+después: vale 5 filas de 14.310.** El puente viejo ya cogía los segundos celulares
+distintos. Se queda porque el CRM es más correcto así, no porque mueva la aguja.
 
 ### F3 · Que un número malo no cueste un lead
 El lead entra siempre que tenga uno bueno. Si el segundo no sirve, entra sin él y

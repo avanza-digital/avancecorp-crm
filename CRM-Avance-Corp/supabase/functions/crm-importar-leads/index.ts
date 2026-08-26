@@ -280,6 +280,8 @@ Deno.serve(async (req: Request) => {
     // viaja como AVISO a la columna de estado de la hoja, que es donde se corrige.
     const alternativoRaw = (f.telefono_alternativo ?? "").trim();
     const alternativoDistinto = reparto.alternativo;
+    // Lo que no se pudo leer NO se tira: viaja crudo para que un humano lo mire.
+    const alternativoCrudo = reparto.alternativoCrudo;
     const principalRaw = (f.telefono ?? "").trim();
     const principalEraElDeSiempre = reconocerTelefono(principalRaw)?.e164 === telefono;
 
@@ -380,7 +382,7 @@ Deno.serve(async (req: Request) => {
       avisos.push(
         reconocerTelefono(alternativoRaw)
           ? "2.º número repetía al principal → no se guardó"
-          : "2.º número ilegible → el lead entró sin él",
+          : "2.º número ilegible → se guardó tal como llegó, para corregirlo",
       );
     }
     telefonosLote.add(telefono);
@@ -393,6 +395,7 @@ Deno.serve(async (req: Request) => {
         nombre_completo: nombre,
         telefono,
         telefono_alternativo: alternativoDistinto,
+        telefono_alternativo_crudo: alternativoCrudo,
         correo,
         dni,
         genero,

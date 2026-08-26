@@ -334,6 +334,13 @@ export interface Lead {
   telefono: string
   /** Segundo celular de contacto importado desde la fuente, si es distinto. */
   telefono_alternativo?: string | null
+  /**
+   * El segundo número TAL COMO LO ESCRIBIÓ la persona, cuando no se pudo
+   * entender como teléfono. Excluyente con `telefono_alternativo`: si el número
+   * se pudo canonizar vive allí y esto queda null. No es marcable — la ficha lo
+   * muestra como «sin validar» para que un humano lo lea y lo corrija.
+   */
+  telefono_alternativo_crudo?: string | null
   correo?: string | null
   etapa: Etapa
   origen: Origen

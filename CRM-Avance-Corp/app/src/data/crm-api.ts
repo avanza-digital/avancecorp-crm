@@ -132,6 +132,7 @@ const COLUMNAS_LEAD = [
   'nombre_completo',
   'telefono',
   'telefono_alternativo',
+  'telefono_alternativo_crudo',
   'correo',
   'dni',
   'genero',
@@ -176,6 +177,7 @@ const LeadRowSchema = v.object({
   nombre_completo: v.string(),
   telefono: v.string(),
   telefono_alternativo: v.optional(v.nullable(v.string())),
+  telefono_alternativo_crudo: v.optional(v.nullable(v.string())),
   correo: v.nullable(v.string()),
   dni: v.nullable(v.string()),
   // Mismo catálogo que el CHECK leads_genero_valido y el union Genero.
@@ -404,6 +406,9 @@ function aLead(fila: LeadRow): Lead {
     nombre_completo: fila.nombre_completo,
     telefono: fila.telefono,
     telefono_alternativo: fila.telefono_alternativo ?? null,
+    // El mapper es el eslabón que se olvida (ya van cuatro veces): pedir la
+    // columna y declararla en el esquema NO la pone en el navegador.
+    telefono_alternativo_crudo: fila.telefono_alternativo_crudo ?? null,
     correo: fila.correo,
     dni: fila.dni,
     genero: fila.genero ?? null,

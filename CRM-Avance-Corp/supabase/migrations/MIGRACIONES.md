@@ -3827,3 +3827,56 @@ sobrevive en la asignación de `v_visibles` aunque el `where` se sustituya por u
 guardia prometía más de lo que comprobaba: ahora ancla el predicado entero.
 
 **Registro de excepciones a `public`:** ninguna.
+
+---
+
+## 20260826173523 · `crm_leads_telefono_alternativo_crudo`
+
+✅ **EN PROD 2026-08-26.** Fase 4 de «Los dos números del lead».
+
+Añade `crm.leads.telefono_alternativo_crudo`: el segundo número **tal como lo
+escribió la persona**, cuando no se pudo entender como teléfono. Decisión de
+Miguel: «que siempre todos los leads tengan ese número alternativo, así ese
+número sea errado».
+
+**El diagnóstico del origen (26/08) midió por qué esto vale poco y a la vez
+importa:** de 14.310 filas, el **84,2 % repite el mismo número** en las dos
+columnas, el 10,5 % trae un segundo celular distinto (que ya llegaba), y solo el
+**2,1 % (299 filas)** trae algo escrito que no es un teléfono. Eso es lo que
+rescata esta columna. Lo que de verdad quería Miguel —que todos tengan dos
+números— **no es alcanzable**: en 12.043 filas no hay segundo número que dar.
+
+**Dos CHECK.** Cordura (ni vacío ni solo espacios —«no hay dato» se escribe
+NULL, y dos formas de decir lo mismo obligan a la ficha a comprobar las dos—,
+máximo 40 caracteres) y **excluyencia** con `telefono_alternativo`: si el número
+se pudo canonizar vive allí y este queda null. Sin esa regla la ficha tendría que
+elegir cuál de los dos pinta.
+
+**Postflight sobre tabla TEMPORAL** con `like … including constraints including
+defaults` (misma técnica que 20260826154500: `crm.leads` tiene auditoría y
+borrar exige bajar los siete candados). 9 combinaciones ejecutadas + un guardia
+que verifica que la copia heredó **los dos** CHECK.
+
+**Mutantes (4/4 muertos):** columnas dejan de ser excluyentes · se acepta cadena
+vacía · se cae el tope de cordura · la copia no hereda los CHECK.
+
+**Registro de excepciones a `public`:** ninguna.
+
+---
+
+## 20260826174500 · `crm_cartera_pagina_telefono_alternativo_crudo`
+
+✅ **EN PROD 2026-08-26.**
+
+`crm.cartera_pagina_fn` devuelve también `telefono_alternativo_crudo`. La ficha
+del lead se sirve del **store** (`listarLeadsDelAmbito`, que consulta la tabla
+directo), así que funcionaría igual sin esto — **y precisamente por eso se hace**:
+dos caminos que producen un `Lead` con forma distinta es como se pierde un dato
+sin que nadie lo vea, que es la lección entera de este ciclo.
+
+El fichero se **genera a partir de 20260826151907** con dos líneas más, para que
+el resto del cuerpo no pueda divergir. Preflight anclado al md5 vivo
+(`6ce36d25…`, el que dejó la migración de la mañana). Postflight: además de todo
+lo de la anterior, comprueba que el crudo se declara **y** se selecciona.
+
+**Registro de excepciones a `public`:** ninguna.

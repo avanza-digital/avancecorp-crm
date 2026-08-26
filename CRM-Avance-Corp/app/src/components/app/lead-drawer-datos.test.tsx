@@ -152,6 +152,43 @@ describe('LeadDrawer — edición de clasificación por capital', () => {
     )
   })
 
+  it('el segundo número también se puede escribir por WhatsApp', () => {
+    montar({ lead: { telefono_alternativo: '+51911222333' } })
+
+    expect(screen.getByRole('link', { name: 'WhatsApp' })).toHaveAttribute(
+      'href',
+      'https://wa.me/51911222333',
+    )
+  })
+
+  it('un FIJO como segundo número no ofrece WhatsApp: allí no responde nadie', () => {
+    montar({ lead: { telefono_alternativo: '+5114457890' } })
+
+    expect(screen.getByRole('link', { name: '+5114457890' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'WhatsApp' })).not.toBeInTheDocument()
+  })
+
+  it('lo ilegible se muestra tal como llegó, marcado y SIN enlace', () => {
+    // Nada se pierde en silencio (decisión de Miguel, 2026-08-26). Y no se
+    // ofrece como marcable: un `tel:` sobre algo que no se pudo entender
+    // marcaría cualquier cosa.
+    montar({ lead: { telefono_alternativo: null, telefono_alternativo_crudo: '99988 7' } })
+
+    expect(screen.getByText('«99988 7»')).toBeInTheDocument()
+    expect(screen.getByText('sin validar')).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /99988/ })).not.toBeInTheDocument()
+  })
+
+  it('sin segundo número lo DICE, en vez de dejar un hueco', () => {
+    // El hueco dejaba al vendedor sin saber si el CRM se comió un dato o si el
+    // origen nunca lo dio. El 84,2 % de las filas del origen no trae segundo
+    // número: este es el caso mayoritario, no la excepción.
+    montar({ lead: { telefono_alternativo: null, telefono_alternativo_crudo: null } })
+
+    expect(screen.getByText('Teléfono alternativo')).toBeInTheDocument()
+    expect(screen.getByText('— el origen no dio un segundo número')).toBeInTheDocument()
+  })
+
   it('guarda capital y moneda juntos', async () => {
     const user = userEvent.setup()
     const { editarLead } = montar()

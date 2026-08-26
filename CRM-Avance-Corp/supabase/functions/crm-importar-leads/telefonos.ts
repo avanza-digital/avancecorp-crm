@@ -128,27 +128,67 @@ export function normalizarTelefonoAlternativo(valor: string): string | null {
   return r ? r.e164 : null;
 }
 
+/** Tope de cordura del texto crudo — espejo del CHECK de la base. */
+export const CRUDO_MAX = 40;
+
+export type RepartoNumeros = {
+  /** La identidad del lead. `null` = ningun numero servia → se descarta. */
+  principal: string | null;
+  /** El segundo canal, canonico y marcable. */
+  alternativo: string | null;
+  /**
+   * Lo que la persona escribio y NO se pudo entender como telefono. Existe para
+   * que nada se pierda en silencio (decision de Miguel, 2026-08-26). Excluyente
+   * con `alternativo`, igual que en la base: si hubo un segundo numero legible,
+   * esto es null.
+   */
+  alternativoCrudo: string | null;
+};
+
 /**
- * De todos los numeros que trae una fila, cual es el principal y cual el
- * segundo. Devuelve `{ principal: null }` solo cuando NINGUNO sirve — que es el
- * unico caso en que el lead se descarta.
+ * De todos los numeros que trae una fila, cual es el principal, cual el segundo
+ * y que queda sin poder leerse. Devuelve `principal: null` solo cuando NINGUNO
+ * sirve — que es el unico caso en que el lead se descarta.
  *
  * Orden: el primer MOVIL manda (identidad); el segundo es el siguiente numero
  * DISTINTO, sea movil o fijo. Si no hay ningun movil, el primer fijo se sube a
  * principal en vez de tirar el lead.
+ *
+ * `alternativoCrudo` no distingue de que casilla salio el texto ilegible: es «el
+ * otro dato de contacto que la persona escribio y no supimos leer». Un correo
+ * metido en la casilla del telefono NO cuenta — es otro dato en el sitio
+ * equivocado, no un numero perdido, y contarlo inflaria lo que se muestra como
+ * «sin validar».
  */
 export function repartirNumeros(
   candidatos: (string | null | undefined)[],
-): { principal: string | null; alternativo: string | null } {
+): RepartoNumeros {
   const vistos: TelefonoReconocido[] = [];
+  const ilegibles: string[] = [];
   for (const c of candidatos) {
-    const r = reconocerTelefono(c);
-    if (r && !vistos.some((v) => v.e164 === r.e164)) vistos.push(r);
+    const bruto = (c ?? "").trim();
+    if (!bruto) continue;
+    const r = reconocerTelefono(bruto);
+    if (r) {
+      if (!vistos.some((v) => v.e164 === r.e164)) vistos.push(r);
+    } else if (!bruto.includes("@")) {
+      ilegibles.push(bruto);
+    }
   }
-  if (vistos.length === 0) return { principal: null, alternativo: null };
+  if (vistos.length === 0) {
+    return { principal: null, alternativo: null, alternativoCrudo: null };
+  }
 
   const iPrincipal = vistos.findIndex((v) => v.movil);
   const principal = iPrincipal >= 0 ? vistos[iPrincipal] : vistos[0];
   const alternativo = vistos.find((v) => v.e164 !== principal.e164) ?? null;
-  return { principal: principal.e164, alternativo: alternativo ? alternativo.e164 : null };
+  return {
+    principal: principal.e164,
+    alternativo: alternativo ? alternativo.e164 : null,
+    // Excluyentes, como en la base: un lead no puede mostrar dos «segundos
+    // numeros» distintos, o la ficha tendria que elegir cual pinta.
+    alternativoCrudo: alternativo || ilegibles.length === 0
+      ? null
+      : ilegibles[0].slice(0, CRUDO_MAX),
+  };
 }

@@ -770,6 +770,41 @@ test("un celular en la fila gana la identidad aunque el fijo venga primero", () 
   assert.doesNotMatch(l.nota, /FIJO/);
 });
 
+test("lo ilegible viaja CRUDO en vez de morir en el origen", () => {
+  // WhatsApp con un número a medias: hasta hoy se tiraba aquí mismo.
+  const fila = ["Ana", "Ruiz", "987654321", "99988 7",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 910, CAB_LANDING);
+  assert.equal(l.telefono, "+51987654321");
+  assert.equal(l.telefonoAlternativo, "");
+  assert.equal(l.telefonoAlternativoCrudo, "99988 7");
+});
+
+test("un correo en la columna de WhatsApp NO se muestra como teléfono", () => {
+  const fila = ["Ana", "Ruiz", "987654321", "ana@correo.com",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 911, CAB_LANDING);
+  assert.equal(l.telefonoAlternativoCrudo, "", "un correo mal puesto no es un número perdido");
+});
+
+test("el crudo NO se pesca de columnas que no son de teléfono", () => {
+  // El distrito, el nombre o una respuesta abierta jamás pueden acabar
+  // presentados como «segundo número sin validar»: un dato equivocado
+  // disfrazado de teléfono es peor que ninguno.
+  const fila = ["Ana", "Ruiz", "987654321", "",
+    "Lima", "Surquillo 1234", "Soles", "1,000", "No", "Si", "", "nota larga", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 912, CAB_LANDING);
+  assert.equal(l.telefonoAlternativoCrudo, "");
+});
+
+test("si hay un segundo número BUENO, no se guarda crudo (excluyentes)", () => {
+  const fila = ["Ana", "Ruiz", "987654321", "918620573",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 913, CAB_LANDING);
+  assert.equal(l.telefonoAlternativo, "+51918620573");
+  assert.equal(l.telefonoAlternativoCrudo, "");
+});
+
 test("un lead extranjero entra y conserva sus dos números", () => {
   const fila = ["Rosa", "Diaz", "+34612345678", "+34911223344",
     "Madrid", "", "Soles", "50,000", "No", "Si", "", "", ""];

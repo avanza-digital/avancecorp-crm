@@ -992,6 +992,7 @@ export type Database = {
           sla_global_iniciado_en: string
           telefono: string
           telefono_alternativo: string | null
+          telefono_alternativo_crudo: string | null
           tenencia_desde: string | null
           vendedor_id: string | null
         }
@@ -1029,6 +1030,7 @@ export type Database = {
           sla_global_iniciado_en?: string
           telefono: string
           telefono_alternativo?: string | null
+          telefono_alternativo_crudo?: string | null
           tenencia_desde?: string | null
           vendedor_id?: string | null
         }
@@ -1066,6 +1068,7 @@ export type Database = {
           sla_global_iniciado_en?: string
           telefono?: string
           telefono_alternativo?: string | null
+          telefono_alternativo_crudo?: string | null
           tenencia_desde?: string | null
           vendedor_id?: string | null
         }
