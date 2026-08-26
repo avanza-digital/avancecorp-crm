@@ -8,6 +8,7 @@ import {
   type CategoriaResultadoImportacion,
   clasificarErrorInsercion,
 } from "./resultado-importacion.ts";
+import { reconocerTelefono, repartirNumeros } from "./telefonos.ts";
 
 // ============================================================================
 // crm-importar-leads — conector hoja de Google → crm.leads (2026-07-20).
@@ -26,7 +27,10 @@ import {
 // Rotar = nuevo valor en ambos lados; no hace falta redeploy.
 //
 // Reglas espejadas de la BD (CHECKs/triggers de crm.leads, verificados en prod):
-//  - telefono celular peruano → E.164 +519######## (el trigger de BD re-normaliza)
+//  - telefono / telefono_alternativo: celular peruano, fijo peruano o numero
+//    internacional en E.164 (ver telefonos.ts). Los dos candidatos se juzgan
+//    JUNTOS: basta uno bueno para que el lead entre; solo si NINGUNO sirve se
+//    rechaza la fila. El movil se prefiere como identidad (WhatsApp).
 //  - origen del catálogo · moneda PEN/USD · monto (0, 9_999_999_999.99] 2 dec
 //  - dni 8 dígitos · genero F/M · fecha_nacimiento en [1900, 2100) y edad ≥ 18
 //    (regla de capa app: se invierte capital, no hay producto para menores)
@@ -82,17 +86,6 @@ function secretoValido(recibido: string | null): boolean {
     diff |= recibido.charCodeAt(i) ^ IMPORTAR_SECRET.charCodeAt(i);
   }
   return diff === 0;
-}
-
-/** Espejo de lib/validacion.ts del CRM y de private.normalizar_telefono. */
-function normalizarTelefono(valor: string): string | null {
-  // La coma es deliberada: Sheets formatea un celular como "964,262,777" cuando
-  // la columna quedó como número. Sin ella, ese teléfono se rechazaba.
-  const limpio = valor.replace(/[\s().,-]/g, "");
-  const sinMas = limpio.startsWith("+") ? limpio.slice(1) : limpio;
-  if (/^9\d{8}$/.test(sinMas)) return `+51${sinMas}`;
-  if (/^519\d{8}$/.test(sinMas)) return `+${sinMas}`;
-  return null;
 }
 
 const CORREO_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
@@ -263,27 +256,32 @@ Deno.serve(async (req: Request) => {
       continue;
     }
 
-    const telefono = normalizarTelefono((f.telefono ?? "").trim());
-    if (!telefono) {
-      rechazo("teléfono inválido (celular de 9 dígitos que empiece en 9)");
+    // ⚠️ UN SOLO NUMERO BUENO BASTA (regla de Miguel, 2026-08-26: «si los dos
+    // numeros estan mal, ahi si debe descartarlo»). Los dos candidatos de la
+    // fila se juzgan JUNTOS: si el principal esta ilegible pero el segundo
+    // sirve, ese pasa a ser la identidad y el lead ENTRA. Hasta hoy un teclazo
+    // en la primera columna tiraba el lead entero teniendo el otro numero al
+    // lado. El movil se prefiere para principal (es lo que responde WhatsApp);
+    // un fijo solo sube a identidad cuando no hay ningun movil en la fila.
+    const reparto = repartirNumeros([f.telefono, f.telefono_alternativo]);
+    if (!reparto.principal) {
+      rechazo(
+        "ningún teléfono utilizable (celular peruano 9########, fijo peruano, o internacional con +código de país)",
+      );
       continue;
     }
+    const telefono = reparto.principal;
     if (telefonosLote.has(telefono)) {
       rechazo("teléfono repetido en la misma hoja");
       continue;
     }
+    // El segundo numero ya no puede costar un lead: `repartirNumeros` lo devuelve
+    // solo si sirve, y su ausencia nunca rechaza la fila. Lo que no se pudo leer
+    // viaja como AVISO a la columna de estado de la hoja, que es donde se corrige.
     const alternativoRaw = (f.telefono_alternativo ?? "").trim();
-    const telefonoAlternativo = alternativoRaw
-      ? normalizarTelefono(alternativoRaw)
-      : null;
-    if (alternativoRaw && !telefonoAlternativo) {
-      rechazo("teléfono alternativo inválido (celular de 9 dígitos que empiece en 9)");
-      continue;
-    }
-    // WhatsApp suele repetir el principal: se conserva solo si aporta otro contacto.
-    const alternativoDistinto = telefonoAlternativo === telefono
-      ? null
-      : telefonoAlternativo;
+    const alternativoDistinto = reparto.alternativo;
+    const principalRaw = (f.telefono ?? "").trim();
+    const principalEraElDeSiempre = reconocerTelefono(principalRaw)?.e164 === telefono;
 
     const capital = parseCapital((f.capital ?? "").trim());
     if (capital === null) {
@@ -371,6 +369,20 @@ Deno.serve(async (req: Request) => {
     const fuente = (f.fuente_consentimiento ?? "").trim().slice(0, 80) || null;
 
     const avisos: string[] = [];
+    if (!principalEraElDeSiempre) {
+      avisos.push(
+        principalRaw
+          ? "el teléfono principal no se pudo leer → se usó el 2.º número"
+          : "sin teléfono principal → se usó el 2.º número",
+      );
+    }
+    if (alternativoRaw && !alternativoDistinto) {
+      avisos.push(
+        reconocerTelefono(alternativoRaw)
+          ? "2.º número repetía al principal → no se guardó"
+          : "2.º número ilegible → el lead entró sin él",
+      );
+    }
     telefonosLote.add(telefono);
     validas.push({
       fila,

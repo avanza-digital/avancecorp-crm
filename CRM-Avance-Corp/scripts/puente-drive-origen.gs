@@ -180,6 +180,7 @@ function crearMenu() {
     .addItem("1 · Preparar la hoja (formatos y menús)", "prepararHoja")
     .addItem("2 · Inicializar marca de agua (no importa nada)", "inicializarMarcas")
     .addItem("3 · Vista previa (no escribe nada)", "vistaPreviaOrigen")
+    .addItem("Diagnóstico de segundos números (no escribe nada)", "diagnosticarSegundosNumeros")
     .addSeparator()
     .addItem("Traer leads del origen (ahora)", "traerLeadsDelOrigen")
     .addSeparator()
@@ -856,6 +857,160 @@ function vistaPreviaOrigen() {
   return r;
 }
 
+/**
+ * DIAGNÓSTICO DE SEGUNDOS NÚMEROS — Fase 0 del plan "Los dos números del lead".
+ *
+ * Responde, sobre el ORIGEN REAL y sin escribir absolutamente nada: de cada fila
+ * que trae lead, ¿cuántas dan un segundo número aprovechable, cuántas repiten el
+ * primero, cuántas dan un FIJO (que hoy se pierde) y cuántas dan algo ilegible?
+ *
+ * Existe porque el número que importa —"¿cuántos leads DEBERÍAN llegar con dos
+ * números?"— nunca se midió, y sin él no se sabe si arreglar el puente vale 900
+ * leads o 40. Mide lo que HAY en el origen, no lo que el puente deja pasar: por
+ * eso mira las celdas telefónicas por su ENCABEZADO y no reusa telefonosDeFila(),
+ * que ya viene filtrado por la regla que estamos evaluando.
+ *
+ * No toca el origen (solo getSheets/getDataRange/getDisplayValues), no toca
+ * nuestra hoja, no mueve marcas de agua ni huellas. Se puede correr las veces
+ * que haga falta.
+ */
+function diagnosticarSegundosNumeros() {
+  const origen = SpreadsheetApp.openById(ORIGEN_ID); // ← solo lectura, ver cabecera
+  const totales = nuevoConteoSegundos();
+  const porPestana = [];
+
+  origen.getSheets().forEach(function (pestana) {
+    const datos = pestana.getDataRange().getDisplayValues();
+    if (datos.length < 2) return;
+    const col = ubicarColumnas(datos[0]);
+    if (col.telefono < 0 && col.whatsapp < 0) return; // no es pestaña de leads
+
+    const indices = celdasTelefonicas(datos[0], col);
+    const cuenta = nuevoConteoSegundos();
+    for (let i = 1; i < datos.length; i++) {
+      const fila = datos[i];
+      if (fila.every(function (c) { return String(c).trim() === ""; })) continue;
+      if (esFilaDeEncabezado(fila, datos[0])) continue;
+      clasificarSegundoNumero(fila, col, indices, cuenta);
+    }
+    porPestana.push({
+      pestana: pestana.getName(),
+      columnas: indices.map(function (i) { return datos[0][i] || "(col " + (i + 1) + ")"; }),
+      cuenta: cuenta,
+    });
+    sumarConteoSegundos(totales, cuenta);
+  });
+
+  const texto = informeSegundosNumeros(porPestana, totales);
+  console.log(texto);
+  informar(texto);
+  return { porPestana: porPestana, totales: totales };
+}
+
+/** Las celdas de la fila donde el origen pone teléfonos, por ENCABEZADO. */
+function celdasTelefonicas(cabeceras, col) {
+  const ES_TELEFONO = /celular|telefono|movil|whatsapp|numero|contacto|^tel\b/;
+  const indices = [];
+  if (col.telefono >= 0) indices.push(col.telefono);
+  if (col.whatsapp >= 0 && col.whatsapp !== col.telefono) indices.push(col.whatsapp);
+  cabeceras.forEach(function (bruto, i) {
+    if (indices.indexOf(i) >= 0 || i === col.monto || i === col.dni) return;
+    if (ES_TELEFONO.test(normalizar(bruto))) indices.push(i);
+  });
+  return indices;
+}
+
+function nuevoConteoSegundos() {
+  return {
+    filas: 0,          // filas con al menos un teléfono usable
+    sinSegundo: 0,     // el origen solo dio un número
+    repetido: 0,       // dio dos, pero es el mismo (WhatsApp = celular)
+    celular: 0,        // segundo celular distinto → HOY YA LLEGA
+    fijo: 0,           // segundo número fijo → HOY SE PIERDE
+    ilegible: 0,       // había algo escrito y no es un teléfono → HOY SE PIERDE
+    sinTelefono: 0,    // la fila no trae ni un número usable
+  };
+}
+
+function sumarConteoSegundos(destino, origen) {
+  Object.keys(destino).forEach(function (k) { destino[k] += origen[k]; });
+}
+
+/**
+ * Clasifica UNA fila. `cuenta` se modifica en sitio.
+ *
+ * El principal se decide igual que en producción (primer celular válido en orden
+ * de confianza) para que el diagnóstico hable del MISMO lead que entraría hoy.
+ * Lo que cambia es el segundo: aquí se mira TODO lo que el origen escribió en
+ * una celda telefónica, incluido lo que la regla actual tira.
+ */
+function clasificarSegundoNumero(fila, col, indices, cuenta) {
+  let principal = "";
+  let usadaPrincipal = -1;
+  for (let k = 0; k < indices.length; k++) {
+    const t = telefonoContacto(fila[indices[k]]);
+    if (t) { principal = t; usadaPrincipal = indices[k]; break; }
+  }
+  if (!principal) { cuenta.sinTelefono++; return; }
+  cuenta.filas++;
+
+  // El MEJOR segundo que ofrece la fila, por orden de utilidad comercial:
+  // otro celular > un fijo > algo escrito que no es teléfono.
+  let veredicto = "sinSegundo";
+  for (let k = 0; k < indices.length; k++) {
+    const i = indices[k];
+    if (i === usadaPrincipal) continue;
+    const crudo = String(fila[i] == null ? "" : fila[i]).trim();
+    if (!crudo) continue;
+    const r = reconocerTelefono(crudo);
+    if (r && r.e164 !== principal) {
+      if (r.movil) { veredicto = "celular"; break; }
+      if (veredicto !== "celular") veredicto = "fijo";
+      continue;
+    }
+    if (r) { if (veredicto === "sinSegundo") veredicto = "repetido"; continue; }
+    // Un correo metido en la columna de teléfono no es "un número ilegible":
+    // es otro dato en el sitio equivocado y contarlo inflaría lo que se pierde.
+    if (crudo.indexOf("@") >= 0) continue;
+    if (/\d/.test(crudo) && veredicto === "sinSegundo") veredicto = "ilegible";
+  }
+  cuenta[veredicto]++;
+}
+
+/** El informe en el idioma del negocio: qué llega hoy y qué se está perdiendo. */
+function informeSegundosNumeros(porPestana, t) {
+  const pct = function (n) {
+    return t.filas ? " (" + Math.round((n * 1000) / t.filas) / 10 + "%)" : "";
+  };
+  const lineas = [
+    "DIAGNÓSTICO DE SEGUNDOS NÚMEROS — no se escribió nada",
+    "",
+    "Sobre " + t.filas + " filas del origen que traen un teléfono usable:",
+    "",
+    "  Con segundo celular distinto ....... " + t.celular + pct(t.celular) + "   ← HOY YA LLEGA",
+    "  Con un fijo como segundo ........... " + t.fijo + pct(t.fijo) + "   ← hoy SE PIERDE",
+    "  Con algo escrito que no es número .. " + t.ilegible + pct(t.ilegible) + "   ← hoy SE PIERDE",
+    "  Repiten el mismo número ............ " + t.repetido + pct(t.repetido) + "   (no hay segundo que dar)",
+    "  Solo dieron un número .............. " + t.sinSegundo + pct(t.sinSegundo),
+    "",
+    "  Filas sin ningún teléfono usable ... " + t.sinTelefono,
+    "",
+    "TECHO REAL: " + (t.celular + t.fijo) + " de " + t.filas +
+      " filas pueden llegar al CRM con dos números.",
+    "",
+    "Por pestaña:",
+  ];
+  porPestana.forEach(function (p) {
+    lineas.push(
+      "  · " + p.pestana + " — " + p.cuenta.filas + " filas · " +
+      p.cuenta.celular + " con 2.º celular · " + p.cuenta.fijo + " con fijo · " +
+      p.cuenta.ilegible + " ilegibles · " + p.cuenta.repetido + " repetidos"
+    );
+    lineas.push("      columnas miradas: " + p.columnas.join(" | "));
+  });
+  return lineas.join("\n");
+}
+
 function traerLeadsDelOrigen() {
   const reloj = relojDeLima();
   const r = procesar(true);
@@ -1360,6 +1515,9 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
   lead.telefono = telefonos[0] || "";
   lead.telefonoAlternativo = telefonos[1] || "";
   lead.telefonoRescatado = !!lead.telefono && telefonos.rescatadoPrincipal;
+  // Que la ficha lo diga: un vendedor que ve el botón de WhatsApp sobre un fijo
+  // escribe a nadie y da el lead por frío.
+  lead.telefonoEsFijo = !!lead.telefono && telefonos.principalEsFijo;
 
   // PRÉSTAMO — vino a pedir plata, no a depositarla (regla de Miguel, 2026-07-27).
   // Lo decide un humano en REVISAR. Va antes que los rechazos por dato faltante
@@ -1413,6 +1571,7 @@ function normalizarFila(fila, col, pestana, numeroFila, cabeceras, marca) {
     lead.sinMonto ? "⚠️ NO INDICÓ MONTO — confirmar con el cliente" : "",
     lead.sinMoneda ? "⚠️ NO INDICÓ MONEDA — se asumió " + MONEDA_SI_NO_INDICA : "",
     lead.telefonoRescatado ? "⚠️ Teléfono tomado de OTRA columna del origen — confirmar al contactar" : "",
+    lead.telefonoEsFijo ? "☎️ El teléfono principal es un FIJO — no responde WhatsApp, hay que llamar" : "",
     lead.sinFecha ? "Sin fecha en el origen (vale la del ingreso)" : "",
     esSocio ? "Ya es socio de la cooperativa" : "",
     m.mixta ? "Marcó soles y dólares — se asumió PEN" : "",
@@ -1431,14 +1590,79 @@ function normalizar(s) {
     .toLowerCase().replace(/\s+/g, " ").trim();
 }
 
-/** Teléfono peruano canónico "+51XXXXXXXXX", o "" si no es utilizable. */
+/**
+ * LA REGLA DEL TELÉFONO en el puente. Gemela EXACTA de `telefonos.ts` del
+ * conector y de `validacion.ts` del front. Si una de las tres se mueve sin las
+ * otras, un número entra por un lado y se pierde por el otro sin que nadie lo
+ * vea — que es exactamente cómo se perdían los segundos números.
+ *
+ * Decisiones de Miguel (2026-08-26): el CRM reconoce fijos peruanos y números
+ * de cualquier país, y basta UN número bueno para que el lead exista.
+ *
+ * Devuelve { e164, clase, movil } o null.
+ *   clase: "celular_pe" | "fijo_pe" | "internacional"
+ *   movil: si responde WhatsApp. Un fijo, no.
+ */
+function reconocerTelefono(v) {
+  const bruto = String(v == null ? "" : v).trim();
+  if (!bruto) return null;
+  // Un correo en la columna de teléfono es otro dato en el sitio equivocado,
+  // no un número roto. (Las letras SÍ pasan: "p:+51910585900" es una fila real.)
+  if (bruto.indexOf("@") >= 0) return null;
+
+  const digitos = bruto.replace(/\D/g, "");
+  if (!digitos) return null;
+
+  const marcadoInternacional = bruto.charAt(0) === "+" || digitos.indexOf("00") === 0;
+  const sinSalida = digitos.replace(/^00/, "");
+
+  // Todo lo que dice ser peruano se juzga con la vara peruana: si no tiene la
+  // forma exacta NO se cuela por la puerta internacional. Sin esto,
+  // "+51123456789" entraría como número válido y nadie podría llamarlo.
+  const nacional = sinSalida.indexOf("51") === 0 ? sinSalida.slice(2) : sinSalida;
+  const declaraPeru = sinSalida.indexOf("51") === 0 && nacional.length >= 8;
+
+  if (declaraPeru || !marcadoInternacional) {
+    const n = declaraPeru ? nacional : sinSalida;
+    if (/^9\d{8}$/.test(n)) return { e164: "+51" + n, clase: "celular_pe", movil: true };
+    // ⚠️ UN FIJO EXIGE MARCA. El nacional de un fijo peruano tiene ocho dígitos
+    // (Lima 1 + siete, provincias 84 + seis)… y el DNI peruano TAMBIÉN tiene
+    // ocho. Aceptar ocho dígitos pelados convertiría todo DNI del origen en un
+    // teléfono. Un fijo solo se reconoce MARCADO: con "+51"/"0051", o con el 0
+    // de larga distancia con el que la gente escribe su fijo (014457890).
+    const marcaDeFijo = declaraPeru || n.charAt(0) === "0";
+    const sinCero = n.charAt(0) === "0" ? n.slice(1) : n;
+    if (marcaDeFijo && /^[1-8]\d{7}$/.test(sinCero)) {
+      return { e164: "+51" + sinCero, clase: "fijo_pe", movil: false };
+    }
+    if (declaraPeru) return null;
+    if (!marcadoInternacional) return null; // sin "+" no hay país que suponer
+  }
+
+  // E.164: de 8 a 15 dígitos, el primero 1–9. Sin lista de códigos de país:
+  // mantenerla al día en tres capas es peor deuda que aceptar un número raro.
+  if (sinSalida.length >= 8 && sinSalida.length <= 15 && /^[1-9]\d*$/.test(sinSalida)) {
+    // Móvil o fijo es indecidible fuera de Perú sin libphonenumber. Se asume
+    // móvil: esconder el único canal que hay sería peor.
+    return { e164: "+" + sinSalida, clase: "internacional", movil: true };
+  }
+  return null;
+}
+
+/**
+ * El número que puede ser IDENTIDAD del lead: un móvil (celular peruano o
+ * internacional). "" si no lo hay. Es lo que responde WhatsApp, que es como
+ * se trabaja aquí.
+ */
 function telefonoPeru(v) {
-  if (!v || v.indexOf("@") >= 0) return ""; // hay correos metidos en la columna de teléfono
-  const d = String(v).replace(/\D/g, "");
-  if (/^51[9]\d{8}$/.test(d)) return "+" + d;         // ya viene con código de país
-  if (/^9\d{8}$/.test(d)) return "+51" + d;           // celular de 9 dígitos
-  if (/^0?51[9]\d{8}$/.test(d)) return "+" + d.slice(-11);
-  return "";                                          // fijos, truncados, basura
+  const r = reconocerTelefono(v);
+  return r && r.movil ? r.e164 : "";
+}
+
+/** Cualquier número CONTACTABLE: móvil o fijo. "" si no lo hay. */
+function telefonoContacto(v) {
+  const r = reconocerTelefono(v);
+  return r ? r.e164 : "";
 }
 
 /**
@@ -1448,7 +1672,6 @@ function telefonoPeru(v) {
  * teléfono usable apareció fuera de las columnas esperadas.
  */
 function telefonosDeFila(fila, col) {
-  const encontrados = [];
   const indices = [];
   if (col.telefono >= 0) indices.push(col.telefono);
   if (col.whatsapp >= 0 && col.whatsapp !== col.telefono) indices.push(col.whatsapp);
@@ -1456,13 +1679,42 @@ function telefonosDeFila(fila, col) {
     if (i === col.telefono || i === col.whatsapp || i === col.monto || i === col.dni) continue;
     indices.push(i);
   }
+
+  // Se recogen TODOS los contactables, no solo los móviles. Hasta hoy un fijo o
+  // un número extranjero se tiraba aquí mismo, en el origen, y el lead llegaba
+  // al CRM con un solo número o no llegaba.
+  const hallados = [];
   indices.forEach(function (i) {
-    const t = telefonoPeru(String(fila[i] == null ? "" : fila[i]).trim());
-    if (t && encontrados.indexOf(t) < 0 && encontrados.length < 2) encontrados.push(t);
+    const r = reconocerTelefono(fila[i]);
+    if (!r) return;
+    let repetido = false;
+    hallados.forEach(function (h) { if (h.e164 === r.e164) repetido = true; });
+    if (!repetido && hallados.length < 2) hallados.push(r);
   });
+
+  // El MÓVIL manda como principal: es la identidad y es quien responde WhatsApp.
+  // Un fijo solo sube a principal cuando no hay ningún móvil en la fila — antes
+  // de eso la alternativa era descartar al lead entero, y un lead al que se
+  // puede llamar vale más que un botón de WhatsApp que funcione.
+  const encontrados = [];
+  let iPrincipal = -1;
+  for (let k = 0; k < hallados.length; k++) {
+    if (hallados[k].movil) { iPrincipal = k; break; }
+  }
+  if (hallados.length > 0) {
+    if (iPrincipal < 0) iPrincipal = 0;
+    encontrados.push(hallados[iPrincipal].e164);
+    for (let k = 0; k < hallados.length; k++) {
+      if (k !== iPrincipal) { encontrados.push(hallados[k].e164); break; }
+    }
+  }
+
+  // El aviso histórico: el único número usable apareció FUERA de las columnas
+  // esperadas, así que conviene confirmarlo al contactar.
   encontrados.rescatadoPrincipal = encontrados.length > 0 &&
-    telefonoPeru(String(fila[col.telefono] == null ? "" : fila[col.telefono]).trim()) === "" &&
-    telefonoPeru(String(fila[col.whatsapp] == null ? "" : fila[col.whatsapp]).trim()) === "";
+    telefonoContacto(fila[col.telefono]) === "" &&
+    telefonoContacto(fila[col.whatsapp]) === "";
+  encontrados.principalEsFijo = hallados.length > 0 && !hallados[iPrincipal < 0 ? 0 : iPrincipal].movil;
   return encontrados;
 }
 

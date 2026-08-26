@@ -4,22 +4,50 @@ import {
   MONTO_ESTIMADO_MAX,
   edadCumplida,
   normalizarTelefono,
+  reconocerTelefono,
   validarCamposLead,
 } from './validacion'
 
 describe('normalizarTelefono', () => {
   it.each([
+    // Celular peruano, como lo escribe la gente
     ['999 888 777', '+51999888777'],
     ['+51 999-888-777', '+51999888777'],
     ['(999) 888.777', '+51999888777'],
+    // Fijos peruanos. El número nacional tiene SIEMPRE ocho dígitos: Lima es
+    // 1 + siete y las provincias dos + seis. Un lead al que solo se le puede
+    // llamar sigue siendo un lead — antes el CRM lo rechazaba.
+    ['014457890', '+5114457890'],
+    ['084 234567', '+5184234567'],
+    // El mundo (decisión de Miguel, 2026-08-26). El peruano que ahorra desde
+    // fuera existe y hasta hoy no cabía en el CRM.
+    ['+1 415 555 2671', '+14155552671'],
+    ['+34 612 345 678', '+34612345678'],
+    ['0034612345678', '+34612345678'],
+    ['+52999888777', '+52999888777'],
   ])('normaliza %s', (entrada, esperado) => {
     expect(normalizarTelefono(entrada)).toBe(esperado)
   })
 
-  it.each(['', '12345678', '+5199988877', '+52999888777', 'javascript:alert(1)'])(
-    'rechaza %s',
-    (entrada) => expect(normalizarTelefono(entrada)).toBeNull(),
-  )
+  it.each([
+    '',
+    '   ',
+    '+5199988877',      // dice ser Perú y no tiene forma peruana
+    '+51123456789',     // idem: NO puede colarse como «internacional válido»
+    '1234567',          // siete dígitos: por debajo de todo
+    '4155552671',       // sin `+` no hay país que suponer: no se inventa uno
+    '14457890',         // fijo SIN marca: son ocho dígitos, igual que un DNI
+    '46736918',         // un DNI no puede parecer un teléfono (lo cazó el topbar)
+    '+1234567890123456', // dieciséis dígitos: pasado de E.164
+    'javascript:alert(1)',
+    'rosa@correo.com',
+  ])('rechaza %s', (entrada) => expect(normalizarTelefono(entrada)).toBeNull())
+
+  it('distingue lo que responde WhatsApp de lo que no', () => {
+    expect(reconocerTelefono('987654321')).toMatchObject({ clase: 'celular_pe', movil: true })
+    expect(reconocerTelefono('014457890')).toMatchObject({ clase: 'fijo_pe', movil: false })
+    expect(reconocerTelefono('+34612345678')).toMatchObject({ clase: 'internacional', movil: true })
+  })
 })
 
 describe('validarCamposLead', () => {
@@ -31,7 +59,9 @@ describe('validarCamposLead', () => {
   })
 
   it('teléfono inválido → codigo telefono_invalido anclado a su campo', () => {
-    expect(validarCamposLead({ telefono: '12345678' })).toMatchObject({
+    // '12345678' ya NO sirve de caso inválido: desde 2026-08-26 es un fijo de
+    // Lima legítimo. Se usa un número que dice ser peruano sin serlo.
+    expect(validarCamposLead({ telefono: '+51123456789' })).toMatchObject({
       ok: false,
       codigo: 'telefono_invalido',
       campo: 'telefono',

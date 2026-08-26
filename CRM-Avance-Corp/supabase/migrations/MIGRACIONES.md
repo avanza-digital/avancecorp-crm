@@ -3720,8 +3720,9 @@ de prod 125 con md5 `281ac2ea…` en la fila nueva, funciones 274 SIN cambios
 
 ## 20260825005519_crm_cerrar_reunion_cliente_clasificada.sql
 
-**Estado: preparada, todavía no aplicada.** Sustituye la firma inicial de
-`crm.cerrar_tarea` por una compatible con los cinco argumentos anteriores y
+**Estado: ✅ aplicada y registrada en producción el 2026-08-25.** Sustituye la
+firma inicial de `crm.cerrar_tarea` por una compatible con los cinco argumentos
+anteriores y
 dos argumentos opcionales: `p_resultado_reunion` y
 `p_motivo_no_realizada`. Así una reunión de cliente conserva su resultado y
 una cancelación conserva su motivo real, sin perder el timeline postventa ni
@@ -3732,11 +3733,97 @@ completada exige resultado; un no-show se sella como `cliente_no_asistio`; una
 cancelación exige motivo y, para `otro`, detalle. Las tareas que no son reunión
 rechazan esos campos. No crea tablas ni modifica datos históricos.
 
-**Verificación previa:** migración y gate integral ejecutados en producción
-dentro de una transacción revertida; devolvieron
-`GESTION_CLIENTES_RENOVACIONES_OK`. Después del rollback se comprobó que la
-firma anterior seguía presente, la firma nueva no existía y la versión no quedó
-registrada. Su aplicación definitiva espera confirmación de Miguel.
+**Estado productivo comprobado el 2026-08-25 (solo lectura):** las tres versiones
+`20260824231133`, `20260824233619` y `20260825005519` figuran en el historial
+remoto. El esquema productivo expone únicamente la firma nueva de siete
+argumentos, con cinco valores por defecto, `SECURITY DEFINER`,
+`search_path = ''`, `PUBLIC` revocado y ejecución para `authenticated` y
+`service_role`.
+
+**Verificación previa sin tocar producción:** se extrajo únicamente el esquema
+productivo (`auth`, `public`, `crm`, `private`) a una base local desechable, sin
+datos ni PII. Sobre esa copia exacta la migración pasó; luego el gate integral,
+con fixture sintético de 48 operaciones/29 clientes, devolvió
+`GESTION_CLIENTES_RENOVACIONES_OK`. El gate incluye atomicidad, RLS/permisos,
+PEN y USD separados, deduplicación cliente/mes, tarea → actividad → siguiente
+tarea y reasignación de cartera sin perder pendientes ni reescribir historia.
+
+**Reversión verificada:** `scripts/rollback-crm-cerrar-reunion-clasificada.sql`
+restaura la firma de cinco argumentos, conserva los registros ya creados y
+valida preflight, permisos y postflight. Se ejecutó correctamente sobre la copia
+desechable y, a continuación, la migración se volvió a aplicar y el gate
+integral volvió a pasar.
 
 **Registro de excepciones a `public`:** ninguna. Solo reemplaza una RPC del
 esquema `crm`.
+
+---
+
+## 20260826154500 · `crm_leads_telefono_alternativo_fijos_e_internacional`
+
+✅ **EN PROD 2026-08-26.** Aplicada con `supabase db query --linked --file` y
+registrada a mano (OK explícito de Miguel; `db push` sigue prohibido aquí).
+
+Relaja el CHECK `leads_telefono_alternativo_formato`, que solo aceptaba celular
+peruano, a **celular peruano · fijo peruano · E.164 de cualquier país**:
+
+```
+^\+(51(9[0-9]{8}|[1-8][0-9]{7})|(?!51)[1-9][0-9]{7,14})$
+```
+
+⚠️ **El `(?!51)` no es adorno.** Sin él, el tramo internacional se traga
+cualquier cosa que empiece por 51 con largo plausible: `+51123456789` entraría
+como «internacional válido» y nadie podría llamarlo jamás. Todo lo que dice ser
+peruano se juzga con la vara peruana o no entra. Postgres soporta lookahead en
+su sintaxis ARE, y el postflight lo comprueba **ejecutándolo**.
+
+⚠️ **El fijo peruano tiene OCHO dígitos nacionales**, se reparta como se reparta
+entre zona y abonado: Lima es `1`+siete y las provincias `84`+seis. Escribirlo
+como «siete para Lima, seis para provincias» deja fuera a medio país — error
+real, cazado por una prueba antes de aplicar.
+
+**Postflight sin tocar `crm.leads`.** Un CHECK se lee bien y rechaza mal, así que
+se le meten filas — pero a una tabla TEMPORAL creada con `like crm.leads
+including constraints including defaults`, que hereda el CHECK real del catálogo
+y ningún trigger. Insertar en `crm.leads` habría disparado la auditoría, y
+borrar después exige bajar los siete candados nombrados. 20 casos ejecutados.
+Un guardia extra comprueba que la copia **heredó** el CHECK: sin él, si
+`including constraints` fallara, todos los casos entrarían y el postflight
+cantaría verde sin haber probado nada.
+
+**Mutantes (4/4 muertos):** sin lookahead · fijo de 7 dígitos · tope de E.164
+roto · la tabla de prueba sin heredar el CHECK.
+
+**No toca `telefono`**, que no tiene CHECK en esta tabla: quién entra lo decide
+la capa de aplicación y `private.trg_leads_normalizar_telefono` ya canoniza.
+
+**Registro de excepciones a `public`:** ninguna.
+
+---
+
+## 20260826151907 · `crm_cartera_pagina_telefono_alternativo`
+
+✅ **EN PROD 2026-08-26.** Misma vía y mismo OK.
+
+`crm.cartera_pagina_fn` nunca devolvió `telefono_alternativo`, así que el
+buscador de la cartera no podía encontrar un lead por su segundo número: el
+vendedor que recibe una llamada del alternativo lo escribe y el CRM le responde
+que ese lead no existe. Se añade al `returns table`, al `select` y al tramo de
+dígitos del buscador.
+
+Es `drop` + `create` y no `create or replace` porque Postgres no deja cambiar el
+tipo de retorno; por eso el grant se vuelve a poner explícitamente. **Preflight
+anclado al md5 del cuerpo vivo** (`e52ed18e…`): si alguien tocó la función por
+otro lado, este `drop` se lo llevaría por delante en silencio.
+
+**Mutantes (6/6 muertos):** columna declarada pero no seleccionada · buscador
+ciego al 2.º número · colada como `SECURITY DEFINER` · abierta a `anon` · ámbito
+anulado con `or true` · ventana de convertidos perdida.
+
+⚠️ **Un mutante encontró un guardia flojo, no un fallo del código.** El
+postflight comprobaba que apareciera la palabra `vendedor_ids_visibles`, que
+sobrevive en la asignación de `v_visibles` aunque el `where` se sustituya por un
+`true`. No era fuga —la función es INVOKER y manda `leads_select`—, pero el
+guardia prometía más de lo que comprobaba: ahora ancla el predicado entero.
+
+**Registro de excepciones a `public`:** ninguna.

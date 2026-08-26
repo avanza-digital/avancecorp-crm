@@ -24,6 +24,9 @@ const gs = new Function(
     " pidePrestamo, filaLegible, legible, montoDe, monedaDe, siNo, ordenRevision," +
     " revisarPestana, huellaTexto, huellaCabeceras, anclaDeFilas, esDescartePorDiseno," +
     " fusionar, momentoDe, diasEntre, dentroDeVentana, decidirPasada, textoDelPanel," +
+    " celdasTelefonicas, clasificarSegundoNumero, nuevoConteoSegundos," +
+    " reconocerTelefono, telefonoContacto," +
+    " informeSegundosNumeros," +
     " FECHA_CORTE, MOTIVO_BACKLOG, MOTIVO_CORTE, CADENCIA_MINUTOS," +
     " VENTANA_DESDE, VENTANA_HASTA };"
 )();
@@ -706,4 +709,142 @@ test("el origen del Drive sigue siendo SOLO LECTURA", () => {
   }
   assert.ok(!/\borigen\.(setValue|setValues|insertSheet|setName|deleteRow|appendRow|clear)/.test(CODIGO_PUENTE),
     "hay una escritura directa sobre el libro de origen");
+});
+
+
+// ── Fase 0: diagnóstico de segundos números ─────────────────────────────────
+// Mide lo que el ORIGEN da, no lo que el puente deja pasar. Su valor entero está
+// en distinguir "no hay segundo número" de "hay uno y lo estamos tirando": si esa
+// distinción se borra, el diagnóstico diría que todo está bien y la Fase 2 se
+// cancelaría por un dato falso.
+
+const clasificar = (fila, col, cabeceras) => {
+  const cuenta = gs.nuevoConteoSegundos();
+  gs.clasificarSegundoNumero(fila, col, gs.celdasTelefonicas(cabeceras, col), cuenta);
+  return cuenta;
+};
+
+test("la regla del teléfono del puente es la MISMA que la del CRM", () => {
+  const e = (v) => (gs.reconocerTelefono(v) || {}).e164 || null;
+  // Celular peruano
+  assert.equal(e("987654321"), "+51987654321");
+  assert.equal(e("964,262,777"), "+51964262777");   // Sheets lo trató como número
+  assert.equal(e("p:+51910585900"), "+51910585900"); // fila real del origen
+  // Fijos: SOLO marcados. Ocho dígitos pelados son un DNI, no un teléfono.
+  assert.equal(e("014457890"), "+5114457890");
+  assert.equal(e("084 234567"), "+5184234567");
+  assert.equal(e("+51 1 445 7890"), "+5114457890");
+  assert.equal(e("14457890"), null, "ocho dígitos pelados = DNI, no teléfono");
+  assert.equal(e("46736918"), null, "un DNI no puede parecer un teléfono");
+  // El mundo
+  assert.equal(e("+1 415 555 2671"), "+14155552671");
+  assert.equal(e("+34612345678"), "+34612345678");
+  assert.equal(e("0034612345678"), "+34612345678");
+  // Lo que sigue sin ser teléfono
+  assert.equal(e("5ooooo"), null);
+  assert.equal(e("rosa@correo.com"), null);
+  assert.equal(e("+51123456789"), null, "dice ser Perú sin forma peruana");
+  assert.equal(e("9158903210"), null, "diez dígitos: celular peruano malo");
+  // Qué responde WhatsApp y qué no
+  assert.equal(gs.reconocerTelefono("987654321").movil, true);
+  assert.equal(gs.reconocerTelefono("014457890").movil, false);
+  assert.equal(gs.telefonoContacto("014457890"), "+5114457890");
+  assert.equal(gs.telefonoPeru("014457890"), "", "un fijo no sirve de identidad por sí solo");
+});
+
+test("un lead con SOLO un fijo ya no se pierde: entra con el fijo de principal", () => {
+  const fila = ["Luis", "Vega", "014457890", "",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 900, CAB_LANDING);
+  assert.equal(l.telefono, "+5114457890");
+  assert.equal(l.motivo, "", "antes moría con «Sin teléfono válido»");
+  assert.match(l.nota, /FIJO — no responde WhatsApp/);
+});
+
+test("un celular en la fila gana la identidad aunque el fijo venga primero", () => {
+  const fila = ["Ana", "Ruiz", "014457890", "987654321",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 901, CAB_LANDING);
+  assert.equal(l.telefono, "+51987654321", "WhatsApp es como se trabaja");
+  assert.equal(l.telefonoAlternativo, "+5114457890");
+  assert.doesNotMatch(l.nota, /FIJO/);
+});
+
+test("un lead extranjero entra y conserva sus dos números", () => {
+  const fila = ["Rosa", "Diaz", "+34612345678", "+34911223344",
+    "Madrid", "", "Soles", "50,000", "No", "Si", "", "", ""];
+  const l = gs.normalizarFila(fila, colLanding, "landing", 902, CAB_LANDING);
+  assert.equal(l.telefono, "+34612345678");
+  assert.equal(l.telefonoAlternativo, "+34911223344");
+});
+
+test("diagnóstico: dos celulares distintos → cuenta como el que YA llega", () => {
+  const fila = ["Rosa", "Diaz", "918620573", "987654321",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const c = clasificar(fila, colLanding, CAB_LANDING);
+  assert.equal(c.celular, 1);
+  assert.equal(c.fijo, 0);
+  assert.equal(c.sinSegundo, 0);
+});
+
+test("diagnóstico: WhatsApp que repite el celular NO se cuenta como pérdida", () => {
+  const fila = ["Carmen", "Joya", "51918376855", "51918376855",
+    "Lima", "Surquillo", "Soles", "50,000", "Si", "Si", "", "", ""];
+  const c = clasificar(fila, colLanding, CAB_LANDING);
+  assert.equal(c.repetido, 1);
+  assert.equal(c.celular, 0);
+  assert.equal(c.fijo, 0);
+});
+
+test("diagnóstico: un FIJO como segundo número se cuenta como pérdida", () => {
+  const fila = ["Luis", "Vega", "918620573", "014457890",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const c = clasificar(fila, colLanding, CAB_LANDING);
+  assert.equal(c.fijo, 1, "el fijo es el dato que la Fase 2 viene a rescatar");
+  assert.equal(c.celular, 0);
+});
+
+test("diagnóstico: un celular gana a un fijo cuando la fila trae los dos", () => {
+  const cab = ["Nombre", "Celular", "Telefono fijo", "WhatsApp"];
+  const col = gs.ubicarColumnas(cab);
+  const c = clasificar(["Ana", "918620573", "014457890", "987654321"], col, cab);
+  assert.equal(c.celular, 1, "otro celular vale más que un fijo");
+  assert.equal(c.fijo, 0);
+});
+
+test("diagnóstico: un correo en la columna de teléfono no infla lo perdido", () => {
+  const fila = ["Ana", "Ruiz", "918620573", "ana@correo.com",
+    "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const c = clasificar(fila, colLanding, CAB_LANDING);
+  assert.equal(c.ilegible, 0, "un correo mal puesto no es un número que perdimos");
+  assert.equal(c.sinSegundo, 1);
+});
+
+test("diagnóstico: una fila sin ningún teléfono no cuenta como fila medida", () => {
+  const fila = ["Ana", "Ruiz", "", "", "Lima", "Surco", "Soles", "1,000", "No", "Si", "", "", ""];
+  const c = clasificar(fila, colLanding, CAB_LANDING);
+  assert.equal(c.sinTelefono, 1);
+  assert.equal(c.filas, 0, "el porcentaje se calcula sobre filas CON teléfono");
+});
+
+test("celdasTelefonicas encuentra la 2ª columna 'celular' que el mapeo no asigna", () => {
+  // El caso real de la pestaña de Facebook: dos columnas se llaman "celular" y
+  // ubicarColumnas() solo puede quedarse con la primera.
+  const indices = gs.celdasTelefonicas(CAB_FB, colFb);
+  const nombres = indices.map((i) => CAB_FB[i]);
+  assert.ok(nombres.filter((n) => /celular/i.test(n)).length >= 2,
+    "las DOS columnas 'celular' tienen que entrar en la medición: " + nombres.join(" | "));
+  assert.equal(indices.indexOf(colFb.dni), -1, "el DNI no es un teléfono");
+  assert.equal(indices.indexOf(colFb.monto), -1, "el monto no es un teléfono");
+});
+
+test("el informe dice el TECHO REAL, que es lo que decide la Fase 2", () => {
+  const t = gs.nuevoConteoSegundos();
+  t.filas = 100; t.celular = 10; t.fijo = 25; t.ilegible = 5;
+  t.repetido = 40; t.sinSegundo = 20;
+  const texto = gs.informeSegundosNumeros([], t);
+  assert.match(texto, /TECHO REAL: 35 de 100/,
+    "techo = los que ya llegan MÁS los que se están perdiendo");
+  assert.match(texto, /HOY YA LLEGA/);
+  assert.match(texto, /SE PIERDE/);
 });

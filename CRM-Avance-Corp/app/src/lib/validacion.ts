@@ -5,13 +5,88 @@
 import { esMoneda, type Moneda } from './format'
 import { esGenero, esOrigen, type Genero, type Origen } from './tipos'
 
-/** Normaliza un celular peruano a +519######## (o null si no es válido). */
-export function normalizarTelefono(valor: string): string | null {
-  const limpio = valor.replace(/[\s().-]/g, '')
-  const sinMas = limpio.startsWith('+') ? limpio.slice(1) : limpio
-  if (/^9\d{8}$/.test(sinMas)) return `+51${sinMas}`
-  if (/^519\d{8}$/.test(sinMas)) return `+${sinMas}`
+/**
+ * LA REGLA DEL TELÉFONO en el front. Gemela EXACTA de `telefonos.ts` del
+ * conector (supabase/functions/crm-importar-leads) y del CHECK
+ * `leads_telefono_alternativo_formato`. Si una de las tres se mueve sin las
+ * otras, un número entra por un lado y se pierde por el otro sin que nadie lo
+ * vea — que es exactamente cómo se perdían los segundos números.
+ *
+ * Decisiones de Miguel (2026-08-26): el CRM reconoce fijos peruanos y números
+ * de cualquier país, y basta UN número bueno para que el lead exista.
+ *
+ * Sin libphonenumber a propósito: la misma regla tiene que caber en un CHECK de
+ * Postgres y en el Apps Script del puente. Se usa E.164, que es el estándar que
+ * define qué es un número de teléfono en el planeta.
+ */
+export type ClaseTelefono = 'celular_pe' | 'fijo_pe' | 'internacional'
+
+export interface TelefonoReconocido {
+  /** Canónico E.164: `+` y solo dígitos. Es lo que se guarda. */
+  e164: string
+  clase: ClaseTelefono
+  /** Sirve para WhatsApp. Un fijo, no. */
+  movil: boolean
+}
+
+const E164_MIN = 8
+const E164_MAX = 15
+
+export function reconocerTelefono(valor: string | null | undefined): TelefonoReconocido | null {
+  const bruto = (valor ?? '').trim()
+  if (!bruto) return null
+  // Un correo en la casilla del teléfono es otro dato en el sitio equivocado,
+  // no un número roto.
+  if (bruto.includes('@')) return null
+
+  const digitos = bruto.replace(/\D/g, '')
+  if (!digitos) return null
+
+  const marcadoInternacional = bruto.startsWith('+') || digitos.startsWith('00')
+  const sinSalida = digitos.replace(/^00/, '')
+
+  // Todo lo que dice ser peruano se juzga con la vara peruana: si no tiene la
+  // forma exacta NO se cuela por la puerta internacional. Sin esto,
+  // `+51123456789` entraría como «internacional válido» y nadie podría llamarlo.
+  const nacional = sinSalida.startsWith('51') ? sinSalida.slice(2) : sinSalida
+  const declaraPeru = sinSalida.startsWith('51') && nacional.length >= 8
+
+  if (declaraPeru || !marcadoInternacional) {
+    const n = declaraPeru ? nacional : sinSalida
+    if (/^9\d{8}$/.test(n)) return { e164: `+51${n}`, clase: 'celular_pe', movil: true }
+    // ⚠️ UN FIJO EXIGE MARCA. El nacional de un fijo peruano tiene ocho dígitos
+    // (Lima 1 + siete, provincias 84 + seis)… y el DNI peruano TAMBIÉN tiene
+    // ocho. Aceptar ocho dígitos pelados convertía todo DNI en un teléfono: el
+    // buscador ofrecía «verificar disponibilidad» sobre un documento. Un fijo
+    // solo se reconoce MARCADO: con `+51`/`0051`, o con el 0 de larga distancia
+    // con el que la gente escribe su fijo de verdad (014457890).
+    const marcaDeFijo = declaraPeru || n.startsWith('0')
+    const sinCero = n.startsWith('0') ? n.slice(1) : n
+    if (marcaDeFijo && /^[1-8]\d{7}$/.test(sinCero)) {
+      return { e164: `+51${sinCero}`, clase: 'fijo_pe', movil: false }
+    }
+    if (declaraPeru) return null
+    if (!marcadoInternacional) return null // sin `+` no hay país que suponer
+  }
+
+  if (sinSalida.length >= E164_MIN && sinSalida.length <= E164_MAX && /^[1-9]\d*$/.test(sinSalida)) {
+    // Móvil o fijo es indecidible fuera de Perú sin libphonenumber. Se asume
+    // móvil: equivocarse hacia «se puede escribir por WhatsApp» ofrece un botón
+    // que quizá no responda; al revés escondería el único canal que hay.
+    return { e164: `+${sinSalida}`, clase: 'internacional', movil: true }
+  }
   return null
+}
+
+/**
+ * El teléfono del lead, canónico, o `null`.
+ *
+ * Acepta también fijos: un lead al que solo se puede llamar sigue siendo un
+ * lead, y hasta hoy el CRM lo rechazaba. Quien necesite saber si el número
+ * responde WhatsApp tiene `reconocerTelefono(...).movil`.
+ */
+export function normalizarTelefono(valor: string): string | null {
+  return reconocerTelefono(valor)?.e164 ?? null
 }
 
 /** Correo razonable (no RFC completo — espejo del CHECK laxo del esquema). */
@@ -117,7 +192,7 @@ export function validarCamposLead(
         ok: false,
         codigo: 'telefono_invalido',
         campo: 'telefono',
-        error: 'Teléfono inválido — usa un celular peruano 9######## (se guarda como +51…)',
+        error: 'Teléfono inválido — celular peruano 9########, fijo peruano, o internacional con +código de país',
       }
     }
     valores.telefono = telefono
