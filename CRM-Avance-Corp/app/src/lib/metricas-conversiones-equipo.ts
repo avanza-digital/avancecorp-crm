@@ -40,6 +40,38 @@ const ResponsableEquipoSchema = v.object({
   clientes: v.number(),
   // `null` es un valor legítimo: sin muestra no hay porcentaje que afirmar.
   conversion_pct: v.nullable(v.number()),
+  // F2.2 («Conversión única»): la cifra del NÚCLEO por responsable — la misma
+  // aritmética que HOY/Metas/Conversiones, acreditada a QUIEN CERRÓ (ledger),
+  // mientras `clientes` acredita al dueño actual de la ficha. Formas medidas
+  // en el payload real de prod (27/08). Opcionales: un servidor previo a F2.2
+  // o el espejo demo no las emiten y la pantalla degrada, jamás fabrica ceros.
+  nucleo_divisor: v.optional(v.number()),
+  nucleo_numerador: v.optional(v.number()),
+  nucleo_conversion_pct: v.optional(v.nullable(v.number())),
+})
+
+/** Declaración del núcleo que sirvió las cifras (F2.2): base y ponderación. */
+const NucleoEquipoSchema = v.object({
+  base: v.string(),
+  incluye_cartera: v.boolean(),
+  peso_referido: v.number(),
+  mes_peso: v.string(),
+})
+
+/**
+ * Sondas del ranking (F2.2): paridad contra el núcleo mensual, lo que queda
+ * fuera del roster de vendedores y las dos acreditaciones del mismo hecho
+ * (`clientes` = dueño actual vs `nucleo_*` = quien cerró). `cuadra: false` es
+ * la señal de F3.4: cifras en revisión, no un número inventado.
+ */
+const SondasEquipoSchema = v.object({
+  cuadra: v.nullable(v.boolean()),
+  paridad_nucleo: v.nullable(v.number()),
+  paridad_filas: v.number(),
+  divisor_fuera_del_roster: v.number(),
+  numerador_fuera_del_roster: v.number(),
+  cierres_anulados: v.number(),
+  clientes_acreditados_a_otro_dueno: v.number(),
 })
 
 export const MetricasConversionesEquipoSchema = v.object({
@@ -49,6 +81,8 @@ export const MetricasConversionesEquipoSchema = v.object({
   alcance: v.picklist(['equipo', 'global']),
   periodo: v.object({ desde: v.string(), hasta: v.string() }),
   responsables: v.array(ResponsableEquipoSchema),
+  nucleo: v.optional(NucleoEquipoSchema),
+  sondas: v.optional(SondasEquipoSchema),
 })
 
 export type MetricasConversionesEquipo = v.InferOutput<typeof MetricasConversionesEquipoSchema>

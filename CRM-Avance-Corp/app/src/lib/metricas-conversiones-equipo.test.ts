@@ -152,3 +152,51 @@ describe('el payload del equipo alimenta el MISMO clasificador que gerencia', ()
     expect(ranking.sinMuestra.map((f) => f.vendedorId)).toEqual(['v-1'])
   })
 })
+
+describe('claves F2.2 (núcleo y sondas) — escritas desde el payload REAL de prod (27/08)', () => {
+  it('acepta el payload real completo: nucleo, sondas y las cifras nucleo_* por responsable', () => {
+    // Forma medida con la cadena viva (supervisor real) el 2026-08-27; los
+    // valores extremos son los de prod: pct nulo sin divisor, numerador
+    // fraccionario por la ponderación 0,15.
+    const real = payload({
+      nucleo: { base: 'asignacion', incluye_cartera: true, peso_referido: 0.15, mes_peso: '2026-08-01' },
+      sondas: {
+        cuadra: true,
+        paridad_nucleo: 0,
+        paridad_filas: 9,
+        divisor_fuera_del_roster: 0,
+        numerador_fuera_del_roster: 1,
+        cierres_anulados: 1,
+        clientes_acreditados_a_otro_dueno: 0,
+      },
+      responsables: [
+        { vendedor_id: 'v-1', leads: 38, clientes: 5, conversion_pct: 13.2, nucleo_divisor: 38, nucleo_numerador: 6.15, nucleo_conversion_pct: 16.18 },
+        { vendedor_id: 'v-2', leads: 0, clientes: 0, conversion_pct: null, nucleo_divisor: 0, nucleo_numerador: 0, nucleo_conversion_pct: null },
+      ],
+    })
+    expect(() => v.parse(MetricasConversionesEquipoSchema, real)).not.toThrow()
+  })
+
+  it('un servidor previo a F2.2 (sin nucleo/sondas) sigue validando: las claves son aditivas', () => {
+    expect(() => v.parse(MetricasConversionesEquipoSchema, payload())).not.toThrow()
+  })
+
+  it('caso vacío: cero responsables valida y el adaptador deja a todos indisponibles, no en 0 %', () => {
+    const vacio = v.parse(MetricasConversionesEquipoSchema, payload({ responsables: [] }))
+    const adaptada = adaptarConversionEquipo(vacio, EQUIPO)
+    // Cero filas ≠ equipo en 0 %: el ranking no es representable y cada
+    // vendedor queda fuera con estado explícito, jamás con un cero fabricado.
+    expect(adaptada.responsablesDisponibles).toBe(false)
+    expect(adaptada.vendedores.length).toBeGreaterThan(0)
+    for (const fila of adaptada.vendedores) {
+      expect(fila.estadoConversion).toBe('indisponible')
+      expect(fila.detalle).toBeNull()
+    }
+  })
+
+  it('RECHAZA unas sondas mutiladas: si el bloque viene, viene entero (la red de F3.4 no adivina)', () => {
+    const mutilado = payload() as Record<string, unknown>
+    mutilado.sondas = { cuadra: true }
+    expect(() => v.parse(MetricasConversionesEquipoSchema, mutilado)).toThrow()
+  })
+})
