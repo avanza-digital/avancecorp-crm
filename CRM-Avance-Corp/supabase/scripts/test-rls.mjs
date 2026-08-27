@@ -5725,6 +5725,34 @@ async function testMetricasConversionesGlobal(sessions) {
     ]), 'produccion trae SOLO su contrato F1.3', produccion.join(','));
     check(typeof global.data?.produccion?.sin_rastro === 'number',
       'la sonda sin_rastro es un numero, no un hueco');
+    // F1.3b (nota 6 del auditor): la forma de origenes[], responsables[] y
+    // sondas tambien se FIJA — un campo de mas es superficie sin auditar.
+    const clavesOrigen = [...new Set((global.data?.origenes ?? []).flatMap((f) => Object.keys(f)))].sort();
+    check(clavesOrigen.length === 0
+      || JSON.stringify(clavesOrigen) === JSON.stringify([
+        'capital_pen', 'capital_usd', 'clientes', 'contactados', 'contratos',
+        'conversion_clientes_pct', 'conversion_contratos_pct',
+        'conversion_resueltos_pct', 'descartados',
+        'fuera_del_divisor_del_nucleo', 'leads', 'origen', 'peso_en_nucleo',
+        'reuniones_agendadas', 'reuniones_realizadas',
+      ]), 'cada origen trae SOLO los 15 campos del contrato', clavesOrigen.join(','));
+    const clavesResp = [...new Set((global.data?.responsables ?? []).flatMap((f) => Object.keys(f)))].sort();
+    check(clavesResp.length === 0
+      || JSON.stringify(clavesResp) === JSON.stringify([
+        'capital_pen', 'capital_usd', 'clientes', 'contactados',
+        'conversion_pct', 'leads', 'nucleo_conversion_pct', 'nucleo_divisor',
+        'nucleo_numerador', 'reuniones_realizadas', 'tendencia_semanal',
+        'vendedor_id',
+      ]), 'cada responsable trae SOLO los 12 campos del contrato', clavesResp.join(','));
+    const clavesSondas = Object.keys(global.data?.sondas ?? {}).sort();
+    check(JSON.stringify(clavesSondas) === JSON.stringify([
+      'cartera_fuera_del_rango', 'cierres_anulados',
+      'cierres_sin_ficha_convertida', 'cohorte_convertidos_sin_cierre_elegible',
+      'cuadra', 'divisor_fuera_del_roster', 'episodios_sin_origen',
+      'numerador_fuera_del_roster', 'origen_ficha_distinto_del_ledger',
+      'paridad_filas', 'paridad_nucleo',
+      'perfiles_con_leads_de_varios_vendedores',
+    ]), 'el bloque sondas de conversiones trae SOLO su contrato F1.3b', clavesSondas.join(','));
     // La PII de cierres_externos NO viaja: ninguna clave de identidad en el
     // payload plano (strings del documento/nombre/transaccion jamas salen).
     const plano = JSON.stringify(global.data ?? {});

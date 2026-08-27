@@ -87,8 +87,8 @@ interface InteligenciaComercialPanelProps {
 const ETAPA_LABEL: Record<MetricasConversiones['embudo'][number]['etapa'], string> = {
   leads: 'Leads recibidos',
   contactados: 'Contactados',
-  reuniones_agendadas: 'Reuniones pactadas',
-  reuniones_realizadas: 'Reuniones realizadas',
+  reuniones_agendadas: 'Citas pactadas',
+  reuniones_realizadas: 'Citas realizadas',
   propuestas: 'Propuestas',
   clientes: 'Perfiles creados',
   contratos: 'Clientes',
@@ -387,11 +387,16 @@ function DetalleVendedor({
               <dl className="grid grid-cols-3 divide-x divide-[var(--gi-line)]">
                 <DatoDetalle label="Leads recibidos" valor={numeroDisponible(leads)} />
                 <DatoDetalle label="Clientes" valor={numeroDisponible(clientes)} />
-                <DatoDetalle label="Reuniones" valor={numeroDisponible(reuniones)} />
+                <DatoDetalle label="Citas" valor={numeroDisponible(reuniones)} />
               </dl>
+              {/* F1.3b: esta cifra es el capital que produjeron SUS leads en el
+                  rango (contratos del portal vía el perfil del lead + coops) —
+                  «confirmado» era el nombre del cumplimiento, otra pregunta, y
+                  además la fuente vieja (enlace lead→contrato jamás poblado)
+                  la dejaba en S/ 0 eterno. */}
               <dl className="grid grid-cols-2 divide-x divide-[var(--gi-line)] border-t border-[var(--gi-line)]">
-                <DatoDetalle label="Capital confirmado PEN" valor={capitalDisponible(capitalPen, 'PEN')} capital />
-                <DatoDetalle label="Capital confirmado USD" valor={capitalDisponible(capitalUsd, 'USD')} capital />
+                <DatoDetalle label="Capital por sus leads (PEN)" valor={capitalDisponible(capitalPen, 'PEN')} capital />
+                <DatoDetalle label="Capital por sus leads (USD)" valor={capitalDisponible(capitalUsd, 'USD')} capital />
               </dl>
             </section>
 
@@ -612,7 +617,7 @@ export function InteligenciaComercialPanel({
       ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(nucleo.numerador, 2)} puntos de ${numero(nucleo.divisor)} recibidos`, icon: UserRoundCheck, color: C.blue }
       : { label: 'Conversión', valor: nucleoDescuadrado ? '—' : pct(conversion), detalle: nucleoDescuadrado ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
-    { label: 'Reuniones realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
+    { label: 'Citas realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
     { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber },
   ]
 
@@ -676,7 +681,9 @@ export function InteligenciaComercialPanel({
           </section>
 
           {/* F3.4: lo que dicen las sondas se dice — el descuadre además ocultó la cifra arriba. */}
-          {(nucleoDescuadrado || (sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0)) && (
+          {(nucleoDescuadrado
+            || (sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0)
+            || (sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) > 0) && (
             <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden />
               <div className="text-xs leading-relaxed text-amber-900">
@@ -690,6 +697,15 @@ export function InteligenciaComercialPanel({
                   <p>
                     {numero(sondasConv.origen_ficha_distinto_del_ledger)} {sondasConv.origen_ficha_distinto_del_ledger === 1 ? 'lead tiene' : 'leads tienen'} un origen distinto entre su ficha y el
                     ledger: la lectura por origen puede no cuadrar con la cifra del mes.
+                  </p>
+                )}
+                {/* F1.3b: un cliente con leads de dos vendedores cuenta su
+                    capital de portal ENTERO para ambos — el desglose puede
+                    sumar más que el total y hay que decirlo. */}
+                {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) > 0 && (
+                  <p>
+                    {numero(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0)} {(sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) === 1 ? 'cliente tiene' : 'clientes tienen'} leads de más de un vendedor:
+                    su capital cuenta para cada uno y el desglose por vendedor puede sumar más que el total.
                   </p>
                 )}
               </div>
@@ -718,6 +734,29 @@ export function InteligenciaComercialPanel({
               <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">
                 {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base de la conversión del mes (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
               </p>
+            )}
+            {/* F1.3b: cuánto capital ha producido cada origen (lo cerrado
+                hasta hoy por los leads del rango, portal + coops). Servido
+                por origenes[].capital_* — vivo desde la migración F1.3b;
+                antes leía el enlace muerto y era 0 invisible. PEN y USD por
+                separado: aquí no hay tipo de cambio. Solo orígenes con algo. */}
+            {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
+              <div className="mt-3 border-t border-[var(--gi-line)] pt-3">
+                <p className="gi-caption">Capital producido por origen · leads del rango, cerrado hasta hoy</p>
+                <dl className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                  {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
+                    <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
+                      <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
+                      <dd className="font-bold tabular-nums">
+                        {[
+                          fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
+                          fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
+                        ].filter(Boolean).join(' + ')}
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
+              </div>
             )}</section>
           </div>
 

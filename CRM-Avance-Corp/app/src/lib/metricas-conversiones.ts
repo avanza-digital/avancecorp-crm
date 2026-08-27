@@ -144,6 +144,11 @@ const SondasConversionesSchema = v.object({
   cierres_anulados: v.number(),
   episodios_sin_origen: v.number(),
   origen_ficha_distinto_del_ledger: v.number(),
+  // F1.3b: clientes con leads de MÁS de un vendedor — si sube de 0, el
+  // capital por vendedor puede sumar más que el total (el mismo contrato
+  // cuenta a ambos) y el front lo avisa. Opcional: servidores previos y el
+  // espejo demo no la emiten.
+  perfiles_con_leads_de_varios_vendedores: v.optional(v.number()),
 })
 
 export const MetricasConversionesSchema = v.object({

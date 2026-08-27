@@ -4659,3 +4659,44 @@ Preflight: md5 vivo debe ser `f38599fe…` (la de F2.1). Postflight: md5
 `47fb852c…` + `sin_rastro` presente + el enlace muerto ausente (por `strpos`,
 no LIKE). Medido en prod antes de escribir (01–27/08): portal 6 contratos
 S/ 58.000 + US$ 123.000 · externos 3 cierres S/ 55.000 · sin_rastro 1.
+
+## 20260827220132 · `crm_f1_3b_capital_vivo_en_todas_las_patas`
+
+✅ **APLICADA EN PROD** (2026-08-27 ~22:16 UTC, canal MCP; registro
+`schema_migrations` versión `20260827221635` — fichero local `20260827220132`,
+equivalencia anotada). Preflight md5 `47fb852c…` (F1.3) OK · postflight md5
+`698f5999…` + candados completos (incl. ausencia TOTAL de `l.contrato_id`) OK.
+Advisors tras aplicar: **0 ERROR** (fondo WARN/INFO preexistente). Auditoría
+RLS previa (auditor-rls): **APROBADA** con 1 MEDIO no bloqueante que se
+INCORPORÓ antes de aplicar — sonda nueva
+`sondas.perfiles_con_leads_de_varios_vendedores` (un cliente que vuelve como
+lead de OTRO vendedor duplicaría su capital en el desglose; hoy 0, el front
+avisa si sube) + claim del ledger acotado a «foto del 27/08». Notas aceptadas:
+pierna USD de coops = código muerto por CHECK moneda='PEN' (simetría a
+propósito) · atribución portal por vendedor ACTUAL vs coops por FOTO al cierre
+(definición elegida) · `select l.*` aún proyecta la columna (sin efecto,
+cubierto por el pin de md5).
+
+**EL CAMBIO REAL, medido en vivo como Carlos (01–27/08) tras aplicar:**
+origenes[] con capital VIVO (oficina 77.000 + US$ 3.000 · referido 2.000 +
+US$ 100.000 · otro 36.000 · formulario US$ 20.000 · landing US$ 10.000) ·
+responsables[] con capital VIVO (VLADIMIR 107.000 + US$ 100.000 · LINDA
+US$ 30.000 · NAYRA 6.000 · ADELAYDA US$ 3.000) · **las tres patas cuadran
+EXACTO entre sí en la misma transacción** (vendedores PEN 113.000 =
+produccion PEN · USD 133.000 = produccion USD) · sonda perfiles compartidos 0
+· paridad `cuadra: true`. Matriz test-rls endurecida además con la forma
+EXACTA de origenes[] (15 campos), responsables[] (12) y sondas (12, incl. la
+nueva) — pendiente de ejecutar en banco.
+
+(texto original de la entrada, escrito antes de aplicar:) F1.3b: mueren
+las DOS últimas lecturas del enlace jamás poblado `crm.leads.contrato_id` —
+`cohorte_base` (capital por lead HASTA HOY: portal vía perfil + coops
+vigentes → `origenes[].capital_*` revive) y `capital_responsables` (capital
+DEL RANGO por vendedor: contratos de perfiles de sus leads con `in` que
+dedupe + coops del rango por `vendedor_id` → la ficha del vendedor deja el
+S/ 0 eterno). El postflight ahora exige la ausencia TOTAL de `l.contrato_id`
+en la función (lo que F1.3 no podía afirmar sin mentir). La columna queda
+intacta. Medido contra la forma real antes de escribir: por origen oficina
+S/ 77.000 + US$ 3.000 · referido US$ 100.000 · por vendedor VLADIMIR JURADO
+S/ 107.000 + US$ 100.000, PEN cuadra exacto con produccion y cada contrato
+atribuye a UN solo vendedor (sin doble conteo, verificado).

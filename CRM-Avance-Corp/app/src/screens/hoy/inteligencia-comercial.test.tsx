@@ -98,8 +98,12 @@ describe('detalle de conversión por vendedor', () => {
     expect(contenido.getByText('de agosto 4, de julio 1')).toBeInTheDocument()
     expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
     expect(contenido.getByText('Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.')).toBeInTheDocument()
-    expect(contenido.getByText('Capital confirmado PEN')).toBeInTheDocument()
-    expect(contenido.getByText('Capital confirmado USD')).toBeInTheDocument()
+    // F1.3b: la ficha dice de QUÉ es el capital — el que produjeron SUS leads
+    // (el rótulo «confirmado» era del cumplimiento, otra pregunta, y la
+    // fuente vieja lo dejaba en S/ 0 eterno).
+    expect(contenido.getByText('Capital por sus leads (PEN)')).toBeInTheDocument()
+    expect(contenido.getByText('Capital por sus leads (USD)')).toBeInTheDocument()
+    expect(contenido.queryByText('Capital confirmado PEN')).not.toBeInTheDocument()
     expect(contenido.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
     expect(contenido.getByText(money(20_000, 'USD'))).toBeInTheDocument()
     expect(contenido.getByText('Capital en PEN')).toBeInTheDocument()
@@ -392,6 +396,8 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     cierres_anulados: 0,
     episodios_sin_origen: 0,
     origen_ficha_distinto_del_ledger: 0,
+    // F1.3b: opcional en el contrato; el fixture la lleva en 0 (estado sano).
+    perfiles_con_leads_de_varios_vendedores: 0 as number | undefined,
   }
 
   function montarConNucleo(sondas: typeof SONDAS, origenReferido = false) {
@@ -452,6 +458,18 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
     expect(screen.getByText(/origen distinto entre su ficha y el/)).toBeInTheDocument()
   })
+
+  it('F1.3b: la sonda de perfiles compartidos avisa que el desglose puede sumar de más', () => {
+    montarConNucleo({ ...SONDAS, perfiles_con_leads_de_varios_vendedores: 2 })
+    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
+    expect(screen.getByText(/puede sumar más que el total/)).toBeInTheDocument()
+  })
+
+  it('F1.3b: con la sonda en 0 (o ausente, servidor previo) no hay aviso', () => {
+    montarConNucleo({ ...SONDAS })
+    expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
+  })
 })
 
 describe('F1.3: capital por leads del rango en el héroe', () => {
@@ -496,5 +514,66 @@ describe('F1.3: capital por leads del rango en el héroe', () => {
     montarConProduccion({ contratos: 5, capital_pen: 50_000, capital_usd: 0, sin_rastro: undefined })
     expect(screen.getByText(/Capital por leads del rango:/)).toBeInTheDocument()
     expect(screen.queryByText(/sin capital rastreable/)).not.toBeInTheDocument()
+  })
+})
+
+describe('F1.3b: capital producido por origen', () => {
+  it('lista cada origen con su capital PEN/USD por separado, solo los que producen', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
+    // Web queda sin nada para probar que un origen sin capital NO se lista.
+    datos.origenes = datos.origenes.map((fila) => fila.origen === 'Web'
+      ? { ...fila, capital_pen: 0, capital_usd: 0 }
+      : fila)
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByText(/Capital producido por origen/)).toBeInTheDocument()
+    const bloque = screen.getByText(/Capital producido por origen/).closest('div')
+    expect(within(bloque as HTMLElement).getByText('Meta Ads')).toBeInTheDocument()
+    // PEN y USD por separado, jamás sumados (no hay TC en este panel).
+    expect(within(bloque as HTMLElement).getByText(`${money(720_000, 'PEN')} + ${money(36_000, 'USD')}`)).toBeInTheDocument()
+    // Web produjo 0: no aparece en la lista de capital.
+    expect(within(bloque as HTMLElement).queryByText('Web')).not.toBeInTheDocument()
+  })
+
+  it('sin capital en ningún origen, el bloque entero no existe (sin ruido)', () => {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
+    datos.origenes = datos.origenes.map((fila) => ({ ...fila, capital_pen: 0, capital_usd: 0 }))
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText(/Capital producido por origen/)).not.toBeInTheDocument()
   })
 })
