@@ -520,3 +520,18 @@ asigne asesor (Configuración → o pedírmelo).
 
 📝 Mejora anotada: el ranking vacío no DICE por qué (costó un susto) —
 añadir «falta X en la jerarquía» al estado indisponible.
+
+### 41.º y 42.º release — 27/08 (los dos ciclos del ranking)
+
+**41.º** `crm-20260827T175808Z-bb1c0bf8e68b`: la fila del ranking explica sus
+puntos de cartera («0 cierres + 4 de cartera» — hallazgo de Grecia: 9,3 % con
+cero cierres se leía como contradicción; el schema mensual ahora declara
+`cartera.conversiones_clientes` por fila, que Valibot descartaba).
+**42.º** `crm-20260827T180054Z-83bd66929c86`: la cosecha en cristiano, a
+pedido de Miguel — «De sus 41 leads del mes, ninguno es cliente todavía» /
+«…5 ya son clientes (13,2 %)» — el matiz de maduración vive en el tooltip.
+Ambos byte a byte contra el dist; check 2.334 verde. Rollback en cadena en
+`releases/`.
+
+También quedó: baja de Ivett por carril oficial (el ranking de gerencia
+volvió a pintar: 17==17) — su deuda viva son los 2 clientes sin asesor.
