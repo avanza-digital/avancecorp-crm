@@ -4367,3 +4367,49 @@ guarda anti-vacuidad explícita sobre las claves y sobre `leads_reunidos`.
 una guarda que falle si la RUTA no existe.**
 
 Excepciones a `public`: ninguna.
+
+## 20260827070000 · `crm_f2_4_cartera_metrica_mes` + 20260827080000 · `crm_f2_4b_convertidos_sin_cartera`
+
+✅ **AMBAS APLICADAS EN PROD** (2026-08-27 ~07:00 y ~08:00 UTC; registros md5
+`f4b101f9…` y `d168d0db…` = md5 de sus ficheros). **F2.4** del plan — quinto y
+último motor. Advisors: **0 ERROR**.
+
+**Decisión D1 hecha código, en sus dos mitades:**
+- la **MÉTRICA** de conversión pasa al **mes calendario del núcleo** en
+  `crm.metricas_vendedores_fn`, `crm.resumen_cartera_fn` y
+  `crm.series_comerciales_fn`;
+- la **VISTA** sigue filtrando a **45 días** — es la regla de cartera que
+  Miguel cerró el 08/08 («ya no son leads, desaparecen 45 días después de
+  convertirse»), y D1 no la tocó. El payload lo declara con
+  `ventana_metrica: 'mes_calendario'` junto al `ventana_convertidos_dias: 45`
+  de siempre, para que F3 rotule sin adivinar. **Hay un mutante dedicado a cada
+  mitad**: uno que devuelve la métrica a la cartera visible y otro que borra la
+  ventana de la vista.
+
+**EL CAMBIO, medido en vivo:**
+
+| | ANTES | DESPUÉS |
+|---|---|---|
+| vendedores con convertidos | 6 | **14** |
+| convertidos (equipo) | 15 | **14** cierres + 29 operaciones de cartera |
+| tile «Convertidos» de cartera | 15 | **14** + 29 aparte |
+| serie de cierres (6 meses) | **0 estructural** | **14** |
+| leads vivos en cartera | 545 | **545** (la vista no se movió) |
+
+🔴 **F2.4b existe porque F2.4 introdujo una incoherencia y la foto la destapó.**
+Al pasar la métrica al núcleo, `convertidos` empezó a sumar **cierres de lead +
+operaciones de cartera** (43), mientras la serie contaba solo cierres (14): dos
+pantallas recién migradas discrepando entre sí — exactamente la enfermedad que
+esta fase existe para eliminar. F2.4b deja `convertidos` = **cierres de lead**
+en las tres, y las operaciones viajan en `operaciones_cartera`. El `%` NO
+cambia: sigue siendo el del núcleo, que sí cuenta renovaciones en el numerador,
+porque esa es la definición acordada. La migración 20260827070000 **no se
+editó**: F2.4b es una migración nueva sobre el texto que quedó vivo.
+
+Banco (`run-test-f2-cartera-local.sh` + `test-f2-cartera.sql`): oráculo con
+números a mano (1 de 3 = 33.33 %), un lead convertido hace 100 días que debe
+quedar **fuera de la vista y fuera del mes**, y **4 mutantes muertos**.
+
+**VIGÍA FINAL, en producción: los 7 motores consumen `conversion_episodios`.**
+No queda una sola pantalla contando cierres por su cuenta en el servidor.
+Excepciones a `public`: ninguna.
