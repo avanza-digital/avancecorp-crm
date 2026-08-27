@@ -110,6 +110,12 @@ vi.mock('@/data/crm-queries', () => ({
     isPending: false,
     refetch: vi.fn(),
   }),
+  // La V3 vive en crm-queries desde la mudanza de F3 (capa de datos): mismo
+  // doble — la pantalla solo necesita el contrato del hook, no la red.
+  useMetricasDistribucionLeadsV3: (...argumentos: [boolean, string, string]) => {
+    CONSULTAS.distribucion(...argumentos)
+    return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
+  },
   useConversionMensual: () => ({
     data: CONVERSION_MENSUAL_FALLA ? undefined : (CONVERSION_MENSUAL ?? undefined),
     error: CONVERSION_MENSUAL_FALLA ? new Error('500 simulado') : null,
@@ -139,14 +145,6 @@ vi.mock('@/data/crm-queries', () => ({
     isFetching: false,
     refetch: () => {},
   }),
-}))
-// La V3 vive en su propio módulo hasta integrar las ramas: mismo doble de la
-// distribución (la pantalla solo necesita el contrato del hook, no la red).
-vi.mock('@/data/metricas-distribucion-v3', () => ({
-  useMetricasDistribucionLeadsV3: (...argumentos: [boolean, string, string]) => {
-    CONSULTAS.distribucion(...argumentos)
-    return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
-  },
 }))
 // crm-api arrastra el cliente de Supabase al importarse.
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_e: unknown, f: string) => f }))

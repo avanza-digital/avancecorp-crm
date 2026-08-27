@@ -34,6 +34,7 @@ import {
   listarMetricasAltasAnalista,
   listarMetricasCapitalMes,
   listarMetricasDistribucionLeads,
+  listarMetricasDistribucionLeadsV3,
   listarMetricasPagosMes,
   listarMetricasVencimientos,
   listarMisContratos,
@@ -95,6 +96,8 @@ export const crmQueryKeys = {
   metricasVencimientos: (dias: number) => [...crmQueryKeys.metricas(), 'vencimientos', dias] as const,
   metricasDistribucionLeads: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'distribucion-leads', desde, hasta] as const,
+  metricasDistribucionLeadsV3: (desde: string, hasta: string) =>
+    [...crmQueryKeys.metricas(), 'distribucion-leads-v3', desde, hasta] as const,
   metricasAgenda: (desde: string, hasta: string) =>
     [...crmQueryKeys.metricas(), 'agenda-equipo', desde, hasta] as const,
   metricasConversiones: (desde: string, hasta: string) =>
@@ -432,6 +435,21 @@ export function useMetricasDistribucionLeads(habilitada: boolean, desde: string,
   return useMetricaPorPeriodo({
     queryKey: crmQueryKeys.metricasDistribucionLeads(desde, hasta),
     cargar: (signal) => listarMetricasDistribucionLeads(desde, hasta, signal),
+    habilitada,
+    desde,
+    hasta,
+  })
+}
+
+/**
+ * Fotografía V3 (F2.3b): la V2 más puntería servida, núcleo y sondas. Mudada
+ * desde `data/metricas-distribucion-v3.ts` al integrarse las ramas — mismo
+ * contrato fail-closed y el período siempre en la clave.
+ */
+export function useMetricasDistribucionLeadsV3(habilitada: boolean, desde: string, hasta: string) {
+  return useMetricaPorPeriodo({
+    queryKey: crmQueryKeys.metricasDistribucionLeadsV3(desde, hasta),
+    cargar: (signal) => listarMetricasDistribucionLeadsV3(desde, hasta, signal),
     habilitada,
     desde,
     hasta,

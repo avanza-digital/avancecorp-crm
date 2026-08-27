@@ -63,7 +63,12 @@ import { CierresExternosSchema, COOPERATIVAS, type CierresExternos, type Coopera
 import { CierresEstadoSchema, MAX_LEADS_ESTADO, type CierreEstado } from '@/lib/cierre-estado'
 import type { SeccionBancariaForm } from '@/lib/cliente-form-logica'
 import type { FilaAltasAnalista, FilaCapitalMes, FilaPagosMes, FilaVencimientos } from '@/lib/metricas'
-import { MetricasDistribucionLeadsSchema, type MetricasDistribucionLeads } from '@/lib/metricas-distribucion'
+import {
+  MetricasDistribucionLeadsSchema,
+  MetricasDistribucionLeadsV3Schema,
+  type MetricasDistribucionLeads,
+  type MetricasDistribucionLeadsV3,
+} from '@/lib/metricas-distribucion'
 import { MetricasAgendaSchema, type MetricasAgenda } from '@/lib/metricas-agenda'
 import { MetricasConversionesSchema, type MetricasConversiones } from '@/lib/metricas-conversiones'
 import { MetricasConversionesEquipoSchema, type MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
@@ -3446,6 +3451,53 @@ export async function listarMetricasDistribucionLeads(
       'METRICAS_DISTRIBUCION_CONTRACT',
     )
     registrarError('crm.metricas.distribucion_fuera_de_contrato', fallo)
+    throw fallo
+  }
+
+  return resultado.output
+}
+
+/**
+ * Fotografía atómica V3 (F2.3b/F3 de «Conversión única»): la V2 más la
+ * puntería SERVIDA (cerrados÷resueltos por analista, rango y resumen — las
+ * divisiones que hasta F3 hacía el navegador), la cifra del NÚCLEO y el
+ * bloque `sondas` para la red de F3.4. Mismo cierre hermético que la V2: una
+ * sola rama inválida invalida el payload completo. Mudada desde
+ * `data/metricas-distribucion-v3.ts` al integrarse las ramas (27/08); mismo
+ * contrato, mismos códigos de error.
+ */
+export async function listarMetricasDistribucionLeadsV3(
+  desde: string,
+  hasta: string,
+  signal?: AbortSignal,
+): Promise<MetricasDistribucionLeadsV3> {
+  if (!periodoMetricasValido(desde, hasta)) {
+    const fallo = new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
+    registrarError('crm.metricas.distribucion_v3_periodo_invalido', fallo)
+    throw fallo
+  }
+
+  lanzarAbortSiCorresponde(signal)
+  let consulta = cliente().schema('crm').rpc('metricas_distribucion_leads_v3_fn', {
+    p_desde: desde,
+    p_hasta: hasta,
+  })
+  if (signal) consulta = consulta.abortSignal(signal)
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) throw falloMetricas(error, 'crm.metricas.distribucion_v3_fallido')
+
+  const resultado = v.safeParse(MetricasDistribucionLeadsV3Schema, data)
+  if (
+    !resultado.success ||
+    resultado.output.cohorte.desde_inclusivo !== desde ||
+    resultado.output.cohorte.hasta_inclusivo !== hasta
+  ) {
+    const fallo = new CrmApiError(
+      'Las métricas de distribución no tienen el formato esperado.',
+      'METRICAS_DISTRIBUCION_CONTRACT',
+    )
+    registrarError('crm.metricas.distribucion_v3_fuera_de_contrato', fallo)
     throw fallo
   }
 

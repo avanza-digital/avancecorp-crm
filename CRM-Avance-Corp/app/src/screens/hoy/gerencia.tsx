@@ -39,10 +39,9 @@ import {
   useActualizarCapacidadLeadsObjetivo,
   useConversionMensual,
   useMetricasConversiones,
+  useMetricasDistribucionLeadsV3,
   useMetricasReuniones,
 } from '@/data/crm-queries'
-// V3 en fichero propio hasta integrar las ramas (crm-queries es zona de conflicto).
-import { useMetricasDistribucionLeadsV3 } from '@/data/metricas-distribucion-v3'
 import { mensajeDeError } from '@/data/crm-api'
 import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
 import { EquipoGerenciaPanel } from './equipo-gerencia'
