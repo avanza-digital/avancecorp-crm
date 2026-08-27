@@ -103,3 +103,31 @@ cosas que el gate mide inmediatamente despues.
 4. **El seed no es re-ejecutable a medias.** Si aborta despues de crear leads, el
    siguiente intento se atasca en la baja de `vendInactive`. Limpiar (punto 3) y
    volver a empezar.
+
+---
+
+## Adenda 2026-08-27 — el gate volvió a correr ENTERO (1175/1175)
+
+La receta de arriba sigue válida; estos son los ajustes descubiertos al montar
+el banco `banco-gate-rls` (replay manual 147/147 con las guardas md5 en verde):
+
+1. **`CRM_BANCO_PSQL_URL` es ahora obligatoria para el gate**: la cadena psql
+   del pooler (5432, modo sesión) del branch. `test-rls.mjs` la usa para las
+   revocaciones FUERA DE BANDA de P04 (matriz y banca): el guard de jerarquía
+   post-8-ago prohíbe —con razón— desactivar membresías con dependencias, y el
+   estado heredado que esas sondas miden solo se construye como lo construye
+   el seed. Se apaga SOLO `trg_equipo_validar_usuarios_jerarquia`: la rotación
+   del token ICS y la auditoría siguen corriendo, como en una baja real.
+2. **Dos migraciones hambrientas más** (además de `20260812000259`):
+   `20260824231133` exige el backfill de agosto de PROD (48 ops/29 conv) — en
+   banco se neutraliza SOLO ese assert de datos en la copia del replay (el de
+   privilegios queda) — y `20260827090000` exige una GERENCIA activa
+   (sembrarla antes, igual que la cadena supervisor→vendedor).
+3. **El seed necesita un grant temporal**: `grant select on
+   crm.periodos_cerrados to service_role` antes de `seed:demo` y `revoke`
+   después — el trigger INVOKER `definir_periodo_comercial_contrato` lo lee al
+   insertar contratos fixture y service_role no lo tiene (en prod nadie
+   inserta contratos por PostgREST).
+4. **Limpieza entre corridas** (punto 3): añadir
+   `update public.perfiles set domicilio = null where rol = 'cliente';` — la
+   sonda de domicilio exige arrancar con la columna vacía.

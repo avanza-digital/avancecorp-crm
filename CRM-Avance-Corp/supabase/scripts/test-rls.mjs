@@ -4,6 +4,29 @@
 // aserciones de permisos se ejecutan con sesiones de usuario o como anon.
 
 import { randomUUID } from 'node:crypto';
+import { execFileSync } from 'node:child_process';
+
+// ── Vía fuera de banda del banco (LEEME-seed, «Baja histórica») ─────────────
+// El guard `trg_equipo_validar_usuarios_jerarquia` (post-8-ago) prohíbe —con
+// razón— desactivar una membresía que conserve leads/tareas. Los estados
+// heredados que este gate MIDE (inactivo que aún posee) solo se construyen
+// como los construye el seed: por psql con el trigger apagado en UNA
+// transacción. CRM_BANCO_PSQL_URL la exporta el ciclo del banco.
+function revocarEquipoFueraDeBanda(perfilId) {
+  const psqlBanco = process.env.CRM_BANCO_PSQL_URL ?? '';
+  if (!psqlBanco) {
+    throw new Error('falta CRM_BANCO_PSQL_URL — revocar una membresía con dependencias exige la vía fuera de banda del banco (LEEME-seed)');
+  }
+  // SOLO el guard de jerarquia se apaga: la rotacion del token ICS
+  // (trg_equipo_rotar_agenda_ics_offboarding) y la auditoria SIGUEN corriendo,
+  // igual que en una baja real — la matriz mide justamente esa rotacion.
+  execFileSync('psql', [psqlBanco, '-v', 'ON_ERROR_STOP=1', '-q', '-c',
+    `begin;
+     alter table crm.equipo disable trigger trg_equipo_validar_usuarios_jerarquia;
+     update crm.equipo set activo = false where perfil_id = '${perfilId}';
+     alter table crm.equipo enable trigger trg_equipo_validar_usuarios_jerarquia;
+     commit;`]);
+}
 import { createClient } from '@supabase/supabase-js';
 import {
   BANK_CLIENT,
@@ -2705,6 +2728,20 @@ async function testOffboardingMatrix(sessions, seed) {
       p_vendedor_id: memberId,
     });
 
+  // ── Revocación fuera de banda (arreglo de la avería del 8-ago) ───────────
+  // El fixture `inactiveOwned` es un estado HEREDADO a propósito: alguien que
+  // YA poseía leads abiertos cuando se fue (LEEME-seed lo documenta — la vida
+  // real tiene esos estados y son justo lo que esta matriz mide). El seed lo
+  // construye con el trigger apagado porque `trg_equipo_validar_usuarios_
+  // jerarquia` cierra las dos vías normales. La matriz luego lo REACTIVA
+  // (true/true) y al RE-revocar moría contra el mismo guard («La membresía
+  // conserva dependencias activas») — rota desde el 8-ago. Trasladarle los
+  // leads a otro vendedor arreglaría el síntoma TRAICIONANDO la semántica
+  // (dejaría de medirse al inactivo-que-aún-posee). El arreglo fiel: revocar
+  // por la MISMA vía fuera de banda del seed (psql, trigger apagado en UNA
+  // sentencia dentro de la transacción), canalizada por CRM_BANCO_PSQL_URL —
+  // presente siempre en el banco, donde este gate corre.
+
   async function setState({ portalActive, crmActive, portalRole = originalProfile.rol }) {
     const updateProfile = () => requireAdmin(
       `P04: fijar perfil activo=${portalActive}, rol=${portalRole}`,
@@ -2712,12 +2749,17 @@ async function testOffboardingMatrix(sessions, seed) {
         .update({ activo: portalActive, rol: portalRole })
         .eq('id', memberId),
     );
-    const updateTeam = () => requireAdmin(
-      `P04: fijar equipo activo=${crmActive}`,
-      admin.schema('crm').from('equipo')
-        .update({ activo: crmActive })
-        .eq('perfil_id', memberId),
-    );
+    const updateTeam = () => crmActive
+      ? requireAdmin(
+          'P04: fijar equipo activo=true',
+          admin.schema('crm').from('equipo')
+            .update({ activo: true })
+            .eq('perfil_id', memberId),
+        )
+      // Revocar va fuera de banda: el guard prohíbe (con razón) desactivar a
+      // quien posee leads, y el sujeto DEBE seguir poseyéndolos — es el estado
+      // heredado que se mide.
+      : Promise.resolve(revocarEquipoFueraDeBanda(memberId));
 
     // Al habilitar, primero vive la cuenta; al revocar, primero se corta CRM.
     // Evita fabricar durante el test una ventana intermedia más permisiva.
@@ -3816,9 +3858,11 @@ async function testOffboardingMatrix(sessions, seed) {
             .limit(1),
           ['PGRST202', '42501', 'PGRST301', 'PGRST106'],
         );
-        // La vista es auto-actualizable para Postgres: el DML a través de
-        // ella queda pinneado como DENEGADO (auditor F4.2 #5) — sin grant
-        // de escritura sobre la vista, ni siquiera para el dueño.
+        // F4.4 (20260824170349) volvió la vista multi-fuente: dejó de ser
+        // auto-actualizable y el DML muere con 55000 ANTES de llegar a RLS —
+        // un bloqueo ESTRUCTURAL más temprano e igual de cerrado. El pin del
+        // auditor F4.2 #5 (DENEGADO para todos, dueño incluido) sigue en pie;
+        // 55000 se acepta junto a los códigos de RLS.
         await expectBlockedMutation(
           'F4.2 vigentes: ni el dueño INSERTA a través de la vista',
           sessions.sup1.client.schema('crm').from('alertas_reconocimientos_vigentes')
@@ -3829,6 +3873,7 @@ async function testOffboardingMatrix(sessions, seed) {
               severidad: 'atencion',
             })
             .select('id'),
+          ['55000'],
         );
         await expectBlockedMutation(
           'F4.2 vigentes: ni el dueño EDITA a través de la vista',
@@ -3836,6 +3881,7 @@ async function testOffboardingMatrix(sessions, seed) {
             .update({ severidad: 'atencion' })
             .eq('id', f4Reconocido.data.id)
             .select('id'),
+          ['55000'],
         );
         await expectBlockedMutation(
           'F4.2 vigentes: ni el dueño BORRA a través de la vista',
@@ -3843,6 +3889,7 @@ async function testOffboardingMatrix(sessions, seed) {
             .delete()
             .eq('id', f4Reconocido.data.id)
             .select('id'),
+          ['55000'],
         );
         // La prueba TEMPORAL contra el reloj del servidor: una posposición a
         // 8 segundos vista está VIGENTE al nacer (colchón ante un reloj local
@@ -4316,15 +4363,18 @@ async function testContractBankAccounts(sessions, seed) {
         .eq('perfil_id', seed.profileIdByKey.vend1),
     );
 
-    // Revocar corta primero CRM. Para habilitar ambos, primero vive el perfil.
-    // El estado false/true se construye apagando el perfil antes de asegurar la
-    // membresia; nunca hay una ventana mas permisiva que el estado de destino.
+    // Revocar corta primero CRM — y va FUERA DE BANDA: vend1 posee los leads
+    // del fixture y el guard (con razón) no deja desactivarlo por UPDATE
+    // normal (avería hermana de la matriz P04, rota igual desde el 8-ago).
+    // El estado perfil-muerto/equipo-vivo NO se re-asegura con updateTeam:
+    // post-8-ago esa combinación es infabricable por escritura (el guard la
+    // rechaza) y solo existe HEREDADA — apagar el perfil dejando la fila de
+    // equipo como está la produce sin fabricar nada.
     if (!crmActive) {
-      await updateTeam();
+      revocarEquipoFueraDeBanda(seed.profileIdByKey.vend1);
       await updateProfile();
     } else if (!portalActive) {
       await updateProfile();
-      await updateTeam();
     } else {
       await updateProfile();
       await updateTeam();
@@ -4464,6 +4514,8 @@ async function testContractBankAccounts(sessions, seed) {
 
     // Regresion que motivo esta entrega: un JWT ya emitido no puede conservar
     // ninguna RPC bancaria si UNO de los dos flags vivos de P04 queda apagado.
+    // (false/true es un estado HEREDADO: solo se apaga el perfil; re-escribir
+    // la fila de equipo dispararía el guard que hoy prohíbe fabricarlo.)
     await setVend1State({ portalActive: false, crmActive: true });
     await assertBankSurfaceDenied('banca P04 false/true');
     await setVend1State({ portalActive: true, crmActive: false });
@@ -7415,8 +7467,10 @@ async function testCarteraKeyset(sessions, seed) {
 // `cierre` entra con 20260815003742: dice si el mes esta sellado. El contrato se
 // asevera CERRADO a proposito —una clave de mas rompe la pantalla en silencio—,
 // asi que ampliarlo aqui es parte de la migracion, no un ajuste del test.
-const CLAVES_PAYLOAD_CONVERSION = ['alcance', 'cierre', 'cobertura', 'fuentes', 'generado_en',
-  'periodo', 'ponderacion', 'responsables', 'total', 'version'];
+// F2.4 añadió `cartera` (el desglose de operaciones) al payload, al total y a
+// cada responsable — el arnés se actualizó el 27/08 al medirlo contra el vivo.
+const CLAVES_PAYLOAD_CONVERSION = ['alcance', 'cartera', 'cierre', 'cobertura', 'fuentes',
+  'generado_en', 'periodo', 'ponderacion', 'responsables', 'total', 'version'];
 const CLAVES_PERIODO_CONVERSION = ['anio', 'desde', 'hasta', 'mes', 'mes_nombre', 'zona'];
 const CLAVES_PONDERACION_CONVERSION = ['fuente', 'referido'];
 const CLAVES_COBERTURA_CONVERSION = ['cierres_sin_episodio', 'divisor_aproximado',
@@ -7425,10 +7479,10 @@ const CLAVES_COBERTURA_CONVERSION = ['cierres_sin_episodio', 'divisor_aproximado
 // `cierres_de_arrastre` (exigida por los revisores para que un % > 100 sea
 // explicable en pantalla) viaja en la fila Y en el total, y el total lleva
 // además `referidos_aporta_pct` (espejo del aporta_pct por fila).
-const CLAVES_TOTAL_CONVERSION = ['analistas', 'cierres_de_arrastre',
+const CLAVES_TOTAL_CONVERSION = ['analistas', 'cartera', 'cierres_de_arrastre',
   'cierres_no_referidos', 'cierres_referidos', 'conversion_pct', 'divisor',
   'numerador', 'referidos_aporta_pct', 'referidos_recibidos'];
-const CLAVES_RESPONSABLE_CONVERSION = ['ajuste', 'cierres_de_arrastre',
+const CLAVES_RESPONSABLE_CONVERSION = ['ajuste', 'cartera', 'cierres_de_arrastre',
   'cierres_no_referidos', 'cierres_referidos', 'conversion_pct', 'divisor',
   'estado', 'numerador', 'procedencia', 'referidos',
   'supervisor_id', 'vendedor_id'];
@@ -7866,8 +7920,12 @@ async function testConversionMensual(sessions, seed) {
     const coberturaDespues = payload?.cobertura ?? {};
     const motivoAntes = num(coberturaAntes?.divisor_por_motivo?.ingreso);
     const motivoDespues = num(coberturaDespues?.divisor_por_motivo?.ingreso);
-    check(motivoDespues - motivoAntes === 1,
-      'el desglose por motivo sube +1 en "ingreso" (el valor REAL del CHECK, no "reasignacion")',
+    // F2.6 (D8): `motivos_totales` cubre TODO el divisor que el total cuenta,
+    // productor fuera de roster INCLUIDO — lo sembrado mueve +2 en "ingreso"
+    // (+1 vend1 del roster, +1 sup1 fuera de el), igual que el divisor del
+    // total de arriba. El +1 anterior era pre-F2.6.
+    check(motivoDespues - motivoAntes === 2,
+      'el desglose por motivo sube +2 en "ingreso" (roster + fuera de roster, el valor REAL del CHECK)',
       JSON.stringify(coberturaDespues?.divisor_por_motivo));
     check(num(coberturaDespues?.fuera_de_roster?.analistas)
       - num(coberturaAntes?.fuera_de_roster?.analistas) === 1
@@ -8038,15 +8096,20 @@ async function testConversionMensual(sessions, seed) {
     // sup1, ajeno al subarbol de sup2 — el ambito de sup2 no puede sumarlo
     // ni verlo, y su total queda intacto por la igualdad del bucle de arriba.
     if (deSup2) {
-      check(num(deSup2.data?.cobertura?.fuera_de_roster?.analistas) === 0
+      // El ambito de sup2 SI declara fuera-de-roster propio: vendInactive (su
+      // ex-miembro con episodios, la baja historica del seed) — exactamente el
+      // «dado de baja a mitad de mes» que F2.6 documenta. Lo que NO puede
+      // entrar es lo PRODUCIDO por el ajeno (sup1): ni sus cierres ni su
+      // numerador. El 0 absoluto en analistas era pre-baja-historica.
+      check(num(deSup2.data?.cobertura?.fuera_de_roster?.cierres) === 0
         && num(deSup2.data?.cobertura?.fuera_de_roster?.numerador) === 0,
-        'D8 · el fuera-de-roster ajeno NO entra al ambito de sup2',
+        'D8 · lo producido por el fuera-de-roster ajeno NO entra al ambito de sup2',
         JSON.stringify(deSup2.data?.cobertura?.fuera_de_roster));
     }
 
     // ── F · forma del contrato: una clave de mas es superficie sin auditar ───
     check(mismasClaves(payload, CLAVES_PAYLOAD_CONVERSION),
-      'el payload trae SOLO las 9 claves del contrato', clavesDe(payload).join(','));
+      'el payload trae SOLO las 11 claves del contrato', clavesDe(payload).join(','));
     check(mismasClaves(payload?.periodo, CLAVES_PERIODO_CONVERSION),
       'periodo trae SOLO sus 6 claves', clavesDe(payload?.periodo).join(','));
     check(mismasClaves(payload?.ponderacion, CLAVES_PONDERACION_CONVERSION),
@@ -8054,7 +8117,7 @@ async function testConversionMensual(sessions, seed) {
     check(mismasClaves(payload?.cobertura, CLAVES_COBERTURA_CONVERSION),
       'cobertura trae SOLO las 7 claves del contrato', clavesDe(payload?.cobertura).join(','));
     check(mismasClaves(payload?.total, CLAVES_TOTAL_CONVERSION),
-      'total trae SOLO las 9 claves del contrato', clavesDe(payload?.total).join(','));
+      'total trae SOLO las 10 claves del contrato', clavesDe(payload?.total).join(','));
     check(mismasClaves(payload?.cobertura?.fuera_de_roster, CLAVES_FUERA_DE_ROSTER),
       'fuera_de_roster es un AGREGADO SIN IDENTIDAD (ni un uuid dentro)',
       clavesDe(payload?.cobertura?.fuera_de_roster).join(','));
@@ -8065,7 +8128,7 @@ async function testConversionMensual(sessions, seed) {
     const clavesFilas = [...new Set(filas.flatMap((fila) => Object.keys(fila)))].sort();
     check(clavesFilas.length > 0
       && JSON.stringify(clavesFilas) === JSON.stringify(CLAVES_RESPONSABLE_CONVERSION),
-      'cada responsable trae SOLO las 11 claves del contrato', clavesFilas.join(','));
+      'cada responsable trae SOLO las 13 claves del contrato', clavesFilas.join(','));
     const clavesReferidos = [...new Set(filas
       .flatMap((fila) => Object.keys(fila.referidos ?? {})))].sort();
     check(JSON.stringify(clavesReferidos) === JSON.stringify(CLAVES_REFERIDOS_CONVERSION),
