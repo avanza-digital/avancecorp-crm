@@ -484,3 +484,14 @@ Check completo verde (2.332 tests). De paso cayó otro rótulo mentiroso:
 los SEIS «Conversión · 45 días» de Gestión de equipo ahora leen la ventana
 declarada por el payload (`ventanaConversionEnPalabras`: mes del núcleo en
 real, 45 días solo en demo) — commit `303ebdc`.
+
+### 40.º release — PUBLICADO el 27/08
+
+`crm-20260827T172615Z-f047d24aae35` (commit `f047d24`, SHA-256 `90ce53bf…`).
+Contenido sobre el 39.º: la **cosecha por vendedor en el ranking** (gerencia
+y supervisor, RPC `metricas_conversiones_equipo_fn` por fin cableada) y los
+**seis rótulos honestos** de Gestión de equipo (ventana declarada por el
+payload). Smoke: index 200 · `index-B3VjdY1b.js` 200 · index.js y el chunk
+de llaves (`crm-api-8x0GDvH2.js`) **byte a byte** contra el dist. Check
+completo 2.332 tests. **Rollback**: el 39.º
+(`crm-20260827T163659Z-5acfbcbe3cb1`) en `releases/`.
