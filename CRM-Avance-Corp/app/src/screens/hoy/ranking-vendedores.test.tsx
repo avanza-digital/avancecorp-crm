@@ -368,3 +368,35 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     expect(screen.getByRole('status')).toHaveTextContent('Lectura por cosecha en revisión')
   })
 })
+
+describe('el desglose de cartera por fila (hallazgo de Grecia, 27/08)', () => {
+  it('un % positivo con cero cierres DICE que los puntos vienen de cartera', () => {
+    // El caso real: 0 cierres de leads, 4 upgrades de cartera, 9,3 %.
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    const primera = mensual.responsables[0]!
+    primera.cierres_no_referidos = 0
+    primera.cierres_referidos = 0
+    primera.numerador = 4
+    primera.conversion_pct = 9.3
+    primera.cartera = { conversiones_clientes: 4 }
+
+    render(
+      <RankingVendedoresPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={mensual}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={null}
+        cargando={false}
+        error={null}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    expect(screen.getAllByText('0 cierres + 4 de cartera').length).toBeGreaterThanOrEqual(1)
+    // Las filas SIN operaciones de cartera no ganan la línea: sin ruido.
+    expect(screen.queryByText(/\+ 0 de cartera/)).not.toBeInTheDocument()
+  })
+})

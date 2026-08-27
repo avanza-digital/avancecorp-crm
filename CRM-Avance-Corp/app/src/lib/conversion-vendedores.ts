@@ -247,6 +247,12 @@ export interface DetalleConversionMensual extends DetalleRankeable {
   referidos: ResponsableConversionMensual['referidos']
   /** El descuento por anulaciones de meses cerrados que su numerador ya trae restado. */
   ajuste: ResponsableConversionMensual['ajuste']
+  /**
+   * Operaciones de cartera del mes (renovaciones/upgrades acreditados): el
+   * sumando del numerador que no viene de leads. Sin esto, «0 cierres» junto
+   * a un % positivo se lee como contradicción (hallazgo de Grecia, 27/08).
+   */
+  operacionesCartera: number
   supervisorId: string | null
 }
 
@@ -298,6 +304,7 @@ export function adaptarConversionMensual(
       procedencia: fila.procedencia,
       referidos: fila.referidos,
       ajuste: fila.ajuste,
+      operacionesCartera: fila.cartera?.conversiones_clientes ?? 0,
       supervisorId: fila.supervisor_id,
     }
     return {

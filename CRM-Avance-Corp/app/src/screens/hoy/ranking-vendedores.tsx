@@ -212,6 +212,14 @@ function RankingConversion({ ranking, cosechaPorVendedor }: {
                   <td className="px-3 py-3 text-right text-sm font-semibold tabular-nums">{numero(fila.detalle.clientes)}</td>
                   <td className="px-3 py-3 text-right text-sm font-bold tabular-nums text-[var(--gi-navy)]">
                     {pct(conversion)}
+                    {/* H1 por fila (hallazgo de Grecia): un % positivo con
+                        «Cierres 0» necesita decir de dónde salen los puntos —
+                        las operaciones de cartera suman arriba sin sumar leads. */}
+                    {fila.detalle.operacionesCartera > 0 && (
+                      <span className="block text-left text-[10px] font-semibold text-[var(--muted-foreground-strong)]">
+                        {numero(fila.detalle.clientes)} {fila.detalle.clientes === 1 ? 'cierre' : 'cierres'} + {numero(fila.detalle.operacionesCartera)} de cartera
+                      </span>
+                    )}
                     {descuento && (
                       <ChipArrastre descuento={descuento} className="block text-left text-[10px] font-semibold text-[var(--muted-foreground-strong)]" />
                     )}
@@ -252,6 +260,11 @@ function RankingConversion({ ranking, cosechaPorVendedor }: {
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
               <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} recibidos</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
+              {fila.detalle.operacionesCartera > 0 && (
+                <p className="ml-12 mt-1 text-[10px] font-semibold text-[var(--muted-foreground-strong)]">
+                  {numero(fila.detalle.clientes)} {fila.detalle.clientes === 1 ? 'cierre' : 'cierres'} + {numero(fila.detalle.operacionesCartera)} de cartera
+                </p>
+              )}
               {(() => {
                 const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
                 return cosecha && (

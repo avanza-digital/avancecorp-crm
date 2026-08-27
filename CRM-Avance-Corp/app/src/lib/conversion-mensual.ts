@@ -109,6 +109,18 @@ const AjusteConversionSchema = v.object({
 
 export type AjusteConversion = v.InferOutput<typeof AjusteConversionSchema>
 
+/**
+ * Operaciones de cartera del mes acreditadas al asesor — el sumando del
+ * numerador que NO viene de leads (envoltorio de `20260824231133`; máx. una
+ * operación elegible por cliente/mes). Sin declararlo, Valibot lo descartaba
+ * y una fila con «0 cierres y 9,3 %» no podía explicarse a sí misma (el
+ * hallazgo de Grecia, 27/08). Se declara lo que el ranking pinta; `optional`
+ * porque el espejo demo no lo emite.
+ */
+const CarteraResponsableSchema = v.object({
+  conversiones_clientes: EnteroNoNegativoRpcSchema,
+})
+
 const ResponsableConversionSchema = v.object({
   vendedor_id: UuidSchema,
   supervisor_id: v.nullable(UuidSchema),
@@ -124,6 +136,7 @@ const ResponsableConversionSchema = v.object({
   procedencia: v.array(TramoProcedenciaSchema),
   referidos: ReferidosResponsableSchema,
   ajuste: v.optional(AjusteConversionSchema),
+  cartera: v.optional(CarteraResponsableSchema),
 })
 
 const TotalConversionSchema = v.object({
