@@ -4278,3 +4278,55 @@ objeción sustantiva quedó cerrada así, y la de coherencia, por A2.)
 Excepciones a `public`: ninguna. Aplicación:
 `scripts/aplicar-f2-2-ranking-prod.sh` (foto antes/después: aquí el cambio de
 cifras es el objetivo). Vuelta atrás: `scripts/rollback-f2-2-ranking.sql`.
+
+## 20260827050000 · `crm_f2_3a_distribucion_sin_anulados`
+
+✅ **APLICADA EN PROD** (2026-08-27 ~05:30 UTC; registro md5 `a51a1643…` =
+md5 del fichero). **F2.3a** del plan
+[[Conversion unica en todo el CRM - plan de migraciones]] — tercer motor.
+
+**EL CAMBIO, medido en vivo (mes en curso):** `resumen.convertidos_pen`
+**11 → 10** (un cierre anulado deja de contar) · `descartados_pen` 80 y
+`cohorte_episodios` 548 **intactos** · **FORMA DEL PAYLOAD IDÉNTICA**
+(huella de claves `f99c4462…`, 1117 caracteres, byte a byte antes y después).
+
+⛔ **Por qué esta migración no añade NI UNA clave:** el bundle VIVO (`b3f6e98`)
+valida esta pantalla a **cierre hermético** — `v.strictObject` en todos los
+niveles (`metricas-distribucion.ts`, 22 apariciones; las otras cinco pantallas
+usan `v.object`). Con `strictObject` una clave NUEVA rompe la pantalla igual
+que renombrar una, y el front está bloqueado hasta integrar ramas: no se
+podría arreglar publicando. Por eso F2.3 va en dos tiempos; las claves nuevas
+y las sondas esperan a **2.3b**.
+
+Arregla **H17**: anular un cierre bajaba la conversión de Rendimiento y **no**
+bajaba el «cierra el X %» del panel de abajo, en la misma pantalla y para el
+mismo vendedor. Ahora los cierres los da la tabla-base, con la misma regla que
+HOY/Ranking/Conversiones.
+
+🔑 **El preflight se ganó el sueldo: abortó la primera aplicación.** Su primera
+versión miraba el owner del wrapper público y falló con «no puede ejecutar la
+tabla-base». Al mapear la cadena real de privilegios apareció el porqué:
+`crm.metricas_distribucion_leads_v2_fn` (DEFINER, owner **`crm_metricas_bridge`**)
+→ `private.metricas_distribucion_leads_autorizada` (DEFINER, owner
+**`postgres`**) → `private.metricas_distribucion_leads_core` (**NO** definer).
+Al no ser DEFINER, el motor corre con la identidad del DEFINER de arriba
+(`postgres`), que sí puede. El candado ahora comprueba ESE eslabón y además
+que `..._autorizada` siga siendo DEFINER — si dejara de serlo, cambiaría quién
+ejecuta el motor. **El banco reproduce esa cadena de tres eslabones**, o el
+candado no se probaría.
+
+🔴 **El oráculo cazó un hueco REAL de mi migración**: además de las tres
+agrupaciones (PEN total, PEN por rango, USD), el bloque `resumen` cuenta los
+convertidos **por su cuenta** desde `cohorte`. Se me había escapado; el
+postflight ahora exige **4** conteos filtrados, no 3. Y antes de eso el
+oráculo pasaba **en vacío** (rutas equivocadas → comparaciones contra NULL,
+que ni son verdad ni mentira): se añadió una guarda anti-vacuidad explícita.
+
+Banco: `run-test-f2-distribucion-local.sh` + `fixture-f2-distribucion.sql` +
+`test-f2-distribucion.sql` — ancla md5 del motor vivo, huella de forma de la
+función VIEJA sobre los MISMOS datos, y **3 mutantes muertos** (vuelve a
+contar anulados · solo una agrupación filtra · la pierna de cierres se corta
+en el rango y pierde los que cierran después).
+
+`ciclos_resueltos` NO cambia a propósito: el episodio **sí** se resolvió,
+aunque el cierre se anulara después. Excepciones a `public`: ninguna.
