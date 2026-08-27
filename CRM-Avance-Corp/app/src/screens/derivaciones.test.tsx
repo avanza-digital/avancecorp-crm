@@ -218,10 +218,10 @@ describe('Derivaciones — módulo independiente de Supervisión', () => {
       within(lista).getByRole('combobox', { name: 'Derivar Lead por derivar 1 a un asesor' }),
       { target: { value: ANA } },
     )
-    fireEvent.click(
-      screen.getByRole('navigation', { name: 'Paginación de leads por derivar hoy' })
-        .querySelector('button:last-child') as HTMLButtonElement,
-    )
+    const paginacion = screen.getByRole('navigation', {
+      name: 'Paginación de leads por derivar hoy',
+    })
+    fireEvent.click(within(paginacion).getByRole('button', { name: 'Siguiente' }))
 
     expect(within(lista).getAllByRole('listitem')).toHaveLength(1)
     expect(within(lista).getByText('Lead por derivar 6')).toBeInTheDocument()

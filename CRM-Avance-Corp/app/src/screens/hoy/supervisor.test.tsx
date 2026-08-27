@@ -3,9 +3,11 @@
 //
 // El reloj se fija con timers falsos: el mes vigente se deriva del instante y
 // sin fijarlo estos tests pasarían o fallarían según el día en que se ejecuten.
+import { StrictMode } from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, within } from '@testing-library/react'
+import { act, fireEvent, render, screen, within } from '@testing-library/react'
 import { CUMPLIMIENTO_METAS_DEMO, METAS_DEMO } from '@/lib/demo'
+import { ContextoSplashVisible } from '@/lib/splash-visible'
 import {
   objetivosCero,
   type CumplimientoMetasJerarquico,
@@ -61,9 +63,10 @@ vi.mock('./agenda-equipo', () => ({ AgendaEquipoPanel: () => null }))
 // La conversión mensual del equipo, controlable por test (sin QueryClient).
 let CONVERSION_MENSUAL: import('@/lib/conversion-mensual').ConversionMensual | null = null
 let CONVERSION_MENSUAL_ERROR = false
+let METRICAS_AGENDA: import('@/lib/metricas-agenda').MetricasAgenda | undefined
 vi.mock('@/data/crm-queries', () => ({
   useMetricasAgenda: () => ({
-    data: undefined,
+    data: METRICAS_AGENDA,
     error: null,
     isPending: false,
     isFetching: false,
@@ -115,6 +118,10 @@ vi.mock('@/data/use-resumen-cartera-operativo', async () => {
     },
   }
 })
+// Knobs de la consulta real que el espejo no tiene: un refetch EN VUELO
+// (F4.3 espera al payload fresco) y la cola CAÍDA (fail-closed → null).
+let COLA_EN_VUELO = false
+let COLA_CAIDA = false
 vi.mock('@/data/use-cola-accion-operativa', async () => {
   const { colaAccionDesdeAmbito } = await import('@/lib/cola-accion')
   return {
@@ -124,9 +131,12 @@ vi.mock('@/data/use-cola-accion-operativa', async () => {
       tareas: never[],
       indice?: ReadonlyMap<string, never>,
     ) => ({
-      cola: colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
+      cola: COLA_CAIDA
+        ? null
+        : colaAccionDesdeAmbito(leads, actividades ?? [], tareas ?? [], Date.now(), indice),
       cargando: false,
-      error: null,
+      enVuelo: COLA_EN_VUELO,
+      error: COLA_CAIDA ? new Error('cola caída') : null,
       recargar: vi.fn(),
     }),
   }
@@ -169,12 +179,19 @@ function lead(over: Partial<Lead> = {}): Lead {
 function montar(
   over: {
     leads?: Lead[]
+    vendedores?: Miembro[]
     objetivos?: Partial<ObjetivosPorRol['supervisor']>
     objetivosError?: boolean
     cumplimiento?: CumplimientoMetasJerarquico | null
     cumplimientoError?: boolean
+    /** F4.3: arrancar con el refetch de la cola EN VUELO. */
+    colaEnVuelo?: boolean
+    /** F4.3: montar detrás del splash (provider explícito). */
+    splashVisible?: boolean
+    /** F4.3: montar bajo StrictMode (doble efecto de desarrollo). */
+    estricto?: boolean
   } = {},
-): void {
+): ReturnType<typeof render> {
   vi.setSystemTime(MIERCOLES_10AM)
   YO = {
     id: 's-1',
@@ -184,12 +201,21 @@ function montar(
     puede_contratar: true,
   }
   LEADS = over.leads ?? [lead()]
-  VENDEDORES = []
+  VENDEDORES = over.vendedores ?? []
   OBJETIVOS_ERROR = over.objetivosError ?? false
   CUMPLIMIENTO_ERROR = over.cumplimientoError ?? false
   OBJETIVOS = { ...METAS_DEMO, supervisor: { ...METAS_DEMO.supervisor, ...over.objetivos } }
   CUMPLIMIENTO = over.cumplimiento === undefined ? null : over.cumplimiento
-  render(<HoySupervisor />)
+  COLA_EN_VUELO = over.colaEnVuelo ?? false
+  COLA_CAIDA = false
+  const pantalla = over.splashVisible == null
+    ? <HoySupervisor />
+    : (
+        <ContextoSplashVisible.Provider value={over.splashVisible}>
+          <HoySupervisor />
+        </ContextoSplashVisible.Provider>
+      )
+  return render(over.estricto === true ? <StrictMode>{pantalla}</StrictMode> : pantalla)
 }
 
 /**
@@ -213,6 +239,11 @@ function conversionMensualEquipo(pct: number | null, divisor: number): import('@
   }
 }
 
+// Los dos primeros argumentos quedaron vestigiales con F3.3 («Conversión
+// única»): CumplimientoAgregado ya no lleva conversionReal/convertidos/
+// resueltos — la conversión pintada sale del mock del servidor
+// (CONVERSION_MENSUAL). Se conservan los parámetros para no reescribir a
+// los seis llamadores del release.
 function cumplimientoSupervisor(
   _conversionReal: number | null,
   _resueltos: number,
@@ -232,13 +263,12 @@ function cumplimientoSupervisor(
           }
         : {}),
       ...(metaConversion == null ? {} : { conversionObjetivo: metaConversion }),
-      // F3.3: el agregado ya no transporta conversión (la sirve el servidor);
-      // el % de la tarjeta viaja por el payload MENSUAL del fixture.
     },
   }
 }
 
 beforeEach(() => {
+  METRICAS_AGENDA = undefined
   CONVERSION_MENSUAL = null
   CONVERSION_MENSUAL_ERROR = false
   TIPO_CAMBIO.tc = { promedio: 3.5, fuente: 'BCRP · prom. 7d' }
@@ -252,6 +282,268 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.useRealTimers()
+})
+
+// 2026-08-23 «una cosa se avisa en un solo lugar»: la tarjeta «Leads sin
+// movimiento» desaparece y pasa a ser una pestaña de la cola. Con el reloj del
+// fixture (mié 15-jul 10:00) un lead «contactado» del 1-jul lleva 14 días sin
+// actividad (seguimiento de severidad baja + estancado) y un «nuevo» del 13-jul
+// es «sin responder» de severidad media.
+describe('Hoy · supervisor — cola con pestañas', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  const nuevo = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+
+  it('una sola tarjeta: pestañas con conteo, aterriza en Urgente y ya no existe «Leads sin movimiento»', () => {
+    montar({ leads: [viejo, nuevo] })
+    expect(screen.queryByRole('heading', { name: 'Leads sin movimiento' })).not.toBeInTheDocument()
+    const tabs = screen.getByRole('tablist', { name: 'Filtrar la cola' })
+    expect(within(tabs).getByRole('tab', { name: 'Urgente: 1' })).toHaveAttribute('aria-selected', 'true')
+    expect(within(tabs).getByRole('tab', { name: 'Sin movimiento: 1' })).toHaveAttribute('aria-selected', 'false')
+    expect(within(tabs).getByRole('tab', { name: 'Todo: 2' })).toHaveAttribute('aria-selected', 'false')
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-cola-urgente')
+    expect(within(panel).getByRole('button', { name: 'Abrir ficha de NUEVO SIN RESPONDER' })).toBeInTheDocument()
+    expect(within(panel).queryByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER' })).not.toBeInTheDocument()
+  })
+
+  it('«Sin movimiento» lista los estancados del RPC con su espera, en el mismo lugar', () => {
+    montar({ leads: [viejo, nuevo] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
+    const panel = screen.getByRole('tabpanel')
+    expect(panel).toHaveAttribute('aria-labelledby', 'tab-cola-sin_movimiento')
+    expect(within(panel).getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días' }))
+      .toHaveTextContent('Sin actividad hace 14 días')
+    expect(within(panel).queryByText('NUEVO SIN RESPONDER')).not.toBeInTheDocument()
+  })
+
+  it('«Todo» muestra la cola completa y el lead viejo sale una sola vez', () => {
+    montar({ leads: [viejo, nuevo] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getAllByRole('button', { name: /^Abrir ficha de/ })).toHaveLength(2)
+  })
+
+  it('las flechas recorren las pestañas y mueven el foco (tabindex itinerante)', () => {
+    montar({ leads: [viejo, nuevo] })
+    const urgente = screen.getByRole('tab', { name: 'Urgente: 1' })
+    expect(urgente).toHaveAttribute('tabindex', '0')
+    urgente.focus()
+    fireEvent.keyDown(urgente, { key: 'ArrowRight' })
+    const sinMovimiento = screen.getByRole('tab', { name: 'Sin movimiento: 1' })
+    expect(sinMovimiento).toHaveAttribute('aria-selected', 'true')
+    expect(sinMovimiento).toHaveAttribute('tabindex', '0')
+    expect(urgente).toHaveAttribute('tabindex', '-1')
+    expect(document.activeElement).toBe(sinMovimiento)
+    fireEvent.keyDown(sinMovimiento, { key: 'ArrowLeft' })
+    expect(screen.getByRole('tab', { name: 'Urgente: 1' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('aterriza en la primera pestaña con filas: sin urgentes cae en «Sin movimiento»', () => {
+    montar({ leads: [viejo] })
+    expect(screen.getByRole('tab', { name: 'Urgente: 0' })).toHaveAttribute('aria-selected', 'false')
+    expect(screen.getByRole('tab', { name: 'Sin movimiento: 1' })).toHaveAttribute('aria-selected', 'true')
+  })
+
+  it('ESTADO DE PRODUCCIÓN (sin leads): tres ceros, aterriza en «Todo» y el vacío es honesto', () => {
+    montar({ leads: [] })
+    expect(screen.getByRole('tab', { name: 'Todo: 0' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByText('Sin pendientes — el equipo está al día con todos sus leads abiertos.')).toBeInTheDocument()
+    // Panel vacío ENFOCABLE (WAI-ARIA): sin interactivos dentro, Tab lo saltaría.
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('tabindex', '0')
+    fireEvent.click(screen.getByRole('tab', { name: 'Urgente: 0' }))
+    expect(screen.getByText('Nada urgente — ninguna fila crítica ni media en la cola.')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 0' }))
+    expect(screen.getByText('Ningún lead del equipo lleva 5 días o más sin actividad.')).toBeInTheDocument()
+    expect(screen.getByRole('tabpanel')).toHaveAttribute('tabindex', '0')
+  })
+
+  it('«Urgente» cuenta el TOTAL por severidad del RPC, no las filas recortadas a 100', () => {
+    // 120 nuevos sin responder: el espejo (como el RPC) recorta items a 100,
+    // pero porSev trae el universo completo. Antes la pestaña decía 100
+    // mientras «Todo» decía 120 (hallazgo de Codex).
+    montar({
+      leads: Array.from({ length: 120 }, (_, i) => lead({
+        id: `nuevo-${String(i).padStart(3, '0')}`,
+        nombre_completo: `NUEVO ${i}`,
+        etapa: 'nuevo',
+        creado_en: '2026-07-13T15:00:00Z',
+      })),
+    })
+    expect(screen.getByRole('tab', { name: 'Urgente: 120' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.getByRole('tab', { name: 'Todo: 120' })).toBeInTheDocument()
+    // El expansor tampoco miente: muestra 100 filas de un total de 120.
+    expect(screen.getByRole('button', { name: /Ver los 100 más urgentes de 120/ })).toBeInTheDocument()
+  })
+})
+
+// F2 (2026-08-23) — presupuesto de color: la severidad se dice UNA vez (tira
+// de 3 px), el bucket va en texto plano, el monto y el capital dejan el azul,
+// el rezago del vendedor va en texto y solo el no-show repetido conserva un
+// chip rojo, y el punto de semáforo solo aparece cuando hay señal.
+// F3 (2026-08-23) — «Hoy, tres cosas»: la franja navy con las intervenciones
+// del día (máx. 3, rojo primero), alimentada por las mismas fuentes de la
+// pantalla. Con ella, el KPI «Nuevos sin responder» pierde su último rojo.
+describe('Hoy · supervisor — «Hoy, tres cosas» (F3)', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  const nuevoLead = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+
+  it('la franja muestra las cosas del día con su acción, rojo primero', () => {
+    montar({ leads: [viejo, nuevoLead] })
+    const franja = screen.getByRole('region', { name: 'Hoy, tres cosas' })
+    const chips = within(franja).getAllByRole('button')
+    // nuevo → «1 nuevo sin responder» (rojo, pestaña Urgente); viejo → sin movimiento.
+    // Sin fotografía SLA el nuevo es severidad media → «esta semana» (F3 #1).
+    expect(chips[0]).toHaveAccessibleName('esta semana: 1 nuevo sin responder — Ver')
+    expect(within(franja).getByLabelText(/esta semana: 1 sin movimiento · el peor lleva 14 días — Ver/)).toBeInTheDocument()
+  })
+
+  it('«Ver» selecciona la pestaña Urgente y le lleva el foco', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout', 'setInterval', 'Date', 'requestAnimationFrame'] })
+    montar({ leads: [viejo, nuevoLead] })
+    // Aterrizó en Urgente; salto primero a otra pestaña para probar el regreso.
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    fireEvent.click(screen.getByRole('button', { name: 'esta semana: 1 nuevo sin responder — Ver' }))
+    vi.advanceTimersByTime(50)
+    const urgente = screen.getByRole('tab', { name: 'Urgente: 1' })
+    expect(urgente).toHaveAttribute('aria-selected', 'true')
+    expect(document.activeElement).toBe(urgente)
+  })
+
+  it('las cosas con destino de vista son enlaces reales', () => {
+    METRICAS_AGENDA = { 
+      version: 1,
+      generado_en: '2026-07-15T15:00:00Z',
+      periodo: { desde: '2026-07-09', hasta: '2026-07-15', dias: 7, zona: 'America/Lima' },
+      vendedores: [{
+        vendedor_id: 'v-1', nombre: 'CARLA DÍAZ', rol: 'vendedor', activo: true,
+        toques: 5, toques_por_dia: 0.7, reuniones_realizadas: 0, completadas: 0,
+        no_asistio: 2, canceladas: 0, pct_completadas: null, tareas_creadas: 0,
+        reuniones_agendadas: 0, reprogramaciones: 0, pendientes: 0, vencidas: 0,
+        leads_sin_accion: 0,
+      }],
+    } as import('@/lib/metricas-agenda').MetricasAgenda
+    montar({ leads: [] })
+    expect(screen.getByRole('link', { name: 'urgente hoy: CARLA DÍAZ: 2 citas sin asistir — Ver equipo' }))
+      .toHaveAttribute('href', '#/equipo')
+  })
+
+  it('ESTADO DE PRODUCCIÓN (sin nada que hacer): la franja NO se pinta', () => {
+    montar({ leads: [] })
+    expect(screen.queryByRole('region', { name: 'Hoy, tres cosas' })).not.toBeInTheDocument()
+  })
+
+  it('con la franja viva, el KPI «Nuevos sin responder» ya no grita: icono neutro y sub sin «urge»', () => {
+    montar({ leads: [nuevoLead] })
+    expect(screen.getByText('Sin primer contacto')).toBeInTheDocument()
+    expect(screen.queryByText(/urge/)).not.toBeInTheDocument()
+    // El tile del icono queda en el gris neutro AUNQUE haya sin responder —
+    // mata el mutante «volver rojo el KPI» que sobrevivía (Codex F3 #5).
+    const chip = screen.getByText('Nuevos sin responder').parentElement
+      ?.parentElement?.querySelector('.ac-chip') as HTMLElement
+    expect(chip.style.getPropertyValue('--c')).toBe('#8b95a7')
+  })
+})
+
+describe('Hoy · supervisor — jerarquía visual (F2)', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  const nuevoLead = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+
+  const miembro = (over: Partial<Miembro> = {}): Miembro => ({
+    perfil_id: 'v-1',
+    nombre_completo: 'CARLA DÍAZ',
+    rol_crm: 'vendedor',
+    supervisor_id: 's-1',
+    activo: true,
+    ...over,
+  })
+
+  const metricaAgenda = (
+    over: Partial<import('@/lib/metricas-agenda').MetricaAgendaVendedor> = {},
+  ): import('@/lib/metricas-agenda').MetricasAgenda => ({
+    version: 1,
+    generado_en: '2026-07-15T15:00:00Z',
+    periodo: { desde: '2026-07-09', hasta: '2026-07-15', dias: 7, zona: 'America/Lima' },
+    vendedores: [{
+      vendedor_id: 'v-1',
+      nombre: 'CARLA DÍAZ',
+      rol: 'vendedor',
+      activo: true,
+      toques: 5,
+      toques_por_dia: 0.7,
+      reuniones_realizadas: 1,
+      completadas: 2,
+      no_asistio: 0,
+      canceladas: 0,
+      pct_completadas: 100,
+      tareas_creadas: 2,
+      reuniones_agendadas: 1,
+      reprogramaciones: 0,
+      pendientes: 1,
+      vencidas: 0,
+      leads_sin_accion: 0,
+      ...over,
+    }],
+  } as import('@/lib/metricas-agenda').MetricasAgenda)
+
+  it('la fila de la cola lleva la severidad en la tira y el bucket en texto, sin badge ni monto azul', () => {
+    montar({ leads: [nuevoLead] })
+    const fila = screen.getByRole('button', { name: 'Abrir ficha de NUEVO SIN RESPONDER' })
+    expect(fila).toHaveAttribute('data-sev', 'media')
+    // La tira EXISTE (clase de ancho) y lleva el color de la severidad.
+    expect(fila.className).toContain('border-l-[3px]')
+    expect(fila).toHaveStyle({ borderLeftColor: '#d97706' })
+    // El bucket dejó el badge: va en texto plano, delante del motivo.
+    expect(within(fila).getByText('Sin responder · Entró hace 2 días · primer contacto pendiente')).toBeInTheDocument()
+    // «sin asignar» también es texto, no badge ámbar (ac-chip = Badge soft).
+    expect(within(fila).getByText('sin asignar').className).not.toContain('ac-chip')
+    // El monto perdió el azul.
+    const monto = within(fila).getByText('S/ 10k')
+    expect(monto.className).toContain('text-muted-foreground')
+    expect(monto.className).not.toContain('text-primary')
+  })
+
+  it('una fila de severidad baja no gasta color: tira transparente', () => {
+    montar({ leads: [viejo] })
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 1' }))
+    const fila = screen.getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER' })
+    expect(fila).toHaveAttribute('data-sev', 'baja')
+    // Estilo inline directo: jsdom normaliza «transparent» y toHaveStyle no compara.
+    expect(fila.style.borderLeftColor).toBe('transparent')
+  })
+
+  it('el rezago del vendedor va en texto pegado a la persona; solo el no-show repetido es chip', () => {
+    METRICAS_AGENDA = metricaAgenda({ no_asistio: 2, vencidas: 3, leads_sin_accion: 1 })
+    montar({ leads: [viejo], vendedores: [miembro()] })
+    const fila = screen.getByText('CARLA DÍAZ').closest('div[class*="px-5"]') as HTMLElement
+    expect(fila).toHaveTextContent('Última actividad hace 14 días · 3 vencidas · 1 sin acción')
+    expect(within(fila).getByText('2 no asistió')).toBeInTheDocument()
+  })
+
+  it('un solo no-show NO es chip rojo: el rojo se reserva al patrón repetido', () => {
+    METRICAS_AGENDA = metricaAgenda({ no_asistio: 1, vencidas: 1, leads_sin_accion: 0 })
+    montar({ leads: [viejo], vendedores: [miembro()] })
+    expect(screen.queryByText('1 no asistió')).not.toBeInTheDocument()
+    expect(screen.getByText(/· 1 vencida/)).toBeInTheDocument()
+  })
+
+  it('actividad fresca PERO rezago de agenda: punto ámbar (el rezago también es señal)', () => {
+    // Hallazgo de Codex sobre F2: quien tocó ayer pero arrastra vencidas
+    // quedaba sin ninguna marca visual. El punto se enciende en ámbar.
+    METRICAS_AGENDA = metricaAgenda({ no_asistio: 0, vencidas: 10, leads_sin_accion: 1 })
+    montar({
+      leads: [lead({ id: 'fresco', creado_en: '2026-07-14T15:00:00Z' })],
+      vendedores: [miembro()],
+    })
+    expect(screen.getByTestId('equipo-semaforo')).toHaveStyle({ background: '#d97706' })
+  })
+
+  it('con actividad reciente y sin rezago el punto desaparece (azul «al día» ya no se pinta)', () => {
+    montar({
+      leads: [lead({ id: 'fresco', creado_en: '2026-07-14T15:00:00Z' })],
+      vendedores: [miembro()],
+    })
+    expect(screen.queryByTestId('equipo-semaforo')).not.toBeInTheDocument()
+  })
 })
 
 describe('Hoy · supervisor — reparto compacto', () => {
@@ -278,7 +570,6 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
     expect(within(acceso).getByText('2')).toBeInTheDocument()
     expect(within(acceso).getByText('Más rezagado: hace 2 h · Repartir →')).toBeInTheDocument()
-    expect(within(acceso).getByTestId('reparto-pendiente-acento')).toBeInTheDocument()
 
     acceso.focus()
     expect(acceso).toHaveFocus()
@@ -295,7 +586,6 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(within(acceso).getByText('Por repartir')).toBeInTheDocument()
     expect(within(acceso).getByText('0')).toBeInTheDocument()
     expect(within(acceso).getByText('Bandeja al día · Ver historial →')).toBeInTheDocument()
-    expect(within(acceso).queryByTestId('reparto-pendiente-acento')).not.toBeInTheDocument()
   })
 
   it('usa el conteo del servidor aunque el cliente solo tenga parte del detalle', () => {
@@ -326,7 +616,6 @@ describe('Hoy · supervisor — reparto compacto', () => {
     expect(acceso).toHaveAttribute('href', '#/derivaciones')
     expect(within(acceso).getByText('—')).toBeInTheDocument()
     expect(within(acceso).getByText('Sin dato por ahora · Ver derivaciones →')).toBeInTheDocument()
-    expect(within(acceso).queryByTestId('reparto-pendiente-acento')).not.toBeInTheDocument()
   })
 })
 
@@ -460,5 +749,204 @@ describe('Hoy · supervisor — meta del equipo', () => {
     expect(screen.getAllByText('Sin meta fijada para este mes')).toHaveLength(2)
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+  })
+})
+
+// ── F4.3: qué EMPEORÓ en «Sin movimiento» desde la última visita ─────────────
+// La foto vive en localStorage POR supervisor; aquí se instala un almacén de
+// mentira sobre el global para que el test no dependa del entorno.
+describe('Hoy · supervisor — novedades de la visita (F4.3)', () => {
+  const viejo = lead({ id: 'viejo', nombre_completo: 'VIEJO SIN MOVER', creado_en: '2026-07-01T15:00:00Z' })
+  // 6 días sin actividad: estancado en ÁMBAR (5–6).
+  const recienEstancado = lead({ id: 'recien', nombre_completo: 'RECIEN ESTANCADO', creado_en: '2026-07-09T15:00:00Z' })
+  const sinResponder = lead({ id: 'nuevo', nombre_completo: 'NUEVO SIN RESPONDER', etapa: 'nuevo', creado_en: '2026-07-13T15:00:00Z' })
+  const CLAVE = 'crm:sin-movimiento:visita:s-1'
+
+  function instalarAlmacen(inicial: Record<string, string> = {}) {
+    const datos = new Map(Object.entries(inicial))
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: (k: string) => datos.get(k) ?? null,
+        setItem: (k: string, v: string) => { datos.set(k, v) },
+      },
+    })
+    return datos
+  }
+
+  it('la PRIMERA visita no marca nada y deja la foto anotada (ids y días, sin nombres)', () => {
+    const datos = instalarAlmacen()
+    montar({ leads: [viejo] })
+
+    // Sin urgentes aterriza directo en «Sin movimiento»: eso ES una visita.
+    expect(screen.getByRole('tab', { name: 'Sin movimiento: 1' })).toHaveAttribute('aria-selected', 'true')
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Nuevo aquí')).not.toBeInTheDocument()
+
+    const foto = JSON.parse(datos.get(CLAVE) ?? 'null') as { dias: Record<string, number> }
+    expect(foto.dias).toEqual({ viejo: 14 })
+    expect(datos.get(CLAVE)).not.toContain('VIEJO SIN MOVER')
+  })
+
+  it('la SEGUNDA visita marca al que ENTRÓ (chip violeta) y al que CRUZÓ a crítico (texto)', () => {
+    // Foto anterior: al viejo se le vio en ÁMBAR (6 días); hoy lleva 14.
+    instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo, recienEstancado] })
+
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByText('Desde tu última visita: 1 nuevo · 1 cruzó a crítico')).toBeInTheDocument()
+    // El que entró: chip CATEGÓRICO (violeta) + aria que lo dicta.
+    const filaNueva = within(panel).getByRole('button', {
+      name: 'Abrir ficha de RECIEN ESTANCADO (sin asignar), sin actividad hace 6 días, nuevo aquí desde tu última visita',
+    })
+    expect(within(filaNueva).getByText('Nuevo aquí')).toBeInTheDocument()
+    // El que cruzó: SIN chip nuevo (la tira roja ya lo grita) — lo dice el texto.
+    const filaCruzada = within(panel).getByRole('button', {
+      name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días, crítico desde tu última visita',
+    })
+    expect(filaCruzada).toHaveTextContent('· crítico desde tu última visita')
+    expect(within(filaCruzada).queryByText('Nuevo aquí')).not.toBeInTheDocument()
+  })
+
+  it('la foto se CONGELA al abrir: reabrir la pestaña en la misma sesión limpia las marcas', () => {
+    instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo, sinResponder] })
+
+    // Aterriza en Urgente (hay un nuevo sin responder); visita Sin movimiento…
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
+    expect(screen.getByText(/cruzó a crítico/)).toBeInTheDocument()
+    // …sale y vuelve: la visita anterior ya es ESTA, sin novedades.
+    fireEvent.click(screen.getByRole('tab', { name: 'Todo: 2' }))
+    fireEvent.click(screen.getByRole('tab', { name: 'Sin movimiento: 1' }))
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+  })
+
+  it('con el storage ROTO la pestaña se pinta completa y sin marcas (jamás revienta)', () => {
+    Object.defineProperty(globalThis, 'localStorage', {
+      configurable: true,
+      value: {
+        getItem: () => { throw new Error('bloqueado') },
+        setItem: () => { throw new Error('bloqueado') },
+      },
+    })
+    montar({ leads: [viejo] })
+
+    expect(screen.getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días' })).toBeInTheDocument()
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+  })
+
+  it('una foto corrupta se ignora: sin marcas y la visita la REPARA', () => {
+    const datos = instalarAlmacen({ [CLAVE]: '{roto' })
+    montar({ leads: [viejo] })
+
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE) ?? 'null') as { dias: Record<string, number> }).dias)
+      .toEqual({ viejo: 14 })
+  })
+
+  it('las marcas se CONGELAN durante la visita: lo que cruza o entra con la cola viva no gana marca', () => {
+    // Visto en ámbar a 30 min de cumplir 7 días: cruzará DURANTE la visita.
+    const casiCritico = lead({ id: 'casi', nombre_completo: 'CASI CRITICO', creado_en: '2026-07-08T15:30:00Z' })
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6, casi: 6 } }),
+    })
+    const leads = [viejo, casiCritico]
+    montar({ leads })
+
+    // Al abrir: solo el viejo cruzó (6 → 14); el casi-crítico sigue en 6.
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    const vistoEn = (JSON.parse(datos.get(CLAVE)!) as { vistoEn: string }).vistoEn
+
+    // La cola sigue VIVA debajo: una hora después el casi-crítico ya está en
+    // 7 días y un lead nuevo ENTRÓ a la lista…
+    leads.push(lead({ id: 'durante', nombre_completo: 'ENTRO DURANTE', creado_en: '2026-07-09T15:00:00Z' }))
+    act(() => { vi.advanceTimersByTime(3_600_000) })
+
+    // …la severidad de la fila sí vive (ya dice 7 días), pero NADIE gana una
+    // marca de novedad bajo el cursor: ni sufijo en el aria del que cruzó…
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Abrir ficha de CASI CRITICO (sin asignar), sin actividad hace 7 días' }))
+      .toBeInTheDocument()
+    // …ni chip para el que entró…
+    const filaDurante = screen.getByRole('button', { name: 'Abrir ficha de ENTRO DURANTE (sin asignar), sin actividad hace 6 días' })
+    expect(within(filaDurante).queryByText('Nuevo aquí')).not.toBeInTheDocument()
+    // …ni re-anotación: la foto guardada es la del instante de apertura.
+    const foto = JSON.parse(datos.get(CLAVE)!) as { vistoEn: string; dias: Record<string, number> }
+    expect(foto.vistoEn).toBe(vistoEn)
+    expect(foto.dias['durante']).toBeUndefined()
+  })
+
+  it('bajo StrictMode (efectos dobles de desarrollo) las novedades NO desaparecen', () => {
+    instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo], estricto: true })
+
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+  })
+
+  it('con el refetch EN VUELO la anotación espera al payload fresco', () => {
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo], colaEnVuelo: true })
+
+    // La lista se ve, pero ni marcas ni anotación con una cola posiblemente vieja.
+    expect(screen.getByRole('button', { name: 'Abrir ficha de VIEJO SIN MOVER (sin asignar), sin actividad hace 14 días' }))
+      .toBeInTheDocument()
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias).toEqual({ viejo: 6 })
+
+    // Aterriza el payload fresco → visita anotada y marcas contra la foto anterior.
+    COLA_EN_VUELO = false
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    // `dias` viaja fraccional (el minuto avanzado se nota): basta con que la
+    // foto haya pasado de los 6 vistos a los ~14 reales.
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias['viejo'])
+      .toBeCloseTo(14, 1)
+  })
+
+  it('un refetch caído que quita y devuelve la cola NO fabrica otra visita ni borra las marcas', () => {
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    montar({ leads: [viejo] })
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    const vistoEn = (JSON.parse(datos.get(CLAVE)!) as { vistoEn: string }).vistoEn
+
+    // Se cae el refetch: fail-closed deja la cola en null y el panel se va…
+    COLA_CAIDA = true
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(screen.getByText('La cola del equipo no está disponible en este momento.')).toBeInTheDocument()
+
+    // …y al recuperarse sigue la MISMA visita: marcas intactas, sin re-anotar.
+    COLA_CAIDA = false
+    act(() => { vi.advanceTimersByTime(60_000) })
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { vistoEn: string }).vistoEn).toBe(vistoEn)
+  })
+
+  it('detrás del splash NO hay visita: se anota recién al quedar visible', () => {
+    const datos = instalarAlmacen({
+      [CLAVE]: JSON.stringify({ vistoEn: '2026-07-14T15:00:00.000Z', dias: { viejo: 6 } }),
+    })
+    const { rerender } = montar({ leads: [viejo], splashVisible: true })
+
+    expect(screen.queryByText(/Desde tu última visita/)).not.toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias).toEqual({ viejo: 6 })
+
+    // El splash termina: recién ahí cuenta la visita (nadie vio nada antes).
+    rerender(
+      <ContextoSplashVisible.Provider value={false}>
+        <HoySupervisor />
+      </ContextoSplashVisible.Provider>,
+    )
+    expect(screen.getByText('Desde tu última visita: 1 cruzó a crítico')).toBeInTheDocument()
+    expect((JSON.parse(datos.get(CLAVE)!) as { dias: Record<string, number> }).dias).toEqual({ viejo: 14 })
   })
 })

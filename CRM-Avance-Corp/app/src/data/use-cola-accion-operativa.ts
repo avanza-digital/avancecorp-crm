@@ -15,6 +15,11 @@ export interface ColaAccionOperativaHook {
   /** Cola operativa (RPC en real, espejo vivo en demo); null mientras carga o si el RPC cayó. */
   cola: ColaAccionOperativa | null
   cargando: boolean
+  /** true mientras un fetch del RPC está EN VUELO (primera carga o refetch):
+   *  `cola` puede ser todavía la foto anterior, y quien PERSISTA algo derivado
+   *  de ella (la visita de F4.3) debe esperar al payload fresco. En demo el
+   *  espejo es síncrono: siempre false. */
+  enVuelo: boolean
   error: unknown
   recargar: () => Promise<void>
 }
@@ -69,6 +74,7 @@ export function useColaAccionOperativa(
   return {
     cola,
     cargando: sesionReal && consulta.isPending,
+    enVuelo: sesionReal && consulta.isFetching,
     error: sesionReal ? consulta.error : null,
     recargar: async () => { await consulta.refetch() },
   }

@@ -45,7 +45,9 @@ const ETIQUETA_TIPO: Record<TipoAlerta, string> = {
   tarea_vencida: 'Tarea vencida',
   lead_sin_responder: 'Lead sin responder',
   sin_proxima_accion: 'Sin próxima acción',
-  por_repartir: 'Lead por repartir',
+  // El supervisor recibe la bandeja AGRUPADA («12 leads esperando reparto»),
+  // así que el filtro nombra la decisión, no el registro.
+  por_repartir: 'Por repartir',
   bajo_meta_conversion: 'Conversión bajo meta',
   caida_conversion: 'Caída de conversión',
   revisar_contacto: 'Revisar contacto',

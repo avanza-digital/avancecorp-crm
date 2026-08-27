@@ -20,7 +20,10 @@ for (const rol of ROLES) {
 
     // Gerencia tiene un riel analítico propio; los demás roles conservan Hoy.
     await expect(
-      page.getByRole('button', { name: rol === 'Gerencia' ? 'Resumen' : 'Hoy' }),
+      page.getByRole('button', {
+        name: rol === 'Gerencia' ? 'Resumen' : 'Hoy',
+        exact: true,
+      }),
     ).toBeVisible()
 
     // Navegación al pipeline: las 4 etapas activas del embudo están pintadas.

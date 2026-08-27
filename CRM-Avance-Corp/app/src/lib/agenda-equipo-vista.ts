@@ -88,7 +88,7 @@ export interface GrupoAgendaEquipo {
   /** Fila del supervisor en el payload; null solo en «Sin equipo asignado». */
   supervisor: MetricaAgendaVendedor | null
   nombreEquipo: string
-  /** Miembros CON actividad (incluye al supervisor si registra), rezago desc → toques desc → nombre. */
+  /** Miembros CON producción (incluye al supervisor si registra), toques desc → nombre. */
   miembros: MetricaAgendaVendedor[]
   /** Miembros todo-en-cero (colapsan en una línea), ordenados por nombre. */
   sinActividad: MetricaAgendaVendedor[]
@@ -97,11 +97,6 @@ export interface GrupoAgendaEquipo {
 
 function porNombre(a: MetricaAgendaVendedor, b: MetricaAgendaVendedor): number {
   return a.nombre.localeCompare(b.nombre, 'es')
-}
-
-/** Rezago acumulado del miembro: lo que el manager destraba HOY. */
-function rezagoDe(ven: MetricaAgendaVendedor): number {
-  return ven.vencidas + ven.leads_sin_accion + ven.no_asistio
 }
 
 /** Totales + % de completadas (null si no hubo cierres, igual que la RPC). */
@@ -132,8 +127,13 @@ export function resumenAgenda(vendedores: readonly MetricaAgendaVendedor[]): Res
 }
 
 /**
- * true si el miembro registró algo en el periodo o arrastra carga viva.
+ * true si el miembro REGISTRÓ producción o planificación en el periodo.
  * No mira los derivados (toques_por_dia, pct_completadas): dependen de estos.
+ *
+ * 2026-08-23: `vencidas` y `leads_sin_accion` salieron de aquí a propósito —
+ * son REZAGO, y el rezago vive solo en «Tu equipo hoy». Con ellas dentro, un
+ * vendedor sin producción pero con 2 sin acción salía del colapso como una
+ * fila entera de guiones (lo cazó la auditoría de Codex).
  */
 export function tieneActividad(ven: MetricaAgendaVendedor): boolean {
   return (
@@ -146,8 +146,6 @@ export function tieneActividad(ven: MetricaAgendaVendedor): boolean {
     || ven.reuniones_agendadas > 0
     || ven.reprogramaciones > 0
     || ven.pendientes > 0
-    || ven.vencidas > 0
-    || ven.leads_sin_accion > 0
   )
 }
 
@@ -155,9 +153,9 @@ export function tieneActividad(ven: MetricaAgendaVendedor): boolean {
  * Separa a los miembros con actividad de los todo-en-cero (la base del
  * colapso de filas-cero en el modo plano y dentro de cada sección).
  *
- * Orden de los activos por SEVERIDAD: primero quien acumula rezago
- * (vencidas + sin acción + no asistió) desc — lo que el manager destraba
- * hoy — luego toques desc y al final nombre. Los cero van alfabéticos.
+ * Orden de los activos por PRODUCCIÓN: toques desc y al final nombre. El
+ * rezago dejó de ordenar esta tabla (2026-08-23): esta es la tabla de qué
+ * hizo cada uno; quién arrastra pendientes se juzga en «Tu equipo hoy».
  */
 export function separarPorActividad(vendedores: readonly MetricaAgendaVendedor[]): {
   conActividad: MetricaAgendaVendedor[]
@@ -166,9 +164,7 @@ export function separarPorActividad(vendedores: readonly MetricaAgendaVendedor[]
   const conActividad: MetricaAgendaVendedor[] = []
   const sinActividad: MetricaAgendaVendedor[] = []
   for (const ven of vendedores) (tieneActividad(ven) ? conActividad : sinActividad).push(ven)
-  conActividad.sort(
-    (a, b) => rezagoDe(b) - rezagoDe(a) || b.toques - a.toques || porNombre(a, b),
-  )
+  conActividad.sort((a, b) => b.toques - a.toques || porNombre(a, b))
   sinActividad.sort(porNombre)
   return { conActividad, sinActividad }
 }
