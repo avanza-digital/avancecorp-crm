@@ -495,3 +495,28 @@ payload). Smoke: index 200 · `index-B3VjdY1b.js` 200 · index.js y el chunk
 de llaves (`crm-api-8x0GDvH2.js`) **byte a byte** contra el dist. Check
 completo 2.332 tests. **Rollback**: el 39.º
 (`crm-20260827T163659Z-5acfbcbe3cb1`) en `releases/`.
+
+### Baja de Ivett Teevin — 27/08 (orden de Miguel)
+
+El «Ranking → Conversión general» de gerencia salía VACÍO. Causa: Ivett
+Teevin estaba activa como vendedora pero SIN supervisor → fuera del roster
+de metas → la mensual servía 17 filas para 18 identidades → el fail-closed
+del ranking (que existe para no pintar podios incompletos) lo vació entero.
+Era además la persona del `fuera_de_roster`/`nucleo_sin_ficha` que motivó D8.
+
+Miguel: «ya no está en la empresa». Se ejecutó por el carril oficial
+(`fijar_membresia_activa_fn`, activo=false — JAMÁS delete), en una
+transacción, con la gerencia real. Sus 2 clientes (ALARCON NEYRA, 1
+contrato · ARREDONDO CASTILLO, 2 contratos) quedaron **SIN ASESOR por
+decisión de Miguel** («sin asesor por ahora»).
+
+Verificado: 17 vendedores == 17 roster == 17 filas del ranking (pintará al
+refrescar) · 0 clientes apuntando a Ivett · su cierre histórico sigue en el
+ledger y HOY lo incluye (D8).
+
+🔴 **DEUDA VIVA:** los 3 contratos de esos 2 clientes no aparecen en la
+cartera de NADIE — nadie los verá para renovar ni atender hasta que Miguel
+asigne asesor (Configuración → o pedírmelo).
+
+📝 Mejora anotada: el ranking vacío no DICE por qué (costó un susto) —
+añadir «falta X en la jerarquía» al estado indisponible.
