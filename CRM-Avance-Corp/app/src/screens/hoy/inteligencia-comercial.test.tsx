@@ -345,3 +345,98 @@ describe('detalle de conversión por vendedor', () => {
     expect(ana.getByText('Sin datos del mes')).toBeInTheDocument()
   })
 })
+
+describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
+  const NUCLEO = {
+    base: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+    divisor: 537,
+    numerador: 38.75,
+    conversion_pct: 7.22,
+    cierres_no_referidos: 14,
+    cierres_referidos: 3,
+    referidos_recibidos: 20,
+    referidos_cierran_pct: 15,
+    operaciones_cartera: 29,
+    peso_referido: 0.15,
+    mes_peso: '2026-08-01',
+    incluye_cartera: true,
+  }
+  const COSECHA = {
+    base: 'ALTAS_DEL_RANGO',
+    leads: 545,
+    cerraron: 14,
+    conversion_pct: 2.6,
+    madura_hasta: '2026-08-27',
+  }
+  const SONDAS = {
+    cuadra: true as boolean | null,
+    paridad_nucleo: 0 as number | null,
+    paridad_filas: 16,
+    divisor_fuera_del_roster: 0,
+    numerador_fuera_del_roster: 0,
+    cierres_sin_ficha_convertida: 0,
+    cohorte_convertidos_sin_cierre_elegible: 0,
+    cartera_fuera_del_rango: 0,
+    cierres_anulados: 0,
+    episodios_sin_origen: 0,
+    origen_ficha_distinto_del_ledger: 0,
+  }
+
+  function montarConNucleo(sondas: typeof SONDAS, origenReferido = false) {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
+    datos.nucleo = { ...NUCLEO }
+    datos.cosecha = { ...COSECHA }
+    datos.sondas = sondas
+    if (origenReferido) {
+      const referido = datos.origenes.find((fila) => fila.origen.toLowerCase() === 'referido')
+      if (referido) {
+        referido.fuera_del_divisor_del_nucleo = true
+        referido.peso_en_nucleo = 0.15
+      }
+    }
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+  }
+
+  it('con sonda verificada, el héroe pinta el NÚCLEO con su desglose y la cosecha aparte', () => {
+    montarConNucleo({ ...SONDAS })
+    // «Conversión del mes» aparece en héroe y KPI: ambos con la MISMA cifra.
+    expect(screen.getAllByText('Conversión del mes').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    // H1: el desglose legible dice de qué está hecho el numerador.
+    expect(screen.getByText(/14 cierres \+ 3 referidos ×0.15 \+ 29 de cartera = 38.75 sobre 537 recibidos/)).toBeInTheDocument()
+    expect(screen.getByText(/Por cosecha: de 545 leads que entraron al rango, cerraron 14/)).toBeInTheDocument()
+  })
+
+  it('F3.4: con la sonda en falso, la cifra SE OCULTA y el banner ámbar lo dice', () => {
+    montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
+    expect(screen.queryByText('7.2%')).not.toBeInTheDocument()
+    expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+  })
+
+  it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
+    montarConNucleo({ ...SONDAS }, true)
+    expect(screen.getByText(/queda fuera de la base de la conversión del mes/)).toBeInTheDocument()
+  })
+
+  it('origen ficha≠ledger avisa sin ocultar la cifra', () => {
+    montarConNucleo({ ...SONDAS, origen_ficha_distinto_del_ledger: 2 })
+    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getByText(/origen distinto entre su ficha y el/)).toBeInTheDocument()
+  })
+})

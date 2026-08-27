@@ -418,6 +418,13 @@ export function ResumenGerenciaPanel({
                 ))
               : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
           </div>
+          {origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+            // D6: el origen Referido queda fuera de la base de la conversión
+            // del mes — su barra mide cierres sobre SUS recibidos, no lo mismo.
+            <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">
+              {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => fila.origen).join(', ')}: de los recibidos por ese origen, cuánto cerró — queda fuera de la base de la conversión del mes.
+            </p>
+          )}
         </section>
         <section data-gi-panel className="gi-card p-5">
           <h2 className="gi-title">Avance de metas</h2>

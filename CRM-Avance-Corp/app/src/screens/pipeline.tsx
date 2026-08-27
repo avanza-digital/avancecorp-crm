@@ -526,14 +526,20 @@ export function Pipeline() {
         })}
       </div>
 
-      {/* Terminales */}
+      {/* Terminales — H23 (F3): el conteo sale del MISMO resumen SERVIDO que
+          el tile «Convertidos» de arriba. El store solo carga una página
+          (tope 2000 filas) y su foto podía contradecir al servidor. */}
       <div className="flex shrink-0 flex-wrap items-center gap-3">
         {TERMINALES.map((t) => {
-          const n = leads.filter((l) => l.etapa === t.k).length
+          const n = resumen == null
+            ? null
+            : t.k === 'convertido'
+              ? resumen.totales.convertidos
+              : resumen.totales.descartados
           return (
             <div key={t.k} className="ac-chip flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-bold" style={{ '--c': t.color } as CSSProperties}>
               {t.label}
-              <span className="tabular-nums">{n}</span>
+              <span className="tabular-nums">{n == null ? '—' : n}</span>
             </div>
           )
         })}

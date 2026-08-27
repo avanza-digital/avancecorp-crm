@@ -395,7 +395,10 @@ function ResumenDistribucion({
               {porcentajeNucleo(punteria.nucleo_conversion_pct)}
             </dd>
             <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              La misma cifra que HOY, Metas y el Ranking · cohorte por asignación,{' '}
+              {/* Sin afirmar identidad con HOY: su héroe recorta al roster
+                  visible y puede diferir en la parte fuera de roster — el
+                  aviso de sondas lo dice cuando ocurre (medido en prod). */}
+              Cifra única del núcleo · cohorte por asignación,{' '}
               {mesEnPalabras(datos.cohorte.desde_inclusivo)} · referidos ponderados y fuera de la
               base
             </dd>

@@ -575,10 +575,27 @@ export function InteligenciaComercialPanel({
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const clientes = datos?.cohorte.contratos ?? 0
-  const conversion = datos?.cohorte.conversion_contratos_pct ?? null
+  // F3.1 (decisión D2): la cifra principal es el NÚCLEO servido — la misma de
+  // HOY/Metas/Ranking — y la foto por cosecha es la segunda lectura. F3.4: si
+  // la sonda de paridad no confirmó (cuadra !== true), el número se oculta;
+  // sin bloque `nucleo` (espejo demo, deuda N4-N6) la pantalla degrada a la
+  // lectura por cosecha de siempre, rotulada como lo que es.
+  const nucleo = datos?.nucleo ?? null
+  const cosecha = datos?.cosecha ?? null
+  const sondasConv = datos?.sondas ?? null
+  const nucleoVisible = nucleo != null && sondasConv?.cuadra === true
+  const nucleoDescuadrado = nucleo != null && sondasConv?.cuadra === false
+  const conversion = nucleoVisible
+    ? nucleo.conversion_pct
+    : (datos?.cohorte.conversion_contratos_pct ?? null)
+  const desgloseNucleo = nucleoVisible
+    ? `${numero(nucleo.cierres_no_referidos)} cierres + ${numero(nucleo.cierres_referidos)} ${nucleo.cierres_referidos === 1 ? 'referido' : 'referidos'} ×${numero(nucleo.peso_referido, 2)} + ${numero(nucleo.operaciones_cartera)} de cartera = ${numero(nucleo.numerador, 2)} sobre ${numero(nucleo.divisor)} recibidos`
+    : null
   const kpis = [
-    { label: 'Conversión', valor: pct(conversion), detalle: `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
-    { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads`, icon: UserRoundCheck, color: C.green },
+    nucleoVisible
+      ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(nucleo.numerador, 2)} puntos de ${numero(nucleo.divisor)} recibidos`, icon: UserRoundCheck, color: C.blue }
+      : { label: 'Conversión', valor: nucleoDescuadrado ? '—' : pct(conversion), detalle: nucleoDescuadrado ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
+    { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
     { label: 'Reuniones realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
     { label: 'Capital invertido', valor: money(datos?.produccion.capital_pen ?? 0, 'PEN'), detalle: money(datos?.produccion.capital_usd ?? 0, 'USD'), icon: WalletCards, color: C.amber },
   ]
@@ -595,7 +612,31 @@ export function InteligenciaComercialPanel({
       {cargando && !datos ? <Cargando /> : !datos && error ? null : !datos ? <Vacio /> : (
         <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
           <section data-gi-hero className="gi-summary-hero">
-            <div className="min-w-[230px]"><p className="gi-label text-white/65">Conversión a clientes</p><p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{pct(conversion)}</p><p className="mt-2 text-xs text-white/65">{numero(clientes)} clientes de {numero(datos.cohorte.leads)} leads</p></div>
+            {/* D2: cifra principal = NÚCLEO servido (la misma de HOY/Metas/
+                Ranking), con su desglose legible (H1) y la cosecha como
+                segunda lectura. Sin núcleo (demo) o con sonda en falso, la
+                pantalla degrada y lo dice — jamás un número fabricado. */}
+            <div className="min-w-[280px]">
+              <p className="gi-label text-white/65">{nucleoVisible ? 'Conversión del mes' : 'Conversión a clientes'}</p>
+              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{nucleoDescuadrado ? '—' : pct(conversion)}</p>
+              {nucleoVisible && desgloseNucleo != null ? (
+                <>
+                  <p className="mt-2 text-xs text-white/65">{desgloseNucleo}</p>
+                  {cosecha != null && (
+                    <p className="mt-1 text-xs text-white/50">
+                      Por cosecha: de {numero(cosecha.leads)} leads que entraron al rango, cerraron{' '}
+                      {numero(cosecha.cerraron)} ({pct(cosecha.conversion_pct)}) — madura hasta hoy.
+                    </p>
+                  )}
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-white/65">
+                  {nucleoDescuadrado
+                    ? 'Cifras en revisión: la verificación interna del mes no cuadró.'
+                    : `${numero(clientes)} clientes de ${numero(datos.cohorte.leads)} leads del rango`}
+                </p>
+              )}
+            </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>
               <div className="gi-hero-metric"><span>Capital</span><strong>{money(datos.produccion.capital_pen, 'PEN')}</strong></div>
@@ -603,6 +644,27 @@ export function InteligenciaComercialPanel({
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
+
+          {/* F3.4: lo que dicen las sondas se dice — el descuadre además ocultó la cifra arriba. */}
+          {(nucleoDescuadrado || (sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0)) && (
+            <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
+              <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden />
+              <div className="text-xs leading-relaxed text-amber-900">
+                {nucleoDescuadrado && (
+                  <p className="font-semibold">
+                    Cifras en revisión: la verificación interna del mes no cuadró y la conversión del
+                    mes se oculta hasta revisarla.
+                  </p>
+                )}
+                {sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0 && (
+                  <p>
+                    {numero(sondasConv.origen_ficha_distinto_del_ledger)} {sondasConv.origen_ficha_distinto_del_ledger === 1 ? 'lead tiene' : 'leads tienen'} un origen distinto entre su ficha y el
+                    ledger: la lectura por origen puede no cuadrar con la cifra del mes.
+                  </p>
+                )}
+              </div>
+            </div>
+          )}
 
           <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
             {kpis.map(({ label, valor, detalle, icon: Icono, color }) => {
@@ -620,7 +682,13 @@ export function InteligenciaComercialPanel({
 
           <div className="grid gap-4 xl:grid-cols-2">
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Avance comercial</h3><GerenciaEChart tipo="barras" option={opcionRecorrido} ariaLabel="Avance de los leads hasta convertirse en clientes" className="mt-3 h-[330px] w-full" /></section>
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Conversión por origen</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión a clientes por origen del lead" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /></section>
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Conversión por origen</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión a clientes por origen del lead" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} />{origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+              // D6: los referidos quedan FUERA de la base general del mes y sus
+              // cierres ponderan 0,15 — su barra mide otra cosa y se rotula.
+              <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">
+                {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base de la conversión del mes (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
+              </p>
+            )}</section>
           </div>
 
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Ritmo semanal del equipo</h3><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>

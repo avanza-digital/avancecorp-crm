@@ -114,11 +114,10 @@ export function HoyDirectorio(): JSX.Element {
   // ── F1b: la auditoría ejecutiva se sirve del servidor (o del espejo demo
   // vivo). resumen_cartera_fn → KPIs, embudo, donut y descartes;
   // metricas_vendedores_fn.equipos → comparativa. La VISTA sigue recortada a
-  // 45 días; la MÉTRICA de conversión es, desde F2.4 (D1), el mes calendario
-  // del núcleo — la misma cifra que HOY/Metas/Ranking — y el payload lo
-  // declara (`ventana_metrica`/`mes_metrica`). Desde F3 aquí no se divide
+  // 45 días; la MÉTRICA es, desde F2.4 (D1), el mes calendario, y el payload
+  // lo declara (`ventana_metrica`/`mes_metrica`). Desde F3 aquí no se divide
   // nada: la tasa de descarte local (histórico ÷ 45 d, dos poblaciones
-  // mezcladas) se retiró y su tarjeta pinta la conversión SERVIDA.
+  // mezcladas) se retiró y su tarjeta pinta los cierres del mes SERVIDOS.
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
   const resumen = resumenOp.resumen
   const vendedoresOp = useMetricasVendedoresOperativas([], equipo, ambito.leads, actividades)
@@ -237,19 +236,22 @@ export function HoyDirectorio(): JSX.Element {
           }
           delay={120}
         />
-        {/* F3: el % lo sirve el servidor (núcleo del mes desde F2.4); aquí no
-            se divide. La tasa de descarte local mezclaba histórico con 45 d y
-            se retiró; los descartados siguen abajo, motivo a motivo. */}
+        {/* F3: números SERVIDOS, sin divisiones locales. La tasa de descarte
+            (histórico ÷ 45 d, dos poblaciones mezcladas) se retiró; los
+            descartados siguen abajo, motivo a motivo. OJO (medido en prod):
+            este bloque `conversion` cuenta cierres CRUDOS sobre recibidos —
+            no es el % ponderado del núcleo que pinta HOY — así que la tarjeta
+            enseña los enteros y evita un tercer «%» que contradiga al héroe. */}
         <KpiCard
-          label="Conversión del mes"
-          value={resumen ? `${numero(resumen.conversion.pct, 2)}%` : '—'}
+          label="Cierres del mes"
+          value={resumen ? numero(resumen.conversion.convertidos) : '—'}
           icon={Target}
           color={SEMAFORO.navy}
           sub={
             resumen
               ? metricaMensual
-                ? `${resumen.conversion.convertidos} cierres de ${resumen.conversion.base} recibidos · mes calendario · la misma cifra que HOY y el Ranking`
-                : `${resumen.conversion.convertidos} convertidos de ${resumen.conversion.base} asignados del ámbito (45 d)`
+                ? `de ${numero(resumen.conversion.base)} leads recibidos en el mes calendario`
+                : `convertidos de ${numero(resumen.conversion.base)} asignados del ámbito (45 d)`
               : 'Cierres sobre leads recibidos'
           }
           delay={180}

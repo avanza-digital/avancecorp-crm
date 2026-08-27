@@ -308,7 +308,7 @@ describe('DistribucionLeadsGerencia', () => {
     // La cifra del núcleo, SERVIDA y verificada por la sonda (cuadra=true).
     expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
     expect(screen.getByText('44.44%')).toBeInTheDocument()
-    expect(screen.getByText(/La misma cifra que HOY, Metas y el Ranking/)).toBeInTheDocument()
+    expect(screen.getByText(/Cifra única del núcleo/)).toBeInTheDocument()
 
     expect(screen.getByRole('heading', { name: 'Lo que merece tu atención' })).toBeInTheDocument()
     expect(
