@@ -4413,3 +4413,79 @@ quedar **fuera de la vista y fuera del mes**, y **4 mutantes muertos**.
 **VIGÍA FINAL, en producción: los 7 motores consumen `conversion_episodios`.**
 No queda una sola pantalla contando cierres por su cuenta en el servidor.
 Excepciones a `public`: ninguna.
+
+## 20260827090000 · `crm_f2_3b_distribucion_v3`
+
+**Estado: ✅ EN PROD (27/08, con OK de Miguel).** Aplicada vía MCP (preflight
+y postflight verdes en la misma transacción, cadena real probada con gerencia
+real, 18 analistas). Foto antes/después: **v1 y v2 byte-idénticas** (huellas
+`6c2e80ee…`/`d9300951…` iguales antes y después). El mes real por la v3:
+núcleo **38.75/537 = 7,22 %** — EXACTAMENTE el número de Conversiones/HOY/
+Ranking, con `paridad_nucleo: 0` sobre 16 filas y `cuadra: true`; puntería
+PEN 10/90 = 11,1 % y USD 4/10 = 40 %; `nucleo_sin_ficha: 1` — la sonda de la
+objeción 9 del auditor ya caza en prod un caso real (un analista con historia
+en el ledger fuera del roster). Advisors 0 ERROR (el WARN nuevo de la v3 es el
+mismo informativo que llevan v1/v2). Registro en `schema_migrations` FIEL
+(md5 registro = fichero `d246a471…`).
+
+⚠️ Incidente de fidelidad, corregido en el mismo ciclo: la primera aplicación
+pegó el SQL con comentarios internos recortados → los `prosrc` vivos no
+coincidían con lo que produce el fichero. Se re-emitieron las 3 funciones con
+el texto EXACTO (la puerta con danza INHERIT, dueño y ACL verificados
+intactos tras el REPLACE) y los 4 md5 vivos = los del banco. Lección: lo que
+se ejecuta debe ser el FICHERO, no una copia editada a mano. F2.3b del plan «Conversión única»: Distribución **sirve** sus
+porcentajes en una RPC **v3 que el bundle vivo jamás llama**
+(`crm.metricas_distribucion_leads_v3_fn`). El bundle `b3f6e98` valida la v2
+con `strictObject` (una clave nueva la rompe), así que la forma nueva vive en
+otra puerta: v1/v2 quedan **byte a byte** (postflight con `strpos` sobre texto
+normalizado + paridad probada en banco: v3 sin sus claves nuevas ES v2).
+
+Qué añade la v3: `conversion` por analista/rango/resumen (puntería
+cerrados÷resueltos con 6 decimales — evita el doble redondeo del front — y
+`pct` NULL cuando no hay resueltos), la cifra del **núcleo** (misma aritmética
+que F2.1/F2.2), y `sondas` (paridad contra el núcleo real, anulados,
+`nucleo_sin_ficha`, sin_analista) para que F3 oculte en vez de fabricar ceros.
+Nuevos: `private.conversion_punteria`, `private.metricas_distribucion_leads_v3_core`
+(ambos revocados de public/anon/authenticated/service_role — solo su dueño);
+el despachador `..._autorizada` gana la rama `p_version=3` (gate y validación
+intactos, verificado). La puerta: owner `crm_metricas_bridge`, DEFINER,
+`search_path=''`, revoke total + grant solo `authenticated`, barrido
+`aclexplode` con allowlist.
+
+**Auditor RLS: 11 objeciones, todas cerradas antes de aplicar.** Las que
+importan: (1) las funciones private nuevas nacían con EXECUTE a PUBLIC →
+revoke + aserción de ACL; (2) cinco guardas comparaban `jsonb_typeof(...) <>`
+— con la clave ausente pasan EN VACÍO → `is distinct from` en todas; (3) 🔴
+**el `alter owner` desnudo habría reventado en prod**: `postgres` es admin del
+puente pero `set_option=false` (verificado en `pg_auth_members`) y PG17 exige
+poder `SET ROLE` — danza grant SET → alter → revoke SET; el banco corre como
+superusuario y NO puede cazar esto; (4) `test-rls.mjs` gana 7 casos de la v3
+(coordinador/vendedor/supervisor fuera; gerencia y directorio dentro con
+sondas, sin SLA); (11) postflight 5.5 prueba la **cadena real** (puente →
+rama 3 → puerta) con una gerencia real vía `request.jwt.claims`.
+
+**Codex adversarial: 8 hallazgos; 4 nuevos, todos cerrados.** (d4) el
+`alter owner` necesitaba ADEMÁS que el puente tuviera **CREATE sobre `crm`**
+(revocado a propósito desde julio, verificado en prod) → danza completa
+SET+CREATE, devuelta al terminar y aseverada en postflight; (e7/e8) el
+rollback no podía borrar una función ajena y destruía estado si la migración
+había abortado → guarda «nada que revertir» + danza INHERIT; (c3) un mutante
+que pisara la v1 con una v2 pasaba el `strpos` y el oráculo → v1/v2 ahora se
+distinguen por su clave propia (`sla_evaluables`/`sla_global_contactos`) y
+mutante M7; (d5) la «paridad byte a byte» comparaba jsonb estructural (1≡1.0)
+→ ahora compara el TEXTO serializado; (b6) el fixture no ejercitaba referidos
+ni cartera (dos términos del numerador en cero) → referido 0.15 + operación
+elegible, esperado 3.15/5=63.00 %, y mutantes M8/M9.
+
+Banco (`run-test-f2-distribucion-v3-local.sh`): mundo anclado a prod por md5
+(6 funciones), paridad por texto serializado, valores a mano (puntería
+75 %/100 %, núcleo 3.15/5=63 %), gate en negativo Y positivo, rollback que
+restaura el despachador al md5 exacto del vivo, **9/9 mutantes muertos** (3
+por postflight, 6 por oráculo). El banco además cazó: el puente necesita
+**USAGE del esquema** (no solo EXECUTE) — ahora candado del preflight,
+verificado presente en prod.
+
+Deuda dicha: la sonda de paridad ejecuta `conversion_episodios` 3 veces por
+llamada (solo gerencia la paga) — medir antes de que F3 la llame en cada
+render. Rollback: `rollback-f2-3b-distribucion-v3.sql`.
+Excepciones a `public`: ninguna.

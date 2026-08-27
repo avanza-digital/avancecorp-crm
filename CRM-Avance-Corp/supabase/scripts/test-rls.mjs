@@ -5998,13 +5998,60 @@ async function testReparto(sessions, seed) {
   );
   // Las RPC expuestas enrutan por private.metricas_distribucion_leads_autorizada
   // (gate gerencia|lector global). No las toca C1: se aseveran para dejar
-  // constancia de que el rol nuevo tampoco entra por ahi.
-  for (const fn of ['metricas_distribucion_leads_fn', 'metricas_distribucion_leads_v2_fn']) {
+  // constancia de que el rol nuevo tampoco entra por ahi. La v3 (F2.3b) entra
+  // al MISMO bucle: comparte despachador y gate con las otras dos.
+  for (const fn of [
+    'metricas_distribucion_leads_fn',
+    'metricas_distribucion_leads_v2_fn',
+    'metricas_distribucion_leads_v3_fn',
+  ]) {
     await expectBlockedMutation(
       `coordinador no lee las metricas de distribucion (${fn})`,
       coordinador.schema('crm').rpc(fn, { p_desde: '2026-07-01', p_hasta: '2026-07-15' }),
       ['42501'],
     );
+  }
+  // F2.3b: la puerta v3 tiene grant a `authenticated`, asi que el gate del
+  // despachador es LO UNICO que separa a un vendedor de las metricas de toda
+  // la casa. Se prueba con los cuatro roles: dos fuera, dos dentro.
+  for (const [rol, cliente] of [
+    ['vendedor', sessions.vend1.client],
+    ['supervisor', sessions.sup1.client],
+  ]) {
+    await expectBlockedMutation(
+      `${rol} no lee la distribucion v3 (solo gerencia o lector global)`,
+      cliente.schema('crm').rpc('metricas_distribucion_leads_v3_fn', {
+        p_desde: '2026-07-01', p_hasta: '2026-07-15',
+      }),
+      ['42501'],
+    );
+  }
+  for (const [rol, cliente] of [
+    ['gerencia', gerencia],
+    ['directorio (lector global)', sessions.directorio.client],
+  ]) {
+    const v3 = await positive(
+      `${rol} lee la distribucion v3 con las claves nuevas`,
+      cliente.schema('crm').rpc('metricas_distribucion_leads_v3_fn', {
+        p_desde: '2026-07-01', p_hasta: '2026-07-15',
+      }),
+    );
+    if (v3) {
+      const payload = v3.data;
+      const sondasOk = payload && typeof payload === 'object'
+        && payload.sondas && typeof payload.sondas === 'object'
+        && payload.resumen && typeof payload.resumen.conversion === 'object';
+      if (!sondasOk) {
+        fail(`${rol}: la v3 no trae sondas/resumen.conversion`);
+      } else if ('sla_global_contactos' in payload.resumen
+        || 'sla_global_en_24h' in payload.resumen) {
+        fail(`${rol}: la puerta v3 transporta SLA y no debia`);
+      } else if (payload.version !== 3) {
+        fail(`${rol}: la v3 se rotula version ${payload.version}`);
+      } else {
+        pass(`${rol}: v3 con sondas + resumen.conversion, sin SLA, version 3`);
+      }
+    }
   }
   // Las 4 RPC de metricas comerciales recortan por vendedor_ids_visibles (∅ para
   // el coordinador) o exigen gerencia/lector: ninguna le devuelve filas.
