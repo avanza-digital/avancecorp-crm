@@ -4,13 +4,10 @@ import {
   colaDe,
   colorMeta,
   comparativaEquipos,
-  conversionGlobal,
-  conversionPorOrigen,
   diasSinActividad,
   diasTxt,
   duracionTexto,
   redactarMotivoCola,
-  embudo,
   estancados,
   haceCortoTexto,
   haceTexto,
@@ -457,65 +454,8 @@ describe('agregaciones comerciales', () => {
     })
   })
 
-  it('mantiene las cuatro etapas del embudo y excluye terminales e inactivos', () => {
-    const filas = embudo([
-      lead({ id: 'n1' }),
-      lead({ id: 'n2' }),
-      lead({ id: 'c1', etapa: 'contactado' }),
-      lead({ id: 'p1', etapa: 'propuesta_enviada' }),
-      lead({ id: 'ganado', etapa: 'convertido' }),
-      lead({ id: 'inactivo', etapa: 'reunion_agendada', activo: false }),
-    ])
 
-    expect(filas).toEqual([
-      { etapa: 'nuevo', n: 2, pctDelTotal: 50 },
-      { etapa: 'contactado', n: 1, pctDelTotal: 25 },
-      { etapa: 'reunion_agendada', n: 0, pctDelTotal: 0 },
-      { etapa: 'propuesta_enviada', n: 1, pctDelTotal: 25 },
-    ])
-    expect(embudo([]).every((fila) => fila.pctDelTotal === 0)).toBe(true)
-  })
 
-  it('ordena conversión por origen y omite datos inactivos o fuera del catálogo', () => {
-    const filas = conversionPorOrigen([
-      lead({ id: 'r1', origen: 'referido', etapa: 'convertido' }),
-      lead({ id: 'r2', origen: 'referido', etapa: 'nuevo' }),
-      lead({ id: 'land1', origen: 'landing', etapa: 'convertido' }),
-      lead({ id: 'land2', origen: 'landing', etapa: 'nuevo' }),
-      lead({ id: 'form1', origen: 'formulario', etapa: 'convertido' }),
-      lead({ id: 'web1', origen: 'web', etapa: 'convertido' }),
-      lead({ id: 'camp1', origen: 'campania', etapa: 'nuevo' }),
-      lead({ id: 'wa1', origen: 'whatsapp', etapa: 'convertido' }),
-      lead({ id: 'off', origen: 'oficina', etapa: 'convertido', activo: false }),
-      // Simula un dato corrupto que burló la frontera (el union se borra en runtime)
-      lead({ id: 'x1', origen: 'fuera-catalogo' as Lead['origen'], etapa: 'convertido' }),
-    ])
-
-    expect(filas).toEqual([
-      { origen: 'formulario', label: 'FORMULARIO', total: 1, convertidos: 1, pct: 100 },
-      { origen: 'web', label: 'Web', total: 1, convertidos: 1, pct: 100 },
-      { origen: 'whatsapp', label: 'WhatsApp', total: 1, convertidos: 1, pct: 100 },
-      { origen: 'referido', label: 'Referido', total: 2, convertidos: 1, pct: 50 },
-      { origen: 'landing', label: 'LANDING', total: 2, convertidos: 1, pct: 50 },
-      { origen: 'campania', label: 'Campaña', total: 1, convertidos: 0, pct: 0 },
-    ])
-  })
-
-  it('calcula la conversión global sobre activos CON vendedor (parkeados fuera de la base)', () => {
-    // Misma base que comparativaEquipos y que los tableros Hoy de
-    // supervisor/gerencia: los parkeados no cuentan (nadie los trabaja) y los
-    // descartados SÍ (histórico del vendedor); los inactivos nunca entran.
-    const filas = conversionGlobal([
-      lead({ id: 'ganado', etapa: 'convertido' }),
-      lead({ id: 'abierto' }),
-      lead({ id: 'perdido', etapa: 'descartado' }),
-      lead({ id: 'parkeado', vendedor_id: null, etapa: 'convertido' }),
-      lead({ id: 'inactivo', activo: false, etapa: 'convertido' }),
-    ])
-
-    expect(filas).toEqual({ convertidos: 1, base: 3, pct: 33 })
-    expect(conversionGlobal([])).toEqual({ convertidos: 0, base: 0, pct: 0 })
-  })
 
   it('detecta estancados abiertos usando la referencia más reciente', () => {
     const leads = [

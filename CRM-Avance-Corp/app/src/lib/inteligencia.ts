@@ -4,7 +4,7 @@
 // así la misma función sirve para vendedor/supervisor/gerencia/directorio.
 //
 // Los colores salen de lib/semaforo.ts (paleta única, sin verde en el chrome).
-import { ETAPAS, ETAPA_INFO, ORIGENES_TODOS, TERMINALES_K, TIPOS_CONTACTO_K, TIPOS_CONVERSACION_K, type Actividad, type Etapa, type EtapaActiva, type Lead, type Miembro } from './tipos'
+import { ETAPA_INFO, TERMINALES_K, TIPOS_CONTACTO_K, TIPOS_CONVERSACION_K, type Actividad, type Etapa, type Lead, type Miembro } from './tipos'
 import { SEMAFORO } from './semaforo'
 import { money, moneyK, type Moneda } from './format'
 import type { PlanPorLead } from './plan-lead'
@@ -699,38 +699,10 @@ export function metricasPorVendedor(vs: Miembro[], leads: Lead[], acts: Activida
     .sort((a, b) => b.capitalPEN - a.capitalPEN || a.m.perfil_id.localeCompare(b.m.perfil_id))
 }
 
-// ── Embudo y conversión ───────────────────────────────────────────────────────
-
-/**
- * Embudo por etapa activa sobre los leads ABIERTOS del ámbito.
- * Devuelve SIEMPRE las 4 etapas en orden de pipeline (n puede ser 0);
- * pctDelTotal es sobre el total de abiertos (0 si no hay ninguno).
- */
-export function embudo(leads: Lead[]): Array<{ etapa: EtapaActiva; n: number; pctDelTotal: number }> {
-  const abiertos = leads.filter(esAbierto)
-  const total = abiertos.length
-  return ETAPAS.map((e) => {
-    const n = abiertos.filter((l) => l.etapa === e.k).length
-    return { etapa: e.k, n, pctDelTotal: total > 0 ? Math.round((n / total) * 100) : 0 }
-  })
-}
-
-/**
- * Conversión por origen (histórico completo del ámbito, terminales incluidos).
- * Solo orígenes con al menos un lead; incluye el catálogo activo y el histórico.
- * Orden: % de conversión desc, luego volumen desc.
- */
-export function conversionPorOrigen(leads: Lead[]): Array<{ origen: string; label: string; total: number; convertidos: number; pct: number }> {
-  const vivos = leads.filter((l) => l.activo)
-  const filas: Array<{ origen: string; label: string; total: number; convertidos: number; pct: number }> = []
-  for (const o of ORIGENES_TODOS) {
-    const del = vivos.filter((l) => l.origen === o.k)
-    if (del.length === 0) continue
-    const convertidos = del.filter((l) => l.etapa === 'convertido').length
-    filas.push({ origen: o.k, label: o.label, total: del.length, convertidos, pct: Math.round((convertidos / del.length) * 100) })
-  }
-  return filas.sort((a, b) => b.pct - a.pct || b.total - a.total)
-}
+// F3.3 de «Conversión única»: aquí vivían embudo(), conversionPorOrigen() y
+// conversionGlobal() — aritmética de conversión del navegador SIN importador
+// vivo (las pantallas leen los payloads F1/F2 del servidor). Retiradas; sus
+// preguntas las responden resumen_cartera_fn y metricas_conversiones_fn.
 
 // ── Estancados (capital en riesgo) ────────────────────────────────────────────
 
@@ -757,23 +729,6 @@ export function estancados(
     .filter((x) => x.dias >= dias)
     // Desempate por id: espejo del bloque estancados de cola_accion_fn.
     .sort((a, b) => b.dias - a.dias || a.lead.id.localeCompare(b.lead.id))
-}
-
-// ── Conversión global del ámbito ──────────────────────────────────────────────
-
-/**
- * Conversión del ámbito: convertidos / leads activos CON vendedor (misma base
- * que comparativaEquipos — los parkeados no cuentan porque nadie los trabaja).
- * Fuente única (antes copiado con comentarios gemelos en supervisor y gerencia).
- */
-export function conversionGlobal(leads: Lead[]): { convertidos: number; base: number; pct: number } {
-  const asignados = leads.filter((l) => l.activo && l.vendedor_id != null)
-  const convertidos = asignados.filter((l) => l.etapa === 'convertido').length
-  return {
-    convertidos,
-    base: asignados.length,
-    pct: asignados.length > 0 ? Math.round((convertidos / asignados.length) * 100) : 0,
-  }
 }
 
 // ── Comparativa de equipos (gerencia / directorio) ────────────────────────────

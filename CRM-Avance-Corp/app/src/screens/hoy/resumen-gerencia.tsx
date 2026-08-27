@@ -25,7 +25,7 @@ import {
   capitalObjetivo,
   capitalReal,
   metaConversionAplicable,
-  type CumplimientoComercial,
+  type CumplimientoAgregado,
   type ObjetivoComercial,
 } from '@/lib/objetivos'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
@@ -51,7 +51,7 @@ interface ResumenGerenciaPanelProps {
   reuniones: MetricasReuniones | null | undefined
   equipo: ConversionEquipoVendedor[]
   meta: ObjetivoComercial
-  cumplimiento: CumplimientoComercial | null
+  cumplimiento: CumplimientoAgregado | null
   metaMensual: MetaMensualGerencia
   tc: { promedio: number, fuente: string } | null | undefined
   cargando: boolean

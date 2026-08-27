@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type CSSProperties } from 're
 import {
   LayoutDashboard, KanbanSquare, Users, CalendarDays, UsersRound, Settings, LogOut, Eye,
   PanelLeftClose, PanelLeftOpen, Wallet, Split, BarChart3, Handshake, Target,
-  Gauge, BadgeDollarSign, Trophy, ArchiveRestore, SendHorizontal,
+  Gauge, Trophy, ArchiveRestore, SendHorizontal,
 } from 'lucide-react'
 import { administraSoloRolesCrm, can, puedeAdministrarRolesCrm, ROL_LABEL } from '@/lib/roles'
 import { funcionesLeadsVisibles } from '@/lib/config'
@@ -27,7 +27,10 @@ interface NavMeta {
   seccion: SeccionNav
 }
 
-type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-carpeta'>
+// 'capital-cierres' (N1) está muerta por autorización (vistaPermitida la
+// niega a todos) y aquí ni se lista; App.tsx/topbar la retiran del todo tras
+// la integración de ramas (son zona de conflicto).
+type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-carpeta' | 'capital-cierres'>
 
 /** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
 const NAV_META = {
@@ -37,7 +40,6 @@ const NAV_META = {
   reuniones: { label: 'Reuniones', icon: Handshake, seccion: 'principal' },
   metas: { label: 'Metas', icon: Target, seccion: 'principal' },
   rendimiento: { label: 'Equipo', icon: Gauge, seccion: 'principal' },
-  'capital-cierres': { label: 'Capital', icon: BadgeDollarSign, seccion: 'principal' },
   pipeline: { label: 'Pipeline', icon: KanbanSquare, seccion: 'principal' },
   cartera: { label: 'Leads', icon: Users, seccion: 'principal' },
   agenda: { label: 'Agenda', icon: CalendarDays, seccion: 'principal' },
@@ -54,7 +56,8 @@ const NAV_META = {
 
 // Alertas vive en la campana superior: no duplica un módulo en el menú lateral.
 const VISTAS_SIDEBAR = VISTAS.filter(
-  (id): id is VistaSidebar => id !== 'alertas' && !esVistaConfiguracion(id) && !esVistaInterna(id),
+  (id): id is VistaSidebar =>
+    id !== 'alertas' && id !== 'capital-cierres' && !esVistaConfiguracion(id) && !esVistaInterna(id),
 )
 const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
 const NAV_GOBIERNO_ROLES = [{

@@ -2,7 +2,6 @@ import * as v from 'valibot'
 import { describe, expect, it } from 'vitest'
 import type { ConfiguracionMetas, DetalleMeta } from './metas-versionadas'
 import {
-  agregarCumplimientos,
   agregarObjetivos,
   metaVigente,
   capitalObjetivo,
@@ -144,24 +143,19 @@ describe('metas versionadas y jerarquía', () => {
     }).success).toBe(false)
   })
 
-  it('agrega cumplimiento confirmado y pondera conversión por casos resueltos', () => {
+  it('agrega metas y capital/contratos; la conversión agregada YA NO se fabrica aquí (F3.3)', () => {
     const cumplimiento = cumplimientoDesdeRpc(respuestaCumplimiento(), S1)
     expect(cumplimiento.fuentesReales).toEqual({
       capitalYContratos: 'contratos_confirmados',
       conversion: 'leads_resueltos',
     })
-    expect(cumplimiento.supervisor?.convertidos).toBe(3)
-    expect(cumplimiento.supervisor?.resueltos).toBe(8)
-    expect(cumplimiento.supervisor?.conversionReal).toBe(37.5)
+    // El agregado del navegador dejó de recalcular la conversión del grupo:
+    // esa cifra la sirve el servidor (conversion_mensual_fn). Aquí solo viajan
+    // metas y reales de capital/contratos — las barras de cinco pantallas.
+    expect(cumplimiento.supervisor).not.toBeNull()
+    expect('conversionReal' in cumplimiento.supervisor!).toBe(false)
     expect(capitalReal(cumplimiento.supervisor!, 'PEN')).toBeCloseTo(204_166.67, 1)
     expect(capitalReal(cumplimiento.supervisor!, 'USD')).toBeCloseTo(20_416.67, 1)
-  })
-
-  it('mantiene conversión real desconocida cuando no hay casos resueltos', () => {
-    const fila = cumplimientoDesdeRpc(respuestaCumplimiento(), V1).vendedor
-    expect(fila).not.toBeNull()
-    const sinMuestra = agregarCumplimientos([{ ...fila!, convertidos: 0, resueltos: 0, conversionReal: null }])
-    expect(sinMuestra?.conversionReal).toBeNull()
   })
 
   // Decisión de Miguel (2026-08-10): «si un analista se va, el progreso hasta la

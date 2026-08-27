@@ -24,7 +24,6 @@ import { describe, expect, it } from 'vitest'
 import * as v from 'valibot'
 import {
   CumplimientoMetasSchema,
-  agregarCumplimientos,
   cumplimientoDesdeRpc,
 } from './objetivos'
 import { derivarAlertasGerencia } from './alertas-gerencia'
@@ -230,20 +229,17 @@ describe('payload de cumplimiento tras la migración B', () => {
     expect(ana!.convertidos).toBeGreaterThan(ana!.resueltos)
   })
 
-  it('el agregado del supervisor pondera sobre el NUMERADOR, no sobre los cierres', () => {
+  it('el agregado ya no lleva conversión: la del grupo la sirve el servidor (F3.3)', () => {
     const parseado = v.parse(CumplimientoMetasSchema, PAYLOAD_POST_B)
     const jerarquico = cumplimientoDesdeRpc(parseado, '33333333-3333-3333-3333-333333333333')
 
-    // numerador 5.3 + 0 sobre divisor 4 + 0 = 132.5 %. Si alguien volviera a
-    // sumar `convertidos` crudos daría 7/4 = 175 %: otra fórmula, otro número.
-    expect(jerarquico.supervisor?.conversionReal).toBe(132.5)
-    expect(jerarquico.supervisor?.numerador).toBe(5.3)
-  })
-
-  it('con divisor 0 el agregado no divide entre cero: se calla', () => {
-    const parseado = v.parse(CumplimientoMetasSchema, PAYLOAD_POST_B)
-    const soloBeto = cumplimientoDesdeRpc(parseado).porVendedor['22222222-2222-2222-2222-222222222222']
-    expect(agregarCumplimientos([soloBeto!])?.conversionReal).toBeNull()
+    // Mutante vigilado: si alguien reintroduce la división del agregado en el
+    // navegador (numerador÷resueltos, o peor, convertidos crudos = 175 %),
+    // este caso lo caza — el agregado no debe traer NINGUNA de esas claves.
+    expect(jerarquico.supervisor).not.toBeNull()
+    expect('conversionReal' in jerarquico.supervisor!).toBe(false)
+    expect('numerador' in jerarquico.supervisor!).toBe(false)
+    expect('resueltos' in jerarquico.supervisor!).toBe(false)
   })
 
   it('las alertas leen la MISMA conversión y no avisan de quien va sobrado', () => {

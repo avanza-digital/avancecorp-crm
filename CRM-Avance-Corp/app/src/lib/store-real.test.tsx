@@ -344,8 +344,11 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
         capitalYContratos: 'contratos_confirmados',
         conversion: 'leads_resueltos',
       },
-      gerencia: { conversionReal: 50 },
+      // F3.3: el agregado ya no transporta conversión (la sirve el servidor);
+      // aquí solo viajan la meta agregada y los reales de capital/contratos.
+      gerencia: { conversionObjetivo: 18 },
     })
+    expect('conversionReal' in (api().cumplimientoMetas?.gerencia ?? {})).toBe(false)
     expect(api().cumplimientoMetas?.gerencia?.detalles).toEqual(
       expect.arrayContaining([
         expect.objectContaining({

@@ -360,8 +360,10 @@ export interface CumplimientoMetasJerarquico {
    */
   cierre: CierreDelMes | null
   vendedor: CumplimientoComercial | null
-  supervisor: CumplimientoComercial | null
-  gerencia: CumplimientoComercial | null
+  // Los agregados NO llevan conversión (F3.3): la del supervisor/gerencia la
+  // sirve el servidor; aquí solo viajan metas y reales de capital/contratos.
+  supervisor: CumplimientoAgregado | null
+  gerencia: CumplimientoAgregado | null
   porVendedor: Record<string, CumplimientoVendedor>
 }
 
@@ -395,16 +397,26 @@ function cumplimientoDesdeVendedor(
   }
 }
 
+/**
+ * Agregado de cumplimientos SIN aritmética de conversión (F3.3 de «Conversión
+ * única»): la conversión del supervisor/gerencia la SIRVE el servidor
+ * (conversion_mensual_fn y los motores F2) — el agregado del navegador quedó
+ * sin pintor desde el 13/08 y recalcularla aquí era otra aritmética paralela.
+ * Se conservan metas y `reales` de capital/contratos: alimentan las barras de
+ * capital de cinco pantallas.
+ */
+export type CumplimientoAgregado = Omit<
+  CumplimientoComercial,
+  'conversionReal' | 'convertidos' | 'resueltos' | 'numerador'
+>
+
 export function agregarCumplimientos(
   items: Iterable<CumplimientoComercial>,
-): CumplimientoComercial | null {
+): CumplimientoAgregado | null {
   const filas = Array.from(items)
   if (filas.length === 0) return null
 
   const metas = agregarObjetivos(filas)
-  const convertidos = filas.reduce((total, fila) => total + fila.convertidos, 0)
-  const resueltos = filas.reduce((total, fila) => total + fila.resueltos, 0)
-  const numerador = filas.reduce((total, fila) => total + fila.numerador, 0)
   const reales = new Map(CLAVES_DIMENSION.map((clave) => [clave, {
     capitalReal: 0,
     contratosReal: 0,
@@ -420,14 +432,6 @@ export function agregarCumplimientos(
 
   return {
     conversionObjetivo: metas.conversionObjetivo,
-    // Sobre el NUMERADOR ponderado, no sobre `convertidos` crudos: con el
-    // fallback de transición son iguales hasta la migración B, y desde B sumar
-    // crudos dejaría de dar la conversión acordada. Redondeo half-up estilo
-    // Postgres, una sola vez.
-    conversionReal: resueltos > 0 ? Math.round((10_000 * numerador) / resueltos) / 100 : null,
-    convertidos,
-    resueltos,
-    numerador,
     detalles: metas.detalles.map((meta) => {
       const real = reales.get(`${meta.categoria}:${meta.moneda}`) ?? { capitalReal: 0, contratosReal: 0 }
       return {
@@ -468,7 +472,7 @@ export function agregarCumplimientos(
  */
 export function metaVigente(
   objetivo: ObjetivoComercial,
-  cumplimiento: CumplimientoComercial | null,
+  cumplimiento: CumplimientoAgregado | null,
 ): ObjetivoComercial {
   return cumplimiento ?? objetivo
 }
@@ -498,7 +502,7 @@ export function cumplimientoDesdeRpc(
 }
 
 export function capitalReal(
-  cumplimiento: CumplimientoComercial,
+  cumplimiento: CumplimientoAgregado,
   moneda: MonedaMeta,
   categoria?: CategoriaMeta,
 ): number {

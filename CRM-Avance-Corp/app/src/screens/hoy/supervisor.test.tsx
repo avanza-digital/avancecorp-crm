@@ -214,8 +214,8 @@ function conversionMensualEquipo(pct: number | null, divisor: number): import('@
 }
 
 function cumplimientoSupervisor(
-  conversionReal: number | null,
-  resueltos: number,
+  _conversionReal: number | null,
+  _resueltos: number,
   metas: 'con-metas' | 'sin-metas' = 'con-metas',
   metaConversion?: number,
 ): CumplimientoMetasJerarquico {
@@ -232,9 +232,8 @@ function cumplimientoSupervisor(
           }
         : {}),
       ...(metaConversion == null ? {} : { conversionObjetivo: metaConversion }),
-      conversionReal,
-      convertidos: conversionReal == null ? 0 : Math.round((conversionReal * resueltos) / 100),
-      resueltos,
+      // F3.3: el agregado ya no transporta conversión (la sirve el servidor);
+      // el % de la tarjeta viaja por el payload MENSUAL del fixture.
     },
   }
 }
