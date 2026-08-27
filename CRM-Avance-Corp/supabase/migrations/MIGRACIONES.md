@@ -4061,3 +4061,103 @@ Banco re-ensayado verde tras las correcciones (paridad + oráculo + 4 mutantes).
 Aplicación: `scripts/aplicar-f1-conversion-episodios-prod.sh`. Vuelta atrás:
 `scripts/rollback-f1-conversion-episodios.sql` (núcleo vivo verbatim pre-F1 +
 drop de la base + verificación md5).
+
+## 20260827020000 · `crm_f2_1_conversiones_nucleo`
+
+📦 **ESCRITA Y VERDE EN BANCO, SIN APLICAR** (2026-08-27). **F2.1** del plan
+[[Conversion unica en todo el CRM - plan de migraciones]] — primer motor
+paralelo que pasa a la tabla-base.
+
+⚠️ **LOS NÚMEROS DE LA PANTALLA CAMBIAN EL DÍA DEL CORTE**, bajo los rótulos
+viejos, hasta F3 (transición aceptada por Miguel, decisión D4). Estado VIVO
+medido antes de aplicar (mes en curso, 545 leads): `contratos: 0` y
+`conversion_contratos_pct: 0.0` — el 0 % estructural del hallazgo H3, en vivo.
+
+`private.metricas_conversiones_implementacion(date,date)` deja de contar
+`crm.leads.contrato_id` (columna que **nadie** rellena) y agrupa
+`private.conversion_episodios`. Claves **solo añadidas** (el schema del front
+de esta pantalla es `v.object`, verificado en el bundle VIVO `b3f6e98`:
+9 `v.object`, 0 `strictObject` — al contrario que Distribución, 22
+`strictObject`, de ahí el corte en dos tiempos de F2.3):
+- `nucleo` — cifra principal (D2): flujo del rango por asignación, referidos
+  ponderados y fuera del divisor, cartera solo si el rango es el mes entero o
+  todo lo que va del mes en curso (`incluye_cartera` lo declara).
+- `cosecha` — segunda lectura (D2): de los leads dados de alta en el rango,
+  cuántos cerraron; **madura hasta hoy** (un lead de julio que cierra en
+  agosto cuenta). Esa maduración es el sentido de la lectura, no un sesgo.
+- `sondas` — `paridad_nucleo` (0 = el recomputo coincide con el núcleo),
+  `divisor_fuera_del_roster`, `cohorte_convertidos_sin_cierre`,
+  `cartera_fuera_del_rango`, `cierres_anulados`, `episodios_sin_origen`.
+- por origen: `peso_en_nucleo` + `fuera_del_divisor_del_nucleo` (D6).
+- por responsable: `nucleo_divisor` / `nucleo_numerador` /
+  `nucleo_conversion_pct` — DENTRO del array `responsables`, así que los
+  gobierna el mismo filtro del wrapper (`filtrar_desglose_sujetos_crm`).
+
+**NO se toca** `produccion` ni los capitales: siguen midiendo CONTRATOS por
+`fecha_cierre_comercial` (H14, universos distintos — se rotulan en F3).
+
+Banco: `run-test-f2-conversiones-local.sh` + `test-f2-conversiones.sql` —
+oráculo con números calculados a mano sobre **julio 2026** (mes ya pasado, para
+que la maduración no dependa de la hora ni del huso del que ejecuta), contrato
+de rango parcial y de rango libre, sondas, gate de rol en negativo, igualdad de
+escala con el núcleo real, y **8 mutantes muertos** (numerador muerto ·
+anulados que suman · referido a peso 1 · cosecha sin maduración · cartera del
+mes entero en rango parcial · sonda mirando el conjunto equivocado · gate de
+rol borrado · recomputo que pierde la cartera).
+
+Auditor RLS: 2 objeciones ALTAS **cerradas antes de aplicar** — (A1) faltaba
+comprobar que la pantalla y la tabla-base tienen el MISMO owner: son dos
+DEFINER y la base solo la ejecuta su owner; sin ese candado la pantalla moriría
+con permission denied y, en la imagen Supabase 17.6, un `select fn()` sin
+EXECUTE tumba el backend ([[postgres-cae-por-permiso-de-funcion]]) → preflight
+nuevo que aborta antes de tocar nada. (A2) la pierna de cartera filtra por MES,
+no por la ventana: un rango 01→10 de julio sumaba las operaciones del 11 al 31
+→ ahora solo se activa con el mes entero o el mes en curso completo, con caso
+de prueba y mutante propios. MEDIAS cerradas: identity arguments en el
+postflight, verificación de ACL, sondas de roster y de convertidos-sin-cierre,
+y comentarios corregidos (el total del núcleo **no** es la suma de
+`responsables`: incluye analistas fuera del roster, y el wrapper filtra).
+
+Codex (8 ángulos, revisión adversarial): 6 defectos REALES cerrados antes de
+aplicar — (1) la sonda de paridad solo comparaba divisor y cierres: **ignoraba
+el numerador**, donde vive la cartera → ahora compara los cuatro términos;
+(2) con ambas relaciones vacías `sum()` da NULL y el `coalesce` declaraba
+«cuadra ✓» sin haber comparado nada → se añade `paridad_filas` y `cuadra` es
+NULL si no hubo sustancia; (3) el % del núcleo se redondeaba a 1 decimal y el
+núcleo real usa 2 (33.3 vs 33.33) → **dos decimales**, para que sea comparable
+byte a byte con HOY; (4) `aclexplode(NULL)` devuelve cero filas, así que una
+ACL por defecto (EXECUTE a PUBLIC) **pasaba** el postflight → el NULL se
+rechaza aparte (verificado en prod: `{postgres=X/postgres}` en ambas
+funciones); (5) las sondas prometían más de lo que medían → `numerador_fuera_
+del_roster`, `cierres_sin_ficha_convertida` y el nombre honesto
+`cohorte_convertidos_sin_cierre_elegible`; (6) **D6 se rotulaba sobre el origen
+de la FICHA mientras el núcleo decide «referido» por el del LEDGER** → sonda
+`origen_ficha_distinto_del_ledger` (mientras sea 0 la etiqueta es segura).
+
+🔴 **La objeción más útil de Codex: las pruebas no mordían el gate de rol.**
+`auth.uid()` estaba fijado a una gerencia válida en todo el banco, así que un
+mutante que BORRARA la puerta de autorización habría sobrevivido a la suite
+entera. Ahora `auth.uid()` es conmutable y hay casos negativos (vendedor,
+anónimo, gerencia inactiva, periodo inválido) + el mutante M7 que los prueba.
+
+Deuda consciente dicha (no se corrige aquí, se declara): el tope de rango
+admite 366 días inclusivos (`p_hasta - p_desde > 365`) — comportamiento VIVO
+copiado verbatim, no lo introduce F2.1. Y una operación de cartera con fecha
+futura dentro del mes en curso entra en el núcleo del mes-hasta-hoy: **el héroe
+de HOY la cuenta igual**, así que se conserva la paridad y se DECLARA con
+`cartera_fuera_del_rango` en vez de divergir.
+
+⚠️ **Deuda consciente dicha (M6 del auditor): `crm.metricas_conversiones_fn`
+sigue con CERO casos en `test-rls.mjs`** (solo está cubierta `_equipo_fn`).
+Faltan: permitido gerencia/lector global · denegado 42501 a vendedor,
+supervisor, coordinador, analista · 22023 de periodo inválido llamado por
+gerencia · que `responsables[]` no traiga a nadie que no sea vendedor · y
+ausencia de EXECUTE comprobada con `has_function_privilege`, **nunca**
+ejecutando la función (riesgo de A1). Preexistente (lo admite la fila
+`20260810024404`), no lo introduce F2.1.
+
+Excepciones a `public`: ninguna. Aplicación:
+`scripts/aplicar-f2-1-conversiones-prod.sh` (imprime la foto antes y después:
+aquí el cambio de cifras es el objetivo, no un fallo). Vuelta atrás:
+`scripts/rollback-f2-1-conversiones.sql` (texto anclado en F0 verbatim; al
+volver, la pantalla marca 0 % otra vez).
