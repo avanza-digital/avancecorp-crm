@@ -22,6 +22,16 @@ const RANGOS = [
   ['sin_monto', 'Sin monto válido', null, null],
 ] as const
 
+/** Espejo del servidor: el fixture sirve el % ya dividido (contrato V3). */
+function punteria(convertidos: number, descartados: number) {
+  const resueltos = convertidos + descartados
+  return {
+    convertidos,
+    resueltos,
+    pct: resueltos > 0 ? Math.round((1_000_000 * 100 * convertidos) / resueltos) / 1_000_000 : null,
+  }
+}
+
 function rangosAnalista(
   destacados: Record<
     string,
@@ -47,6 +57,7 @@ function rangosAnalista(
         descartados: dato.d,
         leads_unicos_resueltos: dato.c + dato.d,
       },
+      conversion: punteria(dato.c, dato.d),
     }
   })
 }
@@ -101,6 +112,14 @@ const ANA: AnalistaDistribucionLeads = {
     desactivados: 0,
     sin_tocar_actual: 1,
   },
+  conversion: {
+    pen: punteria(3, 1),
+    usd: punteria(1, 1),
+    nucleo_divisor: 9,
+    nucleo_referidos_recibidos: 0,
+    nucleo_numerador: 4,
+    nucleo_conversion_pct: 44.44,
+  },
 }
 
 const BRUNO: AnalistaDistribucionLeads = {
@@ -136,10 +155,18 @@ const BRUNO: AnalistaDistribucionLeads = {
     desactivados: 0,
     sin_tocar_actual: 0,
   },
+  conversion: {
+    pen: punteria(0, 0),
+    usd: punteria(0, 0),
+    nucleo_divisor: 0,
+    nucleo_referidos_recibidos: 0,
+    nucleo_numerador: 0,
+    nucleo_conversion_pct: null,
+  },
 }
 
 const DATOS: MetricasDistribucionLeads = {
-  version: 2,
+  version: 3,
   generado_en: '2026-07-17T20:00:00Z',
   cohorte: {
     desde_inclusivo: '2026-04-19',
@@ -152,6 +179,9 @@ const DATOS: MetricasDistribucionLeads = {
     matriz: 'PEN',
     capacidad: 'TODAS_LAS_MONEDAS',
     montos: 'SEPARADOS_SIN_CONVERSION',
+    conversion_punteria: 'CERRADOS_ENTRE_RESUELTOS',
+    conversion_nucleo: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+    conversion_incluye_cartera: true,
   },
   rangos: RANGOS.map(([id, etiqueta, desdeExclusivo, hastaInclusivo], indice) => ({
     id,
@@ -171,6 +201,14 @@ const DATOS: MetricasDistribucionLeads = {
     convertidos_pen: 3,
     descartados_pen: 1,
     reasignaciones_cohorte: 1,
+    conversion: {
+      pen: punteria(3, 1),
+      usd: punteria(1, 1),
+      nucleo_divisor: 9,
+      nucleo_referidos_recibidos: 0,
+      nucleo_numerador: 4,
+      nucleo_conversion_pct: 44.44,
+    },
   },
   analistas: [ANA, BRUNO],
   por_repartir: {
@@ -217,6 +255,18 @@ const DATOS: MetricasDistribucionLeads = {
     episodios_sin_monto_actuales: 0,
     episodios_sin_monto_cohorte: 0,
   },
+  sondas: {
+    peso_referido: 0.15,
+    mes_peso: '2026-04-01',
+    paridad_nucleo: 0,
+    paridad_filas: 2,
+    cuadra: true,
+    divisor_sin_analista: 0,
+    numerador_sin_analista: 0,
+    cierres_anulados: 0,
+    episodios_sin_origen: 0,
+    nucleo_sin_ficha: 0,
+  },
 }
 
 const BASE_PROPS: DistribucionLeadsGerenciaProps = {
@@ -245,13 +295,20 @@ describe('DistribucionLeadsGerencia', () => {
 
     expect(screen.getByRole('heading', { name: 'Distribución de leads' })).toBeInTheDocument()
 
-    const cierresPorMoneda = screen.getByRole('group', { name: 'Cierres de venta por moneda' })
+    const cierresPorMoneda = screen.getByRole('group', {
+      name: 'Cierres sobre leads resueltos, por moneda',
+    })
     expect(within(cierresPorMoneda).getByText('Soles')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('75%')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('3 ventas de 4 leads resueltos')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('Dólares')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('50%')).toBeInTheDocument()
     expect(within(cierresPorMoneda).getByText('1 venta de 2 leads resueltos')).toBeInTheDocument()
+
+    // La cifra del núcleo, SERVIDA y verificada por la sonda (cuadra=true).
+    expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
+    expect(screen.getByText('44.44%')).toBeInTheDocument()
+    expect(screen.getByText(/La misma cifra que HOY, Metas y el Ranking/)).toBeInTheDocument()
 
     expect(screen.getByRole('heading', { name: 'Lo que merece tu atención' })).toBeInTheDocument()
     expect(
@@ -472,6 +529,44 @@ describe('DistribucionLeadsGerencia', () => {
     )
     await user.click(screen.getByRole('button', { name: 'Reintentar' }))
     expect(onReintentar).toHaveBeenCalledTimes(1)
+  })
+
+  it('F3.4: con la sonda en descuadre OCULTA la conversión del mes y avisa en ámbar', () => {
+    const datosRotos: MetricasDistribucionLeads = {
+      ...DATOS,
+      sondas: { ...DATOS.sondas, cuadra: false, paridad_nucleo: 3 },
+    }
+    montar({ datos: datosRotos })
+
+    expect(screen.queryByText('44.44%')).not.toBeInTheDocument()
+    expect(screen.getByText('Cifras en revisión')).toBeInTheDocument()
+    expect(
+      screen.getByText(/la conversión del mes se oculta hasta revisarla/i),
+    ).toBeInTheDocument()
+  })
+
+  it('F3.4: con un rango que no es mes (cuadra null) la cifra se oculta SIN alarma', () => {
+    const datosParciales: MetricasDistribucionLeads = {
+      ...DATOS,
+      sondas: { ...DATOS.sondas, cuadra: null, paridad_nucleo: null, paridad_filas: 0 },
+    }
+    montar({ datos: datosParciales })
+
+    expect(screen.queryByText('44.44%')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cifras en revisión')).not.toBeInTheDocument()
+    expect(screen.getByText(/se verifica solo con un mes completo/)).toBeInTheDocument()
+  })
+
+  it('F3.4: nucleo_sin_ficha avisa sin ocultar la cifra (caso real de prod)', () => {
+    const datosConHistoria: MetricasDistribucionLeads = {
+      ...DATOS,
+      sondas: { ...DATOS.sondas, nucleo_sin_ficha: 1 },
+    }
+    montar({ datos: datosConHistoria })
+
+    expect(screen.getByText('44.44%')).toBeInTheDocument()
+    expect(screen.getByText('Aviso sobre la cifra del mes')).toBeInTheDocument()
+    expect(screen.getByText(/1 analista con historia en el ledger/)).toBeInTheDocument()
   })
 
   it('en demo etiqueta los datos como ficticios', () => {

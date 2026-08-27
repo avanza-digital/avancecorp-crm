@@ -44,23 +44,24 @@ import {
 import { Progress } from '@/components/ui/progress'
 import { Skeleton } from '@/components/ui/skeleton'
 import type {
-  MetricasDistribucionLeads as MetricasDistribucionLeadsContrato,
-  MetricaDistribucionAnalista,
+  MetricasDistribucionLeadsV3 as MetricasDistribucionLeadsContrato,
+  MetricaDistribucionAnalistaV3,
   MetricasPorRepartir,
   RangoCapitalPen,
   RangoCapitalPenId,
-  RangoDistribucionAnalista,
+  RangoDistribucionAnalistaV3,
 } from '@/lib/metricas-distribucion'
 import {
   avisosAtencion,
   candidatosReparto,
   equiposDistribucion,
+  estadoSondasDistribucion,
   fichaAnalista,
   hoyLimaIso,
   idEquipoDeAnalista,
   ordenarFichas,
   plural,
-  porcentajeLegible,
+  porcentajePunteria,
   presetsPeriodo,
   resumenEquipo,
   ORDEN_FICHAS_ETIQUETAS,
@@ -74,11 +75,12 @@ import { SEMAFORO, SEV_COLOR } from '@/lib/semaforo'
 import { cn } from '@/lib/utils'
 
 // Alias públicos para que componente, API y tests compartan una sola verdad:
-// el contrato Valibot que valida la fotografía completa de la RPC.
+// el contrato Valibot que valida la fotografía completa de la RPC (V3 desde
+// F3 de «Conversión única»: la puntería y el núcleo vienen servidos).
 export type MetricasDistribucionLeads = MetricasDistribucionLeadsContrato
 export type RangoCapitalDistribucion = RangoCapitalPen
-export type RangoAnalistaDistribucion = RangoDistribucionAnalista
-export type AnalistaDistribucionLeads = MetricaDistribucionAnalista
+export type RangoAnalistaDistribucion = RangoDistribucionAnalistaV3
+export type AnalistaDistribucionLeads = MetricaDistribucionAnalistaV3
 export type RangoColaDistribucion = MetricasPorRepartir['total']['pen']['rangos'][number]
 export type BandejaDistribucion = MetricasPorRepartir['bandejas'][number]
 type ColaDistribucion = MetricasPorRepartir['total']
@@ -149,19 +151,6 @@ function avisoVisible(aviso: AvisoAtencion, mostrarOperacion: boolean): boolean 
   )
 }
 
-function cierresUsd(analistas: AnalistaDistribucionLeads[]): {
-  convertidos: number
-  descartados: number
-} {
-  return analistas.reduce(
-    (total, analista) => ({
-      convertidos: total.convertidos + analista.usd_no_segmentado.convertidos,
-      descartados: total.descartados + analista.usd_no_segmentado.descartados,
-    }),
-    { convertidos: 0, descartados: 0 },
-  )
-}
-
 /** Montos de cartera SIEMPRE redondeados a enteros: lectura gerencial. */
 function dinero(valor: number, moneda: Moneda): string {
   return money(Math.round(valor), moneda)
@@ -201,8 +190,25 @@ function rangoDeAnalista(
         descartados: 0,
         leads_unicos_resueltos: 0,
       },
+      // Rango vacío del fallback: sin resueltos el % es «aún no se sabe».
+      conversion: { convertidos: 0, resueltos: 0, pct: null },
     }
   )
+}
+
+/** Mes del período en palabras («agosto de 2026»): el rótulo nombra el mes (H4/H5). */
+function mesEnPalabras(fechaIso: string): string {
+  return new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${fechaIso}T12:00:00Z`))
+}
+
+/** % del núcleo tal cual lo sirve el servidor (2 decimales), en es-PE. */
+function porcentajeNucleo(pct: number | null): string {
+  if (pct == null) return '—'
+  return `${new Intl.NumberFormat('es-PE', { maximumFractionDigits: 2 }).format(pct)}%`
 }
 
 // ── Período: atajos + personalizado ──────────────────────────────────────────
@@ -338,15 +344,17 @@ function ResumenDistribucion({
   datos: MetricasDistribucionLeads
   mostrarOperacion: boolean
 }): JSX.Element {
-  const decisionesPen = datos.resumen.convertidos_pen + datos.resumen.descartados_pen
-  const cierresDolares = cierresUsd(datos.analistas)
-  const decisionesUsd = cierresDolares.convertidos + cierresDolares.descartados
-  const conversionPen = porcentajeLegible(datos.resumen.convertidos_pen, decisionesPen)
-  const conversionUsd = porcentajeLegible(cierresDolares.convertidos, decisionesUsd)
+  // Todo servido por la RPC V3 (F3): la puntería PEN/USD —incluida la suma de
+  // dólares que antes hacía este componente— y la cifra del núcleo. Aquí no
+  // se suma ni se divide nada.
+  const punteria = datos.resumen.conversion
+  const conversionPen = porcentajePunteria(punteria.pen.pct)
+  const conversionUsd = porcentajePunteria(punteria.usd.pct)
   const porRepartir = datos.resumen.por_repartir_actuales
+  const sondas = estadoSondasDistribucion(datos)
 
   return (
-    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-3' : 'xl:grid-cols-2'}`}>
+    <dl className={`grid gap-3 sm:grid-cols-2 ${mostrarOperacion ? 'xl:grid-cols-4' : 'xl:grid-cols-3'}`}>
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
           Leads con analista
@@ -379,11 +387,40 @@ function ResumenDistribucion({
 
       <div className={TARJETA_RESUMEN_CLASS}>
         <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
-          Cierres del período
+          Conversión del mes
+        </dt>
+        {sondas.mostrarNucleo ? (
+          <>
+            <dd className="mt-1.5 text-3xl font-extrabold tracking-tight tabular-nums text-primary">
+              {porcentajeNucleo(punteria.nucleo_conversion_pct)}
+            </dd>
+            <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              La misma cifra que HOY, Metas y el Ranking · cohorte por asignación,{' '}
+              {mesEnPalabras(datos.cohorte.desde_inclusivo)} · referidos ponderados y fuera de la
+              base
+            </dd>
+          </>
+        ) : (
+          <>
+            <dd className="mt-1.5 text-3xl font-extrabold tracking-tight tabular-nums text-muted-foreground">
+              —
+            </dd>
+            <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
+              {sondas.motivoOculto === 'descuadre'
+                ? 'Cifras en revisión: la verificación interna no cuadró.'
+                : 'La cifra única del mes se verifica solo con un mes completo. Elige «Este mes» para verla.'}
+            </dd>
+          </>
+        )}
+      </div>
+
+      <div className={TARJETA_RESUMEN_CLASS}>
+        <dt className="text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground">
+          Puntería del período
         </dt>
         <dd
           role="group"
-          aria-label="Cierres de venta por moneda"
+          aria-label="Cierres sobre leads resueltos, por moneda"
           className="mt-2 grid grid-cols-2 divide-x divide-border"
         >
           <div className="min-w-0 pr-3">
@@ -392,8 +429,8 @@ function ResumenDistribucion({
               {conversionPen ?? '—'}
             </span>
             <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-              {decisionesPen > 0
-                ? `${datos.resumen.convertidos_pen} ${plural(datos.resumen.convertidos_pen, 'venta', 'ventas')} de ${decisionesPen} leads resueltos`
+              {punteria.pen.resueltos > 0
+                ? `${punteria.pen.convertidos} ${plural(punteria.pen.convertidos, 'venta', 'ventas')} de ${punteria.pen.resueltos} leads resueltos`
                 : 'Aún sin leads resueltos'}
             </span>
           </div>
@@ -403,15 +440,49 @@ function ResumenDistribucion({
               {conversionUsd ?? '—'}
             </span>
             <span className="mt-1 block text-xs leading-snug text-muted-foreground">
-              {decisionesUsd > 0
-                ? `${cierresDolares.convertidos} ${plural(cierresDolares.convertidos, 'venta', 'ventas')} de ${decisionesUsd} leads resueltos`
+              {punteria.usd.resueltos > 0
+                ? `${punteria.usd.convertidos} ${plural(punteria.usd.convertidos, 'venta', 'ventas')} de ${punteria.usd.resueltos} leads resueltos`
                 : 'Aún sin leads resueltos'}
             </span>
           </div>
         </dd>
+        <dd className="mt-1.5 text-[11px] leading-relaxed text-muted-foreground">
+          De lo que cada quien terminó de trabajar en el período, cuánto ganó.
+        </dd>
       </div>
-
     </dl>
+  )
+}
+
+/** F3.4: los avisos de las sondas se dicen; los descuadres además ocultan. */
+function AvisoSondas({ datos }: { datos: MetricasDistribucionLeads }): JSX.Element | null {
+  const sondas = estadoSondasDistribucion(datos)
+  const descuadre = sondas.motivoOculto === 'descuadre'
+  if (!descuadre && sondas.avisos.length === 0) return null
+
+  return (
+    <div
+      className="flex items-start gap-3 rounded-lg border border-warning/35 bg-warning/5 px-4 py-3"
+      role="status"
+    >
+      <AlertTriangle className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
+      <div>
+        <p className="text-sm font-bold text-foreground">
+          {descuadre ? 'Cifras en revisión' : 'Aviso sobre la cifra del mes'}
+        </p>
+        <div className="mt-0.5 space-y-0.5 text-xs leading-relaxed text-muted-foreground">
+          {descuadre && (
+            <p>
+              La verificación interna del mes no cuadró y la conversión del mes se oculta hasta
+              revisarla. El resto del tablero sigue siendo confiable.
+            </p>
+          )}
+          {sondas.avisos.map((aviso) => (
+            <p key={aviso}>{aviso}</p>
+          ))}
+        </div>
+      </div>
+    </div>
   )
 }
 
@@ -1116,8 +1187,9 @@ function CeldaRangoAnalista({
   dato: RangoAnalistaDistribucion
   modo: ModoTablaRangos
 }): JSX.Element {
-  const decisiones = dato.cohorte.convertidos + dato.cohorte.descartados
-  const conversionRango = porcentajeLegible(dato.cohorte.convertidos, decisiones)
+  // Servido por la RPC V3: convertidos, resueltos y % ya calculados por rango.
+  const decisiones = dato.conversion.resueltos
+  const conversionRango = porcentajePunteria(dato.conversion.pct)
 
   return (
     <td className="border-b border-r border-border/70 px-2 py-2 text-center">
@@ -1145,7 +1217,7 @@ function CeldaRangoAnalista({
         >
           <p className="text-sm font-extrabold">{conversionRango ?? '—'}</p>
           <p className="mt-0.5 text-[11px] font-medium text-muted-foreground">
-            {decisiones > 0 ? `${dato.cohorte.convertidos} de ${decisiones}` : 'Sin casos'}
+            {decisiones > 0 ? `${dato.conversion.convertidos} de ${decisiones}` : 'Sin casos'}
           </p>
         </div>
       )}
@@ -1253,8 +1325,9 @@ function TablaRangos({
               </thead>
               <tbody>
                 {analistas.map((analista) => {
-                  const resueltos = analista.pen.cohorte.convertidos + analista.pen.cohorte.descartados
-                  const conversionTotal = porcentajeLegible(analista.pen.cohorte.convertidos, resueltos)
+                  // Puntería PEN servida por analista: el total no se recalcula.
+                  const resueltos = analista.conversion.pen.resueltos
+                  const conversionTotal = porcentajePunteria(analista.conversion.pen.pct)
                   return (
                     <tr key={analista.analista_id} className="group hover:bg-muted/20">
                       <th
@@ -1283,7 +1356,7 @@ function TablaRangos({
                             {conversionTotal ?? '—'}
                           </p>
                           <p className="text-[11px] tabular-nums text-muted-foreground">
-                            {analista.pen.cohorte.convertidos} de {resueltos}
+                            {analista.conversion.pen.convertidos} de {resueltos}
                           </p>
                         </td>
                       )}
@@ -1582,14 +1655,17 @@ export function DistribucionLeadsGerencia({
           {mostrarOperacion && <AsistenteReparto datos={datos} />}
           <TablaRangos datos={datos} fichas={fichasFiltradas} />
           {mostrarOperacion && <PorRepartir datos={datos} />}
+          <AvisoSondas datos={datos} />
           <AlertaCalidad datos={datos} />
 
           <p className="text-[11px] leading-relaxed text-muted-foreground">
             Período: {datos.cohorte.desde_inclusivo} al {datos.cohorte.hasta_inclusivo}. «Recibió»
             cuenta cada vez que un lead entró a la cartera de una persona durante el período; la
-            cartera actual es la foto de hoy. Los cierres se calculan solo sobre leads resueltos
-            (ventas + descartes). Los tiempos de atención se consultan en las métricas SLA
-            versionadas, fuera de este tablero de distribución.
+            cartera actual es la foto de hoy. La puntería mide, de lo que cada quien terminó de
+            trabajar (ventas + descartes), cuánto ganó; la «Conversión del mes» es la cifra única
+            del núcleo — la misma de HOY, Metas, Conversiones y el Ranking — y todos estos
+            porcentajes los calcula el servidor. Los tiempos de atención se consultan en las
+            métricas SLA versionadas, fuera de este tablero de distribución.
           </p>
         </CardContent>
       )}

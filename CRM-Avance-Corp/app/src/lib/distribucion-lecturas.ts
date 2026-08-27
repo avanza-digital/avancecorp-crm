@@ -1,4 +1,4 @@
-// Lecturas derivadas de la fotografía de distribución (RPC V2) para que la
+// Lecturas derivadas de la fotografía de distribución (RPC V3) para que la
 // pantalla de Gerencia hable en lenguaje comercial: avisos operativos,
 // fichas por analista, candidatos de reparto y presets de período.
 //
@@ -6,13 +6,16 @@
 // por capital y trazabilidad CRM"):
 //   * PEN y USD jamás se suman como MONTO; contar leads de ambas monedas sí es
 //     válido (la capacidad es TODAS_LAS_MONEDAS por contrato).
-//   * Conversión = convertidos / (convertidos + descartados); sin denominador
-//     no se inventa un 0% (null = "Sin muestra").
+//   * Desde F3 de «Conversión única», AQUÍ NO SE DIVIDE: la puntería
+//     (cerrados ÷ resueltos, decisión D3) viene SERVIDA en el payload V3 y
+//     este módulo solo la formatea. Sin resueltos el servidor manda pct NULL
+//     y se dice "Sin muestra" — jamás un 0 % inventado.
 //   * Nada aquí emite órdenes ("Priorizar", "Pausar"): produce evidencia
 //     ordenada por criterios declarados; el gerente decide.
 import type {
-  MetricaDistribucionAnalista,
-  MetricasDistribucionLeads,
+  ConversionPunteria,
+  MetricaDistribucionAnalistaV3,
+  MetricasDistribucionLeadsV3,
   RangoCapitalPenId,
 } from './metricas-distribucion'
 
@@ -22,11 +25,14 @@ export function plural(n: number, singular: string, plurales: string): string {
   return n === 1 ? singular : plurales
 }
 
-/** % entero-ish legible; null cuando no hay denominador (Sin muestra). */
-export function porcentajeLegible(numerador: number, denominador: number): string | null {
-  if (denominador <= 0) return null
-  const valor = (numerador / denominador) * 100
-  return `${new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 }).format(valor)}%`
+/**
+ * Formatea un % YA SERVIDO (6 decimales del servidor → 1 decimal es-PE, el
+ * mismo carácter que pintaba la pantalla cuando dividía). null pasa de largo:
+ * «aún no se sabe» no es «0 %».
+ */
+export function porcentajePunteria(pct: number | null): string | null {
+  if (pct == null) return null
+  return `${new Intl.NumberFormat('es-PE', { maximumFractionDigits: 1 }).format(pct)}%`
 }
 
 // ── Período: presets en días calendario de Lima ───────────────────────────────
@@ -90,7 +96,7 @@ const RANGOS_ALTOS: readonly RangoCapitalPenId[] = ['pen_50000_100000', 'pen_mas
  * Solo usa hechos presentes en la fotografía: jamás inventa antigüedades ni
  * emite órdenes sobre personas.
  */
-export function avisosAtencion(datos: MetricasDistribucionLeads): AvisoAtencion[] {
+export function avisosAtencion(datos: MetricasDistribucionLeadsV3): AvisoAtencion[] {
   const criticas: AvisoAtencion[] = []
   const medias: AvisoAtencion[] = []
 
@@ -184,7 +190,7 @@ export interface ConversionLegible {
 }
 
 export interface FichaAnalista {
-  analista: MetricaDistribucionAnalista
+  analista: MetricaDistribucionAnalistaV3
   /** null = sin límite definido. */
   cuposLibres: number | null
   /** % de uso del límite (0-∞); null sin límite. */
@@ -194,6 +200,8 @@ export interface FichaAnalista {
   recibidosPeriodo: number
   conversionPen: ConversionLegible | null
   conversionUsd: ConversionLegible | null
+  /** Puntería PEN servida en crudo (para ordenar); null = sin resueltos. */
+  punteriaPenPct: number | null
   sinAtender: number
   transferidos: number
   parqueados: number
@@ -203,14 +211,18 @@ export interface FichaAnalista {
   conUsd: boolean
 }
 
-function conversionLegible(convertidos: number, descartados: number): ConversionLegible | null {
-  const resueltos = convertidos + descartados
-  const pct = porcentajeLegible(convertidos, resueltos)
+/**
+ * La puntería SERVIDA, en texto legible. La división vive en el servidor
+ * (`private.conversion_punteria`, F2.3b): aquí solo se formatea. pct NULL
+ * («todavía no se sabe») degrada a null y la pantalla dice "Sin muestra".
+ */
+function punteriaLegible(punteria: ConversionPunteria): ConversionLegible | null {
+  const pct = porcentajePunteria(punteria.pct)
   if (pct == null) return null
-  return { pct, convertidos, resueltos }
+  return { pct, convertidos: punteria.convertidos, resueltos: punteria.resueltos }
 }
 
-export function fichaAnalista(analista: MetricaDistribucionAnalista): FichaAnalista {
+export function fichaAnalista(analista: MetricaDistribucionAnalistaV3): FichaAnalista {
   const objetivo = analista.capacidad.objetivo
   const carga = analista.capacidad.carga_activa
   const usd = analista.usd_no_segmentado
@@ -220,11 +232,10 @@ export function fichaAnalista(analista: MetricaDistribucionAnalista): FichaAnali
     uso: objetivo == null || objetivo === 0 ? null : Math.round((carga / objetivo) * 100),
     lleno: objetivo != null && carga >= objetivo,
     recibidosPeriodo: analista.pen.cohorte.episodios_recibidos + usd.cohorte_episodios_recibidos,
-    conversionPen: conversionLegible(
-      analista.pen.cohorte.convertidos,
-      analista.pen.cohorte.descartados,
-    ),
-    conversionUsd: conversionLegible(usd.convertidos, usd.descartados),
+    conversionPen: punteriaLegible(analista.conversion.pen),
+    conversionUsd: punteriaLegible(analista.conversion.usd),
+    // El orden «cierres» compara este número SERVIDO, nunca uno recalculado.
+    punteriaPenPct: analista.conversion.pen.pct,
     sinAtender: analista.operacion.sin_tocar_actual,
     transferidos: analista.operacion.transferidos,
     parqueados: analista.operacion.parqueados,
@@ -251,10 +262,6 @@ function porNombre(a: FichaAnalista, b: FichaAnalista): number {
   return a.analista.nombre.localeCompare(b.analista.nombre, 'es')
 }
 
-function pctNumerico(conversion: ConversionLegible | null): number {
-  if (conversion == null || conversion.resueltos === 0) return -1
-  return conversion.convertidos / conversion.resueltos
-}
 
 /**
  * Orden con criterio declarado. Quien no recibe leads va SIEMPRE al final:
@@ -285,7 +292,8 @@ export function ordenarFichas(fichas: FichaAnalista[], orden: OrdenFichas): Fich
     },
     carga: (a, b) =>
       b.analista.capacidad.carga_activa - a.analista.capacidad.carga_activa || porNombre(a, b),
-    cierres: (a, b) => pctNumerico(b.conversionPen) - pctNumerico(a.conversionPen) || porNombre(a, b),
+    // El pct SERVIDO ordena (F3): null («sin resueltos») siempre al fondo.
+    cierres: (a, b) => (b.punteriaPenPct ?? -1) - (a.punteriaPenPct ?? -1) || porNombre(a, b),
     sin_atender: (a, b) =>
       b.sinAtender - a.sinAtender || porNombre(a, b),
     nombre: porNombre,
@@ -301,12 +309,12 @@ export interface EquipoDistribucion {
   id: string
   nombre: string
   activo: boolean
-  analistas: MetricaDistribucionAnalista[]
+  analistas: MetricaDistribucionAnalistaV3[]
   pendientesBandeja: number
 }
 
 /** Equipo al que pertenece un analista (un supervisor con cartera es de su propio equipo). */
-export function idEquipoDeAnalista(analista: MetricaDistribucionAnalista): string {
+export function idEquipoDeAnalista(analista: MetricaDistribucionAnalistaV3): string {
   return (
     analista.supervisor_id
     ?? (analista.rol === 'supervisor' ? analista.analista_id : 'sin-supervisor')
@@ -318,7 +326,7 @@ export function idEquipoDeAnalista(analista: MetricaDistribucionAnalista): strin
  * equipo; una bandeja sin analistas visibles también aparece (sus pendientes
  * no deben desaparecer de la lectura).
  */
-export function equiposDistribucion(datos: MetricasDistribucionLeads): EquipoDistribucion[] {
+export function equiposDistribucion(datos: MetricasDistribucionLeadsV3): EquipoDistribucion[] {
   const equipos = new Map<string, EquipoDistribucion>()
   const bandejas = new Map(
     datos.por_repartir.bandejas.map((bandeja) => [bandeja.supervisor_id, bandeja]),
@@ -394,7 +402,7 @@ export type SeleccionReparto =
   | { moneda: 'USD' }
 
 export interface CandidatoReparto {
-  analista: MetricaDistribucionAnalista
+  analista: MetricaDistribucionAnalistaV3
   /** null = sin límite definido. */
   cuposLibres: number | null
   lleno: boolean
@@ -420,7 +428,7 @@ export interface ResultadoReparto {
  * El orden es un criterio DECLARADO en la interfaz, no una recomendación.
  */
 export function candidatosReparto(
-  datos: MetricasDistribucionLeads,
+  datos: MetricasDistribucionLeadsV3,
   seleccion: SeleccionReparto,
 ): ResultadoReparto {
   const disponibles = datos.analistas.filter((analista) => analista.disponible_para_recibir)
@@ -436,10 +444,8 @@ export function candidatosReparto(
         activos: rango?.cartera_actual.episodios ?? 0,
         capital: rango?.cartera_actual.capital ?? 0,
         recibidos: rango?.cohorte.episodios_recibidos ?? 0,
-        conversion: conversionLegible(
-          rango?.cohorte.convertidos ?? 0,
-          rango?.cohorte.descartados ?? 0,
-        ),
+        // Rango ausente = catálogo incompleto: sin conversión, no un 0 %.
+        conversion: rango == null ? null : punteriaLegible(rango.conversion),
       }
     } else {
       const usd = analista.usd_no_segmentado
@@ -447,7 +453,7 @@ export function candidatosReparto(
         activos: usd.cartera_actual_episodios,
         capital: usd.cartera_actual_capital,
         recibidos: usd.cohorte_episodios_recibidos,
-        conversion: conversionLegible(usd.convertidos, usd.descartados),
+        conversion: punteriaLegible(analista.conversion.usd),
       }
     }
     return {
@@ -478,4 +484,48 @@ export function candidatosReparto(
   })
 
   return { candidatos, noReciben }
+}
+
+// ── F3.4: la red — qué dicen las sondas del payload V3 ───────────────────────
+
+export interface EstadoSondasDistribucion {
+  /** La cifra del núcleo puede mostrarse: la paridad corrió y dio 0. */
+  mostrarNucleo: boolean
+  /**
+   * Por qué se oculta: 'descuadre' = la sonda FALLÓ (banner ámbar «cifras en
+   * revisión»); 'sin_verificacion' = el rango no es un mes completo y la
+   * paridad no tuvo con qué comparar (nota neutra, nada falló).
+   */
+  motivoOculto: 'descuadre' | 'sin_verificacion' | null
+  /** Avisos que NO ocultan la cifra (se dicen, no se esconden). */
+  avisos: string[]
+}
+
+/**
+ * El front no fabrica ceros: si la sonda de paridad no da 0 confirmado, la
+ * cifra del núcleo SE OCULTA (plan F3.4). `nucleo_sin_ficha` y los episodios
+ * sin analista son avisos: el resumen sigue cuadrando, pero hay historia que
+ * ninguna ficha visible explica y eso se dice.
+ */
+export function estadoSondasDistribucion(datos: MetricasDistribucionLeadsV3): EstadoSondasDistribucion {
+  const { sondas } = datos
+  const avisos: string[] = []
+  if (sondas.nucleo_sin_ficha > 0) {
+    avisos.push(
+      `${sondas.nucleo_sin_ficha} ${plural(sondas.nucleo_sin_ficha, 'analista con historia en el ledger no aparece', 'analistas con historia en el ledger no aparecen')} entre las fichas (fuera del roster actual): el total del mes incluye su parte.`,
+    )
+  }
+  if (sondas.divisor_sin_analista > 0 || sondas.numerador_sin_analista > 0) {
+    avisos.push(
+      `Hay episodios del período sin analista atribuible (${sondas.divisor_sin_analista} recibidos): cuentan en el total, no en las fichas.`,
+    )
+  }
+  if (sondas.cuadra === true) {
+    return { mostrarNucleo: true, motivoOculto: null, avisos }
+  }
+  if (sondas.cuadra === false) {
+    return { mostrarNucleo: false, motivoOculto: 'descuadre', avisos }
+  }
+  // cuadra NULL: la paridad solo corre con el mes entero o el mes en curso.
+  return { mostrarNucleo: false, motivoOculto: 'sin_verificacion', avisos }
 }

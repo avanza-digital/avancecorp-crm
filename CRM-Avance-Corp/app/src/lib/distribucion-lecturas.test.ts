@@ -1,24 +1,37 @@
 import { describe, expect, it } from 'vitest'
 import type {
-  MetricaDistribucionAnalista,
-  MetricasDistribucionLeads,
-  RangoDistribucionAnalista,
+  ConversionPunteria,
+  MetricaDistribucionAnalistaV3,
+  MetricasDistribucionLeadsV3,
+  RangoDistribucionAnalistaV3,
+  SondasDistribucion,
 } from './metricas-distribucion'
 import { RANGOS_CAPITAL_PEN } from './metricas-distribucion'
 import {
   avisosAtencion,
   candidatosReparto,
   equiposDistribucion,
+  estadoSondasDistribucion,
   fichaAnalista,
   idEquipoDeAnalista,
   ordenarFichas,
-  porcentajeLegible,
+  porcentajePunteria,
   presetsPeriodo,
   resumenEquipo,
   sumarDiasIso,
 } from './distribucion-lecturas'
 
-function rangosVacios(): RangoDistribucionAnalista[] {
+/** Espejo del servidor (`private.conversion_punteria`): el fixture SIRVE el %. */
+function punteria(convertidos: number, descartados: number): ConversionPunteria {
+  const resueltos = convertidos + descartados
+  return {
+    convertidos,
+    resueltos,
+    pct: resueltos > 0 ? Math.round((1_000_000 * 100 * convertidos) / resueltos) / 1_000_000 : null,
+  }
+}
+
+function rangosVacios(): RangoDistribucionAnalistaV3[] {
   return RANGOS_CAPITAL_PEN.map((rangoId) => ({
     rango_id: rangoId,
     cartera_actual: { episodios: 0, capital: 0 },
@@ -29,20 +42,22 @@ function rangosVacios(): RangoDistribucionAnalista[] {
       descartados: 0,
       leads_unicos_resueltos: 0,
     },
+    conversion: punteria(0, 0),
   }))
 }
 
 let contadorIds = 0
 
 function analista(
-  cambios: Partial<Omit<MetricaDistribucionAnalista, 'capacidad' | 'operacion'>> & {
-    capacidad?: Partial<MetricaDistribucionAnalista['capacidad']>
-    operacion?: Partial<MetricaDistribucionAnalista['operacion']>
+  cambios: Partial<Omit<MetricaDistribucionAnalistaV3, 'capacidad' | 'operacion'>> & {
+    capacidad?: Partial<MetricaDistribucionAnalistaV3['capacidad']>
+    operacion?: Partial<MetricaDistribucionAnalistaV3['operacion']>
   } = {},
-): MetricaDistribucionAnalista {
+): MetricaDistribucionAnalistaV3 {
   contadorIds += 1
   const { capacidad, operacion, ...resto } = cambios
-  return {
+  const base: Omit<MetricaDistribucionAnalistaV3, 'conversion'>
+    & Pick<Partial<MetricaDistribucionAnalistaV3>, 'conversion'> = {
     analista_id: `00000000-0000-4000-8000-${String(contadorIds).padStart(12, '0')}`,
     nombre: `Analista ${contadorIds}`,
     rol: 'vendedor',
@@ -81,6 +96,20 @@ function analista(
     },
     ...resto,
   }
+  // El bloque servido se deriva de los MISMOS enteros del fixture (como hace
+  // el servidor), salvo que el caso pida servir otra cosa a propósito.
+  return {
+    ...base,
+    conversion: base.conversion ?? {
+      pen: punteria(base.pen.cohorte.convertidos, base.pen.cohorte.descartados),
+      usd: punteria(base.usd_no_segmentado.convertidos, base.usd_no_segmentado.descartados),
+      nucleo_divisor: base.pen.cohorte.episodios_recibidos
+        + base.usd_no_segmentado.cohorte_episodios_recibidos,
+      nucleo_referidos_recibidos: 0,
+      nucleo_numerador: base.pen.cohorte.convertidos + base.usd_no_segmentado.convertidos,
+      nucleo_conversion_pct: null,
+    },
+  }
 }
 
 function colaVacia() {
@@ -92,11 +121,12 @@ function colaVacia() {
 }
 
 function datos(cambios: {
-  analistas?: MetricaDistribucionAnalista[]
+  analistas?: MetricaDistribucionAnalistaV3[]
   colaAltos?: { cantidad: number; capital: number }
   colaGerencia?: number
   bandejas?: Array<{ id: string; nombre: string; activo?: boolean; carga: number }>
-} = {}): MetricasDistribucionLeads {
+  sondas?: Partial<SondasDistribucion>
+} = {}): MetricasDistribucionLeadsV3 {
   const penTotal = colaVacia()
   if (cambios.colaAltos) {
     const alto = penTotal.rangos.find((rango) => rango.rango_id === 'pen_mas_100000')
@@ -108,7 +138,7 @@ function datos(cambios: {
     penTotal.capital += cambios.colaAltos.capital
   }
   return {
-    version: 2,
+    version: 3,
     generado_en: '2026-07-19T12:00:00Z',
     cohorte: {
       desde_inclusivo: '2026-04-20',
@@ -121,6 +151,9 @@ function datos(cambios: {
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
+      conversion_punteria: 'CERRADOS_ENTRE_RESUELTOS',
+      conversion_nucleo: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      conversion_incluye_cartera: false,
     },
     rangos: RANGOS_CAPITAL_PEN.map((id, indice) => ({
       id,
@@ -140,6 +173,14 @@ function datos(cambios: {
       convertidos_pen: 0,
       descartados_pen: 0,
       reasignaciones_cohorte: 0,
+      conversion: {
+        pen: punteria(0, 0),
+        usd: punteria(0, 0),
+        nucleo_divisor: 0,
+        nucleo_referidos_recibidos: 0,
+        nucleo_numerador: 0,
+        nucleo_conversion_pct: null,
+      },
     },
     analistas: cambios.analistas ?? [],
     por_repartir: {
@@ -165,13 +206,28 @@ function datos(cambios: {
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
     },
+    sondas: {
+      peso_referido: 0.15,
+      mes_peso: '2026-07-01',
+      paridad_nucleo: 0,
+      paridad_filas: 1,
+      cuadra: true,
+      divisor_sin_analista: 0,
+      numerador_sin_analista: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      nucleo_sin_ficha: 0,
+      ...cambios.sondas,
+    },
   }
 }
 
-describe('porcentajeLegible', () => {
-  it('no inventa un 0% sin denominador', () => {
-    expect(porcentajeLegible(3, 0)).toBeNull()
-    expect(porcentajeLegible(1, 4)).toBe('25%')
+describe('porcentajePunteria', () => {
+  it('formatea el % SERVIDO y deja pasar el null («aún no se sabe»)', () => {
+    expect(porcentajePunteria(null)).toBeNull()
+    expect(porcentajePunteria(25)).toBe('25%')
+    // 6 decimales del servidor → 1 decimal en pantalla, sin doble redondeo.
+    expect(porcentajePunteria(71.428571)).toBe('71.4%')
   })
 })
 
@@ -310,6 +366,54 @@ describe('fichaAnalista y ordenarFichas', () => {
     ])
   })
 
+  it('el orden «cierres» compara el % SERVIDO, no uno recalculado', () => {
+    // Mutante vigilado: los enteros de la cohorte dirían 75 % (3 de 4), pero
+    // el servidor sirve 10 %. Si alguien vuelve a dividir en el navegador,
+    // este caso lo caza: el orden debe obedecer al % servido.
+    const servidoBajo = analista({
+      nombre: 'Servido Bajo',
+      pen: {
+        cartera_actual: { episodios: 0, capital: 0 },
+        cohorte: {
+          episodios_recibidos: 4,
+          leads_unicos_recibidos: 4,
+          convertidos: 3,
+          descartados: 1,
+          ciclos_resueltos: 4,
+          leads_unicos_resueltos: 4,
+        },
+        rangos: rangosVacios(),
+      },
+      conversion: {
+        pen: { convertidos: 3, resueltos: 4, pct: 10 },
+        usd: punteria(0, 0),
+        nucleo_divisor: 4,
+        nucleo_referidos_recibidos: 0,
+        nucleo_numerador: 3,
+        nucleo_conversion_pct: null,
+      },
+    })
+    const derivado = fichaAnalista(
+      analista({
+        nombre: 'Derivado Medio',
+        pen: {
+          cartera_actual: { episodios: 0, capital: 0 },
+          cohorte: {
+            episodios_recibidos: 4,
+            leads_unicos_recibidos: 4,
+            convertidos: 2,
+            descartados: 2,
+            ciclos_resueltos: 4,
+            leads_unicos_resueltos: 4,
+          },
+          rangos: rangosVacios(),
+        },
+      }),
+    )
+    const orden = ordenarFichas([fichaAnalista(servidoBajo), derivado], 'cierres')
+    expect(orden.map((ficha) => ficha.analista.nombre)).toEqual(['Derivado Medio', 'Servido Bajo'])
+  })
+
   it('ordena por cierres dejando "Sin muestra" al final', () => {
     const bueno = fichaAnalista(
       analista({
@@ -411,7 +515,7 @@ describe('candidatosReparto', () => {
     nombre: string,
     capacidad: { objetivo: number | null; carga: number },
     rango: { activos: number; c: number; d: number; recibidos?: number },
-  ): MetricaDistribucionAnalista {
+  ): MetricaDistribucionAnalistaV3 {
     const rangos = rangosVacios()
     const objetivo = rangos.find((r) => r.rango_id === 'pen_10000_20000')
     if (objetivo) {
@@ -423,6 +527,7 @@ describe('candidatosReparto', () => {
         descartados: rango.d,
         leads_unicos_resueltos: rango.c + rango.d,
       }
+      objetivo.conversion = punteria(rango.c, rango.d)
     }
     return analista({
       nombre,
@@ -489,5 +594,43 @@ describe('candidatosReparto', () => {
       recibidos: 3,
       conversion: { pct: '50%', convertidos: 1, resueltos: 2 },
     })
+  })
+})
+
+describe('estadoSondasDistribucion (F3.4: la red)', () => {
+  it('con cuadra=true muestra el núcleo y no alarma', () => {
+    const estado = estadoSondasDistribucion(datos())
+    expect(estado).toEqual({ mostrarNucleo: true, motivoOculto: null, avisos: [] })
+  })
+
+  it('con cuadra=false OCULTA la cifra por descuadre (jamás pinta un número roto)', () => {
+    const estado = estadoSondasDistribucion(
+      datos({ sondas: { cuadra: false, paridad_nucleo: 2 } }),
+    )
+    expect(estado.mostrarNucleo).toBe(false)
+    expect(estado.motivoOculto).toBe('descuadre')
+  })
+
+  it('con cuadra=null (rango que no es un mes) oculta SIN alarma: nada falló', () => {
+    const estado = estadoSondasDistribucion(
+      datos({ sondas: { cuadra: null, paridad_nucleo: null, paridad_filas: 0 } }),
+    )
+    expect(estado.mostrarNucleo).toBe(false)
+    expect(estado.motivoOculto).toBe('sin_verificacion')
+  })
+
+  it('nucleo_sin_ficha > 0 AVISA pero no oculta (el caso real vivo en prod)', () => {
+    const estado = estadoSondasDistribucion(datos({ sondas: { nucleo_sin_ficha: 1 } }))
+    expect(estado.mostrarNucleo).toBe(true)
+    expect(estado.avisos).toHaveLength(1)
+    expect(estado.avisos[0]).toContain('1 analista con historia en el ledger')
+  })
+
+  it('episodios sin analista atribuible también se dicen', () => {
+    const estado = estadoSondasDistribucion(
+      datos({ sondas: { divisor_sin_analista: 3, numerador_sin_analista: 1 } }),
+    )
+    expect(estado.mostrarNucleo).toBe(true)
+    expect(estado.avisos[0]).toContain('3 recibidos')
   })
 })

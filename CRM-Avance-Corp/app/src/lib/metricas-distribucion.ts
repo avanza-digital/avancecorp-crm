@@ -248,6 +248,108 @@ export const MetricasDistribucionLeadsSchema = v.strictObject({
   calidad: CalidadDistribucionSchema,
 })
 
+// ── V3 (F3 de «Conversión única»): los porcentajes vienen SERVIDOS ───────────
+//
+// Contrato runtime de `crm.metricas_distribucion_leads_v3_fn` (F2.3b,
+// migración 20260827090000). Escrito desde el PAYLOAD REAL de producción
+// (154 caminos medidos el 27/08 con la cadena completa puente→rama 3→puerta),
+// no desde la imaginación. Compone los strictObject de la V2: la V3 es la V2
+// más `conversion` (puntería cerrados÷resueltos por analista/rango/resumen y
+// la cifra del NÚCLEO — la misma aritmética que HOY/Metas/Conversiones/
+// Ranking) más el bloque `sondas` que permite OCULTAR un número en vez de
+// fabricar un cero.
+//
+// Nulabilidad: donde la foto de prod trae número, el SQL igual puede devolver
+// NULL («aún no se sabe» ≠ «0 %»): `pct` sin resueltos, `nucleo_conversion_pct`
+// con divisor 0, y `cuadra`/`paridad_nucleo` cuando el rango no es un mes
+// completo (la sonda de paridad solo corre con sustancia que comparar).
+
+/** Puntería servida (D3): 6 decimales del servidor; el front SOLO formatea. */
+const ConversionPunteriaSchema = v.strictObject({
+  convertidos: EnteroNoNegativoSchema,
+  resueltos: EnteroNoNegativoSchema,
+  pct: v.nullable(v.pipe(NumericoRpcSchema, v.minValue(0))),
+})
+
+// Sin tope superior a propósito: el >100 % del núcleo es normal, no
+// excepcional (renovaciones y arrastre suman cierres sin sumar recibidos).
+const ConversionNucleoEntries = {
+  nucleo_divisor: EnteroNoNegativoSchema,
+  nucleo_referidos_recibidos: EnteroNoNegativoSchema,
+  nucleo_numerador: CapitalNoNegativoSchema,
+  nucleo_conversion_pct: v.nullable(v.pipe(NumericoRpcSchema, v.minValue(0))),
+} as const
+
+const ConversionAnalistaV3Schema = v.strictObject({
+  pen: ConversionPunteriaSchema,
+  usd: ConversionPunteriaSchema,
+  ...ConversionNucleoEntries,
+})
+
+const RangoAnalistaV3Schema = v.strictObject({
+  ...RangoAnalistaSchema.entries,
+  conversion: ConversionPunteriaSchema,
+})
+
+const RangosAnalistaV3Schema = v.pipe(
+  v.array(RangoAnalistaV3Schema),
+  v.length(RANGOS_CAPITAL_PEN.length),
+  v.check(
+    (rangos) => rangos.every(
+      (rango, indice) => rango.rango_id === RANGOS_CAPITAL_PEN[indice],
+    ),
+    'Rangos del analista incompatibles',
+  ),
+)
+
+const AnalistaDistribucionV3Schema = v.strictObject({
+  ...AnalistaDistribucionSchema.entries,
+  pen: v.strictObject({
+    ...PenAnalistaSchema.entries,
+    rangos: RangosAnalistaV3Schema,
+  }),
+  conversion: ConversionAnalistaV3Schema,
+})
+
+const ResumenDistribucionV3Schema = v.strictObject({
+  ...ResumenDistribucionSchema.entries,
+  conversion: v.strictObject({
+    pen: ConversionPunteriaSchema,
+    usd: ConversionPunteriaSchema,
+    ...ConversionNucleoEntries,
+  }),
+})
+
+/** Sondas de F2.3b: si una falla, el front oculta el número (jamás un 0). */
+const SondasDistribucionSchema = v.strictObject({
+  peso_referido: v.pipe(NumericoRpcSchema, v.minValue(0), v.maxValue(1)),
+  mes_peso: FechaSchema,
+  paridad_nucleo: v.nullable(v.pipe(NumericoRpcSchema, v.minValue(0))),
+  paridad_filas: EnteroNoNegativoSchema,
+  cuadra: v.nullable(v.boolean()),
+  divisor_sin_analista: EnteroNoNegativoSchema,
+  numerador_sin_analista: v.pipe(NumericoRpcSchema, v.minValue(0)),
+  cierres_anulados: EnteroNoNegativoSchema,
+  episodios_sin_origen: EnteroNoNegativoSchema,
+  nucleo_sin_ficha: EnteroNoNegativoSchema,
+})
+
+export const MetricasDistribucionLeadsV3Schema = v.strictObject({
+  ...MetricasDistribucionLeadsSchema.entries,
+  version: v.literal(3),
+  alcances: v.strictObject({
+    matriz: v.literal('PEN'),
+    capacidad: v.literal('TODAS_LAS_MONEDAS'),
+    montos: v.literal('SEPARADOS_SIN_CONVERSION'),
+    conversion_punteria: v.literal('CERRADOS_ENTRE_RESUELTOS'),
+    conversion_nucleo: v.literal('COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS'),
+    conversion_incluye_cartera: v.boolean(),
+  }),
+  resumen: ResumenDistribucionV3Schema,
+  analistas: v.array(AnalistaDistribucionV3Schema),
+  sondas: SondasDistribucionSchema,
+})
+
 export type RangoCapitalPen = v.InferOutput<typeof RangoCapitalSchema>
 export type RangoDistribucionAnalista = v.InferOutput<typeof RangoAnalistaSchema>
 export type MetricaDistribucionAnalista = v.InferOutput<typeof AnalistaDistribucionSchema>
@@ -256,4 +358,11 @@ export type MetricasPorRepartir = v.InferOutput<
 >['por_repartir']
 export type MetricasDistribucionLeads = v.InferOutput<
   typeof MetricasDistribucionLeadsSchema
+>
+export type ConversionPunteria = v.InferOutput<typeof ConversionPunteriaSchema>
+export type SondasDistribucion = v.InferOutput<typeof SondasDistribucionSchema>
+export type RangoDistribucionAnalistaV3 = v.InferOutput<typeof RangoAnalistaV3Schema>
+export type MetricaDistribucionAnalistaV3 = v.InferOutput<typeof AnalistaDistribucionV3Schema>
+export type MetricasDistribucionLeadsV3 = v.InferOutput<
+  typeof MetricasDistribucionLeadsV3Schema
 >

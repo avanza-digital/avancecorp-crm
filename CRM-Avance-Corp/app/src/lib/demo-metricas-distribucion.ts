@@ -1,9 +1,24 @@
 import type {
-  MetricaDistribucionAnalista,
-  MetricasDistribucionLeads,
+  ConversionPunteria,
+  MetricaDistribucionAnalistaV3,
+  MetricasDistribucionLeadsV3,
   MetricasPorRepartir,
-  RangoDistribucionAnalista,
+  RangoDistribucionAnalistaV3,
 } from './metricas-distribucion'
+
+/**
+ * Espejo demo de `private.conversion_punteria` (F2.3b): el fixture calcula lo
+ * que en producción calcula el SERVIDOR, con la misma regla — pct NULL sin
+ * resueltos, 6 decimales. El front real jamás divide (F3).
+ */
+function punteria(convertidos: number, descartados: number): ConversionPunteria {
+  const resueltos = convertidos + descartados
+  return {
+    convertidos,
+    resueltos,
+    pct: resueltos > 0 ? Math.round((1_000_000 * 100 * convertidos) / resueltos) / 1_000_000 : null,
+  }
+}
 
 const RANGOS = [
   ['pen_0_1000', 'Hasta S/ 1 mil', 0, 1000],
@@ -29,7 +44,7 @@ function rangosAnalista(
       recibidos?: number
     }
   > = {},
-): RangoDistribucionAnalista[] {
+): RangoDistribucionAnalistaV3[] {
   return RANGOS.map(([rangoId]) => {
     const dato = destacados[rangoId] ?? {
       cartera: 0,
@@ -48,8 +63,33 @@ function rangosAnalista(
         descartados: dato.descartados,
         leads_unicos_resueltos: dato.convertidos + dato.descartados,
       },
+      conversion: punteria(dato.convertidos, dato.descartados),
     }
   })
+}
+
+/**
+ * Completa la ficha demo con su bloque `conversion` V3, derivado de sus
+ * propios números (auto-coherente, como exige la sonda de paridad): puntería
+ * PEN/USD y un núcleo simplificado sin referidos ni cartera.
+ */
+function analistaV3(
+  base: Omit<MetricaDistribucionAnalistaV3, 'conversion'>,
+): MetricaDistribucionAnalistaV3 {
+  const divisor = base.pen.cohorte.episodios_recibidos
+    + base.usd_no_segmentado.cohorte_episodios_recibidos
+  const numerador = base.pen.cohorte.convertidos + base.usd_no_segmentado.convertidos
+  return {
+    ...base,
+    conversion: {
+      pen: punteria(base.pen.cohorte.convertidos, base.pen.cohorte.descartados),
+      usd: punteria(base.usd_no_segmentado.convertidos, base.usd_no_segmentado.descartados),
+      nucleo_divisor: divisor,
+      nucleo_referidos_recibidos: 0,
+      nucleo_numerador: numerador,
+      nucleo_conversion_pct: divisor > 0 ? Math.round((10_000 * numerador) / divisor) / 100 : null,
+    },
+  }
 }
 
 function rangosCola(
@@ -62,7 +102,7 @@ function rangosCola(
   }))
 }
 
-const ANA: MetricaDistribucionAnalista = {
+const ANA: MetricaDistribucionAnalistaV3 = analistaV3({
   analista_id: '11111111-1111-4111-8111-111111111111',
   nombre: 'Ana Torres',
   rol: 'vendedor',
@@ -104,9 +144,9 @@ const ANA: MetricaDistribucionAnalista = {
     desactivados: 0,
     sin_tocar_actual: 1,
   },
-}
+})
 
-const BRUNO: MetricaDistribucionAnalista = {
+const BRUNO: MetricaDistribucionAnalistaV3 = analistaV3({
   ...ANA,
   analista_id: '22222222-2222-4222-8222-222222222222',
   nombre: 'Bruno Díaz',
@@ -143,9 +183,9 @@ const BRUNO: MetricaDistribucionAnalista = {
     desactivados: 0,
     sin_tocar_actual: 2,
   },
-}
+})
 
-const CAMILA: MetricaDistribucionAnalista = {
+const CAMILA: MetricaDistribucionAnalistaV3 = analistaV3({
   ...ANA,
   analista_id: '33333333-3333-4333-8333-333333333333',
   nombre: 'Camila Rojas',
@@ -181,9 +221,9 @@ const CAMILA: MetricaDistribucionAnalista = {
     desactivados: 0,
     sin_tocar_actual: 2,
   },
-}
+})
 
-const DIEGO: MetricaDistribucionAnalista = {
+const DIEGO: MetricaDistribucionAnalistaV3 = analistaV3({
   ...ANA,
   analista_id: '44444444-4444-4444-8444-444444444444',
   nombre: 'Diego Vega',
@@ -220,7 +260,7 @@ const DIEGO: MetricaDistribucionAnalista = {
     desactivados: 0,
     sin_tocar_actual: 3,
   },
-}
+})
 
 function fechaSiguiente(fecha: string): string {
   const valor = new Date(`${fecha}T00:00:00Z`)
@@ -231,9 +271,17 @@ function fechaSiguiente(fecha: string): string {
 export function metricasDistribucionDemo(
   desde: string,
   hasta: string,
-): MetricasDistribucionLeads {
+): MetricasDistribucionLeadsV3 {
+  const analistas = [ANA, BRUNO, CAMILA, DIEGO]
+  // El resumen se DERIVA de las fichas (mismos elementos que suma el servidor
+  // en la V3): así la demo cuadra consigo misma, como exige la sonda.
+  const usdConvertidos = analistas.reduce((n, a) => n + a.usd_no_segmentado.convertidos, 0)
+  const usdDescartados = analistas.reduce((n, a) => n + a.usd_no_segmentado.descartados, 0)
+  const nucleoDivisor = analistas.reduce((n, a) => n + a.conversion.nucleo_divisor, 0)
+  const nucleoNumerador = analistas.reduce((n, a) => n + a.conversion.nucleo_numerador, 0)
+
   return {
-    version: 2,
+    version: 3,
     generado_en: new Date().toISOString(),
     cohorte: {
       desde_inclusivo: desde,
@@ -246,6 +294,9 @@ export function metricasDistribucionDemo(
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
+      conversion_punteria: 'CERRADOS_ENTRE_RESUELTOS',
+      conversion_nucleo: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      conversion_incluye_cartera: true,
     },
     rangos: RANGOS.map(([id, etiqueta, desdeExclusivo, hastaInclusivo], indice) => ({
       id,
@@ -265,8 +316,18 @@ export function metricasDistribucionDemo(
       convertidos_pen: 26,
       descartados_pen: 23,
       reasignaciones_cohorte: 9,
+      conversion: {
+        pen: punteria(26, 23),
+        usd: punteria(usdConvertidos, usdDescartados),
+        nucleo_divisor: nucleoDivisor,
+        nucleo_referidos_recibidos: 0,
+        nucleo_numerador: nucleoNumerador,
+        nucleo_conversion_pct: nucleoDivisor > 0
+          ? Math.round((10_000 * nucleoNumerador) / nucleoDivisor) / 100
+          : null,
+      },
     },
-    analistas: [ANA, BRUNO, CAMILA, DIEGO],
+    analistas,
     por_repartir: {
       total: {
         carga_total: 5,
@@ -318,6 +379,18 @@ export function metricasDistribucionDemo(
       episodios_aproximados_cohorte: 2,
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
+    },
+    sondas: {
+      peso_referido: 0.15,
+      mes_peso: `${desde.slice(0, 7)}-01`,
+      paridad_nucleo: 0,
+      paridad_filas: analistas.length,
+      cuadra: true,
+      divisor_sin_analista: 0,
+      numerador_sin_analista: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      nucleo_sin_ficha: 0,
     },
   }
 }

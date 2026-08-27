@@ -39,9 +39,10 @@ import {
   useActualizarCapacidadLeadsObjetivo,
   useConversionMensual,
   useMetricasConversiones,
-  useMetricasDistribucionLeads,
   useMetricasReuniones,
 } from '@/data/crm-queries'
+// V3 en fichero propio hasta integrar las ramas (crm-queries es zona de conflicto).
+import { useMetricasDistribucionLeadsV3 } from '@/data/metricas-distribucion-v3'
 import { mensajeDeError } from '@/data/crm-api'
 import { DistribucionLeadsGerencia } from './distribucion-leads-gerencia'
 import { EquipoGerenciaPanel } from './equipo-gerencia'
@@ -188,7 +189,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
     periodoMetricas.desde,
     periodoMetricas.hasta,
   )
-  const distribucion = useMetricasDistribucionLeads(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
+  const distribucion = useMetricasDistribucionLeadsV3(sesionReal && necesitaDistribucion, periodo.desde, periodo.hasta)
   const actualizarCapacidad = useActualizarCapacidadLeadsObjetivo()
   // Meta y producción del MISMO snapshot: ver `metaVigente`.
   const meta = metaVigente(objetivos.gerencia, cumplimientoMetas?.gerencia ?? null)

@@ -128,6 +128,14 @@ vi.mock('@/data/crm-queries', () => ({
     refetch: () => {},
   }),
 }))
+// La V3 vive en su propio módulo hasta integrar las ramas: mismo doble de la
+// distribución (la pantalla solo necesita el contrato del hook, no la red).
+vi.mock('@/data/metricas-distribucion-v3', () => ({
+  useMetricasDistribucionLeadsV3: (...argumentos: [boolean, string, string]) => {
+    CONSULTAS.distribucion(...argumentos)
+    return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
+  },
+}))
 // crm-api arrastra el cliente de Supabase al importarse.
 vi.mock('@/data/crm-api', () => ({ mensajeDeError: (_e: unknown, f: string) => f }))
 
