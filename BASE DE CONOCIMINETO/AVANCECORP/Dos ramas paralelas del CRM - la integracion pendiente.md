@@ -73,3 +73,47 @@ publicaron por su cuenta porque no pasan por el bundle del front.
    (lección de [[codigo-retomar-47]]).
 3. El control de ascendencia del paso 2 del deploy **no es burocracia**: es lo
    que evitó borrar el trabajo de un mes.
+
+---
+
+## ✅ RESUELTO — 2026-08-27
+
+El release vivo `b3f6e98` se integró en `wip/workspace-20260823-completo`
+(merge `274f866`, con OK de Miguel y su consigna «no dañes nada de las otras
+sesiones»). `git merge-base --is-ancestor b3f6e98 HEAD` → **VERDADERO**: la
+puerta del deploy está abierta.
+
+**Cómo se resolvieron los 14 conflictos** (criterio: nada de ningún lado se
+pierde):
+- `vendedor.tsx/.test`: hallazgo clave — el vendedor del release era **byte a
+  byte** el del snapshot del workspace (`022c92a` lo restauró desde ahí); wip
+  solo añadió Mi cartera encima → ganó wip, que CONTIENE al release. La nota
+  vieja «wip tiene 3 de 5 señales» estaba obsoleta: las señales que faltaban
+  («Hoy, tres cosas», visita-sin-movimiento) eran FICHEROS NUEVOS del release
+  y entraron limpio.
+- `supervisor.tsx/.test`: ganó el release entero (F1–F4.4); lo de wip eran
+  borradores anteriores de lo mismo (`conRezago` → `conRezagoAgenda` con
+  hallazgo de Codex). Un ajuste semántico: el fixture del test usaba
+  `conversionReal` que F3.3 retiró de `CumplimientoAgregado` — se quitaron
+  las claves muertas conservando los 6 llamadores.
+- `lead-drawer.*`: wip supersede (F4/F5 de los dos números evolucionan el
+  «teléfono alternativo» simple del release).
+- `derivaciones.*`: mismo feature por ambos lados; tsx solo difería en
+  indentación (wip), y en el test ganó la query accesible del release.
+- `crm-api/crm-queries/tipos`: unión (los hunks eran solo aditivos de wip).
+- `test-rls.mjs`: unión (aserciones F4.4 del release + D8 de wip).
+- `MIGRACIONES.md`: unión cronológica (entrada F4.4 del release intercalada).
+- `database.types.ts`: regenerado de prod con `gen:types` (la verdad, no un
+  merge a mano).
+- 2 migraciones «tocadas por ambos» eran la MISMA añadida byte-idéntica en
+  las dos ramas (falsa alarma).
+- Auto-merges peligrosos verificados a mano: `App.tsx` (splash F4.3 + rutas
+  rescate), `gerencia.tsx` (panel F4.4 + Distribución v3) — unión correcta.
+
+`npm run check` completo VERDE tras el merge (lint, typecheck, suite con
+cobertura, build, verify:bundle, dup).
+
+**Quedan FUERA a propósito** (consigna de Miguel): los previews sin aceptar
+`release/mi-cartera-20260824` y `feature/ficha-cliente-360-preview-20260825`
+(ficha 360 al 88 %, pausada esperando su revisión comercial). Descienden de
+`b3f6e98`, así que su reintegración futura será barata.
