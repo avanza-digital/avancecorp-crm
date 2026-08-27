@@ -8,7 +8,7 @@ import {
   metricasConversionesDemo,
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
-import { numero } from '@/lib/format'
+import { money, numero } from '@/lib/format'
 import type { ConversionMensual, ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
@@ -278,7 +278,64 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.getByText('Aún no hay semanas para mostrar')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay vendedores medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
-    expect(screen.getByText('Sin capital confirmado')).toBeInTheDocument()
+    // REGRESIÓN del enlace muerto: `produccion.capital_*` viene en 0 (como en
+    // producción, donde `crm.leads.contrato_id` jamás se escribió) y aun así
+    // el capital que se ENSEÑA es el confirmado del cumplimiento, consolidado
+    // al TC: 1.480.000 PEN + 96.000 USD × 3,5 = 1.816.000. Si esto vuelve a
+    // decir S/ 0 o «Sin capital confirmado», la tarjeta volvió a la fuente rota.
+    expect(screen.getByText('Capital confirmado del mes')).toBeInTheDocument()
+    expect(screen.getAllByText(money(1_816_000, 'PEN')).length).toBeGreaterThanOrEqual(2)
+    expect(screen.queryByText(money(0, 'PEN'))).not.toBeInTheDocument()
+    expect(screen.queryByText('Sin capital confirmado este mes')).not.toBeInTheDocument()
+  })
+
+  it('sin cumplimiento confirmado, el capital dice «—» — jamás un S/ 0 inventado', () => {
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={null}
+        tc={TC_TEST}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    const tarjeta = screen.getByText('Capital confirmado del mes').closest('[data-gi-kpi]')
+    expect(tarjeta).toHaveTextContent('—')
+    expect(tarjeta).toHaveTextContent('Cumplimiento confirmado no disponible')
+    expect(screen.queryByText(money(0, 'PEN'))).not.toBeInTheDocument()
+  })
+
+  it('con dólares y el tipo de cambio en vuelo, el total espera en vez de afirmar', () => {
+    render(
+      <ResumenGerenciaPanel
+        conversiones={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        reuniones={metricasReunionesDemo('2026-08-01', '2026-08-31')}
+        equipo={conversionEquipoDemo()}
+        meta={META_EQUIPO}
+        cumplimiento={CUMPLIMIENTO_EQUIPO}
+        tc={undefined}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo={false}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    const tarjeta = screen.getByText('Capital confirmado del mes').closest('[data-gi-kpi]')
+    expect(tarjeta).toHaveTextContent('—')
+    expect(tarjeta).toHaveTextContent('Consultando el tipo de cambio para consolidar los dólares…')
+    // Un total solo-PEN aquí sería afirmar un número que va a cambiar al llegar el TC.
+    expect(within(tarjeta as HTMLElement).queryByText(money(1_480_000, 'PEN'))).not.toBeInTheDocument()
   })
 
   it('conserva los datos disponibles cuando falla una de las métricas', () => {

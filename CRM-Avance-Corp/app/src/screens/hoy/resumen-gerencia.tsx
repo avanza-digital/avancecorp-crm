@@ -68,10 +68,6 @@ function numeroDisponible(valor: number | null): string {
   return valor == null ? '—' : numero(valor)
 }
 
-function moneyDisponible(valor: number | null, moneda: 'PEN' | 'USD'): string {
-  return valor == null ? '—' : money(valor, moneda)
-}
-
 function limitar(valor: number): number {
   return Math.min(100, Math.max(0, valor))
 }
@@ -147,8 +143,6 @@ export function ResumenGerenciaPanel({
   const conversionMes = totalMes?.conversion_pct ?? null
   const recibidosMes = totalMes?.divisor ?? null
   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
-  const capitalPen = conversiones?.produccion.capital_pen ?? null
-  const capitalUsd = conversiones?.produccion.capital_usd ?? null
   const reunionesRealizadas = reuniones?.resumen.realizadas ?? null
   const reunionesPactadas = reuniones?.resumen.pactadas ?? null
   const metasComparables = metaMensual.comparable && metaMensual.errorCarga !== true
@@ -167,6 +161,25 @@ export function ResumenGerenciaPanel({
   const metaTotalCapital = totalEnSoles(metaCapitalPen, metaCapitalUsd, tc?.promedio)
   const hayDolares = (cumplimientoCapitalUsd ?? 0) > 0 || metaCapitalUsd > 0
   const tcEnVuelo = tc === undefined && hayDolares
+  // El capital del héroe y del KPI es el CONFIRMADO del mes (cumplimiento de
+  // cierres) — la misma fuente y el mismo nombre que Metas y «Avance de metas».
+  // Antes leía `produccion.capital_*`, que suma contratos enlazados a un lead
+  // vía `crm.leads.contrato_id`: ese enlace jamás se ha escrito (auditoría en
+  // producción 27/08: 0 enlaces históricos), así que afirmaba «S/ 0» con
+  // S/ 3,7 M cerrados. Decisión de Miguel 27/08: fuente de cierres (opción A).
+  const capitalMesTexto = tcEnVuelo || capitalTotal.total == null ? '—' : money(capitalTotal.total, 'PEN')
+  const capitalMesDetalle = cumplimiento == null
+    ? 'Cumplimiento confirmado no disponible'
+    : tcEnVuelo
+      ? 'Consultando el tipo de cambio para consolidar los dólares…'
+      : (cumplimientoCapitalUsd ?? 0) > 0
+        ? `${money(cumplimientoCapitalPen ?? 0, 'PEN')} + ${money(cumplimientoCapitalUsd ?? 0, 'USD')}${
+          capitalTotal.tc == null
+            ? ' · sin tipo de cambio: el total NO incluye los dólares'
+            : ` · ${rotuloTipoCambio(capitalTotal.tc, tc?.fuente ?? 'TC del día')}`}`
+        : (capitalTotal.total ?? 0) > 0
+          ? 'Todo en soles'
+          : 'Sin capital confirmado este mes'
   const avanceCapital = metasComparables && !tcEnVuelo
     && (metaTotalCapital.total ?? 0) > 0 && capitalTotal.total != null
     ? limitar((capitalTotal.total / (metaTotalCapital.total ?? 1)) * 100)
@@ -313,6 +326,10 @@ export function ResumenGerenciaPanel({
     || hayActividadReuniones
     || hayMetas
     || hayActividadEquipo
+    // Capital confirmado sin actividad de leads (p. ej. solo cierres de
+    // cartera): el resumen tiene algo verdadero que enseñar, no es «vacío».
+    || (cumplimientoCapitalPen ?? 0) > 0
+    || (cumplimientoCapitalUsd ?? 0) > 0
     || (conversionMensual?.total.divisor ?? 0) > 0
     || (conversionMensual?.total.numerador ?? 0) > 0
     || metaMensual.errorCarga === true
@@ -343,7 +360,7 @@ export function ResumenGerenciaPanel({
           </p>
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-3">
-          <div className="gi-hero-metric"><span>Capital</span><strong>{moneyDisponible(capitalPen, 'PEN')}</strong></div>
+          <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesTexto}</strong></div>
           <div className="gi-hero-metric"><span>Reuniones</span><strong>{numeroDisponible(reunionesRealizadas)}</strong></div>
           <div className="gi-hero-metric">
             <span>Meta mensual · {metaMensual.etiqueta}</span>
@@ -364,7 +381,7 @@ export function ResumenGerenciaPanel({
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Conversión del mes" valor={pct(conversionMes)} detalle={cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
         <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads`} Icon={UserRoundCheck} color={C.green} />
-        <Kpi label="Capital invertido" valor={moneyDisponible(capitalPen, 'PEN')} detalle={capitalUsd == null || capitalPen == null ? 'Dato no disponible' : capitalUsd > 0 ? money(capitalUsd, 'USD') : capitalPen > 0 ? 'Todo en soles' : 'Sin capital confirmado'} Icon={WalletCards} color={C.teal} />
+        <Kpi label="Capital confirmado del mes" valor={capitalMesTexto} detalle={capitalMesDetalle} Icon={WalletCards} color={C.teal} />
         <Kpi label="Reuniones realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando reuniones…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
       </div>
 

@@ -46,6 +46,7 @@ import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import {
   capitalObjetivo,
   capitalReal,
+  type CumplimientoAgregado,
   type CumplimientoVendedor,
   type ObjetivoComercial,
   type ObjetivosPorVendedor,
@@ -61,6 +62,15 @@ interface InteligenciaComercialPanelProps {
    * miden otra pregunta y conservan su rótulo de periodo.
    */
   conversionMensual: ConversionMensual | null | undefined
+  /**
+   * Cumplimiento agregado del equipo: la fuente del capital que se ENSEÑA.
+   * `datos.produccion.capital_*` suma contratos enlazados a un lead vía
+   * `crm.leads.contrato_id`, y ese enlace jamás se ha escrito (auditoría en
+   * prod 27/08: 0 enlaces históricos → «S/ 0» eterno con S/ 3,7 M cerrados).
+   * Decisión de Miguel 27/08 (opción A): el capital visible es el confirmado
+   * del mes, mismo nombre y fuente que Metas. `null` = «—», jamás un 0 falso.
+   */
+  cumplimiento: CumplimientoAgregado | null
   equipo: ConversionEquipoVendedor[]
   metaConversion: number
   metasVendedores: ObjetivosPorVendedor
@@ -475,6 +485,7 @@ function DetalleVendedor({
 export function InteligenciaComercialPanel({
   datos,
   conversionMensual,
+  cumplimiento,
   equipo,
   metaConversion,
   metasVendedores,
@@ -591,13 +602,18 @@ export function InteligenciaComercialPanel({
   const desgloseNucleo = nucleoVisible
     ? `${numero(nucleo.cierres_no_referidos)} cierres + ${numero(nucleo.cierres_referidos)} ${nucleo.cierres_referidos === 1 ? 'referido' : 'referidos'} ×${numero(nucleo.peso_referido, 2)} + ${numero(nucleo.operaciones_cartera)} de cartera = ${numero(nucleo.numerador, 2)} sobre ${numero(nucleo.divisor)} recibidos`
     : null
+  // Capital CONFIRMADO del mes (cumplimiento de cierres), no `produccion`:
+  // ver la nota del prop `cumplimiento`. PEN y USD por separado — este panel
+  // no consulta el tipo de cambio y la casa prohíbe sumarlos a ciegas.
+  const capitalMesPen = cumplimiento == null ? null : capitalReal(cumplimiento, 'PEN')
+  const capitalMesUsd = cumplimiento == null ? null : capitalReal(cumplimiento, 'USD')
   const kpis = [
     nucleoVisible
       ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(nucleo.numerador, 2)} puntos de ${numero(nucleo.divisor)} recibidos`, icon: UserRoundCheck, color: C.blue }
       : { label: 'Conversión', valor: nucleoDescuadrado ? '—' : pct(conversion), detalle: nucleoDescuadrado ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
     { label: 'Reuniones realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
-    { label: 'Capital invertido', valor: money(datos?.produccion.capital_pen ?? 0, 'PEN'), detalle: money(datos?.produccion.capital_usd ?? 0, 'USD'), icon: WalletCards, color: C.amber },
+    { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber },
   ]
 
   return (
@@ -639,7 +655,7 @@ export function InteligenciaComercialPanel({
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>
-              <div className="gi-hero-metric"><span>Capital</span><strong>{money(datos.produccion.capital_pen, 'PEN')}</strong></div>
+              <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN')}</strong></div>
               <div className="gi-hero-metric"><span>Meta mensual · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}

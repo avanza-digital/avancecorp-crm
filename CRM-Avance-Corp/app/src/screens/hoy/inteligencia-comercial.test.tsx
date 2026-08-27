@@ -35,12 +35,16 @@ vi.mock('@/components/gerencia/echart-lazy', () => ({
 // un Date.now() haría rotar el texto esperado cada mes.
 const AHORA = Date.parse('2026-08-15T17:00:00-05:00')
 
+// Capital confirmado del mes: la fuente que el panel ENSEÑA (ver prop cumplimiento).
+const CUMPLIMIENTO_PANEL = cumplimientoMetasConversionEquipoDemo().gerencia
+
 describe('detalle de conversión por vendedor', () => {
   it('no mezcla un error inicial con el mensaje de datos vacíos', () => {
     render(
       <InteligenciaComercialPanel
         datos={undefined}
         conversionMensual={null}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={15}
         metasVendedores={{}}
@@ -64,6 +68,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -119,6 +124,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={mensual}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -153,6 +159,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={40}
         metasVendedores={{ ...metas, 'demo-v1': { ...metaAna, conversionObjetivo: 40 } }}
@@ -183,6 +190,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-07-01', '2026-07-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={0}
         metasVendedores={{}}
@@ -223,6 +231,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
@@ -265,6 +274,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={datos}
         conversionMensual={null}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
@@ -294,6 +304,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -325,6 +336,7 @@ describe('detalle de conversión por vendedor', () => {
       <InteligenciaComercialPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={sinDatos}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -398,6 +410,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
       <InteligenciaComercialPanel
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={{}}
