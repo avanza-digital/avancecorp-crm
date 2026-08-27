@@ -45,6 +45,11 @@ export const ResumenCarteraSchema = v.object({
   version: v.literal(1),
   generado_en: v.string(),
   ventana_convertidos_dias: v.number(),
+  // F2.4/F2.4b (decisión D1): la MÉTRICA de conversión es el mes calendario
+  // del núcleo y las operaciones de cartera viajan aparte; la VISTA sigue en
+  // 45 días. Opcionales porque el espejo demo no las emite (deuda N4-N6).
+  ventana_metrica: v.optional(v.string()),
+  mes_metrica: v.optional(v.string()),
   totales: v.object({
     vivos: v.number(),
     abiertos: v.number(),
@@ -54,6 +59,7 @@ export const ResumenCarteraSchema = v.object({
     descartados: v.number(),
     asignados_pen: v.number(),
     asignados_usd: v.number(),
+    operaciones_cartera: v.optional(v.number()),
   }),
   capital: v.object({
     asignado: CapitalMonedaSchema,

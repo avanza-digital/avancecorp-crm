@@ -47,7 +47,7 @@ describe('adapter de responsables de conversión', () => {
     expect(clasificarRankingConversion(adaptadaParcial.vendedores).conPuesto).toEqual([])
   })
 
-  it('agrega la tendencia del período real y conserva semanas sin muestra como null', () => {
+  it('agrega la tendencia del período sumando SOLO los enteros servidos (sin % fabricado)', () => {
     const datos = metricasConversionesDemo('2026-06-03', '2026-06-23')
     datos.responsables = [
       {
@@ -68,9 +68,11 @@ describe('adapter de responsables de conversión', () => {
 
     const adaptada = adaptarConversionVendedores(datos, [conversionEquipoDemo()[0]!])
 
+    // F3 (H12): la curva del equipo dejó de fabricar conversion_pct en el
+    // navegador — el punto trae únicamente los enteros del servidor.
     expect(adaptada.tendenciaSemanal).toEqual([
-      { semana: 1, desde: '2026-06-03', hasta: '2026-06-09', leads: 0, clientes: 0, conversion_pct: null },
-      { semana: 2, desde: '2026-06-10', hasta: '2026-06-16', leads: 2, clientes: 1, conversion_pct: 50 },
+      { semana: 1, desde: '2026-06-03', hasta: '2026-06-09', leads: 0, clientes: 0 },
+      { semana: 2, desde: '2026-06-10', hasta: '2026-06-16', leads: 2, clientes: 1 },
     ])
   })
 

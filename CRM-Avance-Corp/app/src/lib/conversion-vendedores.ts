@@ -79,6 +79,21 @@ export interface ConversionVendedorAdaptada<D extends DetalleRankeable = Detalle
   estadoConversion: EstadoConversionVendedor
 }
 
+/**
+ * Punto semanal del EQUIPO: solo los enteros servidos, sumados. Desde F3 el
+ * navegador NO deriva un % semanal del equipo — el servidor no lo sirve, y
+ * fabricarlo aquí era exactamente la clase de aritmética paralela (H12) que
+ * «Conversión única» vino a matar. Si algún día hace falta la curva de %, se
+ * sirve desde la tabla-base, no se divide en el cliente.
+ */
+export interface PuntoTendenciaEquipo {
+  semana: number
+  desde: string
+  hasta: string
+  leads: number
+  clientes: number
+}
+
 export interface ConversionVendedoresAdaptada<D extends DetalleRankeable = DetalleConversionVendedor> {
   /**
    * `true` solo cuando la RPC entregó una fila única para cada vendedor visible.
@@ -87,7 +102,7 @@ export interface ConversionVendedoresAdaptada<D extends DetalleRankeable = Detal
    */
   responsablesDisponibles: boolean
   vendedores: ConversionVendedorAdaptada<D>[]
-  tendenciaSemanal: DetalleConversionVendedor['tendencia_semanal'] | null
+  tendenciaSemanal: PuntoTendenciaEquipo[] | null
 }
 
 export type ConversionVendedorConDetalle<D extends DetalleRankeable = DetalleConversionVendedor> =
@@ -130,10 +145,11 @@ export function estadoConversion(
   return detalle.leads === 0 ? 'sin_muestra' : 'comparable'
 }
 
-function agregarTendenciaSemanal(
+/** Suma por semana los enteros SERVIDOS por responsable. Sin divisiones (F3). */
+function tendenciaSemanalEquipo(
   responsables: NonNullable<MetricasConversiones['responsables']>,
-): DetalleConversionVendedor['tendencia_semanal'] {
-  const semanas = new Map<string, Omit<DetalleConversionVendedor['tendencia_semanal'][number], 'conversion_pct'>>()
+): PuntoTendenciaEquipo[] {
+  const semanas = new Map<string, PuntoTendenciaEquipo>()
 
   for (const responsable of responsables) {
     for (const punto of responsable.tendencia_semanal) {
@@ -156,12 +172,6 @@ function agregarTendenciaSemanal(
 
   return [...semanas.values()]
     .sort((a, b) => a.desde.localeCompare(b.desde) || a.semana - b.semana)
-    .map((punto) => ({
-      ...punto,
-      conversion_pct: punto.leads > 0
-        ? Math.round((1000 * punto.clientes) / punto.leads) / 10
-        : null,
-    }))
 }
 
 /**
@@ -217,7 +227,7 @@ export function adaptarConversionVendedores(
   return {
     responsablesDisponibles: responsablesCompletos,
     vendedores,
-    tendenciaSemanal: responsablesCompletos ? agregarTendenciaSemanal(responsables) : null,
+    tendenciaSemanal: responsablesCompletos ? tendenciaSemanalEquipo(responsables) : null,
   }
 }
 

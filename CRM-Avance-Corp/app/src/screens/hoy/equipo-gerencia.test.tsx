@@ -63,13 +63,16 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
       12.78,
       12.5,
     ])
-    // El % del grupo SUMA numerador y divisor (María: 6.15÷22, no la media de %).
+    // F3: el grupo ya NO divide en el navegador — la cabecera enseña los
+    // enteros servidos (cierres protagonista, recibidos al lado). El % por
+    // grupo volverá el día que lo sirva el servidor, no antes.
     const maria = screen.getByText('María Salazar').closest('section')!
-    expect(within(maria).getByText('28%')).toBeInTheDocument()
-    expect(within(maria).getByText('7 cierres · 22 recibidos')).toBeInTheDocument()
+    expect(within(maria).queryByText('28%')).not.toBeInTheDocument()
+    expect(within(maria).getByText('7')).toBeInTheDocument()
+    expect(within(maria).getByText('cierres del mes · 22 recibidos')).toBeInTheDocument()
     const jose = screen.getByText('José Rivas').closest('section')!
-    expect(within(jose).getByText('18.5%')).toBeInTheDocument()
-    expect(within(jose).getByText('4 cierres · 17 recibidos')).toBeInTheDocument()
+    expect(within(jose).queryByText('18.5%')).not.toBeInTheDocument()
+    expect(within(jose).getByText('cierres del mes · 17 recibidos')).toBeInTheDocument()
     // Los estados sin % llevan rótulo, jamás un «0 %» inventado.
     expect(within(maria).getByText('Solo referidos')).toBeInTheDocument()
     expect(within(jose).getByText('Solo arrastre')).toBeInTheDocument()

@@ -216,7 +216,7 @@ describe('ranking general de vendedores', () => {
 
     const enlace = screen.getByRole('link', { name: 'Ver ranking general de vendedores' })
     expect(enlace).toHaveAttribute('href', '#/ranking-vendedores')
-    const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
+    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
     expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toHaveLength(4)
   })
 
@@ -275,7 +275,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.queryByText('Capital PEN')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
     expect(screen.getAllByText('Reuniones realizadas').length).toBeGreaterThan(0)
-    expect(screen.getByText('Aún no hay conversiones para mostrar')).toBeInTheDocument()
+    expect(screen.getByText('Aún no hay semanas para mostrar')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay vendedores medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
     expect(screen.getByText('Sin capital confirmado')).toBeInTheDocument()
@@ -354,8 +354,10 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(screen.getByText('Sin meta', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
     expect(screen.queryByText('15%', { selector: '.gi-hero-metric strong' })).not.toBeInTheDocument()
-    const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
-    expect(JSON.parse(evolucion.getAttribute('data-meta-series') ?? '[]')).toEqual([])
+    // F3: la meta mensual ya no se dibuja sobre la curva semanal (H12) — la
+    // ausencia del 15 % se vigila en el héroe; la serie 1 ahora son cierres.
+    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
+    expect(evolucion).toBeInTheDocument()
   })
 
   it('si la meta no cargó conserva el error y tampoco inventa un porcentaje', () => {
@@ -378,8 +380,8 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
 
     expect(screen.getByText('No disponible', { selector: '.gi-hero-metric strong' })).toBeInTheDocument()
     expect(screen.getAllByText('No pudimos cargar las metas mensuales de agosto 2026.').length).toBeGreaterThan(0)
-    const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
-    expect(JSON.parse(evolucion.getAttribute('data-meta-series') ?? '[]')).toEqual([])
+    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
+    expect(evolucion).toBeInTheDocument()
   })
 })
 

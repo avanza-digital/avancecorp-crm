@@ -17,6 +17,11 @@ export const MetricasVendedoresSchema = v.object({
   version: v.literal(1),
   generado_en: v.string(),
   ventana_convertidos_dias: v.number(),
+  // F2.4 (decisión D1): la MÉTRICA pasa al mes calendario del núcleo mientras
+  // la VISTA sigue recortando a 45 días. El payload lo declara para que el
+  // front rotule sin adivinar; opcionales porque el espejo demo no las emite.
+  ventana_metrica: v.optional(v.string()),
+  mes_metrica: v.optional(v.string()),
   vendedores: v.array(v.object({
     vendedor_id: v.string(),
     rol_crm: v.picklist(['vendedor', 'supervisor', 'gerencia']),
@@ -61,6 +66,12 @@ export interface MetricasVendedoresOperativas {
   /** Comparativa por supervisor activo (orden del servidor: capital PEN desc). */
   equipos: FilaEquipo[]
   generadoEn: string
+  /**
+   * Mes ('YYYY-MM-DD') cuando la métrica de conversión/convertidos es el MES
+   * CALENDARIO del núcleo (F2.4, D1); null = espejo demo, que sigue midiendo
+   * la ventana operativa de 45 días. Los rótulos leen esto, no adivinan.
+   */
+  mesMetrica: string | null
 }
 
 /**
@@ -117,7 +128,12 @@ export function mapearMetricasVendedores(
       parkeados: e.parkeados,
     }]
   })
-  return { filas, equipos, generadoEn: payload.generado_en }
+  return {
+    filas,
+    equipos,
+    generadoEn: payload.generado_en,
+    mesMetrica: payload.ventana_metrica === 'mes_calendario' ? (payload.mes_metrica ?? null) : null,
+  }
 }
 
 /**
@@ -137,5 +153,8 @@ export function metricasVendedoresDesdeAmbito(
     filas: metricasPorVendedor([...roster], ventana, [...actividades], ahoraMs),
     equipos: comparativaEquipos([...equipo], ventana, [...actividades]),
     generadoEn: new Date(ahoraMs).toISOString(),
+    // El espejo demo sigue midiendo la ventana de 45 días (deuda N4-N6): no
+    // afirma el mes calendario que no calcula.
+    mesMetrica: null,
   }
 }

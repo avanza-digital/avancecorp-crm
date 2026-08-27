@@ -26,6 +26,7 @@ vi.mock('@/components/gerencia/echart-lazy', () => ({
       aria-label={ariaLabel}
       data-x-axis={JSON.stringify(option.xAxis?.data ?? [])}
       data-series={JSON.stringify(option.series?.[0]?.data ?? [])}
+      data-meta-series={JSON.stringify(option.series?.[1]?.data ?? [])}
     />
   ),
 }))
@@ -205,7 +206,7 @@ describe('detalle de conversión por vendedor', () => {
     expect(detalle.queryByText(/de 15%/)).not.toBeInTheDocument()
   })
 
-  it('grafica las semanas históricas de la RPC y conserva la ausencia de muestra como null', () => {
+  it('grafica las semanas históricas con los enteros servidos; el % por vendedor sigue en su sheet', () => {
     const datos = metricasConversionesDemo('2026-06-03', '2026-06-16')
     datos.responsables = [{
       ...datos.responsables![0]!,
@@ -236,12 +237,15 @@ describe('detalle de conversión por vendedor', () => {
       />,
     )
 
-    const evolucion = screen.getByRole('img', { name: 'Evolución semanal de la conversión a clientes en el rango aplicado' })
+    const evolucion = screen.getByRole('img', { name: 'Leads recibidos y cierres por semana del rango aplicado' })
     expect(JSON.parse(evolucion.getAttribute('data-x-axis') ?? '[]')).toEqual([
       '2026-06-03 – 2026-06-09',
       '2026-06-10 – 2026-06-16',
     ])
-    expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toEqual([null, 50])
+    // F3 (H12): la curva del equipo pinta enteros servidos — serie 0 recibidos,
+    // serie 1 cierres. El % semanal del equipo ya no se fabrica en el cliente.
+    expect(JSON.parse(evolucion.getAttribute('data-series') ?? '[]')).toEqual([0, 2])
+    expect(JSON.parse(evolucion.getAttribute('data-meta-series') ?? '[]')).toEqual([0, 1])
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const tendencia = within(screen.getByRole('dialog', { name: 'Ana Torres' }))

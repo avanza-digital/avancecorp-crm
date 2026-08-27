@@ -546,8 +546,14 @@ export function InteligenciaComercialPanel({
   }), [origenes])
 
   const tendenciaEquipo = adaptada.tendenciaSemanal
+  // F3 (H12): sin % semanal fabricado en el navegador ni meta MENSUAL cruzada
+  // con semanas — la curva pinta los enteros SERVIDOS (recibidos y cierres).
   const valoresEvolucion = useMemo(
-    () => (tendenciaEquipo ?? []).map((punto) => punto.conversion_pct),
+    () => (tendenciaEquipo ?? []).map((punto) => punto.clientes),
+    [tendenciaEquipo],
+  )
+  const valoresRecibidos = useMemo(
+    () => (tendenciaEquipo ?? []).map((punto) => punto.leads),
     [tendenciaEquipo],
   )
   const etiquetas = useMemo(
@@ -561,14 +567,12 @@ export function InteligenciaComercialPanel({
     tooltip: { trigger: 'axis' },
     legend: { top: 0, right: 0, itemWidth: 14, itemHeight: 8, textStyle: { color: C.muted, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
     xAxis: { type: 'category', boundaryGap: false, data: etiquetas, axisTick: { show: false }, axisLine: { lineStyle: { color: C.grid } }, axisLabel: { color: C.muted, fontFamily: 'IBM Plex Sans' } },
-    yAxis: { type: 'value', min: 0, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: C.grid } }, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' } },
-    series: metaMensual.comparable && metaConversionVisual > 0
-      ? [
-          { name: 'Conversión real', type: 'line', data: valoresEvolucion, smooth: true, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } },
-          { name: 'Meta', type: 'line', data: etiquetas.map(() => metaConversionVisual), symbol: 'none', lineStyle: { type: 'dashed', width: 1.5 } },
-        ]
-      : [{ name: 'Conversión real', type: 'line', data: valoresEvolucion, smooth: true, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } }],
-  }), [etiquetas, metaConversionVisual, metaMensual.comparable, valoresEvolucion])
+    yAxis: { type: 'value', min: 0, axisLine: { show: false }, axisTick: { show: false }, splitLine: { lineStyle: { color: C.grid } }, axisLabel: { color: C.muted, fontFamily: 'IBM Plex Sans' } },
+    series: [
+      { name: 'Leads recibidos', type: 'line', data: valoresRecibidos, smooth: true, symbolSize: 6, lineStyle: { width: 1.5, type: 'dashed' } },
+      { name: 'Cierres', type: 'line', data: valoresEvolucion, smooth: true, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } },
+    ],
+  }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const clientes = datos?.cohorte.contratos ?? 0
   const conversion = datos?.cohorte.conversion_contratos_pct ?? null
@@ -619,7 +623,7 @@ export function InteligenciaComercialPanel({
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Conversión por origen</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión a clientes por origen del lead" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} /></section>
           </div>
 
-          <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Evolución de la conversión</h3><span className="gi-caption">{metaMensual.comparable ? `Semanal vs. meta mensual · ${metaMensual.etiqueta}` : 'Semanas del rango aplicado'}</span></div>{!metaMensual.comparable && <p className="mt-2 text-xs font-medium text-[var(--gi-muted)]">{mensajeMetaNoComparable(metaMensual)}</p>}{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Evolución semanal de la conversión a clientes en el rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
+          <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Ritmo semanal del equipo</h3><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
       <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />

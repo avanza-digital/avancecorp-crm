@@ -127,26 +127,23 @@ export function EquipoGerenciaPanel({
       <div className="space-y-4">
         {grupos.map(([supervisor, vendedoresGrupo]) => {
           const grupoDisponible = vendedoresGrupo.every((fila) => fila.detalle != null)
-          // El % del equipo se suma en numerador y divisor — JAMÁS promediando
-          // porcentajes: 10 % sobre 100 leads y 100 % sobre 1 lead no valen igual.
+          // F3: el navegador ya no divide el % del grupo (era la última
+          // aritmética de conversión que quedaba aquí). El servidor no sirve
+          // todavía una cifra por supervisor con el núcleo — hasta que exista,
+          // la cabecera enseña los enteros SERVIDOS (cierres y recibidos son
+          // sumas de lo que manda la RPC), no un % fabricado.
           const totalRecibidos = grupoDisponible
             ? vendedoresGrupo.reduce((n, fila) => n + (fila.detalle?.divisor ?? 0), 0)
             : null
-          const totalNumerador = grupoDisponible
-            ? vendedoresGrupo.reduce((n, fila) => n + (fila.detalle?.numerador ?? 0), 0)
-            : null
           const totalCierres = grupoDisponible
             ? vendedoresGrupo.reduce((n, fila) => n + (fila.detalle?.clientes ?? 0), 0)
-            : null
-          const conversionGrupo = totalRecibidos != null && totalNumerador != null && totalRecibidos > 0
-            ? (100 * totalNumerador) / totalRecibidos
             : null
           const maximoGrupo = Math.max(1, ...vendedoresGrupo.map((fila) => fila.detalle?.conversion_pct ?? 0))
           return (
             <section key={supervisor} data-gi-panel className="gi-card overflow-hidden">
               <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[var(--gi-line)] bg-[var(--gi-soft)] px-5 py-4">
                 <div><h2 className="gi-title">{supervisor}</h2><p className="gi-caption mt-1">{numero(vendedoresGrupo.length)} vendedores</p></div>
-                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{pct(conversionGrupo)}</strong><p className="gi-caption">{totalCierres == null || totalRecibidos == null ? 'Datos no disponibles' : `${numero(totalCierres)} cierres · ${numero(totalRecibidos)} recibidos`}</p></div>
+                <div className="text-right"><strong className="text-xl tabular-nums text-[var(--gi-blue)]">{totalCierres == null ? '—' : numero(totalCierres)}</strong><p className="gi-caption">{totalCierres == null || totalRecibidos == null ? 'Datos no disponibles' : `cierres del mes · ${numero(totalRecibidos)} recibidos`}</p></div>
               </div>
               <div className="grid gap-3 p-4 sm:grid-cols-2 xl:grid-cols-3">
                 {vendedoresGrupo.map((fila) => {

@@ -186,8 +186,15 @@ export function ResumenGerenciaPanel({
     [conversiones, equipo],
   )
   const tendenciaEquipo = vendedoresAdaptados.tendenciaSemanal
+  // F3 (H12): el navegador ya no fabrica un % semanal del equipo ni lo compara
+  // con la meta MENSUAL (dos preguntas distintas disfrazadas de una). La curva
+  // pinta los enteros SERVIDOS: recibidos y cierres por semana.
   const valoresEvolucion = useMemo(
-    () => (tendenciaEquipo ?? []).map((punto) => punto.conversion_pct),
+    () => (tendenciaEquipo ?? []).map((punto) => punto.clientes),
+    [tendenciaEquipo],
+  )
+  const valoresRecibidos = useMemo(
+    () => (tendenciaEquipo ?? []).map((punto) => punto.leads),
     [tendenciaEquipo],
   )
   const etiquetas = useMemo(
@@ -220,29 +227,28 @@ export function ResumenGerenciaPanel({
       axisTick: { show: false },
       axisLine: { show: false },
       splitLine: { lineStyle: { color: C.grid } },
-      axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' },
+      axisLabel: { color: C.muted, fontFamily: 'IBM Plex Sans' },
     },
-    series: metasComparables && metaConversion != null
-      ? [
-          {
-            name: 'Conversión real',
-            type: 'line',
-            smooth: true,
-            data: valoresEvolucion,
-            symbolSize: 7,
-            lineStyle: { width: 2.5 },
-            areaStyle: { color: 'rgba(31,78,121,.12)' },
-          },
-          {
-            name: 'Meta',
-            type: 'line',
-            symbol: 'none',
-            data: etiquetas.map(() => metaConversion),
-            lineStyle: { type: 'dashed', width: 1.5 },
-          },
-        ]
-      : [{ name: 'Conversión real', type: 'line', smooth: true, data: valoresEvolucion, symbolSize: 7, lineStyle: { width: 2.5 }, areaStyle: { color: 'rgba(31,78,121,.12)' } }],
-  }), [etiquetas, metaConversion, metasComparables, valoresEvolucion])
+    series: [
+      {
+        name: 'Leads recibidos',
+        type: 'line',
+        smooth: true,
+        data: valoresRecibidos,
+        symbolSize: 6,
+        lineStyle: { width: 1.5, type: 'dashed' },
+      },
+      {
+        name: 'Cierres',
+        type: 'line',
+        smooth: true,
+        data: valoresEvolucion,
+        symbolSize: 7,
+        lineStyle: { width: 2.5 },
+        areaStyle: { color: 'rgba(31,78,121,.12)' },
+      },
+    ],
+  }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const adaptadaMensual = useMemo(
     () => adaptarConversionMensual(conversionMensual ?? null, equipo),
@@ -364,13 +370,12 @@ export function ResumenGerenciaPanel({
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]">
         <section data-gi-panel className="gi-card p-5">
-          <div className="flex items-center justify-between gap-3"><h2 className="gi-title">Evolución de la conversión</h2><span className="gi-caption">{metasComparables ? `Semanal vs. meta mensual · ${metaMensual.etiqueta}` : 'Semanas del rango aplicado'}</span></div>
-          {!metasComparables && <p className="mt-2 text-xs font-medium text-[var(--gi-muted)]">{mensajeMetaNoComparable(metaMensual)}</p>}
+          <div className="flex items-center justify-between gap-3"><h2 className="gi-title">Ritmo semanal del equipo</h2><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>
           {tendenciaEquipo == null
             ? <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div>
             : valoresEvolucion.length > 0
-              ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Evolución semanal de la conversión a clientes en el rango aplicado" className="mt-3 h-[260px] w-full" />
-              : <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Aún no hay conversiones para mostrar</div>}
+              ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[260px] w-full" />
+              : <div className="mt-3 grid h-[260px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] px-4 text-center text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para mostrar</div>}
         </section>
         <section
           data-gi-panel

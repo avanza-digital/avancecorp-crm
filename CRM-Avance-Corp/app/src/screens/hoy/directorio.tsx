@@ -19,10 +19,10 @@ import {
   PhoneMissed,
   ShieldCheck,
   StickyNote,
+  Target,
   Users,
   UsersRound,
   Wallet,
-  XCircle,
   type LucideIcon,
 } from 'lucide-react'
 import { Card, CardContent } from '@/components/ui/card'
@@ -37,7 +37,7 @@ import { diasDesdeReferencia, haceCortoTexto } from '@/lib/inteligencia'
 import { SEMAFORO } from '@/lib/semaforo'
 import { useAhora } from '@/lib/ahora'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK, fmtFecha } from '@/lib/format'
+import { money, moneyK, fmtFecha, numero } from '@/lib/format'
 import {
   ETAPAS,
   ETAPA_INFO,
@@ -113,12 +113,12 @@ export function HoyDirectorio(): JSX.Element {
 
   // ── F1b: la auditoría ejecutiva se sirve del servidor (o del espejo demo
   // vivo). resumen_cartera_fn → KPIs, embudo, donut y descartes;
-  // metricas_vendedores_fn.equipos → comparativa. Ambos comparten la ventana
-  // de convertidos de 45 días (certificada por el wrapper). UNA asimetría
-  // deliberada y ROTULADA: los descartes son histórico completo (el RPC no los
-  // ventanea) mientras los convertidos van a 45 d — la tasa de descarte lo
-  // declara en su sub; si molesta en la práctica, el arreglo es un campo
-  // `descartes_45d` en el RPC (anotado en el vault), no ocultar el rótulo.
+  // metricas_vendedores_fn.equipos → comparativa. La VISTA sigue recortada a
+  // 45 días; la MÉTRICA de conversión es, desde F2.4 (D1), el mes calendario
+  // del núcleo — la misma cifra que HOY/Metas/Ranking — y el payload lo
+  // declara (`ventana_metrica`/`mes_metrica`). Desde F3 aquí no se divide
+  // nada: la tasa de descarte local (histórico ÷ 45 d, dos poblaciones
+  // mezcladas) se retiró y su tarjeta pinta la conversión SERVIDA.
   const resumenOp = useResumenCarteraOperativo(ambito.leads, actividades)
   const resumen = resumenOp.resumen
   const vendedoresOp = useMetricasVendedoresOperativas([], equipo, ambito.leads, actividades)
@@ -128,7 +128,6 @@ export function HoyDirectorio(): JSX.Element {
 
   const r = useMemo(() => {
     if (!resumen) return null
-    const cerrados = resumen.totales.convertidos + resumen.descartes.total
     // Embudo de trabajo: las 4 etapas activas del payload (convertidos y
     // descartados se auditan aparte); el % es presentación pura en cliente.
     const porEtapa = new Map(resumen.embudo.map((p) => [p.etapa, p.n]))
@@ -149,13 +148,12 @@ export function HoyDirectorio(): JSX.Element {
       label: MOTIVOS_DESCARTE.find((c) => c.k === m.motivo)?.label ?? m.motivo,
       n: m.n,
     }))
-    return {
-      cerrados,
-      tasaDescarte: cerrados > 0 ? Math.round((resumen.descartes.total / cerrados) * 100) : 0,
-      etapas,
-      porMotivo,
-    }
+    return { etapas, porMotivo }
   }, [resumen])
+
+  // La métrica mensual del núcleo llega declarada; el espejo demo no la
+  // declara y su tarjeta lo rotula como lo que es (ámbito de 45 días).
+  const metricaMensual = resumen?.ventana_metrica === 'mes_calendario'
 
   // La bitácora sigue en cliente (ninguna RPC F1 sirve un feed de actividad;
   // candidata a F2). Solo copia y ordena para las 8 filas que pinta.
@@ -239,13 +237,21 @@ export function HoyDirectorio(): JSX.Element {
           }
           delay={120}
         />
-        {/* Semáforo completo: azul sano <30 · ámbar 30–59 · rojo ≥60 */}
+        {/* F3: el % lo sirve el servidor (núcleo del mes desde F2.4); aquí no
+            se divide. La tasa de descarte local mezclaba histórico con 45 d y
+            se retiró; los descartados siguen abajo, motivo a motivo. */}
         <KpiCard
-          label="Tasa de descarte"
-          value={r ? `${r.tasaDescarte}%` : '—'}
-          icon={XCircle}
-          color={r == null ? SEMAFORO.ok : r.tasaDescarte >= 60 ? SEMAFORO.critico : r.tasaDescarte >= 30 ? SEMAFORO.atencion : SEMAFORO.ok}
-          sub={resumen && r ? `${resumen.descartes.total} descartados (histórico) de ${r.cerrados} cierres (convertidos 45 d)` : 'Descartados sobre cierres'}
+          label="Conversión del mes"
+          value={resumen ? `${numero(resumen.conversion.pct, 2)}%` : '—'}
+          icon={Target}
+          color={SEMAFORO.navy}
+          sub={
+            resumen
+              ? metricaMensual
+                ? `${resumen.conversion.convertidos} cierres de ${resumen.conversion.base} recibidos · mes calendario · la misma cifra que HOY y el Ranking`
+                : `${resumen.conversion.convertidos} convertidos de ${resumen.conversion.base} asignados del ámbito (45 d)`
+              : 'Cierres sobre leads recibidos'
+          }
           delay={180}
         />
       </div>
@@ -352,7 +358,9 @@ export function HoyDirectorio(): JSX.Element {
                 <th className="pb-2 pr-3 text-right font-bold">Vendedores</th>
                 <th className="pb-2 pr-3 text-right font-bold">Activos</th>
                 <th className="pb-2 pr-3 text-right font-bold">{tc ? 'Capital (S/)' : 'Capital (PEN)'}</th>
-                <th className="pb-2 pr-3 text-right font-bold">Convertidos (45 d)</th>
+                <th className="pb-2 pr-3 text-right font-bold">
+                  {vendedoresOp.metricas?.mesMetrica != null ? 'Convertidos (mes)' : 'Convertidos (45 d)'}
+                </th>
                 <th className="pb-2 pr-3 text-right font-bold">Conversión</th>
                 <th className="pb-2 text-right font-bold">Por repartir</th>
               </tr>
