@@ -385,7 +385,9 @@ export function ResumenGerenciaPanel({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Conversión del mes" valor={pct(conversionMes)} detalle={cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
-        <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads dados de alta`} Icon={UserRoundCheck} color={C.green} />
+        {/* «del período», sin más: Miguel vetó «dados de alta» (27/08). La
+            distinción con el divisor la explica el héroe, no este detalle. */}
+        <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del período`} Icon={UserRoundCheck} color={C.green} />
         <Kpi label="Capital confirmado del mes" valor={capitalMesTexto} detalle={capitalMesDetalle} Icon={WalletCards} color={C.teal} />
         <Kpi label="Reuniones realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando reuniones…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
       </div>

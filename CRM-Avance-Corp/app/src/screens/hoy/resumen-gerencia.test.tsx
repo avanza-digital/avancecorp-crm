@@ -366,7 +366,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     // Miguel vio «de 599» junto a «de 607» sin explicación; la diferencia son
     // referidos + leads sin repartir, y el rótulo lo dice en vez de callarlo.
     expect(screen.getByText('11 cierres · base del mes: 39 leads asignados (los referidos cierran aparte, sin dividir)')).toBeInTheDocument()
-    expect(screen.getByText(/leads dados de alta/)).toBeInTheDocument()
+    expect(screen.getByText(/leads del período/)).toBeInTheDocument()
     const tarjetaReuniones = screen.getByText('Reuniones realizadas').closest('[data-gi-kpi]')
     expect(tarjetaReuniones).toHaveTextContent('—')
     expect(tarjetaReuniones).toHaveTextContent('Dato no disponible')
