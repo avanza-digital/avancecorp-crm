@@ -4490,10 +4490,29 @@ llamada (solo gerencia la paga) — medir antes de que F3 la llame en cada
 render. Rollback: `rollback-f2-3b-distribucion-v3.sql`.
 Excepciones a `public`: ninguna.
 
-## 20260827152918 · `crm_f2_6_total_incluye_fuera_de_roster`
+## 20260827154448 · `crm_f2_6_total_incluye_fuera_de_roster`
 
-**Estado: 📝 ESCRITA, banco verde, SIN APLICAR — espera OK explícito de
-Miguel.** Decisión **D8 (Miguel, 27/08)**: la conversión de empresa mide lo
+**Estado: ✅ EN PROD (27/08, con OK de Miguel).** Aplicada vía MCP: preflight
+(`9a5025e4…`) y postflight (`c7a7a103…` + owner/secdef/search_path + cero
+grants de API) verdes en la misma transacción. **Registro FIEL byte a byte:
+md5 del registro en `schema_migrations` == md5 del fichero (`4d8da277…`,
+24.122 bytes, 1 statement)** — el fichero se renombró de `…152918` a
+`…154448` porque el MCP estampa su propio timestamp al registrar; contenido
+intacto. Foto después por la cadena viva (gerencia real): **HOY
+39,75/569 = 6,99 % == núcleo 39,75/569 = 6,99 %** (la igualdad D8 medida; el
+7,22 % del hallazgo era la foto del 26/08 — la base se movió), 18 analistas
+(17 roster + 1 ex-roster), `fuera_de_roster` sigue declarado
+({analistas 1, divisor 0, cierres 0, numerador 1.0}), **responsables
+byte-idénticos antes/después** (md5 `3c28b4cb…`, 17 filas). Control julio
+(mes abierto histórico con fuera vacío): total en ceros, pct NULL, medible
+false — semánticamente intacto (⚠️ el md5 del payload ENTERO nunca sirve de
+control entre llamadas: lleva `generado_en`). Advisors: 0 ERROR, cero
+menciones a la función. `test-rls.mjs` actualizado a D8 (total = filas +
+fuera por CADA alcance + caso denegado sup2) pero NO corrido en este ciclo:
+exige `SUPABASE_SERVICE_ROLE_KEY`, que no está a mano en esta sesión — queda
+como gate del próximo ciclo que la tenga.
+
+Decisión **D8 (Miguel, 27/08)**: la conversión de empresa mide lo
 que PASÓ en el mes, no la nómina vigente. El `total` del mes ABIERTO de
 `crm.conversion_mensual_fn` (vía `crm.conversion_mensual_sin_cartera_fn`, el
 cuerpo grande que 20260824231133 renombró) pasa a SUMAR el agregado fuera de

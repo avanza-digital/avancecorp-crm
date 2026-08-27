@@ -15,7 +15,7 @@ set -euo pipefail
 AQUI="$(cd "$(dirname "$0")" && pwd)"
 MIGDIR="$(cd "$AQUI/../migrations" && pwd)"
 FUENTE="$MIGDIR/20260815003742_crm_cierre_mes_lectura.sql"
-MIG="$MIGDIR/20260827152918_crm_f2_6_total_incluye_fuera_de_roster.sql"
+MIG="$MIGDIR/20260827154448_crm_f2_6_total_incluye_fuera_de_roster.sql"
 TEST="$AQUI/test-f2-6-total-fuera-roster.sql"
 DB=crm_f2_6_banco
 PSQL="psql -h 127.0.0.1 -p 5432 -U postgres -X -v ON_ERROR_STOP=1"
