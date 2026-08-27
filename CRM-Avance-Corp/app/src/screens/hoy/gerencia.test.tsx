@@ -116,6 +116,11 @@ vi.mock('@/data/crm-queries', () => ({
     CONSULTAS.distribucion(...argumentos)
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
   },
+  // Cosecha del ranking (F2.2/D2): mismo doble sin red; sus casos de pintura
+  // viven en ranking-vendedores.test.tsx.
+  useMetricasConversionesEquipo: () => (
+    { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
+  ),
   useConversionMensual: () => ({
     data: CONVERSION_MENSUAL_FALLA ? undefined : (CONVERSION_MENSUAL ?? undefined),
     error: CONVERSION_MENSUAL_FALLA ? new Error('500 simulado') : null,

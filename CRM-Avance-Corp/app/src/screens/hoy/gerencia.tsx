@@ -39,6 +39,7 @@ import {
   useActualizarCapacidadLeadsObjetivo,
   useConversionMensual,
   useMetricasConversiones,
+  useMetricasConversionesEquipo,
   useMetricasDistribucionLeadsV3,
   useMetricasReuniones,
 } from '@/data/crm-queries'
@@ -200,6 +201,19 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // criterio que ya usa el aviso del panel de metas.
   const periodoConversionMes = `${periodoMetricas.hasta.slice(0, 7)}-01`
   const qConversionMensual = useConversionMensual(sesionReal && necesitaConversiones, periodoConversionMes)
+  // Cosecha por vendedor del ranking (F2.2/D2): mismo MES que la mensual del
+  // tab — del 01 al final del rango elegido — para que las dos lecturas de una
+  // fila hablen del mismo período. Solo se consulta en la sección que la pinta.
+  const qCosechaRanking = useMetricasConversionesEquipo(
+    sesionReal && seccion === 'ranking-vendedores',
+    periodoConversionMes,
+    periodoMetricas.hasta,
+  )
+  const cosechaRanking = seccion !== 'ranking-vendedores' || modoDemo
+    ? undefined
+    : qCosechaRanking.isPending || qCosechaRanking.isFetching
+      ? undefined
+      : (qCosechaRanking.data ?? null)
   const conversionesDeEjemplo = modoDemo || ejemploConversiones
   const reunionesDeEjemplo = modoDemo || ejemploReuniones
   // El mundo demo de gerencia es `demo-v*` (el de inteligencia comercial): el
@@ -316,7 +330,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
 
       {seccion === 'conversiones' && <InteligenciaComercialPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metaConversion={metaConversionVisual} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensualConversion} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} modoDemo={conversionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploConversiones((actual) => !actual)} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual() }} />}
 
-      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); tipoCambio.recargar() }} />}
+      {seccion === 'ranking-vendedores' && <RankingVendedoresPanel datos={datosConversion} conversionMensual={conversionMensualPaneles} cosecha={cosechaRanking} equipo={datosEquipoConversion} metasVendedores={metasVendedoresVisuales} cumplimientoVendedores={cumplimientoVisual?.porVendedor ?? {}} metaMensual={metaMensual} tc={tipoCambio.tc} cargando={!conversionesDeEjemplo && estaCargando(sesionReal, conversiones)} error={errorConversiones ?? errorConversionMensual} onReintentar={() => { reintentarConversiones(); reintentarConversionMensual(); tipoCambio.recargar() }} />}
 
       {seccion === 'reuniones' && <ReunionesGerenciaPanel datos={datosReuniones} cargando={!reunionesDeEjemplo && estaCargando(sesionReal, reuniones)} error={errorReuniones} modoDemo={reunionesDeEjemplo} puedeAlternarEjemplo={sesionReal} onAlternarEjemplo={() => setEjemploReuniones((actual) => !actual)} onReintentar={reintentarReuniones} />}
 

@@ -307,3 +307,64 @@ describe('la relación pestaña↔panel sobrevive a error y a vacío (observaci�
     expect(within(panel).getByText('Aún no hay vendedores para mostrar')).toBeInTheDocument()
   })
 })
+
+describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_equipo_fn)', () => {
+  function cosechaDemo(cuadra: boolean | null = true) {
+    return {
+      version: 1 as const,
+      generado_en: '2026-08-27T12:00:00Z',
+      alcance: 'global' as const,
+      periodo: { desde: '2026-08-01', hasta: '2026-08-27' },
+      responsables: [
+        { vendedor_id: 'demo-v1', leads: 38, clientes: 5, conversion_pct: 13.2 },
+      ],
+      nucleo: { base: 'asignacion', incluye_cartera: true, peso_referido: 0.15, mes_peso: '2026-08-01' },
+      sondas: {
+        cuadra,
+        paridad_nucleo: cuadra === false ? 2.5 : 0,
+        paridad_filas: 9,
+        divisor_fuera_del_roster: 0,
+        numerador_fuera_del_roster: 0,
+        cierres_anulados: 0,
+        clientes_acreditados_a_otro_dueno: 0,
+      },
+    }
+  }
+
+  function montar(cosecha: ReturnType<typeof cosechaDemo> | null | undefined) {
+    render(
+      <RankingVendedoresPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={conversionMensualInteligenciaDemo(Date.now())}
+        cosecha={cosecha}
+        equipo={conversionEquipoDemo()}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        tc={null}
+        cargando={false}
+        error={null}
+        onReintentar={vi.fn()}
+      />,
+    )
+  }
+
+  it('con payload pinta la segunda lectura SOLO en quien tiene fila, rotulada y con maduración dicha', () => {
+    montar(cosechaDemo())
+    // demo-v1 tiene fila de cosecha → su celda gana la segunda línea.
+    expect(screen.getAllByText('Cosecha: 5 de 38 recibidos (13.2%) · madura hasta hoy').length).toBeGreaterThanOrEqual(1)
+    // Los demás no: la ausencia de fila no es un cero.
+    expect(screen.queryAllByText(/Cosecha: 0 de/)).toHaveLength(0)
+  })
+
+  it('sin payload (consultando o no disponible) no pinta NADA de cosecha — jamás un cero fabricado', () => {
+    montar(undefined)
+    expect(screen.queryByText(/Cosecha:/)).not.toBeInTheDocument()
+  })
+
+  it('F3.4: con la sonda en falso la cosecha entera se OCULTA y se avisa', () => {
+    montar(cosechaDemo(false))
+    expect(screen.queryByText(/Cosecha:/)).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('Lectura por cosecha en revisión')
+  })
+})

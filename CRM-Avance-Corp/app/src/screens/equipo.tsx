@@ -35,7 +35,7 @@ import { moneyK } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
-import { useConversionMensual } from '@/data/crm-queries'
+import { useConversionMensual, useMetricasConversionesEquipo } from '@/data/crm-queries'
 import { periodoInicialGerencia, semanticaMetaMensual } from '@/components/gerencia/periodo'
 import { RankingVendedoresPanel } from './hoy/ranking-vendedores'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
@@ -501,6 +501,19 @@ function EquipoSupervisor(): JSX.Element {
   // como el TC: undefined = consultando, null = no disponible (fail-closed).
   const periodoConversionMes = `${periodoRanking.hasta.slice(0, 7)}-01`
   const qConversionMensual = useConversionMensual(!yo?.demo, periodoConversionMes)
+  // Cosecha por vendedor de MI equipo (F2.2/D2, alcance equipo por rol en el
+  // servidor): mismo MES que la mensual del tab. Tri-estado; en demo no se
+  // consulta ni se pinta (el espejo demo no la produce — fail-closed).
+  const qCosechaEquipo = useMetricasConversionesEquipo(
+    !yo?.demo,
+    periodoConversionMes,
+    periodoRanking.hasta,
+  )
+  const cosechaEquipo = yo?.demo
+    ? undefined
+    : qCosechaEquipo.isPending || qCosechaEquipo.isFetching
+      ? undefined
+      : (qCosechaEquipo.data ?? null)
   const conversionMensualEquipo = yo?.demo
     ? conversionMensualDemo(Date.now(), { alcance: 'equipo', actorId: yo?.id ?? 'd-sup1' })
     : qConversionMensual.isPending || qConversionMensual.isFetching
@@ -618,6 +631,7 @@ function EquipoSupervisor(): JSX.Element {
         <RankingVendedoresPanel
           datos={null}
           conversionMensual={conversionMensualEquipo}
+          cosecha={cosechaEquipo}
           equipo={equipoConversion}
           metasVendedores={objetivos.porVendedor ?? {}}
           cumplimientoVendedores={cumplimientoMetas?.porVendedor ?? {}}

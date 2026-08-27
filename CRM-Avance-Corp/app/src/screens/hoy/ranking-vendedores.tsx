@@ -23,6 +23,7 @@ import {
   type RankingConversionVendedores,
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
+import type { MetricasConversionesEquipo, ResponsableEquipo } from '@/lib/metricas-conversiones-equipo'
 import type {
   CumplimientoVendedor,
   ObjetivosPorVendedor,
@@ -41,6 +42,15 @@ interface RankingVendedoresPanelProps {
    * es la mentira que este cambio elimina.
    */
   conversionMensual: ConversionMensual | null | undefined
+  /**
+   * Segunda lectura POR COSECHA del ranking (`crm.metricas_conversiones_equipo_fn`,
+   * F2.2 — patrón D2: de los leads que cada quien RECIBIÓ en el mes, cuántos
+   * cerraron, madurando hasta hoy). Tri-estado como la mensual: `undefined` =
+   * consultando o sin pedir (no se pinta nada), `null` = no disponible
+   * (fail-closed: tampoco se pinta — jamás un cero fabricado). Si sus sondas
+   * dicen `cuadra: false`, la cosecha se OCULTA y se avisa (F3.4).
+   */
+  cosecha?: MetricasConversionesEquipo | null | undefined
   equipo: ConversionEquipoVendedor[]
   metasVendedores: ObjetivosPorVendedor
   cumplimientoVendedores: Record<string, CumplimientoVendedor>
@@ -153,7 +163,22 @@ function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: ()
   )
 }
 
-function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<DetalleConversionMensual> }): JSX.Element {
+/**
+ * Línea «por cosecha» de una fila (D2 aplicado al ranking): de los leads que
+ * el vendedor RECIBIÓ en el mes, cuántos cerraron — madura hasta hoy, así que
+ * nunca se compara con la cifra ponderada de la izquierda. Sin fila del
+ * payload no se pinta nada: la ausencia no es un cero.
+ */
+function lineaCosecha(fila: ResponsableEquipo | undefined): string | null {
+  if (fila == null) return null
+  const pctCosecha = fila.conversion_pct == null ? '' : ` (${pct(fila.conversion_pct)})`
+  return `Cosecha: ${numero(fila.clientes)} de ${numero(fila.leads)} recibidos${pctCosecha} · madura hasta hoy`
+}
+
+function RankingConversion({ ranking, cosechaPorVendedor }: {
+  ranking: RankingConversionVendedores<DetalleConversionMensual>
+  cosechaPorVendedor: ReadonlyMap<string, ResponsableEquipo>
+}): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
   return (
@@ -190,6 +215,12 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                     {descuento && (
                       <ChipArrastre descuento={descuento} className="block text-left text-[10px] font-semibold text-[var(--muted-foreground-strong)]" />
                     )}
+                    {(() => {
+                      const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
+                      return cosecha && (
+                        <span className="block text-left text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</span>
+                      )
+                    })()}
                   </td>
                   <td
                     className="px-5 py-3"
@@ -221,6 +252,12 @@ function RankingConversion({ ranking }: { ranking: RankingConversionVendedores<D
                 <strong className="text-sm tabular-nums text-[var(--gi-navy)]">{pct(conversion)}</strong>
               </div>
               <div className="ml-12 mt-3 flex items-center justify-between gap-3 text-[11px] font-medium text-[var(--gi-muted)]"><span>{numero(fila.detalle.leads)} recibidos</span><span>{numero(fila.detalle.clientes)} cierres</span></div>
+              {(() => {
+                const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
+                return cosecha && (
+                  <p className="ml-12 mt-1 text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</p>
+                )
+              })()}
               {descuento && (
                 <ChipArrastre descuento={descuento} className="ml-12 mt-1 block text-[11px] font-semibold text-[var(--muted-foreground-strong)]" />
               )}
@@ -354,6 +391,7 @@ function RankingCapitalTotal({ ranking }: { ranking: RankingCapitalTotalVendedor
 export function RankingVendedoresPanel({
   datos,
   conversionMensual,
+  cosecha,
   equipo,
   metasVendedores,
   cumplimientoVendedores,
@@ -382,6 +420,16 @@ export function RankingVendedoresPanel({
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
     [adaptadaMensual.vendedores],
   )
+  // F3.4 sobre la cosecha: si su sonda de paridad no cuadra, la lectura entera
+  // se oculta (mapa vacío) y se avisa — el ranking ponderado de la izquierda
+  // no depende de ella y sigue intacto.
+  const cosechaEnRevision = cosecha?.sondas?.cuadra === false
+  const cosechaPorVendedor = useMemo(() => {
+    if (cosecha == null || cosecha.sondas?.cuadra === false) {
+      return new Map<string, ResponsableEquipo>()
+    }
+    return new Map(cosecha.responsables.map((r) => [r.vendedor_id, r]))
+  }, [cosecha])
   const rankingCapitalTotal = useMemo(
     () => clasificarRankingCapitalTotal(adaptada.vendedores, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
     [adaptada.vendedores, cumplimientoVendedores, metasVendedores, tc],
@@ -426,7 +474,16 @@ export function RankingVendedoresPanel({
       ) : tipo === 'conversion' ? (
         conversionMensual === undefined
           ? <CargandoTabpanel tab="conversion" mensaje="Consultando la conversión del mes…" />
-          : <RankingConversion ranking={rankingConversion} />
+          : (
+            <>
+              {cosechaEnRevision && (
+                <p role="status" className="border-b border-amber-300/70 bg-amber-50 px-5 py-2.5 text-xs font-medium text-amber-900">
+                  Lectura por cosecha en revisión: su verificación interna no cuadró y se oculta hasta revisarla.
+                </p>
+              )}
+              <RankingConversion ranking={rankingConversion} cosechaPorVendedor={cosechaPorVendedor} />
+            </>
+          )
       ) : !metaMensual.comparable ? (
         <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total" className="grid min-h-64 place-items-center px-5 text-center">
           <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">
