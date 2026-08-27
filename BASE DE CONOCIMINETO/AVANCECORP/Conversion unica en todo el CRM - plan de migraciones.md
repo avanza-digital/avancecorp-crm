@@ -108,7 +108,7 @@ vez — [[llave-mundo-leads-abierta]] — por eso es gate, no cortesía).
 | **Cuaderno de bitácora** (`MIGRACIONES.md`) | cada migración aplicada queda registrada con su huella y su verificación en vivo |
 | **`gate:realidad`** | todo probado contra el estado real de producción (base casi vacía) |
 
-### Tabla 4 — Qué falta de Miguel (las 7 decisiones)
+### Tabla 4 — Las decisiones de Miguel (las 8, todas resueltas)
 
 | # | Decisión | Recomendación |
 |---|---|---|
@@ -119,6 +119,7 @@ vez — [[llave-mundo-leads-abierta]] — por eso es gate, no cortesía).
 | **D5** | ¿F0 (congelar el texto vivo de Conversiones) como primera migración del paquete? | ✅ **DECIDIDA (Miguel, 26/08): SÍ, F0 primero** — migración nueva con verificación de huella, cero efecto en pantallas |
 | **D6** | La barra «Referido» de «Conversión por origen»: en el núcleo los referidos no tienen divisor, su % por origen es indefinido. | ✅ **DECIDIDA (Miguel, 26/08): opción (c), % propio rotulado** — «de los referidos recibidos, cerró el X%» (cierres de referidos ÷ referidos recibidos), rótulo propio en F3 para no confundirlo con la conversión general |
 | **D7** | Con renovaciones y arrastre, un mes normal puede superar el 100 %. ¿Se capa, y dónde? | ✅ **DECIDIDA (Miguel, 26/08): SIN TOPE** — número Y barra se muestran tal cual (120 % = barra de 120), igual en TODAS las pantallas; HOY deja de capar su barra. Nada se esconde |
+| **D8** | El total de HOY excluye la parte fuera de roster (7,03 %) mientras los motores F2 la incluyen (7,22 %). ¿Quién cede? | ✅ **DECIDIDA (Miguel, 27/08): SE INCLUYE** — la conversión de empresa mide lo que pasó en el mes, no la nómina vigente. Migración F2.6 sobre `crm.conversion_mensual_fn`: el `total` pasa a sumar el agregado fuera de roster; `cobertura.fuera_de_roster` SIGUE declarándose (transparencia y auditoría); las filas por vendedor no cambian (el ex-roster sigue sin identidad). Tras F2.6, HOY y los motores vuelven a decir LA MISMA cifra |
 
 ## Detalle por fase (técnico, para ejecutar tras el OK)
 
@@ -224,8 +225,10 @@ verify:bundle, dup):
    `nucleo` de Conversiones y la v3 de Distribución la INCLUYEN (38,75/537 =
    **7,22 %**). Es el mismo analista de `nucleo_sin_ficha: 1`. Los rótulos que
    afirmaban «la misma cifra que HOY» se corrigieron ANTES de publicarse
-   («cifra única del núcleo»); unificar el criterio (¿el total de HOY debe
-   incluir al ex-roster?) es una decisión de negocio pendiente (candidata D8).
+   («cifra única del núcleo»). ✅ **RESUELTO como D8 (Miguel, 27/08): se
+   INCLUYE** — ver Tabla 4; la migración F2.6 alinea el total de HOY con el
+   núcleo (7,22 %). Al publicarse el front, los rótulos podrán volver a
+   afirmar identidad con HOY.
 2. `resumen_cartera_fn.conversion` es una TERCERA aritmética (cierres crudos
    15/541, redondeo entero) pese a declarar `ventana_metrica: mes_calendario`
    → la tarjeta del directorio pinta los CIERRES servidos, no un % que
