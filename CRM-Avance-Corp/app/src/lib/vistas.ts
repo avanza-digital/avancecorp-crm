@@ -26,7 +26,6 @@ const CAPACIDAD_POR_VISTA = {
   reuniones: null,
   metas: null,
   rendimiento: null,
-  'capital-cierres': null,
   pipeline: 'verPipeline',
   cartera: 'verLeads',
   agenda: 'verAgenda',
@@ -73,8 +72,6 @@ export function vistaPermitida(
   if (rolPortal === 'superadmin' && rol !== 'gerencia') {
     return vista === 'config-usuarios'
   }
-  // Ruta heredada conservada para sanear hashes antiguos, pero fuera de uso.
-  if (vista === 'capital-cierres') return false
   if (vista === vistaBase(rol, leadsVisibles, rolPortal)) return true
   // La bandeja es transversal, pero sus fuentes operativas dependen del gate
   // de leads. Gerencia conserva siempre sus alertas ejecutivas agregadas.

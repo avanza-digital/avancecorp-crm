@@ -43,7 +43,6 @@ const RankingVendedoresGerencia = lazy(() => import('@/screens/gerencia').then((
 const ReunionesGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.ReunionesGerencia })))
 const MetasGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.MetasGerencia })))
 const RendimientoGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.RendimientoGerencia })))
-const CapitalCierresGerencia = lazy(() => import('@/screens/gerencia').then((m) => ({ default: m.CapitalCierresGerencia })))
 const Pipeline = lazy(() => import('@/screens/pipeline').then((m) => ({ default: m.Pipeline })))
 const Cartera = lazy(() => import('@/screens/cartera').then((m) => ({ default: m.Cartera })))
 const Agenda = lazy(() => import('@/screens/agenda').then((m) => ({ default: m.Agenda })))
@@ -68,7 +67,6 @@ const PANTALLA_POR_VISTA = {
   reuniones: ReunionesGerencia,
   metas: MetasGerencia,
   rendimiento: RendimientoGerencia,
-  'capital-cierres': CapitalCierresGerencia,
   pipeline: Pipeline,
   cartera: Cartera,
   agenda: Agenda,

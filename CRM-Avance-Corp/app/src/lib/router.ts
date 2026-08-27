@@ -16,7 +16,6 @@ export const VISTAS = [
   'reuniones',
   'metas',
   'rendimiento',
-  'capital-cierres',
   'pipeline',
   'cartera',
   'agenda',
@@ -98,6 +97,10 @@ function esVista(v: string | undefined): v is Vista {
 const ALIAS_HEREDADO: Record<string, Vista> = {
   clientes: 'mi-cartera',
   contratos: 'mi-cartera',
+  // N1 (F3 de «Conversión única», 2026-08-27): la ruta «Capital» estaba muerta
+  // por autorización desde su nacimiento y todo lo que prometía vive en el
+  // Resumen de Hoy. Un bookmark viejo cae ahí, no en una pantalla en blanco.
+  'capital-cierres': 'hoy',
 }
 
 /** Resuelve un segmento de ruta (vista real o alias heredado) a una Vista, o null. */

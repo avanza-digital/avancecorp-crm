@@ -20,7 +20,3 @@ export function MetasGerencia(): JSX.Element {
 export function RendimientoGerencia(): JSX.Element {
   return <HoyGerencia seccion="rendimiento" />
 }
-
-export function CapitalCierresGerencia(): JSX.Element {
-  return <HoyGerencia seccion="capital-cierres" />
-}

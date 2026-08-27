@@ -27,10 +27,7 @@ interface NavMeta {
   seccion: SeccionNav
 }
 
-// 'capital-cierres' (N1) está muerta por autorización (vistaPermitida la
-// niega a todos) y aquí ni se lista; App.tsx/topbar la retiran del todo tras
-// la integración de ramas (son zona de conflicto).
-type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-carpeta' | 'capital-cierres'>
+type VistaSidebar = Exclude<Vista, 'alertas' | VistaConfiguracion | 'rescate-carpeta'>
 
 /** Metadatos visuales exhaustivos; la autorización vive solo en vistas.ts. */
 const NAV_META = {
@@ -57,7 +54,7 @@ const NAV_META = {
 // Alertas vive en la campana superior: no duplica un módulo en el menú lateral.
 const VISTAS_SIDEBAR = VISTAS.filter(
   (id): id is VistaSidebar =>
-    id !== 'alertas' && id !== 'capital-cierres' && !esVistaConfiguracion(id) && !esVistaInterna(id),
+    id !== 'alertas' && !esVistaConfiguracion(id) && !esVistaInterna(id),
 )
 const NAV = VISTAS_SIDEBAR.map((id) => ({ id, ...NAV_META[id] }))
 const NAV_GOBIERNO_ROLES = [{

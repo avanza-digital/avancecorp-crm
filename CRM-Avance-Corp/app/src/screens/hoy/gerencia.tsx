@@ -134,7 +134,7 @@ function CabeceraGerencia({ periodo, borrador, onCambiarBorrador, onAplicar }: {
   )
 }
 
-export type SeccionGerencia = 'completo' | 'resumen' | 'conversiones' | 'ranking-vendedores' | 'reuniones' | 'metas' | 'rendimiento' | 'capital-cierres'
+export type SeccionGerencia = 'completo' | 'resumen' | 'conversiones' | 'ranking-vendedores' | 'reuniones' | 'metas' | 'rendimiento'
 
 export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerencia }): JSX.Element {
   const {
@@ -152,7 +152,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   // de la verificación: cada cambio de vista remonta la pantalla).
   const tipoCambio = useTipoCambio(
     seccion === 'ranking-vendedores' || seccion === 'metas'
-    || seccion === 'completo' || seccion === 'resumen' || seccion === 'capital-cierres',
+    || seccion === 'completo' || seccion === 'resumen',
   )
   const { periodo, setPeriodo, diaLima } = usePeriodoGerencia()
   const [borrador, setBorrador] = useState<PeriodoGerencia>(periodo)
@@ -177,8 +177,8 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const sesionReal = Boolean(yo && !yo.demo)
   const modoDemo = yo?.demo === true
   const periodoMetricas = periodo
-  const necesitaConversiones = ['completo', 'resumen', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento', 'capital-cierres'].includes(seccion)
-  const necesitaReuniones = ['completo', 'resumen', 'reuniones', 'capital-cierres'].includes(seccion)
+  const necesitaConversiones = ['completo', 'resumen', 'conversiones', 'ranking-vendedores', 'metas', 'rendimiento'].includes(seccion)
+  const necesitaReuniones = ['completo', 'resumen', 'reuniones'].includes(seccion)
   const necesitaDistribucion = seccion === 'rendimiento'
   const conversiones = useMetricasConversiones(
     sesionReal && necesitaConversiones,
@@ -289,7 +289,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const reintentarConversionMensual = () => { if (sesionReal) void qConversionMensual.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
   const reintentarDistribucion = () => { if (sesionReal) void distribucion.refetch() }
-  const esResumen = seccion === 'completo' || seccion === 'resumen' || seccion === 'capital-cierres'
+  const esResumen = seccion === 'completo' || seccion === 'resumen'
   const claveMotion = `${seccion}|${periodo.desde}|${periodo.hasta}|${conversionesDeEjemplo}|${reunionesDeEjemplo}`
 
   return (

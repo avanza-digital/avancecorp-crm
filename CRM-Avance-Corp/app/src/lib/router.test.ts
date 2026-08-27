@@ -57,6 +57,12 @@ describe('router por hash', () => {
     window.location.hash = '#/contratos'
     expect(leerHash()).toEqual({ vista: 'mi-cartera', leadId: null })
 
+    // N1 (F3 de «Conversión única»): «Capital» dejó de ser vista — nació
+    // muerta por autorización y todo lo suyo vive en el Resumen de Hoy. Su
+    // bookmark viejo cae ahí, por URL directa o refresh profundo.
+    window.location.hash = '#/capital-cierres'
+    expect(leerHash()).toEqual({ vista: 'hoy', leadId: null })
+
     // Una ruta realmente desconocida sigue degradando a null (no todo es alias).
     window.location.hash = '#/inexistente'
     expect(leerHash()).toEqual({ vista: null, leadId: null })
