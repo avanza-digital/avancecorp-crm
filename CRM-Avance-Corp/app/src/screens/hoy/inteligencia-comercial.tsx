@@ -597,15 +597,18 @@ export function InteligenciaComercialPanel({
   // sin bloque `nucleo` (espejo demo, deuda N4-N6) la pantalla degrada a la
   // lectura por cosecha de siempre, rotulada como lo que es.
   const nucleo = datos?.nucleo ?? null
-  const cosecha = datos?.cosecha ?? null
   const sondasConv = datos?.sondas ?? null
   const nucleoVisible = nucleo != null && sondasConv?.cuadra === true
   const nucleoDescuadrado = nucleo != null && sondasConv?.cuadra === false
   const conversion = nucleoVisible
     ? nucleo.conversion_pct
     : (datos?.cohorte.conversion_contratos_pct ?? null)
-  const desgloseNucleo = nucleoVisible
-    ? `${numero(nucleo.cierres_no_referidos)} cierres + ${numero(nucleo.cierres_referidos)} ${nucleo.cierres_referidos === 1 ? 'referido' : 'referidos'} ×${numero(nucleo.peso_referido, 2)} + ${numero(nucleo.operaciones_cartera)} de cartera = ${numero(nucleo.numerador, 2)} sobre ${numero(nucleo.divisor)} recibidos`
+  // Veto de Miguel (27/08): bajo la cifra NO va aritmética — ni «puntos» (son
+  // leads), ni el desglose ×peso + cartera, ni la cosecha, ni el capital por
+  // leads. Una sola línea, con la MISMA letra que el héroe del Resumen. El
+  // detalle fino sigue viajando en el payload para quien lo audite.
+  const cierresDelMes = nucleoVisible
+    ? nucleo.cierres_no_referidos + nucleo.cierres_referidos
     : null
   // Capital CONFIRMADO del mes (cumplimiento de cierres), no `produccion`:
   // ver la nota del prop `cumplimiento`. PEN y USD por separado — este panel
@@ -614,7 +617,7 @@ export function InteligenciaComercialPanel({
   const capitalMesUsd = cumplimiento == null ? null : capitalReal(cumplimiento, 'USD')
   const kpis = [
     nucleoVisible
-      ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(nucleo.numerador, 2)} puntos de ${numero(nucleo.divisor)} recibidos`, icon: UserRoundCheck, color: C.blue }
+      ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(cierresDelMes ?? 0)} cierres`, icon: UserRoundCheck, color: C.blue }
       : { label: 'Conversión', valor: nucleoDescuadrado ? '—' : pct(conversion), detalle: nucleoDescuadrado ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
     { label: 'Citas realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
@@ -634,43 +637,18 @@ export function InteligenciaComercialPanel({
         <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
           <section data-gi-hero className="gi-summary-hero">
             {/* D2: cifra principal = NÚCLEO servido (la misma de HOY/Metas/
-                Ranking), con su desglose legible (H1) y la cosecha como
-                segunda lectura. Sin núcleo (demo) o con sonda en falso, la
-                pantalla degrada y lo dice — jamás un número fabricado. */}
+                Ranking). Sin núcleo (demo) o con sonda en falso, la pantalla
+                degrada y lo dice — jamás un número fabricado. */}
             <div className="min-w-[280px]">
               <p className="gi-label text-white/65">{nucleoVisible ? 'Conversión del mes' : 'Conversión a clientes'}</p>
               <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{nucleoDescuadrado ? '—' : pct(conversion)}</p>
-              {nucleoVisible && desgloseNucleo != null ? (
-                <>
-                  <p className="mt-2 text-xs text-white/65">{desgloseNucleo}</p>
-                  {cosecha != null && (
-                    <p className="mt-1 text-xs text-white/50">
-                      Por cosecha: de {numero(cosecha.leads)} leads que entraron al rango, cerraron{' '}
-                      {numero(cosecha.cerraron)} ({pct(cosecha.conversion_pct)}) — madura hasta hoy.
-                    </p>
-                  )}
-                </>
-              ) : (
-                <p className="mt-2 text-xs text-white/65">
-                  {nucleoDescuadrado
-                    ? 'Cifras en revisión: la verificación interna del mes no cuadró.'
+              <p className="mt-2 text-xs text-white/65">
+                {nucleoDescuadrado
+                  ? 'Cifras en revisión: la verificación interna del mes no cuadró.'
+                  : cierresDelMes != null && nucleoVisible
+                    ? `${numero(cierresDelMes)} cierres · base del mes: ${numero(nucleo.divisor)} leads asignados (los referidos cierran aparte, sin dividir)`
                     : `${numero(clientes)} clientes de ${numero(datos.cohorte.leads)} leads del rango`}
-                </p>
-              )}
-              {/* F1.3: el capital que PRODUJERON los leads del rango (contratos
-                  del portal de perfiles nacidos de lead + cierres en coops),
-                  servido por `produccion` — desde la migración F1.3 esa cifra
-                  es real (antes leía un enlace jamás poblado y decía S/ 0).
-                  `sin_rastro` declara los convertidos sin capital rastreable. */}
-              {(datos.produccion.capital_pen > 0 || datos.produccion.capital_usd > 0
-                || datos.produccion.contratos > 0 || (datos.produccion.sin_rastro ?? 0) > 0) && (
-                <p className="mt-1 text-xs text-white/50">
-                  Capital por leads del rango: {money(datos.produccion.capital_pen, 'PEN')} + {money(datos.produccion.capital_usd, 'USD')} · {numero(datos.produccion.contratos)} {datos.produccion.contratos === 1 ? 'cierre' : 'cierres'}
-                  {(datos.produccion.sin_rastro ?? 0) > 0
-                    ? ` · ${numero(datos.produccion.sin_rastro ?? 0)} ${(datos.produccion.sin_rastro ?? 0) === 1 ? 'convertido' : 'convertidos'} sin capital rastreable`
-                    : ''}
-                </p>
-              )}
+              </p>
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>

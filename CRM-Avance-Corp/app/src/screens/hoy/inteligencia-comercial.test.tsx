@@ -437,9 +437,12 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     // «Conversión del mes» aparece en héroe y KPI: ambos con la MISMA cifra.
     expect(screen.getAllByText('Conversión del mes').length).toBeGreaterThan(0)
     expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
-    // H1: el desglose legible dice de qué está hecho el numerador.
-    expect(screen.getByText(/14 cierres \+ 3 referidos ×0.15 \+ 29 de cartera = 38.75 sobre 537 recibidos/)).toBeInTheDocument()
-    expect(screen.getByText(/Por cosecha: de 545 leads que entraron al rango, cerraron 14/)).toBeInTheDocument()
+    // Veto de Miguel (27/08): bajo la cifra va UNA línea con la letra del
+    // Resumen — nada de «puntos», ni la fórmula ×peso+cartera, ni la cosecha.
+    expect(screen.getByText('17 cierres · base del mes: 537 leads asignados (los referidos cierran aparte, sin dividir)')).toBeInTheDocument()
+    expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/Por cosecha/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
   })
 
   it('F3.4: con la sonda en falso, la cifra SE OCULTA y el banner ámbar lo dice', () => {
@@ -472,10 +475,10 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
   })
 })
 
-describe('F1.3: capital por leads del rango en el héroe', () => {
-  function montarConProduccion(produccion: Partial<ReturnType<typeof metricasConversionesDemo>['produccion']>) {
+describe('F1.3: capital por leads (veto de Miguel 27/08: fuera del héroe)', () => {
+  it('el héroe jamás pinta la línea de capital por leads, ni con producción viva', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
-    datos.produccion = { ...datos.produccion, ...produccion }
+    datos.produccion = { ...datos.produccion, contratos: 9, capital_pen: 113_000, capital_usd: 133_000, sin_rastro: 1 }
     render(
       <InteligenciaComercialPanel
         datos={datos}
@@ -494,25 +497,8 @@ describe('F1.3: capital por leads del rango en el héroe', () => {
         onReintentar={vi.fn()}
       />,
     )
-  }
 
-  it('pinta la lectura por leads con su desglose y declara los sin rastro', () => {
-    // Estado real de prod tras la migración F1.3 (medido 27/08): portal + coops
-    // y UN convertido sin perfil ni cierre externo — el hueco se dice.
-    montarConProduccion({ contratos: 9, capital_pen: 113_000, capital_usd: 123_000, sin_rastro: 1 })
-    expect(screen.getByText(/Capital por leads del rango:/)).toBeInTheDocument()
-    expect(screen.getByText(/9 cierres/)).toBeInTheDocument()
-    expect(screen.getByText(/1 convertido sin capital rastreable/)).toBeInTheDocument()
-  })
-
-  it('sin producción en el rango, la línea no aparece (cero honesto, sin ruido)', () => {
-    montarConProduccion({ clientes: 0, contratos: 0, capital_pen: 0, capital_usd: 0, sin_rastro: 0 })
-    expect(screen.queryByText(/Capital por leads del rango:/)).not.toBeInTheDocument()
-  })
-
-  it('con servidor previo (sin sin_rastro), la línea vive y no rotula huecos', () => {
-    montarConProduccion({ contratos: 5, capital_pen: 50_000, capital_usd: 0, sin_rastro: undefined })
-    expect(screen.getByText(/Capital por leads del rango:/)).toBeInTheDocument()
+    expect(screen.queryByText(/Capital por leads del rango/)).not.toBeInTheDocument()
     expect(screen.queryByText(/sin capital rastreable/)).not.toBeInTheDocument()
   })
 })
