@@ -39,10 +39,13 @@ export function ClienteGestion({
   clienteId,
   clienteNombre,
   onCerrar,
+  onEnviandoCambio,
 }: {
   clienteId: string
   clienteNombre: string
   onCerrar: () => void
+  /** Bloquea Esc/overlay del diálogo mientras el INSERT real está en vuelo. */
+  onEnviandoCambio?: (enviando: boolean) => void
 }) {
   const { crearTarea, tareasDeCliente } = useCRMData()
   const ahora = useAhora()
@@ -55,6 +58,7 @@ export function ClienteGestion({
   const [hora, setHora] = useState(() => horaLima(Date.parse(slot)))
   const [nota, setNota] = useState('')
   const [camposReunion, setCamposReunion] = useState<EstadoCamposReunion>(CAMPOS_REUNION_VACIOS)
+  const [enviando, setEnviando] = useState(false)
 
   const cambiarTipo = (valor: string) => {
     if (!esTipoTarea(valor)) return
@@ -62,7 +66,7 @@ export function ClienteGestion({
     if (!tituloEditado) setTitulo(tituloSugerido(valor, clienteNombre))
   }
 
-  const guardar = () => {
+  const guardar = async () => {
     const venceEn = isoDeCampos({ tipo, titulo, fecha, hora })
     if (!titulo.trim()) {
       toast.error('Escribe qué gestión vas a realizar')
@@ -77,20 +81,37 @@ export function ClienteGestion({
       toast.error(reunion.error)
       return
     }
-    const resultado = crearTarea({
-      perfil_id: clienteId,
-      tipo,
-      titulo: titulo.trim(),
-      nota: nota.trim() || null,
-      vence_en: venceEn,
-      ...camposTareaDeReunion(reunion?.ok ? reunion : null),
-    })
-    if (!resultado.ok) {
-      toast.error(resultado.error ?? 'No se pudo agendar la gestión')
-      return
+    setEnviando(true)
+    onEnviandoCambio?.(true)
+    let confirmada = false
+    try {
+      const resultado = crearTarea({
+        perfil_id: clienteId,
+        tipo,
+        titulo: titulo.trim(),
+        nota: nota.trim() || null,
+        vence_en: venceEn,
+        ...camposTareaDeReunion(reunion?.ok ? reunion : null),
+      })
+      if (!resultado.ok) {
+        toast.error(resultado.error ?? 'No se pudo agendar la gestión')
+        return
+      }
+      // La fila optimista sirve para que la agenda responda rápido, pero el
+      // diálogo solo promete éxito cuando el trigger/RLS confirmó la tarea. Es
+      // especialmente importante para clientes: el servidor resuelve el dueño
+      // real de cartera y rechaza perfiles inactivos o fuera del ámbito.
+      confirmada = await (resultado.persistido ?? Promise.resolve(true))
+    } catch {
+      toast.error('No se pudo agendar la gestión')
+    } finally {
+      setEnviando(false)
+      onEnviandoCambio?.(false)
     }
-    toast.success('Gestión agendada · la verás en Hoy y en Agenda')
-    onCerrar()
+    if (confirmada) {
+      toast.success('Gestión agendada · la verás en Hoy y en Agenda')
+      onCerrar()
+    }
   }
 
   return (
@@ -179,11 +200,11 @@ export function ClienteGestion({
         </div>
       </DialogBody>
       <DialogFooter>
-        <Button type="button" variant="ghost" onClick={onCerrar}>
+        <Button type="button" variant="ghost" disabled={enviando} onClick={onCerrar}>
           Cancelar
         </Button>
-        <Button type="button" onClick={guardar}>
-          <CalendarPlus aria-hidden /> Agendar gestión
+        <Button type="button" disabled={enviando} onClick={() => void guardar()}>
+          <CalendarPlus aria-hidden /> {enviando ? 'Agendando…' : 'Agendar gestión'}
         </Button>
       </DialogFooter>
     </>

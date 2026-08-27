@@ -357,7 +357,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
    * Lo ÚNICO que mueve es la etapa, y solo hacia atrás y solo al anular la
    * última reunión viva: pedido de Miguel del 2026-07-26.
    */
-  const anular = () => {
+  const anular = async () => {
     let res
     if (tarea.tipo === 'reunion') {
       if (!motivoAnulacion) {
@@ -379,6 +379,16 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
       toast.error(res.error ?? 'No se pudo anular la tarea')
       return
     }
+    // En postventa no se cierra el diálogo con el mero espejo optimista: una
+    // reunión de cliente necesita que cerrar_tarea confirme también el motivo
+    // estructurado. Si RLS/RPC la rechaza, el store revierte y este mismo
+    // diálogo queda disponible para reintentar sin haber anunciado éxito.
+    if (tarea.perfil_id) {
+      setProcesando(true)
+      const persistio = await (res.persistido ?? Promise.resolve(true))
+      setProcesando(false)
+      if (!persistio) return
+    }
     onCerrar()
     // Orden de los avisos: el retroceso de etapa manda sobre el "sin próxima
     // acción" porque es el cambio más grande y el que el asesor no pidió
@@ -394,7 +404,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     }
   }
 
-  const confirmar = () => {
+  const confirmar = async () => {
     if (!eleccion) return
     if (tarea.tipo === 'reunion' && eleccion.estado === 'completada' && !resultadoReunion) {
       toast.error('Selecciona el resultado comercial de la reunión')
@@ -447,6 +457,16 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     if (!res.ok) {
       toast.error(res.error ?? 'No se pudo cerrar la tarea')
       return
+    }
+    // Las gestiones de cliente esperan el COMMIT real. Además de evitar un
+    // éxito falso ante RLS, esto mantiene juntos el cierre, la clasificación,
+    // actividades_cliente y la siguiente acción que la RPC escribe de forma
+    // atómica. Los leads conservan su interacción optimista histórica.
+    if (tarea.perfil_id) {
+      setProcesando(true)
+      const persistio = await (res.persistido ?? Promise.resolve(true))
+      setProcesando(false)
+      if (!persistio) return
     }
     // El AVANCE de etapa se anuncia SIEMPRE que ocurra. `completarTarea` ya lo
     // devolvía (el resultado registrado y/o la reunión encadenada pueden mover
@@ -821,6 +841,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               key="volver"
               variant="ghost"
               size="sm"
+              disabled={procesando}
               onClick={() => {
                 setAnulando(false)
                 // Devolver el foco al enlace de donde salió: si no, Radix lo
@@ -844,19 +865,24 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
               ]
                 .filter((x): x is string => x !== null)
                 .join(' ')}
-              onClick={anular}
-              disabled={tarea.tipo === 'reunion' && !motivoAnulacion}
+              onClick={() => void anular()}
+              disabled={procesando || (tarea.tipo === 'reunion' && !motivoAnulacion)}
             >
-              <CalendarX2 aria-hidden /> Sí, anular
+              <CalendarX2 aria-hidden /> {procesando ? 'Guardando…' : 'Sí, anular'}
             </Button>
           </>
         ) : (
           <>
-            <Button key="cancelar" variant="ghost" size="sm" onClick={onCerrar}>
+            <Button key="cancelar" variant="ghost" size="sm" disabled={procesando} onClick={onCerrar}>
               Cancelar
             </Button>
-            <Button key="cerrar" size="sm" onClick={confirmar} disabled={requiereEleccion || procesando}>
-              <CheckCircle2 /> Cerrar tarea
+            <Button
+              key="cerrar"
+              size="sm"
+              onClick={() => void confirmar()}
+              disabled={requiereEleccion || procesando}
+            >
+              <CheckCircle2 /> {procesando ? 'Guardando…' : 'Cerrar tarea'}
             </Button>
           </>
         )}

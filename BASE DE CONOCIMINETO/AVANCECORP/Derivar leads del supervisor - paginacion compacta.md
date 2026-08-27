@@ -33,6 +33,18 @@ para no incorporar el trabajo paralelo del árbol compartido. En el smoke real,
 la bandeja de 66 leads quedó dividida en 14 páginas; las páginas 1 y 2 mostraron
 cinco filas y la navegación no produjo errores de consola.
 
+### Regresión y restauración del mismo día
+
+Un release paralelo posterior (`crm-20260824T155903Z-1dd89bffa9f2`) volvió a
+publicar una base que no descendía de `d4a5416`, por lo que la paginación dejó de
+existir realmente en el módulo vivo; no era caché ni una condición del usuario.
+La restauración combinada `crm-20260824T175707Z-f924b91ad677` integra la
+paginación, el teléfono alternativo, F4.3 del supervisor y la nueva portada del
+vendedor. Quedó publicada aproximadamente a las 13:00 (hora de Lima), con
+58/58 archivos no transformados idénticos al manifiesto; el chunk vivo contiene
+`Paginación de leads por derivar hoy`. Los controles se ocultan correctamente
+cuando hay cinco leads o menos y aparecen desde el sexto.
+
 Relacionado: [[Hoy del supervisor - reparto compacto]] ·
 [[Distribución de leads por capital y trazabilidad CRM]] ·
 [[Acceso y roles del CRM]].

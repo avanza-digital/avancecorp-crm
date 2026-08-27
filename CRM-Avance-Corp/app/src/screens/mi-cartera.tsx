@@ -255,9 +255,11 @@ interface PropsFilaGrupo {
   colAsesor: boolean
   /** La vista pinta la columna/zona de acciones porque el rol puede escribir. */
   conAcciones: boolean
+  /** Puede abrir la ficha/historial dentro de su ámbito, aunque no emita contratos. */
+  consultable: boolean
   /** Puede escribir Y la fila es propia/global: habilita la gestión comercial. */
   gestionable: boolean
-  /** puede_contratar Y la fila es MÍA (regla de cartera) — habilita reloj y botones. */
+  /** Cliente activo + puede_contratar + fila dentro del ámbito operativo. */
   accionable: boolean
   /** Gerencia opera cualquier fila y no hereda la ventana antifraude del analista. */
   edicionGlobal: boolean
@@ -410,6 +412,7 @@ function FilaGrupoCliente({
   onToggle,
   colAsesor,
   conAcciones,
+  consultable,
   gestionable,
   accionable,
   edicionGlobal,
@@ -499,7 +502,7 @@ function FilaGrupoCliente({
         </Td>
         {conAcciones && (
           <Td className="text-right">
-            {gestionable || accionable ? (
+            {consultable ? (
               <div className="flex flex-wrap items-center justify-end gap-1.5">
                 {gestionable && (
                   <Button
@@ -514,19 +517,19 @@ function FilaGrupoCliente({
                     <CalendarPlus aria-hidden /> Gestionar
                   </Button>
                 )}
+                <Button
+                  type="button"
+                  size="xs"
+                  variant="outline"
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    onDetalleCliente()
+                  }}
+                >
+                  Ver detalle
+                </Button>
                 {accionable && (
                   <>
-                    <Button
-                      type="button"
-                      size="xs"
-                      variant="outline"
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        onDetalleCliente()
-                      }}
-                    >
-                      Ver detalle
-                    </Button>
                     {(edicionGlobal || ventanaCliente.vigente) && (
                       <Button
                         type="button"
@@ -714,6 +717,7 @@ function TarjetaGrupoCliente({
   onToggle,
   colAsesor,
   conAcciones,
+  consultable,
   gestionable,
   accionable,
   edicionGlobal,
@@ -782,18 +786,18 @@ function TarjetaGrupoCliente({
       </div>
 
       {/* Acciones: cartera propia para analistas; ámbito completo para Gerencia. */}
-      {conAcciones && (gestionable || accionable) && (
+      {conAcciones && consultable && (
         <div className="flex flex-wrap items-center gap-2 px-3 pb-3">
           {gestionable && (
             <Button type="button" size="xs" variant="secondary" onClick={onGestionarCliente}>
               <CalendarPlus aria-hidden /> Gestionar
             </Button>
           )}
+          <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
+            Ver detalle
+          </Button>
           {accionable && (
             <>
-              <Button type="button" size="xs" variant="outline" onClick={onDetalleCliente}>
-                Ver detalle
-              </Button>
               {(edicionGlobal || ventanaCliente.vigente) && (
                 <Button
                   type="button"
@@ -1107,40 +1111,61 @@ function VistaMiCartera({
 
   // Props del grupo-cliente, idénticas para la fila (tabla) y la tarjeta (móvil):
   // el gating vive AQUÍ (una sola fuente), la presentación decide cómo pintarlo.
-  const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => ({
-    grupo: g,
-    expandido: expandidos.has(g.cliente.id),
-    onToggle: () =>
-      setExpandidos((prev) => {
-        const sig = new Set(prev)
-        if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
-        else sig.add(g.cliente.id)
-        return sig
-      }),
-    colAsesor: verEquipo,
-    conAcciones: escrituraHabilitada,
-    gestionable: escrituraHabilitada && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
-    accionable: accionesContractualesHabilitadas && (ambitoGlobal || esMiCliente(g.cliente, yoId)),
-    edicionGlobal,
-    yoId,
-    asesorNombre: nombres.get(duenoDeCartera(g.cliente) ?? '') ?? null,
-    // Los dos filtros de contrato se componen en AND (mismo criterio que la
-    // lista): con «por vencer» activo la sub-fila que sobra es ruido.
-    contratosVisibles: g.contratos.filter(
-      (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
-    ),
-    porVencer,
-    operacionesPorContrato,
-    contratosPorId,
-    onNuevoContrato: () => onNuevoContrato(g.cliente),
-    onGestionarCliente: () => onGestionarCliente(g.cliente),
-    onUpgradeCliente: () => onUpgradeCliente(g.cliente),
-    onRenovarContrato: (contrato) => onRenovarContrato(g.cliente, contrato),
-    onDetalleCliente: () => onDetalleCliente(g.cliente),
-    onCorregirCliente: () => onCorregirCliente(g.cliente),
-    onDetalleContrato,
-    onCorregirContrato,
-  })
+  const propsDeGrupo = (g: GrupoCartera): PropsFilaGrupo => {
+    const dueno = duenoDeCartera(g.cliente)
+    // La RLS/RPC de Supervisión trabaja con vendedor_ids_visibles: su cartera
+    // operativa incluye al supervisor y a los asesores de su roster. La UI
+    // anterior aplicaba esMiCliente a todos los roles y dejaba esas filas de
+    // equipo visibles pero sin acciones, contradiciendo al servidor.
+    const dentroDelAmbito =
+      ambitoGlobal ||
+      esMiCliente(g.cliente, yoId) ||
+      (yo?.rol === 'supervisor' && dueno != null && rosterIds.has(dueno))
+    const consultable = escrituraHabilitada && dentroDelAmbito
+    const gestionable = consultable && g.cliente.activo
+    // Todos los escritores pueden consultar el historial. Emitir/corregir un
+    // contrato exige además el gate puede_contratar y cliente activo, espejo de
+    // private.puede_gestionar_cuentas_cliente. Los dados de baja siguen en la
+    // lista y en el radar de vencimiento, pero no reciben botones que el RPC
+    // rechazará hasta que Administración los reactive.
+    const accionable = accionesContractualesHabilitadas && dentroDelAmbito && g.cliente.activo
+
+    return {
+      grupo: g,
+      expandido: expandidos.has(g.cliente.id),
+      onToggle: () =>
+        setExpandidos((prev) => {
+          const sig = new Set(prev)
+          if (sig.has(g.cliente.id)) sig.delete(g.cliente.id)
+          else sig.add(g.cliente.id)
+          return sig
+        }),
+      colAsesor: verEquipo,
+      conAcciones: escrituraHabilitada,
+      consultable,
+      gestionable,
+      accionable,
+      edicionGlobal,
+      yoId,
+      asesorNombre: nombres.get(dueno ?? '') ?? null,
+      // Los dos filtros de contrato se componen en AND (mismo criterio que la
+      // lista): con «por vencer» activo la sub-fila que sobra es ruido.
+      contratosVisibles: g.contratos.filter(
+        (c) => (fEstado === 'todos' || c.estado === fEstado) && (!soloPorVencer || porVencer.has(c.id)),
+      ),
+      porVencer,
+      operacionesPorContrato,
+      contratosPorId,
+      onNuevoContrato: () => onNuevoContrato(g.cliente),
+      onGestionarCliente: () => onGestionarCliente(g.cliente),
+      onUpgradeCliente: () => onUpgradeCliente(g.cliente),
+      onRenovarContrato: (contrato) => onRenovarContrato(g.cliente, contrato),
+      onDetalleCliente: () => onDetalleCliente(g.cliente),
+      onCorregirCliente: () => onCorregirCliente(g.cliente),
+      onDetalleContrato,
+      onCorregirContrato,
+    }
+  }
 
   // ── Las tarjetas de dinero ─────────────────────────────────────────────────
   // PEN y USD JAMÁS se suman: van en DOS tarjetas separadas para verlos al mismo
@@ -1774,11 +1799,16 @@ export function MiCartera() {
       {overlay?.tipo === 'cliente-gestionar' && (
         <Dialog
           open
-          onClose={cerrar}
+          onClose={cerrarSeguro}
           ariaLabel={`Gestionar a ${overlay.clienteNombre || 'cliente'}`}
           className="w-[640px]"
         >
-          <ClienteGestion clienteId={overlay.clienteId} clienteNombre={overlay.clienteNombre} onCerrar={cerrar} />
+          <ClienteGestion
+            clienteId={overlay.clienteId}
+            clienteNombre={overlay.clienteNombre}
+            onCerrar={cerrar}
+            onEnviandoCambio={setEnvioEnCurso}
+          />
         </Dialog>
       )}
       {overlay?.tipo === 'cliente-corregir' && (

@@ -144,7 +144,7 @@ test('corregir: precarga notas y co-titulares, y el RPC recibe AMBOS en p_contra
   await dialogo.getByRole('button', { name: /guardar corrección/i }).click()
 
   // Toast honesto del guardado + el RPC viajó una sola vez.
-  await expect(page.getByText('Contrato corregido y cronograma regenerado.')).toBeVisible()
+  await expect(page.getByText('Contrato corregido.')).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcActualizarContrato).toBe(1)
   // El mock APLICA p_contrato al estado: si notas o titulares no viajaran
   // (clave ausente), aquí faltarían — exactamente la trampa que se prueba.
@@ -179,5 +179,5 @@ test('ventana vencida en el SERVIDOR: el P0001 de la RPC se muestra tal cual', a
   ).toBeVisible()
   await expect.poll(() => estado.llamadas.rpcActualizarContrato).toBe(1)
   // …y no se mintió éxito.
-  await expect(page.getByText('Contrato corregido y cronograma regenerado.')).toHaveCount(0)
+  await expect(page.getByText('Contrato corregido.')).toHaveCount(0)
 })

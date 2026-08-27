@@ -96,7 +96,7 @@ test('sin cuenta bancaria el servidor rechaza y NO se crea ningún cliente', asy
   // NO se encadenó al contrato y el alta sigue reintentable (no se creó nada).
   expect(estado.llamadas.rpcCrearContrato).toBe(0)
   await expect(page.getByRole('dialog', { name: /^crear contrato/i })).toHaveCount(0)
-  await expect(modal.getByRole('button', { name: /crear cliente/i })).toBeEnabled()
+  await expect(modal.getByRole('button', { name: /reintentar/i })).toBeEnabled()
 })
 
 test('alta duplicada: el 409 de la edge se muestra tal cual y no hay ningún PATCH', async ({ page }) => {

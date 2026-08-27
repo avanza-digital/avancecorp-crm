@@ -7,13 +7,28 @@
 
 ---
 
-## ESTADO MAESTRO VIGENTE — 2026-08-04
+## ESTADO MAESTRO VIGENTE — actualizado 2026-08-25
 
 Esta sección es la **guía principal del CRM** y prevalece sobre estados históricos
 posteriores de este documento, el README y notas antiguas del vault. El plan original
 se conserva debajo como arquitectura y trazabilidad. La decisión de plataforma cambió
 de «Expo primero» a **web primero**: el CRM operativo vive en React 19 + Vite y la app
 nativa quedó como evolución futura.
+
+### Adenda aprobada — F4.1 Ficha comercial 360 del cliente
+
+Después del cierre operativo de **Mi cartera**, se incorpora a F4 una ficha comercial
+360 para que el asesor consulte y gestione a sus clientes con la misma jerarquía visual
+de la ficha de Leads, sin mezclar sus ciclos de negocio. Leads conserva etapas,
+descarte y conversión; Cliente reúne identidad, contacto, contratos, próxima acción,
+historial postventa, renovación y upgrade.
+
+La implementación debe reutilizar primitivas visuales y de interacción, no duplicar
+ni fusionar stores de dominio. Conserva el ámbito del servidor, el modo solo lectura de
+Directorio, los bloqueos para clientes o asesores inactivos y la confirmación de
+persistencia real antes de prometer éxito. El detalle ejecutable, la matriz de pruebas
+y la definición de terminado viven en
+`BASE DE CONOCIMINETO/AVANCECORP/Ficha comercial 360 de clientes - plan.md`.
 
 ### Foto comprobada del sistema
 
@@ -43,7 +58,7 @@ estos valores son una fotografía, no metas ni constantes del producto.
 | **F1 — App y captación** | 🟡 Piloto | Desplegar P-048 y abrir Hoy/Pipeline/Agenda/leads a toda la fuerza comercial después del piloto. |
 | **F2 — Gestión diaria** | 🟡 Construida | Agenda, reparto, tareas y métricas existen; falta aceptación operativa completa de vendedores/supervisores y monitoreo real. |
 | **F3 — Conversión y contratos** | 🟡 En producción sin ciclo observado | Conversión, contratos, cronograma y cuenta bancaria contractual existen en producción; falta una prueba controlada punta a punta, dejar toda la fuente reproducible en el repo canónico y aprobar legalmente el PDF contractual. |
-| **F4 — Postventa y dirección** | 🟡 Parcialmente operativa | Cartera, gerencia, metas y radar de vencimientos están en producción; faltan administración autoservicio de usuarios/jerarquía, flujo de renovación/upgrade, exportaciones y base fría C2 cuando exista muestra suficiente. |
+| **F4 — Postventa y dirección** | 🟡 Operativa; F4.1 planificada | Cartera, gestiones de cliente, renovaciones, upgrades, gerencia, metas y radar de vencimientos ya existen. Sigue F4.1: ficha comercial 360 compartida en experiencia con Leads; después, exportaciones y base fría C2 cuando exista muestra suficiente. |
 | **F5 — Integraciones y salida** | 🟡 Parcial | Intake/importador están vivos; faltan el cierre de release general, observabilidad configurada y automatizaciones opcionales (WhatsApp/push/PWA). |
 
 ### Ruta crítica para declarar el CRM listo
@@ -83,8 +98,8 @@ estos valores son una fotografía, no metas ni constantes del producto.
   motivos repartibles;
 - administración de usuarios y jerarquía desde la interfaz;
 - catálogo configurable de productos y tiempos de atención;
-- flujo completo de postventa, cadencias de renovación/upgrade y exportaciones
-  CSV/PDF;
+- ficha comercial 360 del cliente, cadencias posteriores de renovación/upgrade y
+  exportaciones CSV/PDF;
 - generador PDF de contratos, sujeto al visto bueno legal del texto;
 - guía comercial, correo semanal y bandeja de notificaciones;
 - WhatsApp Cloud API, push/PWA y app nativa.

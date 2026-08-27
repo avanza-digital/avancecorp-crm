@@ -637,6 +637,7 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
     })
     expect(api().agenda.some((ev) => ev.titulo === 'Llamar a CLIENTE EXISTENTE')).toBe(true)
     expect(api().tareasDe(leadId)).toHaveLength(1)
+    await expect(res.persistido).resolves.toBe(true)
     await waitFor(() => expect(listarTareas).toHaveBeenCalled()) // resync
   })
 
@@ -672,6 +673,31 @@ describe('store — ruta real (sesión autenticada, no demo)', () => {
       vendedor_id: 'u-v1',
     })
     expect(api().tareasDeCliente?.(clienteId)).toHaveLength(1)
+    await expect(res.persistido).resolves.toBe(true)
+  })
+
+  it('crearTarea expone el rechazo remoto y resincroniza la fila optimista', async () => {
+    const clienteId = '99999999-9999-4999-8999-999999999999'
+    insertarTarea.mockRejectedValueOnce(new CrmApiError('El cliente está inactivo', 'CLIENTE_INACTIVO'))
+    const { api, mutar } = montar('vendedor')
+    await waitFor(() => expect(api().leads).toHaveLength(1))
+
+    const res = mutar((a) =>
+      a.crearTarea({
+        perfil_id: clienteId,
+        tipo: 'llamada',
+        titulo: 'Llamar a Rosa',
+        vence_en: '2027-01-05T15:00:00.000Z',
+      }),
+    )
+
+    expect(res.ok).toBe(true)
+    expect(api().tareas.some((t) => t.id === res.id)).toBe(true)
+    await expect(res.persistido).resolves.toBe(false)
+    await waitFor(() => expect(api().tareas.some((t) => t.id === res.id)).toBe(false))
+    await waitFor(() =>
+      expect(toast.error).toHaveBeenCalledWith('El cliente está inactivo — se restauró el estado anterior'),
+    )
   })
 
   it('crearTarea valida y normaliza la reunión antes del optimista y del INSERT real', async () => {

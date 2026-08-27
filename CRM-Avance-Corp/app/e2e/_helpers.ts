@@ -1875,7 +1875,7 @@ export async function montarBackendReal(
           storage_bucket: 'contratos-generados',
           storage_path: `${nuevo.id}/v2/${jobId}/contrato.pdf`,
           nombre_archivo: `Contrato-${numero}.pdf`,
-          template_version: 'contrato-aep-17-v2',
+          template_version: 'contrato-aep-17-v5',
           intentos: 0,
           lease_expira_en: null,
           reintentable: true,
@@ -1888,7 +1888,11 @@ export async function montarBackendReal(
     }
 
     // ── RPC CRM de corrección: preserva la coherencia de la cuenta fijada ──
-    if (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto' && method === 'POST') {
+    if (
+      (p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_producto'
+        || p === '/rest/v1/rpc/actualizar_contrato_con_cuenta_pdf_v3')
+      && method === 'POST'
+    ) {
       estado.llamadas.rpcActualizarContrato += 1
       if (estado.ventanaVencida) {
         // A diferencia del PATCH a perfiles, la RPC SÍ es ruidosa: RAISE → P0001.
@@ -1908,7 +1912,9 @@ export async function montarBackendReal(
       const pId = String(body.p_id ?? '')
       const contratoActual = estado.contratos.find((contrato) => contrato.id === pId)
       const condicion = estado.productosSeleccionables.find(
-        (fila) => fila.condicion_id === body.p_producto_condicion_id,
+        (fila) => fila.condicion_id === (
+          body.p_producto_condicion_id ?? contratoActual?.producto_condicion_id
+        ),
       )
       if (!contratoActual || !condicion) {
         return json(route, { code: 'P0001', message: 'Contrato o producto inválido' }, 400)
@@ -2003,7 +2009,7 @@ export async function montarBackendReal(
           storage_bucket: 'contratos-generados',
           storage_path: jobId ? `${contratoId}/v2/${jobId}/contrato.pdf` : null,
           nombre_archivo: jobId ? 'Contrato-archivo-pendiente.pdf' : null,
-          template_version: jobId ? 'contrato-aep-17-v2' : null,
+          template_version: jobId ? 'contrato-aep-17-v5' : null,
           intentos: 0,
           lease_expira_en: null,
           reintentable: true,
@@ -2060,6 +2066,22 @@ export async function montarBackendReal(
     }
     if (p === '/rest/v1/rpc/supervisores_para_reparto') {
       return json(route, estado.supervisoresReparto)
+    }
+    if (p === '/rest/v1/rpc/panel_distribucion_reparto') {
+      return json(route, {
+        version: 1,
+        generado_en: '2026-08-25T16:00:00.000Z',
+        total_leads: estado.supervisoresReparto.reduce(
+          (total, supervisor) => total + Number(supervisor.bandeja_pendiente ?? 0),
+          0,
+        ),
+        supervisores: estado.supervisoresReparto.map((supervisor) => ({
+          perfil_id: supervisor.perfil_id,
+          nombre: supervisor.nombre,
+          total_leads: Number(supervisor.bandeja_pendiente ?? 0),
+        })),
+        analistas: [],
+      })
     }
     if (p === '/rest/v1/rpc/leads_descartados') {
       return json(route, estado.descartados)
