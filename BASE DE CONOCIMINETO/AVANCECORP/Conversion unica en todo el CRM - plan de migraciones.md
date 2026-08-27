@@ -1,7 +1,7 @@
 ---
 tags: [crm, conversion, plan, en-ejecucion]
 actualizado: 2026-08-27
-estado: F0+F1+F2 EN PROD - F3.1-F3.4 ESCRITAS Y COMMITEADAS en la rama (27/08, 4 commits, suite verde) - publicar y los 4 ficheros en conflicto esperan la integracion de ramas
+estado: F0+F1+F2+F2.6 EN PROD - RAMAS INTEGRADAS - F3 COMPLETA en la rama (27/08, check verde) - queda PUBLICAR (/release-crm humano) y F3.5
 ---
 
 # Conversión única en todo el CRM — plan de migraciones
@@ -368,3 +368,36 @@ plan original). F0 es su propia vuelta atrás (no cambia comportamiento).
   devuelve NULL y la pantalla pinta «—», no un % — `20260824231133:860`.)
 - La demo enseña otro negocio (N4–N6 del informe): coherencia de la demo
   queda fuera de este plan; se anota como deuda consciente.
+
+### F3 paquete post-integración — COMPLETO el 27/08 (6 commits, check verde)
+
+Con las ramas integradas, el paquete congelado se ejecutó entero
+(`881c56d`…`2fdccfc`, uno por ítem, árbol verde en cada uno; `npm run check`
+completo al cierre):
+
+1. **Alertas (H10/H11/H21)** — la caída global lee el bloque `nucleo` servido
+   (la MISMA aritmética que la individual y que HOY; un payload sin núcleo no
+   se interpreta: sin fuente no hay alerta), los textos dicen ventana y
+   umbral («se avisa desde 10» / «se compara desde 30» — borde exacto ENTRA,
+   testeado), y «Actualizar» de gerencia recarga también metas/cumplimiento.
+2. **Tile Convertidos del vendedor** — el rótulo lee `ventana_convertidos_dias`
+   del payload y dice que es la VISTA de cartera, no la conversión del mes.
+3. **N1 cerrado** — `capital-cierres` fuera de VISTAS/App/topbar/sidebar/
+   gerencia; bookmark viejo cae en Hoy vía `ALIAS_HEREDADO`; ruta inexistente
+   sigue en null.
+4. **Schema del ranking del supervisor** — claves F2.2 (`nucleo_*` por
+   responsable + bloques `nucleo`/`sondas`) escritas desde el payload REAL
+   medido con supervisor impersonado; aditivas (servidor viejo y demo
+   degradan); caso vacío = indisponible, jamás 0 %.
+5. **Fetcher v3 mudado** a `crm-api.ts`/`crm-queries.ts` (la RPC ya está
+   tipada por `gen:types`, adiós el workaround `RpcCrmSinTipos`);
+   `data/metricas-distribucion-v3.ts` borrado.
+6. **Identidad afirmada** — el rótulo de Distribución vuelve a decir «la misma
+   cifra que HOY, Metas, Conversiones y el Ranking» tras verificarla MEDIDA
+   en el mismo snapshot (v3 6,99 == HOY 6,99 == Conversiones 6,99,
+   `cuadra: true`).
+
+Queda del plan: **publicar** (`/release-crm`, humano, verificar bundle por
+hash) y **F3.5** (retirada de claves viejas del servidor, solo con el front
+nuevo vivo). Los previews (mi-cartera, ficha 360) siguen esperando la
+revisión comercial de Miguel.
