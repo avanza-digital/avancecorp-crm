@@ -467,3 +467,20 @@ claves están muertas» — era **zsh, que no hace word-splitting** de una
 variable sin comillas, así que `grep` buscaba la línea entera como literal.
 Una auditoría de superficie SIEMPRE necesita un caso de control conocido-vivo
 (aquí `ventana_convertidos_dias`) antes de creerse su propio resultado.
+
+### La huérfana del punto 4, resuelta: el ranking gana la COSECHA (27/08)
+
+Miguel: «esto tiene que servir, no lo dejes fuera». En vez de borrarla, la
+RPC `metricas_conversiones_equipo_fn` se CABLEÓ (commit `a0b6dbb`): el
+ranking de conversión —el panel compartido que ven gerencia (Ranking) y el
+supervisor (Gestión de equipo → «Ranking de mi equipo»)— gana por fila la
+segunda lectura POR COSECHA (patrón D2): «Cosecha: N de M recibidos (X%) ·
+madura hasta hoy». Mismo MES que la mensual del tab, tri-estado, fail-closed
+(sin payload no se pinta nada; sonda `cuadra: false` → la lectura entera se
+oculta con aviso ámbar F3.4). Demo no la produce → no se pinta (N4-N6).
+Medido en prod antes de escribir: 18 filas para gerencia, cuadra true, 6
+vendedores con cierres — la pantalla tiene qué pintar desde el día uno.
+Check completo verde (2.332 tests). De paso cayó otro rótulo mentiroso:
+los SEIS «Conversión · 45 días» de Gestión de equipo ahora leen la ventana
+declarada por el payload (`ventanaConversionEnPalabras`: mes del núcleo en
+real, 45 días solo en demo) — commit `303ebdc`.
