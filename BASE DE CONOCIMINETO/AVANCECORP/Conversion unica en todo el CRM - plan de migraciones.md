@@ -1,7 +1,7 @@
 ---
 tags: [crm, conversion, plan, en-ejecucion]
 actualizado: 2026-08-27
-estado: TODO EN PRODUCCION 27/08 - F0..F2.6 servidor + F3 front PUBLICADO (39.º release, verificado por hash) - queda SOLO F3.5 (retirada de claves viejas)
+estado: PLAN CERRADO 27/08 - F0..F2.6 servidor + F3 front PUBLICADO (39.º release, verificado por hash) - F3.5 auditada y DESCARTADA por evidencia (nada retirable; v2 aun en uso)
 ---
 
 # Conversión única en todo el CRM — plan de migraciones
@@ -417,3 +417,53 @@ Antes de publicar hubo que borrar duplicados «* 2.*» de Finder dentro de
 `--allow-dirty` por mugre EXTERNA al CRM (public_html, notas «2» del vault).
 Queda: **F3.5** (retirada de claves viejas del servidor — el front nuevo ya
 está vivo y verificado por hash, la condición se cumplió).
+
+### F3.5 — AUDITADA el 27/08: NO se ejecuta la retirada (decisión de Miguel)
+
+La auditoría se hizo completa contra el **bundle vivo** (46 chunks, 2,5 MB) y
+contra los logs de producción. Resultado: **casi nada de lo que F3.5 iba a
+retirar es retirable**, y lo poco que lo era resultó estar EN USO. Miguel:
+«no elimines nada que ya esté en producción, menos si se está usando».
+Producción quedó **intacta**: cero DROP, cero cambios.
+
+**Lo que la auditoría probó (evidencia, no intuición):**
+
+1. 🔴 **La cadena de cores es una composición, no versiones sueltas:**
+   `v3_core` **llama a** `v2_core`, que **llama a** `v1_core`. Un borrado
+   «obvio» de v1/v2 habría **roto Distribución en producción**. Los tres
+   cores son estructura viva y se quedan para siempre. Lo mismo en el front:
+   `MetricasDistribucionLeadsV3Schema` se compone con
+   `...MetricasDistribucionLeadsSchema.entries` — el schema V2 es la BASE del
+   V3, no residuo.
+2. 🔴 **La RPC pública v2 SE SIGUE LLAMANDO**: 4 llamadas hoy, la última a
+   las 16:20 UTC (≈15 min antes del 39.º release). El CRM tenía usuarios
+   trabajando a las 16:50. Y el aviso de versión nueva **no recarga solo**
+   por diseño («Esta pantalla no se recargará sola»), así que una pestaña
+   abierta antes del release sigue pidiendo v2 indefinidamente. Retirarla
+   rompería esa pantalla (error recuperable, solo gerencia) sin ganar nada
+   urgente.
+3. ✅ **Las claves de los payloads vivos NO son retirables**: de ~200 claves
+   medidas en los 6 RPC principales, el bundle vivo consume TODAS salvo el
+   bloque `cartera` de `conversion_mensual_fn` (10 claves: capital/
+   conversiones de renovación y upgrade). Ese bloque no es «viejo»: es
+   capacidad **nunca cableada** a una pantalla. Retirarlo sería borrar
+   funcionalidad, no limpiar deuda.
+4. 🟡 **Hallazgo que corrige una suposición del plan:**
+   `crm.metricas_conversiones_equipo_fn` **no la llama ninguna pantalla**.
+   El plan asumía que su pantalla era `supervisor.tsx`, pero se verificó que
+   NINGUNA de las dos ramas la usaba: el commit `3f8275a` («un solo número
+   bajo un solo nombre») unificó Gestión de equipo sobre
+   `conversion_mensual_fn`. La RPC + su fetcher/hook/schema están completos y
+   probados, esperando pantalla. **No se borra**: es superficie planificada,
+   no residuo. Decisión de negocio pendiente: cablearla o parquearla.
+
+**Conclusión:** F3.5 se cierra como **auditada y descartada por evidencia**.
+El «lo viejo» que el plan imaginaba retirar o no existe (las claves siguen
+vivas), o es estructura de composición (los cores), o sigue en uso (v2). La
+única deuda real que queda anotada es el punto 4.
+
+**Trampa de método que casi cuesta caro:** el primer barrido dijo «todas las
+claves están muertas» — era **zsh, que no hace word-splitting** de una
+variable sin comillas, así que `grep` buscaba la línea entera como literal.
+Una auditoría de superficie SIEMPRE necesita un caso de control conocido-vivo
+(aquí `ventana_convertidos_dias`) antes de creerse su propio resultado.
