@@ -481,6 +481,8 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     montarConNucleo({ ...SONDAS, cuadra: true, paridad_nucleo: null }, false, false)
 
     expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Conversión del mes').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Conversión a clientes')).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()

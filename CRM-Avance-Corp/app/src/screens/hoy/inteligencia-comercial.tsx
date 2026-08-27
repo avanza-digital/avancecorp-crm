@@ -663,7 +663,9 @@ export function InteligenciaComercialPanel({
                 rescatar otra fórmula; solo la demo heredada conserva su
                 lectura de rango explícitamente rotulada. */}
             <div className="min-w-[280px]">
-              <p className="gi-label text-white/65">{conversionEnRevision || nucleoVisible ? 'Conversión del mes' : 'Conversión a clientes'}</p>
+              <p className="gi-label text-white/65">
+                {nucleo != null || sondasConv != null ? 'Conversión del mes' : 'Conversión a clientes'}
+              </p>
               <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{conversionEnRevision ? '—' : pct(conversion)}</p>
               <p className="mt-2 text-xs text-white/65">
                 {conversionEnRevision
