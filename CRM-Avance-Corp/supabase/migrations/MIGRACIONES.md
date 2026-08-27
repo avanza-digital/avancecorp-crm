@@ -4330,3 +4330,40 @@ en el rango y pierde los que cierran después).
 
 `ciclos_resueltos` NO cambia a propósito: el episodio **sí** se resolvió,
 aunque el cierre se anulara después. Excepciones a `public`: ninguna.
+
+## 20260827060000 · `crm_f2_5_reuniones_nucleo`
+
+✅ **APLICADA EN PROD** (2026-08-27 ~06:00 UTC; registro md5 `3567a2dc…` =
+md5 del fichero). **F2.5** del plan
+[[Conversion unica en todo el CRM - plan de migraciones]] — cuarto motor.
+
+`private.metricas_reuniones_implementacion`: «terminan en cliente» miraba la
+FICHA del lead (`perfil_id` + `convertido_en`, que incluye los cierres
+anulados) y «terminan en contrato» contaba `crm.leads.contrato_id`, la columna
+que nadie rellena — valía **0 SIEMPRE**. Las dos pasan al LEDGER: un cierre
+posterior a la reunión, sin anular, leído de `private.conversion_episodios`.
+Arregla **H16**. Ninguna clave cambia (schema `v.object` en el bundle vivo).
+
+⚠️ **HONESTIDAD SOBRE EL EFECTO MEDIDO: el número NO se movió en producción.**
+Mes en curso: `clientes` 0 → 0 con 5 leads reunidos (ninguno de esos leads
+cerró DESPUÉS de su reunión). Julio: **0 reuniones realizadas**, así que
+tampoco hay con qué contrastar. El cambio es estructural y correcto — lo que
+falta son datos que lo ejerciten, no la migración. Es exactamente el territorio
+de `gate:realidad`: la prueba que vale es la del banco, no la foto de prod.
+
+Banco (`run-test-f2-reuniones-local.sh` + `test-f2-reuniones.sql`): 5 reuniones
+realizadas en julio → **2 terminan en cliente**, y las tres que quedan fuera
+son las tres razones por las que puede quedar fuera — cierre ANULADO, lead que
+no cierra, y un lead que **cerró ANTES de la reunión** (la reunión no lo trajo).
+**4 mutantes muertos** (numerador muerto · anulados que cuentan · pierna de
+cierres cortada en el rango · sin exigir que el cierre sea posterior).
+
+🔴 **La misma trampa de F2.3a, otra vez: el oráculo pasaba EN VACÍO.** Las
+aserciones apuntaban a `resumen.clientes`, pero el bloque real es
+`conversion.clientes`; comparar contra NULL no es ni verdad ni mentira, así
+que la prueba pasaba sin comprobar nada y un mutante sobrevivió. Se añadió
+guarda anti-vacuidad explícita sobre las claves y sobre `leads_reunidos`.
+**Lección para el resto de la fase: toda aserción sobre un payload necesita
+una guarda que falle si la RUTA no existe.**
+
+Excepciones a `public`: ninguna.
