@@ -1,14 +1,15 @@
 ---
-tags: [crm, conversion, plan, pendiente-aprobar]
-actualizado: 2026-08-26
-estado: F0+F1+F2 COMPLETAS EN PROD (2026-08-27) - queda F3 (front), bloqueada por ramas
+tags: [crm, conversion, plan, en-ejecucion]
+actualizado: 2026-08-27
+estado: F0+F1+F2 COMPLETAS EN PROD incl. 2.3b (2026-08-27) - F3 (front): escribible YA, publicar bloqueado por ramas
 ---
 
 # Conversión única en todo el CRM — plan de migraciones
 
 Plan para que **todas** las conversiones del CRM (vendedor, supervisor,
 gerencia) salgan de **un solo núcleo** en el servidor, como pidió Miguel el
-2026-08-26. **Nada de esto está escrito todavía**: espera el OK de Miguel.
+2026-08-26. **F0, F1 y F2 (incluida 2.3b) están EN PRODUCCIÓN al 27/08**;
+queda F3 (front).
 Verificado adversarialmente contra el repo antes de presentarse (4 lentes,
 16 correcciones aplicadas — run `wf_4a2c07a4-480`).
 
@@ -172,7 +173,7 @@ núcleo.
 | 2.1 | `private.metricas_conversiones_implementacion` (pantalla Conversiones + KPIs/gráficas de HOY) | cohorte por `creado_en` + numerador `contrato_id` | GROUP BY episodios (cohorte asignación, cierres del ledger — D2) | payload aditivo (su schema del front tolera claves nuevas); `conversion_contratos_pct` pasa a valer algo real (H3). Las ventanas de CONTRATOS/capital (`fecha_cierre_comercial`, H14) NO se tocan: miden contratos, no conversión. La fila «Referido» de orígenes según D6 |
 | 2.2 | `crm.metricas_conversiones_equipo_fn` (Ranking) | ídem (`20260810024404:287-306`) | GROUP BY episodios recortado al subárbol | conserva `responsables{...}`; aditivo tolerado por su schema |
 | 2.3a | `crm.metricas_distribucion_leads_v2_fn` (+v1) — **solo reemplazo interno** | cohortes de `metricas_distribucion_leads_core` (`20260717224252:204-244`, con anulados) | GROUP BY episodios por rango, **payload idéntico byte a byte** (paridad como F1) | ⛔ **el bundle vivo (`b3f6e98`) valida este payload a cierre hermético** (`v.strictObject` en todos los niveles, `metricas-distribucion.ts:225`): una clave NUEVA también lo rompe, no solo renombrar. Lección [[crm-orden-deploy-front-primero]]: clave nueva en RESPUESTA → front primero. Aquí sí se excluyen los anulados (H17): cambio de VALOR, no de forma |
-| 2.3b | ídem — claves nuevas (`conversion_*_pct` servidos + sondas) | — | — | **espera al front integrado** (F3) o va en una RPC `v3` que el bundle viejo jamás llama |
+| 2.3b | ✅ **EN PROD** (`20260827090000`): RPC **v3** (`crm.metricas_distribucion_leads_v3_fn`) que el bundle vivo jamás llama | — | v2 + `conversion{pen,usd}` (puntería 6 decimales, pct NULL sin resueltos) + `nucleo_*` + `sondas` por analista/rango/resumen | v1/v2 byte-idénticas (foto antes/después); mes real: núcleo 7,22 % con paridad 0; `nucleo_sin_ficha:1` ya caza un caso real. Rollback ensayado (`rollback-f2-3b-distribucion-v3.sql`) |
 | 2.4 | `crm.metricas_vendedores_fn` + `crm.resumen_cartera_fn` + `crm.series_comerciales_fn` | conteos `etapa='convertido'` por dueño actual (`20260809144920:558-568`) | episodios del MES CALENDARIO (D1 decidida: sin ventana 45d en la métrica) / por mes | los números cambian; añade `numerador`/`divisor` (schemas tolerantes) |
 | 2.5 | `private.metricas_reuniones_implementacion` | `metrica_conversion_cliente/contrato` (`20260805180000:1026-1038`) | join reuniones × episodios | «Terminan en cliente» pasa a medir cierres del ledger |
 
@@ -187,7 +188,64 @@ total` (numerador y divisor), `episodios_sin_origen`, `paridad_nucleo`
 y la cobertura del ledger que ya existe como `lecturaCobertura` — **salvo
 Distribución**, cuyas sondas llegan en 2.3b.
 
-### F3 — Front (tras integrar las ramas)
+### F3 — Front (plan afinado el 27/08 tras cerrar F2.3b)
+
+> **Hallazgo que cambia la estrategia:** de los 13 ficheros que F3 toca,
+> **11 NO los tocó ninguna de las dos ramas** en disputa
+> ([[ramas-paralelas-crm]]). La integración pelea por Hoy/alertas/capa de
+> datos, no por las pantallas de métricas. Por tanto **F3.1–F3.4 se pueden
+> ESCRIBIR y probar ya** sobre esta rama; lo único que espera a la
+> integración es (a) publicar y (b) los 4 ficheros de la zona de conflicto:
+> `alertas.ts` (las dos alertas de conversión, H10/H11), `crm-api.ts`,
+> `tipos.ts`, `database.types.ts`.
+
+**Orden ejecutable:**
+1. **F3.1 rótulos** (bajo): cada % dice base y ventana; fuera el «45 días»;
+   Conversiones deja de rotular «contratos»; mes nombrado (H4/H5); umbral de
+   la alerta dicho (H21); desglose del héroe (H1: cierres + referidos×0,15 +
+   renovaciones − anuladas); fila «Referido» con rótulo propio (D6); sin tope
+   visual (D7).
+2. **F3.2 el navegador deja de dividir** (alto): los 5 sitios vivos —
+   `distribucion-lecturas.ts:206-211,254-256` (además ORDENA el ranking
+   «cierres» con ese número), `conversion-vendedores.ts:133-165`,
+   `equipo-gerencia.tsx:132-142`, `distribucion-leads-gerencia.tsx:341-345`
+   (suma USD en cliente) y `directorio.tsx:131,154`. Distribución cambia a
+   la RPC **v3** con schema `strictObject` NUEVO (las claves ya están en
+   prod, medidas: `conversion{pen,usd,nucleo_*}` por analista/rango/resumen
+   + `sondas`).
+3. **F3.3 retirar lo muerto** (medio): huérfanos REALES en `inteligencia.ts`:
+   `embudo()`, `conversionPorOrigen()`, `conversionGlobal()` — ⚠️ el plan
+   original listaba también `estancados()` y **NO es huérfano**:
+   `cola-accion.ts:11,253` lo usa vivo para el espejo demo de la campana de
+   alertas; borrarlo rompería alertas. En `objetivos.ts` solo la aritmética
+   de conversión (`:405-407`, `:423-430`); el resto de `agregarCumplimientos`
+   se queda (alimenta las barras de capital de 5 pantallas). Ruta «Capital»
+   (N1) fuera.
+4. **F3.4 la red** (bajo): si una sonda falla (`cuadra !== true`,
+   `paridad_nucleo !== 0`, `nucleo_sin_ficha > 0` como aviso), banner ámbar
+   «cifras en revisión» y el número SE OCULTA. El front no fabrica ceros.
+   Las sondas ya viajan en los 6 payloads (2.1, 2.2, v3, 2.4, 2.4b, 2.5).
+5. ⛔ **Integración de ramas** — la puerta para todo lo que sigue.
+6. `alertas.ts` + capa de datos (`crm-api.ts` gana `metricasDistribucionV3`,
+   `tipos.ts`, `gen:types`) sobre el árbol integrado.
+7. **Publicar** (solo humano: `/release-crm`) y verificar el bundle vivo por
+   hash ([[sesiones-paralelas-deploy]]).
+8. **F3.5 retirada** de claves viejas del servidor — SOLO tras verificar el
+   front nuevo vivo por hash.
+
+**Trampas para quien escriba F3** (todas mordieron en F2):
+- El schema nuevo de Distribución v3 es `strictObject`: escribirlo DESDE el
+  payload real de prod (está medido en el ledger de `20260827090000`), no
+  desde la imaginación.
+- `gate-realidad` antes de dar por buena una pantalla: los tests del fixture
+  lleno no prueban el mundo vacío de prod.
+- `pct` puede venir **NULL** («aún no se sabe») y NO es 0 — pintarlo distinto.
+- El orden «cierres» de Distribución debe ordenar por el pct SERVIDO
+  (`conversion.pen.pct`), no recalcular.
+- Los números de puntería servidos vienen con 6 decimales a propósito: el
+  front formatea a 1 decimal con Intl y da el mismo carácter que hoy.
+
+#### Detalle original de F3 (sigue vigente donde no contradiga lo de arriba)
 
 - Se borran los cálculos locales **con pintor vivo**:
   `distribucion-lecturas.ts:206-211,254-256` (`conversionLegible`,
