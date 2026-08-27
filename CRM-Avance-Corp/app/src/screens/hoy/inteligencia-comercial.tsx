@@ -652,6 +652,20 @@ export function InteligenciaComercialPanel({
                     : `${numero(clientes)} clientes de ${numero(datos.cohorte.leads)} leads del rango`}
                 </p>
               )}
+              {/* F1.3: el capital que PRODUJERON los leads del rango (contratos
+                  del portal de perfiles nacidos de lead + cierres en coops),
+                  servido por `produccion` — desde la migración F1.3 esa cifra
+                  es real (antes leía un enlace jamás poblado y decía S/ 0).
+                  `sin_rastro` declara los convertidos sin capital rastreable. */}
+              {(datos.produccion.capital_pen > 0 || datos.produccion.capital_usd > 0
+                || datos.produccion.contratos > 0 || (datos.produccion.sin_rastro ?? 0) > 0) && (
+                <p className="mt-1 text-xs text-white/50">
+                  Capital por leads del rango: {money(datos.produccion.capital_pen, 'PEN')} + {money(datos.produccion.capital_usd, 'USD')} · {numero(datos.produccion.contratos)} {datos.produccion.contratos === 1 ? 'cierre' : 'cierres'}
+                  {(datos.produccion.sin_rastro ?? 0) > 0
+                    ? ` · ${numero(datos.produccion.sin_rastro ?? 0)} ${(datos.produccion.sin_rastro ?? 0) === 1 ? 'convertido' : 'convertidos'} sin capital rastreable`
+                    : ''}
+                </p>
+              )}
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>

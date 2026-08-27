@@ -4609,3 +4609,53 @@ vio filas ajenas), y que el oráculo discrimina forma vieja↔nueva.
 
 **Registro de excepciones a `public`:** ninguna — ningún statement toca
 `public.*`.
+
+## 20260827193803 · `crm_f1_3_capital_por_leads_vivo`
+
+✅ **APLICADA EN PROD** (2026-08-27 ~19:51 UTC, canal MCP Supabase; registro
+`schema_migrations` versión `20260827195149` — el fichero local conserva su
+`20260827193803`, equivalencia anotada aquí como manda el precedente del
+banco). Preflight md5 `f38599fe…` (la de F2.1) OK · postflight md5
+`47fb852c…` + candados (identity args, DEFINER/search_path, ACL owner-only,
+caminos vivos presentes, enlace muerto ausente del CTE) OK. Advisors tras
+aplicar: **0 ERROR** (135 WARN + 26 INFO preexistentes).
+
+**Auditoría RLS previa (subagente auditor-rls): OBJECIONES — 3 MEDIO, ninguna
+bloqueante, TODAS corregidas antes de aplicar**: (1) el reclamo «ya no se
+consulta el enlace» se acotó al CTE `produccion` (sigue en `cohorte_base` y
+`capital_responsables` → deuda F1.3b declarada); (2) pre/postflight ganaron el
+patrón completo de F2.1 (identity args + prosecdef/search_path + ACL con la
+trampa `aclexplode(null)`); (3) `metricas_conversiones_fn` estrenó casos en
+`test-rls.mjs` (gerencia/directorio OK con forma exacta de `produccion` y
+cero PII de cierres_externos en el payload; vendedores/supervisores/
+coordinador/inactivo/banco 42501; gate antes que validación; 22023 con
+período inválido) — **pendientes de ejecutar en el próximo ciclo de banco**
+(el preflight local sigue sin `SUPABASE_SERVICE_ROLE_KEY`, deuda RETOMAR-57).
+
+**EL CAMBIO REAL, medido en vivo como Carlos (gerencia), rango 01–27/08:**
+
+| `produccion` | ANTES | DESPUÉS |
+|---|---|---|
+| `contratos` | **0** (enlace muerto) | **9** (6 portal + 3 coops) |
+| `capital_pen` | **0** | **113.000** (58.000 portal + 55.000 coops) |
+| `capital_usd` | **0** | **123.000** |
+| `sin_rastro` | no existía | **1** («miguel alvarez» 19/08, prueba) |
+
+Sondas intactas tras aplicar: `cuadra: true`, núcleo 6,80 %.
+F1.3 del plan del «Hoy de gerencia» (27/08): el bloque `produccion` de
+`private.metricas_conversiones_implementacion` medía el capital por leads vía
+`crm.leads.contrato_id` — enlace JAMÁS poblado (auditoría en prod 27/08:
+0 enlaces históricos; agosto: 111 contratos y S/ 3,7 M con el KPI en S/ 0).
+Ahora mide por los caminos VIVOS: contratos del portal cuyo titular es un
+perfil nacido de un lead (`leads.perfil_id = contratos.cliente_id`) + cierres
+en cooperativas (`crm.cierres_externos` por lead, sin anulados), y declara
+`produccion.sin_rastro` (convertidos del rango sin perfil ni cierre externo —
+hoy 1: lead de prueba «miguel alvarez» 19/08).
+
+**NO toca objetos de `public`** (solo LEE `public.contratos`, igual que la
+versión anterior — sin OK adicional requerido). No cambia autorización,
+policies ni grants; la columna `crm.leads.contrato_id` queda intacta.
+Preflight: md5 vivo debe ser `f38599fe…` (la de F2.1). Postflight: md5
+`47fb852c…` + `sin_rastro` presente + el enlace muerto ausente (por `strpos`,
+no LIKE). Medido en prod antes de escribir (01–27/08): portal 6 contratos
+S/ 58.000 + US$ 123.000 · externos 3 cierres S/ 55.000 · sin_rastro 1.

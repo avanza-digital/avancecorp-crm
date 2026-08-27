@@ -5695,6 +5695,77 @@ async function testMetricasServidor(sessions, seed) {
 // gerencia/lector global, asi que el gate es parte del entregable, no un
 // seguimiento. Tres bloques: (A) permitidos y FORMA, (B) denegaciones duras,
 // (C) NO VACUIDAD — sin el bloque C, todo A puede estar verde y vacio.
+async function testMetricasConversionesGlobal(sessions) {
+  // metricas_conversiones_fn (el panel Conversiones de gerencia) jamas tuvo
+  // casos en esta matriz (objecion 3 del auditor RLS, F1.3 27/08): su gate es
+  // SOLO gerencia/lector global — mas estrecho que el de equipo_fn — y desde
+  // F1.3 agrega crm.cierres_externos (PII fuerte) bajo DEFINER: el payload
+  // debe seguir siendo agregados numericos, nunca filas de esa tabla.
+  const enLima = (fecha) => new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Lima', year: 'numeric', month: '2-digit', day: '2-digit',
+  }).format(fecha);
+  const ahora = new Date();
+  const P = {
+    p_desde: enLima(new Date(ahora.getTime() - 29 * 24 * 60 * 60 * 1000)),
+    p_hasta: enLima(ahora),
+  };
+
+  // ── A · permitidos y forma ────────────────────────────────────────────────
+  const global = await positive(
+    'gerencia obtiene las metricas de conversiones globales',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', P),
+  );
+  if (global) {
+    check(global.data?.version === 1, 'el payload de conversiones declara version 1');
+    // F1.3: produccion mide por los caminos vivos y declara sin_rastro. La
+    // forma es EXACTA — un campo de mas es superficie sin auditar.
+    const produccion = Object.keys(global.data?.produccion ?? {}).sort();
+    check(JSON.stringify(produccion) === JSON.stringify([
+      'capital_pen', 'capital_usd', 'clientes', 'contratos', 'sin_rastro',
+    ]), 'produccion trae SOLO su contrato F1.3', produccion.join(','));
+    check(typeof global.data?.produccion?.sin_rastro === 'number',
+      'la sonda sin_rastro es un numero, no un hueco');
+    // La PII de cierres_externos NO viaja: ninguna clave de identidad en el
+    // payload plano (strings del documento/nombre/transaccion jamas salen).
+    const plano = JSON.stringify(global.data ?? {});
+    check(!plano.includes('numero_transaccion') && !plano.includes('nombre_completo')
+      && !plano.includes('documento'),
+      'el payload no expone columnas de identidad de cierres_externos');
+  }
+
+  const directorio = await positive(
+    'directorio (lector global) obtiene las metricas de conversiones',
+    sessions.directorio.client.schema('crm').rpc('metricas_conversiones_fn', P),
+  );
+  if (directorio && global) {
+    check(directorio.data?.version === 1, 'el lector global recibe el mismo contrato');
+  }
+
+  // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ─────────────
+  // A diferencia de equipo_fn, aqui TAMBIEN los supervisores quedan fuera:
+  // el gate es gerencia/lector global y nada mas.
+  for (const key of ['vend1', 'vend3', 'sup1', 'sup2', 'sup1Nested', 'coordinador', 'vendInactive', 'clientBank']) {
+    await expectExplicitAuthorizationDenied(
+      `${key} no ejecuta metricas_conversiones_fn`,
+      sessions[key].client.schema('crm').rpc('metricas_conversiones_fn', P),
+    );
+  }
+
+  // El GATE va antes que la validacion de periodo: un rol denegado recibe
+  // 42501 aunque el periodo tambien sea invalido.
+  const periodoInvalido = { p_desde: P.p_desde, p_hasta: '2999-01-01' };
+  await expectExplicitAuthorizationDenied(
+    'un supervisor recibe 42501 y NO 22023 con un periodo invalido',
+    sessions.sup1.client.schema('crm').rpc('metricas_conversiones_fn', periodoInvalido),
+  );
+  await expectExpectedFailure(
+    'gerencia recibe 22023 con p_hasta en el futuro',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', periodoInvalido),
+    ['22023'],
+    /periodo invalido/i,
+  );
+}
+
 async function testMetricasConversionEquipo(sessions, seed) {
   console.log('\n— Ranking de conversion del equipo (decision #10 b2) —');
 
@@ -9105,6 +9176,7 @@ async function main() {
       await testMetasVersionadas(sessions, verifiedSeed);
       await testMetricasServidor(sessions, verifiedSeed);
       await testMetricasConversionEquipo(sessions, verifiedSeed);
+      await testMetricasConversionesGlobal(sessions);
       await testCarteraKeyset(sessions, verifiedSeed);
       await testReparto(sessions, verifiedSeed);
       await testDescarte(sessions, verifiedSeed);

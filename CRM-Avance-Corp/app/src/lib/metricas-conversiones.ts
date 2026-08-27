@@ -28,6 +28,10 @@ const ProduccionConversionesSchema = v.object({
   contratos: v.number(),
   capital_pen: v.number(),
   capital_usd: v.number(),
+  // F1.3 (27/08): convertidos del rango sin rastro de capital (ni perfil ni
+  // cierre externo). Opcional: el espejo demo y un servidor previo no la
+  // emiten — ausente, la pantalla simplemente no rotula el hueco.
+  sin_rastro: v.optional(v.number()),
 })
 
 const PasoEmbudoSchema = v.object({

@@ -453,3 +453,48 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.getByText(/origen distinto entre su ficha y el/)).toBeInTheDocument()
   })
 })
+
+describe('F1.3: capital por leads del rango en el héroe', () => {
+  function montarConProduccion(produccion: Partial<ReturnType<typeof metricasConversionesDemo>['produccion']>) {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
+    datos.produccion = { ...datos.produccion, ...produccion }
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+  }
+
+  it('pinta la lectura por leads con su desglose y declara los sin rastro', () => {
+    // Estado real de prod tras la migración F1.3 (medido 27/08): portal + coops
+    // y UN convertido sin perfil ni cierre externo — el hueco se dice.
+    montarConProduccion({ contratos: 9, capital_pen: 113_000, capital_usd: 123_000, sin_rastro: 1 })
+    expect(screen.getByText(/Capital por leads del rango:/)).toBeInTheDocument()
+    expect(screen.getByText(/9 cierres/)).toBeInTheDocument()
+    expect(screen.getByText(/1 convertido sin capital rastreable/)).toBeInTheDocument()
+  })
+
+  it('sin producción en el rango, la línea no aparece (cero honesto, sin ruido)', () => {
+    montarConProduccion({ clientes: 0, contratos: 0, capital_pen: 0, capital_usd: 0, sin_rastro: 0 })
+    expect(screen.queryByText(/Capital por leads del rango:/)).not.toBeInTheDocument()
+  })
+
+  it('con servidor previo (sin sin_rastro), la línea vive y no rotula huecos', () => {
+    montarConProduccion({ contratos: 5, capital_pen: 50_000, capital_usd: 0, sin_rastro: undefined })
+    expect(screen.getByText(/Capital por leads del rango:/)).toBeInTheDocument()
+    expect(screen.queryByText(/sin capital rastreable/)).not.toBeInTheDocument()
+  })
+})
