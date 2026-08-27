@@ -1,7 +1,7 @@
 ---
 tags: [crm, conversion, plan, en-ejecucion]
 actualizado: 2026-08-27
-estado: F0+F1+F2 COMPLETAS EN PROD incl. 2.3b (2026-08-27) - F3 (front): escribible YA, publicar bloqueado por ramas
+estado: F0+F1+F2 EN PROD - F3.1-F3.4 ESCRITAS Y COMMITEADAS en la rama (27/08, 4 commits, suite verde) - publicar y los 4 ficheros en conflicto esperan la integracion de ramas
 ---
 
 # Conversión única en todo el CRM — plan de migraciones
@@ -187,6 +187,60 @@ total` (numerador y divisor), `episodios_sin_origen`, `paridad_nucleo`
 (diferencia entre el % mensual y el recomputado desde episodios; debe ser 0)
 y la cobertura del ledger que ya existe como `lecturaCobertura` — **salvo
 Distribución**, cuyas sondas llegan en 2.3b.
+
+### F3.1–F3.4 — ESCRITAS Y COMMITEADAS el 27/08 (sin publicar)
+
+Cuatro commits en `wip/workspace-20260823-completo`, suite completa verde
+(2249 tests) y `npm run check` entero (lint, typecheck, cobertura, build,
+verify:bundle, dup):
+
+- `4bfc168` — **Distribución sobre la v3**: schema `strictObject` V3 escrito
+  desde el payload real (154 caminos medidos por la cadena viva), fetcher y
+  hook en `data/metricas-distribucion-v3.ts` (fichero propio: `crm-api`/
+  `crm-queries` son zona de conflicto), puntería servida en fichas/rangos/
+  resumen/candidatos, orden «cierres» por el pct servido (con mutante), suma
+  USD al servidor, carta del núcleo con la red de sondas (cuadra=false →
+  banner ámbar y cifra oculta; cuadra=null → nota neutra «elige Este mes»;
+  `nucleo_sin_ficha`>0 → aviso sin ocultar, que HOY caza en prod). Demo V3.
+- `76d54cd` — **las otras divisiones**: tendencia semanal del equipo pasa a
+  enteros servidos (recibidos y cierres, sin % fabricado ni meta mensual
+  cruzada — H12); cabecera por supervisor en Gestión de equipo sin división
+  (cierres · recibidos servidos); tasa de descarte del directorio retirada;
+  schemas ganan `ventana_metrica`/`mes_metrica`/`operaciones_cartera`.
+- `091f05e` — **F3.3**: fuera `embudo()`, `conversionPorOrigen()` y
+  `conversionGlobal()` (huérfanos; `estancados()` se quedó — lo usa
+  cola-accion); `agregarCumplimientos` ya no recalcula conversión (tipo nuevo
+  `CumplimientoAgregado`, mutante vigilado); entrada «Capital» fuera del
+  sidebar (N1 parcial: App.tsx/topbar/router tras integrar).
+- `87a6dd1` — **Conversiones al núcleo (D2) + F3.4**: héroe con la cifra del
+  núcleo y desglose H1, cosecha como segunda lectura, banner por sondas, D6
+  rotulado en Conversiones y Resumen, H23 (chips de Pipeline leen el resumen
+  servido), schema de Conversiones con nucleo/cosecha/sondas/claves D6.
+
+**Hallazgos del gate de realidad (cadena viva, 27/08 de noche):**
+1. 🔴 **HOY y los motores F2 ya NO dicen el mismo número**: el total de
+   `conversion_mensual_fn` EXCLUYE la parte fuera de roster y lo declara
+   (`cobertura.fuera_de_roster`: 37,75/537 = **7,03 %**), mientras el bloque
+   `nucleo` de Conversiones y la v3 de Distribución la INCLUYEN (38,75/537 =
+   **7,22 %**). Es el mismo analista de `nucleo_sin_ficha: 1`. Los rótulos que
+   afirmaban «la misma cifra que HOY» se corrigieron ANTES de publicarse
+   («cifra única del núcleo»); unificar el criterio (¿el total de HOY debe
+   incluir al ex-roster?) es una decisión de negocio pendiente (candidata D8).
+2. `resumen_cartera_fn.conversion` es una TERCERA aritmética (cierres crudos
+   15/541, redondeo entero) pese a declarar `ventana_metrica: mes_calendario`
+   → la tarjeta del directorio pinta los CIERRES servidos, no un % que
+   contradiga al héroe. Si se quiere el % del núcleo ahí, es una clave F2.x
+   nueva, no una división del front.
+3. Coste v3 medido: **~75–110 ms** por llamada, ~64 KB (mes en curso, 18
+   analistas). Aceptable para una pantalla solo-gerencia con caché por
+   período (TanStack; la clave incluye las fechas). Deuda de medición saldada.
+
+**Esperan a la integración de ramas** (⛔ publicar sigue prohibido):
+`alertas.ts` (H10/H11 y el umbral H21), `vendedor.tsx:1353` (rótulo «45
+días» del héroe), el resto de N1 (App.tsx, topbar.tsx, router), el schema
+del ranking del supervisor (`metricas-conversiones-equipo.ts` — su única
+pantalla, supervisor.tsx, está en conflicto), mudar el fetcher v3 a
+`crm-api.ts` + `gen:types`, publicar (`/release-crm` humano) y F3.5.
 
 ### F3 — Front (plan afinado el 27/08 tras cerrar F2.3b)
 
