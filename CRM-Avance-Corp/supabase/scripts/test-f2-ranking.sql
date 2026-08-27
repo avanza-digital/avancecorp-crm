@@ -117,6 +117,104 @@ begin
 end $$;
 
 -- ---------------------------------------------------------------------------
+-- 2b. COHERENCIA (objecion A2): un lead cuyo DUENO ACTUAL no es quien lo
+--     CERRO debe contar IGUAL mire gerencia o mire su supervisor. Si la
+--     cosecha se recortara por ambito, gerencia veria 1 cliente y el
+--     supervisor 0 para el mismo vendedor: dos verdades del mismo dato.
+-- ---------------------------------------------------------------------------
+do $$
+declare v_ger jsonb; v_sup jsonb; r_ger jsonb; r_sup jsonb; e text := '';
+begin
+  -- Lead de V2 (dueno actual) CERRADO por V1, que esta fuera del subarbol del
+  -- supervisor de V2. Es el escenario que el repo documenta como real:
+  -- `crm.leads.vendedor_id` es MUTABLE y el `analista_id` del ledger no.
+  insert into crm.leads (id, creado_en, origen, categoria_interes, etapa, vendedor_id, activo)
+  values ('44444444-0000-4000-8000-000000000103', '2026-07-14 09:00-05', 'campania',
+          'renta', 'convertido', '55555555-5555-4555-8555-555555555555', true);
+  insert into crm.lead_asignaciones
+    (analista_id, lead_id, origen, motivo_apertura, asignado_en, resultado, resultado_en)
+  values ('22222222-2222-4222-8222-222222222222', '44444444-0000-4000-8000-000000000103',
+          'campania', 'nuevo', '2026-07-14 10:00-05', 'convertido', '2026-07-26 15:00-05');
+
+  perform set_config('test.uid', '11111111-1111-4111-8111-111111111111', true);
+  v_ger := crm.metricas_conversiones_equipo_fn('2026-07-01', '2026-07-31');
+  perform set_config('test.uid', '66666666-6666-4666-8666-666666666666', true);
+  v_sup := crm.metricas_conversiones_equipo_fn('2026-07-01', '2026-07-31');
+
+  select value into r_ger from jsonb_array_elements(v_ger->'responsables') value
+   where value->>'vendedor_id' = '55555555-5555-4555-8555-555555555555';
+  select value into r_sup from jsonb_array_elements(v_sup->'responsables') value
+   where value->>'vendedor_id' = '55555555-5555-4555-8555-555555555555';
+
+  if (r_ger->>'clientes') is distinct from (r_sup->>'clientes') then
+    e := e || format(' gerencia ve %s clientes y el supervisor %s para el MISMO vendedor',
+                     r_ger->>'clientes', r_sup->>'clientes'); end if;
+  if (r_ger->>'conversion_pct') is distinct from (r_sup->>'conversion_pct') then
+    e := e || ' el % del mismo vendedor difiere segun quien mire'; end if;
+  -- y debe contar: el lead cerro, aunque lo cerrara otro
+  if (r_ger->>'clientes')::int <> 2 then
+    e := e || format(' V2.clientes=%s(≠2: el lead cerrado por otro no cuenta)', r_ger->>'clientes'); end if;
+  -- Y la discrepancia de acreditacion queda MEDIDA, no escondida: este lead
+  -- lo cerro V1 pero se acredita a V2 (su dueno actual).
+  if (v_ger->'sondas'->>'clientes_acreditados_a_otro_dueno')::int <> 1 then
+    e := e || format(' sonda de acreditacion=%s(≠1)',
+                     v_ger->'sondas'->>'clientes_acreditados_a_otro_dueno'); end if;
+
+  -- limpieza para no contaminar los bloques siguientes
+  delete from crm.lead_asignaciones where lead_id = '44444444-0000-4000-8000-000000000103';
+  delete from crm.leads where id = '44444444-0000-4000-8000-000000000103';
+
+  if e <> '' then raise exception 'ORACULO ROTO (coherencia):%', e; end if;
+  raise notice 'COHERENCIA OK · dueno≠cerrador: gerencia y supervisor ven lo MISMO';
+end $$;
+
+-- ---------------------------------------------------------------------------
+-- 2c. SONDAS del roster (objecion M4): un supervisor con episodios PROPIOS
+--     deja divisor fuera del roster de vendedores. Sin este caso, la sonda
+--     valia 0 por construccion y estaba verde por vacuidad.
+-- ---------------------------------------------------------------------------
+do $$
+declare v jsonb; e text := '';
+begin
+  -- El propio supervisor recibe un lead (se ve a si mismo en su ambito)
+  insert into crm.equipo_supervision (supervisor_id, vendedor_id)
+  values ('66666666-6666-4666-8666-666666666666', '66666666-6666-4666-8666-666666666666');
+  insert into crm.leads (id, creado_en, origen, categoria_interes, etapa, vendedor_id, activo)
+  values ('44444444-0000-4000-8000-000000000104', '2026-07-16 09:00-05', 'campania',
+          'renta', 'contactado', '66666666-6666-4666-8666-666666666666', true);
+  insert into crm.lead_asignaciones
+    (analista_id, lead_id, origen, motivo_apertura, asignado_en, resultado, resultado_en)
+  values ('66666666-6666-4666-8666-666666666666', '44444444-0000-4000-8000-000000000104',
+          'campania', 'nuevo', '2026-07-16 10:00-05', null, null);
+
+  perform set_config('test.uid', '66666666-6666-4666-8666-666666666666', true);
+  v := crm.metricas_conversiones_equipo_fn('2026-07-01', '2026-07-31');
+
+  -- El supervisor NO esta en el roster de vendedores, pero su episodio SI
+  -- entra en el nucleo: ese hueco es lo que la sonda debe publicar.
+  if (v->'sondas'->>'divisor_fuera_del_roster')::int <> 1 then
+    e := e || format(' divisor_fuera_del_roster=%s(≠1)', v->'sondas'->>'divisor_fuera_del_roster'); end if;
+  -- y el desglose sigue sin traerlo (no es vendedor)
+  if exists (select 1 from jsonb_array_elements(v->'responsables') x
+              where x.value->>'vendedor_id' = '66666666-6666-4666-8666-666666666666') then
+    e := e || ' el supervisor se colo en el desglose de vendedores'; end if;
+  -- la sonda del supervisor no puede superar la de gerencia
+  perform set_config('test.uid', '11111111-1111-4111-8111-111111111111', true);
+  if (v->'sondas'->>'divisor_fuera_del_roster')::int >
+     (crm.metricas_conversiones_equipo_fn('2026-07-01','2026-07-31')->'sondas'->>'divisor_fuera_del_roster')::int then
+    e := e || ' la sonda del supervisor supera la de gerencia (ambito roto)'; end if;
+
+  delete from crm.lead_asignaciones where lead_id = '44444444-0000-4000-8000-000000000104';
+  delete from crm.leads where id = '44444444-0000-4000-8000-000000000104';
+  delete from crm.equipo_supervision
+   where supervisor_id = '66666666-6666-4666-8666-666666666666'
+     and vendedor_id = '66666666-6666-4666-8666-666666666666';
+
+  if e <> '' then raise exception 'ORACULO ROTO (sondas del roster):%', e; end if;
+  raise notice 'SONDAS DEL ROSTER OK · el hueco supervisor/roster se publica y no se cuela';
+end $$;
+
+-- ---------------------------------------------------------------------------
 -- 3. EL GATE: quien NO puede, no pasa
 -- ---------------------------------------------------------------------------
 do $$

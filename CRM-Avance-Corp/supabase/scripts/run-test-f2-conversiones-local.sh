@@ -184,14 +184,18 @@ declare -a N22=(
   "R2 el ranking pierde el gate de rol"
   "R3 el ranking deja de filtrar el desglose por rol"
   "R4 el nucleo del ranking ignora el ambito (siempre global)"
+  "R5 la cosecha se recorta por ambito (dueno≠cerrador ve dos verdades)"
+  "R6 la sonda del roster mira el conjunto equivocado"
 )
 declare -a S22=(
   "s/(l.id in (select ec.lead_id from ep_cosecha ec)) as contrato/(l.contrato_id is not null) as contrato/"
   "s/    raise exception 'No autorizado' using errcode = '42501';/    null;/"
   "s/  return private.filtrar_desglose_sujetos_crm(/  return v_payload; -- /"
   "s/      v_ini, v_fin, v_periodo, v_global, v_visibles, v_factor/      v_ini, v_fin, v_periodo, true, null, v_factor/"
+  "s/      v_ini, v_cosecha_fin, null::date, true, '{}'::uuid\[\], v_factor/      v_ini, v_cosecha_fin, null::date, v_global, v_visibles, v_factor/"
+  "s/or nv2.analista_id not in (select r2.vendedor_id from roster r2)/or false/"
 )
-for i in 0 1 2 3; do
+for i in 0 1 2 3 4 5; do
   MUT="$TMPD2/mut$i.sql"
   sed "${S22[$i]}" "$MIG_F22" > "$MUT"
   if cmp -s "$MIG_F22" "$MUT"; then echo "❌ ${N22[$i]}: el sed no toco nada"; exit 1; fi
@@ -205,4 +209,4 @@ for i in 0 1 2 3; do
 done
 rm -rf "$TMPD2"
 echo
-echo "✅ BANCO F2.2 COMPLETO: oraculo + ambito + 4/4 mutantes muertos"
+echo "✅ BANCO F2.2 COMPLETO: oraculo + coherencia + ambito + sondas + 6/6 mutantes muertos"

@@ -1,7 +1,7 @@
 ---
 tags: [crm, conversion, plan, pendiente-aprobar]
 actualizado: 2026-08-26
-estado: F0+F1 EN PROD (2026-08-26/27) - sigue F2 (los 5 motores, uno por migracion)
+estado: F0+F1 EN PROD - F2 en curso (2.1 y 2.2 en prod; faltan 2.3a, 2.4, 2.5)
 ---
 
 # Conversión única en todo el CRM — plan de migraciones
@@ -48,7 +48,7 @@ si algo no cuadra pinta un aviso, jamás un número inventado.
 |---|---|
 | **F0** · anclar el texto vivo de Conversiones | ✅ **EN PROD** (2026-08-26, `20260826211500`; banco + auditor RLS + Codex; md5 `906afdec…` intacto) |
 | **F1** · la tabla-base (`conversion_episodios`) + núcleo encima, con paridad byte a byte | ✅ **EN PROD** (2026-08-26/27, `20260826233000`; banco 6 llamadas + oráculo + 4 mutantes · auditor RLS · Codex 2 refutaciones cerradas · paridad EN PROD idéntica) |
-| **F2** · los 5 motores paralelos pasan a consumir el núcleo | ⏳ sin empezar — decisiones D1–D3, D6, D7 ✅ resueltas (26/08); espera el OK de arranque |
+| **F2** · los 5 motores paralelos pasan a consumir el núcleo | 🏗️ **EN CURSO**: 2.1 Conversiones ✅ EN PROD · 2.2 Ranking ✅ EN PROD · faltan 2.3a Distribución, 2.4 vendedores/cartera/series, 2.5 Reuniones |
 | **F3** · front: consumir % servidos, borrar divisiones, rótulos; retirar lo viejo | ⛔ **bloqueada por la integración de ramas** ([[ramas-paralelas-crm]]): publicar front desde esta rama borraría «Hoy del supervisor» |
 
 **Cero código escrito.** Reglas no negociables: ninguna migración se escribe

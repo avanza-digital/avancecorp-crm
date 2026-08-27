@@ -58,6 +58,29 @@ begin
        where n.nspname = 'private' and p.proname = 'conversion_episodios') then
     raise exception 'el ranking y la tabla-base tienen OWNERS DISTINTOS: el DEFINER no podria ejecutarla';
   end if;
+
+  -- F2.2 estrena DOS aristas DEFINER→DEFINER que el vivo no tenia. Ambas
+  -- funciones estan revocadas a todo el mundo menos su owner, asi que si el
+  -- owner del ranking no puede ejecutarlas la pantalla muere. Se comprueba con
+  -- `has_function_privilege`, que NO ejecuta nada (un `select fn()` sin EXECUTE
+  -- tumba el backend en la imagen Supabase 17.6).
+  if not pg_catalog.has_function_privilege(
+       (select p.proowner::regrole::text from pg_catalog.pg_proc p
+          join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'crm' and p.proname = 'metricas_conversiones_equipo_fn'
+           and pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_desde date, p_hasta date'),
+       'private.peso_referido_conversion(date)', 'EXECUTE') then
+    raise exception 'el owner del ranking no puede ejecutar peso_referido_conversion';
+  end if;
+  if not pg_catalog.has_function_privilege(
+       (select p.proowner::regrole::text from pg_catalog.pg_proc p
+          join pg_catalog.pg_namespace n on n.oid = p.pronamespace
+         where n.nspname = 'crm' and p.proname = 'metricas_conversiones_equipo_fn'
+           and pg_catalog.pg_get_function_identity_arguments(p.oid) = 'p_desde date, p_hasta date'),
+       'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)',
+       'EXECUTE') then
+    raise exception 'el owner del ranking no puede ejecutar conversion_mensual_por_vendedor';
+  end if;
 end;
 $preflight$;
 
@@ -142,10 +165,21 @@ begin
       v_ini, v_fin, v_periodo, v_global, v_visibles, v_factor
     ) e
   ),
+  -- OJO (objecion A2 del auditor): esta pierna va GLOBAL a proposito.
+  -- `cohorte` atribuye el lead a su DUENO ACTUAL (`crm.leads.vendedor_id`,
+  -- mutable) mientras el ledger lo atribuye a QUIEN LO CERRO (`analista_id`,
+  -- inmutable). Si se recortara por ambito, un lead cerrado por alguien de
+  -- otro subarbol contaria para gerencia y NO para el supervisor del dueno:
+  -- dos `clientes` distintos del mismo vendedor segun quien mire, rompiendo
+  -- el invariante de paridad que test-rls.mjs exige.
+  -- No hay fuga: este conjunto NUNCA sale al payload; solo se usa como prueba
+  -- de pertenencia sobre leads que `cohorte` YA recorto al ambito. El
+  -- supervisor solo llega a saber «este lead MIO se cerro», nunca quien lo
+  -- cerro ni un lead ajeno.
   ep_cosecha as materialized (
     select distinct e.lead_id
     from private.conversion_episodios(
-      v_ini, v_cosecha_fin, null, v_global, v_visibles, v_factor
+      v_ini, v_cosecha_fin, null::date, true, '{}'::uuid[], v_factor
     ) e
     where e.tipo = 'cierre' and not e.anulado and e.lead_id is not null
   ),
@@ -188,6 +222,8 @@ begin
   -- Paridad contra el nucleo real: compara los cuatro terminos y declara
   -- cuantas filas comparo (sin filas, la sonda no prueba nada y lo dice).
   comparacion as (
+    -- Solo se calcula cuando la sonda va a valer algo: con `v_periodo` NULL el
+    -- resultado se descarta, y esta pierna es la mas cara de la funcion.
     select
       abs(coalesce(nv.divisor, 0) - coalesce(cm.divisor, 0))
       + abs(coalesce(nv.cierres_no_referidos, 0) - coalesce(cm.cierres_no_referidos, 0))
@@ -198,7 +234,14 @@ begin
     from nucleo_vendedor nv
     full outer join private.conversion_mensual_por_vendedor(
       v_ini, v_fin, v_global, v_visibles, v_factor
+    -- `=` y no `is not distinct from`: PG no admite este ultimo en un FULL
+    -- JOIN (no es hash/merge-joinable). Es seguro porque ninguna de las dos
+    -- relaciones puede traer `analista_id` NULL: sale de
+    -- `crm.lead_asignaciones.analista_id` y `crm.operaciones_cartera.vendedor_id`,
+    -- ambas NOT NULL. Si eso cambiara, la sonda gritaria (paridad ≠ 0) en vez
+    -- de callarse — falla ruidosa, que es la que se quiere.
     ) cm on cm.analista_id = nv.analista_id
+    where v_periodo is not null
   ),
   sonda_paridad as (
     select
@@ -245,6 +288,21 @@ begin
       ),
       'cierres_anulados', (
         select count(*)::int from ep_flujo e where e.tipo = 'cierre' and e.anulado
+      ),
+      -- Hallazgo de Codex hecho MEDIBLE: en este payload conviven DOS
+      -- acreditaciones legitimas del mismo hecho. `clientes` acredita al DUENO
+      -- ACTUAL del lead (`crm.leads.vendedor_id`, que gerencia puede reasignar)
+      -- y las cifras `nucleo_*` acreditan a QUIEN LO CERRO (`analista_id` del
+      -- ledger, inmutable). Coinciden salvo reasignacion. Esta sonda cuenta los
+      -- leads donde NO coinciden: mientras sea 0, las dos lecturas dicen lo
+      -- mismo; si sube, F3 tiene que rotular cual es cual.
+      'clientes_acreditados_a_otro_dueno', (
+        select count(*)::int
+        from cohorte c
+        join crm.lead_asignaciones la on la.lead_id = c.lead_id
+        where c.contrato
+          and la.resultado = 'convertido'
+          and la.analista_id is distinct from c.vendedor_id
       )
     ),
     'responsables', coalesce((
@@ -287,6 +345,7 @@ comment on function crm.metricas_conversiones_equipo_fn(date,date) is
 do $postflight$
 declare
   v_src text;
+  v_norm text;
 begin
   select p.prosrc into v_src
     from pg_catalog.pg_proc p
@@ -297,12 +356,29 @@ begin
   if v_src is null then
     raise exception 'metricas_conversiones_equipo_fn desaparecio; rollback';
   end if;
-  -- strpos, JAMAS like: el guion bajo es comodin en LIKE
-  if strpos(v_src, 'conversion_episodios') = 0 then
+  -- Texto normalizado: sin esto, `IS NOT NULL` en mayusculas o con espacios
+  -- de mas esquivaria los asserts de abajo (objecion N2 del auditor).
+  v_norm := lower(regexp_replace(v_src, '\s+', ' ', 'g'));
+
+  -- strpos, JAMAS like: el guion bajo es comodin en LIKE.
+  -- Anclado con parentesis: una mencion en un comentario no cuenta como uso.
+  if strpos(v_norm, 'private.conversion_episodios(') = 0 then
     raise exception 'el ranking no consume la tabla-base; rollback';
   end if;
-  if strpos(v_src, 'l.contrato_id is not null') > 0 then
+  if strpos(v_norm, 'contrato_id is not null') > 0 then
     raise exception 'el numerador muerto (contrato_id) sigue vivo en el ranking; rollback';
+  end if;
+
+  -- EL AMBITO es la parte delicada de esta migracion y es lo unico que no
+  -- verificaba nada en produccion (objecion A3). Dos llamadas van recortadas
+  -- (`ep_flujo` y el nucleo de la sonda) y UNA va global a proposito
+  -- (`ep_cosecha`, ver A2). Si alguien quita un recorte, esto lo para.
+  if (length(v_norm) - length(replace(v_norm, 'v_global, v_visibles', '')))
+       / length('v_global, v_visibles') < 2 then
+    raise exception 'el ranking perdio el recorte de ambito en alguna llamada; rollback';
+  end if;
+  if strpos(v_norm, 'v_ini, v_fin, v_periodo, true,') > 0 then
+    raise exception 'la pierna de flujo del ranking se volvio global; rollback';
   end if;
   if strpos(v_src, 'filtrar_desglose_sujetos_crm') = 0 then
     raise exception 'el ranking dejo de filtrar el desglose por rol; rollback';
@@ -342,6 +418,14 @@ begin
        and a.grantee::regrole::text not in ('authenticated')
   ) then
     raise exception 'el ranking gano EXECUTE para un rol inesperado; rollback';
+  end if;
+
+  -- Y el lado POSITIVO: sin EXECUTE para `authenticated`, PostgREST responde
+  -- PGRST202 y la pantalla muere en silencio — justo la clase de fallo que
+  -- este proyecto persigue. `has_function_privilege` no ejecuta la funcion.
+  if not pg_catalog.has_function_privilege(
+       'authenticated', 'crm.metricas_conversiones_equipo_fn(date,date)', 'EXECUTE') then
+    raise exception 'authenticated perdio EXECUTE sobre el ranking; rollback';
   end if;
 end;
 $postflight$;

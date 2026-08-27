@@ -5704,10 +5704,29 @@ async function testMetricasConversionEquipo(sessions, seed) {
     check(Array.isArray(global.data?.responsables),
       'responsables es SIEMPRE un array, nunca null');
     // La forma la fija el contrato: un campo de mas es superficie sin auditar.
+    // F2.2 lo amplia de 4 a 7: cada responsable lleva ademas su cifra del
+    // NUCLEO (la misma que HOY/Metas). La lista sigue siendo EXACTA, no un
+    // «contiene»: relajarla mataria la defensa.
     const claves = [...new Set((global.data?.responsables ?? []).flatMap((f) => Object.keys(f)))].sort();
     check(claves.length === 0
-      || JSON.stringify(claves) === JSON.stringify(['clientes', 'conversion_pct', 'leads', 'vendedor_id']),
-      'cada responsable trae SOLO los 4 campos del contrato', claves.join(','));
+      || JSON.stringify(claves) === JSON.stringify([
+        'clientes', 'conversion_pct', 'leads',
+        'nucleo_conversion_pct', 'nucleo_divisor', 'nucleo_numerador',
+        'vendedor_id',
+      ]),
+      'cada responsable trae SOLO los 7 campos del contrato', claves.join(','));
+
+    // El bloque `sondas` es superficie nueva: tambien se fija su forma.
+    const sondas = Object.keys(global.data?.sondas ?? {}).sort();
+    check(JSON.stringify(sondas) === JSON.stringify([
+      'cierres_anulados', 'clientes_acreditados_a_otro_dueno', 'cuadra',
+      'divisor_fuera_del_roster', 'numerador_fuera_del_roster',
+      'paridad_filas', 'paridad_nucleo',
+    ]), 'el bloque sondas del ranking trae SOLO su contrato', sondas.join(','));
+    check(global.data?.sondas?.paridad_nucleo === null
+      || Number(global.data?.sondas?.paridad_nucleo) === 0,
+      'la sonda de paridad del ranking cuadra con el nucleo (o se declara no aplicable)',
+      String(global.data?.sondas?.paridad_nucleo));
   }
 
   const directorio = await positive(
@@ -5767,7 +5786,12 @@ async function testMetricasConversionEquipo(sessions, seed) {
       const suyo = globalPorId.get(fila.vendedor_id);
       return suyo && !(suyo.leads === fila.leads
         && suyo.clientes === fila.clientes
-        && suyo.conversion_pct === fila.conversion_pct);
+        && suyo.conversion_pct === fila.conversion_pct
+        // F2.2: las cifras del nucleo tambien tienen que coincidir, o el
+        // supervisor y gerencia estarian viendo dos verdades del mismo dato.
+        && suyo.nucleo_divisor === fila.nucleo_divisor
+        && String(suyo.nucleo_numerador) === String(fila.nucleo_numerador)
+        && String(suyo.nucleo_conversion_pct) === String(fila.nucleo_conversion_pct));
     });
     check(desviados.length === 0,
       'PARIDAD: sup1 ve los mismos numeros que gerencia para sus vendedores',

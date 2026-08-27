@@ -4184,3 +4184,97 @@ Excepciones a `public`: ninguna. Aplicación:
 aquí el cambio de cifras es el objetivo, no un fallo). Vuelta atrás:
 `scripts/rollback-f2-1-conversiones.sql` (texto anclado en F0 verbatim; al
 volver, la pantalla marca 0 % otra vez).
+
+## 20260827033000 · `crm_f2_2_ranking_nucleo`
+
+✅ **APLICADA EN PROD** (2026-08-27 ~04:00 UTC, canal MCP Supabase; registro
+`schema_migrations` md5 `93ce1a5d…` = md5 del fichero). Advisors: **0 ERROR**
+(134 WARN preexistentes).
+
+**EL CAMBIO REAL, medido en vivo (mes en curso, 18 vendedores):**
+
+| | ANTES | DESPUÉS |
+|---|---|---|
+| vendedores con clientes | **0 de 18** | **6 de 18** |
+| total de clientes | **0** | **14** |
+| primero del ranking | quien tenía más LEADS (42, con 0 cierres) | quien más CIERRA (5 cierres) |
+| su conversión | 0.0 % | 13.2 % cosecha · **16.18 % núcleo** |
+
+Sondas en vivo: `cuadra: true` con **paridad 0.000 sobre 16 filas** ·
+`divisor_fuera_del_roster` 0 · `numerador_fuera_del_roster` 1.000 ·
+`clientes_acreditados_a_otro_dueno` **0** (hoy las dos acreditaciones dicen lo
+mismo) · `cierres_anulados` 1.
+
+**F2.2** del plan
+[[Conversion unica en todo el CRM - plan de migraciones]] — segundo motor
+paralelo a la tabla-base.
+
+⚠️ **LOS NÚMEROS DEL RANKING CAMBIAN EL DÍA DEL CORTE**, bajo los rótulos
+viejos, hasta F3 (decisión D4). Estado previo: `clientes` contaba
+`crm.leads.contrato_id`, columna que nadie rellena → **0 para TODOS**, y el
+ranking se ordenaba por `leads`, es decir por nada que fuera resultado.
+
+`crm.metricas_conversiones_equipo_fn` pasa a agrupar
+`private.conversion_episodios` con el ámbito del que pregunta. Claves
+**solo añadidas** (schema `v.object` verificado en el bundle VIVO `b3f6e98`):
+por responsable `nucleo_divisor` / `nucleo_numerador` /
+`nucleo_conversion_pct` (dos decimales, comparables byte a byte con HOY), más
+los bloques `nucleo` y `sondas`.
+
+🔑 **La objeción más valiosa del auditor (A2), corregida: la cosecha se mide
+GLOBAL a propósito.** `cohorte` atribuye el lead a su **dueño actual**
+(`crm.leads.vendedor_id`, MUTABLE) mientras el ledger lo atribuye a **quien lo
+cerró** (`analista_id`, inmutable — el repo ya documenta ese choque en
+`20260813235119`). Recortando la cosecha por ámbito, un lead cerrado por
+alguien de otro subárbol contaba para gerencia y **no** para el supervisor del
+dueño: dos `clientes`, dos `%` y dos órdenes de ranking del MISMO vendedor
+según quién mirase, rompiendo el invariante de paridad de
+`test-rls.mjs:5762`. Sin fuga: ese conjunto nunca sale al payload, solo sirve
+de prueba de pertenencia sobre leads que `cohorte` ya recortó.
+
+🔴 **BLOQUEANTE cerrado (B1): el gate `test-rls.mjs` habría fallado.** Su
+aserto exigía que cada responsable trajera **exactamente 4 claves** («un campo
+de más es superficie sin auditar»); F2.2 trae 7. Actualizado a la lista exacta
+de 7 — no relajado a «contiene», que mataría la defensa — más un aserto nuevo
+de la forma del bloque `sondas` y la paridad ampliada a las cifras del núcleo.
+
+Otras objeciones cerradas: **A3** el postflight no anclaba el ÁMBITO, que es
+lo único que corre en producción → cuenta las llamadas recortadas y rechaza
+que la pierna de flujo se vuelva global; **M1** dos aristas DEFINER→DEFINER
+nuevas (`peso_referido_conversion`, `conversion_mensual_por_vendedor`, ambas
+revocadas a todos menos su owner) sin candado → preflight con
+`has_function_privilege`, que **no ejecuta** la función (un `select fn()` sin
+EXECUTE tumba el backend en esta imagen); **M2** el postflight solo prohibía
+grantees de más, no comprobaba que `authenticated` CONSERVE EXECUTE (sin él,
+PostgREST devuelve PGRST202 y la pantalla muere en silencio); **M3** la pierna
+de paridad se calculaba para tirarla cuando el rango no es un mes → podada;
+**N2/N3** asserts normalizados (minúsculas y espacios) y anclados con
+paréntesis para que un comentario no cuente como uso.
+
+Declarado, no silenciado (**M5**): un supervisor ve ahora, **en agregado**, la
+producción de sus ex-miembros y sub-supervisores —
+`private.vendedor_ids_visibles` conserva a los inactivos a propósito mientras
+`roster` los excluye, y ese hueco es justo lo que publican
+`divisor_fuera_del_roster` / `numerador_fuera_del_roster`. No es fuga (todo
+dentro de su subárbol, y es su propia historia), pero es una clase de sujeto
+que antes no aparecía.
+
+Banco: `test-f2-ranking.sql` (comparte `fixture-f2-conversion.sql`) — ranking
+global con números a mano, ámbito del supervisor recortado, **coherencia
+dueño≠cerrador**, sondas del roster con un supervisor que tiene episodios
+propios, gate en negativo y desglose solo-vendedores; **6 mutantes muertos**
+(numerador muerto · gate borrado · desglose sin filtrar · núcleo global ·
+cosecha recortada · sonda mirando el conjunto equivocado). Cuatro de ellos los
+mata el **postflight dentro de la transacción**, no solo el oráculo.
+
+Hallazgo de Codex convertido en SONDA (`clientes_acreditados_a_otro_dueno`):
+en este payload conviven **dos acreditaciones legítimas del mismo hecho** —
+`clientes` acredita al **dueño actual** del lead (reasignable por gerencia) y
+las cifras `nucleo_*` acreditan a **quien lo cerró** (ledger, inmutable).
+Coinciden salvo reasignación; la sonda cuenta los casos en que no. En prod
+hoy vale 0. (Codex se colgó por red antes de emitir veredicto formal; su
+objeción sustantiva quedó cerrada así, y la de coherencia, por A2.)
+
+Excepciones a `public`: ninguna. Aplicación:
+`scripts/aplicar-f2-2-ranking-prod.sh` (foto antes/después: aquí el cambio de
+cifras es el objetivo). Vuelta atrás: `scripts/rollback-f2-2-ranking.sql`.
