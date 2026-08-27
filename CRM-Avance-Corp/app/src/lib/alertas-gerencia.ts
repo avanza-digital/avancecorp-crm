@@ -29,6 +29,13 @@ export interface AlertaGerencia {
   /** Meta o valor del período anterior que sirve de referencia. */
   objetivo?: number
   brechaPp?: number
+  /**
+   * Tamaño de la muestra que sostiene la alerta (leads recibidos): la
+   * individual exige ≥10 y la global ≥30, y ese corte se DICE en pantalla
+   * (H21) — un aviso que calla su umbral parece arbitrario cuando aparece y
+   * sospechoso cuando no.
+   */
+  muestra?: number
   destino: DestinoAlertaGerencia
 }
 
@@ -104,7 +111,12 @@ export const MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR = 10
 /** Brecha material contra la meta individual, expresada en puntos porcentuales. */
 export const BRECHA_MINIMA_ALERTA_CONVERSION_PP = 5
 export const BRECHA_CRITICA_ALERTA_CONVERSION_PP = 10
-/** Muestra mínima en cada cohorte para comparar la conversión global. */
+/**
+ * Muestra mínima en cada período para comparar la conversión global. Desde F3
+ * (H11) la muestra es el DIVISOR DEL NÚCLEO — leads no referidos recibidos en
+ * el rango —, no los leads de la cohorte: la alerta compara la misma cifra que
+ * HOY/Ranking y su muestra debe ser la de esa cifra.
+ */
 export const LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL = 30
 /** Caída material y crítica contra el MTD comparable anterior. */
 export const CAIDA_MINIMA_ALERTA_GLOBAL_PP = 3
@@ -260,15 +272,22 @@ export function derivarAlertasGerencia({
         actual,
         objetivo,
         brechaPp,
+        muestra: vendedor.resueltos,
         destino: 'ranking-vendedores',
       })
     }
   }
 
-  const conversionActual = conversiones?.cohorte.conversion_contratos_pct
-  const conversionAnterior = conversionesAnteriores?.cohorte.conversion_contratos_pct
-  const leadsActuales = conversiones?.cohorte.leads
-  const leadsAnteriores = conversionesAnteriores?.cohorte.leads
+  // H11 (F3 de «Conversión única»): la caída global compara la MISMA
+  // aritmética que la alerta individual y que HOY/Ranking — el bloque `nucleo`
+  // servido (flujo del rango, ponderado, mismo peso de referidos) — y no la
+  // cohorte de contratos, que madura con retraso y contradecía a su vecina de
+  // bandeja. Un payload SIN bloque `nucleo` (servidor viejo, espejo demo) no
+  // se interpreta: sin fuente no hay alerta, jamás una con otra fórmula.
+  const conversionActual = conversiones?.nucleo?.conversion_pct
+  const conversionAnterior = conversionesAnteriores?.nucleo?.conversion_pct
+  const leadsActuales = conversiones?.nucleo?.divisor
+  const leadsAnteriores = conversionesAnteriores?.nucleo?.divisor
   if (
     porcentajeConversionValido(conversionActual)
     && porcentajeConversionValido(conversionAnterior)
@@ -292,6 +311,7 @@ export function derivarAlertasGerencia({
         actual: conversionActual,
         objetivo: conversionAnterior,
         brechaPp,
+        muestra: leadsActuales,
         destino: 'conversiones',
       })
     }

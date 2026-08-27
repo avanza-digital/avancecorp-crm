@@ -32,6 +32,8 @@ import {
 } from '@/lib/alertas'
 import {
   derivarAlertasGerencia,
+  LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL,
+  MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR,
   periodoAnteriorComparable,
   type AlertaGerencia,
 } from '@/lib/alertas-gerencia'
@@ -50,13 +52,20 @@ import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 
 function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
   if (alerta.tipo === 'bajo_meta_conversion') {
+    // H10/H21 (F3): el aviso dice su VENTANA (mes en curso — la misma cifra
+    // ponderada que pinta el ranking al que manda) y su UMBRAL de muestra;
+    // un corte que no se dice hace parecer arbitraria la alerta que aparece
+    // y sospechosa la que no.
+    const muestra = alerta.muestra == null
+      ? ''
+      : ` · sobre ${alerta.muestra} recibidos (se avisa desde ${MUESTRA_MINIMA_ALERTA_CONVERSION_VENDEDOR})`
     return {
       id: alerta.id,
       tipo: alerta.tipo,
       severidad: alerta.severidad,
       alcance: 'empresa',
       titulo: 'Conversión bajo meta',
-      detalle: `${alerta.responsable}: ${alerta.actual ?? alerta.valor}% frente a ${alerta.objetivo ?? '—'}% · brecha ${alerta.brechaPp ?? '—'} pp`,
+      detalle: `${alerta.responsable}: ${alerta.actual ?? alerta.valor}% frente a ${alerta.objetivo ?? '—'}% · brecha ${alerta.brechaPp ?? '—'} pp · mes en curso${muestra}`,
       responsableId: alerta.responsableId,
       responsable: alerta.responsable,
       valor: alerta.valor,
@@ -67,13 +76,18 @@ function adaptarAlertaGerencial(alerta: AlertaGerencia): AlertaCRM {
     }
   }
 
+  // H11: desde F3 esta cifra es la del NÚCLEO (la misma que HOY/Ranking y que
+  // su vecina individual), comparada contra el mismo corte del mes anterior.
+  const muestra = alerta.muestra == null
+    ? ''
+    : ` · sobre ${alerta.muestra} recibidos (se compara desde ${LEADS_MINIMOS_ALERTA_CAIDA_GLOBAL})`
   return {
     id: alerta.id,
     tipo: alerta.tipo,
     severidad: alerta.severidad,
     alcance: 'empresa',
     titulo: 'Cayó la conversión general',
-    detalle: `${alerta.actual ?? alerta.valor}% frente a ${alerta.objetivo ?? '—'}% del corte comparable · caída ${alerta.brechaPp ?? '—'} pp`,
+    detalle: `${alerta.actual ?? alerta.valor}% frente a ${alerta.objetivo ?? '—'}% del mismo corte del mes anterior · caída ${alerta.brechaPp ?? '—'} pp · cifra del núcleo${muestra}`,
     responsableId: null,
     responsable: 'Equipo comercial',
     valor: alerta.valor,
@@ -380,7 +394,11 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
     if (rol === 'gerencia' && !yo?.demo) {
       void conversionActual.refetch()
       void conversionAnterior.refetch()
-      if (objetivosError) void recargar()
+      // H10 (F3): «Actualizar» converge TODO lo que alimenta la campana de
+      // gerencia — también metas y cumplimiento (la alerta individual), no
+      // solo cuando fallaron. Sin esto, la individual vivía congelada desde
+      // el arranque salvo error.
+      void recargar()
       return
     }
     if (esRolOperativo(rol) && !yo?.demo) {
@@ -402,7 +420,6 @@ export function AlertasCRMProvider({ children }: { children: ReactNode }): JSX.E
   }, [
     conversionActual,
     conversionAnterior,
-    objetivosError,
     recargar,
     reconocimientos,
     recordatorios,

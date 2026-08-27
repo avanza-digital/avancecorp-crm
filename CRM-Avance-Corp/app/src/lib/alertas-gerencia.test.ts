@@ -61,6 +61,28 @@ function fuentesIndividuales(
   }
 }
 
+/**
+ * Bloque `nucleo` servido (F2.1). El espejo demo no lo produce (deuda N4-N6),
+ * así que los tests de la caída global lo montan a mano — que es además la
+ * prueba de que la alerta lee el núcleo y no la cohorte.
+ */
+function nucleoServido(conversion_pct: number | null, divisor: number) {
+  return {
+    base: 'asignacion',
+    divisor,
+    numerador: conversion_pct == null ? 0 : (conversion_pct * divisor) / 100,
+    conversion_pct,
+    cierres_no_referidos: 0,
+    cierres_referidos: 0,
+    referidos_recibidos: 0,
+    referidos_cierran_pct: null,
+    operaciones_cartera: 0,
+    peso_referido: 0.15,
+    mes_peso: '2026-08',
+    incluye_cartera: true,
+  }
+}
+
 describe('periodoAnteriorComparable', () => {
   it('conserva el ordinal del corte y cruza correctamente el cambio de año', () => {
     expect(periodoAnteriorComparable('2026-08-06')).toEqual({
@@ -188,6 +210,9 @@ describe('derivarAlertasGerencia', () => {
         actual: 10,
         objetivo: 15,
         brechaPp: 5,
+        // H21: la muestra viaja con la alerta para que el texto DIGA el corte.
+        // El borde exacto ENTRA: 10 recibidos avisan (arriba se probó que 9 no).
+        muestra: 10,
         destino: 'ranking-vendedores',
       }),
     ])
@@ -248,15 +273,13 @@ describe('derivarAlertasGerencia', () => {
     }))).toEqual([])
   })
 
-  it('alerta la caída global solo con 30 leads por periodo y una brecha de al menos 3 pp', () => {
+  it('alerta la caída global solo con 30 recibidos del núcleo por periodo y una brecha de al menos 3 pp', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
     const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-06')
     conversiones.responsables = undefined
     conversionesAnteriores.responsables = undefined
-    conversiones.cohorte.leads = 30
-    conversionesAnteriores.cohorte.leads = 30
-    conversiones.cohorte.conversion_contratos_pct = 12
-    conversionesAnteriores.cohorte.conversion_contratos_pct = 15
+    conversiones.nucleo = nucleoServido(12, 30)
+    conversionesAnteriores.nucleo = nucleoServido(15, 30)
 
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
@@ -275,18 +298,38 @@ describe('derivarAlertasGerencia', () => {
         actual: 12,
         objetivo: 15,
         brechaPp: 3,
+        muestra: 30,
         destino: 'conversiones',
       },
     ])
 
-    conversiones.cohorte.leads = 29
+    // Borde exacto de la muestra: 30 ENTRA (el caso de arriba), 29 no.
+    conversiones.nucleo = nucleoServido(12, 29)
     expect(derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       conversionesAnteriores,
     }))).toEqual([])
 
-    conversiones.cohorte.leads = 30
-    conversionesAnteriores.cohorte.conversion_contratos_pct = 14.99
+    conversiones.nucleo = nucleoServido(12, 30)
+    conversionesAnteriores.nucleo = nucleoServido(14.99, 30)
+    expect(derivarAlertasGerencia(entradaSinFuentes({
+      conversiones,
+      conversionesAnteriores,
+    }))).toEqual([])
+  })
+
+  it('H11: un payload SIN bloque nucleo (servidor viejo o demo) NO produce la alerta, diga lo que diga la cohorte', () => {
+    const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-06')
+    const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-06')
+    // La cohorte grita caída… pero es la aritmética que H11 retiró de esta
+    // alerta. Sin núcleo no hay fuente: fail-closed, no otra fórmula.
+    conversiones.cohorte.leads = 90
+    conversionesAnteriores.cohorte.leads = 90
+    conversiones.cohorte.conversion_contratos_pct = 1
+    conversionesAnteriores.cohorte.conversion_contratos_pct = 20
+    conversiones.nucleo = undefined
+    conversionesAnteriores.nucleo = undefined
+
     expect(derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
       conversionesAnteriores,
@@ -296,10 +339,8 @@ describe('derivarAlertasGerencia', () => {
   it('eleva a crítica una caída global de 5 pp y la ordena antes de una brecha individual menor', () => {
     const conversiones = metricasConversionesDemo('2026-08-01', '2026-08-10')
     const conversionesAnteriores = metricasConversionesDemo('2026-07-01', '2026-07-10')
-    conversiones.cohorte.leads = 30
-    conversionesAnteriores.cohorte.leads = 30
-    conversiones.cohorte.conversion_contratos_pct = 10
-    conversionesAnteriores.cohorte.conversion_contratos_pct = 15
+    conversiones.nucleo = nucleoServido(10, 30)
+    conversionesAnteriores.nucleo = nucleoServido(15, 30)
 
     const alertas = derivarAlertasGerencia(entradaSinFuentes({
       conversiones,
