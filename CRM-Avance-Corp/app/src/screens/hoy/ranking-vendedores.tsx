@@ -72,7 +72,15 @@ interface RankingVendedoresPanelProps {
   tabInicial?: TipoRanking
 }
 
-type TipoRanking = 'conversion' | 'capital-total'
+type TipoRanking = 'conversion' | 'capital-total' | 'cosecha'
+
+/** ids tab↔panel por pestaña: los tres marcos (vivo, carga, error/vacío) los
+ * comparten para que `aria-controls` jamás prometa un nodo inexistente. */
+const IDS_TAB: Record<TipoRanking, { tab: string; panel: string }> = {
+  conversion: { tab: 'tab-ranking-conversion', panel: 'panel-ranking-conversion' },
+  'capital-total': { tab: 'tab-ranking-capital-total', panel: 'panel-ranking-capital' },
+  cosecha: { tab: 'tab-ranking-cosecha', panel: 'panel-ranking-cosecha' },
+}
 
 function pct(valor: number | null): string {
   return valor == null ? '—' : `${numero(valor, 1)}%`
@@ -117,12 +125,11 @@ function CargandoRanking(): JSX.Element {
  * los esqueletos son divs mudos y un lector no recibía ninguna señal.
  */
 function CargandoTabpanel({ tab, mensaje }: { tab: TipoRanking; mensaje: string }): JSX.Element {
-  const esConversion = tab === 'conversion'
   return (
     <div
       role="tabpanel"
-      id={esConversion ? 'panel-ranking-conversion' : 'panel-ranking-capital'}
-      aria-labelledby={esConversion ? 'tab-ranking-conversion' : 'tab-ranking-capital-total'}
+      id={IDS_TAB[tab].panel}
+      aria-labelledby={IDS_TAB[tab].tab}
       aria-busy="true"
     >
       <span className="sr-only">{mensaje}</span>
@@ -138,12 +145,11 @@ function CargandoTabpanel({ tab, mensaje }: { tab: TipoRanking; mensaje: string 
  * hacían bien).
  */
 function TabpanelMarco({ tab, children }: { tab: TipoRanking; children: ReactNode }): JSX.Element {
-  const esConversion = tab === 'conversion'
   return (
     <div
       role="tabpanel"
-      id={esConversion ? 'panel-ranking-conversion' : 'panel-ranking-capital'}
-      aria-labelledby={esConversion ? 'tab-ranking-conversion' : 'tab-ranking-capital-total'}
+      id={IDS_TAB[tab].panel}
+      aria-labelledby={IDS_TAB[tab].tab}
     >
       {children}
     </div>
@@ -191,9 +197,67 @@ function lineaCosecha(fila: ResponsableEquipo | undefined): string | null {
  */
 const TITLE_COSECHA = 'Sigue a los leads que el vendedor recibió este mes: cuántos ya son clientes, cierren cuando cierren. Si uno cierra el mes que viene, esta línea sube — pero ese cierre le contará a la conversión DEL MES QUE VIENE, no a la de este.'
 
-function RankingConversion({ ranking, cosechaPorVendedor }: {
+/**
+ * Pestaña «Cosecha del lote» (pedido de Miguel, 27/08): la lectura vivía como
+ * segunda línea de cada fila del ranking y era RUIDO junto al % oficial — dos
+ * relojes en una celda. Ahora tiene su propio apartado: sigue al LOTE del mes
+ * (cuántos de los leads recibidos ya son clientes, cierren cuando cierren) y
+ * no compite visualmente con la conversión del mes.
+ */
+function CosechaLote({ cosecha, equipo, enRevision }: {
+  cosecha: MetricasConversionesEquipo | null | undefined
+  equipo: ConversionEquipoVendedor[]
+  enRevision: boolean
+}): JSX.Element {
+  if (enRevision) {
+    return (
+      <div className="grid min-h-64 place-items-center px-5 text-center">
+        <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">
+          <p role="status" className="text-xs font-medium text-amber-900">
+            Lectura por cosecha en revisión: su verificación interna no cuadró y se oculta hasta revisarla.
+          </p>
+        </div>
+      </div>
+    )
+  }
+  if (cosecha == null || cosecha.responsables.length === 0) {
+    return (
+      <div className="grid min-h-64 place-items-center px-5 text-center">
+        <p className="text-sm font-semibold text-[var(--gi-muted)]">Seguimiento del lote no disponible por ahora.</p>
+      </div>
+    )
+  }
+
+  const nombrePorId = new Map(equipo.filter((m) => m.vendedorId).map((m) => [m.vendedorId, m]))
+  const filas = [...cosecha.responsables].sort((a, b) => (
+    b.clientes - a.clientes || b.leads - a.leads || a.vendedor_id.localeCompare(b.vendedor_id)
+  ))
+
+  return (
+    <div>
+      <p className="border-b border-[var(--gi-line)] bg-[#faf9f6] px-4 py-2.5 text-[11px] font-medium text-[var(--gi-muted)] sm:px-5" title={TITLE_COSECHA}>
+        Un cierre tardío sube esta lista, pero a la conversión le cuenta en el mes en que cerró — el mes sellado no se mueve.
+      </p>
+      <ol aria-label="Cosecha del lote por vendedor" className="divide-y divide-[var(--gi-line)]">
+        {filas.map((fila) => {
+          const identidad = nombrePorId.get(fila.vendedor_id)
+          return (
+            <li key={fila.vendedor_id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 px-4 py-3 sm:px-5">
+              <span className="min-w-0">
+                <strong className="block truncate text-sm text-[var(--gi-navy)]">{identidad?.nombre ?? 'Vendedor no identificado'}</strong>
+                <span className="block truncate text-[11px] font-medium text-[var(--gi-muted)]">{identidad?.supervisorNombre ?? 'Equipo no disponible'}</span>
+              </span>
+              <span title={TITLE_COSECHA} className="text-xs font-semibold tabular-nums text-[var(--gi-navy)]">{lineaCosecha(fila)}</span>
+            </li>
+          )
+        })}
+      </ol>
+    </div>
+  )
+}
+
+function RankingConversion({ ranking }: {
   ranking: RankingConversionVendedores<DetalleConversionMensual>
-  cosechaPorVendedor: ReadonlyMap<string, ResponsableEquipo>
 }): JSX.Element {
   const vendedores = ranking.conPuesto
   const maximo = Math.max(1, ...vendedores.map((fila) => fila.detalle.conversion_pct ?? 0))
@@ -239,12 +303,6 @@ function RankingConversion({ ranking, cosechaPorVendedor }: {
                     {descuento && (
                       <ChipArrastre descuento={descuento} className="block text-left text-[10px] font-semibold text-[var(--muted-foreground-strong)]" />
                     )}
-                    {(() => {
-                      const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
-                      return cosecha && (
-                        <span title={TITLE_COSECHA} className="block text-left text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</span>
-                      )
-                    })()}
                   </td>
                   <td
                     className="px-5 py-3"
@@ -281,12 +339,6 @@ function RankingConversion({ ranking, cosechaPorVendedor }: {
                   {numero(fila.detalle.clientes)} {fila.detalle.clientes === 1 ? 'cierre' : 'cierres'} + {numero(fila.detalle.operacionesCartera)} de cartera
                 </p>
               )}
-              {(() => {
-                const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
-                return cosecha && (
-                  <p title={TITLE_COSECHA} className="ml-12 mt-1 text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</p>
-                )
-              })()}
               {descuento && (
                 <ChipArrastre descuento={descuento} className="ml-12 mt-1 block text-[11px] font-semibold text-[var(--muted-foreground-strong)]" />
               )}
@@ -449,16 +501,9 @@ export function RankingVendedoresPanel({
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
     [adaptadaMensual.vendedores],
   )
-  // F3.4 sobre la cosecha: si su sonda de paridad no cuadra, la lectura entera
-  // se oculta (mapa vacío) y se avisa — el ranking ponderado de la izquierda
-  // no depende de ella y sigue intacto.
+  // F3.4 sobre la cosecha: si su sonda de paridad no cuadra, la pestaña entera
+  // se oculta y lo dice — el ranking ponderado no depende de ella.
   const cosechaEnRevision = cosecha?.sondas?.cuadra === false
-  const cosechaPorVendedor = useMemo(() => {
-    if (cosecha == null || cosecha.sondas?.cuadra === false) {
-      return new Map<string, ResponsableEquipo>()
-    }
-    return new Map(cosecha.responsables.map((r) => [r.vendedor_id, r]))
-  }, [cosecha])
   const rankingCapitalTotal = useMemo(
     () => clasificarRankingCapitalTotal(adaptada.vendedores, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
     [adaptada.vendedores, cumplimientoVendedores, metasVendedores, tc],
@@ -480,10 +525,13 @@ export function RankingVendedoresPanel({
         <div role="tablist" aria-label="Tipo de ranking" className="inline-flex rounded-xl bg-[#f7f5f1] p-1">
           <button id="tab-ranking-conversion" type="button" role="tab" aria-selected={tipo === 'conversion'} aria-controls="panel-ranking-conversion" onClick={() => setTipo('conversion')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'conversion' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Conversión general</button>
           <button id="tab-ranking-capital-total" type="button" role="tab" aria-selected={tipo === 'capital-total'} aria-controls="panel-ranking-capital" onClick={() => setTipo('capital-total')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'capital-total' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Capital total</button>
+          <button id="tab-ranking-cosecha" type="button" role="tab" aria-selected={tipo === 'cosecha'} aria-controls="panel-ranking-cosecha" onClick={() => setTipo('cosecha')} className={`rounded-lg px-3 py-2 text-xs font-bold transition-colors ${tipo === 'cosecha' ? 'bg-white text-[var(--gi-navy)] shadow-sm' : 'text-[var(--gi-muted)] hover:text-[var(--gi-navy)]'}`}>Cosecha del lote</button>
         </div>
         <p className="text-[11px] font-medium text-[var(--gi-muted)]">
           {tipo === 'conversion'
             ? 'Cierres del mes (referidos al 15 %) ÷ leads recibidos en el mes'
+            : tipo === 'cosecha'
+            ? 'De los leads que cada quien recibió este mes, cuántos ya son clientes'
             : tc === undefined
               ? `Contratos confirmados · total en S/ · consultando tipo de cambio… · ${metaMensual.etiqueta}`
               // El rótulo del TC sale del MISMO tc que aplicó la lib (ranking.tc,
@@ -503,16 +551,11 @@ export function RankingVendedoresPanel({
       ) : tipo === 'conversion' ? (
         conversionMensual === undefined
           ? <CargandoTabpanel tab="conversion" mensaje="Consultando la conversión del mes…" />
-          : (
-            <>
-              {cosechaEnRevision && (
-                <p role="status" className="border-b border-amber-300/70 bg-amber-50 px-5 py-2.5 text-xs font-medium text-amber-900">
-                  Lectura por cosecha en revisión: su verificación interna no cuadró y se oculta hasta revisarla.
-                </p>
-              )}
-              <RankingConversion ranking={rankingConversion} cosechaPorVendedor={cosechaPorVendedor} />
-            </>
-          )
+          : <RankingConversion ranking={rankingConversion} />
+      ) : tipo === 'cosecha' ? (
+        <TabpanelMarco tab="cosecha">
+          <CosechaLote cosecha={cosecha} equipo={equipo} enRevision={cosechaEnRevision} />
+        </TabpanelMarco>
       ) : !metaMensual.comparable ? (
         <div role="tabpanel" id="panel-ranking-capital" aria-labelledby="tab-ranking-capital-total" className="grid min-h-64 place-items-center px-5 text-center">
           <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">

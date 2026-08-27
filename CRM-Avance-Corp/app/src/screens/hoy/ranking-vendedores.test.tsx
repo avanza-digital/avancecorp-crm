@@ -349,30 +349,37 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     )
   }
 
-  it('con payload pinta la segunda lectura SOLO en quien tiene fila, en idioma de negocio', () => {
+  const abrirCosecha = () => fireEvent.click(screen.getByRole('tab', { name: 'Cosecha del lote' }))
+
+  it('vive en SU pestaña, no en las filas del ranking (pedido de Miguel: dos relojes juntos eran ruido)', () => {
     montar(cosechaDemo())
-    // demo-v1 tiene fila de cosecha → su celda gana la segunda línea.
-    // Redacción pedida por Miguel (27/08): la versión «Cosecha: N de M
-    // recibidos · madura hasta hoy» no la entendía nadie.
-    expect(screen.getAllByText('De sus 38 leads del mes, 5 ya son clientes (13.2%)').length).toBeGreaterThanOrEqual(1)
-    // Los demás no: la ausencia de fila no es un cero.
-    expect(screen.queryAllByText(/leads del mes, ninguno/)).toHaveLength(0)
+    // En el tab de conversión NO hay ni rastro de la cosecha…
+    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
+    // …y en su pestaña sí, en idioma de negocio, SOLO para quien tiene fila.
+    abrirCosecha()
+    const panel = screen.getByRole('tabpanel')
+    expect(within(panel).getByText('De sus 38 leads del mes, 5 ya son clientes (13.2%)')).toBeInTheDocument()
+    expect(within(panel).queryAllByText(/leads del mes, ninguno/)).toHaveLength(0)
   })
 
   it('con cero cierres lo dice con palabras («ninguno es cliente todavía»), sin un (0%) que estorbe', () => {
     const cosecha = cosechaDemo()
     cosecha.responsables = [{ vendedor_id: 'demo-v1', leads: 41, clientes: 0, conversion_pct: 0 }]
     montar(cosecha)
-    expect(screen.getAllByText('De sus 41 leads del mes, ninguno es cliente todavía').length).toBeGreaterThanOrEqual(1)
+    abrirCosecha()
+    expect(screen.getByText('De sus 41 leads del mes, ninguno es cliente todavía')).toBeInTheDocument()
   })
 
-  it('sin payload (consultando o no disponible) no pinta NADA de cosecha — jamás un cero fabricado', () => {
+  it('sin payload la pestaña lo DICE («no disponible por ahora») — jamás un cero fabricado', () => {
     montar(undefined)
+    abrirCosecha()
+    expect(screen.getByText('Seguimiento del lote no disponible por ahora.')).toBeInTheDocument()
     expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
   })
 
-  it('F3.4: con la sonda en falso la cosecha entera se OCULTA y se avisa', () => {
+  it('F3.4: con la sonda en falso la pestaña entera se OCULTA y se avisa', () => {
     montar(cosechaDemo(false))
+    abrirCosecha()
     expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Lectura por cosecha en revisión')
   })
