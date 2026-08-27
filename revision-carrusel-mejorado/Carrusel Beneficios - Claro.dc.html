@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+  body { margin: 0; background: #eceef1; font-family: "DM Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  a { color: #0b1831; } a:hover { color: #1b3b66; }
+  button { font: inherit; -webkit-tap-highlight-color: transparent; }
+  [data-noscroll]::-webkit-scrollbar { display: none; }
+</style>
+</helmet>
+<div style="display:flex; align-items:center; justify-content:center; min-height:100vh; padding:40px; box-sizing:border-box">
+  <x-import component-from-global-scope="IOSDevice" from="./ios-frame.jsx" hint-size="402px,874px">
+    <div data-screen-label="Beneficios" style="position:relative; height:100%; display:flex; flex-direction:column; overflow:hidden; background:#f7f8fa; color:#16202e; font-family:'DM Sans',system-ui,sans-serif">
+      <header style="display:grid; grid-template-columns:44px 1fr 44px; align-items:center; padding:54px 12px 6px; background:#f7f8fa; border-bottom:1px solid #e4e7ec">
+        <button type="button" aria-label="Abrir menú" onClick="{{ openMenu }}" style="display:grid; width:44px; height:44px; padding:0; place-items:center; color:#16202e; background:transparent; border:0; border-radius:12px; cursor:pointer" style-hover="background:rgba(22,32,46,.06)">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" aria-hidden="true"><path d="M4 7h16M4 12h16M4 17h16"></path></svg>
+        </button>
+        <span style="text-align:center; font-size:16px; font-weight:600">Beneficios</span>
+        <span aria-label="Mi perfil" style="display:grid; width:34px; height:34px; place-items:center; justify-self:end; color:#fff; background:#0b1831; border-radius:50%; font-size:12px; font-weight:600">AC</span>
+      </header>
+
+      <div data-noscroll style="flex:1; overflow-x:hidden; overflow-y:auto; padding-bottom:48px; scrollbar-width:none; overscroll-behavior-y:contain">
+        <section style="padding:20px 20px 0">
+          <h1 style="margin:0; font-size:24px; font-weight:700; line-height:1.2; letter-spacing:-.01em">Aliados de MasCapitalGroup</h1>
+          <p style="margin:6px 0 0; max-width:320px; color:#5f6b7a; font-size:14px; line-height:1.5">Empresas con las que estamos preparando beneficios para ti.</p>
+        </section>
+
+        <div data-noscroll aria-label="Filtrar aliados por categoría" style="display:flex; gap:8px; padding:16px 20px 4px; overflow-x:auto; scrollbar-width:none">
+          <sc-for list="{{ chips }}" as="c" hint-placeholder-count="5">
+            <button type="button" onClick="{{ c.pick }}" style="min-height:40px; padding:0 14px; flex:0 0 auto; color:{{ c.color }}; background:{{ c.bg }}; border:1px solid {{ c.border }}; border-radius:999px; font-size:14px; font-weight:500; cursor:pointer; transition:background .15s ease, color .15s ease, border-color .15s ease">{{ c.label }}</button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; align-items:center; justify-content:space-between; gap:12px; padding:12px 20px 0">
+          <span aria-live="polite" style="color:#5f6b7a; font-size:13px">{{ counterText }}</span>
+          <div style="display:flex; gap:8px" aria-label="Controles del carrusel">
+            <button type="button" aria-label="Anterior" onClick="{{ prev }}" style="display:grid; width:40px; height:40px; padding:0; place-items:center; color:#16202e; background:#fff; border:1px solid #e4e7ec; border-radius:50%; cursor:pointer" style-hover="border-color:#c6ccd4" style-active="background:#f0f2f5"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m15 18-6-6 6-6"></path></svg></button>
+            <button type="button" aria-label="Siguiente" onClick="{{ next }}" style="display:grid; width:40px; height:40px; padding:0; place-items:center; color:#16202e; background:#fff; border:1px solid #e4e7ec; border-radius:50%; cursor:pointer" style-hover="border-color:#c6ccd4" style-active="background:#f0f2f5"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m9 18 6-6-6-6"></path></svg></button>
+          </div>
+        </div>
+
+        <div data-noscroll ref="{{ carouselRef }}" onScroll="{{ onScroll }}" tabindex="0" aria-label="Carrusel de aliados" style="display:grid; grid-auto-columns:calc(100% - 64px); grid-auto-flow:column; gap:12px; padding:12px 20px 4px; overflow-x:auto; scroll-padding-left:20px; scroll-snap-type:x mandatory; overscroll-behavior-x:contain; scrollbar-width:none">
+          <sc-for list="{{ cards }}" as="p" hint-placeholder-count="2">
+            <article data-card aria-label="{{ p.name }}" style="display:flex; flex-direction:column; min-width:0; background:#fff; border:1px solid #e4e7ec; border-radius:16px; padding:16px; scroll-snap-align:start; scroll-snap-stop:always">
+              <div style="display:grid; height:132px; padding:16px; box-sizing:border-box; place-items:center; background:#fff; border:1px solid #edf0f4; border-radius:12px">
+                <img src="{{ p.image }}" alt="Logo de {{ p.name }}" style="display:block; max-width:88%; max-height:98px; width:auto; height:auto; object-fit:contain">
+              </div>
+              <div style="display:flex; align-items:center; justify-content:space-between; gap:8px; margin-top:14px">
+                <h2 style="margin:0; font-size:18px; font-weight:600; line-height:1.25; letter-spacing:-.01em">{{ p.name }}</h2>
+                <span style="flex:none; color:#5f6b7a; background:#f0f2f5; border-radius:999px; padding:4px 10px; font-size:12px; font-weight:500">{{ p.category }}</span>
+              </div>
+              <p style="margin:4px 0 12px; color:#5f6b7a; font-size:14px; line-height:1.45">{{ p.type }}</p>
+              <span style="display:inline-flex; align-items:center; gap:6px; align-self:flex-start; padding:5px 10px; color:#8a6116; background:#faf3e0; border-radius:999px; font-size:12px; font-weight:500"><span aria-hidden="true" style="width:6px; height:6px; background:#c8922a; border-radius:50%"></span>Convenio en negociación</span>
+              <button type="button" onClick="{{ p.open }}" style="display:flex; align-items:center; justify-content:center; min-height:44px; margin-top:16px; padding:0 16px; color:#fff; background:#0b1831; border:0; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer" style-hover="background:#1b3b66" style-active="background:#09142a">Ver detalles</button>
+            </article>
+          </sc-for>
+        </div>
+
+        <div aria-label="Posición en el carrusel" style="display:flex; justify-content:center; gap:2px; padding:4px 20px 0">
+          <sc-for list="{{ dots }}" as="d" hint-placeholder-count="7">
+            <button type="button" aria-label="{{ d.label }}" onClick="{{ d.pick }}" style="display:grid; width:28px; height:36px; padding:0; place-items:center; background:transparent; border:0; cursor:pointer"><span style="display:block; width:{{ d.w }}; height:7px; border-radius:99px; background:{{ d.bg }}; transition:all .25s ease"></span></button>
+          </sc-for>
+        </div>
+
+        <div style="display:flex; gap:10px; align-items:flex-start; margin:16px 20px 0; padding:12px 14px; background:#fff; border:1px solid #e4e7ec; border-radius:12px">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="#5f6b7a" stroke-width="1.8" aria-hidden="true" style="flex:none; margin-top:1px"><circle cx="12" cy="12" r="9"></circle><path d="M12 11v5M12 8h.01"></path></svg>
+          <p style="margin:0; color:#5f6b7a; font-size:13px; line-height:1.5">Las condiciones de cada beneficio se publicarán cuando el convenio quede formalmente cerrado.</p>
+        </div>
+        <button type="button" onClick="{{ advisor }}" style="display:flex; align-items:center; justify-content:center; min-height:48px; margin:12px 20px 0; width:calc(100% - 40px); color:#0b1831; background:#fff; border:1px solid #c6ccd4; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer" style-hover="border-color:#8a93a0" style-active="background:#f0f2f5">Consultar a mi asesor</button>
+      </div>
+
+      <div onClick="{{ closeMenu }}" style="position:absolute; inset:0; z-index:30; background:rgba(16,24,36,.4); opacity:{{ backOp }}; visibility:{{ backVis }}; transition:opacity .2s ease, visibility .2s ease"></div>
+      <aside aria-label="Menú principal" style="position:absolute; top:0; bottom:0; left:0; z-index:35; width:78%; max-width:300px; padding:64px 16px 24px; box-sizing:border-box; background:#fff; box-shadow:8px 0 32px rgba(16,24,36,.16); transform:{{ drawerX }}; transition:transform .3s cubic-bezier(.22,1,.36,1)">
+        <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:16px; padding:0 8px">
+          <span style="font-size:16px; font-weight:700">AvanceCorp</span>
+          <button type="button" aria-label="Cerrar menú" onClick="{{ closeMenu }}" style="display:grid; width:44px; height:44px; padding:0; place-items:center; color:#16202e; background:transparent; border:0; border-radius:12px; cursor:pointer" style-hover="background:rgba(22,32,46,.06)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <nav style="display:grid; gap:2px">
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#3d4754; border-radius:10px; font-size:15px">Inicio</span>
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#3d4754; border-radius:10px; font-size:15px">Mi contrato</span>
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#3d4754; border-radius:10px; font-size:15px">Documentos</span>
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#3d4754; border-radius:10px; font-size:15px">Mercados</span>
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#0b1831; background:#eef1f5; border-radius:10px; font-size:15px; font-weight:600">Beneficios</span>
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#3d4754; border-radius:10px; font-size:15px">Comunicados</span>
+          <span style="display:flex; align-items:center; min-height:46px; padding:0 12px; color:#3d4754; border-radius:10px; font-size:15px">Mi perfil</span>
+        </nav>
+      </aside>
+
+      <div onClick="{{ closeSheet }}" style="position:absolute; inset:0; z-index:40; background:rgba(16,24,36,.4); opacity:{{ sBackOp }}; visibility:{{ sBackVis }}; transition:opacity .2s ease, visibility .2s ease"></div>
+      <section role="dialog" aria-modal="true" aria-label="Detalle del aliado" style="position:absolute; right:0; bottom:0; left:0; z-index:45; max-height:80%; padding:8px 20px 40px; overflow-y:auto; background:#fff; border-radius:20px 20px 0 0; box-shadow:0 -12px 40px rgba(16,24,36,.18); transform:{{ sheetY }}; transition:transform .35s cubic-bezier(.22,1,.36,1)">
+        <div aria-hidden="true" style="width:36px; height:4px; margin:6px auto 16px; background:#d5dae1; border-radius:99px"></div>
+        <div style="display:grid; grid-template-columns:56px 1fr 44px; gap:12px; align-items:center">
+          <span style="display:grid; width:56px; height:56px; padding:6px; box-sizing:border-box; place-items:center; background:#fff; border:1px solid #e4e7ec; border-radius:14px"><img src="{{ sheetImage }}" alt="{{ sheetAlt }}" style="display:block; max-width:100%; max-height:42px; width:auto; height:auto; object-fit:contain"></span>
+          <div>
+            <h2 style="margin:0; font-size:19px; font-weight:700; letter-spacing:-.01em">{{ sheetName }}</h2>
+            <p style="margin:2px 0 0; color:#5f6b7a; font-size:13px">{{ sheetCat }}</p>
+          </div>
+          <button type="button" aria-label="Cerrar detalles" onClick="{{ closeSheet }}" style="display:grid; width:44px; height:44px; padding:0; place-items:center; color:#16202e; background:transparent; border:0; border-radius:12px; cursor:pointer" style-hover="background:rgba(22,32,46,.06)"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m6 6 12 12M18 6 6 18"></path></svg></button>
+        </div>
+        <div style="margin-top:16px; padding-top:16px; border-top:1px solid #e4e7ec">
+          <p style="margin:0 0 12px; color:#3d4754; font-size:14px; line-height:1.55">{{ sheetType }}. Este aliado forma parte de la red de beneficios que MasCapitalGroup está preparando para sus clientes.</p>
+          <div style="display:flex; gap:10px; align-items:flex-start; padding:12px 14px; background:#faf3e0; border-radius:12px">
+            <span aria-hidden="true" style="flex:none; width:8px; height:8px; margin-top:5px; background:#c8922a; border-radius:50%"></span>
+            <p style="margin:0; color:#6d4f10; font-size:13px; line-height:1.5"><strong style="font-weight:600">Convenio en negociación.</strong> Los beneficios y condiciones definitivas todavía no han sido publicados.</p>
+          </div>
+          <button type="button" onClick="{{ advisor }}" style="display:flex; align-items:center; justify-content:center; width:100%; min-height:48px; margin-top:16px; color:#fff; background:#0b1831; border:0; border-radius:10px; font-size:14px; font-weight:600; cursor:pointer" style-hover="background:#1b3b66" style-active="background:#09142a">Consultar a mi asesor</button>
+        </div>
+      </section>
+
+      <div role="status" aria-live="polite" style="position:absolute; right:16px; bottom:44px; left:16px; z-index:70; display:flex; align-items:center; gap:10px; min-height:48px; padding:12px 14px; box-sizing:border-box; color:#fff; background:#16202e; border-radius:12px; box-shadow:0 8px 24px rgba(16,24,36,.24); font-size:13px; line-height:1.4; opacity:{{ toastOp }}; transform:{{ toastY }}; visibility:{{ toastVis }}; transition:opacity .2s ease, transform .25s cubic-bezier(.22,1,.36,1), visibility .2s ease">
+        <span>Prototipo: en el PWA real se abrirá el contacto con tu asesor.</span>
+      </div>
+    </div>
+  </x-import>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script>
+const PARTNERS = [
+  { name: "Phoenix", image: "./logos/phoenix.png", initials: "PX", category: "Educación", key: "educacion", type: "Academia de trading", brand: "#e45b2b" },
+  { name: "Belysh", image: "./logos/belysh.png", initials: "BE", category: "Bienestar", key: "bienestar", type: "Belleza y bienestar", brand: "#9c7568" },
+  { name: "NTC Agency", image: "./logos/ntc-agency.png", initials: "NT", category: "Negocio", key: "negocio", type: "Marketing y branding", brand: "#86257d" },
+  { name: "Cooperativa Qorilazo", image: "./logos/qorilazo.png", initials: "QZ", category: "Finanzas", key: "finanzas", type: "Cooperativa de ahorro y crédito", brand: "#16634a" },
+  { name: "MásCapital", image: "./logos/mascapital.png", initials: "MC", category: "Finanzas", key: "finanzas", type: "Servicios financieros", brand: "#20a9da" },
+  { name: "Clínica Álvarez", image: "./logos/clinica-alvarez.png", initials: "CA", category: "Bienestar", key: "bienestar", type: "Salud y bienestar", brand: "#a63177" },
+  { name: "Prodelco", image: "./logos/prodelco.png", initials: "PD", category: "Finanzas", key: "finanzas", type: "Cooperativa de ahorro y crédito", brand: "#1f70b5" }
+];
+const CATS = [
+  { key: "all", label: "Todos" },
+  { key: "bienestar", label: "Bienestar" },
+  { key: "educacion", label: "Educación" },
+  { key: "finanzas", label: "Finanzas" },
+  { key: "negocio", label: "Negocio" }
+];
+
+class Component extends DCLogic {
+  state = { category: "all", index: 0, menuOpen: false, sheetOpen: false, sheet: PARTNERS[0], toast: false };
+  constructor(props) { super(props); this.ref = React.createRef(); }
+  visible() { const c = this.state.category; return c === "all" ? PARTNERS : PARTNERS.filter(p => p.key === c); }
+  componentWillUnmount() { clearTimeout(this._s); clearTimeout(this._toast); }
+  snap(smooth) {
+    const el = this.ref.current; if (!el) return;
+    const card = el.querySelectorAll("[data-card]")[this.state.index]; if (!card) return;
+    const left = el.scrollLeft + card.getBoundingClientRect().left - el.getBoundingClientRect().left - 20;
+    el.scrollTo({ left, behavior: smooth ? "smooth" : "auto" });
+  }
+  goTo(i, smooth) {
+    const n = this.visible().length; if (!n) return;
+    const idx = Math.max(0, Math.min(n - 1, i));
+    this.setState({ index: idx }, () => this.snap(smooth));
+  }
+  onScroll = () => {
+    clearTimeout(this._s);
+    this._s = setTimeout(() => {
+      const el = this.ref.current; if (!el) return;
+      const cards = Array.from(el.querySelectorAll("[data-card]"));
+      const box = el.getBoundingClientRect(); const mid = box.left + box.width / 2;
+      let best = 0, bd = Infinity;
+      cards.forEach((c, i) => {
+        const r = c.getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - mid);
+        if (d < bd) { bd = d; best = i; }
+      });
+      if (best !== this.state.index) this.setState({ index: best });
+    }, 100);
+  };
+  renderVals() {
+    const s = this.state, vis = this.visible();
+    const idx = Math.min(s.index, vis.length - 1);
+    const chips = CATS.map(c => {
+      const on = c.key === s.category;
+      return {
+        label: c.label,
+        color: on ? "#ffffff" : "#3d4754",
+        bg: on ? "#0b1831" : "#ffffff",
+        border: on ? "#0b1831" : "#e4e7ec",
+        pick: () => this.setState({ category: c.key, index: 0 }, () => {
+          const el = this.ref.current; if (el) el.scrollTo({ left: 0 });
+        })
+      };
+    });
+    const cards = vis.map(p => ({
+      ...p,
+      open: () => this.setState({ sheetOpen: true, sheet: p })
+    }));
+    const dots = vis.map((p, i) => ({
+      bg: i === idx ? "#0b1831" : "#c6ccd4",
+      w: i === idx ? "20px" : "7px",
+      label: "Ir a " + p.name,
+      pick: () => this.goTo(i, true)
+    }));
+    return {
+      carouselRef: this.ref, onScroll: this.onScroll,
+      chips, cards, dots,
+      counterText: (idx + 1) + " de " + vis.length,
+      prev: () => this.goTo(idx - 1, true),
+      next: () => this.goTo(idx + 1, true),
+      openMenu: () => this.setState({ menuOpen: true }),
+      closeMenu: () => this.setState({ menuOpen: false }),
+      drawerX: s.menuOpen ? "translateX(0)" : "translateX(-105%)",
+      backOp: s.menuOpen ? "1" : "0",
+      backVis: s.menuOpen ? "visible" : "hidden",
+      closeSheet: () => this.setState({ sheetOpen: false }),
+      sheetY: s.sheetOpen ? "translateY(0)" : "translateY(105%)",
+      sBackOp: s.sheetOpen ? "1" : "0",
+      sBackVis: s.sheetOpen ? "visible" : "hidden",
+      sheetName: s.sheet.name,
+      sheetCat: s.sheet.category + " · Aliado de MasCapitalGroup",
+      sheetType: s.sheet.type,
+      sheetImage: s.sheet.image,
+      sheetAlt: "Logo de " + s.sheet.name,
+      sheetBrand: s.sheet.brand,
+      advisor: () => {
+        clearTimeout(this._toast);
+        this.setState({ toast: true });
+        this._toast = setTimeout(() => this.setState({ toast: false }), 3000);
+      },
+      toastOp: s.toast ? "1" : "0",
+      toastY: s.toast ? "translateY(0)" : "translateY(12px)",
+      toastVis: s.toast ? "visible" : "hidden"
+    };
+  }
+}
+</script>
+</body>
+</html>

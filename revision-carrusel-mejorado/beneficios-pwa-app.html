@@ -1,0 +1,1766 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <meta name="theme-color" content="#0b1831" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="format-detection" content="telephone=no" />
+    <title>Aliados de MasCapitalGroup · AvanceCorp</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --navy-950: #07142a;
+        --navy-900: #0b1831;
+        --navy-800: #142b4d;
+        --navy-700: #1d3c67;
+        --gold-600: #b77f1f;
+        --gold-500: #d1a03f;
+        --gold-300: #efd28d;
+        --paper: #ffffff;
+        --mist: #f3f5f9;
+        --line: #dfe4ed;
+        --ink: #142039;
+        --body: #536078;
+        --muted: #78859a;
+        --success: #27875e;
+        --whatsapp: #08775f;
+        --whatsapp-dark: #06644f;
+        --shadow-soft: 0 12px 32px rgba(7, 20, 42, 0.1);
+        --shadow-card: 0 24px 44px rgba(7, 20, 42, 0.24);
+        --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+        --font-display: "Avenir Next", "SF Pro Display", -apple-system,
+          BlinkMacSystemFont, "Segoe UI", sans-serif;
+        --font-body: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
+          Roboto, Helvetica, Arial, sans-serif;
+        --font-mono: "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html,
+      body {
+        width: 100%;
+        height: 100%;
+        margin: 0;
+        overscroll-behavior: none;
+      }
+
+      body {
+        display: grid;
+        place-items: center;
+        background:
+          radial-gradient(circle at 14% 8%, rgba(209, 160, 63, 0.14), transparent 25rem),
+          #e7ebf2;
+        color: var(--ink);
+        font-family: var(--font-body);
+        -webkit-font-smoothing: antialiased;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button,
+      a {
+        color: inherit;
+        font: inherit;
+        -webkit-tap-highlight-color: transparent;
+      }
+
+      button {
+        cursor: pointer;
+      }
+
+      button:focus-visible,
+      a:focus-visible,
+      [tabindex]:focus-visible {
+        outline: 3px solid rgba(209, 160, 63, 0.5);
+        outline-offset: 3px;
+      }
+
+      .skip-link {
+        position: fixed;
+        top: 8px;
+        left: 8px;
+        z-index: 100;
+        padding: 10px 14px;
+        color: #fff;
+        background: var(--navy-950);
+        border-radius: 10px;
+        transform: translateY(-150%);
+        transition: transform 0.2s ease;
+      }
+
+      .skip-link:focus {
+        transform: translateY(0);
+      }
+
+      .app-shell {
+        position: relative;
+        display: flex;
+        width: min(100%, 430px);
+        height: 100dvh;
+        flex-direction: column;
+        overflow: hidden;
+        background: var(--mist);
+      }
+
+      .app-header {
+        position: relative;
+        z-index: 15;
+        display: grid;
+        grid-template-columns: 48px 1fr 48px;
+        align-items: center;
+        min-height: calc(66px + env(safe-area-inset-top));
+        padding: max(10px, env(safe-area-inset-top)) 14px 8px;
+        color: #fff;
+        background: var(--navy-900);
+      }
+
+      .icon-button {
+        display: grid;
+        width: 44px;
+        height: 44px;
+        padding: 0;
+        place-items: center;
+        color: inherit;
+        background: transparent;
+        border: 0;
+        border-radius: 14px;
+        transition:
+          background 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .icon-button:active {
+        background: rgba(255, 255, 255, 0.08);
+        transform: scale(0.94);
+      }
+
+      .brand {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        font-family: var(--font-display);
+        font-size: 14px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .brand-mark {
+        display: grid;
+        width: 27px;
+        height: 27px;
+        place-items: center;
+        color: var(--navy-950);
+        background: var(--gold-300);
+        border-radius: 9px 9px 9px 3px;
+        box-shadow: 0 6px 16px rgba(209, 160, 63, 0.18);
+        font-size: 12px;
+        font-weight: 800;
+      }
+
+      .profile-chip {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        justify-self: end;
+        color: var(--gold-300);
+        background: rgba(239, 210, 141, 0.09);
+        border: 1px solid rgba(239, 210, 141, 0.28);
+        border-radius: 50%;
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+      }
+
+      .app-main {
+        min-height: 0;
+        flex: 1;
+        overflow-x: hidden;
+        overflow-y: auto;
+        overscroll-behavior-y: contain;
+        scrollbar-width: none;
+      }
+
+      .app-main::-webkit-scrollbar,
+      .carousel::-webkit-scrollbar,
+      .filters::-webkit-scrollbar {
+        display: none;
+      }
+
+      .hero {
+        position: relative;
+        min-height: 174px;
+        padding: 23px 18px 29px;
+        overflow: hidden;
+        color: #fff;
+        background: var(--navy-900);
+      }
+
+      .hero::before,
+      .hero::after {
+        position: absolute;
+        content: "";
+        border: 1px solid rgba(239, 210, 141, 0.17);
+        border-radius: 50%;
+        pointer-events: none;
+      }
+
+      .hero::before {
+        top: -72px;
+        right: -58px;
+        width: 210px;
+        height: 210px;
+        box-shadow:
+          0 0 0 34px rgba(239, 210, 141, 0.035),
+          0 0 0 68px rgba(239, 210, 141, 0.018);
+      }
+
+      .hero::after {
+        right: 84px;
+        bottom: 28px;
+        width: 7px;
+        height: 7px;
+        background: var(--gold-300);
+        box-shadow:
+          42px -34px 0 -1px rgba(239, 210, 141, 0.72),
+          88px -6px 0 -2px rgba(239, 210, 141, 0.48);
+      }
+
+      .eyebrow {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin: 0 0 10px;
+        color: var(--gold-300);
+        font-family: var(--font-mono);
+        font-size: 9px;
+        font-weight: 700;
+        letter-spacing: 0.11em;
+        text-transform: uppercase;
+      }
+
+      .eyebrow::before {
+        width: 22px;
+        height: 1px;
+        background: currentColor;
+        content: "";
+      }
+
+      .hero h1 {
+        position: relative;
+        z-index: 1;
+        max-width: 340px;
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: clamp(29px, 8vw, 34px);
+        font-weight: 700;
+        letter-spacing: -0.04em;
+        line-height: 1.06;
+      }
+
+      .hero h1 span {
+        color: var(--gold-300);
+      }
+
+      .hero-bottom {
+        position: relative;
+        z-index: 1;
+        display: flex;
+        align-items: flex-end;
+        justify-content: space-between;
+        gap: 14px;
+        margin-top: 13px;
+      }
+
+      .hero-copy {
+        max-width: 278px;
+        margin: 0;
+        color: #b7c1d0;
+        font-size: 11.5px;
+        line-height: 1.5;
+      }
+
+      .network-count {
+        display: flex;
+        min-width: 52px;
+        align-items: baseline;
+        justify-content: flex-end;
+        gap: 4px;
+        color: #fff;
+      }
+
+      .network-count strong {
+        font-size: 22px;
+        line-height: 1;
+      }
+
+      .network-count span {
+        color: #9caac0;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .explore-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 12px;
+        padding: 17px 18px 9px;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.09em;
+        text-transform: uppercase;
+      }
+
+      .explore-head span:last-child {
+        color: var(--gold-600);
+      }
+
+      .filters {
+        display: flex;
+        gap: 8px;
+        padding: 0 18px 10px;
+        overflow-x: auto;
+        scroll-padding-inline: 18px;
+        scrollbar-width: none;
+      }
+
+      .filter-chip {
+        min-height: 44px;
+        padding: 0 15px;
+        flex: 0 0 auto;
+        color: var(--body);
+        background: var(--paper);
+        border: 1px solid var(--line);
+        border-radius: 999px;
+        font-size: 11px;
+        font-weight: 700;
+        transition:
+          color 0.2s ease,
+          background 0.2s ease,
+          border-color 0.2s ease,
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .filter-chip[aria-pressed="true"] {
+        color: #fff;
+        background: var(--navy-900);
+        border-color: var(--navy-900);
+        box-shadow: 0 8px 18px rgba(11, 24, 49, 0.16);
+      }
+
+      .filter-chip:active {
+        transform: scale(0.96);
+      }
+
+      .carousel-heading {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 16px;
+        padding: 7px 18px 2px;
+      }
+
+      .carousel-heading strong {
+        display: block;
+        overflow: hidden;
+        color: var(--ink);
+        font-family: var(--font-display);
+        font-size: 15px;
+        font-weight: 700;
+        letter-spacing: -0.015em;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+      }
+
+      .carousel-heading span {
+        display: block;
+        margin-top: 3px;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.05em;
+        text-transform: uppercase;
+      }
+
+      .swipe-hint {
+        display: inline-flex !important;
+        align-items: center;
+        gap: 5px;
+        margin: 0 !important;
+        color: var(--gold-600) !important;
+        white-space: nowrap !important;
+      }
+
+      .carousel-wrap {
+        position: relative;
+        perspective: 920px;
+        perspective-origin: 50% 48%;
+      }
+
+      .carousel {
+        display: flex;
+        gap: 12px;
+        padding: 11px 18px 18px;
+        overflow-x: auto;
+        overflow-y: hidden;
+        scroll-padding-left: 18px;
+        scroll-snap-type: x mandatory;
+        overscroll-behavior-x: contain;
+        scrollbar-width: none;
+        touch-action: pan-x pan-y;
+        transform-style: preserve-3d;
+      }
+
+      .partner-card {
+        position: relative;
+        display: flex;
+        width: min(78vw, 320px);
+        min-width: min(78vw, 320px);
+        min-height: 365px;
+        padding: 16px;
+        flex-direction: column;
+        overflow: hidden;
+        color: #fff;
+        background:
+          radial-gradient(
+            circle at 104% -2%,
+            color-mix(in srgb, var(--partner) 27%, transparent),
+            transparent 43%
+          ),
+          linear-gradient(154deg, var(--navy-800), var(--navy-950) 76%);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 26px;
+        box-shadow: var(--shadow-card);
+        scroll-snap-align: start;
+        scroll-snap-stop: always;
+        backface-visibility: hidden;
+        transform: translateZ(-42px) rotateY(-14deg) scale(0.92);
+        transform-origin: left center;
+        opacity: 0.68;
+        filter: saturate(0.72);
+        transition:
+          transform 0.42s var(--ease-out),
+          opacity 0.32s ease,
+          filter 0.32s ease;
+        will-change: transform;
+      }
+
+      .partner-card::before {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        width: 5px;
+        background: var(--partner);
+        box-shadow: 0 0 26px color-mix(in srgb, var(--partner) 48%, transparent);
+        content: "";
+      }
+
+      .partner-card[data-side="before"] {
+        transform: translateZ(-42px) rotateY(14deg) scale(0.92);
+        transform-origin: right center;
+      }
+
+      .partner-card[aria-current="true"] {
+        z-index: 2;
+        transform: translateZ(0) rotateY(0) scale(1);
+        transform-origin: center;
+        opacity: 1;
+        filter: saturate(1);
+      }
+
+      .card-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        margin-bottom: 13px;
+      }
+
+      .card-index {
+        color: var(--gold-300);
+        font-family: var(--font-mono);
+        font-size: 8.5px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .card-category {
+        display: inline-flex;
+        min-height: 28px;
+        align-items: center;
+        padding: 0 10px;
+        color: #d9e0eb;
+        background: rgba(255, 255, 255, 0.07);
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+        font-size: 9px;
+        font-weight: 700;
+      }
+
+      .logo-stage {
+        position: relative;
+        display: grid;
+        height: 132px;
+        margin-bottom: 15px;
+        padding: 17px;
+        place-items: center;
+        overflow: hidden;
+        background: #fff;
+        border-radius: 18px;
+        box-shadow: inset 0 0 0 1px rgba(7, 20, 42, 0.06);
+      }
+
+      .logo-stage::after {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        height: 3px;
+        background: var(--partner);
+        content: "";
+      }
+
+      .logo-stage img {
+        display: block;
+        width: auto;
+        max-width: 88%;
+        height: auto;
+        max-height: 98px;
+        object-fit: contain;
+        user-select: none;
+      }
+
+      .card-kicker {
+        margin: 0 0 4px;
+        color: #9facc0;
+        font-family: var(--font-mono);
+        font-size: 8.25px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+      }
+
+      .partner-card h2 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 21px;
+        font-weight: 700;
+        letter-spacing: -0.025em;
+        line-height: 1.1;
+      }
+
+      .card-type {
+        margin: 5px 0 11px;
+        color: #bcc6d5;
+        font-size: 10.5px;
+        line-height: 1.4;
+      }
+
+      .status-pill {
+        display: inline-flex;
+        min-height: 30px;
+        align-items: center;
+        align-self: flex-start;
+        gap: 8px;
+        padding: 0 11px;
+        color: var(--gold-300);
+        background: rgba(209, 160, 63, 0.09);
+        border: 1px solid rgba(239, 210, 141, 0.2);
+        border-radius: 999px;
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .status-dot {
+        width: 7px;
+        height: 7px;
+        background: var(--gold-500);
+        border-radius: 50%;
+        box-shadow: 0 0 0 4px rgba(209, 160, 63, 0.13);
+      }
+
+      .card-action {
+        display: flex;
+        width: 100%;
+        min-height: 48px;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: auto;
+        padding: 0 14px 0 15px;
+        color: var(--navy-950);
+        background: var(--gold-300);
+        border: 0;
+        border-radius: 15px;
+        font-size: 11px;
+        font-weight: 700;
+        transition:
+          background 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .card-action:active {
+        background: #f5dda5;
+        transform: scale(0.98);
+      }
+
+      .action-arrow {
+        display: grid;
+        width: 28px;
+        height: 28px;
+        place-items: center;
+        color: #fff;
+        background: var(--navy-950);
+        border-radius: 50%;
+        font-size: 15px;
+      }
+
+      .carousel-controls {
+        padding: 0 18px;
+      }
+
+      .control-row {
+        display: grid;
+        grid-template-columns: 48px 1fr 48px;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .nav-button,
+      .play-button {
+        display: grid;
+        width: 48px;
+        height: 48px;
+        padding: 0;
+        place-items: center;
+        border-radius: 50%;
+        transition:
+          transform 0.2s ease,
+          background 0.2s ease,
+          border-color 0.2s ease;
+      }
+
+      .nav-button {
+        color: var(--navy-900);
+        background: #fff;
+        border: 1px solid var(--line);
+        box-shadow: 0 6px 16px rgba(7, 20, 42, 0.07);
+      }
+
+      .play-button {
+        color: #fff;
+        background: var(--navy-900);
+        border: 1px solid var(--navy-900);
+        box-shadow: 0 8px 18px rgba(7, 20, 42, 0.17);
+      }
+
+      .nav-button:active,
+      .play-button:active {
+        transform: scale(0.92);
+      }
+
+      .control-center {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 11px;
+      }
+
+      .position-count {
+        min-width: 44px;
+        color: var(--navy-900);
+        font-family: var(--font-mono);
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        text-align: center;
+      }
+
+      .route-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin: 8px 0 2px;
+        color: var(--muted);
+        font-size: 9px;
+      }
+
+      .route-head strong {
+        color: var(--ink);
+        font-family: var(--font-mono);
+        font-size: 8.5px;
+        letter-spacing: 0.07em;
+        text-transform: uppercase;
+      }
+
+      .route {
+        display: flex;
+        gap: 5px;
+      }
+
+      .route-button {
+        display: grid;
+        height: 44px;
+        padding: 0;
+        flex: 1;
+        align-items: center;
+        background: transparent;
+        border: 0;
+      }
+
+      .route-button span {
+        display: block;
+        height: 4px;
+        background: #d3dae5;
+        border-radius: 99px;
+        transition: background 0.25s ease;
+      }
+
+      .route-button[data-passed="true"] span {
+        background: var(--navy-700);
+      }
+
+      .route-button[aria-current="true"] span {
+        background: var(--gold-500);
+      }
+
+      .auto-progress {
+        height: 2px;
+        margin-top: 1px;
+        overflow: hidden;
+        background: #dce2eb;
+        border-radius: 99px;
+      }
+
+      .auto-progress span {
+        display: block;
+        width: 0;
+        height: 100%;
+        background: var(--gold-500);
+        border-radius: inherit;
+      }
+
+      .auto-progress span.running {
+        animation: auto-progress 6.5s linear both;
+      }
+
+      @keyframes auto-progress {
+        from {
+          width: 0;
+        }
+        to {
+          width: 100%;
+        }
+      }
+
+      .swipe-copy {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 7px;
+        margin: 5px 0 0;
+        color: var(--muted);
+        font-size: 9.5px;
+      }
+
+      .info-card {
+        display: grid;
+        grid-template-columns: 38px 1fr;
+        gap: 11px;
+        margin: 16px 18px 0;
+        padding: 14px;
+        color: var(--body);
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 18px;
+      }
+
+      .info-icon {
+        display: grid;
+        width: 38px;
+        height: 38px;
+        place-items: center;
+        color: var(--gold-600);
+        background: #fbf5e9;
+        border-radius: 12px;
+      }
+
+      .info-card strong {
+        display: block;
+        margin-bottom: 3px;
+        color: var(--ink);
+        font-size: 10.5px;
+      }
+
+      .info-card p {
+        margin: 0;
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .advisor-button {
+        display: flex;
+        width: calc(100% - 36px);
+        min-height: 50px;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        margin: 12px 18px max(22px, env(safe-area-inset-bottom));
+        color: #fff;
+        background: var(--whatsapp);
+        border: 0;
+        border-radius: 16px;
+        box-shadow: 0 10px 22px rgba(8, 119, 95, 0.24);
+        font-size: 12px;
+        font-weight: 700;
+        transition:
+          background 0.2s ease,
+          transform 0.2s ease,
+          box-shadow 0.2s ease;
+      }
+
+      .advisor-button:active {
+        background: var(--whatsapp-dark);
+        transform: scale(0.98);
+        box-shadow: 0 6px 14px rgba(8, 119, 95, 0.2);
+      }
+
+      .overlay {
+        position: absolute;
+        inset: 0;
+        z-index: 40;
+        background: rgba(3, 10, 23, 0.55);
+        opacity: 0;
+        visibility: hidden;
+        transition:
+          opacity 0.25s ease,
+          visibility 0.25s ease;
+      }
+
+      .overlay.open {
+        opacity: 1;
+        visibility: visible;
+      }
+
+      .drawer {
+        position: absolute;
+        top: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 45;
+        width: min(78%, 310px);
+        padding: max(58px, calc(42px + env(safe-area-inset-top))) 18px 26px;
+        color: #fff;
+        background: var(--navy-900);
+        box-shadow: 22px 0 50px rgba(3, 10, 23, 0.34);
+        transform: translateX(-105%);
+        transition: transform 0.38s var(--ease-out);
+      }
+
+      .drawer.open {
+        transform: translateX(0);
+      }
+
+      .drawer-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 22px;
+      }
+
+      .drawer nav {
+        display: grid;
+        gap: 5px;
+      }
+
+      .drawer-link {
+        display: flex;
+        min-height: 48px;
+        align-items: center;
+        gap: 11px;
+        padding: 0 13px;
+        color: #bdc7d6;
+        border-radius: 13px;
+        font-size: 12px;
+        font-weight: 700;
+        text-decoration: none;
+      }
+
+      .drawer-link.active {
+        color: var(--navy-950);
+        background: var(--gold-300);
+      }
+
+      .drawer-link svg {
+        flex: 0 0 auto;
+      }
+
+      .sheet-layer {
+        position: absolute;
+        inset: 0;
+        z-index: 60;
+        visibility: hidden;
+      }
+
+      .sheet-layer.open {
+        visibility: visible;
+      }
+
+      .sheet-backdrop {
+        position: absolute;
+        inset: 0;
+        background: rgba(3, 10, 23, 0.56);
+        opacity: 0;
+        transition: opacity 0.25s ease;
+      }
+
+      .sheet-layer.open .sheet-backdrop {
+        opacity: 1;
+      }
+
+      .detail-sheet {
+        position: absolute;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        max-height: 82%;
+        padding: 10px 18px max(28px, env(safe-area-inset-bottom));
+        overflow-y: auto;
+        background: #fff;
+        border-radius: 28px 28px 0 0;
+        box-shadow: 0 -22px 50px rgba(3, 10, 23, 0.24);
+        transform: translateY(105%);
+        transition: transform 0.4s var(--ease-out);
+      }
+
+      .sheet-layer.open .detail-sheet {
+        transform: translateY(0);
+      }
+
+      .sheet-handle {
+        width: 42px;
+        height: 4px;
+        margin: 0 auto 13px;
+        background: #d5dbe5;
+        border-radius: 99px;
+      }
+
+      .sheet-head {
+        display: grid;
+        grid-template-columns: 64px 1fr 44px;
+        gap: 12px;
+        align-items: center;
+      }
+
+      .sheet-logo {
+        display: grid;
+        width: 64px;
+        height: 64px;
+        padding: 7px;
+        place-items: center;
+        background: #fff;
+        border: 1px solid var(--line);
+        border-radius: 16px;
+      }
+
+      .sheet-logo img {
+        max-width: 100%;
+        max-height: 48px;
+        object-fit: contain;
+      }
+
+      .sheet-kicker {
+        margin: 0 0 3px;
+        color: var(--gold-600);
+        font-family: var(--font-mono);
+        font-size: 8px;
+        font-weight: 700;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+      }
+
+      .sheet-head h2 {
+        margin: 0;
+        font-family: var(--font-display);
+        font-size: 18px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+      }
+
+      .sheet-body {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--line);
+      }
+
+      .sheet-body h3 {
+        margin: 0 0 7px;
+        font-size: 12px;
+      }
+
+      .sheet-body > p {
+        margin: 0 0 14px;
+        color: var(--body);
+        font-size: 10.5px;
+        line-height: 1.6;
+      }
+
+      .status-route {
+        display: flex;
+        gap: 6px;
+        margin-bottom: 14px;
+      }
+
+      .status-step {
+        display: flex;
+        min-width: 0;
+        flex: 1;
+        flex-direction: column;
+        gap: 6px;
+        color: var(--muted);
+        font-family: var(--font-mono);
+        font-size: 7.5px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+      }
+
+      .status-step::before {
+        height: 4px;
+        background: var(--line);
+        border-radius: 99px;
+        content: "";
+      }
+
+      .status-step.active {
+        color: var(--ink);
+      }
+
+      .status-step.active::before {
+        background: var(--gold-500);
+      }
+
+      .honesty-note {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 13px;
+        color: #6c5321;
+        background: #fbf5e9;
+        border: 1px solid #ecdeb9;
+        border-radius: 14px;
+        font-size: 9.5px;
+        line-height: 1.5;
+      }
+
+      .honesty-note strong {
+        display: block;
+        margin-bottom: 2px;
+        font-size: 10px;
+      }
+
+      .sheet-advisor {
+        display: flex;
+        width: 100%;
+        min-height: 50px;
+        align-items: center;
+        justify-content: center;
+        gap: 9px;
+        margin-top: 14px;
+        color: #fff;
+        background: var(--whatsapp);
+        border: 0;
+        border-radius: 15px;
+        box-shadow: 0 10px 22px rgba(8, 119, 95, 0.22);
+        font-size: 12px;
+        font-weight: 700;
+        transition:
+          background 0.2s ease,
+          transform 0.2s ease;
+      }
+
+      .sheet-advisor:active {
+        background: var(--whatsapp-dark);
+        transform: scale(0.98);
+      }
+
+      .toast {
+        position: absolute;
+        right: 14px;
+        bottom: max(18px, env(safe-area-inset-bottom));
+        left: 14px;
+        z-index: 80;
+        display: flex;
+        min-height: 56px;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 14px;
+        color: #fff;
+        background: #101d35;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        border-radius: 17px;
+        box-shadow: 0 18px 38px rgba(3, 10, 23, 0.3);
+        font-size: 10px;
+        line-height: 1.4;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(16px);
+        transition:
+          opacity 0.25s ease,
+          transform 0.3s var(--ease-out),
+          visibility 0.25s ease;
+      }
+
+      .toast.show {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+      }
+
+      @media (min-width: 700px) and (min-height: 600px) and (display-mode: browser) {
+        body {
+          padding: 24px;
+        }
+
+        .app-shell {
+          height: min(900px, calc(100dvh - 48px));
+          border: 1px solid rgba(7, 20, 42, 0.12);
+          border-radius: 36px;
+          box-shadow: 0 34px 90px rgba(7, 20, 42, 0.2);
+        }
+      }
+
+      @media (max-width: 350px) {
+        .hero {
+          min-height: 164px;
+        }
+
+        .hero h1 {
+          font-size: 27px;
+        }
+
+        .partner-card {
+          width: calc(100vw - 54px);
+          min-width: calc(100vw - 54px);
+          min-height: 355px;
+        }
+      }
+
+      @media (max-height: 700px) and (orientation: portrait) {
+        .hero {
+          min-height: 150px;
+          padding-top: 17px;
+          padding-bottom: 20px;
+        }
+
+        .hero h1 {
+          font-size: 28px;
+        }
+
+        .partner-card {
+          min-height: 350px;
+        }
+      }
+
+      @media (orientation: landscape) and (max-height: 520px) {
+        .app-shell {
+          width: 100%;
+        }
+
+        .app-header {
+          min-height: calc(58px + env(safe-area-inset-top));
+          padding-top: max(6px, env(safe-area-inset-top));
+          padding-bottom: 4px;
+        }
+
+        .hero {
+          display: grid;
+          min-height: 110px;
+          grid-template-columns: minmax(280px, 1.2fr) minmax(250px, 1fr);
+          grid-template-rows: auto auto;
+          column-gap: 24px;
+          padding: 13px 18px 15px;
+        }
+
+        .eyebrow {
+          grid-column: 1;
+          margin-bottom: 5px;
+        }
+
+        .hero h1 {
+          grid-column: 1;
+          font-size: 27px;
+        }
+
+        .hero-bottom {
+          grid-row: 1 / span 2;
+          grid-column: 2;
+          align-self: center;
+          margin-top: 0;
+        }
+
+        .partner-card {
+          width: min(52vw, 320px);
+          min-width: min(52vw, 320px);
+        }
+      }
+
+      @media (display-mode: standalone) {
+        body {
+          padding: 0;
+        }
+
+        .app-shell {
+          width: 100%;
+          height: 100dvh;
+          border: 0;
+          border-radius: 0;
+          box-shadow: none;
+        }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        *,
+        *::before,
+        *::after {
+          scroll-behavior: auto !important;
+          animation-duration: 0.01ms !important;
+          animation-iteration-count: 1 !important;
+          transition-duration: 0.01ms !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Saltar al contenido</a>
+
+    <div class="app-shell" id="appShell">
+      <header class="app-header">
+        <button class="icon-button" id="menuButton" type="button" aria-label="Abrir menú">
+          <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+            <path d="M4 7h16M4 12h16M4 17h16" />
+          </svg>
+        </button>
+        <div class="brand" aria-label="AvanceCorp">
+          <span class="brand-mark" aria-hidden="true">A</span>
+          <span>AvanceCorp</span>
+        </div>
+        <span class="profile-chip" aria-label="Perfil de cliente">AC</span>
+      </header>
+
+      <main class="app-main" id="main">
+        <section class="hero" aria-labelledby="pageTitle">
+          <p class="eyebrow">Programa de beneficios</p>
+          <h1 id="pageTitle">Aliados de <span>MasCapitalGroup</span></h1>
+          <div class="hero-bottom">
+            <p class="hero-copy">
+              Conoce la red de empresas que estamos preparando para acompañar tu inversión.
+            </p>
+            <div class="network-count" aria-label="7 aliados en preparación">
+              <strong>7</strong><span>aliados</span>
+            </div>
+          </div>
+        </section>
+
+        <div class="explore-head">
+          <span>Explorar por categoría</span>
+          <span>Desliza</span>
+        </div>
+        <div class="filters" id="filters" aria-label="Filtrar aliados por categoría"></div>
+
+        <section aria-labelledby="activePartnerName">
+          <div class="carousel-heading">
+            <div aria-live="polite">
+              <strong id="activePartnerName">Phoenix</strong>
+              <span id="activePartnerMeta">Aliado 1 de 7</span>
+            </div>
+            <span class="swipe-hint">
+              <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7 12h10M13 8l4 4-4 4M11 16l-4-4 4-4" />
+              </svg>
+              Coverflow táctil
+            </span>
+          </div>
+
+          <div class="carousel-wrap">
+            <div
+              class="carousel"
+              id="carousel"
+              role="region"
+              aria-roledescription="carrusel"
+              aria-label="Carrusel de Aliados de MasCapitalGroup"
+              tabindex="0"
+            ></div>
+          </div>
+
+          <div class="carousel-controls" aria-label="Controles del carrusel">
+            <div class="control-row">
+              <button class="nav-button" id="previousButton" type="button" aria-label="Aliado anterior">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m15 18-6-6 6-6" />
+                </svg>
+              </button>
+              <div class="control-center">
+                <strong class="position-count" id="positionCount">1 / 7</strong>
+                <button class="play-button" id="playButton" type="button" aria-label="Pausar avance automático"></button>
+              </div>
+              <button class="nav-button" id="nextButton" type="button" aria-label="Aliado siguiente">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <path d="m9 18 6-6-6-6" />
+                </svg>
+              </button>
+            </div>
+            <div class="route-head">
+              <strong>Ruta de aliados</strong>
+              <span id="routeCount">1 de 7</span>
+            </div>
+            <div class="route" id="route" aria-label="Seleccionar aliado"></div>
+            <p class="swipe-copy">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M7 12h10M13 8l4 4-4 4M11 16l-4-4 4-4" />
+              </svg>
+              Desliza las tarjetas con el dedo
+            </p>
+            <div class="auto-progress" aria-hidden="true"><span id="progressFill"></span></div>
+          </div>
+        </section>
+
+        <aside class="info-card">
+          <span class="info-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="currentColor" stroke-width="1.9">
+              <circle cx="12" cy="12" r="9" />
+              <path d="M12 10v6M12 7h.01" />
+            </svg>
+          </span>
+          <div>
+            <strong>Información transparente</strong>
+            <p>Publicaremos los beneficios cuando cada convenio quede formalmente cerrado.</p>
+          </div>
+        </aside>
+
+        <button class="advisor-button" id="advisorButton" type="button">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+            <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
+            <path d="M8.1 7.5c.2-.4.6-.5 1-.3l1.6.8c.4.2.5.6.3 1l-.8 1.3a8.2 8.2 0 0 0 3.5 3.5l1.3-.8c.4-.2.8-.1 1 .3l.8 1.6c.2.4.1.8-.3 1-1 .5-2.1.6-3.2.2-3.2-1-5.4-3.2-6.4-6.4-.4-1.1-.3-2.2.2-3.2Z" />
+          </svg>
+          Consultar por WhatsApp
+        </button>
+      </main>
+
+      <div class="overlay" id="drawerOverlay"></div>
+      <aside class="drawer" id="drawer" aria-label="Menú principal" aria-hidden="true">
+        <div class="drawer-head">
+          <div class="brand">
+            <span class="brand-mark" aria-hidden="true">A</span>
+            <span>AvanceCorp</span>
+          </div>
+          <button class="icon-button" id="closeDrawerButton" type="button" aria-label="Cerrar menú">
+            <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <nav>
+          <a class="drawer-link" href="#">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 11 9-8 9 8" /><path d="M5 10v10h14V10M9 20v-6h6v6" /></svg>
+            Inicio
+          </a>
+          <a class="drawer-link" href="#">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 8h8M8 12h8M8 16h5" /></svg>
+            Mi contrato
+          </a>
+          <a class="drawer-link" href="#">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 19.5V5a2 2 0 0 1 2-2h12v16H6a2 2 0 0 0-2 2Z" /><path d="M8 7h6M8 11h7" /></svg>
+            Documentos
+          </a>
+          <a class="drawer-link active" href="#main" aria-current="page">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 12v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7" /><path d="M2 7h20v5H2zM12 7v14M7.5 7a2.5 2.5 0 1 1 4.5-1.5V7M16.5 7A2.5 2.5 0 1 0 12 5.5V7" /></svg>
+            Beneficios
+          </a>
+          <a class="drawer-link" href="#">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 21a8 8 0 0 1 16 0" /></svg>
+            Mi perfil
+          </a>
+        </nav>
+      </aside>
+
+      <div class="sheet-layer" id="sheetLayer" aria-hidden="true">
+        <div class="sheet-backdrop" id="sheetBackdrop"></div>
+        <section class="detail-sheet" role="dialog" aria-modal="true" aria-labelledby="sheetName">
+          <div class="sheet-handle" aria-hidden="true"></div>
+          <div class="sheet-head">
+            <div class="sheet-logo"><img id="sheetImage" src="./logos/phoenix.png" alt="" /></div>
+            <div>
+              <p class="sheet-kicker" id="sheetCategory">Educación · Aliado</p>
+              <h2 id="sheetName">Phoenix</h2>
+            </div>
+            <button class="icon-button" id="closeSheetButton" type="button" aria-label="Cerrar detalles">
+              <svg viewBox="0 0 24 24" width="21" height="21" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true">
+                <path d="m6 6 12 12M18 6 6 18" />
+              </svg>
+            </button>
+          </div>
+          <div class="sheet-body">
+            <h3 id="sheetType">Academia de trading</h3>
+            <p>Este aliado forma parte de la red que MasCapitalGroup está preparando para sus clientes.</p>
+            <div class="status-route" aria-label="Estado del convenio">
+              <span class="status-step active">Negociación</span>
+              <span class="status-step">Firma</span>
+              <span class="status-step">Publicado</span>
+            </div>
+            <div class="honesty-note">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.9" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 10v6M12 7h.01" />
+              </svg>
+              <span><strong>Convenio en negociación</strong>Los beneficios y condiciones definitivas todavía no han sido publicados.</span>
+            </div>
+            <button class="sheet-advisor" id="sheetAdvisorButton" type="button">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <path d="M20 11.5a8 8 0 0 1-11.8 7L4 20l1.5-4.1A8 8 0 1 1 20 11.5Z" />
+                <path d="M8.1 7.5c.2-.4.6-.5 1-.3l1.6.8c.4.2.5.6.3 1l-.8 1.3a8.2 8.2 0 0 0 3.5 3.5l1.3-.8c.4-.2.8-.1 1 .3l.8 1.6c.2.4.1.8-.3 1-1 .5-2.1.6-3.2.2-3.2-1-5.4-3.2-6.4-6.4-.4-1.1-.3-2.2.2-3.2Z" />
+              </svg>
+              Consultar por WhatsApp
+            </button>
+          </div>
+        </section>
+      </div>
+
+      <div class="toast" id="toast" role="status" aria-live="polite">
+        <svg viewBox="0 0 24 24" width="19" height="19" fill="none" stroke="#efd28d" stroke-width="2" aria-hidden="true">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M12 8v5M12 16h.01" />
+        </svg>
+        <span>En la PWA conectada, este botón abrirá WhatsApp con tu asesor.</span>
+      </div>
+    </div>
+
+    <script>
+      const PARTNERS = [
+        { name: "Phoenix", image: "./logos/phoenix.png", category: "Educación", key: "educacion", type: "Academia de trading", brand: "#e45b2b" },
+        { name: "Belysh", image: "./logos/belysh.png", category: "Bienestar", key: "bienestar", type: "Belleza y bienestar", brand: "#9c7568" },
+        { name: "NTC Agency", image: "./logos/ntc-agency.png", category: "Negocio", key: "negocio", type: "Marketing y branding", brand: "#86257d" },
+        { name: "Cooperativa Qorilazo", image: "./logos/qorilazo.png", category: "Finanzas", key: "finanzas", type: "Cooperativa de ahorro y crédito", brand: "#16634a" },
+        { name: "MásCapital", image: "./logos/mascapital.png", category: "Finanzas", key: "finanzas", type: "Servicios financieros", brand: "#20a9da" },
+        { name: "Clínica Álvarez", image: "./logos/clinica-alvarez.png", category: "Bienestar", key: "bienestar", type: "Salud y bienestar", brand: "#a63177" },
+        { name: "Prodelco", image: "./logos/prodelco.png", category: "Finanzas", key: "finanzas", type: "Cooperativa de ahorro y crédito", brand: "#1f70b5" }
+      ];
+
+      const CATEGORIES = [
+        { key: "all", label: "Todos" },
+        { key: "bienestar", label: "Bienestar" },
+        { key: "educacion", label: "Educación" },
+        { key: "finanzas", label: "Finanzas" },
+        { key: "negocio", label: "Negocio" }
+      ];
+
+      const state = {
+        category: "all",
+        index: 0,
+        playing: true,
+        autoTimer: 0,
+        scrollTimer: 0,
+        toastTimer: 0,
+        lastFocus: null
+      };
+
+      const carousel = document.querySelector("#carousel");
+      const filters = document.querySelector("#filters");
+      const route = document.querySelector("#route");
+      const activePartnerName = document.querySelector("#activePartnerName");
+      const activePartnerMeta = document.querySelector("#activePartnerMeta");
+      const positionCount = document.querySelector("#positionCount");
+      const routeCount = document.querySelector("#routeCount");
+      const playButton = document.querySelector("#playButton");
+      const progressFill = document.querySelector("#progressFill");
+      const drawer = document.querySelector("#drawer");
+      const drawerOverlay = document.querySelector("#drawerOverlay");
+      const sheetLayer = document.querySelector("#sheetLayer");
+      const toast = document.querySelector("#toast");
+      const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)");
+
+      const pauseIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><path d="M9 7v10M15 7v10" /></svg>';
+      const playIcon = '<svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="m9 7 9 5-9 5z" /></svg>';
+
+      function visiblePartners() {
+        return state.category === "all"
+          ? PARTNERS
+          : PARTNERS.filter((partner) => partner.key === state.category);
+      }
+
+      function renderFilters() {
+        filters.innerHTML = CATEGORIES.map(
+          (category) =>
+            `<button class="filter-chip" type="button" data-category="${category.key}" aria-pressed="${category.key === state.category}">${category.label}</button>`
+        ).join("");
+
+        filters.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => {
+            state.category = button.dataset.category;
+            state.index = 0;
+            renderFilters();
+            renderCarousel();
+          });
+        });
+      }
+
+      function renderCarousel() {
+        const partners = visiblePartners();
+        carousel.innerHTML = partners
+          .map(
+            (partner, index) => `
+              <article
+                class="partner-card"
+                data-index="${index}"
+                style="--partner:${partner.brand}"
+                role="group"
+                aria-roledescription="diapositiva"
+                aria-label="${index + 1} de ${partners.length}: ${partner.name}"
+                aria-current="${index === state.index}"
+              >
+                <div class="card-top">
+                  <span class="card-index">Red · ${String(index + 1).padStart(2, "0")}</span>
+                  <span class="card-category">${partner.category}</span>
+                </div>
+                <div class="logo-stage">
+                  <img src="${partner.image}" alt="Logo de ${partner.name}" draggable="false" />
+                </div>
+                <p class="card-kicker">Aliado de MasCapitalGroup</p>
+                <h2>${partner.name}</h2>
+                <p class="card-type">${partner.type}</p>
+                <span class="status-pill"><span class="status-dot"></span>Convenio en negociación</span>
+                <button class="card-action" type="button" data-details="${index}" aria-label="Ver estado de ${partner.name}">
+                  <span>Ver estado del convenio</span><span class="action-arrow" aria-hidden="true">→</span>
+                </button>
+              </article>`
+          )
+          .join("");
+
+        carousel.querySelectorAll("[data-details]").forEach((button) => {
+          button.addEventListener("click", () => openSheet(partners[Number(button.dataset.details)]));
+        });
+
+        carousel.scrollLeft = 0;
+        renderRoute();
+        updateSelection();
+        armAuto();
+      }
+
+      function renderRoute() {
+        const partners = visiblePartners();
+        route.innerHTML = partners
+          .map(
+            (partner, index) =>
+              `<button class="route-button" type="button" data-route="${index}" aria-label="Ver ${partner.name}" aria-current="${index === state.index}"><span></span></button>`
+          )
+          .join("");
+
+        route.querySelectorAll("button").forEach((button) => {
+          button.addEventListener("click", () => goTo(Number(button.dataset.route), true));
+        });
+      }
+
+      function updateSelection() {
+        const partners = visiblePartners();
+        const cards = [...carousel.querySelectorAll(".partner-card")];
+        state.index = Math.max(0, Math.min(state.index, partners.length - 1));
+        const active = partners[state.index];
+
+        cards.forEach((card, index) => {
+          card.setAttribute("aria-current", String(index === state.index));
+          card.dataset.side = index < state.index ? "before" : "after";
+        });
+
+        route.querySelectorAll("button").forEach((button, index) => {
+          button.setAttribute("aria-current", String(index === state.index));
+          button.dataset.passed = String(index < state.index);
+        });
+
+        activePartnerName.textContent = active.name;
+        activePartnerMeta.textContent = `Aliado ${state.index + 1} de ${partners.length}`;
+        positionCount.textContent = `${state.index + 1} / ${partners.length}`;
+        routeCount.textContent = `${state.index + 1} de ${partners.length}`;
+        updatePlayButton();
+      }
+
+      function goTo(requestedIndex, smooth = true) {
+        const partners = visiblePartners();
+        const nextIndex = ((requestedIndex % partners.length) + partners.length) % partners.length;
+        state.index = nextIndex;
+        updateSelection();
+        const card = carousel.querySelector(`[data-index="${nextIndex}"]`);
+        if (card) {
+          const leftPadding = parseFloat(getComputedStyle(carousel).paddingLeft) || 0;
+          carousel.scrollTo({
+            left: card.offsetLeft - leftPadding,
+            behavior: smooth && !reduceMotion.matches ? "smooth" : "auto"
+          });
+        }
+        armAuto();
+      }
+
+      function restartProgress() {
+        progressFill.classList.remove("running");
+        void progressFill.offsetWidth;
+        if (state.playing) progressFill.classList.add("running");
+      }
+
+      function clearAuto() {
+        window.clearTimeout(state.autoTimer);
+        state.autoTimer = 0;
+        progressFill.classList.remove("running");
+      }
+
+      function armAuto() {
+        clearAuto();
+        updatePlayButton();
+        if (!state.playing || sheetLayer.classList.contains("open") || drawer.classList.contains("open")) return;
+        restartProgress();
+        state.autoTimer = window.setTimeout(() => goTo(state.index + 1, true), 6500);
+      }
+
+      function updatePlayButton() {
+        playButton.innerHTML = state.playing ? pauseIcon : playIcon;
+        playButton.setAttribute(
+          "aria-label",
+          state.playing ? "Pausar avance automático" : "Reanudar avance automático"
+        );
+      }
+
+      function openDrawer() {
+        clearAuto();
+        drawerOverlay.classList.add("open");
+        drawer.classList.add("open");
+        drawer.setAttribute("aria-hidden", "false");
+        document.querySelector("#closeDrawerButton").focus();
+      }
+
+      function closeDrawer() {
+        drawerOverlay.classList.remove("open");
+        drawer.classList.remove("open");
+        drawer.setAttribute("aria-hidden", "true");
+        document.querySelector("#menuButton").focus();
+        armAuto();
+      }
+
+      function openSheet(partner) {
+        state.lastFocus = document.activeElement;
+        clearAuto();
+        document.querySelector("#sheetImage").src = partner.image;
+        document.querySelector("#sheetImage").alt = `Logo de ${partner.name}`;
+        document.querySelector("#sheetCategory").textContent = `${partner.category} · Aliado de MasCapitalGroup`;
+        document.querySelector("#sheetName").textContent = partner.name;
+        document.querySelector("#sheetType").textContent = partner.type;
+        sheetLayer.classList.add("open");
+        sheetLayer.setAttribute("aria-hidden", "false");
+        window.setTimeout(() => document.querySelector("#closeSheetButton").focus(), 100);
+      }
+
+      function closeSheet() {
+        sheetLayer.classList.remove("open");
+        sheetLayer.setAttribute("aria-hidden", "true");
+        if (state.lastFocus instanceof HTMLElement) state.lastFocus.focus();
+        armAuto();
+      }
+
+      function showAdvisorToast() {
+        window.clearTimeout(state.toastTimer);
+        toast.classList.add("show");
+        state.toastTimer = window.setTimeout(() => toast.classList.remove("show"), 3200);
+      }
+
+      carousel.addEventListener("scroll", () => {
+        window.clearTimeout(state.scrollTimer);
+        state.scrollTimer = window.setTimeout(() => {
+          const cards = [...carousel.querySelectorAll(".partner-card")];
+          const leftPadding = parseFloat(getComputedStyle(carousel).paddingLeft) || 0;
+          const snapPosition = carousel.scrollLeft + leftPadding;
+          let bestIndex = 0;
+          let bestDistance = Infinity;
+          cards.forEach((card, index) => {
+            const distance = Math.abs(card.offsetLeft - snapPosition);
+            if (distance < bestDistance) {
+              bestDistance = distance;
+              bestIndex = index;
+            }
+          });
+          if (bestIndex !== state.index) {
+            state.index = bestIndex;
+            updateSelection();
+          }
+          armAuto();
+        }, 100);
+      });
+
+      carousel.addEventListener("pointerdown", clearAuto);
+      carousel.addEventListener("pointerup", armAuto);
+      carousel.addEventListener("pointercancel", armAuto);
+      carousel.addEventListener("keydown", (event) => {
+        if (event.key === "ArrowLeft") {
+          event.preventDefault();
+          goTo(state.index - 1, true);
+        } else if (event.key === "ArrowRight") {
+          event.preventDefault();
+          goTo(state.index + 1, true);
+        }
+      });
+
+      document.querySelector("#previousButton").addEventListener("click", () => goTo(state.index - 1, true));
+      document.querySelector("#nextButton").addEventListener("click", () => goTo(state.index + 1, true));
+      playButton.addEventListener("click", () => {
+        state.playing = !state.playing;
+        armAuto();
+      });
+      document.querySelector("#menuButton").addEventListener("click", openDrawer);
+      document.querySelector("#closeDrawerButton").addEventListener("click", closeDrawer);
+      drawerOverlay.addEventListener("click", closeDrawer);
+      document.querySelectorAll(".drawer-link").forEach((link) => {
+        link.addEventListener("click", (event) => {
+          event.preventDefault();
+          closeDrawer();
+        });
+      });
+      document.querySelector("#closeSheetButton").addEventListener("click", closeSheet);
+      document.querySelector("#sheetBackdrop").addEventListener("click", closeSheet);
+      document.querySelector("#advisorButton").addEventListener("click", showAdvisorToast);
+      document.querySelector("#sheetAdvisorButton").addEventListener("click", showAdvisorToast);
+
+      document.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        if (sheetLayer.classList.contains("open")) closeSheet();
+        else if (drawer.classList.contains("open")) closeDrawer();
+      });
+
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) clearAuto();
+        else armAuto();
+      });
+
+      renderFilters();
+      renderCarousel();
+    </script>
+  </body>
+</html>

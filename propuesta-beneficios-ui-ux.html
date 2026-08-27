@@ -1,0 +1,1525 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0d1b38">
+  <title>Propuestas UI/UX · Beneficios AvanceCorp</title>
+  <meta name="description" content="Tres propuestas navegables para mejorar el apartado de Beneficios del portal AvanceCorp.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500;600&amp;family=Plus+Jakarta+Sans:wght@400;500;600;700;800&amp;family=Sora:wght@500;600;700&amp;display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --navy-950: #08152f;
+      --navy-900: #0d1b38;
+      --navy-800: #14294f;
+      --navy-700: #224170;
+      --gold-600: #ad791d;
+      --gold-500: #c8922a;
+      --gold-300: #e8c97f;
+      --paper: #f3f6fa;
+      --surface: #ffffff;
+      --ink: #111d35;
+      --body: #58657c;
+      --muted: #7a879e;
+      --line: #dfe5ed;
+      --line-soft: #edf1f6;
+      --success: #0f7868;
+      --success-bg: #e9f6f2;
+      --warning: #916310;
+      --warning-bg: #fff5db;
+      --focus: #2a6fdb;
+      --radius-sm: 10px;
+      --radius-md: 16px;
+      --radius-lg: 24px;
+      --shadow-sm: 0 1px 2px rgba(8, 21, 47, .05), 0 8px 24px rgba(8, 21, 47, .06);
+      --shadow-md: 0 24px 64px rgba(8, 21, 47, .14);
+      --font-display: "Sora", "Avenir Next", system-ui, sans-serif;
+      --font-body: "Plus Jakarta Sans", system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --font-utility: "IBM Plex Mono", ui-monospace, monospace;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+
+    html {
+      scroll-behavior: smooth;
+      color-scheme: light;
+    }
+
+    body {
+      min-width: 320px;
+      margin: 0;
+      color: var(--ink);
+      background: #dce3ec;
+      font-family: var(--font-body);
+      -webkit-font-smoothing: antialiased;
+    }
+
+    button, input, a { font: inherit; }
+    button, a { -webkit-tap-highlight-color: transparent; }
+    button { color: inherit; }
+    img { display: block; max-width: 100%; }
+    [hidden] { display: none !important; }
+
+    :focus-visible {
+      outline: 3px solid var(--focus);
+      outline-offset: 3px;
+    }
+
+    .skip-link {
+      position: fixed;
+      z-index: 100;
+      top: 8px;
+      left: 8px;
+      padding: 10px 14px;
+      color: #fff;
+      background: var(--navy-950);
+      border-radius: 8px;
+      transform: translateY(-160%);
+    }
+
+    .skip-link:focus { transform: translateY(0); }
+
+    /* ---------- Barra del documento de propuestas ---------- */
+    .review-bar {
+      position: sticky;
+      z-index: 40;
+      top: 0;
+      display: grid;
+      grid-template-columns: minmax(220px, .8fr) minmax(420px, 1.5fr) minmax(220px, .8fr);
+      align-items: center;
+      gap: 20px;
+      min-height: 78px;
+      padding: 12px clamp(18px, 4vw, 56px);
+      color: #fff;
+      background: rgba(8, 21, 47, .96);
+      border-bottom: 1px solid rgba(255, 255, 255, .12);
+      box-shadow: 0 12px 32px rgba(8, 21, 47, .2);
+      backdrop-filter: blur(16px);
+    }
+
+    .review-title {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      min-width: 0;
+    }
+
+    .review-mark {
+      display: grid;
+      width: 42px;
+      height: 42px;
+      flex: 0 0 42px;
+      place-items: center;
+      color: var(--navy-950);
+      background: var(--gold-300);
+      border-radius: 12px;
+      font-family: var(--font-display);
+      font-size: 13px;
+      font-weight: 700;
+    }
+
+    .review-title strong,
+    .review-title span { display: block; }
+    .review-title strong { font-size: 13px; letter-spacing: -.01em; }
+    .review-title span { margin-top: 2px; color: #9eacc3; font-size: 11px; }
+
+    .proposal-switcher {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 6px;
+      padding: 5px;
+      background: rgba(255, 255, 255, .07);
+      border: 1px solid rgba(255, 255, 255, .08);
+      border-radius: 14px;
+    }
+
+    .proposal-tab {
+      min-height: 48px;
+      padding: 8px 12px;
+      color: #b7c1d2;
+      background: transparent;
+      border: 0;
+      border-radius: 10px;
+      cursor: pointer;
+      line-height: 1.15;
+      transition: color .2s ease, background .2s ease, transform .2s ease;
+    }
+
+    .proposal-tab:hover { color: #fff; background: rgba(255, 255, 255, .06); }
+    .proposal-tab:active { transform: scale(.98); }
+    .proposal-tab[aria-selected="true"] {
+      color: var(--navy-950);
+      background: #fff;
+      box-shadow: 0 7px 20px rgba(0, 0, 0, .18);
+    }
+    .proposal-tab small {
+      display: block;
+      margin-bottom: 3px;
+      font-family: var(--font-utility);
+      font-size: 8px;
+      font-weight: 600;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      opacity: .75;
+    }
+    .proposal-tab span { font-size: 12px; font-weight: 700; }
+
+    .review-note { justify-self: end; max-width: 300px; text-align: right; }
+    .review-note strong,
+    .review-note span { display: block; }
+    .review-note strong {
+      color: var(--gold-300);
+      font-family: var(--font-utility);
+      font-size: 9px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+    }
+    .review-note span { margin-top: 4px; color: #c6cede; font-size: 11px; line-height: 1.45; }
+
+    /* ---------- Marco compartido del portal ---------- */
+    .proposal-page { display: none; min-height: calc(100vh - 78px); }
+    .proposal-page.is-active { display: block; animation: proposalIn .45s cubic-bezier(.22, 1, .36, 1) both; }
+
+    @keyframes proposalIn {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+
+    .portal-shell { min-height: calc(100vh - 78px); }
+
+    .portal-nav {
+      position: relative;
+      z-index: 4;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 32px;
+      min-height: 74px;
+      padding: 12px clamp(20px, 5vw, 72px);
+      border-bottom: 1px solid var(--line);
+    }
+
+    .portal-brand {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      color: inherit;
+      text-decoration: none;
+      font-family: var(--font-display);
+      font-size: 15px;
+      font-weight: 700;
+    }
+
+    .portal-brand img { width: 36px; height: 36px; object-fit: contain; }
+
+    .portal-links {
+      display: flex;
+      align-items: center;
+      gap: clamp(16px, 2.4vw, 34px);
+      margin-left: auto;
+    }
+
+    .portal-links a {
+      position: relative;
+      padding: 10px 0;
+      color: inherit;
+      text-decoration: none;
+      font-size: 12px;
+      font-weight: 600;
+      opacity: .62;
+    }
+    .portal-links a[aria-current="page"] { opacity: 1; }
+    .portal-links a[aria-current="page"]::after {
+      content: "";
+      position: absolute;
+      right: 0;
+      bottom: 1px;
+      left: 0;
+      height: 2px;
+      background: var(--gold-500);
+    }
+
+    .portal-avatar {
+      display: inline-flex;
+      align-items: center;
+      gap: 9px;
+      min-height: 44px;
+      padding: 5px 12px 5px 5px;
+      border: 1px solid currentColor;
+      border-radius: 99px;
+      font-size: 11px;
+      font-weight: 700;
+      opacity: .82;
+    }
+    .portal-avatar::before {
+      content: "AC";
+      display: grid;
+      width: 32px;
+      height: 32px;
+      place-items: center;
+      color: #fff;
+      background: var(--navy-800);
+      border-radius: 50%;
+      font-size: 9px;
+    }
+
+    .prototype-notice {
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+      margin-top: 24px;
+      padding: 13px 15px;
+      color: #624817;
+      background: var(--warning-bg);
+      border: 1px solid #ecd99f;
+      border-radius: 12px;
+      font-size: 12px;
+      line-height: 1.5;
+    }
+    .prototype-notice svg { width: 18px; height: 18px; flex: 0 0 18px; margin-top: 1px; }
+
+    .status-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 26px;
+      padding: 4px 9px;
+      color: var(--warning);
+      background: var(--warning-bg);
+      border: 1px solid #ecd99f;
+      border-radius: 999px;
+      font-size: 9px;
+      font-weight: 800;
+      letter-spacing: .06em;
+      line-height: 1;
+      text-transform: uppercase;
+    }
+    .status-chip::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      flex: 0 0 6px;
+      background: currentColor;
+      border-radius: 50%;
+    }
+
+    .primary-action,
+    .secondary-action {
+      display: inline-flex;
+      min-height: 46px;
+      align-items: center;
+      justify-content: center;
+      gap: 9px;
+      padding: 11px 18px;
+      border-radius: 11px;
+      border: 1px solid transparent;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      text-decoration: none;
+      transition: transform .18s ease, box-shadow .18s ease, background .18s ease;
+    }
+    .primary-action:hover,
+    .secondary-action:hover { transform: translateY(-2px); }
+    .primary-action:active,
+    .secondary-action:active { transform: scale(.98); }
+    .primary-action { color: #fff; background: var(--navy-900); box-shadow: 0 10px 24px rgba(8, 21, 47, .18); }
+    .secondary-action { color: var(--navy-900); background: #fff; border-color: var(--line); }
+    .primary-action svg,
+    .secondary-action svg { width: 16px; height: 16px; }
+
+    /* ==========================================================
+       PROPUESTA 1 · POR NECESIDAD
+       ========================================================== */
+    .p1-shell { background: var(--paper); }
+    .p1-shell .portal-nav { color: var(--navy-900); background: rgba(255, 255, 255, .92); }
+
+    .p1-main { padding: 0 clamp(20px, 5vw, 72px) 72px; }
+
+    .p1-hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1.02fr) minmax(440px, .98fr);
+      gap: clamp(36px, 6vw, 90px);
+      align-items: center;
+      max-width: 1380px;
+      min-height: 455px;
+      margin: 0 auto;
+      padding: 54px 0 42px;
+    }
+
+    .eyebrow {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      margin-bottom: 16px;
+      color: var(--gold-600);
+      font-family: var(--font-utility);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+    }
+    .eyebrow::before { content: ""; width: 28px; height: 1px; background: currentColor; }
+
+    .p1-copy h1 {
+      max-width: 720px;
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(38px, 5.1vw, 70px);
+      font-weight: 600;
+      letter-spacing: -.055em;
+      line-height: 1.02;
+    }
+    .p1-copy h1 em { color: var(--gold-600); font-style: normal; }
+    .p1-copy > p {
+      max-width: 580px;
+      margin: 22px 0 0;
+      color: var(--body);
+      font-size: 15px;
+      line-height: 1.75;
+    }
+
+    .need-panel {
+      position: relative;
+      padding: 24px;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-md);
+    }
+    .need-panel::before {
+      content: "";
+      position: absolute;
+      inset: 8px -8px -8px 8px;
+      z-index: -1;
+      border: 1px solid rgba(200, 146, 42, .32);
+      border-radius: inherit;
+    }
+    .need-panel h2 { margin: 0; font-family: var(--font-display); font-size: 18px; }
+    .need-panel > p { margin: 7px 0 20px; color: var(--body); font-size: 12px; }
+
+    .need-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .need-button {
+      position: relative;
+      display: flex;
+      min-height: 104px;
+      align-items: flex-end;
+      padding: 16px;
+      overflow: hidden;
+      color: var(--ink);
+      text-align: left;
+      background: #f7f9fc;
+      border: 1px solid var(--line-soft);
+      border-radius: 14px;
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 800;
+      line-height: 1.35;
+      transition: transform .18s ease, border-color .18s ease, background .18s ease;
+    }
+    .need-button::after {
+      content: attr(data-symbol);
+      position: absolute;
+      top: 9px;
+      right: 12px;
+      color: var(--gold-500);
+      font-family: var(--font-display);
+      font-size: 25px;
+      font-weight: 500;
+      opacity: .72;
+    }
+    .need-button:hover { transform: translateY(-2px); border-color: #cbd5e3; background: #fff; }
+    .need-button[aria-pressed="true"] {
+      color: #fff;
+      background: var(--navy-900);
+      border-color: var(--navy-900);
+      box-shadow: 0 10px 24px rgba(8, 21, 47, .15);
+    }
+    .need-button[aria-pressed="true"]::after { color: var(--gold-300); }
+
+    .p1-results { max-width: 1380px; margin: 0 auto; padding-top: 24px; border-top: 1px solid #d6dde7; }
+    .results-head {
+      display: grid;
+      grid-template-columns: 1fr minmax(240px, 340px);
+      gap: 24px;
+      align-items: end;
+      margin-bottom: 22px;
+    }
+    .results-head h2 { margin: 0; font-family: var(--font-display); font-size: clamp(23px, 2.6vw, 34px); letter-spacing: -.035em; }
+    .results-head p { margin: 7px 0 0; color: var(--body); font-size: 12px; }
+
+    .search-field { position: relative; }
+    .search-field svg {
+      position: absolute;
+      top: 50%;
+      left: 14px;
+      width: 17px;
+      height: 17px;
+      color: var(--muted);
+      transform: translateY(-50%);
+      pointer-events: none;
+    }
+    .search-field input {
+      width: 100%;
+      min-height: 46px;
+      padding: 11px 15px 11px 42px;
+      color: var(--ink);
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: 11px;
+      font-size: 12px;
+    }
+    .search-field input::placeholder { color: #8b96a9; }
+
+    .partner-grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; }
+    .partner-card {
+      position: relative;
+      display: flex;
+      min-height: 270px;
+      flex-direction: column;
+      padding: 18px;
+      overflow: hidden;
+      background: #fff;
+      border: 1px solid var(--line);
+      border-radius: var(--radius-md);
+      box-shadow: var(--shadow-sm);
+      transition: transform .2s ease, box-shadow .2s ease, border-color .2s ease;
+    }
+    .partner-card::before { content: ""; position: absolute; inset: 0 0 auto; height: 3px; background: var(--brand, var(--gold-500)); }
+    .partner-card:hover { transform: translateY(-4px); border-color: #cfd8e5; box-shadow: 0 18px 36px rgba(8, 21, 47, .1); }
+    .partner-logo {
+      display: grid;
+      min-height: 124px;
+      flex: 1;
+      place-items: center;
+      margin-bottom: 14px;
+      padding: 8px;
+      background: #fff;
+      border-radius: 11px;
+    }
+    .partner-logo img { width: 100%; max-width: 170px; max-height: 104px; object-fit: contain; }
+    .partner-category { margin: 0 0 5px; color: var(--body); font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
+    .partner-name { margin: 0 0 13px; font-family: var(--font-display); font-size: 15px; line-height: 1.25; }
+    .partner-card .status-chip { margin-top: auto; align-self: flex-start; }
+    .card-action {
+      display: inline-flex;
+      min-height: 44px;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      width: 100%;
+      margin-top: 13px;
+      padding: 9px 12px;
+      color: var(--navy-800);
+      background: #f6f8fb;
+      border: 0;
+      border-radius: 9px;
+      cursor: pointer;
+      font-size: 11px;
+      font-weight: 800;
+    }
+    .card-action:hover { background: #edf2f8; }
+    .empty-state {
+      grid-column: 1 / -1;
+      padding: 42px;
+      color: var(--body);
+      text-align: center;
+      background: #fff;
+      border: 1px dashed #bfc9d8;
+      border-radius: var(--radius-md);
+    }
+    .empty-state strong { display: block; margin-bottom: 6px; color: var(--ink); }
+
+    /* ==========================================================
+       PROPUESTA 2 · RADAR DE ALIADOS
+       ========================================================== */
+    .p2-shell {
+      min-height: calc(100vh - 78px);
+      color: #fff;
+      background:
+        linear-gradient(rgba(255, 255, 255, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(255, 255, 255, .025) 1px, transparent 1px),
+        var(--navy-950);
+      background-size: 48px 48px;
+    }
+    .p2-shell .portal-nav { color: #fff; background: rgba(8, 21, 47, .72); border-color: rgba(255, 255, 255, .1); }
+    .p2-shell .portal-avatar::before { color: var(--navy-950); background: var(--gold-300); }
+
+    .p2-main {
+      position: relative;
+      max-width: 1480px;
+      min-height: 760px;
+      margin: 0 auto;
+      padding: 44px clamp(20px, 5vw, 72px) 80px;
+      overflow: hidden;
+    }
+    .p2-main::before {
+      content: "";
+      position: absolute;
+      top: 8%;
+      right: -12%;
+      width: 620px;
+      height: 620px;
+      border: 1px solid rgba(232, 201, 127, .1);
+      border-radius: 50%;
+      box-shadow: 0 0 0 90px rgba(232, 201, 127, .018), 0 0 0 180px rgba(232, 201, 127, .012);
+      pointer-events: none;
+    }
+
+    .p2-intro { position: relative; z-index: 2; max-width: 680px; }
+    .p2-intro .eyebrow { color: var(--gold-300); }
+    .p2-intro h1 {
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(44px, 6vw, 82px);
+      font-weight: 500;
+      letter-spacing: -.06em;
+      line-height: .98;
+    }
+    .p2-intro h1 span { color: var(--gold-300); }
+    .p2-intro > p { max-width: 570px; margin: 20px 0 0; color: #b5c0d4; font-size: 14px; line-height: 1.75; }
+
+    .radar-layout {
+      position: relative;
+      z-index: 2;
+      display: grid;
+      grid-template-columns: minmax(280px, .72fr) minmax(570px, 1.28fr);
+      gap: clamp(30px, 5vw, 84px);
+      align-items: center;
+      margin-top: 18px;
+    }
+
+    .radar-detail {
+      align-self: center;
+      padding: 24px 0;
+      border-top: 1px solid rgba(255, 255, 255, .14);
+      border-bottom: 1px solid rgba(255, 255, 255, .14);
+    }
+    .radar-detail-label { margin-bottom: 13px; color: var(--gold-300); font-family: var(--font-utility); font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+    .radar-detail-logo {
+      display: grid;
+      width: 180px;
+      height: 90px;
+      place-items: center;
+      margin-bottom: 18px;
+      padding: 10px;
+      background: #fff;
+      border-radius: 12px;
+    }
+    .radar-detail-logo img { max-width: 150px; max-height: 70px; object-fit: contain; }
+    .radar-detail h2 { margin: 0; font-family: var(--font-display); font-size: 28px; letter-spacing: -.035em; }
+    .radar-detail-type { margin: 7px 0 0; color: #c2cbda; font-size: 12px; }
+    .radar-detail-copy { margin: 18px 0 20px; color: #9eabc1; font-size: 12px; line-height: 1.7; }
+    .p2-shell .status-chip { color: #f0cf83; background: rgba(200, 146, 42, .12); border-color: rgba(232, 201, 127, .26); }
+    .p2-shell .primary-action { color: var(--navy-950); background: var(--gold-300); box-shadow: none; }
+
+    .radar {
+      position: relative;
+      width: min(100%, 680px);
+      aspect-ratio: 1;
+      justify-self: end;
+      isolation: isolate;
+    }
+    #orbitNodes { display: contents; }
+    .radar-ring,
+    .radar-ring::before,
+    .radar-ring::after {
+      position: absolute;
+      inset: 50%;
+      border: 1px solid rgba(232, 201, 127, .22);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      content: "";
+    }
+    .radar-ring { width: 74%; height: 74%; }
+    .radar-ring::before { width: 68%; height: 68%; border-style: dashed; }
+    .radar-ring::after { width: 28%; height: 28%; border-color: rgba(232, 201, 127, .42); }
+    .radar-axis { position: absolute; inset: 50% auto auto 50%; width: 1px; height: 72%; background: linear-gradient(transparent, rgba(232, 201, 127, .14), transparent); transform: translate(-50%, -50%); }
+    .radar-axis.is-horizontal { transform: translate(-50%, -50%) rotate(90deg); }
+    .radar-core {
+      position: absolute;
+      z-index: 2;
+      top: 50%;
+      left: 50%;
+      display: grid;
+      width: 134px;
+      height: 134px;
+      place-items: center;
+      color: var(--navy-950);
+      text-align: center;
+      background: var(--gold-300);
+      border: 10px solid rgba(8, 21, 47, .96);
+      border-radius: 50%;
+      box-shadow: 0 0 0 1px var(--gold-300), 0 0 48px rgba(232, 201, 127, .18);
+      transform: translate(-50%, -50%);
+      font-family: var(--font-display);
+      font-size: 12px;
+      font-weight: 700;
+      line-height: 1.25;
+    }
+    .orbit-node {
+      position: absolute;
+      z-index: 3;
+      top: var(--y);
+      left: var(--x);
+      display: grid;
+      width: 100px;
+      height: 100px;
+      place-items: center;
+      padding: 12px;
+      overflow: hidden;
+      background: #fff;
+      border: 3px solid transparent;
+      border-radius: 24px;
+      box-shadow: 0 12px 32px rgba(0, 0, 0, .25);
+      transform: translate(-50%, -50%);
+      cursor: pointer;
+      transition: transform .22s ease, border-color .22s ease, box-shadow .22s ease;
+    }
+    .orbit-node::after {
+      content: "";
+      position: absolute;
+      inset: auto 12px 8px;
+      height: 3px;
+      background: var(--brand);
+      border-radius: 4px;
+      opacity: .72;
+    }
+    .orbit-node img { max-width: 78px; max-height: 65px; object-fit: contain; }
+    .orbit-node:hover { transform: translate(-50%, -50%) scale(1.06); }
+    .orbit-node[aria-pressed="true"] {
+      border-color: var(--gold-300);
+      box-shadow: 0 0 0 5px rgba(232, 201, 127, .12), 0 18px 42px rgba(0, 0, 0, .36);
+      transform: translate(-50%, -50%) scale(1.08);
+    }
+
+    .radar-legend {
+      display: flex;
+      align-items: center;
+      justify-content: flex-end;
+      gap: 8px;
+      margin-top: -4px;
+      color: #8f9db4;
+      font-family: var(--font-utility);
+      font-size: 9px;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+    }
+    .radar-legend::before { content: ""; width: 28px; border-top: 1px dashed rgba(232, 201, 127, .45); }
+
+    /* ==========================================================
+       PROPUESTA 3 · PASAPORTE AVANCE
+       ========================================================== */
+    .p3-shell { color: var(--ink); background: #edf2f6; }
+    .p3-shell .portal-nav { color: var(--navy-900); background: #edf2f6; border-color: #d7e0e9; }
+
+    .p3-main { max-width: 1440px; margin: 0 auto; padding: 42px clamp(20px, 5vw, 72px) 88px; }
+    .pass-hero {
+      display: grid;
+      grid-template-columns: minmax(0, .88fr) minmax(540px, 1.12fr);
+      gap: clamp(38px, 6vw, 90px);
+      align-items: center;
+    }
+    .pass-copy h1 {
+      max-width: 620px;
+      margin: 0;
+      font-family: var(--font-display);
+      font-size: clamp(42px, 5.5vw, 76px);
+      font-weight: 600;
+      letter-spacing: -.06em;
+      line-height: 1;
+    }
+    .pass-copy h1 span { display: block; color: var(--gold-600); }
+    .pass-copy > p { max-width: 550px; margin: 21px 0 0; color: var(--body); font-size: 14px; line-height: 1.75; }
+    .pass-copy .prototype-notice { max-width: 560px; }
+
+    .pass-card {
+      position: relative;
+      min-height: 330px;
+      padding: 34px 36px;
+      overflow: hidden;
+      color: #fff;
+      background: var(--navy-900);
+      border-radius: 28px;
+      box-shadow: 0 28px 70px rgba(8, 21, 47, .25);
+      isolation: isolate;
+    }
+    .pass-card::before {
+      content: "";
+      position: absolute;
+      inset: -46% -8% auto auto;
+      width: 360px;
+      height: 360px;
+      border: 1px solid rgba(232, 201, 127, .4);
+      border-radius: 50%;
+      box-shadow: 0 0 0 48px rgba(232, 201, 127, .045), 0 0 0 96px rgba(232, 201, 127, .025);
+      z-index: -1;
+    }
+    .pass-card::after {
+      content: "";
+      position: absolute;
+      right: -15px;
+      bottom: 32px;
+      left: -15px;
+      border-top: 1px dashed rgba(255, 255, 255, .25);
+    }
+    .pass-card-head { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .pass-card-head .portal-brand { color: #fff; }
+    .pass-card-label { color: var(--gold-300); font-family: var(--font-utility); font-size: 9px; letter-spacing: .13em; text-transform: uppercase; }
+    .pass-card-title { max-width: 440px; margin: 52px 0 8px; font-family: var(--font-display); font-size: clamp(28px, 3.3vw, 44px); letter-spacing: -.045em; line-height: 1.06; }
+    .pass-card-sub { margin: 0; color: #aeb9cb; font-size: 12px; }
+    .pass-card-foot { position: absolute; right: 36px; bottom: 46px; left: 36px; display: flex; align-items: end; justify-content: space-between; gap: 20px; }
+    .member-id span { display: block; color: #8290a7; font-family: var(--font-utility); font-size: 8px; letter-spacing: .13em; text-transform: uppercase; }
+    .member-id strong { display: block; margin-top: 5px; font-size: 12px; }
+    .pass-seal {
+      display: grid;
+      width: 58px;
+      height: 58px;
+      place-items: center;
+      color: var(--navy-900);
+      background: var(--gold-300);
+      border-radius: 50%;
+      box-shadow: 0 0 0 5px rgba(232, 201, 127, .11);
+      font-family: var(--font-display);
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 1;
+      text-align: center;
+    }
+
+    .pass-board {
+      display: grid;
+      grid-template-columns: minmax(300px, .72fr) minmax(0, 1.28fr);
+      gap: 18px;
+      margin-top: 54px;
+    }
+    .pass-now,
+    .pass-next {
+      background: #fff;
+      border: 1px solid #d9e1ea;
+      border-radius: 20px;
+      box-shadow: var(--shadow-sm);
+    }
+    .pass-now { padding: 26px; }
+    .pass-section-label { color: var(--gold-600); font-family: var(--font-utility); font-size: 9px; font-weight: 600; letter-spacing: .13em; text-transform: uppercase; }
+    .pass-now h2 { margin: 12px 0 9px; font-family: var(--font-display); font-size: 23px; letter-spacing: -.035em; }
+    .pass-now > p { margin: 0 0 22px; color: var(--body); font-size: 12px; line-height: 1.7; }
+    .available-list { display: grid; gap: 10px; margin: 0 0 22px; padding: 0; list-style: none; }
+    .available-list li { display: flex; gap: 10px; align-items: flex-start; color: #344056; font-size: 11px; line-height: 1.5; }
+    .available-list svg { width: 17px; height: 17px; flex: 0 0 17px; color: var(--success); margin-top: 1px; }
+
+    .pass-next { overflow: hidden; }
+    .pass-next-head { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding: 26px 26px 18px; border-bottom: 1px solid var(--line-soft); }
+    .pass-next h2 { margin: 10px 0 0; font-family: var(--font-display); font-size: 23px; letter-spacing: -.035em; }
+    .pass-next-head p { max-width: 270px; margin: 0; color: var(--body); text-align: right; font-size: 11px; line-height: 1.55; }
+    .stamp-track {
+      display: grid;
+      grid-auto-columns: minmax(170px, 1fr);
+      grid-auto-flow: column;
+      gap: 12px;
+      padding: 18px 26px 24px;
+      overflow-x: auto;
+      overscroll-behavior-x: contain;
+      scroll-snap-type: x proximity;
+      scrollbar-width: thin;
+    }
+    .stamp-card {
+      position: relative;
+      min-height: 210px;
+      padding: 12px;
+      background: #f7f9fc;
+      border: 1px dashed #c9d2df;
+      border-radius: 14px;
+      scroll-snap-align: start;
+    }
+    .stamp-card::before,
+    .stamp-card::after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      width: 12px;
+      height: 24px;
+      background: #fff;
+      border: 1px solid #d9e1ea;
+      transform: translateY(-50%);
+    }
+    .stamp-card::before { left: -1px; border-left: 0; border-radius: 0 14px 14px 0; }
+    .stamp-card::after { right: -1px; border-right: 0; border-radius: 14px 0 0 14px; }
+    .stamp-logo { display: grid; height: 112px; place-items: center; padding: 8px; background: #fff; border-radius: 10px; }
+    .stamp-logo img { max-width: 130px; max-height: 92px; object-fit: contain; }
+    .stamp-card h3 { margin: 13px 0 4px; font-family: var(--font-display); font-size: 12px; line-height: 1.25; }
+    .stamp-card p { margin: 0; color: var(--body); font-size: 9px; line-height: 1.4; }
+    .stamp-status { position: absolute; right: 10px; bottom: 10px; color: var(--warning); font-family: var(--font-utility); font-size: 8px; font-weight: 600; letter-spacing: .08em; text-transform: uppercase; }
+
+    /* ---------- Detalle modal y toast ---------- */
+    .detail-dialog {
+      width: min(92vw, 520px);
+      padding: 0;
+      color: var(--ink);
+      background: #fff;
+      border: 0;
+      border-radius: 20px;
+      box-shadow: 0 30px 90px rgba(8, 21, 47, .32);
+    }
+    .detail-dialog::backdrop { background: rgba(8, 21, 47, .64); backdrop-filter: blur(5px); }
+    .dialog-inner { padding: 26px; }
+    .dialog-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 18px; }
+    .dialog-logo { display: grid; width: 150px; height: 84px; place-items: center; padding: 9px; background: #f7f9fc; border: 1px solid var(--line); border-radius: 12px; }
+    .dialog-logo img { max-width: 128px; max-height: 66px; object-fit: contain; }
+    .dialog-close {
+      display: grid;
+      width: 44px;
+      height: 44px;
+      flex: 0 0 44px;
+      place-items: center;
+      color: var(--body);
+      background: #f3f6fa;
+      border: 0;
+      border-radius: 50%;
+      cursor: pointer;
+      font-size: 20px;
+    }
+    .dialog-kicker { margin-top: 22px; color: var(--gold-600); font-family: var(--font-utility); font-size: 9px; letter-spacing: .12em; text-transform: uppercase; }
+    .detail-dialog h2 { margin: 8px 0 8px; font-family: var(--font-display); font-size: 27px; letter-spacing: -.04em; }
+    .detail-dialog p { margin: 0; color: var(--body); font-size: 13px; line-height: 1.7; }
+    .dialog-status { margin: 18px 0 22px; padding: 14px; background: var(--warning-bg); border: 1px solid #ecd99f; border-radius: 11px; }
+    .dialog-status strong { display: block; color: #624817; font-size: 12px; }
+    .dialog-status span { display: block; margin-top: 4px; color: #7b632f; font-size: 11px; line-height: 1.5; }
+    .dialog-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+    .toast {
+      position: fixed;
+      z-index: 80;
+      right: 22px;
+      bottom: 22px;
+      display: flex;
+      align-items: flex-start;
+      gap: 11px;
+      max-width: min(390px, calc(100vw - 32px));
+      padding: 15px 17px;
+      color: #fff;
+      background: var(--navy-900);
+      border: 1px solid rgba(255, 255, 255, .12);
+      border-radius: 13px;
+      box-shadow: 0 18px 46px rgba(8, 21, 47, .3);
+      font-size: 12px;
+      line-height: 1.5;
+      transform: translateY(20px);
+      opacity: 0;
+      pointer-events: none;
+      transition: transform .25s ease, opacity .25s ease;
+    }
+    .toast.is-visible { transform: none; opacity: 1; }
+    .toast svg { width: 18px; height: 18px; flex: 0 0 18px; color: var(--gold-300); }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 1120px) {
+      .review-bar { grid-template-columns: 210px 1fr; }
+      .review-note { display: none; }
+      .p1-hero,
+      .pass-hero { grid-template-columns: 1fr; }
+      .need-panel { max-width: 680px; }
+      .partner-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .radar-layout { grid-template-columns: minmax(240px, .7fr) minmax(500px, 1.3fr); gap: 28px; }
+      .pass-card { max-width: 760px; }
+    }
+
+    @media (max-width: 880px) {
+      .review-bar { position: relative; grid-template-columns: 1fr; gap: 10px; padding: 12px 16px 14px; }
+      .review-title { justify-content: center; }
+      .proposal-switcher { width: 100%; }
+      .proposal-page { min-height: 100vh; }
+      .portal-links { display: none; }
+      .portal-nav { min-height: 66px; padding-inline: 20px; }
+      .p1-main,
+      .p2-main,
+      .p3-main { padding-inline: 20px; }
+      .p1-hero { min-height: 0; padding: 44px 0 38px; }
+      .partner-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .radar-layout { grid-template-columns: 1fr; margin-top: 36px; }
+      .radar-detail { order: 2; }
+      .radar { order: 1; width: min(100%, 620px); justify-self: center; }
+      .radar-legend { justify-content: center; margin-top: 14px; }
+      .pass-board { grid-template-columns: 1fr; }
+      .pass-next-head { align-items: flex-start; flex-direction: column; }
+      .pass-next-head p { max-width: 520px; text-align: left; }
+    }
+
+    @media (max-width: 620px) {
+      .review-title { justify-content: flex-start; }
+      .review-mark { width: 38px; height: 38px; flex-basis: 38px; }
+      .proposal-switcher { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+      .proposal-tab { min-height: 54px; }
+      .proposal-tab { padding-inline: 6px; }
+      .proposal-tab span { font-size: 10.5px; }
+      .portal-avatar { width: 44px; padding: 5px; border: 0; }
+      .portal-avatar span { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); }
+      .p1-copy h1,
+      .p2-intro h1,
+      .pass-copy h1 { font-size: clamp(38px, 12vw, 54px); }
+      .need-panel { padding: 18px; }
+      .need-grid { grid-template-columns: 1fr; }
+      .need-button { min-height: 76px; }
+      .results-head { grid-template-columns: 1fr; }
+      .partner-grid { grid-template-columns: 1fr; }
+      .partner-card { min-height: 246px; }
+      .radar {
+        display: grid;
+        width: 100%;
+        aspect-ratio: auto;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 10px;
+      }
+      .radar-ring,
+      .radar-axis,
+      .radar-core { display: none; }
+      .orbit-node {
+        position: relative;
+        top: auto;
+        left: auto;
+        width: 100%;
+        height: 104px;
+        transform: none;
+        border-radius: 15px;
+      }
+      .orbit-node:hover,
+      .orbit-node[aria-pressed="true"] { transform: translateY(-2px); }
+      .orbit-node[aria-pressed="true"] { box-shadow: 0 0 0 3px rgba(232, 201, 127, .15); }
+      .orbit-node img { max-width: 110px; max-height: 74px; }
+      .pass-card { min-height: 350px; padding: 26px 23px; }
+      .pass-card-title { margin-top: 45px; }
+      .pass-card-foot { right: 23px; bottom: 43px; left: 23px; }
+      .pass-board { margin-top: 28px; }
+      .pass-now,
+      .pass-next-head { padding: 21px; }
+      .stamp-track { padding-inline: 21px; }
+      .dialog-actions { display: grid; }
+      .dialog-actions > * { width: 100%; }
+      .toast { right: 16px; bottom: 16px; left: 16px; }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
+    }
+  </style>
+</head>
+<body>
+  <a class="skip-link" href="#proposals">Saltar a las propuestas</a>
+
+  <header class="review-bar" aria-label="Selector de propuestas">
+    <div class="review-title">
+      <div class="review-mark" aria-hidden="true">UX</div>
+      <div>
+        <strong>Beneficios AvanceCorp</strong>
+        <span>Propuestas navegables · no es producción</span>
+      </div>
+    </div>
+
+    <div class="proposal-switcher" role="tablist" aria-label="Elegir propuesta visual">
+      <button class="proposal-tab" id="tab-p1" type="button" role="tab" aria-selected="true" aria-controls="proposal-p1" data-proposal="p1">
+        <small>Recomendada</small>
+        <span>Por necesidad</span>
+      </button>
+      <button class="proposal-tab" id="tab-p2" type="button" role="tab" aria-selected="false" aria-controls="proposal-p2" data-proposal="p2">
+        <small>Más distintiva</small>
+        <span>Radar de aliados</span>
+      </button>
+      <button class="proposal-tab" id="tab-p3" type="button" role="tab" aria-selected="false" aria-controls="proposal-p3" data-proposal="p3">
+        <small>Más premium</small>
+        <span>Pasaporte Avance</span>
+      </button>
+    </div>
+
+    <div class="review-note" aria-live="polite">
+      <strong id="reviewCriterion">Criterio principal</strong>
+      <span id="reviewDescription">Encontrar un aliado relevante con menos esfuerzo y sin prometer beneficios aún no publicados.</span>
+    </div>
+  </header>
+
+  <main id="proposals">
+    <!-- ========================================================
+         PROPUESTA 1
+         ======================================================== -->
+    <section class="proposal-page is-active" id="proposal-p1" role="tabpanel" aria-labelledby="tab-p1">
+      <div class="portal-shell p1-shell">
+        <nav class="portal-nav" aria-label="Navegación simulada del portal">
+          <a class="portal-brand" href="#proposal-p1" aria-label="AvanceCorp, inicio de la propuesta">
+            <img src="public_html/img/avance-icon.png?v=1" alt="">
+            <span>AvanceCorp</span>
+          </a>
+          <div class="portal-links" aria-label="Secciones del portal">
+            <a href="#proposal-p1">Inicio</a>
+            <a href="#proposal-p1">Mi contrato</a>
+            <a href="#proposal-p1">Documentos</a>
+            <a href="#proposal-p1" aria-current="page">Beneficios</a>
+            <a href="#proposal-p1">Mi perfil</a>
+          </div>
+          <div class="portal-avatar"><span>Mi cuenta</span></div>
+        </nav>
+
+        <div class="p1-main">
+          <section class="p1-hero" aria-labelledby="p1-title">
+            <div class="p1-copy">
+              <div class="eyebrow">Propuesta 1 · utilidad primero</div>
+              <h1 id="p1-title">¿Qué beneficio te sería <em>útil hoy?</em></h1>
+              <p>En vez de pedirte que recorras logotipos, empezamos por tu necesidad. El portal filtra la red y te muestra quién puede ayudarte, con el estado real de cada convenio.</p>
+              <div class="prototype-notice">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>
+                <span>Los aliados están confirmados, pero sus condiciones siguen en negociación. Por eso esta propuesta informa el estado y dirige la consulta al asesor.</span>
+              </div>
+            </div>
+
+            <div class="need-panel" aria-labelledby="need-title">
+              <h2 id="need-title">Elige una necesidad</h2>
+              <p>Una sola decisión para llegar al contenido relevante.</p>
+              <div class="need-grid" id="needFilters">
+                <button class="need-button" type="button" aria-pressed="false" data-filter="bienestar" data-symbol="✦">Cuidar mi bienestar</button>
+                <button class="need-button" type="button" aria-pressed="false" data-filter="educacion" data-symbol="↗">Aprender y crecer</button>
+                <button class="need-button" type="button" aria-pressed="false" data-filter="negocio" data-symbol="◎">Impulsar mi negocio</button>
+                <button class="need-button" type="button" aria-pressed="false" data-filter="finanzas" data-symbol="◇">Resolver algo financiero</button>
+              </div>
+            </div>
+          </section>
+
+          <section class="p1-results" aria-labelledby="resultTitle">
+            <div class="results-head">
+              <div>
+                <div class="eyebrow">Red AvanceCorp</div>
+                <h2 id="resultTitle">Todos los aliados</h2>
+                <p id="resultCount" aria-live="polite">7 aliados encontrados</p>
+              </div>
+              <label class="search-field">
+                <span hidden>Buscar aliado o categoría</span>
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-4-4"/></svg>
+                <input id="partnerSearch" type="search" autocomplete="off" placeholder="Buscar aliado o categoría">
+              </label>
+            </div>
+            <div class="partner-grid" id="partnerGrid"></div>
+          </section>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         PROPUESTA 2
+         ======================================================== -->
+    <section class="proposal-page" id="proposal-p2" role="tabpanel" aria-labelledby="tab-p2" hidden>
+      <div class="portal-shell p2-shell">
+        <nav class="portal-nav" aria-label="Navegación simulada del portal">
+          <a class="portal-brand" href="#proposal-p2" aria-label="AvanceCorp, inicio de la propuesta">
+            <img src="public_html/img/avance-icon.png?v=1" alt="">
+            <span>AvanceCorp</span>
+          </a>
+          <div class="portal-links" aria-label="Secciones del portal">
+            <a href="#proposal-p2">Inicio</a>
+            <a href="#proposal-p2">Mi contrato</a>
+            <a href="#proposal-p2">Documentos</a>
+            <a href="#proposal-p2" aria-current="page">Beneficios</a>
+            <a href="#proposal-p2">Mi perfil</a>
+          </div>
+          <div class="portal-avatar"><span>Mi cuenta</span></div>
+        </nav>
+
+        <div class="p2-main">
+          <header class="p2-intro">
+            <div class="eyebrow">Propuesta 2 · identidad memorable</div>
+            <h1>Tu inversión amplía tu <span>círculo.</span></h1>
+            <p>La red deja de parecer un carrusel publicitario y se convierte en un mapa vivo. Cada aliado ocupa un lugar visible y el cliente puede explorarlo sin perder el contexto.</p>
+          </header>
+
+          <div class="radar-layout">
+            <section class="radar-detail" aria-live="polite" aria-labelledby="radarPartnerName">
+              <div class="radar-detail-label">Aliado seleccionado</div>
+              <div class="radar-detail-logo"><img id="radarPartnerLogo" src="public_html/img/aliados/phoenix.png?v=1" alt="Logo de Phoenix"></div>
+              <h2 id="radarPartnerName">Phoenix</h2>
+              <p class="radar-detail-type" id="radarPartnerType">Academia de trading</p>
+              <p class="radar-detail-copy" id="radarPartnerCopy">Estamos definiendo las condiciones del convenio. Consulta a tu asesor si quieres recibir novedades sobre este aliado.</p>
+              <span class="status-chip">Convenio en negociación</span>
+              <div style="margin-top:20px">
+                <button class="primary-action prototype-cta" type="button">
+                  Consultar a mi asesor
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+                </button>
+              </div>
+            </section>
+
+            <div>
+              <div class="radar" id="partnerRadar" aria-label="Explorar la red de aliados">
+                <div class="radar-ring" aria-hidden="true"></div>
+                <div class="radar-axis" aria-hidden="true"></div>
+                <div class="radar-axis is-horizontal" aria-hidden="true"></div>
+                <div class="radar-core" aria-hidden="true">RED<br>AVANCE</div>
+                <div id="orbitNodes"></div>
+              </div>
+              <div class="radar-legend">Selecciona un aliado para conocer su estado</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================================
+         PROPUESTA 3
+         ======================================================== -->
+    <section class="proposal-page" id="proposal-p3" role="tabpanel" aria-labelledby="tab-p3" hidden>
+      <div class="portal-shell p3-shell">
+        <nav class="portal-nav" aria-label="Navegación simulada del portal">
+          <a class="portal-brand" href="#proposal-p3" aria-label="AvanceCorp, inicio de la propuesta">
+            <img src="public_html/img/avance-icon.png?v=1" alt="">
+            <span>AvanceCorp</span>
+          </a>
+          <div class="portal-links" aria-label="Secciones del portal">
+            <a href="#proposal-p3">Inicio</a>
+            <a href="#proposal-p3">Mi contrato</a>
+            <a href="#proposal-p3">Documentos</a>
+            <a href="#proposal-p3" aria-current="page">Beneficios</a>
+            <a href="#proposal-p3">Mi perfil</a>
+          </div>
+          <div class="portal-avatar"><span>Mi cuenta</span></div>
+        </nav>
+
+        <div class="p3-main">
+          <section class="pass-hero" aria-labelledby="p3-title">
+            <div class="pass-copy">
+              <div class="eyebrow">Propuesta 3 · membresía premium</div>
+              <h1 id="p3-title">Tu pasaporte a la <span>red Avance.</span></h1>
+              <p>Separa con claridad lo que el cliente puede usar hoy de lo que está en preparación. La experiencia se siente exclusiva sin convertir una negociación en una promesa.</p>
+              <div class="prototype-notice">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 10v6M12 7h.01"/></svg>
+                <span>El “pasaporte” es un concepto visual. No implica niveles ni condiciones nuevas; organiza mejor el servicio y los convenios.</span>
+              </div>
+            </div>
+
+            <article class="pass-card" aria-label="Pasaporte de beneficios AvanceCorp">
+              <div class="pass-card-head">
+                <div class="portal-brand">
+                  <img src="public_html/img/avance-icon.png?v=1" alt="">
+                  <span>AvanceCorp</span>
+                </div>
+                <div class="pass-card-label">Programa de beneficios</div>
+              </div>
+              <h2 class="pass-card-title">Una red que crece junto a tu inversión.</h2>
+              <p class="pass-card-sub">Acceso desde tu portal · atención con tu asesor</p>
+              <div class="pass-card-foot">
+                <div class="member-id">
+                  <span>Cuenta</span>
+                  <strong>Inversionista Avance</strong>
+                </div>
+                <div class="pass-seal" aria-hidden="true">A<br>+</div>
+              </div>
+            </article>
+          </section>
+
+          <section class="pass-board" aria-label="Estado del programa de beneficios">
+            <article class="pass-now">
+              <div class="pass-section-label">Disponible hoy</div>
+              <h2>Gestión con tu asesor</h2>
+              <p>Mientras se cierran los convenios, tu asesor puede coordinar condiciones especiales con la empresa que necesites.</p>
+              <ul class="available-list">
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>Cuéntale qué producto o servicio estás buscando.</span></li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>Recibe una respuesta clara sobre lo que sí se puede coordinar.</span></li>
+                <li><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg><span>Sin publicar descuentos hasta que estén confirmados.</span></li>
+              </ul>
+              <button class="primary-action prototype-cta" type="button">
+                Hablar con mi asesor
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+              </button>
+            </article>
+
+            <article class="pass-next">
+              <div class="pass-next-head">
+                <div>
+                  <div class="pass-section-label">En preparación</div>
+                  <h2>Próximos sellos del pasaporte</h2>
+                </div>
+                <p>Desliza para conocer a los aliados. Las condiciones se publicarán cuando cada convenio quede cerrado.</p>
+              </div>
+              <div class="stamp-track" id="stampTrack" aria-label="Aliados en negociación"></div>
+            </article>
+          </section>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <dialog class="detail-dialog" id="partnerDialog" aria-labelledby="dialogPartnerName">
+    <div class="dialog-inner">
+      <div class="dialog-head">
+        <div class="dialog-logo"><img id="dialogPartnerLogo" src="" alt=""></div>
+        <button class="dialog-close" id="dialogClose" type="button" aria-label="Cerrar detalle">×</button>
+      </div>
+      <div class="dialog-kicker" id="dialogPartnerCategory">Categoría</div>
+      <h2 id="dialogPartnerName">Aliado</h2>
+      <p id="dialogPartnerType">Tipo de aliado</p>
+      <div class="dialog-status">
+        <strong>Convenio en negociación</strong>
+        <span>Las condiciones finales todavía no han sido publicadas. Esta pantalla evita mostrar descuentos o promesas no confirmadas.</span>
+      </div>
+      <div class="dialog-actions">
+        <button class="primary-action prototype-cta" type="button">Consultar a mi asesor</button>
+        <button class="secondary-action" id="dialogSecondaryClose" type="button">Seguir explorando</button>
+      </div>
+    </div>
+  </dialog>
+
+  <div class="toast" id="prototypeToast" role="status" aria-live="polite">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
+    <span>Prototipo: en el portal real, esta acción abriría el contacto con tu asesor.</span>
+  </div>
+
+  <noscript>
+    <p style="padding:20px;background:#fff;color:#111d35">Activa JavaScript para probar los filtros y cambiar entre propuestas.</p>
+  </noscript>
+
+  <script>
+    const partners = [
+      {
+        name: "Phoenix",
+        image: "public_html/img/aliados/phoenix.png?v=1",
+        category: "Educación",
+        categoryKey: "educacion",
+        type: "Academia de trading",
+        brand: "#e15a2a"
+      },
+      {
+        name: "Belysh",
+        image: "public_html/img/aliados/belysh.png?v=1",
+        category: "Bienestar",
+        categoryKey: "bienestar",
+        type: "Belleza y bienestar",
+        brand: "#9d7a6c"
+      },
+      {
+        name: "NTC Agency",
+        image: "public_html/img/aliados/ntc-agency.png?v=1",
+        category: "Negocio",
+        categoryKey: "negocio",
+        type: "Marketing y branding",
+        brand: "#7d2476"
+      },
+      {
+        name: "Cooperativa Qorilazo",
+        image: "public_html/img/aliados/qorilazo.png?v=1",
+        category: "Finanzas",
+        categoryKey: "finanzas",
+        type: "Cooperativa de ahorro y crédito",
+        brand: "#14543e"
+      },
+      {
+        name: "MásCapital",
+        image: "public_html/img/aliados/mascapital.png?v=1",
+        category: "Finanzas",
+        categoryKey: "finanzas",
+        type: "Servicios financieros",
+        brand: "#2fb3dd"
+      },
+      {
+        name: "Clínica Álvarez",
+        image: "public_html/img/aliados/clinica-alvarez.png?v=1",
+        category: "Bienestar",
+        categoryKey: "bienestar",
+        type: "Salud y bienestar",
+        brand: "#9b2d72"
+      },
+      {
+        name: "Prodelco",
+        image: "public_html/img/aliados/prodelco.png?v=1",
+        category: "Finanzas",
+        categoryKey: "finanzas",
+        type: "Cooperativa de ahorro y crédito",
+        brand: "#1471b9"
+      }
+    ];
+
+    const proposalNotes = {
+      p1: {
+        label: "Criterio principal",
+        text: "Encontrar un aliado relevante con menos esfuerzo y sin prometer beneficios aún no publicados."
+      },
+      p2: {
+        label: "Riesgo visual controlado",
+        text: "La red se vuelve el elemento memorable; cada nodo mantiene nombre, categoría, estado y acción accesible."
+      },
+      p3: {
+        label: "Valor percibido",
+        text: "Refuerza pertenencia y separa de forma explícita lo disponible hoy de los convenios en preparación."
+      }
+    };
+
+    const tabs = [...document.querySelectorAll(".proposal-tab")];
+    const pages = [...document.querySelectorAll(".proposal-page")];
+    const reviewCriterion = document.getElementById("reviewCriterion");
+    const reviewDescription = document.getElementById("reviewDescription");
+
+    function selectProposal(key, moveFocus = false) {
+      tabs.forEach((tab) => {
+        const selected = tab.dataset.proposal === key;
+        tab.setAttribute("aria-selected", String(selected));
+        tab.tabIndex = selected ? 0 : -1;
+        if (selected && moveFocus) tab.focus();
+      });
+
+      pages.forEach((page) => {
+        const selected = page.id === `proposal-${key}`;
+        page.classList.toggle("is-active", selected);
+        page.hidden = !selected;
+      });
+
+      reviewCriterion.textContent = proposalNotes[key].label;
+      reviewDescription.textContent = proposalNotes[key].text;
+      window.scrollTo({ top: 0, behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+    }
+
+    tabs.forEach((tab, index) => {
+      tab.addEventListener("click", () => selectProposal(tab.dataset.proposal));
+      tab.addEventListener("keydown", (event) => {
+        if (!["ArrowLeft", "ArrowRight", "Home", "End"].includes(event.key)) return;
+        event.preventDefault();
+        let nextIndex = index;
+        if (event.key === "ArrowLeft") nextIndex = (index - 1 + tabs.length) % tabs.length;
+        if (event.key === "ArrowRight") nextIndex = (index + 1) % tabs.length;
+        if (event.key === "Home") nextIndex = 0;
+        if (event.key === "End") nextIndex = tabs.length - 1;
+        selectProposal(tabs[nextIndex].dataset.proposal, true);
+      });
+    });
+
+    const partnerGrid = document.getElementById("partnerGrid");
+    const partnerSearch = document.getElementById("partnerSearch");
+    const resultTitle = document.getElementById("resultTitle");
+    const resultCount = document.getElementById("resultCount");
+    const needButtons = [...document.querySelectorAll(".need-button")];
+    let activeCategory = "all";
+
+    function normalize(value) {
+      return value.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase();
+    }
+
+    function visiblePartners() {
+      const query = normalize(partnerSearch.value.trim());
+      return partners.filter((partner) => {
+        const inCategory = activeCategory === "all" || partner.categoryKey === activeCategory;
+        const haystack = normalize(`${partner.name} ${partner.category} ${partner.type}`);
+        return inCategory && (!query || haystack.includes(query));
+      });
+    }
+
+    function renderPartnerGrid() {
+      const matches = visiblePartners();
+      const categoryButton = needButtons.find((button) => button.dataset.filter === activeCategory);
+      resultTitle.textContent = categoryButton ? categoryButton.textContent : "Todos los aliados";
+      resultCount.textContent = `${matches.length} ${matches.length === 1 ? "aliado encontrado" : "aliados encontrados"}`;
+
+      if (!matches.length) {
+        partnerGrid.innerHTML = `<div class="empty-state"><strong>No encontramos coincidencias.</strong><span>Prueba otra categoría o borra el texto de búsqueda.</span></div>`;
+        return;
+      }
+
+      partnerGrid.innerHTML = matches.map((partner) => `
+        <article class="partner-card" style="--brand:${partner.brand}">
+          <div class="partner-logo"><img src="${partner.image}" alt="Logo de ${partner.name}"></div>
+          <p class="partner-category">${partner.category}</p>
+          <h3 class="partner-name">${partner.name}</h3>
+          <span class="status-chip">En negociación</span>
+          <button class="card-action" type="button" data-partner="${partner.name}">
+            Ver estado del convenio <span aria-hidden="true">→</span>
+          </button>
+        </article>
+      `).join("");
+
+      partnerGrid.querySelectorAll("[data-partner]").forEach((button) => {
+        button.addEventListener("click", () => openPartnerDialog(button.dataset.partner));
+      });
+    }
+
+    needButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const wasActive = button.getAttribute("aria-pressed") === "true";
+        activeCategory = wasActive ? "all" : button.dataset.filter;
+        needButtons.forEach((item) => item.setAttribute("aria-pressed", String(item === button && !wasActive)));
+        renderPartnerGrid();
+        document.querySelector(".p1-results").scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+      });
+    });
+    partnerSearch.addEventListener("input", renderPartnerGrid);
+
+    const orbitCoordinates = [
+      [50, 8], [78, 20], [91, 49], [77, 79], [45, 91], [16, 72], [11, 34]
+    ];
+    const orbitNodes = document.getElementById("orbitNodes");
+    orbitNodes.innerHTML = partners.map((partner, index) => `
+      <button class="orbit-node" type="button" style="--x:${orbitCoordinates[index][0]}%;--y:${orbitCoordinates[index][1]}%;--brand:${partner.brand}" aria-label="Ver ${partner.name}" aria-pressed="${index === 0 ? "true" : "false"}" data-radar-partner="${partner.name}">
+        <img src="${partner.image}" alt="">
+      </button>
+    `).join("");
+
+    function selectRadarPartner(name) {
+      const partner = partners.find((item) => item.name === name);
+      if (!partner) return;
+      document.querySelectorAll("[data-radar-partner]").forEach((node) => node.setAttribute("aria-pressed", String(node.dataset.radarPartner === name)));
+      const logo = document.getElementById("radarPartnerLogo");
+      logo.src = partner.image;
+      logo.alt = `Logo de ${partner.name}`;
+      document.getElementById("radarPartnerName").textContent = partner.name;
+      document.getElementById("radarPartnerType").textContent = partner.type;
+      document.getElementById("radarPartnerCopy").textContent = `Estamos definiendo las condiciones con ${partner.name}. Consulta a tu asesor si quieres recibir novedades sobre este aliado.`;
+    }
+    document.querySelectorAll("[data-radar-partner]").forEach((node) => node.addEventListener("click", () => selectRadarPartner(node.dataset.radarPartner)));
+
+    const stampTrack = document.getElementById("stampTrack");
+    stampTrack.innerHTML = partners.map((partner) => `
+      <article class="stamp-card">
+        <div class="stamp-logo"><img src="${partner.image}" alt="Logo de ${partner.name}"></div>
+        <h3>${partner.name}</h3>
+        <p>${partner.type}</p>
+        <span class="stamp-status">En negociación</span>
+      </article>
+    `).join("");
+
+    const dialog = document.getElementById("partnerDialog");
+    const dialogClose = document.getElementById("dialogClose");
+    const dialogSecondaryClose = document.getElementById("dialogSecondaryClose");
+
+    function openPartnerDialog(name) {
+      const partner = partners.find((item) => item.name === name);
+      if (!partner) return;
+      const logo = document.getElementById("dialogPartnerLogo");
+      logo.src = partner.image;
+      logo.alt = `Logo de ${partner.name}`;
+      document.getElementById("dialogPartnerCategory").textContent = partner.category;
+      document.getElementById("dialogPartnerName").textContent = partner.name;
+      document.getElementById("dialogPartnerType").textContent = partner.type;
+      if (typeof dialog.showModal === "function") dialog.showModal();
+      else dialog.setAttribute("open", "");
+    }
+
+    function closeDialog() {
+      if (typeof dialog.close === "function") dialog.close();
+      else dialog.removeAttribute("open");
+    }
+    dialogClose.addEventListener("click", closeDialog);
+    dialogSecondaryClose.addEventListener("click", closeDialog);
+    dialog.addEventListener("click", (event) => {
+      const rect = dialog.getBoundingClientRect();
+      const outside = event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+      if (outside) closeDialog();
+    });
+
+    const toast = document.getElementById("prototypeToast");
+    let toastTimer;
+    document.querySelectorAll(".prototype-cta").forEach((button) => {
+      button.addEventListener("click", () => {
+        if (dialog.open) closeDialog();
+        window.clearTimeout(toastTimer);
+        toast.classList.add("is-visible");
+        toastTimer = window.setTimeout(() => toast.classList.remove("is-visible"), 3200);
+      });
+    });
+
+    renderPartnerGrid();
+  </script>
+</body>
+</html>
