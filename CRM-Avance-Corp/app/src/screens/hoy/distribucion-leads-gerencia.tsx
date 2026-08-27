@@ -395,10 +395,11 @@ function ResumenDistribucion({
               {porcentajeNucleo(punteria.nucleo_conversion_pct)}
             </dd>
             <dd className="mt-1 text-xs leading-relaxed text-muted-foreground">
-              {/* Sin afirmar identidad con HOY: su héroe recorta al roster
-                  visible y puede diferir en la parte fuera de roster — el
-                  aviso de sondas lo dice cuando ocurre (medido en prod). */}
-              Cifra única del núcleo · cohorte por asignación,{' '}
+              {/* D8 + F2.6 (27/08): el total de HOY suma también al ex-roster,
+                  así que la identidad volvió a ser verdad MEDIDA (verificada
+                  contra el servidor en el mismo snapshot antes de afirmarla
+                  aquí). Si dejara de cuadrar, el aviso de sondas lo dice. */}
+              La misma cifra que HOY, Metas, Conversiones y el Ranking · cohorte por asignación,{' '}
               {mesEnPalabras(datos.cohorte.desde_inclusivo)} · referidos ponderados y fuera de la
               base
             </dd>
