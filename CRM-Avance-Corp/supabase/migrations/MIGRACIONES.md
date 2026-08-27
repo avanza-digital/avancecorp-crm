@@ -3980,3 +3980,73 @@ del canal Management API (un solo mensaje Simple Query = transacción implícita
 Aplicación: `scripts/aplicar-f0-anclar-conversiones-prod.sh` (canal directo;
 el merge de branches sigue roto). Vuelta atrás: no aplica — preflight/postflight
 fallido = transacción revertida; éxito = objeto byte-idéntico al previo.
+
+## 20260826233000 · `crm_f1_conversion_episodios`
+
+📦 **ESCRITA Y VERDE EN BANCO, SIN APLICAR** (2026-08-26). F1 del plan
+[[Conversion unica en todo el CRM - plan de migraciones]] (orden «desarrolla la
+fase 1»; decisiones D1–D7 resueltas por Miguel el mismo día).
+
+Nace **`private.conversion_episodios(p_ini, p_fin, p_periodo, p_global,
+p_visibles, p_factor)`** — la tabla-base de la conversión: una fila por
+episodio en tres piernas UNION ALL — `recibido` (divisor; origen/motivo del
+PRIMER episodio en ventana, `aproximado` con bool_or), `cierre` (una fila por
+asignación convertida; los ANULADOS viajan MARCADOS con aporte 0 — F2 los
+contará sin recalcular; referidos ya ponderados con `p_factor`) y `operacion`
+(cartera elegible, máx. 1 por cliente/mes, orden calculado ANTES del filtro de
+visibles — semántica viva). `p_periodo` explícito desancla el mes del rango
+(NULL = sin pierna de cartera): habilita los rangos libres de F2.
+`security definer, search_path='', EXECUTE revocado a todos.
+
+**`private.conversion_mensual_por_vendedor` redefinida como agrupación sobre
+la base**, aritmética de agregación VERBATIM. Paridad probada dos veces:
+- **Banco local** (`run-test-conversion-episodios-local.sh` + fixtures de
+  `test-conversion-episodios.sql`): ancla md5 local↔prod del núcleo vivo
+  (`49601295…`), 6 llamadas con paridad de conjunto (EXCEPT bidireccional) y
+  de BYTES (md5 de filas ::text ordenadas), oráculo con números calculados a
+  mano (V1–V5: multi-episodio, lead compartido, doble cierre del mismo lead,
+  anulado, fallback `finalizado_en`, cubo «anteriores», solo-cartera, orden
+  de cartera antes del filtro de visibles, bordes exactos de ventana), contrato
+  propio de la base (p_periodo NULL, anulados marcados, ponderación) y
+  **4 mutantes muertos** (sin distinct · sin filtro de anulados · sin tope
+  1-por-cliente · origen del último episodio).
+- **Producción**: el guion de aplicación toma FOTO del núcleo (mes actual y
+  anterior, factor 0.15 y 1.0) antes y después — si difieren un byte, aborta
+  y ordena el rollback.
+
+Preflight: md5 del núcleo vivo y de `cierre_externo_anulado` + candado de
+re-ejecución (si `conversion_episodios` ya existe, aborta). Postflight: el
+núcleo consume la base y YA NO lee `crm.lead_asignaciones` ni
+`crm.operaciones_cartera` directo; ACL de la base = solo owner (aclexplode vs
+proowner); definer + `search_path=""` (comillas — lección RETOMAR-53).
+
+Incluye el **vigía (a)** del plan en el guion de aplicación: toda función
+`crm.*`/`private.*` con 'conversion' en el fuente debe consumir el núcleo o la
+base (strpos, jamás LIKE); los 5 motores paralelos van en lista blanca
+NOMINAL que F2 debe encoger. Consumidores NO tocados (heredan):
+`conversion_mensual_sin_cartera_fn`, `conversion_mensual_fn`,
+`cumplimiento_metas_fn`, cierre de mes, alertas. La anulación post-sello sigue
+en la LECTURA (`ajuste_pendiente_por_vendedor`) — en el núcleo se descontaría
+dos veces.
+
+Deuda consciente dicha: `test-rls.mjs` no gana casos (función private sin
+EXECUTE para roles de API); la global `metricas_conversiones_fn` sigue sin
+caso (fila `20260810024404`). Excepciones a `public`: ninguna.
+
+Auditor RLS: APROBADA (2 notas para F2: postflight del núcleo con identity
+arguments si aparece sobrecarga · no relajar el NOT NULL de `origen` sin
+revisar los `else 1` de la base). Codex (8 ángulos): 2 refutaciones REALES
+cerradas antes de aplicar — (P1) empates exactos de `asignado_en` hacen
+indeterminado el primer episodio TAMBIÉN en el vivo → candado de datos en el
+guion (aborta si el ledger tiene empates); (P8) la base sumaba capitales
+(aritmética que el vivo jamás ejecutó, overflow teórico) → `monto` NULL en F1,
+y postflight nuevo: mismo owner en base y núcleo (dos DEFINER con owners
+distintos correrían con identidades distintas). Condicionales verificadas:
+desempate de cartera con orden total (PK de `operaciones_cartera`, verificado
+en el guion) · peso del plan (RETURN QUERY materializa; datos de prod hoy
+minúsculos, vigilancia en [[Plan de escalabilidad del CRM a data gigante|F4]]).
+Banco re-ensayado verde tras las correcciones (paridad + oráculo + 4 mutantes).
+
+Aplicación: `scripts/aplicar-f1-conversion-episodios-prod.sh`. Vuelta atrás:
+`scripts/rollback-f1-conversion-episodios.sql` (núcleo vivo verbatim pre-F1 +
+drop de la base + verificación md5).
