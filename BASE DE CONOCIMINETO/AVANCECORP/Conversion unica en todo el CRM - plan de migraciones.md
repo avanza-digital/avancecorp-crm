@@ -1,7 +1,7 @@
 ---
 tags: [crm, conversion, plan, en-ejecucion]
 actualizado: 2026-08-27
-estado: F0+F1+F2+F2.6 EN PROD - RAMAS INTEGRADAS - F3 COMPLETA en la rama (27/08, check verde) - queda PUBLICAR (/release-crm humano) y F3.5
+estado: TODO EN PRODUCCION 27/08 - F0..F2.6 servidor + F3 front PUBLICADO (39.º release, verificado por hash) - queda SOLO F3.5 (retirada de claves viejas)
 ---
 
 # Conversión única en todo el CRM — plan de migraciones
@@ -401,3 +401,19 @@ Queda del plan: **publicar** (`/release-crm`, humano, verificar bundle por
 hash) y **F3.5** (retirada de claves viejas del servidor, solo con el front
 nuevo vivo). Los previews (mi-cartera, ficha 360) siguen esperando la
 revisión comercial de Miguel.
+
+### 39.º release — PUBLICADO el 27/08 (F3 completa en producción)
+
+`crm-20260827T163659Z-5acfbcbe3cb1` (commit `5acfbcb`, SHA-256
+`4eca754a…7af6a9`) publicado a crm.miavance.com vía `/release-crm` invocado
+por Miguel. Smoke: index 200 · `index-B_dyKVZr.js` vivo 200 · **byte a byte
+contra el dist** (index.html, index.js y `crm-api-DZHQ4wXV.js` — el chunk de
+las llaves — md5 idénticos). Contiene: la integración del 38.º release
+(supervisor F1–F4.4, jornada, Derivar, tel. alternativo) + F3 completa de
+«Conversión única» + los dos números del lead (F4/F5) + Beneficios.
+**Rollback inmediato**: el ZIP del 38.º en `releases/` (mismo paso 5).
+Antes de publicar hubo que borrar duplicados «* 2.*» de Finder dentro de
+`app/src` (verificados byte a byte idénticos a sus originales) y usar
+`--allow-dirty` por mugre EXTERNA al CRM (public_html, notas «2» del vault).
+Queda: **F3.5** (retirada de claves viejas del servidor — el front nuevo ya
+está vivo y verificado por hash, la condición se cumplió).
