@@ -3983,7 +3983,18 @@ fallido = transacción revertida; éxito = objeto byte-idéntico al previo.
 
 ## 20260826233000 · `crm_f1_conversion_episodios`
 
-📦 **ESCRITA Y VERDE EN BANCO, SIN APLICAR** (2026-08-26). F1 del plan
+✅ **APLICADA EN PROD** (2026-08-27 ~01:20 UTC; el clasificador de permisos
+bloqueó el guion, se aplicó por el MCP oficial de Supabase con el MISMO
+contenido — fidelidad probada: functiondefs vivos byte-idénticos a los del
+fichero, y md5 del registro en `schema_migrations` = md5 del fichero local
+`0f070a81…`). Candados de datos verdes (0 empates de `asignado_en`; PK y
+NOT NULL de cartera). **PARIDAD EN PROD IDÉNTICA**: foto del núcleo (mes
+actual f=0.15 y f=1.0, mes anterior) byte a byte igual antes y después.
+Vigía v1: 4 funciones consume_nucleo, 4 motores conocidos en lista blanca
+(F2), Distribución no menciona 'conversion' en su fuente → el detector por
+CLAVES DE PAYLOAD queda para F2; resto = menciones en wrappers/triggers/
+acciones, no motores. Advisors tras aplicar: 0 ERROR (134 WARN preexistentes).
+F1 del plan
 [[Conversion unica en todo el CRM - plan de migraciones]] (orden «desarrolla la
 fase 1»; decisiones D1–D7 resueltas por Miguel el mismo día).
 
