@@ -182,8 +182,14 @@ function lineaCosecha(fila: ResponsableEquipo | undefined): string | null {
   return `De sus ${numero(fila.leads)} leads del mes, ${clientes}${pctCosecha}`
 }
 
-/** El matiz que la línea corta no carga: los cierres pueden seguir llegando. */
-const TITLE_COSECHA = 'Cuenta los leads recibidos este mes que ya cerraron como clientes. Puede seguir subiendo: un lead de este mes puede cerrar más adelante.'
+/**
+ * El matiz que la línea corta no carga. Redacción v2 (Miguel, 27/08): la v1
+ * («puede seguir subiendo») no decía CUÁL de los dos números sube y parecía
+ * contradecir a la conversión del mes. Ahora el tooltip separa los dos
+ * relojes: esta línea sigue al LOTE (cierre cuando cierre); el % del mes
+ * acredita cada cierre al mes en que ocurrió.
+ */
+const TITLE_COSECHA = 'Sigue a los leads que el vendedor recibió este mes: cuántos ya son clientes, cierren cuando cierren. Si uno cierra el mes que viene, esta línea sube — pero ese cierre le contará a la conversión DEL MES QUE VIENE, no a la de este.'
 
 function RankingConversion({ ranking, cosechaPorVendedor }: {
   ranking: RankingConversionVendedores<DetalleConversionMensual>
