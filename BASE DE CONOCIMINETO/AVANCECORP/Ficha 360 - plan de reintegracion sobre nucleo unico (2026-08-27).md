@@ -1,11 +1,11 @@
 ---
 tipo: plan-tecnico
-estado: r1-aceptada-f0-local-cerrado-c0-1-operativo-pendiente
+estado: r1-candidata-estatica-captura-fresca-pendiente-f0-local-cerrado
 fecha: 2026-08-27
 serial_origen: AVC-F41-360-20260825-R2
 baseline_revisado: abb824012d0c2c15d80cc94e5edf6164ef86228e
 sha_f0_frontend: 41987fea08febac7fb67750bc8269b43582c645d
-sha_r2_ux: 49c9dc3b0502c5d483f956dbbaa624f042ee9d76
+sha_r2_ux: e6129674844ecca12b224690f43bedb436b06006
 ---
 
 # Ficha 360 — plan de reintegración sobre el núcleo único
@@ -48,9 +48,10 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
   revisables, pero contienen 18 placeholders fail-closed: 16 huellas de
   cuerpos, un fingerprint agregado de catálogo y el hash del cuerpo nuevo. No
   se creó migración, no se ejecutó SQL y no se tocó ninguna base.
-- La aceptación UX/comercial R1 quedó cerrada en la rama preview con SHA
-  `49c9dc3b0502c5d483f956dbbaa624f042ee9d76`, evidencias corregidas y carve-outs
-  funcionales explícitos.
+- La referencia UX/comercial histórica permanece, pero el `HEAD` vigente de la
+  rama preview es `e6129674844ecca12b224690f43bedb436b06006` y sigue pendiente
+  de captura visual fresca. La reauditoría corrigió copy por rol y bloqueó
+  contacto externo para clientes inactivos.
 - La siguiente frontera no es portar Ficha todavía. Primero se autoriza una
   captura viva de solo lectura para resolver las 18 huellas; luego se
   materializa y prueba C0.1 en una base desechable. Solo después de una
@@ -69,9 +70,9 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
   convertir la propuesta en migración y ejecutar banco/mutantes en una base
   desechable. Si queda verde, aplicar servidor con su propio gate y verificar
   readback más paridad PostgREST/JWT.
-- **Fase 1 — referencia UX cerrada localmente:** R2 en `49c9dc3`, utilizable
-  para portar requisitos, no commits. La comprobación visual autenticada se
-  reserva para la candidata nueva.
+- **Fase 1 — candidata estática, captura fresca pendiente:** R2 en `e612967`,
+  utilizable para portar requisitos, no commits. Antes de declarar aceptado el
+  `HEAD` se debe repetir la pasada visual de móvil, foco, accesibilidad y roles.
 - **Fase 2:** abrir una línea nueva desde el descendiente canónico aprobado.
 - **Fase 3:** reemitir el servidor desde el esquema vigente, sin reutilizar las
   migraciones R2 como ejecutables.
@@ -214,12 +215,13 @@ que el numerador incluye operaciones elegibles de cartera.
 
 ## Plan adaptado de reintegración
 
-### R1 — aceptación comercial del prototipo R2 — cerrada
+### R1 — aceptación comercial del prototipo R2 — referencia histórica; revalidación pendiente
 
-Se usó la preview R2 solo para decidir jerarquía visual, lenguaje, foco, móvil
-y variantes por rol. Los requisitos, pruebas, capturas y exclusiones quedaron
-en [[Ficha 360 R2 - aceptacion UX comercial 2026-08-27]]. La aceptación UX no
-autoriza backend ni producción.
+Se usó la preview R2 para decidir jerarquía visual, lenguaje, foco, móvil y
+variantes por rol. Los requisitos, pruebas, capturas históricas y exclusiones
+quedaron en [[Ficha 360 R2 - aceptacion UX comercial 2026-08-27]]. El `HEAD`
+actual tiene GO estático, pero no aceptación visual vigente hasta ejecutar una
+captura fresca. Ninguna aceptación UX autoriza backend ni producción.
 
 ### R2 — abrir una línea nueva desde la base canónica
 

@@ -1,9 +1,9 @@
 ---
 tipo: decision-ux
-estado: aceptada-con-alcance-explicito
+estado: candidata-estatica-captura-fresca-pendiente
 fecha: 2026-08-27
 serial: AVC-F41-360-20260825-R2
-sha_evidencia: 49c9dc3b0502c5d483f956dbbaa624f042ee9d76
+sha_evidencia: e6129674844ecca12b224690f43bedb436b06006
 ---
 
 # Ficha 360 R2 — aceptación UX/comercial 2026-08-27
@@ -12,11 +12,19 @@ Relacionado: [[Ficha comercial 360 de clientes - plan]],
 [[Ficha 360 - plan de reintegracion sobre nucleo unico (2026-08-27)]],
 [[Rol Directorio]] y [[Fundamentos UX del CRM]].
 
-## Decisión
+## Decisión vigente
+
+El `HEAD e6129674844ecca12b224690f43bedb436b06006` tiene GO
+técnico-estático, pero la aceptación visual vigente está pendiente de una
+captura fresca. Se corrigieron dos huecos de la reauditoría: el estado mensual
+vacío ahora habla según Vendedor, equipo o empresa; y un cliente inactivo se
+puede consultar sin conservar enlaces de llamada, WhatsApp o correo.
+
+## Decisión histórica
 
 Se acepta R2 como referencia UX/comercial para jerarquía, contenido, lenguaje,
 flujo visible, móvil, foco, accesibilidad y diferencias por rol. La evidencia
-está fijada en `49c9dc3b0502c5d483f956dbbaa624f042ee9d76`, dentro de
+estaba fijada en `49c9dc3b0502c5d483f956dbbaa624f042ee9d76`, dentro de
 `artifacts/audits/ficha360-r2-20260827/README.md` y sus capturas antes/después.
 
 Esta decisión **no** acepta el backend R2, sus migraciones, RLS, tipos, rama
@@ -62,10 +70,11 @@ prototipo.
 
 ## Verificación de la referencia
 
-- Snapshot final R2: foco/ficha 156/156, typecheck, lint, build y pre-commit
-  verdes; touch targets y evidencia quedaron corregidos en `49c9dc3`.
+- Snapshot vigente R2: 176 archivos y 2372/2372 pruebas, typecheck, lint, build,
+  bundle y duplicación verdes; remediación focal 142/142 y reauditoría del diff
+  con GO material en `910bbd7`.
 - La pasada visual anterior conserva sus capturas y resultados históricos como
   referencia comercial.
-- No se ejecutó una nueva pasada Browser/Playwright sobre `49c9dc3`. Por eso la
+- No se ejecutó una nueva pasada Browser/Playwright sobre `e612967`. Por eso la
   comprobación visual autenticada por rol sigue siendo un gate de la candidata
   nueva y no una certificación de producción de R2.
