@@ -4489,3 +4489,44 @@ Deuda dicha: la sonda de paridad ejecuta `conversion_episodios` 3 veces por
 llamada (solo gerencia la paga) — medir antes de que F3 la llame en cada
 render. Rollback: `rollback-f2-3b-distribucion-v3.sql`.
 Excepciones a `public`: ninguna.
+
+## 20260827152918 · `crm_f2_6_total_incluye_fuera_de_roster`
+
+**Estado: 📝 ESCRITA, banco verde, SIN APLICAR — espera OK explícito de
+Miguel.** Decisión **D8 (Miguel, 27/08)**: la conversión de empresa mide lo
+que PASÓ en el mes, no la nómina vigente. El `total` del mes ABIERTO de
+`crm.conversion_mensual_fn` (vía `crm.conversion_mensual_sin_cartera_fn`, el
+cuerpo grande que 20260824231133 renombró) pasa a SUMAR el agregado fuera de
+roster que hasta hoy solo se declaraba en `cobertura.fuera_de_roster` — con
+esto HOY vuelve a decir la misma cifra medida que el núcleo de F2
+(`conversion_episodios`). Medido en prod antes de escribir: roster neto
+38,75/569 = 6,81 % vs núcleo 39,75/569 = 6,99 % (1 analista fuera de roster
+con 1 cierre y 0 leads — el mismo de `nucleo_sin_ficha: 1`).
+
+Qué cambia (un VALOR, no la forma): `resumen` suma `filas` (roster, neto de
+ajuste) + `fuera` (bruto — el ajuste de meses pagados se descuenta por fila
+del roster y el ex-roster no tiene fila); `fuera` gana desgloses INTERNOS
+(aproximado, no_referidos/referidos/arrastre, referidos_recibidos);
+`motivos_totales` cubre también el divisor del ex-roster para que
+`divisor_por_motivo` siga cuadrando con `total.divisor`. `cobertura.
+fuera_de_roster` SIGUE declarándose con sus 4 claves de siempre; ni una fila
+nueva en `responsables`, ningún uuid expuesto. Quien sale del roster a mitad
+de mes cuenta ENTERO en el agregado (el roster es estado actual, no
+histórico) — igual que hará su foto al sellarse, donde entra con nombre.
+Meses SELLADOS: intactos (rama 3 sirve la foto de `periodos_cerrados`; no
+pasa por este camino). Herederos: NADIE más llama la función —
+`cerrar_periodo`, `cierre_mes_estado_fn`, `convertir_lead_externo` y
+`cumplimiento_metas_sin_cartera_fn` solo la citan en comentarios (verificado
+contra prosrc vivo). Privilegios idénticos (EXECUTE revocado a todos; la
+única puerta sigue siendo el envoltorio).
+
+Fidelidad: preflight aborta si el vivo no es `9a5025e4…` (== cuerpo de
+20260815003742, verificado byte a byte contra prod el 27/08); postflight
+exige `c7a7a103…` + owner postgres + secdef + search_path='' + cero grants de
+API. Banco (`run-test-f2-6-total-fuera-roster-local.sh`, autocontenido con
+stubs y núcleo como fixture): casos A–E — paridad byte a byte (::text) con
+fuera vacío, el caso real de prod (+1 cierre), divisor/motivos/referidos,
+roster vacío, divisor 0 → pct NULL — y **4/4 mutantes cazados** (numerador,
+analistas, motivos, divisor). Rollback:
+`rollback-f2-6-total-fuera-de-roster.sql` (restaura `9a5025e4…` con guarda).
+Excepciones a `public`: ninguna.

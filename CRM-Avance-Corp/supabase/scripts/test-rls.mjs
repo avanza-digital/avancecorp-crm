@@ -7731,13 +7731,16 @@ async function testConversionMensual(sessions, seed) {
 
     const totalDespues = payload?.total ?? {};
     const deltaTotal = (campo) => num(totalDespues[campo]) - num(totalAntes[campo]);
-    check(deltaTotal('divisor') === 1
+    // D8 (F2.6): el total del ambito SUMA el agregado fuera de roster. Lo
+    // sembrado mueve +1 divisor por vend1 (roster) y +1 por sup1 (el productor
+    // fuera de roster), cuyo analista tambien entra al total.
+    check(deltaTotal('divisor') === 2
       && deltaTotal('cierres_no_referidos') === 1
       && deltaTotal('cierres_referidos') === 1
       && deltaTotal('referidos_recibidos') === 2
       && cerca(deltaTotal('numerador'), 1.15)
-      && deltaTotal('analistas') === 0,
-      'el TOTAL del ambito global se mueve exactamente lo que se sembro (2 referidos recibidos, 1 al divisor)',
+      && deltaTotal('analistas') === 1,
+      'D8 · el TOTAL global se mueve lo sembrado INCLUYENDO al productor fuera de roster (+2 divisor, +1 analista)',
       JSON.stringify({ antes: totalAntes, despues: totalDespues }));
 
     const coberturaDespues = payload?.cobertura ?? {};
@@ -7875,16 +7878,25 @@ async function testConversionMensual(sessions, seed) {
       const suyas = filasDe(respuesta.data);
       const total = respuesta.data?.total ?? {};
       const suma = (extraer) => suyas.reduce((acumulado, fila) => acumulado + Number(extraer(fila)), 0);
-      check(Number(total.analistas) === suyas.length,
-        `${clave}: total.analistas == numero de responsables`,
-        JSON.stringify({ total: total.analistas, filas: suyas.length }));
-      check(Number(total.divisor) === suma((f) => f.divisor)
-        && Number(total.cierres_no_referidos) === suma((f) => f.cierres_no_referidos)
-        && Number(total.cierres_referidos) === suma((f) => f.cierres_referidos)
+      // D8 (F2.6): el total del ambito = filas con identidad + el agregado
+      // fuera de roster que el MISMO payload declara en cobertura. La igualdad
+      // por alcance sigue siendo la verificacion cruzada: si el recorte dejara
+      // fuera filas que el total cuenta (o al reves), aqui se rompe. El
+      // agregado no desglosa referidos_recibidos y el fixture no siembra
+      // referidos fuera de roster (el lead de sup1 es origen 'otro'): esa
+      // clave se cuadra solo contra las filas. Los cierres se cuadran
+      // combinados porque el agregado declara `cierres` sin partir.
+      const fuera = respuesta.data?.cobertura?.fuera_de_roster ?? {};
+      check(Number(total.analistas) === suyas.length + num(fuera.analistas),
+        `${clave}: total.analistas == responsables + fuera_de_roster.analistas`,
+        JSON.stringify({ total: total.analistas, filas: suyas.length, fuera: fuera.analistas }));
+      check(Number(total.divisor) === suma((f) => f.divisor) + num(fuera.divisor)
+        && Number(total.cierres_no_referidos) + Number(total.cierres_referidos)
+          === suma((f) => f.cierres_no_referidos) + suma((f) => f.cierres_referidos) + num(fuera.cierres)
         && Number(total.referidos_recibidos) === suma((f) => f.referidos.recibidos)
-        && cerca(total.numerador, suma((f) => f.numerador)),
-        `${clave}: total.* == suma de responsables[].*`,
-        JSON.stringify(total));
+        && cerca(total.numerador, suma((f) => f.numerador) + num(fuera.numerador)),
+        `${clave}: total.* == suma de responsables[].* + fuera_de_roster.*`,
+        JSON.stringify({ total, fuera }));
       const totalPctEsperado = Number(total.divisor) > 0
         ? (100 * Number(total.numerador)) / Number(total.divisor)
         : null;
@@ -7900,6 +7912,16 @@ async function testConversionMensual(sessions, seed) {
       check(porMotivo === Number(total.divisor),
         `${clave}: cobertura.divisor_por_motivo suma exactamente el divisor del ambito`,
         JSON.stringify({ porMotivo, divisor: total.divisor }));
+    }
+
+    // D8 · el lado DENEGADO del agregado: el productor fuera de roster es
+    // sup1, ajeno al subarbol de sup2 — el ambito de sup2 no puede sumarlo
+    // ni verlo, y su total queda intacto por la igualdad del bucle de arriba.
+    if (deSup2) {
+      check(num(deSup2.data?.cobertura?.fuera_de_roster?.analistas) === 0
+        && num(deSup2.data?.cobertura?.fuera_de_roster?.numerador) === 0,
+        'D8 · el fuera-de-roster ajeno NO entra al ambito de sup2',
+        JSON.stringify(deSup2.data?.cobertura?.fuera_de_roster));
     }
 
     // ── F · forma del contrato: una clave de mas es superficie sin auditar ───
