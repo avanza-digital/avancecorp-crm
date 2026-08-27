@@ -17,7 +17,10 @@ VIVOS2="${2:?dir con f2-vivos/*.sql}"
 MIGDIR="$(cd "$(dirname "$0")/../migrations" && pwd)"
 MIG_F1="$MIGDIR/20260826233000_crm_f1_conversion_episodios.sql"
 MIG_F21="$MIGDIR/20260827020000_crm_f2_1_conversiones_nucleo.sql"
+MIG_F22="$MIGDIR/20260827033000_crm_f2_2_ranking_nucleo.sql"
+TEST22="$(cd "$(dirname "$0")" && pwd)/test-f2-ranking.sql"
 TEST="$(cd "$(dirname "$0")" && pwd)/test-f2-conversiones.sql"
+FIXTURE="$(cd "$(dirname "$0")" && pwd)/fixture-f2-conversion.sql"
 DB=crm_f2_banco
 PSQL="psql -h 127.0.0.1 -p 5432 -U postgres -X -v ON_ERROR_STOP=1"
 GERENCIA='11111111-1111-4111-8111-111111111111'
@@ -39,7 +42,10 @@ create table crm.equipo (perfil_id uuid primary key, activo boolean not null def
 create table crm.leads (
   id uuid primary key, creado_en timestamptz not null, origen text,
   categoria_interes text, etapa text, vendedor_id uuid, asignado_supervisor_id uuid,
-  perfil_id uuid, contrato_id uuid, convertido_en timestamptz, creado_por uuid);
+  perfil_id uuid, contrato_id uuid, convertido_en timestamptz, creado_por uuid,
+  -- el ranking exige `activo is true` (espejo de leads_select); la pantalla
+  -- Conversiones no lo mira. La columna vive en la tabla real.
+  activo boolean not null default true);
 create table crm.actividades (lead_id uuid, tipo text, metadata jsonb default '{}'::jsonb);
 create table crm.tareas (lead_id uuid, tipo text, estado text);
 create table crm.lead_asignaciones (
@@ -67,6 +73,21 @@ as 'select exists (select 1 from private.anulados_stub a where a.lead_id = p_lea
 create function private.es_lector_global() returns boolean language sql stable as 'select false';
 create function private.rol_crm(p uuid) returns text language sql stable set search_path = ''
 as 'select e.rol_crm from crm.equipo e where e.perfil_id = p and e.activo';
+-- Lo que 2.2 necesita ademas: ambito del supervisor y filtro del desglose.
+create table crm.equipo_supervision (supervisor_id uuid, vendedor_id uuid);
+create function private.vendedor_ids_visibles(p uuid) returns setof uuid
+language sql stable set search_path = ''
+as 'select es.vendedor_id from crm.equipo_supervision es where es.supervisor_id = p';
+create function private.filtrar_desglose_sujetos_crm(
+  p_payload jsonb, p_clave text, p_campo text, p_roles text[]) returns jsonb
+language sql stable set search_path = ''
+as \$ff\$
+  select jsonb_set(p_payload, array[p_clave], coalesce((
+    select jsonb_agg(e.value order by e.ord)
+    from jsonb_array_elements(p_payload->p_clave) with ordinality e(value, ord)
+    where private.rol_crm((e.value->>p_campo)::uuid) = any(p_roles)
+  ), '[]'::jsonb), true)
+\$ff\$;
 
 -- gerencia que ejecuta (auth.uid())
 insert into public.perfiles (id) values ('$GERENCIA'::uuid);
@@ -77,6 +98,7 @@ SQL
   $PSQL -q -d $DB -f "$VIVOS1/private__conversion_mensual_por_vendedor.sql" >/dev/null
   $PSQL -q -d $DB -f "$VIVOS2/private__peso_referido_conversion.sql" >/dev/null
   $PSQL -q -d $DB -f "$VIVOS2/private__metricas_conversiones_implementacion.sql" >/dev/null
+  $PSQL -q -d $DB -f "$VIVOS2/crm__metricas_conversiones_equipo_fn.sql" >/dev/null
   # En PROD estas funciones tienen la ACL cerrada al owner ({postgres=X/postgres});
   # el banco lo replica o el postflight de ACL fallaria por un artefacto del banco.
   $PSQL -q -d $DB -c "revoke all on function private.metricas_conversiones_implementacion(date,date) from public;" >/dev/null
@@ -86,6 +108,19 @@ SQL
   # aviso de re-captura (el resto de preflight/postflight corre intacto).
   sed "s/raise exception '[^']*re-capturar[^']*';/null;/" \
       "$MIG_F1" | $PSQL -q --single-transaction -d $DB -f - >/dev/null
+  sed "s/raise exception '[^']*re-capturar[^']*';/null;/" \
+      "$1" | $PSQL -q --single-transaction -d $DB -f - >/dev/null
+  $PSQL -q -d $DB -f "$FIXTURE" >/dev/null
+}
+
+# El ranking es una RPC publica: en PROD su ACL es {postgres,authenticated}.
+montar22() {  # $1 = migracion 2.2 (original o mutante)
+  montar "$MIG_F21"
+  psql -h 127.0.0.1 -p 5432 -U postgres -X -q -d $DB \
+    -c "do \$r\$ begin if not exists (select 1 from pg_roles where rolname='authenticated') then create role authenticated; end if; end \$r\$;" >/dev/null
+  $PSQL -q -d $DB -c \
+    "revoke all on function crm.metricas_conversiones_equipo_fn(date,date) from public;" -c \
+    "grant execute on function crm.metricas_conversiones_equipo_fn(date,date) to authenticated;" >/dev/null
   sed "s/raise exception '[^']*re-capturar[^']*';/null;/" \
       "$1" | $PSQL -q --single-transaction -d $DB -f - >/dev/null
 }
@@ -135,3 +170,39 @@ done
 rm -rf "$TMPD"
 echo
 echo "✅ BANCO F2.1 COMPLETO: oraculo + gate de rol + sondas + 8/8 mutantes muertos"
+
+echo
+echo "════ F2.2 · CASO REAL ════"
+montar22 "$MIG_F22"
+$PSQL -d $DB -f "$TEST22"
+
+echo
+echo "════ F2.2 · MUTANTES ════"
+TMPD2=$(mktemp -d)
+declare -a N22=(
+  "R1 vuelve al numerador muerto del ranking (contrato_id)"
+  "R2 el ranking pierde el gate de rol"
+  "R3 el ranking deja de filtrar el desglose por rol"
+  "R4 el nucleo del ranking ignora el ambito (siempre global)"
+)
+declare -a S22=(
+  "s/(l.id in (select ec.lead_id from ep_cosecha ec)) as contrato/(l.contrato_id is not null) as contrato/"
+  "s/    raise exception 'No autorizado' using errcode = '42501';/    null;/"
+  "s/  return private.filtrar_desglose_sujetos_crm(/  return v_payload; -- /"
+  "s/      v_ini, v_fin, v_periodo, v_global, v_visibles, v_factor/      v_ini, v_fin, v_periodo, true, null, v_factor/"
+)
+for i in 0 1 2 3; do
+  MUT="$TMPD2/mut$i.sql"
+  sed "${S22[$i]}" "$MIG_F22" > "$MUT"
+  if cmp -s "$MIG_F22" "$MUT"; then echo "❌ ${N22[$i]}: el sed no toco nada"; exit 1; fi
+  montar22 "$MUT" 2>/dev/null || { echo "✅ ${N22[$i]}: cazado (postflight aborto la migracion)"; continue; }
+  set +e
+  SAL=$($PSQL -d $DB -f "$TEST22" 2>&1); RC=$?
+  set -e
+  if [ $RC -eq 0 ]; then echo "❌ ${N22[$i]}: SOBREVIVIO"; exit 1; fi
+  if echo "$SAL" | grep -q "ORACULO ROTO"; then echo "✅ ${N22[$i]}: cazado"
+  else echo "❌ ${N22[$i]}: murio por OTRA cosa:"; echo "$SAL" | tail -4; exit 1; fi
+done
+rm -rf "$TMPD2"
+echo
+echo "✅ BANCO F2.2 COMPLETO: oraculo + ambito + 4/4 mutantes muertos"

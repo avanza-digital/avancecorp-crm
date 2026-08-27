@@ -4064,7 +4064,30 @@ drop de la base + verificación md5).
 
 ## 20260827020000 · `crm_f2_1_conversiones_nucleo`
 
-📦 **ESCRITA Y VERDE EN BANCO, SIN APLICAR** (2026-08-27). **F2.1** del plan
+✅ **APLICADA EN PROD** (2026-08-27 ~03:00 UTC, canal MCP Supabase; registro
+`schema_migrations` con md5 `67c07129…` = md5 del fichero local). Owners
+verificados iguales ANTES de aplicar (`postgres`/`postgres`). Advisors tras
+aplicar: **0 ERROR** (134 WARN preexistentes).
+
+**EL CAMBIO REAL, medido en vivo (mes en curso, 545 leads):**
+
+| | ANTES | DESPUÉS |
+|---|---|---|
+| `cohorte.contratos` | **0** (columna muerta) | **14** |
+| `conversion_contratos_pct` | **0.0 %** | **2.6 %** |
+| `cohorte.clientes` | 15 | 14 (uno tenía el cierre ANULADO) |
+| bloque `nucleo` | no existía | **7.22 %** (38.75 / 537) |
+| `cosecha` | no existía | 2.6 % (14 de 545) |
+
+Sondas en vivo: `cuadra: true` con **paridad 0.000 sobre 16 filas** — el
+bloque `nucleo` es EXACTAMENTE la cifra del héroe de HOY · `episodios_sin_
+origen` 0 · `origen_ficha_distinto_del_ledger` **0** (la etiqueta D6 es segura
+hoy) · `cierres_sin_ficha_convertida` 0 · `cartera_fuera_del_rango` 0 ·
+`divisor_fuera_del_roster` 0 · `numerador_fuera_del_roster` **1.000** y
+`cohorte_convertidos_sin_cierre_elegible` **1** (el cierre anulado): los dos
+únicos desacuerdos, ahora visibles en vez de invisibles.
+
+**F2.1** del plan
 [[Conversion unica en todo el CRM - plan de migraciones]] — primer motor
 paralelo que pasa a la tabla-base.
 

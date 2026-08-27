@@ -1,8 +1,8 @@
 -- Oraculo transaccional de crm.tareas (Agenda Fase A) — patron 4A-4C.
 --
 -- Se ejecuta SOLO contra un branch con la migracion 20260718180001 aplicada.
--- TODO corre en una unica transaccion que SIEMPRE se revierte: el exito es el
--- error final 'TAREAS_TX_OK' (cualquier otro error = fallo real del contrato).
+-- TODO corre en una unica transaccion que SIEMPRE se revierte: el exito imprime
+-- 'TAREAS_TX_OK' y termina con codigo 0 (cualquier error previo es un fallo real).
 -- Complementa (no reemplaza) el gate RLS con sesiones reales de test-rls.mjs.
 --
 -- Cubre: RLS por ambito (vendedor/supervisor/bandeja/gerencia), bloqueo de
@@ -121,8 +121,10 @@ begin
     update crm.tareas set estado = 'completada'
      where id = 'cccc0000-0000-4000-8000-000000000001';
     raise exception 'FALLO trigger: permitio completar por UPDATE directo';
-  exception when raise_exception then
-    if sqlerrm like 'FALLO%' then raise; end if; -- el veto real re-lanza otro texto
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'Cerrar o reprogramar una reunion va por la RPC de agenda' then
+      raise;
+    end if;
   end;
 end $$;
 
@@ -193,8 +195,10 @@ begin
     update crm.tareas set titulo = 'REABIERTA'
      where id = 'cccc0000-0000-4000-8000-000000000001';
     raise exception 'FALLO inmutabilidad: una tarea cerrada acepto UPDATE';
-  exception when raise_exception then
-    if sqlerrm like 'FALLO%' then raise; end if;
+  exception when sqlstate '22023' then
+    if sqlerrm <> 'La tarea ya esta cerrada; una reunion reprogramada conserva su historia' then
+      raise;
+    end if;
   end;
 end $$;
 
@@ -276,9 +280,9 @@ begin
   end;
   -- Tipo invalido.
   begin
-    insert into crm.tareas (lead_id, tipo, titulo, vence_en)
+    insert into crm.tareas (lead_id, tipo, titulo, vence_en, creado_por)
     values ('bbbb0000-0000-4000-8000-000000000003', 'email', 'ORACULO TIPO MALO',
-            now() + interval '1 day');
+            now() + interval '1 day', 'aaaa0000-0000-4000-8000-000000000001');
     raise exception 'FALLO CHECK: acepto tipo de tarea invalido';
   exception when check_violation then null;
   end;
@@ -292,5 +296,7 @@ begin
   end if;
 end $$;
 
--- ── Exito = este error (revierte TODO el oraculo) ────────────────────────────
-do $$ begin raise exception 'TAREAS_TX_OK'; end $$;
+-- ── Éxito explícito y rollback de todos los fixtures ─────────────────────────
+select 'TAREAS_TX_OK' as resultado;
+
+rollback;
