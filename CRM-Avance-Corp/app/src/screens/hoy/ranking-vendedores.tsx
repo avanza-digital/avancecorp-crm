@@ -165,15 +165,25 @@ function ErrorRanking({ error, onReintentar }: { error: string; onReintentar: ()
 
 /**
  * Línea «por cosecha» de una fila (D2 aplicado al ranking): de los leads que
- * el vendedor RECIBIÓ en el mes, cuántos cerraron — madura hasta hoy, así que
- * nunca se compara con la cifra ponderada de la izquierda. Sin fila del
- * payload no se pinta nada: la ausencia no es un cero.
+ * el vendedor RECIBIÓ en el mes, cuántos ya son clientes. Reescrita en idioma
+ * de negocio a pedido de Miguel (27/08): la primera versión («Cosecha: 0 de
+ * 41 recibidos (0%) · madura hasta hoy») no la entendía nadie. El matiz de la
+ * maduración viaja en el title, no en la línea. Sin fila del payload no se
+ * pinta nada: la ausencia no es un cero.
  */
 function lineaCosecha(fila: ResponsableEquipo | undefined): string | null {
   if (fila == null) return null
-  const pctCosecha = fila.conversion_pct == null ? '' : ` (${pct(fila.conversion_pct)})`
-  return `Cosecha: ${numero(fila.clientes)} de ${numero(fila.leads)} recibidos${pctCosecha} · madura hasta hoy`
+  const pctCosecha = fila.clientes > 0 && fila.conversion_pct != null ? ` (${pct(fila.conversion_pct)})` : ''
+  const clientes = fila.clientes === 0
+    ? 'ninguno es cliente todavía'
+    : fila.clientes === 1
+      ? '1 ya es cliente'
+      : `${numero(fila.clientes)} ya son clientes`
+  return `De sus ${numero(fila.leads)} leads del mes, ${clientes}${pctCosecha}`
 }
+
+/** El matiz que la línea corta no carga: los cierres pueden seguir llegando. */
+const TITLE_COSECHA = 'Cuenta los leads recibidos este mes que ya cerraron como clientes. Puede seguir subiendo: un lead de este mes puede cerrar más adelante.'
 
 function RankingConversion({ ranking, cosechaPorVendedor }: {
   ranking: RankingConversionVendedores<DetalleConversionMensual>
@@ -226,7 +236,7 @@ function RankingConversion({ ranking, cosechaPorVendedor }: {
                     {(() => {
                       const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
                       return cosecha && (
-                        <span className="block text-left text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</span>
+                        <span title={TITLE_COSECHA} className="block text-left text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</span>
                       )
                     })()}
                   </td>
@@ -268,7 +278,7 @@ function RankingConversion({ ranking, cosechaPorVendedor }: {
               {(() => {
                 const cosecha = lineaCosecha(cosechaPorVendedor.get(fila.vendedorId))
                 return cosecha && (
-                  <p className="ml-12 mt-1 text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</p>
+                  <p title={TITLE_COSECHA} className="ml-12 mt-1 text-[10px] font-medium text-[var(--gi-muted)]">{cosecha}</p>
                 )
               })()}
               {descuento && (

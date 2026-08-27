@@ -349,22 +349,31 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     )
   }
 
-  it('con payload pinta la segunda lectura SOLO en quien tiene fila, rotulada y con maduración dicha', () => {
+  it('con payload pinta la segunda lectura SOLO en quien tiene fila, en idioma de negocio', () => {
     montar(cosechaDemo())
     // demo-v1 tiene fila de cosecha → su celda gana la segunda línea.
-    expect(screen.getAllByText('Cosecha: 5 de 38 recibidos (13.2%) · madura hasta hoy').length).toBeGreaterThanOrEqual(1)
+    // Redacción pedida por Miguel (27/08): la versión «Cosecha: N de M
+    // recibidos · madura hasta hoy» no la entendía nadie.
+    expect(screen.getAllByText('De sus 38 leads del mes, 5 ya son clientes (13.2%)').length).toBeGreaterThanOrEqual(1)
     // Los demás no: la ausencia de fila no es un cero.
-    expect(screen.queryAllByText(/Cosecha: 0 de/)).toHaveLength(0)
+    expect(screen.queryAllByText(/leads del mes, ninguno/)).toHaveLength(0)
+  })
+
+  it('con cero cierres lo dice con palabras («ninguno es cliente todavía»), sin un (0%) que estorbe', () => {
+    const cosecha = cosechaDemo()
+    cosecha.responsables = [{ vendedor_id: 'demo-v1', leads: 41, clientes: 0, conversion_pct: 0 }]
+    montar(cosecha)
+    expect(screen.getAllByText('De sus 41 leads del mes, ninguno es cliente todavía').length).toBeGreaterThanOrEqual(1)
   })
 
   it('sin payload (consultando o no disponible) no pinta NADA de cosecha — jamás un cero fabricado', () => {
     montar(undefined)
-    expect(screen.queryByText(/Cosecha:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
   })
 
   it('F3.4: con la sonda en falso la cosecha entera se OCULTA y se avisa', () => {
     montar(cosechaDemo(false))
-    expect(screen.queryByText(/Cosecha:/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Lectura por cosecha en revisión')
   })
 })
