@@ -1346,11 +1346,15 @@ export function HoyVendedor(): JSX.Element {
               label: 'Convertidos',
               value: nConvertidos != null ? String(nConvertidos) : '—',
               icon: Trophy,
+              // F3.1 (H9/D1): este número es la VISTA de cartera — ganados aún
+              // visibles dentro de la ventana operativa — y el rótulo lee esa
+              // ventana del payload en vez de afirmar «45» por su cuenta. La
+              // conversión del MES vive abajo, en «Tu cumplimiento del mes».
               sub:
                 resumen == null
                   ? 'Sin dato por ahora'
                   : (nConvertidos ?? 0) > 0
-                    ? 'Últimos 45 días · clientes ganados'
+                    ? `Ganados aún en tu cartera · ventana de ${resumen.ventana_convertidos_dias} días`
                     : 'Aún sin cierres — tu primera venta sale de la cola',
             },
           ]}

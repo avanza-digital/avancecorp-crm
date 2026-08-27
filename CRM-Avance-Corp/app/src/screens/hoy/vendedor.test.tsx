@@ -1067,3 +1067,18 @@ describe('Hoy · vendedor — viernes de higiene', () => {
     expect(screen.getByText('Lo pendiente está en tu agenda')).toBeInTheDocument()
   })
 })
+
+describe('Hoy · vendedor — tile «Convertidos» (F3.1, H9/D1)', () => {
+  it('el rótulo dice la ventana OPERATIVA leída del payload, no un 45 afirmado por su cuenta', () => {
+    // Este número es la VISTA de cartera (ganados aún visibles), no la
+    // conversión del mes: el sub lo dice y toma la ventana del payload
+    // certificado (`ventana_convertidos_dias`), la misma que declara el RPC.
+    montar({ leads: [lead({ id: 'l-c', etapa: 'convertido' })] })
+
+    expect(screen.getByText('Convertidos')).toBeInTheDocument()
+    expect(
+      screen.getByText('Ganados aún en tu cartera · ventana de 45 días'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/clientes ganados/)).not.toBeInTheDocument()
+  })
+})
