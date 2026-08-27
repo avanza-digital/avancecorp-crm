@@ -15,7 +15,7 @@ import {
 import { useCRMData } from '@/lib/store-context'
 import { lecturaCobertura } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK, numero } from '@/lib/format'
+import { money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
 import {
   agregarObjetivos,
@@ -402,7 +402,7 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                 />
                 <MetaItem
                   label="Conversión de la empresa"
-                  actual={conversionActual == null ? '—' : `${numero(conversionActual, 1)}%`}
+                  actual={porcentajeConversionCanonica(conversionActual)}
                   objetivo={metaMensual.errorCarga
                     ? 'meta no disponible'
                     : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}

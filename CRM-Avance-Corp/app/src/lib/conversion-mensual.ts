@@ -112,13 +112,26 @@ export type AjusteConversion = v.InferOutput<typeof AjusteConversionSchema>
 /**
  * Operaciones de cartera del mes acreditadas al asesor — el sumando del
  * numerador que NO viene de leads (envoltorio de `20260824231133`; máx. una
- * operación elegible por cliente/mes). Sin declararlo, Valibot lo descartaba
- * y una fila con «0 cierres y 9,3 %» no podía explicarse a sí misma (el
- * hallazgo de Grecia, 27/08). Se declara lo que el ranking pinta; `optional`
- * porque el espejo demo no lo emite.
+ * operación elegible por cliente/mes). Es OBLIGATORIO en el contrato vigente:
+ * si falta, no sabemos si hubo cero operaciones o si llegó el núcleo anterior,
+ * y convertir esa ausencia en cero sería publicar una explicación falsa.
  */
 const CarteraResponsableSchema = v.object({
   conversiones_clientes: EnteroNoNegativoRpcSchema,
+  conversiones_renovacion: EnteroNoNegativoRpcSchema,
+  conversiones_upgrade: EnteroNoNegativoRpcSchema,
+  capital_renovado_pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_renovado_usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_adicional_pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_adicional_usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  renovaciones_sin_desglose: EnteroNoNegativoRpcSchema,
+})
+
+/** El total agrega además el conteo económico de operaciones por tipo. */
+const CarteraTotalSchema = v.object({
+  ...CarteraResponsableSchema.entries,
+  operaciones_renovacion: EnteroNoNegativoRpcSchema,
+  operaciones_upgrade: EnteroNoNegativoRpcSchema,
 })
 
 const ResponsableConversionSchema = v.object({
@@ -136,7 +149,7 @@ const ResponsableConversionSchema = v.object({
   procedencia: v.array(TramoProcedenciaSchema),
   referidos: ReferidosResponsableSchema,
   ajuste: v.optional(AjusteConversionSchema),
-  cartera: v.optional(CarteraResponsableSchema),
+  cartera: CarteraResponsableSchema,
 })
 
 const TotalConversionSchema = v.object({
@@ -149,6 +162,7 @@ const TotalConversionSchema = v.object({
   numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
   conversion_pct: PorcentajeSinTechoSchema,
   referidos_aporta_pct: PorcentajeSinTechoSchema,
+  cartera: CarteraTotalSchema,
 })
 
 export const ConversionMensualSchema = v.object({
@@ -196,6 +210,8 @@ export const ConversionMensualSchema = v.object({
       numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
     }),
   }),
+  /** Mismo total que `total.cartera`, también publicado en la raíz por el RPC. */
+  cartera: CarteraTotalSchema,
   total: TotalConversionSchema,
   responsables: v.array(ResponsableConversionSchema),
 })

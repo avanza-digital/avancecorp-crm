@@ -8,7 +8,7 @@ import {
   metricasConversionesDemo,
   metricasReunionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
-import { money, numero } from '@/lib/format'
+import { money, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionMensual, ResponsableConversionMensual } from '@/lib/conversion-mensual'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
@@ -33,6 +33,16 @@ function filaMensualSinActividad(vendedorId: string): ResponsableConversionMensu
     estado: 'sin_actividad',
     procedencia: [],
     referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+    cartera: {
+      conversiones_clientes: 0,
+      conversiones_renovacion: 0,
+      conversiones_upgrade: 0,
+      capital_renovado_pen: 0,
+      capital_renovado_usd: 0,
+      capital_adicional_pen: 0,
+      capital_adicional_usd: 0,
+      renovaciones_sin_desglose: 0,
+    },
   }
 }
 
@@ -358,7 +368,9 @@ describe('estados vacíos del resumen de Gerencia', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las reuniones.')
     // El héroe y el KPI dicen LA conversión del MES — la del rango vive en Conversiones.
-    const pctMes = `${numero(conversionMensualInteligenciaDemo(AHORA).total.conversion_pct!, 1)}%`
+    const pctMes = porcentajeConversionCanonica(
+      conversionMensualInteligenciaDemo(AHORA).total.conversion_pct,
+    )
     expect(screen.getAllByText(pctMes).length).toBeGreaterThan(0)
     // 11 = 9 no referidos + 2 referidos (los referidos cierran, no dividen).
     // F3 (27/08): cada cifra NOMBRA su base — «asignados» (divisor del núcleo)

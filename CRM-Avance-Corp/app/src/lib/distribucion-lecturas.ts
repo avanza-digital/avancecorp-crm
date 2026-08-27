@@ -18,6 +18,7 @@ import type {
   MetricasDistribucionLeadsV3,
   RangoCapitalPenId,
 } from './metricas-distribucion'
+import { estadoVerificacionNucleo } from './sondas-conversion'
 
 // ── Utilidades de texto ───────────────────────────────────────────────────────
 
@@ -520,12 +521,14 @@ export function estadoSondasDistribucion(datos: MetricasDistribucionLeadsV3): Es
       `Hay episodios del período sin analista atribuible (${sondas.divisor_sin_analista} recibidos): cuentan en el total, no en las fichas.`,
     )
   }
-  if (sondas.cuadra === true) {
+  const verificacion = estadoVerificacionNucleo(sondas)
+  if (verificacion === 'verificada') {
     return { mostrarNucleo: true, motivoOculto: null, avisos }
   }
-  if (sondas.cuadra === false) {
+  if (verificacion === 'descuadre') {
     return { mostrarNucleo: false, motivoOculto: 'descuadre', avisos }
   }
-  // cuadra NULL: la paridad solo corre con el mes entero o el mes en curso.
+  // Señales ausentes/NULL: la paridad solo corre con el mes entero o el mes
+  // en curso. Ninguna media verificación autoriza a mostrar la cifra.
   return { mostrarNucleo: false, motivoOculto: 'sin_verificacion', avisos }
 }

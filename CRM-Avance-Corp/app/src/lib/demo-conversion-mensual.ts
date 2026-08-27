@@ -59,6 +59,17 @@ export interface RosterConversionDemo {
 /** Redondeo half-up a 2 decimales, una sola vez — igual que la RPC. */
 const round2 = (n: number) => Math.round(n * 100) / 100
 
+const carteraResponsableVacia = (): ResponsableConversionMensual['cartera'] => ({
+  conversiones_clientes: 0,
+  conversiones_renovacion: 0,
+  conversiones_upgrade: 0,
+  capital_renovado_pen: 0,
+  capital_renovado_usd: 0,
+  capital_adicional_pen: 0,
+  capital_adicional_usd: 0,
+  renovaciones_sin_desglose: 0,
+})
+
 function mesRelativo(periodo: string, haceMeses: 0 | 1): { mes: string; nombre: string; anio: number } {
   const [anioTxt = '1970', mesTxt = '01'] = periodo.split('-')
   let anio = Number(anioTxt)
@@ -153,6 +164,9 @@ function filaDe(
         ? round2((100 * PESO_REFERIDO_DEMO * cierresReferidos) / divisor)
         : null,
     },
+    // La demo no simula renovaciones, pero conserva el MISMO contrato que el
+    // RPC real. Cero es explícito; ausencia sería una versión incompatible.
+    cartera: carteraResponsableVacia(),
     ajuste: analista.arrastre
       ? {
         pendiente: analista.arrastre.pendiente,
@@ -206,6 +220,11 @@ export function derivarConversionMensual(
   const divisor = ordenadas.reduce((total, fila) => total + fila.divisor, 0)
   const numerador = round2(ordenadas.reduce((total, fila) => total + fila.numerador, 0))
   const cierresReferidos = ordenadas.reduce((total, fila) => total + fila.cierres_referidos, 0)
+  const cartera = {
+    ...carteraResponsableVacia(),
+    operaciones_renovacion: 0,
+    operaciones_upgrade: 0,
+  }
 
   return {
     version: 1,
@@ -234,6 +253,7 @@ export function derivarConversionMensual(
       cierres_sin_episodio: 0,
       fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
     },
+    cartera,
     total: {
       analistas: ordenadas.length,
       divisor,
@@ -246,6 +266,7 @@ export function derivarConversionMensual(
       referidos_aporta_pct: divisor > 0
         ? round2((100 * PESO_REFERIDO_DEMO * cierresReferidos) / divisor)
         : null,
+      cartera: { ...cartera },
     },
     responsables: ordenadas,
   }

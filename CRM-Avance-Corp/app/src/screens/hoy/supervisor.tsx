@@ -63,13 +63,14 @@ import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
 import { useMetricasAgenda } from '@/data/crm-queries'
-import { moneyK, numero } from '@/lib/format'
+import { moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { cn } from '@/lib/utils'
 import { hashDe } from '@/lib/router'
 import { tresCosasDeHoy } from '@/lib/tres-cosas'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
+import { textoConversionOperativa } from '@/lib/metricas-vendedores'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
@@ -359,8 +360,8 @@ export function HoySupervisor(): JSX.Element {
         conversionConfirmada == null
           ? '—'
           : metaConversion != null
-            ? `${numero(conversionConfirmada, 1)}% de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
-            : `${numero(conversionConfirmada, 1)}% · ${numero(recibidosEquipo)} recibidos`,
+            ? `${porcentajeConversionCanonica(conversionConfirmada)} de ${metaConversion}% · ${numero(recibidosEquipo)} recibidos`
+            : `${porcentajeConversionCanonica(conversionConfirmada)} · ${numero(recibidosEquipo)} recibidos`,
       // El porqué de que la cifra no sea definitiva viaja PEGADO a ella. Antes
       // esto la sustituía, y un mes con recibidos y cierres decía «sin datos».
       nota: lecturaConversion.aviso,
@@ -808,7 +809,14 @@ export function HoySupervisor(): JSX.Element {
                         <div className="min-w-0 flex-1 leading-tight">
                           <p className="truncate text-sm font-semibold">{r.m.nombre_completo}</p>
                           <p className="text-[11px] tabular-nums text-muted-foreground">
-                            {r.activos} activos · {r.conversion}% conversión
+                            {r.activos} activos · {r.conversion == null
+                              ? r.conversionDisponible && r.divisorConversion === 0
+                                ? 'sin divisor mensual'
+                                : 'dato de conversión no disponible'
+                              : `${textoConversionOperativa(r.conversion)} conversión`}
+                            {r.operacionesCartera != null && r.operacionesCartera > 0
+                              ? ` · ${numero(r.operacionesCartera)} de cartera`
+                              : ''}
                             {r.sinTocar > 0 ? ` · ${r.sinTocar} sin tocar` : ''}
                           </p>
                         </div>

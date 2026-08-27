@@ -92,12 +92,12 @@ describe('detalle de conversión por vendedor', () => {
     const contenido = within(detalle)
     // El número grande es LA conversión del MES (4.15÷12), no la del rango.
     expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
-    expect(contenido.getByText('34.6%')).toBeInTheDocument()
+    expect(contenido.getByText('34.58%')).toBeInTheDocument()
     expect(contenido.getByText('Recibidos 12 · cierres 5')).toBeInTheDocument()
     // Procedencia y referidos con la letra corregida del plan.
     expect(contenido.getByText('de agosto 4, de julio 1')).toBeInTheDocument()
     expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
-    expect(contenido.getByText('Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.')).toBeInTheDocument()
+    expect(contenido.getByText('Fórmula: (cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes.')).toBeInTheDocument()
     // F1.3b: la ficha dice de QUÉ es el capital — el que produjeron SUS leads
     // (el rótulo «confirmado» era del cumplimiento, otra pregunta, y la
     // fuente vieja lo dejaba en S/ 0 eterno).
@@ -151,7 +151,7 @@ describe('detalle de conversión por vendedor', () => {
 
   it('mide la meta con la conversión del mes, no con la del cumplimiento', () => {
     // Las dos fuentes discrepan A PROPÓSITO: la conversión del mes de Ana es
-    // 34.6 % (la que enseña su número grande) y el cumplimiento de metas dice
+    // 34.58 % (la que enseña su número grande) y el cumplimiento de metas dice
     // 40 %, que es otra fórmula. Con meta 40 %, la leyenda de la barra delata
     // cuál de las dos se está midiendo.
     const metas = metasConversionEquipoDemo()
@@ -183,9 +183,9 @@ describe('detalle de conversión por vendedor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(detalle.getByText('34.6% de 40%')).toBeInTheDocument()
+    expect(detalle.getByText('34.58% de 40%')).toBeInTheDocument()
     expect(detalle.queryByText('40% de 40%')).not.toBeInTheDocument()
-    // Y el veredicto de estado sale del mismo número: 34.6 < 40.
+    // Y el veredicto de estado sale del mismo número: 34.58 < 40.
     expect(detalle.getByText('Por alcanzar')).toBeInTheDocument()
   })
 
@@ -400,11 +400,15 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     perfiles_con_leads_de_varios_vendedores: 0 as number | undefined,
   }
 
-  function montarConNucleo(sondas: typeof SONDAS, origenReferido = false) {
+  function montarConNucleo(
+    sondas: typeof SONDAS | undefined,
+    origenReferido = false,
+    incluirNucleo = true,
+  ) {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
-    datos.nucleo = { ...NUCLEO }
+    if (incluirNucleo) datos.nucleo = { ...NUCLEO }
     datos.cosecha = { ...COSECHA }
-    datos.sondas = sondas
+    if (sondas !== undefined) datos.sondas = sondas
     if (origenReferido) {
       const referido = datos.origenes.find((fila) => fila.origen.toLowerCase() === 'referido')
       if (referido) {
@@ -436,19 +440,50 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     montarConNucleo({ ...SONDAS })
     // «Conversión del mes» aparece en héroe y KPI: ambos con la MISMA cifra.
     expect(screen.getAllByText('Conversión del mes').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('7.22%').length).toBeGreaterThan(0)
     // Veto de Miguel (27/08): bajo la cifra va UNA línea con la letra del
     // Resumen — nada de «puntos», ni la fórmula ×peso+cartera, ni la cosecha.
     expect(screen.getByText('17 cierres · base del mes: 537 leads asignados (los referidos cierran aparte, sin dividir)')).toBeInTheDocument()
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/Por cosecha/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
   it('F3.4: con la sonda en falso, la cifra SE OCULTA y el banner ámbar lo dice', () => {
     montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
-    expect(screen.queryByText('7.2%')).not.toBeInTheDocument()
+    expect(screen.queryByText('7.22%')).not.toBeInTheDocument()
     expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
+    expect(screen.getByText(/tabla y la gráfica por vendedor permanecen ocultas/)).toBeInTheDocument()
+    expect(screen.getByText(/gráfica por origen permanece oculta/)).toBeInTheDocument()
+  })
+
+  it.each([
+    ['cuadra=true pero paridad_nucleo!=0', { ...SONDAS, cuadra: true, paridad_nucleo: 0.01 }],
+    ['cuadra=null', { ...SONDAS, cuadra: null, paridad_nucleo: 0 }],
+    ['paridad_nucleo=null', { ...SONDAS, cuadra: true, paridad_nucleo: null }],
+    ['paridad_nucleo=NaN', { ...SONDAS, cuadra: true, paridad_nucleo: Number.NaN }],
+    ['sondas ausentes', undefined],
+  ])('F3.4 fail-closed: %s no publica ni el núcleo ni una fórmula de reemplazo', (_caso, sondas) => {
+    montarConNucleo(sondas)
+    expect(screen.queryByText('7.22%')).not.toBeInTheDocument()
+    expect(screen.queryByText('2.60%')).not.toBeInTheDocument()
+    expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
+  })
+
+  it('una sonda parcial tampoco autoriza las tablas sensibles aunque falte el bloque núcleo', () => {
+    montarConNucleo({ ...SONDAS, cuadra: true, paridad_nucleo: null }, false, false)
+
+    expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
   })
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
@@ -458,13 +493,13 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
   it('origen ficha≠ledger avisa sin ocultar la cifra', () => {
     montarConNucleo({ ...SONDAS, origen_ficha_distinto_del_ledger: 2 })
-    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('7.22%').length).toBeGreaterThan(0)
     expect(screen.getByText(/origen distinto entre su ficha y el/)).toBeInTheDocument()
   })
 
   it('F1.3b: la sonda de perfiles compartidos avisa que el desglose puede sumar de más', () => {
     montarConNucleo({ ...SONDAS, perfiles_con_leads_de_varios_vendedores: 2 })
-    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('7.22%').length).toBeGreaterThan(0)
     expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
     expect(screen.getByText(/puede sumar más que el total/)).toBeInTheDocument()
   })

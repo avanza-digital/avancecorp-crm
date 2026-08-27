@@ -51,6 +51,7 @@ import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
+import { textoConversionOperativa } from '@/lib/metricas-vendedores'
 
 // ── Constantes de la vista ────────────────────────────────────────────────────
 
@@ -213,12 +214,13 @@ export function HoyDirectorio(): JSX.Element {
           color={SEMAFORO.navy}
           sub={
             resumen
-              // Rótulo honesto desde el corte de 45 d (F0§5): el convertido
-              // viejo ya vive como contrato en la cartera de clientes.
+              // Este capital conserva el corte OPERATIVO de 45 días. No se le
+              // anexa `totales.convertidos`: desde F2.4 ese contador es mensual
+              // y mezclarlo bajo este rótulo describiría dos ventanas distintas.
               ? resumen.capital.ganado.usd > 0
-                ? `${resumen.totales.convertidos} convertidos · últimos 45 d · +${moneyK(resumen.capital.ganado.usd, 'USD')} en dólares`
-                : `${resumen.totales.convertidos} convertidos · últimos 45 d (PEN)`
-              : 'Convertidos de los últimos 45 días'
+                ? `Capital de cierres · últimos 45 d · +${moneyK(resumen.capital.ganado.usd, 'USD')} en dólares`
+                : 'Capital de cierres · últimos 45 d (PEN)'
+              : 'Capital de cierres de los últimos 45 días'
           }
           delay={60}
         />
@@ -236,23 +238,20 @@ export function HoyDirectorio(): JSX.Element {
           }
           delay={120}
         />
-        {/* F3: números SERVIDOS, sin divisiones locales. La tasa de descarte
-            (histórico ÷ 45 d, dos poblaciones mezcladas) se retiró; los
-            descartados siguen abajo, motivo a motivo. OJO (medido en prod):
-            este bloque `conversion` cuenta cierres CRUDOS sobre recibidos —
-            no es el % ponderado del núcleo que pinta HOY — así que la tarjeta
-            enseña los enteros y evita un tercer «%» que contradiga al héroe. */}
+        {/* Cierres SERVIDOS por el contador canónico mensual. El subobjeto
+            heredado `conversion` responde otra pregunta (stock/owner/45 d),
+            por eso aquí no se lee ni su numerador ni su base. */}
         <KpiCard
-          label="Cierres del mes"
-          value={resumen ? numero(resumen.conversion.convertidos) : '—'}
+          label={metricaMensual ? 'Cierres del mes' : 'Cierres del ámbito'}
+          value={resumen ? numero(resumen.totales.convertidos) : '—'}
           icon={Target}
           color={SEMAFORO.navy}
           sub={
             resumen
               ? metricaMensual
-                ? `de ${numero(resumen.conversion.base)} leads recibidos en el mes calendario`
-                : `convertidos de ${numero(resumen.conversion.base)} asignados del ámbito (45 d)`
-              : 'Cierres sobre leads recibidos'
+                ? 'Cierres de leads del mes calendario'
+                : 'Cierres de leads del ámbito operativo (45 d)'
+              : 'Cierres de leads'
           }
           delay={180}
         />
@@ -394,7 +393,19 @@ export function HoyDirectorio(): JSX.Element {
                   <td className="py-2.5 pr-3 text-right">
                     <span className="font-semibold tabular-nums" style={{ color: SEMAFORO.navy }}>{f.convertidos}</span>
                   </td>
-                  <td className="py-2.5 pr-3 text-right tabular-nums">{f.conversion}%</td>
+                  <td className="py-2.5 pr-3 text-right tabular-nums">
+                    <span className={f.conversion == null ? 'text-muted-foreground' : undefined}>
+                      {textoConversionOperativa(f.conversion)}
+                      {f.conversion == null
+                        ? f.conversionDisponible && f.divisorConversion === 0
+                          ? ' · Sin divisor mensual'
+                          : ' · Dato no disponible'
+                        : ''}
+                      {f.operacionesCartera != null && f.operacionesCartera > 0
+                        ? ` · ${numero(f.operacionesCartera)} de cartera`
+                        : ''}
+                    </span>
+                  </td>
                   <td className="py-2.5 text-right">
                     {f.parkeados > 0 ? (
                       <Badge color={SEMAFORO.atencion}>{f.parkeados}</Badge>

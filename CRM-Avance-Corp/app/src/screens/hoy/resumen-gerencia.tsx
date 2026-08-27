@@ -19,7 +19,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, numero } from '@/lib/format'
+import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   capitalObjetivo,
@@ -61,7 +61,7 @@ interface ResumenGerenciaPanelProps {
 }
 
 function pct(valor: number | null): string {
-  return valor == null ? '—' : `${numero(valor, 1)}%`
+  return porcentajeConversionCanonica(valor)
 }
 
 function numeroDisponible(valor: number | null): string {

@@ -598,26 +598,34 @@ describe('candidatosReparto', () => {
 })
 
 describe('estadoSondasDistribucion (F3.4: la red)', () => {
-  it('con cuadra=true muestra el núcleo y no alarma', () => {
+  it('solo con cuadra=true Y paridad_nucleo=0 muestra el núcleo y no alarma', () => {
     const estado = estadoSondasDistribucion(datos())
     expect(estado).toEqual({ mostrarNucleo: true, motivoOculto: null, avisos: [] })
   })
 
-  it('con cuadra=false OCULTA la cifra por descuadre (jamás pinta un número roto)', () => {
-    const estado = estadoSondasDistribucion(
-      datos({ sondas: { cuadra: false, paridad_nucleo: 2 } }),
-    )
-    expect(estado.mostrarNucleo).toBe(false)
-    expect(estado.motivoOculto).toBe('descuadre')
-  })
+  it.each([
+    ['cuadra=false aunque la paridad sea 0', { cuadra: false, paridad_nucleo: 0 }],
+    ['cuadra=true pero la paridad no sea 0', { cuadra: true, paridad_nucleo: 2 }],
+  ] satisfies ReadonlyArray<readonly [string, Partial<SondasDistribucion>]>) (
+    '%s OCULTA la cifra por descuadre',
+    (_caso, sondas) => {
+      const estado = estadoSondasDistribucion(datos({ sondas }))
+      expect(estado.mostrarNucleo).toBe(false)
+      expect(estado.motivoOculto).toBe('descuadre')
+    },
+  )
 
-  it('con cuadra=null (rango que no es un mes) oculta SIN alarma: nada falló', () => {
-    const estado = estadoSondasDistribucion(
-      datos({ sondas: { cuadra: null, paridad_nucleo: null, paridad_filas: 0 } }),
-    )
-    expect(estado.mostrarNucleo).toBe(false)
-    expect(estado.motivoOculto).toBe('sin_verificacion')
-  })
+  it.each([
+    ['cuadra null', { cuadra: null, paridad_nucleo: 0, paridad_filas: 0 }],
+    ['paridad null', { cuadra: true, paridad_nucleo: null, paridad_filas: 0 }],
+  ] satisfies ReadonlyArray<readonly [string, Partial<SondasDistribucion>]>) (
+    'con %s oculta SIN alarma: la verificación no está completa',
+    (_caso, sondas) => {
+      const estado = estadoSondasDistribucion(datos({ sondas }))
+      expect(estado.mostrarNucleo).toBe(false)
+      expect(estado.motivoOculto).toBe('sin_verificacion')
+    },
+  )
 
   it('nucleo_sin_ficha > 0 AVISA pero no oculta (el caso real vivo en prod)', () => {
     const estado = estadoSondasDistribucion(datos({ sondas: { nucleo_sin_ficha: 1 } }))

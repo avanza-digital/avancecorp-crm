@@ -26,7 +26,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, numero } from '@/lib/format'
+import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   descuentoArrastre,
@@ -51,6 +51,7 @@ import {
   type ObjetivoComercial,
   type ObjetivosPorVendedor,
 } from '@/lib/objetivos'
+import { estadoVerificacionNucleo } from '@/lib/sondas-conversion'
 
 interface InteligenciaComercialPanelProps {
   datos: MetricasConversiones | null | undefined
@@ -95,7 +96,7 @@ const ETAPA_LABEL: Record<MetricasConversiones['embudo'][number]['etapa'], strin
 }
 
 function pct(valor: number | null): string {
-  return valor == null ? '—' : `${numero(valor, 1)}%`
+  return porcentajeConversionCanonica(valor)
 }
 
 function nombreOrigen(valor: string): string {
@@ -413,7 +414,9 @@ function DetalleVendedor({
                   <span className="text-[11px] font-medium tabular-nums text-[var(--gi-muted)]">{lineaReferidos(detalleMes.referidos)}</span>
                 </div>
                 <p className="mt-2 text-[11px] font-medium text-[var(--gi-muted)]">
-                  Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.
+                  {mensual == null
+                    ? 'Fórmula: (cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes.'
+                    : `Fórmula: (cierres no referidos + referidos ×${numero(mensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes.`}
                 </p>
               </section>
             )}
@@ -532,10 +535,16 @@ export function InteligenciaComercialPanel({
   const opcionEquipo = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
     grid: { left: 132, right: 60, top: 8, bottom: 30 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: (valor) => porcentajeConversionCanonica(
+        typeof valor === 'number' ? valor : null,
+      ),
+    },
     xAxis: { type: 'value', min: 0, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' }, splitLine: { lineStyle: { color: C.grid } } },
     yAxis: { type: 'category', inverse: true, data: vendedores.map((fila) => fila.nombre), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11, width: 120, overflow: 'truncate' } },
-    series: [{ type: 'bar', data: vendedores.map((fila) => fila.detalle?.conversion_pct ?? null), barMaxWidth: 17, itemStyle: { color: C.teal, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
+    series: [{ type: 'bar', data: vendedores.map((fila) => fila.detalle?.conversion_pct ?? null), barMaxWidth: 17, itemStyle: { color: C.teal, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: (parametros) => porcentajeConversionCanonica(typeof parametros.value === 'number' ? parametros.value : null), color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
   }), [vendedores])
 
   const pasos = useMemo(() => (datos?.embudo ?? [])
@@ -555,10 +564,16 @@ export function InteligenciaComercialPanel({
   const opcionOrigen = useMemo<EChartsOption>(() => ({
     animationDuration: 650,
     grid: { left: 105, right: 60, top: 8, bottom: 28 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: (valor) => porcentajeConversionCanonica(
+        typeof valor === 'number' ? valor : null,
+      ),
+    },
     xAxis: { type: 'value', min: 0, axisLabel: { formatter: '{value}%', color: C.muted, fontFamily: 'IBM Plex Sans' }, splitLine: { lineStyle: { color: C.grid } } },
     yAxis: { type: 'category', inverse: true, data: origenes.map((fila) => nombreOrigen(fila.origen)), axisTick: { show: false }, axisLine: { show: false }, axisLabel: { color: C.navy, fontFamily: 'IBM Plex Sans', fontSize: 11 } },
-    series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contratos_pct ?? 0), barMaxWidth: 18, itemStyle: { color: C.blue, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
+    series: [{ type: 'bar', data: origenes.map((fila) => fila.conversion_contratos_pct), barMaxWidth: 18, itemStyle: { color: C.blue, borderRadius: [0, 8, 8, 0] }, label: { show: true, position: 'right', formatter: (parametros) => porcentajeConversionCanonica(typeof parametros.value === 'number' ? parametros.value : null), color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' } }],
   }), [origenes])
 
   const tendenciaEquipo = adaptada.tendenciaSemanal
@@ -593,16 +608,23 @@ export function InteligenciaComercialPanel({
   const clientes = datos?.cohorte.contratos ?? 0
   // F3.1 (decisión D2): la cifra principal es el NÚCLEO servido — la misma de
   // HOY/Metas/Ranking — y la foto por cosecha es la segunda lectura. F3.4: si
-  // la sonda de paridad no confirmó (cuadra !== true), el número se oculta;
+  // las DOS sondas de paridad no confirmaron (`cuadra=true` Y desvío 0), el
+  // número se oculta;
   // sin bloque `nucleo` (espejo demo, deuda N4-N6) la pantalla degrada a la
   // lectura por cosecha de siempre, rotulada como lo que es.
   const nucleo = datos?.nucleo ?? null
   const sondasConv = datos?.sondas ?? null
-  const nucleoVisible = nucleo != null && sondasConv?.cuadra === true
-  const nucleoDescuadrado = nucleo != null && sondasConv?.cuadra === false
+  const verificacionNucleo = estadoVerificacionNucleo(sondasConv)
+  const nucleoVisible = nucleo != null && verificacionNucleo === 'verificada'
+  // Si llegó cualquiera de los bloques del núcleo, ambos son obligatorios:
+  // núcleo + DOS sondas verificadas. Solo la demo heredada, que no trae ni
+  // núcleo ni sondas, conserva su lectura de rango explícitamente rotulada.
+  const conversionEnRevision = (nucleo != null || sondasConv != null) && !nucleoVisible
   const conversion = nucleoVisible
     ? nucleo.conversion_pct
-    : (datos?.cohorte.conversion_contratos_pct ?? null)
+    : conversionEnRevision
+      ? null
+      : (datos?.cohorte.conversion_contratos_pct ?? null)
   // Veto de Miguel (27/08): bajo la cifra NO va aritmética — ni «puntos» (son
   // leads), ni el desglose ×peso + cartera, ni la cosecha, ni el capital por
   // leads. Una sola línea, con la MISMA letra que el héroe del Resumen. El
@@ -618,7 +640,7 @@ export function InteligenciaComercialPanel({
   const kpis = [
     nucleoVisible
       ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(cierresDelMes ?? 0)} cierres`, icon: UserRoundCheck, color: C.blue }
-      : { label: 'Conversión', valor: nucleoDescuadrado ? '—' : pct(conversion), detalle: nucleoDescuadrado ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
+      : { label: conversionEnRevision ? 'Conversión del mes' : 'Conversión', valor: conversionEnRevision ? '—' : pct(conversion), detalle: conversionEnRevision ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
     { label: 'Citas realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
     { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber },
@@ -637,14 +659,17 @@ export function InteligenciaComercialPanel({
         <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
           <section data-gi-hero className="gi-summary-hero">
             {/* D2: cifra principal = NÚCLEO servido (la misma de HOY/Metas/
-                Ranking). Sin núcleo (demo) o con sonda en falso, la pantalla
-                degrada y lo dice — jamás un número fabricado. */}
+                Ranking). Un núcleo con verificación incompleta se oculta sin
+                rescatar otra fórmula; solo la demo heredada conserva su
+                lectura de rango explícitamente rotulada. */}
             <div className="min-w-[280px]">
-              <p className="gi-label text-white/65">{nucleoVisible ? 'Conversión del mes' : 'Conversión a clientes'}</p>
-              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{nucleoDescuadrado ? '—' : pct(conversion)}</p>
+              <p className="gi-label text-white/65">{conversionEnRevision || nucleoVisible ? 'Conversión del mes' : 'Conversión a clientes'}</p>
+              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{conversionEnRevision ? '—' : pct(conversion)}</p>
               <p className="mt-2 text-xs text-white/65">
-                {nucleoDescuadrado
-                  ? 'Cifras en revisión: la verificación interna del mes no cuadró.'
+                {conversionEnRevision
+                  ? verificacionNucleo === 'descuadre'
+                    ? 'Cifras en revisión: la verificación interna del mes no cuadró.'
+                    : 'Cifras en revisión: la verificación interna del mes no está completa.'
                   : cierresDelMes != null && nucleoVisible
                     ? `${numero(cierresDelMes)} cierres · base del mes: ${numero(nucleo.divisor)} leads asignados (los referidos cierran aparte, sin dividir)`
                     : `${numero(clientes)} clientes de ${numero(datos.cohorte.leads)} leads del rango`}
@@ -659,16 +684,17 @@ export function InteligenciaComercialPanel({
           </section>
 
           {/* F3.4: lo que dicen las sondas se dice — el descuadre además ocultó la cifra arriba. */}
-          {(nucleoDescuadrado
+          {(conversionEnRevision
             || (sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0)
             || (sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) > 0) && (
             <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden />
               <div className="text-xs leading-relaxed text-amber-900">
-                {nucleoDescuadrado && (
+                {conversionEnRevision && (
                   <p className="font-semibold">
-                    Cifras en revisión: la verificación interna del mes no cuadró y la conversión del
-                    mes se oculta hasta revisarla.
+                    {verificacionNucleo === 'descuadre'
+                      ? 'Cifras en revisión: la verificación interna del mes no cuadró y la conversión del mes se oculta hasta revisarla.'
+                      : 'Cifras en revisión: la verificación interna del mes no está completa y la conversión del mes se oculta hasta revisarla.'}
                   </p>
                 )}
                 {sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0 && (
@@ -696,52 +722,71 @@ export function InteligenciaComercialPanel({
             })}
           </div>
 
-          <section data-gi-panel className="gi-card p-5">
-            <div className="flex flex-wrap items-center justify-between gap-3">
-              <div><h3 className="gi-title">Conversión por vendedor</h3><p className="gi-caption mt-1">Equipo completo</p></div>
-              {vendedor && <div className="flex items-center gap-2"><select aria-label="Vendedor para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
-            </div>
-            <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por vendedor" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
-          </section>
+          {conversionEnRevision ? (
+            <section data-gi-panel className="gi-card p-5" role="status">
+              <h3 className="gi-title">Conversión por vendedor</h3>
+              <p className="mt-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-6 text-center text-xs font-medium text-amber-900">
+                Cifras en revisión: la tabla y la gráfica por vendedor permanecen ocultas.
+              </p>
+            </section>
+          ) : (
+            <section data-gi-panel className="gi-card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h3 className="gi-title">Conversión por vendedor</h3><p className="gi-caption mt-1">Equipo completo</p></div>
+                {vendedor && <div className="flex items-center gap-2"><select aria-label="Vendedor para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver detalle</Button></div>}
+              </div>
+              <GerenciaEChart tipo="barras" option={opcionEquipo} ariaLabel="Conversión a clientes por vendedor" className="mt-3 w-full" style={{ height: Math.max(300, vendedores.length * 38) }} />
+            </section>
+          )}
 
           <div className="grid gap-4 xl:grid-cols-2">
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Avance comercial</h3><GerenciaEChart tipo="barras" option={opcionRecorrido} ariaLabel="Avance de los leads hasta convertirse en clientes" className="mt-3 h-[330px] w-full" /></section>
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Conversión por origen</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión a clientes por origen del lead" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} />{origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+            {conversionEnRevision ? (
+              <section data-gi-panel className="gi-card p-5" role="status">
+                <h3 className="gi-title">Conversión por origen</h3>
+                <p className="mt-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-6 text-center text-xs font-medium text-amber-900">
+                  Cifras en revisión: la gráfica por origen permanece oculta.
+                </p>
+              </section>
+            ) : (
+              <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Conversión por origen</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión a clientes por origen del lead" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 48) }} />{origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
               // D6: los referidos quedan FUERA de la base general del mes y sus
               // cierres ponderan 0,15 — su barra mide otra cosa y se rotula.
               <p className="mt-2 text-[11px] leading-relaxed text-[var(--gi-muted)]">
                 {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base de la conversión del mes (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
               </p>
+              )}
+              {/* F1.3b: cuánto capital ha producido cada origen (lo cerrado
+                  hasta hoy por los leads del rango, portal + coops). Servido
+                  por origenes[].capital_* — vivo desde la migración F1.3b;
+                  antes leía el enlace muerto y era 0 invisible. PEN y USD por
+                  separado: aquí no hay tipo de cambio. Solo orígenes con algo. */}
+              {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
+                <div className="mt-3 border-t border-[var(--gi-line)] pt-3">
+                  <p className="gi-caption">Capital producido por origen · leads del rango, cerrado hasta hoy</p>
+                  <dl className="mt-2 grid gap-1.5 sm:grid-cols-2">
+                    {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
+                      <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
+                        <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
+                        <dd className="font-bold tabular-nums">
+                          {[
+                            fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
+                            fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
+                          ].filter(Boolean).join(' + ')}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </div>
+              )}
+            </section>
             )}
-            {/* F1.3b: cuánto capital ha producido cada origen (lo cerrado
-                hasta hoy por los leads del rango, portal + coops). Servido
-                por origenes[].capital_* — vivo desde la migración F1.3b;
-                antes leía el enlace muerto y era 0 invisible. PEN y USD por
-                separado: aquí no hay tipo de cambio. Solo orígenes con algo. */}
-            {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
-              <div className="mt-3 border-t border-[var(--gi-line)] pt-3">
-                <p className="gi-caption">Capital producido por origen · leads del rango, cerrado hasta hoy</p>
-                <dl className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                  {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
-                    <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
-                      <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
-                      <dd className="font-bold tabular-nums">
-                        {[
-                          fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
-                          fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
-                        ].filter(Boolean).join(' + ')}
-                      </dd>
-                    </div>
-                  ))}
-                </dl>
-              </div>
-            )}</section>
           </div>
 
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Ritmo semanal del equipo</h3><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
-      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto ? vendedorMensual : null} mensual={conversionMensual} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
+      <DetalleVendedor fila={detalleAbierto && !conversionEnRevision ? vendedor : null} filaMensual={detalleAbierto && !conversionEnRevision ? vendedorMensual : null} mensual={conversionMensual} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }

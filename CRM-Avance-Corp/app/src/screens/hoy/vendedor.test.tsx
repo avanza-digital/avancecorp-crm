@@ -297,6 +297,21 @@ function conversionMensualPropia(
   extras: Partial<ConversionMensual['responsables'][number]> = {},
 ): ConversionMensual {
   const cierres = extras.cierres_no_referidos ?? (conversionPct == null ? 0 : 1)
+  const carteraResponsable: ConversionMensual['responsables'][number]['cartera'] = {
+    conversiones_clientes: 0,
+    conversiones_renovacion: 0,
+    conversiones_upgrade: 0,
+    capital_renovado_pen: 0,
+    capital_renovado_usd: 0,
+    capital_adicional_pen: 0,
+    capital_adicional_usd: 0,
+    renovaciones_sin_desglose: 0,
+  }
+  const carteraTotal: ConversionMensual['cartera'] = {
+    ...carteraResponsable,
+    operaciones_renovacion: 0,
+    operaciones_upgrade: 0,
+  }
   const fila: ConversionMensual['responsables'][number] = {
     vendedor_id: '00000000-0000-4000-8000-000000000001',
     supervisor_id: null,
@@ -315,6 +330,9 @@ function conversionMensualPropia(
       aporta_pct: null,
     },
     ...extras,
+    // La ausencia ya no significa cero: cada fixture declara su versión del
+    // contrato y solo sobrescribe cartera cuando la prueba realmente la usa.
+    cartera: extras.cartera ?? carteraResponsable,
   }
   return {
     version: 1,
@@ -343,6 +361,7 @@ function conversionMensualPropia(
       cierres_sin_episodio: 0,
       fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
     },
+    cartera: carteraTotal,
     total: {
       analistas: 1,
       divisor,
@@ -353,6 +372,7 @@ function conversionMensualPropia(
       numerador: fila.numerador,
       conversion_pct: conversionPct,
       referidos_aporta_pct: null,
+      cartera: carteraTotal,
     },
     responsables: [fila],
   }
@@ -719,7 +739,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     })
 
     expect(screen.getByText('Conversión del mes')).toBeInTheDocument()
-    expect(screen.getByText('50%')).toBeInTheDocument()
+    expect(screen.getByText('50.00%')).toBeInTheDocument()
     expect(screen.getByText('100% del objetivo')).toBeInTheDocument()
     // El divisor SIEMPRE al lado del %: se lo llena el reparto, no el asesor.
     expect(screen.getByText(/Recibidos 10/)).toBeInTheDocument()
@@ -796,7 +816,7 @@ describe('Hoy · vendedor — meta del mes', () => {
     montar({ objetivos: { conversionObjetivo: 15 } })
 
     // Ve su número y su divisor…
-    expect(screen.getByText('38.3%')).toBeInTheDocument()
+    expect(screen.getByText('38.33%')).toBeInTheDocument()
     expect(screen.getByText(/Recibidos 3/)).toBeInTheDocument()
     // …y NO la frase que negaba los datos.
     expect(screen.queryByText(/Sin datos de asignación/i)).not.toBeInTheDocument()

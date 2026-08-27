@@ -20,7 +20,6 @@ import { Card, CardContent } from '@/components/ui/card'
 import { Avatar } from '@/components/ui/avatar'
 import { Badge } from '@/components/ui/badge'
 import { Button } from '@/components/ui/button'
-import { Progress } from '@/components/ui/progress'
 import { Select } from '@/components/ui/select'
 import { PanelVacio } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
@@ -31,7 +30,7 @@ import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAhora } from '@/lib/ahora'
-import { moneyK } from '@/lib/format'
+import { moneyK, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { identidadesEquipoConversion } from '@/lib/conversion-equipo'
@@ -46,13 +45,16 @@ import {
   esAbierto,
   haceCortoTexto,
   type ItemCola,
-  type MetricasVendedor,
 } from '@/lib/inteligencia'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
-import { ventanaConversionEnPalabras } from '@/lib/metricas-vendedores'
+import {
+  textoConversionOperativa,
+  ventanaConversionEnPalabras,
+  type MetricaVendedorOperativa,
+} from '@/lib/metricas-vendedores'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -173,14 +175,27 @@ function CapitalDeFila({
 }
 
 /**
- * «—» de conversión sin muestra: el porqué viaja en TEXTO para el lector
- * (sr-only), no solo en un title que teclado y táctil jamás ven.
+ * Estado visible de una conversión NULL. Una fila presente con divisor cero y
+ * una fila mensual ausente son situaciones distintas y nunca dicen 0 %.
  */
-function SinMuestraOperativa({ className }: { className: string }): JSX.Element {
+function motivoConversionNula(disponible: boolean, divisor: number | null): string {
+  return disponible && divisor === 0 ? 'Sin divisor mensual' : 'Dato no disponible'
+}
+
+function EstadoConversionNula({
+  className,
+  disponible,
+  divisor,
+}: {
+  className: string
+  disponible: boolean
+  divisor: number | null
+}): JSX.Element {
+  const motivo = motivoConversionNula(disponible, divisor)
   return (
-    <span className={className}>
-      <span aria-hidden="true" title="Sin leads en la ventana operativa">—</span>
-      <span className="sr-only">Sin leads en la ventana operativa</span>
+    <span className={className} title={motivo}>
+      <span aria-hidden="true">— · </span>
+      <span className="text-[10px] font-normal">{motivo}</span>
     </span>
   )
 }
@@ -247,7 +262,7 @@ function VendedorCard({
   ventanaConversion,
   delay = 0,
 }: {
-  r: MetricasVendedor
+  r: MetricaVendedorOperativa
   tc: TipoCambio | null | undefined
   /** «agosto de 2026» con servidor F2.4 (mes del núcleo) · «45 días» en demo. */
   ventanaConversion: string
@@ -262,7 +277,11 @@ function VendedorCard({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
-            {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'} · {ventanaConversion}
+            {r.convertidos} {r.convertidos === 1 ? 'cierre' : 'cierres'}
+            {r.operacionesCartera != null && r.operacionesCartera > 0
+              ? ` + ${numero(r.operacionesCartera)} de cartera`
+              : ''}
+            {' · '}{ventanaConversion}
           </p>
         </div>
         {r.activos === 0 ? (
@@ -287,20 +306,29 @@ function VendedorCard({
         />
       </div>
 
-      {/* Conversión en UN renglón — navy, sin verde. Sin activos NI convertidos
-          no hay evidencia de muestra → «—», no un 0 % fabricado (el mapper
-          rellena 0 para el roster sin fila). F3 (H9/D1): la ventana del rótulo
-          la DECLARA el payload — mes del núcleo con servidor F2.4, 45 días en
-          el espejo demo — en vez de afirmarse fija aquí. */}
+      {/* El porcentaje exacto puede ser NULL o superar 100 por cartera/arrastre.
+          Por eso aquí no se usa Progress (su semántica es 0–100): se conserva
+          la cifra servida sin un tope visual engañoso. */}
       <div className="mt-2 flex items-center gap-2 text-[11px]">
         <span className="font-semibold text-muted-foreground">Conversión · {ventanaConversion}</span>
-        {r.activos === 0 && r.convertidos === 0 ? (
-          <SinMuestraOperativa className="flex-1 text-right font-bold tabular-nums text-muted-foreground" />
+        {r.conversion == null ? (
+          <span className="ml-auto text-right text-muted-foreground">
+            <EstadoConversionNula
+              className="font-bold tabular-nums"
+              disponible={r.conversionDisponible}
+              divisor={r.divisorConversion}
+            />
+            {r.operacionesCartera != null && r.operacionesCartera > 0
+              ? ` · ${numero(r.operacionesCartera)} de cartera`
+              : ''}
+          </span>
         ) : (
-          <>
-            <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 flex-1" />
-            <span className="font-bold tabular-nums">{r.conversion}%</span>
-          </>
+          <span className="ml-auto font-bold tabular-nums">
+            {textoConversionOperativa(r.conversion)}
+            {r.operacionesCartera != null && r.operacionesCartera > 0
+              ? ` · ${numero(r.operacionesCartera)} de cartera`
+              : ''}
+          </span>
         )}
       </div>
     </Card>
@@ -706,9 +734,17 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       const delEquipo = metricas.filas.filter((r) => rosterSup.has(r.m.perfil_id))
       // Cartera primero (ya vienen por capital PEN desc): los vendedores en
       // cero absoluto van al final — la mirada cae en el capital en juego.
-      // OJO: activos=0 con convertidos>0 NO es cero (convirtió toda su cartera).
-      const conCartera = delEquipo.filter((r) => r.activos > 0 || r.convertidos > 0)
-      const vendedores = [...conCartera, ...delEquipo.filter((r) => r.activos === 0 && r.convertidos === 0)]
+      // OJO: activos=0 con cierres u operaciones de cartera NO es cero. Una
+      // renovación/upgrade acreditada debe seguir visible aunque no haya lead.
+      const conCartera = delEquipo.filter((r) => (
+        r.activos > 0
+        || r.convertidos > 0
+        || (r.operacionesCartera != null && r.operacionesCartera > 0)
+      ))
+      const vendedores = [
+        ...conCartera,
+        ...delEquipo.filter((r) => !conCartera.includes(r)),
+      ]
       // Peor última actividad entre vendedores CON abiertos — alimenta el
       // semáforo de la fila comparativa; null = ningún vendedor con abiertos.
       let peorDias: number | null = null
@@ -860,15 +896,24 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                         <CeldaCapitalTabla pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
                       </Td>
                       <Td>
-                        {f.conversion > 0 ? (
-                          <div className="flex items-center gap-2">
-                            <Progress value={f.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
-                            <span className="text-xs font-bold tabular-nums">{f.conversion}%</span>
-                          </div>
-                        ) : f.activos === 0 && f.convertidos === 0 ? (
-                          <SinMuestraOperativa className="text-xs tabular-nums text-muted-foreground" />
+                        {f.conversion == null ? (
+                          <span className="text-xs tabular-nums text-muted-foreground">
+                            <EstadoConversionNula
+                              className="tabular-nums text-muted-foreground"
+                              disponible={f.conversionDisponible}
+                              divisor={f.divisorConversion}
+                            />
+                            {f.operacionesCartera != null && f.operacionesCartera > 0
+                              ? ` · ${numero(f.operacionesCartera)} de cartera`
+                              : ''}
+                          </span>
                         ) : (
-                          <span className="text-xs tabular-nums text-muted-foreground">0%</span>
+                          <span className={`text-xs tabular-nums ${f.conversion > 0 ? 'font-bold' : 'text-muted-foreground'}`}>
+                            {textoConversionOperativa(f.conversion)}
+                            {f.operacionesCartera != null && f.operacionesCartera > 0
+                              ? ` · ${numero(f.operacionesCartera)} de cartera`
+                              : ''}
+                          </span>
                         )}
                       </Td>
                       <Td
@@ -922,13 +967,26 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               <MiniDato label="Activos" valor={String(f.activos)} />
               <MiniDato
                 label={`Conversión · ${ventanaConversion}`}
-                valor={f.activos === 0 && f.convertidos === 0 ? '—' : `${f.conversion}%`}
-                {...(f.activos === 0 && f.convertidos === 0
-                  ? { title: 'Sin leads en la ventana operativa', srDetalle: 'Sin leads en la ventana operativa' }
+                valor={textoConversionOperativa(f.conversion)}
+                sub={[
+                  f.conversion == null
+                    ? motivoConversionNula(f.conversionDisponible, f.divisorConversion)
+                    : null,
+                  f.operacionesCartera != null && f.operacionesCartera > 0
+                    ? `${numero(f.operacionesCartera)} de cartera`
+                    : null,
+                ].filter((texto): texto is string => texto != null).join(' · ') || undefined}
+                {...(f.conversion == null
+                  ? {
+                    title: f.conversionDisponible && f.divisorConversion === 0
+                      ? 'Sin divisor mensual'
+                      : 'Dato no disponible',
+                    srDetalle: f.conversionDisponible && f.divisorConversion === 0
+                      ? 'Sin divisor mensual'
+                      : 'Dato no disponible',
+                  }
                   : {})}
-              >
-                <Progress value={f.conversion} color={SEMAFORO.navy} className="mt-1.5 h-1.5" />
-              </MiniDato>
+              />
               <MiniDato
                 label="Por repartir"
                 valor={String(f.parkeados)}
@@ -1016,15 +1074,24 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                           {r.sinTocar > 0 ? r.sinTocar : '—'}
                         </Td>
                         <Td>
-                          {r.conversion > 0 ? (
-                            <div className="flex items-center gap-2">
-                              <Progress value={r.conversion} color={SEMAFORO.navy} className="h-1 w-16" />
-                              <span className="text-xs font-bold tabular-nums">{r.conversion}%</span>
-                            </div>
-                          ) : r.activos === 0 && r.convertidos === 0 ? (
-                            <SinMuestraOperativa className="text-xs tabular-nums text-muted-foreground" />
+                          {r.conversion == null ? (
+                            <span className="text-xs tabular-nums text-muted-foreground">
+                              <EstadoConversionNula
+                                className="tabular-nums text-muted-foreground"
+                                disponible={r.conversionDisponible}
+                                divisor={r.divisorConversion}
+                              />
+                              {r.operacionesCartera != null && r.operacionesCartera > 0
+                                ? ` · ${numero(r.operacionesCartera)} de cartera`
+                                : ''}
+                            </span>
                           ) : (
-                            <span className="text-xs tabular-nums text-muted-foreground">0%</span>
+                            <span className={`text-xs tabular-nums ${r.conversion > 0 ? 'font-bold' : 'text-muted-foreground'}`}>
+                              {textoConversionOperativa(r.conversion)}
+                              {r.operacionesCartera != null && r.operacionesCartera > 0
+                                ? ` · ${numero(r.operacionesCartera)} de cartera`
+                                : ''}
+                            </span>
                           )}
                         </Td>
                       </tr>

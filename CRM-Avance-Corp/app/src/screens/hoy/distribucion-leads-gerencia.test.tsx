@@ -547,6 +547,18 @@ describe('DistribucionLeadsGerencia', () => {
     ).toBeInTheDocument()
   })
 
+  it('F3.4 fail-closed: cuadra=true con paridad distinta de cero también OCULTA', () => {
+    montar({
+      datos: {
+        ...DATOS,
+        sondas: { ...DATOS.sondas, cuadra: true, paridad_nucleo: 0.01 },
+      },
+    })
+
+    expect(screen.queryByText('44.44%')).not.toBeInTheDocument()
+    expect(screen.getByText(/la conversión del mes se oculta hasta revisarla/i)).toBeInTheDocument()
+  })
+
   it('F3.4: con un rango que no es mes (cuadra null) la cifra se oculta SIN alarma', () => {
     const datosParciales: MetricasDistribucionLeads = {
       ...DATOS,

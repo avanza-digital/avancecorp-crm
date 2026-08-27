@@ -304,7 +304,9 @@ export function adaptarConversionMensual(
       procedencia: fila.procedencia,
       referidos: fila.referidos,
       ajuste: fila.ajuste,
-      operacionesCartera: fila.cartera?.conversiones_clientes ?? 0,
+      // `cartera` es obligatorio en el contrato vigente: llegar hasta aquí ya
+      // prueba que cero es un dato explícito, no una ausencia maquillada.
+      operacionesCartera: fila.cartera.conversiones_clientes,
       supervisorId: fila.supervisor_id,
     }
     return {
@@ -486,4 +488,3 @@ export function clasificarRankingCapitalTotal<D extends DetalleRankeable>(
 
   return { conPuesto, sinMeta, indisponibles, tc: tcValido }
 }
-

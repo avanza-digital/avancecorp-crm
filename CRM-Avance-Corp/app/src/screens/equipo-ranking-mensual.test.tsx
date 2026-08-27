@@ -3,22 +3,48 @@
 // El panel completo ya tiene su suite; aquí se prueba que ESTA pantalla le
 // pasa el error — antes iba error={null} fijo y el fallo degradaba mudo.
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { objetivosCero } from '@/lib/objetivos'
-import type { Yo } from '@/lib/tipos'
+import type { Miembro, Yo } from '@/lib/tipos'
 
 let YO: Yo | null = null
 let MENSUAL_FALLA = false
+let CONVERSION_OPERATIVA: number | null | undefined
+let CONVERSION_EQUIPO_OPERATIVA: number | null | undefined
+let CONVERSION_DISPONIBLE = true
+let CONVERSION_EQUIPO_DISPONIBLE = true
+
+const VENDEDOR: Miembro = {
+  perfil_id: 'v-1',
+  nombre_completo: 'ANA TORRES',
+  rol_crm: 'vendedor',
+  supervisor_id: 's-1',
+  activo: true,
+}
+
+const SUPERVISORA: Miembro = {
+  perfil_id: 's-1',
+  nombre_completo: 'SUPERVISORA UNO',
+  rol_crm: 'supervisor',
+  supervisor_id: null,
+  activo: true,
+}
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
   useCRMData: () => ({
-    ambito: { leads: [], vendedores: [], esGlobal: false },
+    ambito: {
+      leads: [],
+      vendedores: CONVERSION_OPERATIVA === undefined && CONVERSION_EQUIPO_OPERATIVA === undefined ? [] : [VENDEDOR],
+      esGlobal: CONVERSION_EQUIPO_OPERATIVA !== undefined,
+    },
     actividadesDelAmbito: [],
     actividades: [],
     tareas: [],
-    equipo: [],
+    equipo: CONVERSION_EQUIPO_OPERATIVA !== undefined
+      ? [SUPERVISORA, VENDEDOR]
+      : CONVERSION_OPERATIVA === undefined ? [] : [VENDEDOR],
     objetivos: objetivosCero(),
     objetivosError: false,
     cumplimientoMetas: null,
@@ -50,6 +76,79 @@ vi.mock('@/data/use-cola-accion-operativa', () => ({
 vi.mock('@/data/use-resumen-cartera-operativo', () => ({
   useResumenCarteraOperativo: () => ({ resumen: null, cargando: false, error: null, recargar: vi.fn() }),
 }))
+vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
+  useMetricasVendedoresOperativas: () => ({
+    metricas: CONVERSION_EQUIPO_OPERATIVA !== undefined
+      ? {
+        filas: [{
+          m: VENDEDOR,
+          activos: 0,
+          capitalPEN: 0,
+          capitalUSD: 0,
+          convertidos: 0,
+          conversion: CONVERSION_EQUIPO_OPERATIVA,
+          conversionDisponible: CONVERSION_EQUIPO_DISPONIBLE,
+          operacionesCartera: CONVERSION_EQUIPO_DISPONIBLE ? 4 : null,
+          divisorConversion: CONVERSION_EQUIPO_DISPONIBLE
+            ? CONVERSION_EQUIPO_OPERATIVA == null ? 0 : 8
+            : null,
+          numeradorConversion: CONVERSION_EQUIPO_DISPONIBLE
+            ? CONVERSION_EQUIPO_OPERATIVA == null ? 4 : 11.0104
+            : null,
+          sinTocar: 0,
+          diasSinActividadMax: 0,
+        }],
+        equipos: [{
+          supervisor: SUPERVISORA,
+          vendedores: 1,
+          activos: 0,
+          capitalPEN: 0,
+          capitalUSD: 0,
+          convertidos: 0,
+          conversion: CONVERSION_EQUIPO_OPERATIVA,
+          conversionDisponible: CONVERSION_EQUIPO_DISPONIBLE,
+          operacionesCartera: CONVERSION_EQUIPO_DISPONIBLE ? 4 : null,
+          divisorConversion: CONVERSION_EQUIPO_DISPONIBLE
+            ? CONVERSION_EQUIPO_OPERATIVA == null ? 0 : 8
+            : null,
+          numeradorConversion: CONVERSION_EQUIPO_DISPONIBLE
+            ? CONVERSION_EQUIPO_OPERATIVA == null ? 4 : 11.0104
+            : null,
+          parkeados: 0,
+        }],
+        generadoEn: '2026-08-27T12:00:00Z',
+        mesMetrica: '2026-08-01',
+      }
+      : CONVERSION_OPERATIVA === undefined
+      ? { filas: [], equipos: [], generadoEn: '2026-08-27T12:00:00Z', mesMetrica: '2026-08-01' }
+      : {
+        filas: [{
+          m: VENDEDOR,
+          activos: 0,
+          capitalPEN: 0,
+          capitalUSD: 0,
+          convertidos: 0,
+          conversion: CONVERSION_OPERATIVA,
+          conversionDisponible: CONVERSION_DISPONIBLE,
+          operacionesCartera: CONVERSION_DISPONIBLE ? 4 : null,
+          divisorConversion: CONVERSION_DISPONIBLE
+            ? CONVERSION_OPERATIVA == null ? 0 : 8
+            : null,
+          numeradorConversion: CONVERSION_DISPONIBLE
+            ? CONVERSION_OPERATIVA == null ? 4 : 11.0104
+            : null,
+          sinTocar: 0,
+          diasSinActividadMax: 0,
+        }],
+        equipos: [],
+        generadoEn: '2026-08-27T12:00:00Z',
+        mesMetrica: '2026-08-01',
+      },
+    cargando: false,
+    error: null,
+    recargar: vi.fn(),
+  }),
+}))
 vi.mock('@/lib/tipo-cambio', async (importOriginal) => ({
   ...await importOriginal<typeof import('@/lib/tipo-cambio')>(),
   useTipoCambio: () => ({ tc: null, recargar: vi.fn() }),
@@ -75,6 +174,10 @@ function montar() {
 
 beforeEach(() => {
   MENSUAL_FALLA = false
+  CONVERSION_OPERATIVA = undefined
+  CONVERSION_EQUIPO_OPERATIVA = undefined
+  CONVERSION_DISPONIBLE = true
+  CONVERSION_EQUIPO_DISPONIBLE = true
   YO = {
     id: 's-1',
     nombre_completo: 'SUPERVISOR UNO',
@@ -107,5 +210,61 @@ describe('Equipo — el ranking y la conversión mensual', () => {
   it('con la mensual sana no se inventa ningún error', () => {
     montar()
     expect(screen.queryByText(/ERROR:/)).not.toBeInTheDocument()
+  })
+
+  it('pinta el porcentaje exacto >100 y explica cartera sin una barra capada a 100', () => {
+    CONVERSION_OPERATIVA = 137.63
+    const { container } = montar()
+
+    expect(screen.getByText(/137\.63% · 4 de cartera/)).toBeInTheDocument()
+    expect(screen.queryByText('138%')).not.toBeInTheDocument()
+    expect(screen.getByText(/0 cierres \+ 4 de cartera · agosto de 2026/)).toBeInTheDocument()
+    // Gestión ya no representa una conversión sin techo con Progress (0–100).
+    expect(container.querySelector('[style*="width: 100%"]')).toBeNull()
+  })
+
+  it('con porcentaje NULL mantiene la ausencia aunque existan operaciones de cartera', () => {
+    CONVERSION_OPERATIVA = null
+    montar()
+
+    expect(screen.queryByText('0%')).not.toBeInTheDocument()
+    expect(screen.getByText(/0 cierres \+ 4 de cartera · agosto de 2026/)).toBeInTheDocument()
+    expect(screen.getByText('Sin divisor mensual')).toBeInTheDocument()
+    expect(screen.getAllByText(/4 de cartera/).length).toBeGreaterThan(0)
+  })
+
+  it('una fila mensual ausente dice dato no disponible y no inventa divisor, cartera ni causa', () => {
+    CONVERSION_OPERATIVA = null
+    CONVERSION_DISPONIBLE = false
+    montar()
+
+    expect(screen.getByText('Dato no disponible')).toBeInTheDocument()
+    expect(screen.queryByText('Sin divisor mensual')).not.toBeInTheDocument()
+    expect(screen.queryByText(/de cartera/)).not.toBeInTheDocument()
+    expect(screen.queryByText('0%')).not.toBeInTheDocument()
+  })
+
+  it('la comparativa de equipos conserva >100, decimales y operaciones de cartera', () => {
+    CONVERSION_EQUIPO_OPERATIVA = 137.63
+    YO = { ...YO!, rol: 'gerencia' }
+    const { container } = montar()
+
+    const tabla = screen.getByRole('table', { name: 'Comparativa de supervisores' })
+    const fila = within(tabla).getByRole('row', { name: /SUPERVISORA UNO/ })
+    expect(fila).toHaveTextContent('137.63% · 4 de cartera')
+    expect(fila).not.toHaveTextContent('138%')
+    expect(container.querySelector('[style*="width: 100%"]')).toBeNull()
+  })
+
+  it('la comparativa de equipos conserva NULL aunque haya cartera', () => {
+    CONVERSION_EQUIPO_OPERATIVA = null
+    YO = { ...YO!, rol: 'gerencia' }
+    montar()
+
+    const tabla = screen.getByRole('table', { name: 'Comparativa de supervisores' })
+    const fila = within(tabla).getByRole('row', { name: /SUPERVISORA UNO/ })
+    expect(within(fila).getByTitle('Sin divisor mensual')).toHaveTextContent('—')
+    expect(fila).toHaveTextContent('4 de cartera')
+    expect(fila).not.toHaveTextContent('0%')
   })
 })
