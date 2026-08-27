@@ -12,7 +12,11 @@ import {
 import { enVentanaOperativa, VENTANA_CONVERTIDOS_DIAS } from './resumen-cartera'
 import { EnteroNoNegativoRpcSchema, NumeroRpcSchema } from './esquemas-rpc'
 import { porcentajeConversionCanonica } from './format'
-import type { ConversionMensual } from './conversion-mensual'
+import {
+  CoberturaConversionSchema,
+  lecturaCobertura,
+  type ConversionMensual,
+} from './conversion-mensual'
 import type { Actividad, Lead, Miembro } from './tipos'
 
 /** Mismo redondeo positivo a dos decimales que usa el núcleo mensual. */
@@ -21,21 +25,108 @@ const redondearDos = (valor: number): number => (
 )
 
 interface LecturaNucleoExacta {
-  nucleo_divisor: number
-  nucleo_numerador: number
-  nucleo_conversion_pct: number | null
+  nucleo_convertidos?: number | null | undefined
+  operaciones_cartera?: number | null | undefined
+  nucleo_divisor?: number | null | undefined
+  nucleo_numerador?: number | null | undefined
+  nucleo_conversion_pct?: number | null | undefined
 }
 
 function lecturaNucleoCoherente(fila: LecturaNucleoExacta): boolean {
+  // Una fila operativa puede quedar fuera del roster mensual canónico. En ese
+  // caso el bundle exacto completo es NULL: conserva activos/capital sin
+  // transformar una ausencia de conversión o cartera en ceros creíbles.
+  if (
+    fila.nucleo_convertidos == null
+    || fila.operaciones_cartera == null
+    || fila.nucleo_divisor == null
+    || fila.nucleo_numerador == null
+  ) {
+    return fila.nucleo_convertidos == null
+      && fila.operaciones_cartera == null
+      && fila.nucleo_divisor == null
+      && fila.nucleo_numerador == null
+      && fila.nucleo_conversion_pct == null
+  }
   if (fila.nucleo_divisor === 0) return fila.nucleo_conversion_pct === null
   if (fila.nucleo_conversion_pct == null) return false
   const esperada = redondearDos((100 * fila.nucleo_numerador) / fila.nucleo_divisor)
   return Math.abs(fila.nucleo_conversion_pct - esperada) < 1e-9
 }
 
+function lecturaNucleoCompleta(fila: LecturaNucleoExacta): boolean {
+  return fila.nucleo_convertidos !== undefined
+    && fila.operaciones_cartera !== undefined
+    && fila.nucleo_divisor !== undefined
+    && fila.nucleo_numerador !== undefined
+    && fila.nucleo_conversion_pct !== undefined
+    && lecturaNucleoCoherente(fila)
+}
+
+function lecturaNucleoAusente(fila: LecturaNucleoExacta): boolean {
+  return fila.nucleo_convertidos === undefined
+    && fila.operaciones_cartera === undefined
+    && fila.nucleo_divisor === undefined
+    && fila.nucleo_numerador === undefined
+    && fila.nucleo_conversion_pct === undefined
+}
+
+function lecturaNucleoAusenteOCompleta(fila: LecturaNucleoExacta): boolean {
+  return lecturaNucleoAusente(fila) || lecturaNucleoCompleta(fila)
+}
+
+/** Shape exacto del servidor F2.4b vigente durante el bridge: cuatro claves en
+ * vendedor, todavía sin `nucleo_convertidos`. Se valida para reconocer solo ese
+ * contrato conocido; el mapper lo oculta completo y jamás reutiliza su cifra. */
+function lecturaNucleoLegacyVendedor(fila: LecturaNucleoExacta): boolean {
+  if (fila.nucleo_convertidos !== undefined) return false
+  if (
+    fila.operaciones_cartera === undefined
+    || fila.nucleo_divisor === undefined
+    || fila.nucleo_numerador === undefined
+    || fila.nucleo_conversion_pct === undefined
+  ) return false
+  if (
+    fila.operaciones_cartera == null
+    || fila.nucleo_divisor == null
+    || fila.nucleo_numerador == null
+  ) {
+    return fila.operaciones_cartera == null
+      && fila.nucleo_divisor == null
+      && fila.nucleo_numerador == null
+      && fila.nucleo_conversion_pct == null
+  }
+  if (fila.nucleo_divisor === 0) return fila.nucleo_conversion_pct === null
+  if (fila.nucleo_conversion_pct == null) return false
+  const esperada = redondearDos((100 * fila.nucleo_numerador) / fila.nucleo_divisor)
+  return Math.abs(fila.nucleo_conversion_pct - esperada) < 1e-9
+}
+
+function lecturaTotalPublicable(fila: LecturaNucleoExacta): boolean {
+  return lecturaNucleoCompleta(fila)
+    && fila.nucleo_convertidos != null
+    && fila.operaciones_cartera != null
+    && fila.nucleo_divisor != null
+    && fila.nucleo_numerador != null
+}
+
 function idsUnicos<T>(filas: readonly T[], id: (fila: T) => string): boolean {
   return new Set(filas.map(id)).size === filas.length
 }
+
+const NucleoTotalSchema = v.pipe(
+  v.object({
+    nucleo_convertidos: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    operaciones_cartera: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    nucleo_divisor: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    nucleo_numerador: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
+    nucleo_conversion_pct: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
+  }),
+  v.check(
+    (fila) => lecturaNucleoAusenteOCompleta(fila),
+    'La lectura exacta total no coincide con divisor y numerador',
+  ),
+)
 
 const FilaVendedorSchema = v.pipe(
   v.object({
@@ -49,15 +140,16 @@ const FilaVendedorSchema = v.pipe(
     /** Campo entero heredado: se conserva por compatibilidad, pero la UI no
      * lo usa porque redondea y convierte NULL en 0. */
     conversion_pct: v.number(),
-    operaciones_cartera: EnteroNoNegativoRpcSchema,
-    nucleo_divisor: EnteroNoNegativoRpcSchema,
-    nucleo_numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
-    nucleo_conversion_pct: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
+    nucleo_convertidos: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    operaciones_cartera: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    nucleo_divisor: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    nucleo_numerador: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
+    nucleo_conversion_pct: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
     sin_tocar: v.number(),
     dias_sin_actividad_max: v.number(),
   }),
   v.check(
-    (fila) => lecturaNucleoCoherente(fila),
+    (fila) => lecturaNucleoLegacyVendedor(fila) || lecturaNucleoCompleta(fila),
     'La lectura exacta del vendedor no coincide con divisor y numerador',
   ),
 )
@@ -72,19 +164,20 @@ const FilaEquipoSchema = v.pipe(
     convertidos: v.number(),
     /** Entero heredado: solo compatibilidad con bundles previos. */
     conversion_pct: v.number(),
-    operaciones_cartera: EnteroNoNegativoRpcSchema,
-    nucleo_divisor: EnteroNoNegativoRpcSchema,
-    nucleo_numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
-    nucleo_conversion_pct: v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0))),
+    nucleo_convertidos: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    operaciones_cartera: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    nucleo_divisor: v.optional(v.nullable(EnteroNoNegativoRpcSchema)),
+    nucleo_numerador: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
+    nucleo_conversion_pct: v.optional(v.nullable(v.pipe(NumeroRpcSchema, v.minValue(0)))),
     parkeados: v.number(),
   }),
   v.check(
-    (fila) => lecturaNucleoCoherente(fila),
+    (fila) => lecturaNucleoAusenteOCompleta(fila),
     'La lectura exacta del equipo no coincide con divisor y numerador',
   ),
 )
 
-export const MetricasVendedoresSchema = v.object({
+export const MetricasVendedoresSchema = v.pipe(v.object({
   version: v.literal(1),
   generado_en: v.string(),
   ventana_convertidos_dias: v.number(),
@@ -94,6 +187,12 @@ export const MetricasVendedoresSchema = v.object({
   ventana_metrica: v.optional(v.string()),
   mes_metrica: v.optional(v.string()),
   peso_referido: v.optional(v.pipe(NumeroRpcSchema, v.minValue(0), v.maxValue(1))),
+  /** Copia literal del wrapper mensual. `null` solo es legítimo para el
+   * coordinador, cuya rama histórica no puede invocar ese wrapper. */
+  cobertura_conversion: v.optional(v.nullable(CoberturaConversionSchema)),
+  /** Total del wrapper, no suma de equipos: incluye el agregado anónimo fuera
+   * de roster que F2.6 incorpora al total de empresa. */
+  nucleo_total: v.optional(NucleoTotalSchema),
   vendedores: v.pipe(
     v.array(FilaVendedorSchema),
     v.check(
@@ -108,7 +207,26 @@ export const MetricasVendedoresSchema = v.object({
       'El payload contiene equipos duplicados',
     ),
   ),
-})
+}), v.check(
+  (payload) => {
+    const tieneCobertura = payload.cobertura_conversion !== undefined
+    const tieneTotal = payload.nucleo_total !== undefined
+    // Puente de rollout: el servidor previo no emite ninguna raíz nueva y el
+    // mapper oculta conversión. Una entrega a medias, en cambio, es inválida.
+    if (tieneCobertura !== tieneTotal) return false
+    if (!tieneCobertura) {
+      return payload.vendedores.every(lecturaNucleoLegacyVendedor)
+        && payload.equipos.every(lecturaNucleoAusente)
+    }
+    const totalValido = lecturaCobertura(payload.cobertura_conversion).mostrar
+      ? lecturaTotalPublicable(payload.nucleo_total!)
+      : lecturaNucleoCompleta(payload.nucleo_total!)
+    return totalValido
+      && payload.vendedores.every(lecturaNucleoCompleta)
+      && payload.equipos.every(lecturaNucleoCompleta)
+  },
+  'El contrato mensual exacto llegó incompleto',
+))
 
 export type MetricasVendedoresPayload = v.InferOutput<typeof MetricasVendedoresSchema>
 
@@ -120,6 +238,8 @@ export interface FilaEquipo {
   capitalPEN: number
   capitalUSD: number
   convertidos: number
+  /** Cierres de lead del mismo núcleo mensual; null = fila no canónica. */
+  cierresConversion: number | null
   conversion: number | null
   /** false = no llegó una lectura mensual para este equipo. */
   conversionDisponible: boolean
@@ -134,13 +254,31 @@ export interface MetricasVendedoresOperativas {
   filas: MetricaVendedorOperativa[]
   /** Comparativa por supervisor activo (orden del servidor: capital PEN desc). */
   equipos: FilaEquipo[]
+  /** Total del ámbito canónico; jamás se recompone sumando filas atribuibles. */
+  totalConversion: {
+    cierresConversion: number | null
+    conversion: number | null
+    conversionDisponible: boolean
+    operacionesCartera: number | null
+    divisorConversion: number | null
+    numeradorConversion: number | null
+  }
   generadoEn: string
+  /** Aviso global del mismo núcleo: provisional o integridad en revisión. */
+  avisoConversion: string | null
   /**
    * Mes ('YYYY-MM-DD') cuando la métrica de conversión/convertidos es el MES
    * CALENDARIO del núcleo (F2.4, D1); null = no hay lectura mensual canónica.
    * Los rótulos leen esto, no adivinan.
    */
   mesMetrica: string | null
+}
+
+function publicacionConversion(
+  cobertura: ConversionMensual['cobertura'] | null | undefined,
+): { publicable: boolean; aviso: string | null } {
+  const lectura = lecturaCobertura(cobertura)
+  return { publicable: lectura.mostrar, aviso: lectura.aviso }
 }
 
 /**
@@ -150,6 +288,8 @@ export interface MetricasVendedoresOperativas {
  */
 export interface MetricaVendedorOperativa extends Omit<MetricasVendedor, 'conversion'> {
   conversion: number | null
+  /** Cierres de lead del mismo núcleo mensual; null = fila no canónica. */
+  cierresConversion: number | null
   /** Distingue una fila ausente de una fila presente con divisor mensual 0. */
   conversionDisponible: boolean
   /** null = el roster no tuvo fila en la foto RPC; nunca se maquilla como 0. */
@@ -179,6 +319,12 @@ export function mapearMetricasVendedores(
   // supervisor) y sin deriva se queda clavado entre refetches. El llamador la
   // calcula contra su reloj LOCAL. Los contadores no envejecen: son conteos.
   const deriva = Number.isFinite(derivaDias) ? Math.max(0, derivaDias) : 0
+  const lecturaPublicacion = publicacionConversion(payload.cobertura_conversion)
+  const publicacion = {
+    ...lecturaPublicacion,
+    publicable: lecturaPublicacion.publicable && payload.nucleo_total != null,
+  }
+  const totalNucleo = publicacion.publicable ? payload.nucleo_total : undefined
   const porId = new Map(payload.vendedores.map((f) => [f.vendedor_id, f]))
   const filas: MetricaVendedorOperativa[] = roster
     .map((m) => {
@@ -189,13 +335,14 @@ export function mapearMetricasVendedores(
         capitalPEN: f?.capital_pen ?? 0,
         capitalUSD: f?.capital_usd ?? 0,
         convertidos: f?.convertidos ?? 0,
+        cierresConversion: publicacion.publicable ? (f?.nucleo_convertidos ?? null) : null,
         // La columna exacta conserva NULL, decimales y >100. El entero
         // `conversion_pct` queda solo como compatibilidad del wire contract.
-        conversion: f?.nucleo_conversion_pct ?? null,
-        conversionDisponible: f != null,
-        operacionesCartera: f?.operaciones_cartera ?? null,
-        divisorConversion: f?.nucleo_divisor ?? null,
-        numeradorConversion: f?.nucleo_numerador ?? null,
+        conversion: publicacion.publicable ? (f?.nucleo_conversion_pct ?? null) : null,
+        conversionDisponible: publicacion.publicable && f?.nucleo_divisor != null,
+        operacionesCartera: publicacion.publicable ? (f?.operaciones_cartera ?? null) : null,
+        divisorConversion: publicacion.publicable ? (f?.nucleo_divisor ?? null) : null,
+        numeradorConversion: publicacion.publicable ? (f?.nucleo_numerador ?? null) : null,
         sinTocar: f?.sin_tocar ?? 0,
         // El 0 de quien no tiene abiertos es un CENTINELA («sin reloj que
         // mirar» — la UI dice 'Sin leads abiertos'), no un instante:
@@ -215,20 +362,41 @@ export function mapearMetricasVendedores(
       capitalPEN: e.capital_pen,
       capitalUSD: e.capital_usd,
       convertidos: e.convertidos,
+      cierresConversion: publicacion.publicable ? (e.nucleo_convertidos ?? null) : null,
       // La comparativa usa el mismo núcleo exacto que las filas de vendedor;
       // `conversion_pct` queda únicamente para compatibilidad del wire.
-      conversion: e.nucleo_conversion_pct,
-      conversionDisponible: true,
-      operacionesCartera: e.operaciones_cartera,
-      divisorConversion: e.nucleo_divisor,
-      numeradorConversion: e.nucleo_numerador,
+      conversion: publicacion.publicable ? (e.nucleo_conversion_pct ?? null) : null,
+      conversionDisponible: publicacion.publicable && e.nucleo_divisor != null,
+      operacionesCartera: publicacion.publicable ? (e.operaciones_cartera ?? null) : null,
+      divisorConversion: publicacion.publicable ? (e.nucleo_divisor ?? null) : null,
+      numeradorConversion: publicacion.publicable ? (e.nucleo_numerador ?? null) : null,
       parkeados: e.parkeados,
     }]
   })
   return {
     filas,
     equipos,
+    totalConversion: {
+      cierresConversion: publicacion.publicable
+        ? (totalNucleo?.nucleo_convertidos ?? null)
+        : null,
+      conversion: publicacion.publicable
+        ? (totalNucleo?.nucleo_conversion_pct ?? null)
+        : null,
+      conversionDisponible: publicacion.publicable
+        && totalNucleo?.nucleo_divisor != null,
+      operacionesCartera: publicacion.publicable
+        ? (totalNucleo?.operaciones_cartera ?? null)
+        : null,
+      divisorConversion: publicacion.publicable
+        ? (totalNucleo?.nucleo_divisor ?? null)
+        : null,
+      numeradorConversion: publicacion.publicable
+        ? (totalNucleo?.nucleo_numerador ?? null)
+        : null,
+    },
     generadoEn: payload.generado_en,
+    avisoConversion: publicacion.aviso,
     mesMetrica: payload.ventana_metrica === 'mes_calendario' ? (payload.mes_metrica ?? null) : null,
   }
 }
@@ -247,6 +415,7 @@ export function metricasVendedoresDesdeAmbito(
   ahoraMs: number,
   conversionMensual?: ConversionMensual | null,
 ): MetricasVendedoresOperativas {
+  const publicacion = publicacionConversion(conversionMensual?.cobertura)
   const ventana = leads.filter((l) => enVentanaOperativa(l, ahoraMs))
   const mensualPorVendedor = new Map(
     (conversionMensual?.responsables ?? []).map((fila) => [fila.vendedor_id, fila]),
@@ -261,11 +430,16 @@ export function metricasVendedoresDesdeAmbito(
   return {
     filas: metricasPorVendedor([...roster], ventana, [...actividades], ahoraMs)
       .map((fila) => {
-        const mensual = mensualPorVendedor.get(fila.m.perfil_id)
+        const mensual = publicacion.publicable
+          ? mensualPorVendedor.get(fila.m.perfil_id)
+          : undefined
         return {
           ...fila,
           convertidos: mensual == null
             ? fila.convertidos
+            : mensual.cierres_no_referidos + mensual.cierres_referidos,
+          cierresConversion: mensual == null
+            ? null
             : mensual.cierres_no_referidos + mensual.cierres_referidos,
           conversion: mensual?.conversion_pct ?? null,
           conversionDisponible: mensual != null,
@@ -276,7 +450,7 @@ export function metricasVendedoresDesdeAmbito(
       }),
     equipos: comparativaEquipos([...equipo], ventana, [...actividades])
       .map((fila) => {
-        const responsables = mensualPorSupervisor.get(fila.supervisor.perfil_id)
+        const responsables = mensualPorSupervisor.get(fila.supervisor.perfil_id) ?? []
         const esperados = new Set(equipo
           .filter((miembro) => (
             miembro.activo
@@ -284,11 +458,12 @@ export function metricasVendedoresDesdeAmbito(
             && miembro.supervisor_id === fila.supervisor.perfil_id
           ))
           .map((miembro) => miembro.perfil_id))
-        const recibidos = new Set(responsables?.map((responsable) => responsable.vendedor_id) ?? [])
+        const recibidos = new Set(responsables.map((responsable) => responsable.vendedor_id))
         // Un agregado parcial sería más peligroso que una ausencia: parecería
         // el total del equipo. Exigimos igualdad exacta de conjuntos; duplicados,
         // faltantes y extras dejan la conversión del equipo indisponible.
-        const disponible = responsables != null
+        const disponible = publicacion.publicable
+          && conversionMensual != null
           && recibidos.size === responsables.length
           && recibidos.size === esperados.size
           && [...esperados].every((id) => recibidos.has(id))
@@ -316,6 +491,7 @@ export function metricasVendedoresDesdeAmbito(
         return {
           ...fila,
           convertidos: convertidos ?? fila.convertidos,
+          cierresConversion: convertidos ?? null,
           conversion: divisor != null && divisor > 0 && numerador != null
             ? redondearDos((100 * numerador) / divisor)
             : null,
@@ -325,7 +501,27 @@ export function metricasVendedoresDesdeAmbito(
           numeradorConversion: numerador,
         }
       }),
+    totalConversion: {
+      cierresConversion: publicacion.publicable && conversionMensual != null
+        ? conversionMensual.total.cierres_no_referidos
+          + conversionMensual.total.cierres_referidos
+        : null,
+      conversion: publicacion.publicable
+        ? (conversionMensual?.total.conversion_pct ?? null)
+        : null,
+      conversionDisponible: publicacion.publicable && conversionMensual != null,
+      operacionesCartera: publicacion.publicable
+        ? (conversionMensual?.total.cartera.conversiones_clientes ?? null)
+        : null,
+      divisorConversion: publicacion.publicable
+        ? (conversionMensual?.total.divisor ?? null)
+        : null,
+      numeradorConversion: publicacion.publicable
+        ? (conversionMensual?.total.numerador ?? null)
+        : null,
+    },
     generadoEn: conversionMensual?.generado_en ?? new Date(ahoraMs).toISOString(),
+    avisoConversion: publicacion.aviso,
     mesMetrica: conversionMensual == null ? null : `${conversionMensual.periodo.mes}-01`,
   }
 }

@@ -58,7 +58,7 @@ import { useConversionMensual } from '@/data/crm-queries'
 import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import { metricasAgendaDemo } from '@/lib/demo-metricas-agenda'
 import { useAhora } from '@/lib/ahora'
-import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { mensajeDeError } from '@/data/crm-api'
@@ -308,10 +308,9 @@ export function HoySupervisor(): JSX.Element {
   // 2026-08-14). La regla vive en `lecturaCobertura`, compartida con las otras
   // tres pantallas que pintan esta misma cifra.
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
-  const conversionConfirmada = lecturaConversion.mostrar
-    ? (conversionMensual?.total.conversion_pct ?? null)
-    : null
-  const recibidosEquipo = conversionMensual?.total.divisor ?? null
+  const totalConversion = totalConversionPublicable(conversionMensual)
+  const conversionConfirmada = totalConversion?.conversion_pct ?? null
+  const recibidosEquipo = totalConversion?.divisor ?? null
   // ── Cumplimiento del mes ──────────────────────────────────────────────────
   // PEN y USD ya NO van por separado: la meta se pacta en soles (el editor
   // escribe todo en `nuevo/PEN`), así que la fila de dólares vivía en «Sin meta

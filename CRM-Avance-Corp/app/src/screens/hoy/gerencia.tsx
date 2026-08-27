@@ -13,7 +13,7 @@ import {
   type PeriodoGerencia,
 } from '@/components/gerencia/periodo'
 import { useCRMData } from '@/lib/store-context'
-import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 import { useAuth } from '@/lib/auth-context'
 import { money, moneyK, numero, porcentajeConversionCanonica } from '@/lib/format'
 import { colorMeta, pctMeta } from '@/lib/inteligencia'
@@ -294,10 +294,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const hayDolares = (capitalActualUsd ?? 0) > 0 || metaCapitalUsd > 0
   const tcEnVuelo = tipoCambio.tc === undefined && hayDolares
   const tcCaido = tipoCambio.tc === null && hayDolares
-  const conversionActual = conversionMensualMedible
-    ? (conversionMensual?.total.conversion_pct ?? null)
-    : null
-  const recibidosEmpresa = conversionMensual?.total.divisor ?? null
+  const totalConversion = totalConversionPublicable(conversionMensual)
+  const conversionActual = totalConversion?.conversion_pct ?? null
+  const recibidosEmpresa = totalConversion?.divisor ?? null
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
   const reintentarConversionMensual = () => { if (sesionReal) void qConversionMensual.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }

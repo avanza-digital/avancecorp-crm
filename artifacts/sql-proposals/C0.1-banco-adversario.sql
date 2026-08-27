@@ -43,7 +43,7 @@ select
   date_trunc('month', now() at time zone 'America/Lima')::date
     ::timestamp at time zone 'America/Lima' as ini;
 
--- Actores: gerencia, S1..S4, vendedores A/B/F/C/D, E fuera de roster,
+-- Actores: gerencia, S1..S4, vendedores A/B/F/G/C/D, E fuera de roster,
 -- coordinador, Directorio y un actor CRM inactivo. Clientes C1..C4 alimentan
 -- cartera.
 insert into public.perfiles(
@@ -60,6 +60,7 @@ insert into public.perfiles(
   ('c0100000-0000-4000-8000-000000000204', 'C01 C', 'c01-c@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000205', 'C01 D', 'c01-d@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000206', 'C01 E FUERA ROSTER', 'c01-e@test.invalid', 'comercial', true),
+  ('c0100000-0000-4000-8000-000000000207', 'C01 G SIN ACTIVIDAD', 'c01-g0@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000301', 'C01 COORD', 'c01-co@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000302', 'C01 DIRECTORIO', 'c01-dir@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000303', 'C01 INACTIVO', 'c01-off@test.invalid', 'comercial', true),
@@ -82,6 +83,7 @@ insert into crm.equipo(
   ('c0100000-0000-4000-8000-000000000204', 'vendedor', 'c0100000-0000-4000-8000-000000000102', true),
   ('c0100000-0000-4000-8000-000000000205', 'vendedor', 'c0100000-0000-4000-8000-000000000103', true),
   ('c0100000-0000-4000-8000-000000000206', 'vendedor', null, true),
+  ('c0100000-0000-4000-8000-000000000207', 'vendedor', 'c0100000-0000-4000-8000-000000000101', true),
   ('c0100000-0000-4000-8000-000000000301', 'coordinador', null, true),
   ('c0100000-0000-4000-8000-000000000302', 'directorio', null, true),
   ('c0100000-0000-4000-8000-000000000303', 'vendedor', 'c0100000-0000-4000-8000-000000000101', false);
@@ -105,7 +107,7 @@ select
   true
 from c01_clock c
 cross join (values
-  ('c0110000-0000-4000-8000-000000000001'::uuid, 'C01 A NOREF REASIGNADO', '51980001001', 'campania', 'convertido', 'c0100000-0000-4000-8000-000000000204'::uuid, interval '1 day', interval '2 days'),
+  ('c0110000-0000-4000-8000-000000000001'::uuid, 'C01 A NOREF REASIGNADO', '51980001001', 'campania', 'convertido', 'c0100000-0000-4000-8000-000000000204'::uuid, interval '0 day', interval '2 days'),
   ('c0110000-0000-4000-8000-000000000002'::uuid, 'C01 A REFERIDO', '51980001002', 'referido', 'convertido', 'c0100000-0000-4000-8000-000000000201'::uuid, interval '1 day', interval '3 days'),
   ('c0110000-0000-4000-8000-000000000003'::uuid, 'C01 B ABIERTO 1', '51980001003', 'campania', 'contactado', 'c0100000-0000-4000-8000-000000000202'::uuid, interval '1 day', null),
   ('c0110000-0000-4000-8000-000000000004'::uuid, 'C01 B ABIERTO 2', '51980001004', 'campania', 'contactado', 'c0100000-0000-4000-8000-000000000202'::uuid, interval '2 days', null),
@@ -151,7 +153,7 @@ select
     + p.primer_contacto_minutos * interval '1 minute'
 from c01_clock c
 cross join (values
-  ('c0120000-0000-4000-8000-000000000001'::uuid, 'c0110000-0000-4000-8000-000000000001'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'campania', interval '1 day', true, interval '2 days'),
+  ('c0120000-0000-4000-8000-000000000001'::uuid, 'c0110000-0000-4000-8000-000000000001'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'campania', interval '0 day', true, interval '2 days'),
   ('c0120000-0000-4000-8000-000000000002'::uuid, 'c0110000-0000-4000-8000-000000000002'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'referido', interval '1 day', true, interval '3 days'),
   ('c0120000-0000-4000-8000-000000000003'::uuid, 'c0110000-0000-4000-8000-000000000003'::uuid, 'c0100000-0000-4000-8000-000000000202'::uuid, 'campania', interval '1 day', false, null),
   ('c0120000-0000-4000-8000-000000000004'::uuid, 'c0110000-0000-4000-8000-000000000004'::uuid, 'c0100000-0000-4000-8000-000000000202'::uuid, 'campania', interval '2 days', false, null),
@@ -239,6 +241,88 @@ begin
   if v_mode = 'ninguno' then
     return v;
   end if;
+
+  -- Mutantes de cobertura/total: no tocan responsables. Los siete primeros
+  -- son estados de datos declarados y deben degradar sin 55000; los restantes
+  -- son contrato corrupto y deben fallar cerrados.
+  case v_mode
+    when 'mes_parcial' then
+      return pg_catalog.jsonb_set(
+        pg_catalog.jsonb_set(
+          v, '{cobertura,medible}', 'false'::jsonb, false
+        ),
+        '{cobertura,motivo_no_medible}', '"mes_parcial"'::jsonb, false
+      );
+    when 'sin_ledger' then
+      return pg_catalog.jsonb_set(
+        pg_catalog.jsonb_set(
+          v, '{cobertura,medible}', 'false'::jsonb, false
+        ),
+        '{cobertura,motivo_no_medible}', '"sin_ledger"'::jsonb, false
+      );
+    when 'anterior_al_ledger' then
+      return pg_catalog.jsonb_set(
+        pg_catalog.jsonb_set(
+          v, '{cobertura,medible}', 'false'::jsonb, false
+        ),
+        '{cobertura,motivo_no_medible}', '"anterior_al_ledger"'::jsonb, false
+      );
+    when 'sin_supervisor' then
+      return pg_catalog.jsonb_set(
+        pg_catalog.jsonb_set(
+          v, '{cobertura,medible}', 'false'::jsonb, false
+        ),
+        '{cobertura,motivo_no_medible}', '"sin_supervisor"'::jsonb, false
+      );
+    when 'supervisor_inactivo' then
+      return pg_catalog.jsonb_set(
+        pg_catalog.jsonb_set(
+          v, '{cobertura,medible}', 'false'::jsonb, false
+        ),
+        '{cobertura,motivo_no_medible}', '"supervisor_inactivo"'::jsonb, false
+      );
+    when 'supervisor_no_es_supervisor' then
+      return pg_catalog.jsonb_set(
+        pg_catalog.jsonb_set(
+          v, '{cobertura,medible}', 'false'::jsonb, false
+        ),
+        '{cobertura,motivo_no_medible}',
+        '"supervisor_no_es_supervisor"'::jsonb,
+        false
+      );
+    when 'cierres_sin_episodio' then
+      return pg_catalog.jsonb_set(
+        v, '{cobertura,cierres_sin_episodio}', '1'::jsonb, false
+      );
+    when 'cobertura_ausente' then
+      return v - 'cobertura';
+    when 'cobertura_tipo' then
+      return pg_catalog.jsonb_set(v, '{cobertura}', '[]'::jsonb, false);
+    when 'divisor_por_motivo_tipo' then
+      return pg_catalog.jsonb_set(
+        v, '{cobertura,divisor_por_motivo}', '[]'::jsonb, false
+      );
+    when 'sonda_negativa' then
+      return pg_catalog.jsonb_set(
+        v, '{cobertura,cierres_sin_episodio}', '-1'::jsonb, false
+      );
+    when 'sonda_fraccional' then
+      return pg_catalog.jsonb_set(
+        v, '{cobertura,cierres_sin_episodio}', '0.5'::jsonb, false
+      );
+    when 'motivo_incoherente' then
+      return pg_catalog.jsonb_set(
+        v, '{cobertura,motivo_no_medible}', '"mes_parcial"'::jsonb, false
+      );
+    when 'total_ausente' then
+      return v - 'total';
+    when 'total_incoherente' then
+      return pg_catalog.jsonb_set(
+        v, '{total,conversion_pct}', '999'::jsonb, false
+      );
+    else
+      null;
+  end case;
 
   select e.value into v_a
   from pg_catalog.jsonb_array_elements(v -> 'responsables') e(value)
@@ -339,9 +423,56 @@ declare
   v_metricas jsonb := crm.metricas_vendedores_fn();
   v_fila jsonb;
   v_mismatch int;
+  v_avg_coalesce numeric;
+  v_avg_sin_null numeric;
+  v_por_conteo numeric;
+  v_suma_equipos int;
 begin
-  if pg_catalog.jsonb_array_length(v_metricas -> 'equipos') < 4 then
-    raise exception 'C01-BASE anti-vacuidad: faltan S1..S4';
+  if pg_catalog.jsonb_typeof(v_metricas -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v_metricas -> 'equipos')
+        is distinct from 4 then
+    raise exception 'C01-BASE anti-vacuidad: no llegaron exactamente S1..S4';
+  end if;
+
+  if v_metricas -> 'cobertura_conversion'
+       is distinct from v_mensual -> 'cobertura'
+     or pg_catalog.jsonb_typeof(v_metricas -> 'nucleo_total')
+        is distinct from 'object'
+     or not ((v_metricas -> 'nucleo_total') ?& array[
+       'nucleo_convertidos',
+       'operaciones_cartera',
+       'nucleo_divisor',
+       'nucleo_numerador',
+       'nucleo_conversion_pct'
+     ]::text[])
+     or (v_metricas #>> '{nucleo_total,nucleo_convertidos}')::int
+        is distinct from (
+          (v_mensual #>> '{total,cierres_no_referidos}')::int
+          + (v_mensual #>> '{total,cierres_referidos}')::int
+        )
+     or (v_metricas #>> '{nucleo_total,operaciones_cartera}')::int
+        is distinct from
+          (v_mensual #>> '{total,cartera,conversiones_clientes}')::int
+     or (v_metricas #>> '{nucleo_total,nucleo_divisor}')::numeric
+        is distinct from (v_mensual #>> '{total,divisor}')::numeric
+     or (v_metricas #>> '{nucleo_total,nucleo_numerador}')::numeric
+        is distinct from (v_mensual #>> '{total,numerador}')::numeric
+     or (v_metricas #>> '{nucleo_total,nucleo_conversion_pct}')::numeric
+        is distinct from (v_mensual #>> '{total,conversion_pct}')::numeric then
+    raise exception 'C01-BASE cobertura/total literal no coincide con wrapper';
+  end if;
+
+  select coalesce(sum((e.value ->> 'nucleo_convertidos')::int), 0)
+    into v_suma_equipos
+  from pg_catalog.jsonb_array_elements(v_metricas -> 'equipos') e(value)
+  where pg_catalog.jsonb_typeof(e.value -> 'nucleo_convertidos') = 'number';
+
+  if v_suma_equipos >=
+       (v_metricas #>> '{nucleo_total,nucleo_convertidos}')::int then
+    raise exception
+      'C01-BASE fuera-de-roster no quedo exclusivamente en el total (% vs %)',
+      v_suma_equipos,
+      v_metricas #>> '{nucleo_total,nucleo_convertidos}';
   end if;
 
   if exists (
@@ -354,6 +485,7 @@ begin
       'c0100000-0000-4000-8000-000000000104'
     )
       and not (e.value ?& array[
+        'nucleo_convertidos',
         'operaciones_cartera',
         'nucleo_divisor',
         'nucleo_numerador',
@@ -361,6 +493,82 @@ begin
       ]::text[])
   ) then
     raise exception 'C01-BASE fila exacta incompleta';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.jsonb_array_elements(v_metricas -> 'vendedores') e(value)
+    where not (e.value ?& array[
+      'nucleo_convertidos',
+      'operaciones_cartera',
+      'nucleo_divisor',
+      'nucleo_numerador',
+      'nucleo_conversion_pct'
+    ]::text[])
+  ) then
+    raise exception 'C01-BASE fila de vendedor exacta incompleta';
+  end if;
+
+  -- Las cinco claves forman un solo bundle: o todas son NULL (fila operativa
+  -- fuera del roster mensual), o las cuatro magnitudes son números coherentes
+  -- y solo el porcentaje puede ser NULL cuando divisor=0.
+  if exists (
+    select 1
+    from (
+      select e.value
+      from pg_catalog.jsonb_array_elements(v_metricas -> 'vendedores') e(value)
+      union all
+      select e.value
+      from pg_catalog.jsonb_array_elements(v_metricas -> 'equipos') e(value)
+      union all
+      select v_metricas -> 'nucleo_total'
+    ) f
+    where pg_catalog.jsonb_typeof(f.value) is distinct from 'object'
+      or not coalesce(f.value ?& array[
+        'nucleo_convertidos',
+        'operaciones_cartera',
+        'nucleo_divisor',
+        'nucleo_numerador',
+        'nucleo_conversion_pct'
+      ]::text[], false)
+      or not coalesce((
+      (
+        pg_catalog.jsonb_typeof(f.value -> 'nucleo_convertidos') = 'null'
+        and pg_catalog.jsonb_typeof(f.value -> 'operaciones_cartera') = 'null'
+        and pg_catalog.jsonb_typeof(f.value -> 'nucleo_divisor') = 'null'
+        and pg_catalog.jsonb_typeof(f.value -> 'nucleo_numerador') = 'null'
+        and pg_catalog.jsonb_typeof(f.value -> 'nucleo_conversion_pct') = 'null'
+      )
+      or (
+        pg_catalog.jsonb_typeof(f.value -> 'nucleo_convertidos') = 'number'
+        and pg_catalog.jsonb_typeof(f.value -> 'operaciones_cartera') = 'number'
+        and pg_catalog.jsonb_typeof(f.value -> 'nucleo_divisor') = 'number'
+        and pg_catalog.jsonb_typeof(f.value -> 'nucleo_numerador') = 'number'
+        and (f.value ->> 'nucleo_convertidos')::numeric >= 0
+        and (f.value ->> 'nucleo_convertidos')::numeric =
+          trunc((f.value ->> 'nucleo_convertidos')::numeric)
+        and (f.value ->> 'operaciones_cartera')::numeric >= 0
+        and (f.value ->> 'operaciones_cartera')::numeric =
+          trunc((f.value ->> 'operaciones_cartera')::numeric)
+        and (f.value ->> 'nucleo_divisor')::numeric >= 0
+        and (f.value ->> 'nucleo_divisor')::numeric =
+          trunc((f.value ->> 'nucleo_divisor')::numeric)
+        and (f.value ->> 'nucleo_numerador')::numeric >= 0
+        and case
+          when (f.value ->> 'nucleo_divisor')::numeric = 0 then
+            pg_catalog.jsonb_typeof(f.value -> 'nucleo_conversion_pct') = 'null'
+          else
+            pg_catalog.jsonb_typeof(f.value -> 'nucleo_conversion_pct') = 'number'
+            and (f.value ->> 'nucleo_conversion_pct')::numeric = round(
+              100.0 * (f.value ->> 'nucleo_numerador')::numeric
+              / (f.value ->> 'nucleo_divisor')::numeric,
+              2
+            )
+        end
+      )
+    ), false)
+  ) then
+    raise exception 'C01-BASE bundle exacto parcial o incoherente';
   end if;
 
   -- Oraculo dinamico: responsabilidades canonicas agrupadas sobre todos los
@@ -405,7 +613,7 @@ begin
       (e.value ->> 'supervisor_id')::uuid as supervisor_id,
       (e.value ->> 'nucleo_divisor')::numeric as divisor,
       (e.value ->> 'nucleo_numerador')::numeric as numerador,
-      (e.value ->> 'convertidos')::int as convertidos,
+      (e.value ->> 'nucleo_convertidos')::int as convertidos,
       (e.value ->> 'operaciones_cartera')::int as operaciones,
       case when pg_catalog.jsonb_typeof(
         e.value -> 'nucleo_conversion_pct'
@@ -433,16 +641,47 @@ begin
   where e.value ->> 'supervisor_id' =
     'c0100000-0000-4000-8000-000000000101';
   if v_fila is null
-     or (v_fila ->> 'nucleo_divisor')::numeric <> 3
-     or (v_fila ->> 'nucleo_numerador')::numeric <> 1.15
-     or (v_fila ->> 'nucleo_conversion_pct')::numeric <> 38.33
-     or (v_fila ->> 'conversion_pct')::int <> 38
-     or (v_fila ->> 'convertidos')::int <> 2
-     or (v_fila ->> 'operaciones_cartera')::int <> 1
-     or (v_fila ->> 'activos')::int <> 2
-     or (v_fila ->> 'capital_pen')::numeric <> 2000
-     or (v_fila ->> 'capital_usd')::numeric <> 0 then
+     or (v_fila ->> 'nucleo_divisor')::numeric is distinct from 3
+     or (v_fila ->> 'nucleo_numerador')::numeric is distinct from 1.15
+     or (v_fila ->> 'nucleo_conversion_pct')::numeric is distinct from 38.33
+     or (v_fila ->> 'conversion_pct')::int is distinct from 38
+     or (v_fila ->> 'convertidos')::int is distinct from 2
+     or (v_fila ->> 'nucleo_convertidos')::int is distinct from 2
+     or (v_fila ->> 'operaciones_cartera')::int is distinct from 1
+     or (v_fila ->> 'activos')::int is distinct from 2
+     or (v_fila ->> 'capital_pen')::numeric is distinct from 2000
+     or (v_fila ->> 'capital_usd')::numeric is distinct from 0 then
     raise exception 'C01-BASE S1 incorrecto: %', v_fila;
+  end if;
+
+  select
+    round(avg(coalesce(
+      case when pg_catalog.jsonb_typeof(r.value -> 'conversion_pct') = 'number'
+        then (r.value ->> 'conversion_pct')::numeric end,
+      0
+    )), 2),
+    round(avg(
+      case when pg_catalog.jsonb_typeof(r.value -> 'conversion_pct') = 'number'
+        then (r.value ->> 'conversion_pct')::numeric end
+    ), 2),
+    round(100.0 * sum((r.value ->> 'numerador')::numeric) / count(*), 2)
+  into v_avg_coalesce, v_avg_sin_null, v_por_conteo
+  from pg_catalog.jsonb_array_elements(v_mensual -> 'responsables') r(value)
+  where r.value ->> 'supervisor_id' =
+    'c0100000-0000-4000-8000-000000000101';
+
+  if v_avg_coalesce is null
+     or v_avg_sin_null is null
+     or v_por_conteo is null
+     or (v_fila ->> 'nucleo_conversion_pct')::numeric in (
+       v_avg_coalesce, v_avg_sin_null, v_por_conteo
+     ) then
+    raise exception
+      'C01-BASE fixture vacuo contra AVG/COUNT (%/%/% vs %)',
+      v_avg_coalesce,
+      v_avg_sin_null,
+      v_por_conteo,
+      v_fila ->> 'nucleo_conversion_pct';
   end if;
 
   select e.value into v_fila
@@ -450,11 +689,12 @@ begin
   where e.value ->> 'supervisor_id' =
     'c0100000-0000-4000-8000-000000000102';
   if v_fila is null
-     or (v_fila ->> 'nucleo_divisor')::numeric <> 1
-     or (v_fila ->> 'nucleo_numerador')::numeric <> 3
-     or (v_fila ->> 'nucleo_conversion_pct')::numeric <> 300
-     or (v_fila ->> 'convertidos')::int <> 1
-     or (v_fila ->> 'operaciones_cartera')::int <> 2 then
+     or (v_fila ->> 'nucleo_divisor')::numeric is distinct from 1
+     or (v_fila ->> 'nucleo_numerador')::numeric is distinct from 3
+     or (v_fila ->> 'nucleo_conversion_pct')::numeric is distinct from 300
+     or (v_fila ->> 'convertidos')::int is distinct from 1
+     or (v_fila ->> 'nucleo_convertidos')::int is distinct from 1
+     or (v_fila ->> 'operaciones_cartera')::int is distinct from 2 then
     raise exception 'C01-BASE S2 >100/cartera incorrecto: %', v_fila;
   end if;
 
@@ -463,11 +703,13 @@ begin
   where e.value ->> 'supervisor_id' =
     'c0100000-0000-4000-8000-000000000103';
   if v_fila is null
-     or (v_fila ->> 'nucleo_divisor')::numeric <> 0
-     or (v_fila ->> 'nucleo_numerador')::numeric <> 1
-     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_conversion_pct') <> 'null'
-     or (v_fila ->> 'conversion_pct')::int <> 0
-     or (v_fila ->> 'operaciones_cartera')::int <> 1 then
+     or (v_fila ->> 'nucleo_divisor')::numeric is distinct from 0
+     or (v_fila ->> 'nucleo_numerador')::numeric is distinct from 1
+     or (v_fila ->> 'nucleo_convertidos')::int is distinct from 0
+     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_conversion_pct')
+        is distinct from 'null'
+     or (v_fila ->> 'conversion_pct')::int is distinct from 0
+     or (v_fila ->> 'operaciones_cartera')::int is distinct from 1 then
     raise exception 'C01-BASE S3 NULL incorrecto: %', v_fila;
   end if;
 
@@ -476,21 +718,45 @@ begin
   where e.value ->> 'supervisor_id' =
     'c0100000-0000-4000-8000-000000000104';
   if v_fila is null
-     or (v_fila ->> 'nucleo_divisor')::numeric <> 0
-     or (v_fila ->> 'nucleo_numerador')::numeric <> 0
-     or (v_fila ->> 'operaciones_cartera')::int <> 0
-     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_conversion_pct') <> 'null' then
+     or (v_fila ->> 'nucleo_divisor')::numeric is distinct from 0
+     or (v_fila ->> 'nucleo_numerador')::numeric is distinct from 0
+     or (v_fila ->> 'nucleo_convertidos')::int is distinct from 0
+     or (v_fila ->> 'operaciones_cartera')::int is distinct from 0
+     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_conversion_pct')
+        is distinct from 'null' then
     raise exception 'C01-BASE S4 vacio incorrecto: %', v_fila;
   end if;
 
-  -- E produjo, pero no tiene supervisor valido: solo agregado anonimo.
+  -- E produjo, pero no tiene supervisor valido: queda fuera de responsables y
+  -- equipos, declarado en cobertura e incluido únicamente en el total global.
+  -- La fila OPERATIVA puede existir, pero todo su bundle mensual exacto debe ser
+  -- NULL: ausencia jamás se convierte en cero disponible.
   if exists (
     select 1
     from pg_catalog.jsonb_array_elements(v_mensual -> 'responsables') e(value)
     where e.value ->> 'vendedor_id' =
       'c0100000-0000-4000-8000-000000000206'
-  ) or (v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::int <> 1 then
+  ) or (v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::int
+       is distinct from 1 then
     raise exception 'C01-BASE fuera-de-roster mal representado';
+  end if;
+
+  select e.value into v_fila
+  from pg_catalog.jsonb_array_elements(v_metricas -> 'vendedores') e(value)
+  where e.value ->> 'vendedor_id' =
+    'c0100000-0000-4000-8000-000000000206';
+  if v_fila is null
+     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_convertidos')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_fila -> 'operaciones_cartera')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_divisor')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_numerador')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_fila -> 'nucleo_conversion_pct')
+        is distinct from 'null' then
+    raise exception 'C01-BASE fuera-de-roster fabrico ceros: %', v_fila;
   end if;
 
   -- A demuestra ajuste y deduplicacion; F demuestra suelo por vendedor.
@@ -498,9 +764,10 @@ begin
   from pg_catalog.jsonb_array_elements(v_mensual -> 'responsables') e(value)
   where e.value ->> 'vendedor_id' =
     'c0100000-0000-4000-8000-000000000201';
-  if (v_fila ->> 'numerador')::numeric <> 1.15
-     or (v_fila ->> 'conversion_pct')::numeric <> 115
-     or (v_fila #>> '{cartera,conversiones_clientes}')::int <> 1 then
+  if (v_fila ->> 'numerador')::numeric is distinct from 1.15
+     or (v_fila ->> 'conversion_pct')::numeric is distinct from 115
+     or (v_fila #>> '{cartera,conversiones_clientes}')::int
+        is distinct from 1 then
     raise exception 'C01-BASE A ajuste/cartera incorrecto: %', v_fila;
   end if;
 
@@ -508,12 +775,217 @@ begin
   from pg_catalog.jsonb_array_elements(v_mensual -> 'responsables') e(value)
   where e.value ->> 'vendedor_id' =
     'c0100000-0000-4000-8000-000000000203';
-  if (v_fila ->> 'numerador')::numeric <> 0
-     or pg_catalog.jsonb_typeof(v_fila -> 'conversion_pct') <> 'null' then
+  if (v_fila ->> 'numerador')::numeric is distinct from 0
+     or pg_catalog.jsonb_typeof(v_fila -> 'conversion_pct')
+        is distinct from 'null' then
     raise exception 'C01-BASE F suelo por vendedor incorrecto: %', v_fila;
   end if;
 end
 $baseline$;
+
+-- Política de publicación del wrapper: parcial se ve con aviso; ausencia de
+-- ledger, motivos de roster y sonda rota conservan operación pero dejan el
+-- bundle exacto completo en NULL.
+do $publicacion$
+declare
+  v_mes date := date_trunc('month', now() at time zone 'America/Lima')::date;
+  v_mode text;
+  v jsonb;
+  v_b jsonb;
+  v_wrapper jsonb;
+begin
+  perform pg_catalog.set_config('c01.mutante', 'mes_parcial', true);
+  v_wrapper := crm.conversion_mensual_fn(v_mes);
+  v := crm.metricas_vendedores_fn();
+  if v -> 'cobertura_conversion' is distinct from v_wrapper -> 'cobertura'
+     or pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 4
+     or (v #>> '{cobertura_conversion,medible}')::boolean
+       is distinct from false
+     or v #>> '{cobertura_conversion,motivo_no_medible}'
+        is distinct from 'mes_parcial'
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,nucleo_divisor}')
+        is distinct from 'number'
+     or not exists (
+       select 1
+       from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value)
+       where e.value ->> 'vendedor_id' =
+         'c0100000-0000-4000-8000-000000000201'
+         and pg_catalog.jsonb_typeof(e.value -> 'nucleo_divisor') = 'number'
+     ) then
+    raise exception 'C01-PUBLICACION mes parcial no quedo provisional';
+  end if;
+
+  foreach v_mode in array array[
+    'sin_ledger',
+    'anterior_al_ledger',
+    'sin_supervisor',
+    'supervisor_inactivo',
+    'supervisor_no_es_supervisor',
+    'cierres_sin_episodio'
+  ] loop
+    perform pg_catalog.set_config('c01.mutante', v_mode, true);
+    v_wrapper := crm.conversion_mensual_fn(v_mes);
+    v := crm.metricas_vendedores_fn();
+
+    if v -> 'cobertura_conversion' is distinct from v_wrapper -> 'cobertura'
+       or pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+       or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+       or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 4
+       or exists (
+      select 1
+      from (
+        select e.value
+        from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value)
+        union all
+        select e.value
+        from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+        union all
+        select v -> 'nucleo_total'
+      ) f(value)
+      where pg_catalog.jsonb_typeof(f.value) is distinct from 'object'
+         or not coalesce(f.value ?& array[
+           'nucleo_convertidos',
+           'operaciones_cartera',
+           'nucleo_divisor',
+           'nucleo_numerador',
+           'nucleo_conversion_pct'
+         ]::text[], false)
+         or pg_catalog.jsonb_typeof(f.value -> 'nucleo_convertidos')
+            is distinct from 'null'
+         or pg_catalog.jsonb_typeof(f.value -> 'operaciones_cartera')
+            is distinct from 'null'
+         or pg_catalog.jsonb_typeof(f.value -> 'nucleo_divisor')
+            is distinct from 'null'
+         or pg_catalog.jsonb_typeof(f.value -> 'nucleo_numerador')
+            is distinct from 'null'
+         or pg_catalog.jsonb_typeof(f.value -> 'nucleo_conversion_pct')
+            is distinct from 'null'
+    ) then
+      raise exception 'C01-PUBLICACION % filtro un exacto', v_mode;
+    end if;
+
+    select e.value into v_b
+    from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value)
+    where e.value ->> 'vendedor_id' =
+      'c0100000-0000-4000-8000-000000000202';
+    if v_b is null
+       or (v_b ->> 'activos')::int is distinct from 2
+       or (v_b ->> 'capital_pen')::numeric is distinct from 2000 then
+      raise exception 'C01-PUBLICACION % borro la foto operativa: %', v_mode, v_b;
+    end if;
+
+    if v_mode = 'cierres_sin_episodio'
+       and (v #>> '{cobertura_conversion,cierres_sin_episodio}')::int
+           is distinct from 1 then
+      raise exception 'C01-PUBLICACION perdio conteo de sonda';
+    end if;
+  end loop;
+
+  perform pg_catalog.set_config('c01.mutante', 'ninguno', true);
+  v_wrapper := crm.conversion_mensual_fn(v_mes);
+  v := crm.metricas_vendedores_fn();
+  if v -> 'cobertura_conversion' is distinct from v_wrapper -> 'cobertura'
+     or pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 4
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,nucleo_divisor}')
+       is distinct from 'number' then
+    raise exception 'C01-PUBLICACION reset no restauro el nucleo';
+  end if;
+end
+$publicacion$;
+
+-- Un miembro CRM activo con perfil público inactivo no pertenece al roster
+-- canónico. El equipo mixto debe perder TODO el bundle, no publicar el parcial
+-- de los demás integrantes ni ceros creíbles.
+reset role;
+update public.perfiles
+set activo = false
+where id = 'c0100000-0000-4000-8000-000000000202';
+set local role authenticated;
+
+do $perfil_off$
+declare
+  v jsonb := crm.metricas_vendedores_fn();
+  v_s1 jsonb;
+begin
+  select e.value into v_s1
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+  where e.value ->> 'supervisor_id' =
+    'c0100000-0000-4000-8000-000000000101';
+
+  if v_s1 is null
+     or pg_catalog.jsonb_typeof(v_s1) is distinct from 'object'
+     or not coalesce(v_s1 ?& array[
+       'nucleo_convertidos',
+       'operaciones_cartera',
+       'nucleo_divisor',
+       'nucleo_numerador',
+       'nucleo_conversion_pct'
+     ]::text[], false)
+     or pg_catalog.jsonb_typeof(v_s1 -> 'nucleo_convertidos')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_s1 -> 'operaciones_cartera')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_s1 -> 'nucleo_divisor')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_s1 -> 'nucleo_numerador')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v_s1 -> 'nucleo_conversion_pct')
+        is distinct from 'null' then
+    raise exception 'C01-PERFIL-OFF publico un equipo parcial: %', v_s1;
+  end if;
+end
+$perfil_off$;
+
+reset role;
+update public.perfiles
+set activo = true
+where id = 'c0100000-0000-4000-8000-000000000202';
+
+update public.perfiles
+set activo = false
+where id = 'c0100000-0000-4000-8000-000000000104';
+set local role authenticated;
+
+do $supervisor_off$
+declare
+  v jsonb := crm.metricas_vendedores_fn();
+begin
+  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 3
+     or (
+       select count(distinct e.value ->> 'supervisor_id')
+       from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+       where e.value ->> 'supervisor_id' in (
+         'c0100000-0000-4000-8000-000000000101',
+         'c0100000-0000-4000-8000-000000000102',
+         'c0100000-0000-4000-8000-000000000103'
+       )
+     ) is distinct from 3
+     or exists (
+       select 1
+       from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+       where e.value ->> 'supervisor_id' not in (
+         'c0100000-0000-4000-8000-000000000101',
+         'c0100000-0000-4000-8000-000000000102',
+         'c0100000-0000-4000-8000-000000000103'
+       )
+     ) then
+    raise exception
+      'C01-SUPERVISOR-OFF no conservo exactamente S1-S3: %',
+      v -> 'equipos';
+  end if;
+end
+$supervisor_off$;
+
+reset role;
+update public.perfiles
+set activo = true
+where id = 'c0100000-0000-4000-8000-000000000104';
+set local role authenticated;
 
 -- Contratos mensuales corruptos: todos deben morir fail-closed con 55000.
 do $cobertura$
@@ -528,7 +1000,15 @@ begin
     'supervisor',
     'extra_rol',
     'extra_fuera',
-    'alcance'
+    'alcance',
+    'cobertura_ausente',
+    'cobertura_tipo',
+    'divisor_por_motivo_tipo',
+    'sonda_negativa',
+    'sonda_fraccional',
+    'motivo_incoherente',
+    'total_ausente',
+    'total_incoherente'
   ] loop
     perform pg_catalog.set_config('c01.mutante', v_mode, true);
     begin
@@ -552,8 +1032,9 @@ begin
     'c0100000-0000-4000-8000-000000000101', true
   );
   v := crm.metricas_vendedores_fn();
-  if pg_catalog.jsonb_array_length(v -> 'equipos') <> 1
-     or v #>> '{equipos,0,supervisor_id}' <>
+  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 1
+     or v #>> '{equipos,0,supervisor_id}' is distinct from
        'c0100000-0000-4000-8000-000000000101' then
     raise exception 'C01-ROLES supervisor salio de su equipo: %', v -> 'equipos';
   end if;
@@ -563,11 +1044,13 @@ begin
     'c0100000-0000-4000-8000-000000000201', true
   );
   v := crm.metricas_vendedores_fn();
-  if pg_catalog.jsonb_array_length(v -> 'equipos') <> 0
+  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 0
      or not exists (
        select 1 from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value)
        where e.value ->> 'vendedor_id' =
          'c0100000-0000-4000-8000-000000000201'
+         and (e.value ->> 'nucleo_convertidos')::int = 2
          and (e.value ->> 'nucleo_numerador')::numeric = 1.15
      ) then
     raise exception 'C01-ROLES vendedor incorrecto: %', v;
@@ -578,11 +1061,28 @@ begin
     'c0100000-0000-4000-8000-000000000302', true
   );
   v := crm.metricas_vendedores_fn();
-  if not exists (
-    select 1 from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
-    where e.value ->> 'supervisor_id' =
-      'c0100000-0000-4000-8000-000000000104'
-  ) then
+  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 4
+     or (
+       select count(distinct e.value ->> 'supervisor_id')
+       from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+       where e.value ->> 'supervisor_id' in (
+         'c0100000-0000-4000-8000-000000000101',
+         'c0100000-0000-4000-8000-000000000102',
+         'c0100000-0000-4000-8000-000000000103',
+         'c0100000-0000-4000-8000-000000000104'
+       )
+     ) is distinct from 4
+     or exists (
+       select 1
+       from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+       where e.value ->> 'supervisor_id' not in (
+         'c0100000-0000-4000-8000-000000000101',
+         'c0100000-0000-4000-8000-000000000102',
+         'c0100000-0000-4000-8000-000000000103',
+         'c0100000-0000-4000-8000-000000000104'
+       )
+     ) then
     raise exception 'C01-ROLES Directorio no obtuvo alcance global';
   end if;
 
@@ -591,8 +1091,37 @@ begin
     'c0100000-0000-4000-8000-000000000301', true
   );
   v := crm.metricas_vendedores_fn();
-  if pg_catalog.jsonb_array_length(v -> 'vendedores') <> 0
-     or pg_catalog.jsonb_array_length(v -> 'equipos') <> 0 then
+  if pg_catalog.jsonb_typeof(v) is distinct from 'object'
+     or not (v ?& array[
+       'vendedores',
+       'equipos',
+       'cobertura_conversion',
+       'nucleo_total'
+     ]::text[])
+     or pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'vendedores') is distinct from 0
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 0
+     or pg_catalog.jsonb_typeof(v -> 'cobertura_conversion')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v -> 'nucleo_total') is distinct from 'object'
+     or not coalesce((v -> 'nucleo_total') ?& array[
+       'nucleo_convertidos',
+       'operaciones_cartera',
+       'nucleo_divisor',
+       'nucleo_numerador',
+       'nucleo_conversion_pct'
+     ]::text[], false)
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,nucleo_convertidos}')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,operaciones_cartera}')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,nucleo_divisor}')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,nucleo_numerador}')
+        is distinct from 'null'
+     or pg_catalog.jsonb_typeof(v #> '{nucleo_total,nucleo_conversion_pct}')
+        is distinct from 'null' then
     raise exception 'C01-ROLES coordinador no quedo vacio: %', v;
   end if;
 

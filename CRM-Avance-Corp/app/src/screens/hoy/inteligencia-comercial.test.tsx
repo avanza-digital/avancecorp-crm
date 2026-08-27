@@ -270,9 +270,36 @@ describe('detalle de conversión por vendedor', () => {
     expect(JSON.parse(tendencia.getAttribute('data-series') ?? '[]')).toEqual([null, 50])
   })
 
-  it('no convierte en cero el detalle ausente de una RPC antigua', () => {
+  it('con núcleo verificado no convierte en cero el detalle mensual ausente', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     delete datos.responsables
+    datos.nucleo = {
+      base: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      divisor: 10,
+      numerador: 1,
+      conversion_pct: 10,
+      cierres_no_referidos: 1,
+      cierres_referidos: 0,
+      referidos_recibidos: 0,
+      referidos_cierran_pct: null,
+      operaciones_cartera: 0,
+      peso_referido: 0.15,
+      mes_peso: '2026-08-01',
+      incluye_cartera: true,
+    }
+    datos.sondas = {
+      cuadra: true,
+      paridad_nucleo: 0,
+      paridad_filas: 0,
+      divisor_fuera_del_roster: 0,
+      numerador_fuera_del_roster: 0,
+      cierres_sin_ficha_convertida: 0,
+      cohorte_convertidos_sin_cierre_elegible: 0,
+      cartera_fuera_del_rango: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      origen_ficha_distinto_del_ledger: 0,
+    }
 
     render(
       <InteligenciaComercialPanel
@@ -404,6 +431,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     sondas: typeof SONDAS | undefined,
     origenReferido = false,
     incluirNucleo = true,
+    modoDemo = true,
   ) {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
     if (incluirNucleo) datos.nucleo = { ...NUCLEO }
@@ -428,7 +456,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
-        modoDemo
+        modoDemo={modoDemo}
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
         onReintentar={vi.fn()}
@@ -486,6 +514,17 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
+  })
+
+  it('F3.4 fail-closed: una respuesta REAL sin núcleo ni sondas no revive la fórmula de cohorte', () => {
+    montarConNucleo(undefined, false, false, false)
+
+    expect(screen.getAllByText('Conversión del mes').length).toBeGreaterThan(0)
+    expect(screen.queryByText('Conversión a clientes')).not.toBeInTheDocument()
+    expect(screen.queryByText('9.24%')).not.toBeInTheDocument()
+    expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
   })
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {

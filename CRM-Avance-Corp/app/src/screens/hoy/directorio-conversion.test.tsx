@@ -4,6 +4,9 @@ import type { Miembro } from '@/lib/tipos'
 import type { ResumenCartera } from '@/lib/resumen-cartera'
 
 let CONVERSION: number | null = 137.63
+let CONVERSION_DISPONIBLE = true
+let CIERRES_TOTAL: number | null = 0
+let AVISO_CONVERSION: string | null = null
 let RESUMEN: ResumenCartera | null = null
 
 const SUPERVISORA: Miembro = {
@@ -36,14 +39,24 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
         capitalPEN: 0,
         capitalUSD: 0,
         convertidos: 0,
+        cierresConversion: CONVERSION_DISPONIBLE ? 0 : null,
         conversion: CONVERSION,
-        conversionDisponible: true,
-        operacionesCartera: 4,
-        divisorConversion: CONVERSION == null ? 0 : 8,
-        numeradorConversion: CONVERSION == null ? 4 : 11.0104,
+        conversionDisponible: CONVERSION_DISPONIBLE,
+        operacionesCartera: CONVERSION_DISPONIBLE ? 4 : null,
+        divisorConversion: CONVERSION_DISPONIBLE ? CONVERSION == null ? 0 : 8 : null,
+        numeradorConversion: CONVERSION_DISPONIBLE ? CONVERSION == null ? 4 : 11.0104 : null,
         parkeados: 0,
       }],
+      totalConversion: {
+        cierresConversion: CIERRES_TOTAL,
+        conversion: CONVERSION,
+        conversionDisponible: CONVERSION_DISPONIBLE,
+        operacionesCartera: CONVERSION_DISPONIBLE ? 4 : null,
+        divisorConversion: CONVERSION_DISPONIBLE ? CONVERSION == null ? 0 : 8 : null,
+        numeradorConversion: CONVERSION_DISPONIBLE ? CONVERSION == null ? 4 : 11.0104 : null,
+      },
       generadoEn: '2026-08-27T12:00:00Z',
+      avisoConversion: AVISO_CONVERSION,
       mesMetrica: '2026-08-01',
     },
     error: null,
@@ -60,6 +73,9 @@ const { HoyDirectorio } = await import('./directorio')
 describe('HoyDirectorio — conversión exacta por equipo', () => {
   beforeEach(() => {
     CONVERSION = 137.63
+    CONVERSION_DISPONIBLE = true
+    CIERRES_TOTAL = 0
+    AVISO_CONVERSION = null
     RESUMEN = null
   })
 
@@ -81,7 +97,19 @@ describe('HoyDirectorio — conversión exacta por equipo', () => {
     expect(fila).not.toHaveTextContent('0%')
   })
 
+  it('una lectura de equipo no disponible no inventa cierres, divisor ni cartera', () => {
+    CONVERSION = null
+    CONVERSION_DISPONIBLE = false
+    render(<HoyDirectorio />)
+    const fila = screen.getByRole('row', { name: /SUPERVISORA UNO/ })
+
+    expect(fila).toHaveTextContent('Dato no disponible')
+    expect(fila).not.toHaveTextContent('Sin divisor mensual')
+    expect(fila).not.toHaveTextContent('de cartera')
+  })
+
   it('usa cierres mensuales canónicos y no mezcla ese contador con el capital de 45 días', () => {
+    CIERRES_TOTAL = 7
     RESUMEN = {
       version: 1,
       generado_en: '2026-08-27T12:00:00Z',
@@ -93,8 +121,9 @@ describe('HoyDirectorio — conversión exacta por equipo', () => {
         abiertos: 10,
         asignados: 8,
         parkeados: 2,
-        // Fuente canónica mensual que la tarjeta debe publicar.
-        convertidos: 7,
+        // Lectura heredada deliberadamente contradictoria: ya no alimenta la
+        // tarjeta; el total viene del wrapper mensual vía métricas.
+        convertidos: 99,
         descartados: 3,
         asignados_pen: 6,
         asignados_usd: 2,
@@ -107,7 +136,7 @@ describe('HoyDirectorio — conversión exacta por equipo', () => {
       },
       // Lectura heredada deliberadamente contradictoria: no debe filtrarse a
       // la tarjeta mensual ni como valor ni como denominador.
-      conversion: { convertidos: 99, base: 321, pct: 30.84 },
+      conversion: { convertidos: 88, base: 321, pct: 27.41 },
       descartes: { total: 3, sin_motivo: 0, por_motivo: [] },
       embudo: [],
       sin_tocar: 0,
@@ -119,11 +148,19 @@ describe('HoyDirectorio — conversión exacta por equipo', () => {
     expect(tarjetaCierres).toHaveTextContent('7')
     expect(tarjetaCierres).toHaveTextContent('Cierres de leads del mes calendario')
     expect(tarjetaCierres).not.toHaveTextContent('99')
+    expect(tarjetaCierres).not.toHaveTextContent('88')
     expect(tarjetaCierres).not.toHaveTextContent('321')
 
     const tarjetaCapital = screen.getByText('Capital ganado').closest('[data-slot="card"]')
     expect(tarjetaCapital).not.toBeNull()
     expect(tarjetaCapital).toHaveTextContent('Capital de cierres · últimos 45 d')
     expect(tarjetaCapital).not.toHaveTextContent('7 convertidos')
+  })
+
+  it('avisa una cobertura provisional o en revisión junto a la auditoría', () => {
+    AVISO_CONVERSION = 'Provisional: al mes le faltan días de registro'
+    render(<HoyDirectorio />)
+
+    expect(screen.getByText(AVISO_CONVERSION).closest('[role="status"]')).not.toBeNull()
   })
 })

@@ -37,7 +37,7 @@ import {
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
-import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
@@ -137,9 +137,7 @@ export function ResumenGerenciaPanel({
   // Un mes INCOMPLETO se ve, marcado como provisional (decisión de Miguel
   // 2026-08-14). La regla es compartida: cuatro pantallas pintan esta cifra.
   const lecturaConversion = lecturaCobertura(conversionMensual?.cobertura)
-  const totalMes = conversionMensual != null && lecturaConversion.mostrar
-    ? conversionMensual.total
-    : null
+  const totalMes = totalConversionPublicable(conversionMensual)
   const conversionMes = totalMes?.conversion_pct ?? null
   const recibidosMes = totalMes?.divisor ?? null
   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos

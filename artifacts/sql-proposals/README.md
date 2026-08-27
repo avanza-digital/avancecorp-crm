@@ -57,7 +57,10 @@ La comparación no se hace contra todo `crm.equipo`: ese conjunto también
 incluye supervisores, gerencia, inactivos visibles y vendedores sin supervisor
 válido. El wrapper mensual representa únicamente vendedores activos con
 supervisor activo; la producción fuera de roster permanece anónima en
-`cobertura.fuera_de_roster`. Además, `metricas_vendedores_fn` siempre consulta
+`cobertura.fuera_de_roster`. Si esa persona todavía pertenece a la foto
+operativa amplia, su fila conserva activos/capital pero las cinco claves del
+bundle mensual quedan explícitamente en NULL; no se fabrican ceros. Además,
+`metricas_vendedores_fn` siempre consulta
 el mes en curso y `cerrar_periodo` prohíbe sellarlo. La propuesta comprueba
 también que no exista un sello actual anómalo antes de llamar al wrapper, por lo
 que no mezcla una foto histórica con un roster vivo aunque sus UUID coincidan.
@@ -75,18 +78,26 @@ que no mezcla una foto histórica con un roster vivo aunque sus UUID coincidan.
 6. Crear una migración nueva posterior a la última vigente; no editar ninguna
    migración histórica.
 7. Ejecutar el banco completo y los mutantes en una base local desechable.
-8. Aplicar primero el servidor y verificar su readback.
-9. Publicar después el frontend. El frontend nuevo exige los campos exactos de
-   `equipos`, por lo que desplegarlo antes haría fallar el parseo del payload.
+8. Publicar el frontend puente F0. Reconoce exactamente el contrato F2.4b
+   vigente: sin las dos raíces, cuatro claves mensuales en `vendedores` (todavía
+   sin `nucleo_convertidos`) y ninguna en `equipos`. Conserva la foto operativa
+   y oculta ese bundle legacy completo; no reutiliza sus cifras. Otra combinación,
+   una sola raíz o un bundle parcial falla cerrado.
+9. Con aprobación separada, aplicar C0.1 en servidor y verificar readback. Al
+   aparecer juntas `cobertura_conversion` y `nucleo_total`, el mismo frontend
+   exige las cinco claves exactas completas en total, vendedores y equipos.
+10. Ejecutar paridad por rol y snapshot a través de PostgREST/JWT antes de dar
+    por cerrado C0.1. Solo después puede evaluarse retirar el puente legacy.
 
 ## Compatibilidad con F1.3 (`20260827193803`, main `abb8240`)
 
-El artefacto F0 está deliberadamente sin rebase (`3fa7856`). La migración F1.3,
-ya aplicada en producción, reemplaza solo
+El artefacto F0 ya fue rebasado de forma controlada sobre `abb8240`; el SHA de
+entrada a esta auditoría final fue `0ac9f34`. La migración F1.3, ya documentada
+como aplicada en producción por su sesión propietaria, reemplaza solo
 `private.metricas_conversiones_implementacion(date,date)` para que
 `produccion.capital_pen/capital_usd` use los caminos vivos de cierres y añade
 `produccion.sin_rastro`. No modifica `crm.metricas_vendedores_fn`, el wrapper
-mensual, el roster ni las once funciones que C0.1 ancla; por eso no se agrega un
+mensual, el roster ni las dieciséis funciones que C0.1 ancla; por eso no se agrega un
 placeholder artificial para F1.3.
 
 La frontera semántica es obligatoria:
@@ -98,15 +109,10 @@ La frontera semántica es obligatoria:
 
 No deben fusionarse ni sustituirse entre sí. F1.3 declara además que sus
 capitales por origen/responsable siguen pendientes de F1.3b; C0.1 no intenta
-resolver esa deuda. Antes de materializar la migración C0.1 se debe integrar
-main, preservar sus cambios de frontend, volver a ejecutar la captura live y
-recalcular todos los hashes/checksums sobre el árbol rebasado.
-
-El rebase no es mecánico: F0 y `3fa7856..abb8240` tocan a la vez
-`hoy/gerencia.tsx`, `hoy/inteligencia-comercial.tsx` y su prueba, y
-`hoy/resumen-gerencia.tsx` y su prueba. Esos conflictos deben conservar tanto
-los rótulos/capital vivo ya publicados como el contrato exacto de conversión;
-elegir un lado completo perdería una de las dos semánticas.
+resolver esa deuda. El rebase conservó tanto los rótulos/capital vivo de F1.3
+como el contrato exacto de conversión. Antes de materializar la migración C0.1
+todavía se deben capturar las huellas live autorizadas y recalcular los hashes
+del cuerpo candidato definitivo; ningún hash local sustituye ese readback.
 
 ## Hashes estáticos del worktree — NO PRODUCCIÓN
 
@@ -114,9 +120,16 @@ Estos valores se calcularon desde los cuerpos presentes en el worktree
 `/private/tmp/crm-conversion-stabilization-f0-20260827`. Son evidencia local y
 no deben sustituir automáticamente las anclas live del SQL.
 
+Además de estos dieciséis hashes de cuerpo, el preflight exige un fingerprint
+live único y ordenado de owner, `SECURITY DEFINER`, volatilidad, `proconfig` y
+ACL directo normalizado de las dieciséis firmas. El RPC público comprueba además
+privilegios efectivos de `authenticated`, `anon` y `service_role`, incluidas
+membresías. No existe valor local sustitutivo para el fingerprint: debe
+capturarse en el mismo servidor y momento que los cuerpos autorizados.
+
 | Función | md5(prosrc) local |
 |---|---|
-| crm.metricas_vendedores_fn() | 87998c3b195d8f5e7197c579e71e5da9 |
+| crm.metricas_vendedores_fn() — cuerpo candidato C0.1 | c8aa860ad9da6aebdf5b482845800a62 |
 | crm.conversion_mensual_fn(date) | d4a8294c2ce5c45cce8104143ce3508b |
 | crm.conversion_mensual_sin_cartera_fn(date) | c7a7a103d6665acb9231976a3a2fcfa6 |
 | private.conversion_mensual_por_vendedor(...) | 4816eeefabe34c3fc82a2ff2f18a1182 |
@@ -127,6 +140,11 @@ no deben sustituir automáticamente las anclas live del SQL.
 | private.ajuste_pendiente_por_vendedor() | 7b44de923a64305b00a64b114143a1dd |
 | private.conversion_con_ajuste(...) | e08142ff2df5d9e78b7d7bde4998fc6f |
 | private.filtrar_desglose_sujetos_crm(...) | 1cce2929af369715a2c7e161d63fc7ce |
+| private.rol_crm(uuid) | 2afc1b09b6cf71b10d791fbcae583d2d |
+| private.es_lector_global() | d9e6238020882c2b2a7d0fb3b76305c1 |
+| private.vendedor_ids_visibles(uuid) | 33ece9bae4828f7ffdb837c6128ca9d6 |
+| private.cierre_externo_anulado(uuid) | 4f9d9c03e53497b8b84b80299e35b3cb |
+| private.cierre_anulado(uuid) | dce6f9bf34feb57a2f1662ad401d1047 |
 
 ## Banco de pruebas propuesto
 
@@ -155,7 +173,15 @@ El fixture nuevo debe cubrir como mínimo:
 - responsable duplicado (también el mismo UUID con otra capitalización), array
   parcial, vendedor canónico visible faltante, `supervisor_id` cambiado y fila
   extra de supervisor/fuera-de-roster;
-- producción fuera de roster excluida de equipos, sin identidad inventada;
+- producción fuera de roster excluida de equipos y fila operativa con bundle
+  mensual íntegramente NULL, no cero disponible;
+- `cobertura_conversion` literal y proyección exacta renombrada del total del
+  wrapper: incluye la producción anónima fuera de roster y no se recompone
+  sumando equipos;
+- política de publicación única: `medible` y `mes_parcial` muestran; ausencia de
+  ledger, motivo de roster o `cierres_sin_episodio > 0` dejan los bundles exactos
+  íntegramente NULL sin borrar activos/capital;
+- perfil público inactivo excluido del roster y supervisor no efectivo omitido;
 - paridad dinámica contra `conversion_mensual_fn()->responsables`;
 - vendedor, supervisor, gerencia, Directorio, coordinador, actor inactivo y anon;
 - owner postgres, ACL allowlist, stable, definer y `search_path=""`;
@@ -166,21 +192,42 @@ Los mutantes deben reintroducir y detectar: fórmula `convertidos/asignados`,
 promedio de porcentajes, propietario actual, omisión de cartera, cartera sumada
 a `convertidos`, ajuste ignorado o agregado incorrectamente, NULL convertido a
 cero, redondeo entero, cap a 100 %, operación duplicada, fuera-de-roster dentro
-de un equipo, ausencia de cualquiera de las cuatro claves exactas y eliminación
+de un equipo, ausencia de cualquiera de las cinco claves exactas y eliminación
 de cualquiera de las guardas de cobertura exacta.
 
 ## Contrato y consumidor
 
-Cada fila real de `equipos` debe contener obligatoriamente:
+Para vendedor, supervisor, gerencia y Directorio, C0.1 emite las dos raíces juntas:
+`cobertura_conversion`, copia literal de la cobertura del wrapper, y
+`nucleo_total`, proyección exacta con nombres del contrato de Gestión. El servidor
+F2.4b anterior no emite ninguna raíz, pero sí cuatro claves mensuales en cada
+vendedor y cero en equipos; esa forma exacta es el único estado legacy aceptado
+por el puente y se oculta por completo. Una sola raíz o cualquier otra mezcla es
+contrato incompleto.
 
-- `operaciones_cartera`: número;
-- `nucleo_divisor`: número;
-- `nucleo_numerador`: número;
+El coordinador es la única excepción explícita: también emite ambas raíces, pero
+`cobertura_conversion` es JSON `null` y las cinco claves de `nucleo_total` son
+JSON `null`, junto con `vendedores=[]` y `equipos=[]`; no invoca el wrapper que
+ese rol no tiene autorizado.
+
+`nucleo_total` y cada fila real de `vendedores` y `equipos` contienen como bundle:
+
+- `nucleo_convertidos`: número o NULL;
+- `operaciones_cartera`: número o NULL;
+- `nucleo_divisor`: número o NULL;
+- `nucleo_numerador`: número o NULL;
 - `nucleo_conversion_pct`: número o NULL.
 
-`conversion_pct` permanece como entero/0 solo para compatibilidad de wire.
-`convertidos` cuenta cierres de lead; cartera viaja aparte.
+En una fila canónica, las primeras cuatro magnitudes son números —incluido
+cero— y solo el porcentaje es NULL cuando el divisor vale cero. En una fila
+operativa fuera del roster mensual, las cinco son NULL como un único bundle;
+una mezcla parcial se rechaza. `conversion_pct` y `convertidos` permanecen
+numéricos solo para compatibilidad transitoria de wire; la UI nueva usa
+`nucleo_convertidos` y el resto del bundle exacto. Cartera viaja aparte.
 
-Directorio debe leer “Cierres del mes” desde `resumen.totales.convertidos`, no
-desde el objeto legado `resumen.conversion`, y no debe rotular el contador
-mensual como parte de la ventana de capital ganado de 45 días.
+Si la cobertura es publicable, las primeras cuatro magnitudes de `nucleo_total`
+son necesariamente numéricas; el total jamás representa una fila fuera de
+roster. Directorio lee “Cierres del mes” desde ese `nucleo_total`, no desde
+`resumen.totales.convertidos`, el objeto legado `resumen.conversion` ni la suma
+de equipos, y no rotula el contador mensual como parte de la ventana de capital
+ganado de 45 días.

@@ -6,6 +6,7 @@ import {
   lecturaCobertura,
   lineaProcedencia,
   lineaReferidos,
+  totalConversionPublicable,
 } from './conversion-mensual'
 
 const CARTERA_RESPONSABLE = {
@@ -330,6 +331,27 @@ describe('lecturaCobertura — un mes incompleto SE VE', () => {
     const r = lecturaCobertura(cob({ motivo_no_medible: 'sin_supervisor' }))
     expect(r.mostrar).toBe(false)
     expect(r.aviso).toBe('Sin datos de asignación para este mes')
+  })
+
+  it('un cierre sin episodio oculta todo incluso si el mes era medible', () => {
+    const r = lecturaCobertura(cob({
+      medible: true,
+      motivo_no_medible: null,
+      cierres_sin_episodio: 1,
+    }))
+    expect(r).toEqual({
+      mostrar: false,
+      aviso: 'Cifras en revisión: 1 cierre no tiene episodio verificable.',
+    })
+  })
+
+  it('el selector de total aplica la misma sonda y nunca entrega el total crudo', () => {
+    const mensual = v.parse(ConversionMensualSchema, payloadCanonico())
+    expect(totalConversionPublicable(mensual)).toBe(mensual.total)
+    expect(totalConversionPublicable({
+      ...mensual,
+      cobertura: { ...mensual.cobertura, cierres_sin_episodio: 1 },
+    })).toBeNull()
   })
 
   it('sin cobertura no se muestra nada', () => {

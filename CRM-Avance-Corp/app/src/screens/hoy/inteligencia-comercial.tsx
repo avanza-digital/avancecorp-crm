@@ -610,16 +610,17 @@ export function InteligenciaComercialPanel({
   // HOY/Metas/Ranking — y la foto por cosecha es la segunda lectura. F3.4: si
   // las DOS sondas de paridad no confirmaron (`cuadra=true` Y desvío 0), el
   // número se oculta;
-  // sin bloque `nucleo` (espejo demo, deuda N4-N6) la pantalla degrada a la
-  // lectura por cosecha de siempre, rotulada como lo que es.
+  // solo el espejo demo, identificado por `modoDemo`, puede degradar cuando no
+  // trae ni `nucleo` ni `sondas`. Una respuesta REAL vieja o incompleta se
+  // oculta: ausencia de evidencia nunca autoriza a revivir otra fórmula.
   const nucleo = datos?.nucleo ?? null
   const sondasConv = datos?.sondas ?? null
   const verificacionNucleo = estadoVerificacionNucleo(sondasConv)
   const nucleoVisible = nucleo != null && verificacionNucleo === 'verificada'
-  // Si llegó cualquiera de los bloques del núcleo, ambos son obligatorios:
-  // núcleo + DOS sondas verificadas. Solo la demo heredada, que no trae ni
-  // núcleo ni sondas, conserva su lectura de rango explícitamente rotulada.
-  const conversionEnRevision = (nucleo != null || sondasConv != null) && !nucleoVisible
+  // Núcleo + DOS sondas verificadas son obligatorios en real. La única
+  // excepción es la demo heredada, explícita y sin ninguno de los dos bloques.
+  const demoSinContratoCanonico = modoDemo && nucleo == null && sondasConv == null
+  const conversionEnRevision = !nucleoVisible && !demoSinContratoCanonico
   const conversion = nucleoVisible
     ? nucleo.conversion_pct
     : conversionEnRevision
@@ -664,7 +665,7 @@ export function InteligenciaComercialPanel({
                 lectura de rango explícitamente rotulada. */}
             <div className="min-w-[280px]">
               <p className="gi-label text-white/65">
-                {nucleo != null || sondasConv != null ? 'Conversión del mes' : 'Conversión a clientes'}
+                {demoSinContratoCanonico ? 'Conversión a clientes' : 'Conversión del mes'}
               </p>
               <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{conversionEnRevision ? '—' : pct(conversion)}</p>
               <p className="mt-2 text-xs text-white/65">

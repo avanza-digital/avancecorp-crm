@@ -93,4 +93,32 @@ describe('rendimiento de Gerencia desde la conversión mensual', () => {
     // Los KPIs del mes degradan a «—», nunca a cero.
     expect(screen.getAllByText('—').length).toBeGreaterThan(0)
   })
+
+  it('una sonda rota oculta también los KPIs globales, no solo las filas', () => {
+    const mensual = conversionMensualInteligenciaDemo(Date.now())
+    render(
+      <EquipoGerenciaPanel
+        conversionMensual={{
+          ...mensual,
+          cobertura: { ...mensual.cobertura, cierres_sin_episodio: 1 },
+        }}
+        conversiones={identidadSinMetricas()}
+        miembros={MIEMBROS}
+      />,
+    )
+
+    for (const etiqueta of [
+      'Recibidos del mes',
+      'Cierres del mes',
+      'Conversión del mes',
+    ]) {
+      const tarjeta = screen.getByText(etiqueta).closest('[data-gi-kpi]')
+      expect(tarjeta).not.toBeNull()
+      expect(within(tarjeta as HTMLElement).getByText('—')).toBeInTheDocument()
+    }
+    expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' }))
+      .not.toBeInTheDocument()
+    expect(screen.getAllByText('No disponible'))
+      .toHaveLength(conversionEquipoDemo().length)
+  })
 })

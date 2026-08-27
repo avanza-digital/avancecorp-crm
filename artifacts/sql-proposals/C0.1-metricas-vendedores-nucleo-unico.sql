@@ -15,6 +15,11 @@ declare
   v_dep record;
   v_oid oid;
   v_actual text;
+  v_catalogo_esperado text :=
+    '__CAPTURAR_LIVE_MD5_CATALOGO_16_FUNCIONES__';
+  v_catalogo_actual text;
+  v_catalogo_fila text;
+  v_catalogo_filas text[] := array[]::text[];
   v_src text;
   v_owner text;
   v_secdef boolean;
@@ -70,6 +75,26 @@ begin
       (
         'private.filtrar_desglose_sujetos_crm(jsonb,text,text,text[])',
         '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__'
+      ),
+      (
+        'private.rol_crm(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__'
+      ),
+      (
+        'private.es_lector_global()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__'
+      ),
+      (
+        'private.vendedor_ids_visibles(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__'
+      ),
+      (
+        'private.cierre_externo_anulado(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__'
+      ),
+      (
+        'private.cierre_anulado(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__'
       )
     ) as d(firma, md5_esperado)
   loop
@@ -94,7 +119,71 @@ begin
         'ABORT C0.1: % cambio (% vs %)',
         v_dep.firma, v_actual, v_dep.md5_esperado;
     end if;
+
+    -- Fingerprint reproducible de metadatos y ACL directo normalizado.
+    -- `proacl = NULL` se expande con el ACL por defecto para no depender de la
+    -- representación física del catálogo. Las membresías efectivas del RPC
+    -- público se comprueban aparte con `has_function_privilege`.
+    select pg_catalog.jsonb_build_object(
+      'firma', v_dep.firma,
+      'owner', propietario.rolname,
+      'security_definer', p.prosecdef,
+      'volatility', p.provolatile::text,
+      'config', pg_catalog.to_jsonb(p.proconfig),
+      'acl', coalesce(
+        (
+          select pg_catalog.jsonb_agg(
+            pg_catalog.jsonb_build_object(
+              'grantee', coalesce(receptor.rolname, 'PUBLIC'),
+              'grantor', otorgante.rolname,
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            ) order by
+              coalesce(receptor.rolname, 'PUBLIC'),
+              otorgante.rolname,
+              a.privilege_type,
+              a.is_grantable
+          )
+          from pg_catalog.aclexplode(
+            coalesce(
+              p.proacl,
+              pg_catalog.acldefault('f', p.proowner)
+            )
+          ) a
+          left join pg_catalog.pg_roles receptor on receptor.oid = a.grantee
+          join pg_catalog.pg_roles otorgante on otorgante.oid = a.grantor
+        ),
+        '[]'::jsonb
+      )
+    )::text
+      into v_catalogo_fila
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_roles propietario on propietario.oid = p.proowner
+    where p.oid = v_oid;
+
+    v_catalogo_filas := pg_catalog.array_append(
+      v_catalogo_filas,
+      v_catalogo_fila
+    );
   end loop;
+
+  if v_catalogo_esperado like '__CAPTURAR_%' then
+    raise exception
+      'ABORT C0.1: falta capturar/aprobar el fingerprint vivo de catalogo';
+  end if;
+
+  select pg_catalog.md5(
+    pg_catalog.string_agg(fila, E'\n' order by fila)
+  )
+    into v_catalogo_actual
+  from pg_catalog.unnest(v_catalogo_filas) f(fila);
+
+  if v_catalogo_actual is distinct from v_catalogo_esperado then
+    raise exception
+      'ABORT C0.1: derivo owner/definer/volatilidad/config/ACL (% vs %)',
+      v_catalogo_actual,
+      v_catalogo_esperado;
+  end if;
 
   select
     r.rolname,
@@ -151,6 +240,19 @@ begin
   ) then
     raise exception
       'ABORT C0.1: ACL viva de metricas_vendedores_fn no es la allowlist esperada';
+  end if;
+
+  if not pg_catalog.has_function_privilege(
+       'authenticated', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'anon', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'service_role', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     ) then
+    raise exception
+      'ABORT C0.1: privilegios efectivos inesperados por grants o membresias';
   end if;
 
   -- Vigia de la cadena canonica.
@@ -218,6 +320,7 @@ declare
   v_mes date;
   v_factor numeric;
   v_mensual jsonb;
+  v_conversion_publicable boolean;
   v_payload jsonb;
 begin
   v_rol := private.rol_crm(v_uid);
@@ -258,6 +361,14 @@ begin
       'ventana_metrica', 'mes_calendario',
       'mes_metrica', v_mes,
       'peso_referido', v_factor,
+      'cobertura_conversion', null,
+      'nucleo_total', jsonb_build_object(
+        'nucleo_convertidos', null,
+        'operaciones_cartera', null,
+        'nucleo_divisor', null,
+        'nucleo_numerador', null,
+        'nucleo_conversion_pct', null
+      ),
       'vendedores', '[]'::jsonb,
       'equipos', '[]'::jsonb
     );
@@ -292,6 +403,10 @@ begin
      or pg_catalog.jsonb_typeof(
           v_mensual #> '{ponderacion,referido}'
         ) is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual -> 'cobertura')
+        is distinct from 'object'
+     or pg_catalog.jsonb_typeof(v_mensual -> 'total')
+        is distinct from 'object'
      or pg_catalog.jsonb_typeof(v_mensual -> 'responsables')
         is distinct from 'array' then
     raise exception
@@ -299,7 +414,7 @@ begin
       using errcode = '55000';
   end if;
 
-  if (v_mensual ->> 'version')::numeric <> 1
+  if (v_mensual ->> 'version')::numeric is distinct from 1
      or (v_mensual ->> 'alcance') is distinct from v_alcance
      or v_mensual #>> '{periodo,mes}'
         is distinct from pg_catalog.to_char(v_mes, 'YYYY-MM')
@@ -309,6 +424,174 @@ begin
       'Contrato interno de conversion mensual inconsistente'
       using errcode = '55000';
   end if;
+
+  -- Cobertura y total viajan hasta Gestión/Directorio. Validarlos aquí evita
+  -- que una sonda ausente, un motivo nuevo o un total incoherente se conviertan
+  -- en disponibilidad por accidente.
+  if not ((v_mensual -> 'cobertura') ?& array[
+       'medible',
+       'suelo_historico',
+       'motivo_no_medible',
+       'divisor_aproximado',
+       'divisor_por_motivo',
+       'cierres_sin_episodio',
+       'fuera_de_roster'
+     ]::text[])
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,medible}')
+        is distinct from 'boolean'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,suelo_historico}')
+        not in ('string', 'null')
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,motivo_no_medible}')
+        not in ('string', 'null')
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,divisor_aproximado}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,divisor_por_motivo}')
+        is distinct from 'object'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,cierres_sin_episodio}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,fuera_de_roster}')
+        is distinct from 'object'
+     or not ((v_mensual #> '{cobertura,fuera_de_roster}') ?& array[
+       'analistas', 'divisor', 'cierres', 'numerador'
+     ]::text[])
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,fuera_de_roster,analistas}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,fuera_de_roster,divisor}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,fuera_de_roster,cierres}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{cobertura,fuera_de_roster,numerador}')
+        is distinct from 'number'
+     or not ((v_mensual -> 'total') ?& array[
+       'divisor',
+       'cierres_no_referidos',
+       'cierres_referidos',
+       'numerador',
+       'conversion_pct',
+       'cartera'
+     ]::text[])
+     or pg_catalog.jsonb_typeof(v_mensual #> '{total,divisor}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{total,cierres_no_referidos}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{total,cierres_referidos}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{total,numerador}')
+        is distinct from 'number'
+     or pg_catalog.jsonb_typeof(v_mensual #> '{total,conversion_pct}')
+        not in ('number', 'null')
+     or pg_catalog.jsonb_typeof(v_mensual #> '{total,cartera}')
+        is distinct from 'object'
+     or not ((v_mensual #> '{total,cartera}') ? 'conversiones_clientes')
+     or pg_catalog.jsonb_typeof(
+       v_mensual #> '{total,cartera,conversiones_clientes}'
+     ) is distinct from 'number' then
+    raise exception
+      'Cobertura o total interno de conversion mensual incompleto'
+      using errcode = '55000';
+  end if;
+
+  -- La etapa anterior ya certificó que este nodo es un objeto. Separar la
+  -- iteración evita que `jsonb_each` produzca un error nativo antes del 55000
+  -- contractual cuando el wrapper trae un tipo anidado corrupto.
+  if exists (
+    select 1
+    from pg_catalog.jsonb_each(
+      v_mensual #> '{cobertura,divisor_por_motivo}'
+    ) m(clave, valor)
+    where pg_catalog.jsonb_typeof(m.valor) is distinct from 'number'
+  ) then
+    raise exception
+      'Cobertura interna: divisor_por_motivo contiene un valor no numerico'
+      using errcode = '55000';
+  end if;
+
+  if (v_mensual #>> '{cobertura,motivo_no_medible}') is not null
+       and (v_mensual #>> '{cobertura,motivo_no_medible}') not in (
+         'sin_ledger',
+         'anterior_al_ledger',
+         'mes_parcial',
+         'sin_supervisor',
+         'supervisor_inactivo',
+         'supervisor_no_es_supervisor'
+       )
+     or (
+       (v_mensual #>> '{cobertura,medible}')::boolean
+       and pg_catalog.jsonb_typeof(
+         v_mensual #> '{cobertura,motivo_no_medible}'
+       ) is distinct from 'null'
+     )
+     or (
+       not (v_mensual #>> '{cobertura,medible}')::boolean
+       and pg_catalog.jsonb_typeof(
+         v_mensual #> '{cobertura,motivo_no_medible}'
+       ) is distinct from 'string'
+     )
+     or (v_mensual #>> '{cobertura,divisor_aproximado}')::numeric < 0
+     or (v_mensual #>> '{cobertura,divisor_aproximado}')::numeric
+        <> trunc((v_mensual #>> '{cobertura,divisor_aproximado}')::numeric)
+     or (v_mensual #>> '{cobertura,cierres_sin_episodio}')::numeric < 0
+     or (v_mensual #>> '{cobertura,cierres_sin_episodio}')::numeric
+        <> trunc((v_mensual #>> '{cobertura,cierres_sin_episodio}')::numeric)
+     or exists (
+       select 1
+       from pg_catalog.jsonb_each(
+         v_mensual #> '{cobertura,divisor_por_motivo}'
+       ) m(clave, valor)
+       where (m.valor #>> '{}')::numeric < 0
+          or (m.valor #>> '{}')::numeric
+             <> trunc((m.valor #>> '{}')::numeric)
+     )
+     or (v_mensual #>> '{cobertura,fuera_de_roster,analistas}')::numeric < 0
+     or (v_mensual #>> '{cobertura,fuera_de_roster,analistas}')::numeric
+        <> trunc((v_mensual #>> '{cobertura,fuera_de_roster,analistas}')::numeric)
+     or (v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::numeric < 0
+     or (v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::numeric
+        <> trunc((v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::numeric)
+     or (v_mensual #>> '{cobertura,fuera_de_roster,cierres}')::numeric < 0
+     or (v_mensual #>> '{cobertura,fuera_de_roster,cierres}')::numeric
+        <> trunc((v_mensual #>> '{cobertura,fuera_de_roster,cierres}')::numeric)
+     or (v_mensual #>> '{cobertura,fuera_de_roster,numerador}')::numeric < 0
+     or (v_mensual #>> '{total,divisor}')::numeric < 0
+     or (v_mensual #>> '{total,divisor}')::numeric
+        <> trunc((v_mensual #>> '{total,divisor}')::numeric)
+     or (v_mensual #>> '{total,cierres_no_referidos}')::numeric < 0
+     or (v_mensual #>> '{total,cierres_no_referidos}')::numeric
+        <> trunc((v_mensual #>> '{total,cierres_no_referidos}')::numeric)
+     or (v_mensual #>> '{total,cierres_referidos}')::numeric < 0
+     or (v_mensual #>> '{total,cierres_referidos}')::numeric
+        <> trunc((v_mensual #>> '{total,cierres_referidos}')::numeric)
+     or (v_mensual #>> '{total,numerador}')::numeric < 0
+     or (v_mensual #>> '{total,cartera,conversiones_clientes}')::numeric < 0
+     or (v_mensual #>> '{total,cartera,conversiones_clientes}')::numeric
+        <> trunc((v_mensual #>> '{total,cartera,conversiones_clientes}')::numeric)
+     or case
+          when (v_mensual #>> '{total,divisor}')::numeric = 0 then
+            pg_catalog.jsonb_typeof(v_mensual #> '{total,conversion_pct}')
+              is distinct from 'null'
+          else
+            pg_catalog.jsonb_typeof(v_mensual #> '{total,conversion_pct}')
+              is distinct from 'number'
+            or (v_mensual #>> '{total,conversion_pct}')::numeric
+               is distinct from round(
+                 100.0
+                 * (v_mensual #>> '{total,numerador}')::numeric
+                 / (v_mensual #>> '{total,divisor}')::numeric,
+                 2
+               )
+        end then
+    raise exception
+      'Cobertura o total interno de conversion mensual inconsistente'
+      using errcode = '55000';
+  end if;
+
+  -- Decisión viva: un mes parcial se VE como provisional. Ausencia real de
+  -- ledger o cualquier cierre sin episodio ocultan todo el bundle exacto;
+  -- la foto operativa sigue disponible para no tumbar Gestión/Directorio.
+  v_conversion_publicable := (
+    (v_mensual #>> '{cobertura,medible}')::boolean
+    or v_mensual #>> '{cobertura,motivo_no_medible}' = 'mes_parcial'
+  ) and (v_mensual #>> '{cobertura,cierres_sin_episodio}')::int = 0;
 
   if exists (
     select 1
@@ -429,7 +712,8 @@ begin
   -- No se compara contra `roster` de esta RPC: ese roster tambien contiene
   -- supervisor/gerencia, inactivos visibles y vendedores fuera de roster. El
   -- contrato mensual representa solo vendedores activos con supervisor activo;
-  -- la produccion fuera de roster queda unicamente en el agregado de cobertura.
+  -- la produccion fuera de roster queda fuera de responsables/equipos, declarada
+  -- en cobertura e incluida en el total global anonimo.
   if exists (
     with esperados as materialized (
       select r.vendedor_id, r.supervisor_id
@@ -539,11 +823,18 @@ begin
         coalesce(nm.cierres_no_referidos, 0)
         + coalesce(nm.cierres_referidos, 0)
       )::int as convertidos,
-      coalesce(nm.operaciones_cartera, 0)::int
-        as operaciones_cartera,
-      coalesce(nm.divisor, 0)::int as nucleo_divisor,
-      coalesce(nm.numerador, 0::numeric) as nucleo_numerador,
-      nm.conversion_pct as nucleo_conversion_pct
+      case
+        when v_conversion_publicable and nm.analista_id is not null
+        then (nm.cierres_no_referidos + nm.cierres_referidos)::int
+      end as nucleo_convertidos,
+      case when v_conversion_publicable
+        then nm.operaciones_cartera end as operaciones_cartera,
+      case when v_conversion_publicable
+        then nm.divisor end as nucleo_divisor,
+      case when v_conversion_publicable
+        then nm.numerador end as nucleo_numerador,
+      case when v_conversion_publicable
+        then nm.conversion_pct end as nucleo_conversion_pct
     from roster r
     left join ambito a
       on a.vendedor_id = r.perfil_id
@@ -553,6 +844,7 @@ begin
       r.perfil_id,
       r.rol_crm,
       r.activo,
+      nm.analista_id,
       nm.cierres_no_referidos,
       nm.cierres_referidos,
       nm.operaciones_cartera,
@@ -655,14 +947,22 @@ begin
       stats.capital_pen,
       stats.capital_usd,
       coalesce(ne.convertidos, 0)::int as convertidos,
-      coalesce(ne.operaciones_cartera, 0)::int
-        as operaciones_cartera,
-      coalesce(ne.nucleo_divisor, 0)::int
-        as nucleo_divisor,
-      coalesce(ne.nucleo_numerador, 0::numeric)
-        as nucleo_numerador,
+      case when v_conversion_publicable and cobertura.completa
+        then coalesce(ne.convertidos, 0)::int
+      end as nucleo_convertidos,
+      case when v_conversion_publicable and cobertura.completa
+        then coalesce(ne.operaciones_cartera, 0)::int
+      end as operaciones_cartera,
+      case when v_conversion_publicable and cobertura.completa
+        then coalesce(ne.nucleo_divisor, 0)::int
+      end as nucleo_divisor,
+      case when v_conversion_publicable and cobertura.completa
+        then coalesce(ne.nucleo_numerador, 0::numeric)
+      end as nucleo_numerador,
       case
-        when coalesce(ne.nucleo_divisor, 0) > 0
+        when v_conversion_publicable
+          and cobertura.completa
+          and coalesce(ne.nucleo_divisor, 0) > 0
         then round(
           100.0
           * coalesce(ne.nucleo_numerador, 0::numeric)
@@ -677,7 +977,27 @@ begin
       from crm.equipo m
       where m.supervisor_id = s.perfil_id
         and m.activo is true
+        and m.rol_crm = 'vendedor'
     ) directos
+    cross join lateral (
+      select not exists (
+        select 1
+        from (
+          select m.perfil_id as vendedor_id
+          from crm.equipo m
+          where m.supervisor_id = s.perfil_id
+            and m.activo is true
+            and m.rol_crm = 'vendedor'
+        ) d
+        full join (
+          select nm.analista_id as vendedor_id
+          from nucleo_mes nm
+          where nm.supervisor_id = s.perfil_id
+        ) c on c.vendedor_id = d.vendedor_id
+        where d.vendedor_id is null
+           or c.vendedor_id is null
+      ) as completa
+    ) cobertura
     cross join lateral (
       select
         coalesce(sum(ad.activos), 0)::int as activos,
@@ -690,6 +1010,7 @@ begin
            from crm.equipo m
            where m.supervisor_id = s.perfil_id
              and m.activo is true
+             and m.rol_crm = 'vendedor'
          )
     ) stats
     left join nucleo_equipos ne
@@ -698,6 +1019,7 @@ begin
       on pb.supervisor_id = s.perfil_id
     where s.rol_crm = 'supervisor'
       and s.activo is true
+      and private.rol_crm(s.perfil_id) = 'supervisor'
   )
   select jsonb_build_object(
     'version', 1,
@@ -706,6 +1028,32 @@ begin
     'ventana_metrica', 'mes_calendario',
     'mes_metrica', v_mes,
     'peso_referido', v_factor,
+    'cobertura_conversion', v_mensual -> 'cobertura',
+    -- Proyección exacta del total del wrapper: incluye fuera-de-roster desde
+    -- F2.6. Nunca se recompone sumando equipos, porque ese agregado no tiene
+    -- identidad.
+    'nucleo_total', jsonb_build_object(
+      'nucleo_convertidos', case when v_conversion_publicable then
+        (v_mensual #>> '{total,cierres_no_referidos}')::int
+        + (v_mensual #>> '{total,cierres_referidos}')::int
+      end,
+      'operaciones_cartera', case when v_conversion_publicable then
+        (v_mensual #>> '{total,cartera,conversiones_clientes}')::int
+      end,
+      'nucleo_divisor', case when v_conversion_publicable then
+        (v_mensual #>> '{total,divisor}')::int
+      end,
+      'nucleo_numerador', case when v_conversion_publicable then
+        (v_mensual #>> '{total,numerador}')::numeric
+      end,
+      'nucleo_conversion_pct', case
+        when v_conversion_publicable
+          and pg_catalog.jsonb_typeof(
+            v_mensual #> '{total,conversion_pct}'
+          ) = 'number'
+        then (v_mensual #>> '{total,conversion_pct}')::numeric
+      end
+    ),
     'vendedores', coalesce(
       (
         select jsonb_agg(
@@ -717,6 +1065,7 @@ begin
             'capital_pen', pv.capital_pen,
             'capital_usd', pv.capital_usd,
             'convertidos', pv.convertidos,
+            'nucleo_convertidos', pv.nucleo_convertidos,
             'operaciones_cartera', pv.operaciones_cartera,
             'conversion_pct',
               case
@@ -756,6 +1105,7 @@ begin
             'capital_pen', ec.capital_pen,
             'capital_usd', ec.capital_usd,
             'convertidos', ec.convertidos,
+            'nucleo_convertidos', ec.nucleo_convertidos,
             'operaciones_cartera',
               ec.operaciones_cartera,
             'conversion_pct',
@@ -790,7 +1140,7 @@ end;
 $function$;
 
 comment on function crm.metricas_vendedores_fn() is
-  'Vista operativa de 45 dias para activos, capital y senales; conversion del mes calendario tomada del contrato canonico crm.conversion_mensual_fn. Por vendedor y equipo expone divisor, numerador neto, porcentaje exacto nullable y operaciones de cartera. Los equipos suman numeradores/divisores por supervisor_id y nunca promedian porcentajes. convertidos cuenta cierres de lead; operaciones_cartera viaja aparte. Coordinador conserva vendedores/equipos vacios.';
+  'Vista operativa de 45 dias para activos, capital y senales; conversion del mes calendario tomada del contrato canonico crm.conversion_mensual_fn. Propaga cobertura literal y una proyeccion exacta renombrada del total del wrapper (incluido fuera-de-roster). Por vendedor y equipo expone nucleo_convertidos, divisor, numerador neto, porcentaje exacto nullable y operaciones de cartera. Mes parcial se publica provisional; sin ledger, cierre sin episodio, fila fuera de roster o equipo con roster incompleto dejan el bundle exacto en NULL sin borrar activos/capital. Los equipos suman numeradores/divisores por supervisor_id y nunca promedian porcentajes. Las claves legacy convertidos/conversion_pct quedan solo por compatibilidad temporal. Coordinador conserva cobertura NULL y vendedores/equipos vacios.';
 
 revoke all on function crm.metricas_vendedores_fn()
   from public, anon, authenticated, service_role;
@@ -882,6 +1232,19 @@ begin
       'POSTFLIGHT C0.1: ACL fuera de allowlist';
   end if;
 
+  if not pg_catalog.has_function_privilege(
+       'authenticated', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'anon', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'service_role', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     ) then
+    raise exception
+      'POSTFLIGHT C0.1: privilegios efectivos inesperados';
+  end if;
+
   if pg_catalog.strpos(
        v_src,
        'v_mensual := crm.conversion_mensual_fn(v_mes)'
@@ -896,6 +1259,22 @@ begin
      or pg_catalog.strpos(
        v_src,
        '''operaciones_cartera'''
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       '''nucleo_convertidos'''
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       '''cobertura_conversion'''
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       '''nucleo_total'''
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       'v_conversion_publicable'
      ) = 0
      or pg_catalog.strpos(
        v_src,
@@ -990,7 +1369,18 @@ begin
        or pg_catalog.jsonb_typeof(v_payload -> 'vendedores')
           is distinct from 'array'
        or pg_catalog.jsonb_typeof(v_payload -> 'equipos')
-          is distinct from 'array' then
+          is distinct from 'array'
+       or pg_catalog.jsonb_typeof(v_payload -> 'cobertura_conversion')
+          is distinct from 'object'
+       or pg_catalog.jsonb_typeof(v_payload -> 'nucleo_total')
+          is distinct from 'object'
+       or not ((v_payload -> 'nucleo_total') ?& array[
+         'nucleo_convertidos',
+         'operaciones_cartera',
+         'nucleo_divisor',
+         'nucleo_numerador',
+         'nucleo_conversion_pct'
+       ]::text[]) then
       raise exception
         'POSTFLIGHT C0.1: ejecucion devolvio forma invalida';
     end if;
@@ -1004,6 +1394,7 @@ begin
         e.value ?& array[
           'supervisor_id',
           'convertidos',
+          'nucleo_convertidos',
           'operaciones_cartera',
           'conversion_pct',
           'nucleo_divisor',
@@ -1014,6 +1405,28 @@ begin
     ) then
       raise exception
         'POSTFLIGHT C0.1: fila real de equipo incompleta';
+    end if;
+
+    if exists (
+      select 1
+      from pg_catalog.jsonb_array_elements(
+        v_payload -> 'vendedores'
+      ) as e(value)
+      where not (
+        e.value ?& array[
+          'vendedor_id',
+          'convertidos',
+          'nucleo_convertidos',
+          'operaciones_cartera',
+          'conversion_pct',
+          'nucleo_divisor',
+          'nucleo_numerador',
+          'nucleo_conversion_pct'
+        ]::text[]
+      )
+    ) then
+      raise exception
+        'POSTFLIGHT C0.1: fila real de vendedor incompleta';
     end if;
   else
     raise notice
@@ -1041,12 +1454,49 @@ begin
 
     v_payload := crm.metricas_vendedores_fn();
 
-    if pg_catalog.jsonb_array_length(
-         v_payload -> 'vendedores'
-       ) <> 0
-       or pg_catalog.jsonb_array_length(
-         v_payload -> 'equipos'
-       ) <> 0 then
+    if pg_catalog.jsonb_typeof(v_payload) is distinct from 'object'
+       or not coalesce(v_payload ?& array[
+         'vendedores',
+         'equipos',
+         'cobertura_conversion',
+         'nucleo_total'
+       ]::text[], false)
+       or pg_catalog.jsonb_typeof(v_payload -> 'vendedores')
+          is distinct from 'array'
+       or pg_catalog.jsonb_array_length(v_payload -> 'vendedores')
+          is distinct from 0
+       or pg_catalog.jsonb_typeof(v_payload -> 'equipos')
+          is distinct from 'array'
+       or pg_catalog.jsonb_array_length(v_payload -> 'equipos')
+          is distinct from 0
+       or pg_catalog.jsonb_typeof(
+         v_payload -> 'cobertura_conversion'
+       ) is distinct from 'null'
+       or pg_catalog.jsonb_typeof(
+         v_payload -> 'nucleo_total'
+       ) is distinct from 'object'
+       or not coalesce((v_payload -> 'nucleo_total') ?& array[
+         'nucleo_convertidos',
+         'operaciones_cartera',
+         'nucleo_divisor',
+         'nucleo_numerador',
+         'nucleo_conversion_pct'
+       ]::text[], false)
+       or pg_catalog.jsonb_typeof(
+         v_payload #> '{nucleo_total,nucleo_convertidos}'
+       ) is distinct from 'null'
+       or pg_catalog.jsonb_typeof(
+         v_payload #> '{nucleo_total,operaciones_cartera}'
+       ) is distinct from 'null'
+       or pg_catalog.jsonb_typeof(
+         v_payload #> '{nucleo_total,nucleo_divisor}'
+       ) is distinct from 'null'
+       or pg_catalog.jsonb_typeof(
+         v_payload #> '{nucleo_total,nucleo_numerador}'
+       ) is distinct from 'null'
+       or pg_catalog.jsonb_typeof(
+         v_payload #> '{nucleo_total,nucleo_conversion_pct}'
+       ) is distinct from 'null' then
       raise exception
         'POSTFLIGHT C0.1: coordinador dejo de recibir arrays vacios';
     end if;

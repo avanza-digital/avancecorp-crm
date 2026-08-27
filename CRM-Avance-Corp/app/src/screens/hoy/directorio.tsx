@@ -48,6 +48,7 @@ import {
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import { AvisoCoberturaConversion } from '@/components/common/aviso-cobertura-conversion'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio, type TipoCambio } from '@/lib/tipo-cambio'
@@ -123,6 +124,7 @@ export function HoyDirectorio(): JSX.Element {
   const resumen = resumenOp.resumen
   const vendedoresOp = useMetricasVendedoresOperativas([], equipo, ambito.leads, actividades)
   const filasEquipos = vendedoresOp.metricas?.equipos ?? null
+  const cierreTotalNucleo = vendedoresOp.metricas?.totalConversion.cierresConversion ?? null
   // TC izado UNA vez por pantalla: el hook no pasa por TanStack (sin cache ni dedupe).
   const { tc } = useTipoCambio()
 
@@ -153,7 +155,7 @@ export function HoyDirectorio(): JSX.Element {
 
   // La métrica mensual del núcleo llega declarada; el espejo demo no la
   // declara y su tarjeta lo rotula como lo que es (ámbito de 45 días).
-  const metricaMensual = resumen?.ventana_metrica === 'mes_calendario'
+  const metricaMensual = vendedoresOp.metricas?.mesMetrica != null
 
   // La bitácora sigue en cliente (ninguna RPC F1 sirve un feed de actividad;
   // candidata a F2). Solo copia y ordena para las 8 filas que pinta.
@@ -192,6 +194,8 @@ export function HoyDirectorio(): JSX.Element {
       >
         No se pudieron cargar algunos indicadores de la operación. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
+
+      <AvisoCoberturaConversion mensaje={vendedoresOp.metricas?.avisoConversion} />
 
       {/* KPIs ejecutivos — servidos por resumen_cartera_fn; sin dato: «—» */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -243,11 +247,11 @@ export function HoyDirectorio(): JSX.Element {
             por eso aquí no se lee ni su numerador ni su base. */}
         <KpiCard
           label={metricaMensual ? 'Cierres del mes' : 'Cierres del ámbito'}
-          value={resumen ? numero(resumen.totales.convertidos) : '—'}
+          value={cierreTotalNucleo == null ? '—' : numero(cierreTotalNucleo)}
           icon={Target}
           color={SEMAFORO.navy}
           sub={
-            resumen
+            vendedoresOp.metricas
               ? metricaMensual
                 ? 'Cierres de leads del mes calendario'
                 : 'Cierres de leads del ámbito operativo (45 d)'
@@ -391,7 +395,9 @@ export function HoyDirectorio(): JSX.Element {
                     <CapitalEquipo pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
                   </td>
                   <td className="py-2.5 pr-3 text-right">
-                    <span className="font-semibold tabular-nums" style={{ color: SEMAFORO.navy }}>{f.convertidos}</span>
+                    <span className="font-semibold tabular-nums" style={{ color: SEMAFORO.navy }}>
+                      {f.cierresConversion == null ? '—' : numero(f.cierresConversion)}
+                    </span>
                   </td>
                   <td className="py-2.5 pr-3 text-right tabular-nums">
                     <span className={f.conversion == null ? 'text-muted-foreground' : undefined}>

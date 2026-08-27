@@ -25,6 +25,7 @@ import { PanelVacio } from '@/components/common/estado-panel'
 import { SectionHead } from '@/components/common/section-head'
 import { StatStrip, type StatChipData } from '@/components/common/stat-strip'
 import { AvisoDegradacion } from '@/components/common/aviso-degradacion'
+import { AvisoCoberturaConversion } from '@/components/common/aviso-cobertura-conversion'
 import { TablaEnvoltura, Td, Th, TheadCrm } from '@/components/common/tabla'
 import { DesgloseMonedas } from '@/components/common/desglose-monedas'
 import { useAuth } from '@/lib/auth-context'
@@ -277,7 +278,9 @@ function VendedorCard({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
-            {r.convertidos} {r.convertidos === 1 ? 'cierre' : 'cierres'}
+            {r.cierresConversion == null
+              ? 'Cierres no disponibles'
+              : `${numero(r.cierresConversion)} ${r.cierresConversion === 1 ? 'cierre' : 'cierres'}`}
             {r.operacionesCartera != null && r.operacionesCartera > 0
               ? ` + ${numero(r.operacionesCartera)} de cartera`
               : ''}
@@ -589,6 +592,8 @@ function EquipoSupervisor(): JSX.Element {
         No se pudieron cargar algunos indicadores del equipo. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
 
+      <AvisoCoberturaConversion mensaje={vendedoresOp.metricas?.avisoConversion} />
+
       {/* Cards de MIS vendedores (orden: capital captado PEN desc) */}
       <Card>
         <SectionHead
@@ -736,14 +741,15 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       // cero absoluto van al final — la mirada cae en el capital en juego.
       // OJO: activos=0 con cierres u operaciones de cartera NO es cero. Una
       // renovación/upgrade acreditada debe seguir visible aunque no haya lead.
-      const conCartera = delEquipo.filter((r) => (
+      const conActividadORevision = delEquipo.filter((r) => (
         r.activos > 0
-        || r.convertidos > 0
+        || !r.conversionDisponible
+        || (r.cierresConversion ?? 0) > 0
         || (r.operacionesCartera != null && r.operacionesCartera > 0)
       ))
       const vendedores = [
-        ...conCartera,
-        ...delEquipo.filter((r) => !conCartera.includes(r)),
+        ...conActividadORevision,
+        ...delEquipo.filter((r) => !conActividadORevision.includes(r)),
       ]
       // Peor última actividad entre vendedores CON abiertos — alimenta el
       // semáforo de la fila comparativa; null = ningún vendedor con abiertos.
@@ -751,7 +757,19 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       for (const r of delEquipo) {
         if (r.activos > 0 && (peorDias == null || r.diasSinActividadMax > peorDias)) peorDias = r.diasSinActividadMax
       }
-      return { f, vendedores, peorDias, todoEnCero: delEquipo.length > 0 && conCartera.length === 0 }
+      return {
+        f,
+        vendedores,
+        peorDias,
+        // Un NULL exacto significa «no sabemos», nunca «todo está en cero».
+        todoEnCero: delEquipo.length > 0
+          && delEquipo.every((r) => (
+            r.conversionDisponible
+            && r.activos === 0
+            && r.cierresConversion === 0
+            && r.operacionesCartera === 0
+          )),
+      }
     })
     return {
       filas,
@@ -759,7 +777,9 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       capPEN: filas.reduce((a, f) => a + f.capitalPEN, 0),
       capUSD: filas.reduce((a, f) => a + f.capitalUSD, 0),
       activos: filas.reduce((a, f) => a + f.activos, 0),
-      convertidos: filas.reduce((a, f) => a + f.convertidos, 0),
+      // El total canónico incluye producción anónima fuera de roster (F2.6);
+      // sumar equipos la perdería silenciosamente porque no puede atribuirse.
+      cierresConversion: metricas.totalConversion.cierresConversion,
     }
   }, [metricas, d.vendedoresPorSupervisor])
 
@@ -778,7 +798,13 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       icon: Activity,
       label: 'Leads activos',
       value: tablero ? String(tablero.activos) : '—',
-      ...(tablero ? { sub: `${tablero.convertidos} convertidos · ${ventanaConversion}` } : {}),
+      ...(tablero
+        ? {
+          sub: tablero.cierresConversion == null
+            ? `Cierres no disponibles · ${ventanaConversion}`
+            : `${numero(tablero.cierresConversion)} convertidos · ${ventanaConversion}`,
+        }
+        : {}),
     },
     chipPorRepartir(d.parkeados.length, 'En bandejas de supervisores'),
   ]
@@ -807,6 +833,8 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       >
         No se pudieron cargar las métricas por equipo. Se muestran «—» para no inventar cifras.
       </AvisoDegradacion>
+
+      <AvisoCoberturaConversion mensaje={metricas?.avisoConversion} />
 
       {/* Supervisores PRIMERO: una tabla comparativa (equipo vs equipo en una
          sola pantalla); el detalle por vendedor se abre bajo demanda. */}

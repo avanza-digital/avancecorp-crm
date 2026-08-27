@@ -14,6 +14,7 @@ let CONVERSION_OPERATIVA: number | null | undefined
 let CONVERSION_EQUIPO_OPERATIVA: number | null | undefined
 let CONVERSION_DISPONIBLE = true
 let CONVERSION_EQUIPO_DISPONIBLE = true
+let AVISO_CONVERSION: string | null = null
 
 const VENDEDOR: Miembro = {
   perfil_id: 'v-1',
@@ -30,6 +31,19 @@ const SUPERVISORA: Miembro = {
   supervisor_id: null,
   activo: true,
 }
+
+function totalConversion(disponible: boolean, conversion: number | null) {
+  return {
+    cierresConversion: disponible ? 0 : null,
+    conversion,
+    conversionDisponible: disponible,
+    operacionesCartera: disponible ? 4 : null,
+    divisorConversion: disponible ? conversion == null ? 0 : 8 : null,
+    numeradorConversion: disponible ? conversion == null ? 4 : 11.0104 : null,
+  }
+}
+
+const TOTAL_INDISPONIBLE = totalConversion(false, null)
 
 vi.mock('@/lib/auth-context', () => ({ useAuth: () => ({ yo: YO }) }))
 vi.mock('@/lib/store-context', () => ({
@@ -86,6 +100,7 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
           capitalPEN: 0,
           capitalUSD: 0,
           convertidos: 0,
+          cierresConversion: CONVERSION_EQUIPO_DISPONIBLE ? 0 : null,
           conversion: CONVERSION_EQUIPO_OPERATIVA,
           conversionDisponible: CONVERSION_EQUIPO_DISPONIBLE,
           operacionesCartera: CONVERSION_EQUIPO_DISPONIBLE ? 4 : null,
@@ -105,6 +120,7 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
           capitalPEN: 0,
           capitalUSD: 0,
           convertidos: 0,
+          cierresConversion: CONVERSION_EQUIPO_DISPONIBLE ? 0 : null,
           conversion: CONVERSION_EQUIPO_OPERATIVA,
           conversionDisponible: CONVERSION_EQUIPO_DISPONIBLE,
           operacionesCartera: CONVERSION_EQUIPO_DISPONIBLE ? 4 : null,
@@ -116,11 +132,23 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
             : null,
           parkeados: 0,
         }],
+        totalConversion: totalConversion(
+          CONVERSION_EQUIPO_DISPONIBLE,
+          CONVERSION_EQUIPO_OPERATIVA,
+        ),
         generadoEn: '2026-08-27T12:00:00Z',
+        avisoConversion: AVISO_CONVERSION,
         mesMetrica: '2026-08-01',
       }
       : CONVERSION_OPERATIVA === undefined
-      ? { filas: [], equipos: [], generadoEn: '2026-08-27T12:00:00Z', mesMetrica: '2026-08-01' }
+      ? {
+        filas: [],
+        equipos: [],
+        totalConversion: TOTAL_INDISPONIBLE,
+        generadoEn: '2026-08-27T12:00:00Z',
+        avisoConversion: AVISO_CONVERSION,
+        mesMetrica: '2026-08-01',
+      }
       : {
         filas: [{
           m: VENDEDOR,
@@ -128,6 +156,7 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
           capitalPEN: 0,
           capitalUSD: 0,
           convertidos: 0,
+          cierresConversion: CONVERSION_DISPONIBLE ? 0 : null,
           conversion: CONVERSION_OPERATIVA,
           conversionDisponible: CONVERSION_DISPONIBLE,
           operacionesCartera: CONVERSION_DISPONIBLE ? 4 : null,
@@ -141,7 +170,9 @@ vi.mock('@/data/use-metricas-vendedores-operativas', () => ({
           diasSinActividadMax: 0,
         }],
         equipos: [],
+        totalConversion: totalConversion(CONVERSION_DISPONIBLE, CONVERSION_OPERATIVA),
         generadoEn: '2026-08-27T12:00:00Z',
+        avisoConversion: AVISO_CONVERSION,
         mesMetrica: '2026-08-01',
       },
     cargando: false,
@@ -178,6 +209,7 @@ beforeEach(() => {
   CONVERSION_EQUIPO_OPERATIVA = undefined
   CONVERSION_DISPONIBLE = true
   CONVERSION_EQUIPO_DISPONIBLE = true
+  AVISO_CONVERSION = null
   YO = {
     id: 's-1',
     nombre_completo: 'SUPERVISOR UNO',
@@ -239,6 +271,7 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     montar()
 
     expect(screen.getByText('Dato no disponible')).toBeInTheDocument()
+    expect(screen.getByText(/Cierres no disponibles/)).toBeInTheDocument()
     expect(screen.queryByText('Sin divisor mensual')).not.toBeInTheDocument()
     expect(screen.queryByText(/de cartera/)).not.toBeInTheDocument()
     expect(screen.queryByText('0%')).not.toBeInTheDocument()
@@ -266,5 +299,30 @@ describe('Equipo — el ranking y la conversión mensual', () => {
     expect(within(fila).getByTitle('Sin divisor mensual')).toHaveTextContent('—')
     expect(fila).toHaveTextContent('4 de cartera')
     expect(fila).not.toHaveTextContent('0%')
+  })
+
+  it('un bundle indisponible no se colapsa al vacío «todo en cero»', () => {
+    CONVERSION_EQUIPO_OPERATIVA = null
+    CONVERSION_EQUIPO_DISPONIBLE = false
+    YO = { ...YO!, rol: 'gerencia' }
+    montar()
+
+    expect(screen.queryByText('Este equipo aún no tiene leads asignados')).not.toBeInTheDocument()
+    const detalle = screen.getByRole('table', {
+      name: 'Vendedores del equipo de SUPERVISORA UNO',
+    })
+    expect(screen.getByText(/Cierres no disponibles/)).toBeInTheDocument()
+    expect(detalle).toHaveTextContent('Dato no disponible')
+  })
+
+  it('expone el aviso global de cobertura sin convertirlo en un reintento falso', () => {
+    CONVERSION_EQUIPO_OPERATIVA = null
+    CONVERSION_EQUIPO_DISPONIBLE = false
+    AVISO_CONVERSION = 'Cifras en revisión: 1 cierre no tiene episodio verificable.'
+    YO = { ...YO!, rol: 'gerencia' }
+    montar()
+
+    expect(screen.getByText(AVISO_CONVERSION).closest('[role="status"]')).not.toBeNull()
+    expect(screen.queryByRole('button', { name: /Reintentar.*conversión/i })).not.toBeInTheDocument()
   })
 })

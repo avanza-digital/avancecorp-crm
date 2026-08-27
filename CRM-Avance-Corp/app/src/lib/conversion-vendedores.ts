@@ -1,7 +1,8 @@
 import type { ConversionEquipoVendedor } from './conversion-equipo'
-import type {
-  ConversionMensual,
-  ResponsableConversionMensual,
+import {
+  lecturaCobertura,
+  type ConversionMensual,
+  type ResponsableConversionMensual,
 } from './conversion-mensual'
 import type {
   DetalleConversionVendedor,
@@ -267,6 +268,7 @@ export function adaptarConversionMensual(
   equipo: readonly ConversionEquipoVendedor[],
 ): ConversionVendedoresAdaptada<DetalleConversionMensual> {
   const responsables = datos?.responsables
+  const publicable = lecturaCobertura(datos?.cobertura).mostrar
   const detallePorId = new Map(
     (responsables ?? []).map((fila) => [fila.vendedor_id, fila]),
   )
@@ -287,7 +289,8 @@ export function adaptarConversionMensual(
     })
   }
 
-  const responsablesCompletos = responsables !== undefined
+  const responsablesCompletos = publicable
+    && responsables !== undefined
     && detallePorId.size === responsables.length
     && [...identidadPorId.keys()].every((vendedorId) => detallePorId.has(vendedorId))
 
