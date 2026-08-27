@@ -535,3 +535,15 @@ Ambos byte a byte contra el dist; check 2.334 verde. Rollback en cadena en
 
 También quedó: baja de Ivett por carril oficial (el ranking de gerencia
 volvió a pintar: 17==17) — su deuda viva son los 2 clientes sin asesor.
+
+### 43.º release — 27/08: «Cosecha del lote» como pestaña propia
+
+`crm-20260827T181506Z-e0464b03e0ee` (commit `e0464b0`). Miguel: la cosecha en
+cada fila «causa mucho ruido» → se mudó a su PROPIA pestaña del panel del
+ranking (Conversión general · Capital total · **Cosecha del lote**), para
+gerencia y supervisor. La pestaña lleva la nota que zanja la confusión de los
+dos relojes: «un cierre tardío sube esta lista, pero a la conversión le
+cuenta en el mes en que cerró — el mes sellado no se mueve». Fail-closed
+(sin dato lo dice; sonda rota lo dice). Las filas del ranking quedaron
+limpias (solo % + desglose de cartera). Byte a byte verificado; check 2.334.
+Rollback: 42.º en `releases/`.
