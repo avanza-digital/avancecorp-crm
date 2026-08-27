@@ -3,7 +3,7 @@ tipo: decision-ux
 estado: aceptada-con-alcance-explicito
 fecha: 2026-08-27
 serial: AVC-F41-360-20260825-R2
-sha_evidencia: bd2bef1187de73cd82f1a5a7d4b9576e4cb35db5
+sha_evidencia: 49c9dc3b0502c5d483f956dbbaa624f042ee9d76
 ---
 
 # Ficha 360 R2 — aceptación UX/comercial 2026-08-27
@@ -16,7 +16,7 @@ Relacionado: [[Ficha comercial 360 de clientes - plan]],
 
 Se acepta R2 como referencia UX/comercial para jerarquía, contenido, lenguaje,
 flujo visible, móvil, foco, accesibilidad y diferencias por rol. La evidencia
-está fijada en `bd2bef1187de73cd82f1a5a7d4b9576e4cb35db5`, dentro de
+está fijada en `49c9dc3b0502c5d483f956dbbaa624f042ee9d76`, dentro de
 `artifacts/audits/ficha360-r2-20260827/README.md` y sus capturas antes/después.
 
 Esta decisión **no** acepta el backend R2, sus migraciones, RLS, tipos, rama
@@ -62,8 +62,10 @@ prototipo.
 
 ## Verificación de la referencia
 
-- Vitest: 176 archivos, 2369/2369.
-- Foco/ficha focal: 156/156.
-- E2E Chromium responsive: 17/17.
-- Typecheck, lint, build preview y diff-check: verdes.
-- Revisión manual en Chrome a 320, 390, 844×390, 1000, 1199, 1200 y escritorio.
+- Snapshot final R2: foco/ficha 156/156, typecheck, lint, build y pre-commit
+  verdes; touch targets y evidencia quedaron corregidos en `49c9dc3`.
+- La pasada visual anterior conserva sus capturas y resultados históricos como
+  referencia comercial.
+- No se ejecutó una nueva pasada Browser/Playwright sobre `49c9dc3`. Por eso la
+  comprobación visual autenticada por rol sigue siendo un gate de la candidata
+  nueva y no una certificación de producción de R2.

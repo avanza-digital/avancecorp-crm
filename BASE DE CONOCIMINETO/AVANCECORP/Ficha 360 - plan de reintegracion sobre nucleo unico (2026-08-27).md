@@ -1,11 +1,11 @@
 ---
 tipo: plan-tecnico
-estado: r1-aceptada-c0-frontend-cerrado-sql-pendiente-aprobacion
+estado: r1-aceptada-f0-local-cerrado-c0-1-operativo-pendiente
 fecha: 2026-08-27
 serial_origen: AVC-F41-360-20260825-R2
 baseline_revisado: abb824012d0c2c15d80cc94e5edf6164ef86228e
-sha_f0_frontend: 0ac9f3410fdc066c6ab1019db3b183d04b8cad77
-sha_r2_ux: bd2bef1187de73cd82f1a5a7d4b9576e4cb35db5
+sha_f0_frontend: 41987fea08febac7fb67750bc8269b43582c645d
+sha_r2_ux: 49c9dc3b0502c5d483f956dbbaa624f042ee9d76
 ---
 
 # Ficha 360 — plan de reintegración sobre el núcleo único
@@ -39,20 +39,52 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
 - El árbol canónico quedó fijado en `abb8240`, que incorpora F1.3: capital
   producido por los caminos vivos, ya documentado como publicado. Esa lógica
   se preservó; no se mezcló con el capital estimado del pipeline.
-- F0 frontend quedó integrado sobre ese SHA exacto en
-  `0ac9f3410fdc066c6ab1019db3b183d04b8cad77`: Gestión demo ya no usa 45 días,
-  todas las cifras canónicas exigen `cuadra=true` y `paridad_nucleo=0`, y se
-  conservan NULL, dos decimales, cartera y valores mayores a 100 %.
+- F0 quedó cerrado localmente en
+  `41987fea08febac7fb67750bc8269b43582c645d`. El bridge reconoce el contrato
+  F2.4b realmente presente, oculta sus exactos legacy y solo publica C0.1
+  cuando existen las dos raíces y bundles coherentes de cinco claves. Conserva
+  NULL, decimales, cartera y valores mayores a 100 %.
 - La propuesta C0.1 del servidor y su banco adversario existen como artefactos
-  revisables, pero contienen 12 placeholders fail-closed. No se creó migración,
-  no se ejecutó SQL y no se tocó ninguna base.
+  revisables, pero contienen 18 placeholders fail-closed: 16 huellas de
+  cuerpos, un fingerprint agregado de catálogo y el hash del cuerpo nuevo. No
+  se creó migración, no se ejecutó SQL y no se tocó ninguna base.
 - La aceptación UX/comercial R1 quedó cerrada en la rama preview con SHA
-  `bd2bef1187de73cd82f1a5a7d4b9576e4cb35db5`, evidencias visuales y carve-outs
+  `49c9dc3b0502c5d483f956dbbaa624f042ee9d76`, evidencias corregidas y carve-outs
   funcionales explícitos.
-- La siguiente frontera no es portar Ficha todavía: primero Miguel debe aprobar
-  o rechazar C0.1 y autorizar la captura de las 11 huellas vivas. Después se
-  aplica servidor primero, se verifica el payload/paridad y recién se decide la
-  publicación del frontend F0.
+- La siguiente frontera no es portar Ficha todavía. Primero se autoriza una
+  captura viva de solo lectura para resolver las 18 huellas; luego se
+  materializa y prueba C0.1 en una base desechable. Solo después de una
+  aprobación separada se aplica servidor, se hace readback y se verifica la
+  paridad PostgREST/JWT antes de decidir la publicación del frontend F0.
+
+## Cierre local F0 y plan vigente por fases
+
+- **Fase 0A — cerrada localmente:** bridge F2.4b → C0.1, ocultamiento
+  fail-closed, paridad de HOY/Ranking/Metas/Gestión/Directorio, alertas con
+  sondas actual/anterior y excepción del Coordinador. Check integral: 181
+  archivos, 2416 pruebas, typecheck, build, bundle y duplicación verdes.
+- **Fase 0B — pendiente de autorización:** captura viva de solo lectura de los
+  16 cuerpos, catálogo/ACL y readbacks. No aplicar SQL.
+- **Fase 0C — pendiente de autorización posterior:** fijar los 18 placeholders,
+  convertir la propuesta en migración y ejecutar banco/mutantes en una base
+  desechable. Si queda verde, aplicar servidor con su propio gate y verificar
+  readback más paridad PostgREST/JWT.
+- **Fase 1 — referencia UX cerrada localmente:** R2 en `49c9dc3`, utilizable
+  para portar requisitos, no commits. La comprobación visual autenticada se
+  reserva para la candidata nueva.
+- **Fase 2:** abrir una línea nueva desde el descendiente canónico aprobado.
+- **Fase 3:** reemitir el servidor desde el esquema vigente, sin reutilizar las
+  migraciones R2 como ejecutables.
+- **Fase 4:** portar el frontend aditivamente, reconciliando a mano los puntos
+  que se solapan con contratos, cartera, store y capa de datos.
+- **Fase 5:** cerrar historial y paginación sin truncamiento silencioso.
+- **Fase 6:** ejecutar el gate integrado de esquema, RLS, carreras, conversión,
+  PDF, roles, regresiones y datos reales autorizados.
+- **Fase 7:** construir y aceptar una preview candidata nueva por cada rol.
+- **Fase 8:** publicación aditiva solo con autorización expresa y observación.
+
+Dos auditorías adversarias/arquitectónicas independientes dieron GO estático
+al snapshot F0. Ese GO no certifica SQL ni producción.
 
 ## Foto comprobada al adaptar el plan
 
@@ -120,22 +152,24 @@ Reglas de frontera:
 ## Gates de conversiones que preceden a la Ficha
 
 El servidor central ya existe, pero la revisión adversaria encontró cuatro
-degradaciones en consumidores. Deben cerrarse en cambios separados antes de
-fijar la base de reintegración.
+degradaciones en consumidores. F0 `41987fe` las cerró localmente; se conserva
+su definición como contrato de regresión. C0.1 continúa pendiente de captura,
+prueba y aplicación autorizadas en servidor.
 
-### C0.1 — eliminar la tercera fórmula en Gestión/Directorio — bloqueante
+### C0.1 — eliminar la tercera fórmula en Gestión/Directorio — frontend cerrado, servidor pendiente
 
 `metricas_vendedores_fn` todavía deriva una lectura con ventana/propietario
 distintos y la presenta bajo rótulo de mes calendario. El contrato debe servir
-por equipo `nucleo_divisor`, `nucleo_numerador` y
-`nucleo_conversion_pct`, agregados desde `private.conversion_episodios` — jamás
-promediando porcentajes. Las claves viejas pueden permanecer solo por
-compatibilidad temporal.
+por total, vendedor y equipo el bundle exacto `operaciones_cartera`,
+`nucleo_convertidos`, `nucleo_divisor`, `nucleo_numerador` y
+`nucleo_conversion_pct`, agregado desde el wrapper canónico — jamás promediando
+porcentajes. Las claves viejas pueden permanecer solo por compatibilidad
+temporal y no se publican como exactas.
 
 Pruebas: suma de numeradores/divisores, operaciones de cartera, reasignación,
 NULL, precisión decimal y valores mayores a 100 %.
 
-### C0.2 — cerrar F3.4 ante cualquier sonda no confiable — bloqueante
+### C0.2 — cerrar F3.4 ante cualquier sonda no confiable — cerrada localmente
 
 El ranking de cosecha oculta hoy solo con `cuadra === false`. Acepta
 accidentalmente sondas ausentes, `cuadra=null`, `paridad_nucleo=null` o
@@ -151,7 +185,7 @@ Cualquier otro estado oculta la cifra. El mensaje puede distinguir descuadre de
 falta de verificación. La misma política debe revisarse en Ranking,
 Distribución e Inteligencia comercial.
 
-### C0.3 — conservar el contrato exacto en las filas — bloqueante
+### C0.3 — conservar el contrato exacto en las filas — cerrada localmente
 
 El RPC ya sirve divisor, numerador, porcentaje nullable y operaciones de
 cartera, pero el schema/mapeo de Gestión descarta parte de esos campos, fabrica
@@ -163,7 +197,7 @@ divisor, explicación de cartera y visualización de conversión sin cap. Cubrir
 divisor 0 con activos, divisor positivo sin activos actuales, 9,3 %, >100 % y
 cartera.
 
-### C0.4 — endurecer el agregado de cartera y su explicación
+### C0.4 — endurecer el agregado de cartera y su explicación — cerrada localmente
 
 En el contrato real, `cartera` no debe degradar silenciosamente a cero si el
 servidor la omite. Debe ser obligatoria y fallar cerrada; el demo puede tener un
@@ -176,7 +210,7 @@ que el numerador incluye operaciones elegibles de cartera.
 - Suites actuales completas verdes y matriz adversaria de sondas verde.
 - Paridad entre HOY, Ranking, Metas, Gestión y Directorio para el mismo mes.
 - Release/estado documentado. Hasta verificar C0.1 vivo, no publicar
-  `0ac9f34` ni abrir el portado de Ficha sobre él.
+  `41987fe` ni abrir el portado de Ficha sobre él.
 
 ## Plan adaptado de reintegración
 
