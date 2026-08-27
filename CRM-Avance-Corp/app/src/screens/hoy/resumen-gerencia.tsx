@@ -352,9 +352,14 @@ export function ResumenGerenciaPanel({
           <p className="mt-2 text-xs text-white/65">
             {conversionMensual != null && !lecturaConversion.mostrar
               ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
+              // La base se NOMBRA: «asignados» ≠ los «dados de alta» del KPI
+              // vecino (ese cuenta todos: referidos y sin asignar incluidos).
+              // Miguel vio «de 599» junto a «de 607» sin explicación (27/08):
+              // la diferencia son referidos (cierran sin dividir, D6) + leads
+              // aún sin repartir. Cada cifra dice su base o vuelve la duda.
               : totalMes == null
                 ? 'Conversión del mes no disponible'
-                : `${numero(cierresMes ?? 0)} cierres de ${numero(recibidosMes ?? 0)} recibidos este mes`
+                : `${numero(cierresMes ?? 0)} cierres · base del mes: ${numero(recibidosMes ?? 0)} leads asignados (los referidos cierran aparte, sin dividir)`
                   // El porqué acompaña a la cifra en vez de sustituirla.
                   + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>
@@ -380,7 +385,7 @@ export function ResumenGerenciaPanel({
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <Kpi label="Conversión del mes" valor={pct(conversionMes)} detalle={cierresMes == null ? 'Dato no disponible' : `${numero(cierresMes)} cierres`} Icon={TrendingUp} color={C.blue} />
-        <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads`} Icon={UserRoundCheck} color={C.green} />
+        <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads dados de alta`} Icon={UserRoundCheck} color={C.green} />
         <Kpi label="Capital confirmado del mes" valor={capitalMesTexto} detalle={capitalMesDetalle} Icon={WalletCards} color={C.teal} />
         <Kpi label="Reuniones realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando reuniones…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
       </div>

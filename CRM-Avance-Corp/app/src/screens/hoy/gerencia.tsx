@@ -407,9 +407,11 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                     ? 'meta no disponible'
                     : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
                   nota={[
+                    // «Base del mes», la misma palabra que el héroe del
+                    // Resumen: este divisor excluye referidos y sin asignar.
                     recibidosEmpresa == null
                       ? 'El detalle por analista está en Conversiones.'
-                      : `${numero(recibidosEmpresa)} leads recibidos este mes · detalle por analista en Conversiones.`,
+                      : `Base del mes: ${numero(recibidosEmpresa)} leads asignados · detalle por analista en Conversiones.`,
                     // Por qué la cifra no es definitiva, PEGADO a ella y no en
                     // su lugar: sustituirla era lo que hacía que un mes con
                     // recibidos y cierres dijera «sin datos».
