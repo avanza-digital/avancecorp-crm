@@ -7,6 +7,7 @@ import {
   MetricasVendedoresSchema,
   mapearMetricasVendedores,
   metricasVendedoresDesdeAmbito,
+  ventanaConversionEnPalabras,
   type MetricasVendedoresPayload,
 } from './metricas-vendedores'
 import type { Lead, Miembro } from './tipos'
@@ -142,5 +143,23 @@ describe('metricasVendedoresDesdeAmbito — espejo demo con ventana', () => {
     const espejo = metricasVendedoresDesdeAmbito([VEND1], EQUIPO, leads, [], AHORA)
     expect(espejo.filas[0]).toMatchObject({ capitalPEN: 1_000, capitalUSD: 500 })
     expect(espejo.equipos[0]).toMatchObject({ capitalPEN: 1_000, capitalUSD: 500, parkeados: 1 })
+  })
+})
+
+describe('ventanaConversionEnPalabras (F3, H9/D1)', () => {
+  it('nombra el MES cuando el servidor declara mes_calendario — el rótulo dice lo que la cifra mide', () => {
+    expect(ventanaConversionEnPalabras('2026-08-01')).toBe('agosto de 2026')
+    expect(ventanaConversionEnPalabras('2026-01-01')).toBe('enero de 2026')
+  })
+
+  it('conserva «45 días» sin declaración (espejo demo o servidor previo a F2.4): esa sigue siendo SU verdad', () => {
+    expect(ventanaConversionEnPalabras(null)).toBe('45 días')
+  })
+
+  it('el mapper solo afirma el mes con la declaración completa — media declaración no es declaración', () => {
+    const base = payload()
+    expect(mapearMetricasVendedores({ ...base, ventana_metrica: 'mes_calendario', mes_metrica: '2026-08-01' }, [VEND1], EQUIPO).mesMetrica).toBe('2026-08-01')
+    expect(mapearMetricasVendedores({ ...base, ventana_metrica: 'mes_calendario' }, [VEND1], EQUIPO).mesMetrica).toBeNull()
+    expect(mapearMetricasVendedores(base, [VEND1], EQUIPO).mesMetrica).toBeNull()
   })
 })

@@ -10,7 +10,7 @@ import {
   metricasPorVendedor,
   type MetricasVendedor,
 } from './inteligencia'
-import { enVentanaOperativa } from './resumen-cartera'
+import { enVentanaOperativa, VENTANA_CONVERTIDOS_DIAS } from './resumen-cartera'
 import type { Actividad, Lead, Miembro } from './tipos'
 
 export const MetricasVendedoresSchema = v.object({
@@ -157,4 +157,21 @@ export function metricasVendedoresDesdeAmbito(
     // afirma el mes calendario que no calcula.
     mesMetrica: null,
   }
+}
+
+/**
+ * Ventana de la métrica de conversión, en palabras, para los rótulos de
+ * Gestión de equipo (F3, H9/D1). El servidor declara `ventana_metrica:
+ * mes_calendario` desde F2.4 y el rótulo nombra ESE mes; el espejo demo (y un
+ * servidor previo a F2.4) no lo declaran y conservan la verdad que sí miden:
+ * la ventana operativa de 45 días. Un solo texto fijo mentiría en uno de los
+ * dos mundos.
+ */
+export function ventanaConversionEnPalabras(mesMetrica: string | null): string {
+  if (mesMetrica == null) return `${VENTANA_CONVERTIDOS_DIAS} días`
+  return new Intl.DateTimeFormat('es-PE', {
+    timeZone: 'America/Lima',
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(`${mesMetrica}T12:00:00Z`))
 }

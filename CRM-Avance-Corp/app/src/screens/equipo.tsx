@@ -52,7 +52,7 @@ import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
 import { useColaAccionOperativa } from '@/data/use-cola-accion-operativa'
 import { useMetricasVendedoresOperativas } from '@/data/use-metricas-vendedores-operativas'
 import { useResumenCarteraOperativo } from '@/data/use-resumen-cartera-operativo'
-import { VENTANA_CONVERTIDOS_DIAS } from '@/lib/resumen-cartera'
+import { ventanaConversionEnPalabras } from '@/lib/metricas-vendedores'
 
 // ── Paleta de semáforos y helpers ─────────────────────────────────────────────
 
@@ -244,10 +244,13 @@ function MiniDato({
 function VendedorCard({
   r,
   tc,
+  ventanaConversion,
   delay = 0,
 }: {
   r: MetricasVendedor
   tc: TipoCambio | null | undefined
+  /** «agosto de 2026» con servidor F2.4 (mes del núcleo) · «45 días» en demo. */
+  ventanaConversion: string
   delay?: number
 }): JSX.Element {
   const sem = semaforoActividad(r.diasSinActividadMax)
@@ -259,7 +262,7 @@ function VendedorCard({
         <div className="min-w-0 flex-1">
           <p className="truncate text-[13px] font-semibold">{r.m.nombre_completo}</p>
           <p className="text-[11px] text-muted-foreground">
-            {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'} · 45 d
+            {r.convertidos} {r.convertidos === 1 ? 'convertido' : 'convertidos'} · {ventanaConversion}
           </p>
         </div>
         {r.activos === 0 ? (
@@ -284,13 +287,13 @@ function VendedorCard({
         />
       </div>
 
-      {/* Conversión en UN renglón (convertidos / total de sus leads) — navy, sin
-          verde. El payload no trae el total de leads de la ventana: sin activos
-          NI convertidos no hay evidencia de muestra → «—», no un 0 % fabricado
-          (el mapper rellena 0 para el roster sin fila). El rótulo lleva la
-          ventana para que nadie lo lea como la conversión MENSUAL ponderada. */}
+      {/* Conversión en UN renglón — navy, sin verde. Sin activos NI convertidos
+          no hay evidencia de muestra → «—», no un 0 % fabricado (el mapper
+          rellena 0 para el roster sin fila). F3 (H9/D1): la ventana del rótulo
+          la DECLARA el payload — mes del núcleo con servidor F2.4, 45 días en
+          el espejo demo — en vez de afirmarse fija aquí. */}
       <div className="mt-2 flex items-center gap-2 text-[11px]">
-        <span className="font-semibold text-muted-foreground">Conversión · {VENTANA_CONVERTIDOS_DIAS} días</span>
+        <span className="font-semibold text-muted-foreground">Conversión · {ventanaConversion}</span>
         {r.activos === 0 && r.convertidos === 0 ? (
           <SinMuestraOperativa className="flex-1 text-right font-bold tabular-nums text-muted-foreground" />
         ) : (
@@ -507,6 +510,7 @@ function EquipoSupervisor(): JSX.Element {
   const cola = colaOp.cola
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
   const filas = vendedoresOp.metricas?.filas ?? null
+  const ventanaConversion = ventanaConversionEnPalabras(vendedoresOp.metricas?.mesMetrica ?? null)
 
   const errorIndicadores = !yo?.demo
     && Boolean(resumenOp.error || colaOp.error || vendedoresOp.error)
@@ -575,7 +579,7 @@ function EquipoSupervisor(): JSX.Element {
             >
               {filas.map((r, i) => (
                 <li key={r.m.perfil_id}>
-                  <VendedorCard r={r} tc={tc} delay={i * 60} />
+                  <VendedorCard r={r} tc={tc} ventanaConversion={ventanaConversion} delay={i * 60} />
                 </li>
               ))}
             </ul>
@@ -651,6 +655,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
   // que la tabla (reduce O(supervisores)) para que cuadren SIEMPRE entre sí.
   const vendedoresOp = useMetricasVendedoresOperativas(ambito.vendedores, equipo, ambito.leads, actividadesDelAmbito)
   const metricas = vendedoresOp.metricas
+  const ventanaConversion = ventanaConversionEnPalabras(metricas?.mesMetrica ?? null)
   // TC izado UNA vez por pantalla (ver la nota en EquipoSupervisor).
   const { tc } = useTipoCambio()
 
@@ -723,7 +728,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
       icon: Activity,
       label: 'Leads activos',
       value: tablero ? String(tablero.activos) : '—',
-      ...(tablero ? { sub: `${tablero.convertidos} convertidos · 45 d` } : {}),
+      ...(tablero ? { sub: `${tablero.convertidos} convertidos · ${ventanaConversion}` } : {}),
     },
     chipPorRepartir(d.parkeados.length, 'En bandejas de supervisores'),
   ]
@@ -773,7 +778,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               <Th>Últ. actividad</Th>
               <Th className="text-right">Activos</Th>
               <Th className="text-right">Capital PEN</Th>
-              <Th>Conversión · {VENTANA_CONVERTIDOS_DIAS} días</Th>
+              <Th>Conversión · {ventanaConversion}</Th>
               <Th className="text-right">Por repartir</Th>
               <Th>
                 <span className="sr-only">Detalle del equipo</span>
@@ -902,7 +907,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
               <CapitalDeFila pen={f.capitalPEN} usd={f.capitalUSD} tc={tc} />
               <MiniDato label="Activos" valor={String(f.activos)} />
               <MiniDato
-                label={`Conversión · ${VENTANA_CONVERTIDOS_DIAS} días`}
+                label={`Conversión · ${ventanaConversion}`}
                 valor={f.activos === 0 && f.convertidos === 0 ? '—' : `${f.conversion}%`}
                 {...(f.activos === 0 && f.convertidos === 0
                   ? { title: 'Sin leads en la ventana operativa', srDetalle: 'Sin leads en la ventana operativa' }
@@ -954,7 +959,7 @@ function EquipoEmpresa({ conAcciones }: { conAcciones: boolean }): JSX.Element {
                   <Th className="text-right">Activos</Th>
                   <Th className="text-right">Capital PEN</Th>
                   <Th className="text-right">Sin tocar</Th>
-                  <Th>Conversión · {VENTANA_CONVERTIDOS_DIAS} días</Th>
+                  <Th>Conversión · {ventanaConversion}</Th>
                 </TheadCrm>
                 <tbody>
                   {vendedores.map((r) => {
