@@ -8,6 +8,7 @@ import {
   metricasConversionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { money } from '@/lib/format'
+import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import { InteligenciaComercialPanel } from './inteligencia-comercial'
 
 vi.mock('@/components/gerencia/echart-lazy', () => ({
@@ -411,7 +412,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     conversion_pct: 2.6,
     madura_hasta: '2026-08-27',
   }
-  const SONDAS = {
+  const SONDAS: NonNullable<MetricasConversiones['sondas']> = {
     cuadra: true as boolean | null,
     paridad_nucleo: 0 as number | null,
     paridad_filas: 16,
@@ -424,11 +425,11 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     episodios_sin_origen: 0,
     origen_ficha_distinto_del_ledger: 0,
     // F1.3b: opcional en el contrato; el fixture la lleva en 0 (estado sano).
-    perfiles_con_leads_de_varios_vendedores: 0 as number | undefined,
+    perfiles_con_leads_de_varios_vendedores: 0,
   }
 
   function montarConNucleo(
-    sondas: typeof SONDAS | undefined,
+    sondas: NonNullable<MetricasConversiones['sondas']> | undefined,
     origenReferido = false,
     incluirNucleo = true,
     modoDemo = true,
@@ -444,7 +445,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
         referido.peso_en_nucleo = 0.15
       }
     }
-    render(
+    return render(
       <InteligenciaComercialPanel
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
@@ -486,8 +487,22 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Ver detalle' })).not.toBeInTheDocument()
-    expect(screen.getByText(/tabla y la gráfica por vendedor permanecen ocultas/)).toBeInTheDocument()
+    expect(screen.getByText(/tabla y la gráfica de conversión por vendedor permanecen ocultas/)).toBeInTheDocument()
     expect(screen.getByText(/gráfica por origen permanece oculta/)).toBeInTheDocument()
+    // F1.3b no depende de esas sondas: el capital vivo sigue accesible.
+    expect(screen.getByRole('region', { name: 'Capital producido por origen' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver capital' }))
+    const capitalVendedor = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    expect(capitalVendedor.getByText('Conversión del mes en revisión')).toBeInTheDocument()
+    expect(capitalVendedor.getByText('Capital por sus leads (PEN)')).toBeInTheDocument()
+    expect(capitalVendedor.getByText('Capital por sus leads (USD)')).toBeInTheDocument()
+    expect(capitalVendedor.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
+    expect(capitalVendedor.getByText(money(20_000, 'USD'))).toBeInTheDocument()
+    expect(capitalVendedor.queryByText('34.58%')).not.toBeInTheDocument()
+    expect(capitalVendedor.queryByText(/%/)).not.toBeInTheDocument()
+    expect(capitalVendedor.queryByText(/Fórmula:/)).not.toBeInTheDocument()
+    expect(capitalVendedor.queryByText('Meta de conversión')).not.toBeInTheDocument()
+    expect(capitalVendedor.queryByText('Tendencia semanal')).not.toBeInTheDocument()
   })
 
   it.each([
@@ -503,6 +518,8 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por vendedor' })).not.toBeInTheDocument()
     expect(screen.queryByRole('img', { name: 'Conversión a clientes por origen del lead' })).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Capital producido por origen' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Ver capital' })).toBeInTheDocument()
   })
 
   it('una sonda parcial tampoco autoriza las tablas sensibles aunque falte el bloque núcleo', () => {
@@ -545,8 +562,31 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.getByText(/puede sumar más que el total/)).toBeInTheDocument()
   })
 
-  it('F1.3b: con la sonda en 0 (o ausente, servidor previo) no hay aviso', () => {
-    montarConNucleo({ ...SONDAS })
+  it('F1.3b: el warning convive con fail-closed sin ocultar capital ni filtrar porcentajes', () => {
+    montarConNucleo({
+      ...SONDAS,
+      cuadra: false,
+      paridad_nucleo: 2,
+      perfiles_con_leads_de_varios_vendedores: 2,
+    })
+
+    expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
+    expect(screen.queryByText('7.22%')).not.toBeInTheDocument()
+    expect(screen.queryByText('2.60%')).not.toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Capital producido por origen' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver capital' }))
+    const capitalVendedor = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    expect(capitalVendedor.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
+    expect(capitalVendedor.queryByText('34.58%')).not.toBeInTheDocument()
+  })
+
+  it('F1.3b: con el probe en 0 o realmente ausente (servidor previo) no hay aviso', () => {
+    const vistaConCero = montarConNucleo({ ...SONDAS })
+    expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
+    vistaConCero.unmount()
+
+    const { perfiles_con_leads_de_varios_vendedores: _omitido, ...sondasServidorPrevio } = SONDAS
+    montarConNucleo(sondasServidorPrevio)
     expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
   })
 })
@@ -606,7 +646,7 @@ describe('F1.3b: capital producido por origen', () => {
     )
 
     expect(screen.getByText(/Capital producido por origen/)).toBeInTheDocument()
-    const bloque = screen.getByText(/Capital producido por origen/).closest('div')
+    const bloque = screen.getByRole('region', { name: 'Capital producido por origen' })
     expect(within(bloque as HTMLElement).getByText('Meta Ads')).toBeInTheDocument()
     // PEN y USD por separado, jamás sumados (no hay TC en este panel).
     expect(within(bloque as HTMLElement).getByText(`${money(720_000, 'PEN')} + ${money(36_000, 'USD')}`)).toBeInTheDocument()

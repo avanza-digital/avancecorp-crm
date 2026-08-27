@@ -197,6 +197,7 @@ function DetalleVendedor({
   fila,
   filaMensual,
   mensual,
+  conversionPublicable,
   meta,
   cumplimiento,
   periodo,
@@ -207,6 +208,8 @@ function DetalleVendedor({
   /** La fila del MISMO vendedor en la conversión mensual (null = no llegó). */
   filaMensual: ConversionVendedorAdaptada<DetalleConversionMensual> | null
   mensual: ConversionMensual | null | undefined
+  /** Las sondas autorizaron publicar cualquier cifra de conversión. */
+  conversionPublicable: boolean
   meta: ObjetivoComercial | null
   cumplimiento: CumplimientoVendedor | null
   periodo: MetricasConversiones['periodo'] | null
@@ -356,6 +359,8 @@ function DetalleVendedor({
             </div>
           </SheetHeader>
           <SheetBody className="space-y-3.5 px-4 pb-5 pt-0 sm:px-5">
+            {conversionPublicable ? (
+              <>
             <section className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-2xl bg-[#f7f5f1] px-4 py-3.5">
               <div className="flex min-w-0 flex-wrap items-baseline gap-x-2 gap-y-0.5">
                 <strong className="text-4xl font-bold tracking-[-.055em] tabular-nums text-[var(--gi-blue)] sm:text-5xl">{pct(conversionMes)}</strong>
@@ -483,6 +488,24 @@ function DetalleVendedor({
                 <div className="mt-2 grid h-28 place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>
               )}
             </section>
+              </>
+            ) : (
+              <>
+                <section className="rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
+                  <p className="text-xs font-bold text-amber-900">Conversión del mes en revisión</p>
+                  <p className="mt-1 text-[11px] font-medium leading-relaxed text-amber-800">
+                    Los porcentajes, cierres y tendencias permanecen ocultos hasta que las sondas del núcleo cuadren. El capital producido sigue disponible porque no depende de esa verificación.
+                  </p>
+                </section>
+                <section aria-label="Capital producido por el vendedor" className="overflow-hidden rounded-2xl border border-[var(--gi-line)] bg-white">
+                  <p className="px-4 pt-3 text-[11px] font-medium text-[var(--gi-muted)]">Capital producido por sus leads · rango aplicado</p>
+                  <dl className="grid grid-cols-2 divide-x divide-[var(--gi-line)]">
+                    <DatoDetalle label="Capital por sus leads (PEN)" valor={capitalDisponible(capitalPen, 'PEN')} capital />
+                    <DatoDetalle label="Capital por sus leads (USD)" valor={capitalDisponible(capitalUsd, 'USD')} capital />
+                  </dl>
+                </section>
+              </>
+            )}
           </SheetBody>
         </>
       )}
@@ -726,10 +749,13 @@ export function InteligenciaComercialPanel({
           </div>
 
           {conversionEnRevision ? (
-            <section data-gi-panel className="gi-card p-5" role="status">
-              <h3 className="gi-title">Conversión por vendedor</h3>
-              <p className="mt-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-6 text-center text-xs font-medium text-amber-900">
-                Cifras en revisión: la tabla y la gráfica por vendedor permanecen ocultas.
+            <section data-gi-panel className="gi-card p-5">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div><h3 className="gi-title">Capital por vendedor</h3><p className="gi-caption mt-1">Disponible independientemente de la verificación de conversión</p></div>
+                {vendedor && <div className="flex items-center gap-2"><select aria-label="Vendedor para abrir detalle" value={vendedor.vendedorId} onChange={(e) => setVendedorId(e.target.value)} className="h-9 rounded-lg border border-[var(--gi-line)] bg-white px-3 text-xs font-medium">{vendedores.map((fila) => <option key={fila.vendedorId} value={fila.vendedorId}>{fila.nombre}</option>)}</select><Button type="button" size="sm" variant="outline" onClick={() => setDetalleAbierto(true)}>Ver capital</Button></div>}
+              </div>
+              <p className="mt-3 rounded-2xl border border-dashed border-amber-300 bg-amber-50 px-4 py-6 text-center text-xs font-medium text-amber-900" role="status">
+                Cifras en revisión: la tabla y la gráfica de conversión por vendedor permanecen ocultas.
               </p>
             </section>
           ) : (
@@ -759,37 +785,36 @@ export function InteligenciaComercialPanel({
                 {origenes.filter((fila) => fila.fuera_del_divisor_del_nucleo === true).map((fila) => nombreOrigen(fila.origen)).join(', ')}: de los recibidos por ese origen, cuánto cerró. Ese origen queda fuera de la base de la conversión del mes (sus cierres ponderan {numero(nucleo?.peso_referido ?? 0.15, 2)} en el numerador) — no compares su barra con la cifra grande.
               </p>
               )}
-              {/* F1.3b: cuánto capital ha producido cada origen (lo cerrado
-                  hasta hoy por los leads del rango, portal + coops). Servido
-                  por origenes[].capital_* — vivo desde la migración F1.3b;
-                  antes leía el enlace muerto y era 0 invisible. PEN y USD por
-                  separado: aquí no hay tipo de cambio. Solo orígenes con algo. */}
-              {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
-                <div className="mt-3 border-t border-[var(--gi-line)] pt-3">
-                  <p className="gi-caption">Capital producido por origen · leads del rango, cerrado hasta hoy</p>
-                  <dl className="mt-2 grid gap-1.5 sm:grid-cols-2">
-                    {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
-                      <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
-                        <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
-                        <dd className="font-bold tabular-nums">
-                          {[
-                            fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
-                            fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
-                          ].filter(Boolean).join(' + ')}
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
-                </div>
-              )}
             </section>
             )}
           </div>
 
+          {/* F1.3b: capital independiente del gate de conversión. Las sondas
+              autorizan porcentajes; no invalidan contratos ya atribuidos. */}
+          {origenes.some((fila) => fila.capital_pen > 0 || fila.capital_usd > 0) && (
+            <section data-gi-panel className="gi-card p-5" aria-label="Capital producido por origen">
+              <h3 className="gi-title">Capital producido por origen</h3>
+              <p className="gi-caption mt-1">Leads del rango, cerrados hasta hoy · PEN y USD por separado</p>
+              <dl className="mt-3 grid gap-1.5 sm:grid-cols-2">
+                {origenes.filter((fila) => fila.capital_pen > 0 || fila.capital_usd > 0).map((fila) => (
+                  <div key={fila.origen} className="flex items-baseline justify-between gap-3 text-xs">
+                    <dt className="font-medium">{nombreOrigen(fila.origen)}</dt>
+                    <dd className="font-bold tabular-nums">
+                      {[
+                        fila.capital_pen > 0 ? money(fila.capital_pen, 'PEN') : null,
+                        fila.capital_usd > 0 ? money(fila.capital_usd, 'USD') : null,
+                      ].filter(Boolean).join(' + ')}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </section>
+          )}
+
           <section data-gi-panel className="gi-card p-5"><div className="flex items-center justify-between"><h3 className="gi-title">Ritmo semanal del equipo</h3><span className="gi-caption">Leads recibidos y cierres por semana del rango</span></div>{tendenciaEquipo == null ? <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Tendencia no disponible</div> : tendenciaEquipo.length > 0 ? <GerenciaEChart tipo="lineas" option={opcionEvolucion} ariaLabel="Leads recibidos y cierres por semana del rango aplicado" className="mt-3 h-[280px] w-full" /> : <div className="mt-3 grid h-[280px] place-items-center rounded-2xl border border-dashed border-[var(--gi-line)] text-xs font-medium text-[var(--gi-muted)]">Aún no hay semanas para comparar</div>}</section>
         </CardContent>
       )}
-      <DetalleVendedor fila={detalleAbierto && !conversionEnRevision ? vendedor : null} filaMensual={detalleAbierto && !conversionEnRevision ? vendedorMensual : null} mensual={conversionMensual} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
+      <DetalleVendedor fila={detalleAbierto ? vendedor : null} filaMensual={detalleAbierto && !conversionEnRevision ? vendedorMensual : null} mensual={conversionMensual} conversionPublicable={!conversionEnRevision} meta={metaVendedor} cumplimiento={cumplimientoVendedor} periodo={datos?.periodo ?? null} metaMensual={metaMensual} onCerrar={() => setDetalleAbierto(false)} />
     </Card>
   )
 }

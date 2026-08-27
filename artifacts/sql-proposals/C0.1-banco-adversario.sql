@@ -1,8 +1,8 @@
 -- Banco adversario propuesto para C0.1.
 --
 -- NO PRODUCCION. Requiere una base DESECHABLE cuyo nombre empiece por
--- `crm_c01_`, esquema completo hasta F2.6 (y, tras integrar main, F1.3
--- 20260827193803) y la propuesta C0.1 ya aplicada en una sesion anterior. Todo
+-- `crm_c01_`, esquema completo hasta F2.6 (y, tras integrar main, F1.3b
+-- 20260827220132) y la propuesta C0.1 ya aplicada en una sesion anterior. Todo
 -- este archivo corre dentro de una transaccion y termina en ROLLBACK, pero la
 -- barrera por nombre sigue siendo obligatoria.
 --

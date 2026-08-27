@@ -67,8 +67,8 @@ que no mezcla una foto histórica con un roster vivo aunque sus UUID coincidan.
 
 ## Orden de despliegue
 
-1. Integrar main hasta `20260827193803` sin perder sus cambios de servidor ni
-   frontend y volver a revisar el diff de C0.1.
+1. Integrar main hasta `20260827220132` (F1.3b, base Git `4e1fcb9`) sin perder
+   sus cambios de servidor ni frontend y volver a revisar el diff de C0.1.
 2. Capturar en el servidor autorizado cuerpo, firma, owner, ACL, volatilidad,
    `SECURITY DEFINER`, `search_path` y dependencias de todas las funciones
    ancladas.
@@ -89,35 +89,37 @@ que no mezcla una foto histórica con un roster vivo aunque sus UUID coincidan.
 10. Ejecutar paridad por rol y snapshot a través de PostgREST/JWT antes de dar
     por cerrado C0.1. Solo después puede evaluarse retirar el puente legacy.
 
-## Compatibilidad con F1.3 (`20260827193803`, main `abb8240`)
+## Compatibilidad con F1.3b (`20260827220132`, base Git `4e1fcb9`)
 
-El artefacto F0 ya fue rebasado de forma controlada sobre `abb8240`; el SHA de
-entrada a esta auditoría final fue `0ac9f34`. La migración F1.3, ya documentada
-como aplicada en producción por su sesión propietaria, reemplaza solo
-`private.metricas_conversiones_implementacion(date,date)` para que
-`produccion.capital_pen/capital_usd` use los caminos vivos de cierres y añade
-`produccion.sin_rastro`. No modifica `crm.metricas_vendedores_fn`, el wrapper
-mensual, el roster ni las dieciséis funciones que C0.1 ancla; por eso no se agrega un
-placeholder artificial para F1.3.
+El artefacto F0 fue rebasado de forma controlada sobre F1.3b. F1.3 corrigió
+`produccion.capital_pen/capital_usd` y añadió `produccion.sin_rastro`; F1.3b
+mantiene byte a byte ese núcleo de conversiones y amplía la misma función
+`private.metricas_conversiones_implementacion(date,date)` con capital vivo por
+origen y vendedor, además de la sonda opcional
+`perfiles_con_leads_de_varios_vendedores`. Ninguna de las dos migraciones
+modifica `crm.metricas_vendedores_fn`, el wrapper mensual, el roster ni las
+dieciséis funciones que C0.1 ancla; por eso no se agrega un placeholder
+artificial para F1.3/F1.3b.
 
 La frontera semántica es obligatoria:
 
 - `metricas_vendedores_fn.capital_pen/capital_usd` sigue siendo capital
   estimado de leads abiertos, por vendedor/equipo;
-- F1.3 `produccion.capital_pen/capital_usd` es capital ya producido por perfiles
-  nacidos de leads más cierres externos, y `sin_rastro` declara sus huecos.
+- F1.3/F1.3b `produccion.capital_pen/capital_usd` y los desgloses por
+  origen/vendedor son capital ya producido por perfiles nacidos de leads más
+  cierres externos; `sin_rastro` declara sus huecos.
 
-No deben fusionarse ni sustituirse entre sí. F1.3 declara además que sus
-capitales por origen/responsable siguen pendientes de F1.3b; C0.1 no intenta
-resolver esa deuda. El rebase conservó tanto los rótulos/capital vivo de F1.3
-como el contrato exacto de conversión. Antes de materializar la migración C0.1
-todavía se deben capturar las huellas live autorizadas y recalcular los hashes
-del cuerpo candidato definitivo; ningún hash local sustituye ese readback.
+No deben fusionarse ni sustituirse entre sí. El rebase conservó el capital vivo
+de F1.3b independientemente del gate fail-closed de conversión: una sonda
+inválida oculta porcentajes, no contratos ya atribuidos. Antes de materializar
+la migración C0.1 todavía se deben capturar las huellas live autorizadas y
+recalcular los hashes del cuerpo candidato definitivo; ningún hash local
+sustituye ese readback.
 
 ## Hashes estáticos del worktree — NO PRODUCCIÓN
 
 Estos valores se calcularon desde los cuerpos presentes en el worktree
-`/private/tmp/crm-conversion-stabilization-f0-20260827`. Son evidencia local y
+`/private/tmp/crm-conversion-stabilization-f0-f13b-20260827`. Son evidencia local y
 no deben sustituir automáticamente las anclas live del SQL.
 
 Además de estos dieciséis hashes de cuerpo, el preflight exige un fingerprint
