@@ -44,8 +44,8 @@ select
     ::timestamp at time zone 'America/Lima' as ini;
 
 -- Actores: gerencia, S1..S4, vendedores A/B/F/G/C/D, E fuera de roster,
--- coordinador, Directorio y un actor CRM inactivo. Clientes C1..C4 alimentan
--- cartera.
+-- coordinador, Directorio CRM, Directorio solo Portal, Admin/Superadmin solo
+-- Portal y un actor CRM inactivo. Clientes C1..C4 alimentan cartera.
 insert into public.perfiles(
   id, nombre_completo, correo, rol, activo
 ) values
@@ -64,10 +64,14 @@ insert into public.perfiles(
   ('c0100000-0000-4000-8000-000000000301', 'C01 COORD', 'c01-co@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000302', 'C01 DIRECTORIO', 'c01-dir@test.invalid', 'comercial', true),
   ('c0100000-0000-4000-8000-000000000303', 'C01 INACTIVO', 'c01-off@test.invalid', 'comercial', true),
+  ('c0100000-0000-4000-8000-000000000304', 'C01 DIRECTORIO PORTAL', 'c01-dir-portal@test.invalid', 'directorio', true),
+  ('c0100000-0000-4000-8000-000000000305', 'C01 ADMIN PORTAL', 'c01-admin@test.invalid', 'admin', true),
+  ('c0100000-0000-4000-8000-000000000306', 'C01 SUPERADMIN PORTAL', 'c01-superadmin@test.invalid', 'superadmin', true),
   ('c0100000-0000-4000-8000-000000000401', 'C01 CLIENTE 1', 'c01-cl1@test.invalid', 'cliente', true),
   ('c0100000-0000-4000-8000-000000000402', 'C01 CLIENTE 2', 'c01-cl2@test.invalid', 'cliente', true),
   ('c0100000-0000-4000-8000-000000000403', 'C01 CLIENTE 3', 'c01-cl3@test.invalid', 'cliente', true),
-  ('c0100000-0000-4000-8000-000000000404', 'C01 CLIENTE 4', 'c01-cl4@test.invalid', 'cliente', true);
+  ('c0100000-0000-4000-8000-000000000404', 'C01 CLIENTE 4', 'c01-cl4@test.invalid', 'cliente', true),
+  ('c0100000-0000-4000-8000-000000000405', 'C01 CLIENTE 5', 'c01-cl5@test.invalid', 'cliente', true);
 
 insert into crm.equipo(
   perfil_id, rol_crm, supervisor_id, activo
@@ -84,7 +88,9 @@ insert into crm.equipo(
   ('c0100000-0000-4000-8000-000000000205', 'vendedor', 'c0100000-0000-4000-8000-000000000103', true),
   ('c0100000-0000-4000-8000-000000000206', 'vendedor', null, true),
   ('c0100000-0000-4000-8000-000000000207', 'vendedor', 'c0100000-0000-4000-8000-000000000101', true),
-  ('c0100000-0000-4000-8000-000000000301', 'coordinador', null, true),
+  -- Un directo activo no-vendedor de S1 conserva el alcance operativo legacy
+  -- (conteo, activos y capital), pero nunca entra al roster de conversion.
+  ('c0100000-0000-4000-8000-000000000301', 'coordinador', 'c0100000-0000-4000-8000-000000000101', true),
   ('c0100000-0000-4000-8000-000000000302', 'directorio', null, true),
   ('c0100000-0000-4000-8000-000000000303', 'vendedor', 'c0100000-0000-4000-8000-000000000101', false);
 
@@ -112,7 +118,8 @@ cross join (values
   ('c0110000-0000-4000-8000-000000000003'::uuid, 'C01 B ABIERTO 1', '51980001003', 'campania', 'contactado', 'c0100000-0000-4000-8000-000000000202'::uuid, interval '1 day', null),
   ('c0110000-0000-4000-8000-000000000004'::uuid, 'C01 B ABIERTO 2', '51980001004', 'campania', 'contactado', 'c0100000-0000-4000-8000-000000000202'::uuid, interval '2 days', null),
   ('c0110000-0000-4000-8000-000000000005'::uuid, 'C01 C NOREF', '51980001005', 'campania', 'convertido', 'c0100000-0000-4000-8000-000000000204'::uuid, interval '1 day', interval '2 days'),
-  ('c0110000-0000-4000-8000-000000000006'::uuid, 'C01 E FUERA', '51980001006', 'campania', 'convertido', 'c0100000-0000-4000-8000-000000000206'::uuid, interval '1 day', interval '2 days')
+  ('c0110000-0000-4000-8000-000000000006'::uuid, 'C01 E FUERA', '51980001006', 'campania', 'convertido', 'c0100000-0000-4000-8000-000000000206'::uuid, interval '1 day', interval '2 days'),
+  ('c0110000-0000-4000-8000-000000000009'::uuid, 'C01 COORD ABIERTO', '51980001009', 'campania', 'contactado', 'c0100000-0000-4000-8000-000000000301'::uuid, interval '2 days', null)
 ) as x(id,nombre,telefono,origen,etapa,vendedor_id,alta,cierre);
 
 -- Leads antiguos que anclan los dos ajustes pendientes. No generan episodios
@@ -171,8 +178,12 @@ cross join lateral (
   limit 1
 ) p;
 
--- Cartera: A tiene dos elegibles del MISMO cliente/mes y debe contar uno.
--- C tiene dos clientes y cuenta dos. D tiene divisor cero y una operacion.
+-- Cartera: A tiene renovacion + upgrade elegibles del MISMO cliente/mes y
+-- debe contar solo la renovacion, que ocurrio primero. C tiene una renovacion
+-- USD y un upgrade PEN de clientes distintos. D aporta una renovacion legacy
+-- sin desglose; E, un upgrade fuera de roster. Asi los tres conteos y las
+-- siete magnitudes economicas tienen oraculos no vacuos sin alterar 38,33/300/
+-- NULL ni la identidad global ya cubierta por este banco.
 insert into crm.operaciones_cartera(
   id, cliente_id, vendedor_id, tipo, contrato_origen_id,
   contrato_nuevo_id, fecha_operacion, periodo, moneda,
@@ -180,19 +191,27 @@ insert into crm.operaciones_cartera(
   desglose_completo, fuente, creado_por, creado_en
 )
 select
-  x.id, x.cliente_id, x.vendedor_id, 'upgrade', null,
-  x.contrato_id, c.mes + 3, c.mes, 'PEN',
-  null, null, true, true, 'flujo_cartera',
+  x.id, x.cliente_id, x.vendedor_id, x.tipo, x.contrato_origen_id,
+  x.contrato_id, c.mes + 3, c.mes, x.moneda,
+  x.capital_renovado, x.capital_adicional, true,
+  x.desglose_completo, x.fuente,
   'c0100000-0000-4000-8000-000000000001'::uuid,
   c.ini + x.creado
 from c01_clock c
 cross join (values
-  ('c0130000-0000-4000-8000-000000000001'::uuid, 'c0100000-0000-4000-8000-000000000401'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'c0130000-0000-4000-8000-000000000101'::uuid, interval '3 days 1 hour'),
-  ('c0130000-0000-4000-8000-000000000002'::uuid, 'c0100000-0000-4000-8000-000000000401'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'c0130000-0000-4000-8000-000000000102'::uuid, interval '3 days 2 hours'),
-  ('c0130000-0000-4000-8000-000000000003'::uuid, 'c0100000-0000-4000-8000-000000000402'::uuid, 'c0100000-0000-4000-8000-000000000204'::uuid, 'c0130000-0000-4000-8000-000000000103'::uuid, interval '3 days 1 hour'),
-  ('c0130000-0000-4000-8000-000000000004'::uuid, 'c0100000-0000-4000-8000-000000000403'::uuid, 'c0100000-0000-4000-8000-000000000204'::uuid, 'c0130000-0000-4000-8000-000000000104'::uuid, interval '3 days 2 hours'),
-  ('c0130000-0000-4000-8000-000000000005'::uuid, 'c0100000-0000-4000-8000-000000000404'::uuid, 'c0100000-0000-4000-8000-000000000205'::uuid, 'c0130000-0000-4000-8000-000000000105'::uuid, interval '3 days 1 hour')
-) as x(id,cliente_id,vendedor_id,contrato_id,creado);
+  ('c0130000-0000-4000-8000-000000000001'::uuid, 'c0100000-0000-4000-8000-000000000401'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'renovacion', 'c0130000-0000-4000-8000-000000000201'::uuid, 'c0130000-0000-4000-8000-000000000101'::uuid, 'PEN', 800::numeric, 200::numeric, true, 'flujo_cartera', interval '3 days 1 hour'),
+  ('c0130000-0000-4000-8000-000000000002'::uuid, 'c0100000-0000-4000-8000-000000000401'::uuid, 'c0100000-0000-4000-8000-000000000201'::uuid, 'upgrade', null::uuid, 'c0130000-0000-4000-8000-000000000102'::uuid, 'PEN', null::numeric, null::numeric, true, 'flujo_cartera', interval '3 days 2 hours'),
+  ('c0130000-0000-4000-8000-000000000003'::uuid, 'c0100000-0000-4000-8000-000000000402'::uuid, 'c0100000-0000-4000-8000-000000000204'::uuid, 'renovacion', 'c0130000-0000-4000-8000-000000000203'::uuid, 'c0130000-0000-4000-8000-000000000103'::uuid, 'USD', 1200::numeric, 300::numeric, true, 'flujo_cartera', interval '3 days 1 hour'),
+  ('c0130000-0000-4000-8000-000000000004'::uuid, 'c0100000-0000-4000-8000-000000000403'::uuid, 'c0100000-0000-4000-8000-000000000204'::uuid, 'upgrade', null::uuid, 'c0130000-0000-4000-8000-000000000104'::uuid, 'PEN', null::numeric, null::numeric, true, 'flujo_cartera', interval '3 days 2 hours'),
+  ('c0130000-0000-4000-8000-000000000005'::uuid, 'c0100000-0000-4000-8000-000000000404'::uuid, 'c0100000-0000-4000-8000-000000000205'::uuid, 'renovacion', null::uuid, 'c0130000-0000-4000-8000-000000000105'::uuid, 'USD', null::numeric, null::numeric, false, 'backfill_agosto_2026', interval '3 days 1 hour'),
+  -- E esta fuera del roster, pero su operacion sigue entrando al total global
+  -- anonimo. Prueba que cartera no desaparezca por no tener fila publicable.
+  ('c0130000-0000-4000-8000-000000000006'::uuid, 'c0100000-0000-4000-8000-000000000405'::uuid, 'c0100000-0000-4000-8000-000000000206'::uuid, 'upgrade', null::uuid, 'c0130000-0000-4000-8000-000000000106'::uuid, 'PEN', null::numeric, null::numeric, true, 'flujo_cartera', interval '3 days 1 hour')
+) as x(
+  id, cliente_id, vendedor_id, tipo, contrato_origen_id, contrato_id,
+  moneda, capital_renovado, capital_adicional, desglose_completo, fuente,
+  creado
+);
 
 -- Dos deudas de 1. A absorbe una desde bruto 2,15 y queda en 1,15. F no
 -- produjo: su neto queda en cero. Sumar bruto y restar ambas deudas al final
@@ -215,6 +234,120 @@ cross join (values
 ) as x(id,vendedor_id,lead_id);
 
 set local session_replication_role = origin;
+
+-- Oraculo fijo de cartera. No se calcula desde la funcion bajo prueba: nace
+-- directamente del fixture de seis operaciones y permite contrastar por
+-- separado el helper privado y la RPC publica.
+create temporary table c01_cartera_esperada (
+  vendedor_id uuid primary key,
+  conversiones_clientes integer not null,
+  conversiones_renovacion integer not null,
+  conversiones_upgrade integer not null,
+  operaciones_renovacion integer not null,
+  operaciones_upgrade integer not null,
+  capital_renovado_pen numeric not null,
+  capital_renovado_usd numeric not null,
+  capital_adicional_pen numeric not null,
+  capital_adicional_usd numeric not null,
+  renovaciones_sin_desglose integer not null
+) on commit drop;
+
+insert into c01_cartera_esperada values
+  ('c0100000-0000-4000-8000-000000000201', 1, 1, 0, 1, 1, 800, 0, 200, 0, 0),
+  ('c0100000-0000-4000-8000-000000000204', 2, 1, 1, 1, 1, 0, 1200, 0, 300, 0),
+  ('c0100000-0000-4000-8000-000000000205', 1, 1, 0, 1, 0, 0, 0, 0, 0, 1),
+  ('c0100000-0000-4000-8000-000000000206', 1, 0, 1, 0, 1, 0, 0, 0, 0, 0);
+
+-- El segundo contraste corre como el consumidor real `authenticated`. El
+-- permiso existe solo sobre esta tabla temporal y desaparece con el ROLLBACK.
+grant select on c01_cartera_esperada to authenticated;
+
+do $cartera_privada$
+declare
+  v_mes date := date_trunc('month', now() at time zone 'America/Lima')::date;
+  v_total record;
+  v_mismatch integer;
+begin
+  if (select count(*) from crm.operaciones_cartera o
+      where o.periodo = v_mes and o.tipo = 'renovacion')
+       is distinct from 3::bigint then
+    raise exception 'C01-CARTERA fixture sin tres renovaciones adversarias';
+  end if;
+
+  select
+    coalesce(sum(m.conversiones_clientes), 0)::integer
+      as conversiones_clientes,
+    coalesce(sum(m.conversiones_renovacion), 0)::integer
+      as conversiones_renovacion,
+    coalesce(sum(m.conversiones_upgrade), 0)::integer
+      as conversiones_upgrade,
+    coalesce(sum(m.operaciones_renovacion), 0)::integer
+      as operaciones_renovacion,
+    coalesce(sum(m.operaciones_upgrade), 0)::integer
+      as operaciones_upgrade,
+    coalesce(sum(m.capital_renovado_pen), 0) as capital_renovado_pen,
+    coalesce(sum(m.capital_renovado_usd), 0) as capital_renovado_usd,
+    coalesce(sum(m.capital_adicional_pen), 0) as capital_adicional_pen,
+    coalesce(sum(m.capital_adicional_usd), 0) as capital_adicional_usd,
+    coalesce(sum(m.renovaciones_sin_desglose), 0)::integer
+      as renovaciones_sin_desglose
+  into v_total
+  from private.metricas_cartera_por_vendedor(v_mes) m;
+
+  if v_total.conversiones_clientes is distinct from 5
+     or v_total.conversiones_renovacion is distinct from 3
+     or v_total.conversiones_upgrade is distinct from 2
+     or v_total.operaciones_renovacion is distinct from 3
+     or v_total.operaciones_upgrade is distinct from 3
+     or v_total.capital_renovado_pen is distinct from 800::numeric
+     or v_total.capital_renovado_usd is distinct from 1200::numeric
+     or v_total.capital_adicional_pen is distinct from 200::numeric
+     or v_total.capital_adicional_usd is distinct from 300::numeric
+     or v_total.renovaciones_sin_desglose is distinct from 1 then
+    raise exception
+      'C01-CARTERA helper altero conteos/economia preservada: %',
+      pg_catalog.row_to_json(v_total);
+  end if;
+
+  with actual as materialized (
+    select * from private.metricas_cartera_por_vendedor(v_mes)
+  )
+  select count(*) into v_mismatch
+  from c01_cartera_esperada e
+  full join actual m using (vendedor_id)
+  where e.vendedor_id is null
+     or m.vendedor_id is null
+     or row(
+       m.conversiones_clientes,
+       m.conversiones_renovacion,
+       m.conversiones_upgrade,
+       m.operaciones_renovacion,
+       m.operaciones_upgrade,
+       m.capital_renovado_pen,
+       m.capital_renovado_usd,
+       m.capital_adicional_pen,
+       m.capital_adicional_usd,
+       m.renovaciones_sin_desglose
+     ) is distinct from row(
+       e.conversiones_clientes,
+       e.conversiones_renovacion,
+       e.conversiones_upgrade,
+       e.operaciones_renovacion,
+       e.operaciones_upgrade,
+       e.capital_renovado_pen,
+       e.capital_renovado_usd,
+       e.capital_adicional_pen,
+       e.capital_adicional_usd,
+       e.renovaciones_sin_desglose
+     );
+
+  if v_mismatch <> 0 then
+    raise exception
+      'C01-CARTERA helper no coincide con oraculo por vendedor: % diferencias',
+      v_mismatch;
+  end if;
+end
+$cartera_privada$;
 
 -- Adaptador test-only del wrapper. El nombre real se restaura por ROLLBACK.
 -- Mantener este banco en una sesion distinta de la que aplico la propuesta
@@ -242,9 +375,10 @@ begin
     return v;
   end if;
 
-  -- Mutantes de cobertura/total: no tocan responsables. Los siete primeros
-  -- son estados de datos declarados y deben degradar sin 55000; los restantes
-  -- son contrato corrupto y deben fallar cerrados.
+  -- Mutantes de cobertura/total. Los siete primeros son estados de datos
+  -- declarados y deben degradar sin 55000; los restantes son contrato corrupto
+  -- y deben fallar cerrados. `doble_redondeo` es la excepcion: un caso valido
+  -- calibrado para distinguir porcentaje servido de una nueva division legacy.
   case v_mode
     when 'mes_parcial' then
       return pg_catalog.jsonb_set(
@@ -319,6 +453,43 @@ begin
     when 'total_incoherente' then
       return pg_catalog.jsonb_set(
         v, '{total,conversion_pct}', '999'::jsonb, false
+      );
+    when 'doble_redondeo' then
+      -- S1 pasa de 1,15/3 a 1,1549/3. El porcentaje exacto es 38,4966...:
+      -- el nucleo sirve 38,50 y el legacy debe redondear ESE valor a 39. Una
+      -- division nueva desde numerador/divisor produciria 38 y queda expuesta.
+      select pg_catalog.jsonb_agg(
+        case when e.value ->> 'vendedor_id' =
+          'c0100000-0000-4000-8000-000000000201'
+        then e.value || pg_catalog.jsonb_build_object(
+          'numerador', 1.1549::numeric,
+          'conversion_pct', 115.49::numeric
+        ) else e.value end
+        order by e.ord
+      ) into v_rows
+      from pg_catalog.jsonb_array_elements(v -> 'responsables')
+           with ordinality e(value, ord);
+
+      v := pg_catalog.jsonb_set(
+        v, '{responsables}', v_rows, false
+      );
+      v := pg_catalog.jsonb_set(
+        v,
+        '{total,numerador}',
+        pg_catalog.to_jsonb(
+          (v #>> '{total,numerador}')::numeric + 0.0049::numeric
+        ),
+        false
+      );
+      return pg_catalog.jsonb_set(
+        v,
+        '{total,conversion_pct}',
+        pg_catalog.to_jsonb(round(
+          100.0 * (v #>> '{total,numerador}')::numeric
+          / (v #>> '{total,divisor}')::numeric,
+          2
+        )),
+        false
       );
     else
       null;
@@ -416,6 +587,97 @@ select pg_catalog.set_config(
 select pg_catalog.set_config('c01.mutante', 'ninguno', true);
 set local role authenticated;
 
+do $cartera_rpc$
+declare
+  v_mes date := date_trunc('month', now() at time zone 'America/Lima')::date;
+  v jsonb := crm.metricas_cartera_fn(v_mes);
+  v_mismatch integer;
+begin
+  if v ->> 'alcance' is distinct from 'global'
+     or pg_catalog.jsonb_typeof(v -> 'total') is distinct from 'object'
+     or pg_catalog.jsonb_typeof(v -> 'responsables') is distinct from 'array'
+     or pg_catalog.jsonb_array_length(v -> 'responsables') is distinct from 4
+     or (v #>> '{total,conversiones_clientes}')::integer
+       is distinct from 5
+     or (v #>> '{total,conversiones_renovacion}')::integer
+       is distinct from 3
+     or (v #>> '{total,conversiones_upgrade}')::integer
+       is distinct from 2
+     or (v #>> '{total,operaciones_renovacion}')::integer
+       is distinct from 3
+     or (v #>> '{total,operaciones_upgrade}')::integer
+       is distinct from 3
+     or (v #>> '{total,capital_renovado_pen}')::numeric
+       is distinct from 800::numeric
+     or (v #>> '{total,capital_renovado_usd}')::numeric
+       is distinct from 1200::numeric
+     or (v #>> '{total,capital_adicional_pen}')::numeric
+       is distinct from 200::numeric
+     or (v #>> '{total,capital_adicional_usd}')::numeric
+       is distinct from 300::numeric
+     or (v #>> '{total,renovaciones_sin_desglose}')::integer
+       is distinct from 1 then
+    raise exception
+      'C01-CARTERA RPC altero conteos/economia preservada: %', v;
+  end if;
+
+  with actual as (
+    select
+      (r.value ->> 'vendedor_id')::uuid as vendedor_id,
+      (r.value ->> 'conversiones_clientes')::integer
+        as conversiones_clientes,
+      (r.value ->> 'conversiones_renovacion')::integer
+        as conversiones_renovacion,
+      (r.value ->> 'conversiones_upgrade')::integer
+        as conversiones_upgrade,
+      (r.value ->> 'operaciones_renovacion')::integer
+        as operaciones_renovacion,
+      (r.value ->> 'operaciones_upgrade')::integer as operaciones_upgrade,
+      (r.value ->> 'capital_renovado_pen')::numeric as capital_renovado_pen,
+      (r.value ->> 'capital_renovado_usd')::numeric as capital_renovado_usd,
+      (r.value ->> 'capital_adicional_pen')::numeric as capital_adicional_pen,
+      (r.value ->> 'capital_adicional_usd')::numeric as capital_adicional_usd,
+      (r.value ->> 'renovaciones_sin_desglose')::integer
+        as renovaciones_sin_desglose
+    from pg_catalog.jsonb_array_elements(v -> 'responsables') r(value)
+  )
+  select count(*) into v_mismatch
+  from c01_cartera_esperada e
+  full join actual a using (vendedor_id)
+  where e.vendedor_id is null
+     or a.vendedor_id is null
+     or row(
+       a.conversiones_clientes,
+       a.conversiones_renovacion,
+       a.conversiones_upgrade,
+       a.operaciones_renovacion,
+       a.operaciones_upgrade,
+       a.capital_renovado_pen,
+       a.capital_renovado_usd,
+       a.capital_adicional_pen,
+       a.capital_adicional_usd,
+       a.renovaciones_sin_desglose
+     ) is distinct from row(
+       e.conversiones_clientes,
+       e.conversiones_renovacion,
+       e.conversiones_upgrade,
+       e.operaciones_renovacion,
+       e.operaciones_upgrade,
+       e.capital_renovado_pen,
+       e.capital_renovado_usd,
+       e.capital_adicional_pen,
+       e.capital_adicional_usd,
+       e.renovaciones_sin_desglose
+     );
+
+  if v_mismatch <> 0 then
+    raise exception
+      'C01-CARTERA RPC no coincide con oraculo por vendedor: % diferencias',
+      v_mismatch;
+  end if;
+end
+$cartera_rpc$;
+
 do $baseline$
 declare
   v_mes date := date_trunc('month', now() at time zone 'America/Lima')::date;
@@ -427,6 +689,10 @@ declare
   v_avg_sin_null numeric;
   v_por_conteo numeric;
   v_suma_equipos int;
+  v_filas_divisor numeric;
+  v_filas_numerador numeric;
+  v_filas_cierres int;
+  v_filas_cartera int;
 begin
   if pg_catalog.jsonb_typeof(v_metricas -> 'equipos') is distinct from 'array'
      or pg_catalog.jsonb_array_length(v_metricas -> 'equipos')
@@ -473,6 +739,55 @@ begin
       'C01-BASE fuera-de-roster no quedo exclusivamente en el total (% vs %)',
       v_suma_equipos,
       v_metricas #>> '{nucleo_total,nucleo_convertidos}';
+  end if;
+
+  select
+    coalesce(sum((e.value ->> 'divisor')::numeric), 0),
+    coalesce(sum((e.value ->> 'numerador')::numeric), 0),
+    coalesce(sum(
+      (e.value ->> 'cierres_no_referidos')::int
+      + (e.value ->> 'cierres_referidos')::int
+    ), 0)::int,
+    coalesce(sum(
+      (e.value #>> '{cartera,conversiones_clientes}')::int
+    ), 0)::int
+  into
+    v_filas_divisor,
+    v_filas_numerador,
+    v_filas_cierres,
+    v_filas_cartera
+  from pg_catalog.jsonb_array_elements(
+    v_mensual -> 'responsables'
+  ) e(value);
+
+  -- La identidad global es filas publicables + agregado anonimo fuera de
+  -- roster. La cartera de E agrega exactamente una operacion adicional y
+  -- prueba que ese conteo tambien nace del nucleo aun sin fila visible.
+  if (v_mensual #>> '{cobertura,fuera_de_roster,analistas}')::int
+       is distinct from 1
+     or (v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::numeric
+       is distinct from 1
+     or (v_mensual #>> '{cobertura,fuera_de_roster,cierres}')::int
+       is distinct from 1
+     or (v_mensual #>> '{cobertura,fuera_de_roster,numerador}')::numeric
+       is distinct from 2
+     or (v_mensual #>> '{total,divisor}')::numeric is distinct from
+       v_filas_divisor
+       + (v_mensual #>> '{cobertura,fuera_de_roster,divisor}')::numeric
+     or (
+       (v_mensual #>> '{total,cierres_no_referidos}')::int
+       + (v_mensual #>> '{total,cierres_referidos}')::int
+     ) is distinct from
+       v_filas_cierres
+       + (v_mensual #>> '{cobertura,fuera_de_roster,cierres}')::int
+     or (v_mensual #>> '{total,numerador}')::numeric is distinct from
+       v_filas_numerador
+       + (v_mensual #>> '{cobertura,fuera_de_roster,numerador}')::numeric
+     or (v_mensual #>> '{total,cartera,conversiones_clientes}')::int
+       is distinct from v_filas_cartera + 1 then
+    raise exception
+      'C01-BASE total no equivale a filas + fuera-de-roster: %',
+      v_mensual;
   end if;
 
   if exists (
@@ -648,8 +963,9 @@ begin
      or (v_fila ->> 'convertidos')::int is distinct from 2
      or (v_fila ->> 'nucleo_convertidos')::int is distinct from 2
      or (v_fila ->> 'operaciones_cartera')::int is distinct from 1
-     or (v_fila ->> 'activos')::int is distinct from 2
-     or (v_fila ->> 'capital_pen')::numeric is distinct from 2000
+     or (v_fila ->> 'vendedores')::int is distinct from 5
+     or (v_fila ->> 'activos')::int is distinct from 3
+     or (v_fila ->> 'capital_pen')::numeric is distinct from 3000
      or (v_fila ->> 'capital_usd')::numeric is distinct from 0 then
     raise exception 'C01-BASE S1 incorrecto: %', v_fila;
   end if;
@@ -782,6 +1098,50 @@ begin
   end if;
 end
 $baseline$;
+
+-- Caso de borde que mata la reimplementacion legacy por division. Mantiene el
+-- baseline comercial 38,33/300/NULL intacto y solo calibra el adaptador durante
+-- esta llamada.
+do $doble_redondeo$
+declare
+  v jsonb;
+  v_s1 jsonb;
+  v_directo numeric;
+begin
+  perform pg_catalog.set_config('c01.mutante', 'doble_redondeo', true);
+  v := crm.metricas_vendedores_fn();
+
+  select e.value into v_s1
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
+  where e.value ->> 'supervisor_id' =
+    'c0100000-0000-4000-8000-000000000101';
+
+  if v_s1 is not null then
+    v_directo := round(
+      100.0 * (v_s1 ->> 'nucleo_numerador')::numeric
+      / (v_s1 ->> 'nucleo_divisor')::numeric
+    );
+  end if;
+
+  if v_s1 is null
+     or (v_s1 ->> 'nucleo_divisor')::numeric is distinct from 3
+     or (v_s1 ->> 'nucleo_numerador')::numeric
+       is distinct from 1.1549
+     or (v_s1 ->> 'nucleo_conversion_pct')::numeric
+       is distinct from 38.50
+     or (v_s1 ->> 'conversion_pct')::numeric is distinct from 39
+     or v_directo is distinct from 38
+     or (v_s1 ->> 'conversion_pct')::numeric
+       is not distinct from v_directo then
+    raise exception
+      'C01-DOBLE-REDONDEO legacy no proyecto round(nucleo servido): % / directo %',
+      v_s1,
+      v_directo;
+  end if;
+
+  perform pg_catalog.set_config('c01.mutante', 'ninguno', true);
+end
+$doble_redondeo$;
 
 -- Política de publicación del wrapper: parcial se ve con aviso; ausencia de
 -- ledger, motivos de roster y sonda rota conservan operación pero dejan el
@@ -1022,21 +1382,104 @@ begin
 end
 $cobertura$;
 
--- Alcances y semantica coordinador.
+-- Alcances exactos por rol y semantica coordinador.
 do $roles$
 declare
   v jsonb;
+  v_vendedores text[];
+  v_equipos text[];
+  v_actor text;
+  v_global_vendedores constant text[] := array[
+    'c0100000-0000-4000-8000-000000000001',
+    'c0100000-0000-4000-8000-000000000101',
+    'c0100000-0000-4000-8000-000000000102',
+    'c0100000-0000-4000-8000-000000000103',
+    'c0100000-0000-4000-8000-000000000104',
+    'c0100000-0000-4000-8000-000000000201',
+    'c0100000-0000-4000-8000-000000000202',
+    'c0100000-0000-4000-8000-000000000203',
+    'c0100000-0000-4000-8000-000000000204',
+    'c0100000-0000-4000-8000-000000000205',
+    'c0100000-0000-4000-8000-000000000206',
+    'c0100000-0000-4000-8000-000000000207',
+    'c0100000-0000-4000-8000-000000000303'
+  ]::text[];
+  v_global_equipos constant text[] := array[
+    'c0100000-0000-4000-8000-000000000101',
+    'c0100000-0000-4000-8000-000000000102',
+    'c0100000-0000-4000-8000-000000000103',
+    'c0100000-0000-4000-8000-000000000104'
+  ]::text[];
 begin
+  perform pg_catalog.set_config(
+    'request.jwt.claim.sub',
+    'c0100000-0000-4000-8000-000000000001', true
+  );
+  v := crm.metricas_vendedores_fn();
+  if pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array' then
+    raise exception 'C01-ROLES gerencia no devolvio arrays';
+  end if;
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'vendedor_id'
+        order by e.value ->> 'vendedor_id'),
+      array[]::text[]
+    )
+    into v_vendedores
+  from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value);
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'supervisor_id'
+        order by e.value ->> 'supervisor_id'),
+      array[]::text[]
+    )
+    into v_equipos
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value);
+  if v_vendedores is distinct from v_global_vendedores
+     or v_equipos is distinct from v_global_equipos then
+    raise exception
+      'C01-ROLES gerencia derivo (vendedores=%, equipos=%)',
+      v_vendedores,
+      v_equipos;
+  end if;
+
   perform pg_catalog.set_config(
     'request.jwt.claim.sub',
     'c0100000-0000-4000-8000-000000000101', true
   );
   v := crm.metricas_vendedores_fn();
-  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
-     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 1
-     or v #>> '{equipos,0,supervisor_id}' is distinct from
-       'c0100000-0000-4000-8000-000000000101' then
-    raise exception 'C01-ROLES supervisor salio de su equipo: %', v -> 'equipos';
+  if pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array' then
+    raise exception 'C01-ROLES supervisor no devolvio arrays';
+  end if;
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'vendedor_id'
+        order by e.value ->> 'vendedor_id'),
+      array[]::text[]
+    )
+    into v_vendedores
+  from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value);
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'supervisor_id'
+        order by e.value ->> 'supervisor_id'),
+      array[]::text[]
+    )
+    into v_equipos
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value);
+  if v_vendedores is distinct from array[
+       'c0100000-0000-4000-8000-000000000101',
+       'c0100000-0000-4000-8000-000000000201',
+       'c0100000-0000-4000-8000-000000000202',
+       'c0100000-0000-4000-8000-000000000203',
+       'c0100000-0000-4000-8000-000000000207',
+       'c0100000-0000-4000-8000-000000000303'
+     ]::text[]
+     or v_equipos is distinct from array[
+       'c0100000-0000-4000-8000-000000000101'
+     ]::text[] then
+    raise exception
+      'C01-ROLES supervisor derivo (vendedores=%, equipos=%)',
+      v_vendedores,
+      v_equipos;
   end if;
 
   perform pg_catalog.set_config(
@@ -1044,8 +1487,28 @@ begin
     'c0100000-0000-4000-8000-000000000201', true
   );
   v := crm.metricas_vendedores_fn();
-  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
-     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 0
+  if pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array' then
+    raise exception 'C01-ROLES vendedor no devolvio arrays';
+  end if;
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'vendedor_id'
+        order by e.value ->> 'vendedor_id'),
+      array[]::text[]
+    )
+    into v_vendedores
+  from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value);
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'supervisor_id'
+        order by e.value ->> 'supervisor_id'),
+      array[]::text[]
+    )
+    into v_equipos
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value);
+  if v_vendedores is distinct from array[
+       'c0100000-0000-4000-8000-000000000201'
+     ]::text[]
+     or v_equipos is distinct from array[]::text[]
      or not exists (
        select 1 from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value)
        where e.value ->> 'vendedor_id' =
@@ -1056,34 +1519,68 @@ begin
     raise exception 'C01-ROLES vendedor incorrecto: %', v;
   end if;
 
+  -- Directorio CRM explicito y Directorio solo Portal deben resolver al mismo
+  -- conjunto global exacto; no basta con contar cuatro equipos.
   perform pg_catalog.set_config(
     'request.jwt.claim.sub',
     'c0100000-0000-4000-8000-000000000302', true
   );
   v := crm.metricas_vendedores_fn();
-  if pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array'
-     or pg_catalog.jsonb_array_length(v -> 'equipos') is distinct from 4
-     or (
-       select count(distinct e.value ->> 'supervisor_id')
-       from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
-       where e.value ->> 'supervisor_id' in (
-         'c0100000-0000-4000-8000-000000000101',
-         'c0100000-0000-4000-8000-000000000102',
-         'c0100000-0000-4000-8000-000000000103',
-         'c0100000-0000-4000-8000-000000000104'
-       )
-     ) is distinct from 4
-     or exists (
-       select 1
-       from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value)
-       where e.value ->> 'supervisor_id' not in (
-         'c0100000-0000-4000-8000-000000000101',
-         'c0100000-0000-4000-8000-000000000102',
-         'c0100000-0000-4000-8000-000000000103',
-         'c0100000-0000-4000-8000-000000000104'
-       )
-     ) then
-    raise exception 'C01-ROLES Directorio no obtuvo alcance global';
+  if pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array' then
+    raise exception 'C01-ROLES Directorio CRM no devolvio arrays';
+  end if;
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'vendedor_id'
+        order by e.value ->> 'vendedor_id'),
+      array[]::text[]
+    )
+    into v_vendedores
+  from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value);
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'supervisor_id'
+        order by e.value ->> 'supervisor_id'),
+      array[]::text[]
+    )
+    into v_equipos
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value);
+  if v_vendedores is distinct from v_global_vendedores
+     or v_equipos is distinct from v_global_equipos then
+    raise exception
+      'C01-ROLES Directorio CRM derivo (vendedores=%, equipos=%)',
+      v_vendedores,
+      v_equipos;
+  end if;
+
+  perform pg_catalog.set_config(
+    'request.jwt.claim.sub',
+    'c0100000-0000-4000-8000-000000000304', true
+  );
+  v := crm.metricas_vendedores_fn();
+  if pg_catalog.jsonb_typeof(v -> 'vendedores') is distinct from 'array'
+     or pg_catalog.jsonb_typeof(v -> 'equipos') is distinct from 'array' then
+    raise exception 'C01-ROLES Directorio Portal no devolvio arrays';
+  end if;
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'vendedor_id'
+        order by e.value ->> 'vendedor_id'),
+      array[]::text[]
+    )
+    into v_vendedores
+  from pg_catalog.jsonb_array_elements(v -> 'vendedores') e(value);
+  select coalesce(
+      pg_catalog.array_agg(e.value ->> 'supervisor_id'
+        order by e.value ->> 'supervisor_id'),
+      array[]::text[]
+    )
+    into v_equipos
+  from pg_catalog.jsonb_array_elements(v -> 'equipos') e(value);
+  if v_vendedores is distinct from v_global_vendedores
+     or v_equipos is distinct from v_global_equipos then
+    raise exception
+      'C01-ROLES Directorio Portal derivo (vendedores=%, equipos=%)',
+      v_vendedores,
+      v_equipos;
   end if;
 
   perform pg_catalog.set_config(
@@ -1144,12 +1641,34 @@ begin
     raise exception 'C01-ROLES actor ajeno sobrevivio';
   exception when sqlstate '42501' then null;
   end;
+
+  foreach v_actor in array array[
+    'c0100000-0000-4000-8000-000000000305',
+    'c0100000-0000-4000-8000-000000000306'
+  ]::text[] loop
+    perform pg_catalog.set_config(
+      'request.jwt.claim.sub', v_actor, true
+    );
+    begin
+      perform crm.metricas_vendedores_fn();
+      raise exception
+        'C01-ROLES Admin/Superadmin Portal sobrevivio: %',
+        v_actor;
+    exception when sqlstate '42501' then null;
+    end;
+  end loop;
 end
 $roles$;
 
 reset role;
 
--- El rol anonimo debe morir en la ACL, antes de entrar al cuerpo.
+-- Los roles sin EXECUTE deben morir en la ACL aun con una identidad de Gerencia
+-- valida. Asi el 42501 no puede venir del gate interno por un JWT residual.
+select pg_catalog.set_config(
+  'request.jwt.claim.sub',
+  'c0100000-0000-4000-8000-000000000001',
+  true
+);
 set local role anon;
 do $anonimo$
 begin
@@ -1160,6 +1679,16 @@ end
 $anonimo$;
 reset role;
 
+set local role service_role;
+do $servicio$
+begin
+  perform crm.metricas_vendedores_fn();
+  raise exception 'C01-ACL service_role ejecuto metricas_vendedores_fn';
+exception when sqlstate '42501' then null;
+end
+$servicio$;
+reset role;
+
 -- ACL, owner y atributos de catalogo.
 do $catalogo$
 declare
@@ -1168,6 +1697,34 @@ declare
   v_volatility "char";
   v_config text[];
 begin
+  -- Allowlist directa exacta: owner postgres + authenticated, sin grants
+  -- heredados accidentalmente a PUBLIC u otro rol.
+  if not exists (
+    select 1
+    from pg_catalog.pg_proc p
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))
+    ) a
+    join pg_catalog.pg_roles g on g.oid = a.grantee
+    where p.oid = 'crm.metricas_vendedores_fn()'::regprocedure
+      and g.rolname = 'authenticated'
+      and a.privilege_type = 'EXECUTE'
+      and not a.is_grantable
+  ) or exists (
+    select 1
+    from pg_catalog.pg_proc p
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))
+    ) a
+    left join pg_catalog.pg_roles g on g.oid = a.grantee
+    where p.oid = 'crm.metricas_vendedores_fn()'::regprocedure
+      and a.privilege_type = 'EXECUTE'
+      and coalesce(g.rolname, 'PUBLIC')
+          not in ('postgres', 'authenticated')
+  ) then
+    raise exception 'C01-ACL directa no coincide con allowlist exacta';
+  end if;
+
   if not pg_catalog.has_function_privilege(
        'authenticated', 'crm.metricas_vendedores_fn()', 'EXECUTE'
      )
@@ -1191,6 +1748,42 @@ begin
      or v_volatility is distinct from 's'
      or v_config is distinct from array['search_path=""']::text[] then
     raise exception 'C01-CATALOGO owner/definer/stable/search_path incorrectos';
+  end if;
+
+  if not pg_catalog.has_schema_privilege(
+       'authenticated', 'crm', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'authenticated', 'private', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'service_role', 'crm', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'service_role', 'private', 'USAGE'
+     )
+     or pg_catalog.has_schema_privilege('anon', 'crm', 'USAGE')
+     or pg_catalog.has_schema_privilege('anon', 'private', 'USAGE')
+     or pg_catalog.has_schema_privilege('authenticated', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('authenticated', 'private', 'CREATE')
+     or pg_catalog.has_schema_privilege('service_role', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('service_role', 'private', 'CREATE')
+     or pg_catalog.has_schema_privilege('anon', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('anon', 'private', 'CREATE') then
+    raise exception 'C01-ACL efectiva de esquemas crm/private incorrecta';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.pg_namespace n
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(n.nspacl, pg_catalog.acldefault('n', n.nspowner))
+    ) a
+    where n.nspname in ('crm', 'private')
+      and a.grantee = 0
+      and a.privilege_type in ('USAGE', 'CREATE')
+  ) then
+    raise exception 'C01-ACL PUBLIC conserva privilegios en crm/private';
   end if;
 end
 $catalogo$;

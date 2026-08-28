@@ -38,6 +38,7 @@ import {
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { lecturaCobertura, totalConversionPublicable } from '@/lib/conversion-mensual'
+import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
@@ -45,7 +46,8 @@ interface ResumenGerenciaPanelProps {
    * La conversión mensual ponderada (`crm.conversion_mensual_fn`): alimenta el
    * héroe, el KPI de conversión y «Mejores vendedores». Tri-estado: `undefined`
    * consultando · `null` no disponible (todo degrada a «—», jamás a la fórmula
-   * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO.
+   * del rango). La evolución semanal y los orígenes siguen midiendo el RANGO;
+   * los porcentajes por origen solo se publican con núcleo y sondas verificados.
    */
   conversionMensual: ConversionMensual | null | undefined
   reuniones: MetricasReuniones | null | undefined
@@ -277,6 +279,8 @@ export function ResumenGerenciaPanel({
     .sort((a, b) => (b.conversion_contratos_pct ?? -1) - (a.conversion_contratos_pct ?? -1))
     .slice(0, 5)
   const maxOrigen = Math.max(1, ...origenes.map((fila) => fila.conversion_contratos_pct ?? 0))
+  const origenesVerificados = conversiones?.nucleo != null
+    && sondasNucleoVerificadas(conversiones.sondas)
   const hayActividadConversiones = [
     conversiones?.cohorte.leads,
     conversiones?.cohorte.asignados,
@@ -430,17 +434,19 @@ export function ResumenGerenciaPanel({
       <div className="grid gap-4 lg:grid-cols-3">
         <section data-gi-panel className="gi-card p-5 lg:col-span-2">
           <h2 className="gi-title">Conversión por origen</h2>
-          <div className="mt-4 grid gap-3 sm:grid-cols-2">
-            {origenes.length > 0
-              ? origenes.map((fila) => (
-                  <div key={fila.origen}>
-                    <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.origen}</span><strong>{pct(fila.conversion_contratos_pct)}</strong></div>
-                    <div className="gi-track"><div className="gi-fill" style={{ width: `${((fila.conversion_contratos_pct ?? 0) / maxOrigen) * 100}%`, background: C.blue }} /></div>
-                  </div>
-                ))
-              : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
-          </div>
-          {origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
+          {!origenesVerificados
+            ? <p role="status" className="mt-4 rounded-xl border border-amber-300/70 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-900">Cifras en revisión: la conversión por origen permanece oculta.</p>
+            : <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                {origenes.length > 0
+                  ? origenes.map((fila) => (
+                      <div key={fila.origen}>
+                        <div className="mb-1.5 flex justify-between gap-3 text-xs"><span className="font-medium">{fila.origen}</span><strong>{pct(fila.conversion_contratos_pct)}</strong></div>
+                        <div className="gi-track"><div className="gi-fill" style={{ width: `${((fila.conversion_contratos_pct ?? 0) / maxOrigen) * 100}%`, background: C.blue }} /></div>
+                      </div>
+                    ))
+                  : <p className="rounded-xl border border-dashed border-[var(--gi-line)] px-4 py-8 text-center text-xs font-medium text-[var(--gi-muted)] sm:col-span-2">Aún no hay orígenes con leads en este período</p>}
+              </div>}
+          {origenesVerificados && origenes.some((fila) => fila.fuera_del_divisor_del_nucleo === true) && (
             // D6: el origen Referido queda fuera de la base de la conversión
             // del mes — su barra mide cierres sobre SUS recibidos, no lo mismo.
             <p className="mt-3 text-[11px] leading-relaxed text-[var(--gi-muted)]">

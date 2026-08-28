@@ -1,14 +1,60 @@
 -- C0.1 · metricas_vendedores_fn usa el mismo nucleo mensual que
 -- HOY / Ranking / Metas, tambien en equipos.
+-- Los conteos de cartera tambien nacen de conversion_episodios; el ledger de
+-- operaciones conserva fuera del nucleo solo su economia operativa.
 --
 -- ARTEFACTO DE PROPUESTA: NO ES UNA MIGRACION.
 -- NO EJECUTAR sin aprobacion expresa de Miguel, captura live autorizada y
 -- sustitucion de TODOS los placeholders fail-closed __CAPTURAR_*__.
--- No crea tablas, policies, funciones auxiliares ni privilegios nuevos.
+-- No crea tablas, policies ni privilegios nuevos; reemplaza dos funciones
+-- existentes sin cambiar sus firmas ni fronteras de acceso.
 
 begin;
 
 set local lock_timeout = '10s';
+set local search_path = pg_catalog;
+
+-- Serializacion unilateral y verificable en PostgreSQL 17. CREATE/ALTER/GRANT
+-- de funciones abre pg_proc con RowExclusiveLock; SHARE es incompatible con
+-- ese modo. Los otros tres catalogos cierran, durante la misma transaccion,
+-- cambios concurrentes de ACL de esquema, atributos de rol y membresias que
+-- alterarian los chequeos efectivos. Un advisory lock no sirve aqui: una sesion
+-- DDL que no conozca la clave podria ignorarlo.
+--
+-- El owner esperado es postgres. Si el entorno administrado no permite LOCK de
+-- catalogos, esta propuesta debe abortar: no se degrada a una falsa exclusion.
+lock table
+  pg_catalog.pg_authid,
+  pg_catalog.pg_auth_members,
+  pg_catalog.pg_namespace,
+  pg_catalog.pg_proc
+in share mode;
+
+do $catalog_locks$
+declare
+  v_locks integer;
+begin
+  select count(distinct l.relation)::integer
+    into v_locks
+  from pg_catalog.pg_locks l
+  where l.pid = pg_catalog.pg_backend_pid()
+    and l.locktype = 'relation'
+    and l.mode = 'ShareLock'
+    and l.granted
+    and l.relation in (
+      'pg_catalog.pg_authid'::pg_catalog.regclass,
+      'pg_catalog.pg_auth_members'::pg_catalog.regclass,
+      'pg_catalog.pg_namespace'::pg_catalog.regclass,
+      'pg_catalog.pg_proc'::pg_catalog.regclass
+    );
+
+  if v_locks is distinct from 4 then
+    raise exception
+      'ABORT C0.1: no se verificaron los cuatro locks de catalogo (%)',
+      v_locks;
+  end if;
+end
+$catalog_locks$;
 
 do $preflight$
 declare
@@ -16,12 +62,13 @@ declare
   v_oid oid;
   v_actual text;
   v_catalogo_esperado text :=
-    '__CAPTURAR_LIVE_MD5_CATALOGO_16_FUNCIONES__';
+    '__CAPTURAR_LIVE_MD5_CATALOGO_18_FUNCIONES__';
   v_catalogo_actual text;
   v_catalogo_fila text;
   v_catalogo_filas text[] := array[]::text[];
   v_src text;
   v_owner text;
+  v_language text;
   v_secdef boolean;
   v_volatility "char";
   v_config text[];
@@ -34,69 +81,101 @@ begin
     from (values
       (
         'crm.metricas_vendedores_fn()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_VENDEDORES__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_VENDEDORES__',
+        'plpgsql', true, 's'
       ),
       (
         'crm.conversion_mensual_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_WRAPPER__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_WRAPPER__',
+        'plpgsql', true, 's'
       ),
       (
         'crm.conversion_mensual_sin_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_BASE__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_BASE__',
+        'plpgsql', true, 's'
       ),
       (
         'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_POR_VENDEDOR__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_POR_VENDEDOR__',
+        'plpgsql', true, 's'
       ),
       (
         'private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_EPISODIOS__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_EPISODIOS__',
+        'plpgsql', true, 's'
       ),
       (
         'private.metricas_cartera_por_vendedor(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_POR_VENDEDOR__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_POR_VENDEDOR__',
+        'sql', true, 's'
+      ),
+      (
+        'crm.metricas_cartera_fn(date)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__',
+        'plpgsql', true, 's'
       ),
       (
         'private.roster_metas_vendedores()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROSTER_METAS__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_ROSTER_METAS__',
+        'sql', true, 's'
+      ),
+      (
+        'private.vendedores_sin_supervisor()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__',
+        'sql', true, 's'
       ),
       (
         'private.peso_referido_conversion(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_PESO_REFERIDO__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_PESO_REFERIDO__',
+        'plpgsql', true, 's'
       ),
       (
         'private.ajuste_pendiente_por_vendedor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_AJUSTE_PENDIENTE__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_AJUSTE_PENDIENTE__',
+        'sql', true, 's'
       ),
       (
         'private.conversion_con_ajuste(numeric,numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_CON_AJUSTE__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_CON_AJUSTE__',
+        'sql', false, 'i'
       ),
       (
         'private.filtrar_desglose_sujetos_crm(jsonb,text,text,text[])',
-        '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__',
+        'plpgsql', true, 's'
       ),
       (
         'private.rol_crm(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__',
+        'sql', true, 's'
       ),
       (
         'private.es_lector_global()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__',
+        'sql', true, 's'
       ),
       (
         'private.vendedor_ids_visibles(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__',
+        'plpgsql', true, 's'
       ),
       (
         'private.cierre_externo_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__',
+        'sql', false, 's'
       ),
       (
         'private.cierre_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__'
+        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__',
+        'sql', false, 's'
       )
-    ) as d(firma, md5_esperado)
+    ) as d(
+      firma,
+      md5_esperado,
+      lenguaje_esperado,
+      secdef_esperado,
+      volatilidad_esperada
+    )
   loop
     if v_dep.md5_esperado like '__CAPTURAR_%' then
       raise exception
@@ -120,6 +199,42 @@ begin
         v_dep.firma, v_actual, v_dep.md5_esperado;
     end if;
 
+    -- El fingerprint detecta deriva, pero no convierte una captura insegura en
+    -- una baseline valida. Estas propiedades son la politica semantica minima
+    -- de cada firma y se revisan antes de aceptar el hash live.
+    select
+      propietario.rolname,
+      lenguaje.lanname,
+      p.prosecdef,
+      p.provolatile,
+      p.proconfig
+    into
+      v_owner,
+      v_language,
+      v_secdef,
+      v_volatility,
+      v_config
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_roles propietario on propietario.oid = p.proowner
+    join pg_catalog.pg_language lenguaje on lenguaje.oid = p.prolang
+    where p.oid = v_oid;
+
+    if v_owner is distinct from 'postgres'
+       or v_language is distinct from v_dep.lenguaje_esperado
+       or v_secdef is distinct from v_dep.secdef_esperado
+       or v_volatility::text
+          is distinct from v_dep.volatilidad_esperada
+       or v_config is distinct from array['search_path=""']::text[] then
+      raise exception
+        'ABORT C0.1: semantica insegura en % (owner=% language=% secdef=% volatility=% config=%)',
+        v_dep.firma,
+        v_owner,
+        v_language,
+        v_secdef,
+        v_volatility,
+        v_config;
+    end if;
+
     -- Fingerprint reproducible de metadatos y ACL directo normalizado.
     -- `proacl = NULL` se expande con el ACL por defecto para no depender de la
     -- representación física del catálogo. Las membresías efectivas del RPC
@@ -127,8 +242,17 @@ begin
     select pg_catalog.jsonb_build_object(
       'firma', v_dep.firma,
       'owner', propietario.rolname,
+      'language', lenguaje.lanname,
+      'identity_arguments',
+        pg_catalog.pg_get_function_identity_arguments(p.oid),
+      'result', pg_catalog.pg_get_function_result(p.oid),
+      'kind', p.prokind::text,
       'security_definer', p.prosecdef,
+      'leakproof', p.proleakproof,
+      'strict', p.proisstrict,
+      'returns_set', p.proretset,
       'volatility', p.provolatile::text,
+      'parallel', p.proparallel::text,
       'config', pg_catalog.to_jsonb(p.proconfig),
       'acl', coalesce(
         (
@@ -159,6 +283,7 @@ begin
       into v_catalogo_fila
     from pg_catalog.pg_proc p
     join pg_catalog.pg_roles propietario on propietario.oid = p.proowner
+    join pg_catalog.pg_language lenguaje on lenguaje.oid = p.prolang
     where p.oid = v_oid;
 
     v_catalogo_filas := pg_catalog.array_append(
@@ -180,7 +305,7 @@ begin
 
   if v_catalogo_actual is distinct from v_catalogo_esperado then
     raise exception
-      'ABORT C0.1: derivo owner/definer/volatilidad/config/ACL (% vs %)',
+      'ABORT C0.1: derivo definicion/catalogo/ACL (% vs %)',
       v_catalogo_actual,
       v_catalogo_esperado;
   end if;
@@ -255,6 +380,48 @@ begin
       'ABORT C0.1: privilegios efectivos inesperados por grants o membresias';
   end if;
 
+  -- Frontera SQL de los esquemas. `crm` es el esquema Data API intencional;
+  -- `private` necesita USAGE para helpers de policies, pero nunca CREATE. La
+  -- exposicion PostgREST de `crm` y la exclusion de `private` se verifican fuera
+  -- de SQL en el banco/runner local.
+  if not pg_catalog.has_schema_privilege(
+       'authenticated', 'crm', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'authenticated', 'private', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'service_role', 'crm', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'service_role', 'private', 'USAGE'
+     )
+     or pg_catalog.has_schema_privilege('anon', 'crm', 'USAGE')
+     or pg_catalog.has_schema_privilege('anon', 'private', 'USAGE')
+     or pg_catalog.has_schema_privilege('authenticated', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('authenticated', 'private', 'CREATE')
+     or pg_catalog.has_schema_privilege('service_role', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('service_role', 'private', 'CREATE')
+     or pg_catalog.has_schema_privilege('anon', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('anon', 'private', 'CREATE') then
+    raise exception
+      'ABORT C0.1: ACL efectiva inesperada en esquemas crm/private';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.pg_namespace n
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(n.nspacl, pg_catalog.acldefault('n', n.nspowner))
+    ) a
+    where n.nspname in ('crm', 'private')
+      and a.grantee = 0
+      and a.privilege_type in ('USAGE', 'CREATE')
+  ) then
+    raise exception
+      'ABORT C0.1: PUBLIC conserva privilegios directos en crm/private';
+  end if;
+
   -- Vigia de la cadena canonica.
   select p.prosrc into v_src
   from pg_catalog.pg_proc p
@@ -267,6 +434,10 @@ begin
      or pg_catalog.strpos(
        v_src,
        'private.metricas_cartera_por_vendedor'
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       'crm.metricas_cartera_fn'
      ) = 0 then
     raise exception
       'ABORT C0.1: el wrapper mensual ya no encadena base y cartera';
@@ -284,6 +455,10 @@ begin
      or pg_catalog.strpos(
        v_src,
        'private.conversion_con_ajuste'
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       'private.vendedores_sin_supervisor'
      ) = 0 then
     raise exception
       'ABORT C0.1: la base mensual ya no encadena nucleo y ajuste';
@@ -298,8 +473,207 @@ begin
     raise exception
       'ABORT C0.1: el nucleo por vendedor ya no consume conversion_episodios';
   end if;
+
+  -- Decisiones de cierre transitivo:
+  -- * private.etiqueta_mes_es(date) NO se ancla: es INVOKER/IMMUTABLE, solo
+  --   fabrica un rotulo que esta RPC no publica; una deriva solo puede abortar.
+  -- * private.cierre_mes_visible(date,uuid) NO se ancla para C0.1: la RPC fija
+  --   el mes vivo y aborta antes del wrapper si ese mes aparece sellado. Esa
+  --   rama historica es inalcanzable bajo el mismo snapshot STABLE. Si C0.1
+  --   acepta un periodo historico en el futuro, la firma pasa a ser obligatoria.
 end
 $preflight$;
+
+-- La economia de cartera (operaciones e importes) permanece en su ledger
+-- operativo. Sus tres conteos de conversion se agrupan exclusivamente desde
+-- la pierna `operacion` del nucleo, ya deduplicada por cliente/mes.
+create or replace function private.metricas_cartera_por_vendedor(p_periodo date)
+returns table (
+  vendedor_id uuid,
+  conversiones_clientes integer,
+  conversiones_renovacion integer,
+  conversiones_upgrade integer,
+  operaciones_renovacion integer,
+  operaciones_upgrade integer,
+  capital_renovado_pen numeric,
+  capital_renovado_usd numeric,
+  capital_adicional_pen numeric,
+  capital_adicional_usd numeric,
+  renovaciones_sin_desglose integer
+)
+language sql
+stable
+security definer
+set search_path = ''
+as $cartera_function$
+  with ops as materialized (
+    select o.*
+    from crm.operaciones_cartera o
+    where o.periodo = p_periodo
+  ), episodios_conversion as materialized (
+    select
+      e.analista_id as vendedor_id,
+      e.categoria
+    from private.conversion_episodios(
+      p_ini => p_periodo::timestamp at time zone 'America/Lima',
+      p_fin => (p_periodo + interval '1 month')::timestamp
+        at time zone 'America/Lima',
+      p_periodo => p_periodo,
+      p_global => true,
+      p_visibles => '{}'::uuid[],
+      -- La pierna elegida es `operacion`; el peso es contractual y no
+      -- participa en estos conteos.
+      p_factor => 0::numeric
+    ) e
+    where e.tipo = 'operacion'
+  ), conversion as (
+    select
+      e.vendedor_id,
+      count(*)::int as conversiones_clientes,
+      count(*) filter (
+        where e.categoria = 'renovacion'
+      )::int as conversiones_renovacion,
+      count(*) filter (
+        where e.categoria = 'upgrade'
+      )::int as conversiones_upgrade
+    from episodios_conversion e
+    group by e.vendedor_id
+  ), economia as (
+    select
+      o.vendedor_id,
+      count(*) filter (where o.tipo = 'renovacion')::int
+        as operaciones_renovacion,
+      count(*) filter (where o.tipo = 'upgrade')::int
+        as operaciones_upgrade,
+      coalesce(sum(o.capital_renovado) filter (
+        where o.tipo = 'renovacion' and o.moneda = 'PEN'), 0)
+        as capital_renovado_pen,
+      coalesce(sum(o.capital_renovado) filter (
+        where o.tipo = 'renovacion' and o.moneda = 'USD'), 0)
+        as capital_renovado_usd,
+      coalesce(sum(o.capital_adicional) filter (
+        where o.tipo = 'renovacion' and o.moneda = 'PEN'), 0)
+        as capital_adicional_pen,
+      coalesce(sum(o.capital_adicional) filter (
+        where o.tipo = 'renovacion' and o.moneda = 'USD'), 0)
+        as capital_adicional_usd,
+      count(*) filter (
+        where o.tipo = 'renovacion' and not o.desglose_completo
+      )::int as renovaciones_sin_desglose
+    from ops o
+    group by o.vendedor_id
+  ), personas as (
+    select c.vendedor_id from conversion c
+    union
+    select e.vendedor_id from economia e
+  )
+  select
+    p.vendedor_id,
+    coalesce(c.conversiones_clientes, 0),
+    coalesce(c.conversiones_renovacion, 0),
+    coalesce(c.conversiones_upgrade, 0),
+    coalesce(e.operaciones_renovacion, 0),
+    coalesce(e.operaciones_upgrade, 0),
+    coalesce(e.capital_renovado_pen, 0),
+    coalesce(e.capital_renovado_usd, 0),
+    coalesce(e.capital_adicional_pen, 0),
+    coalesce(e.capital_adicional_usd, 0),
+    coalesce(e.renovaciones_sin_desglose, 0)
+  from personas p
+  left join conversion c using (vendedor_id)
+  left join economia e using (vendedor_id)
+$cartera_function$;
+
+comment on function private.metricas_cartera_por_vendedor(date) is
+  'Conversión de cartera derivada exclusivamente de private.conversion_episodios (operación deduplicada por cliente/mes); economía completa de renovaciones por asesor. El adicional solo vive en las columnas de dinero.';
+
+revoke all on function private.metricas_cartera_por_vendedor(date)
+  from public, anon, authenticated, service_role;
+
+do $postflight_cartera$
+declare
+  v_oid oid := pg_catalog.to_regprocedure(
+    'private.metricas_cartera_por_vendedor(date)'
+  );
+  v_md5_esperado constant text :=
+    '__CAPTURAR_MD5_PROSRC_CANDIDATO_METRICAS_CARTERA__';
+  v_src text;
+  v_owner text;
+  v_language text;
+  v_secdef boolean;
+  v_volatility "char";
+  v_config text[];
+  v_result text;
+begin
+  if v_md5_esperado like '__CAPTURAR_%' then
+    raise exception
+      'POSTFLIGHT C0.1 cartera: falta hash aprobado del cuerpo candidato';
+  end if;
+
+  select
+    p.prosrc,
+    r.rolname,
+    l.lanname,
+    p.prosecdef,
+    p.provolatile,
+    p.proconfig,
+    pg_catalog.pg_get_function_result(p.oid)
+  into
+    v_src,
+    v_owner,
+    v_language,
+    v_secdef,
+    v_volatility,
+    v_config,
+    v_result
+  from pg_catalog.pg_proc p
+  join pg_catalog.pg_roles r on r.oid = p.proowner
+  join pg_catalog.pg_language l on l.oid = p.prolang
+  where p.oid = v_oid;
+
+  if v_oid is null
+     or pg_catalog.md5(v_src) is distinct from v_md5_esperado
+     or v_owner is distinct from 'postgres'
+     or v_language is distinct from 'sql'
+     or not v_secdef
+     or v_volatility is distinct from 's'
+     or v_config is distinct from array['search_path=""']::text[]
+     or v_result is distinct from
+       'TABLE(vendedor_id uuid, conversiones_clientes integer, conversiones_renovacion integer, conversiones_upgrade integer, operaciones_renovacion integer, operaciones_upgrade integer, capital_renovado_pen numeric, capital_renovado_usd numeric, capital_adicional_pen numeric, capital_adicional_usd numeric, renovaciones_sin_desglose integer)' then
+    raise exception
+      'POSTFLIGHT C0.1 cartera: cuerpo, firma, RETURNS o catalogo inesperados';
+  end if;
+
+  if pg_catalog.strpos(v_src, 'private.conversion_episodios(') = 0
+     or pg_catalog.strpos(v_src, 'p_global => true') = 0
+     or pg_catalog.strpos(v_src, 'p_visibles => ''{}''::uuid[]') = 0
+     or pg_catalog.strpos(v_src, 'where e.tipo = ''operacion''') = 0
+     or pg_catalog.strpos(v_src, 'from episodios_conversion e') = 0
+     or pg_catalog.strpos(v_src, 'from crm.operaciones_cartera o') = 0
+     or pg_catalog.strpos(v_src, 'o.capital_renovado') = 0
+     or pg_catalog.strpos(v_src, 'o.capital_adicional') = 0
+     or pg_catalog.strpos(v_src, 'o.desglose_completo') = 0
+     or pg_catalog.strpos(v_src, 'row_number()') > 0
+     or pg_catalog.strpos(v_src, 'elegible_conversion') > 0 then
+    raise exception
+      'POSTFLIGHT C0.1 cartera: fuente canonica, alcance o economia incompletos';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.pg_proc p
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))
+    ) a
+    where p.oid = v_oid
+      and a.privilege_type = 'EXECUTE'
+      and a.grantee <> p.proowner
+  ) then
+    raise exception
+      'POSTFLIGHT C0.1 cartera: ACL dejo de ser owner-only';
+  end if;
+end
+$postflight_cartera$;
 
 create or replace function crm.metricas_vendedores_fn()
 returns jsonb
@@ -565,7 +939,8 @@ begin
      or (v_mensual #>> '{total,cartera,conversiones_clientes}')::numeric < 0
      or (v_mensual #>> '{total,cartera,conversiones_clientes}')::numeric
         <> trunc((v_mensual #>> '{total,cartera,conversiones_clientes}')::numeric)
-     or case
+     or (
+       case
           when (v_mensual #>> '{total,divisor}')::numeric = 0 then
             pg_catalog.jsonb_typeof(v_mensual #> '{total,conversion_pct}')
               is distinct from 'null'
@@ -579,7 +954,8 @@ begin
                  / (v_mensual #>> '{total,divisor}')::numeric,
                  2
                )
-        end then
+       end
+     ) then
     raise exception
       'Cobertura o total interno de conversion mensual inconsistente'
       using errcode = '55000';
@@ -667,7 +1043,8 @@ begin
             (e.value #>> '{cartera,conversiones_clientes}')::numeric
           )
        or (e.value ->> 'numerador')::numeric < 0
-       or case
+       or (
+         case
             when (e.value ->> 'divisor')::numeric = 0 then
               pg_catalog.jsonb_typeof(e.value -> 'conversion_pct')
                 is distinct from 'null'
@@ -681,7 +1058,8 @@ begin
                    / (e.value ->> 'divisor')::numeric,
                    2
                  )
-          end
+         end
+       )
   ) then
     raise exception
       'Aritmetica interna de conversion mensual inconsistente'
@@ -977,7 +1355,6 @@ begin
       from crm.equipo m
       where m.supervisor_id = s.perfil_id
         and m.activo is true
-        and m.rol_crm = 'vendedor'
     ) directos
     cross join lateral (
       select not exists (
@@ -1010,7 +1387,6 @@ begin
            from crm.equipo m
            where m.supervisor_id = s.perfil_id
              and m.activo is true
-             and m.rol_crm = 'vendedor'
          )
     ) stats
     left join nucleo_equipos ne
@@ -1069,12 +1445,8 @@ begin
             'operaciones_cartera', pv.operaciones_cartera,
             'conversion_pct',
               case
-                when pv.nucleo_divisor > 0
-                then round(
-                  100.0
-                  * pv.nucleo_numerador
-                  / pv.nucleo_divisor
-                )::int
+                when pv.nucleo_conversion_pct is not null
+                then round(pv.nucleo_conversion_pct)::int
                 else 0
               end,
             'nucleo_divisor', pv.nucleo_divisor,
@@ -1110,12 +1482,8 @@ begin
               ec.operaciones_cartera,
             'conversion_pct',
               case
-                when ec.nucleo_divisor > 0
-                then round(
-                  100.0
-                  * ec.nucleo_numerador
-                  / ec.nucleo_divisor
-                )::int
+                when ec.nucleo_conversion_pct is not null
+                then round(ec.nucleo_conversion_pct)::int
                 else 0
               end,
             'nucleo_divisor', ec.nucleo_divisor,
@@ -1150,11 +1518,15 @@ grant execute on function crm.metricas_vendedores_fn()
 
 do $postflight$
 declare
+  v_dep record;
+  v_oid oid;
   v_src text;
+  v_dep_src text;
   v_md5_actual text;
   v_md5_esperado text :=
     '__CAPTURAR_MD5_PROSRC_DEL_CUERPO_C0_1_APROBADO__';
   v_owner text;
+  v_language text;
   v_secdef boolean;
   v_volatility "char";
   v_config text[];
@@ -1245,6 +1617,84 @@ begin
       'POSTFLIGHT C0.1: privilegios efectivos inesperados';
   end if;
 
+  -- Las dos llamadas transitivas añadidas al cierre C0.1 se vuelven a anclar
+  -- después del reemplazo, no solo en el preflight/final global.
+  for v_dep in
+    select *
+    from (values
+      (
+        'crm.metricas_cartera_fn(date)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__',
+        'plpgsql'
+      ),
+      (
+        'private.vendedores_sin_supervisor()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__',
+        'sql'
+      )
+    ) as d(firma, md5_esperado, lenguaje_esperado)
+  loop
+    if v_dep.md5_esperado like '__CAPTURAR_%' then
+      raise exception
+        'POSTFLIGHT C0.1: falta fijar el hash aprobado de %',
+        v_dep.firma;
+    end if;
+
+    v_oid := pg_catalog.to_regprocedure(v_dep.firma);
+    if v_oid is null then
+      raise exception 'POSTFLIGHT C0.1: desaparecio %', v_dep.firma;
+    end if;
+
+    select
+      pg_catalog.md5(p.prosrc),
+      p.prosrc,
+      r.rolname,
+      l.lanname,
+      p.prosecdef,
+      p.provolatile,
+      p.proconfig
+    into
+      v_md5_actual,
+      v_dep_src,
+      v_owner,
+      v_language,
+      v_secdef,
+      v_volatility,
+      v_config
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_roles r on r.oid = p.proowner
+    join pg_catalog.pg_language l on l.oid = p.prolang
+    where p.oid = v_oid;
+
+    if v_md5_actual is distinct from v_dep.md5_esperado
+       or v_owner is distinct from 'postgres'
+       or v_language is distinct from v_dep.lenguaje_esperado
+       or not v_secdef
+       or v_volatility is distinct from 's'
+       or v_config is distinct from array['search_path=""']::text[] then
+      raise exception
+        'POSTFLIGHT C0.1: deriva en % (md5=% owner=% language=% secdef=% volatility=% config=%)',
+        v_dep.firma,
+        v_md5_actual,
+        v_owner,
+        v_language,
+        v_secdef,
+        v_volatility,
+        v_config;
+    end if;
+
+    if v_dep.firma = 'crm.metricas_cartera_fn(date)'
+       and pg_catalog.strpos(
+         v_dep_src,
+         'private.metricas_cartera_por_vendedor'
+       ) = 0 then
+      raise exception 'POSTFLIGHT C0.1: cartera RPC perdio su nucleo privado';
+    elsif v_dep.firma = 'private.vendedores_sin_supervisor()'
+       and pg_catalog.strpos(v_dep_src, 'private.rol_crm') = 0 then
+      raise exception 'POSTFLIGHT C0.1: sonda sin supervisor perdio rol efectivo';
+    end if;
+  end loop;
+
   if pg_catalog.strpos(
        v_src,
        'v_mensual := crm.conversion_mensual_fn(v_mes)'
@@ -1316,7 +1766,17 @@ begin
      or pg_catalog.strpos(
        v_src,
        'count(*) filter (where a.etapa = ''convertido'')'
-     ) > 0 then
+     ) > 0
+     or pg_catalog.strpos(
+       v_src,
+       'then round(pv.nucleo_conversion_pct)::int'
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       'then round(ec.nucleo_conversion_pct)::int'
+     ) = 0
+     or pg_catalog.strpos(v_src, '* pv.nucleo_numerador') > 0
+     or pg_catalog.strpos(v_src, '* ec.nucleo_numerador') > 0 then
     raise exception
       'POSTFLIGHT C0.1: reaparecio una formula paralela';
   end if;
@@ -1503,5 +1963,398 @@ begin
   end if;
 end
 $postflight$;
+
+-- Revalidacion completa inmediatamente antes del COMMIT. No basta con revisar
+-- solo el cuerpo nuevo: las diecisiete dependencias, sus ACL/metadatos, la
+-- cadena de llamadas, los privilegios efectivos y los locks deben seguir
+-- coincidiendo con la baseline aprobada.
+do $final_revalidation$
+declare
+  v_dep record;
+  v_oid oid;
+  v_actual text;
+  v_catalogo_esperado text :=
+    '__CAPTURAR_LIVE_MD5_CATALOGO_18_FUNCIONES__';
+  v_catalogo_actual text;
+  v_catalogo_fila text;
+  v_catalogo_filas text[] := array[]::text[];
+  v_src text;
+  v_owner text;
+  v_language text;
+  v_secdef boolean;
+  v_volatility "char";
+  v_config text[];
+  v_locks integer;
+begin
+  for v_dep in
+    select *
+    from (values
+      (
+        'crm.metricas_vendedores_fn()',
+        '__CAPTURAR_MD5_PROSRC_DEL_CUERPO_C0_1_APROBADO__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'crm.conversion_mensual_fn(date)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_WRAPPER__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'crm.conversion_mensual_sin_cartera_fn(date)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_BASE__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_POR_VENDEDOR__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_EPISODIOS__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.metricas_cartera_por_vendedor(date)',
+        '__CAPTURAR_MD5_PROSRC_CANDIDATO_METRICAS_CARTERA__',
+        'sql', true, 's'
+      ),
+      (
+        'crm.metricas_cartera_fn(date)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.roster_metas_vendedores()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_ROSTER_METAS__',
+        'sql', true, 's'
+      ),
+      (
+        'private.vendedores_sin_supervisor()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__',
+        'sql', true, 's'
+      ),
+      (
+        'private.peso_referido_conversion(date)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_PESO_REFERIDO__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.ajuste_pendiente_por_vendedor()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_AJUSTE_PENDIENTE__',
+        'sql', true, 's'
+      ),
+      (
+        'private.conversion_con_ajuste(numeric,numeric)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_CON_AJUSTE__',
+        'sql', false, 'i'
+      ),
+      (
+        'private.filtrar_desglose_sujetos_crm(jsonb,text,text,text[])',
+        '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.rol_crm(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__',
+        'sql', true, 's'
+      ),
+      (
+        'private.es_lector_global()',
+        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__',
+        'sql', true, 's'
+      ),
+      (
+        'private.vendedor_ids_visibles(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__',
+        'plpgsql', true, 's'
+      ),
+      (
+        'private.cierre_externo_anulado(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__',
+        'sql', false, 's'
+      ),
+      (
+        'private.cierre_anulado(uuid)',
+        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__',
+        'sql', false, 's'
+      )
+    ) as d(
+      firma,
+      md5_esperado,
+      lenguaje_esperado,
+      secdef_esperado,
+      volatilidad_esperada
+    )
+  loop
+    if v_dep.md5_esperado like '__CAPTURAR_%' then
+      raise exception
+        'FINAL C0.1: falta fijar el hash aprobado de %',
+        v_dep.firma;
+    end if;
+
+    v_oid := pg_catalog.to_regprocedure(v_dep.firma);
+    if v_oid is null then
+      raise exception 'FINAL C0.1: desaparecio %', v_dep.firma;
+    end if;
+
+    select
+      pg_catalog.md5(p.prosrc),
+      propietario.rolname,
+      lenguaje.lanname,
+      p.prosecdef,
+      p.provolatile,
+      p.proconfig
+    into
+      v_actual,
+      v_owner,
+      v_language,
+      v_secdef,
+      v_volatility,
+      v_config
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_roles propietario on propietario.oid = p.proowner
+    join pg_catalog.pg_language lenguaje on lenguaje.oid = p.prolang
+    where p.oid = v_oid;
+
+    if v_actual is distinct from v_dep.md5_esperado then
+      raise exception
+        'FINAL C0.1: % cambio (% vs %)',
+        v_dep.firma,
+        v_actual,
+        v_dep.md5_esperado;
+    end if;
+
+    if v_owner is distinct from 'postgres'
+       or v_language is distinct from v_dep.lenguaje_esperado
+       or v_secdef is distinct from v_dep.secdef_esperado
+       or v_volatility::text
+          is distinct from v_dep.volatilidad_esperada
+       or v_config is distinct from array['search_path=""']::text[] then
+      raise exception
+        'FINAL C0.1: semantica insegura en % (owner=% language=% secdef=% volatility=% config=%)',
+        v_dep.firma,
+        v_owner,
+        v_language,
+        v_secdef,
+        v_volatility,
+        v_config;
+    end if;
+
+    select pg_catalog.jsonb_build_object(
+      'firma', v_dep.firma,
+      'owner', propietario.rolname,
+      'language', lenguaje.lanname,
+      'identity_arguments',
+        pg_catalog.pg_get_function_identity_arguments(p.oid),
+      'result', pg_catalog.pg_get_function_result(p.oid),
+      'kind', p.prokind::text,
+      'security_definer', p.prosecdef,
+      'leakproof', p.proleakproof,
+      'strict', p.proisstrict,
+      'returns_set', p.proretset,
+      'volatility', p.provolatile::text,
+      'parallel', p.proparallel::text,
+      'config', pg_catalog.to_jsonb(p.proconfig),
+      'acl', coalesce(
+        (
+          select pg_catalog.jsonb_agg(
+            pg_catalog.jsonb_build_object(
+              'grantee', coalesce(receptor.rolname, 'PUBLIC'),
+              'grantor', otorgante.rolname,
+              'privilege', a.privilege_type,
+              'grantable', a.is_grantable
+            ) order by
+              coalesce(receptor.rolname, 'PUBLIC'),
+              otorgante.rolname,
+              a.privilege_type,
+              a.is_grantable
+          )
+          from pg_catalog.aclexplode(
+            coalesce(
+              p.proacl,
+              pg_catalog.acldefault('f', p.proowner)
+            )
+          ) a
+          left join pg_catalog.pg_roles receptor on receptor.oid = a.grantee
+          join pg_catalog.pg_roles otorgante on otorgante.oid = a.grantor
+        ),
+        '[]'::jsonb
+      )
+    )::text
+      into v_catalogo_fila
+    from pg_catalog.pg_proc p
+    join pg_catalog.pg_roles propietario on propietario.oid = p.proowner
+    join pg_catalog.pg_language lenguaje on lenguaje.oid = p.prolang
+    where p.oid = v_oid;
+
+    v_catalogo_filas := pg_catalog.array_append(
+      v_catalogo_filas,
+      v_catalogo_fila
+    );
+  end loop;
+
+  if v_catalogo_esperado like '__CAPTURAR_%' then
+    raise exception
+      'FINAL C0.1: falta fijar el fingerprint aprobado de catalogo';
+  end if;
+
+  select pg_catalog.md5(
+    pg_catalog.string_agg(fila, E'\n' order by fila)
+  )
+    into v_catalogo_actual
+  from pg_catalog.unnest(v_catalogo_filas) f(fila);
+
+  if v_catalogo_actual is distinct from v_catalogo_esperado then
+    raise exception
+      'FINAL C0.1: derivo definicion/catalogo/ACL (% vs %)',
+      v_catalogo_actual,
+      v_catalogo_esperado;
+  end if;
+
+  if not exists (
+    select 1
+    from pg_catalog.pg_proc p
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))
+    ) a
+    join pg_catalog.pg_roles g on g.oid = a.grantee
+    where p.oid = 'crm.metricas_vendedores_fn()'::regprocedure
+      and g.rolname = 'authenticated'
+      and a.privilege_type = 'EXECUTE'
+      and not a.is_grantable
+  ) or exists (
+    select 1
+    from pg_catalog.pg_proc p
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(p.proacl, pg_catalog.acldefault('f', p.proowner))
+    ) a
+    left join pg_catalog.pg_roles g on g.oid = a.grantee
+    where p.oid = 'crm.metricas_vendedores_fn()'::regprocedure
+      and a.privilege_type = 'EXECUTE'
+      and coalesce(g.rolname, 'PUBLIC')
+          not in ('postgres', 'authenticated')
+  ) then
+    raise exception 'FINAL C0.1: ACL directa del RPC salio de allowlist';
+  end if;
+
+  if not pg_catalog.has_function_privilege(
+       'authenticated', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'anon', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     )
+     or pg_catalog.has_function_privilege(
+       'service_role', 'crm.metricas_vendedores_fn()', 'EXECUTE'
+     ) then
+    raise exception 'FINAL C0.1: ACL efectiva del RPC salio de allowlist';
+  end if;
+
+  if not pg_catalog.has_schema_privilege(
+       'authenticated', 'crm', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'authenticated', 'private', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'service_role', 'crm', 'USAGE'
+     )
+     or not pg_catalog.has_schema_privilege(
+       'service_role', 'private', 'USAGE'
+     )
+     or pg_catalog.has_schema_privilege('anon', 'crm', 'USAGE')
+     or pg_catalog.has_schema_privilege('anon', 'private', 'USAGE')
+     or pg_catalog.has_schema_privilege('authenticated', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('authenticated', 'private', 'CREATE')
+     or pg_catalog.has_schema_privilege('service_role', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('service_role', 'private', 'CREATE')
+     or pg_catalog.has_schema_privilege('anon', 'crm', 'CREATE')
+     or pg_catalog.has_schema_privilege('anon', 'private', 'CREATE') then
+    raise exception 'FINAL C0.1: ACL efectiva de esquema derivo';
+  end if;
+
+  if exists (
+    select 1
+    from pg_catalog.pg_namespace n
+    cross join lateral pg_catalog.aclexplode(
+      coalesce(n.nspacl, pg_catalog.acldefault('n', n.nspowner))
+    ) a
+    where n.nspname in ('crm', 'private')
+      and a.grantee = 0
+      and a.privilege_type in ('USAGE', 'CREATE')
+  ) then
+    raise exception 'FINAL C0.1: PUBLIC recupero ACL en crm/private';
+  end if;
+
+  select p.prosrc into v_src
+  from pg_catalog.pg_proc p
+  where p.oid = 'crm.conversion_mensual_fn(date)'::regprocedure;
+
+  if pg_catalog.strpos(
+       v_src,
+       'crm.conversion_mensual_sin_cartera_fn'
+     ) = 0
+     or pg_catalog.strpos(
+       v_src,
+       'private.metricas_cartera_por_vendedor'
+     ) = 0
+     or pg_catalog.strpos(v_src, 'crm.metricas_cartera_fn') = 0 then
+    raise exception 'FINAL C0.1: cadena wrapper/base/cartera derivo';
+  end if;
+
+  select p.prosrc into v_src
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'crm.conversion_mensual_sin_cartera_fn(date)'::regprocedure;
+
+  if pg_catalog.strpos(
+       v_src,
+       'private.conversion_mensual_por_vendedor'
+     ) = 0
+     or pg_catalog.strpos(v_src, 'private.conversion_con_ajuste') = 0
+     or pg_catalog.strpos(v_src, 'private.vendedores_sin_supervisor') = 0 then
+    raise exception 'FINAL C0.1: cadena base/nucleo/cobertura derivo';
+  end if;
+
+  select p.prosrc into v_src
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)'::regprocedure;
+
+  if pg_catalog.strpos(v_src, 'private.conversion_episodios') = 0 then
+    raise exception 'FINAL C0.1: cadena nucleo/episodios derivo';
+  end if;
+
+  select p.prosrc into v_src
+  from pg_catalog.pg_proc p
+  where p.oid =
+    'private.metricas_cartera_por_vendedor(date)'::regprocedure;
+
+  if pg_catalog.strpos(v_src, 'private.conversion_episodios(') = 0
+     or pg_catalog.strpos(v_src, 'where e.tipo = ''operacion''') = 0
+     or pg_catalog.strpos(v_src, 'row_number()') > 0
+     or pg_catalog.strpos(v_src, 'elegible_conversion') > 0 then
+    raise exception 'FINAL C0.1: cartera dejo de proyectar episodios';
+  end if;
+
+  select count(distinct l.relation)::integer
+    into v_locks
+  from pg_catalog.pg_locks l
+  where l.pid = pg_catalog.pg_backend_pid()
+    and l.locktype = 'relation'
+    and l.mode = 'ShareLock'
+    and l.granted
+    and l.relation in (
+      'pg_catalog.pg_authid'::pg_catalog.regclass,
+      'pg_catalog.pg_auth_members'::pg_catalog.regclass,
+      'pg_catalog.pg_namespace'::pg_catalog.regclass,
+      'pg_catalog.pg_proc'::pg_catalog.regclass
+    );
+
+  if v_locks is distinct from 4 then
+    raise exception 'FINAL C0.1: se perdio la exclusion DDL (%)', v_locks;
+  end if;
+end
+$final_revalidation$;
 
 commit;
