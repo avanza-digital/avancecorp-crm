@@ -7,8 +7,14 @@ import { History, Landmark, RotateCcw, UserRound, WifiOff } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Skeleton } from '@/components/ui/skeleton'
 import { DialogBody, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from '@/components/ui/dialog'
+import { SegundoNumero } from '@/components/app/segundo-numero'
 import { mensajeDeError } from '@/data/crm-api'
-import { useActividadesCliente, useClienteDetalle, useCuentasBancariasCliente } from '@/data/crm-queries'
+import {
+  useActividadesCliente,
+  useClienteDetalle,
+  useCuentasBancariasCliente,
+  useSegundoNumeroCliente,
+} from '@/data/crm-queries'
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
 import { fechaHora, type Moneda } from '@/lib/format'
 import type { ClienteDetalle as ClienteDetalleDatos, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
@@ -162,6 +168,10 @@ const ACTIVIDAD_LABEL = {
 export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetalleProps) {
   const precargado = datos !== undefined
   const qDetalle = useClienteDetalle(clienteId, !precargado)
+  // El 2.º número vive en el LEAD que originó a este cliente, no en su perfil:
+  // `public.perfiles` la comparte el portal y duplicar el dato es como acaban
+  // divergiendo. Fail-closed en demo, igual que el resto de consultas de aquí.
+  const qSegundo = useSegundoNumeroCliente(clienteId, !precargado)
   // Las cuentas salen de la MISMA RPC del flujo de contrato (ledger
   // crm.cuentas_bancarias + casilla vigente del perfil, deduplicados por el
   // servidor): es la única fuente que incluye las cuentas registradas AL CREAR
@@ -321,6 +331,20 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
                 <Dato etiqueta={TIPOS_DOCUMENTO[detalle.tipo_documento].etiqueta}>{valor(detalle.dni)}</Dato>
                 <Dato etiqueta="Correo">{valor(detalle.correo)}</Dato>
                 <Dato etiqueta="Teléfono">{valor(detalle.telefono)}</Dato>
+                {/*
+                  Solo se dibuja cuando HAY lead que mirar. Sin lead no se puede
+                  decir «el origen no dio un segundo número» —no lo sabemos— y
+                  afirmarlo sería inventar. Los cierres en cooperativa caen aquí:
+                  no crean cliente de Avance, así que no tienen lead enlazado.
+                */}
+                {qSegundo.data && (
+                  <Dato etiqueta="Teléfono alternativo">
+                    <SegundoNumero
+                      numero={qSegundo.data.telefono_alternativo}
+                      crudo={qSegundo.data.telefono_alternativo_crudo}
+                    />
+                  </Dato>
+                )}
                 <Dato etiqueta="Domicilio legal">{valor(detalle.domicilio)}</Dato>
                 <Dato etiqueta="Registrado el">{fechaHora(detalle.creado_en)}</Dato>
               </div>

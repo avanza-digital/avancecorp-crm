@@ -2537,6 +2537,50 @@ const ClienteDetalleRowSchema = v.object({
  * a propósito: la frontera HTTP queda SIEMPRE con forma de array — mismos mocks
  * en msw/Playwright y sin el 406 especial de PostgREST.
  */
+/**
+ * El segundo número del lead que originó a este cliente.
+ *
+ * NO se copia a `public.perfiles` a propósito (decisión de Miguel, 2026-08-28):
+ * esa tabla la comparte el portal, y duplicar el dato en dos sitios es como
+ * acaban divergiendo. Se lee del lead, que sobrevive a la conversión con todos
+ * sus datos — así, si el vendedor lo corrige en la ficha del lead, el cliente lo
+ * ve al instante.
+ *
+ * Devuelve `null` cuando no hay lead que mirar, que es un caso REAL y no un
+ * error: los cierres en cooperativa no crean cliente de Avance y por tanto no
+ * tienen `perfil_id`. La RLS de `crm.leads` decide qué se ve; si el lead fue de
+ * otro vendedor, aquí no llega nada, y eso es correcto.
+ */
+export async function obtenerSegundoNumeroDelCliente(
+  clienteId: string,
+  signal?: AbortSignal,
+): Promise<{ telefono_alternativo: string | null; telefono_alternativo_crudo: string | null } | null> {
+  let consulta = cliente()
+    .schema('crm')
+    .from('leads')
+    .select('telefono_alternativo, telefono_alternativo_crudo, convertido_en')
+    .eq('perfil_id', clienteId)
+    // Un cliente puede volver por un segundo depósito: manda el lead más
+    // reciente, que es el que tiene el contacto vigente.
+    .order('convertido_en', { ascending: false, nullsFirst: false })
+    .limit(1)
+  if (signal) consulta = consulta.abortSignal(signal)
+
+  const { data, error } = await consulta
+  lanzarAbortSiCorresponde(signal)
+  if (error) {
+    // Un fallo aquí NO puede tumbar la ficha del cliente: es un dato de apoyo.
+    registrarError('crm.clientes.segundo_numero_fallido', error)
+    return null
+  }
+  const fila = (data ?? [])[0]
+  if (!fila) return null
+  return {
+    telefono_alternativo: fila.telefono_alternativo ?? null,
+    telefono_alternativo_crudo: fila.telefono_alternativo_crudo ?? null,
+  }
+}
+
 export async function obtenerClienteDetalle(id: string, signal?: AbortSignal): Promise<ClienteDetalle> {
   let consulta = cliente().from('perfiles').select(COLUMNAS_CLIENTE_DETALLE).eq('id', id).limit(1)
   if (signal) consulta = consulta.abortSignal(signal)
