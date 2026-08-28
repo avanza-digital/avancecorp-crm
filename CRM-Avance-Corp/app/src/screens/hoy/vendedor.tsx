@@ -400,7 +400,7 @@ function AgendaVacia({
       </p>
       {(nReuniones > 0 || nPropuestas > 0) && (
         <p className="text-[11px] font-semibold text-foreground/70">
-          {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'reunión agendada' : 'reuniones agendadas'}`}
+          {nReuniones > 0 && `${nReuniones} ${nReuniones === 1 ? 'cita agendada' : 'citas agendadas'}`}
           {nReuniones > 0 && nPropuestas > 0 && ' · '}
           {nPropuestas > 0 &&
             `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
@@ -541,7 +541,7 @@ function AgendaHoy({
                   {(nReuniones > 0 || nPropuestas > 0) && (
                     <p className="text-[11px] font-semibold text-foreground/70">
                       {nReuniones > 0 &&
-                        `${nReuniones} ${nReuniones === 1 ? 'reunión agendada' : 'reuniones agendadas'}`}
+                        `${nReuniones} ${nReuniones === 1 ? 'cita agendada' : 'citas agendadas'}`}
                       {nReuniones > 0 && nPropuestas > 0 && ' · '}
                       {nPropuestas > 0 &&
                         `${nPropuestas} ${nPropuestas === 1 ? 'propuesta por responder' : 'propuestas por responder'}`}
@@ -1339,7 +1339,7 @@ export function HoyVendedor(): JSX.Element {
                   : nPropuestas > 0
                     ? 'Esperando respuesta del cliente'
                     : (nAbiertos ?? 0) > 0
-                      ? 'Ninguna enviada — revisa tus reuniones'
+                      ? 'Ninguna enviada — revisa tus citas'
                       : 'Sin leads abiertos por ahora',
             },
             {
@@ -1608,17 +1608,18 @@ function FilaHigiene({
   onMarJue: () => void
 }): JSX.Element {
   const t = item.tarea
+  const ev = tareaAEvento(t, ahora)
   const vencida = item.k === 'vencida'
   const c = vencida ? SEMAFORO.critico : SEMAFORO.violeta
   const abrir = () => t.lead_id && abrirLead(t.lead_id)
   const motivo = vencida
     ? `Venció ${haceTexto(diasDesdeReferencia(t.vence_en, ahora))} — ciérrala o reprográmala`
-    : `El cliente no asistió — la nueva cita cae ${tareaAEvento(t, ahora).cuando}; mejor mar–jue`
+    : `El cliente no asistió — la nueva cita cae ${ev.cuando}; mejor mar–jue`
   return (
     <div
       role="button"
       tabIndex={0}
-      aria-label={`Abrir ficha — ${t.titulo}`}
+      aria-label={`Abrir ficha — ${ev.titulo}`}
       onClick={abrir}
       onKeyDown={(e) => {
         // Solo teclas sobre la FILA: un Enter en los botones anidados burbujea
@@ -1636,10 +1637,10 @@ function FilaHigiene({
         <div className="flex flex-wrap items-center gap-1.5">
           {lead ? (
             <LeadHoverCard lead={lead}>
-              <p className="truncate text-sm font-semibold">{t.titulo}</p>
+              <p className="truncate text-sm font-semibold">{ev.titulo}</p>
             </LeadHoverCard>
           ) : (
-            <p className="truncate text-sm font-semibold">{t.titulo}</p>
+            <p className="truncate text-sm font-semibold">{ev.titulo}</p>
           )}
           <Badge color={c} className="text-[10px]">
             {vencida ? 'Vencida' : 'No asistió'}
@@ -1651,7 +1652,7 @@ function FilaHigiene({
         <button
           type="button"
           title="Cerrar tarea (registra el resultado y agenda la siguiente)"
-          aria-label={`Cerrar tarea — ${t.titulo}`}
+          aria-label={`Cerrar tarea — ${ev.titulo}`}
           className="grid size-8 shrink-0 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()
@@ -1664,7 +1665,7 @@ function FilaHigiene({
         <button
           type="button"
           title="Mover al siguiente mar–jue a las 10:00 (la franja que sí asiste)"
-          aria-label={`Mover a martes–jueves — ${t.titulo}`}
+          aria-label={`Mover a martes–jueves — ${ev.titulo}`}
           className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[10px] font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
           onClick={(e) => {
             e.stopPropagation()

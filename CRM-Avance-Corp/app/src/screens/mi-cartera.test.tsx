@@ -418,7 +418,7 @@ describe('MiCartera (pantalla)', () => {
     await user.click(screen.getByRole('button', { name: 'Gestionar' }))
 
     expect(screen.getByRole('dialog', { name: 'Gestionar a CLIENTE UNO' })).toBeInTheDocument()
-    expect(screen.getByText(/llamada, WhatsApp, reunión u otra tarea comercial/i)).toBeInTheDocument()
+    expect(screen.getByText(/llamada, WhatsApp, cita u otra tarea comercial/i)).toBeInTheDocument()
   })
 
   it('Gestionar depende de escritura y cartera propia, no de puede_contratar', async () => {

@@ -28,7 +28,7 @@ for (const rol of ROLES) {
 
     // Navegación al pipeline: las 4 etapas activas del embudo están pintadas.
     await page.getByRole('button', { name: 'Pipeline' }).click()
-    for (const etapa of ['Nuevo', 'Contactado', 'Reunión agendada', 'Propuesta enviada']) {
+    for (const etapa of ['Nuevo', 'Contactado', 'Cita agendada', 'Propuesta enviada']) {
       await expect(page.getByText(etapa, { exact: true }).first()).toBeVisible()
     }
   })

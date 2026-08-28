@@ -208,9 +208,9 @@ describe('Agenda — gestiones de clientes', () => {
       }),
     ])
 
-    expect(screen.getByText('Reunión con Rosa')).toBeInTheDocument()
+    expect(screen.getByText('Cita con Rosa')).toBeInTheDocument()
     expect(screen.getByText('Cliente')).toBeInTheDocument()
-    expect(screen.queryByRole('button', { name: /Abrir ficha — Reunión con Rosa/ })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Abrir ficha — Cita con Rosa/ })).not.toBeInTheDocument()
   })
 
   it('permite cerrar la gestión del cliente desde la agenda', async () => {

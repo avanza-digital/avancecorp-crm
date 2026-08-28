@@ -95,7 +95,7 @@ function statsDe(tareas: Tarea[], ahora: number): StatChipData[] {
     },
     {
       icon: Users,
-      label: 'Reuniones',
+      label: 'Citas',
       value: String(nBy('reunion')),
       tone: 'accent',
     },
@@ -194,7 +194,7 @@ function TarjetaTarea({
     ? {
         role: 'button' as const,
         tabIndex: 0,
-        'aria-label': `Abrir ficha — ${t.titulo}`,
+        'aria-label': `Abrir ficha — ${ev.titulo}`,
         onClick: () => abrirLead(t.lead_id!),
         onKeyDown: (e: ReactKeyboardEvent<HTMLDivElement>) => {
           // Solo teclas sobre la TARJETA misma: un Enter/Espacio en un botón
@@ -246,10 +246,10 @@ function TarjetaTarea({
         <div className="flex flex-wrap items-center gap-1.5">
           {lead ? (
             <LeadHoverCard lead={lead}>
-              <p className="truncate text-sm font-semibold">{t.titulo}</p>
+              <p className="truncate text-sm font-semibold">{ev.titulo}</p>
             </LeadHoverCard>
           ) : (
-            <p className="truncate text-sm font-semibold">{t.titulo}</p>
+            <p className="truncate text-sm font-semibold">{ev.titulo}</p>
           )}
           <Badge color={ev.color} className="text-[10px]">
             {TIPO_EVENTO[t.tipo] ?? t.tipo}
@@ -304,7 +304,7 @@ function TarjetaTarea({
                   key={s.label}
                   type="button"
                   title={`Reprogramar ${s.aria}`}
-                  aria-label={`Reprogramar ${s.aria} — ${t.titulo}`}
+                  aria-label={`Reprogramar ${s.aria} — ${ev.titulo}`}
                   className={cn(
                     'cursor-pointer rounded-md font-bold text-muted-foreground transition-colors hover:bg-muted hover:text-foreground',
                     // Escritorio: discreto, pero nunca por debajo de 24 px de
@@ -347,7 +347,7 @@ function TarjetaTarea({
               target="_blank"
               rel="noreferrer"
               title="Recordar por WhatsApp (pide confirmación y menciona el capital)"
-              aria-label={`Recordar cita — ${t.titulo}`}
+              aria-label={`Recordar cita — ${ev.titulo}`}
               onClick={(e) => e.stopPropagation()}
               className="grid size-8 place-items-center rounded-lg text-[#16a34a] transition-colors hover:bg-[#16a34a]/10"
             >
@@ -358,7 +358,7 @@ function TarjetaTarea({
             <button
               type="button"
               title="El cliente confirmó la cita"
-              aria-label={`Marcar confirmada — ${t.titulo}`}
+              aria-label={`Marcar confirmada — ${ev.titulo}`}
               className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
               onClick={(e) => {
                 e.stopPropagation()
@@ -376,7 +376,7 @@ function TarjetaTarea({
               target="_blank"
               rel="noreferrer"
               title="Añadir a Google Calendar"
-              aria-label={`Añadir a Google Calendar — ${t.titulo}`}
+              aria-label={`Añadir a Google Calendar — ${ev.titulo}`}
               onClick={(e) => e.stopPropagation()}
               className="grid size-8 place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
             >
@@ -389,7 +389,7 @@ function TarjetaTarea({
           <button
             type="button"
             title="Cerrar tarea (resultado + siguiente)"
-            aria-label={`Cerrar tarea — ${t.titulo}`}
+            aria-label={`Cerrar tarea — ${ev.titulo}`}
             className="grid size-8 cursor-pointer place-items-center rounded-lg text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground"
             onClick={(e) => {
               e.stopPropagation()
@@ -469,14 +469,14 @@ function MiniTarea({ t, ahora, abrir }: { t: Tarea; ahora: number; abrir: (() =>
         <span className="block text-[10px] font-bold tabular-nums" style={{ color: ev.color }}>
           {ev.vencida ? 'Vencida' : hora}
         </span>
-        <span className="block truncate text-[11px] font-semibold text-foreground">{t.titulo}</span>
+        <span className="block truncate text-[11px] font-semibold text-foreground">{ev.titulo}</span>
       </span>
     </>
   )
   if (!abrir) {
     return (
       <div
-        title={`${t.titulo} — ${ev.cuando}`}
+        title={`${ev.titulo} — ${ev.cuando}`}
         className="flex w-full items-stretch gap-1.5 rounded-md p-1.5 text-left"
       >
         {contenido}
@@ -486,8 +486,8 @@ function MiniTarea({ t, ahora, abrir }: { t: Tarea; ahora: number; abrir: (() =>
   return (
     <button
       type="button"
-      title={`${t.titulo} — ${ev.cuando}`}
-      aria-label={`Abrir ficha — ${t.titulo} · ${ev.cuando}`}
+      title={`${ev.titulo} — ${ev.cuando}`}
+      aria-label={`Abrir ficha — ${ev.titulo} · ${ev.cuando}`}
       onClick={abrir}
       className="flex w-full cursor-pointer items-stretch gap-1.5 rounded-md p-1.5 text-left transition-colors hover:bg-muted/70 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
     >

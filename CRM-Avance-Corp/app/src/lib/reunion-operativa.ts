@@ -26,7 +26,7 @@ export type ReunionOperativaNormalizada =
   | {
       modalidad: 'virtual'
       ubicacion: null
-      enlace: string
+      enlace: string | null
     }
 
 export interface ReunionOperativaInvalida {
@@ -101,7 +101,7 @@ export function validarReunionOperativa(
   if (!esModalidadReunionOperativa(input.modalidad)) {
     return reunionInvalida(
       'modalidad_reunion_obligatoria',
-      'Selecciona si la reunión será presencial o virtual',
+      'Selecciona si la cita será presencial o virtual',
     )
   }
 
@@ -118,10 +118,7 @@ export function validarReunionOperativa(
 
   const enlace = input.enlace?.trim() ?? ''
   if (!enlace) {
-    return reunionInvalida(
-      'destino_reunion_obligatorio',
-      'Ingresa el enlace HTTPS de la reunión virtual',
-    )
+    return { ok: true, modalidad: 'virtual', ubicacion: null, enlace: null }
   }
 
   const errorEnlace = errorDeEnlaceHttps(enlace)

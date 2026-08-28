@@ -424,15 +424,12 @@ describe('LeadDrawer — «Próxima acción» canta el avance de agendar', () =>
     montar({ avanceTarea: 'reunion_agendada' })
 
     await user.selectOptions(screen.getByLabelText('Tipo de tarea'), 'reunion')
-    await user.selectOptions(screen.getByLabelText('Modalidad de la reunión'), 'virtual')
-    await user.type(
-      screen.getByLabelText('Enlace de la reunión'),
-      'https://meet.google.com/abc-defg-hij',
-    )
+    await user.selectOptions(screen.getByLabelText('Modalidad de la cita'), 'virtual')
+    expect(screen.queryByLabelText('Enlace de la cita')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Agendar' }))
 
     expect(toast.success).toHaveBeenCalledWith(
-      'Tarea agendada · pasó a Reunión agendada · la verás en Hoy y en Agenda (demo)',
+      'Tarea agendada · pasó a Cita agendada · la verás en Hoy y en Agenda (demo)',
     )
   })
 
@@ -606,10 +603,10 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
       actividades: [{ tipo: 'llamada_realizada' }],
     })
 
-    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Cita con Ana' }))
 
     const nota = document.getElementById('anular-nota-t1')
-    expect(nota?.textContent).toContain('Era su única reunión')
+    expect(nota?.textContent).toContain('Era su única cita')
     expect(nota?.textContent).toContain('Contactado')
   })
 
@@ -621,9 +618,9 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
       actividades: [{ tipo: 'llamada_realizada' }],
     })
 
-    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Cita con Ana' }))
 
-    const si = screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' })
+    const si = screen.getByRole('button', { name: 'Sí, anular — Cita con Ana' })
     expect(si).toHaveAttribute('aria-describedby', 'anular-nota-t1')
   })
 
@@ -635,7 +632,7 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
       actividades: [{ tipo: 'llamada_realizada' }],
     })
 
-    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión A' }))
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Cita A' }))
 
     const nota = document.getElementById('anular-nota-t1')
     expect(nota?.textContent).toBe(
@@ -670,12 +667,12 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
       retroceso: 'contactado',
     })
 
-    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Cita con Ana' }))
     await user.selectOptions(
-      screen.getByLabelText('Motivo de cancelación — Reunión con Ana'),
+      screen.getByLabelText('Motivo de cancelación — Cita con Ana'),
       'cancelada_cliente',
     )
-    await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Cita con Ana' }))
 
     expect(toast.warning).toHaveBeenCalledWith(expect.stringContaining('vuelve a «Contactado»'))
     expect(toast.success).not.toHaveBeenCalled()
@@ -692,12 +689,12 @@ describe('LeadDrawer — anular la reunión devuelve el lead de etapa', () => {
       retroceso: 'contactado',
     })
 
-    await user.click(screen.getByRole('button', { name: 'Anular tarea — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Anular tarea — Cita con Ana' }))
     await user.selectOptions(
-      screen.getByLabelText('Motivo de cancelación — Reunión con Ana'),
+      screen.getByLabelText('Motivo de cancelación — Cita con Ana'),
       'cancelada_cliente',
     )
-    await user.click(screen.getByRole('button', { name: 'Sí, anular — Reunión con Ana' }))
+    await user.click(screen.getByRole('button', { name: 'Sí, anular — Cita con Ana' }))
 
     expect(toast.warning).toHaveBeenCalledTimes(1)
     expect(toast.warning).toHaveBeenCalledWith(expect.not.stringContaining('SIN próxima acción'))

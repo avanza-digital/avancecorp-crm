@@ -577,6 +577,24 @@ describe('mutaciones del store demo', () => {
       expect(api().lead('l2')?.etapa).toBe('reunion_agendada')
     })
 
+    it('presenta «cita» en el formulario, pero conserva «reunión» en el modelo interno', async () => {
+      const { api, mutar } = await montarStore('vendedor')
+
+      const res = mutar((a) =>
+        a.crearTarea({
+          lead_id: 'l2',
+          tipo: 'reunion',
+          titulo: 'Cita con María',
+          vence_en: manana(),
+          modalidad_reunion: 'virtual',
+          enlace_reunion: 'https://meet.google.com/abc-defg-hij',
+        }),
+      )
+
+      expect(res).toMatchObject({ ok: true })
+      expect(api().tareas.find((t) => t.id === res.id)?.titulo).toBe('Reunión con María')
+    })
+
     it('rechaza una reunión nueva sin modalidad explícita', async () => {
       const { mutar } = await montarStore('vendedor')
 
@@ -587,8 +605,8 @@ describe('mutaciones del store demo', () => {
       expect(res).toMatchObject({ ok: false, codigo: 'modalidad_reunion_obligatoria' })
     })
 
-    it('rechaza una reunión virtual sin enlace HTTPS seguro', async () => {
-      const { mutar } = await montarStore('vendedor')
+    it('acepta una reunión virtual sin enlace y sigue rechazando URLs inseguras', async () => {
+      const { api, mutar } = await montarStore('vendedor')
 
       const sinEnlace = mutar((a) =>
         a.crearTarea({
@@ -610,7 +628,12 @@ describe('mutaciones del store demo', () => {
         }),
       )
 
-      expect(sinEnlace).toMatchObject({ ok: false, codigo: 'destino_reunion_obligatorio' })
+      expect(sinEnlace).toMatchObject({ ok: true })
+      expect(api().tareas.find((t) => t.id === sinEnlace.id)).toMatchObject({
+        modalidad_reunion: 'virtual',
+        ubicacion_reunion: null,
+        enlace_reunion: null,
+      })
       expect(insegura).toMatchObject({ ok: false, codigo: 'enlace_reunion_invalido' })
     })
 

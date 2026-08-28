@@ -31,7 +31,7 @@ export function mensajeRecordatorio(t: Tarea, lead: Lead, ahora: number): string
   const capital = money(lead.monto_estimado, lead.moneda)
   return (
     `Hola ${primerNombre(lead.nombre_completo)}, te saluda tu asesor de Avance Corp. ` +
-    `¿Confirmamos nuestra reunión de ${cuando}? ` +
+    `¿Confirmamos nuestra cita de ${cuando}? ` +
     `Te muestro los números de tu inversión de ${capital}. ` +
     `Si te queda mejor otro horario, dime y lo movemos.`
   )

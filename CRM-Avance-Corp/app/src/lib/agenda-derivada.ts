@@ -12,6 +12,7 @@
 //  * El color sale del TIPO (nada de colores por fixture).
 import type { Tarea, TipoTarea } from './tipos'
 import { derivarReunionOperativa } from './reunion-operativa'
+import { presentarCitas } from './terminologia'
 
 /** Contrato de display de la agenda (HOY héroe + pantalla Agenda). */
 export interface EventoAgenda {
@@ -92,7 +93,7 @@ export function tareaAEvento(t: Tarea, ahora: number): EventoAgenda {
     id: t.id,
     lead_id: t.lead_id ?? '',
     perfil_id: t.perfil_id ?? null,
-    titulo: t.titulo,
+    titulo: presentarCitas(t.titulo),
     tipo: t.tipo,
     cuando: `${dia} · ${horaLima(ms)}`,
     color: vencida ? COLOR_EVENTO.vencimiento : COLOR_EVENTO[t.tipo],
@@ -145,7 +146,7 @@ export function enlaceGoogleCalendar(
   ].filter((linea): linea is string => Boolean(linea))
   const p = new URLSearchParams({
     action: 'TEMPLATE',
-    text: t.titulo,
+    text: presentarCitas(t.titulo),
     dates: `${compacta(inicio)}/${compacta(fin)}`,
     ctz: 'America/Lima',
     details: detalles.join('\n\n'),

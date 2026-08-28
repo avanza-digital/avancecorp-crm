@@ -656,7 +656,7 @@ describe('Hoy · vendedor — agenda héroe', () => {
     for (const titulo of ['Tarea 1', 'Tarea 2', 'Tarea 3', 'Tarea 4', 'Tarea 5']) {
       expect(screen.getAllByText(titulo)).toHaveLength(1)
     }
-    expect(screen.queryByText('Reunión con LEAD 5')).not.toBeInTheDocument()
+    expect(screen.queryByText('Cita con LEAD 5')).not.toBeInTheDocument()
     expect(screen.queryByText(/cola de al lado/)).not.toBeInTheDocument()
   })
 })
@@ -997,7 +997,7 @@ describe('Hoy · vendedor — gestiones de clientes', () => {
     })
 
     expect(screen.getByText('Clientes por gestionar hoy')).toBeInTheDocument()
-    expect(screen.getByText('Reunión con Rosa')).toBeInTheDocument()
+    expect(screen.getByText('Cita con Rosa')).toBeInTheDocument()
     expect(screen.getByText('Cliente')).toBeInTheDocument()
     expect(abrirLead).not.toHaveBeenCalled()
   })

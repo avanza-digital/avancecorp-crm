@@ -22,7 +22,7 @@ import {
 const ETIQUETA_ETAPA = {
   nuevo: 'Lead nuevo',
   contactado: 'Contactado',
-  reunion_agendada: 'Reunión agendada',
+  reunion_agendada: 'Cita agendada',
   propuesta_enviada: 'Propuesta enviada',
 } as const
 

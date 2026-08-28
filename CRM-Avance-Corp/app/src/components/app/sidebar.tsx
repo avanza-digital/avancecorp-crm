@@ -34,7 +34,7 @@ const NAV_META = {
   hoy: { label: 'Hoy', icon: LayoutDashboard, seccion: 'principal' },
   conversiones: { label: 'Conversiones', icon: BarChart3, seccion: 'principal' },
   'ranking-vendedores': { label: 'Ranking', icon: Trophy, seccion: 'principal' },
-  reuniones: { label: 'Reuniones', icon: Handshake, seccion: 'principal' },
+  reuniones: { label: 'Citas', icon: Handshake, seccion: 'principal' },
   metas: { label: 'Metas', icon: Target, seccion: 'principal' },
   rendimiento: { label: 'Equipo', icon: Gauge, seccion: 'principal' },
   pipeline: { label: 'Pipeline', icon: KanbanSquare, seccion: 'principal' },

@@ -17,6 +17,7 @@ import { GerenciaEChart } from '@/components/gerencia/echart-lazy'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
 import { money, numero } from '@/lib/format'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
+import { presentarCitas } from '@/lib/terminologia'
 
 type Modalidad = MetricasReuniones['modalidades'][number]['modalidad']
 
@@ -47,7 +48,7 @@ function textoResultado(valor: string): string {
 
 function ErrorPanel({ error, onReintentar }: Pick<ReunionesGerenciaPanelProps, 'error' | 'onReintentar'>): JSX.Element | null {
   if (!error) return null
-  return <div className="m-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3" role="alert"><span className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-destructive" />{error}</span><Button type="button" variant="outline" size="sm" onClick={onReintentar}><RefreshCw /> Reintentar</Button></div>
+  return <div className="m-5 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-destructive/30 bg-destructive/5 px-4 py-3" role="alert"><span className="flex items-center gap-2 text-sm font-semibold"><AlertTriangle className="size-4 text-destructive" />{presentarCitas(error)}</span><Button type="button" variant="outline" size="sm" onClick={onReintentar}><RefreshCw /> Reintentar</Button></div>
 }
 
 function Cargando(): JSX.Element {
@@ -55,7 +56,7 @@ function Cargando(): JSX.Element {
 }
 
 function Vacio(): JSX.Element {
-  return <CardContent className="py-14 text-center"><CalendarCheck className="mx-auto size-8 text-[var(--gi-muted)]" /><p className="mt-3 text-sm font-semibold">Aún no hay reuniones en este período</p></CardContent>
+  return <CardContent className="py-14 text-center"><CalendarCheck className="mx-auto size-8 text-[var(--gi-muted)]" /><p className="mt-3 text-sm font-semibold">Aún no hay citas en este período</p></CardContent>
 }
 
 function Kpi({ label, value, detail, Icon, color }: { label: string; value: string; detail: string; Icon: LucideIcon; color: string }): JSX.Element {
@@ -102,12 +103,12 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
 
   return (
     <Card className="gi-card overflow-hidden border-0 shadow-none">
-      <CardHeader className="border-b border-[var(--gi-line)] bg-white px-5 py-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="gi-label">Reuniones</p><CardTitle className="mt-1 text-lg">Reuniones del equipo</CardTitle></div>{puedeAlternarEjemplo && <Button type="button" variant={modoDemo ? 'default' : 'outline'} size="sm" onClick={onAlternarEjemplo}><Eye aria-hidden /> {modoDemo ? 'Ver datos reales' : 'Ver ejemplo'}</Button>}</div></CardHeader>
+      <CardHeader className="border-b border-[var(--gi-line)] bg-white px-5 py-4"><div className="flex flex-wrap items-center justify-between gap-3"><div><p className="gi-label">Citas</p><CardTitle className="mt-1 text-lg">Citas del equipo</CardTitle></div>{puedeAlternarEjemplo && <Button type="button" variant={modoDemo ? 'default' : 'outline'} size="sm" onClick={onAlternarEjemplo}><Eye aria-hidden /> {modoDemo ? 'Ver datos reales' : 'Ver ejemplo'}</Button>}</div></CardHeader>
       <ErrorPanel error={error} onReintentar={onReintentar} />
       {cargando && !datos ? <Cargando /> : !datos && error ? null : !datos || datos.resumen.pactadas === 0 ? <Vacio /> : (
         <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
           <section data-gi-hero className="gi-summary-hero">
-            <div><p className="gi-label text-white/65">Reuniones realizadas</p><p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white">{numero(datos.resumen.realizadas)}</p><p className="mt-2 text-xs text-white/65">de {numero(datos.resumen.pactadas)} pactadas</p></div>
+            <div><p className="gi-label text-white/65">Citas realizadas</p><p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white">{numero(datos.resumen.realizadas)}</p><p className="mt-2 text-xs text-white/65">de {numero(datos.resumen.pactadas)} pactadas</p></div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3"><div className="gi-hero-metric"><span>Asistencia</span><strong>{pct(datos.resumen.pct_asistencia)}</strong></div><div className="gi-hero-metric"><span>No concretadas</span><strong>{numero(datos.resumen.no_concretadas)}</strong></div><div className="gi-hero-metric"><span>Terminan en cliente</span><strong>{pct(datos.conversion.conversion_contrato_pct)}</strong></div></div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
@@ -121,12 +122,12 @@ export function ReunionesGerenciaPanel({ datos, cargando, error, modoDemo, puede
           </div>
 
           <div className="grid gap-4 xl:grid-cols-[minmax(0,1.25fr)_minmax(330px,.85fr)]">
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Presencial vs. virtual</h3><GerenciaEChart tipo="barras" option={opcionModalidades} ariaLabel="Comparación de reuniones pactadas y realizadas por modalidad" className="mt-3 h-[290px] w-full" /></section>
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Presencial vs. virtual</h3><GerenciaEChart tipo="barras" option={opcionModalidades} ariaLabel="Comparación de citas pactadas y realizadas por modalidad" className="mt-3 h-[290px] w-full" /></section>
             <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-1">{modalidades.map((fila) => <section key={fila.modalidad} data-gi-panel className="gi-card p-5"><div className="flex items-start justify-between gap-3"><div><p className="gi-label">{fila.nombre}</p><p className="mt-2 text-4xl font-bold tabular-nums text-[var(--gi-blue)]">{pct(fila.pct_realizacion)}</p><p className="gi-caption mt-1">{numero(fila.realizadas)} de {numero(fila.debieron_ocurrir)}</p></div><div className="text-right"><p className="gi-caption">A clientes</p><strong className="mt-1 block text-xl tabular-nums text-[var(--gi-green)]">{pct(fila.conversion_contrato_pct)}</strong></div></div><div className="mt-4 border-t border-[var(--gi-line)] pt-3"><p className="gi-caption">Capital invertido</p><strong className="mt-1 block text-sm">{money(fila.capital_pen, 'PEN')}</strong>{fila.capital_usd > 0 && <span className="gi-caption">{money(fila.capital_usd, 'USD')}</span>}</div></section>)}</div>
           </div>
 
           <div className="grid gap-4 xl:grid-cols-2">
-            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Reuniones que terminan en cliente</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión de reuniones a clientes por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 50) }} /></section>
+            <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Citas que terminan en cliente</h3><GerenciaEChart tipo="barras" option={opcionOrigen} ariaLabel="Conversión de citas a clientes por origen" className="mt-3 w-full" style={{ height: Math.max(280, origenes.length * 50) }} /></section>
             <section data-gi-panel className="gi-card p-5"><h3 className="gi-title">Resultado final</h3><div className="mt-4 flex flex-wrap gap-2">{datos.resultados.map((fila) => <span key={fila.resultado} className="rounded-full border border-[var(--gi-line)] bg-[var(--gi-soft)] px-3 py-1.5 text-xs"><strong>{numero(fila.cantidad)}</strong> · {textoResultado(fila.resultado)}</span>)}</div></section>
           </div>
 

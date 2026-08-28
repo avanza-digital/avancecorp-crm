@@ -120,7 +120,7 @@ describe('Sidebar — temporizadores del asomo', () => {
       'Resumen',
       'Conversiones',
       'Ranking',
-      'Reuniones',
+      'Citas',
       'Metas',
       'Rendimiento',
       'Pipeline',

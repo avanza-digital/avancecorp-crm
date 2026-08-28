@@ -37,6 +37,7 @@ import { hashDe } from '@/lib/router'
 import { SEMAFORO } from '@/lib/semaforo'
 import type { AlertaCRM, TipoAlerta } from '@/lib/alertas'
 import type { Rol } from '@/lib/roles'
+import { presentarCitas } from '@/lib/terminologia'
 
 type FiltroPrioridad = 'todas' | AlertaCRM['severidad']
 type FiltroTipo = 'todos' | TipoAlerta
@@ -197,7 +198,7 @@ function AccionesRevisarContacto({ alerta }: { alerta: AlertaCRM }): JSX.Element
       // «Ya no existe» = caducó solo o se quitó en otra pestaña: el refetch
       // de abajo lo hace desaparecer igual — no es un fallo que gritar.
       if (!(error instanceof CrmApiError && error.code === 'NO_ENCONTRADO')) {
-        toast.error(error instanceof CrmApiError ? error.message : 'No se pudo quitar el recordatorio.')
+        toast.error(error instanceof CrmApiError ? presentarCitas(error.message) : 'No se pudo quitar el recordatorio.')
       }
     } finally {
       await queryClient.invalidateQueries({ queryKey: crmQueryKeys.recordatoriosDisponibilidad() })
@@ -322,7 +323,7 @@ function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element
       destino?.focus()
     } catch (error: unknown) {
       toast.error(error instanceof CrmApiError
-        ? error.message
+        ? presentarCitas(error.message)
         : 'No se pudo asentar el reconocimiento.')
       // Los plazos se QUEDAN abiertos: el supervisor reintenta donde estaba.
       rescatarFocoRef.current = accion
@@ -341,7 +342,7 @@ function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element
         disabled={ocupado}
         aria-busy={ocupado}
         onClick={() => { void asentar('reconocer', null) }}
-        aria-label={`Reconocer «${alerta.titulo}»: la estoy atendiendo`}
+        aria-label={`Reconocer «${presentarCitas(alerta.titulo)}»: la estoy atendiendo`}
       >
         <Check aria-hidden /> Lo estoy atendiendo
       </Button>
@@ -354,7 +355,7 @@ function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element
         aria-expanded={eligiendoPlazo}
         aria-controls={eligiendoPlazo ? idPlazos : undefined}
         onClick={() => setEligiendoPlazo((abierto) => !abierto)}
-        aria-label={`Posponer «${alerta.titulo}»`}
+        aria-label={`Posponer «${presentarCitas(alerta.titulo)}»`}
       >
         <CalendarClock aria-hidden /> Posponer
       </Button>
@@ -362,7 +363,7 @@ function AccionesReconocerAlerta({ alerta }: { alerta: AlertaCRM }): JSX.Element
         <div
           id={idPlazos}
           role="group"
-          aria-label={`Posponer «${alerta.titulo}» hasta`}
+          aria-label={`Posponer «${presentarCitas(alerta.titulo)}» hasta`}
           className="flex flex-wrap items-center justify-end gap-2"
         >
           {PLAZOS_POSPONER.map((plazo, indice) => (
@@ -438,8 +439,10 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
               {alcance}
             </span>
           </div>
-          <h2 className="mt-1.5 text-sm font-extrabold text-primary">{alerta.titulo}</h2>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{alerta.detalle}</p>
+          <h2 className="mt-1.5 text-sm font-extrabold text-primary">{presentarCitas(alerta.titulo)}</h2>
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
+            {presentarCitas(alerta.detalle)}
+          </p>
           {alerta.responsable && (
             <p className="mt-1 text-[11px] font-semibold text-foreground/70">
               Responsable: {alerta.responsable}
@@ -458,7 +461,7 @@ function FilaAlerta({ alerta, alcance }: { alerta: AlertaCRM; alcance: string })
         <div className="ml-12 flex flex-col items-start gap-2 sm:ml-0 sm:items-end">
           <a
             href={hashDe(alerta.destino.vista, alerta.destino.leadId)}
-            aria-label={`${alerta.destino.etiqueta}: ${alerta.titulo}`}
+            aria-label={`${alerta.destino.etiqueta}: ${presentarCitas(alerta.titulo)}`}
             className="inline-flex min-h-9 items-center justify-center rounded-lg border border-border bg-card px-3 text-xs font-bold text-primary outline-none transition-colors hover:border-border-strong hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/35 motion-reduce:transition-none"
           >
             {alerta.destino.etiqueta}
@@ -506,7 +509,8 @@ export function Alertas(): JSX.Element {
       if (prioridad !== 'todas' && alerta.severidad !== prioridad) return false
       if (tipo !== 'todos' && alerta.tipo !== tipo) return false
       if (!texto) return true
-      return normalizar(`${alerta.titulo} ${alerta.detalle} ${alerta.responsable ?? ''}`).includes(texto)
+      const copyVisible = presentarCitas(`${alerta.titulo} ${alerta.detalle}`)
+      return normalizar(`${copyVisible} ${alerta.titulo} ${alerta.detalle} ${alerta.responsable ?? ''}`).includes(texto)
     })
   }, [activas, busqueda, prioridad, tipo])
   const hayFiltros = prioridad !== 'todas' || tipo !== 'todos' || busqueda.trim() !== ''
@@ -557,7 +561,7 @@ export function Alertas(): JSX.Element {
         <CargaAlertas />
       ) : errores.length > 0 && alertas.length === 0 && pospuestas === 0 ? (
         <div className="rounded-2xl border border-border bg-card" role="alert">
-          <PanelError mensaje={errores.join(' ')} onReintentar={reintentar} reintentando={cargando} />
+          <PanelError mensaje={presentarCitas(errores.join(' '))} onReintentar={reintentar} reintentando={cargando} />
         </div>
       ) : alertas.length === 0 && pospuestas === 0 ? (
         <div className="rounded-2xl border border-border bg-card">
@@ -571,7 +575,7 @@ export function Alertas(): JSX.Element {
                 <CircleAlert className="mt-0.5 size-4 shrink-0 text-warning" aria-hidden />
                 <div>
                   <p className="text-xs font-bold text-foreground">Información incompleta</p>
-                  <p className="mt-0.5 text-[11px] text-muted-foreground">{errores.join(' ')}</p>
+                  <p className="mt-0.5 text-[11px] text-muted-foreground">{presentarCitas(errores.join(' '))}</p>
                 </div>
               </div>
               <Button type="button" variant="outline" size="sm" onClick={reintentar}>Reintentar</Button>

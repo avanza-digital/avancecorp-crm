@@ -60,6 +60,7 @@ import {
   type TipoTarea,
 } from '@/lib/tipos'
 import { cn } from '@/lib/utils'
+import { presentarCitas } from '@/lib/terminologia'
 
 /** Opciones de resultado por tipo de tarea (1 tap, sin formularios). */
 interface OpcionCierre {
@@ -151,7 +152,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   const nombreSujeto =
     l?.nombre_completo ??
     (tarea.perfil_id
-      ? tarea.titulo.replace(/^(Llamar a|Escribir a|Reunión con|Gestionar a)\s+/i, '').trim() || 'cliente'
+      ? tarea.titulo.replace(/^(Llamar a|Escribir a|Reuni[oó]n con|Cita con|Gestionar a)\s+/i, '').trim() || 'cliente'
       : '')
   const opciones = opcionesDe(tarea.tipo)
 
@@ -361,11 +362,11 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
     let res
     if (tarea.tipo === 'reunion') {
       if (!motivoAnulacion) {
-        toast.error('Selecciona por qué se cancela la reunión')
+        toast.error('Selecciona por qué se cancela la cita')
         return
       }
       if (motivoAnulacion === 'otro' && !detalleAnulacion.trim()) {
-        toast.error('Describe brevemente por qué se cancela la reunión')
+        toast.error('Describe brevemente por qué se cancela la cita')
         return
       }
       res = anularTarea(tarea.id, {
@@ -407,7 +408,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
   const confirmar = async () => {
     if (!eleccion) return
     if (tarea.tipo === 'reunion' && eleccion.estado === 'completada' && !resultadoReunion) {
-      toast.error('Selecciona el resultado comercial de la reunión')
+      toast.error('Selecciona el resultado comercial de la cita')
       return
     }
     // El plantón sustituye el flujo normal: cierra la tarea y cierra el lead,
@@ -511,7 +512,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
         <DialogTitle className="flex items-center gap-2">
           <CheckCircle2 className="size-4 text-[var(--accent)]" aria-hidden /> Cerrar tarea
         </DialogTitle>
-        <DialogDescription className="truncate">{tarea.titulo}</DialogDescription>
+        <DialogDescription className="truncate">{presentarCitas(tarea.titulo)}</DialogDescription>
         {tarea.perfil_id && !l && (
           <Badge color="var(--primary)" className="mt-1 w-fit text-[10px]">
             Gestión de cliente · Mi cartera
@@ -649,7 +650,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             <p id="anular-que-hace" className="mt-0.5 text-[11px] text-warning-text">
               {tarea.tipo === 'reunion' ? (
                 <>
-                  La reunión quedará cancelada con su motivo y autor para el reporte de Gerencia. No se puede deshacer.
+                  La cita quedará cancelada con su motivo y autor para el reporte de Gerencia. No se puede deshacer.
                 </>
               ) : (
                 <>
@@ -667,7 +668,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                 porque suben; este baja, así que se avisa ANTES). */}
             {retrocesoPrevisto && l && (
               <p id="anular-retroceso" className="mt-1.5 text-[11px] font-semibold text-warning-text">
-                Era su única reunión: {primerNombre(l.nombre_completo)} vuelve a la etapa «
+                Era su única cita: {primerNombre(l.nombre_completo)} vuelve a la etapa «
                 {ETAPA_INFO[retrocesoPrevisto].label}». Si la vas a mover de fecha, usa <strong>Reprogramar</strong> en
                 vez de anular.
               </p>
@@ -680,7 +681,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
             {tarea.tipo === 'reunion' && (
               <div className="mt-3 grid gap-2">
                 <Select
-                  aria-label="Motivo de cancelación de la reunión"
+                  aria-label="Motivo de cancelación de la cita"
                   value={motivoAnulacion}
                   onChange={(evento) => setMotivoAnulacion(evento.target.value as typeof motivoAnulacion)}
                 >
@@ -692,7 +693,7 @@ function FormCierre({ tarea, onCerrar }: { tarea: Tarea; onCerrar: () => void })
                   ))}
                 </Select>
                 <Textarea
-                  aria-label="Detalle de cancelación de la reunión"
+                  aria-label="Detalle de cancelación de la cita"
                   placeholder={
                     motivoAnulacion === 'otro' ? 'Describe el motivo (obligatorio)' : 'Detalle adicional (opcional)'
                   }

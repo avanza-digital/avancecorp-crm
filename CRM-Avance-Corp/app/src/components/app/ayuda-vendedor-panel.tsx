@@ -15,13 +15,14 @@ import { consultarAyudaVendedor, mensajeDeError, obtenerInicioAyudaVendedor } fr
 import type { AccionAyudaVendedor, ResultadoConsultaAyudaVendedor } from '@/lib/ayuda-vendedor'
 import type { Vista } from '@/lib/router'
 import { Button } from '@/components/ui/button'
+import { normalizarCitasInternas, presentarCitas } from '@/lib/terminologia'
 
 const ETIQUETA_VISTA: Record<Vista, string> = {
   hoy: 'Hoy',
   alertas: 'Pendientes',
   conversiones: 'Conversiones',
   'ranking-vendedores': 'Ranking',
-  reuniones: 'Reuniones',
+  reuniones: 'Citas',
   metas: 'Metas',
   rendimiento: 'Equipo',
   pipeline: 'Pipeline',
@@ -140,7 +141,11 @@ export function AyudaVendedorPanel({
     setErrorConsulta(null)
     setResultado(null)
     try {
-      const hallada = await consultarAyudaVendedor(limpio, contextoAyuda, controlador.signal)
+      const hallada = await consultarAyudaVendedor(
+        normalizarCitasInternas(limpio),
+        contextoAyuda,
+        controlador.signal,
+      )
       if (secuencia !== secuenciaRef.current) return
       setResultado(hallada)
     } catch (error: unknown) {
@@ -178,7 +183,8 @@ export function AyudaVendedorPanel({
   }
 
   if (!abierto) {
-    const tituloPendiente = respuesta?.titulo ?? aclaracion?.titulo
+    const tituloPendienteInterno = respuesta?.titulo ?? aclaracion?.titulo
+    const tituloPendiente = tituloPendienteInterno ? presentarCitas(tituloPendienteInterno) : null
     if (!tituloPendiente) return null
     return (
       <button
@@ -346,7 +352,7 @@ export function AyudaVendedorPanel({
                     <button
                       key={pregunta}
                       type="button"
-                      aria-label={pregunta}
+                      aria-label={presentarCitas(pregunta)}
                       onClick={() => void consultar(pregunta)}
                       className="group flex w-full cursor-pointer items-center gap-3 py-3 text-left focus-visible:outline-none focus-visible:ring-[3px] focus-visible:ring-inset focus-visible:ring-ring/35"
                     >
@@ -354,7 +360,7 @@ export function AyudaVendedorPanel({
                         <HelpCircle className="size-3.5" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1 text-xs font-semibold leading-relaxed text-foreground">
-                        {pregunta}
+                        {presentarCitas(pregunta)}
                       </span>
                       <ArrowRight
                         className="size-3.5 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5 group-hover:text-accent motion-reduce:transform-none"
@@ -402,9 +408,11 @@ export function AyudaVendedorPanel({
               tabIndex={-1}
               className="mt-3 text-xl font-extrabold leading-tight tracking-tight text-primary outline-none"
             >
-              {aclaracion.titulo}
+              {presentarCitas(aclaracion.titulo)}
             </h3>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground-strong">{aclaracion.detalle}</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground-strong">
+              {presentarCitas(aclaracion.detalle)}
+            </p>
 
             <div className="mt-5 space-y-2" aria-label="Opciones para precisar la consulta">
               {aclaracion.opciones.map((opcion) => (
@@ -418,9 +426,11 @@ export function AyudaVendedorPanel({
                     <ArrowRight className="size-3.5" aria-hidden />
                   </span>
                   <span className="min-w-0 flex-1">
-                    <span className="block text-xs font-extrabold text-foreground">{opcion.etiqueta}</span>
+                    <span className="block text-xs font-extrabold text-foreground">
+                      {presentarCitas(opcion.etiqueta)}
+                    </span>
                     <span className="mt-1 block text-[11px] leading-relaxed text-muted-foreground">
-                      {opcion.detalle}
+                      {presentarCitas(opcion.detalle)}
                     </span>
                   </span>
                 </button>
@@ -454,9 +464,11 @@ export function AyudaVendedorPanel({
               tabIndex={-1}
               className="mt-3 text-xl font-extrabold leading-tight tracking-tight text-primary outline-none"
             >
-              {respuesta.titulo}
+              {presentarCitas(respuesta.titulo)}
             </h3>
-            <p className="mt-2 text-xs leading-relaxed text-muted-foreground-strong">{respuesta.resumen}</p>
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground-strong">
+              {presentarCitas(respuesta.resumen)}
+            </p>
 
             {respuesta.traduccion && (
               <div className="mt-5 rounded-xl border border-accent/20 bg-accent/[0.07] p-3.5">
@@ -465,11 +477,11 @@ export function AyudaVendedorPanel({
                 </p>
                 <div className="mt-2 flex items-center gap-2 text-[11px] leading-tight">
                   <span className="min-w-0 flex-1 rounded-lg bg-card px-2.5 py-2 font-semibold text-muted-foreground-strong shadow-sm">
-                    “{respuesta.traduccion.lenguajeVendedor}”
+                    “{presentarCitas(respuesta.traduccion.lenguajeVendedor)}”
                   </span>
                   <ArrowRight className="size-3.5 shrink-0 text-accent" aria-hidden />
                   <span className="min-w-0 flex-1 rounded-lg bg-primary px-2.5 py-2 font-bold text-primary-foreground">
-                    {respuesta.traduccion.lenguajeCrm}
+                    {presentarCitas(respuesta.traduccion.lenguajeCrm)}
                   </span>
                 </div>
               </div>
@@ -488,8 +500,10 @@ export function AyudaVendedorPanel({
                     {indice + 1}
                   </span>
                   <div className="pt-0.5">
-                    <p className="text-xs font-extrabold text-foreground">{paso.titulo}</p>
-                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground-strong">{paso.detalle}</p>
+                    <p className="text-xs font-extrabold text-foreground">{presentarCitas(paso.titulo)}</p>
+                    <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground-strong">
+                      {presentarCitas(paso.detalle)}
+                    </p>
                   </div>
                 </li>
               ))}
@@ -500,7 +514,9 @@ export function AyudaVendedorPanel({
                 <p className="flex items-center gap-1.5 text-[11px] font-extrabold text-warning-text">
                   <AlertTriangle className="size-3.5" aria-hidden /> Antes de continuar
                 </p>
-                <p className="mt-1 text-[11px] leading-relaxed text-warning-text">{respuesta.advertencia}</p>
+                <p className="mt-1 text-[11px] leading-relaxed text-warning-text">
+                  {presentarCitas(respuesta.advertencia)}
+                </p>
               </div>
             )}
 
@@ -510,14 +526,14 @@ export function AyudaVendedorPanel({
               className="mt-5 w-full"
               onClick={() => ejecutarAccion(respuesta.accion)}
             >
-              {respuesta.accion.etiqueta} <ArrowRight aria-hidden />
+              {presentarCitas(respuesta.accion.etiqueta)} <ArrowRight aria-hidden />
             </Button>
 
             <div className="mt-5 flex items-start gap-2 border-t border-border pt-4 text-[10px] leading-relaxed text-muted-foreground">
               <span className="mt-0.5 grid size-4 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground">
                 <Check className="size-2.5" strokeWidth={3} aria-hidden />
               </span>
-              <span>{respuesta.fuente}</span>
+              <span>{presentarCitas(respuesta.fuente)}</span>
             </div>
           </article>
         )}

@@ -39,6 +39,7 @@ import { avancePorContacto, avancePorReunion, retrocesoPorAnularReunion } from '
 import { MOTIVOS_CON_EVIDENCIA, vetoNoResponde } from './descarte-evidencia'
 import { agendaDeTareas, type EventoAgenda } from './agenda-derivada'
 import { validarReunionOperativa, type ReunionOperativaInvalida } from './reunion-operativa'
+import { normalizarCitasInternas } from './terminologia'
 import type { Moneda } from './format'
 import { DEMO_HABILITADO } from './config'
 import { validarCamposLead, type CampoLead, type CodigoValidacion } from './validacion'
@@ -1276,7 +1277,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
             error: 'Tipo de tarea inválido',
           }
         }
-        const titulo = input.titulo.trim()
+        const tituloCrudo = input.titulo.trim()
+        const titulo = input.tipo === 'reunion'
+          ? normalizarCitasInternas(tituloCrudo)
+          : tituloCrudo
         if (!titulo || titulo.length > 200) {
           return {
             ok: false,
@@ -1390,7 +1394,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           return {
             ok: false,
             codigo: 'resultado_obligatorio',
-            error: 'Registra el resultado comercial de la reunión',
+            error: 'Registra el resultado comercial de la cita',
           }
         }
         // Tarea SIGUIENTE opcional (la sugerencia del motor, ya editada o no).
@@ -1411,7 +1415,10 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
               error: 'Tipo de la siguiente tarea inválido',
             }
           }
-          const tituloSig = input.siguiente.titulo.trim()
+          const tituloSiguienteCrudo = input.siguiente.titulo.trim()
+          const tituloSig = input.siguiente.tipo === 'reunion'
+            ? normalizarCitasInternas(tituloSiguienteCrudo)
+            : tituloSiguienteCrudo
           const venceEnSig = normalizarFechaTarea(input.siguiente.vence_en)
           if (!tituloSig || tituloSig.length > 200 || !venceEnSig) {
             return {
@@ -1697,7 +1704,7 @@ export function StoreProvider({ children }: { children: ReactNode }): JSX.Elemen
           return {
             ok: false,
             codigo: 'resultado_obligatorio',
-            error: 'Selecciona por qué no se realizará la reunión',
+            error: 'Selecciona por qué no se realizará la cita',
           }
         }
         setTareas((prev) =>

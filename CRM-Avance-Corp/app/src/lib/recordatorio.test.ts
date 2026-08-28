@@ -34,7 +34,7 @@ const cita = (extra: Partial<Tarea>): Tarea => ({
 describe('mensajeRecordatorio', () => {
   it('pide confirmación explícita y ancla el capital del lead (RCT −32%)', () => {
     const msg = mensajeRecordatorio(cita({}), LEAD, AHORA)
-    expect(msg).toContain('¿Confirmamos nuestra reunión de hoy a las 16:00?')
+    expect(msg).toContain('¿Confirmamos nuestra cita de hoy a las 16:00?')
     expect(msg).toContain('tu inversión de S/ 50,000')
     expect(msg).toContain('Hola Ana')
     expect(msg).toContain('lo movemos') // salida fácil: mover > no-show silencioso

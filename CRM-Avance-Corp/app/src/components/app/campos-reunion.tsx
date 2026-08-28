@@ -53,21 +53,12 @@ interface ConfiguracionDestino {
   ariaLabel: string
   placeholder: string
   maxLength: number
-  type?: 'url'
 }
 
-const DESTINO_POR_MODALIDAD: Record<ModalidadReunionOperativa, ConfiguracionDestino> = {
-  presencial: {
-    ariaLabel: 'Lugar de la reunión',
-    placeholder: 'Lugar o dirección',
-    maxLength: 300,
-  },
-  virtual: {
-    ariaLabel: 'Enlace de la reunión',
-    placeholder: 'Enlace de Meet, Zoom o Teams',
-    maxLength: 1000,
-    type: 'url',
-  },
+const DESTINO_PRESENCIAL: ConfiguracionDestino = {
+  ariaLabel: 'Lugar de la cita',
+  placeholder: 'Lugar o dirección',
+  maxLength: 300,
 }
 
 export interface CamposReunionProps {
@@ -76,17 +67,13 @@ export interface CamposReunionProps {
 }
 
 export function CamposReunion({ valor, onChange }: CamposReunionProps): JSX.Element {
-  const configuracion = valor.modalidad ? DESTINO_POR_MODALIDAD[valor.modalidad] : null
-  const destino = valor.modalidad === 'presencial'
-    ? valor.ubicacion
-    : valor.modalidad === 'virtual'
-      ? valor.enlace
-      : ''
+  const configuracion = valor.modalidad === 'presencial' ? DESTINO_PRESENCIAL : null
+  const destino = valor.modalidad === 'presencial' ? valor.ubicacion : ''
 
   return (
     <div className="grid gap-2 sm:grid-cols-2">
       <Select
-        aria-label="Modalidad de la reunión"
+        aria-label="Modalidad de la cita"
         value={valor.modalidad}
         onChange={(evento) => {
           const modalidad = evento.target.value
@@ -109,15 +96,12 @@ export function CamposReunion({ valor, onChange }: CamposReunionProps): JSX.Elem
       {configuracion && (
         <Input
           aria-label={configuracion.ariaLabel}
-          type={configuracion.type}
           placeholder={configuracion.placeholder}
           value={destino}
           maxLength={configuracion.maxLength}
           onChange={(evento) => {
             if (valor.modalidad === 'presencial') {
               onChange({ ...valor, ubicacion: evento.target.value })
-            } else if (valor.modalidad === 'virtual') {
-              onChange({ ...valor, enlace: evento.target.value })
             }
           }}
         />

@@ -54,6 +54,7 @@ import { proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
 import { TIPO_TAREA_DE_CANAL, tareaQueCierra, type Canal } from '@/lib/contacto-tarea'
 import { esPlanVivo } from '@/lib/plan-lead'
 import { primerNombre } from '@/lib/format'
+import { presentarCitas } from '@/lib/terminologia'
 import {
   ETAPA_INFO,
   type EtapaActiva,
@@ -479,7 +480,7 @@ function DialogResultado({
                   onChange={(e) => setCierraTarea(e.target.checked)}
                 />
                 <span>
-                  Cerrar también «{tarea.titulo}»{' '}
+                  Cerrar también «{presentarCitas(tarea.titulo)}»{' '}
                   <span className="font-normal text-muted-foreground">
                     ({tareaAEvento(tarea, ahora).cuando})
                   </span>
@@ -505,7 +506,7 @@ function DialogResultado({
                 {agendaSiguiente && (
                   <div className="ml-5 mt-2 space-y-1.5">
                     <p className="text-[10px] font-medium text-muted-foreground">
-                      Si el siguiente paso propuesto es una reunión, indica su modalidad.
+                      Si el siguiente paso propuesto es una cita, indica su modalidad.
                     </p>
                     <CamposReunion
                       valor={camposReunion}

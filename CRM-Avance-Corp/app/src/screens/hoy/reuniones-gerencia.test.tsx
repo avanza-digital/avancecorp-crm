@@ -23,8 +23,8 @@ describe('resumen de reuniones de Gerencia', () => {
       />,
     )
 
-    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las reuniones.')
-    expect(screen.queryByText('Aún no hay reuniones en este período')).not.toBeInTheDocument()
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las citas.')
+    expect(screen.queryByText('Aún no hay citas en este período')).not.toBeInTheDocument()
   })
 
   it('muestra la asistencia real y no el porcentaje de realización', () => {

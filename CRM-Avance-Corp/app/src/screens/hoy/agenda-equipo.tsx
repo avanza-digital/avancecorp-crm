@@ -47,7 +47,7 @@ function subLineaDe(ven: MetricaAgendaVendedor): string | null {
     partes.push(`×${ven.reprogramaciones} ${ven.reprogramaciones === 1 ? 'movida' : 'movidas'}`)
   }
   if (ven.reuniones_realizadas > 0) {
-    partes.push(`${ven.reuniones_realizadas} ${ven.reuniones_realizadas === 1 ? 'reunión' : 'reuniones'}`)
+    partes.push(`${ven.reuniones_realizadas} ${ven.reuniones_realizadas === 1 ? 'cita' : 'citas'}`)
   }
   return partes.length > 0 ? partes.join(' · ') : null
 }
@@ -353,7 +353,7 @@ function CabeceraEquipo({ grupo }: { grupo: GrupoAgendaEquipo }): JSX.Element {
 function PieToques(): JSX.Element {
   return (
     <p className="px-5 pb-4 pt-2 text-[10.5px] text-muted-foreground">
-      Toques = llamadas, WhatsApp y reuniones registrados en el periodo — las notas no cuentan.
+      Toques = llamadas, WhatsApp y citas registrados en el periodo — las notas no cuentan.
     </p>
   )
 }

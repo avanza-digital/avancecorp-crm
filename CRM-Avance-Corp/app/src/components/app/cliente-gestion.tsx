@@ -21,12 +21,13 @@ import { fechaLima, horaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/ag
 import { isoDeCampos } from '@/lib/campos-siguiente'
 import { useCRMData } from '@/lib/store-context'
 import { validarReunionOperativa } from '@/lib/reunion-operativa'
+import { presentarCitas } from '@/lib/terminologia'
 import { TIPOS_TAREA, esTipoTarea, type TipoTarea } from '@/lib/tipos'
 
 const ACCION_POR_TIPO: Record<TipoTarea, string> = {
   llamada: 'Llamar a',
   whatsapp: 'Escribir a',
-  reunion: 'Reunión con',
+  reunion: 'Cita con',
   tarea: 'Gestionar a',
 }
 
@@ -122,7 +123,7 @@ export function ClienteGestion({
           Gestionar a {clienteNombre}
         </DialogTitle>
         <DialogDescription>
-          Programa una llamada, WhatsApp, reunión u otra tarea comercial sobre este cliente.
+          Programa una llamada, WhatsApp, cita u otra tarea comercial sobre este cliente.
         </DialogDescription>
       </DialogHeader>
       <DialogBody className="max-h-[65vh] space-y-4 overflow-y-auto">
@@ -142,7 +143,7 @@ export function ClienteGestion({
               {pendientes.slice(0, 3).map((tarea) => (
                 <li key={tarea.id} className="flex items-center gap-2 text-xs text-muted-foreground">
                   <Clock3 className="size-3.5 shrink-0" aria-hidden />
-                  <span className="min-w-0 flex-1 truncate">{tarea.titulo}</span>
+                  <span className="min-w-0 flex-1 truncate">{presentarCitas(tarea.titulo)}</span>
                   <span className="shrink-0 tabular-nums">{tareaAEvento(tarea, ahora).cuando}</span>
                 </li>
               ))}

@@ -23,7 +23,12 @@ import { ETAPAS, TERMINALES, type Actividad, type Etapa, type Lead } from './tip
 
 /** Label es-PE → clave, para leer los `detalle` que escribe el front. */
 const CLAVE_POR_LABEL = new Map<string, Etapa>(
-  [...ETAPAS, ...TERMINALES].map((e) => [e.label.toLowerCase(), e.k]),
+  [
+    ...[...ETAPAS, ...TERMINALES].map((e) => [e.label.toLowerCase(), e.k] as const),
+    // Compatibilidad con detalles históricos ya persistidos antes del cambio
+    // puramente visual de «reunión» a «cita».
+    ['reunión agendada', 'reunion_agendada'] as const,
+  ],
 )
 const CLAVES = new Set<string>([...ETAPAS, ...TERMINALES].map((e) => e.k))
 

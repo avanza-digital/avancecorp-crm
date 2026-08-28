@@ -109,6 +109,7 @@ import {
   type Tarea,
 } from '@/lib/tipos'
 import { fechaLima, proximoSlotSugerido, tareaAEvento } from '@/lib/agenda-derivada'
+import { presentarCitas } from '@/lib/terminologia'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -467,7 +468,7 @@ function BannerTerminal({ l, escribe }: { l: Lead; escribe: boolean }) {
 const TITULO_POR_TIPO: Record<TipoTarea, string> = {
   llamada: 'Llamar a',
   whatsapp: 'WhatsApp a',
-  reunion: 'Reunión con',
+  reunion: 'Cita con',
   tarea: 'Tarea —',
 }
 
@@ -541,7 +542,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
     let res
     if (t.tipo === 'reunion') {
       if (!motivoAnulacionReunion) {
-        toast.error('Selecciona por qué se cancela la reunión')
+        toast.error('Selecciona por qué se cancela la cita')
         return
       }
       res = anularTarea(t.id, { motivo: motivoAnulacionReunion })
@@ -669,7 +670,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                     pestaña Descartados. */}
                 <div className="flex items-center gap-2">
                   <span className="size-2 shrink-0 rounded-full" style={{ background: ev.color }} aria-hidden />
-                  <span className="min-w-0 flex-1 truncate font-medium">{t.titulo}</span>
+                  <span className="min-w-0 flex-1 truncate font-medium">{ev.titulo}</span>
                   <span
                     className={cn(
                       'shrink-0 font-semibold tabular-nums',
@@ -690,7 +691,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                           destructivo: dejarlos disparejos sería peor. */}
                       <button
                         type="button"
-                        aria-label={`Cerrar tarea — ${t.titulo}`}
+                        aria-label={`Cerrar tarea — ${ev.titulo}`}
                         title="Cerrar tarea (resultado + siguiente)"
                         className="grid size-6 shrink-0 cursor-pointer place-items-center rounded-md text-muted-foreground transition-colors hover:bg-[var(--accent)]/15 hover:text-foreground pointer-coarse:size-8"
                         onClick={() => setTareaACerrar(t)}
@@ -709,7 +710,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                           if (el) refInterruptores.current.set(t.id, el)
                           else refInterruptores.current.delete(t.id)
                         }}
-                        aria-label={`Anular tarea — ${t.titulo}`}
+                        aria-label={`Anular tarea — ${ev.titulo}`}
                         aria-expanded={anulandoId === t.id}
                         // `aria-expanded` solo dice "expandido"; con
                         // `aria-controls` el lector puede SALTAR al bloque que
@@ -747,7 +748,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       size="xs"
                       variant="destructive"
                       className="pointer-coarse:h-8 pointer-coarse:px-3"
-                      aria-label={`Sí, anular — ${t.titulo}`}
+                      aria-label={`Sí, anular — ${ev.titulo}`}
                       // La consecuencia se pinta DESPUÉS de los botones, así
                       // que quien navega con teclado llegaría al destructivo
                       // antes de oírla. `aria-describedby` la trae al foco.
@@ -761,7 +762,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       size="xs"
                       variant="ghost"
                       className="pointer-coarse:h-8 pointer-coarse:px-3"
-                      aria-label={`No anular — ${t.titulo}`}
+                      aria-label={`No anular — ${ev.titulo}`}
                       onClick={() => {
                         setAnulandoId(null)
                         requestAnimationFrame(() => refInterruptores.current.get(t.id)?.focus())
@@ -771,7 +772,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                     </Button>
                     {t.tipo === 'reunion' && (
                       <Select
-                        aria-label={`Motivo de cancelación — ${t.titulo}`}
+                        aria-label={`Motivo de cancelación — ${ev.titulo}`}
                         value={motivoAnulacionReunion}
                         onChange={(evento) => setMotivoAnulacionReunion(
                           evento.target.value as typeof motivoAnulacionReunion,
@@ -808,7 +809,7 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                       {(() => {
                         const atras = retrocesoPorAnularReunion(l, t, pendientes, actividadesDe(l.id))
                         if (atras) {
-                          return `Era su única reunión: vuelve a «${ETAPA_INFO[atras].label}». La cancelación queda en el reporte. No se puede deshacer.`
+                          return `Era su única cita: vuelve a «${ETAPA_INFO[atras].label}». La cancelación queda en el reporte. No se puede deshacer.`
                         }
                         return t.tipo === 'reunion'
                           ? 'Queda cancelada con motivo en el reporte y no cuenta como realizada. No se puede deshacer.'
@@ -890,7 +891,6 @@ function ProximaAccion({ l, escribe, activa }: { l: Lead; escribe: boolean; acti
                 || (tipo === 'reunion' && (
                   !camposReunion.modalidad
                   || (camposReunion.modalidad === 'presencial' && !camposReunion.ubicacion.trim())
-                  || (camposReunion.modalidad === 'virtual' && !camposReunion.enlace.trim())
                 ))
               }
             >
@@ -1365,7 +1365,9 @@ function FilaActividad({ a, ahora }: { a: Actividad; ahora: number }) {
       </span>
       <div className="min-w-0 flex-1 pt-0.5">
         <p className="text-xs font-bold text-foreground">{TIPOS_ACTIVIDAD[a.tipo]}</p>
-        {a.detalle && <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{a.detalle}</p>}
+        {a.detalle && (
+          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{presentarCitas(a.detalle)}</p>
+        )}
         <p className="mt-0.5 text-[11px] text-muted-foreground/80">
           {a.autor_nombre} · {haceRelativo(a.creado_en, ahora)}
         </p>
@@ -1412,7 +1414,7 @@ function GrupoEtapa({ items, ahora }: { items: Actividad[]; ahora: number }) {
         <p className="text-xs font-bold text-foreground">{items.length} cambios de etapa</p>
         {reciente.detalle && (
           <p className="mt-0.5 truncate text-xs leading-relaxed text-muted-foreground">
-            Último: {reciente.detalle}
+            Último: {presentarCitas(reciente.detalle)}
           </p>
         )}
         <p className="mt-0.5 text-[11px] text-muted-foreground/80">

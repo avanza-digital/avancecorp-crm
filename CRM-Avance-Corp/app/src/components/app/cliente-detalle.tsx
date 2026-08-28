@@ -12,6 +12,7 @@ import { useActividadesCliente, useClienteDetalle, useCuentasBancariasCliente } 
 import { TIPOS_DOCUMENTO } from '@/lib/documento'
 import { fechaHora, type Moneda } from '@/lib/format'
 import type { ClienteDetalle as ClienteDetalleDatos, CuentaBancariaSeleccionable } from '@/lib/clientes-tipos'
+import { presentarCitas } from '@/lib/terminologia'
 
 function Dato({ etiqueta, children }: { etiqueta: string; children: ReactNode }) {
   return (
@@ -149,7 +150,7 @@ const ACTIVIDAD_LABEL = {
   llamada_no_contestada: 'Llamada no contestada',
   whatsapp_enviado: 'WhatsApp enviado',
   whatsapp_recibido: 'WhatsApp respondido',
-  reunion_realizada: 'Reunión realizada',
+  reunion_realizada: 'Cita realizada',
   nota: 'Nota comercial',
 } as const
 
@@ -379,7 +380,7 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
                 </div>
               ) : qActividades.data.length === 0 ? (
                 <p className="mt-2 rounded-xl border border-dashed border-border px-3 py-4 text-center text-xs text-muted-foreground">
-                  Aún no hay gestiones cerradas. Las llamadas, WhatsApp y reuniones completadas aparecerán aquí.
+                  Aún no hay gestiones cerradas. Las llamadas, WhatsApp y citas completadas aparecerán aquí.
                 </p>
               ) : (
                 <ol className="mt-2 space-y-2">
@@ -392,7 +393,9 @@ export function ClienteDetalle({ clienteId, onCerrar, datos }: ClienteDetallePro
                         </time>
                       </div>
                       {actividad.detalle && (
-                        <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">{actividad.detalle}</p>
+                        <p className="mt-1 whitespace-pre-wrap text-xs text-muted-foreground">
+                          {presentarCitas(actividad.detalle)}
+                        </p>
                       )}
                     </li>
                   ))}

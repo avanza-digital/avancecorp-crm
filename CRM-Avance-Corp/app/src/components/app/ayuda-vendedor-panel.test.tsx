@@ -169,13 +169,13 @@ describe('AyudaVendedorPanel — manual resuelto por el servidor', () => {
 
     await user.click(
       await screen.findByRole('button', {
-        name: '¿Cómo reprogramo una reunión?',
+        name: '¿Cómo reprogramo una cita?',
       }),
     )
 
     expect(
       await screen.findByRole('heading', {
-        name: 'Reprogramar una reunión sin perder el seguimiento',
+        name: 'Reprogramar una cita sin perder el seguimiento',
       }),
     ).toBeVisible()
     expect(api.consultar).toHaveBeenCalledWith('¿Cómo reprogramo una reunión?', 'agenda', expect.any(AbortSignal))
@@ -186,12 +186,12 @@ describe('AyudaVendedorPanel — manual resuelto por el servidor', () => {
 
     await user.click(screen.getByRole('button', { name: 'Minimizar ayuda' }))
     const continuar = screen.getByRole('button', {
-      name: 'Continuar guía: Reprogramar una reunión sin perder el seguimiento',
+      name: 'Continuar guía: Reprogramar una cita sin perder el seguimiento',
     })
     await user.click(continuar)
     expect(
       screen.getByRole('heading', {
-        name: 'Reprogramar una reunión sin perder el seguimiento',
+        name: 'Reprogramar una cita sin perder el seguimiento',
       }),
     ).toBeVisible()
   })

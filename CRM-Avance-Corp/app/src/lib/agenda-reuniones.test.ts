@@ -12,6 +12,7 @@ describe('calendario de reuniones', () => {
     expect(enlace).not.toBeNull()
     const url = new URL(enlace!)
     expect(url.searchParams.get('location')).toBe('Av. Arequipa 123, Lima')
+    expect(url.searchParams.get('text')).toBe('Cita con cliente')
     expect(url.searchParams.get('details')).toContain('Modalidad: Presencial')
   })
 
@@ -23,6 +24,7 @@ describe('calendario de reuniones', () => {
       enlace_reunion: 'https://meet.google.com/abc-defg-hij',
     })
     const url = new URL(enlace!)
+    expect(url.searchParams.get('text')).toBe('Cita virtual')
     expect(url.searchParams.get('location')).toBe('https://meet.google.com/abc-defg-hij')
     expect(url.searchParams.get('details')).toContain('Modalidad: Virtual')
   })

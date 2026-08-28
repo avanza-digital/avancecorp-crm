@@ -38,6 +38,15 @@ describe('validarReunionOperativa', () => {
     })
   })
 
+  it('acepta una cita virtual sin pedir enlace', () => {
+    expect(validarReunionOperativa({ modalidad: 'virtual' })).toEqual({
+      ok: true,
+      modalidad: 'virtual',
+      ubicacion: null,
+      enlace: null,
+    })
+  })
+
   it('acepta una URL HTTPS y descarta la ubicación contradictoria', () => {
     expect(validarReunionOperativa({
       modalidad: 'virtual',

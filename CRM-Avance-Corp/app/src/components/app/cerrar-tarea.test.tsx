@@ -193,11 +193,8 @@ describe('CerrarTareaDialog', () => {
     const { completarTarea } = montar({ ...TAREA, tipo: 'reunion', titulo: 'Reunión con Ana' })
     await user.click(screen.getByRole('button', { name: 'No asistió' }))
     expect(screen.getByLabelText('Título de la siguiente')).toHaveValue('Reagendar con Ana')
-    await user.selectOptions(screen.getByLabelText('Modalidad de la reunión'), 'virtual')
-    await user.type(
-      screen.getByLabelText('Enlace de la reunión'),
-      'https://meet.google.com/abc-defg-hij',
-    )
+    await user.selectOptions(screen.getByLabelText('Modalidad de la cita'), 'virtual')
+    expect(screen.queryByLabelText('Enlace de la cita')).not.toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: /cerrar tarea/i }))
     expect(completarTarea.mock.calls[0]?.[0]).toMatchObject({ estado: 'no_show' })
   })
@@ -272,7 +269,7 @@ describe('CerrarTareaDialog', () => {
 
     await user.click(screen.getByRole('button', { name: /ya no hace falta/i }))
     await user.selectOptions(
-      screen.getByLabelText('Motivo de cancelación de la reunión'),
+      screen.getByLabelText('Motivo de cancelación de la cita'),
       'cancelada_cliente',
     )
     const clic = user.click(screen.getByRole('button', { name: /sí, anular/i }))
@@ -511,7 +508,7 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
 
     await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
 
-    expect(panelAnular()?.textContent).toContain('Era su única reunión')
+    expect(panelAnular()?.textContent).toContain('Era su única cita')
     expect(panelAnular()?.textContent).toContain('vuelve a la etapa «Contactado»')
   })
 
@@ -531,7 +528,7 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
 
     await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
 
-    expect(panelAnular()?.textContent).not.toContain('Era su única reunión')
+    expect(panelAnular()?.textContent).not.toContain('Era su única cita')
   })
 
   it('anular una LLAMADA no menciona etapas aunque el lead esté en reunión', async () => {
@@ -540,7 +537,7 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
 
     await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
 
-    expect(panelAnular()?.textContent).not.toContain('Era su única reunión')
+    expect(panelAnular()?.textContent).not.toContain('Era su única cita')
   })
 
   it('el toast canta la etapa nueva y no el aviso de «sin próxima acción»', async () => {
@@ -549,7 +546,7 @@ describe('CerrarTareaDialog — anular la reunión avisa del retroceso de etapa'
 
     await user.click(screen.getByRole('button', { name: /anular esta tarea/i }))
     await user.selectOptions(
-      screen.getByLabelText('Motivo de cancelación de la reunión'),
+      screen.getByLabelText('Motivo de cancelación de la cita'),
       'cancelada_cliente',
     )
     await user.click(screen.getByRole('button', { name: /sí, anular/i }))
