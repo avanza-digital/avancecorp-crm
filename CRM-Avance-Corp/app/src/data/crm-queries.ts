@@ -42,6 +42,7 @@ import {
   listarReconocimientosAlertas,
   listarRecordatoriosDisponibilidad,
   obtenerClienteDetalle,
+  obtenerSegundoNumeroDelCliente,
   obtenerCronograma,
   obtenerDatosLegalesContrato,
   obtenerTitulares,
@@ -243,6 +244,15 @@ export function useClienteDetalle(clienteId: string, habilitada = true) {
     queryFn: ({ signal }) => obtenerClienteDetalle(clienteId, signal),
     enabled: habilitada,
     staleTime: 0,
+  })
+}
+
+/** El 2.º número del lead que originó al cliente (ver obtenerSegundoNumeroDelCliente). */
+export function useSegundoNumeroCliente(clienteId: string, habilitada = true) {
+  return useQuery({
+    queryKey: [...crmQueryKeys.clienteDetalle(clienteId), 'segundo-numero'],
+    queryFn: ({ signal }) => obtenerSegundoNumeroDelCliente(clienteId, signal),
+    enabled: habilitada,
   })
 }
 

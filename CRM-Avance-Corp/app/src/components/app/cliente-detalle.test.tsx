@@ -20,6 +20,7 @@ vi.mock('@/data/crm-api', async (importActual) => {
     obtenerClienteDetalle: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
     listarActividadesCliente: vi.fn(),
+    obtenerSegundoNumeroDelCliente: vi.fn(),
   }
 })
 
@@ -27,6 +28,7 @@ const { ClienteDetalle } = await import('./cliente-detalle')
 const obtenerDetalle = vi.mocked(crmApi.obtenerClienteDetalle)
 const listarCuentas = vi.mocked(crmApi.listarCuentasBancariasCliente)
 const listarActividades = vi.mocked(crmApi.listarActividadesCliente)
+const obtenerSegundo = vi.mocked(crmApi.obtenerSegundoNumeroDelCliente)
 
 function detalleBase(over: Partial<ClienteDetalleDatos> = {}): ClienteDetalleDatos {
   return {
@@ -115,8 +117,10 @@ beforeEach(() => {
   obtenerDetalle.mockReset()
   listarCuentas.mockReset()
   listarActividades.mockReset()
+  obtenerSegundo.mockReset()
   listarCuentas.mockResolvedValue([])
   listarActividades.mockResolvedValue([])
+  obtenerSegundo.mockResolvedValue(null)
 })
 
 describe('ClienteDetalle — frescura y presentación', () => {
@@ -366,5 +370,56 @@ describe('ClienteDetalle — frescura y presentación', () => {
     expect(listarCuentas).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Cerrar' }))
     expect(onCerrar).toHaveBeenCalledOnce()
+  })
+})
+
+describe('ClienteDetalle — el segundo número, leído del lead que lo originó', () => {
+  it('lo muestra marcable cuando el lead lo trae', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    obtenerSegundo.mockResolvedValue({
+      telefono_alternativo: '+51911222333',
+      telefono_alternativo_crudo: null,
+    })
+    montar()
+
+    expect(await screen.findByText('Teléfono alternativo')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: '+51911222333' })).toHaveAttribute(
+      'href',
+      'tel:+51911222333',
+    )
+  })
+
+  it('lo muestra «sin validar» cuando el origen lo escribió mal', async () => {
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    obtenerSegundo.mockResolvedValue({
+      telefono_alternativo: null,
+      telefono_alternativo_crudo: '99988 7',
+    })
+    montar()
+
+    expect(await screen.findByText('«99988 7»')).toBeInTheDocument()
+    expect(screen.getByText('sin validar')).toBeInTheDocument()
+  })
+
+  it('SIN lead enlazado no dibuja la fila: no se afirma lo que no se sabe', async () => {
+    // Es un caso REAL, no un error: los cierres en cooperativa no crean cliente
+    // de Avance, así que no tienen lead que mirar. Decir «el origen no dio un
+    // segundo número» ahí sería inventar.
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    obtenerSegundo.mockResolvedValue(null)
+    montar()
+
+    expect(await screen.findByText('Teléfono')).toBeInTheDocument()
+    expect(screen.queryByText('Teléfono alternativo')).not.toBeInTheDocument()
+  })
+
+  it('si la consulta del 2.º número falla, la ficha del cliente sigue en pie', async () => {
+    // Es un dato de apoyo: no puede tumbar la pantalla donde se gestiona al cliente.
+    obtenerDetalle.mockResolvedValue(detalleBase())
+    obtenerSegundo.mockRejectedValue(new Error('caída'))
+    montar()
+
+    expect(await screen.findByText('Teléfono')).toBeInTheDocument()
+    expect(screen.queryByText('Teléfono alternativo')).not.toBeInTheDocument()
   })
 })
