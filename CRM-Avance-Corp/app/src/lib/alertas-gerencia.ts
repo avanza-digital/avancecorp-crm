@@ -1,4 +1,5 @@
 import type { MetricasConversiones } from './metricas-conversiones'
+import { sondasNucleoVerificadas } from './sondas-conversion'
 import {
   metaConversionAplicable,
   type CumplimientoVendedor,
@@ -282,14 +283,21 @@ export function derivarAlertasGerencia({
   // aritmética que la alerta individual y que HOY/Ranking — el bloque `nucleo`
   // servido (flujo del rango, ponderado, mismo peso de referidos) — y no la
   // cohorte de contratos, que madura con retraso y contradecía a su vecina de
-  // bandeja. Un payload SIN bloque `nucleo` (servidor viejo, espejo demo) no
-  // se interpreta: sin fuente no hay alerta, jamás una con otra fórmula.
+  // bandeja. Un payload SIN bloque `nucleo` o sin las DOS sondas verificadas
+  // no se interpreta: sin fuente confiable no hay alerta, jamás una con otra
+  // fórmula. Hoy el servidor suele dejar NULL la sonda de un MTD anterior;
+  // en ese caso esta alerta queda deliberadamente inactiva hasta que exista
+  // una comparación verificada, en vez de afirmar una caída no certificada.
+  const nucleoActualVerificado = sondasNucleoVerificadas(conversiones?.sondas)
+  const nucleoAnteriorVerificado = sondasNucleoVerificadas(conversionesAnteriores?.sondas)
   const conversionActual = conversiones?.nucleo?.conversion_pct
   const conversionAnterior = conversionesAnteriores?.nucleo?.conversion_pct
   const leadsActuales = conversiones?.nucleo?.divisor
   const leadsAnteriores = conversionesAnteriores?.nucleo?.divisor
   if (
-    porcentajeConversionValido(conversionActual)
+    nucleoActualVerificado
+    && nucleoAnteriorVerificado
+    && porcentajeConversionValido(conversionActual)
     && porcentajeConversionValido(conversionAnterior)
     && conteoValido(leadsActuales)
     && conteoValido(leadsAnteriores)

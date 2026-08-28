@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
   digitosDeMonto, fechaHora, fmtFecha, iniciales, money, moneyK, montoDesdeTexto,
-  montoEditable, numero, porcentajeDesdeTexto, porcentajeEditable, primerNombre,
+  montoEditable, numero, porcentajeConversionCanonica, porcentajeDesdeTexto,
+  porcentajeEditable, primerNombre,
 } from './format'
 
 describe('formato monetario', () => {
@@ -9,6 +10,13 @@ describe('formato monetario', () => {
     expect(numero(1_500_000)).toBe('1,500,000')
     expect(numero(12_345.67, 2)).toBe('12,345.67')
     expect(numero(null)).toBe('—')
+  })
+
+  it('presenta la conversión canónica con dos decimales sin inventar NULL', () => {
+    expect(porcentajeConversionCanonica(137.63)).toBe('137.63%')
+    expect(porcentajeConversionCanonica(9.3)).toBe('9.30%')
+    expect(porcentajeConversionCanonica(null)).toBe('—')
+    expect(porcentajeConversionCanonica(Number.NaN)).toBe('—')
   })
 
   it('formatea PEN y USD sin mezclar símbolos', () => {

@@ -19,12 +19,14 @@ vi.mock('@/data/crm-api', async (importActual) => {
     ...actual,
     obtenerClienteDetalle: vi.fn(),
     listarCuentasBancariasCliente: vi.fn(),
+    listarActividadesCliente: vi.fn(),
   }
 })
 
 const { ClienteDetalle } = await import('./cliente-detalle')
 const obtenerDetalle = vi.mocked(crmApi.obtenerClienteDetalle)
 const listarCuentas = vi.mocked(crmApi.listarCuentasBancariasCliente)
+const listarActividades = vi.mocked(crmApi.listarActividadesCliente)
 
 function detalleBase(over: Partial<ClienteDetalleDatos> = {}): ClienteDetalleDatos {
   return {
@@ -112,7 +114,9 @@ function montar({
 beforeEach(() => {
   obtenerDetalle.mockReset()
   listarCuentas.mockReset()
+  listarActividades.mockReset()
   listarCuentas.mockResolvedValue([])
+  listarActividades.mockResolvedValue([])
 })
 
 describe('ClienteDetalle — frescura y presentación', () => {

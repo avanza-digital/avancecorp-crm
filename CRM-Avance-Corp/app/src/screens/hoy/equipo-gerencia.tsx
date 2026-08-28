@@ -3,9 +3,12 @@ import type { EChartsOption } from 'echarts'
 import { Inbox, Target, UserRoundCheck, UsersRound } from 'lucide-react'
 import { GerenciaEChart } from '@/components/gerencia/echart-lazy'
 import { GERENCIA_CHART_COLORS as C } from '@/components/gerencia/chart-theme'
-import { numero } from '@/lib/format'
+import { numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
-import type { ConversionMensual } from '@/lib/conversion-mensual'
+import {
+  totalConversionPublicable,
+  type ConversionMensual,
+} from '@/lib/conversion-mensual'
 import {
   adaptarConversionMensual,
   clasificarRankingConversion,
@@ -15,7 +18,7 @@ import {
 import type { Miembro } from '@/lib/tipos'
 
 function pct(valor: number | null): string {
-  return valor == null ? '—' : `${numero(valor, 1)}%`
+  return porcentajeConversionCanonica(valor)
 }
 
 /** Rótulo corto de tarjeta para los estados sin % — jamás un «0 %» inventado. */
@@ -56,7 +59,7 @@ export function EquipoGerenciaPanel({
   // ranking pero no tiene % que barra pueda representar).
   const medibles = ranking.conPuesto.filter((fila) => fila.detalle.conversion_pct != null)
   // Los agregados del equipo los sirve la RPC — aquí no se divide nada global.
-  const total = conversionMensual?.total ?? null
+  const total = totalConversionPublicable(conversionMensual)
   const recibidos = total?.divisor ?? null
   const cierres = total == null ? null : total.cierres_no_referidos + total.cierres_referidos
   const conversion = total?.conversion_pct ?? null
@@ -73,7 +76,13 @@ export function EquipoGerenciaPanel({
   const opcion = useMemo<EChartsOption>(() => ({
     animationDuration: 600,
     grid: { left: 132, right: 58, top: 8, bottom: 28 },
-    tooltip: { trigger: 'axis', axisPointer: { type: 'shadow' } },
+    tooltip: {
+      trigger: 'axis',
+      axisPointer: { type: 'shadow' },
+      valueFormatter: (valor) => porcentajeConversionCanonica(
+        typeof valor === 'number' ? valor : null,
+      ),
+    },
     xAxis: {
       type: 'value',
       min: 0,
@@ -93,7 +102,16 @@ export function EquipoGerenciaPanel({
       data: medibles.map((fila) => fila.detalle.conversion_pct),
       barMaxWidth: 16,
       itemStyle: { color: C.teal, borderRadius: [0, 8, 8, 0] },
-      label: { show: true, position: 'right', formatter: '{c}%', color: C.navy, fontWeight: 600, fontFamily: 'IBM Plex Sans' },
+      label: {
+        show: true,
+        position: 'right',
+        formatter: (parametros) => porcentajeConversionCanonica(
+          typeof parametros.value === 'number' ? parametros.value : null,
+        ),
+        color: C.navy,
+        fontWeight: 600,
+        fontFamily: 'IBM Plex Sans',
+      },
     }],
   }), [medibles])
 

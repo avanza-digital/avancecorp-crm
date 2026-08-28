@@ -68,7 +68,7 @@ import { TIPO_EVENTO, type Lead, type Tarea } from '@/lib/tipos'
 import { useAhora } from '@/lib/ahora'
 import { useCRMData, usePanelesActions } from '@/lib/store-context'
 import { useAuth } from '@/lib/auth-context'
-import { money, moneyK, numero, primerNombre } from '@/lib/format'
+import { money, moneyK, numero, porcentajeConversionCanonica, primerNombre } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import { useTipoCambio } from '@/lib/tipo-cambio'
 import { useEstadoSlaOperativo } from '@/data/use-estado-sla-operativo'
@@ -1378,7 +1378,7 @@ export function HoyVendedor(): JSX.Element {
             <span className="ml-auto hidden text-right text-[11px] font-semibold tabular-nums text-muted-foreground sm:block">
               {capitalTotal.total == null ? 'Capital —' : `Capital ${moneyK(capitalTotal.total, 'PEN')}`}
               {' · '}
-              {conversion == null ? 'Conversión —' : `Conversión ${numero(conversion, 1)}%`}
+              {`Conversión ${porcentajeConversionCanonica(conversion)}`}
             </span>
             <ChevronRight
               className="size-4 shrink-0 text-muted-foreground transition-transform group-open:rotate-90"
@@ -1408,7 +1408,7 @@ export function HoyVendedor(): JSX.Element {
               <MetaFila
                 icon={TrendingUp}
                 label="Conversión del mes"
-                valorTxt={conversion == null ? '—' : `${numero(conversion, 1)}%`}
+                valorTxt={porcentajeConversionCanonica(conversion)}
                 metaTxt={metaConversion == null ? 'Sin meta' : `${metaConversion}%`}
                 pct={pctMeta(conversion ?? 0, metaConversion ?? 0)}
                 delay={180}

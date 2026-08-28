@@ -9,6 +9,7 @@ import {
 } from '@/lib/demo-inteligencia-comercial'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import type { ResponsableConversionMensual } from '@/lib/conversion-mensual'
+import type { MetricasConversionesEquipo } from '@/lib/metricas-conversiones-equipo'
 import type { ObjetivosPorVendedor } from '@/lib/objetivos'
 import { RankingVendedoresPanel } from './ranking-vendedores'
 
@@ -26,6 +27,16 @@ function filaSinActividad(vendedorId: string): ResponsableConversionMensual {
     estado: 'sin_actividad',
     procedencia: [],
     referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: null },
+    cartera: {
+      conversiones_clientes: 0,
+      conversiones_renovacion: 0,
+      conversiones_upgrade: 0,
+      capital_renovado_pen: 0,
+      capital_renovado_usd: 0,
+      capital_adicional_pen: 0,
+      capital_adicional_usd: 0,
+      renovaciones_sin_desglose: 0,
+    },
   }
 }
 
@@ -99,7 +110,7 @@ describe('ranking general de vendedores', () => {
     )
 
     expect(screen.getByText('7 vendedores · sin límite fijo de participantes')).toBeInTheDocument()
-    expect(screen.getByText('Cierres del mes (referidos al 15 %) ÷ leads recibidos en el mes')).toBeInTheDocument()
+    expect(screen.getByText('(Cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes')).toBeInTheDocument()
     const tabla = screen.getByRole('table', { name: 'Ranking de conversión general' })
     // Columnas de la conversión MENSUAL: recibidos del mes y cierres — no los
     // rótulos del payload viejo (Leads/Clientes medían el rango completo).
@@ -113,7 +124,7 @@ describe('ranking general de vendedores', () => {
     expect(within(filaAna).getByText('12')).toBeInTheDocument()
     expect(within(filaAna).getByText('5')).toBeInTheDocument()
     // 4.15 ÷ 12 — el numerador pondera el referido al 15 %, no cuenta 5/12.
-    expect(within(filaAna).getByText('34.6%')).toBeInTheDocument()
+    expect(within(filaAna).getByText('34.58%')).toBeInTheDocument()
     // El descuento con su porqué, debajo del % que rebaja.
     expect(within(filaAna).getByText('arrastra 1 conversión de anulaciones · julio 2026')).toBeInTheDocument()
     expect(within(filaAna).getByTitle('julio 2026: Cierre anulado por gerencia (−1)')).toBeInTheDocument()
@@ -309,7 +320,10 @@ describe('la relación pestaña↔panel sobrevive a error y a vacío (observaci�
 })
 
 describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_equipo_fn)', () => {
-  function cosechaDemo(cuadra: boolean | null = true) {
+  function cosechaDemo(
+    cuadra: boolean | null = true,
+    paridadNucleo: number | null = cuadra === false ? 2.5 : 0,
+  ): MetricasConversionesEquipo {
     return {
       version: 1 as const,
       generado_en: '2026-08-27T12:00:00Z',
@@ -321,7 +335,7 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
       nucleo: { base: 'asignacion', incluye_cartera: true, peso_referido: 0.15, mes_peso: '2026-08-01' },
       sondas: {
         cuadra,
-        paridad_nucleo: cuadra === false ? 2.5 : 0,
+        paridad_nucleo: paridadNucleo,
         paridad_filas: 9,
         divisor_fuera_del_roster: 0,
         numerador_fuera_del_roster: 0,
@@ -331,7 +345,7 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     }
   }
 
-  function montar(cosecha: ReturnType<typeof cosechaDemo> | null | undefined) {
+  function montar(cosecha: MetricasConversionesEquipo | null | undefined) {
     render(
       <RankingVendedoresPanel
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
@@ -358,7 +372,7 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     // …y en su pestaña sí, en idioma de negocio, SOLO para quien tiene fila.
     abrirCosecha()
     const panel = screen.getByRole('tabpanel')
-    expect(within(panel).getByText('De sus 38 leads del mes, 5 ya son clientes (13.2%)')).toBeInTheDocument()
+    expect(within(panel).getByText('De sus 38 leads del mes, 5 ya son clientes (13.20%)')).toBeInTheDocument()
     expect(within(panel).queryAllByText(/leads del mes, ninguno/)).toHaveLength(0)
   })
 
@@ -383,6 +397,21 @@ describe('la lectura por cosecha del ranking (F2.2/D2 — metricas_conversiones_
     expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
     expect(screen.getByRole('status')).toHaveTextContent('Lectura por cosecha en revisión')
   })
+
+  it.each([
+    ['cuadra=true pero paridad_nucleo!=0', () => cosechaDemo(true, 0.01)],
+    ['cuadra=null', () => cosechaDemo(null, 0)],
+    ['paridad_nucleo=null', () => cosechaDemo(true, null)],
+    ['sondas ausentes', () => {
+      const { sondas: _omitidas, ...sinSondas } = cosechaDemo()
+      return sinSondas
+    }],
+  ])('F3.4 fail-closed: %s no deja publicar la cosecha', (_caso, crear) => {
+    montar(crear())
+    abrirCosecha()
+    expect(screen.queryByText(/leads del mes/)).not.toBeInTheDocument()
+    expect(screen.getByRole('status')).toHaveTextContent('verificación interna no está confirmada')
+  })
 })
 
 describe('el desglose de cartera por fila (hallazgo de Grecia, 27/08)', () => {
@@ -394,7 +423,16 @@ describe('el desglose de cartera por fila (hallazgo de Grecia, 27/08)', () => {
     primera.cierres_referidos = 0
     primera.numerador = 4
     primera.conversion_pct = 9.3
-    primera.cartera = { conversiones_clientes: 4 }
+    primera.cartera = {
+      conversiones_clientes: 4,
+      conversiones_renovacion: 0,
+      conversiones_upgrade: 4,
+      capital_renovado_pen: 0,
+      capital_renovado_usd: 0,
+      capital_adicional_pen: 0,
+      capital_adicional_usd: 0,
+      renovaciones_sin_desglose: 0,
+    }
 
     render(
       <RankingVendedoresPanel
@@ -412,6 +450,7 @@ describe('el desglose de cartera por fila (hallazgo de Grecia, 27/08)', () => {
     )
 
     expect(screen.getAllByText('0 cierres + 4 de cartera').length).toBeGreaterThanOrEqual(1)
+    expect(screen.getAllByText('9.30%').length).toBeGreaterThanOrEqual(1)
     // Las filas SIN operaciones de cartera no ganan la línea: sin ruido.
     expect(screen.queryByText(/\+ 0 de cartera/)).not.toBeInTheDocument()
   })

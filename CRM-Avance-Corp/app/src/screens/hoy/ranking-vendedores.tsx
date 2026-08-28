@@ -8,7 +8,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, numero } from '@/lib/format'
+import { money, numero, porcentajeConversionCanonica } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import { descuentoArrastre, type ConversionMensual } from '@/lib/conversion-mensual'
 import { ChipArrastre } from '@/components/common/chip-arrastre'
@@ -29,6 +29,7 @@ import type {
   ObjetivosPorVendedor,
 } from '@/lib/objetivos'
 import type { TipoCambio } from '@/lib/tipo-cambio'
+import { sondasNucleoVerificadas } from '@/lib/sondas-conversion'
 
 interface RankingVendedoresPanelProps {
   datos: MetricasConversiones | null | undefined
@@ -47,8 +48,9 @@ interface RankingVendedoresPanelProps {
    * F2.2 — patrón D2: de los leads que cada quien RECIBIÓ en el mes, cuántos
    * cerraron, madurando hasta hoy). Tri-estado como la mensual: `undefined` =
    * consultando o sin pedir (no se pinta nada), `null` = no disponible
-   * (fail-closed: tampoco se pinta — jamás un cero fabricado). Si sus sondas
-   * dicen `cuadra: false`, la cosecha se OCULTA y se avisa (F3.4).
+   * (fail-closed: tampoco se pinta — jamás un cero fabricado). La cosecha solo
+   * se muestra con sondas PRESENTES que confirmen `cuadra=true` y
+   * `paridad_nucleo=0`; cualquier media verificación se oculta (F3.4).
    */
   cosecha?: MetricasConversionesEquipo | null | undefined
   equipo: ConversionEquipoVendedor[]
@@ -83,7 +85,7 @@ const IDS_TAB: Record<TipoRanking, { tab: string; panel: string }> = {
 }
 
 function pct(valor: number | null): string {
-  return valor == null ? '—' : `${numero(valor, 1)}%`
+  return porcentajeConversionCanonica(valor)
 }
 
 function colorPosicion(indice: number): string {
@@ -214,7 +216,7 @@ function CosechaLote({ cosecha, equipo, enRevision }: {
       <div className="grid min-h-64 place-items-center px-5 text-center">
         <div className="max-w-md rounded-2xl border border-amber-300/70 bg-amber-50 px-5 py-4">
           <p role="status" className="text-xs font-medium text-amber-900">
-            Lectura por cosecha en revisión: su verificación interna no cuadró y se oculta hasta revisarla.
+            Lectura por cosecha en revisión: su verificación interna no está confirmada y se oculta hasta revisarla.
           </p>
         </div>
       </div>
@@ -501,14 +503,18 @@ export function RankingVendedoresPanel({
     () => clasificarRankingConversion(adaptadaMensual.vendedores),
     [adaptadaMensual.vendedores],
   )
-  // F3.4 sobre la cosecha: si su sonda de paridad no cuadra, la pestaña entera
-  // se oculta y lo dice — el ranking ponderado no depende de ella.
-  const cosechaEnRevision = cosecha?.sondas?.cuadra === false
+  // F3.4 sobre la cosecha: solo dos señales explícitas autorizan la cifra. Un
+  // bloque vivo sin sondas, con NULL o con desvío distinto de cero queda
+  // oculto; el ranking ponderado no depende de esta segunda lectura.
+  const cosechaEnRevision = cosecha != null && !sondasNucleoVerificadas(cosecha.sondas)
   const rankingCapitalTotal = useMemo(
     () => clasificarRankingCapitalTotal(adaptada.vendedores, metasVendedores, cumplimientoVendedores, tc?.promedio ?? null),
     [adaptada.vendedores, cumplimientoVendedores, metasVendedores, tc],
   )
   const totalVendedores = Math.max(adaptada.vendedores.length, adaptadaMensual.vendedores.length)
+  const formulaConversion = conversionMensual == null
+    ? '(Cierres no referidos + referidos ponderados + operaciones de cartera) ÷ leads no referidos recibidos en el mes'
+    : `(Cierres no referidos + referidos ×${numero(conversionMensual.ponderacion.referido, 2)} + operaciones de cartera) ÷ leads no referidos recibidos en el mes`
 
   return (
     <section data-gi-panel className="gi-card overflow-hidden">
@@ -529,7 +535,7 @@ export function RankingVendedoresPanel({
         </div>
         <p className="text-[11px] font-medium text-[var(--gi-muted)]">
           {tipo === 'conversion'
-            ? 'Cierres del mes (referidos al 15 %) ÷ leads recibidos en el mes'
+            ? formulaConversion
             : tipo === 'cosecha'
             ? 'De los leads que cada quien recibió este mes, cuántos ya son clientes'
             : tc === undefined

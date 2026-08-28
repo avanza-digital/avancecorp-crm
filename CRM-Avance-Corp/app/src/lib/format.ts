@@ -23,6 +23,22 @@ export function numero(
 }
 
 /**
+ * Presentación única de la conversión canónica (`numeric`, redondeada por el
+ * núcleo a dos decimales). Mantiene ambos decimales en todas las superficies:
+ * 137.63 nunca vuelve a 137.6 y 9.3 se reconoce como la misma cifra 9.30.
+ * NULL/no finito conserva indisponibilidad; no se convierte en 0 %.
+ */
+export function porcentajeConversionCanonica(
+  valor: number | null | undefined,
+): string {
+  if (valor == null || !Number.isFinite(valor)) return '—'
+  return `${valor.toLocaleString('es-PE', {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}%`
+}
+
+/**
  * Dígitos de lo que hay tecleado en un campo de importe. Tolera separadores,
  * espacios, símbolo de moneda y texto pegado desde una hoja de cálculo.
  */

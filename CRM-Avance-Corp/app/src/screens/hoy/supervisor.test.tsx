@@ -226,6 +226,18 @@ function montar(
  */
 /** Payload de alcance 'equipo' cuyo TOTAL trae el % y el divisor dados. */
 function conversionMensualEquipo(pct: number | null, divisor: number): import('@/lib/conversion-mensual').ConversionMensual {
+  const cartera = {
+    conversiones_clientes: 0,
+    conversiones_renovacion: 0,
+    conversiones_upgrade: 0,
+    capital_renovado_pen: 0,
+    capital_renovado_usd: 0,
+    capital_adicional_pen: 0,
+    capital_adicional_usd: 0,
+    renovaciones_sin_desglose: 0,
+    operaciones_renovacion: 0,
+    operaciones_upgrade: 0,
+  }
   return {
     version: 1,
     generado_en: '2026-07-15T15:00:00Z',
@@ -234,7 +246,8 @@ function conversionMensualEquipo(pct: number | null, divisor: number): import('@
     ponderacion: { referido: 0.15, fuente: 'crm.conversion_pesos' },
     fuentes: { divisor: 'crm.lead_asignaciones.asignado_en', numerador: 'crm.lead_asignaciones.resultado_en', referido: 'crm.lead_asignaciones.origen' },
     cobertura: { medible: true, suelo_historico: null, motivo_no_medible: null, divisor_aproximado: 0, divisor_por_motivo: divisor > 0 ? { ingreso: divisor } : {}, cierres_sin_episodio: 0, fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 } },
-    total: { analistas: divisor > 0 ? 1 : 0, divisor, cierres_no_referidos: 0, cierres_referidos: 0, cierres_de_arrastre: 0, referidos_recibidos: 0, numerador: pct == null ? 0 : (pct * divisor) / 100, conversion_pct: pct, referidos_aporta_pct: null },
+    cartera,
+    total: { analistas: divisor > 0 ? 1 : 0, divisor, cierres_no_referidos: 0, cierres_referidos: 0, cierres_de_arrastre: 0, referidos_recibidos: 0, numerador: pct == null ? 0 : (pct * divisor) / 100, conversion_pct: pct, referidos_aporta_pct: null, cartera },
     responsables: [],
   }
 }
@@ -635,7 +648,7 @@ describe('Hoy · supervisor — meta del equipo', () => {
       cumplimiento: cumplimientoSupervisor(80, 2, 'con-metas', 50),
     })
 
-    expect(screen.getByText('50% de 50% · 10 recibidos')).toBeInTheDocument()
+    expect(screen.getByText('50.00% de 50% · 10 recibidos')).toBeInTheDocument()
   })
 
   it('un mes sin leads RECIBIDOS es SIN DATO, no un 0 % en rojo crítico', () => {

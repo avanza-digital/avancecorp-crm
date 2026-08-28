@@ -69,11 +69,24 @@ begin
   v_def := pg_catalog.pg_get_functiondef(
     'private.metricas_cartera_por_vendedor(date)'::regprocedure
   );
-  if v_def not ilike '%partition by o.cliente_id, o.periodo%'
-     or v_def not ilike '%orden_conversion = 1%'
-     or v_def not ilike '%capital_adicional_pen%'
-     or v_def not ilike '%capital_adicional_usd%' then
-    raise exception 'GCAR-07: la deduplicación o el desglose económico cambió';
+  -- C0.1 reemplaza este helper atómicamente: la llamada a episodios es la
+  -- señal de corte. Un cuerpo híbrido entra a la rama C0.1 y debe fallar.
+  if v_def ilike '%private.conversion_episodios(%' then
+    if v_def not ilike '%where e.tipo = ''operacion''%'
+       or v_def ilike '%row_number()%'
+       or v_def ilike '%orden_conversion%'
+       or v_def ilike '%elegible_conversion%'
+       or v_def not ilike '%capital_adicional_pen%'
+       or v_def not ilike '%capital_adicional_usd%' then
+      raise exception 'GCAR-07: cartera C0.1 no deriva limpiamente de episodios operación';
+    end if;
+  else
+    if v_def not ilike '%partition by o.cliente_id, o.periodo%'
+       or v_def not ilike '%orden_conversion = 1%'
+       or v_def not ilike '%capital_adicional_pen%'
+       or v_def not ilike '%capital_adicional_usd%' then
+      raise exception 'GCAR-07: la deduplicación o el desglose económico legacy cambió';
+    end if;
   end if;
 
   v_def := pg_catalog.pg_get_functiondef(

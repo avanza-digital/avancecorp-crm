@@ -6,6 +6,7 @@ import {
   metricasVendedoresDesdeAmbito,
   type MetricasVendedoresOperativas,
 } from '@/lib/metricas-vendedores'
+import { conversionMensualDemo } from '@/lib/demo-conversion-mensual'
 import type { Actividad, Lead, Miembro } from '@/lib/tipos'
 import { useMetricasVendedores } from './crm-queries'
 
@@ -21,8 +22,8 @@ export interface MetricasVendedoresOperativasHook {
  * Une crm.metricas_vendedores_fn con su espejo demo (F1b). El payload real
  * viaja SIN nombres: aquí se une con `roster` (las filas que la pantalla
  * muestra) y con `equipo` (el roster completo, para nombrar supervisores de
- * la comparativa). En demo, metricasPorVendedor/comparativaEquipos sobre el
- * ámbito vivo recortado a la ventana operativa de 45 días.
+ * la comparativa). En demo, la foto operativa sale del ámbito vivo y la
+ * conversión del mismo espejo mensual canónico que alimenta Hoy/Ranking.
  */
 export function useMetricasVendedoresOperativas(
   roster: readonly Miembro[],
@@ -40,7 +41,19 @@ export function useMetricasVendedoresOperativas(
     () => {
       if (!habilitado || !yo) return null
       if (yo.demo) {
-        return metricasVendedoresDesdeAmbito(roster, equipo, leads, actividades, ahora)
+        const ambitoMensual = yo.rol === 'supervisor'
+          ? { alcance: 'equipo' as const, actorId: yo.id }
+          : yo.rol === 'gerencia' || yo.rol === 'directorio'
+            ? { alcance: 'global' as const }
+            : { alcance: 'propio' as const, actorId: yo.id }
+        return metricasVendedoresDesdeAmbito(
+          roster,
+          equipo,
+          leads,
+          actividades,
+          ahora,
+          conversionMensualDemo(ahora, ambitoMensual),
+        )
       }
       // Fail-closed TAMBIÉN en refetch (hallazgo ALTA de la revisión Codex).
       if (consulta.error) return null

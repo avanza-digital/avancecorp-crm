@@ -8,6 +8,7 @@ import {
   metricasConversionesDemo,
 } from '@/lib/demo-inteligencia-comercial'
 import { money } from '@/lib/format'
+import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import { InteligenciaComercialPanel } from './inteligencia-comercial'
 
 vi.mock('@/components/gerencia/echart-lazy', () => ({
@@ -94,12 +95,12 @@ describe('detalle de conversión por vendedor', () => {
     const contenido = within(detalle)
     // El número grande es LA conversión del MES (4.15÷12), no la del rango.
     expect(contenido.getByText('conversión del mes')).toBeInTheDocument()
-    expect(contenido.getByText('34.6%')).toBeInTheDocument()
+    expect(contenido.getByText('34.58%')).toBeInTheDocument()
     expect(contenido.getByText('Recibidos 12 · cierres 5')).toBeInTheDocument()
     // Procedencia y referidos con la letra corregida del plan.
     expect(contenido.getByText('de agosto 4, de julio 1')).toBeInTheDocument()
     expect(contenido.getByText(/2 registrados · 1 cerrados/)).toBeInTheDocument()
-    expect(contenido.getByText('Los referidos no entran al divisor: cada cierre aporta 0.15 al numerador.')).toBeInTheDocument()
+    expect(contenido.getByText('Fórmula: (cierres no referidos + referidos ×0.15 + operaciones de cartera) ÷ leads no referidos recibidos en el mes.')).toBeInTheDocument()
     // F1.3b: la ficha dice de QUÉ es el capital — el que produjeron SUS leads
     // (el rótulo «confirmado» era del cumplimiento, otra pregunta, y la
     // fuente vieja lo dejaba en S/ 0 eterno).
@@ -154,7 +155,7 @@ describe('detalle de conversión por vendedor', () => {
 
   it('mide la meta con la conversión del mes, no con la del cumplimiento', () => {
     // Las dos fuentes discrepan A PROPÓSITO: la conversión del mes de Ana es
-    // 34.6 % (la que enseña su número grande) y el cumplimiento de metas dice
+    // 34.58 % (la que enseña su número grande) y el cumplimiento de metas dice
     // 40 %, que es otra fórmula. Con meta 40 %, la leyenda de la barra delata
     // cuál de las dos se está midiendo.
     const metas = metasConversionEquipoDemo()
@@ -187,9 +188,9 @@ describe('detalle de conversión por vendedor', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
     const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
-    expect(detalle.getByText('34.6% de 40%')).toBeInTheDocument()
+    expect(detalle.getByText('34.58% de 40%')).toBeInTheDocument()
     expect(detalle.queryByText('40% de 40%')).not.toBeInTheDocument()
-    // Y el veredicto de estado sale del mismo número: 34.6 < 40.
+    // Y el veredicto de estado sale del mismo número: 34.58 < 40.
     expect(detalle.getByText('Por alcanzar')).toBeInTheDocument()
   })
 
@@ -276,9 +277,36 @@ describe('detalle de conversión por vendedor', () => {
     expect(JSON.parse(tendencia.getAttribute('data-series') ?? '[]')).toEqual([null, 50])
   })
 
-  it('no convierte en cero el detalle ausente de una RPC antigua', () => {
+  it('con núcleo verificado no convierte en cero el detalle mensual ausente', () => {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-31')
     delete datos.responsables
+    datos.nucleo = {
+      base: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      divisor: 10,
+      numerador: 1,
+      conversion_pct: 10,
+      cierres_no_referidos: 1,
+      cierres_referidos: 0,
+      referidos_recibidos: 0,
+      referidos_cierran_pct: null,
+      operaciones_cartera: 0,
+      peso_referido: 0.15,
+      mes_peso: '2026-08-01',
+      incluye_cartera: true,
+    }
+    datos.sondas = {
+      cuadra: true,
+      paridad_nucleo: 0,
+      paridad_filas: 0,
+      divisor_fuera_del_roster: 0,
+      numerador_fuera_del_roster: 0,
+      cierres_sin_ficha_convertida: 0,
+      cohorte_convertidos_sin_cierre_elegible: 0,
+      cartera_fuera_del_rango: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      origen_ficha_distinto_del_ledger: 0,
+    }
 
     render(
       <InteligenciaComercialPanel
@@ -308,6 +336,40 @@ describe('detalle de conversión por vendedor', () => {
     expect(detalle.getAllByText('—').length).toBeGreaterThan(0)
     expect(detalle.queryByText(money(360_000, 'PEN'))).not.toBeInTheDocument()
     expect(detalle.getByText('Tendencia no disponible')).toBeInTheDocument()
+  })
+
+  it('la ficha falla cerrada ante cierres mensuales sin episodio, pero conserva el capital del rango', () => {
+    const mensual = conversionMensualInteligenciaDemo(AHORA)
+    mensual.cobertura = { ...mensual.cobertura, cierres_sin_episodio: 1 }
+
+    render(
+      <InteligenciaComercialPanel
+        datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
+        conversionMensual={mensual}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={metasConversionEquipoDemo()}
+        cumplimientoVendedores={cumplimientoMetasConversionEquipoDemo().porVendedor}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const detalle = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    expect(detalle.getByText('Conversión del mes en revisión')).toBeInTheDocument()
+    expect(detalle.queryByText('34.58%')).not.toBeInTheDocument()
+    expect(detalle.queryByText('Recibidos 12 · cierres 5')).not.toBeInTheDocument()
+    expect(detalle.queryByRole('img', { name: 'Tendencia semanal de conversión de Ana Torres' })).not.toBeInTheDocument()
+    expect(detalle.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
+    expect(detalle.getByText(money(20_000, 'USD'))).toBeInTheDocument()
   })
 
   it('la ficha rotula los estados del mes: Elena solo referidos, y el mes no medible', () => {
@@ -393,7 +455,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     conversion_pct: 2.6,
     madura_hasta: '2026-08-27',
   }
-  const SONDAS = {
+  const SONDAS: NonNullable<MetricasConversiones['sondas']> = {
     cuadra: true as boolean | null,
     paridad_nucleo: 0 as number | null,
     paridad_filas: 16,
@@ -406,14 +468,19 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     episodios_sin_origen: 0,
     origen_ficha_distinto_del_ledger: 0,
     // F1.3b: opcional en el contrato; el fixture la lleva en 0 (estado sano).
-    perfiles_con_leads_de_varios_vendedores: 0 as number | undefined,
+    perfiles_con_leads_de_varios_vendedores: 0,
   }
 
-  function montarConNucleo(sondas: typeof SONDAS, origenReferido = false) {
+  function montarConNucleo(
+    sondas: NonNullable<MetricasConversiones['sondas']> | undefined,
+    origenReferido = false,
+    incluirNucleo = true,
+    modoDemo = true,
+  ) {
     const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
-    datos.nucleo = { ...NUCLEO }
+    if (incluirNucleo) datos.nucleo = { ...NUCLEO }
     datos.cosecha = { ...COSECHA }
-    datos.sondas = sondas
+    if (sondas !== undefined) datos.sondas = sondas
     if (origenReferido) {
       const referido = datos.origenes.find((fila) => fila.origen.toLowerCase() === 'referido')
       if (referido) {
@@ -421,7 +488,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
         referido.peso_en_nucleo = 0.15
       }
     }
-    render(
+    return render(
       <InteligenciaComercialPanel
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
@@ -434,7 +501,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
-        modoDemo
+        modoDemo={modoDemo}
         puedeAlternarEjemplo={false}
         onAlternarEjemplo={vi.fn()}
         onReintentar={vi.fn()}
@@ -442,7 +509,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     )
   }
 
-  it('con sonda verificada, el héroe pinta el NÚCLEO con su desglose y la cosecha aparte', () => {
+  it('con sonda verificada, el héroe conserva la cosecha bruta y no pinta el núcleo', () => {
     montarConNucleo({ ...SONDAS })
     // Decisión de Miguel (27/08): la cifra grande de ESTA pantalla es EL
     // BRUTO — entró vs cerró — bajo el nombre de la casa «Cosecha del
@@ -455,6 +522,8 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
     expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
   it('la paridad del núcleo ya no gobierna esta pantalla: el BRUTO se pinta igual', () => {
@@ -464,6 +533,8 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
     expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.queryByText(/Cifras en revisión/)).not.toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por origen del lead' })).toBeInTheDocument()
   })
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
@@ -484,8 +555,30 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
     expect(screen.getByText(/puede sumar más que el total/)).toBeInTheDocument()
   })
 
-  it('F1.3b: con la sonda en 0 (o ausente, servidor previo) no hay aviso', () => {
-    montarConNucleo({ ...SONDAS })
+  it('F1.3b: el warning convive con la cosecha bruta y el capital', () => {
+    montarConNucleo({
+      ...SONDAS,
+      cuadra: false,
+      paridad_nucleo: 2,
+      perfiles_con_leads_de_varios_vendedores: 2,
+    })
+
+    expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
+    expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
+    expect(screen.getByRole('img', { name: 'Conversión a clientes por vendedor' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Capital producido por origen' })).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'Ver detalle' }))
+    const capitalVendedor = within(screen.getByRole('dialog', { name: 'Ana Torres' }))
+    expect(capitalVendedor.getByText(money(360_000, 'PEN'))).toBeInTheDocument()
+  })
+
+  it('F1.3b: con el probe en 0 o realmente ausente (servidor previo) no hay aviso', () => {
+    const vistaConCero = montarConNucleo({ ...SONDAS })
+    expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
+    vistaConCero.unmount()
+
+    const { perfiles_con_leads_de_varios_vendedores: _omitido, ...sondasServidorPrevio } = SONDAS
+    montarConNucleo(sondasServidorPrevio)
     expect(screen.queryByText(/leads de más de un vendedor/)).not.toBeInTheDocument()
   })
 })
@@ -547,7 +640,7 @@ describe('F1.3b: capital producido por origen', () => {
     )
 
     expect(screen.getByText(/Capital producido por origen/)).toBeInTheDocument()
-    const bloque = screen.getByText(/Capital producido por origen/).closest('div')
+    const bloque = screen.getByRole('region', { name: 'Capital producido por origen' })
     expect(within(bloque as HTMLElement).getByText('Meta Ads')).toBeInTheDocument()
     // PEN y USD por separado, jamás sumados (no hay TC en este panel).
     expect(within(bloque as HTMLElement).getByText(`${money(720_000, 'PEN')} + ${money(36_000, 'USD')}`)).toBeInTheDocument()

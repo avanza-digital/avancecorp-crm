@@ -52,7 +52,7 @@ const EstadoResponsableSchema = v.picklist(ESTADOS_CONVERSION_MENSUAL)
 
 /** Vocabulario CERRADO — espejo del `case` de la migración. Añadir un motivo en
  * el servidor exige añadirlo aquí en el MISMO release. */
-const MotivoNoMedibleSchema = v.nullable(
+export const MotivoNoMedibleSchema = v.nullable(
   v.picklist([
     'sin_ledger',
     'anterior_al_ledger',
@@ -61,6 +61,34 @@ const MotivoNoMedibleSchema = v.nullable(
     'supervisor_inactivo',
     'supervisor_no_es_supervisor',
   ]),
+)
+
+/** Cobertura global del núcleo mensual. Se exporta para que los adaptadores
+ * que encadenan esta RPC con otras superficies conserven exactamente el mismo
+ * criterio de publicación, incluido el estado provisional y sus sondas. */
+export const CoberturaConversionSchema = v.pipe(
+  v.object({
+    /** false no siempre significa ocultar: `mes_parcial` se muestra provisional. */
+    medible: v.boolean(),
+    suelo_historico: v.nullable(FechaHoraSchema),
+    motivo_no_medible: MotivoNoMedibleSchema,
+    divisor_aproximado: EnteroNoNegativoRpcSchema,
+    divisor_por_motivo: v.record(v.string(), EnteroNoNegativoRpcSchema),
+    /** >0 invalida la publicación exacta: no se sabe a qué fila atribuirlo. */
+    cierres_sin_episodio: EnteroNoNegativoRpcSchema,
+    fuera_de_roster: v.object({
+      analistas: EnteroNoNegativoRpcSchema,
+      divisor: EnteroNoNegativoRpcSchema,
+      cierres: EnteroNoNegativoRpcSchema,
+      numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
+    }),
+  }),
+  v.check(
+    (cobertura) => cobertura.medible
+      ? cobertura.motivo_no_medible == null
+      : cobertura.motivo_no_medible != null,
+    'La cobertura mensual contradice su motivo de disponibilidad',
+  ),
 )
 
 const TramoProcedenciaSchema = v.object({
@@ -112,13 +140,26 @@ export type AjusteConversion = v.InferOutput<typeof AjusteConversionSchema>
 /**
  * Operaciones de cartera del mes acreditadas al asesor — el sumando del
  * numerador que NO viene de leads (envoltorio de `20260824231133`; máx. una
- * operación elegible por cliente/mes). Sin declararlo, Valibot lo descartaba
- * y una fila con «0 cierres y 9,3 %» no podía explicarse a sí misma (el
- * hallazgo de Grecia, 27/08). Se declara lo que el ranking pinta; `optional`
- * porque el espejo demo no lo emite.
+ * operación elegible por cliente/mes). Es OBLIGATORIO en el contrato vigente:
+ * si falta, no sabemos si hubo cero operaciones o si llegó el núcleo anterior,
+ * y convertir esa ausencia en cero sería publicar una explicación falsa.
  */
 const CarteraResponsableSchema = v.object({
   conversiones_clientes: EnteroNoNegativoRpcSchema,
+  conversiones_renovacion: EnteroNoNegativoRpcSchema,
+  conversiones_upgrade: EnteroNoNegativoRpcSchema,
+  capital_renovado_pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_renovado_usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_adicional_pen: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  capital_adicional_usd: v.pipe(NumeroRpcSchema, v.minValue(0)),
+  renovaciones_sin_desglose: EnteroNoNegativoRpcSchema,
+})
+
+/** El total agrega además el conteo económico de operaciones por tipo. */
+const CarteraTotalSchema = v.object({
+  ...CarteraResponsableSchema.entries,
+  operaciones_renovacion: EnteroNoNegativoRpcSchema,
+  operaciones_upgrade: EnteroNoNegativoRpcSchema,
 })
 
 const ResponsableConversionSchema = v.object({
@@ -136,7 +177,7 @@ const ResponsableConversionSchema = v.object({
   procedencia: v.array(TramoProcedenciaSchema),
   referidos: ReferidosResponsableSchema,
   ajuste: v.optional(AjusteConversionSchema),
-  cartera: v.optional(CarteraResponsableSchema),
+  cartera: CarteraResponsableSchema,
 })
 
 const TotalConversionSchema = v.object({
@@ -149,6 +190,7 @@ const TotalConversionSchema = v.object({
   numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
   conversion_pct: PorcentajeSinTechoSchema,
   referidos_aporta_pct: PorcentajeSinTechoSchema,
+  cartera: CarteraTotalSchema,
 })
 
 export const ConversionMensualSchema = v.object({
@@ -177,25 +219,9 @@ export const ConversionMensualSchema = v.object({
     numerador: v.literal('crm.lead_asignaciones.resultado_en'),
     referido: v.literal('crm.lead_asignaciones.origen'),
   }),
-  cobertura: v.object({
-    /** false = «sin datos», que es una frase MUY distinta de «0 %». */
-    medible: v.boolean(),
-    suelo_historico: v.nullable(FechaHoraSchema),
-    motivo_no_medible: MotivoNoMedibleSchema,
-    divisor_aproximado: EnteroNoNegativoRpcSchema,
-    divisor_por_motivo: v.record(v.string(), EnteroNoNegativoRpcSchema),
-    /** Sonda: cierres cuya ficha dice «convertido» sin episodio que lo respalde
-     * en la ventana. Avisa en vez de mentir; > 0 es un aviso de integridad. */
-    cierres_sin_episodio: EnteroNoNegativoRpcSchema,
-    /** Agregado SIN identidad a propósito (ni un uuid): producción fuera del
-     * roster ni se pierde ni se atribuye. */
-    fuera_de_roster: v.object({
-      analistas: EnteroNoNegativoRpcSchema,
-      divisor: EnteroNoNegativoRpcSchema,
-      cierres: EnteroNoNegativoRpcSchema,
-      numerador: v.pipe(NumeroRpcSchema, v.minValue(0)),
-    }),
-  }),
+  cobertura: CoberturaConversionSchema,
+  /** Mismo total que `total.cartera`, también publicado en la raíz por el RPC. */
+  cartera: CarteraTotalSchema,
   total: TotalConversionSchema,
   responsables: v.array(ResponsableConversionSchema),
 })
@@ -285,6 +311,13 @@ export function lecturaCobertura(
   cobertura: ConversionMensual['cobertura'] | null | undefined,
 ): LecturaCobertura {
   if (cobertura == null) return { mostrar: false, aviso: null }
+  if (cobertura.cierres_sin_episodio > 0) {
+    const n = cobertura.cierres_sin_episodio
+    return {
+      mostrar: false,
+      aviso: `Cifras en revisión: ${n} ${n === 1 ? 'cierre no tiene' : 'cierres no tienen'} episodio verificable.`,
+    }
+  }
   if (cobertura.medible) return { mostrar: true, aviso: null }
 
   switch (cobertura.motivo_no_medible) {
@@ -305,6 +338,16 @@ export function lecturaCobertura(
     default:
       return { mostrar: false, aviso: 'Sin datos de asignación para este mes' }
   }
+}
+
+/** Total canónico visible bajo la misma política que filas, ranking y metas.
+ * Centralizarlo evita que un consumidor lea `total` crudo mientras las demás
+ * superficies ya ocultaron una sonda de integridad rota. */
+export function totalConversionPublicable(
+  conversion: ConversionMensual | null | undefined,
+): ConversionMensual['total'] | null {
+  if (conversion == null || !lecturaCobertura(conversion.cobertura).mostrar) return null
+  return conversion.total
 }
 
 export interface DescuentoArrastre {
