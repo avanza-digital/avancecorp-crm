@@ -6,6 +6,30 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ---
 
+## 📍 ESTADO — se actualiza al final de cada sesión
+
+**Fase actual:** FASE 0 (decidir). **Nada ejecutado todavía.**
+
+**Lo que bloquea:** las 7 preguntas de §8 sin responder.
+
+**Lo siguiente en cuanto haya respuestas:** Fase 1 (proteger lo que ya tienes), antes del próximo cierre de mes.
+
+| Fase | Estado |
+|---|---|
+| 0 · Decidir | 🟡 en curso — 14 decisiones tomadas, 7 preguntas abiertas |
+| 1 · Proteger lo que ya tienes | ⚪ sin empezar |
+| 2 · Mirar el primer cierre | ⚪ sin empezar |
+| 3 · Que cada venta tenga dueño | ⚪ sin empezar |
+| 4 · Una sola calculadora de capital | ⚪ sin empezar |
+| 5 · Cerrar puertas | ⚪ sin empezar |
+| 6 · Las otras dos calculadoras | ⚪ sin empezar |
+| 7 · Ordenar la casa | ⚪ sin empezar |
+| 8 · Un solo idioma | ⚪ sin empezar |
+
+**Para retomar en una sesión nueva:** decir **`RETOMAR-SERVIDOR`**. Con eso se carga este plan, las decisiones ya tomadas y el punto exacto donde quedó.
+
+---
+
 ## 1. La problemática
 
 El servidor funciona y el negocio opera. El problema no es que algo esté caído: es que **el sistema no tiene una sola versión de la verdad**, y eso ya empezó a costar decisiones.
