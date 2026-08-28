@@ -42,6 +42,20 @@ Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 ## Notas
 
+- **Deploy 2026-08-27 (~16:17 hora de Lima) — CRM: terminología visual de citas:**
+  cambio exclusivamente de frontend: toda la interfaz presenta **cita / citas**,
+  mientras conserva internamente `reunion`, `reunion_agendada`, rutas, métricas,
+  RPC, campos y textos históricos. Una segunda auditoría cubrió también títulos
+  heredados escritos `Reunion` sin tilde y añadió una aserción E2E de ausencia
+  del término viejo en el drawer. Release final
+  **`crm-20260827T211722Z-722a7477cab1`**, build
+  **`build-20260827T211722350Z`**, ZIP SHA-256
+  **`b4f95732841b0dce2b341294b20487e7545803587e6c148a7ed0451d743d5998`**.
+  Gate: 2.344/2.344 pruebas, E2E focalizado 11/11, TypeScript, lint y build en verde (solo cuatro
+  warnings a11y preexistentes en `coverflow-carousel.tsx`). En vivo: `version.json`
+  correcto; HTML, versión, JS/CSS principal y chunks de Agenda, Alertas, Hoy,
+  Gerencia y Mi cartera coinciden byte por byte; ZIP 404 en CRM y portal.
+
 - **Deploy 2026-08-25 (~10:04 hora de Lima) — CRM: 38.º release, cierre de la
   segunda regresión (RETOMAR-55):** publica el merge **`b3f6e98`** =
   `90b90e2` (supervisor F4.4, el 37.º) + `f924b91` (portada del vendedor
