@@ -1,12 +1,13 @@
 ---
 tipo: plan-tecnico
-estado: c0-1-candidato-local-certificado-reconciliacion-canonica-pendiente
+estado: c0-1-reconciliado-local-certificado-servidor-pendiente
 fecha: 2026-08-27
 actualizado: 2026-08-28
 serial_origen: AVC-F41-360-20260825-R2
 baseline_revisado: 7c94d77c39f642e27af676dce6178e6b9f64a315
-head_canonico_pendiente: 1f012829f4dbd4b45d8d1615d6a579b730dbfb05
+head_canonico_reconciliado: 1f012829f4dbd4b45d8d1615d6a579b730dbfb05
 sha_c01_local: a1f7b2ec2608fbbedb6107157fdb7a9033d26a00
+sha_c01_reconciliado: 30e95f399c7114c0cad4b725ef07fcd98c081730
 sha_f0_frontend: 41987fea08febac7fb67750bc8269b43582c645d
 sha_r2_ux: e6129674844ecca12b224690f43bedb436b06006
 head_r2_separado: 4f57db1fd0aa0ff886edf1033aed3718f40fdaad
@@ -14,8 +15,8 @@ head_r2_separado: 4f57db1fd0aa0ff886edf1033aed3718f40fdaad
 
 # Ficha 360 — plan de reintegración sobre el núcleo único
 
-Checkpoint vigente de continuación: [[Checkpoint C0.1 nucleo unico 2026-08-27 R3]]
-(`AVC-F41-360-20260827-R3`).
+Checkpoint vigente de continuación: [[Checkpoint C0.1 nucleo unico 2026-08-28 R4]]
+(`AVC-F41-360-20260828-R4`).
 
 Este documento adapta [[Ficha comercial 360 de clientes - plan]] después de
 la integración de ramas y de la implantación de
@@ -43,10 +44,9 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
 
 ## Estado ejecutado al 2026-08-28
 
-- El candidato local C0.1 quedó congelado en `a1f7b2e` sobre la base común
-  `7c94d77`. El árbol canónico avanzó por separado hasta `1f01282`: ambos lados
-  tienen cinco commits propios desde esa base. Deben reconciliarse y volver a
-  probarse antes de integrar o portar Ficha 360.
+- La divergencia 5/5 quedó reconciliada en el merge local `30e95f3`, con padres
+  `1f01282` (canon) y `d35a284` (R3). Los cinco commits canónicos y C0.1 fueron
+  conservados, conciliados y probados juntos; R4 es el checkpoint vigente.
 - F0 quedó cerrado localmente en
   `41987fea08febac7fb67750bc8269b43582c645d`. El bridge reconoce el contrato
   F2.4b realmente presente, oculta sus exactos legacy y solo publica C0.1
@@ -62,19 +62,19 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
   2.372 pruebas, E2E 18/18 y 17 capturas. Sigue siendo referencia comercial, no
   candidata técnica; sus cambios de memoria aún deben reconciliarse con esta
   línea en vez de asumirse absorbidos.
-- La siguiente frontera no es portar Ficha todavía. Primero se reconcilia el
-  candidato con los cinco commits canónicos nuevos y se repiten sus gates.
-  Después se autoriza una captura viva de solo lectura, la réplica completa de
+- La siguiente frontera no es portar Ficha todavía. La reconciliación y sus
+  gates ya cerraron localmente. Ahora se autoriza una captura viva de solo
+  lectura, la réplica completa de
   migraciones y la prueba de rendimiento. Solo con una aprobación separada se
   crea/aplica servidor, se hace readback y se verifica la paridad PostgREST/JWT
   antes de decidir la publicación del frontend F0.
 
 ## Cierre local F0 y plan vigente por fases
 
-- **Fase 0A — cerrada localmente:** bridge F2.4b → C0.1, ocultamiento
+- **Fase 0A — cerrada y reconciliada localmente en `30e95f3`:** bridge F2.4b → C0.1, ocultamiento
   fail-closed, paridad de HOY/Ranking/Metas/Gestión/Directorio, alertas con
-  sondas actual/anterior y excepción del Coordinador. Check integral: 181
-  archivos, 2.424 pruebas, cobertura, typecheck, lint, build, bundle y
+  sondas actual/anterior y excepción del Coordinador. Check integral R4: 182
+  archivos, 2.426 pruebas, cobertura, typecheck, lint, build, bundle y
   duplicación verdes.
 - **Fase 0B — pendiente de autorización:** captura viva de solo lectura de los
   18 cuerpos, catálogo/ACL y readbacks. No aplicar SQL.
@@ -98,17 +98,17 @@ es válida para aceptar integración, migraciones, RLS, tipos ni producción.
 - **Fase 7:** construir y aceptar una preview candidata nueva por cada rol.
 - **Fase 8:** publicación aditiva solo con autorización expresa y observación.
 
-El snapshot F0 y el banco focal C0.1 tienen GO local ejecutable. Ese GO no
-certifica la reconciliación con `1f01282`, el esquema completo ni producción.
+El snapshot F0 reconciliado y el banco focal C0.1 tienen GO local ejecutable.
+Ese GO incluye `1f01282`, pero no certifica el esquema completo ni producción.
 
 ## Foto comprobada al adaptar el plan
 
 - Base común revisada para C0.1: `7c94d77`.
-- Candidato local C0.1: `a1f7b2e`; árbol canónico actual:
-  `1f012829f4dbd4b45d8d1615d6a579b730dbfb05`.
-- La divergencia es 5/5 con merge-base `7c94d77`. El lado canónico añade cambios
-  de Conversiones, terminología, compilación histórica, montos compactos y el
-  contador único del Resumen; ninguno se considera absorbido todavía por C0.1.
+- Candidato R3: `a1f7b2e`; canon reconciliado: `1f01282`; merge R4:
+  `30e95f399c7114c0cad4b725ef07fcd98c081730`.
+- La divergencia 5/5 con merge-base `7c94d77` quedó cerrada. R4 preserva la
+  cosecha bruta y el filtro por origen de Conversiones, terminología,
+  compilación histórica, montos compactos y el contador único del Resumen.
 - R2 permanece aislada. `e01e1fe` es el prototipo funcional base; la rama de
   evidencia avanzó hasta `4f57db1` y está limpia, diez commits por delante de su
   remoto. Ninguno es candidato técnico ni debe fusionarse en bloque.
@@ -170,11 +170,11 @@ Reglas de frontera:
 
 El servidor central ya existe, pero la revisión adversaria encontró cuatro
 degradaciones en consumidores. F0 `41987fe` las cerró localmente; se conserva
-su definición como contrato de regresión. El banco focal C0.1 también quedó
-cerrado localmente; continúan pendientes la reconciliación canónica, captura
-live, réplica integral y aplicación autorizada en servidor.
+su definición como contrato de regresión. El banco focal C0.1 y su
+reconciliación canónica R4 también quedaron cerrados localmente; continúan
+pendientes captura live, réplica integral y aplicación autorizada en servidor.
 
-### C0.1 — eliminar la tercera fórmula en Gestión/Directorio — candidato local certificado, servidor pendiente
+### C0.1 — eliminar la tercera fórmula en Gestión/Directorio — reconciliado localmente, servidor pendiente
 
 `metricas_vendedores_fn` todavía deriva una lectura con ventana/propietario
 distintos y la presenta bajo rótulo de mes calendario. El contrato debe servir
@@ -200,8 +200,10 @@ sondas presentes && cuadra === true && paridad_nucleo === 0
 ```
 
 Cualquier otro estado oculta la cifra. El mensaje puede distinguir descuadre de
-falta de verificación. La misma política debe revisarse en Ranking,
-Distribución e Inteligencia comercial.
+falta de verificación. La política gobierna HOY, Ranking, Metas, Gestión y
+Directorio. La pantalla principal Conversiones conserva deliberadamente la
+cosecha bruta del rango; su detalle mensual sí falla cerrado ante cierres sin
+episodio.
 
 ### C0.3 — conservar el contrato exacto en las filas — cerrada localmente
 
@@ -224,9 +226,9 @@ que el numerador incluye operaciones elegibles de cartera.
 
 ### Salida de C0
 
-- Un SHA canónico limpio, posterior a estos cuatro gates.
-- Suites actuales completas verdes y matriz adversaria de sondas verde.
-- Paridad entre HOY, Ranking, Metas, Gestión y Directorio para el mismo mes.
+- SHA reconciliado local `30e95f3`, posterior a estos cuatro gates.
+- Suites actuales completas y matriz adversaria de sondas verdes.
+- Paridad local entre HOY, Ranking, Metas, Gestión y Directorio para el mismo mes.
 - Release/estado documentado. Hasta verificar C0.1 vivo, no publicar
   `41987fe` ni abrir el portado de Ficha sobre él.
 
@@ -335,16 +337,14 @@ La Ficha queda lista solo con dos aprobaciones independientes:
 
 ## Próximo movimiento coordinado
 
-1. Reconciliar `a1f7b2e` con el árbol canónico `1f01282`, revisar los solapes y
-   repetir runner PG17 más check integral.
-2. Revisar y aprobar/rechazar el SQL exacto resultante de C0.1.
-3. Con autorización, reproducir todas las migraciones, capturar las 18 huellas
+1. Revisar y aprobar/rechazar el SQL exacto reconciliado de C0.1.
+2. Con autorización, reproducir todas las migraciones, capturar las 18 huellas
    live y el fingerprint de catálogo/ACL, y recalcular los dos cuerpos
    candidatos; mientras exista un placeholder, el SQL aborta.
-4. Ejecutar el banco completo y `EXPLAIN (ANALYZE, BUFFERS)` fuera de producción.
-5. Con una autorización separada, aplicar servidor primero y leer de vuelta el
+3. Ejecutar el banco completo y `EXPLAIN (ANALYZE, BUFFERS)` fuera de producción.
+4. Con una autorización separada, aplicar servidor primero y leer de vuelta el
    contrato exacto por rol mediante PostgREST/JWT.
-6. Verificar paridad HOY/Ranking/Metas/Gestión/Directorio y recién entonces
+5. Verificar paridad HOY/Ranking/Metas/Gestión/Directorio y recién entonces
    autorizar el frontend resultante de la reconciliación.
-7. Fijar el nuevo HEAD y abrir una rama nueva para R2/R3; portar capacidades de
+6. Fijar el nuevo HEAD y abrir una rama nueva para R2/R3; portar capacidades de
    Ficha 360, nunca fusionar la rama preview antigua.
