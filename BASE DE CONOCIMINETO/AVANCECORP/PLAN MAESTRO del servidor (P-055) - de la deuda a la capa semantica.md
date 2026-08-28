@@ -145,9 +145,12 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 ## 7. El plan por fases
 
-### FASE 0 · Decidir — *esta semana, no se toca nada*
-Responder las 5 preguntas abiertas de §8 y aprobar el plan.
-**Al terminar:** el trabajo puede arrancar sin frenarse a mitad de camino.
+### FASE 0 · Decidir — **HOY o este fin de semana**, no se toca nada
+Responder **todas** las preguntas abiertas de §8 —las 5 estructurales **y las de capital**— y aprobar el plan.
+
+**Por qué hoy y no «esta semana»:** hoy es viernes 28 y la Fase 1 tiene que estar en producción el 5 de septiembre. Si esto se corre, la Fase 1 entra al cierre a medio hacer.
+**Por qué las de capital también van aquí:** decidir no compite con ejecutar. Se pueden contestar mientras corren las fases 1 a 3; si llegan recién cuando arranca la Fase 4, la Fase 4 arranca frenada.
+**Al terminar:** ninguna fase se detiene a mitad de camino esperando una respuesta.
 **De ti:** una conversación.
 
 ---
@@ -157,9 +160,12 @@ Responder las 5 preguntas abiertas de §8 y aprobar el plan.
 - Que quede registro de quién borra el historial de gestión de un cliente y quién borra cuotas de pago. Hoy tampoco.
 - Blindar los montos para que no pueda entrar un valor inválido al cronograma de pagos ni al cierre mensual.
 
+- **Cerrar los permisos baratos que no tocan el portal vivo:** quitarle a los visitantes sin cuenta el acceso a 5 consultas de administración y el permiso de vaciar tablas enteras — ese último la seguridad por filas no lo gobierna. *(No filtran nada hoy: son de solo lectura y la seguridad por filas las deja en cero. Se adelantan porque cuestan cinco minutos, no porque estén sangrando.)*
+- **Poner guarda a la numeración de contratos.** El generador automático calcula «el último + 1» sin candado. *(Hoy es una rama muerta: los 466 contratos usan numeración manual, cero autogenerados. Se arregla ahora porque es chico, independiente, y el día que se encienda con dos altas simultáneas da un error feo al usuario.)*
+
 **Por qué ahora:** el primer cierre de mes real es el **10 de septiembre**. Esas tablas hoy están vacías, así que blindarlas no cuesta nada. Después del 10 sí cuesta.
 **Al terminar:** ningún dato con valor probatorio se puede cambiar sin dejar rastro.
-**De ti:** nada. **Duración:** 2 sesiones.
+**De ti:** revisión y merge a producción. **Duración:** 2 sesiones.
 
 ---
 
@@ -168,7 +174,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 
 **Por qué:** si algo falla el 10, quiero saber que fue el cierre y no un cambio nuestro.
 **Al terminar:** el primer cierre real, ejecutado y observado.
-**De ti:** nada. **Duración:** media sesión de vigilancia.
+**De ti:** revisión y merge (ninguno esa semana, por diseño). **Duración:** media sesión de vigilancia.
 
 ---
 
@@ -179,7 +185,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 - Rellenar el histórico con la regla de respaldo y **marcar los dos contratos demo** para que dejen de contar.
 
 **Al terminar:** el ranking de agosto en adelante es exacto, y ya no depende de quién tipeó.
-**De ti:** confirmar los casos dudosos del histórico. **Duración:** 2 sesiones.
+**De ti:** confirmar los casos dudosos del histórico + revisión y merge. **Duración:** 2 sesiones.
 
 ---
 
@@ -188,8 +194,10 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 - Pasar las **16 pantallas** que hoy calculan capital por su cuenta a consumirla, en tres tandas, verificando que ningún número cambie ni un céntimo.
 - Al final, las dos funciones que sellan el mes también leen de ahí — **antes del 3 de octubre**, porque el cierre del 10 de octubre es su prueba.
 
+- **El candado sale con esta fase, no después:** la prueba automática que impide que nazca una calculadora paralela se activa a medida que cada pantalla migra. Sin fecha ni dueño sería solo una intención, y es la pieza que evita volver aquí en seis meses.
+
 **Al terminar:** gerencia, el supervisor y el analista ven siempre el mismo número, y cambiar una regla se hace en un solo lugar.
-**De ti:** las respuestas de la mesa de capital. **Duración:** 6–7 sesiones.
+**De ti:** revisión y merge de cada tanda (las respuestas ya vinieron en la Fase 0). **Duración:** 6–7 sesiones.
 
 ---
 
@@ -200,7 +208,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 - Arreglar el alta de usuarios con pasaporte corto, que hoy falla.
 
 **Al terminar:** no queda ninguna puerta abierta que nadie esté usando.
-**De ti:** nada nuevo. **Duración:** 2 sesiones.
+**De ti:** revisión y merge. **Duración:** 2 sesiones.
 
 ---
 
@@ -208,7 +216,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugares). Y un solo criterio de «producto seleccionable», que hoy está escrito tres veces: si alguien lo ajusta en una sola copia, CRM y portal ofrecerían catálogos distintos sin que nadie se entere.
 
 **Al terminar:** las cuatro cifras del negocio tienen una sola fuente.
-**De ti:** nada. **Duración:** 7–8 sesiones.
+**De ti:** revisión y merge. **Duración:** 7–8 sesiones.
 
 ---
 
@@ -223,8 +231,18 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 ### FASE 8 · Un solo idioma — *cuando lo demás esté estable*
 «Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 2 de §8.
 
+⚠️ **Dos auditorías independientes recomiendan recortarla a la capa de presentación** (Codex y el auditor de Miguel, por separado): renombrar por dentro tiene radio de explosión alto —4 roturas de nivel P0, §6— y valor de negocio cero, porque nadie ve esos nombres. Sin recorte y sin fecha, esta fase queda abierta para siempre.
+
 **Al terminar:** el mismo concepto se llama igual en todas partes, y no vuelve a pasar lo que pasó en esta sesión.
 **De ti:** la decisión de alcance. **Duración:** depende del alcance.
+
+---
+
+## ⚠️ Lo que este plan NO promete
+
+**El cierre del 10 de octubre todavía va a correr sobre las calculadoras viejas.** Con la Fase 4 terminando a inicios de octubre y la Fase 6 corriendo durante octubre, el segundo cierre real ocurre antes de que todas las cifras tengan una sola fuente. Es una decisión defendible —el orden alternativo sería más arriesgado— pero conviene decirla en voz alta para que nadie se sorprenda si los números de octubre todavía no cuadran entre pantallas.
+
+**Ninguna fase dice «De ti: nada».** Todas piden tu revisión y tu merge a producción; el plan no toca producción sin eso. Planificar cero tiempo tuyo es la forma más rápida de terminar con tres días encima.
 
 ---
 
