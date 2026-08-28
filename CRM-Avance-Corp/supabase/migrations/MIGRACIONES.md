@@ -3886,8 +3886,8 @@ lo de la anterior, comprueba que el crudo se declara **y** se selecciona.
 
 ## 20260826182000 · `crm_canonizar_contacto`
 
-📦 **ESCRITA Y VERDE, SIN APLICAR** (2026-08-26). Local: 19 casos ejecutados,
-6 mutantes muertos.
+✅ **EN PROD 2026-08-28** (escrita el 26, aplicada el 28). Local antes de subir:
+19 casos ejecutados, 6 mutantes muertos.
 
 `private.canonizar_contacto(text)` → `(e164, clase, movil)`. Es el **sexto
 espejo** de la regla del teléfono y el primero que vive en la base como función
@@ -3907,8 +3907,8 @@ probarlos con `+`. Se añadieron las cuatro fronteras reales.
 
 ## 20260826182500 · `crm_crear_lead_telefono_alternativo`
 
-📦 **ESCRITA Y VERDE, SIN APLICAR** (2026-08-26). **Opción A**, elegida por
-Miguel: el primer número IDENTIFICA al lead y sigue siendo celular peruano; el
+✅ **EN PROD 2026-08-28** (escrita el 26, aplicada el 28). **Opción A**, elegida
+por Miguel: el primer número IDENTIFICA al lead y sigue siendo celular peruano; el
 segundo solo lo contacta y admite celular, fijo peruano o cualquier país.
 
 Añade `p_telefono_alternativo` (al final, DEFAULT NULL) a
@@ -4722,3 +4722,18 @@ idéntica. Autorización intacta; revoke cuádruple del histórico replicado.
 Auditoría RLS: **APROBADA** con menores, TODAS incorporadas antes de aplicar
 (candado service_role en postflight; matriz con denegado+p_origen,
 'sin_origen' y origen inventado→lote vacío con forma estable; esta fila).
+
+⚠️ **POR QUÉ SE APLICARON DOS DÍAS TARDE — y qué rompió mientras tanto.** El
+front que las necesita se publicó el 28 en un release de OTRA sesión, sin estas
+dos migraciones. Durante esas horas el bundle vivo mandaba `p_telefono_alternativo`
+a una RPC que no lo tenía: **todo alta manual con segundo número fallaba y el lead
+no se creaba** (con el campo vacío funcionaba, porque la clave no viajaba).
+
+Es la regla de orden de despliegue del [[Deploy a Hostinger]] al revés: **clave
+nueva en la PETICIÓN → servidor primero**. Al aplicarlas hubo que hacer
+`notify pgrst, 'reload schema'`: sin eso PostgREST sigue sirviendo la firma vieja
+y el arreglo no surte efecto aunque la función ya exista.
+
+Cómo se comprueba que la API ve la firma nueva sin sesión: un POST anónimo al RPC
+debe responder **42501** (muro de permisos, la firma resolvió) y no **PGRST202**
+(no la encuentra en el caché de esquema).
