@@ -17,8 +17,9 @@ El molde ya existe y está en producción: `private.conversion_episodios` + su d
 ## F0 — El contrato escrito + el trinquete (una sesión, sin tocar producción)
 
 1. **Nota-registro «Contrato de la capa semántica»** en el vault: una ficha por métrica con la forma exacta de su fila-hecho (columnas, tipos, qué significa cada aporte), su ventana, y sus consumidores de capa 3. Se llena por fases: conversión ya se puede fichar hoy.
-2. **Diseño de capital/leads/citas:** ⚠️ los diseños «P-050/051/052» **no están escritos en el vault** (solo existe el de conversión — verificado). F0 los produce con el método del de conversión: leer los 16/21/6 consumidores vivos, extraer la semántica real (qué cuenta, qué ventana temporal, qué excluye), y decidir la fila-hecho. Máximo 5 decisiones de negocio por métrica para Miguel, como siempre.
-3. **Trinquete en la suite del CRM:** pruebas de guardia que consultan `pg_proc` y fallan si nace duplicación nueva — hoy 16 funciones suman capital (whitelist congelada: el número solo baja), 21 cuentan leads, 6 cuentan citas, 20 gates inline, 47 con `America/Lima`. El trinquete es lo que vuelve capa a las piezas: nadie puede escribir una métrica fuera de la ventana sin que la suite grite.
+2. **Diseño de capital/leads/citas:** ⚠️ los diseños «P-050/051/052» **no están escritos en el vault** (solo existe el de conversión — verificado). F0 los produce con el método del de conversión, y distingue explícitamente las **dos superficies** (presión 1 del auditor): la **superficie de decisión** — las definiciones semánticas DISTINTAS (~6 de capital, ~4 de leads, ~3 de citas), únicas que requieren tiempo de Miguel — y la **superficie de migración** — los 16/21/6 consumidores que hay que reescribir, trabajo mecánico. Ambas listas, nominales, salen en F0.
+3. **Las decisiones duras de capital van como PREGUNTAS, no se resuelven leyendo código** (presión 4): (a) ¿el capital se atribuye por `asesor_perfil_id` o por el vendedor del lead? (hoy divergen: S/ 3,76 M contra S/ 113 K según el camino); (b) ¿el pipeline estimado convive con el capital real en la misma fila-hecho o son métricas separadas?; (c) ¿el AUM entra o no? F0 se las trae a Miguel con los números de cada opción.
+4. **Trinquete en la suite del CRM — estructural, no lista blanca** (presión 2: una whitelist de funciones se convierte en lo que se erosiona). Diseño: la regla es sobre las **columnas-fuente crudas** — fuera de `private`, ninguna función puede referenciar `contratos.capital`, `operaciones_cartera.capital_renovado/capital_adicional`, `lead_asignaciones.monto_estimado` en agregaciones, ni contar sobre `crm.leads`/filas `*_reunion` de `tareas`. La prueba consulta `pg_proc`, lleva una **constante que solo puede bajar** (hoy 16/21/6/20/47) con meta 0 al cierre de cada fase, y toda excepción exige editar el test con su justificación escrita (queda en el diff, revisable). Límite declarado: el análisis es textual y no caza SQL dinámico — que es raro en el sistema y lo vigila auditor-rls en cada migración; los dos controles se cubren mutuamente.
 
 ---
 
@@ -60,9 +61,14 @@ Mismo molde: `private.leads_episodios` + ventana + los 21 consumidores por tanda
 1. **Rama de banco** con la receta de [[banco-branch-replay-manual]]; seed con la FORMA real de prod.
 2. **Oráculo de paridad:** capturar el payload de cada función consumidora ANTES y DESPUÉS (md5 del jsonb agregado), **en la misma transacción** (lección: dos lecturas separadas pueden diferir porque prod se movió). Deben ser idénticos byte a byte.
 3. **Mutantes:** alterar el núcleo (p. ej. quitar un filtro) debe romper la paridad de TODOS los consumidores migrados; si uno no se rompe, no está consumiendo el núcleo.
-4. auditor-rls sobre la migración + **gate RLS 1175** en banco.
-5. Release al byte con el checklist de siempre (llaves en el ZIP, worktree limpio con `.env`).
-6. **Nada viejo se borra:** las funciones reemplazadas quedan vivas hasta su retiro programado (REVOKE primero). Regla de Miguel.
+4. **Frontend incluido en la paridad** (presión 5): antes de cerrar cada tanda, grep del front (crm-api/crm-queries/pantalla) por sumas o filtros PROPIOS en TypeScript sobre el payload migrado — si la pantalla recalcula, la paridad del servidor solo prueba la mitad; se migra ese cálculo a capa 3 o se ficha como excepción consciente. Más la prueba visual/e2e de la pantalla.
+5. auditor-rls sobre la migración + **gate RLS 1175** en banco.
+6. Release al byte con el checklist de siempre (llaves en el ZIP, worktree limpio con `.env`).
+7. **Nada viejo se borra:** las funciones reemplazadas quedan vivas hasta su retiro programado (REVOKE primero). Regla de Miguel.
+
+**Sobre las estimaciones (presión 6):** las sesiones son pisos, no compromisos — ~5 consumidores por sesión con toda la verificación es posible pero justo. El plan se mide por **tandas cerradas con su paridad**, no por sesiones; si se estira, no es fracaso del plan.
+
+**Alcance dicho en voz alta (presión 3):** este plan cubre MÉTRICAS. La dispersión del gate de autorización (140 funciones con `auth.uid()` inline, 94 con `'gerencia'` a mano) **no queda resuelta al cierre de F4** — solo mejora por contagio en los consumidores reescritos. Su plan propio es la T7 del [[Plan de saneamiento del servidor (P-053) - implementacion por tandas]] (regla + pase de los 20 gates inline + trinquete propio). No darla por resuelta.
 
 ---
 
