@@ -241,7 +241,9 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ## ⚠️ Lo que este plan NO promete
 
-**El cierre del 10 de octubre todavía va a correr sobre las calculadoras viejas.** Con la Fase 4 terminando a inicios de octubre y la Fase 6 corriendo durante octubre, el segundo cierre real ocurre antes de que todas las cifras tengan una sola fuente. Es una decisión defendible —el orden alternativo sería más arriesgado— pero conviene decirla en voz alta para que nadie se sorprenda si los números de octubre todavía no cuadran entre pantallas.
+**Durante octubre, los conteos de leads y de citas todavía pueden diferir entre pantallas.** El capital sí queda unificado para el cierre del 10 de octubre (la Fase 4 termina antes del 3 justamente para eso), pero leads y citas siguen calculándose en 21 y 6 lugares hasta que cierre la Fase 6, en el curso de octubre. «Diferir» quiere decir lo que ya pasó dos veces este mes: dos pantallas respondiendo distinto a la misma pregunta.
+
+**El único escenario en que el capital también quedaría afectado** es que la Fase 4 no llegue antes del 3 de octubre. En ese caso no se toca el motor del cierre esa semana —regla del plan— y el cierre de octubre corre con la calculadora vieja, quedando la migración para el mes siguiente. Es un retraso, no una rotura.
 
 **Ninguna fase dice «De ti: nada».** Todas piden tu revisión y tu merge a producción; el plan no toca producción sin eso. Planificar cero tiempo tuyo es la forma más rápida de terminar con tres días encima.
 
