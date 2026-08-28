@@ -148,7 +148,6 @@ export function ResumenGerenciaPanel({
     ? conversionMensual.total
     : null
   const conversionMes = totalMes?.conversion_pct ?? null
-  const recibidosMes = totalMes?.divisor ?? null
   const cierresMes = totalMes == null ? null : totalMes.cierres_no_referidos + totalMes.cierres_referidos
   const reunionesRealizadas = reuniones?.resumen.realizadas ?? null
   const reunionesPactadas = reuniones?.resumen.pactadas ?? null
@@ -364,14 +363,15 @@ export function ResumenGerenciaPanel({
           <p className="mt-2 text-xs text-white/65">
             {conversionMensual != null && !lecturaConversion.mostrar
               ? (lecturaConversion.aviso ?? 'Sin datos de asignación para este mes')
-              // La base se NOMBRA: «asignados» ≠ los «dados de alta» del KPI
-              // vecino (ese cuenta todos: referidos y sin asignar incluidos).
-              // Miguel vio «de 599» junto a «de 607» sin explicación (27/08):
-              // la diferencia son referidos (cierran sin dividir, D6) + leads
-              // aún sin repartir. Cada cifra dice su base o vuelve la duda.
+              // UN SOLO contador de leads a la vista (Miguel, 27/08 noche:
+              // «están mal las cantidades, debería jalar del mismo contador»):
+              // el Resumen ya no exhibe la base 599 del núcleo — todos los
+              // conteos visibles de leads son los del período (KPI y ritmo
+              // semanal, misma cohorte). El divisor del % sigue viajando en
+              // el payload para quien audite; aquí solo se dicen los cierres.
               : totalMes == null
                 ? 'Conversión del mes no disponible'
-                : `${numero(cierresMes ?? 0)} cierres · base del mes: ${numero(recibidosMes ?? 0)} leads asignados (los referidos cierran aparte, sin dividir)`
+                : `${numero(cierresMes ?? 0)} cierres este mes`
                   // El porqué acompaña a la cifra en vez de sustituirla.
                   + (lecturaConversion.aviso != null ? ` · ${lecturaConversion.aviso}` : '')}
           </p>

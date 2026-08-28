@@ -370,11 +370,12 @@ describe('estados vacíos del resumen de Gerencia', () => {
     const pctMes = `${numero(conversionMensualInteligenciaDemo(AHORA).total.conversion_pct!, 1)}%`
     expect(screen.getAllByText(pctMes).length).toBeGreaterThan(0)
     // 11 = 9 no referidos + 2 referidos (los referidos cierran, no dividen).
-    // F3 (27/08): cada cifra NOMBRA su base — «asignados» (divisor del núcleo)
-    // en el héroe vs «dados de alta» (cohorte completa) en el KPI vecino.
-    // Miguel vio «de 599» junto a «de 607» sin explicación; la diferencia son
-    // referidos + leads sin repartir, y el rótulo lo dice en vez de callarlo.
-    expect(screen.getByText('11 cierres · base del mes: 39 leads asignados (los referidos cierran aparte, sin dividir)')).toBeInTheDocument()
+    // UN SOLO contador de leads a la vista (veto de Miguel 27/08 noche): el
+    // héroe solo dice los cierres; los 607 del KPI son la única cuenta de
+    // leads visible en el Resumen. La base del núcleo ya no se exhibe.
+    expect(screen.getByText('11 cierres este mes')).toBeInTheDocument()
+    expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/leads asignados/)).not.toBeInTheDocument()
     expect(screen.getByText(/leads del período/)).toBeInTheDocument()
     const tarjetaReuniones = screen.getByText('Citas realizadas').closest('[data-gi-kpi]')
     expect(tarjetaReuniones).toHaveTextContent('—')

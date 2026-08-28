@@ -319,7 +319,6 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
   const conversionActual = conversionMensualMedible
     ? (conversionMensual?.total.conversion_pct ?? null)
     : null
-  const recibidosEmpresa = conversionMensual?.total.divisor ?? null
   const reintentarConversiones = () => { if (sesionReal) void conversiones.refetch() }
   const reintentarConversionMensual = () => { if (sesionReal) void qConversionMensual.refetch() }
   const reintentarReuniones = () => { if (sesionReal) void reuniones.refetch() }
@@ -429,11 +428,9 @@ export function HoyGerencia({ seccion = 'completo' }: { seccion?: SeccionGerenci
                     ? 'meta no disponible'
                     : meta.conversionObjetivo > 0 ? `de ${meta.conversionObjetivo}%` : 'meta por definir'}
                   nota={[
-                    // «Base del mes», la misma palabra que el héroe del
-                    // Resumen: este divisor excluye referidos y sin asignar.
-                    recibidosEmpresa == null
-                      ? 'El detalle por analista está en Conversiones.'
-                      : `Base del mes: ${numero(recibidosEmpresa)} leads asignados · detalle por analista en Conversiones.`,
+                    // Sin conteo de base aquí (veto del doble contador,
+                    // 27/08): el detalle vive en Conversiones.
+                    'El detalle por analista está en Conversiones.',
                     // Por qué la cifra no es definitiva, PEGADO a ella y no en
                     // su lugar: sustituirla era lo que hacía que un mes con
                     // recibidos y cierres dijera «sin datos».
