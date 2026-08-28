@@ -146,7 +146,7 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 ## 7. El plan por fases
 
 ### FASE 0 · Decidir — **HOY o este fin de semana**, no se toca nada
-Responder **todas** las preguntas abiertas de §8 —las 5 estructurales **y las de capital**— y aprobar el plan.
+Responder las **7 preguntas** de §8 —4 de capital y 3 estructurales— y aprobar el plan.
 
 **Por qué hoy y no «esta semana»:** hoy es viernes 28 y la Fase 1 tiene que estar en producción el 5 de septiembre. Si esto se corre, la Fase 1 entra al cierre a medio hacer.
 **Por qué las de capital también van aquí:** decidir no compite con ejecutar. Se pueden contestar mientras corren las fases 1 a 3; si llegan recién cuando arranca la Fase 4, la Fase 4 arranca frenada.
@@ -202,9 +202,10 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 ---
 
 ### FASE 5 · Cerrar puertas — *mitad de septiembre, después del cierre*
-- Recortar permisos heredados de fábrica, incluido uno que permite vaciar tablas enteras sin que la seguridad por filas lo frene.
-- Cerrar el borrado de cuotas de pago sin rastro.
-- Poner el aviso en «eliminar cliente» antes de borrar.
+*(Lo barato y sin riesgo ya salió en la Fase 1. Aquí queda solo lo que toca el portal vivo y por eso no puede compartir semana con el estreno del cierre.)*
+- Recortar los permisos que sí usan las pantallas del portal, dejando exactamente lo que necesitan. Va con una prueba completa del portal con cuenta real el mismo día, y con la marcha atrás escrita antes de publicar.
+- Unificar las políticas de seguridad que repiten el chequeo de rol a mano en vez de usar la regla central.
+- Limitar quién puede borrar un perfil, y poner el aviso en «eliminar cliente» antes de borrar.
 - Arreglar el alta de usuarios con pasaporte corto, que hoy falla.
 
 **Al terminar:** no queda ninguna puerta abierta que nadie esté usando.
@@ -229,7 +230,7 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 ---
 
 ### FASE 8 · Un solo idioma — *cuando lo demás esté estable*
-«Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 2 de §8.
+«Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 5 de §8.
 
 ⚠️ **Dos auditorías independientes recomiendan recortarla a la capa de presentación** (Codex y el auditor de Miguel, por separado): renombrar por dentro tiene radio de explosión alto —4 roturas de nivel P0, §6— y valor de negocio cero, porque nadie ve esos nombres. Sin recorte y sin fecha, esta fase queda abierta para siempre.
 
@@ -246,13 +247,20 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ---
 
-## 8. Preguntas abiertas que faltan para cerrar el plan
+## 8. Preguntas abiertas — TODAS se responden en la Fase 0
 
-1. **El filtro de roster mensual:** hoy el sistema excluye del mes a quien no estaba en la foto del equipo (8 contratos de agosto). ¿Se conserva esa regla en el núcleo nuevo?
-2. **El alcance final del renombre**, a la luz de lo que Codex encontró (§5).
-3. **Los 12 contratos históricos** de mayo a julio registrados por gerencia: ¿se revisan o se declaran aproximados?
-4. **`tipo_documento`** repetido en 3 tablas: ¿se unifica o se tolera?
-5. **La FK que borra en cascada la membresía del equipo**: ¿se cambia a que impida el borrado?
+**Del capital** *(estaban mal ubicadas como insumo de la Fase 4; se adelantan porque decidir no compite con ejecutar):*
+
+1. **El filtro de roster mensual.** Hoy el sistema deja fuera del mes a quien no estaba en la foto del equipo cuando se cerró: son 8 contratos de agosto. ¿El núcleo nuevo conserva esa regla, o cuenta la venta aunque el analista ya no esté en la foto?
+2. **El pipeline estimado.** ¿Convive con el capital real en la misma cifra, o son dos métricas separadas que nunca se suman?
+3. **El AUM** (el total administrado): ¿entra al núcleo de capital o vive aparte?
+4. **Los 12 contratos históricos** de mayo a julio registrados por gerencia: ¿se revisan uno por uno con el equipo, o se declaran atribución aproximada y se sigue?
+
+**Estructurales:**
+
+5. **El alcance final del renombre** a «analista», a la luz de las 4 roturas graves que encontró Codex (§6). Dos auditorías independientes recomiendan limitarlo a lo que se lee.
+6. **`tipo_documento`** repetido en 3 tablas: ¿se unifica o se declara tolerable?
+7. **La relación que borra en cascada la membresía del equipo** al borrar un perfil: ¿se cambia para que impida el borrado? *(Hoy contradice la regla del proyecto de que a un colaborador se le da de baja, no se le borra.)*
 
 ---
 
