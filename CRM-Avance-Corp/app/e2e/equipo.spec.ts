@@ -59,11 +59,12 @@ test('demo gerencia: un bloque por supervisor con la TABLA comparativa de vended
   }
 
   // La fila de VENDEDOR TRES pinta sus números del ámbito global: S/ 113k en
-  // proceso (l4+l13+l20), 25% de conversión (1 de 4) y el semáforo ROJO de
-  // última actividad (l20 lleva 8 días sin movimiento — umbral >5 d).
+  // proceso (l4+l13+l20), sin fabricar una conversión cuando no existe divisor
+  // mensual canónico, y el semáforo ROJO de última actividad (l20 lleva 8 días
+  // sin movimiento — umbral >5 d).
   const filaV3 = page.getByRole('row', { name: /VENDEDOR TRES/ })
   await expect(filaV3.getByText('S/ 113k')).toBeVisible()
-  await expect(filaV3.getByText('25%')).toBeVisible()
+  await expect(filaV3.getByText('Sin divisor mensual')).toBeVisible()
   await expect(filaV3.getByText('8 d sin act.')).toBeVisible()
 
   expect(requestsSupabase()).toBe(0)

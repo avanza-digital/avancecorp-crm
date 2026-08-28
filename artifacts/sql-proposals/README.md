@@ -1,17 +1,43 @@
 # Propuesta C0.1: métricas por equipo desde el núcleo único
 
-> **NO EJECUTAR.** Este directorio contiene un artefacto de revisión, no una
-> migración. Requiere aprobación expresa de Miguel, captura live autorizada de
-> todas las anclas y sustitución de cada placeholder fail-closed
-> `__CAPTURAR_*__`. No aplicar el SQL ni copiarlo a `supabase/migrations/` antes
-> de cumplir esos gates.
+> **NO EJECUTAR EL ARTEFACTO CON PLACEHOLDERS.** La propuesta de este directorio
+> sigue siendo revisable y fail-closed. R5 ya materializó una migración exacta
+> con las anclas capturadas del servidor, pero no la aplicó a producción. Tanto
+> esa migración como el frontend requieren aprobación expresa de Miguel antes
+> de publicarse.
 
 Artefactos revisables:
 
 - `C0.1-metricas-vendedores-nucleo-unico.sql`
+- `C0.1-metricas-vendedores-nucleo-unico.rollback.sql`
 - `C0.1-banco-adversario.sql`
 - `C0.1-banco-runner-plan.md`
 - `README.md`
+
+## Estado R5 verificado — 2026-08-28
+
+- R5 parte del release F6 vivo y conserva su historia como ancestro.
+- La captura autorizada comparó 18/18 cuerpos live contra las migraciones
+  canónicas y fijó el fingerprint de catálogo
+  `91029038fb842066de0c29443d599715`.
+- La migración nueva es
+  `20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql`, SHA-256
+  `f232306bb088ec6e71bd3fcefd953fb4609f3f8d3e30e2ea916599f2ddd8bf14`.
+- Un historial remoto aislado confirmó por dry-run que `db push` propondría
+  exclusivamente esa migración.
+- El SQL completo se ejecutó contra la base viva dentro de una transacción con
+  `ROLLBACK`; las 18 huellas quedaron idénticas al terminar.
+- El rollback exacto, SHA-256
+  `d258702ebd704a2a182fa4eaafb46b7dbf22a22a0b18819958456125d5358f94`,
+  aprobó en PostgreSQL 17 el roundtrip `forward → rollback → forward`; una
+  segunda reversa fue rechazada por la guarda de estado candidato.
+- El banco volvió a quedar verde con 17/17 mutantes cazados. El frontend aprobó
+  182/182 archivos, 2.430/2.430 pruebas unitarias y la suite E2E completa:
+  107 pasaron y 26 quedaron omitidas por diseño, sin fallos.
+
+Nada de lo anterior equivale a producción aplicada. Falta la aprobación final,
+publicar el frontend puente, aplicar la única migración y ejecutar readback
+PostgREST/JWT, rendimiento y logs en vivo.
 
 ## Fórmula aprobable
 
@@ -172,11 +198,17 @@ se ancla mientras C0.1 consulte exclusivamente el mes vigente y aborte ante un
 sello vigente anómalo; si la firma acepta períodos históricos, debe incorporarse
 al preflight antes de materializar el cambio.
 
-La propuesta serializa el intervalo preflight→DDL→postflight con locks `SHARE`
-verificados sobre `pg_proc`, `pg_namespace`, `pg_authid` y `pg_auth_members`, no
-con un advisory lock unilateral. Si esos locks no están permitidos, falla
-cerrado. Justo antes de `COMMIT` repite los dieciocho cuerpos, metadatos/ACL,
-privilegios efectivos, cadena de dependencias y posesión de locks.
+La propuesta bloquea las dieciocho funciones concretas durante todo el intervalo
+preflight→DDL→postflight mediante un `ALTER FUNCTION ... COST` que conserva el
+valor vivo pero fuerza `CatalogTupleUpdate` sobre cada fila de `pg_proc`. Verifica
+el `xmin` del XID actual al tomar cada exclusión y justo antes de `COMMIT`; un
+advisory lock transaccional complementario serializa despliegues C0.1
+cooperativos. Supabase administrado no permite bloquear directamente
+`pg_namespace`, `pg_authid` ni `pg_auth_members`: sus ACL, atributos y membresías
+se revalidan completos antes y después del DDL, y producción requiere una ventana
+operativa sin cambios de identidad/esquema y readback inmediato. Cualquier
+diferencia en cuerpos, metadatos/ACL, privilegios efectivos o cadena transitiva
+aborta.
 
 ## Banco de pruebas local
 
@@ -193,11 +225,12 @@ El banco y el runner focal ya están materializados:
 
 Resultado certificado local del 2026-08-28: PostgreSQL 17.10, socket Unix
 privado sin TCP, 21 placeholders materializados, caso real y mutantes internos
-verdes, un único `C0.1_BANCO_ADVERSARIO_OK` y matriz de cuerpos 17/17 cazada por
-los oráculos declarados. El cleanup no dejó directorios, bases ni clústeres
-C0.1. El check integral del frontend aprobó 181/181 archivos y 2.424/2.424
-pruebas, además de tipos, lint, build, bundle y duplicación. Es evidencia focal
-local; no autoriza una migración, un acceso remoto ni producción.
+verdes, un único `C0.1_BANCO_ADVERSARIO_OK`, matriz de cuerpos 17/17 y roundtrip
+del rollback exacto. El cleanup no dejó directorios, bases ni clústeres C0.1.
+El check integral del frontend aprobó 182/182 archivos y 2.430/2.430 pruebas,
+además de tipos, lint, build, bundle y duplicación. La suite E2E aprobó 107
+casos, omitió 26 por diseño y no tuvo fallos. Es evidencia focal local; no
+autoriza una migración ni una publicación productiva.
 
 No modificar el banco histórico F2.4: deliberadamente reconstruye un estado
 anterior al wrapper mensual y no carga roster, cartera ni ajustes actuales.

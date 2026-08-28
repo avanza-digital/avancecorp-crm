@@ -10,8 +10,22 @@
 set -Eeuo pipefail
 IFS=$'\n\t'
 
-if [[ $# -ne 0 ]]; then
-  printf 'uso: %s (sin argumentos)\n' "${0##*/}" >&2
+EVIDENCE_DIR=""
+if [[ $# -eq 2 && "$1" == "--evidence-dir" ]]; then
+  EVIDENCE_DIR="$2"
+  if [[ ! "$EVIDENCE_DIR" =~ ^/private/tmp/c01-evidence-[A-Za-z0-9._-]+$ ]]; then
+    printf '%s\n' \
+      'C0.1 local: --evidence-dir debe ser /private/tmp/c01-evidence-<nombre-seguro>.' >&2
+    exit 64
+  fi
+  if [[ -e "$EVIDENCE_DIR" ]]; then
+    printf 'C0.1 local: el directorio de evidencia ya existe: %s\n' \
+      "$EVIDENCE_DIR" >&2
+    exit 73
+  fi
+elif [[ $# -ne 0 ]]; then
+  printf 'uso: %s [--evidence-dir /private/tmp/c01-evidence-<nombre>]\n' \
+    "${0##*/}" >&2
   exit 64
 fi
 
@@ -38,6 +52,7 @@ EXTRACTOR_SOURCE="$SCRIPT_DIR/c0-1-extraer-funciones.mjs"
 MUTATOR_SOURCE="$SCRIPT_DIR/c0-1-generar-mutantes.mjs"
 MUTANT_RUNNER_SOURCE="$SCRIPT_DIR/c0-1-run-mutantes.sh"
 PROPOSAL_SOURCE="$WORKTREE_ROOT/artifacts/sql-proposals/C0.1-metricas-vendedores-nucleo-unico.sql"
+ROLLBACK_SOURCE="$WORKTREE_ROOT/artifacts/sql-proposals/C0.1-metricas-vendedores-nucleo-unico.rollback.sql"
 BANK_SOURCE="$WORKTREE_ROOT/artifacts/sql-proposals/C0.1-banco-adversario.sql"
 CONFIG_SOURCE="$CRM_ROOT/supabase/config.toml"
 
@@ -47,6 +62,7 @@ for required in \
   "$MUTATOR_SOURCE" \
   "$MUTANT_RUNNER_SOURCE" \
   "$PROPOSAL_SOURCE" \
+  "$ROLLBACK_SOURCE" \
   "$BANK_SOURCE" \
   "$CONFIG_SOURCE"
 do
@@ -271,6 +287,7 @@ EXTRACTOR_SNAPSHOT="$RUN_DIR/extraer-funciones.mjs"
 MUTATOR_SNAPSHOT="$RUN_DIR/generar-mutantes.mjs"
 MUTANT_RUNNER_SNAPSHOT="$RUN_DIR/run-mutantes.sh"
 PROPOSAL_SNAPSHOT="$RUN_DIR/propuesta.snapshot.sql"
+ROLLBACK_SNAPSHOT="$RUN_DIR/rollback.snapshot.sql"
 BANK_SNAPSHOT="$RUN_DIR/banco.snapshot.sql"
 
 snapshot_file "$BOOTSTRAP_SOURCE" "$BOOTSTRAP_SNAPSHOT"
@@ -278,7 +295,40 @@ snapshot_file "$EXTRACTOR_SOURCE" "$EXTRACTOR_SNAPSHOT"
 snapshot_file "$MUTATOR_SOURCE" "$MUTATOR_SNAPSHOT"
 snapshot_file "$MUTANT_RUNNER_SOURCE" "$MUTANT_RUNNER_SNAPSHOT"
 snapshot_file "$PROPOSAL_SOURCE" "$PROPOSAL_SNAPSHOT"
+snapshot_file "$ROLLBACK_SOURCE" "$ROLLBACK_SNAPSHOT"
 snapshot_file "$BANK_SOURCE" "$BANK_SNAPSHOT"
+
+# El runner debe fallar antes de crear el cluster si la propuesta vuelve a usar
+# locks de catalogo que el rol postgres de Supabase administrado no puede tomar,
+# o si pierde alguna de las dieciocho exclusiones por objeto.
+node --input-type=module - "$PROPOSAL_SNAPSHOT" <<'NODE'
+import { readFileSync } from 'node:fs';
+
+const propuesta = readFileSync(process.argv[2], 'utf8');
+if (/\block\s+table\b[^;]*\bpg_(?:authid|auth_members|namespace|proc)\b/is.test(propuesta)) {
+  throw new Error('la propuesta reintrodujo LOCK TABLE sobre catalogos del sistema');
+}
+for (const ancla of [
+  'do $object_locks$',
+  'pg_advisory_xact_lock',
+  "'alter function %s cost %s'",
+  'pg_current_xact_id()',
+  'v_objetos_marcados is distinct from 18',
+]) {
+  if (!propuesta.includes(ancla)) {
+    throw new Error(`falta la guarda de exclusion por objeto: ${ancla}`);
+  }
+}
+const inicio = propuesta.indexOf('do $object_locks$');
+const fin = propuesta.indexOf('$object_locks$;', inicio);
+if (inicio < 0 || fin < 0) throw new Error('bloque object_locks incompleto');
+const bloque = propuesta.slice(inicio, fin);
+const firmas = [...bloque.matchAll(/\(\s*'((?:crm|private)\.[^']+)'\s*,\s*'__CAPTURAR_/g)]
+  .map((match) => match[1]);
+if (firmas.length !== 18 || new Set(firmas).size !== 18) {
+  throw new Error(`object_locks no contiene 18 firmas unicas (${firmas.length})`);
+}
+NODE
 
 # La biblioteca se carga solo desde la copia privada e inmutable de esta corrida.
 # Sus funciones comparten exclusivamente el cluster, socket y snapshots creados
@@ -809,5 +859,79 @@ if grep -q 'sobrevivio' "$RUN_DIR/banco.log"; then
 fi
 
 log "caso real y mutantes internos verdes; sesiones $MIGRATION_SESSION/$BANK_SESSION."
+
+# Reversibilidad ejecutada, no documental: vuelve exactamente a los dos hashes
+# baseline, demuestra que la guarda impide repetir la reversa sobre un estado
+# distinto del candidato y reinstala C0.1 antes de correr los mutantes externos.
+if ! $PSQL -X -v ON_ERROR_STOP=1 -q \
+  -h "$SOCKET_DIR" -p "$PORT" -U postgres -d "$DB_NAME" \
+  -f "$ROLLBACK_SNAPSHOT" >"$RUN_DIR/rollback.log" 2>&1; then
+  sed -n '1,1200p' "$RUN_DIR/rollback.log" >&2
+  fail 'el rollback exacto C0.1 fallo.'
+fi
+
+while IFS=$'\t' read -r signature baseline_hash; do
+  [[ -n "$signature" && -n "$baseline_hash" ]] || continue
+  installed_hash="$($PSQL -X -qAt \
+    -h "$SOCKET_DIR" -p "$PORT" -U postgres -d "$DB_NAME" \
+    -c "select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('$signature')")"
+  if [[ "$installed_hash" != "$baseline_hash" ]]; then
+    fail "readback rollback de $signature no coincide ($installed_hash vs $baseline_hash)."
+  fi
+done < "$CANDIDATE_BEFORE"
+
+if $PSQL -X -v ON_ERROR_STOP=1 -q \
+  -h "$SOCKET_DIR" -p "$PORT" -U postgres -d "$DB_NAME" \
+  -f "$ROLLBACK_SNAPSHOT" >"$RUN_DIR/rollback-repetido.log" 2>&1; then
+  fail 'el rollback se dejo ejecutar por segunda vez fuera del cuerpo candidato.'
+fi
+if ! grep -q 'no conserva el candidato aprobado' "$RUN_DIR/rollback-repetido.log"; then
+  sed -n '1,320p' "$RUN_DIR/rollback-repetido.log" >&2
+  fail 'el segundo rollback fallo por una razon distinta de la guarda esperada.'
+fi
+
+if ! $PSQL -X -v ON_ERROR_STOP=1 -q \
+  -h "$SOCKET_DIR" -p "$PORT" -U postgres -d "$DB_NAME" \
+  -f "$MATERIALIZED_PROPOSAL" >"$RUN_DIR/reaplicar-propuesta.log" 2>&1; then
+  sed -n '1,1200p' "$RUN_DIR/reaplicar-propuesta.log" >&2
+  fail 'C0.1 no pudo reinstalarse despues del rollback exacto.'
+fi
+
+while IFS=$'\t' read -r placeholder signature; do
+  [[ -n "$placeholder" && -n "$signature" ]] || continue
+  expected_hash="$(awk -F $'\t' -v buscado="$placeholder" \
+    '$1 == buscado { print $2 }' "$REPLACEMENTS_FILE")"
+  installed_hash="$($PSQL -X -qAt \
+    -h "$SOCKET_DIR" -p "$PORT" -U postgres -d "$DB_NAME" \
+    -c "select pg_catalog.md5(p.prosrc) from pg_catalog.pg_proc p where p.oid = pg_catalog.to_regprocedure('$signature')")"
+  if [[ "$installed_hash" != "$expected_hash" ]]; then
+    fail "readback tras reinstalar $signature no coincide ($installed_hash vs $expected_hash)."
+  fi
+done < "$CANDIDATE_FILE"
+
+log 'roundtrip forward→rollback→forward verde; la segunda reversa aborto fail-closed.'
 run_c01_body_mutants
+if [[ -n "$EVIDENCE_DIR" ]]; then
+  mkdir -m 700 "$EVIDENCE_DIR"
+  cp "$PROPOSAL_SNAPSHOT" "$EVIDENCE_DIR/propuesta-fuente.sql"
+  cp "$ROLLBACK_SNAPSHOT" "$EVIDENCE_DIR/rollback-exacto.sql"
+  cp "$MATERIALIZED_PROPOSAL" "$EVIDENCE_DIR/propuesta-materializada-local.sql"
+  cp "$REPLACEMENTS_FILE" "$EVIDENCE_DIR/reemplazos-local.tsv"
+  cp "$CANDIDATE_HASHES" "$EVIDENCE_DIR/candidatos-hashes-local.tsv"
+  cp "$EXTRACTED_MANIFEST" "$EVIDENCE_DIR/funciones-extraidas.manifest"
+  chmod 600 "$EVIDENCE_DIR"/*
+  (
+    cd "$EVIDENCE_DIR"
+    shasum -a 256 \
+      propuesta-fuente.sql \
+      rollback-exacto.sql \
+      propuesta-materializada-local.sql \
+      reemplazos-local.tsv \
+      candidatos-hashes-local.tsv \
+      funciones-extraidas.manifest \
+      > SHA256SUMS
+    chmod 600 SHA256SUMS
+  )
+  log "evidencia sin datos exportada a $EVIDENCE_DIR"
+fi
 printf '%s\n' 'C0.1_BANCO_ADVERSARIO_OK'

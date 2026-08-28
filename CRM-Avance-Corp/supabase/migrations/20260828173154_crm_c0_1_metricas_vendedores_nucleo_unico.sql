@@ -46,75 +46,75 @@ begin
     from (values
       (
         'crm.metricas_vendedores_fn()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_VENDEDORES__'
+        '87998c3b195d8f5e7197c579e71e5da9'
       ),
       (
         'crm.conversion_mensual_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_WRAPPER__'
+        'd4a8294c2ce5c45cce8104143ce3508b'
       ),
       (
         'crm.conversion_mensual_sin_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_BASE__'
+        'c7a7a103d6665acb9231976a3a2fcfa6'
       ),
       (
         'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_POR_VENDEDOR__'
+        '4816eeefabe34c3fc82a2ff2f18a1182'
       ),
       (
         'private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_EPISODIOS__'
+        '34acbfa8f6838b5f0ca6d5aa17d85d2a'
       ),
       (
         'private.metricas_cartera_por_vendedor(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_POR_VENDEDOR__'
+        '8ac031c77f340328336df1c58cafa464'
       ),
       (
         'crm.metricas_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__'
+        '0b4ede547cf7079be1e56073311453b3'
       ),
       (
         'private.roster_metas_vendedores()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROSTER_METAS__'
+        '8e9e171919bc000b8ef38f61b8a7d66f'
       ),
       (
         'private.vendedores_sin_supervisor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__'
+        '41bc7077a9be1e23f63637b98db82cd2'
       ),
       (
         'private.peso_referido_conversion(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_PESO_REFERIDO__'
+        'db78c8acbb0b0ea0ac3b0d2f0d25e7de'
       ),
       (
         'private.ajuste_pendiente_por_vendedor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_AJUSTE_PENDIENTE__'
+        '7b44de923a64305b00a64b114143a1dd'
       ),
       (
         'private.conversion_con_ajuste(numeric,numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_CON_AJUSTE__'
+        'e08142ff2df5d9e78b7d7bde4998fc6f'
       ),
       (
         'private.filtrar_desglose_sujetos_crm(jsonb,text,text,text[])',
-        '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__'
+        '1cce2929af369715a2c7e161d63fc7ce'
       ),
       (
         'private.rol_crm(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__'
+        '2afc1b09b6cf71b10d791fbcae583d2d'
       ),
       (
         'private.es_lector_global()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__'
+        'd9e6238020882c2b2a7d0fb3b76305c1'
       ),
       (
         'private.vendedor_ids_visibles(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__'
+        '33ece9bae4828f7ffdb837c6128ca9d6'
       ),
       (
         'private.cierre_externo_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__'
+        '4f9d9c03e53497b8b84b80299e35b3cb'
       ),
       (
         'private.cierre_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__'
+        'dce6f9bf34feb57a2f1662ad401d1047'
       )
     ) as d(firma, md5_esperado)
   loop
@@ -177,7 +177,7 @@ declare
   v_oid oid;
   v_actual text;
   v_catalogo_esperado text :=
-    '__CAPTURAR_LIVE_MD5_CATALOGO_18_FUNCIONES__';
+    '91029038fb842066de0c29443d599715';
   v_catalogo_actual text;
   v_catalogo_fila text;
   v_catalogo_filas text[] := array[]::text[];
@@ -196,92 +196,92 @@ begin
     from (values
       (
         'crm.metricas_vendedores_fn()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_VENDEDORES__',
+        '87998c3b195d8f5e7197c579e71e5da9',
         'plpgsql', true, 's'
       ),
       (
         'crm.conversion_mensual_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_WRAPPER__',
+        'd4a8294c2ce5c45cce8104143ce3508b',
         'plpgsql', true, 's'
       ),
       (
         'crm.conversion_mensual_sin_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_BASE__',
+        'c7a7a103d6665acb9231976a3a2fcfa6',
         'plpgsql', true, 's'
       ),
       (
         'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_POR_VENDEDOR__',
+        '4816eeefabe34c3fc82a2ff2f18a1182',
         'plpgsql', true, 's'
       ),
       (
         'private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_EPISODIOS__',
+        '34acbfa8f6838b5f0ca6d5aa17d85d2a',
         'plpgsql', true, 's'
       ),
       (
         'private.metricas_cartera_por_vendedor(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_POR_VENDEDOR__',
+        '8ac031c77f340328336df1c58cafa464',
         'sql', true, 's'
       ),
       (
         'crm.metricas_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__',
+        '0b4ede547cf7079be1e56073311453b3',
         'plpgsql', true, 's'
       ),
       (
         'private.roster_metas_vendedores()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROSTER_METAS__',
+        '8e9e171919bc000b8ef38f61b8a7d66f',
         'sql', true, 's'
       ),
       (
         'private.vendedores_sin_supervisor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__',
+        '41bc7077a9be1e23f63637b98db82cd2',
         'sql', true, 's'
       ),
       (
         'private.peso_referido_conversion(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_PESO_REFERIDO__',
+        'db78c8acbb0b0ea0ac3b0d2f0d25e7de',
         'plpgsql', true, 's'
       ),
       (
         'private.ajuste_pendiente_por_vendedor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_AJUSTE_PENDIENTE__',
+        '7b44de923a64305b00a64b114143a1dd',
         'sql', true, 's'
       ),
       (
         'private.conversion_con_ajuste(numeric,numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_CON_AJUSTE__',
+        'e08142ff2df5d9e78b7d7bde4998fc6f',
         'sql', false, 'i'
       ),
       (
         'private.filtrar_desglose_sujetos_crm(jsonb,text,text,text[])',
-        '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__',
+        '1cce2929af369715a2c7e161d63fc7ce',
         'plpgsql', true, 's'
       ),
       (
         'private.rol_crm(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__',
+        '2afc1b09b6cf71b10d791fbcae583d2d',
         'sql', true, 's'
       ),
       (
         'private.es_lector_global()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__',
+        'd9e6238020882c2b2a7d0fb3b76305c1',
         'sql', true, 's'
       ),
       (
         'private.vendedor_ids_visibles(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__',
+        '33ece9bae4828f7ffdb837c6128ca9d6',
         'plpgsql', true, 's'
       ),
       (
         'private.cierre_externo_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__',
+        '4f9d9c03e53497b8b84b80299e35b3cb',
         'sql', false, 's'
       ),
       (
         'private.cierre_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__',
+        'dce6f9bf34feb57a2f1662ad401d1047',
         'sql', false, 's'
       )
     ) as d(
@@ -711,7 +711,7 @@ declare
     'private.metricas_cartera_por_vendedor(date)'
   );
   v_md5_esperado constant text :=
-    '__CAPTURAR_MD5_PROSRC_CANDIDATO_METRICAS_CARTERA__';
+    'a5ec29bd68511a286a3d2ea4d316a9be';
   v_src text;
   v_owner text;
   v_language text;
@@ -1639,7 +1639,7 @@ declare
   v_dep_src text;
   v_md5_actual text;
   v_md5_esperado text :=
-    '__CAPTURAR_MD5_PROSRC_DEL_CUERPO_C0_1_APROBADO__';
+    'd8226991aba1783b042eaf087568ba49';
   v_owner text;
   v_language text;
   v_secdef boolean;
@@ -1739,12 +1739,12 @@ begin
     from (values
       (
         'crm.metricas_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__',
+        '0b4ede547cf7079be1e56073311453b3',
         'plpgsql'
       ),
       (
         'private.vendedores_sin_supervisor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__',
+        '41bc7077a9be1e23f63637b98db82cd2',
         'sql'
       )
     ) as d(firma, md5_esperado, lenguaje_esperado)
@@ -2089,7 +2089,7 @@ declare
   v_oid oid;
   v_actual text;
   v_catalogo_esperado text :=
-    '__CAPTURAR_LIVE_MD5_CATALOGO_18_FUNCIONES__';
+    '91029038fb842066de0c29443d599715';
   v_catalogo_actual text;
   v_catalogo_fila text;
   v_catalogo_filas text[] := array[]::text[];
@@ -2106,92 +2106,92 @@ begin
     from (values
       (
         'crm.metricas_vendedores_fn()',
-        '__CAPTURAR_MD5_PROSRC_DEL_CUERPO_C0_1_APROBADO__',
+        'd8226991aba1783b042eaf087568ba49',
         'plpgsql', true, 's'
       ),
       (
         'crm.conversion_mensual_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_WRAPPER__',
+        'd4a8294c2ce5c45cce8104143ce3508b',
         'plpgsql', true, 's'
       ),
       (
         'crm.conversion_mensual_sin_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_MENSUAL_BASE__',
+        'c7a7a103d6665acb9231976a3a2fcfa6',
         'plpgsql', true, 's'
       ),
       (
         'private.conversion_mensual_por_vendedor(timestamptz,timestamptz,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_POR_VENDEDOR__',
+        '4816eeefabe34c3fc82a2ff2f18a1182',
         'plpgsql', true, 's'
       ),
       (
         'private.conversion_episodios(timestamptz,timestamptz,date,boolean,uuid[],numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_EPISODIOS__',
+        '34acbfa8f6838b5f0ca6d5aa17d85d2a',
         'plpgsql', true, 's'
       ),
       (
         'private.metricas_cartera_por_vendedor(date)',
-        '__CAPTURAR_MD5_PROSRC_CANDIDATO_METRICAS_CARTERA__',
+        'a5ec29bd68511a286a3d2ea4d316a9be',
         'sql', true, 's'
       ),
       (
         'crm.metricas_cartera_fn(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_METRICAS_CARTERA_RPC__',
+        '0b4ede547cf7079be1e56073311453b3',
         'plpgsql', true, 's'
       ),
       (
         'private.roster_metas_vendedores()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROSTER_METAS__',
+        '8e9e171919bc000b8ef38f61b8a7d66f',
         'sql', true, 's'
       ),
       (
         'private.vendedores_sin_supervisor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDORES_SIN_SUPERVISOR__',
+        '41bc7077a9be1e23f63637b98db82cd2',
         'sql', true, 's'
       ),
       (
         'private.peso_referido_conversion(date)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_PESO_REFERIDO__',
+        'db78c8acbb0b0ea0ac3b0d2f0d25e7de',
         'plpgsql', true, 's'
       ),
       (
         'private.ajuste_pendiente_por_vendedor()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_AJUSTE_PENDIENTE__',
+        '7b44de923a64305b00a64b114143a1dd',
         'sql', true, 's'
       ),
       (
         'private.conversion_con_ajuste(numeric,numeric)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CONVERSION_CON_AJUSTE__',
+        'e08142ff2df5d9e78b7d7bde4998fc6f',
         'sql', false, 'i'
       ),
       (
         'private.filtrar_desglose_sujetos_crm(jsonb,text,text,text[])',
-        '__CAPTURAR_LIVE_MD5_PROSRC_FILTRAR_SUJETOS__',
+        '1cce2929af369715a2c7e161d63fc7ce',
         'plpgsql', true, 's'
       ),
       (
         'private.rol_crm(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ROL_CRM__',
+        '2afc1b09b6cf71b10d791fbcae583d2d',
         'sql', true, 's'
       ),
       (
         'private.es_lector_global()',
-        '__CAPTURAR_LIVE_MD5_PROSRC_ES_LECTOR_GLOBAL__',
+        'd9e6238020882c2b2a7d0fb3b76305c1',
         'sql', true, 's'
       ),
       (
         'private.vendedor_ids_visibles(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_VENDEDOR_IDS_VISIBLES__',
+        '33ece9bae4828f7ffdb837c6128ca9d6',
         'plpgsql', true, 's'
       ),
       (
         'private.cierre_externo_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_EXTERNO_ANULADO__',
+        '4f9d9c03e53497b8b84b80299e35b3cb',
         'sql', false, 's'
       ),
       (
         'private.cierre_anulado(uuid)',
-        '__CAPTURAR_LIVE_MD5_PROSRC_CIERRE_ANULADO__',
+        'dce6f9bf34feb57a2f1662ad401d1047',
         'sql', false, 's'
       )
     ) as d(

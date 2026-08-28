@@ -455,6 +455,14 @@ type ValoresRangoAnalista = readonly [
   leadsUnicosResueltos: number,
 ]
 
+function punteriaDistribucion(convertidos: number, resueltos: number) {
+  return {
+    convertidos,
+    resueltos,
+    pct: resueltos > 0 ? Math.round((100 * convertidos / resueltos) * 100) / 100 : null,
+  }
+}
+
 function rangosAnalista(
   valores: Partial<Record<RangoDistribucionId, ValoresRangoAnalista>> = {},
 ) {
@@ -478,6 +486,7 @@ function rangosAnalista(
         descartados,
         leads_unicos_resueltos: leadsUnicosResueltos,
       },
+      conversion: punteriaDistribucion(convertidos, leadsUnicosResueltos),
     }
   })
 }
@@ -498,8 +507,8 @@ function fechaSiguiente(fecha: string): string {
 }
 
 /**
- * Fotografía rica y contractual de `crm.metricas_distribucion_leads_v2_fn`
- * (contrato V2 de lib/metricas-distribucion.ts — objetos ESTRICTOS: una clave
+ * Fotografía rica y contractual de `crm.metricas_distribucion_leads_v3_fn`
+ * (contrato V3 de lib/metricas-distribucion.ts — objetos ESTRICTOS: una clave
  * de más o de menos y el parser de producción falla cerrado).
  */
 export function metricasDistribucionReal(
@@ -549,6 +558,14 @@ export function metricasDistribucionReal(
       desactivados: 0,
       sin_tocar_actual: 1,
     },
+    conversion: {
+      pen: punteriaDistribucion(3, 6),
+      usd: punteriaDistribucion(1, 1),
+      nucleo_divisor: 6,
+      nucleo_referidos_recibidos: 0,
+      nucleo_numerador: 4,
+      nucleo_conversion_pct: 66.67,
+    },
   }
 
   const bruno = {
@@ -592,6 +609,14 @@ export function metricasDistribucionReal(
       desactivados: 0,
       sin_tocar_actual: 1,
     },
+    conversion: {
+      pen: punteriaDistribucion(1, 4),
+      usd: punteriaDistribucion(0, 0),
+      nucleo_divisor: 4,
+      nucleo_referidos_recibidos: 0,
+      nucleo_numerador: 1,
+      nucleo_conversion_pct: 25,
+    },
   }
 
   const totalRangos = rangosCola({
@@ -602,7 +627,7 @@ export function metricasDistribucionReal(
   const bandejaRangos = rangosCola({ pen_10000_20000: [1, 20000] })
 
   return {
-    version: 2,
+    version: 3,
     generado_en: '2026-07-17T17:00:00.000Z',
     cohorte: {
       desde_inclusivo: desde,
@@ -615,6 +640,9 @@ export function metricasDistribucionReal(
       matriz: 'PEN',
       capacidad: 'TODAS_LAS_MONEDAS',
       montos: 'SEPARADOS_SIN_CONVERSION',
+      conversion_punteria: 'CERRADOS_ENTRE_RESUELTOS',
+      conversion_nucleo: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      conversion_incluye_cartera: true,
     },
     rangos: RANGOS_DISTRIBUCION.map((rango) => ({ ...rango })),
     resumen: {
@@ -628,6 +656,14 @@ export function metricasDistribucionReal(
       convertidos_pen: 4,
       descartados_pen: 6,
       reasignaciones_cohorte: 2,
+      conversion: {
+        pen: punteriaDistribucion(4, 10),
+        usd: punteriaDistribucion(1, 1),
+        nucleo_divisor: 10,
+        nucleo_referidos_recibidos: 0,
+        nucleo_numerador: 5,
+        nucleo_conversion_pct: 50,
+      },
     },
     analistas: [ana, bruno],
     por_repartir: {
@@ -657,6 +693,18 @@ export function metricasDistribucionReal(
       episodios_sin_monto_actuales: 0,
       episodios_sin_monto_cohorte: 0,
     },
+    sondas: {
+      peso_referido: 0.15,
+      mes_peso: `${desde.slice(0, 7)}-01`,
+      paridad_nucleo: 0,
+      paridad_filas: 2,
+      cuadra: true,
+      divisor_sin_analista: 0,
+      numerador_sin_analista: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      nucleo_sin_ficha: 0,
+    },
   }
 }
 
@@ -676,6 +724,14 @@ function metricasDistribucionVaciaReal(): unknown {
       convertidos_pen: 0,
       descartados_pen: 0,
       reasignaciones_cohorte: 0,
+      conversion: {
+        pen: punteriaDistribucion(0, 0),
+        usd: punteriaDistribucion(0, 0),
+        nucleo_divisor: 0,
+        nucleo_referidos_recibidos: 0,
+        nucleo_numerador: 0,
+        nucleo_conversion_pct: null,
+      },
     },
     analistas: [],
     por_repartir: {
@@ -691,6 +747,18 @@ function metricasDistribucionVaciaReal(): unknown {
         usd: { cantidad: 0, capital: 0 },
       },
       bandejas: [],
+    },
+    sondas: {
+      peso_referido: 0.15,
+      mes_peso: '2026-04-01',
+      paridad_nucleo: null,
+      paridad_filas: 0,
+      cuadra: null,
+      divisor_sin_analista: 0,
+      numerador_sin_analista: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      nucleo_sin_ficha: 0,
     },
   }
 }
@@ -846,6 +914,8 @@ export function metricasVendedoresReal(leads: LeadReal[]): Record<string, unknow
     .map(([id, suyos]) => {
       const abiertos = suyos.filter((l) => l.etapa !== 'convertido' && l.etapa !== 'descartado')
       const convertidos = suyos.filter((l) => l.etapa === 'convertido').length
+      const nucleoDivisor = suyos.length
+      const nucleoNumerador = convertidos
       return {
         vendedor_id: id,
         rol_crm: 'vendedor',
@@ -855,15 +925,51 @@ export function metricasVendedoresReal(leads: LeadReal[]): Record<string, unknow
         capital_usd: abiertos.reduce((a, l) => (l.moneda === 'USD' ? a + (l.monto_estimado ?? 0) : a), 0),
         convertidos,
         conversion_pct: suyos.length > 0 ? Math.round((100 * convertidos) / suyos.length) : 0,
+        nucleo_convertidos: convertidos,
+        operaciones_cartera: 0,
+        nucleo_divisor: nucleoDivisor,
+        nucleo_numerador: nucleoNumerador,
+        nucleo_conversion_pct: nucleoDivisor > 0
+          ? Math.round((100 * nucleoNumerador / nucleoDivisor) * 100) / 100
+          : null,
         sin_tocar: 0,
         dias_sin_actividad_max: 0,
       }
     })
     .sort((a, b) => b.capital_pen - a.capital_pen || a.vendedor_id.localeCompare(b.vendedor_id))
+  const nucleoTotal = vendedores.reduce((total, vendedor) => ({
+    nucleo_convertidos: total.nucleo_convertidos + vendedor.nucleo_convertidos,
+    operaciones_cartera: total.operaciones_cartera + vendedor.operaciones_cartera,
+    nucleo_divisor: total.nucleo_divisor + vendedor.nucleo_divisor,
+    nucleo_numerador: total.nucleo_numerador + vendedor.nucleo_numerador,
+  }), {
+    nucleo_convertidos: 0,
+    operaciones_cartera: 0,
+    nucleo_divisor: 0,
+    nucleo_numerador: 0,
+  })
   return {
     version: 1,
     generado_en: new Date().toISOString(),
     ventana_convertidos_dias: 45,
+    ventana_metrica: 'mes_calendario',
+    mes_metrica: '2026-08-01',
+    peso_referido: 0.15,
+    cobertura_conversion: {
+      medible: true,
+      suelo_historico: null,
+      motivo_no_medible: null,
+      divisor_aproximado: 0,
+      divisor_por_motivo: {},
+      cierres_sin_episodio: 0,
+      fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
+    },
+    nucleo_total: {
+      ...nucleoTotal,
+      nucleo_conversion_pct: nucleoTotal.nucleo_divisor > 0
+        ? Math.round((100 * nucleoTotal.nucleo_numerador / nucleoTotal.nucleo_divisor) * 100) / 100
+        : null,
+    },
     vendedores,
     equipos: [],
   }
@@ -992,8 +1098,37 @@ function periodoMetricasReal(desde = '2026-08-01', hasta = '2026-08-07') {
  * crm.conversion_mensual_fn sin actividad: divisor 0, % NULL — el default del
  * mock, para que los specs de vacío sigan viendo su vacío honesto.
  */
-export function conversionMensualVaciaReal(): { total: Record<string, unknown>; responsables: Record<string, unknown>[] } {
+type ConversionMensualRealFixture = {
+  cartera: Record<string, unknown>
+  total: Record<string, unknown>
+  responsables: Record<string, unknown>[]
+}
+
+function carteraResponsableVaciaReal(): Record<string, unknown> {
   return {
+    conversiones_clientes: 0,
+    conversiones_renovacion: 0,
+    conversiones_upgrade: 0,
+    capital_renovado_pen: 0,
+    capital_renovado_usd: 0,
+    capital_adicional_pen: 0,
+    capital_adicional_usd: 0,
+    renovaciones_sin_desglose: 0,
+  }
+}
+
+function carteraTotalVaciaReal(): Record<string, unknown> {
+  return {
+    ...carteraResponsableVaciaReal(),
+    operaciones_renovacion: 0,
+    operaciones_upgrade: 0,
+  }
+}
+
+export function conversionMensualVaciaReal(): ConversionMensualRealFixture {
+  const cartera = carteraTotalVaciaReal()
+  return {
+    cartera,
     total: {
       analistas: 0,
       divisor: 0,
@@ -1004,6 +1139,7 @@ export function conversionMensualVaciaReal(): { total: Record<string, unknown>; 
       numerador: 0,
       conversion_pct: null,
       referidos_aporta_pct: null,
+      cartera,
     },
     responsables: [],
   }
@@ -1013,14 +1149,17 @@ export function conversionMensualVaciaReal(): { total: Record<string, unknown>; 
  * crm.conversion_mensual_fn con actividad: 2 cierres sobre 20 recibidos (10 %).
  * Los ids son UUID porque el contrato del front los exige (fail-closed).
  */
-export function conversionMensualReal(): { total: Record<string, unknown>; responsables: Record<string, unknown>[] } {
+export function conversionMensualReal(): ConversionMensualRealFixture {
+  const cartera = carteraTotalVaciaReal()
   const filaBase = {
     cierres_referidos: 0,
     cierres_de_arrastre: 0,
     procedencia: [],
     referidos: { recibidos: 0, cerrados: 0, dados_de_alta: 0, aporta_pct: 0 },
+    cartera: carteraResponsableVaciaReal(),
   }
   return {
+    cartera,
     total: {
       analistas: 2,
       divisor: 20,
@@ -1031,6 +1170,7 @@ export function conversionMensualReal(): { total: Record<string, unknown>; respo
       numerador: 2,
       conversion_pct: 10,
       referidos_aporta_pct: 0,
+      cartera,
     },
     responsables: [
       { ...filaBase, vendedor_id: ANALISTA_ANA_ID, supervisor_id: SUPERVISOR_DIEGO_ID, divisor: 12, cierres_no_referidos: 1, numerador: 1, conversion_pct: 8.33, estado: 'medible' },
@@ -1042,6 +1182,7 @@ export function conversionMensualReal(): { total: Record<string, unknown>; respo
 /** Snapshot válido de las métricas comerciales que consume el Resumen actual. */
 export function metricasConversionesReal(): Record<string, unknown> {
   return {
+    origen_filtrado: null,
     version: 1,
     generado_en: '2026-08-07T17:00:00.000Z',
     periodo: periodoMetricasReal(),
@@ -1083,6 +1224,8 @@ export function metricasConversionesReal(): Record<string, unknown> {
       conversion_resueltos_pct: 25,
       capital_pen: 125_000,
       capital_usd: 8_000,
+      peso_en_nucleo: 0.15,
+      fuera_del_divisor_del_nucleo: true,
     }],
     categorias: [],
     responsables: [{
@@ -1094,6 +1237,9 @@ export function metricasConversionesReal(): Record<string, unknown> {
       conversion_pct: 10,
       capital_pen: 125_000,
       capital_usd: 8_000,
+      nucleo_divisor: 20,
+      nucleo_numerador: 2,
+      nucleo_conversion_pct: 10,
       tendencia_semanal: [
         { semana: 1, desde: '2026-08-01', hasta: '2026-08-03', leads: 8, clientes: 1, conversion_pct: 12.5 },
         { semana: 2, desde: '2026-08-04', hasta: '2026-08-07', leads: 12, clientes: 1, conversion_pct: 8.33 },
@@ -1107,11 +1253,49 @@ export function metricasConversionesReal(): Record<string, unknown> {
       conversion_pct: null,
       capital_pen: 0,
       capital_usd: 0,
+      nucleo_divisor: 0,
+      nucleo_numerador: 0,
+      nucleo_conversion_pct: null,
       tendencia_semanal: [
         { semana: 1, desde: '2026-08-01', hasta: '2026-08-03', leads: 0, clientes: 0, conversion_pct: null },
         { semana: 2, desde: '2026-08-04', hasta: '2026-08-07', leads: 0, clientes: 0, conversion_pct: null },
       ],
     }],
+    nucleo: {
+      base: 'COHORTE_POR_ASIGNACION_REFERIDOS_PONDERADOS',
+      divisor: 20,
+      numerador: 2,
+      conversion_pct: 10,
+      cierres_no_referidos: 2,
+      cierres_referidos: 0,
+      referidos_recibidos: 0,
+      referidos_cierran_pct: null,
+      operaciones_cartera: 0,
+      peso_referido: 0.15,
+      mes_peso: '2026-08-01',
+      incluye_cartera: true,
+    },
+    cosecha: {
+      base: 'ALTAS_DEL_RANGO',
+      leads: 20,
+      cerraron: 2,
+      conversion_pct: 10,
+      madura_hasta: '2026-08-07',
+    },
+    sondas: {
+      cuadra: true,
+      paridad_nucleo: 0,
+      paridad_filas: 2,
+      divisor_fuera_del_roster: 0,
+      numerador_fuera_del_roster: 0,
+      cierres_sin_ficha_convertida: 0,
+      cohorte_convertidos_sin_cierre_elegible: 0,
+      cartera_fuera_del_rango: 0,
+      cierres_anulados: 0,
+      episodios_sin_origen: 0,
+      origen_ficha_distinto_del_ledger: 0,
+      perfiles_con_leads_de_varios_vendedores: 0,
+    },
   }
 }
 
@@ -1337,7 +1521,7 @@ export interface BackendReal {
     /** Vendedores de crm.metricas_agenda_fn (panel "Agenda del equipo"). */
     agenda: unknown[]
     /** Total y filas de crm.conversion_mensual_fn (el periodo lo eco-a el handler). */
-    conversionMensual: { total: Record<string, unknown>; responsables: Record<string, unknown>[] }
+    conversionMensual: ConversionMensualRealFixture
   }
   /** C1 — cola global que devuelve crm.leads_por_repartir() al coordinador. */
   colaReparto: Record<string, unknown>[]
@@ -2347,6 +2531,7 @@ export async function montarBackendReal(
           cierres_sin_episodio: 0,
           fuera_de_roster: { analistas: 0, divisor: 0, cierres: 0, numerador: 0 },
         },
+        cartera: estado.metricas.conversionMensual.cartera,
         total: estado.metricas.conversionMensual.total,
         responsables: estado.metricas.conversionMensual.responsables,
       })
@@ -2376,7 +2561,7 @@ export async function montarBackendReal(
         vendedores: estado.metricas.agenda,
       })
     }
-    if (p === '/rest/v1/rpc/metricas_distribucion_leads_v2_fn' && method === 'POST') {
+    if (p === '/rest/v1/rpc/metricas_distribucion_leads_v3_fn' && method === 'POST') {
       estado.llamadas.rpcMetricasDistribucion += 1
       const body = (req.postDataJSON() ?? {}) as { p_desde?: string; p_hasta?: string }
       const desde = String(body.p_desde ?? '')
