@@ -28,6 +28,18 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 **Para retomar en una sesión nueva:** decir **`RETOMAR-SERVIDOR`**. Con eso se carga este plan, las decisiones ya tomadas y el punto exacto donde quedó.
 
+### Cierre de la sesión del 2026-08-28
+
+**Qué se hizo:** auditoría completa del servidor (solo lectura, cero escrituras en producción) · este plan, con tres arquitecturas independientes, un crítico de cobertura y una auditoría adversarial de Codex · 14 decisiones de negocio tomadas · el ranking real de agosto verificado contigo.
+
+**Qué NO se hizo:** ninguna migración, ningún despliegue, ninguna escritura en producción. El servidor está exactamente como estaba.
+
+**Dos errores míos, corregidos y anotados para que no se repitan:** leí «analista» y «vendedor» como dos grupos distintos siendo el mismo equipo, y di por hecho que el mes se contaba por fecha de registro cuando el sistema ya usaba la fecha de cierre comercial. Los dos salieron a la luz porque Miguel preguntó y porque Codex refutó.
+
+**Evidencia guardada fuera de esta nota:** `CRM-Avance-Corp/.tmp-verificar-atribucion-capital.mjs` — diagnóstico de solo lectura que compara quién registró contra quién trabajó el lead. Útil para la Fase 3.
+
+**Acceso desde Obsidian:** el vault del proyecto quedó enlazado dentro del vault de `Documents` como carpeta `AVANCECORP`. Es un enlace, no una copia: hay un solo archivo.
+
 ---
 
 ## 1. La problemática
