@@ -238,6 +238,71 @@ Sin campaña de 114 ediciones (la fuente lo veta explícitamente).
 
 ---
 
+## ✅ Decisiones ya tomadas por Miguel (2026-08-28)
+
+| Tema | Decisión | Qué cambia en el plan |
+|---|---|---|
+| **Capital: ¿de quién es?** | **Del vendedor, sí o sí** | El núcleo se construye con el vendedor como atribución principal. «Quien dio de alta» queda descartado: son 19 analistas de back office + 1 superadmin + 1 admin, es quien tipea, no quien vende. |
+| **Tablero de gerencia, por ahora** | **Solo la cartera total** (S/ 18,0 M + US$ 1,10 M) | No se abre por vendedor hasta que el proceso capture bien. Se guarda igual la atribución en el hecho, pero no se expone. |
+| **Desglose renovado/adicional** | **Completarlo: lo quiere ver** | Trabajo nuevo: arreglar el alta para que grabe las dos cifras + rellenar las 62 operaciones existentes. Entra al diseño del núcleo de capital (E2/E6). |
+| **Catálogo de productos versionados (6 funciones dormidas)** | **Eliminarlas** | E9-F2 queda resuelta: rama de retiro. Primero quitar el guard del cierre legacy, después apagar, después borrar. **E9-F1 (criterio único) sigue: lo consumen las dos pantallas vivas.** |
+| **4 funciones esperando pantalla** | **Publicar las pantallas** | Salen de la lista de retiros de E11. «Mi cartera» y «Ficha 360°» (88 %) y el período comercial del supervisor pasan a trabajo de producto, con calendario propio. ⚠️ Consecuencia para E6: `resumen_cartera_clientes_fn` y `contratos_por_periodo_comercial_fn` **sí** se migran al núcleo (ya no hay riesgo de pagar paridad sobre algo que se apaga). |
+| **Botón «eliminar cliente»** | **Avisar antes de borrar** | Muestra qué se va a borrar (cuentas bancarias y actividades del CRM) y pide confirmación. Entra en E4. |
+| **Superadmin borrando perfiles** | **Queda abierto como hoy** | Excepción consciente firmada. Consecuencia dicha y aceptada: borrar un colaborador borra su membresía del equipo, en contra de la regla P04. Se documenta en E13, no se restringe. |
+| **Conexión `crm_metricas_bridge`** | **No se sabe qué la usa → investigar** | Sigue siendo bloqueo duro de E11: no se retira nada que dependa de ella hasta identificar al consumidor. |
+| **Apps Script del puente** | **DESBLOQUEADO** (verificado 28/08) | El conector solo llama a la puerta de importar leads; no toca ninguna candidata a retiro. Deja de ser condición de entrada de E11. |
+| **Nomenclatura** | **«analista» en todo el sistema, CRM y portal — incluidos los nombres internos** | Campaña nueva: **E14**. El portal ya dice «analista»; el CRM converge hacia él. Alcance completo (columnas, tablas, índices, funciones, rol y textos). |
+| **Tablero por analista** | **Abrir, pero verificando antes con Miguel** | Se le presenta el reparto de agosto por persona; si calza con lo que él sabe del equipo, se abre. Reemplaza la decisión previa de «solo cartera total», tomada cuando se creía que el dato no existía. |
+
+---
+
+## E14 · Campaña de nomenclatura: «vendedor» → «analista» en todo el sistema
+
+**Decidida por Miguel el 28/08, alcance completo.** Justificación de primera mano: la doble nomenclatura ya invalidó un análisis entero en la sesión donde se decidió (ver el hallazgo de arriba).
+
+**Alcance medido (28/08):**
+
+| Capa | Objetos | Quién lo ve |
+|---|---|---|
+| Texto del CRM | 3 236 apariciones en 218 archivos | todos, todo el día |
+| Rol del sistema | 19 filas de `crm.equipo`, 54 funciones con el literal, 18 políticas RLS, 6 constraints CHECK | semi-visible; raíz de la ambigüedad |
+| Nombres internos | 10 columnas, 4 tablas, 17 índices, 13 funciones | nadie |
+
+El **portal ya dice «analista»** en sus 17 archivos y no dice «vendedor» ni una vez: la convergencia es del CRM hacia el portal, no al revés.
+
+**Riesgo declarado y a auditar antes de ejecutar:** renombrar el valor `rol_crm='vendedor'` toca el gate de autorización entero (54 funciones + 18 políticas + 6 CHECK); un solo lugar que quede comparando el string viejo deniega acceso en silencio. Y hay una fusión semántica que debe decidirse a propósito: `public.perfiles.rol='analista'` ya existe con su propio significado. **Auditado por Codex antes de escribir la primera migración** (regla del proyecto: pedirle refutar el diagnóstico).
+
+**Fases previstas:** (1) auditoría de rotura y orden de despliegue; (2) rol y lógica del servidor con el gate 1175 como red; (3) textos del CRM; (4) nombres internos (columnas, tablas, índices) al final, cuando todo lo demás esté estable — es la parte cara y sin retorno visible.
+
+**Dependencia dura:** no se solapa con E6–E8 (los núcleos) ni con ninguna ventana de sellado; un renombre a mitad de una campaña de paridad haría imposible distinguir qué cambió un número.
+
+---
+
+## 🔑 Hallazgo del 28/08: la doble nomenclatura ya produjo un diagnóstico errado
+
+**La misma persona se llama `analista` en el portal y `vendedor` en el CRM.** Verificado: 17 personas tienen simultáneamente `perfiles.rol='analista'` y `crm.equipo.rol_crm='vendedor'`, más 2 que son analista+supervisor. **No son dos grupos: son el mismo equipo comercial.**
+
+Esa ambigüedad causó un error de análisis en esta misma sesión: se concluyó que «el capital lo registra el back office, no los vendedores» y que «el CRM no captura la venta nueva». **Las dos afirmaciones eran falsas** y quedan retractadas.
+
+**El cuadro correcto — la atribución del capital existe y siempre existió:**
+
+| Quién registró el contrato | Contratos | Capital |
+|---|---|---|
+| Analistas del equipo comercial (hoy rol «vendedor») | 432 | S/ 15,36 M + US$ 939 K |
+| Supervisores | 17 | S/ 1,99 M + US$ 28 K |
+| Gerencia | 16 | S/ 506 K + US$ 129 K |
+| **Fuera del equipo comercial** | **1** | **S/ 160 K** |
+
+**465 de 466 contratos tienen dueño.** En agosto: 205 contratos, S/ 6,26 M + US$ 585 K, entre 16 personas con producción.
+
+**Dónde estaba el error de las métricas:** buscaban la atribución por la *operación de cartera*, que solo existe para upgrades y renovaciones (62 de 210 en agosto; de las 113 ventas nuevas, ninguna). La atribución real vive en **quién registró el contrato**, que es el analista que lo vendió. El núcleo de capital se construye sobre ese camino, no sobre el de cartera.
+
+**Dato colateral que sigue en pie:** la fecha de cierre comercial está **inferida en 435 de 466 contratos**; solo 13 tienen fecha registrada de verdad. Eso sí es una debilidad real del dato y entra al diseño del núcleo (E2).
+
+**Lección de método, para el registro:** un término con dos nombres según el sistema desde el que se lo mire es capaz de invalidar un análisis entero hecho sobre datos correctos. Es la justificación más fuerte de la campaña de nomenclatura (E14).
+
+---
+
 ## Mesas de decisión (máximo 5 preguntas, con el número al lado)
 
 | Mesa | Cuándo se entrega | Preguntas | Bloquea |
