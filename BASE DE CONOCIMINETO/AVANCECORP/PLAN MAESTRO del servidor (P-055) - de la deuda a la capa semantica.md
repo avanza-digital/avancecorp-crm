@@ -120,54 +120,88 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 ---
 
-## 6. Las etapas
+## 6. El plan por fases
 
-### Bloque A — lo urgente (fecha dura)
+### FASE 0 · Decidir — *esta semana, no se toca nada*
+Responder las 5 preguntas abiertas de §7 y aprobar el plan.
+**Al terminar:** el trabajo puede arrancar sin frenarse a mitad de camino.
+**De ti:** una conversación.
 
-**E1 · Blindaje pre-sellado** — *2 sesiones · en producción antes del 05/09*
-Rastro de auditoría en co-titulares de contratos (el único hallazgo realmente roto), en actividades de cliente y en la agenda; completar el rastro de borrado en historial de gestión y en cuotas; declarar con comentario las 5 tablas que no llevan auditoría a propósito. Y la malla que impide que un monto inválido entre a cronograma de pagos y al cierre mensual — **hoy esas tablas están vacías, así que es gratis; después del 10/09 deja de serlo**.
+---
 
-**E2 · Congelamiento y vigilancia del primer cierre** — *08–12/09*
-Ninguna migración esa semana. Se observa el cierre del 10/09, se verifica que nada rebotó, y se guarda el fixture del mes real como oráculo de las etapas siguientes.
+### FASE 1 · Proteger lo que ya tienes — *antes del 5 de septiembre* ⏰
+- Que quede registro de quién agrega o quita un co-titular de una cuenta mancomunada. Hoy no queda ninguno, y es el dato con más peso legal del sistema.
+- Que quede registro de quién borra el historial de gestión de un cliente y quién borra cuotas de pago. Hoy tampoco.
+- Blindar los montos para que no pueda entrar un valor inválido al cronograma de pagos ni al cierre mensual.
 
-### Bloque B — el capital (lo que más te importa)
+**Por qué ahora:** el primer cierre de mes real es el **10 de septiembre**. Esas tablas hoy están vacías, así que blindarlas no cuesta nada. Después del 10 sí cuesta.
+**Al terminar:** ningún dato con valor probatorio se puede cambiar sin dejar rastro.
+**De ti:** nada. **Duración:** 2 sesiones.
 
-**E3 · Diseño y cola de decisiones** — *1–2 sesiones · puede correr durante el congelamiento*
-La ficha del hecho de capital, el trinquete que impide que nazcan calculadoras nuevas, y las preguntas que falten, con sus números.
+---
 
-**E4 · El campo «analista que cierra»** — *2 sesiones*
-Se crea en el contrato, obligatorio en el alta, con selección explícita cuando registra un administrativo o un supervisor, y **reasignable con rastro**. Se rellena el histórico con la regla de respaldo (verificada: para agosto da el mismo ranking). Se marcan los dos contratos demo.
+### FASE 2 · Mirar el primer cierre de mes — *8 al 12 de septiembre*
+Semana de quietud: no se publica ni una sola modificación. Se observa que el cierre del día 10 corra bien y se guarda una copia de ese mes como referencia para verificar todo lo que venga después.
 
-**E5 · Núcleo de capital y sus pantallas** — *4–5 sesiones*
-La calculadora única + su puerta de autorización, y las 16 pantallas que hoy calculan capital pasan a consumirla, en tres tandas, cada una verificando que el número no cambie ni un céntimo.
+**Por qué:** si algo falla el 10, quiero saber que fue el cierre y no un cambio nuestro.
+**Al terminar:** el primer cierre real, ejecutado y observado.
+**De ti:** nada. **Duración:** media sesión de vigilancia.
 
-**E6 · Las dos funciones que sellan el mes** — *2 sesiones · antes del 03/10 o se espera un mes*
-Pasan a leer del núcleo. El cierre del 10/10 es su prueba de aceptación.
+---
 
-### Bloque C — el resto de la capa
+### FASE 3 · Que cada venta tenga dueño — *segunda mitad de septiembre*
+- Crear el campo **«analista que cierra»** en el contrato, obligatorio al registrar.
+- Cuando registra un administrativo o un supervisor, tiene que **elegir el analista**; si la venta no es de nadie, va a su nombre.
+- Poder **reasignar** después, dejando rastro de quién reasignó.
+- Rellenar el histórico con la regla de respaldo y **marcar los dos contratos demo** para que dejen de contar.
 
-**E7 · Núcleos de leads y citas** — *6–7 sesiones · octubre*
+**Al terminar:** el ranking de agosto en adelante es exacto, y ya no depende de quién tipeó.
+**De ti:** confirmar los casos dudosos del histórico. **Duración:** 2 sesiones.
 
-**E8 · Criterio único de producto seleccionable** — *1 sesión* (hoy escrito 3 veces; un cambio en una sola copia haría que CRM y portal ofrezcan catálogos distintos).
+---
 
-### Bloque D — saneamiento
+### FASE 4 · Una sola calculadora de capital — *fines de septiembre a principios de octubre*
+- Construir la calculadora única, que lee **contratos y cierres en cooperativas**, cuenta por fecha de inicio y descuenta lo anulado.
+- Pasar las **16 pantallas** que hoy calculan capital por su cuenta a consumirla, en tres tandas, verificando que ningún número cambie ni un céntimo.
+- Al final, las dos funciones que sellan el mes también leen de ahí — **antes del 3 de octubre**, porque el cierre del 10 de octubre es su prueba.
 
-**E9 · Cierre de superficie** — *1–2 sesiones · semana del 14/09, después del cierre de mes*
-Recortar permisos heredados de fábrica (incluido uno que la seguridad por filas no gobierna), unificar las políticas que repiten el chequeo de rol a mano, cerrar el borrado de cuotas sin rastro y aplicar el aviso en «eliminar cliente».
+**Al terminar:** gerencia, el supervisor y el analista ven siempre el mismo número, y cambiar una regla se hace en un solo lugar.
+**De ti:** las respuestas de la mesa de capital. **Duración:** 6–7 sesiones.
 
-**E10 · Modelo de datos** — *3–4 sesiones*
-Índices que faltan y los que sobran, campos obligatorios donde el dato ya está siempre, listas de valores con un solo punto de verdad, y el formato de documento (3 registros a corregir contigo).
+---
 
-**E11 · Retiros** — *2–3 sesiones · noviembre*
-Eliminar el catálogo de productos dormido y las funciones que nadie llama, siempre apagando primero y borrando después, con tu visto bueno pieza por pieza.
+### FASE 5 · Cerrar puertas — *mitad de septiembre, después del cierre*
+- Recortar permisos heredados de fábrica, incluido uno que permite vaciar tablas enteras sin que la seguridad por filas lo frene.
+- Cerrar el borrado de cuotas de pago sin rastro.
+- Poner el aviso en «eliminar cliente» antes de borrar.
+- Arreglar el alta de usuarios con pasaporte corto, que hoy falla.
 
-**E12 · El bug del pasaporte** — *media sesión, cuando quieras*
-Un pasaporte de 6 o 7 caracteres hoy no puede crear su cuenta.
+**Al terminar:** no queda ninguna puerta abierta que nadie esté usando.
+**De ti:** nada nuevo. **Duración:** 2 sesiones.
 
-### Bloque E — nomenclatura
+---
 
-**E13 · «Analista» en todo el sistema** — *alcance a confirmar (§5)*
-No se solapa con las etapas de capital: un renombre a mitad de una verificación de cifras haría imposible saber qué cambió un número.
+### FASE 6 · Las otras dos calculadoras — *octubre*
+Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugares). Y un solo criterio de «producto seleccionable», que hoy está escrito tres veces: si alguien lo ajusta en una sola copia, CRM y portal ofrecerían catálogos distintos sin que nadie se entere.
+
+**Al terminar:** las cuatro cifras del negocio tienen una sola fuente.
+**De ti:** nada. **Duración:** 7–8 sesiones.
+
+---
+
+### FASE 7 · Ordenar la casa — *noviembre*
+Índices que faltan y los que sobran, campos obligatorios donde el dato ya está siempre, listas de valores con un solo punto de verdad, corrección de 3 documentos que hoy quedan fuera de todo cruce, y retiro de lo que nadie usa (el catálogo de productos dormido incluido), siempre apagando primero y borrando después.
+
+**Al terminar:** el servidor no arrastra piezas muertas ni reglas duplicadas.
+**De ti:** una sesión corta para los 3 documentos y el visto bueno de cada retiro. **Duración:** 5–6 sesiones.
+
+---
+
+### FASE 8 · Un solo idioma — *cuando lo demás esté estable*
+«Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 2 de §7.
+
+**Al terminar:** el mismo concepto se llama igual en todas partes, y no vuelve a pasar lo que pasó en esta sesión.
+**De ti:** la decisión de alcance. **Duración:** depende del alcance.
 
 ---
 
