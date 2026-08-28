@@ -472,10 +472,17 @@ export function useMetricasAgenda(habilitada: boolean, desde: string, hasta: str
   })
 }
 
-export function useMetricasConversiones(habilitada: boolean, desde: string, hasta: string) {
+export function useMetricasConversiones(
+  habilitada: boolean,
+  desde: string,
+  hasta: string,
+  // Filtro de origen del lote (27/08): entra a la queryKey — cambiar el
+  // filtro es OTRA consulta, jamas un payload viejo bajo un rotulo nuevo.
+  origen: string | null = null,
+) {
   return useMetricaPorPeriodo({
-    queryKey: crmQueryKeys.metricasConversiones(desde, hasta),
-    cargar: (signal) => listarMetricasConversiones(desde, hasta, signal),
+    queryKey: [...crmQueryKeys.metricasConversiones(desde, hasta), origen ?? 'todos'],
+    cargar: (signal) => listarMetricasConversiones(desde, hasta, origen, signal),
     habilitada,
     desde,
     hasta,

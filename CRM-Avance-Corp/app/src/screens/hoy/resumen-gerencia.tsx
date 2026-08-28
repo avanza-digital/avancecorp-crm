@@ -38,6 +38,8 @@ import {
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
 import type { MetricasReuniones } from '@/lib/metricas-reuniones'
 import { lecturaCobertura } from '@/lib/conversion-mensual'
+import { etiquetaOrigen } from '@/lib/tipos'
+import { presentarCitas } from '@/lib/terminologia'
 
 interface ResumenGerenciaPanelProps {
   conversiones: MetricasConversiones | null | undefined
@@ -54,6 +56,10 @@ interface ResumenGerenciaPanelProps {
   cumplimiento: CumplimientoAgregado | null
   metaMensual: MetaMensualGerencia
   tc: { promedio: number, fuente: string } | null | undefined
+  /** Origen del lote aplicado a las lecturas del PERÍODO (null = todos). El
+   * héroe (mes de la empresa) y «Avance de metas» no se filtran: el chip lo
+   * dice para que las dos aguas no se confundan. */
+  origenFiltrado: string | null
   cargando: boolean
   error: string | null
   modoDemo: boolean
@@ -107,7 +113,7 @@ function ErrorResumen({ error, onReintentar }: { error: string; onReintentar: ()
   return (
     <div className="gi-card flex flex-wrap items-center justify-between gap-3 p-5" role="alert">
       <span className="flex items-center gap-2 text-sm font-semibold text-destructive">
-        <AlertTriangle className="size-4" /> {error}
+        <AlertTriangle className="size-4" /> {presentarCitas(error)}
       </span>
       <Button type="button" variant="outline" size="sm" onClick={onReintentar}>
         <RefreshCw /> Reintentar
@@ -125,6 +131,7 @@ export function ResumenGerenciaPanel({
   cumplimiento,
   metaMensual,
   tc,
+  origenFiltrado,
   cargando,
   error,
   modoDemo,
@@ -345,6 +352,11 @@ export function ResumenGerenciaPanel({
   return (
     <div className="space-y-4">
       {error && <ErrorResumen error={error} onReintentar={onReintentar} />}
+      {origenFiltrado != null && (
+        <p role="status" className="rounded-xl border border-[var(--gi-line)] bg-white px-4 py-2.5 text-xs font-semibold text-[var(--gi-navy)]">
+          Filtrando por origen: {etiquetaOrigen(origenFiltrado)} — aplica a las lecturas del período; la conversión del mes y las metas son de toda la empresa.
+        </p>
+      )}
       <section data-gi-hero className="gi-summary-hero">
         <div>
           <p className="gi-label text-white/65">Conversión del mes</p>
@@ -366,7 +378,7 @@ export function ResumenGerenciaPanel({
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-3">
           <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesTexto}</strong></div>
-          <div className="gi-hero-metric"><span>Reuniones</span><strong>{numeroDisponible(reunionesRealizadas)}</strong></div>
+          <div className="gi-hero-metric"><span>Citas</span><strong>{numeroDisponible(reunionesRealizadas)}</strong></div>
           <div className="gi-hero-metric">
             <span>Meta mensual · {metaMensual.etiqueta}</span>
             <strong>
@@ -389,7 +401,7 @@ export function ResumenGerenciaPanel({
             distinción con el divisor la explica el héroe, no este detalle. */}
         <Kpi label="Clientes que invirtieron" valor={numeroDisponible(clientes)} detalle={`de ${numeroDisponible(leads)} leads del período`} Icon={UserRoundCheck} color={C.green} />
         <Kpi label="Capital confirmado del mes" valor={capitalMesTexto} detalle={capitalMesDetalle} Icon={WalletCards} color={C.teal} />
-        <Kpi label="Reuniones realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando reuniones…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
+        <Kpi label="Citas realizadas" valor={numeroDisponible(reunionesRealizadas)} detalle={reunionesPactadas == null ? cargando ? 'Cargando citas…' : 'Dato no disponible' : `${numero(reunionesPactadas)} pactadas`} Icon={CalendarCheck} color={C.amber} />
       </div>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.35fr)_minmax(330px,.8fr)]">

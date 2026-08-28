@@ -43,6 +43,7 @@ import {
   type DetalleConversionMensual,
 } from '@/lib/conversion-vendedores'
 import type { MetricasConversiones } from '@/lib/metricas-conversiones'
+import { etiquetaOrigen } from '@/lib/tipos'
 import {
   capitalObjetivo,
   capitalReal,
@@ -71,6 +72,11 @@ interface InteligenciaComercialPanelProps {
    * del mes, mismo nombre y fuente que Metas. `null` = «—», jamás un 0 falso.
    */
   cumplimiento: CumplimientoAgregado | null
+  /** Origen del lote aplicado por el servidor (null = todos). Con filtro, las
+   * cifras de EMPRESA (capital confirmado, meta mensual) se retiran: mezclar
+   * un lote recortado con totales de toda la casa es la contradicción que
+   * Miguel vetó. El capital del lote filtrado sale de `origenes[]` (F1.3b). */
+  origenFiltrado: string | null
   equipo: ConversionEquipoVendedor[]
   metaConversion: number
   metasVendedores: ObjetivosPorVendedor
@@ -491,6 +497,7 @@ export function InteligenciaComercialPanel({
   datos,
   conversionMensual,
   cumplimiento,
+  origenFiltrado,
   equipo,
   metaConversion,
   metasVendedores,
@@ -591,37 +598,36 @@ export function InteligenciaComercialPanel({
   }), [etiquetas, valoresEvolucion, valoresRecibidos])
 
   const clientes = datos?.cohorte.contratos ?? 0
-  // F3.1 (decisión D2): la cifra principal es el NÚCLEO servido — la misma de
-  // HOY/Metas/Ranking — y la foto por cosecha es la segunda lectura. F3.4: si
-  // la sonda de paridad no confirmó (cuadra !== true), el número se oculta;
-  // sin bloque `nucleo` (espejo demo, deuda N4-N6) la pantalla degrada a la
-  // lectura por cosecha de siempre, rotulada como lo que es.
+  // La cifra grande de ESTA pantalla es EL BRUTO (decisión de Miguel, 27/08,
+  // tras su veto: «quiero ver solo lo que entró, así en bruto — lo que entró
+  // y lo que cerró»; la dualidad entró/base se leía como contradicción).
+  // Nombre de la casa: COSECHA — el que él mismo acuñó para la pestaña del
+  // Ranking. La «Conversión del mes» (núcleo ponderado) sigue reinando en
+  // HOY, Metas y Ranking; aquí ya no se pinta, aunque viaja en el payload
+  // para quien audite. Bruto = cohorte servida, sin exclusiones ni pesos.
   const nucleo = datos?.nucleo ?? null
   const sondasConv = datos?.sondas ?? null
-  const nucleoVisible = nucleo != null && sondasConv?.cuadra === true
-  const nucleoDescuadrado = nucleo != null && sondasConv?.cuadra === false
-  const conversion = nucleoVisible
-    ? nucleo.conversion_pct
-    : (datos?.cohorte.conversion_contratos_pct ?? null)
-  // Veto de Miguel (27/08): bajo la cifra NO va aritmética — ni «puntos» (son
-  // leads), ni el desglose ×peso + cartera, ni la cosecha, ni el capital por
-  // leads. Una sola línea, con la MISMA letra que el héroe del Resumen. El
-  // detalle fino sigue viajando en el payload para quien lo audite.
-  const cierresDelMes = nucleoVisible
-    ? nucleo.cierres_no_referidos + nucleo.cierres_referidos
-    : null
+  const cosechaLeads = datos?.cohorte.leads ?? 0
+  const cosechaCierres = datos?.cohorte.contratos ?? 0
+  const cosechaPct = datos?.cohorte.conversion_contratos_pct ?? null
   // Capital CONFIRMADO del mes (cumplimiento de cierres), no `produccion`:
   // ver la nota del prop `cumplimiento`. PEN y USD por separado — este panel
   // no consulta el tipo de cambio y la casa prohíbe sumarlos a ciegas.
   const capitalMesPen = cumplimiento == null ? null : capitalReal(cumplimiento, 'PEN')
   const capitalMesUsd = cumplimiento == null ? null : capitalReal(cumplimiento, 'USD')
+  const hayFiltroOrigen = origenFiltrado != null
+  // Capital del LOTE filtrado (lo que esos leads han producido hasta hoy):
+  // suma de origenes[], que el servidor ya recorto al origen elegido.
+  const capitalLotePen = origenes.reduce((total, fila) => total + fila.capital_pen, 0)
+  const capitalLoteUsd = origenes.reduce((total, fila) => total + fila.capital_usd, 0)
+  const kpiCapital = hayFiltroOrigen
+    ? { label: 'Capital del lote (hasta hoy)', valor: money(capitalLotePen, 'PEN'), detalle: capitalLoteUsd > 0 ? money(capitalLoteUsd, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
+    : { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber }
   const kpis = [
-    nucleoVisible
-      ? { label: 'Conversión del mes', valor: pct(conversion), detalle: `${numero(cierresDelMes ?? 0)} cierres`, icon: UserRoundCheck, color: C.blue }
-      : { label: 'Conversión', valor: nucleoDescuadrado ? '—' : pct(conversion), detalle: nucleoDescuadrado ? 'Cifras en revisión' : `${numero(clientes)} clientes`, icon: UserRoundCheck, color: C.blue },
+    { label: 'Cosecha del período', valor: pct(cosechaPct), detalle: `${numero(cosechaCierres)} cierres de ${numero(cosechaLeads)}`, icon: UserRoundCheck, color: C.blue },
     { label: 'Clientes que invirtieron', valor: numero(clientes), detalle: `de ${numero(datos?.cohorte.leads ?? 0)} leads del rango`, icon: UserRoundCheck, color: C.green },
     { label: 'Citas realizadas', valor: numero(datos?.cohorte.reuniones_realizadas ?? 0), detalle: `${numero(datos?.cohorte.reuniones_agendadas ?? 0)} pactadas`, icon: CalendarCheck, color: C.teal },
-    { label: 'Capital confirmado del mes', valor: capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN'), detalle: capitalMesPen == null ? 'Cumplimiento confirmado no disponible' : (capitalMesUsd ?? 0) > 0 ? money(capitalMesUsd ?? 0, 'USD') : 'Todo en soles', icon: WalletCards, color: C.amber },
+    kpiCapital,
   ]
 
   return (
@@ -636,41 +642,42 @@ export function InteligenciaComercialPanel({
       {cargando && !datos ? <Cargando /> : !datos && error ? null : !datos ? <Vacio /> : (
         <CardContent className="space-y-4 bg-[var(--gi-canvas)] p-4 sm:p-5">
           <section data-gi-hero className="gi-summary-hero">
-            {/* D2: cifra principal = NÚCLEO servido (la misma de HOY/Metas/
-                Ranking). Sin núcleo (demo) o con sonda en falso, la pantalla
-                degrada y lo dice — jamás un número fabricado. */}
+            {/* La cifra grande es EL BRUTO del período (cohorte servida):
+                entró tanto, cerró tanto. Decisión de Miguel 27/08 — la
+                Conversión del mes (núcleo) vive en HOY/Metas/Ranking. */}
             <div className="min-w-[280px]">
-              <p className="gi-label text-white/65">{nucleoVisible ? 'Conversión del mes' : 'Conversión a clientes'}</p>
-              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{nucleoDescuadrado ? '—' : pct(conversion)}</p>
+              <p className="gi-label text-white/65">Cosecha del período</p>
+              <p className="mt-2 text-6xl font-bold tracking-[-.05em] tabular-nums text-white sm:text-7xl">{pct(cosechaPct)}</p>
               <p className="mt-2 text-xs text-white/65">
-                {nucleoDescuadrado
-                  ? 'Cifras en revisión: la verificación interna del mes no cuadró.'
-                  : cierresDelMes != null && nucleoVisible
-                    ? `${numero(cierresDelMes)} cierres · base del mes: ${numero(nucleo.divisor)} leads asignados (los referidos cierran aparte, sin dividir)`
-                    : `${numero(clientes)} clientes de ${numero(datos.cohorte.leads)} leads del rango`}
+                Entraron {numero(cosechaLeads)} leads · cerraron {numero(cosechaCierres)}
+                {hayFiltroOrigen ? ` · origen: ${etiquetaOrigen(origenFiltrado ?? '')}` : ''}
               </p>
             </div>
             <div className="grid flex-1 gap-3 sm:grid-cols-3">
               <div className="gi-hero-metric"><span>Clientes</span><strong>{numero(clientes)}</strong></div>
-              <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN')}</strong></div>
-              <div className="gi-hero-metric"><span>Meta mensual · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
+              {/* Con filtro de origen, las cifras de EMPRESA se retiran del
+                  héroe: capital del mes y meta al lado de un lote recortado
+                  eran la contradicción vetada. */}
+              {hayFiltroOrigen ? (
+                <div className="gi-hero-metric"><span>Capital del lote</span><strong>{money(capitalLotePen, 'PEN')}</strong></div>
+              ) : (
+                <>
+                  <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN')}</strong></div>
+                  <div className="gi-hero-metric"><span>Meta mensual · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
+                </>
+              )}
             </div>
             {modoDemo && <span className="gi-demo-badge">Datos de ejemplo</span>}
           </section>
 
-          {/* F3.4: lo que dicen las sondas se dice — el descuadre además ocultó la cifra arriba. */}
-          {(nucleoDescuadrado
-            || (sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0)
+          {/* F3.4: lo que dicen las sondas se dice. (El aviso de descuadre del
+              núcleo se fue con el núcleo: esta pantalla ya pinta el BRUTO y a
+              esa cuenta la paridad del mes no la toca.) */}
+          {((sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0)
             || (sondasConv?.perfiles_con_leads_de_varios_vendedores ?? 0) > 0) && (
             <div className="flex items-start gap-2.5 rounded-2xl border border-amber-300/70 bg-amber-50 px-4 py-3" role="status">
               <AlertTriangle className="mt-0.5 size-4 shrink-0 text-amber-700" aria-hidden />
               <div className="text-xs leading-relaxed text-amber-900">
-                {nucleoDescuadrado && (
-                  <p className="font-semibold">
-                    Cifras en revisión: la verificación interna del mes no cuadró y la conversión del
-                    mes se oculta hasta revisarla.
-                  </p>
-                )}
                 {sondasConv != null && sondasConv.origen_ficha_distinto_del_ledger > 0 && (
                   <p>
                     {numero(sondasConv.origen_ficha_distinto_del_ledger)} {sondasConv.origen_ficha_distinto_del_ledger === 1 ? 'lead tiene' : 'leads tienen'} un origen distinto entre su ficha y el

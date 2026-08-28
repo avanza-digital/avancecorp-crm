@@ -30,6 +30,7 @@ function milisegundosHastaMedianocheLima(ahora: number): number {
 export function PeriodoGerenciaProvider({ children }: { children: ReactNode }): JSX.Element {
   const [periodo, setPeriodoInterno] = useState<PeriodoGerencia>(periodoInicialGerencia)
   const [diaLima, setDiaLima] = useState(() => fechaLima(Date.now()))
+  const [origenFiltrado, setOrigenFiltrado] = useState<string | null>(null)
   const automaticoRef = useRef(true)
   const setPeriodo = useCallback<Dispatch<SetStateAction<PeriodoGerencia>>>((actualizador) => {
     setPeriodoInterno((anterior) => {
@@ -56,6 +57,9 @@ export function PeriodoGerenciaProvider({ children }: { children: ReactNode }): 
     return () => clearTimeout(temporizador)
   }, [])
 
-  const value = useMemo(() => ({ periodo, setPeriodo, diaLima }), [diaLima, periodo, setPeriodo])
+  const value = useMemo(
+    () => ({ periodo, setPeriodo, diaLima, origenFiltrado, setOrigenFiltrado }),
+    [diaLima, origenFiltrado, periodo, setPeriodo],
+  )
   return <PeriodoGerenciaContext.Provider value={value}>{children}</PeriodoGerenciaContext.Provider>
 }

@@ -5769,6 +5769,9 @@ async function testMetricasConversionesGlobal(sessions) {
   );
   if (global) {
     check(global.data?.version === 1, 'el payload de conversiones declara version 1');
+    // Filtro de origen (28/08): la clave se declara SIEMPRE; sin filtro es null.
+    check(Object.hasOwn(global.data ?? {}, 'origen_filtrado') && global.data?.origen_filtrado === null,
+      'origen_filtrado se declara y es null sin filtro');
     // F1.3: produccion mide por los caminos vivos y declara sin_rastro. La
     // forma es EXACTA — un campo de mas es superficie sin auditar.
     const produccion = Object.keys(global.data?.produccion ?? {}).sort();
@@ -5821,6 +5824,49 @@ async function testMetricasConversionesGlobal(sessions) {
     check(directorio.data?.version === 1, 'el lector global recibe el mismo contrato');
   }
 
+  // ── A2 · filtro de origen (28/08): recorta el LOTE y se declara ──────────
+  const filtrado = await positive(
+    'gerencia filtra las conversiones por origen',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', { ...P, p_origen: 'referido' }),
+  );
+  if (filtrado) {
+    check(filtrado.data?.origen_filtrado === 'referido',
+      'el payload declara el origen filtrado');
+    const origenesFiltrados = (filtrado.data?.origenes ?? []).map((o) => o.origen);
+    check(origenesFiltrados.every((o) => o === 'referido'),
+      'origenes[] solo trae el origen elegido', origenesFiltrados.join(','));
+    check(num(filtrado.data?.cohorte?.leads) <= num(global?.data?.cohorte?.leads),
+      'el lote filtrado nunca supera al total');
+    // El nucleo NO se filtra (mide a la empresa; la pantalla no lo pinta con filtro).
+    check(num(filtrado.data?.nucleo?.divisor) === num(global?.data?.nucleo?.divisor),
+      'el nucleo del mes queda SIN filtrar (deliberado y documentado)');
+  }
+  // 'sin_origen' es rama propia del contrato (coalesce): lote de leads sin
+  // origen registrado, con forma estable.
+  const sinOrigen = await positive(
+    "gerencia filtra por 'sin_origen' (rama del coalesce)",
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', { ...P, p_origen: 'sin_origen' }),
+  );
+  if (sinOrigen) {
+    check(sinOrigen.data?.origen_filtrado === 'sin_origen',
+      "el payload declara 'sin_origen' como filtro");
+    check((sinOrigen.data?.origenes ?? []).every((o) => o.origen === 'sin_origen'),
+      'con sin_origen, origenes[] solo trae esa fila (o ninguna)');
+  }
+  // Un origen inventado devuelve el LOTE VACIO con la forma intacta — jamas
+  // un error ni un payload distinto (quien llega aqui ya ve todo; no hay
+  // nada que esconder, solo nada que mostrar).
+  const inventado = await positive(
+    'un origen inexistente devuelve lote vacio con forma estable',
+    sessions.gerencia.client.schema('crm').rpc('metricas_conversiones_fn', { ...P, p_origen: 'marte' }),
+  );
+  if (inventado) {
+    check(num(inventado.data?.cohorte?.leads) === 0 && (inventado.data?.origenes ?? []).length === 0,
+      'lote vacio: cohorte 0 y sin origenes');
+    check(inventado.data?.version === 1 && Object.hasOwn(inventado.data ?? {}, 'produccion'),
+      'la forma del payload sobrevive al lote vacio');
+  }
+
   // ── B · denegaciones DURAS (42501, jamas un payload de ceros) ─────────────
   // A diferencia de equipo_fn, aqui TAMBIEN los supervisores quedan fuera:
   // el gate es gerencia/lector global y nada mas.
@@ -5837,6 +5883,11 @@ async function testMetricasConversionesGlobal(sessions) {
   await expectExplicitAuthorizationDenied(
     'un supervisor recibe 42501 y NO 22023 con un periodo invalido',
     sessions.sup1.client.schema('crm').rpc('metricas_conversiones_fn', periodoInvalido),
+  );
+  // El gate tambien manda con el parametro nuevo: filtrar no abre puertas.
+  await expectExplicitAuthorizationDenied(
+    'un vendedor sigue denegado aunque pida p_origen',
+    sessions.vend1.client.schema('crm').rpc('metricas_conversiones_fn', { ...P, p_origen: 'referido' }),
   );
   await expectExpectedFailure(
     'gerencia recibe 22023 con p_hasta en el futuro',
@@ -6401,10 +6452,8 @@ async function testReparto(sessions, seed) {
     'sembrar la reunion pendiente del lead en bandeja',
     admin.schema('crm').from('tareas').insert({
       creado_por: sup1Id,
-      // `tareas_destino_reunion_coherente`: una reunion virtual EXIGE enlace
-      // (y una presencial, ubicacion). Una reunion sin canal seria
-      // 'sin_clasificar'; aqui se siembra completa para que el fixture sea una
-      // cita de verdad, no un caparazon que pase el check por omision.
+      // El enlace virtual ahora es opcional, pero este fixture conserva uno
+      // para seguir cubriendo la rama de lectura y exportación de URLs.
       enlace_reunion: 'https://meet.example.com/reencolado-transient',
       id: TRANSIENT_IDS.repartoTareaReencolada,
       lead_id: TRANSIENT_IDS.repartoLeadReencolado,

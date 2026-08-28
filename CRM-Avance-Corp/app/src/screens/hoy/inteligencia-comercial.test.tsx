@@ -45,6 +45,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={undefined}
         conversionMensual={null}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={15}
         metasVendedores={{}}
@@ -69,6 +70,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -129,6 +131,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={mensual}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -164,6 +167,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={40}
         metasVendedores={{ ...metas, 'demo-v1': { ...metaAna, conversionObjetivo: 40 } }}
@@ -195,6 +199,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={metricasConversionesDemo('2026-07-01', '2026-07-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={0}
         metasVendedores={{}}
@@ -236,6 +241,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
@@ -279,6 +285,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={datos}
         conversionMensual={null}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={[conversionEquipoDemo()[0]!]}
         metaConversion={15}
         metasVendedores={{}}
@@ -309,6 +316,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -341,6 +349,7 @@ describe('detalle de conversión por vendedor', () => {
         datos={metricasConversionesDemo('2026-08-01', '2026-08-31')}
         conversionMensual={sinDatos}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={metasConversionEquipoDemo()}
@@ -417,6 +426,7 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={{}}
@@ -434,21 +444,26 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
   it('con sonda verificada, el héroe pinta el NÚCLEO con su desglose y la cosecha aparte', () => {
     montarConNucleo({ ...SONDAS })
-    // «Conversión del mes» aparece en héroe y KPI: ambos con la MISMA cifra.
-    expect(screen.getAllByText('Conversión del mes').length).toBeGreaterThan(0)
-    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
-    // Veto de Miguel (27/08): bajo la cifra va UNA línea con la letra del
-    // Resumen — nada de «puntos», ni la fórmula ×peso+cartera, ni la cosecha.
-    expect(screen.getByText('17 cierres · base del mes: 537 leads asignados (los referidos cierran aparte, sin dividir)')).toBeInTheDocument()
+    // Decisión de Miguel (27/08): la cifra grande de ESTA pantalla es EL
+    // BRUTO — entró vs cerró — bajo el nombre de la casa «Cosecha del
+    // período». El núcleo (7.2%) viaja en el payload pero NO se pinta aquí.
+    expect(screen.getAllByText('Cosecha del período').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
+    expect(screen.getByText('Entraron 184 leads · cerraron 17')).toBeInTheDocument()
+    expect(screen.queryByText('7.2%')).not.toBeInTheDocument()
+    expect(screen.queryByText('Conversión del mes')).not.toBeInTheDocument()
     expect(screen.queryByText(/×0.15/)).not.toBeInTheDocument()
-    expect(screen.queryByText(/Por cosecha/)).not.toBeInTheDocument()
     expect(screen.queryByText(/puntos de/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/base del mes/)).not.toBeInTheDocument()
   })
 
-  it('F3.4: con la sonda en falso, la cifra SE OCULTA y el banner ámbar lo dice', () => {
+  it('la paridad del núcleo ya no gobierna esta pantalla: el BRUTO se pinta igual', () => {
+    // Antes (F3.4) el descuadre ocultaba la cifra del mes. La cifra de aquí
+    // es la cosecha bruta y la paridad no la toca — sin cifra oculta y sin
+    // banner de «Cifras en revisión» (HOY/Metas/Ranking conservan el suyo).
     montarConNucleo({ ...SONDAS, cuadra: false, paridad_nucleo: 2 })
-    expect(screen.queryByText('7.2%')).not.toBeInTheDocument()
-    expect(screen.getAllByText(/Cifras en revisión/).length).toBeGreaterThan(0)
+    expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
+    expect(screen.queryByText(/Cifras en revisión/)).not.toBeInTheDocument()
   })
 
   it('D6: el origen fuera de la base (Referido) se rotula bajo la gráfica', () => {
@@ -458,13 +473,13 @@ describe('cifra del núcleo en Conversiones (F3.1/D2 + F3.4)', () => {
 
   it('origen ficha≠ledger avisa sin ocultar la cifra', () => {
     montarConNucleo({ ...SONDAS, origen_ficha_distinto_del_ledger: 2 })
-    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.getByText(/origen distinto entre su ficha y el/)).toBeInTheDocument()
   })
 
   it('F1.3b: la sonda de perfiles compartidos avisa que el desglose puede sumar de más', () => {
     montarConNucleo({ ...SONDAS, perfiles_con_leads_de_varios_vendedores: 2 })
-    expect(screen.getAllByText('7.2%').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('9.2%').length).toBeGreaterThan(0)
     expect(screen.getByText(/2 clientes tienen leads de más de un vendedor/)).toBeInTheDocument()
     expect(screen.getByText(/puede sumar más que el total/)).toBeInTheDocument()
   })
@@ -484,6 +499,7 @@ describe('F1.3: capital por leads (veto de Miguel 27/08: fuera del héroe)', () 
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={{}}
@@ -515,6 +531,7 @@ describe('F1.3b: capital producido por origen', () => {
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={{}}
@@ -546,6 +563,7 @@ describe('F1.3b: capital producido por origen', () => {
         datos={datos}
         conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
         cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={null}
         equipo={conversionEquipoDemo()}
         metaConversion={25}
         metasVendedores={{}}
@@ -561,5 +579,55 @@ describe('F1.3b: capital producido por origen', () => {
     )
 
     expect(screen.queryByText(/Capital producido por origen/)).not.toBeInTheDocument()
+  })
+})
+
+describe('filtro de origen en Conversiones (27/08)', () => {
+  function montarConOrigen(origenFiltrado: string | null) {
+    const datos = metricasConversionesDemo('2026-08-01', '2026-08-27')
+    if (origenFiltrado != null) {
+      datos.origen_filtrado = origenFiltrado
+      datos.origenes = datos.origenes.filter((fila) => fila.origen === 'Referido')
+    }
+    render(
+      <InteligenciaComercialPanel
+        datos={datos}
+        conversionMensual={conversionMensualInteligenciaDemo(AHORA)}
+        cumplimiento={CUMPLIMIENTO_PANEL}
+        origenFiltrado={origenFiltrado}
+        equipo={conversionEquipoDemo()}
+        metaConversion={25}
+        metasVendedores={{}}
+        cumplimientoVendedores={{}}
+        metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
+        cargando={false}
+        error={null}
+        modoDemo
+        puedeAlternarEjemplo={false}
+        onAlternarEjemplo={vi.fn()}
+        onReintentar={vi.fn()}
+      />,
+    )
+  }
+
+  it('con filtro, las cifras de EMPRESA se retiran y entra el capital del LOTE', () => {
+    montarConOrigen('referido')
+    // El héroe rotula el origen y el lote reemplaza al capital/meta de empresa.
+    expect(screen.getByText(/origen: Referido/)).toBeInTheDocument()
+    expect(screen.queryByText('Capital del mes')).not.toBeInTheDocument()
+    expect(screen.queryByText(/Meta mensual ·/)).not.toBeInTheDocument()
+    expect(screen.queryByText('Capital confirmado del mes')).not.toBeInTheDocument()
+    // Capital del lote = origenes[] (Referido demo: 460.000 PEN + 60.000 USD).
+    expect(screen.getByText('Capital del lote (hasta hoy)')).toBeInTheDocument()
+    expect(screen.getAllByText(money(460_000, 'PEN')).length).toBeGreaterThan(0)
+    expect(screen.getByText(money(60_000, 'USD'))).toBeInTheDocument()
+  })
+
+  it('sin filtro, todo queda como siempre (empresa completa)', () => {
+    montarConOrigen(null)
+    expect(screen.getByText('Capital del mes')).toBeInTheDocument()
+    expect(screen.getByText('Capital confirmado del mes')).toBeInTheDocument()
+    expect(screen.queryByText(/Capital del lote/)).not.toBeInTheDocument()
+    expect(screen.queryByText(/origen: /)).not.toBeInTheDocument()
   })
 })

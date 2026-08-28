@@ -152,6 +152,9 @@ const SondasConversionesSchema = v.object({
 })
 
 export const MetricasConversionesSchema = v.object({
+  // Filtro de origen aplicado por el servidor (null/ausente = todos). Se
+  // declara SIEMPRE desde la migración del 28/08; opcional por servidores previos.
+  origen_filtrado: v.optional(v.nullable(v.string())),
   version: v.literal(1),
   generado_en: v.string(),
   periodo: PeriodoMetricasSchema,

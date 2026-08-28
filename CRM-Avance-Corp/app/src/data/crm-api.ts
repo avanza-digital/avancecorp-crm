@@ -125,6 +125,7 @@ import {
 } from '@/lib/ayuda-vendedor'
 import type { Vista } from '@/lib/router'
 import { EnteroNoNegativoRpcSchema, FechaSchema } from '@/lib/esquemas-rpc'
+import { presentarCitas } from '@/lib/terminologia'
 
 export type { DisponibilidadLead, ResultadoCreacionLeadAtomica, ResultadoTomaLead } from '@/lib/disponibilidad-lead'
 export type { RecordatorioDisponibilidad } from '@/lib/recordatorios-disponibilidad'
@@ -278,7 +279,7 @@ function avisarTopeAlcanzado(lectura: string, tope: number, recibidas: number): 
  * su mensaje genérico es de lectura y no sirve como feedback de una mutación.
  */
 export function mensajeDeError(e: unknown, porDefecto: string): string {
-  return e instanceof CrmApiError ? e.message : porDefecto
+  return presentarCitas(e instanceof CrmApiError ? e.message : porDefecto)
 }
 
 /**
@@ -3545,15 +3546,19 @@ export async function listarMetricasAgenda(
 export async function listarMetricasConversiones(
   desde: string,
   hasta: string,
+  origen: string | null = null,
   signal?: AbortSignal,
 ): Promise<MetricasConversiones> {
   if (!periodoMetricasValido(desde, hasta)) {
     throw new CrmApiError('El período de métricas no es válido.', 'PERIODO_METRICAS_INVALIDO')
   }
   lanzarAbortSiCorresponde(signal)
+  // p_origen viaja SOLO cuando hay filtro: un servidor previo a la firma de
+  // 3 argumentos seguiria resolviendo la llamada de 2 (PGRST202 evitado).
   let consulta = cliente().schema('crm').rpc('metricas_conversiones_fn', {
     p_desde: desde,
     p_hasta: hasta,
+    ...(origen != null ? { p_origen: origen } : {}),
   })
   if (signal) consulta = consulta.abortSignal(signal)
   const { data, error } = await consulta
@@ -3675,7 +3680,7 @@ export async function listarMetricasReuniones(
   const resultado = v.safeParse(MetricasReunionesSchema, data)
   if (!resultado.success || resultado.output.periodo.desde !== desde || resultado.output.periodo.hasta !== hasta) {
     const fallo = new CrmApiError(
-      'Las métricas de reuniones no tienen el formato esperado.',
+      'Las métricas de citas no tienen el formato esperado.',
       'METRICAS_REUNIONES_CONTRACT',
     )
     registrarError('crm.metricas.reuniones_fuera_de_contrato', fallo)

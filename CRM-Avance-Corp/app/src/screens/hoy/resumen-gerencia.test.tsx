@@ -204,6 +204,7 @@ describe('ranking general de vendedores', () => {
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -233,6 +234,7 @@ describe('ranking general de vendedores', () => {
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -258,6 +260,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -274,7 +277,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     expect(screen.getAllByText('Capital').length).toBeGreaterThan(0)
     expect(screen.queryByText('Capital PEN')).not.toBeInTheDocument()
     expect(screen.queryByText('Capital USD')).not.toBeInTheDocument()
-    expect(screen.getAllByText('Reuniones realizadas').length).toBeGreaterThan(0)
+    expect(screen.getAllByText('Citas realizadas').length).toBeGreaterThan(0)
     expect(screen.getByText('Aún no hay semanas para mostrar')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay vendedores medibles este mes')).toBeInTheDocument()
     expect(screen.getByText('Aún no hay orígenes con leads en este período')).toBeInTheDocument()
@@ -299,6 +302,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         meta={META_EQUIPO}
         cumplimiento={null}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -323,6 +327,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={undefined}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -348,6 +353,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         meta={META_EQUIPO}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error="No se pudieron cargar las reuniones."
@@ -356,7 +362,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
       />,
     )
 
-    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las reuniones.')
+    expect(screen.getByRole('alert')).toHaveTextContent('No se pudieron cargar las citas.')
     // El héroe y el KPI dicen LA conversión del MES — la del rango vive en Conversiones.
     const pctMes = `${numero(conversionMensualInteligenciaDemo(AHORA).total.conversion_pct!, 1)}%`
     expect(screen.getAllByText(pctMes).length).toBeGreaterThan(0)
@@ -367,7 +373,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
     // referidos + leads sin repartir, y el rótulo lo dice en vez de callarlo.
     expect(screen.getByText('11 cierres · base del mes: 39 leads asignados (los referidos cierran aparte, sin dividir)')).toBeInTheDocument()
     expect(screen.getByText(/leads del período/)).toBeInTheDocument()
-    const tarjetaReuniones = screen.getByText('Reuniones realizadas').closest('[data-gi-kpi]')
+    const tarjetaReuniones = screen.getByText('Citas realizadas').closest('[data-gi-kpi]')
     expect(tarjetaReuniones).toHaveTextContent('—')
     expect(tarjetaReuniones).toHaveTextContent('Dato no disponible')
   })
@@ -382,6 +388,7 @@ describe('estados vacíos del resumen de Gerencia', () => {
         meta={META_VACIA}
         cumplimiento={null}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -406,6 +413,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
         meta={META_VACIA}
         cumplimiento={null}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -432,6 +440,7 @@ describe('meta publicada de conversión en el resumen de Gerencia', () => {
         meta={META_VACIA}
         cumplimiento={null}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: false, errorCarga: true }}
         cargando={false}
         error={null}
@@ -468,6 +477,7 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
         meta={{ ...META_EQUIPO, conversionObjetivo: 40 }}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}
@@ -501,6 +511,7 @@ describe('un solo número bajo un solo nombre (conversión del mes)', () => {
         meta={{ ...META_EQUIPO, conversionObjetivo: 40 }}
         cumplimiento={CUMPLIMIENTO_EQUIPO}
         tc={TC_TEST}
+        origenFiltrado={null}
         metaMensual={{ etiqueta: 'agosto 2026', comparable: true }}
         cargando={false}
         error={null}

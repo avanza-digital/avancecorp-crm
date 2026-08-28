@@ -133,7 +133,7 @@ vi.mock('@/data/crm-queries', () => ({
     CONSULTAS.distribucion(...argumentos)
     return { data: undefined, error: null, isPending: false, isFetching: false, refetch: () => {} }
   },
-  useMetricasConversiones: (...argumentos: [boolean, string, string]) => {
+  useMetricasConversiones: (...argumentos: [boolean, string, string, string | null]) => {
     CONSULTAS.conversiones(...argumentos)
     return ESTADO_CONVERSIONES
   },
@@ -398,7 +398,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-07-01')
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-07-15')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15', null)
     expect(CONSULTAS.reuniones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
     expect(CONSULTAS.distribucion).toHaveBeenLastCalledWith(false, '2026-07-01', '2026-07-15')
   })
@@ -409,7 +409,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-07-01')
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-07-31')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-31')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-31', null)
   })
 
   it('cambia de mes exactamente a medianoche de Lima', () => {
@@ -417,7 +417,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-08-01')
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-08-01')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-01')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-08-01', '2026-08-01', null)
   })
 
   it('recalcula todas las consultas al aplicar otro rango', () => {
@@ -428,11 +428,11 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     // Editar solo cambia el borrador; ningún panel consulta el rango nuevo
     // hasta que Gerencia confirma con Aplicar.
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15', null)
     expect(CONSULTAS.reuniones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
     fireEvent.click(screen.getByRole('button', { name: 'Aplicar' }))
 
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30', null)
     expect(CONSULTAS.reuniones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30')
     expect(CONSULTAS.distribucion).toHaveBeenLastCalledWith(false, '2026-06-01', '2026-06-30')
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
@@ -445,7 +445,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('La fecha hasta no puede ser posterior a hoy en Lima.')
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15', null)
   })
 
   it('bloquea rangos que superan el límite aceptado por los RPC', () => {
@@ -455,7 +455,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByRole('alert')).toHaveTextContent('El rango no puede superar 365 días de diferencia.')
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-07-01', '2026-07-15', null)
   })
 
   it('conserva el rango aplicado entre vistas y descarta el borrador sin aplicar', () => {
@@ -491,7 +491,7 @@ describe('Hoy · gerencia — período del tablero', () => {
 
     expect(screen.getByLabelText('Desde')).toHaveValue('2026-06-01')
     expect(screen.getByLabelText('Hasta')).toHaveValue('2026-06-30')
-    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30')
+    expect(CONSULTAS.conversiones).toHaveBeenLastCalledWith(true, '2026-06-01', '2026-06-30', null)
     expect(screen.getByRole('button', { name: 'Aplicar' })).toBeDisabled()
   })
 })

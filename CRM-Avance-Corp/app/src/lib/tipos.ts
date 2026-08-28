@@ -5,7 +5,7 @@ import type { Rol } from './roles'
 export const ETAPAS = [
   { k: 'nuevo',              label: 'Nuevo',             color: '#8b95a7' },
   { k: 'contactado',         label: 'Contactado',        color: '#2563eb' },
-  { k: 'reunion_agendada',   label: 'Reunión agendada',  color: '#7c3aed' },
+  { k: 'reunion_agendada',   label: 'Cita agendada',     color: '#7c3aed' },
   { k: 'propuesta_enviada',  label: 'Propuesta enviada', color: '#d97706' },
 ] as const
 
@@ -128,6 +128,12 @@ export const ORIGENES_TODOS = [...ORIGENES, ...ORIGENES_HEREDADOS] as const
 
 export type Origen = (typeof ORIGENES_TODOS)[number]['k']
 
+/** Etiqueta legible de un origen para rótulos de filtro ('sin_origen' incluido). */
+export function etiquetaOrigen(k: string): string {
+  if (k === 'sin_origen') return 'Sin origen registrado'
+  return ORIGENES_TODOS.find((o) => o.k === k)?.label ?? k
+}
+
 /** Type guard para datos externos (Supabase/formularios): ¿origen del catálogo? */
 export function esOrigen(valor: unknown): valor is Origen {
   return typeof valor === 'string' && ORIGENES_TODOS.some((o) => o.k === valor)
@@ -152,7 +158,7 @@ export const CAT_LABEL: Record<CategoriaInteres, string> = Object.fromEntries(
 
 /** Labels es-PE de los tipos de evento de agenda (antes copiado en 2 pantallas). */
 export const TIPO_EVENTO: Record<string, string> = {
-  reunion: 'Reunión',
+  reunion: 'Cita',
   llamada: 'Llamada',
   whatsapp: 'WhatsApp',
   tarea: 'Tarea',
@@ -165,7 +171,7 @@ export const TIPO_EVENTO: Record<string, string> = {
 export const TIPOS_TAREA = [
   { k: 'llamada', label: 'Llamada' },
   { k: 'whatsapp', label: 'WhatsApp' },
-  { k: 'reunion', label: 'Reunión' },
+  { k: 'reunion', label: 'Cita' },
   { k: 'tarea', label: 'Tarea' },
 ] as const
 
@@ -294,7 +300,7 @@ export const TIPOS_ACTIVIDAD: Record<TipoActividad, string> = {
   llamada_no_contestada: 'Llamada no contestada',
   whatsapp_enviado: 'WhatsApp enviado',
   whatsapp_recibido: 'WhatsApp recibido',
-  reunion_realizada: 'Reunión realizada',
+  reunion_realizada: 'Cita realizada',
   nota: 'Nota',
   cambio_etapa: 'Cambio de etapa',
   reasignacion: 'Reasignación',

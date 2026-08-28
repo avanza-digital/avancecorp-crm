@@ -4700,3 +4700,25 @@ intacta. Medido contra la forma real antes de escribir: por origen oficina
 S/ 77.000 + US$ 3.000 · referido US$ 100.000 · por vendedor VLADIMIR JURADO
 S/ 107.000 + US$ 100.000, PEN cuadra exacto con produccion y cada contrato
 atribuye a UN solo vendedor (sin doble conteo, verificado).
+
+## 20260828003205 · `crm_filtro_origen_metricas_conversiones`
+
+✅ **APLICADA EN PROD** (2026-08-28 ~00:52 UTC, canal MCP; pre/postflight OK
+— md5 impl `b4875f18…`, wrapper `f6e43674…`; unicidad de sobrecarga, DEFINER/
+search_path, ACL owner-only + candado service_role verificados). Advisors:
+**0 ERROR** (fondo WARN/INFO preexistente). Medido en vivo como Carlos EN UNA
+MISMA transacción: sin filtro 607 leads / `origen_filtrado` null · referido →
+6 leads y 1 solo origen · oficina → 9 leads y capital S/ 77.000 · núcleo 599
+SIN filtrar (deliberado). Filtro de
+ORIGEN del lead (pedido de Miguel 27/08): `metricas_conversiones_fn` y su
+implementación aprenden `p_origen text default null` — con filtro, TODO el
+lote (cohorte/embudo/orígenes/categorías/responsables/tendencia) se recorta;
+'sin_origen' selecciona los sin registrar; núcleo y paridad SIGUEN midiendo a
+la empresa (deliberado, la pantalla ya no los pinta) y el payload declara
+`origen_filtrado` SIEMPRE. **Cambio de firma, NO borrado**: los DROP de las
+firmas de 2 args + CREATE de 3 con default van juntos porque dos sobrecargas
+volverían ambigua la llamada PostgREST; toda llamada existente resuelve
+idéntica. Autorización intacta; revoke cuádruple del histórico replicado.
+Auditoría RLS: **APROBADA** con menores, TODAS incorporadas antes de aplicar
+(candado service_role en postflight; matriz con denegado+p_origen,
+'sin_origen' y origen inventado→lote vacío con forma estable; esta fila).
