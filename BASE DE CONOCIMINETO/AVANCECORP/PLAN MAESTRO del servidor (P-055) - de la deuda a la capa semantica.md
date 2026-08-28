@@ -25,7 +25,7 @@ Los co-titulares de una cuenta mancomunada se pueden agregar o quitar sin que qu
 **5. Puertas abiertas heredadas.**
 Permisos que vinieron de fábrica y nunca se recortaron, funciones viejas que ya nadie llama, dos contratos de prueba contando como producción real, y montos sin protección justo antes del primer cierre de mes.
 
-**Por qué ahora:** el **10 de septiembre** es el primer cierre de mes real. Las tablas que hay que blindar están hoy vacías — hacerlo antes de esa fecha no cuesta nada; después, sí.
+**Por qué ahora:** se acerca el **primer cierre de mes real**. Las tablas que hay que blindar están hoy vacías — hacerlo antes de ese cierre no cuesta nada; después, sí.
 
 ---
 
@@ -145,17 +145,19 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 ## 7. El plan por fases
 
-### FASE 0 · Decidir — **HOY o este fin de semana**, no se toca nada
+*El plan no lleva fechas de calendario: lleva **orden** y **esfuerzo**. El único anclaje real es el cierre de mes, que corre el día 10 — dos fases dependen de él y está dicho en cada una. Todo lo demás avanza al ritmo que tú marques.*
+
+### FASE 0 · Decidir — bloquea todo lo demás
 Responder las **7 preguntas** de §8 —4 de capital y 3 estructurales— y aprobar el plan.
 
-**Por qué hoy y no «esta semana»:** hoy es viernes 28 y la Fase 1 tiene que estar en producción el 5 de septiembre. Si esto se corre, la Fase 1 entra al cierre a medio hacer.
+**Por qué hoy y no «esta semana»:** la Fase 1 tiene que estar publicada antes del próximo cierre de mes. Si esto se corre, la Fase 1 entra al cierre a medio hacer.
 **Por qué las de capital también van aquí:** decidir no compite con ejecutar. Se pueden contestar mientras corren las fases 1 a 3; si llegan recién cuando arranca la Fase 4, la Fase 4 arranca frenada.
 **Al terminar:** ninguna fase se detiene a mitad de camino esperando una respuesta.
 **De ti:** una conversación.
 
 ---
 
-### FASE 1 · Proteger lo que ya tienes — *antes del 5 de septiembre* ⏰
+### FASE 1 · Proteger lo que ya tienes — **antes del primer cierre de mes** ⏰
 - Que quede registro de quién agrega o quita un co-titular de una cuenta mancomunada. Hoy no queda ninguno, y es el dato con más peso legal del sistema.
 - Que quede registro de quién borra el historial de gestión de un cliente y quién borra cuotas de pago. Hoy tampoco.
 - Blindar los montos para que no pueda entrar un valor inválido al cronograma de pagos ni al cierre mensual.
@@ -163,22 +165,22 @@ Responder las **7 preguntas** de §8 —4 de capital y 3 estructurales— y apro
 - **Cerrar los permisos baratos que no tocan el portal vivo:** quitarle a los visitantes sin cuenta el acceso a 5 consultas de administración y el permiso de vaciar tablas enteras — ese último la seguridad por filas no lo gobierna. *(No filtran nada hoy: son de solo lectura y la seguridad por filas las deja en cero. Se adelantan porque cuestan cinco minutos, no porque estén sangrando.)*
 - **Poner guarda a la numeración de contratos.** El generador automático calcula «el último + 1» sin candado. *(Hoy es una rama muerta: los 466 contratos usan numeración manual, cero autogenerados. Se arregla ahora porque es chico, independiente, y el día que se encienda con dos altas simultáneas da un error feo al usuario.)*
 
-**Por qué ahora:** el primer cierre de mes real es el **10 de septiembre**. Esas tablas hoy están vacías, así que blindarlas no cuesta nada. Después del 10 sí cuesta.
+**Por qué ahora:** esas tablas hoy están vacías, así que blindarlas no cuesta nada. Una vez que el primer cierre las llene, sí cuesta.
 **Al terminar:** ningún dato con valor probatorio se puede cambiar sin dejar rastro.
 **De ti:** revisión y merge a producción. **Duración:** 2 sesiones.
 
 ---
 
-### FASE 2 · Mirar el primer cierre de mes — *8 al 12 de septiembre*
-Semana de quietud: no se publica ni una sola modificación. Se observa que el cierre del día 10 corra bien y se guarda una copia de ese mes como referencia para verificar todo lo que venga después.
+### FASE 2 · Mirar el primer cierre de mes — la semana del cierre
+Semana de quietud: no se publica ni una sola modificación. Se observa que el cierre corra bien y se guarda una copia de ese mes como referencia para verificar todo lo que venga después.
 
-**Por qué:** si algo falla el 10, quiero saber que fue el cierre y no un cambio nuestro.
+**Por qué:** si algo falla en el cierre, quiero saber que fue el cierre y no un cambio nuestro.
 **Al terminar:** el primer cierre real, ejecutado y observado.
 **De ti:** revisión y merge (ninguno esa semana, por diseño). **Duración:** media sesión de vigilancia.
 
 ---
 
-### FASE 3 · Que cada venta tenga dueño — *segunda mitad de septiembre*
+### FASE 3 · Que cada venta tenga dueño — después del cierre
 - Crear el campo **«analista que cierra»** en el contrato, obligatorio al registrar.
 - Cuando registra un administrativo o un supervisor, tiene que **elegir el analista**; si la venta no es de nadie, va a su nombre.
 - Poder **reasignar** después, dejando rastro de quién reasignó.
@@ -189,10 +191,10 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 
 ---
 
-### FASE 4 · Una sola calculadora de capital — *fines de septiembre a principios de octubre*
+### FASE 4 · Una sola calculadora de capital — después de la Fase 3
 - Construir la calculadora única, que lee **contratos y cierres en cooperativas**, cuenta por fecha de inicio y descuenta lo anulado.
 - Pasar las **16 pantallas** que hoy calculan capital por su cuenta a consumirla, en tres tandas, verificando que ningún número cambie ni un céntimo.
-- Al final, las dos funciones que sellan el mes también leen de ahí — **antes del 3 de octubre**, porque el cierre del 10 de octubre es su prueba.
+- Al final, las dos funciones que sellan el mes también leen de ahí — con una semana de margen antes de un cierre, porque ese cierre es su prueba de aceptación.
 
 - **El candado sale con esta fase, no después:** la prueba automática que impide que nazca una calculadora paralela se activa a medida que cada pantalla migra. Sin fecha ni dueño sería solo una intención, y es la pieza que evita volver aquí en seis meses.
 
@@ -201,7 +203,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 
 ---
 
-### FASE 5 · Cerrar puertas — *mitad de septiembre, después del cierre*
+### FASE 5 · Cerrar puertas — después del cierre, sin compartir su semana
 *(Lo barato y sin riesgo ya salió en la Fase 1. Aquí queda solo lo que toca el portal vivo y por eso no puede compartir semana con el estreno del cierre.)*
 - Recortar los permisos que sí usan las pantallas del portal, dejando exactamente lo que necesitan. Va con una prueba completa del portal con cuenta real el mismo día, y con la marcha atrás escrita antes de publicar.
 - Unificar las políticas de seguridad que repiten el chequeo de rol a mano en vez de usar la regla central.
@@ -213,7 +215,7 @@ Semana de quietud: no se publica ni una sola modificación. Se observa que el ci
 
 ---
 
-### FASE 6 · Las otras dos calculadoras — *octubre*
+### FASE 6 · Las otras dos calculadoras — después de la Fase 4
 Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugares). Y un solo criterio de «producto seleccionable», que hoy está escrito tres veces: si alguien lo ajusta en una sola copia, CRM y portal ofrecerían catálogos distintos sin que nadie se entere.
 
 **Al terminar:** las cuatro cifras del negocio tienen una sola fuente.
@@ -221,7 +223,7 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ---
 
-### FASE 7 · Ordenar la casa — *noviembre*
+### FASE 7 · Ordenar la casa — sin dependencia dura
 Índices que faltan y los que sobran, campos obligatorios donde el dato ya está siempre, listas de valores con un solo punto de verdad, corrección de 3 documentos que hoy quedan fuera de todo cruce, y retiro de lo que nadie usa (el catálogo de productos dormido incluido), siempre apagando primero y borrando después.
 
 **Al terminar:** el servidor no arrastra piezas muertas ni reglas duplicadas.
@@ -229,7 +231,7 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ---
 
-### FASE 8 · Un solo idioma — *cuando lo demás esté estable*
+### FASE 8 · Un solo idioma — al final de todo
 «Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 5 de §8.
 
 ⚠️ **Dos auditorías independientes recomiendan recortarla a la capa de presentación** (Codex y el auditor de Miguel, por separado): renombrar por dentro tiene radio de explosión alto —4 roturas de nivel P0, §6— y valor de negocio cero, porque nadie ve esos nombres. Sin recorte y sin fecha, esta fase queda abierta para siempre.
