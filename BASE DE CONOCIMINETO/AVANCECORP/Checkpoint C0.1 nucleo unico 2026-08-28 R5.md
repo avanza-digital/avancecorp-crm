@@ -1,12 +1,16 @@
 ---
 tags: [crm, conversion, c0-1, ficha-360, checkpoint, release, continuidad]
 actualizado: 2026-08-28
-estado: listo-para-aprobacion-deploy-sin-produccion
+estado: desplegado-y-verificado-en-produccion
 serial: AVC-F41-360-20260828-R5
 serial_origen: AVC-F41-360-20260828-R4
 rama: feature/c01-nucleo-unico-r5-20260828
 base_release_vivo: 03f2abce82a711614313b9fa9f733e1414ca3624
 merge_release_vivo: c5d6e09
+commit_fuente: d2ebf50b2a5394eb77813e8920c81595356075c3
+build_productivo: build-20260828T193547294Z
+zip_sha256: 4e4362f1a13eac9d8c95701c6b483de7bf8e841cc6a59206e3e8d6ba212f6ebc
+migracion_productiva: 20260828173154_crm_c0_1_metricas_vendedores_nucleo_unico.sql
 ---
 
 # Checkpoint C0.1 — núcleo único — R5
@@ -19,15 +23,18 @@ Este checkpoint reemplaza como punto vigente a
 
 ## Veredicto actual
 
-C0.1 quedó técnicamente preparado para aprobación y despliegue coordinado, pero
-**todavía no está aplicado ni publicado en producción**. La rama R5 integró el
-release F6 que estaba vivo (`03f2abc`) mediante el merge `c5d6e09`, por lo que
-el candidato no pierde cambios productivos anteriores.
+C0.1 está **aplicado, publicado y verificado en producción**. Desde el cierre
+del 2026-08-28 los asesores pueden usar Gestión de cartera y el equipo puede
+usar sus métricas con un único núcleo mensual. La rama R5 integró el release F6
+que estaba vivo (`03f2abc`) mediante el merge `c5d6e09`, por lo que el
+candidato no perdió cambios productivos anteriores.
 
 - Worktree aislado: `/private/tmp/crm-c01-nucleo-unico-r4-20260828`.
 - Rama: `feature/c01-nucleo-unico-r5-20260828`.
 - El árbol canónico sucio y su rama no fueron modificados.
-- No se aplicó DDL irreversible ni se desplegó el frontend a Hostinger.
+- Commit fuente del release: `d2ebf50b2a5394eb77813e8920c81595356075c3`.
+- La migración C0.1 quedó aplicada en Supabase y el frontend corregido quedó
+  desplegado en Hostinger.
 
 ## Base viva y compatibilidad SQL
 
@@ -57,9 +64,10 @@ La migración materializada es:
 SHA-256:
 `f232306bb088ec6e71bd3fcefd953fb4609f3f8d3e30e2ea916599f2ddd8bf14`.
 
-El historial local del repositorio no coincide con el remoto y no se reparó a
+El historial local del repositorio no coincidía con el remoto y no se reparó a
 ciegas. Se creó un directorio de release aislado desde `migration fetch`; el
-dry-run de `db push` propuso **una sola migración**, la de C0.1.
+dry-run de `db push` propuso **una sola migración**, la de C0.1. Se aplicó esa
+única migración y el dry-run posterior cerró `upToDate: true`.
 
 La reproducción integral desde cero llegó hasta la migración histórica
 `20260812000259_crm_cierres_externos.sql` y allí abortó porque su postflight
@@ -68,7 +76,7 @@ de replay histórico anterior a C0.1. La compatibilidad específica de C0.1 qued
 probada directamente sobre datos y esquema vivos mediante la transacción con
 rollback.
 
-## Rollback ejecutado
+## Rollback preparado y probado
 
 La reversa exacta vive en:
 
@@ -93,27 +101,77 @@ mensual completo, cartera obligatoria y Distribución V3. No se cambió lógica
 productiva en esa corrección.
 
 - `npm run check`: 182/182 archivos y 2.430/2.430 pruebas.
-- Cobertura: statements 75,19 %, branches 71,44 %, functions 73,54 % y lines
-  77,55 %.
+- Cobertura final: statements 75,34 %, branches 71,54 %, functions 73,56 % y
+  lines 77,73 %.
 - Lint, typecheck, build, bundle y duplicación verdes; permanecen cuatro avisos
   de accesibilidad preexistentes del carrusel y el aviso no bloqueante de chunk.
 - Playwright completo: 107 aprobadas, 26 omitidas por diseño y 0 fallos.
 
-## Gate productivo pendiente
+## Cierre productivo del 2026-08-28
 
-El orden seguro sigue siendo:
+La primera compilación `crm-20260828T182359Z-d2ebf50b2a53` (ZIP SHA-256
+`9e63a3898cc00a019d6c7d1dca0206fa0a090558234ca0bdadc5b5811776c859`)
+se invalidó: el worktree aislado no tenía el `app/.env` ignorado por Git y el
+smoke de Chrome detectó que el acceso con cuenta quedaba deshabilitado. Se
+revirtió inmediatamente el frontend al F6 exacto
+`crm-20260828T165035Z-03f2abce82a7.zip` (SHA-256
+`5d6b0de859168ababad1e079457e7048f05a4241cfc39ab108bb10b384deef9f`).
+La base C0.1 permaneció aplicada porque el puente F6 era compatible. No se
+filtró ninguna llave privilegiada: al primer artefacto le faltaba configuración
+pública.
 
-1. construir y verificar el release frontend puente desde un commit limpio;
-2. validar una preview y el smoke de roles;
-3. obtener aprobación expresa de Miguel sobre los hashes exactos del frontend,
-   la migración, el banco y el rollback;
-4. publicar el frontend en `crm.miavance.com` y comprobar hash servido;
-5. repetir el dry-run remoto y aplicar únicamente C0.1;
-6. hacer readback de hashes/ACL, PostgREST/JWT por rol, paridad, rendimiento y
-   logs; ante cualquier desviación, ejecutar la reversa exacta.
+Se copió al worktree solo el `.env` productivo ignorado, se validaron
+`VITE_SUPABASE_URL` y la llave pública/anon contra el project ref correcto,
+y se rechazó cualquier llave `service_role` o `secret`. El segundo
+`npm run check` volvió a cerrar verde con 182/182 archivos y 2.430/2.430
+pruebas. Miguel aprobó expresamente el ZIP corregido:
 
-Hasta completar esos pasos, los asesores siguen usando el frontend puente
-actual y C0.1 no debe declararse productivo.
+- Release: `crm-20260828T193547Z-d2ebf50b2a53`.
+- Build: `build-20260828T193547294Z`.
+- ZIP SHA-256:
+  `4e4362f1a13eac9d8c95701c6b483de7bf8e841cc6a59206e3e8d6ba212f6ebc`.
+- Manifiesto SHA-256:
+  `e245313605bd0ac9a6ea5747438463e4b49f9de7d2a485ab943a6664dd94247b`.
+- `index.html` SHA-256:
+  `0b7790759a43256841e98057ab81caa5cbcd0969dff736d80c5942a3cfb6bfba`.
+- `assets/index-BOt3HtRl.js` SHA-256:
+  `eb673e566542475eca79ba0d014d6683e7cddbefcfdf7d129b3a0267a259f9b3`.
+- Puente `assets/use-metricas-vendedores-operativas-BFg0dJTb.js` SHA-256:
+  `215ea43db224b4a1cdc4556b2ae3ab17a11ad49af39a2a37533a82f5ffe6a39f`.
+
+Hostinger publicó el ZIP corregido. `version.json`, `index.html`, el bundle
+principal, el puente, CSS y el chunk de API coincidieron byte a byte con el
+release aprobado; el ZIP público respondió 404. El bundle contiene el project
+ref y una llave pública/anon, sin `service_role` ni secretos.
+
+Readback final de Supabase:
+
+- `crm.metricas_vendedores_fn()`:
+  `md5(prosrc) = d8226991aba1783b042eaf087568ba49`.
+- `private.metricas_cartera_por_vendedor(date)`:
+  `md5(prosrc) = a5ec29bd68511a286a3d2ea4d316a9be`.
+- La migración `20260828173154` está registrada.
+- `authenticated` puede ejecutar la RPC y `anon` no.
+- La paridad JWT cerró por rol: gerencia 25 vendedores/2 equipos; supervisor
+  10/1; vendedor exactamente su propia fila; coordinador 0/0 con totales nulos,
+  sin inventar métricas.
+- Rendimiento observado: gerencia 66,584 ms; supervisor 61,611 ms; vendedor
+  53,069 ms; coordinador 5,336 ms; sin lecturas de disco ni temporales.
+
+Smoke final autenticado:
+
+- Mi cartera cargó datos reales sin errores.
+- Gestión de equipo cargó una tabla de 8 filas, etiquetas de conversión de
+  agosto de 2026, cero mensaje de fallo de métricas y cero errores/advertencias
+  de consola.
+- Ventana de logs posterior al release: API 100 eventos (95×200, 4×201 y
+  1×101), 54 RPC, 2 hits explícitos de métricas C0.1 y 0 respuestas 5xx; Auth
+  27/27 en nivel `info`; PostgreSQL sin errores relacionados con C0.1. El único
+  ERROR del intervalo fue una consulta ajena (`column "monto" does not exist`).
+
+Rollback SQL inmediato:
+`artifacts/sql-proposals/C0.1-metricas-vendedores-nucleo-unico.rollback.sql`.
+Rollback frontend probado: F6 exacto indicado arriba.
 
 Relacionado: [[Conversion mensual - definicion cerrada]],
 [[Deploy a Hostinger]], [[Ficha comercial 360 de clientes - plan]] y

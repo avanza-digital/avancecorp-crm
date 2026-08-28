@@ -33,6 +33,13 @@ mezcladas hasta la purga) y verificar con 3 lecturas consecutivas del sha.
 Mismo mecanismo, dominio distinto (**2026-07-10**, primer update por esta vía):
 
 1. Desde `CRM-Avance-Corp/`, ejecutar `npm run release:crm`. Construye la app y genera en `releases/` un ZIP del **contenido** de `dist/`, su manifiesto, hashes por archivo y SHA-256 del paquete. Por defecto exige un commit limpio.
+   - Un worktree limpio **no trae los archivos ignorados**, incluido
+     `app/.env`. Antes de construir, comprobar que existen
+     `VITE_SUPABASE_URL` y una llave pública/anon del project ref esperado;
+     rechazar `service_role`, `sb_secret` o cualquier llave privilegiada.
+   - Auditar el ZIP, no solo el árbol fuente: debe contener el project ref y
+     exactamente la configuración pública esperada, nunca secretos. La preview
+     debe mostrar el acceso con cuenta habilitado antes de autorizar el deploy.
 2. Verificar antes de desplegar: `npm run release:crm:verify -- releases/<release>.manifest.json`. Conservar ese release y el anterior fuera del web root. Resolver además el build que está vivo a su último manifiesto y exigir `git merge-base --is-ancestor <commit-vivo> <commit-candidato>`: si devuelve distinto de cero, ambas ramas son paralelas y deben integrarse antes de construir. Un artefacto limpio no prueba por sí solo que contenga todo lo que ya estaba publicado.
 3. `HOSTINGER_API_TOKEN="$(cat ~/.hostinger_token)" node _DEV_NO_SUBIR/deploy-hostinger-mcp.mjs deploy crm.miavance.com <zip>` — la tool resuelve el usuario del subdominio sola.
 4. Verificar: HTML en vivo referencia los hashes del build nuevo · asset nuevo responde 200 · el ZIP da 404 en `crm.miavance.com/` y en `miavance.com/` · smoke visual (login carga, sin errores de consola). El 404 del ZIP es una protección esperada; la trazabilidad vive en el manifiesto local persistente.
