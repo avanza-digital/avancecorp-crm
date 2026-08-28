@@ -26,7 +26,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, numero } from '@/lib/format'
+import { money, moneyCompacta, numero } from '@/lib/format'
 import type { ConversionEquipoVendedor } from '@/lib/conversion-equipo'
 import {
   descuentoArrastre,
@@ -659,11 +659,11 @@ export function InteligenciaComercialPanel({
                   héroe: capital del mes y meta al lado de un lote recortado
                   eran la contradicción vetada. */}
               {hayFiltroOrigen ? (
-                <div className="gi-hero-metric"><span>Capital del lote</span><strong>{money(capitalLotePen, 'PEN')}</strong></div>
+                <div className="gi-hero-metric"><span>Capital del lote</span><strong>{moneyCompacta(capitalLotePen, 'PEN')}</strong></div>
               ) : (
                 <>
-                  <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesPen == null ? '—' : money(capitalMesPen, 'PEN')}</strong></div>
-                  <div className="gi-hero-metric"><span>Meta mensual · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
+                  <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesPen == null ? '—' : moneyCompacta(capitalMesPen, 'PEN')}</strong></div>
+                  <div className="gi-hero-metric"><span>Meta · {metaMensual.etiqueta}</span><strong>{metaMensual.errorCarga ? 'No disponible' : metaMensual.comparable ? metaConversionVisual > 0 ? `${numero(metaConversionVisual, 1)}%` : 'Sin meta' : 'No comparable'}</strong></div>
                 </>
               )}
             </div>

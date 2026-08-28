@@ -91,6 +91,18 @@ export function moneyK(n: number | null | undefined, moneda: Moneda = 'PEN'): st
   return money(n, moneda)
 }
 
+/**
+ * Monto compacto para PASTILLAS estrechas (hero-metrics): millones como
+ * «S/ 4.70 M», miles via moneyK. La cifra exacta vive siempre en un KPI o
+ * detalle vecino — esto solo evita que el numero reviente el layout
+ * (captura de Miguel 27/08: «S/ 4,700,021.9» truncado en la pastilla).
+ */
+export function moneyCompacta(n: number | null | undefined, moneda: Moneda = 'PEN'): string {
+  if (n == null || !Number.isFinite(n)) return '—'
+  if (Math.abs(n) >= 1_000_000) return `${SIMBOLO[moneda]} ${(n / 1_000_000).toFixed(2)} M`
+  return moneyK(n, moneda)
+}
+
 /** Iniciales para avatar — nunca vacía. */
 export function iniciales(nombre: string | null | undefined): string {
   const limpio = (nombre ?? '').trim()

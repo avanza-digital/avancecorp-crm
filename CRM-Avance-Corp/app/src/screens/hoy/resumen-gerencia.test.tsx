@@ -287,7 +287,10 @@ describe('estados vacíos del resumen de Gerencia', () => {
     // al TC: 1.480.000 PEN + 96.000 USD × 3,5 = 1.816.000. Si esto vuelve a
     // decir S/ 0 o «Sin capital confirmado», la tarjeta volvió a la fuente rota.
     expect(screen.getByText('Capital confirmado del mes')).toBeInTheDocument()
-    expect(screen.getAllByText(money(1_816_000, 'PEN')).length).toBeGreaterThanOrEqual(2)
+    // El KPI lleva la cifra EXACTA; la pastilla del héroe, la compacta
+    // (S/ 1.82 M) — un monto de 7 dígitos reventaba el layout (captura 27/08).
+    expect(screen.getByText(money(1_816_000, 'PEN'))).toBeInTheDocument()
+    expect(screen.getByText('S/ 1.82 M')).toBeInTheDocument()
     expect(screen.queryByText(money(0, 'PEN'))).not.toBeInTheDocument()
     expect(screen.queryByText('Sin capital confirmado este mes')).not.toBeInTheDocument()
   })

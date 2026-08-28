@@ -19,7 +19,7 @@ import {
   mensajeMetaNoComparable,
   type MetaMensualGerencia,
 } from '@/components/gerencia/periodo'
-import { money, numero } from '@/lib/format'
+import { money, moneyCompacta, numero } from '@/lib/format'
 import { rotuloTipoCambio, totalEnSoles } from '@/lib/capital-unificado'
 import {
   capitalObjetivo,
@@ -377,10 +377,12 @@ export function ResumenGerenciaPanel({
           </p>
         </div>
         <div className="grid flex-1 gap-3 sm:grid-cols-3">
-          <div className="gi-hero-metric"><span>Capital del mes</span><strong>{capitalMesTexto}</strong></div>
+          {/* Pastilla ESTRECHA: monto compacto (el exacto vive en el KPI de
+              abajo). La captura de Miguel mostro «S/ 4,700,021.9» truncado. */}
+          <div className="gi-hero-metric"><span>Capital del mes</span><strong>{tcEnVuelo || capitalTotal.total == null ? '—' : moneyCompacta(capitalTotal.total, 'PEN')}</strong></div>
           <div className="gi-hero-metric"><span>Citas</span><strong>{numeroDisponible(reunionesRealizadas)}</strong></div>
           <div className="gi-hero-metric">
-            <span>Meta mensual · {metaMensual.etiqueta}</span>
+            <span>Meta · {metaMensual.etiqueta}</span>
             <strong>
               {metaMensual.errorCarga
                 ? 'No disponible'
