@@ -6,21 +6,44 @@ Producido con tres arquitecturas independientes, un crítico de cobertura y **un
 
 ---
 
-## 1. Resumen ejecutivo
+## 1. La problemática
 
-El servidor funciona, pero **la misma cifra se calcula en muchos lugares distintos** y **el mismo concepto tiene dos nombres**. Ese segundo problema no es cosmético: durante la sesión que produjo este plan, la doble nomenclatura «analista/vendedor» me hizo dar un diagnóstico comercial equivocado sobre datos correctos.
+El servidor funciona y el negocio opera. El problema no es que algo esté caído: es que **el sistema no tiene una sola versión de la verdad**, y eso ya empezó a costar decisiones.
 
-El plan tiene tres frentes:
+**1. La misma cifra se calcula en muchos lugares distintos.**
+El capital se calcula en **16 sitios**, la cantidad de leads en **21**, las citas en **6**. Cada pantalla lleva su propio cuaderno. Cuando dos no coinciden, nadie sabe cuál creer — y ya pasó dos veces este mes: el «Capital S/ 0» cuando había S/ 3,7 millones reales, y los dos contadores de leads que no cuadraban.
 
-1. **Cerrar la deuda que cuesta hoy** — un rastro de auditoría que falta sobre un dato legal, y la protección de los montos antes del primer cierre de mes del 10/09.
-2. **Construir la capa semántica** — una sola calculadora por cifra (capital, leads, citas), con una puerta única de autorización y pantallas que no calculan.
-3. **Unificar el idioma** — «analista» en todo el sistema.
+**2. Ninguna venta sabe quién la cerró.**
+El sistema guarda quién *registró* el contrato, no quién lo *vendió*. En la mayoría coincide, pero no siempre: hay contratos cargados por administración o gerencia por encargo de un analista. Mientras eso siga así, **el ranking no puede ser exacto** y una futura comisión se calcularía sobre un dato aproximado.
 
-**La pieza central es el capital**, y la auditoría de Codex dejó claro que el dato que hace falta **no existe todavía**: hay que crearlo.
+**3. El mismo concepto tiene dos nombres.**
+La misma persona es «analista» en el portal y «vendedor» en el CRM. No es cosmético: **en la sesión que produjo este plan, esa ambigüedad me hizo dar un diagnóstico comercial equivocado sobre datos correctos** — leí un grupo como si fueran dos.
+
+**4. Datos con peso legal que se pueden cambiar sin dejar rastro.**
+Los co-titulares de una cuenta mancomunada se pueden agregar o quitar sin que quede registro de quién ni cuándo, mientras el contrato al que pertenecen sí lo deja. Lo mismo con el borrado del historial de gestión de un cliente y con las cuotas de pago.
+
+**5. Puertas abiertas heredadas.**
+Permisos que vinieron de fábrica y nunca se recortaron, funciones viejas que ya nadie llama, dos contratos de prueba contando como producción real, y montos sin protección justo antes del primer cierre de mes.
+
+**Por qué ahora:** el **10 de septiembre** es el primer cierre de mes real. Las tablas que hay que blindar están hoy vacías — hacerlo antes de esa fecha no cuesta nada; después, sí.
 
 ---
 
-## 2. Decisiones tomadas por Miguel (2026-08-28)
+## 2. El objetivo
+
+Un servidor donde:
+
+- **Cada cifra tiene una sola calculadora.** Preguntar «cuánto cerramos este mes» tiene una única respuesta, igual en todas las pantallas, y cambiar una regla de negocio se hace en un solo lugar en vez de dieciséis.
+- **Cada venta tiene dueño.** Todo contrato sabe qué analista lo cerró, ese dato no se mueve solo, y se puede reasignar dejando rastro. El ranking de agosto en adelante es exacto y sirve para pagar comisiones.
+- **Nada con valor probatorio cambia sin dejar rastro.** Ante un reclamo, la historia se puede reconstruir.
+- **Todo se llama igual en todas partes.** Un solo idioma entre el CRM y el portal.
+- **Y no vuelve a degradarse:** una prueba automática impide que nazca una calculadora paralela o que se rompa el idioma. Es la diferencia entre una regla escrita y una regla que se aplica sola.
+
+Todo esto es **medible**: el §9 trae el tablero con el número de hoy y la meta de cada punto.
+
+---
+
+## 3. Decisiones tomadas por Miguel (2026-08-28)
 
 | # | Tema | Decisión |
 |---|---|---|
@@ -34,20 +57,20 @@ El plan tiene tres frentes:
 | 8 | **4 funciones esperando pantalla** | **Publicar las pantallas** (Mi cartera, Ficha 360°, período comercial). Salen de la lista de retiros. |
 | 9 | **Botón «eliminar cliente»** | **Avisar** qué se va a borrar antes de hacerlo. |
 | 10 | **Superadmin borrando perfiles** | **Queda abierto como hoy** — excepción consciente, con su consecuencia aceptada. |
-| 11 | **Nomenclatura** | **«analista» en todo el sistema**, CRM y portal. *(Ver §5: Codex recomienda acotar el alcance interno; requiere una decisión final.)* |
+| 11 | **Nomenclatura** | **«analista» en todo el sistema**, CRM y portal. *(Ver §6: Codex recomienda acotar el alcance interno; requiere decisión final.)* |
 | 12 | **Tablero por analista** | **Se abre**, verificado contra el cuadro de agosto. |
 | 13 | **Conexión `crm_metricas_bridge`** | No se sabe qué la usa → **investigar antes de retirar nada** que dependa de ella. |
 | 14 | **Arranque** | **Nada se ejecuta hasta aprobar este plan.** |
 
 ---
 
-## 3. Los hallazgos que cambiaron el plan
+## 4. Los hallazgos que cambiaron el plan
 
-### 3.1 La doble nomenclatura ya costó un diagnóstico
+### 4.1 La doble nomenclatura ya costó un diagnóstico
 
 17 personas tienen a la vez `perfiles.rol='analista'` (portal) y `crm.equipo.rol_crm='vendedor'` (CRM), más 2 analista+supervisor. **No son dos grupos: son el mismo equipo.** Leerlos como grupos distintos me llevó a afirmar que «el capital lo registra el back office» y que «el CRM no captura la venta nueva». **Las dos afirmaciones eran falsas y quedan retractadas.**
 
-### 3.2 Lo que Codex refutó de mi corrección
+### 4.2 Lo que Codex refutó de mi corrección
 
 | Afirmación mía | Veredicto de Codex |
 |---|---|
@@ -61,7 +84,7 @@ El plan tiene tres frentes:
 
 **Dato relevante:** hoy **no existe módulo de comisiones** en el servidor (0 tablas, 0 funciones). El ranking no está pagando plata todavía — hay margen para hacerlo bien antes de que lo haga.
 
-### 3.3 Cuánto se mueve el ranking según cómo se cuente
+### 4.3 Cuánto se mueve el ranking según cómo se cuente
 
 Producción de agosto de las tres primeras, según el criterio:
 
@@ -77,7 +100,7 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 ---
 
-## 4. El diseño del capital
+## 5. El diseño del capital
 
 **Las tres reglas de la capa:**
 1. **El núcleo no autoriza** — recibe la visibilidad resuelta, devuelve filas-hecho. En `private`, sin acceso desde la API.
@@ -97,7 +120,7 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 ---
 
-## 5. La campaña de nomenclatura — con el veredicto de Codex
+## 6. La campaña de nomenclatura — con el veredicto de Codex
 
 **Inventario corregido por Codex:** 10 columnas, 4 tablas, 13 funciones, 17 índices con el término en el nombre; **54 funciones** con el literal; **7 políticas** que comparan el valor (no 18: las otras solo lo mencionan); **3 CHECK** (no 6); 19 filas de equipo; 3 236 apariciones en 218 archivos del CRM (228 son literales, 3 008 son identificadores y textos). **El portal desplegable tiene 0 apariciones.**
 
@@ -120,10 +143,10 @@ De 210 contratos registrados en agosto, **92 empezaron antes** (S/ 2,61 M, el 42
 
 ---
 
-## 6. El plan por fases
+## 7. El plan por fases
 
 ### FASE 0 · Decidir — *esta semana, no se toca nada*
-Responder las 5 preguntas abiertas de §7 y aprobar el plan.
+Responder las 5 preguntas abiertas de §8 y aprobar el plan.
 **Al terminar:** el trabajo puede arrancar sin frenarse a mitad de camino.
 **De ti:** una conversación.
 
@@ -198,14 +221,14 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 ---
 
 ### FASE 8 · Un solo idioma — *cuando lo demás esté estable*
-«Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 2 de §7.
+«Analista» en todo el sistema. Va al final a propósito: hacerlo a mitad de una verificación de cifras haría imposible saber qué cambió un número. El alcance depende de tu respuesta a la pregunta 2 de §8.
 
 **Al terminar:** el mismo concepto se llama igual en todas partes, y no vuelve a pasar lo que pasó en esta sesión.
 **De ti:** la decisión de alcance. **Duración:** depende del alcance.
 
 ---
 
-## 7. Preguntas abiertas que faltan para cerrar el plan
+## 8. Preguntas abiertas que faltan para cerrar el plan
 
 1. **El filtro de roster mensual:** hoy el sistema excluye del mes a quien no estaba en la foto del equipo (8 contratos de agosto). ¿Se conserva esa regla en el núcleo nuevo?
 2. **El alcance final del renombre**, a la luz de lo que Codex encontró (§5).
@@ -215,7 +238,7 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ---
 
-## 8. Tablero (lo que mide que esto terminó)
+## 9. Tablero (lo que mide que esto terminó)
 
 | Contador | Hoy | Meta |
 |---|---|---|
@@ -235,7 +258,7 @@ Lo mismo que la fase 4, para el conteo de leads (21 lugares) y de citas (6 lugar
 
 ---
 
-## 9. Definición de terminado
+## 10. Definición de terminado
 
 1. Cada cifra tiene una sola calculadora, y una prueba automática impide que nazca otra.
 2. Cada contrato sabe qué analista lo cerró, y ese dato no se mueve solo.
