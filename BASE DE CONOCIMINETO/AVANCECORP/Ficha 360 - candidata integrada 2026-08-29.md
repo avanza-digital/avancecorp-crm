@@ -1,16 +1,19 @@
 ---
-tipo: checkpoint-integracion
-estado: candidata-local-verificada-no-desplegada
+tipo: cierre-deploy
+estado: desplegada-verificada
 fecha: 2026-08-29
 serial_continuidad: GC-ANALISTA-20260828-8DDF91B
-migracion: 20260829183627_crm_ficha_360_scope_historial
+migracion_fuente: 20260829183627_crm_ficha_360_scope_historial
+migracion_remota: 20260829195528_crm_ficha_360_scope_historial
+release: crm-20260829T195236Z-7cfc31bb8ea8
 ---
 
-# Ficha 360 — candidata integrada 2026-08-29
+# Ficha 360 — desplegada y verificada 2026-08-29
 
 Relacionado: [[Ficha 360 - plan de reintegracion sobre nucleo unico (2026-08-27)]],
 [[Ficha 360 R2 - aceptacion UX comercial 2026-08-27]],
 [[Deploy Gestión de cartera 2026-08-29]],
+[[Deploy Ficha 360 2026-08-29]],
 [[Terminología comercial del CRM]] y
 [[Auditoría backend Gestión de cartera 2026-08-28]].
 
@@ -26,8 +29,9 @@ Las acciones secundarias conservan la continuidad: al cerrar Gestión, alta,
 renovación o detalle de contrato, se reabre la misma Ficha 360 y el foco vuelve
 al siguiente contacto, a inversiones o al contrato que originó la acción.
 
-La candidata sigue aislada y producción permanece intacta. No hay autorización
-de deploy en este checkpoint.
+La versión integrada fue desplegada con autorización de Miguel. El servidor se
+actualizó primero, se leyó de vuelta y recién después se publicó el frontend.
+La Ficha 360 quedó disponible en producción para Analistas desde «Mi cartera».
 
 ## Reglas cerradas
 
@@ -58,10 +62,27 @@ de deploy en este checkpoint.
   build, bundle y duplicación aprobados.
 - Navegador: 111 E2E aprobados, 26 omitidos por diseño y 0 fallas.
 
-## Condición pendiente
+## Cierre de producción
 
-La migración agrega un trigger sobre `public.perfiles.asesor_perfil_id`. No
-cambia el esquema ni las policies de `public`, pero la regla del proyecto exige
-OK explícito de Miguel antes de aplicar cualquier objeto sobre `public`.
-Después de ese OK, el orden es servidor primero, readback/PostgREST, frontend y
-smokes autenticados por rol.
+- Migración remota aplicada: `20260829195528_crm_ficha_360_scope_historial`.
+- Build publicado: `build-20260829T195235854Z`.
+- Release fuente: `crm-20260829T195236Z-7cfc31bb8ea8`, commit `7cfc31bb8ea8`.
+- Las tres lecturas reales de la ficha respondieron HTTP 200: ficha mínima,
+  cuentas autorizadas y actividades del cliente.
+- El smoke autenticado abrió Ficha 360, entró al detalle de un contrato y
+  regresó a la ficha restaurando el foco en la acción de origen.
+- La matriz productiva confirmó: Analista propio permitido, Analista ajeno
+  bloqueado, Supervisor de equipo permitido, Gerencia y Directorio con lectura
+  global mínima, Coordinador bloqueado.
+- La migración F4 que ya estaba en el servidor permaneció presente y sus
+  objetos no fueron reemplazados.
+- Después se aplicaron `20260829200000_crm_f4_e_correcciones_codex` y
+  `20260829201500_crm_f4_f_cooperativas_en_todo`, seguidas por
+  `20260829202000_crm_f4_g_etiqueta_cooperativa`; el postflight completo, la
+  matriz de roles y el smoke se repitieron sobre el tren y Ficha 360 permaneció
+  intacta.
+- No se hicieron escrituras de negocio como parte del smoke productivo. El
+  trigger de reasignación quedó cubierto por el oráculo local destructivo.
+
+La evidencia completa, las huellas y la ruta de rollback están en
+[[Deploy Ficha 360 2026-08-29]].

@@ -5219,9 +5219,10 @@ operativo completo está en [[Deploy Gestión de cartera 2026-08-29]].
 
 ## 20260829183627 · `crm_ficha_360_scope_historial`
 
-🟢 **CANDIDATA LOCAL VERIFICADA · NO DESPLEGADA.** Reintegra la Ficha 360 como
-panel lateral de Mi cartera sobre el núcleo ya desplegado, sin portar en bloque
-la rama preview. Producción no fue modificada durante este desarrollo.
+🟢 **DESPLEGADA Y VERIFICADA EN PRODUCCIÓN EL 2026-08-29.** Reintegra la Ficha
+360 como panel lateral de Mi cartera sobre el núcleo ya desplegado, sin portar
+en bloque la rama preview. El registro remoto es
+`20260829195528_crm_ficha_360_scope_historial`.
 
 La migración es forward-only y hace cuatro cosas acotadas:
 
@@ -5235,9 +5236,8 @@ La migración es forward-only y hace cuatro cosas acotadas:
 - no redefine contratos, tareas, numeración, PDF ni writers de cartera.
 
 La única intervención sobre `public` es un trigger `AFTER UPDATE OF
-asesor_perfil_id` en `public.perfiles`; por la regla de este ledger requiere OK
-explícito de Miguel antes de deploy. No cambia columnas, constraints, policies
-ni privilegios de `public`.
+asesor_perfil_id` en `public.perfiles`; Miguel autorizó expresamente el deploy.
+No cambia columnas, constraints, policies ni privilegios de `public`.
 
 El oráculo forma parte del flujo del repositorio mediante
 `npm run test:ficha-360:db` y su preflight de solo lectura
@@ -5247,8 +5247,35 @@ eliminarla y ejecuta oráculo, `db lint` y advisors. Resultado final:
 `FICHA_360_SCOPE_LOCAL_OK`, `FICHA_360_DB_GATE_OK`, cero errores de esquema y
 cero findings de advisors en el banco autocontenido.
 
-Frontend verificado: 184/184 archivos y 2.484/2.484 unitarias, cobertura,
+Frontend verificado: 184/184 archivos y 2.489/2.489 unitarias, cobertura,
 typecheck, lint, build, bundle y duplicación verdes; Playwright completo con
-110 aprobadas, 26 omitidas por diseño y 0 fallas. La interfaz nueva usa
+111 aprobadas, 26 omitidas por diseño y 0 fallas. La interfaz nueva usa
 **Analista**; `rol_crm='vendedor'`, `vendedor_id`, `asesor_perfil_id` y
 `sin_asesor` permanecen únicamente como contratos técnicos heredados.
+
+Postflight productivo: la RPC expuesta quedó `SECURITY INVOKER`, `STABLE`, con
+`search_path` vacío, proyección mínima y ejecución solo para `authenticated` y
+`postgres`; los helpers privados conservaron ACL cerrada. La matriz read-only
+confirmó Analista propio permitido y ajeno bloqueado, Supervisor de equipo,
+Gerencia y Directorio permitidos en su alcance, y Coordinador bloqueado. La
+migración F4 que ya estaba aplicada permaneció presente. No se hicieron
+escrituras de negocio durante el smoke remoto; el trigger de reasignación fue
+cubierto por el oráculo local.
+
+Tras las migraciones posteriores `20260829200000_crm_f4_e_correcciones_codex`
+y `20260829201500_crm_f4_f_cooperativas_en_todo`, y después de
+`20260829202000_crm_f4_g_etiqueta_cooperativa`, se repitieron el catálogo de
+funciones, ACL, policies, triggers y la matriz read-only de seis casos: todo
+permaneció verde. También se recargó el frontend y las tres lecturas de Ficha
+360 volvieron a responder 200.
+
+Frontend publicado: `build-20260829T195235854Z`, release
+`crm-20260829T195236Z-7cfc31bb8ea8`, ZIP SHA-256
+`ba7516b1bb0b7d72e0dd117c7875deb2f881126ec021635e0eab13dfc2cbceb8`.
+El smoke autenticado abrió la ficha, obtuvo HTTP 200 de ficha mínima, cuentas y
+actividades, abrió un detalle de contrato y restauró la ficha y el foco al
+cerrarlo. No hubo excepciones de la aplicación ni terminología visible
+«Vendedor» o «Asesor». Chrome sí solicitó el recurso cosmético no declarado
+`/favicon.ico`, que respondió 404; el sitio usa `favicon.svg` y la omisión no
+afecta Ficha 360. El cierre detallado está en
+[[Deploy Ficha 360 2026-08-29]].
